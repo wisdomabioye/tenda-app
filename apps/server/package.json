@@ -1,0 +1,49 @@
+{
+  "name": "tenda-server",
+  "version": "1.0.0",
+  "description": "tenda server",
+  "main": "app.ts",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "npm run build:ts && tsc -p test/tsconfig.json && c8 node --test -r ts-node/register \"test/**/*.ts\"",
+    "start": "npm run build:ts && fastify start -l info dist/app.js",
+    "build:ts": "tsc",
+    "watch:ts": "tsc -w",
+    "dev": "npm run build:ts && concurrently -k -p \"[{name}]\" -n \"TypeScript,App\" -c \"yellow.bold,cyan.bold\" \"npm:watch:ts\" \"npm:dev:start\"",
+    "dev:start": "fastify start --ignore-watch=.ts$ -w -l info -P dist/app.js",
+    "type-check": "npx tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/autoload": "^6.0.0",
+    "@fastify/cors": "^11.2.0",
+    "@fastify/jwt": "^10.0.0",
+    "@fastify/rate-limit": "^10.3.0",
+    "@fastify/sensible": "^6.0.0",
+    "@solana/web3.js": "^1.98.4",
+    "@tenda/shared": "workspace:*",
+    "drizzle-orm": "^0.44.7",
+    "fastify": "^5.0.0",
+    "fastify-cli": "^7.4.1",
+    "fastify-plugin": "^5.0.0",
+    "postgres": "^3.4.8",
+    "tweetnacl": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.13",
+    "c8": "^10.1.2",
+    "concurrently": "^9.0.0",
+    "drizzle-kit": "^0.31.9",
+    "fastify-tsconfig": "^3.0.0",
+    "ts-node": "^10.4.0",
+    "typescript": "~5.9.2"
+  }
+}
