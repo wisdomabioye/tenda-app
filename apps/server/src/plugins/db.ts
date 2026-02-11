@@ -1,7 +1,9 @@
 import fp from 'fastify-plugin'
 import postgres from 'postgres'
 import { drizzle, PostgresJsDatabase } from 'drizzle-orm/postgres-js'
-import * as schema from '@tenda/shared/db/schema'
+import { users, gigs } from '@tenda/shared/db/schema'
+
+const schema = { users, gigs }
 
 declare module 'fastify' {
   interface FastifyInstance {
