@@ -9,6 +9,7 @@ import {
   IconButton,
   Chip,
   Spacer,
+  LiveChip,
 } from '@/components/ui'
 import { GigCard } from '@/components/gig'
 import { MOCK_CURRENT_USER, MOCK_GIGS, CATEGORY_META, type MockGig } from '@/data/mock'
@@ -64,7 +65,7 @@ export default function HomeScreen() {
                   Latest gigs, updated as they come in
                 </Text>
               </View>
-              <Chip label="Live" selected color={theme.colors.primary} />
+              <LiveChip label="Live" />
             </View>
 
             <Spacer size={spacing.md} />
