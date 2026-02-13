@@ -13,6 +13,7 @@ import type { ColorScheme } from '@/theme/tokens'
 interface GigCardCompactProps {
   gig: MockGig
   showStatus?: boolean
+  variant?: 'inline' | 'pill'
 }
 
 function getPosterName(posterId: string): string {
@@ -57,24 +58,33 @@ const s = StyleSheet.create({
   title: {
     marginTop: spacing.xs,
   },
-  metaRow: {
+  titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    marginTop: spacing.sm,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
+  pill: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: radius.full,
+    backgroundColor: 'transparent',
+  },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.md,
-    paddingTop: spacing.sm,
-    borderTopWidth: 1,
+    marginTop: spacing.sm,
   },
   poster: {
     flexDirection: 'row',
@@ -87,7 +97,7 @@ const s = StyleSheet.create({
   },
 })
 
-export function GigCardCompact({ gig, showStatus = false }: GigCardCompactProps) {
+export function GigCardCompact({ gig, showStatus = false, variant = 'inline' }: GigCardCompactProps) {
   const router = useRouter()
   const { theme } = useUnistyles()
   const categoryColorKey = getCategoryColor(gig.category) as keyof ColorScheme
@@ -110,37 +120,58 @@ export function GigCardCompact({ gig, showStatus = false }: GigCardCompactProps)
           <Text variant="caption" color={theme.colors.textSub}>
             {categoryLabel}
           </Text>
+          {showStatus && <GigStatusBadge status={gig.status} />}
         </View>
-        {showStatus && <GigStatusBadge status={gig.status} />}
+        <MoneyText amount={gig.payment} size={typography.sizes.lg} />
       </View>
 
       <Text variant="subheading" numberOfLines={2} style={s.title}>
         {gig.title}
       </Text>
 
-      <View style={s.metaRow}>
-        <View style={s.metaItem}>
-          <MapPin size={14} color={theme.colors.textFaint} />
-          <Text variant="caption" color={theme.colors.textSub}>
-            {gig.city}
-          </Text>
+      {variant === 'inline' ? (
+        <View style={s.metaRow}>
+          <View style={s.metaItem}>
+            <MapPin size={14} color={theme.colors.textFaint} />
+            <Text variant="caption" color={theme.colors.textSub}>
+              {gig.city}
+            </Text>
+          </View>
+          <View style={s.metaItem}>
+            <Clock size={14} color={theme.colors.textFaint} />
+            <Text variant="caption" color={theme.colors.textSub}>
+              {formatDeadline(gig.deadline)}
+            </Text>
+          </View>
         </View>
-        <View style={s.metaItem}>
-          <Clock size={14} color={theme.colors.textFaint} />
-          <Text variant="caption" color={theme.colors.textSub}>
-            {formatDeadline(gig.deadline)}
-          </Text>
+      ) : (
+        <View style={s.metaRow}>
+          <View style={[s.pill, { backgroundColor: theme.colors.muted }]}>
+            <View style={s.metaItem}>
+              <MapPin size={14} color={theme.colors.textFaint} />
+              <Text variant="caption" color={theme.colors.textSub}>
+                {gig.city}
+              </Text>
+            </View>
+          </View>
+          <View style={[s.pill, { backgroundColor: theme.colors.muted }]}>
+            <View style={s.metaItem}>
+              <Clock size={14} color={theme.colors.textFaint} />
+              <Text variant="caption" color={theme.colors.textSub}>
+                {formatDeadline(gig.deadline)}
+              </Text>
+            </View>
+          </View>
         </View>
-      </View>
+      )}
 
-      <View style={[s.footer, { borderTopColor: theme.colors.borderFaint }]}>
+      <View style={s.footer}>
         <View style={s.poster}>
           <Avatar size="sm" name={getPosterName(gig.poster_id)} />
           <Text variant="caption" weight="medium">
             {getPosterName(gig.poster_id)}
           </Text>
         </View>
-        <MoneyText amount={gig.payment} size={typography.sizes.lg} />
       </View>
     </Pressable>
   )

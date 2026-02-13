@@ -24,7 +24,7 @@ export default function HomeScreen() {
   const router = useRouter()
 
   const renderGigItem = ({ item }: { item: MockGig }) => (
-    <GigCardCompact gig={item} />
+    <GigCardCompact gig={item} variant="inline" />
   )
 
   return (

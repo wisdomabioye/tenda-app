@@ -48,7 +48,7 @@ export default function SearchScreen() {
   }
 
   const renderGigItem = ({ item }: { item: MockGig }) => (
-    <GigCardCompact gig={item} showStatus={false} />
+    <GigCardCompact gig={item} showStatus={false} variant="pill" />
   )
 
   return (
