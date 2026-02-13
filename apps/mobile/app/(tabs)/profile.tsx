@@ -21,6 +21,7 @@ import { Divider } from '@/components/ui/Divider'
 import { Badge } from '@/components/ui/Badge'
 import { Spacer } from '@/components/ui/Spacer'
 import { MOCK_CURRENT_USER, MOCK_GIGS } from '@/data/mock'
+import { Header } from '@/components/ui'
 
 const completedCount = MOCK_GIGS.filter(
   (g) => g.status === 'completed' && (g.poster_id === MOCK_CURRENT_USER.id || g.worker_id === MOCK_CURRENT_USER.id),
@@ -50,23 +51,16 @@ export default function ProfileScreen() {
 
   const walletShort = `${MOCK_CURRENT_USER.wallet_address.slice(0, 4)}...${MOCK_CURRENT_USER.wallet_address.slice(-4)}`
 
-  const menuItems: MenuItem[] = [
-    {
-      icon: Wallet,
-      label: 'Wallet',
-      value: walletShort,
-      onPress: () => {},
-    },
-    {
-      icon: Shield,
-      label: 'Security',
-      onPress: () => {},
-    },
-    {
-      icon: CircleHelp,
-      label: 'Help & Support',
-      onPress: () => {},
-    },
+  const accountItems: MenuItem[] = [
+    { icon: Wallet, label: 'Wallet', value: walletShort, onPress: () => {} },
+    { icon: Shield, label: 'Security', onPress: () => {} },
+  ]
+
+  const supportItems: MenuItem[] = [
+    { icon: CircleHelp, label: 'Help & Support', onPress: () => {} },
+  ]
+
+  const dangerItems: MenuItem[] = [
     {
       icon: LogOut,
       label: 'Disconnect',
@@ -79,74 +73,73 @@ export default function ProfileScreen() {
   ]
 
   return (
-    <ScreenContainer>
-      {/* Header */}
-      <View style={s.headerRow}>
-        <Text variant="heading">Profile</Text>
-        <IconButton
-          icon={<Settings size={22} color={theme.colors.text} />}
-          variant="ghost"
-          onPress={() => {}}
-        />
-      </View>
-
+    <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
+      <Header
+        title="Profile"
+        showBack
+        rightIcon={Settings}
+        onRightPress={() => {}}
+      />
       <Spacer size={spacing.lg} />
 
-      {/* Profile card */}
+      {/* Hero */}
       <Card variant="elevated">
-        <View style={s.profileCard}>
-          <Avatar
-            size="lg"
-            name={fullName}
-            src={MOCK_CURRENT_USER.avatar_url}
-          />
-          <Spacer size={spacing.md} />
-          <Text variant="subheading">{fullName}</Text>
-          <Spacer size={4} />
-          <View style={s.metaRow}>
-            <MapPin size={14} color={theme.colors.textSub} />
-            <Text variant="caption" color={theme.colors.textSub}>
-              {MOCK_CURRENT_USER.city ?? 'Unknown'}
-            </Text>
-          </View>
-          <Spacer size={4} />
-          <View style={s.metaRow}>
-            <Star size={14} color={theme.colors.warning} />
-            <Text variant="caption" color={theme.colors.textSub}>
-              {MOCK_CURRENT_USER.reputation_score ?? 0} reputation
-            </Text>
-          </View>
-        </View>
-
-        <Spacer size={spacing.md} />
-
-        {/* Stats */}
-        <View style={s.statsRow}>
-          <View style={s.statItem}>
-            <Text variant="subheading">{completedCount}</Text>
-            <Text variant="caption" color={theme.colors.textSub}>
-              Completed
-            </Text>
-          </View>
-          <View style={[s.statDivider, { backgroundColor: theme.colors.borderFaint }]} />
-          <View style={s.statItem}>
-            <Text variant="subheading">{activeCount}</Text>
-            <Text variant="caption" color={theme.colors.textSub}>
-              Active
-            </Text>
-          </View>
-          <View style={[s.statDivider, { backgroundColor: theme.colors.borderFaint }]} />
-          <View style={s.statItem}>
+        <View style={s.hero}>
+          <View style={[s.heroGlow, { backgroundColor: theme.colors.primaryTint }]} />
+          <View style={s.heroTop}>
+            <Avatar size="lg" name={fullName} src={MOCK_CURRENT_USER.avatar_url} />
+            <View style={s.heroMeta}>
+              <Text variant="subheading">{fullName}</Text>
+              <View style={s.metaRow}>
+                <MapPin size={14} color={theme.colors.textSub} />
+                <Text variant="caption" color={theme.colors.textSub}>
+                  {MOCK_CURRENT_USER.city ?? 'Unknown'}
+                </Text>
+              </View>
+              <View style={s.metaRow}>
+                <Star size={14} color={theme.colors.warning} />
+                <Text variant="caption" color={theme.colors.textSub}>
+                  {MOCK_CURRENT_USER.reputation_score ?? 0} reputation
+                </Text>
+              </View>
+            </View>
             <Badge variant="success" label="Verified" />
+          </View>
+
+          <Spacer size={spacing.md} />
+
+          <View style={s.walletRow}>
+            <Text variant="caption" color={theme.colors.textSub}>Wallet</Text>
+            <Text variant="label" weight="semibold">{walletShort}</Text>
           </View>
         </View>
       </Card>
 
       <Spacer size={spacing.lg} />
 
-      {/* Menu */}
+      {/* Stats strip */}
+      <View style={s.statsStrip}>
+        <Card variant="filled" padding={spacing.md} style={s.statCard}>
+          <Text variant="subheading">{completedCount}</Text>
+          <Text variant="caption" color={theme.colors.textSub}>Completed</Text>
+        </Card>
+        <Card variant="filled" padding={spacing.md} style={s.statCard}>
+          <Text variant="subheading">{activeCount}</Text>
+          <Text variant="caption" color={theme.colors.textSub}>Active</Text>
+        </Card>
+        <Card variant="filled" padding={spacing.md} style={s.statCard}>
+          <Text variant="subheading">{MOCK_CURRENT_USER.reputation_score ?? 0}</Text>
+          <Text variant="caption" color={theme.colors.textSub}>Reputation</Text>
+        </Card>
+      </View>
+
+      <Spacer size={spacing.lg} />
+
+      {/* Account */}
+      <Text variant="label" weight="semibold">Account</Text>
+      <Spacer size={spacing.sm} />
       <Card variant="outlined" padding={0}>
-        {menuItems.map((item, index) => (
+        {accountItems.map((item, index) => (
           <View key={item.label}>
             {index > 0 && <Divider spacing={0} />}
             <Pressable
@@ -157,16 +150,8 @@ export default function ProfileScreen() {
               ]}
             >
               <View style={s.menuLeft}>
-                <item.icon
-                  size={20}
-                  color={item.danger ? theme.colors.danger : theme.colors.text}
-                />
-                <Text
-                  variant="body"
-                  color={item.danger ? theme.colors.danger : theme.colors.text}
-                >
-                  {item.label}
-                </Text>
+                <item.icon size={20} color={theme.colors.text} />
+                <Text variant="body">{item.label}</Text>
               </View>
               <View style={s.menuRight}>
                 {item.value && (
@@ -174,12 +159,57 @@ export default function ProfileScreen() {
                     {item.value}
                   </Text>
                 )}
-                {!item.danger && (
-                  <ChevronRight size={18} color={theme.colors.textFaint} />
-                )}
+                <ChevronRight size={18} color={theme.colors.textFaint} />
               </View>
             </Pressable>
           </View>
+        ))}
+      </Card>
+
+      <Spacer size={spacing.lg} />
+
+      {/* Support */}
+      <Text variant="label" weight="semibold">Support</Text>
+      <Spacer size={spacing.sm} />
+      <Card variant="outlined" padding={0}>
+        {supportItems.map((item, index) => (
+          <View key={item.label}>
+            {index > 0 && <Divider spacing={0} />}
+            <Pressable
+              onPress={item.onPress}
+              style={({ pressed }) => [
+                s.menuItem,
+                pressed && { backgroundColor: theme.colors.surfacePressed },
+              ]}
+            >
+              <View style={s.menuLeft}>
+                <item.icon size={20} color={theme.colors.text} />
+                <Text variant="body">{item.label}</Text>
+              </View>
+              <ChevronRight size={18} color={theme.colors.textFaint} />
+            </Pressable>
+          </View>
+        ))}
+      </Card>
+
+      <Spacer size={spacing.lg} />
+
+      {/* Danger */}
+      <Card variant="outlined" padding={0}>
+        {dangerItems.map((item) => (
+          <Pressable
+            key={item.label}
+            onPress={item.onPress}
+            style={({ pressed }) => [
+              s.menuItem,
+              pressed && { backgroundColor: theme.colors.surfacePressed },
+            ]}
+          >
+            <View style={s.menuLeft}>
+              <item.icon size={20} color={theme.colors.danger} />
+              <Text variant="body" color={theme.colors.danger}>{item.label}</Text>
+            </View>
+          </Pressable>
         ))}
       </Card>
     </ScreenContainer>
@@ -187,34 +217,45 @@ export default function ProfileScreen() {
 }
 
 const s = StyleSheet.create({
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  hero: {
+    position: 'relative',
+    overflow: 'hidden',
   },
-  profileCard: {
+  heroGlow: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 160,
+    height: 160,
+    borderRadius: 80,
+    opacity: 0.6,
+  },
+  heroTop: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.md,
+  },
+  heroMeta: {
+    flex: 1,
+    gap: 4,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  statsRow: {
+  walletRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: spacing.md,
-    borderTopWidth: 1,
-    borderTopColor: 'transparent', // overridden inline
   },
-  statItem: {
+  statsStrip: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  statCard: {
     flex: 1,
     alignItems: 'center',
-    gap: 4,
-  },
-  statDivider: {
-    width: 1,
-    height: 32,
   },
   menuItem: {
     flexDirection: 'row',

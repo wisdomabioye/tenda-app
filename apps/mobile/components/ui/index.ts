@@ -1,5 +1,6 @@
 export { Text } from './Text'
 export { Button } from './Button'
+export { Header } from './Header'
 export { IconButton } from './IconButton'
 export { Card } from './Card'
 export { Badge } from './Badge'
