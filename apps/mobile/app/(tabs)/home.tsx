@@ -5,18 +5,16 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Bell } from 'lucide-react-native'
 import type { ColorScheme } from '@/theme/tokens'
 import { spacing } from '@/theme/tokens'
-import { 
+import {
   ScreenContainer,
   Text,
-  Avatar,
-  IconButton,
   Chip,
   Spacer,
   LiveChip,
 } from '@/components/ui'
 import { GigCard } from '@/components/gig'
 import { Drawer, DrawerHeader } from '@/components/navigation'
-import { MOCK_CURRENT_USER, MOCK_GIGS, CATEGORY_META, type MockGig } from '@/data/mock'
+import { MOCK_GIGS, CATEGORY_META, type MockGig, MOCK_CURRENT_USER } from '@/data/mock'
 
 const openGigs = MOCK_GIGS.filter((g) => g.status === 'open')
 
@@ -24,7 +22,6 @@ export default function HomeScreen() {
   const { theme } = useUnistyles()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const router = useRouter()
-  const displayName = MOCK_CURRENT_USER.first_name ?? 'there'
 
   const renderGigItem = ({ item }: { item: MockGig }) => (
     <GigCard gig={item} />
@@ -35,37 +32,18 @@ export default function HomeScreen() {
       isOpen={drawerOpen}
       onOpen={() => setDrawerOpen(true)}
       onClose={() => setDrawerOpen(false)}
-    >      
+    >
       <DrawerHeader
         title="Tenda"
         onMenuPress={() => setDrawerOpen(true)}
-        userImage={undefined}
-        userName={displayName}
-        onRightPress={() => (router.push('/(tabs)/profile'))}
+        rightIcon={Bell}
+        onRightPress={() => router.push('/(tabs)/notifications' as never)}
+        onAvatarPress={() => router.push('/(tabs)/profile' as never)}
+        userImage={MOCK_CURRENT_USER.avatar_url}
+        userName={`${MOCK_CURRENT_USER.first_name ?? ''} ${MOCK_CURRENT_USER.last_name ?? ''}`.trim()}
+        showAvatar
       />
       <ScreenContainer scroll={false} padding={false}>
-        {/* Header */}
-        <View style={[s.header, { borderBottomColor: theme.colors.borderFaint }]}>
-          <View style={s.headerLeft}>
-            <Avatar
-              size="md"
-              name={`${MOCK_CURRENT_USER.first_name} ${MOCK_CURRENT_USER.last_name}`}
-              src={MOCK_CURRENT_USER.avatar_url}
-            />
-            <View>
-              <Text variant="caption" color={theme.colors.textSub}>
-                Welcome back
-              </Text>
-              <Text variant="subheading">{displayName}</Text>
-            </View>
-          </View>
-          <IconButton
-            icon={<Bell size={22} color={theme.colors.text} />}
-            variant="secondary"
-            onPress={() => {}}
-          />
-        </View>
-
         <FlatList
           data={openGigs}
           keyExtractor={(item) => item.id}
@@ -121,7 +99,6 @@ export default function HomeScreen() {
         />
       </ScreenContainer>
     </Drawer>
-
   )
 }
 

@@ -13,6 +13,7 @@ interface DrawerHeaderProps {
   onMenuPress: () => void;
   rightIcon?: LucideIcon;
   onRightPress?: () => void;
+  onAvatarPress?: () => void;
   userImage?: string | null;
   userName?: string;
   showAvatar?: boolean;
@@ -22,6 +23,7 @@ export function DrawerHeader({
   onMenuPress,
   rightIcon: RightIcon,
   onRightPress,
+  onAvatarPress,
   userImage,
   userName,
   showAvatar = true,
@@ -69,27 +71,29 @@ export function DrawerHeader({
         contentFit="contain"
       />
 
-      {showAvatar ? (
-        <TouchableOpacity onPress={onRightPress} activeOpacity={0.7}>
-          <Avatar src={userImage} name={userName} size="lg" />
-        </TouchableOpacity>
-      ) : RightIcon ? (
-        <TouchableOpacity
-          onPress={onRightPress}
-          style={{
-            width: 44,
-            height: 44,
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: theme.radius.md,
-          }}
-          activeOpacity={0.7}
-        >
-          <RightIcon size={24} color={theme.colors.primary} />
-        </TouchableOpacity>
-      ) : (
-        <View style={{ width: 44 }} />
-      )}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+        {RightIcon && (
+          <TouchableOpacity
+            onPress={onRightPress}
+            style={{
+              width: 44,
+              height: 44,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderRadius: theme.radius.md,
+            }}
+            activeOpacity={0.7}
+          >
+            <RightIcon size={24} color={theme.colors.primary} />
+          </TouchableOpacity>
+        )}
+        {showAvatar && (
+          <TouchableOpacity onPress={onAvatarPress} activeOpacity={0.7}>
+            <Avatar src={userImage} name={userName} size="lg" />
+          </TouchableOpacity>
+        )}
+        {!showAvatar && !RightIcon && <View style={{ width: 44 }} />}
+      </View>
     </View>
   );
 }
