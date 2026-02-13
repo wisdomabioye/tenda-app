@@ -8,6 +8,9 @@ import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Chip } from '@/components/ui/Chip'
 import { Spacer } from '@/components/ui/Spacer'
+import { Card } from '@/components/ui/Card'
+import { Header } from '@/components/ui'
+
 import { CATEGORY_META } from '@/data/mock'
 import { SUPPORTED_CITIES } from '@tenda/shared'
 import type { ColorScheme } from '@/theme/tokens'
@@ -44,80 +47,88 @@ export default function PostGigScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Text variant="heading">Post a gig</Text>
+          <Header title="Post a gig" showBack />
+          <Spacer size={spacing.sm} />
           <Text variant="body" color={theme.colors.textSub}>
             Describe the task you need done
           </Text>
 
           <Spacer size={spacing.lg} />
 
-          {/* Title */}
-          <Input
-            label="Title"
-            placeholder="e.g. Deliver package to Victoria Island"
-            value={title}
-            onChangeText={setTitle}
-          />
+          {/* Details */}
+          <Card variant="outlined" padding={spacing.md}>
+            <Text variant="label" weight="semibold">Gig details</Text>
+            <Spacer size={spacing.sm} />
 
-          <Spacer size={spacing.md} />
+            <Input
+              label="Title"
+              placeholder="e.g. Deliver package to Victoria Island"
+              helper="Make it short and clear"
+              value={title}
+              onChangeText={setTitle}
+            />
 
-          {/* Description */}
-          <Input
-            label="Description"
-            placeholder="Describe the gig in detail..."
-            value={description}
-            onChangeText={setDescription}
-            multiline
-            numberOfLines={4}
-            style={s.multiline}
-          />
+            <Spacer size={spacing.md} />
 
-          <Spacer size={spacing.md} />
+            <Input
+              label="Description"
+              placeholder="Describe the gig in detail..."
+              helper="Include scope, timeline, and expectations"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={4}
+              style={s.multiline}
+            />
 
-          {/* Payment */}
-          <Input
-            label="Payment (Naira)"
-            placeholder="e.g. 5000"
-            value={payment}
-            onChangeText={setPayment}
-            keyboardType="numeric"
-          />
+            <Spacer size={spacing.md} />
+
+            <Input
+              label="Payment (₦)"
+              placeholder="e.g. 5000"
+              helper="Enter the amount you’re offering"
+              value={payment}
+              onChangeText={setPayment}
+              keyboardType="numeric"
+            />
+          </Card>
 
           <Spacer size={spacing.lg} />
 
-          {/* Category */}
-          <Text variant="label" weight="semibold">Category</Text>
-          <Spacer size={spacing.sm} />
-          <View style={s.chipGroup}>
-            {CATEGORY_META.map((cat) => {
-              const colorKey = `category${cat.label}` as keyof ColorScheme
-              return (
+          {/* Category & City */}
+          <Card variant="outlined" padding={spacing.md}>
+            <Text variant="label" weight="semibold">Category</Text>
+            <Spacer size={spacing.sm} />
+            <View style={s.chipGroup}>
+              {CATEGORY_META.map((cat) => {
+                const colorKey = `category${cat.label}` as keyof ColorScheme
+                return (
+                  <Chip
+                    key={cat.key}
+                    label={cat.label}
+                    selected={selectedCategory === cat.key}
+                    color={theme.colors[colorKey]}
+                    onPress={() => setSelectedCategory(cat.key)}
+                  />
+                )
+              })}
+            </View>
+
+            <Spacer size={spacing.lg} />
+
+            <Text variant="label" weight="semibold">City</Text>
+            <Spacer size={spacing.sm} />
+            <View style={s.chipGroup}>
+              {SUPPORTED_CITIES.map((city) => (
                 <Chip
-                  key={cat.key}
-                  label={cat.label}
-                  selected={selectedCategory === cat.key}
-                  color={theme.colors[colorKey]}
-                  onPress={() => setSelectedCategory(cat.key)}
+                  key={city}
+                  label={city}
+                  selected={selectedCity === city}
+                  onPress={() => setSelectedCity(city)}
                 />
-              )
-            })}
-          </View>
-
-          <Spacer size={spacing.lg} />
-
-          {/* City */}
-          <Text variant="label" weight="semibold">City</Text>
-          <Spacer size={spacing.sm} />
-          <View style={s.chipGroup}>
-            {SUPPORTED_CITIES.map((city) => (
-              <Chip
-                key={city}
-                label={city}
-                selected={selectedCity === city}
-                onPress={() => setSelectedCity(city)}
-              />
-            ))}
-          </View>
+              ))}
+            </View>
+          </Card>
 
           <Spacer size={spacing['2xl']} />
 
