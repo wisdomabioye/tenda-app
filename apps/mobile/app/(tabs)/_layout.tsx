@@ -18,7 +18,16 @@ function TabIcon({ icon, focused }: TabIconProps) {
   const { theme } = useUnistyles()
 
   return (
-    <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.primaryTint }]}>
+    <View
+      style={[
+        s.iconWrap,
+        focused && {
+          backgroundColor: theme.colors.primaryTint,
+          borderColor: theme.colors.primary,
+          ...shadows.sm,
+        },
+      ]}
+    >
       {icon}
     </View>
   )
@@ -28,7 +37,7 @@ export default function TabsLayout() {
   const { theme } = useUnistyles()
   const insets = useSafeAreaInsets()
 
-  const tabBarHeight = 72 + insets.bottom
+  const tabBarHeight = 78 + insets.bottom
 
   return (
     <Tabs
@@ -38,17 +47,17 @@ export default function TabsLayout() {
         tabBarInactiveTintColor: theme.colors.textFaint,
         tabBarLabelStyle: {
           fontFamily: typography.fonts.body.bold,
-          fontSize: 11,
-          marginTop: 4,
+          fontSize: 12,
+          marginTop: 6,
         },
         tabBarStyle: {
           backgroundColor: theme.colors.background,
           borderTopColor: theme.colors.borderFaint,
           borderTopWidth: 1,
           height: tabBarHeight,
-          paddingTop: 8,
+          paddingTop: 10,
           paddingBottom: insets.bottom,
-          ...shadows.sm,
+          ...shadows.md,
         },
       })}
     >
@@ -108,18 +117,20 @@ export default function TabsLayout() {
 
 const s = StyleSheet.create({
   iconWrap: {
-    width: 40,
-    height: 32,
+    width: 52,
+    height: 38,
     borderRadius: radius.xl,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
   postIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
-    ...shadows.md,
+    ...shadows.lg,
   },
 })

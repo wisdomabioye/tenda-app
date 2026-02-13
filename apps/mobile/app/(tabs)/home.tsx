@@ -1,15 +1,15 @@
 import { View, FlatList, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Bell } from 'lucide-react-native'
-import { spacing, typography } from '@/theme/tokens'
-import { ScreenContainer } from '@/components/ui/ScreenContainer'
-import { Text } from '@/components/ui/Text'
-import { Avatar } from '@/components/ui/Avatar'
-import { IconButton } from '@/components/ui/IconButton'
-import { Card } from '@/components/ui/Card'
-import { Chip } from '@/components/ui/Chip'
-import { MoneyText } from '@/components/ui/MoneyText'
-import { Spacer } from '@/components/ui/Spacer'
+import { spacing } from '@/theme/tokens'
+import { 
+  ScreenContainer,
+  Text,
+  Avatar,
+  IconButton,
+  Chip,
+  Spacer,
+} from '@/components/ui'
 import { GigCard } from '@/components/gig'
 import { MOCK_CURRENT_USER, MOCK_GIGS, CATEGORY_META, type MockGig } from '@/data/mock'
 import type { ColorScheme } from '@/theme/tokens'
@@ -56,33 +56,18 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <>
-            {/* Stats overview */}
-            <Card variant="filled" padding={spacing.md}>
-              <View style={s.statsRow}>
-                <View style={s.statItem}>
-                  <Text variant="caption" color={theme.colors.textSub}>
-                    Balance
-                  </Text>
-                  <MoneyText amount={2450000} size={typography.sizes.xl} />
-                </View>
-                <View style={[s.statDivider, { backgroundColor: theme.colors.borderFaint }]} />
-                <View style={s.statItem}>
-                  <Text variant="caption" color={theme.colors.textSub}>
-                    Active
-                  </Text>
-                  <Text variant="subheading">3</Text>
-                </View>
-                <View style={[s.statDivider, { backgroundColor: theme.colors.borderFaint }]} />
-                <View style={s.statItem}>
-                  <Text variant="caption" color={theme.colors.textSub}>
-                    Done
-                  </Text>
-                  <Text variant="subheading">12</Text>
-                </View>
+            {/* Feed intro */}
+            <View style={s.feedIntro}>
+              <View>
+                <Text variant="subheading">Feed</Text>
+                <Text variant="caption" color={theme.colors.textSub}>
+                  Latest gigs, updated as they come in
+                </Text>
               </View>
-            </Card>
+              <Chip label="Live" selected color={theme.colors.primary} />
+            </View>
 
-            <Spacer size={spacing.lg} />
+            <Spacer size={spacing.md} />
 
             {/* Categories */}
             <Text variant="subheading">Categories</Text>
@@ -138,18 +123,10 @@ const s = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
   },
-  statsRow: {
+  feedIntro: {
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  statItem: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 4,
-  },
-  statDivider: {
-    width: 1,
-    height: 36,
+    justifyContent: 'space-between',
   },
   categories: {
     flexDirection: 'row',
