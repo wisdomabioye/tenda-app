@@ -1,5 +1,5 @@
 import { View, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, usePathname } from 'expo-router';
 import { useUnistyles } from 'react-native-unistyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
@@ -21,6 +21,7 @@ interface MobileNavItem {
   name: string;
   route: string;
   icon: LucideIcon;
+  description?: string;
 }
 
 interface MobileNavSection {
@@ -33,11 +34,11 @@ function getMobileNavConfig(): MobileNavSection[] {
     {
       title: 'Main',
       items: [
-        { name: 'Home', route: '/(tabs)/home', icon: Home },
-        { name: 'My Gigs', route: '/(tabs)/my-gigs', icon: ClipboardList },
-        { name: 'Post Gig', route: '/(tabs)/post', icon: PlusCircle },
-        { name: 'Messages', route: '/(tabs)/messages', icon: MessageSquare },
-        { name: 'Wallet', route: '/(tabs)/wallet', icon: Wallet },
+        { name: 'Home', route: '/(tabs)/home', icon: Home, description: 'Browse gigs' },
+        { name: 'My Gigs', route: '/(tabs)/my-gigs', icon: ClipboardList, description: 'Posted & Accepted' },
+        { name: 'Post Gig', route: '/(tabs)/post', icon: PlusCircle, description: 'Create new' },
+        { name: 'Messages', route: '/(tabs)/messages', icon: MessageSquare, description: 'Chat (future)' },
+        { name: 'Wallet', route: '/(tabs)/wallet', icon: Wallet, description: 'Balance & Withdrawals' },
       ],
     },
     {
@@ -47,9 +48,9 @@ function getMobileNavConfig(): MobileNavSection[] {
         { name: 'Notifications', route: '/(tabs)/notifications', icon: Bell },
         { name: 'Language', route: '/(tabs)/language', icon: Languages },
         { name: 'Currency (₦/USD)', route: '/(tabs)/currency', icon: Banknote },
-        { name: 'How It Works', route: '/(tabs)/how-it-works', icon: FileText },
-        { name: 'Help & Support', route: '/(tabs)/help', icon: CircleHelp },
-        { name: 'Invite Friends', route: '/(tabs)/invite', icon: Users },
+        { name: 'How It Works', route: '/(tabs)/how-it-works', icon: FileText, description: 'Tutorial' },
+        { name: 'Help & Support', route: '/(tabs)/help', icon: CircleHelp, description: 'FAQs' },
+        { name: 'Invite Friends', route: '/(tabs)/invite', icon: Users, description: 'Referral' },
       ],
     },
     {
@@ -72,6 +73,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const pathname = usePathname();
   const user = MOCK_CURRENT_USER;
   const navigation = getMobileNavConfig();    
 
@@ -136,7 +138,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
           }}
           activeOpacity={0.7}
         >
-          <X size={18} color={theme.colors.primary} />
+          <X size={18} color={theme.colors.text} />
         </TouchableOpacity>
       </View>
 
@@ -161,7 +163,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
             style={{
               fontSize: theme.typography.sizes.base,
               fontFamily: theme.typography.fonts.display.semibold,
-              color: theme.colors.primary,
+              color: theme.colors.text,
             }}
           >
             {user?.first_name} {user?.last_name}
@@ -169,7 +171,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
           <Text
             style={{
               fontSize: theme.typography.sizes.sm,
-              color: theme.colors.primaryTint,
+              color: theme.colors.textSub,
               textTransform: 'capitalize',
             }}
           >
@@ -190,7 +192,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
               style={{
                 fontSize: theme.typography.sizes.sm,
                 fontWeight: '700',
-                color: theme.colors.primaryTint,
+                color: theme.colors.textFaint,
                 textTransform: 'uppercase',
                 letterSpacing: 0.5,
                 paddingHorizontal: theme.spacing.md,
@@ -201,6 +203,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
             </Text>
             {section.items.map((item) => {
               const Icon = item.icon;
+              const isActive = pathname === item.route;
               return (
                 <TouchableOpacity
                   key={item.name}
@@ -212,6 +215,9 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
                     paddingVertical: theme.spacing.md,
                     paddingHorizontal: theme.spacing.md,
                     gap: theme.spacing.md,
+                    borderRadius: theme.radius.lg,
+                    marginHorizontal: theme.spacing.sm,
+                    backgroundColor: isActive ? theme.colors.muted : 'transparent',
                   }}
                 >
                   <View
@@ -221,19 +227,19 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
                       borderRadius: theme.radius.lg,
                       backgroundColor: theme.colors.background,
                       borderWidth: 1,
-                      borderColor: theme.colors.border,
+                      borderColor: isActive ? theme.colors.border : theme.colors.borderFaint,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    <Icon size={24} color={theme.colors.primary} />
+                    <Icon size={24} color={theme.colors.text} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text
                       style={{
                         fontSize: theme.typography.sizes.base,
                         fontWeight: '600',
-                        color: theme.colors.primary,
+                        color: theme.colors.text,
                       }}
                     >
                       {item.name}
@@ -241,11 +247,11 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
                     <Text
                       style={{
                         fontSize: theme.typography.sizes.sm,
-                        color: theme.colors.primaryTint,
+                        color: theme.colors.textSub,
                         marginTop: 2,
                       }}
                     >
-                      {section.title}
+                      {item.description ?? section.title}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -254,149 +260,40 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
           </View>
         ))}
 
-        {/* Settings */}
-        <View style={{ marginBottom: theme.spacing.md }}>
-          <Text
-            style={{
-              fontSize: theme.typography.sizes.xs,
-              fontWeight: '600',
-              color: theme.colors.primaryTint,
-              textTransform: 'uppercase',
-              letterSpacing: 0.5,
-              paddingHorizontal: theme.spacing.md,
-              marginBottom: theme.spacing.sm,
-            }}
-          >
-            Settings
-          </Text>
+        {/* Logout */}
+        <View
+          style={{
+            padding: theme.spacing.md,
+            borderTopWidth: 1,
+            borderTopColor: theme.colors.border,
+          }}
+        >
           <TouchableOpacity
-            onPress={handleProfilePress}
+            onPress={handleLogout}
             activeOpacity={0.7}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
+              justifyContent: 'center',
               paddingVertical: theme.spacing.md,
-              paddingHorizontal: theme.spacing.md,
-              gap: theme.spacing.md,
+              backgroundColor: theme.colors.muted,
+              borderRadius: theme.radius.lg,
+              gap: theme.spacing.sm,
             }}
           >
-            <View
+            <LogOut size={18} color={theme.colors.danger} />
+            <Text
               style={{
-                width: 52,
-                height: 52,
-                borderRadius: theme.radius.lg,
-                backgroundColor: theme.colors.background,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                alignItems: 'center',
-                justifyContent: 'center',
+                fontSize: theme.typography.sizes.base,
+                fontFamily: theme.typography.fonts.body.medium,
+                color: theme.colors.danger,
               }}
             >
-              <User size={24} color={theme.colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: theme.typography.sizes.base,
-                  fontWeight: '600',
-                  color: theme.colors.primary,
-                }}
-              >
-                Profile
-              </Text>
-              <Text
-                style={{
-                  fontSize: theme.typography.sizes.sm,
-                  color: theme.colors.primaryTint,
-                  marginTop: 2,
-                }}
-              >
-                Account & identity
-              </Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => handleNavigate('/(app)/settings')}
-            activeOpacity={0.7}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingVertical: theme.spacing.md,
-              paddingHorizontal: theme.spacing.md,
-              gap: theme.spacing.md,
-            }}
-          >
-            <View
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: theme.radius.lg,
-                backgroundColor: theme.colors.background,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Settings size={24} color={theme.colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text
-                style={{
-                  fontSize: theme.typography.sizes.base,
-                  fontWeight: '600',
-                  color: theme.colors.primary,
-                }}
-              >
-                Settings
-              </Text>
-              <Text
-                style={{
-                  fontSize: theme.typography.sizes.sm,
-                  color: theme.colors.primaryTint,
-                  marginTop: 2,
-                }}
-              >
-                Theme & preferences
-              </Text>
-            </View>
+              Sign Out
+            </Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
-
-      {/* Logout */}
-      <View
-        style={{
-          padding: theme.spacing.md,
-          borderTopWidth: 1,
-          borderTopColor: theme.colors.border,
-        }}
-      >
-        <TouchableOpacity
-          onPress={handleLogout}
-          activeOpacity={0.7}
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            paddingVertical: theme.spacing.md,
-            backgroundColor: theme.colors.muted,
-            borderRadius: theme.radius.lg,
-            gap: theme.spacing.sm,
-          }}
-        >
-          <LogOut size={18} color={theme.colors.primaryTint} />
-          <Text
-            style={{
-              fontSize: theme.typography.sizes.base,
-              fontFamily: theme.typography.fonts.body.medium,
-              color: theme.colors.primary,
-            }}
-          >
-            Sign Out
-          </Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }

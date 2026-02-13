@@ -26,11 +26,12 @@ const EDGE_SWIPE_WIDTH = 24;
 interface DrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpen?: () => void;
   onNavigate?: (route: string) => void;
   children: React.ReactNode;
 }
 
-export function Drawer({ isOpen, onClose, onNavigate, children }: DrawerProps) {
+export function Drawer({ isOpen, onClose, onOpen, onNavigate, children }: DrawerProps) {
   const { theme } = useUnistyles();
   const translateX = useSharedValue(-DRAWER_WIDTH);
   const overlayOpacity = useSharedValue(0);
@@ -65,7 +66,8 @@ export function Drawer({ isOpen, onClose, onNavigate, children }: DrawerProps) {
     'worklet';
     translateX.value = withSpring(0, SPRING_CONFIG);
     overlayOpacity.value = withTiming(1, { duration: 200 });
-  }, [translateX, overlayOpacity]);
+    if (onOpen) runOnJS(onOpen)();
+  }, [translateX, overlayOpacity, onOpen]);
 
   // Drawer pan (close) — scoped to drawer only
   const drawerPanGesture = Gesture.Pan()
