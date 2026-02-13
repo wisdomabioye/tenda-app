@@ -14,7 +14,7 @@ import { Text, Avatar } from '@/components/ui';
 import { MOCK_CURRENT_USER } from '@/data/mock'
 import { useAuthStore } from '@/stores/auth.store';
 
-const Logo = require('@/assets/images/logo.png');
+const Logo = require('@/assets/images/logo-full.png');
 
 // Mobile-friendly sidebar config
 interface MobileNavItem {
