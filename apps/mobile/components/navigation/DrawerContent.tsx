@@ -6,7 +6,7 @@ import { Image } from 'expo-image';
 import {
   Home, ClipboardList, PlusCircle, MessageSquare, Wallet,
   Settings, Bell, Languages, Banknote,
-  FileText, CircleHelp, Users, User,
+  FileText, CircleHelp, Users,
   ScrollText, Shield, X, LogOut
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';

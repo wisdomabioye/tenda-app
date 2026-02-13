@@ -2,16 +2,18 @@ import { useState, useMemo } from 'react'
 import { View, FlatList, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react-native'
-import { spacing } from '@/theme/tokens'
-import { ScreenContainer } from '@/components/ui/ScreenContainer'
-import { Text } from '@/components/ui/Text'
-import { Input } from '@/components/ui/Input'
-import { Chip } from '@/components/ui/Chip'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { Spacer } from '@/components/ui/Spacer'
-import { Header } from '@/components/ui'
+import { 
+  ScreenContainer,
+  Text,
+  Input,
+  Chip,
+  EmptyState,
+  Spacer,
+  Header
+} from '@/components/ui'
 import { GigCard } from '@/components/gig'
 import { MOCK_GIGS, CATEGORY_META, type MockGig } from '@/data/mock'
+import { spacing } from '@/theme/tokens'
 import type { ColorScheme } from '@/theme/tokens'
 
 const allGigs = MOCK_GIGS.filter((g) => g.status === 'open')

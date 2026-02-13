@@ -1,12 +1,12 @@
-import { View, TouchableOpacity } from 'react-native';
-import { useUnistyles } from 'react-native-unistyles';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
-import { Menu } from 'lucide-react-native';
-import type { LucideIcon } from 'lucide-react-native';
-import { Avatar } from '@/components/ui';
+import { View, TouchableOpacity } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Image } from 'expo-image'
+import { Menu } from 'lucide-react-native'
+import type { LucideIcon } from 'lucide-react-native'
+import { Avatar } from '@/components/ui'
 
-const Logo = require('@/assets/images/logo.png');
+const Logo = require('@/assets/images/logo.png')
 
 interface DrawerHeaderProps {
   title?: string;

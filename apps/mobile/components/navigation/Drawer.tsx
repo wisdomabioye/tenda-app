@@ -1,12 +1,17 @@
 import { useCallback, useEffect } from 'react';
-import { View, Pressable, Dimensions, StyleSheet as RNStyleSheet } from 'react-native';
+import { scheduleOnRN } from 'react-native-worklets';
+import { 
+  View, 
+  Pressable, 
+  Dimensions, 
+  StyleSheet as RNStyleSheet 
+} from 'react-native';
 import { useUnistyles } from 'react-native-unistyles';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
   withTiming,
-  runOnJS,
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
@@ -52,7 +57,7 @@ export function Drawer({ isOpen, onClose, onOpen, onNavigate, children }: Drawer
     'worklet';
     translateX.value = withSpring(-DRAWER_WIDTH, SPRING_CONFIG);
     overlayOpacity.value = withTiming(0, { duration: 200 });
-    runOnJS(onClose)();
+    scheduleOnRN(onClose);
   }, [onClose, translateX, overlayOpacity]);
 
   const handleClose = useCallback(() => {
@@ -66,7 +71,7 @@ export function Drawer({ isOpen, onClose, onOpen, onNavigate, children }: Drawer
     'worklet';
     translateX.value = withSpring(0, SPRING_CONFIG);
     overlayOpacity.value = withTiming(1, { duration: 200 });
-    if (onOpen) runOnJS(onOpen)();
+    if (onOpen) scheduleOnRN(onOpen);
   }, [translateX, overlayOpacity, onOpen]);
 
   // Drawer pan (close) — scoped to drawer only
