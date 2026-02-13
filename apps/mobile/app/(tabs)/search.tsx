@@ -1,12 +1,139 @@
-import { View, Text } from 'react-native'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { useState, useMemo } from 'react'
+import { View, FlatList, StyleSheet } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
+import { Search as SearchIcon, SlidersHorizontal } from 'lucide-react-native'
+import { spacing } from '@/theme/tokens'
+import { ScreenContainer } from '@/components/ui/ScreenContainer'
+import { Text } from '@/components/ui/Text'
+import { Input } from '@/components/ui/Input'
+import { Chip } from '@/components/ui/Chip'
+import { IconButton } from '@/components/ui/IconButton'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Spacer } from '@/components/ui/Spacer'
+import { GigCard } from '@/components/gig'
+import { MOCK_GIGS, CATEGORY_META, type MockGig } from '@/data/mock'
+import type { ColorScheme } from '@/theme/tokens'
+
+const allGigs = MOCK_GIGS.filter((g) => g.status === 'open')
 
 export default function SearchScreen() {
+  const { theme } = useUnistyles()
+  const [query, setQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+
+  const filteredGigs = useMemo(() => {
+    let result = allGigs
+
+    if (selectedCategory) {
+      result = result.filter((g) => g.category === selectedCategory)
+    }
+
+    if (query.trim()) {
+      const lower = query.toLowerCase()
+      result = result.filter(
+        (g) =>
+          g.title.toLowerCase().includes(lower) ||
+          g.description.toLowerCase().includes(lower) ||
+          g.city.toLowerCase().includes(lower),
+      )
+    }
+
+    return result
+  }, [query, selectedCategory])
+
+  const handleCategoryPress = (key: string) => {
+    setSelectedCategory((prev) => (prev === key ? null : key))
+  }
+
+  const renderGigItem = ({ item }: { item: MockGig }) => (
+    <GigCard gig={item} showStatus={false} />
+  )
+
   return (
-    <SafeAreaView>
-      <View>
-        <Text>Search</Text>
+    <ScreenContainer scroll={false} padding={false}>
+      {/* Header */}
+      <View style={s.headerSection}>
+        <Text variant="heading">Search</Text>
+        <Spacer size={spacing.md} />
+
+        <View style={s.searchRow}>
+          <View style={s.searchInput}>
+            <Input
+              placeholder="Search gigs, categories, cities..."
+              value={query}
+              onChangeText={setQuery}
+              icon={<SearchIcon size={18} color={theme.colors.textFaint} />}
+            />
+          </View>
+          <IconButton
+            icon={<SlidersHorizontal size={20} color={theme.colors.text} />}
+            variant="secondary"
+            size="lg"
+            onPress={() => {}}
+          />
+        </View>
+
+        <Spacer size={spacing.md} />
+
+        {/* Category filters */}
+        <View style={s.filters}>
+          {CATEGORY_META.map((cat) => {
+            const colorKey = `category${cat.label}` as keyof ColorScheme
+            return (
+              <Chip
+                key={cat.key}
+                label={cat.label}
+                selected={selectedCategory === cat.key}
+                color={theme.colors[colorKey]}
+                onPress={() => handleCategoryPress(cat.key)}
+              />
+            )
+          })}
+        </View>
       </View>
-    </SafeAreaView>
+
+      {/* Results */}
+      <FlatList
+        data={filteredGigs}
+        keyExtractor={(item) => item.id}
+        renderItem={renderGigItem}
+        contentContainerStyle={s.list}
+        showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <EmptyState
+            icon={<SearchIcon size={40} color={theme.colors.textFaint} />}
+            title="No gigs found"
+            description="Try adjusting your search or filters"
+          />
+        }
+        ItemSeparatorComponent={() => <Spacer size={spacing.sm} />}
+        ListFooterComponent={<Spacer size={spacing.xl} />}
+      />
+    </ScreenContainer>
   )
 }
+
+const s = StyleSheet.create({
+  headerSection: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+  },
+  searchInput: {
+    flex: 1,
+  },
+  filters: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
+  },
+  list: {
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.sm,
+  },
+})

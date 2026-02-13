@@ -15,7 +15,7 @@ export default function WelcomeScreen() {
   const { theme } = useUnistyles()
 
   return (
-    <ScreenContainer scroll={false} padding={false}>
+    <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
       <View style={s.screen}>
         <Spacer flex={1} />
 
@@ -54,7 +54,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
-    marginBottom: spacing['3xl'],
   },
   center: { alignItems: 'center' },
   logo: { width: 80, height: 80 },

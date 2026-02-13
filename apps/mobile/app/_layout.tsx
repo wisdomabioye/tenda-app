@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Stack } from 'expo-router'
-import { StatusBar } from 'expo-status-bar'
+import { SystemBars } from 'react-native-edge-to-edge'
 import * as SplashScreen from 'expo-splash-screen'
 import { useFonts } from 'expo-font'
 import {
@@ -64,7 +64,7 @@ export default function RootLayout() {
     return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <LoadingScreen />
-        <StatusBar style="dark" />
+        <SystemBars style="auto" />
       </GestureHandlerRootView>
     )
   }
@@ -78,7 +78,7 @@ export default function RootLayout() {
         <Stack.Screen name="gig/[id]" options={{ presentation: 'modal' }} />
         <Stack.Screen name="+not-found" />
       </Stack>
-      <StatusBar style="auto" />
+      <SystemBars style="auto" />
     </GestureHandlerRootView>
   )
 }
