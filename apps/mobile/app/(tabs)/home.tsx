@@ -38,7 +38,7 @@ export default function HomeScreen() {
         onMenuPress={() => setDrawerOpen(true)}
         rightIcon={Bell}
         onRightPress={() => router.push('/(tabs)/notifications' as never)}
-        onAvatarPress={() => router.push('/(tabs)/profile' as never)}
+        onAvatarPress={() => router.push('/(tabs)/profile')}
         userImage={MOCK_CURRENT_USER.avatar_url}
         userName={`${MOCK_CURRENT_USER.first_name ?? ''} ${MOCK_CURRENT_USER.last_name ?? ''}`.trim()}
         showAvatar
