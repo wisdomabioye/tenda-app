@@ -11,7 +11,7 @@ import {
   Spacer,
   Header
 } from '@/components/ui'
-import { GigCard } from '@/components/gig'
+import { GigCardCompact } from '@/components/gig'
 import { MOCK_GIGS, CATEGORY_META, type MockGig } from '@/data/mock'
 import { spacing } from '@/theme/tokens'
 import type { ColorScheme } from '@/theme/tokens'
@@ -48,7 +48,7 @@ export default function SearchScreen() {
   }
 
   const renderGigItem = ({ item }: { item: MockGig }) => (
-    <GigCard gig={item} showStatus={false} />
+    <GigCardCompact gig={item} showStatus={false} />
   )
 
   return (

@@ -12,7 +12,7 @@ import {
   Spacer,
   LiveChip,
 } from '@/components/ui'
-import { GigCard } from '@/components/gig'
+import { GigCardCompact } from '@/components/gig'
 import { Drawer, DrawerHeader } from '@/components/navigation'
 import { MOCK_GIGS, CATEGORY_META, type MockGig, MOCK_CURRENT_USER } from '@/data/mock'
 
@@ -24,7 +24,7 @@ export default function HomeScreen() {
   const router = useRouter()
 
   const renderGigItem = ({ item }: { item: MockGig }) => (
-    <GigCard gig={item} />
+    <GigCardCompact gig={item} />
   )
 
   return (
