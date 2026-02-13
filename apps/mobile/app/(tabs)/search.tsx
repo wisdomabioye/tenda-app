@@ -7,9 +7,9 @@ import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Text } from '@/components/ui/Text'
 import { Input } from '@/components/ui/Input'
 import { Chip } from '@/components/ui/Chip'
-import { IconButton } from '@/components/ui/IconButton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { Spacer } from '@/components/ui/Spacer'
+import { Header } from '@/components/ui'
 import { GigCard } from '@/components/gig'
 import { MOCK_GIGS, CATEGORY_META, type MockGig } from '@/data/mock'
 import type { ColorScheme } from '@/theme/tokens'
@@ -51,32 +51,29 @@ export default function SearchScreen() {
 
   return (
     <ScreenContainer scroll={false} padding={false}>
-      {/* Header */}
-      <View style={s.headerSection}>
-        <Text variant="heading">Search</Text>
+      <Header
+        title="Search"
+        rightIcon={SlidersHorizontal}
+        onRightPress={() => {}}
+        showBack
+      />
+
+      <View style={s.topSection}>
+        <Text variant="body" color={theme.colors.textSub}>
+          Find gigs by title, category, or city
+        </Text>
         <Spacer size={spacing.md} />
 
-        <View style={s.searchRow}>
-          <View style={s.searchInput}>
-            <Input
-              placeholder="Search gigs, categories, cities..."
-              value={query}
-              onChangeText={setQuery}
-              icon={<SearchIcon size={18} color={theme.colors.textFaint} />}
-            />
-          </View>
-          <IconButton
-            icon={<SlidersHorizontal size={20} color={theme.colors.text} />}
-            variant="secondary"
-            size="lg"
-            onPress={() => {}}
-          />
-        </View>
+        <Input
+          placeholder="Search gigs, categories, cities..."
+          value={query}
+          onChangeText={setQuery}
+          icon={<SearchIcon size={18} color={theme.colors.textFaint} />}
+        />
 
         <Spacer size={spacing.md} />
 
-        {/* Category filters */}
-        <View style={s.filters}>
+        <View style={s.filter}>
           {CATEGORY_META.map((cat) => {
             const colorKey = `category${cat.label}` as keyof ColorScheme
             return (
@@ -114,26 +111,18 @@ export default function SearchScreen() {
 }
 
 const s = StyleSheet.create({
-  headerSection: {
+  topSection: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
     paddingBottom: spacing.sm,
   },
-  searchRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  searchInput: {
-    flex: 1,
-  },
-  filters: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
   list: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.sm,
+  },
+  filter: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.sm,
   },
 })
