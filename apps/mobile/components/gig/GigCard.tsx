@@ -7,7 +7,7 @@ import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { MoneyText } from '@/components/ui/MoneyText'
 import { GigStatusBadge } from './GigStatusBadge'
-import { type MockGig, type MockUser, MOCK_USERS, getCategoryColor, type GigStatus } from '@/data/mock'
+import { type MockGig, type MockUser, MOCK_USERS, getCategoryColor, type GigStatus, CATEGORY_META } from '@/data/mock'
 import type { ColorScheme } from '@/theme/tokens'
 
 interface GigCardProps {
@@ -42,26 +42,38 @@ const s = StyleSheet.create({
     padding: spacing.md,
     ...shadows.sm,
   },
+  accent: {
+    position: 'absolute',
+    left: 0,
+    top: spacing.md,
+    bottom: spacing.md,
+    width: 4,
+    borderRadius: 4,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.sm,
+    alignItems: 'center',
   },
-  titleWrap: {
-    flex: 1,
-    marginRight: spacing.sm,
+  categoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   categoryDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    marginRight: 6,
-    marginTop: 2,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    marginTop: spacing.xs,
+  },
+  titleWrap: {
+    flex: 1,
   },
   meta: {
     flexDirection: 'row',
@@ -76,8 +88,8 @@ const s = StyleSheet.create({
   },
   footer: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     marginTop: spacing.md,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
@@ -99,6 +111,8 @@ export function GigCard({ gig, showStatus = true }: GigCardProps) {
   const poster = getPoster(gig.poster_id)
   const categoryColorKey = getCategoryColor(gig.category) as keyof ColorScheme
   const categoryColor = theme.colors[categoryColorKey]
+  const categoryLabel =
+    CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
 
   return (
     <Pressable
@@ -109,18 +123,23 @@ export function GigCard({ gig, showStatus = true }: GigCardProps) {
         pressed && s.pressed,
       ]}
     >
+      <View style={[s.accent, { backgroundColor: categoryColor }]} />
+
       <View style={s.header}>
+        <View style={s.categoryRow}>
+          <View style={[s.categoryDot, { backgroundColor: categoryColor }]} />
+          <Text variant="caption" color={theme.colors.textSub}>
+            {categoryLabel}
+          </Text>
+        </View>
+        {showStatus && <GigStatusBadge status={gig.status} />}
+      </View>
+
+      <View style={s.titleRow}>
         <View style={s.titleWrap}>
-          <View style={s.titleRow}>
-            <View style={[s.categoryDot, { backgroundColor: categoryColor }]} />
-            <Text
-              variant="subheading"
-              style={{ flex: 1 }}
-              numberOfLines={2}
-            >
-              {gig.title}
-            </Text>
-          </View>
+          <Text variant="subheading" numberOfLines={2}>
+            {gig.title}
+          </Text>
         </View>
         <MoneyText amount={gig.payment} size={typography.sizes.lg} />
       </View>
@@ -155,7 +174,6 @@ export function GigCard({ gig, showStatus = true }: GigCardProps) {
             {getPosterName(gig.poster_id)}
           </Text>
         </View>
-        {showStatus && <GigStatusBadge status={gig.status} />}
       </View>
     </Pressable>
   )
