@@ -7,9 +7,10 @@ import {
   Star,
   ChevronRight,
   Wallet,
-  Shield,
   CircleHelp,
   LogOut,
+  ClipboardList,
+  UserPen,
 } from 'lucide-react-native'
 import { spacing } from '@/theme/tokens'
 import { 
@@ -63,12 +64,14 @@ export default function ProfileScreen() {
   const { completedCount, activeCount } = useGigCounts(user?.id)
 
   const accountItems: MenuItem[] = [
-    { icon: Wallet, label: 'Wallet', value: walletShort, onPress: () => {} },
-    { icon: Shield, label: 'Security', onPress: () => {} },
+    { icon: UserPen, label: 'Update Profile', onPress: () => router.push('/(tabs)/update-profile') },
+    { icon: ClipboardList, label: 'My Gigs', onPress: () => router.push('/(tabs)/my-gigs') },
+    { icon: Wallet, label: 'Wallet', value: walletShort, onPress: () => router.push('/(tabs)/wallet') },
+    { icon: Settings, label: 'Settings', onPress: () => router.push('/(tabs)/settings') },
   ]
 
   const supportItems: MenuItem[] = [
-    { icon: CircleHelp, label: 'Help & Support', onPress: () => {} },
+    { icon: CircleHelp, label: 'Help & Support', onPress: () => router.push('/(support)/faq' as any) },
   ]
 
   const dangerItems: MenuItem[] = [

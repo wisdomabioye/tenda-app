@@ -5,13 +5,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import {
   Home, ClipboardList, PlusCircle, MessageSquare, Wallet,
-  Settings, Bell, Languages, Banknote,
+  Settings, Bell, Banknote,
   FileText, CircleHelp, Users,
   ScrollText, Shield, X, LogOut
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Text, Avatar } from '@/components/ui';
-import { MOCK_CURRENT_USER } from '@/data/mock'
 import { useAuthStore } from '@/stores/auth.store';
 
 const Logo = require('@/assets/images/logo-full.png');
@@ -46,18 +45,17 @@ function getMobileNavConfig(): MobileNavSection[] {
       items: [
         { name: 'Settings', route: '/(tabs)/settings', icon: Settings },
         { name: 'Notifications', route: '/(tabs)/notifications', icon: Bell },
-        { name: 'Language', route: '/(tabs)/language', icon: Languages },
         { name: 'Currency (₦/USD)', route: '/(tabs)/currency', icon: Banknote },
-        { name: 'How It Works', route: '/(tabs)/how-it-works', icon: FileText, description: 'Tutorial' },
-        { name: 'Help & Support', route: '/(tabs)/help', icon: CircleHelp, description: 'FAQs' },
+        { name: 'How It Works', route: '/(support)/how-it-works', icon: FileText, description: 'Tutorial' },
+        { name: 'Help & Support', route: '/(support)/faq', icon: CircleHelp, description: 'FAQs' },
         { name: 'Invite Friends', route: '/(tabs)/invite', icon: Users, description: 'Referral' },
       ],
     },
     {
       title: 'Legal',
       items: [
-        { name: 'Terms of Service', route: '/(tabs)/terms', icon: ScrollText },
-        { name: 'Privacy Policy', route: '/(tabs)/privacy', icon: Shield },
+        { name: 'Terms of Service', route: '/(legal)/terms', icon: ScrollText },
+        { name: 'Privacy Policy', route: '/(legal)/privacy', icon: Shield },
       ],
     },
   ]
@@ -69,13 +67,16 @@ interface DrawerContentProps {
 }
 
 export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
-  const { logout } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const pathname = usePathname();
-  const user = MOCK_CURRENT_USER;
   const navigation = getMobileNavConfig();    
+
+  const fullName = [user?.first_name, user?.last_name]
+    .filter(Boolean)
+    .join(' ') || 'Anonymous'
 
   const handleNavigate = (route: string) => {
     onClose();
@@ -157,7 +158,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
           gap: theme.spacing.md,
         }}
       >
-        <Avatar src={''} name={user?.first_name || ''} size="lg" />
+        <Avatar src={''} name={user?.first_name || fullName} size="lg" />
         <View style={{ flex: 1 }}>
           <Text
             style={{
@@ -166,7 +167,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
               color: theme.colors.text,
             }}
           >
-            {user?.first_name} {user?.last_name}
+            {fullName}
           </Text>
           <Text
             style={{

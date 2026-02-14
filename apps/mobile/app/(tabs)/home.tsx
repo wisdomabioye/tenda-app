@@ -14,7 +14,8 @@ import {
 } from '@/components/ui'
 import { GigCardCompact } from '@/components/gig'
 import { Drawer, DrawerHeader } from '@/components/navigation'
-import { MOCK_GIGS, CATEGORY_META, type MockGig, MOCK_CURRENT_USER } from '@/data/mock'
+import { MOCK_GIGS, CATEGORY_META, type MockGig } from '@/data/mock'
+import { useAuthStore } from '@/stores/auth.store'
 
 const openGigs = MOCK_GIGS.filter((g) => g.status === 'open')
 
@@ -22,6 +23,7 @@ export default function HomeScreen() {
   const { theme } = useUnistyles()
   const [drawerOpen, setDrawerOpen] = useState(false)
   const router = useRouter()
+  const user = useAuthStore((s) => s.user)
 
   const renderGigItem = ({ item }: { item: MockGig }) => (
     <GigCardCompact gig={item} variant="inline" />
@@ -39,8 +41,8 @@ export default function HomeScreen() {
         rightIcon={Bell}
         onRightPress={() => router.push('/(tabs)/notifications' as never)}
         onAvatarPress={() => router.push('/(tabs)/profile')}
-        userImage={MOCK_CURRENT_USER.avatar_url}
-        userName={`${MOCK_CURRENT_USER.first_name ?? ''} ${MOCK_CURRENT_USER.last_name ?? ''}`.trim()}
+        userImage={user?.avatar_url}
+        userName={[user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Anonymous'}
         showAvatar
       />
       <ScreenContainer scroll={false} padding={false}>

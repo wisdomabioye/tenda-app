@@ -114,21 +114,7 @@ export const STATUS_LABEL: Record<GigStatus, string> = {
 }
 
 // ── Mock users ────────────────────────────────────────────────────────
-
-export const MOCK_CURRENT_USER: MockUser = {
-  id: 'u1',
-  wallet_address: '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU',
-  first_name: 'Ade',
-  last_name: 'Okonkwo',
-  avatar_url: null,
-  city: 'Lagos',
-  reputation_score: 85,
-  created_at: new Date('2025-11-01'),
-  updated_at: new Date('2025-12-15'),
-}
-
 export const MOCK_USERS: MockUser[] = [
-  MOCK_CURRENT_USER,
   {
     id: 'u2',
     wallet_address: '3Fmz7nPLZBYqYr6Pz2VxJKcEgDFx5nDgMxFSWXzMr5Xy',

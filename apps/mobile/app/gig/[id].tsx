@@ -22,10 +22,10 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { GigStatusBadge } from '@/components/gig'
 import {
   getMockGigDetail,
-  MOCK_CURRENT_USER,
   getCategoryColor,
   CATEGORY_META,
 } from '@/data/mock'
+import { useAuthStore } from '@/stores/auth.store'
 import type { ColorScheme } from '@/theme/tokens'
 
 function formatDate(date: Date): string {
@@ -52,6 +52,7 @@ export default function GigDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
   const { theme } = useUnistyles()
+  const user = useAuthStore((s) => s.user)
 
   const gig = getMockGigDetail(id ?? '')
 
@@ -70,7 +71,7 @@ export default function GigDetailScreen() {
   const categoryMeta = CATEGORY_META.find((c) => c.key === gig.category)
   const categoryColorKey = getCategoryColor(gig.category) as keyof ColorScheme
   const categoryColor = theme.colors[categoryColorKey]
-  const isOwner = gig.poster_id === MOCK_CURRENT_USER.id
+  const isOwner = gig.poster_id === user?.id
   const canAccept = gig.status === 'open' && !isOwner
 
   const posterName = [gig.poster.first_name, gig.poster.last_name]
