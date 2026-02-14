@@ -1,15 +1,62 @@
 import * as SecureStore from 'expo-secure-store'
 
-const TOKEN_KEY = 'auth_token'
+const JWT_TOKEN_KEY = 'jwt_token'
+const MWA_AUTH_TOKEN_KEY = 'mwa_auth_token'
+const WALLET_ADDRESS_KEY = 'wallet_address'
 
+export async function getJwtToken(): Promise<string | null> {
+  return SecureStore.getItemAsync(JWT_TOKEN_KEY)
+}
+
+export async function setJwtToken(token: string): Promise<void> {
+  await SecureStore.setItemAsync(JWT_TOKEN_KEY, token)
+}
+
+export async function deleteJwtToken(): Promise<void> {
+  await SecureStore.deleteItemAsync(JWT_TOKEN_KEY)
+}
+
+export async function getMwaAuthToken(): Promise<string | null> {
+  return SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY)
+}
+
+export async function setMwaAuthToken(token: string): Promise<void> {
+  await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, token)
+}
+
+export async function deleteMwaAuthToken(): Promise<void> {
+  await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY)
+}
+
+export async function getWalletAddress(): Promise<string | null> {
+  return SecureStore.getItemAsync(WALLET_ADDRESS_KEY)
+}
+
+export async function setWalletAddress(address: string): Promise<void> {
+  await SecureStore.setItemAsync(WALLET_ADDRESS_KEY, address)
+}
+
+export async function deleteWalletAddress(): Promise<void> {
+  await SecureStore.deleteItemAsync(WALLET_ADDRESS_KEY)
+}
+
+export async function clearAuthStorage(): Promise<void> {
+  await Promise.all([
+    deleteJwtToken(),
+    deleteMwaAuthToken(),
+    deleteWalletAddress(),
+  ])
+}
+
+// Backwards-compatible helpers
 export async function getToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(TOKEN_KEY)
+  return getJwtToken()
 }
 
 export async function setToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(TOKEN_KEY, token)
+  await setJwtToken(token)
 }
 
 export async function deleteToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(TOKEN_KEY)
+  await deleteJwtToken()
 }

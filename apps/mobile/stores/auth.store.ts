@@ -1,49 +1,96 @@
 import { create } from 'zustand'
 import type { User, WalletAuthBody } from '@tenda/shared'
-import { getToken, setToken, deleteToken } from '@/lib/secure-store'
+import {
+  getJwtToken,
+  setJwtToken,
+  getMwaAuthToken,
+  setMwaAuthToken,
+  getWalletAddress,
+  setWalletAddress,
+  clearAuthStorage,
+} from '@/lib/secure-store'
 import { api } from '@/api/client'
+import { deauthorizeWallet } from '@/wallet'
+
+interface WalletSessionInfo {
+  mwaAuthToken: string
+  walletAddress: string
+}
 
 interface AuthState {
   user: User | null
-  token: string | null
+  jwt: string | null
+  mwaAuthToken: string | null
+  walletAddress: string | null
   isAuthenticated: boolean
   isLoading: boolean
 
-  login: (body: WalletAuthBody) => Promise<void>
+  authenticateWithWallet: (body: WalletAuthBody, session: WalletSessionInfo) => Promise<void>
   logout: () => Promise<void>
   loadSession: () => Promise<void>
   updateUser: (user: User) => void
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
-  token: null,
+  jwt: null,
+  mwaAuthToken: null,
+  walletAddress: null,
   isAuthenticated: false,
   isLoading: true,
 
-  login: async (body) => {
-    const { token, user } = await api.auth.wallet(body)
-    await setToken(token)
-    set({ user, token, isAuthenticated: true })
+  authenticateWithWallet: async (body, session) => {
+    const { token, user } = await api.auth.wallet(body);
+    await Promise.all([
+      setJwtToken(token),
+      setMwaAuthToken(session.mwaAuthToken),
+      setWalletAddress(session.walletAddress),
+    ])
+    set({
+      user,
+      jwt: token,
+      mwaAuthToken: session.mwaAuthToken,
+      walletAddress: session.walletAddress,
+      isAuthenticated: true,
+    })
   },
 
   logout: async () => {
-    await deleteToken()
-    set({ user: null, token: null, isAuthenticated: false })
+    const { mwaAuthToken } = get()
+    try {
+      await deauthorizeWallet(mwaAuthToken ?? undefined)
+    } catch {
+      // ignore wallet deauthorize failures
+    }
+    await clearAuthStorage()
+    set({ user: null, jwt: null, mwaAuthToken: null, walletAddress: null, isAuthenticated: false })
   },
 
   loadSession: async () => {
     try {
-      const token = await getToken()
-      if (!token) {
-        set({ isLoading: false })
+      const [jwt, mwaAuthToken, walletAddress] = await Promise.all([
+        getJwtToken(),
+        getMwaAuthToken(),
+        getWalletAddress(),
+      ])
+
+      if (!jwt) {
+        set({ jwt: null, mwaAuthToken, walletAddress, isAuthenticated: false, isLoading: false })
         return
       }
+
       const user = await api.auth.me()
-      set({ user, token, isAuthenticated: true, isLoading: false })
+      set({ user, jwt, mwaAuthToken, walletAddress, isAuthenticated: true, isLoading: false })
     } catch {
-      await deleteToken()
-      set({ user: null, token: null, isAuthenticated: false, isLoading: false })
+      await clearAuthStorage()
+      set({
+        user: null,
+        jwt: null,
+        mwaAuthToken: null,
+        walletAddress: null,
+        isAuthenticated: false,
+        isLoading: false,
+      })
     }
   },
 

@@ -13,7 +13,7 @@ export interface Config {
   CLOUDINARY_CLOUD_NAME: string
   CLOUDINARY_API_KEY: string
   CLOUDINARY_API_SECRET: string
-  SOLANA_RPC_URL: string
+  SOLANA_RPC_URL: string,
 }
 
 export function loadConfig(): Config {

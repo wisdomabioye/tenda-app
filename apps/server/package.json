@@ -2,15 +2,15 @@
   "name": "tenda-server",
   "version": "1.0.0",
   "description": "tenda server",
-  "main": "app.ts",
+  "main": "server.ts",
   "directories": {
     "test": "test"
   },
   "scripts": {
     "test": "npm run build:ts && tsc -p test/tsconfig.json && c8 node --test -r ts-node/register \"test/**/*.ts\"",
-    "start": "npm run build:ts && fastify start -l info dist/app.js",
+    "start": "npm run build:ts && node dist/server.js",
     "build:ts": "tsc",
-    "dev": "fastify start -w -l info -P --import tsx src/app.ts",
+    "dev": "tsx watch src/server.ts",
     "type-check": "npx tsc --noEmit",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
@@ -28,6 +28,7 @@
     "@fastify/sensible": "^6.0.0",
     "@solana/web3.js": "^1.98.4",
     "@tenda/shared": "workspace:*",
+    "dotenv": "^17.3.1",
     "drizzle-orm": "^0.44.7",
     "fastify": "^5.0.0",
     "fastify-cli": "^7.4.1",
@@ -42,6 +43,7 @@
     "drizzle-kit": "^0.31.9",
     "fastify-tsconfig": "^3.0.0",
     "ts-node": "^10.4.0",
+    "tsconfig-paths": "^4.2.0",
     "tsx": "^4.21.0",
     "typescript": "~5.9.2"
   }

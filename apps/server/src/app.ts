@@ -1,7 +1,14 @@
 import { join } from 'node:path'
-import { FastifyPluginAsync, FastifyServerOptions, FastifyError } from 'fastify'
+import { readFile } from 'node:fs/promises'
+import { 
+  FastifyPluginAsync, 
+  FastifyServerOptions, 
+  FastifyError 
+} from 'fastify'
 import AutoLoad, { AutoloadPluginOptions } from '@fastify/autoload'
 import type { ApiError } from '@tenda/shared'
+
+
 
 export interface AppOptions extends FastifyServerOptions, Partial<AutoloadPluginOptions> {}
 
@@ -46,7 +53,23 @@ const app: FastifyPluginAsync<AppOptions> = async (
     dir: join(__dirname, 'routes'),
     options: opts,
   })
+
+  fastify.get('/favicon.ico', async (request, reply) => {
+    try {
+      const filePath = join(__dirname, 'assets', 'favicon.png')
+      const buffer = await readFile(filePath)
+      reply.type('image/png').send(buffer)
+    } catch {
+      const error: ApiError = {
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'favicon.png not found',
+      }
+      reply.code(404).send(error)
+    }
+  })
 }
+
 
 export default app
 export { app, options }

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Image } from 'expo-image'
@@ -9,6 +10,8 @@ import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { Spacer } from '@/components/ui/Spacer'
+import { useAuthStore } from '@/stores/auth.store'
+import { authorizeWalletSession, buildAuthMessage, signMessageWithWallet } from '@/wallet'
 
 const Logo = require('@/assets/images/logo.png')
 
@@ -33,11 +36,35 @@ const FEATURES = [
 export default function ConnectWalletScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
+  const [isConnecting, setIsConnecting] = useState(false)
+  const [connectNotice, setConnectNotice] = useState<string | null>(null)
+  const { authenticateWithWallet, mwaAuthToken } = useAuthStore()
 
-  const handleConnectWallet = () => {
-    // TODO: integrate Solana Mobile Wallet Adapter
-    // transact(async (wallet) => { ... })
-    router.replace('/(tabs)/home')
+  const handleConnectWallet = async () => {
+    try {
+      setIsConnecting(true)
+      setConnectNotice(null)
+
+      const session = await authorizeWalletSession(mwaAuthToken ?? undefined)
+
+      if (session) {
+        const message = buildAuthMessage(session.walletAddress)
+        const signature = await signMessageWithWallet(message, session.authToken, session.base64Address)
+        await authenticateWithWallet(
+          { wallet_address: session.walletAddress, signature, message },
+          { mwaAuthToken: session.authToken, walletAddress: session.walletAddress },
+        )
+
+        router.replace('/(tabs)/home')
+      } else {
+        setConnectNotice('Connection was cancelled. You can try again anytime.')
+      }
+    } catch (error) {
+      console.log('error', error)
+      router.replace('/error')
+    } finally {
+      setIsConnecting(false)
+    }
   }
 
   return (
@@ -96,11 +123,19 @@ export default function ConnectWalletScreen() {
             variant="primary"
             size="xl"
             fullWidth
+            loading={isConnecting}
             icon={<Wallet size={20} color={theme.colors.onPrimary} />}
-            onPress={handleConnectWallet}
+            onPress={(handleConnectWallet)}
           >
             Connect Wallet
           </Button>
+          {connectNotice ? (
+            <View style={[s.notice, { backgroundColor: theme.colors.warningTint }]}>
+              <Text variant="caption" color={theme.colors.onWarning}>
+                {connectNotice}
+              </Text>
+            </View>
+          ) : null}
           <Spacer size={spacing.md} />
           <Text
             variant="caption"
@@ -160,5 +195,12 @@ const s = StyleSheet.create({
   },
   cta: {
     width: '100%',
+  },
+  notice: {
+    marginTop: spacing.sm,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    alignItems: 'center',
   },
 })

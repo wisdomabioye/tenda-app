@@ -22,6 +22,7 @@
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
+    "@solana-mobile/mobile-wallet-adapter-protocol-web3js": "^2.2.5",
     "@tenda/shared": "workspace:*",
     "expo": "~54.0.33",
     "expo-constants": "~18.0.13",

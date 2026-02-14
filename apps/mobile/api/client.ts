@@ -23,7 +23,7 @@ import {
   type EscrowResponse,
   type TransactionStatus,
 } from '@tenda/shared'
-import { getToken } from '@/lib/secure-store'
+import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
 
 class ApiClientError extends Error {
@@ -77,11 +77,11 @@ async function request<TResponse>(
   const env = getEnv()
   const config = apiConfig[env]
   const url = buildUrl(config.baseUrl, path, options?.params, options?.query)
-
-  const token = await getToken()
+  const token = await getJwtToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
+  
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
