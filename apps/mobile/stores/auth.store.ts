@@ -10,7 +10,6 @@ import {
   clearAuthStorage,
 } from '@/lib/secure-store'
 import { api } from '@/api/client'
-import { deauthorizeWallet } from '@/wallet'
 
 interface WalletSessionInfo {
   mwaAuthToken: string
@@ -56,12 +55,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    const { mwaAuthToken } = get()
-    try {
-      await deauthorizeWallet(mwaAuthToken ?? undefined)
-    } catch {
-      // ignore wallet deauthorize failures
-    }
     await clearAuthStorage()
     set({ user: null, jwt: null, mwaAuthToken: null, walletAddress: null, isAuthenticated: false })
   },
