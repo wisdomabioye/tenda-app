@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Spacer } from '@/components/ui/Spacer'
 import { MOCK_CURRENT_USER, MOCK_GIGS } from '@/data/mock'
 import { Header } from '@/components/ui'
+import { useAuthStore } from '@/stores/auth.store'
 
 const completedCount = MOCK_GIGS.filter(
   (g) => g.status === 'completed' && (g.poster_id === MOCK_CURRENT_USER.id || g.worker_id === MOCK_CURRENT_USER.id),
@@ -44,6 +45,7 @@ interface MenuItem {
 export default function ProfileScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
+  const logout = useAuthStore((s) => s.logout)
 
   const fullName = [MOCK_CURRENT_USER.first_name, MOCK_CURRENT_USER.last_name]
     .filter(Boolean)
@@ -65,8 +67,8 @@ export default function ProfileScreen() {
       icon: LogOut,
       label: 'Disconnect',
       danger: true,
-      onPress: () => {
-        // TODO: disconnect wallet
+      onPress: async () => {
+        await logout()
         router.replace('/(auth)/welcome')
       },
     },
