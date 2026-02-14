@@ -12,27 +12,32 @@ import {
   LogOut,
 } from 'lucide-react-native'
 import { spacing } from '@/theme/tokens'
-import { ScreenContainer } from '@/components/ui/ScreenContainer'
-import { Text } from '@/components/ui/Text'
-import { Avatar } from '@/components/ui/Avatar'
-import { IconButton } from '@/components/ui/IconButton'
-import { Card } from '@/components/ui/Card'
-import { Divider } from '@/components/ui/Divider'
-import { Badge } from '@/components/ui/Badge'
-import { Spacer } from '@/components/ui/Spacer'
-import { MOCK_CURRENT_USER, MOCK_GIGS } from '@/data/mock'
+import { 
+  ScreenContainer,
+  Text,
+  Avatar,
+  Card,
+  Divider,
+  Badge,
+  Spacer 
+} from '@/components/ui'
+import { MOCK_GIGS } from '@/data/mock'
 import { Header } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth.store'
 
-const completedCount = MOCK_GIGS.filter(
-  (g) => g.status === 'completed' && (g.poster_id === MOCK_CURRENT_USER.id || g.worker_id === MOCK_CURRENT_USER.id),
-).length
+function useGigCounts(userId: string | undefined) {
+  const completedCount = MOCK_GIGS.filter(
+    (g) => g.status === 'completed' && (g.poster_id === userId || g.worker_id === userId),
+  ).length
 
-const activeCount = MOCK_GIGS.filter(
-  (g) =>
-    ['accepted', 'submitted'].includes(g.status) &&
-    (g.poster_id === MOCK_CURRENT_USER.id || g.worker_id === MOCK_CURRENT_USER.id),
-).length
+  const activeCount = MOCK_GIGS.filter(
+    (g) =>
+      ['accepted', 'submitted'].includes(g.status) &&
+      (g.poster_id === userId || g.worker_id === userId),
+  ).length
+
+  return { completedCount, activeCount }
+}
 
 interface MenuItem {
   icon: typeof Wallet
@@ -45,13 +50,17 @@ interface MenuItem {
 export default function ProfileScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
-  const logout = useAuthStore((s) => s.logout)
+  const { user, logout } = useAuthStore()
 
-  const fullName = [MOCK_CURRENT_USER.first_name, MOCK_CURRENT_USER.last_name]
+  const fullName = [user?.first_name, user?.last_name]
     .filter(Boolean)
     .join(' ') || 'Anonymous'
 
-  const walletShort = `${MOCK_CURRENT_USER.wallet_address.slice(0, 4)}...${MOCK_CURRENT_USER.wallet_address.slice(-4)}`
+  const walletShort = user?.wallet_address
+    ? `${user.wallet_address.slice(0, 4)}...${user.wallet_address.slice(-4)}`
+    : '—'
+
+  const { completedCount, activeCount } = useGigCounts(user?.id)
 
   const accountItems: MenuItem[] = [
     { icon: Wallet, label: 'Wallet', value: walletShort, onPress: () => {} },
@@ -89,19 +98,19 @@ export default function ProfileScreen() {
         <View style={s.hero}>
           <View style={[s.heroGlow, { backgroundColor: theme.colors.primaryTint }]} />
           <View style={s.heroTop}>
-            <Avatar size="lg" name={fullName} src={MOCK_CURRENT_USER.avatar_url} />
+            <Avatar size="lg" name={fullName} src={user?.avatar_url} />
             <View style={s.heroMeta}>
               <Text variant="subheading">{fullName}</Text>
               <View style={s.metaRow}>
                 <MapPin size={14} color={theme.colors.textSub} />
                 <Text variant="caption" color={theme.colors.textSub}>
-                  {MOCK_CURRENT_USER.city ?? 'Unknown'}
+                  {user?.city ?? 'Unknown'}
                 </Text>
               </View>
               <View style={s.metaRow}>
                 <Star size={14} color={theme.colors.warning} />
                 <Text variant="caption" color={theme.colors.textSub}>
-                  {MOCK_CURRENT_USER.reputation_score ?? 0} reputation
+                  {user?.reputation_score ?? 0} reputation
                 </Text>
               </View>
             </View>
@@ -130,7 +139,7 @@ export default function ProfileScreen() {
           <Text variant="caption" color={theme.colors.textSub}>Active</Text>
         </Card>
         <Card variant="filled" padding={spacing.md} style={s.statCard}>
-          <Text variant="subheading">{MOCK_CURRENT_USER.reputation_score ?? 0}</Text>
+          <Text variant="subheading">{user?.reputation_score ?? 0}</Text>
           <Text variant="caption" color={theme.colors.textSub}>Reputation</Text>
         </Card>
       </View>
