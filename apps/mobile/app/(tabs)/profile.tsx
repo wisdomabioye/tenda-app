@@ -141,8 +141,8 @@ export default function ProfileScreen() {
               ]}
             >
               <View style={s.menuLeft}>
-                <View style={[s.menuIcon, { backgroundColor: theme.colors.muted }]}>
-                  <item.icon size={18} color={theme.colors.text} />
+                <View style={[s.menuIcon, { backgroundColor: theme.colors.background, borderColor: theme.colors.borderFaint }]}>
+                  <item.icon size={24} color={theme.colors.text} />
                 </View>
                 <Text variant="body">{item.label}</Text>
               </View>
@@ -244,9 +244,10 @@ const s = StyleSheet.create({
     gap: spacing.sm,
   },
   menuIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
+    width: 52,
+    height: 52,
+    borderRadius: radius.lg,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
