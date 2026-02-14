@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { IconButton } from '@/components/ui/IconButton'
 import { Spacer } from '@/components/ui/Spacer'
 import { useAuthStore } from '@/stores/auth.store'
-import { authorizeWalletSession, buildAuthMessage, signMessageWithWallet } from '@/wallet'
+import { connectAndSignAuthMessage } from '@/wallet'
 
 const Logo = require('@/assets/images/logo.png')
 
@@ -45,14 +45,12 @@ export default function ConnectWalletScreen() {
       setIsConnecting(true)
       setConnectNotice(null)
 
-      const session = await authorizeWalletSession(mwaAuthToken ?? undefined)
+      const result = await connectAndSignAuthMessage(mwaAuthToken ?? undefined)
 
-      if (session) {
-        const message = buildAuthMessage(session.walletAddress)
-        const signature = await signMessageWithWallet(message, session.authToken, session.base64Address)
+      if (result) {
         await authenticateWithWallet(
-          { wallet_address: session.walletAddress, signature, message },
-          { mwaAuthToken: session.authToken, walletAddress: session.walletAddress },
+          { wallet_address: result.session.walletAddress, signature: result.signature, message: result.message },
+          { mwaAuthToken: result.session.authToken, walletAddress: result.session.walletAddress },
         )
 
         router.replace('/(tabs)/home')

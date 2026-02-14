@@ -69,48 +69,88 @@ async function authorizeSession(wallet: Web3MobileWallet, authToken?: string) {
   })
 }
 
-export async function authorizeWalletSession(mwaAuthToken?: string): Promise<WalletSession|null> {
+const MAX_RETRIES = 3
+const RETRY_DELAY_MS = 500
+
+function isMwaTransient(error: any): boolean {
+  return (
+    error.name === 'SolanaMobileWalletAdapterError' &&
+    error.message.includes('CancellationException')
+  )
+}
+
+function isMwaUserDeclined(error: any): boolean {
+  return (
+    error.name === 'SolanaMobileWalletAdapterError' &&
+    error.message.includes('AuthorizationDeclined')
+  )
+}
+
+function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+export interface ConnectAndSignResult {
+  session: WalletSession
+  signature: string
+  message: string
+}
+
+export async function connectAndSignAuthMessage(
+  mwaAuthToken?: string,
+): Promise<ConnectAndSignResult | null> {
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       return await transact(async (wallet) => {
-        // Use a timeout to prevent hanging
-        const timeoutPromise = new Promise((_, reject) => {
-            setTimeout(() => reject(new Error('Authorization timeout')), 30000)
-        })
-
-        const result = await Promise.race([
-            authorizeSession(wallet, mwaAuthToken),
-            timeoutPromise
-        ]) as Awaited<ReturnType<typeof authorizeSession>>
+        const result = await authorizeSession(wallet, mwaAuthToken)
 
         const account = result.accounts[0]
         if (!account) {
-            throw new Error('No wallet account returned')
+          throw new Error('No wallet account returned')
         }
 
         const publicKey = base64AddressToPublicKey(account.address)
+        const walletAddress = publicKey.toBase58()
+
+        const message = buildAuthMessage(walletAddress)
+        const messageBytes = new TextEncoder().encode(message)
+
+        const signed = await wallet.signMessages({
+          addresses: [account.address],
+          payloads: [messageBytes],
+        })
+
+        const signature = Buffer.from(signed[0]).toString('base64')
 
         return {
+          session: {
             authToken: result.auth_token,
-            walletAddress: publicKey.toBase58(),
+            walletAddress,
             base64Address: account.address,
             publicKey,
+          },
+          signature,
+          message,
         }
       })
     } catch (error: any) {
-        // Handle specific MWA errors
-        if (error.name === 'SolanaMobileWalletAdapterError') {
-            if (error.message.includes('CancellationException')) {
-                console.log('User cancelled wallet connection')
-                return null
-            }
-            if (error.message.includes('AuthorizationDeclined')) {
-                console.log('User declined authorization')
-                return null
-            }
-        }
-        console.error('Wallet authorization failed:', error)
-        throw error
+      if (isMwaUserDeclined(error)) {
+        console.log('User declined authorization')
+        return null
+      }
+
+      if (isMwaTransient(error) && attempt < MAX_RETRIES) {
+        console.log(`MWA transient error, retrying (${attempt}/${MAX_RETRIES})...`)
+        await delay(RETRY_DELAY_MS)
+        continue
+      }
+
+      console.error('Wallet connect failed:', error)
+      throw error
     }
+  }
+
+  return null
 }
 
 export function buildAuthMessage(walletAddress: string): string {
@@ -120,25 +160,6 @@ export function buildAuthMessage(walletAddress: string): string {
     `Chain: solana:${APP_IDENTITY.network}`,
     `URI: ${APP_IDENTITY.uri}`,
   ].join('\n')
-}
-
-export async function signMessageWithWallet(
-  message: string,
-  authToken: string,
-  base64Address: string,
-): Promise<string> {
-  const messageBytes = new TextEncoder().encode(message)
-
-  const signatureBytes = await transact(async (wallet) => {
-    await authorizeSession(wallet, authToken)
-    const signed = await wallet.signMessages({
-      addresses: [base64Address],
-      payloads: [messageBytes],
-    })
-    return signed[0]
-  })
-
-  return Buffer.from(signatureBytes).toString('base64')
 }
 
 export async function signTransactionWithWallet(
