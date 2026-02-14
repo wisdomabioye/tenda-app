@@ -3,7 +3,7 @@ import { Image } from 'expo-image'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text } from './Text'
 
-type Size = 'sm' | 'md' | 'lg'
+type Size = 'sm' | 'md' | 'lg' | 'xl'
 
 interface AvatarProps {
   src?: string | null
@@ -11,8 +11,8 @@ interface AvatarProps {
   size?: Size
 }
 
-const sizeMap = { sm: 32, md: 40, lg: 56 } as const
-const fontSizeMap = { sm: 12, md: 15, lg: 20 } as const
+const sizeMap = { sm: 32, md: 40, lg: 56, xl: 88 } as const
+const fontSizeMap = { sm: 12, md: 15, lg: 20, xl: 32 } as const
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/)

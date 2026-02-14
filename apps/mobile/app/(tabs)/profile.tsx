@@ -2,28 +2,28 @@ import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import {
-  Settings,
+  ArrowLeft,
   MapPin,
-  Star,
   ChevronRight,
   Wallet,
   CircleHelp,
   LogOut,
   ClipboardList,
   UserPen,
+  Settings,
 } from 'lucide-react-native'
-import { spacing } from '@/theme/tokens'
-import { 
+import { spacing, radius } from '@/theme/tokens'
+import {
   ScreenContainer,
   Text,
   Avatar,
   Card,
   Divider,
   Badge,
-  Spacer 
+  Spacer,
 } from '@/components/ui'
+import { IconButton } from '@/components/ui/IconButton'
 import { MOCK_GIGS } from '@/data/mock'
-import { Header } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth.store'
 
 function useGigCounts(userId: string | undefined) {
@@ -63,97 +63,74 @@ export default function ProfileScreen() {
 
   const { completedCount, activeCount } = useGigCounts(user?.id)
 
-  const accountItems: MenuItem[] = [
+  const menuItems: MenuItem[] = [
     { icon: UserPen, label: 'Update Profile', onPress: () => router.push('/(tabs)/update-profile') },
     { icon: ClipboardList, label: 'My Gigs', onPress: () => router.push('/(tabs)/my-gigs') },
     { icon: Wallet, label: 'Wallet', value: walletShort, onPress: () => router.push('/(tabs)/wallet') },
     { icon: Settings, label: 'Settings', onPress: () => router.push('/(tabs)/settings') },
+    { icon: CircleHelp, label: 'Help & Support', onPress: () => router.push('/(support)/faq' as never) },
   ]
 
-  const supportItems: MenuItem[] = [
-    { icon: CircleHelp, label: 'Help & Support', onPress: () => router.push('/(support)/faq' as any) },
-  ]
-
-  const dangerItems: MenuItem[] = [
-    {
-      icon: LogOut,
-      label: 'Disconnect',
-      danger: true,
-      onPress: async () => {
-        await logout()
-        router.replace('/(auth)/welcome')
-      },
-    },
+  const stats = [
+    { value: completedCount, label: 'Completed' },
+    { value: activeCount, label: 'Active' },
+    { value: user?.reputation_score ?? 0, label: 'Reputation' },
   ]
 
   return (
     <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
-      <Header
-        title="Profile"
-        showBack
-        rightIcon={Settings}
-        onRightPress={() => {}}
-      />
-      <Spacer size={spacing.lg} />
-
-      {/* Hero */}
-      <Card variant="elevated">
-        <View style={s.hero}>
-          <View style={[s.heroGlow, { backgroundColor: theme.colors.primaryTint }]} />
-          <View style={s.heroTop}>
-            <Avatar size="lg" name={fullName} src={user?.avatar_url} />
-            <View style={s.heroMeta}>
-              <Text variant="subheading">{fullName}</Text>
-              <View style={s.metaRow}>
-                <MapPin size={14} color={theme.colors.textSub} />
-                <Text variant="caption" color={theme.colors.textSub}>
-                  {user?.city ?? 'Unknown'}
-                </Text>
-              </View>
-              <View style={s.metaRow}>
-                <Star size={14} color={theme.colors.warning} />
-                <Text variant="caption" color={theme.colors.textSub}>
-                  {user?.reputation_score ?? 0} reputation
-                </Text>
-              </View>
-            </View>
-            <Badge variant="success" label="Verified" />
-          </View>
-
-          <Spacer size={spacing.md} />
-
-          <View style={s.walletRow}>
-            <Text variant="caption" color={theme.colors.textSub}>Wallet</Text>
-            <Text variant="label" weight="semibold">{walletShort}</Text>
-          </View>
-        </View>
-      </Card>
-
-      <Spacer size={spacing.lg} />
-
-      {/* Stats strip */}
-      <View style={s.statsStrip}>
-        <Card variant="filled" padding={spacing.md} style={s.statCard}>
-          <Text variant="subheading">{completedCount}</Text>
-          <Text variant="caption" color={theme.colors.textSub}>Completed</Text>
-        </Card>
-        <Card variant="filled" padding={spacing.md} style={s.statCard}>
-          <Text variant="subheading">{activeCount}</Text>
-          <Text variant="caption" color={theme.colors.textSub}>Active</Text>
-        </Card>
-        <Card variant="filled" padding={spacing.md} style={s.statCard}>
-          <Text variant="subheading">{user?.reputation_score ?? 0}</Text>
-          <Text variant="caption" color={theme.colors.textSub}>Reputation</Text>
-        </Card>
+      {/* Floating back button */}
+      <View style={s.topBar}>
+        <IconButton
+          icon={<ArrowLeft size={22} color={theme.colors.text} />}
+          onPress={() => router.back()}
+          variant="ghost"
+        />
       </View>
 
-      <Spacer size={spacing.lg} />
+      {/* Hero — centered identity */}
+      <View style={s.hero}>
+        <View style={[s.heroGlow, { backgroundColor: theme.colors.primaryTint }]} />
+        <Avatar size="xl" name={fullName} src={user?.avatar_url} />
+        <Spacer size={spacing.md} />
+        <Text variant="heading" align="center">{fullName}</Text>
+        <Spacer size={spacing.xs} />
+        <View style={s.metaRow}>
+          <MapPin size={14} color={theme.colors.textSub} />
+          <Text variant="body" color={theme.colors.textSub}>
+            {user?.city ?? 'Unknown'}
+          </Text>
+          <Badge variant="success" label="Verified" />
+        </View>
 
-      {/* Account */}
-      <Text variant="label" weight="semibold">Account</Text>
-      <Spacer size={spacing.sm} />
+        {/* Wallet pill */}
+        <Spacer size={spacing.md} />
+        <View style={[s.walletPill, { backgroundColor: theme.colors.muted }]}>
+          <Wallet size={14} color={theme.colors.textSub} />
+          <Text variant="caption" weight="medium" color={theme.colors.textSub}>
+            {walletShort}
+          </Text>
+        </View>
+      </View>
+
+      <Spacer size={spacing.xl} />
+
+      {/* Stats */}
+      <View style={s.statsStrip}>
+        {stats.map((stat, i) => (
+          <View key={stat.label} style={s.statItem}>
+            {i > 0 && <View style={[s.statDivider, { backgroundColor: theme.colors.borderFaint }]} />}
+            <Text variant="heading" color={theme.colors.primary}>{stat.value}</Text>
+            <Text variant="caption" color={theme.colors.textSub}>{stat.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      <Spacer size={spacing.xl} />
+
+      {/* Menu */}
       <Card variant="outlined" padding={0}>
-        {accountItems.map((item, index) => (
+        {menuItems.map((item, index) => (
           <View key={item.label}>
             {index > 0 && <Divider spacing={0} />}
             <Pressable
@@ -164,7 +141,9 @@ export default function ProfileScreen() {
               ]}
             >
               <View style={s.menuLeft}>
-                <item.icon size={20} color={theme.colors.text} />
+                <View style={[s.menuIcon, { backgroundColor: theme.colors.muted }]}>
+                  <item.icon size={18} color={theme.colors.text} />
+                </View>
                 <Text variant="body">{item.label}</Text>
               </View>
               <View style={s.menuRight}>
@@ -180,96 +159,77 @@ export default function ProfileScreen() {
         ))}
       </Card>
 
-      <Spacer size={spacing.lg} />
+      <Spacer size={spacing.xl} />
 
-      {/* Support */}
-      <Text variant="label" weight="semibold">Support</Text>
-      <Spacer size={spacing.sm} />
-      <Card variant="outlined" padding={0}>
-        {supportItems.map((item, index) => (
-          <View key={item.label}>
-            {index > 0 && <Divider spacing={0} />}
-            <Pressable
-              onPress={item.onPress}
-              style={({ pressed }) => [
-                s.menuItem,
-                pressed && { backgroundColor: theme.colors.surfacePressed },
-              ]}
-            >
-              <View style={s.menuLeft}>
-                <item.icon size={20} color={theme.colors.text} />
-                <Text variant="body">{item.label}</Text>
-              </View>
-              <ChevronRight size={18} color={theme.colors.textFaint} />
-            </Pressable>
-          </View>
-        ))}
-      </Card>
+      {/* Disconnect */}
+      <Pressable
+        onPress={async () => {
+          await logout()
+          router.replace('/(auth)/welcome')
+        }}
+        style={({ pressed }) => [
+          s.disconnectBtn,
+          {
+            backgroundColor: pressed ? theme.colors.surfacePressed : 'transparent',
+            borderColor: theme.colors.danger,
+          },
+        ]}
+      >
+        <LogOut size={18} color={theme.colors.danger} />
+        <Text variant="body" weight="medium" color={theme.colors.danger}>Disconnect</Text>
+      </Pressable>
 
       <Spacer size={spacing.lg} />
-
-      {/* Danger */}
-      <Card variant="outlined" padding={0}>
-        {dangerItems.map((item) => (
-          <Pressable
-            key={item.label}
-            onPress={item.onPress}
-            style={({ pressed }) => [
-              s.menuItem,
-              pressed && { backgroundColor: theme.colors.surfacePressed },
-            ]}
-          >
-            <View style={s.menuLeft}>
-              <item.icon size={20} color={theme.colors.danger} />
-              <Text variant="body" color={theme.colors.danger}>{item.label}</Text>
-            </View>
-          </Pressable>
-        ))}
-      </Card>
     </ScreenContainer>
   )
 }
 
 const s = StyleSheet.create({
+  topBar: {
+    flexDirection: 'row',
+    paddingTop: spacing.xs,
+  },
   hero: {
+    alignItems: 'center',
     position: 'relative',
     overflow: 'hidden',
+    paddingTop: spacing.sm,
   },
   heroGlow: {
     position: 'absolute',
-    top: -40,
-    right: -40,
-    width: 160,
-    height: 160,
-    borderRadius: 80,
-    opacity: 0.6,
-  },
-  heroTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  heroMeta: {
-    flex: 1,
-    gap: 4,
+    top: -60,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    opacity: 0.4,
   },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: spacing.sm,
   },
-  walletRow: {
+  walletPill: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.full,
   },
   statsStrip: {
     flexDirection: 'row',
-    gap: spacing.sm,
   },
-  statCard: {
+  statItem: {
     flex: 1,
     alignItems: 'center',
+    gap: 2,
+  },
+  statDivider: {
+    position: 'absolute',
+    left: 0,
+    top: 4,
+    bottom: 4,
+    width: 1,
   },
   menuItem: {
     flexDirection: 'row',
@@ -283,9 +243,25 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
   },
+  menuIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   menuRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
+  },
+  disconnectBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: 14,
+    borderRadius: radius.lg,
+    borderWidth: 1,
   },
 })
