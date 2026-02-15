@@ -8,6 +8,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { MoneyText } from '@/components/ui/MoneyText'
 import { GigStatusBadge } from './GigStatusBadge'
 import { type MockGig, type MockUser, MOCK_USERS, getCategoryColor, type GigStatus, CATEGORY_META } from '@/data/mock'
+import { toPaymentDisplay } from '@/lib/currency'
 import type { ColorScheme } from '@/theme/tokens'
 
 interface GigCardProps {
@@ -113,6 +114,7 @@ export function GigCard({ gig, showStatus = true }: GigCardProps) {
   const categoryColor = theme.colors[categoryColorKey]
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
+  const price = toPaymentDisplay(gig.payment)
 
   return (
     <Pressable
@@ -141,7 +143,7 @@ export function GigCard({ gig, showStatus = true }: GigCardProps) {
             {gig.title}
           </Text>
         </View>
-        <MoneyText amount={gig.payment} size={typography.sizes.lg} />
+        <MoneyText naira={price.naira} sol={price.sol} size={typography.sizes.lg} />
       </View>
 
       <Text variant="caption" numberOfLines={2}>

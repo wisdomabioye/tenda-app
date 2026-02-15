@@ -1,32 +1,57 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'expo-router'
-import { View, FlatList, StyleSheet } from 'react-native'
+import { View, FlatList, Pressable, StyleSheet } from 'react-native'
+import { Bell, SlidersHorizontal, Search as SearchIcon } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { Bell } from 'lucide-react-native'
-import type { ColorScheme } from '@/theme/tokens'
-import { spacing } from '@/theme/tokens'
+import { spacing, radius } from '@/theme/tokens'
 import {
   ScreenContainer,
   Text,
-  Chip,
   Spacer,
   LiveChip,
+  FilterSheet,
+  EmptyState,
 } from '@/components/ui'
 import { GigCardCompact } from '@/components/gig'
 import { Drawer, DrawerHeader } from '@/components/navigation'
-import { MOCK_GIGS, CATEGORY_META, type MockGig } from '@/data/mock'
+import { MOCK_GIGS, type MockGig } from '@/data/mock'
 import { useAuthStore } from '@/stores/auth.store'
 
-const openGigs = MOCK_GIGS.filter((g) => g.status === 'open')
+const allOpenGigs = MOCK_GIGS.filter((g) => g.status === 'open')
 
 export default function HomeScreen() {
-  const { theme } = useUnistyles()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [filterOpen, setFilterOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const router = useRouter()
+  const { theme } = useUnistyles()
   const user = useAuthStore((s) => s.user)
 
+  const hasFilters = query.trim().length > 0 || selectedCategory !== null
+
+  const filteredGigs = useMemo(() => {
+    let result = allOpenGigs
+
+    if (selectedCategory) {
+      result = result.filter((g) => g.category === selectedCategory)
+    }
+
+    if (query.trim()) {
+      const lower = query.toLowerCase()
+      result = result.filter(
+        (g) =>
+          g.title.toLowerCase().includes(lower) ||
+          g.description.toLowerCase().includes(lower) ||
+          g.city.toLowerCase().includes(lower),
+      )
+    }
+
+    return result
+  }, [query, selectedCategory])
+
   const renderGigItem = ({ item }: { item: MockGig }) => (
-    <GigCardCompact gig={item} variant="inline" />
+    <GigCardCompact gig={item} />
   )
 
   return (
@@ -47,57 +72,56 @@ export default function HomeScreen() {
       />
       <ScreenContainer scroll={false} padding={false}>
         <FlatList
-          data={openGigs}
+          data={filteredGigs}
           keyExtractor={(item) => item.id}
           renderItem={renderGigItem}
           contentContainerStyle={s.list}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <>
-              {/* Feed intro */}
-              <View style={s.feedIntro}>
-                <View>
-                  <Text variant="subheading">Feed</Text>
-                  <Text variant="caption" color={theme.colors.textSub}>
-                    Latest gigs, updated as they come in
-                  </Text>
-                </View>
+            <View style={s.feedRow}>
+              <Text variant="subheading">Feed</Text>
+              <View style={s.feedRight}>
                 <LiveChip label="Live" />
+                <Pressable
+                  onPress={() => setFilterOpen(true)}
+                  style={[
+                    s.filterBtn,
+                    {
+                      backgroundColor: hasFilters
+                        ? theme.colors.primaryTint
+                        : theme.colors.muted,
+                    },
+                  ]}
+                >
+                  <SlidersHorizontal
+                    size={16}
+                    color={hasFilters ? theme.colors.primary : theme.colors.textSub}
+                  />
+                  {hasFilters && (
+                    <View style={[s.filterDot, { backgroundColor: theme.colors.primary }]} />
+                  )}
+                </Pressable>
               </View>
-
-              <Spacer size={spacing.md} />
-
-              {/* Categories */}
-              <Text variant="subheading">Categories</Text>
-              <Spacer size={spacing.sm} />
-              <View style={s.categories}>
-                {CATEGORY_META.map((cat) => {
-                  const colorKey = `category${cat.label}` as keyof ColorScheme
-                  return (
-                    <Chip
-                      key={cat.key}
-                      label={cat.label}
-                      color={theme.colors[colorKey]}
-                      onPress={() => {}}
-                    />
-                  )
-                })}
-              </View>
-
-              <Spacer size={spacing.lg} />
-
-              {/* Section header */}
-              <View style={s.sectionHeader}>
-                <Text variant="subheading">Available gigs</Text>
-                <Text variant="caption" color={theme.colors.primary} weight="semibold">
-                  See all
-                </Text>
-              </View>
-              <Spacer size={spacing.sm} />
-            </>
+            </View>
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon={<SearchIcon size={40} color={theme.colors.textFaint} />}
+              title="No gigs found"
+              description="Try adjusting your search or filters"
+            />
           }
           ItemSeparatorComponent={() => <Spacer size={spacing.sm} />}
           ListFooterComponent={<Spacer size={spacing.xl} />}
+        />
+
+        <FilterSheet
+          visible={filterOpen}
+          onClose={() => setFilterOpen(false)}
+          query={query}
+          onQueryChange={setQuery}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
         />
       </ScreenContainer>
     </Drawer>
@@ -105,36 +129,34 @@ export default function HomeScreen() {
 }
 
 const s = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
   list: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingTop: spacing.sm,
   },
-  feedIntro: {
+  feedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: spacing.md,
   },
-  categories: {
+  feedRight: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     gap: spacing.sm,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  filterBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 })

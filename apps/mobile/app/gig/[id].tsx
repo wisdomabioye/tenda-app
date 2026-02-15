@@ -26,6 +26,7 @@ import {
   CATEGORY_META,
 } from '@/data/mock'
 import { useAuthStore } from '@/stores/auth.store'
+import { toPaymentDisplay } from '@/lib/currency'
 import type { ColorScheme } from '@/theme/tokens'
 
 function formatDate(date: Date): string {
@@ -73,6 +74,7 @@ export default function GigDetailScreen() {
   const categoryColor = theme.colors[categoryColorKey]
   const isOwner = gig.poster_id === user?.id
   const canAccept = gig.status === 'open' && !isOwner
+  const price = toPaymentDisplay(gig.payment)
 
   const posterName = [gig.poster.first_name, gig.poster.last_name]
     .filter(Boolean)
@@ -118,7 +120,7 @@ export default function GigDetailScreen() {
 
         <Spacer size={spacing.md} />
 
-        <MoneyText amount={gig.payment} size={32} />
+        <MoneyText naira={price.naira} sol={price.sol} size={32} />
 
         <Spacer size={spacing.lg} />
 
