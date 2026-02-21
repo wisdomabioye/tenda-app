@@ -97,7 +97,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
           city,
           address,
           deadline: new Date(deadline),
-          status: 'open',
+          status: 'draft',
         })
         .returning()
 
