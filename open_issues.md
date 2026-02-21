@@ -22,7 +22,6 @@
 
 | # | Issue | File(s) | Fix |
 |---|-------|---------|-----|
-| 14 | Rate limit keys on proxy IP, not client IP — all requests behind Nginx/Docker share one IP, making the limit effectively global | `plugins/rate-limit.ts`, server init | Set `trustProxy: true` in Fastify server options; forward real client IP via `X-Forwarded-For` header |
 | 28 | TOCTOU race on gig accept — two workers submitting simultaneously both pass the status check and overwrite `worker_id`; the `UPDATE` has no `AND status = 'open'` guard. Same pattern in `approve.ts`, `dispute.ts`, `submit.ts` | `routes/v1/gigs/_id/accept.ts` + others | Add `eq(gigs.status, 'open')` to UPDATE WHERE clause inside transaction; if no row returned respond 409 |
 
 ### 🟠 Significant
@@ -78,3 +77,4 @@
 | 11 | Lazy expiry only ran on single-record GET | `batchExpireGigs()` with 60s throttle called at top of `GET /v1/gigs` |
 | 12 | Full gig financial history publicly visible per user | Optional auth on `GET /v1/users/:id/gigs`; non-owners see public statuses only |
 | 13 | `any` used in `lib/gigs.ts` and `lib/platform.ts` | Replaced with `AppDatabase = PostgresJsDatabase<typeof schema>` |
+| 14 | Rate limit keys on proxy IP, not client IP | Set `trustProxy: true` on the Fastify instance in `server.ts` |

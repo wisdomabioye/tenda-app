@@ -4,6 +4,9 @@ import {app, options} from './app'
 import { loadConfig } from './config'
 
 const server = Fastify({
+    // Trust the X-Forwarded-For header set by reverse proxies (Nginx, cloud LBs).
+    // Required so rate limiting and logging use the real client IP, not the proxy IP.
+    trustProxy: true,
     logger: {
         level: 'debug',
         transport: {
