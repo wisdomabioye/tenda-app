@@ -1,10 +1,7 @@
 import { eq } from 'drizzle-orm'
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import { gigs } from '@tenda/shared/db/schema'
 import { computeCompletionDeadline, type Gig } from '@tenda/shared'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Database = PostgresJsDatabase<any>
+import type { AppDatabase } from '../plugins/db'
 
 /**
  * Lazily expire a gig if its accept or completion deadline has passed.
@@ -12,7 +9,7 @@ type Database = PostgresJsDatabase<any>
  *
  * @todo Replace per-request lazy check with a background cron job when scaling.
  */
-export async function checkAndExpireGig(gig: Gig, db: Database): Promise<Gig> {
+export async function checkAndExpireGig(gig: Gig, db: AppDatabase): Promise<Gig> {
   const now = new Date()
 
   if (gig.status === 'open' && gig.accept_deadline && now > gig.accept_deadline) {

@@ -14,6 +14,8 @@ import { getConfig } from '../config'
 
 const schema = { users, gigs, gig_proofs, gig_transactions, disputes, reviews, platform_config }
 
+export type AppDatabase = PostgresJsDatabase<typeof schema>
+
 declare module 'fastify' {
   interface FastifyInstance {
     db: PostgresJsDatabase<typeof schema>

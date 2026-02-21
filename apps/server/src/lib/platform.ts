@@ -1,14 +1,11 @@
-import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import { platform_config } from '@tenda/shared/db/schema'
 import { getConfig } from '../config'
+import type { AppDatabase } from '../plugins/db'
 
 export interface PlatformConfig {
   fee_bps: number
   grace_period_seconds: number
 }
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Database = PostgresJsDatabase<any>
 
 let cache: PlatformConfig | null = null
 let cacheExpiry = 0
@@ -19,7 +16,7 @@ const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
  * Results are cached for 5 minutes to avoid a DB round-trip on every request.
  * Falls back to PLATFORM_FEE_BPS env var if the table has not been seeded yet.
  */
-export async function getPlatformConfig(db: Database): Promise<PlatformConfig> {
+export async function getPlatformConfig(db: AppDatabase): Promise<PlatformConfig> {
   const now = Date.now()
   if (cache && now < cacheExpiry) {
     return cache
