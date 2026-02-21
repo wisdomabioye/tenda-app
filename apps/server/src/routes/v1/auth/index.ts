@@ -11,10 +11,11 @@ type MeRoute     = AuthContract['me']
 
 const auth: FastifyPluginAsync = async (fastify) => {
   // POST /v1/auth/wallet — verify Solana signature, upsert user, return JWT
+  // Stricter rate limit than the global default to slow brute-force attempts.
   fastify.post<{
     Body: WalletRoute['body']
     Reply: WalletRoute['response'] | ApiError
-  }>('/wallet', async (request, reply) => {
+  }>('/wallet', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => {
     const { wallet_address, signature, message } = request.body
 
     if (!wallet_address || !signature || !message) {

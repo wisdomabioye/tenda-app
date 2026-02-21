@@ -7,20 +7,26 @@ import {
   validateGigDeadlines,
   MAX_GIG_TITLE_LENGTH,
   MAX_GIG_DESCRIPTION_LENGTH,
+  MAX_PAGINATION_LIMIT,
   ErrorCode,
 } from '@tenda/shared'
 import type { GigsContract, ApiError, GigStatus, GigCategory } from '@tenda/shared'
+import { batchExpireGigs } from '../../../lib/gigs'
 
 type ListRoute   = GigsContract['list']
 type CreateRoute = GigsContract['create']
 
 const gigsRoutes: FastifyPluginAsync = async (fastify) => {
 
-  // GET /v1/gigs — list with filters
+  // GET /v1/gigs — list open gigs with filters
   fastify.get<{
     Querystring: ListRoute['query']
     Reply: ListRoute['response']
   }>('/', async (request) => {
+    // Batch-expire gigs whose deadlines have passed before serving the list.
+    // Throttled internally to at most once per minute.
+    await batchExpireGigs(fastify.db)
+
     const {
       city,
       category,
@@ -30,24 +36,26 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       lat,
       lng,
       radius_km,
-      limit = 20,
+      limit  = 20,
       offset = 0,
     } = request.query
 
+    const safeLimit  = Math.min(Number(limit),  MAX_PAGINATION_LIMIT)
+    const safeOffset = Number(offset)
+
     const conditions: SQL[] = [
-      // public feed is always open gigs only
+      // Public feed shows only open gigs. Expired gigs are excluded because
+      // batchExpireGigs above updated their status before this query runs.
       eq(gigs.status, 'open' as GigStatus),
-      // Exclude gigs with a passed accept_deadline (lazy expiry filter)
-      sql`(${gigs.accept_deadline} IS NULL OR ${gigs.accept_deadline} > NOW())`,
     ]
 
-    if (city)                    conditions.push(eq(gigs.city, city))
-    if (category)                conditions.push(eq(gigs.category, category as GigCategory))
-    if (min_payment_lamports)    conditions.push(gte(gigs.payment_lamports, min_payment_lamports))
-    if (max_payment_lamports)    conditions.push(lte(gigs.payment_lamports, max_payment_lamports))
+    if (city)                 conditions.push(eq(gigs.city, city))
+    if (category)             conditions.push(eq(gigs.category, category as GigCategory))
+    if (min_payment_lamports) conditions.push(gte(gigs.payment_lamports, min_payment_lamports))
+    if (max_payment_lamports) conditions.push(lte(gigs.payment_lamports, max_payment_lamports))
 
     // Haversine proximity filter — no PostGIS required for MVP
-    // @todo: migrate to PostGIS ST_DWithin when query volume grows
+    // @todo Migrate to PostGIS ST_DWithin when query volume grows
     if (lat !== undefined && lng !== undefined && radius_km !== undefined) {
       conditions.push(
         sql`${gigs.latitude} IS NOT NULL AND ${gigs.longitude} IS NOT NULL AND
@@ -62,17 +70,17 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     const where = and(...conditions)
 
     let orderBy
-    if (sort === 'payment_asc')  orderBy = asc(gigs.payment_lamports)
+    if (sort === 'payment_asc')       orderBy = asc(gigs.payment_lamports)
     else if (sort === 'payment_desc') orderBy = desc(gigs.payment_lamports)
-    else                         orderBy = desc(gigs.created_at)
+    else                              orderBy = desc(gigs.created_at)
 
     const [data, countResult] = await Promise.all([
       fastify.db
         .select()
         .from(gigs)
         .where(where)
-        .limit(Number(limit))
-        .offset(Number(offset))
+        .limit(safeLimit)
+        .offset(safeOffset)
         .orderBy(orderBy),
       fastify.db
         .select({ count: sql<number>`count(*)::int` })
@@ -82,9 +90,9 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
 
     return {
       data,
-      total: countResult[0].count,
-      limit: Number(limit),
-      offset: Number(offset),
+      total:  countResult[0].count,
+      limit:  safeLimit,
+      offset: safeOffset,
     }
   })
 

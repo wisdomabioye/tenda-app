@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq, sql } from 'drizzle-orm'
 import { users, reviews } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 
 type ReviewsRoute = UsersContract['reviews']
@@ -15,6 +15,9 @@ const userReviews: FastifyPluginAsync = async (fastify) => {
   }>('/', async (request, reply) => {
     const { id } = request.params
     const { limit = 20, offset = 0 } = request.query
+
+    const safeLimit  = Math.min(Number(limit),  MAX_PAGINATION_LIMIT)
+    const safeOffset = Number(offset)
 
     // Verify user exists
     const [user] = await fastify.db
@@ -39,8 +42,8 @@ const userReviews: FastifyPluginAsync = async (fastify) => {
         .select()
         .from(reviews)
         .where(where)
-        .limit(Number(limit))
-        .offset(Number(offset))
+        .limit(safeLimit)
+        .offset(safeOffset)
         .orderBy(reviews.created_at),
       fastify.db
         .select({ count: sql<number>`count(*)::int` })
@@ -50,9 +53,9 @@ const userReviews: FastifyPluginAsync = async (fastify) => {
 
     return {
       data,
-      total: countResult[0].count,
-      limit: Number(limit),
-      offset: Number(offset),
+      total:  countResult[0].count,
+      limit:  safeLimit,
+      offset: safeOffset,
     }
   })
 }

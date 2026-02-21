@@ -32,6 +32,17 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
         })
       }
 
+      // Validate winner against the enum — prevents arbitrary strings being stored
+      const VALID_WINNERS = ['poster', 'worker', 'split'] as const
+      if (!VALID_WINNERS.includes(winner as typeof VALID_WINNERS[number])) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'winner must be "poster", "worker", or "split"',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
       const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
 
       if (!gig) {

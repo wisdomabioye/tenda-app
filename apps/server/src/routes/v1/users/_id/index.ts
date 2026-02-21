@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, isCloudinaryUrl } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 
 type GetRoute    = UsersContract['get']
@@ -63,8 +63,19 @@ const userById: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    const updates: Record<string, unknown> = { updated_at: new Date() }
     const { first_name, last_name, avatar_url, bio, city, latitude, longitude } = request.body
+
+    // Reject avatar URLs that don't come from Cloudinary CDN
+    if (avatar_url !== undefined && avatar_url !== null && !isCloudinaryUrl(avatar_url)) {
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'avatar_url must be a Cloudinary URL (https://res.cloudinary.com/)',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
+    }
+
+    const updates: Record<string, unknown> = { updated_at: new Date() }
     if (first_name !== undefined) updates.first_name = first_name
     if (last_name !== undefined)  updates.last_name  = last_name
     if (avatar_url !== undefined) updates.avatar_url = avatar_url

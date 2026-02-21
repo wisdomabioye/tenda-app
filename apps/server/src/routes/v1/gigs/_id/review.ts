@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq, avg } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { gigs, reviews, users } from '@tenda/shared/db/schema'
 import { isValidReviewScore, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
@@ -84,18 +84,20 @@ const reviewGig: FastifyPluginAsync = async (fastify) => {
             })
             .returning()
 
-          // Recompute reviewee's reputation score: AVG(score) * 20 → 0–100 scale
-          const [aggResult] = await tx
-            .select({ avg: avg(reviews.score) })
-            .from(reviews)
-            .where(eq(reviews.reviewee_id, revieweeId))
-
-          const avgScore = Number(aggResult?.avg ?? score)
-          const reputation_score = Math.round(avgScore * 20)
-
+          // Recompute reviewee's reputation score atomically: AVG(score) * 20 → 0–100 scale.
+          // Using a single UPDATE … SET … = (SELECT AVG …) avoids a race condition where
+          // two concurrent reviews for the same user could both read the same stale average.
+          // The subquery runs inside the same transaction and sees the just-inserted row.
           await tx
             .update(users)
-            .set({ reputation_score, updated_at: new Date() })
+            .set({
+              reputation_score: sql<number>`(
+                SELECT ROUND(AVG(score)::numeric * 20)::int
+                FROM ${reviews}
+                WHERE reviewee_id = ${revieweeId}
+              )`,
+              updated_at: new Date(),
+            })
             .where(eq(users.id, revieweeId))
 
           return inserted

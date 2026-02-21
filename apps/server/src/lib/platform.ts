@@ -12,6 +12,16 @@ let cacheExpiry = 0
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 /**
+ * Invalidate the in-process cache.
+ * Call this after an admin updates platform_config so the next request
+ * reads fresh values from the DB instead of serving stale config.
+ */
+export function invalidatePlatformConfigCache(): void {
+  cache = null
+  cacheExpiry = 0
+}
+
+/**
  * Read platform configuration from the database.
  * Results are cached for 5 minutes to avoid a DB round-trip on every request.
  * Falls back to PLATFORM_FEE_BPS env var if the table has not been seeded yet.

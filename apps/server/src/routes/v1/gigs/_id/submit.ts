@@ -1,8 +1,9 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs, gig_proofs } from '@tenda/shared/db/schema'
-import { computeCompletionDeadline, ErrorCode } from '@tenda/shared'
+import { computeCompletionDeadline, isCloudinaryUrl, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
+import { getPlatformConfig } from '../../../../lib/platform'
 
 type SubmitRoute = GigsContract['submit']
 
@@ -48,18 +49,24 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      // Enforce completion deadline
+      // Enforce the submission window: worker has completion_duration_seconds
+      // plus the platform grace_period_seconds to submit proof.
+      // This mirrors the on-chain check: current_time <= completion_deadline + grace_period.
       if (gig.accepted_at) {
-        const deadline = computeCompletionDeadline(
+        const config = await getPlatformConfig(fastify.db)
+        const completionDeadline = computeCompletionDeadline(
           new Date(gig.accepted_at),
           gig.completion_duration_seconds,
         )
-        if (new Date() > deadline) {
+        const submissionCutoff = new Date(
+          completionDeadline.getTime() + config.grace_period_seconds * 1000,
+        )
+        if (new Date() > submissionCutoff) {
           return reply.code(400).send({
             statusCode: 400,
             error: 'Bad Request',
-            message: 'Completion deadline has passed',
-            code: ErrorCode.COMPLETION_DEADLINE_PASSED,
+            message: 'Submission window has closed (completion deadline + grace period passed)',
+            code: ErrorCode.GRACE_PERIOD_EXPIRED,
           })
         }
       }
@@ -73,6 +80,17 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
         })
       }
 
+      // Validate all proof URLs are from Cloudinary CDN
+      const invalidProof = proofs.find(({ url }) => !isCloudinaryUrl(url))
+      if (invalidProof) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'All proof URLs must be hosted on Cloudinary (https://res.cloudinary.com/)',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
       const insertedProofs = await fastify.db.transaction(async (tx) => {
         await tx
           .update(gigs)
@@ -82,7 +100,7 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
         return tx
           .insert(gig_proofs)
           .values(proofs.map(({ url, type }) => ({
-            gig_id: id,
+            gig_id:         id,
             uploaded_by_id: request.user.id,
             url,
             type,

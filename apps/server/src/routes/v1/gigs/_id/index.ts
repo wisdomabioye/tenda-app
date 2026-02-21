@@ -11,6 +11,7 @@ import {
 import { computePlatformFee, verifyTransactionOnChain } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { checkAndExpireGig } from '../../../../lib/gigs'
+
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type GetRoute    = GigsContract['get']
@@ -36,8 +37,10 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    // Lazily expire gig if deadline has passed
-    gig = await checkAndExpireGig(gig, fastify.db)
+    // Lazily expire gig if deadline has passed.
+    // Grace period is read from platform_config (cached for 5 minutes).
+    const config = await getPlatformConfig(fastify.db)
+    gig = await checkAndExpireGig(gig, fastify.db, config.grace_period_seconds)
 
     const [poster] = await fastify.db
       .select({
