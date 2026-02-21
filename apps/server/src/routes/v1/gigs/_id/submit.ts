@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { gigs, gig_proofs } from '@tenda/shared/db/schema'
 import { computeCompletionDeadline, isCloudinaryUrl, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
@@ -91,11 +91,17 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      const insertedProofs = await fastify.db.transaction(async (tx) => {
-        await tx
+      const result = await fastify.db.transaction(async (tx) => {
+        // Include status = 'accepted' in WHERE to guard against TOCTOU races.
+        // If two submissions arrive simultaneously, only one will match the UPDATE;
+        // the second will get no row back and we return 409 instead of inserting duplicate proofs.
+        const [updatedGig] = await tx
           .update(gigs)
           .set({ status: 'submitted', updated_at: new Date() })
-          .where(eq(gigs.id, id))
+          .where(and(eq(gigs.id, id), eq(gigs.status, 'accepted')))
+          .returning({ id: gigs.id })
+
+        if (!updatedGig) return null
 
         return tx
           .insert(gig_proofs)
@@ -108,7 +114,16 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
           .returning()
       })
 
-      return reply.code(201).send(insertedProofs)
+      if (!result) {
+        return reply.code(409).send({
+          statusCode: 409,
+          error: 'Conflict',
+          message: 'Gig status changed — proof may have already been submitted',
+          code: ErrorCode.GIG_WRONG_STATUS,
+        })
+      }
+
+      return reply.code(201).send(result)
     }
   )
 }

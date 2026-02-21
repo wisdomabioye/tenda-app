@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
@@ -56,6 +56,9 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
       }
 
       const now = new Date()
+      // Include status = 'open' in the WHERE clause to guard against TOCTOU races.
+      // If another request accepted this gig between our SELECT and this UPDATE,
+      // no row will be returned and we respond 409 instead of silently overwriting worker_id.
       const [updated] = await fastify.db
         .update(gigs)
         .set({
@@ -64,8 +67,17 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
           accepted_at: now,
           updated_at:  now,
         })
-        .where(eq(gigs.id, id))
+        .where(and(eq(gigs.id, id), eq(gigs.status, 'open')))
         .returning()
+
+      if (!updated) {
+        return reply.code(409).send({
+          statusCode: 409,
+          error: 'Conflict',
+          message: 'Gig is no longer open — it may have just been accepted by another worker',
+          code: ErrorCode.GIG_WRONG_STATUS,
+        })
+      }
 
       return updated
     }

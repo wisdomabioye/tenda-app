@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { computePlatformFee, verifyTransactionOnChain } from '../../../../lib/solana'
@@ -74,11 +74,16 @@ const approveGig: FastifyPluginAsync = async (fastify) => {
       const platform_fee_lamports = computePlatformFee(gig.payment_lamports, config.fee_bps)
 
       const updated = await fastify.db.transaction(async (tx) => {
+        // Include status = 'submitted' in WHERE to guard against TOCTOU races.
+        // A concurrent approve or dispute call could have already transitioned the gig;
+        // checking here prevents double-completion and phantom fee records.
         const [updatedGig] = await tx
           .update(gigs)
           .set({ status: 'completed', updated_at: new Date() })
-          .where(eq(gigs.id, id))
+          .where(and(eq(gigs.id, id), eq(gigs.status, 'submitted')))
           .returning()
+
+        if (!updatedGig) return null
 
         await tx.insert(gig_transactions).values({
           gig_id:               id,
@@ -90,6 +95,15 @@ const approveGig: FastifyPluginAsync = async (fastify) => {
 
         return updatedGig
       })
+
+      if (!updated) {
+        return reply.code(409).send({
+          statusCode: 409,
+          error: 'Conflict',
+          message: 'Gig status changed — it may have already been approved or disputed',
+          code: ErrorCode.GIG_WRONG_STATUS,
+        })
+      }
 
       return updated
     }

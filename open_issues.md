@@ -22,7 +22,6 @@
 
 | # | Issue | File(s) | Fix |
 |---|-------|---------|-----|
-| 28 | TOCTOU race on gig accept — two workers submitting simultaneously both pass the status check and overwrite `worker_id`; the `UPDATE` has no `AND status = 'open'` guard. Same pattern in `approve.ts`, `dispute.ts`, `submit.ts` | `routes/v1/gigs/_id/accept.ts` + others | Add `eq(gigs.status, 'open')` to UPDATE WHERE clause inside transaction; if no row returned respond 409 |
 
 ### 🟠 Significant
 
@@ -78,3 +77,4 @@
 | 12 | Full gig financial history publicly visible per user | Optional auth on `GET /v1/users/:id/gigs`; non-owners see public statuses only |
 | 13 | `any` used in `lib/gigs.ts` and `lib/platform.ts` | Replaced with `AppDatabase = PostgresJsDatabase<typeof schema>` |
 | 14 | Rate limit keys on proxy IP, not client IP | Set `trustProxy: true` on the Fastify instance in `server.ts` |
+| 28 | TOCTOU race on gig accept/approve/dispute/submit — UPDATE had no status guard in WHERE clause | Added `eq(gigs.status, expectedStatus)` to UPDATE WHERE in all four routes; 0 rows returned → 409 |

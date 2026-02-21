@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { and, eq, or } from 'drizzle-orm'
 import { gigs, disputes } from '@tenda/shared/db/schema'
 import { MAX_DISPUTE_REASON_LENGTH, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
@@ -69,11 +69,16 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
 
       try {
         const updated = await fastify.db.transaction(async (tx) => {
+          // Include the expected statuses in WHERE to guard against TOCTOU races.
+          // If the gig was already disputed or approved between our SELECT and this UPDATE,
+          // no row is returned and we surface a 409 rather than silently overwriting state.
           const [updatedGig] = await tx
             .update(gigs)
             .set({ status: 'disputed', updated_at: new Date() })
-            .where(eq(gigs.id, id))
+            .where(and(eq(gigs.id, id), or(eq(gigs.status, 'submitted'), eq(gigs.status, 'accepted'))))
             .returning()
+
+          if (!updatedGig) return null
 
           await tx.insert(disputes).values({
             gig_id: id,
@@ -83,6 +88,15 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
 
           return updatedGig
         })
+
+        if (!updated) {
+          return reply.code(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'Gig status changed — it may have already been disputed or completed',
+            code: ErrorCode.GIG_WRONG_STATUS,
+          })
+        }
 
         return updated
       } catch (err: unknown) {
