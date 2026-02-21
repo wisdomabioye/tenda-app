@@ -5,6 +5,7 @@ import { ErrorCode } from '@tenda/shared'
 import { computePlatformFee, verifyTransactionOnChain } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { requireRole } from '../../../../lib/guards'
+import { isPostgresUniqueViolation } from '../../../../lib/db'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type ResolveRoute = GigsContract['resolve']
@@ -79,28 +80,41 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
       const resolverWalletAddress = request.user.wallet_address
       const now = new Date()
 
-      const updated = await fastify.db.transaction(async (tx) => {
-        const [updatedGig] = await tx
-          .update(gigs)
-          .set({ status: 'resolved', updated_at: now })
-          .where(eq(gigs.id, id))
-          .returning()
+      let updated
+      try {
+        updated = await fastify.db.transaction(async (tx) => {
+          const [updatedGig] = await tx
+            .update(gigs)
+            .set({ status: 'resolved', updated_at: now })
+            .where(eq(gigs.id, id))
+            .returning()
 
-        await tx
-          .update(disputes)
-          .set({ winner, resolver_wallet_address: resolverWalletAddress, resolved_at: now })
-          .where(eq(disputes.gig_id, id))
+          await tx
+            .update(disputes)
+            .set({ winner, resolver_wallet_address: resolverWalletAddress, resolved_at: now })
+            .where(eq(disputes.gig_id, id))
 
-        await tx.insert(gig_transactions).values({
-          gig_id:               id,
-          type:                 'dispute_resolved',
-          signature,
-          amount_lamports:      gig.payment_lamports,
-          platform_fee_lamports,
+          await tx.insert(gig_transactions).values({
+            gig_id:               id,
+            type:                 'dispute_resolved',
+            signature,
+            amount_lamports:      gig.payment_lamports,
+            platform_fee_lamports,
+          })
+
+          return updatedGig
         })
-
-        return updatedGig
-      })
+      } catch (err: unknown) {
+        if (isPostgresUniqueViolation(err)) {
+          return reply.code(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'This transaction signature has already been recorded',
+            code: ErrorCode.DUPLICATE_SIGNATURE,
+          })
+        }
+        throw err
+      }
 
       return updated
     }

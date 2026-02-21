@@ -15,10 +15,11 @@ export interface Config {
   CLOUDINARY_API_SECRET: string
   SOLANA_RPC_URL: string
   // Optional — defaults applied here; do not re-read from process.env elsewhere
-  PLATFORM_FEE_BPS: number  // seed fallback only — runtime fee is read from platform_config table
+  PLATFORM_FEE_BPS: number       // seed fallback only — runtime fee is read from platform_config table
   SOLANA_PROGRAM_ID: string
-  JWT_EXPIRES_IN: string    // e.g. '7d', '24h'
-  SOLANA_NETWORK: string    // 'devnet' | 'testnet' | 'mainnet-beta'
+  JWT_EXPIRES_IN: string         // e.g. '7d', '24h'
+  SOLANA_NETWORK: string         // 'devnet' | 'testnet' | 'mainnet-beta'
+  CORS_ORIGIN: string[] | null   // null = allow any origin (dev); set to domain list in production
 }
 
 let _config: Config | undefined
@@ -47,6 +48,9 @@ export function loadConfig(): Config {
     SOLANA_PROGRAM_ID:     process.env.SOLANA_PROGRAM_ID ?? 'TendaEscrowProgram1111111111111111111111111',
     JWT_EXPIRES_IN:        process.env.JWT_EXPIRES_IN ?? '7d',
     SOLANA_NETWORK:        process.env.SOLANA_NETWORK ?? 'devnet',
+    CORS_ORIGIN:           process.env.CORS_ORIGIN
+                             ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+                             : null,
   }
 
   return _config

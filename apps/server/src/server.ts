@@ -36,14 +36,15 @@ const startServer = async () => {
   }
 }
 
-// Handle graceful shutdown
-// const gracefulShutdown = async (signal: string) => {
-//   console.log(`Received ${signal}, closing server...`)
-//   await server.close()
-//   process.exit(0)
-// }
+// Handle graceful shutdown — let in-flight requests finish before the process exits.
+// Required for clean container restarts in Docker / k8s.
+const gracefulShutdown = async (signal: string) => {
+  server.log.info(`Received ${signal}, closing server...`)
+  await server.close()
+  process.exit(0)
+}
 
-// process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
-// process.on('SIGINT', () => gracefulShutdown('SIGINT'))
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'))
+process.on('SIGINT',  () => gracefulShutdown('SIGINT'))
 
 startServer()

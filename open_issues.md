@@ -27,15 +27,9 @@
 
 | # | Issue | File(s) | Fix |
 |---|-------|---------|-----|
-| 15 | Role promotion doesn't take effect until JWT expiry — `requireRole` reads the JWT payload, not the DB; a newly promoted admin can't access admin routes until re-auth | `lib/guards.ts`, `routes/v1/admin/` | Add `PATCH /v1/admin/users/:id/role`; consider short-lived tokens or force re-auth on role change |
-| 16 | CORS is wide open (`origin: true`) — any origin is accepted | `plugins/cors.ts` | Restrict to known origins (app bundle ID / web domain) before production |
-| 18 | Duplicate on-chain signatures can be recorded — client retries on approve/publish write the same signature twice, creating phantom fee records | `db/schema.ts` | Add unique index on `gig_transactions.signature` + handle 409 gracefully in affected routes |
-| 19 | No API endpoint to promote a user to admin — requires direct DB access | `routes/v1/admin/index.ts` | Add `PATCH /v1/admin/users/:id/role` with strict guard; log all role changes |
 | 22 | Module-level caches don't work across multiple server instances — `getPlatformConfig` 5-min cache and `batchExpireGigs` 60s throttle live in process memory; each pod has independent state | `lib/platform.ts`, `lib/gigs.ts` | Replace with Redis or Postgres advisory locks before horizontal scaling |
 | 24 | No push notifications or webhooks — mobile client must poll to learn of status changes (proof submitted, gig approved, dispute raised) | Missing | Implement WebSockets, SSE, or a push notification service (FCM/APNs) |
-| 29 | `createEscrowInstruction` uses stale fee — reads `getConfig().PLATFORM_FEE_BPS` (env default) instead of current DB `fee_bps`; after an admin fee update, escrow instructions compute the wrong deposit amount | `lib/solana.ts`, `routes/v1/blockchain/escrow.ts` | Make `createEscrowInstruction` async; pass current `fee_bps` from `getPlatformConfig` |
 | 30 | `createEscrowInstruction` builds a plain `SystemProgram.transfer`, not the Anchor program instruction — the GigEscrow account receives SOL but is never initialised; all subsequent contract calls will fail | `lib/solana.ts` | Build the actual `create_gig_escrow` Anchor instruction using the program IDL |
-| 31 | Graceful shutdown commented out — `SIGTERM`/`SIGINT` handlers are stubbed; in Docker/k8s the process is killed without draining requests or closing the DB pool | `server.ts` | Uncomment and wire up `server.close()` on SIGTERM/SIGINT |
 
 ### 🟡 Minor
 
@@ -78,3 +72,9 @@
 | 13 | `any` used in `lib/gigs.ts` and `lib/platform.ts` | Replaced with `AppDatabase = PostgresJsDatabase<typeof schema>` |
 | 14 | Rate limit keys on proxy IP, not client IP | Set `trustProxy: true` on the Fastify instance in `server.ts` |
 | 28 | TOCTOU race on gig accept/approve/dispute/submit — UPDATE had no status guard in WHERE clause | Added `eq(gigs.status, expectedStatus)` to UPDATE WHERE in all four routes; 0 rows returned → 409 |
+| 15 | Role not reflected until JWT expiry | Acceptable — promoted users re-login to get updated role in JWT |
+| 16 | CORS wide open (`origin: true`) | `CORS_ORIGIN` env var; falls back to `true` in dev |
+| 18 | Duplicate on-chain signatures writable to `gig_transactions` | `uniqueIndex` on `gig_transactions.signature`; 23505 → 409 `DUPLICATE_SIGNATURE` in publish, approve, resolve |
+| 19 | No API to promote user to admin | Added `PATCH /v1/admin/users/:id/role`; self-demotion guarded; role change logged |
+| 29 | `createEscrowInstruction` used env-var fee instead of DB fee | `feeBps` param added; caller passes `getPlatformConfig().fee_bps` |
+| 31 | Graceful shutdown commented out | Uncommented `server.close()` on SIGTERM/SIGINT |

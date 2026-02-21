@@ -150,7 +150,9 @@ export const gig_transactions = pgTable('gig_transactions', {
   platform_fee_lamports:   bigint('platform_fee_lamports', { mode: 'number' }).notNull(),
   created_at:              timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => ({
-  gig_idx: index('gig_transactions_gig_id_idx').on(t.gig_id),
+  gig_idx:          index('gig_transactions_gig_id_idx').on(t.gig_id),
+  // Prevent duplicate on-chain signature records from client retries
+  signature_unique: uniqueIndex('gig_transactions_signature_unique').on(t.signature),
 }))
 
 export const disputes = pgTable('disputes', {

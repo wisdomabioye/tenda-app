@@ -4,6 +4,7 @@ import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { computePlatformFee, verifyTransactionOnChain } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
+import { isPostgresUniqueViolation } from '../../../../lib/db'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type ApproveRoute = GigsContract['approve']
@@ -73,28 +74,43 @@ const approveGig: FastifyPluginAsync = async (fastify) => {
       const config = await getPlatformConfig(fastify.db)
       const platform_fee_lamports = computePlatformFee(gig.payment_lamports, config.fee_bps)
 
-      const updated = await fastify.db.transaction(async (tx) => {
-        // Include status = 'submitted' in WHERE to guard against TOCTOU races.
-        // A concurrent approve or dispute call could have already transitioned the gig;
-        // checking here prevents double-completion and phantom fee records.
-        const [updatedGig] = await tx
-          .update(gigs)
-          .set({ status: 'completed', updated_at: new Date() })
-          .where(and(eq(gigs.id, id), eq(gigs.status, 'submitted')))
-          .returning()
+      let updated
+      try {
+        updated = await fastify.db.transaction(async (tx) => {
+          // Include status = 'submitted' in WHERE to guard against TOCTOU races.
+          // A concurrent approve or dispute call could have already transitioned the gig;
+          // checking here prevents double-completion and phantom fee records.
+          const [updatedGig] = await tx
+            .update(gigs)
+            .set({ status: 'completed', updated_at: new Date() })
+            .where(and(eq(gigs.id, id), eq(gigs.status, 'submitted')))
+            .returning()
 
-        if (!updatedGig) return null
+          if (!updatedGig) return null
 
-        await tx.insert(gig_transactions).values({
-          gig_id:               id,
-          type:                 'release_payment',
-          signature,
-          amount_lamports:      gig.payment_lamports,
-          platform_fee_lamports,
+          await tx.insert(gig_transactions).values({
+            gig_id:               id,
+            type:                 'release_payment',
+            signature,
+            amount_lamports:      gig.payment_lamports,
+            platform_fee_lamports,
+          })
+
+          return updatedGig
         })
-
-        return updatedGig
-      })
+      } catch (err: unknown) {
+        // Postgres unique violation on gig_transactions_signature_unique —
+        // client retried after a network error; the transaction was already recorded.
+        if (isPostgresUniqueViolation(err)) {
+          return reply.code(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'This transaction signature has already been recorded',
+            code: ErrorCode.DUPLICATE_SIGNATURE,
+          })
+        }
+        throw err
+      }
 
       if (!updated) {
         return reply.code(409).send({

@@ -4,6 +4,7 @@ import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { deriveEscrowAddress, computePlatformFee, verifyTransactionOnChain } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
+import { isPostgresUniqueViolation } from '../../../../lib/db'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type PublishRoute = GigsContract['publish']
@@ -76,23 +77,37 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
       const escrow_address = deriveEscrowAddress(gig.id)
       const platform_fee_lamports = computePlatformFee(gig.payment_lamports, config.fee_bps)
 
-      const updated = await fastify.db.transaction(async (tx) => {
-        const [updatedGig] = await tx
-          .update(gigs)
-          .set({ status: 'open', escrow_address, updated_at: new Date() })
-          .where(eq(gigs.id, id))
-          .returning()
+      let updated
+      try {
+        updated = await fastify.db.transaction(async (tx) => {
+          const [updatedGig] = await tx
+            .update(gigs)
+            .set({ status: 'open', escrow_address, updated_at: new Date() })
+            .where(eq(gigs.id, id))
+            .returning()
 
-        await tx.insert(gig_transactions).values({
-          gig_id:               id,
-          type:                 'create_escrow',
-          signature,
-          amount_lamports:      gig.payment_lamports + platform_fee_lamports,
-          platform_fee_lamports,
+          await tx.insert(gig_transactions).values({
+            gig_id:               id,
+            type:                 'create_escrow',
+            signature,
+            amount_lamports:      gig.payment_lamports + platform_fee_lamports,
+            platform_fee_lamports,
+          })
+
+          return updatedGig
         })
-
-        return updatedGig
-      })
+      } catch (err: unknown) {
+        // Postgres unique violation on gig_transactions_signature_unique
+        if (isPostgresUniqueViolation(err)) {
+          return reply.code(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'This transaction signature has already been recorded',
+            code: ErrorCode.DUPLICATE_SIGNATURE,
+          })
+        }
+        throw err
+      }
 
       return updated
     }

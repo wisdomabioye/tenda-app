@@ -49,18 +49,21 @@ export function computePlatformFee(paymentLamports: number, feeBps: number): num
  * Build an unsigned create_gig_escrow transaction for the client to sign.
  * The client signs and submits to Solana, then calls POST /v1/gigs/:id/publish
  * with the resulting on-chain signature.
+ *
+ * @param feeBps - current platform fee in basis points from getPlatformConfig(),
+ *                 not the env-var default, so admin fee updates are reflected immediately.
  */
 export function createEscrowInstruction(
   payerAddress: string,
   gigId: string,
   paymentLamports: number,
+  feeBps: number,
 ) {
-  const config = getConfig()
   const payer = new PublicKey(payerAddress)
   const escrowAddress = deriveEscrowAddress(gigId)
   const escrow = new PublicKey(escrowAddress)
 
-  const platformFee = computePlatformFee(paymentLamports, config.PLATFORM_FEE_BPS)
+  const platformFee = computePlatformFee(paymentLamports, feeBps)
   const totalLocked = paymentLamports + platformFee
 
   const transaction = new Transaction().add(

@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq, isNull, desc, sql } from 'drizzle-orm'
+import type { UserRole } from '@tenda/shared'
 import { users, gigs, disputes, platform_config } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import type { ApiError } from '@tenda/shared'
@@ -84,6 +85,56 @@ const admin: FastifyPluginAsync = async (fastify) => {
         code: ErrorCode.USER_NOT_FOUND,
       })
     }
+
+    return updated
+  })
+
+  // ── PATCH /v1/admin/users/:id/role ────────────────────────────────────
+  // Promote or demote a user. The change takes effect on their next login
+  // (JWT is re-issued with the updated role on /auth/wallet).
+  fastify.patch<{
+    Params: { id: string }
+    Body: { role: UserRole }
+    Reply: { id: string; role: string } | ApiError
+  }>('/users/:id/role', { preHandler: adminGuard }, async (request, reply) => {
+    const { id } = request.params
+    const { role } = request.body
+
+    if (role !== 'user' && role !== 'admin') {
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'role must be "user" or "admin"',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
+    }
+
+    // Prevent an admin from accidentally demoting themselves
+    if (id === request.user.id && role !== 'admin') {
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Cannot demote your own account',
+        code: ErrorCode.FORBIDDEN,
+      })
+    }
+
+    const [updated] = await fastify.db
+      .update(users)
+      .set({ role, updated_at: new Date() })
+      .where(eq(users.id, id))
+      .returning({ id: users.id, role: users.role })
+
+    if (!updated) {
+      return reply.code(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'User not found',
+        code: ErrorCode.USER_NOT_FOUND,
+      })
+    }
+
+    fastify.log.info({ adminId: request.user.id, targetId: id, newRole: role }, 'User role changed')
 
     return updated
   })

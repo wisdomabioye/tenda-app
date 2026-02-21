@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { createEscrowInstruction } from '../../../lib/solana'
+import { getPlatformConfig } from '../../../lib/platform'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type EscrowRoute = BlockchainContract['createEscrow']
@@ -27,7 +28,8 @@ const escrow: FastifyPluginAsync = async (fastify) => {
       }
 
       try {
-        const result = createEscrowInstruction(payer_address, gig_id, payment_lamports)
+        const config = await getPlatformConfig(fastify.db)
+        const result = createEscrowInstruction(payer_address, gig_id, payment_lamports, config.fee_bps)
         return result
       } catch {
         return reply.code(500).send({
