@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { gigs } from '@tenda/shared/db/schema'
+import { gigs, disputes } from '@tenda/shared/db/schema'
 import { MAX_DISPUTE_REASON_LENGTH } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
@@ -44,13 +44,15 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
 
       const [updated] = await fastify.db
         .update(gigs)
-        .set({
-          status: 'disputed',
-          dispute_reason: reason.trim(),
-          updated_at: new Date(),
-        })
+        .set({ status: 'disputed', updated_at: new Date() })
         .where(eq(gigs.id, id))
         .returning()
+
+      await fastify.db.insert(disputes).values({
+        gig_id: id,
+        raised_by_id: userId,
+        reason: reason.trim(),
+      })
 
       return updated
     }

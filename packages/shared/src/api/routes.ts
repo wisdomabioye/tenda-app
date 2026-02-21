@@ -13,10 +13,12 @@ export const apiRoutes: {
     get: '/v1/gigs/:id',
     update: '/v1/gigs/:id',
     delete: '/v1/gigs/:id',
+    publish: '/v1/gigs/:id/publish',
     accept: '/v1/gigs/:id/accept',
     submit: '/v1/gigs/:id/submit',
     approve: '/v1/gigs/:id/approve',
     dispute: '/v1/gigs/:id/dispute',
+    resolve: '/v1/gigs/:id/resolve',
   },
   users: {
     get: '/v1/users/:id',

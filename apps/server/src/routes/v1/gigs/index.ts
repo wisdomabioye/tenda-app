@@ -1,26 +1,35 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq, and, sql, SQL } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
-import { isValidPayment, MAX_GIG_TITLE_LENGTH, MAX_GIG_DESCRIPTION_LENGTH } from '@tenda/shared'
-import type { GigsContract, ApiError, GigStatus } from '@tenda/shared'
+import {
+  isValidPaymentLamports,
+  isValidCompletionDuration,
+  validateGigDeadlines,
+  MAX_GIG_TITLE_LENGTH,
+  MAX_GIG_DESCRIPTION_LENGTH,
+} from '@tenda/shared'
+import type { GigsContract, ApiError, GigStatus, GigCategory } from '@tenda/shared'
 
-type ListRoute = GigsContract['list']
-type CreateRoute = GigsContract['create']
+type ListRoute    = GigsContract['list']
+type CreateRoute  = GigsContract['create']
 
 const gigsRoutes: FastifyPluginAsync = async (fastify) => {
+
   // GET /v1/gigs — list with filters
   fastify.get<{
     Querystring: ListRoute['query']
     Reply: ListRoute['response']
   }>('/', async (request) => {
-    const { status, city, category, limit = 20, offset = 0 } = request.query
+    const { city, category, limit = 20, offset = 0 } = request.query
 
-    const conditions: SQL[] = []
-    if (status) conditions.push(eq(gigs.status, status as GigStatus))
-    if (city) conditions.push(eq(gigs.city, city))
-    if (category) conditions.push(eq(gigs.category, category))
+    const conditions: SQL[] = [
+      // public feed is always open gigs only
+      eq(gigs.status, 'open' as GigStatus),
+    ]
+    if (city)     conditions.push(eq(gigs.city, city))
+    if (category) conditions.push(eq(gigs.category, category as GigCategory))
 
-    const where = conditions.length > 0 ? and(...conditions) : undefined
+    const where = and(...conditions)
 
     const [data, countResult] = await Promise.all([
       fastify.db
@@ -44,7 +53,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // POST /v1/gigs — create gig
+  // POST /v1/gigs — create gig (saved as draft)
   fastify.post<{
     Body: CreateRoute['body']
     Reply: CreateRoute['response'] | ApiError
@@ -52,13 +61,24 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     '/',
     { preHandler: [fastify.authenticate] },
     async (request, reply) => {
-      const { title, description, payment, category, city, address, deadline } = request.body
+      const {
+        title,
+        description,
+        payment_lamports,
+        category,
+        city,
+        address,
+        latitude,
+        longitude,
+        completion_duration_seconds,
+        accept_deadline,
+      } = request.body
 
-      if (!title || !description || !payment || !category || !city || !deadline) {
+      if (!title || !description || !payment_lamports || !category || !city || !completion_duration_seconds) {
         return reply.code(400).send({
           statusCode: 400,
           error: 'Bad Request',
-          message: 'title, description, payment, category, city, and deadline are required',
+          message: 'title, description, payment_lamports, category, city, and completion_duration_seconds are required',
         })
       }
 
@@ -78,11 +98,28 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      if (!isValidPayment(payment)) {
+      if (!isValidPaymentLamports(payment_lamports)) {
         return reply.code(400).send({
           statusCode: 400,
           error: 'Bad Request',
-          message: 'Payment amount is out of valid range',
+          message: 'payment_lamports is out of valid range',
+        })
+      }
+
+      if (!isValidCompletionDuration(completion_duration_seconds)) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'completion_duration_seconds must be between 3600 (1 hour) and 7776000 (90 days)',
+        })
+      }
+
+      const deadlineCheck = validateGigDeadlines(completion_duration_seconds, accept_deadline ?? null)
+      if (!deadlineCheck.valid) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: deadlineCheck.error!,
         })
       }
 
@@ -92,11 +129,14 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
           poster_id: request.user.id,
           title,
           description,
-          payment,
-          category,
+          payment_lamports,
+          category: category as GigCategory,
           city,
           address,
-          deadline: new Date(deadline),
+          latitude,
+          longitude,
+          completion_duration_seconds,
+          accept_deadline: accept_deadline ? new Date(accept_deadline) : null,
           status: 'draft',
         })
         .returning()

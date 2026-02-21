@@ -1,6 +1,6 @@
 export interface EscrowRequest {
   gig_id: string
-  amount: number
+  payment_lamports: number
   payer_address: string
 }
 

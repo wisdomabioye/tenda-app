@@ -1,14 +1,21 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { gigs, users } from '@tenda/shared/db/schema'
+import { gigs, users, gig_proofs, disputes, gig_transactions } from '@tenda/shared/db/schema'
+import {
+  isValidPaymentLamports,
+  isValidCompletionDuration,
+  MAX_GIG_TITLE_LENGTH,
+  MAX_GIG_DESCRIPTION_LENGTH,
+} from '@tenda/shared'
+import { computePlatformFee } from '../../../../lib/solana'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
-type GetRoute = GigsContract['get']
+type GetRoute    = GigsContract['get']
 type UpdateRoute = GigsContract['update']
 type DeleteRoute = GigsContract['delete']
 
 const gigById: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/gigs/:id — single gig with poster/worker details
+  // GET /v1/gigs/:id — single gig with poster/worker, proofs, and dispute
   fastify.get<{
     Params: GetRoute['params']
     Reply: GetRoute['response'] | ApiError
@@ -49,11 +56,16 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       worker = w
     }
 
-    return { ...gig, poster, worker }
+    const [proofs, disputeRows] = await Promise.all([
+      fastify.db.select().from(gig_proofs).where(eq(gig_proofs.gig_id, id)),
+      fastify.db.select().from(disputes).where(eq(disputes.gig_id, id)).limit(1),
+    ])
+
+    return { ...gig, poster, worker, proofs, dispute: disputeRows[0] ?? null }
   })
 
-  // PUT /v1/gigs/:id — update (poster only, pre-acceptance)
-  fastify.put<{
+  // PATCH /v1/gigs/:id — update draft gig (poster only)
+  fastify.patch<{
     Params: UpdateRoute['params']
     Body: UpdateRoute['body']
     Reply: UpdateRoute['response'] | ApiError
@@ -71,33 +83,68 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     }
 
     if (gig.status !== 'draft') {
-      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'Can only update gigs that are draft' })
+      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'Can only update gigs that are in draft status' })
+    }
+
+    const {
+      title,
+      description,
+      payment_lamports,
+      category,
+      city,
+      address,
+      latitude,
+      longitude,
+      completion_duration_seconds,
+      accept_deadline,
+    } = request.body
+
+    if (title !== undefined && title.length > MAX_GIG_TITLE_LENGTH) {
+      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: `Title must be at most ${MAX_GIG_TITLE_LENGTH} characters` })
+    }
+
+    if (description !== undefined && description.length > MAX_GIG_DESCRIPTION_LENGTH) {
+      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: `Description must be at most ${MAX_GIG_DESCRIPTION_LENGTH} characters` })
+    }
+
+    if (payment_lamports !== undefined && !isValidPaymentLamports(payment_lamports)) {
+      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'payment_lamports is out of valid range' })
+    }
+
+    if (completion_duration_seconds !== undefined && !isValidCompletionDuration(completion_duration_seconds)) {
+      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'completion_duration_seconds must be between 3600 (1 hour) and 7776000 (90 days)' })
     }
 
     const updates: Record<string, unknown> = { updated_at: new Date() }
-    const { title, description, payment, category, city, address, deadline } = request.body
-    if (title !== undefined) updates.title = title
-    if (description !== undefined) updates.description = description
-    if (payment !== undefined) updates.payment = payment
-    if (category !== undefined) updates.category = category
-    if (city !== undefined) updates.city = city
-    if (address !== undefined) updates.address = address
-    if (deadline !== undefined) updates.deadline = new Date(deadline)
+    if (title !== undefined)                       updates.title = title
+    if (description !== undefined)                 updates.description = description
+    if (payment_lamports !== undefined)            updates.payment_lamports = payment_lamports
+    if (category !== undefined)                    updates.category = category
+    if (city !== undefined)                        updates.city = city
+    if (address !== undefined)                     updates.address = address
+    if (latitude !== undefined)                    updates.latitude = latitude
+    if (longitude !== undefined)                   updates.longitude = longitude
+    if (completion_duration_seconds !== undefined) updates.completion_duration_seconds = completion_duration_seconds
+    if (accept_deadline !== undefined)             updates.accept_deadline = accept_deadline ? new Date(accept_deadline) : null
 
     const [updated] = await fastify.db.update(gigs).set(updates).where(eq(gigs.id, id)).returning()
 
     return updated
   })
 
-  // DELETE /v1/gigs/:id — cancel (poster only, pre-acceptance)
+  // DELETE /v1/gigs/:id — cancel (poster only)
+  // draft: no escrow exists — just update status, no signature needed
+  // open:  escrow exists — requires on-chain cancel_gig signature to record refund
   fastify.delete<{
     Params: DeleteRoute['params']
+    Body: DeleteRoute['body']
     Reply: DeleteRoute['response'] | ApiError
   }>(
     '/',
     { preHandler: [fastify.authenticate] },
     async (request, reply) => {
       const { id } = request.params
+      const { signature } = request.body ?? {}
 
       const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
 
@@ -113,11 +160,27 @@ const gigById: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'Can only cancel gigs that are open or draft' })
       }
 
+      if (gig.status === 'open' && !signature) {
+        return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'signature is required when cancelling an open gig' })
+      }
+
       const [cancelled] = await fastify.db
         .update(gigs)
         .set({ status: 'cancelled', updated_at: new Date() })
         .where(eq(gigs.id, id))
         .returning()
+
+      if (gig.status === 'open' && signature) {
+        const feeBps = Number(process.env.PLATFORM_FEE_BPS ?? 250)
+        const platform_fee_lamports = computePlatformFee(gig.payment_lamports, feeBps)
+        await fastify.db.insert(gig_transactions).values({
+          gig_id:               id,
+          type:                 'cancel_refund',
+          signature,
+          amount_lamports:      gig.payment_lamports + platform_fee_lamports,
+          platform_fee_lamports: 0,  // full refund — platform takes no fee on cancellation
+        })
+      }
 
       return cancelled
     }

@@ -1,12 +1,12 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { gigs } from '@tenda/shared/db/schema'
+import { gigs, gig_proofs } from '@tenda/shared/db/schema'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type SubmitRoute = GigsContract['submit']
 
 const submitGig: FastifyPluginAsync = async (fastify) => {
-  // POST /v1/gigs/:id/submit — worker submits proof
+  // POST /v1/gigs/:id/submit — worker submits proof URLs
   fastify.post<{
     Params: SubmitRoute['params']
     Body: SubmitRoute['body']
@@ -36,17 +36,17 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'At least one proof URL is required' })
       }
 
-      const [updated] = await fastify.db
+      await fastify.db
         .update(gigs)
-        .set({
-          status: 'submitted',
-          proof_urls,
-          updated_at: new Date(),
-        })
+        .set({ status: 'submitted', updated_at: new Date() })
         .where(eq(gigs.id, id))
+
+      const proofs = await fastify.db
+        .insert(gig_proofs)
+        .values(proof_urls.map(url => ({ gig_id: id, uploaded_by_id: request.user.id, url })))
         .returning()
 
-      return updated
+      return reply.code(201).send(proofs)
     }
   )
 }

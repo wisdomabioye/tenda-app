@@ -9,15 +9,31 @@ export type {
 export type {
   Gig,
   NewGig,
+  Dispute,
+  NewDispute,
+  GigProof,
+  GigTransaction,
   GigStatus,
+  DisputeWinner,
+  GigTransactionType,
   GigDetail,
   CreateGigInput,
   UpdateGigInput,
+  PublishGigInput,
+  CancelGigInput,
+  DisputeGigInput,
+  ResolveDisputeInput,
   SubmitProofInput,
   ApproveGigInput,
-  DisputeGigInput,
   GigListQuery,
   UserGigsQuery,
+} from './gig'
+export {
+  GIG_STATUS_TRANSITIONS,
+  canTransition,
+  isGigEditable,
+  isGigAcceptable,
+  computeCompletionDeadline,
 } from './gig'
 export type {
   EscrowRequest,

@@ -17,6 +17,8 @@ export interface UpdateUserInput {
   last_name?: string
   avatar_url?: string
   city?: string
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface AuthResponse {

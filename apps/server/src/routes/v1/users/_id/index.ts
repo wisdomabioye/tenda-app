@@ -21,6 +21,8 @@ const userById: FastifyPluginAsync = async (fastify) => {
         last_name: users.last_name,
         avatar_url: users.avatar_url,
         city: users.city,
+        latitude: users.latitude,
+        longitude: users.longitude,
         reputation_score: users.reputation_score,
         created_at: users.created_at,
       })
@@ -48,11 +50,13 @@ const userById: FastifyPluginAsync = async (fastify) => {
     }
 
     const updates: Record<string, unknown> = { updated_at: new Date() }
-    const { first_name, last_name, avatar_url, city } = request.body
+    const { first_name, last_name, avatar_url, city, latitude, longitude } = request.body
     if (first_name !== undefined) updates.first_name = first_name
     if (last_name !== undefined) updates.last_name = last_name
     if (avatar_url !== undefined) updates.avatar_url = avatar_url
     if (city !== undefined) updates.city = city
+    if (latitude !== undefined) updates.latitude = latitude
+    if (longitude !== undefined) updates.longitude = longitude
 
     const [updated] = await fastify.db.update(users).set(updates).where(eq(users.id, id)).returning()
 

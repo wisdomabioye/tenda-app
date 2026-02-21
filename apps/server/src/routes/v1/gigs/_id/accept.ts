@@ -30,12 +30,18 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
         return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'Cannot accept your own gig' })
       }
 
+      if (gig.accept_deadline && new Date() > new Date(gig.accept_deadline)) {
+        return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'Acceptance deadline has passed' })
+      }
+
+      const now = new Date()
       const [updated] = await fastify.db
         .update(gigs)
         .set({
-          worker_id: request.user.id,
-          status: 'accepted',
-          updated_at: new Date(),
+          worker_id:   request.user.id,
+          status:      'accepted',
+          accepted_at: now,
+          updated_at:  now,
         })
         .where(eq(gigs.id, id))
         .returning()
