@@ -38,6 +38,10 @@ export interface ValidationResult {
   error?: string
 }
 
+export function isValidReviewScore(score: unknown): score is 1 | 2 | 3 | 4 | 5 {
+  return typeof score === 'number' && Number.isInteger(score) && score >= 1 && score <= 5
+}
+
 /**
  * Validate gig deadline inputs. Safe to call on both server and mobile.
  * accept_deadline must be in the future.

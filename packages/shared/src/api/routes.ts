@@ -19,11 +19,14 @@ export const apiRoutes: {
     approve: '/v1/gigs/:id/approve',
     dispute: '/v1/gigs/:id/dispute',
     resolve: '/v1/gigs/:id/resolve',
+    review: '/v1/gigs/:id/review',
+    transactions: '/v1/gigs/:id/transactions',
   },
   users: {
     get: '/v1/users/:id',
     update: '/v1/users/:id',
     gigs: '/v1/users/:id/gigs',
+    reviews: '/v1/users/:id/reviews',
   },
   upload: {
     signature: '/v1/upload/signature',

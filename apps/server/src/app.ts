@@ -1,11 +1,12 @@
 import { join } from 'node:path'
 import { readFile } from 'node:fs/promises'
-import { 
-  FastifyPluginAsync, 
-  FastifyServerOptions, 
-  FastifyError 
+import {
+  FastifyPluginAsync,
+  FastifyServerOptions,
+  FastifyError
 } from 'fastify'
 import AutoLoad, { AutoloadPluginOptions } from '@fastify/autoload'
+import { ErrorCode } from '@tenda/shared'
 import type { ApiError } from '@tenda/shared'
 
 
@@ -24,6 +25,7 @@ const app: FastifyPluginAsync<AppOptions> = async (
       statusCode: 404,
       error: 'Not Found',
       message: `Route ${request.method} ${request.url} not found`,
+      code: ErrorCode.INTERNAL_ERROR,
     }
     reply.code(404).send(error)
   })
@@ -38,6 +40,7 @@ const app: FastifyPluginAsync<AppOptions> = async (
       statusCode,
       error: error.name || 'Internal Server Error',
       message: statusCode >= 500 ? 'An unexpected error occurred' : error.message,
+      code: ErrorCode.INTERNAL_ERROR,
     }
     reply.code(statusCode).send(response)
   })
@@ -64,6 +67,7 @@ const app: FastifyPluginAsync<AppOptions> = async (
         statusCode: 404,
         error: 'Not Found',
         message: 'favicon.png not found',
+        code: ErrorCode.INTERNAL_ERROR,
       }
       reply.code(404).send(error)
     }

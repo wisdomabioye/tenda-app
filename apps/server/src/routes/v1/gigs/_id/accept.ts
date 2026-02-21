@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
+import { ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type AcceptRoute = GigsContract['accept']
@@ -19,19 +20,39 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
       const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
 
       if (!gig) {
-        return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Gig not found' })
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Gig not found',
+          code: ErrorCode.GIG_NOT_FOUND,
+        })
       }
 
       if (gig.status !== 'open') {
-        return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'Gig is not open for acceptance' })
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Gig is not open for acceptance',
+          code: ErrorCode.GIG_WRONG_STATUS,
+        })
       }
 
       if (gig.poster_id === request.user.id) {
-        return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'Cannot accept your own gig' })
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Cannot accept your own gig',
+          code: ErrorCode.CANNOT_ACCEPT_OWN_GIG,
+        })
       }
 
       if (gig.accept_deadline && new Date() > new Date(gig.accept_deadline)) {
-        return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'Acceptance deadline has passed' })
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Acceptance deadline has passed',
+          code: ErrorCode.ACCEPT_DEADLINE_PASSED,
+        })
       }
 
       const now = new Date()

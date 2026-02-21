@@ -5,6 +5,8 @@ export type {
   WalletAuthBody,
   UpdateUserInput,
   AuthResponse,
+  UserRole,
+  UserStatus,
 } from './user'
 export type {
   Gig,
@@ -35,6 +37,12 @@ export {
   isGigAcceptable,
   computeCompletionDeadline,
 } from './gig'
+export type {
+  Review,
+  NewReview,
+  ReviewInput,
+  GetUserReviewsQuery,
+} from './review'
 export type {
   EscrowRequest,
   EscrowResponse,

@@ -102,7 +102,7 @@ export interface ResolveDisputeInput {
 }
 
 export interface SubmitProofInput {
-  proof_urls: string[]
+  proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>
 }
 
 export interface ApproveGigInput {
@@ -144,6 +144,12 @@ export interface GigListQuery {
   // status intentionally omitted — public feed is always 'open'
   city?: string
   category?: GigCategory
+  min_payment_lamports?: number
+  max_payment_lamports?: number
+  sort?: 'created_at' | 'payment_asc' | 'payment_desc'
+  lat?: number    // proximity search centre
+  lng?: number
+  radius_km?: number
   limit?: number
   offset?: number
 }

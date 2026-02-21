@@ -1,5 +1,6 @@
 import nacl from 'tweetnacl'
 import { PublicKey, Connection, Transaction, SystemProgram } from '@solana/web3.js'
+import { getConfig } from '../config'
 
 // Must match ESCROW_SEED in constants.rs: b"escrow"
 const ESCROW_SEED = 'escrow'
@@ -29,9 +30,7 @@ export function verifySignature(
  * Seeds: [ESCROW_SEED, gig_id] — mirrors the Anchor program's PDA derivation.
  */
 export function deriveEscrowAddress(gigId: string): string {
-  const programId = new PublicKey(
-    process.env.SOLANA_PROGRAM_ID ?? 'TendaEscrowProgram1111111111111111111111111'
-  )
+  const programId = new PublicKey(getConfig().SOLANA_PROGRAM_ID)
   const [pda] = PublicKey.findProgramAddressSync(
     [Buffer.from(ESCROW_SEED), Buffer.from(gigId)],
     programId
@@ -56,12 +55,12 @@ export function createEscrowInstruction(
   gigId: string,
   paymentLamports: number,
 ) {
+  const config = getConfig()
   const payer = new PublicKey(payerAddress)
   const escrowAddress = deriveEscrowAddress(gigId)
   const escrow = new PublicKey(escrowAddress)
 
-  const feeBps = Number(process.env.PLATFORM_FEE_BPS ?? 250)
-  const platformFee = computePlatformFee(paymentLamports, feeBps)
+  const platformFee = computePlatformFee(paymentLamports, config.PLATFORM_FEE_BPS)
   const totalLocked = paymentLamports + platformFee
 
   const transaction = new Transaction().add(
@@ -79,6 +78,49 @@ export function createEscrowInstruction(
 }
 
 export function getConnection(): Connection {
-  const rpcUrl = process.env.SOLANA_RPC_URL || 'https://api.devnet.solana.com'
-  return new Connection(rpcUrl, 'confirmed')
+  return new Connection(getConfig().SOLANA_RPC_URL, 'confirmed')
+}
+
+/**
+ * Verify that a Solana transaction signature has reached the required
+ * confirmation level for the current network.
+ *
+ * devnet/testnet: accept 'confirmed' or 'finalized'
+ * mainnet-beta:   require 'finalized'
+ */
+export async function verifyTransactionOnChain(
+  signature: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const { SOLANA_NETWORK } = getConfig()
+  const connection = getConnection()
+
+  try {
+    const result = await connection.getSignatureStatus(signature)
+    const status = result.value
+
+    if (!status) {
+      return { ok: false, error: 'SIGNATURE_NOT_FINALIZED' }
+    }
+
+    if (status.err) {
+      return { ok: false, error: 'SIGNATURE_VERIFICATION_FAILED' }
+    }
+
+    const { confirmationStatus } = status
+
+    if (SOLANA_NETWORK === 'mainnet-beta') {
+      if (confirmationStatus !== 'finalized') {
+        return { ok: false, error: 'SIGNATURE_NOT_FINALIZED' }
+      }
+    } else {
+      // devnet / testnet: confirmed or finalized is acceptable
+      if (confirmationStatus !== 'confirmed' && confirmationStatus !== 'finalized') {
+        return { ok: false, error: 'SIGNATURE_NOT_FINALIZED' }
+      }
+    }
+
+    return { ok: true }
+  } catch {
+    return { ok: false, error: 'SIGNATURE_VERIFICATION_FAILED' }
+  }
 }

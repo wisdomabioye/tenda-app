@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import { ErrorCode } from '@tenda/shared'
 import { generateUploadSignature } from '../../../lib/cloudinary'
 import type { UploadContract, ApiError } from '@tenda/shared'
 
@@ -20,6 +21,7 @@ const upload: FastifyPluginAsync = async (fastify) => {
           statusCode: 400,
           error: 'Bad Request',
           message: 'type must be "avatar" or "proof"',
+          code: ErrorCode.VALIDATION_ERROR,
         })
       }
 

@@ -9,6 +9,7 @@ export {
   isValidPaymentLamports,
   isValidCompletionDuration,
   isValidWalletAddress,
+  isValidReviewScore,
   validateGigDeadlines,
 } from './validation'
 export type { ValidationResult } from './validation'

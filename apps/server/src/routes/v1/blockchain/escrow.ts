@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import { ErrorCode } from '@tenda/shared'
 import { createEscrowInstruction } from '../../../lib/solana'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
@@ -21,6 +22,7 @@ const escrow: FastifyPluginAsync = async (fastify) => {
           statusCode: 400,
           error: 'Bad Request',
           message: 'gig_id, payment_lamports, and payer_address are required',
+          code: ErrorCode.VALIDATION_ERROR,
         })
       }
 
@@ -32,6 +34,7 @@ const escrow: FastifyPluginAsync = async (fastify) => {
           statusCode: 500,
           error: 'Internal Server Error',
           message: 'Failed to create escrow instruction',
+          code: ErrorCode.INTERNAL_ERROR,
         })
       }
     }

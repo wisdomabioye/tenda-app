@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import { ErrorCode } from '@tenda/shared'
 import { getConnection } from '../../../lib/solana'
 import type { BlockchainContract, ApiError, TransactionStatus } from '@tenda/shared'
 
@@ -13,7 +14,12 @@ const transaction: FastifyPluginAsync = async (fastify) => {
     const { signature } = request.params
 
     if (!signature) {
-      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'signature parameter is required' })
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'signature parameter is required',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
     }
 
     try {
@@ -38,7 +44,12 @@ const transaction: FastifyPluginAsync = async (fastify) => {
         block_time: undefined,
       }
     } catch {
-      return reply.code(502).send({ statusCode: 502, error: 'Bad Gateway', message: 'Failed to query Solana network' })
+      return reply.code(502).send({
+        statusCode: 502,
+        error: 'Bad Gateway',
+        message: 'Failed to query Solana network',
+        code: ErrorCode.INTERNAL_ERROR,
+      })
     }
   })
 }

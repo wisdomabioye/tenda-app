@@ -6,8 +6,11 @@ import {
   isValidCompletionDuration,
   MAX_GIG_TITLE_LENGTH,
   MAX_GIG_DESCRIPTION_LENGTH,
+  ErrorCode,
 } from '@tenda/shared'
-import { computePlatformFee } from '../../../../lib/solana'
+import { computePlatformFee, verifyTransactionOnChain } from '../../../../lib/solana'
+import { getPlatformConfig } from '../../../../lib/platform'
+import { checkAndExpireGig } from '../../../../lib/gigs'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type GetRoute    = GigsContract['get']
@@ -22,11 +25,19 @@ const gigById: FastifyPluginAsync = async (fastify) => {
   }>('/', async (request, reply) => {
     const { id } = request.params
 
-    const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
+    let [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
 
     if (!gig) {
-      return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Gig not found' })
+      return reply.code(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Gig not found',
+        code: ErrorCode.GIG_NOT_FOUND,
+      })
     }
+
+    // Lazily expire gig if deadline has passed
+    gig = await checkAndExpireGig(gig, fastify.db)
 
     const [poster] = await fastify.db
       .select({
@@ -75,15 +86,30 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
 
     if (!gig) {
-      return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Gig not found' })
+      return reply.code(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Gig not found',
+        code: ErrorCode.GIG_NOT_FOUND,
+      })
     }
 
     if (gig.poster_id !== request.user.id) {
-      return reply.code(403).send({ statusCode: 403, error: 'Forbidden', message: 'Only the poster can update this gig' })
+      return reply.code(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Only the poster can update this gig',
+        code: ErrorCode.FORBIDDEN,
+      })
     }
 
     if (gig.status !== 'draft') {
-      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'Can only update gigs that are in draft status' })
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Can only update gigs that are in draft status',
+        code: ErrorCode.GIG_WRONG_STATUS,
+      })
     }
 
     const {
@@ -100,19 +126,39 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     } = request.body
 
     if (title !== undefined && title.length > MAX_GIG_TITLE_LENGTH) {
-      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: `Title must be at most ${MAX_GIG_TITLE_LENGTH} characters` })
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: `Title must be at most ${MAX_GIG_TITLE_LENGTH} characters`,
+        code: ErrorCode.VALIDATION_ERROR,
+      })
     }
 
     if (description !== undefined && description.length > MAX_GIG_DESCRIPTION_LENGTH) {
-      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: `Description must be at most ${MAX_GIG_DESCRIPTION_LENGTH} characters` })
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: `Description must be at most ${MAX_GIG_DESCRIPTION_LENGTH} characters`,
+        code: ErrorCode.VALIDATION_ERROR,
+      })
     }
 
     if (payment_lamports !== undefined && !isValidPaymentLamports(payment_lamports)) {
-      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'payment_lamports is out of valid range' })
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'payment_lamports is out of valid range',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
     }
 
     if (completion_duration_seconds !== undefined && !isValidCompletionDuration(completion_duration_seconds)) {
-      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'completion_duration_seconds must be between 3600 (1 hour) and 7776000 (90 days)' })
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'completion_duration_seconds must be between 3600 (1 hour) and 7776000 (90 days)',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
     }
 
     const updates: Record<string, unknown> = { updated_at: new Date() }
@@ -149,38 +195,85 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
 
       if (!gig) {
-        return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Gig not found' })
+        return reply.code(404).send({
+          statusCode: 404,
+          error: 'Not Found',
+          message: 'Gig not found',
+          code: ErrorCode.GIG_NOT_FOUND,
+        })
       }
 
       if (gig.poster_id !== request.user.id) {
-        return reply.code(403).send({ statusCode: 403, error: 'Forbidden', message: 'Only the poster can cancel this gig' })
+        return reply.code(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Only the poster can cancel this gig',
+          code: ErrorCode.FORBIDDEN,
+        })
       }
 
       if (gig.status !== 'open' && gig.status !== 'draft') {
-        return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'Can only cancel gigs that are open or draft' })
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Can only cancel gigs that are open or draft',
+          code: ErrorCode.GIG_WRONG_STATUS,
+        })
       }
 
       if (gig.status === 'open' && !signature) {
-        return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'signature is required when cancelling an open gig' })
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'signature is required when cancelling an open gig',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
       }
 
+      // For open gigs: verify the refund transaction on-chain before recording
+      if (gig.status === 'open' && signature) {
+        const verification = await verifyTransactionOnChain(signature)
+        if (!verification.ok) {
+          return reply.code(400).send({
+            statusCode: 400,
+            error: 'Bad Request',
+            message: 'Transaction not confirmed on-chain',
+            code: (verification.error ?? 'SIGNATURE_NOT_FINALIZED') as ErrorCode,
+          })
+        }
+      }
+
+      if (gig.status === 'open' && signature) {
+        const config = await getPlatformConfig(fastify.db)
+        const platform_fee_lamports = computePlatformFee(gig.payment_lamports, config.fee_bps)
+
+        const cancelled = await fastify.db.transaction(async (tx) => {
+          const [cancelledGig] = await tx
+            .update(gigs)
+            .set({ status: 'cancelled', updated_at: new Date() })
+            .where(eq(gigs.id, id))
+            .returning()
+
+          await tx.insert(gig_transactions).values({
+            gig_id:                id,
+            type:                  'cancel_refund',
+            signature,
+            amount_lamports:       gig.payment_lamports + platform_fee_lamports,
+            platform_fee_lamports: 0, // full refund — platform takes no fee on cancellation
+          })
+
+          return cancelledGig
+        })
+
+        return cancelled
+      }
+
+      // Draft cancellation — no escrow, no signature
       const [cancelled] = await fastify.db
         .update(gigs)
         .set({ status: 'cancelled', updated_at: new Date() })
         .where(eq(gigs.id, id))
         .returning()
-
-      if (gig.status === 'open' && signature) {
-        const feeBps = Number(process.env.PLATFORM_FEE_BPS ?? 250)
-        const platform_fee_lamports = computePlatformFee(gig.payment_lamports, feeBps)
-        await fastify.db.insert(gig_transactions).values({
-          gig_id:               id,
-          type:                 'cancel_refund',
-          signature,
-          amount_lamports:      gig.payment_lamports + platform_fee_lamports,
-          platform_fee_lamports: 0,  // full refund — platform takes no fee on cancellation
-        })
-      }
 
       return cancelled
     }

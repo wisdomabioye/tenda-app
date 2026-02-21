@@ -1,6 +1,9 @@
 import fp from 'fastify-plugin'
 import fjwt from '@fastify/jwt'
 import { FastifyReply, FastifyRequest } from 'fastify'
+import type { UserRole } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
+import { getConfig } from '../config'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -10,24 +13,24 @@ declare module 'fastify' {
 
 declare module '@fastify/jwt' {
   interface FastifyJWT {
-    payload: { id: string; wallet_address: string }
-    user: { id: string; wallet_address: string }
+    payload: { id: string; wallet_address: string; role: UserRole }
+    user:    { id: string; wallet_address: string; role: UserRole }
   }
 }
 
 export default fp(async (fastify) => {
-  const secret = process.env.JWT_SECRET
-  if (!secret) {
-    throw new Error('JWT_SECRET environment variable is required')
-  }
-
-  fastify.register(fjwt, { secret })
+  fastify.register(fjwt, { secret: getConfig().JWT_SECRET })
 
   fastify.decorate('authenticate', async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       await request.jwtVerify()
-    } catch (err) {
-      reply.code(401).send({ statusCode: 401, error: 'Unauthorized', message: 'Invalid or missing token' })
+    } catch {
+      reply.code(401).send({
+        statusCode: 401,
+        error: 'Unauthorized',
+        message: 'Invalid or missing token',
+        code: ErrorCode.UNAUTHORIZED,
+      })
     }
   })
 })
