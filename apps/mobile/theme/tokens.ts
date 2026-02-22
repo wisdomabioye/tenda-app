@@ -42,6 +42,7 @@ export interface ColorScheme {
   mutedText: string
   money: string
   disabled: string
+  scrim: string  // semi-transparent overlay behind modals / bottom sheets
 
   // Category colours (gig types)
   categoryDelivery: string
@@ -96,6 +97,7 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     mutedText: '#6b7280',
     money: '#10b981',
     disabled: '#9ca3af',
+    scrim: 'rgba(0,0,0,0.5)',
 
     // Category colours
     categoryDelivery: '#3b82f6',
@@ -149,6 +151,7 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     mutedText: '#9ca3af',
     money: '#10b981',
     disabled: '#6b7280',
+    scrim: 'rgba(0,0,0,0.65)',
 
     // Category colours
     categoryDelivery: '#60a5fa',

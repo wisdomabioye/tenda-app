@@ -37,7 +37,7 @@ import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { toPaymentDisplay } from '@/lib/currency'
 import { computeRelevantDeadline, computePlatformFee, SOLANA_TX_FEE_LAMPORTS } from '@tenda/shared'
-import { deadlineLabel } from '@/lib/gig-display'
+import { deadlineLabel, formatDuration, formatDeadline } from '@/lib/gig-display'
 import { api } from '@/api/client'
 import { signAndSendTransactionWithWallet, getBalance } from '@/wallet'
 import type { ColorScheme } from '@/theme/tokens'
@@ -51,22 +51,6 @@ type PendingAction =
   | { type: 'cancel' }
   | { type: 'refund' }
   | { type: 'submit'; proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }> }
-
-function formatDate(date: Date | string | null | undefined): string {
-  if (!date) return ''
-  return new Date(date).toLocaleDateString('en-NG', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
-}
-
-function formatDuration(seconds: number): string {
-  if (seconds < 3600) return `${Math.round(seconds / 60)}m`
-  if (seconds < 86400) return `${Math.round(seconds / 3600)}h`
-  return `${Math.round(seconds / 86400)}d`
-}
 
 // ─── Inner component (receives non-null gig) ─────────────────────────────────
 
@@ -105,15 +89,26 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     txBase64: string,
     syncAction?: 'publish' | 'approve' | 'cancel' | 'accept' | 'refund',
   ) {
-    if (!mwaAuthToken) return
-    const tx = Transaction.from(Buffer.from(txBase64, 'base64'))
-    const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken)
-    if (syncAction) {
-      const syncId = pendingSync.add({ gigId: gig.id, action: syncAction, signature: sig })
-      setPendingSyncId(syncId)
+    if (!mwaAuthToken) {
+      showToast('error', 'Wallet not connected — please reconnect and try again')
+      return
     }
-    setPendingAction(action)
-    setPendingSignature(sig)
+    try {
+      const tx = Transaction.from(Buffer.from(txBase64, 'base64'))
+      const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken)
+      if (syncAction) {
+        const syncId = pendingSync.add({ gigId: gig.id, action: syncAction, signature: sig })
+        setPendingSyncId(syncId)
+      }
+      setPendingAction(action)
+      setPendingSignature(sig)
+    } catch (e) {
+      // Clear any partial state so the CTA bar becomes interactive again
+      setPendingSignature(null)
+      setPendingAction(null)
+      setPendingSyncId(null)
+      throw e
+    }
   }
 
   // ── Blockchain handlers ────────────────────────────────────────────────────
@@ -314,7 +309,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
             <View style={s.metaItem}>
               <Clock size={16} color={theme.colors.textFaint} />
               <Text variant="body" color={theme.colors.textSub}>
-                Accept by {formatDate(gig.accept_deadline)}
+                Accept by {formatDeadline(gig.accept_deadline)}
               </Text>
             </View>
           )}
@@ -414,7 +409,6 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         onAction={setActiveSheet}
         onPublish={handlePublish}
         onApprove={handleApprove}
-        onRefundExpired={handleRefundExpired}
       />
 
       <GigActionSheets
@@ -424,6 +418,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         onReviewSubmitted={() => setReviewSubmitted(true)}
         onAcceptConfirmed={handleAccept}
         onCancelOpenConfirmed={handleCancelOpen}
+        onRefundExpiredConfirmed={handleRefundExpired}
         onProofsReady={handleProofsReady}
       />
 

@@ -26,13 +26,28 @@ export async function uploadToCloudinary(file: ProofFile, type: UploadType): Pro
   formData.append('signature', signature)
   formData.append('folder', folder)
 
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloud_name}/auto/upload`,
-    {
-      method: 'POST',
-      body: formData,
-    },
-  )
+  // Abort the upload after 120 s to prevent silent hangs on large files / slow connections.
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 120_000)
+
+  let response: Response
+  try {
+    response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloud_name}/auto/upload`,
+      {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      },
+    )
+  } catch (err) {
+    if ((err as Error).name === 'AbortError') {
+      throw new Error('Upload timed out — check your connection and try again')
+    }
+    throw err
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   if (!response.ok) {
     const error = await response.json()

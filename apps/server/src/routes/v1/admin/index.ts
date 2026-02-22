@@ -8,15 +8,18 @@ import { requireRole } from '../../../lib/guards'
 import { invalidatePlatformConfigCache } from '../../../lib/platform'
 
 const admin: FastifyPluginAsync = async (fastify) => {
-  // All admin routes require a valid JWT with role === 'admin'
-  const adminGuard = [fastify.authenticate, requireRole('admin')]
+  // Guard every route in this plugin scope with JWT + admin role.
+  // Using hooks instead of per-route preHandler ensures any future route
+  // added to this file is automatically protected — no per-route opt-in required.
+  fastify.addHook('preHandler', fastify.authenticate)
+  fastify.addHook('preHandler', requireRole('admin'))
 
   // ── GET /v1/admin/disputes ─────────────────────────────────────────────
   // List open (unresolved) disputes with gig title and raiser info for triage.
   fastify.get<{
     Querystring: { limit?: number; offset?: number }
     Reply: { data: unknown[]; total: number; limit: number; offset: number } | ApiError
-  }>('/disputes', { preHandler: adminGuard }, async (request) => {
+  }>('/disputes', async (request) => {
     const { limit = 20, offset = 0 } = request.query
     const safeLimit  = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
     const safeOffset = Number(offset)
@@ -58,7 +61,7 @@ const admin: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Body: { status: 'active' | 'suspended' }
     Reply: { id: string; status: string } | ApiError
-  }>('/users/:id/status', { preHandler: adminGuard }, async (request, reply) => {
+  }>('/users/:id/status', async (request, reply) => {
     const { id } = request.params
     const { status } = request.body
 
@@ -123,7 +126,7 @@ const admin: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Body: { role: UserRole }
     Reply: { id: string; role: string } | ApiError
-  }>('/users/:id/role', { preHandler: adminGuard }, async (request, reply) => {
+  }>('/users/:id/role', async (request, reply) => {
     const { id } = request.params
     const { role } = request.body
 
@@ -167,7 +170,7 @@ const admin: FastifyPluginAsync = async (fastify) => {
   })
 
   // ── GET /v1/admin/platform-config ─────────────────────────────────────
-  fastify.get('/platform-config', { preHandler: adminGuard }, async (_request, reply) => {
+  fastify.get('/platform-config', async (_request, reply) => {
     const [row] = await fastify.db.select().from(platform_config).limit(1)
     if (!row) {
       return reply.code(404).send({
@@ -186,7 +189,7 @@ const admin: FastifyPluginAsync = async (fastify) => {
   fastify.patch<{
     Body: { fee_bps?: number; grace_period_seconds?: number }
     Reply: unknown | ApiError
-  }>('/platform-config', { preHandler: adminGuard }, async (request, reply) => {
+  }>('/platform-config', async (request, reply) => {
     const { fee_bps, grace_period_seconds } = request.body
 
     // fee_bps: 0–10000 (0%–100% in basis points)

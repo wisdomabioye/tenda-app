@@ -26,6 +26,7 @@ interface GigActionSheetsProps {
   // Blockchain-backed actions: parent handles tx signing + monitoring
   onAcceptConfirmed: () => void
   onCancelOpenConfirmed: () => void
+  onRefundExpiredConfirmed: () => void
   onProofsReady: (proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>) => void
 }
 
@@ -36,6 +37,7 @@ export function GigActionSheets({
   onReviewSubmitted,
   onAcceptConfirmed,
   onCancelOpenConfirmed,
+  onRefundExpiredConfirmed,
   onProofsReady,
 }: GigActionSheetsProps) {
   const router = useRouter()
@@ -48,9 +50,17 @@ export function GigActionSheets({
   const [reviewScore, setReviewScore] = useState<Score | null>(null)
   const [reviewComment, setReviewComment] = useState('')
 
+  // Reset form state when a sheet closes so stale input doesn't persist across opens.
+  function handleClose() {
+    setDisputeReason('')
+    setReviewScore(null)
+    setReviewComment('')
+    onClose()
+  }
+
   // Accept: close modal, hand off to parent for blockchain tx + monitoring
   function handleAccept() {
-    onClose()
+    handleClose()
     onAcceptConfirmed()
   }
 
@@ -61,14 +71,18 @@ export function GigActionSheets({
     try {
       const proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }> = []
       for (const file of proofFiles) {
-        const url = await uploadToCloudinary(file, 'proof')
-        proofs.push({ url, type: file.type })
+        try {
+          const url = await uploadToCloudinary(file, 'proof')
+          proofs.push({ url, type: file.type })
+        } catch (e) {
+          showToast('error', `Failed to upload "${file.name}": ${(e as Error).message}`)
+          // Stop the loop — files already uploaded are discarded; user retries with all files.
+          return
+        }
       }
-      onClose()
+      handleClose()
       setProofFiles([])
       onProofsReady(proofs)
-    } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to upload proof files')
     } finally {
       setProofUploading(false)
     }
@@ -78,8 +92,7 @@ export function GigActionSheets({
     if (!disputeReason.trim()) return
     try {
       await disputeGig(gig.id, disputeReason.trim())
-      onClose()
-      setDisputeReason('')
+      handleClose()
       showToast('success', 'Dispute raised. An admin will review shortly.')
       fetchGigDetail(gig.id)
     } catch (e) {
@@ -91,7 +104,7 @@ export function GigActionSheets({
     if (!reviewScore) return
     try {
       await reviewGig(gig.id, { score: reviewScore as ReviewInput['score'], comment: reviewComment.trim() || undefined })
-      onClose()
+      handleClose()
       onReviewSubmitted()
       showToast('success', 'Review submitted!')
     } catch (e) {
@@ -100,7 +113,7 @@ export function GigActionSheets({
   }
 
   async function handleCancelDraft() {
-    onClose()
+    handleClose()
     try {
       await cancelDraftGig(gig.id)
       showToast('success', 'Draft deleted')
@@ -112,15 +125,21 @@ export function GigActionSheets({
 
   // Cancel open gig: close modal, hand off to parent for blockchain tx + monitoring
   function handleCancelOpen() {
-    onClose()
+    handleClose()
     onCancelOpenConfirmed()
   }
 
-  const isConfirm = activeSheet === 'accept' || activeSheet === 'cancel' || activeSheet === 'delete'
+  // Refund expired: close modal, hand off to parent for blockchain tx + monitoring
+  function handleRefundConfirm() {
+    handleClose()
+    onRefundExpiredConfirmed()
+  }
+
+  const isConfirm = activeSheet === 'accept' || activeSheet === 'cancel' || activeSheet === 'delete' || activeSheet === 'refund'
 
   return (
     <>
-      <BottomSheet visible={activeSheet === 'proof'} onClose={onClose} title="Submit proof">
+      <BottomSheet visible={activeSheet === 'proof'} onClose={handleClose} title="Submit proof">
         <FilePicker files={proofFiles} onChange={setProofFiles} accept="any" max={5} />
         <Spacer size={spacing.md} />
         <Button
@@ -135,7 +154,7 @@ export function GigActionSheets({
         </Button>
       </BottomSheet>
 
-      <BottomSheet visible={activeSheet === 'dispute'} onClose={onClose} title="Raise a dispute">
+      <BottomSheet visible={activeSheet === 'dispute'} onClose={handleClose} title="Raise a dispute">
         <Input
           label="Reason"
           placeholder="Describe the issue clearly..."
@@ -159,7 +178,7 @@ export function GigActionSheets({
         </Button>
       </BottomSheet>
 
-      <BottomSheet visible={activeSheet === 'review'} onClose={onClose} title="Leave a review">
+      <BottomSheet visible={activeSheet === 'review'} onClose={handleClose} title="Leave a review">
         <View style={s.starRow}>
           <StarRating value={reviewScore} onChange={(v) => setReviewScore(v as Score)} />
         </View>
@@ -186,12 +205,13 @@ export function GigActionSheets({
         </Button>
       </BottomSheet>
 
-      <Modal visible={isConfirm} transparent animationType="fade" onRequestClose={onClose}>
-        <View style={s.modalOverlay}>
+      <Modal visible={isConfirm} transparent animationType="fade" onRequestClose={handleClose}>
+        <View style={[s.modalOverlay, { backgroundColor: theme.colors.scrim }]}>
           <View style={[s.modalCard, { backgroundColor: theme.colors.surface }]}>
             <Text variant="subheading">
               {activeSheet === 'accept' ? 'Accept this gig?' :
                activeSheet === 'cancel' ? 'Cancel this gig?' :
+               activeSheet === 'refund' ? 'Claim refund?' :
                'Delete this draft?'}
             </Text>
             <Spacer size={spacing.sm} />
@@ -200,11 +220,13 @@ export function GigActionSheets({
                 ? 'You will be responsible for completing this gig within the deadline.'
                 : activeSheet === 'cancel'
                 ? 'The escrow will be refunded to your wallet on-chain.'
+                : activeSheet === 'refund'
+                ? 'The escrowed funds will be returned to your wallet. This cannot be undone.'
                 : 'This action cannot be undone.'}
             </Text>
             <Spacer size={spacing.lg} />
             <View style={s.ctaRow}>
-              <Button variant="ghost" size="md" style={s.ctaFlex} onPress={onClose}>
+              <Button variant="ghost" size="md" style={s.ctaFlex} onPress={handleClose}>
                 Cancel
               </Button>
               <Button
@@ -214,6 +236,7 @@ export function GigActionSheets({
                 onPress={
                   activeSheet === 'accept' ? handleAccept :
                   activeSheet === 'cancel' ? handleCancelOpen :
+                  activeSheet === 'refund' ? handleRefundConfirm :
                   handleCancelDraft
                 }
               >
@@ -237,7 +260,6 @@ const s = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.lg,

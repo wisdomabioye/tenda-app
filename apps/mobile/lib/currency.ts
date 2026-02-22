@@ -11,7 +11,8 @@ export interface PaymentDisplay {
  */
 export function toPaymentDisplay(paymentLamports: number, solToNgn: number): PaymentDisplay {
   const sol = paymentLamports / LAMPORTS_PER_SOL
-  const naira = sol * solToNgn
+  // Guard against solToNgn = 0 (rate not yet loaded) to avoid displaying ₦0 misleadingly.
+  const naira = solToNgn > 0 ? sol * solToNgn : 0
   return { naira, sol }
 }
 

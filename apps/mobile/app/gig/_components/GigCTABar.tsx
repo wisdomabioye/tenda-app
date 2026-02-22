@@ -6,7 +6,7 @@ import { Text } from '@/components/ui/Text'
 import { canPublish, canAccept, canSubmit, canReview } from '@tenda/shared'
 import type { GigDetail } from '@tenda/shared'
 
-export type ActiveSheet = 'proof' | 'dispute' | 'review' | 'accept' | 'cancel' | 'delete'
+export type ActiveSheet = 'proof' | 'dispute' | 'review' | 'accept' | 'cancel' | 'delete' | 'refund'
 
 interface GigCTABarProps {
   gig: GigDetail
@@ -16,7 +16,6 @@ interface GigCTABarProps {
   onAction: (action: ActiveSheet) => void
   onPublish: () => void
   onApprove: () => void
-  onRefundExpired: () => void
 }
 
 export function GigCTABar({
@@ -27,7 +26,6 @@ export function GigCTABar({
   onAction,
   onPublish,
   onApprove,
-  onRefundExpired,
 }: GigCTABarProps) {
   const { theme } = useUnistyles()
 
@@ -108,7 +106,7 @@ export function GigCTABar({
 
     if (gig.status === 'expired' && userId === gig.poster_id) {
       return (
-        <Button variant="primary" size="xl" fullWidth onPress={onRefundExpired}>
+        <Button variant="primary" size="xl" fullWidth onPress={() => onAction('refund')}>
           Claim Refund
         </Button>
       )
