@@ -33,7 +33,11 @@ export const MAX_PAGINATION_LIMIT = 100
 // Cloudinary CDN URLs always start with this prefix.
 // Validate on receipt to prevent arbitrary URLs being stored in the DB.
 export function isCloudinaryUrl(url: string): boolean {
-  return url.startsWith('https://res.cloudinary.com/')
+  try {
+    return new URL(url).hostname === 'res.cloudinary.com'
+  } catch {
+    return false
+  }
 }
 
 const SOLANA_ADDRESS_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/

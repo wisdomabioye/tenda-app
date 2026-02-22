@@ -7,8 +7,9 @@ import {
   MAX_GIG_TITLE_LENGTH,
   MAX_GIG_DESCRIPTION_LENGTH,
   ErrorCode,
+  computePlatformFee,
 } from '@tenda/shared'
-import { computePlatformFee, verifyTransactionOnChain } from '../../../../lib/solana'
+import { verifyTransactionOnChain } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { checkAndExpireGig } from '../../../../lib/gigs'
 
@@ -248,7 +249,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
 
       if (gig.status === 'open' && signature) {
         const config = await getPlatformConfig(fastify.db)
-        const platform_fee_lamports = computePlatformFee(gig.payment_lamports, config.fee_bps)
+        const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
 
         const cancelled = await fastify.db.transaction(async (tx) => {
           const [cancelledGig] = await tx

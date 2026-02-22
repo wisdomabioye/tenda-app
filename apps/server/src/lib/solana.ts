@@ -50,13 +50,6 @@ export function deriveEscrowAddress(gigId: string): string {
 }
 
 /**
- * Compute the platform fee for a given payment amount.
- */
-export function computePlatformFee(paymentLamports: number, feeBps: number): number {
-  return Math.floor(paymentLamports * feeBps / 10_000)
-}
-
-/**
  * Minimal borsh encoder for create_gig_escrow instruction args.
  *  - gig_id:                    String  (u32 LE length prefix + UTF-8 bytes)
  *  - payment_amount:            u64     (8-byte LE)
@@ -315,7 +308,7 @@ export async function buildRefundExpiredInstruction(
     keys: [
       { pubkey: gigEscrow,               isSigner: false, isWritable: true  },
       { pubkey: platformState,           isSigner: false, isWritable: true  },
-      { pubkey: poster,                  isSigner: false, isWritable: true  },
+      { pubkey: poster,                  isSigner: true,  isWritable: true  },
       { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ],
     data: DISCRIMINATOR_REFUND_EXPIRED,

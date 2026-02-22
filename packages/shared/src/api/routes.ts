@@ -28,6 +28,7 @@ export const apiRoutes: {
     update: '/v1/users/:id',
     gigs: '/v1/users/:id/gigs',
     reviews: '/v1/users/:id/reviews',
+    transactions: '/v1/users/:id/transactions',
   },
   upload: {
     signature: '/v1/upload/signature',
@@ -40,5 +41,8 @@ export const apiRoutes: {
     acceptGig:      '/v1/blockchain/accept-gig',
     submitProof:    '/v1/blockchain/submit-proof',
     refundExpired:  '/v1/blockchain/refund-expired',
+  },
+  platform: {
+    config: '/v1/platform/config',
   },
 }

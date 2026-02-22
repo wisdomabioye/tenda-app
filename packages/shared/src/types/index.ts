@@ -15,6 +15,7 @@ export type {
   NewDispute,
   GigProof,
   GigTransaction,
+  UserTransaction,
   GigStatus,
   DisputeWinner,
   GigTransactionType,

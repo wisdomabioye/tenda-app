@@ -1,8 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
-import { deriveEscrowAddress, computePlatformFee, verifyTransactionOnChain, DISCRIMINATOR_CREATE_ESCROW } from '../../../../lib/solana'
+import { ErrorCode, computePlatformFee } from '@tenda/shared'
+import { deriveEscrowAddress, verifyTransactionOnChain, DISCRIMINATOR_CREATE_ESCROW } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { isPostgresUniqueViolation } from '../../../../lib/db'
 import type { GigsContract, ApiError } from '@tenda/shared'
@@ -84,7 +84,7 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
 
       const config = await getPlatformConfig(fastify.db)
       const escrow_address = deriveEscrowAddress(gig.id)
-      const platform_fee_lamports = computePlatformFee(gig.payment_lamports, config.fee_bps)
+      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
 
       let updated
       try {

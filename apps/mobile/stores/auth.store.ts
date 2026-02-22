@@ -9,7 +9,8 @@ import {
   setWalletAddress,
   clearAuthStorage,
 } from '@/lib/secure-store'
-import { api } from '@/api/client'
+import { api, ApiClientError } from '@/api/client'
+import { usePendingSyncStore } from '@/stores/pending-sync.store'
 
 interface WalletSessionInfo {
   mwaAuthToken: string
@@ -55,6 +56,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    await usePendingSyncStore.getState().clear()
     await clearAuthStorage()
     set({ user: null, jwt: null, mwaAuthToken: null, walletAddress: null, isAuthenticated: false })
   },
@@ -74,16 +76,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const user = await api.auth.me()
       set({ user, jwt, mwaAuthToken, walletAddress, isAuthenticated: true, isLoading: false })
-    } catch {
-      await clearAuthStorage()
-      set({
-        user: null,
-        jwt: null,
-        mwaAuthToken: null,
-        walletAddress: null,
-        isAuthenticated: false,
-        isLoading: false,
-      })
+    } catch (e) {
+      if (e instanceof ApiClientError && (e.statusCode === 401 || e.statusCode === 403)) {
+        await clearAuthStorage()
+        set({
+          user: null,
+          jwt: null,
+          mwaAuthToken: null,
+          walletAddress: null,
+          isAuthenticated: false,
+          isLoading: false,
+        })
+      } else {
+        // Network or other transient error — preserve credentials so user isn't logged out
+        set({ isLoading: false })
+      }
     }
   },
 

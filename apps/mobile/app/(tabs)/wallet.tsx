@@ -6,16 +6,16 @@ import { spacing, radius } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Card, Header } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuthStore } from '@/stores/auth.store'
-import { useUserGigsStore } from '@/stores/user-gigs.store'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
+
 import { api } from '@/api/client'
 import { getBalance } from '@/wallet'
 import { toPaymentDisplay, formatSol } from '@/lib/currency'
-import type { GigTransaction } from '@tenda/shared'
+import type { UserTransaction } from '@tenda/shared'
 
 const LAMPORTS_PER_SOL = 1_000_000_000
 
-function TxRow({ tx, userId, solToNgn }: { tx: GigTransaction; userId: string; solToNgn: number }) {
+function TxRow({ tx, userId, solToNgn }: { tx: UserTransaction; userId: string; solToNgn: number }) {
   const { theme } = useUnistyles()
   const isCredit =
     (tx.type === 'release_payment' || tx.type === 'dispute_resolved')
@@ -52,11 +52,10 @@ export default function WalletScreen() {
   const { theme } = useUnistyles()
   const user = useAuthStore((s) => s.user)
   const walletAddress = useAuthStore((s) => s.walletAddress)
-  const { postedGigs, workedGigs, fetchAll } = useUserGigsStore()
   const solToNgn = useExchangeRateStore((s) => s.solToNgn)
 
   const [balanceLamports, setBalanceLamports] = useState<number | null>(null)
-  const [transactions, setTransactions] = useState<GigTransaction[]>([])
+  const [transactions, setTransactions] = useState<UserTransaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -67,23 +66,16 @@ export default function WalletScreen() {
   async function load() {
     setIsLoading(true)
     try {
-      // Fetch balance + user gigs in parallel
-      const [_, gigsResult] = await Promise.all([
+      // Fetch balance and all transactions in a single request each
+      const [_, txResult] = await Promise.all([
         walletAddress
           ? getBalance(new PublicKey(walletAddress)).then((b) => setBalanceLamports(b))
           : Promise.resolve(),
-        user?.id ? fetchAll(user.id) : Promise.resolve(),
+        user?.id ? api.users.transactions({ id: user.id }) : Promise.resolve([]),
       ])
-
-      // Fetch transactions for all gigs
-      const allGigs = [...postedGigs, ...workedGigs]
-      const uniqueIds = [...new Set(allGigs.map((g) => g.id))]
-      const txArrays = await Promise.all(
-        uniqueIds.map((id) => api.gigs.transactions({ id }).catch(() => [] as GigTransaction[])),
-      )
-      const allTx = txArrays
-        .flat()
-        .sort((a, b) => new Date(b.created_at!).getTime() - new Date(a.created_at!).getTime())
+      const allTx = (txResult as UserTransaction[])
+        .slice()
+        .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
       setTransactions(allTx)
     } finally {
       setIsLoading(false)
@@ -93,15 +85,13 @@ export default function WalletScreen() {
   const balanceSol = balanceLamports !== null ? balanceLamports / LAMPORTS_PER_SOL : null
 
   // Earnings = sum of release_payment + dispute_resolved where user is worker
-  const workerGigIds = new Set(workedGigs.map((g) => g.id))
   const earnedLamports = transactions
-    .filter((tx) => workerGigIds.has(tx.gig_id) && (tx.type === 'release_payment' || tx.type === 'dispute_resolved'))
+    .filter((tx) => tx.gig.worker_id === user?.id && (tx.type === 'release_payment' || tx.type === 'dispute_resolved'))
     .reduce((sum, tx) => sum + tx.amount_lamports, 0)
 
   // Spent = sum of create_escrow where user is poster
-  const posterGigIds = new Set(postedGigs.map((g) => g.id))
   const spentLamports = transactions
-    .filter((tx) => posterGigIds.has(tx.gig_id) && tx.type === 'create_escrow')
+    .filter((tx) => tx.gig.poster_id === user?.id && tx.type === 'create_escrow')
     .reduce((sum, tx) => sum + tx.amount_lamports, 0)
 
   return (

@@ -33,13 +33,15 @@ import {
   type Review,
   type ReviewInput,
   type GigTransaction,
+  type UserTransaction,
   type GetUserReviewsQuery,
   type PublishGigInput,
+  type PlatformConfig,
 } from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
 
-class ApiClientError extends Error {
+export class ApiClientError extends Error {
   constructor(
     public statusCode: number,
     public error: string,
@@ -121,7 +123,7 @@ async function request<TResponse>(
   }
 }
 
-const { auth, gigs, users, upload, blockchain } = apiRoutes
+const { auth, gigs, users, upload, blockchain, platform } = apiRoutes
 
 export const api = {
   auth: {
@@ -174,6 +176,8 @@ export const api = {
         params,
         query: query as Record<string, unknown>,
       }),
+    transactions: (params: { id: string }) =>
+      request<UserTransaction[]>('GET', users.transactions, { params }),
   },
 
   upload: {
@@ -196,5 +200,9 @@ export const api = {
       request<EscrowResponse>('POST', blockchain.submitProof, { body }),
     refundExpired: (body: RefundExpiredRequest) =>
       request<EscrowResponse>('POST', blockchain.refundExpired, { body }),
+  },
+
+  platform: {
+    config: () => request<PlatformConfig>('GET', platform.config),
   },
 }

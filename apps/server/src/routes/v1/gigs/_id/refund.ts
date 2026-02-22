@@ -1,8 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
-import { computePlatformFee, verifyTransactionOnChain, DISCRIMINATOR_REFUND_EXPIRED } from '../../../../lib/solana'
+import { ErrorCode, computePlatformFee } from '@tenda/shared'
+import { verifyTransactionOnChain, DISCRIMINATOR_REFUND_EXPIRED } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { checkAndExpireGig } from '../../../../lib/gigs'
 import { isPostgresUniqueViolation } from '../../../../lib/db'
@@ -21,7 +21,7 @@ const refundExpired: FastifyPluginAsync = async (fastify) => {
     Reply: RefundRoute['response'] | ApiError
   }>(
     '/',
-    { preHandler: [fastify.authenticate] },
+    { config: { rateLimit: { max: 3, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
     async (request, reply) => {
       const { id } = request.params
       const { signature } = request.body
@@ -81,7 +81,7 @@ const refundExpired: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      const platform_fee_lamports = computePlatformFee(gig.payment_lamports, config.fee_bps)
+      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
 
       try {
         await fastify.db.insert(gig_transactions).values({

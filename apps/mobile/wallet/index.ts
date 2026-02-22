@@ -154,11 +154,13 @@ export async function connectAndSignAuthMessage(
 }
 
 export function buildAuthMessage(walletAddress: string): string {
+  const timestamp = new Date().toISOString()
   return [
     'Sign in to Tenda to verify your wallet.',
     `Wallet: ${walletAddress}`,
     `Chain: solana:${APP_IDENTITY.network}`,
     `URI: ${APP_IDENTITY.uri}`,
+    `Timestamp: ${timestamp}`,
   ].join('\n')
 }
 

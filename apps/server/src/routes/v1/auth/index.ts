@@ -46,20 +46,46 @@ const auth: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    // Upsert user
-    let [user] = await fastify.db
-      .select()
-      .from(users)
-      .where(eq(users.wallet_address, wallet_address))
-      .limit(1)
-
-    if (!user) {
-      const [newUser] = await fastify.db
-        .insert(users)
-        .values({ wallet_address })
-        .returning()
-      user = newUser
+    // Validate timestamp in auth message to prevent replay attacks.
+    // Message format: "...\nTimestamp: <ISO date>"
+    const lines = message.split('\n')
+    const tsLine = lines.find((l) => l.startsWith('Timestamp: '))
+    if (!tsLine) {
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Missing timestamp in auth message',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
     }
+    const msgTime = new Date(tsLine.replace('Timestamp: ', ''))
+    if (isNaN(msgTime.getTime())) {
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Invalid timestamp in auth message',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
+    }
+    const ageMs = Date.now() - msgTime.getTime()
+    if (ageMs > 5 * 60 * 1000 || ageMs < -30 * 1000) {
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'Auth message expired or from the future',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
+    }
+
+    // Atomic upsert — avoids TOCTOU race under concurrent auth requests
+    const [user] = await fastify.db
+      .insert(users)
+      .values({ wallet_address, first_name: '', last_name: '' })
+      .onConflictDoUpdate({
+        target: users.wallet_address,
+        set: { updated_at: new Date() },
+      })
+      .returning()
 
     // Block suspended users from obtaining a token
     if (user.status === 'suspended') {

@@ -14,7 +14,7 @@ const reviewGig: FastifyPluginAsync = async (fastify) => {
     Reply: ReviewRoute['response'] | ApiError
   }>(
     '/',
-    { preHandler: [fastify.authenticate] },
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
     async (request, reply) => {
       const { id } = request.params
       const { score, comment } = request.body

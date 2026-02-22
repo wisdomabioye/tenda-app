@@ -8,4 +8,6 @@ export type {
   UsersContract,
   UploadContract,
   BlockchainContract,
+  PlatformContract,
+  PlatformConfig,
 } from './contracts'

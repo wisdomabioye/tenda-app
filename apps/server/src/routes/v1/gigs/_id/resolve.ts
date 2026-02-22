@@ -1,8 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs, disputes, gig_transactions } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
-import { computePlatformFee, verifyTransactionOnChain } from '../../../../lib/solana'
+import { ErrorCode, computePlatformFee } from '@tenda/shared'
+import { verifyTransactionOnChain } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { requireRole } from '../../../../lib/guards'
 import { isPostgresUniqueViolation } from '../../../../lib/db'
@@ -76,7 +76,7 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
       }
 
       const config = await getPlatformConfig(fastify.db)
-      const platform_fee_lamports = computePlatformFee(gig.payment_lamports, config.fee_bps)
+      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
       const resolverWalletAddress = request.user.wallet_address
       const now = new Date()
 

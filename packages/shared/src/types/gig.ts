@@ -141,6 +141,25 @@ export interface GigDetail extends Gig {
   dispute: Dispute | null
 }
 
+/** A gig_transaction enriched with minimal gig context for the wallet screen. */
+export interface UserTransaction {
+  id: string
+  gig_id: string
+  type: GigTransactionType
+  signature: string
+  amount_lamports: number
+  platform_fee_lamports: number
+  created_at: string | null
+  gig: {
+    id: string
+    title: string
+    status: GigStatus
+    payment_lamports: number
+    poster_id: string
+    worker_id: string | null
+  }
+}
+
 // ── Query types ───────────────────────────────────────────────────────
 
 export interface UserGigsQuery {

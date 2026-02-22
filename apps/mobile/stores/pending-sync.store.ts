@@ -1,23 +1,23 @@
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import { api } from '@/api/client'
+import type { SubmitProofInput } from '@tenda/shared'
 
 const STORAGE_KEY = 'tenda_pending_sync'
 const MAX_RETRY_COUNT = 10
 
-export interface PendingSync {
-  id: string
-  gigId: string
-  action: 'publish' | 'approve' | 'cancel' | 'accept' | 'refund'
-  signature: string
-  createdAt: number
-  retryCount: number
-}
+export type PendingSync =
+  | { id: string; action: 'publish' | 'approve' | 'cancel' | 'accept' | 'refund'; gigId: string; signature: string; createdAt: number; retryCount: number }
+  | { id: string; action: 'submit'; gigId: string; signature: string; proofs: SubmitProofInput['proofs']; createdAt: number; retryCount: number }
+
+// Distribute Omit over the union so each variant is processed independently.
+type PendingSyncEntry = PendingSync extends infer T ? T extends { id: string; createdAt: number; retryCount: number } ? Omit<T, 'id' | 'createdAt' | 'retryCount'> : never : never
 
 interface PendingSyncState {
   queue: PendingSync[]
-  add: (entry: Omit<PendingSync, 'id' | 'createdAt' | 'retryCount'>) => string
+  add: (entry: PendingSyncEntry) => string
   remove: (id: string) => void
+  clear: () => Promise<void>
   replayAll: () => Promise<void>
 }
 
@@ -45,9 +45,9 @@ async function saveQueue(queue: PendingSync[]) {
 export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
   queue: [],
 
-  add: (entry) => {
+  add: (entry: PendingSyncEntry) => {
     const id = uuid()
-    const item: PendingSync = { ...entry, id, createdAt: Date.now(), retryCount: 0 }
+    const item = { ...entry, id, createdAt: Date.now(), retryCount: 0 } as PendingSync
     const queue = [...get().queue, item]
     set({ queue })
     saveQueue(queue).catch(() => {})
@@ -58,6 +58,15 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
     const queue = get().queue.filter((item) => item.id !== id)
     set({ queue })
     saveQueue(queue).catch(() => {})
+  },
+
+  clear: async () => {
+    set({ queue: [] })
+    try {
+      await SecureStore.deleteItemAsync(STORAGE_KEY)
+    } catch {
+      // Non-fatal
+    }
   },
 
   replayAll: async () => {
@@ -79,6 +88,8 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
           await api.gigs.accept({ id: entry.gigId }, { signature: entry.signature })
         } else if (entry.action === 'refund') {
           await api.gigs.refund({ id: entry.gigId }, { signature: entry.signature })
+        } else if (entry.action === 'submit') {
+          await api.gigs.submit({ id: entry.gigId }, { signature: entry.signature, proofs: entry.proofs })
         }
         get().remove(entry.id)
       } catch (err: any) {

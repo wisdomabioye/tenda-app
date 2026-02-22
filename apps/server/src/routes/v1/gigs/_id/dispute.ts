@@ -14,7 +14,7 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
     Reply: DisputeRoute['response'] | ApiError
   }>(
     '/',
-    { preHandler: [fastify.authenticate] },
+    { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
     async (request, reply) => {
       const { id } = request.params
 

@@ -1,4 +1,5 @@
 export * from './gig-utils'
+export { computePlatformFee } from './fees'
 
 export {
   MIN_PAYMENT_LAMPORTS,

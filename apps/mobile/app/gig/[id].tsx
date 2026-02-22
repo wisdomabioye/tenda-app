@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View, ScrollView, StyleSheet, Image } from 'react-native'
+import { View, ScrollView, StyleSheet, Image, Alert } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import {
@@ -11,7 +11,7 @@ import {
   FileText,
   Film,
 } from 'lucide-react-native'
-import { Transaction } from '@solana/web3.js'
+import { Transaction, PublicKey } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import { spacing, radius } from '@/theme/tokens'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
@@ -36,14 +36,13 @@ import { useGigsStore } from '@/stores/gigs.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { toPaymentDisplay } from '@/lib/currency'
-import { computeRelevantDeadline } from '@tenda/shared'
+import { computeRelevantDeadline, computePlatformFee, SOLANA_TX_FEE_LAMPORTS } from '@tenda/shared'
 import { deadlineLabel } from '@/lib/gig-display'
 import { api } from '@/api/client'
-import { signAndSendTransactionWithWallet } from '@/wallet'
+import { signAndSendTransactionWithWallet, getBalance } from '@/wallet'
 import type { ColorScheme } from '@/theme/tokens'
 import type { GigDetail } from '@tenda/shared'
 import type { ActiveSheet } from './_components/GigCTABar'
-import type { PendingSync } from '@/stores/pending-sync.store'
 
 type PendingAction =
   | { type: 'publish' }
@@ -104,7 +103,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   async function startBlockchainFlow(
     action: PendingAction,
     txBase64: string,
-    syncAction?: PendingSync['action'],
+    syncAction?: 'publish' | 'approve' | 'cancel' | 'accept' | 'refund',
   ) {
     if (!mwaAuthToken) return
     const tx = Transaction.from(Buffer.from(txBase64, 'base64'))
@@ -122,6 +121,17 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   async function handlePublish() {
     if (!mwaAuthToken) return
     try {
+      const walletAddress = useAuthStore.getState().walletAddress
+      if (walletAddress) {
+        const { fee_bps } = await api.platform.config()
+        const platformFee = BigInt(computePlatformFee(BigInt(gig.payment_lamports), fee_bps))
+        const required = BigInt(gig.payment_lamports) + platformFee + SOLANA_TX_FEE_LAMPORTS
+        const balance = BigInt(await getBalance(new PublicKey(walletAddress)))
+        if (balance < required) {
+          Alert.alert('Insufficient SOL', 'Your wallet does not have enough SOL to fund this gig.')
+          return
+        }
+      }
       const { transaction } = await api.blockchain.createEscrow({ gig_id: gig.id })
       await startBlockchainFlow({ type: 'publish' }, transaction, 'publish')
     } catch (e) {
@@ -176,8 +186,13 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     if (!mwaAuthToken) return
     try {
       const { transaction } = await api.blockchain.submitProof({ gig_id: gig.id })
-      // submit not added to pending-sync (needs proofs data too — retry from gig detail screen)
-      await startBlockchainFlow({ type: 'submit', proofs }, transaction)
+      const tx = Transaction.from(Buffer.from(transaction, 'base64'))
+      const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken)
+      // Add to pending-sync with proofs so a retry can recover if server call fails
+      const syncId = pendingSync.add({ action: 'submit', gigId: gig.id, signature: sig, proofs })
+      setPendingSyncId(syncId)
+      setPendingAction({ type: 'submit', proofs })
+      setPendingSignature(sig)
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to build submit transaction')
     }
