@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
@@ -23,22 +24,8 @@ import {
   Spacer,
 } from '@/components/ui'
 import { IconButton } from '@/components/ui/IconButton'
-import { MOCK_GIGS } from '@/data/mock'
 import { useAuthStore } from '@/stores/auth.store'
-
-function useGigCounts(userId: string | undefined) {
-  const completedCount = MOCK_GIGS.filter(
-    (g) => g.status === 'completed' && (g.poster_id === userId || g.worker_id === userId),
-  ).length
-
-  const activeCount = MOCK_GIGS.filter(
-    (g) =>
-      ['accepted', 'submitted'].includes(g.status) &&
-      (g.poster_id === userId || g.worker_id === userId),
-  ).length
-
-  return { completedCount, activeCount }
-}
+import { useUserGigsStore } from '@/stores/user-gigs.store'
 
 interface MenuItem {
   icon: typeof Wallet
@@ -52,6 +39,19 @@ export default function ProfileScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
   const { user, logout } = useAuthStore()
+  const { postedGigs, workedGigs, fetchAll } = useUserGigsStore()
+
+  useEffect(() => {
+    if (user?.id) fetchAll(user.id)
+  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const completedCount = [...postedGigs, ...workedGigs].filter(
+    (g) => g.status === 'completed',
+  ).length
+
+  const activeCount = [...postedGigs, ...workedGigs].filter((g) =>
+    ['accepted', 'submitted'].includes(g.status),
+  ).length
 
   const fullName = [user?.first_name, user?.last_name]
     .filter(Boolean)
@@ -60,8 +60,6 @@ export default function ProfileScreen() {
   const walletShort = user?.wallet_address
     ? `${user.wallet_address.slice(0, 4)}...${user.wallet_address.slice(-4)}`
     : '—'
-
-  const { completedCount, activeCount } = useGigCounts(user?.id)
 
   const menuItems: MenuItem[] = [
     { icon: UserPen, label: 'Update Profile', onPress: () => router.push('/(tabs)/update-profile') },

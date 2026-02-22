@@ -7,34 +7,100 @@ import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { MoneyText } from '@/components/ui/MoneyText'
 import { GigStatusBadge } from './GigStatusBadge'
-import { type MockGig, type MockUser, MOCK_USERS, getCategoryColor, type GigStatus, CATEGORY_META } from '@/data/mock'
+import { getCategoryColor, CATEGORY_META } from '@/data/mock'
 import { toPaymentDisplay } from '@/lib/currency'
+import { useExchangeRateStore } from '@/stores/exchange-rate.store'
+import { computeRelevantDeadline } from '@tenda/shared'
+import { deadlineLabel } from '@/lib/gig-display'
 import type { ColorScheme } from '@/theme/tokens'
+import type { GigDetail } from '@tenda/shared'
 
 interface GigCardProps {
-  gig: MockGig
+  gig: GigDetail
   showStatus?: boolean
 }
 
-function formatDeadline(deadline: Date): string {
-  const now = new Date()
-  const diff = deadline.getTime() - now.getTime()
-  const days = Math.ceil(diff / (1000 * 60 * 60 * 24))
+export function GigCard({ gig, showStatus = true }: GigCardProps) {
+  const router = useRouter()
+  const { theme } = useUnistyles()
+  const solToNgn = useExchangeRateStore((s) => s.solToNgn)
+  const categoryColorKey = getCategoryColor(gig.category) as keyof ColorScheme
+  const categoryColor = theme.colors[categoryColorKey]
+  const categoryLabel =
+    CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
+  const price = toPaymentDisplay(gig.payment_lamports, solToNgn)
+  const deadline = computeRelevantDeadline(gig)
+  const label = deadlineLabel(deadline)
 
-  if (days < 0) return 'Expired'
-  if (days === 0) return 'Today'
-  if (days === 1) return 'Tomorrow'
-  return `${days} days left`
-}
+  const posterName = [gig.poster.first_name, gig.poster.last_name]
+    .filter(Boolean)
+    .join(' ') || 'Anonymous'
 
-function getPosterName(posterId: string): string {
-  const user = MOCK_USERS.find((u) => u.id === posterId)
-  if (!user) return 'Unknown'
-  return [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Anonymous'
-}
+  return (
+    <Pressable
+      onPress={() => router.push(`/gig/${gig.id}`)}
+      style={({ pressed }) => [
+        s.card,
+        { backgroundColor: theme.colors.surface },
+        pressed && s.pressed,
+      ]}
+    >
+      <View style={[s.accent, { backgroundColor: categoryColor }]} />
 
-function getPoster(posterId: string): MockUser | undefined {
-  return MOCK_USERS.find((u) => u.id === posterId)
+      <View style={s.header}>
+        <View style={s.categoryRow}>
+          <View style={[s.categoryDot, { backgroundColor: categoryColor }]} />
+          <Text variant="caption" color={theme.colors.textSub}>
+            {categoryLabel}
+          </Text>
+        </View>
+        {showStatus && <GigStatusBadge status={gig.status} />}
+      </View>
+
+      <View style={s.titleRow}>
+        <View style={s.titleWrap}>
+          <Text variant="subheading" numberOfLines={2}>
+            {gig.title}
+          </Text>
+        </View>
+        <MoneyText naira={price.naira} sol={price.sol} size={typography.sizes.lg} />
+      </View>
+
+      <Text variant="caption" numberOfLines={2}>
+        {gig.description}
+      </Text>
+
+      <View style={s.meta}>
+        <View style={s.metaItem}>
+          <MapPin size={14} color={theme.colors.textFaint} />
+          <Text variant="caption" color={theme.colors.textSub}>
+            {gig.city}
+          </Text>
+        </View>
+        {label ? (
+          <View style={s.metaItem}>
+            <Clock size={14} color={theme.colors.textFaint} />
+            <Text variant="caption" color={theme.colors.textSub}>
+              {label}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+
+      <View style={[s.footer, { borderTopColor: theme.colors.borderFaint }]}>
+        <View style={s.posterInfo}>
+          <Avatar
+            size="sm"
+            name={posterName}
+            src={gig.poster.avatar_url}
+          />
+          <Text variant="caption" weight="medium">
+            {posterName}
+          </Text>
+        </View>
+      </View>
+    </Pressable>
+  )
 }
 
 const s = StyleSheet.create({
@@ -105,78 +171,3 @@ const s = StyleSheet.create({
     transform: [{ scale: 0.985 }],
   },
 })
-
-export function GigCard({ gig, showStatus = true }: GigCardProps) {
-  const router = useRouter()
-  const { theme } = useUnistyles()
-  const poster = getPoster(gig.poster_id)
-  const categoryColorKey = getCategoryColor(gig.category) as keyof ColorScheme
-  const categoryColor = theme.colors[categoryColorKey]
-  const categoryLabel =
-    CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
-  const price = toPaymentDisplay(gig.payment)
-
-  return (
-    <Pressable
-      onPress={() => router.push(`/gig/${gig.id}`)}
-      style={({ pressed }) => [
-        s.card,
-        { backgroundColor: theme.colors.surface },
-        pressed && s.pressed,
-      ]}
-    >
-      <View style={[s.accent, { backgroundColor: categoryColor }]} />
-
-      <View style={s.header}>
-        <View style={s.categoryRow}>
-          <View style={[s.categoryDot, { backgroundColor: categoryColor }]} />
-          <Text variant="caption" color={theme.colors.textSub}>
-            {categoryLabel}
-          </Text>
-        </View>
-        {showStatus && <GigStatusBadge status={gig.status} />}
-      </View>
-
-      <View style={s.titleRow}>
-        <View style={s.titleWrap}>
-          <Text variant="subheading" numberOfLines={2}>
-            {gig.title}
-          </Text>
-        </View>
-        <MoneyText naira={price.naira} sol={price.sol} size={typography.sizes.lg} />
-      </View>
-
-      <Text variant="caption" numberOfLines={2}>
-        {gig.description}
-      </Text>
-
-      <View style={s.meta}>
-        <View style={s.metaItem}>
-          <MapPin size={14} color={theme.colors.textFaint} />
-          <Text variant="caption" color={theme.colors.textSub}>
-            {gig.city}
-          </Text>
-        </View>
-        <View style={s.metaItem}>
-          <Clock size={14} color={theme.colors.textFaint} />
-          <Text variant="caption" color={theme.colors.textSub}>
-            {formatDeadline(gig.deadline)}
-          </Text>
-        </View>
-      </View>
-
-      <View style={[s.footer, { borderTopColor: theme.colors.borderFaint }]}>
-        <View style={s.posterInfo}>
-          <Avatar
-            size="sm"
-            name={getPosterName(gig.poster_id)}
-            src={poster?.avatar_url}
-          />
-          <Text variant="caption" weight="medium">
-            {getPosterName(gig.poster_id)}
-          </Text>
-        </View>
-      </View>
-    </Pressable>
-  )
-}

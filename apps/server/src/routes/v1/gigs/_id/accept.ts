@@ -2,20 +2,34 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
+import { verifyTransactionOnChain, DISCRIMINATOR_ACCEPT_GIG } from '../../../../lib/solana'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type AcceptRoute = GigsContract['accept']
 
 const acceptGig: FastifyPluginAsync = async (fastify) => {
-  // POST /v1/gigs/:id/accept — worker accepts gig
+  // POST /v1/gigs/:id/accept — worker confirms on-chain acceptance and updates DB.
+  // Caller must first call POST /v1/blockchain/accept-gig to get the unsigned tx,
+  // sign + submit to Solana, then call this endpoint with the resulting signature.
   fastify.post<{
     Params: AcceptRoute['params']
+    Body: AcceptRoute['body']
     Reply: AcceptRoute['response'] | ApiError
   }>(
     '/',
     { preHandler: [fastify.authenticate] },
     async (request, reply) => {
       const { id } = request.params
+      const { signature } = request.body
+
+      if (!signature) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'signature is required',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
 
       const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
 
@@ -52,6 +66,17 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
           error: 'Bad Request',
           message: 'Acceptance deadline has passed',
           code: ErrorCode.ACCEPT_DEADLINE_PASSED,
+        })
+      }
+
+      // Verify the on-chain transaction before updating the DB
+      const verification = await verifyTransactionOnChain(signature, DISCRIMINATOR_ACCEPT_GIG)
+      if (!verification.ok) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Transaction not yet confirmed on-chain',
+          code: ErrorCode.SIGNATURE_VERIFICATION_FAILED,
         })
       }
 

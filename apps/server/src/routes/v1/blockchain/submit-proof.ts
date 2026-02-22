@@ -2,21 +2,21 @@ import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { buildCreateGigEscrowInstruction } from '../../../lib/solana'
+import { buildSubmitProofInstruction } from '../../../lib/solana'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
-type EscrowRoute = BlockchainContract['createEscrow']
+type SubmitProofRoute = BlockchainContract['submitProof']
 
-const escrow: FastifyPluginAsync = async (fastify) => {
-  // POST /v1/blockchain/create-escrow
-  // Builds an unsigned create_gig_escrow Anchor instruction for the poster to sign.
-  // Caller must be the poster and the gig must be in 'draft' status.
-  // After signing on-chain, caller calls POST /v1/gigs/:id/publish with the signature.
+const submitProof: FastifyPluginAsync = async (fastify) => {
+  // POST /v1/blockchain/submit-proof
+  // Builds an unsigned submit_proof Anchor instruction for the worker to sign.
+  // Caller must be the assigned worker and the gig must be in 'accepted' status.
+  // After signing on-chain, caller calls POST /v1/gigs/:id/submit with the signature + proofs.
   fastify.post<{
-    Body: EscrowRoute['body']
-    Reply: EscrowRoute['response'] | ApiError
+    Body: SubmitProofRoute['body']
+    Reply: SubmitProofRoute['response'] | ApiError
   }>(
-    '/create-escrow',
+    '/submit-proof',
     { preHandler: [fastify.authenticate] },
     async (request, reply) => {
       const { gig_id } = request.body
@@ -41,39 +41,32 @@ const escrow: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      if (gig.poster_id !== request.user.id) {
+      if (gig.worker_id !== request.user.id) {
         return reply.code(403).send({
           statusCode: 403,
           error: 'Forbidden',
-          message: 'Only the poster can publish this gig',
+          message: 'Only the assigned worker can submit proof',
           code: ErrorCode.FORBIDDEN,
         })
       }
 
-      if (gig.status !== 'draft') {
+      if (gig.status !== 'accepted') {
         return reply.code(400).send({
           statusCode: 400,
           error: 'Bad Request',
-          message: 'Only draft gigs can be published on-chain',
+          message: 'Gig must be in accepted status to submit proof',
           code: ErrorCode.GIG_WRONG_STATUS,
         })
       }
 
       try {
-        const acceptDeadline = gig.accept_deadline ? new Date(gig.accept_deadline) : null
-        const result = await buildCreateGigEscrowInstruction(
-          request.user.wallet_address,
-          gig_id,
-          Number(gig.payment_lamports),
-          gig.completion_duration_seconds,
-          acceptDeadline,
-        )
+        const result = await buildSubmitProofInstruction(request.user.wallet_address, gig_id)
         return result
       } catch {
         return reply.code(500).send({
           statusCode: 500,
           error: 'Internal Server Error',
-          message: 'Failed to build create-escrow instruction',
+          message: 'Failed to build submit-proof instruction',
           code: ErrorCode.INTERNAL_ERROR,
         })
       }
@@ -81,4 +74,4 @@ const escrow: FastifyPluginAsync = async (fastify) => {
   )
 }
 
-export default escrow
+export default submitProof

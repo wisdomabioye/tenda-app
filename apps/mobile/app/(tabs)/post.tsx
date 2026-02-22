@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
+import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
@@ -10,29 +11,57 @@ import { Chip } from '@/components/ui/Chip'
 import { Spacer } from '@/components/ui/Spacer'
 import { Card } from '@/components/ui/Card'
 import { Header } from '@/components/ui'
-
+import { showToast } from '@/components/ui/Toast'
+import { PaymentInput } from '@/components/form/PaymentInput'
+import { DurationPicker } from '@/components/form/DurationPicker'
 import { CATEGORY_META } from '@/data/mock'
-import { SUPPORTED_CITIES } from '@tenda/shared'
+import { SUPPORTED_CITIES, isValidPaymentLamports, MIN_COMPLETION_DURATION_SECONDS } from '@tenda/shared'
+import { api } from '@/api/client'
 import type { ColorScheme } from '@/theme/tokens'
+import type { GigCategory } from '@tenda/shared'
 
 export default function PostGigScreen() {
   const { theme } = useUnistyles()
+  const router = useRouter()
 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [payment, setPayment] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [paymentLamports, setPaymentLamports] = useState(0)
+  const [completionDuration, setCompletionDuration] = useState(86_400) // 1 day default
+  const [address, setAddress] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState<GigCategory | null>(null)
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
 
   const isValid =
     title.trim().length > 0 &&
     description.trim().length > 0 &&
-    payment.trim().length > 0 &&
+    isValidPaymentLamports(paymentLamports) &&
     selectedCategory !== null &&
-    selectedCity !== null
+    selectedCity !== null &&
+    completionDuration >= MIN_COMPLETION_DURATION_SECONDS
 
-  const handlePost = () => {
-    // TODO: wire up to API
+  async function handlePost() {
+    if (!isValid || !selectedCategory || !selectedCity) return
+
+    setIsLoading(true)
+    try {
+      const gig = await api.gigs.create({
+        title: title.trim(),
+        description: description.trim(),
+        payment_lamports: paymentLamports,
+        category: selectedCategory,
+        city: selectedCity,
+        address: address.trim() || undefined,
+        completion_duration_seconds: completionDuration,
+      })
+      showToast('success', 'Draft saved! Publish it from the gig page.')
+      router.push(`/gig/${gig.id}` as any)
+    } catch (e) {
+      showToast('error', (e as Error).message || 'Failed to create gig')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -83,13 +112,20 @@ export default function PostGigScreen() {
 
             <Spacer size={spacing.md} />
 
+            <PaymentInput value={paymentLamports} onChange={setPaymentLamports} />
+
+            <Spacer size={spacing.md} />
+
+            <DurationPicker value={completionDuration} onChange={setCompletionDuration} />
+
+            <Spacer size={spacing.md} />
+
             <Input
-              label="Payment (₦)"
-              placeholder="e.g. 5000"
-              helper="Enter the amount you’re offering"
-              value={payment}
-              onChangeText={setPayment}
-              keyboardType="numeric"
+              label="Address (optional)"
+              placeholder="e.g. 12 Broad Street, Lagos Island"
+              helper="Physical location if the gig requires in-person work"
+              value={address}
+              onChangeText={setAddress}
             />
           </Card>
 
@@ -138,9 +174,10 @@ export default function PostGigScreen() {
             size="xl"
             fullWidth
             disabled={!isValid}
+            loading={isLoading}
             onPress={handlePost}
           >
-            Post Gig
+            Save Draft
           </Button>
 
           <Spacer size={spacing.xl} />

@@ -17,6 +17,9 @@ import {
 } from '@expo-google-fonts/manrope'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { useAuthStore } from '@/stores/auth.store'
+import { useExchangeRateStore } from '@/stores/exchange-rate.store'
+import { useSettingsStore } from '@/stores/settings.store'
+import { ToastProvider } from '@/components/ui/Toast'
 import '@/theme';
 
 SplashScreen.preventAutoHideAsync()
@@ -36,7 +39,12 @@ export default function RootLayout() {
   })
 
   useEffect(() => {
-    useAuthStore.getState().loadSession().finally(() => setSessionLoaded(true))
+    // Bootstrap: load session, exchange rate, and persisted settings in parallel
+    Promise.all([
+      useAuthStore.getState().loadSession(),
+      useExchangeRateStore.getState().fetchRate(),
+      useSettingsStore.getState().loadSettings(),
+    ]).finally(() => setSessionLoaded(true))
   }, [])
 
   const isReady = (fontsLoaded || fontError) && sessionLoaded
@@ -53,14 +61,16 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="error" />
-        <Stack.Screen name="gig/[id]" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="+not-found" />
-      </Stack>
+      <ToastProvider>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background } }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="error" />
+          <Stack.Screen name="gig/[id]" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="+not-found" />
+        </Stack>
+      </ToastProvider>
       <SystemBars style="auto" />
     </GestureHandlerRootView>
   )

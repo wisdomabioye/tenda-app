@@ -1,3 +1,5 @@
+export * from './gig-utils'
+
 export {
   MIN_PAYMENT_LAMPORTS,
   MAX_PAYMENT_LAMPORTS,

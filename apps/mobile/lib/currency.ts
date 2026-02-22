@@ -1,8 +1,5 @@
 const LAMPORTS_PER_SOL = 1_000_000_000
 
-// TODO: Replace with real exchange rate from API/store
-const MOCK_SOL_TO_NGN = 2_400_000 // ~₦2.4M per SOL (illustrative)
-
 export interface PaymentDisplay {
   naira: number
   sol: number
@@ -10,12 +7,11 @@ export interface PaymentDisplay {
 
 /**
  * Convert payment_lamports to display values (SOL + NGN equivalent).
- * Conversion: lamports → SOL → NGN using current rate.
- * Replace MOCK_SOL_TO_NGN with a real rate from your exchange rate store.
+ * Pass the current SOL/NGN rate from useExchangeRateStore().
  */
-export function toPaymentDisplay(paymentLamports: number): PaymentDisplay {
+export function toPaymentDisplay(paymentLamports: number, solToNgn: number): PaymentDisplay {
   const sol = paymentLamports / LAMPORTS_PER_SOL
-  const naira = sol * MOCK_SOL_TO_NGN
+  const naira = sol * solToNgn
   return { naira, sol }
 }
 

@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { deriveEscrowAddress, computePlatformFee, verifyTransactionOnChain } from '../../../../lib/solana'
+import { deriveEscrowAddress, computePlatformFee, verifyTransactionOnChain, DISCRIMINATOR_CREATE_ESCROW } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { isPostgresUniqueViolation } from '../../../../lib/db'
 import type { GigsContract, ApiError } from '@tenda/shared'
@@ -62,8 +62,17 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
         })
       }
 
+      if (gig.accept_deadline && new Date(gig.accept_deadline) <= new Date()) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Cannot publish — acceptance deadline has already passed',
+          code: ErrorCode.ACCEPT_DEADLINE_PASSED,
+        })
+      }
+
       // Verify the on-chain transaction before writing to DB
-      const verification = await verifyTransactionOnChain(signature)
+      const verification = await verifyTransactionOnChain(signature, DISCRIMINATOR_CREATE_ESCROW)
       if (!verification.ok) {
         return reply.code(400).send({
           statusCode: 400,

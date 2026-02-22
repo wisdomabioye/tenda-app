@@ -5,6 +5,7 @@ const REQUIRED_ENV_VARS = [
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
   'SOLANA_RPC_URL',
+  'SOLANA_TREASURY_ADDRESS',
 ] as const
 
 export interface Config {
@@ -14,6 +15,7 @@ export interface Config {
   CLOUDINARY_API_KEY: string
   CLOUDINARY_API_SECRET: string
   SOLANA_RPC_URL: string
+  SOLANA_TREASURY_ADDRESS: string  // platform treasury wallet — required for approve_completion
   // Optional — defaults applied here; do not re-read from process.env elsewhere
   PLATFORM_FEE_BPS: number       // seed fallback only — runtime fee is read from platform_config table
   SOLANA_PROGRAM_ID: string
@@ -43,7 +45,8 @@ export function loadConfig(): Config {
     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME!,
     CLOUDINARY_API_KEY:    process.env.CLOUDINARY_API_KEY!,
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET!,
-    SOLANA_RPC_URL:        process.env.SOLANA_RPC_URL!,
+    SOLANA_RPC_URL:          process.env.SOLANA_RPC_URL!,
+    SOLANA_TREASURY_ADDRESS: process.env.SOLANA_TREASURY_ADDRESS!,
     PLATFORM_FEE_BPS:      Number(process.env.PLATFORM_FEE_BPS ?? 250),
     SOLANA_PROGRAM_ID:     process.env.SOLANA_PROGRAM_ID ?? 'TendaEscrowProgram1111111111111111111111111',
     JWT_EXPIRES_IN:        process.env.JWT_EXPIRES_IN ?? '7d',

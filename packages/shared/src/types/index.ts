@@ -23,10 +23,12 @@ export type {
   UpdateGigInput,
   PublishGigInput,
   CancelGigInput,
+  AcceptGigInput,
   DisputeGigInput,
   ResolveDisputeInput,
   SubmitProofInput,
   ApproveGigInput,
+  RefundExpiredInput,
   GigListQuery,
   UserGigsQuery,
 } from './gig'
@@ -46,6 +48,11 @@ export type {
 export type {
   EscrowRequest,
   EscrowResponse,
+  ApproveEscrowRequest,
+  CancelEscrowRequest,
+  AcceptGigRequest,
+  SubmitProofRequest,
+  RefundExpiredRequest,
   TransactionStatus,
 } from './blockchain'
 export type { CloudinarySignature, UploadType } from './upload'

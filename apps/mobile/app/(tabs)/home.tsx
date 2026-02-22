@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useCallback, useState } from 'react'
 import { useRouter } from 'expo-router'
-import { View, FlatList, Pressable, StyleSheet } from 'react-native'
+import { View, FlatList, Pressable, StyleSheet, RefreshControl } from 'react-native'
 import { Bell, SlidersHorizontal, Search as SearchIcon } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing, radius } from '@/theme/tokens'
@@ -12,47 +12,52 @@ import {
   FilterSheet,
   EmptyState,
 } from '@/components/ui'
+import { LoadingScreen, ErrorState } from '@/components/feedback'
 import { GigCardCompact } from '@/components/gig'
 import { Drawer, DrawerHeader } from '@/components/navigation'
-import { MOCK_GIGS, type MockGig } from '@/data/mock'
 import { useAuthStore } from '@/stores/auth.store'
-
-const allOpenGigs = MOCK_GIGS.filter((g) => g.status === 'open')
+import { useGigsStore } from '@/stores/gigs.store'
+import type { Gig } from '@tenda/shared'
+import { useFocusEffect } from 'expo-router'
 
 export default function HomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const router = useRouter()
   const { theme } = useUnistyles()
   const user = useAuthStore((s) => s.user)
+  const { gigs, isLoading, error, fetchGigs, setFilters } = useGigsStore()
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchGigs()
+    }, [fetchGigs]),
+  )
 
   const hasFilters = query.trim().length > 0 || selectedCategory !== null
 
-  const filteredGigs = useMemo(() => {
-    let result = allOpenGigs
+  async function handleRefresh() {
+    setRefreshing(true)
+    await fetchGigs()
+    setRefreshing(false)
+  }
 
-    if (selectedCategory) {
-      result = result.filter((g) => g.category === selectedCategory)
-    }
+  function handleCloseFilter() {
+    setFilterOpen(false)
+    setFilters({ category: selectedCategory as any ?? undefined })
+    fetchGigs()
+  }
 
-    if (query.trim()) {
-      const lower = query.toLowerCase()
-      result = result.filter(
-        (g) =>
-          g.title.toLowerCase().includes(lower) ||
-          g.description.toLowerCase().includes(lower) ||
-          g.city.toLowerCase().includes(lower),
-      )
-    }
-
-    return result
-  }, [query, selectedCategory])
-
-  const renderGigItem = ({ item }: { item: MockGig }) => (
+  const renderGigItem = ({ item }: { item: Gig }) => (
     <GigCardCompact gig={item} />
   )
+
+  if (isLoading && gigs.length === 0) {
+    return <LoadingScreen />
+  }
 
   return (
     <Drawer
@@ -71,53 +76,69 @@ export default function HomeScreen() {
         showAvatar
       />
       <ScreenContainer scroll={false} padding={false}>
-        <FlatList
-          data={filteredGigs}
-          keyExtractor={(item) => item.id}
-          renderItem={renderGigItem}
-          contentContainerStyle={s.list}
-          showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            <View style={s.feedRow}>
-              <Text variant="subheading">Feed</Text>
-              <View style={s.feedRight}>
-                <LiveChip label="Live" />
-                <Pressable
-                  onPress={() => setFilterOpen(true)}
-                  style={[
-                    s.filterBtn,
-                    {
-                      backgroundColor: hasFilters
-                        ? theme.colors.primaryTint
-                        : theme.colors.muted,
-                    },
-                  ]}
-                >
-                  <SlidersHorizontal
-                    size={16}
-                    color={hasFilters ? theme.colors.primary : theme.colors.textSub}
-                  />
-                  {hasFilters && (
-                    <View style={[s.filterDot, { backgroundColor: theme.colors.primary }]} />
-                  )}
-                </Pressable>
+        {error ? (
+          <ErrorState
+            title="Failed to load gigs"
+            description={error}
+            ctaLabel="Retry"
+            onCtaPress={fetchGigs}
+          />
+        ) : (
+          <FlatList
+            data={gigs}
+            keyExtractor={(item) => item.id}
+            renderItem={renderGigItem}
+            contentContainerStyle={s.list}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={theme.colors.primary}
+              />
+            }
+            ListHeaderComponent={
+              <View style={s.feedRow}>
+                <Text variant="subheading">Feed</Text>
+                <View style={s.feedRight}>
+                  <LiveChip label="Live" />
+                  <Pressable
+                    onPress={() => setFilterOpen(true)}
+                    style={[
+                      s.filterBtn,
+                      {
+                        backgroundColor: hasFilters
+                          ? theme.colors.primaryTint
+                          : theme.colors.muted,
+                      },
+                    ]}
+                  >
+                    <SlidersHorizontal
+                      size={16}
+                      color={hasFilters ? theme.colors.primary : theme.colors.textSub}
+                    />
+                    {hasFilters && (
+                      <View style={[s.filterDot, { backgroundColor: theme.colors.primary }]} />
+                    )}
+                  </Pressable>
+                </View>
               </View>
-            </View>
-          }
-          ListEmptyComponent={
-            <EmptyState
-              icon={<SearchIcon size={40} color={theme.colors.textFaint} />}
-              title="No gigs found"
-              description="Try adjusting your search or filters"
-            />
-          }
-          ItemSeparatorComponent={() => <Spacer size={spacing.sm} />}
-          ListFooterComponent={<Spacer size={spacing.xl} />}
-        />
+            }
+            ListEmptyComponent={
+              <EmptyState
+                icon={<SearchIcon size={40} color={theme.colors.textFaint} />}
+                title="No gigs found"
+                description="Try adjusting your filters or check back later"
+              />
+            }
+            ItemSeparatorComponent={() => <Spacer size={spacing.sm} />}
+            ListFooterComponent={<Spacer size={spacing.xl} />}
+          />
+        )}
 
         <FilterSheet
           visible={filterOpen}
-          onClose={() => setFilterOpen(false)}
+          onClose={handleCloseFilter}
           query={query}
           onQueryChange={setQuery}
           selectedCategory={selectedCategory}

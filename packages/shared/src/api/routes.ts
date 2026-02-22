@@ -19,6 +19,7 @@ export const apiRoutes: {
     approve: '/v1/gigs/:id/approve',
     dispute: '/v1/gigs/:id/dispute',
     resolve: '/v1/gigs/:id/resolve',
+    refund: '/v1/gigs/:id/refund',
     review: '/v1/gigs/:id/review',
     transactions: '/v1/gigs/:id/transactions',
   },
@@ -32,7 +33,12 @@ export const apiRoutes: {
     signature: '/v1/upload/signature',
   },
   blockchain: {
-    transaction: '/v1/blockchain/transaction/:signature',
-    createEscrow: '/v1/blockchain/create-escrow',
+    transaction:    '/v1/blockchain/transaction/:signature',
+    createEscrow:   '/v1/blockchain/create-escrow',
+    approveEscrow:  '/v1/blockchain/approve-escrow',
+    cancelEscrow:   '/v1/blockchain/cancel-escrow',
+    acceptGig:      '/v1/blockchain/accept-gig',
+    submitProof:    '/v1/blockchain/submit-proof',
+    refundExpired:  '/v1/blockchain/refund-expired',
   },
 }

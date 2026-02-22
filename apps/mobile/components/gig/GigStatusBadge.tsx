@@ -1,5 +1,6 @@
 import { Badge } from '@/components/ui/Badge'
-import { STATUS_BADGE_VARIANT, STATUS_LABEL, type GigStatus } from '@/data/mock'
+import { STATUS_BADGE_VARIANT, STATUS_LABEL } from '@/data/mock'
+import type { GigStatus } from '@tenda/shared'
 
 interface GigStatusBadgeProps {
   status: GigStatus

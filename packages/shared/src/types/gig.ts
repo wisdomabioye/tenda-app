@@ -101,14 +101,23 @@ export interface ResolveDisputeInput {
   // resolver_wallet_address taken from request.user.wallet_address
 }
 
+export interface AcceptGigInput {
+  signature: string  // on-chain tx signature for accept_gig
+}
+
 export interface SubmitProofInput {
   proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>
+  signature: string  // on-chain tx signature for submit_proof
 }
 
 export interface ApproveGigInput {
   signature: string  // on-chain tx signature for approve_completion
   // amount_lamports derived from gig.payment_lamports
   // platform_fee_lamports derived from payment_lamports * PLATFORM_FEE_BPS / 10_000
+}
+
+export interface RefundExpiredInput {
+  signature: string  // on-chain tx signature for refund_expired
 }
 
 // ── Response types ────────────────────────────────────────────────────

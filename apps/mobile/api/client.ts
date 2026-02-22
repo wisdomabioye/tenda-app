@@ -11,6 +11,7 @@ import {
   type GigDetail,
   type CreateGigInput,
   type UpdateGigInput,
+  type AcceptGigInput,
   type SubmitProofInput,
   type ApproveGigInput,
   type DisputeGigInput,
@@ -19,9 +20,21 @@ import {
   type PaginatedResponse,
   type CloudinarySignature,
   type UploadType,
+  type CancelGigInput,
+  type RefundExpiredInput,
   type EscrowRequest,
   type EscrowResponse,
+  type ApproveEscrowRequest,
+  type CancelEscrowRequest,
+  type AcceptGigRequest,
+  type SubmitProofRequest,
+  type RefundExpiredRequest,
   type TransactionStatus,
+  type Review,
+  type ReviewInput,
+  type GigTransaction,
+  type GetUserReviewsQuery,
+  type PublishGigInput,
 } from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
@@ -81,7 +94,7 @@ async function request<TResponse>(
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
   }
-  
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
   }
@@ -125,26 +138,39 @@ export const api = {
     get: (params: { id: string }) =>
       request<GigDetail>('GET', gigs.get, { params }),
     update: (params: { id: string }, body: UpdateGigInput) =>
-      request<Gig>('PUT', gigs.update, { params, body }),
-    delete: (params: { id: string }) =>
-      request<Gig>('DELETE', gigs.delete, { params }),
-    accept: (params: { id: string }) =>
-      request<Gig>('POST', gigs.accept, { params }),
+      request<Gig>('PATCH', gigs.update, { params, body }),
+    delete: (params: { id: string }, body?: CancelGigInput) =>
+      request<Gig>('DELETE', gigs.delete, { params, body }),
+    refund: (params: { id: string }, body: RefundExpiredInput) =>
+      request<Gig>('POST', gigs.refund, { params, body }),
+    publish: (params: { id: string }, body: PublishGigInput) =>
+      request<Gig>('POST', gigs.publish, { params, body }),
+    accept: (params: { id: string }, body: AcceptGigInput) =>
+      request<Gig>('POST', gigs.accept, { params, body }),
     submit: (params: { id: string }, body: SubmitProofInput) =>
       request<Gig>('POST', gigs.submit, { params, body }),
     approve: (params: { id: string }, body: ApproveGigInput) =>
       request<Gig>('POST', gigs.approve, { params, body }),
     dispute: (params: { id: string }, body: DisputeGigInput) =>
       request<Gig>('POST', gigs.dispute, { params, body }),
+    review: (params: { id: string }, body: ReviewInput) =>
+      request<Review>('POST', gigs.review, { params, body }),
+    transactions: (params: { id: string }) =>
+      request<GigTransaction[]>('GET', gigs.transactions, { params }),
   },
 
   users: {
     get: (params: { id: string }) =>
       request<PublicUser>('GET', users.get, { params }),
     update: (params: { id: string }, body: UpdateUserInput) =>
-      request<User>('PUT', users.update, { params, body }),
+      request<User>('PATCH', users.update, { params, body }),
     gigs: (params: { id: string }, query?: UserGigsQuery) =>
       request<PaginatedResponse<Gig>>('GET', users.gigs, {
+        params,
+        query: query as Record<string, unknown>,
+      }),
+    reviews: (params: { id: string }, query?: GetUserReviewsQuery) =>
+      request<PaginatedResponse<Review>>('GET', users.reviews, {
         params,
         query: query as Record<string, unknown>,
       }),
@@ -160,5 +186,15 @@ export const api = {
       request<TransactionStatus>('GET', blockchain.transaction, { params }),
     createEscrow: (body: EscrowRequest) =>
       request<EscrowResponse>('POST', blockchain.createEscrow, { body }),
+    approveEscrow: (body: ApproveEscrowRequest) =>
+      request<EscrowResponse>('POST', blockchain.approveEscrow, { body }),
+    cancelEscrow: (body: CancelEscrowRequest) =>
+      request<EscrowResponse>('POST', blockchain.cancelEscrow, { body }),
+    acceptGig: (body: AcceptGigRequest) =>
+      request<EscrowResponse>('POST', blockchain.acceptGig, { body }),
+    submitProof: (body: SubmitProofRequest) =>
+      request<EscrowResponse>('POST', blockchain.submitProof, { body }),
+    refundExpired: (body: RefundExpiredRequest) =>
+      request<EscrowResponse>('POST', blockchain.refundExpired, { body }),
   },
 }

@@ -2,13 +2,16 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs, gig_proofs } from '@tenda/shared/db/schema'
 import { computeCompletionDeadline, isCloudinaryUrl, ErrorCode } from '@tenda/shared'
+import { verifyTransactionOnChain, DISCRIMINATOR_SUBMIT_PROOF } from '../../../../lib/solana'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { getPlatformConfig } from '../../../../lib/platform'
 
 type SubmitRoute = GigsContract['submit']
 
 const submitGig: FastifyPluginAsync = async (fastify) => {
-  // POST /v1/gigs/:id/submit — worker submits proof of work
+  // POST /v1/gigs/:id/submit — worker confirms on-chain proof submission and uploads URLs to DB.
+  // Caller must first call POST /v1/blockchain/submit-proof to get the unsigned tx,
+  // sign + submit to Solana, then call this endpoint with the resulting signature + proofs.
   fastify.post<{
     Params: SubmitRoute['params']
     Body: SubmitRoute['body']
@@ -18,7 +21,16 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
     { preHandler: [fastify.authenticate] },
     async (request, reply) => {
       const { id } = request.params
-      const { proofs } = request.body
+      const { proofs, signature } = request.body
+
+      if (!signature) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'signature is required',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
 
       const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
 
@@ -80,6 +92,20 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
         })
       }
 
+      // Validate all proof types are one of the accepted enum values
+      const VALID_PROOF_TYPES = ['image', 'video', 'document'] as const
+      const invalidType = proofs.find(
+        ({ type }) => !VALID_PROOF_TYPES.includes(type as typeof VALID_PROOF_TYPES[number])
+      )
+      if (invalidType) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Proof type must be "image", "video", or "document"',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
       // Validate all proof URLs are from Cloudinary CDN
       const invalidProof = proofs.find(({ url }) => !isCloudinaryUrl(url))
       if (invalidProof) {
@@ -88,6 +114,17 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
           error: 'Bad Request',
           message: 'All proof URLs must be hosted on Cloudinary (https://res.cloudinary.com/)',
           code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
+      // Verify the on-chain transaction before updating the DB
+      const verification = await verifyTransactionOnChain(signature, DISCRIMINATOR_SUBMIT_PROOF)
+      if (!verification.ok) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Transaction not yet confirmed on-chain',
+          code: ErrorCode.SIGNATURE_VERIFICATION_FAILED,
         })
       }
 

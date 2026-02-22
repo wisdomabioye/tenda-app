@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Gig, GigDetail, GigListQuery } from '@tenda/shared'
+import type { Gig, GigDetail, GigListQuery, ReviewInput, SubmitProofInput, AcceptGigInput } from '@tenda/shared'
 import { api } from '@/api/client'
 
 interface GigsState {
@@ -14,6 +14,12 @@ interface GigsState {
   fetchGigDetail: (id: string) => Promise<void>
   setFilters: (filters: Partial<GigListQuery>) => void
   resetFilters: () => void
+
+  acceptGig: (id: string, body: AcceptGigInput) => Promise<void>
+  submitProof: (id: string, body: SubmitProofInput) => Promise<void>
+  disputeGig: (id: string, reason: string) => Promise<void>
+  reviewGig: (id: string, input: ReviewInput) => Promise<void>
+  cancelDraftGig: (id: string) => Promise<void>
 }
 
 const defaultFilters: GigListQuery = {}
@@ -51,4 +57,62 @@ export const useGigsStore = create<GigsState>((set, get) => ({
   },
 
   resetFilters: () => set({ filters: defaultFilters }),
+
+  acceptGig: async (id, body) => {
+    set({ isLoading: true })
+    try {
+      await api.gigs.accept({ id }, body)
+      await get().fetchGigDetail(id)
+    } catch (e) {
+      set({ isLoading: false })
+      throw e
+    }
+  },
+
+  submitProof: async (id, body) => {
+    set({ isLoading: true })
+    try {
+      await api.gigs.submit({ id }, body)
+      await get().fetchGigDetail(id)
+    } catch (e) {
+      set({ isLoading: false })
+      throw e
+    }
+  },
+
+  disputeGig: async (id, reason) => {
+    set({ isLoading: true })
+    try {
+      const gig = await api.gigs.dispute({ id }, { reason })
+      set((state) => ({
+        isLoading: false,
+        selectedGig: state.selectedGig ? { ...state.selectedGig, ...gig } : null,
+      }))
+    } catch (e) {
+      set({ isLoading: false })
+      throw e
+    }
+  },
+
+  reviewGig: async (id, input) => {
+    set({ isLoading: true })
+    try {
+      await api.gigs.review({ id }, input)
+      set({ isLoading: false })
+    } catch (e) {
+      set({ isLoading: false })
+      throw e
+    }
+  },
+
+  cancelDraftGig: async (id) => {
+    set({ isLoading: true })
+    try {
+      await api.gigs.delete({ id })
+      set({ isLoading: false })
+    } catch (e) {
+      set({ isLoading: false })
+      throw e
+    }
+  },
 }))
