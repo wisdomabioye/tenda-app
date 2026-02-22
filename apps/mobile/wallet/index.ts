@@ -9,7 +9,7 @@ import {
 } from '@solana/web3.js'
 import { transact, type Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { getEnv } from '@/lib/env'
-import { apiConfig } from '@tenda/shared'
+import { apiConfig, solanaChainId } from '@tenda/shared'
 
 const env = getEnv()
 const ENV_CONFIG = apiConfig[env]
@@ -72,17 +72,33 @@ async function authorizeSession(wallet: Web3MobileWallet, authToken?: string) {
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 500
 
-function isMwaTransient(error: any): boolean {
+interface MwaError {
+  name: string
+  message: string
+}
+
+function isMwaError(err: unknown): err is MwaError {
   return (
-    error.name === 'SolanaMobileWalletAdapterError' &&
-    error.message.includes('CancellationException')
+    typeof err === 'object' &&
+    err !== null &&
+    typeof (err as Record<string, unknown>).name === 'string' &&
+    typeof (err as Record<string, unknown>).message === 'string'
   )
 }
 
-function isMwaUserDeclined(error: any): boolean {
+function isMwaTransient(err: unknown): boolean {
   return (
-    error.name === 'SolanaMobileWalletAdapterError' &&
-    error.message.includes('AuthorizationDeclined')
+    isMwaError(err) &&
+    err.name === 'SolanaMobileWalletAdapterError' &&
+    err.message.includes('CancellationException')
+  )
+}
+
+function isMwaUserDeclined(err: unknown): boolean {
+  return (
+    isMwaError(err) &&
+    err.name === 'SolanaMobileWalletAdapterError' &&
+    err.message.includes('AuthorizationDeclined')
   )
 }
 
@@ -133,20 +149,20 @@ export async function connectAndSignAuthMessage(
           message,
         }
       })
-    } catch (error: any) {
-      if (isMwaUserDeclined(error)) {
+    } catch (err: unknown) {
+      if (isMwaUserDeclined(err)) {
         console.log('User declined authorization')
         return null
       }
 
-      if (isMwaTransient(error) && attempt < MAX_RETRIES) {
+      if (isMwaTransient(err) && attempt < MAX_RETRIES) {
         console.log(`MWA transient error, retrying (${attempt}/${MAX_RETRIES})...`)
         await delay(RETRY_DELAY_MS)
         continue
       }
 
-      console.error('Wallet connect failed:', error)
-      throw error
+      console.error('Wallet connect failed:', err)
+      throw err
     }
   }
 
@@ -158,7 +174,7 @@ export function buildAuthMessage(walletAddress: string): string {
   return [
     'Sign in to Tenda to verify your wallet.',
     `Wallet: ${walletAddress}`,
-    `Chain: solana:${APP_IDENTITY.network}`,
+    `Chain: ${solanaChainId(APP_IDENTITY.network)}`,
     `URI: ${APP_IDENTITY.uri}`,
     `Timestamp: ${timestamp}`,
   ].join('\n')

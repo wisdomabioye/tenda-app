@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
 import { deriveEscrowAddress, verifyTransactionOnChain, DISCRIMINATOR_CREATE_ESCROW } from '../../../../lib/solana'
@@ -89,11 +89,16 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
       let updated
       try {
         updated = await fastify.db.transaction(async (tx) => {
+          // Include status = 'draft' in WHERE to guard against concurrent publish calls.
+          // Without this, a second concurrent publish (same draft, different signature)
+          // would overwrite whatever status the gig reached after the first succeeded.
           const [updatedGig] = await tx
             .update(gigs)
             .set({ status: 'open', escrow_address, updated_at: new Date() })
-            .where(eq(gigs.id, id))
+            .where(and(eq(gigs.id, id), eq(gigs.status, 'draft')))
             .returning()
+
+          if (!updatedGig) return null
 
           await tx.insert(gig_transactions).values({
             gig_id:               id,
@@ -116,6 +121,15 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
           })
         }
         throw err
+      }
+
+      if (!updated) {
+        return reply.code(409).send({
+          statusCode: 409,
+          error: 'Conflict',
+          message: 'Gig status changed — it may have already been published',
+          code: ErrorCode.GIG_WRONG_STATUS,
+        })
       }
 
       return updated

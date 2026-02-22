@@ -62,12 +62,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   loadSession: async () => {
+    // Declare outside try so the catch block can reference them.
+    // If the SecureStore read itself fails, all three remain null and the
+    // catch will set isLoading: false with no credentials — safe default.
+    let jwt: string | null = null
+    let mwaAuthToken: string | null = null
+    let walletAddress: string | null = null
+
     try {
-      const [jwt, mwaAuthToken, walletAddress] = await Promise.all([
-        getJwtToken(),
-        getMwaAuthToken(),
-        getWalletAddress(),
-      ])
+      const stored = await Promise.all([getJwtToken(), getMwaAuthToken(), getWalletAddress()])
+      jwt          = stored[0]
+      mwaAuthToken = stored[1]
+      walletAddress = stored[2]
 
       if (!jwt) {
         set({ jwt: null, mwaAuthToken, walletAddress, isAuthenticated: false, isLoading: false })
@@ -88,8 +94,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false,
         })
       } else {
-        // Network or other transient error — preserve credentials so user isn't logged out
-        set({ isLoading: false })
+        // Transient network error — commit the credentials we already read from SecureStore
+        // into Zustand state so the UI shows a "reconnecting" state rather than the login screen.
+        set({ jwt, mwaAuthToken, walletAddress, isLoading: false })
       }
     }
   },

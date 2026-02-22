@@ -9,12 +9,13 @@ const PLATFORM_SEED  = 'platform'
 const USER_SEED      = 'user'
 
 // Anchor instruction discriminators (sha256("global:<instruction_name>")[0..8])
-export const DISCRIMINATOR_CREATE_ESCROW  = Buffer.from([193, 117, 69,  70,  18,  123, 67,  33 ])
-export const DISCRIMINATOR_ACCEPT_GIG     = Buffer.from([94,  129, 189, 107, 220, 74,  82,  57 ])
-export const DISCRIMINATOR_SUBMIT_PROOF   = Buffer.from([54,  241, 46,  84,  4,   212, 46,  94 ])
-export const DISCRIMINATOR_REFUND_EXPIRED = Buffer.from([118, 153, 164, 244, 40,  128, 242, 250])
-export const DISCRIMINATOR_APPROVE        = Buffer.from([191, 196, 91,  103, 232, 146, 6,   67 ])
-export const DISCRIMINATOR_CANCEL_GIG     = Buffer.from([109, 142, 65,  80,  226, 145, 135, 185])
+export const DISCRIMINATOR_CREATE_ESCROW    = Buffer.from([193, 117, 69,  70,  18,  123, 67,  33 ])
+export const DISCRIMINATOR_ACCEPT_GIG       = Buffer.from([94,  129, 189, 107, 220, 74,  82,  57 ])
+export const DISCRIMINATOR_SUBMIT_PROOF     = Buffer.from([54,  241, 46,  84,  4,   212, 46,  94 ])
+export const DISCRIMINATOR_REFUND_EXPIRED   = Buffer.from([118, 153, 164, 244, 40,  128, 242, 250])
+export const DISCRIMINATOR_APPROVE          = Buffer.from([191, 196, 91,  103, 232, 146, 6,   67 ])
+export const DISCRIMINATOR_CANCEL_GIG       = Buffer.from([109, 142, 65,  80,  226, 145, 135, 185])
+export const DISCRIMINATOR_RESOLVE_DISPUTE  = Buffer.from([157, 82,  251, 76,  73,  185, 35,  18 ])
 
 export function verifySignature(
   walletAddress: string,

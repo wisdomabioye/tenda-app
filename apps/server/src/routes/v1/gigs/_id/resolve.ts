@@ -1,8 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { gigs, disputes, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import { verifyTransactionOnChain } from '../../../../lib/solana'
+import { verifyTransactionOnChain, DISCRIMINATOR_RESOLVE_DISPUTE } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { requireRole } from '../../../../lib/guards'
 import { isPostgresUniqueViolation } from '../../../../lib/db'
@@ -64,8 +64,10 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      // Verify the on-chain transaction before writing to DB
-      const verification = await verifyTransactionOnChain(signature)
+      // Verify the on-chain transaction before writing to DB.
+      // Pass the resolve_dispute discriminator so an unrelated confirmed tx
+      // cannot be replayed here (unlike other routes, the old code passed none).
+      const verification = await verifyTransactionOnChain(signature, DISCRIMINATOR_RESOLVE_DISPUTE)
       if (!verification.ok) {
         return reply.code(400).send({
           statusCode: 400,
@@ -83,11 +85,17 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
       let updated
       try {
         updated = await fastify.db.transaction(async (tx) => {
+          // Include status = 'disputed' in WHERE to guard against concurrent resolves.
+          // Two simultaneous admin calls with different signatures would otherwise both
+          // "succeed": each UPDATE matches (status already 'resolved' after the first),
+          // and both insert a dispute_resolved transaction record.
           const [updatedGig] = await tx
             .update(gigs)
             .set({ status: 'resolved', updated_at: now })
-            .where(eq(gigs.id, id))
+            .where(and(eq(gigs.id, id), eq(gigs.status, 'disputed')))
             .returning()
+
+          if (!updatedGig) return null
 
           await tx
             .update(disputes)
@@ -114,6 +122,15 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
           })
         }
         throw err
+      }
+
+      if (!updated) {
+        return reply.code(409).send({
+          statusCode: 409,
+          error: 'Conflict',
+          message: 'Gig status changed — it may have already been resolved',
+          code: ErrorCode.GIG_WRONG_STATUS,
+        })
       }
 
       return updated

@@ -4,6 +4,8 @@ import { gigs } from '@tenda/shared/db/schema'
 import {
   isValidPaymentLamports,
   isValidCompletionDuration,
+  isValidLatitude,
+  isValidLongitude,
   validateGigDeadlines,
   MAX_GIG_TITLE_LENGTH,
   MAX_GIG_DESCRIPTION_LENGTH,
@@ -51,20 +53,32 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (city)                 conditions.push(eq(gigs.city, city))
     if (category)             conditions.push(eq(gigs.category, category as GigCategory))
+    if (min_payment_lamports !== undefined || max_payment_lamports !== undefined) {
+      const minN = min_payment_lamports ?? 0
+      const maxN = max_payment_lamports ?? Number.MAX_SAFE_INTEGER
+      if (!Number.isInteger(minN) || minN < 0 || !Number.isInteger(maxN) || maxN < 0 || minN > maxN) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'min_payment_lamports and max_payment_lamports must be non-negative integers with min ≤ max',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+    }
     if (min_payment_lamports) conditions.push(gte(gigs.payment_lamports, min_payment_lamports))
     if (max_payment_lamports) conditions.push(lte(gigs.payment_lamports, max_payment_lamports))
 
-    // Validate geographic parameters before injecting into the haversine SQL expression.
-    // Invalid values (NaN, out-of-range) would silently return wrong results or error in Postgres.
+    // Validate and apply geographic proximity filter (haversine).
+    // All three params must be provided together and within valid ranges.
+    // Uses named numeric locals so the SQL template receives narrowed number types.
     if (lat !== undefined || lng !== undefined || radius_km !== undefined) {
       const latN = Number(lat)
       const lngN = Number(lng)
       const rN   = Number(radius_km)
       if (
         lat === undefined || lng === undefined || radius_km === undefined ||
-        isNaN(latN) || latN < -90 || latN > 90 ||
-        isNaN(lngN) || lngN < -180 || lngN > 180 ||
-        isNaN(rN)   || rN <= 0    || rN > 20_000
+        !isValidLatitude(latN) || !isValidLongitude(lngN) ||
+        isNaN(rN) || rN <= 0 || rN > 20_000
       ) {
         return reply.code(400).send({
           statusCode: 400,
@@ -73,18 +87,14 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
           code: ErrorCode.VALIDATION_ERROR,
         })
       }
-    }
-
-    // Haversine proximity filter — no PostGIS required for MVP
-    // @todo Migrate to PostGIS ST_DWithin when query volume grows
-    if (lat !== undefined && lng !== undefined && radius_km !== undefined) {
+      // @todo Migrate to PostGIS ST_DWithin when query volume grows
       conditions.push(
         sql`${gigs.latitude} IS NOT NULL AND ${gigs.longitude} IS NOT NULL AND
           (6371 * acos(
-            cos(radians(${lat})) * cos(radians(${gigs.latitude})) *
-            cos(radians(${gigs.longitude}) - radians(${lng})) +
-            sin(radians(${lat})) * sin(radians(${gigs.latitude}))
-          )) <= ${radius_km}`
+            cos(radians(${latN})) * cos(radians(${gigs.latitude})) *
+            cos(radians(${gigs.longitude}) - radians(${lngN})) +
+            sin(radians(${latN})) * sin(radians(${gigs.latitude}))
+          )) <= ${rN}`
       )
     }
 
@@ -179,6 +189,24 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
           statusCode: 400,
           error: 'Bad Request',
           message: 'completion_duration_seconds must be between 3600 (1 hour) and 7776000 (90 days)',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
+      if (latitude !== undefined && !isValidLatitude(latitude)) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'latitude must be between -90 and 90',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
+      if (longitude !== undefined && !isValidLongitude(longitude)) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'longitude must be between -180 and 180',
           code: ErrorCode.VALIDATION_ERROR,
         })
       }

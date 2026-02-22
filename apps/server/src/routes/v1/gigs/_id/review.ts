@@ -1,8 +1,9 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq, sql } from 'drizzle-orm'
 import { gigs, reviews, users } from '@tenda/shared/db/schema'
-import { isValidReviewScore, ErrorCode } from '@tenda/shared'
+import { isValidReviewScore, MAX_REVIEW_COMMENT_LENGTH, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
+import { isPostgresUniqueViolation } from '../../../../lib/db'
 
 type ReviewRoute = GigsContract['review']
 
@@ -47,6 +48,15 @@ const reviewGig: FastifyPluginAsync = async (fastify) => {
           error: 'Forbidden',
           message: 'Only the poster or worker can leave a review',
           code: ErrorCode.REVIEW_NOT_ALLOWED,
+        })
+      }
+
+      if (comment && comment.length > MAX_REVIEW_COMMENT_LENGTH) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: `comment must be at most ${MAX_REVIEW_COMMENT_LENGTH} characters`,
+          code: ErrorCode.VALIDATION_ERROR,
         })
       }
 
@@ -106,12 +116,7 @@ const reviewGig: FastifyPluginAsync = async (fastify) => {
         return reply.code(201).send(review)
       } catch (err: unknown) {
         // Postgres unique violation on reviews_gig_reviewer_unique
-        if (
-          typeof err === 'object' &&
-          err !== null &&
-          'code' in err &&
-          (err as { code: string }).code === '23505'
-        ) {
+        if (isPostgresUniqueViolation(err)) {
           return reply.code(409).send({
             statusCode: 409,
             error: 'Conflict',

@@ -70,10 +70,15 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
   },
 
   replayAll: async () => {
-    const queue = await loadQueue()
-    set({ queue })
+    // Merge disk state with in-memory state. In-memory is authoritative for items
+    // that exist in both (e.g. retryCount just incremented). Disk-only items are
+    // added back (e.g. recovered after a crash before the in-memory store hydrated).
+    const diskQueue = await loadQueue()
+    const memIds    = new Set(get().queue.map((i) => i.id))
+    const merged    = [...get().queue, ...diskQueue.filter((i) => !memIds.has(i.id))]
+    set({ queue: merged })
 
-    const toProcess = [...queue]
+    const toProcess = [...merged]
     for (const entry of toProcess) {
       if (entry.retryCount >= MAX_RETRY_COUNT) continue
 

@@ -3,6 +3,7 @@ import { and, eq, or } from 'drizzle-orm'
 import { gigs, disputes } from '@tenda/shared/db/schema'
 import { MAX_DISPUTE_REASON_LENGTH, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
+import { isPostgresUniqueViolation } from '../../../../lib/db'
 
 type DisputeRoute = GigsContract['dispute']
 
@@ -101,12 +102,7 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
         return updated
       } catch (err: unknown) {
         // Postgres unique violation on disputes_gig_id_unique
-        if (
-          typeof err === 'object' &&
-          err !== null &&
-          'code' in err &&
-          (err as { code: string }).code === '23505'
-        ) {
+        if (isPostgresUniqueViolation(err)) {
           return reply.code(409).send({
             statusCode: 409,
             error: 'Conflict',

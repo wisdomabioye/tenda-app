@@ -8,7 +8,7 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /v1/platform/config — public endpoint returning current platform fee
   fastify.get<{
     Reply: ConfigRoute['response']
-  }>('/config', async (_request, _reply) => {
+  }>('/config', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (_request, _reply) => {
     const { fee_bps } = await getPlatformConfig(fastify.db)
     return { fee_bps }
   })

@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
-import { isValidWalletAddress, ErrorCode } from '@tenda/shared'
+import { isValidWalletAddress, ErrorCode, solanaChainId } from '@tenda/shared'
 import type { AuthContract, ApiError } from '@tenda/shared'
 import { verifySignature } from '../../../lib/solana'
 import { getConfig } from '../../../config'
@@ -73,6 +73,20 @@ const auth: FastifyPluginAsync = async (fastify) => {
         statusCode: 400,
         error: 'Bad Request',
         message: 'Auth message expired or from the future',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
+    }
+
+    // Validate that the message was signed for the correct Solana network.
+    // Without this a devnet-signed message would authenticate against a production
+    // server, since only the timestamp was previously verified.
+    const expectedChain = solanaChainId(getConfig().SOLANA_NETWORK)
+    const chainLine = lines.find((l) => l.startsWith('Chain: '))
+    if (!chainLine || chainLine.slice('Chain: '.length) !== expectedChain) {
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: `Auth message must be signed for ${expectedChain}`,
         code: ErrorCode.VALIDATION_ERROR,
       })
     }

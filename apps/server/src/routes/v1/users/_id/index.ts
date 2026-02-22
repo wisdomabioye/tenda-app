@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
-import { ErrorCode, isCloudinaryUrl } from '@tenda/shared'
+import { ErrorCode, isCloudinaryUrl, isValidLatitude, isValidLongitude } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 
 type GetRoute    = UsersContract['get']
@@ -71,6 +71,24 @@ const userById: FastifyPluginAsync = async (fastify) => {
         statusCode: 400,
         error: 'Bad Request',
         message: 'avatar_url must be a Cloudinary URL (https://res.cloudinary.com/)',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
+    }
+
+    if (latitude != null && !isValidLatitude(latitude)) {
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'latitude must be between -90 and 90',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
+    }
+
+    if (longitude != null && !isValidLongitude(longitude)) {
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'longitude must be between -180 and 180',
         code: ErrorCode.VALIDATION_ERROR,
       })
     }

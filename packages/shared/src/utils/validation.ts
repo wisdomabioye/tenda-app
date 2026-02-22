@@ -1,3 +1,13 @@
+export const MAX_REVIEW_COMMENT_LENGTH = 1000
+
+export function isValidLatitude(lat: number): boolean {
+  return Number.isFinite(lat) && lat >= -90 && lat <= 90
+}
+
+export function isValidLongitude(lng: number): boolean {
+  return Number.isFinite(lng) && lng >= -180 && lng <= 180
+}
+
 // Minimum payment: 1,000,000 lamports (0.001 SOL) — mirrors MIN_PAYMENT in smart contract
 export const MIN_PAYMENT_LAMPORTS = 1_000_000
 // Maximum payment: 10,000 SOL in lamports — practical upper bound

@@ -10,11 +10,14 @@ export {
   MIN_COMPLETION_DURATION_SECONDS,
   MAX_COMPLETION_DURATION_SECONDS,
   MAX_PAGINATION_LIMIT,
+  MAX_REVIEW_COMMENT_LENGTH,
   isValidPaymentLamports,
   isValidCompletionDuration,
   isValidWalletAddress,
   isValidReviewScore,
   isCloudinaryUrl,
+  isValidLatitude,
+  isValidLongitude,
   validateGigDeadlines,
 } from './validation'
 export type { ValidationResult } from './validation'

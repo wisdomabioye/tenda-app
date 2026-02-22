@@ -91,6 +91,19 @@ _None — all critical issues resolved._
 | 68 | **Auth message had no nonce/expiry — replayable indefinitely** | Mobile: timestamp appended to message; server: validates timestamp within ±5 min / 30 s window |
 | 69 | **Submit-proof had no pending-sync retry path** | `pending-sync.store.ts`: added `'submit'` action with `proofs` field; `gig/[id].tsx:handleProofsReady`: adds to pending-sync with signature + proofs |
 | 70 | **`loadSession` cleared JWT on any error including network failures** | `api/client.ts`: exported `ApiClientError`; `auth.store.ts`: only clears storage on 401/403, preserves credentials on network errors |
+| A1 | **`resolve.ts` accepted any confirmed Solana tx** — no discriminator passed to `verifyTransactionOnChain` | Added `DISCRIMINATOR_RESOLVE_DISPUTE` to `lib/solana.ts`; now passed alongside all other routes |
+| A2 | **`resolve.ts` UPDATE had no status guard** — concurrent resolves could insert duplicate transaction records | Added `eq(gigs.status, 'disputed')` to WHERE; null result returns 409 |
+| A3 | **`publish.ts` UPDATE had no status guard** — inconsistent with all other state-transition routes | Added `eq(gigs.status, 'draft')` to WHERE; null result returns 409 |
+| A4 | **Auth message `Chain:` line not validated** — devnet-signed messages accepted by production server | Added `solanaChainId(network)` helper to `shared/constants/solana.ts`; server verifies chain; mobile uses same helper |
+| A5 | **lat/lng not range-validated on profile update or gig creation** | `isValidLatitude`/`isValidLongitude` added to `@tenda/shared`; applied in `users/_id/index.ts` and `gigs/index.ts` |
+| A6 | **Network error in `loadSession` left in-memory auth state blank** — false login screen shown | Credentials read into outer-scope `let` vars; committed to state in network-error branch |
+| A7 | **`review.ts` + `dispute.ts` used inline 23505 check** instead of `isPostgresUniqueViolation()` helper | Replaced with helper in both files |
+| A8 | **Review comment length not validated before DB insert** — DB threw cryptic 500 on >1000 chars | Added `MAX_REVIEW_COMMENT_LENGTH` constant to shared; validated in `review.ts` before insert |
+| A9 | **Public `GET /v1/platform/config` had no explicit rate limit** | Added `config: { rateLimit: { max: 30, timeWindow: '1 minute' } }` |
+| A10 | **statusCache eviction ran O(n) on every cache miss** | Replaced inline sweep with `setInterval` every 5 min (`.unref()` so it doesn't block test teardown) |
+| A11 | **min/max payment filter in GET /gigs not validated** — negative values or min > max silently returned wrong results | Validates both are non-negative integers and min ≤ max; haversine SQL refactored to use typed numeric locals |
+| A12 | **MWA error helpers used `any` type** | Introduced `MwaError` interface + `isMwaError` type guard; `catch` block changed to `unknown` |
+| A13 | **`replayAll` overwrote in-memory queue from disk** — unsaved in-memory items dropped on merge | Merges disk items into in-memory queue using Set deduplication by id |
 | 17 | **`statusCache` grew indefinitely** — no eviction of expired entries | `plugins/auth.ts`: added eviction sweep on every cache miss |
 | 20 | **`GET /admin/platform-config` returned empty body if table unseeded** | Returns 404 with clear error message |
 | 21 | **No upper bound on `grace_period_seconds`** — could be set to an arbitrary value | Capped at 30 days (2,592,000 s) with validation error on exceeded value |

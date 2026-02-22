@@ -23,8 +23,18 @@ declare module '@fastify/jwt' {
 // In-process cache of user status keyed by user ID.
 // Avoids a DB round-trip on every authenticated request while still
 // propagating suspensions within a short window.
-const STATUS_CACHE_TTL_MS = 60_000 // 1 minute
+const STATUS_CACHE_TTL_MS   = 60_000      // 1 minute
+const STATUS_CACHE_SWEEP_MS = 5 * 60_000  // sweep every 5 minutes
 const statusCache = new Map<string, { status: string; expiresAt: number }>()
+
+// Evict expired entries out-of-band so the sweep never runs in the request path.
+// Without this the Map would grow until the process restarts in long-running production deployments.
+setInterval(() => {
+  const now = Date.now()
+  for (const [k, v] of statusCache.entries()) {
+    if (now > v.expiresAt) statusCache.delete(k)
+  }
+}, STATUS_CACHE_SWEEP_MS).unref() // .unref() so the timer doesn't keep the process alive during tests
 
 export default fp(async (fastify) => {
   fastify.register(fjwt, { secret: getConfig().JWT_SECRET })
@@ -64,10 +74,6 @@ export default fp(async (fastify) => {
       }
 
       cached = { status: row.status, expiresAt: now + STATUS_CACHE_TTL_MS }
-      // Evict all expired entries on each cache miss to prevent unbounded growth.
-      for (const [k, v] of statusCache.entries()) {
-        if (now > v.expiresAt) statusCache.delete(k)
-      }
       statusCache.set(userId, cached)
     }
 
