@@ -7,10 +7,11 @@ type TransactionRoute = BlockchainContract['transaction']
 
 const transaction: FastifyPluginAsync = async (fastify) => {
   // GET /v1/blockchain/transaction/:signature — query Solana tx status
+  // Requires auth to prevent unauthenticated callers from probing arbitrary signatures.
   fastify.get<{
     Params: TransactionRoute['params']
     Reply: TransactionRoute['response'] | ApiError
-  }>('/:signature', async (request, reply) => {
+  }>('/:signature', { preHandler: [fastify.authenticate] }, async (request, reply) => {
     const { signature } = request.params
 
     if (!signature) {

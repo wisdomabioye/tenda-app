@@ -114,14 +114,16 @@ export const gigs = pgTable('gigs', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   // Note: add a Postgres trigger on migration to auto-update updated_at on every UPDATE
 }, (t) => ({
-  poster_idx:         index('gigs_poster_id_idx').on(t.poster_id),
-  worker_idx:         index('gigs_worker_id_idx').on(t.worker_id),
-  status_idx:         index('gigs_status_idx').on(t.status),
-  category_idx:       index('gigs_category_idx').on(t.category),
-  city_idx:           index('gigs_city_idx').on(t.city),
-  status_city_idx:    index('gigs_status_city_idx').on(t.status, t.city),
-  created_at_idx:     index('gigs_created_at_idx').on(t.created_at),
-  escrow_address_idx: uniqueIndex('gigs_escrow_address_unique').on(t.escrow_address),
+  poster_idx:          index('gigs_poster_id_idx').on(t.poster_id),
+  worker_idx:          index('gigs_worker_id_idx').on(t.worker_id),
+  status_idx:          index('gigs_status_idx').on(t.status),
+  category_idx:        index('gigs_category_idx').on(t.category),
+  city_idx:            index('gigs_city_idx').on(t.city),
+  status_city_idx:     index('gigs_status_city_idx').on(t.status, t.city),
+  created_at_idx:      index('gigs_created_at_idx').on(t.created_at),
+  // Speeds up lazy-expiry batch scan: open gigs WHERE accept_deadline < now
+  accept_deadline_idx: index('gigs_accept_deadline_idx').on(t.accept_deadline),
+  escrow_address_idx:  uniqueIndex('gigs_escrow_address_unique').on(t.escrow_address),
 }))
 
 export const gig_proofs = pgTable('gig_proofs', {

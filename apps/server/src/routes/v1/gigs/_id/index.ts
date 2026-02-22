@@ -4,6 +4,7 @@ import { gigs, users, gig_proofs, disputes, gig_transactions } from '@tenda/shar
 import {
   isValidPaymentLamports,
   isValidCompletionDuration,
+  validateGigDeadlines,
   MAX_GIG_TITLE_LENGTH,
   MAX_GIG_DESCRIPTION_LENGTH,
   ErrorCode,
@@ -43,38 +44,26 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     const config = await getPlatformConfig(fastify.db)
     gig = await checkAndExpireGig(gig, fastify.db, config.grace_period_seconds)
 
-    const [poster] = await fastify.db
-      .select({
-        id: users.id,
-        first_name: users.first_name,
-        last_name: users.last_name,
-        avatar_url: users.avatar_url,
-        reputation_score: users.reputation_score,
-      })
-      .from(users)
-      .where(eq(users.id, gig.poster_id))
-      .limit(1)
-
-    let worker = null
-    if (gig.worker_id) {
-      const [w] = await fastify.db
-        .select({
-          id: users.id,
-          first_name: users.first_name,
-          last_name: users.last_name,
-          avatar_url: users.avatar_url,
-          reputation_score: users.reputation_score,
-        })
-        .from(users)
-        .where(eq(users.id, gig.worker_id))
-        .limit(1)
-      worker = w
+    const userCols = {
+      id:               users.id,
+      first_name:       users.first_name,
+      last_name:        users.last_name,
+      avatar_url:       users.avatar_url,
+      reputation_score: users.reputation_score,
     }
 
-    const [proofs, disputeRows] = await Promise.all([
+    // Fetch poster, worker (if assigned), proofs, and dispute in parallel.
+    const [posterRows, workerRows, proofs, disputeRows] = await Promise.all([
+      fastify.db.select(userCols).from(users).where(eq(users.id, gig.poster_id)).limit(1),
+      gig.worker_id
+        ? fastify.db.select(userCols).from(users).where(eq(users.id, gig.worker_id)).limit(1)
+        : Promise.resolve([]),
       fastify.db.select().from(gig_proofs).where(eq(gig_proofs.gig_id, id)),
       fastify.db.select().from(disputes).where(eq(disputes.gig_id, id)).limit(1),
     ])
+
+    const poster = posterRows[0]
+    const worker = workerRows[0] ?? null
 
     return { ...gig, poster, worker, proofs, dispute: disputeRows[0] ?? null }
   })
@@ -161,6 +150,22 @@ const gigById: FastifyPluginAsync = async (fastify) => {
         statusCode: 400,
         error: 'Bad Request',
         message: 'completion_duration_seconds must be between 3600 (1 hour) and 7776000 (90 days)',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
+    }
+
+    // Re-validate deadline combination using effective (updated) values.
+    // This catches cases where a new accept_deadline conflicts with existing completion_duration_seconds.
+    const effectiveDuration   = completion_duration_seconds ?? gig.completion_duration_seconds
+    const effectiveDeadline   = accept_deadline !== undefined
+      ? (accept_deadline ?? null)
+      : gig.accept_deadline?.toISOString() ?? null
+    const deadlineCheck = validateGigDeadlines(effectiveDuration, effectiveDeadline)
+    if (!deadlineCheck.valid) {
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: deadlineCheck.error!,
         code: ErrorCode.VALIDATION_ERROR,
       })
     }

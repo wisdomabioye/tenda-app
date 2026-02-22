@@ -21,8 +21,8 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /v1/gigs — list open gigs with filters
   fastify.get<{
     Querystring: ListRoute['query']
-    Reply: ListRoute['response']
-  }>('/', async (request) => {
+    Reply: ListRoute['response'] | ApiError
+  }>('/', async (request, reply) => {
     // Batch-expire gigs whose deadlines have passed before serving the list.
     // Throttled internally to at most once per minute.
     await batchExpireGigs(fastify.db)
@@ -53,6 +53,27 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     if (category)             conditions.push(eq(gigs.category, category as GigCategory))
     if (min_payment_lamports) conditions.push(gte(gigs.payment_lamports, min_payment_lamports))
     if (max_payment_lamports) conditions.push(lte(gigs.payment_lamports, max_payment_lamports))
+
+    // Validate geographic parameters before injecting into the haversine SQL expression.
+    // Invalid values (NaN, out-of-range) would silently return wrong results or error in Postgres.
+    if (lat !== undefined || lng !== undefined || radius_km !== undefined) {
+      const latN = Number(lat)
+      const lngN = Number(lng)
+      const rN   = Number(radius_km)
+      if (
+        lat === undefined || lng === undefined || radius_km === undefined ||
+        isNaN(latN) || latN < -90 || latN > 90 ||
+        isNaN(lngN) || lngN < -180 || lngN > 180 ||
+        isNaN(rN)   || rN <= 0    || rN > 20_000
+      ) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'lat (−90–90), lng (−180–180), and radius_km (0–20000) must all be provided and valid',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+    }
 
     // Haversine proximity filter — no PostGIS required for MVP
     // @todo Migrate to PostGIS ST_DWithin when query volume grows

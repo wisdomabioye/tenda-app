@@ -3,16 +3,14 @@ import Fastify from 'fastify'
 import {app, options} from './app'
 import { loadConfig } from './config'
 
+const isDev = process.env.NODE_ENV !== 'production'
 const server = Fastify({
     // Trust the X-Forwarded-For header set by reverse proxies (Nginx, cloud LBs).
     // Required so rate limiting and logging use the real client IP, not the proxy IP.
     trustProxy: true,
-    logger: {
-        level: 'debug',
-        transport: {
-            target: 'pino-pretty'
-        }
-    }
+    logger: isDev
+      ? { level: 'debug', transport: { target: 'pino-pretty' } }
+      : { level: 'info' },
 })
 
 const startServer = async () => {

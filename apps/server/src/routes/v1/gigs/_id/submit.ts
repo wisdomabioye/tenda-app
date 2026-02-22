@@ -92,6 +92,15 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
         })
       }
 
+      if (proofs.length > 10) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Too many proofs — maximum 10 allowed per submission',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
       // Validate all proof types are one of the accepted enum values
       const VALID_PROOF_TYPES = ['image', 'video', 'document'] as const
       const invalidType = proofs.find(

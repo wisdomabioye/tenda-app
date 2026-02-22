@@ -64,6 +64,10 @@ export default fp(async (fastify) => {
       }
 
       cached = { status: row.status, expiresAt: now + STATUS_CACHE_TTL_MS }
+      // Evict all expired entries on each cache miss to prevent unbounded growth.
+      for (const [k, v] of statusCache.entries()) {
+        if (now > v.expiresAt) statusCache.delete(k)
+      }
       statusCache.set(userId, cached)
     }
 

@@ -71,6 +71,31 @@ const admin: FastifyPluginAsync = async (fastify) => {
       })
     }
 
+    // Fetch the target user's role before updating — admins cannot suspend other admins.
+    const [target] = await fastify.db
+      .select({ id: users.id, role: users.role })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1)
+
+    if (!target) {
+      return reply.code(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'User not found',
+        code: ErrorCode.USER_NOT_FOUND,
+      })
+    }
+
+    if (target.role === 'admin' && status === 'suspended') {
+      return reply.code(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Cannot suspend another admin account',
+        code: ErrorCode.FORBIDDEN,
+      })
+    }
+
     const [updated] = await fastify.db
       .update(users)
       .set({ status, updated_at: new Date() })
@@ -85,6 +110,8 @@ const admin: FastifyPluginAsync = async (fastify) => {
         code: ErrorCode.USER_NOT_FOUND,
       })
     }
+
+    fastify.log.info({ adminId: request.user.id, targetId: id, newStatus: status }, 'User status changed')
 
     return updated
   })
@@ -140,8 +167,16 @@ const admin: FastifyPluginAsync = async (fastify) => {
   })
 
   // ── GET /v1/admin/platform-config ─────────────────────────────────────
-  fastify.get('/platform-config', { preHandler: adminGuard }, async () => {
+  fastify.get('/platform-config', { preHandler: adminGuard }, async (_request, reply) => {
     const [row] = await fastify.db.select().from(platform_config).limit(1)
+    if (!row) {
+      return reply.code(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Platform config not found — seed the database first',
+        code: ErrorCode.INTERNAL_ERROR,
+      })
+    }
     return row
   })
 
@@ -164,11 +199,17 @@ const admin: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    if (grace_period_seconds !== undefined && (grace_period_seconds < 0 || !Number.isInteger(grace_period_seconds))) {
+    // Cap at 30 days (2,592,000 s) to prevent accidentally setting an extreme grace period
+    const MAX_GRACE_PERIOD_SECONDS = 30 * 24 * 60 * 60 // 30 days
+    if (grace_period_seconds !== undefined && (
+      grace_period_seconds < 0 ||
+      !Number.isInteger(grace_period_seconds) ||
+      grace_period_seconds > MAX_GRACE_PERIOD_SECONDS
+    )) {
       return reply.code(400).send({
         statusCode: 400,
         error: 'Bad Request',
-        message: 'grace_period_seconds must be a non-negative integer',
+        message: `grace_period_seconds must be a non-negative integer ≤ ${MAX_GRACE_PERIOD_SECONDS} (30 days)`,
         code: ErrorCode.VALIDATION_ERROR,
       })
     }
@@ -191,6 +232,15 @@ const admin: FastifyPluginAsync = async (fastify) => {
       .set(updates)
       .where(eq(platform_config.id, 1))
       .returning()
+
+    if (!updated) {
+      return reply.code(404).send({
+        statusCode: 404,
+        error: 'Not Found',
+        message: 'Platform config not found — seed the database first',
+        code: ErrorCode.INTERNAL_ERROR,
+      })
+    }
 
     // Flush the 5-minute cache so routes pick up the new values immediately
     invalidatePlatformConfigCache()

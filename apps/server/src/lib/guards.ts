@@ -9,7 +9,8 @@ import { ErrorCode } from '@tenda/shared'
  */
 export function requireRole(role: UserRole) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
-    await request.jwtVerify()
+    // fastify.authenticate (which must precede requireRole in the preHandler chain)
+    // already called request.jwtVerify() — calling it again is redundant and adds latency.
     if (request.user.role !== role) {
       return reply.code(403).send({
         statusCode: 403,

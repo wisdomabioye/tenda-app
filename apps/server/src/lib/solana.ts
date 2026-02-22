@@ -56,12 +56,19 @@ export function deriveEscrowAddress(gigId: string): string {
  *  - completion_duration_secs:  u64     (8-byte LE)
  *  - accept_deadline:           Option<i64>  (1-byte tag + optional 8-byte LE i64)
  */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 function encodeBorshCreateGigArgs(
   gigId: string,
   paymentAmount: bigint,
   completionDurationSecs: bigint,
   acceptDeadline: bigint | null,
 ): Buffer {
+  // Validate UUID format before encoding: the Anchor program expects exactly 36 bytes
+  // for the gig_id field. A non-UUID string would silently corrupt the buffer layout.
+  if (!UUID_REGEX.test(gigId)) {
+    throw new Error(`Invalid gig ID format: expected UUID, got "${gigId}"`)
+  }
   const gigIdBytes = Buffer.from(gigId, 'utf8')
 
   const lenBuf = Buffer.allocUnsafe(4)
@@ -324,8 +331,16 @@ export async function buildRefundExpiredInstruction(
   }
 }
 
+// Reuse one Connection instance per process. Creating a new Connection on
+// every request opens a new WebSocket channel to the RPC node, which wastes
+// resources and can exhaust connection limits under load.
+let _connection: Connection | undefined
+
 export function getConnection(): Connection {
-  return new Connection(getConfig().SOLANA_RPC_URL, 'confirmed')
+  if (!_connection) {
+    _connection = new Connection(getConfig().SOLANA_RPC_URL, 'confirmed')
+  }
+  return _connection
 }
 
 /**
