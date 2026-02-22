@@ -20,15 +20,7 @@
 
 ### 🔴 Critical
 
-| # | Issue | File(s) | Fix |
-|---|-------|---------|-----|
-| 43 | **On-chain signature not tied to gig or action** — `verifyTransactionOnChain` only checks finality; any finalized tx from the right wallet passes, including a replayed or unrelated one | `lib/solana.ts:verifyTransactionOnChain`, all `_id/*.ts` routes that call it | Decode the transaction after fetching it from RPC; assert `programId`, instruction discriminator, and `gig_id` match before accepting |
-| 45 | **Draft gig with a past `accept_deadline` can be published** — the gig transitions to `open` but immediately expires on the next list call, wasting the escrow-funding transaction | `routes/v1/gigs/_id/publish.ts` | Reject publish if `gig.accept_deadline && new Date(gig.accept_deadline) <= new Date()` with `ACCEPT_DEADLINE_PASSED` |
-| 46 | **`checkAndExpireGig` not called before refund-expired routes** — if the poster calls `POST /v1/blockchain/refund-expired` directly without first loading the gig detail screen, the gig may still be `open`/`accepted` in the DB, returning 400 incorrectly | `routes/v1/blockchain/refund-expired.ts`, `routes/v1/gigs/_id/refund.ts` | Call `checkAndExpireGig(id, db)` at the top of both handlers before the status check |
-| 47 | **`recentBlockhash` not set on any unsigned transaction** — all `buildX` functions in `solana.ts` serialise without a valid blockhash; hardware wallets and strict MWA implementations reject or silently fail to sign | `lib/solana.ts` — all `buildXInstruction` functions | Call `(await getConnection().getLatestBlockhash()).blockhash` and set `transaction.recentBlockhash` before serialising |
-| 48 | **Proof `type` field not validated as enum before DB insert** — arbitrary strings (e.g. `"exe"`, `"script"`) can be stored in `gig_proofs.type` | `routes/v1/gigs/_id/submit.ts:108` | Add: `if (!['image','video','document'].includes(type)) return reply.code(400)...` |
-| 49 | **`submitProof` store merge spreads `GigProof[]` over `GigDetail`** — `api.gigs.submit` returns `GigProof[]` not `Gig`, so `{ ...state.selectedGig, ...gig }` corrupts the store shape | `stores/gigs.store.ts:75-83` | Remove the merge; call `fetchGigDetail(id)` after submit instead of trying to merge the response |
-| 50 | **Concurrent blockchain flows overwrite each other's state** — nothing prevents tapping a second CTA while a `TransactionMonitor` is already running; the second `setPendingSignature` overwrites the first, abandoning the in-flight sync entry | `app/gig/[id].tsx`, `GigCTABar.tsx` | Disable/hide the entire CTA bar while `pendingSignature !== null`; show a "Transaction in progress" chip instead |
+_None — all critical issues resolved._
 
 ### 🟠 Significant
 
@@ -118,4 +110,11 @@
 | 40 | No server endpoint to build `approve_completion` unsigned tx | Added `POST /v1/blockchain/approve-escrow`; `accept.ts` + `submit.ts` now require on-chain signature |
 | 41 | No server endpoint to build `cancel_refund` unsigned tx | Added `POST /v1/blockchain/cancel-escrow`; mobile calls `DELETE /v1/gigs/:id` with signature |
 | 42 | No blockchain endpoints for `accept_gig`, `submit_proof`, `refund_expired` | Added `POST /v1/blockchain/accept-gig`, `submit-proof`, `refund-expired`; `POST /v1/gigs/:id/refund` records expired_refund transaction |
+| 43 | **On-chain signature not tied to gig or action** | `lib/solana.ts`: exported 6 discriminator constants; `verifyTransactionOnChain` now accepts `expectedDiscriminator?` and fetches the full tx to assert programId + discriminator match. Each route (`publish`, `accept`, `submit`, `approve`, `refund`) passes its discriminator. |
 | 44 | **No unique constraint on `(gig_id, reviewer_id)` in reviews** | `db/schema.ts:194` already has `uniqueIndex('reviews_gig_reviewer_unique')`; `review.ts:107–122` already catches 23505 → 409. No code change needed. |
+| 45 | **Draft gig with a past `accept_deadline` can be published** | `publish.ts`: added pre-publish check — rejects with `ACCEPT_DEADLINE_PASSED` if `accept_deadline <= now()`. |
+| 46 | **`checkAndExpireGig` not called before refund-expired routes** | `gigs/_id/refund.ts` and `blockchain/refund-expired.ts`: both now call `checkAndExpireGig()` before the status guard, so a poster hitting either endpoint directly gets the correct `expired` status. |
+| 47 | **`recentBlockhash` not set on any unsigned transaction** | All 6 `buildX` functions in `lib/solana.ts` are now `async` and set `transaction.recentBlockhash` from `getLatestBlockhash('confirmed')` before serializing. Blockchain route handlers updated to `await` the calls. |
+| 48 | **Proof `type` field not validated as enum before DB insert** | `submit.ts`: validates each proof's `type` against `['image', 'video', 'document']` before the URL check; returns 400 `VALIDATION_ERROR` for any other value. |
+| 49 | **`submitProof`/`acceptGig` store merge corrupts `GigDetail`** | `gigs.store.ts`: both `acceptGig` and `submitProof` now call `fetchGigDetail(id)` after the API call instead of spreading the raw response over `selectedGig`. |
+| 50 | **Concurrent blockchain flows overwrite each other's state** | `GigCTABar.tsx`: added `txInProgress: boolean` prop — when true, renders a "Transaction in progress" warning instead of any CTA. `gig/[id].tsx`: passes `txInProgress={pendingSignature !== null}`. |
