@@ -2,6 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq, or } from 'drizzle-orm'
 import { gigs, disputes } from '@tenda/shared/db/schema'
 import { MAX_DISPUTE_REASON_LENGTH, ErrorCode } from '@tenda/shared'
+import { verifyTransactionOnChain } from '../../../../lib/solana'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '../../../../lib/db'
 
@@ -39,7 +40,17 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      const { reason } = request.body
+      const { reason, signature } = request.body
+
+      if (!signature) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'signature is required',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
       if (!reason || reason.trim().length === 0) {
         return reply.code(400).send({
           statusCode: 400,
@@ -65,6 +76,17 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
           error: 'Forbidden',
           message: 'Only the poster or worker can dispute this gig',
           code: ErrorCode.FORBIDDEN,
+        })
+      }
+
+      // Verify the on-chain transaction before writing to DB
+      const verification = await verifyTransactionOnChain(signature, 'dispute_gig')
+      if (!verification.ok) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'Transaction not confirmed on-chain',
+          code: (verification.error ?? 'SIGNATURE_NOT_FINALIZED') as ErrorCode,
         })
       }
 

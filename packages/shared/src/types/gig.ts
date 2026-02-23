@@ -93,6 +93,7 @@ export interface CancelGigInput {
 
 export interface DisputeGigInput {
   reason: string
+  signature: string  // on-chain tx signature for dispute_gig
 }
 
 export interface ResolveDisputeInput {

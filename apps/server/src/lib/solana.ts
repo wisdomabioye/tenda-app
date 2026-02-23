@@ -212,6 +212,55 @@ export async function buildRefundExpiredInstruction(
   return { transaction: await finalise(tx, poster) }
 }
 
+export async function buildDisputeGigInstruction(
+  initiatorAddress: string,
+  gigId:            string,
+  reason:           string,
+): Promise<{ transaction: string }> {
+  const program   = getProgram()
+  const initiator = new PublicKey(initiatorAddress)
+  const gigEscrow = escrowPda(gigId, program.programId)
+
+  const tx = await program.methods
+    .disputeGig(reason)
+    // gig_escrow seed is circular (gig_escrow.gig_id) — must be provided explicitly.
+    .accountsPartial({ gigEscrow, initiator })
+    .transaction()
+
+  return { transaction: await finalise(tx, initiator) }
+}
+
+export async function buildWithdrawEarningsInstruction(
+  userAddress:    string,
+  amountLamports: number,
+): Promise<{ transaction: string }> {
+  const program = getProgram()
+  const user    = new PublicKey(userAddress)
+
+  const tx = await program.methods
+    .withdrawEarnings(new BN(amountLamports))
+    // user_account PDA auto-resolved from user (seeds: [USER_SEED, user.pubkey]).
+    .accounts({ user })
+    .transaction()
+
+  return { transaction: await finalise(tx, user) }
+}
+
+export async function buildCreateUserAccountInstruction(
+  userAddress: string,
+): Promise<{ transaction: string }> {
+  const program = getProgram()
+  const user    = new PublicKey(userAddress)
+
+  const tx = await program.methods
+    .createUserAccount()
+    // user_account PDA auto-resolved from user (seeds: [USER_SEED, user.pubkey]).
+    .accounts({ user })
+    .transaction()
+
+  return { transaction: await finalise(tx, user) }
+}
+
 // ── On-chain verification ────────────────────────────────────────────────────
 /**
  * Verify that a Solana transaction signature has reached the required

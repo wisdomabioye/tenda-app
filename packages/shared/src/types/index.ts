@@ -54,6 +54,9 @@ export type {
   AcceptGigRequest,
   SubmitProofRequest,
   RefundExpiredRequest,
+  DisputeGigRequest,
+  WithdrawEarningsRequest,
+  CreateUserAccountRequest,
   TransactionStatus,
 } from './blockchain'
 export type { CloudinarySignature, UploadType } from './upload'
