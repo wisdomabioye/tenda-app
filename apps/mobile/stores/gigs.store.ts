@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { Gig, GigDetail, GigListQuery, ReviewInput, SubmitProofInput, AcceptGigInput } from '@tenda/shared'
+import type { Gig, GigDetail, GigListQuery, ReviewInput, SubmitProofInput, AcceptGigInput, DisputeGigInput } from '@tenda/shared'
 import { api } from '@/api/client'
 
 interface GigsState {
@@ -17,7 +17,7 @@ interface GigsState {
 
   acceptGig: (id: string, body: AcceptGigInput) => Promise<void>
   submitProof: (id: string, body: SubmitProofInput) => Promise<void>
-  disputeGig: (id: string, reason: string) => Promise<void>
+  disputeGig: (id: string, body: DisputeGigInput) => Promise<void>
   reviewGig: (id: string, input: ReviewInput) => Promise<void>
   cancelDraftGig: (id: string) => Promise<void>
 }
@@ -80,10 +80,10 @@ export const useGigsStore = create<GigsState>((set, get) => ({
     }
   },
 
-  disputeGig: async (id, reason) => {
+  disputeGig: async (id, body) => {
     set({ isLoading: true })
     try {
-      const gig = await api.gigs.dispute({ id }, { reason })
+      const gig = await api.gigs.dispute({ id }, body)
       set((state) => ({
         isLoading: false,
         selectedGig: state.selectedGig ? { ...state.selectedGig, ...gig } : null,

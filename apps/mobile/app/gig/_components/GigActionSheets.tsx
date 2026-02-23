@@ -28,6 +28,7 @@ interface GigActionSheetsProps {
   onCancelOpenConfirmed: () => void
   onRefundExpiredConfirmed: () => void
   onProofsReady: (proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>) => void
+  onDisputeReady: (reason: string) => void
 }
 
 export function GigActionSheets({
@@ -39,10 +40,11 @@ export function GigActionSheets({
   onCancelOpenConfirmed,
   onRefundExpiredConfirmed,
   onProofsReady,
+  onDisputeReady,
 }: GigActionSheetsProps) {
   const router = useRouter()
   const { theme } = useUnistyles()
-  const { disputeGig, reviewGig, cancelDraftGig, fetchGigDetail } = useGigsStore()
+  const { reviewGig, cancelDraftGig } = useGigsStore()
 
   const [proofFiles, setProofFiles] = useState<PickedFile[]>([])
   const [proofUploading, setProofUploading] = useState(false)
@@ -88,16 +90,10 @@ export function GigActionSheets({
     }
   }
 
-  async function handleDispute() {
+  function handleDispute() {
     if (!disputeReason.trim()) return
-    try {
-      await disputeGig(gig.id, disputeReason.trim())
-      handleClose()
-      showToast('success', 'Dispute raised. An admin will review shortly.')
-      fetchGigDetail(gig.id)
-    } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to raise dispute')
-    }
+    handleClose()
+    onDisputeReady(disputeReason.trim())
   }
 
   async function handleReview() {

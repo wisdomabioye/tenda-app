@@ -29,6 +29,9 @@ import {
   type AcceptGigRequest,
   type SubmitProofRequest,
   type RefundExpiredRequest,
+  type DisputeGigRequest,
+  type WithdrawEarningsRequest,
+  type CreateUserAccountRequest,
   type TransactionStatus,
   type Review,
   type ReviewInput,
@@ -200,6 +203,12 @@ export const api = {
       request<EscrowResponse>('POST', blockchain.submitProof, { body }),
     refundExpired: (body: RefundExpiredRequest) =>
       request<EscrowResponse>('POST', blockchain.refundExpired, { body }),
+    disputeGig: (body: DisputeGigRequest) =>
+      request<EscrowResponse>('POST', blockchain.disputeGig, { body }),
+    withdrawEarnings: (body: WithdrawEarningsRequest) =>
+      request<EscrowResponse>('POST', blockchain.withdrawEarnings, { body }),
+    createUserAccount: (_body: CreateUserAccountRequest) =>
+      request<EscrowResponse>('POST', blockchain.createUserAccount, {}),
   },
 
   platform: {

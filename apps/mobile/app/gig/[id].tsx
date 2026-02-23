@@ -51,6 +51,7 @@ type PendingAction =
   | { type: 'cancel' }
   | { type: 'refund' }
   | { type: 'submit'; proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }> }
+  | { type: 'dispute'; reason: string }
 
 // ─── Inner component (receives non-null gig) ─────────────────────────────────
 
@@ -58,7 +59,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const router = useRouter()
   const { theme } = useUnistyles()
   const mwaAuthToken = useAuthStore((s) => s.mwaAuthToken)
-  const { fetchGigDetail, acceptGig, submitProof } = useGigsStore()
+  const { fetchGigDetail, acceptGig, submitProof, disputeGig } = useGigsStore()
   const pendingSync = usePendingSyncStore()
   const solToNgn = useExchangeRateStore((s) => s.solToNgn)
 
@@ -174,6 +175,20 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     }
   }
 
+  // Called by GigActionSheets after user confirms dispute reason
+  async function handleDisputeReady(reason: string) {
+    if (!mwaAuthToken) return
+    try {
+      const { transaction } = await api.blockchain.disputeGig({ gig_id: gig.id, reason })
+      const tx = Transaction.from(Buffer.from(transaction, 'base64'))
+      const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken)
+      setPendingAction({ type: 'dispute', reason })
+      setPendingSignature(sig)
+    } catch (e) {
+      showToast('error', (e as Error).message || 'Failed to build dispute transaction')
+    }
+  }
+
   // Called by GigActionSheets after Cloudinary uploads are done
   async function handleProofsReady(
     proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>,
@@ -210,6 +225,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       cancel:  'Gig cancelled — escrow refunded.',
       refund:  'Refund claimed successfully.',
       submit:  'Proof submitted!',
+      dispute: 'Dispute raised. An admin will review shortly.',
     }
 
     try {
@@ -231,6 +247,9 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           break
         case 'submit':
           await submitProof(gig.id, { proofs: action.proofs, signature: sig })
+          break
+        case 'dispute':
+          await disputeGig(gig.id, { reason: action.reason, signature: sig })
           break
       }
 
@@ -420,6 +439,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         onCancelOpenConfirmed={handleCancelOpen}
         onRefundExpiredConfirmed={handleRefundExpired}
         onProofsReady={handleProofsReady}
+        onDisputeReady={handleDisputeReady}
       />
 
       <TransactionMonitor
