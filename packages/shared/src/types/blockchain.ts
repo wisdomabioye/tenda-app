@@ -4,7 +4,6 @@ export interface EscrowRequest {
 
 export interface EscrowResponse {
   transaction: string
-  escrow_address: string
 }
 
 export interface ApproveEscrowRequest {

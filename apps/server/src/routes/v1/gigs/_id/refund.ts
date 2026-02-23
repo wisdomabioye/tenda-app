@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import { verifyTransactionOnChain, DISCRIMINATOR_REFUND_EXPIRED } from '../../../../lib/solana'
+import { verifyTransactionOnChain } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { checkAndExpireGig } from '../../../../lib/gigs'
 import { isPostgresUniqueViolation } from '../../../../lib/db'
@@ -71,7 +71,7 @@ const refundExpired: FastifyPluginAsync = async (fastify) => {
       }
 
       // Verify the on-chain transaction before writing to DB
-      const verification = await verifyTransactionOnChain(signature, DISCRIMINATOR_REFUND_EXPIRED)
+      const verification = await verifyTransactionOnChain(signature, 'refund_expired')
       if (!verification.ok) {
         return reply.code(400).send({
           statusCode: 400,

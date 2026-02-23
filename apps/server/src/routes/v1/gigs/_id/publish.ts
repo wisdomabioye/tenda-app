@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import { deriveEscrowAddress, verifyTransactionOnChain, DISCRIMINATOR_CREATE_ESCROW } from '../../../../lib/solana'
+import { deriveEscrowAddress, verifyTransactionOnChain } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { isPostgresUniqueViolation } from '../../../../lib/db'
 import type { GigsContract, ApiError } from '@tenda/shared'
@@ -72,7 +72,7 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
       }
 
       // Verify the on-chain transaction before writing to DB
-      const verification = await verifyTransactionOnChain(signature, DISCRIMINATOR_CREATE_ESCROW)
+      const verification = await verifyTransactionOnChain(signature, 'create_gig_escrow')
       if (!verification.ok) {
         return reply.code(400).send({
           statusCode: 400,

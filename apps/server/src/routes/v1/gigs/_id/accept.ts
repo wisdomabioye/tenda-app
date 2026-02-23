@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { verifyTransactionOnChain, DISCRIMINATOR_ACCEPT_GIG } from '../../../../lib/solana'
+import { verifyTransactionOnChain } from '../../../../lib/solana'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type AcceptRoute = GigsContract['accept']
@@ -70,7 +70,7 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
       }
 
       // Verify the on-chain transaction before updating the DB
-      const verification = await verifyTransactionOnChain(signature, DISCRIMINATOR_ACCEPT_GIG)
+      const verification = await verifyTransactionOnChain(signature, 'accept_gig')
       if (!verification.ok) {
         return reply.code(400).send({
           statusCode: 400,

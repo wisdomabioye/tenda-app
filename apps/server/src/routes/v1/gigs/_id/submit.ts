@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs, gig_proofs } from '@tenda/shared/db/schema'
 import { computeCompletionDeadline, isCloudinaryUrl, ErrorCode } from '@tenda/shared'
-import { verifyTransactionOnChain, DISCRIMINATOR_SUBMIT_PROOF } from '../../../../lib/solana'
+import { verifyTransactionOnChain } from '../../../../lib/solana'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { getPlatformConfig } from '../../../../lib/platform'
 
@@ -127,7 +127,7 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
       }
 
       // Verify the on-chain transaction before updating the DB
-      const verification = await verifyTransactionOnChain(signature, DISCRIMINATOR_SUBMIT_PROOF)
+      const verification = await verifyTransactionOnChain(signature, 'submit_proof')
       if (!verification.ok) {
         return reply.code(400).send({
           statusCode: 400,

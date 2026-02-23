@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs, disputes, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import { verifyTransactionOnChain, DISCRIMINATOR_RESOLVE_DISPUTE } from '../../../../lib/solana'
+import { verifyTransactionOnChain } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { requireRole } from '../../../../lib/guards'
 import { isPostgresUniqueViolation } from '../../../../lib/db'
@@ -67,7 +67,7 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
       // Verify the on-chain transaction before writing to DB.
       // Pass the resolve_dispute discriminator so an unrelated confirmed tx
       // cannot be replayed here (unlike other routes, the old code passed none).
-      const verification = await verifyTransactionOnChain(signature, DISCRIMINATOR_RESOLVE_DISPUTE)
+      const verification = await verifyTransactionOnChain(signature, 'resolve_dispute')
       if (!verification.ok) {
         return reply.code(400).send({
           statusCode: 400,
