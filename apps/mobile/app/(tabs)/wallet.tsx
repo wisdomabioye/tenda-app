@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native'
+import { useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { PublicKey } from '@solana/web3.js'
 import { spacing, radius } from '@/theme/tokens'
@@ -59,10 +60,12 @@ export default function WalletScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
-    if (!user?.id || !walletAddress) return
-    load()
-  }, [user?.id, walletAddress]) // eslint-disable-line react-hooks/exhaustive-deps
+  useFocusEffect(
+    useCallback(() => {
+      if (!user?.id || !walletAddress) return
+      load()
+    }, [user?.id, walletAddress]), // eslint-disable-line react-hooks/exhaustive-deps
+  )
 
   async function load(isRefresh = false) {
     if (isRefresh) setRefreshing(true)

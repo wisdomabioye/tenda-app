@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native'
+import { useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, EmptyState, Header } from '@/components/ui'
@@ -24,9 +25,20 @@ export default function MyGigsScreen() {
     return fetchWorkedGigs(user.id)
   }, [user?.id, activeTab, fetchPostedGigs, fetchWorkedGigs])
 
+  // Fetch whenever the screen gains focus (handles back-navigation refreshes).
+  useFocusEffect(
+    useCallback(() => {
+      fetchCurrent()
+    }, [fetchCurrent]),
+  )
+
+  // Also fetch when the user switches tabs while the screen is already focused.
+  // skipFirst prevents a double-fetch on initial mount (useFocusEffect already handles it).
+  const skipFirst = useRef(true)
   useEffect(() => {
+    if (skipFirst.current) { skipFirst.current = false; return }
     fetchCurrent()
-  }, [fetchCurrent])
+  }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleRefresh() {
     setRefreshing(true)

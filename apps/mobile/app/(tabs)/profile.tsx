@@ -1,6 +1,6 @@
-import { useEffect } from 'react'
+import { useCallback } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import {
   ArrowLeft,
@@ -41,9 +41,11 @@ export default function ProfileScreen() {
   const { user, logout } = useAuthStore()
   const { postedGigs, workedGigs, fetchAll } = useUserGigsStore()
 
-  useEffect(() => {
-    if (user?.id) fetchAll(user.id)
-  }, [user?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.id) fetchAll(user.id)
+    }, [user?.id]), // eslint-disable-line react-hooks/exhaustive-deps
+  )
 
   const completedCount = [...postedGigs, ...workedGigs].filter(
     (g) => g.status === 'completed',
