@@ -1,0 +1,2 @@
+CREATE UNIQUE INDEX "gig_transactions_signature_unique" ON "gig_transactions" USING btree ("signature");--> statement-breakpoint
+CREATE INDEX "gigs_accept_deadline_idx" ON "gigs" USING btree ("accept_deadline");
