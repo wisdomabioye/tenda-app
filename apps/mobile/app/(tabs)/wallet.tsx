@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { View, FlatList, StyleSheet } from 'react-native'
+import { useEffect, useState, useCallback } from 'react'
+import { View, FlatList, StyleSheet, RefreshControl } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { PublicKey } from '@solana/web3.js'
 import { spacing, radius } from '@/theme/tokens'
@@ -57,14 +57,16 @@ export default function WalletScreen() {
   const [balanceLamports, setBalanceLamports] = useState<number | null>(null)
   const [transactions, setTransactions] = useState<UserTransaction[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   useEffect(() => {
     if (!user?.id || !walletAddress) return
     load()
   }, [user?.id, walletAddress]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function load() {
-    setIsLoading(true)
+  async function load(isRefresh = false) {
+    if (isRefresh) setRefreshing(true)
+    else setIsLoading(true)
     try {
       // Fetch balance and all transactions in a single request each
       const [_, txResult] = await Promise.all([
@@ -78,9 +80,12 @@ export default function WalletScreen() {
         .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
       setTransactions(allTx)
     } finally {
-      setIsLoading(false)
+      if (isRefresh) setRefreshing(false)
+      else setIsLoading(false)
     }
   }
+
+  const handleRefresh = useCallback(() => load(true), [user?.id, walletAddress]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const balanceSol = balanceLamports !== null ? balanceLamports / LAMPORTS_PER_SOL : null
 
@@ -102,6 +107,14 @@ export default function WalletScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+          />
+        }
         ListHeaderComponent={
           <>
             {/* Balance card */}
