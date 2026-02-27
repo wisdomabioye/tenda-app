@@ -2,9 +2,9 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq, or } from 'drizzle-orm'
 import { gigs, disputes } from '@tenda/shared/db/schema'
 import { MAX_DISPUTE_REASON_LENGTH, ErrorCode } from '@tenda/shared'
-import { verifyTransactionOnChain } from '../../../../lib/solana'
+import { verifyTransactionOnChain } from '../../../../../lib/solana'
 import type { GigsContract, ApiError } from '@tenda/shared'
-import { isPostgresUniqueViolation } from '../../../../lib/db'
+import { isPostgresUniqueViolation } from '../../../../../lib/db'
 
 type DisputeRoute = GigsContract['dispute']
 

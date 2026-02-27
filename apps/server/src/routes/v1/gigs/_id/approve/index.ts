@@ -2,21 +2,19 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import { deriveEscrowAddress, verifyTransactionOnChain } from '../../../../lib/solana'
-import { getPlatformConfig } from '../../../../lib/platform'
-import { isPostgresUniqueViolation } from '../../../../lib/db'
+import { verifyTransactionOnChain } from '../../../../../lib/solana'
+import { getPlatformConfig } from '../../../../../lib/platform'
+import { isPostgresUniqueViolation } from '../../../../../lib/db'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
-type PublishRoute = GigsContract['publish']
+type ApproveRoute = GigsContract['approve']
 
-const publishGig: FastifyPluginAsync = async (fastify) => {
-  // POST /v1/gigs/:id/publish — draft → open
-  // Poster calls create_gig_escrow on Solana first, then posts the signature here.
-  // Server derives the escrow PDA and records the create_escrow transaction.
+const approveGig: FastifyPluginAsync = async (fastify) => {
+  // POST /v1/gigs/:id/approve — poster approves completion + records on-chain tx
   fastify.post<{
-    Params: PublishRoute['params']
-    Body: PublishRoute['body']
-    Reply: PublishRoute['response'] | ApiError
+    Params: ApproveRoute['params']
+    Body: ApproveRoute['body']
+    Reply: ApproveRoute['response'] | ApiError
   }>(
     '/',
     { preHandler: [fastify.authenticate] },
@@ -44,35 +42,26 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      if (gig.poster_id !== request.user.id) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only the poster can publish this gig',
-          code: ErrorCode.FORBIDDEN,
-        })
-      }
-
-      if (gig.status !== 'draft') {
+      if (gig.status !== 'submitted') {
         return reply.code(400).send({
           statusCode: 400,
           error: 'Bad Request',
-          message: 'Only draft gigs can be published',
+          message: 'Gig must be in submitted status to approve',
           code: ErrorCode.GIG_WRONG_STATUS,
         })
       }
 
-      if (gig.accept_deadline && new Date(gig.accept_deadline) <= new Date()) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Cannot publish — acceptance deadline has already passed',
-          code: ErrorCode.ACCEPT_DEADLINE_PASSED,
+      if (gig.poster_id !== request.user.id) {
+        return reply.code(403).send({
+          statusCode: 403,
+          error: 'Forbidden',
+          message: 'Only the poster can approve this gig',
+          code: ErrorCode.FORBIDDEN,
         })
       }
 
       // Verify the on-chain transaction before writing to DB
-      const verification = await verifyTransactionOnChain(signature, 'create_gig_escrow')
+      const verification = await verifyTransactionOnChain(signature, 'approve_completion')
       if (!verification.ok) {
         return reply.code(400).send({
           statusCode: 400,
@@ -83,35 +72,35 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
       }
 
       const config = await getPlatformConfig(fastify.db)
-      const escrow_address = deriveEscrowAddress(gig.id)
       const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
 
       let updated
       try {
         updated = await fastify.db.transaction(async (tx) => {
-          // Include status = 'draft' in WHERE to guard against concurrent publish calls.
-          // Without this, a second concurrent publish (same draft, different signature)
-          // would overwrite whatever status the gig reached after the first succeeded.
+          // Include status = 'submitted' in WHERE to guard against TOCTOU races.
+          // A concurrent approve or dispute call could have already transitioned the gig;
+          // checking here prevents double-completion and phantom fee records.
           const [updatedGig] = await tx
             .update(gigs)
-            .set({ status: 'open', escrow_address, updated_at: new Date() })
-            .where(and(eq(gigs.id, id), eq(gigs.status, 'draft')))
+            .set({ status: 'completed', updated_at: new Date() })
+            .where(and(eq(gigs.id, id), eq(gigs.status, 'submitted')))
             .returning()
 
           if (!updatedGig) return null
 
           await tx.insert(gig_transactions).values({
             gig_id:               id,
-            type:                 'create_escrow',
+            type:                 'release_payment',
             signature,
-            amount_lamports:      gig.payment_lamports + platform_fee_lamports,
+            amount_lamports:      gig.payment_lamports,
             platform_fee_lamports,
           })
 
           return updatedGig
         })
       } catch (err: unknown) {
-        // Postgres unique violation on gig_transactions_signature_unique
+        // Postgres unique violation on gig_transactions_signature_unique —
+        // client retried after a network error; the transaction was already recorded.
         if (isPostgresUniqueViolation(err)) {
           return reply.code(409).send({
             statusCode: 409,
@@ -127,7 +116,7 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
         return reply.code(409).send({
           statusCode: 409,
           error: 'Conflict',
-          message: 'Gig status changed — it may have already been published',
+          message: 'Gig status changed — it may have already been approved or disputed',
           code: ErrorCode.GIG_WRONG_STATUS,
         })
       }
@@ -137,4 +126,4 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
   )
 }
 
-export default publishGig
+export default approveGig

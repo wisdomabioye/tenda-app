@@ -51,10 +51,12 @@ const app: FastifyPluginAsync<AppOptions> = async (
     options: opts,
   })
 
-  // Load all routes (v1/ folder structure handles prefixing)
+  // Load all routes (v1/ folder structure handles prefixing).
+  // routeParams: true converts _id directory names to :id URL parameters.
   void fastify.register(AutoLoad, {
     dir: join(__dirname, 'routes'),
     options: opts,
+    routeParams: true,
   })
 
   fastify.get('/favicon.ico', async (request, reply) => {

@@ -85,13 +85,13 @@ export default function TabsLayout() {
 
       {/* ── Hidden screens (navigable, no tab) ── */}
       <Tabs.Screen name="profile" options={{ href: null }} />
-      <Tabs.Screen name="search" options={{ href: null }} />
-      <Tabs.Screen name="notifications" options={{ href: null }} />
+      {/* <Tabs.Screen name="search" options={{ href: null }} /> */}
+      {/* <Tabs.Screen name="notifications" options={{ href: null }} /> */}
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="update-profile" options={{ href: null }} />
-      <Tabs.Screen name="invite" options={{ href: null }} />
-      <Tabs.Screen name="currency" options={{ href: null }} />
-      <Tabs.Screen name="messages" options={{ href: null }} />
+      {/* <Tabs.Screen name="invite" options={{ href: null }} /> */}
+      {/* <Tabs.Screen name="currency" options={{ href: null }} /> */}
+      {/* <Tabs.Screen name="messages" options={{ href: null }} /> */}
     </Tabs>
   )
 }
