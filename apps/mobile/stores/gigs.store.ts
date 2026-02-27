@@ -8,6 +8,7 @@ interface GigsState {
   total: number
   filters: GigListQuery
   isLoading: boolean
+  hasFetched: boolean
   error: string | null
 
   fetchGigs: () => Promise<void>
@@ -30,15 +31,16 @@ export const useGigsStore = create<GigsState>((set, get) => ({
   total: 0,
   filters: defaultFilters,
   isLoading: false,
+  hasFetched: false,
   error: null,
 
   fetchGigs: async () => {
     set({ isLoading: true, error: null })
     try {
       const { data, total } = await api.gigs.list(get().filters)
-      set({ gigs: data, total, isLoading: false })
+      set({ gigs: data, total, isLoading: false, hasFetched: true })
     } catch (e) {
-      set({ error: (e as Error).message, isLoading: false })
+      set({ error: (e as Error).message, isLoading: false, hasFetched: true })
     }
   },
 

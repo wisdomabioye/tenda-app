@@ -29,7 +29,7 @@ export default function HomeScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
   const user = useAuthStore((s) => s.user)
-  const { gigs, isLoading, error, fetchGigs, setFilters } = useGigsStore()
+  const { gigs, isLoading, hasFetched, error, fetchGigs, setFilters } = useGigsStore()
 
   useFocusEffect(
     useCallback(() => {
@@ -55,7 +55,7 @@ export default function HomeScreen() {
     <GigCardCompact gig={item} />
   )
 
-  if (isLoading && gigs.length === 0) {
+  if (!hasFetched && isLoading) {
     return <LoadingScreen />
   }
 
