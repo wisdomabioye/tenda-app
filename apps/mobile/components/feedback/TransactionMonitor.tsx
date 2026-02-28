@@ -5,7 +5,7 @@ import { CheckCircle, XCircle } from 'lucide-react-native'
 import { radius, spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
-import { api } from '@/api/client'
+import { getTransactionStatus } from '@/wallet'
 
 const POLL_INTERVAL_MS = 2_000
 const TIMEOUT_ATTEMPTS = 30   // 60 s total
@@ -46,18 +46,19 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed }: Transac
       }
 
       try {
-        const status = await api.blockchain.transaction({ signature })
-        if (status.status === 'confirmed' || status.status === 'finalized') {
+        const status = await getTransactionStatus(signature)
+        if (status === 'confirmed' || status === 'finalized') {
           clearInterval(timerRef.current!)
           setTxState('confirmed')
           setTimeout(() => onConfirmed(), 800)
-        } else if (status.status === 'failed') {
+        } else if (status === 'failed') {
           clearInterval(timerRef.current!)
           setTxState('failed')
           setFailMsg('Transaction failed on chain.')
         }
+        // 'not_found' → keep polling
       } catch {
-        // Network error — keep polling
+        // RPC error — keep polling
       }
     }, POLL_INTERVAL_MS)
 

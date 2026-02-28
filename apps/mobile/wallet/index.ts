@@ -1,11 +1,11 @@
 import { Buffer } from 'buffer'
-import { 
-  Connection, 
-  PublicKey, 
-  clusterApiUrl, 
+import {
+  Connection,
+  PublicKey,
+  VersionedTransaction,
+  clusterApiUrl,
   type Cluster,
-  type Transaction, 
-  type VersionedTransaction 
+  type Transaction,
 } from '@solana/web3.js'
 import { transact, type Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { getEnv } from '@/lib/env'
@@ -58,14 +58,18 @@ function base64AddressToPublicKey(base64Address: string): PublicKey {
 
 async function authorizeSession(wallet: Web3MobileWallet, authToken?: string) {
   if (authToken) {
-    return wallet.reauthorize({ 
-      auth_token: authToken, 
-      identity: APP_IDENTITY 
-    })
+    try {
+      return await wallet.reauthorize({ auth_token: authToken, identity: APP_IDENTITY })
+    } catch (err) {
+      if (!isMwaStaleAuth(err)) throw err
+      // Token expired/revoked — fall through to fresh authorize in the same session.
+      // The WebSocket is still open after a JSON-RPC error; a new authorize request works fine.
+      console.log('MWA auth token stale, re-authorizing in same session...')
+    }
   }
-  return wallet.authorize({ 
-    chain: `solana:${APP_IDENTITY.network}`, 
-    identity: APP_IDENTITY 
+  return wallet.authorize({
+    chain: `solana:${APP_IDENTITY.network}`,
+    identity: APP_IDENTITY,
   })
 }
 
@@ -99,6 +103,14 @@ function isMwaUserDeclined(err: unknown): boolean {
     isMwaError(err) &&
     err.name === 'SolanaMobileWalletAdapterError' &&
     err.message.includes('AuthorizationDeclined')
+  )
+}
+
+function isMwaStaleAuth(err: unknown): boolean {
+  return (
+    isMwaError(err) &&
+    err.name === 'SolanaMobileWalletAdapterProtocolError' &&
+    err.message.includes('authorization request failed')
   )
 }
 
@@ -194,16 +206,40 @@ export async function signTransactionWithWallet(
 export async function signAndSendTransactionWithWallet(
   transaction: Transaction | VersionedTransaction,
   authToken: string,
+  onNewAuthToken?: (token: string) => void,
 ): Promise<string> {
-  return transact(async (wallet) => {
-    await authorizeSession(wallet, authToken)
-    const signatures = await wallet.signAndSendTransactions({ transactions: [transaction] })
-    return signatures[0]
+  // Sign only inside the wallet (no broadcast from wallet — avoids wallet hanging
+  // on its internal RPC call, which prevents the signing prompt from appearing).
+  const signed = await transact(async (wallet) => {
+    const result = await authorizeSession(wallet, authToken)
+    if (result.auth_token !== authToken) {
+      onNewAuthToken?.(result.auth_token)
+    }
+    const [signedTx] = await wallet.signTransactions({ transactions: [transaction] })
+    return signedTx
   })
+
+  // Broadcast from the app's connection after the wallet session closes.
+  const rawTx = signed instanceof VersionedTransaction
+    ? signed.serialize()
+    : (signed as Transaction).serialize()
+  return connection.sendRawTransaction(rawTx, { preflightCommitment: 'confirmed' })
 }
 
 export async function getBalance(publicKey: PublicKey): Promise<number> {
   return connection.getBalance(publicKey)
+}
+
+export type OnChainTxStatus = 'confirmed' | 'finalized' | 'failed' | 'not_found'
+
+export async function getTransactionStatus(signature: string): Promise<OnChainTxStatus> {
+  const result = await connection.getSignatureStatus(signature, { searchTransactionHistory: true })
+  const value = result.value
+  if (!value) return 'not_found'
+  if (value.err) return 'failed'
+  if (value.confirmationStatus === 'finalized') return 'finalized'
+  if (value.confirmationStatus === 'confirmed') return 'confirmed'
+  return 'not_found'
 }
 
 export async function deauthorizeWallet(authToken?: string): Promise<void> {

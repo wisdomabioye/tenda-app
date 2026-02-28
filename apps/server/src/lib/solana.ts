@@ -72,9 +72,16 @@ function getProgram(): Program<TendaEscrow> {
 }
 
 // ── PDA derivation ───────────────────────────────────────────────────────────
+// Solana enforces a 32-byte maximum per PDA seed. UUIDs with hyphens are 36
+// bytes. Stripping hyphens gives exactly 32 hex chars = 32 bytes. The on-chain
+// program stores and validates this compact form (MAX_GIG_ID_LEN = 32).
+function toChainGigId(gigId: string): string {
+  return gigId.replace(/-/g, '')
+}
+
 function escrowPda(gigId: string, programId: PublicKey): PublicKey {
   return PublicKey.findProgramAddressSync(
-    [Buffer.from(ESCROW_SEED), Buffer.from(gigId)],
+    [Buffer.from(ESCROW_SEED), Buffer.from(toChainGigId(gigId))],
     programId,
   )[0]
 }
@@ -110,14 +117,18 @@ export async function buildCreateGigEscrowInstruction(
 ): Promise<{ transaction: string }> {
   const program   = getProgram()
   const poster    = new PublicKey(posterAddress)
+  const gigEscrow = escrowPda(gigId, program.programId)
 
   const deadlineUnix = acceptDeadline
     ? new BN(Math.floor(acceptDeadline.getTime() / 1000))
     : null
 
   const tx = await program.methods
-    .createGigEscrow(gigId, new BN(paymentLamports), new BN(completionDurationSeconds), deadlineUnix)
-    .accounts({ poster })
+    .createGigEscrow(toChainGigId(gigId), new BN(paymentLamports), new BN(completionDurationSeconds), deadlineUnix)
+    // gigEscrow seed includes gig_id (instruction arg) — Anchor's resolver silently
+    // fails to derive it in practice; provide explicitly like all other builders.
+    // platform_state (const seeds) is auto-resolved by Anchor.
+    .accountsPartial({ gigEscrow, poster })
     .transaction()
 
   return { transaction: await finalise(tx, poster) }
@@ -279,7 +290,7 @@ export async function verifyTransactionOnChain(
   const connection = getConnection()
 
   try {
-    const result = await connection.getSignatureStatus(signature)
+    const result = await connection.getSignatureStatus(signature, { searchTransactionHistory: true })
     const status = result.value
 
     if (!status) {

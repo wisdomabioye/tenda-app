@@ -69,7 +69,8 @@ const escrow: FastifyPluginAsync = async (fastify) => {
           acceptDeadline,
         )
         return result
-      } catch {
+      } catch (error) {
+        console.log('error', error)
         return reply.code(500).send({
           statusCode: 500,
           error: 'Internal Server Error',

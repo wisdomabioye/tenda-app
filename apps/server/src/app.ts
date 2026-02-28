@@ -33,7 +33,7 @@ const app: FastifyPluginAsync<AppOptions> = async (
   // Global error handler
   fastify.setErrorHandler((error: FastifyError, request, reply) => {
     const statusCode = error.statusCode ?? 500
-
+    console.log(error)
     request.log.error(error)
 
     const response: ApiError = {

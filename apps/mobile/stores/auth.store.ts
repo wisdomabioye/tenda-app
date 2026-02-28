@@ -29,6 +29,7 @@ interface AuthState {
   logout: () => Promise<void>
   loadSession: () => Promise<void>
   updateUser: (user: User) => void
+  setMwaAuthToken: (token: string) => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -102,4 +103,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   updateUser: (user) => set({ user }),
+
+  setMwaAuthToken: async (token) => {
+    await setMwaAuthToken(token)
+    set({ mwaAuthToken: token })
+  },
 }))

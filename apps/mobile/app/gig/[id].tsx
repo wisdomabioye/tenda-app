@@ -85,6 +85,10 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   // ── Shared: sign tx and enter monitoring state ──────────────────────────────
 
+  function onNewAuthToken(token: string) {
+    useAuthStore.getState().setMwaAuthToken(token)
+  }
+
   async function startBlockchainFlow(
     action: PendingAction,
     txBase64: string,
@@ -96,7 +100,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     }
     try {
       const tx = Transaction.from(Buffer.from(txBase64, 'base64'))
-      const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken)
+      const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken, onNewAuthToken)
       if (syncAction) {
         const syncId = pendingSync.add({ gigId: gig.id, action: syncAction, signature: sig })
         setPendingSyncId(syncId)
@@ -131,6 +135,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       const { transaction } = await api.blockchain.createEscrow({ gig_id: gig.id })
       await startBlockchainFlow({ type: 'publish' }, transaction, 'publish')
     } catch (e) {
+      console.log('error', e)
       showToast('error', (e as Error).message || 'Failed to build publish transaction')
     }
   }
@@ -181,7 +186,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     try {
       const { transaction } = await api.blockchain.disputeGig({ gig_id: gig.id, reason })
       const tx = Transaction.from(Buffer.from(transaction, 'base64'))
-      const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken)
+      const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken, onNewAuthToken)
       setPendingAction({ type: 'dispute', reason })
       setPendingSignature(sig)
     } catch (e) {
@@ -197,7 +202,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     try {
       const { transaction } = await api.blockchain.submitProof({ gig_id: gig.id })
       const tx = Transaction.from(Buffer.from(transaction, 'base64'))
-      const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken)
+      const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken, onNewAuthToken)
       // Add to pending-sync with proofs so a retry can recover if server call fails
       const syncId = pendingSync.add({ action: 'submit', gigId: gig.id, signature: sig, proofs })
       setPendingSyncId(syncId)
