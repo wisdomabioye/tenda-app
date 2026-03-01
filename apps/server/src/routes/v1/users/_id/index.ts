@@ -47,7 +47,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
   })
 
   // PUT /v1/users/:id — update own profile
-  fastify.put<{
+  fastify.patch<{
     Params: UpdateRoute['params']
     Body: UpdateRoute['body']
     Reply: UpdateRoute['response'] | ApiError
