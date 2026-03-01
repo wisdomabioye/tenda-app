@@ -7,6 +7,7 @@ import type { TendaEscrow } from '../types/tenda_escrow.ts'
 import { getConfig } from '../config'
 
 const ESCROW_SEED   = 'escrow'
+const USER_SEED     = 'user'
 
 // ── Discriminators ───────────────────────────────────────────────────────────
 type InstructionName =
@@ -270,6 +271,22 @@ export async function buildCreateUserAccountInstruction(
     .transaction()
 
   return { transaction: await finalise(tx, user) }
+}
+
+// ── UserAccount existence check ──────────────────────────────────────────────
+/**
+ * Returns true if the worker's on-chain UserAccount PDA already exists.
+ * Used by the accept-gig route to decide whether to bundle a one-time
+ * create_user_account setup transaction alongside the accept_gig transaction.
+ */
+export async function userAccountExists(walletAddress: string): Promise<boolean> {
+  const user = new PublicKey(walletAddress)
+  const [pda] = PublicKey.findProgramAddressSync(
+    [Buffer.from(USER_SEED), user.toBytes()],
+    getProgram().programId,
+  )
+  const info = await getConnection().getAccountInfo(pda)
+  return info !== null
 }
 
 // ── On-chain verification ────────────────────────────────────────────────────

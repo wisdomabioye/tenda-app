@@ -16,9 +16,11 @@ interface TransactionMonitorProps {
   signature: string | null
   onConfirmed: () => void
   onFailed: (msg: string) => void
+  /** When true, shows one-time setup messaging instead of the generic confirming text. */
+  setupPhase?: boolean
 }
 
-export function TransactionMonitor({ signature, onConfirmed, onFailed }: TransactionMonitorProps) {
+export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false }: TransactionMonitorProps) {
   const { theme } = useUnistyles()
   const [txState, setTxState] = useState<TxState>('waiting')
   const [failMsg, setFailMsg] = useState('')
@@ -81,10 +83,12 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed }: Transac
             <>
               <ActivityIndicator size="large" color={theme.colors.primary} />
               <Text variant="subheading" align="center" style={s.title}>
-                Confirming transaction…
+                {setupPhase ? 'Setting up worker account…' : 'Confirming transaction…'}
               </Text>
               <Text variant="caption" color={theme.colors.textSub} align="center">
-                This may take a few seconds. Please wait.
+                {setupPhase
+                  ? 'One-time setup required to accept gigs. Please wait.'
+                  : 'This may take a few seconds. Please wait.'}
               </Text>
             </>
           )}
@@ -93,7 +97,7 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed }: Transac
             <>
               <CheckCircle size={56} color={theme.colors.success} />
               <Text variant="subheading" align="center" style={s.title}>
-                Transaction confirmed!
+                {setupPhase ? 'Worker account created!' : 'Transaction confirmed!'}
               </Text>
             </>
           )}

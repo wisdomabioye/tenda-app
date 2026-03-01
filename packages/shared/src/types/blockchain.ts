@@ -4,6 +4,8 @@ export interface EscrowRequest {
 
 export interface EscrowResponse {
   transaction: string
+  /** Only present on the first accept — unsigned create_user_account tx to run before the main tx. */
+  setup_transaction?: string
 }
 
 export interface ApproveEscrowRequest {

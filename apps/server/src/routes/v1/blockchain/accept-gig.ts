@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { buildAcceptGigInstruction } from '../../../lib/solana'
+import { buildAcceptGigInstruction, buildCreateUserAccountInstruction, userAccountExists } from '../../../lib/solana'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type AcceptGigRoute = BlockchainContract['acceptGig']
@@ -69,8 +69,21 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
       }
 
       try {
-        const result = await buildAcceptGigInstruction(request.user.wallet_address, gig_id)
-        return result
+        const [acceptResult, accountExists] = await Promise.all([
+          buildAcceptGigInstruction(request.user.wallet_address, gig_id),
+          userAccountExists(request.user.wallet_address),
+        ])
+
+        if (accountExists) {
+          return acceptResult
+        }
+
+        // Worker has no on-chain UserAccount yet — include a setup transaction.
+        // Mobile will sign both in one wallet session and broadcast them sequentially.
+        const { transaction: setup_transaction } = await buildCreateUserAccountInstruction(
+          request.user.wallet_address,
+        )
+        return { ...acceptResult, setup_transaction }
       } catch {
         return reply.code(500).send({
           statusCode: 500,

@@ -39,7 +39,7 @@ import { toPaymentDisplay } from '@/lib/currency'
 import { computeRelevantDeadline, computePlatformFee, SOLANA_TX_FEE_LAMPORTS } from '@tenda/shared'
 import { deadlineLabel, formatDuration, formatDeadline } from '@/lib/gig-display'
 import { api } from '@/api/client'
-import { signAndSendTransactionWithWallet, getBalance } from '@/wallet'
+import { signAndSendTransactionWithWallet, signTransactionsWithWallet, sendRawTransaction, getBalance } from '@/wallet'
 import type { ColorScheme } from '@/theme/tokens'
 import type { GigDetail } from '@tenda/shared'
 import type { ActiveSheet } from './_components/GigCTABar'
@@ -66,6 +66,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
   const [pendingSignature, setPendingSignature] = useState<string | null>(null)
+  const [pendingSetupSignature, setPendingSetupSignature] = useState<string | null>(null)
+  const [pendingAcceptTx, setPendingAcceptTx] = useState<Transaction | null>(null)
   const [pendingSyncId, setPendingSyncId] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
 
@@ -143,10 +145,54 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   async function handleAccept() {
     if (!mwaAuthToken) return
     try {
-      const { transaction } = await api.blockchain.acceptGig({ gig_id: gig.id })
-      await startBlockchainFlow({ type: 'accept' }, transaction, 'accept')
+      const response = await api.blockchain.acceptGig({ gig_id: gig.id })
+
+      if (response.setup_transaction) {
+        // First-time worker: UserAccount doesn't exist yet.
+        // Sign both transactions in one wallet session so the user only approves once.
+        showToast('info', 'One-time setup: your worker account will be created on-chain. This only happens once.')
+        await new Promise<void>((r) => setTimeout(r, 1200))
+
+        const setupTx  = Transaction.from(Buffer.from(response.setup_transaction, 'base64'))
+        const acceptTx = Transaction.from(Buffer.from(response.transaction, 'base64'))
+        const [signedSetup, signedAccept] = await signTransactionsWithWallet(
+          [setupTx, acceptTx] as any[],
+          mwaAuthToken,
+          onNewAuthToken,
+        ) as [Transaction, Transaction]
+
+        // Broadcast setup first — accept_gig requires the UserAccount to exist on-chain.
+        const setupSig = await sendRawTransaction(signedSetup)
+        setPendingAcceptTx(signedAccept)
+        setPendingAction({ type: 'accept' })
+        setPendingSetupSignature(setupSig)
+      } else {
+        await startBlockchainFlow({ type: 'accept' }, response.transaction, 'accept')
+      }
     } catch (e) {
+      setPendingSetupSignature(null)
+      setPendingAcceptTx(null)
+      setPendingAction(null)
       showToast('error', (e as Error).message || 'Failed to build accept transaction')
+    }
+  }
+
+  // Called by TransactionMonitor when the setup (create_user_account) tx confirms.
+  // Broadcasts the pre-signed accept_gig transaction and hands off to the main monitor.
+  async function handleSetupConfirmed() {
+    if (!pendingAcceptTx) return
+    try {
+      const acceptSig = await sendRawTransaction(pendingAcceptTx)
+      const syncId = pendingSync.add({ gigId: gig.id, action: 'accept', signature: acceptSig })
+      setPendingSyncId(syncId)
+      setPendingSetupSignature(null)
+      setPendingAcceptTx(null)
+      setPendingSignature(acceptSig)
+    } catch (e) {
+      setPendingSetupSignature(null)
+      setPendingAcceptTx(null)
+      setPendingAction(null)
+      showToast('error', (e as Error).message || 'Failed to broadcast accept transaction')
     }
   }
 
@@ -429,7 +475,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         gig={gig}
         userId={userId}
         reviewSubmitted={reviewSubmitted}
-        txInProgress={pendingSignature !== null}
+        txInProgress={pendingSignature !== null || pendingSetupSignature !== null}
         onAction={setActiveSheet}
         onPublish={handlePublish}
         onApprove={handleApprove}
@@ -445,6 +491,18 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         onRefundExpiredConfirmed={handleRefundExpired}
         onProofsReady={handleProofsReady}
         onDisputeReady={handleDisputeReady}
+      />
+
+      <TransactionMonitor
+        signature={pendingSetupSignature}
+        setupPhase
+        onConfirmed={handleSetupConfirmed}
+        onFailed={(msg) => {
+          setPendingSetupSignature(null)
+          setPendingAcceptTx(null)
+          setPendingAction(null)
+          showToast('info', msg || 'Account setup failed — please try again')
+        }}
       />
 
       <TransactionMonitor

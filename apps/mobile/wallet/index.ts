@@ -203,6 +203,25 @@ export async function signTransactionWithWallet(
   })
 }
 
+/**
+ * Signs multiple transactions in a single wallet session and returns them
+ * without broadcasting. Caller is responsible for broadcasting sequentially.
+ * Used for the first-time worker account setup + accept-gig dual-tx flow.
+ */
+export async function signTransactionsWithWallet(
+  transactions: Array<Transaction | VersionedTransaction>,
+  authToken: string,
+  onNewAuthToken?: (token: string) => void,
+): Promise<Array<Transaction | VersionedTransaction>> {
+  return transact(async (wallet) => {
+    const result = await authorizeSession(wallet, authToken)
+    if (result.auth_token !== authToken) {
+      onNewAuthToken?.(result.auth_token)
+    }
+    return wallet.signTransactions({ transactions })
+  })
+}
+
 export async function signAndSendTransactionWithWallet(
   transaction: Transaction | VersionedTransaction,
   authToken: string,
@@ -228,6 +247,15 @@ export async function signAndSendTransactionWithWallet(
 
 export async function getBalance(publicKey: PublicKey): Promise<number> {
   return connection.getBalance(publicKey)
+}
+
+export async function sendRawTransaction(
+  transaction: Transaction | VersionedTransaction,
+): Promise<string> {
+  const raw = transaction instanceof VersionedTransaction
+    ? transaction.serialize()
+    : (transaction as Transaction).serialize()
+  return connection.sendRawTransaction(raw, { preflightCommitment: 'confirmed' })
 }
 
 export type OnChainTxStatus = 'confirmed' | 'finalized' | 'failed' | 'not_found'
