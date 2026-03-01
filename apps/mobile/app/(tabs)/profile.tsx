@@ -20,7 +20,6 @@ import {
   Avatar,
   Card,
   Divider,
-  Badge,
   Spacer,
 } from '@/components/ui'
 import { IconButton } from '@/components/ui/IconButton'
@@ -38,22 +37,20 @@ interface MenuItem {
 export default function ProfileScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
-  const { user, logout } = useAuthStore()
+  const { user, logout, refreshUser } = useAuthStore()
   const { postedGigs, workedGigs, fetchAll } = useUserGigsStore()
 
   useFocusEffect(
     useCallback(() => {
       if (user?.id) fetchAll(user.id)
+      refreshUser()
     }, [user?.id]), // eslint-disable-line react-hooks/exhaustive-deps
   )
 
-  const completedCount = [...postedGigs, ...workedGigs].filter(
-    (g) => g.status === 'completed',
-  ).length
-
-  const activeCount = [...postedGigs, ...workedGigs].filter((g) =>
-    ['accepted', 'submitted'].includes(g.status),
-  ).length
+  // Only count gigs the user completed as a worker — poster-funded gigs that
+  // someone else delivered don't reflect this user's own work track record.
+  const workerCompletedCount = workedGigs.filter((g) => g.status === 'completed').length
+  const posterPostedCount = postedGigs.length
 
   const fullName = [user?.first_name, user?.last_name]
     .filter(Boolean)
@@ -71,10 +68,12 @@ export default function ProfileScreen() {
     { icon: CircleHelp, label: 'Help & Support', onPress: () => router.push('/(support)/faq' as never) },
   ]
 
+  const reputationDisplay = user?.reputation_score ? String(user.reputation_score) : '—'
+
   const stats = [
-    { value: completedCount, label: 'Completed' },
-    { value: activeCount, label: 'Active' },
-    { value: user?.reputation_score ?? 0, label: 'Reputation' },
+    { value: String(workerCompletedCount), label: 'Completed' },
+    { value: String(posterPostedCount), label: 'Posted' },
+    { value: reputationDisplay, label: 'Reputation' },
   ]
 
   return (
@@ -100,7 +99,6 @@ export default function ProfileScreen() {
           <Text variant="body" color={theme.colors.textSub}>
             {user?.city ?? 'Unknown'}
           </Text>
-          <Badge variant="success" label="Verified" />
         </View>
 
         {/* Wallet pill */}

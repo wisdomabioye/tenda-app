@@ -29,6 +29,7 @@ interface AuthState {
   logout: () => Promise<void>
   loadSession: () => Promise<void>
   updateUser: (user: User) => void
+  refreshUser: () => Promise<void>
   setMwaAuthToken: (token: string) => Promise<void>
 }
 
@@ -103,6 +104,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   updateUser: (user) => set({ user }),
+
+  refreshUser: async () => {
+    try {
+      const user = await api.auth.me()
+      set({ user })
+    } catch {
+      // Silently ignore — stale data is better than a crash on focus
+    }
+  },
 
   setMwaAuthToken: async (token) => {
     await setMwaAuthToken(token)
