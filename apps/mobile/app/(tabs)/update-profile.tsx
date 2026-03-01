@@ -86,10 +86,11 @@ export default function UpdateProfileScreen() {
               files={avatarFile}
               onChange={(files) => {
                 setAvatarFile(files)
-                if (files[0]) setAvatarPreview(files[0].uri)
+                setAvatarPreview(files[0]?.uri ?? user?.avatar_url ?? null)
               }}
               accept="image"
               max={1}
+              showPreview={false}
             />
           </View>
 

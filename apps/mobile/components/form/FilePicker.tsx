@@ -1,8 +1,11 @@
+import * as ImagePicker from 'expo-image-picker'
+import * as DocumentPicker from 'expo-document-picker'
 import { View, Pressable, StyleSheet, Image, ScrollView } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Plus, X, FileText, Film } from 'lucide-react-native'
 import { radius, spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
+
 
 export interface PickedFile {
   uri: string
@@ -18,12 +21,12 @@ interface FilePickerProps {
   onChange: (files: PickedFile[]) => void
   accept?: AcceptType
   max?: number
+  /** Hide the thumbnail preview strip. Useful when the parent already shows a preview (e.g. Avatar). */
+  showPreview?: boolean
 }
 
 async function pickImage(): Promise<PickedFile | null> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const ImagePicker = require('expo-image-picker')
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.85,
@@ -43,8 +46,6 @@ async function pickImage(): Promise<PickedFile | null> {
 
 async function pickVideo(): Promise<PickedFile | null> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const ImagePicker = require('expo-image-picker')
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['videos'],
       quality: 0.85,
@@ -64,8 +65,6 @@ async function pickVideo(): Promise<PickedFile | null> {
 
 async function pickDocument(): Promise<PickedFile | null> {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const DocumentPicker = require('expo-document-picker')
     const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true })
     if (result.canceled || !result.assets?.length) return null
     const asset = result.assets[0]
@@ -80,7 +79,7 @@ async function pickDocument(): Promise<PickedFile | null> {
   }
 }
 
-export function FilePicker({ files, onChange, accept = 'any', max = 5 }: FilePickerProps) {
+export function FilePicker({ files, onChange, accept = 'any', max = 5, showPreview = true }: FilePickerProps) {
   const { theme } = useUnistyles()
   const canAdd = files.length < max
 
@@ -134,7 +133,7 @@ export function FilePicker({ files, onChange, accept = 'any', max = 5 }: FilePic
       )}
 
       {/* Preview */}
-      {files.length > 0 && (
+      {showPreview && files.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.preview}>
           {files.map((file, index) => (
             <View key={`${file.uri}-${index}`} style={s.fileItem}>
