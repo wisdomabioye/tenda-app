@@ -65,6 +65,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
+  const [isTxBuilding, setIsTxBuilding] = useState(false)
   const [pendingSignature, setPendingSignature] = useState<string | null>(null)
   const [pendingSetupSignature, setPendingSetupSignature] = useState<string | null>(null)
   const [pendingAcceptTx, setPendingAcceptTx] = useState<Transaction | null>(null)
@@ -122,6 +123,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   async function handlePublish() {
     if (!mwaAuthToken) return
+    setIsTxBuilding(true)
     try {
       const walletAddress = useAuthStore.getState().walletAddress
       if (walletAddress) {
@@ -137,19 +139,19 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       const { transaction } = await api.blockchain.createEscrow({ gig_id: gig.id })
       await startBlockchainFlow({ type: 'publish' }, transaction, 'publish')
     } catch (e) {
-      console.log('error', e)
       showToast('error', (e as Error).message || 'Failed to build publish transaction')
+    } finally {
+      setIsTxBuilding(false)
     }
   }
 
   async function handleAccept() {
     if (!mwaAuthToken) return
+    setIsTxBuilding(true)
     try {
       const response = await api.blockchain.acceptGig({ gig_id: gig.id })
 
       if (response.setup_transaction) {
-        // First-time worker: UserAccount doesn't exist yet.
-        // Sign both transactions in one wallet session so the user only approves once.
         showToast('info', 'One-time setup: your worker account will be created on-chain. This only happens once.')
         await new Promise<void>((r) => setTimeout(r, 1200))
 
@@ -161,7 +163,6 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           onNewAuthToken,
         ) as [Transaction, Transaction]
 
-        // Broadcast setup first — accept_gig requires the UserAccount to exist on-chain.
         const setupSig = await sendRawTransaction(signedSetup)
         setPendingAcceptTx(signedAccept)
         setPendingAction({ type: 'accept' })
@@ -174,6 +175,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       setPendingAcceptTx(null)
       setPendingAction(null)
       showToast('error', (e as Error).message || 'Failed to build accept transaction')
+    } finally {
+      setIsTxBuilding(false)
     }
   }
 
@@ -198,31 +201,40 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   async function handleApprove() {
     if (!mwaAuthToken) return
+    setIsTxBuilding(true)
     try {
       const { transaction } = await api.blockchain.approveEscrow({ gig_id: gig.id })
       await startBlockchainFlow({ type: 'approve' }, transaction, 'approve')
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to build approve transaction')
+    } finally {
+      setIsTxBuilding(false)
     }
   }
 
   async function handleCancelOpen() {
     if (!mwaAuthToken) return
+    setIsTxBuilding(true)
     try {
       const { transaction } = await api.blockchain.cancelEscrow({ gig_id: gig.id })
       await startBlockchainFlow({ type: 'cancel' }, transaction, 'cancel')
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to build cancel transaction')
+    } finally {
+      setIsTxBuilding(false)
     }
   }
 
   async function handleRefundExpired() {
     if (!mwaAuthToken) return
+    setIsTxBuilding(true)
     try {
       const { transaction } = await api.blockchain.refundExpired({ gig_id: gig.id })
       await startBlockchainFlow({ type: 'refund' }, transaction, 'refund')
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to build refund transaction')
+    } finally {
+      setIsTxBuilding(false)
     }
   }
 
@@ -475,6 +487,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         gig={gig}
         userId={userId}
         reviewSubmitted={reviewSubmitted}
+        isTxBuilding={isTxBuilding}
         txInProgress={pendingSignature !== null || pendingSetupSignature !== null}
         onAction={setActiveSheet}
         onPublish={handlePublish}

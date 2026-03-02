@@ -9,6 +9,7 @@ interface InputProps extends TextInputProps {
   error?: string
   helper?: string
   icon?: React.ReactNode
+  showCounter?: boolean
 }
 
 const s = StyleSheet.create({
@@ -29,7 +30,13 @@ const s = StyleSheet.create({
     paddingHorizontal: 14,
   },
   inputWithIcon: { paddingLeft: 8 },
-  helperText: { marginTop: 2 },
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginTop: 2,
+  },
+  footerLeft: { flex: 1 },
 })
 
 export function Input({
@@ -37,6 +44,7 @@ export function Input({
   error,
   helper,
   icon,
+  showCounter,
   style,
   ...props
 }: InputProps) {
@@ -48,6 +56,11 @@ export function Input({
     : focused
       ? theme.colors.focusRing
       : 'transparent'
+
+  const charCount = typeof props.value === 'string' ? props.value.length : 0
+  const max = props.maxLength
+  const nearLimit = max !== undefined && charCount >= max * 0.9
+  const atLimit = max !== undefined && charCount >= max
 
   return (
     <View style={s.container}>
@@ -62,12 +75,24 @@ export function Input({
           {...props}
         />
       </View>
-      {error && (
-        <Text size={12} color={theme.colors.danger} style={s.helperText}>{error}</Text>
-      )}
-      {!error && helper && (
-        <Text variant="caption" style={s.helperText}>{helper}</Text>
-      )}
+      <View style={s.footer}>
+        <View style={s.footerLeft}>
+          {error && (
+            <Text size={12} color={theme.colors.danger}>{error}</Text>
+          )}
+          {!error && helper && (
+            <Text variant="caption">{helper}</Text>
+          )}
+        </View>
+        {showCounter && max !== undefined && (
+          <Text
+            size={12}
+            color={atLimit ? theme.colors.danger : nearLimit ? theme.colors.warning : theme.colors.textFaint}
+          >
+            {charCount}/{max}
+          </Text>
+        )}
+      </View>
     </View>
   )
 }

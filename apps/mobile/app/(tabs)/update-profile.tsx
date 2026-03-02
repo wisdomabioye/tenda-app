@@ -6,14 +6,13 @@ import { spacing } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Card, Header, Avatar } from '@/components/ui'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { Chip } from '@/components/ui/Chip'
+import { CityPicker } from '@/components/form/CityPicker'
 import { showToast } from '@/components/ui/Toast'
 import { FilePicker } from '@/components/form/FilePicker'
 import type { PickedFile } from '@/components/form/FilePicker'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/api/client'
 import { uploadToCloudinary } from '@/lib/upload'
-import { SUPPORTED_CITIES } from '@tenda/shared'
 
 export default function UpdateProfileScreen() {
   const { theme } = useUnistyles()
@@ -134,16 +133,7 @@ export default function UpdateProfileScreen() {
           <Card variant="outlined" padding={spacing.md}>
             <Text variant="label" weight="semibold">City</Text>
             <Spacer size={spacing.sm} />
-            <View style={s.chipGroup}>
-              {SUPPORTED_CITIES.map((city) => (
-                <Chip
-                  key={city}
-                  label={city}
-                  selected={selectedCity === city}
-                  onPress={() => setSelectedCity(city)}
-                />
-              ))}
-            </View>
+            <CityPicker value={selectedCity} onChange={setSelectedCity} label="" />
           </Card>
 
           <Spacer size={spacing['2xl']} />
@@ -178,10 +168,5 @@ const s = StyleSheet.create({
   multiline: {
     minHeight: 80,
     textAlignVertical: 'top',
-  },
-  chipGroup: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
   },
 })

@@ -12,6 +12,7 @@ interface GigCTABarProps {
   gig: GigDetail
   userId: string
   reviewSubmitted: boolean
+  isTxBuilding: boolean
   txInProgress: boolean
   onAction: (action: ActiveSheet) => void
   onPublish: () => void
@@ -22,6 +23,7 @@ export function GigCTABar({
   gig,
   userId,
   reviewSubmitted,
+  isTxBuilding,
   txInProgress,
   onAction,
   onPublish,
@@ -43,7 +45,7 @@ export function GigCTABar({
     if (canPublish(gig, userId)) {
       return (
         <View style={s.ctaRow}>
-          <Button variant="primary" size="xl" style={s.ctaFlex} onPress={onPublish}>
+          <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={onPublish}>
             Publish Gig
           </Button>
           <Button
@@ -86,7 +88,7 @@ export function GigCTABar({
     if (gig.status === 'submitted' && userId === gig.poster_id) {
       return (
         <View style={s.ctaRow}>
-          <Button variant="primary" size="xl" style={s.ctaFlex} onPress={onApprove}>
+          <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={onApprove}>
             Approve & Pay
           </Button>
           <Button variant="danger" size="xl" onPress={() => onAction('dispute')}>
