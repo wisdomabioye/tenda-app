@@ -20,9 +20,9 @@ const startServer = async () => {
     await server.register(app, options)
 
     // Start listening
-    await server.listen({ 
-      port: 3000, 
-      host: '0.0.0.0' 
+    await server.listen({
+      port: Number(process.env.PORT ?? 3000),
+      host: '0.0.0.0'
     })
 
     const address = server.server.address()
