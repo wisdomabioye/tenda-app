@@ -7,10 +7,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
     "./db/schema": {
       "types": "./dist/db/schema.d.ts",
+      "require": "./dist/db/schema.js",
       "default": "./dist/db/schema.js"
     }
   },
