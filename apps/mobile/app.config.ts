@@ -10,11 +10,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/images/tenda-dark.png',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
-  splash: {
-    image: './assets/images/tenda-transparent-light.png',
-    resizeMode: 'contain',
-    backgroundColor: '#3b82f6',
-  },
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.usetenda.app',
@@ -45,13 +40,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        image: './assets/images/tenda-dark.png',
-        imageWidth: 200,
+        image: './assets/images/tenda-full-light-transparent.png',
+        imageWidth: 350,
         resizeMode: 'contain',
-        backgroundColor: '#ffffff',
+        backgroundColor: '#3b82f6',
         dark: {
-          backgroundColor: '#000000'
-        }
+          backgroundColor: '#000000',
+        },
       }
     ],
     'expo-secure-store',
