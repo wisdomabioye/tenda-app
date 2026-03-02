@@ -50,6 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       }
     ],
     'expo-secure-store',
+    'expo-location',
     'expo-font',
     '@react-native-community/datetimepicker',
     'react-native-edge-to-edge'
