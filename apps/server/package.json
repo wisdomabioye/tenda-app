@@ -8,7 +8,8 @@
   },
   "scripts": {
     "test": "npm run build:ts && tsc -p test/tsconfig.json && c8 node --test -r ts-node/register \"test/**/*.ts\"",
-    "start": "npm run build:ts && node dist/server.js",
+    "start": "node dist/server.js",
+    "build": "tsc",
     "build:ts": "tsc",
     "dev": "tsx watch src/server.ts",
     "type-check": "npx tsc --noEmit",
