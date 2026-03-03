@@ -3,7 +3,7 @@ import { View, FlatList, StyleSheet, RefreshControl } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { PublicKey } from '@solana/web3.js'
-import { spacing, radius, typography } from '@/theme/tokens'
+import { spacing, radius, typography, shadows } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Card, Header } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuthStore } from '@/stores/auth.store'
@@ -157,7 +157,7 @@ export default function WalletScreen() {
 
             <Spacer size={spacing.md} />
             <Text variant="subheading">Transaction History</Text>
-            <Spacer size={spacing.sm} />
+            <Spacer size={spacing.md} />
           </>
         }
         renderItem={({ item }) => (
@@ -190,15 +190,16 @@ const s = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: radius.lg,
     gap: 2,
+    ...shadows.sm,
   },
   txRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.sm,
+    paddingVertical: spacing.xs,
     borderBottomWidth: 1,
   },
   txLeft: {
-    gap: 2,
+    gap: 1,
   },
 })
