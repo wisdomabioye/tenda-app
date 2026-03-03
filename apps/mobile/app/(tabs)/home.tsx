@@ -101,7 +101,7 @@ export default function HomeScreen() {
         userName={[user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Anonymous'}
         showAvatar
       />
-      <ScreenContainer scroll={false} padding={false}>
+      <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
         {error ? (
           <ErrorState
             title="Failed to load gigs"
@@ -181,13 +181,13 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   list: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.xs,
+    paddingTop: spacing.sm,
   },
   feedRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   feedRight: {
     flexDirection: 'row',
