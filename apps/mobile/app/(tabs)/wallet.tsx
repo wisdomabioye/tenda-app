@@ -3,7 +3,7 @@ import { View, FlatList, StyleSheet, RefreshControl } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { PublicKey } from '@solana/web3.js'
-import { spacing, radius } from '@/theme/tokens'
+import { spacing, radius, typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Card, Header } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuthStore } from '@/stores/auth.store'
@@ -39,10 +39,10 @@ function TxRow({ tx, userId, solToNgn }: { tx: UserTransaction; userId: string; 
   return (
     <View style={[s.txRow, { borderBottomColor: theme.colors.borderFaint }]}>
       <View style={s.txLeft}>
-        <Text weight="medium" size={14}>{TYPE_LABEL[tx.type] ?? tx.type}</Text>
+        <Text weight="medium" size={typography.sizes.sm}>{TYPE_LABEL[tx.type] ?? tx.type}</Text>
         <Text variant="caption" color={theme.colors.textFaint}>{date}</Text>
       </View>
-      <Text weight="semibold" size={15} color={color}>
+      <Text weight="semibold" size={typography.sizes.sm} color={color}>
         {sign}{sol.toFixed(4)} SOL
       </Text>
     </View>
@@ -121,12 +121,12 @@ export default function WalletScreen() {
         ListHeaderComponent={
           <>
             {/* Balance card */}
-            <Card variant="filled" padding={spacing.lg}>
+            <Card variant="filled" padding={spacing.md}>
               <Text variant="caption" color={theme.colors.textSub}>SOL Balance</Text>
               {isLoading || balanceSol === null ? (
-                <View style={{ marginTop: 4 }}><Skeleton width={120} height={36} /></View>
+                <View style={{ marginTop: 4 }}><Skeleton width={120} height={28} /></View>
               ) : (
-                <Text weight="bold" size={32} color={theme.colors.money}>
+                <Text weight="bold" size={typography.sizes.xl} color={theme.colors.money}>
                   {balanceSol.toFixed(4)} SOL
                 </Text>
               )}
@@ -141,15 +141,15 @@ export default function WalletScreen() {
 
             {/* Earnings summary */}
             <View style={s.summaryRow}>
-              <View style={[s.summaryCard, { backgroundColor: theme.colors.successTint }]}>
-                <Text variant="caption" color={theme.colors.success} weight="semibold">Earned</Text>
-                <Text weight="bold" size={18} color={theme.colors.success}>
+              <View style={[s.summaryCard, { backgroundColor: theme.colors.surface }]}>
+                <Text variant="caption" color={theme.colors.textSub} weight="semibold">Earned</Text>
+                <Text weight="bold" size={typography.sizes.base} color={theme.colors.success}>
                   {formatSol(earnedLamports)}
                 </Text>
               </View>
-              <View style={[s.summaryCard, { backgroundColor: theme.colors.dangerTint }]}>
-                <Text variant="caption" color={theme.colors.danger} weight="semibold">Spent</Text>
-                <Text weight="bold" size={18} color={theme.colors.danger}>
+              <View style={[s.summaryCard, { backgroundColor: theme.colors.surface }]}>
+                <Text variant="caption" color={theme.colors.textSub} weight="semibold">Spent</Text>
+                <Text weight="bold" size={typography.sizes.base} color={theme.colors.danger}>
                   {formatSol(spentLamports)}
                 </Text>
               </View>
@@ -187,15 +187,15 @@ const s = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    padding: spacing.md,
+    padding: spacing.sm,
     borderRadius: radius.lg,
-    gap: 4,
+    gap: 2,
   },
   txRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.sm,
     borderBottomWidth: 1,
   },
   txLeft: {
