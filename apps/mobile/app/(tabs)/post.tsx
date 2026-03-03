@@ -112,7 +112,7 @@ export default function PostGigScreen() {
             Describe the task you need done
           </Text>
 
-          <Spacer size={spacing.lg} />
+          <Spacer size={spacing.md} />
 
           {/* Category — first so hints update before user types */}
           <Card variant="outlined" padding={spacing.md}>
@@ -134,7 +134,7 @@ export default function PostGigScreen() {
             </View>
           </Card>
 
-          <Spacer size={spacing.lg} />
+          <Spacer size={spacing.md} />
 
           {/* Details */}
           <Card variant="outlined" padding={spacing.md}>
@@ -222,11 +222,11 @@ export default function PostGigScreen() {
             </>
           )}
 
-          <Spacer size={spacing['2xl']} />
+          <Spacer size={spacing.lg} />
 
           <Button
             variant="primary"
-            size="xl"
+            size="lg"
             fullWidth
             disabled={!isValid}
             loading={isLoading}
@@ -235,7 +235,7 @@ export default function PostGigScreen() {
             Save Draft
           </Button>
 
-          <Spacer size={spacing.xl} />
+          <Spacer size={spacing.md} />
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenContainer>
