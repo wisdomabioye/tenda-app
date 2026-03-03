@@ -24,6 +24,7 @@ export const ErrorCode = {
   SIGNATURE_VERIFICATION_FAILED: 'SIGNATURE_VERIFICATION_FAILED',
   DUPLICATE_SIGNATURE:           'DUPLICATE_SIGNATURE',
   // Generic
+  NOT_FOUND:                     'NOT_FOUND',
   VALIDATION_ERROR:              'VALIDATION_ERROR',
   INTERNAL_ERROR:                'INTERNAL_ERROR',
 } as const

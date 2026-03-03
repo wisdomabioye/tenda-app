@@ -2,8 +2,9 @@ import { Tabs } from 'expo-router'
 import { StyleSheet, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Home, Briefcase, Plus, Wallet } from 'lucide-react-native'
+import { Home, Briefcase, Plus, Wallet, MessageCircle } from 'lucide-react-native'
 import { typography, shadows, radius } from '@/theme/tokens'
+import { useChatStore } from '@/stores/chat.store'
 
 const ICON_SIZE = 24
 const POST_ICON_SIZE = 24
@@ -11,6 +12,7 @@ const POST_ICON_SIZE = 24
 export default function TabsLayout() {
   const { theme } = useUnistyles()
   const insets = useSafeAreaInsets()
+  const unread = useChatStore((s) => s.unread)
 
   const tabBarHeight = 88 + insets.bottom
 
@@ -82,16 +84,23 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: 'Messages',
+          tabBarBadge: unread > 0 ? (unread > 9 ? '9+' : unread) : undefined,
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.primaryTint }]}>
+              <MessageCircle color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />
+            </View>
+          ),
+        }}
+      />
 
       {/* ── Hidden screens (navigable, no tab) ── */}
       <Tabs.Screen name="profile" options={{ href: null }} />
-      {/* <Tabs.Screen name="search" options={{ href: null }} /> */}
-      {/* <Tabs.Screen name="notifications" options={{ href: null }} /> */}
       <Tabs.Screen name="settings" options={{ href: null }} />
       <Tabs.Screen name="update-profile" options={{ href: null }} />
-      {/* <Tabs.Screen name="invite" options={{ href: null }} /> */}
-      {/* <Tabs.Screen name="currency" options={{ href: null }} /> */}
-      {/* <Tabs.Screen name="messages" options={{ href: null }} /> */}
     </Tabs>
   )
 }

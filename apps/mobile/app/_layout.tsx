@@ -1,10 +1,11 @@
 import 'react-native-get-random-values'
 import { useEffect, useRef, useState } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
-import { Stack } from 'expo-router'
+import { Stack, useRouter } from 'expo-router'
 import { SystemBars } from 'react-native-edge-to-edge'
 import { useUnistyles } from 'react-native-unistyles'
 import * as SplashScreen from 'expo-splash-screen'
+import * as Notifications from 'expo-notifications'
 import { useFonts } from 'expo-font'
 import {
   SpaceGrotesk_500Medium,
@@ -23,12 +24,16 @@ import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { ToastProvider } from '@/components/ui/Toast'
+import { configureNotifications } from '@/lib/notifications'
 import '@/theme';
+
+configureNotifications()
 
 SplashScreen.preventAutoHideAsync()
 
 export default function RootLayout() {
   const { theme } = useUnistyles();
+  const router = useRouter()
   const [sessionLoaded, setSessionLoaded] = useState(false)
 
   const [fontsLoaded, fontError] = useFonts({
@@ -52,6 +57,20 @@ export default function RootLayout() {
       usePendingSyncStore.getState().replayAll()
     }).finally(() => setSessionLoaded(true))
   }, [])
+
+  // Handle notification taps — deep-link to the right screen
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, string> | undefined
+      if (!data) return
+      if (data.screen === 'gig' && data.gigId) {
+        router.push(`/gig/${data.gigId}` as Parameters<typeof router.push>[0])
+      } else if (data.screen === 'chat' && data.userId) {
+        router.push(`/chat/${data.userId}` as Parameters<typeof router.push>[0])
+      }
+    })
+    return () => sub.remove()
+  }, [router])
 
   // Replay pending-sync items whenever the app returns to the foreground.
   const appState = useRef<AppStateStatus>(AppState.currentState)
@@ -86,6 +105,7 @@ export default function RootLayout() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="error" />
           <Stack.Screen name="gig/[id]" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="chat/[userId]" />
           <Stack.Screen name="+not-found" />
         </Stack>
       </ToastProvider>

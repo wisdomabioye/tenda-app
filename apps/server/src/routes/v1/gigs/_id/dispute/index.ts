@@ -3,6 +3,7 @@ import { and, eq, or } from 'drizzle-orm'
 import { gigs, disputes } from '@tenda/shared/db/schema'
 import { MAX_DISPUTE_REASON_LENGTH, ErrorCode } from '@tenda/shared'
 import { verifyTransactionOnChain } from '../../../../../lib/solana'
+import { appEvents } from '../../../../../lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '../../../../../lib/db'
 
@@ -79,6 +80,23 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
         })
       }
 
+      // Pre-check: if a dispute already exists, reject before hitting the RPC node
+      // so the user doesn't waste gas on a second on-chain transaction.
+      const [existingDispute] = await fastify.db
+        .select({ id: disputes.id })
+        .from(disputes)
+        .where(eq(disputes.gig_id, id))
+        .limit(1)
+
+      if (existingDispute) {
+        return reply.code(409).send({
+          statusCode: 409,
+          error: 'Conflict',
+          message: 'A dispute already exists for this gig',
+          code: ErrorCode.DISPUTE_ALREADY_EXISTS,
+        })
+      }
+
       // Verify the on-chain transaction before writing to DB
       const verification = await verifyTransactionOnChain(signature, 'dispute_gig')
       if (!verification.ok) {
@@ -118,6 +136,16 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
             error: 'Conflict',
             message: 'Gig status changed — it may have already been disputed or completed',
             code: ErrorCode.GIG_WRONG_STATUS,
+          })
+        }
+
+        if (updated) {
+          appEvents.emit('gig.disputed', {
+            gigId:      updated.id,
+            posterId:   updated.poster_id,
+            workerId:   updated.worker_id!,
+            raisedById: userId,
+            title:      updated.title,
           })
         }
 

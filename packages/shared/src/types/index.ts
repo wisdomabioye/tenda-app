@@ -61,3 +61,14 @@ export type {
 } from './blockchain'
 export type { CloudinarySignature, UploadType } from './upload'
 export type { PaginatedResponse, ApiError } from './api'
+export type {
+  Conversation,
+  ConversationParticipant,
+  ConversationStatus,
+  Message,
+  SendMessageInput,
+  GigSubscription,
+  UpsertSubscriptionInput,
+  RegisterDeviceTokenInput,
+  MessagesQuery,
+} from './chat'

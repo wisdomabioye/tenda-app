@@ -48,4 +48,19 @@ export const apiRoutes: {
   platform: {
     config: '/v1/platform/config',
   },
+  conversations: {
+    list:         '/v1/conversations',
+    findOrCreate: '/v1/conversations',
+    messages:     '/v1/conversations/:id/messages',
+    sendMessage:  '/v1/conversations/:id/messages',
+    close:        '/v1/conversations/:id/close',
+  },
+  notifications: {
+    registerToken: '/v1/notifications/device-token',
+  },
+  subscriptions: {
+    list:   '/v1/subscriptions',
+    upsert: '/v1/subscriptions',
+    remove: '/v1/subscriptions/:id',
+  },
 }

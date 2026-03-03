@@ -9,10 +9,17 @@ import {
   disputes,
   reviews,
   platform_config,
+  conversations,
+  messages,
+  device_tokens,
+  gig_subscriptions,
 } from '@tenda/shared/db/schema'
 import { getConfig } from '../config'
 
-const schema = { users, gigs, gig_proofs, gig_transactions, disputes, reviews, platform_config }
+const schema = {
+  users, gigs, gig_proofs, gig_transactions, disputes, reviews, platform_config,
+  conversations, messages, device_tokens, gig_subscriptions,
+}
 
 export type AppDatabase = PostgresJsDatabase<typeof schema>
 
@@ -22,13 +29,16 @@ declare module 'fastify' {
   }
 }
 
-export default fp(async (fastify) => {
-  const sql = postgres(getConfig().DATABASE_URL)
-  const db = drizzle(sql, { schema })
+export default fp(
+  async (fastify) => {
+    const sql = postgres(getConfig().DATABASE_URL)
+    const db = drizzle(sql, { schema })
 
-  fastify.decorate('db', db)
+    fastify.decorate('db', db)
 
-  fastify.addHook('onClose', async () => {
-    await sql.end()
-  })
-})
+    fastify.addHook('onClose', async () => {
+      await sql.end()
+    })
+  },
+  { name: 'db' },
+)

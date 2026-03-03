@@ -5,6 +5,7 @@ import { ErrorCode, computePlatformFee } from '@tenda/shared'
 import { deriveEscrowAddress, verifyTransactionOnChain } from '../../../../../lib/solana'
 import { getPlatformConfig } from '../../../../../lib/platform'
 import { isPostgresUniqueViolation } from '../../../../../lib/db'
+import { appEvents } from '../../../../../lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type PublishRoute = GigsContract['publish']
@@ -131,6 +132,14 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
           code: ErrorCode.GIG_WRONG_STATUS,
         })
       }
+
+      // Notify subscribers now that the gig is live (status = 'open')
+      appEvents.emit('gig.created', {
+        gigId:    updated.id,
+        city:     updated.city,
+        category: updated.category,
+        title:    updated.title,
+      })
 
       return updated
     }

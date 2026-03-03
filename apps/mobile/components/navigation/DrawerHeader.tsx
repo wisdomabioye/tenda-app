@@ -65,8 +65,8 @@ export function DrawerHeader({
       <Image
         source={Logo}
         style={{
-          width: 136,
-          height: 44,
+          width: 120,
+          height: 112,
         }}
         contentFit="contain"
       />

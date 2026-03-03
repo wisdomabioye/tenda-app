@@ -5,6 +5,7 @@ import { ErrorCode, computePlatformFee } from '@tenda/shared'
 import { verifyTransactionOnChain } from '../../../../../lib/solana'
 import { getPlatformConfig } from '../../../../../lib/platform'
 import { isPostgresUniqueViolation } from '../../../../../lib/db'
+import { appEvents } from '../../../../../lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type ApproveRoute = GigsContract['approve']
@@ -120,6 +121,13 @@ const approveGig: FastifyPluginAsync = async (fastify) => {
           code: ErrorCode.GIG_WRONG_STATUS,
         })
       }
+
+      appEvents.emit('gig.approved', {
+        gigId:    updated.id,
+        posterId: updated.poster_id,
+        workerId: updated.worker_id!,
+        title:    updated.title,
+      })
 
       return updated
     }

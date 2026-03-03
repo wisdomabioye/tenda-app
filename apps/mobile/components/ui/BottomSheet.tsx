@@ -1,4 +1,4 @@
-import { Modal, View, StyleSheet } from 'react-native'
+import { Modal, View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing, radius } from '@/theme/tokens'
 import { Text } from './Text'
@@ -14,13 +14,22 @@ export function BottomSheet({ visible, onClose, title, children }: BottomSheetPr
   const { theme } = useUnistyles()
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={s.overlay}>
+      <KeyboardAvoidingView
+        style={s.overlay}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={[s.sheet, { backgroundColor: theme.colors.surface }]}>
           <View style={[s.handle, { backgroundColor: theme.colors.borderFaint }]} />
           <Text variant="subheading" style={s.title}>{title}</Text>
-          {children}
+          <ScrollView
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   )
 }

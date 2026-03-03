@@ -6,6 +6,10 @@ export {
   disputes,
   reviews,
   platform_config,
+  conversations,
+  messages,
+  device_tokens,
+  gig_subscriptions,
   gigStatusEnum,
   gigCategoryEnum,
   disputeWinnerEnum,
@@ -13,6 +17,8 @@ export {
   userRoleEnum,
   userStatusEnum,
   proofTypeEnum,
+  conversationStatusEnum,
+  devicePlatformEnum,
 } from './db/schema'
 export * from './types'
 export * from './constants'

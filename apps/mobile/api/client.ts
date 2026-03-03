@@ -40,6 +40,13 @@ import {
   type GetUserReviewsQuery,
   type PublishGigInput,
   type PlatformConfig,
+  type Conversation,
+  type Message,
+  type SendMessageInput,
+  type MessagesQuery,
+  type GigSubscription,
+  type UpsertSubscriptionInput,
+  type RegisterDeviceTokenInput,
 } from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
@@ -96,8 +103,10 @@ async function request<TResponse>(
   const config = apiConfig[env]
   const url = buildUrl(config.baseUrl, path, options?.params, options?.query)
   const token = await getJwtToken()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+  const headers: Record<string, string> = {}
+
+  if (options?.body !== undefined) {
+    headers['Content-Type'] = 'application/json'
   }
 
   if (token) {
@@ -126,7 +135,7 @@ async function request<TResponse>(
   }
 }
 
-const { auth, gigs, users, upload, blockchain, platform } = apiRoutes
+const { auth, gigs, users, upload, blockchain, platform, conversations, notifications, subscriptions } = apiRoutes
 
 export const api = {
   auth: {
@@ -213,5 +222,34 @@ export const api = {
 
   platform: {
     config: () => request<PlatformConfig>('GET', platform.config),
+  },
+
+  conversations: {
+    list: () =>
+      request<Conversation[]>('GET', conversations.list),
+    findOrCreate: (body: { user_id: string }) =>
+      request<Conversation>('POST', conversations.findOrCreate, { body }),
+    messages: (params: { id: string }, query?: MessagesQuery) =>
+      request<Message[]>('GET', conversations.messages, { params, query: query as Record<string, unknown> }),
+    sendMessage: (params: { id: string }, body: SendMessageInput) =>
+      request<Message>('POST', conversations.sendMessage, { params, body }),
+    close: (params: { id: string }) =>
+      request<Conversation>('POST', conversations.close, { params }),
+  },
+
+  notifications: {
+    registerToken: (body: RegisterDeviceTokenInput) =>
+      request<{ ok: boolean }>('POST', notifications.registerToken, { body }),
+    removeToken: (body: { token: string }) =>
+      request<{ ok: boolean }>('DELETE', notifications.registerToken, { body }),
+  },
+
+  subscriptions: {
+    list: () =>
+      request<GigSubscription[]>('GET', subscriptions.list),
+    upsert: (body: UpsertSubscriptionInput) =>
+      request<GigSubscription>('POST', subscriptions.upsert, { body }),
+    remove: (params: { id: string }) =>
+      request<{ ok: boolean }>('DELETE', subscriptions.remove, { params }),
   },
 }

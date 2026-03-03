@@ -8,11 +8,10 @@ import {
   ScreenContainer,
   Text,
   Spacer,
-  LiveChip,
   FilterSheet,
   EmptyState,
 } from '@/components/ui'
-import { LoadingScreen, ErrorState } from '@/components/feedback'
+import { LoadingScreen, ErrorState, ServerStatus } from '@/components/feedback'
 import { GigCardCompact } from '@/components/gig'
 import { Drawer, DrawerHeader } from '@/components/navigation'
 import { useAuthStore } from '@/stores/auth.store'
@@ -25,11 +24,12 @@ export default function HomeScreen() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const router = useRouter()
   const { theme } = useUnistyles()
   const user = useAuthStore((s) => s.user)
-  const { gigs, isLoading, hasFetched, error, fetchGigs, setFilters } = useGigsStore()
+  const { gigs, isLoading, hasFetched, error, fetchGigs, setFilters, resetFilters } = useGigsStore()
 
   useFocusEffect(
     useCallback(() => {
@@ -37,7 +37,15 @@ export default function HomeScreen() {
     }, [fetchGigs]),
   )
 
-  const hasFilters = query.trim().length > 0 || selectedCategory !== null
+  const hasFilters = query.trim().length > 0 || selectedCategory !== null || selectedCity !== null
+
+  // Client-side text filter (GigListQuery has no search field)
+  const displayedGigs = query.trim()
+    ? gigs.filter((g) =>
+        g.title.toLowerCase().includes(query.toLowerCase()) ||
+        g.city.toLowerCase().includes(query.toLowerCase()),
+      )
+    : gigs
 
   async function handleRefresh() {
     setRefreshing(true)
@@ -45,10 +53,28 @@ export default function HomeScreen() {
     setRefreshing(false)
   }
 
+  function handleCategoryChange(cat: string | null) {
+    setSelectedCategory(cat)
+    setFilters({ category: (cat ?? undefined) as any })
+    fetchGigs()
+  }
+
+  function handleCityChange(city: string) {
+    setSelectedCity(city)
+    setFilters({ city })
+    fetchGigs()
+  }
+
+  function handleClearAll() {
+    setQuery('')
+    setSelectedCategory(null)
+    setSelectedCity(null)
+    resetFilters()
+    fetchGigs()
+  }
+
   function handleCloseFilter() {
     setFilterOpen(false)
-    setFilters({ category: selectedCategory as any ?? undefined })
-    fetchGigs()
   }
 
   const renderGigItem = ({ item }: { item: Gig }) => (
@@ -85,7 +111,7 @@ export default function HomeScreen() {
           />
         ) : (
           <FlatList
-            data={gigs}
+            data={displayedGigs}
             keyExtractor={(item) => item.id}
             renderItem={renderGigItem}
             contentContainerStyle={s.list}
@@ -101,7 +127,7 @@ export default function HomeScreen() {
               <View style={s.feedRow}>
                 <Text variant="subheading">Feed</Text>
                 <View style={s.feedRight}>
-                  <LiveChip label="Live" />
+                  <ServerStatus />
                   <Pressable
                     onPress={() => setFilterOpen(true)}
                     style={[
@@ -142,7 +168,10 @@ export default function HomeScreen() {
           query={query}
           onQueryChange={setQuery}
           selectedCategory={selectedCategory}
-          onCategoryChange={setSelectedCategory}
+          onCategoryChange={handleCategoryChange}
+          city={selectedCity}
+          onCityChange={handleCityChange}
+          onClearAll={handleClearAll}
         />
       </ScreenContainer>
     </Drawer>

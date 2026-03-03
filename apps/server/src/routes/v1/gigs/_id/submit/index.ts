@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { gigs, gig_proofs } from '@tenda/shared/db/schema'
 import { computeCompletionDeadline, isCloudinaryUrl, ErrorCode } from '@tenda/shared'
 import { verifyTransactionOnChain } from '../../../../../lib/solana'
+import { appEvents } from '../../../../../lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { getPlatformConfig } from '../../../../../lib/platform'
 
@@ -61,10 +62,22 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
         })
       }
 
+      // accepted_at must always be set when status = 'accepted'; null indicates
+      // data corruption — fail safe rather than silently skipping the deadline check.
+      if (!gig.accepted_at) {
+        fastify.log.error({ gigId: id }, 'Gig in accepted status has no accepted_at — data integrity error')
+        return reply.code(500).send({
+          statusCode: 500,
+          error: 'Internal Server Error',
+          message: 'Gig data is inconsistent — please contact support',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
       // Enforce the submission window: worker has completion_duration_seconds
       // plus the platform grace_period_seconds to submit proof.
       // This mirrors the on-chain check: current_time <= completion_deadline + grace_period.
-      if (gig.accepted_at) {
+      {
         const config = await getPlatformConfig(fastify.db)
         const completionDeadline = computeCompletionDeadline(
           new Date(gig.accepted_at),
@@ -168,6 +181,13 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
           code: ErrorCode.GIG_WRONG_STATUS,
         })
       }
+
+      appEvents.emit('gig.submitted', {
+        gigId:    gig.id,
+        posterId: gig.poster_id,
+        workerId: gig.worker_id!,
+        title:    gig.title,
+      })
 
       return reply.code(201).send(result)
     }

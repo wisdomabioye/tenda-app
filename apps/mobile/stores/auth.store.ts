@@ -11,6 +11,7 @@ import {
 } from '@/lib/secure-store'
 import { api, ApiClientError } from '@/api/client'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
+import { registerPushToken } from '@/lib/notifications'
 
 interface WalletSessionInfo {
   mwaAuthToken: string
@@ -55,6 +56,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       walletAddress: session.walletAddress,
       isAuthenticated: true,
     })
+    // Register push token in background — non-blocking
+    registerPushToken().catch(() => {})
   },
 
   logout: async () => {
@@ -84,6 +87,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const user = await api.auth.me()
       set({ user, jwt, mwaAuthToken, walletAddress, isAuthenticated: true, isLoading: false })
+      // Refresh push token in background — handles token rotation
+      registerPushToken().catch(() => {})
     } catch (e) {
       if (e instanceof ApiClientError && (e.statusCode === 401 || e.statusCode === 403)) {
         await clearAuthStorage()

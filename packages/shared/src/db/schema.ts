@@ -203,3 +203,66 @@ export const platform_config = pgTable('platform_config', {
   grace_period_seconds: integer('grace_period_seconds').default(86400).notNull(),
   updated_at:           timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })
+
+// ── Chat & Notifications ───────────────────────────────────────────────────
+
+export const conversationStatusEnum = pgEnum('conversation_status', ['active', 'closed'])
+
+/** We will use fcm/apns in the future - open_issues #84 */
+export const devicePlatformEnum = pgEnum('device_platform', ['expo', 'fcm', 'apns'])
+
+export const conversations = pgTable('conversations', {
+  id:              uuid('id').primaryKey().defaultRandom(),
+  // Canonical order: user_a_id < user_b_id (enforced in application layer)
+  user_a_id:       uuid('user_a_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  user_b_id:       uuid('user_b_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  status:          conversationStatusEnum('status').default('active').notNull(),
+  closed_by:       uuid('closed_by').references(() => users.id),
+  closed_at:       timestamp('closed_at', { withTimezone: true }),
+  last_message_at: timestamp('last_message_at', { withTimezone: true }),
+  created_at:      timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  user_pair_unique: uniqueIndex('conversations_user_pair_unique').on(t.user_a_id, t.user_b_id),
+  user_a_idx:       index('conversations_user_a_idx').on(t.user_a_id),
+  user_b_idx:       index('conversations_user_b_idx').on(t.user_b_id),
+}))
+
+export const messages = pgTable('messages', {
+  id:              uuid('id').primaryKey().defaultRandom(),
+  conversation_id: uuid('conversation_id')
+    .references(() => conversations.id, { onDelete: 'cascade' })
+    .notNull(),
+  sender_id:  uuid('sender_id').references(() => users.id).notNull(),
+  gig_id:     uuid('gig_id').references(() => gigs.id, { onDelete: 'set null' }),
+  content:    varchar('content', { length: 2000 }).notNull(),
+  read_at:    timestamp('read_at', { withTimezone: true }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  conversation_idx: index('messages_conversation_id_idx').on(t.conversation_id),
+  sender_idx:       index('messages_sender_id_idx').on(t.sender_id),
+  created_at_idx:   index('messages_created_at_idx').on(t.created_at),
+}))
+
+export const device_tokens = pgTable('device_tokens', {
+  id:         uuid('id').primaryKey().defaultRandom(),
+  user_id:    uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  token:      text('token').notNull(),
+  platform:   devicePlatformEnum('platform').default('expo').notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  token_unique: uniqueIndex('device_tokens_token_unique').on(t.token),
+  user_idx:     index('device_tokens_user_id_idx').on(t.user_id),
+}))
+
+export const gig_subscriptions = pgTable('gig_subscriptions', {
+  id:         uuid('id').primaryKey().defaultRandom(),
+  user_id:    uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  // '*' means any city/category (sentinel instead of NULL to enable UNIQUE constraint)
+  city:       text('city').default('*').notNull(),
+  category:   text('category').default('*').notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  user_city_cat_unique: uniqueIndex('gig_subscriptions_unique').on(t.user_id, t.city, t.category),
+  user_idx:             index('gig_subscriptions_user_id_idx').on(t.user_id),
+}))

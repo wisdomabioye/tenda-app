@@ -10,6 +10,7 @@ import {
   Share2,
   FileText,
   Film,
+  MessageCircle,
 } from 'lucide-react-native'
 import { Transaction, PublicKey } from '@solana/web3.js'
 import { Buffer } from 'buffer'
@@ -412,12 +413,19 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         <Card variant="outlined">
           <View style={s.personRow}>
             <Avatar size="md" name={posterName} src={gig.poster.avatar_url} />
-            <View>
+            <View style={s.personInfo}>
               <Text variant="body" weight="semibold">{posterName}</Text>
               <Text variant="caption" color={theme.colors.textSub}>
                 {gig.poster.reputation_score ?? 0} reputation
               </Text>
             </View>
+            {userId !== gig.poster_id && (
+              <IconButton
+                icon={<MessageCircle size={20} color={theme.colors.primary} />}
+                onPress={() => router.push(`/chat/${gig.poster_id}` as Parameters<typeof router.push>[0])}
+                variant="ghost"
+              />
+            )}
           </View>
         </Card>
 
@@ -430,12 +438,19 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
             <Card variant="outlined">
               <View style={s.personRow}>
                 <Avatar size="md" name={workerName ?? ''} src={gig.worker.avatar_url} />
-                <View>
+                <View style={s.personInfo}>
                   <Text variant="body" weight="semibold">{workerName}</Text>
                   <Text variant="caption" color={theme.colors.textSub}>
                     {gig.worker.reputation_score ?? 0} reputation
                   </Text>
                 </View>
+                {userId !== gig.worker.id && (
+                  <IconButton
+                    icon={<MessageCircle size={20} color={theme.colors.primary} />}
+                    onPress={() => router.push(`/chat/${gig.worker!.id}` as Parameters<typeof router.push>[0])}
+                    variant="ghost"
+                  />
+                )}
               </View>
             </Card>
           </>
@@ -621,6 +636,9 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+  },
+  personInfo: {
+    flex: 1,
   },
   proofsGrid: {
     flexDirection: 'row',

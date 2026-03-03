@@ -136,7 +136,7 @@ export function CityPicker({ value, onChange, label = 'City' }: CityPickerProps)
             </View>
 
             {gpsError && (
-              <Text size={12} color={theme.colors.danger} style={s.gpsError}>{gpsError}</Text>
+              <Text size={12} color={theme.colors.warning} style={s.gpsError}>{gpsError}</Text>
             )}
 
             {/* Search */}

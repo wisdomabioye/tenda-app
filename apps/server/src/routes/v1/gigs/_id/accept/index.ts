@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { verifyTransactionOnChain } from '../../../../../lib/solana'
+import { appEvents } from '../../../../../lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type AcceptRoute = GigsContract['accept']
@@ -103,6 +104,13 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
           code: ErrorCode.GIG_WRONG_STATUS,
         })
       }
+
+      appEvents.emit('gig.accepted', {
+        gigId:    updated.id,
+        posterId: updated.poster_id,
+        workerId: updated.worker_id!,
+        title:    updated.title,
+      })
 
       return updated
     }

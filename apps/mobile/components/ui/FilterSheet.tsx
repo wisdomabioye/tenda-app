@@ -15,10 +15,11 @@ import { Text } from './Text'
 import { Input } from './Input'
 import { Chip } from './Chip'
 import { IconButton } from './IconButton'
+import { CityPicker } from '@/components/form/CityPicker'
 import { CATEGORY_META } from '@/data/mock'
 import type { ColorScheme } from '@/theme/tokens'
 
-const SHEET_HEIGHT = 400
+const SHEET_HEIGHT = 520
 
 interface FilterSheetProps {
   visible: boolean
@@ -27,6 +28,9 @@ interface FilterSheetProps {
   onQueryChange: (q: string) => void
   selectedCategory: string | null
   onCategoryChange: (cat: string | null) => void
+  city: string | null
+  onCityChange: (city: string) => void
+  onClearAll: () => void
 }
 
 export function FilterSheet({
@@ -36,6 +40,9 @@ export function FilterSheet({
   onQueryChange,
   selectedCategory,
   onCategoryChange,
+  city,
+  onCityChange,
+  onClearAll,
 }: FilterSheetProps) {
   const { theme } = useUnistyles()
   const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current
@@ -65,7 +72,7 @@ export function FilterSheet({
     onCategoryChange(selectedCategory === key ? null : key)
   }
 
-  const hasFilters = query.trim().length > 0 || selectedCategory !== null
+  const hasFilters = query.trim().length > 0 || selectedCategory !== null || city !== null
 
   return (
     <Modal
@@ -139,16 +146,15 @@ export function FilterSheet({
             </View>
           </View>
 
+          {/* City picker */}
+          <View style={s.section}>
+            <CityPicker value={city} onChange={onCityChange} label="City" />
+          </View>
+
           {/* Clear filters */}
           {hasFilters && (
-            <Pressable
-              style={s.clearRow}
-              onPress={() => {
-                onQueryChange('')
-                onCategoryChange(null)
-              }}
-            >
-              <Text variant="caption" color={theme.colors.danger}>
+            <Pressable style={s.clearRow} onPress={onClearAll}>
+              <Text variant="caption" color={theme.colors.textFaint}>
                 Clear all filters
               </Text>
             </Pressable>

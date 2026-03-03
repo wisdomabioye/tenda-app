@@ -36,7 +36,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     }
   },
   plugins: [
-    'expo-router', 
+    'expo-router',
+    [
+      'expo-notifications',
+      {
+        icon: './assets/images/tenda-dark.png',
+        color: '#3b82f6',
+        defaultChannel: 'default',
+      },
+    ],
     [
       'expo-splash-screen',
       {

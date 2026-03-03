@@ -10,4 +10,7 @@ export type {
   BlockchainContract,
   PlatformContract,
   PlatformConfig,
+  ConversationsContract,
+  NotificationsContract,
+  SubscriptionsContract,
 } from './contracts'

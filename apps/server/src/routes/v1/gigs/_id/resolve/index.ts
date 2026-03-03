@@ -6,6 +6,7 @@ import { verifyTransactionOnChain } from '../../../../../lib/solana'
 import { getPlatformConfig } from '../../../../../lib/platform'
 import { requireRole } from '../../../../../lib/guards'
 import { isPostgresUniqueViolation } from '../../../../../lib/db'
+import { appEvents } from '../../../../../lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type ResolveRoute = GigsContract['resolve']
@@ -132,6 +133,14 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
           code: ErrorCode.GIG_WRONG_STATUS,
         })
       }
+
+      appEvents.emit('gig.resolved', {
+        gigId:    updated.id,
+        posterId: updated.poster_id,
+        workerId: updated.worker_id!,
+        winner,
+        title:    updated.title,
+      })
 
       return updated
     }
