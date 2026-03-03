@@ -82,7 +82,7 @@ export function ServerStatus() {
       {status === 'unreachable' ? (
         <View style={[s.chip, { backgroundColor: theme.colors.warningTint }]}>
           <WifiOff size={14} color={theme.colors.onWarning} />
-          <Text size={typography.sizes.sm} weight="medium" color={theme.colors.onWarning}>
+          <Text size={typography.sizes.xs} weight="medium" color={theme.colors.onWarning}>
             Offline
           </Text>
         </View>
@@ -99,8 +99,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
     borderRadius: radius.full,
     alignSelf: 'flex-start',
   },

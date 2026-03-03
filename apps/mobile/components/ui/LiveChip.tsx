@@ -14,8 +14,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
     borderRadius: radius.full,
     alignSelf: 'flex-start' as const,
   },
@@ -72,7 +72,7 @@ export function LiveChip({ label = 'Live' }: LiveChipProps) {
   return (
     <View style={[s.container, { backgroundColor: theme.colors.successTint }]}>
       <Activity size={14} color={theme.colors.onSuccess} />
-      <Text size={typography.sizes.sm} weight="medium" color={theme.colors.onSuccess}>
+      <Text size={typography.sizes.xs} weight="medium" color={theme.colors.onSuccess}>
         {label}
       </Text>
       <View style={s.pulseWrap}>
