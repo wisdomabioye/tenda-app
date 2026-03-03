@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { View, TextInput, Pressable, StyleSheet } from 'react-native'
+import { Platform, View, TextInput, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { SendHorizontal } from 'lucide-react-native'
 import { spacing, radius, typography } from '@/theme/tokens'
 
@@ -11,6 +12,7 @@ interface ChatInputProps {
 
 export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const { theme } = useUnistyles()
+  const insets = useSafeAreaInsets()
   const [text, setText] = useState('')
 
   function handleSend() {
@@ -23,7 +25,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const canSend = text.trim().length > 0 && !disabled
 
   return (
-    <View style={[s.container, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderFaint }]}>
+    <View style={[s.container, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderFaint, paddingBottom: Platform.OS === 'ios' ? (insets.bottom || spacing.sm) : Math.max(insets.bottom, spacing['2xl']) }]}>
       <TextInput
         value={text}
         onChangeText={setText}

@@ -169,8 +169,8 @@ export default function ChatScreen() {
     : 'User'
 
   return (
-    <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
-      <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Header
           title={displayName}
           showBack
