@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
 import { Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { radius } from '@/theme/tokens'
+import { radius, typography } from '@/theme/tokens'
 import { Text } from './Text'
 
 interface ChipProps {
@@ -17,8 +17,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
     borderRadius: radius.full,
     alignSelf: 'flex-start' as const,
   },
@@ -33,7 +33,7 @@ export function Chip({ label, selected = false, onPress, color, icon }: ChipProp
   return (
     <Pressable onPress={onPress} style={[s.base, { backgroundColor: bgColor }]}>
       {icon}
-      <Text size={14} weight="medium" color={textColor}>{label}</Text>
+      <Text size={typography.sizes.xs} weight="medium" color={textColor}>{label}</Text>
     </Pressable>
   )
 }

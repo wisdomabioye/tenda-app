@@ -129,7 +129,7 @@ export function CityPicker({ value, onChange, label = 'City' }: CityPickerProps)
                 style={[s.gpsBtn, { backgroundColor: theme.colors.primaryTint }]}
               >
                 <LocateFixed size={14} color={theme.colors.primary} />
-                <Text size={13} weight="semibold" color={theme.colors.primary}>
+                <Text size={typography.sizes.xs} weight="semibold" color={theme.colors.primary}>
                   {detecting ? 'Detecting…' : 'Use my location'}
                 </Text>
               </Pressable>
@@ -204,8 +204,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: radius.md,
     borderWidth: 1.5,
   },
@@ -243,8 +243,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
     borderRadius: radius.full,
   },
   gpsError: {
@@ -255,7 +255,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: radius.md,
     marginBottom: spacing.sm,
   },
@@ -272,7 +272,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: spacing.sm,
     borderRadius: radius.md,
   },

@@ -64,7 +64,7 @@ export function DurationPicker({
               onPress={() => selectPreset(p.seconds)}
               style={[s.chip, { backgroundColor: selected ? theme.colors.primary : theme.colors.muted }]}
             >
-              <Text size={13} weight="semibold" color={selected ? theme.colors.onPrimary : theme.colors.text}>
+              <Text size={typography.sizes.xs} weight="semibold" color={selected ? theme.colors.onPrimary : theme.colors.text}>
                 {p.label}
               </Text>
             </Pressable>
@@ -74,7 +74,7 @@ export function DurationPicker({
           onPress={() => setCustomMode(true)}
           style={[s.chip, { backgroundColor: customMode ? theme.colors.primary : theme.colors.muted }]}
         >
-          <Text size={13} weight="semibold" color={customMode ? theme.colors.onPrimary : theme.colors.text}>
+          <Text size={typography.sizes.xs} weight="semibold" color={customMode ? theme.colors.onPrimary : theme.colors.text}>
             Custom
           </Text>
         </Pressable>
@@ -91,7 +91,7 @@ export function DurationPicker({
             style={[s.customInput, { backgroundColor: theme.colors.input, color: theme.colors.text }]}
           />
           <Pressable onPress={toggleUnit} style={[s.unitBtn, { backgroundColor: theme.colors.muted }]}>
-            <Text size={13} weight="semibold" color={theme.colors.primary}>{unit}</Text>
+            <Text size={typography.sizes.xs} weight="semibold" color={theme.colors.primary}>{unit}</Text>
           </Pressable>
         </View>
       )}
@@ -107,8 +107,8 @@ const s = StyleSheet.create({
     gap: spacing.sm,
   },
   chip: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
     borderRadius: radius.full,
   },
   customRow: {
@@ -120,13 +120,13 @@ const s = StyleSheet.create({
     flex: 1,
     fontFamily: 'Inter_400Regular',
     fontSize: typography.sizes.base,
-    paddingVertical: 10,
-    paddingHorizontal: 14,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: radius.md,
   },
   unitBtn: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderRadius: radius.md,
     justifyContent: 'center',
   },
