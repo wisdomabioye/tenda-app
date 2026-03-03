@@ -3,12 +3,12 @@ import { View, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Image } from 'expo-image'
 import { useUnistyles } from 'react-native-unistyles'
-import { Wallet, ShieldCheck, Zap, ArrowLeft } from 'lucide-react-native'
+import { Wallet, ShieldCheck, Zap } from 'lucide-react-native'
 import { spacing, radius } from '@/theme/tokens'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
+import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
-import { IconButton } from '@/components/ui/IconButton'
 import { Spacer } from '@/components/ui/Spacer'
 import { useAuthStore } from '@/stores/auth.store'
 import { connectAndSignAuthMessage } from '@/wallet'
@@ -68,14 +68,7 @@ export default function ConnectWalletScreen() {
   return (
     <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
       <View style={s.screen}>
-        {/* Back button */}
-        <View style={s.topBar}>
-          <IconButton
-            icon={<ArrowLeft size={22} color={theme.colors.text} />}
-            onPress={() => router.back()}
-            variant="ghost"
-          />
-        </View>
+        <Header showBack transparent />
 
         <Spacer flex={1} />
 
@@ -84,7 +77,7 @@ export default function ConnectWalletScreen() {
           <View style={[s.walletIconCircle, { backgroundColor: theme.colors.primaryTint }]}>
             <Image source={Logo} style={s.logo} contentFit="contain" />
           </View>
-          <Spacer size={spacing.lg} />
+          <Spacer size={spacing.md} />
           <Text variant="heading" align="center">
             Connect your wallet
           </Text>
@@ -101,11 +94,11 @@ export default function ConnectWalletScreen() {
           {FEATURES.map(({ Icon, title, description }) => (
             <View key={title} style={s.featureRow}>
               <View style={[s.featureIcon, { backgroundColor: theme.colors.primaryTint }]}>
-                <Icon size={24} color={theme.colors.primary} />
+                <Icon size={18} color={theme.colors.primary} />
               </View>
               <View style={s.featureText}>
-                <Text variant="body" weight="bold">{title}</Text>
-                <Text variant="body" color={theme.colors.textSub}>
+                <Text variant="label" weight="bold">{title}</Text>
+                <Text variant="caption" color={theme.colors.textSub}>
                   {description}
                 </Text>
               </View>
@@ -119,10 +112,10 @@ export default function ConnectWalletScreen() {
         <View style={s.cta}>
           <Button
             variant="primary"
-            size="xl"
+            size="lg"
             fullWidth
             loading={isConnecting}
-            icon={<Wallet size={20} color={theme.colors.onPrimary} />}
+            icon={<Wallet size={18} color={theme.colors.onPrimary} />}
             onPress={(handleConnectWallet)}
           >
             Connect Wallet
@@ -151,45 +144,41 @@ export default function ConnectWalletScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
-  },
-  topBar: {
-    flexDirection: 'row',
-    paddingTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
   },
   hero: {
     alignItems: 'center',
   },
   walletIconCircle: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
   logo: {
-    width: 52,
-    height: 52,
+    width: 40,
+    height: 40,
   },
   features: {
-    gap: spacing.xl,
+    gap: spacing.md,
   },
   featureRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+    alignItems: 'flex-start',
+    gap: spacing.sm,
   },
   featureIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.lg,
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   featureText: {
     flex: 1,
-    gap: 4,
+    gap: 2,
   },
   cta: {
     width: '100%',
