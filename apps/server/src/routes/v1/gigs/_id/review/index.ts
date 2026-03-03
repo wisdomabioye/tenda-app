@@ -94,15 +94,18 @@ const reviewGig: FastifyPluginAsync = async (fastify) => {
             })
             .returning()
 
-          // Recompute reviewee's reputation score atomically: AVG(score) * 20 → 0–100 scale.
-          // Using a single UPDATE … SET … = (SELECT AVG …) avoids a race condition where
-          // two concurrent reviews for the same user could both read the same stale average.
+          // Recompute reviewee's reputation score atomically.
+          // Formula: AVG(score) * 20 * min(review_count / 10, 1) → 0–100 scale.
+          // The confidence factor (min(n/10, 1)) means a user needs 10 reviews to reach
+          // full reputation potential — prevents a single 5-star review from scoring 100.
+          // Using a single UPDATE … SET … = (SELECT …) avoids a race condition where
+          // two concurrent reviews for the same user could both read the same stale value.
           // The subquery runs inside the same transaction and sees the just-inserted row.
           await tx
             .update(users)
             .set({
               reputation_score: sql<number>`(
-                SELECT ROUND(AVG(score)::numeric * 20)::int
+                SELECT ROUND(AVG(score)::numeric * 20 * LEAST(COUNT(*)::float / 10, 1))::int
                 FROM ${reviews}
                 WHERE reviewee_id = ${revieweeId}
               )`,
