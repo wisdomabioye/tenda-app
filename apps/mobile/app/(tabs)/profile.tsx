@@ -103,7 +103,7 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <Spacer size={spacing.xl} />
+      <Spacer size={spacing.md} />
 
       {/* Stats */}
       <View style={s.statsStrip}>
@@ -116,7 +116,7 @@ export default function ProfileScreen() {
         ))}
       </View>
 
-      <Spacer size={spacing.xl} />
+      <Spacer size={spacing.md} />
 
       {/* Menu */}
       <Card variant="outlined" padding={0}>
@@ -149,7 +149,7 @@ export default function ProfileScreen() {
         ))}
       </Card>
 
-      <Spacer size={spacing.xl} />
+      <Spacer size={spacing.md} />
 
       {/* Disconnect */}
       <Pressable
@@ -221,7 +221,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: spacing.md,
   },
   menuLeft: {
@@ -230,9 +230,9 @@ const s = StyleSheet.create({
     gap: spacing.sm,
   },
   menuIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
+    width: 30,
+    height: 30,
+    borderRadius: radius.sm,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
