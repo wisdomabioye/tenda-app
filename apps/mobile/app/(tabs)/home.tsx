@@ -140,7 +140,7 @@ export default function HomeScreen() {
                     ]}
                   >
                     <SlidersHorizontal
-                      size={16}
+                      size={14}
                       color={hasFilters ? theme.colors.primary : theme.colors.textSub}
                     />
                     {hasFilters && (
@@ -195,8 +195,8 @@ const s = StyleSheet.create({
     gap: spacing.sm,
   },
   filterBtn: {
-    width: 36,
-    height: 36,
+    width: 30,
+    height: 30,
     borderRadius: radius.md,
     alignItems: 'center',
     justifyContent: 'center',
