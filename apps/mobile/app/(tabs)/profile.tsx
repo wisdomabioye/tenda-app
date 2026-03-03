@@ -3,7 +3,6 @@ import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import {
-  ArrowLeft,
   MapPin,
   ChevronRight,
   Wallet,
@@ -22,7 +21,7 @@ import {
   Divider,
   Spacer,
 } from '@/components/ui'
-import { IconButton } from '@/components/ui/IconButton'
+import { Header } from '@/components/ui/Header'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUserGigsStore } from '@/stores/user-gigs.store'
 
@@ -78,14 +77,7 @@ export default function ProfileScreen() {
 
   return (
     <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
-      {/* Floating back button */}
-      <View style={s.topBar}>
-        <IconButton
-          icon={<ArrowLeft size={22} color={theme.colors.text} />}
-          onPress={() => router.back()}
-          variant="ghost"
-        />
-      </View>
+      <Header showBack />
 
       {/* Hero — centered identity */}
       <View style={s.hero}>
@@ -140,7 +132,7 @@ export default function ProfileScreen() {
             >
               <View style={s.menuLeft}>
                 <View style={[s.menuIcon, { backgroundColor: theme.colors.background, borderColor: theme.colors.borderFaint }]}>
-                  <item.icon size={24} color={theme.colors.text} />
+                  <item.icon size={18} color={theme.colors.text} />
                 </View>
                 <Text variant="body">{item.label}</Text>
               </View>
@@ -183,10 +175,6 @@ export default function ProfileScreen() {
 }
 
 const s = StyleSheet.create({
-  topBar: {
-    flexDirection: 'row',
-    paddingTop: spacing.xs,
-  },
   hero: {
     alignItems: 'center',
     position: 'relative',
@@ -242,9 +230,9 @@ const s = StyleSheet.create({
     gap: spacing.sm,
   },
   menuIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.lg,
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

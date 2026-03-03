@@ -9,8 +9,8 @@ import { useChatStore } from '@/stores/chat.store'
 
 const POLL_INTERVAL_MS = 15_000
 
-const ICON_SIZE = 24
-const POST_ICON_SIZE = 24
+const ICON_SIZE = 20
+const POST_ICON_SIZE = 20
 
 export default function TabsLayout() {
   const { theme } = useUnistyles()
@@ -57,7 +57,7 @@ export default function TabsLayout() {
     }
   }, [])
 
-  const tabBarHeight = 88 + insets.bottom
+  const tabBarHeight = 78 + insets.bottom
 
   return (
     <Tabs
@@ -76,7 +76,7 @@ export default function TabsLayout() {
           borderTopColor: theme.colors.borderFaint,
           borderTopWidth: 1,
           height: tabBarHeight,
-          paddingTop: 12,
+          paddingTop: 10,
           paddingBottom: insets.bottom + 4,
           ...shadows.md,
         },
@@ -157,12 +157,12 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   postIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 52,
+    height: 52,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     ...shadows.lg,
   },
 })

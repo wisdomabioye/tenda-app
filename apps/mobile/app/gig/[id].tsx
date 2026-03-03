@@ -3,7 +3,6 @@ import { View, ScrollView, StyleSheet, Image, Alert } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import {
-  ArrowLeft,
   MapPin,
   Clock,
   Calendar,
@@ -14,8 +13,9 @@ import {
 } from 'lucide-react-native'
 import { Transaction, PublicKey } from '@solana/web3.js'
 import { Buffer } from 'buffer'
-import { spacing, radius } from '@/theme/tokens'
+import { spacing, radius, typography } from '@/theme/tokens'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
+import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
 import { IconButton } from '@/components/ui/IconButton'
 import { Avatar } from '@/components/ui/Avatar'
@@ -332,19 +332,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
-      {/* Top bar */}
-      <View style={[s.topBar, { borderBottomColor: theme.colors.borderFaint }]}>
-        <IconButton
-          icon={<ArrowLeft size={22} color={theme.colors.text} />}
-          onPress={() => router.back()}
-          variant="ghost"
-        />
-        <IconButton
-          icon={<Share2 size={20} color={theme.colors.text} />}
-          onPress={() => {}}
-          variant="ghost"
-        />
-      </View>
+      <Header showBack rightIcon={Share2} onRightPress={() => {}} />
 
       <ScrollView
         style={s.flex}
@@ -367,7 +355,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         <Spacer size={spacing.sm} />
         <Text variant="heading">{gig.title}</Text>
         <Spacer size={spacing.md} />
-        <MoneyText naira={price.naira} sol={price.sol} size={32} />
+        <MoneyText naira={price.naira} sol={price.sol} size={typography.sizes.xl} />
         <Spacer size={spacing.lg} />
 
         {/* Meta info */}
@@ -594,14 +582,6 @@ const PROOF_SIZE = 72
 
 const s = StyleSheet.create({
   flex: { flex: 1 },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderBottomWidth: 1,
-  },
   content: {
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,

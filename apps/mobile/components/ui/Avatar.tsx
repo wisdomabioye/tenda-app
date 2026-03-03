@@ -11,8 +11,8 @@ interface AvatarProps {
   size?: Size
 }
 
-const sizeMap = { sm: 32, md: 40, lg: 56, xl: 88 } as const
-const fontSizeMap = { sm: 12, md: 15, lg: 20, xl: 32 } as const
+const sizeMap = { sm: 28, md: 36, lg: 48, xl: 72 } as const
+const fontSizeMap = { sm: 11, md: 13, lg: 17, xl: 26 } as const
 
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/)

@@ -26,8 +26,8 @@ const s = StyleSheet.create({
     flex: 1,
     fontFamily: 'Inter_400Regular',
     fontSize: typography.sizes.base,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
   },
   inputWithIcon: { paddingLeft: 8 },
   footer: {

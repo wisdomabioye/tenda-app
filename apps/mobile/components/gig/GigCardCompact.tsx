@@ -58,7 +58,7 @@ export function GigCardCompact({ gig, showStatus = false }: GigCardCompactProps)
       </Text>
 
       {/* Price */}
-      <MoneyText naira={price.naira} sol={price.sol} size={typography.sizes.xl} />
+      <MoneyText naira={price.naira} sol={price.sol} size={typography.sizes.lg} />
 
       {/* Footer: location + deadline */}
       <View style={s.footer}>

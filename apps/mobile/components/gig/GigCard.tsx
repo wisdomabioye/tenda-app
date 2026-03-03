@@ -63,7 +63,7 @@ export function GigCard({ gig, showStatus = true }: GigCardProps) {
             {gig.title}
           </Text>
         </View>
-        <MoneyText naira={price.naira} sol={price.sol} size={typography.sizes.lg} />
+        <MoneyText naira={price.naira} sol={price.sol} size={typography.sizes.sm} />
       </View>
 
       <Text variant="caption" numberOfLines={2}>

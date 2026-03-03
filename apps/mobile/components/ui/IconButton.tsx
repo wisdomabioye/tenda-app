@@ -11,6 +11,7 @@ interface IconButtonProps extends Omit<PressableProps, 'children'> {
   icon: ReactNode
   variant?: Variant
   size?: Size
+  haptic?: boolean
 }
 
 const s = StyleSheet.create({
@@ -20,15 +21,16 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   disabled: { opacity: 0.5 },
-  size_sm: { width: 32, height: 32 },
-  size_md: { width: 40, height: 40 },
-  size_lg: { width: 48, height: 48 },
+  size_sm: { width: 28, height: 28 },
+  size_md: { width: 34, height: 34 },
+  size_lg: { width: 42, height: 42 },
 })
 
 export function IconButton({
   icon,
   variant = 'ghost',
   size = 'md',
+  haptic = false,
   onPress,
   disabled,
   style,
@@ -37,7 +39,7 @@ export function IconButton({
   const { theme } = useUnistyles()
 
   const handlePress = (e: any) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     onPress?.(e)
   }
 
