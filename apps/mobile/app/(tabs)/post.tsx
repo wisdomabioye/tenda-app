@@ -98,7 +98,7 @@ export default function PostGigScreen() {
     <ScreenContainer scroll={false} padding={false}>
       <KeyboardAvoidingView
         style={s.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           style={s.flex}
