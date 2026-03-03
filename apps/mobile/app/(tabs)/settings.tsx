@@ -62,7 +62,7 @@ export default function SettingsScreen() {
   return (
     <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
       <Header title="Settings" showBack />
-      <Spacer size={spacing.lg} />
+      <Spacer size={spacing.md} />
 
       {/* Theme */}
       <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
@@ -87,7 +87,7 @@ export default function SettingsScreen() {
                   <Text variant="caption" color={theme.colors.textSub}>{opt.description}</Text>
                 </View>
                 {selected && (
-                  <Check size={20} color={theme.colors.primary} />
+                  <Check size={16} color={theme.colors.primary} />
                 )}
               </Pressable>
             </View>
@@ -95,7 +95,7 @@ export default function SettingsScreen() {
         })}
       </Card>
 
-      <Spacer size={spacing.lg} />
+      <Spacer size={spacing.md} />
 
       {/* Currency */}
       <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
@@ -112,7 +112,7 @@ export default function SettingsScreen() {
         </Pressable>
       </Card>
 
-      <Spacer size={spacing.lg} />
+      <Spacer size={spacing.md} />
 
       {/* Gig Subscriptions */}
       <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
@@ -165,7 +165,7 @@ export default function SettingsScreen() {
         )}
       </Card>
 
-      <Spacer size={spacing.lg} />
+      <Spacer size={spacing.md} />
 
       {/* App info */}
       <Text variant="caption" color={theme.colors.textFaint} align="center">
@@ -184,7 +184,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 10,
     paddingHorizontal: spacing.md,
   },
   rowLeft: {
