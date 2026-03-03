@@ -28,10 +28,11 @@ export function MoneyText({ naira, sol, size }: MoneyTextProps) {
   const { theme } = useUnistyles()
 
   return (
-    <View>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
       <Text weight="bold" color={theme.colors.money} size={size}>
         {'\u20A6'}{formatNaira(naira)}
       </Text>
+      <Text variant="caption" color={theme.colors.textSub}>{'\u2248'}</Text>
       <Text variant="caption" color={theme.colors.textSub}>
         {formatSol(sol)} SOL
       </Text>
