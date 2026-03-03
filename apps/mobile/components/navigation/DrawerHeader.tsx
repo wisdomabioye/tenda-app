@@ -72,7 +72,7 @@ export function DrawerHeader({
       />
 
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
-        {RightIcon && (
+       {/*  {RightIcon && (
           <TouchableOpacity
             onPress={onRightPress}
             style={{
@@ -86,7 +86,7 @@ export function DrawerHeader({
           >
             <RightIcon size={18} color={theme.colors.primary} />
           </TouchableOpacity>
-        )}
+        )} */}
         {showAvatar && (
           <TouchableOpacity onPress={onAvatarPress} activeOpacity={0.7}>
             <Avatar src={userImage} name={userName} size="sm" />
