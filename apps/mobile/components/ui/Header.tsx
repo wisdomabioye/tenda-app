@@ -40,7 +40,7 @@ export function Header({
       styles.container,
       {
         paddingHorizontal: theme.spacing.md,
-        paddingVertical: theme.spacing.md,
+        paddingVertical: theme.spacing.sm,
       },
       transparent ? { backgroundColor: 'transparent' } : {
         backgroundColor: theme.colors.background,
@@ -62,7 +62,7 @@ export function Header({
               },
             ]}
           >
-            <ChevronLeft size={22} color={theme.colors.primary} />
+            <ChevronLeft size={18} color={theme.colors.primary} />
           </Pressable>
         )}
       </View>
@@ -73,7 +73,7 @@ export function Header({
             style={[
               styles.title,
               {
-                fontSize: theme.typography.sizes.xl,
+                fontSize: theme.typography.sizes.base,
                 color: theme.colors.text,
                 fontFamily: theme.typography.fonts.display.bold,
               },
@@ -113,7 +113,7 @@ export function Header({
               },
             ]}
           >
-            <RightIcon size={20} color={theme.colors.primary} />
+            <RightIcon size={18} color={theme.colors.primary} />
           </Pressable>
         )}
       </View>
@@ -125,10 +125,10 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 72,
+    minHeight: 52,
   },
   left: {
-    width: 52,
+    width: 40,
     alignItems: 'flex-start',
   },
   center: {
@@ -136,12 +136,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   right: {
-    width: 52,
+    width: 40,
     alignItems: 'flex-end',
   },
   iconButton: {
-    width: 44,
-    height: 44,
+    width: 36,
+    height: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },

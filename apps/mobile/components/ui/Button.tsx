@@ -31,10 +31,10 @@ const s = StyleSheet.create({
   },
   fullWidth: { width: '100%' },
   disabled: { opacity: 0.5 },
-  size_sm: { paddingVertical: 10, paddingHorizontal: 16 },
-  size_md: { paddingVertical: 14, paddingHorizontal: 22 },
-  size_lg: { paddingVertical: 18, paddingHorizontal: 28 },
-  size_xl: { paddingVertical: 22, paddingHorizontal: 32 },
+  size_sm: { paddingVertical: 7,  paddingHorizontal: 14 },
+  size_md: { paddingVertical: 10, paddingHorizontal: 18 },
+  size_lg: { paddingVertical: 13, paddingHorizontal: 22 },
+  size_xl: { paddingVertical: 15, paddingHorizontal: 24 },
   pressed: { opacity: 0.85 },
 })
 
