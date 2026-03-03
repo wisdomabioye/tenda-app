@@ -29,6 +29,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
       <TextInput
         value={text}
         onChangeText={setText}
+        maxFontSizeMultiplier={1}
         placeholder="Message…"
         placeholderTextColor={theme.colors.textFaint}
         multiline

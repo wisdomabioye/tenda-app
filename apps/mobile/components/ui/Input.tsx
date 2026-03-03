@@ -68,6 +68,7 @@ export function Input({
       <View style={[s.inputWrapper, { backgroundColor: theme.colors.input, borderColor }]}>
         {icon && <View style={s.icon}>{icon}</View>}
         <TextInput
+          maxFontSizeMultiplier={1}
           placeholderTextColor={theme.colors.textFaint}
           style={[s.input, { color: theme.colors.text }, icon ? s.inputWithIcon : undefined, style]}
           onFocus={(e) => { setFocused(true); props.onFocus?.(e) }}

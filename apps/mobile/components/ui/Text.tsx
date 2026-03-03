@@ -63,6 +63,7 @@ export function Text({
 
   return (
     <RNText
+      maxFontSizeMultiplier={1}
       style={[
         { color: variant === 'caption' ? theme.colors.textSub : theme.colors.text, fontFamily: typography.fonts.body.regular },
         variantStyles[variant],

@@ -48,8 +48,8 @@ export function DrawerHeader({
       <TouchableOpacity
         onPress={onMenuPress}
         style={{
-          width: 48,
-          height: 48,
+          width: 36,
+          height: 36,
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: theme.radius.lg,
@@ -59,14 +59,14 @@ export function DrawerHeader({
         }}
         activeOpacity={0.7}
       >
-        <Menu size={22} color={theme.colors.primary} />
+        <Menu size={18} color={theme.colors.primary} />
       </TouchableOpacity>
 
       <Image
         source={Logo}
         style={{
-          width: 120,
-          height: 112,
+          width: 36,
+          height: 34,
         }}
         contentFit="contain"
       />
@@ -76,23 +76,23 @@ export function DrawerHeader({
           <TouchableOpacity
             onPress={onRightPress}
             style={{
-              width: 44,
-              height: 44,
+              width: 36,
+              height: 36,
               alignItems: 'center',
               justifyContent: 'center',
               borderRadius: theme.radius.md,
             }}
             activeOpacity={0.7}
           >
-            <RightIcon size={24} color={theme.colors.primary} />
+            <RightIcon size={18} color={theme.colors.primary} />
           </TouchableOpacity>
         )}
         {showAvatar && (
           <TouchableOpacity onPress={onAvatarPress} activeOpacity={0.7}>
-            <Avatar src={userImage} name={userName} size="lg" />
+            <Avatar src={userImage} name={userName} size="sm" />
           </TouchableOpacity>
         )}
-        {!showAvatar && !RightIcon && <View style={{ width: 44 }} />}
+        {!showAvatar && !RightIcon && <View style={{ width: 36 }} />}
       </View>
     </View>
   );
