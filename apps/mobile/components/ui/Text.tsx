@@ -15,15 +15,15 @@ interface TextProps extends RNTextProps {
 
 const variantStyles = StyleSheet.create({
   heading: {
-    fontSize: typography.sizes['2xl'],
+    fontSize: typography.sizes.xl,
     fontFamily: typography.fonts.display.bold,
-    lineHeight: typography.sizes['2xl'] * typography.lineHeights.tight,
+    lineHeight: typography.sizes.xl * typography.lineHeights.tight,
     letterSpacing: -0.5,
   },
   subheading: {
-    fontSize: typography.sizes.lg,
-    fontFamily: typography.fonts.display.semibold,
-    lineHeight: typography.sizes.lg * typography.lineHeights.tight,
+    fontSize: typography.sizes.sm,
+    fontFamily: typography.fonts.display.medium,
+    lineHeight: typography.sizes.sm * typography.lineHeights.tight,
     letterSpacing: -0.3,
   },
   body: {

@@ -111,10 +111,10 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
         activeOpacity={0.7}
         style={[s.userCard, { backgroundColor: theme.colors.muted }]}
       >
-        <Avatar src={user?.avatar_url} name={fullName} size="lg" />
+        <Avatar src={user?.avatar_url} name={fullName} size="sm" />
         <View style={s.userMeta}>
           <Text
-            variant="body"
+            variant="label"
             weight="semibold"
           >
             {fullName}
@@ -134,8 +134,8 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
         {NAV_SECTIONS.map((section) => (
           <View key={section.title} style={s.section}>
             <Text
-              variant="caption"
-              weight="bold"
+              variant="subheading"
+              weight="medium"
               color={theme.colors.textFaint}
               style={s.sectionTitle}
             >
@@ -163,7 +163,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
                       },
                     ]}
                   >
-                    <Icon size={24} color={theme.colors.text} />
+                    <Icon size={18} color={theme.colors.text} />
                   </View>
                   <View style={s.navText}>
                     <Text variant="body" weight="semibold">
@@ -210,8 +210,8 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
   },
   logo: {
-    width: 100,
-    height: 36,
+    width: 65,
+    height: 22,
   },
   closeBtn: {
     width: 36,
@@ -240,11 +240,11 @@ const s = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   section: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   sectionTitle: {
     letterSpacing: 0.5,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.lg,
     marginBottom: spacing.sm,
   },
   navItem: {
@@ -257,8 +257,8 @@ const s = StyleSheet.create({
     gap: spacing.md,
   },
   navIcon: {
-    width: 52,
-    height: 52,
+    width: 44,
+    height: 44,
     borderRadius: radius.lg,
     borderWidth: 1,
     alignItems: 'center',

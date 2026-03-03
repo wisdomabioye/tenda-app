@@ -152,7 +152,7 @@ export default function HomeScreen() {
             }
             ListEmptyComponent={
               <EmptyState
-                icon={<SearchIcon size={40} color={theme.colors.textFaint} />}
+                icon={<SearchIcon size={36} color={theme.colors.textFaint} />}
                 title="No gigs found"
                 description="Try adjusting your filters or check back later"
               />
@@ -181,7 +181,7 @@ export default function HomeScreen() {
 const s = StyleSheet.create({
   list: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
+    paddingTop: spacing.xs,
   },
   feedRow: {
     flexDirection: 'row',
