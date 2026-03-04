@@ -187,7 +187,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
             style={[s.logoutBtn, { backgroundColor: theme.colors.muted }]}
           >
             <LogOut size={18} color={theme.colors.danger} />
-            <Text variant="body" weight="medium" color={theme.colors.dangerTint}>
+            <Text variant="body" weight="medium" color={theme.colors.danger}>
               Sign Out
             </Text>
           </TouchableOpacity>
