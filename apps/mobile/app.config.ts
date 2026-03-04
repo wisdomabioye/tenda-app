@@ -23,7 +23,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/images/logo-light.png',
     },
     package: 'com.usetenda.app',
-    predictiveBackGestureEnabled: false,
+    predictiveBackGestureEnabled: true,
   },
   web: {
     output: 'static',
