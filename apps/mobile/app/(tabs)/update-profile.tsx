@@ -67,7 +67,7 @@ export default function UpdateProfileScreen() {
     <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
       <KeyboardAvoidingView
         style={s.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           style={s.flex}
@@ -75,11 +75,11 @@ export default function UpdateProfileScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <Header title="Update Profile" showBack />
-          <Spacer size={spacing.lg} />
+          <Spacer size={spacing.md} />
 
           {/* Avatar */}
           <View style={s.avatarSection}>
-            <Avatar size="xl" name={fullName} src={avatarPreview} />
+            <Avatar size="lg" name={fullName} src={avatarPreview} />
             <Spacer size={spacing.sm} />
             <FilePicker
               files={avatarFile}
@@ -93,7 +93,7 @@ export default function UpdateProfileScreen() {
             />
           </View>
 
-          <Spacer size={spacing.lg} />
+          <Spacer size={spacing.md} />
 
           {/* Personal info */}
           <Card variant="outlined" padding={spacing.md}>
@@ -102,7 +102,7 @@ export default function UpdateProfileScreen() {
 
             <Input
               label="First name"
-              placeholder="e.g. Chioma"
+              placeholder="e.g. Akin"
               value={firstName}
               onChangeText={setFirstName}
             />
@@ -110,7 +110,7 @@ export default function UpdateProfileScreen() {
 
             <Input
               label="Last name"
-              placeholder="e.g. Eze"
+              placeholder="e.g. Beela"
               value={lastName}
               onChangeText={setLastName}
             />
@@ -127,7 +127,7 @@ export default function UpdateProfileScreen() {
             />
           </Card>
 
-          <Spacer size={spacing.lg} />
+          <Spacer size={spacing.md} />
 
           {/* City */}
           <Card variant="outlined" padding={spacing.md}>
@@ -136,11 +136,11 @@ export default function UpdateProfileScreen() {
             <CityPicker value={selectedCity} onChange={setSelectedCity} label="" />
           </Card>
 
-          <Spacer size={spacing['2xl']} />
+          <Spacer size={spacing.lg} />
 
           <Button
             variant="primary"
-            size="xl"
+            size="lg"
             fullWidth
             loading={isLoading}
             onPress={handleSave}
@@ -148,7 +148,7 @@ export default function UpdateProfileScreen() {
             Save Changes
           </Button>
 
-          <Spacer size={spacing.xl} />
+          <Spacer size={spacing.md} />
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenContainer>

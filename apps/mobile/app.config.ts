@@ -7,7 +7,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '0.0.1',
   scheme: ['tenda'],
   orientation: 'portrait',
-  icon: './assets/images/tenda-dark.png',
+  icon: './assets/images/logo-light.png',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   ios: {
@@ -18,9 +18,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     adaptiveIcon: {
-      foregroundImage: './assets/images/tenda-transparent-light.png',
-      backgroundColor: '#3b82f6',
-      monochromeImage: './assets/images/tenda-monochrome.png',
+      foregroundImage: './assets/images/logo-light.png',
+      backgroundColor: '#1b1b1b',
+      monochromeImage: './assets/images/logo-light.png',
     },
     package: 'com.usetenda.app',
     predictiveBackGestureEnabled: false,
@@ -40,20 +40,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-notifications',
       {
-        icon: './assets/images/tenda-dark.png',
-        color: '#3b82f6',
+        icon: './assets/images/logo-light.png',
+        color: '#1b1b1b',
         defaultChannel: 'default',
       },
     ],
     [
       'expo-splash-screen',
       {
-        image: './assets/images/tenda-full-light-transparent.png',
+        image: './assets/images/logo-light.png',
         imageWidth: 350,
         resizeMode: 'contain',
-        backgroundColor: '#3b82f6',
+        backgroundColor: '#1b1b1b',
         dark: {
-          backgroundColor: '#000000',
+          backgroundColor: '#1b1b1b',
         },
       }
     ],

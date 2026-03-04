@@ -89,7 +89,7 @@ export function DrawerHeader({
         )} */}
         {showAvatar && (
           <TouchableOpacity onPress={onAvatarPress} activeOpacity={0.7}>
-            <Avatar src={userImage} name={userName} size="sm" />
+            <Avatar src={userImage} name={userName} size="md" />
           </TouchableOpacity>
         )}
         {!showAvatar && !RightIcon && <View style={{ width: 36 }} />}
