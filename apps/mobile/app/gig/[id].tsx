@@ -31,6 +31,8 @@ import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { GigCTABar } from './_components/GigCTABar'
 import { GigActionSheets } from './_components/GigActionSheets'
+import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
+import { useOnboardingStore } from '@/stores/onboarding.store'
 import { getCategoryColor, CATEGORY_META } from '@/data/mock'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
@@ -72,6 +74,16 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const [pendingAcceptTx, setPendingAcceptTx] = useState<Transaction | null>(null)
   const [pendingSyncId, setPendingSyncId] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
+  const [showAcceptNudge, setShowAcceptNudge] = useState(false)
+  const { dismissedNudges } = useOnboardingStore()
+
+  const isWorkerOpportunity = gig.status === 'open' && gig.poster_id !== userId
+
+  useFocusEffect(useCallback(() => {
+    if (isWorkerOpportunity && !dismissedNudges.accept) {
+      setShowAcceptNudge(true)
+    }
+  }, [isWorkerOpportunity, dismissedNudges.accept]))
 
   const categoryMeta = CATEGORY_META.find((c) => c.key === gig.category)
   const categoryColorKey = getCategoryColor(gig.category) as keyof ColorScheme
@@ -331,6 +343,15 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   }
 
   return (
+    <>
+    <NudgeSheet
+      visible={showAcceptNudge}
+      nudgeKey="accept"
+      title="Accepting your first gig"
+      body="Once you accept, the payment is already locked in escrow, you just need to complete the work and submit proof. The poster approves and you get paid instantly."
+      guideRoute="/(support)/working"
+      onClose={() => setShowAcceptNudge(false)}
+    />
     <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
       <Header showBack rightIcon={Share2} onRightPress={() => {}} />
 
@@ -531,6 +552,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         }}
       />
     </ScreenContainer>
+    </>
   )
 }
 

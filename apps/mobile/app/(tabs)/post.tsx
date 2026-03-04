@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
@@ -18,6 +18,8 @@ import { CityPicker } from '@/components/form/CityPicker'
 import { CATEGORY_META } from '@/data/mock'
 import { isValidPaymentLamports, MIN_COMPLETION_DURATION_SECONDS } from '@tenda/shared'
 import { api } from '@/api/client'
+import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
+import { useOnboardingStore } from '@/stores/onboarding.store'
 import type { ColorScheme } from '@/theme/tokens'
 import type { GigCategory } from '@tenda/shared'
 
@@ -55,6 +57,12 @@ export default function PostGigScreen() {
   const [acceptDeadlineHours, setAcceptDeadlineHours] = useState<number | null>(null)
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showNudge, setShowNudge] = useState(false)
+  const { dismissedNudges } = useOnboardingStore()
+
+  useEffect(() => {
+    if (!dismissedNudges.post) setShowNudge(true)
+  }, [])
 
   const isValid =
     title.trim().length > 0 &&
@@ -95,6 +103,15 @@ export default function PostGigScreen() {
   const descriptionHint = selectedCategory ? CATEGORY_HINTS[selectedCategory] : 'Include scope, requirements, and expectations'
 
   return (
+    <>
+    <NudgeSheet
+      visible={showNudge}
+      nudgeKey="post"
+      title="Posting your first gig"
+      body="Your payment is locked upfront in escrow, workers only see confirmed gigs with guaranteed funds. You approve the work before anyone gets paid."
+      guideRoute="/(support)/posting"
+      onClose={() => setShowNudge(false)}
+    />
     <ScreenContainer scroll={false} padding={false}>
       <KeyboardAvoidingView
         style={s.flex}
@@ -239,6 +256,7 @@ export default function PostGigScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
     </ScreenContainer>
+    </>
   )
 }
 
