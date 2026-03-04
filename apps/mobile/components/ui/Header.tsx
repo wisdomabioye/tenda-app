@@ -1,7 +1,7 @@
 import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
-import { ChevronLeft } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Text } from '@/components/ui/Text';
 
@@ -52,17 +52,9 @@ export function Header({
         {showBack && (
           <Pressable
             onPress={handleBack}
-            style={[
-              styles.iconButton,
-              {
-                backgroundColor: theme.colors.surface,
-                borderRadius: theme.radius.lg,
-                borderWidth: 1,
-                borderColor: theme.colors.border,
-              },
-            ]}
+            style={styles.backButton}
           >
-            <ChevronLeft size={18} color={theme.colors.primary} />
+            <ArrowLeft size={22} color={theme.colors.text} />
           </Pressable>
         )}
       </View>
@@ -144,6 +136,9 @@ const styles = StyleSheet.create({
     height: 36,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  backButton: {
+    padding: 4,
   },
   title: {
     fontWeight: '700',
