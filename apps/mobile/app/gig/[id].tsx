@@ -570,7 +570,7 @@ export default function GigDetailScreen() {
     }, [id]), // eslint-disable-line react-hooks/exhaustive-deps
   )
 
-  if (isLoading && !selectedGig) return <LoadingScreen />
+  if (isLoading && (!selectedGig || selectedGig.id !== id)) return <LoadingScreen />
 
   if (error && !selectedGig) {
     return (
