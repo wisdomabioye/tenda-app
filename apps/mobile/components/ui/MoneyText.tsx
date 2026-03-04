@@ -1,27 +1,14 @@
 import { View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text } from './Text'
+import { formatNaira, formatSolDisplay } from '@/lib/currency'
 
 interface MoneyTextProps {
   /** Fiat value in naira (whole number, not kobo) */
   naira: number
-  /** SOL amount */
+  /** SOL amount (not lamports) */
   sol: number
   size?: number
-}
-
-function formatNaira(value: number): string {
-  return value.toLocaleString('en-NG', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  })
-}
-
-function formatSol(value: number): string {
-  return value.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 4,
-  })
 }
 
 export function MoneyText({ naira, sol, size }: MoneyTextProps) {
@@ -30,11 +17,11 @@ export function MoneyText({ naira, sol, size }: MoneyTextProps) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
       <Text weight="bold" color={theme.colors.money} size={size}>
-        {'\u20A6'}{formatNaira(naira)}
+        {formatNaira(naira)}
       </Text>
       <Text variant="caption" color={theme.colors.textSub}>{'\u2248'}</Text>
       <Text variant="caption" color={theme.colors.textSub}>
-        {formatSol(sol)} SOL
+        {formatSolDisplay(sol)}
       </Text>
     </View>
   )

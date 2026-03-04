@@ -23,6 +23,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
+import { useOnboardingStore } from '@/stores/onboarding.store'
 import { ToastProvider } from '@/components/ui/Toast'
 import { configureNotifications } from '@/lib/notifications'
 import '@/theme';
@@ -53,6 +54,7 @@ export default function RootLayout() {
       useAuthStore.getState().loadSession(),
       useExchangeRateStore.getState().fetchRate(),
       useSettingsStore.getState().loadSettings(),
+      useOnboardingStore.getState().load(),
     ]).then(() => {
       usePendingSyncStore.getState().replayAll()
     }).finally(() => setSessionLoaded(true))
@@ -103,6 +105,8 @@ export default function RootLayout() {
           <Stack.Screen name="index" />
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="onboarding" />
+          <Stack.Screen name="(support)" />
           <Stack.Screen name="error" />
           <Stack.Screen name="gig/[id]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="chat/[userId]" />

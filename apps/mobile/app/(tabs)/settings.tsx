@@ -1,12 +1,12 @@
 import { useCallback, useState } from 'react'
 import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { spacing, radius } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Card, Divider, Header } from '@/components/ui'
 import { ErrorState } from '@/components/feedback'
 import { useSettingsStore } from '@/stores/settings.store'
-import { Check, Bell, Trash2 } from 'lucide-react-native'
+import { Check, Bell, Trash2, HelpCircle, ChevronRight } from 'lucide-react-native'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
 import type { GigSubscription } from '@tenda/shared'
@@ -21,6 +21,7 @@ const THEME_OPTIONS: Array<{ value: Theme; label: string; description: string }>
 
 export default function SettingsScreen() {
   const { theme } = useUnistyles()
+  const router = useRouter()
   const { theme: currentTheme, setTheme } = useSettingsStore()
   const [subscriptions, setSubscriptions] = useState<GigSubscription[]>([])
   const [loadingSubs,   setLoadingSubs]   = useState(false)
@@ -163,6 +164,31 @@ export default function SettingsScreen() {
             </Pressable>
           </>
         )}
+      </Card>
+
+      <Spacer size={spacing.md} />
+
+      {/* Help */}
+      <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
+        HELP
+      </Text>
+      <Spacer size={spacing.sm} />
+      <Card variant="outlined" padding={0}>
+        <Pressable
+          onPress={() => router.push('/(support)' as Parameters<typeof router.push>[0])}
+          style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surfacePressed }]}
+        >
+          <View style={s.rowLeft}>
+            <View style={s.subIconRow}>
+              <HelpCircle size={14} color={theme.colors.primary} />
+              <Text weight="medium">Help & Guide</Text>
+            </View>
+            <Text variant="caption" color={theme.colors.textSub}>
+              Wallets, gigs, payments, glossary and FAQ
+            </Text>
+          </View>
+          <ChevronRight size={16} color={theme.colors.textFaint} />
+        </Pressable>
       </Card>
 
       <Spacer size={spacing.md} />

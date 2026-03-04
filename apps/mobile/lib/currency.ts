@@ -19,7 +19,12 @@ export function toPaymentDisplay(paymentLamports: number, solToNgn: number): Pay
 /** Format lamports as a SOL string, e.g. "0.05 SOL" */
 export function formatSol(lamports: number): string {
   const sol = lamports / LAMPORTS_PER_SOL
-  return `${sol.toLocaleString('en-NG', { maximumFractionDigits: 4 })} SOL`
+  return `${sol.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} SOL`
+}
+
+/** Format a SOL amount (already in SOL, not lamports) as a display string, e.g. "0.05 SOL" */
+export function formatSolDisplay(sol: number): string {
+  return `${sol.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} SOL`
 }
 
 /** Format naira amount, e.g. "₦120,000" */

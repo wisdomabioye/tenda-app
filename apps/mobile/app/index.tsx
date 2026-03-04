@@ -5,7 +5,7 @@ export default function Index() {
   const { isAuthenticated, user, jwt } = useAuthStore()
 
   if (isAuthenticated && user && jwt) {
-    return <Redirect href={'/(tabs)/home'} />
+    return <Redirect href="/(tabs)/home" />
   }
 
   return <Redirect href="/(auth)/welcome" />

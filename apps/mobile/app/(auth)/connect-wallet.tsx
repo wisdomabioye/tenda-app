@@ -13,10 +13,9 @@ import { Spacer } from '@/components/ui/Spacer'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { useAuthStore } from '@/stores/auth.store'
 import { connectAndSignAuthMessage, WalletError } from '@/wallet'
+import { APP_INFO } from '@/lib/app-info'
 
 const Logo = require('@/assets/images/logo.png')
-
-const PHANTOM_PLAY_STORE = 'https://play.google.com/store/apps/details?id=app.phantom'
 
 const FEATURES = [
   {
@@ -51,7 +50,7 @@ function classifyError(error: unknown): ConnectError {
           title: 'No wallet found',
           description: 'Install Phantom or Solflare on your device, then come back to connect.',
           secondaryLabel: 'Get Phantom',
-          onSecondaryPress: () => Linking.openURL(PHANTOM_PLAY_STORE),
+          onSecondaryPress: () => Linking.openURL(APP_INFO.wallets.phantom.playStore),
         }
       case 'declined':
         return {
@@ -195,9 +194,18 @@ export default function ConnectWalletScreen() {
                 Connect Wallet
               </Button>
               <Spacer size={spacing.md} />
-              <Text variant="caption" align="center" color={theme.colors.textFaint}>
-                By connecting, you agree to our Terms of Service
-              </Text>
+              {isConnecting && (
+                <View style={s.solfareTip}>
+                  <Text variant="caption" align="center" color={theme.colors.textSub}>
+                    Using Solflare? Back up your seed phrase if prompted, then press ← back to return.
+                  </Text>
+                </View>
+              )}
+              {!isConnecting && (
+                <Text variant="caption" align="center" color={theme.colors.textFaint}>
+                  By connecting, you agree to our Terms of Service
+                </Text>
+              )}
             </View>
           </>
         )}
@@ -247,5 +255,8 @@ const s = StyleSheet.create({
   },
   cta: {
     width: '100%',
+  },
+  solfareTip: {
+    paddingHorizontal: spacing.sm,
   },
 })
