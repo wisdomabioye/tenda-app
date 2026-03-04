@@ -8,8 +8,8 @@ export default function ErrorRoute() {
   return (
     <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
       <ErrorState
-        title="Wallet not found"
-        description="No Solana wallet app was detected. Install a wallet (e.g., Phantom or Solflare) and try again."
+        title="Unexpected error"
+        description="Something went wrong on our end. Please try connecting again."
         ctaLabel="Back to connect"
         onCtaPress={() => router.replace('/(auth)/connect-wallet')}
       />

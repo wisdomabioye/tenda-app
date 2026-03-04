@@ -61,6 +61,7 @@ async function authorizeSession(wallet: Web3MobileWallet, authToken?: string) {
     try {
       return await wallet.reauthorize({ auth_token: authToken, identity: APP_IDENTITY })
     } catch (err) {
+      if (isMwaUserDeclined(err)) throw err  // user explicitly declined — don't retry
       if (!isMwaStaleAuth(err)) throw err
       // Token expired/revoked — fall through to fresh authorize in the same session.
       // The WebSocket is still open after a JSON-RPC error; a new authorize request works fine.
@@ -75,6 +76,19 @@ async function authorizeSession(wallet: Web3MobileWallet, authToken?: string) {
 
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 500
+
+export type WalletErrorCode = 'no_wallet' | 'declined' | 'network' | 'unknown'
+
+export class WalletError extends Error {
+  constructor(
+    public readonly code: WalletErrorCode,
+    message: string,
+    public readonly cause?: unknown,
+  ) {
+    super(message)
+    this.name = 'WalletError'
+  }
+}
 
 interface MwaError {
   name: string
@@ -99,10 +113,17 @@ function isMwaTransient(err: unknown): boolean {
 }
 
 function isMwaUserDeclined(err: unknown): boolean {
+  if (!isMwaError(err)) return false
+  if (err.name === 'SolanaMobileWalletAdapterError' && err.message.includes('AuthorizationDeclined')) return true
+  if (err.name === 'SolanaMobileWalletAdapterProtocolError' && err.message.startsWith('-1/')) return true
+  return false
+}
+
+function isMwaNoWallet(err: unknown): boolean {
   return (
     isMwaError(err) &&
     err.name === 'SolanaMobileWalletAdapterError' &&
-    err.message.includes('AuthorizationDeclined')
+    err.message.includes('no installed wallet')
   )
 }
 
@@ -162,10 +183,7 @@ export async function connectAndSignAuthMessage(
         }
       })
     } catch (err: unknown) {
-      if (isMwaUserDeclined(err)) {
-        console.log('User declined authorization')
-        return null
-      }
+      if (isMwaUserDeclined(err)) return null
 
       if (isMwaTransient(err) && attempt < MAX_RETRIES) {
         console.log(`MWA transient error, retrying (${attempt}/${MAX_RETRIES})...`)
@@ -173,8 +191,15 @@ export async function connectAndSignAuthMessage(
         continue
       }
 
-      console.error('Wallet connect failed:', err)
-      throw err
+      if (isMwaNoWallet(err)) {
+        throw new WalletError('no_wallet', 'No wallet app installed', err)
+      }
+
+      if (isMwaError(err) && (err.message.includes('network') || err.message.includes('timeout'))) {
+        throw new WalletError('network', 'Network error during wallet connect', err)
+      }
+
+      throw new WalletError('unknown', isMwaError(err) ? err.message : 'Unexpected wallet error', err)
     }
   }
 

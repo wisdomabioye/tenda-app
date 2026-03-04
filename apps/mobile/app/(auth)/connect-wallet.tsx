@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, Linking } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Image } from 'expo-image'
 import { useUnistyles } from 'react-native-unistyles'
@@ -10,10 +10,13 @@ import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import { Spacer } from '@/components/ui/Spacer'
+import { ErrorState } from '@/components/feedback/ErrorState'
 import { useAuthStore } from '@/stores/auth.store'
-import { connectAndSignAuthMessage } from '@/wallet'
+import { connectAndSignAuthMessage, WalletError } from '@/wallet'
 
 const Logo = require('@/assets/images/logo.png')
+
+const PHANTOM_PLAY_STORE = 'https://play.google.com/store/apps/details?id=app.phantom'
 
 const FEATURES = [
   {
@@ -33,18 +36,76 @@ const FEATURES = [
   },
 ] as const
 
+type ConnectError = {
+  title: string
+  description: string
+  secondaryLabel?: string
+  onSecondaryPress?: () => void
+}
+
+function classifyError(error: unknown): ConnectError {
+  if (error instanceof WalletError) {
+    switch (error.code) {
+      case 'no_wallet':
+        return {
+          title: 'No wallet found',
+          description: 'Install Phantom or Solflare on your device, then come back to connect.',
+          secondaryLabel: 'Get Phantom',
+          onSecondaryPress: () => Linking.openURL(PHANTOM_PLAY_STORE),
+        }
+      case 'declined':
+        return {
+          title: 'Connection cancelled',
+          description: 'You closed the wallet prompt. Tap below to try again.',
+        }
+      case 'network':
+        return {
+          title: 'No connection',
+          description: 'Check your internet connection and try again.',
+        }
+      case 'unknown':
+      default:
+        return {
+          title: 'Something went wrong',
+          description: 'An unexpected error occurred. Please try again.',
+        }
+    }
+  }
+
+  // Server-side errors (thrown after wallet connect, during authenticateWithWallet)
+  const status = (error as any)?.statusCode ?? (error as any)?.status
+  if (status === 401 || status === 403) {
+    return {
+      title: 'Sign-in failed',
+      description: "The server couldn't verify your wallet. Please try again.",
+    }
+  }
+
+  const message = error instanceof Error ? error.message.toLowerCase() : ''
+  if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
+    return {
+      title: 'No connection',
+      description: 'Check your internet connection and try again.',
+    }
+  }
+
+  return {
+    title: 'Something went wrong',
+    description: 'An unexpected error occurred. Please try again.',
+  }
+}
+
 export default function ConnectWalletScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
   const [isConnecting, setIsConnecting] = useState(false)
-  const [connectNotice, setConnectNotice] = useState<string | null>(null)
+  const [connectError, setConnectError] = useState<ConnectError | null>(null)
   const { authenticateWithWallet, mwaAuthToken } = useAuthStore()
 
   const handleConnectWallet = async () => {
+    setIsConnecting(true)
+    setConnectError(null)
     try {
-      setIsConnecting(true)
-      setConnectNotice(null)
-
       const result = await connectAndSignAuthMessage(mwaAuthToken ?? undefined)
 
       if (result) {
@@ -52,14 +113,16 @@ export default function ConnectWalletScreen() {
           { wallet_address: result.session.walletAddress, signature: result.signature, message: result.message },
           { mwaAuthToken: result.session.authToken, walletAddress: result.session.walletAddress },
         )
-
         router.replace('/(tabs)/home')
       } else {
-        setConnectNotice('Connection was cancelled. You can try again anytime.')
+        setConnectError({
+          title: 'Connection cancelled',
+          description: 'You closed the wallet prompt. Tap below to try again.',
+        })
       }
     } catch (error) {
-      console.log('error', error)
-      router.replace('/error')
+      console.log('connect error', error)
+      setConnectError(classifyError(error))
     } finally {
       setIsConnecting(false)
     }
@@ -70,72 +133,74 @@ export default function ConnectWalletScreen() {
       <View style={s.screen}>
         <Header showBack transparent />
 
-        <Spacer flex={1} />
+        {connectError ? (
+          <ErrorState
+            title={connectError.title}
+            description={connectError.description}
+            ctaLabel="Try again"
+            onCtaPress={() => setConnectError(null)}
+            secondaryLabel={connectError.secondaryLabel}
+            onSecondaryPress={connectError.onSecondaryPress}
+          />
+        ) : (
+          <>
+            <Spacer flex={1} />
 
-        {/* Hero section */}
-        <View style={s.hero}>
-          <View style={[s.walletIconCircle, { backgroundColor: theme.colors.primaryTint }]}>
-            <Image source={Logo} style={s.logo} contentFit="contain" />
-          </View>
-          <Spacer size={spacing.md} />
-          <Text variant="heading" align="center">
-            Connect your wallet
-          </Text>
-          <Spacer size={spacing.sm} />
-          <Text variant="body" align="center" color={theme.colors.textSub}>
-            Link a Solana wallet to start posting{'\n'}and accepting gigs on Tenda
-          </Text>
-        </View>
-
-        <Spacer size={spacing['2xl']} />
-
-        {/* Feature list */}
-        <View style={s.features}>
-          {FEATURES.map(({ Icon, title, description }) => (
-            <View key={title} style={s.featureRow}>
-              <View style={[s.featureIcon, { backgroundColor: theme.colors.primaryTint }]}>
-                <Icon size={18} color={theme.colors.primary} />
+            {/* Hero section */}
+            <View style={s.hero}>
+              <View style={[s.walletIconCircle, { backgroundColor: theme.colors.primaryTint }]}>
+                <Image source={Logo} style={s.logo} contentFit="contain" />
               </View>
-              <View style={s.featureText}>
-                <Text variant="label" weight="bold">{title}</Text>
-                <Text variant="caption" color={theme.colors.textSub}>
-                  {description}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <Spacer flex={2} />
-
-        {/* CTA */}
-        <View style={s.cta}>
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth
-            loading={isConnecting}
-            icon={<Wallet size={18} color={theme.colors.onPrimary} />}
-            onPress={(handleConnectWallet)}
-          >
-            Connect Wallet
-          </Button>
-          {connectNotice ? (
-            <View style={[s.notice, { backgroundColor: theme.colors.warningTint }]}>
-              <Text variant="caption" color={theme.colors.onWarning}>
-                {connectNotice}
+              <Spacer size={spacing.md} />
+              <Text variant="heading" align="center">
+                Connect your wallet
+              </Text>
+              <Spacer size={spacing.sm} />
+              <Text variant="body" align="center" color={theme.colors.textSub}>
+                Link a Solana wallet to start posting{'\n'}and accepting gigs on Tenda
               </Text>
             </View>
-          ) : null}
-          <Spacer size={spacing.md} />
-          <Text
-            variant="caption"
-            align="center"
-            color={theme.colors.textFaint}
-          >
-            By connecting, you agree to our Terms of Service
-          </Text>
-        </View>
+
+            <Spacer size={spacing.md} />
+
+            {/* Feature list */}
+            <View style={s.features}>
+              {FEATURES.map(({ Icon, title, description }) => (
+                <View key={title} style={s.featureRow}>
+                  <View style={[s.featureIcon, { backgroundColor: theme.colors.primaryTint }]}>
+                    <Icon size={18} color={theme.colors.primary} />
+                  </View>
+                  <View style={s.featureText}>
+                    <Text variant="label" weight="bold">{title}</Text>
+                    <Text variant="caption" color={theme.colors.textSub}>
+                      {description}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+
+            <Spacer flex={2} />
+
+            {/* CTA */}
+            <View style={s.cta}>
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                loading={isConnecting}
+                icon={<Wallet size={18} color={theme.colors.onPrimary} />}
+                onPress={handleConnectWallet}
+              >
+                Connect Wallet
+              </Button>
+              <Spacer size={spacing.md} />
+              <Text variant="caption" align="center" color={theme.colors.textFaint}>
+                By connecting, you agree to our Terms of Service
+              </Text>
+            </View>
+          </>
+        )}
       </View>
     </ScreenContainer>
   )
@@ -182,12 +247,5 @@ const s = StyleSheet.create({
   },
   cta: {
     width: '100%',
-  },
-  notice: {
-    marginTop: spacing.sm,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.md,
-    alignItems: 'center',
   },
 })
