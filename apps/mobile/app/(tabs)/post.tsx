@@ -92,7 +92,7 @@ export default function PostGigScreen() {
         accept_deadline,
       })
       showToast('success', 'Draft saved! Publish it from the gig page.')
-      router.push(`/gig/${gig.id}` as any)
+      router.replace(`/gig/${gig.id}` as any)
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to create gig')
     } finally {
