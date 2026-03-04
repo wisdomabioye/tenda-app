@@ -45,7 +45,7 @@ const NAV_SECTIONS: NavSection[] = [
 ];
 
 interface DrawerContentProps {
-  onClose: () => void;
+  onClose: (callback?: () => void) => void;
   onNavigate?: (route: string) => void;
 }
 
@@ -61,23 +61,24 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
     .join(' ') || 'Anonymous';
 
   const handleNavigate = (route: string) => {
-    onClose();
-    if (onNavigate) {
-      onNavigate(route);
-    } else {
-      router.push(route as never);
-    }
+    onClose(() => {
+      if (onNavigate) {
+        onNavigate(route);
+      } else {
+        router.push(route as never);
+      }
+    });
   };
 
-  const handleLogout = async () => {
-    onClose();
-    await logout();
-    router.replace('/(auth)/welcome');
+  const handleLogout = () => {
+    onClose(async () => {
+      await logout();
+      router.replace('/(auth)/welcome');
+    });
   };
 
   const handleProfilePress = () => {
-    onClose();
-    router.push('/(tabs)/profile');
+    onClose(() => router.push('/(tabs)/profile'));
   };
 
   return (
@@ -97,7 +98,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
       >
         <Image source={Logo} style={s.logo} contentFit="contain" />
         <TouchableOpacity
-          onPress={onClose}
+          onPress={() => onClose()}
           style={[s.closeBtn, { backgroundColor: theme.colors.muted }]}
           activeOpacity={0.7}
         >

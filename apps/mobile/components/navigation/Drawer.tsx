@@ -60,11 +60,13 @@ export function Drawer({ isOpen, onClose, onOpen, onNavigate, children }: Drawer
     scheduleOnRN(onClose);
   }, [onClose, translateX, overlayOpacity]);
 
-  const handleClose = useCallback(() => {
-    // ensure UI closes even if parent state lags
-    translateX.value = withSpring(-DRAWER_WIDTH, SPRING_CONFIG);
-    overlayOpacity.value = withTiming(0, { duration: 200 });
-    onClose();
+  const handleClose = useCallback((callback?: () => void) => {
+    translateX.value = withTiming(-DRAWER_WIDTH, { duration: 220 }, (finished) => {
+      'worklet';
+      if (finished) scheduleOnRN(onClose);
+    });
+    overlayOpacity.value = withTiming(0, { duration: 220 });
+    if (callback) callback();
   }, [onClose, translateX, overlayOpacity]);
 
   const openDrawer = useCallback(() => {
@@ -155,7 +157,7 @@ export function Drawer({ isOpen, onClose, onOpen, onNavigate, children }: Drawer
             overlayAnimatedStyle,
           ]}
         >
-          <Pressable style={styles.overlayPressable} onPress={handleClose} />
+          <Pressable style={styles.overlayPressable} onPress={() => handleClose()} />
         </Animated.View>
       )}
 
