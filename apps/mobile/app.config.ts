@@ -23,6 +23,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/images/logo-light.png',
     },
     package: 'com.usetenda.app',
+    googleServicesFile: './google-services.json',
     predictiveBackGestureEnabled: true,
   },
   web: {

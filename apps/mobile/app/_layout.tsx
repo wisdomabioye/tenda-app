@@ -26,6 +26,7 @@ import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { ToastProvider } from '@/components/ui/Toast'
 import { configureNotifications } from '@/lib/notifications'
+import { usePushToken } from '@/hooks/usePushToken'
 import '@/theme';
 
 configureNotifications()
@@ -35,6 +36,7 @@ SplashScreen.preventAutoHideAsync()
 export default function RootLayout() {
   const { theme } = useUnistyles();
   const router = useRouter()
+  usePushToken()
   const [sessionLoaded, setSessionLoaded] = useState(false)
 
   const [fontsLoaded, fontError] = useFonts({

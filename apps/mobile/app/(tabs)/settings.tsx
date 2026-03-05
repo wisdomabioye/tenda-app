@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react'
-import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
+import { View, Pressable, StyleSheet, ActivityIndicator, Linking } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useFocusEffect, useRouter } from 'expo-router'
+import * as Notifications from 'expo-notifications'
 import { spacing, radius } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Card, Divider, Header } from '@/components/ui'
 import { ErrorState } from '@/components/feedback'
 import { useSettingsStore } from '@/stores/settings.store'
-import { Check, Bell, Trash2, HelpCircle, ChevronRight } from 'lucide-react-native'
+import { Check, Bell, BellOff, Trash2, HelpCircle, ChevronRight } from 'lucide-react-native'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
 import type { GigSubscription } from '@tenda/shared'
@@ -26,6 +27,7 @@ export default function SettingsScreen() {
   const [subscriptions, setSubscriptions] = useState<GigSubscription[]>([])
   const [loadingSubs,   setLoadingSubs]   = useState(false)
   const [subsError,     setSubsError]     = useState(false)
+  const [notifDenied,   setNotifDenied]   = useState(false)
 
   const loadSubscriptions = useCallback(() => {
     setLoadingSubs(true)
@@ -36,7 +38,12 @@ export default function SettingsScreen() {
       .finally(() => setLoadingSubs(false))
   }, [])
 
-  useFocusEffect(loadSubscriptions)
+  useFocusEffect(useCallback(() => {
+    loadSubscriptions()
+    Notifications.getPermissionsAsync().then(({ status }) => {
+      setNotifDenied(status === 'denied')
+    })
+  }, [loadSubscriptions]))
 
   async function addSubscription() {
     try {
@@ -120,6 +127,21 @@ export default function SettingsScreen() {
         GIG NOTIFICATIONS
       </Text>
       <Spacer size={spacing.sm} />
+      {notifDenied && (
+        <>
+          <Pressable
+            onPress={() => Linking.openSettings()}
+            style={({ pressed }) => [s.notifBanner, pressed && { opacity: 0.7 }]}
+          >
+            <BellOff size={14} color={theme.colors.textSub} />
+            <Text variant="caption" color={theme.colors.textSub} style={s.notifBannerText}>
+              Notifications are off —{' '}
+              <Text variant="caption" color={theme.colors.primary}>Enable in Settings</Text>
+            </Text>
+          </Pressable>
+          <Spacer size={spacing.sm} />
+        </>
+      )}
       <Card variant="outlined" padding={0}>
         {loadingSubs ? (
           <View style={s.row}>
@@ -224,5 +246,14 @@ const s = StyleSheet.create({
   },
   trashBtn: {
     padding: 4,
+  },
+  notifBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
+  },
+  notifBannerText: {
+    flex: 1,
   },
 })
