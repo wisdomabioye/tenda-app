@@ -24,7 +24,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
     package: 'com.usetenda.app',
     googleServicesFile: './google-services.json',
-    predictiveBackGestureEnabled: true,
+    // Enabling this cause this app to exit from any screen
+    predictiveBackGestureEnabled: false,
   },
   web: {
     output: 'static',
