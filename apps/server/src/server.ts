@@ -1,7 +1,9 @@
+import '../instrument.js'
 import 'dotenv/config'
 import Fastify from 'fastify'
 import {app, options} from './app'
 import { loadConfig } from './config'
+import * as Sentry from "@sentry/node";
 
 const isDev = process.env.NODE_ENV !== 'production'
 const server = Fastify({
@@ -16,6 +18,10 @@ const server = Fastify({
 const startServer = async () => {
   try {
     loadConfig();
+
+    // Register Sentry error handler before app routes so it captures all errors
+    Sentry.setupFastifyErrorHandler(server)
+
     // Register your app
     await server.register(app, options)
 
