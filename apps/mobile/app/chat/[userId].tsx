@@ -40,7 +40,6 @@ export default function ChatScreen() {
   const [loading,        setLoading]        = useState(true)
   const [initError,      setInitError]      = useState(false)
 
-  const flatRef        = useRef<FlatList>(null)
   const pollTimer      = useRef<ReturnType<typeof setTimeout> | null>(null)
   const emptyPollCount = useRef(0)
   const isFetching     = useRef(false)
@@ -112,12 +111,6 @@ export default function ChatScreen() {
     }
   }, [conversationId, scheduleNextPoll])
 
-  // ── Auto-scroll to bottom on new messages ─────────────────────────────────
-  useEffect(() => {
-    if (msgs.length > 0) {
-      setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100)
-    }
-  }, [msgs.length])
 
   function handleSend(text: string) {
     if (!conversationId) return
@@ -179,8 +172,7 @@ export default function ChatScreen() {
         />
 
         <FlatList
-          ref={flatRef}
-          data={msgs}
+          data={[...msgs].reverse()}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <MessageBubble
@@ -191,6 +183,7 @@ export default function ChatScreen() {
           )}
           contentContainerStyle={s.messageList}
           showsVerticalScrollIndicator={false}
+          inverted
           ListEmptyComponent={
             <View style={s.empty}>
               <Text variant="body" color={theme.colors.textFaint} align="center">

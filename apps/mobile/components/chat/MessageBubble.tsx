@@ -23,7 +23,9 @@ export function MessageBubble({ message, isMine, onRetry }: MessageBubbleProps) 
   const statusText  = isFailed ? 'Failed — tap to retry' : isSending ? 'Sending…' : time
   const statusColor = isFailed
     ? (isMine ? theme.colors.onPrimary : theme.colors.warning)
-    : theme.colors.textFaint
+    : isMine
+      ? theme.colors.onPrimary
+      : theme.colors.textFaint
 
   const bubbleStyle = [
     s.bubble,
@@ -41,7 +43,7 @@ export function MessageBubble({ message, isMine, onRetry }: MessageBubbleProps) 
       >
         {message.content}
       </Text>
-      <Text size={10} color={isMine ? statusColor : statusColor} style={s.time}>
+      <Text size={10} color={statusColor} style={[s.time, isMine && !isFailed && s.timeMine]}>
         {statusText}
       </Text>
     </>
@@ -87,5 +89,8 @@ const s = StyleSheet.create({
   time: {
     marginTop: 2,
     alignSelf: 'flex-end',
+  },
+  timeMine: {
+    opacity: 0.65,
   },
 })
