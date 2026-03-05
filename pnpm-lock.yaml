@@ -59,6 +59,9 @@ importers:
       expo-document-picker:
         specifier: ~14.0.8
         version: 14.0.8(expo@54.0.33)
+      expo-file-system:
+        specifier: ~19.0.21
+        version: 19.0.21(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))
       expo-font:
         specifier: ~14.0.11
         version: 14.0.11(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0)
@@ -77,6 +80,9 @@ importers:
       expo-location:
         specifier: ~19.0.8
         version: 19.0.8(expo@54.0.33)
+      expo-media-library:
+        specifier: ~18.2.1
+        version: 18.2.1(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))
       expo-notifications:
         specifier: ~0.32.16
         version: 0.32.16(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0)
@@ -86,6 +92,9 @@ importers:
       expo-secure-store:
         specifier: ~15.0.8
         version: 15.0.8(expo@54.0.33)
+      expo-sharing:
+        specifier: ~14.0.8
+        version: 14.0.8(expo@54.0.33)
       expo-splash-screen:
         specifier: ~31.0.13
         version: 31.0.13(expo@54.0.33)
@@ -98,6 +107,9 @@ importers:
       expo-system-ui:
         specifier: ~6.0.9
         version: 6.0.9(expo@54.0.33)(react-native-web@0.21.2(react-dom@19.1.0(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))
+      expo-video:
+        specifier: ~3.0.16
+        version: 3.0.16(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0)
       expo-web-browser:
         specifier: ~15.0.10
         version: 15.0.10(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))
@@ -3843,6 +3855,12 @@ packages:
     peerDependencies:
       expo: '*'
 
+  expo-media-library@18.2.1:
+    resolution: {integrity: sha512-dV1acx6Aseu+I5hmF61wY8UkD4vdt8d7YXHDfgNp6ZSs06qxayUxgrBsiG2eigLe54VLm3ycbFBbWi31lhfsCA==}
+    peerDependencies:
+      expo: '*'
+      react-native: '*'
+
   expo-modules-autolinking@3.0.24:
     resolution: {integrity: sha512-TP+6HTwhL7orDvsz2VzauyQlXJcAWyU3ANsZ7JGL4DQu8XaZv/A41ZchbtAYLfozNA2Ya1Hzmhx65hXryBMjaQ==}
     hasBin: true
@@ -3903,6 +3921,11 @@ packages:
     resolution: {integrity: sha512-IGR++flYH70rhLyeXF0Phle56/k4cee87WeQ4mamS+MkVAVP+dDlOHf2nN06Z9Y2KhU0Gp1k+y61KkghF7HdhA==}
     engines: {node: '>=20.16.0'}
 
+  expo-sharing@14.0.8:
+    resolution: {integrity: sha512-A1pPr2iBrxypFDCWVAESk532HK+db7MFXbvO2sCV9ienaFXAk7lIBm6bkqgE6vzRd9O3RGdEGzYx80cYlc089Q==}
+    peerDependencies:
+      expo: '*'
+
   expo-splash-screen@31.0.13:
     resolution: {integrity: sha512-1epJLC1cDlwwj089R2h8cxaU5uk4ONVAC+vzGiTZH4YARQhL4Stlz1MbR6yAS173GMosvkE6CAeihR7oIbCkDA==}
     peerDependencies:
@@ -3934,6 +3957,13 @@ packages:
     resolution: {integrity: sha512-pTzAIufEZdVPKql6iMi5ylVSPqV1qbEopz9G6TSECQmnNde2nwq42PxdFBaUEd8IZJ/fdJLQnOT3m6+XJ5s7jg==}
     peerDependencies:
       expo: '*'
+
+  expo-video@3.0.16:
+    resolution: {integrity: sha512-H1HlxcHGomZItqisGfW3YL/G9BHtNBfVSimDJcLuyxyU87wFnV8loO9tCjuhufkfh/aTa2sW5BYAjLjg9DvnBQ==}
+    peerDependencies:
+      expo: '*'
+      react: '*'
+      react-native: '*'
 
   expo-web-browser@15.0.10:
     resolution: {integrity: sha512-fvDhW4bhmXAeWFNFiInmsGCK83PAqAcQaFyp/3pE/jbdKmFKoRCWr46uZGIfN4msLK/OODhaQ/+US7GSJNDHJg==}
@@ -10536,6 +10566,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  expo-media-library@18.2.1(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0)):
+    dependencies:
+      expo: 54.0.33(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(bufferutil@4.1.0)(expo-router@6.0.23)(react-native-webview@13.15.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0)
+      react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0)
+
   expo-modules-autolinking@3.0.24:
     dependencies:
       '@expo/spawn-async': 1.7.2
@@ -10614,6 +10649,10 @@ snapshots:
 
   expo-server@1.0.5: {}
 
+  expo-sharing@14.0.8(expo@54.0.33):
+    dependencies:
+      expo: 54.0.33(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(bufferutil@4.1.0)(expo-router@6.0.23)(react-native-webview@13.15.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0)
+
   expo-splash-screen@31.0.13(expo@54.0.33):
     dependencies:
       '@expo/prebuild-config': 54.0.8(expo@54.0.33)
@@ -10647,6 +10686,12 @@ snapshots:
   expo-updates-interface@2.0.0(expo@54.0.33):
     dependencies:
       expo: 54.0.33(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(bufferutil@4.1.0)(expo-router@6.0.23)(react-native-webview@13.15.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0)
+
+  expo-video@3.0.16(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      expo: 54.0.33(@babel/core@7.29.0)(@expo/metro-runtime@6.1.2)(bufferutil@4.1.0)(expo-router@6.0.23)(react-native-webview@13.15.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0)
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0)
 
   expo-web-browser@15.0.10(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0)):
     dependencies:
@@ -11252,7 +11297,7 @@ snapshots:
 
   isexe@2.0.0: {}
 
-  isomorphic-ws@4.0.1(ws@7.5.10(bufferutil@4.1.0)):
+  isomorphic-ws@4.0.1(ws@7.5.10(bufferutil@4.1.0)(utf-8-validate@6.0.6)):
     dependencies:
       ws: 7.5.10(bufferutil@4.1.0)(utf-8-validate@6.0.6)
 
@@ -11303,7 +11348,7 @@ snapshots:
       delay: 5.0.0
       es6-promisify: 5.0.0
       eyes: 0.1.8
-      isomorphic-ws: 4.0.1(ws@7.5.10(bufferutil@4.1.0))
+      isomorphic-ws: 4.0.1(ws@7.5.10(bufferutil@4.1.0)(utf-8-validate@6.0.6))
       json-stringify-safe: 5.0.1
       stream-json: 1.9.1
       uuid: 8.3.2

@@ -67,6 +67,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         organization: 'xpl-developers'
       }
     ],
+    'expo-video',
+    [
+    'expo-media-library',
+      {
+        photosPermission: 'Allow Tenda to access your gallery to save proof files.',
+        savePhotosPermission: 'Allow Tenda to save proof files to your gallery.',
+        isAccessMediaLocationEnabled: true,
+      },
+    ],
     'expo-secure-store',
     'expo-location',
     'expo-font',

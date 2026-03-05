@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View, ScrollView, StyleSheet, Image, Alert } from 'react-native'
+import { View, ScrollView, StyleSheet, Image, Alert, Pressable } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import {
@@ -9,6 +9,7 @@ import {
   Share2,
   FileText,
   Film,
+  Play,
   MessageCircle,
 } from 'lucide-react-native'
 import { Transaction, PublicKey } from '@solana/web3.js'
@@ -32,6 +33,8 @@ import { ErrorState } from '@/components/feedback/ErrorState'
 import { GigCTABar } from './_components/GigCTABar'
 import { GigActionSheets } from './_components/GigActionSheets'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
+import { ProofViewerModal } from '@/components/gig/ProofViewerModal'
+import type { ProofItem } from '@/components/gig/ProofViewerModal'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { getCategoryColor, CATEGORY_META } from '@/data/mock'
 import { useAuthStore } from '@/stores/auth.store'
@@ -67,6 +70,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const solToNgn = useExchangeRateStore((s) => s.solToNgn)
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
+  const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
   const [isTxBuilding, setIsTxBuilding] = useState(false)
   const [pendingSignature, setPendingSignature] = useState<string | null>(null)
@@ -473,7 +477,11 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
             <Spacer size={spacing.sm} />
             <View style={s.proofsGrid}>
               {gig.proofs.map((proof) => (
-                <View key={proof.id} style={[s.proofItem, { backgroundColor: theme.colors.muted }]}>
+                <Pressable
+                  key={proof.id}
+                  style={[s.proofItem, { backgroundColor: theme.colors.muted }]}
+                  onPress={() => setSelectedProof(proof)}
+                >
                   {proof.type === 'image' ? (
                     <Image source={{ uri: proof.url }} style={s.proofThumb} />
                   ) : (
@@ -486,7 +494,13 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
                       </Text>
                     </View>
                   )}
-                </View>
+                  {/* Play badge for videos */}
+                  {proof.type === 'video' && (
+                    <View style={[s.playBadge, { backgroundColor: theme.colors.primary }]}>
+                      <Play size={8} color={theme.colors.onPrimary} fill={theme.colors.onPrimary} />
+                    </View>
+                  )}
+                </Pressable>
               ))}
             </View>
           </>
@@ -551,6 +565,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           showToast('info', msg || 'Transaction pending — will sync when confirmed')
         }}
       />
+
+      <ProofViewerModal proof={selectedProof} onClose={() => setSelectedProof(null)} />
     </ScreenContainer>
     </>
   )
@@ -662,6 +678,16 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 4,
+  },
+  playBadge: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   disputeBlock: {
     borderRadius: radius.md,
