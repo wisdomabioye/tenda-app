@@ -7,7 +7,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   version: '0.0.1',
   scheme: ['tenda'],
   orientation: 'portrait',
-  icon: './assets/images/logo-light.png',
+  icon: './assets/images/icon.png',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   ios: {
@@ -18,9 +18,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   android: {
     adaptiveIcon: {
-      foregroundImage: './assets/images/logo-light.png',
       backgroundColor: '#1b1b1b',
-      monochromeImage: './assets/images/logo-light.png',
+      foregroundImage: './assets/images/android-icon-foreground.png',
+      monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     package: 'com.usetenda.app',
     googleServicesFile: './google-services.json',
@@ -42,7 +42,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-notifications',
       {
-        icon: './assets/images/logo-light.png',
+        icon: './assets/images/splash-icon.png',
         color: '#1b1b1b',
         defaultChannel: 'default',
       },
@@ -50,7 +50,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        image: './assets/images/logo-light.png',
+        image: './assets/images/splash-icon.png',
         imageWidth: 350,
         resizeMode: 'contain',
         backgroundColor: '#1b1b1b',
