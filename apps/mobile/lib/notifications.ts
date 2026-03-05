@@ -7,11 +7,10 @@ import { api } from '@/api/client'
 export function configureNotifications() {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowAlert: true,
       shouldPlaySound: true,
-      shouldSetBadge:  false,
-      shouldShowBanner: true,
       shouldShowList: true,
+      shouldSetBadge:  true,
+      shouldShowBanner: true,
     }),
   })
 }

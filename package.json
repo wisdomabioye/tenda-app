@@ -5,12 +5,14 @@
   "scripts": {
     "build": "turbo run build",
     "build:shared": "turbo run build --filter @tenda/shared",
+    "build:apk": "turbo run build:apk --filter tenda-mobile",
+    "build:aab": "turbo run build:aab --filter tenda-mobile",
     "dev": "turbo run dev",
+    "dev:mobile": "turbo run android --filter tenda-mobile",
+    "dev:server": "turbo run dev --filter tenda-server",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
-    "clean": "turbo run clean && rm -rf node_modules",
-    "dev:mobile": "pnpm run dev --filter tenda-mobile",
-    "dev:server": "pnpm run dev --filter tenda-server"
+    "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
     "turbo": "^2.7.5"

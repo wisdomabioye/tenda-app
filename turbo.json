@@ -6,14 +6,27 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": [".next/**", "!.next/cache/**", "dist/**"],
-      "env": [
-       
-      ]
+      "env": []
     },
     "dev": {
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
+    },
+    "android": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": true
+    },
+    "build:apk": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": false
+    },
+    "build:aab": {
+      "dependsOn": ["^build"],
+      "cache": false,
+      "persistent": false
     },
     "lint": {
       "dependsOn": ["^lint"]
