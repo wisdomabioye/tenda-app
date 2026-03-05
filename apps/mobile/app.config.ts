@@ -59,6 +59,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         },
       }
     ],
+    [
+      '@sentry/react-native/expo',
+      {
+        url: 'https://sentry.io/',
+        project: 'tenda-mobile',
+        organization: 'xpl-developers'
+      }
+    ],
     'expo-secure-store',
     'expo-location',
     'expo-font',
