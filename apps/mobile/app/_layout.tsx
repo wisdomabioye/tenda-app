@@ -27,28 +27,15 @@ import { useOnboardingStore } from '@/stores/onboarding.store'
 import { ToastProvider } from '@/components/ui/Toast'
 import { configureNotifications } from '@/lib/notifications'
 import { usePushToken } from '@/hooks/usePushToken'
+import { initReporter, wrapApp } from '@/lib/reporter'
 import '@/theme';
-import * as Sentry from '@sentry/react-native';
 
-Sentry.init({
-  dsn: 'https://91c2e230421350a8e1d5fbaac4b21895@o4509884634300416.ingest.de.sentry.io/4510993768448080',
-
-  // Adds more context data to events (IP address, cookies, user, etc.)
-  // For more information, visit: https://docs.sentry.io/platforms/react-native/data-management/data-collected/
-  sendDefaultPii: true,
-
-  // Enable Logs
-  enableLogs: false,
-
-  // uncomment the line below to enable Spotlight (https://spotlightjs.com)
-  // spotlight: __DEV__,
-});
-
+initReporter()
 configureNotifications()
 
 SplashScreen.preventAutoHideAsync()
 
-export default Sentry.wrap(function RootLayout() {
+export default wrapApp(function RootLayout() {
   const { theme } = useUnistyles();
   const router = useRouter()
   usePushToken()
