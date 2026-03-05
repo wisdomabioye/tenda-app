@@ -92,7 +92,19 @@ export default function PostGigScreen() {
         accept_deadline,
       })
       showToast('success', 'Draft saved! Publish it from the gig page.')
-      router.replace(`/gig/${gig.id}` as any)
+      // Reset form so returning to this tab shows a clean state
+      setTitle('')
+      setDescription('')
+      setPaymentLamports(0)
+      setCompletionDuration(86_400)
+      setAddress('')
+      setSelectedCategory(null)
+      setSelectedCity(null)
+      setAcceptDeadlineHours(null)
+      setShowAdvanced(false)
+      // Switch to home tab first so back from gig detail lands there
+      router.navigate('/(tabs)/home' as any)
+      router.push(`/gig/${gig.id}` as any)
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to create gig')
     } finally {
