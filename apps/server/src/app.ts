@@ -60,6 +60,10 @@ const app: FastifyPluginAsync<AppOptions> = async (
     routeParams: true,
   })
 
+  fastify.get('/', async (_request, reply) => {
+    reply.send({ status: 'ok' })
+  })
+
   fastify.get('/favicon.ico', async (request, reply) => {
     try {
       const filePath = join(__dirname, 'assets', 'favicon.png')
