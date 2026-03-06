@@ -9,8 +9,8 @@
   "scripts": {
     "test": "npm run build:ts && tsc -p test/tsconfig.json && c8 node --test -r ts-node/register \"test/**/*.ts\"",
     "start": "node dist/server.js",
-    "build": "tsc",
-    "build:ts": "tsc",
+    "build": "tsc && cp -r src/assets dist/assets",
+    "build:ts": "tsc && cp -r src/assets dist/assets",
     "dev": "tsx watch src/server.ts",
     "type-check": "npx tsc --noEmit",
     "db:generate": "drizzle-kit generate",
