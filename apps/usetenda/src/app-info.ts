@@ -2,9 +2,9 @@ export const APP_INFO = {
   name: 'Tenda',
   tagline: 'Get paid. No middlemen.',
   description: 'Post or accept gigs with instant on-chain escrow. Proof required. Payment guaranteed.',
-  apkUrl: '#download',       // update when APK is live
-  appStoreUrl: '#',          // update when live
-  playStoreUrl: '#',         // update when live
+  apkUrl: '#download',
+  appStoreUrl: '#',
+  playStoreUrl: '#',
   twitterUrl: 'https://twitter.com/usetenda',
   discordUrl: '#',
   githubUrl: '#',
