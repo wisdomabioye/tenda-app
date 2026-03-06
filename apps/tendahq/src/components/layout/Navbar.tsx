@@ -6,9 +6,9 @@ import { APP_INFO } from '../../app-info'
 import logoFull from '../../assets/logo-full.png'
 
 const navLinks = [
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'Why Tenda', href: '#why-tenda' },
-  { label: 'For who', href: '#for-who' },
+  { label: 'How it works', href: '/#how-it-works' },
+  { label: 'Why Tenda', href: '/#why-tenda' },
+  { label: 'For who', href: '/#for-who' },
 ]
 
 export function Navbar() {
@@ -56,7 +56,7 @@ export function Navbar() {
 
         {/* CTA */}
         <div className="hidden md:flex items-center gap-3">
-          <Button href={APP_INFO.apkUrl} variant="primary" size="sm">
+          <Button href="/#download" variant="primary" size="sm">
             Download App
           </Button>
         </div>

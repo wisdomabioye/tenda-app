@@ -3,9 +3,9 @@ import { APP_INFO } from '../../app-info'
 import logoFull from '../../assets/logo-full.png'
 
 const externalLinks = [
-  { label: 'How it works', href: '#how-it-works' },
-  { label: 'Why Tenda', href: '#why-tenda' },
-  { label: 'Download', href: APP_INFO.apkUrl },
+  { label: 'How it works', href: '/#how-it-works' },
+  { label: 'Why Tenda', href: '/#why-tenda' },
+  { label: 'Download', href: '/#download' },
   { label: 'WhatsApp', href: APP_INFO.whatsappUrl },
   { label: 'Twitter / X', href: APP_INFO.twitterUrl },
 ]

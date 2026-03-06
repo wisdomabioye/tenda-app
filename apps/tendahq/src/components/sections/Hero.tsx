@@ -40,7 +40,7 @@ export function Hero() {
 
         {/* CTAs */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button href={APP_INFO.apkUrl} variant="primary" size="lg">
+          <Button href="/#download" variant="primary" size="lg">
             Download for Android
           </Button>
           <a
