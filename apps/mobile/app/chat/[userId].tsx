@@ -1,4 +1,3 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -20,96 +19,21 @@ import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { showToast } from '@/components/ui/Toast'
 import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
-import { api } from '@/api/client'
+import { useConversation } from '@/hooks/useConversation'
+import { useMessagePolling } from '@/hooks/useMessagePolling'
 import { spacing } from '@/theme/tokens'
 import type { LocalMessage } from '@/stores/chat.store'
-import type { PublicUser } from '@tenda/shared'
-
-const POLL_INTERVAL_MS = 4_000   // active polling interval
-const POLL_IDLE_MS     = 10_000  // back off after 3 empty polls
-const EMPTY_POLL_LIMIT = 3
 
 export default function ChatScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>()
   const { theme } = useUnistyles()
   const myId = useAuthStore((s) => s.user?.id ?? '')
-  const { findOrCreate, fetchMessages, sendMessage, retryMessage, closeConversation, messages } = useChatStore()
+  const { sendMessage, retryMessage, closeConversation, messages } = useChatStore()
 
-  const [conversationId, setConversationId] = useState<string | null>(null)
-  const [otherUser,      setOtherUser]      = useState<PublicUser | null>(null)
-  const [loading,        setLoading]        = useState(true)
-  const [initError,      setInitError]      = useState(false)
-
-  const pollTimer      = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const emptyPollCount = useRef(0)
-  const isFetching     = useRef(false)
+  const { conversationId, otherUser, loading, initError, retry } = useConversation(userId)
+  useMessagePolling(conversationId)
 
   const msgs = conversationId ? (messages[conversationId] ?? []) : []
-
-  // ── Bootstrap: find/create conversation + load other user profile ──────────
-  const init = useCallback(async (cancelled: { current: boolean }) => {
-    if (!userId) return
-    setLoading(true)
-    setInitError(false)
-    try {
-      const [conv, user] = await Promise.all([
-        findOrCreate(userId),
-        api.users.get({ id: userId }),
-      ])
-      if (cancelled.current) return
-      setConversationId(conv.id)
-      setOtherUser(user)
-      await fetchMessages(conv.id)
-    } catch {
-      if (!cancelled.current) setInitError(true)
-    } finally {
-      if (!cancelled.current) setLoading(false)
-    }
-  }, [userId, findOrCreate, fetchMessages])
-
-  useEffect(() => {
-    const cancelled = { current: false }
-    init(cancelled)
-    return () => { cancelled.current = true }
-  }, [init])
-
-  // ── setTimeout polling ─────────────────────────────────────────────────────
-  const scheduleNextPoll = useCallback((convId: string) => {
-    if (pollTimer.current) clearTimeout(pollTimer.current)
-    const delay = emptyPollCount.current >= EMPTY_POLL_LIMIT ? POLL_IDLE_MS : POLL_INTERVAL_MS
-
-    pollTimer.current = setTimeout(async () => {
-      if (isFetching.current) {
-        scheduleNextPoll(convId)
-        return
-      }
-      isFetching.current = true
-      try {
-        const existing    = useChatStore.getState().messages[convId] ?? []
-        const countBefore = existing.length
-        await fetchMessages(convId)
-        const countAfter  = (useChatStore.getState().messages[convId] ?? []).length
-        if (countAfter === countBefore) {
-          emptyPollCount.current += 1
-        } else {
-          emptyPollCount.current = 0
-        }
-      } finally {
-        isFetching.current = false
-        scheduleNextPoll(convId)
-      }
-    }, delay)
-  }, [fetchMessages])
-
-  useEffect(() => {
-    if (!conversationId) return
-    emptyPollCount.current = 0
-    isFetching.current     = false
-    scheduleNextPoll(conversationId)
-    return () => {
-      if (pollTimer.current) clearTimeout(pollTimer.current)
-    }
-  }, [conversationId, scheduleNextPoll])
 
 
   function handleSend(text: string) {
@@ -151,7 +75,7 @@ export default function ChatScreen() {
           title="Couldn't open chat"
           description="There was a problem starting this conversation."
           ctaLabel="Retry"
-          onCtaPress={() => { const c = { current: false }; void init(c) }}
+          onCtaPress={retry}
         />
       </ScreenContainer>
     )
