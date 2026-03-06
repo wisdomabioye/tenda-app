@@ -30,8 +30,7 @@ import { GigStatusBadge, ReviewCard } from '@/components/gig'
 import { TransactionMonitor } from '@/components/feedback/TransactionMonitor'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { ErrorState } from '@/components/feedback/ErrorState'
-import { GigCTABar } from './_components/GigCTABar'
-import { GigActionSheets } from './_components/GigActionSheets'
+import { GigCTABar, GigActionSheets } from '@/components/gig'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ProofViewerModal } from '@/components/gig/ProofViewerModal'
 import type { ProofItem } from '@/components/gig/ProofViewerModal'
@@ -48,7 +47,7 @@ import { api } from '@/api/client'
 import { signAndSendTransactionWithWallet, signTransactionsWithWallet, sendRawTransaction, getBalance } from '@/wallet'
 import type { ColorScheme } from '@/theme/tokens'
 import type { GigDetail } from '@tenda/shared'
-import type { ActiveSheet } from './_components/GigCTABar'
+import type { ActiveSheet } from '@/components/gig'
 
 type PendingAction =
   | { type: 'publish' }
