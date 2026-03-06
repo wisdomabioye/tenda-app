@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -34,6 +35,7 @@ export default function ChatScreen() {
   useMessagePolling(conversationId)
 
   const msgs = conversationId ? (messages[conversationId] ?? []) : []
+  const reversedMsgs = useMemo(() => [...msgs].reverse(), [msgs])
 
 
   function handleSend(text: string) {
@@ -96,7 +98,7 @@ export default function ChatScreen() {
         />
 
         <FlatList
-          data={[...msgs].reverse()}
+          data={reversedMsgs}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <MessageBubble
