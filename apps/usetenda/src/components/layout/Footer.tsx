@@ -1,12 +1,18 @@
+import { Link } from 'react-router-dom'
 import { APP_INFO } from '../../app-info'
 import logoFull from '../../assets/logo-full.png'
 
-const links = [
+const externalLinks = [
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Why Tenda', href: '#why-tenda' },
   { label: 'Download', href: APP_INFO.apkUrl },
-  { label: 'Whatsapp', href: APP_INFO.whatsappUrl },
+  { label: 'WhatsApp', href: APP_INFO.whatsappUrl },
   { label: 'Twitter / X', href: APP_INFO.twitterUrl },
+]
+
+const legalLinks = [
+  { label: 'Terms of Service', to: '/terms' },
+  { label: 'Privacy Policy', to: '/privacy' },
 ]
 
 export function Footer() {
@@ -21,7 +27,7 @@ export function Footer() {
         </div>
 
         <nav className="flex flex-wrap justify-center md:justify-end gap-x-8 gap-y-3">
-          {links.map((l) => (
+          {externalLinks.map((l) => (
             <a
               key={l.href}
               href={l.href}
@@ -33,8 +39,19 @@ export function Footer() {
         </nav>
       </div>
 
-      <div className="max-w-6xl mx-auto mt-10 pt-6 border-t border-gray-800 text-center text-xs text-gray-600">
-        &copy; {new Date().getFullYear()} Tenda. Built on Solana.
+      <div className="max-w-6xl mx-auto mt-10 pt-6 border-t border-gray-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-gray-600">
+        <span>&copy; {new Date().getFullYear()} Tenda. Built on Solana.</span>
+        <div className="flex gap-6">
+          {legalLinks.map((l) => (
+            <Link
+              key={l.to}
+              to={l.to}
+              className="text-gray-500 hover:text-gray-300 transition-colors no-underline"
+            >
+              {l.label}
+            </Link>
+          ))}
+        </div>
       </div>
     </footer>
   )

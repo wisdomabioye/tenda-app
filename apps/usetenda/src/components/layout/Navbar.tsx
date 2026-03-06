@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Menu, X } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { APP_INFO } from '../../app-info'
@@ -11,6 +12,8 @@ const navLinks = [
 ]
 
 export function Navbar() {
+  const { pathname } = useLocation()
+  const isHome = pathname === '/'
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -23,16 +26,16 @@ export function Navbar() {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled ? 'bg-white/95 backdrop-blur-md shadow-sm' : 'bg-transparent'
+        scrolled || !isHome ? 'bg-white/95 backdrop-blur-md shadow-sm' : 'bg-transparent'
       }`}
     >
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
-        <a href="#" className="flex items-center gap-2 no-underline">
+        <a href="/" className="flex items-center gap-2 no-underline">
           <img
             src={logoFull}
             alt={APP_INFO.name}
-            className={`h-7 w-auto transition-all duration-300 ${scrolled ? '' : 'brightness-0 invert'}`}
+            className={`h-7 w-auto transition-all duration-300 ${scrolled || !isHome ? '' : 'brightness-0 invert'}`}
           />
         </a>
 
@@ -43,7 +46,7 @@ export function Navbar() {
               key={l.href}
               href={l.href}
               className={`text-sm font-medium no-underline transition-colors ${
-                scrolled ? 'text-gray-600 hover:text-gray-900' : 'text-white/80 hover:text-white'
+                scrolled || !isHome ? 'text-gray-600 hover:text-gray-900' : 'text-white/80 hover:text-white'
               }`}
             >
               {l.label}
@@ -60,7 +63,7 @@ export function Navbar() {
 
         {/* Mobile hamburger */}
         <button
-          className={`md:hidden p-2 rounded-lg cursor-pointer ${scrolled ? 'text-gray-700' : 'text-white'}`}
+          className={`md:hidden p-2 rounded-lg cursor-pointer ${scrolled || !isHome ? 'text-gray-700' : 'text-white'}`}
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle menu"
         >
