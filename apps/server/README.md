@@ -1,23 +1,33 @@
-# Getting Started with [Fastify-CLI](https://www.npmjs.com/package/fastify-cli)
-This project was bootstrapped with Fastify-CLI.
+# tenda-server
 
-## Available Scripts
+Fastify v5 REST API for the Tenda gig marketplace.
 
-In the project directory, you can run:
+## Stack
 
-### `npm run dev`
+Fastify v5 · Drizzle ORM · PostgreSQL · JWT · Solana web3.js · Cloudinary · Expo Push · Sentry
 
-To start the app in dev mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+## Setup
 
-### `npm start`
+```bash
+cp .env.example .env
+pnpm --filter @tenda/shared build   # required before first run
+pnpm dev
+```
 
-For production mode
+## Database
 
-### `npm run test`
+```bash
+pnpm db:generate   # generate migration after schema changes in @tenda/shared
+pnpm db:migrate    # apply pending migrations
+pnpm db:studio     # open Drizzle Studio
+```
 
-Run the test cases.
+## Key env vars
 
-## Learn More
-
-To learn Fastify, check out the [Fastify documentation](https://fastify.dev/docs/latest/).
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET` | Secret for signing JWTs |
+| `CLOUDINARY_URL` | Cloudinary connection string |
+| `SOLANA_NETWORK` | `devnet` or `mainnet-beta` |
+| `APP_ENV` | `development`, `staging`, or `production` |
