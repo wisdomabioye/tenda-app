@@ -1,6 +1,7 @@
 import type { InferSelectModel, InferInsertModel } from 'drizzle-orm'
 import type { gigs, disputes, gig_proofs, gig_transactions } from '../db/schema'
 import type { GigCategory } from '../constants/categories'
+import type { Review } from './review'
 
 export type { GigCategory }
 
@@ -140,6 +141,7 @@ export interface GigDetail extends Gig {
   } | null
   proofs: GigProof[]
   dispute: Dispute | null
+  reviews: Review[]
 }
 
 /** A gig_transaction enriched with minimal gig context for the wallet screen. */

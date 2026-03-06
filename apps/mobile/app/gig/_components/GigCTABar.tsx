@@ -11,7 +11,6 @@ export type ActiveSheet = 'proof' | 'dispute' | 'review' | 'accept' | 'cancel' |
 interface GigCTABarProps {
   gig: GigDetail
   userId: string
-  reviewSubmitted: boolean
   isTxBuilding: boolean
   txInProgress: boolean
   onAction: (action: ActiveSheet) => void
@@ -22,7 +21,6 @@ interface GigCTABarProps {
 export function GigCTABar({
   gig,
   userId,
-  reviewSubmitted,
   isTxBuilding,
   txInProgress,
   onAction,
@@ -114,7 +112,7 @@ export function GigCTABar({
       )
     }
 
-    if (canReview(gig, userId) && !reviewSubmitted) {
+    if (canReview(gig, userId) && !gig.reviews.some((r) => r.reviewer_id === userId)) {
       return (
         <Button variant="outline" size="xl" fullWidth onPress={() => onAction('review')}>
           Leave Review

@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { gigs, users, gig_proofs, disputes, gig_transactions } from '@tenda/shared/db/schema'
+import { gigs, users, gig_proofs, disputes, gig_transactions, reviews } from '@tenda/shared/db/schema'
 import {
   isValidPaymentLamports,
   isValidCompletionDuration,
@@ -52,20 +52,21 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       reputation_score: users.reputation_score,
     }
 
-    // Fetch poster, worker (if assigned), proofs, and dispute in parallel.
-    const [posterRows, workerRows, proofs, disputeRows] = await Promise.all([
+    // Fetch poster, worker (if assigned), proofs, dispute, and reviews in parallel.
+    const [posterRows, workerRows, proofs, disputeRows, gigReviews] = await Promise.all([
       fastify.db.select(userCols).from(users).where(eq(users.id, gig.poster_id)).limit(1),
       gig.worker_id
         ? fastify.db.select(userCols).from(users).where(eq(users.id, gig.worker_id)).limit(1)
         : Promise.resolve([]),
       fastify.db.select().from(gig_proofs).where(eq(gig_proofs.gig_id, id)),
       fastify.db.select().from(disputes).where(eq(disputes.gig_id, id)).limit(1),
+      fastify.db.select().from(reviews).where(eq(reviews.gig_id, id)),
     ])
 
     const poster = posterRows[0]
     const worker = workerRows[0] ?? null
 
-    return { ...gig, poster, worker, proofs, dispute: disputeRows[0] ?? null }
+    return { ...gig, poster, worker, proofs, dispute: disputeRows[0] ?? null, reviews: gigReviews }
   })
 
   // PATCH /v1/gigs/:id — update draft gig (poster only)

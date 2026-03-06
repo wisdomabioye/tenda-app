@@ -26,7 +26,7 @@ import { Divider } from '@/components/ui/Divider'
 import { Spacer } from '@/components/ui/Spacer'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { showToast } from '@/components/ui/Toast'
-import { GigStatusBadge } from '@/components/gig'
+import { GigStatusBadge, ReviewCard } from '@/components/gig'
 import { TransactionMonitor } from '@/components/feedback/TransactionMonitor'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { ErrorState } from '@/components/feedback/ErrorState'
@@ -71,7 +71,6 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
-  const [reviewSubmitted, setReviewSubmitted] = useState(false)
   const [isTxBuilding, setIsTxBuilding] = useState(false)
   const [pendingSignature, setPendingSignature] = useState<string | null>(null)
   const [pendingSetupSignature, setPendingSetupSignature] = useState<string | null>(null)
@@ -469,6 +468,32 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           </>
         )}
 
+        {/* Reviews */}
+        {gig.reviews.length > 0 && (
+          <>
+            <Divider />
+            <Text variant="subheading">Reviews</Text>
+            <Spacer size={spacing.sm} />
+            <View style={s.reviewsStack}>
+              {gig.reviews.map((review) => {
+                const isPoster  = review.reviewer_id === gig.poster_id
+                const reviewer  = isPoster ? gig.poster : gig.worker
+                const roleLabel = isPoster ? 'Poster' : 'Worker'
+                const label     = review.reviewer_id === userId ? `Your review (${roleLabel})` : `${roleLabel}'s review`
+                if (!reviewer) return null
+                return (
+                  <ReviewCard
+                    key={review.id}
+                    review={review}
+                    reviewer={reviewer}
+                    label={label}
+                  />
+                )
+              })}
+            </View>
+          </>
+        )}
+
         {/* Proofs */}
         {gig.proofs.length > 0 && (
           <>
@@ -524,7 +549,6 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       <GigCTABar
         gig={gig}
         userId={userId}
-        reviewSubmitted={reviewSubmitted}
         isTxBuilding={isTxBuilding}
         txInProgress={pendingSignature !== null || pendingSetupSignature !== null}
         onAction={setActiveSheet}
@@ -536,7 +560,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         gig={gig}
         activeSheet={activeSheet}
         onClose={() => setActiveSheet(null)}
-        onReviewSubmitted={() => setReviewSubmitted(true)}
+        onReviewSubmitted={() => fetchGigDetail(gig.id)}
         onAcceptConfirmed={handleAccept}
         onCancelOpenConfirmed={handleCancelOpen}
         onRefundExpiredConfirmed={handleRefundExpired}
@@ -657,6 +681,9 @@ const s = StyleSheet.create({
   },
   personInfo: {
     flex: 1,
+  },
+  reviewsStack: {
+    gap: spacing.sm,
   },
   proofsGrid: {
     flexDirection: 'row',
