@@ -3,7 +3,7 @@ export const APP_INFO = {
   tagline: 'Freelance work, paid on-chain',
 
   fees: {
-    platformFeePct: 2.5, // percentage shown in support screens — update when rate is confirmed
+    platformFeePct: 2.5, // percentage shown in support screens
   },
 
   support: {
