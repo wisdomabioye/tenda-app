@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View, ScrollView, StyleSheet, Image, Alert, Pressable } from 'react-native'
+import { View, ScrollView, StyleSheet, Image, Alert, Pressable, RefreshControl } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import {
@@ -71,6 +71,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
   const [isTxBuilding, setIsTxBuilding] = useState(false)
   const [pendingSignature, setPendingSignature] = useState<string | null>(null)
   const [pendingSetupSignature, setPendingSetupSignature] = useState<string | null>(null)
@@ -101,6 +102,11 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const workerName = gig.worker
     ? [gig.worker.first_name, gig.worker.last_name].filter(Boolean).join(' ') || 'Anonymous'
     : null
+
+  async function handleRefresh() {
+    setRefreshing(true)
+    try { await fetchGigDetail(gig.id) } finally { setRefreshing(false) }
+  }
 
   // ── Shared: sign tx and enter monitoring state ──────────────────────────────
 
@@ -362,6 +368,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         style={s.flex}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
         {/* Header badges */}
         <View style={s.headerRow}>
