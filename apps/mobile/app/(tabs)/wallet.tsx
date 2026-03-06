@@ -12,6 +12,7 @@ import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { api } from '@/api/client'
 import { getBalance } from '@/wallet'
 import { toPaymentDisplay, formatSol } from '@/lib/currency'
+import { DevnetBadge } from '@/components/feedback'
 import type { UserTransaction } from '@tenda/shared'
 
 const LAMPORTS_PER_SOL = 1_000_000_000
@@ -122,7 +123,10 @@ export default function WalletScreen() {
           <>
             {/* Balance card */}
             <Card variant="filled" padding={spacing.md}>
-              <Text variant="caption" color={theme.colors.textSub}>SOL Balance</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Text variant="caption" color={theme.colors.textSub}>SOL Balance</Text>
+                <DevnetBadge />
+              </View>
               {isLoading || balanceSol === null ? (
                 <View style={{ marginTop: 4 }}><Skeleton width={120} height={28} /></View>
               ) : (

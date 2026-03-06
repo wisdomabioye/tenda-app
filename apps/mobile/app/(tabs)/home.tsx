@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { View, FlatList, Pressable, StyleSheet, RefreshControl } from 'react-native'
 import { Bell, SlidersHorizontal, Search as SearchIcon } from 'lucide-react-native'
@@ -16,8 +16,8 @@ import { GigCardCompact } from '@/components/gig'
 import { Drawer, DrawerHeader } from '@/components/navigation'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
+import { useGigsFeedPolling } from '@/hooks/useGigsFeedPolling'
 import type { Gig } from '@tenda/shared'
-import { useFocusEffect } from 'expo-router'
 
 export default function HomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -31,11 +31,7 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user)
   const { gigs, isLoading, hasFetched, error, fetchGigs, setFilters, resetFilters } = useGigsStore()
 
-  useFocusEffect(
-    useCallback(() => {
-      fetchGigs()
-    }, [fetchGigs]),
-  )
+  useGigsFeedPolling()
 
   const hasFilters = query.trim().length > 0 || selectedCategory !== null || selectedCity !== null
 
