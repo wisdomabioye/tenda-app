@@ -8,22 +8,22 @@ export const APP_INFO = {
 
   support: {
     whatsapp: 'https://chat.whatsapp.com/EeB5OMalNy0EbMlU4QPZMr?mode=hq2tcli',
-    email: 'support@usetenda.com',
+    email: 'support@tendahq.com',
   },
 
   legal: {
-    terms: 'https://usetenda.com/terms',
-    privacy: 'https://usetenda.com/privacy',
+    terms: 'https://tendahq.com/terms',
+    privacy: 'https://tendahq.com/privacy',
   },
 
   social: {
-    twitter: 'https://x.com/usetenda',
-    instagram: 'https://instagram.com/usetenda',
+    twitter: 'https://x.com/tendahq',
+    instagram: 'https://instagram.com/tendahq',
   },
 
   external: {
-    website: 'https://usetenda.com',
-    tendaPlayStore: 'https://play.google.com/store/apps/details?id=com.usetenda.app',
+    website: 'https://tendahq.com',
+    tendaPlayStore: 'https://play.google.com/store/apps/details?id=com.tendahq.mobile',
   },
 
   wallets: {

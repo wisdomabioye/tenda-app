@@ -12,17 +12,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   newArchEnabled: true,
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.usetenda.app',
+    bundleIdentifier: 'com.tendahq.mobile',
     // backgroundColor: '',
     // icon: '',
   },
   android: {
     adaptiveIcon: {
-      backgroundColor: '#1b1b1b',
+      backgroundColor: '#3b82f6',
       foregroundImage: './assets/images/android-icon-foreground.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
-    package: 'com.usetenda.app',
+    package: 'com.tendahq.mobile',
     googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     // Enabling this cause this app to exit from any screen
     predictiveBackGestureEnabled: false,
@@ -50,13 +50,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-splash-screen',
       {
-        image: './assets/images/splash-icon.png',
-        imageWidth: 350,
-        resizeMode: 'contain',
         backgroundColor: '#1b1b1b',
-        dark: {
-          backgroundColor: '#1b1b1b',
-        },
+        android: {
+          image: "./assets/images/splash-icon.png",
+          imageWidth: 76
+        }
       }
     ],
     [

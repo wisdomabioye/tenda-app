@@ -5,7 +5,7 @@ export const APP_INFO = {
   apkUrl: '#download',
   appStoreUrl: '#',
   playStoreUrl: '#',
-  twitterUrl: 'https://x.com/usetenda',
+  twitterUrl: 'https://x.com/tendahq',
   whatsappUrl: 'https://chat.whatsapp.com/EeB5OMalNy0EbMlU4QPZMr?mode=hq2tcli',
   discordUrl: '#',
   githubUrl: '#',
