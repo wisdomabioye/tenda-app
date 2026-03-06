@@ -7,23 +7,23 @@ export const APP_INFO = {
   },
 
   support: {
-    whatsapp: 'https://wa.me/2348012345678',
-    email: 'support@tenda.com',
+    whatsapp: 'https://chat.whatsapp.com/EeB5OMalNy0EbMlU4QPZMr?mode=hq2tcli',
+    email: 'support@usetenda.com',
   },
 
   legal: {
-    terms: 'https://tenda.com/terms',
-    privacy: 'https://tenda.com/privacy',
+    terms: 'https://usetenda.com/terms',
+    privacy: 'https://usetenda.com/privacy',
   },
 
   social: {
-    twitter: 'https://twitter.com/tendaapp',
-    instagram: 'https://instagram.com/tendaapp',
+    twitter: 'https://x.com/usetenda',
+    instagram: 'https://instagram.com/usetenda',
   },
 
   external: {
-    website: 'https://tenda.com',
-    tendaPlayStore: 'https://play.google.com/store/apps/details?id=com.tenda.app',
+    website: 'https://usetenda.com',
+    tendaPlayStore: 'https://play.google.com/store/apps/details?id=com.usetenda.app',
   },
 
   wallets: {
