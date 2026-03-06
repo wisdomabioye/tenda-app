@@ -274,6 +274,19 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     }
   }
 
+  // Called by GigActionSheets when worker adds supplementary proof (no blockchain step)
+  async function handleAddProofsReady(
+    proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>,
+  ) {
+    try {
+      await api.gigs.addProofs({ id: gig.id }, { proofs })
+      showToast('success', 'Proof added!')
+      fetchGigDetail(gig.id)
+    } catch (e) {
+      showToast('error', (e as Error).message || 'Failed to add proof — please try again')
+    }
+  }
+
   // Called by GigActionSheets after Cloudinary uploads are done
   async function handleProofsReady(
     proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>,
@@ -572,6 +585,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         onCancelOpenConfirmed={handleCancelOpen}
         onRefundExpiredConfirmed={handleRefundExpired}
         onProofsReady={handleProofsReady}
+        onAddProofsReady={handleAddProofsReady}
         onDisputeReady={handleDisputeReady}
       />
 

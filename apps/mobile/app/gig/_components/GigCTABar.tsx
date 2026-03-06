@@ -3,10 +3,10 @@ import { useUnistyles } from 'react-native-unistyles'
 import { spacing, radius } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
 import { Text } from '@/components/ui/Text'
-import { canPublish, canAccept, canSubmit, canReview } from '@tenda/shared'
+import { canPublish, canAccept, canSubmit, canAddProof, canReview } from '@tenda/shared'
 import type { GigDetail } from '@tenda/shared'
 
-export type ActiveSheet = 'proof' | 'dispute' | 'review' | 'accept' | 'cancel' | 'delete' | 'refund'
+export type ActiveSheet = 'proof' | 'addProof' | 'dispute' | 'review' | 'accept' | 'cancel' | 'delete' | 'refund'
 
 interface GigCTABarProps {
   gig: GigDetail
@@ -88,6 +88,19 @@ export function GigCTABar({
         <View style={s.ctaRow}>
           <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={onApprove}>
             Approve & Pay
+          </Button>
+          <Button variant="danger" size="xl" onPress={() => onAction('dispute')}>
+            Dispute
+          </Button>
+        </View>
+      )
+    }
+
+    if (canAddProof(gig, userId)) {
+      return (
+        <View style={s.ctaRow}>
+          <Button variant="outline" size="xl" style={s.ctaFlex} onPress={() => onAction('addProof')}>
+            Add More Proof
           </Button>
           <Button variant="danger" size="xl" onPress={() => onAction('dispute')}>
             Dispute

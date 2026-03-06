@@ -9,10 +9,12 @@ import {
   type PublicUser,
   type Gig,
   type GigDetail,
+  type GigProof,
   type CreateGigInput,
   type UpdateGigInput,
   type AcceptGigInput,
   type SubmitProofInput,
+  type AddProofsInput,
   type ApproveGigInput,
   type DisputeGigInput,
   type GigListQuery,
@@ -163,6 +165,8 @@ export const api = {
       request<Gig>('POST', gigs.accept, { params, body }),
     submit: (params: { id: string }, body: SubmitProofInput) =>
       request<Gig>('POST', gigs.submit, { params, body }),
+    addProofs: (params: { id: string }, body: AddProofsInput) =>
+      request<GigProof[]>('POST', gigs.addProofs, { params, body }),
     approve: (params: { id: string }, body: ApproveGigInput) =>
       request<Gig>('POST', gigs.approve, { params, body }),
     dispute: (params: { id: string }, body: DisputeGigInput) =>

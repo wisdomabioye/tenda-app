@@ -30,6 +30,10 @@ export function canSubmit(gig: Pick<Gig, 'status' | 'worker_id'>, userId: string
   return gig.status === 'accepted' && gig.worker_id === userId
 }
 
+export function canAddProof(gig: Pick<Gig, 'status' | 'worker_id'>, userId: string): boolean {
+  return gig.status === 'submitted' && gig.worker_id === userId
+}
+
 export function canApprove(gig: Pick<Gig, 'status' | 'poster_id'>, userId: string): boolean {
   return gig.status === 'submitted' && userId === gig.poster_id
 }

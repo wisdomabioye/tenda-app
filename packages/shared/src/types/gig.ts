@@ -112,6 +112,10 @@ export interface SubmitProofInput {
   signature: string  // on-chain tx signature for submit_proof
 }
 
+export interface AddProofsInput {
+  proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>
+}
+
 export interface ApproveGigInput {
   signature: string  // on-chain tx signature for approve_completion
   // amount_lamports derived from gig.payment_lamports

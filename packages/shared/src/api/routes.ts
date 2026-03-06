@@ -16,6 +16,7 @@ export const apiRoutes: {
     publish: '/v1/gigs/:id/publish',
     accept: '/v1/gigs/:id/accept',
     submit: '/v1/gigs/:id/submit',
+    addProofs: '/v1/gigs/:id/proofs',
     approve: '/v1/gigs/:id/approve',
     dispute: '/v1/gigs/:id/dispute',
     resolve: '/v1/gigs/:id/resolve',

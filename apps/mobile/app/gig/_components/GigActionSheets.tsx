@@ -28,6 +28,7 @@ interface GigActionSheetsProps {
   onCancelOpenConfirmed: () => void
   onRefundExpiredConfirmed: () => void
   onProofsReady: (proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>) => void
+  onAddProofsReady: (proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>) => Promise<void>
   onDisputeReady: (reason: string) => void
 }
 
@@ -40,6 +41,7 @@ export function GigActionSheets({
   onCancelOpenConfirmed,
   onRefundExpiredConfirmed,
   onProofsReady,
+  onAddProofsReady,
   onDisputeReady,
 }: GigActionSheetsProps) {
   const router = useRouter()
@@ -48,6 +50,8 @@ export function GigActionSheets({
 
   const [proofFiles, setProofFiles] = useState<PickedFile[]>([])
   const [proofUploading, setProofUploading] = useState(false)
+  const [addProofFiles, setAddProofFiles] = useState<PickedFile[]>([])
+  const [addProofUploading, setAddProofUploading] = useState(false)
   const [disputeReason, setDisputeReason] = useState('')
   const [reviewScore, setReviewScore] = useState<Score | null>(null)
   const [reviewComment, setReviewComment] = useState('')
@@ -87,6 +91,28 @@ export function GigActionSheets({
       onProofsReady(proofs)
     } finally {
       setProofUploading(false)
+    }
+  }
+
+  async function handleAddProof() {
+    if (addProofFiles.length === 0) return
+    setAddProofUploading(true)
+    try {
+      const proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }> = []
+      for (const file of addProofFiles) {
+        try {
+          const url = await uploadToCloudinary(file, 'proof')
+          proofs.push({ url, type: file.type })
+        } catch (e) {
+          showToast('error', `Failed to upload "${file.name}": ${(e as Error).message}`)
+          return
+        }
+      }
+      handleClose()
+      setAddProofFiles([])
+      await onAddProofsReady(proofs)
+    } finally {
+      setAddProofUploading(false)
     }
   }
 
@@ -147,6 +173,21 @@ export function GigActionSheets({
           onPress={handleSubmitProof}
         >
           Submit
+        </Button>
+      </BottomSheet>
+
+      <BottomSheet visible={activeSheet === 'addProof'} onClose={handleClose} title="Add more proof">
+        <FilePicker files={addProofFiles} onChange={setAddProofFiles} accept="any" max={5} />
+        <Spacer size={spacing.md} />
+        <Button
+          variant="primary"
+          size="xl"
+          fullWidth
+          disabled={addProofFiles.length === 0}
+          loading={addProofUploading}
+          onPress={handleAddProof}
+        >
+          Upload
         </Button>
       </BottomSheet>
 

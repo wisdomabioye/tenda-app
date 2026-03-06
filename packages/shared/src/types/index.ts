@@ -28,6 +28,7 @@ export type {
   DisputeGigInput,
   ResolveDisputeInput,
   SubmitProofInput,
+  AddProofsInput,
   ApproveGigInput,
   RefundExpiredInput,
   GigListQuery,

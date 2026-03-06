@@ -10,6 +10,7 @@ import type {
   CancelGigInput,
   AcceptGigInput,
   SubmitProofInput,
+  AddProofsInput,
   ApproveGigInput,
   RefundExpiredInput,
   DisputeGigInput,
@@ -28,6 +29,7 @@ export interface GigsContract {
   publish:      Endpoint<'POST',   { id: string }, PublishGigInput,     undefined,     Gig>   // draft → open
   accept:       Endpoint<'POST',   { id: string }, AcceptGigInput,      undefined,     Gig>
   submit:       Endpoint<'POST',   { id: string }, SubmitProofInput,    undefined,     GigProof[]>
+  addProofs:    Endpoint<'POST',   { id: string }, AddProofsInput,      undefined,     GigProof[]>
   approve:      Endpoint<'POST',   { id: string }, ApproveGigInput,     undefined,     Gig>
   dispute:      Endpoint<'POST',   { id: string }, DisputeGigInput,     undefined,     Gig>
   resolve:      Endpoint<'POST',   { id: string }, ResolveDisputeInput, undefined,     Gig>
