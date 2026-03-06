@@ -23,7 +23,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
     package: 'com.usetenda.app',
-    googleServicesFile: './google-services.json',
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     // Enabling this cause this app to exit from any screen
     predictiveBackGestureEnabled: false,
   },

@@ -43,3 +43,6 @@ app-example
 /android
 
 .env.local
+
+# Firebase credentials — stored as EAS file secret, never committed
+google-services.json

@@ -83,3 +83,4 @@ next-env.d.ts
 # Misc
 TODO.md
 apps/mobile/IMPLEMENTATION_PLAN.md
+apps/mobile/google-services.json
