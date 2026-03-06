@@ -12,7 +12,7 @@ const problems = [
   },
   {
     old: 'Platform takes 10–30% cut',
-    new: 'Zero fees during beta, minimal long-term',
+    new: '2.5% platform fee, minimal long-term',
   },
   {
     old: 'Accounts banned, funds frozen',

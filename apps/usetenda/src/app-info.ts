@@ -5,9 +5,11 @@ export const APP_INFO = {
   apkUrl: '#download',
   appStoreUrl: '#',
   playStoreUrl: '#',
-  twitterUrl: 'https://twitter.com/usetenda',
+  twitterUrl: 'https://x.com/usetenda',
+  whatsappUrl: 'https://chat.whatsapp.com/EeB5OMalNy0EbMlU4QPZMr?mode=hq2tcli',
   discordUrl: '#',
   githubUrl: '#',
+  telegramUrl: '#',
 
   stats: [
     { value: '< 2s', label: 'Escrow locked' },

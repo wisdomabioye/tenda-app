@@ -5,6 +5,7 @@ const links = [
   { label: 'How it works', href: '#how-it-works' },
   { label: 'Why Tenda', href: '#why-tenda' },
   { label: 'Download', href: APP_INFO.apkUrl },
+  { label: 'Whatsapp', href: APP_INFO.whatsappUrl },
   { label: 'Twitter / X', href: APP_INFO.twitterUrl },
 ]
 
