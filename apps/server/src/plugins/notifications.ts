@@ -139,6 +139,36 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
     })()
   })
 
+  // ── Proof added → notify poster ──────────────────────────────────────────
+  appEvents.on('proof.added', async (data) => {
+    try {
+      const tokens = await tokensFor(data.posterId)
+      const stale = await sendPush(tokens, {
+        title: 'Additional Proof Submitted',
+        body: `The worker added more proof for "${data.title}". Review and approve.`,
+        data: { screen: 'gig', gigId: data.gigId },
+      })
+      await removeStaleTokens(stale)
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] proof.added listener failed')
+    }
+  })
+
+  // ── Review submitted → notify reviewee ───────────────────────────────────
+  appEvents.on('review.submitted', async (data) => {
+    try {
+      const tokens = await tokensFor(data.revieweeId)
+      const stale = await sendPush(tokens, {
+        title: 'New Review',
+        body: `You received a ${data.score}-star review for "${data.title}".`,
+        data: { screen: 'gig', gigId: data.gigId },
+      })
+      await removeStaleTokens(stale)
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] review.submitted listener failed')
+    }
+  })
+
   // ── New message → notify recipient ───────────────────────────────────────
   appEvents.on('message.sent', async (data) => {
     try {

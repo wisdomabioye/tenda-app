@@ -10,6 +10,8 @@ export interface AppEvents {
   'gig.resolved':   { gigId: string; posterId: string; workerId: string; winner: string; title: string }
   'gig.created':    { gigId: string; city: string; category: string; title: string }
   'message.sent':   { conversationId: string; senderId: string; recipientId: string; preview: string }
+  'review.submitted': { gigId: string; reviewerId: string; revieweeId: string; score: number; title: string }
+  'proof.added':    { gigId: string; posterId: string; workerId: string; title: string }
 }
 
 class TypedEventEmitter extends EventEmitter {

@@ -3,6 +3,7 @@ import { and, count, eq } from 'drizzle-orm'
 import { gigs, gig_proofs } from '@tenda/shared/db/schema'
 import { isCloudinaryUrl, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
+import { appEvents } from '../../../../../lib/events'
 
 type AddProofsRoute = GigsContract['addProofs']
 
@@ -108,6 +109,13 @@ const addProofs: FastifyPluginAsync = async (fastify) => {
           type,
         })))
         .returning()
+
+      appEvents.emit('proof.added', {
+        gigId:    id,
+        posterId: gig.poster_id,
+        workerId: gig.worker_id!,
+        title:    gig.title,
+      })
 
       return reply.code(201).send(inserted)
     }

@@ -4,6 +4,7 @@ import { gigs, reviews, users } from '@tenda/shared/db/schema'
 import { isValidReviewScore, MAX_REVIEW_COMMENT_LENGTH, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '../../../../../lib/db'
+import { appEvents } from '../../../../../lib/events'
 
 type ReviewRoute = GigsContract['review']
 
@@ -114,6 +115,14 @@ const reviewGig: FastifyPluginAsync = async (fastify) => {
             .where(eq(users.id, revieweeId))
 
           return inserted
+        })
+
+        appEvents.emit('review.submitted', {
+          gigId:      id,
+          reviewerId: reviewerId,
+          revieweeId: revieweeId,
+          score:      review.score,
+          title:      gig.title,
         })
 
         return reply.code(201).send(review)
