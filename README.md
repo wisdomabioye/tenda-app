@@ -1,6 +1,6 @@
 # Tenda
 
-Trustless gig marketplace on Solana. Workers and posters transact through on-chain escrow — no middlemen, no custodial risk.
+Tenda is a trustless mobile-first micro-task gig marketplace on Solana. Workers and posters transact through on-chain escrow — no middlemen, no custodial risk.
 
 **Website:** [tendahq.com](https://tendahq.com)
 
