@@ -1,32 +1,20 @@
 import { useCallback, useState } from 'react'
-import { View, ScrollView, StyleSheet, Image, Alert, Pressable, RefreshControl, Share } from 'react-native'
+import { View, ScrollView, StyleSheet, Alert, RefreshControl, Share } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import {
-  MapPin,
-  Clock,
-  Calendar,
-  Share2,
-  FileText,
-  Film,
-  Play,
-  MessageCircle,
-} from 'lucide-react-native'
+import { Share2 } from 'lucide-react-native'
 import { Transaction, PublicKey } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import { spacing, radius, typography } from '@/theme/tokens'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
-import { IconButton } from '@/components/ui/IconButton'
-import { Avatar } from '@/components/ui/Avatar'
-import { Card } from '@/components/ui/Card'
 import { MoneyText } from '@/components/ui/MoneyText'
 import { Divider } from '@/components/ui/Divider'
 import { Spacer } from '@/components/ui/Spacer'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { showToast } from '@/components/ui/Toast'
-import { GigStatusBadge, ReviewCard } from '@/components/gig'
+import { GigStatusBadge, GigMetaInfo, GigPersonCard, GigProofsGrid, GigReviewsSection } from '@/components/gig'
 import { TransactionMonitor } from '@/components/feedback/TransactionMonitor'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { ErrorState } from '@/components/feedback/ErrorState'
@@ -43,7 +31,7 @@ import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { toPaymentDisplay } from '@/lib/currency'
 import { computeRelevantDeadline, computePlatformFee, SOLANA_TX_FEE_LAMPORTS, apiConfig } from '@tenda/shared'
-import { deadlineLabel, formatDuration, formatDeadline } from '@/lib/gig-display'
+import { deadlineLabel } from '@/lib/gig-display'
 import { api } from '@/api/client'
 import { signAndSendTransactionWithWallet, signTransactionsWithWallet, sendRawTransaction, getBalance } from '@/wallet'
 import type { ColorScheme } from '@/theme/tokens'
@@ -95,13 +83,6 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const price = toPaymentDisplay(gig.payment_lamports, solToNgn)
   const deadline = computeRelevantDeadline(gig)
   const deadlineLbl = deadlineLabel(deadline)
-
-  const posterName = [gig.poster.first_name, gig.poster.last_name]
-    .filter(Boolean)
-    .join(' ') || 'Anonymous'
-  const workerName = gig.worker
-    ? [gig.worker.first_name, gig.worker.last_name].filter(Boolean).join(' ') || 'Anonymous'
-    : null
 
   async function handleRefresh() {
     setRefreshing(true)
@@ -409,32 +390,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         <Spacer size={spacing.lg} />
 
         {/* Meta info */}
-        <View style={s.metaGrid}>
-          <View style={s.metaItem}>
-            <MapPin size={16} color={theme.colors.textFaint} />
-            <Text variant="body" color={theme.colors.textSub}>{gig.address ?? gig.city}</Text>
-          </View>
-          {deadlineLbl ? (
-            <View style={s.metaItem}>
-              <Clock size={16} color={theme.colors.textFaint} />
-              <Text variant="body" color={theme.colors.textSub}>{deadlineLbl}</Text>
-            </View>
-          ) : null}
-          <View style={s.metaItem}>
-            <Calendar size={16} color={theme.colors.textFaint} />
-            <Text variant="body" color={theme.colors.textSub}>
-              {`${formatDuration(gig.completion_duration_seconds)} to complete after acceptance`}
-            </Text>
-          </View>
-          {gig.accept_deadline && (
-            <View style={s.metaItem}>
-              <Clock size={16} color={theme.colors.textFaint} />
-              <Text variant="body" color={theme.colors.textSub}>
-                Accept by {formatDeadline(gig.accept_deadline)}
-              </Text>
-            </View>
-          )}
-        </View>
+        <GigMetaInfo gig={gig} deadlineLbl={deadlineLbl} />
 
         <Divider />
 
@@ -446,51 +402,25 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         <Divider />
 
         {/* Poster */}
-        <Text variant="subheading">Posted by</Text>
-        <Spacer size={spacing.sm} />
-        <Card variant="outlined">
-          <View style={s.personRow}>
-            <Avatar size="md" name={posterName} src={gig.poster.avatar_url} />
-            <View style={s.personInfo}>
-              <Text variant="body" weight="semibold">{posterName}</Text>
-              <Text variant="caption" color={theme.colors.textSub}>
-                {gig.poster.reputation_score ?? 0} reputation
-              </Text>
-            </View>
-            {userId !== gig.poster_id && (
-              <IconButton
-                icon={<MessageCircle size={20} color={theme.colors.primary} />}
-                onPress={() => router.push(`/chat/${gig.poster_id}` as Parameters<typeof router.push>[0])}
-                variant="ghost"
-              />
-            )}
-          </View>
-        </Card>
+        <GigPersonCard
+          label="Posted by"
+          user={gig.poster}
+          currentUserId={userId}
+          gigId={gig.id}
+          gigTitle={gig.title}
+        />
 
         {/* Worker */}
         {gig.worker && (
           <>
             <Spacer size={spacing.md} />
-            <Text variant="subheading">Assigned to</Text>
-            <Spacer size={spacing.sm} />
-            <Card variant="outlined">
-              <View style={s.personRow}>
-                <Avatar size="md" name={workerName ?? ''} src={gig.worker.avatar_url} />
-                <View style={s.personInfo}>
-                  <Text variant="body" weight="semibold">{workerName}</Text>
-                  <Text variant="caption" color={theme.colors.textSub}>
-                    {gig.worker.reputation_score ?? 0} reputation
-                  </Text>
-                </View>
-                {userId !== gig.worker.id && (
-                  <IconButton
-                    icon={<MessageCircle size={20} color={theme.colors.primary} />}
-                    onPress={() => router.push(`/chat/${gig.worker!.id}` as Parameters<typeof router.push>[0])}
-                    variant="ghost"
-                  />
-                )}
-              </View>
-            </Card>
+            <GigPersonCard
+              label="Assigned to"
+              user={gig.worker}
+              currentUserId={userId}
+              gigId={gig.id}
+              gigTitle={gig.title}
+            />
           </>
         )}
 
@@ -498,25 +428,13 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         {gig.reviews.length > 0 && (
           <>
             <Divider />
-            <Text variant="subheading">Reviews</Text>
-            <Spacer size={spacing.sm} />
-            <View style={s.reviewsStack}>
-              {gig.reviews.map((review) => {
-                const isPoster  = review.reviewer_id === gig.poster_id
-                const reviewer  = isPoster ? gig.poster : gig.worker
-                const roleLabel = isPoster ? 'Poster' : 'Worker'
-                const label     = review.reviewer_id === userId ? `Your review (${roleLabel})` : `${roleLabel}'s review`
-                if (!reviewer) return null
-                return (
-                  <ReviewCard
-                    key={review.id}
-                    review={review}
-                    reviewer={reviewer}
-                    label={label}
-                  />
-                )
-              })}
-            </View>
+            <GigReviewsSection
+              reviews={gig.reviews}
+              posterId={gig.poster_id}
+              poster={gig.poster}
+              worker={gig.worker}
+              currentUserId={userId}
+            />
           </>
         )}
 
@@ -526,34 +444,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
             <Divider />
             <Text variant="subheading">Proof of work</Text>
             <Spacer size={spacing.sm} />
-            <View style={s.proofsGrid}>
-              {gig.proofs.map((proof) => (
-                <Pressable
-                  key={proof.id}
-                  style={[s.proofItem, { backgroundColor: theme.colors.muted }]}
-                  onPress={() => setSelectedProof(proof)}
-                >
-                  {proof.type === 'image' ? (
-                    <Image source={{ uri: proof.url }} style={s.proofThumb} />
-                  ) : (
-                    <View style={s.proofIcon}>
-                      {proof.type === 'video'
-                        ? <Film size={24} color={theme.colors.textSub} />
-                        : <FileText size={24} color={theme.colors.textSub} />}
-                      <Text size={10} color={theme.colors.textSub} numberOfLines={1}>
-                        {proof.type}
-                      </Text>
-                    </View>
-                  )}
-                  {/* Play badge for videos */}
-                  {proof.type === 'video' && (
-                    <View style={[s.playBadge, { backgroundColor: theme.colors.primary }]}>
-                      <Play size={8} color={theme.colors.onPrimary} fill={theme.colors.onPrimary} />
-                    </View>
-                  )}
-                </Pressable>
-              ))}
-            </View>
+            <GigProofsGrid proofs={gig.proofs} onProofPress={setSelectedProof} />
           </>
         )}
 
@@ -667,8 +558,6 @@ export default function GigDetailScreen() {
   return <GigDetailContent gig={selectedGig} userId={user?.id ?? ''} />
 }
 
-const PROOF_SIZE = 72
-
 const s = StyleSheet.create({
   flex: { flex: 1 },
   content: {
@@ -692,56 +581,6 @@ const s = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-  },
-  metaGrid: {
-    gap: spacing.sm,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  personRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  personInfo: {
-    flex: 1,
-  },
-  reviewsStack: {
-    gap: spacing.sm,
-  },
-  proofsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  proofItem: {
-    width: PROOF_SIZE,
-    height: PROOF_SIZE,
-    borderRadius: radius.sm,
-    overflow: 'hidden',
-  },
-  proofThumb: {
-    width: PROOF_SIZE,
-    height: PROOF_SIZE,
-  },
-  proofIcon: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  playBadge: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   disputeBlock: {
     borderRadius: radius.md,

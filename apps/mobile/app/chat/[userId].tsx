@@ -6,10 +6,11 @@ import {
   StyleSheet,
   View,
   Alert,
+  Pressable,
 } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { MoreVertical } from 'lucide-react-native'
+import { MoreVertical, Briefcase } from 'lucide-react-native'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
@@ -26,7 +27,12 @@ import { spacing } from '@/theme/tokens'
 import type { LocalMessage } from '@/stores/chat.store'
 
 export default function ChatScreen() {
-  const { userId } = useLocalSearchParams<{ userId: string }>()
+  const { userId, gigId, gigTitle } = useLocalSearchParams<{
+    userId: string
+    gigId?: string
+    gigTitle?: string
+  }>()
+  const router = useRouter()
   const { theme } = useUnistyles()
   const myId = useAuthStore((s) => s.user?.id ?? '')
   const { sendMessage, retryMessage, closeConversation, messages } = useChatStore()
@@ -37,10 +43,11 @@ export default function ChatScreen() {
   const msgs = conversationId ? (messages[conversationId] ?? []) : []
   const reversedMsgs = useMemo(() => [...msgs].reverse(), [msgs])
 
+  const decodedGigTitle = gigTitle ? decodeURIComponent(gigTitle) : undefined
 
   function handleSend(text: string) {
     if (!conversationId) return
-    void sendMessage(conversationId, text)
+    void sendMessage(conversationId, text, gigId)
   }
 
   function handleRetry(msg: LocalMessage) {
@@ -97,6 +104,18 @@ export default function ChatScreen() {
           onRightPress={handleClose}
         />
 
+        {gigId && decodedGigTitle && (
+          <Pressable
+            style={[s.gigBanner, { backgroundColor: theme.colors.primaryTint, borderBottomColor: theme.colors.borderFaint }]}
+            onPress={() => router.push(`/gig/${gigId}` as Parameters<typeof router.push>[0])}
+          >
+            <Briefcase size={13} color={theme.colors.primary} />
+            <Text variant="caption" color={theme.colors.primary} numberOfLines={1} style={s.gigBannerText}>
+              Re: {decodedGigTitle}
+            </Text>
+          </Pressable>
+        )}
+
         <FlatList
           data={reversedMsgs}
           keyExtractor={(item) => item.id}
@@ -126,7 +145,16 @@ export default function ChatScreen() {
 }
 
 const s = StyleSheet.create({
-  flex:        { flex: 1 },
-  messageList: { paddingTop: spacing.sm, paddingBottom: spacing.sm },
-  empty:       { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  flex:          { flex: 1 },
+  messageList:   { paddingTop: spacing.sm, paddingBottom: spacing.sm },
+  empty:         { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  gigBanner:     {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 7,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  gigBannerText: { flex: 1 },
 })
