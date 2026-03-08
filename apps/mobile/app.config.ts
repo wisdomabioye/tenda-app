@@ -17,6 +17,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // icon: '',
   },
   android: {
+    edgeToEdgeEnabled: true,
     softwareKeyboardLayoutMode: 'pan',
     adaptiveIcon: {
       backgroundColor: '#3b82f6',
@@ -79,7 +80,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-location',
     'expo-font',
     '@react-native-community/datetimepicker',
-    'react-native-edge-to-edge'
   ],
   experiments: {
     typedRoutes: true,

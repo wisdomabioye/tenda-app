@@ -1,7 +1,7 @@
 import 'react-native-get-random-values'
 import { Stack } from 'expo-router'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
-import { SystemBars } from 'react-native-edge-to-edge'
+import { StatusBar } from 'expo-status-bar'
 import { useUnistyles } from 'react-native-unistyles'
 import * as SplashScreen from 'expo-splash-screen'
 import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -49,7 +49,7 @@ export default wrapApp(function RootLayout() {
         </Stack>
       </ToastProvider>
       </SafeAreaInsetsContext.Provider>
-      <SystemBars style="auto" />
+      <StatusBar style="auto" />
     </GestureHandlerRootView>
   )
 })
