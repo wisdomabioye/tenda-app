@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { and, eq, lt, desc, isNull, ne } from 'drizzle-orm'
-import { conversations, messages } from '@tenda/shared/db/schema'
+import { conversations, messages, gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { appEvents } from '../../../../../lib/events'
 import type { ConversationsContract, ApiError } from '@tenda/shared'
@@ -61,8 +61,18 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const rows = await fastify.db
-        .select()
+        .select({
+          id:              messages.id,
+          conversation_id: messages.conversation_id,
+          sender_id:       messages.sender_id,
+          gig_id:          messages.gig_id,
+          gig_title:       gigs.title,
+          content:         messages.content,
+          read_at:         messages.read_at,
+          created_at:      messages.created_at,
+        })
         .from(messages)
+        .leftJoin(gigs, eq(messages.gig_id, gigs.id))
         .where(
           cursor
             ? and(eq(messages.conversation_id, id), lt(messages.created_at, cursor))
@@ -86,6 +96,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
 
       return rows.map((m) => ({
         ...m,
+        gig_title:  m.gig_title ?? null,
         read_at:    m.read_at?.toISOString() ?? null,
         created_at: m.created_at?.toISOString() ?? null,
       }))
@@ -196,6 +207,16 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         })
       }
 
+      let gig_title: string | null = null
+      if (newMessage.gig_id) {
+        const [g] = await fastify.db
+          .select({ title: gigs.title })
+          .from(gigs)
+          .where(eq(gigs.id, newMessage.gig_id))
+          .limit(1)
+        gig_title = g?.title ?? null
+      }
+
       const recipientId = conv.user_a_id === userId ? conv.user_b_id : conv.user_a_id
       const preview = content.trim().slice(0, 100)
 
@@ -208,6 +229,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
 
       return reply.code(201).send({
         ...newMessage,
+        gig_title,
         read_at:    newMessage.read_at?.toISOString() ?? null,
         created_at: newMessage.created_at?.toISOString() ?? null,
       })

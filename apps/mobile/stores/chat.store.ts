@@ -82,6 +82,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       conversation_id: conversationId,
       sender_id:       useAuthStore.getState().user?.id ?? '',
       gig_id:          gigId ?? null,
+      gig_title:       null,
       content,
       read_at:         null,
       created_at:      new Date().toISOString(),

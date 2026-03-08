@@ -26,6 +26,7 @@ export interface Message {
   conversation_id: string
   sender_id: string
   gig_id: string | null
+  gig_title: string | null
   content: string
   read_at: string | null
   created_at: string | null

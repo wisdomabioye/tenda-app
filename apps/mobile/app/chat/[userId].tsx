@@ -6,16 +6,16 @@ import {
   StyleSheet,
   View,
   Alert,
-  Pressable,
 } from 'react-native'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { MoreVertical, Briefcase } from 'lucide-react-native'
+import { MoreVertical } from 'lucide-react-native'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
 import { ErrorState } from '@/components/feedback'
 import { MessageBubble } from '@/components/chat/MessageBubble'
+import { GigContextDivider } from '@/components/chat/GigContextDivider'
 import { ChatInput } from '@/components/ui/ChatInput'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { showToast } from '@/components/ui/Toast'
@@ -23,16 +23,12 @@ import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useConversation } from '@/hooks/useConversation'
 import { useMessagePolling } from '@/hooks/useMessagePolling'
+import { buildMessageFeed, isDivider } from '@/lib/chat'
 import { spacing } from '@/theme/tokens'
 import type { LocalMessage } from '@/stores/chat.store'
 
 export default function ChatScreen() {
-  const { userId, gigId, gigTitle } = useLocalSearchParams<{
-    userId: string
-    gigId?: string
-    gigTitle?: string
-  }>()
-  const router = useRouter()
+  const { userId, gigId, gigTitle } = useLocalSearchParams<{ userId: string; gigId?: string; gigTitle?: string }>()
   const { theme } = useUnistyles()
   const myId = useAuthStore((s) => s.user?.id ?? '')
   const { sendMessage, retryMessage, closeConversation, messages } = useChatStore()
@@ -41,9 +37,7 @@ export default function ChatScreen() {
   useMessagePolling(conversationId)
 
   const msgs = conversationId ? (messages[conversationId] ?? []) : []
-  const reversedMsgs = useMemo(() => [...msgs].reverse(), [msgs])
-
-  const decodedGigTitle = gigTitle ? decodeURIComponent(gigTitle) : undefined
+  const feed = useMemo(() => buildMessageFeed(msgs), [msgs])
 
   function handleSend(text: string) {
     if (!conversationId) return
@@ -104,28 +98,20 @@ export default function ChatScreen() {
           onRightPress={handleClose}
         />
 
-        {gigId && decodedGigTitle && (
-          <Pressable
-            style={[s.gigBanner, { backgroundColor: theme.colors.primaryTint, borderBottomColor: theme.colors.borderFaint }]}
-            onPress={() => router.push(`/gig/${gigId}` as Parameters<typeof router.push>[0])}
-          >
-            <Briefcase size={13} color={theme.colors.primary} />
-            <Text variant="caption" color={theme.colors.primary} numberOfLines={1} style={s.gigBannerText}>
-              Re: {decodedGigTitle}
-            </Text>
-          </Pressable>
-        )}
-
         <FlatList
-          data={reversedMsgs}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <MessageBubble
-              message={item}
-              isMine={item.sender_id === myId}
-              onRetry={item._status === 'failed' ? () => handleRetry(item) : undefined}
-            />
-          )}
+          data={feed}
+          keyExtractor={(item) => isDivider(item) ? item._key : item.id}
+          renderItem={({ item }) =>
+            isDivider(item) ? (
+              <GigContextDivider gigId={item.gig_id} gigTitle={item.gig_title} />
+            ) : (
+              <MessageBubble
+                message={item}
+                isMine={item.sender_id === myId}
+                onRetry={item._status === 'failed' ? () => handleRetry(item) : undefined}
+              />
+            )
+          }
           contentContainerStyle={s.messageList}
           showsVerticalScrollIndicator={false}
           inverted
@@ -138,6 +124,12 @@ export default function ChatScreen() {
           }
         />
 
+        {gigId && (
+          <GigContextDivider
+            gigId={gigId}
+            gigTitle={gigTitle ? decodeURIComponent(gigTitle) : null}
+          />
+        )}
         <ChatInput onSend={handleSend} />
       </KeyboardAvoidingView>
     </ScreenContainer>
@@ -148,13 +140,4 @@ const s = StyleSheet.create({
   flex:          { flex: 1 },
   messageList:   { paddingTop: spacing.sm, paddingBottom: spacing.sm },
   empty:         { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
-  gigBanner:     {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 7,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  gigBannerText: { flex: 1 },
 })
