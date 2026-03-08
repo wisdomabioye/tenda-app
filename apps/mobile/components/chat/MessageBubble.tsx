@@ -22,15 +22,13 @@ export function MessageBubble({ message, isMine, onRetry }: MessageBubbleProps) 
 
   const statusText  = isFailed ? 'Failed — tap to retry' : isSending ? 'Sending…' : time
   const statusColor = isFailed
-    ? (isMine ? theme.colors.onPrimary : theme.colors.warning)
-    : isMine
-      ? theme.colors.onPrimary
-      : theme.colors.textFaint
+    ? theme.colors.warning
+    : theme.colors.textFaint
 
   const bubbleStyle = [
     s.bubble,
     isMine
-      ? [s.bubbleMine,   { backgroundColor: theme.colors.primary }]
+      ? [s.bubbleMine,   { backgroundColor: theme.colors.primaryTint }]
       : [s.bubbleTheirs, { backgroundColor: theme.colors.surface }],
     isFailed && s.bubbleFailed,
   ]
@@ -39,11 +37,11 @@ export function MessageBubble({ message, isMine, onRetry }: MessageBubbleProps) 
     <>
       <Text
         style={s.content}
-        color={isMine ? theme.colors.onPrimary : theme.colors.text}
+        color={theme.colors.text}
       >
         {message.content}
       </Text>
-      <Text size={10} color={statusColor} style={[s.time, isMine && !isFailed && s.timeMine]}>
+      <Text size={10} color={statusColor} style={s.time}>
         {statusText}
       </Text>
     </>
@@ -72,10 +70,10 @@ const s = StyleSheet.create({
   rowMine:      { justifyContent: 'flex-end' },
   rowTheirs:    { justifyContent: 'flex-start' },
   bubble: {
-    maxWidth:        '75%',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius:    radius.lg,
+    maxWidth:         '75%',
+    paddingVertical:  6,
+    paddingHorizontal: 10,
+    borderRadius:     radius.lg,
   },
   bubbleMine:    { borderBottomRightRadius: 4 },
   bubbleTheirs:  { borderBottomLeftRadius: 4 },
@@ -83,14 +81,11 @@ const s = StyleSheet.create({
   bubblePressed: { opacity: 0.5 },
   content: {
     fontFamily: typography.fonts.body.regular,
-    fontSize:   typography.sizes.base,
+    fontSize:   typography.sizes.sm,
     lineHeight: 20,
   },
   time: {
     marginTop: 2,
     alignSelf: 'flex-end',
-  },
-  timeMine: {
-    opacity: 0.65,
   },
 })

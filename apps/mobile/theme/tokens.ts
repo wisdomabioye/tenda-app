@@ -55,9 +55,9 @@ export interface ColorScheme {
 export const colors: { light: ColorScheme; dark: ColorScheme } = {
   light: {
     // Surfaces
-    background: '#ffffff',
-    surface: '#f9fafb',
-    surfacePressed: '#f3f4f6',
+    background: '#fafaf8',
+    surface: '#f3f3f0',
+    surfacePressed: '#ebebea',
 
     // Brand
     primary: '#3b82f6',
@@ -66,7 +66,7 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     onPrimary: '#ffffff',
 
     // Text
-    text: '#111827',
+    text: '#1e2533',
     textSub: '#6b7280',
     textFaint: '#9ca3af',
     textInverse: '#ffffff',
@@ -109,9 +109,9 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
 
   dark: {
     // Surfaces
-    background: '#111827',
-    surface: '#1f2937',
-    surfacePressed: '#374151',
+    background: '#151922',
+    surface: '#1e2330',
+    surfacePressed: '#2a3140',
 
     // Brand
     primary: '#3b82f6',
@@ -120,10 +120,10 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     onPrimary: '#ffffff',
 
     // Text
-    text: '#f9fafb',
+    text: '#dde3ed',
     textSub: '#9ca3af',
     textFaint: '#6b7280',
-    textInverse: '#111827',
+    textInverse: '#151922',
     textLink: '#60a5fa',
 
     // Status
