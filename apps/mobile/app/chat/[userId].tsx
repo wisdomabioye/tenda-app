@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -6,13 +6,15 @@ import {
   StyleSheet,
   View,
   Alert,
+  Pressable,
 } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { MoreVertical } from 'lucide-react-native'
+import { MoreVertical, X, ChevronRight } from 'lucide-react-native'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
+import { BottomSheet } from '@/components/ui/BottomSheet'
 import { ErrorState } from '@/components/feedback'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { GigContextDivider } from '@/components/chat/GigContextDivider'
@@ -29,9 +31,11 @@ import type { LocalMessage } from '@/stores/chat.store'
 
 export default function ChatScreen() {
   const { userId, gigId, gigTitle } = useLocalSearchParams<{ userId: string; gigId?: string; gigTitle?: string }>()
+  const router = useRouter()
   const { theme } = useUnistyles()
   const myId = useAuthStore((s) => s.user?.id ?? '')
   const { sendMessage, retryMessage, closeConversation, messages } = useChatStore()
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const { conversationId, otherUser, loading, initError, retry } = useConversation(userId)
   useMessagePolling(conversationId)
@@ -49,8 +53,9 @@ export default function ChatScreen() {
     retryMessage(conversationId, msg)
   }
 
-  function handleClose() {
+  function handleCloseConversation() {
     if (!conversationId) return
+    setMenuOpen(false)
     Alert.alert(
       'Close Conversation',
       'This will hide the conversation from your inbox. It will reopen if you message again.',
@@ -60,9 +65,9 @@ export default function ChatScreen() {
           text: 'Close',
           style: 'destructive',
           onPress: () =>
-            closeConversation(conversationId).catch(() =>
-              showToast('error', 'Failed to close conversation — please try again')
-            ),
+            closeConversation(conversationId)
+              .then(() => router.back())
+              .catch(() => showToast('error', 'Failed to close conversation — please try again')),
         },
       ],
     )
@@ -95,7 +100,7 @@ export default function ChatScreen() {
           title={displayName}
           showBack
           rightIcon={MoreVertical}
-          onRightPress={handleClose}
+          onRightPress={() => setMenuOpen(true)}
         />
 
         <FlatList
@@ -132,12 +137,30 @@ export default function ChatScreen() {
         )}
         <ChatInput onSend={handleSend} />
       </KeyboardAvoidingView>
+
+      <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Options">
+        <Pressable
+          style={({ pressed }) => [s.menuItem, { borderTopColor: theme.colors.borderFaint }, pressed && { backgroundColor: theme.colors.surfacePressed }]}
+          onPress={handleCloseConversation}
+        >
+          <View style={s.menuItemLeft}>
+            <X size={16} color={theme.colors.textSub} />
+            <View>
+              <Text weight="medium">Close conversation</Text>
+              <Text variant="caption" color={theme.colors.textFaint}>Hides this chat from your inbox</Text>
+            </View>
+          </View>
+          <ChevronRight size={16} color={theme.colors.textFaint} />
+        </Pressable>
+      </BottomSheet>
     </ScreenContainer>
   )
 }
 
 const s = StyleSheet.create({
-  flex:          { flex: 1 },
-  messageList:   { paddingTop: spacing.sm, paddingBottom: spacing.sm },
-  empty:         { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  flex:        { flex: 1 },
+  messageList: { paddingTop: spacing.sm, paddingBottom: spacing.sm },
+  empty:       { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
+  menuItem:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
+  menuItemLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
 })
