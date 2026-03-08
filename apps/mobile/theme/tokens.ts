@@ -60,17 +60,17 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     surfacePressed: '#ebebea',
 
     // Brand
-    primary: '#3b82f6',
-    primaryPressed: '#2563eb',
-    primaryTint: '#eff6ff',
+    primary: '#3b70c4',
+    primaryPressed: '#2d57a0',
+    primaryTint: '#edf2fb',
     onPrimary: '#ffffff',
 
     // Text
-    text: '#1e2533',
+    text: '#3d4d63',
     textSub: '#6b7280',
     textFaint: '#9ca3af',
     textInverse: '#ffffff',
-    textLink: '#3b82f6',
+    textLink: '#3b70c4',
 
     // Status
     success: '#10b981',
@@ -90,7 +90,7 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     border: '#e5e7eb',
     borderFaint: '#f3f4f6',
     input: '#f3f4f6',
-    focusRing: '#3b82f6',
+    focusRing: '#3b70c4',
 
     // Utility
     muted: '#f3f4f6',
@@ -114,17 +114,17 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     surfacePressed: '#2a3140',
 
     // Brand
-    primary: '#3b82f6',
-    primaryPressed: '#2563eb',
-    primaryTint: '#1e3a8a',
+    primary: '#3b70c4',
+    primaryPressed: '#2d57a0',
+    primaryTint: '#1e3258',
     onPrimary: '#ffffff',
 
     // Text
-    text: '#dde3ed',
-    textSub: '#9ca3af',
-    textFaint: '#6b7280',
+    text: '#b8c4d4',
+    textSub: '#8a95a3',
+    textFaint: '#5c6672',
     textInverse: '#151922',
-    textLink: '#60a5fa',
+    textLink: '#7aa8f2',
 
     // Status
     success: '#10b981',
@@ -144,7 +144,7 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     border: '#374151',
     borderFaint: '#1f2937',
     input: '#374151',
-    focusRing: '#3b82f6',
+    focusRing: '#3b70c4',
 
     // Utility
     muted: '#374151',
