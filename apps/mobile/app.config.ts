@@ -1,5 +1,9 @@
 import { ExpoConfig, ConfigContext } from 'expo/config'
 
+const apiHost = process.env.EXPO_PUBLIC_API_URL
+  ? new URL(process.env.EXPO_PUBLIC_API_URL).host
+  : ''
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Tenda',
@@ -28,6 +32,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
     // Enabling this cause this app to exit from any screen
     predictiveBackGestureEnabled: false,
+    intentFilters: [
+      {
+        action: 'VIEW',
+        autoVerify: true,
+        data: [{ scheme: 'https', host: apiHost, pathPrefix: '/gig' }],
+        category: ['BROWSABLE', 'DEFAULT'],
+      },
+    ],
   },
   web: {
     output: 'static',

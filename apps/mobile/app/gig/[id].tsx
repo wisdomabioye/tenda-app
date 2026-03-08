@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View, ScrollView, StyleSheet, Image, Alert, Pressable, RefreshControl } from 'react-native'
+import { View, ScrollView, StyleSheet, Image, Alert, Pressable, RefreshControl, Share } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import {
@@ -36,12 +36,13 @@ import { ProofViewerModal } from '@/components/gig/ProofViewerModal'
 import type { ProofItem } from '@/components/gig/ProofViewerModal'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { getCategoryColor, CATEGORY_META } from '@/data/mock'
+import { getEnv } from '@/lib/env'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { toPaymentDisplay } from '@/lib/currency'
-import { computeRelevantDeadline, computePlatformFee, SOLANA_TX_FEE_LAMPORTS } from '@tenda/shared'
+import { computeRelevantDeadline, computePlatformFee, SOLANA_TX_FEE_LAMPORTS, apiConfig } from '@tenda/shared'
 import { deadlineLabel, formatDuration, formatDeadline } from '@/lib/gig-display'
 import { api } from '@/api/client'
 import { signAndSendTransactionWithWallet, signTransactionsWithWallet, sendRawTransaction, getBalance } from '@/wallet'
@@ -105,6 +106,12 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   async function handleRefresh() {
     setRefreshing(true)
     try { await fetchGigDetail(gig.id) } finally { setRefreshing(false) }
+  }
+
+  function handleShare() {
+    const baseUrl = apiConfig[getEnv()].baseUrl
+    const url = `${baseUrl}/gig/${gig.id}`
+    Share.share({ message: `${gig.title} on Tenda\n${url}` })
   }
 
   // ── Shared: sign tx and enter monitoring state ──────────────────────────────
@@ -374,7 +381,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       onClose={() => setShowAcceptNudge(false)}
     />
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
-      <Header title="Gig" showBack rightIcon={Share2} onRightPress={() => {}} />
+      <Header title="Gig" showBack rightIcon={Share2} onRightPress={handleShare} />
 
       <ScrollView
         style={s.flex}

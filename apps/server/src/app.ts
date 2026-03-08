@@ -64,6 +64,49 @@ const app: FastifyPluginAsync<AppOptions> = async (
     reply.send({ status: 'ok' })
   })
 
+  // Android App Links verification file
+  fastify.get('/.well-known/assetlinks.json', async (_request, reply) => {
+    reply.type('application/json').send([
+      {
+        relation: ['delegate_permission/common.handle_all_urls'],
+        target: {
+          namespace: 'android_app',
+          package_name: 'com.tendahq.mobile',
+          sha256_cert_fingerprints: [process.env.ANDROID_SHA256_FINGERPRINT ?? ''],
+        },
+      },
+    ])
+  })
+
+  // Web fallback for shared gig links — redirects to app or Play Store
+  fastify.get<{ Params: { id: string } }>('/gig/:id', async (request, reply) => {
+    const { id } = request.params
+    const deepLink = `tenda://gig/${id}`
+    const storeUrl = 'https://play.google.com/store/apps/details?id=com.tendahq.mobile'
+    reply.type('text/html').send(`<!DOCTYPE html>
+      <html lang="en">
+      <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Tenda — View Gig</title>
+        <style>
+          body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center;
+                justify-content: center; min-height: 100vh; margin: 0; background: #fafaf8; color: #3d4d63; }
+          a { color: #3b70c4; font-weight: 600; }
+        </style>
+      </head>
+      <body>
+        <p>Opening in Tenda…</p>
+        <p>Don't have the app? <a href="${storeUrl}">Get it on Google Play</a></p>
+        <script>
+          window.location.replace('${deepLink}');
+          setTimeout(function () { window.location.replace('${storeUrl}'); }, 2500);
+        </script>
+      </body>
+      </html>`
+    )
+  })
+
   fastify.get('/favicon.ico', async (request, reply) => {
     try {
       const filePath = join(__dirname, 'assets', 'favicon.png')
