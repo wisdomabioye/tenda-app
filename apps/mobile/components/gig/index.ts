@@ -1,4 +1,6 @@
 export { GigCard } from './GigCard'
+export { GigForm } from './GigForm'
+export type { GigFormValues } from './GigForm'
 export { GigStatusBadge } from './GigStatusBadge'
 export { GigCardCompact } from './GigCardCompact'
 export { ReviewCard } from './ReviewCard'

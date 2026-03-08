@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react'
 import { View, ScrollView, StyleSheet, RefreshControl, Share } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { Share2 } from 'lucide-react-native'
+import { Share2, Pencil } from 'lucide-react-native'
 import { Transaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import { spacing, radius, typography } from '@/theme/tokens'
@@ -92,10 +92,16 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     try { await fetchGigDetail(gig.id) } finally { setRefreshing(false) }
   }
 
+  const isDraftOwner = gig.status === 'draft' && userId === gig.poster_id
+
   function handleShare() {
     const baseUrl = apiConfig[getEnv()].baseUrl
     const url = `${baseUrl}/gig/${gig.id}`
     Share.share({ message: `${gig.title} on Tenda\n${url}` })
+  }
+
+  function handleEdit() {
+    router.push(`/gig/${gig.id}/edit` as any)
   }
 
   async function guardBalance(required: bigint): Promise<boolean> {
@@ -375,7 +381,12 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       onClose={() => setShowAcceptNudge(false)}
     />
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
-      <Header title="Gig" showBack rightIcon={Share2} onRightPress={handleShare} />
+      <Header
+        title="Gig"
+        showBack
+        rightIcon={isDraftOwner ? Pencil : Share2}
+        onRightPress={isDraftOwner ? handleEdit : handleShare}
+      />
 
       <ScrollView
         style={s.flex}

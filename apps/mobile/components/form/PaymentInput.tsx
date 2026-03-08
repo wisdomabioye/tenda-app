@@ -18,8 +18,11 @@ type Mode = 'NGN' | 'SOL'
 export function PaymentInput({ value, onChange }: PaymentInputProps) {
   const { theme } = useUnistyles()
   const solToNgn = useExchangeRateStore((s) => s.solToNgn)
-  const [mode, setMode] = useState<Mode>('NGN')
-  const [text, setText] = useState('')
+  const hasInitialValue = value > 0
+  const [mode, setMode] = useState<Mode>(hasInitialValue ? 'SOL' : 'NGN')
+  const [text, setText] = useState(() =>
+    hasInitialValue ? (value / LAMPORTS_PER_SOL).toFixed(4) : ''
+  )
   const [focused, setFocused] = useState(false)
 
   const minNgn = Math.round((MIN_PAYMENT_LAMPORTS / LAMPORTS_PER_SOL) * solToNgn)
