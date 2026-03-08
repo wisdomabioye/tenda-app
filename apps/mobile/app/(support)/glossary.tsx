@@ -59,7 +59,7 @@ export default function GlossaryScreen() {
   const { theme } = useUnistyles()
 
   return (
-    <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer edges={['left', 'right']}>
       <Header title="Glossary" showBack />
       <Spacer size={spacing.md} />
 

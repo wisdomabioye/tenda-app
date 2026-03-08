@@ -102,7 +102,7 @@ export default function SupportIndexScreen() {
     : TOPICS
 
   return (
-    <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer edges={['left', 'right']}>
       <Header title="Help & Guide" showBack />
       <Spacer size={spacing.md} />
 

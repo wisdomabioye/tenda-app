@@ -124,7 +124,7 @@ export default function PostGigScreen() {
       guideRoute="/(support)/posting"
       onClose={() => setShowNudge(false)}
     />
-    <ScreenContainer scroll={false} padding={false}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <KeyboardAvoidingView
         style={s.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

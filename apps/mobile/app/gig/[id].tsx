@@ -373,7 +373,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       guideRoute="/(support)/working"
       onClose={() => setShowAcceptNudge(false)}
     />
-    <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <Header showBack rightIcon={Share2} onRightPress={() => {}} />
 
       <ScrollView

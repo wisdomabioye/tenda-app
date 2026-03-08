@@ -104,7 +104,7 @@ export default function WalletScreen() {
     .reduce((sum, tx) => sum + tx.amount_lamports, 0)
 
   return (
-    <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <Header title="Wallet" showBack />
       <FlatList
         data={transactions}

@@ -65,7 +65,7 @@ export default function FaqScreen() {
   const { theme } = useUnistyles()
 
   return (
-    <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer edges={['left', 'right']}>
       <Header title="FAQ & Support" showBack />
       <Spacer size={spacing.md} />
 
@@ -111,13 +111,13 @@ export default function FaqScreen() {
         <ContactRow
           icon={<XIcon size={18} color={theme.colors.primary} />}
           label="Twitter / X"
-          value="@tendaapp"
+          value={"@tendahq"}
           url={APP_INFO.social.twitter}
         />
         <ContactRow
           icon={<ExternalLink size={18} color={theme.colors.primary} />}
           label="Instagram"
-          value="@tendaapp"
+          value="@tendahq"
           url={APP_INFO.social.instagram}
         />
       </View>

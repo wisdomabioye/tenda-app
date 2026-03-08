@@ -25,7 +25,7 @@ export default function MessagesScreen() {
   useFocusEffect(load)
 
   return (
-    <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <Header title="Messages" />
       <Spacer size={spacing.sm} />
       <FlatList

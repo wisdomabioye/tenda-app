@@ -20,7 +20,7 @@ const s = StyleSheet.create({
 export function ScreenContainer({
   scroll = true,
   padding = true,
-  edges = ['top', 'left', 'right'],
+  edges = ['left', 'right'],
   children,
 }: ScreenContainerProps) {
   const { theme } = useUnistyles()

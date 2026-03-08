@@ -64,7 +64,7 @@ export default function UpdateProfileScreen() {
     [firstName, lastName].filter(Boolean).join(' ') || user?.wallet_address?.slice(0, 8) || 'You'
 
   return (
-    <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <KeyboardAvoidingView
         style={s.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}

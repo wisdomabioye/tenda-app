@@ -53,7 +53,7 @@ export default function MyGigsScreen() {
   )
 
   return (
-    <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <Header title="My Gigs" showBack />
 
       {/* Tab bar */}

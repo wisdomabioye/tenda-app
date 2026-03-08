@@ -10,7 +10,7 @@ export default function WalletGuideScreen() {
   const { theme } = useUnistyles()
 
   return (
-    <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer edges={['left', 'right']}>
       <Header title="Wallet Setup" showBack />
       <Spacer size={spacing.md} />
 

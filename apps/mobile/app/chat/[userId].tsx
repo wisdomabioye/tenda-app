@@ -71,7 +71,7 @@ export default function ChatScreen() {
 
   if (initError) {
     return (
-      <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
+      <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
         <Header title="Chat" showBack />
         <ErrorState
           title="Couldn't open chat"
@@ -88,7 +88,7 @@ export default function ChatScreen() {
     : 'User'
 
   return (
-    <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Header
           title={displayName}

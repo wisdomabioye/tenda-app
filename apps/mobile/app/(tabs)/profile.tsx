@@ -76,8 +76,8 @@ export default function ProfileScreen() {
   ]
 
   return (
-    <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
-      <Header showBack />
+    <ScreenContainer edges={['left', 'right']}>
+      <Header title='Profile' showBack />
 
       {/* Hero — centered identity */}
       <View style={s.hero}>

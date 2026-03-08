@@ -68,7 +68,7 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScreenContainer edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer edges={['left', 'right']}>
       <Header title="Settings" showBack />
       <Spacer size={spacing.md} />
 

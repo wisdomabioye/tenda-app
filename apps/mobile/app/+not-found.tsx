@@ -15,7 +15,7 @@ export default function NotFoundScreen() {
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScreenContainer scroll={false} edges={['top', 'left', 'right', 'bottom']}>
+      <ScreenContainer scroll={false} edges={['left', 'right']}>
         <View style={s.container}>
           <View style={[s.iconCircle, { backgroundColor: theme.colors.primaryTint }]}>
             <FileQuestion size={48} color={theme.colors.primary} />

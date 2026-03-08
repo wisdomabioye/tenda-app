@@ -6,7 +6,7 @@ export default function ErrorRoute() {
   const router = useRouter()
 
   return (
-    <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <ErrorState
         title="Unexpected error"
         description="Something went wrong on our end. Please try connecting again."

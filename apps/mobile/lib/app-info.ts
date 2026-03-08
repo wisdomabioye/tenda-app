@@ -1,6 +1,6 @@
 export const APP_INFO = {
   name: 'Tenda',
-  tagline: 'Freelance work, paid on-chain',
+  tagline: 'Get paid. No middlemen.',
 
   fees: {
     platformFeePct: 2.5, // percentage shown in support screens
@@ -8,7 +8,7 @@ export const APP_INFO = {
 
   support: {
     whatsapp: 'https://chat.whatsapp.com/EeB5OMalNy0EbMlU4QPZMr?mode=hq2tcli',
-    email: 'support@tendahq.com',
+    email: 'hello@tendahq.com',
   },
 
   legal: {

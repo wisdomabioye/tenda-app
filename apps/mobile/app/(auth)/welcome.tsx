@@ -15,7 +15,7 @@ export default function WelcomeScreen() {
   const { theme } = useUnistyles()
 
   return (
-    <ScreenContainer scroll={false} padding={false} edges={['top', 'left', 'right', 'bottom']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <View style={s.screen}>
         <Spacer flex={1} />
 
