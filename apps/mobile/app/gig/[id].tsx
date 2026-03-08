@@ -408,10 +408,11 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           currentUserId={userId}
           gigId={gig.id}
           gigTitle={gig.title}
+          showMessageButton={gig.status === 'open' || userId === gig.worker?.id}
         />
 
-        {/* Worker */}
-        {gig.worker && (
+        {/* Worker — only visible to participants (poster + worker) */}
+        {gig.worker && (userId === gig.poster_id || userId === gig.worker.id) && (
           <>
             <Spacer size={spacing.md} />
             <GigPersonCard

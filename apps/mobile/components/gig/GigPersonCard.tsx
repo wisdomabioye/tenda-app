@@ -17,9 +17,10 @@ interface Props {
   currentUserId: string
   gigId: string
   gigTitle: string
+  showMessageButton?: boolean
 }
 
-export function GigPersonCard({ label, user, currentUserId, gigId, gigTitle }: Props) {
+export function GigPersonCard({ label, user, currentUserId, gigId, gigTitle, showMessageButton = true }: Props) {
   const { theme } = useUnistyles()
   const router = useRouter()
 
@@ -45,7 +46,7 @@ export function GigPersonCard({ label, user, currentUserId, gigId, gigTitle }: P
               {user.reputation_score ?? 0} reputation
             </Text>
           </View>
-          {!isSelf && (
+          {!isSelf && showMessageButton && (
             <IconButton
               icon={<MessageCircle size={20} color={theme.colors.primary} />}
               onPress={handleMessage}
