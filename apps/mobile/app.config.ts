@@ -21,7 +21,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // icon: '',
   },
   android: {
-    edgeToEdgeEnabled: true,
     softwareKeyboardLayoutMode: 'pan',
     adaptiveIcon: {
       backgroundColor: '#3b82f6',

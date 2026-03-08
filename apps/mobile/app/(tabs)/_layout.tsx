@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router'
 import { StyleSheet, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context'
 import { Home, Briefcase, Plus, Wallet, MessageCircle } from 'lucide-react-native'
 import { typography, shadows, radius } from '@/theme/tokens'
 import { useChatStore } from '@/stores/chat.store'
@@ -17,7 +17,10 @@ export default function TabsLayout() {
 
   useConversationPolling()
 
-  const tabBarHeight = 78 + insets.bottom
+  // Use initialWindowMetrics as a stable fallback — on Android, screen wake briefly
+  // reports insets as 0 before system bars finish rendering, causing a layout jump.
+  const stableBottom = insets.bottom > 0 ? insets.bottom : (initialWindowMetrics?.insets.bottom ?? 0)
+  const tabBarHeight = 78 + stableBottom
 
   return (
     <Tabs
@@ -38,7 +41,7 @@ export default function TabsLayout() {
           borderTopWidth: 1,
           height: tabBarHeight,
           paddingTop: 10,
-          paddingBottom: insets.bottom + 4,
+          paddingBottom: stableBottom + 4,
           ...shadows.md,
         },
       })}
