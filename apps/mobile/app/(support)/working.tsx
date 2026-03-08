@@ -4,7 +4,7 @@ import { GuideStep } from '@/components/support/GuideStep'
 
 export default function WorkingGuideScreen() {
   return (
-    <ScreenContainer edges={['left', 'right']}>
+    <ScreenContainer edges={['left', 'right', 'bottom']}>
       <Header title="Working on a Gig" showBack />
       <Spacer size={spacing.md} />
 

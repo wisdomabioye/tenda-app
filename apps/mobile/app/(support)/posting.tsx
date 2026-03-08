@@ -4,7 +4,7 @@ import { GuideStep } from '@/components/support/GuideStep'
 
 export default function PostingGuideScreen() {
   return (
-    <ScreenContainer edges={['left', 'right']}>
+    <ScreenContainer edges={['left', 'right', 'bottom']}>
       <Header title="Posting a Gig" showBack />
       <Spacer size={spacing.md} />
 

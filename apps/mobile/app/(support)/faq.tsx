@@ -65,7 +65,7 @@ export default function FaqScreen() {
   const { theme } = useUnistyles()
 
   return (
-    <ScreenContainer edges={['left', 'right']}>
+    <ScreenContainer edges={['left', 'right', 'bottom']}>
       <Header title="FAQ & Support" showBack />
       <Spacer size={spacing.md} />
 

@@ -128,7 +128,7 @@ export default function ConnectWalletScreen() {
   }
 
   return (
-    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
       <View style={s.screen}>
         <Header showBack transparent />
 

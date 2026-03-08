@@ -25,7 +25,7 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const canSend = text.trim().length > 0 && !disabled
 
   return (
-    <View style={[s.container, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderFaint, paddingBottom: Platform.OS === 'ios' ? (insets.bottom || spacing.sm) : Math.max(insets.bottom, spacing['2xl']) }]}>
+    <View style={[s.container, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderFaint, paddingBottom: insets.bottom + spacing.sm }]}>
       <TextInput
         value={text}
         onChangeText={setText}

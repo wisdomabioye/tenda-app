@@ -84,7 +84,7 @@ export default function OnboardingScreen() {
 
   if (phase === 'permission') {
     return (
-      <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
+      <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
         <View style={s.permission}>
           <Spacer flex={1} />
           <View style={[s.permissionIcon, { backgroundColor: theme.colors.primaryTint }]}>
@@ -121,7 +121,7 @@ export default function OnboardingScreen() {
   const currentSlide = SLIDES[slideIndex]
 
   return (
-    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
       <View style={s.screen}>
         {/* Skip */}
         <View style={s.topBar}>

@@ -17,7 +17,7 @@ export default function EscrowGuideScreen() {
 
   return (
     <KeyboardAvoidingView style={s.kav} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-    <ScreenContainer edges={['left', 'right']}>
+    <ScreenContainer edges={['left', 'right', 'bottom']}>
       <Header title="Payments & Escrow" showBack />
       <Spacer size={spacing.md} />
 
