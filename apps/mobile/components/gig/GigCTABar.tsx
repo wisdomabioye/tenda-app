@@ -47,10 +47,9 @@ export function GigCTABar({
             Publish Gig
           </Button>
           <Button
-            variant="ghost"
+            variant="outline"
             size="xl"
             onPress={() => onAction('delete')}
-            style={{ borderColor: theme.colors.danger, borderWidth: 1 }}
           >
             Delete
           </Button>

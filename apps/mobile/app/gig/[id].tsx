@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react'
-import { View, ScrollView, StyleSheet, Alert, RefreshControl, Share } from 'react-native'
+import { View, ScrollView, StyleSheet, RefreshControl, Share } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { Share2 } from 'lucide-react-native'
-import { Transaction, PublicKey } from '@solana/web3.js'
+import { Transaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import { spacing, radius, typography } from '@/theme/tokens'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
@@ -16,6 +16,7 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { showToast } from '@/components/ui/Toast'
 import { GigStatusBadge, GigMetaInfo, GigPersonCard, GigProofsGrid, GigReviewsSection } from '@/components/gig'
 import { TransactionMonitor } from '@/components/feedback/TransactionMonitor'
+import { InsufficientBalanceSheet } from '@/components/feedback/InsufficientBalanceSheet'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { GigCTABar, GigActionSheets } from '@/components/gig'
@@ -33,7 +34,8 @@ import { toPaymentDisplay } from '@/lib/currency'
 import { computeRelevantDeadline, computePlatformFee, SOLANA_TX_FEE_LAMPORTS, apiConfig } from '@tenda/shared'
 import { deadlineLabel } from '@/lib/gig-display'
 import { api } from '@/api/client'
-import { signAndSendTransactionWithWallet, signTransactionsWithWallet, sendRawTransaction, getBalance } from '@/wallet'
+import { signAndSendTransactionWithWallet, signTransactionsWithWallet, sendRawTransaction } from '@/wallet'
+import { checkBalance } from '@/lib/balance'
 import type { ColorScheme } from '@/theme/tokens'
 import type { GigDetail } from '@tenda/shared'
 import type { ActiveSheet } from '@/components/gig'
@@ -59,6 +61,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
+  const [balanceShortfall, setBalanceShortfall] = useState<{ balance: bigint; required: bigint } | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [isTxBuilding, setIsTxBuilding] = useState(false)
   const [pendingSignature, setPendingSignature] = useState<string | null>(null)
@@ -93,6 +96,17 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     const baseUrl = apiConfig[getEnv()].baseUrl
     const url = `${baseUrl}/gig/${gig.id}`
     Share.share({ message: `${gig.title} on Tenda\n${url}` })
+  }
+
+  async function guardBalance(required: bigint): Promise<boolean> {
+    const walletAddress = useAuthStore.getState().walletAddress
+    if (!walletAddress) return true
+    const result = await checkBalance(walletAddress, required)
+    if (!result.sufficient) {
+      setBalanceShortfall({ balance: result.balance, required })
+      return false
+    }
+    return true
   }
 
   // ── Shared: sign tx and enter monitoring state ──────────────────────────────
@@ -134,17 +148,10 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     if (!mwaAuthToken) return
     setIsTxBuilding(true)
     try {
-      const walletAddress = useAuthStore.getState().walletAddress
-      if (walletAddress) {
-        const { fee_bps } = await api.platform.config()
-        const platformFee = BigInt(computePlatformFee(BigInt(gig.payment_lamports), fee_bps))
-        const required = BigInt(gig.payment_lamports) + platformFee + SOLANA_TX_FEE_LAMPORTS
-        const balance = BigInt(await getBalance(new PublicKey(walletAddress)))
-        if (balance < required) {
-          Alert.alert('Insufficient SOL', 'Your wallet does not have enough SOL to fund this gig.')
-          return
-        }
-      }
+      const { fee_bps } = await api.platform.config()
+      const platformFee = BigInt(computePlatformFee(BigInt(gig.payment_lamports), fee_bps))
+      const required = BigInt(gig.payment_lamports) + platformFee + SOLANA_TX_FEE_LAMPORTS
+      if (!await guardBalance(required)) return
       const { transaction } = await api.blockchain.createEscrow({ gig_id: gig.id })
       await startBlockchainFlow({ type: 'publish' }, transaction, 'publish')
     } catch (e) {
@@ -158,6 +165,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     if (!mwaAuthToken) return
     setIsTxBuilding(true)
     try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
       const response = await api.blockchain.acceptGig({ gig_id: gig.id })
 
       if (response.setup_transaction) {
@@ -212,6 +220,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     if (!mwaAuthToken) return
     setIsTxBuilding(true)
     try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
       const { transaction } = await api.blockchain.approveEscrow({ gig_id: gig.id })
       await startBlockchainFlow({ type: 'approve' }, transaction, 'approve')
     } catch (e) {
@@ -225,6 +234,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     if (!mwaAuthToken) return
     setIsTxBuilding(true)
     try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
       const { transaction } = await api.blockchain.cancelEscrow({ gig_id: gig.id })
       await startBlockchainFlow({ type: 'cancel' }, transaction, 'cancel')
     } catch (e) {
@@ -238,6 +248,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     if (!mwaAuthToken) return
     setIsTxBuilding(true)
     try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
       const { transaction } = await api.blockchain.refundExpired({ gig_id: gig.id })
       await startBlockchainFlow({ type: 'refund' }, transaction, 'refund')
     } catch (e) {
@@ -251,6 +262,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   async function handleDisputeReady(reason: string) {
     if (!mwaAuthToken) return
     try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
       const { transaction } = await api.blockchain.disputeGig({ gig_id: gig.id, reason })
       const tx = Transaction.from(Buffer.from(transaction, 'base64'))
       const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken, onNewAuthToken)
@@ -280,6 +292,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   ) {
     if (!mwaAuthToken) return
     try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
       const { transaction } = await api.blockchain.submitProof({ gig_id: gig.id })
       const tx = Transaction.from(Buffer.from(transaction, 'base64'))
       const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken, onNewAuthToken)
@@ -510,6 +523,13 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       />
 
       <ProofViewerModal proof={selectedProof} onClose={() => setSelectedProof(null)} />
+
+      <InsufficientBalanceSheet
+        visible={balanceShortfall !== null}
+        onClose={() => setBalanceShortfall(null)}
+        balance={balanceShortfall?.balance ?? 0n}
+        required={balanceShortfall?.required ?? 0n}
+      />
     </ScreenContainer>
     </>
   )
