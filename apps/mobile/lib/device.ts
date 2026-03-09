@@ -7,7 +7,6 @@ import { Platform, type PlatformAndroidStatic } from 'react-native'
  * Never use for security-critical decisions (use server-side verification instead).
  */
 export function isSeekerDevice(): boolean {
-  return true;
   if (Platform.OS !== 'android') return false
   return (Platform as PlatformAndroidStatic).constants.Model === 'Seeker'
 }
