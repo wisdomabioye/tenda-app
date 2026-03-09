@@ -115,6 +115,7 @@ export async function buildCreateGigEscrowInstruction(
   paymentLamports:           number,
   completionDurationSeconds: number,
   acceptDeadline:            Date | null,
+  isSeeker:                  boolean,
 ): Promise<{ transaction: string }> {
   const program   = getProgram()
   const poster    = new PublicKey(posterAddress)
@@ -125,7 +126,7 @@ export async function buildCreateGigEscrowInstruction(
     : null
 
   const tx = await program.methods
-    .createGigEscrow(toChainGigId(gigId), new BN(paymentLamports), new BN(completionDurationSeconds), deadlineUnix)
+    .createGigEscrow(toChainGigId(gigId), new BN(paymentLamports), new BN(completionDurationSeconds), deadlineUnix, isSeeker)
     // gigEscrow seed includes gig_id (instruction arg) — Anchor's resolver silently
     // fails to derive it in practice; provide explicitly like all other builders.
     // platform_state (const seeds) is auto-resolved by Anchor.

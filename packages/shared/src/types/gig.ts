@@ -62,7 +62,9 @@ export interface CreateGigInput {
   description: string
   payment_lamports: number
   category: GigCategory
-  city: string
+  country: string
+  remote?: boolean
+  city?: string        // omitted for remote gigs
   address?: string
   latitude?: number
   longitude?: number
@@ -75,7 +77,9 @@ export interface UpdateGigInput {
   description?: string
   payment_lamports?: number
   category?: GigCategory
-  city?: string
+  country?: string
+  remote?: boolean
+  city?: string | null
   address?: string | null
   latitude?: number | null
   longitude?: number | null
@@ -135,6 +139,7 @@ export interface GigDetail extends Gig {
     last_name: string | null
     avatar_url: string | null
     reputation_score: number | null
+    is_seeker: boolean
   }
   worker: {
     id: string
@@ -142,6 +147,7 @@ export interface GigDetail extends Gig {
     last_name: string | null
     avatar_url: string | null
     reputation_score: number | null
+    is_seeker: boolean
   } | null
   proofs: GigProof[]
   dispute: Dispute | null
@@ -177,6 +183,8 @@ export interface UserGigsQuery {
 
 export interface GigListQuery {
   // status intentionally omitted — public feed is always 'open'
+  country?: string
+  remote?: boolean
   city?: string
   category?: GigCategory
   min_payment_lamports?: number

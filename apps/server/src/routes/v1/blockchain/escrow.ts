@@ -67,6 +67,7 @@ const escrow: FastifyPluginAsync = async (fastify) => {
           Number(gig.payment_lamports),
           gig.completion_duration_seconds,
           acceptDeadline,
+          request.user.is_seeker,
         )
         return result
       } catch (error) {

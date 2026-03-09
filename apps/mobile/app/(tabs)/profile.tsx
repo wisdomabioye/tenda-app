@@ -20,8 +20,10 @@ import {
   Card,
   Divider,
   Spacer,
+  SeekerBadge,
 } from '@/components/ui'
 import { Header } from '@/components/ui/Header'
+import { SeekerWelcomeSheet } from '@/components/seeker/SeekerWelcomeSheet'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUserGigsStore } from '@/stores/user-gigs.store'
 
@@ -85,6 +87,12 @@ export default function ProfileScreen() {
         <Avatar size="xl" name={fullName} src={user?.avatar_url} />
         <Spacer size={spacing.md} />
         <Text variant="heading" align="center">{fullName}</Text>
+        {user?.is_seeker && (
+          <>
+            <Spacer size={spacing.xs} />
+            <SeekerBadge variant="full" />
+          </>
+        )}
         <Spacer size={spacing.xs} />
         <View style={s.metaRow}>
           <MapPin size={14} color={theme.colors.textSub} />
@@ -170,6 +178,8 @@ export default function ProfileScreen() {
       </Pressable>
 
       <Spacer size={spacing.lg} />
+
+      {user?.is_seeker && <SeekerWelcomeSheet onDismiss={() => {}} />}
     </ScreenContainer>
   )
 }

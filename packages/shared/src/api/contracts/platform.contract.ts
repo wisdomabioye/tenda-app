@@ -2,6 +2,7 @@ import type { Endpoint } from '../endpoint'
 
 export interface PlatformConfig {
   fee_bps: number
+  seeker_fee_bps: number
 }
 
 export interface PlatformContract {

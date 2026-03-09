@@ -7,6 +7,7 @@ import { Text } from '@/components/ui/Text'
 import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { IconButton } from '@/components/ui/IconButton'
+import { SeekerBadge } from '@/components/ui/SeekerBadge'
 import type { GigDetail } from '@tenda/shared'
 
 type GigUser = GigDetail['poster']
@@ -41,7 +42,10 @@ export function GigPersonCard({ label, user, currentUserId, gigId, gigTitle, sho
         <View style={s.row}>
           <Avatar size="md" name={displayName} src={user.avatar_url} />
           <View style={s.info}>
-            <Text variant="body" weight="semibold">{displayName}</Text>
+            <View style={s.nameRow}>
+              <Text variant="body" weight="semibold">{displayName}</Text>
+              {user.is_seeker && <SeekerBadge variant="compact" />}
+            </View>
             <Text variant="caption" color={theme.colors.textSub}>
               {user.reputation_score ?? 0} reputation
             </Text>
@@ -60,7 +64,8 @@ export function GigPersonCard({ label, user, currentUserId, gigId, gigTitle, sho
 }
 
 const s = StyleSheet.create({
-  row:    { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  info:   { flex: 1 },
-  spacer: { height: spacing.sm },
+  row:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  info:    { flex: 1 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
+  spacer:  { height: spacing.sm },
 })

@@ -15,11 +15,11 @@ import { Text } from './Text'
 import { Input } from './Input'
 import { Chip } from './Chip'
 import { IconButton } from './IconButton'
-import { CityPicker } from '@/components/form/CityPicker'
+import { LocationPicker } from '@/components/form/LocationPicker'
 import { CATEGORY_META } from '@/data/mock'
 import type { ColorScheme } from '@/theme/tokens'
 
-const SHEET_HEIGHT = 520
+const SHEET_HEIGHT = 580
 
 interface FilterSheetProps {
   visible: boolean
@@ -28,8 +28,11 @@ interface FilterSheetProps {
   onQueryChange: (q: string) => void
   selectedCategory: string | null
   onCategoryChange: (cat: string | null) => void
+  country: string | null
   city: string | null
-  onCityChange: (city: string) => void
+  onLocationChange: (country: string, city: string | null) => void
+  remote: boolean | null   // null = show all, true = remote only, false = local only
+  onRemoteChange: (remote: boolean | null) => void
   onClearAll: () => void
 }
 
@@ -40,8 +43,11 @@ export function FilterSheet({
   onQueryChange,
   selectedCategory,
   onCategoryChange,
+  country,
   city,
-  onCityChange,
+  onLocationChange,
+  remote,
+  onRemoteChange,
   onClearAll,
 }: FilterSheetProps) {
   const { theme } = useUnistyles()
@@ -72,7 +78,7 @@ export function FilterSheet({
     onCategoryChange(selectedCategory === key ? null : key)
   }
 
-  const hasFilters = query.trim().length > 0 || selectedCategory !== null || city !== null
+  const hasFilters = query.trim().length > 0 || selectedCategory !== null || country !== null || city !== null || remote !== null
 
   return (
     <Modal
@@ -146,9 +152,31 @@ export function FilterSheet({
             </View>
           </View>
 
-          {/* City picker */}
+          {/* Remote / Local filter */}
           <View style={s.section}>
-            <CityPicker value={city} onChange={onCityChange} label="City" />
+            <Text variant="caption" color={theme.colors.textSub} style={s.chipLabel}>
+              Gig type
+            </Text>
+            <View style={s.chips}>
+              {([null, false, true] as const).map((val) => (
+                <Chip
+                  key={String(val)}
+                  label={val === null ? 'All' : val ? 'Remote' : 'Local'}
+                  selected={remote === val}
+                  onPress={() => onRemoteChange(val)}
+                />
+              ))}
+            </View>
+          </View>
+
+          {/* Location picker */}
+          <View style={s.section}>
+            <LocationPicker
+              country={country}
+              city={city}
+              onChange={onLocationChange}
+              label="Location"
+            />
           </View>
 
           {/* Clear filters */}

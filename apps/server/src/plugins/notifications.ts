@@ -111,7 +111,12 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         const subs = await fastify.db
           .select({ user_id: gig_subscriptions.user_id, category: gig_subscriptions.category })
           .from(gig_subscriptions)
-          .where(or(eq(gig_subscriptions.city, data.city), eq(gig_subscriptions.city, '*')))
+          // Remote gigs match wildcard-city subscribers only; local gigs match city + wildcard
+          .where(
+            data.city
+              ? or(eq(gig_subscriptions.city, data.city), eq(gig_subscriptions.city, '*'))
+              : eq(gig_subscriptions.city, '*'),
+          )
 
         const subscriberIds = [...new Set(
           subs
@@ -127,9 +132,10 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
           .from(device_tokens)
           .where(conditions.length === 1 ? conditions[0] : or(...conditions))
 
+        const locationLabel = data.city ?? 'Remote'
         const stale = await sendPush(tokenRows.map((r) => r.token), {
           title: 'New Gig Posted',
-          body: `"${data.title}" in ${data.city}`,
+          body: `"${data.title}" in ${locationLabel}`,
           data: { screen: 'gig', gigId: data.gigId },
         })
         await removeStaleTokens(stale)

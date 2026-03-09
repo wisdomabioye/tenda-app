@@ -9,8 +9,8 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Reply: ConfigRoute['response']
   }>('/config', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async (_request, _reply) => {
-    const { fee_bps } = await getPlatformConfig(fastify.db)
-    return { fee_bps }
+    const { fee_bps, seeker_fee_bps } = await getPlatformConfig(fastify.db)
+    return { fee_bps, seeker_fee_bps }
   })
 }
 

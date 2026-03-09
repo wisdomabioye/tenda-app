@@ -6,7 +6,8 @@ import { spacing } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Card, Header, Avatar } from '@/components/ui'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
-import { CityPicker } from '@/components/form/CityPicker'
+import { LocationPicker } from '@/components/form/LocationPicker'
+import { findCountryForCity } from '@tenda/shared'
 import { showToast } from '@/components/ui/Toast'
 import { FilePicker } from '@/components/form/FilePicker'
 import type { PickedFile } from '@/components/form/FilePicker'
@@ -22,7 +23,10 @@ export default function UpdateProfileScreen() {
   const [firstName, setFirstName] = useState(user?.first_name ?? '')
   const [lastName, setLastName] = useState(user?.last_name ?? '')
   const [bio, setBio] = useState(user?.bio ?? '')
-  const [selectedCity, setSelectedCity] = useState<string | null>(user?.city ?? null)
+  const [selectedCity, setSelectedCity]       = useState<string | null>(user?.city ?? null)
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(
+    user?.city ? (findCountryForCity(user.city) ?? null) : null,
+  )
   const [avatarFile, setAvatarFile] = useState<PickedFile[]>([])
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar_url ?? null)
   const [isLoading, setIsLoading] = useState(false)
@@ -133,7 +137,12 @@ export default function UpdateProfileScreen() {
           <Card variant="outlined" padding={spacing.md}>
             <Text variant="label" weight="semibold">City</Text>
             <Spacer size={spacing.sm} />
-            <CityPicker value={selectedCity} onChange={setSelectedCity} label="" />
+            <LocationPicker
+              country={selectedCountry}
+              city={selectedCity}
+              onChange={(country, city) => { setSelectedCountry(country); setSelectedCity(city) }}
+              label=""
+            />
           </Card>
 
           <Spacer size={spacing.lg} />

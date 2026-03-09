@@ -10,9 +10,10 @@ import {
   MAX_GIG_TITLE_LENGTH,
   MAX_GIG_DESCRIPTION_LENGTH,
   MAX_PAGINATION_LIMIT,
+  LOCATIONS,
   ErrorCode,
 } from '@tenda/shared'
-import type { GigsContract, ApiError, GigStatus, GigCategory } from '@tenda/shared'
+import type { GigsContract, ApiError, GigStatus, GigCategory, CountryCode } from '@tenda/shared'
 import { batchExpireGigs } from '../../../lib/gigs'
 
 type ListRoute   = GigsContract['list']
@@ -30,6 +31,8 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     await batchExpireGigs(fastify.db)
 
     const {
+      country,
+      remote,
       city,
       category,
       min_payment_lamports,
@@ -42,6 +45,14 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       offset = 0,
     } = request.query
 
+    if (country && !(country in LOCATIONS)) {
+      return reply.code(400).send({
+        statusCode: 400, error: 'Bad Request',
+        message: `country must be one of: ${Object.keys(LOCATIONS).join(', ')}`,
+        code: ErrorCode.VALIDATION_ERROR,
+      })
+    }
+
     const safeLimit  = Math.min(Number(limit),  MAX_PAGINATION_LIMIT)
     const safeOffset = Number(offset)
 
@@ -51,6 +62,9 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       eq(gigs.status, 'open' as GigStatus),
     ]
 
+    if (country)              conditions.push(eq(gigs.country, country))
+    if (remote === true)      conditions.push(eq(gigs.remote, true))
+    if (remote === false)     conditions.push(eq(gigs.remote, false))
     if (city)                 conditions.push(eq(gigs.city, city))
     if (category)             conditions.push(eq(gigs.category, category as GigCategory))
     if (min_payment_lamports !== undefined || max_payment_lamports !== undefined) {
@@ -140,6 +154,8 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         description,
         payment_lamports,
         category,
+        country,
+        remote = false,
         city,
         address,
         latitude,
@@ -148,11 +164,29 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         accept_deadline,
       } = request.body
 
-      if (!title || !description || !payment_lamports || !category || !city || !completion_duration_seconds) {
+      if (!title || !description || !payment_lamports || !category || !country || !completion_duration_seconds) {
         return reply.code(400).send({
           statusCode: 400,
           error: 'Bad Request',
-          message: 'title, description, payment_lamports, category, city, and completion_duration_seconds are required',
+          message: 'title, description, payment_lamports, category, country, and completion_duration_seconds are required',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
+      if (!remote && !city) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'city is required for non-remote gigs',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
+      if (!(country in LOCATIONS)) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: `country must be one of: ${Object.keys(LOCATIONS).join(', ')}`,
           code: ErrorCode.VALIDATION_ERROR,
         })
       }
@@ -229,7 +263,9 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
           description,
           payment_lamports,
           category: category as GigCategory,
-          city,
+          country: country as CountryCode,
+          remote,
+          city: remote ? null : city,
           address,
           latitude,
           longitude,

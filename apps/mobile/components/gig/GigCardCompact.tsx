@@ -1,7 +1,7 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { MapPin, Clock } from 'lucide-react-native'
+import { MapPin, Clock, Globe } from 'lucide-react-native'
 import { spacing, radius, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { MoneyText } from '@/components/ui/MoneyText'
@@ -9,7 +9,7 @@ import { GigStatusBadge } from './GigStatusBadge'
 import { getCategoryColor, CATEGORY_META } from '@/data/mock'
 import { toPaymentDisplay } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
-import { computeRelevantDeadline } from '@tenda/shared'
+import { computeRelevantDeadline, LOCATIONS, type CountryCode } from '@tenda/shared'
 import { deadlineLabel } from '@/lib/gig-display'
 import type { ColorScheme } from '@/theme/tokens'
 import type { Gig } from '@tenda/shared'
@@ -63,9 +63,16 @@ export function GigCardCompact({ gig, showStatus = false }: GigCardCompactProps)
       {/* Footer: location + deadline */}
       <View style={s.footer}>
         <View style={s.metaItem}>
-          <MapPin size={14} color={theme.colors.textFaint} />
-          <Text variant="caption" color={theme.colors.textSub}>
-            {gig.city}
+          {gig.remote
+            ? <Globe size={14} color={theme.colors.primary} />
+            : <MapPin size={14} color={theme.colors.textFaint} />}
+          <Text
+            variant="caption"
+            color={gig.remote ? theme.colors.primary : theme.colors.textSub}
+          >
+            {gig.remote
+              ? `Remote · ${LOCATIONS[gig.country as CountryCode]?.flag ?? ''}`
+              : gig.city}
           </Text>
         </View>
         {label ? (

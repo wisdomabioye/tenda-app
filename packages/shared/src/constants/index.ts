@@ -1,5 +1,5 @@
 export { GIG_CATEGORIES, type GigCategory } from './categories'
-export { SUPPORTED_CITIES, type SupportedCity } from './cities'
+export { LOCATIONS, ALL_CITIES, findCountryForCity, type CountryCode, type LocationEntry } from './locations'
 export { ErrorCode } from './errors'
 export type { ErrorCode as ErrorCodeType } from './errors'
 export { SOLANA_TX_FEE_LAMPORTS, solanaChainId } from './solana'

@@ -24,7 +24,9 @@ export default function HomeScreen() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
+  const [selectedRemote, setSelectedRemote] = useState<boolean | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const router = useRouter()
   const { theme } = useUnistyles()
@@ -33,13 +35,13 @@ export default function HomeScreen() {
 
   useGigsFeedPolling()
 
-  const hasFilters = query.trim().length > 0 || selectedCategory !== null || selectedCity !== null
+  const hasFilters = query.trim().length > 0 || selectedCategory !== null || selectedCountry !== null || selectedCity !== null || selectedRemote !== null
 
   // Client-side text filter (GigListQuery has no search field)
   const displayedGigs = query.trim()
     ? gigs.filter((g) =>
         g.title.toLowerCase().includes(query.toLowerCase()) ||
-        g.city.toLowerCase().includes(query.toLowerCase()),
+        (g.city ?? '').toLowerCase().includes(query.toLowerCase()),
       )
     : gigs
 
@@ -55,16 +57,25 @@ export default function HomeScreen() {
     fetchGigs()
   }
 
-  function handleCityChange(city: string) {
+  function handleLocationChange(country: string, city: string | null) {
+    setSelectedCountry(country)
     setSelectedCity(city)
-    setFilters({ city })
+    setFilters({ country, city: city ?? undefined })
+    fetchGigs()
+  }
+
+  function handleRemoteChange(remote: boolean | null) {
+    setSelectedRemote(remote)
+    setFilters({ remote: remote ?? undefined })
     fetchGigs()
   }
 
   function handleClearAll() {
     setQuery('')
     setSelectedCategory(null)
+    setSelectedCountry(null)
     setSelectedCity(null)
+    setSelectedRemote(null)
     resetFilters()
     fetchGigs()
   }
@@ -165,8 +176,11 @@ export default function HomeScreen() {
           onQueryChange={setQuery}
           selectedCategory={selectedCategory}
           onCategoryChange={handleCategoryChange}
+          country={selectedCountry}
           city={selectedCity}
-          onCityChange={handleCityChange}
+          onLocationChange={handleLocationChange}
+          remote={selectedRemote}
+          onRemoteChange={handleRemoteChange}
           onClearAll={handleClearAll}
         />
       </ScreenContainer>

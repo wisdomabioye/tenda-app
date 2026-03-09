@@ -4,6 +4,7 @@ import type { AppDatabase } from '../plugins/db'
 
 export interface PlatformConfig {
   fee_bps: number
+  seeker_fee_bps: number
   grace_period_seconds: number
 }
 
@@ -35,8 +36,8 @@ export async function getPlatformConfig(db: AppDatabase): Promise<PlatformConfig
   const [row] = await db.select().from(platform_config).limit(1)
 
   cache = row
-    ? { fee_bps: row.fee_bps, grace_period_seconds: row.grace_period_seconds }
-    : { fee_bps: getConfig().PLATFORM_FEE_BPS, grace_period_seconds: 86400 }
+    ? { fee_bps: row.fee_bps, seeker_fee_bps: row.seeker_fee_bps, grace_period_seconds: row.grace_period_seconds }
+    : { fee_bps: getConfig().PLATFORM_FEE_BPS, seeker_fee_bps: 100, grace_period_seconds: 86400 }
 
   cacheExpiry = now + CACHE_TTL_MS
   return cache

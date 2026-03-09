@@ -14,6 +14,7 @@ import { ErrorState } from '@/components/feedback/ErrorState'
 import { useAuthStore } from '@/stores/auth.store'
 import { connectAndSignAuthMessage, WalletError } from '@/wallet'
 import { APP_INFO } from '@/lib/app-info'
+import { isSeekerDevice } from '@/lib/device'
 
 const Logo = require('@/assets/images/logo.png')
 
@@ -109,7 +110,7 @@ export default function ConnectWalletScreen() {
 
       if (result) {
         await authenticateWithWallet(
-          { wallet_address: result.session.walletAddress, signature: result.signature, message: result.message },
+          { wallet_address: result.session.walletAddress, signature: result.signature, message: result.message, is_seeker: isSeekerDevice() },
           { mwaAuthToken: result.session.authToken, walletAddress: result.session.walletAddress },
         )
         router.replace('/(tabs)/home')

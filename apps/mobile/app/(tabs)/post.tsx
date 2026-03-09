@@ -20,7 +20,8 @@ export default function PostGigScreen() {
   }, [])
 
   async function handleSubmit(values: GigFormValues) {
-    if (!values.category || !values.city) return
+    if (!values.category || !values.country) return
+    if (!values.remote && !values.city) return
 
     const accept_deadline = values.acceptDeadlineHours
       ? new Date(Date.now() + values.acceptDeadlineHours * 3_600_000).toISOString()
@@ -33,7 +34,9 @@ export default function PostGigScreen() {
         description: values.description.trim(),
         payment_lamports: values.paymentLamports,
         category: values.category,
-        city: values.city,
+        country: values.country,
+        remote: values.remote,
+        city: values.city || undefined,
         address: values.address.trim() || undefined,
         completion_duration_seconds: values.completionDuration,
         accept_deadline,

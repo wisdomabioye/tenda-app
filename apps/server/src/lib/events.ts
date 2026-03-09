@@ -8,7 +8,7 @@ export interface AppEvents {
   'gig.approved':   { gigId: string; posterId: string; workerId: string; title: string }
   'gig.disputed':   { gigId: string; posterId: string; workerId: string; raisedById: string; title: string }
   'gig.resolved':   { gigId: string; posterId: string; workerId: string; winner: string; title: string }
-  'gig.created':    { gigId: string; city: string; category: string; title: string }
+  'gig.created':    { gigId: string; city: string | null; category: string; title: string }
   'message.sent':   { conversationId: string; senderId: string; recipientId: string; preview: string }
   'review.submitted': { gigId: string; reviewerId: string; revieweeId: string; score: number; title: string }
   'proof.added':    { gigId: string; posterId: string; workerId: string; title: string }

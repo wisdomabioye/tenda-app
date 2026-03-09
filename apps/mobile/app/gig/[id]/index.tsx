@@ -55,6 +55,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const router = useRouter()
   const { theme } = useUnistyles()
   const mwaAuthToken = useAuthStore((s) => s.mwaAuthToken)
+  const isSeeker = useAuthStore((s) => s.user?.is_seeker ?? false)
   const { fetchGigDetail, acceptGig, submitProof, disputeGig } = useGigsStore()
   const pendingSync = usePendingSyncStore()
   const solToNgn = useExchangeRateStore((s) => s.solToNgn)
@@ -154,8 +155,9 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     if (!mwaAuthToken) return
     setIsTxBuilding(true)
     try {
-      const { fee_bps } = await api.platform.config()
-      const platformFee = BigInt(computePlatformFee(BigInt(gig.payment_lamports), fee_bps))
+      const { fee_bps, seeker_fee_bps } = await api.platform.config()
+      const effectiveFeeBps = isSeeker ? seeker_fee_bps : fee_bps
+      const platformFee = BigInt(computePlatformFee(BigInt(gig.payment_lamports), effectiveFeeBps))
       const required = BigInt(gig.payment_lamports) + platformFee + SOLANA_TX_FEE_LAMPORTS
       if (!await guardBalance(required)) return
       const { transaction } = await api.blockchain.createEscrow({ gig_id: gig.id })

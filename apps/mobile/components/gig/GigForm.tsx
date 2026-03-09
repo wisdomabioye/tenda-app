@@ -10,7 +10,8 @@ import { Spacer } from '@/components/ui/Spacer'
 import { Card } from '@/components/ui/Card'
 import { PaymentInput } from '@/components/form/PaymentInput'
 import { DurationPicker } from '@/components/form/DurationPicker'
-import { CityPicker } from '@/components/form/CityPicker'
+import { LocationPicker } from '@/components/form/LocationPicker'
+import { RemoteToggle } from '@/components/form/RemoteToggle'
 import { CATEGORY_META } from '@/data/mock'
 import { isValidPaymentLamports, MIN_COMPLETION_DURATION_SECONDS } from '@tenda/shared'
 import type { ColorScheme } from '@/theme/tokens'
@@ -42,6 +43,8 @@ export interface GigFormValues {
   paymentLamports: number
   completionDuration: number
   category: GigCategory | null
+  country: string | null
+  remote: boolean
   city: string | null
   address: string
   acceptDeadlineHours: number | null
@@ -63,6 +66,8 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
   const [completionDuration, setCompletionDuration] = useState(initialValues?.completionDuration ?? 86_400)
   const [address, setAddress]                     = useState(initialValues?.address ?? '')
   const [selectedCategory, setSelectedCategory]   = useState<GigCategory | null>(initialValues?.category ?? null)
+  const [selectedCountry, setSelectedCountry]     = useState<string | null>(initialValues?.country ?? null)
+  const [isRemote, setIsRemote]                   = useState(initialValues?.remote ?? false)
   const [selectedCity, setSelectedCity]           = useState<string | null>(initialValues?.city ?? null)
   const [acceptDeadlineHours, setAcceptDeadlineHours] = useState<number | null>(initialValues?.acceptDeadlineHours ?? null)
   const [showAdvanced, setShowAdvanced]           = useState(initialValues?.acceptDeadlineHours != null)
@@ -72,7 +77,8 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
     description.trim().length > 0 &&
     isValidPaymentLamports(paymentLamports) &&
     selectedCategory !== null &&
-    selectedCity !== null &&
+    selectedCountry !== null &&
+    (isRemote || selectedCity !== null) &&
     completionDuration >= MIN_COMPLETION_DURATION_SECONDS
 
   async function handleSubmit() {
@@ -83,8 +89,10 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
       paymentLamports,
       completionDuration,
       category: selectedCategory,
-      city: selectedCity,
-      address,
+      country: selectedCountry,
+      remote: isRemote,
+      city: isRemote ? null : selectedCity,
+      address: isRemote ? '' : address,
       acceptDeadlineHours,
     })
   }
@@ -163,17 +171,32 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
 
           <Spacer size={spacing.md} />
 
-          <CityPicker value={selectedCity} onChange={setSelectedCity} />
+          <RemoteToggle value={isRemote} onChange={setIsRemote} />
 
           <Spacer size={spacing.md} />
 
-          <Input
-            label="Address (optional)"
-            placeholder="e.g. 12 Broad Street, Lagos Island"
-            helper="Physical location if the gig requires in-person work"
-            value={address}
-            onChangeText={setAddress}
+          <LocationPicker
+            country={selectedCountry}
+            city={isRemote ? null : selectedCity}
+            onChange={(c, ci) => {
+              setSelectedCountry(c)
+              if (!isRemote) setSelectedCity(ci)
+            }}
+            label={isRemote ? 'Country' : 'Location'}
           />
+
+          {!isRemote && (
+            <>
+              <Spacer size={spacing.md} />
+              <Input
+                label="Address (optional)"
+                placeholder="e.g. 12 Broad Street, Lagos Island"
+                helper="Physical location if the gig requires in-person work"
+                value={address}
+                onChangeText={setAddress}
+              />
+            </>
+          )}
         </Card>
 
         <Spacer size={spacing.md} />

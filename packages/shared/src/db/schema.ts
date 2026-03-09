@@ -5,6 +5,7 @@ import {
   varchar,
   integer,
   bigint,
+  boolean,
   doublePrecision,
   timestamp,
   pgEnum,
@@ -69,6 +70,7 @@ export const users = pgTable('users', {
   reputation_score: integer('reputation_score').default(0),
   role:             userRoleEnum('role').default('user').notNull(),
   status:           userStatusEnum('status').default('active').notNull(),
+  is_seeker:        boolean('is_seeker').notNull().default(false),
   created_at:       timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at:       timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (t) => ({
@@ -93,8 +95,10 @@ export const gigs = pgTable('gigs', {
   category: gigCategoryEnum('category').notNull(),
   status:   gigStatusEnum('status').default('draft').notNull(),
 
-  // Location — nullable: digital gigs have no physical location
-  city:      text('city').notNull(),
+  // Location — city/address nullable for remote gigs; country always set
+  country:   text('country').notNull().default('NG'),
+  remote:    boolean('remote').notNull().default(false),
+  city:      text('city'),   // nullable: remote gigs have no city
   address:   text('address'),
   latitude:  doublePrecision('latitude'),
   longitude: doublePrecision('longitude'),
@@ -114,16 +118,20 @@ export const gigs = pgTable('gigs', {
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   // Note: add a Postgres trigger on migration to auto-update updated_at on every UPDATE
 }, (t) => ({
-  poster_idx:          index('gigs_poster_id_idx').on(t.poster_id),
-  worker_idx:          index('gigs_worker_id_idx').on(t.worker_id),
-  status_idx:          index('gigs_status_idx').on(t.status),
-  category_idx:        index('gigs_category_idx').on(t.category),
-  city_idx:            index('gigs_city_idx').on(t.city),
-  status_city_idx:     index('gigs_status_city_idx').on(t.status, t.city),
-  created_at_idx:      index('gigs_created_at_idx').on(t.created_at),
+  poster_idx:              index('gigs_poster_id_idx').on(t.poster_id),
+  worker_idx:              index('gigs_worker_id_idx').on(t.worker_id),
+  status_idx:              index('gigs_status_idx').on(t.status),
+  category_idx:            index('gigs_category_idx').on(t.category),
+  country_idx:             index('gigs_country_idx').on(t.country),
+  remote_idx:              index('gigs_remote_idx').on(t.remote),
+  city_idx:                index('gigs_city_idx').on(t.city),
+  status_city_idx:         index('gigs_status_city_idx').on(t.status, t.city),
+  status_country_idx:      index('gigs_status_country_idx').on(t.status, t.country),
+  status_remote_idx:       index('gigs_status_remote_idx').on(t.status, t.remote),
+  created_at_idx:          index('gigs_created_at_idx').on(t.created_at),
   // Speeds up lazy-expiry batch scan: open gigs WHERE accept_deadline < now
-  accept_deadline_idx: index('gigs_accept_deadline_idx').on(t.accept_deadline),
-  escrow_address_idx:  uniqueIndex('gigs_escrow_address_unique').on(t.escrow_address),
+  accept_deadline_idx:     index('gigs_accept_deadline_idx').on(t.accept_deadline),
+  escrow_address_idx:      uniqueIndex('gigs_escrow_address_unique').on(t.escrow_address),
 }))
 
 export const gig_proofs = pgTable('gig_proofs', {
@@ -200,6 +208,7 @@ export const reviews = pgTable('reviews', {
 export const platform_config = pgTable('platform_config', {
   id:                   integer('id').primaryKey().default(1), // single-row table
   fee_bps:              integer('fee_bps').default(250).notNull(),
+  seeker_fee_bps:       integer('seeker_fee_bps').default(100).notNull(),
   grace_period_seconds: integer('grace_period_seconds').default(86400).notNull(),
   updated_at:           timestamp('updated_at', { withTimezone: true }).defaultNow(),
 })

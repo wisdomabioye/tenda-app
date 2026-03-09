@@ -1,0 +1,1 @@
+ALTER TABLE "platform_config" ADD COLUMN "seeker_fee_bps" integer DEFAULT 100 NOT NULL;

@@ -16,7 +16,7 @@ const auth: FastifyPluginAsync = async (fastify) => {
     Body: WalletRoute['body']
     Reply: WalletRoute['response'] | ApiError
   }>('/wallet', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => {
-    const { wallet_address, signature, message } = request.body
+    const { wallet_address, signature, message, is_seeker = false } = request.body
 
     if (!wallet_address || !signature || !message) {
       return reply.code(400).send({
@@ -91,13 +91,14 @@ const auth: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    // Atomic upsert — avoids TOCTOU race under concurrent auth requests
+    // Atomic upsert — avoids TOCTOU race under concurrent auth requests.
+    // is_seeker is re-applied on every login so Seeker status updates if device changes.
     const [user] = await fastify.db
       .insert(users)
-      .values({ wallet_address, first_name: '', last_name: '' })
+      .values({ wallet_address, first_name: '', last_name: '', is_seeker })
       .onConflictDoUpdate({
         target: users.wallet_address,
-        set: { updated_at: new Date() },
+        set: { updated_at: new Date(), is_seeker },
       })
       .returning()
 
@@ -112,7 +113,7 @@ const auth: FastifyPluginAsync = async (fastify) => {
     }
 
     const token = fastify.jwt.sign(
-      { id: user.id, wallet_address: user.wallet_address, role: user.role },
+      { id: user.id, wallet_address: user.wallet_address, role: user.role, is_seeker: user.is_seeker },
       { expiresIn: getConfig().JWT_EXPIRES_IN },
     )
 

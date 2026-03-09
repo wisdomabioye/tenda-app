@@ -13,6 +13,7 @@ export interface WalletAuthBody {
   wallet_address: string
   signature: string
   message: string
+  is_seeker?: boolean
 }
 
 export interface UpdateUserInput {

@@ -22,6 +22,34 @@
       "when": 1772484466152,
       "tag": "0002_remarkable_steve_rogers",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1773082998990,
+      "tag": "0003_happy_katie_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1773083959052,
+      "tag": "0004_silky_ikaris",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1773085743103,
+      "tag": "0005_small_salo",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1773088218639,
+      "tag": "0006_deep_gwen_stacy",
+      "breakpoints": true
     }
   ]
 }
