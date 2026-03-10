@@ -28,7 +28,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
   }>('/', async (request, reply) => {
     // Batch-expire gigs whose deadlines have passed before serving the list.
     // Throttled internally to at most once per minute.
-    await batchExpireGigs(fastify.db)
+    await batchExpireGigs(fastify.db, fastify.log)
 
     const {
       country,

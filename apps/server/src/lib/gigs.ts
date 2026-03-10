@@ -55,6 +55,11 @@ export async function checkAndExpireGig(
   return gig
 }
 
+interface BatchExpireLogger {
+  info(obj: object, msg: string): void
+  error(obj: object, msg: string): void
+}
+
 /**
  * Batch-expire gigs whose deadlines have passed.
  * Throttled to run at most once per minute across all requests.
@@ -62,7 +67,7 @@ export async function checkAndExpireGig(
  *
  * @todo Replace with a scheduled cron job when traffic warrants it.
  */
-export async function batchExpireGigs(db: AppDatabase): Promise<void> {
+export async function batchExpireGigs(db: AppDatabase, log: BatchExpireLogger): Promise<void> {
   const now = Date.now()
   if (now - lastBatchExpiry < BATCH_EXPIRY_COOLDOWN_MS) return
   lastBatchExpiry = now
@@ -70,28 +75,39 @@ export async function batchExpireGigs(db: AppDatabase): Promise<void> {
   const config = await getPlatformConfig(db)
   const nowDate = new Date()
 
-  // 1. Open gigs whose accept deadline has passed
-  await db
-    .update(gigs)
-    .set({ status: 'expired', updated_at: nowDate })
-    .where(
-      and(
-        eq(gigs.status, 'open'),
-        isNotNull(gigs.accept_deadline),
-        sql`${gigs.accept_deadline} < NOW()`,
-      ),
-    )
+  try {
+    // 1. Open gigs whose accept deadline has passed
+    const expired1 = await db
+      .update(gigs)
+      .set({ status: 'expired', updated_at: nowDate })
+      .where(
+        and(
+          eq(gigs.status, 'open'),
+          isNotNull(gigs.accept_deadline),
+          sql`${gigs.accept_deadline} < NOW()`,
+        ),
+      )
+      .returning({ id: gigs.id })
 
-  // 2. Accepted gigs where completion deadline + grace period have both passed.
-  // make_interval(secs => n) converts an integer seconds value to a Postgres interval.
-  await db
-    .update(gigs)
-    .set({ status: 'expired', updated_at: nowDate })
-    .where(
-      and(
-        eq(gigs.status, 'accepted'),
-        isNotNull(gigs.accepted_at),
-        sql`${gigs.accepted_at} + make_interval(secs => ${gigs.completion_duration_seconds} + ${config.grace_period_seconds}) < NOW()`,
-      ),
-    )
+    // 2. Accepted gigs where completion deadline + grace period have both passed.
+    // make_interval(secs => n) converts an integer seconds value to a Postgres interval.
+    const expired2 = await db
+      .update(gigs)
+      .set({ status: 'expired', updated_at: nowDate })
+      .where(
+        and(
+          eq(gigs.status, 'accepted'),
+          isNotNull(gigs.accepted_at),
+          sql`${gigs.accepted_at} + make_interval(secs => ${gigs.completion_duration_seconds} + ${config.grace_period_seconds}) < NOW()`,
+        ),
+      )
+      .returning({ id: gigs.id })
+
+    const total = expired1.length + expired2.length
+    if (total > 0) {
+      log.info({ expiredOpen: expired1.length, expiredAccepted: expired2.length }, `batchExpireGigs: expired ${total} gig(s)`)
+    }
+  } catch (err) {
+    log.error({ err }, 'batchExpireGigs: UPDATE failed')
+  }
 }
