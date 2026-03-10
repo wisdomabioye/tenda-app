@@ -1,12 +1,14 @@
 import { FastifyPluginAsync } from 'fastify'
-import { and, eq, or, desc } from 'drizzle-orm'
+import { and, eq, or, ne, desc, inArray, isNull, sql } from 'drizzle-orm'
 import { conversations, messages, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { ConversationsContract, ApiError, Conversation } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '../../../lib/db'
 
-type ListRoute = ConversationsContract['list']
+type ListRoute       = ConversationsContract['list']
 type FindOrCreateRoute = ConversationsContract['findOrCreate']
+
+const CONVERSATIONS_LIMIT = 50
 
 /** Sort two UUIDs so user_a_id < user_b_id (canonical order). */
 function canonicalPair(a: string, b: string): [string, string] {
@@ -23,6 +25,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const userId = request.user.id
 
+      // 1. Fetch conversations — bounded to CONVERSATIONS_LIMIT rows
       const rows = await fastify.db
         .select({
           id:              conversations.id,
@@ -42,50 +45,74 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
           )
         )
         .orderBy(desc(conversations.last_message_at))
+        .limit(CONVERSATIONS_LIMIT)
 
-      // Fetch other-user profiles + unread counts + last message in parallel
-      const result: Conversation[] = await Promise.all(
-        rows.map(async (conv) => {
-          const otherId = conv.user_a_id === userId ? conv.user_b_id : conv.user_a_id
+      if (rows.length === 0) return []
 
-          const [otherUser] = await fastify.db
-            .select({
-              id:         users.id,
-              first_name: users.first_name,
-              last_name:  users.last_name,
-              avatar_url: users.avatar_url,
-            })
-            .from(users)
-            .where(eq(users.id, otherId))
-            .limit(1)
+      const convIds  = rows.map((r) => r.id)
+      const otherIds = rows.map((r) => r.user_a_id === userId ? r.user_b_id : r.user_a_id)
 
-          const latestMessages = await fastify.db
-            .select({ id: messages.id, content: messages.content, read_at: messages.read_at, sender_id: messages.sender_id })
-            .from(messages)
-            .where(eq(messages.conversation_id, conv.id))
-            .orderBy(desc(messages.created_at))
-            .limit(20)
+      // Queries 2–4 are independent reads — run in parallel.
+      // @scalability: CONVERSATIONS_LIMIT caps at 50. Add cursor pagination
+      // (before_id querystring + WHERE last_message_at < cursor) when users
+      // with large conversation histories become a support complaint.
+      const [otherUsers, unreadRows, lastMsgRows] = await Promise.all([
+        // 2. All other-user profiles in one IN query
+        fastify.db
+          .select({ id: users.id, first_name: users.first_name, last_name: users.last_name, avatar_url: users.avatar_url })
+          .from(users)
+          .where(inArray(users.id, otherIds)),
 
-          const unread_count = latestMessages.filter(
-            (m) => m.sender_id !== userId && !m.read_at
-          ).length
+        // 3. Exact unread counts via SQL COUNT — no artificial cap
+        fastify.db
+          .select({
+            conversation_id: messages.conversation_id,
+            count: sql<number>`count(*)::int`,
+          })
+          .from(messages)
+          .where(
+            and(
+              inArray(messages.conversation_id, convIds),
+              ne(messages.sender_id, userId),
+              isNull(messages.read_at),
+            )
+          )
+          .groupBy(messages.conversation_id),
 
-          return {
-            ...conv,
-            closed_at:       conv.closed_at?.toISOString() ?? null,
-            last_message_at: conv.last_message_at?.toISOString() ?? null,
-            created_at:      conv.created_at?.toISOString() ?? null,
-            other_user: {
-              id:         otherUser?.id ?? otherId,
-              first_name: otherUser?.first_name ?? null,
-              last_name:  otherUser?.last_name ?? null,
-              avatar_url: otherUser?.avatar_url ?? null,
-            },
-            unread_count,
-            last_message: latestMessages[0]?.content ?? null,
-          }
-        }),
-      )
+        // 4. Last message per conversation via DISTINCT ON
+        fastify.db
+          .selectDistinctOn([messages.conversation_id], {
+            conversation_id: messages.conversation_id,
+            content:         messages.content,
+          })
+          .from(messages)
+          .where(inArray(messages.conversation_id, convIds))
+          .orderBy(messages.conversation_id, desc(messages.created_at)),
+      ])
+
+      const otherUserMap = new Map(otherUsers.map((u) => [u.id, u]))
+      const unreadMap    = new Map(unreadRows.map((r) => [r.conversation_id, r.count]))
+      const lastMsgMap   = new Map(lastMsgRows.map((r) => [r.conversation_id, r.content]))
+
+      // Assemble the response — no additional DB calls
+      const result: Conversation[] = rows.map((conv) => {
+        const otherId = conv.user_a_id === userId ? conv.user_b_id : conv.user_a_id
+        const other   = otherUserMap.get(otherId)
+        return {
+          ...conv,
+          closed_at:       conv.closed_at?.toISOString() ?? null,
+          last_message_at: conv.last_message_at?.toISOString() ?? null,
+          created_at:      conv.created_at?.toISOString() ?? null,
+          other_user: {
+            id:         other?.id ?? otherId,
+            first_name: other?.first_name ?? null,
+            last_name:  other?.last_name ?? null,
+            avatar_url: other?.avatar_url ?? null,
+          },
+          unread_count: unreadMap.get(conv.id) ?? 0,
+          last_message: lastMsgMap.get(conv.id) ?? null,
+        }
+      })
 
       return result
     },
