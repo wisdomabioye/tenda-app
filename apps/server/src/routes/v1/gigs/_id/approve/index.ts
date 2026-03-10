@@ -73,7 +73,10 @@ const approveGig: FastifyPluginAsync = async (fastify) => {
       }
 
       const config = await getPlatformConfig(fastify.db)
-      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
+      // Seeker posters pay a discounted fee on-chain; mirror that here so the
+      // recorded platform_fee_lamports matches what was actually deducted.
+      const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
+      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), effectiveFeeBps)
 
       let updated
       try {

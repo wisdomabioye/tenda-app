@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { eq, and } from 'drizzle-orm'
 import { gigs, users, gig_proofs, disputes, gig_transactions, reviews } from '@tenda/shared/db/schema'
 import {
   isValidPaymentLamports,
@@ -185,7 +185,22 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     if (completion_duration_seconds !== undefined) updates.completion_duration_seconds = completion_duration_seconds
     if (accept_deadline !== undefined)             updates.accept_deadline = accept_deadline ? new Date(accept_deadline) : null
 
-    const [updated] = await fastify.db.update(gigs).set(updates).where(eq(gigs.id, id)).returning()
+    // Status guard prevents overwriting a gig that was published between the
+    // SELECT above and this UPDATE (draft → open race).
+    const [updated] = await fastify.db
+      .update(gigs)
+      .set(updates)
+      .where(and(eq(gigs.id, id), eq(gigs.status, 'draft')))
+      .returning()
+
+    if (!updated) {
+      return reply.code(409).send({
+        statusCode: 409,
+        error: 'Conflict',
+        message: 'Gig status changed — it may have already been published',
+        code: ErrorCode.GIG_WRONG_STATUS,
+      })
+    }
 
     return updated
   })
@@ -260,11 +275,16 @@ const gigById: FastifyPluginAsync = async (fastify) => {
         const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
 
         const cancelled = await fastify.db.transaction(async (tx) => {
+          // Include status = 'open' in WHERE to guard against TOCTOU races.
+          // A concurrent accept between our SELECT and this UPDATE would leave the
+          // gig in 'accepted' state; the status guard causes 0 rows → null → 409.
           const [cancelledGig] = await tx
             .update(gigs)
             .set({ status: 'cancelled', updated_at: new Date() })
-            .where(eq(gigs.id, id))
+            .where(and(eq(gigs.id, id), eq(gigs.status, 'open')))
             .returning()
+
+          if (!cancelledGig) return null
 
           await tx.insert(gig_transactions).values({
             gig_id:                id,
@@ -277,15 +297,34 @@ const gigById: FastifyPluginAsync = async (fastify) => {
           return cancelledGig
         })
 
+        if (!cancelled) {
+          return reply.code(409).send({
+            statusCode: 409,
+            error: 'Conflict',
+            message: 'Gig status changed — it may have already been accepted or cancelled',
+            code: ErrorCode.GIG_WRONG_STATUS,
+          })
+        }
+
         return cancelled
       }
 
-      // Draft cancellation — no escrow, no signature
+      // Draft cancellation — no escrow, no signature.
+      // Status guard prevents a concurrent publish from being silently overwritten.
       const [cancelled] = await fastify.db
         .update(gigs)
         .set({ status: 'cancelled', updated_at: new Date() })
-        .where(eq(gigs.id, id))
+        .where(and(eq(gigs.id, id), eq(gigs.status, 'draft')))
         .returning()
+
+      if (!cancelled) {
+        return reply.code(409).send({
+          statusCode: 409,
+          error: 'Conflict',
+          message: 'Gig status changed — it may have already been published or cancelled',
+          code: ErrorCode.GIG_WRONG_STATUS,
+        })
+      }
 
       return cancelled
     }

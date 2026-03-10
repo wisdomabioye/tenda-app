@@ -187,17 +187,26 @@ const admin: FastifyPluginAsync = async (fastify) => {
   // Update fee or grace period. Invalidates the in-process cache so the
   // next request reads fresh values immediately.
   fastify.patch<{
-    Body: { fee_bps?: number; grace_period_seconds?: number }
+    Body: { fee_bps?: number; seeker_fee_bps?: number; grace_period_seconds?: number }
     Reply: unknown | ApiError
   }>('/platform-config', async (request, reply) => {
-    const { fee_bps, grace_period_seconds } = request.body
+    const { fee_bps, seeker_fee_bps, grace_period_seconds } = request.body
 
-    // fee_bps: 0–10000 (0%–100% in basis points)
+    // fee_bps / seeker_fee_bps: 0–10000 (0%–100% in basis points)
     if (fee_bps !== undefined && (fee_bps < 0 || fee_bps > 10_000 || !Number.isInteger(fee_bps))) {
       return reply.code(400).send({
         statusCode: 400,
         error: 'Bad Request',
         message: 'fee_bps must be an integer between 0 and 10000',
+        code: ErrorCode.VALIDATION_ERROR,
+      })
+    }
+
+    if (seeker_fee_bps !== undefined && (seeker_fee_bps < 0 || seeker_fee_bps > 10_000 || !Number.isInteger(seeker_fee_bps))) {
+      return reply.code(400).send({
+        statusCode: 400,
+        error: 'Bad Request',
+        message: 'seeker_fee_bps must be an integer between 0 and 10000',
         code: ErrorCode.VALIDATION_ERROR,
       })
     }
@@ -217,17 +226,18 @@ const admin: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    if (fee_bps === undefined && grace_period_seconds === undefined) {
+    if (fee_bps === undefined && seeker_fee_bps === undefined && grace_period_seconds === undefined) {
       return reply.code(400).send({
         statusCode: 400,
         error: 'Bad Request',
-        message: 'Provide at least one of fee_bps or grace_period_seconds',
+        message: 'Provide at least one of fee_bps, seeker_fee_bps, or grace_period_seconds',
         code: ErrorCode.VALIDATION_ERROR,
       })
     }
 
     const updates: Record<string, unknown> = { updated_at: new Date() }
     if (fee_bps !== undefined)              updates.fee_bps              = fee_bps
+    if (seeker_fee_bps !== undefined)       updates.seeker_fee_bps       = seeker_fee_bps
     if (grace_period_seconds !== undefined) updates.grace_period_seconds = grace_period_seconds
 
     const [updated] = await fastify.db
