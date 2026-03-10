@@ -300,6 +300,16 @@ export async function userAccountExists(walletAddress: string): Promise<boolean>
  * devnet/testnet: accept 'confirmed' or 'finalized'
  * mainnet-beta:   require 'finalized'
  */
+/** Races a promise against a timeout; rejects with 'RPC_TIMEOUT' if exceeded. */
+function withRpcTimeout<T>(promise: Promise<T>, ms = 10_000): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('RPC_TIMEOUT')), ms)
+    ),
+  ])
+}
+
 export async function verifyTransactionOnChain(
   signature: string,
   expectedInstruction?: InstructionName,
@@ -308,7 +318,9 @@ export async function verifyTransactionOnChain(
   const connection = getConnection()
 
   try {
-    const result = await connection.getSignatureStatus(signature, { searchTransactionHistory: true })
+    const result = await withRpcTimeout(
+      connection.getSignatureStatus(signature, { searchTransactionHistory: true }),
+    )
     const status = result.value
 
     if (!status) {
@@ -338,7 +350,9 @@ export async function verifyTransactionOnChain(
     // This prevents replay attacks where an attacker reuses an unrelated signature.
     if (expectedInstruction) {
       const expectedDiscriminator = discriminatorFor(expectedInstruction)
-      const tx = await connection.getTransaction(signature, { maxSupportedTransactionVersion: 0 })
+      const tx = await withRpcTimeout(
+        connection.getTransaction(signature, { maxSupportedTransactionVersion: 0 }),
+      )
       if (!tx) {
         return { ok: false, error: 'SIGNATURE_VERIFICATION_FAILED' }
       }
@@ -368,7 +382,10 @@ export async function verifyTransactionOnChain(
     }
 
     return { ok: true }
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && err.message === 'RPC_TIMEOUT') {
+      return { ok: false, error: 'RPC_TIMEOUT' }
+    }
     return { ok: false, error: 'SIGNATURE_VERIFICATION_FAILED' }
   }
 }
