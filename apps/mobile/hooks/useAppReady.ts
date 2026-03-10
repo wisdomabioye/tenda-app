@@ -39,7 +39,9 @@ export function useAppReady(): boolean {
   useEffect(() => {
     Promise.all([
       useAuthStore.getState().loadSession(),
-      useExchangeRateStore.getState().fetchRate(),
+      useExchangeRateStore.getState().loadPersistedRates().then(() =>
+        useExchangeRateStore.getState().fetchRates()
+      ),
       useSettingsStore.getState().loadSettings(),
       useOnboardingStore.getState().load(),
     ])

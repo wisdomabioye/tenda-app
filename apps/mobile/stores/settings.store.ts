@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import { UnistylesRuntime } from 'react-native-unistyles'
+import { type SupportedCurrency } from '@tenda/shared'
 
 type Theme = 'light' | 'dark' | 'system'
 
@@ -8,10 +9,10 @@ const STORAGE_KEY = 'tenda_settings'
 
 interface SettingsState {
   theme: Theme
-  currency: 'NGN'
+  currency: SupportedCurrency
   loadSettings: () => Promise<void>
   setTheme: (theme: Theme) => void
-  setCurrency: (currency: 'NGN') => void
+  setCurrency: (currency: SupportedCurrency) => void
 }
 
 function applyTheme(theme: Theme) {
@@ -23,11 +24,11 @@ function applyTheme(theme: Theme) {
   }
 }
 
-async function persist(state: { theme: Theme; currency: 'NGN' }) {
+async function persist(state: { theme: Theme; currency: SupportedCurrency }) {
   await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(state))
 }
 
-export const useSettingsStore = create<SettingsState>((set) => ({
+export const useSettingsStore = create<SettingsState>((set, get) => ({
   theme: 'system',
   currency: 'NGN',
 
@@ -35,7 +36,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     try {
       const raw = await SecureStore.getItemAsync(STORAGE_KEY)
       if (!raw) return
-      const saved = JSON.parse(raw) as { theme?: Theme; currency?: 'NGN' }
+      const saved = JSON.parse(raw) as { theme?: Theme; currency?: SupportedCurrency }
       const theme = saved.theme ?? 'system'
       const currency = saved.currency ?? 'NGN'
       set({ theme, currency })
@@ -48,12 +49,11 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   setTheme: (theme) => {
     set({ theme })
     applyTheme(theme)
-    persist({ theme, currency: 'NGN' }).catch(() => {})
+    persist({ theme, currency: get().currency }).catch(() => {})
   },
 
   setCurrency: (currency) => {
     set({ currency })
-    useSettingsStore.getState()
-    persist({ theme: useSettingsStore.getState().theme, currency }).catch(() => {})
+    persist({ theme: get().theme, currency }).catch(() => {})
   },
 }))

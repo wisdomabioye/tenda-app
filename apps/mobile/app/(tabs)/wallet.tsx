@@ -7,23 +7,22 @@ import { spacing, radius, typography, shadows } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Card, Header } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuthStore } from '@/stores/auth.store'
-import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 
 import { api } from '@/api/client'
 import { getBalance } from '@/wallet'
-import { toPaymentDisplay, formatSol } from '@/lib/currency'
+import { formatSol } from '@/lib/currency'
 import { DevnetBadge } from '@/components/feedback'
 import type { UserTransaction } from '@tenda/shared'
 
 const LAMPORTS_PER_SOL = 1_000_000_000
 
-function TxRow({ tx, userId, solToNgn }: { tx: UserTransaction; userId: string; solToNgn: number }) {
+function TxRow({ tx }: { tx: UserTransaction }) {
   const { theme } = useUnistyles()
   const isCredit =
     (tx.type === 'release_payment' || tx.type === 'dispute_resolved')
   const sign = isCredit ? '+' : '-'
   const color = isCredit ? theme.colors.success : theme.colors.danger
-  const { sol } = toPaymentDisplay(tx.amount_lamports, solToNgn)
+  const sol = tx.amount_lamports / 1_000_000_000
 
   const TYPE_LABEL: Record<string, string> = {
     create_escrow: 'Escrow funded',
@@ -54,7 +53,6 @@ export default function WalletScreen() {
   const { theme } = useUnistyles()
   const user = useAuthStore((s) => s.user)
   const walletAddress = useAuthStore((s) => s.walletAddress)
-  const solToNgn = useExchangeRateStore((s) => s.solToNgn)
 
   const [balanceLamports, setBalanceLamports] = useState<number | null>(null)
   const [transactions, setTransactions] = useState<UserTransaction[]>([])
@@ -165,7 +163,7 @@ export default function WalletScreen() {
           </>
         }
         renderItem={({ item }) => (
-          <TxRow tx={item} userId={user?.id ?? ''} solToNgn={solToNgn} />
+          <TxRow tx={item} />
         )}
         ListEmptyComponent={
           !isLoading ? (

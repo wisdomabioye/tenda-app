@@ -30,6 +30,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
+import { useSettingsStore } from '@/stores/settings.store'
 import { toPaymentDisplay } from '@/lib/currency'
 import { computeRelevantDeadline, computePlatformFee, SOLANA_TX_FEE_LAMPORTS, apiConfig } from '@tenda/shared'
 import { deadlineLabel } from '@/lib/gig-display'
@@ -58,7 +59,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const isSeeker = useAuthStore((s) => s.user?.is_seeker ?? false)
   const { fetchGigDetail, acceptGig, submitProof, disputeGig } = useGigsStore()
   const pendingSync = usePendingSyncStore()
-  const solToNgn = useExchangeRateStore((s) => s.solToNgn)
+  const rates = useExchangeRateStore((s) => s.rates)
+  const currency = useSettingsStore((s) => s.currency)
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
@@ -84,7 +86,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const categoryMeta = CATEGORY_META.find((c) => c.key === gig.category)
   const categoryColorKey = getCategoryColor(gig.category) as keyof ColorScheme
   const categoryColor = theme.colors[categoryColorKey]
-  const price = toPaymentDisplay(gig.payment_lamports, solToNgn)
+  const rate = rates?.[currency] ?? null
+  const price = toPaymentDisplay(gig.payment_lamports, rate)
   const deadline = computeRelevantDeadline(gig)
   const deadlineLbl = deadlineLabel(deadline)
 
@@ -412,7 +415,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         <Spacer size={spacing.sm} />
         <Text variant="heading">{gig.title}</Text>
         <Spacer size={spacing.md} />
-        <MoneyText naira={price.naira} sol={price.sol} size={typography.sizes.xl} />
+        <MoneyText fiat={price.fiat} ratesReady={rates !== null} currency={currency} sol={price.sol} size={typography.sizes.xl} />
         <Spacer size={spacing.lg} />
 
         {/* Meta info */}

@@ -3,13 +3,15 @@ import { View, Pressable, StyleSheet, ActivityIndicator, Linking } from 'react-n
 import { useUnistyles } from 'react-native-unistyles'
 import { useFocusEffect, useRouter } from 'expo-router'
 import * as Notifications from 'expo-notifications'
-import { spacing, radius } from '@/theme/tokens'
+import { spacing } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Card, Divider, Header } from '@/components/ui'
+import { BottomSheet } from '@/components/ui/BottomSheet'
 import { ErrorState } from '@/components/feedback'
 import { useSettingsStore } from '@/stores/settings.store'
 import { Check, Bell, BellOff, Trash2, HelpCircle, ChevronRight } from 'lucide-react-native'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
+import { SUPPORTED_CURRENCIES, CURRENCY_META } from '@tenda/shared'
 import type { GigSubscription } from '@tenda/shared'
 
 type Theme = 'light' | 'dark' | 'system'
@@ -23,7 +25,8 @@ const THEME_OPTIONS: Array<{ value: Theme; label: string; description: string }>
 export default function SettingsScreen() {
   const { theme } = useUnistyles()
   const router = useRouter()
-  const { theme: currentTheme, setTheme } = useSettingsStore()
+  const { theme: currentTheme, setTheme, currency, setCurrency } = useSettingsStore()
+  const [currencySheetOpen, setCurrencySheetOpen] = useState(false)
   const [subscriptions, setSubscriptions] = useState<GigSubscription[]>([])
   const [loadingSubs,   setLoadingSubs]   = useState(false)
   const [subsError,     setSubsError]     = useState(false)
@@ -107,18 +110,45 @@ export default function SettingsScreen() {
 
       {/* Currency */}
       <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
-        CURRENCY
+        DISPLAY CURRENCY
       </Text>
       <Spacer size={spacing.sm} />
       <Card variant="outlined" padding={0}>
-        <Pressable style={s.row}>
+        <Pressable
+          onPress={() => setCurrencySheetOpen(true)}
+          style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surfacePressed }]}
+        >
           <View style={s.rowLeft}>
-            <Text weight="medium">Nigerian Naira (NGN)</Text>
-            <Text variant="caption" color={theme.colors.textSub}>₦ — default display currency</Text>
+            <Text weight="medium">{CURRENCY_META[currency].name}</Text>
+            <Text variant="caption" color={theme.colors.textSub}>
+              {CURRENCY_META[currency].symbol} · {currency}
+            </Text>
           </View>
-          <Check size={20} color={theme.colors.primary} />
+          <ChevronRight size={16} color={theme.colors.textFaint} />
         </Pressable>
       </Card>
+
+      <BottomSheet title="Display Currency" visible={currencySheetOpen} onClose={() => setCurrencySheetOpen(false)}>
+        {SUPPORTED_CURRENCIES.map((c, index) => {
+          const meta = CURRENCY_META[c]
+          const selected = currency === c
+          return (
+            <View key={c}>
+              {index > 0 && <Divider spacing={0} />}
+              <Pressable
+                onPress={() => { setCurrency(c); setCurrencySheetOpen(false) }}
+                style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surfacePressed }]}
+              >
+                <View style={s.rowLeft}>
+                  <Text weight="medium">{meta.symbol}  {meta.name}</Text>
+                  <Text variant="caption" color={theme.colors.textSub}>{c}</Text>
+                </View>
+                {selected && <Check size={16} color={theme.colors.primary} />}
+              </Pressable>
+            </View>
+          )
+        })}
+      </BottomSheet>
 
       <Spacer size={spacing.md} />
 

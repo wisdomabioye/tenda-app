@@ -3,11 +3,13 @@ import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing, radius } from '@/theme/tokens'
 import { ScreenContainer, Header, Text, Spacer, Card, Input, AccordionItem } from '@/components/ui'
-import { formatNaira } from '@/lib/currency'
+import { formatFiat } from '@/lib/currency'
+import { useSettingsStore } from '@/stores/settings.store'
 import { APP_INFO } from '@/lib/app-info'
 
 export default function EscrowGuideScreen() {
   const { theme } = useUnistyles()
+  const currency = useSettingsStore((s) => s.currency)
   const [gigAmount, setGigAmount] = useState('')
 
   const numericAmount = parseFloat(gigAmount.replace(/,/g, '')) || 0
@@ -98,24 +100,24 @@ export default function EscrowGuideScreen() {
             <View style={[s.breakdown, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
               <View style={s.breakdownRow}>
                 <Text variant="caption" color={theme.colors.textSub}>Gig amount</Text>
-                <Text variant="caption" weight="semibold">{formatNaira(numericAmount)}</Text>
+                <Text variant="caption" weight="semibold">{formatFiat(numericAmount, currency)}</Text>
               </View>
               <View style={s.breakdownRow}>
                 <Text variant="caption" color={theme.colors.textSub}>
                   Tenda fee ({APP_INFO.fees.platformFeePct}%)
                 </Text>
-                <Text variant="caption" color={theme.colors.danger}>−{formatNaira(platformFee)}</Text>
+                <Text variant="caption" color={theme.colors.danger}>−{formatFiat(platformFee, currency)}</Text>
               </View>
               <View style={[s.breakdownRow, s.breakdownTotal, { borderTopColor: theme.colors.border }]}>
                 <Text variant="label" weight="semibold">Worker receives</Text>
                 <Text variant="label" weight="bold" color={theme.colors.success}>
-                  {formatNaira(workerReceives)}
+                  {formatFiat(workerReceives, currency)}
                 </Text>
               </View>
             </View>
             <Spacer size={spacing.xs} />
             <Text variant="caption" color={theme.colors.textFaint}>
-              Rate subject to change. A small Solana network fee (~₦50) also applies at time of transaction.
+              Rate subject to change. A small Solana network fee (~$0.01) also applies at time of transaction.
             </Text>
           </>
         )}

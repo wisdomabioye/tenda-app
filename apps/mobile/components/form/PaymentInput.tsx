@@ -4,7 +4,10 @@ import { useUnistyles } from 'react-native-unistyles'
 import { radius, spacing, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
+import { useSettingsStore } from '@/stores/settings.store'
+import { CURRENCY_META } from '@tenda/shared'
 import { MIN_PAYMENT_LAMPORTS, MAX_PAYMENT_LAMPORTS } from '@tenda/shared'
+import { formatSolDisplay } from '@/lib/currency'
 
 const LAMPORTS_PER_SOL = 1_000_000_000
 
@@ -13,23 +16,27 @@ interface PaymentInputProps {
   onChange: (lamports: number) => void
 }
 
-type Mode = 'NGN' | 'SOL'
+type Mode = 'FIAT' | 'SOL'
 
 export function PaymentInput({ value, onChange }: PaymentInputProps) {
   const { theme } = useUnistyles()
-  const solToNgn = useExchangeRateStore((s) => s.solToNgn)
+  const rates = useExchangeRateStore((s) => s.rates)
+  const currency = useSettingsStore((s) => s.currency)
+  const meta = CURRENCY_META[currency]
+  const rate = rates?.[currency] ?? null
+
   const hasInitialValue = value > 0
-  const [mode, setMode] = useState<Mode>(hasInitialValue ? 'SOL' : 'NGN')
+  const [mode, setMode] = useState<Mode>(hasInitialValue ? 'SOL' : 'FIAT')
   const [text, setText] = useState(() =>
     hasInitialValue ? (value / LAMPORTS_PER_SOL).toFixed(4) : ''
   )
   const [focused, setFocused] = useState(false)
 
-  const minNgn = Math.round((MIN_PAYMENT_LAMPORTS / LAMPORTS_PER_SOL) * solToNgn)
-  const minSol = (MIN_PAYMENT_LAMPORTS / LAMPORTS_PER_SOL).toFixed(4)
-
   const currentSol = value / LAMPORTS_PER_SOL
-  const currentNgn = currentSol * solToNgn
+  const currentFiat = rate != null ? currentSol * rate : null
+
+  const minSol = (MIN_PAYMENT_LAMPORTS / LAMPORTS_PER_SOL).toFixed(4)
+  const minFiat = rate != null ? Math.round((MIN_PAYMENT_LAMPORTS / LAMPORTS_PER_SOL) * rate) : null
 
   function handleChangeText(raw: string) {
     setText(raw)
@@ -37,8 +44,8 @@ export function PaymentInput({ value, onChange }: PaymentInputProps) {
     if (isNaN(num) || num <= 0) return
 
     let lamports: number
-    if (mode === 'NGN') {
-      lamports = Math.round((num / solToNgn) * LAMPORTS_PER_SOL)
+    if (mode === 'FIAT' && rate != null) {
+      lamports = Math.round((num / rate) * LAMPORTS_PER_SOL)
     } else {
       lamports = Math.round(num * LAMPORTS_PER_SOL)
     }
@@ -53,15 +60,20 @@ export function PaymentInput({ value, onChange }: PaymentInputProps) {
   }
 
   const equivalent =
-    mode === 'NGN'
-      ? `≈ ${currentSol.toLocaleString('en-US', { maximumFractionDigits: 4 })} SOL`
-      : `≈ ₦${currentNgn.toLocaleString('en-NG', { maximumFractionDigits: 0 })}`
+    mode === 'FIAT'
+      ? `≈ ${formatSolDisplay(currentSol)}`
+      : currentFiat != null
+        ? `≈ ${currentFiat.toLocaleString(meta.locale, { maximumFractionDigits: 0 })} ${currency}`
+        : ''
 
   const helperText =
-    mode === 'NGN'
-      ? `Min ₦${minNgn.toLocaleString('en-NG')} (~${minSol} SOL)`
+    mode === 'FIAT'
+      ? minFiat != null
+        ? `Min ${meta.symbol}${minFiat.toLocaleString(meta.locale)} (~${minSol} SOL)`
+        : `Min ${minSol} SOL`
       : `Min ${minSol} SOL`
 
+  const fiatLabel = rate != null ? currency : `${currency} (loading…)`
   const borderColor = focused ? theme.colors.focusRing : 'transparent'
 
   return (
@@ -70,7 +82,7 @@ export function PaymentInput({ value, onChange }: PaymentInputProps) {
 
       {/* Toggle */}
       <View style={[s.toggleRow, { backgroundColor: theme.colors.muted }]}>
-        {(['NGN', 'SOL'] as Mode[]).map((m) => (
+        {(['FIAT', 'SOL'] as Mode[]).map((m) => (
           <Pressable
             key={m}
             onPress={() => handleModeToggle(m)}
@@ -84,7 +96,7 @@ export function PaymentInput({ value, onChange }: PaymentInputProps) {
               weight="semibold"
               color={mode === m ? theme.colors.primary : theme.colors.textSub}
             >
-              {m}
+              {m === 'FIAT' ? fiatLabel : 'SOL'}
             </Text>
           </Pressable>
         ))}
@@ -93,13 +105,13 @@ export function PaymentInput({ value, onChange }: PaymentInputProps) {
       {/* Input */}
       <View style={[s.inputWrapper, { backgroundColor: theme.colors.input, borderColor }]}>
         <Text size={16} weight="medium" color={theme.colors.textSub} style={s.prefix}>
-          {mode === 'NGN' ? '₦' : '◎'}
+          {mode === 'FIAT' ? meta.symbol : '◎'}
         </Text>
         <TextInput
           style={[s.input, { color: theme.colors.text }]}
           value={text}
           onChangeText={handleChangeText}
-          placeholder={mode === 'NGN' ? '0' : '0.0000'}
+          placeholder={mode === 'FIAT' ? '0' : '0.0000'}
           placeholderTextColor={theme.colors.textFaint}
           keyboardType="decimal-pad"
           onFocus={() => setFocused(true)}

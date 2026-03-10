@@ -9,6 +9,8 @@ import { Spacer } from '@/components/ui/Spacer'
 import { spacing, radius } from '@/theme/tokens'
 import { formatSol } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
+import { useSettingsStore } from '@/stores/settings.store'
+import { CURRENCY_META } from '@tenda/shared'
 
 interface Props {
   visible: boolean
@@ -20,11 +22,16 @@ interface Props {
 export function InsufficientBalanceSheet({ visible, onClose, balance, required }: Props) {
   const { theme } = useUnistyles()
   const router = useRouter()
-  const solToNgn = useExchangeRateStore((s) => s.solToNgn)
+  const rates = useExchangeRateStore((s) => s.rates)
+  const currency = useSettingsStore((s) => s.currency)
+  const rate = rates?.[currency] ?? null
+  const meta = CURRENCY_META[currency]
 
   const shortfall = required > balance ? required - balance : 0n
   const shortfallSol = Number(shortfall) / 1_000_000_000
-  const shortfallNgn = (shortfallSol * solToNgn).toLocaleString('en-NG', { maximumFractionDigits: 0 })
+  const shortfallFiat = rate != null
+    ? (shortfallSol * rate).toLocaleString(meta.locale, { maximumFractionDigits: 0 })
+    : null
 
   function handleGoToWallet() {
     onClose()
@@ -60,7 +67,9 @@ export function InsufficientBalanceSheet({ visible, onClose, balance, required }
         <Text variant="caption" color={theme.colors.textFaint}>You need</Text>
         <View style={s.shortfallAmount}>
           <Text variant="subheading" weight="semibold" color={theme.colors.danger}>{formatSol(Number(shortfall))}</Text>
-          <Text variant="caption" color={theme.colors.textFaint}> ≈ ₦{shortfallNgn}</Text>
+          {shortfallFiat != null && (
+            <Text variant="caption" color={theme.colors.textFaint}> ≈ {meta.symbol}{shortfallFiat}</Text>
+          )}
         </View>
       </View>
 

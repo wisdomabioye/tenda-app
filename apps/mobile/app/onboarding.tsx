@@ -77,7 +77,9 @@ export default function OnboardingScreen() {
     try {
       await Notifications.requestPermissionsAsync()
     } finally {
-      setIsRequesting(false)
+      // Do NOT reset isRequesting before navigating — resetting state while
+      // simultaneously navigating after returning from an Android system dialog
+      // causes a view reconciliation race in Fabric (ReactClippingViewManager crash).
       await handleFinish()
     }
   }

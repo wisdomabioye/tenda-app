@@ -10,6 +10,7 @@ import { GigStatusBadge } from './GigStatusBadge'
 import { getCategoryColor, CATEGORY_META } from '@/data/mock'
 import { toPaymentDisplay } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
+import { useSettingsStore } from '@/stores/settings.store'
 import { computeRelevantDeadline } from '@tenda/shared'
 import { deadlineLabel } from '@/lib/gig-display'
 import type { ColorScheme } from '@/theme/tokens'
@@ -23,12 +24,14 @@ interface GigCardProps {
 export function GigCard({ gig, showStatus = true }: GigCardProps) {
   const router = useRouter()
   const { theme } = useUnistyles()
-  const solToNgn = useExchangeRateStore((s) => s.solToNgn)
+  const rates = useExchangeRateStore((s) => s.rates)
+  const currency = useSettingsStore((s) => s.currency)
   const categoryColorKey = getCategoryColor(gig.category) as keyof ColorScheme
   const categoryColor = theme.colors[categoryColorKey]
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
-  const price = toPaymentDisplay(gig.payment_lamports, solToNgn)
+  const rate = rates?.[currency] ?? null
+  const price = toPaymentDisplay(gig.payment_lamports, rate)
   const deadline = computeRelevantDeadline(gig)
   const label = deadlineLabel(deadline)
 
@@ -63,7 +66,7 @@ export function GigCard({ gig, showStatus = true }: GigCardProps) {
             {gig.title}
           </Text>
         </View>
-        <MoneyText naira={price.naira} sol={price.sol} size={typography.sizes.sm} />
+        <MoneyText fiat={price.fiat} ratesReady={rates !== null} currency={currency} sol={price.sol} size={typography.sizes.sm} />
       </View>
 
       <Text variant="caption" numberOfLines={2}>

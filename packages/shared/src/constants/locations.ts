@@ -34,6 +34,36 @@ export const LOCATIONS = {
     currency: 'PHP',
     cities: ['Manila', 'Cebu City', 'Davao', 'Quezon City', 'Makati'],
   },
+  US: {
+    name: 'United States',
+    flag: '🇺🇸',
+    currency: 'USD',
+    cities: ['New York', 'Houston', 'Atlanta', 'Los Angeles', 'Washington DC', 'Chicago', 'Dallas', 'Boston'],
+  },
+  GB: {
+    name: 'United Kingdom',
+    flag: '🇬🇧',
+    currency: 'GBP',
+    cities: ['London', 'Manchester', 'Birmingham', 'Leeds', 'Glasgow', 'Liverpool', 'Bristol'],
+  },
+  DE: {
+    name: 'Germany',
+    flag: '🇩🇪',
+    currency: 'EUR',
+    cities: ['Berlin', 'Hamburg', 'Munich', 'Frankfurt', 'Cologne', 'Düsseldorf'],
+  },
+  NL: {
+    name: 'Netherlands',
+    flag: '🇳🇱',
+    currency: 'EUR',
+    cities: ['Amsterdam', 'Rotterdam', 'The Hague', 'Utrecht', 'Eindhoven'],
+  },
+  IE: {
+    name: 'Ireland',
+    flag: '🇮🇪',
+    currency: 'EUR',
+    cities: ['Dublin', 'Cork', 'Galway', 'Limerick'],
+  },
 } as const
 
 export type CountryCode = keyof typeof LOCATIONS

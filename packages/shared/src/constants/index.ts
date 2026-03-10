@@ -1,4 +1,5 @@
 export { GIG_CATEGORIES, type GigCategory } from './categories'
+export { SUPPORTED_CURRENCIES, CURRENCY_META, type SupportedCurrency } from './currencies'
 export { LOCATIONS, ALL_CITIES, findCountryForCity, type CountryCode, type LocationEntry } from './locations'
 export { ErrorCode } from './errors'
 export type { ErrorCode as ErrorCodeType } from './errors'
