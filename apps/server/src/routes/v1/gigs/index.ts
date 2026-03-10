@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq, and, or, gte, lte, asc, desc, sql, SQL } from 'drizzle-orm'
-import { gigs } from '@tenda/shared/db/schema'
+import { eq, and, gte, lte, asc, desc, sql, SQL } from 'drizzle-orm'
+import { gigs, users } from '@tenda/shared/db/schema'
 import {
   isValidPaymentLamports,
   isValidCompletionDuration,
@@ -62,7 +62,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       eq(gigs.status, 'open' as GigStatus),
     ]
 
-    if (country)              conditions.push(or(eq(gigs.country, country), eq(gigs.remote, true))!)
+    if (country)              conditions.push(eq(gigs.country, country))
     if (remote === true)      conditions.push(eq(gigs.remote, true))
     if (remote === false)     conditions.push(eq(gigs.remote, false))
     if (city)                 conditions.push(eq(gigs.city, city))
@@ -191,8 +191,16 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         })
       }
 
+      // Fetch poster's current country from DB — JWT country can be up to 7 days stale.
+      const [poster] = await fastify.db
+        .select({ country: users.country })
+        .from(users)
+        .where(eq(users.id, request.user.id))
+        .limit(1)
+      const posterCountry = poster?.country ?? null
+
       // For remote gigs country is optional — fall back to poster's stored country.
-      const resolvedCountry = (country ?? request.user.country) as CountryCode | null
+      const resolvedCountry = (country ?? posterCountry) as CountryCode | null
 
       if (!resolvedCountry || !(resolvedCountry in LOCATIONS)) {
         return reply.code(400).send({
@@ -267,7 +275,6 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      const posterCountry = request.user.country
       const cross_border = !remote && posterCountry !== null && posterCountry !== resolvedCountry
 
       const [gig] = await fastify.db
