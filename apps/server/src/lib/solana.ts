@@ -290,6 +290,13 @@ export async function userAccountExists(walletAddress: string): Promise<boolean>
   return info !== null
 }
 
+// ── Signature verification cache ─────────────────────────────────────────────
+// Short-lived in-process cache to avoid redundant RPC calls when a client
+// retries the same request after a network timeout. Entries expire after 60 s.
+// Keys are signatures; values are the verification result + expiry timestamp.
+const _sigCache = new Map<string, { result: { ok: boolean; error?: string }; expiresAt: number }>()
+const SIG_CACHE_TTL_MS = 60_000
+
 // ── On-chain verification ────────────────────────────────────────────────────
 /**
  * Verify that a Solana transaction signature has reached the required
@@ -314,14 +321,21 @@ export async function verifyTransactionOnChain(
   signature: string,
   expectedInstruction?: InstructionName,
 ): Promise<{ ok: boolean; error?: string }> {
+  // Return cached result if still fresh, pruning the entry if expired.
+  const cached = _sigCache.get(signature)
+  if (cached) {
+    if (Date.now() < cached.expiresAt) return cached.result
+    _sigCache.delete(signature)
+  }
+
   const { SOLANA_NETWORK, SOLANA_PROGRAM_ID } = getConfig()
   const connection = getConnection()
 
   try {
-    const result = await withRpcTimeout(
+    const rpcStatus = await withRpcTimeout(
       connection.getSignatureStatus(signature, { searchTransactionHistory: true }),
     )
-    const status = result.value
+    const status = rpcStatus.value
 
     if (!status) {
       return { ok: false, error: 'SIGNATURE_NOT_FINALIZED' }
@@ -381,6 +395,7 @@ export async function verifyTransactionOnChain(
       }
     }
 
+    _sigCache.set(signature, { result: { ok: true }, expiresAt: Date.now() + SIG_CACHE_TTL_MS })
     return { ok: true }
   } catch (err) {
     if (err instanceof Error && err.message === 'RPC_TIMEOUT') {
