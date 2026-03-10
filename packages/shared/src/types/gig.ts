@@ -62,7 +62,7 @@ export interface CreateGigInput {
   description: string
   payment_lamports: number
   category: GigCategory
-  country: string
+  country?: string   // optional for remote gigs — server defaults from poster's profile
   remote?: boolean
   city?: string        // omitted for remote gigs
   address?: string

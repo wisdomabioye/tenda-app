@@ -164,11 +164,11 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         accept_deadline,
       } = request.body
 
-      if (!title || !description || !payment_lamports || !category || !country || !completion_duration_seconds) {
+      if (!title || !description || !payment_lamports || !category || !completion_duration_seconds) {
         return reply.code(400).send({
           statusCode: 400,
           error: 'Bad Request',
-          message: 'title, description, payment_lamports, category, country, and completion_duration_seconds are required',
+          message: 'title, description, payment_lamports, category, and completion_duration_seconds are required',
           code: ErrorCode.VALIDATION_ERROR,
         })
       }
@@ -182,7 +182,19 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      if (!(country in LOCATIONS)) {
+      if (!remote && !country) {
+        return reply.code(400).send({
+          statusCode: 400,
+          error: 'Bad Request',
+          message: 'country is required for non-remote gigs',
+          code: ErrorCode.VALIDATION_ERROR,
+        })
+      }
+
+      // For remote gigs country is optional — fall back to poster's stored country.
+      const resolvedCountry = (country ?? request.user.country) as CountryCode | null
+
+      if (!resolvedCountry || !(resolvedCountry in LOCATIONS)) {
         return reply.code(400).send({
           statusCode: 400,
           error: 'Bad Request',
@@ -256,7 +268,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       }
 
       const posterCountry = request.user.country
-      const cross_border = posterCountry !== null && posterCountry !== country
+      const cross_border = !remote && posterCountry !== null && posterCountry !== resolvedCountry
 
       const [gig] = await fastify.db
         .insert(gigs)
@@ -266,7 +278,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
           description,
           payment_lamports,
           category: category as GigCategory,
-          country: country as CountryCode,
+          country: resolvedCountry,
           cross_border,
           remote,
           city: remote ? null : city,

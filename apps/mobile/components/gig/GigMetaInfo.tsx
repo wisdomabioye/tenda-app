@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native'
-import { MapPin, Clock, Calendar, ArrowLeftRight } from 'lucide-react-native'
+import { MapPin, Clock, Calendar, ArrowLeftRight, Globe } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
@@ -8,7 +8,7 @@ import { LOCATIONS } from '@tenda/shared'
 import type { GigDetail, CountryCode } from '@tenda/shared'
 
 interface Props {
-  gig: Pick<GigDetail, 'address' | 'city' | 'completion_duration_seconds' | 'accept_deadline' | 'cross_border'>
+  gig: Pick<GigDetail, 'address' | 'city' | 'country' | 'remote' | 'completion_duration_seconds' | 'accept_deadline' | 'cross_border'>
   posterCountry: string | null
   deadlineLbl: string | null
 }
@@ -19,8 +19,14 @@ export function GigMetaInfo({ gig, posterCountry, deadlineLbl }: Props) {
   return (
     <View style={s.grid}>
       <View style={s.item}>
-        <MapPin size={16} color={theme.colors.textFaint} />
-        <Text variant="body" color={theme.colors.textSub}>{gig.address ?? gig.city}</Text>
+        {gig.remote
+          ? <Globe size={16} color={theme.colors.primary} />
+          : <MapPin size={16} color={theme.colors.textFaint} />}
+        <Text variant="body" color={gig.remote ? theme.colors.primary : theme.colors.textSub}>
+          {gig.remote
+            ? `Remote · ${LOCATIONS[gig.country as CountryCode]?.name ?? gig.country}`
+            : (gig.address ?? gig.city)}
+        </Text>
       </View>
       {gig.cross_border && (
         <View style={s.item}>

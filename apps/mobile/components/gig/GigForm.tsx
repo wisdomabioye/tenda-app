@@ -14,6 +14,7 @@ import { LocationPicker } from '@/components/form/LocationPicker'
 import { RemoteToggle } from '@/components/form/RemoteToggle'
 import { CATEGORY_META } from '@/data/mock'
 import { isValidPaymentLamports, MIN_COMPLETION_DURATION_SECONDS } from '@tenda/shared'
+import { getDeviceCountry } from '@/lib/device'
 import type { ColorScheme } from '@/theme/tokens'
 import type { GigCategory } from '@tenda/shared'
 
@@ -66,7 +67,7 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
   const [completionDuration, setCompletionDuration] = useState(initialValues?.completionDuration ?? 86_400)
   const [address, setAddress]                     = useState(initialValues?.address ?? '')
   const [selectedCategory, setSelectedCategory]   = useState<GigCategory | null>(initialValues?.category ?? null)
-  const [selectedCountry, setSelectedCountry]     = useState<string | null>(initialValues?.country ?? null)
+  const [selectedCountry, setSelectedCountry]     = useState<string | null>(initialValues?.country ?? getDeviceCountry())
   const [isRemote, setIsRemote]                   = useState(initialValues?.remote ?? false)
   const [selectedCity, setSelectedCity]           = useState<string | null>(initialValues?.city ?? null)
   const [acceptDeadlineHours, setAcceptDeadlineHours] = useState<number | null>(initialValues?.acceptDeadlineHours ?? null)
@@ -77,8 +78,7 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
     description.trim().length > 0 &&
     isValidPaymentLamports(paymentLamports) &&
     selectedCategory !== null &&
-    selectedCountry !== null &&
-    (isRemote || selectedCity !== null) &&
+    (isRemote || (selectedCountry !== null && selectedCity !== null)) &&
     completionDuration >= MIN_COMPLETION_DURATION_SECONDS
 
   async function handleSubmit() {
@@ -175,15 +175,14 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
 
           <Spacer size={spacing.md} />
 
-          <LocationPicker
-            country={selectedCountry}
-            city={isRemote ? null : selectedCity}
-            onChange={(c, ci) => {
-              setSelectedCountry(c)
-              if (!isRemote) setSelectedCity(ci)
-            }}
-            label={isRemote ? 'Country' : 'Location'}
-          />
+          {!isRemote && (
+            <LocationPicker
+              country={selectedCountry}
+              city={selectedCity}
+              onChange={(c, ci) => { setSelectedCountry(c); setSelectedCity(ci) }}
+              label="Location"
+            />
+          )}
 
           {!isRemote && (
             <>
