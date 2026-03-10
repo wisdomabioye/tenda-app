@@ -81,8 +81,12 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         .orderBy(desc(messages.created_at))
         .limit(pageSize)
 
-      // Mark all unread messages from the other user as read (not just this page)
-      void fastify.db
+      // Mark all unread messages from the other user as read (not just this page).
+      // Awaited so the badge clears reliably before the response returns.
+      // @scalability: replace with a dedicated POST /v1/conversations/:id/read endpoint
+      // (client-driven explicit read receipt) when per-message granularity or
+      // read-only GET caching becomes a requirement.
+      await fastify.db
         .update(messages)
         .set({ read_at: new Date() })
         .where(
@@ -92,7 +96,6 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
             isNull(messages.read_at),
           )
         )
-        .catch(() => {})
 
       return rows.map((m) => ({
         ...m,
