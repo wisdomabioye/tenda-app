@@ -43,7 +43,8 @@ export default wrapApp(function RootLayout() {
           <Stack.Screen name="onboarding" />
           <Stack.Screen name="(support)" />
           <Stack.Screen name="error" />
-          <Stack.Screen name="gig/[id]" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="gig/[id]/index" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="gig/[id]/edit" />
           <Stack.Screen name="chat/[userId]" />
           <Stack.Screen name="+not-found" />
         </Stack>
