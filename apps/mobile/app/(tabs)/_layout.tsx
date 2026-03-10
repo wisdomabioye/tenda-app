@@ -5,6 +5,7 @@ import { useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-
 import { Home, Briefcase, Plus, Wallet, MessageCircle } from 'lucide-react-native'
 import { typography, shadows, radius } from '@/theme/tokens'
 import { useChatStore } from '@/stores/chat.store'
+import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useConversationPolling } from '@/hooks/useConversationPolling'
 
 const ICON_SIZE = 20
@@ -13,7 +14,8 @@ const POST_ICON_SIZE = 20
 export default function TabsLayout() {
   const { theme } = useUnistyles()
   const insets = useSafeAreaInsets()
-  const unread = useChatStore((s) => s.unread)
+  const unread       = useChatStore((s) => s.unread)
+  const failedSyncs  = usePendingSyncStore((s) => s.failed.length)
 
   useConversationPolling()
 
@@ -84,6 +86,7 @@ export default function TabsLayout() {
         name="wallet"
         options={{
           title: 'Wallet',
+          tabBarBadge: failedSyncs > 0 ? (failedSyncs > 9 ? '9+' : failedSyncs) : undefined,
           tabBarIcon: ({ color, focused }) => (
             <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.primaryTint }]}>
               <Wallet color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />

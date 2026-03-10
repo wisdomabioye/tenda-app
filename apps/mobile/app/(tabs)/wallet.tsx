@@ -7,6 +7,7 @@ import { spacing, radius, typography, shadows } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Card, Header } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuthStore } from '@/stores/auth.store'
+import { FailedSyncPanel } from '@/components/sync/FailedSyncPanel'
 
 import { api } from '@/api/client'
 import { getBalance } from '@/wallet'
@@ -25,10 +26,10 @@ function TxRow({ tx }: { tx: UserTransaction }) {
   const sol = tx.amount_lamports / 1_000_000_000
 
   const TYPE_LABEL: Record<string, string> = {
-    create_escrow: 'Escrow funded',
-    release_payment: 'Payment received',
-    cancel_refund: 'Refund received',
-    expired_refund: 'Refund (expired)',
+    create_escrow:    'Escrow funded',
+    release_payment:  'Payment received',
+    cancel_refund:    'Refund received',
+    expired_refund:   'Refund (expired)',
     dispute_resolved: 'Dispute resolved',
   }
 
@@ -51,13 +52,13 @@ function TxRow({ tx }: { tx: UserTransaction }) {
 
 export default function WalletScreen() {
   const { theme } = useUnistyles()
-  const user = useAuthStore((s) => s.user)
+  const user          = useAuthStore((s) => s.user)
   const walletAddress = useAuthStore((s) => s.walletAddress)
 
   const [balanceLamports, setBalanceLamports] = useState<number | null>(null)
-  const [transactions, setTransactions] = useState<UserTransaction[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
+  const [transactions, setTransactions]       = useState<UserTransaction[]>([])
+  const [isLoading, setIsLoading]             = useState(true)
+  const [refreshing, setRefreshing]           = useState(false)
 
   useFocusEffect(
     useCallback(() => {
@@ -70,7 +71,6 @@ export default function WalletScreen() {
     if (isRefresh) setRefreshing(true)
     else setIsLoading(true)
     try {
-      // Fetch balance and all transactions in a single request each
       const [_, txResult] = await Promise.all([
         walletAddress
           ? getBalance(new PublicKey(walletAddress)).then((b) => setBalanceLamports(b))
@@ -91,12 +91,10 @@ export default function WalletScreen() {
 
   const balanceSol = balanceLamports !== null ? balanceLamports / LAMPORTS_PER_SOL : null
 
-  // Earnings = sum of release_payment + dispute_resolved where user is worker
   const earnedLamports = transactions
     .filter((tx) => tx.gig.worker_id === user?.id && (tx.type === 'release_payment' || tx.type === 'dispute_resolved'))
     .reduce((sum, tx) => sum + tx.amount_lamports, 0)
 
-  // Spent = sum of create_escrow where user is poster
   const spentLamports = transactions
     .filter((tx) => tx.gig.poster_id === user?.id && tx.type === 'create_escrow')
     .reduce((sum, tx) => sum + tx.amount_lamports, 0)
@@ -119,6 +117,8 @@ export default function WalletScreen() {
         }
         ListHeaderComponent={
           <>
+            <FailedSyncPanel />
+
             {/* Balance card */}
             <Card variant="filled" padding={spacing.md}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
