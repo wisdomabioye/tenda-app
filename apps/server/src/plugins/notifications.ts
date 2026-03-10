@@ -35,7 +35,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         title: 'Gig Accepted',
         body: `Your gig "${data.title}" was accepted by a worker.`,
         data: { screen: 'gig', gigId: data.gigId },
-      })
+      }, fastify.log)
       await removeStaleTokens(stale)
     } catch (err) {
       fastify.log.error({ err }, '[notifications] gig.accepted listener failed')
@@ -50,7 +50,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         title: 'Proof Submitted',
         body: `The worker submitted proof for "${data.title}". Review and approve.`,
         data: { screen: 'gig', gigId: data.gigId },
-      })
+      }, fastify.log)
       await removeStaleTokens(stale)
     } catch (err) {
       fastify.log.error({ err }, '[notifications] gig.submitted listener failed')
@@ -65,7 +65,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         title: 'Payment Released',
         body: `Your work on "${data.title}" was approved and payment released.`,
         data: { screen: 'gig', gigId: data.gigId },
-      })
+      }, fastify.log)
       await removeStaleTokens(stale)
     } catch (err) {
       fastify.log.error({ err }, '[notifications] gig.approved listener failed')
@@ -81,7 +81,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         title: 'Dispute Raised',
         body: `A dispute was raised for "${data.title}". An admin will review shortly.`,
         data: { screen: 'gig', gigId: data.gigId },
-      })
+      }, fastify.log)
       await removeStaleTokens(stale)
     } catch (err) {
       fastify.log.error({ err }, '[notifications] gig.disputed listener failed')
@@ -96,7 +96,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         title: 'Dispute Resolved',
         body: `The dispute for "${data.title}" has been resolved.`,
         data: { screen: 'gig', gigId: data.gigId },
-      })
+      }, fastify.log)
       await removeStaleTokens(stale)
     } catch (err) {
       fastify.log.error({ err }, '[notifications] gig.resolved listener failed')
@@ -137,7 +137,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
           title: 'New Gig Posted',
           body: `"${data.title}" in ${locationLabel}`,
           data: { screen: 'gig', gigId: data.gigId },
-        })
+        }, fastify.log)
         await removeStaleTokens(stale)
       } catch (err) {
         fastify.log.error({ err }, '[notifications] gig.created fan-out failed')
@@ -153,7 +153,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         title: 'Additional Proof Submitted',
         body: `The worker added more proof for "${data.title}". Review and approve.`,
         data: { screen: 'gig', gigId: data.gigId },
-      })
+      }, fastify.log)
       await removeStaleTokens(stale)
     } catch (err) {
       fastify.log.error({ err }, '[notifications] proof.added listener failed')
@@ -168,7 +168,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         title: 'New Review',
         body: `You received a ${data.score}-star review for "${data.title}".`,
         data: { screen: 'gig', gigId: data.gigId },
-      })
+      }, fastify.log)
       await removeStaleTokens(stale)
     } catch (err) {
       fastify.log.error({ err }, '[notifications] review.submitted listener failed')
@@ -183,7 +183,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         title: 'New Message',
         body: data.preview,
         data: { screen: 'chat', conversationId: data.conversationId, userId: data.senderId },
-      })
+      }, fastify.log)
       await removeStaleTokens(stale)
     } catch (err) {
       fastify.log.error({ err }, '[notifications] message.sent listener failed')

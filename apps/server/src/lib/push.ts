@@ -22,11 +22,17 @@ interface ExpoPushTicket {
   details?: { error?: string }
 }
 
+interface PushLogger {
+  error(obj: object, msg: string): void
+  warn(obj: object, msg: string): void
+}
+
 // Returns the list of tokens Expo reported as no longer registered (DeviceNotRegistered).
 // Callers should delete these from device_tokens to prevent repeated failed sends.
 export async function sendPush(
   tokens: string[],
   payload: { title: string; body: string; data?: Record<string, unknown> },
+  log: PushLogger,
 ): Promise<string[]> {
   if (tokens.length === 0) return []
 
@@ -56,10 +62,11 @@ export async function sendPush(
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(message),
+        signal: AbortSignal.timeout(15_000),
       })
 
       if (!res.ok) {
-        console.error('[push] Expo API error', res.status, await res.text())
+        log.error({ status: res.status, body: await res.text() }, '[push] Expo API error')
         continue
       }
 
@@ -69,14 +76,14 @@ export async function sendPush(
       for (let j = 0; j < tickets.length; j++) {
         const ticket = tickets[j]
         if (ticket.status === 'error') {
-          console.warn('[push] ticket error:', ticket.message, ticket.details)
+          log.warn({ message: ticket.message, details: ticket.details }, '[push] ticket error')
           if (ticket.details?.error === 'DeviceNotRegistered') {
             invalidTokens.push(batch[j])
           }
         }
       }
     } catch (err) {
-      console.error('[push] Failed to send batch:', err)
+      log.error({ err }, '[push] Failed to send batch')
     }
   }
 
