@@ -64,6 +64,7 @@ export const users = pgTable('users', {
   last_name:        text('last_name'),
   avatar_url:       text('avatar_url'),
   bio:              text('bio'),
+  country:          text('country'),
   city:             text('city'),
   latitude:         doublePrecision('latitude'),
   longitude:        doublePrecision('longitude'),
@@ -96,8 +97,9 @@ export const gigs = pgTable('gigs', {
   status:   gigStatusEnum('status').default('draft').notNull(),
 
   // Location — city/address nullable for remote gigs; country always set
-  country:   text('country').notNull().default('NG'),
-  remote:    boolean('remote').notNull().default(false),
+  country:      text('country').notNull().default('NG'),
+  cross_border: boolean('cross_border').notNull().default(false),
+  remote:       boolean('remote').notNull().default(false),
   city:      text('city'),   // nullable: remote gigs have no city
   address:   text('address'),
   latitude:  doublePrecision('latitude'),

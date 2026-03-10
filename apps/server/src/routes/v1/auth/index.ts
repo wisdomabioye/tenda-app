@@ -16,7 +16,7 @@ const auth: FastifyPluginAsync = async (fastify) => {
     Body: WalletRoute['body']
     Reply: WalletRoute['response'] | ApiError
   }>('/wallet', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => {
-    const { wallet_address, signature, message, is_seeker = false } = request.body
+    const { wallet_address, signature, message, is_seeker = false, country } = request.body
 
     if (!wallet_address || !signature || !message) {
       return reply.code(400).send({
@@ -95,9 +95,11 @@ const auth: FastifyPluginAsync = async (fastify) => {
     // is_seeker is re-applied on every login so Seeker status updates if device changes.
     const [user] = await fastify.db
       .insert(users)
-      .values({ wallet_address, first_name: '', last_name: '', is_seeker })
+      .values({ wallet_address, first_name: '', last_name: '', is_seeker, country: country ?? null })
       .onConflictDoUpdate({
         target: users.wallet_address,
+        // country is only set on first insert; subsequent logins preserve whatever
+        // the user has saved in their profile via the update-profile screen.
         set: { updated_at: new Date(), is_seeker },
       })
       .returning()

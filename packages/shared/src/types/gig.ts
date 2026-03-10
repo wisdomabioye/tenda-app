@@ -140,6 +140,7 @@ export interface GigDetail extends Gig {
     avatar_url: string | null
     reputation_score: number | null
     is_seeker: boolean
+    country: string | null
   }
   worker: {
     id: string
@@ -148,6 +149,7 @@ export interface GigDetail extends Gig {
     avatar_url: string | null
     reputation_score: number | null
     is_seeker: boolean
+    country: string | null
   } | null
   proofs: GigProof[]
   dispute: Dispute | null

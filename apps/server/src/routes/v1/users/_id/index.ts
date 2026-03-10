@@ -22,6 +22,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
         last_name:        users.last_name,
         avatar_url:       users.avatar_url,
         bio:              users.bio,
+        country:          users.country,
         city:             users.city,
         latitude:         users.latitude,
         longitude:        users.longitude,
@@ -64,7 +65,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
       })
     }
 
-    const { first_name, last_name, avatar_url, bio, city, latitude, longitude } = request.body
+    const { first_name, last_name, avatar_url, bio, country, city, latitude, longitude } = request.body
 
     // Reject avatar URLs that don't come from Cloudinary CDN
     if (avatar_url !== undefined && avatar_url !== null && !isCloudinaryUrl(avatar_url)) {
@@ -99,6 +100,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
     if (last_name !== undefined)  updates.last_name  = last_name
     if (avatar_url !== undefined) updates.avatar_url = avatar_url
     if (bio !== undefined)        updates.bio        = bio
+    if (country !== undefined)    updates.country    = country
     if (city !== undefined)       updates.city       = city
     if (latitude !== undefined)   updates.latitude   = latitude
     if (longitude !== undefined)  updates.longitude  = longitude

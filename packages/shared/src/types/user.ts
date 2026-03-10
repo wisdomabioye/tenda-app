@@ -14,6 +14,7 @@ export interface WalletAuthBody {
   signature: string
   message: string
   is_seeker?: boolean
+  country?: string
 }
 
 export interface UpdateUserInput {
@@ -21,6 +22,7 @@ export interface UpdateUserInput {
   last_name?: string
   avatar_url?: string
   bio?: string | null
+  country?: string
   city?: string
   latitude?: number | null
   longitude?: number | null

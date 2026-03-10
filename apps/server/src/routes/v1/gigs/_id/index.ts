@@ -51,6 +51,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       avatar_url:       users.avatar_url,
       reputation_score: users.reputation_score,
       is_seeker:        users.is_seeker,
+      country:          users.country,
     }
 
     // Fetch poster, worker (if assigned), proofs, dispute, and reviews in parallel.
