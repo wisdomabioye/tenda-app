@@ -25,7 +25,7 @@ const transaction: FastifyPluginAsync = async (fastify) => {
 
     try {
       const connection = getConnection()
-      const status = await connection.getSignatureStatus(signature)
+      const status = await connection.getSignatureStatus(signature, { searchTransactionHistory: true })
 
       let txStatus: TransactionStatus['status'] = 'not_found'
 
