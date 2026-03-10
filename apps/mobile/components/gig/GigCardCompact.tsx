@@ -1,7 +1,7 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { MapPin, Clock, Globe } from 'lucide-react-native'
+import { MapPin, Clock, Globe, ArrowLeftRight } from 'lucide-react-native'
 import { spacing, radius, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { MoneyText } from '@/components/ui/MoneyText'
@@ -78,6 +78,12 @@ export function GigCardCompact({ gig, showStatus = false }: GigCardCompactProps)
               : gig.city}
           </Text>
         </View>
+        {gig.cross_border && (
+          <View style={s.metaItem}>
+            <ArrowLeftRight size={14} color={theme.colors.warning} />
+            <Text variant="caption" color={theme.colors.warning}>Cross-border</Text>
+          </View>
+        )}
         {label ? (
           <View style={s.metaItem}>
             <Clock size={14} color={theme.colors.textFaint} />

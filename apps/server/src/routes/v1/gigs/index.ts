@@ -255,6 +255,9 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         })
       }
 
+      const posterCountry = request.user.country
+      const cross_border = posterCountry !== null && posterCountry !== country
+
       const [gig] = await fastify.db
         .insert(gigs)
         .values({
@@ -264,6 +267,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
           payment_lamports,
           category: category as GigCategory,
           country: country as CountryCode,
+          cross_border,
           remote,
           city: remote ? null : city,
           address,

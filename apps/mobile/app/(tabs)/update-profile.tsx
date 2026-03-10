@@ -50,6 +50,7 @@ export default function UpdateProfileScreen() {
           first_name: firstName.trim() || undefined,
           last_name: lastName.trim() || undefined,
           bio: bio.trim() || undefined,
+          country: selectedCountry ?? undefined,
           city: selectedCity ?? undefined,
           avatar_url: avatarUrl ?? undefined,
         },

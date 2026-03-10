@@ -419,7 +419,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         <Spacer size={spacing.lg} />
 
         {/* Meta info */}
-        <GigMetaInfo gig={gig} deadlineLbl={deadlineLbl} />
+        <GigMetaInfo gig={gig} posterCountry={gig.poster.country} deadlineLbl={deadlineLbl} />
 
         <Divider />
 

@@ -98,9 +98,9 @@ const auth: FastifyPluginAsync = async (fastify) => {
       .values({ wallet_address, first_name: '', last_name: '', is_seeker, country: country ?? null })
       .onConflictDoUpdate({
         target: users.wallet_address,
-        // country is only set on first insert; subsequent logins preserve whatever
-        // the user has saved in their profile via the update-profile screen.
-        set: { updated_at: new Date(), is_seeker },
+        // country is refreshed on every login from the device locale so existing
+        // users get it populated. The profile screen can override it explicitly.
+        set: { updated_at: new Date(), is_seeker, country: country ?? null },
       })
       .returning()
 
@@ -115,7 +115,7 @@ const auth: FastifyPluginAsync = async (fastify) => {
     }
 
     const token = fastify.jwt.sign(
-      { id: user.id, wallet_address: user.wallet_address, role: user.role, is_seeker: user.is_seeker },
+      { id: user.id, wallet_address: user.wallet_address, role: user.role, is_seeker: user.is_seeker, country: user.country ?? null },
       { expiresIn: getConfig().JWT_EXPIRES_IN },
     )
 

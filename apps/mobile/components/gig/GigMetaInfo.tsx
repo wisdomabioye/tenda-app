@@ -1,17 +1,19 @@
 import { View, StyleSheet } from 'react-native'
-import { MapPin, Clock, Calendar } from 'lucide-react-native'
+import { MapPin, Clock, Calendar, ArrowLeftRight } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { formatDuration, formatDeadline } from '@/lib/gig-display'
-import type { GigDetail } from '@tenda/shared'
+import { LOCATIONS } from '@tenda/shared'
+import type { GigDetail, CountryCode } from '@tenda/shared'
 
 interface Props {
-  gig: Pick<GigDetail, 'address' | 'city' | 'completion_duration_seconds' | 'accept_deadline'>
+  gig: Pick<GigDetail, 'address' | 'city' | 'completion_duration_seconds' | 'accept_deadline' | 'cross_border'>
+  posterCountry: string | null
   deadlineLbl: string | null
 }
 
-export function GigMetaInfo({ gig, deadlineLbl }: Props) {
+export function GigMetaInfo({ gig, posterCountry, deadlineLbl }: Props) {
   const { theme } = useUnistyles()
 
   return (
@@ -20,6 +22,16 @@ export function GigMetaInfo({ gig, deadlineLbl }: Props) {
         <MapPin size={16} color={theme.colors.textFaint} />
         <Text variant="body" color={theme.colors.textSub}>{gig.address ?? gig.city}</Text>
       </View>
+      {gig.cross_border && (
+        <View style={s.item}>
+          <ArrowLeftRight size={16} color={theme.colors.textFaint} />
+          <Text variant="body" color={theme.colors.textSub}>
+            {posterCountry
+              ? `Posted from ${LOCATIONS[posterCountry as CountryCode]?.name ?? posterCountry}`
+              : 'Cross-border'}
+          </Text>
+        </View>
+      )}
       {deadlineLbl ? (
         <View style={s.item}>
           <Clock size={16} color={theme.colors.textFaint} />
