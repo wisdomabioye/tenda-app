@@ -4,24 +4,13 @@ import { ErrorCode } from '@tenda/shared'
 import bs58 from 'bs58'
 import { PublicKey, Connection, Transaction, Keypair } from '@solana/web3.js'
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor'
-import { ESCROW_IDL as IDL, discriminatorFor as _discriminatorFor, type TendaEscrow } from '@tenda/shared/idl'
+import { ESCROW_IDL as IDL, discriminatorFor as _discriminatorFor, type TendaEscrow, type InstructionName } from '@tenda/shared/idl'
 import { getConfig } from '@server/config'
 
 const ESCROW_SEED   = 'escrow'
 const USER_SEED     = 'user'
 
 // ── Discriminators ───────────────────────────────────────────────────────────
-type InstructionName =
-  | 'create_gig_escrow'
-  | 'accept_gig'
-  | 'submit_proof'
-  | 'approve_completion'
-  | 'cancel_gig'
-  | 'refund_expired'
-  | 'dispute_gig'
-  | 'resolve_dispute'
-  | 'withdraw_earnings'
-  | 'create_user_account'
 
 function discriminatorFor(instructionName: InstructionName): Buffer {
   return Buffer.from(_discriminatorFor(instructionName))

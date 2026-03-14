@@ -7,13 +7,26 @@ export const ESCROW_IDL = _RAW as unknown as TendaEscrow
 
 export type { TendaEscrow }
 
+/** Union of all valid instruction names in the Tenda Escrow program. */
+export type InstructionName =
+  | 'create_gig_escrow'
+  | 'accept_gig'
+  | 'submit_proof'
+  | 'approve_completion'
+  | 'cancel_gig'
+  | 'refund_expired'
+  | 'dispute_gig'
+  | 'resolve_dispute'
+  | 'withdraw_earnings'
+  | 'create_user_account'
+
 /**
  * Returns the 8-byte Anchor discriminator for the named instruction as a
  * plain number array. Portable across server (wrap with Buffer.from) and mobile.
  *
  * Throws if the instruction name is not found in the IDL — catches typos at dev time.
  */
-export function discriminatorFor(instructionName: string): number[] {
+export function discriminatorFor(instructionName: InstructionName): number[] {
   const instructions = (_RAW as { instructions: Array<{ name: string; discriminator: number[] }> }).instructions
   const ix = instructions.find((i) => i.name === instructionName)
   if (!ix) throw new Error(`Unknown instruction: ${instructionName}`)

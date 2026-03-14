@@ -36,10 +36,11 @@ import { toPaymentDisplay } from '@/lib/currency'
 import { computeRelevantDeadline, computePlatformFee, SOLANA_TX_FEE_LAMPORTS, apiConfig } from '@tenda/shared'
 import { deadlineLabel } from '@/lib/gig-display'
 import { api } from '@/api/client'
-import { signAndSendTransactionWithWallet, signTransactionsWithWallet, sendRawTransaction } from '@/wallet'
+import { signAndSendTransactionWithWallet, signTransactionsWithWallet, sendRawTransaction, validateTransaction } from '@/wallet'
 import { checkBalance } from '@/lib/balance'
 import type { ColorScheme } from '@/theme/tokens'
 import type { GigDetail } from '@tenda/shared'
+import type { InstructionName } from '@tenda/shared/idl'
 import type { ActiveSheet } from '@/components/gig'
 
 type PendingAction =
@@ -130,6 +131,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   async function startBlockchainFlow(
     action: PendingAction,
     txBase64: string,
+    expectedInstruction: InstructionName,
     syncAction?: 'publish' | 'approve' | 'cancel' | 'accept' | 'refund',
   ) {
     if (!mwaAuthToken) {
@@ -138,6 +140,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     }
     try {
       const tx = Transaction.from(Buffer.from(txBase64, 'base64'))
+      validateTransaction(tx, expectedInstruction)
       const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken, onNewAuthToken)
       if (syncAction) {
         const syncId = pendingSync.add({ gigId: gig.id, action: syncAction, signature: sig })
@@ -166,7 +169,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       const required = BigInt(gig.payment_lamports) + platformFee + SOLANA_TX_FEE_LAMPORTS
       if (!await guardBalance(required)) return
       const { transaction } = await api.blockchain.createEscrow({ gig_id: gig.id })
-      await startBlockchainFlow({ type: 'publish' }, transaction, 'publish')
+      await startBlockchainFlow({ type: 'publish' }, transaction, 'create_gig_escrow', 'publish')
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to build publish transaction')
     } finally {
@@ -187,6 +190,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
         const setupTx  = Transaction.from(Buffer.from(response.setup_transaction, 'base64'))
         const acceptTx = Transaction.from(Buffer.from(response.transaction, 'base64'))
+        validateTransaction(setupTx, 'create_user_account')
+        validateTransaction(acceptTx, 'accept_gig')
         const [signedSetup, signedAccept] = await signTransactionsWithWallet(
           [setupTx, acceptTx] as any[],
           mwaAuthToken,
@@ -198,7 +203,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         setPendingAction({ type: 'accept' })
         setPendingSetupSignature(setupSig)
       } else {
-        await startBlockchainFlow({ type: 'accept' }, response.transaction, 'accept')
+        await startBlockchainFlow({ type: 'accept' }, response.transaction, 'accept_gig', 'accept')
       }
     } catch (e) {
       setPendingSetupSignature(null)
@@ -235,7 +240,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     try {
       if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
       const { transaction } = await api.blockchain.approveEscrow({ gig_id: gig.id })
-      await startBlockchainFlow({ type: 'approve' }, transaction, 'approve')
+      await startBlockchainFlow({ type: 'approve' }, transaction, 'approve_completion', 'approve')
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to build approve transaction')
     } finally {
@@ -249,7 +254,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     try {
       if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
       const { transaction } = await api.blockchain.cancelEscrow({ gig_id: gig.id })
-      await startBlockchainFlow({ type: 'cancel' }, transaction, 'cancel')
+      await startBlockchainFlow({ type: 'cancel' }, transaction, 'cancel_gig', 'cancel')
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to build cancel transaction')
     } finally {
@@ -263,7 +268,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     try {
       if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
       const { transaction } = await api.blockchain.refundExpired({ gig_id: gig.id })
-      await startBlockchainFlow({ type: 'refund' }, transaction, 'refund')
+      await startBlockchainFlow({ type: 'refund' }, transaction, 'refund_expired', 'refund')
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to build refund transaction')
     } finally {
@@ -278,6 +283,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
       const { transaction } = await api.blockchain.disputeGig({ gig_id: gig.id, reason })
       const tx = Transaction.from(Buffer.from(transaction, 'base64'))
+      validateTransaction(tx, 'dispute_gig')
       const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken, onNewAuthToken)
       setPendingAction({ type: 'dispute', reason })
       setPendingSignature(sig)
@@ -308,7 +314,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
       const { transaction } = await api.blockchain.submitProof({ gig_id: gig.id })
       const tx = Transaction.from(Buffer.from(transaction, 'base64'))
-      const sig = await signAndSendTransactionWithWallet(tx as any, mwaAuthToken, onNewAuthToken)
+      validateTransaction(tx, 'submit_proof')
+      const sig = await signAndSendTransactionWithWallet(tx, mwaAuthToken, onNewAuthToken)
       // Add to pending-sync with proofs so a retry can recover if server call fails
       const syncId = pendingSync.add({ action: 'submit', gigId: gig.id, signature: sig, proofs })
       setPendingSyncId(syncId)

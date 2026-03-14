@@ -10,6 +10,7 @@ import {
 import { transact, type Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { getEnv } from '@/lib/env'
 import { apiConfig, solanaChainId } from '@tenda/shared'
+import { ESCROW_IDL, discriminatorFor, type InstructionName } from '@tenda/shared/idl'
 
 const env = getEnv()
 const ENV_CONFIG = apiConfig[env]
@@ -215,6 +216,30 @@ export function buildAuthMessage(walletAddress: string): string {
     `URI: ${APP_IDENTITY.uri}`,
     `Timestamp: ${timestamp}`,
   ].join('\n')
+}
+
+/**
+ * Validates that a transaction contains an instruction targeting the Tenda
+ * program with the expected Anchor discriminator. Call this before signing any
+ * server-built transaction to guard against a compromised server or MITM
+ * substituting a malicious payload.
+ *
+ * Throws WalletError('unknown') if the check fails — the caller should surface
+ * this as a generic error and abort signing.
+ */
+export function validateTransaction(tx: Transaction, expectedInstruction: InstructionName): void {
+  const programId = new PublicKey((ESCROW_IDL as unknown as { address: string }).address)
+  const expected  = discriminatorFor(expectedInstruction)
+
+  const valid = tx.instructions.some((ix) =>
+    ix.programId.equals(programId) &&
+    ix.data.length >= 8 &&
+    expected.every((b, i) => ix.data[i] === b),
+  )
+
+  if (!valid) {
+    throw new WalletError('unknown', `Transaction does not contain the expected '${expectedInstruction}' instruction`)
+  }
 }
 
 export async function signTransactionWithWallet(
