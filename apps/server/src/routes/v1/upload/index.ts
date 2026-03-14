@@ -21,7 +21,7 @@ const upload: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'type must be "avatar" or "proof"')
       }
 
-      return generateUploadSignature(type)
+      return generateUploadSignature(type, type === 'proof' ? request.user.id : undefined)
     }
   )
 }

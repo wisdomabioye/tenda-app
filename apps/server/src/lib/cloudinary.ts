@@ -7,10 +7,12 @@ const FOLDER_MAP: Record<UploadType, string> = {
   proof: 'tenda/proofs',
 }
 
-export function generateUploadSignature(type: UploadType): CloudinarySignature {
+export function generateUploadSignature(type: UploadType, userId?: string): CloudinarySignature {
   const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = getConfig()
 
-  const folder = FOLDER_MAP[type]
+  const folder = type === 'proof' && userId
+    ? `${FOLDER_MAP.proof}/${userId}`
+    : FOLDER_MAP[type]
   const timestamp = Math.round(Date.now() / 1000)
 
   const toSign = `folder=${folder}&timestamp=${timestamp}${CLOUDINARY_API_SECRET}`

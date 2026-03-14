@@ -75,10 +75,16 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Proof type must be "image", "video", or "document"')
       }
 
-      // Validate all proof URLs are from Cloudinary CDN
+      // Validate all proof URLs are from Cloudinary CDN and scoped to this user's folder
       const invalidProof = proofs.find(({ url }) => !isCloudinaryUrl(url))
       if (invalidProof) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'All proof URLs must be hosted on Cloudinary (https://res.cloudinary.com/)')
+      }
+
+      const expectedPathSegment = `/tenda/proofs/${request.user.id}/`
+      const unownedProof = proofs.find(({ url }) => !new URL(url).pathname.includes(expectedPathSegment))
+      if (unownedProof) {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Proof URL was not uploaded by the submitting user')
       }
 
       await ensureSignatureVerified(signature, 'submit_proof')
