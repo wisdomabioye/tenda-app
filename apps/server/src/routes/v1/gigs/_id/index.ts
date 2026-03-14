@@ -9,6 +9,7 @@ import {
   MAX_GIG_DESCRIPTION_LENGTH,
   ErrorCode,
   computePlatformFee,
+  isCrossBorder,
 } from '@tenda/shared'
 import { verifyTransactionOnChain } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
@@ -114,6 +115,8 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       description,
       payment_lamports,
       category,
+      country,
+      remote,
       city,
       address,
       latitude,
@@ -179,12 +182,26 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     if (description !== undefined)                 updates.description = description
     if (payment_lamports !== undefined)            updates.payment_lamports = payment_lamports
     if (category !== undefined)                    updates.category = category
+    if (country !== undefined)                     updates.country = country
+    if (remote !== undefined)                      updates.remote = remote
     if (city !== undefined)                        updates.city = city
     if (address !== undefined)                     updates.address = address
     if (latitude !== undefined)                    updates.latitude = latitude
     if (longitude !== undefined)                   updates.longitude = longitude
     if (completion_duration_seconds !== undefined) updates.completion_duration_seconds = completion_duration_seconds
     if (accept_deadline !== undefined)             updates.accept_deadline = accept_deadline ? new Date(accept_deadline) : null
+
+    // Recompute cross_border when country or remote changes
+    if (country !== undefined || remote !== undefined) {
+      const [poster] = await fastify.db
+        .select({ country: users.country })
+        .from(users)
+        .where(eq(users.id, gig.poster_id))
+        .limit(1)
+      const effectiveRemote  = remote  ?? gig.remote
+      const effectiveCountry = country ?? gig.country
+      updates.cross_border = isCrossBorder(effectiveRemote, effectiveCountry, poster?.country ?? null)
+    }
 
     // Status guard prevents overwriting a gig that was published between the
     // SELECT above and this UPDATE (draft → open race).

@@ -7,6 +7,7 @@ import {
   isValidLatitude,
   isValidLongitude,
   validateGigDeadlines,
+  isCrossBorder,
   MAX_GIG_TITLE_LENGTH,
   MAX_GIG_DESCRIPTION_LENGTH,
   MAX_PAGINATION_LIMIT,
@@ -278,7 +279,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         })
       }
 
-      const cross_border = !remote && posterCountry !== null && posterCountry !== resolvedCountry
+      const cross_border = isCrossBorder(remote, resolvedCountry, posterCountry)
 
       const [gig] = await fastify.db
         .insert(gigs)

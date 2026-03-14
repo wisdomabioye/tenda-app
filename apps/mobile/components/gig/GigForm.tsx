@@ -13,7 +13,7 @@ import { DurationPicker } from '@/components/form/DurationPicker'
 import { LocationPicker } from '@/components/form/LocationPicker'
 import { RemoteToggle } from '@/components/form/RemoteToggle'
 import { CATEGORY_META } from '@/data/mock'
-import { isValidPaymentLamports, MIN_COMPLETION_DURATION_SECONDS } from '@tenda/shared'
+import { isValidPaymentLamports, MIN_COMPLETION_DURATION_SECONDS, isCrossBorder } from '@tenda/shared'
 import { getDeviceCountry } from '@/lib/device'
 import { useAuthStore } from '@/stores/auth.store'
 import { LOCATIONS } from '@tenda/shared'
@@ -187,7 +187,7 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
             />
           )}
 
-          {!isRemote && homeCountry !== null && selectedCountry !== null && selectedCountry !== homeCountry && (
+          {isCrossBorder(isRemote, selectedCountry, homeCountry) && (
             <>
               <Spacer size={spacing.sm} />
               <View style={[s.crossBorderBanner, { backgroundColor: theme.colors.primaryTint, borderColor: theme.colors.primary }]}>
