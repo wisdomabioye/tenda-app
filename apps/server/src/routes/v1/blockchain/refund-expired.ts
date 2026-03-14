@@ -1,10 +1,9 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
-import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { buildRefundExpiredInstruction } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
-import { checkAndExpireGig } from '@server/lib/gigs'
+import { ensureGigExists, ensureGigStatus, ensureGigOwnership, checkAndExpireGig } from '@server/lib/gigs'
+import { AppError } from '@server/lib/errors'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type RefundExpiredRoute = BlockchainContract['refundExpired']
@@ -21,37 +20,13 @@ const refundExpired: FastifyPluginAsync = async (fastify) => {
   }>(
     '/refund-expired',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request) => {
       const { gig_id } = request.body
 
-      if (!gig_id) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'gig_id is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
+      if (!gig_id) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'gig_id is required')
 
-      let [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, gig_id)).limit(1)
-
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
-
-      if (gig.poster_id !== request.user.id) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only the poster can claim an expired gig refund',
-          code: ErrorCode.FORBIDDEN,
-        })
-      }
+      let gig = await ensureGigExists(fastify.db, gig_id)
+      ensureGigOwnership(gig, request.user.id, 'poster', 'Only the poster can claim an expired gig refund')
 
       // Lazily expire the gig if its deadlines have passed — so a poster who
       // hits this endpoint directly (without first opening the gig detail screen)
@@ -59,25 +34,12 @@ const refundExpired: FastifyPluginAsync = async (fastify) => {
       const config = await getPlatformConfig(fastify.db)
       gig = await checkAndExpireGig(gig, fastify.db, config.grace_period_seconds)
 
-      if (gig.status !== 'expired') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Gig must be in expired status to claim a refund',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      ensureGigStatus(gig, 'expired')
 
       try {
-        const result = await buildRefundExpiredInstruction(request.user.wallet_address, gig_id)
-        return result
+        return await buildRefundExpiredInstruction(request.user.wallet_address, gig_id)
       } catch {
-        return reply.code(500).send({
-          statusCode: 500,
-          error: 'Internal Server Error',
-          message: 'Failed to build refund-expired instruction',
-          code: ErrorCode.INTERNAL_ERROR,
-        })
+        throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'Failed to build refund-expired instruction')
       }
     }
   )

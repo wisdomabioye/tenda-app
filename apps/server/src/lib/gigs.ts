@@ -33,9 +33,10 @@ export function ensureGigOwnership(
   gig: Pick<Gig, 'poster_id' | 'worker_id'>,
   userId: string,
   role: 'poster' | 'worker',
+  message?: string,
 ): void {
   const ok = role === 'poster' ? gig.poster_id === userId : gig.worker_id === userId
-  if (!ok) throw new AppError(403, ErrorCode.FORBIDDEN, `Only the ${role} can perform this action`)
+  if (!ok) throw new AppError(403, ErrorCode.FORBIDDEN, message ?? `Only the ${role} can perform this action`)
 }
 
 /**

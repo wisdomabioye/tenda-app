@@ -4,6 +4,7 @@ import { reports, gigs, messages, users, reviews } from '@tenda/shared/db/schema
 import { ErrorCode, REPORT_CONTENT_TYPES, REPORT_REASONS } from '@tenda/shared'
 import type { ApiError, ReportContentType, ReportReason } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '@server/lib/db'
+import { AppError } from '@server/lib/errors'
 
 const reportsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
@@ -21,19 +22,11 @@ const reportsRoute: FastifyPluginAsync = async (fastify) => {
       const reporterId = request.user.id
 
       if (!REPORT_CONTENT_TYPES.includes(content_type)) {
-        return reply.code(400).send({
-          statusCode: 400, error: 'Bad Request',
-          message: `content_type must be one of: ${REPORT_CONTENT_TYPES.join(', ')}`,
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `content_type must be one of: ${REPORT_CONTENT_TYPES.join(', ')}`)
       }
 
       if (!REPORT_REASONS.includes(reason)) {
-        return reply.code(400).send({
-          statusCode: 400, error: 'Bad Request',
-          message: `reason must be one of: ${REPORT_REASONS.join(', ')}`,
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `reason must be one of: ${REPORT_REASONS.join(', ')}`)
       }
 
       // Resolve reported_user_id + content_snapshot server-side.
@@ -46,7 +39,7 @@ const reportsRoute: FastifyPluginAsync = async (fastify) => {
           const [row] = await fastify.db
             .select({ poster_id: gigs.poster_id, title: gigs.title })
             .from(gigs).where(eq(gigs.id, content_id)).limit(1)
-          if (!row) return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Content not found', code: ErrorCode.NOT_FOUND })
+          if (!row) throw new AppError(404, ErrorCode.NOT_FOUND, 'Content not found')
           reportedUserId  = row.poster_id
           contentSnapshot = row.title
           break
@@ -55,7 +48,7 @@ const reportsRoute: FastifyPluginAsync = async (fastify) => {
           const [row] = await fastify.db
             .select({ sender_id: messages.sender_id, content: messages.content })
             .from(messages).where(eq(messages.id, content_id)).limit(1)
-          if (!row) return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Content not found', code: ErrorCode.NOT_FOUND })
+          if (!row) throw new AppError(404, ErrorCode.NOT_FOUND, 'Content not found')
           reportedUserId  = row.sender_id
           contentSnapshot = row.content
           break
@@ -64,7 +57,7 @@ const reportsRoute: FastifyPluginAsync = async (fastify) => {
           const [row] = await fastify.db
             .select({ id: users.id, bio: users.bio })
             .from(users).where(eq(users.id, content_id)).limit(1)
-          if (!row) return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Content not found', code: ErrorCode.NOT_FOUND })
+          if (!row) throw new AppError(404, ErrorCode.NOT_FOUND, 'Content not found')
           reportedUserId  = row.id
           contentSnapshot = row.bio
           break
@@ -73,7 +66,7 @@ const reportsRoute: FastifyPluginAsync = async (fastify) => {
           const [row] = await fastify.db
             .select({ reviewer_id: reviews.reviewer_id, comment: reviews.comment })
             .from(reviews).where(eq(reviews.id, content_id)).limit(1)
-          if (!row) return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Content not found', code: ErrorCode.NOT_FOUND })
+          if (!row) throw new AppError(404, ErrorCode.NOT_FOUND, 'Content not found')
           reportedUserId  = row.reviewer_id
           contentSnapshot = row.comment ?? null
           break
@@ -81,13 +74,7 @@ const reportsRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       // Prevent self-reports.
-      if (reportedUserId === reporterId) {
-        return reply.code(400).send({
-          statusCode: 400, error: 'Bad Request',
-          message: 'Cannot report your own content',
-          code: ErrorCode.CANNOT_REPORT_SELF,
-        })
-      }
+      if (reportedUserId === reporterId) throw new AppError(400, ErrorCode.CANNOT_REPORT_SELF, 'Cannot report your own content')
 
       try {
         const [inserted] = await fastify.db

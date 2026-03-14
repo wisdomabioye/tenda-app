@@ -3,6 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { gig_subscriptions } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '@server/lib/db'
+import { AppError } from '@server/lib/errors'
 import type { SubscriptionsContract, ApiError } from '@tenda/shared'
 
 type ListRoute = SubscriptionsContract['list']
@@ -85,7 +86,7 @@ const subscriptions: FastifyPluginAsync = async (fastify) => {
   }>(
     '/:id',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request) => {
       const { id } = request.params
       const userId = request.user.id
 
@@ -94,14 +95,7 @@ const subscriptions: FastifyPluginAsync = async (fastify) => {
         .where(and(eq(gig_subscriptions.id, id), eq(gig_subscriptions.user_id, userId)))
         .returning({ id: gig_subscriptions.id })
 
-      if (deleted.length === 0) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Subscription not found',
-          code: ErrorCode.NOT_FOUND,
-        })
-      }
+      if (deleted.length === 0) throw new AppError(404, ErrorCode.NOT_FOUND, 'Subscription not found')
 
       return { ok: true }
     },

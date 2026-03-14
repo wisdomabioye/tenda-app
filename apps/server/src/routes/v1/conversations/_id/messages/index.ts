@@ -4,6 +4,7 @@ import { conversations, messages, gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { appEvents } from '@server/lib/events'
 import { moderateBody } from '@server/lib/moderation'
+import { AppError } from '@server/lib/errors'
 import type { ConversationsContract, ApiError } from '@tenda/shared'
 
 type GetMessagesRoute = ConversationsContract['messages']
@@ -20,7 +21,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
   }>(
     '/',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request) => {
       const { id } = request.params
       const { before_id, limit = MESSAGES_PAGE_SIZE } = request.query ?? {}
       const userId = request.user.id
@@ -31,22 +32,9 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         .where(eq(conversations.id, id))
         .limit(1)
 
-      if (!conv) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Conversation not found',
-          code: ErrorCode.NOT_FOUND,
-        })
-      }
-
+      if (!conv) throw new AppError(404, ErrorCode.NOT_FOUND, 'Conversation not found')
       if (conv.user_a_id !== userId && conv.user_b_id !== userId) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Not a participant of this conversation',
-          code: ErrorCode.FORBIDDEN,
-        })
+        throw new AppError(403, ErrorCode.FORBIDDEN, 'Not a participant of this conversation')
       }
 
       const pageSize = Math.min(Number(limit) || MESSAGES_PAGE_SIZE, 100)
@@ -120,23 +108,8 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       const { content, gig_id } = request.body
       const userId = request.user.id
 
-      if (!content || content.trim().length === 0) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'content is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
-
-      if (content.length > 2000) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Message content must be at most 2000 characters',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
+      if (!content || content.trim().length === 0) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'content is required')
+      if (content.length > 2000) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Message content must be at most 2000 characters')
 
       const [conv] = await fastify.db
         .select()
@@ -144,34 +117,14 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         .where(eq(conversations.id, id))
         .limit(1)
 
-      if (!conv) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Conversation not found',
-          code: ErrorCode.NOT_FOUND,
-        })
-      }
-
+      if (!conv) throw new AppError(404, ErrorCode.NOT_FOUND, 'Conversation not found')
       if (conv.user_a_id !== userId && conv.user_b_id !== userId) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Not a participant of this conversation',
-          code: ErrorCode.FORBIDDEN,
-        })
+        throw new AppError(403, ErrorCode.FORBIDDEN, 'Not a participant of this conversation')
       }
 
       // Pre-check outside the transaction for a fast path, but the definitive
       // check is inside the transaction with a row lock to guard against concurrent closes.
-      if (conv.status === 'closed') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'This conversation has been closed',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
+      if (conv.status === 'closed') throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'This conversation has been closed')
 
       const newMessage = await fastify.db.transaction(async (tx) => {
         // Re-read with FOR UPDATE to prevent a concurrent close from racing the INSERT.
@@ -202,14 +155,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         return msg
       })
 
-      if (!newMessage) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'This conversation has been closed',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
+      if (!newMessage) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'This conversation has been closed')
 
       let gig_title: string | null = null
       if (newMessage.gig_id) {

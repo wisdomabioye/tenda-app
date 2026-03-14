@@ -1,8 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
-import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { buildDisputeGigInstruction } from '@server/lib/solana'
+import { ensureGigExists, ensureGigStatus } from '@server/lib/gigs'
+import { AppError } from '@server/lib/errors'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type DisputeGigRoute = BlockchainContract['disputeGig']
@@ -17,57 +17,23 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
   }>(
     '/dispute-gig',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request) => {
       const { gig_id, reason } = request.body
 
-      if (!gig_id || !reason) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'gig_id and reason are required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
+      if (!gig_id || !reason) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'gig_id and reason are required')
 
-      const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, gig_id)).limit(1)
-
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
-
-      if (gig.status !== 'submitted' && gig.status !== 'accepted') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Can only dispute gigs that are accepted or submitted',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      const gig = await ensureGigExists(fastify.db, gig_id)
+      ensureGigStatus(gig, 'submitted', 'accepted')
 
       const userId = request.user.id
       if (gig.poster_id !== userId && gig.worker_id !== userId) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only the poster or worker can dispute this gig',
-          code: ErrorCode.FORBIDDEN,
-        })
+        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the poster or worker can dispute this gig')
       }
 
       try {
         return await buildDisputeGigInstruction(request.user.wallet_address, gig_id, reason)
       } catch {
-        return reply.code(500).send({
-          statusCode: 500,
-          error: 'Internal Server Error',
-          message: 'Failed to build dispute-gig instruction',
-          code: ErrorCode.INTERNAL_ERROR,
-        })
+        throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'Failed to build dispute-gig instruction')
       }
     }
   )

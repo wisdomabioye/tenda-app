@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { device_tokens } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { NotificationsContract, ApiError } from '@tenda/shared'
+import { AppError } from '@server/lib/errors'
 
 type RegisterRoute = NotificationsContract['registerToken']
 
@@ -18,14 +19,7 @@ const deviceToken: FastifyPluginAsync = async (fastify) => {
       const { token, platform = 'expo' } = request.body
       const userId = request.user.id
 
-      if (!token || typeof token !== 'string') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'token is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
+      if (!token || typeof token !== 'string') throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'token is required')
 
       // Insert the token for this user. On conflict (same token already registered),
       // only refresh updated_at — never reassign user_id so an attacker who learns

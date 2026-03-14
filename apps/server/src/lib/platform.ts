@@ -1,6 +1,5 @@
 import { platform_config } from '@tenda/shared/db/schema'
 import { getConfig } from '@server/config'
-import { computePlatformFee } from '@tenda/shared'
 import type { AppDatabase } from '@server/plugins/db'
 
 export interface PlatformConfig {
@@ -44,17 +43,3 @@ export async function getPlatformConfig(db: AppDatabase): Promise<PlatformConfig
   return cache
 }
 
-/**
- * Fetches platform config and computes the fee for a given payment amount.
- * isSeeker=true applies the reduced seeker_fee_bps rate.
- */
-export async function resolvePlatformFee(
-  db: AppDatabase,
-  paymentLamports: bigint,
-  isSeeker = false,
-): Promise<{ config: PlatformConfig; platform_fee_lamports: number }> {
-  const config = await getPlatformConfig(db)
-  const feeBps = isSeeker ? config.seeker_fee_bps : config.fee_bps
-  const platform_fee_lamports = computePlatformFee(paymentLamports, feeBps)
-  return { config, platform_fee_lamports }
-}

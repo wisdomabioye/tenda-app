@@ -16,66 +16,32 @@ const auth: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
     Body: WalletRoute['body']
     Reply: WalletRoute['response'] | ApiError
-  }>('/wallet', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => {
+  }>('/wallet', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request) => {
     const { wallet_address, signature, message, is_seeker = false, country } = request.body
 
     if (!wallet_address || !signature || !message) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'wallet_address, signature, and message are required',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'wallet_address, signature, and message are required')
     }
 
     if (!isValidWalletAddress(wallet_address)) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Invalid wallet address format',
-        code: ErrorCode.INVALID_WALLET_ADDRESS,
-      })
+      throw new AppError(400, ErrorCode.INVALID_WALLET_ADDRESS, 'Invalid wallet address format')
     }
 
     const isValid = verifySignature(wallet_address, signature, message)
-    if (!isValid) {
-      return reply.code(401).send({
-        statusCode: 401,
-        error: 'Unauthorized',
-        message: 'Invalid signature',
-        code: ErrorCode.INVALID_SIGNATURE,
-      })
-    }
+    if (!isValid) throw new AppError(401, ErrorCode.INVALID_SIGNATURE, 'Invalid signature')
 
     // Validate timestamp in auth message to prevent replay attacks.
     // Message format: "...\nTimestamp: <ISO date>"
     const lines = message.split('\n')
     const tsLine = lines.find((l) => l.startsWith('Timestamp: '))
-    if (!tsLine) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Missing timestamp in auth message',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
-    }
+    if (!tsLine) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Missing timestamp in auth message')
+
     const msgTime = new Date(tsLine.replace('Timestamp: ', ''))
-    if (isNaN(msgTime.getTime())) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Invalid timestamp in auth message',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
-    }
+    if (isNaN(msgTime.getTime())) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Invalid timestamp in auth message')
+
     const ageMs = Date.now() - msgTime.getTime()
     if (ageMs > 5 * 60 * 1000 || ageMs < -30 * 1000) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Auth message expired or from the future',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Auth message expired or from the future')
     }
 
     // Validate that the message was signed for the correct Solana network.
@@ -84,12 +50,7 @@ const auth: FastifyPluginAsync = async (fastify) => {
     const expectedChain = solanaChainId(getConfig().SOLANA_NETWORK)
     const chainLine = lines.find((l) => l.startsWith('Chain: '))
     if (!chainLine || chainLine.slice('Chain: '.length) !== expectedChain) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: `Auth message must be signed for ${expectedChain}`,
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Auth message must be signed for ${expectedChain}`)
     }
 
     // Atomic upsert — avoids TOCTOU race under concurrent auth requests.
@@ -106,14 +67,7 @@ const auth: FastifyPluginAsync = async (fastify) => {
       .returning()
 
     // Block suspended users from obtaining a token
-    if (user.status === 'suspended') {
-      return reply.code(403).send({
-        statusCode: 403,
-        error: 'Forbidden',
-        message: 'Account suspended',
-        code: ErrorCode.USER_SUSPENDED,
-      })
-    }
+    if (user.status === 'suspended') throw new AppError(403, ErrorCode.USER_SUSPENDED, 'Account suspended')
 
     const token = fastify.jwt.sign(
       { id: user.id, wallet_address: user.wallet_address, role: user.role, is_seeker: user.is_seeker, country: user.country ?? null },

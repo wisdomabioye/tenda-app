@@ -1,8 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
-import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { buildAcceptGigInstruction, buildCreateUserAccountInstruction, userAccountExists } from '@server/lib/solana'
+import { ensureGigExists, ensureGigStatus } from '@server/lib/gigs'
+import { AppError } from '@server/lib/errors'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type AcceptGigRoute = BlockchainContract['acceptGig']
@@ -18,54 +18,21 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
   }>(
     '/accept-gig',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request) => {
       const { gig_id } = request.body
 
-      if (!gig_id) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'gig_id is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
+      if (!gig_id) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'gig_id is required')
 
-      const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, gig_id)).limit(1)
-
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
+      const gig = await ensureGigExists(fastify.db, gig_id)
 
       if (gig.poster_id === request.user.id) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Cannot accept your own gig',
-          code: ErrorCode.CANNOT_ACCEPT_OWN_GIG,
-        })
+        throw new AppError(400, ErrorCode.CANNOT_ACCEPT_OWN_GIG, 'Cannot accept your own gig')
       }
 
-      if (gig.status !== 'open') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Gig is not open for acceptance',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      ensureGigStatus(gig, 'open')
 
       if (gig.accept_deadline && new Date() > new Date(gig.accept_deadline)) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Acceptance deadline has passed',
-          code: ErrorCode.ACCEPT_DEADLINE_PASSED,
-        })
+        throw new AppError(400, ErrorCode.ACCEPT_DEADLINE_PASSED, 'Acceptance deadline has passed')
       }
 
       try {
@@ -74,9 +41,7 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
           userAccountExists(request.user.wallet_address),
         ])
 
-        if (accountExists) {
-          return acceptResult
-        }
+        if (accountExists) return acceptResult
 
         // Worker has no on-chain UserAccount yet — include a setup transaction.
         // Mobile will sign both in one wallet session and broadcast them sequentially.
@@ -85,12 +50,7 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
         )
         return { ...acceptResult, setup_transaction }
       } catch {
-        return reply.code(500).send({
-          statusCode: 500,
-          error: 'Internal Server Error',
-          message: 'Failed to build accept-gig instruction',
-          code: ErrorCode.INTERNAL_ERROR,
-        })
+        throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'Failed to build accept-gig instruction')
       }
     }
   )

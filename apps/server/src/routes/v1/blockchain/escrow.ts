@@ -1,8 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
-import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { buildCreateGigEscrowInstruction } from '@server/lib/solana'
+import { ensureGigExists, ensureGigStatus, ensureGigOwnership } from '@server/lib/gigs'
+import { AppError } from '@server/lib/errors'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type EscrowRoute = BlockchainContract['createEscrow']
@@ -18,50 +18,18 @@ const escrow: FastifyPluginAsync = async (fastify) => {
   }>(
     '/create-escrow',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request) => {
       const { gig_id } = request.body
 
-      if (!gig_id) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'gig_id is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
+      if (!gig_id) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'gig_id is required')
 
-      const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, gig_id)).limit(1)
-
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
-
-      if (gig.poster_id !== request.user.id) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only the poster can publish this gig',
-          code: ErrorCode.FORBIDDEN,
-        })
-      }
-
-      if (gig.status !== 'draft') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Only draft gigs can be published on-chain',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      const gig = await ensureGigExists(fastify.db, gig_id)
+      ensureGigOwnership(gig, request.user.id, 'poster', 'Only the poster can publish this gig')
+      ensureGigStatus(gig, 'draft')
 
       try {
         const acceptDeadline = gig.accept_deadline ? new Date(gig.accept_deadline) : null
-        const result = await buildCreateGigEscrowInstruction(
+        return await buildCreateGigEscrowInstruction(
           request.user.wallet_address,
           gig_id,
           Number(gig.payment_lamports),
@@ -69,15 +37,9 @@ const escrow: FastifyPluginAsync = async (fastify) => {
           acceptDeadline,
           request.user.is_seeker,
         )
-        return result
       } catch (error) {
-        console.log('error', error)
-        return reply.code(500).send({
-          statusCode: 500,
-          error: 'Internal Server Error',
-          message: 'Failed to build create-escrow instruction',
-          code: ErrorCode.INTERNAL_ERROR,
-        })
+        fastify.log.error({ err: error }, 'Failed to build create-escrow instruction')
+        throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'Failed to build create-escrow instruction')
       }
     }
   )

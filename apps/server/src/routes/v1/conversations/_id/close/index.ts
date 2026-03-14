@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { conversations } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { ConversationsContract, ApiError } from '@tenda/shared'
+import { AppError } from '@server/lib/errors'
 
 type CloseRoute = ConversationsContract['close']
 
@@ -14,7 +15,7 @@ const closeConversation: FastifyPluginAsync = async (fastify) => {
   }>(
     '/',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request) => {
       const { id } = request.params
       const userId = request.user.id
 
@@ -24,22 +25,9 @@ const closeConversation: FastifyPluginAsync = async (fastify) => {
         .where(eq(conversations.id, id))
         .limit(1)
 
-      if (!conv) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Conversation not found',
-          code: ErrorCode.NOT_FOUND,
-        })
-      }
-
+      if (!conv) throw new AppError(404, ErrorCode.NOT_FOUND, 'Conversation not found')
       if (conv.user_a_id !== userId && conv.user_b_id !== userId) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Not a participant of this conversation',
-          code: ErrorCode.FORBIDDEN,
-        })
+        throw new AppError(403, ErrorCode.FORBIDDEN, 'Not a participant of this conversation')
       }
 
       if (conv.status === 'closed') {

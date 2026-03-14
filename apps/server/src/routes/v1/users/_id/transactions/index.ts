@@ -3,6 +3,7 @@ import { or, eq } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
+import { AppError } from '@server/lib/errors'
 
 type TransactionsRoute = UsersContract['transactions']
 
@@ -12,18 +13,10 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: TransactionsRoute['params']
     Reply: TransactionsRoute['response'] | ApiError
-  }>('/', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  }>('/', { preHandler: [fastify.authenticate] }, async (request) => {
     const { id } = request.params
 
-    // Only allow users to fetch their own transactions
-    if (id !== request.user.id) {
-      return reply.code(403).send({
-        statusCode: 403,
-        error: 'Forbidden',
-        message: 'Can only fetch your own transactions',
-        code: ErrorCode.FORBIDDEN,
-      })
-    }
+    if (id !== request.user.id) throw new AppError(403, ErrorCode.FORBIDDEN, 'Can only fetch your own transactions')
 
     // Single JOIN query: transactions for all gigs where user is poster or worker
     const rows = await fastify.db

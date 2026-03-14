@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { buildCreateUserAccountInstruction } from '@server/lib/solana'
+import { AppError } from '@server/lib/errors'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type CreateUserAccountRoute = BlockchainContract['createUserAccount']
@@ -16,16 +17,11 @@ const createUserAccount: FastifyPluginAsync = async (fastify) => {
   }>(
     '/create-user-account',
     { preHandler: [fastify.authenticate] },
-    async (_request, reply) => {
+    async (request) => {
       try {
-        return await buildCreateUserAccountInstruction(_request.user.wallet_address)
+        return await buildCreateUserAccountInstruction(request.user.wallet_address)
       } catch {
-        return reply.code(500).send({
-          statusCode: 500,
-          error: 'Internal Server Error',
-          message: 'Failed to build create-user-account instruction',
-          code: ErrorCode.INTERNAL_ERROR,
-        })
+        throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'Failed to build create-user-account instruction')
       }
     }
   )

@@ -38,12 +38,7 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
       // data corruption — fail safe rather than silently skipping the deadline check.
       if (!gig.accepted_at) {
         fastify.log.error({ gigId: id }, 'Gig in accepted status has no accepted_at — data integrity error')
-        return reply.code(500).send({
-          statusCode: 500,
-          error: 'Internal Server Error',
-          message: 'Gig data is inconsistent — please contact support',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(500, ErrorCode.VALIDATION_ERROR, 'Gig data is inconsistent — please contact support')
       }
 
       // Enforce the submission window: worker has completion_duration_seconds

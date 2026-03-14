@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { generateUploadSignature } from '@server/lib/cloudinary'
+import { AppError } from '@server/lib/errors'
 import type { UploadContract, ApiError } from '@tenda/shared'
 
 type SignatureRoute = UploadContract['signature']
@@ -13,20 +14,14 @@ const upload: FastifyPluginAsync = async (fastify) => {
   }>(
     '/signature',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request) => {
       const { type } = request.body
 
       if (!type || (type !== 'avatar' && type !== 'proof')) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'type must be "avatar" or "proof"',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'type must be "avatar" or "proof"')
       }
 
-      const signature = generateUploadSignature(type)
-      return signature
+      return generateUploadSignature(type)
     }
   )
 }
