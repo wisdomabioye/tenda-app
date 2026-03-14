@@ -1,9 +1,11 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq, sql } from 'drizzle-orm'
-import { gigs, reviews, users } from '@tenda/shared/db/schema'
+import { reviews, users } from '@tenda/shared/db/schema'
 import { isValidReviewScore, MAX_REVIEW_COMMENT_LENGTH, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
-import { isPostgresUniqueViolation } from '@server/lib/db'
+import { ensureGigExists, ensureGigStatus } from '@server/lib/gigs'
+import { handleUniqueConflict } from '@server/lib/db'
+import { AppError } from '@server/lib/errors'
 import { moderateBody } from '@server/lib/moderation'
 import { appEvents } from '@server/lib/events'
 
@@ -23,64 +25,27 @@ const reviewGig: FastifyPluginAsync = async (fastify) => {
       const { score, comment } = request.body
       const reviewerId = request.user.id
 
-      const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
-
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
-
-      if (gig.status !== 'completed' && gig.status !== 'resolved') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Can only review completed or resolved gigs',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      const gig = await ensureGigExists(fastify.db, id)
+      ensureGigStatus(gig, 'completed', 'resolved')
 
       // Reviewer must be poster or worker
       if (gig.poster_id !== reviewerId && gig.worker_id !== reviewerId) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only the poster or worker can leave a review',
-          code: ErrorCode.REVIEW_NOT_ALLOWED,
-        })
+        throw new AppError(403, ErrorCode.REVIEW_NOT_ALLOWED, 'Only the poster or worker can leave a review')
       }
 
       if (comment && comment.length > MAX_REVIEW_COMMENT_LENGTH) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: `comment must be at most ${MAX_REVIEW_COMMENT_LENGTH} characters`,
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `comment must be at most ${MAX_REVIEW_COMMENT_LENGTH} characters`)
       }
 
       if (!isValidReviewScore(score)) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'score must be an integer between 1 and 5',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'score must be an integer between 1 and 5')
       }
 
       // Reviewee is the other party
       const revieweeId = gig.poster_id === reviewerId ? gig.worker_id : gig.poster_id
 
       if (!revieweeId) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Cannot determine reviewee — gig has no assigned worker',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot determine reviewee — gig has no assigned worker')
       }
 
       try {
@@ -129,15 +94,7 @@ const reviewGig: FastifyPluginAsync = async (fastify) => {
         return reply.code(201).send(review)
       } catch (err: unknown) {
         // Postgres unique violation on reviews_gig_reviewer_unique
-        if (isPostgresUniqueViolation(err)) {
-          return reply.code(409).send({
-            statusCode: 409,
-            error: 'Conflict',
-            message: 'You have already reviewed this gig',
-            code: ErrorCode.REVIEW_ALREADY_EXISTS,
-          })
-        }
-        throw err
+        handleUniqueConflict(err, ErrorCode.REVIEW_ALREADY_EXISTS, 'You have already reviewed this gig')
       }
     }
   )

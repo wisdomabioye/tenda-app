@@ -6,6 +6,8 @@ import { ErrorCode, MAX_PAGINATION_LIMIT, REPORT_STATUSES } from '@tenda/shared'
 import type { ApiError, ReportStatus } from '@tenda/shared'
 import { requireRole } from '@server/lib/guards'
 import { invalidatePlatformConfigCache } from '@server/lib/platform'
+import { AppError } from '@server/lib/errors'
+import { ensureTxUpdated } from '@server/lib/gigs'
 
 const admin: FastifyPluginAsync = async (fastify) => {
   // Guard every route in this plugin scope with JWT + admin role.
@@ -61,17 +63,12 @@ const admin: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Body: { status: 'active' | 'suspended' }
     Reply: { id: string; status: string } | ApiError
-  }>('/users/:id/status', async (request, reply) => {
+  }>('/users/:id/status', async (request) => {
     const { id } = request.params
     const { status } = request.body
 
     if (status !== 'active' && status !== 'suspended') {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'status must be "active" or "suspended"',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'status must be "active" or "suspended"')
     }
 
     // Fetch the target user's role before updating — admins cannot suspend other admins.
@@ -81,22 +78,10 @@ const admin: FastifyPluginAsync = async (fastify) => {
       .where(eq(users.id, id))
       .limit(1)
 
-    if (!target) {
-      return reply.code(404).send({
-        statusCode: 404,
-        error: 'Not Found',
-        message: 'User not found',
-        code: ErrorCode.USER_NOT_FOUND,
-      })
-    }
+    if (!target) throw new AppError(404, ErrorCode.USER_NOT_FOUND, 'User not found')
 
     if (target.role === 'admin' && status === 'suspended') {
-      return reply.code(403).send({
-        statusCode: 403,
-        error: 'Forbidden',
-        message: 'Cannot suspend another admin account',
-        code: ErrorCode.FORBIDDEN,
-      })
+      throw new AppError(403, ErrorCode.FORBIDDEN, 'Cannot suspend another admin account')
     }
 
     const [updated] = await fastify.db
@@ -105,18 +90,11 @@ const admin: FastifyPluginAsync = async (fastify) => {
       .where(eq(users.id, id))
       .returning({ id: users.id, status: users.status })
 
-    if (!updated) {
-      return reply.code(404).send({
-        statusCode: 404,
-        error: 'Not Found',
-        message: 'User not found',
-        code: ErrorCode.USER_NOT_FOUND,
-      })
-    }
+    const result = ensureTxUpdated(updated, 'User not found')
 
     fastify.log.info({ adminId: request.user.id, targetId: id, newStatus: status }, 'User status changed')
 
-    return updated
+    return result
   })
 
   // ── PATCH /v1/admin/users/:id/role ────────────────────────────────────
@@ -126,27 +104,17 @@ const admin: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Body: { role: UserRole }
     Reply: { id: string; role: string } | ApiError
-  }>('/users/:id/role', async (request, reply) => {
+  }>('/users/:id/role', async (request) => {
     const { id } = request.params
     const { role } = request.body
 
     if (role !== 'user' && role !== 'admin') {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'role must be "user" or "admin"',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'role must be "user" or "admin"')
     }
 
     // Prevent an admin from accidentally demoting themselves
     if (id === request.user.id && role !== 'admin') {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Cannot demote your own account',
-        code: ErrorCode.FORBIDDEN,
-      })
+      throw new AppError(400, ErrorCode.FORBIDDEN, 'Cannot demote your own account')
     }
 
     const [updated] = await fastify.db
@@ -155,31 +123,17 @@ const admin: FastifyPluginAsync = async (fastify) => {
       .where(eq(users.id, id))
       .returning({ id: users.id, role: users.role })
 
-    if (!updated) {
-      return reply.code(404).send({
-        statusCode: 404,
-        error: 'Not Found',
-        message: 'User not found',
-        code: ErrorCode.USER_NOT_FOUND,
-      })
-    }
+    const result = ensureTxUpdated(updated, 'User not found')
 
     fastify.log.info({ adminId: request.user.id, targetId: id, newRole: role }, 'User role changed')
 
-    return updated
+    return result
   })
 
   // ── GET /v1/admin/platform-config ─────────────────────────────────────
-  fastify.get('/platform-config', async (_request, reply) => {
+  fastify.get('/platform-config', async () => {
     const [row] = await fastify.db.select().from(platform_config).limit(1)
-    if (!row) {
-      return reply.code(404).send({
-        statusCode: 404,
-        error: 'Not Found',
-        message: 'Platform config not found — seed the database first',
-        code: ErrorCode.INTERNAL_ERROR,
-      })
-    }
+    if (!row) throw new AppError(404, ErrorCode.INTERNAL_ERROR, 'Platform config not found — seed the database first')
     return row
   })
 
@@ -189,26 +143,16 @@ const admin: FastifyPluginAsync = async (fastify) => {
   fastify.patch<{
     Body: { fee_bps?: number; seeker_fee_bps?: number; grace_period_seconds?: number }
     Reply: unknown | ApiError
-  }>('/platform-config', async (request, reply) => {
+  }>('/platform-config', async (request) => {
     const { fee_bps, seeker_fee_bps, grace_period_seconds } = request.body
 
     // fee_bps / seeker_fee_bps: 0–10000 (0%–100% in basis points)
     if (fee_bps !== undefined && (fee_bps < 0 || fee_bps > 10_000 || !Number.isInteger(fee_bps))) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'fee_bps must be an integer between 0 and 10000',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'fee_bps must be an integer between 0 and 10000')
     }
 
     if (seeker_fee_bps !== undefined && (seeker_fee_bps < 0 || seeker_fee_bps > 10_000 || !Number.isInteger(seeker_fee_bps))) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'seeker_fee_bps must be an integer between 0 and 10000',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'seeker_fee_bps must be an integer between 0 and 10000')
     }
 
     // Cap at 30 days (2,592,000 s) to prevent accidentally setting an extreme grace period
@@ -218,21 +162,11 @@ const admin: FastifyPluginAsync = async (fastify) => {
       !Number.isInteger(grace_period_seconds) ||
       grace_period_seconds > MAX_GRACE_PERIOD_SECONDS
     )) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: `grace_period_seconds must be a non-negative integer ≤ ${MAX_GRACE_PERIOD_SECONDS} (30 days)`,
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `grace_period_seconds must be a non-negative integer ≤ ${MAX_GRACE_PERIOD_SECONDS} (30 days)`)
     }
 
     if (fee_bps === undefined && seeker_fee_bps === undefined && grace_period_seconds === undefined) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Provide at least one of fee_bps, seeker_fee_bps, or grace_period_seconds',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Provide at least one of fee_bps, seeker_fee_bps, or grace_period_seconds')
     }
 
     const updates: Record<string, unknown> = { updated_at: new Date() }
@@ -246,19 +180,12 @@ const admin: FastifyPluginAsync = async (fastify) => {
       .where(eq(platform_config.id, 1))
       .returning()
 
-    if (!updated) {
-      return reply.code(404).send({
-        statusCode: 404,
-        error: 'Not Found',
-        message: 'Platform config not found — seed the database first',
-        code: ErrorCode.INTERNAL_ERROR,
-      })
-    }
+    const result = ensureTxUpdated(updated, 'Platform config not found — seed the database first')
 
     // Flush the 5-minute cache so routes pick up the new values immediately
     invalidatePlatformConfigCache()
 
-    return updated
+    return result
   })
 
   // ── GET /v1/admin/blocked-keywords ────────────────────────────────────
@@ -277,7 +204,7 @@ const admin: FastifyPluginAsync = async (fastify) => {
     const { keyword } = request.body
 
     if (!keyword || keyword.trim().length === 0) {
-      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'keyword is required', code: ErrorCode.VALIDATION_ERROR })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'keyword is required')
     }
 
     const normalised = keyword.trim().toLowerCase()
@@ -288,9 +215,7 @@ const admin: FastifyPluginAsync = async (fastify) => {
       .onConflictDoNothing()
       .returning({ id: blocked_keywords.id, keyword: blocked_keywords.keyword })
 
-    if (!inserted) {
-      return reply.code(409).send({ statusCode: 409, error: 'Conflict', message: 'Keyword already exists', code: ErrorCode.VALIDATION_ERROR })
-    }
+    if (!inserted) throw new AppError(409, ErrorCode.VALIDATION_ERROR, 'Keyword already exists')
 
     fastify.invalidateBlocklistCache()
     fastify.log.info({ adminId: request.user.id, keyword: normalised }, 'Blocked keyword added')
@@ -307,9 +232,7 @@ const admin: FastifyPluginAsync = async (fastify) => {
         .where(eq(blocked_keywords.id, request.params.id))
         .returning({ id: blocked_keywords.id })
 
-      if (!deleted) {
-        return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Keyword not found', code: ErrorCode.NOT_FOUND })
-      }
+      if (!deleted) throw new AppError(404, ErrorCode.NOT_FOUND, 'Keyword not found')
 
       fastify.invalidateBlocklistCache()
       fastify.log.info({ adminId: request.user.id, keywordId: request.params.id }, 'Blocked keyword removed')
@@ -380,15 +303,11 @@ const admin: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Body: { status: ReportStatus; admin_note?: string }
     Reply: unknown | ApiError
-  }>('/reports/:id', async (request, reply) => {
+  }>('/reports/:id', async (request) => {
     const { status, admin_note } = request.body
 
     if (!REPORT_STATUSES.includes(status)) {
-      return reply.code(400).send({
-        statusCode: 400, error: 'Bad Request',
-        message: `status must be one of: ${REPORT_STATUSES.join(', ')}`,
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `status must be one of: ${REPORT_STATUSES.join(', ')}`)
     }
 
     const [updated] = await fastify.db
@@ -397,13 +316,11 @@ const admin: FastifyPluginAsync = async (fastify) => {
       .where(eq(reports.id, request.params.id))
       .returning()
 
-    if (!updated) {
-      return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Report not found', code: ErrorCode.NOT_FOUND })
-    }
+    const result = ensureTxUpdated(updated, 'Report not found')
 
     fastify.log.info({ adminId: request.user.id, reportId: request.params.id, newStatus: status }, 'Report reviewed')
 
-    return updated
+    return result
   })
 }
 

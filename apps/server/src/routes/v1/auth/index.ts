@@ -4,6 +4,7 @@ import { users } from '@tenda/shared/db/schema'
 import { isValidWalletAddress, ErrorCode, solanaChainId } from '@tenda/shared'
 import type { AuthContract, ApiError } from '@tenda/shared'
 import { verifySignature } from '@server/lib/solana'
+import { AppError } from '@server/lib/errors'
 import { getConfig } from '@server/config'
 
 type WalletRoute = AuthContract['wallet']
@@ -125,21 +126,14 @@ const auth: FastifyPluginAsync = async (fastify) => {
   // GET /v1/auth/me — return current user from JWT
   fastify.get<{
     Reply: MeRoute['response'] | ApiError
-  }>('/me', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  }>('/me', { preHandler: [fastify.authenticate] }, async (request) => {
     const [user] = await fastify.db
       .select()
       .from(users)
       .where(eq(users.id, request.user.id))
       .limit(1)
 
-    if (!user) {
-      return reply.code(404).send({
-        statusCode: 404,
-        error: 'Not Found',
-        message: 'User not found',
-        code: ErrorCode.USER_NOT_FOUND,
-      })
-    }
+    if (!user) throw new AppError(404, ErrorCode.USER_NOT_FOUND, 'User not found')
 
     return user
   })

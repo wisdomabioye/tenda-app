@@ -1,7 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq, sql } from 'drizzle-orm'
-import { users, reviews } from '@tenda/shared/db/schema'
-import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
+import { reviews } from '@tenda/shared/db/schema'
+import { MAX_PAGINATION_LIMIT } from '@tenda/shared'
+import { ensureUserExists } from '@server/lib/users'
 import type { UsersContract, ApiError } from '@tenda/shared'
 
 type ReviewsRoute = UsersContract['reviews']
@@ -12,28 +13,14 @@ const userReviews: FastifyPluginAsync = async (fastify) => {
     Params: ReviewsRoute['params']
     Querystring: ReviewsRoute['query']
     Reply: ReviewsRoute['response'] | ApiError
-  }>('/', async (request, reply) => {
+  }>('/', async (request, _reply) => {
     const { id } = request.params
     const { limit = 20, offset = 0 } = request.query
 
     const safeLimit  = Math.min(Number(limit),  MAX_PAGINATION_LIMIT)
     const safeOffset = Number(offset)
 
-    // Verify user exists
-    const [user] = await fastify.db
-      .select({ id: users.id })
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1)
-
-    if (!user) {
-      return reply.code(404).send({
-        statusCode: 404,
-        error: 'Not Found',
-        message: 'User not found',
-        code: ErrorCode.USER_NOT_FOUND,
-      })
-    }
+    await ensureUserExists(fastify.db, id)
 
     const where = eq(reviews.reviewee_id, id)
 

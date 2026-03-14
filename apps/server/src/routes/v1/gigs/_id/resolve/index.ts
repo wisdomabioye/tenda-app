@@ -2,10 +2,12 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs, disputes, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import { verifyTransactionOnChain } from '@server/lib/solana'
+import { ensureSignatureVerified } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
+import { ensureGigExists, ensureGigStatus, ensureTxUpdated } from '@server/lib/gigs'
 import { requireRole } from '@server/lib/guards'
-import { isPostgresUniqueViolation } from '@server/lib/db'
+import { handleUniqueConflict } from '@server/lib/db'
+import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
@@ -26,66 +28,28 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
       const { winner, signature } = request.body
 
       if (!winner || !signature) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'winner and signature are required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'winner and signature are required')
       }
 
       // Validate winner against the enum — prevents arbitrary strings being stored
       const VALID_WINNERS = ['poster', 'worker', 'split'] as const
       if (!VALID_WINNERS.includes(winner as typeof VALID_WINNERS[number])) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'winner must be "poster", "worker", or "split"',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'winner must be "poster", "worker", or "split"')
       }
 
-      const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
+      const gig = await ensureGigExists(fastify.db, id)
+      ensureGigStatus(gig, 'disputed')
 
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
-
-      if (gig.status !== 'disputed') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Gig must be in disputed status to resolve',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
-
-      // Verify the on-chain transaction before writing to DB.
-      // Pass the resolve_dispute discriminator so an unrelated confirmed tx
-      // cannot be replayed here (unlike other routes, the old code passed none).
-      const verification = await verifyTransactionOnChain(signature, 'resolve_dispute')
-      if (!verification.ok) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Transaction not confirmed on-chain',
-          code: (verification.error ?? 'SIGNATURE_NOT_FINALIZED') as ErrorCode,
-        })
-      }
+      await ensureSignatureVerified(signature, 'resolve_dispute')
 
       const config = await getPlatformConfig(fastify.db)
       const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
       const resolverWalletAddress = request.user.wallet_address
       const now = new Date()
 
-      let updated
+      let txResult
       try {
-        updated = await fastify.db.transaction(async (tx) => {
+        txResult = await fastify.db.transaction(async (tx) => {
           // Include status = 'disputed' in WHERE to guard against concurrent resolves.
           // Two simultaneous admin calls with different signatures would otherwise both
           // "succeed": each UPDATE matches (status already 'resolved' after the first),
@@ -114,25 +78,10 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
           return updatedGig
         })
       } catch (err: unknown) {
-        if (isPostgresUniqueViolation(err)) {
-          return reply.code(409).send({
-            statusCode: 409,
-            error: 'Conflict',
-            message: 'This transaction signature has already been recorded',
-            code: ErrorCode.DUPLICATE_SIGNATURE,
-          })
-        }
-        throw err
+        handleUniqueConflict(err, ErrorCode.DUPLICATE_SIGNATURE, 'This transaction signature has already been recorded')
       }
 
-      if (!updated) {
-        return reply.code(409).send({
-          statusCode: 409,
-          error: 'Conflict',
-          message: 'Gig status changed — it may have already been resolved',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      const updated = ensureTxUpdated(txResult, 'Gig status changed — it may have already been resolved')
 
       appEvents.emit('gig.resolved', {
         gigId:    updated.id,

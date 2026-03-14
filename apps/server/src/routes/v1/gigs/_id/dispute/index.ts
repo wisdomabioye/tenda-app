@@ -2,11 +2,13 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq, or } from 'drizzle-orm'
 import { gigs, disputes } from '@tenda/shared/db/schema'
 import { MAX_DISPUTE_REASON_LENGTH, ErrorCode } from '@tenda/shared'
-import { verifyTransactionOnChain } from '@server/lib/solana'
+import { ensureSignatureVerified } from '@server/lib/solana'
+import { ensureGigExists, ensureGigStatus, ensureTxUpdated } from '@server/lib/gigs'
 import { appEvents } from '@server/lib/events'
-import type { GigsContract, ApiError } from '@tenda/shared'
-import { isPostgresUniqueViolation } from '@server/lib/db'
+import { AppError } from '@server/lib/errors'
+import { handleUniqueConflict } from '@server/lib/db'
 import { moderateBody } from '@server/lib/moderation'
+import type { GigsContract, ApiError } from '@tenda/shared'
 
 type DisputeRoute = GigsContract['dispute']
 
@@ -22,63 +24,26 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const { id } = request.params
 
-      const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
-
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
-
-      if (gig.status !== 'submitted' && gig.status !== 'accepted') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Can only dispute gigs that are accepted or submitted',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      const gig = await ensureGigExists(fastify.db, id)
+      ensureGigStatus(gig, 'submitted', 'accepted')
 
       const { reason, signature } = request.body
 
       if (!signature) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'signature is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
       }
 
       if (!reason || reason.trim().length === 0) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'reason is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'reason is required')
       }
 
       if (reason.trim().length > MAX_DISPUTE_REASON_LENGTH) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: `Reason must be at most ${MAX_DISPUTE_REASON_LENGTH} characters`,
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Reason must be at most ${MAX_DISPUTE_REASON_LENGTH} characters`)
       }
 
       const userId = request.user.id
       if (gig.poster_id !== userId && gig.worker_id !== userId) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only the poster or worker can dispute this gig',
-          code: ErrorCode.FORBIDDEN,
-        })
+        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the poster or worker can dispute this gig')
       }
 
       // Pre-check: if a dispute already exists, reject before hitting the RPC node
@@ -90,27 +55,14 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
         .limit(1)
 
       if (existingDispute) {
-        return reply.code(409).send({
-          statusCode: 409,
-          error: 'Conflict',
-          message: 'A dispute already exists for this gig',
-          code: ErrorCode.DISPUTE_ALREADY_EXISTS,
-        })
+        throw new AppError(409, ErrorCode.DISPUTE_ALREADY_EXISTS, 'A dispute already exists for this gig')
       }
 
-      // Verify the on-chain transaction before writing to DB
-      const verification = await verifyTransactionOnChain(signature, 'dispute_gig')
-      if (!verification.ok) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Transaction not confirmed on-chain',
-          code: (verification.error ?? 'SIGNATURE_NOT_FINALIZED') as ErrorCode,
-        })
-      }
+      await ensureSignatureVerified(signature, 'dispute_gig')
 
+      let txResult
       try {
-        const updated = await fastify.db.transaction(async (tx) => {
+        txResult = await fastify.db.transaction(async (tx) => {
           // Include the expected statuses in WHERE to guard against TOCTOU races.
           // If the gig was already disputed or approved between our SELECT and this UPDATE,
           // no row is returned and we surface a 409 rather than silently overwriting state.
@@ -130,39 +82,22 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
 
           return updatedGig
         })
-
-        if (!updated) {
-          return reply.code(409).send({
-            statusCode: 409,
-            error: 'Conflict',
-            message: 'Gig status changed — it may have already been disputed or completed',
-            code: ErrorCode.GIG_WRONG_STATUS,
-          })
-        }
-
-        if (updated) {
-          appEvents.emit('gig.disputed', {
-            gigId:      updated.id,
-            posterId:   updated.poster_id,
-            workerId:   updated.worker_id!,
-            raisedById: userId,
-            title:      updated.title,
-          })
-        }
-
-        return updated
       } catch (err: unknown) {
         // Postgres unique violation on disputes_gig_id_unique
-        if (isPostgresUniqueViolation(err)) {
-          return reply.code(409).send({
-            statusCode: 409,
-            error: 'Conflict',
-            message: 'A dispute already exists for this gig',
-            code: ErrorCode.DISPUTE_ALREADY_EXISTS,
-          })
-        }
-        throw err
+        handleUniqueConflict(err, ErrorCode.DISPUTE_ALREADY_EXISTS, 'A dispute already exists for this gig')
       }
+
+      const updated = ensureTxUpdated(txResult, 'Gig status changed — it may have already been disputed or completed')
+
+      appEvents.emit('gig.disputed', {
+        gigId:      updated.id,
+        posterId:   updated.poster_id,
+        workerId:   updated.worker_id!,
+        raisedById: userId,
+        title:      updated.title,
+      })
+
+      return updated
     }
   )
 }

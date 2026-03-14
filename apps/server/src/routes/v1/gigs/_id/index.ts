@@ -13,7 +13,9 @@ import {
 } from '@tenda/shared'
 import { verifyTransactionOnChain } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
-import { checkAndExpireGig } from '@server/lib/gigs'
+import { ensureGigExists, ensureGigStatus, ensureGigOwnership, ensureTxUpdated, checkAndExpireGig } from '@server/lib/gigs'
+import { AppError } from '@server/lib/errors'
+import { ensureValidCoordinates } from '@server/lib/validation'
 import { moderateBody } from '@server/lib/moderation'
 
 import type { GigsContract, ApiError } from '@tenda/shared'
@@ -30,16 +32,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
   }>('/', async (request, reply) => {
     const { id } = request.params
 
-    let [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
-
-    if (!gig) {
-      return reply.code(404).send({
-        statusCode: 404,
-        error: 'Not Found',
-        message: 'Gig not found',
-        code: ErrorCode.GIG_NOT_FOUND,
-      })
-    }
+    let gig = await ensureGigExists(fastify.db, id)
 
     // Lazily expire gig if deadline has passed.
     // Grace period is read from platform_config (cached for 5 minutes).
@@ -70,7 +63,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     const poster = posterRows[0]
     const worker = workerRows[0] ?? null
 
-    return { ...gig, poster, worker, proofs, dispute: disputeRows[0] ?? null, reviews: gigReviews }
+    return reply.send({ ...gig, poster, worker, proofs, dispute: disputeRows[0] ?? null, reviews: gigReviews })
   })
 
   // PATCH /v1/gigs/:id — update draft gig (poster only)
@@ -81,34 +74,9 @@ const gigById: FastifyPluginAsync = async (fastify) => {
   }>('/', { preHandler: [fastify.authenticate, moderateBody<UpdateRoute['body']>(fastify, ['title', 'description'])] }, async (request, reply) => {
     const { id } = request.params
 
-    const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
-
-    if (!gig) {
-      return reply.code(404).send({
-        statusCode: 404,
-        error: 'Not Found',
-        message: 'Gig not found',
-        code: ErrorCode.GIG_NOT_FOUND,
-      })
-    }
-
-    if (gig.poster_id !== request.user.id) {
-      return reply.code(403).send({
-        statusCode: 403,
-        error: 'Forbidden',
-        message: 'Only the poster can update this gig',
-        code: ErrorCode.FORBIDDEN,
-      })
-    }
-
-    if (gig.status !== 'draft') {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'Can only update gigs that are in draft status',
-        code: ErrorCode.GIG_WRONG_STATUS,
-      })
-    }
+    const gig = await ensureGigExists(fastify.db, id)
+    ensureGigOwnership(gig, request.user.id, 'poster')
+    ensureGigStatus(gig, 'draft')
 
     const {
       title,
@@ -126,39 +94,19 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     } = request.body
 
     if (title !== undefined && title.length > MAX_GIG_TITLE_LENGTH) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: `Title must be at most ${MAX_GIG_TITLE_LENGTH} characters`,
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Title must be at most ${MAX_GIG_TITLE_LENGTH} characters`)
     }
 
     if (description !== undefined && description.length > MAX_GIG_DESCRIPTION_LENGTH) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: `Description must be at most ${MAX_GIG_DESCRIPTION_LENGTH} characters`,
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Description must be at most ${MAX_GIG_DESCRIPTION_LENGTH} characters`)
     }
 
     if (payment_lamports !== undefined && !isValidPaymentLamports(payment_lamports)) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'payment_lamports is out of valid range',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'payment_lamports is out of valid range')
     }
 
     if (completion_duration_seconds !== undefined && !isValidCompletionDuration(completion_duration_seconds)) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'completion_duration_seconds must be between 3600 (1 hour) and 7776000 (90 days)',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'completion_duration_seconds must be between 3600 (1 hour) and 7776000 (90 days)')
     }
 
     // Re-validate deadline combination using effective (updated) values.
@@ -169,13 +117,10 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       : gig.accept_deadline?.toISOString() ?? null
     const deadlineCheck = validateGigDeadlines(effectiveDuration, effectiveDeadline)
     if (!deadlineCheck.valid) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: deadlineCheck.error!,
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, deadlineCheck.error!)
     }
+
+    ensureValidCoordinates(latitude, longitude)
 
     const updates: Record<string, unknown> = { updated_at: new Date() }
     if (title !== undefined)                       updates.title = title
@@ -205,22 +150,13 @@ const gigById: FastifyPluginAsync = async (fastify) => {
 
     // Status guard prevents overwriting a gig that was published between the
     // SELECT above and this UPDATE (draft → open race).
-    const [updated] = await fastify.db
+    const [txResult] = await fastify.db
       .update(gigs)
       .set(updates)
       .where(and(eq(gigs.id, id), eq(gigs.status, 'draft')))
       .returning()
 
-    if (!updated) {
-      return reply.code(409).send({
-        statusCode: 409,
-        error: 'Conflict',
-        message: 'Gig status changed — it may have already been published',
-        code: ErrorCode.GIG_WRONG_STATUS,
-      })
-    }
-
-    return updated
+    return ensureTxUpdated(txResult, 'Gig status changed — it may have already been published')
   })
 
   // DELETE /v1/gigs/:id — cancel (poster only)
@@ -237,54 +173,19 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       const { id } = request.params
       const { signature } = request.body ?? {}
 
-      const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
-
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
-
-      if (gig.poster_id !== request.user.id) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only the poster can cancel this gig',
-          code: ErrorCode.FORBIDDEN,
-        })
-      }
-
-      if (gig.status !== 'open' && gig.status !== 'draft') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Can only cancel gigs that are open or draft',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      const gig = await ensureGigExists(fastify.db, id)
+      ensureGigOwnership(gig, request.user.id, 'poster')
+      ensureGigStatus(gig, 'open', 'draft')
 
       if (gig.status === 'open' && !signature) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'signature is required when cancelling an open gig',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required when cancelling an open gig')
       }
 
       // For open gigs: verify the refund transaction on-chain before recording
       if (gig.status === 'open' && signature) {
         const verification = await verifyTransactionOnChain(signature)
         if (!verification.ok) {
-          return reply.code(400).send({
-            statusCode: 400,
-            error: 'Bad Request',
-            message: 'Transaction not confirmed on-chain',
-            code: (verification.error ?? 'SIGNATURE_NOT_FINALIZED') as ErrorCode,
-          })
+          throw new AppError(400, verification.error ?? 'SIGNATURE_NOT_FINALIZED', 'Transaction not confirmed on-chain')
         }
       }
 
@@ -315,16 +216,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
           return cancelledGig
         })
 
-        if (!cancelled) {
-          return reply.code(409).send({
-            statusCode: 409,
-            error: 'Conflict',
-            message: 'Gig status changed — it may have already been accepted or cancelled',
-            code: ErrorCode.GIG_WRONG_STATUS,
-          })
-        }
-
-        return cancelled
+        return ensureTxUpdated(cancelled, 'Gig status changed — it may have already been accepted or cancelled')
       }
 
       // Draft cancellation — no escrow, no signature.
@@ -335,16 +227,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
         .where(and(eq(gigs.id, id), eq(gigs.status, 'draft')))
         .returning()
 
-      if (!cancelled) {
-        return reply.code(409).send({
-          statusCode: 409,
-          error: 'Conflict',
-          message: 'Gig status changed — it may have already been published or cancelled',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
-
-      return cancelled
+      return ensureTxUpdated(cancelled, 'Gig status changed — it may have already been published or cancelled')
     }
   )
 }

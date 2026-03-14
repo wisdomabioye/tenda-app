@@ -9,6 +9,7 @@ import AutoLoad, { AutoloadPluginOptions } from '@fastify/autoload'
 import { ErrorCode } from '@tenda/shared'
 import type { ApiError } from '@tenda/shared'
 import { captureError } from './lib/reporter'
+import { AppError } from './lib/errors'
 
 
 
@@ -33,6 +34,16 @@ const app: FastifyPluginAsync<AppOptions> = async (
 
   // Global error handler
   fastify.setErrorHandler((error: FastifyError, request, reply) => {
+    // Structured application errors thrown by route helpers
+    if (error instanceof AppError) {
+      return reply.code(error.statusCode).send({
+        statusCode: error.statusCode,
+        error: error.errorLabel,
+        message: error.message,
+        code: error.code as ErrorCode,
+      } satisfies ApiError)
+    }
+
     const statusCode = error.statusCode ?? 500
     request.log.error(error)
     if (statusCode >= 500) captureError(error, { url: request.url, method: request.method })

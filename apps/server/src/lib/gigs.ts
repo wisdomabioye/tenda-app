@@ -1,8 +1,51 @@
 import { eq, and, isNotNull, sql } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
-import { computeCompletionDeadline, type Gig } from '@tenda/shared'
+import { computeCompletionDeadline, ErrorCode, type Gig, type GigStatus } from '@tenda/shared'
+
 import type { AppDatabase } from '@server/plugins/db'
 import { getPlatformConfig } from './platform'
+import { AppError } from './errors'
+
+/**
+ * Fetches a gig by id. Throws a 404 AppError if not found.
+ */
+export async function ensureGigExists(db: AppDatabase, id: string): Promise<Gig> {
+  const [gig] = await db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
+  if (!gig) throw new AppError(404, ErrorCode.GIG_NOT_FOUND, 'Gig not found')
+  return gig
+}
+
+/**
+ * Throws a 400 AppError if the gig is not in one of the allowed statuses.
+ */
+export function ensureGigStatus(gig: Pick<Gig, 'status'>, ...allowed: GigStatus[]): void {
+  if (!allowed.includes(gig.status as GigStatus)) {
+    throw new AppError(400, ErrorCode.GIG_WRONG_STATUS, `Gig must be ${allowed.join(' or ')} to perform this action`)
+  }
+}
+
+/**
+ * Throws a 403 AppError if userId does not match the expected role on the gig.
+ * role 'poster'  — checks poster_id === userId
+ * role 'worker'  — checks worker_id === userId
+ */
+export function ensureGigOwnership(
+  gig: Pick<Gig, 'poster_id' | 'worker_id'>,
+  userId: string,
+  role: 'poster' | 'worker',
+): void {
+  const ok = role === 'poster' ? gig.poster_id === userId : gig.worker_id === userId
+  if (!ok) throw new AppError(403, ErrorCode.FORBIDDEN, `Only the ${role} can perform this action`)
+}
+
+/**
+ * Throws a 409 AppError if a TOCTOU-guarded DB update returned no row.
+ * Use after transactions that include a status guard in the WHERE clause.
+ */
+export function ensureTxUpdated<T>(result: T | null | undefined, message: string): T {
+  if (result == null) throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, message)
+  return result
+}
 
 // Throttle batch expiry writes to at most once per minute so a busy list
 // endpoint doesn't issue a DB write on every single request.

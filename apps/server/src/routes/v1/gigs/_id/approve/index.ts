@@ -2,9 +2,11 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import { verifyTransactionOnChain } from '@server/lib/solana'
+import { ensureSignatureVerified } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
-import { isPostgresUniqueViolation } from '@server/lib/db'
+import { ensureGigExists, ensureGigStatus, ensureGigOwnership, ensureTxUpdated } from '@server/lib/gigs'
+import { handleUniqueConflict } from '@server/lib/db'
+import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
@@ -24,53 +26,14 @@ const approveGig: FastifyPluginAsync = async (fastify) => {
       const { signature } = request.body
 
       if (!signature) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'signature is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
       }
 
-      const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
+      const gig = await ensureGigExists(fastify.db, id)
+      ensureGigStatus(gig, 'submitted')
+      ensureGigOwnership(gig, request.user.id, 'poster')
 
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
-
-      if (gig.status !== 'submitted') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Gig must be in submitted status to approve',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
-
-      if (gig.poster_id !== request.user.id) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only the poster can approve this gig',
-          code: ErrorCode.FORBIDDEN,
-        })
-      }
-
-      // Verify the on-chain transaction before writing to DB
-      const verification = await verifyTransactionOnChain(signature, 'approve_completion')
-      if (!verification.ok) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Transaction not confirmed on-chain',
-          code: (verification.error ?? 'SIGNATURE_NOT_FINALIZED') as ErrorCode,
-        })
-      }
+      await ensureSignatureVerified(signature, 'approve_completion')
 
       const config = await getPlatformConfig(fastify.db)
       // Seeker posters pay a discounted fee on-chain; mirror that here so the
@@ -78,9 +41,9 @@ const approveGig: FastifyPluginAsync = async (fastify) => {
       const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
       const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), effectiveFeeBps)
 
-      let updated
+      let txResult
       try {
-        updated = await fastify.db.transaction(async (tx) => {
+        txResult = await fastify.db.transaction(async (tx) => {
           // Include status = 'submitted' in WHERE to guard against TOCTOU races.
           // A concurrent approve or dispute call could have already transitioned the gig;
           // checking here prevents double-completion and phantom fee records.
@@ -105,25 +68,10 @@ const approveGig: FastifyPluginAsync = async (fastify) => {
       } catch (err: unknown) {
         // Postgres unique violation on gig_transactions_signature_unique —
         // client retried after a network error; the transaction was already recorded.
-        if (isPostgresUniqueViolation(err)) {
-          return reply.code(409).send({
-            statusCode: 409,
-            error: 'Conflict',
-            message: 'This transaction signature has already been recorded',
-            code: ErrorCode.DUPLICATE_SIGNATURE,
-          })
-        }
-        throw err
+        handleUniqueConflict(err, ErrorCode.DUPLICATE_SIGNATURE, 'This transaction signature has already been recorded')
       }
 
-      if (!updated) {
-        return reply.code(409).send({
-          statusCode: 409,
-          error: 'Conflict',
-          message: 'Gig status changed — it may have already been approved or disputed',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      const updated = ensureTxUpdated(txResult, 'Gig status changed — it may have already been approved or disputed')
 
       appEvents.emit('gig.approved', {
         gigId:    updated.id,

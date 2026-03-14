@@ -2,8 +2,10 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { verifyTransactionOnChain } from '@server/lib/solana'
+import { ensureSignatureVerified } from '@server/lib/solana'
+import { ensureGigExists, ensureGigStatus, ensureTxUpdated } from '@server/lib/gigs'
 import { appEvents } from '@server/lib/events'
+import { AppError } from '@server/lib/errors'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type AcceptRoute = GigsContract['accept']
@@ -24,62 +26,21 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
       const { signature } = request.body
 
       if (!signature) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'signature is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
       }
 
-      const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
-
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
-
-      if (gig.status !== 'open') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Gig is not open for acceptance',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      const gig = await ensureGigExists(fastify.db, id)
+      ensureGigStatus(gig, 'open')
 
       if (gig.poster_id === request.user.id) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Cannot accept your own gig',
-          code: ErrorCode.CANNOT_ACCEPT_OWN_GIG,
-        })
+        throw new AppError(400, ErrorCode.CANNOT_ACCEPT_OWN_GIG, 'Cannot accept your own gig')
       }
 
       if (gig.accept_deadline && new Date() > new Date(gig.accept_deadline)) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Acceptance deadline has passed',
-          code: ErrorCode.ACCEPT_DEADLINE_PASSED,
-        })
+        throw new AppError(400, ErrorCode.ACCEPT_DEADLINE_PASSED, 'Acceptance deadline has passed')
       }
 
-      // Verify the on-chain transaction before updating the DB
-      const verification = await verifyTransactionOnChain(signature, 'accept_gig')
-      if (!verification.ok) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Transaction not yet confirmed on-chain',
-          code: ErrorCode.SIGNATURE_VERIFICATION_FAILED,
-        })
-      }
+      await ensureSignatureVerified(signature, 'accept_gig')
 
       const now = new Date()
       // Include status = 'open' in the WHERE clause to guard against TOCTOU races.
@@ -96,23 +57,16 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
         .where(and(eq(gigs.id, id), eq(gigs.status, 'open')))
         .returning()
 
-      if (!updated) {
-        return reply.code(409).send({
-          statusCode: 409,
-          error: 'Conflict',
-          message: 'Gig is no longer open — it may have just been accepted by another worker',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      const accepted = ensureTxUpdated(updated, 'Gig is no longer open — it may have just been accepted by another worker')
 
       appEvents.emit('gig.accepted', {
-        gigId:    updated.id,
-        posterId: updated.poster_id,
-        workerId: updated.worker_id!,
-        title:    updated.title,
+        gigId:    accepted.id,
+        posterId: accepted.poster_id,
+        workerId: accepted.worker_id!,
+        title:    accepted.title,
       })
 
-      return updated
+      return accepted
     }
   )
 }

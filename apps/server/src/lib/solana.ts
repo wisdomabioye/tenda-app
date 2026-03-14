@@ -1,4 +1,5 @@
 import nacl from 'tweetnacl'
+import { AppError } from './errors'
 import bs58 from 'bs58'
 import { PublicKey, Connection, Transaction, Keypair } from '@solana/web3.js'
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor'
@@ -272,6 +273,20 @@ export async function buildCreateUserAccountInstruction(
     .transaction()
 
   return { transaction: await finalise(tx, user) }
+}
+
+/**
+ * Verifies a Solana transaction on-chain. Throws a 400 AppError if not confirmed.
+ * Wraps verifyTransactionOnChain so routes don't need to repeat the error block.
+ */
+export async function ensureSignatureVerified(
+  signature: string,
+  expectedInstruction?: InstructionName,
+): Promise<void> {
+  const result = await verifyTransactionOnChain(signature, expectedInstruction)
+  if (!result.ok) {
+    throw new AppError(400, result.error ?? 'SIGNATURE_NOT_FINALIZED', 'Transaction not confirmed on-chain')
+  }
 }
 
 // ── UserAccount existence check ──────────────────────────────────────────────

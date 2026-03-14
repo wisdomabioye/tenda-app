@@ -1,11 +1,11 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
-import { gigs, gig_transactions } from '@tenda/shared/db/schema'
+import { gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import { verifyTransactionOnChain } from '@server/lib/solana'
+import { ensureSignatureVerified } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
-import { checkAndExpireGig } from '@server/lib/gigs'
-import { isPostgresUniqueViolation } from '@server/lib/db'
+import { ensureGigExists, ensureGigStatus, ensureGigOwnership, checkAndExpireGig } from '@server/lib/gigs'
+import { handleUniqueConflict } from '@server/lib/db'
+import { AppError } from '@server/lib/errors'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type RefundRoute = GigsContract['refund']
@@ -27,24 +27,10 @@ const refundExpired: FastifyPluginAsync = async (fastify) => {
       const { signature } = request.body
 
       if (!signature) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'signature is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
       }
 
-      let [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
-
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
+      let gig = await ensureGigExists(fastify.db, id)
 
       // Lazily expire the gig if its deadlines have passed — so a poster who
       // hits this endpoint directly (without first opening the gig detail screen)
@@ -52,34 +38,10 @@ const refundExpired: FastifyPluginAsync = async (fastify) => {
       const config = await getPlatformConfig(fastify.db)
       gig = await checkAndExpireGig(gig, fastify.db, config.grace_period_seconds)
 
-      if (gig.status !== 'expired') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Only expired gigs can have their escrow refunded',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      ensureGigStatus(gig, 'expired')
+      ensureGigOwnership(gig, request.user.id, 'poster')
 
-      if (gig.poster_id !== request.user.id) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only the poster can claim an expired gig refund',
-          code: ErrorCode.FORBIDDEN,
-        })
-      }
-
-      // Verify the on-chain transaction before writing to DB
-      const verification = await verifyTransactionOnChain(signature, 'refund_expired')
-      if (!verification.ok) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Transaction not confirmed on-chain',
-          code: (verification.error ?? 'SIGNATURE_NOT_FINALIZED') as ErrorCode,
-        })
-      }
+      await ensureSignatureVerified(signature, 'refund_expired')
 
       const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
 
@@ -92,15 +54,7 @@ const refundExpired: FastifyPluginAsync = async (fastify) => {
           platform_fee_lamports,
         })
       } catch (err: unknown) {
-        if (isPostgresUniqueViolation(err)) {
-          return reply.code(409).send({
-            statusCode: 409,
-            error: 'Conflict',
-            message: 'This transaction signature has already been recorded',
-            code: ErrorCode.DUPLICATE_SIGNATURE,
-          })
-        }
-        throw err
+        handleUniqueConflict(err, ErrorCode.DUPLICATE_SIGNATURE, 'This transaction signature has already been recorded')
       }
 
       return gig

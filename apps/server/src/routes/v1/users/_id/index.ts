@@ -1,8 +1,10 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
-import { ErrorCode, isCloudinaryUrl, isValidLatitude, isValidLongitude } from '@tenda/shared'
+import { ErrorCode, isCloudinaryUrl } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
+import { ensureValidCoordinates } from '@server/lib/validation'
+import { AppError } from '@server/lib/errors'
 import { moderateBody } from '@server/lib/moderation'
 
 type GetRoute    = UsersContract['get']
@@ -13,7 +15,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: GetRoute['params']
     Reply: GetRoute['response'] | ApiError
-  }>('/', async (request, reply) => {
+  }>('/', async (request) => {
     const { id } = request.params
 
     const [user] = await fastify.db
@@ -37,14 +39,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
       .where(eq(users.id, id))
       .limit(1)
 
-    if (!user) {
-      return reply.code(404).send({
-        statusCode: 404,
-        error: 'Not Found',
-        message: 'User not found',
-        code: ErrorCode.USER_NOT_FOUND,
-      })
-    }
+    if (!user) throw new AppError(404, ErrorCode.USER_NOT_FOUND, 'User not found')
 
     return user
   })
@@ -54,47 +49,19 @@ const userById: FastifyPluginAsync = async (fastify) => {
     Params: UpdateRoute['params']
     Body: UpdateRoute['body']
     Reply: UpdateRoute['response'] | ApiError
-  }>('/', { preHandler: [fastify.authenticate, moderateBody<UpdateRoute['body']>(fastify, ['bio'])] }, async (request, reply) => {
+  }>('/', { preHandler: [fastify.authenticate, moderateBody<UpdateRoute['body']>(fastify, ['bio'])] }, async (request) => {
     const { id } = request.params
 
-    if (id !== request.user.id) {
-      return reply.code(403).send({
-        statusCode: 403,
-        error: 'Forbidden',
-        message: 'Can only update your own profile',
-        code: ErrorCode.FORBIDDEN,
-      })
-    }
+    if (id !== request.user.id) throw new AppError(403, ErrorCode.FORBIDDEN, 'Can only update your own profile')
 
     const { first_name, last_name, avatar_url, bio, country, city, latitude, longitude } = request.body
 
     // Reject avatar URLs that don't come from Cloudinary CDN
     if (avatar_url !== undefined && avatar_url !== null && !isCloudinaryUrl(avatar_url)) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'avatar_url must be a Cloudinary URL (https://res.cloudinary.com/)',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'avatar_url must be a Cloudinary URL (https://res.cloudinary.com/)')
     }
 
-    if (latitude != null && !isValidLatitude(latitude)) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'latitude must be between -90 and 90',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
-    }
-
-    if (longitude != null && !isValidLongitude(longitude)) {
-      return reply.code(400).send({
-        statusCode: 400,
-        error: 'Bad Request',
-        message: 'longitude must be between -180 and 180',
-        code: ErrorCode.VALIDATION_ERROR,
-      })
-    }
+    ensureValidCoordinates(latitude, longitude)
 
     const updates: Record<string, unknown> = { updated_at: new Date() }
     if (first_name !== undefined) updates.first_name = first_name

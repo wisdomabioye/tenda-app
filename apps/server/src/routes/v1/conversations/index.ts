@@ -4,6 +4,7 @@ import { conversations, messages, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { ConversationsContract, ApiError, Conversation } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '@server/lib/db'
+import { AppError } from '@server/lib/errors'
 
 type ListRoute       = ConversationsContract['list']
 type FindOrCreateRoute = ConversationsContract['findOrCreate']
@@ -125,27 +126,12 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
   }>(
     '/',
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request) => {
       const userId = request.user.id
       const { user_id: targetId } = request.body
 
-      if (!targetId || typeof targetId !== 'string') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'user_id is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
-
-      if (targetId === userId) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Cannot start a conversation with yourself',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
+      if (!targetId || typeof targetId !== 'string') throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'user_id is required')
+      if (targetId === userId) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot start a conversation with yourself')
 
       // Verify target user exists
       const [targetUser] = await fastify.db
@@ -154,14 +140,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
         .where(eq(users.id, targetId))
         .limit(1)
 
-      if (!targetUser) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'User not found',
-          code: ErrorCode.USER_NOT_FOUND,
-        })
-      }
+      if (!targetUser) throw new AppError(404, ErrorCode.USER_NOT_FOUND, 'User not found')
 
       const [userA, userB] = canonicalPair(userId, targetId)
 

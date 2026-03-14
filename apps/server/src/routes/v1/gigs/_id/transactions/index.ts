@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { gigs, gig_transactions } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { gig_transactions } from '@tenda/shared/db/schema'
+import { ensureGigExists } from '@server/lib/gigs'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type TransactionsRoute = GigsContract['transactions']
@@ -11,19 +11,10 @@ const gigTransactionsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: TransactionsRoute['params']
     Reply: TransactionsRoute['response'] | ApiError
-  }>('/', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  }>('/', { preHandler: [fastify.authenticate] }, async (request, _reply) => {
     const { id } = request.params
 
-    const [gig] = await fastify.db.select({ id: gigs.id }).from(gigs).where(eq(gigs.id, id)).limit(1)
-
-    if (!gig) {
-      return reply.code(404).send({
-        statusCode: 404,
-        error: 'Not Found',
-        message: 'Gig not found',
-        code: ErrorCode.GIG_NOT_FOUND,
-      })
-    }
+    await ensureGigExists(fastify.db, id)
 
     const txns = await fastify.db
       .select()

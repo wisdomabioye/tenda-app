@@ -16,6 +16,8 @@ import {
 } from '@tenda/shared'
 import type { GigsContract, ApiError, GigStatus, GigCategory, CountryCode } from '@tenda/shared'
 import { batchExpireGigs } from '@server/lib/gigs'
+import { AppError } from '@server/lib/errors'
+import { ensureValidCoordinates } from '@server/lib/validation'
 import { moderateBody } from '@server/lib/moderation'
 
 type ListRoute   = GigsContract['list']
@@ -27,7 +29,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
-  }>('/', async (request, reply) => {
+  }>('/', async (request, _reply) => {
     // Batch-expire gigs whose deadlines have passed before serving the list.
     // Throttled internally to at most once per minute.
     await batchExpireGigs(fastify.db, fastify.log)
@@ -49,11 +51,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     } = request.query
 
     if (country && !(country in LOCATIONS)) {
-      return reply.code(400).send({
-        statusCode: 400, error: 'Bad Request',
-        message: `country must be one of: ${Object.keys(LOCATIONS).join(', ')}`,
-        code: ErrorCode.VALIDATION_ERROR,
-      })
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `country must be one of: ${Object.keys(LOCATIONS).join(', ')}`)
     }
 
     const safeLimit  = Math.min(Number(limit),  MAX_PAGINATION_LIMIT)
@@ -65,22 +63,18 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       eq(gigs.status, 'open' as GigStatus),
     ]
 
-    if (country)                      conditions.push(eq(gigs.country, country))
-    if (String(remote) === 'true')    conditions.push(eq(gigs.remote, true))
-    if (String(remote) === 'false')   conditions.push(eq(gigs.remote, false))
+    if (country)                         conditions.push(eq(gigs.country, country))
+    if (String(remote) === 'true')       conditions.push(eq(gigs.remote, true))
+    if (String(remote) === 'false')      conditions.push(eq(gigs.remote, false))
     if (String(cross_border) === 'true') conditions.push(eq(gigs.cross_border, true))
-    if (city)                         conditions.push(eq(gigs.city, city))
-    if (category)             conditions.push(eq(gigs.category, category as GigCategory))
+    if (city)                            conditions.push(eq(gigs.city, city))
+    if (category)                        conditions.push(eq(gigs.category, category as GigCategory))
+
     if (min_payment_lamports !== undefined || max_payment_lamports !== undefined) {
       const minN = min_payment_lamports ?? 0
       const maxN = max_payment_lamports ?? Number.MAX_SAFE_INTEGER
       if (!Number.isInteger(minN) || minN < 0 || !Number.isInteger(maxN) || maxN < 0 || minN > maxN) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'min_payment_lamports and max_payment_lamports must be non-negative integers with min ≤ max',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_payment_lamports and max_payment_lamports must be non-negative integers with min ≤ max')
       }
     }
     if (min_payment_lamports) conditions.push(gte(gigs.payment_lamports, min_payment_lamports))
@@ -98,12 +92,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         !isValidLatitude(latN) || !isValidLongitude(lngN) ||
         isNaN(rN) || rN <= 0 || rN > 20_000
       ) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'lat (−90–90), lng (−180–180), and radius_km (0–20000) must all be provided and valid',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'lat (−90–90), lng (−180–180), and radius_km (0–20000) must all be provided and valid')
       }
       // @todo Migrate to PostGIS ST_DWithin when query volume grows
       conditions.push(
@@ -169,30 +158,15 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       } = request.body
 
       if (!title || !description || !payment_lamports || !category || !completion_duration_seconds) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'title, description, payment_lamports, category, and completion_duration_seconds are required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'title, description, payment_lamports, category, and completion_duration_seconds are required')
       }
 
       if (!remote && !city) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'city is required for non-remote gigs',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'city is required for non-remote gigs')
       }
 
       if (!remote && !country) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'country is required for non-remote gigs',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'country is required for non-remote gigs')
       }
 
       // Fetch poster's current country from DB — JWT country can be up to 7 days stale.
@@ -207,76 +181,30 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       const resolvedCountry = (country ?? posterCountry) as CountryCode | null
 
       if (!resolvedCountry || !(resolvedCountry in LOCATIONS)) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: `country must be one of: ${Object.keys(LOCATIONS).join(', ')}`,
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `country must be one of: ${Object.keys(LOCATIONS).join(', ')}`)
       }
 
       if (title.length > MAX_GIG_TITLE_LENGTH) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: `Title must be at most ${MAX_GIG_TITLE_LENGTH} characters`,
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Title must be at most ${MAX_GIG_TITLE_LENGTH} characters`)
       }
 
       if (description.length > MAX_GIG_DESCRIPTION_LENGTH) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: `Description must be at most ${MAX_GIG_DESCRIPTION_LENGTH} characters`,
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Description must be at most ${MAX_GIG_DESCRIPTION_LENGTH} characters`)
       }
 
       if (!isValidPaymentLamports(payment_lamports)) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'payment_lamports is out of valid range',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'payment_lamports is out of valid range')
       }
 
       if (!isValidCompletionDuration(completion_duration_seconds)) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'completion_duration_seconds must be between 3600 (1 hour) and 7776000 (90 days)',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'completion_duration_seconds must be between 3600 (1 hour) and 7776000 (90 days)')
       }
 
-      if (latitude !== undefined && !isValidLatitude(latitude)) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'latitude must be between -90 and 90',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
-
-      if (longitude !== undefined && !isValidLongitude(longitude)) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'longitude must be between -180 and 180',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
-      }
+      ensureValidCoordinates(latitude, longitude)
 
       const deadlineCheck = validateGigDeadlines(completion_duration_seconds, accept_deadline ?? null)
       if (!deadlineCheck.valid) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: deadlineCheck.error!,
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, deadlineCheck.error!)
       }
 
       const cross_border = isCrossBorder(remote, resolvedCountry, posterCountry)

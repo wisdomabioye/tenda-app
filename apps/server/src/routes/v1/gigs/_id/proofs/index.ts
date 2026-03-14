@@ -1,8 +1,10 @@
 import { FastifyPluginAsync } from 'fastify'
 import { and, count, eq } from 'drizzle-orm'
-import { gigs, gig_proofs } from '@tenda/shared/db/schema'
+import { gig_proofs } from '@tenda/shared/db/schema'
 import { isCloudinaryUrl, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
+import { ensureGigExists, ensureGigStatus, ensureGigOwnership } from '@server/lib/gigs'
+import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 
 type AddProofsRoute = GigsContract['addProofs']
@@ -24,42 +26,12 @@ const addProofs: FastifyPluginAsync = async (fastify) => {
       const { id } = request.params
       const { proofs } = request.body
 
-      const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
-
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
-
-      if (gig.status !== 'submitted') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Additional proof can only be added to a submitted gig',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
-
-      if (gig.worker_id !== request.user.id) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only the assigned worker can add proof',
-          code: ErrorCode.FORBIDDEN,
-        })
-      }
+      const gig = await ensureGigExists(fastify.db, id)
+      ensureGigStatus(gig, 'submitted')
+      ensureGigOwnership(gig, request.user.id, 'worker')
 
       if (!proofs || proofs.length === 0) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'At least one proof is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'At least one proof is required')
       }
 
       // Enforce total proof cap across all submissions
@@ -69,12 +41,7 @@ const addProofs: FastifyPluginAsync = async (fastify) => {
         .where(and(eq(gig_proofs.gig_id, id)))
 
       if (existingCount + proofs.length > MAX_TOTAL_PROOFS) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: `Cannot exceed ${MAX_TOTAL_PROOFS} total proofs per gig (currently have ${existingCount})`,
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Cannot exceed ${MAX_TOTAL_PROOFS} total proofs per gig (currently have ${existingCount})`)
       }
 
       const VALID_PROOF_TYPES = ['image', 'video', 'document'] as const
@@ -82,22 +49,12 @@ const addProofs: FastifyPluginAsync = async (fastify) => {
         ({ type }) => !VALID_PROOF_TYPES.includes(type as typeof VALID_PROOF_TYPES[number])
       )
       if (invalidType) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Proof type must be "image", "video", or "document"',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Proof type must be "image", "video", or "document"')
       }
 
       const invalidProof = proofs.find(({ url }) => !isCloudinaryUrl(url))
       if (invalidProof) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'All proof URLs must be hosted on Cloudinary (https://res.cloudinary.com/)',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'All proof URLs must be hosted on Cloudinary (https://res.cloudinary.com/)')
       }
 
       const inserted = await fastify.db

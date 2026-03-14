@@ -2,9 +2,11 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import { deriveEscrowAddress, verifyTransactionOnChain } from '@server/lib/solana'
+import { deriveEscrowAddress, ensureSignatureVerified } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
-import { isPostgresUniqueViolation } from '@server/lib/db'
+import { ensureGigExists, ensureGigStatus, ensureGigOwnership, ensureTxUpdated } from '@server/lib/gigs'
+import { handleUniqueConflict } from '@server/lib/db'
+import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
@@ -26,70 +28,26 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
       const { signature } = request.body
 
       if (!signature) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'signature is required',
-          code: ErrorCode.VALIDATION_ERROR,
-        })
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
       }
 
-      const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)
-
-      if (!gig) {
-        return reply.code(404).send({
-          statusCode: 404,
-          error: 'Not Found',
-          message: 'Gig not found',
-          code: ErrorCode.GIG_NOT_FOUND,
-        })
-      }
-
-      if (gig.poster_id !== request.user.id) {
-        return reply.code(403).send({
-          statusCode: 403,
-          error: 'Forbidden',
-          message: 'Only the poster can publish this gig',
-          code: ErrorCode.FORBIDDEN,
-        })
-      }
-
-      if (gig.status !== 'draft') {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Only draft gigs can be published',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      const gig = await ensureGigExists(fastify.db, id)
+      ensureGigOwnership(gig, request.user.id, 'poster')
+      ensureGigStatus(gig, 'draft')
 
       if (gig.accept_deadline && new Date(gig.accept_deadline) <= new Date()) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Cannot publish — acceptance deadline has already passed',
-          code: ErrorCode.ACCEPT_DEADLINE_PASSED,
-        })
+        throw new AppError(400, ErrorCode.ACCEPT_DEADLINE_PASSED, 'Cannot publish — acceptance deadline has already passed')
       }
 
-      // Verify the on-chain transaction before writing to DB
-      const verification = await verifyTransactionOnChain(signature, 'create_gig_escrow')
-      if (!verification.ok) {
-        return reply.code(400).send({
-          statusCode: 400,
-          error: 'Bad Request',
-          message: 'Transaction not confirmed on-chain',
-          code: (verification.error ?? 'SIGNATURE_NOT_FINALIZED') as ErrorCode,
-        })
-      }
+      await ensureSignatureVerified(signature, 'create_gig_escrow')
 
       const config = await getPlatformConfig(fastify.db)
       const escrow_address = deriveEscrowAddress(gig.id)
       const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
 
-      let updated
+      let txResult
       try {
-        updated = await fastify.db.transaction(async (tx) => {
+        txResult = await fastify.db.transaction(async (tx) => {
           // Include status = 'draft' in WHERE to guard against concurrent publish calls.
           // Without this, a second concurrent publish (same draft, different signature)
           // would overwrite whatever status the gig reached after the first succeeded.
@@ -113,25 +71,10 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
         })
       } catch (err: unknown) {
         // Postgres unique violation on gig_transactions_signature_unique
-        if (isPostgresUniqueViolation(err)) {
-          return reply.code(409).send({
-            statusCode: 409,
-            error: 'Conflict',
-            message: 'This transaction signature has already been recorded',
-            code: ErrorCode.DUPLICATE_SIGNATURE,
-          })
-        }
-        throw err
+        handleUniqueConflict(err, ErrorCode.DUPLICATE_SIGNATURE, 'This transaction signature has already been recorded')
       }
 
-      if (!updated) {
-        return reply.code(409).send({
-          statusCode: 409,
-          error: 'Conflict',
-          message: 'Gig status changed — it may have already been published',
-          code: ErrorCode.GIG_WRONG_STATUS,
-        })
-      }
+      const updated = ensureTxUpdated(txResult, 'Gig status changed — it may have already been published')
 
       // Notify subscribers now that the gig is live (status = 'open')
       appEvents.emit('gig.created', {
