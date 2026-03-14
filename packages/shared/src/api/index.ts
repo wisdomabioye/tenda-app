@@ -10,6 +10,7 @@ export type {
   BlockchainContract,
   PlatformContract,
   PlatformConfig,
+  ExchangeRates,
   ConversationsContract,
   NotificationsContract,
   SubscriptionsContract,

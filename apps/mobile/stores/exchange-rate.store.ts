@@ -1,11 +1,12 @@
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
-import { SUPPORTED_CURRENCIES, CURRENCY_META, type SupportedCurrency } from '@tenda/shared'
+import { type SupportedCurrency } from '@tenda/shared'
+import { api } from '@/api/client'
 
 const STORAGE_KEY = 'exchange_rates'
 const CACHE_TTL_MS = 5 * 60 * 1000
 
-type RateMap = Record<SupportedCurrency, number>
+type RateMap = Partial<Record<SupportedCurrency, number>>
 
 interface ExchangeRateState {
   /** null until rates are loaded from cache or network */
@@ -14,7 +15,7 @@ interface ExchangeRateState {
   lastFetched: number | null
   /** Load persisted rates from SecureStore (fast, call on app start) */
   loadPersistedRates: () => Promise<void>
-  /** Fetch fresh rates from CoinGecko and persist to SecureStore */
+  /** Fetch fresh rates from the server (proxied CoinGecko, 5-min server cache) */
   fetchRates: () => Promise<void>
 }
 
@@ -41,29 +42,15 @@ export const useExchangeRateStore = create<ExchangeRateState>((set, get) => ({
 
     set({ isLoading: true })
     try {
-      const vs = SUPPORTED_CURRENCIES.map((c) => CURRENCY_META[c].coingeckoKey).join(',')
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=${vs}`,
-      )
-      if (!response.ok) throw new Error('Rate fetch failed')
+      const { rates, fetched_at } = await api.platform.exchangeRates()
 
-      const data = await response.json() as { solana: Record<string, number> }
-      const solana = data.solana
-
-      // Build a full rate map — only include currencies where API returned a value
+      // Merge with existing rates — only update currencies the server returned
       const existing = get().rates
-      const rates = { ...existing } as RateMap
-      for (const currency of SUPPORTED_CURRENCIES) {
-        const key = CURRENCY_META[currency].coingeckoKey
-        if (typeof solana[key] === 'number' && solana[key] > 0) {
-          rates[currency] = solana[key]
-        }
-      }
+      const merged: RateMap = { ...existing, ...rates }
 
-      const fetchedAt = Date.now()
-      set({ rates, lastFetched: fetchedAt, isLoading: false })
+      set({ rates: merged, lastFetched: fetched_at, isLoading: false })
 
-      await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify({ rates, fetchedAt }))
+      await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify({ rates: merged, fetchedAt: fetched_at }))
     } catch {
       // Keep previous values — never crash on rate fetch failure
       set({ isLoading: false })

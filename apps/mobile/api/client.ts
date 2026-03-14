@@ -42,6 +42,7 @@ import {
   type GetUserReviewsQuery,
   type PublishGigInput,
   type PlatformConfig,
+  type ExchangeRates,
   type Conversation,
   type Message,
   type SendMessageInput,
@@ -226,7 +227,8 @@ export const api = {
   },
 
   platform: {
-    config: () => request<PlatformConfig>('GET', platform.config),
+    config:        () => request<PlatformConfig>('GET', platform.config),
+    exchangeRates: () => request<ExchangeRates>('GET', platform.exchangeRates),
   },
 
   conversations: {

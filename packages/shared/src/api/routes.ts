@@ -47,7 +47,8 @@ export const apiRoutes: {
     createUserAccount: '/v1/blockchain/create-user-account',
   },
   platform: {
-    config: '/v1/platform/config',
+    config:        '/v1/platform/config',
+    exchangeRates: '/v1/platform/exchange-rates',
   },
   conversations: {
     list:         '/v1/conversations',
