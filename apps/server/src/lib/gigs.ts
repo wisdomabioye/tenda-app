@@ -1,7 +1,7 @@
 import { eq, and, isNotNull, sql } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { computeCompletionDeadline, type Gig } from '@tenda/shared'
-import type { AppDatabase } from '../plugins/db'
+import type { AppDatabase } from '@server/plugins/db'
 import { getPlatformConfig } from './platform'
 
 // Throttle batch expiry writes to at most once per minute so a busy list

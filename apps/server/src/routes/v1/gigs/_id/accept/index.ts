@@ -2,8 +2,8 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { verifyTransactionOnChain } from '../../../../../lib/solana'
-import { appEvents } from '../../../../../lib/events'
+import { verifyTransactionOnChain } from '@server/lib/solana'
+import { appEvents } from '@server/lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
 type AcceptRoute = GigsContract['accept']

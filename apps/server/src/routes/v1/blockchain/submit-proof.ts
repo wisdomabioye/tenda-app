@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { buildSubmitProofInstruction } from '../../../lib/solana'
+import { buildSubmitProofInstruction } from '@server/lib/solana'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type SubmitProofRoute = BlockchainContract['submitProof']

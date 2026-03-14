@@ -14,8 +14,8 @@ import {
   ErrorCode,
 } from '@tenda/shared'
 import type { GigsContract, ApiError, GigStatus, GigCategory, CountryCode } from '@tenda/shared'
-import { batchExpireGigs } from '../../../lib/gigs'
-import { moderateBody } from '../../../lib/moderation'
+import { batchExpireGigs } from '@server/lib/gigs'
+import { moderateBody } from '@server/lib/moderation'
 
 type ListRoute   = GigsContract['list']
 type CreateRoute = GigsContract['create']

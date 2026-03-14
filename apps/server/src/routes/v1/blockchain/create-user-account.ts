@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
-import { buildCreateUserAccountInstruction } from '../../../lib/solana'
+import { buildCreateUserAccountInstruction } from '@server/lib/solana'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type CreateUserAccountRoute = BlockchainContract['createUserAccount']

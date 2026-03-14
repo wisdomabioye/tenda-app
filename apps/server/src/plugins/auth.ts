@@ -5,7 +5,7 @@ import { FastifyReply, FastifyRequest } from 'fastify'
 import { users } from '@tenda/shared/db/schema'
 import type { UserRole } from '@tenda/shared'
 import { ErrorCode } from '@tenda/shared'
-import { getConfig } from '../config'
+import { getConfig } from '@server/config'
 
 declare module 'fastify' {
   interface FastifyInstance {

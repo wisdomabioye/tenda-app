@@ -3,7 +3,7 @@ import { and, count, eq } from 'drizzle-orm'
 import { gigs, gig_proofs } from '@tenda/shared/db/schema'
 import { isCloudinaryUrl, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
-import { appEvents } from '../../../../../lib/events'
+import { appEvents } from '@server/lib/events'
 
 type AddProofsRoute = GigsContract['addProofs']
 

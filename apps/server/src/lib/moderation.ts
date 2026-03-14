@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply, FastifyBaseLogger } from 'fastify'
 import { blocked_keywords } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import type { AppDatabase } from '../plugins/db'
+import type { AppDatabase } from '@server/plugins/db'
 
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 

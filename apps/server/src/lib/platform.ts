@@ -1,6 +1,6 @@
 import { platform_config } from '@tenda/shared/db/schema'
-import { getConfig } from '../config'
-import type { AppDatabase } from '../plugins/db'
+import { getConfig } from '@server/config'
+import type { AppDatabase } from '@server/plugins/db'
 
 export interface PlatformConfig {
   fee_bps: number

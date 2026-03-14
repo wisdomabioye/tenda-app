@@ -2,10 +2,10 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs, gig_proofs } from '@tenda/shared/db/schema'
 import { computeCompletionDeadline, isCloudinaryUrl, ErrorCode } from '@tenda/shared'
-import { verifyTransactionOnChain } from '../../../../../lib/solana'
-import { appEvents } from '../../../../../lib/events'
+import { verifyTransactionOnChain } from '@server/lib/solana'
+import { appEvents } from '@server/lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
-import { getPlatformConfig } from '../../../../../lib/platform'
+import { getPlatformConfig } from '@server/lib/platform'
 
 type SubmitRoute = GigsContract['submit']
 

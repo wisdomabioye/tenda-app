@@ -2,9 +2,9 @@ import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { buildRefundExpiredInstruction } from '../../../lib/solana'
-import { getPlatformConfig } from '../../../lib/platform'
-import { checkAndExpireGig } from '../../../lib/gigs'
+import { buildRefundExpiredInstruction } from '@server/lib/solana'
+import { getPlatformConfig } from '@server/lib/platform'
+import { checkAndExpireGig } from '@server/lib/gigs'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type RefundExpiredRoute = BlockchainContract['refundExpired']

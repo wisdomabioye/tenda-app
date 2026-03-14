@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { buildCancelGigInstruction } from '../../../lib/solana'
+import { buildCancelGigInstruction } from '@server/lib/solana'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type CancelEscrowRoute = BlockchainContract['cancelEscrow']

@@ -1,6 +1,6 @@
 import fp from 'fastify-plugin'
 import cors from '@fastify/cors'
-import { getConfig } from '../config'
+import { getConfig } from '@server/config'
 
 export default fp(async (fastify) => {
   // In production set CORS_ORIGIN to a comma-separated list of allowed origins,

@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
-import { buildWithdrawEarningsInstruction } from '../../../lib/solana'
+import { buildWithdrawEarningsInstruction } from '@server/lib/solana'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type WithdrawEarningsRoute = BlockchainContract['withdrawEarnings']

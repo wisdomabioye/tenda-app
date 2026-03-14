@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gig_subscriptions } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { isPostgresUniqueViolation } from '../../../lib/db'
+import { isPostgresUniqueViolation } from '@server/lib/db'
 import type { SubscriptionsContract, ApiError } from '@tenda/shared'
 
 type ListRoute = SubscriptionsContract['list']

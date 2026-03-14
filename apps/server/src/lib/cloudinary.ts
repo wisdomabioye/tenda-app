@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { getConfig } from '../config'
+import { getConfig } from '@server/config'
 import type { CloudinarySignature, UploadType } from '@tenda/shared'
 
 const FOLDER_MAP: Record<UploadType, string> = {

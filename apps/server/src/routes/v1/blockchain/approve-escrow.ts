@@ -2,8 +2,8 @@ import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { gigs, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { buildApproveCompletionInstruction } from '../../../lib/solana'
-import { getConfig } from '../../../config'
+import { buildApproveCompletionInstruction } from '@server/lib/solana'
+import { getConfig } from '@server/config'
 import type { BlockchainContract, ApiError } from '@tenda/shared'
 
 type ApproveEscrowRoute = BlockchainContract['approveEscrow']

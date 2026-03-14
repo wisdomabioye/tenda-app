@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
 import { ErrorCode, isCloudinaryUrl, isValidLatitude, isValidLongitude } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
-import { moderateBody } from '../../../../lib/moderation'
+import { moderateBody } from '@server/lib/moderation'
 
 type GetRoute    = UsersContract['get']
 type UpdateRoute = UsersContract['update']

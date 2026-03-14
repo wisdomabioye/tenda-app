@@ -4,8 +4,8 @@ import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
 import { eq, or, inArray } from 'drizzle-orm'
 import { device_tokens, gig_subscriptions } from '@tenda/shared/db/schema'
-import { appEvents } from '../lib/events'
-import { sendPush } from '../lib/push'
+import { appEvents } from '@server/lib/events'
+import { sendPush } from '@server/lib/push'
 
 const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
   async function tokensFor(...userIds: string[]): Promise<string[]> {

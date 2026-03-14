@@ -1,6 +1,6 @@
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
-import { invalidateBlocklistCache } from '../lib/moderation'
+import { invalidateBlocklistCache } from '@server/lib/moderation'
 
 declare module 'fastify' {
   interface FastifyInstance {

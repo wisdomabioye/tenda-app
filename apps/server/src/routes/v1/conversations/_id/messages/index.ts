@@ -2,8 +2,8 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq, lt, desc, isNull, ne } from 'drizzle-orm'
 import { conversations, messages, gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { appEvents } from '../../../../../lib/events'
-import { moderateBody } from '../../../../../lib/moderation'
+import { appEvents } from '@server/lib/events'
+import { moderateBody } from '@server/lib/moderation'
 import type { ConversationsContract, ApiError } from '@tenda/shared'
 
 type GetMessagesRoute = ConversationsContract['messages']

@@ -10,10 +10,10 @@ import {
   ErrorCode,
   computePlatformFee,
 } from '@tenda/shared'
-import { verifyTransactionOnChain } from '../../../../lib/solana'
-import { getPlatformConfig } from '../../../../lib/platform'
-import { checkAndExpireGig } from '../../../../lib/gigs'
-import { moderateBody } from '../../../../lib/moderation'
+import { verifyTransactionOnChain } from '@server/lib/solana'
+import { getPlatformConfig } from '@server/lib/platform'
+import { checkAndExpireGig } from '@server/lib/gigs'
+import { moderateBody } from '@server/lib/moderation'
 
 import type { GigsContract, ApiError } from '@tenda/shared'
 

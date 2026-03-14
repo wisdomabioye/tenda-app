@@ -16,7 +16,7 @@ import {
   blocked_keywords,
   reports,
 } from '@tenda/shared/db/schema'
-import { getConfig } from '../config'
+import { getConfig } from '@server/config'
 
 const schema = {
   users, gigs, gig_proofs, gig_transactions, disputes, reviews, platform_config,

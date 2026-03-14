@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
-import { generateUploadSignature } from '../../../lib/cloudinary'
+import { generateUploadSignature } from '@server/lib/cloudinary'
 import type { UploadContract, ApiError } from '@tenda/shared'
 
 type SignatureRoute = UploadContract['signature']

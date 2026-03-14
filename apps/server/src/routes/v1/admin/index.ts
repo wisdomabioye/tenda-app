@@ -4,8 +4,8 @@ import type { UserRole } from '@tenda/shared'
 import { users, gigs, disputes, platform_config, blocked_keywords, reports } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT, REPORT_STATUSES } from '@tenda/shared'
 import type { ApiError, ReportStatus } from '@tenda/shared'
-import { requireRole } from '../../../lib/guards'
-import { invalidatePlatformConfigCache } from '../../../lib/platform'
+import { requireRole } from '@server/lib/guards'
+import { invalidatePlatformConfigCache } from '@server/lib/platform'
 
 const admin: FastifyPluginAsync = async (fastify) => {
   // Guard every route in this plugin scope with JWT + admin role.

@@ -3,9 +3,9 @@ import { eq, sql } from 'drizzle-orm'
 import { gigs, reviews, users } from '@tenda/shared/db/schema'
 import { isValidReviewScore, MAX_REVIEW_COMMENT_LENGTH, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
-import { isPostgresUniqueViolation } from '../../../../../lib/db'
-import { moderateBody } from '../../../../../lib/moderation'
-import { appEvents } from '../../../../../lib/events'
+import { isPostgresUniqueViolation } from '@server/lib/db'
+import { moderateBody } from '@server/lib/moderation'
+import { appEvents } from '@server/lib/events'
 
 type ReviewRoute = GigsContract['review']
 

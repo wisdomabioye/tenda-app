@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { getPlatformConfig } from '../../../lib/platform'
+import { getPlatformConfig } from '@server/lib/platform'
 import type { PlatformContract } from '@tenda/shared'
 
 type ConfigRoute = PlatformContract['config']

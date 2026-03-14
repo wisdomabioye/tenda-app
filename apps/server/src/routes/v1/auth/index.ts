@@ -3,8 +3,8 @@ import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
 import { isValidWalletAddress, ErrorCode, solanaChainId } from '@tenda/shared'
 import type { AuthContract, ApiError } from '@tenda/shared'
-import { verifySignature } from '../../../lib/solana'
-import { getConfig } from '../../../config'
+import { verifySignature } from '@server/lib/solana'
+import { getConfig } from '@server/config'
 
 type WalletRoute = AuthContract['wallet']
 type MeRoute     = AuthContract['me']

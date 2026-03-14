@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
-import { getConnection } from '../../../lib/solana'
+import { getConnection } from '@server/lib/solana'
 import type { BlockchainContract, ApiError, TransactionStatus } from '@tenda/shared'
 
 type TransactionRoute = BlockchainContract['transaction']

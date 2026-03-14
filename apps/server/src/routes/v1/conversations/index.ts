@@ -3,7 +3,7 @@ import { and, eq, or, ne, desc, inArray, isNull, sql } from 'drizzle-orm'
 import { conversations, messages, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { ConversationsContract, ApiError, Conversation } from '@tenda/shared'
-import { isPostgresUniqueViolation } from '../../../lib/db'
+import { isPostgresUniqueViolation } from '@server/lib/db'
 
 type ListRoute       = ConversationsContract['list']
 type FindOrCreateRoute = ConversationsContract['findOrCreate']
