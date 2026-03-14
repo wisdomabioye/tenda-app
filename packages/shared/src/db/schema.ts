@@ -266,6 +266,44 @@ export const device_tokens = pgTable('device_tokens', {
   user_idx:     index('device_tokens_user_id_idx').on(t.user_id),
 }))
 
+export const reportContentTypeEnum = pgEnum('report_content_type', ['gig', 'message', 'user', 'review'])
+export const reportReasonEnum      = pgEnum('report_reason',       ['spam', 'harassment', 'inappropriate', 'fraud', 'other'])
+export const reportStatusEnum      = pgEnum('report_status',       ['pending', 'reviewed', 'actioned', 'dismissed'])
+
+export const blocked_keywords = pgTable('blocked_keywords', {
+  id:         uuid('id').primaryKey().defaultRandom(),
+  keyword:    varchar('keyword', { length: 200 }).notNull(),
+  // added_by: audit trail — which admin added this keyword (issue: moderation #19)
+  added_by:   uuid('added_by').references(() => users.id).notNull(),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  keyword_unique: uniqueIndex('blocked_keywords_keyword_unique').on(t.keyword),
+}))
+
+export const reports = pgTable('reports', {
+  id:               uuid('id').primaryKey().defaultRandom(),
+  reporter_id:      uuid('reporter_id').references(() => users.id).notNull(),
+  // reported_user_id: derived server-side from content_type + content_id — never trusted from client
+  reported_user_id: uuid('reported_user_id').references(() => users.id).notNull(),
+  content_type:     reportContentTypeEnum('content_type').notNull(),
+  content_id:       uuid('content_id').notNull(),
+  reason:           reportReasonEnum('reason').notNull(),
+  note:             varchar('note', { length: 500 }),             // optional context from reporter
+  content_snapshot: varchar('content_snapshot', { length: 2000 }), // text at time of report for offline review
+  status:           reportStatusEnum('status').default('pending').notNull(),
+  admin_note:       varchar('admin_note', { length: 1000 }),
+  reviewed_at:      timestamp('reviewed_at', { withTimezone: true }),
+  created_at:       timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  // One report per user per piece of content — prevents spam reports and is naturally idempotent
+  reporter_content_unique: uniqueIndex('reports_reporter_content_unique').on(t.reporter_id, t.content_type, t.content_id),
+  // Admin review queue indexes
+  status_idx:              index('reports_status_idx').on(t.status),
+  content_type_status_idx: index('reports_content_type_status_idx').on(t.content_type, t.status),
+  content_id_idx:          index('reports_content_id_idx').on(t.content_id),
+  reported_user_idx:       index('reports_reported_user_id_idx').on(t.reported_user_id),
+}))
+
 export const gig_subscriptions = pgTable('gig_subscriptions', {
   id:         uuid('id').primaryKey().defaultRandom(),
   user_id:    uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),

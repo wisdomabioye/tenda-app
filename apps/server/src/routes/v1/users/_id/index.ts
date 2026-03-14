@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
 import { ErrorCode, isCloudinaryUrl, isValidLatitude, isValidLongitude } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
+import { moderateBody } from '../../../../lib/moderation'
 
 type GetRoute    = UsersContract['get']
 type UpdateRoute = UsersContract['update']
@@ -53,7 +54,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
     Params: UpdateRoute['params']
     Body: UpdateRoute['body']
     Reply: UpdateRoute['response'] | ApiError
-  }>('/', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  }>('/', { preHandler: [fastify.authenticate, moderateBody<UpdateRoute['body']>(fastify, ['bio'])] }, async (request, reply) => {
     const { id } = request.params
 
     if (id !== request.user.id) {

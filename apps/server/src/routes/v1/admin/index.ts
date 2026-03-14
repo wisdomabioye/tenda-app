@@ -1,9 +1,9 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq, isNull, desc, sql } from 'drizzle-orm'
+import { and, eq, isNull, desc, sql } from 'drizzle-orm'
 import type { UserRole } from '@tenda/shared'
-import { users, gigs, disputes, platform_config } from '@tenda/shared/db/schema'
-import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
-import type { ApiError } from '@tenda/shared'
+import { users, gigs, disputes, platform_config, blocked_keywords, reports } from '@tenda/shared/db/schema'
+import { ErrorCode, MAX_PAGINATION_LIMIT, REPORT_STATUSES } from '@tenda/shared'
+import type { ApiError, ReportStatus } from '@tenda/shared'
 import { requireRole } from '../../../lib/guards'
 import { invalidatePlatformConfigCache } from '../../../lib/platform'
 
@@ -257,6 +257,151 @@ const admin: FastifyPluginAsync = async (fastify) => {
 
     // Flush the 5-minute cache so routes pick up the new values immediately
     invalidatePlatformConfigCache()
+
+    return updated
+  })
+
+  // ── GET /v1/admin/blocked-keywords ────────────────────────────────────
+  fastify.get('/blocked-keywords', async () => {
+    return fastify.db
+      .select({ id: blocked_keywords.id, keyword: blocked_keywords.keyword, added_by: blocked_keywords.added_by, created_at: blocked_keywords.created_at })
+      .from(blocked_keywords)
+      .orderBy(blocked_keywords.created_at)
+  })
+
+  // ── POST /v1/admin/blocked-keywords ───────────────────────────────────
+  fastify.post<{
+    Body: { keyword: string }
+    Reply: { id: string; keyword: string } | ApiError
+  }>('/blocked-keywords', async (request, reply) => {
+    const { keyword } = request.body
+
+    if (!keyword || keyword.trim().length === 0) {
+      return reply.code(400).send({ statusCode: 400, error: 'Bad Request', message: 'keyword is required', code: ErrorCode.VALIDATION_ERROR })
+    }
+
+    const normalised = keyword.trim().toLowerCase()
+
+    const [inserted] = await fastify.db
+      .insert(blocked_keywords)
+      .values({ keyword: normalised, added_by: request.user.id })
+      .onConflictDoNothing()
+      .returning({ id: blocked_keywords.id, keyword: blocked_keywords.keyword })
+
+    if (!inserted) {
+      return reply.code(409).send({ statusCode: 409, error: 'Conflict', message: 'Keyword already exists', code: ErrorCode.VALIDATION_ERROR })
+    }
+
+    fastify.invalidateBlocklistCache()
+    fastify.log.info({ adminId: request.user.id, keyword: normalised }, 'Blocked keyword added')
+
+    return reply.code(201).send(inserted)
+  })
+
+  // ── DELETE /v1/admin/blocked-keywords/:id ─────────────────────────────
+  fastify.delete<{ Params: { id: string } }>(
+    '/blocked-keywords/:id',
+    async (request, reply) => {
+      const [deleted] = await fastify.db
+        .delete(blocked_keywords)
+        .where(eq(blocked_keywords.id, request.params.id))
+        .returning({ id: blocked_keywords.id })
+
+      if (!deleted) {
+        return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Keyword not found', code: ErrorCode.NOT_FOUND })
+      }
+
+      fastify.invalidateBlocklistCache()
+      fastify.log.info({ adminId: request.user.id, keywordId: request.params.id }, 'Blocked keyword removed')
+
+      return reply.code(204).send()
+    },
+  )
+
+  // ── POST /v1/admin/blocked-keywords/refresh ───────────────────────────
+  // Instant cache bust — use after bulk keyword imports or urgent additions.
+  fastify.post('/blocked-keywords/refresh', async (_request, reply) => {
+    fastify.invalidateBlocklistCache()
+    return reply.code(204).send()
+  })
+
+  // ── GET /v1/admin/reports ─────────────────────────────────────────────
+  fastify.get<{
+    Querystring: { status?: ReportStatus; content_type?: string; limit?: number; offset?: number }
+  }>('/reports', async (request) => {
+    const { status, content_type, limit = 20, offset = 0 } = request.query
+    const safeLimit  = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
+    const safeOffset = Number(offset)
+
+    if (status && !REPORT_STATUSES.includes(status)) {
+      return { data: [], total: 0, limit: safeLimit, offset: safeOffset }
+    }
+
+    const conditions = [
+      ...(status       ? [eq(reports.status,       status)]           : []),
+      ...(content_type ? [eq(reports.content_type, content_type as any)] : []),
+    ]
+    const where = conditions.length === 0 ? undefined
+                : conditions.length === 1 ? conditions[0]
+                : and(...conditions)
+
+    const [data, countResult] = await Promise.all([
+      fastify.db
+        .select({
+          id:               reports.id,
+          reporter_id:      reports.reporter_id,
+          reported_user_id: reports.reported_user_id,
+          content_type:     reports.content_type,
+          content_id:       reports.content_id,
+          reason:           reports.reason,
+          note:             reports.note,
+          content_snapshot: reports.content_snapshot,
+          status:           reports.status,
+          admin_note:       reports.admin_note,
+          reviewed_at:      reports.reviewed_at,
+          created_at:       reports.created_at,
+        })
+        .from(reports)
+        .where(where)
+        .orderBy(desc(reports.created_at))
+        .limit(safeLimit)
+        .offset(safeOffset),
+      fastify.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(reports)
+        .where(where),
+    ])
+
+    return { data, total: countResult[0].count, limit: safeLimit, offset: safeOffset }
+  })
+
+  // ── PATCH /v1/admin/reports/:id ───────────────────────────────────────
+  fastify.patch<{
+    Params: { id: string }
+    Body: { status: ReportStatus; admin_note?: string }
+    Reply: unknown | ApiError
+  }>('/reports/:id', async (request, reply) => {
+    const { status, admin_note } = request.body
+
+    if (!REPORT_STATUSES.includes(status)) {
+      return reply.code(400).send({
+        statusCode: 400, error: 'Bad Request',
+        message: `status must be one of: ${REPORT_STATUSES.join(', ')}`,
+        code: ErrorCode.VALIDATION_ERROR,
+      })
+    }
+
+    const [updated] = await fastify.db
+      .update(reports)
+      .set({ status, admin_note: admin_note ?? null, reviewed_at: new Date() })
+      .where(eq(reports.id, request.params.id))
+      .returning()
+
+    if (!updated) {
+      return reply.code(404).send({ statusCode: 404, error: 'Not Found', message: 'Report not found', code: ErrorCode.NOT_FOUND })
+    }
+
+    fastify.log.info({ adminId: request.user.id, reportId: request.params.id, newStatus: status }, 'Report reviewed')
 
     return updated
   })

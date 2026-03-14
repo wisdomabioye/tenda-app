@@ -4,6 +4,7 @@ import { gigs, reviews, users } from '@tenda/shared/db/schema'
 import { isValidReviewScore, MAX_REVIEW_COMMENT_LENGTH, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '../../../../../lib/db'
+import { moderateBody } from '../../../../../lib/moderation'
 import { appEvents } from '../../../../../lib/events'
 
 type ReviewRoute = GigsContract['review']
@@ -16,7 +17,7 @@ const reviewGig: FastifyPluginAsync = async (fastify) => {
     Reply: ReviewRoute['response'] | ApiError
   }>(
     '/',
-    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate, moderateBody<ReviewRoute['body']>(fastify, ['comment'])] },
     async (request, reply) => {
       const { id } = request.params
       const { score, comment } = request.body

@@ -13,6 +13,7 @@ import {
 import { verifyTransactionOnChain } from '../../../../lib/solana'
 import { getPlatformConfig } from '../../../../lib/platform'
 import { checkAndExpireGig } from '../../../../lib/gigs'
+import { moderateBody } from '../../../../lib/moderation'
 
 import type { GigsContract, ApiError } from '@tenda/shared'
 
@@ -76,7 +77,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     Params: UpdateRoute['params']
     Body: UpdateRoute['body']
     Reply: UpdateRoute['response'] | ApiError
-  }>('/', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+  }>('/', { preHandler: [fastify.authenticate, moderateBody<UpdateRoute['body']>(fastify, ['title', 'description'])] }, async (request, reply) => {
     const { id } = request.params
 
     const [gig] = await fastify.db.select().from(gigs).where(eq(gigs.id, id)).limit(1)

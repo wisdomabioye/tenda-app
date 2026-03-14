@@ -6,6 +6,7 @@ import { verifyTransactionOnChain } from '../../../../../lib/solana'
 import { appEvents } from '../../../../../lib/events'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '../../../../../lib/db'
+import { moderateBody } from '../../../../../lib/moderation'
 
 type DisputeRoute = GigsContract['dispute']
 
@@ -17,7 +18,7 @@ const disputeGig: FastifyPluginAsync = async (fastify) => {
     Reply: DisputeRoute['response'] | ApiError
   }>(
     '/',
-    { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
+    { config: { rateLimit: { max: 5, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate, moderateBody<DisputeRoute['body']>(fastify, ['reason'])] },
     async (request, reply) => {
       const { id } = request.params
 

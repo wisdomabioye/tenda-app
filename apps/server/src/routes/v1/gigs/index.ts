@@ -15,6 +15,7 @@ import {
 } from '@tenda/shared'
 import type { GigsContract, ApiError, GigStatus, GigCategory, CountryCode } from '@tenda/shared'
 import { batchExpireGigs } from '../../../lib/gigs'
+import { moderateBody } from '../../../lib/moderation'
 
 type ListRoute   = GigsContract['list']
 type CreateRoute = GigsContract['create']
@@ -147,7 +148,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     Reply: CreateRoute['response'] | ApiError
   }>(
     '/',
-    { preHandler: [fastify.authenticate] },
+    { preHandler: [fastify.authenticate, moderateBody<CreateRoute['body']>(fastify, ['title', 'description'])] },
     async (request, reply) => {
       const {
         title,

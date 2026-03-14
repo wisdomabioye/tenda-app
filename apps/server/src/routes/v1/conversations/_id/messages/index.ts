@@ -3,6 +3,7 @@ import { and, eq, lt, desc, isNull, ne } from 'drizzle-orm'
 import { conversations, messages, gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { appEvents } from '../../../../../lib/events'
+import { moderateBody } from '../../../../../lib/moderation'
 import type { ConversationsContract, ApiError } from '@tenda/shared'
 
 type GetMessagesRoute = ConversationsContract['messages']
@@ -113,7 +114,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
     Reply: SendMessageRoute['response'] | ApiError
   }>(
     '/',
-    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate, moderateBody<SendMessageRoute['body']>(fastify, ['content'])] },
     async (request, reply) => {
       const { id } = request.params
       const { content, gig_id } = request.body

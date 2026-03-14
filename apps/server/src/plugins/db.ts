@@ -13,12 +13,15 @@ import {
   messages,
   device_tokens,
   gig_subscriptions,
+  blocked_keywords,
+  reports,
 } from '@tenda/shared/db/schema'
 import { getConfig } from '../config'
 
 const schema = {
   users, gigs, gig_proofs, gig_transactions, disputes, reviews, platform_config,
   conversations, messages, device_tokens, gig_subscriptions,
+  blocked_keywords, reports,
 }
 
 export type AppDatabase = PostgresJsDatabase<typeof schema>
