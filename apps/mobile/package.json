@@ -11,7 +11,8 @@
     "type-check": "tsc --noEmit",
     "dev": "expo start --dev-client",
     "prebuild": "expo prebuild --clean",
-    "build:apk": "eas build -p android --profile preview",
+    "build:apk:dev": "eas build -p android --profile development",
+    "build:apk:preview": "eas build -p android --profile preview",
     "build:aab": "eas build -p android"
   },
   "dependencies": {
