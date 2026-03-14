@@ -1,5 +1,6 @@
 import nacl from 'tweetnacl'
 import { AppError } from './errors'
+import { ErrorCode } from '@tenda/shared'
 import bs58 from 'bs58'
 import { PublicKey, Connection, Transaction, Keypair } from '@solana/web3.js'
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor'
@@ -273,6 +274,50 @@ export async function buildCreateUserAccountInstruction(
     .transaction()
 
   return { transaction: await finalise(tx, user) }
+}
+
+/**
+ * Fetch the on-chain GigEscrow PDA for the given gig and assert that it was
+ * funded correctly by the expected poster with the expected payment amount.
+ *
+ * Called after ensureSignatureVerified in the publish flow to prevent a poster
+ * from reusing a create_gig_escrow signature from a different (cheaper) gig to
+ * mark an unfunded gig as open on the server.
+ *
+ * Throws:
+ *   400 ESCROW_NOT_FUNDED  — PDA account does not exist on-chain
+ *   400 ESCROW_MISMATCH    — account exists but gig_id / poster / amount is wrong
+ *   503 RPC_TIMEOUT        — RPC call timed out
+ */
+export async function verifyEscrowFunded(
+  gigId:           string,
+  posterAddress:   string,
+  paymentLamports: bigint,
+): Promise<void> {
+  const program = getProgram()
+  const pda     = escrowPda(gigId, program.programId)
+
+  let account: Awaited<ReturnType<typeof program.account.gigEscrow.fetchNullable>>
+  try {
+    account = await withRpcTimeout(program.account.gigEscrow.fetchNullable(pda))
+  } catch (err) {
+    if (err instanceof Error && err.message === 'RPC_TIMEOUT') {
+      throw new AppError(503, 'RPC_TIMEOUT', 'RPC timed out while verifying escrow')
+    }
+    throw new AppError(503, 'RPC_TIMEOUT', 'Failed to fetch escrow account')
+  }
+
+  if (!account) {
+    throw new AppError(400, ErrorCode.ESCROW_NOT_FUNDED, 'Escrow account does not exist on-chain')
+  }
+
+  const posterMismatch  = account.poster.toBase58() !== posterAddress
+  const gigIdMismatch   = account.gigId !== toChainGigId(gigId)
+  const amountMismatch  = BigInt(account.paymentAmount.toString()) !== paymentLamports
+
+  if (posterMismatch || gigIdMismatch || amountMismatch) {
+    throw new AppError(400, ErrorCode.ESCROW_MISMATCH, 'Escrow account does not match this gig')
+  }
 }
 
 /**
