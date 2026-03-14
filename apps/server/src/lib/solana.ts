@@ -4,8 +4,7 @@ import { ErrorCode } from '@tenda/shared'
 import bs58 from 'bs58'
 import { PublicKey, Connection, Transaction, Keypair } from '@solana/web3.js'
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor'
-import IDL from '@server/types/tenda_escrow.json'
-import type { TendaEscrow } from '@server/types/tenda_escrow.ts'
+import { ESCROW_IDL as IDL, discriminatorFor as _discriminatorFor, type TendaEscrow } from '@tenda/shared/idl'
 import { getConfig } from '@server/config'
 
 const ESCROW_SEED   = 'escrow'
@@ -25,9 +24,7 @@ type InstructionName =
   | 'create_user_account'
 
 function discriminatorFor(instructionName: InstructionName): Buffer {
-  const ix = IDL.instructions.find((i) => i.name === instructionName)
-  if (!ix) throw new Error(`Instruction '${instructionName}' not found in IDL`)
-  return Buffer.from(ix.discriminator)
+  return Buffer.from(_discriminatorFor(instructionName))
 }
 
 // ── Signature verification ───────────────────────────────────────────────────

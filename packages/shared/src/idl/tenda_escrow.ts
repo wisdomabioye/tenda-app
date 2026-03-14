@@ -369,6 +369,10 @@ export type TendaEscrow = {
           "type": {
             "option": "i64"
           }
+        },
+        {
+          "name": "isSeeker",
+          "type": "bool"
         }
       ]
     },
@@ -517,6 +521,10 @@ export type TendaEscrow = {
       "args": [
         {
           "name": "platformFeeBps",
+          "type": "u16"
+        },
+        {
+          "name": "seekerFeeBps",
           "type": "u16"
         },
         {
@@ -1027,156 +1035,161 @@ export type TendaEscrow = {
     },
     {
       "code": 6001,
+      "name": "seekerFeeExceedsStandardFee",
+      "msg": "Seeker fee must not exceed the standard platform fee"
+    },
+    {
+      "code": 6002,
       "name": "platformAlreadyInitialized",
       "msg": "Platform is already initialized"
     },
     {
-      "code": 6002,
+      "code": 6003,
       "name": "userAccountAlreadyExists",
       "msg": "User account already exists"
     },
     {
-      "code": 6003,
+      "code": 6004,
       "name": "alreadyReceivedAirdrop",
       "msg": "User has already received gas subsidy"
     },
     {
-      "code": 6004,
+      "code": 6005,
       "name": "airdropAmountTooHigh",
       "msg": "Airdrop amount exceeds maximum allowed"
     },
     {
-      "code": 6005,
+      "code": 6006,
       "name": "insufficientBalance",
       "msg": "Insufficient balance to withdraw"
     },
     {
-      "code": 6006,
+      "code": 6007,
       "name": "airdropStillLocked",
       "msg": "Must complete at least 1 gig to unlock airdrop"
     },
     {
-      "code": 6007,
+      "code": 6008,
       "name": "userAccountNotFound",
       "msg": "User account does not exist"
     },
     {
-      "code": 6008,
+      "code": 6009,
       "name": "paymentTooLow",
       "msg": "Payment amount below minimum"
     },
     {
-      "code": 6009,
+      "code": 6010,
       "name": "invalidDeadline",
       "msg": "Deadline must be in the future"
     },
     {
-      "code": 6010,
+      "code": 6011,
       "name": "acceptDeadlinePassed",
       "msg": "Accept deadline has passed"
     },
     {
-      "code": 6011,
+      "code": 6012,
       "name": "durationTooShort",
       "msg": "Completion duration is below minimum allowed"
     },
     {
-      "code": 6012,
+      "code": 6013,
       "name": "durationTooLong",
       "msg": "Completion duration exceeds maximum allowed"
     },
     {
-      "code": 6013,
+      "code": 6014,
       "name": "gigIdTooLong",
       "msg": "Gig ID is too long"
     },
     {
-      "code": 6014,
+      "code": 6015,
       "name": "insufficientFunds",
       "msg": "Insufficient funds for escrow deposit"
     },
     {
-      "code": 6015,
+      "code": 6016,
       "name": "invalidGigStatus",
       "msg": "Invalid gig status for this operation"
     },
     {
-      "code": 6016,
+      "code": 6017,
       "name": "notPoster",
       "msg": "Caller is not the poster"
     },
     {
-      "code": 6017,
+      "code": 6018,
       "name": "notWorker",
       "msg": "Caller is not the worker"
     },
     {
-      "code": 6018,
+      "code": 6019,
       "name": "cannotAcceptOwnGig",
       "msg": "Cannot accept own gig"
     },
     {
-      "code": 6019,
+      "code": 6020,
       "name": "gigNotOpen",
       "msg": "Gig is not open for acceptance"
     },
     {
-      "code": 6020,
+      "code": 6021,
       "name": "gigNotAccepted",
       "msg": "Gig has not been accepted yet"
     },
     {
-      "code": 6021,
+      "code": 6022,
       "name": "proofNotSubmitted",
       "msg": "Proof has not been submitted"
     },
     {
-      "code": 6022,
+      "code": 6023,
       "name": "gigNotExpired",
       "msg": "Gig has not expired yet"
     },
     {
-      "code": 6023,
+      "code": 6024,
       "name": "cannotRefundWithProof",
       "msg": "Cannot refund gig with submitted proof"
     },
     {
-      "code": 6024,
+      "code": 6025,
       "name": "submissionDeadlinePassed",
       "msg": "Submission deadline has passed"
     },
     {
-      "code": 6025,
+      "code": 6026,
       "name": "disputeReasonTooLong",
       "msg": "Dispute reason is too long"
     },
     {
-      "code": 6026,
+      "code": 6027,
       "name": "cannotDispute",
       "msg": "Cannot dispute gig in current status"
     },
     {
-      "code": 6027,
+      "code": 6028,
       "name": "notAuthorizedToDispute",
       "msg": "Caller is not authorized to dispute"
     },
     {
-      "code": 6028,
+      "code": 6029,
       "name": "gigNotDisputed",
       "msg": "Gig is not disputed"
     },
     {
-      "code": 6029,
+      "code": 6030,
       "name": "notAdmin",
       "msg": "Caller is not admin"
     },
     {
-      "code": 6030,
+      "code": 6031,
       "name": "arithmeticOverflow",
       "msg": "Arithmetic overflow"
     },
     {
-      "code": 6031,
+      "code": 6032,
       "name": "arithmeticUnderflow",
       "msg": "Arithmetic underflow"
     }
@@ -1622,6 +1635,10 @@ export type TendaEscrow = {
             "type": "u16"
           },
           {
+            "name": "seekerFeeBps",
+            "type": "u16"
+          },
+          {
             "name": "gracePeriodSeconds",
             "type": "i64"
           },
@@ -1647,7 +1664,14 @@ export type TendaEscrow = {
           {
             "name": "platformFeeBps",
             "docs": [
-              "Platform fee in basis points (e.g., 200 = 2%)"
+              "Standard platform fee in basis points (e.g., 250 = 2.5%)"
+            ],
+            "type": "u16"
+          },
+          {
+            "name": "seekerFeeBps",
+            "docs": [
+              "Reduced fee for Seeker device users in basis points (e.g., 100 = 1%)"
             ],
             "type": "u16"
           },
@@ -1724,7 +1748,7 @@ export type TendaEscrow = {
           {
             "name": "earnedSol",
             "docs": [
-              "Withdrawable earned SOL"
+              "Lifetime earnings tracker (paid directly to wallet on gig completion — not held here)"
             ],
             "type": "u64"
           },

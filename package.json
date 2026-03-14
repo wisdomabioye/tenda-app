@@ -12,7 +12,8 @@
     "dev:server": "turbo run dev --filter tenda-server",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "turbo run clean && rm -rf node_modules",
+    "sync:idl": "node scripts/sync-idl.mjs"
   },
   "devDependencies": {
     "turbo": "^2.7.5"

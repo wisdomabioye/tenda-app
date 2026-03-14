@@ -14,11 +14,16 @@
       "types": "./dist/db/schema.d.ts",
       "require": "./dist/db/schema.js",
       "default": "./dist/db/schema.js"
+    },
+    "./idl": {
+      "types": "./dist/idl/index.d.ts",
+      "require": "./dist/idl/index.js",
+      "default": "./dist/idl/index.js"
     }
   },
   "scripts": {
-    "build": "tsc",
-    "prepare": "tsc",
+    "build": "tsc && cp src/idl/tenda_escrow.json dist/idl/tenda_escrow.json",
+    "prepare": "tsc && cp src/idl/tenda_escrow.json dist/idl/tenda_escrow.json",
     "build:watch": "tsc -w",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"
