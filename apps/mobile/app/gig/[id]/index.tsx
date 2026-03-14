@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { View, ScrollView, StyleSheet, RefreshControl, Share } from 'react-native'
+import { View, ScrollView, StyleSheet, RefreshControl, Share, Pressable } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { Share2, Pencil } from 'lucide-react-native'
@@ -21,6 +21,7 @@ import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { GigCTABar, GigActionSheets } from '@/components/gig'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
+import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { ProofViewerModal } from '@/components/gig/ProofViewerModal'
 import type { ProofItem } from '@/components/gig/ProofViewerModal'
 import { useOnboardingStore } from '@/stores/onboarding.store'
@@ -65,6 +66,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
   const [balanceShortfall, setBalanceShortfall] = useState<{ balance: bigint; required: bigint } | null>(null)
+  const [reportGigOpen, setReportGigOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [isTxBuilding, setIsTxBuilding] = useState(false)
   const [pendingSignature, setPendingSignature] = useState<string | null>(null)
@@ -490,6 +492,19 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           </>
         )}
 
+        {/* Report gig — shown to non-poster users only */}
+        {userId !== gig.poster_id && (
+          <>
+            <Divider />
+            <Pressable
+              onPress={() => setReportGigOpen(true)}
+              style={({ pressed }) => [s.reportLink, pressed && { opacity: 0.6 }]}
+            >
+              <Text variant="caption" color={theme.colors.textFaint}>Report this gig</Text>
+            </Pressable>
+          </>
+        )}
+
         <Spacer size={spacing['2xl']} />
       </ScrollView>
 
@@ -539,6 +554,13 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       />
 
       <ProofViewerModal proof={selectedProof} onClose={() => setSelectedProof(null)} />
+
+      <ReportSheet
+        visible={reportGigOpen}
+        onClose={() => setReportGigOpen(false)}
+        contentType="gig"
+        contentId={gig.id}
+      />
 
       <InsufficientBalanceSheet
         visible={balanceShortfall !== null}
@@ -622,5 +644,9 @@ const s = StyleSheet.create({
   disputeBlock: {
     borderRadius: radius.md,
     padding: spacing.md,
+  },
+  reportLink: {
+    alignSelf: 'center',
+    paddingVertical: spacing.sm,
   },
 })

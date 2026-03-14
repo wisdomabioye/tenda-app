@@ -64,4 +64,7 @@ export const apiRoutes: {
     upsert: '/v1/subscriptions',
     remove: '/v1/subscriptions/:id',
   },
+  reports: {
+    create: '/v1/reports',
+  },
 }

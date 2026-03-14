@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { View, StyleSheet } from 'react-native'
-import { MessageCircle } from 'lucide-react-native'
+import { MessageCircle, Flag } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
@@ -8,6 +9,7 @@ import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
 import { IconButton } from '@/components/ui/IconButton'
 import { SeekerBadge } from '@/components/ui/SeekerBadge'
+import { ReportSheet } from '@/components/moderation/ReportSheet'
 import type { GigDetail } from '@tenda/shared'
 
 type GigUser = GigDetail['poster']
@@ -24,6 +26,7 @@ interface Props {
 export function GigPersonCard({ label, user, currentUserId, gigId, gigTitle, showMessageButton = true }: Props) {
   const { theme } = useUnistyles()
   const router = useRouter()
+  const [reportOpen, setReportOpen] = useState(false)
 
   const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Anonymous'
   const isSelf = currentUserId === user.id
@@ -57,8 +60,22 @@ export function GigPersonCard({ label, user, currentUserId, gigId, gigTitle, sho
               variant="ghost"
             />
           )}
+          {!isSelf && (
+            <IconButton
+              icon={<Flag size={18} color={theme.colors.textFaint} />}
+              onPress={() => setReportOpen(true)}
+              variant="ghost"
+            />
+          )}
         </View>
       </Card>
+
+      <ReportSheet
+        visible={reportOpen}
+        onClose={() => setReportOpen(false)}
+        contentType="user"
+        contentId={user.id}
+      />
     </>
   )
 }

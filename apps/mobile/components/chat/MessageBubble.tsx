@@ -5,12 +5,13 @@ import { Text } from '@/components/ui/Text'
 import type { LocalMessage } from '@/stores/chat.store'
 
 interface MessageBubbleProps {
-  message:  LocalMessage
-  isMine:   boolean
-  onRetry?: () => void
+  message:       LocalMessage
+  isMine:        boolean
+  onRetry?:      () => void
+  onLongPress?:  () => void
 }
 
-export function MessageBubble({ message, isMine, onRetry }: MessageBubbleProps) {
+export function MessageBubble({ message, isMine, onRetry, onLongPress }: MessageBubbleProps) {
   const { theme } = useUnistyles()
 
   const time = message.created_at
@@ -49,18 +50,13 @@ export function MessageBubble({ message, isMine, onRetry }: MessageBubbleProps) 
 
   return (
     <View style={[s.row, isMine ? s.rowMine : s.rowTheirs]}>
-      {isFailed && onRetry ? (
-        <Pressable
-          onPress={onRetry}
-          style={({ pressed }) => [bubbleStyle, pressed && s.bubblePressed]}
-        >
-          {content}
-        </Pressable>
-      ) : (
-        <View style={bubbleStyle}>
-          {content}
-        </View>
-      )}
+      <Pressable
+        onPress={isFailed && onRetry ? onRetry : undefined}
+        onLongPress={!isMine ? onLongPress : undefined}
+        style={({ pressed }) => [bubbleStyle, pressed && (isFailed || (!isMine && onLongPress)) && s.bubblePressed]}
+      >
+        {content}
+      </Pressable>
     </View>
   )
 }

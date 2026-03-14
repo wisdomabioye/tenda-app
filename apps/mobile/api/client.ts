@@ -49,6 +49,7 @@ import {
   type GigSubscription,
   type UpsertSubscriptionInput,
   type RegisterDeviceTokenInput,
+  type CreateReportInput,
 } from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
@@ -137,7 +138,7 @@ async function request<TResponse>(
   }
 }
 
-const { auth, gigs, users, upload, blockchain, platform, conversations, notifications, subscriptions } = apiRoutes
+const { auth, gigs, users, upload, blockchain, platform, conversations, notifications, subscriptions, reports } = apiRoutes
 
 export const api = {
   auth: {
@@ -255,5 +256,10 @@ export const api = {
       request<GigSubscription>('POST', subscriptions.upsert, { body }),
     remove: (params: { id: string }) =>
       request<{ ok: boolean }>('DELETE', subscriptions.remove, { params }),
+  },
+
+  reports: {
+    create: (body: CreateReportInput) =>
+      request<{ id: string }>('POST', reports.create, { body }),
   },
 }

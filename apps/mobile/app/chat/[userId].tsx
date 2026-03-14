@@ -16,6 +16,7 @@ import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { ErrorState } from '@/components/feedback'
+import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { GigContextDivider } from '@/components/chat/GigContextDivider'
 import { ChatInput } from '@/components/ui/ChatInput'
@@ -36,6 +37,7 @@ export default function ChatScreen() {
   const myId = useAuthStore((s) => s.user?.id ?? '')
   const { sendMessage, retryMessage, closeConversation, messages } = useChatStore()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [reportingMessageId, setReportingMessageId] = useState<string | null>(null)
 
   const { conversationId, otherUser, loading, initError, retry } = useConversation(userId)
   useMessagePolling(conversationId)
@@ -114,6 +116,7 @@ export default function ChatScreen() {
                 message={item}
                 isMine={item.sender_id === myId}
                 onRetry={item._status === 'failed' ? () => handleRetry(item) : undefined}
+                onLongPress={item.sender_id !== myId ? () => setReportingMessageId(item.id) : undefined}
               />
             )
           }
@@ -137,6 +140,15 @@ export default function ChatScreen() {
         )}
         <ChatInput onSend={handleSend} />
       </KeyboardAvoidingView>
+
+      {reportingMessageId !== null && (
+        <ReportSheet
+          visible
+          onClose={() => setReportingMessageId(null)}
+          contentType="message"
+          contentId={reportingMessageId}
+        />
+      )}
 
       <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Options">
         <Pressable

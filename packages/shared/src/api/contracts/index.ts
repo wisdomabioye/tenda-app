@@ -7,6 +7,7 @@ import type { PlatformContract } from './platform.contract'
 import type { ConversationsContract } from './conversations.contract'
 import type { NotificationsContract } from './notifications.contract'
 import type { SubscriptionsContract } from './subscriptions.contract'
+import type { ReportsContract } from './reports.contract'
 
 export interface ApiContract {
   auth: AuthContract
@@ -18,6 +19,7 @@ export interface ApiContract {
   conversations: ConversationsContract
   notifications: NotificationsContract
   subscriptions: SubscriptionsContract
+  reports: ReportsContract
 }
 
 export type { AuthContract } from './auth.contract'
@@ -29,3 +31,4 @@ export type { PlatformContract, PlatformConfig } from './platform.contract'
 export type { ConversationsContract } from './conversations.contract'
 export type { NotificationsContract } from './notifications.contract'
 export type { SubscriptionsContract } from './subscriptions.contract'
+export type { ReportsContract } from './reports.contract'

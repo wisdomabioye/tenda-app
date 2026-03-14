@@ -73,3 +73,4 @@ export type {
   RegisterDeviceTokenInput,
   MessagesQuery,
 } from './chat'
+export type { CreateReportInput } from './moderation'
