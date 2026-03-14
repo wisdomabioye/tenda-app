@@ -25,7 +25,7 @@ export default function UpdateProfileScreen() {
   const [bio, setBio] = useState(user?.bio ?? '')
   const [selectedCity, setSelectedCity]       = useState<string | null>(user?.city ?? null)
   const [selectedCountry, setSelectedCountry] = useState<string | null>(
-    user?.city ? (findCountryForCity(user.city) ?? null) : null,
+    user?.country ?? (user?.city ? (findCountryForCity(user.city) ?? null) : null),
   )
   const [avatarFile, setAvatarFile] = useState<PickedFile[]>([])
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar_url ?? null)

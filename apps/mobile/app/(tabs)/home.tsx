@@ -27,6 +27,7 @@ export default function HomeScreen() {
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [selectedRemote, setSelectedRemote] = useState<boolean | null>(null)
+  const [selectedCrossBorder, setSelectedCrossBorder] = useState<boolean | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const router = useRouter()
   const { theme } = useUnistyles()
@@ -35,7 +36,7 @@ export default function HomeScreen() {
 
   useGigsFeedPolling()
 
-  const hasFilters = query.trim().length > 0 || selectedCategory !== null || selectedCountry !== null || selectedCity !== null || selectedRemote !== null
+  const hasFilters = query.trim().length > 0 || selectedCategory !== null || selectedCountry !== null || selectedCity !== null || selectedRemote !== null || selectedCrossBorder !== null
 
   // Client-side text filter (GigListQuery has no search field)
   const displayedGigs = query.trim()
@@ -70,12 +71,19 @@ export default function HomeScreen() {
     fetchGigs()
   }
 
+  function handleCrossBorderChange(crossBorder: boolean | null) {
+    setSelectedCrossBorder(crossBorder)
+    setFilters({ cross_border: crossBorder ?? undefined })
+    fetchGigs()
+  }
+
   function handleClearAll() {
     setQuery('')
     setSelectedCategory(null)
     setSelectedCountry(null)
     setSelectedCity(null)
     setSelectedRemote(null)
+    setSelectedCrossBorder(null)
     resetFilters()
     fetchGigs()
   }
@@ -181,6 +189,8 @@ export default function HomeScreen() {
           onLocationChange={handleLocationChange}
           remote={selectedRemote}
           onRemoteChange={handleRemoteChange}
+          crossBorder={selectedCrossBorder}
+          onCrossBorderChange={handleCrossBorderChange}
           onClearAll={handleClearAll}
         />
       </ScreenContainer>

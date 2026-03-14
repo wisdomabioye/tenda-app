@@ -31,8 +31,10 @@ interface FilterSheetProps {
   country: string | null
   city: string | null
   onLocationChange: (country: string, city: string | null) => void
-  remote: boolean | null   // null = show all, true = remote only, false = local only
+  remote: boolean | null        // null = show all, true = remote only, false = local only
   onRemoteChange: (remote: boolean | null) => void
+  crossBorder: boolean | null   // null = show all, true = cross-border only
+  onCrossBorderChange: (v: boolean | null) => void
   onClearAll: () => void
 }
 
@@ -48,6 +50,8 @@ export function FilterSheet({
   onLocationChange,
   remote,
   onRemoteChange,
+  crossBorder,
+  onCrossBorderChange,
   onClearAll,
 }: FilterSheetProps) {
   const { theme } = useUnistyles()
@@ -78,7 +82,7 @@ export function FilterSheet({
     onCategoryChange(selectedCategory === key ? null : key)
   }
 
-  const hasFilters = query.trim().length > 0 || selectedCategory !== null || country !== null || city !== null || remote !== null
+  const hasFilters = query.trim().length > 0 || selectedCategory !== null || country !== null || city !== null || remote !== null || crossBorder !== null
 
   return (
     <Modal
@@ -152,7 +156,7 @@ export function FilterSheet({
             </View>
           </View>
 
-          {/* Remote / Local filter */}
+          {/* Remote / Local / Cross-border filter */}
           <View style={s.section}>
             <Text variant="caption" color={theme.colors.textSub} style={s.chipLabel}>
               Gig type
@@ -162,10 +166,15 @@ export function FilterSheet({
                 <Chip
                   key={String(val)}
                   label={val === null ? 'All' : val ? 'Remote' : 'Local'}
-                  selected={remote === val}
-                  onPress={() => onRemoteChange(val)}
+                  selected={remote === val && crossBorder === null}
+                  onPress={() => { onRemoteChange(val); onCrossBorderChange(null) }}
                 />
               ))}
+              <Chip
+                label="Cross-border"
+                selected={crossBorder === true}
+                onPress={() => { onCrossBorderChange(crossBorder === true ? null : true); onRemoteChange(null) }}
+              />
             </View>
           </View>
 

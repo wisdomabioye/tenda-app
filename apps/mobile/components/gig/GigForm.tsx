@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing } from '@/theme/tokens'
+import { spacing, radius } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -15,8 +15,10 @@ import { RemoteToggle } from '@/components/form/RemoteToggle'
 import { CATEGORY_META } from '@/data/mock'
 import { isValidPaymentLamports, MIN_COMPLETION_DURATION_SECONDS } from '@tenda/shared'
 import { getDeviceCountry } from '@/lib/device'
+import { useAuthStore } from '@/stores/auth.store'
+import { LOCATIONS } from '@tenda/shared'
 import type { ColorScheme } from '@/theme/tokens'
-import type { GigCategory } from '@tenda/shared'
+import type { GigCategory, CountryCode } from '@tenda/shared'
 
 const TITLE_MAX = 80
 const DESC_MAX = 1500
@@ -60,6 +62,7 @@ interface GigFormProps {
 
 export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: GigFormProps) {
   const { theme } = useUnistyles()
+  const homeCountry = useAuthStore((s) => s.user?.country ?? null)
 
   const [title, setTitle]                         = useState(initialValues?.title ?? '')
   const [description, setDescription]             = useState(initialValues?.description ?? '')
@@ -184,6 +187,20 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
             />
           )}
 
+          {!isRemote && homeCountry !== null && selectedCountry !== null && selectedCountry !== homeCountry && (
+            <>
+              <Spacer size={spacing.sm} />
+              <View style={[s.crossBorderBanner, { backgroundColor: theme.colors.primaryTint, borderColor: theme.colors.primary }]}>
+                <Text size={13} color={theme.colors.primary} weight="semibold">
+                  ↔ Cross-border posting
+                </Text>
+                <Text size={12} color={theme.colors.primary} style={s.bannerSub}>
+                  Workers in {LOCATIONS[selectedCountry as CountryCode]?.name ?? selectedCountry} receive SOL and can off-ramp via Tenda P2P.
+                </Text>
+              </View>
+            </>
+          )}
+
           {!isRemote && (
             <>
               <Spacer size={spacing.md} />
@@ -255,4 +272,12 @@ const s = StyleSheet.create({
   content:   { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
   multiline: { minHeight: 100, textAlignVertical: 'top' },
   chipGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  crossBorderBanner: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingVertical:   spacing.sm,
+    paddingHorizontal: spacing.md,
+    gap: 2,
+  },
+  bannerSub: { lineHeight: 17 },
 })

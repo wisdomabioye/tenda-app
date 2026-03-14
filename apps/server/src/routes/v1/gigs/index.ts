@@ -34,6 +34,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     const {
       country,
       remote,
+      cross_border,
       city,
       category,
       min_payment_lamports,
@@ -63,10 +64,11 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       eq(gigs.status, 'open' as GigStatus),
     ]
 
-    if (country)              conditions.push(eq(gigs.country, country))
-    if (remote === true)      conditions.push(eq(gigs.remote, true))
-    if (remote === false)     conditions.push(eq(gigs.remote, false))
-    if (city)                 conditions.push(eq(gigs.city, city))
+    if (country)                      conditions.push(eq(gigs.country, country))
+    if (String(remote) === 'true')    conditions.push(eq(gigs.remote, true))
+    if (String(remote) === 'false')   conditions.push(eq(gigs.remote, false))
+    if (String(cross_border) === 'true') conditions.push(eq(gigs.cross_border, true))
+    if (city)                         conditions.push(eq(gigs.city, city))
     if (category)             conditions.push(eq(gigs.category, category as GigCategory))
     if (min_payment_lamports !== undefined || max_payment_lamports !== undefined) {
       const minN = min_payment_lamports ?? 0

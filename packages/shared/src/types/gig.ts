@@ -187,6 +187,7 @@ export interface GigListQuery {
   // status intentionally omitted — public feed is always 'open'
   country?: string
   remote?: boolean
+  cross_border?: boolean
   city?: string
   category?: GigCategory
   min_payment_lamports?: number
