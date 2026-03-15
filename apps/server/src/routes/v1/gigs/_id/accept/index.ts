@@ -1,9 +1,10 @@
 import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
-import { gigs } from '@tenda/shared/db/schema'
+import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { ensureSignatureVerified } from '@server/lib/solana'
 import { ensureGigExists, ensureGigStatus, ensureTxUpdated } from '@server/lib/gigs'
+import { handleUniqueConflict } from '@server/lib/db'
 import { appEvents } from '@server/lib/events'
 import { AppError } from '@server/lib/errors'
 import type { GigsContract, ApiError } from '@tenda/shared'
@@ -43,21 +44,41 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
       await ensureSignatureVerified(signature, 'accept_gig')
 
       const now = new Date()
-      // Include status = 'open' in the WHERE clause to guard against TOCTOU races.
-      // If another request accepted this gig between our SELECT and this UPDATE,
-      // no row will be returned and we respond 409 instead of silently overwriting worker_id.
-      const [updated] = await fastify.db
-        .update(gigs)
-        .set({
-          worker_id:   request.user.id,
-          status:      'accepted',
-          accepted_at: now,
-          updated_at:  now,
-        })
-        .where(and(eq(gigs.id, id), eq(gigs.status, 'open')))
-        .returning()
 
-      const accepted = ensureTxUpdated(updated, 'Gig is no longer open — it may have just been accepted by another worker')
+      let txResult
+      try {
+        txResult = await fastify.db.transaction(async (tx) => {
+          // Include status = 'open' in the WHERE clause to guard against TOCTOU races.
+          // If another request accepted this gig between our SELECT and this UPDATE,
+          // no row will be returned and we respond 409 instead of silently overwriting worker_id.
+          const [updatedGig] = await tx
+            .update(gigs)
+            .set({
+              worker_id:   request.user.id,
+              status:      'accepted',
+              accepted_at: now,
+              updated_at:  now,
+            })
+            .where(and(eq(gigs.id, id), eq(gigs.status, 'open')))
+            .returning()
+
+          if (!updatedGig) return null
+
+          await tx.insert(gig_transactions).values({
+            gig_id:               id,
+            type:                 'accept_gig',
+            signature,
+            amount_lamports:      gig.payment_lamports,
+            platform_fee_lamports: 0,
+          })
+
+          return updatedGig
+        })
+      } catch (err: unknown) {
+        handleUniqueConflict(err, ErrorCode.DUPLICATE_SIGNATURE, 'This transaction signature has already been recorded')
+      }
+
+      const accepted = ensureTxUpdated(txResult, 'Gig is no longer open — it may have just been accepted by another worker')
 
       appEvents.emit('gig.accepted', {
         gigId:    accepted.id,

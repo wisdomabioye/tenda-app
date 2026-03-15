@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { device_tokens } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { NotificationsContract, ApiError } from '@tenda/shared'
@@ -48,7 +48,7 @@ const deviceToken: FastifyPluginAsync = async (fastify) => {
       if (token) {
         await fastify.db
           .delete(device_tokens)
-          .where(eq(device_tokens.token, token))
+          .where(and(eq(device_tokens.token, token), eq(device_tokens.user_id, request.user.id)))
       }
       return reply.code(200).send({ ok: true })
     },

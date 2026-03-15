@@ -49,7 +49,8 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
           request.user.wallet_address,
         )
         return { ...acceptResult, setup_transaction }
-      } catch {
+      } catch (err) {
+        if (err instanceof AppError) throw err
         throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'Failed to build accept-gig instruction')
       }
     }

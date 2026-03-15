@@ -30,13 +30,15 @@ const closeConversation: FastifyPluginAsync = async (fastify) => {
         throw new AppError(403, ErrorCode.FORBIDDEN, 'Not a participant of this conversation')
       }
 
+      const otherId = conv.user_a_id === userId ? conv.user_b_id : conv.user_a_id
+
       if (conv.status === 'closed') {
         return {
           ...conv,
           closed_at:       conv.closed_at?.toISOString() ?? null,
           last_message_at: conv.last_message_at?.toISOString() ?? null,
           created_at:      conv.created_at?.toISOString() ?? null,
-          other_user:      { id: '', first_name: null, last_name: null, avatar_url: null },
+          other_user:      { id: otherId, first_name: null, last_name: null, avatar_url: null },
           unread_count:    0,
           last_message:    null,
         }
@@ -53,7 +55,7 @@ const closeConversation: FastifyPluginAsync = async (fastify) => {
         closed_at:       updated.closed_at?.toISOString() ?? null,
         last_message_at: updated.last_message_at?.toISOString() ?? null,
         created_at:      updated.created_at?.toISOString() ?? null,
-        other_user:      { id: '', first_name: null, last_name: null, avatar_url: null },
+        other_user:      { id: otherId, first_name: null, last_name: null, avatar_url: null },
         unread_count:    0,
         last_message:    null,
       }

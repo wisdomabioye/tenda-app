@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, or } from 'drizzle-orm'
 import { exchange_offers, exchange_disputes, exchange_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, EXCHANGE_DISPUTE_REASON_MIN_LENGTH, EXCHANGE_DISPUTE_REASON_MAX_LENGTH } from '@tenda/shared'
 import { ensureSignatureVerified } from '@server/lib/solana'
@@ -74,13 +74,16 @@ const exchangeDispute: FastifyPluginAsync = async (fastify) => {
       const now = new Date()
 
       const updated = await fastify.db.transaction(async (tx) => {
-        // TOCTOU guard: only transition from accepted or paid
-        // Use the offer's current status for the guard
-        const statusGuard = offer.status as 'accepted' | 'paid'
+        // TOCTOU guard: accept both 'accepted' and 'paid' so a concurrent
+        // status transition between the outer SELECT and this UPDATE doesn't
+        // produce a spurious 409 — both statuses are valid to dispute.
         const [updatedOffer] = await tx
           .update(exchange_offers)
           .set({ status: 'disputed', updated_at: now })
-          .where(and(eq(exchange_offers.id, id), eq(exchange_offers.status, statusGuard)))
+          .where(and(
+            eq(exchange_offers.id, id),
+            or(eq(exchange_offers.status, 'accepted'), eq(exchange_offers.status, 'paid')),
+          ))
           .returning()
 
         if (!updatedOffer) return null

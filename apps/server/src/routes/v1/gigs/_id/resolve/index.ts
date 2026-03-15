@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
-import { gigs, disputes, gig_transactions } from '@tenda/shared/db/schema'
+import { gigs, disputes, gig_transactions, users } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
 import { ensureSignatureVerified } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
@@ -42,8 +42,13 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
 
       await ensureSignatureVerified(signature, 'resolve_dispute')
 
-      const config = await getPlatformConfig(fastify.db)
-      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
+      const [config, posterRow] = await Promise.all([
+        getPlatformConfig(fastify.db),
+        fastify.db.select({ is_seeker: users.is_seeker }).from(users).where(eq(users.id, gig.poster_id)).limit(1),
+      ])
+      // Mirror the on-chain fee: seeker posters pay the discounted rate.
+      const effectiveFeeBps = posterRow[0]?.is_seeker ? config.seeker_fee_bps : config.fee_bps
+      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), effectiveFeeBps)
       const resolverWalletAddress = request.user.wallet_address
       const now = new Date()
 

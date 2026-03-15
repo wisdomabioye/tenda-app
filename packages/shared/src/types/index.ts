@@ -33,6 +33,7 @@ export type {
   RefundExpiredInput,
   GigListQuery,
   UserGigsQuery,
+  UserTransactionsQuery,
 } from './gig'
 export {
   GIG_STATUS_TRANSITIONS,

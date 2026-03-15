@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, inArray } from 'drizzle-orm'
 import { gigs, users, gig_proofs, disputes, gig_transactions, reviews } from '@tenda/shared/db/schema'
 import {
   isValidPaymentLamports,
@@ -49,19 +49,19 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       country:          users.country,
     }
 
-    // Fetch poster, worker (if assigned), proofs, dispute, and reviews in parallel.
-    const [posterRows, workerRows, proofs, disputeRows, gigReviews] = await Promise.all([
-      fastify.db.select(userCols).from(users).where(eq(users.id, gig.poster_id)).limit(1),
-      gig.worker_id
-        ? fastify.db.select(userCols).from(users).where(eq(users.id, gig.worker_id)).limit(1)
-        : Promise.resolve([]),
+    const userIds = gig.worker_id ? [gig.poster_id, gig.worker_id] : [gig.poster_id]
+
+    // Fetch users (poster + worker), proofs, dispute, and reviews in parallel.
+    const [userRows, proofs, disputeRows, gigReviews] = await Promise.all([
+      fastify.db.select(userCols).from(users).where(inArray(users.id, userIds)),
       fastify.db.select().from(gig_proofs).where(eq(gig_proofs.gig_id, id)),
       fastify.db.select().from(disputes).where(eq(disputes.gig_id, id)).limit(1),
       fastify.db.select().from(reviews).where(eq(reviews.gig_id, id)),
     ])
 
-    const poster = posterRows[0]
-    const worker = workerRows[0] ?? null
+    const userMap = new Map(userRows.map((u) => [u.id, u]))
+    const poster  = userMap.get(gig.poster_id)!
+    const worker  = gig.worker_id ? (userMap.get(gig.worker_id) ?? null) : null
 
     return reply.send({ ...gig, poster, worker, proofs, dispute: disputeRows[0] ?? null, reviews: gigReviews })
   })

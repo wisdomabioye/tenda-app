@@ -31,7 +31,6 @@ const userById: FastifyPluginAsync = async (fastify) => {
         longitude:        users.longitude,
         reputation_score: users.reputation_score,
         role:             users.role,
-        status:           users.status,
         is_seeker:        users.is_seeker,
         created_at:       users.created_at,
       })

@@ -7,7 +7,7 @@ export type NewUser = InferInsertModel<typeof users>
 export type UserRole   = typeof userRoleEnum.enumValues[number]   // 'user' | 'admin'
 export type UserStatus = typeof userStatusEnum.enumValues[number] // 'active' | 'suspended'
 
-export type PublicUser = Omit<User, 'wallet_address' | 'updated_at'>
+export type PublicUser = Omit<User, 'wallet_address' | 'updated_at' | 'status'>
 
 export interface WalletAuthBody {
   wallet_address: string

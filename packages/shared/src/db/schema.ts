@@ -44,6 +44,7 @@ export const disputeWinnerEnum = pgEnum('dispute_winner', [
 
 export const gigTransactionTypeEnum = pgEnum('gig_transaction_type', [
   'create_escrow',    // poster funds escrow on publish (draft → open)
+  'accept_gig',       // worker accepts gig on-chain (open → accepted)
   'release_payment',  // payment released to worker on completion
   'cancel_refund',    // poster voluntarily cancels an open gig
   'expired_refund',   // gig expired (accept or completion deadline passed)

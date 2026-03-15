@@ -11,11 +11,10 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
   async function tokensFor(...userIds: string[]): Promise<string[]> {
     const unique = [...new Set(userIds.filter(Boolean))]
     if (unique.length === 0) return []
-    const conditions = unique.map((id) => eq(device_tokens.user_id, id))
     const rows = await fastify.db
       .select({ token: device_tokens.token })
       .from(device_tokens)
-      .where(conditions.length === 1 ? conditions[0] : or(...conditions))
+      .where(inArray(device_tokens.user_id, unique))
     return rows.map((r) => r.token)
   }
 
@@ -127,14 +126,10 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
 
         if (subscriberIds.length === 0) return
 
-        const conditions = subscriberIds.map((id) => eq(device_tokens.user_id, id))
-        const tokenRows = await fastify.db
-          .select({ token: device_tokens.token })
-          .from(device_tokens)
-          .where(conditions.length === 1 ? conditions[0] : or(...conditions))
+        const tokens = await tokensFor(...subscriberIds)
 
         const locationLabel = data.city ?? 'Remote'
-        const stale = await sendPush(tokenRows.map((r) => r.token), {
+        const stale = await sendPush(tokens, {
           title: 'New Gig Posted',
           body: `"${data.title}" in ${locationLabel}`,
           data: { screen: 'gig', gigId: data.gigId },

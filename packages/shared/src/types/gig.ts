@@ -32,6 +32,7 @@ export type DisputeWinner = 'worker' | 'poster' | 'split'
 
 export type GigTransactionType =
   | 'create_escrow'
+  | 'accept_gig'
   | 'release_payment'
   | 'cancel_refund'
   | 'expired_refund'
@@ -179,6 +180,11 @@ export interface UserTransaction {
 
 export interface UserGigsQuery {
   role?: 'poster' | 'worker'
+  limit?: number
+  offset?: number
+}
+
+export interface UserTransactionsQuery {
   limit?: number
   offset?: number
 }
