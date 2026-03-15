@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { or, eq, sql } from 'drizzle-orm'
+import { or, eq, desc, sql } from 'drizzle-orm'
 import { gigs, gig_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
@@ -44,7 +44,7 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
         .from(gig_transactions)
         .innerJoin(gigs, eq(gig_transactions.gig_id, gigs.id))
         .where(where)
-        .orderBy(gig_transactions.created_at)
+        .orderBy(desc(gig_transactions.created_at))
         .limit(safeLimit)
         .offset(safeOffset),
       fastify.db

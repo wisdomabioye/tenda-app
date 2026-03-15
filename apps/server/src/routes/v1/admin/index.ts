@@ -114,7 +114,7 @@ const admin: FastifyPluginAsync = async (fastify) => {
 
     // Prevent an admin from accidentally demoting themselves
     if (id === request.user.id && role !== 'admin') {
-      throw new AppError(400, ErrorCode.FORBIDDEN, 'Cannot demote your own account')
+      throw new AppError(403, ErrorCode.FORBIDDEN, 'Cannot demote your own account')
     }
 
     const [updated] = await fastify.db
@@ -189,11 +189,26 @@ const admin: FastifyPluginAsync = async (fastify) => {
   })
 
   // ── GET /v1/admin/blocked-keywords ────────────────────────────────────
-  fastify.get('/blocked-keywords', async () => {
-    return fastify.db
-      .select({ id: blocked_keywords.id, keyword: blocked_keywords.keyword, added_by: blocked_keywords.added_by, created_at: blocked_keywords.created_at })
-      .from(blocked_keywords)
-      .orderBy(blocked_keywords.created_at)
+  fastify.get<{
+    Querystring: { limit?: number; offset?: number }
+  }>('/blocked-keywords', async (request) => {
+    const { limit = 50, offset = 0 } = request.query
+    const safeLimit  = Math.min(Number(limit),  MAX_PAGINATION_LIMIT)
+    const safeOffset = Number(offset)
+
+    const [data, countResult] = await Promise.all([
+      fastify.db
+        .select({ id: blocked_keywords.id, keyword: blocked_keywords.keyword, added_by: blocked_keywords.added_by, created_at: blocked_keywords.created_at })
+        .from(blocked_keywords)
+        .orderBy(blocked_keywords.created_at)
+        .limit(safeLimit)
+        .offset(safeOffset),
+      fastify.db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(blocked_keywords),
+    ])
+
+    return { data, total: countResult[0].count, limit: safeLimit, offset: safeOffset }
   })
 
   // ── POST /v1/admin/blocked-keywords ───────────────────────────────────

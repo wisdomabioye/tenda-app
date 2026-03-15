@@ -60,9 +60,15 @@ const auth: FastifyPluginAsync = async (fastify) => {
       .values({ wallet_address, first_name: '', last_name: '', is_seeker, country: country ?? null })
       .onConflictDoUpdate({
         target: users.wallet_address,
-        // country is refreshed on every login from the device locale so existing
-        // users get it populated. The profile screen can override it explicitly.
-        set: { updated_at: new Date(), is_seeker, country: country ?? null },
+        // is_seeker is always re-applied so Seeker status follows the device.
+        // country is only overwritten when a non-null value is sent; omitting it
+        // (undefined) or sending null keeps the existing value so that a profile-
+        // screen override is not silently cleared on re-login.
+        set: {
+          updated_at: new Date(),
+          is_seeker,
+          ...(country ? { country } : {}),
+        },
       })
       .returning()
 

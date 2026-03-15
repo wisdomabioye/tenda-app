@@ -188,7 +188,8 @@ const gigById: FastifyPluginAsync = async (fastify) => {
 
       if (gig.status === 'open' && signature) {
         const config = await getPlatformConfig(fastify.db)
-        const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
+        const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
+        const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), effectiveFeeBps)
 
         const cancelled = await fastify.db.transaction(async (tx) => {
           // Include status = 'open' in WHERE to guard against TOCTOU races.

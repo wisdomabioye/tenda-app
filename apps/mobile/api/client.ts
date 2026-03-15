@@ -55,6 +55,7 @@ import {
   type ExchangeOfferDetail,
   type ExchangeOffer,
   type ExchangeListQuery,
+  type UserTransactionsQuery,
   type UserExchangeOffersQuery,
   type UserExchangeAccount,
   type CreateUserExchangeAccountInput,
@@ -216,8 +217,11 @@ export const api = {
         params,
         query: query as Record<string, unknown>,
       }),
-    transactions: (params: { id: string }) =>
-      request<UserTransaction[]>('GET', users.transactions, { params }),
+    transactions: (params: { id: string }, query?: UserTransactionsQuery) =>
+      request<PaginatedResponse<UserTransaction>>('GET', users.transactions, {
+        params,
+        query: query as Record<string, unknown>,
+      }),
     exchangeOffers: (params: { id: string }, query?: UserExchangeOffersQuery) =>
       request<PaginatedResponse<ExchangeOfferSummary>>('GET', users.exchangeOffers, {
         params,

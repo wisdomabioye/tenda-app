@@ -27,6 +27,7 @@ function TxRow({ tx }: { tx: UserTransaction }) {
 
   const TYPE_LABEL: Record<string, string> = {
     create_escrow:    'Escrow funded',
+    accept_gig:       'Gig accepted',
     release_payment:  'Payment received',
     cancel_refund:    'Refund received',
     expired_refund:   'Refund (expired)',
@@ -75,7 +76,9 @@ export default function WalletScreen() {
         walletAddress
           ? getBalance(new PublicKey(walletAddress)).then((b) => setBalanceLamports(b))
           : Promise.resolve(),
-        user?.id ? api.users.transactions({ id: user.id }) : Promise.resolve([]),
+        user?.id
+          ? api.users.transactions({ id: user.id }).then((r) => r.data)
+          : Promise.resolve([]),
       ])
       const allTx = (txResult as UserTransaction[])
         .slice()
@@ -93,7 +96,7 @@ export default function WalletScreen() {
 
   const earnedLamports = transactions
     .filter((tx) => tx.gig.worker_id === user?.id && (tx.type === 'release_payment' || tx.type === 'dispute_resolved'))
-    .reduce((sum, tx) => sum + tx.amount_lamports, 0)
+    .reduce((sum, tx) => sum + tx.amount_lamports - tx.platform_fee_lamports, 0)
 
   const spentLamports = transactions
     .filter((tx) => tx.gig.poster_id === user?.id && tx.type === 'create_escrow')

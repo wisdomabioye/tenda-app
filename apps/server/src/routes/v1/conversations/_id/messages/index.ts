@@ -44,7 +44,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         const [cursorMsg] = await fastify.db
           .select({ created_at: messages.created_at })
           .from(messages)
-          .where(eq(messages.id, before_id))
+          .where(and(eq(messages.id, before_id), eq(messages.conversation_id, id)))
           .limit(1)
         if (cursorMsg?.created_at) cursorCreatedAt = cursorMsg.created_at
       }

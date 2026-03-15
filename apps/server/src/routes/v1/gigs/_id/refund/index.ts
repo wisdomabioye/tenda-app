@@ -43,7 +43,8 @@ const refundExpired: FastifyPluginAsync = async (fastify) => {
 
       await ensureSignatureVerified(signature, 'refund_expired')
 
-      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
+      const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
+      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), effectiveFeeBps)
 
       try {
         await fastify.db.insert(gig_transactions).values({

@@ -83,7 +83,8 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
         await ensureSignatureVerified(signature, 'cancel_gig')
 
         const config = await getPlatformConfig(fastify.db)
-        const platform_fee_lamports = computePlatformFee(BigInt(offer.lamports_amount), config.fee_bps)
+        const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
+        const platform_fee_lamports = computePlatformFee(BigInt(offer.lamports_amount), effectiveFeeBps)
 
         let txResult
         try {
