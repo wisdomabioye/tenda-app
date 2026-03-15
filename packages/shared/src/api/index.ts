@@ -14,4 +14,8 @@ export type {
   ConversationsContract,
   NotificationsContract,
   SubscriptionsContract,
+  ReportsContract,
+  ExchangeContract,
+  ExchangeAccountsContract,
+  ExchangeBlockchainContract,
 } from './contracts'

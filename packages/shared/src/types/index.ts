@@ -74,3 +74,37 @@ export type {
   MessagesQuery,
 } from './chat'
 export type { CreateReportInput } from './moderation'
+export type {
+  ExchangeOffer,
+  UserExchangeAccount,
+  ExchangeProof,
+  ExchangeTransaction,
+  ExchangeDispute,
+  ExchangeOfferStatus,
+  ExchangeTransactionType,
+  ExchangeDisputeWinner,
+  ExchangeOfferDetail,
+  ExchangeOfferSummary,
+  CreateUserExchangeAccountInput,
+  CreateExchangeOfferInput,
+  ExchangePublishInput,
+  ExchangeAcceptInput,
+  ExchangePaidInput,
+  ExchangeConfirmInput,
+  ExchangeDisputeInput,
+  ExchangeResolveInput,
+  ExchangeCancelInput,
+  ExchangeListQuery,
+  UserExchangeOffersQuery,
+  ExchangeEscrowRequest,
+  ExchangeAcceptRequest,
+  ExchangeSubmitProofRequest,
+  ExchangeConfirmRequest,
+  ExchangeCancelRequest,
+  ExchangeDisputeRequest,
+  ExchangeRefundRequest,
+} from './exchange'
+export {
+  EXCHANGE_STATUS_TRANSITIONS,
+  canExchangeTransition,
+} from './exchange'

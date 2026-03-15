@@ -121,7 +121,8 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         const subscriberIds = [...new Set(
           subs
             .filter((s) => s.category === data.category || s.category === '*')
-            .map((s) => s.user_id),
+            .map((s) => s.user_id)
+            .filter((uid) => uid !== data.posterId),
         )]
 
         if (subscriberIds.length === 0) return
@@ -187,6 +188,98 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
       await removeStaleTokens(stale)
     } catch (err) {
       fastify.log.error({ err }, '[notifications] message.sent listener failed')
+    }
+  })
+
+  // ── Exchange accepted → notify seller ────────────────────────────────────
+  appEvents.on('exchange.accepted', async (data) => {
+    try {
+      const tokens = await tokensFor(data.sellerId)
+      const stale = await sendPush(tokens, {
+        title: 'Offer Accepted',
+        body: `Your ${data.currency} exchange offer was accepted by a buyer.`,
+        data: { screen: 'exchange', offerId: data.offerId },
+      }, fastify.log)
+      await removeStaleTokens(stale)
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] exchange.accepted listener failed')
+    }
+  })
+
+  // ── Exchange paid → notify seller ────────────────────────────────────────
+  appEvents.on('exchange.paid', async (data) => {
+    try {
+      const tokens = await tokensFor(data.sellerId)
+      const stale = await sendPush(tokens, {
+        title: 'Payment Marked',
+        body: `The buyer marked payment for your ${data.fiatAmount} ${data.currency} offer. Review and confirm.`,
+        data: { screen: 'exchange', offerId: data.offerId },
+      }, fastify.log)
+      await removeStaleTokens(stale)
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] exchange.paid listener failed')
+    }
+  })
+
+  // ── Exchange confirmed → notify buyer ────────────────────────────────────
+  appEvents.on('exchange.confirmed', async (data) => {
+    try {
+      const tokens = await tokensFor(data.buyerId)
+      const stale = await sendPush(tokens, {
+        title: 'Payment Confirmed',
+        body: `The seller confirmed your ${data.fiatAmount} ${data.currency} payment. SOL released.`,
+        data: { screen: 'exchange', offerId: data.offerId },
+      }, fastify.log)
+      await removeStaleTokens(stale)
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] exchange.confirmed listener failed')
+    }
+  })
+
+  // ── Exchange disputed → notify the other party ───────────────────────────
+  appEvents.on('exchange.disputed', async (data) => {
+    try {
+      const recipientId = data.raisedById !== data.sellerId ? data.sellerId : data.buyerId
+      const tokens = await tokensFor(recipientId)
+      const stale = await sendPush(tokens, {
+        title: 'Dispute Raised',
+        body: `A dispute was raised on your ${data.currency} exchange offer. An admin will review.`,
+        data: { screen: 'exchange', offerId: data.offerId },
+      }, fastify.log)
+      await removeStaleTokens(stale)
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] exchange.disputed listener failed')
+    }
+  })
+
+  // ── Exchange resolved → notify both seller and buyer ─────────────────────
+  appEvents.on('exchange.resolved', async (data) => {
+    try {
+      const tokens = await tokensFor(data.sellerId, data.buyerId)
+      const stale = await sendPush(tokens, {
+        title: 'Dispute Resolved',
+        body: `Your ${data.currency} exchange dispute has been resolved.`,
+        data: { screen: 'exchange', offerId: data.offerId },
+      }, fastify.log)
+      await removeStaleTokens(stale)
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] exchange.resolved listener failed')
+    }
+  })
+
+  // ── Exchange cancelled → notify buyer if buyerId is not null ─────────────
+  appEvents.on('exchange.cancelled', async (data) => {
+    if (!data.buyerId) return
+    try {
+      const tokens = await tokensFor(data.buyerId)
+      const stale = await sendPush(tokens, {
+        title: 'Offer Cancelled',
+        body: `The ${data.currency} exchange offer you accepted was cancelled.`,
+        data: { screen: 'exchange', offerId: data.offerId },
+      }, fastify.log)
+      await removeStaleTokens(stale)
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] exchange.cancelled listener failed')
     }
   })
 }

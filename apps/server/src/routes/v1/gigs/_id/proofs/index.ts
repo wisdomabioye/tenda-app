@@ -1,10 +1,11 @@
 import { FastifyPluginAsync } from 'fastify'
 import { and, count, eq } from 'drizzle-orm'
 import { gig_proofs } from '@tenda/shared/db/schema'
-import { isCloudinaryUrl, ErrorCode } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
 import { ensureGigExists, ensureGigStatus, ensureGigOwnership } from '@server/lib/gigs'
 import { AppError } from '@server/lib/errors'
+import { validateProofs } from '@server/lib/proofs'
 import { appEvents } from '@server/lib/events'
 
 type AddProofsRoute = GigsContract['addProofs']
@@ -44,18 +45,7 @@ const addProofs: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Cannot exceed ${MAX_TOTAL_PROOFS} total proofs per gig (currently have ${existingCount})`)
       }
 
-      const VALID_PROOF_TYPES = ['image', 'video', 'document'] as const
-      const invalidType = proofs.find(
-        ({ type }) => !VALID_PROOF_TYPES.includes(type as typeof VALID_PROOF_TYPES[number])
-      )
-      if (invalidType) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Proof type must be "image", "video", or "document"')
-      }
-
-      const invalidProof = proofs.find(({ url }) => !isCloudinaryUrl(url))
-      if (invalidProof) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'All proof URLs must be hosted on Cloudinary (https://res.cloudinary.com/)')
-      }
+      validateProofs(proofs, request.user.id)
 
       const inserted = await fastify.db
         .insert(gig_proofs)

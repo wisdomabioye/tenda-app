@@ -1,11 +1,12 @@
 import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs, gig_proofs } from '@tenda/shared/db/schema'
-import { computeCompletionDeadline, isCloudinaryUrl, ErrorCode } from '@tenda/shared'
+import { computeCompletionDeadline, ErrorCode } from '@tenda/shared'
 import { ensureSignatureVerified } from '@server/lib/solana'
 import { ensureGigExists, ensureGigStatus, ensureGigOwnership, ensureTxUpdated } from '@server/lib/gigs'
 import { appEvents } from '@server/lib/events'
 import { AppError } from '@server/lib/errors'
+import { validateProofs } from '@server/lib/proofs'
 import { getPlatformConfig } from '@server/lib/platform'
 import type { GigsContract, ApiError } from '@tenda/shared'
 
@@ -62,30 +63,7 @@ const submitGig: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'At least one proof is required')
       }
 
-      if (proofs.length > 10) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Too many proofs — maximum 10 allowed per submission')
-      }
-
-      // Validate all proof types are one of the accepted enum values
-      const VALID_PROOF_TYPES = ['image', 'video', 'document'] as const
-      const invalidType = proofs.find(
-        ({ type }) => !VALID_PROOF_TYPES.includes(type as typeof VALID_PROOF_TYPES[number])
-      )
-      if (invalidType) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Proof type must be "image", "video", or "document"')
-      }
-
-      // Validate all proof URLs are from Cloudinary CDN and scoped to this user's folder
-      const invalidProof = proofs.find(({ url }) => !isCloudinaryUrl(url))
-      if (invalidProof) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'All proof URLs must be hosted on Cloudinary (https://res.cloudinary.com/)')
-      }
-
-      const expectedPathSegment = `/tenda/proofs/${request.user.id}/`
-      const unownedProof = proofs.find(({ url }) => !new URL(url).pathname.includes(expectedPathSegment))
-      if (unownedProof) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Proof URL was not uploaded by the submitting user')
-      }
+      validateProofs(proofs, request.user.id, 10)
 
       await ensureSignatureVerified(signature, 'submit_proof')
 

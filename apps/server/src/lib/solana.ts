@@ -100,7 +100,7 @@ async function finalise(tx: Transaction, feePayer: PublicKey): Promise<string> {
 export async function buildCreateGigEscrowInstruction(
   posterAddress:             string,
   gigId:                     string,
-  paymentLamports:           number,
+  paymentLamports:           bigint,
   completionDurationSeconds: number,
   acceptDeadline:            Date | null,
   isSeeker:                  boolean,
@@ -114,7 +114,7 @@ export async function buildCreateGigEscrowInstruction(
     : null
 
   const tx = await program.methods
-    .createGigEscrow(toChainGigId(gigId), new BN(paymentLamports), new BN(completionDurationSeconds), deadlineUnix, isSeeker)
+    .createGigEscrow(toChainGigId(gigId), new BN(paymentLamports.toString()), new BN(completionDurationSeconds), deadlineUnix, isSeeker)
     // gigEscrow seed includes gig_id (instruction arg) — Anchor's resolver silently
     // fails to derive it in practice; provide explicitly like all other builders.
     // platform_state (const seeds) is auto-resolved by Anchor.
@@ -341,7 +341,20 @@ export async function userAccountExists(walletAddress: string): Promise<boolean>
 // retries the same request after a network timeout. Entries expire after 60 s.
 // Keys are signatures; values are the verification result + expiry timestamp.
 const _sigCache = new Map<string, { result: { ok: boolean; error?: string }; expiresAt: number }>()
-const SIG_CACHE_TTL_MS = 60_000
+const SIG_CACHE_TTL_MS    = 60_000
+const SIG_CACHE_EVICT_MS  = 5 * 60_000
+
+// Self-rescheduling eviction — next sweep only starts after the current one
+// finishes, avoiding overlap. unref() so the timer does not prevent the process
+// from exiting during tests or graceful shutdown.
+function evictSigCache() {
+  const now = Date.now()
+  for (const [key, entry] of _sigCache) {
+    if (entry.expiresAt <= now) _sigCache.delete(key)
+  }
+  setTimeout(evictSigCache, SIG_CACHE_EVICT_MS).unref()
+}
+setTimeout(evictSigCache, SIG_CACHE_EVICT_MS).unref()
 
 // ── On-chain verification ────────────────────────────────────────────────────
 /**

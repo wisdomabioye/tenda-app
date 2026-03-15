@@ -151,7 +151,10 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
         .where(and(eq(conversations.user_a_id, userA), eq(conversations.user_b_id, userB)))
         .limit(1)
 
+      let isNew = false
+
       if (!existing) {
+        isNew = true
         try {
           ;[existing] = await fastify.db
             .insert(conversations)
@@ -165,6 +168,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
               .from(conversations)
               .where(and(eq(conversations.user_a_id, userA), eq(conversations.user_b_id, userB)))
               .limit(1)
+            isNew = false
           } else {
             throw err
           }
@@ -178,6 +182,32 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
           .returning()
       }
 
+      // New conversations have no messages yet — skip the DB round-trips.
+      // Existing and reopened conversations may have history and unread messages.
+      let unread_count = 0
+      let last_message: string | null = null
+
+      if (!isNew) {
+        const [unreadResult, lastMsgResult] = await Promise.all([
+          fastify.db
+            .select({ count: sql<number>`count(*)::int` })
+            .from(messages)
+            .where(and(
+              eq(messages.conversation_id, existing.id),
+              ne(messages.sender_id, userId),
+              isNull(messages.read_at),
+            )),
+          fastify.db
+            .selectDistinctOn([messages.conversation_id], { content: messages.content })
+            .from(messages)
+            .where(eq(messages.conversation_id, existing.id))
+            .orderBy(messages.conversation_id, desc(messages.created_at))
+            .limit(1),
+        ])
+        unread_count = unreadResult[0]?.count ?? 0
+        last_message = lastMsgResult[0]?.content ?? null
+      }
+
       return {
         ...existing,
         closed_at:       existing.closed_at?.toISOString() ?? null,
@@ -189,8 +219,8 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
           last_name:  targetUser.last_name,
           avatar_url: targetUser.avatar_url,
         },
-        unread_count: 0,
-        last_message: null,
+        unread_count,
+        last_message,
       }
     },
   )

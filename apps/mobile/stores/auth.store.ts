@@ -11,6 +11,7 @@ import {
 } from '@/lib/secure-store'
 import { api, ApiClientError } from '@/api/client'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
+import { usePeerExchangeStore } from '@/stores/p2p-exchange.store'
 
 interface WalletSessionInfo {
   mwaAuthToken: string
@@ -58,6 +59,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    usePeerExchangeStore.getState().clear()
     await usePendingSyncStore.getState().clear()
     await clearAuthStorage()
     set({ user: null, jwt: null, mwaAuthToken: null, walletAddress: null, isAuthenticated: false })

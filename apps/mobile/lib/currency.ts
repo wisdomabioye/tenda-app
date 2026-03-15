@@ -29,6 +29,14 @@ export function formatSolDisplay(sol: number): string {
   return `${sol.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} SOL`
 }
 
+/** Format a payment window in seconds as a human-readable string, e.g. "24h" or "30m". */
+export function formatPaymentWindow(seconds: number): string {
+  const h = seconds / 3600
+  if (h < 1) return `${Math.round(seconds / 60)}m`
+  if (h === Math.floor(h)) return `${h}h`
+  return `${h.toFixed(1)}h`
+}
+
 /** Format a fiat amount in the given currency, e.g. formatFiat(85000, 'NGN') → "₦85,000" */
 export function formatFiat(amount: number, currency: SupportedCurrency): string {
   const { locale } = CURRENCY_META[currency]

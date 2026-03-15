@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { and, eq, lt, desc, isNull, ne } from 'drizzle-orm'
+import { and, eq, lt, lte, or, desc, isNull, ne } from 'drizzle-orm'
 import { conversations, messages, gigs } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { appEvents } from '@server/lib/events'
@@ -39,15 +39,24 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
 
       const pageSize = Math.min(Number(limit) || MESSAGES_PAGE_SIZE, 100)
 
-      let cursor: Date | undefined
+      let cursorCreatedAt: Date | undefined
       if (before_id) {
         const [cursorMsg] = await fastify.db
           .select({ created_at: messages.created_at })
           .from(messages)
           .where(eq(messages.id, before_id))
           .limit(1)
-        if (cursorMsg?.created_at) cursor = cursorMsg.created_at
+        if (cursorMsg?.created_at) cursorCreatedAt = cursorMsg.created_at
       }
+
+      // Compound cursor: (created_at < X) OR (created_at = X AND id < before_id)
+      // Prevents gaps when two messages share the same timestamp.
+      const cursorCondition = cursorCreatedAt
+        ? or(
+            lt(messages.created_at,  cursorCreatedAt),
+            and(lte(messages.created_at, cursorCreatedAt), lt(messages.id, before_id!)),
+          )!
+        : undefined
 
       const rows = await fastify.db
         .select({
@@ -63,8 +72,8 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         .from(messages)
         .leftJoin(gigs, eq(messages.gig_id, gigs.id))
         .where(
-          cursor
-            ? and(eq(messages.conversation_id, id), lt(messages.created_at, cursor))
+          cursorCondition
+            ? and(eq(messages.conversation_id, id), cursorCondition)
             : eq(messages.conversation_id, id)
         )
         .orderBy(desc(messages.created_at))

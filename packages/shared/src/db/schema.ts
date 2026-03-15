@@ -12,6 +12,7 @@ import {
   index,
   uniqueIndex,
 } from 'drizzle-orm/pg-core'
+import { sql } from 'drizzle-orm'
 
 // ── Enums ─────────────────────────────────────────────────────────────
 
@@ -249,9 +250,12 @@ export const messages = pgTable('messages', {
   read_at:    timestamp('read_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => ({
-  conversation_idx: index('messages_conversation_id_idx').on(t.conversation_id),
-  sender_idx:       index('messages_sender_id_idx').on(t.sender_id),
-  created_at_idx:   index('messages_created_at_idx').on(t.created_at),
+  // Composite index covers the paginated history query:
+  // WHERE conversation_id = X ORDER BY created_at DESC [LIMIT n]
+  conversation_created_at_idx: index('messages_conversation_created_at_idx').on(t.conversation_id, t.created_at),
+  sender_idx:                  index('messages_sender_id_idx').on(t.sender_id),
+  // Partial index for unread-count queries and mark-as-read UPDATE
+  unread_idx: index('messages_unread_idx').on(t.conversation_id, t.sender_id).where(sql`read_at IS NULL`),
 }))
 
 export const device_tokens = pgTable('device_tokens', {
@@ -314,4 +318,125 @@ export const gig_subscriptions = pgTable('gig_subscriptions', {
 }, (t) => ({
   user_city_cat_unique: uniqueIndex('gig_subscriptions_unique').on(t.user_id, t.city, t.category),
   user_idx:             index('gig_subscriptions_user_id_idx').on(t.user_id),
+  // Covers the fan-out query: WHERE city IN (data.city, '*') — filters by city first,
+  // then category, avoiding a full-table scan as subscriber count grows.
+  city_category_idx:    index('gig_subscriptions_city_category_idx').on(t.city, t.category),
+}))
+
+// ── P2P Exchange ──────────────────────────────────────────────────────────────
+
+export const exchangeOfferStatusEnum = pgEnum('exchange_offer_status', [
+  'draft',
+  'open',
+  'accepted',
+  'paid',
+  'completed',
+  'disputed',
+  'resolved',
+  'cancelled',
+  'expired',
+])
+
+export const exchangeTransactionTypeEnum = pgEnum('exchange_transaction_type', [
+  'create_escrow',
+  'accept',
+  'mark_paid',       // buyer submits fiat-payment proof on-chain (submit_proof instruction)
+  'release_payment',
+  'cancel_refund',
+  'expired_refund',
+  'dispute_raised',
+  'dispute_resolved',
+])
+
+export const exchangeDisputeWinnerEnum = pgEnum('exchange_dispute_winner', [
+  'seller',
+  'buyer',
+  'split',
+])
+
+export const exchange_offers = pgTable('exchange_offers', {
+  id:                     uuid('id').primaryKey().defaultRandom(),
+  seller_id:              uuid('seller_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  buyer_id:               uuid('buyer_id').references(() => users.id),
+  lamports_amount:        bigint('lamports_amount', { mode: 'bigint' }).notNull(),  // SOL amount in lamports
+  fiat_amount:            integer('fiat_amount').notNull(),                          // major currency units (e.g. whole NGN)
+  fiat_currency:          varchar('fiat_currency', { length: 3 }).notNull(),        // ISO 4217
+  rate:                   doublePrecision('rate').notNull(),                         // fiat per SOL at creation (informational)
+  payment_window_seconds: integer('payment_window_seconds').notNull().default(86400), // buyer must pay within N seconds of accepting
+  payment_account_ids:    uuid('payment_account_ids').array().notNull().default([]), // seller's chosen user_exchange_accounts
+  status:                 exchangeOfferStatusEnum('status').default('draft').notNull(),
+  accept_deadline:        timestamp('accept_deadline', { withTimezone: true }),     // null = indefinitely open
+  accepted_at:            timestamp('accepted_at', { withTimezone: true }),
+  paid_at:                timestamp('paid_at', { withTimezone: true }),
+  completed_at:           timestamp('completed_at', { withTimezone: true }),
+  escrow_address:         text('escrow_address'),
+  created_at:             timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at:             timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  seller_idx:           index('exchange_offers_seller_id_idx').on(t.seller_id),
+  buyer_idx:            index('exchange_offers_buyer_id_idx').on(t.buyer_id),
+  status_idx:           index('exchange_offers_status_idx').on(t.status),
+  currency_idx:         index('exchange_offers_currency_idx').on(t.fiat_currency),
+  status_curr_idx:      index('exchange_offers_status_currency_idx').on(t.status, t.fiat_currency),
+  // Covers min_lamports / max_lamports range filters on the market list endpoint
+  status_lamports_idx:  index('exchange_offers_status_lamports_idx').on(t.status, t.lamports_amount),
+  deadline_idx:         index('exchange_offers_accept_deadline_idx').on(t.accept_deadline),
+  escrow_unique:        uniqueIndex('exchange_offers_escrow_unique').on(t.escrow_address),
+}))
+
+// Seller's reusable payment accounts. Selected per-offer via payment_account_ids.
+export const user_exchange_accounts = pgTable('user_exchange_accounts', {
+  id:              uuid('id').primaryKey().defaultRandom(),
+  user_id:         uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  method:          varchar('method', { length: 100 }).notNull(),           // free text: "Bank Transfer", "Mobile Money", etc.
+  account_name:    varchar('account_name', { length: 100 }).notNull(),
+  account_number:  varchar('account_number', { length: 100 }).notNull(),
+  bank_name:       varchar('bank_name', { length: 100 }),
+  additional_info: text('additional_info'),
+  is_active:       boolean('is_active').notNull().default(true),
+  created_at:      timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  user_idx:       index('user_exchange_accounts_user_id_idx').on(t.user_id),
+  active_idx:     index('user_exchange_accounts_active_idx').on(t.user_id, t.is_active),
+  unique_account: uniqueIndex('user_exchange_accounts_unique_method_number').on(t.user_id, t.method, t.account_number),
+}))
+
+// Fiat payment proof uploaded by buyer when marking offer as paid.
+export const exchange_proofs = pgTable('exchange_proofs', {
+  id:             uuid('id').primaryKey().defaultRandom(),
+  offer_id:       uuid('offer_id').references(() => exchange_offers.id, { onDelete: 'cascade' }).notNull(),
+  uploaded_by_id: uuid('uploaded_by_id').references(() => users.id).notNull(),
+  url:            text('url').notNull(),
+  type:           proofTypeEnum('type').default('image').notNull(),
+  created_at:     timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  offer_idx: index('exchange_proofs_offer_id_idx').on(t.offer_id),
+}))
+
+export const exchange_transactions = pgTable('exchange_transactions', {
+  id:                    uuid('id').primaryKey().defaultRandom(),
+  offer_id:              uuid('offer_id').references(() => exchange_offers.id, { onDelete: 'cascade' }).notNull(),
+  type:                  exchangeTransactionTypeEnum('type').notNull(),
+  signature:             text('signature').notNull(),
+  amount_lamports:       bigint('amount_lamports', { mode: 'bigint' }).notNull(),
+  platform_fee_lamports: bigint('platform_fee_lamports', { mode: 'bigint' }).notNull().default(0n),
+  created_at:            timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  offer_idx:        index('exchange_transactions_offer_id_idx').on(t.offer_id),
+  signature_unique: uniqueIndex('exchange_transactions_signature_unique').on(t.signature),
+}))
+
+export const exchange_disputes = pgTable('exchange_disputes', {
+  id:                      uuid('id').primaryKey().defaultRandom(),
+  offer_id:                uuid('offer_id').references(() => exchange_offers.id, { onDelete: 'cascade' }).notNull(),
+  opened_by_id:            uuid('opened_by_id').references(() => users.id).notNull(),
+  reason:                  varchar('reason', { length: 2000 }).notNull(),
+  winner:                  exchangeDisputeWinnerEnum('winner'),
+  resolver_wallet_address: text('resolver_wallet_address'),
+  admin_note:              text('admin_note'),
+  raised_at:               timestamp('raised_at', { withTimezone: true }).defaultNow().notNull(),
+  resolved_at:             timestamp('resolved_at', { withTimezone: true }),
+}, (t) => ({
+  offer_unique: uniqueIndex('exchange_disputes_offer_id_unique').on(t.offer_id),
+  resolved_idx: index('exchange_disputes_resolved_at_idx').on(t.resolved_at),
 }))

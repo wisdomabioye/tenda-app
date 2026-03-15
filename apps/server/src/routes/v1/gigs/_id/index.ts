@@ -11,7 +11,7 @@ import {
   computePlatformFee,
   isCrossBorder,
 } from '@tenda/shared'
-import { verifyTransactionOnChain } from '@server/lib/solana'
+import { ensureSignatureVerified } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
 import { ensureGigExists, ensureGigStatus, ensureGigOwnership, ensureTxUpdated, checkAndExpireGig } from '@server/lib/gigs'
 import { AppError } from '@server/lib/errors'
@@ -183,10 +183,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
 
       // For open gigs: verify the refund transaction on-chain before recording
       if (gig.status === 'open' && signature) {
-        const verification = await verifyTransactionOnChain(signature)
-        if (!verification.ok) {
-          throw new AppError(400, verification.error ?? 'SIGNATURE_NOT_FINALIZED', 'Transaction not confirmed on-chain')
-        }
+        await ensureSignatureVerified(signature, 'cancel_gig')
       }
 
       if (gig.status === 'open' && signature) {

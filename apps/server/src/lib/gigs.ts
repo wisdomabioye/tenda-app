@@ -72,9 +72,9 @@ export async function checkAndExpireGig(
     const [updated] = await db
       .update(gigs)
       .set({ status: 'expired', updated_at: now })
-      .where(eq(gigs.id, gig.id))
+      .where(and(eq(gigs.id, gig.id), eq(gigs.status, 'open')))
       .returning()
-    return updated
+    return updated ?? gig
   }
 
   // Accepted gig whose completion deadline + grace period have both passed.
@@ -90,9 +90,9 @@ export async function checkAndExpireGig(
       const [updated] = await db
         .update(gigs)
         .set({ status: 'expired', updated_at: now })
-        .where(eq(gigs.id, gig.id))
+        .where(and(eq(gigs.id, gig.id), eq(gigs.status, 'accepted')))
         .returning()
-      return updated
+      return updated ?? gig
     }
   }
 

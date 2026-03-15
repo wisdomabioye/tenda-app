@@ -51,6 +51,28 @@ import {
   type UpsertSubscriptionInput,
   type RegisterDeviceTokenInput,
   type CreateReportInput,
+  type ExchangeOfferSummary,
+  type ExchangeOfferDetail,
+  type ExchangeOffer,
+  type ExchangeListQuery,
+  type UserExchangeOffersQuery,
+  type UserExchangeAccount,
+  type CreateUserExchangeAccountInput,
+  type CreateExchangeOfferInput,
+  type ExchangeAcceptInput,
+  type ExchangePaidInput,
+  type ExchangePublishInput,
+  type ExchangeConfirmInput,
+  type ExchangeDisputeInput,
+  type ExchangeResolveInput,
+  type ExchangeCancelInput,
+  type ExchangeEscrowRequest,
+  type ExchangeAcceptRequest,
+  type ExchangeSubmitProofRequest,
+  type ExchangeConfirmRequest,
+  type ExchangeCancelRequest,
+  type ExchangeDisputeRequest,
+  type ExchangeRefundRequest,
 } from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
@@ -139,7 +161,7 @@ async function request<TResponse>(
   }
 }
 
-const { auth, gigs, users, upload, blockchain, platform, conversations, notifications, subscriptions, reports } = apiRoutes
+const { auth, gigs, users, upload, blockchain, platform, conversations, notifications, subscriptions, reports, exchange, exchangeAccounts, exchangeBlockchain } = apiRoutes
 
 export const api = {
   auth: {
@@ -196,6 +218,11 @@ export const api = {
       }),
     transactions: (params: { id: string }) =>
       request<UserTransaction[]>('GET', users.transactions, { params }),
+    exchangeOffers: (params: { id: string }, query?: UserExchangeOffersQuery) =>
+      request<PaginatedResponse<ExchangeOfferSummary>>('GET', users.exchangeOffers, {
+        params,
+        query: query as Record<string, unknown>,
+      }),
   },
 
   upload: {
@@ -263,5 +290,56 @@ export const api = {
   reports: {
     create: (body: CreateReportInput) =>
       request<{ id: string }>('POST', reports.create, { body }),
+  },
+
+  exchangeAccounts: {
+    list: () =>
+      request<UserExchangeAccount[]>('GET', exchangeAccounts.list),
+    create: (body: CreateUserExchangeAccountInput) =>
+      request<UserExchangeAccount>('POST', exchangeAccounts.create, { body }),
+    deactivate: (params: { id: string }) =>
+      request<UserExchangeAccount>('PATCH', exchangeAccounts.deactivate, { params }),
+  },
+
+  exchange: {
+    list: (query?: ExchangeListQuery) =>
+      request<{ data: ExchangeOfferSummary[]; total: number }>('GET', exchange.list, {
+        query: query as Record<string, unknown>,
+      }),
+    create: (body: CreateExchangeOfferInput) =>
+      request<ExchangeOfferDetail>('POST', exchange.create, { body }),
+    get: (params: { id: string }) =>
+      request<ExchangeOfferDetail>('GET', exchange.get, { params }),
+    publish: (params: { id: string }, body: ExchangePublishInput) =>
+      request<ExchangeOfferDetail>('POST', exchange.publish, { params, body }),
+    cancel: (params: { id: string }, body?: ExchangeCancelInput) =>
+      request<ExchangeOffer>('DELETE', exchange.cancel, { params, body }),
+    accept: (params: { id: string }, body: ExchangeAcceptInput) =>
+      request<ExchangeOfferDetail>('POST', exchange.accept, { params, body }),
+    paid: (params: { id: string }, body: ExchangePaidInput) =>
+      request<ExchangeOffer>('POST', exchange.paid, { params, body }),
+    confirm: (params: { id: string }, body: ExchangeConfirmInput) =>
+      request<ExchangeOffer>('POST', exchange.confirm, { params, body }),
+    dispute: (params: { id: string }, body: ExchangeDisputeInput) =>
+      request<ExchangeOffer>('POST', exchange.dispute, { params, body }),
+    resolve: (params: { id: string }, body: ExchangeResolveInput) =>
+      request<ExchangeOffer>('POST', exchange.resolve, { params, body }),
+  },
+
+  exchangeBlockchain: {
+    createEscrow: (body: ExchangeEscrowRequest) =>
+      request<EscrowResponse>('POST', exchangeBlockchain.createEscrow, { body }),
+    accept: (body: ExchangeAcceptRequest) =>
+      request<EscrowResponse>('POST', exchangeBlockchain.accept, { body }),
+    submitProof: (body: ExchangeSubmitProofRequest) =>
+      request<EscrowResponse>('POST', exchangeBlockchain.submitProof, { body }),
+    confirm: (body: ExchangeConfirmRequest) =>
+      request<EscrowResponse>('POST', exchangeBlockchain.confirm, { body }),
+    cancel: (body: ExchangeCancelRequest) =>
+      request<EscrowResponse>('POST', exchangeBlockchain.cancel, { body }),
+    dispute: (body: ExchangeDisputeRequest) =>
+      request<EscrowResponse>('POST', exchangeBlockchain.dispute, { body }),
+    refund: (body: ExchangeRefundRequest) =>
+      request<EscrowResponse>('POST', exchangeBlockchain.refund, { body }),
   },
 }

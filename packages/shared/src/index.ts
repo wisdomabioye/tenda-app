@@ -24,6 +24,14 @@ export {
   proofTypeEnum,
   conversationStatusEnum,
   devicePlatformEnum,
+  exchange_offers,
+  user_exchange_accounts,
+  exchange_proofs,
+  exchange_transactions,
+  exchange_disputes,
+  exchangeOfferStatusEnum,
+  exchangeTransactionTypeEnum,
+  exchangeDisputeWinnerEnum,
 } from './db/schema'
 export * from './types'
 export * from './constants'

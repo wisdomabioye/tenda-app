@@ -83,6 +83,7 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
       // Notify subscribers now that the gig is live (status = 'open')
       appEvents.emit('gig.created', {
         gigId:    updated.id,
+        posterId: updated.poster_id,
         city:     updated.city,
         category: updated.category,
         title:    updated.title,

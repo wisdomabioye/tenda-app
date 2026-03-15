@@ -6,6 +6,18 @@ import type { AppDatabase } from '@server/plugins/db'
 import { AppError } from './errors'
 
 /**
+ * Standard public user column projection — id, name, avatar, reputation.
+ * Use wherever a user summary is joined or selected, to keep projections consistent.
+ */
+export const USER_COLS = {
+  id:               users.id,
+  first_name:       users.first_name,
+  last_name:        users.last_name,
+  avatar_url:       users.avatar_url,
+  reputation_score: users.reputation_score,
+}
+
+/**
  * Verifies a user exists. Throws a 404 AppError if not found.
  * Selects only `id` — callers that need additional columns should query directly.
  */

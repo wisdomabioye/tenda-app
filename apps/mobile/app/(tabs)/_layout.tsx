@@ -2,7 +2,7 @@ import { Tabs } from 'expo-router'
 import { StyleSheet, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context'
-import { Home, Briefcase, Plus, Wallet, MessageCircle } from 'lucide-react-native'
+import { Home, Briefcase, Plus, Wallet, MessageCircle, ArrowLeftRight } from 'lucide-react-native'
 import { typography, shadows, radius } from '@/theme/tokens'
 import { useChatStore } from '@/stores/chat.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
@@ -67,6 +67,17 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, focused }) => (
             <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.primaryTint }]}>
               <Briefcase color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />
+            </View>
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="exchange"
+        options={{
+          title: 'Exchange',
+          tabBarIcon: ({ color, focused }) => (
+            <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.primaryTint }]}>
+              <ArrowLeftRight color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />
             </View>
           ),
         }}

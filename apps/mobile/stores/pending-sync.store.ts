@@ -1,24 +1,35 @@
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
-import { api } from '@/api/client'
-import type { SubmitProofInput } from '@tenda/shared'
+import { api, ApiClientError } from '@/api/client'
+import type { SubmitProofInput, ExchangePaidInput } from '@tenda/shared'
 
 const STORAGE_KEY        = 'tenda_pending_sync'
 const FAILED_STORAGE_KEY = 'tenda_failed_sync'
 const MAX_RETRY_COUNT    = 10
 
 export type PendingSync =
+  // Gig actions
   | { id: string; action: 'publish' | 'approve' | 'cancel' | 'accept' | 'refund'; gigId: string; signature: string; createdAt: number; retryCount: number }
   | { id: string; action: 'submit'; gigId: string; signature: string; proofs: SubmitProofInput['proofs']; createdAt: number; retryCount: number }
+  // Exchange actions
+  | { id: string; action: 'exchange_publish' | 'exchange_accept' | 'exchange_cancel' | 'exchange_confirm'; offerId: string; signature: string; createdAt: number; retryCount: number }
+  | { id: string; action: 'exchange_dispute'; offerId: string; signature: string; reason: string; createdAt: number; retryCount: number }
+  | { id: string; action: 'exchange_paid'; offerId: string; signature: string; proofs: ExchangePaidInput['proofs']; createdAt: number; retryCount: number }
 
 /** Human-readable label for each pending-sync action. Exhaustive by type — update when adding new actions. */
 export const PENDING_SYNC_ACTION_LABEL: Record<PendingSync['action'], string> = {
-  publish: 'Publish gig',
-  accept:  'Accept gig',
-  approve: 'Approve completion',
-  cancel:  'Cancel gig',
-  refund:  'Claim refund',
-  submit:  'Submit proof',
+  publish:          'Publish gig',
+  accept:           'Accept gig',
+  approve:          'Approve completion',
+  cancel:           'Cancel gig',
+  refund:           'Claim refund',
+  submit:           'Submit proof',
+  exchange_publish: 'Publish exchange offer',
+  exchange_accept:  'Accept exchange offer',
+  exchange_cancel:  'Cancel exchange offer',
+  exchange_confirm: 'Confirm exchange payment',
+  exchange_dispute: 'Raise exchange dispute',
+  exchange_paid:    'Mark exchange as paid',
 }
 
 // Distribute Omit over the union so each variant is processed independently.
@@ -178,11 +189,23 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
           await api.gigs.refund({ id: entry.gigId }, { signature: entry.signature })
         } else if (entry.action === 'submit') {
           await api.gigs.submit({ id: entry.gigId }, { signature: entry.signature, proofs: entry.proofs })
+        } else if (entry.action === 'exchange_publish') {
+          await api.exchange.publish({ id: entry.offerId }, { signature: entry.signature })
+        } else if (entry.action === 'exchange_accept') {
+          await api.exchange.accept({ id: entry.offerId }, { signature: entry.signature })
+        } else if (entry.action === 'exchange_cancel') {
+          await api.exchange.cancel({ id: entry.offerId }, { signature: entry.signature })
+        } else if (entry.action === 'exchange_confirm') {
+          await api.exchange.confirm({ id: entry.offerId }, { signature: entry.signature })
+        } else if (entry.action === 'exchange_dispute') {
+          await api.exchange.dispute({ id: entry.offerId }, { signature: entry.signature, reason: entry.reason })
+        } else if (entry.action === 'exchange_paid') {
+          await api.exchange.paid({ id: entry.offerId }, { signature: entry.signature, proofs: entry.proofs })
         }
         get().remove(entry.id)
-      } catch (err: any) {
+      } catch (err) {
         // 409 DUPLICATE_SIGNATURE = already recorded on-chain — treat as success
-        if (err?.statusCode === 409) {
+        if (err instanceof ApiClientError && err.statusCode === 409) {
           get().remove(entry.id)
           continue
         }

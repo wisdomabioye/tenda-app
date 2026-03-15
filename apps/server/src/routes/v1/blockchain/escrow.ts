@@ -32,7 +32,7 @@ const escrow: FastifyPluginAsync = async (fastify) => {
         return await buildCreateGigEscrowInstruction(
           request.user.wallet_address,
           gig_id,
-          Number(gig.payment_lamports),
+          BigInt(gig.payment_lamports),
           gig.completion_duration_seconds,
           acceptDeadline,
           request.user.is_seeker,

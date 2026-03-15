@@ -3,13 +3,13 @@ import { FileText, Film, Play } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing, radius } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import type { GigProof } from '@tenda/shared'
+import type { ProofItem } from './ProofViewerModal'
 
 const PROOF_SIZE = 72
 
 interface Props {
-  proofs: GigProof[]
-  onProofPress: (proof: GigProof) => void
+  proofs: ProofItem[]
+  onProofPress: (proof: ProofItem) => void
 }
 
 export function GigProofsGrid({ proofs, onProofPress }: Props) {

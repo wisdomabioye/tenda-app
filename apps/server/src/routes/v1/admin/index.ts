@@ -2,8 +2,8 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq, isNull, desc, sql } from 'drizzle-orm'
 import type { UserRole } from '@tenda/shared'
 import { users, gigs, disputes, platform_config, blocked_keywords, reports } from '@tenda/shared/db/schema'
-import { ErrorCode, MAX_PAGINATION_LIMIT, REPORT_STATUSES } from '@tenda/shared'
-import type { ApiError, ReportStatus } from '@tenda/shared'
+import { ErrorCode, MAX_PAGINATION_LIMIT, REPORT_STATUSES, REPORT_CONTENT_TYPES } from '@tenda/shared'
+import type { ApiError, ReportStatus, ReportContentType } from '@tenda/shared'
 import { requireRole } from '@server/lib/guards'
 import { invalidatePlatformConfigCache } from '@server/lib/platform'
 import { AppError } from '@server/lib/errors'
@@ -260,9 +260,13 @@ const admin: FastifyPluginAsync = async (fastify) => {
       return { data: [], total: 0, limit: safeLimit, offset: safeOffset }
     }
 
+    if (content_type && !REPORT_CONTENT_TYPES.includes(content_type as ReportContentType)) {
+      return { data: [], total: 0, limit: safeLimit, offset: safeOffset }
+    }
+
     const conditions = [
-      ...(status       ? [eq(reports.status,       status)]           : []),
-      ...(content_type ? [eq(reports.content_type, content_type as any)] : []),
+      ...(status       ? [eq(reports.status,       status)]                              : []),
+      ...(content_type ? [eq(reports.content_type, content_type as ReportContentType)]   : []),
     ]
     const where = conditions.length === 0 ? undefined
                 : conditions.length === 1 ? conditions[0]

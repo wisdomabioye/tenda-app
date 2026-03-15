@@ -1,17 +1,40 @@
 import { EventEmitter } from 'node:events'
 
+// ── Shared base shapes ──────────────────────────────────────────────────────
+
+interface GigEventBase {
+  gigId:    string
+  posterId: string
+  workerId: string
+  title:    string
+}
+
+interface ExchangeEventBase {
+  offerId:    string
+  sellerId:   string
+  buyerId:    string
+  currency:   string
+  fiatAmount: number
+}
+
 // ── Typed event map ────────────────────────────────────────────────────────
 
 export interface AppEvents {
-  'gig.accepted':   { gigId: string; posterId: string; workerId: string; title: string }
-  'gig.submitted':  { gigId: string; posterId: string; workerId: string; title: string }
-  'gig.approved':   { gigId: string; posterId: string; workerId: string; title: string }
-  'gig.disputed':   { gigId: string; posterId: string; workerId: string; raisedById: string; title: string }
-  'gig.resolved':   { gigId: string; posterId: string; workerId: string; winner: string; title: string }
-  'gig.created':    { gigId: string; city: string | null; category: string; title: string }
-  'message.sent':   { conversationId: string; senderId: string; recipientId: string; preview: string }
-  'review.submitted': { gigId: string; reviewerId: string; revieweeId: string; score: number; title: string }
-  'proof.added':    { gigId: string; posterId: string; workerId: string; title: string }
+  'gig.accepted':       GigEventBase
+  'gig.submitted':      GigEventBase
+  'gig.approved':       GigEventBase
+  'gig.disputed':       GigEventBase & { raisedById: string }
+  'gig.resolved':       GigEventBase & { winner: string }
+  'gig.created':        { gigId: string; posterId: string; city: string | null; category: string; title: string }
+  'message.sent':       { conversationId: string; senderId: string; recipientId: string; preview: string }
+  'review.submitted':   { gigId: string; reviewerId: string; revieweeId: string; score: number; title: string }
+  'proof.added':        GigEventBase
+  'exchange.accepted':  ExchangeEventBase
+  'exchange.paid':      ExchangeEventBase
+  'exchange.confirmed': ExchangeEventBase
+  'exchange.disputed':  ExchangeEventBase & { raisedById: string }
+  'exchange.resolved':  ExchangeEventBase & { winner: string }
+  'exchange.cancelled': Omit<ExchangeEventBase, 'buyerId'> & { buyerId: string | null }
 }
 
 class TypedEventEmitter extends EventEmitter {
