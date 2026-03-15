@@ -22,7 +22,7 @@ const acceptGig: FastifyPluginAsync = async (fastify) => {
   }>(
     '/',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request, _reply) => {
       const { id } = request.params
       const { signature } = request.body
 

@@ -108,7 +108,16 @@ const reportsRoute: FastifyPluginAsync = async (fastify) => {
         return reply.code(201).send({ id: inserted.id })
       } catch (err) {
         if (isPostgresUniqueViolation(err)) {
-          return reply.code(200).send({ id: content_id })
+          const [existing] = await fastify.db
+            .select({ id: reports.id })
+            .from(reports)
+            .where(and(
+              eq(reports.reporter_id, reporterId),
+              eq(reports.content_type, content_type),
+              eq(reports.content_id, content_id),
+            ))
+            .limit(1)
+          return reply.code(200).send({ id: existing!.id })
         }
         throw err
       }

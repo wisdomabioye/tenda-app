@@ -23,7 +23,7 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
   }>(
     '/',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request, _reply) => {
       const { id } = request.params
       const { signature } = request.body
 
@@ -47,7 +47,8 @@ const publishGig: FastifyPluginAsync = async (fastify) => {
       ])
 
       const escrow_address = deriveEscrowAddress(gig.id)
-      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), config.fee_bps)
+      const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
+      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), effectiveFeeBps)
 
       let txResult
       try {

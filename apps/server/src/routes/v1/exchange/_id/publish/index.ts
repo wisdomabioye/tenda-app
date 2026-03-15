@@ -55,7 +55,8 @@ const publishOffer: FastifyPluginAsync = async (fastify) => {
       ])
 
       const escrow_address = deriveEscrowAddress(offer.id)
-      const platform_fee_lamports = computePlatformFee(BigInt(offer.lamports_amount), config.fee_bps)
+      const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
+      const platform_fee_lamports = computePlatformFee(BigInt(offer.lamports_amount), effectiveFeeBps)
 
       let txResult
       try {

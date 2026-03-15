@@ -17,7 +17,7 @@ import { Drawer, DrawerHeader } from '@/components/navigation'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
 import { useGigsFeedPolling } from '@/hooks/useGigsFeedPolling'
-import type { Gig } from '@tenda/shared'
+import type { Gig, GigCategory } from '@tenda/shared'
 
 export default function HomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -54,7 +54,7 @@ export default function HomeScreen() {
 
   function handleCategoryChange(cat: string | null) {
     setSelectedCategory(cat)
-    setFilters({ category: (cat ?? undefined) as any })
+    setFilters({ category: (cat ?? undefined) as GigCategory | undefined })
     fetchGigs()
   }
 

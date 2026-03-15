@@ -71,7 +71,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     Params: UpdateRoute['params']
     Body: UpdateRoute['body']
     Reply: UpdateRoute['response'] | ApiError
-  }>('/', { preHandler: [fastify.authenticate, moderateBody<UpdateRoute['body']>(fastify, ['title', 'description'])] }, async (request, reply) => {
+  }>('/', { preHandler: [fastify.authenticate, moderateBody<UpdateRoute['body']>(fastify, ['title', 'description'])] }, async (request, _reply) => {
     const { id } = request.params
 
     const gig = await ensureGigExists(fastify.db, id)
@@ -169,7 +169,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
   }>(
     '/',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request, _reply) => {
       const { id } = request.params
       const { signature } = request.body ?? {}
 

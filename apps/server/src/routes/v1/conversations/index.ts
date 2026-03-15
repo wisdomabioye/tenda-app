@@ -23,7 +23,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
   }>(
     '/',
     { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
+    async (request, _reply) => {
       const userId = request.user.id
 
       // 1. Fetch conversations — bounded to CONVERSATIONS_LIMIT rows

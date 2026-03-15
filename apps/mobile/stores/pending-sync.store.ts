@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import { api, ApiClientError } from '@/api/client'
+import { ErrorCode } from '@tenda/shared'
 import type { SubmitProofInput, ExchangePaidInput } from '@tenda/shared'
 
 const STORAGE_KEY        = 'tenda_pending_sync'
@@ -204,8 +205,9 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
         }
         get().remove(entry.id)
       } catch (err) {
-        // 409 DUPLICATE_SIGNATURE = already recorded on-chain — treat as success
-        if (err instanceof ApiClientError && err.statusCode === 409) {
+        // 409 DUPLICATE_SIGNATURE = already recorded on-chain — treat as success.
+        // Only remove for this specific code; other 409s (e.g. GIG_WRONG_STATUS) are real errors.
+        if (err instanceof ApiClientError && err.statusCode === 409 && err.error === ErrorCode.DUPLICATE_SIGNATURE) {
           get().remove(entry.id)
           continue
         }
