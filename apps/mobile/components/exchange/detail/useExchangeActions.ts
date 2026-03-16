@@ -29,6 +29,7 @@ type ExchangePendingAction =
   | { type: 'confirm' }
   | { type: 'cancel' }
   | { type: 'dispute'; reason: string }
+  | { type: 'refundExpired' }
 
 // Distributed Omit — strips auto-generated fields from each union member.
 type SyncEntry = PendingSync extends infer T
@@ -54,6 +55,7 @@ export function useExchangeActions(
   // Signature being monitored by the main TransactionMonitor
   const [pendingSignature, setPendingSignature]   = useState<string | null>(null)
   const [pendingAction, setPendingAction]         = useState<ExchangePendingAction | null>(null)
+  const [pendingSyncId, setPendingSyncId]         = useState<string | null>(null)
 
   // Accept dual-tx state (setup account + accept offer)
   const [pendingSetupSignature, setPendingSetupSignature]   = useState<string | null>(null)
@@ -100,13 +102,17 @@ export function useExchangeActions(
       const tx = Transaction.from(Buffer.from(txBase64, 'base64'))
       validateTransaction(tx, expectedInstruction)
       const sig = await signAndSendTransactionWithWallet(tx, authToken, onNewAuthToken)
-      if (makeSyncEntry) usePendingSyncStore.getState().add(makeSyncEntry(sig))
+      if (makeSyncEntry) {
+        const syncId = usePendingSyncStore.getState().add(makeSyncEntry(sig))
+        setPendingSyncId(syncId)
+      }
       setPendingAction(action)
       setPendingSignature(sig)
       return true
     } catch (e) {
       setPendingSignature(null)
       setPendingAction(null)
+      setPendingSyncId(null)
       if (e instanceof WalletError && e.code === 'declined') return false
       throw e  // re-throw; caller catches and shows toast
     }
@@ -117,15 +123,18 @@ export function useExchangeActions(
   async function onTxConfirmed() {
     const sig    = pendingSignature!
     const action = pendingAction!
+    const syncId = pendingSyncId
     setPendingSignature(null)
     setPendingAction(null)
+    setPendingSyncId(null)
 
     const successMessages: Record<ExchangePendingAction['type'], string> = {
-      publish:  'Offer published!',
-      markPaid: 'Payment marked — waiting for seller to confirm',
-      confirm:  'Payment confirmed — SOL released to buyer!',
-      cancel:   'Offer cancelled — escrow refunded.',
-      dispute:  'Dispute raised. An admin will review shortly.',
+      publish:       'Offer published!',
+      markPaid:      'Payment marked — waiting for seller to confirm',
+      confirm:       'Payment confirmed — SOL released to buyer!',
+      cancel:        'Offer cancelled — escrow refunded.',
+      dispute:       'Dispute raised. An admin will review shortly.',
+      refundExpired: 'Refund claimed — SOL returned to your wallet.',
     }
 
     try {
@@ -156,23 +165,15 @@ export function useExchangeActions(
           onUpdated(updated as ExchangeOfferDetail)
           break
         }
+        case 'refundExpired': {
+          await api.exchange.refund({ id: offer.id }, { signature: sig })
+          showToast('success', successMessages.refundExpired)
+          onBack()
+          return  // already navigated away
+        }
       }
 
-      // Remove pending-sync entry now that server has confirmed
-      const syncActionKey: Record<ExchangePendingAction['type'], string> = {
-        publish:  'exchange_publish',
-        markPaid: 'exchange_paid',
-        confirm:  'exchange_confirm',
-        cancel:   'exchange_cancel',
-        dispute:  'exchange_dispute',
-      }
-      const queue    = usePendingSyncStore.getState().queue
-      const syncItem = queue.find(
-        (i) => i.action === syncActionKey[action.type]
-          && 'offerId' in i && i.offerId === offer.id
-          && i.signature === sig,
-      )
-      if (syncItem) usePendingSyncStore.getState().remove(syncItem.id)
+      if (syncId) usePendingSyncStore.getState().remove(syncId)
 
       showToast('success', successMessages[action.type])
     } catch {
@@ -183,6 +184,7 @@ export function useExchangeActions(
   function clearTxState() {
     setPendingSignature(null)
     setPendingAction(null)
+    setPendingSyncId(null)
   }
 
   // ── Publish ────────────────────────────────────────────────────────────────
@@ -429,6 +431,38 @@ export function useExchangeActions(
     }
   }
 
+  // ── Refund expired ─────────────────────────────────────────────────────────
+
+  async function refundExpired() {
+    if (!authToken) return
+    Alert.alert(
+      'Claim Refund',
+      'The offer has expired. Claim your SOL back from escrow?',
+      [
+        { text: 'Not Now', style: 'cancel' },
+        { text: 'Claim Refund', onPress: handleRefundExpired },
+      ],
+    )
+  }
+
+  async function handleRefundExpired() {
+    setIsTxBuilding(true)
+    try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
+      const { transaction: b64 } = await api.exchangeBlockchain.refund({ offer_id: offer.id })
+      await startBlockchainFlow(
+        { type: 'refundExpired' },
+        b64,
+        'refund_expired',
+        (sig) => ({ action: 'exchange_refund', offerId: offer.id, signature: sig }),
+      )
+    } catch (e) {
+      showToast('error', (e as Error).message || 'Failed to build refund transaction')
+    } finally {
+      setIsTxBuilding(false)
+    }
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
 
   return {
@@ -449,5 +483,6 @@ export function useExchangeActions(
     markPaid,
     confirm,
     dispute,
+    refundExpired,
   }
 }

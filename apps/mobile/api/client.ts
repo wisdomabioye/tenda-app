@@ -67,6 +67,7 @@ import {
   type ExchangeDisputeInput,
   type ExchangeResolveInput,
   type ExchangeCancelInput,
+  type ExchangeRefundInput,
   type ExchangeEscrowRequest,
   type ExchangeAcceptRequest,
   type ExchangeSubmitProofRequest,
@@ -328,6 +329,8 @@ export const api = {
       request<ExchangeOffer>('POST', exchange.dispute, { params, body }),
     resolve: (params: { id: string }, body: ExchangeResolveInput) =>
       request<ExchangeOffer>('POST', exchange.resolve, { params, body }),
+    refund: (params: { id: string }, body: ExchangeRefundInput) =>
+      request<ExchangeOffer>('POST', exchange.refund, { params, body }),
     update: (params: { id: string }, body: Partial<CreateExchangeOfferInput>) =>
       request<ExchangeOffer>('PATCH', exchange.update, { params, body }),
   },

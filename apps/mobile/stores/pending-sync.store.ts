@@ -13,7 +13,7 @@ export type PendingSync =
   | { id: string; action: 'publish' | 'approve' | 'cancel' | 'accept' | 'refund'; gigId: string; signature: string; createdAt: number; retryCount: number }
   | { id: string; action: 'submit'; gigId: string; signature: string; proofs: SubmitProofInput['proofs']; createdAt: number; retryCount: number }
   // Exchange actions
-  | { id: string; action: 'exchange_publish' | 'exchange_accept' | 'exchange_cancel' | 'exchange_confirm'; offerId: string; signature: string; createdAt: number; retryCount: number }
+  | { id: string; action: 'exchange_publish' | 'exchange_accept' | 'exchange_cancel' | 'exchange_confirm' | 'exchange_refund'; offerId: string; signature: string; createdAt: number; retryCount: number }
   | { id: string; action: 'exchange_dispute'; offerId: string; signature: string; reason: string; createdAt: number; retryCount: number }
   | { id: string; action: 'exchange_paid'; offerId: string; signature: string; proofs: ExchangePaidInput['proofs']; createdAt: number; retryCount: number }
 
@@ -31,6 +31,7 @@ export const PENDING_SYNC_ACTION_LABEL: Record<PendingSync['action'], string> = 
   exchange_confirm: 'Confirm exchange payment',
   exchange_dispute: 'Raise exchange dispute',
   exchange_paid:    'Mark exchange as paid',
+  exchange_refund:  'Claim expired offer refund',
 }
 
 // Distribute Omit over the union so each variant is processed independently.
@@ -202,6 +203,8 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
           await api.exchange.dispute({ id: entry.offerId }, { signature: entry.signature, reason: entry.reason })
         } else if (entry.action === 'exchange_paid') {
           await api.exchange.paid({ id: entry.offerId }, { signature: entry.signature, proofs: entry.proofs })
+        } else if (entry.action === 'exchange_refund') {
+          await api.exchange.refund({ id: entry.offerId }, { signature: entry.signature })
         }
         get().remove(entry.id)
       } catch (err) {

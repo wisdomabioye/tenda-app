@@ -27,9 +27,9 @@ interface GigActionSheetsProps {
   onAcceptConfirmed: () => void
   onCancelOpenConfirmed: () => void
   onRefundExpiredConfirmed: () => void
-  onProofsReady: (proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>) => void
+  onProofsReady: (proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>) => Promise<boolean>
   onAddProofsReady: (proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>) => Promise<void>
-  onDisputeReady: (reason: string) => void
+  onDisputeReady: (reason: string) => Promise<boolean>
 }
 
 export function GigActionSheets({
@@ -50,6 +50,7 @@ export function GigActionSheets({
 
   const [proofFiles, setProofFiles] = useState<PickedFile[]>([])
   const [proofUploading, setProofUploading] = useState(false)
+  const [disputeLoading, setDisputeLoading] = useState(false)
   const [addProofFiles, setAddProofFiles] = useState<PickedFile[]>([])
   const [addProofUploading, setAddProofUploading] = useState(false)
   const [disputeReason, setDisputeReason] = useState('')
@@ -86,9 +87,10 @@ export function GigActionSheets({
           return
         }
       }
-      handleClose()
-      setProofFiles([])
-      onProofsReady(proofs)
+      if (await onProofsReady(proofs)) {
+        handleClose()
+        setProofFiles([])
+      }
     } finally {
       setProofUploading(false)
     }
@@ -116,10 +118,14 @@ export function GigActionSheets({
     }
   }
 
-  function handleDispute() {
+  async function handleDispute() {
     if (!disputeReason.trim()) return
-    handleClose()
-    onDisputeReady(disputeReason.trim())
+    setDisputeLoading(true)
+    try {
+      if (await onDisputeReady(disputeReason.trim())) handleClose()
+    } finally {
+      setDisputeLoading(false)
+    }
   }
 
   async function handleReview() {
@@ -209,6 +215,7 @@ export function GigActionSheets({
           size="xl"
           fullWidth
           disabled={!disputeReason.trim()}
+          loading={disputeLoading}
           onPress={handleDispute}
         >
           Raise Dispute

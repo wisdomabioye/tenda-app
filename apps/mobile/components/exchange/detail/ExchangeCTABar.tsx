@@ -83,6 +83,8 @@ export function ExchangeCTABar({ offer, isSeller, isBuyer, actions }: Props) {
       )
     if ((status === 'accepted' && isSeller) || (status === 'paid' && isBuyer))
       return <Button variant="outline" fullWidth disabled={disabled} onPress={() => setMode('dispute')}>Raise Dispute</Button>
+    if (status === 'expired' && isSeller)
+      return <Button variant="primary" fullWidth loading={loading} disabled={disabled} onPress={actions.refundExpired}>Claim Refund</Button>
     return null
   })()
 

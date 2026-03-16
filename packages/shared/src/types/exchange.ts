@@ -120,6 +120,10 @@ export interface ExchangeCancelInput {
   signature?: string  // on-chain cancel_gig tx (required if status was 'accepted')
 }
 
+export interface ExchangeRefundInput {
+  signature: string  // on-chain refund_expired tx signature (seller signs)
+}
+
 // All create fields become optional for patch — only draft offers can be updated
 export type UpdateExchangeOfferInput = Partial<CreateExchangeOfferInput>
 
