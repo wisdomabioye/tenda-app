@@ -97,6 +97,7 @@ export type {
   ExchangeResolveInput,
   ExchangeCancelInput,
   ExchangeRefundInput,
+  ExchangeAddProofsInput,
   ExchangeListQuery,
   UserExchangeOffersQuery,
   ExchangeEscrowRequest,

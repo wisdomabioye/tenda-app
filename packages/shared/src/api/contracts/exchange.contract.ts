@@ -11,6 +11,7 @@ import type {
   ExchangeResolveInput,
   ExchangeCancelInput,
   ExchangeRefundInput,
+  ExchangeAddProofsInput,
   UpdateExchangeOfferInput,
   ExchangeListQuery,
   ExchangeEscrowRequest,
@@ -23,6 +24,8 @@ import type {
   ExchangeOffer,
   UserExchangeAccount,
   CreateUserExchangeAccountInput,
+  ReviewInput,
+  Review,
 } from '../../types'
 import type { EscrowResponse } from '../../types'
 import type { PaginatedResponse } from '../../types/api'
@@ -38,8 +41,10 @@ export interface ExchangeContract {
   confirm: Endpoint<'POST',   { id: string }, ExchangeConfirmInput,     undefined,         ExchangeOffer>
   dispute: Endpoint<'POST',   { id: string }, ExchangeDisputeInput,     undefined,         ExchangeOffer>
   resolve: Endpoint<'POST',   { id: string }, ExchangeResolveInput,     undefined,         ExchangeOffer>
-  refund:  Endpoint<'POST',   { id: string }, ExchangeRefundInput,      undefined,         ExchangeOffer>
-  update:  Endpoint<'PATCH',  { id: string }, UpdateExchangeOfferInput, undefined,         ExchangeOffer>
+  refund:    Endpoint<'POST',   { id: string }, ExchangeRefundInput,      undefined,         ExchangeOffer>
+  addProofs: Endpoint<'POST',   { id: string }, ExchangeAddProofsInput,   undefined,         ExchangeOfferDetail>
+  review:    Endpoint<'POST',   { id: string }, ReviewInput,              undefined,         Review>
+  update:    Endpoint<'PATCH',  { id: string }, UpdateExchangeOfferInput, undefined,         ExchangeOffer>
 }
 
 export interface ExchangeAccountsContract {

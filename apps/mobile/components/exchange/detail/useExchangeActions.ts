@@ -17,7 +17,7 @@ import { showToast } from '@/components/ui/Toast'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import type { PendingSync } from '@/stores/pending-sync.store'
-import type { ExchangeOfferDetail } from '@tenda/shared'
+import type { ExchangeOfferDetail, ReviewInput } from '@tenda/shared'
 import { EXCHANGE_DISPUTE_REASON_MIN_LENGTH, computePlatformFee, SOLANA_TX_FEE_LAMPORTS } from '@tenda/shared'
 import type { InstructionName } from '@tenda/shared/idl'
 
@@ -464,6 +464,46 @@ export function useExchangeActions(
     }
   }
 
+  // ── Add more proof (buyer, status = paid) ──────────────────────────────────
+
+  async function addProofs(files: PickedFile[]): Promise<boolean> {
+    if (files.length === 0) { Alert.alert('Add Proof', 'Attach at least one file.'); return false }
+    setBusy(true)
+    try {
+      const proofs = await Promise.all(
+        files.map(async (f) => ({ url: await uploadToCloudinary(f, 'proof'), type: f.type })),
+      )
+      const updated = await api.exchange.addProofs({ id: offer.id }, { proofs })
+      onUpdated(updated)
+      showToast('success', 'Proof added.')
+      return true
+    } catch (e) {
+      showToast('error', e instanceof Error ? e.message : 'Failed to upload proof')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // ── Review ─────────────────────────────────────────────────────────────────
+
+  async function reviewOffer(input: ReviewInput): Promise<boolean> {
+    setBusy(true)
+    try {
+      await api.exchange.review({ id: offer.id }, input)
+      // Refresh to pick up the new review in the reviews list
+      const updated = await api.exchange.get({ id: offer.id })
+      onUpdated(updated)
+      showToast('success', 'Review submitted!')
+      return true
+    } catch (e) {
+      showToast('error', e instanceof Error ? e.message : 'Failed to submit review')
+      return false
+    } finally {
+      setBusy(false)
+    }
+  }
+
   // ──────────────────────────────────────────────────────────────────────────
 
   return {
@@ -485,5 +525,7 @@ export function useExchangeActions(
     confirm,
     dispute,
     refundExpired,
+    addProofs,
+    reviewOffer,
   }
 }

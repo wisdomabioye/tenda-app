@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
-import { and, eq, lt, lte, or, desc, isNull, ne } from 'drizzle-orm'
-import { conversations, messages, gigs } from '@tenda/shared/db/schema'
+import { and, eq, lt, lte, or, desc, isNull, ne, sql } from 'drizzle-orm'
+import { conversations, messages, gigs, exchange_offers } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { appEvents } from '@server/lib/events'
 import { moderateBody } from '@server/lib/moderation'
@@ -63,14 +63,17 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
           id:              messages.id,
           conversation_id: messages.conversation_id,
           sender_id:       messages.sender_id,
-          gig_id:          messages.gig_id,
-          gig_title:       gigs.title,
-          content:         messages.content,
-          read_at:         messages.read_at,
-          created_at:      messages.created_at,
+          gig_id:      messages.gig_id,
+          gig_title:   gigs.title,
+          offer_id:    messages.offer_id,
+          offer_title: sql<string | null>`CASE WHEN ${exchange_offers.id} IS NOT NULL THEN ${exchange_offers.fiat_amount}::text || ' ' || ${exchange_offers.fiat_currency} ELSE NULL END`,
+          content:     messages.content,
+          read_at:     messages.read_at,
+          created_at:  messages.created_at,
         })
         .from(messages)
         .leftJoin(gigs, eq(messages.gig_id, gigs.id))
+        .leftJoin(exchange_offers, eq(messages.offer_id, exchange_offers.id))
         .where(
           cursorCondition
             ? and(eq(messages.conversation_id, id), cursorCondition)
@@ -97,9 +100,10 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
 
       return rows.map((m) => ({
         ...m,
-        gig_title:  m.gig_title ?? null,
-        read_at:    m.read_at?.toISOString() ?? null,
-        created_at: m.created_at?.toISOString() ?? null,
+        gig_title:   m.gig_title ?? null,
+        offer_title: m.offer_title ?? null,
+        read_at:     m.read_at?.toISOString() ?? null,
+        created_at:  m.created_at?.toISOString() ?? null,
       }))
     },
   )
@@ -114,7 +118,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
     { config: { rateLimit: { max: 60, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate, moderateBody<SendMessageRoute['body']>(fastify, ['content'])] },
     async (request, reply) => {
       const { id } = request.params
-      const { content, gig_id } = request.body
+      const { content, gig_id, offer_id } = request.body
       const userId = request.user.id
 
       if (!content || content.trim().length === 0) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'content is required')
@@ -151,7 +155,8 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
           .values({
             conversation_id: id,
             sender_id:       userId,
-            gig_id:          gig_id ?? null,
+            gig_id:          gig_id  ?? null,
+            offer_id:        offer_id ?? null,
             content:         content.trim(),
           })
           .returning()
@@ -176,6 +181,16 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         gig_title = g?.title ?? null
       }
 
+      let offer_title: string | null = null
+      if (newMessage.offer_id) {
+        const [o] = await fastify.db
+          .select({ fiat_amount: exchange_offers.fiat_amount, fiat_currency: exchange_offers.fiat_currency })
+          .from(exchange_offers)
+          .where(eq(exchange_offers.id, newMessage.offer_id))
+          .limit(1)
+        offer_title = o ? `${o.fiat_amount} ${o.fiat_currency}` : null
+      }
+
       const recipientId = conv.user_a_id === userId ? conv.user_b_id : conv.user_a_id
       const preview = content.trim().slice(0, 100)
 
@@ -189,6 +204,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       return reply.code(201).send({
         ...newMessage,
         gig_title,
+        offer_title,
         read_at:    newMessage.read_at?.toISOString() ?? null,
         created_at: newMessage.created_at?.toISOString() ?? null,
       })

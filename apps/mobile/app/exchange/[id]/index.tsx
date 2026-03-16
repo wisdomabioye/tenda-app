@@ -5,12 +5,11 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Share2, Pencil, Copy } from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
 import { spacing, typography, radius } from '@/theme/tokens'
-import { 
+import {
   ScreenContainer,
-  Text, 
-  Spacer, 
-  Card, 
-  Avatar,
+  Text,
+  Spacer,
+  Card,
   Header,
   showToast
 } from '@/components/ui'
@@ -19,17 +18,19 @@ import {
   ErrorState,
   TransactionMonitor,
 } from '@/components/feedback'
-import { 
+import {
   OfferSummaryCard,
   ExchangeCTABar,
+  PaymentWindowBanner,
   useExchangeActions,
 } from '@/components/exchange/detail'
-import { 
+import {
   GigProofsGrid,
   ProofViewerModal,
   type ProofItem,
 } from '@/components/gig'
-import { 
+import { PersonCard, ReviewsSection } from '@/components/shared'
+import {
   useAuthStore,
   usePeerExchangeStore
 } from '@/stores'
@@ -125,8 +126,30 @@ function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated
         >
           <OfferSummaryCard offer={offer} />
 
-          <PartyRow label="Seller" user={offer.seller} />
-          {offer.buyer && <PartyRow label="Buyer" user={offer.buyer} />}
+          <PaymentWindowBanner offer={offer} isBuyer={isBuyer} />
+
+          <PersonCard
+            label="Seller"
+            user={offer.seller}
+            currentUserId={userId}
+            contextId={offer.id}
+            contextTitle={`${offer.fiat_amount.toLocaleString()} ${offer.fiat_currency}`}
+            isOffer
+            showMessageButton={offer.status !== 'draft'}
+          />
+          {offer.buyer && (
+            <>
+              <Spacer size={spacing.sm} />
+              <PersonCard
+                label="Buyer"
+                user={offer.buyer}
+                currentUserId={userId}
+                contextId={offer.id}
+                contextTitle={`${offer.fiat_amount.toLocaleString()} ${offer.fiat_currency}`}
+                isOffer
+              />
+            </>
+          )}
 
           {offer.payment_accounts.length > 0 && (
             <>
@@ -160,10 +183,31 @@ function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated
             </Card>
           )}
 
+          {offer.reviews.length > 0 && offer.buyer && (
+            <>
+              <Spacer size={spacing.md} />
+              <ReviewsSection
+                reviews={offer.reviews}
+                partyAId={offer.seller_id}
+                partyA={offer.seller}
+                partyALabel="Seller"
+                partyB={offer.buyer}
+                partyBLabel="Buyer"
+                currentUserId={userId}
+              />
+            </>
+          )}
+
           <Spacer size={spacing.xl} />
         </ScrollView>
 
-        <ExchangeCTABar offer={offer} isSeller={isSeller} isBuyer={isBuyer} actions={actions} />
+        <ExchangeCTABar
+          offer={offer}
+          isSeller={isSeller}
+          isBuyer={isBuyer}
+          currentUserId={userId}
+          actions={actions}
+        />
       </KeyboardAvoidingView>
 
       <ProofViewerModal proof={selectedProof} onClose={() => setSelectedProof(null)} />
@@ -201,23 +245,6 @@ function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-
-function PartyRow({ label, user }: { label: string; user: ExchangeOfferDetail['seller'] }) {
-  const { theme } = useUnistyles()
-  const name = `${user.first_name} ${user.last_name}`.trim()
-  return (
-    <View style={[s.party, { borderBottomColor: theme.colors.borderFaint }]}>
-      <Avatar src={user.avatar_url} name={name} size="md" />
-      <View style={s.flex}>
-        <Text weight="medium" size={typography.sizes.sm}>{name}</Text>
-        {user.reputation_score != null && (
-          <Text variant="caption" color={theme.colors.textFaint}>★ {user.reputation_score.toFixed(1)}</Text>
-        )}
-      </View>
-      <Text variant="caption" color={theme.colors.textSub}>{label}</Text>
-    </View>
-  )
-}
 
 function AccountCard({ account }: { account: UserExchangeAccount }) {
   const { theme } = useUnistyles()

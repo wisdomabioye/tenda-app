@@ -51,7 +51,7 @@ export default function ChatScreen() {
 
   function handleSend(text: string) {
     if (!conversationId) return
-    void sendMessage(conversationId, text, gigId)
+    void sendMessage(conversationId, text, gigId, offerId)
   }
 
   function handleRetry(msg: LocalMessage) {
@@ -114,7 +114,10 @@ export default function ChatScreen() {
           keyExtractor={(item) => isDivider(item) ? item._key : item.id}
           renderItem={({ item }) =>
             isDivider(item) ? (
-              <ChatContextDivider gigId={item.gig_id} gigTitle={item.gig_title} />
+              <ChatContextDivider
+                gigId={item.gig_id} gigTitle={item.gig_title}
+                offerId={item.offer_id} offerTitle={item.offer_title}
+              />
             ) : (
               <MessageBubble
                 message={item}

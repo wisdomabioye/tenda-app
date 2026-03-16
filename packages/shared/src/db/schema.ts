@@ -193,8 +193,9 @@ export const disputes = pgTable('disputes', {
 export const reviews = pgTable('reviews', {
   id:          uuid('id').primaryKey().defaultRandom(),
   gig_id:      uuid('gig_id')
-    .references(() => gigs.id, { onDelete: 'cascade' })
-    .notNull(),
+    .references(() => gigs.id, { onDelete: 'cascade' }),
+  offer_id:    uuid('offer_id')
+    .references(() => exchange_offers.id, { onDelete: 'cascade' }),
   reviewer_id: uuid('reviewer_id')
     .references(() => users.id)
     .notNull(),
@@ -205,8 +206,9 @@ export const reviews = pgTable('reviews', {
   comment:     varchar('comment', { length: 1000 }),
   created_at:  timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => ({
-  unique_review: uniqueIndex('reviews_gig_reviewer_unique').on(t.gig_id, t.reviewer_id),
-  reviewee_idx:  index('reviews_reviewee_id_idx').on(t.reviewee_id),
+  gig_unique_review:   uniqueIndex('reviews_gig_reviewer_unique').on(t.gig_id, t.reviewer_id),
+  offer_unique_review: uniqueIndex('reviews_offer_reviewer_unique').on(t.offer_id, t.reviewer_id),
+  reviewee_idx:        index('reviews_reviewee_id_idx').on(t.reviewee_id),
 }))
 
 export const platform_config = pgTable('platform_config', {
@@ -247,6 +249,7 @@ export const messages = pgTable('messages', {
     .notNull(),
   sender_id:  uuid('sender_id').references(() => users.id).notNull(),
   gig_id:     uuid('gig_id').references(() => gigs.id, { onDelete: 'set null' }),
+  offer_id:   uuid('offer_id').references(() => exchange_offers.id, { onDelete: 'set null' }),
   content:    varchar('content', { length: 2000 }).notNull(),
   read_at:    timestamp('read_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),

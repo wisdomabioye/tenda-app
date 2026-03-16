@@ -202,11 +202,12 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
 
       return reply.code(201).send({
         ...offer,
-        seller:          sellerRow,
-        buyer:           null,
+        seller:           sellerRow,
+        buyer:            null,
         payment_accounts: ownedAccounts,
-        proofs:          [],
-        dispute:         null,
+        proofs:           [],
+        dispute:          null,
+        reviews:          [],
       })
     }
   )

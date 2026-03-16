@@ -27,6 +27,8 @@ export interface Message {
   sender_id: string
   gig_id: string | null
   gig_title: string | null
+  offer_id: string | null
+  offer_title: string | null
   content: string
   read_at: string | null
   created_at: string | null
@@ -35,6 +37,7 @@ export interface Message {
 export interface SendMessageInput {
   content: string
   gig_id?: string
+  offer_id?: string
 }
 
 export interface GigSubscription {

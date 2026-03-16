@@ -4,6 +4,7 @@ import {
   user_exchange_accounts,
   exchange_proofs,
   exchange_disputes,
+  reviews,
   users,
 } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
@@ -77,10 +78,11 @@ export async function buildOfferDetail(
     ? [offer.seller_id, offer.buyer_id]
     : [offer.seller_id]
 
-  const [userRows, proofs, disputeRows, allAccounts] = await Promise.all([
+  const [userRows, proofs, disputeRows, reviewRows, allAccounts] = await Promise.all([
     db.select(USER_COLS).from(users).where(inArray(users.id, userIds)),
     db.select().from(exchange_proofs).where(eq(exchange_proofs.offer_id, offer.id)),
     db.select().from(exchange_disputes).where(eq(exchange_disputes.offer_id, offer.id)).limit(1),
+    db.select().from(reviews).where(eq(reviews.offer_id, offer.id)),
     offer.payment_account_ids.length > 0
       ? db
           .select()
@@ -110,6 +112,7 @@ export async function buildOfferDetail(
     payment_accounts: paymentAccounts,
     proofs,
     dispute,
+    reviews:          reviewRows,
   } as ExchangeOfferDetail
 }
 

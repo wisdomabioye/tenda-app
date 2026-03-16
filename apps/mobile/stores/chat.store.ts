@@ -16,7 +16,7 @@ interface ChatState {
   fetchConversations: () => Promise<void>
   findOrCreate:       (userId: string) => Promise<Conversation>
   fetchMessages:      (conversationId: string, beforeId?: string) => Promise<Message[]>
-  sendMessage:        (conversationId: string, content: string, gigId?: string) => Promise<void>
+  sendMessage:        (conversationId: string, content: string, gigId?: string, offerId?: string) => Promise<void>
   retryMessage:       (conversationId: string, message: LocalMessage) => void
   closeConversation:  (conversationId: string) => Promise<void>
   appendMessage:      (conversationId: string, message: LocalMessage) => void
@@ -75,14 +75,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return fetched
   },
 
-  sendMessage: async (conversationId, content, gigId) => {
+  sendMessage: async (conversationId, content, gigId, offerId) => {
     const tempId = `temp_${Date.now()}`
     const optimistic: LocalMessage = {
       id:              tempId,
       conversation_id: conversationId,
       sender_id:       useAuthStore.getState().user?.id ?? '',
-      gig_id:          gigId ?? null,
+      gig_id:          gigId   ?? null,
       gig_title:       null,
+      offer_id:        offerId ?? null,
+      offer_title:     null,
       content,
       read_at:         null,
       created_at:      new Date().toISOString(),
@@ -91,7 +93,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     get().appendMessage(conversationId, optimistic)
 
     try {
-      const sent = await api.conversations.sendMessage({ id: conversationId }, { content, gig_id: gigId })
+      const sent = await api.conversations.sendMessage({ id: conversationId }, { content, gig_id: gigId, offer_id: offerId })
       set((s) => ({
         messages: {
           ...s.messages,
@@ -120,7 +122,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         [conversationId]: (s.messages[conversationId] ?? []).filter((m) => m.id !== message.id),
       },
     }))
-    void get().sendMessage(conversationId, message.content, message.gig_id ?? undefined)
+    void get().sendMessage(conversationId, message.content, message.gig_id ?? undefined, message.offer_id ?? undefined)
   },
 
   closeConversation: async (conversationId) => {

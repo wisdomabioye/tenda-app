@@ -7,6 +7,7 @@ import type {
   exchange_disputes,
 } from '../db/schema'
 import type { PublicUser } from './user'
+import type { Review } from './review'
 
 // ── Base types ─────────────────────────────────────────────────────────────────
 
@@ -53,8 +54,9 @@ export interface ExchangeOfferDetail extends ExchangeOffer {
   buyer:  Pick<PublicUser, 'id' | 'first_name' | 'last_name' | 'avatar_url' | 'reputation_score' | 'is_seeker'> | null
   // Payment accounts revealed only if: viewer is buyer and status != 'open', or viewer is seller
   payment_accounts: UserExchangeAccount[]
-  proofs:  ExchangeProof[]
-  dispute: ExchangeDispute | null
+  proofs:   ExchangeProof[]
+  dispute:  ExchangeDispute | null
+  reviews:  Review[]
 }
 
 // ── Summary (used in order book list) ─────────────────────────────────────────
@@ -122,6 +124,10 @@ export interface ExchangeCancelInput {
 
 export interface ExchangeRefundInput {
   signature: string  // on-chain refund_expired tx signature (seller signs)
+}
+
+export interface ExchangeAddProofsInput {
+  proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>
 }
 
 // All create fields become optional for patch — only draft offers can be updated
