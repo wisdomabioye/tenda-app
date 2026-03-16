@@ -89,7 +89,7 @@ export default function ExchangeScreen() {
     <ScreenContainer scroll={false} padding={false}>
       {/* Header */}
       <View style={[s.header, { borderBottomColor: theme.colors.borderFaint }]}>
-        <Text weight="bold" size={typography.sizes.xl} style={{ letterSpacing: -0.5 }}>Exchange</Text>
+        <Text weight="bold" size={typography.sizes.xl} style={{ letterSpacing: -0.5 }}>Trade</Text>
         <Button
           variant="primary"
           size="sm"
