@@ -62,8 +62,9 @@ export function useExchangeActions(
   const [pendingAcceptTx, setPendingAcceptTx]               = useState<Transaction | null>(null)
   const [pendingAcceptSignature, setPendingAcceptSignature] = useState<string | null>(null)
 
-  // True while ANY signature is being monitored — used to lock down the CTA bar
-  const txInProgress = pendingSignature !== null
+  // True while ANY blockchain operation is in flight (building, signing, or monitoring)
+  const txInProgress = isTxBuilding
+    || pendingSignature !== null
     || pendingAcceptSignature !== null
     || pendingSetupSignature !== null
 

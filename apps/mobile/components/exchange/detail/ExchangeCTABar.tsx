@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing } from '@/theme/tokens'
-import { Button } from '@/components/ui'
+import { spacing, radius } from '@/theme/tokens'
+import { Button, Text } from '@/components/ui'
 import { PaidProofSheet } from './PaidProofSheet'
 import { DisputeSheet } from './DisputeSheet'
 import { type PickedFile } from '@/components/form/FilePicker'
@@ -51,40 +51,46 @@ export function ExchangeCTABar({ offer, isSeller, isBuyer, actions }: Props) {
     return null
   })()
 
-  const loading  = actions.busy || actions.isTxBuilding
-  const disabled = actions.txInProgress
-
   const buttons = (() => {
     if (mode) return null
+
+    if (actions.txInProgress) return (
+      <View style={[s.notice, { backgroundColor: theme.colors.warningTint }]}>
+        <Text variant="caption" color={theme.colors.warning} weight="semibold" align="center">
+          Transaction in progress — please wait…
+        </Text>
+      </View>
+    )
+
     if (status === 'draft' && isSeller)
       return (
         <View style={s.row}>
-          <Button variant="outline" style={s.flex1} loading={loading} disabled={disabled} onPress={actions.cancel}>Delete</Button>
-          <Button variant="primary" style={s.flex2} loading={loading} disabled={disabled} onPress={actions.publishOffer}>Fund &amp; Publish</Button>
+          <Button variant="outline" style={s.flex1} onPress={actions.cancel}>Delete</Button>
+          <Button variant="primary" style={s.flex2} onPress={actions.publishOffer}>Fund &amp; Publish</Button>
         </View>
       )
     if (status === 'open' && isSeller)
-      return <Button variant="outline" fullWidth loading={loading} disabled={disabled} onPress={actions.cancel}>Cancel Offer</Button>
+      return <Button variant="outline" fullWidth onPress={actions.cancel}>Cancel Offer</Button>
     if (status === 'open' && !isSeller)
-      return <Button variant="primary" fullWidth loading={loading} disabled={disabled} onPress={actions.accept}>Accept Offer</Button>
+      return <Button variant="primary" fullWidth onPress={actions.accept}>Accept Offer</Button>
     if (status === 'accepted' && isBuyer)
       return (
         <View style={s.row}>
-          <Button variant="outline" style={s.flex1} disabled={disabled} onPress={() => setMode('dispute')}>Dispute</Button>
-          <Button variant="primary" style={s.flex2} disabled={disabled} onPress={() => setMode('paid')}>Mark as Paid</Button>
+          <Button variant="outline" style={s.flex1} onPress={() => setMode('dispute')}>Dispute</Button>
+          <Button variant="primary" style={s.flex2} onPress={() => setMode('paid')}>Mark as Paid</Button>
         </View>
       )
     if (status === 'paid' && isSeller)
       return (
         <View style={s.row}>
-          <Button variant="outline" style={s.flex1} disabled={disabled} onPress={() => setMode('dispute')}>Dispute</Button>
-          <Button variant="primary" style={s.flex2} loading={loading} disabled={disabled} onPress={actions.confirm}>Confirm Payment</Button>
+          <Button variant="outline" style={s.flex1} onPress={() => setMode('dispute')}>Dispute</Button>
+          <Button variant="primary" style={s.flex2} onPress={actions.confirm}>Confirm Payment</Button>
         </View>
       )
     if ((status === 'accepted' && isSeller) || (status === 'paid' && isBuyer))
-      return <Button variant="outline" fullWidth disabled={disabled} onPress={() => setMode('dispute')}>Raise Dispute</Button>
+      return <Button variant="outline" fullWidth onPress={() => setMode('dispute')}>Raise Dispute</Button>
     if (status === 'expired' && isSeller)
-      return <Button variant="primary" fullWidth loading={loading} disabled={disabled} onPress={actions.refundExpired}>Claim Refund</Button>
+      return <Button variant="primary" fullWidth onPress={actions.refundExpired}>Claim Refund</Button>
     return null
   })()
 
@@ -99,8 +105,9 @@ export function ExchangeCTABar({ offer, isSeller, isBuyer, actions }: Props) {
 }
 
 const s = StyleSheet.create({
-  bar:   { padding: spacing.md, borderTopWidth: 1 },
-  row:   { flexDirection: 'row', gap: spacing.sm },
-  flex1: { flex: 1 },
-  flex2: { flex: 2 },
+  bar:    { padding: spacing.md, borderTopWidth: 1 },
+  row:    { flexDirection: 'row', gap: spacing.sm },
+  flex1:  { flex: 1 },
+  flex2:  { flex: 2 },
+  notice: { padding: spacing.md, borderRadius: radius.md },
 })
