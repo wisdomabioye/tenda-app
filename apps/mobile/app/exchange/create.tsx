@@ -1,20 +1,29 @@
 import { useState } from 'react'
-import { View, ScrollView, StyleSheet, Alert, KeyboardAvoidingView, Platform } from 'react-native'
+import { 
+  View, 
+  ScrollView, 
+  StyleSheet, 
+  Alert, 
+  KeyboardAvoidingView, 
+  Platform 
+} from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { ChevronRight } from 'lucide-react-native'
 import { spacing } from '@/theme/tokens'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Button, Spacer } from '@/components/ui'
-import { Header } from '@/components/ui/Header'
-import { StepIndicator } from '@/components/exchange/create/StepIndicator'
-import { OfferDetailsStep } from '@/components/exchange/create/OfferDetailsStep'
-import { TimingStep } from '@/components/exchange/create/TimingStep'
-import { PaymentMethodsStep, type PaymentMethodFormEntry } from '@/components/exchange/create/PaymentMethodsStep'
-import { ReviewStep } from '@/components/exchange/create/ReviewStep'
+import { Button, Spacer, Header } from '@/components/ui'
+import { 
+  StepIndicator,
+  OfferDetailsStep,
+  TimingStep,
+  PaymentMethodsStep,
+  ReviewStep,
+  type PaymentMethodFormEntry,
+  type Step,
+} from '@/components/exchange/create'
 import { api } from '@/api/client'
 import type { SupportedCurrency, UserExchangeAccount } from '@tenda/shared'
-import type { Step } from '@/components/exchange/create/StepIndicator'
 
 const LAMPORTS_PER_SOL = 1_000_000_000
 
