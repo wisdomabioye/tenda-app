@@ -3,20 +3,23 @@ import {
   View, FlatList, ActivityIndicator, StyleSheet, RefreshControl,
   ScrollView, Animated, Pressable, useWindowDimensions,
 } from 'react-native'
+import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { Plus, SlidersHorizontal, Check, X } from 'lucide-react-native'
-import { spacing, typography, radius } from '@/theme/tokens'
-import { ScreenContainer, Text, Spacer, EmptyState, Button } from '@/components/ui'
-import { BottomSheet } from '@/components/ui/BottomSheet'
-import { Skeleton } from '@/components/ui/Skeleton'
+import { SlidersHorizontal, Check, X } from 'lucide-react-native'
+import { spacing, radius } from '@/theme/tokens'
+import { 
+  ScreenContainer, 
+  Text, Spacer, EmptyState, 
+  Button, Header, BottomSheet,
+  Skeleton 
+} from '@/components/ui'
 import { ExchangeOfferCard } from '@/components/exchange'
 import { usePeerExchangeStore } from '@/stores/p2p-exchange.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/api/client'
 import { SUPPORTED_CURRENCIES } from '@tenda/shared'
 import type { ExchangeOfferSummary } from '@tenda/shared'
-import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
 
 export default function ExchangeScreen() {
   const router             = useRouter()
@@ -95,17 +98,7 @@ export default function ExchangeScreen() {
   return (
     <ScreenContainer scroll={false} padding={false}>
       {/* ── Header ── */}
-      <View style={[s.header, { borderBottomColor: theme.colors.borderFaint }]}>
-        <Text weight="bold" size={typography.sizes.xl} style={{ letterSpacing: -0.5 }}>Trade</Text>
-        <Button
-          variant="primary"
-          size="sm"
-          icon={<Plus size={14} color={theme.colors.onPrimary} strokeWidth={2.5} />}
-          onPress={() => router.push('/exchange/create' as any)}
-        >
-          Sell SOL
-        </Button>
-      </View>
+      <Header title="Trade" showBack />
 
       {/* ── Tab row + animated underline ── */}
       <View style={[s.tabRow, { borderBottomColor: theme.colors.borderFaint }]}>
