@@ -40,27 +40,18 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
 
   return (
     <Pressable
-      onPress={() => router.push(`/exchange/${offer.id}` as any)}
+      onPress={() => router.push(`/exchange/${offer.id}`)}
       style={({ pressed }) => [
         s.card,
-        {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.borderFaint,
-        },
+        { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderFaint },
         pressed && s.pressed,
       ]}
     >
-      {/* Seller row */}
+      {/* Seller row — single line: avatar · name · ★ score — status badge */}
       <View style={s.sellerRow}>
-        <Avatar
-          src={offer.seller.avatar_url}
-          name={sellerName}
-          size="sm"
-        />
+        <Avatar src={offer.seller.avatar_url} name={sellerName} size="sm" />
         <View style={s.sellerInfo}>
-          <Text weight="medium" size={typography.sizes.sm} numberOfLines={1}>
-            {sellerName}
-          </Text>
+          <Text weight="medium" size={typography.sizes.sm} numberOfLines={1}>{sellerName}</Text>
           {offer.seller.reputation_score != null && (
             <Text variant="caption" color={theme.colors.textFaint}>
               ★ {offer.seller.reputation_score.toFixed(1)}
@@ -70,17 +61,17 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
         {showStatus && <ExchangeStatusBadge status={offer.status} />}
       </View>
 
-      {/* Amount row */}
+      {/* Amount */}
       <View style={s.amountRow}>
         <Text weight="bold" size={typography.sizes.xl} color={theme.colors.money}>
           {fiatFormatted}
         </Text>
-        <Text variant="caption" color={theme.colors.textSub} style={s.solLabel}>
+        <Text variant="caption" color={theme.colors.textSub}>
           ≈ {formatSolDisplay(sol)}
         </Text>
       </View>
 
-      {/* Rate + pay window */}
+      {/* Rate + window */}
       <View style={s.metaRow}>
         <Text variant="caption" color={theme.colors.textSub}>
           Rate: {rateFormatted}/SOL
@@ -90,7 +81,7 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
         </Text>
       </View>
 
-      {/* Footer: payment methods + deadline */}
+      {/* Footer: payment methods — deadline */}
       <View style={s.footer}>
         <View style={s.methods}>
           {offer.payment_methods.map((m) => (
@@ -99,7 +90,7 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
         </View>
         {deadlineTip && (
           <View style={s.deadline}>
-            <Clock size={12} color={theme.colors.warning} />
+            <Clock size={11} color={theme.colors.warning} />
             <Text size={11} color={theme.colors.warning}>{deadlineTip}</Text>
           </View>
         )}
@@ -112,45 +103,42 @@ const s = StyleSheet.create({
   card: {
     borderRadius: radius.lg,
     borderWidth: 1,
-    padding: spacing.md,
+    padding: spacing.sm,
+    gap: spacing.xs,
     ...shadows.sm,
   },
   pressed: { opacity: 0.85 },
   sellerRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
+    gap: spacing.xs,
   },
   sellerInfo: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
   },
   amountRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: spacing.sm,
-    marginBottom: 2,
-  },
-  solLabel: {
-    marginBottom: 1,
+    gap: spacing.xs,
   },
   metaRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
   },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: spacing.sm,
     flexWrap: 'wrap',
     gap: spacing.xs,
   },
   methods: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: spacing.xs,
+    gap: 4,
     flex: 1,
   },
   deadline: {
