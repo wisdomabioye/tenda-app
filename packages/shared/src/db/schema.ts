@@ -420,7 +420,7 @@ export const exchange_transactions = pgTable('exchange_transactions', {
   type:                  exchangeTransactionTypeEnum('type').notNull(),
   signature:             text('signature').notNull(),
   amount_lamports:       bigint('amount_lamports', { mode: 'bigint' }).notNull(),
-  platform_fee_lamports: bigint('platform_fee_lamports', { mode: 'bigint' }).notNull().default(0n),
+  platform_fee_lamports: bigint('platform_fee_lamports', { mode: 'bigint' }).notNull().default(sql`0`),
   created_at:            timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => ({
   offer_idx:        index('exchange_transactions_offer_id_idx').on(t.offer_id),
