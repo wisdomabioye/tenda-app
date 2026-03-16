@@ -47,6 +47,7 @@ export function OfferDetailsStep({
         label="SOL amount"
         placeholder="e.g. 2.5"
         keyboardType="decimal-pad"
+        helper="The SOL you're committing to sell — locked in escrow until the buyer pays"
         value={solInput}
         onChangeText={handleSolChange}
       />
@@ -68,6 +69,7 @@ export function OfferDetailsStep({
         label={`Fiat amount (${currency})`}
         placeholder={`e.g. ${symbol}85,000`}
         keyboardType="decimal-pad"
+        helper={`The ${currency} you expect to receive from the buyer in return`}
         value={fiatInput}
         onChangeText={handleFiatChange}
       />

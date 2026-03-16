@@ -80,6 +80,7 @@ export const apiRoutes: {
     confirm: '/v1/exchange/:id/confirm',
     dispute: '/v1/exchange/:id/dispute',
     resolve: '/v1/exchange/:id/resolve',
+    update: '/v1/exchange/:id',
   },
   exchangeAccounts: {
     list:       '/v1/exchange/accounts',

@@ -120,6 +120,9 @@ export interface ExchangeCancelInput {
   signature?: string  // on-chain cancel_gig tx (required if status was 'accepted')
 }
 
+// All create fields become optional for patch — only draft offers can be updated
+export type UpdateExchangeOfferInput = Partial<CreateExchangeOfferInput>
+
 export interface ExchangeListQuery {
   currency?:     string
   min_lamports?: number

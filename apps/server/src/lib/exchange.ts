@@ -6,12 +6,57 @@ import {
   exchange_disputes,
   users,
 } from '@tenda/shared/db/schema'
-import type { ExchangeOffer, ExchangeOfferDetail } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
+import type { ExchangeOffer, ExchangeOfferDetail, ExchangeOfferStatus } from '@tenda/shared'
 import type { AppDatabase } from '../plugins/db'
+import { AppError } from './errors'
 import { USER_COLS } from './users'
 
 /**
+ * Fetches an exchange offer by id. Throws a 404 AppError if not found.
+ */
+export async function ensureOfferExists(db: AppDatabase, id: string): Promise<ExchangeOffer> {
+  const [offer] = await db.select().from(exchange_offers).where(eq(exchange_offers.id, id)).limit(1)
+  if (!offer) throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
+  return offer
+}
+
+/**
+ * Throws a 409 AppError if the offer is not in one of the allowed statuses.
+ */
+export function ensureOfferStatus(offer: Pick<ExchangeOffer, 'status'>, ...allowed: ExchangeOfferStatus[]): void {
+  if (!allowed.includes(offer.status as ExchangeOfferStatus)) {
+    throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, `Offer must be ${allowed.join(' or ')} to perform this action`)
+  }
+}
+
+/**
+ * Throws a 403 AppError if userId does not match the expected role on the offer.
+ * role 'seller' — checks seller_id === userId
+ * role 'buyer'  — checks buyer_id === userId
+ */
+export function ensureOfferOwnership(
+  offer: Pick<ExchangeOffer, 'seller_id' | 'buyer_id'>,
+  userId: string,
+  role: 'seller' | 'buyer',
+  message?: string,
+): void {
+  const ok = role === 'seller' ? offer.seller_id === userId : offer.buyer_id === userId
+  if (!ok) throw new AppError(403, ErrorCode.FORBIDDEN, message ?? `Only the ${role} can perform this action`)
+}
+
+/**
+ * Throws a 409 AppError if a TOCTOU-guarded DB update returned no row.
+ * Use after transactions that include a status guard in the WHERE clause.
+ */
+export function ensureOfferTxUpdated<T>(result: T | null | undefined, message: string): T {
+  if (result == null) throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, message)
+  return result
+}
+
+/**
  * Fetches an exchange offer by id. Returns null if not found.
+ * @deprecated Prefer ensureOfferExists which throws on missing.
  */
 export async function findOfferById(db: AppDatabase, id: string): Promise<ExchangeOffer | null> {
   const [offer] = await db.select().from(exchange_offers).where(eq(exchange_offers.id, id)).limit(1)

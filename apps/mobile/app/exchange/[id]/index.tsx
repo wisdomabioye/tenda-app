@@ -1,23 +1,37 @@
 import { useCallback, useState } from 'react'
-import { View, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform, Share } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import { Share2, Pencil } from 'lucide-react-native'
 import { spacing, typography } from '@/theme/tokens'
-import { Text, Spacer, Card, Avatar } from '@/components/ui'
-import { Header } from '@/components/ui/Header'
-import { LoadingScreen } from '@/components/feedback/LoadingScreen'
-import { ErrorState } from '@/components/feedback/ErrorState'
-import { TransactionMonitor } from '@/components/feedback/TransactionMonitor'
-import { OfferSummaryCard } from '@/components/exchange/detail/OfferSummaryCard'
-import { ExchangeCTABar } from '@/components/exchange/detail/ExchangeCTABar'
-import { useExchangeActions } from '@/components/exchange/detail/useExchangeActions'
-import { GigProofsGrid } from '@/components/gig/GigProofsGrid'
-import { ProofViewerModal } from '@/components/gig/ProofViewerModal'
-import type { ProofItem } from '@/components/gig/ProofViewerModal'
-import { showToast } from '@/components/ui/Toast'
-import { useAuthStore } from '@/stores/auth.store'
-import { usePeerExchangeStore } from '@/stores/p2p-exchange.store'
+import { 
+  ScreenContainer,
+  Text, 
+  Spacer, 
+  Card, 
+  Avatar,
+  Header,
+  showToast
+} from '@/components/ui'
+import { 
+  LoadingScreen,
+  ErrorState,
+  TransactionMonitor,
+} from '@/components/feedback'
+import { 
+  OfferSummaryCard,
+  ExchangeCTABar,
+  useExchangeActions,
+} from '@/components/exchange/detail'
+import { 
+  GigProofsGrid,
+  ProofViewerModal,
+  type ProofItem,
+} from '@/components/gig'
+import { 
+  useAuthStore,
+  usePeerExchangeStore
+} from '@/stores'
 import { api, ApiClientError } from '@/api/client'
 import type { ExchangeOfferDetail, UserExchangeAccount } from '@tenda/shared'
 
@@ -77,15 +91,30 @@ interface ContentProps {
 }
 
 function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated, onBack }: ContentProps) {
-  const { theme } = useUnistyles()
-  const actions   = useExchangeActions(offer, onUpdated, onBack)
-  const isSeller  = offer.seller_id === userId
-  const isBuyer   = offer.buyer_id  === userId
+  const { theme }   = useUnistyles()
+  const router      = useRouter()
+  const actions     = useExchangeActions(offer, onUpdated, onBack)
+  const isSeller    = offer.seller_id === userId
+  const isBuyer     = offer.buyer_id  === userId
+  const isDraftSeller = isSeller && offer.status === 'draft'
   const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
 
+  function handleEdit() {
+    router.push(`/exchange/${offer.id}/edit` as never)
+  }
+
+  function handleShare() {
+    Share.share({ message: `Exchange offer on Tenda — ${offer.fiat_amount.toLocaleString()} ${offer.fiat_currency} for ${Number(offer.lamports_amount) / 1e9} SOL` })
+  }
+
   return (
-    <SafeAreaView style={[s.flex, { backgroundColor: theme.colors.background }]} edges={['left', 'right']}>
-      <Header title="Exchange Offer" showBack />
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
+      <Header
+        title="Exchange Offer"
+        showBack
+        rightIcon={isDraftSeller ? Pencil : Share2}
+        onRightPress={isDraftSeller ? handleEdit : handleShare}
+      />
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={90}>
         <ScrollView
           contentContainerStyle={s.scroll}
@@ -155,7 +184,7 @@ function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated
           showToast('info', msg || 'Transaction pending — will sync when confirmed')
         }}
       />
-    </SafeAreaView>
+    </ScreenContainer>
   )
 }
 

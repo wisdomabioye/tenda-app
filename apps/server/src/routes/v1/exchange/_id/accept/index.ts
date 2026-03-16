@@ -3,8 +3,10 @@ import { and, eq } from 'drizzle-orm'
 import { exchange_offers, exchange_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { ensureSignatureVerified } from '@server/lib/solana'
-import { buildOfferDetail } from '@server/lib/exchange'
-import type { ExchangeContract, ApiError, ExchangeOffer } from '@tenda/shared'
+import {
+  ensureOfferExists, ensureOfferStatus, ensureOfferTxUpdated, buildOfferDetail,
+} from '@server/lib/exchange'
+import type { ExchangeContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { handleUniqueConflict } from '@server/lib/db'
 import { appEvents } from '@server/lib/events'
@@ -28,23 +30,13 @@ const exchangeAccept: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
       }
 
-      const [offer] = await fastify.db
-        .select()
-        .from(exchange_offers)
-        .where(eq(exchange_offers.id, id))
-        .limit(1)
-
-      if (!offer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-      }
+      const offer = await ensureOfferExists(fastify.db, id)
 
       if (offer.seller_id === request.user.id) {
         throw new AppError(400, ErrorCode.CANNOT_ACCEPT_OWN_GIG, 'Cannot accept your own exchange offer')
       }
 
-      if (offer.status !== 'open') {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer is not open for acceptance')
-      }
+      ensureOfferStatus(offer, 'open')
 
       if (offer.accept_deadline && new Date() > new Date(offer.accept_deadline)) {
         throw new AppError(400, ErrorCode.ACCEPT_DEADLINE_PASSED, 'Acceptance deadline has passed')
@@ -75,8 +67,8 @@ const exchangeAccept: FastifyPluginAsync = async (fastify) => {
             offer_id:              id,
             type:                  'accept',
             signature,
-            amount_lamports:       BigInt(offer.lamports_amount),
-            platform_fee_lamports: 0n,
+            amount_lamports:       offer.lamports_amount,
+            platform_fee_lamports: 0,
           })
 
           return updatedOffer
@@ -85,9 +77,7 @@ const exchangeAccept: FastifyPluginAsync = async (fastify) => {
         handleUniqueConflict(err, ErrorCode.DUPLICATE_SIGNATURE, 'This transaction signature has already been recorded')
       }
 
-      if (!updated) {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer is no longer open — it may have just been accepted by another buyer')
-      }
+      const accepted = ensureOfferTxUpdated(updated, 'Offer is no longer open — it may have just been accepted by another buyer')
 
       appEvents.emit('exchange.accepted', {
         offerId:    id,
@@ -97,7 +87,7 @@ const exchangeAccept: FastifyPluginAsync = async (fastify) => {
         fiatAmount: offer.fiat_amount,
       })
 
-      const detail = await buildOfferDetail(fastify.db, updated as ExchangeOffer, request.user.id)
+      const detail = await buildOfferDetail(fastify.db, accepted, request.user.id)
       return reply.send(detail)
     }
   )

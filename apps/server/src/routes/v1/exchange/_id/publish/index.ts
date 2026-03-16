@@ -4,7 +4,9 @@ import { exchange_offers, exchange_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
 import { deriveEscrowAddress, ensureSignatureVerified, verifyEscrowFunded } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
-import { findOfferById, buildOfferDetail } from '@server/lib/exchange'
+import {
+  ensureOfferExists, ensureOfferOwnership, ensureOfferStatus, ensureOfferTxUpdated, buildOfferDetail,
+} from '@server/lib/exchange'
 import { handleUniqueConflict } from '@server/lib/db'
 import { AppError } from '@server/lib/errors'
 import type { ExchangeContract, ApiError } from '@tenda/shared'
@@ -30,18 +32,9 @@ const publishOffer: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
       }
 
-      const offer = await findOfferById(fastify.db, id)
-      if (!offer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-      }
-
-      if (offer.seller_id !== request.user.id) {
-        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the seller can publish this offer')
-      }
-
-      if (offer.status !== 'draft') {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, `Offer must be in 'draft' status to publish (current: ${offer.status})`)
-      }
+      const offer = await ensureOfferExists(fastify.db, id)
+      ensureOfferOwnership(offer, request.user.id, 'seller', 'Only the seller can publish this offer')
+      ensureOfferStatus(offer, 'draft')
 
       if (offer.accept_deadline && new Date(offer.accept_deadline) <= new Date()) {
         throw new AppError(400, ErrorCode.ACCEPT_DEADLINE_PASSED, 'Cannot publish — acceptance deadline has already passed')
@@ -74,8 +67,8 @@ const publishOffer: FastifyPluginAsync = async (fastify) => {
             offer_id:              id,
             type:                  'create_escrow',
             signature,
-            amount_lamports:       BigInt(offer.lamports_amount) + BigInt(platform_fee_lamports),
-            platform_fee_lamports: BigInt(platform_fee_lamports),
+            amount_lamports:       offer.lamports_amount + platform_fee_lamports,
+            platform_fee_lamports: platform_fee_lamports,
           })
 
           return updated
@@ -84,11 +77,9 @@ const publishOffer: FastifyPluginAsync = async (fastify) => {
         handleUniqueConflict(err, ErrorCode.DUPLICATE_SIGNATURE, 'This transaction signature has already been recorded')
       }
 
-      if (!txResult) {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer status changed — it may have already been published')
-      }
+      const published = ensureOfferTxUpdated(txResult, 'Offer status changed — it may have already been published')
 
-      return buildOfferDetail(fastify.db, txResult, request.user.id)
+      return buildOfferDetail(fastify.db, published, request.user.id)
     }
   )
 }

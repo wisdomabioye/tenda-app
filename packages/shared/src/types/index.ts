@@ -88,6 +88,7 @@ export type {
   ExchangeOfferSummary,
   CreateUserExchangeAccountInput,
   CreateExchangeOfferInput,
+  UpdateExchangeOfferInput,
   ExchangePublishInput,
   ExchangeAcceptInput,
   ExchangePaidInput,

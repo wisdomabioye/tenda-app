@@ -3,8 +3,10 @@ import { and, eq, or } from 'drizzle-orm'
 import { exchange_offers, exchange_disputes, exchange_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, EXCHANGE_DISPUTE_REASON_MIN_LENGTH, EXCHANGE_DISPUTE_REASON_MAX_LENGTH } from '@tenda/shared'
 import { ensureSignatureVerified } from '@server/lib/solana'
-import { buildOfferDetail } from '@server/lib/exchange'
-import type { ExchangeContract, ApiError, ExchangeOffer } from '@tenda/shared'
+import {
+  ensureOfferExists, ensureOfferStatus, ensureOfferTxUpdated, buildOfferDetail,
+} from '@server/lib/exchange'
+import type { ExchangeContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 
@@ -37,15 +39,7 @@ const exchangeDispute: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, `reason must be at most ${EXCHANGE_DISPUTE_REASON_MAX_LENGTH} characters`)
       }
 
-      const [offer] = await fastify.db
-        .select()
-        .from(exchange_offers)
-        .where(eq(exchange_offers.id, id))
-        .limit(1)
-
-      if (!offer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-      }
+      const offer = await ensureOfferExists(fastify.db, id)
 
       const isSeller = offer.seller_id === request.user.id
       const isBuyer  = offer.buyer_id === request.user.id
@@ -54,9 +48,7 @@ const exchangeDispute: FastifyPluginAsync = async (fastify) => {
         throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the seller or buyer can dispute this offer')
       }
 
-      if (offer.status !== 'accepted' && offer.status !== 'paid') {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer must be in accepted or paid status to dispute')
-      }
+      ensureOfferStatus(offer, 'accepted', 'paid')
 
       // Pre-check: does a dispute already exist?
       const [existingDispute] = await fastify.db
@@ -99,16 +91,14 @@ const exchangeDispute: FastifyPluginAsync = async (fastify) => {
           offer_id:              id,
           type:                  'dispute_raised',
           signature,
-          amount_lamports:       0n,
-          platform_fee_lamports: 0n,
+          amount_lamports:       0,
+          platform_fee_lamports: 0,
         })
 
         return updatedOffer
       })
 
-      if (!updated) {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer status changed — it may have already been disputed or completed')
-      }
+      const disputed = ensureOfferTxUpdated(updated, 'Offer status changed — it may have already been disputed or completed')
 
       appEvents.emit('exchange.disputed', {
         offerId:    id,
@@ -119,7 +109,7 @@ const exchangeDispute: FastifyPluginAsync = async (fastify) => {
         fiatAmount: offer.fiat_amount,
       })
 
-      const detail = await buildOfferDetail(fastify.db, updated as ExchangeOffer, request.user.id)
+      const detail = await buildOfferDetail(fastify.db, disputed, request.user.id)
       return reply.send(detail)
     }
   )

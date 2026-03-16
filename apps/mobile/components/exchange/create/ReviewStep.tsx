@@ -16,11 +16,12 @@ interface Props {
   hasDeadline:   boolean
   deadlineInput: string
   methods:       PaymentMethodFormEntry[]
+  submitLabel:   string
 }
 
 export function ReviewStep({
   solNum, fiatNum, currency, rateNum,
-  windowSeconds, hasDeadline, deadlineInput, methods,
+  windowSeconds, hasDeadline, deadlineInput, methods, submitLabel,
 }: Props) {
   const { theme } = useUnistyles()
   const symbol = CURRENCY_META[currency].symbol
@@ -54,8 +55,9 @@ export function ReviewStep({
 
       <Spacer size={spacing.md} />
       <Text variant="caption" color={theme.colors.textSub}>
-        Tapping "Post & Fund Escrow" will open your wallet to sign a transaction locking
-        your SOL in escrow until a buyer accepts.
+        {submitLabel === 'Save Changes'
+          ? 'Your changes will be saved to the draft offer.'
+          : 'Your draft will be saved — you can review and publish from the offer page.'}
       </Text>
     </View>
   )

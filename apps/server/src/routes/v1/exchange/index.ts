@@ -37,11 +37,11 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     if (currency) conditions.push(eq(exchange_offers.fiat_currency, currency.toUpperCase()))
     if (min_lamports !== undefined) {
       const n = Number(min_lamports)
-      if (Number.isFinite(n) && n >= 0) conditions.push(gte(exchange_offers.lamports_amount, BigInt(n)))
+      if (Number.isFinite(n) && n >= 0) conditions.push(gte(exchange_offers.lamports_amount, n))
     }
     if (max_lamports !== undefined) {
       const n = Number(max_lamports)
-      if (Number.isFinite(n) && n >= 0) conditions.push(lte(exchange_offers.lamports_amount, BigInt(n)))
+      if (Number.isFinite(n) && n >= 0) conditions.push(lte(exchange_offers.lamports_amount, n))
     }
     if (min_lamports !== undefined && max_lamports !== undefined) {
       const mn = Number(min_lamports)
@@ -132,8 +132,8 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'lamports_amount, fiat_amount, fiat_currency, and account_ids are required')
       }
 
-      const lamportsBigint = BigInt(lamports_amount)
-      if (lamportsBigint <= 0n) {
+      const lamportsNum = Number(lamports_amount)
+      if (!Number.isFinite(lamportsNum) || lamportsNum <= 0) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'lamports_amount must be positive')
       }
 
@@ -183,10 +183,10 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
         .insert(exchange_offers)
         .values({
           seller_id:              request.user.id,
-          lamports_amount:        lamportsBigint,
+          lamports_amount:        lamportsNum,
           fiat_amount:            fiat_amount,
           fiat_currency:          currencyUpper,
-          rate:                   Math.round(fiat_amount / (Number(lamportsBigint) / 1_000_000_000)),
+          rate:                   Math.round(fiat_amount / (lamportsNum / 1_000_000_000)),
           payment_window_seconds: windowSecs,
           payment_account_ids:    account_ids,
           accept_deadline:        acceptDeadlineDate,

@@ -5,7 +5,9 @@ import { ErrorCode, computePlatformFee } from '@tenda/shared'
 import { ensureSignatureVerified } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
 import { isPostgresUniqueViolation } from '@server/lib/db'
-import { buildOfferDetail } from '@server/lib/exchange'
+import {
+  ensureOfferExists, ensureOfferOwnership, ensureOfferStatus, ensureOfferTxUpdated, buildOfferDetail,
+} from '@server/lib/exchange'
 import type { ExchangeContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
@@ -29,29 +31,15 @@ const exchangeConfirm: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
       }
 
-      const [offer] = await fastify.db
-        .select()
-        .from(exchange_offers)
-        .where(eq(exchange_offers.id, id))
-        .limit(1)
-
-      if (!offer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-      }
-
-      if (offer.seller_id !== request.user.id) {
-        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the seller can confirm this offer')
-      }
-
-      if (offer.status !== 'paid') {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer must be in paid status to confirm')
-      }
+      const offer = await ensureOfferExists(fastify.db, id)
+      ensureOfferOwnership(offer, request.user.id, 'seller', 'Only the seller can confirm this offer')
+      ensureOfferStatus(offer, 'paid')
 
       await ensureSignatureVerified(signature, 'approve_completion')
 
       const config = await getPlatformConfig(fastify.db)
       const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
-      const platform_fee_lamports = BigInt(computePlatformFee(offer.lamports_amount, effectiveFeeBps))
+      const platform_fee_lamports = computePlatformFee(BigInt(offer.lamports_amount), effectiveFeeBps)
       const now = new Date()
 
       let updated
@@ -83,9 +71,7 @@ const exchangeConfirm: FastifyPluginAsync = async (fastify) => {
         throw err
       }
 
-      if (!updated) {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer status changed — it may have already been completed or disputed')
-      }
+      const confirmed = ensureOfferTxUpdated(updated, 'Offer status changed — it may have already been completed or disputed')
 
       appEvents.emit('exchange.confirmed', {
         offerId:    id,
@@ -95,7 +81,7 @@ const exchangeConfirm: FastifyPluginAsync = async (fastify) => {
         fiatAmount: offer.fiat_amount,
       })
 
-      const detail = await buildOfferDetail(fastify.db, updated, request.user.id)
+      const detail = await buildOfferDetail(fastify.db, confirmed, request.user.id)
       return reply.send(detail)
     }
   )

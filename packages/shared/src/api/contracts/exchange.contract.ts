@@ -10,6 +10,7 @@ import type {
   ExchangeDisputeInput,
   ExchangeResolveInput,
   ExchangeCancelInput,
+  UpdateExchangeOfferInput,
   ExchangeListQuery,
   ExchangeEscrowRequest,
   ExchangeAcceptRequest,
@@ -36,6 +37,7 @@ export interface ExchangeContract {
   confirm: Endpoint<'POST',   { id: string }, ExchangeConfirmInput,     undefined,         ExchangeOffer>
   dispute: Endpoint<'POST',   { id: string }, ExchangeDisputeInput,     undefined,         ExchangeOffer>
   resolve: Endpoint<'POST',   { id: string }, ExchangeResolveInput,     undefined,         ExchangeOffer>
+  update:  Endpoint<'PATCH',  { id: string }, UpdateExchangeOfferInput, undefined,         ExchangeOffer>
 }
 
 export interface ExchangeAccountsContract {

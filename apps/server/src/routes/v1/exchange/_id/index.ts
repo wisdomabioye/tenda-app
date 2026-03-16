@@ -6,11 +6,15 @@ import type { ExchangeContract, ApiError } from '@tenda/shared'
 import { ensureSignatureVerified } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
 import { AppError } from '@server/lib/errors'
-import { buildOfferDetail, checkAndExpireOffer } from '@server/lib/exchange'
+import {
+  ensureOfferExists, ensureOfferOwnership, ensureOfferStatus, ensureOfferTxUpdated,
+  buildOfferDetail, checkAndExpireOffer,
+} from '@server/lib/exchange'
 import { handleUniqueConflict } from '@server/lib/db'
 import { appEvents } from '@server/lib/events'
 
 type GetRoute    = ExchangeContract['get']
+type UpdateRoute = ExchangeContract['update']
 type CancelRoute = ExchangeContract['cancel']
 
 const exchangeById: FastifyPluginAsync = async (fastify) => {
@@ -25,20 +29,46 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const { id } = request.params
 
-      const [fetchedOffer] = await fastify.db
-        .select()
-        .from(exchange_offers)
-        .where(eq(exchange_offers.id, id))
-        .limit(1)
-
-      if (!fetchedOffer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-      }
-
+      const fetchedOffer = await ensureOfferExists(fastify.db, id)
       const offer = await checkAndExpireOffer(fetchedOffer, fastify.db)
 
       const detail = await buildOfferDetail(fastify.db, offer, request.user.id)
       return reply.send(detail)
+    }
+  )
+
+  // PATCH /v1/exchange/:id — update a draft offer (seller only)
+  fastify.patch<{
+    Params: UpdateRoute['params']
+    Body:   UpdateRoute['body']
+    Reply:  UpdateRoute['response'] | ApiError
+  }>(
+    '/',
+    { preHandler: [fastify.authenticate] },
+    async (request, reply) => {
+      const { id } = request.params
+      const { lamports_amount, fiat_amount, fiat_currency, rate, payment_window_seconds, accept_deadline, account_ids } = request.body
+
+      const offer = await ensureOfferExists(fastify.db, id)
+      ensureOfferOwnership(offer, request.user.id, 'seller', 'Only the seller can edit this offer')
+      ensureOfferStatus(offer, 'draft')
+
+      const [updated] = await fastify.db
+        .update(exchange_offers)
+        .set({
+          ...(lamports_amount          != null && { lamports_amount: Number(lamports_amount) }),
+          ...(fiat_amount              != null && { fiat_amount }),
+          ...(fiat_currency            != null && { fiat_currency }),
+          ...(rate                     != null && { rate }),
+          ...(payment_window_seconds   != null && { payment_window_seconds }),
+          ...(accept_deadline !== undefined    && { accept_deadline: accept_deadline ? new Date(accept_deadline) : null }),
+          ...(account_ids              != null && { payment_account_ids: account_ids }),
+          updated_at: new Date(),
+        })
+        .where(eq(exchange_offers.id, id))
+        .returning()
+
+      return reply.send(updated!)
     }
   )
 
@@ -56,23 +86,9 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       const { id } = request.params
       const { signature } = request.body ?? {}
 
-      const [offer] = await fastify.db
-        .select()
-        .from(exchange_offers)
-        .where(eq(exchange_offers.id, id))
-        .limit(1)
-
-      if (!offer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-      }
-
-      if (offer.seller_id !== request.user.id) {
-        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the seller can cancel this offer')
-      }
-
-      if (offer.status !== 'draft' && offer.status !== 'open') {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer cannot be cancelled in its current state')
-      }
+      const offer = await ensureOfferExists(fastify.db, id)
+      ensureOfferOwnership(offer, request.user.id, 'seller', 'Only the seller can cancel this offer')
+      ensureOfferStatus(offer, 'draft', 'open')
 
       if (offer.status === 'open' && !signature) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required when cancelling an open offer')
@@ -101,8 +117,8 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
               offer_id:              id,
               type:                  'cancel_refund',
               signature,
-              amount_lamports:       BigInt(offer.lamports_amount) + BigInt(platform_fee_lamports),
-              platform_fee_lamports: 0n, // full refund — platform takes no fee on cancellation
+              amount_lamports:       offer.lamports_amount + platform_fee_lamports,
+              platform_fee_lamports: 0, // full refund — platform takes no fee on cancellation
             })
 
             return cancelled
@@ -111,9 +127,7 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
           handleUniqueConflict(err, ErrorCode.DUPLICATE_SIGNATURE, 'This transaction signature has already been recorded')
         }
 
-        if (!txResult) {
-          throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer status changed — it may have already been accepted or cancelled')
-        }
+        const cancelledOpen = ensureOfferTxUpdated(txResult, 'Offer status changed — it may have already been accepted or cancelled')
 
         appEvents.emit('exchange.cancelled', {
           offerId:    id,
@@ -123,7 +137,7 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
           fiatAmount: offer.fiat_amount,
         })
 
-        return reply.send(txResult)
+        return reply.send(cancelledOpen)
       }
 
       // Draft cancellation — no escrow, no signature needed
@@ -133,9 +147,7 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
         .where(and(eq(exchange_offers.id, id), eq(exchange_offers.status, 'draft')))
         .returning()
 
-      if (!cancelled) {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer status changed — it may have already been published or cancelled')
-      }
+      const cancelledDraft = ensureOfferTxUpdated(cancelled, 'Offer status changed — it may have already been published or cancelled')
 
       appEvents.emit('exchange.cancelled', {
         offerId:    id,
@@ -145,7 +157,7 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
         fiatAmount: offer.fiat_amount,
       })
 
-      return reply.send(cancelled)
+      return reply.send(cancelledDraft)
     }
   )
 }

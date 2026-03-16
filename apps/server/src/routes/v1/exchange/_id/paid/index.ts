@@ -4,7 +4,9 @@ import { exchange_offers, exchange_proofs, exchange_transactions } from '@tenda/
 import { ErrorCode } from '@tenda/shared'
 import { ensureSignatureVerified } from '@server/lib/solana'
 import { isPostgresUniqueViolation } from '@server/lib/db'
-import { buildOfferDetail } from '@server/lib/exchange'
+import {
+  ensureOfferExists, ensureOfferOwnership, ensureOfferStatus, ensureOfferTxUpdated, buildOfferDetail,
+} from '@server/lib/exchange'
 import type { ExchangeContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { validateProofs } from '@server/lib/proofs'
@@ -35,23 +37,9 @@ const exchangePaid: FastifyPluginAsync = async (fastify) => {
 
       validateProofs(proofs, request.user.id, 10)
 
-      const [offer] = await fastify.db
-        .select()
-        .from(exchange_offers)
-        .where(eq(exchange_offers.id, id))
-        .limit(1)
-
-      if (!offer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-      }
-
-      if (offer.buyer_id !== request.user.id) {
-        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the buyer can mark this offer as paid')
-      }
-
-      if (offer.status !== 'accepted') {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer must be in accepted status to mark as paid')
-      }
+      const offer = await ensureOfferExists(fastify.db, id)
+      ensureOfferOwnership(offer, request.user.id, 'buyer', 'Only the buyer can mark this offer as paid')
+      ensureOfferStatus(offer, 'accepted')
 
       await ensureSignatureVerified(signature, 'submit_proof')
 
@@ -84,8 +72,8 @@ const exchangePaid: FastifyPluginAsync = async (fastify) => {
             offer_id:              id,
             type:                  'mark_paid',
             signature,
-            amount_lamports:       0n, // no SOL moves at this step; submit_proof only updates escrow state
-            platform_fee_lamports: 0n,
+            amount_lamports:       0, // no SOL moves at this step; submit_proof only updates escrow state
+            platform_fee_lamports: 0,
           })
 
           return updatedOffer
@@ -97,9 +85,7 @@ const exchangePaid: FastifyPluginAsync = async (fastify) => {
         throw err
       }
 
-      if (!updated) {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer status changed — it may have already been marked paid or disputed')
-      }
+      const paid = ensureOfferTxUpdated(updated, 'Offer status changed — it may have already been marked paid or disputed')
 
       appEvents.emit('exchange.paid', {
         offerId:    id,
@@ -109,7 +95,7 @@ const exchangePaid: FastifyPluginAsync = async (fastify) => {
         fiatAmount: offer.fiat_amount,
       })
 
-      const detail = await buildOfferDetail(fastify.db, updated, request.user.id)
+      const detail = await buildOfferDetail(fastify.db, paid, request.user.id)
       return reply.send(detail)
     }
   )

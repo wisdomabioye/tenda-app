@@ -359,7 +359,7 @@ export const exchange_offers = pgTable('exchange_offers', {
   id:                     uuid('id').primaryKey().defaultRandom(),
   seller_id:              uuid('seller_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   buyer_id:               uuid('buyer_id').references(() => users.id),
-  lamports_amount:        bigint('lamports_amount', { mode: 'bigint' }).notNull(),  // SOL amount in lamports
+  lamports_amount:        bigint('lamports_amount', { mode: 'number' }).notNull(),  // SOL amount in lamports
   fiat_amount:            integer('fiat_amount').notNull(),                          // major currency units (e.g. whole NGN)
   fiat_currency:          varchar('fiat_currency', { length: 3 }).notNull(),        // ISO 4217
   rate:                   doublePrecision('rate').notNull(),                         // fiat per SOL at creation (informational)
@@ -419,8 +419,8 @@ export const exchange_transactions = pgTable('exchange_transactions', {
   offer_id:              uuid('offer_id').references(() => exchange_offers.id, { onDelete: 'cascade' }).notNull(),
   type:                  exchangeTransactionTypeEnum('type').notNull(),
   signature:             text('signature').notNull(),
-  amount_lamports:       bigint('amount_lamports', { mode: 'bigint' }).notNull(),
-  platform_fee_lamports: bigint('platform_fee_lamports', { mode: 'bigint' }).notNull().default(sql`0`),
+  amount_lamports:       bigint('amount_lamports', { mode: 'number' }).notNull(),
+  platform_fee_lamports: bigint('platform_fee_lamports', { mode: 'number' }).notNull().default(sql`0`),
   created_at:            timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => ({
   offer_idx:        index('exchange_transactions_offer_id_idx').on(t.offer_id),

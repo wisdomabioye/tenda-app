@@ -6,8 +6,10 @@ import { ensureSignatureVerified } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
 import { requireRole } from '@server/lib/guards'
 import { isPostgresUniqueViolation } from '@server/lib/db'
-import { buildOfferDetail } from '@server/lib/exchange'
-import type { ExchangeContract, ApiError, ExchangeDisputeWinner, ExchangeOffer } from '@tenda/shared'
+import {
+  ensureOfferExists, ensureOfferStatus, ensureOfferTxUpdated, buildOfferDetail,
+} from '@server/lib/exchange'
+import type { ExchangeContract, ApiError, ExchangeDisputeWinner } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 
@@ -36,19 +38,8 @@ const exchangeResolve: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'winner must be "seller", "buyer", or "split"')
       }
 
-      const [offer] = await fastify.db
-        .select()
-        .from(exchange_offers)
-        .where(eq(exchange_offers.id, id))
-        .limit(1)
-
-      if (!offer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-      }
-
-      if (offer.status !== 'disputed') {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer must be in disputed status to resolve')
-      }
+      const offer = await ensureOfferExists(fastify.db, id)
+      ensureOfferStatus(offer, 'disputed')
 
       await ensureSignatureVerified(signature, 'resolve_dispute')
 
@@ -61,7 +52,7 @@ const exchangeResolve: FastifyPluginAsync = async (fastify) => {
           .limit(1),
       ])
       const effectiveFeeBps = sellerUser[0]?.is_seeker ? config.seeker_fee_bps : config.fee_bps
-      const platform_fee_lamports = BigInt(computePlatformFee(offer.lamports_amount, effectiveFeeBps))
+      const platform_fee_lamports = computePlatformFee(BigInt(offer.lamports_amount), effectiveFeeBps)
       const resolverWalletAddress = request.user.wallet_address
       const now = new Date()
 
@@ -104,9 +95,7 @@ const exchangeResolve: FastifyPluginAsync = async (fastify) => {
         throw err
       }
 
-      if (!updated) {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer status changed — it may have already been resolved')
-      }
+      const resolved = ensureOfferTxUpdated(updated, 'Offer status changed — it may have already been resolved')
 
       appEvents.emit('exchange.resolved', {
         offerId:    id,
@@ -117,7 +106,7 @@ const exchangeResolve: FastifyPluginAsync = async (fastify) => {
         fiatAmount: offer.fiat_amount,
       })
 
-      const detail = await buildOfferDetail(fastify.db, updated as ExchangeOffer, request.user.id)
+      const detail = await buildOfferDetail(fastify.db, resolved, request.user.id)
       return reply.send(detail)
     }
   )
