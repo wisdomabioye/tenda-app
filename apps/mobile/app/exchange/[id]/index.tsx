@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react'
-import { View, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform, Share } from 'react-native'
+import { View, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform, Share, Pressable } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { Share2, Pencil } from 'lucide-react-native'
-import { spacing, typography } from '@/theme/tokens'
+import { Share2, Pencil, Copy } from 'lucide-react-native'
+import * as Clipboard from 'expo-clipboard'
+import { spacing, typography, radius } from '@/theme/tokens'
 import { 
   ScreenContainer,
   Text, 
@@ -195,41 +196,80 @@ function PartyRow({ label, user }: { label: string; user: ExchangeOfferDetail['s
   const name = `${user.first_name} ${user.last_name}`.trim()
   return (
     <View style={[s.party, { borderBottomColor: theme.colors.borderFaint }]}>
-      <Text size={typography.sizes.sm} color={theme.colors.textSub} style={s.partyLabel}>{label}</Text>
-      <Avatar src={user.avatar_url} name={name} size="sm" />
+      <Avatar src={user.avatar_url} name={name} size="md" />
       <View style={s.flex}>
         <Text weight="medium" size={typography.sizes.sm}>{name}</Text>
         {user.reputation_score != null && (
           <Text variant="caption" color={theme.colors.textFaint}>★ {user.reputation_score.toFixed(1)}</Text>
         )}
       </View>
+      <Text variant="caption" color={theme.colors.textSub}>{label}</Text>
     </View>
   )
 }
 
 function AccountCard({ account }: { account: UserExchangeAccount }) {
   const { theme } = useUnistyles()
+
+  async function copyAccountNumber() {
+    await Clipboard.setStringAsync(account.account_number)
+    showToast('success', 'Account number copied')
+  }
+
   return (
-    <Card variant="outlined" padding={spacing.sm} style={s.accountCard}>
-      <Text weight="semibold" size={typography.sizes.sm}>{account.method}</Text>
-      <Text variant="caption" color={theme.colors.textSub}>
-        {account.account_name} · {account.account_number}
-        {account.bank_name ? ` · ${account.bank_name}` : ''}
-      </Text>
-      {account.additional_info
-        ? <Text variant="caption" color={theme.colors.textFaint}>{account.additional_info}</Text>
-        : null}
+    <Card variant="outlined" padding={spacing.md} style={s.accountCard}>
+
+      {/* Method badge + bank name */}
+      <View style={s.accountHeader}>
+        <View style={[s.methodBadge, { backgroundColor: theme.colors.primaryTint }]}>
+          <Text size={typography.sizes.xs} weight="semibold" color={theme.colors.primary}>
+            {account.method}
+          </Text>
+        </View>
+        {account.bank_name && (
+          <Text variant="caption" color={theme.colors.textSub}>{account.bank_name}</Text>
+        )}
+      </View>
+
+      <Spacer size={spacing.sm} />
+
+      {/* Account name */}
+      <Text variant="caption" color={theme.colors.textFaint}>Account name</Text>
+      <Text weight="medium" size={typography.sizes.sm}>{account.account_name}</Text>
+
+      <Spacer size={spacing.sm} />
+
+      {/* Account number — copy row */}
+      <Text variant="caption" color={theme.colors.textFaint}>Account number</Text>
+      <Pressable style={[s.numberBox, { backgroundColor: theme.colors.surface }]} onPress={copyAccountNumber}>
+        <Text weight="semibold" size={typography.sizes.base} style={s.flex}>{account.account_number}</Text>
+        <View style={[s.copyBtn, { backgroundColor: theme.colors.muted }]}>
+          <Copy size={14} color={theme.colors.primary} />
+        </View>
+      </Pressable>
+
+      {account.additional_info ? (
+        <>
+          <Spacer size={spacing.xs} />
+          <Text variant="caption" color={theme.colors.textFaint}>{account.additional_info}</Text>
+        </>
+      ) : null}
+
     </Card>
   )
 }
 
 const s = StyleSheet.create({
   flex:        { flex: 1 },
-  scroll:      { paddingHorizontal: spacing.md, paddingBottom: spacing['2xl'] },
+  scroll:      { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing['2xl'] },
   section:     { marginTop: spacing.md, marginBottom: spacing.xs },
   hint:        { marginTop: spacing.sm, textAlign: 'center' },
   party:       { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1 },
   partyLabel:  { width: 44 },
-  accountCard: { marginBottom: spacing.xs },
-  disputeCard: { marginTop: spacing.sm },
+  accountCard:   { marginBottom: spacing.sm },
+  accountHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  methodBadge:   { paddingVertical: 3, paddingHorizontal: 10, borderRadius: radius.full, alignSelf: 'flex-start' },
+  numberBox:     { flexDirection: 'row', alignItems: 'center', marginTop: 4, paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: radius.md, gap: spacing.xs },
+  copyBtn:       { padding: 6, borderRadius: radius.sm },
+  disputeCard:   { marginTop: spacing.sm },
 })
