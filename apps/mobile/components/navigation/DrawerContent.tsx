@@ -32,7 +32,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { name: 'Home', route: '/(tabs)/home', icon: Home, description: 'Browse gigs' },
       { name: 'My Gigs', route: '/(tabs)/my-gigs', icon: ClipboardList, description: 'Posted & Accepted' },
-      { name: 'Post Gig', route: '/(tabs)/post', icon: PlusCircle, description: 'Create new' },
+      { name: 'Post Gig', route: '/(tabs)/create-gig', icon: PlusCircle, description: 'Create new' },
       { name: 'Wallet', route: '/(tabs)/wallet', icon: Wallet, description: 'Balance & Withdrawals' },
     ],
   },

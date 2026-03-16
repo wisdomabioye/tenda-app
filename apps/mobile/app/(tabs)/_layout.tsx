@@ -49,12 +49,12 @@ export default function TabsLayout() {
     {
       icon:    <ClipboardList size={20} color={theme.colors.primary} />,
       label:   'Post a Gig',
-      onPress: () => router.navigate('/(tabs)/post' as never),
+      onPress: () => router.navigate('/(tabs)/create-gig' as never),
     },
     {
       icon:    <Coins size={20} color={theme.colors.primary} />,
       label:   'Sell SOL',
-      onPress: () => router.push('/exchange/create' as never),
+      onPress: () => router.navigate('/(tabs)/create-offer' as never),
     },
   ]
 
@@ -107,7 +107,7 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="post"
+          name="create-gig"
           listeners={{
             tabPress: (e) => {
               e.preventDefault()
@@ -154,6 +154,7 @@ export default function TabsLayout() {
         />
 
         {/* ── Hidden screens (navigable, no tab) ── */}
+        <Tabs.Screen name="create-offer" options={{ href: null }} />
         <Tabs.Screen name="my-gigs" options={{ href: null }} />
         <Tabs.Screen name="profile" options={{ href: null }} />
         <Tabs.Screen name="settings" options={{ href: null }} />
