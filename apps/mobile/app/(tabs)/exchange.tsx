@@ -15,8 +15,7 @@ import {
   Skeleton 
 } from '@/components/ui'
 import { ExchangeOfferCard } from '@/components/exchange'
-import { usePeerExchangeStore } from '@/stores/p2p-exchange.store'
-import { useAuthStore } from '@/stores/auth.store'
+import { usePeerExchangeStore, useAuthStore } from '@/stores'
 import { api } from '@/api/client'
 import { SUPPORTED_CURRENCIES } from '@tenda/shared'
 import type { ExchangeOfferSummary } from '@tenda/shared'

@@ -61,7 +61,7 @@ export default function PostGigScreen() {
         guideRoute="/(support)/posting"
         onClose={() => setShowNudge(false)}
       />
-      <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
+      <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
         <Header title="Post a gig" showBack />
         <GigForm submitLabel="Save Draft" onSubmit={handleSubmit} isLoading={isLoading} />
       </ScreenContainer>

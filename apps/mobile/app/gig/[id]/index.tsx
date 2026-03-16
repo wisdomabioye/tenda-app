@@ -6,42 +6,65 @@ import { Share2, Pencil } from 'lucide-react-native'
 import { Transaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import { spacing, radius, typography } from '@/theme/tokens'
-import { ScreenContainer } from '@/components/ui/ScreenContainer'
-import { Header } from '@/components/ui/Header'
-import { Text } from '@/components/ui/Text'
-import { MoneyText } from '@/components/ui/MoneyText'
-import { Divider } from '@/components/ui/Divider'
-import { Spacer } from '@/components/ui/Spacer'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { showToast } from '@/components/ui/Toast'
-import { GigStatusBadge, GigMetaInfo, GigPersonCard, GigProofsGrid, GigReviewsSection } from '@/components/gig'
-import { TransactionMonitor } from '@/components/feedback/TransactionMonitor'
-import { InsufficientBalanceSheet } from '@/components/feedback/InsufficientBalanceSheet'
-import { LoadingScreen } from '@/components/feedback/LoadingScreen'
-import { ErrorState } from '@/components/feedback/ErrorState'
-import { GigCTABar, GigActionSheets } from '@/components/gig'
+import { 
+  ScreenContainer,
+  Header,
+  Text,
+  MoneyText,
+  Divider,
+  Spacer,
+  EmptyState,
+  showToast
+} from '@/components/ui'
+import { 
+  GigStatusBadge, 
+  GigMetaInfo, 
+  GigPersonCard, 
+  GigProofsGrid, 
+  GigReviewsSection,
+  GigCTABar, 
+  GigActionSheets,
+  ProofViewerModal,
+  type ProofItem,
+  type ActiveSheet
+} from '@/components/gig'
+import { 
+  TransactionMonitor,
+  InsufficientBalanceSheet,
+  LoadingScreen,
+  ErrorState, 
+} from '@/components/feedback'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
-import { ProofViewerModal } from '@/components/gig/ProofViewerModal'
-import type { ProofItem } from '@/components/gig/ProofViewerModal'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { getCategoryColor, CATEGORY_META } from '@/data/mock'
+import { 
+  useAuthStore,
+  useGigsStore,
+  usePendingSyncStore,
+  useExchangeRateStore,
+  useSettingsStore
+} from '@/stores'
+import { 
+  computeRelevantDeadline, 
+  computePlatformFee, 
+  SOLANA_TX_FEE_LAMPORTS, 
+  apiConfig 
+} from '@tenda/shared'
 import { getEnv } from '@/lib/env'
-import { useAuthStore } from '@/stores/auth.store'
-import { useGigsStore } from '@/stores/gigs.store'
-import { usePendingSyncStore } from '@/stores/pending-sync.store'
-import { useExchangeRateStore } from '@/stores/exchange-rate.store'
-import { useSettingsStore } from '@/stores/settings.store'
 import { toPaymentDisplay } from '@/lib/currency'
-import { computeRelevantDeadline, computePlatformFee, SOLANA_TX_FEE_LAMPORTS, apiConfig } from '@tenda/shared'
 import { deadlineLabel } from '@/lib/gig-display'
-import { api } from '@/api/client'
-import { signAndSendTransactionWithWallet, signTransactionsWithWallet, sendRawTransaction, validateTransaction } from '@/wallet'
 import { checkBalance } from '@/lib/balance'
+import { api } from '@/api/client'
+import { 
+  signAndSendTransactionWithWallet, 
+  signTransactionsWithWallet, 
+  sendRawTransaction, 
+  validateTransaction 
+} from '@/wallet'
 import type { ColorScheme } from '@/theme/tokens'
 import type { GigDetail } from '@tenda/shared'
 import type { InstructionName } from '@tenda/shared/idl'
-import type { ActiveSheet } from '@/components/gig'
 
 type PendingAction =
   | { type: 'publish' }

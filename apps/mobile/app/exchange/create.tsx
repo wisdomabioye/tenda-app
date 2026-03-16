@@ -11,8 +11,12 @@ import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { ChevronRight } from 'lucide-react-native'
 import { spacing } from '@/theme/tokens'
-import { SafeAreaView } from 'react-native-safe-area-context'
-import { Button, Spacer, Header } from '@/components/ui'
+import {
+  ScreenContainer, 
+  Button, 
+  Spacer, 
+  Header 
+} from '@/components/ui'
 import { 
   StepIndicator,
   OfferDetailsStep,
@@ -110,7 +114,7 @@ export default function CreateExchangeOfferScreen() {
   }
 
   return (
-    <SafeAreaView style={[s.container, { backgroundColor: theme.colors.background }]} edges={['left', 'right']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <Header title="Sell SOL" showBack />
       <StepIndicator current={step} />
 
@@ -177,7 +181,7 @@ export default function CreateExchangeOfferScreen() {
           </Button>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </ScreenContainer>
   )
 }
 
