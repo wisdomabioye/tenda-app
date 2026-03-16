@@ -10,20 +10,37 @@ import { Avatar } from '@/components/ui/Avatar'
 import { IconButton } from '@/components/ui/IconButton'
 import { SeekerBadge } from '@/components/ui/SeekerBadge'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
-import type { GigDetail } from '@tenda/shared'
 
-type GigUser = GigDetail['poster']
+interface PersonCardUser {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  avatar_url: string | null
+  reputation_score: number | null
+  is_seeker?: boolean
+}
 
 interface Props {
   label: string
-  user: GigUser
+  user: PersonCardUser
   currentUserId: string
-  gigId: string
-  gigTitle: string
+  /** ID of the context (gig or offer) — used as URL param when opening chat */
+  contextId: string
+  contextTitle: string
+  /** When true, passes offerId/offerTitle to chat; otherwise passes gigId/gigTitle */
+  isOffer?: boolean
   showMessageButton?: boolean
 }
 
-export function GigPersonCard({ label, user, currentUserId, gigId, gigTitle, showMessageButton = true }: Props) {
+export function PersonCard({
+  label,
+  user,
+  currentUserId,
+  contextId,
+  contextTitle,
+  isOffer = false,
+  showMessageButton = true,
+}: Props) {
   const { theme } = useUnistyles()
   const router = useRouter()
   const [reportOpen, setReportOpen] = useState(false)
@@ -32,8 +49,10 @@ export function GigPersonCard({ label, user, currentUserId, gigId, gigTitle, sho
   const isSelf = currentUserId === user.id
 
   function handleMessage() {
+    const param = isOffer ? 'offerId' : 'gigId'
+    const titleParam = isOffer ? 'offerTitle' : 'gigTitle'
     router.push(
-      `/chat/${user.id}?gigId=${gigId}&gigTitle=${encodeURIComponent(gigTitle)}` as Parameters<typeof router.push>[0]
+      `/chat/${user.id}?${param}=${contextId}&${titleParam}=${encodeURIComponent(contextTitle)}` as Parameters<typeof router.push>[0]
     )
   }
 

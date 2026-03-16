@@ -16,18 +16,17 @@ import {
   EmptyState,
   showToast
 } from '@/components/ui'
-import { 
-  GigStatusBadge, 
-  GigMetaInfo, 
-  GigPersonCard, 
-  GigProofsGrid, 
-  GigReviewsSection,
-  GigCTABar, 
+import {
+  GigStatusBadge,
+  GigMetaInfo,
+  GigProofsGrid,
+  GigCTABar,
   GigActionSheets,
   ProofViewerModal,
   type ProofItem,
   type ActiveSheet
 } from '@/components/gig'
+import { PersonCard, ReviewsSection } from '@/components/shared'
 import { 
   TransactionMonitor,
   InsufficientBalanceSheet,
@@ -470,12 +469,12 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         <Divider />
 
         {/* Poster */}
-        <GigPersonCard
+        <PersonCard
           label="Posted by"
           user={gig.poster}
           currentUserId={userId}
-          gigId={gig.id}
-          gigTitle={gig.title}
+          contextId={gig.id}
+          contextTitle={gig.title}
           showMessageButton={gig.status === 'open' || userId === gig.worker?.id}
         />
 
@@ -483,12 +482,12 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         {gig.worker && (userId === gig.poster_id || userId === gig.worker.id) && (
           <>
             <Spacer size={spacing.md} />
-            <GigPersonCard
+            <PersonCard
               label="Assigned to"
               user={gig.worker}
               currentUserId={userId}
-              gigId={gig.id}
-              gigTitle={gig.title}
+              contextId={gig.id}
+              contextTitle={gig.title}
             />
           </>
         )}
@@ -497,11 +496,13 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         {gig.reviews.length > 0 && (
           <>
             <Divider />
-            <GigReviewsSection
+            <ReviewsSection
               reviews={gig.reviews}
-              posterId={gig.poster_id}
-              poster={gig.poster}
-              worker={gig.worker}
+              partyAId={gig.poster_id}
+              partyA={gig.poster}
+              partyALabel="Poster"
+              partyB={gig.worker}
+              partyBLabel="Worker"
               currentUserId={userId}
             />
           </>

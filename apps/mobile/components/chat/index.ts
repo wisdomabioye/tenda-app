@@ -1,3 +1,3 @@
 export { ConversationItem } from './ConversationItem'
-export { GigContextDivider } from './GigContextDivider'
+export { ChatContextDivider } from './ChatContextDivider'
 export { MessageBubble } from './MessageBubble'

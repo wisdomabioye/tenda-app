@@ -15,6 +15,7 @@ export const USER_COLS = {
   last_name:        users.last_name,
   avatar_url:       users.avatar_url,
   reputation_score: users.reputation_score,
+  is_seeker:        users.is_seeker,
 }
 
 /**

@@ -18,7 +18,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet'
 import { ErrorState } from '@/components/feedback'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { MessageBubble } from '@/components/chat/MessageBubble'
-import { GigContextDivider } from '@/components/chat/GigContextDivider'
+import { ChatContextDivider } from '@/components/chat/ChatContextDivider'
 import { ChatInput } from '@/components/ui/ChatInput'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { showToast } from '@/components/ui/Toast'
@@ -31,7 +31,11 @@ import { spacing } from '@/theme/tokens'
 import type { LocalMessage } from '@/stores/chat.store'
 
 export default function ChatScreen() {
-  const { userId, gigId, gigTitle } = useLocalSearchParams<{ userId: string; gigId?: string; gigTitle?: string }>()
+  const { userId, gigId, gigTitle, offerId, offerTitle } = useLocalSearchParams<{
+    userId: string
+    gigId?: string; gigTitle?: string
+    offerId?: string; offerTitle?: string
+  }>()
   const router = useRouter()
   const { theme } = useUnistyles()
   const myId = useAuthStore((s) => s.user?.id ?? '')
@@ -110,7 +114,7 @@ export default function ChatScreen() {
           keyExtractor={(item) => isDivider(item) ? item._key : item.id}
           renderItem={({ item }) =>
             isDivider(item) ? (
-              <GigContextDivider gigId={item.gig_id} gigTitle={item.gig_title} />
+              <ChatContextDivider gigId={item.gig_id} gigTitle={item.gig_title} />
             ) : (
               <MessageBubble
                 message={item}
@@ -132,10 +136,12 @@ export default function ChatScreen() {
           }
         />
 
-        {gigId && (
-          <GigContextDivider
+        {(gigId || offerId) && (
+          <ChatContextDivider
             gigId={gigId}
             gigTitle={gigTitle ? decodeURIComponent(gigTitle) : null}
+            offerId={offerId}
+            offerTitle={offerTitle ? decodeURIComponent(offerTitle) : null}
           />
         )}
         <ChatInput onSend={handleSend} />

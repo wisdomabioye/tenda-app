@@ -63,22 +63,9 @@ export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
 }
 
 const s = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  meta: {
-    flex: 1,
-  },
-  stars: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  comment: {
-    marginTop: spacing.sm,
-  },
-  date: {
-    marginTop: spacing.xs,
-  },
+  header:  { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  meta:    { flex: 1 },
+  stars:   { flexDirection: 'row', gap: 2 },
+  comment: { marginTop: spacing.sm },
+  date:    { marginTop: spacing.xs },
 })

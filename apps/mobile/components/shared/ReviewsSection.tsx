@@ -2,19 +2,26 @@ import { View, StyleSheet } from 'react-native'
 import { spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { ReviewCard } from './ReviewCard'
-import type { Review, GigDetail } from '@tenda/shared'
+import type { Review } from '@tenda/shared'
 
-type GigUser = GigDetail['poster']
+interface ReviewParty {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  avatar_url: string | null
+}
 
 interface Props {
   reviews: Review[]
-  posterId: string
-  poster: GigUser
-  worker: GigUser | null | undefined
+  partyAId: string
+  partyA: ReviewParty
+  partyALabel: string
+  partyB: ReviewParty | null | undefined
+  partyBLabel: string
   currentUserId: string
 }
 
-export function GigReviewsSection({ reviews, posterId, poster, worker, currentUserId }: Props) {
+export function ReviewsSection({ reviews, partyAId, partyA, partyALabel, partyB, partyBLabel, currentUserId }: Props) {
   if (reviews.length === 0) return null
 
   return (
@@ -22,9 +29,9 @@ export function GigReviewsSection({ reviews, posterId, poster, worker, currentUs
       <Text variant="subheading">Reviews</Text>
       <View style={s.stack}>
         {reviews.map((review) => {
-          const isPoster  = review.reviewer_id === posterId
-          const reviewer  = isPoster ? poster : worker
-          const roleLabel = isPoster ? 'Poster' : 'Worker'
+          const isPartyA  = review.reviewer_id === partyAId
+          const reviewer  = isPartyA ? partyA : partyB
+          const roleLabel = isPartyA ? partyALabel : partyBLabel
           const label     = review.reviewer_id === currentUserId
             ? `Your review (${roleLabel})`
             : `${roleLabel}'s review`

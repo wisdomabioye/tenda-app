@@ -49,8 +49,8 @@ export function canExchangeTransition(from: ExchangeOfferStatus, to: ExchangeOff
 // ── Detail type (full offer with relations) ────────────────────────────────────
 
 export interface ExchangeOfferDetail extends ExchangeOffer {
-  seller: Pick<PublicUser, 'id' | 'first_name' | 'last_name' | 'avatar_url' | 'reputation_score'>
-  buyer:  Pick<PublicUser, 'id' | 'first_name' | 'last_name' | 'avatar_url' | 'reputation_score'> | null
+  seller: Pick<PublicUser, 'id' | 'first_name' | 'last_name' | 'avatar_url' | 'reputation_score' | 'is_seeker'>
+  buyer:  Pick<PublicUser, 'id' | 'first_name' | 'last_name' | 'avatar_url' | 'reputation_score' | 'is_seeker'> | null
   // Payment accounts revealed only if: viewer is buyer and status != 'open', or viewer is seller
   payment_accounts: UserExchangeAccount[]
   proofs:  ExchangeProof[]
