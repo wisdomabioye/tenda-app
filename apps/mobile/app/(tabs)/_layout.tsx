@@ -2,8 +2,14 @@ import { useState, useRef } from 'react'
 import { Tabs, useRouter } from 'expo-router'
 import { Animated, StyleSheet, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { useSafeAreaInsets, initialWindowMetrics } from 'react-native-safe-area-context'
-import { Home, Plus, Wallet, MessageCircle, ArrowLeftRight, ClipboardList, Coins } from 'lucide-react-native'
+import { 
+  useSafeAreaInsets, 
+  initialWindowMetrics 
+} from 'react-native-safe-area-context'
+import { 
+  Home, Plus, Wallet, MessageCircle, 
+  ArrowLeftRight, ClipboardList, Coins 
+} from 'lucide-react-native'
 import { typography, shadows, radius } from '@/theme/tokens'
 import { useChatStore } from '@/stores/chat.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
