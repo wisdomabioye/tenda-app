@@ -3,7 +3,13 @@ import { Alert } from 'react-native'
 import { Transaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import { api } from '@/api/client'
-import { validateTransaction, signAndSendTransactionWithWallet, signTransactionsWithWallet, sendRawTransaction } from '@/wallet'
+import {
+  validateTransaction,
+  signAndSendTransactionWithWallet,
+  signTransactionsWithWallet,
+  sendRawTransaction,
+  WalletError,
+} from '@/wallet'
 import { checkBalance } from '@/lib/balance'
 import { uploadToCloudinary } from '@/lib/upload'
 import type { PickedFile } from '@/components/form/FilePicker'
@@ -11,100 +17,208 @@ import { showToast } from '@/components/ui/Toast'
 import { useAuthStore } from '@/stores/auth.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import type { PendingSync } from '@/stores/pending-sync.store'
-import type { ExchangeOffer, ExchangeOfferDetail } from '@tenda/shared'
+import type { ExchangeOfferDetail } from '@tenda/shared'
 import { EXCHANGE_DISPUTE_REASON_MIN_LENGTH, computePlatformFee, SOLANA_TX_FEE_LAMPORTS } from '@tenda/shared'
 import type { InstructionName } from '@tenda/shared/idl'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type ExchangePendingAction =
+  | { type: 'publish' }
+  | { type: 'markPaid'; proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }> }
+  | { type: 'confirm' }
+  | { type: 'cancel' }
+  | { type: 'dispute'; reason: string }
+
+// Distributed Omit — strips auto-generated fields from each union member.
+type SyncEntry = PendingSync extends infer T
+  ? T extends { id: string; createdAt: number; retryCount: number }
+    ? Omit<T, 'id' | 'createdAt' | 'retryCount'>
+    : never
+  : never
+
+// ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useExchangeActions(
   offer: ExchangeOfferDetail,
   onUpdated: (o: ExchangeOfferDetail) => void,
   onBack: () => void,
 ) {
-  const [busy, setBusy] = useState(false)
   const authToken = useAuthStore((s) => s.mwaAuthToken ?? '')
+  const isSeeker  = useAuthStore((s) => s.user?.is_seeker ?? false)
 
-  // Accept dual-tx state (setup + accept)
-  const [pendingSetupSignature, setPendingSetupSignature] = useState<string | null>(null)
-  const [pendingAcceptTx, setPendingAcceptTx]             = useState<Transaction | null>(null)
+  // Upload/non-tx loading (e.g. draft cancel, file upload phase of markPaid)
+  const [busy, setBusy] = useState(false)
+  // True while building the tx + signing (before broadcast)
+  const [isTxBuilding, setIsTxBuilding] = useState(false)
+  // Signature being monitored by the main TransactionMonitor
+  const [pendingSignature, setPendingSignature]   = useState<string | null>(null)
+  const [pendingAction, setPendingAction]         = useState<ExchangePendingAction | null>(null)
+
+  // Accept dual-tx state (setup account + accept offer)
+  const [pendingSetupSignature, setPendingSetupSignature]   = useState<string | null>(null)
+  const [pendingAcceptTx, setPendingAcceptTx]               = useState<Transaction | null>(null)
   const [pendingAcceptSignature, setPendingAcceptSignature] = useState<string | null>(null)
+
+  // True while ANY signature is being monitored — used to lock down the CTA bar
+  const txInProgress = pendingSignature !== null
+    || pendingAcceptSignature !== null
+    || pendingSetupSignature !== null
 
   function onNewAuthToken(token: string) {
     useAuthStore.getState().setMwaAuthToken(token)
   }
 
-  // Distributed Omit helper to strip id/createdAt/retryCount from a PendingSync variant
-  type SyncEntry = PendingSync extends infer T
-    ? T extends { id: string; createdAt: number; retryCount: number }
-      ? Omit<T, 'id' | 'createdAt' | 'retryCount'>
-      : never
-    : never
+  // ── Balance guard ──────────────────────────────────────────────────────────
 
-  async function runTx(
-    buildTx: () => Promise<{ transaction: string }>,
-    instruction: InstructionName,
-    commit: (sig: string) => Promise<ExchangeOffer | null>,
+  async function guardBalance(required: bigint): Promise<boolean> {
+    const walletAddress = useAuthStore.getState().walletAddress
+    if (!walletAddress) return true
+    const result = await checkBalance(walletAddress, required)
+    if (!result.sufficient) {
+      Alert.alert('Insufficient SOL', 'Your wallet does not have enough SOL to cover this transaction.')
+      return false
+    }
+    return true
+  }
+
+  // ── Core: sign tx → add sync entry → enter monitoring state ───────────────
+  // Mirrors gig's startBlockchainFlow. Returns true if monitoring started,
+  // false if user cancelled (silent). Throws for all other errors (caller shows toast).
+
+  async function startBlockchainFlow(
+    action: ExchangePendingAction,
+    txBase64: string,
+    expectedInstruction: InstructionName,
     makeSyncEntry?: (sig: string) => SyncEntry,
   ): Promise<boolean> {
-    setBusy(true)
+    if (!authToken) {
+      showToast('error', 'Wallet not connected — please reconnect and try again')
+      return false
+    }
     try {
-      const { transaction: b64 } = await buildTx()
-      const tx = Transaction.from(Buffer.from(b64, 'base64'))
-      validateTransaction(tx, instruction)
+      const tx = Transaction.from(Buffer.from(txBase64, 'base64'))
+      validateTransaction(tx, expectedInstruction)
       const sig = await signAndSendTransactionWithWallet(tx, authToken, onNewAuthToken)
-      const syncId = makeSyncEntry ? usePendingSyncStore.getState().add(makeSyncEntry(sig)) : null
-      try {
-        const updated = await commit(sig)
-        // confirm/dispute/cancel server routes return ExchangeOfferDetail shape (per #48 fix)
-        if (updated) onUpdated(updated as ExchangeOfferDetail)
-        if (syncId) usePendingSyncStore.getState().remove(syncId)
-      } catch (commitErr) {
-        // Commit failed — pending-sync will retry. Rethrow so the outer catch shows the error.
-        throw commitErr
-      }
+      if (makeSyncEntry) usePendingSyncStore.getState().add(makeSyncEntry(sig))
+      setPendingAction(action)
+      setPendingSignature(sig)
       return true
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong')
-      return false
-    } finally {
-      setBusy(false)
+      setPendingSignature(null)
+      setPendingAction(null)
+      if (e instanceof WalletError && e.code === 'declined') return false
+      throw e  // re-throw; caller catches and shows toast
     }
   }
 
-  async function publishOffer() {
-    if (!authToken) return
-    setBusy(true)
+  // ── TransactionMonitor confirmed callback ──────────────────────────────────
+
+  async function onTxConfirmed() {
+    const sig    = pendingSignature!
+    const action = pendingAction!
+    setPendingSignature(null)
+    setPendingAction(null)
+
+    const successMessages: Record<ExchangePendingAction['type'], string> = {
+      publish:  'Offer published!',
+      markPaid: 'Payment marked — waiting for seller to confirm',
+      confirm:  'Payment confirmed — SOL released to buyer!',
+      cancel:   'Offer cancelled — escrow refunded.',
+      dispute:  'Dispute raised. An admin will review shortly.',
+    }
+
     try {
-      const { fee_bps } = await api.platform.config()
-      const lamports = BigInt(offer.lamports_amount)
-      const required = lamports + BigInt(computePlatformFee(lamports, fee_bps)) + SOLANA_TX_FEE_LAMPORTS
-      const walletAddress = useAuthStore.getState().walletAddress
-      if (walletAddress) {
-        const result = await checkBalance(walletAddress, required)
-        if (!result.sufficient) {
-          Alert.alert('Insufficient SOL', 'Your wallet does not have enough SOL to fund this offer. Please add SOL and try again.')
-          return
+      switch (action.type) {
+        case 'publish': {
+          const updated = await api.exchange.publish({ id: offer.id }, { signature: sig })
+          onUpdated(updated)
+          break
+        }
+        case 'markPaid': {
+          const updated = await api.exchange.paid({ id: offer.id }, { signature: sig, proofs: action.proofs })
+          onUpdated(updated as ExchangeOfferDetail)
+          break
+        }
+        case 'confirm': {
+          const updated = await api.exchange.confirm({ id: offer.id }, { signature: sig })
+          onUpdated(updated as ExchangeOfferDetail)
+          break
+        }
+        case 'cancel': {
+          await api.exchange.cancel({ id: offer.id }, { signature: sig })
+          showToast('success', successMessages.cancel)
+          onBack()
+          return  // skip generic toast + sync removal (already navigated away)
+        }
+        case 'dispute': {
+          const updated = await api.exchange.dispute({ id: offer.id }, { signature: sig, reason: action.reason })
+          onUpdated(updated as ExchangeOfferDetail)
+          break
         }
       }
 
-      const { transaction: b64 } = await api.exchangeBlockchain.createEscrow({ offer_id: offer.id })
-      const tx = Transaction.from(Buffer.from(b64, 'base64'))
-      validateTransaction(tx, 'create_gig_escrow')
-      const sig = await signAndSendTransactionWithWallet(tx, authToken, onNewAuthToken)
-      const syncId = usePendingSyncStore.getState().add({ action: 'exchange_publish', offerId: offer.id, signature: sig })
-      const updated = await api.exchange.publish({ id: offer.id }, { signature: sig })
-      usePendingSyncStore.getState().remove(syncId)
-      if (updated) onUpdated(updated)
-    } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong')
-    } finally {
-      setBusy(false)
+      // Remove pending-sync entry now that server has confirmed
+      const syncActionKey: Record<ExchangePendingAction['type'], string> = {
+        publish:  'exchange_publish',
+        markPaid: 'exchange_paid',
+        confirm:  'exchange_confirm',
+        cancel:   'exchange_cancel',
+        dispute:  'exchange_dispute',
+      }
+      const queue    = usePendingSyncStore.getState().queue
+      const syncItem = queue.find(
+        (i) => i.action === syncActionKey[action.type]
+          && 'offerId' in i && i.offerId === offer.id
+          && i.signature === sig,
+      )
+      if (syncItem) usePendingSyncStore.getState().remove(syncItem.id)
+
+      showToast('success', successMessages[action.type])
+    } catch {
+      showToast('info', 'Changes saved locally — will sync when reconnected')
     }
   }
 
+  function clearTxState() {
+    setPendingSignature(null)
+    setPendingAction(null)
+  }
+
+  // ── Publish ────────────────────────────────────────────────────────────────
+
+  async function publishOffer() {
+    if (!authToken) return
+    setIsTxBuilding(true)
+    try {
+      const { fee_bps, seeker_fee_bps } = await api.platform.config()
+      const effectiveFeeBps = isSeeker ? seeker_fee_bps : fee_bps
+      const lamports = BigInt(offer.lamports_amount)
+      const required = lamports + BigInt(computePlatformFee(lamports, effectiveFeeBps)) + SOLANA_TX_FEE_LAMPORTS
+      if (!await guardBalance(required)) return
+
+      const { transaction: b64 } = await api.exchangeBlockchain.createEscrow({ offer_id: offer.id })
+      await startBlockchainFlow(
+        { type: 'publish' },
+        b64,
+        'create_gig_escrow',
+        (sig) => ({ action: 'exchange_publish', offerId: offer.id, signature: sig }),
+      )
+    } catch (e) {
+      showToast('error', (e as Error).message || 'Failed to build publish transaction')
+    } finally {
+      setIsTxBuilding(false)
+    }
+  }
+
+  // ── Accept (dual-tx setup path) ────────────────────────────────────────────
+
   async function accept() {
     if (!authToken) return
-    setBusy(true)
+    setIsTxBuilding(true)
     try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
+
       const response = await api.exchangeBlockchain.accept({ offer_id: offer.id })
 
       if (response.setup_transaction) {
@@ -134,9 +248,10 @@ export function useExchangeActions(
     } catch (e) {
       setPendingSetupSignature(null)
       setPendingAcceptTx(null)
-      Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong')
+      if (!(e instanceof WalletError && e.code === 'declined'))
+        showToast('error', (e as Error).message || 'Failed to build accept transaction')
     } finally {
-      setBusy(false)
+      setIsTxBuilding(false)
     }
   }
 
@@ -160,7 +275,6 @@ export function useExchangeActions(
     setPendingAcceptSignature(null)
     try {
       const updated = await api.exchange.accept({ id: offer.id }, { signature: sig })
-      // Remove the pending-sync entry added when the signature was broadcast
       const syncItem = usePendingSyncStore.getState().queue.find(
         (i) => i.action === 'exchange_accept' && 'offerId' in i && i.offerId === offer.id && i.signature === sig,
       )
@@ -178,6 +292,8 @@ export function useExchangeActions(
     setPendingAcceptSignature(null)
   }
 
+  // ── Cancel ─────────────────────────────────────────────────────────────────
+
   function cancel() {
     const isDraft = offer.status === 'draft'
     Alert.alert(
@@ -186,53 +302,78 @@ export function useExchangeActions(
       [
         { text: 'Keep Offer', style: 'cancel' },
         {
-          text: 'Cancel', style: 'destructive',
-          onPress: isDraft
-            ? async () => {
-                setBusy(true)
-                try {
-                  await api.exchange.cancel({ id: offer.id })
-                  onBack()
-                } catch (e) {
-                  Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong')
-                } finally {
-                  setBusy(false)
-                }
-              }
-            : () => runTx(
-                () => api.exchangeBlockchain.cancel({ offer_id: offer.id }),
-                'cancel_gig',
-                async (_sig: string) => { await api.exchange.cancel({ id: offer.id }, { signature: _sig }); onBack(); return null },
-                (sig) => ({ action: 'exchange_cancel', offerId: offer.id, signature: sig }),
-              ),
+          text: isDraft ? 'Delete' : 'Cancel', style: 'destructive',
+          onPress: isDraft ? handleCancelDraft : handleCancelOpen,
         },
       ],
     )
   }
 
-  async function markPaid(files: PickedFile[]): Promise<boolean> {
-    if (files.length === 0) { Alert.alert('Add Proof', 'Attach at least one proof of payment.'); return false }
+  async function handleCancelDraft() {
     setBusy(true)
     try {
-      const proofs = await Promise.all(files.map(async (f) => ({ url: await uploadToCloudinary(f, 'proof'), type: f.type })))
-      const { transaction: b64 } = await api.exchangeBlockchain.submitProof({ offer_id: offer.id })
-      const tx = Transaction.from(Buffer.from(b64, 'base64'))
-      validateTransaction(tx, 'submit_proof')
-      const sig = await signAndSendTransactionWithWallet(tx, authToken, onNewAuthToken)
-      const syncId = usePendingSyncStore.getState().add({ action: 'exchange_paid', offerId: offer.id, signature: sig, proofs })
-      const updated = await api.exchange.paid({ id: offer.id }, { signature: sig, proofs })
-      usePendingSyncStore.getState().remove(syncId)
-      // paid server route returns ExchangeOfferDetail shape (per #48 fix)
-      onUpdated(updated as ExchangeOfferDetail)
-      showToast('success', 'Payment marked — waiting for seller to confirm')
-      return true
+      await api.exchange.cancel({ id: offer.id })
+      onBack()
     } catch (e) {
-      Alert.alert('Error', e instanceof Error ? e.message : 'Something went wrong')
-      return false
+      showToast('error', e instanceof Error ? e.message : 'Something went wrong')
     } finally {
       setBusy(false)
     }
   }
+
+  async function handleCancelOpen() {
+    setIsTxBuilding(true)
+    try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
+      const { transaction: b64 } = await api.exchangeBlockchain.cancel({ offer_id: offer.id })
+      await startBlockchainFlow(
+        { type: 'cancel' },
+        b64,
+        'cancel_gig',
+        (sig) => ({ action: 'exchange_cancel', offerId: offer.id, signature: sig }),
+      )
+    } catch (e) {
+      showToast('error', (e as Error).message || 'Failed to build cancel transaction')
+    } finally {
+      setIsTxBuilding(false)
+    }
+  }
+
+  // ── Mark paid (upload + blockchain) ───────────────────────────────────────
+
+  async function markPaid(files: PickedFile[]): Promise<boolean> {
+    if (files.length === 0) { Alert.alert('Add Proof', 'Attach at least one proof of payment.'); return false }
+    if (!authToken) return false
+
+    setBusy(true)
+    try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return false
+
+      const proofs = await Promise.all(
+        files.map(async (f) => ({ url: await uploadToCloudinary(f, 'proof'), type: f.type })),
+      )
+
+      setBusy(false)
+      setIsTxBuilding(true)
+
+      const { transaction: b64 } = await api.exchangeBlockchain.submitProof({ offer_id: offer.id })
+      return await startBlockchainFlow(
+        { type: 'markPaid', proofs },
+        b64,
+        'submit_proof',
+        (sig) => ({ action: 'exchange_paid', offerId: offer.id, signature: sig, proofs }),
+      )
+    } catch (e) {
+      if (!(e instanceof WalletError && e.code === 'declined'))
+        showToast('error', e instanceof Error ? e.message : 'Something went wrong')
+      return false
+    } finally {
+      setBusy(false)
+      setIsTxBuilding(false)
+    }
+  }
+
+  // ── Confirm payment ────────────────────────────────────────────────────────
 
   function confirm() {
     Alert.alert(
@@ -240,36 +381,68 @@ export function useExchangeActions(
       'Confirm you received the fiat payment. This releases the SOL to the buyer.',
       [
         { text: 'Not Yet', style: 'cancel' },
-        {
-          text: 'Confirm & Release',
-          onPress: () => runTx(
-            () => api.exchangeBlockchain.confirm({ offer_id: offer.id }),
-            'approve_completion',
-            (sig) => api.exchange.confirm({ id: offer.id }, { signature: sig }),
-            (sig) => ({ action: 'exchange_confirm', offerId: offer.id, signature: sig }),
-          ),
-        },
+        { text: 'Confirm & Release', onPress: handleConfirm },
       ],
     )
   }
 
-  async function dispute(reason: string): Promise<boolean> {
-    if (reason.trim().length < EXCHANGE_DISPUTE_REASON_MIN_LENGTH) { Alert.alert('Provide Reason', `Please describe the issue (at least ${EXCHANGE_DISPUTE_REASON_MIN_LENGTH} characters).`); return false }
-    return runTx(
-      () => api.exchangeBlockchain.dispute({ offer_id: offer.id, reason }),
-      'dispute_gig',
-      (sig) => api.exchange.dispute({ id: offer.id }, { signature: sig, reason }),
-      (sig) => ({ action: 'exchange_dispute', offerId: offer.id, signature: sig, reason }),
-    )
+  async function handleConfirm() {
+    setIsTxBuilding(true)
+    try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
+      const { transaction: b64 } = await api.exchangeBlockchain.confirm({ offer_id: offer.id })
+      await startBlockchainFlow(
+        { type: 'confirm' },
+        b64,
+        'approve_completion',
+        (sig) => ({ action: 'exchange_confirm', offerId: offer.id, signature: sig }),
+      )
+    } catch (e) {
+      showToast('error', (e as Error).message || 'Failed to build confirm transaction')
+    } finally {
+      setIsTxBuilding(false)
+    }
   }
+
+  // ── Dispute ────────────────────────────────────────────────────────────────
+
+  async function dispute(reason: string): Promise<boolean> {
+    if (reason.trim().length < EXCHANGE_DISPUTE_REASON_MIN_LENGTH) {
+      Alert.alert('Provide Reason', `Please describe the issue (at least ${EXCHANGE_DISPUTE_REASON_MIN_LENGTH} characters).`)
+      return false
+    }
+    setIsTxBuilding(true)
+    try {
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return false
+      const { transaction: b64 } = await api.exchangeBlockchain.dispute({ offer_id: offer.id, reason })
+      return await startBlockchainFlow(
+        { type: 'dispute', reason },
+        b64,
+        'dispute_gig',
+        (sig) => ({ action: 'exchange_dispute', offerId: offer.id, signature: sig, reason }),
+      )
+    } catch (e) {
+      showToast('error', (e as Error).message || 'Failed to build dispute transaction')
+      return false
+    } finally {
+      setIsTxBuilding(false)
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
 
   return {
     busy,
+    isTxBuilding,
+    txInProgress,
+    pendingSignature,
     pendingSetupSignature,
     pendingAcceptSignature,
     onSetupConfirmed,
     onAcceptConfirmed,
+    onTxConfirmed,
     clearAcceptState,
+    clearTxState,
     publishOffer,
     accept,
     cancel,

@@ -56,11 +56,12 @@ import { toPaymentDisplay } from '@/lib/currency'
 import { deadlineLabel } from '@/lib/gig-display'
 import { checkBalance } from '@/lib/balance'
 import { api } from '@/api/client'
-import { 
-  signAndSendTransactionWithWallet, 
-  signTransactionsWithWallet, 
-  sendRawTransaction, 
-  validateTransaction 
+import {
+  signAndSendTransactionWithWallet,
+  signTransactionsWithWallet,
+  sendRawTransaction,
+  validateTransaction,
+  WalletError,
 } from '@/wallet'
 import type { ColorScheme } from '@/theme/tokens'
 import type { GigDetail } from '@tenda/shared'
@@ -176,6 +177,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       setPendingSignature(null)
       setPendingAction(null)
       setPendingSyncId(null)
+      if (e instanceof WalletError && e.code === 'declined') return  // user cancelled — no error shown
       throw e
     }
   }
@@ -232,7 +234,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       setPendingSetupSignature(null)
       setPendingAcceptTx(null)
       setPendingAction(null)
-      showToast('error', (e as Error).message || 'Failed to build accept transaction')
+      if (!(e instanceof WalletError && e.code === 'declined'))
+        showToast('error', (e as Error).message || 'Failed to build accept transaction')
     } finally {
       setIsTxBuilding(false)
     }
@@ -311,7 +314,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       setPendingAction({ type: 'dispute', reason })
       setPendingSignature(sig)
     } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to build dispute transaction')
+      if (!(e instanceof WalletError && e.code === 'declined'))
+        showToast('error', (e as Error).message || 'Failed to build dispute transaction')
     }
   }
 
@@ -345,7 +349,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       setPendingAction({ type: 'submit', proofs })
       setPendingSignature(sig)
     } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to build submit transaction')
+      if (!(e instanceof WalletError && e.code === 'declined'))
+        showToast('error', (e as Error).message || 'Failed to build submit transaction')
     }
   }
 

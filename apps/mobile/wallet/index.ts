@@ -263,13 +263,18 @@ export async function signTransactionsWithWallet(
   authToken: string,
   onNewAuthToken?: (token: string) => void,
 ): Promise<Array<Transaction | VersionedTransaction>> {
-  return transact(async (wallet) => {
-    const result = await authorizeSession(wallet, authToken)
-    if (result.auth_token !== authToken) {
-      onNewAuthToken?.(result.auth_token)
-    }
-    return wallet.signTransactions({ transactions })
-  })
+  try {
+    return await transact(async (wallet) => {
+      const result = await authorizeSession(wallet, authToken)
+      if (result.auth_token !== authToken) {
+        onNewAuthToken?.(result.auth_token)
+      }
+      return wallet.signTransactions({ transactions })
+    })
+  } catch (err) {
+    if (isMwaUserDeclined(err)) throw new WalletError('declined', 'Transaction cancelled by user', err)
+    throw err
+  }
 }
 
 export async function signAndSendTransactionWithWallet(
@@ -279,14 +284,20 @@ export async function signAndSendTransactionWithWallet(
 ): Promise<string> {
   // Sign only inside the wallet (no broadcast from wallet — avoids wallet hanging
   // on its internal RPC call, which prevents the signing prompt from appearing).
-  const signed = await transact(async (wallet) => {
-    const result = await authorizeSession(wallet, authToken)
-    if (result.auth_token !== authToken) {
-      onNewAuthToken?.(result.auth_token)
-    }
-    const [signedTx] = await wallet.signTransactions({ transactions: [transaction] })
-    return signedTx
-  })
+  let signed: Transaction | VersionedTransaction
+  try {
+    signed = await transact(async (wallet) => {
+      const result = await authorizeSession(wallet, authToken)
+      if (result.auth_token !== authToken) {
+        onNewAuthToken?.(result.auth_token)
+      }
+      const [signedTx] = await wallet.signTransactions({ transactions: [transaction] })
+      return signedTx
+    })
+  } catch (err) {
+    if (isMwaUserDeclined(err)) throw new WalletError('declined', 'Transaction cancelled by user', err)
+    throw err
+  }
 
   // Broadcast from the app's connection after the wallet session closes.
   const rawTx = signed instanceof VersionedTransaction

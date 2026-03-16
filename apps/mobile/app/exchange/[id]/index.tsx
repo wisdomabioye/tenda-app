@@ -168,6 +168,7 @@ function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated
 
       <ProofViewerModal proof={selectedProof} onClose={() => setSelectedProof(null)} />
 
+      {/* Setup account tx (one-time buyer account creation) */}
       <TransactionMonitor
         signature={actions.pendingSetupSignature}
         setupPhase
@@ -177,11 +178,21 @@ function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated
           showToast('info', msg || 'Account setup failed — please try again')
         }}
       />
+      {/* Accept tx */}
       <TransactionMonitor
         signature={actions.pendingAcceptSignature}
         onConfirmed={actions.onAcceptConfirmed}
         onFailed={(msg) => {
           actions.clearAcceptState()
+          showToast('info', msg || 'Transaction pending — will sync when confirmed')
+        }}
+      />
+      {/* Main tx monitor — publish, markPaid, confirm, cancel, dispute */}
+      <TransactionMonitor
+        signature={actions.pendingSignature}
+        onConfirmed={actions.onTxConfirmed}
+        onFailed={(msg) => {
+          actions.clearTxState()
           showToast('info', msg || 'Transaction pending — will sync when confirmed')
         }}
       />
