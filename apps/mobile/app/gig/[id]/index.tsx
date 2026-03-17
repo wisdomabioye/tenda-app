@@ -183,7 +183,6 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       setPendingSignature(null)
       setPendingAction(null)
       setPendingSyncId(null)
-      if (e instanceof WalletError && e.code === 'declined') return false
       throw e
     }
   }
@@ -225,7 +224,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         validateTransaction(setupTx, 'create_user_account')
         validateTransaction(acceptTx, 'accept_gig')
         const [signedSetup, signedAccept] = await signTransactionsWithWallet(
-          [setupTx, acceptTx] as any[],
+          [setupTx, acceptTx],
           mwaAuthToken,
           onNewAuthToken,
         ) as [Transaction, Transaction]
@@ -242,8 +241,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       setPendingSetupSignature(null)
       setPendingAcceptTx(null)
       setPendingAction(null)
-      if (!(e instanceof WalletError && e.code === 'declined'))
-        showToast('error', (e as Error).message || 'Failed to build accept transaction')
+      showToast('error', (e as Error).message || 'Failed to build accept transaction')
     } finally {
       setIsTxBuilding(false)
     }
@@ -269,45 +267,48 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   }
 
   async function handleApprove() {
-    if (!mwaAuthToken) return
+    if (!mwaAuthToken) return false
     setIsTxBuilding(true)
     try {
-      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return false
       const { transaction } = await api.blockchain.approveEscrow({ gig_id: gig.id })
-      await startBlockchainFlow({ type: 'approve' }, transaction, 'approve_completion',
+      return await startBlockchainFlow({ type: 'approve' }, transaction, 'approve_completion',
         (sig) => ({ action: 'approve', gigId: gig.id, signature: sig }))
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to build approve transaction')
+      return false
     } finally {
       setIsTxBuilding(false)
     }
   }
 
   async function handleCancelOpen() {
-    if (!mwaAuthToken) return
+    if (!mwaAuthToken) return false
     setIsTxBuilding(true)
     try {
-      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return false
       const { transaction } = await api.blockchain.cancelEscrow({ gig_id: gig.id })
-      await startBlockchainFlow({ type: 'cancel' }, transaction, 'cancel_gig',
+      return await startBlockchainFlow({ type: 'cancel' }, transaction, 'cancel_gig',
         (sig) => ({ action: 'cancel', gigId: gig.id, signature: sig }))
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to build cancel transaction')
+      return false
     } finally {
       setIsTxBuilding(false)
     }
   }
 
   async function handleRefundExpired() {
-    if (!mwaAuthToken) return
+    if (!mwaAuthToken) return false
     setIsTxBuilding(true)
     try {
-      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
+      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return false
       const { transaction } = await api.blockchain.refundExpired({ gig_id: gig.id })
-      await startBlockchainFlow({ type: 'refund' }, transaction, 'refund_expired',
+      return await startBlockchainFlow({ type: 'refund' }, transaction, 'refund_expired',
         (sig) => ({ action: 'refund', gigId: gig.id, signature: sig }))
     } catch (e) {
       showToast('error', (e as Error).message || 'Failed to build refund transaction')
+      return false
     } finally {
       setIsTxBuilding(false)
     }
