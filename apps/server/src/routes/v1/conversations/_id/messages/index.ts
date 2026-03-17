@@ -66,7 +66,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
           gig_id:      messages.gig_id,
           gig_title:   gigs.title,
           offer_id:    messages.offer_id,
-          offer_title: sql<string | null>`CASE WHEN ${exchange_offers.id} IS NOT NULL THEN ${exchange_offers.fiat_amount}::text || ' ' || ${exchange_offers.fiat_currency} ELSE NULL END`,
+          offer_title: sql<string | null>`CASE WHEN ${exchange_offers.id} IS NOT NULL THEN 'Trade: ' || ${exchange_offers.fiat_amount}::text || ' ' || ${exchange_offers.fiat_currency} ELSE NULL END`,
           content:     messages.content,
           read_at:     messages.read_at,
           created_at:  messages.created_at,
@@ -188,7 +188,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
           .from(exchange_offers)
           .where(eq(exchange_offers.id, newMessage.offer_id))
           .limit(1)
-        offer_title = o ? `${o.fiat_amount} ${o.fiat_currency}` : null
+        offer_title = o ? `Trade: ${o.fiat_amount} ${o.fiat_currency}` : null
       }
 
       const recipientId = conv.user_a_id === userId ? conv.user_b_id : conv.user_a_id
