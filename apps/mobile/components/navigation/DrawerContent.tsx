@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
 import {
   Home, ClipboardList, PlusCircle, Wallet,
-  Settings, X, LogOut,
+  Settings, X, LogOut, ArrowLeftRight
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Text, Avatar } from '@/components/ui';
@@ -33,6 +33,7 @@ const NAV_SECTIONS: NavSection[] = [
       { name: 'Home', route: '/(tabs)/home', icon: Home, description: 'Browse gigs' },
       { name: 'My Gigs', route: '/(tabs)/my-gigs', icon: ClipboardList, description: 'Posted & Accepted' },
       { name: 'Post Gig', route: '/(tabs)/create-gig', icon: PlusCircle, description: 'Create new' },
+      { name: 'Trade', route: '/(tabs)/exchange', icon: ArrowLeftRight, description: 'Trade SOL' },
       { name: 'Wallet', route: '/(tabs)/wallet', icon: Wallet, description: 'Balance & Withdrawals' },
     ],
   },
