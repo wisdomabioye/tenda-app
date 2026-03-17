@@ -62,11 +62,9 @@ async function authorizeSession(wallet: Web3MobileWallet, authToken?: string) {
     try {
       return await wallet.reauthorize({ auth_token: authToken, identity: APP_IDENTITY })
     } catch (err) {
-      if (isMwaUserDeclined(err)) throw err  // user explicitly declined — don't retry
       if (!isMwaStaleAuth(err)) throw err
       // Token expired/revoked — fall through to fresh authorize in the same session.
       // The WebSocket is still open after a JSON-RPC error; a new authorize request works fine.
-      console.log('MWA auth token stale, re-authorizing in same session...')
     }
   }
   return wallet.authorize({
