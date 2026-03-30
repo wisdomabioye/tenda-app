@@ -16,8 +16,8 @@ function LandingPage() {
     <>
       <Hero />
       <Problem />
-      <HowItWorks />
       <Stats />
+      <HowItWorks />
       <WhyTenda />
       <WhoItsFor />
       <DownloadCTA />
