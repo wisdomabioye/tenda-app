@@ -17,7 +17,7 @@ const features: Feature[] = [
   {
     icon: Camera,
     title: 'Proof-Based Approval',
-    description: 'Workers submit photo/video proof. Posters review before releasing payment.',
+    description: 'Workers submit photo or video proof. Posters review before releasing payment.',
   },
   {
     icon: Lock,
@@ -27,37 +27,49 @@ const features: Feature[] = [
   {
     icon: Scale,
     title: 'Built-in Disputes',
-    description: 'Fair dispute resolution backed by admin arbitration. No he-said-she-said.',
+    description: 'Structured resolution backed by admin arbitration when a task is contested.',
   },
 ]
 
 export function WhyTenda() {
   return (
-    <section id="why-tenda" className="py-24 px-6 bg-white">
-      <div className="max-w-5xl mx-auto">
-        <div className="text-center mb-16">
-          <SectionBadge>Why Tenda</SectionBadge>
-          <h2 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight">
-            Built different
-          </h2>
-          <p className="mt-4 text-lg text-gray-500 max-w-xl mx-auto">
-            Every feature exists to protect workers and posters — not extract from them.
-          </p>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-6">
-          {features.map((f) => (
-            <div
-              key={f.title}
-              className="group p-7 rounded-2xl border border-gray-100 hover:border-blue-100 hover:shadow-xl hover:shadow-blue-500/5 transition-all duration-300 bg-white"
-            >
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center mb-5">
-                <f.icon className="w-6 h-6 text-blue-500" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900 mb-2">{f.title}</h3>
-              <p className="text-gray-500 leading-relaxed">{f.description}</p>
+    <section id="why-tenda" className="px-4 py-24 sm:px-6">
+      <div className="mx-auto max-w-6xl">
+        <div className="premium-surface overflow-hidden">
+          <div className="border-b border-[var(--border)] px-6 py-12 sm:px-10">
+            <div className="mx-auto max-w-3xl text-center">
+              <SectionBadge>Why Tenda</SectionBadge>
+              <h2 className="mt-2 text-4xl font-black leading-[1.04] tracking-[-0.04em] text-[var(--heading)] sm:text-5xl md:text-6xl">
+                Built for trust,
+                <br />
+                <span className="text-[var(--text-muted)]">not extraction.</span>
+              </h2>
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-7 text-[var(--text-muted)] sm:text-lg">
+                Every feature is designed to reduce friction, protect both sides, and keep payouts verifiable.
+              </p>
             </div>
-          ))}
+          </div>
+
+          <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-6">
+            {features.map((f) => (
+              <div
+                key={f.title}
+                className="rounded-[calc(var(--radius)+2px)] border border-[var(--border)] bg-[color-mix(in_oklab,var(--surface)_94%,transparent)] p-6"
+              >
+                <div className="mb-5 inline-flex h-12 w-12 items-center justify-center rounded-2xl border border-[color-mix(in_oklab,var(--primary)_22%,var(--border))] bg-[color-mix(in_oklab,var(--primary-tint)_72%,var(--surface))]">
+                  <f.icon className="h-5 w-5 text-[var(--primary)]" />
+                </div>
+
+                <h3 className="text-xl font-bold tracking-[-0.02em] text-[var(--heading)]">
+                  {f.title}
+                </h3>
+
+                <p className="mt-3 text-sm leading-7 text-[var(--text-muted)] sm:text-base">
+                  {f.description}
+                </p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </section>

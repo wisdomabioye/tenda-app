@@ -18,77 +18,82 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20)
+    const onScroll = () => setScrolled(window.scrollY > 12)
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  useEffect(() => {
+    setMenuOpen(false)
+  }, [pathname])
+
+  const elevated = scrolled || !isHome
+
   return (
-    <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled || !isHome ? 'bg-white/95 backdrop-blur-md shadow-sm' : 'bg-transparent'
-      }`}
-    >
-      <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        {/* Logo */}
-        <a href="/" className="flex items-center gap-2 no-underline">
-          <img
-            src={logoFull}
-            alt={APP_INFO.name}
-            className={`h-7 w-auto transition-all duration-300 ${scrolled || !isHome ? '' : 'brightness-0 invert'}`}
-          />
-        </a>
+    <header className="fixed inset-x-0 top-0 z-50">
+      <div
+        className={`mx-auto w-full transition-all duration-300 ${
+          elevated
+            ? 'border-b border-[var(--border)] bg-[color-mix(in_oklab,var(--bg-elev)_96%,black)] shadow-[0_14px_40px_rgba(0,0,0,0.28)] backdrop-blur-xl'
+            : 'bg-[color-mix(in_oklab,var(--bg)_88%,transparent)] backdrop-blur-md'
+        }`}
+      >
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+          <a href="/" className="flex items-center gap-2 no-underline">
+            <img
+              src={logoFull}
+              alt={APP_INFO.name}
+              className={`h-7 w-auto transition-opacity duration-300 ${elevated ? 'opacity-100' : 'opacity-95'}`}
+            />
+          </a>
 
-        {/* Desktop nav */}
-        <nav className="hidden md:flex items-center gap-8">
-          {navLinks.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              className={`text-sm font-medium no-underline transition-colors ${
-                scrolled || !isHome ? 'text-gray-600 hover:text-gray-900' : 'text-white/80 hover:text-white'
-              }`}
-            >
-              {l.label}
-            </a>
-          ))}
-        </nav>
+          <nav className="hidden md:flex items-center gap-7">
+            {navLinks.map((l) => (
+              <a
+                key={l.href}
+                href={l.href}
+                className="text-sm font-medium no-underline text-[var(--text)] transition-colors hover:text-[var(--heading)]"
+              >
+                {l.label}
+              </a>
+            ))}
+          </nav>
 
-        {/* CTA */}
-        <div className="hidden md:flex items-center gap-3">
-          <Button href="/#download" variant="primary" size="sm">
-            Download App
-          </Button>
+          <div className="hidden md:flex items-center gap-3">
+            <Button href="/#download" variant="primary" size="sm">
+              Download App
+            </Button>
+          </div>
+
+          <button
+            className="md:hidden p-2 rounded-lg cursor-pointer text-[var(--text)] hover:bg-[color-mix(in_oklab,var(--surface)_94%,transparent)]"
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-label="Toggle menu"
+          >
+            {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
 
-        {/* Mobile hamburger */}
-        <button
-          className={`md:hidden p-2 rounded-lg cursor-pointer ${scrolled || !isHome ? 'text-gray-700' : 'text-white'}`}
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle menu"
-        >
-          {menuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-        </button>
+        {menuOpen && (
+          <div className="md:hidden border-t border-[var(--border)] bg-[color-mix(in_oklab,var(--bg-elev)_96%,black)] px-4 py-4">
+            <div className="mx-auto flex max-w-6xl flex-col gap-3">
+              {navLinks.map((l) => (
+                <a
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setMenuOpen(false)}
+                  className="py-1 font-medium no-underline text-[var(--text)]"
+                >
+                  {l.label}
+                </a>
+              ))}
+              <Button href={APP_INFO.apkUrl} variant="primary" size="sm" className="self-start mt-1">
+                Download App
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Mobile menu */}
-      {menuOpen && (
-        <div className="md:hidden bg-white border-t border-gray-100 px-6 py-4 flex flex-col gap-4">
-          {navLinks.map((l) => (
-            <a
-              key={l.href}
-              href={l.href}
-              onClick={() => setMenuOpen(false)}
-              className="text-gray-700 font-medium no-underline py-1"
-            >
-              {l.label}
-            </a>
-          ))}
-          <Button href={APP_INFO.apkUrl} variant="primary" size="sm" className="self-start">
-            Download App
-          </Button>
-        </div>
-      )}
     </header>
   )
 }

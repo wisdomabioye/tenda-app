@@ -13,7 +13,7 @@ import { Privacy } from './components/sections/Privacy'
 
 function LandingPage() {
   return (
-    <main>
+    <>
       <Hero />
       <Problem />
       <HowItWorks />
@@ -21,20 +21,24 @@ function LandingPage() {
       <WhyTenda />
       <WhoItsFor />
       <DownloadCTA />
-    </main>
+    </>
   )
 }
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/terms" element={<Terms />} />
-        <Route path="/privacy" element={<Privacy />} />
-      </Routes>
-      <Footer />
+      <div className="app-shell">
+        <Navbar />
+        <main className="app-main">
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
+          </Routes>
+        </main>
+        <Footer />
+      </div>
     </BrowserRouter>
   )
 }
