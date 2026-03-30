@@ -132,7 +132,7 @@ export default function ChatScreen() {
           inverted
           ListEmptyComponent={
             <View style={s.empty}>
-              <Text variant="body" color={theme.colors.textFaint} align="center">
+              <Text variant="body" color={theme.colors.content.tertiary} align="center">
                 No messages yet. Say hi!
               </Text>
             </View>
@@ -161,17 +161,17 @@ export default function ChatScreen() {
 
       <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Options">
         <Pressable
-          style={({ pressed }) => [s.menuItem, { borderTopColor: theme.colors.borderFaint }, pressed && { backgroundColor: theme.colors.surfacePressed }]}
+          style={({ pressed }) => [s.menuItem, { borderTopColor: theme.colors.border.subtle }, pressed && { backgroundColor: theme.colors.surface.pressed }]}
           onPress={handleCloseConversation}
         >
           <View style={s.menuItemLeft}>
-            <X size={16} color={theme.colors.textSub} />
+            <X size={16} color={theme.colors.content.secondary} />
             <View>
               <Text weight="medium">Close conversation</Text>
-              <Text variant="caption" color={theme.colors.textFaint}>Hides this chat from your inbox</Text>
+              <Text variant="caption" color={theme.colors.content.tertiary}>Hides this chat from your inbox</Text>
             </View>
           </View>
-          <ChevronRight size={16} color={theme.colors.textFaint} />
+          <ChevronRight size={16} color={theme.colors.content.tertiary} />
         </Pressable>
       </BottomSheet>
     </ScreenContainer>

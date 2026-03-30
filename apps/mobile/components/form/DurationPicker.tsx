@@ -53,7 +53,7 @@ export function DurationPicker({
   return (
     <View style={s.container}>
       <Text variant="label">{label}</Text>
-      <Text variant="caption" color={theme.colors.textFaint}>{helper}</Text>
+      <Text variant="caption" color={theme.colors.content.tertiary}>{helper}</Text>
 
       <View style={s.row}>
         {PRESETS.map((p) => {
@@ -62,9 +62,9 @@ export function DurationPicker({
             <Pressable
               key={p.seconds}
               onPress={() => selectPreset(p.seconds)}
-              style={[s.chip, { backgroundColor: selected ? theme.colors.primary : theme.colors.muted }]}
+              style={[s.chip, { backgroundColor: selected ? theme.colors.brand.primary : theme.colors.surface.backgroundAlt }]}
             >
-              <Text size={typography.sizes.xs} weight="semibold" color={selected ? theme.colors.onPrimary : theme.colors.text}>
+              <Text size={typography.styles.caption.fontSize} weight="semibold" color={selected ? theme.colors.brand.onPrimary : theme.colors.content.primary}>
                 {p.label}
               </Text>
             </Pressable>
@@ -72,9 +72,9 @@ export function DurationPicker({
         })}
         <Pressable
           onPress={() => setCustomMode(true)}
-          style={[s.chip, { backgroundColor: customMode ? theme.colors.primary : theme.colors.muted }]}
+          style={[s.chip, { backgroundColor: customMode ? theme.colors.brand.primary : theme.colors.surface.backgroundAlt }]}
         >
-          <Text size={typography.sizes.xs} weight="semibold" color={customMode ? theme.colors.onPrimary : theme.colors.text}>
+          <Text size={typography.styles.caption.fontSize} weight="semibold" color={customMode ? theme.colors.brand.onPrimary : theme.colors.content.primary}>
             Custom
           </Text>
         </Pressable>
@@ -87,11 +87,11 @@ export function DurationPicker({
             onChangeText={handleCustomChange}
             keyboardType="numeric"
             placeholder="e.g. 10"
-            placeholderTextColor={theme.colors.textFaint}
-            style={[s.customInput, { backgroundColor: theme.colors.input, color: theme.colors.text }]}
+            placeholderTextColor={theme.colors.content.tertiary}
+            style={[s.customInput, { backgroundColor: theme.colors.control.inputBackground, color: theme.colors.content.primary }]}
           />
-          <Pressable onPress={toggleUnit} style={[s.unitBtn, { backgroundColor: theme.colors.muted }]}>
-            <Text size={typography.sizes.xs} weight="semibold" color={theme.colors.primary}>{unit}</Text>
+          <Pressable onPress={toggleUnit} style={[s.unitBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}>
+            <Text size={typography.styles.caption.fontSize} weight="semibold" color={theme.colors.brand.primary}>{unit}</Text>
           </Pressable>
         </View>
       )}
@@ -119,7 +119,7 @@ const s = StyleSheet.create({
   customInput: {
     flex: 1,
     fontFamily: 'Inter_400Regular',
-    fontSize: typography.sizes.base,
+    fontSize: typography.styles.body.fontSize,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: radius.md,

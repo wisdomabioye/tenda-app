@@ -153,30 +153,30 @@ function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated
 
           {offer.payment_accounts.length > 0 && (
             <>
-              <Text weight="semibold" size={typography.sizes.sm} style={s.section}>Payment Methods</Text>
+              <Text weight="semibold" size={typography.styles.bodySmall.fontSize} style={s.section}>Payment Methods</Text>
               {offer.payment_accounts.map((a) => <AccountCard key={a.id} account={a} />)}
             </>
           )}
           {isBuyer && offer.status === 'open' && (
-            <Text variant="caption" color={theme.colors.textSub} style={s.hint}>
+            <Text variant="caption" color={theme.colors.content.secondary} style={s.hint}>
               Payment details shown after you accept.
             </Text>
           )}
 
           {offer.proofs.length > 0 && (
             <>
-              <Text weight="semibold" size={typography.sizes.sm} style={s.section}>Payment Proofs</Text>
+              <Text weight="semibold" size={typography.styles.bodySmall.fontSize} style={s.section}>Payment Proofs</Text>
               <GigProofsGrid proofs={offer.proofs} onProofPress={setSelectedProof} />
             </>
           )}
 
           {offer.dispute && (
-            <Card variant="outlined" padding={spacing.md} style={[s.disputeCard, { borderColor: theme.colors.danger }]}>
-              <Text weight="semibold" color={theme.colors.danger}>Dispute</Text>
+            <Card variant="outlined" padding={spacing.md} style={[s.disputeCard, { borderColor: theme.colors.feedback.danger.text }]}>
+              <Text weight="semibold" color={theme.colors.feedback.danger.text}>Dispute</Text>
               <Spacer size={4} />
-              <Text size={typography.sizes.sm} color={theme.colors.textSub}>{offer.dispute.reason}</Text>
+              <Text size={typography.styles.bodySmall.fontSize} color={theme.colors.content.secondary}>{offer.dispute.reason}</Text>
               {offer.dispute.winner && (
-                <Text size={typography.sizes.sm} style={{ marginTop: 4 }}>
+                <Text size={typography.styles.bodySmall.fontSize} style={{ marginTop: 4 }}>
                   Winner: <Text weight="semibold">{offer.dispute.winner}</Text>
                 </Text>
               )}
@@ -259,37 +259,37 @@ function AccountCard({ account }: { account: UserExchangeAccount }) {
 
       {/* Method badge + bank name */}
       <View style={s.accountHeader}>
-        <View style={[s.methodBadge, { backgroundColor: theme.colors.primaryTint }]}>
-          <Text size={typography.sizes.xs} weight="semibold" color={theme.colors.primary}>
+        <View style={[s.methodBadge, { backgroundColor: theme.colors.brand.primarySurface }]}>
+          <Text size={typography.styles.caption.fontSize} weight="semibold" color={theme.colors.brand.primary}>
             {account.method}
           </Text>
         </View>
         {account.bank_name && (
-          <Text variant="caption" color={theme.colors.textSub}>{account.bank_name}</Text>
+          <Text variant="caption" color={theme.colors.content.secondary}>{account.bank_name}</Text>
         )}
       </View>
 
       <Spacer size={spacing.sm} />
 
       {/* Account name */}
-      <Text variant="caption" color={theme.colors.textFaint}>Account name</Text>
-      <Text weight="medium" size={typography.sizes.sm}>{account.account_name}</Text>
+      <Text variant="caption" color={theme.colors.content.tertiary}>Account name</Text>
+      <Text weight="medium" size={typography.styles.bodySmall.fontSize}>{account.account_name}</Text>
 
       <Spacer size={spacing.sm} />
 
       {/* Account number — copy row */}
-      <Text variant="caption" color={theme.colors.textFaint}>Account number</Text>
-      <Pressable style={[s.numberBox, { backgroundColor: theme.colors.surface }]} onPress={copyAccountNumber}>
-        <Text weight="semibold" size={typography.sizes.base} style={s.flex}>{account.account_number}</Text>
-        <View style={[s.copyBtn, { backgroundColor: theme.colors.muted }]}>
-          <Copy size={14} color={theme.colors.primary} />
+      <Text variant="caption" color={theme.colors.content.tertiary}>Account number</Text>
+      <Pressable style={[s.numberBox, { backgroundColor: theme.colors.surface.inset }]} onPress={copyAccountNumber}>
+        <Text weight="semibold" size={typography.styles.body.fontSize} style={s.flex}>{account.account_number}</Text>
+        <View style={[s.copyBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}>
+          <Copy size={14} color={theme.colors.brand.primary} />
         </View>
       </Pressable>
 
       {account.additional_info ? (
         <>
           <Spacer size={spacing.xs} />
-          <Text variant="caption" color={theme.colors.textFaint}>{account.additional_info}</Text>
+          <Text variant="caption" color={theme.colors.content.tertiary}>{account.additional_info}</Text>
         </>
       ) : null}
 

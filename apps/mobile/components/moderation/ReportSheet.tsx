@@ -49,7 +49,7 @@ export function ReportSheet({ visible, onClose, contentType, contentId, onSucces
 
   return (
     <BottomSheet visible={visible} onClose={handleClose} title="Report">
-      <Text variant="caption" color={theme.colors.textSub} style={s.label}>
+      <Text variant="caption" color={theme.colors.content.secondary} style={s.label}>
         Why are you reporting this?
       </Text>
 
@@ -61,45 +61,45 @@ export function ReportSheet({ visible, onClose, contentType, contentId, onSucces
             onPress={() => setReason(r)}
             style={({ pressed }) => [
               s.option,
-              { borderColor: selected ? theme.colors.primary : theme.colors.border },
-              { backgroundColor: selected ? theme.colors.primaryTint : theme.colors.surface },
-              pressed && !selected && { backgroundColor: theme.colors.surfacePressed },
+              { borderColor: selected ? theme.colors.brand.primary : theme.colors.border.default },
+              { backgroundColor: selected ? theme.colors.brand.primarySurface : theme.colors.surface.card },
+              pressed && !selected && { backgroundColor: theme.colors.surface.pressed },
             ]}
           >
             <Text variant="body" weight={selected ? 'semibold' : 'regular'}>
               {REPORT_REASON_LABEL[r]}
             </Text>
-            {selected && <Check size={16} color={theme.colors.primary} />}
+            {selected && <Check size={16} color={theme.colors.brand.primary} />}
           </Pressable>
         )
       })}
 
-      <Text variant="caption" color={theme.colors.textSub} style={[s.label, s.labelTop]}>
+      <Text variant="caption" color={theme.colors.content.secondary} style={[s.label, s.labelTop]}>
         Additional context (optional)
       </Text>
       <TextInput
         value={note}
         onChangeText={(t) => setNote(t.slice(0, 500))}
         placeholder="Describe the issue…"
-        placeholderTextColor={theme.colors.textFaint}
+        placeholderTextColor={theme.colors.content.tertiary}
         multiline
         maxLength={500}
         style={[
           s.input,
           {
-            color:           theme.colors.text,
-            borderColor:     theme.colors.border,
-            backgroundColor: theme.colors.surface,
+            color:           theme.colors.content.primary,
+            borderColor:     theme.colors.border.default,
+            backgroundColor: theme.colors.surface.card,
           },
         ]}
       />
-      <Text variant="caption" color={theme.colors.textFaint} align="right">
+      <Text variant="caption" color={theme.colors.content.tertiary} align="right">
         {note.length}/500
       </Text>
 
       <View style={s.footer}>
         {loading ? (
-          <ActivityIndicator color={theme.colors.primary} />
+          <ActivityIndicator color={theme.colors.brand.primary} />
         ) : (
           <Button
             onPress={handleSubmit}

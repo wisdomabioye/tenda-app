@@ -74,27 +74,27 @@ export function PaymentInput({ value, onChange }: PaymentInputProps) {
       : `Min ${minSol} SOL`
 
   const fiatLabel = rate != null ? currency : `${currency} (loading…)`
-  const borderColor = focused ? theme.colors.focusRing : 'transparent'
+  const borderColor = focused ? theme.colors.brand.focusRing : 'transparent'
 
   return (
     <View style={s.container}>
       <Text variant="label">Payment</Text>
 
       {/* Toggle */}
-      <View style={[s.toggleRow, { backgroundColor: theme.colors.muted }]}>
+      <View style={[s.toggleRow, { backgroundColor: theme.colors.surface.backgroundAlt }]}>
         {(['FIAT', 'SOL'] as Mode[]).map((m) => (
           <Pressable
             key={m}
             onPress={() => handleModeToggle(m)}
             style={[
               s.toggleBtn,
-              mode === m && { backgroundColor: theme.colors.surface },
+              mode === m && { backgroundColor: theme.colors.surface.card },
             ]}
           >
             <Text
               size={13}
               weight="semibold"
-              color={mode === m ? theme.colors.primary : theme.colors.textSub}
+              color={mode === m ? theme.colors.brand.primary : theme.colors.content.secondary}
             >
               {m === 'FIAT' ? fiatLabel : 'SOL'}
             </Text>
@@ -103,16 +103,16 @@ export function PaymentInput({ value, onChange }: PaymentInputProps) {
       </View>
 
       {/* Input */}
-      <View style={[s.inputWrapper, { backgroundColor: theme.colors.input, borderColor }]}>
-        <Text size={16} weight="medium" color={theme.colors.textSub} style={s.prefix}>
+      <View style={[s.inputWrapper, { backgroundColor: theme.colors.control.inputBackground, borderColor }]}>
+        <Text size={16} weight="medium" color={theme.colors.content.secondary} style={s.prefix}>
           {mode === 'FIAT' ? meta.symbol : '◎'}
         </Text>
         <TextInput
-          style={[s.input, { color: theme.colors.text }]}
+          style={[s.input, { color: theme.colors.content.primary }]}
           value={text}
           onChangeText={handleChangeText}
           placeholder={mode === 'FIAT' ? '0' : '0.0000'}
-          placeholderTextColor={theme.colors.textFaint}
+          placeholderTextColor={theme.colors.content.tertiary}
           keyboardType="decimal-pad"
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
@@ -121,9 +121,9 @@ export function PaymentInput({ value, onChange }: PaymentInputProps) {
 
       {/* Equivalent + helper */}
       {value > 0 && (
-        <Text variant="caption" color={theme.colors.textSub}>{equivalent}</Text>
+        <Text variant="caption" color={theme.colors.content.secondary}>{equivalent}</Text>
       )}
-      <Text variant="caption" color={theme.colors.textFaint}>{helperText}</Text>
+      <Text variant="caption" color={theme.colors.content.tertiary}>{helperText}</Text>
     </View>
   )
 }
@@ -153,7 +153,7 @@ const s = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: typography.sizes.base,
+    fontSize: typography.styles.body.fontSize,
     fontFamily: 'Manrope_400Regular',
     paddingVertical: 12,
   },

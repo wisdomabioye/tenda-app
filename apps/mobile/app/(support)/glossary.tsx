@@ -63,7 +63,7 @@ export default function GlossaryScreen() {
       <Header title="Glossary" showBack />
       <Spacer size={spacing.md} />
 
-      <Text variant="caption" color={theme.colors.textSub}>
+      <Text variant="caption" color={theme.colors.content.secondary}>
         Plain English definitions of crypto and Tenda terms.
       </Text>
       <Spacer size={spacing.md} />
@@ -76,7 +76,7 @@ export default function GlossaryScreen() {
             last={index === TERMS.length - 1}
           >
             <Spacer size={spacing.xs} />
-            <Text variant="caption" color={theme.colors.textSub}>{item.definition}</Text>
+            <Text variant="caption" color={theme.colors.content.secondary}>{item.definition}</Text>
           </AccordionItem>
         ))}
       </Card>

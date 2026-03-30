@@ -30,10 +30,10 @@ export function Card({
   const { theme } = useUnistyles()
 
   const variantStyle = variant === 'elevated'
-    ? { backgroundColor: theme.colors.surface, ...shadows.md }
+    ? { backgroundColor: theme.colors.surface.card, ...shadows.card }
     : variant === 'outlined'
-      ? { backgroundColor: theme.colors.background, borderWidth: 1, borderColor: theme.colors.border }
-      : { backgroundColor: theme.colors.surface }
+      ? { backgroundColor: theme.colors.surface.background, borderWidth: 1, borderColor: theme.colors.border.default }
+      : { backgroundColor: theme.colors.surface.card }
 
   const content = (
     <View

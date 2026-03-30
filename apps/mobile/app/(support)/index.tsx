@@ -71,21 +71,21 @@ function TopicCard({ icon: Icon, title, description, route }: Topic) {
       style={({ pressed }) => [
         s.card,
         {
-          backgroundColor: theme.colors.surface,
-          borderColor: theme.colors.border,
+          backgroundColor: theme.colors.surface.card,
+          borderColor: theme.colors.border.default,
           opacity: pressed ? 0.8 : 1,
         },
       ]}
     >
-      <View style={[s.iconBox, { backgroundColor: theme.colors.primaryTint }]}>
-        <Icon size={20} color={theme.colors.primary} />
+      <View style={[s.iconBox, { backgroundColor: theme.colors.brand.primarySurface }]}>
+        <Icon size={20} color={theme.colors.brand.primary} />
       </View>
       <View style={s.cardContent}>
         <Text variant="label" weight="semibold">{title}</Text>
         <Spacer size={2} />
-        <Text variant="caption" color={theme.colors.textSub}>{description}</Text>
+        <Text variant="caption" color={theme.colors.content.secondary}>{description}</Text>
       </View>
-      <ChevronRight size={16} color={theme.colors.textFaint} />
+      <ChevronRight size={16} color={theme.colors.content.tertiary} />
     </Pressable>
   )
 }

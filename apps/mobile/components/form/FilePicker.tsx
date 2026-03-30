@@ -105,28 +105,28 @@ export function FilePicker({ files, onChange, accept = 'any', max = 5, showPrevi
           {showImage && (
             <Pressable
               onPress={() => addFile(pickImage)}
-              style={[s.actionBtn, { backgroundColor: theme.colors.muted }]}
+              style={[s.actionBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
             >
-              <Plus size={16} color={theme.colors.primary} />
-              <Text size={13} weight="medium" color={theme.colors.primary}>Photo</Text>
+              <Plus size={16} color={theme.colors.brand.primary} />
+              <Text size={13} weight="medium" color={theme.colors.brand.primary}>Photo</Text>
             </Pressable>
           )}
           {showVideo && (
             <Pressable
               onPress={() => addFile(pickVideo)}
-              style={[s.actionBtn, { backgroundColor: theme.colors.muted }]}
+              style={[s.actionBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
             >
-              <Film size={16} color={theme.colors.primary} />
-              <Text size={13} weight="medium" color={theme.colors.primary}>Video</Text>
+              <Film size={16} color={theme.colors.brand.primary} />
+              <Text size={13} weight="medium" color={theme.colors.brand.primary}>Video</Text>
             </Pressable>
           )}
           {showDocument && (
             <Pressable
               onPress={() => addFile(pickDocument)}
-              style={[s.actionBtn, { backgroundColor: theme.colors.muted }]}
+              style={[s.actionBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
             >
-              <FileText size={16} color={theme.colors.primary} />
-              <Text size={13} weight="medium" color={theme.colors.primary}>Document</Text>
+              <FileText size={16} color={theme.colors.brand.primary} />
+              <Text size={13} weight="medium" color={theme.colors.brand.primary}>Document</Text>
             </Pressable>
           )}
         </View>
@@ -140,19 +140,19 @@ export function FilePicker({ files, onChange, accept = 'any', max = 5, showPrevi
               {file.type === 'image' ? (
                 <Image source={{ uri: file.uri }} style={s.thumbnail} />
               ) : (
-                <View style={[s.filePlaceholder, { backgroundColor: theme.colors.muted }]}>
+                <View style={[s.filePlaceholder, { backgroundColor: theme.colors.surface.backgroundAlt }]}>
                   {file.type === 'video'
-                    ? <Film size={24} color={theme.colors.textSub} />
-                    : <FileText size={24} color={theme.colors.textSub} />
+                    ? <Film size={24} color={theme.colors.content.secondary} />
+                    : <FileText size={24} color={theme.colors.content.secondary} />
                   }
-                  <Text size={10} color={theme.colors.textSub} numberOfLines={2} style={s.fileName}>
+                  <Text size={10} color={theme.colors.content.secondary} numberOfLines={2} style={s.fileName}>
                     {file.name}
                   </Text>
                 </View>
               )}
               <Pressable
                 onPress={() => remove(index)}
-                style={[s.removeBtn, { backgroundColor: theme.colors.danger }]}
+                style={[s.removeBtn, { backgroundColor: theme.colors.feedback.danger.base }]}
               >
                 <X size={10} color="#fff" />
               </Pressable>
@@ -161,7 +161,7 @@ export function FilePicker({ files, onChange, accept = 'any', max = 5, showPrevi
         </ScrollView>
       )}
 
-      <Text variant="caption" color={theme.colors.textFaint}>
+      <Text variant="caption" color={theme.colors.content.tertiary}>
         {files.length}/{max} files selected
       </Text>
     </View>

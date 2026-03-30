@@ -30,7 +30,7 @@ export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
       <View style={s.header}>
         <Avatar size="sm" name={name} src={reviewer.avatar_url} />
         <View style={s.meta}>
-          <Text variant="caption" weight="semibold" color={theme.colors.textSub}>
+          <Text variant="caption" weight="semibold" color={theme.colors.content.secondary}>
             {label}
           </Text>
           <Text variant="body" weight="semibold">{name}</Text>
@@ -40,21 +40,21 @@ export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
             <Star
               key={i}
               size={14}
-              color={theme.colors.warning}
-              fill={i < review.score ? theme.colors.warning : 'transparent'}
+              color={theme.colors.feedback.warning.base}
+              fill={i < review.score ? theme.colors.feedback.warning.base : 'transparent'}
             />
           ))}
         </View>
       </View>
 
       {review.comment ? (
-        <Text variant="body" color={theme.colors.textSub} style={s.comment}>
+        <Text variant="body" color={theme.colors.content.secondary} style={s.comment}>
           {review.comment}
         </Text>
       ) : null}
 
       {date ? (
-        <Text size={11} color={theme.colors.textFaint} style={s.date}>
+        <Text size={11} color={theme.colors.content.tertiary} style={s.date}>
           {date}
         </Text>
       ) : null}

@@ -20,7 +20,7 @@ export function GigProofsGrid({ proofs, onProofPress }: Props) {
       {proofs.map((proof) => (
         <Pressable
           key={proof.id}
-          style={[s.item, { backgroundColor: theme.colors.muted }]}
+          style={[s.item, { backgroundColor: theme.colors.surface.backgroundAlt }]}
           onPress={() => onProofPress(proof)}
         >
           {proof.type === 'image' ? (
@@ -28,16 +28,16 @@ export function GigProofsGrid({ proofs, onProofPress }: Props) {
           ) : (
             <View style={s.icon}>
               {proof.type === 'video'
-                ? <Film size={24} color={theme.colors.textSub} />
-                : <FileText size={24} color={theme.colors.textSub} />}
-              <Text size={10} color={theme.colors.textSub} numberOfLines={1}>
+                ? <Film size={24} color={theme.colors.content.secondary} />
+                : <FileText size={24} color={theme.colors.content.secondary} />}
+              <Text size={10} color={theme.colors.content.secondary} numberOfLines={1}>
                 {proof.type}
               </Text>
             </View>
           )}
           {proof.type === 'video' && (
-            <View style={[s.playBadge, { backgroundColor: theme.colors.primary }]}>
-              <Play size={8} color={theme.colors.onPrimary} fill={theme.colors.onPrimary} />
+            <View style={[s.playBadge, { backgroundColor: theme.colors.brand.primary }]}>
+              <Play size={8} color={theme.colors.brand.onPrimary} fill={theme.colors.brand.onPrimary} />
             </View>
           )}
         </Pressable>

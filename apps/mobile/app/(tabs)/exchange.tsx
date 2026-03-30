@@ -100,20 +100,20 @@ export default function ExchangeScreen() {
       <Header title="Trade" showBack />
 
       {/* ── Tab row + animated underline ── */}
-      <View style={[s.tabRow, { borderBottomColor: theme.colors.borderFaint }]}>
+      <View style={[s.tabRow, { borderBottomColor: theme.colors.border.subtle }]}>
         {(['Market', 'My Offers'] as const).map((label, i) => (
           <Pressable key={label} style={s.tab} onPress={() => scrollToPage(i)}>
             <Text
               weight="semibold"
               size={15}
-              color={pageIndex === i ? theme.colors.primary : theme.colors.textSub}
+              color={pageIndex === i ? theme.colors.brand.primary : theme.colors.content.secondary}
             >
               {label}
             </Text>
           </Pressable>
         ))}
         <Animated.View
-          style={[s.underline, { backgroundColor: theme.colors.primary, transform: [{ translateX: underlineX }] }]}
+          style={[s.underline, { backgroundColor: theme.colors.brand.primary, transform: [{ translateX: underlineX }] }]}
         />
       </View>
 
@@ -134,19 +134,19 @@ export default function ExchangeScreen() {
         {/* Page 0 — Market */}
         <View style={{ width: SW }}>
           {/* Currency filter pill */}
-          <View style={[s.filterRow, { borderBottomColor: theme.colors.borderFaint }]}>
+          <View style={[s.filterRow, { borderBottomColor: theme.colors.border.subtle }]}>
             <Pressable
-              style={[s.filterBtn, { backgroundColor: theme.colors.muted }]}
+              style={[s.filterBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
               onPress={() => setCurrencySheetOpen(true)}
             >
-              <SlidersHorizontal size={13} color={theme.colors.textSub} />
-              <Text variant="caption" weight="medium" color={theme.colors.textSub}>
+              <SlidersHorizontal size={13} color={theme.colors.content.secondary} />
+              <Text variant="caption" weight="medium" color={theme.colors.content.secondary}>
                 {currency ?? 'All currencies'}
               </Text>
             </Pressable>
             {currency && (
               <Pressable hitSlop={8} onPress={() => { setCurrency(null); resetFilters() }}>
-                <X size={16} color={theme.colors.textSub} />
+                <X size={16} color={theme.colors.content.secondary} />
               </Pressable>
             )}
           </View>
@@ -159,7 +159,7 @@ export default function ExchangeScreen() {
             </View>
           ) : error ? (
             <View style={s.center}>
-              <Text color={theme.colors.danger}>{error}</Text>
+              <Text color={theme.colors.feedback.danger.text}>{error}</Text>
               <Spacer size={spacing.sm} />
               <Button variant="outline" size="sm" onPress={fetchOffers}>Retry</Button>
             </View>
@@ -170,10 +170,10 @@ export default function ExchangeScreen() {
               renderItem={({ item }) => <ExchangeOfferCard offer={item} showStatus={false} />}
               contentContainerStyle={s.list}
               ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} />}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.brand.primary} />}
               onEndReached={loadMore}
               onEndReachedThreshold={0.3}
-              ListFooterComponent={isLoadingMore ? <ActivityIndicator style={s.footer} color={theme.colors.primary} /> : null}
+              ListFooterComponent={isLoadingMore ? <ActivityIndicator style={s.footer} color={theme.colors.brand.primary} /> : null}
               ListEmptyComponent={
                 <EmptyState
                   title="No open offers"
@@ -199,7 +199,7 @@ export default function ExchangeScreen() {
               renderItem={({ item }) => <ExchangeOfferCard offer={item} showStatus />}
               contentContainerStyle={s.list}
               ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.primary} />}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.brand.primary} />}
               ListEmptyComponent={
                 <EmptyState
                   title="No offers yet"
@@ -221,15 +221,15 @@ export default function ExchangeScreen() {
           <Pressable
             key={cur}
             onPress={() => handleCurrencySelect(cur)}
-            style={[s.currencyOption, { borderBottomColor: theme.colors.borderFaint }]}
+            style={[s.currencyOption, { borderBottomColor: theme.colors.border.subtle }]}
           >
             <Text
               weight={currency === cur ? 'semibold' : 'regular'}
-              color={currency === cur ? theme.colors.primary : theme.colors.text}
+              color={currency === cur ? theme.colors.brand.primary : theme.colors.content.primary}
             >
               {cur}
             </Text>
-            {currency === cur && <Check size={16} color={theme.colors.primary} />}
+            {currency === cur && <Check size={16} color={theme.colors.brand.primary} />}
           </Pressable>
         ))}
       </BottomSheet>

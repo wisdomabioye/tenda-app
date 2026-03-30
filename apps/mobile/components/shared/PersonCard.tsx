@@ -68,20 +68,20 @@ export function PersonCard({
               <Text variant="body" weight="semibold">{displayName}</Text>
               {user.is_seeker && <SeekerBadge variant="compact" />}
             </View>
-            <Text variant="caption" color={theme.colors.textSub}>
+            <Text variant="caption" color={theme.colors.content.secondary}>
               {user.reputation_score ?? 0} reputation
             </Text>
           </View>
           {!isSelf && showMessageButton && (
             <IconButton
-              icon={<MessageCircle size={20} color={theme.colors.primary} />}
+              icon={<MessageCircle size={20} color={theme.colors.brand.primary} />}
               onPress={handleMessage}
               variant="ghost"
             />
           )}
           {!isSelf && (
             <IconButton
-              icon={<Flag size={18} color={theme.colors.textFaint} />}
+              icon={<Flag size={18} color={theme.colors.content.tertiary} />}
               onPress={() => setReportOpen(true)}
               variant="ghost"
             />

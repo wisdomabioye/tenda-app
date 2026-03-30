@@ -124,8 +124,8 @@ export function ExchangeCTABar({ offer, isSeller, isBuyer, currentUserId, action
     if (mode) return null
 
     if (actions.txInProgress) return (
-      <View style={[s.notice, { backgroundColor: theme.colors.warningTint }]}>
-        <Text variant="caption" color={theme.colors.warning} weight="semibold" align="center">
+      <View style={[s.notice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
+        <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
           Transaction in progress — please wait…
         </Text>
       </View>
@@ -171,8 +171,8 @@ export function ExchangeCTABar({ offer, isSeller, isBuyer, currentUserId, action
       return <Button variant="outline" fullWidth onPress={() => setMode('review')}>Leave Review</Button>
     if (status === 'disputed')
       return (
-        <View style={[s.notice, { backgroundColor: theme.colors.warningTint }]}>
-          <Text variant="caption" color={theme.colors.warning} weight="semibold" align="center">
+        <View style={[s.notice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
+          <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
             Under review by admin
           </Text>
         </View>
@@ -183,7 +183,7 @@ export function ExchangeCTABar({ offer, isSeller, isBuyer, currentUserId, action
   if (!buttons && !inlineContent) return null
 
   return (
-    <View style={[s.bar, { borderTopColor: theme.colors.borderFaint, backgroundColor: theme.colors.background }]}>
+    <View style={[s.bar, { borderTopColor: theme.colors.border.subtle, backgroundColor: theme.colors.surface.background }]}>
       {inlineContent}
       {buttons}
     </View>

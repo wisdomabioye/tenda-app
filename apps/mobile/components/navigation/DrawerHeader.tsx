@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Image } from 'expo-image'
 import { Menu } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
+import { spacing, radius } from '@/theme/tokens'
 import { Avatar } from '@/components/ui'
 
 const Logo = require('@/assets/images/logo.png')
@@ -37,12 +38,12 @@ export function DrawerHeader({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingTop: insets.top + theme.spacing.sm,
-        paddingBottom: theme.spacing.md,
-        paddingHorizontal: theme.spacing.md,
-        backgroundColor: theme.colors.background,
+        paddingTop: insets.top + spacing.sm,
+        paddingBottom: spacing.md,
+        paddingHorizontal: spacing.md,
+        backgroundColor: theme.colors.surface.background,
         borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border,
+        borderBottomColor: theme.colors.border.default,
       }}
     >
       <TouchableOpacity
@@ -52,14 +53,14 @@ export function DrawerHeader({
           height: 36,
           alignItems: 'center',
           justifyContent: 'center',
-          borderRadius: theme.radius.lg,
-          backgroundColor: theme.colors.muted,
+          borderRadius: radius.lg,
+          backgroundColor: theme.colors.surface.backgroundAlt,
           borderWidth: 1,
-          borderColor: theme.colors.border,
+          borderColor: theme.colors.border.default,
         }}
         activeOpacity={0.7}
       >
-        <Menu size={18} color={theme.colors.primary} />
+        <Menu size={18} color={theme.colors.brand.primary} />
       </TouchableOpacity>
 
       <Image
@@ -71,7 +72,7 @@ export function DrawerHeader({
         contentFit="contain"
       />
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: theme.spacing.sm }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
        {/*  {RightIcon && (
           <TouchableOpacity
             onPress={onRightPress}

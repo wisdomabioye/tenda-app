@@ -8,7 +8,7 @@ export default function SupportLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: theme.colors.background },
+        contentStyle: { backgroundColor: theme.colors.surface.background },
       }}
     />
   )

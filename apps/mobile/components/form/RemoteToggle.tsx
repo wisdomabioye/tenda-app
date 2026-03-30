@@ -18,17 +18,17 @@ export function RemoteToggle({ value, onChange }: RemoteToggleProps) {
       style={[
         s.row,
         {
-          backgroundColor: value ? theme.colors.primaryTint : theme.colors.muted,
-          borderColor: value ? theme.colors.primary : 'transparent',
+          backgroundColor: value ? theme.colors.brand.primarySurface : theme.colors.surface.backgroundAlt,
+          borderColor: value ? theme.colors.brand.primary : 'transparent',
         },
       ]}
     >
-      <Globe size={16} color={value ? theme.colors.primary : theme.colors.textSub} />
+      <Globe size={16} color={value ? theme.colors.brand.primary : theme.colors.content.secondary} />
       <View style={s.text}>
-        <Text size={14} weight="semibold" color={value ? theme.colors.primary : theme.colors.text}>
+        <Text size={14} weight="semibold" color={value ? theme.colors.brand.primary : theme.colors.content.primary}>
           Remote gig
         </Text>
-        <Text size={12} color={value ? theme.colors.primary : theme.colors.textFaint}>
+        <Text size={12} color={value ? theme.colors.brand.primary : theme.colors.content.tertiary}>
           {value ? 'No physical location — visible globally' : 'Worker comes to a specific location'}
         </Text>
       </View>

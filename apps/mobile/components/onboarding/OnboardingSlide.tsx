@@ -20,13 +20,13 @@ export function OnboardingSlide({ Icon, title, body, children }: OnboardingSlide
       <Spacer flex={1} />
 
       <View style={s.hero}>
-        <View style={[s.iconCircle, { backgroundColor: theme.colors.primaryTint }]}>
-          <Icon size={36} color={theme.colors.primary} />
+        <View style={[s.iconCircle, { backgroundColor: theme.colors.brand.primarySurface }]}>
+          <Icon size={36} color={theme.colors.brand.primary} />
         </View>
         <Spacer size={spacing.md} />
         <Text variant="heading" align="center">{title}</Text>
         <Spacer size={spacing.sm} />
-        <Text variant="body" align="center" color={theme.colors.textSub}>{body}</Text>
+        <Text variant="body" align="center" color={theme.colors.content.secondary}>{body}</Text>
       </View>
 
       {children && (

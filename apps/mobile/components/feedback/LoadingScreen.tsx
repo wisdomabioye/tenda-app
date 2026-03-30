@@ -28,16 +28,16 @@ export function LoadingScreen() {
   }
 
   return (
-    <View style={[s.container, { backgroundColor: theme.colors.background }]}>
+    <View style={[s.container, { backgroundColor: theme.colors.surface.background }]}>
       <View style={s.loaderWrap}>
         <Animated.View
           style={[
             s.ring,
             ringStyle,
-            { borderColor: theme.colors.primary },
+            { borderColor: theme.colors.brand.primary },
           ]}
         />
-        <View style={[s.logoWrap, { backgroundColor: theme.colors.primaryTint }]}>
+        <View style={[s.logoWrap, { backgroundColor: theme.colors.brand.primarySurface }]}>
           <Image source={BrandIcon} style={s.brandIcon} contentFit="contain" />
         </View>
       </View>

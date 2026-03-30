@@ -76,7 +76,7 @@ export default function SettingsScreen() {
       <Spacer size={spacing.md} />
 
       {/* Theme */}
-      <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
+      <Text variant="label" weight="semibold" color={theme.colors.content.secondary} style={s.sectionLabel}>
         APPEARANCE
       </Text>
       <Spacer size={spacing.sm} />
@@ -90,15 +90,15 @@ export default function SettingsScreen() {
                 onPress={() => setTheme(opt.value)}
                 style={({ pressed }) => [
                   s.row,
-                  pressed && { backgroundColor: theme.colors.surfacePressed },
+                  pressed && { backgroundColor: theme.colors.surface.pressed },
                 ]}
               >
                 <View style={s.rowLeft}>
                   <Text weight="medium">{opt.label}</Text>
-                  <Text variant="caption" color={theme.colors.textSub}>{opt.description}</Text>
+                  <Text variant="caption" color={theme.colors.content.secondary}>{opt.description}</Text>
                 </View>
                 {selected && (
-                  <Check size={16} color={theme.colors.primary} />
+                  <Check size={16} color={theme.colors.brand.primary} />
                 )}
               </Pressable>
             </View>
@@ -109,22 +109,22 @@ export default function SettingsScreen() {
       <Spacer size={spacing.md} />
 
       {/* Currency */}
-      <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
+      <Text variant="label" weight="semibold" color={theme.colors.content.secondary} style={s.sectionLabel}>
         DISPLAY CURRENCY
       </Text>
       <Spacer size={spacing.sm} />
       <Card variant="outlined" padding={0}>
         <Pressable
           onPress={() => setCurrencySheetOpen(true)}
-          style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surfacePressed }]}
+          style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surface.pressed }]}
         >
           <View style={s.rowLeft}>
             <Text weight="medium">{CURRENCY_META[currency].name}</Text>
-            <Text variant="caption" color={theme.colors.textSub}>
+            <Text variant="caption" color={theme.colors.content.secondary}>
               {CURRENCY_META[currency].symbol} · {currency}
             </Text>
           </View>
-          <ChevronRight size={16} color={theme.colors.textFaint} />
+          <ChevronRight size={16} color={theme.colors.content.tertiary} />
         </Pressable>
       </Card>
 
@@ -137,13 +137,13 @@ export default function SettingsScreen() {
               {index > 0 && <Divider spacing={0} />}
               <Pressable
                 onPress={() => { setCurrency(c); setCurrencySheetOpen(false) }}
-                style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surfacePressed }]}
+                style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surface.pressed }]}
               >
                 <View style={s.rowLeft}>
                   <Text weight="medium">{meta.symbol}  {meta.name}</Text>
-                  <Text variant="caption" color={theme.colors.textSub}>{c}</Text>
+                  <Text variant="caption" color={theme.colors.content.secondary}>{c}</Text>
                 </View>
-                {selected && <Check size={16} color={theme.colors.primary} />}
+                {selected && <Check size={16} color={theme.colors.brand.primary} />}
               </Pressable>
             </View>
           )
@@ -153,7 +153,7 @@ export default function SettingsScreen() {
       <Spacer size={spacing.md} />
 
       {/* Gig Subscriptions */}
-      <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
+      <Text variant="label" weight="semibold" color={theme.colors.content.secondary} style={s.sectionLabel}>
         GIG NOTIFICATIONS
       </Text>
       <Spacer size={spacing.sm} />
@@ -163,10 +163,10 @@ export default function SettingsScreen() {
             onPress={() => Linking.openSettings()}
             style={({ pressed }) => [s.notifBanner, pressed && { opacity: 0.7 }]}
           >
-            <BellOff size={14} color={theme.colors.textSub} />
-            <Text variant="caption" color={theme.colors.textSub} style={s.notifBannerText}>
+            <BellOff size={14} color={theme.colors.content.secondary} />
+            <Text variant="caption" color={theme.colors.content.secondary} style={s.notifBannerText}>
               Notifications are off —{' '}
-              <Text variant="caption" color={theme.colors.primary}>Enable in Settings</Text>
+              <Text variant="caption" color={theme.colors.brand.primary}>Enable in Settings</Text>
             </Text>
           </Pressable>
           <Spacer size={spacing.sm} />
@@ -175,7 +175,7 @@ export default function SettingsScreen() {
       <Card variant="outlined" padding={0}>
         {loadingSubs ? (
           <View style={s.row}>
-            <ActivityIndicator size="small" color={theme.colors.primary} />
+            <ActivityIndicator size="small" color={theme.colors.brand.primary} />
           </View>
         ) : subsError ? (
           <ErrorState
@@ -193,16 +193,16 @@ export default function SettingsScreen() {
                 <View style={s.row}>
                   <View style={s.rowLeft}>
                     <View style={s.subIconRow}>
-                      <Bell size={14} color={theme.colors.primary} />
+                      <Bell size={14} color={theme.colors.brand.primary} />
                       <Text weight="medium">
                         {sub.city === '*' ? 'All cities' : sub.city}
                         {sub.category !== '*' ? ` · ${sub.category}` : ''}
                       </Text>
                     </View>
-                    <Text variant="caption" color={theme.colors.textSub}>New gigs matching this filter</Text>
+                    <Text variant="caption" color={theme.colors.content.secondary}>New gigs matching this filter</Text>
                   </View>
                   <Pressable onPress={() => removeSubscription(sub.id)} style={s.trashBtn}>
-                    <Trash2 size={16} color={theme.colors.danger} />
+                    <Trash2 size={16} color={theme.colors.feedback.danger.text} />
                   </Pressable>
                 </View>
               </View>
@@ -210,9 +210,9 @@ export default function SettingsScreen() {
             <Divider spacing={0} />
             <Pressable
               onPress={addSubscription}
-              style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surfacePressed }]}
+              style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surface.pressed }]}
             >
-              <Text color={theme.colors.primary} weight="medium">+ Subscribe to new gigs</Text>
+              <Text color={theme.colors.brand.primary} weight="medium">+ Subscribe to new gigs</Text>
             </Pressable>
           </>
         )}
@@ -221,32 +221,32 @@ export default function SettingsScreen() {
       <Spacer size={spacing.md} />
 
       {/* Help */}
-      <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
+      <Text variant="label" weight="semibold" color={theme.colors.content.secondary} style={s.sectionLabel}>
         HELP
       </Text>
       <Spacer size={spacing.sm} />
       <Card variant="outlined" padding={0}>
         <Pressable
           onPress={() => router.push('/(support)' as Parameters<typeof router.push>[0])}
-          style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surfacePressed }]}
+          style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surface.pressed }]}
         >
           <View style={s.rowLeft}>
             <View style={s.subIconRow}>
-              <HelpCircle size={14} color={theme.colors.primary} />
+              <HelpCircle size={14} color={theme.colors.brand.primary} />
               <Text weight="medium">Help & Guide</Text>
             </View>
-            <Text variant="caption" color={theme.colors.textSub}>
+            <Text variant="caption" color={theme.colors.content.secondary}>
               Wallets, gigs, payments, glossary and FAQ
             </Text>
           </View>
-          <ChevronRight size={16} color={theme.colors.textFaint} />
+          <ChevronRight size={16} color={theme.colors.content.tertiary} />
         </Pressable>
       </Card>
 
       <Spacer size={spacing.md} />
 
       {/* App info */}
-      <Text variant="caption" color={theme.colors.textFaint} align="center">
+      <Text variant="caption" color={theme.colors.content.tertiary} align="center">
         Tenda v1.0.0
       </Text>
     </ScreenContainer>

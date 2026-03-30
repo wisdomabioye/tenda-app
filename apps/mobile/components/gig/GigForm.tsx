@@ -17,7 +17,6 @@ import { isValidPaymentLamports, MIN_COMPLETION_DURATION_SECONDS, isCrossBorder 
 import { getDeviceCountry } from '@/lib/device'
 import { useAuthStore } from '@/stores/auth.store'
 import { LOCATIONS } from '@tenda/shared'
-import type { ColorScheme } from '@/theme/tokens'
 import type { GigCategory, CountryCode } from '@tenda/shared'
 
 const TITLE_MAX = 80
@@ -118,13 +117,12 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
           <Spacer size={spacing.sm} />
           <View style={s.chipGroup}>
             {CATEGORY_META.map((cat) => {
-              const colorKey = `category${cat.label}` as keyof ColorScheme
               return (
                 <Chip
                   key={cat.key}
                   label={cat.label}
                   selected={selectedCategory === cat.key}
-                  color={theme.colors[colorKey]}
+                  color={theme.colors.category[cat.key].text}
                   onPress={() => setSelectedCategory(cat.key)}
                 />
               )
@@ -190,11 +188,11 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
           {isCrossBorder(isRemote, selectedCountry, homeCountry) && (
             <>
               <Spacer size={spacing.sm} />
-              <View style={[s.crossBorderBanner, { backgroundColor: theme.colors.primaryTint, borderColor: theme.colors.primary }]}>
-                <Text size={13} color={theme.colors.primary} weight="semibold">
+              <View style={[s.crossBorderBanner, { backgroundColor: theme.colors.brand.primarySurface, borderColor: theme.colors.brand.primary }]}>
+                <Text size={13} color={theme.colors.brand.primary} weight="semibold">
                   ↔ Cross-border posting
                 </Text>
-                <Text size={12} color={theme.colors.primary} style={s.bannerSub}>
+                <Text size={12} color={theme.colors.brand.primary} style={s.bannerSub}>
                   Workers in {LOCATIONS[selectedCountry as CountryCode]?.name ?? selectedCountry} receive SOL and can off-ramp via Tenda P2P.
                 </Text>
               </View>
@@ -230,7 +228,7 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
             <Card variant="outlined" padding={spacing.md}>
               <Text variant="label" weight="semibold">Accept deadline</Text>
               <Spacer size={4} />
-              <Text variant="caption" color={theme.colors.textFaint}>
+              <Text variant="caption" color={theme.colors.content.tertiary}>
                 How long the gig stays open for workers to accept
               </Text>
               <Spacer size={spacing.sm} />

@@ -30,13 +30,13 @@ export default wrapApp(function RootLayout() {
   if (!isReady) return null
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.surface.background }}>
       <DevnetBanner />
       {/* When the banner is visible it consumes insets.top, so we zero it out
           for everything below to prevent the header double-counting it. */}
       <SafeAreaInsetsContext.Provider value={{ ...insets, top: IS_DEVNET ? 0 : insets.top }}>
       <ToastProvider>
-        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.background }, animation: 'slide_from_right' }}>
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface.background }, animation: 'slide_from_right' }}>
           <Stack.Screen name="index" />
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />

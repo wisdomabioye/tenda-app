@@ -20,11 +20,11 @@ export function MoneyText({ fiat, ratesReady, currency, sol, size }: MoneyTextPr
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-      <Text weight="bold" color={theme.colors.money} size={size}>
+      <Text weight="bold" color={theme.colors.utility.money} size={size}>
         {ratesReady ? formatFiat(fiat, currency) : '—'}
       </Text>
-      <Text variant="caption" color={theme.colors.textSub}>{'\u2248'}</Text>
-      <Text variant="caption" color={theme.colors.textSub}>
+      <Text variant="caption" color={theme.colors.content.secondary}>{'\u2248'}</Text>
+      <Text variant="caption" color={theme.colors.content.secondary}>
         {formatSolDisplay(sol)}
       </Text>
     </View>

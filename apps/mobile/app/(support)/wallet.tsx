@@ -15,11 +15,11 @@ export default function WalletGuideScreen() {
       <Spacer size={spacing.md} />
 
       <Card variant="outlined" padding={spacing.md}>
-        <Text variant="label" weight="semibold" color={theme.colors.textSub}>
+        <Text variant="label" weight="semibold" color={theme.colors.content.secondary}>
           WHAT IS A CRYPTO WALLET?
         </Text>
         <Spacer size={spacing.sm} />
-        <Text variant="body" weight='medium' color={theme.colors.textSub}>
+        <Text variant="body" weight='medium' color={theme.colors.content.secondary}>
           Think of it like a bank account; but only you control it. No bank, no middleman.
           Your wallet holds your money and approves transactions when you confirm them.
           Tenda uses your wallet as your identity and payment method.
@@ -28,7 +28,7 @@ export default function WalletGuideScreen() {
 
       <Spacer size={spacing.md} />
 
-      <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
+      <Text variant="label" weight="semibold" color={theme.colors.content.secondary} style={s.sectionLabel}>
         PHANTOM (RECOMMENDED)
       </Text>
       <Spacer size={spacing.sm} />
@@ -36,14 +36,14 @@ export default function WalletGuideScreen() {
         <View style={s.walletHeader}>
           <View style={s.walletHeaderInfo}>
             <Text variant="label" weight="semibold">Phantom</Text>
-            <Text variant="caption" color={theme.colors.success}>
+            <Text variant="caption" color={theme.colors.feedback.success.text}>
               Returns to Tenda automatically after connecting
             </Text>
           </View>
           <Button
             variant="outline"
             size="sm"
-            icon={<ExternalLink size={14} color={theme.colors.primary} />}
+            icon={<ExternalLink size={14} color={theme.colors.brand.primary} />}
             onPress={() => Linking.openURL(APP_INFO.wallets.phantom.playStore)}
           >
             Install
@@ -74,14 +74,14 @@ export default function WalletGuideScreen() {
 
       <Spacer size={spacing.md} />
 
-      <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
+      <Text variant="label" weight="semibold" color={theme.colors.content.secondary} style={s.sectionLabel}>
         SOLFLARE
       </Text>
       <Spacer size={spacing.sm} />
 
-      <View style={[s.warningBanner, { backgroundColor: theme.colors.warningTint, borderColor: theme.colors.warning }]}>
-        <AlertTriangle size={16} color={theme.colors.warning} />
-        <Text variant="caption" color={theme.colors.warning} style={s.warningText}>
+      <View style={[s.warningBanner, { backgroundColor: theme.colors.feedback.warning.surface, borderColor: theme.colors.feedback.warning.border }]}>
+        <AlertTriangle size={16} color={theme.colors.feedback.warning.text} />
+        <Text variant="caption" color={theme.colors.feedback.warning.text} style={s.warningText}>
           Solflare requires two extra steps, read carefully before connecting.
         </Text>
       </View>
@@ -93,7 +93,7 @@ export default function WalletGuideScreen() {
           <Button
             variant="outline"
             size="sm"
-            icon={<ExternalLink size={14} color={theme.colors.primary} />}
+            icon={<ExternalLink size={14} color={theme.colors.brand.primary} />}
             onPress={() => Linking.openURL(APP_INFO.wallets.solflare.playStore)}
           >
             Install
@@ -122,14 +122,14 @@ export default function WalletGuideScreen() {
 
       <Spacer size={spacing.md} />
 
-      <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
+      <Text variant="label" weight="semibold" color={theme.colors.content.secondary} style={s.sectionLabel}>
         TROUBLESHOOTING
       </Text>
       <Spacer size={spacing.sm} />
       <Card variant="outlined" padding={0}>
         <AccordionItem title="Connection keeps failing">
           <Spacer size={spacing.xs} />
-          <Text variant="caption" color={theme.colors.textSub}>
+          <Text variant="caption" color={theme.colors.content.secondary}>
             1. Make sure your wallet app is installed and fully set up.{'\n'}
             2. If using Solflare, complete the seed phrase backup inside the Solflare app first.{'\n'}
             3. Check your internet connection.{'\n'}
@@ -138,13 +138,13 @@ export default function WalletGuideScreen() {
         </AccordionItem>
         <AccordionItem title="I closed the wallet by mistake">
           <Spacer size={spacing.xs} />
-          <Text variant="caption" color={theme.colors.textSub}>
+          <Text variant="caption" color={theme.colors.content.secondary}>
             Tap "Try again" on the error screen then "Connect Wallet" to reopen the prompt.
           </Text>
         </AccordionItem>
         <AccordionItem title="My wallet isn't listed" last>
           <Spacer size={spacing.xs} />
-          <Text variant="caption" color={theme.colors.textSub}>
+          <Text variant="caption" color={theme.colors.content.secondary}>
             Tenda officially supports Phantom and Solflare. Other wallets that
             support the Solana Mobile Wallet Adapter may also work but are not
             tested yet.

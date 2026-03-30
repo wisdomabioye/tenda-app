@@ -26,7 +26,7 @@ export default function WelcomeScreen() {
             Work. Earn. Instantly.
           </Text>
           <Spacer size={10} />
-          <Text variant="body" align="center" color={theme.colors.textSub}>
+          <Text variant="body" align="center" color={theme.colors.content.secondary}>
             Find gigs. Complete tasks.{'\n'}Get paid in seconds.
           </Text>
         </View>

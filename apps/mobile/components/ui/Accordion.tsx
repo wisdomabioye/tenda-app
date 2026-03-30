@@ -46,18 +46,18 @@ export function AccordionItem({
         onPress={toggle}
         style={({ pressed }) => [
           s.header,
-          pressed && { backgroundColor: theme.colors.surfacePressed },
+          pressed && { backgroundColor: theme.colors.surface.pressed },
         ]}
       >
         {icon && <View style={s.icon}>{icon}</View>}
         <Text variant="body" weight="medium" style={s.title}>{title}</Text>
         <Animated.View style={{ transform: [{ rotate }] }}>
-          <ChevronDown size={18} color={theme.colors.textSub} />
+          <ChevronDown size={18} color={theme.colors.content.secondary} />
         </Animated.View>
       </Pressable>
 
       {expanded && (
-        <View style={[s.content, { borderTopColor: theme.colors.borderFaint }]}>
+        <View style={[s.content, { borderTopColor: theme.colors.border.subtle }]}>
           {children}
         </View>
       )}

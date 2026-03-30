@@ -33,7 +33,7 @@ export function Skeleton({ width, height, radius = 8 }: SkeletonProps) {
   return (
     <Animated.View
       style={[
-        { width, height, borderRadius: radius, backgroundColor: theme.colors.muted },
+        { width, height, borderRadius: radius, backgroundColor: theme.colors.surface.backgroundAlt },
         animatedStyle,
       ]}
     />

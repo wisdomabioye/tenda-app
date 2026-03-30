@@ -73,11 +73,11 @@ export function TimingStep({
         <>
           <Spacer size={spacing.sm} />
           <Pressable
-            style={[s.dateRow, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}
+            style={[s.dateRow, { borderColor: theme.colors.border.default, backgroundColor: theme.colors.surface.card }]}
             onPress={() => setShowPicker(true)}
           >
-            <CalendarDays size={18} color={theme.colors.textSub} />
-            <Text style={s.dateText} color={deadlineInput ? theme.colors.text : theme.colors.textSub}>
+            <CalendarDays size={18} color={theme.colors.content.secondary} />
+            <Text style={s.dateText} color={deadlineInput ? theme.colors.content.primary : theme.colors.content.secondary}>
               {formattedDate}
             </Text>
           </Pressable>

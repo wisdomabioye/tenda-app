@@ -70,9 +70,9 @@ export function SearchSheet({
           s.option,
           {
             backgroundColor: pressed
-              ? theme.colors.surfacePressed
+              ? theme.colors.surface.pressed
               : selected
-                ? theme.colors.primaryTint
+                ? theme.colors.brand.primarySurface
                 : 'transparent',
           },
         ]}
@@ -81,17 +81,17 @@ export function SearchSheet({
           <Text
             variant="body"
             weight={selected ? 'semibold' : 'regular'}
-            color={selected ? theme.colors.primary : theme.colors.text}
+            color={selected ? theme.colors.brand.primary : theme.colors.content.primary}
           >
             {item.label}
           </Text>
           {item.sublabel ? (
-            <Text size={13} color={theme.colors.textFaint} style={s.sublabel}>
+            <Text size={13} color={theme.colors.content.tertiary} style={s.sublabel}>
               {item.sublabel}
             </Text>
           ) : null}
         </View>
-        {selected && <Check size={16} color={theme.colors.primary} />}
+        {selected && <Check size={16} color={theme.colors.brand.primary} />}
       </Pressable>
     )
   }
@@ -102,9 +102,9 @@ export function SearchSheet({
         style={s.overlay}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <View style={[s.sheet, { backgroundColor: theme.colors.surface }]}>
+        <View style={[s.sheet, { backgroundColor: theme.colors.surface.card }]}>
           {/* Handle */}
-          <View style={[s.handle, { backgroundColor: theme.colors.borderFaint }]} />
+          <View style={[s.handle, { backgroundColor: theme.colors.border.subtle }]} />
 
           {/* Title row */}
           <View style={s.titleRow}>
@@ -113,14 +113,14 @@ export function SearchSheet({
           </View>
 
           {/* Search */}
-          <View style={[s.searchRow, { backgroundColor: theme.colors.input }]}>
-            <Search size={16} color={theme.colors.textFaint} />
+          <View style={[s.searchRow, { backgroundColor: theme.colors.control.inputBackground }]}>
+            <Search size={16} color={theme.colors.content.tertiary} />
             <TextInput
               value={query}
               onChangeText={setQuery}
               placeholder={searchPlaceholder}
-              placeholderTextColor={theme.colors.textFaint}
-              style={[s.searchInput, { color: theme.colors.text }]}
+              placeholderTextColor={theme.colors.content.tertiary}
+              style={[s.searchInput, { color: theme.colors.content.primary }]}
               autoFocus
             />
           </View>
@@ -133,7 +133,7 @@ export function SearchSheet({
             keyboardShouldPersistTaps="handled"
             ListEmptyComponent={
               <View style={s.empty}>
-                <Text variant="body" color={theme.colors.textFaint}>
+                <Text variant="body" color={theme.colors.content.tertiary}>
                   No results for "{query}"
                 </Text>
               </View>
@@ -184,7 +184,7 @@ const s = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontFamily: 'Inter_400Regular',
-    fontSize: typography.sizes.base,
+    fontSize: typography.styles.body.fontSize,
     paddingVertical: 0,
   },
   list: { flexGrow: 0 },

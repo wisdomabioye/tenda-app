@@ -60,10 +60,10 @@ export function PaymentMethodsStep({ selectedAccounts, newMethods, currency, onS
       <Spacer size={spacing.md} />
 
       {loadingAccounts ? (
-        <ActivityIndicator color={theme.colors.primary} style={{ marginBottom: spacing.sm }} />
+        <ActivityIndicator color={theme.colors.brand.primary} style={{ marginBottom: spacing.sm }} />
       ) : existingAccounts.length > 0 ? (
         <>
-          <Text weight="semibold" size={typography.sizes.sm}>Your saved accounts</Text>
+          <Text weight="semibold" size={typography.styles.bodySmall.fontSize}>Your saved accounts</Text>
           <Spacer size={spacing.xs} />
           {existingAccounts.map((account) => {
             const selected = selectedAccounts.some((a) => a.id === account.id)
@@ -72,18 +72,18 @@ export function PaymentMethodsStep({ selectedAccounts, newMethods, currency, onS
                 key={account.id}
                 style={[
                   s.accountRow,
-                  { borderColor: selected ? theme.colors.primary : theme.colors.border, backgroundColor: theme.colors.surface },
+                  { borderColor: selected ? theme.colors.brand.primary : theme.colors.border.default, backgroundColor: theme.colors.surface.card },
                 ]}
                 onPress={() => toggleAccount(account)}
               >
                 <View style={s.accountInfo}>
-                  <Text weight="medium" size={typography.sizes.sm}>{account.method}</Text>
-                  <Text variant="caption" color={theme.colors.textSub}>
+                  <Text weight="medium" size={typography.styles.bodySmall.fontSize}>{account.method}</Text>
+                  <Text variant="caption" color={theme.colors.content.secondary}>
                     {account.account_name} · {account.account_number}
                     {account.bank_name ? ` · ${account.bank_name}` : ''}
                   </Text>
                 </View>
-                {selected && <Check size={16} color={theme.colors.primary} />}
+                {selected && <Check size={16} color={theme.colors.brand.primary} />}
               </Pressable>
             )
           })}
@@ -94,11 +94,11 @@ export function PaymentMethodsStep({ selectedAccounts, newMethods, currency, onS
       {newMethods.map((m, i) => (
         <Card key={m._key} variant="outlined" style={s.card}>
           <View style={s.cardHeader}>
-            <Text weight="semibold" size={typography.sizes.sm}>New method {i + 1}</Text>
+            <Text weight="semibold" size={typography.styles.bodySmall.fontSize}>New method {i + 1}</Text>
             <Button
               variant="ghost"
               size="sm"
-              icon={<Trash2 size={14} color={theme.colors.danger} />}
+              icon={<Trash2 size={14} color={theme.colors.feedback.danger.base} />}
               onPress={() => removeNew(i)}
             >
               Remove
@@ -147,7 +147,7 @@ export function PaymentMethodsStep({ selectedAccounts, newMethods, currency, onS
       <Button
         variant="outline"
         size="sm"
-        icon={<Plus size={14} color={theme.colors.primary} />}
+        icon={<Plus size={14} color={theme.colors.brand.primary} />}
         onPress={() => onNewMethods([...newMethods, blankMethod()])}
       >
         Add new method

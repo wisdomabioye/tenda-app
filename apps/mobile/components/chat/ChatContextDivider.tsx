@@ -16,7 +16,7 @@ export function ChatContextDivider({ gigId, gigTitle, offerId, offerTitle }: Pro
   const { theme } = useUnistyles()
   const router = useRouter()
 
-  const line = <View style={[s.line, { backgroundColor: theme.colors.borderFaint }]} />
+  const line = <View style={[s.line, { backgroundColor: theme.colors.border.subtle }]} />
 
   const contextId    = offerId ?? gigId ?? null
   const contextTitle = offerId ? (offerTitle ?? 'View offer') : (gigTitle ?? 'View gig')
@@ -26,16 +26,16 @@ export function ChatContextDivider({ gigId, gigTitle, offerId, offerTitle }: Pro
 
   const label = contextId ? (
     <Pressable
-      style={[s.badge, { backgroundColor: theme.colors.primaryTint }]}
+      style={[s.badge, { backgroundColor: theme.colors.brand.primarySurface }]}
       onPress={() => router.push(contextPath)}
     >
-      <Briefcase size={11} color={theme.colors.primary} />
-      <Text variant="caption" color={theme.colors.primary} numberOfLines={1} style={s.badgeText}>
+      <Briefcase size={11} color={theme.colors.brand.primary} />
+      <Text variant="caption" color={theme.colors.brand.primary} numberOfLines={1} style={s.badgeText}>
         {contextTitle}
       </Text>
     </Pressable>
   ) : (
-    <Text variant="caption" color={theme.colors.textFaint} style={s.direct}>
+    <Text variant="caption" color={theme.colors.content.tertiary} style={s.direct}>
       Direct message
     </Text>
   )

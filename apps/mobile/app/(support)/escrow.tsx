@@ -25,11 +25,11 @@ export default function EscrowGuideScreen() {
 
       {/* What is escrow */}
       <Card variant="outlined" padding={spacing.md}>
-        <Text variant="label" weight="semibold" color={theme.colors.textSub}>
+        <Text variant="label" weight="semibold" color={theme.colors.content.secondary}>
           WHAT IS ESCROW?
         </Text>
         <Spacer size={spacing.sm} />
-        <Text variant="body" color={theme.colors.textSub}>
+        <Text variant="body" color={theme.colors.content.secondary}>
           Escrow is like a trusted lockbox. When a poster publishes a gig, the payment
           is locked on-chain. The worker can see the money is real and available.
           The poster cannot take it back unless the gig expires or a dispute is resolved
@@ -41,34 +41,34 @@ export default function EscrowGuideScreen() {
 
       {/* Money flow */}
       <Card variant="outlined" padding={spacing.md}>
-        <Text variant="label" weight="semibold" color={theme.colors.textSub}>
+        <Text variant="label" weight="semibold" color={theme.colors.content.secondary}>
           HOW THE MONEY MOVES
         </Text>
         <Spacer size={spacing.sm} />
         <View style={s.flowColumn}>
-          <View style={[s.flowStep, { backgroundColor: theme.colors.primaryTint }]}>
-            <Text variant="caption" weight="semibold" color={theme.colors.primary}>
+          <View style={[s.flowStep, { backgroundColor: theme.colors.brand.primarySurface }]}>
+            <Text variant="caption" weight="semibold" color={theme.colors.brand.primary}>
               Poster publishes
             </Text>
-            <Text variant="caption" color={theme.colors.primary}>
+            <Text variant="caption" color={theme.colors.brand.primary}>
               Payment locked in escrow
             </Text>
           </View>
-          <Text style={s.flowArrow} color={theme.colors.textFaint}>↓</Text>
-          <View style={[s.flowStep, { backgroundColor: theme.colors.warningTint }]}>
-            <Text variant="caption" weight="semibold" color={theme.colors.warning}>
+          <Text style={s.flowArrow} color={theme.colors.content.tertiary}>↓</Text>
+          <View style={[s.flowStep, { backgroundColor: theme.colors.feedback.warning.surface }]}>
+            <Text variant="caption" weight="semibold" color={theme.colors.feedback.warning.text}>
               Work done
             </Text>
-            <Text variant="caption" color={theme.colors.warning}>
+            <Text variant="caption" color={theme.colors.feedback.warning.text}>
               Worker submits proof
             </Text>
           </View>
-          <Text style={s.flowArrow} color={theme.colors.textFaint}>↓</Text>
-          <View style={[s.flowStep, { backgroundColor: theme.colors.successTint }]}>
-            <Text variant="caption" weight="semibold" color={theme.colors.success}>
+          <Text style={s.flowArrow} color={theme.colors.content.tertiary}>↓</Text>
+          <View style={[s.flowStep, { backgroundColor: theme.colors.feedback.success.surface }]}>
+            <Text variant="caption" weight="semibold" color={theme.colors.feedback.success.text}>
               Approved
             </Text>
-            <Text variant="caption" color={theme.colors.success}>
+            <Text variant="caption" color={theme.colors.feedback.success.text}>
               Worker gets paid
             </Text>
           </View>
@@ -79,11 +79,11 @@ export default function EscrowGuideScreen() {
 
       {/* Fee calculator */}
       <Card variant="outlined" padding={spacing.md}>
-        <Text variant="label" weight="semibold" color={theme.colors.textSub}>
+        <Text variant="label" weight="semibold" color={theme.colors.content.secondary}>
           FEE CALCULATOR
         </Text>
         <Spacer size={spacing.xs} />
-        <Text variant="caption" color={theme.colors.textFaint}>
+        <Text variant="caption" color={theme.colors.content.tertiary}>
           Tenda takes {APP_INFO.fees.platformFeePct}% of the gig amount. The rest goes to the worker.
         </Text>
         <Spacer size={spacing.sm} />
@@ -97,26 +97,26 @@ export default function EscrowGuideScreen() {
         {hasAmount && (
           <>
             <Spacer size={spacing.sm} />
-            <View style={[s.breakdown, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <View style={[s.breakdown, { backgroundColor: theme.colors.surface.inset, borderColor: theme.colors.border.default }]}>
               <View style={s.breakdownRow}>
-                <Text variant="caption" color={theme.colors.textSub}>Gig amount</Text>
+                <Text variant="caption" color={theme.colors.content.secondary}>Gig amount</Text>
                 <Text variant="caption" weight="semibold">{formatFiat(numericAmount, currency)}</Text>
               </View>
               <View style={s.breakdownRow}>
-                <Text variant="caption" color={theme.colors.textSub}>
+                <Text variant="caption" color={theme.colors.content.secondary}>
                   Tenda fee ({APP_INFO.fees.platformFeePct}%)
                 </Text>
-                <Text variant="caption" color={theme.colors.danger}>−{formatFiat(platformFee, currency)}</Text>
+                <Text variant="caption" color={theme.colors.feedback.danger.text}>−{formatFiat(platformFee, currency)}</Text>
               </View>
-              <View style={[s.breakdownRow, s.breakdownTotal, { borderTopColor: theme.colors.border }]}>
+              <View style={[s.breakdownRow, s.breakdownTotal, { borderTopColor: theme.colors.border.default }]}>
                 <Text variant="label" weight="semibold">Worker receives</Text>
-                <Text variant="label" weight="bold" color={theme.colors.success}>
+                <Text variant="label" weight="bold" color={theme.colors.feedback.success.text}>
                   {formatFiat(workerReceives, currency)}
                 </Text>
               </View>
             </View>
             <Spacer size={spacing.xs} />
-            <Text variant="caption" color={theme.colors.textFaint}>
+            <Text variant="caption" color={theme.colors.content.tertiary}>
               Rate subject to change. A small Solana network fee (~$0.01) also applies at time of transaction.
             </Text>
           </>
@@ -129,7 +129,7 @@ export default function EscrowGuideScreen() {
       <Card variant="outlined" padding={0}>
         <AccordionItem title="What happens in a dispute?">
           <Spacer size={spacing.xs} />
-          <Text variant="caption" color={theme.colors.textSub}>
+          <Text variant="caption" color={theme.colors.content.secondary}>
             Either party can raise a dispute after proof is submitted. The Tenda team
             reviews both sides, the gig description, submitted proof, and any messages.
             Payment stays in escrow until a decision is made.
@@ -137,7 +137,7 @@ export default function EscrowGuideScreen() {
         </AccordionItem>
         <AccordionItem title="When is a refund issued?" last>
           <Spacer size={spacing.xs} />
-          <Text variant="caption" color={theme.colors.textSub}>
+          <Text variant="caption" color={theme.colors.content.secondary}>
             A refund goes back to the poster if:{'\n'}
             • The gig expires with no worker accepting it.{'\n'}
             • A dispute is resolved in the poster's favour.{'\n\n'}

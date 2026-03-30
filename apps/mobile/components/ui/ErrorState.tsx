@@ -24,13 +24,13 @@ export function ErrorState({
   return (
     <View style={s.container}>
       <View style={s.icon}>
-        {icon ?? <AlertTriangle size={36} color={theme.colors.warning} />}
+        {icon ?? <AlertTriangle size={36} color={theme.colors.feedback.warning.text} />}
       </View>
-      <Text variant="subheading" align="center" color={theme.colors.warning}>
+      <Text variant="subheading" align="center" color={theme.colors.feedback.warning.text}>
         {title}
       </Text>
       {description && (
-        <Text variant="caption" align="center" color={theme.colors.textSub} style={s.description}>
+        <Text variant="caption" align="center" color={theme.colors.content.secondary} style={s.description}>
           {description}
         </Text>
       )}

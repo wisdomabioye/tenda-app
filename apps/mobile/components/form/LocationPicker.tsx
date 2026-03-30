@@ -74,10 +74,10 @@ export function LocationPicker({ country, city, onChange, label = 'Location' }: 
     <Pressable
       onPress={detect}
       disabled={detecting}
-      style={[s.gpsBtn, { backgroundColor: theme.colors.primaryTint }]}
+      style={[s.gpsBtn, { backgroundColor: theme.colors.brand.primarySurface }]}
     >
-      <LocateFixed size={14} color={theme.colors.primary} />
-      <Text size={typography.sizes.xs} weight="semibold" color={theme.colors.primary}>
+      <LocateFixed size={14} color={theme.colors.brand.primary} />
+      <Text size={typography.styles.caption.fontSize} weight="semibold" color={theme.colors.brand.primary}>
         {detecting ? 'Detecting…' : 'Use my location'}
       </Text>
     </Pressable>
@@ -92,22 +92,22 @@ export function LocationPicker({ country, city, onChange, label = 'Location' }: 
           style={[
             s.trigger,
             {
-              backgroundColor: theme.colors.input,
-              borderColor: countryOpen || cityOpen ? theme.colors.focusRing : 'transparent',
+              backgroundColor: theme.colors.control.inputBackground,
+              borderColor: countryOpen || cityOpen ? theme.colors.brand.focusRing : 'transparent',
             },
           ]}
         >
-          <MapPin size={16} color={country ? theme.colors.primary : theme.colors.textFaint} />
+          <MapPin size={16} color={country ? theme.colors.brand.primary : theme.colors.content.tertiary} />
           <Text
             style={s.triggerText}
-            color={country ? theme.colors.text : theme.colors.textFaint}
+            color={country ? theme.colors.content.primary : theme.colors.content.tertiary}
           >
             {triggerLabel}
           </Text>
-          <ChevronDown size={16} color={theme.colors.textFaint} />
+          <ChevronDown size={16} color={theme.colors.content.tertiary} />
         </Pressable>
         {error ? (
-          <Text size={12} color={theme.colors.warning}>{error}</Text>
+          <Text size={12} color={theme.colors.feedback.warning.base}>{error}</Text>
         ) : null}
       </View>
 
@@ -152,7 +152,7 @@ const s = StyleSheet.create({
   triggerText: {
     flex: 1,
     fontFamily: 'Inter_400Regular',
-    fontSize: typography.sizes.base,
+    fontSize: typography.styles.body.fontSize,
   },
   gpsBtn: {
     flexDirection: 'row',

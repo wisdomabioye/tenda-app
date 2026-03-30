@@ -83,7 +83,7 @@ export default function ProfileScreen() {
 
       {/* Hero — centered identity */}
       <View style={s.hero}>
-        <View style={[s.heroGlow, { backgroundColor: theme.colors.primaryTint }]} />
+        <View style={[s.heroGlow, { backgroundColor: theme.colors.brand.primarySurface }]} />
         <Avatar size="xl" name={fullName} src={user?.avatar_url} />
         <Spacer size={spacing.md} />
         <Text variant="heading" align="center">{fullName}</Text>
@@ -95,17 +95,17 @@ export default function ProfileScreen() {
         )}
         <Spacer size={spacing.xs} />
         <View style={s.metaRow}>
-          <MapPin size={14} color={theme.colors.textSub} />
-          <Text variant="body" color={theme.colors.textSub}>
+          <MapPin size={14} color={theme.colors.content.secondary} />
+          <Text variant="body" color={theme.colors.content.secondary}>
             {user?.city ?? 'Unknown'}
           </Text>
         </View>
 
         {/* Wallet pill */}
         <Spacer size={spacing.md} />
-        <View style={[s.walletPill, { backgroundColor: theme.colors.muted }]}>
-          <Wallet size={14} color={theme.colors.textSub} />
-          <Text variant="caption" weight="medium" color={theme.colors.textSub}>
+        <View style={[s.walletPill, { backgroundColor: theme.colors.surface.backgroundAlt }]}>
+          <Wallet size={14} color={theme.colors.content.secondary} />
+          <Text variant="caption" weight="medium" color={theme.colors.content.secondary}>
             {walletShort}
           </Text>
         </View>
@@ -117,9 +117,9 @@ export default function ProfileScreen() {
       <View style={s.statsStrip}>
         {stats.map((stat, i) => (
           <View key={stat.label} style={s.statItem}>
-            {i > 0 && <View style={[s.statDivider, { backgroundColor: theme.colors.borderFaint }]} />}
-            <Text variant="heading" color={theme.colors.primary}>{stat.value}</Text>
-            <Text variant="caption" color={theme.colors.textSub}>{stat.label}</Text>
+            {i > 0 && <View style={[s.statDivider, { backgroundColor: theme.colors.border.subtle }]} />}
+            <Text variant="heading" color={theme.colors.brand.primary}>{stat.value}</Text>
+            <Text variant="caption" color={theme.colors.content.secondary}>{stat.label}</Text>
           </View>
         ))}
       </View>
@@ -135,22 +135,22 @@ export default function ProfileScreen() {
               onPress={item.onPress}
               style={({ pressed }) => [
                 s.menuItem,
-                pressed && { backgroundColor: theme.colors.surfacePressed },
+                pressed && { backgroundColor: theme.colors.surface.pressed },
               ]}
             >
               <View style={s.menuLeft}>
-                <View style={[s.menuIcon, { backgroundColor: theme.colors.background, borderColor: theme.colors.borderFaint }]}>
-                  <item.icon size={18} color={theme.colors.text} />
+                <View style={[s.menuIcon, { backgroundColor: theme.colors.surface.background, borderColor: theme.colors.border.subtle }]}>
+                  <item.icon size={18} color={theme.colors.content.primary} />
                 </View>
                 <Text variant="body">{item.label}</Text>
               </View>
               <View style={s.menuRight}>
                 {item.value && (
-                  <Text variant="caption" color={theme.colors.textFaint}>
+                  <Text variant="caption" color={theme.colors.content.tertiary}>
                     {item.value}
                   </Text>
                 )}
-                <ChevronRight size={18} color={theme.colors.textFaint} />
+                <ChevronRight size={18} color={theme.colors.content.tertiary} />
               </View>
             </Pressable>
           </View>
@@ -168,13 +168,13 @@ export default function ProfileScreen() {
         style={({ pressed }) => [
           s.disconnectBtn,
           {
-            backgroundColor: pressed ? theme.colors.surfacePressed : 'transparent',
-            borderColor: theme.colors.danger,
+            backgroundColor: pressed ? theme.colors.surface.pressed : 'transparent',
+            borderColor: theme.colors.feedback.danger.text,
           },
         ]}
       >
-        <LogOut size={18} color={theme.colors.danger} />
-        <Text variant="body" weight="medium" color={theme.colors.danger}>Disconnect</Text>
+        <LogOut size={18} color={theme.colors.feedback.danger.text} />
+        <Text variant="body" weight="medium" color={theme.colors.feedback.danger.text}>Disconnect</Text>
       </Pressable>
 
       <Spacer size={spacing.lg} />

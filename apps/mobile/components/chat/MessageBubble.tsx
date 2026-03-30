@@ -23,14 +23,14 @@ export function MessageBubble({ message, isMine, onRetry, onLongPress }: Message
 
   const statusText  = isFailed ? 'Failed — tap to retry' : isSending ? 'Sending…' : time
   const statusColor = isFailed
-    ? theme.colors.warning
-    : theme.colors.textFaint
+    ? theme.colors.feedback.warning.base
+    : theme.colors.content.tertiary
 
   const bubbleStyle = [
     s.bubble,
     isMine
-      ? [s.bubbleMine,   { backgroundColor: theme.colors.primaryTint }]
-      : [s.bubbleTheirs, { backgroundColor: theme.colors.surface }],
+      ? [s.bubbleMine,   { backgroundColor: theme.colors.brand.primarySurface }]
+      : [s.bubbleTheirs, { backgroundColor: theme.colors.surface.card }],
     isFailed && s.bubbleFailed,
   ]
 
@@ -38,7 +38,7 @@ export function MessageBubble({ message, isMine, onRetry, onLongPress }: Message
     <>
       <Text
         style={s.content}
-        color={theme.colors.text}
+        color={theme.colors.content.primary}
       >
         {message.content}
       </Text>
@@ -77,7 +77,7 @@ const s = StyleSheet.create({
   bubblePressed: { opacity: 0.5 },
   content: {
     fontFamily: typography.fonts.body.regular,
-    fontSize:   typography.sizes.sm,
+    fontSize:   typography.styles.bodySmall.fontSize,
     lineHeight: 20,
   },
   time: {

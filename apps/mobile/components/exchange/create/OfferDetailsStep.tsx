@@ -53,7 +53,7 @@ export function OfferDetailsStep({
       />
       <Spacer size={spacing.sm} />
 
-      <Text size={typography.sizes.sm} weight="medium" style={{ marginBottom: spacing.xs }}>
+      <Text size={typography.styles.bodySmall.fontSize} weight="medium" style={{ marginBottom: spacing.xs }}>
         Currency
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>

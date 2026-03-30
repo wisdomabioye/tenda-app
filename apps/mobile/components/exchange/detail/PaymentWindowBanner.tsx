@@ -50,8 +50,8 @@ export function PaymentWindowBanner({ offer, isBuyer }: Props) {
   const isExpired = remaining <= 0
   const isWarning = !isExpired && remaining < 30 * 60 * 1000  // < 30 min
 
-  const bg = isExpired ? theme.colors.dangerTint  : isWarning ? theme.colors.warningTint  : theme.colors.primaryTint
-  const fg = isExpired ? theme.colors.danger      : isWarning ? theme.colors.warning      : theme.colors.primary
+  const bg = isExpired ? theme.colors.feedback.danger.surface  : isWarning ? theme.colors.feedback.warning.surface  : theme.colors.brand.primarySurface
+  const fg = isExpired ? theme.colors.feedback.danger.base      : isWarning ? theme.colors.feedback.warning.base      : theme.colors.brand.primary
 
   const label = isBuyer
     ? (isExpired ? 'Payment window expired' : 'Pay within')

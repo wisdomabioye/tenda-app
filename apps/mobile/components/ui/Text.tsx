@@ -15,31 +15,31 @@ interface TextProps extends RNTextProps {
 
 const variantStyles = StyleSheet.create({
   heading: {
-    fontSize: typography.sizes.xl,
+    fontSize: typography.styles.h2.fontSize,
     fontFamily: typography.fonts.display.bold,
-    lineHeight: typography.sizes.xl * typography.lineHeights.tight,
+    lineHeight: typography.styles.h2.lineHeight,
     letterSpacing: -0.5,
   },
   subheading: {
-    fontSize: typography.sizes.sm,
+    fontSize: typography.styles.bodySmall.fontSize,
     fontFamily: typography.fonts.display.medium,
-    lineHeight: typography.sizes.sm * typography.lineHeights.tight,
+    lineHeight: typography.styles.bodySmall.lineHeight,
     letterSpacing: -0.3,
   },
   body: {
-    fontSize: typography.sizes.base,
+    fontSize: typography.styles.body.fontSize,
     fontFamily: typography.fonts.body.regular,
-    lineHeight: typography.sizes.base * typography.lineHeights.normal,
+    lineHeight: typography.styles.body.lineHeight,
   },
   caption: {
-    fontSize: typography.sizes.sm,
+    fontSize: typography.styles.bodySmall.fontSize,
     fontFamily: typography.fonts.body.regular,
-    lineHeight: typography.sizes.sm * typography.lineHeights.normal,
+    lineHeight: typography.styles.bodySmall.lineHeight,
   },
   label: {
-    fontSize: typography.sizes.sm,
+    fontSize: typography.styles.bodySmall.fontSize,
     fontFamily: typography.fonts.body.medium,
-    lineHeight: typography.sizes.sm * typography.lineHeights.tight,
+    lineHeight: typography.styles.bodySmall.lineHeight,
   },
 })
 
@@ -65,7 +65,7 @@ export function Text({
     <RNText
       maxFontSizeMultiplier={1}
       style={[
-        { color: variant === 'caption' ? theme.colors.textSub : theme.colors.text, fontFamily: typography.fonts.body.regular },
+        { color: variant === 'caption' ? theme.colors.content.secondary : theme.colors.content.primary, fontFamily: typography.fonts.body.regular },
         variantStyles[variant],
         weight && weightStyles[weight],
         color !== undefined && { color },

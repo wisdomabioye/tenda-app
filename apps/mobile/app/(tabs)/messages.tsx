@@ -49,7 +49,7 @@ export default function MessagesScreen() {
               />
             ) : (
               <EmptyState
-                icon={<MessageCircle size={40} color={theme.colors.textFaint} />}
+                icon={<MessageCircle size={40} color={theme.colors.content.tertiary} />}
                 title="No conversations yet"
                 description="Start a conversation by messaging a gig poster or worker."
               />

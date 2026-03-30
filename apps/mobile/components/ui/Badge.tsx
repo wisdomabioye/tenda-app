@@ -12,13 +12,7 @@ interface BadgeProps {
   size?: Size
 }
 
-const variantTokens = {
-  success: { bg: 'successTint', fg: 'onSuccess' },
-  warning: { bg: 'warningTint', fg: 'onWarning' },
-  danger:  { bg: 'dangerTint',  fg: 'onDanger' },
-  info:    { bg: 'infoTint',    fg: 'onInfo' },
-  neutral: { bg: 'muted',       fg: 'mutedText' },
-} as const
+type FeedbackVariant = Exclude<Variant, 'neutral'>
 
 const textSize: Record<Size, number> = {
   sm: 12,
@@ -33,11 +27,17 @@ const s = StyleSheet.create({
 
 export function Badge({ variant = 'neutral', label, size = 'sm' }: BadgeProps) {
   const { theme } = useUnistyles()
-  const tokens = variantTokens[variant]
+
+  const bg = variant === 'neutral'
+    ? theme.colors.surface.backgroundAlt
+    : theme.colors.feedback[variant as FeedbackVariant].surface
+  const fg = variant === 'neutral'
+    ? theme.colors.content.secondary
+    : theme.colors.feedback[variant as FeedbackVariant].text
 
   return (
-    <View style={[s.base, s[`size_${size}`], { backgroundColor: theme.colors[tokens.bg] }]}>
-      <Text size={textSize[size]} weight="semibold" color={theme.colors[tokens.fg]}>
+    <View style={[s.base, s[`size_${size}`], { backgroundColor: bg }]}>
+      <Text size={textSize[size]} weight="semibold" color={fg}>
         {label}
       </Text>
     </View>

@@ -78,14 +78,14 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
   return (
     <Modal transparent animationType="fade" visible={!!signature}>
       <View style={s.overlay}>
-        <View style={[s.card, { backgroundColor: theme.colors.surface }]}>
+        <View style={[s.card, { backgroundColor: theme.colors.surface.card }]}>
           {txState === 'waiting' && (
             <>
-              <ActivityIndicator size="large" color={theme.colors.primary} />
+              <ActivityIndicator size="large" color={theme.colors.brand.primary} />
               <Text variant="subheading" align="center" style={s.title}>
                 {setupPhase ? 'Setting up worker account…' : 'Confirming transaction…'}
               </Text>
-              <Text variant="caption" color={theme.colors.textSub} align="center">
+              <Text variant="caption" color={theme.colors.content.secondary} align="center">
                 {setupPhase
                   ? 'One-time setup required to accept gigs. Please wait.'
                   : 'This may take a few seconds. Please wait.'}
@@ -95,7 +95,7 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
 
           {txState === 'confirmed' && (
             <>
-              <CheckCircle size={56} color={theme.colors.success} />
+              <CheckCircle size={56} color={theme.colors.feedback.success.base} />
               <Text variant="subheading" align="center" style={s.title}>
                 {setupPhase ? 'Worker account created!' : 'Transaction confirmed!'}
               </Text>
@@ -104,11 +104,11 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
 
           {txState === 'failed' && (
             <>
-              <XCircle size={56} color={theme.colors.danger} />
+              <XCircle size={56} color={theme.colors.feedback.danger.base} />
               <Text variant="subheading" align="center" style={s.title}>
                 Transaction issue
               </Text>
-              <Text variant="caption" color={theme.colors.textSub} align="center">
+              <Text variant="caption" color={theme.colors.content.secondary} align="center">
                 {failMsg}
               </Text>
               <Button variant="outline" size="md" onPress={handleDismiss}>

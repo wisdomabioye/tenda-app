@@ -70,9 +70,9 @@ export function LiveChip({ label = 'Live' }: LiveChipProps) {
   }
 
   return (
-    <View style={[s.container, { backgroundColor: theme.colors.successTint }]}>
-      <Activity size={14} color={theme.colors.onSuccess} />
-      <Text size={typography.sizes.xs} weight="medium" color={theme.colors.onSuccess}>
+    <View style={[s.container, { backgroundColor: theme.colors.feedback.success.surface }]}>
+      <Activity size={14} color={theme.colors.feedback.success.text} />
+      <Text size={typography.styles.caption.fontSize} weight="medium" color={theme.colors.feedback.success.text}>
         {label}
       </Text>
       <View style={s.pulseWrap}>
@@ -80,10 +80,10 @@ export function LiveChip({ label = 'Live' }: LiveChipProps) {
           style={[
             s.pulseRing,
             ringStyle,
-            { borderColor: theme.colors.success },
+            { borderColor: theme.colors.feedback.success.base },
           ]}
         />
-        <View style={[s.pulseDot, { backgroundColor: theme.colors.success }]} />
+        <View style={[s.pulseDot, { backgroundColor: theme.colors.feedback.success.base }]} />
       </View>
     </View>
   )

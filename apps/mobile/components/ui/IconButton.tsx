@@ -44,8 +44,8 @@ export function IconButton({
   }
 
   const variantBg: Record<Variant, string> = {
-    primary: theme.colors.primary,
-    secondary: theme.colors.surface,
+    primary: theme.colors.brand.primary,
+    secondary: theme.colors.surface.card,
     ghost: 'transparent',
   }
 

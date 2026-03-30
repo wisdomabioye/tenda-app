@@ -166,10 +166,10 @@ export function ProofViewerModal({ proof, onClose }: Props) {
               Opens in your browser
             </Text>
             <Pressable
-              style={[s.openBtn, { backgroundColor: theme.colors.primary }]}
+              style={[s.openBtn, { backgroundColor: theme.colors.brand.primary }]}
               onPress={() => Linking.openURL(proof.url)}
             >
-              <Text variant="body" weight="semibold" color={theme.colors.onPrimary}>
+              <Text variant="body" weight="semibold" color={theme.colors.brand.onPrimary}>
                 Open document
               </Text>
             </Pressable>

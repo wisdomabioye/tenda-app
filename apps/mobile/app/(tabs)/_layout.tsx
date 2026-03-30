@@ -47,12 +47,12 @@ export default function TabsLayout() {
 
   const fabActions = [
     {
-      icon:    <ClipboardList size={20} color={theme.colors.primary} />,
+      icon:    <ClipboardList size={20} color={theme.colors.brand.primary} />,
       label:   'Post a Gig',
       onPress: () => router.navigate('/(tabs)/create-gig' as never),
     },
     {
-      icon:    <Coins size={20} color={theme.colors.primary} />,
+      icon:    <Coins size={20} color={theme.colors.brand.primary} />,
       label:   'Sell SOL',
       onPress: () => router.navigate('/(tabs)/create-offer' as never),
     },
@@ -64,8 +64,8 @@ export default function TabsLayout() {
         backBehavior="history"
         screenOptions={() => ({
           headerShown: false,
-          tabBarActiveTintColor: theme.colors.primary,
-          tabBarInactiveTintColor: theme.colors.textFaint,
+          tabBarActiveTintColor: theme.colors.brand.primary,
+          tabBarInactiveTintColor: theme.colors.content.tertiary,
           tabBarLabelStyle: {
             fontFamily: typography.fonts.body.bold,
             fontSize: 11,
@@ -73,13 +73,13 @@ export default function TabsLayout() {
             marginTop: 4,
           },
           tabBarStyle: {
-            backgroundColor: theme.colors.background,
-            borderTopColor: theme.colors.borderFaint,
+            backgroundColor: theme.colors.surface.background,
+            borderTopColor: theme.colors.border.subtle,
             borderTopWidth: 1,
             height: tabBarHeight,
             paddingTop: 10,
             paddingBottom: stableBottom + 4,
-            ...shadows.md,
+            ...shadows.card,
           },
         })}
       >
@@ -89,7 +89,7 @@ export default function TabsLayout() {
           options={{
             title: 'Home',
             tabBarIcon: ({ color, focused }) => (
-              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.primaryTint }]}>
+              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
                 <Home color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />
               </View>
             ),
@@ -100,7 +100,7 @@ export default function TabsLayout() {
           options={{
             title: 'Trade',
             tabBarIcon: ({ color, focused }) => (
-              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.primaryTint }]}>
+              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
                 <ArrowLeftRight color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />
               </View>
             ),
@@ -120,10 +120,10 @@ export default function TabsLayout() {
               <Animated.View
                 style={[
                   s.postIcon,
-                  { backgroundColor: theme.colors.primary, transform: [{ rotate: fabSpin }] },
+                  { backgroundColor: theme.colors.brand.primary, transform: [{ rotate: fabSpin }] },
                 ]}
               >
-                <Plus color={theme.colors.onPrimary} size={POST_ICON_SIZE} strokeWidth={2.8} />
+                <Plus color={theme.colors.brand.onPrimary} size={POST_ICON_SIZE} strokeWidth={2.8} />
               </Animated.View>
             ),
           }}
@@ -134,7 +134,7 @@ export default function TabsLayout() {
             title: 'Wallet',
             tabBarBadge: failedSyncs > 0 ? (failedSyncs > 9 ? '9+' : failedSyncs) : undefined,
             tabBarIcon: ({ color, focused }) => (
-              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.primaryTint }]}>
+              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
                 <Wallet color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />
               </View>
             ),
@@ -146,7 +146,7 @@ export default function TabsLayout() {
             title: 'Messages',
             tabBarBadge: unread > 0 ? (unread > 9 ? '9+' : unread) : undefined,
             tabBarIcon: ({ color, focused }) => (
-              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.primaryTint }]}>
+              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
                 <MessageCircle color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />
               </View>
             ),
@@ -189,6 +189,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
-    ...shadows.lg,
+    ...shadows.elevated,
   },
 })

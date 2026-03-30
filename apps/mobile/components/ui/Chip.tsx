@@ -27,13 +27,13 @@ const s = StyleSheet.create({
 export function Chip({ label, selected = false, onPress, color, icon }: ChipProps) {
   const { theme } = useUnistyles()
 
-  const bgColor = selected ? color ?? theme.colors.primary : theme.colors.muted
-  const textColor = selected ? theme.colors.onPrimary : theme.colors.text
+  const bgColor = selected ? color ?? theme.colors.brand.primary : theme.colors.surface.backgroundAlt
+  const textColor = selected ? theme.colors.brand.onPrimary : theme.colors.content.primary
 
   return (
     <Pressable onPress={onPress} style={[s.base, { backgroundColor: bgColor }]}>
       {icon}
-      <Text size={typography.sizes.xs} weight="medium" color={textColor}>{label}</Text>
+      <Text size={typography.styles.caption.fontSize} weight="medium" color={textColor}>{label}</Text>
     </Pressable>
   )
 }

@@ -28,7 +28,7 @@ export function ScreenContainer({
   const content = padding ? <View style={s.padded}>{children}</View> : children
 
   return (
-    <SafeAreaView style={[s.flex, { backgroundColor: theme.colors.background }]} edges={edges}>
+    <SafeAreaView style={[s.flex, { backgroundColor: theme.colors.surface.background }]} edges={edges}>
       {scroll ? (
         <ScrollView
           style={s.flex}

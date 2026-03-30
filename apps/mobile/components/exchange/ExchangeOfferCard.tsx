@@ -43,7 +43,7 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
       onPress={() => router.push(`/exchange/${offer.id}`)}
       style={({ pressed }) => [
         s.card,
-        { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderFaint },
+        { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.subtle },
         pressed && s.pressed,
       ]}
     >
@@ -51,9 +51,9 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
       <View style={s.sellerRow}>
         <Avatar src={offer.seller.avatar_url} name={sellerName} size="sm" />
         <View style={s.sellerInfo}>
-          <Text weight="medium" size={typography.sizes.sm} numberOfLines={1}>{sellerName}</Text>
+          <Text weight="medium" size={typography.styles.bodySmall.fontSize} numberOfLines={1}>{sellerName}</Text>
           {offer.seller.reputation_score != null && (
-            <Text variant="caption" color={theme.colors.textFaint}>
+            <Text variant="caption" color={theme.colors.content.tertiary}>
               ★ {offer.seller.reputation_score.toFixed(1)}
             </Text>
           )}
@@ -63,20 +63,20 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
 
       {/* Amount */}
       <View style={s.amountRow}>
-        <Text weight="bold" size={typography.sizes.xl} color={theme.colors.money}>
+        <Text weight="bold" size={typography.styles.h2.fontSize} color={theme.colors.utility.money}>
           {fiatFormatted}
         </Text>
-        <Text variant="caption" color={theme.colors.textSub}>
+        <Text variant="caption" color={theme.colors.content.secondary}>
           ≈ {formatSolDisplay(sol)}
         </Text>
       </View>
 
       {/* Rate + window */}
       <View style={s.metaRow}>
-        <Text variant="caption" color={theme.colors.textSub}>
+        <Text variant="caption" color={theme.colors.content.secondary}>
           Rate: {rateFormatted}/SOL
         </Text>
-        <Text variant="caption" color={theme.colors.textSub}>
+        <Text variant="caption" color={theme.colors.content.secondary}>
           Window: {formatPaymentWindow(offer.payment_window_seconds)}
         </Text>
       </View>
@@ -90,8 +90,8 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
         </View>
         {deadlineTip && (
           <View style={s.deadline}>
-            <Clock size={11} color={theme.colors.warning} />
-            <Text size={11} color={theme.colors.warning}>{deadlineTip}</Text>
+            <Clock size={11} color={theme.colors.feedback.warning.base} />
+            <Text size={11} color={theme.colors.feedback.warning.base}>{deadlineTip}</Text>
           </View>
         )}
       </View>
@@ -105,7 +105,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.sm,
     gap: spacing.xs,
-    ...shadows.sm,
+    ...shadows.card,
   },
   pressed: { opacity: 0.85 },
   sellerRow: {

@@ -73,20 +73,20 @@ export default function MyGigsScreen() {
       <Header title="My Gigs" showBack />
 
       {/* ── Tab row + animated underline ── */}
-      <View style={[s.tabRow, { borderBottomColor: theme.colors.borderFaint }]}>
+      <View style={[s.tabRow, { borderBottomColor: theme.colors.border.subtle }]}>
         {tabs.map((tab, i) => (
           <Pressable key={tab.label} style={s.tab} onPress={() => scrollToPage(i)}>
             <Text
               weight="semibold"
               size={15}
-              color={pageIndex === i ? theme.colors.primary : theme.colors.textSub}
+              color={pageIndex === i ? theme.colors.content.primary : theme.colors.content.secondary}
             >
               {tab.label}
             </Text>
           </Pressable>
         ))}
         <Animated.View
-          style={[s.underline, { backgroundColor: theme.colors.primary, transform: [{ translateX: underlineX }] }]}
+          style={[s.underline, { backgroundColor: theme.colors.brand.primarySurface, transform: [{ translateX: underlineX }] }]}
         />
       </View>
 
@@ -116,7 +116,7 @@ export default function MyGigsScreen() {
                 <RefreshControl
                   refreshing={pageIndex === i && (refreshing || isLoading)}
                   onRefresh={handleRefresh}
-                  tintColor={theme.colors.primary}
+                  tintColor={theme.colors.brand.primary}
                 />
               }
               ItemSeparatorComponent={() => <Spacer size={spacing.sm} />}
@@ -125,7 +125,7 @@ export default function MyGigsScreen() {
                 !isLoading ? (
                   <View style={s.empty}>
                     <EmptyState
-                      icon={<ClipboardList size={40} color={theme.colors.textFaint} />}
+                      icon={<ClipboardList size={40} color={theme.colors.content.secondary} />}
                       title={tab.empty.title}
                       description={tab.empty.description}
                     />

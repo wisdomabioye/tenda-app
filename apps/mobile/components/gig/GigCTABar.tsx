@@ -32,8 +32,8 @@ export function GigCTABar({
   function renderContent() {
     if (txInProgress) {
       return (
-        <View style={[s.infoNotice, { backgroundColor: theme.colors.warningTint }]}>
-          <Text variant="caption" color={theme.colors.warning} weight="semibold" align="center">
+        <View style={[s.infoNotice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
+          <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
             Transaction in progress — please wait…
           </Text>
         </View>
@@ -134,8 +134,8 @@ export function GigCTABar({
 
     if (gig.status === 'disputed') {
       return (
-        <View style={[s.infoNotice, { backgroundColor: theme.colors.warningTint }]}>
-          <Text variant="caption" color={theme.colors.warning} weight="semibold" align="center">
+        <View style={[s.infoNotice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
+          <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
             Under review by admin
           </Text>
         </View>
@@ -149,7 +149,7 @@ export function GigCTABar({
   if (!content) return null
 
   return (
-    <View style={[s.bottomBar, { backgroundColor: theme.colors.background, borderTopColor: theme.colors.borderFaint }]}>
+    <View style={[s.bottomBar, { backgroundColor: theme.colors.surface.background, borderTopColor: theme.colors.border.subtle }]}>
       {content}
     </View>
   )

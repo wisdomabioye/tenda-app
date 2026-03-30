@@ -26,7 +26,7 @@ export function OfferSummaryCard({ offer }: { offer: ExchangeOfferDetail }) {
 
       {/* Header row */}
       <View style={s.headerRow}>
-        <Text variant="caption" color={theme.colors.textSub}>Amount to pay</Text>
+        <Text variant="caption" color={theme.colors.content.secondary}>Amount to pay</Text>
         <ExchangeStatusBadge status={offer.status} />
       </View>
 
@@ -34,22 +34,22 @@ export function OfferSummaryCard({ offer }: { offer: ExchangeOfferDetail }) {
 
       {/* Fiat amount — tappable to copy */}
       <Pressable style={s.amountRow} onPress={copyAmount}>
-        <Text weight="bold" style={{ fontSize: 36, color: theme.colors.money, lineHeight: 42 }}>
+        <Text weight="bold" style={{ fontSize: 36, color: theme.colors.utility.money, lineHeight: 42 }}>
           {formatFiat(offer.fiat_amount, currency)}
         </Text>
-        <View style={[s.copyBadge, { backgroundColor: theme.colors.muted }]}>
-          <Copy size={13} color={theme.colors.textFaint} />
+        <View style={[s.copyBadge, { backgroundColor: theme.colors.surface.backgroundAlt }]}>
+          <Copy size={13} color={theme.colors.content.tertiary} />
         </View>
       </Pressable>
 
       <Spacer size={spacing.sm} />
 
       {/* SOL pill */}
-      <View style={[s.solPill, { backgroundColor: theme.colors.primaryTint }]}>
-        <Text size={typography.sizes.sm} weight="semibold" color={theme.colors.primary}>
+      <View style={[s.solPill, { backgroundColor: theme.colors.brand.primarySurface }]}>
+        <Text size={typography.styles.bodySmall.fontSize} weight="semibold" color={theme.colors.brand.primary}>
           ◎ {formatSolDisplay(sol)}
         </Text>
-        <Text variant="caption" color={theme.colors.primary} style={{ opacity: 0.7 }}>
+        <Text variant="caption" color={theme.colors.brand.primary} style={{ opacity: 0.7 }}>
           {' '}to receive
         </Text>
       </View>
@@ -61,11 +61,11 @@ export function OfferSummaryCard({ offer }: { offer: ExchangeOfferDetail }) {
       {/* Meta row */}
       <View style={s.metaRow}>
         <MetaItem label="Pay window" value={formatPaymentWindow(offer.payment_window_seconds)} />
-        <View style={[s.metaDivider, { backgroundColor: theme.colors.borderFaint }]} />
+        <View style={[s.metaDivider, { backgroundColor: theme.colors.border.subtle }]} />
         <MetaItem label="Rate" value={`${formatFiat(offer.rate, currency)}/SOL`} />
         {offer.accept_deadline && (
           <>
-            <View style={[s.metaDivider, { backgroundColor: theme.colors.borderFaint }]} />
+            <View style={[s.metaDivider, { backgroundColor: theme.colors.border.subtle }]} />
             <MetaItem label="Deadline" value={new Date(offer.accept_deadline).toLocaleDateString()} />
           </>
         )}
@@ -79,8 +79,8 @@ function MetaItem({ label, value }: { label: string; value: string }) {
   const { theme } = useUnistyles()
   return (
     <View style={s.meta}>
-      <Text variant="caption" color={theme.colors.textFaint}>{label}</Text>
-      <Text size={typography.sizes.sm} weight="semibold">{value}</Text>
+      <Text variant="caption" color={theme.colors.content.tertiary}>{label}</Text>
+      <Text size={typography.styles.bodySmall.fontSize} weight="semibold">{value}</Text>
     </View>
   )
 }

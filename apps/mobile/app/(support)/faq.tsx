@@ -18,12 +18,12 @@ function ContactRow({ icon, label, value, url }: ContactRowProps) {
   return (
     <Card variant="outlined" padding={spacing.sm} onPress={() => Linking.openURL(url)}>
       <View style={s.contactRow}>
-        <View style={[s.contactIcon, { backgroundColor: theme.colors.primaryTint }]}>
+        <View style={[s.contactIcon, { backgroundColor: theme.colors.brand.primarySurface }]}>
           {icon}
         </View>
         <View style={s.contactText}>
-          <Text variant="caption" color={theme.colors.textSub}>{label}</Text>
-          <Text variant="label" weight="medium" color={theme.colors.textLink}>{value}</Text>
+          <Text variant="caption" color={theme.colors.content.secondary}>{label}</Text>
+          <Text variant="label" weight="medium" color={theme.colors.content.link}>{value}</Text>
         </View>
       </View>
     </Card>
@@ -77,45 +77,45 @@ export default function FaqScreen() {
             last={index === FAQS.length - 1}
           >
             <Spacer size={spacing.xs} />
-            <Text variant="caption" color={theme.colors.textSub}>{faq.answer}</Text>
+            <Text variant="caption" color={theme.colors.content.secondary}>{faq.answer}</Text>
           </AccordionItem>
         ))}
       </Card>
 
       <Spacer size={spacing.md} />
 
-      <Text variant="label" weight="semibold" color={theme.colors.textSub} style={s.sectionLabel}>
+      <Text variant="label" weight="semibold" color={theme.colors.content.secondary} style={s.sectionLabel}>
         CONTACT US
       </Text>
       <Spacer size={spacing.sm} />
 
       <View style={s.contacts}>
         <ContactRow
-          icon={<MessageCircle size={18} color={theme.colors.primary} />}
+          icon={<MessageCircle size={18} color={theme.colors.brand.primary} />}
           label="WhatsApp"
           value="Chat with us"
           url={APP_INFO.support.whatsapp}
         />
         <ContactRow
-          icon={<Mail size={18} color={theme.colors.primary} />}
+          icon={<Mail size={18} color={theme.colors.brand.primary} />}
           label="Email"
           value={APP_INFO.support.email}
           url={`mailto:${APP_INFO.support.email}`}
         />
         <ContactRow
-          icon={<Globe size={18} color={theme.colors.primary} />}
+          icon={<Globe size={18} color={theme.colors.brand.primary} />}
           label="Website"
           value={APP_INFO.external.website}
           url={APP_INFO.external.website}
         />
         <ContactRow
-          icon={<XIcon size={18} color={theme.colors.primary} />}
+          icon={<XIcon size={18} color={theme.colors.brand.primary} />}
           label="Twitter / X"
           value={"@tendahq"}
           url={APP_INFO.social.twitter}
         />
         <ContactRow
-          icon={<ExternalLink size={18} color={theme.colors.primary} />}
+          icon={<ExternalLink size={18} color={theme.colors.brand.primary} />}
           label="Instagram"
           value="@tendahq"
           url={APP_INFO.social.instagram}

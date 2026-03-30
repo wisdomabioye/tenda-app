@@ -18,8 +18,8 @@ export function GuideStep({ step, title, description, warning, tip }: GuideStepP
 
   return (
     <View style={s.container}>
-      <View style={[s.stepBadge, { backgroundColor: theme.colors.primaryTint }]}>
-        <Text size={typography.sizes.xs} weight="bold" color={theme.colors.primary}>
+      <View style={[s.stepBadge, { backgroundColor: theme.colors.brand.primarySurface }]}>
+        <Text size={typography.styles.caption.fontSize} weight="bold" color={theme.colors.brand.primary}>
           {step}
         </Text>
       </View>
@@ -30,16 +30,16 @@ export function GuideStep({ step, title, description, warning, tip }: GuideStepP
         {description && (
           <>
             <Spacer size={2} />
-            <Text variant="caption" color={theme.colors.textSub}>{description}</Text>
+            <Text variant="caption" color={theme.colors.content.secondary}>{description}</Text>
           </>
         )}
 
         {warning && (
           <>
             <Spacer size={spacing.xs} />
-            <View style={[s.callout, { backgroundColor: theme.colors.warningTint }]}>
-              <AlertTriangle size={12} color={theme.colors.warning} />
-              <Text variant="caption" color={theme.colors.warning} style={s.calloutText}>
+            <View style={[s.callout, { backgroundColor: theme.colors.feedback.warning.surface }]}>
+              <AlertTriangle size={12} color={theme.colors.feedback.warning.text} />
+              <Text variant="caption" color={theme.colors.feedback.warning.text} style={s.calloutText}>
                 {warning}
               </Text>
             </View>
@@ -49,9 +49,9 @@ export function GuideStep({ step, title, description, warning, tip }: GuideStepP
         {tip && (
           <>
             <Spacer size={spacing.xs} />
-            <View style={[s.callout, { backgroundColor: theme.colors.infoTint }]}>
-              <Info size={12} color={theme.colors.info} />
-              <Text variant="caption" color={theme.colors.info} style={s.calloutText}>
+            <View style={[s.callout, { backgroundColor: theme.colors.feedback.info.surface }]}>
+              <Info size={12} color={theme.colors.feedback.info.text} />
+              <Text variant="caption" color={theme.colors.feedback.info.text} style={s.calloutText}>
                 {tip}
               </Text>
             </View>

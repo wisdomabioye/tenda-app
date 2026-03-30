@@ -17,7 +17,7 @@ function Dot({ active }: DotProps) {
   const style = useAnimatedStyle(() => ({
     width: withTiming(active ? 20 : 8, { duration: 250 }),
     backgroundColor: withTiming(
-      active ? theme.colors.primary : theme.colors.border,
+      active ? theme.colors.brand.primary : theme.colors.border.default,
       { duration: 250 },
     ),
   }))

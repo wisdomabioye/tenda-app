@@ -148,7 +148,7 @@ export default function ConnectWalletScreen() {
 
             {/* Hero section */}
             <View style={s.hero}>
-              <View style={[s.walletIconCircle, { backgroundColor: theme.colors.primaryTint }]}>
+              <View style={[s.walletIconCircle, { backgroundColor: theme.colors.brand.primarySurface }]}>
                 <Image source={Logo} style={s.logo} contentFit="contain" />
               </View>
               <Spacer size={spacing.md} />
@@ -156,7 +156,7 @@ export default function ConnectWalletScreen() {
                 Connect your wallet
               </Text>
               <Spacer size={spacing.sm} />
-              <Text variant="body" align="center" color={theme.colors.textSub}>
+              <Text variant="body" align="center" color={theme.colors.content.secondary}>
                 Link a Solana wallet to start posting{'\n'}and accepting gigs on Tenda
               </Text>
             </View>
@@ -167,12 +167,12 @@ export default function ConnectWalletScreen() {
             <View style={s.features}>
               {FEATURES.map(({ Icon, title, description }) => (
                 <View key={title} style={s.featureRow}>
-                  <View style={[s.featureIcon, { backgroundColor: theme.colors.primaryTint }]}>
-                    <Icon size={18} color={theme.colors.primary} />
+                  <View style={[s.featureIcon, { backgroundColor: theme.colors.brand.primarySurface }]}>
+                    <Icon size={18} color={theme.colors.brand.primary} />
                   </View>
                   <View style={s.featureText}>
                     <Text variant="label" weight="bold">{title}</Text>
-                    <Text variant="caption" color={theme.colors.textSub}>
+                    <Text variant="caption" color={theme.colors.content.secondary}>
                       {description}
                     </Text>
                   </View>
@@ -189,7 +189,7 @@ export default function ConnectWalletScreen() {
                 size="lg"
                 fullWidth
                 loading={isConnecting}
-                icon={<Wallet size={18} color={theme.colors.onPrimary} />}
+                icon={<Wallet size={18} color={theme.colors.brand.onPrimary} />}
                 onPress={handleConnectWallet}
               >
                 Connect Wallet
@@ -197,13 +197,13 @@ export default function ConnectWalletScreen() {
               <Spacer size={spacing.md} />
               {isConnecting && (
                 <View style={s.solfareTip}>
-                  <Text variant="caption" align="center" color={theme.colors.textSub}>
+                  <Text variant="caption" align="center" color={theme.colors.content.secondary}>
                     Using Solflare? Back up your seed phrase if prompted, then press ← back to return.
                   </Text>
                 </View>
               )}
               {!isConnecting && (
-                <Text variant="caption" align="center" color={theme.colors.textFaint}>
+                <Text variant="caption" align="center" color={theme.colors.content.tertiary}>
                   By connecting, you agree to our Terms of Service
                 </Text>
               )}

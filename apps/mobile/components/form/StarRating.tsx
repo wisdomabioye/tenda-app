@@ -28,8 +28,8 @@ export function StarRating({ value, onChange, readonly = false, size = 32 }: Sta
           >
             <Star
               size={size}
-              color={filled ? theme.colors.warning : theme.colors.textSub}
-              fill={filled ? theme.colors.warning : 'transparent'}
+              color={filled ? theme.colors.feedback.warning.base : theme.colors.content.secondary}
+              fill={filled ? theme.colors.feedback.warning.base : 'transparent'}
             />
           </Pressable>
         )

@@ -25,8 +25,8 @@ export const CATEGORY_META: CategoryMeta[] = [
   { key: 'digital', label: 'Digital', icon: 'Monitor', colorToken: 'digital' },
 ]
 
-export function getCategoryColor(category: string): string {
-  return categoryColorTokens[category as GigCategory] ?? 'categoryService'
+export function getCategoryColor(category: GigCategory): string {
+  return categoryColorTokens[category] ?? 'categoryService'
 }
 
 // ── Status → Badge variant mapping ────────────────────────────────────

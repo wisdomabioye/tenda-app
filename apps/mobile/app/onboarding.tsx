@@ -89,13 +89,13 @@ export default function OnboardingScreen() {
       <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
         <View style={s.permission}>
           <Spacer flex={1} />
-          <View style={[s.permissionIcon, { backgroundColor: theme.colors.primaryTint }]}>
-            <Bell size={36} color={theme.colors.primary} />
+          <View style={[s.permissionIcon, { backgroundColor: theme.colors.brand.primarySurface }]}>
+            <Bell size={36} color={theme.colors.brand.primary} />
           </View>
           <Spacer size={spacing.md} />
           <Text variant="heading" align="center">Stay in the loop</Text>
           <Spacer size={spacing.sm} />
-          <Text variant="body" align="center" color={theme.colors.textSub}>
+          <Text variant="body" align="center" color={theme.colors.content.secondary}>
             Get notified when someone accepts your gig, submits work, or when your payment is released.
           </Text>
           <Spacer flex={2} />
@@ -110,7 +110,7 @@ export default function OnboardingScreen() {
           </Button>
           <Spacer size={spacing.md} />
           <Pressable onPress={handleFinish} style={s.skipBtn}>
-            <Text variant="caption" color={theme.colors.textFaint} align="center">
+            <Text variant="caption" color={theme.colors.content.tertiary} align="center">
               Not now
             </Text>
           </Pressable>
@@ -128,7 +128,7 @@ export default function OnboardingScreen() {
         {/* Skip */}
         <View style={s.topBar}>
           <Pressable onPress={handleSkip} style={s.skipBtn}>
-            <Text variant="caption" color={theme.colors.textSub}>Skip</Text>
+            <Text variant="caption" color={theme.colors.content.secondary}>Skip</Text>
           </Pressable>
         </View>
 
@@ -147,32 +147,32 @@ export default function OnboardingScreen() {
           {isLastSlide && (
             <View style={s.walletSection}>
               {/* Wallet options */}
-              <View style={[s.walletCard, { borderColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
+              <View style={[s.walletCard, { borderColor: theme.colors.border.default, backgroundColor: theme.colors.surface.card }]}>
                 <View style={s.walletRow}>
                   <View style={s.walletInfo}>
                     <Text variant="label" weight="semibold">Phantom</Text>
-                    <Text variant="caption" color={theme.colors.textSub}>Recommended — returns automatically</Text>
+                    <Text variant="caption" color={theme.colors.content.secondary}>Recommended — returns automatically</Text>
                   </View>
                   <Pressable
                     onPress={() => Linking.openURL(APP_INFO.wallets.phantom.playStore)}
-                    style={[s.installBtn, { backgroundColor: theme.colors.primaryTint }]}
+                    style={[s.installBtn, { backgroundColor: theme.colors.brand.primarySurface }]}
                   >
-                    <ExternalLink size={14} color={theme.colors.primary} />
-                    <Text size={12} weight="semibold" color={theme.colors.primary}>Install</Text>
+                    <ExternalLink size={14} color={theme.colors.brand.primary} />
+                    <Text size={12} weight="semibold" color={theme.colors.brand.primary}>Install</Text>
                   </Pressable>
                 </View>
                 <Divider spacing={0} />
                 <View style={s.walletRow}>
                   <View style={s.walletInfo}>
                     <Text variant="label" weight="semibold">Solflare</Text>
-                    <Text variant="caption" color={theme.colors.textSub}>Back up seed phrase first, press ← after approving</Text>
+                    <Text variant="caption" color={theme.colors.content.secondary}>Back up seed phrase first, press ← after approving</Text>
                   </View>
                   <Pressable
                     onPress={() => Linking.openURL(APP_INFO.wallets.solflare.playStore)}
-                    style={[s.installBtn, { backgroundColor: theme.colors.primaryTint }]}
+                    style={[s.installBtn, { backgroundColor: theme.colors.brand.primarySurface }]}
                   >
-                    <ExternalLink size={14} color={theme.colors.primary} />
-                    <Text size={12} weight="semibold" color={theme.colors.primary}>Install</Text>
+                    <ExternalLink size={14} color={theme.colors.brand.primary} />
+                    <Text size={12} weight="semibold" color={theme.colors.brand.primary}>Install</Text>
                   </Pressable>
                 </View>
               </View>
@@ -183,17 +183,17 @@ export default function OnboardingScreen() {
                 <View style={[
                   s.checkbox,
                   {
-                    borderColor: tosAccepted ? theme.colors.primary : theme.colors.border,
-                    backgroundColor: tosAccepted ? theme.colors.primary : 'transparent',
+                    borderColor: tosAccepted ? theme.colors.brand.primary : theme.colors.border.default,
+                    backgroundColor: tosAccepted ? theme.colors.brand.primary : 'transparent',
                   },
                 ]}>
-                  {tosAccepted && <Text size={10} weight="bold" color={theme.colors.onPrimary}>✓</Text>}
+                  {tosAccepted && <Text size={10} weight="bold" color={theme.colors.brand.onPrimary}>✓</Text>}
                 </View>
-                <Text variant="caption" color={theme.colors.textSub} style={s.tosText}>
+                <Text variant="caption" color={theme.colors.content.secondary} style={s.tosText}>
                   I agree to the{' '}
                   <Text
                     variant="caption"
-                    color={theme.colors.textLink}
+                    color={theme.colors.content.link}
                     onPress={() => Linking.openURL(APP_INFO.legal.terms)}
                   >
                     Terms of Service
@@ -201,7 +201,7 @@ export default function OnboardingScreen() {
                   {' '}and{' '}
                   <Text
                     variant="caption"
-                    color={theme.colors.textLink}
+                    color={theme.colors.content.link}
                     onPress={() => Linking.openURL(APP_INFO.legal.privacy)}
                   >
                     Privacy Policy

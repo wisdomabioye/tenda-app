@@ -17,7 +17,6 @@ import { Chip } from './Chip'
 import { IconButton } from './IconButton'
 import { LocationPicker } from '@/components/form/LocationPicker'
 import { CATEGORY_META } from '@/data/mock'
-import type { ColorScheme } from '@/theme/tokens'
 
 const SHEET_HEIGHT = 580
 
@@ -104,21 +103,21 @@ export function FilterSheet({
           style={[
             s.sheet,
             {
-              backgroundColor: theme.colors.background,
+              backgroundColor: theme.colors.surface.background,
               transform: [{ translateY }],
             },
           ]}
         >
           {/* Handle */}
           <View style={s.handleRow}>
-            <View style={[s.handle, { backgroundColor: theme.colors.borderFaint }]} />
+            <View style={[s.handle, { backgroundColor: theme.colors.border.subtle }]} />
           </View>
 
           {/* Header */}
           <View style={s.header}>
             <Text variant="subheading">Filter gigs</Text>
             <IconButton
-              icon={<X size={20} color={theme.colors.text} />}
+              icon={<X size={20} color={theme.colors.content.primary} />}
               onPress={handleClose}
               variant="ghost"
             />
@@ -130,35 +129,32 @@ export function FilterSheet({
               placeholder="Search by title, city..."
               value={query}
               onChangeText={onQueryChange}
-              icon={<SearchIcon size={18} color={theme.colors.textFaint} />}
+              icon={<SearchIcon size={18} color={theme.colors.content.tertiary} />}
               autoFocus={false}
             />
           </View>
 
           {/* Category chips */}
           <View style={s.section}>
-            <Text variant="caption" color={theme.colors.textSub} style={s.chipLabel}>
+            <Text variant="caption" color={theme.colors.content.secondary} style={s.chipLabel}>
               Category
             </Text>
             <View style={s.chips}>
-              {CATEGORY_META.map((cat) => {
-                const colorKey = `category${cat.label}` as keyof ColorScheme
-                return (
-                  <Chip
-                    key={cat.key}
-                    label={cat.label}
-                    selected={selectedCategory === cat.key}
-                    color={theme.colors[colorKey]}
-                    onPress={() => handleCategoryPress(cat.key)}
-                  />
-                )
-              })}
+              {CATEGORY_META.map((cat) => (
+                <Chip
+                  key={cat.key}
+                  label={cat.label}
+                  selected={selectedCategory === cat.key}
+                  color={theme.colors.category[cat.key as keyof typeof theme.colors.category].base}
+                  onPress={() => handleCategoryPress(cat.key)}
+                />
+              ))}
             </View>
           </View>
 
           {/* Remote / Local / Cross-border filter */}
           <View style={s.section}>
-            <Text variant="caption" color={theme.colors.textSub} style={s.chipLabel}>
+            <Text variant="caption" color={theme.colors.content.secondary} style={s.chipLabel}>
               Gig type
             </Text>
             <View style={s.chips}>
@@ -191,7 +187,7 @@ export function FilterSheet({
           {/* Clear filters */}
           {hasFilters && (
             <Pressable style={s.clearRow} onPress={onClearAll}>
-              <Text variant="caption" color={theme.colors.textFaint}>
+              <Text variant="caption" color={theme.colors.content.tertiary}>
                 Clear all filters
               </Text>
             </Pressable>

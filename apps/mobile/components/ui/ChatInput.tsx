@@ -25,16 +25,16 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const canSend = text.trim().length > 0 && !disabled
 
   return (
-    <View style={[s.container, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.borderFaint, paddingBottom: insets.bottom + spacing.sm }]}>
+    <View style={[s.container, { backgroundColor: theme.colors.surface.background, borderTopColor: theme.colors.border.subtle, paddingBottom: insets.bottom + spacing.sm }]}>
       <TextInput
         value={text}
         onChangeText={setText}
         maxFontSizeMultiplier={1}
         placeholder="Message…"
-        placeholderTextColor={theme.colors.textFaint}
+        placeholderTextColor={theme.colors.content.tertiary}
         multiline
         maxLength={2000}
-        style={[s.input, { color: theme.colors.text, backgroundColor: theme.colors.input }]}
+        style={[s.input, { color: theme.colors.content.primary, backgroundColor: theme.colors.control.inputBackground }]}
         onSubmitEditing={handleSend}
         blurOnSubmit={false}
       />
@@ -43,10 +43,10 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
         disabled={!canSend}
         style={[
           s.sendBtn,
-          { backgroundColor: canSend ? theme.colors.primary : theme.colors.borderFaint },
+          { backgroundColor: canSend ? theme.colors.brand.primary : theme.colors.border.subtle },
         ]}
       >
-        <SendHorizontal size={18} color={canSend ? theme.colors.onPrimary : theme.colors.textFaint} />
+        <SendHorizontal size={18} color={canSend ? theme.colors.brand.onPrimary : theme.colors.content.tertiary} />
       </Pressable>
     </View>
   )
@@ -64,7 +64,7 @@ const s = StyleSheet.create({
   input: {
     flex: 1,
     fontFamily: typography.fonts.body.regular,
-    fontSize: typography.sizes.base,
+    fontSize: typography.styles.body.fontSize,
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: radius.md,

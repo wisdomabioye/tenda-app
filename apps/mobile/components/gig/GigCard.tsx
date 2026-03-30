@@ -7,13 +7,12 @@ import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { MoneyText } from '@/components/ui/MoneyText'
 import { GigStatusBadge } from './GigStatusBadge'
-import { getCategoryColor, CATEGORY_META } from '@/data/mock'
+import { CATEGORY_META } from '@/data/mock'
 import { toPaymentDisplay } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { computeRelevantDeadline } from '@tenda/shared'
 import { deadlineLabel } from '@/lib/gig-display'
-import type { ColorScheme } from '@/theme/tokens'
 import type { GigDetail } from '@tenda/shared'
 
 interface GigCardProps {
@@ -26,8 +25,7 @@ export function GigCard({ gig, showStatus = true }: GigCardProps) {
   const { theme } = useUnistyles()
   const rates = useExchangeRateStore((s) => s.rates)
   const currency = useSettingsStore((s) => s.currency)
-  const categoryColorKey = getCategoryColor(gig.category) as keyof ColorScheme
-  const categoryColor = theme.colors[categoryColorKey]
+  const categoryColor = theme.colors.category[gig.category]
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
   const rate = rates?.[currency] ?? null
@@ -44,16 +42,16 @@ export function GigCard({ gig, showStatus = true }: GigCardProps) {
       onPress={() => router.push(`/gig/${gig.id}`)}
       style={({ pressed }) => [
         s.card,
-        { backgroundColor: theme.colors.surface },
+        { backgroundColor: theme.colors.surface.card },
         pressed && s.pressed,
       ]}
     >
-      <View style={[s.accent, { backgroundColor: categoryColor }]} />
+      <View style={[s.accent, { backgroundColor: categoryColor.base }]} />
 
       <View style={s.header}>
         <View style={s.categoryRow}>
-          <View style={[s.categoryDot, { backgroundColor: categoryColor }]} />
-          <Text variant="caption" color={theme.colors.textSub}>
+          <View style={[s.categoryDot, { backgroundColor: categoryColor.surface }]} />
+          <Text variant="caption" color={theme.colors.content.secondary}>
             {categoryLabel}
           </Text>
         </View>
@@ -66,7 +64,7 @@ export function GigCard({ gig, showStatus = true }: GigCardProps) {
             {gig.title}
           </Text>
         </View>
-        <MoneyText fiat={price.fiat} ratesReady={rates !== null} currency={currency} sol={price.sol} size={typography.sizes.sm} />
+        <MoneyText fiat={price.fiat} ratesReady={rates !== null} currency={currency} sol={price.sol} size={typography.styles.bodySmall.fontSize} />
       </View>
 
       <Text variant="caption" numberOfLines={2}>
@@ -75,22 +73,22 @@ export function GigCard({ gig, showStatus = true }: GigCardProps) {
 
       <View style={s.meta}>
         <View style={s.metaItem}>
-          <MapPin size={14} color={theme.colors.textFaint} />
-          <Text variant="caption" color={theme.colors.textSub}>
+          <MapPin size={14} color={theme.colors.content.tertiary} />
+          <Text variant="caption" color={theme.colors.content.secondary}>
             {gig.city}
           </Text>
         </View>
         {label ? (
           <View style={s.metaItem}>
-            <Clock size={14} color={theme.colors.textFaint} />
-            <Text variant="caption" color={theme.colors.textSub}>
+            <Clock size={14} color={theme.colors.content.tertiary} />
+            <Text variant="caption" color={theme.colors.content.secondary}>
               {label}
             </Text>
           </View>
         ) : null}
       </View>
 
-      <View style={[s.footer, { borderTopColor: theme.colors.borderFaint }]}>
+      <View style={[s.footer, { borderTopColor: theme.colors.border.subtle }]}>
         <View style={s.posterInfo}>
           <Avatar
             size="sm"
@@ -110,7 +108,7 @@ const s = StyleSheet.create({
   card: {
     borderRadius: radius.lg,
     padding: spacing.md,
-    ...shadows.sm,
+    ...shadows.card,
   },
   accent: {
     position: 'absolute',

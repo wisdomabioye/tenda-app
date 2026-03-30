@@ -22,7 +22,7 @@ function TxRow({ tx }: { tx: UserTransaction }) {
   const isCredit =
     (tx.type === 'release_payment' || tx.type === 'dispute_resolved')
   const sign = isCredit ? '+' : '-'
-  const color = isCredit ? theme.colors.success : theme.colors.danger
+  const color = isCredit ? theme.colors.feedback.success.text : theme.colors.feedback.danger.text
   const sol = tx.amount_lamports / 1_000_000_000
 
   const TYPE_LABEL: Record<string, string> = {
@@ -39,12 +39,12 @@ function TxRow({ tx }: { tx: UserTransaction }) {
     : ''
 
   return (
-    <View style={[s.txRow, { borderBottomColor: theme.colors.borderFaint }]}>
+    <View style={[s.txRow, { borderBottomColor: theme.colors.border.subtle }]}>
       <View style={s.txLeft}>
-        <Text weight="medium" size={typography.sizes.sm}>{TYPE_LABEL[tx.type] ?? tx.type}</Text>
-        <Text variant="caption" color={theme.colors.textFaint}>{date}</Text>
+        <Text weight="medium" size={typography.styles.bodySmall.fontSize}>{TYPE_LABEL[tx.type] ?? tx.type}</Text>
+        <Text variant="caption" color={theme.colors.content.tertiary}>{date}</Text>
       </View>
-      <Text weight="semibold" size={typography.sizes.sm} color={color}>
+      <Text weight="semibold" size={typography.styles.bodySmall.fontSize} color={color}>
         {sign}{sol.toFixed(4)} SOL
       </Text>
     </View>
@@ -114,8 +114,8 @@ export default function WalletScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            tintColor={theme.colors.primary}
-            colors={[theme.colors.primary]}
+            tintColor={theme.colors.brand.primary}
+            colors={[theme.colors.brand.primary]}
           />
         }
         ListHeaderComponent={
@@ -125,17 +125,17 @@ export default function WalletScreen() {
             {/* Balance card */}
             <Card variant="filled" padding={spacing.md}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text variant="caption" color={theme.colors.textSub}>SOL Balance</Text>
+                <Text variant="caption" color={theme.colors.content.secondary}>SOL Balance</Text>
                 <DevnetBadge />
               </View>
               {isLoading || balanceSol === null ? (
                 <View style={{ marginTop: 4 }}><Skeleton width={120} height={28} /></View>
               ) : (
-                <Text weight="bold" size={typography.sizes.xl} color={theme.colors.money}>
+                <Text weight="bold" size={typography.styles.h2.fontSize} color={theme.colors.utility.money}>
                   {balanceSol.toFixed(4)} SOL
                 </Text>
               )}
-              <Text variant="caption" color={theme.colors.textFaint} style={{ marginTop: 4 }}>
+              <Text variant="caption" color={theme.colors.content.tertiary} style={{ marginTop: 4 }}>
                 {walletAddress
                   ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-6)}`
                   : '—'}
@@ -146,15 +146,15 @@ export default function WalletScreen() {
 
             {/* Earnings summary */}
             <View style={s.summaryRow}>
-              <View style={[s.summaryCard, { backgroundColor: theme.colors.surface }]}>
-                <Text variant="caption" color={theme.colors.textSub} weight="semibold">Earned</Text>
-                <Text weight="bold" size={typography.sizes.base} color={theme.colors.success}>
+              <View style={[s.summaryCard, { backgroundColor: theme.colors.surface.card }]}>
+                <Text variant="caption" color={theme.colors.content.secondary} weight="semibold">Earned</Text>
+                <Text weight="bold" size={typography.styles.body.fontSize} color={theme.colors.feedback.success.text}>
                   {formatSol(earnedLamports)}
                 </Text>
               </View>
-              <View style={[s.summaryCard, { backgroundColor: theme.colors.surface }]}>
-                <Text variant="caption" color={theme.colors.textSub} weight="semibold">Spent</Text>
-                <Text weight="bold" size={typography.sizes.base} color={theme.colors.danger}>
+              <View style={[s.summaryCard, { backgroundColor: theme.colors.surface.card }]}>
+                <Text variant="caption" color={theme.colors.content.secondary} weight="semibold">Spent</Text>
+                <Text weight="bold" size={typography.styles.body.fontSize} color={theme.colors.feedback.danger.text}>
                   {formatSol(spentLamports)}
                 </Text>
               </View>
@@ -170,7 +170,7 @@ export default function WalletScreen() {
         )}
         ListEmptyComponent={
           !isLoading ? (
-            <Text variant="caption" color={theme.colors.textFaint} align="center">
+            <Text variant="caption" color={theme.colors.content.tertiary} align="center">
               No transactions yet
             </Text>
           ) : null
@@ -195,7 +195,7 @@ const s = StyleSheet.create({
     padding: spacing.sm,
     borderRadius: radius.lg,
     gap: 2,
-    ...shadows.sm,
+    ...shadows.card,
   },
   txRow: {
     flexDirection: 'row',

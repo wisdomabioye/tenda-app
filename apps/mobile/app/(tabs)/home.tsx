@@ -135,7 +135,7 @@ export default function HomeScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={handleRefresh}
-                tintColor={theme.colors.primary}
+                tintColor={theme.colors.brand.primary}
               />
             }
             ListHeaderComponent={
@@ -149,17 +149,17 @@ export default function HomeScreen() {
                       s.filterBtn,
                       {
                         backgroundColor: hasFilters
-                          ? theme.colors.primaryTint
-                          : theme.colors.muted,
+                          ? theme.colors.brand.primarySurface
+                          : theme.colors.surface.backgroundAlt,
                       },
                     ]}
                   >
                     <SlidersHorizontal
                       size={14}
-                      color={hasFilters ? theme.colors.primary : theme.colors.textSub}
+                      color={hasFilters ? theme.colors.brand.primary : theme.colors.content.secondary}
                     />
                     {hasFilters && (
-                      <View style={[s.filterDot, { backgroundColor: theme.colors.primary }]} />
+                      <View style={[s.filterDot, { backgroundColor: theme.colors.brand.primary }]} />
                     )}
                   </Pressable>
                 </View>
@@ -167,7 +167,7 @@ export default function HomeScreen() {
             }
             ListEmptyComponent={
               <EmptyState
-                icon={<SearchIcon size={36} color={theme.colors.textFaint} />}
+                icon={<SearchIcon size={36} color={theme.colors.content.tertiary} />}
                 title="No gigs found"
                 description="Try adjusting your filters or check back later"
               />

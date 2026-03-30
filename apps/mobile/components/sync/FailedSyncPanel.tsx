@@ -64,35 +64,35 @@ function FailedSyncItem({
   const date = new Date(item.createdAt).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })
 
   return (
-    <View style={[s.item, { borderBottomColor: theme.colors.borderFaint }]}>
-      <View style={[s.itemIcon, { backgroundColor: theme.colors.warningTint }]}>
-        <AlertTriangle size={14} color={theme.colors.warning} />
+    <View style={[s.item, { borderBottomColor: theme.colors.border.subtle }]}>
+      <View style={[s.itemIcon, { backgroundColor: theme.colors.feedback.warning.surface }]}>
+        <AlertTriangle size={14} color={theme.colors.feedback.warning.text} />
       </View>
 
       <View style={s.itemBody}>
-        <Text weight="semibold" size={typography.sizes.sm}>{PENDING_SYNC_ACTION_LABEL[item.action]}</Text>
-        <Text variant="caption" color={theme.colors.textFaint} numberOfLines={1}>
+        <Text weight="semibold" size={typography.styles.bodySmall.fontSize}>{PENDING_SYNC_ACTION_LABEL[item.action]}</Text>
+        <Text variant="caption" color={theme.colors.content.tertiary} numberOfLines={1}>
           Sig: {item.signature.slice(0, 16)}…
         </Text>
-        <Text variant="caption" color={theme.colors.textFaint}>{date}</Text>
+        <Text variant="caption" color={theme.colors.content.tertiary}>{date}</Text>
       </View>
 
       <View style={s.itemActions}>
         <Pressable
           onPress={onRetry}
           hitSlop={8}
-          style={[s.actionBtn, { backgroundColor: theme.colors.primaryTint }]}
+          style={[s.actionBtn, { backgroundColor: theme.colors.brand.primarySurface }]}
         >
-          <RotateCcw size={12} color={theme.colors.primary} />
-          <Text size={12} weight="semibold" color={theme.colors.primary}>Retry</Text>
+          <RotateCcw size={12} color={theme.colors.brand.primary} />
+          <Text size={12} weight="semibold" color={theme.colors.brand.primary}>Retry</Text>
         </Pressable>
         <Pressable
           onPress={onDismiss}
           hitSlop={8}
-          style={[s.actionBtn, { backgroundColor: theme.colors.muted }]}
+          style={[s.actionBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
         >
-          <X size={12} color={theme.colors.textSub} />
-          <Text size={12} weight="medium" color={theme.colors.textSub}>Dismiss</Text>
+          <X size={12} color={theme.colors.content.secondary} />
+          <Text size={12} weight="medium" color={theme.colors.content.secondary}>Dismiss</Text>
         </Pressable>
       </View>
     </View>
@@ -130,18 +130,18 @@ export function FailedSyncPanel() {
     <>
       <Pressable
         onPress={() => setSheetVisible(true)}
-        style={[s.banner, { backgroundColor: theme.colors.warningTint, borderColor: theme.colors.warning, marginBottom: spacing.md }]}
+        style={[s.banner, { backgroundColor: theme.colors.feedback.warning.surface, borderColor: theme.colors.feedback.warning.text, marginBottom: spacing.md }]}
       >
-        <AlertTriangle size={16} color={theme.colors.warning} />
+        <AlertTriangle size={16} color={theme.colors.feedback.warning.text} />
         <View style={s.bannerText}>
-          <Text weight="semibold" size={typography.sizes.sm} color={theme.colors.warning}>
+          <Text weight="semibold" size={typography.styles.bodySmall.fontSize} color={theme.colors.feedback.warning.text}>
             {failed.length} transaction{failed.length > 1 ? 's' : ''} need attention
           </Text>
-          <Text variant="caption" color={theme.colors.warning} style={{ opacity: 0.8 }}>
+          <Text variant="caption" color={theme.colors.feedback.warning.text} style={{ opacity: 0.8 }}>
             Tap to review and retry
           </Text>
         </View>
-        <ChevronRight size={16} color={theme.colors.warning} />
+        <ChevronRight size={16} color={theme.colors.feedback.warning.text} />
       </Pressable>
 
       <BottomSheet
@@ -149,7 +149,7 @@ export function FailedSyncPanel() {
         onClose={() => setSheetVisible(false)}
         title="Transactions Needing Attention"
       >
-        <Text variant="caption" color={theme.colors.textSub} style={{ marginBottom: spacing.md }}>
+        <Text variant="caption" color={theme.colors.content.secondary} style={{ marginBottom: spacing.md }}>
           These transactions were confirmed on-chain but could not be recorded on our server.
           Retry to sync them, or dismiss if the gig status already looks correct.
         </Text>

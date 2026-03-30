@@ -22,16 +22,16 @@ export function BottomSheet({ visible, onClose, title, children }: BottomSheetPr
         {/* Tap backdrop to dismiss */}
         <Pressable style={s.backdrop} onPress={onClose} />
 
-        <View style={[s.sheet, { backgroundColor: theme.colors.surface }]}>
-          <View style={[s.handle, { backgroundColor: theme.colors.borderFaint }]} />
+        <View style={[s.sheet, { backgroundColor: theme.colors.surface.sheet }]}>
+          <View style={[s.handle, { backgroundColor: theme.colors.border.subtle }]} />
           <View style={s.header}>
             <Text variant="subheading">{title}</Text>
             <Pressable
               onPress={onClose}
               hitSlop={8}
-              style={({ pressed }) => [s.closeBtn, { backgroundColor: pressed ? theme.colors.surfacePressed : theme.colors.muted }]}
+              style={({ pressed }) => [s.closeBtn, { backgroundColor: pressed ? theme.colors.surface.pressed : theme.colors.surface.backgroundAlt }]}
             >
-              <X size={16} color={theme.colors.textSub} />
+              <X size={16} color={theme.colors.content.secondary} />
             </Pressable>
           </View>
           <ScrollView

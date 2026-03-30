@@ -25,7 +25,7 @@ const s = StyleSheet.create({
   input: {
     flex: 1,
     fontFamily: 'Inter_400Regular',
-    fontSize: typography.sizes.base,
+    fontSize: typography.styles.body.fontSize,
     paddingVertical: 10,
     paddingHorizontal: 12,
   },
@@ -52,9 +52,9 @@ export function Input({
   const { theme } = useUnistyles()
 
   const borderColor = error
-    ? theme.colors.danger
+    ? theme.colors.feedback.danger.text
     : focused
-      ? theme.colors.focusRing
+      ? theme.colors.brand.focusRing
       : 'transparent'
 
   const charCount = typeof props.value === 'string' ? props.value.length : 0
@@ -65,12 +65,12 @@ export function Input({
   return (
     <View style={s.container}>
       {label && <Text variant="label" style={s.label}>{label}</Text>}
-      <View style={[s.inputWrapper, { backgroundColor: theme.colors.input, borderColor }]}>
+      <View style={[s.inputWrapper, { backgroundColor: theme.colors.control.inputBackground, borderColor }]}>
         {icon && <View style={s.icon}>{icon}</View>}
         <TextInput
           maxFontSizeMultiplier={1}
-          placeholderTextColor={theme.colors.textFaint}
-          style={[s.input, { color: theme.colors.text }, icon ? s.inputWithIcon : undefined, style]}
+          placeholderTextColor={theme.colors.content.tertiary}
+          style={[s.input, { color: theme.colors.content.primary }, icon ? s.inputWithIcon : undefined, style]}
           onFocus={(e) => { setFocused(true); props.onFocus?.(e) }}
           onBlur={(e) => { setFocused(false); props.onBlur?.(e) }}
           {...props}
@@ -79,7 +79,7 @@ export function Input({
       <View style={s.footer}>
         <View style={s.footerLeft}>
           {error && (
-            <Text size={12} color={theme.colors.danger}>{error}</Text>
+            <Text size={12} color={theme.colors.feedback.danger.text}>{error}</Text>
           )}
           {!error && helper && (
             <Text variant="caption">{helper}</Text>
@@ -88,7 +88,7 @@ export function Input({
         {showCounter && max !== undefined && (
           <Text
             size={12}
-            color={atLimit ? theme.colors.danger : nearLimit ? theme.colors.warning : theme.colors.textFaint}
+            color={atLimit ? theme.colors.feedback.danger.text : nearLimit ? theme.colors.feedback.warning.text : theme.colors.content.tertiary}
           >
             {charCount}/{max}
           </Text>

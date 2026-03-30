@@ -85,13 +85,13 @@ export function FabMenu({ visible, onClose, actions, bottomInset }: FabMenuProps
             }}
           >
             <Pressable
-              style={[s.card, { backgroundColor: theme.colors.surface, ...shadows.md }]}
+              style={[s.card, { backgroundColor: theme.colors.surface.card, ...shadows.card }]}
               onPress={() => { onClose(); action.onPress() }}
             >
-              <View style={[s.iconWrap, { backgroundColor: theme.colors.primaryTint }]}>
+              <View style={[s.iconWrap, { backgroundColor: theme.colors.brand.primarySurface }]}>
                 {action.icon}
               </View>
-              <Text weight="semibold" size={15} color={theme.colors.text}>
+              <Text weight="semibold" size={15} color={theme.colors.content.primary}>
                 {action.label}
               </Text>
             </Pressable>

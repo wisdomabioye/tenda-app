@@ -36,7 +36,7 @@ import {
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
-import { getCategoryColor, CATEGORY_META } from '@/data/mock'
+import { CATEGORY_META } from '@/data/mock'
 import { 
   useAuthStore,
   useGigsStore,
@@ -60,10 +60,8 @@ import {
   signTransactionsWithWallet,
   sendRawTransaction,
   validateTransaction,
-  WalletError,
 } from '@/wallet'
 import type { PendingSync } from '@/stores/pending-sync.store'
-import type { ColorScheme } from '@/theme/tokens'
 import type { GigDetail } from '@tenda/shared'
 import type { InstructionName } from '@tenda/shared/idl'
 
@@ -117,8 +115,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   }, [isWorkerOpportunity, dismissedNudges.accept]))
 
   const categoryMeta = CATEGORY_META.find((c) => c.key === gig.category)
-  const categoryColorKey = getCategoryColor(gig.category) as keyof ColorScheme
-  const categoryColor = theme.colors[categoryColorKey]
+  const categoryColor = theme.colors.category[gig.category]
   const rate = rates?.[currency] ?? null
   const price = toPaymentDisplay(gig.payment_lamports, rate)
   const deadline = computeRelevantDeadline(gig)
@@ -442,9 +439,9 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         <View style={s.headerRow}>
           <GigStatusBadge status={gig.status} />
           {categoryMeta && (
-            <View style={[s.categoryBadge, { backgroundColor: `${categoryColor}20` }]}>
-              <View style={[s.categoryDot, { backgroundColor: categoryColor }]} />
-              <Text variant="caption" weight="medium" color={categoryColor}>
+            <View style={[s.categoryBadge, { backgroundColor: `${categoryColor.base}20` }]}>
+              <View style={[s.categoryDot, { backgroundColor: categoryColor.surface }]} />
+              <Text variant="caption" weight="medium" color={categoryColor.text}>
                 {categoryMeta.label}
               </Text>
             </View>
@@ -454,7 +451,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         <Spacer size={spacing.sm} />
         <Text variant="heading">{gig.title}</Text>
         <Spacer size={spacing.md} />
-        <MoneyText fiat={price.fiat} ratesReady={rates !== null} currency={currency} sol={price.sol} size={typography.sizes.xl} />
+        <MoneyText fiat={price.fiat} ratesReady={rates !== null} currency={currency} sol={price.sol} size={typography.styles.h2.fontSize} />
         <Spacer size={spacing.lg} />
 
         {/* Meta info */}
@@ -465,7 +462,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         {/* Description */}
         <Text variant="subheading">Description</Text>
         <Spacer size={spacing.sm} />
-        <Text variant="body" color={theme.colors.textSub}>{gig.description}</Text>
+        <Text variant="body" color={theme.colors.content.secondary}>{gig.description}</Text>
 
         <Divider />
 
@@ -523,10 +520,10 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         {gig.dispute && gig.status === 'disputed' && (
           <>
             <Divider />
-            <View style={[s.disputeBlock, { backgroundColor: theme.colors.dangerTint }]}>
-              <Text weight="semibold" color={theme.colors.danger}>Dispute reason</Text>
+            <View style={[s.disputeBlock, { backgroundColor: theme.colors.feedback.danger.surface }]}>
+              <Text weight="semibold" color={theme.colors.feedback.danger.text}>Dispute reason</Text>
               <Spacer size={4} />
-              <Text variant="caption" color={theme.colors.danger}>{gig.dispute.reason}</Text>
+              <Text variant="caption" color={theme.colors.feedback.danger.text}>{gig.dispute.reason}</Text>
             </View>
           </>
         )}
@@ -539,7 +536,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
               onPress={() => setReportGigOpen(true)}
               style={({ pressed }) => [s.reportLink, pressed && { opacity: 0.6 }]}
             >
-              <Text variant="caption" color={theme.colors.textFaint}>Report this gig</Text>
+              <Text variant="caption" color={theme.colors.content.tertiary}>Report this gig</Text>
             </Pressable>
           </>
         )}

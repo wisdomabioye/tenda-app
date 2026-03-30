@@ -16,7 +16,7 @@ interface ToastMessage {
   duration?: number
 }
 
-const variantTokens: Record<ToastVariant, keyof ColorScheme> = {
+const variantTokens: Record<ToastVariant, keyof ColorScheme['feedback']> = {
   success: 'success',
   error: 'danger',
   warning: 'warning',
@@ -76,12 +76,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           >
             <Pressable
               style={{
-                backgroundColor: theme.colors.surface,
+                backgroundColor: theme.colors.surface.modal,
                 borderRadius: radius.md,
                 padding: 14,
                 borderLeftWidth: 4,
-                borderLeftColor: theme.colors[variantTokens[toast.variant]],
-                ...shadows.lg,
+                borderLeftColor: theme.colors.feedback[variantTokens[toast.variant]].base,
+                ...shadows.elevated,
               }}
               onPress={() => removeToast(toast.id)}
             >

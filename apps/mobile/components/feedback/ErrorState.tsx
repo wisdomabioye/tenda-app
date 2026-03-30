@@ -33,8 +33,8 @@ export function ErrorState({
 
   return (
     <View style={[s.container, style]}>
-      <View style={[s.iconWrap, { backgroundColor: theme.colors.warningTint }]}>
-        <AlertTriangle size={28} color={theme.colors.onWarning} />
+      <View style={[s.iconWrap, { backgroundColor: theme.colors.feedback.warning.surface }]}>
+        <AlertTriangle size={28} color={theme.colors.feedback.warning.text} />
       </View>
 
       <Text variant="heading" align="center">
@@ -44,7 +44,7 @@ export function ErrorState({
       {description ? (
         <>
           <Spacer size={spacing.sm} />
-          <Text variant="body" align="center" color={theme.colors.textSub}>
+          <Text variant="body" align="center" color={theme.colors.content.secondary}>
             {description}
           </Text>
         </>

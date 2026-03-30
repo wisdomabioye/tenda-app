@@ -40,13 +40,13 @@ export function ReviewStep({
       </Card>
 
       <Spacer size={spacing.md} />
-      <Text weight="semibold" size={typography.sizes.sm}>Payment methods</Text>
+      <Text weight="semibold" size={typography.styles.bodySmall.fontSize}>Payment methods</Text>
       <Spacer size={spacing.xs} />
 
       {methods.map((m) => (
         <Card key={m._key} variant="outlined" padding={spacing.sm} style={s.method}>
-          <Text weight="medium" size={typography.sizes.sm}>{m.method}</Text>
-          <Text variant="caption" color={theme.colors.textSub}>
+          <Text weight="medium" size={typography.styles.bodySmall.fontSize}>{m.method}</Text>
+          <Text variant="caption" color={theme.colors.content.secondary}>
             {m.account_name} · {m.account_number}
             {m.bank_name ? ` · ${m.bank_name}` : ''}
           </Text>
@@ -54,7 +54,7 @@ export function ReviewStep({
       ))}
 
       <Spacer size={spacing.md} />
-      <Text variant="caption" color={theme.colors.textSub}>
+      <Text variant="caption" color={theme.colors.content.secondary}>
         {submitLabel === 'Save Changes'
           ? 'Your changes will be saved to the draft offer.'
           : 'Your draft will be saved — you can review and publish from the offer page.'}
@@ -67,8 +67,8 @@ function Row({ label, value }: { label: string; value: string }) {
   const { theme } = useUnistyles()
   return (
     <View style={s.row}>
-      <Text size={typography.sizes.sm} color={theme.colors.textSub}>{label}</Text>
-      <Text size={typography.sizes.sm} weight="medium">{value}</Text>
+      <Text size={typography.styles.bodySmall.fontSize} color={theme.colors.content.secondary}>{label}</Text>
+      <Text size={typography.styles.bodySmall.fontSize} weight="medium">{value}</Text>
     </View>
   )
 }

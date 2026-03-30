@@ -166,7 +166,7 @@ export function Drawer({ isOpen, onClose, onOpen, onNavigate, children }: Drawer
         <Animated.View
           style={[
             styles.drawer,
-            { width: DRAWER_WIDTH, backgroundColor: theme.colors.background },
+            { width: DRAWER_WIDTH, backgroundColor: theme.colors.surface.background },
             drawerAnimatedStyle,
           ]}
         >

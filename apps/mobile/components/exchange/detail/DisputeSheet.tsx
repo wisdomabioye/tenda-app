@@ -17,24 +17,24 @@ export function DisputeSheet({ value, onChange, loading, onSubmit, onCancel }: P
   const remaining = EXCHANGE_DISPUTE_REASON_MIN_LENGTH - value.trim().length
   const canSubmit = remaining <= 0
   return (
-    <Card variant="outlined" padding={spacing.md} style={[s.card, { borderColor: theme.colors.warning }]}>
+    <Card variant="outlined" padding={spacing.md} style={[s.card, { borderColor: theme.colors.feedback.warning.base }]}>
       <Text weight="semibold">Describe the Issue</Text>
       <Spacer size={spacing.sm} />
       <TextInput
         style={[s.input, {
-          color: theme.colors.text,
-          borderColor: theme.colors.border,
-          backgroundColor: theme.colors.surface,
+          color: theme.colors.content.primary,
+          borderColor: theme.colors.border.default,
+          backgroundColor: theme.colors.surface.card,
         }]}
         placeholder="What went wrong? Be specific…"
-        placeholderTextColor={theme.colors.textFaint}
+        placeholderTextColor={theme.colors.content.tertiary}
         value={value}
         onChangeText={onChange}
         multiline
         numberOfLines={4}
       />
       {value.trim().length > 0 && !canSubmit && (
-        <Text variant="caption" color={theme.colors.textFaint} style={{ marginTop: 4 }}>
+        <Text variant="caption" color={theme.colors.content.tertiary} style={{ marginTop: 4 }}>
           {remaining} more character{remaining !== 1 ? 's' : ''} needed
         </Text>
       )}
@@ -52,7 +52,7 @@ const s = StyleSheet.create({
   input: {
     borderWidth: 1, borderRadius: radius.md,
     padding: spacing.sm, minHeight: 100,
-    textAlignVertical: 'top', fontSize: typography.sizes.sm,
+    textAlignVertical: 'top', fontSize: typography.styles.bodySmall.fontSize,
   },
   row:   { flexDirection: 'row', gap: spacing.sm },
   flex1: { flex: 1 },

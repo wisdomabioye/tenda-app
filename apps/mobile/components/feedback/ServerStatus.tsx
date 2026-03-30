@@ -80,9 +80,9 @@ export function ServerStatus() {
   return (
     <Animated.View style={{ opacity }}>
       {status === 'unreachable' ? (
-        <View style={[s.chip, { backgroundColor: theme.colors.warningTint }]}>
-          <WifiOff size={14} color={theme.colors.onWarning} />
-          <Text size={typography.sizes.xs} weight="medium" color={theme.colors.onWarning}>
+        <View style={[s.chip, { backgroundColor: theme.colors.feedback.warning.surface }]}>
+          <WifiOff size={14} color={theme.colors.feedback.warning.text} />
+          <Text size={typography.styles.caption.fontSize} weight="medium" color={theme.colors.feedback.warning.text}>
             Offline
           </Text>
         </View>

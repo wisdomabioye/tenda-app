@@ -17,8 +17,8 @@ export default function NotFoundScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       <ScreenContainer scroll={false} edges={['left', 'right']}>
         <View style={s.container}>
-          <View style={[s.iconCircle, { backgroundColor: theme.colors.primaryTint }]}>
-            <FileQuestion size={48} color={theme.colors.primary} />
+          <View style={[s.iconCircle, { backgroundColor: theme.colors.brand.primarySurface }]}>
+            <FileQuestion size={48} color={theme.colors.brand.primary} />
           </View>
 
           <Spacer size={spacing.lg} />
@@ -29,7 +29,7 @@ export default function NotFoundScreen() {
 
           <Spacer size={spacing.sm} />
 
-          <Text variant="body" align="center" color={theme.colors.textSub}>
+          <Text variant="body" align="center" color={theme.colors.content.secondary}>
             The page you're looking for{'\n'}doesn't exist or has been moved.
           </Text>
 

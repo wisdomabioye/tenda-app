@@ -14,7 +14,7 @@ export function Divider({ spacing: verticalSpacing, color }: DividerProps) {
     <View
       style={{
         height: 1,
-        backgroundColor: color ?? theme.colors.borderFaint,
+        backgroundColor: color ?? theme.colors.border.subtle,
         marginVertical: verticalSpacing ?? spacing.md,
       }}
     />

@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { ArrowLeft } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
+import { spacing, radius, typography } from '@/theme/tokens';
 import { Text } from '@/components/ui/Text';
 
 interface HeaderProps {
@@ -39,13 +40,13 @@ export function Header({
     <View style={[
       styles.container,
       {
-        paddingHorizontal: theme.spacing.md,
-        paddingVertical: theme.spacing.sm,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
       },
       transparent ? { backgroundColor: 'transparent' } : {
-        backgroundColor: theme.colors.background,
+        backgroundColor: theme.colors.surface.background,
         borderBottomWidth: 1,
-        borderBottomColor: theme.colors.borderFaint,
+        borderBottomColor: theme.colors.border.subtle,
       },
     ]}>
       <View style={styles.left}>
@@ -54,7 +55,7 @@ export function Header({
             onPress={handleBack}
             style={styles.backButton}
           >
-            <ArrowLeft size={22} color={theme.colors.text} />
+            <ArrowLeft size={22} color={theme.colors.content.primary} />
           </Pressable>
         )}
       </View>
@@ -65,9 +66,9 @@ export function Header({
             style={[
               styles.title,
               {
-                fontSize: theme.typography.sizes.base,
-                color: theme.colors.text,
-                fontFamily: theme.typography.fonts.display.bold,
+                fontSize: typography.styles.body.fontSize,
+                color: theme.colors.content.primary,
+                fontFamily: typography.fonts.display.bold,
               },
             ]}
             numberOfLines={1}
@@ -80,8 +81,8 @@ export function Header({
             style={[
               styles.subtitle,
               {
-                fontSize: theme.typography.sizes.sm,
-                color: theme.colors.textSub,
+                fontSize: typography.styles.bodySmall.fontSize,
+                color: theme.colors.content.secondary,
               },
             ]}
             numberOfLines={1}
@@ -98,14 +99,14 @@ export function Header({
             style={[
               styles.iconButton,
               {
-                backgroundColor: theme.colors.surface,
-                borderRadius: theme.radius.lg,
+                backgroundColor: theme.colors.surface.card,
+                borderRadius: radius.lg,
                 borderWidth: 1,
-                borderColor: theme.colors.border,
+                borderColor: theme.colors.border.default,
               },
             ]}
           >
-            <RightIcon size={18} color={theme.colors.primary} />
+            <RightIcon size={18} color={theme.colors.brand.primary} />
           </Pressable>
         )}
       </View>

@@ -183,12 +183,12 @@ export function ExchangeOfferForm({ initialValues, offerId, submitLabel, onSucce
       </ScrollView>
 
       {/* ── Bottom nav ── */}
-      <View style={[s.nav, { borderTopColor: theme.colors.borderFaint, backgroundColor: theme.colors.background }]}>
+      <View style={[s.nav, { borderTopColor: theme.colors.border.subtle, backgroundColor: theme.colors.surface.background }]}>
         {step > 0 && (
           <Button
             variant="outline"
             size="md"
-            icon={<ChevronLeft size={16} color={theme.colors.primary} />}
+            icon={<ChevronLeft size={16} color={theme.colors.brand.primary} />}
             onPress={back}
             style={s.backBtn}
           >
@@ -199,7 +199,7 @@ export function ExchangeOfferForm({ initialValues, offerId, submitLabel, onSucce
           variant="primary"
           size="md"
           loading={submitting}
-          icon={step < LAST_STEP ? <ChevronRight size={16} color={theme.colors.onPrimary} /> : undefined}
+          icon={step < LAST_STEP ? <ChevronRight size={16} color={theme.colors.brand.onPrimary} /> : undefined}
           onPress={advance}
           style={step > 0 ? s.nextBtn : s.nextBtnFull}
         >

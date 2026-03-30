@@ -250,8 +250,8 @@ export function GigActionSheets({
       </BottomSheet>
 
       <Modal visible={isConfirm} transparent animationType="fade" onRequestClose={handleClose}>
-        <View style={[s.modalOverlay, { backgroundColor: theme.colors.scrim }]}>
-          <View style={[s.modalCard, { backgroundColor: theme.colors.surface }]}>
+        <View style={[s.modalOverlay, { backgroundColor: theme.colors.surface.overlay }]}>
+          <View style={[s.modalCard, { backgroundColor: theme.colors.surface.card }]}>
             <Text variant="subheading">
               {activeSheet === 'accept' ? 'Accept this gig?' :
                activeSheet === 'cancel' ? 'Cancel this gig?' :
@@ -259,7 +259,7 @@ export function GigActionSheets({
                'Delete this draft?'}
             </Text>
             <Spacer size={spacing.sm} />
-            <Text variant="body" color={theme.colors.textSub}>
+            <Text variant="body" color={theme.colors.content.secondary}>
               {activeSheet === 'accept'
                 ? 'You will be responsible for completing this gig within the deadline.'
                 : activeSheet === 'cancel'

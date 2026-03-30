@@ -66,22 +66,22 @@ export function Button({
   }
 
   const variantBg: Record<Variant, string> = {
-    primary: theme.colors.primary,
-    secondary: theme.colors.surface,
+    primary: theme.colors.brand.primary,
+    secondary: theme.colors.surface.card,
     outline: 'transparent',
     ghost: 'transparent',
-    danger: theme.colors.danger,
+    danger: theme.colors.feedback.danger.base,
   }
 
   const textColor = variant === 'primary' || variant === 'danger'
-    ? theme.colors.onPrimary
+    ? theme.colors.brand.onPrimary
     : variant === 'secondary'
-      ? theme.colors.text
-      : theme.colors.primary
+      ? theme.colors.content.primary
+      : theme.colors.brand.primary
 
   const spinnerColor = variant === 'primary' || variant === 'danger'
-    ? theme.colors.onPrimary
-    : theme.colors.primary
+    ? theme.colors.brand.onPrimary
+    : theme.colors.brand.primary
 
   return (
     <Pressable
@@ -91,8 +91,8 @@ export function Button({
         s.base,
         s[`size_${size}`],
         { backgroundColor: variantBg[variant] },
-        variant === 'primary' && shadows.sm,
-        variant === 'outline' && { borderWidth: 1, borderColor: theme.colors.border },
+        variant === 'primary' && shadows.card,
+        variant === 'outline' && { borderWidth: 1, borderColor: theme.colors.border.default },
         fullWidth && s.fullWidth,
         isDisabled && s.disabled,
         style as any,
@@ -106,7 +106,7 @@ export function Button({
           {icon}
           <Text
             weight="semibold"
-            color={isDisabled ? theme.colors.disabled : textColor}
+            color={isDisabled ? theme.colors.content.disabled : textColor}
             size={textSize[size]}
           >
             {children}

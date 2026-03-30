@@ -21,14 +21,14 @@ export function StepIndicator({ current }: { current: Step }) {
           const done   = i < current
           const active = i === current
 
-          const dotBg     = done ? theme.colors.success : active ? theme.colors.primary : 'transparent'
-          const dotBorder = done ? theme.colors.success : active ? theme.colors.primary : theme.colors.borderFaint
-          const labelColor = active ? theme.colors.primary : done ? theme.colors.success : theme.colors.textFaint
+          const dotBg     = done ? theme.colors.feedback.success.base : active ? theme.colors.brand.primary : 'transparent'
+          const dotBorder = done ? theme.colors.feedback.success.base : active ? theme.colors.brand.primary : theme.colors.border.subtle
+          const labelColor = active ? theme.colors.brand.primary : done ? theme.colors.feedback.success.base : theme.colors.content.tertiary
 
           return (
             <Fragment key={label}>
               {i > 0 && (
-                <View style={[s.line, { backgroundColor: i <= current ? theme.colors.success : theme.colors.borderFaint }]} />
+                <View style={[s.line, { backgroundColor: i <= current ? theme.colors.feedback.success.base : theme.colors.border.subtle }]} />
               )}
 
               <View style={s.cell}>
@@ -36,7 +36,7 @@ export function StepIndicator({ current }: { current: Step }) {
                   {done ? (
                     <Check size={12} color="#fff" strokeWidth={3} />
                   ) : (
-                    <Text style={[s.num, { color: active ? '#fff' : theme.colors.textFaint }]}>
+                    <Text style={[s.num, { color: active ? '#fff' : theme.colors.content.tertiary }]}>
                       {i + 1}
                     </Text>
                   )}

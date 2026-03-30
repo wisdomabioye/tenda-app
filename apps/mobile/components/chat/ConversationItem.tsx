@@ -30,7 +30,7 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
       onPress={onPress}
       style={({ pressed }) => [
         s.row,
-        { backgroundColor: pressed ? theme.colors.surfacePressed : 'transparent' },
+        { backgroundColor: pressed ? theme.colors.surface.pressed : 'transparent' },
       ]}
     >
       <Avatar size="md" name={displayName} src={other_user.avatar_url} />
@@ -40,20 +40,20 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
           <Text weight={unread_count > 0 ? 'semibold' : 'regular'} numberOfLines={1} style={s.name}>
             {displayName}
           </Text>
-          <Text size={12} color={theme.colors.textFaint}>{time}</Text>
+          <Text size={12} color={theme.colors.content.tertiary}>{time}</Text>
         </View>
         <View style={s.previewRow}>
           <Text
             variant="caption"
-            color={unread_count > 0 ? theme.colors.text : theme.colors.textFaint}
+            color={unread_count > 0 ? theme.colors.content.primary : theme.colors.content.tertiary}
             numberOfLines={1}
             style={s.preview}
           >
             {last_message ?? 'No messages yet'}
           </Text>
           {unread_count > 0 && (
-            <View style={[s.badge, { backgroundColor: theme.colors.primary }]}>
-              <Text size={11} color={theme.colors.onPrimary} weight="semibold">
+            <View style={[s.badge, { backgroundColor: theme.colors.brand.primary }]}>
+              <Text size={11} color={theme.colors.brand.onPrimary} weight="semibold">
                 {unread_count > 9 ? '9+' : String(unread_count)}
               </Text>
             </View>
@@ -84,7 +84,7 @@ const s = StyleSheet.create({
   name: {
     flex: 1,
     fontFamily: typography.fonts.body.medium,
-    fontSize: typography.sizes.base,
+    fontSize: typography.styles.body.fontSize,
   },
   previewRow: {
     flexDirection: 'row',

@@ -41,34 +41,34 @@ export function InsufficientBalanceSheet({ visible, onClose, balance, required }
   return (
     <BottomSheet visible={visible} onClose={onClose} title="Insufficient balance">
       {/* Balance vs Required */}
-      <View style={[s.card, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderFaint }]}>
+      <View style={[s.card, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.subtle }]}>
         <View style={s.col}>
-          <Text variant="caption" color={theme.colors.textFaint}>Your balance</Text>
-          <Text weight="semibold" color={theme.colors.text}>{formatSol(Number(balance))}</Text>
+          <Text variant="caption" color={theme.colors.content.tertiary}>Your balance</Text>
+          <Text weight="semibold" color={theme.colors.content.primary}>{formatSol(Number(balance))}</Text>
         </View>
-        <View style={[s.divider, { backgroundColor: theme.colors.borderFaint }]} />
+        <View style={[s.divider, { backgroundColor: theme.colors.border.subtle }]} />
         <View style={s.col}>
-          <Text variant="caption" color={theme.colors.textFaint}>Required</Text>
-          <Text weight="semibold" color={theme.colors.text}>{formatSol(Number(required))}</Text>
+          <Text variant="caption" color={theme.colors.content.tertiary}>Required</Text>
+          <Text weight="semibold" color={theme.colors.content.primary}>{formatSol(Number(required))}</Text>
         </View>
       </View>
 
       {/* Shortfall arrow */}
       <View style={s.arrowRow}>
-        <View style={[s.arrowLine, { backgroundColor: theme.colors.borderFaint }]} />
-        <View style={[s.arrowIcon, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderFaint }]}>
-          <ArrowDown size={14} color={theme.colors.textFaint} />
+        <View style={[s.arrowLine, { backgroundColor: theme.colors.border.subtle }]} />
+        <View style={[s.arrowIcon, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.subtle }]}>
+          <ArrowDown size={14} color={theme.colors.content.tertiary} />
         </View>
-        <View style={[s.arrowLine, { backgroundColor: theme.colors.borderFaint }]} />
+        <View style={[s.arrowLine, { backgroundColor: theme.colors.border.subtle }]} />
       </View>
 
       {/* Shortfall amount */}
-      <View style={[s.shortfallCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.borderFaint }]}>
-        <Text variant="caption" color={theme.colors.textFaint}>You need</Text>
+      <View style={[s.shortfallCard, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.subtle }]}>
+        <Text variant="caption" color={theme.colors.content.tertiary}>You need</Text>
         <View style={s.shortfallAmount}>
-          <Text variant="subheading" weight="semibold" color={theme.colors.danger}>{formatSol(Number(shortfall))}</Text>
+          <Text variant="subheading" weight="semibold" color={theme.colors.feedback.danger.text}>{formatSol(Number(shortfall))}</Text>
           {shortfallFiat != null && (
-            <Text variant="caption" color={theme.colors.textFaint}> ≈ {meta.symbol}{shortfallFiat}</Text>
+            <Text variant="caption" color={theme.colors.content.tertiary}> ≈ {meta.symbol}{shortfallFiat}</Text>
           )}
         </View>
       </View>
@@ -77,7 +77,7 @@ export function InsufficientBalanceSheet({ visible, onClose, balance, required }
 
       <Button
         onPress={handleGoToWallet}
-        icon={<Wallet size={16} color={theme.colors.onPrimary} />}
+        icon={<Wallet size={16} color={theme.colors.brand.onPrimary} />}
       >
         Top up Wallet
       </Button>

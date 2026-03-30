@@ -29,7 +29,7 @@ export function Avatar({ src, name, size = 'md' }: AvatarProps) {
     return (
       <Image
         source={{ uri: src }}
-        style={{ width: dim, height: dim, borderRadius: r, backgroundColor: theme.colors.muted }}
+        style={{ width: dim, height: dim, borderRadius: r, backgroundColor: theme.colors.surface.backgroundAlt }}
       />
     )
   }
@@ -39,11 +39,11 @@ export function Avatar({ src, name, size = 'md' }: AvatarProps) {
       width: dim,
       height: dim,
       borderRadius: r,
-      backgroundColor: theme.colors.primaryTint,
+      backgroundColor: theme.colors.brand.primarySurface,
       alignItems: 'center',
       justifyContent: 'center',
     }}>
-      <Text size={fontSizeMap[size]} weight="semibold" color={theme.colors.primary}>
+      <Text size={fontSizeMap[size]} weight="semibold" color={theme.colors.brand.primary}>
         {name ? getInitials(name) : '?'}
       </Text>
     </View>

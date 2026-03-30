@@ -18,7 +18,7 @@ export function Spinner({ size = 36, color, strokeWidth = 2.5 }: SpinnerProps) {
   const { theme } = useUnistyles();
   const rotation = useSharedValue(0);
 
-  const spinnerColor = color || theme.colors.primary;
+  const spinnerColor = color || theme.colors.brand.primary;
 
   useEffect(() => {
     rotation.value = withRepeat(

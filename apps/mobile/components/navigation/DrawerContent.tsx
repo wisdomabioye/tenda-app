@@ -87,7 +87,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
       style={[
         s.container,
         {
-          backgroundColor: theme.colors.background,
+          backgroundColor: theme.colors.surface.background,
           paddingTop: insets.top,
           paddingBottom: insets.bottom,
         },
@@ -95,15 +95,15 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
     >
       {/* Header */}
       <View
-        style={[s.header, { borderBottomColor: theme.colors.border }]}
+        style={[s.header, { borderBottomColor: theme.colors.border.default }]}
       >
         <Image source={Logo} style={s.logo} contentFit="contain" />
         <TouchableOpacity
           onPress={() => onClose()}
-          style={[s.closeBtn, { backgroundColor: theme.colors.muted }]}
+          style={[s.closeBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
           activeOpacity={0.7}
         >
-          <X size={18} color={theme.colors.text} />
+          <X size={18} color={theme.colors.content.primary} />
         </TouchableOpacity>
       </View>
 
@@ -111,7 +111,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
       <TouchableOpacity
         onPress={handleProfilePress}
         activeOpacity={0.7}
-        style={[s.userCard, { backgroundColor: theme.colors.muted }]}
+        style={[s.userCard, { backgroundColor: theme.colors.surface.backgroundAlt }]}
       >
         <Avatar src={user?.avatar_url} name={fullName} size="sm" />
         <View style={s.userMeta}>
@@ -121,7 +121,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
           >
             {fullName}
           </Text>
-          <Text variant="caption" color={theme.colors.textSub}>
+          <Text variant="caption" color={theme.colors.content.secondary}>
             Member
           </Text>
         </View>
@@ -138,7 +138,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
             <Text
               variant="subheading"
               weight="medium"
-              color={theme.colors.textFaint}
+              color={theme.colors.content.tertiary}
               style={s.sectionTitle}
             >
               {section.title.toUpperCase()}
@@ -153,25 +153,25 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
                   activeOpacity={0.7}
                   style={[
                     s.navItem,
-                    { backgroundColor: isActive ? theme.colors.muted : 'transparent' },
+                    { backgroundColor: isActive ? theme.colors.surface.backgroundAlt : 'transparent' },
                   ]}
                 >
                   <View
                     style={[
                       s.navIcon,
                       {
-                        backgroundColor: theme.colors.background,
-                        borderColor: isActive ? theme.colors.border : theme.colors.borderFaint,
+                        backgroundColor: theme.colors.surface.background,
+                        borderColor: isActive ? theme.colors.border.default : theme.colors.border.subtle,
                       },
                     ]}
                   >
-                    <Icon size={18} color={theme.colors.text} />
+                    <Icon size={18} color={theme.colors.content.primary} />
                   </View>
                   <View style={s.navText}>
                     <Text variant="body" weight="semibold">
                       {item.name}
                     </Text>
-                    <Text variant="caption" color={theme.colors.textSub}>
+                    <Text variant="caption" color={theme.colors.content.secondary}>
                       {item.description}
                     </Text>
                   </View>
@@ -182,14 +182,14 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
         ))}
 
         {/* Logout */}
-        <View style={[s.logoutSection, { borderTopColor: theme.colors.border }]}>
+        <View style={[s.logoutSection, { borderTopColor: theme.colors.border.default }]}>
           <TouchableOpacity
             onPress={handleLogout}
             activeOpacity={0.7}
-            style={[s.logoutBtn, { backgroundColor: theme.colors.muted }]}
+            style={[s.logoutBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
           >
-            <LogOut size={18} color={theme.colors.danger} />
-            <Text variant="body" weight="medium" color={theme.colors.danger}>
+            <LogOut size={18} color={theme.colors.feedback.danger.text} />
+            <Text variant="body" weight="medium" color={theme.colors.feedback.danger.text}>
               Sign Out
             </Text>
           </TouchableOpacity>
