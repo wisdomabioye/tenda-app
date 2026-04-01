@@ -7,7 +7,9 @@ export type {
   AuthResponse,
   UserRole,
   UserStatus,
+  AdminRole,
 } from './user'
+export { ADMIN_ROLES, ASSIGNABLE_ROLES } from './user'
 export type {
   Gig,
   NewGig,

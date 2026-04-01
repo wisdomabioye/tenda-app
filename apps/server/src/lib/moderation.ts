@@ -80,7 +80,7 @@ export function moderateBody<T extends object>(
 ): (request: FastifyRequest, reply: FastifyReply) => Promise<void> {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     // Admins manage the blocklist — bypass moderation for their own content.
-    if (request.user?.role === 'admin') return
+    if (request.user?.role !== 'user') return
 
     const blocklist = await getBlocklist(fastify.db, fastify.log)
     if (!blocklist) return // No keywords configured yet — skip

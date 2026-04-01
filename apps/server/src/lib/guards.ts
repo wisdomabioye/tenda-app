@@ -3,15 +3,21 @@ import type { UserRole } from '@tenda/shared'
 import { ErrorCode } from '@tenda/shared'
 
 /**
- * Fastify preHandler that enforces a minimum role.
+ * Fastify preHandler that enforces one of the given roles.
  * Always use after fastify.authenticate in the preHandler chain:
- *   { preHandler: [fastify.authenticate, requireRole('admin')] }
+ *   { preHandler: [fastify.authenticate, requireRole('super_admin', 'support')] }
+ *
+ * 'admin' is accepted as an alias for 'super_admin' during the transition window
+ * (in-flight JWTs issued before the role migration will carry role: 'admin').
+ * Remove the alias after one full JWT lifetime (7 days) post-migration.
  */
-export function requireRole(role: UserRole) {
+export function requireRole(...roles: UserRole[]) {
+  const effective = new Set<UserRole>(roles)
+  // Backward-compat alias: if super_admin access is required, also accept the legacy 'admin' value
+  if (effective.has('super_admin')) effective.add('admin' as UserRole)
+
   return async (request: FastifyRequest, reply: FastifyReply) => {
-    // fastify.authenticate (which must precede requireRole in the preHandler chain)
-    // already called request.jwtVerify() — calling it again is redundant and adds latency.
-    if (request.user.role !== role) {
+    if (!effective.has(request.user.role)) {
       return reply.code(403).send({
         statusCode: 403,
         error: 'Forbidden',

@@ -20,12 +20,13 @@ declare module '@fastify/jwt' {
   }
 }
 
-// In-process cache of user status keyed by user ID.
+// In-process cache of user status + role keyed by user ID.
 // Avoids a DB round-trip on every authenticated request while still
-// propagating suspensions within a short window.
+// propagating suspensions and role changes within a short window.
 const STATUS_CACHE_TTL_MS   = 60_000      // 1 minute
 const STATUS_CACHE_SWEEP_MS = 5 * 60_000  // sweep every 5 minutes
-const statusCache = new Map<string, { status: string; expiresAt: number }>()
+const LAST_ACTIVE_UPDATE_INTERVAL_MS = 60 * 60_000 // write last_active_at at most once per hour
+const statusCache = new Map<string, { status: string; role: string; expiresAt: number }>()
 
 // Evict expired entries out-of-band so the sweep never runs in the request path.
 // Without this the Map would grow until the process restarts in long-running production deployments.
@@ -59,7 +60,7 @@ export default fp(async (fastify) => {
 
     if (!cached || now > cached.expiresAt) {
       const [row] = await fastify.db
-        .select({ status: users.status })
+        .select({ status: users.status, role: users.role, last_active_at: users.last_active_at })
         .from(users)
         .where(eq(users.id, userId))
         .limit(1)
@@ -73,9 +74,23 @@ export default fp(async (fastify) => {
         })
       }
 
-      cached = { status: row.status, expiresAt: now + STATUS_CACHE_TTL_MS }
+      cached = { status: row.status, role: row.role, expiresAt: now + STATUS_CACHE_TTL_MS }
       statusCache.set(userId, cached)
+
+      // Lazy-update last_active_at at most once per hour to avoid write amplification.
+      const lastActive = row.last_active_at?.getTime() ?? 0
+      if (now - lastActive > LAST_ACTIVE_UPDATE_INTERVAL_MS) {
+        void fastify.db
+          .update(users)
+          .set({ last_active_at: new Date(now) })
+          .where(eq(users.id, userId))
+          .catch((err) => fastify.log.warn({ err, userId }, 'last_active_at update failed'))
+      }
     }
+
+    // Override the JWT role with the DB-refreshed value so demotions take effect
+    // within the cache TTL (60 s) rather than waiting for token expiry (7 days).
+    request.user.role = cached.role as UserRole
 
     if (cached.status === 'suspended') {
       return reply.code(403).send({

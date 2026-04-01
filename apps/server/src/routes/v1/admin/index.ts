@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { and, eq, isNull, desc, sql } from 'drizzle-orm'
 import type { UserRole } from '@tenda/shared'
+import { ADMIN_ROLES, ASSIGNABLE_ROLES } from '@tenda/shared'
 import { users, gigs, disputes, platform_config, blocked_keywords, reports } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT, REPORT_STATUSES, REPORT_CONTENT_TYPES } from '@tenda/shared'
 import type { ApiError, ReportStatus, ReportContentType } from '@tenda/shared'
@@ -8,13 +9,13 @@ import { requireRole } from '@server/lib/guards'
 import { invalidatePlatformConfigCache } from '@server/lib/platform'
 import { AppError } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/gigs'
+import { appEvents } from '@server/lib/events'
 
 const admin: FastifyPluginAsync = async (fastify) => {
-  // Guard every route in this plugin scope with JWT + admin role.
-  // Using hooks instead of per-route preHandler ensures any future route
-  // added to this file is automatically protected — no per-route opt-in required.
+  // Guard every route in this plugin scope with JWT + any admin role.
+  // Per-route handlers add more specific role requirements on top of this.
   fastify.addHook('preHandler', fastify.authenticate)
-  fastify.addHook('preHandler', requireRole('admin'))
+  fastify.addHook('preHandler', requireRole(...ADMIN_ROLES))
 
   // ── GET /v1/admin/disputes ─────────────────────────────────────────────
   // List open (unresolved) disputes with gig title and raiser info for triage.
@@ -73,14 +74,14 @@ const admin: FastifyPluginAsync = async (fastify) => {
 
     // Fetch the target user's role before updating — admins cannot suspend other admins.
     const [target] = await fastify.db
-      .select({ id: users.id, role: users.role })
+      .select({ id: users.id, role: users.role, status: users.status })
       .from(users)
       .where(eq(users.id, id))
       .limit(1)
 
     if (!target) throw new AppError(404, ErrorCode.USER_NOT_FOUND, 'User not found')
 
-    if (target.role === 'admin' && status === 'suspended') {
+    if (ADMIN_ROLES.includes(target.role as typeof ADMIN_ROLES[number]) && status === 'suspended') {
       throw new AppError(403, ErrorCode.FORBIDDEN, 'Cannot suspend another admin account')
     }
 
@@ -92,7 +93,10 @@ const admin: FastifyPluginAsync = async (fastify) => {
 
     const result = ensureTxUpdated(updated, 'User not found')
 
-    fastify.log.info({ adminId: request.user.id, targetId: id, newStatus: status }, 'User status changed')
+    appEvents.emit(
+      status === 'suspended' ? 'admin.suspend_user' : 'admin.reinstate_user',
+      { adminId: request.user.id, adminWallet: request.user.wallet_address, adminRole: request.user.role, userId: id, previousStatus: target.status },
+    )
 
     return result
   })
@@ -108,14 +112,22 @@ const admin: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params
     const { role } = request.body
 
-    if (role !== 'user' && role !== 'admin') {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'role must be "user" or "admin"')
+    if (!ASSIGNABLE_ROLES.includes(role)) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `role must be one of: ${ASSIGNABLE_ROLES.join(', ')}`)
     }
 
-    // Prevent an admin from accidentally demoting themselves
-    if (id === request.user.id && role !== 'admin') {
+    // Prevent an admin from accidentally demoting themselves to a non-admin role
+    if (id === request.user.id && role === 'user') {
       throw new AppError(403, ErrorCode.FORBIDDEN, 'Cannot demote your own account')
     }
+
+    const [current] = await fastify.db
+      .select({ id: users.id, role: users.role })
+      .from(users)
+      .where(eq(users.id, id))
+      .limit(1)
+
+    if (!current) throw new AppError(404, ErrorCode.USER_NOT_FOUND, 'User not found')
 
     const [updated] = await fastify.db
       .update(users)
@@ -125,7 +137,17 @@ const admin: FastifyPluginAsync = async (fastify) => {
 
     const result = ensureTxUpdated(updated, 'User not found')
 
-    fastify.log.info({ adminId: request.user.id, targetId: id, newRole: role }, 'User role changed')
+    // [Fix #38] When a dispute_resolver is demoted, open dispute threads assigned to them
+    // must be auto-unassigned. Implement in Phase 3 when dispute_threads table exists.
+
+    appEvents.emit('admin.change_role', {
+      adminId:      request.user.id,
+      adminWallet:  request.user.wallet_address,
+      adminRole:    request.user.role,
+      userId:       id,
+      previousRole: current.role,
+      newRole:      role,
+    })
 
     return result
   })
@@ -185,6 +207,18 @@ const admin: FastifyPluginAsync = async (fastify) => {
     // Flush the 5-minute cache so routes pick up the new values immediately
     invalidatePlatformConfigCache()
 
+    const changes: { fee_bps?: number; seeker_fee_bps?: number; grace_period_seconds?: number } = {
+      ...(fee_bps              !== undefined && { fee_bps }),
+      ...(seeker_fee_bps       !== undefined && { seeker_fee_bps }),
+      ...(grace_period_seconds !== undefined && { grace_period_seconds }),
+    }
+    appEvents.emit('admin.update_platform_config', {
+      adminId:     request.user.id,
+      adminWallet: request.user.wallet_address,
+      adminRole:   request.user.role,
+      changes,
+    })
+
     return result
   })
 
@@ -233,7 +267,12 @@ const admin: FastifyPluginAsync = async (fastify) => {
     if (!inserted) throw new AppError(409, ErrorCode.VALIDATION_ERROR, 'Keyword already exists')
 
     fastify.invalidateBlocklistCache()
-    fastify.log.info({ adminId: request.user.id, keyword: normalised }, 'Blocked keyword added')
+    appEvents.emit('admin.add_keyword', {
+      adminId:     request.user.id,
+      adminWallet: request.user.wallet_address,
+      adminRole:   request.user.role,
+      keyword:     normalised,
+    })
 
     return reply.code(201).send(inserted)
   })
@@ -245,12 +284,18 @@ const admin: FastifyPluginAsync = async (fastify) => {
       const [deleted] = await fastify.db
         .delete(blocked_keywords)
         .where(eq(blocked_keywords.id, request.params.id))
-        .returning({ id: blocked_keywords.id })
+        .returning({ id: blocked_keywords.id, keyword: blocked_keywords.keyword })
 
       if (!deleted) throw new AppError(404, ErrorCode.NOT_FOUND, 'Keyword not found')
 
       fastify.invalidateBlocklistCache()
-      fastify.log.info({ adminId: request.user.id, keywordId: request.params.id }, 'Blocked keyword removed')
+      appEvents.emit('admin.remove_keyword', {
+        adminId:     request.user.id,
+        adminWallet: request.user.wallet_address,
+        adminRole:   request.user.role,
+        keywordId:   deleted.id,
+        keyword:     deleted.keyword,
+      })
 
       return reply.code(204).send()
     },
@@ -337,7 +382,14 @@ const admin: FastifyPluginAsync = async (fastify) => {
 
     const result = ensureTxUpdated(updated, 'Report not found')
 
-    fastify.log.info({ adminId: request.user.id, reportId: request.params.id, newStatus: status }, 'Report reviewed')
+    appEvents.emit('admin.action_report', {
+      adminId:     request.user.id,
+      adminWallet: request.user.wallet_address,
+      adminRole:   request.user.role,
+      reportId:    request.params.id,
+      newStatus:   status,
+      adminNote:   admin_note,
+    })
 
     return result
   })

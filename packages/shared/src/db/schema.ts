@@ -11,6 +11,7 @@ import {
   pgEnum,
   index,
   uniqueIndex,
+  jsonb,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
@@ -51,7 +52,20 @@ export const gigTransactionTypeEnum = pgEnum('gig_transaction_type', [
   'dispute_resolved', // admin resolves dispute — see disputes.winner for breakdown
 ])
 
-export const userRoleEnum = pgEnum('user_role', ['user', 'admin'])
+export const userRoleEnum = pgEnum('user_role', [
+  'user',
+  'super_admin',
+  'dispute_resolver',
+  'support',
+  'moderator',
+  'marketing',
+  'airdrop',
+  'finance',
+  // 'admin' kept in DB enum for backward compat — existing rows and in-flight JWTs.
+  // Migration: UPDATE users SET role = 'super_admin' WHERE role = 'admin'
+  // Remove after one full JWT lifetime (7 days) post-migration.
+  'admin',
+])
 
 export const userStatusEnum = pgEnum('user_status', ['active', 'suspended'])
 
@@ -74,10 +88,14 @@ export const users = pgTable('users', {
   role:             userRoleEnum('role').default('user').notNull(),
   status:           userStatusEnum('status').default('active').notNull(),
   is_seeker:        boolean('is_seeker').notNull().default(false),
+  last_active_at:   timestamp('last_active_at', { withTimezone: true }),
   created_at:       timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at:       timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (t) => ({
   status_idx: index('users_status_idx').on(t.status),
+  // text_pattern_ops index for wallet prefix search (LIKE 'prefix%') must be added
+  // via raw SQL migration — Drizzle doesn't support custom operator classes:
+  // CREATE INDEX users_wallet_prefix_idx ON users (wallet_address text_pattern_ops);
 }))
 
 export const gigs = pgTable('gigs', {
@@ -436,11 +454,30 @@ export const exchange_disputes = pgTable('exchange_disputes', {
   opened_by_id:            uuid('opened_by_id').references(() => users.id).notNull(),
   reason:                  varchar('reason', { length: 2000 }).notNull(),
   winner:                  exchangeDisputeWinnerEnum('winner'),
-  resolver_wallet_address: text('resolver_wallet_address'),
-  admin_note:              text('admin_note'),
+  resolver_wallet_address: text('resolver_wallet_address'), // deprecated — use dispute_threads.assigned_to after Phase 3
+  admin_note:              text('admin_note'),               // deprecated — use dispute_messages after Phase 3; kept read-only for legacy records
   raised_at:               timestamp('raised_at', { withTimezone: true }).defaultNow().notNull(),
   resolved_at:             timestamp('resolved_at', { withTimezone: true }),
 }, (t) => ({
   offer_unique: uniqueIndex('exchange_disputes_offer_id_unique').on(t.offer_id),
   resolved_idx: index('exchange_disputes_resolved_at_idx').on(t.resolved_at),
+}))
+
+// ── Admin ──────────────────────────────────────────────────────────────────────
+
+export const admin_audit_log = pgTable('admin_audit_log', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  // admin_id nulls out if the admin account is deleted — admin_wallet preserves identity permanently
+  admin_id:     uuid('admin_id').references(() => users.id, { onDelete: 'set null' }),
+  admin_wallet: text('admin_wallet').notNull(),
+  admin_role:   text('admin_role').notNull(),
+  action:       text('action').notNull(),
+  target_type:  text('target_type'),
+  target_id:    text('target_id'),
+  metadata:     jsonb('metadata'),
+  created_at:   timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (t) => ({
+  admin_created_idx:  index('audit_log_admin_created_idx').on(t.admin_id, t.created_at),
+  target_idx:         index('audit_log_target_idx').on(t.target_type, t.target_id),
+  created_at_idx:     index('audit_log_created_at_idx').on(t.created_at),
 }))

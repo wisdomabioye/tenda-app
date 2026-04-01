@@ -22,7 +22,7 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
     Reply: ResolveRoute['response'] | ApiError
   }>(
     '/',
-    { preHandler: [fastify.authenticate, requireRole('admin')] },
+    { preHandler: [fastify.authenticate, requireRole('dispute_resolver', 'super_admin')] },
     async (request, reply) => {
       const { id } = request.params
       const { winner, signature } = request.body
