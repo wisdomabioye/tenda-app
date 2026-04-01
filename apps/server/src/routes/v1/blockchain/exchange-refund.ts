@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { buildRefundExpiredInstruction } from '@server/lib/solana'
-import { findOfferById } from '@server/lib/exchange'
+import { ensureOfferExists, ensureOfferOwnership, ensureOfferStatus } from '@server/lib/exchange'
 import { AppError } from '@server/lib/errors'
 import type { ExchangeBlockchainContract, ApiError } from '@tenda/shared'
 
@@ -24,19 +24,9 @@ const exchangeRefund: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'offer_id is required')
       }
 
-      const offer = await findOfferById(fastify.db, offer_id)
-
-      if (!offer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-      }
-
-      if (offer.seller_id !== request.user.id) {
-        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the seller can claim a refund for this offer')
-      }
-
-      if (offer.status !== 'open' && offer.status !== 'accepted') {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, `Offer must be in 'open' or 'accepted' status to refund (current: ${offer.status})`)
-      }
+      const offer = await ensureOfferExists(fastify.db, offer_id)
+      ensureOfferOwnership(offer, request.user.id, 'seller', 'Only the seller can claim a refund for this offer')
+      ensureOfferStatus(offer, 'open', 'accepted')
 
       if (!offer.accept_deadline || new Date() <= new Date(offer.accept_deadline)) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Offer has not expired yet')

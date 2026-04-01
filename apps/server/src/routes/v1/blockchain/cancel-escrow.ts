@@ -25,7 +25,7 @@ const cancelEscrow: FastifyPluginAsync = async (fastify) => {
 
       const gig = await ensureGigExists(fastify.db, gig_id)
       ensureGigOwnership(gig, request.user.id, 'poster', 'Only the poster can cancel this gig')
-      ensureGigStatus(gig, 'open')
+      ensureGigStatus(gig, 'open', 'expired')
 
       try {
         return await buildCancelGigInstruction(request.user.wallet_address, gig_id)

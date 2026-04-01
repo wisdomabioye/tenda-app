@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { buildAcceptGigInstruction, buildCreateUserAccountInstruction, userAccountExists } from '@server/lib/solana'
-import { findOfferById } from '@server/lib/exchange'
+import { ensureOfferExists, ensureOfferStatus } from '@server/lib/exchange'
 import { AppError } from '@server/lib/errors'
 import type { ExchangeBlockchainContract, ApiError } from '@tenda/shared'
 
@@ -24,18 +24,11 @@ const exchangeAccept: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'offer_id is required')
       }
 
-      const offer = await findOfferById(fastify.db, offer_id)
-
-      if (!offer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-      }
+      const offer = await ensureOfferExists(fastify.db, offer_id)
+      ensureOfferStatus(offer, 'open')
 
       if (offer.seller_id === request.user.id) {
         throw new AppError(400, ErrorCode.CANNOT_ACCEPT_OWN_GIG, 'Cannot accept your own exchange offer')
-      }
-
-      if (offer.status !== 'open') {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, 'Offer is not open for acceptance')
       }
 
       if (offer.accept_deadline && new Date() > new Date(offer.accept_deadline)) {

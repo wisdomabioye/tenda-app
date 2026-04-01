@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { buildCancelGigInstruction } from '@server/lib/solana'
-import { findOfferById } from '@server/lib/exchange'
+import { ensureOfferExists, ensureOfferOwnership, ensureOfferStatus } from '@server/lib/exchange'
 import { AppError } from '@server/lib/errors'
 import type { ExchangeBlockchainContract, ApiError } from '@tenda/shared'
 
@@ -24,21 +24,15 @@ const exchangeCancel: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'offer_id is required')
       }
 
-      const offer = await findOfferById(fastify.db, offer_id)
-
-      if (!offer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
+      const offer = await ensureOfferExists(fastify.db, offer_id)
+      ensureOfferOwnership(offer, request.user.id, 'seller', 'Only the seller can cancel this gig')
+      ensureOfferStatus(offer, 'open', 'expired');
+      
+      try {
+        return buildCancelGigInstruction(request.user.wallet_address, offer_id)
+      } catch {
+        throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'Failed to build cancel instruction')
       }
-
-      if (offer.seller_id !== request.user.id) {
-        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the seller can cancel this offer')
-      }
-
-      if (offer.status !== 'open') {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, `Offer must be in 'open' status to cancel (current: ${offer.status})`)
-      }
-
-      return buildCancelGigInstruction(request.user.wallet_address, offer_id)
     }
   )
 }

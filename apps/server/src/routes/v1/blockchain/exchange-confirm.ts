@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { buildApproveCompletionInstruction } from '@server/lib/solana'
-import { findOfferById } from '@server/lib/exchange'
+import { ensureOfferExists, ensureOfferOwnership, ensureOfferStatus } from '@server/lib/exchange'
 import { AppError } from '@server/lib/errors'
 import { getConfig } from '@server/config'
 import type { ExchangeBlockchainContract, ApiError } from '@tenda/shared'
@@ -27,20 +27,10 @@ const exchangeConfirm: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'offer_id is required')
       }
 
-      const offer = await findOfferById(fastify.db, offer_id)
-
-      if (!offer) {
-        throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-      }
-
-      if (offer.seller_id !== request.user.id) {
-        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the seller can confirm this offer')
-      }
-
-      if (offer.status !== 'paid') {
-        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, `Offer must be in 'paid' status (current: ${offer.status})`)
-      }
-
+      const offer = await ensureOfferExists(fastify.db, offer_id)
+      ensureOfferOwnership(offer, request.user.id, 'seller', 'Only the seller can confirm this offer')
+      ensureOfferStatus(offer, 'paid')
+      
       if (!offer.buyer_id) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Offer has no buyer')
       }

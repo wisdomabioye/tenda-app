@@ -12,6 +12,7 @@ import type { ExchangeOffer, ExchangeOfferDetail, ExchangeOfferStatus } from '@t
 import type { AppDatabase } from '../plugins/db'
 import { AppError } from './errors'
 import { USER_COLS } from './users'
+import { getPlatformConfig } from './platform'
 
 /**
  * Fetches an exchange offer by id. Throws a 404 AppError if not found.
@@ -53,15 +54,6 @@ export function ensureOfferOwnership(
 export function ensureOfferTxUpdated<T>(result: T | null | undefined, message: string): T {
   if (result == null) throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, message)
   return result
-}
-
-/**
- * Fetches an exchange offer by id. Returns null if not found.
- * @deprecated Prefer ensureOfferExists which throws on missing.
- */
-export async function findOfferById(db: AppDatabase, id: string): Promise<ExchangeOffer | null> {
-  const [offer] = await db.select().from(exchange_offers).where(eq(exchange_offers.id, id)).limit(1)
-  return offer ?? null
 }
 
 /**
@@ -176,6 +168,7 @@ export async function batchExpireOffers(db: AppDatabase, log: BatchExpireLogger)
   if (now - lastBatchExpiry < BATCH_EXPIRY_COOLDOWN_MS) return
   lastBatchExpiry = now
 
+  const config = await getPlatformConfig(db)
   const nowDate = new Date()
 
   try {
@@ -201,7 +194,7 @@ export async function batchExpireOffers(db: AppDatabase, log: BatchExpireLogger)
         and(
           eq(exchange_offers.status, 'accepted'),
           isNotNull(exchange_offers.accepted_at),
-          sql`${exchange_offers.accepted_at} + make_interval(secs => ${exchange_offers.payment_window_seconds} + 86400) < NOW()`,
+          sql`${exchange_offers.accepted_at} + make_interval(secs => ${exchange_offers.payment_window_seconds} + ${config.grace_period_seconds}) < NOW()`,
         ),
       )
       .returning({ id: exchange_offers.id })
