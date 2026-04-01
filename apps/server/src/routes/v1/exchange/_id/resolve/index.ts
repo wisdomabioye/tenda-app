@@ -24,7 +24,7 @@ const exchangeResolve: FastifyPluginAsync = async (fastify) => {
   }>(
     '/',
     { preHandler: [fastify.authenticate, requireRole('dispute_resolver', 'super_admin')] },
-    async (request, reply) => {
+    async (request) => {
       const { id } = request.params
       const { winner, signature, admin_note } = request.body
 
