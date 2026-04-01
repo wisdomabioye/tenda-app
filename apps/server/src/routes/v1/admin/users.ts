@@ -8,6 +8,7 @@ import { requireRole } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/gigs'
 import { appEvents } from '@server/lib/events'
+import { clearAssignedThreads } from '@server/lib/disputes'
 import type { ApiError, UserRole, UserStatus } from '@tenda/shared'
 
 const USER_MGMT_ROLES = ['support', 'moderator', 'dispute_resolver', 'super_admin'] as const
@@ -173,6 +174,12 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
       .returning({ id: users.id, role: users.role })
 
     const result = ensureTxUpdated(updated, 'User not found')
+
+    // Fix #38: when a dispute_resolver is demoted, clear any open thread assignments
+    // so those disputes are re-queued for triage without a stale assignee.
+    if (current.role === 'dispute_resolver' && role !== 'dispute_resolver') {
+      await clearAssignedThreads(fastify.db, id)
+    }
 
     appEvents.emit('admin.change_role', {
       adminId:      request.user.id,

@@ -32,6 +32,9 @@ export {
   exchangeOfferStatusEnum,
   exchangeTransactionTypeEnum,
   exchangeDisputeWinnerEnum,
+  dispute_threads,
+  dispute_messages,
+  disputeSenderEnum,
 } from './db/schema'
 export * from './types'
 export * from './constants'

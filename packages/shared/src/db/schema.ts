@@ -471,6 +471,50 @@ export const exchange_disputes = pgTable('exchange_disputes', {
   resolved_idx: index('exchange_disputes_resolved_at_idx').on(t.resolved_at),
 }))
 
+// ── Dispute mediation (Phase 3) ────────────────────────────────────────────────
+// A dispute_thread is created by an admin when they begin mediating a dispute.
+// Exactly one of gig_dispute_id or exchange_dispute_id must be set (enforced app-side).
+
+export const disputeSenderEnum = pgEnum('dispute_sender', ['party_a', 'party_b', 'admin'])
+
+export const dispute_threads = pgTable('dispute_threads', {
+  id:                   uuid('id').primaryKey().defaultRandom(),
+  // Exactly one of gig_dispute_id / exchange_dispute_id must be non-null.
+  // Drizzle-orm doesn't support CHECK constraints — enforced at application layer.
+  gig_dispute_id:       uuid('gig_dispute_id').references(() => disputes.id,          { onDelete: 'cascade' }),
+  exchange_dispute_id:  uuid('exchange_dispute_id').references(() => exchange_disputes.id, { onDelete: 'cascade' }),
+  // The dispute_resolver admin currently assigned to this thread.
+  // Nullable: thread exists before assignment; cleared on demote (Fix #38).
+  assigned_to_id:       uuid('assigned_to_id').references(() => users.id, { onDelete: 'set null' }),
+  // Last-read pointers for unread-count logic.
+  // party_a = poster (gig) or seller (exchange); party_b = worker (gig) or buyer (exchange).
+  party_a_last_read_at: timestamp('party_a_last_read_at', { withTimezone: true }),
+  party_b_last_read_at: timestamp('party_b_last_read_at', { withTimezone: true }),
+  admin_last_read_at:   timestamp('admin_last_read_at',   { withTimezone: true }),
+  created_at:           timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  // At most one thread per dispute
+  gig_dispute_unique:      uniqueIndex('dispute_threads_gig_dispute_unique').on(t.gig_dispute_id),
+  exchange_dispute_unique: uniqueIndex('dispute_threads_exchange_dispute_unique').on(t.exchange_dispute_id),
+  assigned_to_idx:         index('dispute_threads_assigned_to_idx').on(t.assigned_to_id),
+}))
+
+export const dispute_messages = pgTable('dispute_messages', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  thread_id:   uuid('thread_id')
+    .references(() => dispute_threads.id, { onDelete: 'cascade' })
+    .notNull(),
+  // Nullable on delete so audit history survives if the sender's account is removed.
+  sender_id:   uuid('sender_id').references(() => users.id, { onDelete: 'set null' }),
+  sender_role: disputeSenderEnum('sender_role').notNull(),
+  body:        varchar('body', { length: 2000 }).notNull(),
+  created_at:  timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  // Covers paginated message history: WHERE thread_id = X ORDER BY created_at ASC/DESC
+  thread_created_at_idx: index('dispute_messages_thread_created_at_idx').on(t.thread_id, t.created_at),
+  sender_idx:            index('dispute_messages_sender_id_idx').on(t.sender_id),
+}))
+
 // ── Admin ──────────────────────────────────────────────────────────────────────
 
 export const admin_audit_log = pgTable('admin_audit_log', {

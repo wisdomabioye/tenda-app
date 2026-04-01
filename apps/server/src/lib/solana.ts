@@ -320,6 +320,79 @@ export async function ensureSignatureVerified(
   }
 }
 
+// ── resolve_dispute winner decoding ──────────────────────────────────────────
+// The resolve_dispute instruction layout (borsh):
+//   bytes 0–7  : 8-byte Anchor discriminator
+//   byte  8    : winner enum variant — 0=Poster, 1=Worker, 2=Split
+// This is the canonical on-chain value; the server must derive winner from here,
+// not trust the client body (Fix #4).
+
+const GIG_WINNER_MAP: Readonly<Record<number, string>> = {
+  0: 'poster',
+  1: 'worker',
+  2: 'split',
+}
+
+const EXCHANGE_WINNER_MAP: Readonly<Record<number, string>> = {
+  // On-chain uses gig terminology (poster/worker), exchange maps to seller/buyer.
+  0: 'seller',
+  1: 'buyer',
+  2: 'split',
+}
+
+/**
+ * Verifies a resolve_dispute signature and decodes the winner from the on-chain
+ * instruction arguments. Throws 400 if not confirmed or winner cannot be decoded.
+ *
+ * @param disputeType - 'gig' uses poster/worker/split; 'exchange' maps to seller/buyer/split
+ * @returns the winner string as stored in the disputes / exchange_disputes table
+ */
+export async function verifyAndDecodeResolveDispute(
+  signature: string,
+  disputeType: 'gig' | 'exchange',
+): Promise<string> {
+  await ensureSignatureVerified(signature, 'resolve_dispute')
+
+  const { SOLANA_PROGRAM_ID } = getConfig()
+  const connection = getConnection()
+
+  const tx = await withRpcTimeout(
+    connection.getTransaction(signature, { maxSupportedTransactionVersion: 0 }),
+  ).catch(() => null)
+
+  if (!tx) {
+    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Could not fetch transaction to decode winner')
+  }
+
+  const programId = new PublicKey(SOLANA_PROGRAM_ID)
+  const expectedDiscriminator = discriminatorFor('resolve_dispute')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const msg = tx.transaction.message as any
+  const accountKeys: PublicKey[] = msg.staticAccountKeys ?? msg.accountKeys ?? []
+  const rawInstructions: Array<{ programIdIndex: number; data: Uint8Array | string }> =
+    msg.compiledInstructions ?? msg.instructions ?? []
+
+  for (const ix of rawInstructions) {
+    if (!accountKeys[ix.programIdIndex]?.equals(programId)) continue
+    const raw  = ix.data
+    const data = raw instanceof Uint8Array
+      ? Buffer.from(raw)
+      : Buffer.from(bs58.decode(raw as string))
+    if (data.length < 9) continue
+    if (!data.subarray(0, 8).equals(Buffer.from(expectedDiscriminator))) continue
+    // byte 8 is the borsh-encoded enum variant
+    const variantByte = data[8]
+    const winnerMap   = disputeType === 'gig' ? GIG_WINNER_MAP : EXCHANGE_WINNER_MAP
+    const winner      = winnerMap[variantByte]
+    if (!winner) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Unknown winner variant: ${variantByte}`)
+    }
+    return winner
+  }
+
+  throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'resolve_dispute instruction not found in transaction')
+}
+
 // ── UserAccount existence check ──────────────────────────────────────────────
 /**
  * Returns true if the worker's on-chain UserAccount PDA already exists.

@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { exchange_offers, exchange_disputes, exchange_transactions, users } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import { ensureSignatureVerified } from '@server/lib/solana'
+import { verifyAndDecodeResolveDispute } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
 import { requireRole } from '@server/lib/guards'
 import { isPostgresUniqueViolation } from '@server/lib/db'
@@ -23,25 +23,20 @@ const exchangeResolve: FastifyPluginAsync = async (fastify) => {
     Reply: ResolveRoute['response'] | ApiError
   }>(
     '/',
-    { preHandler: [fastify.authenticate, requireRole('admin')] },
+    { preHandler: [fastify.authenticate, requireRole('dispute_resolver', 'super_admin')] },
     async (request, reply) => {
       const { id } = request.params
-      const { winner, signature, admin_note } = request.body
+      const { signature, admin_note } = request.body
 
-      if (!winner || !signature) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'winner and signature are required')
-      }
-
-      // Validate winner
-      const VALID_WINNERS: ExchangeDisputeWinner[] = ['seller', 'buyer', 'split']
-      if (!VALID_WINNERS.includes(winner as ExchangeDisputeWinner)) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'winner must be "seller", "buyer", or "split"')
+      if (!signature) {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
       }
 
       const offer = await ensureOfferExists(fastify.db, id)
       ensureOfferStatus(offer, 'disputed')
 
-      await ensureSignatureVerified(signature, 'resolve_dispute')
+      // Fix #4: derive winner from on-chain instruction data — do not trust client body
+      const winner = await verifyAndDecodeResolveDispute(signature, 'exchange') as ExchangeDisputeWinner
 
       const [config, sellerUser] = await Promise.all([
         getPlatformConfig(fastify.db),

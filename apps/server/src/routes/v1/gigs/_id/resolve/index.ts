@@ -2,7 +2,8 @@ import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gigs, disputes, gig_transactions, users } from '@tenda/shared/db/schema'
 import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import { ensureSignatureVerified } from '@server/lib/solana'
+import type { DisputeWinner } from '@tenda/shared'
+import { verifyAndDecodeResolveDispute } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
 import { ensureGigExists, ensureGigStatus, ensureTxUpdated } from '@server/lib/gigs'
 import { requireRole } from '@server/lib/guards'
@@ -25,22 +26,17 @@ const resolveDispute: FastifyPluginAsync = async (fastify) => {
     { preHandler: [fastify.authenticate, requireRole('dispute_resolver', 'super_admin')] },
     async (request, reply) => {
       const { id } = request.params
-      const { winner, signature } = request.body
+      const { signature } = request.body
 
-      if (!winner || !signature) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'winner and signature are required')
-      }
-
-      // Validate winner against the enum — prevents arbitrary strings being stored
-      const VALID_WINNERS = ['poster', 'worker', 'split'] as const
-      if (!VALID_WINNERS.includes(winner as typeof VALID_WINNERS[number])) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'winner must be "poster", "worker", or "split"')
+      if (!signature) {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
       }
 
       const gig = await ensureGigExists(fastify.db, id)
       ensureGigStatus(gig, 'disputed')
 
-      await ensureSignatureVerified(signature, 'resolve_dispute')
+      // Fix #4: derive winner from on-chain instruction data — do not trust client body
+      const winner = await verifyAndDecodeResolveDispute(signature, 'gig') as DisputeWinner
 
       const [config, posterRow] = await Promise.all([
         getPlatformConfig(fastify.db),
