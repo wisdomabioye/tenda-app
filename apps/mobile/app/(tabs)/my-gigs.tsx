@@ -86,7 +86,7 @@ export default function MyGigsScreen() {
           </Pressable>
         ))}
         <Animated.View
-          style={[s.underline, { backgroundColor: theme.colors.brand.primarySurface, transform: [{ translateX: underlineX }] }]}
+          style={[s.underline, { backgroundColor: theme.colors.brand.primary, transform: [{ translateX: underlineX }] }]}
         />
       </View>
 
