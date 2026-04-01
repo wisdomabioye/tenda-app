@@ -22,7 +22,8 @@ export interface Config {
   SOLANA_PROGRAM_ID: string
   JWT_EXPIRES_IN: string         // e.g. '7d', '24h'
   SOLANA_NETWORK: string         // 'devnet' | 'testnet' | 'mainnet-beta'
-  CORS_ORIGIN: string[] | null   // null = allow any origin (dev); set to domain list in production
+  CORS_ORIGIN:  string[] | null  // null = allow any origin (dev); set to domain list in production
+  ADMIN_ORIGIN: string[] | null  // null = allow any origin (dev); set to admin panel domain in production
 }
 
 let _config: Config | undefined
@@ -60,6 +61,9 @@ export function loadConfig(): Config {
     SOLANA_NETWORK:        process.env.SOLANA_NETWORK ?? 'devnet',
     CORS_ORIGIN:           process.env.CORS_ORIGIN
                              ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+                             : null,
+    ADMIN_ORIGIN:          process.env.ADMIN_ORIGIN
+                             ? process.env.ADMIN_ORIGIN.split(',').map((o) => o.trim())
                              : null,
   }
 

@@ -58,9 +58,10 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     const safeOffset = Number(offset)
 
     const conditions: SQL[] = [
-      // Public feed shows only open gigs. Expired gigs are excluded because
+      // Public feed shows only open, non-hidden gigs. Expired gigs are excluded because
       // batchExpireGigs above updated their status before this query runs.
       eq(gigs.status, 'open' as GigStatus),
+      eq(gigs.hidden, false),
     ]
 
     if (country)                         conditions.push(eq(gigs.country, country))

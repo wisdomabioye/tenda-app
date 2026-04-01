@@ -136,6 +136,10 @@ export const gigs = pgTable('gigs', {
   // Escrow — address of the on-chain PDA for this gig
   escrow_address: text('escrow_address'),
 
+  // Admin moderation — hidden gigs are excluded from public feeds but remain accessible
+  // to the poster (via /users/:id/gigs) and admins (via /admin/gigs).
+  hidden: boolean('hidden').notNull().default(false),
+
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   // Note: add a Postgres trigger on migration to auto-update updated_at on every UPDATE
@@ -154,6 +158,7 @@ export const gigs = pgTable('gigs', {
   // Speeds up lazy-expiry batch scan: open gigs WHERE accept_deadline < now
   accept_deadline_idx:     index('gigs_accept_deadline_idx').on(t.accept_deadline),
   escrow_address_idx:      uniqueIndex('gigs_escrow_address_unique').on(t.escrow_address),
+  hidden_idx:              index('gigs_hidden_idx').on(t.hidden),
 }))
 
 export const gig_proofs = pgTable('gig_proofs', {
@@ -392,6 +397,8 @@ export const exchange_offers = pgTable('exchange_offers', {
   paid_at:                timestamp('paid_at', { withTimezone: true }),
   completed_at:           timestamp('completed_at', { withTimezone: true }),
   escrow_address:         text('escrow_address'),
+  // Admin moderation — hidden offers are excluded from public feeds.
+  hidden:                 boolean('hidden').notNull().default(false),
   created_at:             timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at:             timestamp('updated_at', { withTimezone: true }).defaultNow(),
 }, (t) => ({
@@ -404,6 +411,7 @@ export const exchange_offers = pgTable('exchange_offers', {
   status_lamports_idx:  index('exchange_offers_status_lamports_idx').on(t.status, t.lamports_amount),
   deadline_idx:         index('exchange_offers_accept_deadline_idx').on(t.accept_deadline),
   escrow_unique:        uniqueIndex('exchange_offers_escrow_unique').on(t.escrow_address),
+  hidden_idx:           index('exchange_offers_hidden_idx').on(t.hidden),
 }))
 
 // Seller's reusable payment accounts. Selected per-offer via payment_account_ids.

@@ -32,8 +32,9 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
 
     const conditions = []
 
-    // Market feed: only open offers
+    // Market feed: only open, non-hidden offers
     conditions.push(eq(exchange_offers.status, 'open'))
+    conditions.push(eq(exchange_offers.hidden, false))
     if (currency) conditions.push(eq(exchange_offers.fiat_currency, currency.toUpperCase()))
     if (min_lamports !== undefined) {
       const n = Number(min_lamports)

@@ -34,6 +34,10 @@ const gigById: FastifyPluginAsync = async (fastify) => {
 
     let gig = await ensureGigExists(fastify.db, id)
 
+    // Hidden gigs are not accessible via the public detail route.
+    // The poster can see them via /v1/users/:id/gigs; admins via /v1/admin/gigs/:id.
+    if (gig.hidden) throw new AppError(404, ErrorCode.GIG_NOT_FOUND, 'Gig not found')
+
     // Lazily expire gig if deadline has passed.
     // Grace period is read from platform_config (cached for 5 minutes).
     const config = await getPlatformConfig(fastify.db)

@@ -48,7 +48,9 @@ const userById: FastifyPluginAsync = async (fastify) => {
     Params: UpdateRoute['params']
     Body: UpdateRoute['body']
     Reply: UpdateRoute['response'] | ApiError
-  }>('/', { preHandler: [fastify.authenticate, moderateBody<UpdateRoute['body']>(fastify, ['bio'])] }, async (request) => {
+  }>('/', { 
+    preHandler: [fastify.authenticate, moderateBody<UpdateRoute['body']>(fastify, ['bio'])] 
+  }, async (request) => {
     const { id } = request.params
 
     if (id !== request.user.id) throw new AppError(403, ErrorCode.FORBIDDEN, 'Can only update your own profile')

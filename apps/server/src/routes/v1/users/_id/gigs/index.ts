@@ -44,8 +44,10 @@ const userGigs: FastifyPluginAsync = async (fastify) => {
     }
 
     // Non-owners only see public-facing statuses (not drafts, cancellations, or disputes)
+    // and hidden gigs are excluded from third-party views.
     if (requesterId !== id) {
       conditions.push(inArray(gigs.status, PUBLIC_STATUSES))
+      conditions.push(eq(gigs.hidden, false))
     }
 
     const where = and(...conditions)

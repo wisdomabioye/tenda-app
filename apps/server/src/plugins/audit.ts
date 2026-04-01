@@ -105,6 +105,12 @@ const auditPlugin: FastifyPluginAsync = async (fastify) => {
     } catch (err) { fastify.log.warn({ err }, '[audit] admin.hide_exchange write failed') }
   })
 
+  appEvents.on('admin.unhide_exchange', async (d) => {
+    try {
+      await write(d.adminId, d.adminWallet, d.adminRole, 'unhide_exchange', 'exchange_offer', d.offerId)
+    } catch (err) { fastify.log.warn({ err }, '[audit] admin.unhide_exchange write failed') }
+  })
+
   // ── Dispute mediation (Phase 3) ────────────────────────────────────────────
 
   appEvents.on('admin.open_dispute_thread', async (d) => {

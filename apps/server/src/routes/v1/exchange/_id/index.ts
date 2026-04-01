@@ -30,6 +30,10 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       const { id } = request.params
 
       const fetchedOffer = await ensureOfferExists(fastify.db, id)
+
+      // Hidden offers are not accessible via the public detail route.
+      if (fetchedOffer.hidden) throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
+
       const offer = await checkAndExpireOffer(fetchedOffer, fastify.db)
 
       const detail = await buildOfferDetail(fastify.db, offer, request.user.id)

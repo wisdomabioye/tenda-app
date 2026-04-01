@@ -62,6 +62,7 @@ export interface AppEvents {
   'admin.unhide_gig':             AdminEventBase & { gigId: string }
   'admin.force_expire_gig':       AdminEventBase & { gigId: string }
   'admin.hide_exchange':          AdminEventBase & { offerId: string; reason?: string }
+  'admin.unhide_exchange':        AdminEventBase & { offerId: string }
 
   // Phase 3 — dispute mediation
   'admin.open_dispute_thread':    AdminEventBase & { disputeId: string; disputeType: 'gig' | 'exchange' }
