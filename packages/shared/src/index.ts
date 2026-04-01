@@ -35,6 +35,11 @@ export {
   dispute_threads,
   dispute_messages,
   disputeSenderEnum,
+  announcements,
+  airdrop_campaigns,
+  airdrop_recipients,
+  airdropStatusEnum,
+  airdropRecipientStatusEnum,
 } from './db/schema'
 export * from './types'
 export * from './constants'

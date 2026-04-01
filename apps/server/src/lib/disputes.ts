@@ -3,7 +3,7 @@
  * Used by both admin routes (/v1/admin/disputes) and user-facing routes
  * (/v1/gigs/:id/dispute/thread, /v1/exchange/:id/dispute/thread).
  */
-import { eq, and, desc, isNull, sql } from 'drizzle-orm'
+import { eq, and, asc, isNull, sql } from 'drizzle-orm'
 import {
   disputes,
   exchange_disputes,
@@ -184,7 +184,7 @@ export async function getThreadMessages(
       .from(dispute_messages)
       .leftJoin(users, eq(dispute_messages.sender_id, users.id))
       .where(eq(dispute_messages.thread_id, threadId))
-      .orderBy(desc(dispute_messages.created_at))
+      .orderBy(asc(dispute_messages.created_at))
       .limit(safeLimit)
       .offset(safeOffset),
     db

@@ -12,6 +12,8 @@ import type { ApiError, GigStatus, GigCategory } from '@tenda/shared'
 const MODERATION_ROLES = ['support', 'moderator', 'super_admin'] as const
 // Expire is more destructive → support + super_admin only
 const EXPIRE_ROLES = ['support', 'super_admin'] as const
+// Feature/unfeature — marketing-facing action
+const FEATURE_ROLES = ['marketing', 'super_admin'] as const
 const ESCROW_STATUSES = new Set<GigStatus>(['open', 'accepted'])
 const ESCROW_NOTE = 'This gig has active escrow. The poster must claim their refund via the app.'
 
@@ -184,6 +186,56 @@ const adminGigs: FastifyPluginAsync = async (fastify) => {
 
     // Escrow note always included — open gig always has escrowed funds
     return { ...updated, escrow_note: ESCROW_NOTE }
+  })
+
+  // POST /v1/admin/gigs/:id/feature — mark gig as featured in public feed
+  fastify.post<{
+    Params: { id: string }
+    Reply:  { id: string; featured: boolean } | ApiError
+  }>('/:id/feature', {
+    preHandler: [requireRole(...FEATURE_ROLES)],
+  }, async (request) => {
+    const { id } = request.params
+
+    const [updated] = await fastify.db
+      .update(gigs)
+      .set({ featured: true, updated_at: new Date() })
+      .where(eq(gigs.id, id))
+      .returning({ id: gigs.id, featured: gigs.featured })
+
+    if (!updated) throw new AppError(404, ErrorCode.GIG_NOT_FOUND, 'Gig not found')
+
+    appEvents.emit('admin.feature_gig', {
+      adminId: request.user.id, adminWallet: request.user.wallet_address, adminRole: request.user.role,
+      gigId: id,
+    })
+
+    return updated
+  })
+
+  // POST /v1/admin/gigs/:id/unfeature
+  fastify.post<{
+    Params: { id: string }
+    Reply:  { id: string; featured: boolean } | ApiError
+  }>('/:id/unfeature', {
+    preHandler: [requireRole(...FEATURE_ROLES)],
+  }, async (request) => {
+    const { id } = request.params
+
+    const [updated] = await fastify.db
+      .update(gigs)
+      .set({ featured: false, updated_at: new Date() })
+      .where(eq(gigs.id, id))
+      .returning({ id: gigs.id, featured: gigs.featured })
+
+    if (!updated) throw new AppError(404, ErrorCode.GIG_NOT_FOUND, 'Gig not found')
+
+    appEvents.emit('admin.unfeature_gig', {
+      adminId: request.user.id, adminWallet: request.user.wallet_address, adminRole: request.user.role,
+      gigId: id,
+    })
+
+    return updated
   })
 }
 

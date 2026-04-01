@@ -140,6 +140,10 @@ export const gigs = pgTable('gigs', {
   // to the poster (via /users/:id/gigs) and admins (via /admin/gigs).
   hidden: boolean('hidden').notNull().default(false),
 
+  // Admin marketing — featured gigs are surfaced prominently in the public feed.
+  // Marketing and super_admin roles can set this; cleared when a gig is hidden.
+  featured: boolean('featured').notNull().default(false),
+
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
   updated_at: timestamp('updated_at', { withTimezone: true }).defaultNow(),
   // Note: add a Postgres trigger on migration to auto-update updated_at on every UPDATE
@@ -159,6 +163,7 @@ export const gigs = pgTable('gigs', {
   accept_deadline_idx:     index('gigs_accept_deadline_idx').on(t.accept_deadline),
   escrow_address_idx:      uniqueIndex('gigs_escrow_address_unique').on(t.escrow_address),
   hidden_idx:              index('gigs_hidden_idx').on(t.hidden),
+  featured_idx:            index('gigs_featured_idx').on(t.featured),
 }))
 
 export const gig_proofs = pgTable('gig_proofs', {
@@ -471,6 +476,29 @@ export const exchange_disputes = pgTable('exchange_disputes', {
   resolved_idx: index('exchange_disputes_resolved_at_idx').on(t.resolved_at),
 }))
 
+// ── Announcements (Phase 4) ────────────────────────────────────────────────────
+// Platform-wide notices shown in the mobile app. Managed by marketing / super_admin.
+
+export const announcements = pgTable('announcements', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  title:        varchar('title', { length: 200 }).notNull(),
+  body:         varchar('body', { length: 2000 }).notNull(),
+  // priority: higher = shown first. 0 = normal, 1 = important, 2 = urgent.
+  priority:     integer('priority').notNull().default(0),
+  is_active:    boolean('is_active').notNull().default(true),
+  // published_at: set when first made active (set once, never cleared).
+  published_at: timestamp('published_at', { withTimezone: true }),
+  // expires_at: null = never expires.
+  expires_at:   timestamp('expires_at', { withTimezone: true }),
+  created_by:   uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  created_at:   timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at:   timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  // Public feed query: WHERE is_active = true AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY priority DESC
+  active_priority_idx: index('announcements_active_priority_idx').on(t.is_active, t.priority),
+  expires_at_idx:      index('announcements_expires_at_idx').on(t.expires_at),
+}))
+
 // ── Dispute mediation (Phase 3) ────────────────────────────────────────────────
 // A dispute_thread is created by an admin when they begin mediating a dispute.
 // Exactly one of gig_dispute_id or exchange_dispute_id must be set (enforced app-side).
@@ -513,6 +541,74 @@ export const dispute_messages = pgTable('dispute_messages', {
   // Covers paginated message history: WHERE thread_id = X ORDER BY created_at ASC/DESC
   thread_created_at_idx: index('dispute_messages_thread_created_at_idx').on(t.thread_id, t.created_at),
   sender_idx:            index('dispute_messages_sender_id_idx').on(t.sender_id),
+}))
+
+// ── Airdrop (Phase 5) ─────────────────────────────────────────────────────────
+// Campaign-based gas subsidy airdrop. Recipients are loaded off-chain then
+// distributed on-chain in batches via the batch_airdrop_gas_subsidy instruction
+// (requires contract redeployment — see programs/tenda-escrow).
+
+export const airdropStatusEnum = pgEnum('airdrop_status', [
+  'draft',        // being configured — recipients can still be added/removed
+  'approved',     // super_admin signed off — no further edits, ready to distribute
+  'in_progress',  // at least one batch confirmed on-chain
+  'completed',    // all batches confirmed
+  'cancelled',    // abandoned before completion
+])
+
+export const airdropRecipientStatusEnum = pgEnum('airdrop_recipient_status', [
+  'pending',      // not yet distributed
+  'distributed',  // on-chain signature confirmed
+  'failed',       // on-chain tx failed for this recipient
+  'skipped',      // already_received_airdrop guard triggered on-chain
+])
+
+export const airdrop_campaigns = pgTable('airdrop_campaigns', {
+  id:                    uuid('id').primaryKey().defaultRandom(),
+  name:                  varchar('name', { length: 200 }).notNull(),
+  description:           varchar('description', { length: 1000 }),
+  // Fixed amount every recipient receives — same for all.
+  // total_lamports = lamports_per_recipient * recipient_count (kept in sync on every recipient add).
+  lamports_per_recipient: bigint('lamports_per_recipient', { mode: 'number' }).notNull(),
+  total_lamports:        bigint('total_lamports', { mode: 'number' }).notNull().default(0),
+  recipient_count:       integer('recipient_count').notNull().default(0),
+  // How many recipients to pack per on-chain batch transaction.
+  // Tune based on compute budget; default 30 is conservative.
+  batch_size:            integer('batch_size').notNull().default(30),
+  status:          airdropStatusEnum('status').default('draft').notNull(),
+  created_by:      uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  approved_by:     uuid('approved_by').references(() => users.id, { onDelete: 'set null' }),
+  approved_at:     timestamp('approved_at', { withTimezone: true }),
+  completed_at:    timestamp('completed_at', { withTimezone: true }),
+  created_at:      timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updated_at:      timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  status_idx: index('airdrop_campaigns_status_idx').on(t.status),
+}))
+
+export const airdrop_recipients = pgTable('airdrop_recipients', {
+  id:              uuid('id').primaryKey().defaultRandom(),
+  campaign_id:     uuid('campaign_id')
+    .references(() => airdrop_campaigns.id, { onDelete: 'cascade' })
+    .notNull(),
+  // user_id nullable: recipients can be loaded by wallet before they have a server account
+  user_id:         uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  wallet_address:  text('wallet_address').notNull(),
+  // Batch index this recipient belongs to (0-based, grouped by campaign.batch_size).
+  batch_index:     integer('batch_index').notNull(),
+  status:          airdropRecipientStatusEnum('status').default('pending').notNull(),
+  // On-chain signature of the batch transaction that included this recipient.
+  signature:       text('signature'),
+  distributed_at:  timestamp('distributed_at', { withTimezone: true }),
+  failure_reason:  text('failure_reason'),
+  created_at:      timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (t) => ({
+  campaign_idx:      index('airdrop_recipients_campaign_idx').on(t.campaign_id),
+  batch_idx:         index('airdrop_recipients_batch_idx').on(t.campaign_id, t.batch_index),
+  wallet_idx:        index('airdrop_recipients_wallet_idx').on(t.wallet_address),
+  status_idx:        index('airdrop_recipients_status_idx').on(t.status),
+  // Prevent the same wallet appearing twice in the same campaign
+  campaign_wallet_unique: uniqueIndex('airdrop_recipients_campaign_wallet_unique').on(t.campaign_id, t.wallet_address),
 }))
 
 // ── Admin ──────────────────────────────────────────────────────────────────────

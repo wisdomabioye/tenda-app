@@ -80,6 +80,10 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     const type = parseDisputeType(request.params.type)
     const { id } = request.params
 
+    // Verify dispute exists (throws 404 if not) so FK violation never reaches DB.
+    if (type === 'gig') await fetchGigDispute(fastify.db, id)
+    else                await fetchExchangeDispute(fastify.db, id)
+
     const opts = type === 'gig'
       ? { gigDisputeId: id }
       : { exchangeDisputeId: id }

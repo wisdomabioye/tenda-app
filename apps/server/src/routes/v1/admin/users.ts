@@ -175,9 +175,10 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
 
     const result = ensureTxUpdated(updated, 'User not found')
 
-    // Fix #38: when a dispute_resolver is demoted, clear any open thread assignments
-    // so those disputes are re-queued for triage without a stale assignee.
-    if (current.role === 'dispute_resolver' && role !== 'dispute_resolver') {
+    // Fix #38: when a user who can be assigned disputes loses that capability,
+    // clear any open thread assignments so they're re-queued for triage.
+    const canBeAssigned = (r: UserRole) => r === 'dispute_resolver' || r === 'super_admin'
+    if (canBeAssigned(current.role) && !canBeAssigned(role)) {
       await clearAssignedThreads(fastify.db, id)
     }
 

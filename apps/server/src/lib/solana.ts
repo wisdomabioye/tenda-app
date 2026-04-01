@@ -262,6 +262,59 @@ export async function buildCreateUserAccountInstruction(
   return { transaction: await finalise(tx, user) }
 }
 
+// ── Batch airdrop transaction builder ────────────────────────────────────────
+// Requires the batch_airdrop_gas_subsidy instruction to be added to the contract
+// and the IDL to be regenerated via `anchor build` + `pnpm sync-idl`.
+//
+// Instruction layout (proposed):
+//   accounts: [treasury (signer), system_program]
+//   remaining_accounts: interleaved [user_account_pda, user_wallet] × n
+//   args: amounts Vec<u64> (one per recipient, same order as remaining_accounts)
+//
+// Once the new IDL is available, replace the body of this function with:
+//
+//   const tx = await program.methods
+//     .batchAirdropGasSubsidy(amounts.map((a) => new BN(a)))
+//     .accountsPartial({ treasury })
+//     .remainingAccounts(
+//       recipients.flatMap(({ walletAddress }) => {
+//         const userPub = new PublicKey(walletAddress)
+//         const [userAccount] = PublicKey.findProgramAddressSync(
+//           [Buffer.from(USER_SEED), userPub.toBytes()],
+//           program.programId,
+//         )
+//         return [
+//           { pubkey: userAccount, isSigner: false, isWritable: true },
+//           { pubkey: userPub,     isSigner: false, isWritable: true },
+//         ]
+//       }),
+//     )
+//     .transaction()
+//   return { transaction: await finalise(tx, treasury) }
+
+export interface AirdropBatchRecipient {
+  walletAddress: string
+  lamports:      number
+}
+
+/**
+ * Build an unsigned batch airdrop transaction for the treasury wallet to sign.
+ *
+ * @throws 501 until the batch_airdrop_gas_subsidy instruction is deployed.
+ */
+export async function buildBatchAirdropTransaction(
+  _treasuryAddress: string,
+  _recipients:      AirdropBatchRecipient[],
+): Promise<{ transaction: string }> {
+  // TODO: implement once batch_airdrop_gas_subsidy is in the deployed IDL.
+  // See the comment block above for the full implementation.
+  throw new AppError(
+    501 as never,
+    'NOT_IMPLEMENTED' as never,
+    'batch_airdrop_gas_subsidy instruction is not yet deployed — rebuild after contract redeployment',
+  )
+}
+
 /**
  * Fetch the on-chain GigEscrow PDA for the given gig and assert that it was
  * funded correctly by the expected poster with the expected payment amount.
