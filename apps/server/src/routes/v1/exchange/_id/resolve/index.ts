@@ -23,8 +23,8 @@ const exchangeResolve: FastifyPluginAsync = async (fastify) => {
     Reply: ResolveRoute['response'] | ApiError
   }>(
     '/',
-    { preHandler: [fastify.authenticate, requireRole('dispute_resolver', 'super_admin')] },
-    async (request) => {
+    { preHandler: [fastify.authenticate, requireRole('admin')] },
+    async (request, reply) => {
       const { id } = request.params
       const { winner, signature, admin_note } = request.body
 
