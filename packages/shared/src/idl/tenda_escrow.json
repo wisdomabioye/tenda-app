@@ -230,6 +230,33 @@
       "args": []
     },
     {
+      "name": "batch_airdrop_gas_subsidy",
+      "docs": [
+        "Distribute gas-subsidy airdrops to multiple recipients in a single transaction.",
+        "remaining_accounts layout: [treasury, system_program, pda_0, wallet_0, ..., pda_n, wallet_n].",
+        "`amounts[i]` maps to the [pda_i, wallet_i] pair at index 2+i*2."
+      ],
+      "discriminator": [
+        20,
+        84,
+        186,
+        227,
+        49,
+        110,
+        44,
+        11
+      ],
+      "accounts": [],
+      "args": [
+        {
+          "name": "amounts",
+          "type": {
+            "vec": "u64"
+          }
+        }
+      ]
+    },
+    {
       "name": "cancel_gig",
       "discriminator": [
         109,
@@ -1069,121 +1096,161 @@
     },
     {
       "code": 6009,
+      "name": "EmptyBatch",
+      "msg": "Batch must contain at least one recipient"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidBatchLength",
+      "msg": "Remaining accounts length must equal 2 × number of amounts"
+    },
+    {
+      "code": 6011,
+      "name": "InvalidUserAccount",
+      "msg": "User account PDA does not match expected derivation for this wallet"
+    },
+    {
+      "code": 6012,
+      "name": "TreasuryMustSign",
+      "msg": "Treasury account must be a signer"
+    },
+    {
+      "code": 6013,
+      "name": "AccountNotWritable",
+      "msg": "Account must be writable"
+    },
+    {
+      "code": 6014,
+      "name": "InvalidSystemProgram",
+      "msg": "System program account is invalid"
+    },
+    {
+      "code": 6015,
+      "name": "InsufficientTreasuryBalance",
+      "msg": "Treasury has insufficient balance for this batch"
+    },
+    {
+      "code": 6016,
+      "name": "InvalidRecipient",
+      "msg": "Recipient wallet must be a system-owned account"
+    },
+    {
+      "code": 6017,
       "name": "PaymentTooLow",
       "msg": "Payment amount below minimum"
     },
     {
-      "code": 6010,
+      "code": 6018,
       "name": "InvalidDeadline",
       "msg": "Deadline must be in the future"
     },
     {
-      "code": 6011,
+      "code": 6019,
       "name": "AcceptDeadlinePassed",
       "msg": "Accept deadline has passed"
     },
     {
-      "code": 6012,
+      "code": 6020,
       "name": "DurationTooShort",
       "msg": "Completion duration is below minimum allowed"
     },
     {
-      "code": 6013,
+      "code": 6021,
       "name": "DurationTooLong",
       "msg": "Completion duration exceeds maximum allowed"
     },
     {
-      "code": 6014,
+      "code": 6022,
       "name": "GigIdTooLong",
       "msg": "Gig ID is too long"
     },
     {
-      "code": 6015,
+      "code": 6023,
       "name": "InsufficientFunds",
       "msg": "Insufficient funds for escrow deposit"
     },
     {
-      "code": 6016,
+      "code": 6024,
       "name": "InvalidGigStatus",
       "msg": "Invalid gig status for this operation"
     },
     {
-      "code": 6017,
+      "code": 6025,
       "name": "NotPoster",
       "msg": "Caller is not the poster"
     },
     {
-      "code": 6018,
+      "code": 6026,
       "name": "NotWorker",
       "msg": "Caller is not the worker"
     },
     {
-      "code": 6019,
+      "code": 6027,
       "name": "CannotAcceptOwnGig",
       "msg": "Cannot accept own gig"
     },
     {
-      "code": 6020,
+      "code": 6028,
       "name": "GigNotOpen",
       "msg": "Gig is not open for acceptance"
     },
     {
-      "code": 6021,
+      "code": 6029,
       "name": "GigNotAccepted",
       "msg": "Gig has not been accepted yet"
     },
     {
-      "code": 6022,
+      "code": 6030,
       "name": "ProofNotSubmitted",
       "msg": "Proof has not been submitted"
     },
     {
-      "code": 6023,
+      "code": 6031,
       "name": "GigNotExpired",
       "msg": "Gig has not expired yet"
     },
     {
-      "code": 6024,
+      "code": 6032,
       "name": "CannotRefundWithProof",
       "msg": "Cannot refund gig with submitted proof"
     },
     {
-      "code": 6025,
+      "code": 6033,
       "name": "SubmissionDeadlinePassed",
       "msg": "Submission deadline has passed"
     },
     {
-      "code": 6026,
+      "code": 6034,
       "name": "DisputeReasonTooLong",
       "msg": "Dispute reason is too long"
     },
     {
-      "code": 6027,
+      "code": 6035,
       "name": "CannotDispute",
       "msg": "Cannot dispute gig in current status"
     },
     {
-      "code": 6028,
+      "code": 6036,
       "name": "NotAuthorizedToDispute",
       "msg": "Caller is not authorized to dispute"
     },
     {
-      "code": 6029,
+      "code": 6037,
       "name": "GigNotDisputed",
       "msg": "Gig is not disputed"
     },
     {
-      "code": 6030,
+      "code": 6038,
       "name": "NotAdmin",
       "msg": "Caller is not admin"
     },
     {
-      "code": 6031,
+      "code": 6039,
       "name": "ArithmeticOverflow",
       "msg": "Arithmetic overflow"
     },
     {
-      "code": 6032,
+      "code": 6040,
       "name": "ArithmeticUnderflow",
       "msg": "Arithmetic underflow"
     }

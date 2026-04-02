@@ -264,9 +264,15 @@ export async function buildCreateUserAccountInstruction(
 
 // ── Batch airdrop transaction builder ────────────────────────────────────────
 // Instruction layout (batch_airdrop_gas_subsidy):
-//   named accounts : treasury (signer, mut), system_program
-//   remaining_accounts: interleaved [user_account_pda, user_wallet] × n
-//   args (borsh)   : amounts Vec<u64>  — one per recipient, same order as remaining_accounts
+//   The Anchor Accounts struct is intentionally empty (avoids the Context<'info>
+//   invariance lifetime error when mixing Signer<'info> with remaining_accounts).
+//   ALL accounts therefore land in remaining_accounts in the order below:
+//
+//   remaining_accounts[0]        : treasury (signer, mut)
+//   remaining_accounts[1]        : system_program
+//   remaining_accounts[2 + i*2]  : user_account_pda_i (mut)
+//   remaining_accounts[2 + i*2+1]: user_wallet_i      (mut)
+//   args (borsh): amounts Vec<u64>  — one per recipient
 //
 // Built as a raw TransactionInstruction so this file compiles before the new IDL
 // is regenerated via `anchor build` + `pnpm sync-idl`. The discriminator is
@@ -311,13 +317,14 @@ export async function buildBatchAirdropTransaction(
   const amountsData = encodeBorshU64Vec(recipients.map((r) => r.lamports))
   const data        = Buffer.concat([discriminator, amountsData])
 
-  // Named accounts: treasury, system_program
+  // All accounts go into remaining_accounts (empty Accounts struct).
+  // Layout: [treasury, system_program, pda_0, wallet_0, ..., pda_n, wallet_n]
   const keys: AccountMeta[] = [
-    { pubkey: treasury,              isSigner: true,  isWritable: true  },
+    { pubkey: treasury,               isSigner: true,  isWritable: true  },
     { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
   ]
 
-  // Remaining accounts: interleaved [user_account_pda, user_wallet] × n
+  // Interleaved [user_account_pda, user_wallet] × n
   for (const { walletAddress } of recipients) {
     const userPub = new PublicKey(walletAddress)
     const [userAccountPda] = PublicKey.findProgramAddressSync(
@@ -469,7 +476,32 @@ export async function verifyAndDecodeResolveDispute(
   throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'resolve_dispute instruction not found in transaction')
 }
 
-// ── UserAccount existence check ──────────────────────────────────────────────
+// ── UserAccount helpers ──────────────────────────────────────────────────────
+
+/**
+ * Returns the subset of wallet addresses whose on-chain UserAccount has
+ * phone_verified = true (i.e. already received a gas-subsidy airdrop).
+ * Uses a single getMultipleAccountsInfo RPC call for the whole batch.
+ */
+export async function fetchAlreadyAirdropped(walletAddresses: string[]): Promise<Set<string>> {
+  if (walletAddresses.length === 0) return new Set()
+  const program = getProgram()
+  const pdas = walletAddresses.map((addr) => {
+    const user = new PublicKey(addr)
+    return PublicKey.findProgramAddressSync(
+      [Buffer.from(USER_SEED), user.toBytes()],
+      program.programId,
+    )[0]
+  })
+  const accounts = await program.account.userAccount.fetchMultiple(pdas)
+  const result = new Set<string>()
+  for (let i = 0; i < accounts.length; i++) {
+    const acc = accounts[i]
+    if (acc && acc.phoneVerified) result.add(walletAddresses[i])
+  }
+  return result
+}
+
 /**
  * Returns true if the worker's on-chain UserAccount PDA already exists.
  * Used by the accept-gig route to decide whether to bundle a one-time

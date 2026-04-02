@@ -238,13 +238,17 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
 
       const winner = await verifyAndDecodeResolveDispute(signature, 'gig') as DisputeWinner
 
-      const [config, posterRow] = await Promise.all([
-        getPlatformConfig(fastify.db),
-        fastify.db.select({ is_seeker: users.is_seeker }).from(users).where(eq(users.id, gig.poster_id)).limit(1),
-      ])
-      const effectiveFeeBps    = posterRow[0]?.is_seeker ? config.seeker_fee_bps : config.fee_bps
-      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), effectiveFeeBps)
-      const resolverWallet     = request.user.wallet_address
+      // Use the fee locked at escrow creation, not the current config — they diverge if fees change.
+      const [createEscrowTx] = await fastify.db
+        .select({ platform_fee_lamports: gig_transactions.platform_fee_lamports })
+        .from(gig_transactions)
+        .where(and(eq(gig_transactions.gig_id, gig.id), eq(gig_transactions.type, 'create_escrow')))
+        .limit(1)
+
+      const platform_fee_lamports = createEscrowTx?.platform_fee_lamports
+        ?? computePlatformFee(BigInt(gig.payment_lamports), (await getPlatformConfig(fastify.db)).fee_bps)
+
+      const resolverWallet = request.user.wallet_address
       const now                = new Date()
 
       let txResult

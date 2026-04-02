@@ -5,7 +5,7 @@ import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import { requireRole } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
-import { buildBatchAirdropTransaction, ensureSignatureVerified } from '@server/lib/solana'
+import { buildBatchAirdropTransaction, ensureSignatureVerified, fetchAlreadyAirdropped } from '@server/lib/solana'
 import type { ApiError } from '@tenda/shared'
 
 const AIRDROP_ROLES  = ['airdrop', 'super_admin'] as const
@@ -283,13 +283,32 @@ const adminAirdrop: FastifyPluginAsync = async (fastify) => {
       throw new AppError(404, ErrorCode.NOT_FOUND, 'No pending recipients in this batch')
     }
 
-    // Throws 501 until batch_airdrop_gas_subsidy is deployed
+    // Pre-flight: mark recipients already airdropped on-chain as skipped so they
+    // don't block this batch (the program is atomic — one already-airdropped user
+    // would revert the whole transaction).
+    const alreadyAirdropped = await fetchAlreadyAirdropped(batch.map((r) => r.wallet_address))
+    if (alreadyAirdropped.size > 0) {
+      await fastify.db
+        .update(airdrop_recipients)
+        .set({ status: 'skipped', failure_reason: 'already_airdropped_on_chain' })
+        .where(and(
+          eq(airdrop_recipients.campaign_id, id),
+          eq(airdrop_recipients.batch_index, batchIndex),
+          inArray(airdrop_recipients.wallet_address, [...alreadyAirdropped]),
+        ))
+    }
+
+    const eligibleBatch = batch.filter((r) => !alreadyAirdropped.has(r.wallet_address))
+    if (eligibleBatch.length === 0) {
+      throw new AppError(404, ErrorCode.NOT_FOUND, 'No eligible recipients in this batch (all already airdropped)')
+    }
+
     const { transaction } = await buildBatchAirdropTransaction(
       treasury,
-      batch.map((r) => ({ walletAddress: r.wallet_address, lamports: campaign.lamports_per_recipient })),
+      eligibleBatch.map((r) => ({ walletAddress: r.wallet_address, lamports: campaign.lamports_per_recipient })),
     )
 
-    return { transaction, recipient_count: batch.length }
+    return { transaction, recipient_count: eligibleBatch.length }
   })
 
   // ── POST /v1/admin/airdrop/:id/batches/:batchIndex/confirm ────────────────
@@ -324,10 +343,8 @@ const adminAirdrop: FastifyPluginAsync = async (fastify) => {
       throw new AppError(409, ErrorCode.VALIDATION_ERROR, 'Campaign must be approved to confirm batches')
     }
 
-    // Verify the signature is confirmed on-chain
-    // Note: we don't check the instruction name here since batch_airdrop_gas_subsidy
-    // isn't in the current IDL — verify confirmation only until new IDL is deployed.
-    await ensureSignatureVerified(signature)
+    // Verify the signature is confirmed on-chain and contains a batch_airdrop_gas_subsidy instruction.
+    await ensureSignatureVerified(signature, 'batch_airdrop_gas_subsidy')
 
     const now = new Date()
 
