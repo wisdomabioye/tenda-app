@@ -2,7 +2,7 @@ import nacl from 'tweetnacl'
 import { AppError } from './errors'
 import { ErrorCode } from '@tenda/shared'
 import bs58 from 'bs58'
-import { PublicKey, Connection, Transaction, Keypair } from '@solana/web3.js'
+import { PublicKey, Connection, Transaction, Keypair, TransactionInstruction, AccountMeta, SystemProgram } from '@solana/web3.js'
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor'
 import { ESCROW_IDL as IDL, discriminatorFor as _discriminatorFor, type TendaEscrow, type InstructionName } from '@tenda/shared/idl'
 import { getConfig } from '@server/config'
@@ -263,34 +263,14 @@ export async function buildCreateUserAccountInstruction(
 }
 
 // ── Batch airdrop transaction builder ────────────────────────────────────────
-// Requires the batch_airdrop_gas_subsidy instruction to be added to the contract
-// and the IDL to be regenerated via `anchor build` + `pnpm sync-idl`.
-//
-// Instruction layout (proposed):
-//   accounts: [treasury (signer), system_program]
+// Instruction layout (batch_airdrop_gas_subsidy):
+//   named accounts : treasury (signer, mut), system_program
 //   remaining_accounts: interleaved [user_account_pda, user_wallet] × n
-//   args: amounts Vec<u64> (one per recipient, same order as remaining_accounts)
+//   args (borsh)   : amounts Vec<u64>  — one per recipient, same order as remaining_accounts
 //
-// Once the new IDL is available, replace the body of this function with:
-//
-//   const tx = await program.methods
-//     .batchAirdropGasSubsidy(amounts.map((a) => new BN(a)))
-//     .accountsPartial({ treasury })
-//     .remainingAccounts(
-//       recipients.flatMap(({ walletAddress }) => {
-//         const userPub = new PublicKey(walletAddress)
-//         const [userAccount] = PublicKey.findProgramAddressSync(
-//           [Buffer.from(USER_SEED), userPub.toBytes()],
-//           program.programId,
-//         )
-//         return [
-//           { pubkey: userAccount, isSigner: false, isWritable: true },
-//           { pubkey: userPub,     isSigner: false, isWritable: true },
-//         ]
-//       }),
-//     )
-//     .transaction()
-//   return { transaction: await finalise(tx, treasury) }
+// Built as a raw TransactionInstruction so this file compiles before the new IDL
+// is regenerated via `anchor build` + `pnpm sync-idl`. The discriminator is
+// computed from the IDL at runtime — once sync-idl has run it will resolve correctly.
 
 export interface AirdropBatchRecipient {
   walletAddress: string
@@ -298,21 +278,64 @@ export interface AirdropBatchRecipient {
 }
 
 /**
+ * Borsh-encode a Vec<u64>: 4-byte LE length prefix followed by 8-byte LE values.
+ */
+function encodeBorshU64Vec(values: number[]): Buffer {
+  const buf = Buffer.alloc(4 + values.length * 8)
+  buf.writeUInt32LE(values.length, 0)
+  for (let i = 0; i < values.length; i++) {
+    buf.writeBigUInt64LE(BigInt(values[i]), 4 + i * 8)
+  }
+  return buf
+}
+
+/**
  * Build an unsigned batch airdrop transaction for the treasury wallet to sign.
  *
- * @throws 501 until the batch_airdrop_gas_subsidy instruction is deployed.
+ * The treasury must sign and submit the transaction on-chain. The server builds
+ * but never submits — the admin signs externally and calls /:id/batches/:n/confirm
+ * with the resulting signature.
  */
 export async function buildBatchAirdropTransaction(
-  _treasuryAddress: string,
-  _recipients:      AirdropBatchRecipient[],
+  treasuryAddress: string,
+  recipients:      AirdropBatchRecipient[],
 ): Promise<{ transaction: string }> {
-  // TODO: implement once batch_airdrop_gas_subsidy is in the deployed IDL.
-  // See the comment block above for the full implementation.
-  throw new AppError(
-    501 as never,
-    'NOT_IMPLEMENTED' as never,
-    'batch_airdrop_gas_subsidy instruction is not yet deployed — rebuild after contract redeployment',
-  )
+  const program    = getProgram()
+  const treasury   = new PublicKey(treasuryAddress)
+
+  // Discriminator: sha256("global:batch_airdrop_gas_subsidy")[0:8]
+  // Resolved from the IDL at runtime — will throw if IDL not yet updated via sync-idl.
+  const discriminator = Buffer.from(discriminatorFor('batch_airdrop_gas_subsidy'))
+
+  // Borsh-encode amounts Vec<u64>
+  const amountsData = encodeBorshU64Vec(recipients.map((r) => r.lamports))
+  const data        = Buffer.concat([discriminator, amountsData])
+
+  // Named accounts: treasury, system_program
+  const keys: AccountMeta[] = [
+    { pubkey: treasury,              isSigner: true,  isWritable: true  },
+    { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+  ]
+
+  // Remaining accounts: interleaved [user_account_pda, user_wallet] × n
+  for (const { walletAddress } of recipients) {
+    const userPub = new PublicKey(walletAddress)
+    const [userAccountPda] = PublicKey.findProgramAddressSync(
+      [Buffer.from(USER_SEED), userPub.toBytes()],
+      program.programId,
+    )
+    keys.push({ pubkey: userAccountPda, isSigner: false, isWritable: true })
+    keys.push({ pubkey: userPub,        isSigner: false, isWritable: true })
+  }
+
+  const ix = new TransactionInstruction({
+    programId: program.programId,
+    keys,
+    data,
+  })
+
+  const tx = new Transaction().add(ix)
+  return { transaction: await finalise(tx, treasury) }
 }
 
 /**

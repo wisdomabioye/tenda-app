@@ -19,6 +19,8 @@ export type InstructionName =
   | 'resolve_dispute'
   | 'withdraw_earnings'
   | 'create_user_account'
+  | 'airdrop_gas_subsidy'
+  | 'batch_airdrop_gas_subsidy'
 
 /**
  * Returns the 8-byte Anchor discriminator for the named instruction as a
