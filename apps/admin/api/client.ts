@@ -1,7 +1,7 @@
 import type {
   AuthResponse,
   WalletAuthBody,
-  PublicUser,
+  User,
   PaginatedResponse,
   AdminPlatformConfig,
   BlockedKeyword,
@@ -119,7 +119,7 @@ async function request<T>(
 }
 
 export interface AdminListQuery {
-  page?:   number
+  offset?: number
   limit?:  number
   search?: string
   status?: string
@@ -140,13 +140,13 @@ export const adminApi = {
 
   users: {
     list: (query?: AdminListQuery) =>
-      request<PaginatedResponse<PublicUser>>('GET', adminRoutes.users.list, { query: query as Record<string, unknown> }),
+      request<PaginatedResponse<User>>('GET', adminRoutes.users.list, { query: query as Record<string, unknown> }),
     get: (params: { id: string }) =>
-      request<PublicUser>('GET', adminRoutes.users.get, { params }),
+      request<User>('GET', adminRoutes.users.get, { params }),
     updateStatus: (params: { id: string }, body: UpdateUserStatusBody) =>
-      request<PublicUser>('PATCH', adminRoutes.users.updateStatus, { params, body }),
+      request<User>('PATCH', adminRoutes.users.updateStatus, { params, body }),
     updateRole: (params: { id: string }, body: UpdateUserRoleBody) =>
-      request<PublicUser>('PATCH', adminRoutes.users.updateRole, { params, body }),
+      request<User>('PATCH', adminRoutes.users.updateRole, { params, body }),
   },
 
   gigs: {
