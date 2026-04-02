@@ -23,6 +23,11 @@ export type ExchangeOfferStatus =
   | 'draft' | 'open' | 'accepted' | 'paid' | 'completed'
   | 'disputed' | 'resolved' | 'cancelled' | 'expired'
 
+export const EXCHANGE_OFFER_STATUSES = [
+  'draft', 'open', 'accepted', 'paid', 'completed',
+  'disputed', 'resolved', 'cancelled', 'expired',
+] as const satisfies readonly ExchangeOfferStatus[]
+
 export type ExchangeTransactionType =
   | 'create_escrow' | 'accept' | 'release_payment'
   | 'cancel_refund' | 'expired_refund' | 'dispute_raised' | 'dispute_resolved'

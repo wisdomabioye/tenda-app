@@ -2,6 +2,10 @@ import type {
   AuthResponse,
   WalletAuthBody,
   User,
+  AdminGig,
+  AdminExchangeOffer,
+  AdminGigListQuery,
+  AdminExchangeListQuery,
   PaginatedResponse,
   AdminPlatformConfig,
   BlockedKeyword,
@@ -37,7 +41,7 @@ import type {
   FinanceFeesResponse,
   DisputeType,
 } from '@tenda/shared'
-import type { Gig, GigDetail, ExchangeOfferDetail } from '@tenda/shared'
+import type { GigDetail, ExchangeOfferDetail } from '@tenda/shared'
 import { adminRoutes, apiRoutes } from '@/api/routes'
 import { getToken, clearToken } from '@/lib/auth'
 
@@ -150,8 +154,8 @@ export const adminApi = {
   },
 
   gigs: {
-    list: (query?: AdminListQuery) =>
-      request<PaginatedResponse<Gig>>('GET', adminRoutes.gigs.list, { query: query as Record<string, unknown> }),
+    list: (query?: AdminGigListQuery) =>
+      request<PaginatedResponse<AdminGig>>('GET', adminRoutes.gigs.list, { query: query as Record<string, unknown> }),
     get: (params: { id: string }) =>
       request<GigDetail>('GET', adminRoutes.gigs.get, { params }),
     hide: (params: { id: string }, body?: HideContentBody) =>
@@ -167,8 +171,8 @@ export const adminApi = {
   },
 
   exchange: {
-    list: (query?: AdminListQuery) =>
-      request<PaginatedResponse<ExchangeOfferDetail>>('GET', adminRoutes.exchange.list, { query: query as Record<string, unknown> }),
+    list: (query?: AdminExchangeListQuery) =>
+      request<PaginatedResponse<AdminExchangeOffer>>('GET', adminRoutes.exchange.list, { query: query as Record<string, unknown> }),
     get: (params: { id: string }) =>
       request<ExchangeOfferDetail>('GET', adminRoutes.exchange.get, { params }),
     hide: (params: { id: string }, body?: HideContentBody) =>

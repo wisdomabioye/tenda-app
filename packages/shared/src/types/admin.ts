@@ -17,6 +17,8 @@ import {
   disputeSenderEnum,
 } from '../db/schema'
 import type { UserRole, UserStatus } from './user'
+import type { GigStatus, GigCategory } from './gig'
+import type { ExchangeOfferStatus } from './exchange'
 import type { ReportStatus } from '../constants/moderation'
 import type { PaginatedResponse } from './api'
 
@@ -37,6 +39,57 @@ export type AirdropStatus         = typeof airdropStatusEnum.enumValues[number]
 export type AirdropRecipientStatus = typeof airdropRecipientStatusEnum.enumValues[number]
 export type DisputeSender          = typeof disputeSenderEnum.enumValues[number]
 export type DisputeType            = 'gig' | 'exchange'
+
+// ─── Admin list rows (custom projections returned by admin list endpoints) ────
+
+export interface AdminGig {
+  id:               string
+  title:            string
+  category:         GigCategory
+  status:           GigStatus
+  hidden:           boolean
+  featured?:        boolean
+  country:          string | null
+  city:             string | null
+  payment_lamports: number
+  created_at:       string | null
+  poster_id:        string
+  poster_first_name: string | null
+  poster_last_name:  string | null
+}
+
+export interface AdminExchangeOffer {
+  id:               string
+  status:           ExchangeOfferStatus
+  hidden:           boolean
+  lamports_amount:  number
+  fiat_amount:      number
+  fiat_currency:    string
+  created_at:       string | null
+  seller_id:        string
+  seller_first_name: string | null
+  seller_last_name:  string | null
+}
+
+// ─── Admin list query types ───────────────────────────────────────────────────
+
+export interface AdminGigListQuery {
+  offset?:    number
+  limit?:     number
+  status?:    GigStatus
+  hidden?:    boolean
+  category?:  GigCategory
+  country?:   string
+  poster_id?: string
+}
+
+export interface AdminExchangeListQuery {
+  offset?:   number
+  limit?:    number
+  status?:   ExchangeOfferStatus
+  hidden?:   boolean
+  currency?: string
+}
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 

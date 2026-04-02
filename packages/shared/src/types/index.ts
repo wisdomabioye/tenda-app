@@ -10,6 +10,9 @@ export type {
   AdminRole,
 } from './user'
 export { ADMIN_ROLES, ASSIGNABLE_ROLES } from './user'
+export { GIG_STATUSES } from './gig'
+export { GIG_CATEGORIES } from '../constants/categories'
+export { EXCHANGE_OFFER_STATUSES } from './exchange'
 export type {
   Gig,
   NewGig,
@@ -115,6 +118,10 @@ export {
   canExchangeTransition,
 } from './exchange'
 export type {
+  AdminGig,
+  AdminExchangeOffer,
+  AdminGigListQuery,
+  AdminExchangeListQuery,
   AdminPlatformConfig,
   BlockedKeyword,
   Report,

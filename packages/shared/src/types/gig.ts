@@ -28,6 +28,11 @@ export type GigStatus =
   | 'expired'
   | 'cancelled'
 
+export const GIG_STATUSES = [
+  'draft', 'open', 'accepted', 'submitted', 'completed',
+  'disputed', 'resolved', 'expired', 'cancelled',
+] as const satisfies readonly GigStatus[]
+
 export type DisputeWinner = 'worker' | 'poster' | 'split'
 
 export type GigTransactionType =
