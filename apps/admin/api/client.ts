@@ -13,8 +13,9 @@ import type {
   Announcement,
   DisputeThread,
   DisputeMessage,
+  DisputeSummary,
   AirdropCampaign,
-  AirdropRecipient,
+  AirdropCampaignDetail,
   AirdropStatus,
   AirdropBatchSummary,
   UpdateUserStatusBody,
@@ -130,10 +131,25 @@ export interface AdminListQuery {
   role?:   string
 }
 
+export interface AdminReportListQuery {
+  offset?:       number
+  limit?:        number
+  status?:       string
+  content_type?: string
+}
+
 export interface FinanceFeesQuery {
-  from?:  string
-  to?:    string
-  type?:  string
+  from?: string
+  to?:   string
+}
+
+export interface FinanceTxQuery {
+  type:     'gig' | 'exchange'  // required by server
+  from?:    string
+  to?:      string
+  tx_type?: string
+  offset?:  number
+  limit?:   number
 }
 
 export const adminApi = {
@@ -182,7 +198,7 @@ export const adminApi = {
   },
 
   reports: {
-    list: (query?: AdminListQuery) =>
+    list: (query?: AdminReportListQuery) =>
       request<PaginatedResponse<Report>>('GET', adminRoutes.reports.list, { query: query as Record<string, unknown> }),
     action: (params: { id: string }, body: ActionReportBody) =>
       request<Report>('PATCH', adminRoutes.reports.action, { params, body }),
@@ -190,7 +206,7 @@ export const adminApi = {
 
   disputes: {
     list: (query?: AdminListQuery) =>
-      request<PaginatedResponse<DisputeThread>>('GET', adminRoutes.disputes.list, { query: query as Record<string, unknown> }),
+      request<PaginatedResponse<DisputeSummary>>('GET', adminRoutes.disputes.list, { query: query as Record<string, unknown> }),
     get: (params: { type: DisputeType; id: string }) =>
       request<DisputeThread>('GET', adminRoutes.disputes.get, { params }),
     openThread: (params: { type: DisputeType; id: string }) =>
@@ -206,8 +222,8 @@ export const adminApi = {
   },
 
   keywords: {
-    list: () =>
-      request<BlockedKeyword[]>('GET', adminRoutes.keywords.list),
+    list: (query?: { offset?: number; limit?: number }) =>
+      request<PaginatedResponse<BlockedKeyword>>('GET', adminRoutes.keywords.list, { query: query as Record<string, unknown> }),
     add: (body: AddKeywordBody) =>
       request<AddKeywordResponse>('POST', adminRoutes.keywords.add, { body }),
     remove: (params: { id: string }) =>
@@ -242,30 +258,26 @@ export const adminApi = {
   },
 
   airdrop: {
-    list: () =>
-      request<AirdropCampaign[]>('GET', adminRoutes.airdrop.list),
+    list: (query?: { status?: AirdropStatus; offset?: number; limit?: number }) =>
+      request<PaginatedResponse<AirdropCampaign>>('GET', adminRoutes.airdrop.list, { query: query as Record<string, unknown> }),
     get: (params: { id: string }) =>
-      request<AirdropCampaign>('GET', adminRoutes.airdrop.get, { params }),
+      request<AirdropCampaignDetail>('GET', adminRoutes.airdrop.get, { params }),
     create: (body: CreateAirdropCampaignBody) =>
       request<AirdropCampaign>('POST', adminRoutes.airdrop.create, { body }),
     addRecipients: (params: { id: string }, body: AddAirdropRecipientsBody) =>
       request<AddAirdropRecipientsResponse>('POST', adminRoutes.airdrop.addRecipients, { params, body }),
     approve: (params: { id: string }) =>
       request<AirdropCampaign>('POST', adminRoutes.airdrop.approve, { params }),
-    buildBatch: (params: { id: string; batchIndex: string }) =>
-      request<BuildBatchResponse>('POST', adminRoutes.airdrop.buildBatch, { params }),
+    buildBatch: (params: { id: string; batchIndex: string }, query: { treasury: string }) =>
+      request<BuildBatchResponse>('GET', adminRoutes.airdrop.buildBatch, { params, query }),
     confirmBatch: (params: { id: string; batchIndex: string }, body: ConfirmBatchBody) =>
       request<ConfirmBatchResponse>('POST', adminRoutes.airdrop.confirmBatch, { params, body }),
-    recipients: (params: { id: string }, query?: { status?: AirdropStatus }) =>
-      request<AirdropRecipient[]>('GET', adminRoutes.airdrop.addRecipients, { params, query: query as Record<string, unknown> }),
-    batches: (params: { id: string }) =>
-      request<AirdropBatchSummary[]>('GET', adminRoutes.airdrop.get, { params }),
   },
 
   finance: {
     fees: (query?: FinanceFeesQuery) =>
       request<FinanceFeesResponse>('GET', adminRoutes.finance.fees, { query: query as Record<string, unknown> }),
-    transactions: (query?: AdminListQuery) =>
-      request<PaginatedResponse<Record<string, unknown>>>('GET', adminRoutes.finance.transactions, { query: query as Record<string, unknown> }),
+    transactions: (query: FinanceTxQuery) =>
+      request<PaginatedResponse<Record<string, unknown>>>('GET', adminRoutes.finance.transactions, { query: query as unknown as Record<string, unknown> }),
   },
 }

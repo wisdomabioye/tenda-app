@@ -16,6 +16,7 @@ import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { ListPagination } from '@/components/common/list-pagination'
 import { ExchangeStatusBadge } from '@/components/common/status-badge'
 import { adminApi } from '@/api/client'
+import { lamportsToSol } from '@/lib/utils'
 
 const LIMIT = 20
 
@@ -25,10 +26,6 @@ type ActionState = { type: ActionType; offer: AdminExchangeOffer } | null
 function sellerName(offer: AdminExchangeOffer) {
   const name = [offer.seller_first_name, offer.seller_last_name].filter(Boolean).join(' ')
   return name || offer.seller_id.slice(0, 8)
-}
-
-function lamportsToSol(lamports: number) {
-  return (lamports / 1_000_000_000).toFixed(3)
 }
 
 export default function ExchangePage() {

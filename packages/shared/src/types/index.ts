@@ -80,6 +80,7 @@ export type {
   MessagesQuery,
 } from './chat'
 export type { CreateReportInput } from './moderation'
+export { REPORT_STATUSES, REPORT_CONTENT_TYPES } from '../constants/moderation'
 export type {
   ExchangeOffer,
   UserExchangeAccount,
@@ -138,6 +139,7 @@ export type {
   UpdateUserRoleBody,
   HideContentBody,
   ActionReportBody,
+  DisputeSummary,
   DisputeAssignBody,
   DisputeSendMessageBody,
   DisputeResolveBody,
@@ -153,6 +155,7 @@ export type {
   CreateAirdropCampaignBody,
   AddAirdropRecipientsBody,
   AddAirdropRecipientsResponse,
+  AirdropCampaignDetail,
   AirdropBatchSummary,
   BuildBatchResponse,
   ConfirmBatchBody,

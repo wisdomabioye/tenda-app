@@ -5,7 +5,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { format } from 'date-fns'
 import { toast } from 'sonner'
 import { SearchIcon } from 'lucide-react'
-import type { User, UserStatus, UserRole } from '@tenda/shared'
+import type { User, UserStatus } from '@tenda/shared'
 import { ASSIGNABLE_ROLES } from '@tenda/shared'
 import { AppHeader } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
@@ -13,14 +13,12 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { NativeSelect } from '@/components/ui/native-select'
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog'
-import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { ListPagination } from '@/components/common/list-pagination'
 import { UserStatusBadge } from '@/components/common/status-badge'
+import { RoleDialog } from '@/components/users/role-dialog'
 import { adminApi } from '@/api/client'
 
 const LIMIT = 20
@@ -50,7 +48,6 @@ export default function UsersPage() {
   const [loading,      setLoading]      = useState(true)
   const [statusTarget, setStatusTarget] = useState<User | null>(null)
   const [roleTarget,   setRoleTarget]   = useState<User | null>(null)
-  const [selectedRole, setSelectedRole] = useState<UserRole>('user')
   const [saving,       setSaving]       = useState(false)
 
   const fetchUsers = useCallback(async () => {
@@ -97,21 +94,6 @@ export default function UsersPage() {
     }
   }
 
-  async function handleRoleConfirm() {
-    if (!roleTarget) return
-    setSaving(true)
-    try {
-      await adminApi.users.updateRole({ id: roleTarget.id }, { role: selectedRole })
-      toast.success('Role updated')
-      setRoleTarget(null)
-      fetchUsers()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to update role')
-    } finally {
-      setSaving(false)
-    }
-  }
-
   return (
     <>
       <AppHeader title="Users" />
@@ -138,7 +120,7 @@ export default function UsersPage() {
           <NativeSelect value={role} onChange={(e) => updateParam('role', e.target.value)}>
             <option value="">All roles</option>
             <option value="user">User</option>
-            {ASSIGNABLE_ROLES.filter(r => r !== 'user').map(r => (
+            {ASSIGNABLE_ROLES.filter((r) => r !== 'user').map((r) => (
               <option key={r} value={r}>{r.replace('_', ' ')}</option>
             ))}
           </NativeSelect>
@@ -192,10 +174,7 @@ export default function UsersPage() {
                       <Button variant="ghost" size="sm" onClick={() => setStatusTarget(user)}>
                         {user.status === 'active' ? 'Suspend' : 'Reinstate'}
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => {
-                        setSelectedRole(user.role as UserRole)
-                        setRoleTarget(user)
-                      }}>
+                      <Button variant="ghost" size="sm" onClick={() => setRoleTarget(user)}>
                         Role
                       </Button>
                     </div>
@@ -228,36 +207,11 @@ export default function UsersPage() {
         onConfirm={handleStatusConfirm}
       />
 
-      {/* Role dialog has custom content (select) so stays inline */}
-      <Dialog open={!!roleTarget} onOpenChange={(o) => !o && setRoleTarget(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Update Role</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Change role for <span className="font-medium text-foreground">
-                {roleTarget ? userName(roleTarget) : ''}
-              </span>
-            </p>
-            <NativeSelect
-              className="w-full"
-              value={selectedRole}
-              onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-            >
-              {ASSIGNABLE_ROLES.map(r => (
-                <option key={r} value={r}>{r.replace('_', ' ')}</option>
-              ))}
-            </NativeSelect>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRoleTarget(null)}>Cancel</Button>
-            <Button onClick={handleRoleConfirm} disabled={saving}>
-              {saving ? 'Saving…' : 'Update Role'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <RoleDialog
+        user={roleTarget}
+        onClose={() => setRoleTarget(null)}
+        onSaved={() => { setRoleTarget(null); fetchUsers() }}
+      />
     </>
   )
 }

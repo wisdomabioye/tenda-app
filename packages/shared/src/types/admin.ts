@@ -112,6 +112,21 @@ export interface HideContentBody { reason?: string }
 
 // ─── Disputes ────────────────────────────────────────────────────────────────
 
+/** Normalised row returned by GET /admin/disputes (union of gig + exchange) */
+export interface DisputeSummary {
+  dispute_id:           string
+  dispute_type:         DisputeType
+  subject_id:           string
+  subject_title:        string | null
+  raised_by_id:         string
+  raised_by_first_name: string | null
+  raised_by_last_name:  string | null
+  reason:               string
+  raised_at:            string | null
+  thread_id:            string | null
+  assigned_to_id:       string | null
+}
+
 export interface DisputeAssignBody      { assigned_to_id: string | null }
 export interface DisputeSendMessageBody { body: string }
 export interface DisputeResolveBody     { signature: string; admin_note?: string }
@@ -173,6 +188,8 @@ export interface CreateAirdropCampaignBody {
 
 export interface AddAirdropRecipientsBody     { wallets: string[] }
 export interface AddAirdropRecipientsResponse { added: number; skipped_duplicates: number }
+
+export type AirdropCampaignDetail = AirdropCampaign & { batches: AirdropBatchSummary[] }
 
 export interface AirdropBatchSummary {
   batch_index: number
