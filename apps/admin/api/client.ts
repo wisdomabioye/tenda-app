@@ -17,7 +17,6 @@ import type {
   AirdropCampaign,
   AirdropCampaignDetail,
   AirdropStatus,
-  AirdropBatchSummary,
   UpdateUserStatusBody,
   UpdateUserRoleBody,
   HideContentBody,

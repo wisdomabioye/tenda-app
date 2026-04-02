@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import type { Report, ReportStatus } from '@tenda/shared'
 import { REPORT_STATUSES } from '@tenda/shared'
@@ -21,15 +21,18 @@ interface Props {
 }
 
 export function ReportActionDialog({ report, onClose, onSaved }: Props) {
-  const [newStatus,    setNewStatus]    = useState<ReportStatus>('reviewed')
-  const [adminNote,    setAdminNote]    = useState('')
-  const [hideContent,  setHideContent]  = useState(false)
-  const [saving,       setSaving]       = useState(false)
+  const [newStatus,   setNewStatus]   = useState<ReportStatus>('reviewed')
+  const [adminNote,   setAdminNote]   = useState('')
+  const [hideContent, setHideContent] = useState(false)
+  const [saving,      setSaving]      = useState(false)
 
-  // Sync state when report changes
-  if (report && newStatus === 'reviewed' && report.status !== 'pending') {
-    setNewStatus(report.status)
-  }
+  useEffect(() => {
+    if (report) {
+      setNewStatus(report.status === 'pending' ? 'reviewed' : report.status)
+      setAdminNote(report.admin_note ?? '')
+      setHideContent(false)
+    }
+  }, [report])
 
   async function handleSave() {
     if (!report) return
