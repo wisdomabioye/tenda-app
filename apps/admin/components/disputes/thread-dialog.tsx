@@ -75,7 +75,6 @@ export function ThreadDialog({ dispute, onClose }: Props) {
     setMsgBody('')
     setAssignId('')
     setSignature('')
-    setAdminNote('')
   }, [dispute, loadThread])
 
   async function handleOpenThread() {
