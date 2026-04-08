@@ -12,6 +12,7 @@ import {
   MAX_GIG_DESCRIPTION_LENGTH,
   MAX_PAGINATION_LIMIT,
   LOCATIONS,
+  GIG_CATEGORIES,
   ErrorCode,
 } from '@tenda/shared'
 import type { GigsContract, ApiError, GigStatus, GigCategory, CountryCode } from '@tenda/shared'
@@ -69,7 +70,12 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     if (String(remote) === 'false')      conditions.push(eq(gigs.remote, false))
     if (String(cross_border) === 'true') conditions.push(eq(gigs.cross_border, true))
     if (city)                            conditions.push(eq(gigs.city, city))
-    if (category)                        conditions.push(eq(gigs.category, category as GigCategory))
+    if (category) {
+      if (!GIG_CATEGORIES.includes(category as GigCategory)) {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `category must be one of: ${GIG_CATEGORIES.join(', ')}`)
+      }
+      conditions.push(eq(gigs.category, category as GigCategory))
+    }
 
     if (min_payment_lamports !== undefined || max_payment_lamports !== undefined) {
       const minN = min_payment_lamports ?? 0

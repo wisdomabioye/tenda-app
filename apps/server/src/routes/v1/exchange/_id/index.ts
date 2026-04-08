@@ -8,7 +8,7 @@ import { getPlatformConfig } from '@server/lib/platform'
 import { AppError } from '@server/lib/errors'
 import {
   ensureOfferExists, ensureOfferOwnership, ensureOfferStatus, ensureOfferTxUpdated,
-  buildOfferDetail, checkAndExpireOffer,
+  buildOfferDetail, checkAndExpireOffer, computeExchangeRate,
 } from '@server/lib/exchange'
 import { handleUniqueConflict } from '@server/lib/db'
 import { appEvents } from '@server/lib/events'
@@ -64,7 +64,7 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       // that could diverge from the actual ratio.
       const effectiveLamports = lamports_amount != null ? Number(lamports_amount) : offer.lamports_amount
       const effectiveFiat     = fiat_amount     != null ? fiat_amount             : offer.fiat_amount
-      const computedRate      = effectiveFiat / (effectiveLamports / 1_000_000_000)
+      const computedRate      = computeExchangeRate(effectiveLamports, effectiveFiat)
 
       const [updated] = await fastify.db
         .update(exchange_offers)

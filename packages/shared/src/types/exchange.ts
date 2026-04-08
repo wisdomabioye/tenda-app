@@ -130,8 +130,7 @@ export interface ExchangeDisputeInput {
 }
 
 export interface ExchangeResolveInput {
-  winner:    ExchangeDisputeWinner
-  signature: string  // on-chain resolve_dispute tx signature
+  signature: string  // on-chain resolve_dispute tx signature — winner derived from on-chain data
 }
 
 export interface ExchangePublishInput {

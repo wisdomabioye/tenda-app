@@ -4,7 +4,7 @@ import { exchange_offers, user_exchange_accounts, users } from '@tenda/shared/db
 import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import type { ExchangeContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { batchExpireOffers } from '@server/lib/exchange'
+import { batchExpireOffers, computeExchangeRate } from '@server/lib/exchange'
 import { USER_COLS } from '@server/lib/users'
 
 type ListRoute   = ExchangeContract['list']
@@ -187,7 +187,7 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
           lamports_amount:        lamportsNum,
           fiat_amount:            fiat_amount,
           fiat_currency:          currencyUpper,
-          rate:                   Math.round(fiat_amount / (lamportsNum / 1_000_000_000)),
+          rate:                   computeExchangeRate(lamportsNum, fiat_amount),
           payment_window_seconds: windowSecs,
           payment_account_ids:    account_ids,
           accept_deadline:        acceptDeadlineDate,

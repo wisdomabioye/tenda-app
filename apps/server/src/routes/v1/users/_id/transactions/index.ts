@@ -28,8 +28,11 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
     const safeLimit  = Math.min(Number(limit),  MAX_PAGINATION_LIMIT)
     const safeOffset = Number(offset)
 
-    // Run both queries in parallel. No per-query LIMIT — each user's transaction
-    // history is bounded by their own activity, not the full table.
+    // Each query fetches at most (safeOffset + safeLimit) rows — the maximum needed
+    // to produce a correct page after the in-memory merge+sort.
+    // e.g. offset=40, limit=20 → fetch 60 from each side (120 rows total in memory).
+    const perQueryLimit = safeOffset + safeLimit
+
     const [gigRows, exchangeRows] = await Promise.all([
       // ── Gig transactions ───────────────────────────────────────────────
       // LEFT JOIN disputes only for dispute_resolved rows to get the winner.
@@ -56,7 +59,8 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
           eq(gig_transactions.type, 'dispute_resolved'),
         ))
         .where(or(eq(gigs.poster_id, id), eq(gigs.worker_id, id)))
-        .orderBy(desc(gig_transactions.created_at)),
+        .orderBy(desc(gig_transactions.created_at))
+        .limit(perQueryLimit),
 
       // ── Exchange transactions ──────────────────────────────────────────
       // LEFT JOIN exchange_disputes only for dispute_resolved rows to get the winner.
@@ -83,7 +87,8 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
           eq(exchange_transactions.type, 'dispute_resolved'),
         ))
         .where(or(eq(exchange_offers.seller_id, id), eq(exchange_offers.buyer_id, id)))
-        .orderBy(desc(exchange_transactions.created_at)),
+        .orderBy(desc(exchange_transactions.created_at))
+        .limit(perQueryLimit),
     ])
 
     const gigMapped = gigRows.map((row) => ({
@@ -126,18 +131,21 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
       },
     }))
 
-    // Merge and sort descending by created_at
-    const all = [...gigMapped, ...exchangeMapped].sort((a, b) => {
+    // Merge and sort descending by created_at, then slice the requested page.
+    const merged = [...gigMapped, ...exchangeMapped].sort((a, b) => {
       const ta = a.created_at ? new Date(a.created_at).getTime() : 0
       const tb = b.created_at ? new Date(b.created_at).getTime() : 0
       return tb - ta
     })
 
+    const page = merged.slice(safeOffset, safeOffset + safeLimit)
+
     return {
-      data:   all.slice(safeOffset, safeOffset + safeLimit),
-      total:  all.length,
-      limit:  safeLimit,
-      offset: safeOffset,
+      data:     page,
+      total:    merged.length,  // lower-bound count (capped at 2 × perQueryLimit)
+      has_more: page.length === safeLimit && merged.length === perQueryLimit * 2,
+      limit:    safeLimit,
+      offset:   safeOffset,
     }
   })
 }

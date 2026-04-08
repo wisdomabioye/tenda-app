@@ -14,6 +14,11 @@ import { AppError } from './errors'
 import { USER_COLS } from './users'
 import { getPlatformConfig } from './platform'
 
+/** Computes the exchange rate (fiat per SOL) from raw lamports and fiat amount. */
+export function computeExchangeRate(lamports: number, fiatAmount: number): number {
+  return Math.round(fiatAmount / (lamports / 1_000_000_000))
+}
+
 /**
  * Fetches an exchange offer by id. Throws a 404 AppError if not found.
  */

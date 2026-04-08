@@ -1,9 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { exchange_offers, exchange_transactions } from '@tenda/shared/db/schema'
-import { ErrorCode, computePlatformFee } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
 import { ensureSignatureVerified } from '@server/lib/solana'
-import { getPlatformConfig } from '@server/lib/platform'
 import { isPostgresUniqueViolation } from '@server/lib/db'
 import {
   ensureOfferExists, ensureOfferOwnership, ensureOfferStatus, ensureOfferTxUpdated, buildOfferDetail,
@@ -37,9 +36,15 @@ const exchangeConfirm: FastifyPluginAsync = async (fastify) => {
 
       await ensureSignatureVerified(signature, 'approve_completion')
 
-      const config = await getPlatformConfig(fastify.db)
-      const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
-      const platform_fee_lamports = computePlatformFee(BigInt(offer.lamports_amount), effectiveFeeBps)
+      // Use the fee locked at escrow creation — recomputing here would give the wrong value
+      // if the platform fee config changed between create_escrow and confirm.
+      const [escrowTx] = await fastify.db
+        .select({ platform_fee_lamports: exchange_transactions.platform_fee_lamports })
+        .from(exchange_transactions)
+        .where(and(eq(exchange_transactions.offer_id, id), eq(exchange_transactions.type, 'create_escrow')))
+        .limit(1)
+
+      const platform_fee_lamports = escrowTx?.platform_fee_lamports ?? 0
       const now = new Date()
 
       let updated
