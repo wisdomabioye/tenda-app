@@ -20,7 +20,7 @@ export type {
   NewDispute,
   GigProof,
   GigTransaction,
-  UserTransaction,
+  UserGigTransaction,
   GigStatus,
   DisputeWinner,
   GigTransactionType,
@@ -90,6 +90,7 @@ export type {
   ExchangeOfferStatus,
   ExchangeTransactionType,
   ExchangeDisputeWinner,
+  UserExchangeTransaction,
   ExchangeOfferDetail,
   ExchangeOfferSummary,
   CreateUserExchangeAccountInput,
@@ -118,6 +119,11 @@ export {
   EXCHANGE_STATUS_TRANSITIONS,
   canExchangeTransition,
 } from './exchange'
+
+/** Discriminated union of gig + exchange transactions for the wallet screen. */
+export type UserTransaction =
+  import('./gig').UserGigTransaction |
+  import('./exchange').UserExchangeTransaction
 export type {
   AdminGig,
   AdminExchangeOffer,
@@ -166,3 +172,4 @@ export type {
   FinanceFeesResponse,
   ReportStatus,
 } from './admin'
+

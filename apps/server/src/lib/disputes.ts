@@ -3,7 +3,7 @@
  * Used by both admin routes (/v1/admin/disputes) and user-facing routes
  * (/v1/gigs/:id/dispute/thread, /v1/exchange/:id/dispute/thread).
  */
-import { eq, and, asc, isNull, sql } from 'drizzle-orm'
+import { eq, and, asc, sql } from 'drizzle-orm'
 import {
   disputes,
   exchange_disputes,
@@ -231,9 +231,8 @@ export async function markThreadRead(
 
 // ── Open disputes (unresolved) UNION query ────────────────────────────────────
 // Used by GET /admin/disputes to show all pending disputes across both types.
-// Drizzle does not support UNION directly — we run two queries and merge in JS.
-// For tables with O(hundreds) of concurrent disputes this is fine; revisit with
-// a raw SQL UNION if the volume grows to thousands.
+// Drizzle does not support UNION natively, so we use a raw SQL UNION ALL with
+// ORDER BY/LIMIT/OFFSET pushed to the DB — avoids fetching all rows into memory.
 
 export interface DisputeSummary {
   dispute_id:           string
@@ -254,71 +253,62 @@ export async function listOpenDisputes(
   limit: number,
   offset: number,
 ): Promise<{ data: DisputeSummary[]; total: number; limit: number; offset: number }> {
-  const [gigRows, exchangeRows] = await Promise.all([
-    db
-      .select({
-        dispute_id:           disputes.id,
-        subject_id:           disputes.gig_id,
-        subject_title:        gigs.title,
-        raised_by_id:         disputes.raised_by_id,
-        raised_by_first_name: users.first_name,
-        raised_by_last_name:  users.last_name,
-        reason:               disputes.reason,
-        raised_at:            disputes.raised_at,
-        thread_id:            dispute_threads.id,
-        assigned_to_id:       dispute_threads.assigned_to_id,
-      })
-      .from(disputes)
-      .innerJoin(gigs,  eq(disputes.gig_id,       gigs.id))
-      .innerJoin(users, eq(disputes.raised_by_id,  users.id))
-      .leftJoin(dispute_threads, eq(dispute_threads.gig_dispute_id, disputes.id))
-      .where(isNull(disputes.resolved_at)),
+  const [rows, countRows] = await Promise.all([
+    db.execute<Record<string, unknown>>(sql`
+      SELECT
+        d.id                        AS dispute_id,
+        'gig'::text                 AS dispute_type,
+        d.gig_id                    AS subject_id,
+        g.title                     AS subject_title,
+        d.raised_by_id,
+        u.first_name                AS raised_by_first_name,
+        u.last_name                 AS raised_by_last_name,
+        d.reason,
+        d.raised_at,
+        dt.id                       AS thread_id,
+        dt.assigned_to_id
+      FROM disputes d
+      JOIN gigs g             ON g.id  = d.gig_id
+      JOIN users u            ON u.id  = d.raised_by_id
+      LEFT JOIN dispute_threads dt ON dt.gig_dispute_id = d.id
+      WHERE d.resolved_at IS NULL
 
-    db
-      .select({
-        dispute_id:           exchange_disputes.id,
-        subject_id:           exchange_disputes.offer_id,
-        subject_title:        sql<string | null>`null`,   // exchange offers have no title column
-        raised_by_id:         exchange_disputes.opened_by_id,
-        raised_by_first_name: users.first_name,
-        raised_by_last_name:  users.last_name,
-        reason:               exchange_disputes.reason,
-        raised_at:            exchange_disputes.raised_at,
-        thread_id:            dispute_threads.id,
-        assigned_to_id:       dispute_threads.assigned_to_id,
-      })
-      .from(exchange_disputes)
-      .innerJoin(exchange_offers, eq(exchange_disputes.offer_id, exchange_offers.id))
-      .innerJoin(users, eq(exchange_disputes.opened_by_id, users.id))
-      .leftJoin(dispute_threads, eq(dispute_threads.exchange_dispute_id, exchange_disputes.id))
-      .where(isNull(exchange_disputes.resolved_at)),
+      UNION ALL
+
+      SELECT
+        ed.id                       AS dispute_id,
+        'exchange'::text            AS dispute_type,
+        ed.offer_id                 AS subject_id,
+        NULL::text                  AS subject_title,
+        ed.opened_by_id             AS raised_by_id,
+        u.first_name                AS raised_by_first_name,
+        u.last_name                 AS raised_by_last_name,
+        ed.reason,
+        ed.raised_at,
+        dt.id                       AS thread_id,
+        dt.assigned_to_id
+      FROM exchange_disputes ed
+      JOIN exchange_offers eo       ON eo.id = ed.offer_id
+      JOIN users u                  ON u.id  = ed.opened_by_id
+      LEFT JOIN dispute_threads dt  ON dt.exchange_dispute_id = ed.id
+      WHERE ed.resolved_at IS NULL
+
+      ORDER BY raised_at DESC NULLS LAST
+      LIMIT ${limit} OFFSET ${offset}
+    `),
+
+    db.execute<{ count: number }>(sql`
+      SELECT COUNT(*)::int AS count FROM (
+        SELECT id FROM disputes        WHERE resolved_at IS NULL
+        UNION ALL
+        SELECT id FROM exchange_disputes WHERE resolved_at IS NULL
+      ) t
+    `),
   ])
 
-  const gigData:      DisputeSummary[] = gigRows.map((r) => ({ ...r, dispute_type: 'gig' as const }))
-  const exchangeData: DisputeSummary[] = exchangeRows.map((r) => ({
-    dispute_id:           r.dispute_id,
-    dispute_type:         'exchange' as const,
-    subject_id:           r.subject_id,
-    subject_title:        r.subject_title,
-    raised_by_id:         r.raised_by_id,
-    raised_by_first_name: r.raised_by_first_name,
-    raised_by_last_name:  r.raised_by_last_name,
-    reason:               r.reason,
-    raised_at:            r.raised_at,
-    thread_id:            r.thread_id,
-    assigned_to_id:       r.assigned_to_id,
-  }))
-
-  // Merge and sort by raised_at descending
-  const all = [...gigData, ...exchangeData].sort((a, b) => {
-    const ta = a.raised_at ? new Date(a.raised_at).getTime() : 0
-    const tb = b.raised_at ? new Date(b.raised_at).getTime() : 0
-    return tb - ta
-  })
-
   return {
-    data:   all.slice(offset, offset + limit),
-    total:  all.length,
+    data:   rows as unknown as DisputeSummary[],
+    total:  countRows[0]?.count ?? 0,
     limit,
     offset,
   }

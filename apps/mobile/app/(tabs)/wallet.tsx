@@ -17,22 +17,86 @@ import type { UserTransaction } from '@tenda/shared'
 
 const LAMPORTS_PER_SOL = 1_000_000_000
 
-function TxRow({ tx }: { tx: UserTransaction }) {
-  const { theme } = useUnistyles()
-  const isCredit =
-    (tx.type === 'release_payment' || tx.type === 'dispute_resolved')
-  const sign = isCredit ? '+' : '-'
-  const color = isCredit ? theme.colors.feedback.success.text : theme.colors.feedback.danger.text
-  const sol = tx.amount_lamports / 1_000_000_000
+const GIG_TYPE_LABEL: Record<string, string> = {
+  create_escrow:    'Escrow funded',
+  accept_gig:       'Gig accepted',
+  release_payment:  'Payment received',
+  cancel_refund:    'Refund received',
+  expired_refund:   'Refund (expired)',
+  dispute_resolved: 'Dispute resolved',
+}
 
-  const TYPE_LABEL: Record<string, string> = {
-    create_escrow:    'Escrow funded',
-    accept_gig:       'Gig accepted',
-    release_payment:  'Payment received',
-    cancel_refund:    'Refund received',
-    expired_refund:   'Refund (expired)',
-    dispute_resolved: 'Dispute resolved',
+const EXCHANGE_TYPE_LABEL: Record<string, string> = {
+  create_escrow:    'Exchange escrow funded',
+  accept:           'Offer accepted',
+  mark_paid:        'Payment marked',
+  release_payment:  'SOL released',
+  cancel_refund:    'Offer refunded',
+  expired_refund:   'Refund (expired)',
+  dispute_raised:   'Dispute opened',
+  dispute_resolved: 'Dispute resolved',
+}
+
+/**
+ * Returns '+', '-', or null (neutral) based on whether this transaction
+ * represents money coming in or going out from the current user's perspective.
+ */
+function getTxSign(tx: UserTransaction, userId: string): '+' | '-' | null {
+  if (tx.source === 'gig') {
+    const isWorker = tx.gig.worker_id === userId
+    const isPoster = tx.gig.poster_id === userId
+    switch (tx.type) {
+      case 'create_escrow':    return isPoster ? '-' : null
+      case 'release_payment':  return isWorker ? '+' : null
+      case 'cancel_refund':
+      case 'expired_refund':   return isPoster ? '+' : null
+      case 'dispute_resolved': {
+        if (!tx.winner) return null
+        if (tx.winner === 'split') return '+'
+        if (tx.winner === 'worker' && isWorker) return '+'
+        if (tx.winner === 'poster' && isPoster) return '+'
+        return null
+      }
+      default: return null
+    }
+  } else {
+    const isSeller = tx.offer.seller_id === userId
+    const isBuyer  = tx.offer.buyer_id  === userId
+    switch (tx.type) {
+      case 'create_escrow':    return isSeller ? '-' : null
+      case 'release_payment':  return isBuyer  ? '+' : null
+      case 'cancel_refund':
+      case 'expired_refund':   return isSeller ? '+' : null
+      case 'dispute_resolved': {
+        if (!tx.winner) return null
+        if (tx.winner === 'split') return '+'
+        if (tx.winner === 'seller' && isSeller) return '+'
+        if (tx.winner === 'buyer'  && isBuyer)  return '+'
+        return null
+      }
+      default: return null
+    }
   }
+}
+
+function TxRow({ tx, userId }: { tx: UserTransaction; userId: string }) {
+  const { theme } = useUnistyles()
+
+  const sign  = getTxSign(tx, userId)
+  const color = sign === '+'
+    ? theme.colors.feedback.success.text
+    : sign === '-'
+      ? theme.colors.feedback.danger.text
+      : theme.colors.content.secondary
+
+  const sol   = tx.amount_lamports / LAMPORTS_PER_SOL
+  const label = tx.source === 'gig'
+    ? (GIG_TYPE_LABEL[tx.type]      ?? tx.type)
+    : (EXCHANGE_TYPE_LABEL[tx.type] ?? tx.type)
+
+  const subtitle = tx.source === 'gig'
+    ? tx.gig.title
+    : `${tx.offer.fiat_currency}/SOL`
 
   const date = tx.created_at
     ? new Date(tx.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })
@@ -41,12 +105,15 @@ function TxRow({ tx }: { tx: UserTransaction }) {
   return (
     <View style={[s.txRow, { borderBottomColor: theme.colors.border.subtle }]}>
       <View style={s.txLeft}>
-        <Text weight="medium" size={typography.styles.bodySmall.fontSize}>{TYPE_LABEL[tx.type] ?? tx.type}</Text>
+        <Text weight="medium" size={typography.styles.bodySmall.fontSize}>{label}</Text>
+        <Text variant="caption" color={theme.colors.content.tertiary} numberOfLines={1}>{subtitle}</Text>
         <Text variant="caption" color={theme.colors.content.tertiary}>{date}</Text>
       </View>
-      <Text weight="semibold" size={typography.styles.bodySmall.fontSize} color={color}>
-        {sign}{sol.toFixed(4)} SOL
-      </Text>
+      {sol > 0 && (
+        <Text weight="semibold" size={typography.styles.bodySmall.fontSize} color={color}>
+          {sign ?? ''}{sol.toFixed(4)} SOL
+        </Text>
+      )}
     </View>
   )
 }
@@ -72,18 +139,14 @@ export default function WalletScreen() {
     if (isRefresh) setRefreshing(true)
     else setIsLoading(true)
     try {
-      const [_, txResult] = await Promise.all([
+      await Promise.all([
         walletAddress
           ? getBalance(new PublicKey(walletAddress)).then((b) => setBalanceLamports(b))
           : Promise.resolve(),
         user?.id
-          ? api.users.transactions({ id: user.id }).then((r) => r.data)
-          : Promise.resolve([]),
+          ? api.users.transactions({ id: user.id }).then((r) => setTransactions(r.data))
+          : Promise.resolve(),
       ])
-      const allTx = (txResult as UserTransaction[])
-        .slice()
-        .sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime())
-      setTransactions(allTx)
     } finally {
       if (isRefresh) setRefreshing(false)
       else setIsLoading(false)
@@ -94,13 +157,25 @@ export default function WalletScreen() {
 
   const balanceSol = balanceLamports !== null ? balanceLamports / LAMPORTS_PER_SOL : null
 
-  const earnedLamports = transactions
-    .filter((tx) => tx.gig.worker_id === user?.id && (tx.type === 'release_payment' || tx.type === 'dispute_resolved'))
-    .reduce((sum, tx) => sum + tx.amount_lamports - tx.platform_fee_lamports, 0)
+  // Earned: worker's gig payouts + buyer's exchange SOL receipts
+  const earnedLamports = transactions.reduce((sum, tx) => {
+    if (tx.source === 'gig') {
+      if (tx.gig.worker_id !== user?.id) return sum
+      if (tx.type === 'release_payment') return sum + tx.amount_lamports - tx.platform_fee_lamports
+      if (tx.type === 'dispute_resolved') return sum + tx.amount_lamports - tx.platform_fee_lamports
+    } else {
+      if (tx.offer.buyer_id !== user?.id) return sum
+      if (tx.type === 'release_payment') return sum + tx.amount_lamports - tx.platform_fee_lamports
+    }
+    return sum
+  }, 0)
 
-  const spentLamports = transactions
-    .filter((tx) => tx.gig.poster_id === user?.id && tx.type === 'create_escrow')
-    .reduce((sum, tx) => sum + tx.amount_lamports, 0)
+  // Spent: poster's gig escrow funding + seller's exchange escrow funding
+  const spentLamports = transactions.reduce((sum, tx) => {
+    if (tx.source === 'gig'      && tx.gig.poster_id    === user?.id && tx.type === 'create_escrow') return sum + tx.amount_lamports
+    if (tx.source === 'exchange' && tx.offer.seller_id  === user?.id && tx.type === 'create_escrow') return sum + tx.amount_lamports
+    return sum
+  }, 0)
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
@@ -166,7 +241,7 @@ export default function WalletScreen() {
           </>
         }
         renderItem={({ item }) => (
-          <TxRow tx={item} />
+          <TxRow tx={item} userId={user?.id ?? ''} />
         )}
         ListEmptyComponent={
           !isLoading ? (
@@ -205,6 +280,8 @@ const s = StyleSheet.create({
     borderBottomWidth: 1,
   },
   txLeft: {
+    flex: 1,
     gap: 1,
+    paddingRight: spacing.sm,
   },
 })

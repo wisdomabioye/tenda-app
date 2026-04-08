@@ -29,12 +29,15 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const { id } = request.params
 
-      const fetchedOffer = await ensureOfferExists(fastify.db, id)
+      const [fetchedOffer, config] = await Promise.all([
+        ensureOfferExists(fastify.db, id),
+        getPlatformConfig(fastify.db),
+      ])
 
       // Hidden offers are not accessible via the public detail route.
       if (fetchedOffer.hidden) throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
 
-      const offer = await checkAndExpireOffer(fetchedOffer, fastify.db)
+      const offer = await checkAndExpireOffer(fetchedOffer, fastify.db, config.grace_period_seconds)
 
       const detail = await buildOfferDetail(fastify.db, offer, request.user.id)
       return reply.send(detail)
@@ -51,11 +54,17 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     { preHandler: [fastify.authenticate] },
     async (request, reply) => {
       const { id } = request.params
-      const { lamports_amount, fiat_amount, fiat_currency, rate, payment_window_seconds, accept_deadline, account_ids } = request.body
+      const { lamports_amount, fiat_amount, fiat_currency, payment_window_seconds, accept_deadline, account_ids } = request.body
 
       const offer = await ensureOfferExists(fastify.db, id)
       ensureOfferOwnership(offer, request.user.id, 'seller', 'Only the seller can edit this offer')
       ensureOfferStatus(offer, 'draft')
+
+      // Recompute rate whenever lamports or fiat changes — never allow a manually-supplied rate
+      // that could diverge from the actual ratio.
+      const effectiveLamports = lamports_amount != null ? Number(lamports_amount) : offer.lamports_amount
+      const effectiveFiat     = fiat_amount     != null ? fiat_amount             : offer.fiat_amount
+      const computedRate      = effectiveFiat / (effectiveLamports / 1_000_000_000)
 
       const [updated] = await fastify.db
         .update(exchange_offers)
@@ -63,10 +72,10 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
           ...(lamports_amount          != null && { lamports_amount: Number(lamports_amount) }),
           ...(fiat_amount              != null && { fiat_amount }),
           ...(fiat_currency            != null && { fiat_currency }),
-          ...(rate                     != null && { rate }),
           ...(payment_window_seconds   != null && { payment_window_seconds }),
           ...(accept_deadline !== undefined    && { accept_deadline: accept_deadline ? new Date(accept_deadline) : null }),
           ...(account_ids              != null && { payment_account_ids: account_ids }),
+          rate: computedRate,
           updated_at: new Date(),
         })
         .where(eq(exchange_offers.id, id))

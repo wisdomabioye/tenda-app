@@ -30,18 +30,19 @@ const exchangeRefund: FastifyPluginAsync = async (fastify) => {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
       }
 
-      let offer = await ensureOfferExists(fastify.db, id)
+      const [fetchedOffer, config] = await Promise.all([
+        ensureOfferExists(fastify.db, id),
+        getPlatformConfig(fastify.db),
+      ])
 
       // Lazily expire the offer if its deadlines have passed — so a seller who
       // hits this endpoint directly still gets the correct 'expired' status.
-      offer = await checkAndExpireOffer(offer, fastify.db)
+      let offer = await checkAndExpireOffer(fetchedOffer, fastify.db, config.grace_period_seconds)
 
       ensureOfferStatus(offer, 'expired')
       ensureOfferOwnership(offer, request.user.id, 'seller')
 
       await ensureSignatureVerified(signature, 'refund_expired')
-
-      const config = await getPlatformConfig(fastify.db)
       const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
       const platform_fee_lamports = computePlatformFee(BigInt(offer.lamports_amount), effectiveFeeBps)
 

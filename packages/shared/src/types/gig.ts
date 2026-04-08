@@ -163,14 +163,11 @@ export interface GigDetail extends Gig {
 }
 
 /** A gig_transaction enriched with minimal gig context for the wallet screen. */
-export interface UserTransaction {
-  id: string
-  gig_id: string
-  type: GigTransactionType
-  signature: string
-  amount_lamports: number
-  platform_fee_lamports: number
+export interface UserGigTransaction extends Omit<GigTransaction, 'created_at'> {
+  source: 'gig'
   created_at: string | null
+  /** Populated for dispute_resolved transactions only; null otherwise. Values: 'worker' | 'poster' | 'split' */
+  winner: string | null
   gig: {
     id: string
     title: string

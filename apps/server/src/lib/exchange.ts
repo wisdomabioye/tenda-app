@@ -118,9 +118,9 @@ const BATCH_EXPIRY_COOLDOWN_MS = 60_000
  * Called on GET /v1/exchange/:id to keep the single-record view accurate.
  *
  * Condition 1: open offer whose accept_deadline has passed → expired
- * Condition 2: accepted offer where accepted_at + payment_window_seconds + 86400 (grace) has passed → expired
+ * Condition 2: accepted offer where accepted_at + payment_window_seconds + gracePeriodSeconds has passed → expired
  */
-export async function checkAndExpireOffer(offer: ExchangeOffer, db: AppDatabase): Promise<ExchangeOffer> {
+export async function checkAndExpireOffer(offer: ExchangeOffer, db: AppDatabase, gracePeriodSeconds: number): Promise<ExchangeOffer> {
   const now = new Date()
 
   // Open offer whose accept deadline has passed
@@ -136,7 +136,7 @@ export async function checkAndExpireOffer(offer: ExchangeOffer, db: AppDatabase)
   // Accepted offer whose payment window + grace period have both passed
   if (offer.status === 'accepted' && offer.accepted_at) {
     const cutoff = new Date(
-      new Date(offer.accepted_at).getTime() + (offer.payment_window_seconds + 86400) * 1000,
+      new Date(offer.accepted_at).getTime() + (offer.payment_window_seconds + gracePeriodSeconds) * 1000,
     )
     if (now > cutoff) {
       const [updated] = await db

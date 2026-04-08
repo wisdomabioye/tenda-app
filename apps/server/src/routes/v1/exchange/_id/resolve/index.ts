@@ -26,7 +26,7 @@ const exchangeResolve: FastifyPluginAsync = async (fastify) => {
     { preHandler: [fastify.authenticate, requireRole('dispute_resolver', 'super_admin')] },
     async (request, reply) => {
       const { id } = request.params
-      const { signature, admin_note } = request.body
+      const { signature } = request.body
 
       if (!signature) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
@@ -68,7 +68,6 @@ const exchangeResolve: FastifyPluginAsync = async (fastify) => {
             .set({
               winner:                  winner as ExchangeDisputeWinner,
               resolver_wallet_address: resolverWalletAddress,
-              admin_note:              admin_note ?? null,
               resolved_at:             now,
             })
             .where(eq(exchange_disputes.offer_id, id))

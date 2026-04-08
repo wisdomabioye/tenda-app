@@ -129,7 +129,7 @@ export interface DisputeSummary {
 
 export interface DisputeAssignBody      { assigned_to_id: string | null }
 export interface DisputeSendMessageBody { body: string }
-export interface DisputeResolveBody     { signature: string; admin_note?: string }
+export interface DisputeResolveBody     { signature: string }
 export interface OpenThreadResponse     { thread: DisputeThread; created: boolean }
 
 // ─── Blocked keywords ────────────────────────────────────────────────────────

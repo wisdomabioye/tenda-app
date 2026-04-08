@@ -42,7 +42,6 @@ export function ThreadDialog({ dispute, onClose }: Props) {
   const [assignId,      setAssignId]      = useState('')
   const [assigning,     setAssigning]     = useState(false)
   const [signature,     setSignature]     = useState('')
-  const [adminNote,     setAdminNote]     = useState('')
   const [resolving,     setResolving]     = useState(false)
   const [openingThread, setOpeningThread] = useState(false)
   const [hasThread,     setHasThread]     = useState(false)
@@ -130,7 +129,7 @@ export function ThreadDialog({ dispute, onClose }: Props) {
     if (!sig) { toast.error('Signature is required'); return }
     setResolving(true)
     try {
-      await adminApi.disputes.resolve({ type, id }, { signature: sig, admin_note: adminNote || undefined })
+      await adminApi.disputes.resolve({ type, id }, { signature: sig })
       toast.success('Dispute resolved')
       onClose()
     } catch (err) {
@@ -247,12 +246,7 @@ export function ThreadDialog({ dispute, onClose }: Props) {
               onChange={(e) => setSignature(e.target.value)}
               className="font-mono text-xs"
             />
-            <Textarea
-              placeholder="Admin note (optional)"
-              value={adminNote}
-              onChange={(e) => setAdminNote(e.target.value)}
-              rows={2}
-            />
+
             <Button type="submit" variant="destructive" size="sm" disabled={resolving || !signature.trim()}>
               {resolving ? 'Resolving…' : 'Submit resolution'}
             </Button>

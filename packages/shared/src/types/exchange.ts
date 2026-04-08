@@ -29,8 +29,24 @@ export const EXCHANGE_OFFER_STATUSES = [
 ] as const satisfies readonly ExchangeOfferStatus[]
 
 export type ExchangeTransactionType =
-  | 'create_escrow' | 'accept' | 'release_payment'
+  | 'create_escrow' | 'accept' | 'mark_paid' | 'release_payment'
   | 'cancel_refund' | 'expired_refund' | 'dispute_raised' | 'dispute_resolved'
+
+/** An exchange_transaction enriched with minimal offer context for the wallet screen. */
+export interface UserExchangeTransaction extends Omit<ExchangeTransaction, 'created_at'> {
+  source: 'exchange'
+  created_at: string | null
+  /** Populated for dispute_resolved transactions only; null otherwise. Values: 'seller' | 'buyer' | 'split' */
+  winner: string | null
+  offer: {
+    id: string
+    fiat_amount: number
+    fiat_currency: string
+    lamports_amount: number
+    seller_id: string
+    buyer_id: string | null
+  }
+}
 
 export type ExchangeDisputeWinner = 'seller' | 'buyer' | 'split'
 
@@ -114,9 +130,8 @@ export interface ExchangeDisputeInput {
 }
 
 export interface ExchangeResolveInput {
-  winner:      ExchangeDisputeWinner
-  signature:   string  // on-chain resolve_dispute tx signature
-  admin_note?: string
+  winner:    ExchangeDisputeWinner
+  signature: string  // on-chain resolve_dispute tx signature
 }
 
 export interface ExchangePublishInput {
@@ -135,8 +150,9 @@ export interface ExchangeAddProofsInput {
   proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>
 }
 
-// All create fields become optional for patch — only draft offers can be updated
-export type UpdateExchangeOfferInput = Partial<CreateExchangeOfferInput>
+// All create fields become optional for patch — only draft offers can be updated.
+// `rate` is intentionally omitted: the server always recomputes it from lamports/fiat.
+export type UpdateExchangeOfferInput = Partial<Omit<CreateExchangeOfferInput, 'rate'>>
 
 export interface ExchangeListQuery {
   currency?:     string

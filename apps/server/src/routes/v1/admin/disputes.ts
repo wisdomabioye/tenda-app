@@ -216,14 +216,14 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
   // :type = 'gig' | 'exchange'; :id = dispute id (disputes.id or exchange_disputes.id).
   fastify.post<{
     Params: { type: string; id: string }
-    Body:   { signature: string; admin_note?: string }
+    Body:   { signature: string }
     Reply: unknown | ApiError
   }>('/:type/:id/resolve', {
     preHandler: [requireRole(...DISPUTE_RESOLVE_ROLES)],
   }, async (request) => {
     const type = parseDisputeType(request.params.type)
     const { id } = request.params
-    const { signature, admin_note } = request.body
+    const { signature } = request.body
 
     if (!signature) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required')
@@ -326,7 +326,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
 
         await tx
           .update(exchange_disputes)
-          .set({ winner, resolver_wallet_address: request.user.wallet_address, admin_note: admin_note ?? null, resolved_at: now })
+          .set({ winner, resolver_wallet_address: request.user.wallet_address, resolved_at: now })
           .where(eq(exchange_disputes.id, id))
 
         await tx.insert(exchange_transactions).values({

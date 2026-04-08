@@ -32,7 +32,10 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
       conditions.push(eq(users.status, status as UserStatus))
     }
 
-    if (role && ADMIN_ROLES.includes(role as typeof ADMIN_ROLES[number]) || role === 'user') {
+    if (role) {
+      if (!ASSIGNABLE_ROLES.includes(role as UserRole)) {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Invalid role filter`)
+      }
       conditions.push(eq(users.role, role as UserRole))
     }
 

@@ -1,6 +1,9 @@
 import { FastifyPluginAsync } from 'fastify'
-import { or, eq, desc, sql } from 'drizzle-orm'
-import { gigs, gig_transactions } from '@tenda/shared/db/schema'
+import { or, eq, desc, and } from 'drizzle-orm'
+import {
+  gigs, gig_transactions, disputes,
+  exchange_offers, exchange_transactions, exchange_disputes,
+} from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
@@ -8,8 +11,10 @@ import { AppError } from '@server/lib/errors'
 type TransactionsRoute = UsersContract['transactions']
 
 const userTransactions: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/users/:id/transactions — gig transactions where user is poster or worker.
-  // Returns transactions enriched with minimal gig context for the wallet screen.
+  // GET /v1/users/:id/transactions — gig + exchange transactions where the user is
+  // a participant (poster/worker for gigs, seller/buyer for exchange).
+  // Returns a merged, descending-chronological list for the wallet screen.
+  // User-bounded result set (no DB-level limit needed per query before merge).
   fastify.get<{
     Params:      TransactionsRoute['params']
     Querystring: TransactionsRoute['query']
@@ -23,9 +28,11 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
     const safeLimit  = Math.min(Number(limit),  MAX_PAGINATION_LIMIT)
     const safeOffset = Number(offset)
 
-    const where = or(eq(gigs.poster_id, id), eq(gigs.worker_id, id))!
-
-    const [rows, countResult] = await Promise.all([
+    // Run both queries in parallel. No per-query LIMIT — each user's transaction
+    // history is bounded by their own activity, not the full table.
+    const [gigRows, exchangeRows] = await Promise.all([
+      // ── Gig transactions ───────────────────────────────────────────────
+      // LEFT JOIN disputes only for dispute_resolved rows to get the winner.
       fastify.db
         .select({
           id:                    gig_transactions.id,
@@ -40,21 +47,47 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
           gig_payment_lamports:  gigs.payment_lamports,
           gig_poster_id:         gigs.poster_id,
           gig_worker_id:         gigs.worker_id,
+          dispute_winner:        disputes.winner,
         })
         .from(gig_transactions)
         .innerJoin(gigs, eq(gig_transactions.gig_id, gigs.id))
-        .where(where)
-        .orderBy(desc(gig_transactions.created_at))
-        .limit(safeLimit)
-        .offset(safeOffset),
+        .leftJoin(disputes, and(
+          eq(disputes.gig_id, gig_transactions.gig_id),
+          eq(gig_transactions.type, 'dispute_resolved'),
+        ))
+        .where(or(eq(gigs.poster_id, id), eq(gigs.worker_id, id)))
+        .orderBy(desc(gig_transactions.created_at)),
+
+      // ── Exchange transactions ──────────────────────────────────────────
+      // LEFT JOIN exchange_disputes only for dispute_resolved rows to get the winner.
       fastify.db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(gig_transactions)
-        .innerJoin(gigs, eq(gig_transactions.gig_id, gigs.id))
-        .where(where),
+        .select({
+          id:                    exchange_transactions.id,
+          offer_id:              exchange_transactions.offer_id,
+          type:                  exchange_transactions.type,
+          signature:             exchange_transactions.signature,
+          amount_lamports:       exchange_transactions.amount_lamports,
+          platform_fee_lamports: exchange_transactions.platform_fee_lamports,
+          created_at:            exchange_transactions.created_at,
+          offer_fiat_amount:     exchange_offers.fiat_amount,
+          offer_fiat_currency:   exchange_offers.fiat_currency,
+          offer_lamports_amount: exchange_offers.lamports_amount,
+          offer_seller_id:       exchange_offers.seller_id,
+          offer_buyer_id:        exchange_offers.buyer_id,
+          dispute_winner:        exchange_disputes.winner,
+        })
+        .from(exchange_transactions)
+        .innerJoin(exchange_offers, eq(exchange_transactions.offer_id, exchange_offers.id))
+        .leftJoin(exchange_disputes, and(
+          eq(exchange_disputes.offer_id, exchange_transactions.offer_id),
+          eq(exchange_transactions.type, 'dispute_resolved'),
+        ))
+        .where(or(eq(exchange_offers.seller_id, id), eq(exchange_offers.buyer_id, id)))
+        .orderBy(desc(exchange_transactions.created_at)),
     ])
 
-    const data = rows.map((row) => ({
+    const gigMapped = gigRows.map((row) => ({
+      source:                'gig' as const,
       id:                    row.id,
       gig_id:                row.gig_id,
       type:                  row.type,
@@ -62,6 +95,7 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
       amount_lamports:       row.amount_lamports,
       platform_fee_lamports: row.platform_fee_lamports,
       created_at:            row.created_at ? row.created_at.toISOString() : null,
+      winner:                row.dispute_winner ?? null,
       gig: {
         id:               row.gig_id,
         title:            row.gig_title,
@@ -72,7 +106,39 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
       },
     }))
 
-    return { data, total: countResult[0].count, limit: safeLimit, offset: safeOffset }
+    const exchangeMapped = exchangeRows.map((row) => ({
+      source:                'exchange' as const,
+      id:                    row.id,
+      offer_id:              row.offer_id,
+      type:                  row.type,
+      signature:             row.signature,
+      amount_lamports:       row.amount_lamports,
+      platform_fee_lamports: row.platform_fee_lamports,
+      created_at:            row.created_at ? row.created_at.toISOString() : null,
+      winner:                row.dispute_winner ?? null,
+      offer: {
+        id:              row.offer_id,
+        fiat_amount:     row.offer_fiat_amount,
+        fiat_currency:   row.offer_fiat_currency,
+        lamports_amount: row.offer_lamports_amount,
+        seller_id:       row.offer_seller_id,
+        buyer_id:        row.offer_buyer_id,
+      },
+    }))
+
+    // Merge and sort descending by created_at
+    const all = [...gigMapped, ...exchangeMapped].sort((a, b) => {
+      const ta = a.created_at ? new Date(a.created_at).getTime() : 0
+      const tb = b.created_at ? new Date(b.created_at).getTime() : 0
+      return tb - ta
+    })
+
+    return {
+      data:   all.slice(safeOffset, safeOffset + safeLimit),
+      total:  all.length,
+      limit:  safeLimit,
+      offset: safeOffset,
+    }
   })
 }
 
