@@ -306,12 +306,16 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
 
     const winner = await verifyAndDecodeResolveDispute(signature, 'exchange') as ExchangeDisputeWinner
 
-    const [config, sellerRow] = await Promise.all([
-      getPlatformConfig(fastify.db),
-      fastify.db.select({ is_seeker: users.is_seeker }).from(users).where(eq(users.id, offer.seller_id)).limit(1),
-    ])
-    const effectiveFeeBps    = sellerRow[0]?.is_seeker ? config.seeker_fee_bps : config.fee_bps
-    const platform_fee_lamports = computePlatformFee(BigInt(offer.lamports_amount), effectiveFeeBps)
+    // Use the fee locked at escrow creation — recomputing here would give the wrong value
+    // if the platform fee config changed between create_escrow and dispute resolution.
+    const [escrowTx] = await fastify.db
+      .select({ platform_fee_lamports: exchange_transactions.platform_fee_lamports })
+      .from(exchange_transactions)
+      .where(and(eq(exchange_transactions.offer_id, offer.id), eq(exchange_transactions.type, 'create_escrow')))
+      .limit(1)
+
+    const platform_fee_lamports = escrowTx?.platform_fee_lamports
+      ?? computePlatformFee(BigInt(offer.lamports_amount), (await getPlatformConfig(fastify.db)).fee_bps)
     const now = new Date()
 
     let txResult

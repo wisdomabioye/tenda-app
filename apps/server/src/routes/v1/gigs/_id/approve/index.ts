@@ -35,11 +35,16 @@ const approveGig: FastifyPluginAsync = async (fastify) => {
 
       await ensureSignatureVerified(signature, 'approve_completion')
 
-      const config = await getPlatformConfig(fastify.db)
-      // Seeker posters pay a discounted fee on-chain; mirror that here so the
-      // recorded platform_fee_lamports matches what was actually deducted.
-      const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
-      const platform_fee_lamports = computePlatformFee(BigInt(gig.payment_lamports), effectiveFeeBps)
+      // Use the fee locked at escrow creation — recomputing here would give the wrong value
+      // if the platform fee config changed between create_escrow and approve.
+      const [escrowTx] = await fastify.db
+        .select({ platform_fee_lamports: gig_transactions.platform_fee_lamports })
+        .from(gig_transactions)
+        .where(and(eq(gig_transactions.gig_id, id), eq(gig_transactions.type, 'create_escrow')))
+        .limit(1)
+
+      const platform_fee_lamports = escrowTx?.platform_fee_lamports
+        ?? computePlatformFee(BigInt(gig.payment_lamports), (await getPlatformConfig(fastify.db)).fee_bps)
 
       let txResult
       try {

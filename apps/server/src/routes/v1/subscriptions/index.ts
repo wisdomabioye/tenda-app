@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { gig_subscriptions } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '@server/lib/db'
 import { AppError } from '@server/lib/errors'
 import type { SubscriptionsContract, ApiError } from '@tenda/shared'
@@ -22,6 +22,7 @@ const subscriptions: FastifyPluginAsync = async (fastify) => {
         .select()
         .from(gig_subscriptions)
         .where(eq(gig_subscriptions.user_id, request.user.id))
+        .limit(MAX_PAGINATION_LIMIT)
 
       return rows.map((r) => ({
         ...r,

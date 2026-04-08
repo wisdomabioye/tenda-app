@@ -78,10 +78,11 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
           rate: computedRate,
           updated_at: new Date(),
         })
-        .where(eq(exchange_offers.id, id))
+        .where(and(eq(exchange_offers.id, id), eq(exchange_offers.status, 'draft')))
         .returning()
 
-      return reply.send(updated!)
+      const result = ensureOfferTxUpdated(updated, 'Offer status changed — it may have already been published or cancelled')
+      return reply.send(result)
     }
   )
 
