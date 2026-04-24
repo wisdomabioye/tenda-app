@@ -105,6 +105,18 @@ export interface ColorScheme {
     service: Tone
     digital: Tone
   }
+
+  accent: {
+    primary: string
+    primarySurface: string
+    primaryBorder: string
+  }
+
+  numeric: {
+    positive: string
+    negative: string
+    neutral: string
+  }
 }
 
 const tone = (base: string, surface: string, text: string, border: string): Tone => ({
@@ -117,60 +129,60 @@ const tone = (base: string, surface: string, text: string, border: string): Tone
 export const colors: { light: ColorScheme; dark: ColorScheme } = {
   light: {
     surface: {
-      background: '#FAFAF8',
-      backgroundAlt: '#F3F3F0',
+      background: '#F7F5F0',
+      backgroundAlt: '#F0EDE6',
       card: '#FFFFFF',
       cardElevated: '#FFFFFF',
-      inset: '#EEEFEA',
-      overlay: 'rgba(255,255,255,0.72)',
-      navbar: 'rgba(250,250,248,0.92)',
-      tabBar: 'rgba(255,255,255,0.96)',
+      inset: '#EDE9E1',
+      overlay: 'rgba(247,245,240,0.78)',
+      navbar: 'rgba(247,245,240,0.90)',
+      tabBar: 'rgba(255,255,255,0.88)',
       sheet: '#FFFFFF',
       modal: '#FFFFFF',
-      pressed: '#E9EDF2',
-      inverse: '#151922',
+      pressed: '#E8E3D9',
+      inverse: '#12141B',
     },
 
     brand: {
-      primary: '#3B70C4',
-      primaryPressed: '#2D57A0',
-      primarySurface: '#EDF2FB',
-      primaryBorder: '#C6D6F2',
+      primary: '#2E5BD6',
+      primaryPressed: '#264CB5',
+      primarySurface: '#E8EEFB',
+      primaryBorder: '#BFD0F2',
       onPrimary: '#FFFFFF',
-      focusRing: '#3B70C4',
+      focusRing: 'rgba(46,91,214,0.34)',
     },
 
     content: {
-      primary: '#243447',
-      secondary: '#526173',
-      tertiary: '#7B8794',
+      primary: '#141721',
+      secondary: '#4E525B',
+      tertiary: '#8A8E98',
       inverse: '#FFFFFF',
-      link: '#3B70C4',
+      link: '#2E5BD6',
       disabled: '#9AA3AF',
-      placeholder: '#98A2B3',
+      placeholder: '#9BA0AA',
     },
 
     border: {
-      subtle: '#EEF1F4',
-      default: '#D9E0E8',
-      strong: '#BAC4D0',
-      divider: '#E7ECF2',
+      subtle: 'rgba(20,17,10,0.05)',
+      default: 'rgba(20,17,10,0.10)',
+      strong: 'rgba(20,17,10,0.18)',
+      divider: 'rgba(20,17,10,0.05)',
       input: '#D6DCE4',
-      inputActive: '#3B70C4',
-      inputError: '#DC2626',
+      inputActive: '#2E5BD6',
+      inputError: '#CB3A3A',
       inverse: 'rgba(255,255,255,0.22)',
     },
 
     control: {
-      inputBackground: '#F4F6F8',
+      inputBackground: '#EDE9E1',
       inputBackgroundDisabled: '#EEF1F4',
-      inputText: '#243447',
-      inputPlaceholder: '#98A2B3',
-      inputLabel: '#526173',
-      inputHelp: '#7B8794',
+      inputText: '#141721',
+      inputPlaceholder: '#9BA0AA',
+      inputLabel: '#4E525B',
+      inputHelp: '#8A8E98',
 
-      selectedBackground: '#EDF2FB',
-      selectedBorder: '#AFC5EB',
+      selectedBackground: '#E8EEFB',
+      selectedBorder: '#BFD0F2',
 
       disabledBackground: '#EEF1F4',
       disabledText: '#9AA3AF',
@@ -178,91 +190,103 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     },
 
     feedback: {
-      success: tone('#10B981', '#ECFDF5', '#047857', '#A7F3D0'),
-      warning: tone('#F59E0B', '#FFFBEB', '#B45309', '#FDE68A'),
-      danger: tone('#EF4444', '#FEF2F2', '#B91C1C', '#FECACA'),
-      info: tone('#3B82F6', '#EFF6FF', '#1D4ED8', '#BFDBFE'),
+      success: tone('#1F9D6B', '#E6F4ED', '#1F7A52', '#BEDECE'),
+      warning: tone('#C9780C', '#FBEFD9', '#8D5209', '#F2D7A6'),
+      danger: tone('#CB3A3A', '#F9E4E4', '#8B1F1F', '#E8B8B8'),
+      info: tone('#2F6CC9', '#E6EEFB', '#1F4EA3', '#B7CBEE'),
     },
 
     navigation: {
-      headerBackground: 'rgba(250,250,248,0.92)',
-      headerBorder: '#E7ECF2',
-      tabBarBackground: 'rgba(255,255,255,0.96)',
-      tabBarBorder: '#E7ECF2',
-      iconActive: '#3B70C4',
-      iconInactive: '#7B8794',
+      headerBackground: 'rgba(247,245,240,0.90)',
+      headerBorder: 'rgba(20,17,10,0.05)',
+      tabBarBackground: 'rgba(255,255,255,0.88)',
+      tabBarBorder: 'rgba(20,17,10,0.05)',
+      iconActive: '#2E5BD6',
+      iconInactive: '#8A8E98',
     },
 
     utility: {
       scrim: 'rgba(10,14,20,0.48)',
-      money: '#10B981',
+      money: '#1F9D6B',
     },
 
     category: {
-      delivery: tone('#3B82F6', '#EFF6FF', '#1D4ED8', '#BFDBFE'),
-      photo: tone('#8B5CF6', '#F5F3FF', '#6D28D9', '#DDD6FE'),
-      errand: tone('#F59E0B', '#FFFBEB', '#B45309', '#FDE68A'),
-      service: tone('#10B981', '#ECFDF5', '#047857', '#A7F3D0'),
-      digital: tone('#EC4899', '#FDF2F8', '#BE185D', '#FBCFE8'),
+      delivery: tone('#3B82F6', 'rgba(59,130,246,0.10)', '#2A4FAA', 'rgba(59,130,246,0.22)'),
+      photo: tone('#8B5CF6', 'rgba(139,92,246,0.10)', '#5A389C', 'rgba(139,92,246,0.22)'),
+      errand: tone('#D98722', 'rgba(217,135,34,0.12)', '#8C5812', 'rgba(217,135,34,0.26)'),
+      service: tone('#1F9D6B', 'rgba(31,157,107,0.10)', '#156E4A', 'rgba(31,157,107,0.22)'),
+      digital: tone('#E0579D', 'rgba(224,87,157,0.10)', '#9A3E6C', 'rgba(224,87,157,0.22)'),
+    },
+
+    accent: {
+      primary: '#E08A3C',
+      primarySurface: '#FCEFDF',
+      primaryBorder: '#F3D1A8',
+    },
+
+    numeric: {
+      positive: '#1F9D6B',
+      negative: '#CB3A3A',
+      neutral: '#141721',
     },
   },
 
   dark: {
     surface: {
-      background: '#151922',
-      backgroundAlt: '#1B2030',
-      card: '#1E2330',
-      cardElevated: '#252B3B',
-      inset: '#121723',
+      background: '#0D1018',
+      backgroundAlt: '#111521',
+      card: '#161B29',
+      cardElevated: '#1C2233',
+      inset: '#131826',
       overlay: 'rgba(10,14,20,0.68)',
-      navbar: 'rgba(21,25,34,0.90)',
-      tabBar: 'rgba(21,25,34,0.96)',
-      sheet: '#1C2231',
-      modal: '#202738',
-      pressed: '#2A3140',
-      inverse: '#F5F7FB',
+      navbar: 'rgba(13,16,24,0.90)',
+      tabBar: 'rgba(22,27,41,0.88)',
+      sheet: '#161B29',
+      modal: '#1C2233',
+      pressed: '#1A2030',
+      inverse: '#F4F2ED',
     },
 
     brand: {
-      primary: '#3B70C4',
-      primaryPressed: '#2D57A0',
-      primarySurface: '#1E3258',
-      primaryBorder: '#355E9E',
+      primary: '#5E87E8',
+      primaryPressed: '#7099F0',
+      primarySurface: 'rgba(94,135,232,0.14)',
+      primaryBorder: 'rgba(94,135,232,0.32)',
       onPrimary: '#FFFFFF',
-      focusRing: '#7AA8F2',
+      focusRing: 'rgba(94,135,232,0.42)',
     },
 
     content: {
-      primary: '#E5EDF8',
-      secondary: '#B8C4D4',
-      tertiary: '#8A95A3',
-      inverse: '#151922',
-      link: '#7AA8F2',
+      primary: '#F4F2ED',
+      secondary: '#B6BAC5',
+      tertiary: '#7A8096',
+      inverse: '#0D1018',
+      link: '#7FA7F0',
       disabled: '#66717F',
       placeholder: '#748091',
     },
 
     border: {
-      subtle: '#242B39',
-      default: '#313A4A',
-      strong: '#465063',
-      divider: '#2A3140',
-      input: '#384253',
-      inputActive: '#7AA8F2',
-      inputError: '#F87171',
+      subtle: 'rgba(255,255,255,0.08)',
+      default: 'rgba(255,255,255,0.10)',
+      strong: 'rgba(255,255,255,0.18)',
+      divider: 'rgba(255,255,255,0.08)',
+      input: 'rgba(255,255,255,0.18)',
+      inputActive: '#5E87E8',
+      inputError: '#F0706E',
       inverse: 'rgba(255,255,255,0.14)',
     },
 
     control: {
-      inputBackground: '#202738',
+      inputBackground: '#131826',
       inputBackgroundDisabled: '#1A2130',
-      inputText: '#E5EDF8',
+      inputText: '#F4F2ED',
       inputPlaceholder: '#748091',
-      inputLabel: '#B8C4D4',
-      inputHelp: '#8A95A3',
+      inputLabel: '#B6BAC5',
+      inputHelp: '#7A8096',
 
-      selectedBackground: '#1E3258',
-      selectedBorder: '#3B70C4',
+      selectedBackground: 'rgba(94,135,232,0.14)',
+      selectedBorder: 'rgba(94,135,232,0.32)',
 
       disabledBackground: '#1A2130',
       disabledText: '#66717F',
@@ -270,32 +294,44 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     },
 
     feedback: {
-      success: tone('#10B981', '#063B2E', '#6EE7B7', '#14532D'),
-      warning: tone('#F59E0B', '#4A3208', '#FCD34D', '#7C5A10'),
-      danger: tone('#EF4444', '#4A1717', '#FCA5A5', '#7F1D1D'),
-      info: tone('#3B82F6', '#142C5F', '#93C5FD', '#1D4ED8'),
+      success: tone('#3ACB8E', 'rgba(58,203,142,0.14)', '#7FE3B5', 'rgba(58,203,142,0.30)'),
+      warning: tone('#F0A365', 'rgba(240,163,101,0.14)', '#F5C999', 'rgba(240,163,101,0.30)'),
+      danger: tone('#F0706E', 'rgba(240,112,110,0.14)', '#F5A3A3', 'rgba(240,112,110,0.30)'),
+      info: tone('#7FA7F0', 'rgba(127,167,240,0.14)', '#B3CBF5', 'rgba(127,167,240,0.30)'),
     },
 
     navigation: {
-      headerBackground: 'rgba(21,25,34,0.90)',
-      headerBorder: 'rgba(184,196,212,0.12)',
-      tabBarBackground: 'rgba(21,25,34,0.96)',
-      tabBarBorder: '#2A3140',
-      iconActive: '#7AA8F2',
-      iconInactive: '#8A95A3',
+      headerBackground: 'rgba(13,16,24,0.90)',
+      headerBorder: 'rgba(255,255,255,0.08)',
+      tabBarBackground: 'rgba(22,27,41,0.88)',
+      tabBarBorder: 'rgba(255,255,255,0.08)',
+      iconActive: '#5E87E8',
+      iconInactive: '#7A8096',
     },
 
     utility: {
       scrim: 'rgba(0,0,0,0.65)',
-      money: '#34D399',
+      money: '#3ACB8E',
     },
 
     category: {
-      delivery: tone('#60A5FA', '#132743', '#BFDBFE', '#1D4ED8'),
-      photo: tone('#A78BFA', '#251A46', '#DDD6FE', '#7C3AED'),
-      errand: tone('#FBBF24', '#3D2B09', '#FDE68A', '#B45309'),
-      service: tone('#34D399', '#0D332A', '#A7F3D0', '#047857'),
-      digital: tone('#F472B6', '#43182F', '#FBCFE8', '#BE185D'),
+      delivery: tone('#60A5FA', 'rgba(96,165,250,0.14)', '#BFDBFE', 'rgba(96,165,250,0.32)'),
+      photo: tone('#A78BFA', 'rgba(167,139,250,0.14)', '#DDD6FE', 'rgba(167,139,250,0.32)'),
+      errand: tone('#FBBF24', 'rgba(251,191,36,0.14)', '#FDE68A', 'rgba(251,191,36,0.32)'),
+      service: tone('#34D399', 'rgba(52,211,153,0.14)', '#A7F3D0', 'rgba(52,211,153,0.32)'),
+      digital: tone('#F472B6', 'rgba(244,114,182,0.14)', '#FBCFE8', 'rgba(244,114,182,0.32)'),
+    },
+
+    accent: {
+      primary: '#F0A365',
+      primarySurface: 'rgba(240,163,101,0.14)',
+      primaryBorder: 'rgba(240,163,101,0.32)',
+    },
+
+    numeric: {
+      positive: '#3ACB8E',
+      negative: '#F0706E',
+      neutral: '#F4F2ED',
     },
   },
 }
@@ -358,23 +394,23 @@ export const typography = {
       fontSize: 44,
       lineHeight: 50,
       fontWeight: fontWeights.bold,
-      letterSpacing: -0.8,
+      letterSpacing: -1.2,
     } satisfies TextStyleToken,
 
     h1: {
       fontFamily: fonts.display.bold,
-      fontSize: 32,
-      lineHeight: 38,
+      fontSize: 30,
+      lineHeight: 36,
       fontWeight: fontWeights.bold,
-      letterSpacing: -0.5,
+      letterSpacing: -0.6,
     } satisfies TextStyleToken,
 
     h2: {
       fontFamily: fonts.display.semibold,
-      fontSize: 24,
-      lineHeight: 30,
+      fontSize: 22,
+      lineHeight: 28,
       fontWeight: fontWeights.semibold,
-      letterSpacing: -0.3,
+      letterSpacing: -0.4,
     } satisfies TextStyleToken,
 
     h3: {
@@ -386,47 +422,69 @@ export const typography = {
 
     title: {
       fontFamily: fonts.body.semibold,
-      fontSize: 18,
+      fontSize: 17,
       lineHeight: 24,
       fontWeight: fontWeights.semibold,
     } satisfies TextStyleToken,
 
     body: {
       fontFamily: fonts.body.regular,
-      fontSize: 16,
-      lineHeight: 24,
+      fontSize: 15,
+      lineHeight: 22,
       fontWeight: fontWeights.regular,
     } satisfies TextStyleToken,
 
     bodySmall: {
       fontFamily: fonts.body.regular,
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: 13,
+      lineHeight: 18,
       fontWeight: fontWeights.regular,
     } satisfies TextStyleToken,
 
     label: {
-      fontFamily: fonts.body.medium,
-      fontSize: 13,
-      lineHeight: 18,
-      fontWeight: fontWeights.medium,
-      letterSpacing: 0.2,
+      fontFamily: fonts.body.semibold,
+      fontSize: 12,
+      lineHeight: 16,
+      fontWeight: fontWeights.semibold,
+      letterSpacing: 0.24,
     } satisfies TextStyleToken,
 
     caption: {
       fontFamily: fonts.body.medium,
-      fontSize: 12,
-      lineHeight: 16,
+      fontSize: 11,
+      lineHeight: 14,
       fontWeight: fontWeights.medium,
-      letterSpacing: 0.2,
+      letterSpacing: 0.12,
     } satisfies TextStyleToken,
 
     button: {
       fontFamily: fonts.body.semibold,
-      fontSize: 16,
+      fontSize: 15,
       lineHeight: 20,
       fontWeight: fontWeights.semibold,
       letterSpacing: 0.1,
+    } satisfies TextStyleToken,
+
+    mono: {
+      fontFamily: fonts.mono,
+      fontSize: 15,
+      lineHeight: 20,
+      fontWeight: fontWeights.medium,
+    } satisfies TextStyleToken,
+
+    monoMid: {
+      fontFamily: fonts.mono,
+      fontSize: 22,
+      lineHeight: 26,
+      fontWeight: fontWeights.semibold,
+    } satisfies TextStyleToken,
+
+    monoLarge: {
+      fontFamily: fonts.mono,
+      fontSize: 40,
+      lineHeight: 44,
+      fontWeight: fontWeights.semibold,
+      letterSpacing: -0.2,
     } satisfies TextStyleToken,
 
     monoSmall: {
@@ -438,48 +496,65 @@ export const typography = {
   },
 } as const
 
+// Shadow values collapse the spec's two-layer design to a single RN-native
+// shadow (the wider/farther tuple). Re-introduce a nested-View approach if
+// a specific surface needs the full two-layer treatment.
 export const shadows = {
   card: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.04,
+    shadowRadius: 12,
     elevation: 2,
   },
   elevated: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.08,
+    shadowRadius: 28,
     elevation: 5,
   },
   sheet: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -6 },
-    shadowOpacity: 0.16,
-    shadowRadius: 20,
+    shadowOffset: { width: 0, height: -24 },
+    shadowOpacity: 0.10,
+    shadowRadius: 48,
     elevation: 8,
   },
   modal: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.2,
-    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 24 },
+    shadowOpacity: 0.16,
+    shadowRadius: 40,
     elevation: 10,
+  },
+  fab: {
+    shadowColor: '#2E5BD6',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.20,
+    shadowRadius: 28,
+    elevation: 8,
   },
 } as const
 
 export const motion = {
   duration: {
+    instant: 90,
     fast: 150,
     normal: 220,
     slow: 320,
+    emphasis: 480,
   },
   easing: {
     standard: [0.2, 0, 0, 1],
     entrance: [0, 0, 0, 1],
     exit: [0.4, 0, 1, 1],
     emphasized: [0.2, 0, 0, 1],
+  },
+  spring: {
+    damping: 18,
+    stiffness: 200,
+    mass: 0.8,
   },
 } as const
 
