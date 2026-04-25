@@ -3,8 +3,8 @@ import { Pressable, View } from 'react-native'
 import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
+import { CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react-native'
 import type { ColorScheme } from '@/theme/tokens'
-import { radius, shadows } from '@/theme/tokens'
 import { Text } from './Text'
 
 type ToastVariant = 'success' | 'error' | 'warning' | 'info'
@@ -16,11 +16,18 @@ interface ToastMessage {
   duration?: number
 }
 
-const variantTokens: Record<ToastVariant, keyof ColorScheme['feedback']> = {
+const FEEDBACK_KEY: Record<ToastVariant, keyof ColorScheme['feedback']> = {
   success: 'success',
   error: 'danger',
   warning: 'warning',
   info: 'info',
+}
+
+const ICONS: Record<ToastVariant, typeof CheckCircle2> = {
+  success: CheckCircle2,
+  error: XCircle,
+  warning: AlertTriangle,
+  info: Info,
 }
 
 let toastListener: ((msg: ToastMessage) => void) | null = null
@@ -68,27 +75,51 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         style={{ position: 'absolute', top: insets.top + 8, left: 16, right: 16, gap: 8, zIndex: 9999 }}
         pointerEvents="box-none"
       >
-        {toasts.map((toast) => (
-          <Animated.View
-            key={toast.id}
-            entering={FadeInUp.duration(200)}
-            exiting={FadeOutUp.duration(200)}
-          >
-            <Pressable
-              style={{
-                backgroundColor: theme.colors.surface.modal,
-                borderRadius: radius.md,
-                padding: 14,
-                borderLeftWidth: 4,
-                borderLeftColor: theme.colors.feedback[variantTokens[toast.variant]].base,
-                ...shadows.elevated,
-              }}
-              onPress={() => removeToast(toast.id)}
+        {toasts.map((toast) => {
+          const tone = theme.colors.feedback[FEEDBACK_KEY[toast.variant]]
+          const Icon = ICONS[toast.variant]
+          return (
+            <Animated.View
+              key={toast.id}
+              entering={FadeInUp.duration(200)}
+              exiting={FadeOutUp.duration(200)}
             >
-              <Text weight="medium" size={14}>{toast.message}</Text>
-            </Pressable>
-          </Animated.View>
-        ))}
+              <Pressable
+                style={{
+                  height: 48,
+                  backgroundColor: theme.colors.surface.card,
+                  borderRadius: 14,
+                  paddingHorizontal: 14,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 10,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.08,
+                  shadowRadius: 24,
+                  elevation: 4,
+                }}
+                onPress={() => removeToast(toast.id)}
+              >
+                <View
+                  style={{
+                    width: 22,
+                    height: 22,
+                    borderRadius: 11,
+                    backgroundColor: tone.surface,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon size={12} color={tone.base} />
+                </View>
+                <Text size={13.5} color={theme.colors.content.primary} style={{ flex: 1 }}>
+                  {toast.message}
+                </Text>
+              </Pressable>
+            </Animated.View>
+          )
+        })}
       </View>
     </View>
   )

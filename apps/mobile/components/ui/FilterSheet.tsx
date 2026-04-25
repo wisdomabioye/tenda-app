@@ -145,7 +145,7 @@ export function FilterSheet({
                   key={cat.key}
                   label={cat.label}
                   selected={selectedCategory === cat.key}
-                  color={theme.colors.category[cat.key as keyof typeof theme.colors.category].base}
+                  category={cat.key}
                   onPress={() => handleCategoryPress(cat.key)}
                 />
               ))}

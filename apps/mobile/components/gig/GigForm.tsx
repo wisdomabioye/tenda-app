@@ -122,7 +122,7 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
                   key={cat.key}
                   label={cat.label}
                   selected={selectedCategory === cat.key}
-                  color={theme.colors.category[cat.key].text}
+                  category={cat.key}
                   onPress={() => setSelectedCategory(cat.key)}
                 />
               )

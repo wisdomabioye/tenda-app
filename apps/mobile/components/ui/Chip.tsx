@@ -1,39 +1,112 @@
 import { type ReactNode } from 'react'
-import { Pressable, StyleSheet } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { radius, typography } from '@/theme/tokens'
 import { Text } from './Text'
+
+type Variant = 'filter' | 'form'
+type Category = 'delivery' | 'photo' | 'errand' | 'service' | 'digital'
 
 interface ChipProps {
   label: string
   selected?: boolean
   onPress?: () => void
-  color?: string
+  variant?: Variant
+  category?: Category
   icon?: ReactNode
 }
 
 const s = StyleSheet.create({
-  base: {
+  filter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingVertical: 3,
-    paddingHorizontal: 10,
-    borderRadius: radius.full,
+    height: 32,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 9999,
+    borderWidth: 1,
     alignSelf: 'flex-start' as const,
   },
+  form: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignSelf: 'flex-start' as const,
+  },
+  pressed: { opacity: 0.85 },
 })
 
-export function Chip({ label, selected = false, onPress, color, icon }: ChipProps) {
+export function Chip({
+  label,
+  selected = false,
+  onPress,
+  variant = 'filter',
+  category,
+  icon,
+}: ChipProps) {
   const { theme } = useUnistyles()
 
-  const bgColor = selected ? color ?? theme.colors.brand.primary : theme.colors.surface.backgroundAlt
-  const textColor = selected ? theme.colors.brand.onPrimary : theme.colors.content.primary
+  let backgroundColor: string
+  let borderColor: string
+  let textColor: string
+  let fontWeight: '500' | '600' | '700' = '500'
+
+  if (category) {
+    const cat = theme.colors.category[category]
+    backgroundColor = cat.surface
+    borderColor = cat.border
+    textColor = cat.text
+    fontWeight = selected ? '700' : '500'
+  } else if (selected) {
+    backgroundColor = theme.colors.brand.primarySurface
+    borderColor = theme.colors.brand.primaryBorder
+    textColor = theme.colors.brand.primary
+    fontWeight = '600'
+  } else if (variant === 'form') {
+    backgroundColor = theme.colors.surface.card
+    borderColor = theme.colors.border.default
+    textColor = theme.colors.content.primary
+    fontWeight = '500'
+  } else {
+    backgroundColor = 'transparent'
+    borderColor = theme.colors.border.default
+    textColor = theme.colors.content.secondary
+    fontWeight = '500'
+  }
+
+  const containerStyle = variant === 'form' ? s.form : s.filter
+
+  const inner = (
+    <>
+      {icon && <View>{icon}</View>}
+      <Text size={13} color={textColor} style={{ fontWeight }}>
+        {label}
+      </Text>
+    </>
+  )
+
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          containerStyle,
+          { backgroundColor, borderColor },
+          pressed && s.pressed,
+        ]}
+      >
+        {inner}
+      </Pressable>
+    )
+  }
 
   return (
-    <Pressable onPress={onPress} style={[s.base, { backgroundColor: bgColor }]}>
-      {icon}
-      <Text size={typography.styles.caption.fontSize} weight="medium" color={textColor}>{label}</Text>
-    </Pressable>
+    <View style={[containerStyle, { backgroundColor, borderColor }]}>
+      {inner}
+    </View>
   )
 }
