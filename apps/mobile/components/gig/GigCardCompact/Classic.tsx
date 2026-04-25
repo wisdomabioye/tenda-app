@@ -5,7 +5,7 @@ import { MapPin, Clock, Globe, ArrowLeftRight } from 'lucide-react-native'
 import { spacing, radius, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { MoneyText } from '@/components/ui/MoneyText'
-import { GigStatusBadge } from './GigStatusBadge'
+import { GigStatusBadge } from '../GigStatusBadge'
 import { CATEGORY_META } from '@/data/mock'
 import { toPaymentDisplay } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
@@ -14,12 +14,19 @@ import { computeRelevantDeadline, LOCATIONS, type CountryCode } from '@tenda/sha
 import { deadlineLabel } from '@/lib/gig-display'
 import type { Gig } from '@tenda/shared'
 
-interface GigCardCompactProps {
+interface Props {
   gig: Gig
   showStatus?: boolean
 }
 
-export function GigCardCompact({ gig, showStatus = false }: GigCardCompactProps) {
+/**
+ * Variant — Classic (pre-V2 anatomy, kept for revertibility).
+ * Vertical stack: category dot + label, title (2-line), MoneyText (fiat ≈ sol horizontal),
+ * footer meta. Visually different from wireframe variant B `.card-classic` (which is a
+ * horizontal row); the name follows the wireframe taxonomy convention without claiming
+ * 1:1 fidelity to its specific anatomy.
+ */
+export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
   const router = useRouter()
   const { theme } = useUnistyles()
   const rates = useExchangeRateStore((s) => s.rates)
@@ -44,7 +51,6 @@ export function GigCardCompact({ gig, showStatus = false }: GigCardCompactProps)
         pressed && s.pressed,
       ]}
     >
-      {/* Category */}
       <View style={s.categoryRow}>
         <View style={[s.categoryDot, { backgroundColor: categoryColor.base }]} />
         <Text variant="caption" color={theme.colors.content.secondary}>
@@ -53,15 +59,12 @@ export function GigCardCompact({ gig, showStatus = false }: GigCardCompactProps)
         {showStatus && <GigStatusBadge status={gig.status} />}
       </View>
 
-      {/* Title */}
       <Text variant="subheading" numberOfLines={2} style={s.title}>
         {gig.title}
       </Text>
 
-      {/* Price */}
-      <MoneyText fiat={price.fiat} ratesReady={rates !== null} currency={currency} sol={price.sol} size={typography.styles.body.fontSize } />
+      <MoneyText fiat={price.fiat} ratesReady={rates !== null} currency={currency} sol={price.sol} size={typography.styles.body.fontSize} />
 
-      {/* Footer: location + deadline */}
       <View style={s.footer}>
         <View style={s.metaItem}>
           {gig.remote
@@ -101,25 +104,10 @@ const s = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.md,
   },
-  categoryRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  categoryDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  title: {
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
+  categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  categoryDot: { width: 8, height: 8, borderRadius: 4 },
+  title: { marginTop: spacing.sm, marginBottom: spacing.xs },
+  metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -127,8 +115,5 @@ const s = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.md,
   },
-  pressed: {
-    opacity: 0.92,
-    transform: [{ scale: 0.985 }],
-  },
+  pressed: { opacity: 0.92, transform: [{ scale: 0.985 }] },
 })

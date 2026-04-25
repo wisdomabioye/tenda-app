@@ -93,7 +93,7 @@ export default function HomeScreen() {
   }
 
   const renderGigItem = ({ item }: { item: Gig }) => (
-    <GigCardCompact gig={item} />
+    <GigCardCompact gig={item} variant="rich" />
   )
 
   if (!hasFetched && isLoading) {
