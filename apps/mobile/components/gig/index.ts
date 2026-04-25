@@ -1,4 +1,3 @@
-export { GigCard } from './GigCard'
 export { GigForm } from './GigForm'
 export type { GigFormValues } from './GigForm'
 export { GigStatusBadge } from './GigStatusBadge'
