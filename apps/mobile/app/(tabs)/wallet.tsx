@@ -3,11 +3,12 @@ import { View, FlatList, StyleSheet, RefreshControl } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { PublicKey } from '@solana/web3.js'
-import { spacing, radius, typography, shadows } from '@/theme/tokens'
+import { spacing, radius, shadows, typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Card, Header } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuthStore } from '@/stores/auth.store'
 import { FailedSyncPanel } from '@/components/sync/FailedSyncPanel'
+import { TxRow } from '@/components/wallet'
 
 import { api } from '@/api/client'
 import { getBalance } from '@/wallet'
@@ -16,107 +17,6 @@ import { DevnetBadge } from '@/components/feedback'
 import type { UserTransaction } from '@tenda/shared'
 
 const LAMPORTS_PER_SOL = 1_000_000_000
-
-const GIG_TYPE_LABEL: Record<string, string> = {
-  create_escrow:    'Escrow funded',
-  accept_gig:       'Gig accepted',
-  release_payment:  'Payment received',
-  cancel_refund:    'Refund received',
-  expired_refund:   'Refund (expired)',
-  dispute_resolved: 'Dispute resolved',
-}
-
-const EXCHANGE_TYPE_LABEL: Record<string, string> = {
-  create_escrow:    'Exchange escrow funded',
-  accept:           'Offer accepted',
-  mark_paid:        'Payment marked',
-  release_payment:  'SOL released',
-  cancel_refund:    'Offer refunded',
-  expired_refund:   'Refund (expired)',
-  dispute_raised:   'Dispute opened',
-  dispute_resolved: 'Dispute resolved',
-}
-
-/**
- * Returns '+', '-', or null (neutral) based on whether this transaction
- * represents money coming in or going out from the current user's perspective.
- */
-function getTxSign(tx: UserTransaction, userId: string): '+' | '-' | null {
-  if (tx.source === 'gig') {
-    const isWorker = tx.gig.worker_id === userId
-    const isPoster = tx.gig.poster_id === userId
-    switch (tx.type) {
-      case 'create_escrow':    return isPoster ? '-' : null
-      case 'release_payment':  return isWorker ? '+' : null
-      case 'cancel_refund':
-      case 'expired_refund':   return isPoster ? '+' : null
-      case 'dispute_resolved': {
-        if (!tx.winner) return null
-        if (tx.winner === 'split') return '+'
-        if (tx.winner === 'worker' && isWorker) return '+'
-        if (tx.winner === 'poster' && isPoster) return '+'
-        return null
-      }
-      default: return null
-    }
-  } else {
-    const isSeller = tx.offer.seller_id === userId
-    const isBuyer  = tx.offer.buyer_id  === userId
-    switch (tx.type) {
-      case 'create_escrow':    return isSeller ? '-' : null
-      case 'release_payment':  return isBuyer  ? '+' : null
-      case 'cancel_refund':
-      case 'expired_refund':   return isSeller ? '+' : null
-      case 'dispute_resolved': {
-        if (!tx.winner) return null
-        if (tx.winner === 'split') return '+'
-        if (tx.winner === 'seller' && isSeller) return '+'
-        if (tx.winner === 'buyer'  && isBuyer)  return '+'
-        return null
-      }
-      default: return null
-    }
-  }
-}
-
-function TxRow({ tx, userId }: { tx: UserTransaction; userId: string }) {
-  const { theme } = useUnistyles()
-
-  const sign  = getTxSign(tx, userId)
-  const color = sign === '+'
-    ? theme.colors.feedback.success.text
-    : sign === '-'
-      ? theme.colors.feedback.danger.text
-      : theme.colors.content.secondary
-
-  const sol   = tx.amount_lamports / LAMPORTS_PER_SOL
-  const label = tx.source === 'gig'
-    ? (GIG_TYPE_LABEL[tx.type]      ?? tx.type)
-    : (EXCHANGE_TYPE_LABEL[tx.type] ?? tx.type)
-
-  const subtitle = tx.source === 'gig'
-    ? tx.gig.title
-    : `${tx.offer.fiat_currency}/SOL`
-
-  const date = tx.created_at
-    ? new Date(tx.created_at).toLocaleDateString('en-NG', { day: 'numeric', month: 'short' })
-    : ''
-
-  return (
-    <View style={[s.txRow, { borderBottomColor: theme.colors.border.subtle }]}>
-      <View style={s.txLeft}>
-        <Text weight="medium" size={typography.styles.bodySmall.fontSize}>{label}</Text>
-        <Text variant="caption" color={theme.colors.content.tertiary} numberOfLines={1}>{subtitle}</Text>
-        <Text variant="caption" color={theme.colors.content.tertiary}>{date}</Text>
-      </View>
-      {sol > 0 && (
-        <Text weight="semibold" size={typography.styles.bodySmall.fontSize} color={color}>
-          {sign ?? ''}{sol.toFixed(4)} SOL
-        </Text>
-      )}
-    </View>
-  )
-}
 
 export default function WalletScreen() {
   const { theme } = useUnistyles()

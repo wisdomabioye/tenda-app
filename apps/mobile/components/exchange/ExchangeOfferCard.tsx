@@ -1,15 +1,14 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { Clock } from 'lucide-react-native'
-import { spacing, radius, typography, shadows } from '@/theme/tokens'
+import { ChevronRight } from 'lucide-react-native'
+import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
 import { PaymentMethodBadge } from './PaymentMethodBadge'
-import { formatFiat, formatSolDisplay, formatPaymentWindow } from '@/lib/currency'
-import type { ExchangeOfferSummary } from '@tenda/shared'
-import type { SupportedCurrency } from '@tenda/shared'
+import { formatFiat, formatSolDisplay } from '@/lib/currency'
+import type { ExchangeOfferSummary, SupportedCurrency } from '@tenda/shared'
 
 const LAMPORTS_PER_SOL = 1_000_000_000
 
@@ -18,132 +17,152 @@ interface Props {
   showStatus?: boolean
 }
 
-function deadlineLabel(deadline: string | null): string | null {
-  if (!deadline) return null
-  const ms = new Date(deadline).getTime() - Date.now()
-  if (ms <= 0) return 'Expired'
-  const h = Math.floor(ms / 3_600_000)
-  if (h < 1) return '< 1h left'
-  if (h < 24) return `${h}h left`
-  return `${Math.floor(h / 24)}d left`
-}
-
 export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
   const router = useRouter()
   const { theme } = useUnistyles()
 
   const sol = Number(offer.lamports_amount) / LAMPORTS_PER_SOL
-  const fiatFormatted = formatFiat(offer.fiat_amount, offer.fiat_currency as SupportedCurrency)
-  const rateFormatted = formatFiat(offer.rate, offer.fiat_currency as SupportedCurrency)
-  const sellerName = `${offer.seller.first_name} ${offer.seller.last_name}`.trim()
-  const deadlineTip = deadlineLabel(offer.accept_deadline as string | null)
+  const fiat = formatFiat(offer.fiat_amount, offer.fiat_currency as SupportedCurrency)
+  const rate = formatFiat(offer.rate, offer.fiat_currency as SupportedCurrency)
+  const sellerName = `${offer.seller.first_name ?? ''} ${offer.seller.last_name ?? ''}`.trim() || 'Seller'
+  const handle = offer.seller.first_name
+    ? `@${offer.seller.first_name.toLowerCase()}`
+    : null
+  const score = offer.seller.reputation_score
 
   return (
     <Pressable
       onPress={() => router.push(`/exchange/${offer.id}`)}
       style={({ pressed }) => [
-        s.card,
-        { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.subtle },
+        s.row,
+        { borderBottomColor: theme.colors.border.subtle },
         pressed && s.pressed,
       ]}
     >
-      {/* Seller row — single line: avatar · name · ★ score — status badge */}
-      <View style={s.sellerRow}>
-        <Avatar src={offer.seller.avatar_url} name={sellerName} size="sm" />
-        <View style={s.sellerInfo}>
-          <Text weight="medium" size={typography.styles.bodySmall.fontSize} numberOfLines={1}>{sellerName}</Text>
-          {offer.seller.reputation_score != null && (
-            <Text variant="caption" color={theme.colors.content.tertiary}>
-              ★ {offer.seller.reputation_score.toFixed(1)}
+      <Avatar src={offer.seller.avatar_url} name={sellerName} size="md" />
+
+      <View style={s.body}>
+        {/* Row 1 — sol → fiat */}
+        <View style={s.row1}>
+          <Text style={[s.sol, { color: theme.colors.content.primary }]} numberOfLines={1}>
+            {formatSolDisplay(sol)}
+          </Text>
+          <Text style={[s.arrow, { color: theme.colors.content.tertiary }]}>→</Text>
+          <Text style={[s.fiat, { color: theme.colors.content.primary }]} numberOfLines={1}>
+            {fiat}
+          </Text>
+        </View>
+
+        {/* Row 2 — handle · ★ rating · rate/SOL */}
+        <View style={s.row2}>
+          {handle && (
+            <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>{handle}</Text>
+          )}
+          {score != null && handle && (
+            <Text style={[s.metaSep, { color: theme.colors.content.tertiary }]}>·</Text>
+          )}
+          {score != null && (
+            <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>
+              <Text style={{ color: theme.colors.accent.primary }}>★ </Text>
+              {score.toFixed(1)}
             </Text>
           )}
+          <Text style={[s.metaSep, { color: theme.colors.content.tertiary }]}>·</Text>
+          <Text style={[s.metaText, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
+            {rate}/SOL
+          </Text>
         </View>
-        {showStatus && <ExchangeStatusBadge status={offer.status} />}
-      </View>
 
-      {/* Amount */}
-      <View style={s.amountRow}>
-        <Text weight="bold" size={typography.styles.h2.fontSize} color={theme.colors.utility.money}>
-          {fiatFormatted}
-        </Text>
-        <Text variant="caption" color={theme.colors.content.secondary}>
-          ≈ {formatSolDisplay(sol)}
-        </Text>
-      </View>
+        {/* Row 3 — offer status (My Offers variant) */}
+        {showStatus && (
+          <View style={s.row3}>
+            <ExchangeStatusBadge status={offer.status} />
+          </View>
+        )}
 
-      {/* Rate + window */}
-      <View style={s.metaRow}>
-        <Text variant="caption" color={theme.colors.content.secondary}>
-          Rate: {rateFormatted}/SOL
-        </Text>
-        <Text variant="caption" color={theme.colors.content.secondary}>
-          Window: {formatPaymentWindow(offer.payment_window_seconds)}
-        </Text>
-      </View>
-
-      {/* Footer: payment methods — deadline */}
-      <View style={s.footer}>
-        <View style={s.methods}>
-          {offer.payment_methods.map((m) => (
-            <PaymentMethodBadge key={m} method={m} />
-          ))}
-        </View>
-        {deadlineTip && (
-          <View style={s.deadline}>
-            <Clock size={11} color={theme.colors.feedback.warning.base} />
-            <Text size={11} color={theme.colors.feedback.warning.base}>{deadlineTip}</Text>
+        {/* Row 4 — payment method pills */}
+        {offer.payment_methods.length > 0 && (
+          <View style={s.row4}>
+            {offer.payment_methods.map((m) => (
+              <PaymentMethodBadge key={m} method={m} />
+            ))}
           </View>
         )}
       </View>
+
+      <ChevronRight size={20} color={theme.colors.content.tertiary} style={s.chev} />
     </Pressable>
   )
 }
 
 const s = StyleSheet.create({
-  card: {
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    padding: spacing.sm,
-    gap: spacing.xs,
-    ...shadows.card,
-  },
-  pressed: { opacity: 0.85 },
-  sellerRow: {
+  row: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
   },
-  sellerInfo: {
+  pressed: { opacity: 0.96 },
+  body: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
+    minWidth: 0,
   },
-  amountRow: {
+  row1: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    gap: spacing.xs,
+    gap: 6,
   },
-  metaRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  sol: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '700',
+    letterSpacing: -0.16,
+    flexShrink: 0,
   },
-  footer: {
+  arrow: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 13,
+    lineHeight: 18,
+    flexShrink: 0,
+  },
+  fiat: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  row2: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    gap: 6,
+    marginTop: 3,
     flexWrap: 'wrap',
-    gap: spacing.xs,
   },
-  methods: {
+  metaText: {
+    fontSize: 12.5,
+    lineHeight: 16,
+  },
+  metaSep: {
+    fontSize: 12.5,
+    lineHeight: 16,
+    opacity: 0.5,
+  },
+  row3: {
+    flexDirection: 'row',
+    marginTop: 8,
+  },
+  row4: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 4,
-    flex: 1,
+    marginTop: 8,
   },
-  deadline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
+  chev: {
+    alignSelf: 'center',
   },
 })
