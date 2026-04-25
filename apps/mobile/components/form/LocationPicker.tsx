@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { MapPin, ChevronDown, LocateFixed } from 'lucide-react-native'
-import { radius, spacing, typography } from '@/theme/tokens'
+import { MapPin, ChevronRight, LocateFixed } from 'lucide-react-native'
+import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { SearchSheet, type SearchSheetItem } from './SearchSheet'
 import { useLocationDetect } from '@/hooks/useLocationDetect'
@@ -15,7 +15,6 @@ interface LocationPickerProps {
   label?: string
 }
 
-// Build static item lists once (module level — no re-creation on render)
 const COUNTRY_ITEMS: SearchSheetItem[] = Object.entries(LOCATIONS).map(([code, entry]) => ({
   key: code,
   label: entry.name,
@@ -28,13 +27,17 @@ function cityItems(countryCode: string): SearchSheetItem[] {
   return entry.cities.map((c) => ({ key: c, label: c }))
 }
 
+/**
+ * Picker row per `create-gig.html .picker-row`:
+ *   64h R14 --inset, grid 24/1fr/16, gap 12. Leading MapPin 16 in --ink-2,
+ *   body has mono 9.5/600 +0.10em uppercase eyebrow + 14.5 value (placeholder = --ink-3).
+ *   Trailing chevron 14 --ink-3.
+ */
 export function LocationPicker({ country, city, onChange, label = 'Location' }: LocationPickerProps) {
   const { theme } = useUnistyles()
   const [countryOpen, setCountryOpen] = useState(false)
   const [cityOpen, setCityOpen]       = useState(false)
 
-  // Tracks which country's cities to show during the two-step flow.
-  // Stays in sync with the `country` prop once a selection is committed.
   const [pendingCountry, setPendingCountry] = useState<string | null>(country)
   useEffect(() => { setPendingCountry(country) }, [country])
 
@@ -48,7 +51,6 @@ export function LocationPicker({ country, city, onChange, label = 'Location' }: 
   function handleCountrySelect(code: string) {
     setPendingCountry(code)
     setCountryOpen(false)
-    // Reset city when country changes, then immediately open city picker
     if (code !== country) onChange(code, null)
     setCityOpen(true)
   }
@@ -64,11 +66,13 @@ export function LocationPicker({ country, city, onChange, label = 'Location' }: 
   }
 
   const countryEntry = country ? LOCATIONS[country as CountryCode] : null
-  const triggerLabel = countryEntry
+  const valueText = countryEntry
     ? city
       ? `${countryEntry.flag} ${countryEntry.name} · ${city}`
       : `${countryEntry.flag} ${countryEntry.name}`
     : 'Select location'
+
+  const isPlaceholder = !country
 
   const gpsButton = (
     <Pressable
@@ -77,7 +81,7 @@ export function LocationPicker({ country, city, onChange, label = 'Location' }: 
       style={[s.gpsBtn, { backgroundColor: theme.colors.brand.primarySurface }]}
     >
       <LocateFixed size={14} color={theme.colors.brand.primary} />
-      <Text size={typography.styles.caption.fontSize} weight="semibold" color={theme.colors.brand.primary}>
+      <Text size={12.5} weight="semibold" color={theme.colors.brand.primary}>
         {detecting ? 'Detecting…' : 'Use my location'}
       </Text>
     </Pressable>
@@ -85,33 +89,40 @@ export function LocationPicker({ country, city, onChange, label = 'Location' }: 
 
   return (
     <>
-      <View style={s.container}>
-        {label ? <Text variant="label" style={s.label}>{label}</Text> : null}
-        <Pressable
-          onPress={() => setCountryOpen(true)}
-          style={[
-            s.trigger,
-            {
-              backgroundColor: theme.colors.control.inputBackground,
-              borderColor: countryOpen || cityOpen ? theme.colors.brand.focusRing : 'transparent',
-            },
-          ]}
-        >
-          <MapPin size={16} color={country ? theme.colors.brand.primary : theme.colors.content.tertiary} />
-          <Text
-            style={s.triggerText}
-            color={country ? theme.colors.content.primary : theme.colors.content.tertiary}
-          >
-            {triggerLabel}
+      <Pressable
+        onPress={() => setCountryOpen(true)}
+        style={({ pressed }) => [
+          s.row,
+          { backgroundColor: theme.colors.surface.inset },
+          pressed && { opacity: 0.85 },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+      >
+        <MapPin size={16} color={theme.colors.content.secondary} />
+        <View style={s.body}>
+          <Text style={[s.eyebrow, { color: theme.colors.content.tertiary }]}>
+            {label.toUpperCase()}
           </Text>
-          <ChevronDown size={16} color={theme.colors.content.tertiary} />
-        </Pressable>
-        {error ? (
-          <Text size={12} color={theme.colors.feedback.warning.base}>{error}</Text>
-        ) : null}
-      </View>
+          <Text
+            style={[
+              s.value,
+              { color: isPlaceholder ? theme.colors.content.tertiary : theme.colors.content.primary },
+            ]}
+            numberOfLines={1}
+          >
+            {valueText}
+          </Text>
+        </View>
+        <ChevronRight size={14} color={theme.colors.content.tertiary} />
+      </Pressable>
 
-      {/* Step 1 — pick country */}
+      {error ? (
+        <Text size={12} color={theme.colors.feedback.warning.base} style={s.error}>
+          {error}
+        </Text>
+      ) : null}
+
       <SearchSheet
         visible={countryOpen}
         onClose={() => setCountryOpen(false)}
@@ -122,7 +133,6 @@ export function LocationPicker({ country, city, onChange, label = 'Location' }: 
         searchPlaceholder="Search country…"
       />
 
-      {/* Step 2 — pick city within selected country */}
       <SearchSheet
         visible={cityOpen}
         onClose={handleCityClose}
@@ -138,21 +148,36 @@ export function LocationPicker({ country, city, onChange, label = 'Location' }: 
 }
 
 const s = StyleSheet.create({
-  container: { gap: 6 },
-  label: { marginBottom: 2 },
-  trigger: {
+  row: {
+    marginHorizontal: 20,
+    height: 64,
+    borderRadius: 14,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
+    gap: 12,
   },
-  triggerText: {
+  body: {
     flex: 1,
-    fontFamily: 'Inter_400Regular',
-    fontSize: typography.styles.body.fontSize,
+    minWidth: 0,
+  },
+  eyebrow: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 9.5,
+    lineHeight: 12,
+    fontWeight: '600',
+    letterSpacing: 0.95,
+    marginBottom: 2,
+    includeFontPadding: false,
+  },
+  value: {
+    fontSize: 14.5,
+    lineHeight: 18,
+    letterSpacing: -0.07,
+  },
+  error: {
+    paddingHorizontal: 24,
+    paddingTop: 4,
   },
   gpsBtn: {
     flexDirection: 'row',
@@ -160,6 +185,6 @@ const s = StyleSheet.create({
     gap: 6,
     paddingVertical: 4,
     paddingHorizontal: 10,
-    borderRadius: radius.full,
+    borderRadius: 9999,
   },
 })

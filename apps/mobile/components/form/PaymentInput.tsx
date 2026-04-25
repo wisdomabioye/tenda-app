@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { View, TextInput, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { radius, spacing, typography } from '@/theme/tokens'
+import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
@@ -12,12 +12,17 @@ import { formatSolDisplay } from '@/lib/currency'
 const LAMPORTS_PER_SOL = 1_000_000_000
 
 interface PaymentInputProps {
-  value: number   // lamports
+  value: number
   onChange: (lamports: number) => void
 }
 
 type Mode = 'FIAT' | 'SOL'
 
+/**
+ * Budget card per `create-gig.html .budget-card`:
+ *   inset 72h R14 with mono 22/700 amount + mono 13 unit suffix + mono 12.5 fiat alt right-aligned.
+ *   Adds a small SOL/FIAT mode toggle above (V2 ergonomics — wireframe only shows SOL display).
+ */
 export function PaymentInput({ value, onChange }: PaymentInputProps) {
   const { theme } = useUnistyles()
   const rates = useExchangeRateStore((s) => s.rates)
@@ -25,18 +30,16 @@ export function PaymentInput({ value, onChange }: PaymentInputProps) {
   const meta = CURRENCY_META[currency]
   const rate = rates?.[currency] ?? null
 
-  const hasInitialValue = value > 0
-  const [mode, setMode] = useState<Mode>(hasInitialValue ? 'SOL' : 'FIAT')
+  const hasInitial = value > 0
+  const [mode, setMode] = useState<Mode>(hasInitial ? 'SOL' : 'FIAT')
   const [text, setText] = useState(() =>
-    hasInitialValue ? (value / LAMPORTS_PER_SOL).toFixed(4) : ''
+    hasInitial ? (value / LAMPORTS_PER_SOL).toFixed(4) : ''
   )
-  const [focused, setFocused] = useState(false)
 
   const currentSol = value / LAMPORTS_PER_SOL
   const currentFiat = rate != null ? currentSol * rate : null
 
   const minSol = (MIN_PAYMENT_LAMPORTS / LAMPORTS_PER_SOL).toFixed(4)
-  const minFiat = rate != null ? Math.round((MIN_PAYMENT_LAMPORTS / LAMPORTS_PER_SOL) * rate) : null
 
   function handleChangeText(raw: string) {
     setText(raw)
@@ -49,112 +52,143 @@ export function PaymentInput({ value, onChange }: PaymentInputProps) {
     } else {
       lamports = Math.round(num * LAMPORTS_PER_SOL)
     }
-
     if (lamports > MAX_PAYMENT_LAMPORTS) lamports = MAX_PAYMENT_LAMPORTS
     onChange(lamports)
   }
 
-  function handleModeToggle(next: Mode) {
+  function toggleMode(next: Mode) {
     setMode(next)
     setText('')
   }
 
-  const equivalent =
-    mode === 'FIAT'
-      ? `≈ ${formatSolDisplay(currentSol)}`
-      : currentFiat != null
-        ? `≈ ${currentFiat.toLocaleString(meta.locale, { maximumFractionDigits: 0 })} ${currency}`
+  const fiatAlt =
+    mode === 'SOL' && currentFiat != null
+      ? `≈ ${currentFiat.toLocaleString(meta.locale, { maximumFractionDigits: 0 })} ${currency}`
+      : mode === 'FIAT' && currentSol > 0
+        ? `≈ ${formatSolDisplay(currentSol)}`
         : ''
 
-  const helperText =
-    mode === 'FIAT'
-      ? minFiat != null
-        ? `Min ${meta.symbol}${minFiat.toLocaleString(meta.locale)} (~${minSol} SOL)`
-        : `Min ${minSol} SOL`
-      : `Min ${minSol} SOL`
-
-  const fiatLabel = rate != null ? currency : `${currency} (loading…)`
-  const borderColor = focused ? theme.colors.brand.focusRing : 'transparent'
+  const placeholder = mode === 'FIAT' ? meta.symbol + '0' : '0.0000'
+  const unitLabel = mode === 'FIAT' ? currency : 'SOL'
 
   return (
-    <View style={s.container}>
-      <Text variant="label">Payment</Text>
-
-      {/* Toggle */}
-      <View style={[s.toggleRow, { backgroundColor: theme.colors.surface.backgroundAlt }]}>
+    <View style={s.wrap}>
+      <View style={s.modeRow}>
         {(['FIAT', 'SOL'] as Mode[]).map((m) => (
           <Pressable
             key={m}
-            onPress={() => handleModeToggle(m)}
-            style={[
-              s.toggleBtn,
-              mode === m && { backgroundColor: theme.colors.surface.card },
+            onPress={() => toggleMode(m)}
+            style={({ pressed }) => [
+              s.modeBtn,
+              mode === m && { backgroundColor: theme.colors.brand.primarySurface },
+              pressed && { opacity: 0.85 },
             ]}
           >
             <Text
-              size={13}
+              size={11.5}
               weight="semibold"
-              color={mode === m ? theme.colors.brand.primary : theme.colors.content.secondary}
+              color={mode === m ? theme.colors.brand.primary : theme.colors.content.tertiary}
+              style={{ letterSpacing: 0.5, textTransform: 'uppercase' }}
             >
-              {m === 'FIAT' ? fiatLabel : 'SOL'}
+              {m === 'FIAT' ? currency : 'SOL'}
             </Text>
           </Pressable>
         ))}
       </View>
 
-      {/* Input */}
-      <View style={[s.inputWrapper, { backgroundColor: theme.colors.control.inputBackground, borderColor }]}>
-        <Text size={16} weight="medium" color={theme.colors.content.secondary} style={s.prefix}>
-          {mode === 'FIAT' ? meta.symbol : '◎'}
-        </Text>
-        <TextInput
-          style={[s.input, { color: theme.colors.content.primary }]}
-          value={text}
-          onChangeText={handleChangeText}
-          placeholder={mode === 'FIAT' ? '0' : '0.0000'}
-          placeholderTextColor={theme.colors.content.tertiary}
-          keyboardType="decimal-pad"
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-        />
+      <View style={[s.card, { backgroundColor: theme.colors.surface.inset }]}>
+        <Text style={[s.label, { color: theme.colors.content.tertiary }]}>BUDGET</Text>
+
+        <View style={s.row}>
+          <TextInput
+            value={text}
+            onChangeText={handleChangeText}
+            placeholder={placeholder}
+            placeholderTextColor={theme.colors.content.tertiary}
+            keyboardType="decimal-pad"
+            style={[
+              s.amount,
+              { color: text ? theme.colors.content.primary : theme.colors.content.tertiary },
+            ]}
+            maxFontSizeMultiplier={1}
+          />
+          <Text style={[s.suffix, { color: theme.colors.content.tertiary }]}>{unitLabel}</Text>
+        </View>
+        {fiatAlt ? (
+          <Text style={[s.fiat, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
+            {fiatAlt}
+          </Text>
+        ) : null}
       </View>
 
-      {/* Equivalent + helper */}
-      {value > 0 && (
-        <Text variant="caption" color={theme.colors.content.secondary}>{equivalent}</Text>
-      )}
-      <Text variant="caption" color={theme.colors.content.tertiary}>{helperText}</Text>
+      <Text size={12} color={theme.colors.content.tertiary} style={s.helper}>
+        Minimum {minSol} SOL
+      </Text>
     </View>
   )
 }
 
 const s = StyleSheet.create({
-  container: { gap: 6 },
-  toggleRow: {
-    flexDirection: 'row',
-    borderRadius: radius.md,
-    padding: 2,
+  wrap: {
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  modeRow: {
     alignSelf: 'flex-start',
-  },
-  toggleBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 16,
-    borderRadius: radius.md - 2,
-  },
-  inputWrapper: {
     flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    paddingHorizontal: spacing.sm,
+    gap: 4,
   },
-  prefix: {
-    paddingRight: 4,
+  modeBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 9999,
   },
-  input: {
-    flex: 1,
-    fontSize: typography.styles.body.fontSize,
-    fontFamily: 'Manrope_400Regular',
+  card: {
+    minHeight: 72,
+    borderRadius: 14,
+    paddingHorizontal: 16,
     paddingVertical: 12,
+    justifyContent: 'center',
+  },
+  label: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 9.5,
+    lineHeight: 12,
+    fontWeight: '600',
+    letterSpacing: 0.95,
+    marginBottom: 4,
+    includeFontPadding: false,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  amount: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: typography.fonts.mono,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: '700',
+    letterSpacing: -0.44,
+    padding: 0,
+  },
+  suffix: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 13,
+    lineHeight: 16,
+    fontWeight: '600',
+    letterSpacing: 0.13,
+    flexShrink: 0,
+  },
+  fiat: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 12.5,
+    lineHeight: 16,
+    marginTop: 4,
+  },
+  helper: {
+    paddingHorizontal: 4,
   },
 })
