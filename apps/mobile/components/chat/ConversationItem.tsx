@@ -1,6 +1,6 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing, radius, typography } from '@/theme/tokens'
+import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import type { Conversation } from '@tenda/shared'
@@ -10,20 +10,40 @@ interface ConversationItemProps {
   onPress: () => void
 }
 
+function formatTimestamp(iso: string): string {
+  const date = new Date(iso)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMin = Math.floor(diffMs / 60_000)
+  const sameDay = date.toDateString() === now.toDateString()
+
+  if (sameDay) {
+    if (diffMin < 1)  return 'now'
+    if (diffMin < 60) return `${diffMin}m`
+    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase()
+  }
+  const diffDays = Math.floor(diffMs / 86_400_000)
+  if (diffDays === 1) return 'Yest'
+  if (diffDays < 7)   return date.toLocaleDateString([], { weekday: 'short' })
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString([], { day: 'numeric', month: 'short' })
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
 export function ConversationItem({ conversation, onPress }: ConversationItemProps) {
   const { theme } = useUnistyles()
 
   const { other_user, last_message, last_message_at, unread_count } = conversation
-
   const displayName =
     [other_user.first_name, other_user.last_name].filter(Boolean).join(' ') || 'Anonymous'
 
-  const time = last_message_at
-    ? new Date(last_message_at).toLocaleDateString([], {
-        month: 'short',
-        day: 'numeric',
-      })
-    : ''
+  const isUnread = unread_count > 0
+  const time = last_message_at ? formatTimestamp(last_message_at) : ''
+
+  const previewColor = isUnread
+    ? theme.colors.content.primary
+    : theme.colors.content.tertiary
 
   return (
     <Pressable
@@ -32,33 +52,47 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
         s.row,
         { backgroundColor: pressed ? theme.colors.surface.pressed : 'transparent' },
       ]}
+      accessibilityRole="button"
+      accessibilityLabel={`Open chat with ${displayName}`}
     >
-      <Avatar size="md" name={displayName} src={other_user.avatar_url} />
+      <Avatar
+        size="md"
+        name={displayName}
+        src={other_user.avatar_url}
+        unreadDot={isUnread}
+      />
 
       <View style={s.body}>
-        <View style={s.nameRow}>
-          <Text weight={unread_count > 0 ? 'semibold' : 'regular'} numberOfLines={1} style={s.name}>
-            {displayName}
-          </Text>
-          <Text size={12} color={theme.colors.content.tertiary}>{time}</Text>
-        </View>
-        <View style={s.previewRow}>
-          <Text
-            variant="caption"
-            color={unread_count > 0 ? theme.colors.content.primary : theme.colors.content.tertiary}
-            numberOfLines={1}
-            style={s.preview}
-          >
-            {last_message ?? 'No messages yet'}
-          </Text>
-          {unread_count > 0 && (
-            <View style={[s.badge, { backgroundColor: theme.colors.brand.primary }]}>
-              <Text size={11} color={theme.colors.brand.onPrimary} weight="semibold">
-                {unread_count > 9 ? '9+' : String(unread_count)}
-              </Text>
-            </View>
-          )}
-        </View>
+        <Text
+          style={[s.name, { color: theme.colors.content.primary }]}
+          numberOfLines={1}
+        >
+          {displayName}
+        </Text>
+        <Text
+          style={[s.preview, { color: previewColor }, isUnread && s.previewUnread]}
+          numberOfLines={1}
+        >
+          {last_message ?? 'No messages yet'}
+        </Text>
+      </View>
+
+      <View style={s.trail}>
+        <Text
+          style={[
+            s.time,
+            { color: isUnread ? theme.colors.brand.primary : theme.colors.content.tertiary },
+          ]}
+        >
+          {time}
+        </Text>
+        {isUnread && (
+          <View style={[s.unreadCount, { backgroundColor: theme.colors.brand.primary }]}>
+            <Text style={[s.unreadCountText, { color: theme.colors.brand.onPrimary }]}>
+              {unread_count > 9 ? '9+' : String(unread_count)}
+            </Text>
+          </View>
+        )}
       </View>
     </Pressable>
   )
@@ -68,38 +102,52 @@ const s = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.md,
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    minHeight: 72,
   },
   body: {
     flex: 1,
-    gap: 2,
-  },
-  nameRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    minWidth: 0,
   },
   name: {
-    flex: 1,
-    fontFamily: typography.fonts.body.medium,
-    fontSize: typography.styles.body.fontSize,
-  },
-  previewRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: '600',
+    letterSpacing: -0.15,
   },
   preview: {
-    flex: 1,
+    fontSize: 13,
+    lineHeight: 17,
+    marginTop: 3,
   },
-  badge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
+  previewUnread: {
+    fontWeight: '500',
+  },
+  trail: {
+    alignItems: 'flex-end',
+    gap: 6,
+    flexShrink: 0,
+  },
+  time: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 10.5,
+    lineHeight: 14,
+    fontWeight: '500',
+    letterSpacing: 0.42,
+  },
+  unreadCount: {
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 5,
+  },
+  unreadCountText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '700',
   },
 })

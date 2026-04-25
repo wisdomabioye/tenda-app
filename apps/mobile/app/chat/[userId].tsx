@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { MoreVertical, X, ChevronRight } from 'lucide-react-native'
+import { MoreVertical, Ban } from 'lucide-react-native'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
@@ -19,6 +19,7 @@ import { ErrorState } from '@/components/feedback'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatContextDivider } from '@/components/chat/ChatContextDivider'
+import { ChatTimestampGroup } from '@/components/chat/ChatTimestampGroup'
 import { ChatInput } from '@/components/ui/ChatInput'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { showToast } from '@/components/ui/Toast'
@@ -26,7 +27,7 @@ import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useConversation } from '@/hooks/useConversation'
 import { useMessagePolling } from '@/hooks/useMessagePolling'
-import { buildMessageFeed, isDivider } from '@/lib/chat'
+import { buildMessageFeed, isDivider, isTimestamp } from '@/lib/chat'
 import { spacing } from '@/theme/tokens'
 import type { LocalMessage } from '@/stores/chat.store'
 
@@ -111,14 +112,22 @@ export default function ChatScreen() {
 
         <FlatList
           data={feed}
-          keyExtractor={(item) => isDivider(item) ? item._key : item.id}
-          renderItem={({ item }) =>
-            isDivider(item) ? (
-              <ChatContextDivider
-                gigId={item.gig_id} gigTitle={item.gig_title}
-                offerId={item.offer_id} offerTitle={item.offer_title}
-              />
-            ) : (
+          keyExtractor={(item) =>
+            isDivider(item) || isTimestamp(item) ? item._key : item.id
+          }
+          renderItem={({ item }) => {
+            if (isDivider(item)) {
+              return (
+                <ChatContextDivider
+                  gigId={item.gig_id} gigTitle={item.gig_title}
+                  offerId={item.offer_id} offerTitle={item.offer_title}
+                />
+              )
+            }
+            if (isTimestamp(item)) {
+              return <ChatTimestampGroup iso={item.iso} />
+            }
+            return (
               <MessageBubble
                 message={item}
                 isMine={item.sender_id === myId}
@@ -126,7 +135,7 @@ export default function ChatScreen() {
                 onLongPress={item.sender_id !== myId ? () => setReportingMessageId(item.id) : undefined}
               />
             )
-          }
+          }}
           contentContainerStyle={s.messageList}
           showsVerticalScrollIndicator={false}
           inverted
@@ -161,17 +170,26 @@ export default function ChatScreen() {
 
       <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Options">
         <Pressable
-          style={({ pressed }) => [s.menuItem, { borderTopColor: theme.colors.border.subtle }, pressed && { backgroundColor: theme.colors.surface.pressed }]}
+          style={({ pressed }) => [
+            s.menuItem,
+            { borderTopColor: theme.colors.border.subtle },
+            pressed && { opacity: 0.7 },
+          ]}
           onPress={handleCloseConversation}
+          accessibilityRole="button"
+          accessibilityLabel="Close conversation"
         >
-          <View style={s.menuItemLeft}>
-            <X size={16} color={theme.colors.content.secondary} />
-            <View>
-              <Text weight="medium">Close conversation</Text>
-              <Text variant="caption" color={theme.colors.content.tertiary}>Hides this chat from your inbox</Text>
-            </View>
+          <View style={[s.menuIcon, { backgroundColor: theme.colors.feedback.danger.surface }]}>
+            <Ban size={18} color={theme.colors.feedback.danger.base} />
           </View>
-          <ChevronRight size={16} color={theme.colors.content.tertiary} />
+          <View style={s.menuBody}>
+            <Text size={15} weight="semibold" color={theme.colors.feedback.danger.base} style={s.menuTitle}>
+              Close conversation
+            </Text>
+            <Text size={12.5} color={theme.colors.content.secondary} style={s.menuDesc}>
+              You'll stop seeing this thread in Messages. It reopens if either of you sends a new message.
+            </Text>
+          </View>
         </Pressable>
       </BottomSheet>
     </ScreenContainer>
@@ -182,6 +200,22 @@ const s = StyleSheet.create({
   flex:        { flex: 1 },
   messageList: { paddingTop: spacing.sm, paddingBottom: spacing.sm },
   empty:       { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
-  menuItem:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
-  menuItemLeft: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 14,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  menuIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  menuBody: { flex: 1 },
+  menuTitle: { letterSpacing: -0.15 },
+  menuDesc: { lineHeight: 17.5, marginTop: 3 },
 })

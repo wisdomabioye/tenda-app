@@ -1,16 +1,17 @@
 import { useState } from 'react'
-import { Platform, View, TextInput, Pressable, StyleSheet } from 'react-native'
+import { View, TextInput, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { SendHorizontal } from 'lucide-react-native'
-import { spacing, radius, typography } from '@/theme/tokens'
+import { Paperclip, ArrowUp } from 'lucide-react-native'
+import { typography, shadows } from '@/theme/tokens'
 
 interface ChatInputProps {
   onSend: (text: string) => void
+  onAttach?: () => void
   disabled?: boolean
 }
 
-export function ChatInput({ onSend, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, onAttach, disabled }: ChatInputProps) {
   const { theme } = useUnistyles()
   const insets = useSafeAreaInsets()
   const [text, setText] = useState('')
@@ -25,50 +26,104 @@ export function ChatInput({ onSend, disabled }: ChatInputProps) {
   const canSend = text.trim().length > 0 && !disabled
 
   return (
-    <View style={[s.container, { backgroundColor: theme.colors.surface.background, borderTopColor: theme.colors.border.subtle, paddingBottom: insets.bottom + spacing.sm }]}>
-      <TextInput
-        value={text}
-        onChangeText={setText}
-        maxFontSizeMultiplier={1}
-        placeholder="Message…"
-        placeholderTextColor={theme.colors.content.tertiary}
-        multiline
-        maxLength={2000}
-        style={[s.input, { color: theme.colors.content.primary, backgroundColor: theme.colors.control.inputBackground }]}
-        onSubmitEditing={handleSend}
-        blurOnSubmit={false}
-      />
-      <Pressable
-        onPress={handleSend}
-        disabled={!canSend}
+    <View
+      style={[
+        s.wrap,
+        {
+          backgroundColor: theme.colors.surface.background,
+          borderTopColor: theme.colors.border.subtle,
+          paddingBottom: 12 + insets.bottom,
+        },
+      ]}
+    >
+      <View
         style={[
-          s.sendBtn,
-          { backgroundColor: canSend ? theme.colors.brand.primary : theme.colors.border.subtle },
+          s.pill,
+          {
+            backgroundColor: theme.colors.surface.card,
+            borderColor: theme.colors.border.subtle,
+          },
         ]}
       >
-        <SendHorizontal size={18} color={canSend ? theme.colors.brand.onPrimary : theme.colors.content.tertiary} />
-      </Pressable>
+        {onAttach && (
+          <Pressable
+            onPress={onAttach}
+            style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.6 }]}
+            accessibilityLabel="Attach file"
+            accessibilityRole="button"
+          >
+            <Paperclip size={18} color={theme.colors.content.tertiary} />
+          </Pressable>
+        )}
+
+        <TextInput
+          value={text}
+          onChangeText={setText}
+          maxFontSizeMultiplier={1}
+          placeholder="Message…"
+          placeholderTextColor={theme.colors.content.tertiary}
+          multiline
+          maxLength={2000}
+          style={[s.field, { color: theme.colors.content.primary }]}
+          onSubmitEditing={handleSend}
+          submitBehavior="submit"
+        />
+
+        <Pressable
+          onPress={handleSend}
+          disabled={!canSend}
+          style={[
+            s.sendBtn,
+            canSend
+              ? [{ backgroundColor: theme.colors.brand.primary }, shadows.fab]
+              : { backgroundColor: theme.colors.surface.inset },
+          ]}
+          accessibilityLabel="Send message"
+          accessibilityRole="button"
+        >
+          <ArrowUp
+            size={18}
+            color={canSend ? theme.colors.brand.onPrimary : theme.colors.content.tertiary}
+            strokeWidth={2.5}
+          />
+        </Pressable>
+      </View>
     </View>
   )
 }
 
 const s = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  wrap: {
+    paddingTop: 10,
+    paddingHorizontal: 16,
     borderTopWidth: 1,
   },
-  input: {
+  pill: {
+    height: 52,
+    borderRadius: 26,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingLeft: 14,
+    paddingRight: 6,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  field: {
     flex: 1,
     fontFamily: typography.fonts.body.regular,
-    fontSize: typography.styles.body.fontSize,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: radius.md,
-    maxHeight: 120,
+    fontSize: 15,
+    lineHeight: 20,
+    paddingVertical: 0,
+    minHeight: 24,
+    maxHeight: 96,
   },
   sendBtn: {
     width: 40,
@@ -76,5 +131,6 @@ const s = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
 })

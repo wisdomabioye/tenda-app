@@ -1,6 +1,7 @@
 import { Modal, View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform, Pressable } from 'react-native'
 import { X } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Text } from './Text'
 
 interface BottomSheetProps {
@@ -10,8 +11,12 @@ interface BottomSheetProps {
   children: React.ReactNode
 }
 
+const MIN_BOTTOM_INSET = 16
+
 export function BottomSheet({ visible, onClose, title, children }: BottomSheetProps) {
   const { theme } = useUnistyles()
+  const insets = useSafeAreaInsets()
+  const bottomInset = Math.max(insets.bottom, MIN_BOTTOM_INSET)
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -44,7 +49,7 @@ export function BottomSheet({ visible, onClose, title, children }: BottomSheetPr
             keyboardShouldPersistTaps="handled"
             bounces={false}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={s.body}
+            contentContainerStyle={[s.body, { paddingBottom: 24 + bottomInset }]}
           >
             {children}
           </ScrollView>
@@ -106,6 +111,5 @@ const s = StyleSheet.create({
   },
   body: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
   },
 })

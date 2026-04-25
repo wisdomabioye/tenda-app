@@ -9,22 +9,33 @@ export type ContextDividerItem = {
   offer_title: string | null
 }
 
-export type FeedItem = LocalMessage | ContextDividerItem
+export type TimestampGroupItem = {
+  _type: 'timestamp'
+  _key: string
+  /** ISO string of the first message in this group */
+  iso: string
+}
+
+export type FeedItem = LocalMessage | ContextDividerItem | TimestampGroupItem
 
 export function isDivider(item: FeedItem): item is ContextDividerItem {
   return '_type' in item && item._type === 'divider'
 }
 
+export function isTimestamp(item: FeedItem): item is TimestampGroupItem {
+  return '_type' in item && item._type === 'timestamp'
+}
+
 /**
- * Takes messages in oldest-first order, inserts a ContextDividerItem whenever
- * context (gig_id or offer_id) changes between adjacent messages, then reverses
- * for an inverted FlatList.
+ * Build the chat feed:
  *
- * Rules:
- * - Insert divider when entering a new context (null → id, or id_A → id_B)
- * - Insert divider when leaving a context back to direct (id → null), but
- *   only if there was a previous message (not at the very start of conversation)
- * - No divider for direct messages at the start of a conversation
+ * 1. Insert a TimestampGroupItem before the first message and whenever the
+ *    calendar date changes between adjacent messages (one header per day, like
+ *    WhatsApp). Time-of-day grouping is intentionally avoided — it produces a
+ *    header on nearly every message during active back-and-forth.
+ * 2. Insert a ContextDividerItem whenever gig/offer context changes between
+ *    adjacent messages.
+ * 3. Reverse the feed so newest is at index 0, as required by an inverted FlatList.
  */
 export function buildMessageFeed(msgs: LocalMessage[]): FeedItem[] {
   const feed: FeedItem[] = []
@@ -37,7 +48,7 @@ export function buildMessageFeed(msgs: LocalMessage[]): FeedItem[] {
     const prevContext = prev ? (prev.gig_id ?? prev.offer_id ?? null) : null
 
     const contextChanged = currContext !== prevContext
-    const shouldDivide   = contextChanged && (currContext !== null || prev !== null)
+    const shouldDivide = contextChanged && (currContext !== null || prev !== null)
 
     if (shouldDivide) {
       feed.push({
@@ -50,9 +61,20 @@ export function buildMessageFeed(msgs: LocalMessage[]): FeedItem[] {
       })
     }
 
+    const currDay = curr.created_at ? new Date(curr.created_at).toDateString() : null
+    const prevDay = prev?.created_at ? new Date(prev.created_at).toDateString() : null
+    const newDay = currDay !== null && currDay !== prevDay
+
+    if (newDay && curr.created_at) {
+      feed.push({
+        _type: 'timestamp',
+        _key:  `ts_${curr.id}`,
+        iso:   curr.created_at,
+      })
+    }
+
     feed.push(curr)
   }
 
-  // Reverse so newest messages are at index 0, as required by inverted FlatList
   return feed.reverse()
 }
