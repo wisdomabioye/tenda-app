@@ -60,13 +60,19 @@ export default function WalletScreen() {
     if (isRefresh) setRefreshing(true)
     else setIsLoading(true)
     try {
-      await Promise.all([
+      // Use allSettled so one failure (e.g. transient RPC error) doesn't
+      // leave the screen stuck on the skeleton forever.
+      await Promise.allSettled([
         walletAddress
-          ? getBalance(new PublicKey(walletAddress)).then((b) => setBalanceLamports(b))
-          : Promise.resolve(),
+          ? getBalance(new PublicKey(walletAddress))
+              .then((b) => setBalanceLamports(b))
+              .catch(() => setBalanceLamports(0))
+          : Promise.resolve(setBalanceLamports(0)),
         user?.id
-          ? api.users.transactions({ id: user.id }).then((r) => setTransactions(r.data))
-          : Promise.resolve(),
+          ? api.users.transactions({ id: user.id })
+              .then((r) => setTransactions(r.data))
+              .catch(() => setTransactions([]))
+          : Promise.resolve(setTransactions([])),
       ])
     } finally {
       if (isRefresh) setRefreshing(false)
@@ -216,7 +222,7 @@ export default function WalletScreen() {
               >
                 <View style={s.statLabelRow}>
                   <View style={[s.statDot, { backgroundColor: theme.colors.numeric.positive }]} />
-                  <Text style={[s.statLabel, { color: theme.colors.content.tertiary }]}>
+                  <Text style={[s.statLabel, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
                     EARNED
                   </Text>
                 </View>
@@ -238,7 +244,7 @@ export default function WalletScreen() {
               >
                 <View style={s.statLabelRow}>
                   <View style={[s.statDot, { backgroundColor: theme.colors.numeric.negative }]} />
-                  <Text style={[s.statLabel, { color: theme.colors.content.tertiary }]}>
+                  <Text style={[s.statLabel, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
                     SPENT
                   </Text>
                 </View>
@@ -382,6 +388,8 @@ const s = StyleSheet.create({
     lineHeight: 13,
     fontWeight: '600',
     letterSpacing: 0.8,
+    flexShrink: 1,
+    includeFontPadding: false,
   },
   statValue: {
     fontFamily: typography.fonts.mono,
