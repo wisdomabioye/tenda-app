@@ -1,17 +1,18 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { Clock, ArrowLeftRight } from 'lucide-react-native'
+import { Clock, Check, ArrowLeftRight } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { CATEGORY_META } from '@/data/mock'
 import { toPaymentDisplay, formatFiat } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { computeRelevantDeadline, LOCATIONS, type CountryCode } from '@tenda/shared'
-import { deadlineLabel } from '@/lib/gig-display'
+import { useGracePeriodSeconds } from '@/stores/platform-config.store'
+import { LOCATIONS, type CountryCode } from '@tenda/shared'
+import { gigDeadlineMeta } from '@/lib/gig-display'
 import type { Gig } from '@tenda/shared'
-import { STATUS_DOT_COLOR, STATUS_LABEL, URGENT_HOURS } from './shared'
+import { STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
 
 interface Props {
   gig: Gig
@@ -29,17 +30,16 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
   const rates = useExchangeRateStore((s) => s.rates)
   const currency = useSettingsStore((s) => s.currency)
 
+  const gracePeriodSeconds = useGracePeriodSeconds()
   const categoryColor = theme.colors.category[gig.category]
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
   const rate = rates?.[currency] ?? null
   const price = toPaymentDisplay(gig.payment_lamports, rate)
 
-  const deadline = computeRelevantDeadline(gig)
-  const deadlineLbl = deadlineLabel(deadline)
-  const isUrgent = deadline
-    ? (deadline.getTime() - Date.now()) / 3_600_000 < URGENT_HOURS
-    : false
+  const deadlineMeta = gigDeadlineMeta(gig, { gracePeriodSeconds: gracePeriodSeconds ?? undefined })
+  const isUrgent = deadlineMeta.tone === 'urgent'
+  const isSuccess = deadlineMeta.tone === 'success'
 
   const statusDotColor = STATUS_DOT_COLOR(theme, gig.status)
   const fiatAlt = rates ? `≈ ${formatFiat(price.fiat, currency)}` : ''
@@ -102,38 +102,46 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
             </Text>
           </View>
 
-          {deadlineLbl ? (
+          {deadlineMeta.label ? (
             <View
               style={[
                 s.deadlineChip,
                 {
                   backgroundColor: isUrgent
                     ? theme.colors.feedback.warning.surface
-                    : theme.colors.surface.inset,
+                    : isSuccess
+                      ? theme.colors.feedback.success.surface
+                      : theme.colors.surface.inset,
                 },
               ]}
             >
-              <Clock
-                size={10}
-                color={
-                  isUrgent
-                    ? theme.colors.feedback.warning.base
-                    : theme.colors.content.secondary
-                }
-              />
+              {deadlineMeta.glyph === 'check' ? (
+                <Check size={10} color={theme.colors.feedback.success.base} strokeWidth={3} />
+              ) : deadlineMeta.glyph === 'clock' ? (
+                <Clock
+                  size={10}
+                  color={
+                    isUrgent
+                      ? theme.colors.feedback.warning.base
+                      : theme.colors.content.secondary
+                  }
+                />
+              ) : null}
               <Text
                 style={[
                   s.deadlineText,
                   {
                     color: isUrgent
                       ? theme.colors.feedback.warning.base
-                      : theme.colors.content.secondary,
-                    fontWeight: isUrgent ? '600' : '500',
+                      : isSuccess
+                        ? theme.colors.feedback.success.base
+                        : theme.colors.content.secondary,
+                    fontWeight: isUrgent || isSuccess ? '600' : '500',
                   },
                 ]}
                 numberOfLines={1}
               >
-                {deadlineLbl}
+                {deadlineMeta.label}
               </Text>
             </View>
           ) : null}

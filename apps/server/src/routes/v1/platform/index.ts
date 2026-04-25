@@ -11,8 +11,8 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Reply: ConfigRoute['response']
   }>('/config', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async () => {
-    const { fee_bps, seeker_fee_bps } = await getPlatformConfig(fastify.db)
-    return { fee_bps, seeker_fee_bps }
+    const { fee_bps, seeker_fee_bps, grace_period_seconds } = await getPlatformConfig(fastify.db)
+    return { fee_bps, seeker_fee_bps, grace_period_seconds }
   })
 
   // GET /v1/platform/exchange-rates — public endpoint proxying CoinGecko (5-min server cache)

@@ -66,8 +66,8 @@ export default function MyGigsScreen() {
   }
 
   const tabs = [
-    { label: 'Posted',  data: postedGigs, showStatus: false, empty: { title: 'No gigs posted yet',        description: 'Post your first gig to get started' } },
-    { label: 'Working', data: workedGigs, showStatus: true,  empty: { title: 'Not working on any gigs',    description: 'Browse the feed to find and accept gigs' } },
+    { label: 'Posted',  data: postedGigs, showStatus: true, empty: { title: 'No gigs posted yet',        description: 'Post your first gig to get started' } },
+    { label: 'Working', data: workedGigs, showStatus: true, empty: { title: 'Not working on any gigs',    description: 'Browse the feed to find and accept gigs' } },
   ] as const
 
   return (

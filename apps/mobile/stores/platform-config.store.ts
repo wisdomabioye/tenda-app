@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { create } from 'zustand'
 import { api } from '@/api/client'
 import type { PlatformConfig } from '@tenda/shared'
@@ -37,3 +38,17 @@ export const usePlatformConfigStore = create<PlatformConfigState>((set, get) => 
     return inflight
   },
 }))
+
+/**
+ * Read the platform's poster review window (`grace_period_seconds`) and
+ * lazy-fetch the config on first read. Returns `null` until the config loads;
+ * consumers should hide deadline chips that depend on it until non-null.
+ */
+export function useGracePeriodSeconds(): number | null {
+  const grace = usePlatformConfigStore((s) => s.config?.grace_period_seconds ?? null)
+  const fetchConfig = usePlatformConfigStore((s) => s.fetch)
+  useEffect(() => {
+    if (grace == null) fetchConfig()
+  }, [grace, fetchConfig])
+  return grace
+}

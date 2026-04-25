@@ -1,7 +1,7 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { MapPin, Clock, Globe, ArrowLeftRight } from 'lucide-react-native'
+import { MapPin, Clock, Check, Globe, ArrowLeftRight } from 'lucide-react-native'
 import { spacing, radius, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { MoneyText } from '@/components/ui/MoneyText'
@@ -10,8 +10,9 @@ import { CATEGORY_META } from '@/data/mock'
 import { toPaymentDisplay } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { computeRelevantDeadline, LOCATIONS, type CountryCode } from '@tenda/shared'
-import { deadlineLabel } from '@/lib/gig-display'
+import { LOCATIONS, type CountryCode } from '@tenda/shared'
+import { gigDeadlineMeta } from '@/lib/gig-display'
+import { useGracePeriodSeconds } from '@/stores/platform-config.store'
 import type { Gig } from '@tenda/shared'
 
 interface Props {
@@ -36,8 +37,8 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
   const rate = rates?.[currency] ?? null
   const price = toPaymentDisplay(gig.payment_lamports, rate)
-  const deadline = computeRelevantDeadline(gig)
-  const label = deadlineLabel(deadline)
+  const gracePeriodSeconds = useGracePeriodSeconds()
+  const deadlineMeta = gigDeadlineMeta(gig, { gracePeriodSeconds: gracePeriodSeconds ?? undefined })
 
   return (
     <Pressable
@@ -85,11 +86,31 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
             <Text variant="caption" color={theme.colors.feedback.warning.base}>Cross-border</Text>
           </View>
         )}
-        {label ? (
+        {deadlineMeta.label ? (
           <View style={s.metaItem}>
-            <Clock size={14} color={theme.colors.content.tertiary} />
-            <Text variant="caption" color={theme.colors.content.secondary}>
-              {label}
+            {deadlineMeta.glyph === 'check' ? (
+              <Check size={14} color={theme.colors.feedback.success.base} strokeWidth={2.5} />
+            ) : (
+              <Clock
+                size={14}
+                color={
+                  deadlineMeta.tone === 'urgent'
+                    ? theme.colors.feedback.warning.base
+                    : theme.colors.content.tertiary
+                }
+              />
+            )}
+            <Text
+              variant="caption"
+              color={
+                deadlineMeta.tone === 'urgent'
+                  ? theme.colors.feedback.warning.base
+                  : deadlineMeta.tone === 'success'
+                    ? theme.colors.feedback.success.base
+                    : theme.colors.content.secondary
+              }
+            >
+              {deadlineMeta.label}
             </Text>
           </View>
         ) : null}
