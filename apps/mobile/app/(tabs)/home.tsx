@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { View, FlatList, ScrollView, Pressable, StyleSheet, RefreshControl } from 'react-native'
-import { Bell, SlidersHorizontal, Search as SearchIcon } from 'lucide-react-native'
+import { Bell, ListFilter, Search as SearchIcon } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import {
   ScreenContainer,
@@ -155,7 +155,7 @@ export default function HomeScreen() {
                     accessibilityLabel="Filter gigs"
                     accessibilityRole="button"
                   >
-                    <SlidersHorizontal size={18} color={theme.colors.content.secondary} />
+                    <ListFilter size={16} color={theme.colors.content.secondary} />
                     {hasFilters && (
                       <View style={[s.filterDot, { backgroundColor: theme.colors.brand.primary }]} />
                     )}
@@ -227,8 +227,8 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    paddingTop: 20,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
   },
   feedTitle: {
     flex: 1,

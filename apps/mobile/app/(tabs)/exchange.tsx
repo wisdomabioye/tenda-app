@@ -4,7 +4,7 @@ import {
   ScrollView, Animated, Pressable, useWindowDimensions,
 } from 'react-native'
 import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
-import { useRouter, useFocusEffect } from 'expo-router'
+import { useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { SlidersHorizontal, Check, X } from 'lucide-react-native'
 import { spacing, radius } from '@/theme/tokens'
@@ -21,7 +21,6 @@ import { SUPPORTED_CURRENCIES } from '@tenda/shared'
 import type { ExchangeOfferSummary } from '@tenda/shared'
 
 export default function ExchangeScreen() {
-  const router             = useRouter()
   const { theme }          = useUnistyles()
   const { width: SW }      = useWindowDimensions()
   const user               = useAuthStore((s) => s.user)

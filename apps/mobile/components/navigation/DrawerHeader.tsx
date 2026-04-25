@@ -1,26 +1,23 @@
-import { View, TouchableOpacity } from 'react-native'
+import { View, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Image } from 'expo-image'
 import { Menu } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { spacing, radius } from '@/theme/tokens'
-import { Avatar } from '@/components/ui'
-
-const Logo = require('@/assets/images/logo.png')
+import { Text, Avatar } from '@/components/ui'
 
 interface DrawerHeaderProps {
-  title?: string;
-  onMenuPress: () => void;
-  rightIcon?: LucideIcon;
-  onRightPress?: () => void;
-  onAvatarPress?: () => void;
-  userImage?: string | null;
-  userName?: string;
-  showAvatar?: boolean;
+  title?: string
+  onMenuPress: () => void
+  rightIcon?: LucideIcon
+  onRightPress?: () => void
+  onAvatarPress?: () => void
+  userImage?: string | null
+  userName?: string
+  showAvatar?: boolean
 }
 
 export function DrawerHeader({
+  title = 'Tenda',
   onMenuPress,
   rightIcon: RightIcon,
   onRightPress,
@@ -29,72 +26,85 @@ export function DrawerHeader({
   userName,
   showAvatar = true,
 }: DrawerHeaderProps) {
-  const { theme } = useUnistyles();
-  const insets = useSafeAreaInsets();
+  const { theme } = useUnistyles()
+  const insets = useSafeAreaInsets()
 
   return (
     <View
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingTop: insets.top + spacing.sm,
-        paddingBottom: spacing.md,
-        paddingHorizontal: spacing.md,
-        backgroundColor: theme.colors.surface.background,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border.default,
-      }}
+      style={[
+        s.hdr,
+        {
+          paddingTop: insets.top,
+          backgroundColor: theme.colors.surface.background,
+          borderBottomColor: theme.colors.border.subtle,
+        },
+      ]}
     >
-      <TouchableOpacity
+      <Pressable
         onPress={onMenuPress}
-        style={{
-          width: 36,
-          height: 36,
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: radius.lg,
-          backgroundColor: theme.colors.surface.backgroundAlt,
-          borderWidth: 1,
-          borderColor: theme.colors.border.default,
-        }}
-        activeOpacity={0.7}
+        style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.7 }]}
+        accessibilityLabel="Open menu"
+        accessibilityRole="button"
       >
-        <Menu size={18} color={theme.colors.brand.primary} />
-      </TouchableOpacity>
+        <Menu size={18} color={theme.colors.content.secondary} />
+      </Pressable>
 
-      <Image
-        source={Logo}
-        style={{
-          width: 36,
-          height: 34,
-        }}
-        contentFit="contain"
-      />
+      <View style={s.center}>
+        <Text style={[s.title, { color: theme.colors.content.primary }]} numberOfLines={1}>
+          {title}
+        </Text>
+      </View>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-       {/*  {RightIcon && (
-          <TouchableOpacity
+      <View style={s.right}>
+        {RightIcon && (
+          <Pressable
             onPress={onRightPress}
-            style={{
-              width: 36,
-              height: 36,
-              alignItems: 'center',
-              justifyContent: 'center',
-              borderRadius: theme.radius.md,
-            }}
-            activeOpacity={0.7}
+            style={({ pressed }) => [s.iconBtn, pressed && { opacity: 0.7 }]}
+            accessibilityRole="button"
           >
-            <RightIcon size={18} color={theme.colors.primary} />
-          </TouchableOpacity>
-        )} */}
-        {showAvatar && (
-          <TouchableOpacity onPress={onAvatarPress} activeOpacity={0.7}>
-            <Avatar src={userImage} name={userName} size="md" />
-          </TouchableOpacity>
+            <RightIcon size={18} color={theme.colors.content.secondary} />
+          </Pressable>
         )}
-        {!showAvatar && !RightIcon && <View style={{ width: 36 }} />}
+        {showAvatar && (
+          <Pressable onPress={onAvatarPress} hitSlop={4}>
+            <Avatar src={userImage} name={userName} size="sm" />
+          </Pressable>
+        )}
       </View>
     </View>
-  );
+  )
 }
+
+const s = StyleSheet.create({
+  hdr: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 56,
+    paddingHorizontal: 16,
+    gap: 12,
+    borderBottomWidth: 1,
+  },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  title: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '600',
+    letterSpacing: -0.17,
+  },
+  right: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+})

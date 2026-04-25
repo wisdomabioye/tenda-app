@@ -83,7 +83,7 @@ export function Chip({
   const inner = (
     <>
       {icon && <View>{icon}</View>}
-      <Text size={13} color={textColor} style={{ fontWeight }}>
+      <Text size={13} color={textColor} style={{ fontWeight, lineHeight: 18, includeFontPadding: false }}>
         {label}
       </Text>
     </>
