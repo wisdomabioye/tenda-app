@@ -3,7 +3,7 @@ import {
   Animated, Modal, Pressable, StyleSheet, View,
 } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing, radius, shadows } from '@/theme/tokens'
+import { ChevronRight } from 'lucide-react-native'
 import { Text } from './Text'
 
 export interface FabAction {
@@ -19,7 +19,7 @@ interface FabMenuProps {
   bottomInset: number   // tab bar height — cards float just above it
 }
 
-const STAGGER_MS = 60
+const STAGGER_MS = 50
 
 export function FabMenu({ visible, onClose, actions, bottomInset }: FabMenuProps) {
   const { theme } = useUnistyles()
@@ -62,7 +62,7 @@ export function FabMenu({ visible, onClose, actions, bottomInset }: FabMenuProps
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       {/* Backdrop */}
       <Animated.View
-        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)', opacity: backdrop }]}
+        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(20,22,30,0.28)', opacity: backdrop }]}
         pointerEvents={visible ? 'auto' : 'none'}
       >
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
@@ -70,7 +70,7 @@ export function FabMenu({ visible, onClose, actions, bottomInset }: FabMenuProps
 
       {/* Action cards */}
       <View
-        style={[s.container, { bottom: bottomInset + spacing.sm }]}
+        style={[s.container, { bottom: bottomInset + 16 }]}
         pointerEvents="box-none"
       >
         {actions.map((action, i) => (
@@ -85,15 +85,28 @@ export function FabMenu({ visible, onClose, actions, bottomInset }: FabMenuProps
             }}
           >
             <Pressable
-              style={[s.card, { backgroundColor: theme.colors.surface.card, ...shadows.card }]}
+              style={[
+                s.card,
+                {
+                  backgroundColor: theme.colors.surface.card,
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 8 },
+                  shadowOpacity: 0.12,
+                  shadowRadius: 24,
+                  elevation: 6,
+                },
+              ]}
               onPress={() => { onClose(); action.onPress() }}
+              accessibilityRole="button"
+              accessibilityLabel={action.label}
             >
               <View style={[s.iconWrap, { backgroundColor: theme.colors.brand.primarySurface }]}>
                 {action.icon}
               </View>
-              <Text weight="semibold" size={15} color={theme.colors.content.primary}>
+              <Text size={14.5} weight="semibold" color={theme.colors.content.primary} style={s.label}>
                 {action.label}
               </Text>
+              <ChevronRight size={13} color={theme.colors.content.tertiary} />
             </Pressable>
           </Animated.View>
         ))}
@@ -108,22 +121,27 @@ const s = StyleSheet.create({
     left:       0,
     right:      0,
     alignItems: 'center',
-    gap:        spacing.sm,
+    gap:        10,
   },
   card: {
+    width:          240,
+    height:         56,
+    paddingLeft:    12,
+    paddingRight:   14,
     flexDirection:  'row',
     alignItems:     'center',
-    gap:            spacing.sm,
-    paddingVertical:   8,
-    paddingHorizontal: 12,
-    borderRadius:   radius.xl,
-    minWidth:       200,
+    gap:            12,
+    borderRadius:   14,
   },
   iconWrap: {
-    width:          30,
-    height:         30,
-    borderRadius:   radius.full,
+    width:          36,
+    height:         36,
+    borderRadius:   18,
     alignItems:     'center',
     justifyContent: 'center',
+  },
+  label: {
+    flex: 1,
+    letterSpacing: -0.075,
   },
 })

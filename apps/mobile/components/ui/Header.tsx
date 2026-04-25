@@ -3,8 +3,9 @@ import { useRouter } from 'expo-router';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { ArrowLeft } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
-import { spacing, radius, typography } from '@/theme/tokens';
 import { Text } from '@/components/ui/Text';
+
+type HeaderVariant = 'standard' | 'large';
 
 interface HeaderProps {
   title?: string;
@@ -13,7 +14,10 @@ interface HeaderProps {
   onBackPress?: () => void;
   rightIcon?: LucideIcon;
   onRightPress?: () => void;
+  rightTinted?: boolean;
+  rightActive?: boolean;
   transparent?: boolean;
+  variant?: HeaderVariant;
 }
 
 export function Header({
@@ -23,7 +27,10 @@ export function Header({
   onBackPress,
   rightIcon: RightIcon,
   onRightPress,
+  rightTinted = false,
+  rightActive = false,
   transparent = false,
+  variant = 'standard',
 }: HeaderProps) {
   const { theme } = useUnistyles();
   const router = useRouter();
@@ -36,26 +43,55 @@ export function Header({
     }
   };
 
+  if (variant === 'large') {
+    return (
+      <View
+        style={[
+          styles.lhdr,
+          { backgroundColor: transparent ? 'transparent' : theme.colors.surface.background },
+        ]}
+      >
+        {title && (
+          <Text style={[styles.lhdrTitle, { color: theme.colors.content.primary }]} numberOfLines={1}>
+            {title}
+          </Text>
+        )}
+        {subtitle && (
+          <Text style={[styles.lhdrSub, { color: theme.colors.content.tertiary }]} numberOfLines={2}>
+            {subtitle}
+          </Text>
+        )}
+      </View>
+    );
+  }
+
   return (
-    <View style={[
-      styles.container,
-      {
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-      },
-      transparent ? { backgroundColor: 'transparent' } : {
-        backgroundColor: theme.colors.surface.background,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.colors.border.subtle,
-      },
-    ]}>
-      <View style={styles.left}>
+    <View
+      style={[
+        styles.hdr,
+        transparent
+          ? { backgroundColor: 'transparent' }
+          : {
+              backgroundColor: theme.colors.surface.background,
+              borderBottomWidth: 1,
+              borderBottomColor: theme.colors.border.subtle,
+            },
+      ]}
+    >
+      <View style={styles.slot}>
         {showBack && (
           <Pressable
             onPress={handleBack}
-            style={styles.backButton}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              { backgroundColor: theme.colors.surface.inset },
+              pressed && { opacity: 0.7 },
+            ]}
+            hitSlop={4}
+            accessibilityLabel="Go back"
+            accessibilityRole="button"
           >
-            <ArrowLeft size={22} color={theme.colors.content.primary} />
+            <ArrowLeft size={18} color={theme.colors.content.secondary} />
           </Pressable>
         )}
       </View>
@@ -63,50 +99,39 @@ export function Header({
       <View style={styles.center}>
         {title && (
           <Text
-            style={[
-              styles.title,
-              {
-                fontSize: typography.styles.body.fontSize,
-                color: theme.colors.content.primary,
-                fontFamily: typography.fonts.display.bold,
-              },
-            ]}
+            style={[styles.title, { color: theme.colors.content.primary }]}
             numberOfLines={1}
           >
             {title}
           </Text>
         )}
-        {subtitle && (
-          <Text
-            style={[
-              styles.subtitle,
-              {
-                fontSize: typography.styles.bodySmall.fontSize,
-                color: theme.colors.content.secondary,
-              },
-            ]}
-            numberOfLines={1}
-          >
-            {subtitle}
-          </Text>
-        )}
       </View>
 
-      <View style={styles.right}>
+      <View style={[styles.slot, styles.slotRight]}>
         {RightIcon && (
           <Pressable
             onPress={onRightPress}
-            style={[
-              styles.iconButton,
+            style={({ pressed }) => [
+              styles.iconBtn,
               {
-                backgroundColor: theme.colors.surface.card,
-                borderRadius: radius.lg,
-                borderWidth: 1,
-                borderColor: theme.colors.border.default,
+                backgroundColor: rightTinted
+                  ? theme.colors.surface.inset
+                  : 'transparent',
               },
+              pressed && { opacity: 0.7 },
             ]}
+            hitSlop={4}
+            accessibilityRole="button"
           >
-            <RightIcon size={18} color={theme.colors.brand.primary} />
+            <RightIcon size={18} color={theme.colors.content.secondary} />
+            {rightActive && (
+              <View
+                style={[
+                  styles.activeDot,
+                  { backgroundColor: theme.colors.brand.primary },
+                ]}
+              />
+            )}
           </Pressable>
         )}
       </View>
@@ -115,37 +140,60 @@ export function Header({
 }
 
 const styles = StyleSheet.create({
-  container: {
+  hdr: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    minHeight: 52,
+    paddingHorizontal: 16,
+    gap: 12,
   },
-  left: {
+  slot: {
     width: 40,
     alignItems: 'flex-start',
+  },
+  slotRight: {
+    alignItems: 'flex-end',
   },
   center: {
     flex: 1,
     alignItems: 'center',
   },
-  right: {
-    width: 40,
-    alignItems: 'flex-end',
+  title: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '600',
+    letterSpacing: -0.17,
   },
-  iconButton: {
-    width: 36,
-    height: 36,
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
-  backButton: {
-    padding: 4,
+  activeDot: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
-  title: {
+  lhdr: {
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 14,
+  },
+  lhdrTitle: {
+    fontSize: 30,
+    lineHeight: 33,
     fontWeight: '700',
-    letterSpacing: -0.3,
+    letterSpacing: -0.6,
   },
-  subtitle: {
-    marginTop: 2,
+  lhdrSub: {
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 4,
   },
 });

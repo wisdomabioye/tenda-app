@@ -2,24 +2,24 @@ import { useState, useRef } from 'react'
 import { Tabs, useRouter } from 'expo-router'
 import { Animated, StyleSheet, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { 
-  useSafeAreaInsets, 
-  initialWindowMetrics 
+import {
+  useSafeAreaInsets,
+  initialWindowMetrics
 } from 'react-native-safe-area-context'
-import { 
-  Home, Plus, Wallet, MessageCircle, 
-  ArrowLeftRight, ClipboardList, Coins 
+import {
+  Home, Plus, Wallet, MessageCircle,
+  ArrowLeftRight, ClipboardList, Coins
 } from 'lucide-react-native'
-import { typography, shadows, radius } from '@/theme/tokens'
-import { 
-  useChatStore, 
-  usePendingSyncStore, 
+import { typography, shadows } from '@/theme/tokens'
+import {
+  useChatStore,
+  usePendingSyncStore,
 } from '@/stores'
 import { useConversationPolling } from '@/hooks'
 import { FabMenu } from '@/components/ui/FabMenu'
 
-const ICON_SIZE = 20
-const POST_ICON_SIZE = 20
+const ICON_SIZE = 18
+const POST_ICON_SIZE = 22
 
 export default function TabsLayout() {
   const router       = useRouter()
@@ -43,7 +43,7 @@ export default function TabsLayout() {
   // Use initialWindowMetrics as a stable fallback — on Android, screen wake briefly
   // reports insets as 0 before system bars finish rendering, causing a layout jump.
   const stableBottom = insets.bottom > 0 ? insets.bottom : (initialWindowMetrics?.insets.bottom ?? 0)
-  const tabBarHeight = 78 + stableBottom
+  const tabBarHeight = 72 + stableBottom
 
   const fabActions = [
     {
@@ -67,19 +67,37 @@ export default function TabsLayout() {
           tabBarActiveTintColor: theme.colors.brand.primary,
           tabBarInactiveTintColor: theme.colors.content.tertiary,
           tabBarLabelStyle: {
+            fontFamily: typography.fonts.body.semibold,
+            fontSize: 10,
+            lineHeight: 14,
+            marginTop: 3,
+          },
+          tabBarItemStyle: {
+            paddingVertical: 0,
+          },
+          tabBarBadgeStyle: {
+            backgroundColor: theme.colors.brand.primary,
+            color: theme.colors.brand.onPrimary,
             fontFamily: typography.fonts.body.bold,
-            fontSize: 11,
-            letterSpacing: 0.3,
-            marginTop: 4,
+            fontSize: 9.5,
+            lineHeight: 12,
+            minWidth: 14,
+            height: 14,
+            borderRadius: 7,
+            paddingHorizontal: 4,
+            borderWidth: 2,
+            borderColor: theme.colors.surface.background,
           },
           tabBarStyle: {
             backgroundColor: theme.colors.surface.background,
             borderTopColor: theme.colors.border.subtle,
             borderTopWidth: 1,
             height: tabBarHeight,
-            paddingTop: 10,
-            paddingBottom: stableBottom + 4,
-            ...shadows.card,
+            paddingTop: 4,
+            paddingBottom: stableBottom + 16,
+            paddingHorizontal: 8,
+            elevation: 0,
+            shadowOpacity: 0,
           },
         })}
       >
@@ -89,7 +107,7 @@ export default function TabsLayout() {
           options={{
             title: 'Home',
             tabBarIcon: ({ color, focused }) => (
-              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
+              <View style={[s.iconWrap, focused && s.iconWrapActive, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
                 <Home color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />
               </View>
             ),
@@ -100,7 +118,7 @@ export default function TabsLayout() {
           options={{
             title: 'Trade',
             tabBarIcon: ({ color, focused }) => (
-              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
+              <View style={[s.iconWrap, focused && s.iconWrapActive, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
                 <ArrowLeftRight color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />
               </View>
             ),
@@ -134,7 +152,7 @@ export default function TabsLayout() {
             title: 'Wallet',
             tabBarBadge: failedSyncs > 0 ? (failedSyncs > 9 ? '9+' : failedSyncs) : undefined,
             tabBarIcon: ({ color, focused }) => (
-              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
+              <View style={[s.iconWrap, focused && s.iconWrapActive, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
                 <Wallet color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />
               </View>
             ),
@@ -146,7 +164,7 @@ export default function TabsLayout() {
             title: 'Messages',
             tabBarBadge: unread > 0 ? (unread > 9 ? '9+' : unread) : undefined,
             tabBarIcon: ({ color, focused }) => (
-              <View style={[s.iconWrap, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
+              <View style={[s.iconWrap, focused && s.iconWrapActive, focused && { backgroundColor: theme.colors.brand.primarySurface }]}>
                 <MessageCircle color={color} size={ICON_SIZE} strokeWidth={focused ? 2.5 : 1.8} />
               </View>
             ),
@@ -178,17 +196,19 @@ const s = StyleSheet.create({
   iconWrap: {
     width: 48,
     height: 32,
-    borderRadius: radius.full,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  iconWrapActive: {
+    height: 32,
+  },
   postIcon: {
-    width: 52,
-    height: 52,
+    width: 48,
+    height: 48,
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-    ...shadows.elevated,
+    ...shadows.fab,
   },
 })
