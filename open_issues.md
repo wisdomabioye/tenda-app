@@ -217,3 +217,73 @@
 | N22 | **`reports/index.ts` catch block returned `content_id` instead of the report ID** — the `isPostgresUniqueViolation` fallback at line 111 returned `{ id: content_id }` (the UUID of the reported gig/message/user), not the existing report's UUID; callers that stored the returned ID for later follow-up would hold a wrong reference | Added a `SELECT id FROM reports WHERE reporter_id = X AND content_type = Y AND content_id = Z` lookup in the catch block, matching the `!inserted` path above it |
 | N23 | **`pending-sync.store.ts` treated all HTTP 409 responses as `DUPLICATE_SIGNATURE`** — any `409` from the server (including `GIG_WRONG_STATUS`) silently removed the pending item from the queue; a gig-status race would permanently drop a valid transaction that needed manual retry | Added `err.error === ErrorCode.DUPLICATE_SIGNATURE` check alongside `err.statusCode === 409`; other 409 codes now fall through to the retry path |
 | N24 | **`home.tsx` used `as any` for category filter** — `setFilters({ category: (cat ?? undefined) as any })` bypassed TypeScript's `GigCategory` type check; a stale or invalid category string would reach the API silently | Changed to `(cat ?? undefined) as GigCategory \| undefined` — explicit cast preserves intent while maintaining nominal type safety |
+
+---
+
+# Mobile V2 Redesign — Open Items
+
+> Tracker for v1 deferrals, wireframe deviations, and follow-ups recorded during the Stage 1 + Stage 2 wireframe-to-unistyles translation pass.
+> Source-of-truth: `/home/abioye/tenda/Tenda-redesign/WIREFRAME-SPEC-REFERENCE.md`. Working docs: `/home/abioye/tenda/Tenda-redesign/implementation/`.
+
+## 🟠 Significant — visual/functional gaps from wireframe
+
+| # | Issue | File(s) | Why deferred / Fix |
+|---|-------|---------|-------------------|
+| M1 | **Tab bar BlurView missing** — wireframe specifies `rgba(255,255,255,0.88) light / rgba(22,27,41,0.88) dark + backdrop-filter: blur(20px)`. Currently ships opaque `surface.background` because `expo-blur` is not installed. Visually noticeable on screens where content scrolls under the tab bar | `apps/mobile/app/(tabs)/_layout.tsx` | Install `expo-blur`; wrap `tabBar` background in `<BlurView intensity={20} tint="default">` |
+| M2 | **Skeleton shimmer wave missing** — wireframe `.sk` uses `linear-gradient(90deg, --inset 0%, --line 50%, --inset 100%)` with `background-size: 200% 100%` translating across (1.6s ease-in-out). Currently ships opacity pulse — visually less polished than wave shimmer | `apps/mobile/components/ui/Skeleton.tsx` | Install `expo-linear-gradient`; render a sliding lighter band with `withRepeat`/`withTiming` translateX |
+| M3 | **ErrorState radial glow simulated as crisp circle** — wireframe `.err-glow` uses `radial-gradient(circle, rgba(203,58,58,0.12), transparent 60%)`. RN can't render radial gradients natively. Currently ships a 280×280 circle at `feedback.danger.surface` opacity 0.5 — crisp edge instead of soft fade | `apps/mobile/components/feedback/ErrorState.tsx` | Use `react-native-svg` `RadialGradient` defs, or `expo-linear-gradient` with mask trick |
+| M4 | **Input focus/error 3px halo ring missing** — wireframe `.input.focus` uses `box-shadow: 0 0 0 3px var(--brand-surface)` and `.input.err` uses `--danger-surface`. RN's `boxShadow` style is iOS-only and unreliable on Android. Currently ships border-color flip only | `apps/mobile/components/ui/Input.tsx` | Wrap container in an outer View with conditional bg + 3px padding to simulate the ring (no layout shift if padding is reserved when not focused) |
+| M5 | **BottomSheet underlying-screen scale + blur backdrop missing** — spec doc §2.8 specifies `transform: scale(0.96) + opacity 0.55–0.6 + filter: blur(1.5–6px)` on the screen behind the sheet. Currently ships scrim only (`rgba(20,22,30,0.35)`) | `apps/mobile/components/ui/BottomSheet.tsx`, `apps/mobile/app/_layout.tsx` | Lift sheet-open state to the Stack wrapper in `_layout.tsx`; apply scale/opacity to the Stack layout via Reanimated when any sheet opens |
+| M6 | **Toast trailing action button not implemented** — wireframe `.toast .ta` shows a 12.5/600 --brand action label trailing the message. Current `showToast(variant, message, duration)` API doesn't accept a handler | `apps/mobile/components/ui/Toast.tsx` | Extend API to `showToast(variant, message, options?: { duration, action?: { label, onPress } })`; render trailing pressable inside the toast row |
+
+## 🟡 Minor — small visual approximations & one-offs
+
+### Primitive-level deferrals
+
+| # | Issue | File(s) | Why deferred / Fix |
+|---|-------|---------|-------------------|
+| M7 | **Drawer header avatar uses solid accent instead of warm peach gradient** — wireframe `.drawer-av` shows `linear-gradient(135deg, #F5DCC3, #E9B48A)`. My Avatar primitive ships `gradient='accent'` (solid `accent.primary` base) | `apps/mobile/components/ui/Avatar.tsx`, `apps/mobile/components/navigation/DrawerContent.tsx` | Add a `'warm'` gradient preset to Avatar (true 2-stop gradient via `expo-linear-gradient`) |
+| M8 | **Drawer header layout intentionally horizontal** — wireframe stacks avatar above name vertically; mine lays them in a row (avatar left, name+handle+badge column right) for compactness in the 300px-wide drawer. Recorded as accepted deviation | `apps/mobile/components/navigation/DrawerContent.tsx` | None (intentional). Revisit if a wider drawer is adopted |
+| M9 | **Drawer item list sourced from app nav, not wireframe** — wireframe shows generic mock; mine uses Marketplace (Home / My Gigs / Post Gig) / Money (Trade / Wallet) / Account (Settings) | `apps/mobile/components/navigation/DrawerContent.tsx` | Verify section grouping with stakeholders if a specific wireframe order is required |
+| M10 | **Drawer header avatar size = `lg` (48) instead of wireframe 64** — Avatar primitive only supports sm/md/lg/xl (32/44/48/96). 64 isn't a preset | `apps/mobile/components/ui/Avatar.tsx` | Add a numeric `size` override or a new preset (e.g. `'2xl': 64`) |
+| M11 | **BottomSheet bg defaults to `surface.background`** — most wireframes use --bg, but modals.html (currency picker) uses `--card`. Caller must pass a style override for that case | `apps/mobile/components/ui/BottomSheet.tsx` | Add `surface?: 'background' \| 'card'` prop if --card variant becomes common |
+| M12 | **BottomSheet title fixed at 20/700** — some sheets use 17 (compact options) or 22 (currency picker) | `apps/mobile/components/ui/BottomSheet.tsx` | Add `titleSize?: 'sm' \| 'md' \| 'lg'` prop if needed |
+| M13 | **MoneyText currency unit suffix not implemented** — wireframe `.gcc-amt .unit` shows trailing currency label inline (`USD`/`NGN`/`SOL`). Current API doesn't accept a unit prop | `apps/mobile/components/ui/MoneyText.tsx` | Extend `MoneyTextProps` with optional `unitLabel?: string`; render trailing in `--ink-3`, one size step smaller |
+| M14 | **MoneyText sans outlier on gig-detail meta** — `.meta-pay-amt` is sans 22/700 (vs canonical mono). Mine renders all amounts in mono. Stage 4 #29 will need a screen-local override for that one spot | `apps/mobile/app/gig/[id]/index.tsx` (Stage 4 #29) | Render the meta-pay-amt as plain `<Text>` instead of `<MoneyText>` |
+| M15 | **Avatar 40px size not in primitive enum** — used by `.offer-avatar` (exchange) and `.person-avatar` (gig-detail). Stage 3 #21/#22 will compose these locally | `apps/mobile/components/ui/Avatar.tsx` | Add a numeric `size` override; or extend enum with a `'mid': 40` preset |
+| M16 | **Avatar `.avatar-mini` 22px stacking variant not in primitive** — gig card sender thumbnail with --card border + --line ring. Stage 3 #20 GigCardCompact will style locally | `apps/mobile/components/gig/GigCardCompact.tsx` (Stage 3 #20) | Compose at the screen level — this is a screen-specific stacking-circle pattern, not a generic primitive |
+| M17 | **Profile `.info-pill` (32h sans) not folded into Badge** — distinct shape (32h vs 24h status-pill). Treated as an "info chip" pattern | `apps/mobile/app/(tabs)/profile.tsx` (Stage 4 #28) | Build a small `InfoPill` screen-local component or extend Badge with `size='lg'` |
+| M18 | **Gig-detail `.meta-escrow` (uppercase escrow chip) not folded into Badge** — single instance with 0.10em tracking + uppercase + custom #0D6640 light text | `apps/mobile/app/gig/[id]/index.tsx` (Stage 4 #29) | Inline composition |
+| M19 | **`.tag-dotlabel` (gig-detail) uses ok-surface bg with --ink-2 text** — single composition variant (not tonal text); not a generic Badge tone | Stage 4 #29 | Inline composition |
+| M20 | **PM-pill (`.pm-pill`) not folded into Badge** — 22h, --inset bg, no dot. Already approximated by `<Badge variant='neutral' size='sm' showDot={false} />` | `apps/mobile/components/exchange/detail/...` (Stage 3 #21) | Should already work via current Badge API — verify in Stage 3 |
+| M21 | **Auth `.btn-primary` (R16, F16, heavier shadow) not folded into Button** — single welcome CTA; screen-local override | `apps/mobile/app/(auth)/welcome.tsx` (Stage 4 #25) | Override style at the screen level |
+| M22 | **Gig-detail `.cta-*` family (R16) screen-local** — gig-detail is modal-presentation with its own visual language | Stage 4 #29 | Build screen-local CTA bar |
+| M23 | **Profile `.disconnect` (1px --danger border) screen-local** — single instance | `apps/mobile/app/(tabs)/profile.tsx` (Stage 4 #28) | Build screen-local Pressable |
+| M24 | **Exchange-detail `.btn-overflow` (52×52 --inset square) screen-local** — pure icon button at non-Button radius | Stage 4 #29 | Use `IconButton` primitive with size override |
+| M25 | **Profile `.cta` and Update-profile `.btn-primary` font 15.5** — vs canonical 15. 0.5px difference, accepted as visual noise | `apps/mobile/components/ui/Button.tsx` | Add a `font='emphatic'` or `size='lg-bold'` (font 15.5) variant only if user disagrees |
+| M26 | **Modal sheet button radius 12 vs primitive 14 at md=48h** — modal sheet CTAs render slightly chunkier than wireframe | `apps/mobile/components/ui/Button.tsx` | Add a `roundness: 'sm' \| 'md'` prop, or scale radius further at md size |
+| M27 | **Button press animation = static via Pressable's `pressed` state** — no eased duration. Wireframe spec calls for scale 0.985 + opacity 0.9 over `duration.fast` | `apps/mobile/components/ui/Button.tsx` | Wrap with reanimated for spring-eased press transform |
+| M28 | **Toast `'warning'` tone is extrapolated** — wireframe shows `ok/err/info` only; warning derived from feedback color set to align with the rest of the app's tone vocabulary | `apps/mobile/components/ui/Toast.tsx` | Verify with design — keep or remove |
+| M29 | **LoadingScreen logo+ring composition removed** — replaced with spec-prescribed simple 14×14 ring spinner. If brand presence on cold-load is desired, needs a separate brand splash | `apps/mobile/components/feedback/LoadingScreen.tsx` | Build a separate `BrandSplash` component if the logo experience matters on cold-load |
+
+### Token / theme amendments resolved during Stage 2 (recorded for traceability)
+
+| # | Issue | File(s) | Status |
+|---|-------|---------|--------|
+| M30 | **`typography.styles.button.letterSpacing` was +0.1, not -0.15** — wireframe `.btn-primary` consistently uses `letter-spacing: -0.01em` (= -0.15 at 15px). Original spec-doc paraphrase carried over the V1 `+0.1` value | `apps/mobile/theme/tokens.ts` | ✅ Resolved during Stage 2 #15 audit (Stage 1 amendment) |
+| M31 | **Dark border alphas were doubled vs wireframe** — `colors.dark.border.{subtle,default,divider}` was `0.08/0.10/0.08` → corrected to `0.04/0.08/0.04` to match `shared.css` dark `--line-subtle: 0.04`, `--line: 0.08` | `apps/mobile/theme/tokens.ts` | ✅ Resolved during Stage 2 #15 audit (Stage 1 amendment) |
+| M32 | **`shadows.fab` was `{0,12}/0.20/28`** — corrected to wireframe canonical `{0,10}/0.18/24` (six wireframe primary CTAs share `0 10px 24px rgba(46,91,214,0.18)`) | `apps/mobile/theme/tokens.ts` | ✅ Resolved during Stage 2 #15 audit (Stage 1 amendment) |
+
+### Code hygiene
+
+| # | Issue | File(s) | Why deferred / Fix |
+|---|-------|---------|-------------------|
+| M33 | **Orphan `components/ui/ErrorState.tsx`** — duplicate ErrorState with `onRetry` API exists; no call sites import it (all use `@/components/feedback/ErrorState`). Left untouched to avoid surprise breakage | `apps/mobile/components/ui/ErrorState.tsx` | Delete the file; confirm `components/ui/index.ts` doesn't re-export it |
+| M34 | **GigForm.tsx + FilterSheet.tsx still import `theme.colors.category[...]`** — dead access after switching to `category={cat.key}` Chip prop. Could be removed if no other code reads `theme.colors.category[...]` directly in those files | `apps/mobile/components/gig/GigForm.tsx`, `apps/mobile/components/ui/FilterSheet.tsx` | Verify and remove the unused references |
+
+## Open cross-stage questions (from STATUS.md)
+
+| # | Question | Affected stage | Status |
+|---|----------|----------------|--------|
+| Q2 | **`SeekerWelcomeSheet` bullet copy is marked PROPOSE in wireframe** — confirm real copy from shipped component or approve wireframe copy | Stage 3 / 4 | open |
+| Q3 | **Fee breakdown bps value (wireframe uses 1.25%)** — confirm real fee structure from `@tenda/shared` constants before rendering in create-gig fee calculator | Stage 4 #27 | open |

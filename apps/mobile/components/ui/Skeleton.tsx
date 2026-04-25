@@ -16,7 +16,7 @@ interface SkeletonProps {
 
 export function Skeleton({ width, height, radius = 8 }: SkeletonProps) {
   const { theme } = useUnistyles()
-  const opacity = useSharedValue(0.4)
+  const opacity = useSharedValue(0.55)
 
   useEffect(() => {
     opacity.value = withRepeat(
@@ -33,7 +33,7 @@ export function Skeleton({ width, height, radius = 8 }: SkeletonProps) {
   return (
     <Animated.View
       style={[
-        { width, height, borderRadius: radius, backgroundColor: theme.colors.surface.backgroundAlt },
+        { width, height, borderRadius: radius, backgroundColor: theme.colors.surface.inset },
         animatedStyle,
       ]}
     />

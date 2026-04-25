@@ -2,68 +2,106 @@ import { View, StyleSheet, type ViewStyle } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { AlertTriangle } from 'lucide-react-native'
-import { spacing } from '@/theme/tokens'
+import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
-import { Spacer } from '@/components/ui/Spacer'
+
+type Size = 'default' | 'large'
 
 interface ErrorStateProps {
   title: string
   description?: string
+  meta?: string
   ctaLabel?: string
   onCtaPress?: () => void
   secondaryLabel?: string
   onSecondaryPress?: () => void
+  size?: Size
   style?: ViewStyle
 }
 
 export function ErrorState({
   title,
   description,
+  meta,
   ctaLabel = 'Go back',
   onCtaPress,
   secondaryLabel,
   onSecondaryPress,
+  size = 'default',
   style,
 }: ErrorStateProps) {
   const { theme } = useUnistyles()
   const router = useRouter()
 
   const handleCtaPress = onCtaPress ?? (() => router.back())
+  const isLarge = size === 'large'
 
   return (
-    <View style={[s.container, style]}>
-      <View style={[s.iconWrap, { backgroundColor: theme.colors.feedback.warning.surface }]}>
-        <AlertTriangle size={28} color={theme.colors.feedback.warning.text} />
+    <View style={[s.container, isLarge && s.containerLarge, style]}>
+      {isLarge && (
+        <View style={s.glow}>
+          <View
+            style={[
+              s.glowInner,
+              {
+                backgroundColor: theme.colors.feedback.danger.surface,
+                opacity: 0.5,
+              },
+            ]}
+          />
+        </View>
+      )}
+
+      <View
+        style={[
+          isLarge ? s.iconTileLarge : s.iconTile,
+          { backgroundColor: theme.colors.feedback.danger.surface },
+        ]}
+      >
+        <AlertTriangle
+          size={isLarge ? 32 : 28}
+          color={theme.colors.feedback.danger.base}
+          strokeWidth={2}
+        />
       </View>
 
-      <Text variant="heading" align="center">
+      <Text
+        style={[
+          isLarge ? s.titleLarge : s.title,
+          { color: theme.colors.content.primary },
+        ]}
+      >
         {title}
       </Text>
 
-      {description ? (
-        <>
-          <Spacer size={spacing.sm} />
-          <Text variant="body" align="center" color={theme.colors.content.secondary}>
-            {description}
-          </Text>
-        </>
-      ) : null}
+      {description && (
+        <Text
+          style={[
+            isLarge ? s.bodyLarge : s.body,
+            { color: theme.colors.content.secondary },
+          ]}
+        >
+          {description}
+        </Text>
+      )}
 
-      <Spacer size={spacing.lg} />
+      {meta && (
+        <Text style={[s.meta, { color: theme.colors.content.tertiary }]}>
+          {meta}
+        </Text>
+      )}
 
-      <Button variant="primary" size="lg" fullWidth onPress={handleCtaPress}>
-        {ctaLabel}
-      </Button>
-
-      {secondaryLabel ? (
-        <>
-          <Spacer size={spacing.sm} />
+      <View style={s.actions}>
+        <Button variant="primary" size="lg" fullWidth onPress={handleCtaPress}>
+          {ctaLabel}
+        </Button>
+        {secondaryLabel && (
           <Button variant="ghost" size="md" fullWidth onPress={onSecondaryPress}>
             {secondaryLabel}
           </Button>
-        </>
-      ) : null}
+        )}
+      </View>
     </View>
   )
 }
@@ -73,14 +111,78 @@ const s = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
+    paddingHorizontal: 20,
+    gap: 14,
   },
-  iconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  containerLarge: {
+    paddingHorizontal: 32,
+    position: 'relative',
+  },
+  glow: {
+    position: 'absolute',
+    top: '10%',
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    pointerEvents: 'none',
+  },
+  glowInner: {
+    width: 280,
+    height: 280,
+    borderRadius: 140,
+  },
+  iconTile: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+  },
+  iconTileLarge: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 18,
+    lineHeight: 22,
+    fontWeight: '700',
+    letterSpacing: -0.27,
+    textAlign: 'center',
+  },
+  titleLarge: {
+    fontSize: 22,
+    lineHeight: 27,
+    fontWeight: '700',
+    letterSpacing: -0.22,
+    textAlign: 'center',
+  },
+  body: {
+    fontSize: 13.5,
+    lineHeight: 20,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  bodyLarge: {
+    fontSize: 14.5,
+    lineHeight: 22,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  meta: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.22,
+    textAlign: 'center',
+  },
+  actions: {
+    width: '100%',
+    maxWidth: 320,
+    marginTop: 8,
+    gap: 8,
   },
 })
