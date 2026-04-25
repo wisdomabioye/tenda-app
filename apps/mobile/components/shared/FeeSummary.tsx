@@ -1,14 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { computePlatformFee } from '@tenda/shared'
+import { computePlatformFee, LAMPORTS_PER_SOL } from '@tenda/shared'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { useAuthStore } from '@/stores/auth.store'
-import { api } from '@/api/client'
+import { Eyebrow } from '@/components/ui/Eyebrow'
+import { useIsSeeker } from '@/stores/auth.store'
+import { usePlatformConfigStore } from '@/stores/platform-config.store'
 import { formatSolDisplay } from '@/lib/currency'
-
-const LAMPORTS_PER_SOL = 1_000_000_000
 
 interface FeeSummaryProps {
   /** Principal amount in lamports — gig payment / offer escrow */
@@ -30,19 +29,15 @@ export function FeeSummary({
   totalLabel = 'Total to escrow',
 }: FeeSummaryProps) {
   const { theme } = useUnistyles()
-  const isSeeker = useAuthStore((s) => s.user?.is_seeker ?? false)
-  const [feeBps, setFeeBps] = useState<number | null>(null)
+  const isSeeker = useIsSeeker()
+  const config = usePlatformConfigStore((s) => s.config)
+  const fetchConfig = usePlatformConfigStore((s) => s.fetch)
 
-  useEffect(() => {
-    let cancelled = false
-    api.platform.config()
-      .then((cfg) => {
-        if (cancelled) return
-        setFeeBps(isSeeker ? cfg.seeker_fee_bps : cfg.fee_bps)
-      })
-      .catch(() => { /* fall back — rows render placeholder */ })
-    return () => { cancelled = true }
-  }, [isSeeker])
+  useEffect(() => { fetchConfig() }, [fetchConfig])
+
+  const feeBps = config != null
+    ? (isSeeker ? config.seeker_fee_bps : config.fee_bps)
+    : null
 
   const principalSol = principalLamports / LAMPORTS_PER_SOL
   const feeLamports = feeBps != null
@@ -62,9 +57,7 @@ export function FeeSummary({
         },
       ]}
     >
-      <Text style={[s.eyebrow, { color: theme.colors.content.tertiary }]}>
-        {eyebrow}
-      </Text>
+      <Eyebrow style={s.eyebrowSpacing}>{eyebrow}</Eyebrow>
       <View style={s.row}>
         <Text size={13.5} color={theme.colors.content.secondary}>Principal</Text>
         <Text style={[s.v, { color: theme.colors.content.primary }]}>
@@ -106,15 +99,7 @@ const s = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
   },
-  eyebrow: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
-    marginBottom: 10,
-    includeFontPadding: false,
-  },
+  eyebrowSpacing: { marginBottom: 10 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',

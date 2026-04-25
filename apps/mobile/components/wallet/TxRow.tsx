@@ -3,9 +3,9 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Briefcase, ArrowLeftRight } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import type { UserTransaction } from '@tenda/shared'
-
-const LAMPORTS_PER_SOL = 1_000_000_000
+import { formatFiatShort } from '@/lib/currency'
+import { LAMPORTS_PER_SOL } from '@tenda/shared'
+import type { UserTransaction, SupportedCurrency } from '@tenda/shared'
 
 const GIG_TYPE_LABEL: Record<string, string> = {
   create_escrow:    'Gig funded',
@@ -29,14 +29,6 @@ const EXCHANGE_TYPE_LABEL: Record<string, string> = {
 
 function formatSolShort(sol: number): string {
   return sol >= 1 ? sol.toFixed(2) : sol.toFixed(3)
-}
-
-function formatFiatShort(amount: number, currency: string): string {
-  const symbol: Record<string, string> = { NGN: '₦', USD: '$', GHS: '₵', KES: 'KSh', ZAR: 'R' }
-  const sym = symbol[currency] ?? `${currency} `
-  if (amount >= 1_000_000) return `${sym}${(amount / 1_000_000).toFixed(1)}M`
-  if (amount >= 1_000)     return `${sym}${Math.round(amount / 1_000)}k`
-  return `${sym}${Math.round(amount)}`
 }
 
 function getTxSign(tx: UserTransaction, userId: string): '+' | '-' | null {
@@ -103,7 +95,7 @@ export function TxRow({ tx, userId }: TxRowProps) {
     : (EXCHANGE_TYPE_LABEL[tx.type] ?? tx.type)
   const title = isGig
     ? tx.gig.title
-    : `${formatSolShort(Number(tx.offer.lamports_amount) / LAMPORTS_PER_SOL)} SOL → ${formatFiatShort(tx.offer.fiat_amount, tx.offer.fiat_currency)}`
+    : `${formatSolShort(Number(tx.offer.lamports_amount) / LAMPORTS_PER_SOL)} SOL → ${formatFiatShort(tx.offer.fiat_amount, tx.offer.fiat_currency as SupportedCurrency)}`
 
   return (
     <View style={[s.row, { borderBottomColor: theme.colors.border.subtle }]}>

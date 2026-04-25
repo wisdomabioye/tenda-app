@@ -16,26 +16,10 @@ import { getBalance } from '@/wallet'
 import { DevnetBadge } from '@/components/feedback'
 import { useExchangeRateStore, useSettingsStore } from '@/stores'
 import { formatFiat } from '@/lib/currency'
+import { groupByDay } from '@/lib/date'
+import { LAMPORTS_PER_SOL, truncateWallet } from '@tenda/shared'
 import type { UserTransaction, SupportedCurrency } from '@tenda/shared'
 
-const LAMPORTS_PER_SOL = 1_000_000_000
-
-type FeedItem =
-  | { type: 'day'; key: string; label: string }
-  | { type: 'tx'; key: string; tx: UserTransaction }
-
-function formatDayLabel(iso: string): string {
-  const date = new Date(iso)
-  const now = new Date()
-  if (date.toDateString() === now.toDateString()) return 'Today'
-  const yesterday = new Date(now)
-  yesterday.setDate(yesterday.getDate() - 1)
-  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
-  if (date.getFullYear() === now.getFullYear()) {
-    return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
-  }
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
-}
 
 export default function WalletScreen() {
   const { theme } = useUnistyles()
@@ -107,25 +91,12 @@ export default function WalletScreen() {
     return sum
   }, 0)
 
-  // Day-grouped feed: insert section headers when calendar date changes.
-  const feed: FeedItem[] = useMemo(() => {
-    const out: FeedItem[] = []
-    let lastDay: string | null = null
-    for (const tx of transactions) {
-      if (!tx.created_at) continue
-      const day = new Date(tx.created_at).toDateString()
-      if (day !== lastDay) {
-        out.push({ type: 'day', key: `day-${day}`, label: formatDayLabel(tx.created_at) })
-        lastDay = day
-      }
-      out.push({ type: 'tx', key: tx.id, tx })
-    }
-    return out
-  }, [transactions])
+  const feed = useMemo(
+    () => groupByDay(transactions, (tx) => tx.created_at, (tx) => tx.id, 'tx'),
+    [transactions],
+  )
 
-  const truncatedAddress = walletAddress
-    ? `${walletAddress.slice(0, 4)}…${walletAddress.slice(-4)}`
-    : null
+  const truncatedAddress = walletAddress ? truncateWallet(walletAddress) : null
 
   async function copyAddress() {
     if (!walletAddress) return
@@ -269,7 +240,7 @@ export default function WalletScreen() {
               {item.label.toUpperCase()}
             </Text>
           ) : (
-            <TxRow tx={item.tx} userId={user?.id ?? ''} />
+            <TxRow tx={item.item} userId={user?.id ?? ''} />
           )
         }
         ListEmptyComponent={

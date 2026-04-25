@@ -1,7 +1,57 @@
 /**
- * Frontend-only display helpers for gig dates, durations, and deadlines.
+ * Frontend-only display helpers for gigs:
+ *   - Date / duration / deadline formatters
+ *   - Status label + status-tone mappings (single source of truth used by
+ *     GigStatusBadge, GigCardCompact (Rich/PriceLeading/Classic), and any
+ *     other surface that needs to display a gig status)
+ *
  * Locale formatting is frontend-only; pure logic belongs in @tenda/shared/utils/gig-utils.
  */
+import type { AppTheme } from '@/theme/themes'
+import type { GigStatus } from '@tenda/shared'
+
+export const STATUS_LABEL: Record<GigStatus, string> = {
+  draft:     'Draft',
+  open:      'Open',
+  accepted:  'Accepted',
+  submitted: 'Submitted',
+  completed: 'Completed',
+  disputed:  'Disputed',
+  resolved:  'Resolved',
+  expired:   'Expired',
+  cancelled: 'Cancelled',
+}
+
+/** Tone slot for the Badge primitive (`<Badge variant={...} />`). */
+export const STATUS_BADGE_VARIANT: Record<GigStatus, 'success' | 'warning' | 'danger' | 'info' | 'brand' | 'accent' | 'neutral'> = {
+  draft:     'neutral',
+  open:      'success',
+  accepted:  'brand',
+  submitted: 'warning',
+  completed: 'success',
+  disputed:  'danger',
+  resolved:  'success',
+  expired:   'neutral',
+  cancelled: 'neutral',
+}
+
+/** Resolved hex color for status dots in card compositions (GigCardCompact). */
+export function statusDotColor(theme: AppTheme, status: GigStatus): string {
+  switch (status) {
+    case 'open':
+    case 'completed':
+    case 'resolved':
+      return theme.colors.feedback.success.base
+    case 'accepted':
+      return theme.colors.brand.primary
+    case 'submitted':
+      return theme.colors.feedback.warning.base
+    case 'disputed':
+      return theme.colors.feedback.danger.base
+    default:
+      return theme.colors.content.tertiary
+  }
+}
 
 export function deadlineLabel(deadline: Date | null): string {
   if (!deadline) return ''

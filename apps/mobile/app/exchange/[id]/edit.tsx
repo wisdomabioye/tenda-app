@@ -5,10 +5,9 @@ import { ExchangeOfferForm } from '@/components/exchange/create'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import type { ExchangeOfferFormValues } from '@/components/exchange/create'
+import { LAMPORTS_PER_SOL } from '@tenda/shared'
 import type { ExchangeOfferDetail, SupportedCurrency } from '@tenda/shared'
 import { api } from '@/api/client'
-
-const LAMPORTS_PER_SOL = 1_000_000_000
 
 function offerToFormValues(offer: ExchangeOfferDetail): ExchangeOfferFormValues {
   return {

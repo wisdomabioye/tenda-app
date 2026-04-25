@@ -16,9 +16,9 @@ import { ReviewStep } from './ReviewStep'
 import { api } from '@/api/client'
 import type { Step } from './StepIndicator'
 import type { PaymentMethodFormEntry } from './PaymentMethodsStep'
+import { LAMPORTS_PER_SOL } from '@tenda/shared'
 import type { SupportedCurrency, UserExchangeAccount } from '@tenda/shared'
 
-const LAMPORTS_PER_SOL = 1_000_000_000
 const LAST_STEP = (STEPS.length - 1) as Step
 
 export interface ExchangeOfferFormValues {

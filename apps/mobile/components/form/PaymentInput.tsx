@@ -5,11 +5,9 @@ import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { CURRENCY_META } from '@tenda/shared'
+import { CURRENCY_META, LAMPORTS_PER_SOL } from '@tenda/shared'
 import { MIN_PAYMENT_LAMPORTS, MAX_PAYMENT_LAMPORTS } from '@tenda/shared'
 import { formatSolDisplay } from '@/lib/currency'
-
-const LAMPORTS_PER_SOL = 1_000_000_000
 
 interface PaymentInputProps {
   value: number

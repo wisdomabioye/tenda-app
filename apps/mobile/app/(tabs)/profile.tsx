@@ -26,6 +26,7 @@ import { Header } from '@/components/ui/Header'
 import { SeekerWelcomeSheet } from '@/components/seeker/SeekerWelcomeSheet'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUserGigsStore } from '@/stores/user-gigs.store'
+import { truncateWallet } from '@tenda/shared'
 
 interface MenuItem {
   icon: typeof Wallet
@@ -57,9 +58,7 @@ export default function ProfileScreen() {
     .filter(Boolean)
     .join(' ') || 'Anonymous'
 
-  const walletShort = user?.wallet_address
-    ? `${user.wallet_address.slice(0, 4)}...${user.wallet_address.slice(-4)}`
-    : '—'
+  const walletShort = user?.wallet_address ? truncateWallet(user.wallet_address) : '—'
 
   const menuItems: MenuItem[] = [
     { icon: UserPen, label: 'Update Profile', onPress: () => router.push('/(tabs)/update-profile') },

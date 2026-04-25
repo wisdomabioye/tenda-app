@@ -1,6 +1,4 @@
-import { CURRENCY_META, type SupportedCurrency } from '@tenda/shared'
-
-const LAMPORTS_PER_SOL = 1_000_000_000
+import { CURRENCY_META, LAMPORTS_PER_SOL, type SupportedCurrency } from '@tenda/shared'
 
 export interface PaymentDisplay {
   fiat: number
@@ -45,4 +43,17 @@ export function formatFiat(amount: number, currency: SupportedCurrency): string 
     currency,
     maximumFractionDigits: 0,
   })
+}
+
+/**
+ * Compact currency display used in card densities — e.g. "₦240k", "$1.5M".
+ * Falls back to full formatFiat() for amounts < 1,000.
+ */
+export function formatFiatShort(amount: number, currency: SupportedCurrency): string {
+  const { locale } = CURRENCY_META[currency]
+  const symbol = (0).toLocaleString(locale, { style: 'currency', currency, maximumFractionDigits: 0 })
+    .replace(/[\d.,\s]/g, '')
+  if (amount >= 1_000_000) return `${symbol}${(amount / 1_000_000).toFixed(1)}M`
+  if (amount >= 1_000)     return `${symbol}${Math.round(amount / 1_000)}k`
+  return formatFiat(amount, currency)
 }

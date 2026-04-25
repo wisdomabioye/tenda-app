@@ -1,6 +1,7 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
+import { useIsDark } from '@/lib/theme'
 import type { LocalMessage } from '@/stores/chat.store'
 
 interface MessageBubbleProps {
@@ -18,8 +19,8 @@ const ME_BG_LIGHT = '#4365D2'
 const ME_BG_DARK  = '#3F5BA8'
 
 export function MessageBubble({ message, isMine, onRetry, onLongPress }: MessageBubbleProps) {
-  const { theme, rt } = useUnistyles()
-  const isDark = (rt as any)?.themeName === 'dark'
+  const { theme } = useUnistyles()
+  const isDark = useIsDark()
 
   const isFailed  = message._status === 'failed'
   const isSending = message._status === 'sending'

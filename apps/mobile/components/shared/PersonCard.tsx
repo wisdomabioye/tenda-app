@@ -1,9 +1,9 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 
 interface PersonCardUser {
   id: string
@@ -55,9 +55,7 @@ export function PersonCard({
 
   return (
     <View>
-      <Text style={[s.eyebrow, { color: theme.colors.content.tertiary }]}>
-        {label.toUpperCase()}
-      </Text>
+      <Eyebrow style={s.eyebrowSpacing}>{label}</Eyebrow>
       <View style={s.row}>
         <Avatar size="lg" name={displayName} src={user.avatar_url} gradient={gradient} />
         <View style={s.body}>
@@ -110,13 +108,7 @@ export function PersonCard({
 }
 
 const s = StyleSheet.create({
-  eyebrow: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
-    textTransform: 'uppercase',
+  eyebrowSpacing: {
     paddingHorizontal: 20,
     paddingTop: 14,
     paddingBottom: 4,

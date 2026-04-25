@@ -11,6 +11,7 @@ import { Text, Avatar } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth.store';
 import { typography } from '@/theme/tokens';
 import { isSeekerDevice } from '@/lib/device';
+import { truncateWallet } from '@tenda/shared';
 
 interface NavItem {
   name: string;
@@ -64,9 +65,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
     .filter(Boolean)
     .join(' ') || 'Anonymous';
 
-  const handle = user?.wallet_address
-    ? `${user.wallet_address.slice(0, 4)}…${user.wallet_address.slice(-4)}`
-    : null;
+  const handle = user?.wallet_address ? truncateWallet(user.wallet_address) : null;
   const isSeeker = isSeekerDevice();
 
   const handleNavigate = (route: string) => {

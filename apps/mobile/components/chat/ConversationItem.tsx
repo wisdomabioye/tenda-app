@@ -3,32 +3,12 @@ import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
+import { formatConvoTime } from '@/lib/date'
 import type { Conversation } from '@tenda/shared'
 
 interface ConversationItemProps {
   conversation: Conversation
   onPress: () => void
-}
-
-function formatTimestamp(iso: string): string {
-  const date = new Date(iso)
-  const now = new Date()
-  const diffMs = now.getTime() - date.getTime()
-  const diffMin = Math.floor(diffMs / 60_000)
-  const sameDay = date.toDateString() === now.toDateString()
-
-  if (sameDay) {
-    if (diffMin < 1)  return 'now'
-    if (diffMin < 60) return `${diffMin}m`
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }).toLowerCase()
-  }
-  const diffDays = Math.floor(diffMs / 86_400_000)
-  if (diffDays === 1) return 'Yest'
-  if (diffDays < 7)   return date.toLocaleDateString([], { weekday: 'short' })
-  if (date.getFullYear() === now.getFullYear()) {
-    return date.toLocaleDateString([], { day: 'numeric', month: 'short' })
-  }
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export function ConversationItem({ conversation, onPress }: ConversationItemProps) {
@@ -39,7 +19,7 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
     [other_user.first_name, other_user.last_name].filter(Boolean).join(' ') || 'Anonymous'
 
   const isUnread = unread_count > 0
-  const time = last_message_at ? formatTimestamp(last_message_at) : ''
+  const time = last_message_at ? formatConvoTime(last_message_at) : ''
 
   const previewColor = isUnread
     ? theme.colors.content.primary

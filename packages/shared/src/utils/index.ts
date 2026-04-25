@@ -1,6 +1,8 @@
 export * from './gig-utils'
 export { computePlatformFee } from './fees'
 export { isCrossBorder } from './cross-border'
+export { LAMPORTS_PER_SOL } from './constants'
+export { truncateWallet } from './wallet'
 
 export {
   MIN_PAYMENT_LAMPORTS,

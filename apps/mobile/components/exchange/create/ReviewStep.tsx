@@ -4,13 +4,12 @@ import { CreditCard } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { FeeSummary } from '@/components/shared/FeeSummary'
-import { CURRENCY_META } from '@tenda/shared'
+import { CURRENCY_META, LAMPORTS_PER_SOL } from '@tenda/shared'
 import type { SupportedCurrency } from '@tenda/shared'
 import { formatPaymentWindow } from '@/lib/currency'
 import type { PaymentMethodFormEntry } from './PaymentMethodsStep'
-
-const LAMPORTS_PER_SOL = 1_000_000_000
 
 interface Props {
   solNum:        number
@@ -47,9 +46,7 @@ export function ReviewStep({
           },
         ]}
       >
-        <Text style={[s.eyebrow, { color: theme.colors.content.tertiary }]}>
-          OFFER OVERVIEW
-        </Text>
+        <Eyebrow style={{ marginBottom: 10 }}>OFFER OVERVIEW</Eyebrow>
         <SummaryRow label="You sell" value={`${solNum} SOL`} mono />
         <SummaryRow label={`Buyer pays`} value={`${meta.symbol}${fiatNum.toLocaleString()} ${currency}`} mono />
         <SummaryRow label="Rate" value={`${meta.symbol}${rateNum.toLocaleString()}/SOL`} mono />
@@ -150,15 +147,6 @@ const s = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 14,
     paddingHorizontal: 16,
-  },
-  eyebrow: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
-    marginBottom: 10,
-    includeFontPadding: false,
   },
   row: {
     flexDirection: 'row',

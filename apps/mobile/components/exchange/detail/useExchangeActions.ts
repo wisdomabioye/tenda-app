@@ -14,8 +14,9 @@ import { checkBalance } from '@/lib/balance'
 import { uploadToCloudinary } from '@/lib/upload'
 import type { PickedFile } from '@/components/form/FilePicker'
 import { showToast } from '@/components/ui/Toast'
-import { useAuthStore } from '@/stores/auth.store'
+import { useAuthStore, useIsSeeker } from '@/stores/auth.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
+import { usePlatformConfigStore } from '@/stores/platform-config.store'
 import type { PendingSync } from '@/stores/pending-sync.store'
 import type { ExchangeOfferDetail, ReviewInput } from '@tenda/shared'
 import { EXCHANGE_DISPUTE_REASON_MIN_LENGTH, computePlatformFee, SOLANA_TX_FEE_LAMPORTS } from '@tenda/shared'
@@ -46,7 +47,7 @@ export function useExchangeActions(
   onBack: () => void,
 ) {
   const authToken = useAuthStore((s) => s.mwaAuthToken ?? '')
-  const isSeeker  = useAuthStore((s) => s.user?.is_seeker ?? false)
+  const isSeeker  = useIsSeeker()
 
   // Upload/non-tx loading (e.g. draft cancel, file upload phase of markPaid)
   const [busy, setBusy] = useState(false)
@@ -194,8 +195,9 @@ export function useExchangeActions(
     if (!authToken) return
     setIsTxBuilding(true)
     try {
-      const { fee_bps, seeker_fee_bps } = await api.platform.config()
-      const effectiveFeeBps = isSeeker ? seeker_fee_bps : fee_bps
+      const cfg = await usePlatformConfigStore.getState().fetch()
+      if (!cfg) throw new Error('Platform config unavailable')
+      const effectiveFeeBps = isSeeker ? cfg.seeker_fee_bps : cfg.fee_bps
       const lamports = BigInt(offer.lamports_amount)
       const required = lamports + BigInt(computePlatformFee(lamports, effectiveFeeBps)) + SOLANA_TX_FEE_LAMPORTS
       if (!await guardBalance(required)) return

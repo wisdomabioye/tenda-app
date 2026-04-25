@@ -5,6 +5,7 @@ import { ChevronDown, Check } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text, BottomSheet } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { SUPPORTED_CURRENCIES, CURRENCY_META } from '@tenda/shared'
 import type { SupportedCurrency } from '@tenda/shared'
@@ -95,9 +96,7 @@ export function OfferDetailsStep({
           <Text style={[s.flagText, { color: theme.colors.brand.primary }]}>{currency}</Text>
         </View>
         <View style={s.currencyMeta}>
-          <Text style={[s.currencyEyebrow, { color: theme.colors.content.tertiary }]}>
-            RECEIVE IN
-          </Text>
+          <Eyebrow style={{ marginBottom: 2 }}>RECEIVE IN</Eyebrow>
           <Text style={[s.currencyVal, { color: theme.colors.content.primary }]}>
             {currency} · {meta.locale}
           </Text>
@@ -256,7 +255,7 @@ function LegCard({ eyebrow, value, suffix, placeholder, onChange, focused, onFoc
         },
       ]}
     >
-      <Text style={[ls.cap, { color: theme.colors.content.tertiary }]}>{eyebrow}</Text>
+      <Eyebrow style={{ marginBottom: 4 }}>{eyebrow}</Eyebrow>
       <View style={ls.row}>
         <TextInput
           value={value}
@@ -308,15 +307,6 @@ const s = StyleSheet.create({
   currencyMeta: {
     flex: 1,
     minWidth: 0,
-  },
-  currencyEyebrow: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
-    marginBottom: 2,
-    includeFontPadding: false,
   },
   currencyVal: {
     fontSize: 15,
@@ -395,15 +385,6 @@ const ls = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 14,
     justifyContent: 'center',
-  },
-  cap: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
-    marginBottom: 4,
-    includeFontPadding: false,
   },
   row: {
     flexDirection: 'row',

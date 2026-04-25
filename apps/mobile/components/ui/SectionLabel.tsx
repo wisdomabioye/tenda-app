@@ -1,7 +1,4 @@
-import { Text } from './Text'
-import { useUnistyles } from 'react-native-unistyles'
-import { StyleSheet } from 'react-native'
-import { typography } from '@/theme/tokens'
+import { Eyebrow } from './Eyebrow'
 
 interface SectionLabelProps {
   children: string
@@ -10,32 +7,19 @@ interface SectionLabelProps {
 }
 
 /**
- * Mono uppercase eyebrow used between form / detail sections.
- * Per wireframe `.sec-label`: mono 9.5/600 +0.10em uppercase --ink-3, padding 18 20 8.
+ * Section-level eyebrow used between form / detail sections.
+ * Wraps Eyebrow with wireframe `.sec-label` padding (18/8/20).
  */
 export function SectionLabel({ children, tight = false }: SectionLabelProps) {
-  const { theme } = useUnistyles()
   return (
-    <Text
-      style={[
-        s.label,
-        { color: theme.colors.content.tertiary, paddingTop: tight ? 12 : 18 },
-      ]}
+    <Eyebrow
+      style={{
+        paddingHorizontal: 20,
+        paddingTop: tight ? 12 : 18,
+        paddingBottom: 8,
+      }}
     >
-      {children.toUpperCase()}
-    </Text>
+      {children}
+    </Eyebrow>
   )
 }
-
-const s = StyleSheet.create({
-  label: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
-    paddingHorizontal: 20,
-    paddingBottom: 8,
-    includeFontPadding: false,
-  },
-})

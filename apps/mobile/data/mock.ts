@@ -1,4 +1,4 @@
-import type { GigCategory, GigStatus } from '@tenda/shared'
+import type { GigCategory } from '@tenda/shared'
 
 // ── Category metadata ─────────────────────────────────────────────────
 
@@ -29,28 +29,5 @@ export function getCategoryColor(category: GigCategory): string {
   return categoryColorTokens[category] ?? 'categoryService'
 }
 
-// ── Status → Badge variant mapping ────────────────────────────────────
-
-export const STATUS_BADGE_VARIANT: Record<GigStatus, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
-  draft:     'neutral',
-  open:      'info',
-  accepted:  'warning',
-  submitted: 'warning',
-  completed: 'success',
-  disputed:  'danger',
-  resolved:  'success',
-  expired:   'neutral',
-  cancelled: 'neutral',
-}
-
-export const STATUS_LABEL: Record<GigStatus, string> = {
-  draft:     'Draft',
-  open:      'Open',
-  accepted:  'Accepted',
-  submitted: 'Submitted',
-  completed: 'Completed',
-  disputed:  'Disputed',
-  resolved:  'Resolved',
-  expired:   'Expired',
-  cancelled: 'Cancelled',
-}
+// Status label + tone mappings live in @/lib/gig-display
+export { STATUS_BADGE_VARIANT, STATUS_LABEL } from '@/lib/gig-display'

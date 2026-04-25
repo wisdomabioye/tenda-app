@@ -121,3 +121,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ mwaAuthToken: token })
   },
 }))
+
+/**
+ * Selector hook for the current user's seeker status.
+ * Used to pick `seeker_fee_bps` vs `fee_bps` and to gate seeker-only UI.
+ */
+export const useIsSeeker = (): boolean =>
+  useAuthStore((s) => s.user?.is_seeker ?? false)

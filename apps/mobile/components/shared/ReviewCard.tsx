@@ -4,6 +4,7 @@ import { Star } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Avatar } from '@/components/ui/Avatar'
 import { Text } from '@/components/ui/Text'
+import { formatRelativeShort } from '@/lib/date'
 import type { Review } from '@tenda/shared'
 
 interface ReviewCardProps {
@@ -16,23 +17,11 @@ interface ReviewCardProps {
   label: string
 }
 
-function formatRelativeTime(date: Date): string {
-  const ms = Date.now() - date.getTime()
-  const min = Math.floor(ms / 60_000)
-  if (min < 60) return `${min}m ago`
-  const hr = Math.floor(min / 60)
-  if (hr < 24) return `${hr}h ago`
-  const day = Math.floor(hr / 24)
-  if (day < 7)  return `${day}d ago`
-  if (day < 30) return `${Math.floor(day / 7)}w ago`
-  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
-}
-
 export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
   const { theme } = useUnistyles()
 
   const name = [reviewer.first_name, reviewer.last_name].filter(Boolean).join(' ') || 'Anonymous'
-  const time = review.created_at ? formatRelativeTime(new Date(review.created_at)) : null
+  const time = review.created_at ? formatRelativeShort(review.created_at) : null
 
   return (
     <View style={[s.row, { borderBottomColor: theme.colors.border.subtle }]}>

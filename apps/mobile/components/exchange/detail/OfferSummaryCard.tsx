@@ -6,10 +6,9 @@ import { spacing, typography, radius } from '@/theme/tokens'
 import { Text, Spacer, Card, Divider, showToast } from '@/components/ui'
 import { ExchangeStatusBadge } from '@/components/exchange'
 import { formatFiat, formatSolDisplay, formatPaymentWindow } from '@/lib/currency'
+import { LAMPORTS_PER_SOL } from '@tenda/shared'
 import type { ExchangeOfferDetail } from '@tenda/shared'
 import type { SupportedCurrency } from '@tenda/shared'
-
-const LAMPORTS_PER_SOL = 1_000_000_000
 
 export function OfferSummaryCard({ offer }: { offer: ExchangeOfferDetail }) {
   const { theme } = useUnistyles()

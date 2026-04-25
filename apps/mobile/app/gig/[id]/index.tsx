@@ -36,11 +36,13 @@ import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { CATEGORY_META } from '@/data/mock'
-import { 
+import {
   useAuthStore,
   useGigsStore,
   usePendingSyncStore,
 } from '@/stores'
+import { useIsSeeker } from '@/stores/auth.store'
+import { usePlatformConfigStore } from '@/stores/platform-config.store'
 import { 
   computeRelevantDeadline, 
   computePlatformFee, 
@@ -82,7 +84,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const router = useRouter()
   const { theme } = useUnistyles()
   const mwaAuthToken = useAuthStore((s) => s.mwaAuthToken)
-  const isSeeker = useAuthStore((s) => s.user?.is_seeker ?? false)
+  const isSeeker = useIsSeeker()
   const { fetchGigDetail, acceptGig, submitProof, disputeGig } = useGigsStore()
   const pendingSync = usePendingSyncStore()
 
@@ -182,8 +184,9 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     if (!mwaAuthToken) return
     setIsTxBuilding(true)
     try {
-      const { fee_bps, seeker_fee_bps } = await api.platform.config()
-      const effectiveFeeBps = isSeeker ? seeker_fee_bps : fee_bps
+      const cfg = await usePlatformConfigStore.getState().fetch()
+      if (!cfg) throw new Error('Platform config unavailable')
+      const effectiveFeeBps = isSeeker ? cfg.seeker_fee_bps : cfg.fee_bps
       const platformFee = BigInt(computePlatformFee(BigInt(gig.payment_lamports), effectiveFeeBps))
       const required = BigInt(gig.payment_lamports) + platformFee + SOLANA_TX_FEE_LAMPORTS
       if (!await guardBalance(required)) return

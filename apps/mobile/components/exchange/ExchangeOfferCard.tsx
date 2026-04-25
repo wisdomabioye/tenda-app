@@ -8,9 +8,8 @@ import { Avatar } from '@/components/ui/Avatar'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
 import { PaymentMethodBadge } from './PaymentMethodBadge'
 import { formatFiat, formatSolDisplay } from '@/lib/currency'
+import { LAMPORTS_PER_SOL } from '@tenda/shared'
 import type { ExchangeOfferSummary, SupportedCurrency } from '@tenda/shared'
-
-const LAMPORTS_PER_SOL = 1_000_000_000
 
 interface Props {
   offer: ExchangeOfferSummary
