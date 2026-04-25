@@ -293,6 +293,16 @@
 | M40 | **`MessageBubble` "Sending…" indicator** is an extrapolation — wireframe doesn't show this status. Kept as a small caption in `--ink-3` for functional feedback (user knows the message is in flight). Remove if wireframe-strict | `apps/mobile/components/chat/MessageBubble.tsx` | Remove if exact wireframe parity required |
 | M41 | **`ChatContextDivider` sticky variant (`.ctx-sticky`)** not implemented — wireframe shows a 48h gig-reference card sticky at top of chat thread (square brand icon + eyebrow + title + chevron). Screen-level composition for Stage 4 #29 | `apps/mobile/app/chat/[userId].tsx` (Stage 4 #29) | Build inline at chat detail screen; not a generic primitive |
 
+### Stage 3 #24 — feature components deferred to Stage 4 #29
+
+| # | Issue | File(s) | Why deferred / Fix |
+|---|-------|---------|-------------------|
+| M42 | **`GigCTABar` not restyled to wireframe** — variants (worker accept / draft publish / accepted submit-proof / disputed) are role-specific and tied to gig-detail screen state. Wireframe spec: sticky 12/20/16 wrapper, 52h R16 brand primary + brand-tinted shadow, optional outline "Edit" + 52×52 inset overflow, `cta-sub` block (mono Escrow eyebrow + amount) for worker variant | `apps/mobile/components/gig/GigCTABar.tsx` | Restyle in lockstep with gig-detail screen translation |
+| M43 | **`ExchangeCTABar` not restyled to wireframe** — same shape as GigCTABar but with success-tone variant ("Mark as paid") and dispute-state variant (outline "View dispute evidence", primary suppressed) | `apps/mobile/components/exchange/detail/ExchangeCTABar.tsx` | Restyle in lockstep with exchange-detail screen translation |
+| M44 | **`OfferSummaryCard` not restyled to wireframe** — heavy composition (R18 border-only card, status pill + pm pills row, mono rate row "from → to" with units, bottom 2-col meta grid). Currently has prior-V1 amount-leading layout | `apps/mobile/components/exchange/detail/OfferSummaryCard.tsx` | Rebuild during exchange-detail screen translation |
+| M45 | **`PaymentWindowBanner` not restyled to wireframe** — wireframe shows 56h R14 banner with leading dot + body + mono countdown. Warn variant `--warn-surface`, info variant `--brand-surface`. Single-screen component | `apps/mobile/components/exchange/detail/PaymentWindowBanner.tsx` | Trivial restyle during exchange-detail screen translation |
+| M46 | **`TransactionMonitor` is a full-screen modal; wireframe wants a 56h inline banner** above the CTA bar — major API + UX change. Inline banner uses `--brand-surface` bg + spinner + body + mono signature. Modal with success/failure dialog is currently the only mode | `apps/mobile/components/feedback/TransactionMonitor.tsx` | Recommend: keep modal as terminal-failure fallback; add a new `TransactionMonitorBanner` inline-only component. Design at Stage 4 #29 |
+
 ## Open cross-stage questions (from STATUS.md)
 
 | # | Question | Affected stage | Status |

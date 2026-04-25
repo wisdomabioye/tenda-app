@@ -1,10 +1,12 @@
 import { Badge } from '@/components/ui/Badge'
 import type { ExchangeOfferStatus } from '@tenda/shared'
 
-const VARIANT: Record<ExchangeOfferStatus, 'success' | 'warning' | 'danger' | 'info' | 'neutral'> = {
+type BadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'brand' | 'accent' | 'neutral'
+
+const VARIANT: Record<ExchangeOfferStatus, BadgeTone> = {
   draft:     'neutral',
-  open:      'info',
-  accepted:  'warning',
+  open:      'success',
+  accepted:  'brand',
   paid:      'warning',
   completed: 'success',
   disputed:  'danger',
@@ -16,8 +18,8 @@ const VARIANT: Record<ExchangeOfferStatus, 'success' | 'warning' | 'danger' | 'i
 const LABEL: Record<ExchangeOfferStatus, string> = {
   draft:     'Draft',
   open:      'Open',
-  accepted:  'Accepted',
-  paid:      'Awaiting Confirmation',
+  accepted:  'In progress',
+  paid:      'In payment',
   completed: 'Completed',
   disputed:  'Disputed',
   resolved:  'Resolved',

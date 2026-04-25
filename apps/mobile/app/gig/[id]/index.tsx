@@ -5,12 +5,11 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Share2, Pencil } from 'lucide-react-native'
 import { Transaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
-import { spacing, radius, typography } from '@/theme/tokens'
-import { 
+import { spacing, radius } from '@/theme/tokens'
+import {
   ScreenContainer,
   Header,
   Text,
-  MoneyText,
   Divider,
   Spacer,
   EmptyState,
@@ -41,8 +40,6 @@ import {
   useAuthStore,
   useGigsStore,
   usePendingSyncStore,
-  useExchangeRateStore,
-  useSettingsStore
 } from '@/stores'
 import { 
   computeRelevantDeadline, 
@@ -51,7 +48,6 @@ import {
   apiConfig 
 } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
-import { toPaymentDisplay } from '@/lib/currency'
 import { deadlineLabel } from '@/lib/gig-display'
 import { checkBalance } from '@/lib/balance'
 import { api } from '@/api/client'
@@ -89,8 +85,6 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const isSeeker = useAuthStore((s) => s.user?.is_seeker ?? false)
   const { fetchGigDetail, acceptGig, submitProof, disputeGig } = useGigsStore()
   const pendingSync = usePendingSyncStore()
-  const rates = useExchangeRateStore((s) => s.rates)
-  const currency = useSettingsStore((s) => s.currency)
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
@@ -116,8 +110,6 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   const categoryMeta = CATEGORY_META.find((c) => c.key === gig.category)
   const categoryColor = theme.colors.category[gig.category]
-  const rate = rates?.[currency] ?? null
-  const price = toPaymentDisplay(gig.payment_lamports, rate)
   const deadline = computeRelevantDeadline(gig)
   const deadlineLbl = deadlineLabel(deadline)
 
@@ -450,11 +442,9 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
         <Spacer size={spacing.sm} />
         <Text variant="heading">{gig.title}</Text>
-        <Spacer size={spacing.md} />
-        <MoneyText fiat={price.fiat} ratesReady={rates !== null} currency={currency} sol={price.sol} size={typography.styles.h2.fontSize} />
         <Spacer size={spacing.lg} />
 
-        {/* Meta info */}
+        {/* Meta card — payment header + rows */}
         <GigMetaInfo gig={gig} posterCountry={gig.poster.country} deadlineLbl={deadlineLbl} />
 
         <Divider />

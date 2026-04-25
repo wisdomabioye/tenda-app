@@ -1,55 +1,10 @@
 import { useState } from 'react'
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { AlertTriangle, ChevronRight, RotateCcw, X } from 'lucide-react-native'
-import { spacing, radius, typography } from '@/theme/tokens'
+import { RotateCcw, X } from 'lucide-react-native'
+import { typography } from '@/theme/tokens'
 import { Text, Spacer, BottomSheet } from '@/components/ui'
 import { usePendingSyncStore, PENDING_SYNC_ACTION_LABEL, type PendingSync } from '@/stores/pending-sync.store'
-
-const s = StyleSheet.create({
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    padding: spacing.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-  },
-  bannerText: {
-    flex: 1,
-    marginLeft: 2,
-  },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-  },
-  itemIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  itemBody: {
-    flex: 1,
-    gap: 2,
-  },
-  itemActions: {
-    gap: spacing.xs,
-    alignItems: 'flex-end',
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderRadius: radius.full,
-  },
-})
 
 function FailedSyncItem({
   item,
@@ -65,23 +20,26 @@ function FailedSyncItem({
 
   return (
     <View style={[s.item, { borderBottomColor: theme.colors.border.subtle }]}>
-      <View style={[s.itemIcon, { backgroundColor: theme.colors.feedback.warning.surface }]}>
-        <AlertTriangle size={14} color={theme.colors.feedback.warning.text} />
-      </View>
-
       <View style={s.itemBody}>
-        <Text weight="semibold" size={typography.styles.bodySmall.fontSize}>{PENDING_SYNC_ACTION_LABEL[item.action]}</Text>
-        <Text variant="caption" color={theme.colors.content.tertiary} numberOfLines={1}>
-          Sig: {item.signature.slice(0, 16)}…
+        <Text size={14.5} weight="semibold" color={theme.colors.content.primary}>
+          {PENDING_SYNC_ACTION_LABEL[item.action]}
         </Text>
-        <Text variant="caption" color={theme.colors.content.tertiary}>{date}</Text>
+        <Text style={s.sig} color={theme.colors.content.tertiary} numberOfLines={1}>
+          {item.signature.slice(0, 16)}…
+        </Text>
+        <Text size={11.5} color={theme.colors.content.tertiary}>{date}</Text>
       </View>
 
       <View style={s.itemActions}>
         <Pressable
           onPress={onRetry}
           hitSlop={8}
-          style={[s.actionBtn, { backgroundColor: theme.colors.brand.primarySurface }]}
+          style={({ pressed }) => [
+            s.actionBtn,
+            { backgroundColor: theme.colors.brand.primarySurface },
+            pressed && { opacity: 0.7 },
+          ]}
+          accessibilityLabel="Retry transaction"
         >
           <RotateCcw size={12} color={theme.colors.brand.primary} />
           <Text size={12} weight="semibold" color={theme.colors.brand.primary}>Retry</Text>
@@ -89,7 +47,12 @@ function FailedSyncItem({
         <Pressable
           onPress={onDismiss}
           hitSlop={8}
-          style={[s.actionBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
+          style={({ pressed }) => [
+            s.actionBtn,
+            { backgroundColor: theme.colors.surface.inset },
+            pressed && { opacity: 0.7 },
+          ]}
+          accessibilityLabel="Dismiss transaction"
         >
           <X size={12} color={theme.colors.content.secondary} />
           <Text size={12} weight="medium" color={theme.colors.content.secondary}>Dismiss</Text>
@@ -99,13 +62,6 @@ function FailedSyncItem({
   )
 }
 
-/**
- * Self-contained component that renders a warning banner when pending-sync items have
- * exceeded max retries and moved to the dead-letter queue. Tapping the banner opens a
- * bottom sheet where the user can retry or dismiss each failed item individually.
- *
- * Drop into any screen's header — renders nothing when the failed queue is empty.
- */
 export function FailedSyncPanel() {
   const { theme } = useUnistyles()
   const failed        = usePendingSyncStore((s) => s.failed)
@@ -126,32 +82,40 @@ export function FailedSyncPanel() {
     if (failed.length === 1) setSheetVisible(false)
   }
 
+  const noun = failed.length === 1 ? 'transaction needs' : `${failed.length} transactions need`
+  const warningTextColor = '#8D5209'
+
   return (
     <>
       <Pressable
         onPress={() => setSheetVisible(true)}
-        style={[s.banner, { backgroundColor: theme.colors.feedback.warning.surface, borderColor: theme.colors.feedback.warning.text, marginBottom: spacing.md }]}
+        style={({ pressed }) => [
+          s.banner,
+          { backgroundColor: theme.colors.feedback.warning.surface },
+          pressed && { opacity: 0.9 },
+        ]}
+        accessibilityRole="button"
+        accessibilityLabel="Review failed transactions"
       >
-        <AlertTriangle size={16} color={theme.colors.feedback.warning.text} />
-        <View style={s.bannerText}>
-          <Text weight="semibold" size={typography.styles.bodySmall.fontSize} color={theme.colors.feedback.warning.text}>
-            {failed.length} transaction{failed.length > 1 ? 's' : ''} need attention
+        <View style={[s.dot, { backgroundColor: theme.colors.feedback.warning.base }]} />
+        <Text style={[s.bannerText, { color: warningTextColor }]} numberOfLines={1}>
+          <Text style={[s.bannerTextStrong, { color: warningTextColor }]}>
+            Sync paused.{' '}
           </Text>
-          <Text variant="caption" color={theme.colors.feedback.warning.text} style={{ opacity: 0.8 }}>
-            Tap to review and retry
-          </Text>
-        </View>
-        <ChevronRight size={16} color={theme.colors.feedback.warning.text} />
+          {noun} attention.
+        </Text>
+        <Text style={[s.retryLabel, { color: theme.colors.brand.primary }]}>
+          Retry
+        </Text>
       </Pressable>
 
       <BottomSheet
         visible={sheetVisible}
         onClose={() => setSheetVisible(false)}
-        title="Transactions Needing Attention"
+        title="Transactions needing attention"
       >
-        <Text variant="caption" color={theme.colors.content.secondary} style={{ marginBottom: spacing.md }}>
-          These transactions were confirmed on-chain but could not be recorded on our server.
-          Retry to sync them, or dismiss if the gig status already looks correct.
+        <Text size={13} color={theme.colors.content.secondary} style={s.sheetIntro}>
+          These transactions were confirmed on-chain but could not be recorded on our server. Retry to sync, or dismiss if the gig status already looks correct.
         </Text>
         {failed.map((item) => (
           <FailedSyncItem
@@ -161,8 +125,74 @@ export function FailedSyncPanel() {
             onDismiss={() => handleDismiss(item.id)}
           />
         ))}
-        <Spacer size={spacing.sm} />
+        <Spacer size={12} />
       </BottomSheet>
     </>
   )
 }
+
+const s = StyleSheet.create({
+  banner: {
+    marginHorizontal: 20,
+    marginBottom: 4,
+    height: 48,
+    paddingHorizontal: 14,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    flexShrink: 0,
+  },
+  bannerText: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  bannerTextStrong: {
+    fontWeight: '600',
+  },
+  retryLabel: {
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: '600',
+    flexShrink: 0,
+  },
+  item: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+  },
+  itemBody: {
+    flex: 1,
+    gap: 2,
+  },
+  sig: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 11.5,
+    lineHeight: 14,
+    letterSpacing: 0.115,
+  },
+  itemActions: {
+    gap: 6,
+    alignItems: 'flex-end',
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 9999,
+  },
+  sheetIntro: {
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+})
