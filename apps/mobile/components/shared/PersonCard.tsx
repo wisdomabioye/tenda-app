@@ -1,15 +1,9 @@
-import { useState } from 'react'
-import { View, StyleSheet } from 'react-native'
-import { MessageCircle, Flag } from 'lucide-react-native'
+import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing } from '@/theme/tokens'
+import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { Card } from '@/components/ui/Card'
 import { Avatar } from '@/components/ui/Avatar'
-import { IconButton } from '@/components/ui/IconButton'
-import { SeekerBadge } from '@/components/ui/SeekerBadge'
-import { ReportSheet } from '@/components/moderation/ReportSheet'
 
 interface PersonCardUser {
   id: string
@@ -24,12 +18,14 @@ interface Props {
   label: string
   user: PersonCardUser
   currentUserId: string
-  /** ID of the context (gig or offer) — used as URL param when opening chat */
   contextId: string
   contextTitle: string
-  /** When true, passes offerId/offerTitle to chat; otherwise passes gigId/gigTitle */
   isOffer?: boolean
   showMessageButton?: boolean
+  /** Avatar gradient — `'accent'` (default, sellers/posters) or `'brand'` (buyers) */
+  gradient?: 'accent' | 'brand'
+  /** Override the trailing pill label — defaults to "Message" */
+  ctaLabel?: string
 }
 
 export function PersonCard({
@@ -40,10 +36,11 @@ export function PersonCard({
   contextTitle,
   isOffer = false,
   showMessageButton = true,
+  gradient = 'accent',
+  ctaLabel = 'Message',
 }: Props) {
   const { theme } = useUnistyles()
   const router = useRouter()
-  const [reportOpen, setReportOpen] = useState(false)
 
   const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Anonymous'
   const isSelf = currentUserId === user.id
@@ -57,51 +54,120 @@ export function PersonCard({
   }
 
   return (
-    <>
-      <Text variant="subheading">{label}</Text>
-      <View style={s.spacer} />
-      <Card variant="outlined">
-        <View style={s.row}>
-          <Avatar size="md" name={displayName} src={user.avatar_url} />
-          <View style={s.info}>
-            <View style={s.nameRow}>
-              <Text variant="body" weight="semibold">{displayName}</Text>
-              {user.is_seeker && <SeekerBadge variant="compact" />}
-            </View>
-            <Text variant="caption" color={theme.colors.content.secondary}>
-              {user.reputation_score ?? 0} reputation
-            </Text>
+    <View>
+      <Text style={[s.eyebrow, { color: theme.colors.content.tertiary }]}>
+        {label.toUpperCase()}
+      </Text>
+      <View style={s.row}>
+        <Avatar size="lg" name={displayName} src={user.avatar_url} gradient={gradient} />
+        <View style={s.body}>
+          <Text
+            style={[s.name, { color: theme.colors.content.primary }]}
+            numberOfLines={1}
+          >
+            {isSelf ? 'You' : displayName}
+          </Text>
+          <View style={s.meta}>
+            {user.reputation_score != null && (
+              <>
+                <Text style={[s.star, { color: theme.colors.accent.primary }]}>★</Text>
+                <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>
+                  {user.reputation_score.toFixed(1)}
+                </Text>
+              </>
+            )}
+            {user.is_seeker && (
+              <>
+                {user.reputation_score != null && (
+                  <Text style={[s.metaSep, { color: theme.colors.content.tertiary }]}>·</Text>
+                )}
+                <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>
+                  Seeker
+                </Text>
+              </>
+            )}
           </View>
-          {!isSelf && showMessageButton && (
-            <IconButton
-              icon={<MessageCircle size={20} color={theme.colors.brand.primary} />}
-              onPress={handleMessage}
-              variant="ghost"
-            />
-          )}
-          {!isSelf && (
-            <IconButton
-              icon={<Flag size={18} color={theme.colors.content.tertiary} />}
-              onPress={() => setReportOpen(true)}
-              variant="ghost"
-            />
-          )}
         </View>
-      </Card>
-
-      <ReportSheet
-        visible={reportOpen}
-        onClose={() => setReportOpen(false)}
-        contentType="user"
-        contentId={user.id}
-      />
-    </>
+        {!isSelf && showMessageButton && (
+          <Pressable
+            onPress={handleMessage}
+            style={({ pressed }) => [
+              s.cta,
+              { backgroundColor: theme.colors.surface.inset },
+              pressed && { opacity: 0.7 },
+            ]}
+            accessibilityLabel={`${ctaLabel} ${displayName}`}
+            accessibilityRole="button"
+          >
+            <Text style={[s.ctaText, { color: theme.colors.content.primary }]}>
+              {ctaLabel}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
   )
 }
 
 const s = StyleSheet.create({
-  row:     { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  info:    { flex: 1 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  spacer:  { height: spacing.sm },
+  eyebrow: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 9.5,
+    lineHeight: 12,
+    fontWeight: '600',
+    letterSpacing: 0.95,
+    textTransform: 'uppercase',
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 4,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+  },
+  name: {
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: '600',
+    letterSpacing: -0.15,
+  },
+  meta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  star: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  metaText: {
+    fontSize: 12.5,
+    lineHeight: 16,
+  },
+  metaSep: {
+    fontSize: 12.5,
+    lineHeight: 16,
+    opacity: 0.5,
+  },
+  cta: {
+    height: 32,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  ctaText: {
+    fontSize: 12.5,
+    lineHeight: 16,
+    fontWeight: '600',
+  },
 })

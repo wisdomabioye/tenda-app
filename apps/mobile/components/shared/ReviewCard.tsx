@@ -1,10 +1,9 @@
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Star } from 'lucide-react-native'
+import { typography } from '@/theme/tokens'
 import { Avatar } from '@/components/ui/Avatar'
 import { Text } from '@/components/ui/Text'
-import { Card } from '@/components/ui/Card'
-import { spacing } from '@/theme/tokens'
 import type { Review } from '@tenda/shared'
 
 interface ReviewCardProps {
@@ -17,55 +16,113 @@ interface ReviewCardProps {
   label: string
 }
 
+function formatRelativeTime(date: Date): string {
+  const ms = Date.now() - date.getTime()
+  const min = Math.floor(ms / 60_000)
+  if (min < 60) return `${min}m ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24) return `${hr}h ago`
+  const day = Math.floor(hr / 24)
+  if (day < 7)  return `${day}d ago`
+  if (day < 30) return `${Math.floor(day / 7)}w ago`
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+}
+
 export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
   const { theme } = useUnistyles()
 
   const name = [reviewer.first_name, reviewer.last_name].filter(Boolean).join(' ') || 'Anonymous'
-  const date = review.created_at
-    ? new Date(review.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-    : null
+  const time = review.created_at ? formatRelativeTime(new Date(review.created_at)) : null
 
   return (
-    <Card variant="outlined">
-      <View style={s.header}>
-        <Avatar size="sm" name={name} src={reviewer.avatar_url} />
-        <View style={s.meta}>
-          <Text variant="caption" weight="semibold" color={theme.colors.content.secondary}>
+    <View style={[s.row, { borderBottomColor: theme.colors.border.subtle }]}>
+      <Avatar size="sm" name={name} src={reviewer.avatar_url} />
+      <View style={s.body}>
+        <View style={s.head}>
+          <Text style={[s.name, { color: theme.colors.content.primary }]} numberOfLines={1}>
+            {name}
+          </Text>
+          <View style={s.stars}>
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star
+                key={i}
+                size={12}
+                color={theme.colors.accent.primary}
+                fill={i < review.score ? theme.colors.accent.primary : 'transparent'}
+                strokeWidth={i < review.score ? 0 : 1.5}
+              />
+            ))}
+          </View>
+          {time && (
+            <Text style={[s.time, { color: theme.colors.content.tertiary }]}>
+              {time}
+            </Text>
+          )}
+        </View>
+        {review.comment ? (
+          <Text style={[s.comment, { color: theme.colors.content.secondary }]}>
+            {review.comment}
+          </Text>
+        ) : null}
+        {label ? (
+          <Text style={[s.label, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
             {label}
           </Text>
-          <Text variant="body" weight="semibold">{name}</Text>
-        </View>
-        <View style={s.stars}>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star
-              key={i}
-              size={14}
-              color={theme.colors.feedback.warning.base}
-              fill={i < review.score ? theme.colors.feedback.warning.base : 'transparent'}
-            />
-          ))}
-        </View>
+        ) : null}
       </View>
-
-      {review.comment ? (
-        <Text variant="body" color={theme.colors.content.secondary} style={s.comment}>
-          {review.comment}
-        </Text>
-      ) : null}
-
-      {date ? (
-        <Text size={11} color={theme.colors.content.tertiary} style={s.date}>
-          {date}
-        </Text>
-      ) : null}
-    </Card>
+    </View>
   )
 }
 
 const s = StyleSheet.create({
-  header:  { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  meta:    { flex: 1 },
-  stars:   { flexDirection: 'row', gap: 2 },
-  comment: { marginTop: spacing.sm },
-  date:    { marginTop: spacing.xs },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+  },
+  body: {
+    flex: 1,
+    minWidth: 0,
+  },
+  head: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  name: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+    letterSpacing: -0.14,
+    flexShrink: 1,
+  },
+  stars: {
+    flexDirection: 'row',
+    gap: 1,
+    flexShrink: 0,
+  },
+  time: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 11.5,
+    lineHeight: 14,
+    marginLeft: 'auto',
+    flexShrink: 0,
+  },
+  comment: {
+    fontSize: 13,
+    lineHeight: 20,
+    marginTop: 6,
+  },
+  label: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '600',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginTop: 6,
+  },
 })
