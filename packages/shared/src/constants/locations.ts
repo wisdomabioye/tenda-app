@@ -81,3 +81,25 @@ export function findCountryForCity(city: string): CountryCode | undefined {
   }
   return undefined
 }
+
+/** True if the given city is one of the supported cities for the given country. */
+export function isCityInCountry(country: string | null | undefined, city: string | null | undefined): boolean {
+  if (!country || !city) return false
+  const entry = LOCATIONS[country as CountryCode]
+  if (!entry) return false
+  return (entry.cities as readonly string[]).includes(city)
+}
+
+/**
+ * Coerce a (country, city) pair into a consistent state. If the city does not
+ * belong to the country, returns `null`. Use before persisting a user's location
+ * to prevent orphan-city bugs (e.g. country=KE + city=Lagos).
+ */
+export function coerceCityForCountry(
+  country: string | null | undefined,
+  city: string | null | undefined,
+): string | null {
+  if (!city) return null
+  if (isCityInCountry(country, city)) return city
+  return null
+}

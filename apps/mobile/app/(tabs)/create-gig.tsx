@@ -7,6 +7,7 @@ import { GigForm } from '@/components/gig/GigForm'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { api } from '@/api/client'
+import { coerceCityForCountry } from '@tenda/shared'
 import type { GigFormValues } from '@/components/gig/GigForm'
 
 export default function PostGigScreen() {
@@ -21,7 +22,8 @@ export default function PostGigScreen() {
 
   async function handleSubmit(values: GigFormValues) {
     if (!values.category) return
-    if (!values.remote && (!values.country || !values.city)) return
+    const safeCity = coerceCityForCountry(values.country, values.city)
+    if (!values.remote && (!values.country || !safeCity)) return
 
     const accept_deadline = values.acceptDeadlineHours
       ? new Date(Date.now() + values.acceptDeadlineHours * 3_600_000).toISOString()
@@ -36,7 +38,7 @@ export default function PostGigScreen() {
         category: values.category,
         country: values.country ?? undefined,
         remote: values.remote,
-        city: values.city || undefined,
+        city: safeCity || undefined,
         address: values.address.trim() || undefined,
         completion_duration_seconds: values.completionDuration,
         accept_deadline,

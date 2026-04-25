@@ -7,6 +7,7 @@ import { showToast } from '@/components/ui/Toast'
 import { GigForm, ACCEPT_DEADLINE_OPTIONS } from '@/components/gig/GigForm'
 import { useGigsStore } from '@/stores/gigs.store'
 import { api } from '@/api/client'
+import { coerceCityForCountry } from '@tenda/shared'
 import type { GigFormValues } from '@/components/gig/GigForm'
 import type { GigDetail } from '@tenda/shared'
 
@@ -47,6 +48,7 @@ function EditGigContent({ gig }: { gig: GigDetail }) {
       ? new Date(Date.now() + values.acceptDeadlineHours * 3_600_000).toISOString()
       : null
 
+    const safeCity = coerceCityForCountry(values.country, values.city)
     setIsLoading(true)
     try {
       await api.gigs.update({ id: gig.id }, {
@@ -56,7 +58,7 @@ function EditGigContent({ gig }: { gig: GigDetail }) {
         category:                    values.category ?? undefined,
         country:                     values.country ?? undefined,
         remote:                      values.remote,
-        city:                        values.remote ? null : (values.city ?? undefined),
+        city:                        values.remote ? null : (safeCity ?? undefined),
         address:                     values.address.trim() || null,
         completion_duration_seconds: values.completionDuration,
         accept_deadline,

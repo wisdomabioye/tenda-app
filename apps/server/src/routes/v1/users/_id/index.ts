@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
-import { ErrorCode, isCloudinaryUrl } from '@tenda/shared'
+import { ErrorCode, isCloudinaryUrl, LOCATIONS, isCityInCountry } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { ensureValidCoordinates } from '@server/lib/validation'
 import { AppError } from '@server/lib/errors'
@@ -64,6 +64,10 @@ const userById: FastifyPluginAsync = async (fastify) => {
 
     ensureValidCoordinates(latitude, longitude)
 
+    if (country !== undefined && country !== null && !(country in LOCATIONS)) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `country must be one of: ${Object.keys(LOCATIONS).join(', ')}`)
+    }
+
     const updates: Record<string, unknown> = { updated_at: new Date() }
     if (first_name !== undefined) updates.first_name = first_name
     if (last_name !== undefined)  updates.last_name  = last_name
@@ -73,6 +77,23 @@ const userById: FastifyPluginAsync = async (fastify) => {
     if (city !== undefined)       updates.city       = city
     if (latitude !== undefined)   updates.latitude   = latitude
     if (longitude !== undefined)  updates.longitude  = longitude
+
+    // Cross-validate country↔city pairing. We need the *effective* values after
+    // this PATCH applies — a partial update may change one without the other.
+    if (country !== undefined || city !== undefined) {
+      const [existing] = await fastify.db
+        .select({ country: users.country, city: users.city })
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1)
+      const effectiveCountry = country !== undefined ? country : existing?.country ?? null
+      const effectiveCity    = city    !== undefined ? city    : existing?.city    ?? null
+      if (effectiveCity && !isCityInCountry(effectiveCountry, effectiveCity)) {
+        // Country changed without a matching city — null the orphan rather than
+        // rejecting the whole PATCH, so partial updates degrade gracefully.
+        updates.city = null
+      }
+    }
 
     const [updated] = await fastify.db.update(users).set(updates).where(eq(users.id, id)).returning()
 

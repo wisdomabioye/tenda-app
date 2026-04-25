@@ -14,6 +14,7 @@ import {
   LOCATIONS,
   GIG_CATEGORIES,
   ErrorCode,
+  isCityInCountry,
 } from '@tenda/shared'
 import type { GigsContract, ApiError, GigStatus, GigCategory, CountryCode } from '@tenda/shared'
 import { batchExpireGigs } from '@server/lib/gigs'
@@ -174,6 +175,10 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
 
       if (!remote && !country) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'country is required for non-remote gigs')
+      }
+
+      if (!remote && country && city && !isCityInCountry(country, city)) {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `city "${city}" is not in country ${country}`)
       }
 
       // Fetch poster's current country from DB — JWT country can be up to 7 days stale.

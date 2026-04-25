@@ -10,6 +10,7 @@ import {
   ErrorCode,
   computePlatformFee,
   isCrossBorder,
+  isCityInCountry,
 } from '@tenda/shared'
 import { ensureSignatureVerified } from '@server/lib/solana'
 import { getPlatformConfig } from '@server/lib/platform'
@@ -139,6 +140,18 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     if (longitude !== undefined)                   updates.longitude = longitude
     if (completion_duration_seconds !== undefined) updates.completion_duration_seconds = completion_duration_seconds
     if (accept_deadline !== undefined)             updates.accept_deadline = accept_deadline ? new Date(accept_deadline) : null
+
+    // Cross-validate country↔city after partial-update merge.
+    if (country !== undefined || city !== undefined) {
+      const effectiveRemote  = remote  !== undefined ? remote  : gig.remote
+      const effectiveCountry = country !== undefined ? country : gig.country
+      const effectiveCity    = city    !== undefined ? city    : gig.city
+      if (!effectiveRemote && effectiveCity && !isCityInCountry(effectiveCountry, effectiveCity)) {
+        // Country changed without a matching city — null the orphan rather than
+        // silently persisting a mismatched pair.
+        updates.city = null
+      }
+    }
 
     // Recompute cross_border when country or remote changes
     if (country !== undefined || remote !== undefined) {
