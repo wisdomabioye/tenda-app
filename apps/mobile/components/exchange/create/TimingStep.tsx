@@ -3,9 +3,9 @@ import { View, Pressable, Platform, StyleSheet } from 'react-native'
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker'
 import { CalendarDays } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing, radius } from '@/theme/tokens'
-import { Text, Spacer } from '@/components/ui'
+import { Text } from '@/components/ui'
 import { Chip } from '@/components/ui/Chip'
+import { SectionLabel } from '@/components/ui/SectionLabel'
 
 const WINDOW_OPTIONS = [
   { label: '1h',  value: 3_600 },
@@ -31,7 +31,7 @@ export function TimingStep({
   windowSeconds, hasDeadline, deadlineInput,
   onWindow, onHasDeadline, onDeadline,
 }: Props) {
-  const { theme }          = useUnistyles()
+  const { theme } = useUnistyles()
   const [showPicker, setShowPicker] = useState(false)
 
   const selectedDate = deadlineInput ? new Date(deadlineInput) : TOMORROW
@@ -47,63 +47,107 @@ export function TimingStep({
 
   return (
     <View style={s.wrap}>
-      <Text variant="subheading">Payment window</Text>
-      <Text variant="caption" style={{ marginTop: 4 }}>
-        How long the buyer has to send payment after accepting
+      <SectionLabel>Payment window</SectionLabel>
+      <Text style={[s.hint, { color: theme.colors.content.tertiary }]}>
+        How long the buyer has to send payment after accepting.
       </Text>
-      <Spacer size={spacing.md} />
-      <View style={s.chips}>
+      <View style={s.chipRow}>
         {WINDOW_OPTIONS.map(({ label, value }) => (
-          <Chip key={value} label={label} selected={windowSeconds === value} onPress={() => onWindow(value)} />
+          <Chip
+            key={value}
+            label={label}
+            variant="form"
+            selected={windowSeconds === value}
+            onPress={() => onWindow(value)}
+          />
         ))}
       </View>
 
-      <Spacer size={spacing.lg} />
-      <Text variant="subheading">Accept deadline</Text>
-      <Text variant="caption" style={{ marginTop: 4 }}>
-        Offer expires automatically after this date (optional)
+      <SectionLabel>Accept deadline</SectionLabel>
+      <Text style={[s.hint, { color: theme.colors.content.tertiary }]}>
+        Offer expires automatically after this date (optional).
       </Text>
-      <Spacer size={spacing.sm} />
-      <View style={s.chips}>
-        <Chip label="No deadline" selected={!hasDeadline} onPress={() => onHasDeadline(false)} />
-        <Chip label="Set deadline" selected={hasDeadline}  onPress={() => onHasDeadline(true)} />
+      <View style={s.chipRow}>
+        <Chip
+          label="No deadline"
+          variant="form"
+          selected={!hasDeadline}
+          onPress={() => onHasDeadline(false)}
+        />
+        <Chip
+          label="Set deadline"
+          variant="form"
+          selected={hasDeadline}
+          onPress={() => onHasDeadline(true)}
+        />
       </View>
 
       {hasDeadline && (
-        <>
-          <Spacer size={spacing.sm} />
-          <Pressable
-            style={[s.dateRow, { borderColor: theme.colors.border.default, backgroundColor: theme.colors.surface.card }]}
-            onPress={() => setShowPicker(true)}
+        <Pressable
+          onPress={() => setShowPicker(true)}
+          style={({ pressed }) => [
+            s.dateRow,
+            {
+              backgroundColor: theme.colors.surface.card,
+              borderColor: theme.colors.border.default,
+            },
+            pressed && { opacity: 0.85 },
+          ]}
+          accessibilityRole="button"
+        >
+          <CalendarDays size={16} color={theme.colors.content.secondary} />
+          <Text
+            style={s.dateText}
+            color={deadlineInput ? theme.colors.content.primary : theme.colors.content.tertiary}
           >
-            <CalendarDays size={18} color={theme.colors.content.secondary} />
-            <Text style={s.dateText} color={deadlineInput ? theme.colors.content.primary : theme.colors.content.secondary}>
-              {formattedDate}
-            </Text>
-          </Pressable>
+            {formattedDate}
+          </Text>
+        </Pressable>
+      )}
 
-          {(showPicker || Platform.OS === 'ios') && (
-            <DateTimePicker
-              value={selectedDate}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'inline' : 'default'}
-              minimumDate={TOMORROW}
-              onChange={handleDateChange}
-            />
-          )}
-        </>
+      {hasDeadline && (showPicker || Platform.OS === 'ios') && (
+        <DateTimePicker
+          value={selectedDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'inline' : 'default'}
+          minimumDate={TOMORROW}
+          onChange={handleDateChange}
+        />
       )}
     </View>
   )
 }
 
 const s = StyleSheet.create({
-  wrap:     { paddingHorizontal: spacing.md },
-  chips:    { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs },
-  dateRow:  {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    borderWidth: 1, borderRadius: radius.md,
-    paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2,
+  wrap: {
+    paddingBottom: 12,
   },
-  dateText: { flex: 1 },
+  hint: {
+    fontSize: 12.5,
+    lineHeight: 17,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+    marginTop: -4,
+  },
+  chipRow: {
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  dateRow: {
+    marginHorizontal: 20,
+    marginTop: 10,
+    height: 48,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dateText: {
+    flex: 1,
+    fontSize: 14,
+  },
 })

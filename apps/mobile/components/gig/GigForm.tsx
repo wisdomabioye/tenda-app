@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -12,17 +11,15 @@ import { PaymentInput } from '@/components/form/PaymentInput'
 import { DurationPicker } from '@/components/form/DurationPicker'
 import { LocationPicker } from '@/components/form/LocationPicker'
 import { RemoteToggle } from '@/components/form/RemoteToggle'
+import { FeeSummary } from '@/components/shared/FeeSummary'
 import {
   isValidPaymentLamports,
   MIN_COMPLETION_DURATION_SECONDS,
   isCrossBorder,
-  computePlatformFee,
 } from '@tenda/shared'
 import { getDeviceCountry } from '@/lib/device'
 import { useAuthStore } from '@/stores/auth.store'
-import { api } from '@/api/client'
 import { LOCATIONS } from '@tenda/shared'
-import { formatSolDisplay } from '@/lib/currency'
 import type { GigCategory, CountryCode } from '@tenda/shared'
 
 const TITLE_MAX = 80
@@ -68,19 +65,6 @@ interface GigFormProps {
 export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: GigFormProps) {
   const { theme } = useUnistyles()
   const homeCountry = useAuthStore((s) => s.user?.country ?? null)
-  const isSeeker = useAuthStore((s) => s.user?.is_seeker ?? false)
-  const [feeBps, setFeeBps] = useState<number | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    api.platform.config()
-      .then((cfg) => {
-        if (cancelled) return
-        setFeeBps(isSeeker ? cfg.seeker_fee_bps : cfg.fee_bps)
-      })
-      .catch(() => { /* fall back to null — Summary shows placeholder */ })
-    return () => { cancelled = true }
-  }, [isSeeker])
 
   const [title, setTitle]                         = useState(initialValues?.title ?? '')
   const [description, setDescription]             = useState(initialValues?.description ?? '')
@@ -236,7 +220,11 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
         {paymentLamports > 0 && (
           <>
             <SectionLabel>Summary</SectionLabel>
-            <FeeSummary paymentLamports={paymentLamports} feeBps={feeBps} />
+            <FeeSummary
+              principalLamports={paymentLamports}
+              eyebrow="YOU WILL ESCROW"
+              totalLabel="Total to escrow"
+            />
           </>
         )}
 
@@ -267,107 +255,6 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
     </KeyboardAvoidingView>
   )
 }
-
-const LAMPORTS_PER_SOL = 1_000_000_000
-
-function FeeSummary({ paymentLamports, feeBps }: { paymentLamports: number; feeBps: number | null }) {
-  const { theme } = useUnistyles()
-
-  const paymentSol = paymentLamports / LAMPORTS_PER_SOL
-  const feeLamports = feeBps != null
-    ? Number(computePlatformFee(BigInt(paymentLamports), feeBps))
-    : null
-  const feeSol = feeLamports != null ? feeLamports / LAMPORTS_PER_SOL : null
-  const totalSol = feeSol != null ? paymentSol + feeSol : null
-  const feePct = feeBps != null ? (feeBps / 100).toFixed(2) : '—'
-
-  return (
-    <View
-      style={[
-        fs.card,
-        {
-          backgroundColor: theme.colors.surface.card,
-          borderColor: theme.colors.border.default,
-        },
-      ]}
-    >
-      <Text style={[fs.eyebrow, { color: theme.colors.content.tertiary }]}>
-        YOU WILL ESCROW
-      </Text>
-      <View style={fs.row}>
-        <Text size={13.5} color={theme.colors.content.secondary}>Budget</Text>
-        <Text style={[fs.v, { color: theme.colors.content.primary }]}>
-          {formatSolDisplay(paymentSol)}
-        </Text>
-      </View>
-      <View style={fs.row}>
-        <Text size={13.5} color={theme.colors.content.secondary}>
-          {`Platform fee (${feePct}%)`}
-        </Text>
-        <Text style={[fs.v, { color: theme.colors.content.primary }]}>
-          {feeSol != null ? formatSolDisplay(feeSol) : '—'}
-        </Text>
-      </View>
-      <View
-        style={[
-          fs.row,
-          fs.totalRow,
-          { borderTopColor: theme.colors.border.subtle },
-        ]}
-      >
-        <Text size={13.5} weight="semibold" color={theme.colors.content.primary}>
-          Total to escrow
-        </Text>
-        <Text style={[fs.vTotal, { color: theme.colors.content.primary }]}>
-          {totalSol != null ? formatSolDisplay(totalSol) : '—'}
-        </Text>
-      </View>
-    </View>
-  )
-}
-
-const fs = StyleSheet.create({
-  card: {
-    marginHorizontal: 20,
-    marginTop: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
-  eyebrow: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
-    marginBottom: 10,
-    includeFontPadding: false,
-  },
-  row: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    paddingVertical: 6,
-  },
-  v: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: -0.065,
-  },
-  totalRow: {
-    marginTop: 6,
-    paddingTop: 10,
-    borderTopWidth: 1,
-  },
-  vTotal: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 15,
-    fontWeight: '700',
-    letterSpacing: -0.075,
-  },
-})
 
 const s = StyleSheet.create({
   flex: { flex: 1 },
