@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing } from '@/theme/tokens'
+import { spacing, typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, EmptyState, Header } from '@/components/ui'
 import { GigCardCompact } from '@/components/gig'
 import { useAuthStore } from '@/stores/auth.store'
@@ -26,9 +26,11 @@ export default function MyGigsScreen() {
   const scrollRef = useRef<ScrollView>(null)
   const scrollX   = useRef(new Animated.Value(0)).current
 
+  const TAB_WIDTH = (SW - 40) / 2
+
   const underlineX = scrollX.interpolate({
     inputRange: [0, SW],
-    outputRange: [0, SW / 2],
+    outputRange: [0, TAB_WIDTH],
     extrapolate: 'clamp',
   })
 
@@ -64,29 +66,57 @@ export default function MyGigsScreen() {
   }
 
   const tabs = [
-    { label: 'Posted',  data: postedGigs,  empty: { title: 'No gigs posted yet',        description: 'Post your first gig to get started' } },
-    { label: 'Working', data: workedGigs,  empty: { title: 'Not working on any gigs',    description: 'Browse the feed to find and accept gigs' } },
+    { label: 'Posted',  data: postedGigs, showStatus: false, empty: { title: 'No gigs posted yet',        description: 'Post your first gig to get started' } },
+    { label: 'Working', data: workedGigs, showStatus: true,  empty: { title: 'Not working on any gigs',    description: 'Browse the feed to find and accept gigs' } },
   ] as const
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <Header title="My Gigs" showBack />
 
-      {/* ── Tab row + animated underline ── */}
+      {/* ── Pager: labels + count chips, animated underline ── */}
       <View style={[s.tabRow, { borderBottomColor: theme.colors.border.subtle }]}>
-        {tabs.map((tab, i) => (
-          <Pressable key={tab.label} style={s.tab} onPress={() => scrollToPage(i)}>
-            <Text
-              weight="semibold"
-              size={15}
-              color={pageIndex === i ? theme.colors.content.primary : theme.colors.content.secondary}
-            >
-              {tab.label}
-            </Text>
-          </Pressable>
-        ))}
+        {tabs.map((tab, i) => {
+          const active = pageIndex === i
+          return (
+            <Pressable key={tab.label} style={s.tab} onPress={() => scrollToPage(i)}>
+              <Text
+                style={[
+                  s.tabLabel,
+                  { color: active ? theme.colors.content.primary : theme.colors.content.tertiary },
+                ]}
+              >
+                {tab.label}
+              </Text>
+              <View
+                style={[
+                  s.count,
+                  active
+                    ? { backgroundColor: theme.colors.brand.primarySurface }
+                    : { backgroundColor: theme.colors.surface.inset },
+                ]}
+              >
+                <Text
+                  style={[
+                    s.countText,
+                    { color: active ? theme.colors.brand.primary : theme.colors.content.tertiary },
+                  ]}
+                >
+                  {tab.data.length}
+                </Text>
+              </View>
+            </Pressable>
+          )
+        })}
         <Animated.View
-          style={[s.underline, { backgroundColor: theme.colors.brand.primary, transform: [{ translateX: underlineX }] }]}
+          style={[
+            s.underline,
+            {
+              width: TAB_WIDTH,
+              backgroundColor: theme.colors.brand.primary,
+              transform: [{ translateX: underlineX }],
+            },
+          ]}
         />
       </View>
 
@@ -109,7 +139,7 @@ export default function MyGigsScreen() {
             <FlatList
               data={tab.data as Gig[]}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => <GigCardCompact gig={item} showStatus />}
+              renderItem={({ item }) => <GigCardCompact gig={item} showStatus={tab.showStatus} />}
               contentContainerStyle={s.list}
               showsVerticalScrollIndicator={false}
               refreshControl={
@@ -144,18 +174,42 @@ const s = StyleSheet.create({
   tabRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
+    paddingHorizontal: 20,
+    height: 48,
   },
   tab: {
     flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 14,
+    justifyContent: 'center',
+    gap: 6,
+  },
+  tabLabel: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    letterSpacing: -0.145,
+  },
+  count: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countText: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.11,
   },
   underline: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: '50%',
-    height: 2,
+    bottom: -1,
+    left: 20,
+    height: 3,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
   },
   pager: { flex: 1 },
   list: {
