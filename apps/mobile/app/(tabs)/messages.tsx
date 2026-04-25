@@ -1,19 +1,23 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useMemo } from 'react'
 import { FlatList, StyleSheet, View } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { MessageCircle } from 'lucide-react-native'
-import { ScreenContainer, Text, Spacer, Header } from '@/components/ui'
-import { Divider } from '@/components/ui/Divider'
+import { ScreenContainer, Text, Header } from '@/components/ui'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ErrorState } from '@/components/feedback'
 import { ConversationItem } from '@/components/chat/ConversationItem'
 import { useChatStore } from '@/stores/chat.store'
-import { spacing } from '@/theme/tokens'
+import { typography } from '@/theme/tokens'
+import type { Conversation } from '@tenda/shared'
+
+type FeedItem =
+  | { type: 'header'; key: string; label: string }
+  | { type: 'convo'; key: string; conversation: Conversation }
 
 export default function MessagesScreen() {
   const { theme } = useUnistyles()
-  const router    = useRouter()
+  const router = useRouter()
   const { conversations, fetchConversations } = useChatStore()
   const [fetchError, setFetchError] = useState(false)
 
@@ -24,20 +28,50 @@ export default function MessagesScreen() {
 
   useFocusEffect(load)
 
+  const unread = useMemo(
+    () => conversations.filter((c) => c.unread_count > 0),
+    [conversations],
+  )
+  const earlier = useMemo(
+    () => conversations.filter((c) => c.unread_count === 0),
+    [conversations],
+  )
+
+  const feed: FeedItem[] = useMemo(() => {
+    const out: FeedItem[] = []
+    if (unread.length > 0) {
+      out.push({ type: 'header', key: 'h-unread', label: 'Unread' })
+      for (const c of unread) out.push({ type: 'convo', key: c.id, conversation: c })
+    }
+    if (earlier.length > 0) {
+      out.push({ type: 'header', key: 'h-earlier', label: 'Earlier' })
+      for (const c of earlier) out.push({ type: 'convo', key: c.id, conversation: c })
+    }
+    return out
+  }, [unread, earlier])
+
+  const subtitle = unread.length > 0
+    ? `${unread.length} unread thread${unread.length === 1 ? '' : 's'}`
+    : undefined
+
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
-      <Header title="Messages" />
-      <Spacer size={spacing.sm} />
+      <Header variant="large" title="Messages" subtitle={subtitle} />
       <FlatList
-        data={conversations}
-        keyExtractor={(item) => item.id}
-        ItemSeparatorComponent={() => <Divider spacing={0} />}
-        renderItem={({ item }) => (
-          <ConversationItem
-            conversation={item}
-            onPress={() => router.push(`/chat/${item.other_user.id}` as Parameters<typeof router.push>[0])}
-          />
-        )}
+        data={feed}
+        keyExtractor={(item) => item.key}
+        renderItem={({ item }) =>
+          item.type === 'header' ? (
+            <Text style={[s.groupHeader, { color: theme.colors.content.tertiary }]}>
+              {item.label.toUpperCase()}
+            </Text>
+          ) : (
+            <ConversationItem
+              conversation={item.conversation}
+              onPress={() => router.push(`/chat/${item.conversation.other_user.id}` as Parameters<typeof router.push>[0])}
+            />
+          )
+        }
         ListEmptyComponent={
           <View style={s.emptyWrapper}>
             {fetchError ? (
@@ -49,25 +83,34 @@ export default function MessagesScreen() {
               />
             ) : (
               <EmptyState
-                icon={<MessageCircle size={40} color={theme.colors.content.tertiary} />}
+                icon={<MessageCircle size={30} color={theme.colors.brand.primary} />}
                 title="No conversations yet"
                 description="Start a conversation by messaging a gig poster or worker."
               />
             )}
           </View>
         }
-        contentContainerStyle={conversations.length === 0 ? s.emptyContainer : undefined}
+        contentContainerStyle={feed.length === 0 ? s.emptyContainer : undefined}
       />
     </ScreenContainer>
   )
 }
 
 const s = StyleSheet.create({
+  groupHeader: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '600',
+    letterSpacing: 1.0,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 6,
+  },
   emptyWrapper: {
-    flex:           1,
+    flex: 1,
     justifyContent: 'center',
-    alignItems:     'center',
-    padding:        spacing.xl,
+    alignItems: 'center',
   },
   emptyContainer: { flex: 1 },
 })

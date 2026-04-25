@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
   },
   lhdrTitle: {
-    fontSize: 30,
+    fontSize: 20,
     lineHeight: 33,
     fontWeight: '700',
     letterSpacing: -0.6,

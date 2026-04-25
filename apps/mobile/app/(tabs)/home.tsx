@@ -1,19 +1,20 @@
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
-import { View, FlatList, Pressable, StyleSheet, RefreshControl } from 'react-native'
+import { View, FlatList, ScrollView, Pressable, StyleSheet, RefreshControl } from 'react-native'
 import { Bell, SlidersHorizontal, Search as SearchIcon } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing, radius } from '@/theme/tokens'
 import {
   ScreenContainer,
   Text,
   Spacer,
+  Chip,
   FilterSheet,
   EmptyState,
 } from '@/components/ui'
 import { LoadingScreen, ErrorState, ServerStatus } from '@/components/feedback'
 import { GigCardCompact } from '@/components/gig'
 import { Drawer, DrawerHeader } from '@/components/navigation'
+import { CATEGORY_META } from '@/data/mock'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
 import { useGigsFeedPolling } from '@/hooks/useGigsFeedPolling'
@@ -23,7 +24,7 @@ export default function HomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<GigCategory | null>(null)
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
   const [selectedCity, setSelectedCity] = useState<string | null>(null)
   const [selectedRemote, setSelectedRemote] = useState<boolean | null>(null)
@@ -36,9 +37,14 @@ export default function HomeScreen() {
 
   useGigsFeedPolling()
 
-  const hasFilters = query.trim().length > 0 || selectedCategory !== null || selectedCountry !== null || selectedCity !== null || selectedRemote !== null || selectedCrossBorder !== null
+  const hasFilters =
+    query.trim().length > 0 ||
+    selectedCategory !== null ||
+    selectedCountry !== null ||
+    selectedCity !== null ||
+    selectedRemote !== null ||
+    selectedCrossBorder !== null
 
-  // Client-side text filter (GigListQuery has no search field)
   const displayedGigs = query.trim()
     ? gigs.filter((g) =>
         g.title.toLowerCase().includes(query.toLowerCase()) ||
@@ -52,9 +58,9 @@ export default function HomeScreen() {
     setRefreshing(false)
   }
 
-  function handleCategoryChange(cat: string | null) {
+  function handleCategoryChange(cat: GigCategory | null) {
     setSelectedCategory(cat)
-    setFilters({ category: (cat ?? undefined) as GigCategory | undefined })
+    setFilters({ category: cat ?? undefined })
     fetchGigs()
   }
 
@@ -88,17 +94,11 @@ export default function HomeScreen() {
     fetchGigs()
   }
 
-  function handleCloseFilter() {
-    setFilterOpen(false)
-  }
+  if (!hasFetched && isLoading) return <LoadingScreen />
 
-  const renderGigItem = ({ item }: { item: Gig }) => (
+  const renderGig = ({ item }: { item: Gig }) => (
     <GigCardCompact gig={item} variant="rich" />
   )
-
-  if (!hasFetched && isLoading) {
-    return <LoadingScreen />
-  }
 
   return (
     <Drawer
@@ -128,7 +128,7 @@ export default function HomeScreen() {
           <FlatList
             data={displayedGigs}
             keyExtractor={(item) => item.id}
-            renderItem={renderGigItem}
+            renderItem={renderGig}
             contentContainerStyle={s.list}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -139,51 +139,72 @@ export default function HomeScreen() {
               />
             }
             ListHeaderComponent={
-              <View style={s.feedRow}>
-                <Text variant="subheading">Feed</Text>
-                <View style={s.feedRight}>
+              <>
+                <View style={s.feedRow}>
+                  <Text style={[s.feedTitle, { color: theme.colors.content.primary }]}>
+                    Feed
+                  </Text>
                   <ServerStatus />
                   <Pressable
                     onPress={() => setFilterOpen(true)}
-                    style={[
+                    style={({ pressed }) => [
                       s.filterBtn,
-                      {
-                        backgroundColor: hasFilters
-                          ? theme.colors.brand.primarySurface
-                          : theme.colors.surface.backgroundAlt,
-                      },
+                      { backgroundColor: theme.colors.surface.inset },
+                      pressed && { opacity: 0.7 },
                     ]}
+                    accessibilityLabel="Filter gigs"
+                    accessibilityRole="button"
                   >
-                    <SlidersHorizontal
-                      size={14}
-                      color={hasFilters ? theme.colors.brand.primary : theme.colors.content.secondary}
-                    />
+                    <SlidersHorizontal size={18} color={theme.colors.content.secondary} />
                     {hasFilters && (
                       <View style={[s.filterDot, { backgroundColor: theme.colors.brand.primary }]} />
                     )}
                   </Pressable>
                 </View>
-              </View>
+
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={s.chipRow}
+                >
+                  <Chip
+                    label="All"
+                    selected={selectedCategory === null}
+                    onPress={() => handleCategoryChange(null)}
+                  />
+                  {CATEGORY_META.map((cat) => (
+                    <Chip
+                      key={cat.key}
+                      label={cat.label}
+                      selected={selectedCategory === cat.key}
+                      category={cat.key}
+                      onPress={() => handleCategoryChange(selectedCategory === cat.key ? null : cat.key)}
+                    />
+                  ))}
+                </ScrollView>
+              </>
             }
             ListEmptyComponent={
               <EmptyState
-                icon={<SearchIcon size={36} color={theme.colors.content.tertiary} />}
+                variant="compact"
+                icon={<SearchIcon size={22} color={theme.colors.content.tertiary} />}
                 title="No gigs found"
-                description="Try adjusting your filters or check back later"
+                description="Try adjusting your filters or check back later."
+                action={hasFilters ? { label: 'Clear filters', onPress: handleClearAll } : undefined}
               />
             }
-            ItemSeparatorComponent={() => <Spacer size={spacing.sm} />}
-            ListFooterComponent={<Spacer size={spacing.xl} />}
+            ItemSeparatorComponent={() => <Spacer size={10} />}
+            ListFooterComponent={<Spacer size={32} />}
           />
         )}
 
         <FilterSheet
           visible={filterOpen}
-          onClose={handleCloseFilter}
+          onClose={() => setFilterOpen(false)}
           query={query}
           onQueryChange={setQuery}
           selectedCategory={selectedCategory}
-          onCategoryChange={handleCategoryChange}
+          onCategoryChange={(c) => handleCategoryChange((c ?? null) as GigCategory | null)}
           country={selectedCountry}
           city={selectedCity}
           onLocationChange={handleLocationChange}
@@ -200,33 +221,41 @@ export default function HomeScreen() {
 
 const s = StyleSheet.create({
   list: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
+    paddingHorizontal: 20,
   },
   feedRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.sm,
+    gap: 12,
+    paddingTop: 20,
+    paddingBottom: 12,
   },
-  feedRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  feedTitle: {
+    flex: 1,
+    fontSize: 22,
+    lineHeight: 28,
+    fontWeight: '700',
+    letterSpacing: -0.44,
   },
   filterBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: radius.md,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   filterDot: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 8,
+    right: 8,
     width: 6,
     height: 6,
     borderRadius: 3,
+  },
+  chipRow: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingBottom: 16,
   },
 })

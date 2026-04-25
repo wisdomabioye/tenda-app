@@ -96,8 +96,8 @@ export default function ExchangeScreen() {
 
   return (
     <ScreenContainer scroll={false} padding={false}>
-      {/* ── Header ── */}
-      <Header title="Trade" showBack />
+      {/* ── Large-title header ── */}
+      <Header variant="large" title="Trade" subtitle="Swap SOL with sellers" />
 
       {/* ── Tab row + animated underline ── */}
       <View style={[s.tabRow, { borderBottomColor: theme.colors.border.subtle }]}>

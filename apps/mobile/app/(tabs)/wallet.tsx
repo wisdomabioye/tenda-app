@@ -1,27 +1,48 @@
-import { useState, useCallback } from 'react'
-import { View, FlatList, StyleSheet, RefreshControl } from 'react-native'
+import { useState, useCallback, useMemo } from 'react'
+import { View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native'
 import { useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { PublicKey } from '@solana/web3.js'
-import { spacing, radius, shadows, typography } from '@/theme/tokens'
-import { ScreenContainer, Text, Spacer, Card, Header } from '@/components/ui'
+import { Copy } from 'lucide-react-native'
+import * as Clipboard from 'expo-clipboard'
+import { typography } from '@/theme/tokens'
+import { ScreenContainer, Text, Spacer, Header, showToast } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuthStore } from '@/stores/auth.store'
 import { FailedSyncPanel } from '@/components/sync/FailedSyncPanel'
 import { TxRow } from '@/components/wallet'
-
 import { api } from '@/api/client'
 import { getBalance } from '@/wallet'
-import { formatSol } from '@/lib/currency'
 import { DevnetBadge } from '@/components/feedback'
-import type { UserTransaction } from '@tenda/shared'
+import { useExchangeRateStore, useSettingsStore } from '@/stores'
+import { formatFiat } from '@/lib/currency'
+import type { UserTransaction, SupportedCurrency } from '@tenda/shared'
 
 const LAMPORTS_PER_SOL = 1_000_000_000
+
+type FeedItem =
+  | { type: 'day'; key: string; label: string }
+  | { type: 'tx'; key: string; tx: UserTransaction }
+
+function formatDayLabel(iso: string): string {
+  const date = new Date(iso)
+  const now = new Date()
+  if (date.toDateString() === now.toDateString()) return 'Today'
+  const yesterday = new Date(now)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (date.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  if (date.getFullYear() === now.getFullYear()) {
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+  }
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+}
 
 export default function WalletScreen() {
   const { theme } = useUnistyles()
   const user          = useAuthStore((s) => s.user)
   const walletAddress = useAuthStore((s) => s.walletAddress)
+  const rates         = useExchangeRateStore((s) => s.rates)
+  const currency      = useSettingsStore((s) => s.currency) as SupportedCurrency
 
   const [balanceLamports, setBalanceLamports] = useState<number | null>(null)
   const [transactions, setTransactions]       = useState<UserTransaction[]>([])
@@ -56,33 +77,62 @@ export default function WalletScreen() {
   const handleRefresh = useCallback(() => load(true), [user?.id, walletAddress]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const balanceSol = balanceLamports !== null ? balanceLamports / LAMPORTS_PER_SOL : null
+  const rate = rates?.[currency] ?? null
+  const balanceFiat = balanceSol !== null && rate !== null ? balanceSol * rate : null
 
-  // Earned: worker's gig payouts + buyer's exchange SOL receipts
-  const earnedLamports = transactions.reduce((sum, tx) => {
+  const earnedSol = transactions.reduce((sum, tx) => {
     if (tx.source === 'gig') {
       if (tx.gig.worker_id !== user?.id) return sum
-      if (tx.type === 'release_payment') return sum + tx.amount_lamports - tx.platform_fee_lamports
-      if (tx.type === 'dispute_resolved') return sum + tx.amount_lamports - tx.platform_fee_lamports
+      if (tx.type === 'release_payment' || tx.type === 'dispute_resolved') {
+        return sum + (tx.amount_lamports - tx.platform_fee_lamports) / LAMPORTS_PER_SOL
+      }
     } else {
       if (tx.offer.buyer_id !== user?.id) return sum
-      if (tx.type === 'release_payment') return sum + tx.amount_lamports - tx.platform_fee_lamports
+      if (tx.type === 'release_payment') {
+        return sum + (tx.amount_lamports - tx.platform_fee_lamports) / LAMPORTS_PER_SOL
+      }
     }
     return sum
   }, 0)
 
-  // Spent: poster's gig escrow funding + seller's exchange escrow funding
-  const spentLamports = transactions.reduce((sum, tx) => {
-    if (tx.source === 'gig'      && tx.gig.poster_id    === user?.id && tx.type === 'create_escrow') return sum + tx.amount_lamports
-    if (tx.source === 'exchange' && tx.offer.seller_id  === user?.id && tx.type === 'create_escrow') return sum + tx.amount_lamports
+  const spentSol = transactions.reduce((sum, tx) => {
+    if (tx.source === 'gig'      && tx.gig.poster_id   === user?.id && tx.type === 'create_escrow') return sum + tx.amount_lamports / LAMPORTS_PER_SOL
+    if (tx.source === 'exchange' && tx.offer.seller_id === user?.id && tx.type === 'create_escrow') return sum + tx.amount_lamports / LAMPORTS_PER_SOL
     return sum
   }, 0)
 
+  // Day-grouped feed: insert section headers when calendar date changes.
+  const feed: FeedItem[] = useMemo(() => {
+    const out: FeedItem[] = []
+    let lastDay: string | null = null
+    for (const tx of transactions) {
+      if (!tx.created_at) continue
+      const day = new Date(tx.created_at).toDateString()
+      if (day !== lastDay) {
+        out.push({ type: 'day', key: `day-${day}`, label: formatDayLabel(tx.created_at) })
+        lastDay = day
+      }
+      out.push({ type: 'tx', key: tx.id, tx })
+    }
+    return out
+  }, [transactions])
+
+  const truncatedAddress = walletAddress
+    ? `${walletAddress.slice(0, 4)}…${walletAddress.slice(-4)}`
+    : null
+
+  async function copyAddress() {
+    if (!walletAddress) return
+    await Clipboard.setStringAsync(walletAddress)
+    showToast('success', 'Address copied')
+  }
+
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
-      <Header title="Wallet" showBack />
+      <Header title="Wallet" variant="large" />
       <FlatList
-        data={transactions}
-        keyExtractor={(item) => item.id}
+        data={feed}
+        keyExtractor={(item) => item.key}
         contentContainerStyle={s.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
@@ -97,60 +147,133 @@ export default function WalletScreen() {
           <>
             <FailedSyncPanel />
 
-            {/* Balance card */}
-            <Card variant="filled" padding={spacing.md}>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <Text variant="caption" color={theme.colors.content.secondary}>SOL Balance</Text>
+            {/* Hero card — total balance */}
+            <View
+              style={[
+                s.hero,
+                {
+                  backgroundColor: theme.colors.brand.primarySurface,
+                  borderColor: theme.colors.brand.primaryBorder,
+                },
+              ]}
+            >
+              {truncatedAddress && (
+                <Pressable
+                  onPress={copyAddress}
+                  style={({ pressed }) => [
+                    s.heroAddr,
+                    { backgroundColor: theme.colors.surface.background },
+                    pressed && { opacity: 0.7 },
+                  ]}
+                  accessibilityLabel="Copy wallet address"
+                  accessibilityRole="button"
+                >
+                  <Text style={[s.heroAddrText, { color: theme.colors.content.tertiary }]}>
+                    {truncatedAddress}
+                  </Text>
+                  <Copy size={11} color={theme.colors.content.tertiary} />
+                </Pressable>
+              )}
+
+              <View style={s.heroLabelRow}>
+                <Text style={[s.heroLabel, { color: theme.colors.content.tertiary }]}>
+                  TOTAL BALANCE
+                </Text>
                 <DevnetBadge />
               </View>
-              {isLoading || balanceSol === null ? (
-                <View style={{ marginTop: 4 }}><Skeleton width={120} height={28} /></View>
-              ) : (
-                <Text weight="bold" size={typography.styles.h2.fontSize} color={theme.colors.utility.money}>
-                  {balanceSol.toFixed(4)} SOL
+
+              <View style={s.heroBalance}>
+                <Text style={[s.heroGlyph, { color: theme.colors.content.tertiary }]}>◎</Text>
+                {isLoading || balanceSol === null ? (
+                  <Skeleton width={140} height={42} />
+                ) : (
+                  <>
+                    <Text style={[s.heroAmount, { color: theme.colors.content.primary }]}>
+                      {balanceSol.toFixed(2)}
+                    </Text>
+                    <Text style={[s.heroUnit, { color: theme.colors.content.tertiary }]}>SOL</Text>
+                  </>
+                )}
+              </View>
+
+              {balanceFiat !== null && (
+                <Text style={[s.heroFiat, { color: theme.colors.content.tertiary }]}>
+                  ≈ {formatFiat(balanceFiat, currency)}
                 </Text>
               )}
-              <Text variant="caption" color={theme.colors.content.tertiary} style={{ marginTop: 4 }}>
-                {walletAddress
-                  ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-6)}`
-                  : '—'}
-              </Text>
-            </Card>
-
-            <Spacer size={spacing.md} />
+            </View>
 
             {/* Earnings summary */}
-            <View style={s.summaryRow}>
-              <View style={[s.summaryCard, { backgroundColor: theme.colors.surface.card }]}>
-                <Text variant="caption" color={theme.colors.content.secondary} weight="semibold">Earned</Text>
-                <Text weight="bold" size={typography.styles.body.fontSize} color={theme.colors.feedback.success.text}>
-                  {formatSol(earnedLamports)}
+            <View style={s.earnings}>
+              <View
+                style={[
+                  s.statCard,
+                  {
+                    backgroundColor: theme.colors.surface.card,
+                    borderColor: theme.colors.border.default,
+                  },
+                ]}
+              >
+                <View style={s.statLabelRow}>
+                  <View style={[s.statDot, { backgroundColor: theme.colors.numeric.positive }]} />
+                  <Text style={[s.statLabel, { color: theme.colors.content.tertiary }]}>
+                    EARNED
+                  </Text>
+                </View>
+                <Text style={[s.statValue, { color: theme.colors.numeric.positive }]}>
+                  + {earnedSol.toFixed(2)}
+                </Text>
+                <Text style={[s.statUnit, { color: theme.colors.content.tertiary }]}>
+                  SOL · lifetime
                 </Text>
               </View>
-              <View style={[s.summaryCard, { backgroundColor: theme.colors.surface.card }]}>
-                <Text variant="caption" color={theme.colors.content.secondary} weight="semibold">Spent</Text>
-                <Text weight="bold" size={typography.styles.body.fontSize} color={theme.colors.feedback.danger.text}>
-                  {formatSol(spentLamports)}
+              <View
+                style={[
+                  s.statCard,
+                  {
+                    backgroundColor: theme.colors.surface.card,
+                    borderColor: theme.colors.border.default,
+                  },
+                ]}
+              >
+                <View style={s.statLabelRow}>
+                  <View style={[s.statDot, { backgroundColor: theme.colors.numeric.negative }]} />
+                  <Text style={[s.statLabel, { color: theme.colors.content.tertiary }]}>
+                    SPENT
+                  </Text>
+                </View>
+                <Text style={[s.statValue, { color: theme.colors.numeric.negative }]}>
+                  − {spentSol.toFixed(2)}
+                </Text>
+                <Text style={[s.statUnit, { color: theme.colors.content.tertiary }]}>
+                  SOL · lifetime
                 </Text>
               </View>
             </View>
 
-            <Spacer size={spacing.md} />
-            <Text variant="subheading">Transaction History</Text>
-            <Spacer size={spacing.md} />
+            {/* Section title */}
+            <Text style={[s.sectionTitle, { color: theme.colors.content.tertiary }]}>
+              TRANSACTION HISTORY
+            </Text>
           </>
         }
-        renderItem={({ item }) => (
-          <TxRow tx={item} userId={user?.id ?? ''} />
-        )}
+        renderItem={({ item }) =>
+          item.type === 'day' ? (
+            <Text style={[s.dayHeader, { color: theme.colors.content.tertiary }]}>
+              {item.label.toUpperCase()}
+            </Text>
+          ) : (
+            <TxRow tx={item.tx} userId={user?.id ?? ''} />
+          )
+        }
         ListEmptyComponent={
           !isLoading ? (
-            <Text variant="caption" color={theme.colors.content.tertiary} align="center">
+            <Text size={13} color={theme.colors.content.tertiary} style={s.emptyText}>
               No transactions yet
             </Text>
           ) : null
         }
-        ListFooterComponent={<Spacer size={spacing.xl} />}
+        ListFooterComponent={<Spacer size={32} />}
       />
     </ScreenContainer>
   )
@@ -158,30 +281,144 @@ export default function WalletScreen() {
 
 const s = StyleSheet.create({
   content: {
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.sm,
+    paddingTop: 4,
   },
-  summaryRow: {
+  hero: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    height: 148,
+    borderRadius: 22,
+    borderWidth: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 18,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  heroAddr: {
+    position: 'absolute',
+    top: 18,
+    right: 18,
     flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  summaryCard: {
-    flex: 1,
-    padding: spacing.sm,
-    borderRadius: radius.lg,
-    gap: 2,
-    ...shadows.card,
-  },
-  txRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.xs,
-    borderBottomWidth: 1,
+    gap: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
   },
-  txLeft: {
+  heroAddrText: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 11,
+    lineHeight: 14,
+    letterSpacing: 0.11,
+  },
+  heroLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  heroLabel: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '600',
+    letterSpacing: 1.0,
+  },
+  heroBalance: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+    marginTop: 8,
+  },
+  heroGlyph: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 20,
+    lineHeight: 22,
+  },
+  heroAmount: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 40,
+    lineHeight: 42,
+    fontWeight: '700',
+    letterSpacing: -0.8,
+  },
+  heroUnit: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  heroFiat: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 13,
+    lineHeight: 17,
+    marginTop: 6,
+  },
+  earnings: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  statCard: {
     flex: 1,
-    gap: 1,
-    paddingRight: spacing.sm,
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 14,
+  },
+  statLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statLabel: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+  },
+  statValue: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+    marginTop: 6,
+  },
+  statUnit: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 10,
+    lineHeight: 13,
+    marginTop: 2,
+  },
+  sectionTitle: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '600',
+    letterSpacing: 1.0,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  dayHeader: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 10,
+    lineHeight: 13,
+    fontWeight: '600',
+    letterSpacing: 1.0,
+    paddingHorizontal: 20,
+    paddingTop: 14,
+    paddingBottom: 6,
+  },
+  emptyText: {
+    textAlign: 'center',
+    paddingVertical: 24,
   },
 })
