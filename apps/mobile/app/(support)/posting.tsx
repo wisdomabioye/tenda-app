@@ -1,72 +1,72 @@
-import { spacing } from '@/theme/tokens'
-import { ScreenContainer, Header, Spacer, Card, AccordionItem } from '@/components/ui'
-import { GuideStep } from '@/components/support/GuideStep'
+import { View, ScrollView, StyleSheet } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
+import { ScreenContainer, Header, AccordionItem } from '@/components/ui'
+import { GuideStep } from '@/components/support'
 
 export default function PostingGuideScreen() {
+  const { theme } = useUnistyles()
   return (
-    <ScreenContainer edges={['left', 'right', 'bottom']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
       <Header title="Posting a Gig" showBack />
-      <Spacer size={spacing.md} />
 
-      {/* Creating a gig */}
-      <Card variant="outlined" padding={0}>
-        <AccordionItem title="How to create a gig" defaultExpanded>
-          <Spacer size={spacing.xs} />
-          <GuideStep step={1} title="Tap the + button" description="Find the post button in the tab bar at the bottom of the screen." />
-          <Spacer size={spacing.sm} />
-          <GuideStep step={2} title="Fill in the gig details" description="Add a clear title, category, location, duration, and a detailed description of what you need done." />
-          <Spacer size={spacing.sm} />
-          <GuideStep step={3} title="Set the payment amount" description="Enter how much you're willing to pay in SOL. The equivalent Naira value is shown for reference." />
-          <Spacer size={spacing.sm} />
-          <GuideStep step={4} title="Review your draft" description="Your gig is saved as a draft first. Take a moment to check all the details, title, description, location, and payment amount before publishing." />
-          <Spacer size={spacing.sm} />
-          <GuideStep
-            step={5}
-            title="Publish your gig"
-            description="Tap Publish when you're ready. You'll be asked to approve a transaction in your wallet, this locks the payment into escrow."
-            warning="Make sure your wallet has enough SOL to cover the gig payment plus a small transaction fee (about ₦50 worth)."
-          />
-          <Spacer size={spacing.sm} />
-          <GuideStep step={6} title="Wait for a worker to apply" description="Your gig is now live. Workers in your area will see it and can apply." />
-        </AccordionItem>
-        <AccordionItem title="Tips for setting a fair price">
-          <Spacer size={spacing.xs} />
-          <GuideStep step={1} title="Research similar gigs" description="Browse the gig feed to see what others are charging for similar work." />
-          <Spacer size={spacing.sm} />
-          <GuideStep step={2} title="Account for time and skill" description="A 2-hour errand should pay more than a 30-minute task. Skilled work (design, coding) commands higher rates." />
-          <Spacer size={spacing.sm} />
-          <GuideStep step={3} title="Be specific in your description" description="Clear gigs attract better workers and reduce disputes later." />
-        </AccordionItem>
-      </Card>
+      <ScrollView contentContainerStyle={s.scroll}>
+        <View
+          style={[
+            s.card,
+            { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default },
+          ]}
+        >
+          <AccordionItem title="How to create a gig" defaultExpanded>
+            <GuideStep step={1} title="Tap + Post a Gig" description="From the center tab or the Drawer." />
+            <GuideStep step={2} title="Describe the job" description="Be specific — workers decide to accept based on what you write." />
+            <GuideStep step={3} title="Set the payment in SOL" description="The equivalent in your local currency is shown for reference." />
+            <GuideStep step={4} title="Review your draft" description="Your gig saves as a draft first — check title, description, location, and payment before publishing." />
+            <GuideStep
+              step={5}
+              title="Publish + fund the escrow"
+              description="Tap Publish to lock payment on-chain. You'll approve the transaction in your wallet."
+              warning="Your wallet needs the gig amount + a small Solana network fee (~$0.01)."
+            />
+            <GuideStep step={6} title="Wait for a worker to accept" description="Your gig is now live. Workers in your area will see it in the feed." />
+          </AccordionItem>
 
-      <Spacer size={spacing.md} />
+          <AccordionItem title="Tips for setting a fair price">
+            <GuideStep step={1} title="Research similar gigs" description="Browse the feed to see what others charge for similar work." />
+            <GuideStep step={2} title="Account for time and skill" description="A 2-hour errand should pay more than a 30-minute task. Skilled work commands higher rates." />
+            <GuideStep step={3} title="Be specific in your description" description="Clear gigs attract better workers and reduce disputes later." />
+          </AccordionItem>
 
-      {/* Approving work */}
-      <Card variant="outlined" padding={0}>
-        <AccordionItem title="How to approve completed work" defaultExpanded>
-          <Spacer size={spacing.xs} />
-          <GuideStep step={1} title="You'll get a notification when the worker submits" description="Open the gig to review the submitted proof (photos, links, or description)." />
-          <Spacer size={spacing.sm} />
-          <GuideStep step={2} title="Review the submission carefully" description="Make sure the work matches what was agreed in the gig description." />
-          <Spacer size={spacing.sm} />
-          <GuideStep step={3} title="Tap Approve" description="Your wallet will ask you to sign a transaction. Once approved, the payment is released to the worker instantly." />
-        </AccordionItem>
-        <AccordionItem title="How to raise a dispute" last>
-          <Spacer size={spacing.xs} />
-          <GuideStep step={1} title="Tap Dispute on the gig screen" description="Only available after the worker has submitted proof." />
-          <Spacer size={spacing.sm} />
-          <GuideStep step={2} title="Describe the issue clearly" description="Explain what was not delivered or what was done incorrectly." />
-          <Spacer size={spacing.sm} />
-          <GuideStep
-            step={3}
-            title="Wait for resolution"
-            description="The Tenda team will review both sides and decide. Payment is held in escrow until resolved."
-            tip="Keeping your gig description specific and detailed makes disputes easier to resolve in your favour."
-          />
-        </AccordionItem>
-      </Card>
+          <AccordionItem title="Approving completed work">
+            <GuideStep step={1} title="You'll get a notification on submission" description="Open the gig to review the submitted proof." />
+            <GuideStep step={2} title="Review carefully" description="Make sure the work matches what was agreed in the description." />
+            <GuideStep step={3} title="Tap Approve" description="Your wallet signs the release transaction. Payment goes to the worker instantly." />
+          </AccordionItem>
 
-      <Spacer size={spacing.md} />
+          <AccordionItem title="How to raise a dispute" last>
+            <GuideStep step={1} title="Tap Dispute on the gig screen" description="Available after the worker submits proof." />
+            <GuideStep step={2} title="Describe the issue" description="Explain what was missing or done incorrectly." />
+            <GuideStep
+              step={3}
+              title="Wait for resolution"
+              description="Tenda reviews both sides and decides. Payment stays in escrow until then."
+              tip="A specific, detailed gig description makes disputes easier to resolve in your favour."
+            />
+          </AccordionItem>
+        </View>
+      </ScrollView>
     </ScreenContainer>
   )
 }
+
+const s = StyleSheet.create({
+  scroll: {
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
+  card: {
+    marginHorizontal: 20,
+    paddingHorizontal: 18,
+    borderWidth: 1,
+    borderRadius: 18,
+  },
+})

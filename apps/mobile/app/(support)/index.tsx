@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { View, Pressable, StyleSheet } from 'react-native'
-import { useRouter } from 'expo-router'
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import {
   Wallet,
@@ -9,88 +8,31 @@ import {
   ShieldCheck,
   HelpCircle,
   BookOpen,
-  ChevronRight,
+  Search,
+  X,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
-import { spacing, radius } from '@/theme/tokens'
-import { ScreenContainer, Header, Text, Spacer, Input } from '@/components/ui'
+import { ScreenContainer, Header, Text } from '@/components/ui'
+import { TopicCard } from '@/components/support'
 
 interface Topic {
-  icon: LucideIcon
+  Icon: LucideIcon
   title: string
   description: string
   route: string
 }
 
 const TOPICS: Topic[] = [
-  {
-    icon: Wallet,
-    title: 'Wallet Setup',
-    description: 'Install Phantom or Solflare, connect, and troubleshoot issues',
-    route: '/(support)/wallet',
-  },
-  {
-    icon: PlusCircle,
-    title: 'Posting a Gig',
-    description: 'Create a gig, set a price, approve work, and manage disputes',
-    route: '/(support)/posting',
-  },
-  {
-    icon: Hammer,
-    title: 'Working on a Gig',
-    description: 'Find, accept, submit proof, and get paid for gigs',
-    route: '/(support)/working',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Payments & Escrow',
-    description: 'How escrow works, fee breakdown, disputes, and refunds',
-    route: '/(support)/escrow',
-  },
-  {
-    icon: HelpCircle,
-    title: 'FAQ & Support',
-    description: 'Common questions and how to reach us',
-    route: '/(support)/faq',
-  },
-  {
-    icon: BookOpen,
-    title: 'Glossary',
-    description: 'Plain English definitions of crypto and Tenda terms',
-    route: '/(support)/glossary',
-  },
+  { Icon: ShieldCheck, title: 'Payments & Escrow', description: 'How we hold funds and pay workers.',           route: '/(support)/escrow' },
+  { Icon: PlusCircle,  title: 'Posting a Gig',     description: 'Create a task, review work, handle disputes.', route: '/(support)/posting' },
+  { Icon: Hammer,      title: 'Working on a Gig',  description: 'Accept, submit proofs, get paid out.',         route: '/(support)/working' },
+  { Icon: Wallet,      title: 'Wallet Setup',      description: 'Connect Phantom or Solflare.',                 route: '/(support)/wallet' },
+  { Icon: BookOpen,    title: 'Glossary',          description: 'Plain-English definitions.',                   route: '/(support)/glossary' },
+  { Icon: HelpCircle,  title: 'FAQ & Support',     description: 'Answers and contact channels.',                route: '/(support)/faq' },
 ]
 
-function TopicCard({ icon: Icon, title, description, route }: Topic) {
-  const { theme } = useUnistyles()
-  const router = useRouter()
-
-  return (
-    <Pressable
-      onPress={() => router.push(route as Parameters<typeof router.push>[0])}
-      style={({ pressed }) => [
-        s.card,
-        {
-          backgroundColor: theme.colors.surface.card,
-          borderColor: theme.colors.border.default,
-          opacity: pressed ? 0.8 : 1,
-        },
-      ]}
-    >
-      <View style={[s.iconBox, { backgroundColor: theme.colors.brand.primarySurface }]}>
-        <Icon size={20} color={theme.colors.brand.primary} />
-      </View>
-      <View style={s.cardContent}>
-        <Text variant="label" weight="semibold">{title}</Text>
-        <Spacer size={2} />
-        <Text variant="caption" color={theme.colors.content.secondary}>{description}</Text>
-      </View>
-      <ChevronRight size={16} color={theme.colors.content.tertiary} />
-    </Pressable>
-  )
-}
-
 export default function SupportIndexScreen() {
+  const { theme } = useUnistyles()
   const [query, setQuery] = useState('')
 
   const filtered = query.trim()
@@ -102,51 +44,103 @@ export default function SupportIndexScreen() {
     : TOPICS
 
   return (
-    <ScreenContainer edges={['left', 'right', 'bottom']}>
+    <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
       <Header title="Help & Guide" showBack />
-      <Spacer size={spacing.md} />
 
-      <Input
-        placeholder="Search topics..."
-        value={query}
-        onChangeText={setQuery}
-      />
-      <Spacer size={spacing.md} />
-
-      {filtered.map((topic) => (
-        <View key={topic.route}>
-          <TopicCard {...topic} />
-          <Spacer size={spacing.sm} />
+      <ScrollView contentContainerStyle={s.scroll}>
+        {/* Search wrap */}
+        <View
+          style={[
+            s.search,
+            { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default },
+          ]}
+        >
+          <Search size={16} color={theme.colors.content.tertiary} />
+          <SearchField value={query} onChangeText={setQuery} />
+          {query.length > 0 && (
+            <Pressable onPress={() => setQuery('')} hitSlop={8}>
+              <X size={14} color={theme.colors.content.tertiary} />
+            </Pressable>
+          )}
         </View>
-      ))}
 
-      {filtered.length === 0 && (
-        <Text variant="body" color="textSub" align="center">
-          No topics match "{query}"
-        </Text>
-      )}
+        {/* Topic list */}
+        <View style={s.list}>
+          {filtered.map((topic, i) => (
+            <TopicCard
+              key={topic.route}
+              Icon={topic.Icon}
+              title={topic.title}
+              description={topic.description}
+              route={topic.route}
+              showDivider={i < filtered.length - 1}
+            />
+          ))}
+
+          {filtered.length === 0 && (
+            <View style={s.empty}>
+              <Text style={[s.emptyText, { color: theme.colors.content.tertiary }]}>
+                No topics match "{query}"
+              </Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
     </ScreenContainer>
   )
 }
 
+function SearchField({ value, onChangeText }: { value: string; onChangeText: (v: string) => void }) {
+  const { theme } = useUnistyles()
+  // Inline TextInput to keep the wrap-row's bordered-input feel.
+  // Using react-native TextInput directly (not the Input primitive) so the
+  // search field can sit inside the wrap row without nested borders.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { TextInput } = require('react-native') as typeof import('react-native')
+  return (
+    <TextInput
+      placeholder="Search topics…"
+      placeholderTextColor={theme.colors.content.tertiary}
+      value={value}
+      onChangeText={onChangeText}
+      style={[s.input, { color: theme.colors.content.primary }]}
+      autoCorrect={false}
+      autoCapitalize="none"
+    />
+  )
+}
+
 const s = StyleSheet.create({
-  card: {
+  scroll: {
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  search: {
+    marginHorizontal: 20,
+    marginTop: 8,
+    height: 52,
+    paddingHorizontal: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: radius.lg,
+    gap: 10,
     borderWidth: 1,
-    gap: spacing.sm,
+    borderRadius: 14,
   },
-  iconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  cardContent: {
+  input: {
     flex: 1,
+    fontSize: 14,
+    letterSpacing: -0.07,
+    padding: 0,
+  },
+  list: {
+    marginTop: 14,
+  },
+  empty: {
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 13,
   },
 })

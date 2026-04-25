@@ -1,7 +1,6 @@
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { AlertTriangle, Info } from 'lucide-react-native'
-import { spacing, radius } from '@/theme/tokens'
 import { typography } from '@/theme/tokens'
 import { Text, Spacer } from '@/components/ui'
 
@@ -13,49 +12,72 @@ interface GuideStepProps {
   tip?: string
 }
 
+/**
+ * Wireframe `guide-step`. 32×32 brand-tinted mono number circle + title /
+ * description stack, with optional warning (warn-surface, left border) or
+ * tip (info-surface, left border) callout below.
+ */
 export function GuideStep({ step, title, description, warning, tip }: GuideStepProps) {
   const { theme } = useUnistyles()
 
   return (
-    <View style={s.container}>
-      <View style={[s.stepBadge, { backgroundColor: theme.colors.brand.primarySurface }]}>
-        <Text size={typography.styles.caption.fontSize} weight="bold" color={theme.colors.brand.primary}>
-          {step}
-        </Text>
+    <View style={s.row}>
+      <View style={[s.num, { backgroundColor: theme.colors.brand.primarySurface }]}>
+        <Text style={[s.numText, { color: theme.colors.brand.primary }]}>{step}</Text>
       </View>
 
-      <View style={s.content}>
-        <Text variant="label" weight="semibold">{title}</Text>
+      <View style={s.body}>
+        <Text style={[s.title, { color: theme.colors.content.primary }]}>{title}</Text>
 
         {description && (
           <>
-            <Spacer size={2} />
-            <Text variant="caption" color={theme.colors.content.secondary}>{description}</Text>
+            <Spacer size={3} />
+            <Text style={[s.desc, { color: theme.colors.content.secondary }]}>{description}</Text>
           </>
         )}
 
         {warning && (
-          <>
-            <Spacer size={spacing.xs} />
-            <View style={[s.callout, { backgroundColor: theme.colors.feedback.warning.surface }]}>
-              <AlertTriangle size={12} color={theme.colors.feedback.warning.text} />
-              <Text variant="caption" color={theme.colors.feedback.warning.text} style={s.calloutText}>
-                {warning}
+          <View
+            style={[
+              s.variant,
+              {
+                backgroundColor: theme.colors.feedback.warning.surface,
+                borderLeftColor: theme.colors.feedback.warning.base,
+              },
+            ]}
+          >
+            <View style={s.variantHead}>
+              <AlertTriangle size={11} color={theme.colors.feedback.warning.base} />
+              <Text style={[s.variantLabel, { color: theme.colors.feedback.warning.base }]}>
+                WARNING
               </Text>
             </View>
-          </>
+            <Text style={[s.variantText, { color: theme.colors.feedback.warning.base }]}>
+              {warning}
+            </Text>
+          </View>
         )}
 
         {tip && (
-          <>
-            <Spacer size={spacing.xs} />
-            <View style={[s.callout, { backgroundColor: theme.colors.feedback.info.surface }]}>
-              <Info size={12} color={theme.colors.feedback.info.text} />
-              <Text variant="caption" color={theme.colors.feedback.info.text} style={s.calloutText}>
-                {tip}
+          <View
+            style={[
+              s.variant,
+              {
+                backgroundColor: theme.colors.feedback.info.surface,
+                borderLeftColor: theme.colors.feedback.info.base,
+              },
+            ]}
+          >
+            <View style={s.variantHead}>
+              <Info size={11} color={theme.colors.feedback.info.base} />
+              <Text style={[s.variantLabel, { color: theme.colors.feedback.info.base }]}>
+                TIP
               </Text>
             </View>
-          </>
+            <Text style={[s.variantText, { color: theme.colors.feedback.info.base }]}>
+              {tip}
+            </Text>
+          </View>
         )}
       </View>
     </View>
@@ -63,31 +85,61 @@ export function GuideStep({ step, title, description, warning, tip }: GuideStepP
 }
 
 const s = StyleSheet.create({
-  container: {
+  row: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    gap: 12,
+    paddingVertical: 12,
     alignItems: 'flex-start',
   },
-  stepBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
+  num: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 1,
     flexShrink: 0,
   },
-  content: {
-    flex: 1,
+  numText: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 13,
+    fontWeight: '600',
+    includeFontPadding: false,
   },
-  callout: {
+  body: {
+    flex: 1,
+    minWidth: 0,
+  },
+  title: {
+    fontSize: 14,
+    lineHeight: 19,
+    fontWeight: '600',
+    letterSpacing: -0.07,
+  },
+  desc: {
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  variant: {
+    marginTop: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    borderLeftWidth: 3,
+  },
+  variantHead: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    padding: spacing.xs,
-    borderRadius: radius.sm,
+    alignItems: 'center',
+    gap: 5,
+    marginBottom: 3,
   },
-  calloutText: {
-    flex: 1,
+  variantLabel: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.9,
+  },
+  variantText: {
+    fontSize: 12.5,
+    lineHeight: 18,
   },
 })
