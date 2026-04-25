@@ -2,18 +2,19 @@ import { useCallback, useState } from 'react'
 import { View, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform, Share, Pressable } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Share2, Pencil, Copy, ChevronDown } from 'lucide-react-native'
+import { Share2, Pencil, Lock, AlertTriangle, Building2, Smartphone, Copy } from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
-import { spacing, typography, radius } from '@/theme/tokens'
+import { spacing, typography } from '@/theme/tokens'
 import {
   ScreenContainer,
+  Header,
   Text,
   Spacer,
-  Card,
-  FloatingChromeButton,
   showToast
 } from '@/components/ui'
+import { SectionLabel } from '@/components/ui/SectionLabel'
+import { Eyebrow } from '@/components/ui/Eyebrow'
+import { formatFiat } from '@/lib/currency'
 import { 
   LoadingScreen,
   ErrorState,
@@ -36,7 +37,7 @@ import {
   usePeerExchangeStore
 } from '@/stores'
 import { api, ApiClientError } from '@/api/client'
-import type { ExchangeOfferDetail, UserExchangeAccount } from '@tenda/shared'
+import type { ExchangeOfferDetail, UserExchangeAccount, SupportedCurrency } from '@tenda/shared'
 
 export default function ExchangeDetailScreen() {
   const { id }    = useLocalSearchParams<{ id: string }>()
@@ -96,7 +97,6 @@ interface ContentProps {
 function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated, onBack }: ContentProps) {
   const { theme }   = useUnistyles()
   const router      = useRouter()
-  const insets      = useSafeAreaInsets()
   const actions     = useExchangeActions(offer, onUpdated, onBack)
   const isSeller    = offer.seller_id === userId
   const isBuyer     = offer.buyer_id  === userId
@@ -113,21 +113,15 @@ function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
-      <View style={[s.chromeRow, { top: insets.top + 12 }]} pointerEvents="box-none">
-        <FloatingChromeButton
-          Icon={ChevronDown}
-          onPress={onBack}
-          accessibilityLabel="Dismiss"
-        />
-        <FloatingChromeButton
-          Icon={isDraftSeller ? Pencil : Share2}
-          onPress={isDraftSeller ? handleEdit : handleShare}
-          accessibilityLabel={isDraftSeller ? 'Edit' : 'Share'}
-        />
-      </View>
+      <Header
+        title="Exchange offer"
+        showBack
+        rightIcon={isDraftSeller ? Pencil : Share2}
+        onRightPress={isDraftSeller ? handleEdit : handleShare}
+      />
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={90}>
         <ScrollView
-          contentContainerStyle={[s.scroll, { paddingTop: insets.top + 60 }]}
+          contentContainerStyle={s.scroll}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -146,64 +140,97 @@ function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated
             showMessageButton={offer.status !== 'draft'}
           />
           {offer.buyer && (
-            <>
-              <Spacer size={spacing.sm} />
-              <PersonCard
-                label="Buyer"
-                user={offer.buyer}
-                currentUserId={userId}
-                contextId={offer.id}
-                contextTitle={`${offer.fiat_amount.toLocaleString()} ${offer.fiat_currency}`}
-                isOffer
-              />
-            </>
+            <PersonCard
+              label="Buyer"
+              user={offer.buyer}
+              currentUserId={userId}
+              contextId={offer.id}
+              contextTitle={`${offer.fiat_amount.toLocaleString()} ${offer.fiat_currency}`}
+              isOffer
+            />
           )}
 
-          {offer.payment_accounts.length > 0 && (
+          {/* Payment methods — context-aware section label */}
+          {offer.payment_accounts.length > 0 ? (
             <>
-              <Text weight="semibold" size={typography.styles.bodySmall.fontSize} style={s.section}>Payment Methods</Text>
+              <SectionLabel>
+                {(offer.status === 'accepted' || offer.status === 'paid') && isBuyer
+                  ? `Send ${formatFiat(offer.fiat_amount, offer.fiat_currency as SupportedCurrency)} to`
+                  : 'Payment methods'}
+              </SectionLabel>
               {offer.payment_accounts.map((a) => <AccountCard key={a.id} account={a} />)}
             </>
-          )}
-          {isBuyer && offer.status === 'open' && (
-            <Text variant="caption" color={theme.colors.content.secondary} style={s.hint}>
-              Payment details shown after you accept.
-            </Text>
-          )}
+          ) : isBuyer && offer.status === 'open' ? (
+            <>
+              <SectionLabel>Payment methods</SectionLabel>
+              <View
+                style={[
+                  s.lockHint,
+                  { backgroundColor: theme.colors.surface.inset },
+                ]}
+              >
+                <Lock size={13} color={theme.colors.content.tertiary} />
+                <Text style={[s.lockHintText, { color: theme.colors.content.secondary }]}>
+                  Accept the offer to see the seller's account details.
+                </Text>
+              </View>
+            </>
+          ) : null}
 
           {offer.proofs.length > 0 && (
             <>
-              <Text weight="semibold" size={typography.styles.bodySmall.fontSize} style={s.section}>Payment Proofs</Text>
-              <GigProofsGrid proofs={offer.proofs} onProofPress={setSelectedProof} />
+              <SectionLabel>Payment proof</SectionLabel>
+              <View style={s.proofsWrap}>
+                <GigProofsGrid proofs={offer.proofs} onProofPress={setSelectedProof} />
+              </View>
             </>
           )}
 
           {offer.dispute && (
-            <Card variant="outlined" padding={spacing.md} style={[s.disputeCard, { borderColor: theme.colors.feedback.danger.text }]}>
-              <Text weight="semibold" color={theme.colors.feedback.danger.text}>Dispute</Text>
-              <Spacer size={4} />
-              <Text size={typography.styles.bodySmall.fontSize} color={theme.colors.content.secondary}>{offer.dispute.reason}</Text>
-              {offer.dispute.winner && (
-                <Text size={typography.styles.bodySmall.fontSize} style={{ marginTop: 4 }}>
-                  Winner: <Text weight="semibold">{offer.dispute.winner}</Text>
+            <View
+              style={[
+                s.disputeCard,
+                {
+                  backgroundColor: theme.colors.feedback.danger.surface,
+                  borderColor: theme.colors.feedback.danger.base,
+                },
+              ]}
+            >
+              <View style={s.disputeTop}>
+                <View style={[s.disputeIc, { backgroundColor: theme.colors.feedback.danger.surface }]}>
+                  <AlertTriangle size={16} color={theme.colors.feedback.danger.base} />
+                </View>
+                <Text style={[s.disputeTitle, { color: theme.colors.feedback.danger.base }]}>
+                  Dispute filed
                 </Text>
+              </View>
+              <Text style={[s.disputeBody, { color: theme.colors.content.primary }]}>
+                {offer.dispute.reason}
+              </Text>
+              {offer.dispute.winner && (
+                <View style={[s.disputeOutcome, { borderTopColor: theme.colors.feedback.danger.border }]}>
+                  <Text style={[s.disputeOutcomeKey, { color: theme.colors.content.secondary }]}>
+                    Outcome:
+                  </Text>
+                  <Text style={[s.disputeOutcomeValue, { color: theme.colors.feedback.success.base }]}>
+                    Resolved · Winner {offer.dispute.winner}
+                  </Text>
+                </View>
               )}
-            </Card>
+            </View>
           )}
 
           {offer.reviews.length > 0 && offer.buyer && (
-            <>
-              <Spacer size={spacing.md} />
-              <ReviewsSection
-                reviews={offer.reviews}
-                partyAId={offer.seller_id}
-                partyA={offer.seller}
-                partyALabel="Seller"
-                partyB={offer.buyer}
-                partyBLabel="Buyer"
-                currentUserId={userId}
-              />
-            </>
+            <ReviewsSection
+              reviews={offer.reviews}
+              partyAId={offer.seller_id}
+              partyA={offer.seller}
+              partyALabel="Seller"
+              partyB={offer.buyer}
+              partyBLabel="Buyer"
+              currentUserId={userId}
+              title={`Reviews for @${offer.seller.first_name?.toLowerCase() ?? 'seller'}`}
+            />
           )}
 
           <Spacer size={spacing.xl} />
@@ -262,68 +289,261 @@ function AccountCard({ account }: { account: UserExchangeAccount }) {
     showToast('success', 'Account number copied')
   }
 
-  return (
-    <Card variant="outlined" padding={spacing.md} style={s.accountCard}>
+  async function copyHolderName() {
+    await Clipboard.setStringAsync(account.account_name)
+    showToast('success', 'Account name copied')
+  }
 
-      {/* Method badge + bank name */}
-      <View style={s.accountHeader}>
-        <View style={[s.methodBadge, { backgroundColor: theme.colors.brand.primarySurface }]}>
-          <Text size={typography.styles.caption.fontSize} weight="semibold" color={theme.colors.brand.primary}>
-            {account.method}
-          </Text>
+  // Pick a method-aware icon — bank-style methods get Building2, mobile money
+  // / wallet-style methods get Smartphone. Anything else falls back to Building2.
+  const lowerMethod = account.method.toLowerCase()
+  const isMobileMoney = /opay|palmpay|kuda|airtel|mtn|m-?pesa|wallet|momo/.test(lowerMethod)
+  const Icon = isMobileMoney ? Smartphone : Building2
+
+  // Group digits in fours so long account/phone numbers stay readable:
+  //   "0234567891" → "0234 5678 91"
+  const groupedNumber = account.account_number.replace(/(.{4})/g, '$1 ').trim()
+
+  const headline = account.bank_name ?? account.method
+  const subhead = account.bank_name ? account.method : null
+
+  return (
+    <View
+      style={[
+        s.accountCard,
+        {
+          backgroundColor: theme.colors.surface.card,
+          borderColor: theme.colors.border.default,
+        },
+      ]}
+    >
+      {/* Top — icon, headline (bank/method), one-tap holder name copy */}
+      <View style={s.accountTop}>
+        <View style={[s.accountIc, { backgroundColor: theme.colors.accent.primarySurface }]}>
+          <Icon size={17} color={theme.colors.accent.primary} strokeWidth={2.25} />
         </View>
-        {account.bank_name && (
-          <Text variant="caption" color={theme.colors.content.secondary}>{account.bank_name}</Text>
-        )}
+        <View style={s.accountTopBody}>
+          <Text style={[s.accountHeadline, { color: theme.colors.content.primary }]} numberOfLines={1}>
+            {headline}
+          </Text>
+          {subhead ? (
+            <Text style={[s.accountSubhead, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
+              {subhead}
+            </Text>
+          ) : null}
+        </View>
+        <Pressable
+          onPress={copyHolderName}
+          hitSlop={6}
+          style={({ pressed }) => [
+            s.accountChip,
+            { backgroundColor: theme.colors.surface.inset },
+            pressed && { opacity: 0.6 },
+          ]}
+          accessibilityLabel="Copy account holder name"
+        >
+          <Text style={[s.accountChipText, { color: theme.colors.content.primary }]} numberOfLines={1}>
+            {account.account_name}
+          </Text>
+        </Pressable>
       </View>
 
-      <Spacer size={spacing.sm} />
-
-      {/* Account name */}
-      <Text variant="caption" color={theme.colors.content.tertiary}>Account name</Text>
-      <Text weight="medium" size={typography.styles.bodySmall.fontSize}>{account.account_name}</Text>
-
-      <Spacer size={spacing.sm} />
-
-      {/* Account number — copy row */}
-      <Text variant="caption" color={theme.colors.content.tertiary}>Account number</Text>
-      <Pressable style={[s.numberBox, { backgroundColor: theme.colors.surface.inset }]} onPress={copyAccountNumber}>
-        <Text weight="semibold" size={typography.styles.body.fontSize} style={s.flex}>{account.account_number}</Text>
-        <View style={[s.copyBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}>
-          <Copy size={14} color={theme.colors.brand.primary} />
+      {/* Account number — the actionable line. Big mono, full digits, prominent
+          Copy button. Tappable across the whole row. */}
+      <Pressable
+        onPress={copyAccountNumber}
+        style={({ pressed }) => [
+          s.numberRow,
+          { backgroundColor: theme.colors.surface.inset },
+          pressed && { opacity: 0.85 },
+        ]}
+        accessibilityLabel="Copy account number"
+      >
+        <View style={s.numberCol}>
+          <Eyebrow>{isMobileMoney ? 'Phone / wallet number' : 'Account number'}</Eyebrow>
+          <Text
+            style={[s.numberValue, { color: theme.colors.content.primary }]}
+            selectable
+            numberOfLines={1}
+          >
+            {groupedNumber}
+          </Text>
+        </View>
+        <View style={[s.copyBtn, { backgroundColor: theme.colors.brand.primary }]}>
+          <Copy size={13} color={theme.colors.brand.onPrimary} strokeWidth={2.5} />
+          <Text style={[s.copyBtnText, { color: theme.colors.brand.onPrimary }]}>Copy</Text>
         </View>
       </Pressable>
 
+      {/* Optional reference / additional_info — useful for "use your phone number as reference" */}
       {account.additional_info ? (
-        <>
-          <Spacer size={spacing.xs} />
-          <Text variant="caption" color={theme.colors.content.tertiary}>{account.additional_info}</Text>
-        </>
+        <Text style={[s.accountNote, { color: theme.colors.content.tertiary }]} numberOfLines={2}>
+          {account.additional_info}
+        </Text>
       ) : null}
-
-    </Card>
+    </View>
   )
 }
 
 const s = StyleSheet.create({
   flex:        { flex: 1 },
-  chromeRow:   {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
+  scroll:      { paddingBottom: spacing['2xl'] },
+  // Lock hint
+  lockHint: {
+    marginHorizontal: 20,
+    marginTop: 4,
+    height: 48,
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    zIndex: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
   },
-  scroll:      { paddingHorizontal: spacing.md, paddingBottom: spacing['2xl'] },
-  section:     { marginTop: spacing.md, marginBottom: spacing.xs },
-  hint:        { marginTop: spacing.sm, textAlign: 'center' },
-  party:       { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1 },
-  partyLabel:  { width: 44 },
-  accountCard:   { marginBottom: spacing.sm },
-  accountHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  methodBadge:   { paddingVertical: 3, paddingHorizontal: 10, borderRadius: radius.full, alignSelf: 'flex-start' },
-  numberBox:     { flexDirection: 'row', alignItems: 'center', marginTop: 4, paddingVertical: spacing.sm, paddingHorizontal: spacing.sm, borderRadius: radius.md, gap: spacing.xs },
-  copyBtn:       { padding: 6, borderRadius: radius.sm },
-  disputeCard:   { marginTop: spacing.sm },
+  lockHintText: {
+    fontSize: 12.5,
+    flexShrink: 1,
+    textAlign: 'center',
+  },
+  // Account card — full payment-method details (V2 expanded variant)
+  accountCard: {
+    marginHorizontal: 20,
+    marginBottom: 10,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderRadius: 16,
+    gap: 12,
+  },
+  accountTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  accountIc: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  accountTopBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  accountHeadline: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    letterSpacing: -0.075,
+  },
+  accountSubhead: {
+    fontSize: 11.5,
+    fontWeight: '500',
+    letterSpacing: 0.115,
+    textTransform: 'uppercase',
+    fontFamily: typography.fonts.mono,
+    marginTop: 2,
+  },
+  accountChip: {
+    maxWidth: 140,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  accountChipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: -0.06,
+  },
+  numberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+  },
+  numberCol: {
+    flex: 1,
+    minWidth: 0,
+    gap: 4,
+  },
+  numberValue: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: 0.18,
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 36,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    flexShrink: 0,
+  },
+  copyBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.065,
+  },
+  accountNote: {
+    fontSize: 12.5,
+    lineHeight: 18,
+    paddingHorizontal: 4,
+  },
+  // Proofs
+  proofsWrap: {
+    paddingHorizontal: 20,
+    marginTop: 4,
+  },
+  // Dispute card
+  disputeCard: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderRadius: 16,
+  },
+  disputeTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  disputeIc: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  disputeTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: -0.16,
+  },
+  disputeBody: {
+    fontSize: 13.5,
+    lineHeight: 20,
+  },
+  disputeOutcome: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  disputeOutcomeKey: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  disputeOutcomeValue: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
 })

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing, radius } from '@/theme/tokens'
+import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import type { ExchangeOfferDetail } from '@tenda/shared'
 
@@ -15,16 +15,32 @@ function computeDeadline(offer: ExchangeOfferDetail): Date | null {
   return new Date(new Date(offer.accepted_at).getTime() + offer.payment_window_seconds * 1000)
 }
 
+/**
+ * Compact mm:ss countdown for windows < 24h, falls back to "Xh Ym" otherwise.
+ *   59:42 · 22:14 · 4h 12m
+ */
 function formatRemaining(ms: number): string {
+  if (ms <= 0) return '0:00'
   const totalSeconds = Math.floor(ms / 1000)
-  const hours   = Math.floor(totalSeconds / 3600)
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const hours = Math.floor(totalSeconds / 3600)
+  if (hours >= 1) {
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    return `${hours}h ${minutes}m`
+  }
+  const minutes = Math.floor(totalSeconds / 60)
   const seconds = totalSeconds % 60
-  if (hours > 0)   return `${hours}h ${minutes}m ${seconds}s`
-  if (minutes > 0) return `${minutes}m ${seconds}s`
-  return `${seconds}s`
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
 }
 
+/**
+ * Wireframe `pay-banner` (§4.20). 56h, 14r row with:
+ *   - Leading 6px tone-coloured dot
+ *   - Body copy on the left ("Send payment to unlock SOL" / "Awaiting buyer payment")
+ *   - Trailing mono countdown in the same tone
+ *
+ * Tone: `warning.surface` while in-progress (default), `danger.surface` on expiry,
+ * `info.surface` (brand) when nothing is owed yet.
+ */
 export function PaymentWindowBanner({ offer, isBuyer }: Props) {
   const { theme } = useUnistyles()
   const deadline = computeDeadline(offer)
@@ -43,30 +59,71 @@ export function PaymentWindowBanner({ offer, isBuyer }: Props) {
     }
     tick()
     return () => clearTimeout(timeoutId)
-  }, [deadline?.getTime()]) // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deadline?.getTime()])
 
   if (remaining === null) return null
 
   const isExpired = remaining <= 0
-  const isWarning = !isExpired && remaining < 30 * 60 * 1000  // < 30 min
+  const isUrgent = !isExpired && remaining < 30 * 60 * 1000
 
-  const bg = isExpired ? theme.colors.feedback.danger.surface  : isWarning ? theme.colors.feedback.warning.surface  : theme.colors.brand.primarySurface
-  const fg = isExpired ? theme.colors.feedback.danger.base      : isWarning ? theme.colors.feedback.warning.base      : theme.colors.brand.primary
+  const bg = isExpired
+    ? theme.colors.feedback.danger.surface
+    : isUrgent
+      ? theme.colors.feedback.warning.surface
+      : theme.colors.brand.primarySurface
+  const fg = isExpired
+    ? theme.colors.feedback.danger.base
+    : isUrgent
+      ? theme.colors.feedback.warning.base
+      : theme.colors.brand.primary
 
-  const label = isBuyer
-    ? (isExpired ? 'Payment window expired' : 'Pay within')
-    : (isExpired ? 'Payment window expired' : 'Waiting for buyer payment — time remaining')
+  const message = isBuyer
+    ? (isExpired ? 'Payment window expired' : 'Send payment to unlock SOL')
+    : (isExpired ? 'Buyer missed the payment window' : 'Awaiting buyer payment')
 
   return (
     <View style={[s.banner, { backgroundColor: bg }]}>
-      <Text variant="caption" color={fg} weight="semibold" align="center">{label}</Text>
+      <View style={[s.dot, { backgroundColor: fg }]} />
+      <Text
+        style={[s.text, { color: theme.colors.content.primary }]}
+        numberOfLines={1}
+      >
+        {message}
+      </Text>
       {!isExpired && (
-        <Text variant="caption" color={fg} weight="bold" align="center">{formatRemaining(remaining)}</Text>
+        <Text style={[s.timer, { color: fg }]}>{formatRemaining(remaining)}</Text>
       )}
     </View>
   )
 }
 
 const s = StyleSheet.create({
-  banner: { marginHorizontal: spacing.md, marginTop: spacing.sm, padding: spacing.sm, borderRadius: radius.md, gap: 2 },
+  banner: {
+    marginHorizontal: 20,
+    marginTop: 12,
+    height: 56,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    flexShrink: 0,
+  },
+  text: {
+    flex: 1,
+    fontSize: 13,
+    lineHeight: 17,
+  },
+  timer: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.13,
+  },
 })
