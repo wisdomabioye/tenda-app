@@ -115,7 +115,6 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   }, [isWorkerOpportunity, dismissedNudges.accept]))
 
   const categoryMeta = CATEGORY_META.find((c) => c.key === gig.category)
-  const categoryColor = theme.colors.category[gig.category]
   const deadline = computeRelevantDeadline(gig)
   const deadlineLbl = deadlineLabel(deadline)
 
