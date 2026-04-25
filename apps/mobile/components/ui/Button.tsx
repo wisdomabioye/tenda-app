@@ -1,11 +1,11 @@
 import { type ReactNode } from 'react'
-import { ActivityIndicator, Pressable, type PressableProps, View, StyleSheet } from 'react-native'
+import { ActivityIndicator, Pressable, type PressableProps, View, StyleSheet, type ViewStyle, type TextStyle } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import * as Haptics from 'expo-haptics'
-import { radius, spacing, shadows } from '@/theme/tokens'
+import { shadows, typography } from '@/theme/tokens'
 import { Text } from './Text'
 
-type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger'
+type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success'
 type Size = 'sm' | 'md' | 'lg' | 'xl'
 
 interface ButtonProps extends Omit<PressableProps, 'children'> {
@@ -17,9 +17,19 @@ interface ButtonProps extends Omit<PressableProps, 'children'> {
   children: string
 }
 
+const HEIGHTS: Record<Size, number> = { sm: 40, md: 48, lg: 52, xl: 56 }
+const PAD_X: Record<Size, number> = { sm: 14, md: 18, lg: 22, xl: 24 }
+const RADII: Record<Size, number> = { sm: 12, md: 12, lg: 14, xl: 14 }
+const LABEL_BY_SIZE: Record<Size, TextStyle> = {
+  sm: { fontSize: 14, lineHeight: 18 },
+  md: { fontSize: 14, lineHeight: 18 },
+  lg: { fontSize: 15, lineHeight: 20 },
+  xl: { fontSize: 15, lineHeight: 20 },
+}
+const GHOST_HEIGHT = 44
+
 const s = StyleSheet.create({
   base: {
-    borderRadius: radius.lg,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
@@ -27,23 +37,14 @@ const s = StyleSheet.create({
   content: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 8,
   },
   fullWidth: { width: '100%' },
-  disabled: { opacity: 0.5 },
-  size_sm: { paddingVertical: 7,  paddingHorizontal: 14 },
-  size_md: { paddingVertical: 10, paddingHorizontal: 18 },
-  size_lg: { paddingVertical: 13, paddingHorizontal: 22 },
-  size_xl: { paddingVertical: 15, paddingHorizontal: 24 },
-  pressed: { opacity: 0.85 },
+  pressed: {
+    opacity: 0.9,
+    transform: [{ scale: 0.985 }],
+  },
 })
-
-const textSize: Record<Size, number> = {
-  sm: 14,
-  md: 16,
-  lg: 17,
-  xl: 18,
-}
 
 export function Button({
   variant = 'primary',
@@ -65,21 +66,52 @@ export function Button({
     onPress?.(e)
   }
 
-  const variantBg: Record<Variant, string> = {
-    primary: theme.colors.brand.primary,
-    secondary: theme.colors.surface.card,
-    outline: 'transparent',
-    ghost: 'transparent',
-    danger: theme.colors.feedback.danger.base,
-  }
+  const height = variant === 'ghost' ? GHOST_HEIGHT : HEIGHTS[size]
+  const paddingHorizontal = PAD_X[size]
+  const borderRadius = RADII[size]
 
-  const textColor = variant === 'primary' || variant === 'danger'
-    ? theme.colors.brand.onPrimary
-    : variant === 'secondary'
-      ? theme.colors.content.primary
-      : theme.colors.brand.primary
+  const variantStyle: ViewStyle = (() => {
+    if (isDisabled) {
+      return { backgroundColor: theme.colors.surface.inset }
+    }
+    switch (variant) {
+      case 'primary':
+        return { backgroundColor: theme.colors.brand.primary, ...shadows.fab }
+      case 'success':
+        return {
+          backgroundColor: theme.colors.feedback.success.base,
+          ...shadows.fab,
+          shadowColor: theme.colors.feedback.success.base,
+        }
+      case 'danger':
+        return {
+          backgroundColor: theme.colors.feedback.danger.base,
+          ...shadows.fab,
+          shadowColor: theme.colors.feedback.danger.base,
+        }
+      case 'secondary':
+        return { backgroundColor: theme.colors.surface.inset }
+      case 'outline':
+        return {
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          borderColor: theme.colors.border.default,
+        }
+      case 'ghost':
+      default:
+        return { backgroundColor: 'transparent' }
+    }
+  })()
 
-  const spinnerColor = variant === 'primary' || variant === 'danger'
+  const textColor = isDisabled
+    ? theme.colors.content.tertiary
+    : variant === 'primary' || variant === 'danger' || variant === 'success'
+      ? theme.colors.brand.onPrimary
+      : variant === 'ghost'
+        ? theme.colors.content.secondary
+        : theme.colors.content.primary
+
+  const spinnerColor = variant === 'primary' || variant === 'danger' || variant === 'success'
     ? theme.colors.brand.onPrimary
     : theme.colors.brand.primary
 
@@ -87,27 +119,24 @@ export function Button({
     <Pressable
       onPress={handlePress}
       disabled={isDisabled}
-      style={[
+      style={({ pressed }) => [
         s.base,
-        s[`size_${size}`],
-        { backgroundColor: variantBg[variant] },
-        variant === 'primary' && shadows.card,
-        variant === 'outline' && { borderWidth: 1, borderColor: theme.colors.border.default },
+        { height, paddingHorizontal, borderRadius },
+        variantStyle,
         fullWidth && s.fullWidth,
-        isDisabled && s.disabled,
+        pressed && !isDisabled && s.pressed,
         style as any,
       ]}
       {...props}
     >
-      {({ pressed }) => loading ? (
+      {loading ? (
         <ActivityIndicator size="small" color={spinnerColor} />
       ) : (
-        <View style={[s.content, pressed && s.pressed]}>
+        <View style={s.content}>
           {icon}
           <Text
-            weight="semibold"
-            color={isDisabled ? theme.colors.content.disabled : textColor}
-            size={textSize[size]}
+            style={[typography.styles.button, LABEL_BY_SIZE[size]]}
+            color={textColor}
           >
             {children}
           </Text>

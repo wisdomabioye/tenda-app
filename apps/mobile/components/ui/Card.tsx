@@ -1,7 +1,7 @@
 import { type ReactNode } from 'react'
-import { Pressable, View, type ViewProps, StyleSheet } from 'react-native'
+import { Pressable, View, type ViewProps, StyleSheet, type ViewStyle } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { radius, spacing, shadows } from '@/theme/tokens'
+import { spacing, shadows } from '@/theme/tokens'
 
 type Variant = 'elevated' | 'outlined' | 'filled'
 
@@ -14,7 +14,7 @@ interface CardProps extends ViewProps {
 
 const s = StyleSheet.create({
   base: {
-    borderRadius: radius.lg,
+    borderRadius: 18,
     padding: spacing.md,
   },
 })
@@ -29,33 +29,51 @@ export function Card({
 }: CardProps) {
   const { theme } = useUnistyles()
 
-  const variantStyle = variant === 'elevated'
-    ? { backgroundColor: theme.colors.surface.card, ...shadows.card }
-    : variant === 'outlined'
-      ? { backgroundColor: theme.colors.surface.background, borderWidth: 1, borderColor: theme.colors.border.default }
-      : { backgroundColor: theme.colors.surface.card }
+  const variantStyle: ViewStyle = (() => {
+    switch (variant) {
+      case 'filled':
+        return { backgroundColor: theme.colors.surface.inset }
+      case 'elevated':
+      case 'outlined':
+      default:
+        return {
+          backgroundColor: theme.colors.surface.card,
+          borderWidth: 1,
+          borderColor: theme.colors.border.default,
+        }
+    }
+  })()
 
-  const content = (
+  if (onPress) {
+    return (
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [
+          s.base,
+          variantStyle,
+          padding !== undefined && { padding },
+          pressed && shadows.card,
+          pressed && { opacity: 0.96, transform: [{ scale: 0.995 }] },
+          style as any,
+        ]}
+        {...(props as any)}
+      >
+        {children}
+      </Pressable>
+    )
+  }
+
+  return (
     <View
       style={[
         s.base,
         variantStyle,
         padding !== undefined && { padding },
-        !onPress && (style as any),
+        style as any,
       ]}
-      {...(!onPress ? props : {})}
+      {...props}
     >
       {children}
     </View>
   )
-
-  if (onPress) {
-    return (
-      <Pressable onPress={onPress} style={style as any} {...props}>
-        {content}
-      </Pressable>
-    )
-  }
-
-  return content
 }

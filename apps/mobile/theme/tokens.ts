@@ -267,10 +267,10 @@ export const colors: { light: ColorScheme; dark: ColorScheme } = {
     },
 
     border: {
-      subtle: 'rgba(255,255,255,0.08)',
-      default: 'rgba(255,255,255,0.10)',
+      subtle: 'rgba(255,255,255,0.04)',
+      default: 'rgba(255,255,255,0.08)',
       strong: 'rgba(255,255,255,0.18)',
-      divider: 'rgba(255,255,255,0.08)',
+      divider: 'rgba(255,255,255,0.04)',
       input: 'rgba(255,255,255,0.18)',
       inputActive: '#5E87E8',
       inputError: '#F0706E',
@@ -462,7 +462,7 @@ export const typography = {
       fontSize: 15,
       lineHeight: 20,
       fontWeight: fontWeights.semibold,
-      letterSpacing: 0.1,
+      letterSpacing: -0.15,
     } satisfies TextStyleToken,
 
     mono: {
@@ -530,9 +530,9 @@ export const shadows = {
   },
   fab: {
     shadowColor: '#2E5BD6',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.20,
-    shadowRadius: 28,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.18,
+    shadowRadius: 24,
     elevation: 8,
   },
 } as const
