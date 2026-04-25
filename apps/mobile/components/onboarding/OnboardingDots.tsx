@@ -15,10 +15,10 @@ function Dot({ active }: DotProps) {
   const { theme } = useUnistyles()
 
   const style = useAnimatedStyle(() => ({
-    width: withTiming(active ? 20 : 8, { duration: 250 }),
+    width: withTiming(active ? 24 : 6, { duration: 220 }),
     backgroundColor: withTiming(
       active ? theme.colors.brand.primary : theme.colors.border.default,
-      { duration: 250 },
+      { duration: 220 },
     ),
   }))
 
@@ -42,7 +42,7 @@ const s = StyleSheet.create({
     gap: 6,
   },
   dot: {
-    height: 8,
-    borderRadius: 4,
+    height: 6,
+    borderRadius: 3,
   },
 })

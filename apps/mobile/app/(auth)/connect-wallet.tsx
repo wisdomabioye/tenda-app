@@ -4,12 +4,10 @@ import { useRouter } from 'expo-router'
 import { Image } from 'expo-image'
 import { useUnistyles } from 'react-native-unistyles'
 import { Wallet, ShieldCheck, Zap } from 'lucide-react-native'
-import { spacing, radius } from '@/theme/tokens'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
-import { Spacer } from '@/components/ui/Spacer'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { useAuthStore } from '@/stores/auth.store'
 import { connectAndSignAuthMessage, WalletError } from '@/wallet'
@@ -19,21 +17,9 @@ import { isSeekerDevice, getDeviceCountry } from '@/lib/device'
 const Logo = require('@/assets/images/logo.png')
 
 const FEATURES = [
-  {
-    Icon: ShieldCheck,
-    title: 'Secure escrow',
-    description: 'Payments locked until work is approved',
-  },
-  {
-    Icon: Zap,
-    title: 'Instant settlement',
-    description: 'Funds released on-chain in seconds',
-  },
-  {
-    Icon: Wallet,
-    title: 'Your keys, your money',
-    description: 'Non-custodial — you control your wallet',
-  },
+  { Icon: ShieldCheck, title: 'Secure escrow',          description: 'Payments locked until work is approved.' },
+  { Icon: Zap,         title: 'Instant settlement',     description: 'Funds released on-chain in seconds.' },
+  { Icon: Wallet,      title: 'Your keys, your money',  description: 'Non-custodial — you control your wallet.' },
 ] as const
 
 type ConnectError = {
@@ -54,45 +40,23 @@ function classifyError(error: unknown): ConnectError {
           onSecondaryPress: () => Linking.openURL(APP_INFO.wallets.phantom.playStore),
         }
       case 'declined':
-        return {
-          title: 'Connection cancelled',
-          description: 'You closed the wallet prompt. Tap below to try again.',
-        }
+        return { title: 'Connection cancelled', description: 'You closed the wallet prompt. Tap below to try again.' }
       case 'network':
-        return {
-          title: 'No connection',
-          description: 'Check your internet connection and try again.',
-        }
+        return { title: 'No connection', description: 'Check your internet connection and try again.' }
       case 'unknown':
       default:
-        return {
-          title: 'Something went wrong',
-          description: 'An unexpected error occurred. Please try again.',
-        }
+        return { title: 'Something went wrong', description: 'An unexpected error occurred. Please try again.' }
     }
   }
-
-  // Server-side errors (thrown after wallet connect, during authenticateWithWallet)
   const status = (error as any)?.statusCode ?? (error as any)?.status
   if (status === 401 || status === 403) {
-    return {
-      title: 'Sign-in failed',
-      description: "The server couldn't verify your wallet. Please try again.",
-    }
+    return { title: 'Sign-in failed', description: "The server couldn't verify your wallet. Please try again." }
   }
-
   const message = error instanceof Error ? error.message.toLowerCase() : ''
   if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
-    return {
-      title: 'No connection',
-      description: 'Check your internet connection and try again.',
-    }
+    return { title: 'No connection', description: 'Check your internet connection and try again.' }
   }
-
-  return {
-    title: 'Something went wrong',
-    description: 'An unexpected error occurred. Please try again.',
-  }
+  return { title: 'Something went wrong', description: 'An unexpected error occurred. Please try again.' }
 }
 
 export default function ConnectWalletScreen() {
@@ -107,7 +71,6 @@ export default function ConnectWalletScreen() {
     setConnectError(null)
     try {
       const result = await connectAndSignAuthMessage(mwaAuthToken ?? undefined)
-
       if (result) {
         await authenticateWithWallet(
           { wallet_address: result.session.walletAddress, signature: result.signature, message: result.message, is_seeker: isSeekerDevice(), country: getDeviceCountry() ?? undefined },
@@ -115,10 +78,7 @@ export default function ConnectWalletScreen() {
         )
         router.replace('/(tabs)/home')
       } else {
-        setConnectError({
-          title: 'Connection cancelled',
-          description: 'You closed the wallet prompt. Tap below to try again.',
-        })
+        setConnectError({ title: 'Connection cancelled', description: 'You closed the wallet prompt. Tap below to try again.' })
       }
     } catch (error) {
       console.log('connect error', error)
@@ -141,38 +101,38 @@ export default function ConnectWalletScreen() {
             onCtaPress={() => setConnectError(null)}
             secondaryLabel={connectError.secondaryLabel}
             onSecondaryPress={connectError.onSecondaryPress}
+            size="large"
           />
         ) : (
           <>
-            <Spacer flex={1} />
-
-            {/* Hero section */}
             <View style={s.hero}>
-              <View style={[s.walletIconCircle, { backgroundColor: theme.colors.brand.primarySurface }]}>
-                <Image source={Logo} style={s.logo} contentFit="contain" />
+              <View style={s.heroCircleWrap}>
+                <View
+                  style={[s.heroCircle, { backgroundColor: theme.colors.brand.primarySurface }]}
+                >
+                  <Image source={Logo} style={s.heroLogo} contentFit="contain" />
+                </View>
               </View>
-              <Spacer size={spacing.md} />
-              <Text variant="heading" align="center">
+
+              <Text style={[s.heroTitle, { color: theme.colors.content.primary }]}>
                 Connect your wallet
               </Text>
-              <Spacer size={spacing.sm} />
-              <Text variant="body" align="center" color={theme.colors.content.secondary}>
-                Link a Solana wallet to start posting{'\n'}and accepting gigs on Tenda
+              <Text style={[s.heroBody, { color: theme.colors.content.secondary }]}>
+                Link a Solana wallet to start posting and accepting gigs on Tenda.
               </Text>
             </View>
 
-            <Spacer size={spacing.md} />
-
-            {/* Feature list */}
             <View style={s.features}>
               {FEATURES.map(({ Icon, title, description }) => (
-                <View key={title} style={s.featureRow}>
-                  <View style={[s.featureIcon, { backgroundColor: theme.colors.brand.primarySurface }]}>
+                <View key={title} style={s.featRow}>
+                  <View style={[s.featIcon, { backgroundColor: theme.colors.brand.primarySurface }]}>
                     <Icon size={18} color={theme.colors.brand.primary} />
                   </View>
-                  <View style={s.featureText}>
-                    <Text variant="label" weight="bold">{title}</Text>
-                    <Text variant="caption" color={theme.colors.content.secondary}>
+                  <View style={s.featBody}>
+                    <Text style={[s.featTitle, { color: theme.colors.content.primary }]}>
+                      {title}
+                    </Text>
+                    <Text style={[s.featDesc, { color: theme.colors.content.secondary }]}>
                       {description}
                     </Text>
                   </View>
@@ -180,33 +140,42 @@ export default function ConnectWalletScreen() {
               ))}
             </View>
 
-            <Spacer flex={2} />
+            <View style={s.spacer} />
 
-            {/* CTA */}
-            <View style={s.cta}>
+            {isConnecting && (
+              <View style={[s.infoBanner, { backgroundColor: theme.colors.brand.primarySurface }]}>
+                <View style={[s.tipIcon, { backgroundColor: theme.colors.brand.primary }]}>
+                  <Text style={s.tipGlyph}>i</Text>
+                </View>
+                <Text style={[s.infoText, { color: theme.colors.brand.primary }]}>
+                  If you're using Solflare, you may need to return to Tenda manually after connecting.
+                </Text>
+              </View>
+            )}
+
+            <View style={s.ctaStack}>
               <Button
                 variant="primary"
-                size="lg"
+                size="xl"
                 fullWidth
                 loading={isConnecting}
-                icon={<Wallet size={18} color={theme.colors.brand.onPrimary} />}
+                icon={!isConnecting ? <Wallet size={18} color={theme.colors.brand.onPrimary} /> : undefined}
                 onPress={handleConnectWallet}
               >
-                Connect Wallet
+                {isConnecting ? 'Connecting…' : 'Connect Wallet'}
               </Button>
-              <Spacer size={spacing.md} />
-              {isConnecting && (
-                <View style={s.solfareTip}>
-                  <Text variant="caption" align="center" color={theme.colors.content.secondary}>
-                    Using Solflare? Back up your seed phrase if prompted, then press ← back to return.
-                  </Text>
-                </View>
-              )}
-              {!isConnecting && (
-                <Text variant="caption" align="center" color={theme.colors.content.tertiary}>
-                  By connecting, you agree to our Terms of Service
-                </Text>
-              )}
+              <Text style={[s.tos, { color: theme.colors.content.tertiary }]}>
+                {isConnecting
+                  ? 'Waiting for wallet approval — keep Tenda open.'
+                  : (
+                    <>
+                      By connecting you agree to our{' '}
+                      <Text style={[s.tosBold, { color: theme.colors.content.secondary }]}>Terms</Text>
+                      {' '}and{' '}
+                      <Text style={[s.tosBold, { color: theme.colors.content.secondary }]}>Privacy</Text>.
+                    </>
+                  )}
+              </Text>
             </View>
           </>
         )}
@@ -218,46 +187,124 @@ export default function ConnectWalletScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
   },
   hero: {
+    paddingTop: 8,
+    paddingHorizontal: 28,
+    paddingBottom: 16,
     alignItems: 'center',
   },
-  walletIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+  heroCircleWrap: {
+    width: 140,
+    height: 140,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  heroCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logo: {
-    width: 40,
-    height: 40,
+  heroLogo: {
+    width: 44,
+    height: 44,
+  },
+  heroTitle: {
+    fontSize: 26,
+    lineHeight: 31,
+    fontWeight: '700',
+    letterSpacing: -0.52,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  heroBody: {
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+    maxWidth: 300,
   },
   features: {
-    gap: spacing.md,
+    paddingTop: 8,
   },
-  featureRow: {
+  featRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: spacing.sm,
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    minHeight: 56,
   },
-  featureIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.md,
+  featIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
-  featureText: {
+  featBody: {
     flex: 1,
-    gap: 2,
+    minWidth: 0,
+    paddingTop: 1,
   },
-  cta: {
-    width: '100%',
+  featTitle: {
+    fontSize: 15,
+    lineHeight: 19,
+    fontWeight: '600',
+    letterSpacing: -0.15,
   },
-  solfareTip: {
-    paddingHorizontal: spacing.sm,
+  featDesc: {
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 2,
+  },
+  spacer: {
+    flex: 1,
+  },
+  infoBanner: {
+    marginHorizontal: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    marginBottom: 14,
+  },
+  tipIcon: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  tipGlyph: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 14,
+  },
+  infoText: {
+    flex: 1,
+    fontSize: 12.5,
+    lineHeight: 18,
+  },
+  ctaStack: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    gap: 12,
+  },
+  tos: {
+    fontSize: 11.5,
+    lineHeight: 17,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  tosBold: {
+    fontWeight: '600',
   },
 })

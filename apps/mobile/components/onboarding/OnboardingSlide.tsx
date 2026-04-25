@@ -2,8 +2,8 @@ import type { ReactNode } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import type { LucideIcon } from 'lucide-react-native'
-import { spacing } from '@/theme/tokens'
-import { Text, Spacer } from '@/components/ui'
+import { typography } from '@/theme/tokens'
+import { Text } from '@/components/ui'
 
 interface OnboardingSlideProps {
   Icon: LucideIcon
@@ -17,26 +17,15 @@ export function OnboardingSlide({ Icon, title, body, children }: OnboardingSlide
 
   return (
     <View style={s.slide}>
-      <Spacer flex={1} />
-
-      <View style={s.hero}>
+      <View style={s.core}>
         <View style={[s.iconCircle, { backgroundColor: theme.colors.brand.primarySurface }]}>
           <Icon size={36} color={theme.colors.brand.primary} />
         </View>
-        <Spacer size={spacing.md} />
-        <Text variant="heading" align="center">{title}</Text>
-        <Spacer size={spacing.sm} />
-        <Text variant="body" align="center" color={theme.colors.content.secondary}>{body}</Text>
+        <Text style={[s.title, { color: theme.colors.content.primary }]}>{title}</Text>
+        <Text style={[s.body, { color: theme.colors.content.secondary }]}>{body}</Text>
       </View>
 
-      {children && (
-        <>
-          <Spacer size={spacing.lg} />
-          <View style={s.extra}>{children}</View>
-        </>
-      )}
-
-      <Spacer flex={2} />
+      {children && <View style={s.extra}>{children}</View>}
     </View>
   )
 }
@@ -44,12 +33,14 @@ export function OnboardingSlide({ Icon, title, body, children }: OnboardingSlide
 const s = StyleSheet.create({
   slide: {
     flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
   },
-  hero: {
+  core: {
+    flex: 1,
     alignItems: 'center',
-    width: '100%',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    paddingTop: 8,
+    gap: 16,
   },
   iconCircle: {
     width: 80,
@@ -57,6 +48,22 @@ const s = StyleSheet.create({
     borderRadius: 40,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 4,
+  },
+  title: {
+    fontFamily: typography.fonts.display.bold,
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '700',
+    letterSpacing: -0.56,
+    textAlign: 'center',
+    maxWidth: 320,
+  },
+  body: {
+    fontSize: 15,
+    lineHeight: 23,
+    textAlign: 'center',
+    maxWidth: 320,
   },
   extra: {
     width: '100%',

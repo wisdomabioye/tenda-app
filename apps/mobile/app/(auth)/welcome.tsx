@@ -1,12 +1,11 @@
-import { View, StyleSheet } from 'react-native'
+import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Image } from 'expo-image'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing } from '@/theme/tokens'
+import { typography } from '@/theme/tokens'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
-import { Spacer } from '@/components/ui/Spacer'
 
 const Logo = require('@/assets/images/logo.png')
 
@@ -16,24 +15,22 @@ export default function WelcomeScreen() {
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
-      <View style={s.screen}>
-        <Spacer flex={1} />
+      <View style={[s.screen, { backgroundColor: theme.colors.surface.background }]}>
+        <View style={s.heroStack}>
+          <View style={[s.logoWrap, { shadowColor: theme.colors.brand.primary }]}>
+            <Image source={Logo} style={s.logo} contentFit="contain" />
+          </View>
 
-        <View style={s.center}>
-          <Image source={Logo} style={s.logo} contentFit="contain" />
-          <Spacer size={24} />
-          <Text variant="heading" align="center">
+          <Text style={[s.heroTitle, { color: theme.colors.content.primary }]}>
             Work. Earn. Instantly.
           </Text>
-          <Spacer size={10} />
-          <Text variant="body" align="center" color={theme.colors.content.secondary}>
-            Find gigs. Complete tasks.{'\n'}Get paid in seconds.
+
+          <Text style={[s.heroBody, { color: theme.colors.content.secondary }]}>
+            {'Find gigs. Complete tasks.\nGet paid in seconds.'}
           </Text>
         </View>
 
-        <Spacer flex={2} />
-
-        <View style={s.cta}>
+        <View style={s.ctaStack}>
           <Button
             variant="primary"
             size="xl"
@@ -42,6 +39,14 @@ export default function WelcomeScreen() {
           >
             Continue
           </Button>
+          <Pressable hitSlop={4}>
+            <Text style={[s.tos, { color: theme.colors.content.tertiary }]}>
+              By continuing you agree to our{' '}
+              <Text style={[s.tosBold, { color: theme.colors.content.secondary }]}>Terms</Text>
+              {' '}and{' '}
+              <Text style={[s.tosBold, { color: theme.colors.content.secondary }]}>Privacy</Text>.
+            </Text>
+          </Pressable>
         </View>
       </View>
     </ScreenContainer>
@@ -51,11 +56,56 @@ export default function WelcomeScreen() {
 const s = StyleSheet.create({
   screen: {
     flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingBottom: spacing.xl,
   },
-  center: { alignItems: 'center' },
-  logo: { width: 80, height: 80 },
-  cta: { width: '100%' },
+  heroStack: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    paddingTop: 32,
+  },
+  logoWrap: {
+    width: 88,
+    height: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 32,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.20,
+    shadowRadius: 24,
+    elevation: 6,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+  },
+  heroTitle: {
+    fontFamily: typography.fonts.display.bold,
+    fontSize: 44,
+    lineHeight: 46,
+    fontWeight: '700',
+    letterSpacing: -1.32,
+    textAlign: 'center',
+    marginBottom: 14,
+  },
+  heroBody: {
+    fontSize: 15,
+    lineHeight: 23,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  ctaStack: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    gap: 12,
+  },
+  tos: {
+    fontSize: 11.5,
+    lineHeight: 17,
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  tosBold: {
+    fontWeight: '600',
+  },
 })
