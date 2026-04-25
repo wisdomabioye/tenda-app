@@ -10,9 +10,8 @@ import {
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { MoreVertical, Ban } from 'lucide-react-native'
+import { Ban } from 'lucide-react-native'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
-import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { ErrorState } from '@/components/feedback'
@@ -20,6 +19,7 @@ import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatContextDivider } from '@/components/chat/ChatContextDivider'
 import { ChatTimestampGroup } from '@/components/chat/ChatTimestampGroup'
+import { ChatHeader } from '@/components/chat/ChatHeader'
 import { ChatInput } from '@/components/ui/ChatInput'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { showToast } from '@/components/ui/Toast'
@@ -85,7 +85,7 @@ export default function ChatScreen() {
   if (initError) {
     return (
       <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
-        <Header title="Chat" showBack />
+        <ChatHeader name="Chat" onBack={() => router.back()} />
         <ErrorState
           title="Couldn't open chat"
           description="There was a problem starting this conversation."
@@ -103,11 +103,11 @@ export default function ChatScreen() {
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Header
-          title={displayName}
-          showBack
-          rightIcon={MoreVertical}
-          onRightPress={() => setMenuOpen(true)}
+        <ChatHeader
+          name={displayName}
+          avatarUrl={otherUser?.avatar_url}
+          onBack={() => router.back()}
+          onMenu={() => setMenuOpen(true)}
         />
 
         <FlatList

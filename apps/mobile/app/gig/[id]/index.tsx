@@ -2,21 +2,22 @@ import { useCallback, useState } from 'react'
 import { View, ScrollView, StyleSheet, RefreshControl, Share, Pressable } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { Share2, Pencil } from 'lucide-react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Share2, Pencil, ChevronDown } from 'lucide-react-native'
 import { Transaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import { spacing, radius } from '@/theme/tokens'
 import {
   ScreenContainer,
-  Header,
   Text,
+  Badge,
   Divider,
   Spacer,
   EmptyState,
+  FloatingChromeButton,
   showToast
 } from '@/components/ui'
 import {
-  GigStatusBadge,
   GigMetaInfo,
   GigProofsGrid,
   GigCTABar,
@@ -25,6 +26,7 @@ import {
   type ProofItem,
   type ActiveSheet
 } from '@/components/gig'
+import { STATUS_LABEL, STATUS_BADGE_VARIANT } from '@/lib/gig-display'
 import { PersonCard, ReviewsSection } from '@/components/shared'
 import { 
   TransactionMonitor,
@@ -83,6 +85,7 @@ type PendingAction =
 function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const router = useRouter()
   const { theme } = useUnistyles()
+  const insets = useSafeAreaInsets()
   const mwaAuthToken = useAuthStore((s) => s.mwaAuthToken)
   const isSeeker = useIsSeeker()
   const { fetchGigDetail, acceptGig, submitProof, disputeGig } = useGigsStore()
@@ -100,6 +103,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const [pendingSyncId, setPendingSyncId] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [showAcceptNudge, setShowAcceptNudge] = useState(false)
+  const [descExpanded, setDescExpanded] = useState(false)
   const { dismissedNudges } = useOnboardingStore()
 
   const isWorkerOpportunity = gig.status === 'open' && gig.poster_id !== userId
@@ -417,47 +421,59 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       onClose={() => setShowAcceptNudge(false)}
     />
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
-      <Header
-        title="Gig"
-        showBack
-        rightIcon={isDraftOwner ? Pencil : Share2}
-        onRightPress={isDraftOwner ? handleEdit : handleShare}
-      />
+      {/* Floating chrome — no solid title bar (modal pattern §4.18) */}
+      <View style={[s.chromeRow, { top: insets.top + 12 }]} pointerEvents="box-none">
+        <FloatingChromeButton
+          Icon={ChevronDown}
+          onPress={() => router.back()}
+          accessibilityLabel="Dismiss"
+        />
+        <FloatingChromeButton
+          Icon={isDraftOwner ? Pencil : Share2}
+          onPress={isDraftOwner ? handleEdit : handleShare}
+          accessibilityLabel={isDraftOwner ? 'Edit' : 'Share'}
+        />
+      </View>
 
       <ScrollView
         style={s.flex}
-        contentContainerStyle={s.content}
+        contentContainerStyle={[s.content, { paddingTop: insets.top + 60 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
-        {/* Header badges */}
-        <View style={s.headerRow}>
-          <GigStatusBadge status={gig.status} />
-          {categoryMeta && (
-            <View style={[s.categoryBadge, { backgroundColor: `${categoryColor.base}20` }]}>
-              <View style={[s.categoryDot, { backgroundColor: categoryColor.surface }]} />
-              <Text variant="caption" weight="medium" color={categoryColor.text}>
-                {categoryMeta.label}
-              </Text>
-            </View>
-          )}
+        {/* Status + category dot-label pills */}
+        <View style={s.badgeRow}>
+          <Badge variant={STATUS_BADGE_VARIANT[gig.status]} label={STATUS_LABEL[gig.status]} />
+          {categoryMeta && <Badge variant="brand" label={categoryMeta.label} />}
         </View>
 
         <Spacer size={spacing.sm} />
-        <Text variant="heading">{gig.title}</Text>
-        <Spacer size={spacing.lg} />
+        <Text style={s.gigTitle}>{gig.title}</Text>
+        <Spacer size={spacing.md} />
 
         {/* Meta card — payment header + rows */}
         <GigMetaInfo gig={gig} posterCountry={gig.poster.country} deadlineLbl={deadlineLbl} />
 
-        <Divider />
+        <Spacer size={spacing.lg} />
 
-        {/* Description */}
-        <Text variant="subheading">Description</Text>
-        <Spacer size={spacing.sm} />
-        <Text variant="body" color={theme.colors.content.secondary}>{gig.description}</Text>
+        {/* Description with Read more affordance */}
+        <View style={s.sectionHead}>
+          <Text style={s.sectionTitle}>Description</Text>
+        </View>
+        <Spacer size={6} />
+        <Text
+          style={[s.description, { color: theme.colors.content.primary }]}
+          numberOfLines={descExpanded ? undefined : 4}
+        >
+          {gig.description}
+        </Text>
+        {!descExpanded && gig.description.length > 200 && (
+          <Pressable onPress={() => setDescExpanded(true)} hitSlop={6} style={s.readMore}>
+            <Text style={[s.readMoreText, { color: theme.colors.brand.primary }]}>Read more</Text>
+          </Pressable>
+        )}
 
-        <Divider />
+        <Spacer size={spacing.lg} />
 
         {/* Poster */}
         <PersonCard
@@ -495,6 +511,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
               partyB={gig.worker}
               partyBLabel="Worker"
               currentUserId={userId}
+              title={`Reviews for @${gig.poster.first_name?.toLowerCase() ?? 'poster'}`}
             />
           </>
         )}
@@ -503,7 +520,12 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         {gig.proofs.length > 0 && (
           <>
             <Divider />
-            <Text variant="subheading">Proof of work</Text>
+            <View style={s.sectionHead}>
+              <Text style={s.sectionTitle}>Proof of work</Text>
+              <Text style={[s.sectionTrail, { color: theme.colors.content.tertiary }]}>
+                {gig.proofs.length} {gig.proofs.length === 1 ? 'file' : 'files'}
+              </Text>
+            </View>
             <Spacer size={spacing.sm} />
             <GigProofsGrid proofs={gig.proofs} onProofPress={setSelectedProof} />
           </>
@@ -650,25 +672,54 @@ const s = StyleSheet.create({
   flex: { flex: 1 },
   content: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
   },
-  headerRow: {
+  chromeRow: {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 30,
+  },
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 8,
+    flexWrap: 'wrap',
   },
-  categoryBadge: {
+  gigTitle: {
+    fontSize: 26,
+    lineHeight: 31,
+    fontWeight: '700',
+    letterSpacing: -0.52,
+  },
+  sectionHead: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: radius.full,
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
   },
-  categoryDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  sectionTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '700',
+    letterSpacing: -0.17,
+  },
+  sectionTrail: {
+    fontSize: 12.5,
+    lineHeight: 16,
+  },
+  description: {
+    fontSize: 14.5,
+    lineHeight: 22,
+  },
+  readMore: {
+    alignSelf: 'flex-start',
+    marginTop: 4,
+  },
+  readMoreText: {
+    fontSize: 13.5,
+    fontWeight: '600',
+    letterSpacing: -0.135,
   },
   disputeBlock: {
     borderRadius: radius.md,

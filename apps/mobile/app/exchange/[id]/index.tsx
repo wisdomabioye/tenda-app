@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react'
 import { View, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform, Share, Pressable } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { Share2, Pencil, Copy } from 'lucide-react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { Share2, Pencil, Copy, ChevronDown } from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
 import { spacing, typography, radius } from '@/theme/tokens'
 import {
@@ -10,7 +11,7 @@ import {
   Text,
   Spacer,
   Card,
-  Header,
+  FloatingChromeButton,
   showToast
 } from '@/components/ui'
 import { 
@@ -95,6 +96,7 @@ interface ContentProps {
 function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated, onBack }: ContentProps) {
   const { theme }   = useUnistyles()
   const router      = useRouter()
+  const insets      = useSafeAreaInsets()
   const actions     = useExchangeActions(offer, onUpdated, onBack)
   const isSeller    = offer.seller_id === userId
   const isBuyer     = offer.buyer_id  === userId
@@ -111,15 +113,21 @@ function ExchangeDetailContent({ offer, userId, refreshing, onRefresh, onUpdated
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
-      <Header
-        title="Exchange Offer"
-        showBack
-        rightIcon={isDraftSeller ? Pencil : Share2}
-        onRightPress={isDraftSeller ? handleEdit : handleShare}
-      />
+      <View style={[s.chromeRow, { top: insets.top + 12 }]} pointerEvents="box-none">
+        <FloatingChromeButton
+          Icon={ChevronDown}
+          onPress={onBack}
+          accessibilityLabel="Dismiss"
+        />
+        <FloatingChromeButton
+          Icon={isDraftSeller ? Pencil : Share2}
+          onPress={isDraftSeller ? handleEdit : handleShare}
+          accessibilityLabel={isDraftSeller ? 'Edit' : 'Share'}
+        />
+      </View>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={90}>
         <ScrollView
-          contentContainerStyle={s.scroll}
+          contentContainerStyle={[s.scroll, { paddingTop: insets.top + 60 }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -299,7 +307,15 @@ function AccountCard({ account }: { account: UserExchangeAccount }) {
 
 const s = StyleSheet.create({
   flex:        { flex: 1 },
-  scroll:      { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing['2xl'] },
+  chromeRow:   {
+    position: 'absolute',
+    left: spacing.md,
+    right: spacing.md,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    zIndex: 30,
+  },
+  scroll:      { paddingHorizontal: spacing.md, paddingBottom: spacing['2xl'] },
   section:     { marginTop: spacing.md, marginBottom: spacing.xs },
   hint:        { marginTop: spacing.sm, textAlign: 'center' },
   party:       { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.sm, borderBottomWidth: 1 },
