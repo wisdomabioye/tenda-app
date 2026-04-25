@@ -2,23 +2,21 @@ import { View, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useUnistyles } from 'react-native-unistyles';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Image } from 'expo-image';
 import {
   Home, ClipboardList, PlusCircle, Wallet,
-  Settings, X, LogOut, ArrowLeftRight
+  Settings, LogOut, ArrowLeftRight, ChevronRight,
 } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
 import { Text, Avatar } from '@/components/ui';
 import { useAuthStore } from '@/stores/auth.store';
-import { spacing, radius } from '@/theme/tokens';
-
-const Logo = require('@/assets/images/logo-full.png');
+import { typography } from '@/theme/tokens';
+import { isSeekerDevice } from '@/lib/device';
 
 interface NavItem {
   name: string;
   route: string;
   icon: LucideIcon;
-  description: string;
+  meta?: string;
 }
 
 interface NavSection {
@@ -28,19 +26,24 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    title: 'Main',
+    title: 'Marketplace',
     items: [
-      { name: 'Home', route: '/(tabs)/home', icon: Home, description: 'Browse gigs' },
-      { name: 'My Gigs', route: '/(tabs)/my-gigs', icon: ClipboardList, description: 'Posted & Accepted' },
-      { name: 'Post Gig', route: '/(tabs)/create-gig', icon: PlusCircle, description: 'Create new' },
-      { name: 'Trade', route: '/(tabs)/exchange', icon: ArrowLeftRight, description: 'Trade SOL' },
-      { name: 'Wallet', route: '/(tabs)/wallet', icon: Wallet, description: 'Balance & Withdrawals' },
+      { name: 'Home', route: '/(tabs)/home', icon: Home },
+      { name: 'My Gigs', route: '/(tabs)/my-gigs', icon: ClipboardList },
+      { name: 'Post Gig', route: '/(tabs)/create-gig', icon: PlusCircle },
     ],
   },
   {
-    title: 'Settings & Support',
+    title: 'Money',
     items: [
-      { name: 'Settings', route: '/(tabs)/settings', icon: Settings, description: 'Preferences' },
+      { name: 'Trade', route: '/(tabs)/exchange', icon: ArrowLeftRight },
+      { name: 'Wallet', route: '/(tabs)/wallet', icon: Wallet },
+    ],
+  },
+  {
+    title: 'Account',
+    items: [
+      { name: 'Settings', route: '/(tabs)/settings', icon: Settings },
     ],
   },
 ];
@@ -60,6 +63,11 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
   const fullName = [user?.first_name, user?.last_name]
     .filter(Boolean)
     .join(' ') || 'Anonymous';
+
+  const handle = user?.wallet_address
+    ? `${user.wallet_address.slice(0, 4)}…${user.wallet_address.slice(-4)}`
+    : null;
+  const isSeeker = isSeekerDevice();
 
   const handleNavigate = (route: string) => {
     onClose(() => {
@@ -87,60 +95,57 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
       style={[
         s.container,
         {
-          backgroundColor: theme.colors.surface.background,
-          paddingTop: insets.top,
+          backgroundColor: theme.colors.surface.card,
           paddingBottom: insets.bottom,
         },
       ]}
     >
-      {/* Header */}
-      <View
-        style={[s.header, { borderBottomColor: theme.colors.border.default }]}
-      >
-        <Image source={Logo} style={s.logo} contentFit="contain" />
-        <TouchableOpacity
-          onPress={() => onClose()}
-          style={[s.closeBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
-          activeOpacity={0.7}
-        >
-          <X size={18} color={theme.colors.content.primary} />
-        </TouchableOpacity>
-      </View>
-
-      {/* User Info */}
+      {/* Header — avatar + name + handle + role pill */}
       <TouchableOpacity
         onPress={handleProfilePress}
-        activeOpacity={0.7}
-        style={[s.userCard, { backgroundColor: theme.colors.surface.backgroundAlt }]}
+        activeOpacity={0.85}
+        style={[
+          s.header,
+          {
+            paddingTop: insets.top + 12,
+            borderBottomColor: theme.colors.border.subtle,
+          },
+        ]}
       >
-        <Avatar src={user?.avatar_url} name={fullName} size="sm" />
-        <View style={s.userMeta}>
-          <Text
-            variant="label"
-            weight="semibold"
-          >
+        <Avatar
+          src={user?.avatar_url}
+          name={fullName}
+          size="lg"
+          gradient="accent"
+        />
+        <View style={s.headerMeta}>
+          <Text size={18} weight="bold" color={theme.colors.content.primary} style={s.headerName} numberOfLines={1}>
             {fullName}
           </Text>
-          <Text variant="caption" color={theme.colors.content.secondary}>
-            Member
-          </Text>
+          {handle && (
+            <Text style={s.headerHandle} color={theme.colors.content.tertiary} numberOfLines={1}>
+              {handle}
+            </Text>
+          )}
+          {isSeeker && (
+            <View style={[s.headerBadge, { backgroundColor: theme.colors.brand.primarySurface }]}>
+              <Text size={11} weight="semibold" color={theme.colors.brand.primary}>
+                Seeker
+              </Text>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
 
-      {/* Navigation */}
+      {/* Body — sections + rows */}
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {NAV_SECTIONS.map((section) => (
-          <View key={section.title} style={s.section}>
-            <Text
-              variant="subheading"
-              weight="medium"
-              color={theme.colors.content.tertiary}
-              style={s.sectionTitle}
-            >
+          <View key={section.title}>
+            <Text style={s.sectionLabel} color={theme.colors.content.tertiary}>
               {section.title.toUpperCase()}
             </Text>
             {section.items.map((item) => {
@@ -151,49 +156,61 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
                   key={item.name}
                   onPress={() => handleNavigate(item.route)}
                   activeOpacity={0.7}
-                  style={[
-                    s.navItem,
-                    { backgroundColor: isActive ? theme.colors.surface.backgroundAlt : 'transparent' },
-                  ]}
+                  style={s.row}
+                  accessibilityRole="button"
+                  accessibilityLabel={item.name}
                 >
                   <View
                     style={[
-                      s.navIcon,
+                      s.rowIcon,
                       {
-                        backgroundColor: theme.colors.surface.background,
-                        borderColor: isActive ? theme.colors.border.default : theme.colors.border.subtle,
+                        backgroundColor: isActive
+                          ? theme.colors.brand.primarySurface
+                          : theme.colors.surface.inset,
                       },
                     ]}
                   >
-                    <Icon size={18} color={theme.colors.content.primary} />
+                    <Icon
+                      size={15}
+                      color={isActive ? theme.colors.brand.primary : theme.colors.content.secondary}
+                    />
                   </View>
-                  <View style={s.navText}>
-                    <Text variant="body" weight="semibold">
-                      {item.name}
+                  <Text size={14.5} weight="medium" color={theme.colors.content.primary} style={s.rowLabel}>
+                    {item.name}
+                  </Text>
+                  {item.meta && (
+                    <Text style={s.rowMeta} color={theme.colors.content.tertiary}>
+                      {item.meta}
                     </Text>
-                    <Text variant="caption" color={theme.colors.content.secondary}>
-                      {item.description}
-                    </Text>
-                  </View>
+                  )}
+                  <ChevronRight size={13} color={theme.colors.content.tertiary} />
                 </TouchableOpacity>
               );
             })}
+            <View style={[s.divider, { backgroundColor: theme.colors.border.subtle }]} />
           </View>
         ))}
 
         {/* Logout */}
-        <View style={[s.logoutSection, { borderTopColor: theme.colors.border.default }]}>
-          <TouchableOpacity
-            onPress={handleLogout}
-            activeOpacity={0.7}
-            style={[s.logoutBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
+        <TouchableOpacity
+          onPress={handleLogout}
+          activeOpacity={0.7}
+          style={s.row}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+        >
+          <View
+            style={[
+              s.rowIcon,
+              { backgroundColor: 'rgba(203,58,58,0.10)' },
+            ]}
           >
-            <LogOut size={18} color={theme.colors.feedback.danger.text} />
-            <Text variant="body" weight="medium" color={theme.colors.feedback.danger.text}>
-              Sign Out
-            </Text>
-          </TouchableOpacity>
-        </View>
+            <LogOut size={15} color={theme.colors.feedback.danger.base} />
+          </View>
+          <Text size={14.5} weight="semibold" color={theme.colors.feedback.danger.base} style={s.rowLabel}>
+            Sign out
+          </Text>
+        </TouchableOpacity>
       </ScrollView>
     </View>
   );
@@ -204,82 +221,75 @@ const s = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
     borderBottomWidth: 1,
-  },
-  logo: {
-    width: 60,
-    height: 20,
-  },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.full,
-  },
-  userCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: spacing.md,
-    marginTop: spacing.md,
-    padding: spacing.md,
-    borderRadius: radius.lg,
-    gap: spacing.md,
+    gap: 14,
   },
-  userMeta: {
+  headerMeta: {
     flex: 1,
-    gap: 2,
+    minWidth: 0,
+  },
+  headerName: {
+    letterSpacing: -0.18,
+  },
+  headerHandle: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  headerBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 5,
   },
   scroll: {
     flex: 1,
   },
   scrollContent: {
-    paddingVertical: spacing.md,
+    paddingVertical: 12,
   },
-  section: {
-    marginBottom: spacing.sm,
+  sectionLabel: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 9.5,
+    lineHeight: 12,
+    fontWeight: '600',
+    letterSpacing: 0.95,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 6,
   },
-  sectionTitle: {
-    letterSpacing: 0.5,
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
-  },
-  navItem: {
+  row: {
+    height: 56,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-    marginHorizontal: spacing.sm,
-    borderRadius: radius.lg,
-    gap: spacing.md,
+    gap: 12,
   },
-  navIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: radius.lg,
-    borderWidth: 1,
+  rowIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  navText: {
+  rowLabel: {
     flex: 1,
-    gap: 2,
+    letterSpacing: -0.075,
   },
-  logoutSection: {
-    padding: spacing.md,
-    borderTopWidth: 1,
+  rowMeta: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 12,
+    lineHeight: 16,
   },
-  logoutBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.md,
-    borderRadius: radius.lg,
-    gap: spacing.sm,
+  divider: {
+    height: 1,
+    marginHorizontal: 20,
+    marginVertical: 6,
   },
 });

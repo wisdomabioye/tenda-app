@@ -19,7 +19,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { DrawerContent } from './DrawerContent';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const DRAWER_WIDTH = SCREEN_WIDTH * 0.86;
+const DRAWER_WIDTH = Math.min(300, SCREEN_WIDTH * 0.86);
 const SPRING_CONFIG = {
   damping: 20,
   stiffness: 200,
@@ -203,9 +203,9 @@ const styles = RNStyleSheet.create({
     bottom: 0,
     zIndex: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 2, height: 0 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
+    shadowOffset: { width: 6, height: 0 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
     elevation: 22,
   },
 });
