@@ -5,19 +5,18 @@ import { MarqueeRow } from '@/components/ui/MarqueeRow'
 const FORMATTER = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
 
 /**
- * Slim currency strip below the hero. Uses the live /v1/platform/exchange-rates
- * payload to render rate per fiat. The rate cell is **always** rendered (with a
- * "—" placeholder when the rate isn't available) so the marquee layout doesn't
- * jump between mobile (often LAN-isolated from the dev API) and desktop.
- *
- * Currencies missing from the upstream feed (e.g. GHS — open issue M83) also
- * use the placeholder.
+ * Two contrasting tempos — top row scrolls left at 32s with the live rate,
+ * bottom row scrolls right at 60s with the currency name. Asymmetric speed +
+ * direction = pulse without any extra DOM noise. Layout is identical regardless
+ * of whether the API returned rates (placeholder fallback handles both
+ * loading + LAN-isolated dev clients; M83-flagged GHS also uses the
+ * placeholder when the upstream feed omits it).
  */
 export function CurrencyMarquee() {
   const { data, loading } = useExchangeRates()
   const rates = data?.rates ?? {}
 
-  const renderItem = (currency: CurrencyMeta) => {
+  const renderRateItem = (currency: CurrencyMeta) => {
     const rate = rates[currency.code]
     const rateText = rate != null
       ? `${currency.symbol}${FORMATTER.format(rate)} / SOL`
@@ -28,7 +27,7 @@ export function CurrencyMarquee() {
     return (
       <div className="flex items-center gap-2 whitespace-nowrap px-3 py-2">
         <span className="text-base leading-none">{currency.flag}</span>
-        <span className="mono-sm font-semibold text-[var(--content-secondary)]">
+        <span className="mono-sm font-semibold text-[var(--content-primary)]">
           {currency.code}
         </span>
         <span className="mono-sm text-[var(--content-tertiary)]">{rateText}</span>
@@ -36,16 +35,38 @@ export function CurrencyMarquee() {
     )
   }
 
+  const renderNameItem = (currency: CurrencyMeta) => (
+    <div className="flex items-center gap-2 whitespace-nowrap px-3 py-2">
+      <span className="text-sm leading-none opacity-70">{currency.flag}</span>
+      <span className="mono-sm uppercase tracking-[0.16em] text-[var(--content-secondary)]">
+        {currency.name}
+      </span>
+      <span className="mono-sm text-[var(--content-tertiary)]">·</span>
+      <span className="mono-sm text-[var(--content-tertiary)]">{currency.code}</span>
+    </div>
+  )
+
   return (
-    <div className="border-y border-[var(--border-subtle)] bg-[var(--surface-bg-alt)]">
+    <div className="flex flex-col border-y border-[var(--border-subtle)] bg-[var(--surface-bg-alt)] divide-y divide-[var(--border-subtle)]">
       <MarqueeRow
         items={CURRENCY_LIST}
-        keyOf={(c) => c.code}
-        renderItem={renderItem}
-        speedSec={42}
+        keyOf={(c) => `r-${c.code}`}
+        renderItem={renderRateItem}
+        speedSec={32}
+        direction="left"
         edgeFade
         pauseOnHover
-        className="h-14"
+        className="h-12"
+      />
+      <MarqueeRow
+        items={CURRENCY_LIST}
+        keyOf={(c) => `n-${c.code}`}
+        renderItem={renderNameItem}
+        speedSec={60}
+        direction="right"
+        edgeFade
+        pauseOnHover
+        className="h-10 opacity-80"
       />
     </div>
   )

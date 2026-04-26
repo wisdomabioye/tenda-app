@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useIntersect } from '@/hooks/useIntersect'
 import { cn } from '@/lib/cn'
 
 export type SectionTone = 'dark' | 'light'
@@ -10,6 +11,8 @@ interface Props {
   maxWidth?: 'page' | 'narrow' | 'full'
   /** Vertical padding scale. */
   padY?: 'sm' | 'md' | 'lg'
+  /** Disable the entrance reveal — hero already owns its first paint. */
+  noReveal?: boolean
   className?: string
   innerClassName?: string
   children: ReactNode
@@ -41,10 +44,14 @@ export function SectionShell({
   tone,
   maxWidth = 'page',
   padY = 'md',
+  noReveal = false,
   className,
   innerClassName,
   children,
 }: Props) {
+  const { ref, isVisible } = useIntersect<HTMLDivElement>({ threshold: 0.12 })
+  const reveal = !noReveal
+
   return (
     <section
       id={id}
@@ -56,7 +63,16 @@ export function SectionShell({
         className,
       )}
     >
-      <div className={cn('mx-auto px-5 md:px-8', WIDTH[maxWidth], innerClassName)}>
+      <div
+        ref={ref}
+        data-visible={reveal ? isVisible || undefined : true}
+        className={cn(
+          'mx-auto px-5 md:px-8',
+          WIDTH[maxWidth],
+          reveal && 'reveal-on-scroll',
+          innerClassName,
+        )}
+      >
         {children}
       </div>
     </section>

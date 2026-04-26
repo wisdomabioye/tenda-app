@@ -94,7 +94,7 @@ export function MockEscrowCard({
         />
       )}
       <div className="flex items-center justify-between">
-        <Pill tone={pill.tone} size="md" dot>
+        <Pill tone={pill.tone} size="md" dot dotRing={featured}>
           {pill.label}
         </Pill>
         <span className="mono-sm text-[var(--content-tertiary)]">02:14:48</span>

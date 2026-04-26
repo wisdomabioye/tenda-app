@@ -1,7 +1,6 @@
 import { useFeePercents } from '@/hooks/usePlatformConfig'
 import { SUPPORTED_CURRENCIES } from '@/data/currencies'
 import { HERO_STATS_FALLBACK, type HeroStat } from './content'
-import { cn } from '@/lib/cn'
 
 /**
  * Builds the 4 hero stat cells. The fee value reads live from /v1/platform/config
@@ -27,15 +26,20 @@ function useHeroStats(): readonly HeroStat[] {
 export function HeroStatRow() {
   const stats = useHeroStats()
   return (
-    <div className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4 sm:gap-x-8">
+    <div className="grid grid-cols-2 gap-x-6 gap-y-5 sm:grid-cols-4 sm:gap-x-8">
       {stats.map((s, i) => (
-        <div
-          key={s.label}
-          className={cn(
-            'flex flex-col gap-1',
-            i !== 0 && 'sm:border-l sm:border-[var(--border-subtle)] sm:pl-8',
+        <div key={s.label} className="relative flex flex-col gap-1">
+          {i !== 0 && (
+            <span
+              aria-hidden
+              className="pointer-events-none absolute left-[-1rem] top-1/2 hidden h-4 -translate-y-1/2 sm:block"
+              style={{
+                width: 1,
+                background:
+                  'linear-gradient(180deg, transparent, color-mix(in oklab, var(--accent) 56%, transparent), transparent)',
+              }}
+            />
           )}
-        >
           <span className="mono-mid text-[var(--content-primary)]">{s.value}</span>
           <span className="caption uppercase text-[var(--content-tertiary)]">{s.label}</span>
         </div>

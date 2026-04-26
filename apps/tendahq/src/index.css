@@ -287,10 +287,10 @@
 @layer components {
   .h-hero {
     font-family: var(--font-display);
-    font-size: clamp(48px, 6.4vw, 76px);
-    line-height: 1.04;
+    font-size: clamp(46px, 6.0vw, 72px);
+    line-height: 1.02;
     font-weight: 700;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.045em;
   }
   .h-hero-mobile {
     font-family: var(--font-display);
@@ -392,6 +392,34 @@
     outline: 1px dashed color-mix(in oklab, var(--accent) 50%, transparent);
     outline-offset: 2px;
     border-radius: 4px;
+  }
+
+  /* Section entrance — children fade-up with a 60ms stagger when the parent
+     enters the viewport. Honour reduced-motion. */
+  .reveal-on-scroll > * {
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 480ms cubic-bezier(0.2, 0, 0, 1),
+                transform 480ms cubic-bezier(0.2, 0, 0, 1);
+    transition-delay: calc(var(--reveal-i, 0) * 60ms);
+  }
+  .reveal-on-scroll[data-visible='true'] > * {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .reveal-on-scroll > *:nth-child(1) { --reveal-i: 0; }
+  .reveal-on-scroll > *:nth-child(2) { --reveal-i: 1; }
+  .reveal-on-scroll > *:nth-child(3) { --reveal-i: 2; }
+  .reveal-on-scroll > *:nth-child(4) { --reveal-i: 3; }
+  .reveal-on-scroll > *:nth-child(5) { --reveal-i: 4; }
+  .reveal-on-scroll > *:nth-child(6) { --reveal-i: 5; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal-on-scroll > * {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
   }
 }
 

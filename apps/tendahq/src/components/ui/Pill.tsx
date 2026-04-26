@@ -9,6 +9,8 @@ interface Props {
   tone?: PillTone
   size?: PillSize
   dot?: boolean
+  /** Add a soft tone-tinted ring around the leading dot (live/locked emphasis). */
+  dotRing?: boolean
   className?: string
 }
 
@@ -32,12 +34,29 @@ const DOT: Record<PillTone, string> = {
   live:    'bg-[var(--live-bright)]',
 }
 
+const DOT_RING: Record<PillTone, string> = {
+  neutral: 'shadow-[0_0_0_3px_color-mix(in_oklab,var(--content-tertiary)_24%,transparent)]',
+  brand:   'shadow-[0_0_0_3px_color-mix(in_oklab,var(--brand)_24%,transparent)]',
+  accent:  'shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_24%,transparent)]',
+  success: 'shadow-[0_0_0_3px_color-mix(in_oklab,var(--success)_28%,transparent)]',
+  warning: 'shadow-[0_0_0_3px_color-mix(in_oklab,var(--warning)_24%,transparent)]',
+  danger:  'shadow-[0_0_0_3px_color-mix(in_oklab,var(--danger)_24%,transparent)]',
+  live:    'shadow-[0_0_0_3px_color-mix(in_oklab,var(--live-bright)_28%,transparent)]',
+}
+
 const SIZES: Record<PillSize, string> = {
   sm: 'h-[22px] px-2.5 text-[10.5px] tracking-[0.105em] gap-1.5',
   md: 'h-7 px-3 text-[11px] tracking-[0.12em] gap-2',
 }
 
-export function Pill({ children, tone = 'neutral', size = 'sm', dot = false, className }: Props) {
+export function Pill({
+  children,
+  tone = 'neutral',
+  size = 'sm',
+  dot = false,
+  dotRing = false,
+  className,
+}: Props) {
   return (
     <span
       className={cn(
@@ -47,7 +66,9 @@ export function Pill({ children, tone = 'neutral', size = 'sm', dot = false, cla
         className,
       )}
     >
-      {dot && <span className={cn('h-1.5 w-1.5 rounded-full', DOT[tone])} />}
+      {dot && (
+        <span className={cn('h-1.5 w-1.5 rounded-full', DOT[tone], dotRing && DOT_RING[tone])} />
+      )}
       {children}
     </span>
   )

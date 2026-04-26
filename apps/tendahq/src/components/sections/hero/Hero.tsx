@@ -27,6 +27,7 @@ export function Hero() {
       <SectionShell
         tone="dark"
         padY="lg"
+        noReveal
         className="overflow-hidden pt-32 md:pt-40"
       >
         <HeroBackground />
