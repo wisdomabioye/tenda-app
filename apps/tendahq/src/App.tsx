@@ -4,6 +4,7 @@ import { Footer } from './components/layout/Footer'
 import { Hero } from './components/sections/hero/Hero'
 import { TrustStrip } from './components/sections/trust-strip/TrustStrip'
 import { TwoProducts } from './components/sections/two-products/TwoProducts'
+import { HowEscrowWorks } from './components/sections/how-escrow-works/HowEscrowWorks'
 import { Terms } from './components/sections/Terms'
 import { Privacy } from './components/sections/Privacy'
 
@@ -14,6 +15,7 @@ function LandingPage() {
       <Hero />
       <TrustStrip />
       <TwoProducts />
+      <HowEscrowWorks />
     </>
   )
 }

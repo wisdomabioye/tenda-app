@@ -186,10 +186,10 @@ References per section:
 - [x] **3.3.3** Mirror split layout (Gigs brand-blue accent · Exchange green accent)
 
 ### §04 How escrow works (`sections/how-escrow-works/`)
-- [ ] **3.4.1** `content.ts` — `STEPS_GIG`, `STEPS_EXCHANGE` arrays
-- [ ] **3.4.2** `HowEscrowWorks.tsx` — `SegmentedControl` toggles which array renders
-- [ ] **3.4.3** Animated brand dot travels along hairline path on viewport-enter (one pass)
-- [ ] **3.4.4** Each step card has hero number background, H3 title, body
+- [x] **3.4.1** `content.ts` — `STEPS_GIG`, `STEPS_EXCHANGE` arrays
+- [x] **3.4.2** `HowEscrowWorks.tsx` — `SegmentedControl` toggles which array renders
+- [x] **3.4.3** Animated brand dot travels along hairline path on viewport-enter (one pass)
+- [x] **3.4.4** Each step card has hero number background, H3 title, body
 
 ### §05 Live ticker (`sections/live-ticker/`)
 - [ ] **3.5.1** `content.ts` — section heading + caption
