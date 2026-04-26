@@ -18,6 +18,9 @@ interface Props {
   trades?: number
   /** Disable the on-mount transition; render at the locked state directly. */
   staticState?: boolean
+  /** Featured (hero / front-of-wall) styling: brand-blue border, no own shadow
+   *  (wrapper supplies glow), top hairline accent. */
+  featured?: boolean
   className?: string
 }
 
@@ -44,6 +47,7 @@ export function MockEscrowCard({
   rating = 4.9,
   trades = 38,
   staticState = false,
+  featured = false,
   className,
 }: Props) {
   const reduced = useReducedMotion()
@@ -71,12 +75,24 @@ export function MockEscrowCard({
   return (
     <div
       className={cn(
-        'relative w-full max-w-[400px] rounded-[28px] border border-[var(--border-default)] bg-[var(--surface-card)] p-7',
-        'shadow-[var(--shadow-modal)]',
+        'relative w-full max-w-[400px] rounded-[28px] border bg-[var(--surface-card)] p-7',
+        featured
+          ? 'border-[var(--brand-border)]'
+          : 'border-[var(--border-default)] shadow-[var(--shadow-modal)]',
         className,
       )}
       data-phase={phase}
     >
+      {featured && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+          style={{
+            background:
+              'linear-gradient(90deg, transparent, color-mix(in oklab, var(--brand) 70%, transparent), transparent)',
+          }}
+        />
+      )}
       <div className="flex items-center justify-between">
         <Pill tone={pill.tone} size="md" dot>
           {pill.label}

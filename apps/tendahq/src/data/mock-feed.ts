@@ -58,6 +58,36 @@ export const MOCK_OFFER_CARDS: MockOfferCard[] = [
   { id: 'o-4', side: 'sell', amountSol: 3.20, fiatAmount: 4_320,   currency: 'GHS', rate: 1_350,   spreadPct: +1.8, paymentMethods: ['MoMo', 'Bank Transfer'], trader: '@kwabena',  trades: 21,  rating: 4.7 },
 ]
 
+/**
+ * Hero `EscrowWall` — 9 mini cards rendered in a 3×3 drifting 3D grid behind
+ * the featured MockEscrowCard. Two variants: `exchange` (SOL → fiat) and
+ * `gig` (category-led). Pulled directly from the wireframe markup in
+ * Tenda V2/landing/sections/01-hero-final.html (lines 302–360).
+ */
+
+export interface EscrowMini {
+  id: string
+  status: 'locked' | 'open' | 'funding'
+  timer: string
+  amountSol: number
+  category: CategoryId
+  /** Present for exchange-variant cards. */
+  arrow?: { fiatAmount: number; currency: CurrencyCode }
+  who: string
+}
+
+export const ESCROW_WALL: readonly EscrowMini[] = [
+  { id: 'w-1', status: 'locked',  timer: '02:14', amountSol: 2.00, category: 'delivery', arrow: { fiatAmount: 490_000, currency: 'NGN' }, who: '@chiamaka · 4.9★' },
+  { id: 'w-2', status: 'open',    timer: '45m',   amountSol: 1.20, category: 'photo',                                                       who: '@kimani' },
+  { id: 'w-3', status: 'funding', timer: '·',     amountSol: 0.50, category: 'service',  arrow: { fiatAmount: 122_500, currency: 'NGN' }, who: '@yemi' },
+  { id: 'w-4', status: 'locked',  timer: '8h',    amountSol: 0.30, category: 'errand',                                                      who: '@rashim' },
+  { id: 'w-5', status: 'locked',  timer: '19:58', amountSol: 0.85, category: 'delivery', arrow: { fiatAmount: 18_300,  currency: 'KES' }, who: '@maina' },
+  { id: 'w-6', status: 'open',    timer: '2d',    amountSol: 3.00, category: 'digital',                                                     who: '@ada · 5.0★' },
+  { id: 'w-7', status: 'locked',  timer: '11:42', amountSol: 5.50, category: 'service',  arrow: { fiatAmount: 1_925,   currency: 'GHS' }, who: '@kwame' },
+  { id: 'w-8', status: 'open',    timer: '1h',    amountSol: 0.40, category: 'delivery',                                                    who: '@tunde' },
+  { id: 'w-9', status: 'locked',  timer: '04:08', amountSol: 1.00, category: 'photo',    arrow: { fiatAmount: 18_000,  currency: 'ZAR' }, who: '@thandi' },
+] as const
+
 export const MOCK_TICKER_ROWS: TickerRow[] = [
   { id: 't-1',  kind: 'gig-settled',     amountSol: 0.50, meta: '📦 Lagos · @yemi → @ade',       timestamp: '12s ago' },
   { id: 't-2',  kind: 'offer-settled',   amountSol: 2.00, fiatAmount: 490_000, currency: 'NGN', meta: '🇳🇬 OPay · 30m window',          timestamp: '38s ago' },

@@ -163,17 +163,17 @@ References per section:
 - Designer notes: `IMPLEMENTATION.md` §4 (copy decks)
 
 ### §00 Navbar
-- [ ] **3.0.1** Restyle existing `components/layout/Navbar.tsx` to glass-on-scroll over new tokens
-- [ ] **3.0.2** Add 4-link nav: `Gigs · Exchange · How it works · For who · FAQ` (verify final list with brief §6.0)
-- [ ] **3.0.3** Add theme toggle button (sun/moon)
-- [ ] **3.0.4** Mobile sheet: full-screen, sectioned list, ChevronRight, sticky download CTA
+- [x] **3.0.1** Restyle existing `components/layout/Navbar.tsx` to glass-on-scroll over new tokens
+- [x] **3.0.2** Add 4-link nav: `Gigs · Exchange · How it works · For who · FAQ` (verify final list with brief §6.0)
+- [x] **3.0.3** Add theme toggle button (sun/moon)
+- [x] **3.0.4** Mobile sheet: full-screen, sectioned list, ChevronRight, sticky download CTA
 
 ### §01 Hero (`sections/hero/`)
-- [ ] **3.1.1** `content.ts` — eyebrow, h1Lines, subtitle, CTAs, trustLine
-- [ ] **3.1.2** `Hero.tsx` — composes shell, copy, escrow card, currency marquee
-- [ ] **3.1.3** `HeroEscrowCard.tsx` — uses `MockEscrowCard`, places at perspective tilt
-- [ ] **3.1.4** `CurrencyMarquee.tsx` — uses `useExchangeRates()` + `MarqueeRow`. Falls back to flag+code if rate missing (e.g. GHS)
-- [ ] **3.1.5** Verify count-up animation runs once on mount; reduced-motion skips
+- [x] **3.1.1** `content.ts` — eyebrow, h1Lines, subtitle, CTAs, trustLine
+- [x] **3.1.2** `Hero.tsx` — composes shell, copy, escrow card, currency marquee
+- [x] **3.1.3** `HeroEscrowCard.tsx` — uses `MockEscrowCard`, places at perspective tilt
+- [x] **3.1.4** `CurrencyMarquee.tsx` — uses `useExchangeRates()` + `MarqueeRow`. Falls back to flag+code if rate missing (e.g. GHS)
+- [x] **3.1.5** Verify count-up animation runs once on mount; reduced-motion skips
 
 ### §02 Trust strip (`sections/trust-strip/`)
 - [ ] **3.2.1** `content.ts` — 4 stat definitions, 24h volume tagline

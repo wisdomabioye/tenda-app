@@ -1,7 +1,7 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
-export type ButtonVariant = 'primary' | 'accent' | 'outline' | 'ghost'
+export type ButtonVariant = 'primary' | 'accent' | 'outline' | 'outline-subtle' | 'ghost'
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl'
 
 interface BaseProps {
@@ -38,6 +38,10 @@ const VARIANTS: Record<ButtonVariant, string> = {
   outline: cn(
     'border-[var(--border-strong)] bg-[var(--surface-card)] text-[var(--content-primary)]',
     'hover:border-[var(--brand-border)] hover:bg-[var(--surface-bg-alt)]',
+  ),
+  'outline-subtle': cn(
+    'border-[var(--border-default)] bg-transparent text-[var(--content-primary)]',
+    'hover:border-[var(--border-strong)] hover:bg-[color-mix(in_oklab,var(--surface-card)_8%,transparent)]',
   ),
   ghost: cn(
     'border-transparent bg-transparent text-[var(--content-primary)]',

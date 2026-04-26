@@ -1,12 +1,17 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Navbar } from './components/layout/Navbar'
 import { Footer } from './components/layout/Footer'
+import { Hero } from './components/sections/hero/Hero'
 import { Terms } from './components/sections/Terms'
 import { Privacy } from './components/sections/Privacy'
 
 function LandingPage() {
-  // Sections are built section-by-section in Phase 3 (see LANDING_TODO.md).
-  return null
+  // Sections built section-by-section in Phase 3 (see LANDING_TODO.md).
+  return (
+    <>
+      <Hero />
+    </>
+  )
 }
 
 export default function App() {

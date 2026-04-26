@@ -384,6 +384,9 @@
   .container-page { width: min(100%, var(--maxw)); margin-inline: auto; padding-inline: 20px; }
   @media (min-width: 768px) { .container-page { padding-inline: 32px; } }
 
+  .app-shell { position: relative; min-height: 100vh; color: var(--content-primary); }
+  .app-main { width: 100%; }
+
   /* Dev-only outline for placeholder-flagged values. Removed in production builds via CSS guard. */
   [data-placeholder='true'] {
     outline: 1px dashed color-mix(in oklab, var(--accent) 50%, transparent);
@@ -414,4 +417,14 @@
 @keyframes section-reveal {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes escrow-drift {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+
+@keyframes featured-glow {
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in oklab, var(--brand) 8%, transparent), 0 24px 60px color-mix(in oklab, var(--brand) 12%, transparent), 0 8px 24px rgba(0,0,0,0.45); }
+  50%      { box-shadow: 0 0 0 1px color-mix(in oklab, var(--brand) 12%, transparent), 0 28px 70px color-mix(in oklab, var(--brand) 18%, transparent), 0 8px 24px rgba(0,0,0,0.45); }
 }
