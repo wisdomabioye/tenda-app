@@ -4,11 +4,13 @@ export interface NavLink {
 }
 
 export const NAV_LINKS: readonly NavLink[] = [
-  { label: 'Gigs',         href: '/#gigs' },
-  { label: 'Exchange',     href: '/#exchange' },
-  { label: 'How it works', href: '/#how-it-works' },
-  { label: 'For who',      href: '/#for-who' },
-  { label: 'FAQ',          href: '/#faq' },
+  // Section IDs match each <SectionShell id="…"> in components/sections.
+  // Gigs + Exchange are both covered by the single Two-Products section
+  // (#products), so we don't ship a separate top-nav link for each.
+  { label: 'Products',     href: '/#products'      },
+  { label: 'How it works', href: '/#how-it-works'  },
+  { label: 'For who',      href: '/#for-who'       },
+  { label: 'FAQ',          href: '/#faq'           },
 ] as const
 
 export const NAV_LABELS = {

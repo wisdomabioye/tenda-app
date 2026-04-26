@@ -1,4 +1,3 @@
-import { LiveDot } from '@/components/ui/LiveDot'
 import { Pill } from '@/components/ui/Pill'
 import { FALLBACK, type FallbackRoute } from './content'
 import { cn } from '@/lib/cn'
@@ -20,7 +19,14 @@ export function Fallback() {
       <div className="grid gap-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-start lg:gap-12">
         <div className="min-w-0">
           <span className="caption inline-flex items-center gap-2 uppercase tracking-[0.16em] text-[var(--accent)]">
-            <LiveDot size={6} className="opacity-90" />
+            <span
+              aria-hidden
+              className="h-1.5 w-1.5 rounded-full"
+              style={{
+                background: 'var(--accent)',
+                boxShadow: '0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent)',
+              }}
+            />
             {FALLBACK.tag}
           </span>
           <h3 className="h2 mt-3 text-[var(--content-primary)]">{FALLBACK.h3}</h3>

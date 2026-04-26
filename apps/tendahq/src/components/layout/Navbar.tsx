@@ -4,7 +4,6 @@ import { ChevronRight, Menu, Moon, Sun, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Wordmark } from '@/components/ui/Wordmark'
 import { useTheme } from '@/theme/ThemeProvider'
-import { APP_INFO } from '@/app-info'
 import { NAV_LABELS, NAV_LINKS } from './nav-content'
 import { cn } from '@/lib/cn'
 
@@ -54,7 +53,7 @@ export function Navbar() {
 
           <div className="hidden items-center gap-2 md:flex">
             <ThemeToggle resolved={resolved} onToggle={toggle} />
-            <Button href={APP_INFO.apkUrl} variant="primary" size="sm">
+            <Button href="/#download" variant="primary" size="sm">
               {NAV_LABELS.ctaDownload}
             </Button>
           </div>
@@ -144,7 +143,7 @@ function MobileSheet({
 
           <div className="border-t border-[var(--border-subtle)] p-4">
             <ThemeToggle resolved={resolved} onToggle={onToggleTheme} />
-            <Button href={APP_INFO.apkUrl} variant="primary" size="md" fullWidth className="mt-3">
+            <Button href="/#download" variant="primary" size="md" fullWidth className="mt-3">
               {NAV_LABELS.ctaDownload}
             </Button>
             <p className="caption mt-3 text-center text-[var(--content-tertiary)]">

@@ -4,7 +4,6 @@ import { Pill } from '@/components/ui/Pill'
 import { Button } from '@/components/ui/Button'
 import { LiveDot } from '@/components/ui/LiveDot'
 import { Placeholder } from '@/components/ui/Placeholder'
-import { APP_INFO } from '@/app-info'
 import { HERO_CONTENT, HERO_OPEN_OFFERS_PLACEHOLDER } from './content'
 import { HeroStatRow } from './HeroStatRow'
 import { CurrencyMarquee } from './CurrencyMarquee'
@@ -76,7 +75,7 @@ export function Hero() {
 
             <div className="flex flex-col gap-4">
               <div className="flex flex-wrap items-center gap-3">
-                <Button href={APP_INFO.apkUrl} variant="primary" size="xl">
+                <Button href="/#download" variant="primary" size="xl">
                   <Download className="h-5 w-5" />
                   {HERO_CONTENT.cta.primary}
                 </Button>

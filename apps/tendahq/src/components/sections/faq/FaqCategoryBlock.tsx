@@ -15,7 +15,7 @@ export function FaqCategoryBlock({ category }: Props) {
     id: q.id,
     question: (
       <>
-        <span className="mono mr-2 font-semibold text-[var(--success)]">{q.id}</span>
+        <span className="mono mr-2 font-semibold text-[var(--accent)]">{q.id}</span>
         <span className="text-[var(--content-primary)]">{q.question}</span>
       </>
     ),

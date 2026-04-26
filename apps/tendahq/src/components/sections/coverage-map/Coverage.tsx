@@ -24,13 +24,13 @@ function Header() {
     <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
       <div>
         <p className="eyebrow text-[var(--content-tertiary)]">
-          <span className="mono font-semibold text-[var(--success)]">{COVERAGE_HEADER.eyebrow.num}</span>
+          <span className="mono font-semibold text-[var(--accent)]">{COVERAGE_HEADER.eyebrow.num}</span>
           <span className="mx-2 opacity-60">·</span>
           {COVERAGE_HEADER.eyebrow.label}
         </p>
         <h2 className="h1 mt-4 text-[var(--content-primary)]">
           {COVERAGE_HEADER.h2.lead}{' '}
-          <span className="text-[var(--success)]">{COVERAGE_HEADER.h2.accent}</span>
+          <span className="text-[var(--accent)]">{COVERAGE_HEADER.h2.accent}</span>
           <br />
           <span className="text-[var(--content-tertiary)]">{COVERAGE_HEADER.h2.dim}</span>
         </h2>
