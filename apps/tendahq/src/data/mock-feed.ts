@@ -88,6 +88,34 @@ export const ESCROW_WALL: readonly EscrowMini[] = [
   { id: 'w-9', status: 'locked',  timer: '04:08', amountSol: 1.00, category: 'photo',    arrow: { fiatAmount: 18_000,  currency: 'ZAR' }, who: '@thandi' },
 ] as const
 
+/**
+ * §02 Trust strip — running settlement feed.
+ * Verbs: 'released' (green) · 'locked' (brand blue) · 'disputed' (warning orange).
+ * Replace with /v1/public/feed/live when M77 lands; row shape designed to map 1:1.
+ */
+export interface ProofFeedRow {
+  id: string
+  verb: 'released' | 'locked' | 'disputed'
+  amountSol: number
+  /** "@yemi → poster", "@chiamaka offered", "@kimani → @maina" */
+  who: string
+  /** Truncated tx signature, e.g. "5kJ2…b9q1". */
+  sig: string
+  /** Human relative time, e.g. "12s ago". */
+  ago: string
+}
+
+export const MOCK_PROOF_FEED: readonly ProofFeedRow[] = [
+  { id: 'p-1', verb: 'released', amountSol: 0.500, who: '@yemi → poster',     sig: '5kJ2…b9q1', ago: '12s ago' },
+  { id: 'p-2', verb: 'locked',   amountSol: 2.000, who: '@chiamaka offered',  sig: '7Lp3…f2d8', ago: '38s ago' },
+  { id: 'p-3', verb: 'released', amountSol: 1.200, who: '@kimani → @maina',   sig: '9Wq8…a3c2', ago: '1m ago'  },
+  { id: 'p-4', verb: 'locked',   amountSol: 5.500, who: '@kwame offered',     sig: '2Hn4…e7b5', ago: '2m ago'  },
+  { id: 'p-5', verb: 'released', amountSol: 0.850, who: '@thandi → @lebo',    sig: '4Mr1…c5a9', ago: '3m ago'  },
+  { id: 'p-6', verb: 'released', amountSol: 0.300, who: '@rashim → @noor',    sig: '6Yt5…d8f3', ago: '4m ago'  },
+  { id: 'p-7', verb: 'locked',   amountSol: 1.100, who: '@ada offered',       sig: '3Bx7…h2j6', ago: '5m ago'  },
+  { id: 'p-8', verb: 'disputed', amountSol: 0.450, who: '@tunde · review',    sig: '8Vk0…m9n4', ago: '6m ago'  },
+] as const
+
 export const MOCK_TICKER_ROWS: TickerRow[] = [
   { id: 't-1',  kind: 'gig-settled',     amountSol: 0.50, meta: '📦 Lagos · @yemi → @ade',       timestamp: '12s ago' },
   { id: 't-2',  kind: 'offer-settled',   amountSol: 2.00, fiatAmount: 490_000, currency: 'NGN', meta: '🇳🇬 OPay · 30m window',          timestamp: '38s ago' },

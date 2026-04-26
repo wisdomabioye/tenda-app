@@ -176,9 +176,9 @@ References per section:
 - [x] **3.1.5** Verify count-up animation runs once on mount; reduced-motion skips
 
 ### §02 Trust strip (`sections/trust-strip/`)
-- [ ] **3.2.1** `content.ts` — 4 stat definitions, 24h volume tagline
-- [ ] **3.2.2** `TrustStrip.tsx` — uses `Stat` × 4, `Placeholder` wrapper for unverified numbers, `usePlatformConfig` for the fee chip
-- [ ] **3.2.3** Vertical hairlines between cells via `border.subtle`
+- [x] **3.2.1** `content.ts` — 4 stat definitions, 24h volume tagline
+- [x] **3.2.2** `TrustStrip.tsx` — uses `Stat` × 4, `Placeholder` wrapper for unverified numbers, `usePlatformConfig` for the fee chip
+- [x] **3.2.3** Vertical hairlines between cells via `border.subtle`
 
 ### §03 Two products (`sections/two-products/`)
 - [ ] **3.3.1** `content.ts` — Gigs panel + Exchange panel copy

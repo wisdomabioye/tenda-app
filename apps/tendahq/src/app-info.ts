@@ -20,6 +20,14 @@ export const APP_INFO = {
   version: 'v0.2.0-devnet',
   buildLocation: 'Lagos',
 
+  /** Solana chain identity surfaced in the proof band + footer status. */
+  chain: {
+    network: 'Solana · devnet',
+    /** Truncated program id; full address goes in support docs, not the marketing site. */
+    programIdShort: 'Tend…9k2A',
+    explorerUrl: 'https://explorer.solana.com/?cluster=devnet',
+  },
+
   /** Social. */
   twitterUrl: 'https://x.com/tendahq',
   whatsappUrl: 'https://chat.whatsapp.com/EeB5OMalNy0EbMlU4QPZMr?mode=hq2tcli',

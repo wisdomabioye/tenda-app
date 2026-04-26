@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Navbar } from './components/layout/Navbar'
 import { Footer } from './components/layout/Footer'
 import { Hero } from './components/sections/hero/Hero'
+import { TrustStrip } from './components/sections/trust-strip/TrustStrip'
 import { Terms } from './components/sections/Terms'
 import { Privacy } from './components/sections/Privacy'
 
@@ -10,6 +11,7 @@ function LandingPage() {
   return (
     <>
       <Hero />
+      <TrustStrip />
     </>
   )
 }
