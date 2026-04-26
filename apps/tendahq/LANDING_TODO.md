@@ -198,10 +198,10 @@ References per section:
 - [x] **3.5.4** "What's live right now" header above with `LiveDot`
 
 ### §06 Why Tenda (`sections/why-tenda/`)
-- [ ] **3.6.1** `content.ts` — 4 pillars (Settlement, Fees, Cash-out, Disputes)
-- [ ] **3.6.2** `WhyTenda.tsx` — uses `usePlatformConfig` for fee pillar (`fee_bps / 100` + `seeker_fee_bps / 100`)
-- [ ] **3.6.3** **Light mode** section (interrupts dark spine — verify `tone="light"`)
-- [ ] **3.6.4** Numbers wrapped in `Placeholder` where unverified (settlement time, dispute rate)
+- [x] **3.6.1** `content.ts` — 4 pillars (Settlement, Fees, Cash-out, Disputes)
+- [x] **3.6.2** `WhyTenda.tsx` — uses `usePlatformConfig` for fee pillar (`fee_bps / 100` + `seeker_fee_bps / 100`)
+- [x] **3.6.3** **Light mode** section (interrupts dark spine — verify `tone="light"`)
+- [x] **3.6.4** Numbers wrapped in `Placeholder` where unverified (settlement time, dispute rate)
 
 ### §07 Coverage (`sections/coverage/`)
 - [ ] **3.7.1** `content.ts` — heading, currency tile data
