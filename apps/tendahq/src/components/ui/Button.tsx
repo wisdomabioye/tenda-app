@@ -1,57 +1,69 @@
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from 'react'
+import { cn } from '@/lib/cn'
 
-type BaseProps = {
+export type ButtonVariant = 'primary' | 'accent' | 'outline' | 'ghost'
+export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl'
+
+interface BaseProps {
   children: ReactNode
-  variant?: 'primary' | 'outline' | 'ghost'
-  size?: 'sm' | 'md' | 'lg'
+  variant?: ButtonVariant
+  size?: ButtonSize
+  fullWidth?: boolean
 }
 
-type ButtonProps = BaseProps & ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined }
-type AnchorProps = BaseProps & AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }
+type AsButton = BaseProps & ButtonHTMLAttributes<HTMLButtonElement> & { href?: undefined }
+type AsAnchor = BaseProps & AnchorHTMLAttributes<HTMLAnchorElement> & { href: string }
+type Props = AsButton | AsAnchor
 
-type Props = ButtonProps | AnchorProps
+const BASE = cn(
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-2xl border no-underline',
+  'font-[var(--font-body)] font-semibold tracking-[-0.01em]',
+  'transition-[background-color,border-color,color,box-shadow,transform] duration-150 ease-out',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface-bg)]',
+  'disabled:pointer-events-none disabled:opacity-60',
+  'active:translate-y-px',
+)
 
-const classes = {
-  base: [
-    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl border font-semibold tracking-[-0.01em] no-underline',
-    'transition-[background-color,border-color,color,box-shadow,transform] duration-200 ease-out',
-    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg)]',
-    'disabled:pointer-events-none disabled:opacity-60',
-    'active:translate-y-px',
-  ].join(' '),
+const VARIANTS: Record<ButtonVariant, string> = {
+  primary: cn(
+    'border-transparent bg-[var(--brand)] text-[var(--brand-on)]',
+    'shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(46,91,214,0.22)]',
+    'hover:bg-[var(--brand-pressed)]',
+  ),
+  accent: cn(
+    'border-transparent bg-[var(--accent)] text-[var(--brand-on)]',
+    'shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(224,138,60,0.22)]',
+    'hover:brightness-105',
+  ),
+  outline: cn(
+    'border-[var(--border-strong)] bg-[var(--surface-card)] text-[var(--content-primary)]',
+    'hover:border-[var(--brand-border)] hover:bg-[var(--surface-bg-alt)]',
+  ),
+  ghost: cn(
+    'border-transparent bg-transparent text-[var(--content-primary)]',
+    'hover:bg-[var(--surface-bg-alt)]',
+  ),
+}
 
-  primary: [
-    'border-[color-mix(in_oklab,var(--primary)_72%,black)]',
-    'bg-[var(--primary)] text-[var(--on-primary)]',
-    'shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(29,69,129,0.22)]',
-    'hover:bg-[var(--primary-pressed)]',
-  ].join(' '),
-
-  outline: [
-    'border-[var(--border-strong)]',
-    'bg-[color-mix(in_oklab,var(--surface-strong)_96%,transparent)] text-[var(--heading)]',
-    'shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]',
-    'hover:border-[color-mix(in_oklab,var(--primary)_28%,var(--border-strong))]',
-    'hover:bg-[color-mix(in_oklab,var(--surface)_92%,transparent)]',
-  ].join(' '),
-
-  ghost: [
-    'border-transparent bg-transparent text-[var(--text)]',
-    'hover:bg-[color-mix(in_oklab,var(--surface)_88%,transparent)]',
-    'hover:text-[var(--heading)]',
-  ].join(' '),
-
-  sm: 'min-h-10 px-4 text-sm',
-  md: 'min-h-11 px-5 text-sm sm:text-base',
+const SIZES: Record<ButtonSize, string> = {
+  sm: 'min-h-9 px-3.5 text-sm',
+  md: 'min-h-11 px-5 text-[15px]',
   lg: 'min-h-12 px-6 text-base',
+  xl: 'min-h-[60px] px-7 text-base',
 }
 
-export function Button({ children, variant = 'primary', size = 'md', ...props }: Props) {
-  const extra = (props as { className?: string }).className ?? ''
-  const cls = `${classes.base} ${classes[variant]} ${classes[size]} ${extra}`.trim()
+export function Button({
+  children,
+  variant = 'primary',
+  size = 'md',
+  fullWidth = false,
+  ...rest
+}: Props) {
+  const className = (rest as { className?: string }).className ?? ''
+  const cls = cn(BASE, VARIANTS[variant], SIZES[size], fullWidth && 'w-full', className)
 
-  if ('href' in props && props.href !== undefined) {
-    const { variant: _v, size: _s, className: _c, ...anchorProps } = props as AnchorProps
+  if ('href' in rest && rest.href !== undefined) {
+    const { className: _omit, ...anchorProps } = rest as AsAnchor
     return (
       <a {...anchorProps} className={cls}>
         {children}
@@ -59,8 +71,7 @@ export function Button({ children, variant = 'primary', size = 'md', ...props }:
     )
   }
 
-  const { variant: _v, size: _s, className: _c, ...btnProps } = props as ButtonProps
-
+  const { className: _omit, ...btnProps } = rest as AsButton
   return (
     <button {...btnProps} className={cls}>
       {children}

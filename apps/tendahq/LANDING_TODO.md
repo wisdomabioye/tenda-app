@@ -115,31 +115,31 @@ Files: `src/app-info.ts`, `src/data/*.ts`, `src/api/platform.ts`
 
 Files: `src/components/ui/*.tsx`, `src/components/product/*.tsx`
 
-- [ ] **2.1** Refactor `Button.tsx`:
+- [x] **2.1** Refactor `Button.tsx`:
   - [ ] Add `accent` variant (orange `--accent.primary`)
   - [ ] Add `size: 'xl'` (60h, used by hero CTAs)
   - [ ] Verify all variants under both light and dark themes
-- [ ] **2.2** Create `Eyebrow.tsx` — mono-uppercase, optional leading dot (live, accent), props `{ tone?, dot? }`
-- [ ] **2.3** Create `Pill.tsx` — covers status pills, payment-method chips, currency chips. Props `{ tone, size, dot? }`
-- [ ] **2.4** Create `LiveDot.tsx` — green pulsing dot (used in nav, footer, ticker, hero eyebrow)
-- [ ] **2.5** Create `SectionShell.tsx`:
+- [x] **2.2** Create `Eyebrow.tsx` — mono-uppercase, optional leading dot (live, accent), props `{ tone?, dot? }`
+- [x] **2.3** Create `Pill.tsx` — covers status pills, payment-method chips, currency chips. Props `{ tone, size, dot? }`
+- [x] **2.4** Create `LiveDot.tsx` — green pulsing dot (used in nav, footer, ticker, hero eyebrow)
+- [x] **2.5** Create `SectionShell.tsx`:
   - Props: `{ tone: 'dark' | 'light', maxWidth?, padY? }`
   - Theme map per `IMPLEMENTATION.md` §3.4: hero/trust/products/escrow/ticker dark · why light · coverage dark · audiences light · faq/cta/footer dark
-- [ ] **2.6** Create `Stat.tsx` — mono-large number + caption. Optional `countUp` boolean. Optional `placeholder` boolean → renders identically but adds `data-placeholder="true"` attribute
-- [ ] **2.7** Create `MarqueeRow.tsx`:
+- [x] **2.6** Create `Stat.tsx` — mono-large number + caption. Optional `countUp` boolean. Optional `placeholder` boolean → renders identically but adds `data-placeholder="true"` attribute
+- [x] **2.7** Create `MarqueeRow.tsx`:
   - [ ] Direction `'left' | 'right'`
   - [ ] Speed in seconds (per loop)
   - [ ] `pauseOnHover`
   - [ ] Edge-mask gradient
   - [ ] Static fallback under `prefers-reduced-motion`
-- [ ] **2.8** Create `Accordion.tsx` — single-open, controlled or uncontrolled, ARIA-correct (`aria-expanded`, `aria-controls`), 200ms ease-out height transition
-- [ ] **2.9** Create `SegmentedControl.tsx` — used by §04 Gig⇄Exchange toggle. Generic over option values
-- [ ] **2.10** Create `Placeholder.tsx` — wraps any value flagged `placeholder: true`, adds dev-only outline + tooltip. Production: invisible
-- [ ] **2.11** Build product mock cards under `src/components/product/`:
-  - [ ] **2.11.1** `MockGigCard.tsx` — port from `Tenda V2/home.html` price-leading variant
-  - [ ] **2.11.2** `MockOfferCard.tsx` — port from `Tenda V2/exchange-detail.html` (OfferSummaryCard)
-  - [ ] **2.11.3** `MockEscrowCard.tsx` — hero centerpiece, 3-state on-mount transition (pending → funding → locked); reduced-motion = locked state only
-  - [ ] **2.11.4** `AndroidFrame.tsx` — port from `Tenda V2/landing/android-frame.jsx`
+- [x] **2.8** Create `Accordion.tsx` — single-open, controlled or uncontrolled, ARIA-correct (`aria-expanded`, `aria-controls`), 200ms ease-out height transition
+- [x] **2.9** Create `SegmentedControl.tsx` — used by §04 Gig⇄Exchange toggle. Generic over option values
+- [x] **2.10** Create `Placeholder.tsx` — wraps any value flagged `placeholder: true`, adds dev-only outline + tooltip. Production: invisible
+- [x] **2.11** Build product mock cards under `src/components/product/`:
+  - [x] **2.11.1** `MockGigCard.tsx` — port from `Tenda V2/home.html` price-leading variant
+  - [x] **2.11.2** `MockOfferCard.tsx` — port from `Tenda V2/exchange-detail.html` (OfferSummaryCard)
+  - [x] **2.11.3** `MockEscrowCard.tsx` — hero centerpiece, 3-state on-mount transition (pending → funding → locked); reduced-motion = locked state only
+  - [x] **2.11.4** `AndroidFrame.tsx` — port from `Tenda V2/landing/android-frame.jsx`
 
 **Acceptance:** every primitive renders in isolation (Storybook optional), passes accessibility audit (focus-ring visible, ARIA on accordion, alt text on icons).
 
