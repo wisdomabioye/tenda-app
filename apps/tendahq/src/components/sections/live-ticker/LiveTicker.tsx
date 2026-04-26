@@ -1,7 +1,6 @@
 import { Info } from 'lucide-react'
 import { SectionShell } from '@/components/ui/SectionShell'
 import { LiveDot } from '@/components/ui/LiveDot'
-import { Placeholder } from '@/components/ui/Placeholder'
 import { APP_INFO } from '@/app-info'
 import { TICKER_HEADER, TICKER_SAMPLE_NOTICE } from './content'
 import { FeedShell } from './FeedShell'
@@ -56,33 +55,22 @@ function Header() {
 function MetaRows() {
   const resolve = (raw: string): string => {
     if (raw === 'fromAppInfo:programIdShort') return APP_INFO.chain.programIdShort
+    if (raw === 'fromAppInfo:network · ~400ms blocks') return `${APP_INFO.chain.network} · ~400ms blocks`
     return raw
   }
 
   return (
     <div className="flex flex-col divide-y divide-[var(--border-subtle)] rounded-2xl border border-[var(--border-subtle)] bg-[var(--surface-card)]">
-      {TICKER_HEADER.meta.map((row) => {
-        const value = resolve(row.v)
-        const valueNode = 'placeholder' in row && row.placeholder ? (
-          <Placeholder issue={row.placeholder}>{value}</Placeholder>
-        ) : (
-          value
-        )
-        return (
-          <div key={row.k} className="flex items-center justify-between gap-4 px-4 py-3">
-            <span className="caption uppercase tracking-[0.16em] text-[var(--content-tertiary)]">
-              {row.k}
-            </span>
-            <span
-              className={`mono-sm ${
-                'accent' in row && row.accent ? 'text-[var(--success)]' : 'text-[var(--content-primary)]'
-              } font-semibold`}
-            >
-              {valueNode}
-            </span>
-          </div>
-        )
-      })}
+      {TICKER_HEADER.meta.map((row) => (
+        <div key={row.k} className="flex items-center justify-between gap-4 px-4 py-3">
+          <span className="caption uppercase tracking-[0.16em] text-[var(--content-tertiary)]">
+            {row.k}
+          </span>
+          <span className="mono-sm font-semibold text-[var(--content-primary)]">
+            {resolve(row.v)}
+          </span>
+        </div>
+      ))}
     </div>
   )
 }

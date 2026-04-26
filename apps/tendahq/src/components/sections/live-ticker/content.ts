@@ -13,9 +13,7 @@ export const TICKER_HEADER = {
   sub: 'Every gig and trade emits one or more on-chain events. The feed below is a sample of the shape — once Tenda is mainnet-live, the actual events tail will stream here.',
   meta: [
     { k: 'Program', v: 'fromAppInfo:programIdShort' },
-    { k: 'Block',   v: '312,481,907', placeholder: 'M75' },
-    { k: 'TPS',     v: '~2,840',      placeholder: 'M75', accent: true },
-    { k: 'SOL',     v: '$182.40 ▲ 0.8%', placeholder: 'M75' },
+    { k: 'Network', v: 'fromAppInfo:network · ~400ms blocks' },
   ],
 } as const
 

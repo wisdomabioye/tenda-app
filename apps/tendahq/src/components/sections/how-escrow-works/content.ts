@@ -125,21 +125,4 @@ export const FALLBACK = {
     { letter: 'C', prefix: 'Reclaim.',       body: 'Worker (or buyer) misses the proof-submission deadline → poster (or seller) can claim the refund.', time: 'post-deadline' },
     { letter: 'D', prefix: 'Dispute.',       body: 'Either side opens a dispute after proof is submitted → Tenda mediation reviews evidence and instructs the program to release or refund.', time: '≤ 24h' },
   ] satisfies readonly FallbackRoute[],
-  clauseTitle: 'From the on-chain program',
-  clauseFootnote: 'Simplified. Full enum lives in `tenda-escrow/state/escrow.rs`.',
 } as const
-
-/**
- * Snippet illustrating the on-chain `GigStatus` exit paths. Variant names
- * match the live program enum 1:1 — see
- * tenda-escrow/programs/tenda-escrow/src/state/escrow.rs.
- */
-export const CLAUSE_LINES = [
-  { kind: 'comment', text: '// every gig settles via one of these terminal states' },
-  { kind: 'open',    text: 'match gig.status {' },
-  { kind: 'arm',     name: 'Completed', value: 'split(payout, fee),       // approve_completion' },
-  { kind: 'arm',     name: 'Cancelled', value: 'refund(poster),           // cancel_gig (pre-accept)' },
-  { kind: 'arm',     name: 'Expired',   value: 'refund(poster),           // refund_expired' },
-  { kind: 'arm',     name: 'Resolved',  value: 'arbitrate(winner),        // resolve_dispute' },
-  { kind: 'close',   text: '}' },
-] as const
