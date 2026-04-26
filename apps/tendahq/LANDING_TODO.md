@@ -55,24 +55,24 @@ Tracked in `data/stats.ts` with `placeholder: true` flag. Grep `placeholder: tru
 
 Files: `package.json`, `src/index.css`, `src/main.tsx`, `src/env.ts`, `.env.example`, `src/theme/ThemeProvider.tsx`, `src/lib/*`
 
-- [ ] **0.1** Install font packages: `@fontsource-variable/space-grotesk`, `@fontsource-variable/manrope`, `@fontsource-variable/jetbrains-mono`
-- [ ] **0.2** Wire font imports in `src/main.tsx` (or `index.css` `@import`)
-- [ ] **0.3** Rewrite `src/index.css`:
-  - [ ] **0.3.1** Replace `:root` palette with mobile tokens — verify each value against `apps/mobile/theme/tokens.ts` (`#2E5BD6`, `#3ACB8E`, `#F7F5F0`, `#0D1018`, etc.)
-  - [ ] **0.3.2** Add `--display`, `--body`, `--mono` font vars
-  - [ ] **0.3.3** Add category tones (`--cat-delivery`, `--cat-photo`, `--cat-errand`, `--cat-service`, `--cat-digital`)
-  - [ ] **0.3.4** Port type atoms from `landing.css` as utility classes: `.h-hero`, `.h-hero-mobile`, `.h1`, `.h2`, `.h3`, `.body-lg`, `.body`, `.body-sm`, `.eyebrow`, `.caption`, `.mono-large`, `.mono-mid`, `.mono-sm`
-  - [ ] **0.3.5** Light-/dark-mode swap via `[data-theme="dark"]` selector AND `prefers-color-scheme: dark`
-  - [ ] **0.3.6** Keep existing `.app-shell`, `.app-main`, `.gradient-text`, `.hairline-divider` utilities or replace with new equivalents
-- [ ] **0.4** Create `.env.example` documenting `VITE_API_BASE_URL`
-- [ ] **0.5** Create `.env.development` with `VITE_API_BASE_URL=http://127.0.0.1:3000`
-- [ ] **0.6** Create `src/env.ts` — read & validate env at boot (throw if missing)
-- [ ] **0.7** Add path alias `@/` → `src/` in `tsconfig.app.json` and `vite.config.ts`
-- [ ] **0.8** Create `src/theme/ThemeProvider.tsx` — light/dark toggle + localStorage persistence, drives `data-theme` on `<html>`
-- [ ] **0.9** Create `src/lib/cn.ts` — `cn(...args)` className join helper
-- [ ] **0.10** Create `src/lib/useIntersect.ts` — one-shot IntersectionObserver hook
-- [ ] **0.11** Create `src/lib/useCountUp.ts` — count-up animation hook (respects reduced motion)
-- [ ] **0.12** Create `src/lib/useReducedMotion.ts` — `prefers-reduced-motion` boolean
+- [x] **0.1** Install font packages: `@fontsource-variable/space-grotesk`, `@fontsource-variable/manrope`, `@fontsource-variable/jetbrains-mono`
+- [x] **0.2** Wire font imports in `src/main.tsx` (or `index.css` `@import`)
+- [x] **0.3** Rewrite `src/index.css`:
+  - [x] **0.3.1** Replace `:root` palette with mobile tokens — verify each value against `apps/mobile/theme/tokens.ts` (`#2E5BD6`, `#3ACB8E`, `#F7F5F0`, `#0D1018`, etc.)
+  - [x] **0.3.2** Add `--display`, `--body`, `--mono` font vars
+  - [x] **0.3.3** Add category tones (`--cat-delivery`, `--cat-photo`, `--cat-errand`, `--cat-service`, `--cat-digital`)
+  - [x] **0.3.4** Port type atoms from `landing.css` as utility classes: `.h-hero`, `.h-hero-mobile`, `.h1`, `.h2`, `.h3`, `.body-lg`, `.body`, `.body-sm`, `.eyebrow`, `.caption`, `.mono-large`, `.mono-mid`, `.mono-sm`
+  - [x] **0.3.5** Light-/dark-mode swap via `[data-theme="dark"]` selector AND `prefers-color-scheme: dark`
+  - [x] **0.3.6** Keep existing `.app-shell`, `.app-main`, `.gradient-text`, `.hairline-divider` utilities or replace with new equivalents
+- [x] **0.4** Create `.env.example` documenting `VITE_API_BASE_URL`
+- [x] **0.5** Create `.env.development` with `VITE_API_BASE_URL=http://127.0.0.1:3000`
+- [x] **0.6** Create `src/env.ts` — read & validate env at boot (throw if missing)
+- [x] **0.7** Add path alias `@/` → `src/` in `tsconfig.app.json` and `vite.config.ts`
+- [x] **0.8** Create `src/theme/ThemeProvider.tsx` — light/dark toggle + localStorage persistence, drives `data-theme` on `<html>`
+- [x] **0.9** Create `src/lib/cn.ts` — `cn(...args)` className join helper
+- [x] **0.10** Create `src/hooks/useIntersect.ts` — one-shot IntersectionObserver hook
+- [x] **0.11** Create `src/hooks/useCountUp.ts` — count-up animation hook (respects reduced motion)
+- [x] **0.12** Create `src/hooks/useReducedMotion.ts` — `prefers-reduced-motion` boolean
 
 **Acceptance:** `pnpm -F tendahq dev` boots, `<html data-theme>` toggles, fonts load, type atoms render at correct sizes.
 
