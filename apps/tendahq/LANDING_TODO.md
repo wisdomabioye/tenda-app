@@ -204,9 +204,9 @@ References per section:
 - [x] **3.6.4** Numbers wrapped in `Placeholder` where unverified (settlement time, dispute rate)
 
 ### §07 Coverage (`sections/coverage/`)
-- [ ] **3.7.1** `content.ts` — heading, currency tile data
-- [ ] **3.7.2** `Coverage.tsx` — world-map SVG (static for v1) + flag grid pulled from `data/currencies.ts`
-- [ ] **3.7.3** Pings stubbed at fixed coords; flagged via `data-placeholder` so M77/M78 drives them later
+- [x] **3.7.1** `content.ts` — heading, currency tile data
+- [x] **3.7.2** `Coverage.tsx` — world-map SVG (static for v1) + flag grid pulled from `data/currencies.ts`
+- [x] **3.7.3** Pings stubbed at fixed coords; flagged via `data-placeholder` so M77/M78 drives them later
 
 ### §08 Three audiences (`sections/three-audiences/`)
 - [ ] **3.8.1** `content.ts` — Workers, Posters, Traders columns (4 list items each + CTA)
