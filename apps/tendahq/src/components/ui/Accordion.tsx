@@ -69,7 +69,16 @@ function AccordionRow({
             'transition-colors hover:text-[var(--brand)]',
           )}
         >
-          <span className="h3 text-[var(--content-primary)]">{item.question}</span>
+          <span
+            className={cn(
+              // Question lead on mobile: tighter than .h3 (22px) so an 8-row
+              // accordion doesn't dominate the viewport. Scales back up at sm+.
+              'font-[var(--font-display)] font-semibold tracking-[-0.01em] text-[var(--content-primary)]',
+              'text-[15px] leading-[1.35] sm:text-[19px] md:text-[22px] md:leading-[1.3]',
+            )}
+          >
+            {item.question}
+          </span>
           <ChevronDown
             className={cn(
               'h-5 w-5 shrink-0 text-[var(--content-tertiary)] transition-transform duration-200',

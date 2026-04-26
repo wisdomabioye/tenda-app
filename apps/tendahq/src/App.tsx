@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Navbar } from './components/layout/Navbar'
-import { Footer } from './components/layout/Footer'
+import { Footer } from './components/sections/footer/Footer'
 import { Hero } from './components/sections/hero/Hero'
 import { TrustStrip } from './components/sections/trust-strip/TrustStrip'
 import { TwoProducts } from './components/sections/two-products/TwoProducts'

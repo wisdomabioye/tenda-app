@@ -19,6 +19,12 @@ export interface ExchangeRatesResponse {
   fetched_at: number
 }
 
+export interface HealthResponse {
+  status: 'ok' | string
+  /** Server uptime in seconds. */
+  uptime: number
+}
+
 const TTL_MS = 5 * 60 * 1000  // mirrors the server-side cache window
 
 interface CacheEntry<T> {
@@ -75,6 +81,23 @@ export function fetchExchangeRates(signal?: AbortSignal): Promise<ExchangeRatesR
     () => getJson<ExchangeRatesResponse>('/v1/platform/exchange-rates', signal),
     signal,
   )
+}
+
+/**
+ * Health probe. Cached for 30 seconds — the footer status pill doesn't need
+ * second-level freshness; the cache window keeps repeated landings cheap.
+ */
+const HEALTH_TTL = 30 * 1000
+let healthCacheExpires = 0
+let healthCachePromise: Promise<HealthResponse> | null = null
+export function fetchHealth(signal?: AbortSignal): Promise<HealthResponse> {
+  const now = Date.now()
+  if (healthCachePromise && now < healthCacheExpires) return healthCachePromise
+  healthCachePromise = getJson<HealthResponse>('/v1/health', signal).then((data) => {
+    healthCacheExpires = Date.now() + HEALTH_TTL
+    return data
+  })
+  return healthCachePromise
 }
 
 /** Test / dev helper. Not used in render paths. */
