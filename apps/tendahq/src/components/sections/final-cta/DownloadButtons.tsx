@@ -13,8 +13,9 @@ export function DownloadButtons() {
       <a
         href={DOWNLOAD_BUTTONS.primary.href}
         className={cn(
-          'inline-flex items-center justify-center gap-3 rounded-2xl border-2 border-[var(--success)] bg-[var(--success)] px-6 py-4',
-          'text-[var(--surface-bg)] font-semibold transition-transform hover:scale-[1.01] active:translate-y-px',
+          'inline-flex items-center justify-center gap-3 rounded-2xl border-2 border-[var(--brand)] bg-[var(--brand)] px-6 py-4',
+          'text-[var(--brand-on)] font-semibold transition-transform hover:scale-[1.01] active:translate-y-px',
+          'shadow-[0_10px_24px_color-mix(in_oklab,var(--brand)_22%,transparent)]',
         )}
       >
         <Download className="h-5 w-5" />

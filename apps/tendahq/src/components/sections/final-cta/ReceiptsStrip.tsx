@@ -15,7 +15,7 @@ export function ReceiptsStrip() {
             {r.k}
           </p>
           <p className="mono-large text-[var(--content-primary)]">
-            <span className="text-[var(--success)]">{r.v}</span>
+            <span className="text-[var(--brand)]">{r.v}</span>
             {r.unit && (
               <span className="mono-sm ml-1 text-[var(--content-tertiary)]">{r.unit}</span>
             )}
