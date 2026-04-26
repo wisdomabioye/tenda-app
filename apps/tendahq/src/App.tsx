@@ -7,7 +7,7 @@ import { TwoProducts } from './components/sections/two-products/TwoProducts'
 import { HowEscrowWorks } from './components/sections/how-escrow-works/HowEscrowWorks'
 import { LiveTicker } from './components/sections/live-ticker/LiveTicker'
 import { WhyTenda } from './components/sections/why-tenda/WhyTenda'
-import { Coverage } from './components/sections/coverage/Coverage'
+import { Coverage } from './components/sections/coverage-map/Coverage'
 import { Terms } from './components/sections/Terms'
 import { Privacy } from './components/sections/Privacy'
 
