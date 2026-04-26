@@ -60,7 +60,9 @@ function RouteRow({ route }: { route: FallbackRoute }) {
         </p>
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-2">
+      {/* Meta cluster — full row beneath the body on mobile (so the body owns
+          the full content width), inline on the right at sm+. */}
+      <div className="flex w-full items-center justify-start gap-2 pl-11 sm:ml-auto sm:w-auto sm:justify-end sm:pl-0">
         {route.aspirational && (
           <Pill tone="warning" size="sm">
             Planned
