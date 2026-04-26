@@ -181,9 +181,9 @@ References per section:
 - [x] **3.2.3** Vertical hairlines between cells via `border.subtle`
 
 ### §03 Two products (`sections/two-products/`)
-- [ ] **3.3.1** `content.ts` — Gigs panel + Exchange panel copy
-- [ ] **3.3.2** `TwoProducts.tsx` — left = `MockGigCard` × 3 stack, right = `MockOfferCard` × 1 hero
-- [ ] **3.3.3** Mirror split layout (Gigs brand-blue accent · Exchange green accent)
+- [x] **3.3.1** `content.ts` — Gigs panel + Exchange panel copy
+- [x] **3.3.2** `TwoProducts.tsx` — left = `MockGigCard` × 3 stack, right = `MockOfferCard` × 1 hero
+- [x] **3.3.3** Mirror split layout (Gigs brand-blue accent · Exchange green accent)
 
 ### §04 How escrow works (`sections/how-escrow-works/`)
 - [ ] **3.4.1** `content.ts` — `STEPS_GIG`, `STEPS_EXCHANGE` arrays
