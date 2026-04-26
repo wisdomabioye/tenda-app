@@ -32,14 +32,28 @@ export interface MockOfferCard {
   rating: number
 }
 
+export type TickerEvent = 'settled' | 'locked' | 'approved' | 'proof' | 'disputed'
+
 export interface TickerRow {
   id: string
-  kind: 'gig-settled' | 'offer-published' | 'offer-settled'
+  event: TickerEvent
+  /** Human-readable e.g. "now", "2s ago", "1m ago". */
+  timestamp: string
+  /** Category chip label (DEL / PHOTO / SVC / ERR / EXCHG). */
+  category: string
+  /** Right side of the context column — gig title or "@a → @b". */
+  context: string
   amountSol: number
-  fiatAmount?: number
-  currency?: CurrencyCode
-  meta: string
-  timestamp: string  // human-readable e.g. "12s ago"
+  /** Set on exchange settlements — pair line "SOL ↔ X CCY". */
+  fiat?: { amount: number; currency: CurrencyCode }
+  /** Otherwise this becomes "fee 0.0125" or "cid bafy…q9w". */
+  pairExtra?: { label: 'fee' | 'cid'; value: string }
+  /** Region cell — flag emoji + city + optional corridor (`bank`, `mobile money`). */
+  region: { flag: string; city: string; corridor?: string }
+  /** Truncated tx signature. */
+  txShort: string
+  /** Latest row glows green-edge. */
+  fresh?: boolean
 }
 
 export const MOCK_GIG_CARDS: MockGigCard[] = [
@@ -119,14 +133,14 @@ export const MOCK_PROOF_FEED: readonly ProofFeedRow[] = [
 ] as const
 
 export const MOCK_TICKER_ROWS: TickerRow[] = [
-  { id: 't-1',  kind: 'gig-settled',     amountSol: 0.50, meta: '📦 Lagos · @yemi → @ade',       timestamp: '12s ago' },
-  { id: 't-2',  kind: 'offer-settled',   amountSol: 2.00, fiatAmount: 490_000, currency: 'NGN', meta: '🇳🇬 OPay · 30m window',          timestamp: '38s ago' },
-  { id: 't-3',  kind: 'gig-settled',     amountSol: 1.20, meta: '📸 Nairobi · @kimani → @aisha', timestamp: '1m ago'  },
-  { id: 't-4',  kind: 'offer-published', amountSol: 0.80, fiatAmount: 17_500,  currency: 'KES', meta: '🇰🇪 M-Pesa · awaiting buyer',    timestamp: '2m ago'  },
-  { id: 't-5',  kind: 'gig-settled',     amountSol: 0.30, meta: '🏃 Sandton · @thandi → @sipho', timestamp: '3m ago'  },
-  { id: 't-6',  kind: 'offer-settled',   amountSol: 3.20, fiatAmount: 4_320,   currency: 'GHS', meta: '🇬🇭 MoMo · settled',             timestamp: '4m ago'  },
-  { id: 't-7',  kind: 'gig-settled',     amountSol: 1.50, meta: '💻 Lagos · @chiamaka → @femi',  timestamp: '5m ago'  },
-  { id: 't-8',  kind: 'offer-settled',   amountSol: 0.50, fiatAmount: 76,       currency: 'USD', meta: '🇺🇸 Wise · settled',             timestamp: '6m ago'  },
-  { id: 't-9',  kind: 'gig-settled',     amountSol: 0.45, meta: '🛠 Lagos · @tunde → @musa',     timestamp: '7m ago'  },
-  { id: 't-10', kind: 'offer-published', amountSol: 1.10, fiatAmount: 95,       currency: 'EUR', meta: '🇪🇺 SEPA · awaiting buyer',      timestamp: '8m ago'  },
+  { id: 't-1',  event: 'settled',  timestamp: 'now',    category: 'EXCHG', context: '@adaeze → @kunle',                   amountSol: 2.000, fiat: { amount: 490_000, currency: 'NGN' }, region: { flag: '🇳🇬', city: 'Lagos',     corridor: 'bank' }, txShort: '5Qf…aL2', fresh: true },
+  { id: 't-2',  event: 'locked',   timestamp: '2s ago', category: 'DEL',   context: 'Drop laptop · Yaba → Surulere',       amountSol: 0.50,  pairExtra: { label: 'fee', value: '0.0125' },    region: { flag: '🇳🇬', city: 'Lagos' },                       txShort: '9Tk…rNx' },
+  { id: 't-3',  event: 'approved', timestamp: '7s ago', category: 'SVC',   context: 'Fix bathroom faucet leak · @rashim',  amountSol: 0.80,  pairExtra: { label: 'fee', value: '0.0200' },    region: { flag: '🇰🇪', city: 'Nairobi' },                     txShort: '3Mw…pXq' },
+  { id: 't-4',  event: 'proof',    timestamp: '14s ago',category: 'PHOTO', context: 'Event photos · 2hr shoot',             amountSol: 1.20,  pairExtra: { label: 'cid', value: 'bafy…q9w' },  region: { flag: '🇬🇭', city: 'Accra' },                       txShort: '7Pa…eN3' },
+  { id: 't-5',  event: 'settled',  timestamp: '22s ago',category: 'EXCHG', context: '@maya → @bongani',                    amountSol: 0.500, fiat: { amount: 1_720,   currency: 'ZAR' }, region: { flag: '🇿🇦', city: 'Cape Town', corridor: 'bank' }, txShort: '2Hb…yKd' },
+  { id: 't-6',  event: 'locked',   timestamp: '31s ago',category: 'ERR',   context: 'Pickup groceries from Shoprite',      amountSol: 0.18,  pairExtra: { label: 'fee', value: '0.0045' },    region: { flag: '🇰🇪', city: 'Nairobi' },                     txShort: '8Yz…cM1' },
+  { id: 't-7',  event: 'approved', timestamp: '48s ago',category: 'DIG',   context: 'Edit 90-second product reel',         amountSol: 1.50,  pairExtra: { label: 'fee', value: '0.0375' },    region: { flag: '🇳🇬', city: 'Lagos' },                       txShort: '4Lv…sQ7' },
+  { id: 't-8',  event: 'settled',  timestamp: '1m ago', category: 'EXCHG', context: '@noah → @lerato',                     amountSol: 1.500, fiat: { amount: 230,     currency: 'USD' }, region: { flag: '🇺🇸', city: 'Remote',    corridor: 'wise' }, txShort: '6Wd…tJ5' },
+  { id: 't-9',  event: 'proof',    timestamp: '1m ago', category: 'DEL',   context: 'Deliver invitation cards · Yaba',     amountSol: 0.30,  pairExtra: { label: 'cid', value: 'bafy…m3p' },  region: { flag: '🇳🇬', city: 'Lagos' },                       txShort: '1Kg…aE8' },
+  { id: 't-10',event: 'locked',   timestamp: '2m ago', category: 'EXCHG', context: '@kwabena offered',                    amountSol: 3.20,  fiat: { amount: 4_320,   currency: 'GHS' }, region: { flag: '🇬🇭', city: 'Accra',     corridor: 'momo' }, txShort: '7Bn…hT4' },
 ]

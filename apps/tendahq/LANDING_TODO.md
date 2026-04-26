@@ -192,10 +192,10 @@ References per section:
 - [x] **3.4.4** Each step card has hero number background, H3 title, body
 
 ### §05 Live ticker (`sections/live-ticker/`)
-- [ ] **3.5.1** `content.ts` — section heading + caption
-- [ ] **3.5.2** `LiveTicker.tsx` — two `MarqueeRow`s opposite directions
-- [ ] **3.5.3** Top row uses `MOCK_LIVE_ROWS.gigs`, bottom row uses `MOCK_LIVE_ROWS.exchange`
-- [ ] **3.5.4** "What's live right now" header above with `LiveDot`
+- [x] **3.5.1** `content.ts` — section heading + caption
+- [x] **3.5.2** `LiveTicker.tsx` — two `MarqueeRow`s opposite directions
+- [x] **3.5.3** Top row uses `MOCK_LIVE_ROWS.gigs`, bottom row uses `MOCK_LIVE_ROWS.exchange`
+- [x] **3.5.4** "What's live right now" header above with `LiveDot`
 
 ### §06 Why Tenda (`sections/why-tenda/`)
 - [ ] **3.6.1** `content.ts` — 4 pillars (Settlement, Fees, Cash-out, Disputes)

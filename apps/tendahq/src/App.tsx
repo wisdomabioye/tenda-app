@@ -5,6 +5,7 @@ import { Hero } from './components/sections/hero/Hero'
 import { TrustStrip } from './components/sections/trust-strip/TrustStrip'
 import { TwoProducts } from './components/sections/two-products/TwoProducts'
 import { HowEscrowWorks } from './components/sections/how-escrow-works/HowEscrowWorks'
+import { LiveTicker } from './components/sections/live-ticker/LiveTicker'
 import { Terms } from './components/sections/Terms'
 import { Privacy } from './components/sections/Privacy'
 
@@ -16,6 +17,7 @@ function LandingPage() {
       <TrustStrip />
       <TwoProducts />
       <HowEscrowWorks />
+      <LiveTicker />
     </>
   )
 }
