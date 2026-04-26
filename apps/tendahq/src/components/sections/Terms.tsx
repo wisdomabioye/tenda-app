@@ -76,8 +76,8 @@ export function Terms() {
 
         <LegalSection title="5. Platform Fee">
           <p>
-            A platform fee of {APP_INFO.stats[1].value} is deducted from the gig payment upon release
-            from escrow. This fee is subject to change with notice.
+            A platform fee is deducted from the gig payment upon release from escrow. The current
+            rate is published in-app and may change with notice.
           </p>
         </LegalSection>
 

@@ -82,30 +82,30 @@ Files: `package.json`, `src/index.css`, `src/main.tsx`, `src/env.ts`, `.env.exam
 
 Files: `src/app-info.ts`, `src/data/*.ts`, `src/api/platform.ts`
 
-- [ ] **1.1** Refactor `src/app-info.ts` to keep ONLY app-wide facts:
+- [x] **1.1** Refactor `src/app-info.ts` to keep ONLY app-wide facts:
   - name, tagline, description, apkUrl, appStoreUrl, playStoreUrl
   - Social URLs (twitter, whatsapp, discord, github, telegram)
   - Version string (e.g. `v0.2.0-devnet`)
   - Build location (`Lagos`)
   - Country count claim (decision needed — 14? confirm with product)
   - **Remove** `stats`, `howItWorksEarn`, `howItWorksPost` arrays — those move to section content files
-- [ ] **1.2** Create `src/data/stats.ts`:
+- [x] **1.2** Create `src/data/stats.ts`:
   - `LIVE_STATS_KEYS` — typed list of fields populated from API
   - `PLACEHOLDER_STATS` — every wireframe number flagged `placeholder: true`
   - One exported helper `getStat(key)` so the placeholder badge renders consistently
-- [ ] **1.3** Create `src/data/currencies.ts` — re-export 8 fiat currencies with `{ code, name, flag, symbol }`
-- [ ] **1.4** Create `src/data/categories.ts` — 5 gig categories with `{ id, label, icon, tone }` (icon = Lucide name; tone = CSS var name)
-- [ ] **1.5** Create `src/data/mock-feed.ts`:
+- [x] **1.3** Create `src/data/currencies.ts` — re-export 8 fiat currencies with `{ code, name, flag, symbol }`
+- [x] **1.4** Create `src/data/categories.ts` — 5 gig categories with `{ id, label, icon, tone }` (icon = Lucide name; tone = CSS var name)
+- [x] **1.5** Create `src/data/mock-feed.ts`:
   - `MOCK_LIVE_ROWS` — for §05 ticker (drawn from `05-live-ticker.html`)
   - `MOCK_GIG_CARDS` — for §03 left card (drawn from `home.html`)
   - `MOCK_OFFER_CARDS` — for §03 right card (drawn from `exchange-detail.html`)
   - All exported `as const` so types stay narrow
-- [ ] **1.6** Create `src/api/platform.ts`:
-  - [ ] **1.6.1** `fetchPlatformConfig()` → typed `{ fee_bps, seeker_fee_bps, grace_period_seconds }`
-  - [ ] **1.6.2** `fetchExchangeRates()` → typed `{ rates: Record<CurrencyCode, number>, fetched_at: number }`
-  - [ ] **1.6.3** Module-level cache + 5-min TTL (mirror server cache)
-  - [ ] **1.6.4** AbortController on unmount
-- [ ] **1.7** Create `src/api/usePlatformConfig.ts` and `src/api/useExchangeRates.ts` — React hooks consuming the cached fetchers, return `{ data, loading, error }`
+- [x] **1.6** Create `src/api/platform.ts`:
+  - [x] **1.6.1** `fetchPlatformConfig()` → typed `{ fee_bps, seeker_fee_bps, grace_period_seconds }`
+  - [x] **1.6.2** `fetchExchangeRates()` → typed `{ rates: Record<CurrencyCode, number>, fetched_at: number }`
+  - [x] **1.6.3** Module-level cache + 5-min TTL (mirror server cache)
+  - [x] **1.6.4** AbortController on unmount
+- [x] **1.7** Create `src/api/usePlatformConfig.ts` and `src/api/useExchangeRates.ts` — React hooks consuming the cached fetchers, return `{ data, loading, error }`
 
 **Acceptance:** open dev tools, `usePlatformConfig()` returns `{ fee_bps: 250, seeker_fee_bps: 100, grace_period_seconds: 86400 }`. Cache survives re-render. Aborted on unmount.
 
