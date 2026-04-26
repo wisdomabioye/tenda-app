@@ -36,13 +36,19 @@ export function usePlatformConfig(): State {
 
 /**
  * Convenience: returns fee percentages already converted from bps.
- * `null` while loading, `null` on error — caller decides fallback.
+ *
+ *   posterFeePct → base platform fee charged to posters / sellers
+ *   seekerFeePct → discounted platform fee charged when the poster / seller
+ *                  is on a Solana Mobile (Seeker) device. **Not** a worker
+ *                  fee — workers and buyers pay zero today.
+ *
+ * `null` while loading or on error — caller decides fallback.
  */
-export function useFeePercents(): { posterFeePct: number | null; workerFeePct: number | null } {
+export function useFeePercents(): { posterFeePct: number | null; seekerFeePct: number | null } {
   const { data } = usePlatformConfig()
-  if (!data) return { posterFeePct: null, workerFeePct: null }
+  if (!data) return { posterFeePct: null, seekerFeePct: null }
   return {
     posterFeePct: data.fee_bps / 100,
-    workerFeePct: data.seeker_fee_bps / 100,
+    seekerFeePct: data.seeker_fee_bps / 100,
   }
 }

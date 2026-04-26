@@ -13,7 +13,7 @@
 
 export const LIVE_STATS_KEYS = [
   'posterFeePct',          // from /v1/platform/config — fee_bps / 100
-  'workerFeePct',          // from /v1/platform/config — seeker_fee_bps / 100
+  'seekerFeePct',          // from /v1/platform/config — seeker_fee_bps / 100 (Solana Mobile discount on poster/seller fee)
   'gracePeriodSeconds',    // from /v1/platform/config — used to compute auto-release windows
   'exchangeRates',         // from /v1/platform/exchange-rates — Record<CurrencyCode, number>
 ] as const
