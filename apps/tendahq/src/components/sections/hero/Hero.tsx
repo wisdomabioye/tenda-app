@@ -55,23 +55,42 @@ export function Hero() {
               <em className="not-italic text-[var(--accent)]">{HERO_CONTENT.h1.line3}</em>
             </h1>
 
-            <p className="body-lg max-w-[58ch] text-[var(--content-secondary)]">
-              {HERO_CONTENT.ribbon[0]}{' '}
-              <span className="font-semibold text-[var(--content-primary)]">
+            <div className="flex max-w-[58ch] flex-col gap-3">
+              <p className="body-lg text-[var(--content-secondary)]">
+                {HERO_CONTENT.ribbon[0]}
+              </p>
+              <span
+                aria-hidden
+                className="block h-px w-12"
+                style={{
+                  background:
+                    'linear-gradient(90deg, color-mix(in oklab, var(--accent) 56%, transparent), transparent)',
+                }}
+              />
+              <p className="body-lg font-semibold text-[var(--content-primary)]">
                 {HERO_CONTENT.ribbon[1]}
-              </span>
-            </p>
+              </p>
+            </div>
 
             <HeroStatRow />
 
-            <div className="flex flex-wrap items-center gap-3">
-              <Button href={APP_INFO.apkUrl} variant="primary" size="xl">
-                <Download className="h-5 w-5" />
-                {HERO_CONTENT.cta.primary}
-              </Button>
-              <Button href={HERO_CONTENT.cta.secondaryHref} variant="outline-subtle" size="xl">
-                {HERO_CONTENT.cta.secondary}
-              </Button>
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button href={APP_INFO.apkUrl} variant="primary" size="xl">
+                  <Download className="h-5 w-5" />
+                  {HERO_CONTENT.cta.primary}
+                </Button>
+                <Button href={HERO_CONTENT.cta.secondaryHref} variant="outline-subtle" size="xl">
+                  {HERO_CONTENT.cta.secondary}
+                </Button>
+              </div>
+              <a
+                href="#trust"
+                className="caption inline-flex items-center gap-2 self-start uppercase tracking-[0.16em] text-[var(--content-tertiary)] transition-colors hover:text-[var(--content-primary)]"
+              >
+                <span aria-hidden className="motion-safe:animate-bounce">↓</span>
+                Scroll · live proof below
+              </a>
             </div>
           </div>
 

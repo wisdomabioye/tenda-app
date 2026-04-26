@@ -1,5 +1,8 @@
 import type { ProofFeedRow } from '@/data/mock-feed'
+import { CURRENCIES } from '@/data/currencies'
 import { cn } from '@/lib/cn'
+
+const FIAT = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
 
 interface Props {
   row: ProofFeedRow
@@ -38,6 +41,12 @@ export function ProofRow({ row, compact = false, className }: Props) {
       <span className="shrink-0 font-semibold text-[var(--content-primary)]">
         {row.amountSol.toFixed(3)} SOL
       </span>
+      {row.fiat && (
+        <span className="shrink-0 text-[11px] text-[var(--content-tertiary)]">
+          @ {CURRENCIES[row.fiat.currency].symbol}
+          {FIAT.format(row.fiat.amount)}
+        </span>
+      )}
       <span className="min-w-0 truncate text-[var(--content-secondary)]">{row.who}</span>
       {!compact && (
         <span className="shrink-0 text-[var(--content-tertiary)] text-[11px]">{row.sig}</span>

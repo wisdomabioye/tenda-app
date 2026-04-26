@@ -18,6 +18,7 @@ import { ProofRow } from './ProofRow'
 export function TrustStrip() {
   return (
     <section
+      id="trust"
       data-theme="dark"
       className="relative isolate w-full bg-[var(--surface-bg)] text-[var(--content-primary)]"
       style={{

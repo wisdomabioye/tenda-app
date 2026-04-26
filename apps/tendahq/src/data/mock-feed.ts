@@ -103,16 +103,18 @@ export interface ProofFeedRow {
   sig: string
   /** Human relative time, e.g. "12s ago". */
   ago: string
+  /** Present on exchange-typed events — surfaces fiat-side amount next to SOL. */
+  fiat?: { amount: number; currency: CurrencyCode }
 }
 
 export const MOCK_PROOF_FEED: readonly ProofFeedRow[] = [
   { id: 'p-1', verb: 'released', amountSol: 0.500, who: '@yemi → poster',     sig: '5kJ2…b9q1', ago: '12s ago' },
-  { id: 'p-2', verb: 'locked',   amountSol: 2.000, who: '@chiamaka offered',  sig: '7Lp3…f2d8', ago: '38s ago' },
+  { id: 'p-2', verb: 'locked',   amountSol: 2.000, who: '@chiamaka offered',  sig: '7Lp3…f2d8', ago: '38s ago', fiat: { amount: 490_000, currency: 'NGN' } },
   { id: 'p-3', verb: 'released', amountSol: 1.200, who: '@kimani → @maina',   sig: '9Wq8…a3c2', ago: '1m ago'  },
-  { id: 'p-4', verb: 'locked',   amountSol: 5.500, who: '@kwame offered',     sig: '2Hn4…e7b5', ago: '2m ago'  },
+  { id: 'p-4', verb: 'locked',   amountSol: 5.500, who: '@kwame offered',     sig: '2Hn4…e7b5', ago: '2m ago',  fiat: { amount: 1_925,   currency: 'GHS' } },
   { id: 'p-5', verb: 'released', amountSol: 0.850, who: '@thandi → @lebo',    sig: '4Mr1…c5a9', ago: '3m ago'  },
   { id: 'p-6', verb: 'released', amountSol: 0.300, who: '@rashim → @noor',    sig: '6Yt5…d8f3', ago: '4m ago'  },
-  { id: 'p-7', verb: 'locked',   amountSol: 1.100, who: '@ada offered',       sig: '3Bx7…h2j6', ago: '5m ago'  },
+  { id: 'p-7', verb: 'locked',   amountSol: 1.100, who: '@ada offered',       sig: '3Bx7…h2j6', ago: '5m ago',  fiat: { amount: 95,       currency: 'EUR' } },
   { id: 'p-8', verb: 'disputed', amountSol: 0.450, who: '@tunde · review',    sig: '8Vk0…m9n4', ago: '6m ago'  },
 ] as const
 

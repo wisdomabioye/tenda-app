@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ChevronRight, Menu, Moon, Sun, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { Wordmark } from '@/components/ui/Wordmark'
 import { useTheme } from '@/theme/ThemeProvider'
 import { APP_INFO } from '@/app-info'
 import { NAV_LABELS, NAV_LINKS } from './nav-content'
 import { cn } from '@/lib/cn'
-import logoFull from '@/assets/logo-full.png'
 
 export function Navbar() {
   const { pathname } = useLocation()
@@ -37,7 +37,7 @@ export function Navbar() {
       >
         <div className="container-page flex h-16 items-center justify-between">
           <a href="/" className="flex items-center gap-2 no-underline" aria-label={NAV_LABELS.brandAlt}>
-            <img src={logoFull} alt={APP_INFO.name} className="h-7 w-auto" />
+            <Wordmark size="md" />
           </a>
 
           <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
@@ -90,7 +90,13 @@ function ThemeToggle({ resolved, onToggle }: { resolved: 'light' | 'dark'; onTog
       aria-label={NAV_LABELS.toggleTheme}
       aria-pressed={resolved === 'dark'}
       onClick={onToggle}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--content-primary)] transition-colors hover:bg-[var(--surface-bg-alt)]"
+      className={cn(
+        'inline-flex h-9 w-9 items-center justify-center rounded-xl border text-[var(--content-primary)] transition-colors',
+        'hover:bg-[var(--surface-bg-alt)]',
+        resolved === 'dark'
+          ? 'border-[var(--border-default)] bg-[color-mix(in_oklab,var(--brand-surface)_60%,transparent)] text-[var(--brand)]'
+          : 'border-transparent',
+      )}
     >
       <Icon className="h-4 w-4" />
     </button>
