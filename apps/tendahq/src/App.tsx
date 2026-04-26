@@ -9,6 +9,7 @@ import { LiveTicker } from './components/sections/live-ticker/LiveTicker'
 import { WhyTenda } from './components/sections/why-tenda/WhyTenda'
 import { Coverage } from './components/sections/coverage-map/Coverage'
 import { ThreeAudiences } from './components/sections/three-audiences/ThreeAudiences'
+import { FAQ } from './components/sections/faq/FAQ'
 import { Terms } from './components/sections/Terms'
 import { Privacy } from './components/sections/Privacy'
 
@@ -24,6 +25,7 @@ function LandingPage() {
       <WhyTenda />
       <Coverage />
       <ThreeAudiences />
+      <FAQ />
     </>
   )
 }

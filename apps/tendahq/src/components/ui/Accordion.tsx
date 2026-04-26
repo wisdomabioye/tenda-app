@@ -5,7 +5,8 @@ import { cn } from '@/lib/cn'
 
 export interface AccordionItem {
   id: string
-  question: string
+  /** ReactNode so callers can mix coloured prefixes (e.g. green `Q.01 ·`) into the heading. */
+  question: ReactNode
   answer: ReactNode
 }
 

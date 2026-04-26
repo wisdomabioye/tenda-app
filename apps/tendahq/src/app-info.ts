@@ -11,13 +11,13 @@ export const APP_INFO = {
     'Post or accept gigs with instant on-chain escrow. Proof required. Payment guaranteed.',
 
   /** Distribution. */
-  apkUrl: 'https://github.com/wisdomabioye/tenda-app/releases/download/v0.2.0-devnet/v0.2.0-devnet.apk',
+  apkUrl: 'https://github.com/wisdomabioye/tenda-app/releases/download/v0.2.1-devnet.apk/v0.2.1-devnet.apk',
   appStoreUrl: '#',
   playStoreUrl: '#',
   qrTarget: 'tenda.so/get',
 
   /** Build / release. */
-  version: 'v0.2.0-devnet',
+  version: 'v0.2.1-devnet',
   buildLocation: 'Lagos',
 
   /** Solana chain identity surfaced in the proof band + footer status. */
@@ -33,7 +33,7 @@ export const APP_INFO = {
   whatsappUrl: 'https://chat.whatsapp.com/EeB5OMalNy0EbMlU4QPZMr?mode=hq2tcli',
   discordUrl: '#',
   githubUrl: '#',
-  telegramUrl: '#',
+  telegramUrl: 'https://t.me/tendahq',
 } as const
 
 export type AppInfo = typeof APP_INFO
