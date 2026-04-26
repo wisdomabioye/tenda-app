@@ -121,7 +121,10 @@ function HeroBackground() {
         className="pointer-events-none absolute inset-0 z-0"
         style={{
           background:
-            'radial-gradient(circle at 82% 38%, rgba(94,135,232,0.10), transparent 55%), radial-gradient(circle at 8% 75%, rgba(240,163,101,0.06), transparent 50%)',
+            // Warmer pass: orange blob bumped 0.06 → 0.14 and pulled inward
+            // (8%/75% → 18%/65%) so the page's distinctive accent has presence
+            // alongside the brand-blue blob behind the wall.
+            'radial-gradient(circle at 78% 38%, rgba(94,135,232,0.10), transparent 55%), radial-gradient(circle at 18% 65%, rgba(240,163,101,0.14), transparent 52%)',
         }}
       />
     </>

@@ -66,7 +66,7 @@ export function OfferSummary({ offer, className }: Props) {
           Rate · {meta.symbol}
           {RATE.format(offer.rate)} / SOL
         </span>
-        <span className="mono-sm font-semibold text-[var(--success)]">
+        <span className="mono-sm font-semibold text-[var(--money)]">
           ▲ {offer.spreadPct.toFixed(1)}% above market
         </span>
       </div>

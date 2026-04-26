@@ -34,7 +34,7 @@ function Header() {
     <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
       <div>
         <p className="eyebrow text-[var(--content-tertiary)]">
-          <span className="mono font-semibold text-[var(--accent)]">{WHY_HEADER.eyebrow.num}</span>
+          <span className="mono font-semibold text-[var(--content-secondary)]">{WHY_HEADER.eyebrow.num}</span>
           <span className="mx-2 opacity-60">·</span>
           {WHY_HEADER.eyebrow.label}
         </p>

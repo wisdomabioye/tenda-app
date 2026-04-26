@@ -77,7 +77,7 @@ export function MockEscrowCard({
       className={cn(
         'relative w-full max-w-[400px] rounded-[28px] border bg-[var(--surface-card)] p-7',
         featured
-          ? 'border-[var(--brand-border)]'
+          ? 'border-[color-mix(in_oklab,var(--success)_36%,transparent)]'
           : 'border-[var(--border-default)] shadow-[var(--shadow-modal)]',
         className,
       )}
@@ -89,7 +89,7 @@ export function MockEscrowCard({
           className="pointer-events-none absolute inset-x-0 top-0 h-px"
           style={{
             background:
-              'linear-gradient(90deg, transparent, color-mix(in oklab, var(--brand) 70%, transparent), transparent)',
+              'linear-gradient(90deg, transparent, color-mix(in oklab, var(--success) 70%, transparent), transparent)',
           }}
         />
       )}

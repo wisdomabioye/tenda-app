@@ -44,7 +44,7 @@ function BalanceHero() {
       className="relative shrink-0 overflow-hidden rounded-2xl border border-[var(--border-default)] p-4"
       style={{
         background:
-          'linear-gradient(135deg, color-mix(in oklab, var(--brand) 14%, transparent), color-mix(in oklab, var(--success) 6%, transparent))',
+          'linear-gradient(135deg, color-mix(in oklab, var(--brand) 14%, transparent), color-mix(in oklab, var(--money) 6%, transparent))',
       }}
     >
       <span
@@ -90,14 +90,14 @@ function EarningCell({ label, value, tone }: { label: string; value: string; ton
       <p className="caption inline-flex items-center gap-1.5 uppercase tracking-[0.08em] text-[var(--content-tertiary)]">
         <span
           className="h-1.5 w-1.5 rounded-full"
-          style={{ background: tone === 'pos' ? 'var(--success)' : 'var(--negative)' }}
+          style={{ background: tone === 'pos' ? 'var(--money)' : 'var(--negative)' }}
         />
         {label}
       </p>
       <p
         className="mono mt-1.5 font-bold"
         style={{
-          color: tone === 'pos' ? 'var(--success)' : 'var(--negative)',
+          color: tone === 'pos' ? 'var(--money)' : 'var(--negative)',
           fontSize: 16,
           letterSpacing: '-0.02em',
         }}
@@ -211,7 +211,7 @@ function TxRow({
         <p
           className="mono font-semibold"
           style={{
-            color: tone === 'pos' ? 'var(--success)' : 'var(--negative)',
+            color: tone === 'pos' ? 'var(--money)' : 'var(--negative)',
             fontSize: 12,
           }}
         >

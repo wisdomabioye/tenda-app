@@ -30,7 +30,7 @@ function Header() {
     <div className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
       <div>
         <p className="eyebrow inline-flex flex-wrap items-center gap-2 text-[var(--content-tertiary)]">
-          <span className="mono font-bold text-[var(--accent)]">{TICKER_HEADER.eyebrow.num}</span>
+          <span className="mono font-bold text-[var(--content-secondary)]">{TICKER_HEADER.eyebrow.num}</span>
           <span className="opacity-60">·</span>
           <span>{TICKER_HEADER.eyebrow.label}</span>
           <span className="caption inline-flex items-center gap-1.5 rounded-full bg-[color-mix(in_oklab,var(--success)_12%,transparent)] px-2 py-0.5 uppercase tracking-[0.16em] text-[var(--success)]">

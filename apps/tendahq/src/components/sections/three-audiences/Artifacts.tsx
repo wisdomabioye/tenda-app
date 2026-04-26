@@ -164,7 +164,7 @@ export function TraderOrderbook() {
         </span>
         <span className="mono-sm font-semibold text-[var(--content-primary)]">
           26.435{' '}
-          <span className="text-[var(--success)]">▲ 0.04%</span>
+          <span className="text-[var(--money)]">▲ 0.04%</span>
         </span>
       </div>
 
@@ -177,7 +177,8 @@ export function TraderOrderbook() {
 }
 
 function OrderbookCol({ side, rows }: { side: 'bid' | 'ask'; rows: readonly { px: string; sz: string }[] }) {
-  const tone = side === 'bid' ? 'text-[var(--success)]' : 'text-[var(--danger)]'
+  // Bids = positive money side, asks = ask-price (red but neutral). --money / --danger.
+  const tone = side === 'bid' ? 'text-[var(--money)]' : 'text-[var(--danger)]'
   return (
     <div className="flex flex-col gap-1">
       {rows.map((r) => (

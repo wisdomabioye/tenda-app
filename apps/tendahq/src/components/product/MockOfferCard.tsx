@@ -22,8 +22,9 @@ export function MockOfferCard({ offer, className }: Props) {
   const meta = CURRENCIES[offer.currency]
   const fiatFormatted = new Intl.NumberFormat('en-US').format(offer.fiatAmount)
   const rateFormatted = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(offer.rate)
+  // Spread is a money-direction signal, not a state — use --money / --negative.
   const spreadColor =
-    offer.spreadPct >= 0 ? 'text-[var(--success)]' : 'text-[var(--warning)]'
+    offer.spreadPct >= 0 ? 'text-[var(--money)]' : 'text-[var(--warning)]'
 
   return (
     <div

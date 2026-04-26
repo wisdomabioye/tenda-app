@@ -6,7 +6,7 @@ export function FinalCtaHeader() {
     <div className="flex flex-col gap-6">
       <p className="eyebrow inline-flex items-center gap-2 text-[var(--content-tertiary)]">
         <LiveDot size={6} pulseMs={1600} />
-        <span className="mono font-semibold text-[var(--accent)]">{FINAL_CTA_HEADER.eyebrow.num}</span>
+        <span className="mono font-semibold text-[var(--content-secondary)]">{FINAL_CTA_HEADER.eyebrow.num}</span>
         <span className="opacity-60">·</span>
         <span>{FINAL_CTA_HEADER.eyebrow.label}</span>
       </p>

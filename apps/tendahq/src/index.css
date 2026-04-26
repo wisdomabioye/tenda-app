@@ -123,11 +123,15 @@
       --surface-pressed: #1A2030;
       --surface-inverse: #F4F2ED;
 
-      --brand: #5E87E8;
-      --brand-pressed: #7099F0;
-      --brand-surface: rgba(94, 135, 232, 0.14);
-      --brand-border: rgba(94, 135, 232, 0.32);
-      --brand-focus: rgba(94, 135, 232, 0.42);
+      /* Brand stays at the deep saturated #2E5BD6 in dark mode too — the
+         lighter #5E87E8 looked pastel / washed-out on dark surfaces. Tinted
+         surface / border opacities are bumped slightly so the deeper hue
+         still reads against #0D1018. */
+      --brand: #2E5BD6;
+      --brand-pressed: #4774E0;
+      --brand-surface: rgba(46, 91, 214, 0.20);
+      --brand-border: rgba(46, 91, 214, 0.36);
+      --brand-focus: rgba(46, 91, 214, 0.45);
 
       --accent: #F0A365;
       --accent-surface: rgba(240, 163, 101, 0.14);
@@ -194,11 +198,15 @@
     --surface-pressed: #1A2030;
     --surface-inverse: #F4F2ED;
 
-    --brand: #5E87E8;
-    --brand-pressed: #7099F0;
-    --brand-surface: rgba(94, 135, 232, 0.14);
-    --brand-border: rgba(94, 135, 232, 0.32);
-    --brand-focus: rgba(94, 135, 232, 0.42);
+    /* Brand stays at the deep saturated #2E5BD6 in dark mode too — the
+       lighter #5E87E8 looked pastel / washed-out on dark surfaces. Tinted
+       surface / border opacities are bumped slightly so the deeper hue still
+       reads against #0D1018. */
+    --brand: #2E5BD6;
+    --brand-pressed: #4774E0;
+    --brand-surface: rgba(46, 91, 214, 0.20);
+    --brand-border: rgba(46, 91, 214, 0.36);
+    --brand-focus: rgba(46, 91, 214, 0.45);
 
     --accent: #F0A365;
     --accent-surface: rgba(240, 163, 101, 0.14);
@@ -453,6 +461,7 @@
 }
 
 @keyframes featured-glow {
-  0%, 100% { box-shadow: 0 0 0 1px color-mix(in oklab, var(--brand) 8%, transparent), 0 24px 60px color-mix(in oklab, var(--brand) 12%, transparent), 0 8px 24px rgba(0,0,0,0.45); }
-  50%      { box-shadow: 0 0 0 1px color-mix(in oklab, var(--brand) 12%, transparent), 0 28px 70px color-mix(in oklab, var(--brand) 18%, transparent), 0 8px 24px rgba(0,0,0,0.45); }
+  /* Featured wall card represents the "Escrow locked" state — green vocabulary, not brand-blue. */
+  0%, 100% { box-shadow: 0 0 0 1px color-mix(in oklab, var(--success) 10%, transparent), 0 24px 60px color-mix(in oklab, var(--success) 14%, transparent), 0 8px 24px rgba(0,0,0,0.45); }
+  50%      { box-shadow: 0 0 0 1px color-mix(in oklab, var(--success) 16%, transparent), 0 28px 70px color-mix(in oklab, var(--success) 22%, transparent), 0 8px 24px rgba(0,0,0,0.45); }
 }
