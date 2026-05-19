@@ -7,18 +7,7 @@ import type { UserRole } from '@tenda/shared'
 import { ErrorCode } from '@tenda/shared'
 import { getConfig } from '@server/config'
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
-  }
-}
-
-declare module '@fastify/jwt' {
-  interface FastifyJWT {
-    payload: { id: string; wallet_address: string; role: UserRole; is_seeker: boolean; country: string | null }
-    user:    { id: string; wallet_address: string; role: UserRole; is_seeker: boolean; country: string | null }
-  }
-}
+// Augmentations live in `src/types/fastify.d.ts`.
 
 // In-process cache of user status + role keyed by user ID.
 // Avoids a DB round-trip on every authenticated request while still

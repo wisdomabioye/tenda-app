@@ -33,11 +33,8 @@ const schema = {
 
 export type AppDatabase = PostgresJsDatabase<typeof schema>
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    db: PostgresJsDatabase<typeof schema>
-  }
-}
+// Augmentation lives in `src/types/fastify.d.ts` so module-load order
+// (ts-node lazy compilation) doesn't determine whether TS sees the decorator.
 
 export default fp(
   async (fastify) => {

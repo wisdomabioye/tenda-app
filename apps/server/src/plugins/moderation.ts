@@ -2,12 +2,7 @@ import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
 import { invalidateBlocklistCache } from '@server/lib/moderation'
 
-declare module 'fastify' {
-  interface FastifyInstance {
-    /** Bust the blocklist cache — call after adding/removing keywords. */
-    invalidateBlocklistCache(): void
-  }
-}
+// Augmentation lives in `src/types/fastify.d.ts`.
 
 const moderationPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.decorate('invalidateBlocklistCache', invalidateBlocklistCache)

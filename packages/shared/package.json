@@ -15,6 +15,16 @@
       "require": "./dist/db/schema.js",
       "default": "./dist/db/schema.js"
     },
+    "./db/schema-v2": {
+      "types": "./dist/db/schema-v2/index.d.ts",
+      "require": "./dist/db/schema-v2/index.js",
+      "default": "./dist/db/schema-v2/index.js"
+    },
+    "./db/schema-v2/*": {
+      "types": "./dist/db/schema-v2/*.d.ts",
+      "require": "./dist/db/schema-v2/*.js",
+      "default": "./dist/db/schema-v2/*.js"
+    },
     "./idl": {
       "types": "./dist/idl/index.d.ts",
       "require": "./dist/idl/index.js",
