@@ -51,6 +51,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     }
   },
   plugins: [
+    './plugins/with-wallet-queries',
     'expo-router',
     [
       'expo-notifications',
