@@ -3,18 +3,13 @@
  * deadline math, and validation. Replaces the per-domain `lib/gigs.ts` +
  * `lib/exchange.ts` + `lib/disputes.ts` split.
  *
- * Status: signatures-only scaffold per Stage 0 first cuts. Implementations
- * land alongside the new collapsed `/v1/escrows/:id/*` routes during the
- * Stage 0 work pass. State-machine reference lives in
- * `multichain-migration-stages/stage-0-foundation.md` § Database.
- *
- * Test coverage owed (see `testing-strategy.md` § Stage 0):
- *   - every transition in `nextStatus()` table
- *   - every guard in `assertCanTransition()` (status + caller + deadline)
- *   - fee math: zero, max, seeker rate, rounding direction
- *   - deadline math: timezone-safe, monotonic
+ * State-machine reference: `multichain-migration-stages/stage-0-foundation.md`
+ * § state-machine diagram. The transition table here is the executable
+ * encoding of that diagram — keep them in sync.
  */
 
+import { AppError } from '@server/lib/errors'
+import { ErrorCode } from '@tenda/shared'
 import type { AmountRaw } from '@server/chains/types'
 
 // ---------- state machine -------------------------------------------------
@@ -64,13 +59,192 @@ export interface TransitionContext {
  * `assertCanTransition(ctx, t)` (it throws on illegal). Splitting the pure
  * mapping from the legality check keeps each function single-purpose and
  * makes testing the transition table cheap.
- *
- * The full transition table is in stage-0 § Database (state-machine diagram).
  */
-export declare function nextStatus(
+export function nextStatus(_ctx: TransitionContext, t: EscrowTransition): EscrowStatus {
+  switch (t) {
+    case 'publish':
+      return 'open'
+    case 'accept':
+      return 'accepted'
+    case 'decline':
+      // Decline keeps status `open` — clears the assignment elsewhere. The
+      // status itself doesn't change. Per stage-0 § state machine + the EVM
+      // contract spec (stage-3-base.md `declineAssignedEscrow`).
+      return 'open'
+    case 'cancel':
+      return 'cancelled'
+    case 'refund_expired':
+    case 'reclaim_abandoned':
+      return 'refunded'
+    case 'submit':
+      return 'submitted'
+    case 'approve':
+    case 'claim_stalled':
+      return 'completed'
+    case 'dispute':
+      return 'disputed'
+    case 'resolve':
+      return 'resolved'
+  }
+}
+
+/**
+ * Throws an `AppError` with a precise code if the transition is disallowed
+ * by the state machine, caller, or deadline. Returns `void` on legal
+ * transitions — call `nextStatus(ctx, t)` next.
+ */
+export function assertCanTransition(ctx: TransitionContext, t: EscrowTransition): void {
+  switch (t) {
+    case 'publish':
+      requireStatus(ctx, 'draft', t)
+      requireCaller(ctx, ['creator'], t)
+      return
+    case 'accept':
+      requireStatus(ctx, 'open', t)
+      if (ctx.is_assigned) {
+        requireCaller(ctx, ['assigned_counterparty'], t)
+      } else {
+        requireCaller(ctx, ['counterparty'], t)
+      }
+      requireBefore(ctx, ctx.accept_deadline, 'accept_deadline')
+      return
+    case 'decline':
+      requireStatus(ctx, 'open', t)
+      if (!ctx.is_assigned) {
+        throw new AppError(
+          409,
+          ErrorCode.ESCROW_WRONG_STATUS,
+          `decline requires an assigned counterparty`,
+        )
+      }
+      requireCaller(ctx, ['assigned_counterparty'], t)
+      return
+    case 'cancel':
+      requireStatus(ctx, 'open', t)
+      requireCaller(ctx, ['creator'], t)
+      return
+    case 'refund_expired':
+      requireStatus(ctx, 'open', t)
+      requireCaller(ctx, ['creator'], t)
+      requireAfter(ctx, ctx.accept_deadline, 'accept_deadline')
+      return
+    case 'submit':
+      requireStatus(ctx, 'accepted', t)
+      requireCaller(ctx, ['counterparty'], t)
+      requireBefore(ctx, addSeconds(ctx.completion_deadline, ctx.grace_period_seconds), 'completion_deadline+grace')
+      return
+    case 'reclaim_abandoned':
+      requireStatus(ctx, 'accepted', t)
+      requireCaller(ctx, ['creator'], t)
+      requireAfter(ctx, addSeconds(ctx.completion_deadline, ctx.grace_period_seconds), 'completion_deadline+grace')
+      return
+    case 'dispute':
+      if (ctx.status !== 'accepted' && ctx.status !== 'submitted') {
+        throw new AppError(
+          409,
+          ErrorCode.ESCROW_WRONG_STATUS,
+          `cannot dispute from status '${ctx.status}'; must be 'accepted' or 'submitted'`,
+        )
+      }
+      requireCaller(ctx, ['creator', 'counterparty'], t)
+      return
+    case 'approve':
+      requireStatus(ctx, 'submitted', t)
+      requireCaller(ctx, ['creator'], t)
+      return
+    case 'claim_stalled':
+      requireStatus(ctx, 'submitted', t)
+      requireCaller(ctx, ['counterparty'], t)
+      requireAfter(ctx, ctx.approval_deadline, 'approval_deadline')
+      return
+    case 'resolve':
+      requireStatus(ctx, 'disputed', t)
+      requireCaller(ctx, ['dispute_admin'], t)
+      return
+  }
+}
+
+/** Convenience: assert + map in one call. */
+export function transition(ctx: TransitionContext, t: EscrowTransition): EscrowStatus {
+  assertCanTransition(ctx, t)
+  return nextStatus(ctx, t)
+}
+
+// ---------- internal guards ----------------------------------------------
+
+function requireStatus(
   ctx: TransitionContext,
+  expected: EscrowStatus,
   t: EscrowTransition,
-): EscrowStatus
+): void {
+  if (ctx.status !== expected) {
+    throw new AppError(
+      409,
+      ErrorCode.ESCROW_WRONG_STATUS,
+      `cannot ${t} from status '${ctx.status}'; must be '${expected}'`,
+    )
+  }
+}
+
+function requireCaller(
+  ctx: TransitionContext,
+  allowed: ReadonlyArray<Caller>,
+  t: EscrowTransition,
+): void {
+  if (!allowed.includes(ctx.caller)) {
+    throw new AppError(
+      403,
+      ErrorCode.ESCROW_WRONG_CALLER,
+      `caller '${ctx.caller}' cannot ${t}; allowed: ${allowed.join(', ')}`,
+    )
+  }
+}
+
+function requireBefore(
+  ctx: TransitionContext,
+  deadline: Date | null,
+  label: string,
+): void {
+  if (deadline === null) {
+    throw new AppError(
+      500,
+      ErrorCode.INTERNAL_ERROR,
+      `${label} missing on escrow row — transition requires it`,
+    )
+  }
+  if (ctx.now.getTime() >= deadline.getTime()) {
+    throw new AppError(
+      409,
+      ErrorCode.ESCROW_DEADLINE_PASSED,
+      `${label} has passed`,
+    )
+  }
+}
+
+function requireAfter(
+  ctx: TransitionContext,
+  deadline: Date | null,
+  label: string,
+): void {
+  if (deadline === null) {
+    throw new AppError(
+      500,
+      ErrorCode.INTERNAL_ERROR,
+      `${label} missing on escrow row — transition requires it`,
+    )
+  }
+  if (ctx.now.getTime() < deadline.getTime()) {
+    throw new AppError(
+      409,
+      ErrorCode.ESCROW_DEADLINE_NOT_REACHED,
+      `${label} not yet reached`,
+    )
+  }
+}
+
+function addSeconds(d: Date | null, seconds: number): Date | null {
+  return d === null ? null : new Date(d.getTime() + seconds * 1000)
+}
 
 // ---------- fee math ------------------------------------------------------
 
@@ -81,11 +255,28 @@ export interface FeeArgs {
   seeker_fee_bps: number
 }
 
-/** Returns the platform fee in raw units, rounded toward zero. */
-export declare function computePlatformFee(args: FeeArgs): AmountRaw
+/**
+ * Returns the platform fee in raw units, rounded toward zero.
+ * BigInt division truncates toward zero — equivalent to floor for non-negative
+ * inputs, which is what we want here (DB CHECK ensures `amount_raw > 0` and
+ * `fee_bps ∈ [0, 10000]`).
+ */
+export function computePlatformFee(args: FeeArgs): AmountRaw {
+  const amount = BigInt(args.amount_raw)
+  const bps = BigInt(effectiveBps(args))
+  return ((amount * bps) / 10_000n).toString()
+}
 
 /** Returns `amount - fee` — what the counterparty actually receives. */
-export declare function computeNetPayout(args: FeeArgs): AmountRaw
+export function computeNetPayout(args: FeeArgs): AmountRaw {
+  const amount = BigInt(args.amount_raw)
+  const fee = BigInt(computePlatformFee(args))
+  return (amount - fee).toString()
+}
+
+function effectiveBps(args: FeeArgs): number {
+  return args.is_seeker ? args.seeker_fee_bps : args.fee_bps
+}
 
 // ---------- deadline math ------------------------------------------------
 
@@ -94,33 +285,37 @@ export interface AcceptDeadlineArgs {
   accept_window_seconds: number
 }
 
-export declare function computeAcceptDeadline(a: AcceptDeadlineArgs): Date
+export function computeAcceptDeadline(a: AcceptDeadlineArgs): Date {
+  return new Date(a.now.getTime() + a.accept_window_seconds * 1000)
+}
 
 export interface CompletionDeadlineArgs {
   accepted_at: Date
   completion_duration_seconds: number
 }
 
-export declare function computeCompletionDeadline(a: CompletionDeadlineArgs): Date
+export function computeCompletionDeadline(a: CompletionDeadlineArgs): Date {
+  return new Date(a.accepted_at.getTime() + a.completion_duration_seconds * 1000)
+}
 
 export interface ApprovalDeadlineArgs {
   submitted_at: Date
   approval_window_seconds: number
 }
 
-export declare function computeApprovalDeadline(a: ApprovalDeadlineArgs): Date
+export function computeApprovalDeadline(a: ApprovalDeadlineArgs): Date {
+  return new Date(a.submitted_at.getTime() + a.approval_window_seconds * 1000)
+}
 
-// ---------- validation guards (lifted from current route handlers) -------
+// ---------- validation guards (DB-dependent — stub for now) --------------
 
 /**
  * Throws if the asset isn't the USDC variant for the chain. Per locked
  * decision #3, gigs accept USDC only — even if the chain has other stables
  * (e.g. cUSD on CELO), they're not gig-eligible.
+ *
+ * Implementation deferred — needs a chain↦USDC asset-id lookup. Likely
+ * sourced from a const map in `chains/index.ts` (Stage 0 work-pass) or a
+ * DB SELECT. Until then, route handlers must enforce manually.
  */
 export declare function assertGigAsset(asset_id: string, chain_id: string): void
-
-/** Throws if the requested transition violates the state-machine table. */
-export declare function assertCanTransition(
-  ctx: TransitionContext,
-  t: EscrowTransition,
-): void

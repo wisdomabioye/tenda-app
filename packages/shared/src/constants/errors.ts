@@ -28,6 +28,16 @@ export const ErrorCode = {
   // Moderation
   CONTENT_MODERATED:             'CONTENT_MODERATED',
   CANNOT_REPORT_SELF:            'CANNOT_REPORT_SELF',
+  // Escrow state machine (v2 — used by lib/escrow.ts state-transition guards)
+  ESCROW_WRONG_STATUS:           'ESCROW_WRONG_STATUS',
+  ESCROW_WRONG_CALLER:           'ESCROW_WRONG_CALLER',
+  ESCROW_DEADLINE_PASSED:        'ESCROW_DEADLINE_PASSED',
+  ESCROW_DEADLINE_NOT_REACHED:   'ESCROW_DEADLINE_NOT_REACHED',
+  ESCROW_INVALID_ASSET:          'ESCROW_INVALID_ASSET',
+  // Auth nonces (v2 — used by lib/nonce.ts; replaces ±5min timestamp window)
+  AUTH_NONCE_UNKNOWN:            'AUTH_NONCE_UNKNOWN',
+  AUTH_NONCE_REPLAY:             'AUTH_NONCE_REPLAY',
+  AUTH_NONCE_EXPIRED:            'AUTH_NONCE_EXPIRED',
   // Generic
   NOT_FOUND:                     'NOT_FOUND',
   VALIDATION_ERROR:              'VALIDATION_ERROR',
