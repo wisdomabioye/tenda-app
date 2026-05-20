@@ -13,9 +13,14 @@
  */
 
 import type { FastifyReply, FastifyRequest } from 'fastify'
-import type { UserRole } from '@tenda/shared'
 import type { AppDatabase } from '../plugins/db'
+// `UserRole` is intentionally NOT imported here. v1's enum and v2's
+// `user_role_v2` enum differ (v2 renames 'dispute_resolver' → 'dispute_admin'
+// + new values). Until #34 cutover removes the v1 schema, JWT.role is typed
+// as `string` so both eras can mint/consume tokens. Restrict-to-v2-enum
+// happens at #34.
 import type { QueueService } from '../plugins/queue'
+import type { ChainRegistry } from '../chains/types'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -30,6 +35,9 @@ declare module 'fastify' {
 
     /** BullMQ queue service — registered by `plugins/queue.ts`. */
     queue: QueueService
+
+    /** Chain adapter registry — registered by `plugins/chains.ts`. */
+    chains: ChainRegistry
   }
 }
 
@@ -38,14 +46,14 @@ declare module '@fastify/jwt' {
     payload: {
       id: string
       wallet_address: string
-      role: UserRole
+      role: string
       is_seeker: boolean
       country: string | null
     }
     user: {
       id: string
       wallet_address: string
-      role: UserRole
+      role: string
       is_seeker: boolean
       country: string | null
     }

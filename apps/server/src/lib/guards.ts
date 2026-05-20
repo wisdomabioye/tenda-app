@@ -12,9 +12,12 @@ import { ErrorCode } from '@tenda/shared'
  * Remove the alias after one full JWT lifetime (7 days) post-migration.
  */
 export function requireRole(...roles: UserRole[]) {
-  const effective = new Set<UserRole>(roles)
+  // Set<string> not Set<UserRole>: JWT.role is widened to string during the
+  // v1↔v2 transition window (see types/fastify.d.ts). The runtime check is
+  // unchanged — set-membership on the role string.
+  const effective = new Set<string>(roles)
   // Backward-compat alias: if super_admin access is required, also accept the legacy 'admin' value
-  if (effective.has('super_admin')) effective.add('admin' as UserRole)
+  if (effective.has('super_admin')) effective.add('admin')
 
   return async (request: FastifyRequest, reply: FastifyReply) => {
     if (!effective.has(request.user.role)) {
