@@ -19,13 +19,13 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { and, eq } from 'drizzle-orm'
 import { user_wallets } from '@tenda/shared/db/schema-v2'
 import type { ChainNamespace } from '@tenda/shared/db/schema-v2/chains'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { drizzleNonceStore, consumeNonce } from '@server/lib/nonce'
 import { assertAuthMessage, parseAuthMessage } from '@server/lib/auth-message'
+import { getConfig } from '@server/config'
 
 interface Body {
   chain_id: string
@@ -53,6 +53,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         parsed,
         expected_chain_id: chain_id,
         expected_address: address,
+        expected_uri: getConfig().API_BASE_URL,
         now: new Date(),
       })
 
@@ -68,31 +69,28 @@ const route: FastifyPluginAsync = async (fastify) => {
 
       const chain_ns = deriveChainNs(chain_id)
 
-      // The wallet must not already be linked anywhere.
-      const existing = await fastify.db
-        .select({ user_id: user_wallets.user_id })
-        .from(user_wallets)
-        .where(
-          and(
-            eq(user_wallets.chain_ns, chain_ns),
-            eq(user_wallets.address, address),
-          ),
-        )
-        .limit(1)
-      if (existing.length > 0) {
+      // Race-safe insert: rely on the (chain_ns, address) UNIQUE constraint
+      // to settle parallel link attempts. `onConflictDoNothing` returns 0
+      // rows when the wallet is already linked anywhere; we map that to
+      // the existing 409. See open_issues.md S0-2.
+      const inserted = await fastify.db
+        .insert(user_wallets)
+        .values({
+          chain_ns,
+          address,
+          user_id: request.user.id,
+          is_primary: false,
+        })
+        .onConflictDoNothing()
+        .returning({ user_id: user_wallets.user_id })
+
+      if (inserted.length === 0) {
         throw new AppError(
           409,
           ErrorCode.VALIDATION_ERROR,
           `wallet ${chain_ns}:${address} is already linked`,
         )
       }
-
-      await fastify.db.insert(user_wallets).values({
-        chain_ns,
-        address,
-        user_id: request.user.id,
-        is_primary: false,
-      })
 
       return { ok: true }
     },

@@ -33,6 +33,20 @@ export type AssetId = string
 export type AmountRaw = string
 
 /**
+ * Type guard for `AmountRaw`. The string must be a non-empty decimal integer
+ * (no sign, no decimal point, no whitespace, no leading zeros except `'0'`
+ * itself). Postgres `numeric(78,0)` accepts wider input than this, but every
+ * Stage-0 producer (fee math, dispute bond, on-chain payloads) wants the
+ * canonical form to avoid `BigInt('  42 ')` and other parser surprises. See
+ * open_issues.md S0-6.
+ */
+const AMOUNT_RAW_RE = /^(0|[1-9][0-9]*)$/
+
+export function isAmountRaw(value: unknown): value is AmountRaw {
+  return typeof value === 'string' && AMOUNT_RAW_RE.test(value)
+}
+
+/**
  * Discriminated escrow action. The wire-name (`'createEscrow'`) maps to the
  * Solana instruction / Solidity function 1:1 — adapters do not rename.
  */

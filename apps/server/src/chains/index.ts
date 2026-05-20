@@ -37,7 +37,12 @@ export function buildChainRegistry(config: Config): ChainRegistry {
   // URL differs per network. Explicit map (not a fallthrough) so an
   // unsupported value like SOLANA_NETWORK='testnet' fails at boot rather
   // than silently aliasing to devnet — testnet has no seeded `assets` rows.
-  const SOLANA_CHAIN_ID_BY_NETWORK: Record<string, ChainId> = {
+  // `Partial<Record<string, ChainId>>` (vs `Record<...>`) so an unknown key
+  // returns `ChainId | undefined` at the type level. Without this the
+  // undefined check below would be flagged unreachable by stricter checkers
+  // (the postgres `numeric` driver would still throw at runtime, but the
+  // type system wouldn't tell us we need the guard). Closes open_issues.md S0-3.
+  const SOLANA_CHAIN_ID_BY_NETWORK: Partial<Record<string, ChainId>> = {
     'mainnet-beta': 'solana:mainnet',
     devnet: 'solana:devnet',
   }

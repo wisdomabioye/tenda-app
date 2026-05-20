@@ -36,6 +36,7 @@ function baseConfig(): Config {
     SOLANA_RPC_URL: 'https://api.devnet.solana.com',
     SOLANA_TREASURY_ADDRESS: 'Treasury1111',
     SOLANA_PROGRAM_ID: 'Tenda11111111111111111111111111111111111',
+    API_BASE_URL: 'https://api.tenda.test',
     PLATFORM_FEE_BPS: 250,
     JWT_EXPIRES_IN: '7d',
     SOLANA_NETWORK: 'devnet',

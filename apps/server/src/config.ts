@@ -7,6 +7,7 @@ const REQUIRED_ENV_VARS = [
   'SOLANA_RPC_URL',
   'SOLANA_TREASURY_ADDRESS',
   'SOLANA_PROGRAM_ID',
+  'API_BASE_URL',
 ] as const
 
 export interface Config {
@@ -17,6 +18,13 @@ export interface Config {
   CLOUDINARY_API_SECRET: string
   SOLANA_RPC_URL: string
   SOLANA_TREASURY_ADDRESS: string  // platform treasury wallet — required for approve_completion
+  /**
+   * Public base URL of this API deployment (no trailing slash). Used by the
+   * wallet auth flow to assert the `URI:` line of the signed auth message
+   * matches this server — cross-deployment replay defense per
+   * stage-1-onboarding.md L263.
+   */
+  API_BASE_URL: string
   // Optional — defaults applied here; do not re-read from process.env elsewhere
   PLATFORM_FEE_BPS: number       // seed fallback only — runtime fee is read from platform_config table
   SOLANA_PROGRAM_ID: string
@@ -55,6 +63,7 @@ export function loadConfig(): Config {
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET!,
     SOLANA_RPC_URL:          process.env.SOLANA_RPC_URL!,
     SOLANA_TREASURY_ADDRESS: process.env.SOLANA_TREASURY_ADDRESS!,
+    API_BASE_URL:            stripTrailingSlash(process.env.API_BASE_URL!),
     PLATFORM_FEE_BPS:      Number(process.env.PLATFORM_FEE_BPS ?? 250),
     SOLANA_PROGRAM_ID:     programId,
     JWT_EXPIRES_IN:        process.env.JWT_EXPIRES_IN ?? '7d',
@@ -77,4 +86,9 @@ export function loadConfig(): Config {
 export function getConfig(): Config {
   if (!_config) return loadConfig()
   return _config
+}
+
+/** Drop a trailing slash so URL comparisons match the auth-message convention. */
+function stripTrailingSlash(s: string): string {
+  return s.endsWith('/') ? s.slice(0, -1) : s
 }

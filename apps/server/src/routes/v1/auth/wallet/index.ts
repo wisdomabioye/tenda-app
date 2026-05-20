@@ -62,12 +62,13 @@ const route: FastifyPluginAsync = async (fastify) => {
       requireString('message', message)
       requireString('signature', signature)
 
-      // 1-2. Parse + validate header (chain, address, age).
+      // 1-2. Parse + validate header (chain, address, URI, age).
       const parsed = parseAuthMessage(message)
       assertAuthMessage({
         parsed,
         expected_chain_id: chain_id,
         expected_address: address,
+        expected_uri: getConfig().API_BASE_URL,
         now: new Date(),
       })
 
@@ -177,7 +178,11 @@ async function findOrCreateUserByWallet(
     return user
   }
 
-  // New wallet → create user + primary wallet atomically.
+  // New wallet → create user + primary wallet atomically. `onConflictDoNothing`
+  // on user_wallets handles the race where a parallel request inserted the
+  // same wallet between our SELECT and INSERT — we then re-resolve the user
+  // via the row that won the race instead of bubbling the UNIQUE-violation
+  // 500. See open_issues.md S0-2.
   return db.transaction(async (tx) => {
     const [created] = await tx
       .insert(users)
@@ -186,12 +191,49 @@ async function findOrCreateUserByWallet(
     if (created === undefined) {
       throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'user insert returned no row')
     }
-    await tx.insert(user_wallets).values({
-      chain_ns: args.chain_ns,
-      address: args.address,
-      user_id: created.id,
-      is_primary: true,
-    })
-    return created
+    const inserted = await tx
+      .insert(user_wallets)
+      .values({
+        chain_ns: args.chain_ns,
+        address: args.address,
+        user_id: created.id,
+        is_primary: true,
+      })
+      .onConflictDoNothing()
+      .returning({ user_id: user_wallets.user_id })
+
+    if (inserted.length > 0) return created
+
+    // Wallet race lost — another request won between our user insert and the
+    // wallet insert. The user row we just made above has no wallet linked to
+    // it; deleting it inside this same transaction keeps the rollback atomic
+    // (net zero rows committed). Without this, every race produces a
+    // permanent orphan user row.
+    await tx.delete(users).where(eq(users.id, created.id))
+
+    // Re-load the user attached to the winning wallet row.
+    const winner = await tx
+      .select({ user_id: user_wallets.user_id })
+      .from(user_wallets)
+      .where(
+        and(
+          eq(user_wallets.chain_ns, args.chain_ns),
+          eq(user_wallets.address, args.address),
+        ),
+      )
+      .limit(1)
+    const winnerRow = winner[0]
+    if (winnerRow === undefined) {
+      throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'wallet race winner not found')
+    }
+    const [winnerUser] = await tx
+      .select()
+      .from(users)
+      .where(eq(users.id, winnerRow.user_id))
+      .limit(1)
+    if (winnerUser === undefined) {
+      throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'race winner has no user row')
+    }
+    return winnerUser
   })
 }

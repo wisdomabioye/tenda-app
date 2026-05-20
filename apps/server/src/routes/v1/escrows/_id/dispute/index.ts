@@ -13,6 +13,7 @@ import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/lib/escrow-routes'
+import { isAmountRaw } from '@server/chains/types'
 
 interface Body { bond_raw: string }
 
@@ -22,11 +23,11 @@ const route: FastifyPluginAsync = async (fastify) => {
     { preHandler: [fastify.authenticate] },
     async (request) => {
       const { bond_raw } = request.body
-      if (typeof bond_raw !== 'string' || !/^[0-9]+$/.test(bond_raw)) {
+      if (!isAmountRaw(bond_raw)) {
         throw new AppError(
           400,
           ErrorCode.VALIDATION_ERROR,
-          'bond_raw required (numeric string)',
+          'bond_raw required (canonical decimal integer string)',
         )
       }
       const cfg = await getPlatformConfig(fastify.db)

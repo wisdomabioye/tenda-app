@@ -319,7 +319,10 @@ export function computeApprovalDeadline(a: ApprovalDeadlineArgs): Date {
  * — Stage 0 cutover targets `solana:devnet`, so it must register before any
  * gig flow exercises it.
  */
-const GIG_ASSET_BY_CHAIN: Readonly<Record<ChainId, AssetId>> = {
+// `Partial<Record<...>>` so indexing an unknown chain returns `AssetId | undefined`
+// at the type level. Without this, TypeScript would consider the undefined
+// check in `assertGigAsset` unreachable. Closes open_issues.md S0-3.
+const GIG_ASSET_BY_CHAIN: Readonly<Partial<Record<ChainId, AssetId>>> = {
   'solana:mainnet': 'USDC_SOL',
   'solana:devnet': 'USDC_SOL',
   'eip155:8453': 'USDC_BASE',
