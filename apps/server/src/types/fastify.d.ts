@@ -15,6 +15,7 @@
 import type { FastifyReply, FastifyRequest } from 'fastify'
 import type { UserRole } from '@tenda/shared'
 import type { AppDatabase } from '../plugins/db'
+import type { QueueService } from '../plugins/queue'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -26,6 +27,9 @@ declare module 'fastify' {
 
     /** Bust the moderation blocklist cache — registered by `plugins/moderation.ts`. */
     invalidateBlocklistCache(): void
+
+    /** BullMQ queue service — registered by `plugins/queue.ts`. */
+    queue: QueueService
   }
 }
 

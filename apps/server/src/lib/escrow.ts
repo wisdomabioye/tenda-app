@@ -10,7 +10,7 @@
 
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
-import type { AmountRaw } from '@server/chains/types'
+import type { AmountRaw, AssetId, ChainId } from '@server/chains/types'
 
 // ---------- state machine -------------------------------------------------
 
@@ -307,15 +307,52 @@ export function computeApprovalDeadline(a: ApprovalDeadlineArgs): Date {
   return new Date(a.submitted_at.getTime() + a.approval_window_seconds * 1000)
 }
 
-// ---------- validation guards (DB-dependent — stub for now) --------------
+// ---------- validation guards -------------------------------------------
 
 /**
- * Throws if the asset isn't the USDC variant for the chain. Per locked
- * decision #3, gigs accept USDC only — even if the chain has other stables
- * (e.g. cUSD on CELO), they're not gig-eligible.
+ * Canonical USDC asset id per chain — the only asset gigs accept (locked
+ * decision #3). Even chains with other stables (cUSD on CELO) restrict gigs
+ * to USDC. Exchange escrows have no asset restriction and don't call this.
  *
- * Implementation deferred — needs a chain↦USDC asset-id lookup. Likely
- * sourced from a const map in `chains/index.ts` (Stage 0 work-pass) or a
- * DB SELECT. Until then, route handlers must enforce manually.
+ * Add a chain here when its `chains` + `assets` rows are seeded (per
+ * stage-3-base.md L228, stage-4-celo.md L48). Testnet variants are explicit
+ * — Stage 0 cutover targets `solana:devnet`, so it must register before any
+ * gig flow exercises it.
  */
-export declare function assertGigAsset(asset_id: string, chain_id: string): void
+const GIG_ASSET_BY_CHAIN: Readonly<Record<ChainId, AssetId>> = {
+  'solana:mainnet': 'USDC_SOL',
+  'solana:devnet': 'USDC_SOL',
+  'eip155:8453': 'USDC_BASE',
+  'eip155:84532': 'USDC_BASE',
+  'eip155:42220': 'USDC_CELO',
+  'eip155:44787': 'USDC_CELO',
+}
+
+/**
+ * Throws if `asset_id` isn't the gig-eligible USDC variant for `chain_id`.
+ * Pure — does not consult the DB. The `assets` table is the canonical source
+ * of truth for asset existence; this guard is a narrow policy filter layered
+ * on top to enforce "USDC only" for gigs without a per-request DB roundtrip.
+ *
+ * Throws `ESCROW_INVALID_ASSET` for both unknown chains and wrong assets —
+ * route handlers should not distinguish the two (both are user-input errors,
+ * not server faults). 422 because the input is well-formed but semantically
+ * rejected by business policy.
+ */
+export function assertGigAsset(asset_id: AssetId, chain_id: ChainId): void {
+  const expected = GIG_ASSET_BY_CHAIN[chain_id]
+  if (expected === undefined) {
+    throw new AppError(
+      422,
+      ErrorCode.ESCROW_INVALID_ASSET,
+      `chain '${chain_id}' is not configured for gig escrows`,
+    )
+  }
+  if (asset_id !== expected) {
+    throw new AppError(
+      422,
+      ErrorCode.ESCROW_INVALID_ASSET,
+      `gigs on '${chain_id}' must use '${expected}'; got '${asset_id}'`,
+    )
+  }
+}

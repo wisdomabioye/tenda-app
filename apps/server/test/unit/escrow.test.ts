@@ -7,6 +7,7 @@ import {
   type EscrowTransition,
   type TransitionContext,
   assertCanTransition,
+  assertGigAsset,
   computeAcceptDeadline,
   computeApprovalDeadline,
   computeCompletionDeadline,
@@ -357,4 +358,59 @@ test('computeApprovalDeadline: zero-second window returns submitted_at', () => {
 test('computeAcceptDeadline: 1-second precision preserved', () => {
   const d = computeAcceptDeadline({ now: T0, accept_window_seconds: 1 })
   assert.strictEqual(d.getTime() - T0.getTime(), 1000)
+})
+
+// ---------- assertGigAsset -----------------------------------------------
+
+test('assertGigAsset: USDC_SOL on solana:mainnet passes', () => {
+  assertGigAsset('USDC_SOL', 'solana:mainnet')
+})
+
+test('assertGigAsset: USDC_SOL on solana:devnet passes (Stage 0 cutover)', () => {
+  assertGigAsset('USDC_SOL', 'solana:devnet')
+})
+
+test('assertGigAsset: USDC_BASE on eip155:8453 passes', () => {
+  assertGigAsset('USDC_BASE', 'eip155:8453')
+})
+
+test('assertGigAsset: USDC_BASE on eip155:84532 (Base Sepolia) passes', () => {
+  assertGigAsset('USDC_BASE', 'eip155:84532')
+})
+
+test('assertGigAsset: USDC_CELO on eip155:42220 passes', () => {
+  assertGigAsset('USDC_CELO', 'eip155:42220')
+})
+
+test('assertGigAsset: USDC_CELO on eip155:44787 (Alfajores) passes', () => {
+  assertGigAsset('USDC_CELO', 'eip155:44787')
+})
+
+test('assertGigAsset: unknown chain → ESCROW_INVALID_ASSET (422)', () => {
+  const err = expectError(
+    () => assertGigAsset('USDC_BASE', 'eip155:1'),
+    'ESCROW_INVALID_ASSET',
+  )
+  assert.strictEqual(err.statusCode, 422)
+})
+
+test('assertGigAsset: non-USDC asset on known chain → ESCROW_INVALID_ASSET', () => {
+  const err = expectError(
+    () => assertGigAsset('SOL', 'solana:mainnet'),
+    'ESCROW_INVALID_ASSET',
+  )
+  assert.strictEqual(err.statusCode, 422)
+})
+
+test('assertGigAsset: cUSD on CELO rejected (locked decision #3 — USDC only)', () => {
+  expectError(() => assertGigAsset('cUSD', 'eip155:42220'), 'ESCROW_INVALID_ASSET')
+})
+
+test('assertGigAsset: cross-chain USDC rejected (USDC_BASE on solana)', () => {
+  expectError(() => assertGigAsset('USDC_BASE', 'solana:mainnet'), 'ESCROW_INVALID_ASSET')
+})
+
+test('assertGigAsset: empty strings rejected', () => {
+  expectError(() => assertGigAsset('', 'solana:mainnet'), 'ESCROW_INVALID_ASSET')
+  expectError(() => assertGigAsset('USDC_SOL', ''), 'ESCROW_INVALID_ASSET')
 })
