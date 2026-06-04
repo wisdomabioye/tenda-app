@@ -13,7 +13,7 @@
 import { buildAuthMessage, solanaChainId, apiConfig, type AuthResponse } from '@tenda/shared'
 import { api } from '@/api/client'
 import { getEnv } from '@/lib/env'
-import { APP_IDENTITY } from '@/wallet'
+import { APP_IDENTITY, connectAndSignMessage, type WalletSession } from '@/wallet'
 
 export interface SignInWithWalletArgs {
   /** Wallet address: base58 (Solana) or 0x-hex (EVM). */
@@ -55,4 +55,76 @@ export async function signInWithWallet(args: SignInWithWalletArgs): Promise<Auth
     ...(args.is_seeker !== undefined ? { is_seeker: args.is_seeker } : {}),
     ...(args.country !== undefined ? { country: args.country } : {}),
   })
+}
+
+// ---------- MWA-backed flows (Android Solana — the working transport) -----
+
+export interface SolanaSignInResult {
+  auth: AuthResponse
+  session: WalletSession
+}
+
+function solanaAuthContext() {
+  return {
+    chain_id: solanaChainId(APP_IDENTITY.network),
+    uri: apiConfig[getEnv()].baseUrl,
+  }
+}
+
+/**
+ * Full sign-in: prefetch nonce (5-min TTL — ample), one MWA session for
+ * connect + sign (message built once the wallet reveals its address), then
+ * the server exchange. Returns null when the user declines in the wallet.
+ */
+export async function solanaSignIn(opts: {
+  mwaAuthToken?: string
+  is_seeker?: boolean
+  country?: string | null
+}): Promise<SolanaSignInResult | null> {
+  const { chain_id, uri } = solanaAuthContext()
+  const { nonce } = await api.auth.nonce()
+
+  const signed = await connectAndSignMessage(
+    (address) => buildAuthMessage({ address, chain_id, uri, nonce }),
+    opts.mwaAuthToken,
+  )
+  if (signed === null) return null
+
+  const auth = await api.auth.wallet({
+    chain_id,
+    address: signed.session.walletAddress,
+    message: signed.message,
+    signature: signed.signature,
+    ...(opts.is_seeker !== undefined ? { is_seeker: opts.is_seeker } : {}),
+    ...(opts.country !== undefined ? { country: opts.country } : {}),
+  })
+  return { auth, session: signed.session }
+}
+
+/**
+ * Link an additional Solana wallet to the authenticated account
+ * (POST /v1/auth/link-wallet). Same nonce + signature dance as sign-in;
+ * the JWT proves the existing account. Returns the linked address, or
+ * null when the user declines.
+ *
+ * No mwaAuthToken is passed on purpose — a cached MWA authorization would
+ * silently re-link the wallet already on the account; a fresh authorize
+ * lets the user pick a different account in their wallet app.
+ */
+export async function solanaLinkWallet(): Promise<{ address: string } | null> {
+  const { chain_id, uri } = solanaAuthContext()
+  const { nonce } = await api.auth.nonce()
+
+  const signed = await connectAndSignMessage((address) =>
+    buildAuthMessage({ address, chain_id, uri, nonce }),
+  )
+  if (signed === null) return null
+
+  await api.auth.linkWallet({
+    chain_id,
+    address: signed.session.walletAddress,
+    message: signed.message,
+    signature: signed.signature,
+  })
+  return { address: signed.session.walletAddress }
 }

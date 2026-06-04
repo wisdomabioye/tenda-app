@@ -12,6 +12,7 @@
  * logging otherwise (development interim).
  */
 
+import { isE164 } from '@tenda/shared'
 import { randomInt, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { and, eq, gte, isNull, sql } from 'drizzle-orm'
 import { phone_otps } from '@tenda/shared/db/schema-v2/identity'
@@ -28,11 +29,7 @@ export const OTP_MAX_SENDS_PER_USER_PER_DAY = 10
 export const OTP_CODE_DIGITS = 6
 
 /** Loose E.164: '+' then 8–15 digits, no leading zero after '+'. */
-const E164_RE = /^\+[1-9]\d{7,14}$/
-
-export function isE164(v: unknown): v is string {
-  return typeof v === 'string' && E164_RE.test(v)
-}
+export { isE164 }
 
 // ---------- code hashing ------------------------------------------------------
 

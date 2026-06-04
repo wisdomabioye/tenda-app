@@ -28,7 +28,22 @@ export interface ApiContract {
   exchangeBlockchain: ExchangeBlockchainContract
 }
 
-export type { AuthContract, AuthNonceResponse, WalletNonceAuthBody } from './auth.contract'
+export type {
+  AuthContract,
+  AuthNonceResponse,
+  WalletNonceAuthBody,
+  ChainNamespace,
+  LinkedWallet,
+  SendPhoneOtpBody,
+  SendPhoneOtpResponse,
+  VerifyPhoneOtpBody,
+  VerifyPhoneOtpResponse,
+  LinkWalletBody,
+  LinkWalletResponse,
+  WalletRefBody,
+  UnlinkWalletResponse,
+  SetPrimaryWalletResponse,
+} from './auth.contract'
 export type {
   EscrowsContract,
   UnsignedTx,
@@ -43,7 +58,7 @@ export type {
   ClientPingResponse,
 } from './escrows.contract'
 export type { GigsContract } from './gigs.contract'
-export type { UsersContract } from './users.contract'
+export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse } from './users.contract'
 export type { UploadContract } from './upload.contract'
 export type { BlockchainContract } from './blockchain.contract'
 export type { PlatformContract, PlatformConfig, ExchangeRates } from './platform.contract'

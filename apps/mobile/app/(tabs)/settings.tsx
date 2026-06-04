@@ -3,12 +3,13 @@ import { View, Pressable, StyleSheet, ActivityIndicator, Linking } from 'react-n
 import { useUnistyles } from 'react-native-unistyles'
 import { useFocusEffect, useRouter } from 'expo-router'
 import * as Notifications from 'expo-notifications'
-import { Sun, Moon, Smartphone, Bell, Trash2, HelpCircle, ChevronRight, Plus, Check } from 'lucide-react-native'
+import { Sun, Moon, Smartphone, Bell, Trash2, HelpCircle, ChevronRight, Plus, Check, Wallet, PhoneCall } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Header, showToast } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { ErrorState } from '@/components/feedback'
+import { useAuthStore } from '@/stores/auth.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { api } from '@/api/client'
 import { SUPPORTED_CURRENCIES, CURRENCY_META } from '@tenda/shared'
@@ -26,6 +27,7 @@ export default function SettingsScreen() {
   const { theme } = useUnistyles()
   const router = useRouter()
   const { theme: currentTheme, setTheme, currency, setCurrency } = useSettingsStore()
+  const phoneVerified = useAuthStore((st) => st.phoneVerified)
   const [currencySheetOpen, setCurrencySheetOpen] = useState(false)
   const [subscriptions, setSubscriptions] = useState<GigSubscription[]>([])
   const [loadingSubs,   setLoadingSubs]   = useState(false)
@@ -244,6 +246,35 @@ export default function SettingsScreen() {
           Re-enable notifications to add subscriptions.
         </Text>
       )}
+
+      {/* Account */}
+      <SectionLabel>Account</SectionLabel>
+      <View style={[s.group, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default }]}>
+        <Pressable
+          onPress={() => router.push('/settings/linked-wallets' as Parameters<typeof router.push>[0])}
+          style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surface.pressed }]}
+        >
+          <View style={[s.rowIc, { backgroundColor: theme.colors.surface.inset }]}>
+            <Wallet size={16} color={theme.colors.content.primary} />
+          </View>
+          <Text style={[s.rowLabel, { color: theme.colors.content.primary }]}>Linked wallets</Text>
+          <View style={{ flex: 1 }} />
+          <ChevronRight size={16} color={theme.colors.content.tertiary} />
+        </Pressable>
+        {!phoneVerified && (
+          <Pressable
+            onPress={() => router.push('/settings/phone' as Parameters<typeof router.push>[0])}
+            style={({ pressed }) => [s.row, pressed && { backgroundColor: theme.colors.surface.pressed }]}
+          >
+            <View style={[s.rowIc, { backgroundColor: theme.colors.surface.inset }]}>
+              <PhoneCall size={16} color={theme.colors.content.primary} />
+            </View>
+            <Text style={[s.rowLabel, { color: theme.colors.content.primary }]}>Verify phone number</Text>
+            <View style={{ flex: 1 }} />
+            <ChevronRight size={16} color={theme.colors.content.tertiary} />
+          </Pressable>
+        )}
+      </View>
 
       {/* Help */}
       <SectionLabel>Help</SectionLabel>

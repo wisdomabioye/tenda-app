@@ -10,7 +10,7 @@ import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { useAuthStore } from '@/stores/auth.store'
-import { connectAndSignAuthMessage, WalletError } from '@/wallet'
+import { WalletError } from '@/wallet'
 import { APP_INFO } from '@/lib/app-info'
 import { isSeekerDevice, getDeviceCountry } from '@/lib/device'
 
@@ -64,19 +64,20 @@ export default function ConnectWalletScreen() {
   const { theme } = useUnistyles()
   const [isConnecting, setIsConnecting] = useState(false)
   const [connectError, setConnectError] = useState<ConnectError | null>(null)
-  const { authenticateWithWallet, mwaAuthToken } = useAuthStore()
+  const signInWithSolana = useAuthStore((st) => st.signInWithSolana)
 
   const handleConnectWallet = async () => {
     setIsConnecting(true)
     setConnectError(null)
     try {
-      const result = await connectAndSignAuthMessage(mwaAuthToken ?? undefined)
-      if (result) {
-        await authenticateWithWallet(
-          { wallet_address: result.session.walletAddress, signature: result.signature, message: result.message, is_seeker: isSeekerDevice(), country: getDeviceCountry() ?? undefined },
-          { mwaAuthToken: result.session.authToken, walletAddress: result.session.walletAddress },
-        )
-        router.replace('/(tabs)/home')
+      const ok = await signInWithSolana({
+        is_seeker: isSeekerDevice(),
+        country: getDeviceCountry(),
+      })
+      if (ok) {
+        // Stage 1: incomplete profiles detour through setup before home.
+        const complete = useAuthStore.getState().profileComplete
+        router.replace(complete ? '/(tabs)/home' : '/(auth)/profile-setup')
       } else {
         setConnectError({ title: 'Connection cancelled', description: 'You closed the wallet prompt. Tap below to try again.' })
       }
@@ -148,7 +149,7 @@ export default function ConnectWalletScreen() {
                   <Text style={s.tipGlyph}>i</Text>
                 </View>
                 <Text style={[s.infoText, { color: theme.colors.brand.primary }]}>
-                  If you're using Solflare, you may need to return to Tenda manually after connecting.
+                  If you&apos;re using Solflare, you may need to return to Tenda manually after connecting.
                 </Text>
               </View>
             )}

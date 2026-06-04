@@ -35,9 +35,17 @@ export default function WelcomeScreen() {
             variant="primary"
             size="xl"
             fullWidth
+            onPress={() => router.push('/(auth)/connect-wallet')}
+          >
+            Get started
+          </Button>
+          <Button
+            variant="ghost"
+            size="lg"
+            fullWidth
             onPress={() => router.push('/onboarding')}
           >
-            Continue
+            Learn more
           </Button>
           <Pressable hitSlop={4}>
             <Text style={[s.tos, { color: theme.colors.content.tertiary }]}>

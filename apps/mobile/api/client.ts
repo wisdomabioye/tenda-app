@@ -80,6 +80,18 @@ import {
   // until the Stage-0 cutover deletes the legacy namespaces.
   type AuthNonceResponse,
   type WalletNonceAuthBody,
+  type SendPhoneOtpBody,
+  type SendPhoneOtpResponse,
+  type VerifyPhoneOtpBody,
+  type VerifyPhoneOtpResponse,
+  type LinkWalletBody,
+  type LinkWalletResponse,
+  type WalletRefBody,
+  type UnlinkWalletResponse,
+  type SetPrimaryWalletResponse,
+  type MeResponse,
+  type UpdateMeInput,
+  type UpdateMeResponse,
   type CreateEscrowApiBody,
   type CreateEscrowApiResponse,
   type EscrowActionResponse,
@@ -97,6 +109,8 @@ export class ApiClientError extends Error {
     public statusCode: number,
     public error: string,
     message: string,
+    /** Machine-readable ErrorCode from the API envelope. */
+    public code?: string,
   ) {
     super(message)
     this.name = 'ApiClientError'
@@ -167,7 +181,7 @@ async function request<TResponse>(
 
     if (!response.ok) {
       const error: ApiError = await response.json()
-      throw new ApiClientError(error.statusCode, error.error, error.message)
+      throw new ApiClientError(error.statusCode, error.error, error.message, error.code)
     }
 
     return (await response.json()) as TResponse
@@ -184,6 +198,16 @@ export const api = {
     wallet: (body: WalletNonceAuthBody | WalletAuthBody) =>
       request<AuthResponse>('POST', auth.wallet, { body }),
     me: () => request<User>('GET', auth.me),
+    sendPhoneOtp: (body: SendPhoneOtpBody) =>
+      request<SendPhoneOtpResponse>('POST', auth.sendPhoneOtp, { body }),
+    verifyPhoneOtp: (body: VerifyPhoneOtpBody) =>
+      request<VerifyPhoneOtpResponse>('POST', auth.verifyPhoneOtp, { body }),
+    linkWallet: (body: LinkWalletBody) =>
+      request<LinkWalletResponse>('POST', auth.linkWallet, { body }),
+    unlinkWallet: (body: WalletRefBody) =>
+      request<UnlinkWalletResponse>('POST', auth.unlinkWallet, { body }),
+    setPrimaryWallet: (body: WalletRefBody) =>
+      request<SetPrimaryWalletResponse>('POST', auth.setPrimaryWallet, { body }),
   },
 
   // v2 escrow primitive — every action returns an unsigned tx the wallet
@@ -243,6 +267,9 @@ export const api = {
   },
 
   users: {
+    me: () => request<MeResponse>('GET', users.me),
+    updateMe: (body: UpdateMeInput) =>
+      request<UpdateMeResponse>('PATCH', users.updateMe, { body }),
     get: (params: { id: string }) =>
       request<PublicUser>('GET', users.get, { params }),
     update: (params: { id: string }, body: UpdateUserInput) =>

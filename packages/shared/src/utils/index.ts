@@ -22,6 +22,8 @@ export {
   isValidLatitude,
   isValidLongitude,
   validateGigDeadlines,
+  E164_RE,
+  isE164,
 } from './validation'
 export type { ValidationResult } from './validation'
 export { buildAuthMessage, type AuthMessageInput } from './auth-message'

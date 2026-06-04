@@ -7,6 +7,11 @@ export const apiRoutes: {
     nonce: '/v1/auth/nonce',
     wallet: '/v1/auth/wallet',
     me: '/v1/auth/me',
+    sendPhoneOtp: '/v1/auth/send-phone-otp',
+    verifyPhoneOtp: '/v1/auth/verify-phone-otp',
+    linkWallet: '/v1/auth/link-wallet',
+    unlinkWallet: '/v1/auth/unlink-wallet',
+    setPrimaryWallet: '/v1/auth/set-primary-wallet',
   },
   escrows: {
     create: '/v1/escrows',
@@ -38,6 +43,8 @@ export const apiRoutes: {
     transactions: '/v1/gigs/:id/transactions',
   },
   users: {
+    me:             '/v1/users/me',
+    updateMe:       '/v1/users/me',
     get:            '/v1/users/:id',
     update:         '/v1/users/:id',
     gigs:           '/v1/users/:id/gigs',

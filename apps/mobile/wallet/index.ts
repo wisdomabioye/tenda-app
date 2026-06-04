@@ -9,7 +9,7 @@ import {
 } from '@solana/web3.js'
 import { transact, type Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { getEnv } from '@/lib/env'
-import { apiConfig, solanaChainId } from '@tenda/shared'
+import { apiConfig } from '@tenda/shared'
 import { ESCROW_IDL, discriminatorFor, type InstructionName } from '@tenda/shared/idl/legacy'
 
 const env = getEnv()
@@ -144,7 +144,13 @@ export interface ConnectAndSignResult {
   message: string
 }
 
-export async function connectAndSignAuthMessage(
+/**
+ * One MWA session: authorize → resolve the wallet address → build the
+ * message for that address (the caller injects the template — e.g. the
+ * shared nonce auth-message) → sign it. Returns null on user decline.
+ */
+export async function connectAndSignMessage(
+  buildMessage: (walletAddress: string) => string,
   mwaAuthToken?: string,
 ): Promise<ConnectAndSignResult | null> {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
@@ -160,7 +166,7 @@ export async function connectAndSignAuthMessage(
         const publicKey = base64AddressToPublicKey(account.address)
         const walletAddress = publicKey.toBase58()
 
-        const message = buildAuthMessage(walletAddress)
+        const message = buildMessage(walletAddress)
         const messageBytes = new TextEncoder().encode(message)
 
         const signed = await wallet.signMessages({
@@ -203,17 +209,6 @@ export async function connectAndSignAuthMessage(
   }
 
   return null
-}
-
-export function buildAuthMessage(walletAddress: string): string {
-  const timestamp = new Date().toISOString()
-  return [
-    'Sign in to Tenda to verify your wallet.',
-    `Wallet: ${walletAddress}`,
-    `Chain: ${solanaChainId(APP_IDENTITY.network)}`,
-    `URI: ${APP_IDENTITY.uri}`,
-    `Timestamp: ${timestamp}`,
-  ].join('\n')
 }
 
 /**

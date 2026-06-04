@@ -1,3 +1,10 @@
+/** E.164 phone format, e.g. +2348012345678 (stage-1 OTP routes). */
+export const E164_RE = /^\+[1-9]\d{7,14}$/
+
+export function isE164(v: unknown): v is string {
+  return typeof v === 'string' && E164_RE.test(v)
+}
+
 export const MAX_REVIEW_COMMENT_LENGTH = 1000
 
 export function isValidLatitude(lat: number): boolean {
