@@ -38,6 +38,9 @@ export const ErrorCode = {
   AUTH_NONCE_UNKNOWN:            'AUTH_NONCE_UNKNOWN',
   AUTH_NONCE_REPLAY:             'AUTH_NONCE_REPLAY',
   AUTH_NONCE_EXPIRED:            'AUTH_NONCE_EXPIRED',
+  // Stage 7 — reputation restrictions
+  USER_RESTRICTED:               'USER_RESTRICTED',
+  ACCOUNT_UNDER_REVIEW:          'ACCOUNT_UNDER_REVIEW',
   // Stage 1 — onboarding (phone OTP, multi-wallet management)
   PROFILE_INCOMPLETE:            'PROFILE_INCOMPLETE',
   WALLET_IN_USE:                 'WALLET_IN_USE',

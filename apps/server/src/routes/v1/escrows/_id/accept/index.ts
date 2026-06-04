@@ -8,13 +8,14 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { getPlatformConfig } from '@server/lib/platform'
+import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { guardTransition } from '@server/lib/escrow-routes'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string } }>(
     '/',
-    { preHandler: [fastify.authenticate, requireProfileComplete] },
+    { preHandler: [fastify.authenticate, requireProfileComplete, requireGoodStanding('accept')] },
     async (request) => {
       const cfg = await getPlatformConfig(fastify.db)
       const { escrow } = await guardTransition({

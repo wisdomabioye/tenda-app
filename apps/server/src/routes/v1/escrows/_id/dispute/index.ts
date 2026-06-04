@@ -10,6 +10,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { AppError } from '@server/lib/errors'
+import { requireGoodStanding } from '@server/features/reputation/guards'
 import { ErrorCode } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/lib/escrow-routes'
@@ -20,7 +21,7 @@ interface Body { bond_raw: string }
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string }; Body: Body }>(
     '/',
-    { preHandler: [fastify.authenticate] },
+    { preHandler: [fastify.authenticate, requireGoodStanding('dispute')] },
     async (request) => {
       const { bond_raw } = request.body
       if (!isAmountRaw(bond_raw)) {
