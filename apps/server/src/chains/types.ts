@@ -86,6 +86,51 @@ export const ESCROW_EVENTS = [
 
 export type EscrowEvent = (typeof ESCROW_EVENTS)[number]
 
+/**
+ * DB-vocabulary transaction types (`escrow_transactions.type` /
+ * `tx_attempts.action` — snake_case). Derived-from-const per the same
+ * anti-drift pattern as ESCROW_EVENTS (resolves open_issues §10.9 for the
+ * tx-type axis).
+ */
+export const ESCROW_TX_TYPES = [
+  'create',
+  'accept',
+  'decline',
+  'submit',
+  'approve',
+  'claim_stalled',
+  'cancel',
+  'refund_expired',
+  'reclaim_abandoned',
+  'dispute',
+  'resolve',
+] as const
+
+export type EscrowTxType = (typeof ESCROW_TX_TYPES)[number]
+
+export function isEscrowTxType(v: unknown): v is EscrowTxType {
+  return typeof v === 'string' && (ESCROW_TX_TYPES as readonly string[]).includes(v)
+}
+
+/**
+ * Which on-chain event confirms each client-submitted action. The client
+ * ping (`POST /v1/blockchain/transaction`) uses this to tell verify-tx what
+ * to expect; the decoded event is the source of truth, never the hint.
+ */
+export const EVENT_BY_TX_TYPE: Record<EscrowTxType, EscrowEvent> = {
+  create: 'EscrowCreated',
+  accept: 'EscrowAccepted',
+  decline: 'EscrowDeclined',
+  submit: 'ProofSubmitted',
+  approve: 'EscrowApproved',
+  claim_stalled: 'PaymentClaimed',
+  cancel: 'EscrowCancelled',
+  refund_expired: 'EscrowExpired',
+  reclaim_abandoned: 'EscrowAbandoned',
+  dispute: 'DisputeRaised',
+  resolve: 'DisputeResolved',
+}
+
 // ---------- buildTx -------------------------------------------------------
 
 // Action-specific payloads. Discriminated by `action` so adapter `buildTx`
@@ -101,7 +146,12 @@ export interface CreateEscrowPayload {
   kind: 'gig' | 'exchange'
   asset: AssetId
   amount_raw: AmountRaw
-  assigned_counterparty_address?: string
+  /**
+   * User id of the direct-assigned counterparty, if any. The adapter
+   * resolves the wallet through its injected resolver (same pattern as
+   * `raiser_user_id`) so routes never touch wallet columns.
+   */
+  assigned_counterparty_user_id?: string
   accept_deadline_unix: number
   completion_duration_seconds: number
   dispute_bond_raw: AmountRaw

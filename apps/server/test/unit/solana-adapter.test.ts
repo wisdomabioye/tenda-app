@@ -47,13 +47,14 @@ const WALLETS: Record<string, string> = {
   'user-admin': '4Nd1mYvK4Pm1x2HCmzCx5GQDV9KbpMK128bxgL5dVDU1',
 }
 
-function makeAdapter(rpc: FakeSolanaRpc) {
+function makeAdapter(rpc: FakeSolanaRpc, resolvedUserIds: string[] = []) {
   return solanaAdapter({
     chain_id: CHAIN_ID,
     rpc_url: 'http://127.0.0.1:8899',
     deps: {
       rpc,
       async resolveWalletAddress(user_id) {
+        resolvedUserIds.push(user_id)
         const w = WALLETS[user_id]
         if (w === undefined) throw new AppError(404, 'USER_NOT_FOUND', `no wallet for ${user_id}`)
         return w
@@ -156,6 +157,17 @@ test('buildTx createEscrow (USDC): create_escrow_spl with token vault, mint and 
   assert.ok(d.keys.includes(tokenVaultPda(uuidToBytes(ESCROW_UUID)).toBase58()))
   assert.ok(d.keys.includes(USDC_MINT.toBase58()))
   assert.ok(d.keys.includes(getAssociatedTokenAddressSync(USDC_MINT, CREATOR).toBase58()))
+})
+
+test('buildTx createEscrow: assigned counterparty resolves through the wallet resolver', async () => {
+  const resolved: string[] = []
+  const a = makeAdapter(fakeSolanaRpc(), resolved)
+  await a.buildTx({
+    action: 'createEscrow',
+    user_id: 'user-creator',
+    payload: { ...CREATE_PAYLOAD, assigned_counterparty_user_id: 'user-counterparty' },
+  })
+  assert.deepStrictEqual(resolved.sort(), ['user-counterparty', 'user-creator'])
 })
 
 test('buildTx createEscrow: non-canonical amount_raw → 422 VALIDATION_ERROR', async () => {

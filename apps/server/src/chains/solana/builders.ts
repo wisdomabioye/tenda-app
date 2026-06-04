@@ -86,8 +86,8 @@ export function createSolanaBuilders(deps: SolanaBuilderDeps) {
           kind: p.kind === 'gig' ? { gig: {} } : { exchange: {} },
           amount: toBn(p.amount_raw, 'amount_raw'),
           assignedCounterparty:
-            p.assigned_counterparty_address !== undefined
-              ? new PublicKey(p.assigned_counterparty_address)
+            p.assigned_counterparty_user_id !== undefined
+              ? new PublicKey(await deps.resolveWalletAddress(p.assigned_counterparty_user_id))
               : null,
           acceptDeadline: new BN(p.accept_deadline_unix),
           completionDurationSeconds: new BN(p.completion_duration_seconds),
