@@ -74,6 +74,9 @@ const LEGACY_PATHS = [
   'packages/shared/src/db/schema.ts',
   // Mobile (cutover §6): spike promoted to wallet/*, sandbox screen gone,
   // earnings/withdraw paths deleted with the legacy program.
+  // Stage 6: legacy keyword moderation replaced by features/moderation
+  // (blocked_keywords table dropped; old admin routes 410).
+  'apps/server/src/plugins/moderation.ts',
   'apps/mobile/wallet/spike',
   'apps/mobile/app/spike-wallet.tsx',
 ]

@@ -23,6 +23,7 @@ function baseConfig(overrides: Partial<Config> = {}): Config {
     SOLANA_GAS_SEED_WALLET_KEY: null,
     HELIUS_WEBHOOK_SECRET: null,
     LISTENER_PROVIDER: 'helius' as const,
+    OPENROUTER_API_KEY: null,
     CORS_ORIGIN: null,
     ADMIN_ORIGIN: null,
     ...overrides,

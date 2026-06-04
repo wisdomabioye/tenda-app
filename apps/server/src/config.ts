@@ -55,6 +55,11 @@ export interface Config {
   HELIUS_WEBHOOK_SECRET: string | null
   /** 'helius' (push, default) | 'polling' (self-hosted fallback). */
   LISTENER_PROVIDER: 'helius' | 'polling'
+  /**
+   * OpenRouter API key (#56) — ALL LLM calls route through OpenRouter
+   * (project decision). Null = moderation runs keyword-only.
+   */
+  OPENROUTER_API_KEY: string | null
   CORS_ORIGIN:  string[] | null  // null = allow any origin (dev); set to domain list in production
   ADMIN_ORIGIN: string[] | null  // null = allow any origin (dev); set to admin panel domain in production
 }
@@ -99,6 +104,7 @@ export function loadConfig(): Config {
     SOLANA_GAS_SEED_WALLET_KEY: process.env.SOLANA_GAS_SEED_WALLET_KEY ?? null,
     HELIUS_WEBHOOK_SECRET: process.env.HELIUS_WEBHOOK_SECRET ?? null,
     LISTENER_PROVIDER:     process.env.LISTENER_PROVIDER === 'polling' ? 'polling' : 'helius',
+    OPENROUTER_API_KEY:    process.env.OPENROUTER_API_KEY ?? null,
     CORS_ORIGIN:           process.env.CORS_ORIGIN
                              ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
                              : null,
