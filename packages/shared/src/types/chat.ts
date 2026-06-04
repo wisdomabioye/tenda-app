@@ -30,6 +30,9 @@ export interface Message {
   offer_id: string | null
   offer_title: string | null
   content: string
+  attachment_url: string | null
+  attachment_type: 'image' | 'file' | null
+  attachment_size: number | null
   read_at: string | null
   created_at: string | null
 }
@@ -38,6 +41,11 @@ export interface SendMessageInput {
   content: string
   gig_id?: string
   offer_id?: string
+  /** S5.2: Cloudinary URL under the conversation's chat folder. */
+  attachment_url?: string
+  attachment_type?: 'image' | 'file'
+  /** Bytes — client-reported; the hard cap is the upload preset. */
+  attachment_size?: number
 }
 
 export interface GigSubscription {

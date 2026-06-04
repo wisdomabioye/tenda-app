@@ -19,7 +19,12 @@ process.env.SOLANA_TREASURY_ADDRESS ??= '4Nd1mYvK4Pm1x2HCmzCx5GQDV9KbpMK128bxgL5
 process.env.SOLANA_PROGRAM_ID ??= '7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes'
 process.env.API_BASE_URL ??= 'https://api.tenda.test'
 
-import { UPLOAD_CONSTRAINTS, generateUploadSignature } from '@server/lib/cloudinary'
+import {
+  UPLOAD_CONSTRAINTS,
+  chatUploadFolder,
+  generateUploadSignature,
+  isValidChatAttachmentUrl,
+} from '@server/lib/cloudinary'
 
 test('signature covers allowed_formats + folder + timestamp in alphabetical order', () => {
   const sig = generateUploadSignature('avatar')
@@ -38,4 +43,32 @@ test('proof type: pdf allowed, 10MB guard, per-user folder', () => {
   assert.strictEqual(sig.folder, 'tenda/proofs/user-1')
   assert.ok(sig.allowed_formats.includes('pdf'))
   assert.strictEqual(sig.max_file_bytes, 10 * 1024 * 1024)
+})
+
+
+test('chat signature requires conversation scoping; folder is per-sender', () => {
+  assert.throws(() => generateUploadSignature('chat'))
+  const sig = generateUploadSignature('chat', 'user-1', 'conv-1')
+  assert.strictEqual(sig.folder, 'tenda/chat/conv-1/user-1')
+  assert.strictEqual(chatUploadFolder('conv-1', 'user-1'), 'tenda/chat/conv-1/user-1')
+})
+
+test('isValidChatAttachmentUrl: exact folder in PATH only — query-string fakes rejected', () => {
+  const good = 'https://res.cloudinary.com/demo/image/upload/v1/tenda/chat/conv-1/user-1/x.jpg'
+  assert.strictEqual(isValidChatAttachmentUrl(good, 'conv-1', 'user-1'), true)
+  // Wrong conversation.
+  assert.strictEqual(isValidChatAttachmentUrl(good, 'conv-2', 'user-1'), false)
+  // Folder smuggled into the query string.
+  const fake = 'https://res.cloudinary.com/demo/image/upload/v1/elsewhere/x.jpg?p=/tenda/chat/conv-1/user-1/'
+  assert.strictEqual(isValidChatAttachmentUrl(fake, 'conv-1', 'user-1'), false)
+  // Wrong host / protocol / garbage.
+  assert.strictEqual(
+    isValidChatAttachmentUrl('https://evil.example/tenda/chat/conv-1/user-1/x.jpg', 'conv-1', 'user-1'),
+    false,
+  )
+  assert.strictEqual(
+    isValidChatAttachmentUrl('http://res.cloudinary.com/d/tenda/chat/conv-1/user-1/x.jpg', 'conv-1', 'user-1'),
+    false,
+  )
+  assert.strictEqual(isValidChatAttachmentUrl('not a url', 'conv-1', 'user-1'), false)
 })

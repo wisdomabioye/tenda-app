@@ -5,6 +5,7 @@ import type { CloudinarySignature, UploadType } from '@tenda/shared'
 const FOLDER_MAP: Record<UploadType, string> = {
   avatar: 'tenda/avatars',
   proof: 'tenda/proofs',
+  chat: 'tenda/chat',
 }
 
 /**
@@ -21,14 +22,53 @@ export const UPLOAD_CONSTRAINTS: Record<
 > = {
   avatar: { allowed_formats: 'jpg,png,webp', max_file_bytes: 2 * 1024 * 1024 },
   proof: { allowed_formats: 'jpg,png,webp,pdf', max_file_bytes: 10 * 1024 * 1024 },
+  chat: { allowed_formats: 'jpg,png,webp,pdf', max_file_bytes: 10 * 1024 * 1024 },
 }
 
-export function generateUploadSignature(type: UploadType, userId?: string): CloudinarySignature {
+/** Conversation-scoped chat folder — the send route validates URLs live here. */
+export function chatUploadFolder(conversation_id: string, user_id: string): string {
+  return `${FOLDER_MAP.chat}/${conversation_id}/${user_id}`
+}
+
+/**
+ * Strict attachment-URL check: parsed (query strings can't fake a match),
+ * hostname pinned to Cloudinary, and the PATH must contain the
+ * sender-scoped conversation folder — a signature minted for one
+ * conversation cannot be replayed into another.
+ */
+export function isValidChatAttachmentUrl(
+  url: string,
+  conversation_id: string,
+  user_id: string,
+): boolean {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return false
+  }
+  if (parsed.protocol !== 'https:' || parsed.hostname !== 'res.cloudinary.com') return false
+  return parsed.pathname.includes(`/${chatUploadFolder(conversation_id, user_id)}/`)
+}
+
+export function generateUploadSignature(
+  type: UploadType,
+  userId?: string,
+  conversationId?: string,
+): CloudinarySignature {
   const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = getConfig()
 
-  const folder = type === 'proof' && userId
-    ? `${FOLDER_MAP.proof}/${userId}`
-    : FOLDER_MAP[type]
+  if (type === 'chat' && (conversationId === undefined || userId === undefined)) {
+    // Fail loud: an unscoped chat signature would defeat the per-
+    // conversation folder isolation the send route relies on.
+    throw new Error('chat upload signatures require userId + conversationId')
+  }
+  const folder =
+    type === 'chat' && conversationId !== undefined && userId !== undefined
+      ? chatUploadFolder(conversationId, userId)
+      : type === 'proof' && userId
+        ? `${FOLDER_MAP.proof}/${userId}`
+        : FOLDER_MAP[type]
   const timestamp = Math.round(Date.now() / 1000)
   const constraints = UPLOAD_CONSTRAINTS[type]
 

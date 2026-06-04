@@ -1,5 +1,6 @@
-import { sql } from 'drizzle-orm'
+import { sql, type SQL } from 'drizzle-orm'
 import {
+  customType,
   boolean,
   check,
   doublePrecision,
@@ -16,6 +17,15 @@ import {
 } from 'drizzle-orm/pg-core'
 import { assets, chains } from './chains'
 import { users } from './identity'
+
+// S5.3 (closes open #25): Postgres tsvector for gig full-text search.
+// drizzle has no built-in tsvector — minimal customType; the column is
+// GENERATED ALWAYS so writers never touch it.
+const tsvector = customType<{ data: string }>({
+  dataType() {
+    return 'tsvector'
+  },
+})
 
 export const escrowKindEnum = pgEnum('escrow_kind', ['gig', 'exchange'])
 
@@ -129,10 +139,16 @@ export const gig_details = pgTable(
     longitude: doublePrecision('longitude'),
     remote: boolean('remote').notNull().default(false),
     cross_border: boolean('cross_border').notNull().default(false),
+    // Weighted: title (A) outranks description (B) in ts_rank ordering.
+    search_vector: tsvector('search_vector').generatedAlwaysAs(
+      (): SQL =>
+        sql`setweight(to_tsvector('english', coalesce(${gig_details.title}, '')), 'A') || setweight(to_tsvector('english', coalesce(${gig_details.description}, '')), 'B')`,
+    ),
   },
   (t) => [
     index('gig_details_category_idx').on(t.category),
     index('gig_details_country_idx').on(t.country),
+    index('gig_details_search_idx').using('gin', t.search_vector),
   ],
 )
 

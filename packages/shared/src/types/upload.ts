@@ -10,4 +10,4 @@ export interface CloudinarySignature {
   max_file_bytes: number
 }
 
-export type UploadType = 'avatar' | 'proof'
+export type UploadType = 'avatar' | 'proof' | 'chat'

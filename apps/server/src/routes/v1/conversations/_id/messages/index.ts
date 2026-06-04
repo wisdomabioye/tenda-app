@@ -5,6 +5,7 @@ import { ErrorCode } from '@tenda/shared'
 import { appEvents } from '@server/lib/events'
 import { moderateBody } from '@server/lib/moderation'
 import { AppError } from '@server/lib/errors'
+import { UPLOAD_CONSTRAINTS, isValidChatAttachmentUrl } from '@server/lib/cloudinary'
 import type { ConversationsContract, ApiError } from '@tenda/shared'
 
 type GetMessagesRoute = ConversationsContract['messages']
@@ -68,6 +69,9 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
           offer_id:    messages.offer_id,
           offer_title: sql<string | null>`CASE WHEN ${exchange_offers.id} IS NOT NULL THEN 'Trade: ' || ${exchange_offers.fiat_amount}::text || ' ' || ${exchange_offers.fiat_currency} ELSE NULL END`,
           content:     messages.content,
+          attachment_url:  messages.attachment_url,
+          attachment_type: messages.attachment_type,
+          attachment_size: messages.attachment_size,
           read_at:     messages.read_at,
           created_at:  messages.created_at,
         })
@@ -118,11 +122,39 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
     { config: { rateLimit: { max: 60, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate, moderateBody<SendMessageRoute['body']>(fastify, ['content'])] },
     async (request, reply) => {
       const { id } = request.params
-      const { content, gig_id, offer_id } = request.body
+      const { content, gig_id, offer_id, attachment_url, attachment_type, attachment_size } = request.body
       const userId = request.user.id
 
       if (!content || content.trim().length === 0) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'content is required')
       if (content.length > 2000) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Message content must be at most 2000 characters')
+
+      // S5.2: attachment validation — all three fields together or none;
+      // URL must live under THIS conversation's sender-scoped folder so a
+      // signature minted for one conversation can't be replayed in another.
+      const attachmentFields = [attachment_url, attachment_type, attachment_size]
+      const hasAttachment = attachmentFields.some((f) => f !== undefined)
+      if (hasAttachment) {
+        if (attachmentFields.some((f) => f === undefined)) {
+          throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'attachment_url, attachment_type and attachment_size are required together')
+        }
+        if (attachment_type !== 'image' && attachment_type !== 'file') {
+          throw new AppError(400, ErrorCode.VALIDATION_ERROR, "attachment_type must be 'image' or 'file'")
+        }
+        if (
+          typeof attachment_size !== 'number' ||
+          !Number.isInteger(attachment_size) ||
+          attachment_size <= 0 ||
+          attachment_size > UPLOAD_CONSTRAINTS.chat.max_file_bytes
+        ) {
+          throw new AppError(400, ErrorCode.VALIDATION_ERROR, `attachment_size must be 1–${UPLOAD_CONSTRAINTS.chat.max_file_bytes} bytes`)
+        }
+        if (
+          typeof attachment_url !== 'string' ||
+          !isValidChatAttachmentUrl(attachment_url, id, request.user.id)
+        ) {
+          throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'attachment_url must be a Cloudinary URL in this conversation folder')
+        }
+      }
 
       const [conv] = await fastify.db
         .select()
@@ -158,6 +190,9 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
             gig_id:          gig_id  ?? null,
             offer_id:        offer_id ?? null,
             content:         content.trim(),
+            attachment_url:  attachment_url ?? null,
+            attachment_type: attachment_type ?? null,
+            attachment_size: attachment_size ?? null,
           })
           .returning()
 

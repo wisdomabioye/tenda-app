@@ -283,6 +283,11 @@ export const messages = pgTable('messages', {
   gig_id:     uuid('gig_id').references(() => gigs.id, { onDelete: 'set null' }),
   offer_id:   uuid('offer_id').references(() => exchange_offers.id, { onDelete: 'set null' }),
   content:    varchar('content', { length: 2000 }).notNull(),
+  // S5.2 (closes open #85): optional chat attachment. URL must live under
+  // the conversation-scoped Cloudinary folder (validated at send).
+  attachment_url:  text('attachment_url'),
+  attachment_type: text('attachment_type', { enum: ['image', 'file'] }),
+  attachment_size: integer('attachment_size'),
   read_at:    timestamp('read_at', { withTimezone: true }),
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (t) => ({
