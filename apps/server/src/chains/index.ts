@@ -13,6 +13,7 @@
  * import the cached registry, not raw factories).
  */
 
+import { SOLANA_CAIP_BY_NETWORK } from '@tenda/shared'
 import { solanaAdapter, type SolanaAdapterDeps } from '@server/chains/solana'
 import type { Config } from '@server/config'
 import type { ChainAdapter, ChainId, ChainRegistry } from '@server/chains/types'
@@ -43,19 +44,12 @@ export function buildChainRegistry(config: Config, deps: ChainRegistryDeps): Cha
 
   // ---- Solana ---------------------------------------------------------
   // Same program_id + treasury reused across networks at launch; only RPC
-  // URL differs per network. Explicit map (not a fallthrough) so an
-  // unsupported value like SOLANA_NETWORK='testnet' fails at boot rather
+  // URL differs per network. The network → CAIP-2 map lives in
+  // @tenda/shared (SOLANA_CAIP_BY_NETWORK) — the mobile auth flow resolves
+  // through the same map, so the two sides cannot disagree on the chain id.
+  // An unsupported value like SOLANA_NETWORK='testnet' fails at boot rather
   // than silently aliasing to devnet — testnet has no seeded `assets` rows.
-  // `Partial<Record<string, ChainId>>` (vs `Record<...>`) so an unknown key
-  // returns `ChainId | undefined` at the type level. Without this the
-  // undefined check below would be flagged unreachable by stricter checkers
-  // (the postgres `numeric` driver would still throw at runtime, but the
-  // type system wouldn't tell us we need the guard). Closes open_issues.md S0-3.
-  const SOLANA_CHAIN_ID_BY_NETWORK: Partial<Record<string, ChainId>> = {
-    'mainnet-beta': 'solana:mainnet',
-    devnet: 'solana:devnet',
-  }
-  const solanaChainId = SOLANA_CHAIN_ID_BY_NETWORK[config.SOLANA_NETWORK]
+  const solanaChainId: ChainId | undefined = SOLANA_CAIP_BY_NETWORK[config.SOLANA_NETWORK]
   if (solanaChainId === undefined) {
     throw new Error(
       `unsupported SOLANA_NETWORK='${config.SOLANA_NETWORK}' (expected 'mainnet-beta' or 'devnet')`,

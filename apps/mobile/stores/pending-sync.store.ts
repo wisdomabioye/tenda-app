@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import { api, ApiClientError } from '@/api/client'
 import { ErrorCode } from '@tenda/shared'
-import type { SubmitProofInput, ExchangePaidInput } from '@tenda/shared'
+import type { SubmitProofInput, ExchangePaidInput, EscrowTxType } from '@tenda/shared'
 
 const STORAGE_KEY        = 'tenda_pending_sync'
 const FAILED_STORAGE_KEY = 'tenda_failed_sync'
@@ -16,6 +16,10 @@ export type PendingSync =
   | { id: string; action: 'exchange_publish' | 'exchange_accept' | 'exchange_cancel' | 'exchange_confirm' | 'exchange_refund'; offerId: string; signature: string; createdAt: number; retryCount: number }
   | { id: string; action: 'exchange_dispute'; offerId: string; signature: string; reason: string; createdAt: number; retryCount: number }
   | { id: string; action: 'exchange_paid'; offerId: string; signature: string; proofs: ExchangePaidInput['proofs']; createdAt: number; retryCount: number }
+  // v2 escrow vocabulary (#65) — a deferred client-ping. `signature` is the
+  // tx_ref of the already-broadcast transaction; replay re-reports it for
+  // async verification (idempotent server-side).
+  | { id: string; action: 'escrow_ping'; escrowId: string | null; chainId: string; txAction: EscrowTxType; signature: string; createdAt: number; retryCount: number }
 
 /** Human-readable label for each pending-sync action. Exhaustive by type — update when adding new actions. */
 export const PENDING_SYNC_ACTION_LABEL: Record<PendingSync['action'], string> = {
@@ -32,6 +36,7 @@ export const PENDING_SYNC_ACTION_LABEL: Record<PendingSync['action'], string> = 
   exchange_dispute: 'Raise exchange dispute',
   exchange_paid:    'Mark exchange as paid',
   exchange_refund:  'Claim expired offer refund',
+  escrow_ping:      'Confirm on-chain transaction',
 }
 
 // Distribute Omit over the union so each variant is processed independently.
@@ -205,6 +210,13 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
           await api.exchange.paid({ id: entry.offerId }, { signature: entry.signature, proofs: entry.proofs })
         } else if (entry.action === 'exchange_refund') {
           await api.exchange.refund({ id: entry.offerId }, { signature: entry.signature })
+        } else if (entry.action === 'escrow_ping') {
+          await api.blockchain.clientPing({
+            tx_ref: entry.signature,
+            action: entry.txAction,
+            chain_id: entry.chainId,
+            ...(entry.escrowId !== null ? { escrow_id: entry.escrowId } : {}),
+          })
         }
         get().remove(entry.id)
       } catch (err) {

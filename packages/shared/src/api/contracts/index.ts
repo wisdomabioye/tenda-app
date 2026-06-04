@@ -1,4 +1,5 @@
 import type { AuthContract } from './auth.contract'
+import type { EscrowsContract } from './escrows.contract'
 import type { GigsContract } from './gigs.contract'
 import type { UsersContract } from './users.contract'
 import type { UploadContract } from './upload.contract'
@@ -12,6 +13,7 @@ import type { ExchangeContract, ExchangeAccountsContract, ExchangeBlockchainCont
 
 export interface ApiContract {
   auth: AuthContract
+  escrows: EscrowsContract
   gigs: GigsContract
   users: UsersContract
   upload: UploadContract
@@ -26,7 +28,20 @@ export interface ApiContract {
   exchangeBlockchain: ExchangeBlockchainContract
 }
 
-export type { AuthContract } from './auth.contract'
+export type { AuthContract, AuthNonceResponse, WalletNonceAuthBody } from './auth.contract'
+export type {
+  EscrowsContract,
+  UnsignedTx,
+  WireUserOperation,
+  CreateEscrowApiBody,
+  CreateEscrowApiResponse,
+  EscrowActionResponse,
+  SubmitEscrowProofBody,
+  DisputeEscrowApiBody,
+  ResolveEscrowApiBody,
+  ClientPingBody,
+  ClientPingResponse,
+} from './escrows.contract'
 export type { GigsContract } from './gigs.contract'
 export type { UsersContract } from './users.contract'
 export type { UploadContract } from './upload.contract'

@@ -88,29 +88,14 @@ export type EscrowEvent = (typeof ESCROW_EVENTS)[number]
 
 /**
  * DB-vocabulary transaction types (`escrow_transactions.type` /
- * `tx_attempts.action` — snake_case). Derived-from-const per the same
- * anti-drift pattern as ESCROW_EVENTS (resolves open_issues §10.9 for the
- * tx-type axis).
+ * `tx_attempts.action` — snake_case). Single source lives in @tenda/shared
+ * (mobile builds client-ping bodies from the same const — resolves
+ * open_issues §10.9 for the tx-type axis); re-exported here so chain code
+ * keeps one import surface.
  */
-export const ESCROW_TX_TYPES = [
-  'create',
-  'accept',
-  'decline',
-  'submit',
-  'approve',
-  'claim_stalled',
-  'cancel',
-  'refund_expired',
-  'reclaim_abandoned',
-  'dispute',
-  'resolve',
-] as const
-
-export type EscrowTxType = (typeof ESCROW_TX_TYPES)[number]
-
-export function isEscrowTxType(v: unknown): v is EscrowTxType {
-  return typeof v === 'string' && (ESCROW_TX_TYPES as readonly string[]).includes(v)
-}
+import type { EscrowTxType } from '@tenda/shared'
+export { ESCROW_TX_TYPES, isEscrowTxType } from '@tenda/shared'
+export type { EscrowTxType } from '@tenda/shared'
 
 /**
  * Which on-chain event confirms each client-submitted action. The client

@@ -4,8 +4,21 @@ export const apiRoutes: {
   [K in keyof ApiContract]: { [A in keyof ApiContract[K]]: string }
 } = {
   auth: {
+    nonce: '/v1/auth/nonce',
     wallet: '/v1/auth/wallet',
     me: '/v1/auth/me',
+  },
+  escrows: {
+    create: '/v1/escrows',
+    accept: '/v1/escrows/:id/accept',
+    decline: '/v1/escrows/:id/decline',
+    submit: '/v1/escrows/:id/submit',
+    approve: '/v1/escrows/:id/approve',
+    claim: '/v1/escrows/:id/claim',
+    cancel: '/v1/escrows/:id/cancel',
+    refund: '/v1/escrows/:id/refund',
+    dispute: '/v1/escrows/:id/dispute',
+    resolve: '/v1/escrows/:id/resolve',
   },
   gigs: {
     list: '/v1/gigs',
@@ -36,6 +49,7 @@ export const apiRoutes: {
     signature: '/v1/upload/signature',
   },
   blockchain: {
+    clientPing:        '/v1/blockchain/transaction',
     transaction:       '/v1/blockchain/transaction/:signature',
     createEscrow:      '/v1/blockchain/create-escrow',
     approveEscrow:     '/v1/blockchain/approve-escrow',

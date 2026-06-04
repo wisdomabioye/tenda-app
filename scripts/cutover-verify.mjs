@@ -72,6 +72,10 @@ const LEGACY_PATHS = [
   'apps/server/src/routes/v1/admin/airdrop.ts',
   'packages/shared/src/idl/legacy',
   'packages/shared/src/db/schema.ts',
+  // Mobile (cutover §6): spike promoted to wallet/*, sandbox screen gone,
+  // earnings/withdraw paths deleted with the legacy program.
+  'apps/mobile/wallet/spike',
+  'apps/mobile/app/spike-wallet.tsx',
 ]
 
 // ---- run --------------------------------------------------------------------

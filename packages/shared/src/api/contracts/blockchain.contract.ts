@@ -12,8 +12,11 @@ import type {
   CreateUserAccountRequest,
   TransactionStatus,
 } from '../../types'
+import type { ClientPingBody, ClientPingResponse } from './escrows.contract'
 
 export interface BlockchainContract {
+  /** v2 client-ping (#62): report a broadcast tx for async verification. */
+  clientPing:        Endpoint<'POST', undefined,             ClientPingBody,           undefined, ClientPingResponse>
   transaction:       Endpoint<'GET',  { signature: string }, undefined,                undefined, TransactionStatus>
   createEscrow:      Endpoint<'POST', undefined,             EscrowRequest,            undefined, EscrowResponse>
   approveEscrow:     Endpoint<'POST', undefined,             ApproveEscrowRequest,     undefined, EscrowResponse>

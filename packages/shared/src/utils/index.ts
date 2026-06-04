@@ -24,3 +24,4 @@ export {
   validateGigDeadlines,
 } from './validation'
 export type { ValidationResult } from './validation'
+export { buildAuthMessage, type AuthMessageInput } from './auth-message'

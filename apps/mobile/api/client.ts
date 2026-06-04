@@ -76,6 +76,18 @@ import {
   type ExchangeCancelRequest,
   type ExchangeDisputeRequest,
   type ExchangeRefundRequest,
+  // v2 escrow surface (#65) — coexists with the legacy gig/exchange split
+  // until the Stage-0 cutover deletes the legacy namespaces.
+  type AuthNonceResponse,
+  type WalletNonceAuthBody,
+  type CreateEscrowApiBody,
+  type CreateEscrowApiResponse,
+  type EscrowActionResponse,
+  type SubmitEscrowProofBody,
+  type DisputeEscrowApiBody,
+  type ResolveEscrowApiBody,
+  type ClientPingBody,
+  type ClientPingResponse,
 } from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
@@ -164,13 +176,39 @@ async function request<TResponse>(
   }
 }
 
-const { auth, gigs, users, upload, blockchain, platform, conversations, notifications, subscriptions, reports, exchange, exchangeAccounts, exchangeBlockchain } = apiRoutes
+const { auth, escrows, gigs, users, upload, blockchain, platform, conversations, notifications, subscriptions, reports, exchange, exchangeAccounts, exchangeBlockchain } = apiRoutes
 
 export const api = {
   auth: {
-    wallet: (body: WalletAuthBody) =>
+    nonce: () => request<AuthNonceResponse>('POST', auth.nonce),
+    wallet: (body: WalletNonceAuthBody | WalletAuthBody) =>
       request<AuthResponse>('POST', auth.wallet, { body }),
     me: () => request<User>('GET', auth.me),
+  },
+
+  // v2 escrow primitive — every action returns an unsigned tx the wallet
+  // signs; the broadcast result is reported via blockchain.clientPing.
+  escrows: {
+    create: (body: CreateEscrowApiBody) =>
+      request<CreateEscrowApiResponse>('POST', escrows.create, { body }),
+    accept: (params: { id: string }) =>
+      request<EscrowActionResponse>('POST', escrows.accept, { params }),
+    decline: (params: { id: string }) =>
+      request<EscrowActionResponse>('POST', escrows.decline, { params }),
+    submit: (params: { id: string }, body: SubmitEscrowProofBody) =>
+      request<EscrowActionResponse>('POST', escrows.submit, { params, body }),
+    approve: (params: { id: string }) =>
+      request<EscrowActionResponse>('POST', escrows.approve, { params }),
+    claim: (params: { id: string }) =>
+      request<EscrowActionResponse>('POST', escrows.claim, { params }),
+    cancel: (params: { id: string }) =>
+      request<EscrowActionResponse>('POST', escrows.cancel, { params }),
+    refund: (params: { id: string }) =>
+      request<EscrowActionResponse>('POST', escrows.refund, { params }),
+    dispute: (params: { id: string }, body: DisputeEscrowApiBody) =>
+      request<EscrowActionResponse>('POST', escrows.dispute, { params, body }),
+    resolve: (params: { id: string }, body: ResolveEscrowApiBody) =>
+      request<EscrowActionResponse>('POST', escrows.resolve, { params, body }),
   },
 
   gigs: {
@@ -237,6 +275,8 @@ export const api = {
   },
 
   blockchain: {
+    clientPing: (body: ClientPingBody) =>
+      request<ClientPingResponse>('POST', blockchain.clientPing, { body }),
     transaction: (params: { signature: string }) =>
       request<TransactionStatus>('GET', blockchain.transaction, { params }),
     createEscrow: (body: EscrowRequest) =>

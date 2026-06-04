@@ -1,0 +1,119 @@
+/**
+ * v2 escrow surface — /v1/escrows + /v1/escrows/:id/* + the client-ping.
+ * Mirrors the server routes added in Stage 0 (#27, #62). The legacy
+ * gigs/exchange transition contracts coexist until the cutover (#34)
+ * deletes them.
+ */
+
+import type { Endpoint } from '../endpoint'
+import type { EscrowTxType } from '../../constants/escrow'
+
+// ---------- wire types ------------------------------------------------------
+
+/** ERC-4337 UserOperation (hex-string fields for u256 safety). Stage 3+. */
+export interface WireUserOperation {
+  sender: string
+  nonce: string
+  init_code: string
+  call_data: string
+  call_gas_limit: string
+  verification_gas_limit: string
+  pre_verification_gas: string
+  max_fee_per_gas: string
+  max_priority_fee_per_gas: string
+  paymaster_and_data: string
+  signature: string
+}
+
+/**
+ * Unsigned transaction returned by every escrow action route. The client
+ * signs and broadcasts, then reports the tx_ref via the client-ping.
+ */
+export type UnsignedTx =
+  | {
+      kind: 'solana-tx'
+      /** base64-serialized unsigned versioned transaction. */
+      tx_base64: string
+      recent_blockhash: string
+      last_valid_block_height: number
+    }
+  | {
+      kind: 'evm-tx'
+      to: string
+      data: string
+      value: string
+      gas_limit?: string
+    }
+  | {
+      kind: 'evm-userop'
+      user_op: WireUserOperation
+      entry_point: string
+      paymaster_url?: string
+    }
+
+export interface CreateEscrowApiBody {
+  kind: 'gig' | 'exchange'
+  /** CAIP-2 chain id, e.g. 'solana:devnet'. */
+  chain_id: string
+  /** Asset registry id, e.g. 'SOL', 'USDC_SOL'. */
+  asset: string
+  amount_raw: string
+  accept_deadline_unix: number
+  completion_duration_seconds: number
+  dispute_bond_raw?: string
+  assigned_counterparty_id?: string
+}
+
+export interface CreateEscrowApiResponse {
+  /** Server-generated escrow id — the on-chain escrow_id seed. */
+  escrow_id: string
+  unsigned: UnsignedTx
+}
+
+export interface EscrowActionResponse {
+  unsigned: UnsignedTx
+}
+
+export interface SubmitEscrowProofBody {
+  /** 32-byte digest: base58 (Solana) or 0x-hex (EVM). */
+  proof_hash: string
+}
+
+export interface DisputeEscrowApiBody {
+  bond_raw: string
+}
+
+export interface ResolveEscrowApiBody {
+  winner: 'creator' | 'counterparty' | 'split'
+}
+
+export interface ClientPingBody {
+  tx_ref: string
+  action: EscrowTxType
+  chain_id: string
+  escrow_id?: string
+}
+
+export interface ClientPingResponse {
+  status: 'queued'
+  recorded: boolean
+  enqueued: boolean
+}
+
+// ---------- contract ---------------------------------------------------------
+
+type IdParam = { id: string }
+
+export interface EscrowsContract {
+  create: Endpoint<'POST', undefined, CreateEscrowApiBody, undefined, CreateEscrowApiResponse>
+  accept: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
+  decline: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
+  submit: Endpoint<'POST', IdParam, SubmitEscrowProofBody, undefined, EscrowActionResponse>
+  approve: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
+  claim: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
+  cancel: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
+  /** Covers refund_expired (open) AND reclaim_abandoned (accepted) — server picks by status. */
+  refund: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
+  dispute: Endpoint<'POST', IdParam, DisputeEscrowApiBody, undefined, EscrowActionResponse>
+  resolve: Endpoint<'POST', IdParam, ResolveEscrowApiBody, undefined, EscrowActionResponse>
+}
