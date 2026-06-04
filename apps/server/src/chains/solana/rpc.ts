@@ -26,6 +26,14 @@ export interface SolanaRpc {
   getTransaction(tx_ref: string): Promise<SolanaTxResult | null>
   /** Raw account data. Null = account does not exist. */
   getAccountData(address: string): Promise<Buffer | null>
+  /**
+   * Recent signatures touching an address (newest first) — the polling
+   * listener's feed. Failed txs are included; verify-tx classifies them.
+   */
+  getSignaturesForAddress(
+    address: string,
+    opts: { limit: number },
+  ): Promise<Array<{ signature: string; slot: number }>>
 }
 
 /** Default per-call timeout. Override via `createSolanaRpc` args. */
@@ -96,6 +104,14 @@ export function createSolanaRpc(args: {
         connection.getAccountInfo(new PublicKey(address), commitment),
       )
       return info === null ? null : Buffer.from(info.data)
+    },
+
+    async getSignaturesForAddress(address, opts) {
+      const infos = await withTimeout(
+        `getSignaturesForAddress(${address})`,
+        connection.getSignaturesForAddress(new PublicKey(address), { limit: opts.limit }),
+      )
+      return infos.map((i) => ({ signature: i.signature, slot: i.slot }))
     },
   }
 }

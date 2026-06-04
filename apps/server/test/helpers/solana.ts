@@ -29,11 +29,13 @@ export const TEST_LAST_VALID_BLOCK_HEIGHT = 123_456
 export interface FakeSolanaRpc extends SolanaRpc {
   stageAccount(address: PublicKey, data: Buffer): void
   stageTransaction(tx_ref: string, result: SolanaTxResult): void
+  stageSignatures(sigs: Array<{ signature: string; slot: number }>): void
 }
 
 export function fakeSolanaRpc(): FakeSolanaRpc {
   const accounts = new Map<string, Buffer>()
   const transactions = new Map<string, SolanaTxResult>()
+  let signatures: Array<{ signature: string; slot: number }> = []
   return {
     async getLatestBlockhash() {
       return {
@@ -52,6 +54,12 @@ export function fakeSolanaRpc(): FakeSolanaRpc {
     },
     stageTransaction(tx_ref, result) {
       transactions.set(tx_ref, result)
+    },
+    async getSignaturesForAddress(_address, opts) {
+      return signatures.slice(0, opts.limit)
+    },
+    stageSignatures(sigs) {
+      signatures = sigs
     },
   }
 }

@@ -18,13 +18,14 @@ import {
   type EscrowAccount,
 } from '@server/chains/solana/pdas'
 import type { SolanaRpc } from '@server/chains/solana/rpc'
-import type {
-  ChainId,
-  DecodedEvent,
-  EscrowEvent,
-  EscrowState,
-  VerifiedTx,
-  VerifyTxArgs,
+import {
+  ESCROW_EVENTS,
+  type ChainId,
+  type DecodedEvent,
+  type EscrowEvent,
+  type EscrowState,
+  type VerifiedTx,
+  type VerifyTxArgs,
 } from '@server/chains/types'
 
 export interface SolanaVerifierDeps {
@@ -37,6 +38,12 @@ export interface SolanaVerifierDeps {
 /** PascalCase wire name (EscrowEvent) → camelCase IDL/coder name. */
 function coderEventName(event: EscrowEvent): string {
   return event.charAt(0).toLowerCase() + event.slice(1)
+}
+
+/** camelCase coder name → PascalCase wire name, iff it is an escrow event. */
+function wireEventName(coderName: string): EscrowEvent | null {
+  const pascal = coderName.charAt(0).toUpperCase() + coderName.slice(1)
+  return (ESCROW_EVENTS as readonly string[]).includes(pascal) ? (pascal as EscrowEvent) : null
 }
 
 /**
@@ -69,14 +76,22 @@ export function createSolanaVerifier(deps: SolanaVerifierDeps) {
       return { confirmed: true, failed: true, reason: tx.failure_reason ?? 'transaction failed' }
     }
 
-    const wanted = coderEventName(args.expected_event)
+    const expected = args.expected_event
     // EventParser throws on log shapes it can't frame (e.g. a transaction
     // that never invoked our program). A malformed/unrelated tx is a
     // verification failure, not a server error.
     try {
       for (const decoded of parser.parseLogs(tx.log_messages)) {
-        if (decoded.name !== wanted) continue
-        const event = toDecodedEvent(args.expected_event, decoded.data as Record<string, unknown>)
+        // With an expectation: exact match. Without (webhook/polling
+        // producers): any escrow event in the tx qualifies.
+        let name: EscrowEvent | null
+        if (expected !== undefined) {
+          name = decoded.name === coderEventName(expected) ? expected : null
+        } else {
+          name = wireEventName(decoded.name)
+        }
+        if (name === null) continue
+        const event = toDecodedEvent(name, decoded.data as Record<string, unknown>)
         if (args.escrow_id !== undefined && event.fields.escrow_id !== args.escrow_id) {
           return {
             confirmed: true,
@@ -96,7 +111,7 @@ export function createSolanaVerifier(deps: SolanaVerifierDeps) {
     return {
       confirmed: true,
       failed: true,
-      reason: `expected event ${args.expected_event} not found in transaction logs`,
+      reason: `expected event ${args.expected_event ?? '(any escrow event)'} not found in transaction logs`,
     }
   }
 

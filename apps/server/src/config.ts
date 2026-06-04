@@ -48,6 +48,13 @@ export interface Config {
    * Null = gas seeds are skipped with a logged warning.
    */
   SOLANA_GAS_SEED_WALLET_KEY: string | null
+  /**
+   * Shared secret Helius sends in the Authorization header (#43). Null =
+   * the webhook route answers 503 (polling fallback carries verification).
+   */
+  HELIUS_WEBHOOK_SECRET: string | null
+  /** 'helius' (push, default) | 'polling' (self-hosted fallback). */
+  LISTENER_PROVIDER: 'helius' | 'polling'
   CORS_ORIGIN:  string[] | null  // null = allow any origin (dev); set to domain list in production
   ADMIN_ORIGIN: string[] | null  // null = allow any origin (dev); set to admin panel domain in production
 }
@@ -90,6 +97,8 @@ export function loadConfig(): Config {
     TERMII_API_KEY:        process.env.TERMII_API_KEY ?? null,
     TERMII_SENDER_ID:      process.env.TERMII_SENDER_ID ?? null,
     SOLANA_GAS_SEED_WALLET_KEY: process.env.SOLANA_GAS_SEED_WALLET_KEY ?? null,
+    HELIUS_WEBHOOK_SECRET: process.env.HELIUS_WEBHOOK_SECRET ?? null,
+    LISTENER_PROVIDER:     process.env.LISTENER_PROVIDER === 'polling' ? 'polling' : 'helius',
     CORS_ORIGIN:           process.env.CORS_ORIGIN
                              ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
                              : null,

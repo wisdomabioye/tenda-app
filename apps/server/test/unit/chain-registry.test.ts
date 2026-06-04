@@ -21,6 +21,8 @@ function baseConfig(overrides: Partial<Config> = {}): Config {
     TERMII_API_KEY: null,
     TERMII_SENDER_ID: null,
     SOLANA_GAS_SEED_WALLET_KEY: null,
+    HELIUS_WEBHOOK_SECRET: null,
+    LISTENER_PROVIDER: 'helius' as const,
     CORS_ORIGIN: null,
     ADMIN_ORIGIN: null,
     ...overrides,

@@ -21,6 +21,7 @@ import type { AppDatabase } from '../plugins/db'
 // happens at #34.
 import type { QueueService } from '../plugins/queue'
 import type { ChainRegistry } from '../chains/types'
+import type { WsBroadcaster } from '../lib/ws'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -35,6 +36,9 @@ declare module 'fastify' {
 
     /** BullMQ queue service — registered by `plugins/queue.ts`. */
     queue: QueueService
+
+    /** In-process WS pub/sub — registered by `plugins/websocket.ts`. */
+    wsBroadcast: WsBroadcaster
 
     /** Chain adapter registry — registered by `plugins/chains.ts`. */
     chains: ChainRegistry

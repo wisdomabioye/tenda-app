@@ -24,11 +24,14 @@
  */
 
 import { eq } from 'drizzle-orm'
-import { escrow_transactions } from '@tenda/shared/db/schema-v2'
-import { AppError } from '@server/lib/errors'
-import { ErrorCode } from '@tenda/shared'
+import { escrow_transactions, tx_attempts } from '@tenda/shared/db/schema-v2'
 import type { ChainRegistry, EscrowEvent } from '@server/chains/types'
 import type { AppDatabase } from '@server/plugins/db'
+import {
+  applyEscrowEvent,
+  type EscrowEventStore,
+  type InternalEscrowEvent,
+} from '@server/lib/escrow-events'
 
 // ---------- store abstraction --------------------------------------------
 
@@ -40,6 +43,16 @@ import type { AppDatabase } from '@server/plugins/db'
 export interface VerifyTxStore {
   /** True iff `escrow_transactions` already has a row with this tx_ref. */
   isProcessed(tx_ref: string): Promise<boolean>
+  /** Stamp tx_attempts.confirmed_at (no-op if no attempt row exists). */
+  markAttemptConfirmed(tx_ref: string): Promise<void>
+  /**
+   * Stamp tx_attempts.failed_at + failure_code (no-op if no row).
+   * Stage-3 note: when the BASE paymaster lands (#45), failed SPONSORED
+   * attempts (was_sponsored) must also restore the user's
+   * sponsored_tx_remaining via lib/sponsor.ts — the column exists for
+   * exactly that; Solana has no sponsored txs so nothing restores today.
+   */
+  markAttemptFailed(tx_ref: string, failure_code: string): Promise<void>
 }
 
 export function drizzleVerifyTxStore(db: AppDatabase): VerifyTxStore {
@@ -52,6 +65,18 @@ export function drizzleVerifyTxStore(db: AppDatabase): VerifyTxStore {
         .limit(1)
       return rows.length > 0
     },
+    async markAttemptConfirmed(tx_ref) {
+      await db
+        .update(tx_attempts)
+        .set({ confirmed_at: new Date() })
+        .where(eq(tx_attempts.tx_ref, tx_ref))
+    },
+    async markAttemptFailed(tx_ref, failure_code) {
+      await db
+        .update(tx_attempts)
+        .set({ failed_at: new Date(), failure_code })
+        .where(eq(tx_attempts.tx_ref, tx_ref))
+    },
   }
 }
 
@@ -62,8 +87,12 @@ export interface VerifyTxJobPayload {
   chain_id: string
   /** Solana signature (base58) or EVM tx hash (0x…). */
   tx_ref: string
-  /** Event the producer expected. Cross-checked against decoded payload. */
-  expected_event: EscrowEvent
+  /**
+   * Event the producer expected — cross-checked against the decoded
+   * payload. Webhook/polling producers omit it (they only know a signature
+   * touched the program); the adapter then matches any escrow event.
+   */
+  expected_event?: EscrowEvent
   /**
    * Optional client-side hint — verified against decoded `escrow_ref`.
    * Mismatched hint is treated as fraud and logged.
@@ -78,8 +107,18 @@ export interface VerifyTxJobPayload {
 export type VerifyTxResult =
   /** `tx_ref` already settled — no work to do. */
   | { skipped: true; reason: 'already_processed' }
-  /** Stage 2+ path: state applied, internal event republished. */
-  | { skipped: false; event: EscrowEvent; escrow_id: string }
+  /** Tx confirmed but execution failed / event mismatched — terminal. */
+  | { skipped: false; failed: true; reason: string }
+  /** State applied (or guard-absorbed) and internal event republished. */
+  | {
+      skipped: false
+      failed: false
+      event: EscrowEvent
+      internal_event: InternalEscrowEvent
+      escrow_id: string
+      /** False when the status guard tripped (another worker won the race). */
+      applied: boolean
+    }
 
 // ---------- retryable signal --------------------------------------------
 
@@ -100,6 +139,18 @@ export class RetryableError extends Error {
 export interface VerifyTxDeps {
   store: VerifyTxStore
   chains: ChainRegistry
+  eventStore: EscrowEventStore
+  /**
+   * Republish seam — the worker wiring (#33) hooks the notifications queue
+   * and the WS broadcaster here. Best-effort: a republish failure must not
+   * fail the (already-applied) state transition.
+   */
+  republish(event: {
+    internal_event: InternalEscrowEvent
+    escrow_id: string
+    wire_event: EscrowEvent
+  }): Promise<void>
+  log: { warn(obj: Record<string, unknown>, msg: string): void }
 }
 
 // ---------- idempotency key ---------------------------------------------
@@ -118,7 +169,8 @@ export interface VerifyTxDeps {
 export function verifyTxDedupKey(args: {
   chain_id: string
   tx_ref: string
-  event: EscrowEvent
+  /** Producers without an expectation (webhook/polling) pass 'Any'. */
+  event: EscrowEvent | 'Any'
 }): string {
   return `verify-tx:${args.chain_id}:${args.tx_ref}:${args.event}`
 }
@@ -126,14 +178,10 @@ export function verifyTxDedupKey(args: {
 // ---------- handler ------------------------------------------------------
 
 /**
- * Entry point for the BullMQ worker. Returns `{ skipped: true }` if the
- * tx_ref was already processed (idempotency check passes). Throws
- * `RetryableError` on transient verification failures; `AppError` for
- * permanent ones.
- *
- * Stage 0 implements: dedup check + producer-side type contract. The
- * `adapter.verifyTx → decode → transition → republish` pipeline throws 501
- * until Stage 2 wires it.
+ * Entry point for the BullMQ worker (stage-2-listeners.md § Verify job
+ * handler). Returns `{ skipped: true }` if the tx_ref was already
+ * processed. Throws `RetryableError` when the tx isn't confirmed yet —
+ * BullMQ retries with backoff; everything else is terminal.
  */
 export async function verifyTxJobHandler(
   deps: VerifyTxDeps,
@@ -144,16 +192,54 @@ export async function verifyTxJobHandler(
     return { skipped: true, reason: 'already_processed' }
   }
 
-  // Step 2 — fetch + verify on-chain. (Adapter stubbed until #29.)
-  // Wiring the adapter call now so the registry lookup is exercised even
-  // before the inner verifyTx body lands.
+  // Step 2 — fetch + verify on-chain; decode the event. The decoded
+  // payload is the source of truth — the producer's hints are only
+  // cross-checked inside the adapter.
   const adapter = deps.chains.get(job.chain_id)
-  void adapter
+  const verified = await adapter.verifyTx(job.tx_ref, {
+    ...(job.expected_event !== undefined ? { expected_event: job.expected_event } : {}),
+    ...(job.escrow_id !== undefined ? { escrow_id: job.escrow_id } : {}),
+  })
 
-  // Steps 3–5 land with Stage 2 (listener + event bus + WS broadcast).
-  throw new AppError(
-    501,
-    ErrorCode.INTERNAL_ERROR,
-    `verify-tx: post-dedup pipeline not implemented — lands with Stage 2 (listeners.md)`,
+  if (!verified.confirmed) {
+    throw new RetryableError(verified.reason ?? 'not_yet_confirmed')
+  }
+  if (verified.failed) {
+    await deps.store.markAttemptFailed(job.tx_ref, 'TX_FAILED')
+    return { skipped: false, failed: true, reason: verified.reason }
+  }
+
+  // Steps 3+4 — status-guarded transition + escrow_transactions audit row.
+  const result = await applyEscrowEvent(
+    { store: deps.eventStore, chain_ns: adapter.namespace },
+    verified.event,
+    job.tx_ref,
   )
+  await deps.store.markAttemptConfirmed(job.tx_ref)
+
+  // Step 5 — republish for notifications + WS. Best-effort: the state is
+  // already durable; a republish failure is logged, never thrown.
+  if (result.applied) {
+    try {
+      await deps.republish({
+        internal_event: result.internal_event,
+        escrow_id: result.escrow_id,
+        wire_event: verified.event.name,
+      })
+    } catch (err) {
+      deps.log.warn(
+        { err, tx_ref: job.tx_ref, escrow_id: result.escrow_id },
+        'verify-tx: republish failed (state already applied)',
+      )
+    }
+  }
+
+  return {
+    skipped: false,
+    failed: false,
+    event: verified.event.name,
+    internal_event: result.internal_event,
+    escrow_id: result.escrow_id,
+    applied: result.applied,
+  }
 }

@@ -1,154 +1,199 @@
 /**
- * jobs/verify-tx — Stage 0 skeleton.
- * Step-1 dedup is implemented; steps 2-5 throw 501 until Stage 2.
+ * jobs/verify-tx — the full Stage-2 pipeline: dedup → adapter verify →
+ * status-guarded application → attempt stamping → best-effort republish.
+ * Offline: fake adapter registry + in-memory stores.
  */
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { AppError } from '@server/lib/errors'
 import {
   RetryableError,
+  verifyTxJobHandler,
+  verifyTxDedupKey,
   type VerifyTxDeps,
   type VerifyTxJobPayload,
   type VerifyTxStore,
-  verifyTxDedupKey,
-  verifyTxJobHandler,
 } from '@server/jobs/verify-tx'
-import { buildChainRegistry } from '@server/chains'
-import type { Config } from '@server/config'
+import type {
+  ChainAdapter,
+  ChainRegistry,
+  DecodedEvent,
+  VerifiedTx,
+} from '@server/chains/types'
+import type { EscrowEventStore, EscrowPatch } from '@server/lib/escrow-events'
+import type { EscrowStatus } from '@server/lib/escrow'
 
-function inMemoryStore(initial: ReadonlyArray<string> = []): VerifyTxStore {
-  const processed = new Set(initial)
+const ESCROW_ID = '11111111-2222-4333-8444-555555555555'
+
+function acceptedEvent(): DecodedEvent {
   return {
-    async isProcessed(tx_ref) {
-      return processed.has(tx_ref)
+    name: 'EscrowAccepted',
+    escrow_ref: 'Pda111',
+    fields: {
+      escrow_id: ESCROW_ID,
+      counterparty: 'Cp111',
+      completion_deadline: '1900007200',
+      timestamp: '1900000000',
     },
   }
 }
 
-function baseConfig(): Config {
-  return {
-    DATABASE_URL: 'postgres://localhost/test',
-    JWT_SECRET: 's',
-    CLOUDINARY_CLOUD_NAME: '',
-    CLOUDINARY_API_KEY: '',
-    CLOUDINARY_API_SECRET: '',
-    SOLANA_RPC_URL: 'https://api.devnet.solana.com',
-    SOLANA_TREASURY_ADDRESS: 'Treasury1111',
-    SOLANA_PROGRAM_ID: 'Tenda11111111111111111111111111111111111',
-    API_BASE_URL: 'https://api.tenda.test',
-    PLATFORM_FEE_BPS: 250,
-    JWT_EXPIRES_IN: '7d',
-    SOLANA_NETWORK: 'devnet',
-    SOLANA_USDC_MINT: null,
-    TERMII_API_KEY: null,
-    TERMII_SENDER_ID: null,
-    SOLANA_GAS_SEED_WALLET_KEY: null,
-    CORS_ORIGIN: null,
-    ADMIN_ORIGIN: null,
+function makeDeps(opts: {
+  processed?: boolean
+  verdict?: VerifiedTx
+  guardTrips?: boolean
+  republishFails?: boolean
+}): {
+  deps: VerifyTxDeps
+  calls: {
+    confirmed: string[]
+    failed: Array<{ tx_ref: string; code: string }>
+    republished: Array<{ internal_event: string; escrow_id: string }>
+    warned: string[]
+    transitions: Array<{ from: EscrowStatus[]; patch: EscrowPatch }>
   }
-}
-
-const TEST_REGISTRY_DEPS = {
-  solana: {
-    async resolveWalletAddress(): Promise<string> {
-      throw new Error('not used in verify-tx tests')
+} {
+  const calls = {
+    confirmed: [] as string[],
+    failed: [] as Array<{ tx_ref: string; code: string }>,
+    republished: [] as Array<{ internal_event: string; escrow_id: string }>,
+    warned: [] as string[],
+    transitions: [] as Array<{ from: EscrowStatus[]; patch: EscrowPatch }>,
+  }
+  const store: VerifyTxStore = {
+    async isProcessed() {
+      return opts.processed ?? false
     },
-    async resolveAsset(): Promise<{ token_address: string | null }> {
-      throw new Error('not used in verify-tx tests')
+    async markAttemptConfirmed(tx_ref) {
+      calls.confirmed.push(tx_ref)
     },
-  },
-}
-
-function deps(store: VerifyTxStore): VerifyTxDeps {
-  return { store, chains: buildChainRegistry(baseConfig(), TEST_REGISTRY_DEPS) }
+    async markAttemptFailed(tx_ref, code) {
+      calls.failed.push({ tx_ref, code })
+    },
+  }
+  const eventStore: EscrowEventStore = {
+    async applyTransition({ from, patch }) {
+      calls.transitions.push({ from, patch })
+      return !(opts.guardTrips ?? false)
+    },
+    async insertTransaction() {},
+    async resolveUserByWallet() {
+      return 'user-1'
+    },
+    async recordDisputeResolution() {},
+  }
+  const adapter: ChainAdapter = {
+    namespace: 'solana',
+    chain_id: 'solana:devnet',
+    async buildTx() {
+      throw new Error('not used')
+    },
+    async verifyTx() {
+      return opts.verdict ?? { confirmed: true, failed: false, event: acceptedEvent() }
+    },
+    async verifyAuthSig() {
+      return true
+    },
+    async fetchEscrowState() {
+      return null
+    },
+    computeFee() {
+      return '0'
+    },
+  }
+  const chains: ChainRegistry = {
+    get(chain_id) {
+      assert.strictEqual(chain_id, 'solana:devnet')
+      return adapter
+    },
+    has: () => true,
+    list: () => [adapter],
+  }
+  const deps: VerifyTxDeps = {
+    store,
+    chains,
+    eventStore,
+    async republish(e) {
+      if (opts.republishFails ?? false) throw new Error('bus down')
+      calls.republished.push({ internal_event: e.internal_event, escrow_id: e.escrow_id })
+    },
+    log: {
+      warn(_obj, msg) {
+        calls.warned.push(msg)
+      },
+    },
+  }
+  return { deps, calls }
 }
 
 function job(over: Partial<VerifyTxJobPayload> = {}): VerifyTxJobPayload {
   return {
     chain_id: 'solana:devnet',
     tx_ref: 'sig-abc',
-    expected_event: 'EscrowCreated',
+    expected_event: 'EscrowAccepted',
     source: 'client-hint',
     ...over,
   }
 }
 
-// ---------- dedup key ----------------------------------------------------
+test('already-processed tx_ref skips before touching the adapter', async () => {
+  const { deps, calls } = makeDeps({ processed: true })
+  const r = await verifyTxJobHandler(deps, job())
+  assert.deepStrictEqual(r, { skipped: true, reason: 'already_processed' })
+  assert.strictEqual(calls.transitions.length, 0)
+})
 
-test('verifyTxDedupKey: stable format `verify-tx:chain:tx_ref:event`', () => {
-  const key = verifyTxDedupKey({
-    chain_id: 'solana:devnet',
-    tx_ref: '4xY...',
-    event: 'EscrowCreated',
+test('unconfirmed tx throws RetryableError (BullMQ backoff)', async () => {
+  const { deps } = makeDeps({ verdict: { confirmed: false, pending: true } })
+  await assert.rejects(verifyTxJobHandler(deps, job()), RetryableError)
+})
+
+test('confirmed-but-failed tx marks the attempt failed and returns terminal', async () => {
+  const { deps, calls } = makeDeps({
+    verdict: { confirmed: true, failed: true, reason: 'custom error 6014' },
   })
-  assert.strictEqual(key, 'verify-tx:solana:devnet:4xY...:EscrowCreated')
+  const r = await verifyTxJobHandler(deps, job())
+  assert.ok(r.skipped === false && r.failed === true)
+  assert.match(r.reason, /6014/)
+  assert.deepStrictEqual(calls.failed, [{ tx_ref: 'sig-abc', code: 'TX_FAILED' }])
+  assert.strictEqual(calls.transitions.length, 0)
 })
 
-test('verifyTxDedupKey: different events → different keys', () => {
-  const a = verifyTxDedupKey({ chain_id: 'c', tx_ref: 't', event: 'EscrowCreated' })
-  const b = verifyTxDedupKey({ chain_id: 'c', tx_ref: 't', event: 'EscrowAccepted' })
-  assert.notStrictEqual(a, b)
+test('happy path: applies the event, confirms the attempt, republishes snake_case', async () => {
+  const { deps, calls } = makeDeps({})
+  const r = await verifyTxJobHandler(deps, job())
+  assert.ok(r.skipped === false && r.failed === false)
+  assert.strictEqual(r.event, 'EscrowAccepted')
+  assert.strictEqual(r.internal_event, 'escrow.accepted')
+  assert.strictEqual(r.escrow_id, ESCROW_ID)
+  assert.strictEqual(r.applied, true)
+  assert.deepStrictEqual(calls.confirmed, ['sig-abc'])
+  assert.deepStrictEqual(calls.republished, [
+    { internal_event: 'escrow.accepted', escrow_id: ESCROW_ID },
+  ])
+  assert.deepStrictEqual(calls.transitions[0].from, ['open'])
 })
 
-test('verifyTxDedupKey: identical inputs → identical keys', () => {
-  const a = verifyTxDedupKey({ chain_id: 'c', tx_ref: 't', event: 'EscrowCreated' })
-  const b = verifyTxDedupKey({ chain_id: 'c', tx_ref: 't', event: 'EscrowCreated' })
+test('status-guard trip: attempt still confirmed, but no republish (no double fan-out)', async () => {
+  const { deps, calls } = makeDeps({ guardTrips: true })
+  const r = await verifyTxJobHandler(deps, job())
+  assert.ok(r.skipped === false && r.failed === false)
+  assert.strictEqual(r.applied, false)
+  assert.deepStrictEqual(calls.confirmed, ['sig-abc'])
+  assert.strictEqual(calls.republished.length, 0)
+})
+
+test('republish failure is logged, never thrown — state is already durable', async () => {
+  const { deps, calls } = makeDeps({ republishFails: true })
+  const r = await verifyTxJobHandler(deps, job())
+  assert.ok(r.skipped === false && r.failed === false)
+  assert.strictEqual(calls.warned.length, 1)
+})
+
+test('verifyTxDedupKey: deterministic and event-scoped', () => {
+  const a = verifyTxDedupKey({ chain_id: 'solana:devnet', tx_ref: 's', event: 'EscrowCreated' })
+  const b = verifyTxDedupKey({ chain_id: 'solana:devnet', tx_ref: 's', event: 'EscrowCreated' })
+  const c = verifyTxDedupKey({ chain_id: 'solana:devnet', tx_ref: 's', event: 'EscrowAccepted' })
   assert.strictEqual(a, b)
-})
-
-// ---------- handler: dedup step ----------------------------------------
-
-test('handler: returns skipped when tx_ref already processed', async () => {
-  const result = await verifyTxJobHandler(deps(inMemoryStore(['sig-abc'])), job())
-  assert.deepStrictEqual(result, { skipped: true, reason: 'already_processed' })
-})
-
-test('handler: dedup is exact (different tx_ref → not skipped)', async () => {
-  try {
-    await verifyTxJobHandler(deps(inMemoryStore(['other-sig'])), job())
-    assert.fail('expected throw past dedup')
-  } catch (err) {
-    if (!(err instanceof AppError)) throw err
-    assert.strictEqual(err.statusCode, 501)
-  }
-})
-
-// ---------- handler: post-dedup pipeline stubbed -----------------------
-
-test('handler: fresh tx_ref → throws 501 (stages 2-5 deferred)', async () => {
-  try {
-    await verifyTxJobHandler(deps(inMemoryStore()), job())
-    assert.fail('expected throw')
-  } catch (err) {
-    if (!(err instanceof AppError)) throw err
-    assert.strictEqual(err.statusCode, 501)
-    assert.match(err.message, /post-dedup pipeline not implemented/)
-  }
-})
-
-test('handler: rejects unknown chain_id (registry guard fires past dedup)', async () => {
-  // Explicit empty store + distinct tx_ref so dedup CANNOT short-circuit;
-  // any throw must come from the registry lookup at step 2.
-  const emptyStore = inMemoryStore()
-  try {
-    await verifyTxJobHandler(
-      deps(emptyStore),
-      job({ chain_id: 'eip155:8453', tx_ref: 'never-seen-tx-ref' }),
-    )
-    assert.fail('expected throw')
-  } catch (err) {
-    if (!(err instanceof Error)) throw err
-    assert.match(err.message, /no adapter registered.*eip155:8453/)
-  }
-})
-
-// ---------- RetryableError shape ---------------------------------------
-
-test('RetryableError: distinct from AppError, carries reason', () => {
-  const err = new RetryableError('not_yet_confirmed')
-  assert.strictEqual(err.name, 'RetryableError')
-  assert.strictEqual(err.message, 'not_yet_confirmed')
-  assert.ok(err instanceof Error)
-  assert.ok(!(err instanceof AppError))
+  assert.notStrictEqual(a, c)
 })

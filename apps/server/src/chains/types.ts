@@ -229,7 +229,12 @@ export type UnsignedTx =
 // ---------- verifyTx ------------------------------------------------------
 
 export interface VerifyTxArgs {
-  expected_event: EscrowEvent
+  /**
+   * Event the producer expects. Omitted by webhook/polling producers —
+   * they only know a signature touched the program; the adapter then
+   * matches ANY escrow event in the transaction.
+   */
+  expected_event?: EscrowEvent
   /** Optional client hint — verified against decoded event payload. */
   escrow_id?: string
 }
