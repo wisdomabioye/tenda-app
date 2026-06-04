@@ -37,6 +37,8 @@ build
 # Environment files
 .env
 .env*
+# but always track the documented examples
+!.env.example
 .env*.local
 .env.local
 .env.development.local
