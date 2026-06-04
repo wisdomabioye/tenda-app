@@ -197,7 +197,9 @@ function ExchangeDetailContent({
         onReviewSubmitted={() => void refresh()}
         onAcceptConfirmed={() => void actions.accept()}
         onCancelOpenConfirmed={() => void actions.cancel()}
-        onRefundExpiredConfirmed={() => void actions.refund()}
+        onRefundExpiredConfirmed={() =>
+          void actions.refund(offer.status === 'open' ? 'refund_expired' : 'reclaim_abandoned')
+        }
         onProofsReady={handleProofsReady}
         onAddProofsReady={handleAddProofsReady}
         onDisputeReady={handleDisputeReady}

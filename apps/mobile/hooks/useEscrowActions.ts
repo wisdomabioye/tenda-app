@@ -88,8 +88,14 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
     approve: () => dispatch('approve', () => store.requestApprove(escrowId)),
     claim: () => dispatch('claim_stalled', () => store.requestClaim(escrowId)),
     cancel: () => dispatch('cancel', () => store.requestCancel(escrowId)),
-    /** Covers refund_expired AND reclaim_abandoned — the server picks by status. */
-    refund: () => dispatch('refund_expired', () => store.requestRefund(escrowId)),
+    /**
+     * One endpoint covers both recovery transitions; the PING action must
+     * match the on-chain event exactly (verify-tx cross-checks it), so the
+     * caller passes which one the escrow's status implies:
+     * open → 'refund_expired', accepted → 'reclaim_abandoned'.
+     */
+    refund: (kind: 'refund_expired' | 'reclaim_abandoned') =>
+      dispatch(kind, () => store.requestRefund(escrowId)),
 
     /** Upload satellite rows first, then commit the digest on-chain. */
     submit: async (proofs: ProofFile[]): Promise<boolean> => {

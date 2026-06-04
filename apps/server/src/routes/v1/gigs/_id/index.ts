@@ -1,8 +1,11 @@
 /**
  * GET /v1/gigs/:id — public gig detail (cutover §3 rewrite): escrows ⨝
  * gig_details + creator/counterparty refs, proofs, dispute and reviews.
- * Read-only; transitions live under /v1/escrows/:id/*. Draft escrows are
- * only visible to their creator (they're pre-publish staging rows).
+ * Read-only; transitions live under /v1/escrows/:id/*.
+ *
+ * Drafts are pre-publish staging rows: 404 to the public, but the CREATOR
+ * must see them (my-gigs lists drafts; the Delete Draft CTA lives here),
+ * so a draft hit attempts JWT verification and compares the caller.
  */
 import { FastifyPluginAsync } from 'fastify'
 import { eq, inArray } from 'drizzle-orm'
@@ -35,9 +38,16 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     const escrow = row.escrows
     const details = row.gig_details
 
-    // Pre-publish drafts are private staging rows.
+    // Pre-publish drafts are private staging rows — creator-only.
     if (escrow.status === 'draft') {
-      throw new AppError(404, ErrorCode.NOT_FOUND, 'Gig not found')
+      try {
+        await request.jwtVerify()
+      } catch {
+        throw new AppError(404, ErrorCode.NOT_FOUND, 'Gig not found')
+      }
+      if (request.user.id !== escrow.creator_id) {
+        throw new AppError(404, ErrorCode.NOT_FOUND, 'Gig not found')
+      }
     }
 
     const userIds =

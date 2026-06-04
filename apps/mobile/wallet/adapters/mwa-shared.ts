@@ -2,14 +2,15 @@
  * Shared Solana Mobile Wallet Adapter helpers used by every Android-side
  * Solana adapter (Phantom, Solflare, future MWA-capable wallets).
  *
- * Mirrors the established usage in `wallet/index.ts` so the spike adapters
- * stay aligned with the legacy path until we eventually retire it.
+ * The single MWA transport core post-#34 — the legacy wallet/index.ts MWA
+ * path was deleted at the cutover; auth + signing flows ride these helpers.
  */
 import {
   transact,
   type Web3MobileWallet,
 } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { getEnv } from '@/lib/env'
+import { WalletError } from '@/wallet'
 import { metadata } from '../config'
 
 const env = getEnv()
@@ -144,15 +145,17 @@ export async function withMwaRetry<T>(
     try {
       return await transact(op, baseUri ? { baseUri } : undefined)
     } catch (err) {
+      // Typed errors so screens can branch on .code (connect-wallet's
+      // no_wallet install prompt, decline handling, etc.).
       if (isMwaUserDeclined(err)) {
-        throw new Error('Wallet request declined')
+        throw new WalletError('declined', 'Wallet request declined', err)
       }
       if (isMwaTransient(err) && attempt < MAX_RETRIES) {
         await delay(RETRY_DELAY_MS)
         continue
       }
       if (isMwaNoWallet(err)) {
-        throw new Error('No Solana wallet app installed')
+        throw new WalletError('no_wallet', 'No Solana wallet app installed', err)
       }
       throw err
     }

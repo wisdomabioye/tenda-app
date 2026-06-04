@@ -61,7 +61,12 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     const safeOffset = Number(offset)
 
     const conditions: SQL[] = []
-    if (status === 'open') conditions.push(isNull(disputes.resolved_at))
+    // 'open' also requires the on-chain dispute to be live: the triage row
+    // is upserted at request time, so an unconfirmed/abandoned dispute
+    // attempt must not surface in the actionable queue.
+    if (status === 'open') {
+      conditions.push(isNull(disputes.resolved_at), eq(escrows.status, 'disputed'))
+    }
     if (status === 'resolved') conditions.push(isNotNull(disputes.resolved_at))
     if (kind === 'gig' || kind === 'exchange') conditions.push(eq(escrows.kind, kind))
     const where = conditions.length > 0 ? and(...conditions) : undefined

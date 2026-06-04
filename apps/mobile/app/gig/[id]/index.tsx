@@ -156,7 +156,9 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           onReviewSubmitted={() => fetchGigDetail(gig.escrow_id)}
           onAcceptConfirmed={() => void actions.accept()}
           onCancelOpenConfirmed={() => void actions.cancel()}
-          onRefundExpiredConfirmed={() => void actions.refund()}
+          onRefundExpiredConfirmed={() =>
+            void actions.refund(gig.status === 'open' ? 'refund_expired' : 'reclaim_abandoned')
+          }
           onProofsReady={handleProofsReady}
           onAddProofsReady={handleAddProofsReady}
           onDisputeReady={handleDisputeReady}

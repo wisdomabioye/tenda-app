@@ -1,9 +1,10 @@
 /**
  * GET /v1/exchange/:id — exchange detail (cutover §3 rewrite): escrows ⨝
  * exchange_details + creator/counterparty refs, proofs, dispute and
- * reviews. Read-only; transitions live under /v1/escrows/:id/*. Drafts
- * are private staging rows (fiat-rails opens them) — 404 to everyone but
- * their creator's tooling via /v1/fiat intents.
+ * reviews. Read-only; transitions live under /v1/escrows/:id/*.
+ *
+ * Drafts are private staging rows (fiat-rails opens them; my-offers lists
+ * them) — visible to their CREATOR only, 404 to everyone else.
  */
 import { FastifyPluginAsync } from 'fastify'
 import { eq, inArray } from 'drizzle-orm'
@@ -43,7 +44,8 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     const escrow = row.escrows
     const details = row.exchange_details
 
-    if (escrow.status === 'draft') {
+    // Route is authenticated — the creator check needs no extra verify.
+    if (escrow.status === 'draft' && escrow.creator_id !== request.user.id) {
       throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
     }
 

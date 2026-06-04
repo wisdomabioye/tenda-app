@@ -8,7 +8,8 @@ import {
   clusterApiUrl,
   type Transaction,
 } from '@solana/web3.js'
-import { authorizeSession, isMwaUserDeclined, withMwaRetry, SOLANA_CLUSTER } from './mwa-shared'
+import { authorizeSession, withMwaRetry, SOLANA_CLUSTER } from './mwa-shared'
+import { WalletError } from '@/wallet'
 import { SPIKE_CHAINS } from '../config'
 import type { SignMessageResult, SpikeAccount } from '../types'
 import type { WalletAdapter } from './types'
@@ -118,10 +119,9 @@ export async function connectAndSignMessage(
     ])
     return result
   } catch (err) {
-    // withMwaRetry maps the protocol error to a plain Error — recheck the
-    // cause chain is unnecessary: declines short-circuit before retries.
-    if (err instanceof Error && err.message === 'Wallet request declined') return null
-    if (isMwaUserDeclined(err)) return null
+    // withMwaRetry surfaces typed WalletErrors; a decline is the user's
+    // answer, not a failure.
+    if (err instanceof WalletError && err.code === 'declined') return null
     throw err
   }
 }
