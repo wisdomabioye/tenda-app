@@ -45,10 +45,12 @@ export default function ProfileScreen() {
   const { theme } = useUnistyles()
   const { user, logout, refreshUser } = useAuthStore()
   const { postedGigs, workedGigs, fetchAll } = useUserGigsStore()
+  const wallets = useAuthStore((s) => s.wallets)
+  const sessionWallet = useAuthStore((s) => s.walletAddress)
 
   useFocusEffect(
     useCallback(() => {
-      if (user?.id) fetchAll(user.id)
+      if (user?.id) fetchAll()
       refreshUser()
     }, [user?.id]), // eslint-disable-line react-hooks/exhaustive-deps
   )
@@ -63,7 +65,10 @@ export default function ProfileScreen() {
     .filter(Boolean)
     .join(' ') || 'Anonymous'
 
-  const walletShort = user?.wallet_address ? truncateWallet(user.wallet_address) : '—'
+  // v2 identity is multi-wallet: show the primary linked wallet, falling
+  // back to the connected session address.
+  const primaryWallet = wallets.find((w) => w.is_primary)?.address ?? sessionWallet
+  const walletShort = primaryWallet ? truncateWallet(primaryWallet) : '—'
 
   const accountItems: MenuItem[] = [
     {
@@ -101,10 +106,8 @@ export default function ProfileScreen() {
     },
   ]
 
-  // Backend stores reputation on a 0–100 scale; show as 0.0–5.0 stars for users.
-  const reputationDisplay = user?.reputation_score
-    ? (user.reputation_score / 20).toFixed(1)
-    : '—'
+  // v2 review_score is already a 0–5 average (numeric(3,2) → string).
+  const reputationDisplay = user?.review_score ? Number(user.review_score).toFixed(1) : '—'
 
   return (
     <ScreenContainer scroll padding={false} edges={['left', 'right']}>
@@ -130,7 +133,7 @@ export default function ProfileScreen() {
               {user?.city ?? 'Unknown'}
             </Text>
           </View>
-          {user?.wallet_address && (
+          {primaryWallet && (
             <View style={[s.infoPill, { backgroundColor: theme.colors.surface.inset }]}>
               <Wallet size={12} color={theme.colors.content.tertiary} />
               <Text style={[s.infoPillMono, { color: theme.colors.content.secondary }]} numberOfLines={1}>

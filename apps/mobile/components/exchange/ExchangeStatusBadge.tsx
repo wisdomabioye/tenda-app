@@ -1,34 +1,36 @@
 import { Badge } from '@/components/ui/Badge'
-import type { ExchangeOfferStatus } from '@tenda/shared'
+import type { EscrowStatus } from '@tenda/shared'
 
 type BadgeTone = 'success' | 'warning' | 'danger' | 'info' | 'brand' | 'accent' | 'neutral'
 
-const VARIANT: Record<ExchangeOfferStatus, BadgeTone> = {
-  draft:     'neutral',
-  open:      'success',
-  accepted:  'brand',
-  paid:      'warning',
+// Exchange-flavoured labels over the v2 escrow statuses: 'submitted' is the
+// buyer's fiat-payment proof awaiting seller confirmation.
+const VARIANT: Record<EscrowStatus, BadgeTone> = {
+  draft: 'neutral',
+  open: 'success',
+  accepted: 'brand',
+  submitted: 'warning',
   completed: 'success',
-  disputed:  'danger',
-  resolved:  'neutral',
   cancelled: 'neutral',
-  expired:   'neutral',
+  refunded: 'neutral',
+  disputed: 'danger',
+  resolved: 'neutral',
 }
 
-const LABEL: Record<ExchangeOfferStatus, string> = {
-  draft:     'Draft',
-  open:      'Open',
-  accepted:  'In progress',
-  paid:      'In payment',
+const LABEL: Record<EscrowStatus, string> = {
+  draft: 'Draft',
+  open: 'Open',
+  accepted: 'In progress',
+  submitted: 'In payment',
   completed: 'Completed',
-  disputed:  'Disputed',
-  resolved:  'Resolved',
   cancelled: 'Cancelled',
-  expired:   'Expired',
+  refunded: 'Refunded',
+  disputed: 'Disputed',
+  resolved: 'Resolved',
 }
 
 interface Props {
-  status: ExchangeOfferStatus
+  status: EscrowStatus
 }
 
 export function ExchangeStatusBadge({ status }: Props) {

@@ -1,46 +1,38 @@
+/**
+ * Deferred client-ping queue (post-#34 the ONLY pending-sync action).
+ * The v2 flow broadcasts a wallet-signed tx, then reports the tx_ref via
+ * POST /v1/blockchain/transaction; when that ping fails offline it lands
+ * here and replays on foreground. Replays are idempotent server-side
+ * (tx_ref UNIQUE + job dedup).
+ */
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import { api, ApiClientError } from '@/api/client'
 import { ErrorCode } from '@tenda/shared'
-import type { SubmitProofInput, ExchangePaidInput, EscrowTxType } from '@tenda/shared'
+import type { EscrowTxType } from '@tenda/shared'
 
 const STORAGE_KEY        = 'tenda_pending_sync'
 const FAILED_STORAGE_KEY = 'tenda_failed_sync'
 const MAX_RETRY_COUNT    = 10
 
-export type PendingSync =
-  // Gig actions
-  | { id: string; action: 'publish' | 'approve' | 'cancel' | 'accept' | 'refund'; gigId: string; signature: string; createdAt: number; retryCount: number }
-  | { id: string; action: 'submit'; gigId: string; signature: string; proofs: SubmitProofInput['proofs']; createdAt: number; retryCount: number }
-  // Exchange actions
-  | { id: string; action: 'exchange_publish' | 'exchange_accept' | 'exchange_cancel' | 'exchange_confirm' | 'exchange_refund'; offerId: string; signature: string; createdAt: number; retryCount: number }
-  | { id: string; action: 'exchange_dispute'; offerId: string; signature: string; reason: string; createdAt: number; retryCount: number }
-  | { id: string; action: 'exchange_paid'; offerId: string; signature: string; proofs: ExchangePaidInput['proofs']; createdAt: number; retryCount: number }
-  // v2 escrow vocabulary (#65) — a deferred client-ping. `signature` is the
-  // tx_ref of the already-broadcast transaction; replay re-reports it for
-  // async verification (idempotent server-side).
-  | { id: string; action: 'escrow_ping'; escrowId: string | null; chainId: string; txAction: EscrowTxType; signature: string; createdAt: number; retryCount: number }
+export interface PendingSync {
+  id: string
+  action: 'escrow_ping'
+  escrowId: string | null
+  chainId: string
+  txAction: EscrowTxType
+  /** tx_ref of the already-broadcast transaction. */
+  signature: string
+  createdAt: number
+  retryCount: number
+}
 
 /** Human-readable label for each pending-sync action. Exhaustive by type — update when adding new actions. */
 export const PENDING_SYNC_ACTION_LABEL: Record<PendingSync['action'], string> = {
-  publish:          'Publish gig',
-  accept:           'Accept gig',
-  approve:          'Approve completion',
-  cancel:           'Cancel gig',
-  refund:           'Claim refund',
-  submit:           'Submit proof',
-  exchange_publish: 'Publish exchange offer',
-  exchange_accept:  'Accept exchange offer',
-  exchange_cancel:  'Cancel exchange offer',
-  exchange_confirm: 'Confirm exchange payment',
-  exchange_dispute: 'Raise exchange dispute',
-  exchange_paid:    'Mark exchange as paid',
-  exchange_refund:  'Claim expired offer refund',
-  escrow_ping:      'Confirm on-chain transaction',
+  escrow_ping: 'Confirm on-chain transaction',
 }
 
-// Distribute Omit over the union so each variant is processed independently.
-type PendingSyncEntry = PendingSync extends infer T ? T extends { id: string; createdAt: number; retryCount: number } ? Omit<T, 'id' | 'createdAt' | 'retryCount'> : never : never
+type PendingSyncEntry = Omit<PendingSync, 'id' | 'createdAt' | 'retryCount'>
 
 interface PendingSyncState {
   queue:       PendingSync[]
@@ -107,7 +99,7 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
 
   add: (entry: PendingSyncEntry) => {
     const id   = uuid()
-    const item = { ...entry, id, createdAt: Date.now(), retryCount: 0 } as PendingSync
+    const item: PendingSync = { ...entry, id, createdAt: Date.now(), retryCount: 0 }
     const queue = [...get().queue, item]
     set({ queue })
     saveQueue(queue).catch(() => {})
@@ -184,44 +176,15 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
       }
 
       try {
-        if (entry.action === 'publish') {
-          await api.gigs.publish({ id: entry.gigId }, { signature: entry.signature })
-        } else if (entry.action === 'approve') {
-          await api.gigs.approve({ id: entry.gigId }, { signature: entry.signature })
-        } else if (entry.action === 'cancel') {
-          await api.gigs.delete({ id: entry.gigId }, { signature: entry.signature })
-        } else if (entry.action === 'accept') {
-          await api.gigs.accept({ id: entry.gigId }, { signature: entry.signature })
-        } else if (entry.action === 'refund') {
-          await api.gigs.refund({ id: entry.gigId }, { signature: entry.signature })
-        } else if (entry.action === 'submit') {
-          await api.gigs.submit({ id: entry.gigId }, { signature: entry.signature, proofs: entry.proofs })
-        } else if (entry.action === 'exchange_publish') {
-          await api.exchange.publish({ id: entry.offerId }, { signature: entry.signature })
-        } else if (entry.action === 'exchange_accept') {
-          await api.exchange.accept({ id: entry.offerId }, { signature: entry.signature })
-        } else if (entry.action === 'exchange_cancel') {
-          await api.exchange.cancel({ id: entry.offerId }, { signature: entry.signature })
-        } else if (entry.action === 'exchange_confirm') {
-          await api.exchange.confirm({ id: entry.offerId }, { signature: entry.signature })
-        } else if (entry.action === 'exchange_dispute') {
-          await api.exchange.dispute({ id: entry.offerId }, { signature: entry.signature, reason: entry.reason })
-        } else if (entry.action === 'exchange_paid') {
-          await api.exchange.paid({ id: entry.offerId }, { signature: entry.signature, proofs: entry.proofs })
-        } else if (entry.action === 'exchange_refund') {
-          await api.exchange.refund({ id: entry.offerId }, { signature: entry.signature })
-        } else if (entry.action === 'escrow_ping') {
-          await api.blockchain.clientPing({
-            tx_ref: entry.signature,
-            action: entry.txAction,
-            chain_id: entry.chainId,
-            ...(entry.escrowId !== null ? { escrow_id: entry.escrowId } : {}),
-          })
-        }
+        await api.blockchain.clientPing({
+          tx_ref: entry.signature,
+          action: entry.txAction,
+          chain_id: entry.chainId,
+          ...(entry.escrowId !== null ? { escrow_id: entry.escrowId } : {}),
+        })
         get().remove(entry.id)
       } catch (err) {
-        // 409 DUPLICATE_SIGNATURE = already recorded on-chain — treat as success.
-        // Only remove for this specific code; other 409s (e.g. GIG_WRONG_STATUS) are real errors.
+        // 409 DUPLICATE_SIGNATURE = already recorded — treat as success.
         if (err instanceof ApiClientError && err.statusCode === 409 && err.error === ErrorCode.DUPLICATE_SIGNATURE) {
           get().remove(entry.id)
           continue

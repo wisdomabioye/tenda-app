@@ -111,6 +111,9 @@ importers:
       '@metamask/connect-evm':
         specifier: 1.4.0
         version: 1.4.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0)))(bufferutil@4.1.0)
+      '@noble/hashes':
+        specifier: ^1.8.0
+        version: 1.8.0
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))

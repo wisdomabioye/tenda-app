@@ -37,13 +37,15 @@ const CATEGORY_HINTS: Record<GigCategory, string> = {
   digital:  'Scope, deliverable format, revision rounds, tools/accounts.',
 }
 
-export const ACCEPT_DEADLINE_OPTIONS: Array<{ label: string; hours: number | null }> = [
-  { label: 'No limit', hours: null },
-  { label: '12h',      hours: 12 },
-  { label: '24h',      hours: 24 },
-  { label: '48h',      hours: 48 },
-  { label: '3d',       hours: 72 },
-  { label: '7d',       hours: 168 },
+// v2 escrows REQUIRE an accept deadline (the on-chain refund window keys
+// off it) — '30d' is the long-tail option that replaced 'No limit'.
+export const ACCEPT_DEADLINE_OPTIONS: Array<{ label: string; hours: number }> = [
+  { label: '12h', hours: 12 },
+  { label: '24h', hours: 24 },
+  { label: '48h', hours: 48 },
+  { label: '3d',  hours: 72 },
+  { label: '7d',  hours: 168 },
+  { label: '30d', hours: 720 },
 ]
 
 export interface GigFormValues {
@@ -55,8 +57,7 @@ export interface GigFormValues {
   country: string | null
   remote: boolean
   city: string | null
-  address: string
-  acceptDeadlineHours: number | null
+  acceptDeadlineHours: number
 }
 
 interface GigFormProps {
@@ -76,12 +77,11 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
   const [description, setDescription]             = useState(initialValues?.description ?? '')
   const [paymentLamports, setPaymentLamports]     = useState(initialValues?.paymentLamports ?? 0)
   const [completionDuration, setCompletionDuration] = useState(initialValues?.completionDuration ?? 86_400)
-  const [address, setAddress]                     = useState(initialValues?.address ?? '')
   const [selectedCategory, setSelectedCategory]   = useState<GigCategory | null>(initialValues?.category ?? null)
   const [selectedCountry, setSelectedCountry]     = useState<string | null>(initialValues?.country ?? getDeviceCountry())
   const [isRemote, setIsRemote]                   = useState(initialValues?.remote ?? false)
   const [selectedCity, setSelectedCity]           = useState<string | null>(initialValues?.city ?? null)
-  const [acceptDeadlineHours, setAcceptDeadlineHours] = useState<number | null>(initialValues?.acceptDeadlineHours ?? null)
+  const [acceptDeadlineHours, setAcceptDeadlineHours] = useState<number>(initialValues?.acceptDeadlineHours ?? 168)
 
   const [warnSheetOpen, setWarnSheetOpen] = useState(false)
 
@@ -124,7 +124,6 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
       country: selectedCountry,
       remote: isRemote,
       city: isRemote ? null : selectedCity,
-      address: isRemote ? '' : address,
       acceptDeadlineHours,
     })
   }
@@ -182,18 +181,6 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
               country={selectedCountry}
               city={selectedCity}
               onChange={(c, ci) => { setSelectedCountry(c); setSelectedCity(ci) }}
-            />
-          </View>
-        )}
-
-        {!isRemote && (
-          <View style={[s.fieldWrap, { marginTop: 10 }]}>
-            <Input
-              label="Address (optional)"
-              placeholder="e.g. 12 Broad Street, Lagos Island"
-              helper="Physical location if the gig requires in-person work."
-              value={address}
-              onChangeText={setAddress}
             />
           </View>
         )}

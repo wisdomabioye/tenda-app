@@ -10,7 +10,7 @@ import { ScreenContainer, Text, Spacer, EmptyState, Header } from '@/components/
 import { GigCardCompact } from '@/components/gig'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUserGigsStore } from '@/stores/user-gigs.store'
-import type { Gig } from '@tenda/shared'
+import type { GigSummary } from '@tenda/shared'
 import { ClipboardList } from 'lucide-react-native'
 import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
 
@@ -36,8 +36,8 @@ export default function MyGigsScreen() {
 
   function fetchForPage(index: number) {
     if (!user?.id) return
-    if (index === 0) fetchPostedGigs(user.id)
-    else fetchWorkedGigs(user.id)
+    if (index === 0) fetchPostedGigs()
+    else fetchWorkedGigs()
   }
 
   useFocusEffect(useCallback(() => {
@@ -46,9 +46,7 @@ export default function MyGigsScreen() {
 
   async function handleRefresh() {
     setRefreshing(true)
-    await (pageIndex === 0
-      ? fetchPostedGigs(user?.id ?? '')
-      : fetchWorkedGigs(user?.id ?? ''))
+    await (pageIndex === 0 ? fetchPostedGigs() : fetchWorkedGigs())
     setRefreshing(false)
   }
 
@@ -137,8 +135,8 @@ export default function MyGigsScreen() {
         {tabs.map((tab, i) => (
           <View key={tab.label} style={{ width: SW }}>
             <FlatList
-              data={tab.data as Gig[]}
-              keyExtractor={(item) => item.id}
+              data={tab.data}
+              keyExtractor={(item) => item.escrow_id}
               renderItem={({ item }) => <GigCardCompact gig={item} showStatus={tab.showStatus} />}
               contentContainerStyle={s.list}
               showsVerticalScrollIndicator={false}

@@ -26,16 +26,18 @@ const escrowTitleSql: SQL<string | null> = sql<string | null>`CASE
 END`
 
 const messagesRoute: FastifyPluginAsync = async (fastify) => {
-  /** Resolve the context-divider title for one escrow id (post-insert path). */
-  async function escrowTitleFor(escrow_id: string): Promise<string | null> {
+  /** Resolve the context-divider title + kind for one escrow id (post-insert path). */
+  async function escrowContextFor(
+    escrow_id: string,
+  ): Promise<{ title: string | null; kind: 'gig' | 'exchange' | null }> {
     const [row] = await fastify.db
-      .select({ title: escrowTitleSql })
+      .select({ title: escrowTitleSql, kind: escrows.kind })
       .from(escrows)
       .leftJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
       .leftJoin(exchange_details, eq(exchange_details.escrow_id, escrows.id))
       .where(eq(escrows.id, escrow_id))
       .limit(1)
-    return row?.title ?? null
+    return { title: row?.title ?? null, kind: row?.kind ?? null }
   }
 
   // GET /v1/conversations/:id/messages — paginated message history (cursor-based, newest first)
@@ -90,6 +92,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
           sender_id: messages.sender_id,
           escrow_id: messages.escrow_id,
           escrow_title: escrowTitleSql,
+          escrow_kind: escrows.kind,
           content: messages.content,
           attachment_url: messages.attachment_url,
           attachment_type: messages.attachment_type,
@@ -128,6 +131,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       return rows.map((m) => ({
         ...m,
         escrow_title: m.escrow_title ?? null,
+        escrow_kind: m.escrow_kind ?? null,
         read_at: m.read_at?.toISOString() ?? null,
         created_at: m.created_at?.toISOString() ?? null,
       }))
@@ -244,8 +248,10 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
 
       if (!newMessage) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'This conversation has been closed')
 
-      const escrow_title =
-        newMessage.escrow_id === null ? null : await escrowTitleFor(newMessage.escrow_id)
+      const context =
+        newMessage.escrow_id === null
+          ? { title: null, kind: null }
+          : await escrowContextFor(newMessage.escrow_id)
 
       const recipientId = conv.user_a_id === userId ? conv.user_b_id : conv.user_a_id
       const preview = messagePreview(trimmed, hasAttachment) ?? ''
@@ -259,7 +265,8 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
 
       const serialized = {
         ...newMessage,
-        escrow_title,
+        escrow_title: context.title,
+        escrow_kind: context.kind,
         read_at: newMessage.read_at?.toISOString() ?? null,
         created_at: newMessage.created_at?.toISOString() ?? null,
       }

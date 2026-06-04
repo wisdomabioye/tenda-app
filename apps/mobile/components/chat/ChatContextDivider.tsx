@@ -6,24 +6,24 @@ import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 
 interface Props {
-  gigId?:      string | null
-  gigTitle?:   string | null
-  offerId?:    string | null
-  offerTitle?: string | null
+  escrowId?: string | null
+  escrowTitle?: string | null
+  /** Routes the pill to the right detail surface; null = unknown → gig. */
+  kind?: 'gig' | 'exchange' | null
 }
 
-export function ChatContextDivider({ gigId, gigTitle, offerId, offerTitle }: Props) {
+export function ChatContextDivider({ escrowId, escrowTitle, kind }: Props) {
   const { theme } = useUnistyles()
   const router = useRouter()
 
-  const isOffer = !!offerId
-  const contextId = offerId ?? gigId ?? null
-  const title = isOffer ? (offerTitle ?? 'View offer') : (gigTitle ?? 'View gig')
+  const isOffer = kind === 'exchange'
+  const contextId = escrowId ?? null
+  const title = escrowTitle ?? (isOffer ? 'View offer' : 'View gig')
   const label = isOffer ? 'Trade' : 'Gig'
   const Icon = isOffer ? ArrowLeftRight : Briefcase
   const path = isOffer
-    ? `/exchange/${offerId}` as Parameters<typeof router.push>[0]
-    : `/gig/${gigId}` as Parameters<typeof router.push>[0]
+    ? `/exchange/${escrowId}` as Parameters<typeof router.push>[0]
+    : `/gig/${escrowId}` as Parameters<typeof router.push>[0]
 
   if (!contextId) {
     return (

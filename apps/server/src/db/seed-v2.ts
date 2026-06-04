@@ -23,6 +23,7 @@ import { ESCROW_IDL } from '@tenda/shared/idl'
 import { assets, chains } from '@tenda/shared/db/schema/chains'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { CELO_CUSD_ADDR, CELO_USDC_ADDR } from '@server/chains/celo/config'
+import { ASSET_META } from '@tenda/shared'
 import { platform_config } from '@tenda/shared/db/schema/governance'
 import { loadConfig, type Config } from '@server/config'
 
@@ -83,27 +84,21 @@ export function buildSeedRows(
 
   const assetRows: AssetRow[] = []
   const skipped: string[] = []
+
+  // symbol/decimals/is_stable come from the shared ASSET_META registry —
+  // the seed only contributes the deployment-specific chain/token wiring.
+  function assetRow(id: string, chain_id: string, token_address: string | null): AssetRow {
+    const meta = ASSET_META[id]
+    if (meta === undefined) throw new Error(`asset '${id}' missing from shared ASSET_META`)
+    return { id, chain_id, symbol: meta.symbol, decimals: meta.decimals, token_address, is_stable: meta.is_stable }
+  }
   for (const chain of chainRows) {
-    assetRows.push({
-      id: chain.id === 'solana:mainnet' ? 'SOL' : 'SOL_DEVNET',
-      chain_id: chain.id,
-      symbol: 'SOL',
-      decimals: 9,
-      token_address: null,
-      is_stable: false,
-    })
+    assetRows.push(assetRow(chain.id === 'solana:mainnet' ? 'SOL' : 'SOL_DEVNET', chain.id, null))
   }
   if (config.SOLANA_USDC_MINT !== null) {
     // The mint differs per network — the configured value belongs to the
     // network this deployment targets, so only that side gets the row.
-    assetRows.push({
-      id: 'USDC_SOL',
-      chain_id: active_chain_id,
-      symbol: 'USDC',
-      decimals: 6,
-      token_address: config.SOLANA_USDC_MINT,
-      is_stable: true,
-    })
+    assetRows.push(assetRow('USDC_SOL', active_chain_id, config.SOLANA_USDC_MINT))
   } else {
     skipped.push('USDC_SOL (SOLANA_USDC_MINT not set)')
   }
@@ -129,25 +124,11 @@ export function buildSeedRows(
       escrow_program: baseEscrow,
     })
     if (typeof config.BASE_USDC_ADDR === 'string') {
-      assetRows.push({
-        id: 'USDC_BASE',
-        chain_id: 'eip155:8453',
-        symbol: 'USDC',
-        decimals: 6,
-        token_address: config.BASE_USDC_ADDR,
-        is_stable: true,
-      })
+      assetRows.push(assetRow('USDC_BASE', 'eip155:8453', config.BASE_USDC_ADDR))
     } else {
       skipped.push('USDC_BASE (BASE_USDC_ADDR not set)')
     }
-    assetRows.push({
-      id: 'ETH_BASE',
-      chain_id: 'eip155:8453',
-      symbol: 'ETH',
-      decimals: 18,
-      token_address: null,
-      is_stable: false,
-    })
+    assetRows.push(assetRow('ETH_BASE', 'eip155:8453', null))
   }
 
   // Stage 4: CELO — same gating semantics as BASE; token addresses are
@@ -167,9 +148,9 @@ export function buildSeedRows(
       escrow_program: celoEscrow,
     })
     assetRows.push(
-      { id: 'cUSD', chain_id: 'eip155:42220', symbol: 'cUSD', decimals: 18, token_address: CELO_CUSD_ADDR, is_stable: true },
-      { id: 'USDC_CELO', chain_id: 'eip155:42220', symbol: 'USDC', decimals: 6, token_address: CELO_USDC_ADDR, is_stable: true },
-      { id: 'CELO', chain_id: 'eip155:42220', symbol: 'CELO', decimals: 18, token_address: null, is_stable: false },
+      assetRow('cUSD', 'eip155:42220', CELO_CUSD_ADDR),
+      assetRow('USDC_CELO', 'eip155:42220', CELO_USDC_ADDR),
+      assetRow('CELO', 'eip155:42220', null),
     )
   }
 

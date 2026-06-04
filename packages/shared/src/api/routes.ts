@@ -24,9 +24,14 @@ export const apiRoutes: {
     refund: '/v1/escrows/:id/refund',
     dispute: '/v1/escrows/:id/dispute',
     resolve: '/v1/escrows/:id/resolve',
+    delete: '/v1/escrows/:id',
+    proofs: '/v1/escrows/:id/proofs',
+    addProofs: '/v1/escrows/:id/proofs',
+    review: '/v1/escrows/:id/review',
   },
   gigs: {
     list: '/v1/gigs',
+    create: '/v1/gigs',
     get: '/v1/gigs/:id',
   },
   users: {

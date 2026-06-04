@@ -1,624 +1,186 @@
+/**
+ * Gig detail (cutover §6 rewrite): read surface over /v1/gigs/:id; every
+ * transition rides the shared escrow action hook (sign → broadcast →
+ * client-ping). The scroll body lives in GigDetailBody; CTA visibility in
+ * GigCTABar; sheets in GigActionSheets.
+ */
 import { useCallback, useState } from 'react'
-import { View, ScrollView, StyleSheet, RefreshControl, Share, Pressable } from 'react-native'
+import { ScrollView, StyleSheet, RefreshControl, Share } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
-import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Share2, Pencil, ChevronDown } from 'lucide-react-native'
-import { Transaction } from '@solana/web3.js'
-import { Buffer } from 'buffer'
-import { spacing, radius } from '@/theme/tokens'
+import { Share2 } from 'lucide-react-native'
+import { spacing } from '@/theme/tokens'
+import { ScreenContainer, EmptyState, showToast } from '@/components/ui'
 import {
-  ScreenContainer,
-  Text,
-  Badge,
-  Divider,
-  Spacer,
-  EmptyState,
-  FloatingChromeButton,
-  showToast
-} from '@/components/ui'
-import {
-  GigMetaInfo,
-  GigProofsGrid,
+  GigDetailBody,
   GigCTABar,
   GigActionSheets,
   ProofViewerModal,
   type ProofItem,
-  type ActiveSheet
+  type ActiveSheet,
 } from '@/components/gig'
-import { STATUS_LABEL, STATUS_BADGE_VARIANT } from '@/lib/gig-display'
-import { PersonCard, ReviewsSection } from '@/components/shared'
-import { 
-  TransactionMonitor,
-  InsufficientBalanceSheet,
-  LoadingScreen,
-  ErrorState, 
-} from '@/components/feedback'
+import { DetailChrome } from '@/components/escrow'
+import { TransactionMonitor, LoadingScreen, ErrorState } from '@/components/feedback'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
-import { CATEGORY_META } from '@/data/mock'
-import {
-  useAuthStore,
-  useGigsStore,
-  usePendingSyncStore,
-} from '@/stores'
-import { useIsSeeker } from '@/stores/auth.store'
-import { usePlatformConfigStore } from '@/stores/platform-config.store'
-import { 
-  computeRelevantDeadline, 
-  computePlatformFee, 
-  SOLANA_TX_FEE_LAMPORTS, 
-  apiConfig 
-} from '@tenda/shared'
+import { useAuthStore, useGigsStore } from '@/stores'
+import { apiConfig } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
-import { deadlineLabel } from '@/lib/gig-display'
-import { checkBalance } from '@/lib/balance'
-import { api } from '@/api/client'
-import {
-  signAndSendTransactionWithWallet,
-  signTransactionsWithWallet,
-  sendRawTransaction,
-  validateTransaction,
-} from '@/wallet'
-import type { PendingSync } from '@/stores/pending-sync.store'
-import type { GigDetail } from '@tenda/shared'
-import type { InstructionName } from '@tenda/shared/idl/legacy'
+import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
+import type { EscrowTxType, GigDetail } from '@tenda/shared'
 
-type SyncEntry = PendingSync extends infer T
-  ? T extends { id: string; createdAt: number; retryCount: number }
-    ? Omit<T, 'id' | 'createdAt' | 'retryCount'>
-    : never
-  : never
-
-type PendingAction =
-  | { type: 'publish' }
-  | { type: 'accept' }
-  | { type: 'approve' }
-  | { type: 'cancel' }
-  | { type: 'refund' }
-  | { type: 'submit'; proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }> }
-  | { type: 'dispute'; reason: string }
-
-// ─── Inner component (receives non-null gig) ─────────────────────────────────
+const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
+  accept: 'Gig accepted!',
+  approve: 'Payment released to worker!',
+  claim_stalled: 'Payment claimed!',
+  cancel: 'Gig cancelled — escrow refunded.',
+  refund_expired: 'Refund claimed successfully.',
+  reclaim_abandoned: 'Escrow reclaimed.',
+  submit: 'Proof submitted!',
+  dispute: 'Dispute raised. An admin will review shortly.',
+}
 
 function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const router = useRouter()
-  const { theme } = useUnistyles()
   const insets = useSafeAreaInsets()
-  const mwaAuthToken = useAuthStore((s) => s.mwaAuthToken)
-  const isSeeker = useIsSeeker()
-  const { fetchGigDetail, acceptGig, submitProof, disputeGig } = useGigsStore()
-  const pendingSync = usePendingSyncStore()
+  const { fetchGigDetail } = useGigsStore()
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
-  const [balanceShortfall, setBalanceShortfall] = useState<{ balance: bigint; required: bigint } | null>(null)
   const [reportGigOpen, setReportGigOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [isTxBuilding, setIsTxBuilding] = useState(false)
-  const [pendingSignature, setPendingSignature] = useState<string | null>(null)
-  const [pendingSetupSignature, setPendingSetupSignature] = useState<string | null>(null)
-  const [pendingAcceptTx, setPendingAcceptTx] = useState<Transaction | null>(null)
-  const [pendingSyncId, setPendingSyncId] = useState<string | null>(null)
-  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null)
   const [showAcceptNudge, setShowAcceptNudge] = useState(false)
-  const [descExpanded, setDescExpanded] = useState(false)
   const { dismissedNudges } = useOnboardingStore()
 
-  const isWorkerOpportunity = gig.status === 'open' && gig.poster_id !== userId
+  const actions = useEscrowActions({ escrowId: gig.escrow_id, chainId: gig.chain_id })
 
-  useFocusEffect(useCallback(() => {
-    if (isWorkerOpportunity && !dismissedNudges.accept) {
-      setShowAcceptNudge(true)
-    }
-  }, [isWorkerOpportunity, dismissedNudges.accept]))
+  const isWorkerOpportunity = gig.status === 'open' && userId !== gig.creator.id
 
-  const categoryMeta = CATEGORY_META.find((c) => c.key === gig.category)
-  const deadline = computeRelevantDeadline(gig)
-  const deadlineLbl = deadlineLabel(deadline)
+  useFocusEffect(
+    useCallback(() => {
+      if (isWorkerOpportunity && !dismissedNudges.accept) {
+        setShowAcceptNudge(true)
+      }
+    }, [isWorkerOpportunity, dismissedNudges.accept]),
+  )
 
   async function handleRefresh() {
     setRefreshing(true)
-    try { await fetchGigDetail(gig.id) } finally { setRefreshing(false) }
+    try {
+      await fetchGigDetail(gig.escrow_id)
+    } finally {
+      setRefreshing(false)
+    }
   }
-
-  const isDraftOwner = gig.status === 'draft' && userId === gig.poster_id
 
   function handleShare() {
     const baseUrl = apiConfig[getEnv()].baseUrl
-    const url = `${baseUrl}/gig/${gig.id}`
-    Share.share({ message: `${gig.title} on Tenda\n${url}` })
+    Share.share({ message: `${gig.title} on Tenda\n${baseUrl}/gig/${gig.escrow_id}` })
   }
 
-  function handleEdit() {
-    router.push(`/gig/${gig.id}/edit` as any)
-  }
-
-  async function guardBalance(required: bigint): Promise<boolean> {
-    const walletAddress = useAuthStore.getState().walletAddress
-    if (!walletAddress) return true
-    const result = await checkBalance(walletAddress, required)
-    if (!result.sufficient) {
-      setBalanceShortfall({ balance: result.balance, required })
-      return false
+  function handleTransactionConfirmed() {
+    const action = actions.pendingAction
+    actions.clearPending()
+    if (action !== null) {
+      showToast('success', SUCCESS_BY_ACTION[action] ?? 'Transaction confirmed')
     }
-    return true
-  }
-
-  // ── Shared: sign tx and enter monitoring state ──────────────────────────────
-
-  function onNewAuthToken(token: string) {
-    useAuthStore.getState().setMwaAuthToken(token)
-  }
-
-  async function startBlockchainFlow(
-    action: PendingAction,
-    txBase64: string,
-    expectedInstruction: InstructionName,
-    makeSyncEntry?: (sig: string) => SyncEntry,
-  ): Promise<boolean> {
-    if (!mwaAuthToken) {
-      showToast('error', 'Wallet not connected — please reconnect and try again')
-      return false
-    }
-    try {
-      const tx = Transaction.from(Buffer.from(txBase64, 'base64'))
-      validateTransaction(tx, expectedInstruction)
-      const sig = await signAndSendTransactionWithWallet(tx, mwaAuthToken, onNewAuthToken)
-      if (makeSyncEntry) {
-        const syncId = pendingSync.add(makeSyncEntry(sig))
-        setPendingSyncId(syncId)
-      }
-      setPendingAction(action)
-      setPendingSignature(sig)
-      return true
-    } catch (e) {
-      setPendingSignature(null)
-      setPendingAction(null)
-      setPendingSyncId(null)
-      throw e
+    if (action === 'cancel') {
+      router.back()
+    } else {
+      void fetchGigDetail(gig.escrow_id)
     }
   }
 
-  // ── Blockchain handlers ────────────────────────────────────────────────────
+  // Sheet-confirmed handlers (sheets collect input; the hook signs).
+  async function handleProofsReady(proofs: ProofFile[]): Promise<boolean> {
+    return actions.submit(proofs)
+  }
 
-  async function handlePublish() {
-    if (!mwaAuthToken) return
-    setIsTxBuilding(true)
-    try {
-      const cfg = await usePlatformConfigStore.getState().fetch()
-      if (!cfg) throw new Error('Platform config unavailable')
-      const effectiveFeeBps = isSeeker ? cfg.seeker_fee_bps : cfg.fee_bps
-      const platformFee = BigInt(computePlatformFee(BigInt(gig.payment_lamports), effectiveFeeBps))
-      const required = BigInt(gig.payment_lamports) + platformFee + SOLANA_TX_FEE_LAMPORTS
-      if (!await guardBalance(required)) return
-      const { transaction } = await api.blockchain.createEscrow({ gig_id: gig.id })
-      await startBlockchainFlow({ type: 'publish' }, transaction, 'create_gig_escrow',
-        (sig) => ({ action: 'publish', gigId: gig.id, signature: sig }))
-    } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to build publish transaction')
-    } finally {
-      setIsTxBuilding(false)
+  async function handleAddProofsReady(proofs: ProofFile[]): Promise<void> {
+    if (await actions.addProofs(proofs)) {
+      void fetchGigDetail(gig.escrow_id)
     }
   }
 
-  async function handleAccept() {
-    if (!mwaAuthToken) return
-    setIsTxBuilding(true)
-    try {
-      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return
-      const response = await api.blockchain.acceptGig({ gig_id: gig.id })
-
-      if (response.setup_transaction) {
-        showToast('info', 'One-time setup: your worker account will be created on-chain. This only happens once.')
-        await new Promise<void>((r) => setTimeout(r, 1200))
-
-        const setupTx  = Transaction.from(Buffer.from(response.setup_transaction, 'base64'))
-        const acceptTx = Transaction.from(Buffer.from(response.transaction, 'base64'))
-        validateTransaction(setupTx, 'create_user_account')
-        validateTransaction(acceptTx, 'accept_gig')
-        const [signedSetup, signedAccept] = await signTransactionsWithWallet(
-          [setupTx, acceptTx],
-          mwaAuthToken,
-          onNewAuthToken,
-        ) as [Transaction, Transaction]
-
-        const setupSig = await sendRawTransaction(signedSetup)
-        setPendingAcceptTx(signedAccept)
-        setPendingAction({ type: 'accept' })
-        setPendingSetupSignature(setupSig)
-      } else {
-        await startBlockchainFlow({ type: 'accept' }, response.transaction, 'accept_gig',
-          (sig) => ({ action: 'accept', gigId: gig.id, signature: sig }))
-      }
-    } catch (e) {
-      setPendingSetupSignature(null)
-      setPendingAcceptTx(null)
-      setPendingAction(null)
-      showToast('error', (e as Error).message || 'Failed to build accept transaction')
-    } finally {
-      setIsTxBuilding(false)
-    }
-  }
-
-  // Called by TransactionMonitor when the setup (create_user_account) tx confirms.
-  // Broadcasts the pre-signed accept_gig transaction and hands off to the main monitor.
-  async function handleSetupConfirmed() {
-    if (!pendingAcceptTx) return
-    try {
-      const acceptSig = await sendRawTransaction(pendingAcceptTx)
-      const syncId = pendingSync.add({ gigId: gig.id, action: 'accept', signature: acceptSig })
-      setPendingSyncId(syncId)
-      setPendingSetupSignature(null)
-      setPendingAcceptTx(null)
-      setPendingSignature(acceptSig)
-    } catch (e) {
-      setPendingSetupSignature(null)
-      setPendingAcceptTx(null)
-      setPendingAction(null)
-      showToast('error', (e as Error).message || 'Failed to broadcast accept transaction')
-    }
-  }
-
-  async function handleApprove() {
-    if (!mwaAuthToken) return false
-    setIsTxBuilding(true)
-    try {
-      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return false
-      const { transaction } = await api.blockchain.approveEscrow({ gig_id: gig.id })
-      return await startBlockchainFlow({ type: 'approve' }, transaction, 'approve_completion',
-        (sig) => ({ action: 'approve', gigId: gig.id, signature: sig }))
-    } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to build approve transaction')
-      return false
-    } finally {
-      setIsTxBuilding(false)
-    }
-  }
-
-  async function handleCancelOpen() {
-    if (!mwaAuthToken) return false
-    setIsTxBuilding(true)
-    try {
-      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return false
-      const { transaction } = await api.blockchain.cancelEscrow({ gig_id: gig.id })
-      return await startBlockchainFlow({ type: 'cancel' }, transaction, 'cancel_gig',
-        (sig) => ({ action: 'cancel', gigId: gig.id, signature: sig }))
-    } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to build cancel transaction')
-      return false
-    } finally {
-      setIsTxBuilding(false)
-    }
-  }
-
-  async function handleRefundExpired() {
-    if (!mwaAuthToken) return false
-    setIsTxBuilding(true)
-    try {
-      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return false
-      const { transaction } = await api.blockchain.refundExpired({ gig_id: gig.id })
-      return await startBlockchainFlow({ type: 'refund' }, transaction, 'refund_expired',
-        (sig) => ({ action: 'refund', gigId: gig.id, signature: sig }))
-    } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to build refund transaction')
-      return false
-    } finally {
-      setIsTxBuilding(false)
-    }
-  }
-
-  // Called by GigActionSheets after user confirms dispute reason
   async function handleDisputeReady(reason: string): Promise<boolean> {
-    if (!mwaAuthToken) return false
-    try {
-      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return false
-      const { transaction } = await api.blockchain.disputeGig({ gig_id: gig.id, reason })
-      return await startBlockchainFlow({ type: 'dispute', reason }, transaction, 'dispute_gig')
-    } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to build dispute transaction')
-      return false
-    }
-  }
-
-  // Called by GigActionSheets when worker adds supplementary proof (no blockchain step)
-  async function handleAddProofsReady(
-    proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>,
-  ) {
-    try {
-      await api.gigs.addProofs({ id: gig.id }, { proofs })
-      showToast('success', 'Proof added!')
-      fetchGigDetail(gig.id)
-    } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to add proof — please try again')
-    }
-  }
-
-  // Called by GigActionSheets after Cloudinary uploads are done
-  async function handleProofsReady(
-    proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>,
-  ): Promise<boolean> {
-    if (!mwaAuthToken) return false
-    try {
-      if (!await guardBalance(SOLANA_TX_FEE_LAMPORTS)) return false
-      const { transaction } = await api.blockchain.submitProof({ gig_id: gig.id })
-      return await startBlockchainFlow({ type: 'submit', proofs }, transaction, 'submit_proof',
-        (sig) => ({ action: 'submit', gigId: gig.id, signature: sig, proofs }))
-    } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to build submit transaction')
-      return false
-    }
-  }
-
-  // ── TransactionMonitor confirmed callback ──────────────────────────────────
-
-  async function handleTransactionConfirmed() {
-    const sig = pendingSignature!
-    const action = pendingAction!
-    const syncId = pendingSyncId
-    setPendingSignature(null)
-    setPendingAction(null)
-    setPendingSyncId(null)
-
-    const successMessages: Record<PendingAction['type'], string> = {
-      publish: 'Gig published!',
-      accept:  'Gig accepted!',
-      approve: 'Payment released to worker!',
-      cancel:  'Gig cancelled — escrow refunded.',
-      refund:  'Refund claimed successfully.',
-      submit:  'Proof submitted!',
-      dispute: 'Dispute raised. An admin will review shortly.',
-    }
-
-    try {
-      switch (action.type) {
-        case 'publish':
-          await api.gigs.publish({ id: gig.id }, { signature: sig })
-          break
-        case 'accept':
-          await acceptGig(gig.id, { signature: sig })
-          break
-        case 'approve':
-          await api.gigs.approve({ id: gig.id }, { signature: sig })
-          break
-        case 'cancel':
-          await api.gigs.delete({ id: gig.id }, { signature: sig })
-          break
-        case 'refund':
-          await api.gigs.refund({ id: gig.id }, { signature: sig })
-          break
-        case 'submit':
-          await submitProof(gig.id, { proofs: action.proofs, signature: sig })
-          break
-        case 'dispute':
-          await disputeGig(gig.id, { reason: action.reason, signature: sig })
-          break
-      }
-
-      if (syncId) pendingSync.remove(syncId)
-      showToast('success', successMessages[action.type])
-
-      if (action.type === 'cancel') {
-        router.back()
-      } else {
-        fetchGigDetail(gig.id)
-      }
-    } catch {
-      showToast('info', 'Changes saved locally — will sync when reconnected')
-    }
+    return actions.dispute(reason, gig.dispute_bond_raw)
   }
 
   return (
     <>
-    <NudgeSheet
-      visible={showAcceptNudge}
-      nudgeKey="accept"
-      title="Accepting your first gig"
-      body="Once you accept, the payment is already locked in escrow, you just need to complete the work and submit proof. The poster approves and you get paid instantly."
-      guideRoute="/(support)/working"
-      onClose={() => setShowAcceptNudge(false)}
-    />
-    <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
-      {/* Floating chrome — no solid title bar (modal pattern §4.18) */}
-      <View style={[s.chromeRow, { top: insets.top + 12 }]} pointerEvents="box-none">
-        <FloatingChromeButton
-          Icon={ChevronDown}
-          onPress={() => router.back()}
-          accessibilityLabel="Dismiss"
+      <NudgeSheet
+        visible={showAcceptNudge}
+        nudgeKey="accept"
+        title="Accepting your first gig"
+        body="Once you accept, the payment is already locked in escrow, you just need to complete the work and submit proof. The poster approves and you get paid instantly."
+        guideRoute="/(support)/working"
+        onClose={() => setShowAcceptNudge(false)}
+      />
+      <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
+        <DetailChrome
+          onBack={() => router.back()}
+          rightIcon={Share2}
+          rightLabel="Share"
+          onRightPress={handleShare}
         />
-        <FloatingChromeButton
-          Icon={isDraftOwner ? Pencil : Share2}
-          onPress={isDraftOwner ? handleEdit : handleShare}
-          accessibilityLabel={isDraftOwner ? 'Edit' : 'Share'}
-        />
-      </View>
 
-      <ScrollView
-        style={s.flex}
-        contentContainerStyle={[s.content, { paddingTop: insets.top + 60 }]}
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-      >
-        {/* Status + category dot-label pills */}
-        <View style={s.badgeRow}>
-          <Badge variant={STATUS_BADGE_VARIANT[gig.status]} label={STATUS_LABEL[gig.status]} />
-          {categoryMeta && <Badge variant="brand" label={categoryMeta.label} />}
-        </View>
-
-        <Spacer size={spacing.sm} />
-        <Text style={s.gigTitle}>{gig.title}</Text>
-        <Spacer size={spacing.md} />
-
-        {/* Meta card — payment header + rows */}
-        <GigMetaInfo gig={gig} posterCountry={gig.poster.country} deadlineLbl={deadlineLbl} />
-
-        <Spacer size={spacing.lg} />
-
-        {/* Description with Read more affordance */}
-        <View style={s.sectionHead}>
-          <Text style={s.sectionTitle}>Description</Text>
-        </View>
-        <Spacer size={6} />
-        <Text
-          style={[s.description, { color: theme.colors.content.primary }]}
-          numberOfLines={descExpanded ? undefined : 4}
+        <ScrollView
+          style={s.flex}
+          contentContainerStyle={[s.content, { paddingTop: insets.top + 60 }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         >
-          {gig.description}
-        </Text>
-        {!descExpanded && gig.description.length > 200 && (
-          <Pressable onPress={() => setDescExpanded(true)} hitSlop={6} style={s.readMore}>
-            <Text style={[s.readMoreText, { color: theme.colors.brand.primary }]}>Read more</Text>
-          </Pressable>
-        )}
+          <GigDetailBody
+            gig={gig}
+            userId={userId}
+            onProofPress={setSelectedProof}
+            onReport={() => setReportGigOpen(true)}
+          />
+        </ScrollView>
 
-        <Spacer size={spacing.lg} />
-
-        {/* Poster */}
-        <PersonCard
-          label="Posted by"
-          user={gig.poster}
-          currentUserId={userId}
-          contextId={gig.id}
-          contextTitle={gig.title}
-          showMessageButton={gig.status === 'open' || userId === gig.worker?.id}
+        <GigCTABar
+          gig={gig}
+          userId={userId}
+          isTxBuilding={actions.busyAction !== null}
+          txInProgress={actions.pendingTxRef !== null}
+          onAction={setActiveSheet}
+          onApprove={() => void actions.approve()}
+          onClaim={() => void actions.claim()}
         />
 
-        {/* Worker — only visible to participants (poster + worker) */}
-        {gig.worker && (userId === gig.poster_id || userId === gig.worker.id) && (
-          <>
-            <Spacer size={spacing.md} />
-            <PersonCard
-              label="Assigned to"
-              user={gig.worker}
-              currentUserId={userId}
-              contextId={gig.id}
-              contextTitle={gig.title}
-            />
-          </>
-        )}
+        <GigActionSheets
+          gig={gig}
+          activeSheet={activeSheet}
+          onClose={() => setActiveSheet(null)}
+          onReviewSubmitted={() => fetchGigDetail(gig.escrow_id)}
+          onAcceptConfirmed={() => void actions.accept()}
+          onCancelOpenConfirmed={() => void actions.cancel()}
+          onRefundExpiredConfirmed={() => void actions.refund()}
+          onProofsReady={handleProofsReady}
+          onAddProofsReady={handleAddProofsReady}
+          onDisputeReady={handleDisputeReady}
+        />
 
-        {/* Reviews */}
-        {gig.reviews.length > 0 && (
-          <>
-            <Divider />
-            <ReviewsSection
-              reviews={gig.reviews}
-              partyAId={gig.poster_id}
-              partyA={gig.poster}
-              partyALabel="Poster"
-              partyB={gig.worker}
-              partyBLabel="Worker"
-              currentUserId={userId}
-              title={`Reviews for @${gig.poster.first_name?.toLowerCase() ?? 'poster'}`}
-            />
-          </>
-        )}
+        <TransactionMonitor
+          signature={actions.pendingTxRef}
+          escrowId={gig.escrow_id}
+          onConfirmed={handleTransactionConfirmed}
+          onFailed={(msg) => {
+            actions.clearPending()
+            showToast('info', msg || 'Transaction pending — will sync when confirmed')
+          }}
+        />
 
-        {/* Proofs */}
-        {gig.proofs.length > 0 && (
-          <>
-            <Divider />
-            <View style={s.sectionHead}>
-              <Text style={s.sectionTitle}>Proof of work</Text>
-              <Text style={[s.sectionTrail, { color: theme.colors.content.tertiary }]}>
-                {gig.proofs.length} {gig.proofs.length === 1 ? 'file' : 'files'}
-              </Text>
-            </View>
-            <Spacer size={spacing.sm} />
-            <GigProofsGrid proofs={gig.proofs} onProofPress={setSelectedProof} />
-          </>
-        )}
+        <ProofViewerModal proof={selectedProof} onClose={() => setSelectedProof(null)} />
 
-        {/* Dispute reason */}
-        {gig.dispute && gig.status === 'disputed' && (
-          <>
-            <Divider />
-            <View style={[s.disputeBlock, { backgroundColor: theme.colors.feedback.danger.surface }]}>
-              <Text weight="semibold" color={theme.colors.feedback.danger.text}>Dispute reason</Text>
-              <Spacer size={4} />
-              <Text variant="caption" color={theme.colors.feedback.danger.text}>{gig.dispute.reason}</Text>
-            </View>
-          </>
-        )}
-
-        {/* Report gig — shown to non-poster users only */}
-        {userId !== gig.poster_id && (
-          <>
-            <Divider />
-            <Pressable
-              onPress={() => setReportGigOpen(true)}
-              style={({ pressed }) => [s.reportLink, pressed && { opacity: 0.6 }]}
-            >
-              <Text variant="caption" color={theme.colors.content.tertiary}>Report this gig</Text>
-            </Pressable>
-          </>
-        )}
-
-        <Spacer size={spacing['2xl']} />
-      </ScrollView>
-
-      <GigCTABar
-        gig={gig}
-        userId={userId}
-        isTxBuilding={isTxBuilding}
-        txInProgress={pendingSignature !== null || pendingSetupSignature !== null}
-        onAction={setActiveSheet}
-        onPublish={handlePublish}
-        onApprove={handleApprove}
-      />
-
-      <GigActionSheets
-        gig={gig}
-        activeSheet={activeSheet}
-        onClose={() => setActiveSheet(null)}
-        onReviewSubmitted={() => fetchGigDetail(gig.id)}
-        onAcceptConfirmed={handleAccept}
-        onCancelOpenConfirmed={handleCancelOpen}
-        onRefundExpiredConfirmed={handleRefundExpired}
-        onProofsReady={handleProofsReady}
-        onAddProofsReady={handleAddProofsReady}
-        onDisputeReady={handleDisputeReady}
-      />
-
-      <TransactionMonitor
-        signature={pendingSetupSignature}
-        setupPhase
-        onConfirmed={handleSetupConfirmed}
-        onFailed={(msg) => {
-          setPendingSetupSignature(null)
-          setPendingAcceptTx(null)
-          setPendingAction(null)
-          showToast('info', msg || 'Account setup failed — please try again')
-        }}
-      />
-
-      <TransactionMonitor
-        signature={pendingSignature}
-        onConfirmed={handleTransactionConfirmed}
-        onFailed={(msg) => {
-          setPendingSignature(null)
-          setPendingAction(null)
-          showToast('info', msg || 'Transaction pending — will sync when confirmed')
-        }}
-      />
-
-      <ProofViewerModal proof={selectedProof} onClose={() => setSelectedProof(null)} />
-
-      <ReportSheet
-        visible={reportGigOpen}
-        onClose={() => setReportGigOpen(false)}
-        contentType="gig"
-        contentId={gig.id}
-      />
-
-      <InsufficientBalanceSheet
-        visible={balanceShortfall !== null}
-        onClose={() => setBalanceShortfall(null)}
-        balance={balanceShortfall?.balance ?? 0n}
-        required={balanceShortfall?.required ?? 0n}
-      />
-    </ScreenContainer>
+        <ReportSheet
+          visible={reportGigOpen}
+          onClose={() => setReportGigOpen(false)}
+          contentType="escrow"
+          contentId={gig.escrow_id}
+        />
+      </ScreenContainer>
     </>
   )
 }
@@ -637,7 +199,7 @@ export default function GigDetailScreen() {
     }, [id]), // eslint-disable-line react-hooks/exhaustive-deps
   )
 
-  if (isLoading && (!selectedGig || selectedGig.id !== id)) return <LoadingScreen />
+  if (isLoading && (!selectedGig || selectedGig.escrow_id !== id)) return <LoadingScreen />
 
   if (error && !selectedGig) {
     return (
@@ -671,61 +233,5 @@ const s = StyleSheet.create({
   flex: { flex: 1 },
   content: {
     paddingHorizontal: spacing.md,
-  },
-  chromeRow: {
-    position: 'absolute',
-    left: spacing.md,
-    right: spacing.md,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    zIndex: 30,
-  },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  gigTitle: {
-    fontSize: 26,
-    lineHeight: 31,
-    fontWeight: '700',
-    letterSpacing: -0.52,
-  },
-  sectionHead: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: '700',
-    letterSpacing: -0.17,
-  },
-  sectionTrail: {
-    fontSize: 12.5,
-    lineHeight: 16,
-  },
-  description: {
-    fontSize: 14.5,
-    lineHeight: 22,
-  },
-  readMore: {
-    alignSelf: 'flex-start',
-    marginTop: 4,
-  },
-  readMoreText: {
-    fontSize: 13.5,
-    fontWeight: '600',
-    letterSpacing: -0.135,
-  },
-  disputeBlock: {
-    borderRadius: radius.md,
-    padding: spacing.md,
-  },
-  reportLink: {
-    alignSelf: 'center',
-    paddingVertical: spacing.sm,
   },
 })

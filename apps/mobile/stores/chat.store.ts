@@ -9,6 +9,11 @@ export type LocalMessage = Message & {
 }
 
 /** Already-uploaded Cloudinary attachment riding along with a message. */
+export interface EscrowContext {
+  escrowId: string
+  kind: 'gig' | 'exchange' | null
+}
+
 export interface MessageAttachment {
   url: string
   type: 'image' | 'file'
@@ -23,7 +28,7 @@ interface ChatState {
   fetchConversations: () => Promise<void>
   findOrCreate:       (userId: string) => Promise<Conversation>
   fetchMessages:      (conversationId: string, beforeId?: string) => Promise<Message[]>
-  sendMessage:        (conversationId: string, content: string, gigId?: string, offerId?: string, attachment?: MessageAttachment) => Promise<void>
+  sendMessage:        (conversationId: string, content: string, context?: EscrowContext, attachment?: MessageAttachment) => Promise<void>
   retryMessage:       (conversationId: string, message: LocalMessage) => void
   closeConversation:  (conversationId: string) => Promise<void>
   appendMessage:      (conversationId: string, message: LocalMessage) => void
@@ -83,16 +88,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return fetched
   },
 
-  sendMessage: async (conversationId, content, gigId, offerId, attachment) => {
+  sendMessage: async (conversationId, content, context, attachment) => {
     const tempId = `temp_${Date.now()}`
     const optimistic: LocalMessage = {
       id:              tempId,
       conversation_id: conversationId,
       sender_id:       useAuthStore.getState().user?.id ?? '',
-      gig_id:          gigId   ?? null,
-      gig_title:       null,
-      offer_id:        offerId ?? null,
-      offer_title:     null,
+      escrow_id:       context?.escrowId ?? null,
+      escrow_title:    null,
+      escrow_kind:     context?.kind ?? null,
       content,
       attachment_url:  attachment?.url  ?? null,
       attachment_type: attachment?.type ?? null,
@@ -108,8 +112,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
         { id: conversationId },
         {
           content,
-          gig_id:  gigId,
-          offer_id: offerId,
+          escrow_id: context?.escrowId,
           ...(attachment !== undefined
             ? { attachment_url: attachment.url, attachment_type: attachment.type, attachment_size: attachment.size }
             : {}),
@@ -149,7 +152,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
       message.attachment_url !== null && message.attachment_type !== null && message.attachment_size !== null
         ? { url: message.attachment_url, type: message.attachment_type, size: message.attachment_size }
         : undefined
-    void get().sendMessage(conversationId, message.content, message.gig_id ?? undefined, message.offer_id ?? undefined, attachment)
+    void get().sendMessage(
+      conversationId,
+      message.content,
+      message.escrow_id !== null ? { escrowId: message.escrow_id, kind: message.escrow_kind } : undefined,
+      attachment,
+    )
   },
 
   closeConversation: async (conversationId) => {

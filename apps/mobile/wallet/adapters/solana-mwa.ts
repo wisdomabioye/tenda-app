@@ -1,8 +1,14 @@
 import { Platform } from 'react-native'
 import { Buffer } from 'buffer'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { PublicKey } from '@solana/web3.js'
-import { authorizeSession, withMwaRetry } from './mwa-shared'
+import {
+  Connection,
+  PublicKey,
+  VersionedTransaction,
+  clusterApiUrl,
+  type Transaction,
+} from '@solana/web3.js'
+import { authorizeSession, isMwaUserDeclined, withMwaRetry, SOLANA_CLUSTER } from './mwa-shared'
 import { SPIKE_CHAINS } from '../config'
 import type { SignMessageResult, SpikeAccount } from '../types'
 import type { WalletAdapter } from './types'
@@ -65,6 +71,89 @@ async function signMessage(
     return signed
   })
   return { signature: Buffer.from(signedBytes).toString('base64'), message }
+}
+
+export interface ConnectAndSignResult {
+  authToken: string
+  /** base58 wallet address. */
+  address: string
+  /** base64 Ed25519 signature over the literal message string. */
+  signature: string
+  message: string
+}
+
+/**
+ * Connect + sign a message in ONE MWA `transact` session (a single wallet
+ * round-trip — connect() then signMessage() would open the wallet twice).
+ * Used by the auth flows: the message can only be built once the wallet
+ * reveals its address. Returns null when the user declines.
+ *
+ * Pass `existingAuthToken: null` deliberately to force a fresh authorize
+ * (e.g. wallet linking, where the user must be able to pick a different
+ * account in their wallet app).
+ */
+export async function connectAndSignMessage(
+  buildMessage: (address: string) => string,
+  existingAuthToken: string | null,
+): Promise<ConnectAndSignResult | null> {
+  try {
+    const result = await withMwaRetry(async (wallet) => {
+      const session = await authorizeSession(wallet, existingAuthToken)
+      const address = base64ToAddress(session.addressBase64)
+      const message = buildMessage(address)
+      const [signed] = await wallet.signMessages({
+        addresses: [session.addressBase64],
+        payloads: [new TextEncoder().encode(message)],
+      })
+      return {
+        authToken: session.authToken,
+        address,
+        signature: Buffer.from(signed).toString('base64'),
+        message,
+      }
+    })
+    await AsyncStorage.multiSet([
+      [STORAGE_KEY_AUTH_TOKEN, result.authToken],
+      [STORAGE_KEY_ADDRESS, result.address],
+    ])
+    return result
+  } catch (err) {
+    // withMwaRetry maps the protocol error to a plain Error — recheck the
+    // cause chain is unnecessary: declines short-circuit before retries.
+    if (err instanceof Error && err.message === 'Wallet request declined') return null
+    if (isMwaUserDeclined(err)) return null
+    throw err
+  }
+}
+
+const connection = new Connection(clusterApiUrl(SOLANA_CLUSTER), 'confirmed')
+
+/**
+ * Sign a server-built transaction in the wallet, then broadcast from the
+ * app's own RPC connection. Signing-only inside the wallet avoids the
+ * wallet hanging on its internal RPC call (which prevents the signing
+ * prompt from appearing). Returns the tx signature (the client-ping
+ * tx_ref).
+ */
+export async function signAndSendTransaction(
+  transaction: Transaction | VersionedTransaction,
+  authToken: string,
+  onNewAuthToken?: (token: string) => void,
+): Promise<string> {
+  const signed = await withMwaRetry(async (wallet) => {
+    const session = await authorizeSession(wallet, authToken)
+    if (session.authToken !== authToken) {
+      onNewAuthToken?.(session.authToken)
+    }
+    const [signedTx] = await wallet.signTransactions({ transactions: [transaction] })
+    return signedTx
+  })
+
+  const rawTx =
+    signed instanceof VersionedTransaction
+      ? signed.serialize()
+      : (signed as Transaction).serialize()
+  return connection.sendRawTransaction(rawTx, { preflightCommitment: 'confirmed' })
 }
 
 async function disconnect(): Promise<void> {

@@ -12,6 +12,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet'
 import { FilePicker, type PickedFile } from '@/components/form/FilePicker'
 import { StarRating } from '@/components/form/StarRating'
 import { useGigsStore } from '@/stores/gigs.store'
+import { api } from '@/api/client'
 import { uploadToCloudinary } from '@/lib/upload'
 import type { GigDetail, ReviewInput } from '@tenda/shared'
 import type { ActiveSheet } from './GigCTABar'
@@ -19,7 +20,8 @@ import type { ActiveSheet } from './GigCTABar'
 type Score = 1 | 2 | 3 | 4 | 5
 
 interface GigActionSheetsProps {
-  gig: GigDetail
+  /** Only the escrow id is consumed — gig and exchange details both fit. */
+  gig: Pick<GigDetail, 'escrow_id'>
   activeSheet: ActiveSheet | null
   onClose: () => void
   onReviewSubmitted: () => void
@@ -46,7 +48,7 @@ export function GigActionSheets({
 }: GigActionSheetsProps) {
   const router = useRouter()
   const { theme } = useUnistyles()
-  const { reviewGig, cancelDraftGig } = useGigsStore()
+  const { reviewEscrow } = useGigsStore()
 
   const [proofFiles, setProofFiles] = useState<PickedFile[]>([])
   const [proofUploading, setProofUploading] = useState(false)
@@ -131,7 +133,7 @@ export function GigActionSheets({
   async function handleReview() {
     if (!reviewScore) return
     try {
-      await reviewGig(gig.id, { score: reviewScore as ReviewInput['score'], comment: reviewComment.trim() || undefined })
+      await reviewEscrow(gig.escrow_id, { score: reviewScore as ReviewInput['score'], comment: reviewComment.trim() || undefined })
       handleClose()
       onReviewSubmitted()
       showToast('success', 'Review submitted!')
@@ -143,7 +145,8 @@ export function GigActionSheets({
   async function handleCancelDraft() {
     handleClose()
     try {
-      await cancelDraftGig(gig.id)
+      // Drafts are pre-sign staging rows — discarded off-chain.
+      await api.escrows.delete({ id: gig.escrow_id })
       showToast('success', 'Draft deleted')
       router.back()
     } catch (e) {

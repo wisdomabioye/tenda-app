@@ -1,9 +1,16 @@
+/**
+ * Gig browse store — DISPLAY ONLY post-#34. Listings/detail come from the
+ * read surface (/v1/gigs over escrows ⨝ gig_details); every lifecycle
+ * transition goes through the escrow store + wallet dispatch
+ * (signSendAndReport). The one off-chain action kept here is the
+ * post-completion review.
+ */
 import { create } from 'zustand'
-import type { Gig, GigDetail, GigListQuery, ReviewInput, SubmitProofInput, AcceptGigInput, DisputeGigInput } from '@tenda/shared'
+import type { GigSummary, GigDetail, GigListQuery, ReviewInput } from '@tenda/shared'
 import { api } from '@/api/client'
 
 interface GigsState {
-  gigs: Gig[]
+  gigs: GigSummary[]
   selectedGig: GigDetail | null
   total: number
   filters: GigListQuery
@@ -16,11 +23,7 @@ interface GigsState {
   setFilters: (filters: Partial<GigListQuery>) => void
   resetFilters: () => void
 
-  acceptGig: (id: string, body: AcceptGigInput) => Promise<void>
-  submitProof: (id: string, body: SubmitProofInput) => Promise<void>
-  disputeGig: (id: string, body: DisputeGigInput) => Promise<void>
-  reviewGig: (id: string, input: ReviewInput) => Promise<void>
-  cancelDraftGig: (id: string) => Promise<void>
+  reviewEscrow: (id: string, input: ReviewInput) => Promise<void>
 }
 
 const defaultFilters: GigListQuery = {}
@@ -60,57 +63,10 @@ export const useGigsStore = create<GigsState>((set, get) => ({
 
   resetFilters: () => set({ filters: defaultFilters }),
 
-  acceptGig: async (id, body) => {
+  reviewEscrow: async (id, input) => {
     set({ isLoading: true })
     try {
-      await api.gigs.accept({ id }, body)
-      await get().fetchGigDetail(id)
-    } catch (e) {
-      set({ isLoading: false })
-      throw e
-    }
-  },
-
-  submitProof: async (id, body) => {
-    set({ isLoading: true })
-    try {
-      await api.gigs.submit({ id }, body)
-      await get().fetchGigDetail(id)
-    } catch (e) {
-      set({ isLoading: false })
-      throw e
-    }
-  },
-
-  disputeGig: async (id, body) => {
-    set({ isLoading: true })
-    try {
-      const gig = await api.gigs.dispute({ id }, body)
-      set((state) => ({
-        isLoading: false,
-        selectedGig: state.selectedGig ? { ...state.selectedGig, ...gig } : null,
-      }))
-    } catch (e) {
-      set({ isLoading: false })
-      throw e
-    }
-  },
-
-  reviewGig: async (id, input) => {
-    set({ isLoading: true })
-    try {
-      await api.gigs.review({ id }, input)
-      set({ isLoading: false })
-    } catch (e) {
-      set({ isLoading: false })
-      throw e
-    }
-  },
-
-  cancelDraftGig: async (id) => {
-    set({ isLoading: true })
-    try {
-      await api.gigs.delete({ id })
+      await api.escrows.review({ id }, input)
       set({ isLoading: false })
     } catch (e) {
       set({ isLoading: false })

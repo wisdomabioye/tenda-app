@@ -13,7 +13,8 @@
 import { buildAuthMessage, solanaChainId, apiConfig, type AuthResponse } from '@tenda/shared'
 import { api } from '@/api/client'
 import { getEnv } from '@/lib/env'
-import { APP_IDENTITY, connectAndSignMessage, type WalletSession } from '@/wallet'
+import { APP_IDENTITY } from '@/wallet'
+import { connectAndSignMessage, type ConnectAndSignResult } from '@/wallet/adapters/solana-mwa'
 
 export interface SignInWithWalletArgs {
   /** Wallet address: base58 (Solana) or 0x-hex (EVM). */
@@ -61,7 +62,7 @@ export async function signInWithWallet(args: SignInWithWalletArgs): Promise<Auth
 
 export interface SolanaSignInResult {
   auth: AuthResponse
-  session: WalletSession
+  session: Pick<ConnectAndSignResult, 'authToken' | 'address'>
 }
 
 function solanaAuthContext() {
@@ -86,19 +87,19 @@ export async function solanaSignIn(opts: {
 
   const signed = await connectAndSignMessage(
     (address) => buildAuthMessage({ address, chain_id, uri, nonce }),
-    opts.mwaAuthToken,
+    opts.mwaAuthToken ?? null,
   )
   if (signed === null) return null
 
   const auth = await api.auth.wallet({
     chain_id,
-    address: signed.session.walletAddress,
+    address: signed.address,
     message: signed.message,
     signature: signed.signature,
     ...(opts.is_seeker !== undefined ? { is_seeker: opts.is_seeker } : {}),
     ...(opts.country !== undefined ? { country: opts.country } : {}),
   })
-  return { auth, session: signed.session }
+  return { auth, session: { authToken: signed.authToken, address: signed.address } }
 }
 
 /**
@@ -115,16 +116,17 @@ export async function solanaLinkWallet(): Promise<{ address: string } | null> {
   const { chain_id, uri } = solanaAuthContext()
   const { nonce } = await api.auth.nonce()
 
-  const signed = await connectAndSignMessage((address) =>
-    buildAuthMessage({ address, chain_id, uri, nonce }),
+  const signed = await connectAndSignMessage(
+    (address) => buildAuthMessage({ address, chain_id, uri, nonce }),
+    null,
   )
   if (signed === null) return null
 
   await api.auth.linkWallet({
     chain_id,
-    address: signed.session.walletAddress,
+    address: signed.address,
     message: signed.message,
     signature: signed.signature,
   })
-  return { address: signed.session.walletAddress }
+  return { address: signed.address }
 }

@@ -1,26 +1,29 @@
-import { Buffer } from 'buffer'
-import {
-  Connection,
-  PublicKey,
-  VersionedTransaction,
-  clusterApiUrl,
-  type Cluster,
-  type Transaction,
-} from '@solana/web3.js'
-import { transact, type Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
+/**
+ * Chain-agnostic wallet utilities (post-#34). Wallet CONNECTIONS live in
+ * the promoted adapter stack (provider.tsx + adapters/*); unsigned-tx
+ * signing + client-ping live in dispatch.ts. This module keeps only the
+ * Solana RPC helpers and the shared error type that screens consume.
+ *
+ * The legacy MWA + idl/legacy escrow flow died at the cutover — escrow
+ * transactions are built server-side (/v1/escrows) and signed via
+ * dispatch.signSendAndReport.
+ */
+import { Connection, PublicKey, clusterApiUrl, type Cluster } from '@solana/web3.js'
 import { getEnv } from '@/lib/env'
 import { apiConfig } from '@tenda/shared'
-import { ESCROW_IDL, discriminatorFor, type InstructionName } from '@tenda/shared/idl/legacy'
 
 const env = getEnv()
 const ENV_CONFIG = apiConfig[env]
+
 const APP_IDENTITY_ENV: Record<
-  typeof env, {
-    name: string, 
-    uri: string, 
-    icon: string,
+  typeof env,
+  {
+    name: string
+    uri: string
+    icon: string
     network: Cluster
-  }> = {
+  }
+> = {
   development: {
     name: 'Tenda Dev',
     uri: ENV_CONFIG.baseUrl,
@@ -38,43 +41,12 @@ const APP_IDENTITY_ENV: Record<
     uri: ENV_CONFIG.baseUrl,
     network: 'mainnet-beta',
     icon: './favicon.ico',
-  }
+  },
 }
 
 export const APP_IDENTITY = APP_IDENTITY_ENV[env]
 
 const connection = new Connection(clusterApiUrl(APP_IDENTITY.network), 'confirmed')
-
-export interface WalletSession {
-  authToken: string
-  walletAddress: string
-  base64Address: string
-  publicKey: PublicKey
-}
-
-function base64AddressToPublicKey(base64Address: string): PublicKey {
-  const bytes = Buffer.from(base64Address, 'base64')
-  return new PublicKey(bytes)
-}
-
-async function authorizeSession(wallet: Web3MobileWallet, authToken?: string) {
-  if (authToken) {
-    try {
-      return await wallet.reauthorize({ auth_token: authToken, identity: APP_IDENTITY })
-    } catch (err) {
-      if (!isMwaStaleAuth(err)) throw err
-      // Token expired/revoked — fall through to fresh authorize in the same session.
-      // The WebSocket is still open after a JSON-RPC error; a new authorize request works fine.
-    }
-  }
-  return wallet.authorize({
-    chain: `solana:${APP_IDENTITY.network}`,
-    identity: APP_IDENTITY,
-  })
-}
-
-const MAX_RETRIES = 3
-const RETRY_DELAY_MS = 500
 
 export type WalletErrorCode = 'no_wallet' | 'declined' | 'network' | 'unknown'
 
@@ -89,216 +61,8 @@ export class WalletError extends Error {
   }
 }
 
-interface MwaError {
-  name: string
-  message: string
-}
-
-function isMwaError(err: unknown): err is MwaError {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    typeof (err as Record<string, unknown>).name === 'string' &&
-    typeof (err as Record<string, unknown>).message === 'string'
-  )
-}
-
-function isMwaTransient(err: unknown): boolean {
-  return (
-    isMwaError(err) &&
-    err.name === 'SolanaMobileWalletAdapterError' &&
-    err.message.includes('CancellationException')
-  )
-}
-
-function isMwaUserDeclined(err: unknown): boolean {
-  if (!isMwaError(err)) return false
-  if (err.name === 'SolanaMobileWalletAdapterError' && err.message.includes('AuthorizationDeclined')) return true
-  if (err.name === 'SolanaMobileWalletAdapterProtocolError' && err.message.startsWith('-1/')) return true
-  return false
-}
-
-function isMwaNoWallet(err: unknown): boolean {
-  return (
-    isMwaError(err) &&
-    err.name === 'SolanaMobileWalletAdapterError' &&
-    err.message.includes('no installed wallet')
-  )
-}
-
-function isMwaStaleAuth(err: unknown): boolean {
-  return (
-    isMwaError(err) &&
-    err.name === 'SolanaMobileWalletAdapterProtocolError' &&
-    err.message.includes('authorization request failed')
-  )
-}
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-export interface ConnectAndSignResult {
-  session: WalletSession
-  signature: string
-  message: string
-}
-
-/**
- * One MWA session: authorize → resolve the wallet address → build the
- * message for that address (the caller injects the template — e.g. the
- * shared nonce auth-message) → sign it. Returns null on user decline.
- */
-export async function connectAndSignMessage(
-  buildMessage: (walletAddress: string) => string,
-  mwaAuthToken?: string,
-): Promise<ConnectAndSignResult | null> {
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      return await transact(async (wallet) => {
-        const result = await authorizeSession(wallet, mwaAuthToken)
-
-        const account = result.accounts[0]
-        if (!account) {
-          throw new Error('No wallet account returned')
-        }
-
-        const publicKey = base64AddressToPublicKey(account.address)
-        const walletAddress = publicKey.toBase58()
-
-        const message = buildMessage(walletAddress)
-        const messageBytes = new TextEncoder().encode(message)
-
-        const signed = await wallet.signMessages({
-          addresses: [account.address],
-          payloads: [messageBytes],
-        })
-
-        const signature = Buffer.from(signed[0]).toString('base64')
-
-        return {
-          session: {
-            authToken: result.auth_token,
-            walletAddress,
-            base64Address: account.address,
-            publicKey,
-          },
-          signature,
-          message,
-        }
-      })
-    } catch (err: unknown) {
-      if (isMwaUserDeclined(err)) return null
-
-      if (isMwaTransient(err) && attempt < MAX_RETRIES) {
-        console.log(`MWA transient error, retrying (${attempt}/${MAX_RETRIES})...`)
-        await delay(RETRY_DELAY_MS)
-        continue
-      }
-
-      if (isMwaNoWallet(err)) {
-        throw new WalletError('no_wallet', 'No wallet app installed', err)
-      }
-
-      if (isMwaError(err) && (err.message.includes('network') || err.message.includes('timeout'))) {
-        throw new WalletError('network', 'Network error during wallet connect', err)
-      }
-
-      throw new WalletError('unknown', isMwaError(err) ? err.message : 'Unexpected wallet error', err)
-    }
-  }
-
-  return null
-}
-
-/**
- * Validates that a transaction contains an instruction targeting the Tenda
- * program with the expected Anchor discriminator. Call this before signing any
- * server-built transaction to guard against a compromised server or MITM
- * substituting a malicious payload.
- *
- * Throws WalletError('unknown') if the check fails — the caller should surface
- * this as a generic error and abort signing.
- */
-export function validateTransaction(tx: Transaction, expectedInstruction: InstructionName): void {
-  const programId = new PublicKey((ESCROW_IDL as unknown as { address: string }).address)
-  const expected  = discriminatorFor(expectedInstruction)
-
-  const valid = tx.instructions.some((ix) =>
-    ix.programId.equals(programId) &&
-    ix.data.length >= 8 &&
-    expected.every((b, i) => ix.data[i] === b),
-  )
-
-  if (!valid) {
-    throw new WalletError('unknown', `Transaction does not contain the expected '${expectedInstruction}' instruction`)
-  }
-}
-
-export async function signTransactionWithWallet(
-  transaction: Transaction | VersionedTransaction,
-  authToken: string,
-): Promise<Transaction | VersionedTransaction> {
-  return transact(async (wallet) => {
-    await authorizeSession(wallet, authToken)
-    const signed = await wallet.signTransactions({ transactions: [transaction] })
-    return signed[0]
-  })
-}
-
-/**
- * Signs multiple transactions in a single wallet session and returns them
- * without broadcasting. Caller is responsible for broadcasting sequentially.
- * Used for the first-time worker account setup + accept-gig dual-tx flow.
- */
-export async function signTransactionsWithWallet(
-  transactions: Array<Transaction | VersionedTransaction>,
-  authToken: string,
-  onNewAuthToken?: (token: string) => void,
-): Promise<Array<Transaction | VersionedTransaction>> {
-  return transact(async (wallet) => {
-    const result = await authorizeSession(wallet, authToken)
-    if (result.auth_token !== authToken) {
-      onNewAuthToken?.(result.auth_token)
-    }
-    return wallet.signTransactions({ transactions })
-  })
-}
-
-export async function signAndSendTransactionWithWallet(
-  transaction: Transaction | VersionedTransaction,
-  authToken: string,
-  onNewAuthToken?: (token: string) => void,
-): Promise<string> {
-  // Sign only inside the wallet (no broadcast from wallet — avoids wallet hanging
-  // on its internal RPC call, which prevents the signing prompt from appearing).
-  const signed = await transact(async (wallet) => {
-    const result = await authorizeSession(wallet, authToken)
-    if (result.auth_token !== authToken) {
-      onNewAuthToken?.(result.auth_token)
-    }
-    const [signedTx] = await wallet.signTransactions({ transactions: [transaction] })
-    return signedTx
-  })
-
-  // Broadcast from the app's connection after the wallet session closes.
-  const rawTx = signed instanceof VersionedTransaction
-    ? signed.serialize()
-    : (signed as Transaction).serialize()
-  return connection.sendRawTransaction(rawTx, { preflightCommitment: 'confirmed' })
-}
-
 export async function getBalance(publicKey: PublicKey): Promise<number> {
   return connection.getBalance(publicKey)
-}
-
-export async function sendRawTransaction(
-  transaction: Transaction | VersionedTransaction,
-): Promise<string> {
-  const raw = transaction instanceof VersionedTransaction
-    ? transaction.serialize()
-    : (transaction as Transaction).serialize()
-  return connection.sendRawTransaction(raw, { preflightCommitment: 'confirmed' })
 }
 
 export type OnChainTxStatus = 'confirmed' | 'finalized' | 'failed' | 'not_found'
@@ -311,25 +75,4 @@ export async function getTransactionStatus(signature: string): Promise<OnChainTx
   if (value.confirmationStatus === 'finalized') return 'finalized'
   if (value.confirmationStatus === 'confirmed') return 'confirmed'
   return 'not_found'
-}
-
-export async function deauthorizeWallet(authToken?: string): Promise<void> {
-  if (!authToken) return
-  await transact(async (wallet) => {
-    await wallet.deauthorize({ auth_token: authToken })
-  })
-}
-
-export async function validateSession(authToken: string): Promise<boolean> {
-  try {
-    await transact(async (wallet) => {
-      await wallet.reauthorize({ 
-        auth_token: authToken, 
-        identity: APP_IDENTITY 
-      })
-    })
-    return true
-  } catch {
-    return false
-  }
 }

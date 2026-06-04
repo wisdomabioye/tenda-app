@@ -34,10 +34,11 @@ import { spacing } from '@/theme/tokens'
 import type { LocalMessage } from '@/stores/chat.store'
 
 export default function ChatScreen() {
-  const { userId, gigId, gigTitle, offerId, offerTitle } = useLocalSearchParams<{
+  const { userId, escrowId, escrowTitle, kind } = useLocalSearchParams<{
     userId: string
-    gigId?: string; gigTitle?: string
-    offerId?: string; offerTitle?: string
+    escrowId?: string
+    escrowTitle?: string
+    kind?: 'gig' | 'exchange'
   }>()
   const router = useRouter()
   const { theme } = useUnistyles()
@@ -54,9 +55,11 @@ export default function ChatScreen() {
   const msgs = conversationId ? (messages[conversationId] ?? []) : []
   const feed = useMemo(() => buildMessageFeed(msgs), [msgs])
 
+  const escrowContext = escrowId ? { escrowId, kind: kind ?? null } : undefined
+
   function handleSend(text: string) {
     if (!conversationId) return
-    void sendMessage(conversationId, text, gigId, offerId)
+    void sendMessage(conversationId, text, escrowContext)
   }
 
   async function handlePickAttachment(kind: 'image' | 'document') {
@@ -67,7 +70,7 @@ export default function ChatScreen() {
     setUploading(true)
     try {
       const { url, bytes } = await uploadToCloudinaryDetailed(file, 'chat', conversationId)
-      await sendMessage(conversationId, '', gigId, offerId, {
+      await sendMessage(conversationId, '', escrowContext, {
         url,
         type: file.type === 'image' ? 'image' : 'file',
         size: bytes,
@@ -143,8 +146,9 @@ export default function ChatScreen() {
             if (isDivider(item)) {
               return (
                 <ChatContextDivider
-                  gigId={item.gig_id} gigTitle={item.gig_title}
-                  offerId={item.offer_id} offerTitle={item.offer_title}
+                  escrowId={item.escrow_id}
+                  escrowTitle={item.escrow_title}
+                  kind={item.escrow_kind}
                 />
               )
             }
@@ -172,12 +176,11 @@ export default function ChatScreen() {
           }
         />
 
-        {(gigId || offerId) && (
+        {escrowId && (
           <ChatContextDivider
-            gigId={gigId}
-            gigTitle={gigTitle ? decodeURIComponent(gigTitle) : null}
-            offerId={offerId}
-            offerTitle={offerTitle ? decodeURIComponent(offerTitle) : null}
+            escrowId={escrowId}
+            escrowTitle={escrowTitle ? decodeURIComponent(escrowTitle) : null}
+            kind={kind ?? null}
           />
         )}
         {uploading && (

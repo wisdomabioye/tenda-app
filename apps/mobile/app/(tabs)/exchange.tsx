@@ -14,11 +14,11 @@ import {
   Button, Header, BottomSheet,
   Skeleton 
 } from '@/components/ui'
-import { ExchangeOfferCard } from '@/components/exchange'
-import { usePeerExchangeStore, useAuthStore } from '@/stores'
+import { ExchangeOfferCard, MyOfferRow } from '@/components/exchange'
+import { useExchangeMarketStore, useAuthStore } from '@/stores'
 import { api } from '@/api/client'
 import { SUPPORTED_CURRENCIES } from '@tenda/shared'
-import type { ExchangeOfferSummary } from '@tenda/shared'
+import type { EscrowListRow } from '@tenda/shared'
 
 export default function ExchangeScreen() {
   const { theme }          = useUnistyles()
@@ -26,13 +26,13 @@ export default function ExchangeScreen() {
   const user               = useAuthStore((s) => s.user)
 
   const { offers, isLoading, isLoadingMore, hasFetched, error, fetchOffers, loadMore, setFilters, resetFilters } =
-    usePeerExchangeStore()
+    useExchangeMarketStore()
 
   const [pageIndex, setPageIndex]               = useState(0)
   const [currency, setCurrency]                 = useState<string | null>(null)
   const [currencySheetOpen, setCurrencySheetOpen] = useState(false)
   const [refreshing, setRefreshing]             = useState(false)
-  const [myOffers, setMyOffers]                 = useState<ExchangeOfferSummary[]>([])
+  const [myOffers, setMyOffers]                 = useState<EscrowListRow[]>([])
   const [isLoadingMine, setIsLoadingMine]       = useState(false)
 
   const scrollRef = useRef<ScrollView>(null)
@@ -49,7 +49,7 @@ export default function ExchangeScreen() {
     if (!user) return
     setIsLoadingMine(true)
     try {
-      const result = await api.users.exchangeOffers({ id: user.id })
+      const result = await api.users.escrows({ id: user.id }, { role: 'creator', kind: 'exchange' })
       setMyOffers(result.data)
     } catch {
       // Non-fatal — list stays stale
@@ -96,7 +96,7 @@ export default function ExchangeScreen() {
   return (
     <ScreenContainer scroll={false} padding={false}>
       {/* ── Large-title header ── */}
-      <Header variant="large" title="Trade" subtitle="Swap SOL with sellers" />
+      <Header variant="large" title="Trade" subtitle="Swap crypto with sellers" />
 
       {/* ── Tab row + animated underline ── */}
       <View style={[s.tabRow, { borderBottomColor: theme.colors.border.subtle }]}>
@@ -165,7 +165,7 @@ export default function ExchangeScreen() {
           ) : (
             <FlatList
               data={offers}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => item.escrow_id}
               renderItem={({ item }) => <ExchangeOfferCard offer={item} showStatus={false} />}
               contentContainerStyle={s.list}
               ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
@@ -195,14 +195,14 @@ export default function ExchangeScreen() {
             <FlatList
               data={myOffers}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => <ExchangeOfferCard offer={item} showStatus />}
+              renderItem={({ item }) => <MyOfferRow offer={item} />}
               contentContainerStyle={s.list}
               ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.brand.primary} />}
               ListEmptyComponent={
                 <EmptyState
                   title="No offers yet"
-                  description='Tap "Sell SOL" to post your first offer'
+                  description='Use Buy / Sell to post your first offer'
                 />
               }
             />

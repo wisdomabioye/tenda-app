@@ -3,10 +3,9 @@ import type { LocalMessage } from '@/stores/chat.store'
 export type ContextDividerItem = {
   _type: 'divider'
   _key: string
-  gig_id: string | null
-  gig_title: string | null
-  offer_id: string | null
-  offer_title: string | null
+  escrow_id: string | null
+  escrow_title: string | null
+  escrow_kind: 'gig' | 'exchange' | null
 }
 
 export type TimestampGroupItem = {
@@ -33,7 +32,7 @@ export function isTimestamp(item: FeedItem): item is TimestampGroupItem {
  *    calendar date changes between adjacent messages (one header per day, like
  *    WhatsApp). Time-of-day grouping is intentionally avoided — it produces a
  *    header on nearly every message during active back-and-forth.
- * 2. Insert a ContextDividerItem whenever gig/offer context changes between
+ * 2. Insert a ContextDividerItem whenever the escrow context changes between
  *    adjacent messages.
  * 3. Reverse the feed so newest is at index 0, as required by an inverted FlatList.
  */
@@ -44,20 +43,19 @@ export function buildMessageFeed(msgs: LocalMessage[]): FeedItem[] {
     const curr = msgs[i]
     const prev = i > 0 ? msgs[i - 1] : null
 
-    const currContext = curr.gig_id ?? curr.offer_id ?? null
-    const prevContext = prev ? (prev.gig_id ?? prev.offer_id ?? null) : null
+    const currContext = curr.escrow_id
+    const prevContext = prev ? prev.escrow_id : null
 
     const contextChanged = currContext !== prevContext
     const shouldDivide = contextChanged && (currContext !== null || prev !== null)
 
     if (shouldDivide) {
       feed.push({
-        _type:       'divider',
-        _key:        `divider_${curr.id}`,
-        gig_id:      curr.gig_id,
-        gig_title:   curr.gig_title ?? null,
-        offer_id:    curr.offer_id,
-        offer_title: curr.offer_title ?? null,
+        _type: 'divider',
+        _key: `divider_${curr.id}`,
+        escrow_id: curr.escrow_id,
+        escrow_title: curr.escrow_title ?? null,
+        escrow_kind: curr.escrow_kind ?? null,
       })
     }
 

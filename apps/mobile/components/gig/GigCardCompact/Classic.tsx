@@ -7,16 +7,16 @@ import { Text } from '@/components/ui/Text'
 import { MoneyText } from '@/components/ui/MoneyText'
 import { GigStatusBadge } from '../GigStatusBadge'
 import { CATEGORY_META } from '@/data/mock'
-import { toPaymentDisplay } from '@/lib/currency'
+import { toAssetPaymentDisplay } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { LOCATIONS, type CountryCode } from '@tenda/shared'
 import { gigDeadlineMeta } from '@/lib/gig-display'
 import { useGracePeriodSeconds } from '@/stores/platform-config.store'
-import type { Gig } from '@tenda/shared'
+import type { GigSummary } from '@tenda/shared'
 
 interface Props {
-  gig: Gig
+  gig: GigSummary
   showStatus?: boolean
 }
 
@@ -36,13 +36,13 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
   const rate = rates?.[currency] ?? null
-  const price = toPaymentDisplay(gig.payment_lamports, rate)
+  const price = toAssetPaymentDisplay(gig.amount_raw, gig.asset, rate)
   const gracePeriodSeconds = useGracePeriodSeconds()
-  const deadlineMeta = gigDeadlineMeta(gig, { gracePeriodSeconds: gracePeriodSeconds ?? undefined })
+  const deadlineMeta = gigDeadlineMeta(gig)
 
   return (
     <Pressable
-      onPress={() => router.push(`/gig/${gig.id}`)}
+      onPress={() => router.push(`/gig/${gig.escrow_id}`)}
       style={({ pressed }) => [
         s.card,
         {
@@ -64,7 +64,7 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
         {gig.title}
       </Text>
 
-      <MoneyText fiat={price.fiat} ratesReady={rates !== null} currency={currency} sol={price.sol} size={typography.styles.body.fontSize} />
+      <MoneyText fiat={price.fiat} currency={currency} amountLabel={`${price.amount.toFixed(price.amount >= 1 ? 2 : 3)} ${price.symbol}`} size={typography.styles.body.fontSize} />
 
       <View style={s.footer}>
         <View style={s.metaItem}>

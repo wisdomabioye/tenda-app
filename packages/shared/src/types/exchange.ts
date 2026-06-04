@@ -32,6 +32,7 @@ export interface ExchangeSummary {
 
 export interface ExchangeDetail extends ExchangeSummary {
   payment_proof_url: string | null
+  dispute_bond_raw: string
   completion_deadline: string | null
   submitted_at: string | null
   approval_deadline: string | null

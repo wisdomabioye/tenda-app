@@ -8,6 +8,8 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
+import { and, eq } from 'drizzle-orm'
+import { escrows } from '@tenda/shared/db/schema'
 import { loadEscrowOr404, deriveCaller } from '@server/lib/escrow-routes'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
@@ -31,6 +33,42 @@ const route: FastifyPluginAsync = async (fastify) => {
         )
       }
       return { escrow }
+    },
+  )
+
+  // DELETE /v1/escrows/:id — discard an abandoned DRAFT (a staging row the
+  // creator never signed; nothing exists on-chain). Published escrows
+  // unwind through the on-chain cancel/refund transitions instead.
+  fastify.delete<{ Params: { id: string } }>(
+    '/',
+    { preHandler: [fastify.authenticate] },
+    async (request) => {
+      const escrow = await loadEscrowOr404(fastify.db, request.params.id)
+      if (escrow.creator_id !== request.user.id) {
+        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the creator can discard a draft')
+      }
+      if (escrow.status !== 'draft') {
+        throw new AppError(
+          409,
+          ErrorCode.ESCROW_WRONG_STATUS,
+          'Only drafts can be deleted — published escrows are cancelled on-chain',
+        )
+      }
+      // Status guard inside the DELETE so a create-tx confirming between
+      // the SELECT and here (draft → open) can't destroy a live escrow;
+      // the details satellite rows cascade.
+      const deleted = await fastify.db
+        .delete(escrows)
+        .where(and(eq(escrows.id, escrow.id), eq(escrows.status, 'draft')))
+        .returning({ id: escrows.id })
+      if (deleted.length === 0) {
+        throw new AppError(
+          409,
+          ErrorCode.ESCROW_WRONG_STATUS,
+          'Escrow left draft state — it may have just been published',
+        )
+      }
+      return { deleted: true }
     },
   )
 }

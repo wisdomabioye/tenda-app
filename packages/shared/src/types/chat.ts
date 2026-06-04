@@ -30,8 +30,10 @@ export interface Message {
   sender_id: string
   /** Chat context divider: the escrow (gig or exchange) being discussed. */
   escrow_id: string | null
-  /** gig_details.title when the escrow is a gig; null otherwise. */
+  /** gig_details.title when the escrow is a gig; trade summary otherwise. */
   escrow_title: string | null
+  /** Routes the context divider to the right detail surface. */
+  escrow_kind: 'gig' | 'exchange' | null
   content: string
   attachment_url: string | null
   attachment_type: 'image' | 'file' | null

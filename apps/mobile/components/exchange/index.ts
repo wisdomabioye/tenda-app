@@ -1,3 +1,5 @@
 export { ExchangeStatusBadge } from './ExchangeStatusBadge'
 export { ExchangeOfferCard } from './ExchangeOfferCard'
-export { PaymentMethodBadge } from './PaymentMethodBadge'
+export { ExchangeTermsCard } from './ExchangeTermsCard'
+export { ExchangeCTA } from './ExchangeCTA'
+export { MyOfferRow } from './MyOfferRow'

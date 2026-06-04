@@ -11,7 +11,8 @@ interface PersonCardUser {
   first_name: string | null
   last_name: string | null
   avatar_url: string | null
-  reputation_score: number | null
+  /** numeric(3,2) — string on the wire, null when unrated. */
+  review_score: string | null
   is_seeker?: boolean
 }
 
@@ -47,10 +48,9 @@ export function PersonCard({
   const isSelf = currentUserId === user.id
 
   function handleMessage() {
-    const param = isOffer ? 'offerId' : 'gigId'
-    const titleParam = isOffer ? 'offerTitle' : 'gigTitle'
+    const kind = isOffer ? 'exchange' : 'gig'
     router.push(
-      `/chat/${user.id}?${param}=${contextId}&${titleParam}=${encodeURIComponent(contextTitle)}` as Parameters<typeof router.push>[0]
+      `/chat/${user.id}?escrowId=${contextId}&escrowTitle=${encodeURIComponent(contextTitle)}&kind=${kind}` as Parameters<typeof router.push>[0]
     )
   }
 
@@ -67,17 +67,17 @@ export function PersonCard({
             {isSelf ? 'You' : displayName}
           </Text>
           <View style={s.meta}>
-            {user.reputation_score != null && (
+            {user.review_score != null && (
               <>
                 <Text style={[s.star, { color: theme.colors.accent.primary }]}>★</Text>
                 <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>
-                  {user.reputation_score.toFixed(1)}
+                  {Number(user.review_score).toFixed(1)}
                 </Text>
               </>
             )}
             {user.is_seeker && (
               <>
-                {user.reputation_score != null && (
+                {user.review_score != null && (
                   <Text style={[s.metaSep, { color: theme.colors.content.tertiary }]}>·</Text>
                 )}
                 <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>

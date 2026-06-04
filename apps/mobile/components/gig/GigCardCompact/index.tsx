@@ -1,4 +1,4 @@
-import type { Gig } from '@tenda/shared'
+import type { GigSummary } from '@tenda/shared'
 import { GigCardCompactPriceLeading } from './PriceLeading'
 import { GigCardCompactRich } from './Rich'
 import { GigCardCompactClassic } from './Classic'
@@ -6,7 +6,7 @@ import { GigCardCompactClassic } from './Classic'
 export type GigCardVariant = 'priceLeading' | 'rich' | 'classic'
 
 interface GigCardCompactProps {
-  gig: Gig
+  gig: GigSummary
   showStatus?: boolean
   variant?: GigCardVariant
 }

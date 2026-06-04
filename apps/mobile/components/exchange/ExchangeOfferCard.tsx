@@ -6,13 +6,12 @@ import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
-import { PaymentMethodBadge } from './PaymentMethodBadge'
-import { formatFiat, formatSolDisplay } from '@/lib/currency'
-import { LAMPORTS_PER_SOL } from '@tenda/shared'
-import type { ExchangeOfferSummary, SupportedCurrency } from '@tenda/shared'
+import { formatFiat } from '@/lib/currency'
+import { formatAssetAmount, ASSET_META } from '@tenda/shared'
+import type { ExchangeSummary, SupportedCurrency } from '@tenda/shared'
 
 interface Props {
-  offer: ExchangeOfferSummary
+  offer: ExchangeSummary
   showStatus?: boolean
 }
 
@@ -20,31 +19,32 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
   const router = useRouter()
   const { theme } = useUnistyles()
 
-  const sol = Number(offer.lamports_amount) / LAMPORTS_PER_SOL
-  const fiat = formatFiat(offer.fiat_amount, offer.fiat_currency as SupportedCurrency)
-  const rate = formatFiat(offer.rate, offer.fiat_currency as SupportedCurrency)
-  const sellerName = `${offer.seller.first_name ?? ''} ${offer.seller.last_name ?? ''}`.trim() || 'Seller'
-  const handle = offer.seller.first_name
-    ? `@${offer.seller.first_name.toLowerCase()}`
-    : null
-  const score = offer.seller.reputation_score
+  // numeric(20,4)/(30,10) arrive as strings — display-only conversion.
+  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
+  const rate = formatFiat(Number(offer.rate), offer.fiat_currency as SupportedCurrency)
+  const symbol = ASSET_META[offer.asset]?.symbol ?? offer.asset
+  const sellerName =
+    `${offer.creator.first_name ?? ''} ${offer.creator.last_name ?? ''}`.trim() || 'Seller'
+  const handle = offer.creator.first_name ? `@${offer.creator.first_name.toLowerCase()}` : null
+  // numeric(3,2) — string on the wire, null when unrated.
+  const score = offer.creator.review_score === null ? null : Number(offer.creator.review_score)
 
   return (
     <Pressable
-      onPress={() => router.push(`/exchange/${offer.id}`)}
+      onPress={() => router.push(`/exchange/${offer.escrow_id}`)}
       style={({ pressed }) => [
         s.row,
         { borderBottomColor: theme.colors.border.subtle },
         pressed && s.pressed,
       ]}
     >
-      <Avatar src={offer.seller.avatar_url} name={sellerName} size="md" />
+      <Avatar src={offer.creator.avatar_url} name={sellerName} size="md" />
 
       <View style={s.body}>
-        {/* Row 1 — sol → fiat */}
+        {/* Row 1 — asset → fiat */}
         <View style={s.row1}>
           <Text style={[s.sol, { color: theme.colors.content.primary }]} numberOfLines={1}>
-            {formatSolDisplay(sol)}
+            {formatAssetAmount(offer.amount_raw, offer.asset)}
           </Text>
           <Text style={[s.arrow, { color: theme.colors.content.tertiary }]}>→</Text>
           <Text style={[s.fiat, { color: theme.colors.content.primary }]} numberOfLines={1}>
@@ -52,7 +52,7 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
           </Text>
         </View>
 
-        {/* Row 2 — handle · ★ rating · rate/SOL */}
+        {/* Row 2 — handle · ★ rating · rate/asset */}
         <View style={s.row2}>
           {handle && (
             <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>{handle}</Text>
@@ -68,7 +68,7 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
           )}
           <Text style={[s.metaSep, { color: theme.colors.content.tertiary }]}>·</Text>
           <Text style={[s.metaText, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
-            {rate}/SOL
+            {rate}/{symbol}
           </Text>
         </View>
 
@@ -76,15 +76,6 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
         {showStatus && (
           <View style={s.row3}>
             <ExchangeStatusBadge status={offer.status} />
-          </View>
-        )}
-
-        {/* Row 4 — payment method pills */}
-        {offer.payment_methods.length > 0 && (
-          <View style={s.row4}>
-            {offer.payment_methods.map((m) => (
-              <PaymentMethodBadge key={m} method={m} />
-            ))}
           </View>
         )}
       </View>
@@ -153,12 +144,6 @@ const s = StyleSheet.create({
   },
   row3: {
     flexDirection: 'row',
-    marginTop: 8,
-  },
-  row4: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 4,
     marginTop: 8,
   },
   chev: {

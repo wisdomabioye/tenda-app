@@ -29,7 +29,7 @@ swap transports per platform without touching the consumer surface.
             └─── phantom.ts    → Phantom universal links (iOS, device-verify pending)
 ```
 
-Files under `apps/mobile/wallet/spike/`:
+Files under `apps/mobile/wallet/`:
 
 | File | Purpose |
 |---|---|
@@ -155,7 +155,7 @@ runs at every `expo prebuild` so the native config stays in sync.
 
 ## Promotion criteria
 
-Promote `wallet/spike/*` → `wallet/*` (retire legacy `wallet/index.ts`, add
+Promote `wallet/*` → `wallet/*` (retire legacy `wallet/index.ts`, add
 `wallet/auth.ts` to wrap signMessage with the server-nonce flow) **iff**:
 
 - MM Connect (or `connect-evm`) sign round-trips on Android + iOS.

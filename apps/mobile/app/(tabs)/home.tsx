@@ -18,7 +18,7 @@ import { CATEGORY_META } from '@/data/mock'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
 import { useGigsFeedPolling } from '@/hooks/useGigsFeedPolling'
-import type { Gig, GigCategory } from '@tenda/shared'
+import type { GigSummary, GigCategory } from '@tenda/shared'
 
 export default function HomeScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -96,7 +96,7 @@ export default function HomeScreen() {
 
   if (!hasFetched && isLoading) return <LoadingScreen />
 
-  const renderGig = ({ item }: { item: Gig }) => (
+  const renderGig = ({ item }: { item: GigSummary }) => (
     <GigCardCompact gig={item} variant="rich" />
   )
 
@@ -127,7 +127,7 @@ export default function HomeScreen() {
         ) : (
           <FlatList
             data={displayedGigs}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item.escrow_id}
             renderItem={renderGig}
             contentContainerStyle={s.list}
             showsVerticalScrollIndicator={false}

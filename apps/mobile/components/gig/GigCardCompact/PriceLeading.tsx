@@ -5,17 +5,17 @@ import { Clock, Check, ArrowLeftRight } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { CATEGORY_META } from '@/data/mock'
-import { toPaymentDisplay, formatFiat } from '@/lib/currency'
+import { toAssetPaymentDisplay, formatFiat } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useGracePeriodSeconds } from '@/stores/platform-config.store'
 import { LOCATIONS, type CountryCode } from '@tenda/shared'
 import { gigDeadlineMeta } from '@/lib/gig-display'
-import type { Gig } from '@tenda/shared'
+import type { GigSummary } from '@tenda/shared'
 import { STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
 
 interface Props {
-  gig: Gig
+  gig: GigSummary
   showStatus?: boolean
 }
 
@@ -35,20 +35,20 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
   const rate = rates?.[currency] ?? null
-  const price = toPaymentDisplay(gig.payment_lamports, rate)
+  const price = toAssetPaymentDisplay(gig.amount_raw, gig.asset, rate)
 
-  const deadlineMeta = gigDeadlineMeta(gig, { gracePeriodSeconds: gracePeriodSeconds ?? undefined })
+  const deadlineMeta = gigDeadlineMeta(gig)
   const isUrgent = deadlineMeta.tone === 'urgent'
   const isSuccess = deadlineMeta.tone === 'success'
 
   const statusDotColor = STATUS_DOT_COLOR(theme, gig.status)
-  const fiatAlt = rates ? `≈ ${formatFiat(price.fiat, currency)}` : ''
+  const fiatAlt = price.fiat !== null ? `≈ ${formatFiat(price.fiat, currency)}` : ''
   const flag = LOCATIONS[gig.country as CountryCode]?.flag ?? ''
   const locationLabel = gig.remote ? `Remote${flag ? ` · ${flag}` : ''}` : gig.city ?? ''
 
   return (
     <Pressable
-      onPress={() => router.push(`/gig/${gig.id}`)}
+      onPress={() => router.push(`/gig/${gig.escrow_id}`)}
       style={({ pressed }) => [
         s.card,
         {
@@ -73,9 +73,9 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
         <View>
           <View style={s.amountRow}>
             <Text style={[s.amount, { color: theme.colors.content.primary }]} numberOfLines={1}>
-              {price.sol.toFixed(price.sol >= 1 ? 2 : 3)}
+              {price.amount.toFixed(price.amount >= 1 ? 2 : 3)}
             </Text>
-            <Text style={[s.unit, { color: theme.colors.content.tertiary }]}>SOL</Text>
+            <Text style={[s.unit, { color: theme.colors.content.tertiary }]}>{price.symbol}</Text>
           </View>
           {fiatAlt ? (
             <Text style={[s.fiat, { color: theme.colors.content.tertiary }]} numberOfLines={1}>

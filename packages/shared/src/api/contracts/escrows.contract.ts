@@ -7,6 +7,8 @@
 
 import type { Endpoint } from '../endpoint'
 import type { EscrowTxType } from '../../constants/escrow'
+import type { EscrowProof } from '../../types/escrow'
+import type { Review, ReviewInput } from '../../types/review'
 
 // ---------- wire types ------------------------------------------------------
 
@@ -81,8 +83,15 @@ export interface SubmitEscrowProofBody {
   proof_hash: string
 }
 
+/** Off-chain evidence files (Cloudinary URLs under the uploader's folder). */
+export interface AddEscrowProofsBody {
+  proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>
+}
+
 export interface DisputeEscrowApiBody {
   bond_raw: string
+  /** Triage reason for the admin dispute queue (validated 10–2000 chars). */
+  reason: string
 }
 
 export interface ResolveEscrowApiBody {
@@ -118,4 +127,9 @@ export interface EscrowsContract {
   refund: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
   dispute: Endpoint<'POST', IdParam, DisputeEscrowApiBody, undefined, EscrowActionResponse>
   resolve: Endpoint<'POST', IdParam, ResolveEscrowApiBody, undefined, EscrowActionResponse>
+  /** Off-chain: draft discard, evidence files, post-completion reviews. */
+  delete: Endpoint<'DELETE', IdParam, undefined, undefined, { deleted: true }>
+  proofs: Endpoint<'GET', IdParam, undefined, undefined, EscrowProof[]>
+  addProofs: Endpoint<'POST', IdParam, AddEscrowProofsBody, undefined, EscrowProof[]>
+  review: Endpoint<'POST', IdParam, ReviewInput, undefined, Review>
 }

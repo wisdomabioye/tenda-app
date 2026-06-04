@@ -1,46 +1,56 @@
 /**
- * Frontend-only display helpers for gigs:
+ * Frontend-only display helpers for gig escrows:
  *   - Date / duration / deadline formatters
  *   - Status label + status-tone mappings (single source of truth used by
  *     GigStatusBadge, GigCardCompact (Rich/PriceLeading/Classic), and any
- *     other surface that needs to display a gig status)
+ *     other surface that needs to display an escrow status)
  *
- * Locale formatting is frontend-only; pure logic belongs in @tenda/shared/utils/gig-utils.
+ * Post-#34 these key off the v2 EscrowStatus vocabulary: there is no
+ * 'expired' status — an expired-open escrow becomes 'refunded' once the
+ * creator reclaims, and the deadline chip derives "Expired" from the
+ * accept_deadline. Deadlines come straight off the escrow row
+ * (completion_deadline / approval_deadline are stored, not derived).
+ *
+ * Locale formatting is frontend-only; pure logic belongs in
+ * @tenda/shared/utils/gig-utils.
  */
 import type { AppTheme } from '@/theme/themes'
-import type { Gig, GigStatus } from '@tenda/shared'
+import type { EscrowStatus } from '@tenda/shared'
 import { formatRelativeShort } from './date'
 
 /** Threshold below which a deadline chip switches to the urgent (warn) tone. */
 export const URGENT_HOURS = 2
 
-export const STATUS_LABEL: Record<GigStatus, string> = {
-  draft:     'Draft',
-  open:      'Open',
-  accepted:  'Accepted',
+export const STATUS_LABEL: Record<EscrowStatus, string> = {
+  draft: 'Draft',
+  open: 'Open',
+  accepted: 'Accepted',
   submitted: 'Submitted',
   completed: 'Completed',
-  disputed:  'Disputed',
-  resolved:  'Resolved',
-  expired:   'Expired',
   cancelled: 'Cancelled',
+  refunded: 'Refunded',
+  disputed: 'Disputed',
+  resolved: 'Resolved',
 }
 
 /** Tone slot for the Badge primitive (`<Badge variant={...} />`). */
-export const STATUS_BADGE_VARIANT: Record<GigStatus, 'success' | 'warning' | 'danger' | 'info' | 'brand' | 'accent' | 'neutral'> = {
-  draft:     'neutral',
-  open:      'success',
-  accepted:  'brand',
+export const STATUS_BADGE_VARIANT: Record<
+  EscrowStatus,
+  'success' | 'warning' | 'danger' | 'info' | 'brand' | 'accent' | 'neutral'
+> = {
+  draft: 'neutral',
+  open: 'success',
+  accepted: 'brand',
   submitted: 'warning',
   completed: 'success',
-  disputed:  'danger',
-  resolved:  'success',
-  expired:   'neutral',
   cancelled: 'neutral',
+  refunded: 'neutral',
+  disputed: 'danger',
+  resolved: 'success',
 }
 
 /** Resolved hex color for status dots in card compositions (GigCardCompact). */
-export function statusDotColor(theme: AppTheme, status: GigStatus): string {
+export function statusDotColor(theme: AppTheme, status: EscrowStatus): string {
   switch (status) {
     case 'open':
     case 'completed':
@@ -90,7 +100,7 @@ function formatCountdown(ms: number): string {
 }
 
 export type GigDeadlineGlyph = 'clock' | 'check' | null
-export type GigDeadlineTone  = 'neutral' | 'urgent' | 'success'
+export type GigDeadlineTone = 'neutral' | 'urgent' | 'success'
 
 export interface GigDeadlineMeta {
   /** Human label for the chip (e.g. "45m left", "22h to review", "Draft", "3d ago"). */
@@ -101,41 +111,41 @@ export interface GigDeadlineMeta {
   tone: GigDeadlineTone
 }
 
-interface GigDeadlineOpts {
-  /**
-   * Live grace period from {@link usePlatformConfigStore} — the poster's review
-   * window after a submission. Required for the `submitted` state to render
-   * "Xh to review"; if omitted, that chip is hidden until the config loads.
-   */
-  gracePeriodSeconds?: number
+/** Minimal escrow shape the chip needs — wire strings and Dates both work. */
+export interface GigDeadlineSource {
+  status: EscrowStatus
+  accept_deadline: string | Date | null
+  /** Stored on the escrow at accept (v2) — null while open/draft. */
+  completion_deadline?: string | Date | null
+  /** Stored on the escrow at submit (v2) — the poster's review window. */
+  approval_deadline?: string | Date | null
+  /** Used for the "3d ago" chip on completed/resolved rows. */
+  updated_at?: string | Date | null
 }
 
 /**
- * Resolve the deadline-chip presentation for a gig in any status.
+ * Resolve the deadline-chip presentation for an escrow in any status.
  * Single source of truth used by GigCardCompact (Rich/PriceLeading/Classic).
  *
- *   open      → "45m left" / "4h left" / "Tomorrow" (urgent < {@link URGENT_HOURS})
- *   accepted  → "1h 10m"   / "Xh"       (completion countdown, urgent < URGENT_HOURS)
- *   submitted → "22h to review"          (poster review window, updated_at + grace)
- *   draft     → "Draft"                  (no countdown, neutral chip)
- *   expired   → "Expired"                (neutral)
- *   completed → "3d ago"                 (success, check glyph, relative past)
- *   resolved  → "3d ago"                 (success, like completed)
- *   disputed  → "Support open"           (neutral chip)
- *   cancelled → ""                       (no chip)
+ *   open      → "45m left" / "4h left" (urgent < {@link URGENT_HOURS}; "Expired" past deadline)
+ *   accepted  → "1h 10m" / "Xh"        (completion_deadline countdown)
+ *   submitted → "22h to review"        (approval_deadline countdown)
+ *   draft     → "Draft"                (no countdown, neutral chip)
+ *   refunded  → "Refunded"             (neutral)
+ *   completed → "3d ago"               (success, check glyph, relative past)
+ *   resolved  → "3d ago"               (success, like completed)
+ *   disputed  → "Support open"         (neutral chip)
+ *   cancelled → ""                     (no chip)
  */
-export function gigDeadlineMeta(
-  gig: Pick<Gig, 'status' | 'accept_deadline' | 'accepted_at' | 'completion_duration_seconds' | 'updated_at'>,
-  opts: GigDeadlineOpts = {},
-): GigDeadlineMeta {
+export function gigDeadlineMeta(gig: GigDeadlineSource): GigDeadlineMeta {
   const now = Date.now()
 
   switch (gig.status) {
     case 'draft':
       return { label: 'Draft', glyph: 'clock', tone: 'neutral' }
 
-    case 'expired':
-      return { label: 'Expired', glyph: 'clock', tone: 'neutral' }
+    case 'refunded':
+      return { label: 'Refunded', glyph: 'clock', tone: 'neutral' }
 
     case 'cancelled':
       return { label: 'Cancelled', glyph: null, tone: 'neutral' }
@@ -156,31 +166,31 @@ export function gigDeadlineMeta(
       const diffMs = deadline.getTime() - now
       if (diffMs <= 0) return { label: 'Expired', glyph: 'clock', tone: 'neutral' }
       const urgent = diffMs / 3_600_000 < URGENT_HOURS
-      return { label: `${formatCountdown(diffMs)} left`, glyph: 'clock', tone: urgent ? 'urgent' : 'neutral' }
+      return {
+        label: `${formatCountdown(diffMs)} left`,
+        glyph: 'clock',
+        tone: urgent ? 'urgent' : 'neutral',
+      }
     }
 
     case 'accepted': {
-      if (!gig.accepted_at) return { label: '', glyph: null, tone: 'neutral' }
-      const completionAt = new Date(gig.accepted_at).getTime() + gig.completion_duration_seconds * 1000
-      const diffMs = completionAt - now
+      if (!gig.completion_deadline) return { label: '', glyph: null, tone: 'neutral' }
+      const diffMs = new Date(gig.completion_deadline).getTime() - now
       if (diffMs <= 0) return { label: 'Overdue', glyph: 'clock', tone: 'urgent' }
       const urgent = diffMs / 3_600_000 < URGENT_HOURS
       return { label: formatCountdown(diffMs), glyph: 'clock', tone: urgent ? 'urgent' : 'neutral' }
     }
 
     case 'submitted': {
-      // Hide the chip until the platform config has loaded — we refuse to
-      // guess the review window.
-      if (opts.gracePeriodSeconds == null) return { label: '', glyph: null, tone: 'neutral' }
-      // Approximation: status transition to 'submitted' bumps updated_at, so
-      // updated_at + grace is a close proxy for the review deadline. Once a
-      // dedicated `submitted_at` column exists, swap it in here.
-      const base = gig.updated_at ? new Date(gig.updated_at).getTime() : now
-      const reviewBy = base + opts.gracePeriodSeconds * 1000
-      const diffMs = reviewBy - now
+      if (!gig.approval_deadline) return { label: '', glyph: null, tone: 'neutral' }
+      const diffMs = new Date(gig.approval_deadline).getTime() - now
       if (diffMs <= 0) return { label: 'Review overdue', glyph: 'clock', tone: 'urgent' }
       const urgent = diffMs / 3_600_000 < URGENT_HOURS
-      return { label: `${formatCountdown(diffMs)} to review`, glyph: 'clock', tone: urgent ? 'urgent' : 'neutral' }
+      return {
+        label: `${formatCountdown(diffMs)} to review`,
+        glyph: 'clock',
+        tone: urgent ? 'urgent' : 'neutral',
+      }
     }
   }
 }

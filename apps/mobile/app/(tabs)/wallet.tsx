@@ -19,7 +19,8 @@ import { useExchangeRateStore, useSettingsStore } from '@/stores'
 import { formatFiat } from '@/lib/currency'
 import { groupByDay } from '@/lib/date'
 import { LAMPORTS_PER_SOL, truncateWallet } from '@tenda/shared'
-import type { UserTransaction, SupportedCurrency } from '@tenda/shared'
+import { ASSET_META } from '@tenda/shared'
+import type { UserEscrowTransaction, SupportedCurrency } from '@tenda/shared'
 
 
 export default function WalletScreen() {
@@ -31,7 +32,7 @@ export default function WalletScreen() {
   const currency      = useSettingsStore((s) => s.currency) as SupportedCurrency
 
   const [balanceLamports, setBalanceLamports] = useState<number | null>(null)
-  const [transactions, setTransactions]       = useState<UserTransaction[]>([])
+  const [transactions, setTransactions]       = useState<UserEscrowTransaction[]>([])
   const [isLoading, setIsLoading]             = useState(true)
   const [refreshing, setRefreshing]           = useState(false)
 
@@ -72,25 +73,24 @@ export default function WalletScreen() {
   const rate = rates?.[currency] ?? null
   const balanceFiat = balanceSol !== null && rate !== null ? balanceSol * rate : null
 
+  // Totals are SOL-denominated for the header card — only SOL-asset rows
+  // contribute (multi-asset totals would mix units; per-asset rows still
+  // show their own amounts in the feed).
+  const isSolTx = (tx: UserEscrowTransaction) =>
+    (ASSET_META[tx.escrow.asset]?.symbol ?? tx.escrow.asset) === 'SOL'
+
   const earnedSol = transactions.reduce((sum, tx) => {
-    if (tx.source === 'gig') {
-      if (tx.gig.worker_id !== user?.id) return sum
-      if (tx.type === 'release_payment' || tx.type === 'dispute_resolved') {
-        return sum + (tx.amount_lamports - tx.platform_fee_lamports) / LAMPORTS_PER_SOL
-      }
-    } else {
-      if (tx.offer.buyer_id !== user?.id) return sum
-      if (tx.type === 'release_payment') {
-        return sum + (tx.amount_lamports - tx.platform_fee_lamports) / LAMPORTS_PER_SOL
-      }
+    if (!isSolTx(tx) || tx.escrow.counterparty_id !== user?.id) return sum
+    if (tx.type === 'approve' || tx.type === 'claim_stalled' || (tx.type === 'resolve' && tx.winner === 'counterparty')) {
+      const amount = Number(tx.amount_raw ?? '0') - Number(tx.platform_fee_raw ?? '0')
+      return sum + amount / LAMPORTS_PER_SOL
     }
     return sum
   }, 0)
 
   const spentSol = transactions.reduce((sum, tx) => {
-    if (tx.source === 'gig'      && tx.gig.poster_id   === user?.id && tx.type === 'create_escrow') return sum + tx.amount_lamports / LAMPORTS_PER_SOL
-    if (tx.source === 'exchange' && tx.offer.seller_id === user?.id && tx.type === 'create_escrow') return sum + tx.amount_lamports / LAMPORTS_PER_SOL
-    return sum
+    if (!isSolTx(tx) || tx.escrow.creator_id !== user?.id || tx.type !== 'create') return sum
+    return sum + Number(tx.amount_raw ?? tx.escrow.amount_raw) / LAMPORTS_PER_SOL
   }, 0)
 
   const feed = useMemo(

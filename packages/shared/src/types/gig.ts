@@ -48,6 +48,25 @@ export interface GigDetail extends GigSummary {
   reviews: Review[]
 }
 
+// ── Input types ───────────────────────────────────────────────────────
+
+/**
+ * Body of POST /v1/gigs — attaches the listing satellite to a draft
+ * escrow created via POST /v1/escrows.
+ */
+export interface CreateGigDetailsBody {
+  escrow_id: string
+  title: string
+  description?: string | null
+  category: GigCategory
+  /** Optional for remote gigs — server falls back to the creator's country. */
+  country?: string
+  remote?: boolean
+  city?: string
+  latitude?: number
+  longitude?: number
+}
+
 // ── Query types ───────────────────────────────────────────────────────
 
 export interface GigListQuery {
@@ -59,6 +78,11 @@ export interface GigListQuery {
   category?: GigCategory
   /** S5.3 full-text search over title + description. */
   q?: string
+  /**
+   * Own listings (auth required): 'created' = I posted, 'working' = I'm
+   * the (assigned) counterparty. Returns ALL statuses incl. drafts.
+   */
+  mine?: 'created' | 'working'
   min_amount_raw?: string
   max_amount_raw?: string
   sort?: 'created_at' | 'amount_asc' | 'amount_desc'

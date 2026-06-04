@@ -81,6 +81,7 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       created_at: escrow.created_at.toISOString(),
       creator,
       payment_proof_url: details.payment_proof_url,
+      dispute_bond_raw: escrow.dispute_bond_raw,
       completion_deadline: iso(escrow.completion_deadline),
       submitted_at: iso(escrow.submitted_at),
       approval_deadline: iso(escrow.approval_deadline),

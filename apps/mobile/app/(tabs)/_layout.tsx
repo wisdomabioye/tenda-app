@@ -53,8 +53,8 @@ export default function TabsLayout() {
     },
     {
       icon:    <Coins size={20} color={theme.colors.brand.primary} />,
-      label:   'Sell SOL',
-      onPress: () => router.navigate('/(tabs)/create-offer' as never),
+      label:   'Buy / Sell',
+      onPress: () => router.navigate('/wallet/buy-sell' as never),
     },
   ]
 
@@ -172,7 +172,6 @@ export default function TabsLayout() {
         />
 
         {/* ── Hidden screens (navigable, no tab) ── */}
-        <Tabs.Screen name="create-offer" options={{ href: null }} />
         <Tabs.Screen name="my-gigs" options={{ href: null }} />
         <Tabs.Screen name="profile" options={{ href: null }} />
         <Tabs.Screen name="settings" options={{ href: null }} />

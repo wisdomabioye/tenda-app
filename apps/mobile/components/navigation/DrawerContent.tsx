@@ -55,7 +55,7 @@ interface DrawerContentProps {
 }
 
 export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
-  const { user, logout } = useAuthStore();
+  const { user, logout, wallets, walletAddress } = useAuthStore();
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
   const router = useRouter();
@@ -65,7 +65,9 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
     .filter(Boolean)
     .join(' ') || 'Anonymous';
 
-  const handle = user?.wallet_address ? truncateWallet(user.wallet_address) : null;
+  // v2 identity is multi-wallet: prefer the primary linked wallet.
+  const primaryWallet = wallets.find((w) => w.is_primary)?.address ?? walletAddress;
+  const handle = primaryWallet ? truncateWallet(primaryWallet) : null;
   const isSeeker = isSeekerDevice();
 
   const handleNavigate = (route: string) => {

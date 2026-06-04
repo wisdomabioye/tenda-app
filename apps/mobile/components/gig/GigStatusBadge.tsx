@@ -1,9 +1,9 @@
 import { Badge } from '@/components/ui/Badge'
-import { STATUS_BADGE_VARIANT, STATUS_LABEL } from '@/data/mock'
-import type { GigStatus } from '@tenda/shared'
+import { STATUS_BADGE_VARIANT, STATUS_LABEL } from '@/lib/gig-display'
+import type { EscrowStatus } from '@tenda/shared'
 
 interface GigStatusBadgeProps {
-  status: GigStatus
+  status: EscrowStatus
 }
 
 export function GigStatusBadge({ status }: GigStatusBadgeProps) {

@@ -1,4 +1,4 @@
-import { CURRENCY_META, LAMPORTS_PER_SOL, type SupportedCurrency } from '@tenda/shared'
+import { ASSET_META, CURRENCY_META, LAMPORTS_PER_SOL, amountRawToDisplay, type SupportedCurrency } from '@tenda/shared'
 
 export interface PaymentDisplay {
   fiat: number
@@ -14,6 +14,29 @@ export function toPaymentDisplay(paymentLamports: number, rate: number | null): 
   const sol = paymentLamports / LAMPORTS_PER_SOL
   const fiat = rate != null && rate > 0 ? sol * rate : 0
   return { fiat, sol }
+}
+
+export interface AssetPaymentDisplay {
+  /** Display units (raw / 10^decimals). */
+  amount: number
+  symbol: string
+  /** Fiat equivalent — null when not derivable (rates are SOL-denominated). */
+  fiat: number | null
+}
+
+/**
+ * Asset-aware payment display for v2 escrows. The platform rate cache is
+ * fiat-per-SOL, so only SOL-denominated amounts get a fiat equivalent.
+ */
+export function toAssetPaymentDisplay(
+  amount_raw: string,
+  asset: string,
+  rate: number | null,
+): AssetPaymentDisplay {
+  const amount = amountRawToDisplay(amount_raw, asset)
+  const symbol = ASSET_META[asset]?.symbol ?? asset
+  const fiat = symbol === 'SOL' && rate !== null && rate > 0 ? amount * rate : null
+  return { amount, symbol, fiat }
 }
 
 /** Format lamports as a SOL string, e.g. "0.05 SOL" */

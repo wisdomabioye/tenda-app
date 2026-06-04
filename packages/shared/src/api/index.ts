@@ -24,6 +24,7 @@ export type {
   CreateEscrowApiResponse,
   EscrowActionResponse,
   SubmitEscrowProofBody,
+  AddEscrowProofsBody,
   DisputeEscrowApiBody,
   ResolveEscrowApiBody,
   ClientPingBody,

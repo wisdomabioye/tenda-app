@@ -2,17 +2,15 @@ import { View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from './Text'
-import { formatFiat, formatSolDisplay } from '@/lib/currency'
+import { formatFiat } from '@/lib/currency'
 import type { SupportedCurrency } from '@tenda/shared'
 
 interface MoneyTextProps {
-  /** Fiat value in the given currency (whole number) */
-  fiat: number
-  /** Whether rates are available — hides fiat display when false */
-  ratesReady: boolean
+  /** Fiat value in the given currency — null hides the fiat headline ('—'). */
+  fiat: number | null
   currency: SupportedCurrency
-  /** SOL amount (not lamports) */
-  sol: number
+  /** Pre-formatted asset amount, e.g. "0.05 SOL" / "5 USDC". */
+  amountLabel: string
   /** Headline font size; auto-picks mono tier */
   size?: number
 }
@@ -23,7 +21,7 @@ function pickMonoTier(size: number) {
   return typography.styles.mono
 }
 
-export function MoneyText({ fiat, ratesReady, currency, sol, size = 20 }: MoneyTextProps) {
+export function MoneyText({ fiat, currency, amountLabel, size = 20 }: MoneyTextProps) {
   const { theme } = useUnistyles()
   const tier = pickMonoTier(size)
   const subSize = Math.max(10.5, Math.round(size * 0.55))
@@ -50,13 +48,13 @@ export function MoneyText({ fiat, ratesReady, currency, sol, size = 20 }: MoneyT
         style={headlineStyle}
         color={theme.colors.content.primary}
       >
-        {ratesReady ? formatFiat(fiat, currency) : '—'}
+        {fiat !== null ? formatFiat(fiat, currency) : '—'}
       </Text>
       <Text
         style={subStyle}
         color={theme.colors.content.tertiary}
       >
-        {formatSolDisplay(sol)}
+        {amountLabel}
       </Text>
     </View>
   )

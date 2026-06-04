@@ -4,19 +4,19 @@ import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { formatDuration, formatDeadline } from '@/lib/gig-display'
-import { toPaymentDisplay, formatFiat } from '@/lib/currency'
+import { formatFiat } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { LOCATIONS } from '@tenda/shared'
+import { LOCATIONS, ASSET_META, amountRawToDisplay } from '@tenda/shared'
 import type { GigDetail, CountryCode, SupportedCurrency } from '@tenda/shared'
 import type { LucideIcon } from 'lucide-react-native'
 
 interface Props {
   gig: Pick<
     GigDetail,
-    | 'address' | 'city' | 'country' | 'remote'
+    | 'city' | 'country' | 'remote'
     | 'completion_duration_seconds' | 'accept_deadline'
-    | 'cross_border' | 'payment_lamports' | 'status'
+    | 'cross_border' | 'amount_raw' | 'asset' | 'status'
   >
   posterCountry: string | null
   deadlineLbl: string | null
@@ -34,27 +34,37 @@ export function GigMetaInfo({ gig, posterCountry, deadlineLbl }: Props) {
   const rates = useExchangeRateStore((s) => s.rates)
   const currency = useSettingsStore((s) => s.currency) as SupportedCurrency
   const rate = rates?.[currency] ?? null
-  const price = toPaymentDisplay(gig.payment_lamports, rate)
 
-  const fiatAlt = rates ? `≈ ${formatFiat(price.fiat, currency)}` : null
+  const assetMeta = ASSET_META[gig.asset]
+  const amount = amountRawToDisplay(gig.amount_raw, gig.asset)
+  const symbol = assetMeta?.symbol ?? gig.asset
 
-  // Escrow is funded once the gig leaves draft (publish creates the on-chain escrow).
+  // The platform rate cache is SOL-denominated — a fiat equivalent is only
+  // meaningful for native-SOL gigs. Stable assets read as ≈ face value.
+  const isSolAsset = symbol === 'SOL'
+  const fiatAlt =
+    isSolAsset && rate !== null && rate > 0 ? `≈ ${formatFiat(amount * rate, currency)}` : null
+
+  // Escrow is funded once the gig leaves draft (the create tx confirming is
+  // what flips draft → open).
   const escrowFunded = gig.status !== 'draft'
 
   const rows: Row[] = []
 
-  rows.push({
-    Icon: Calendar,
-    label: 'Deliver within',
-    value: formatDuration(gig.completion_duration_seconds),
-  })
+  if (gig.completion_duration_seconds !== null) {
+    rows.push({
+      Icon: Calendar,
+      label: 'Deliver within',
+      value: formatDuration(gig.completion_duration_seconds),
+    })
+  }
 
   rows.push({
     Icon: gig.remote ? Globe : MapPin,
     label: 'Location',
     value: gig.remote
       ? `Remote · ${LOCATIONS[gig.country as CountryCode]?.name ?? gig.country}`
-      : (gig.address ?? gig.city ?? '—'),
+      : (gig.city ?? '—'),
     iconTint: gig.remote ? theme.colors.brand.primary : undefined,
   })
 
@@ -102,10 +112,10 @@ export function GigMetaInfo({ gig, posterCountry, deadlineLbl }: Props) {
           </Text>
           <View style={s.payValue}>
             <Text style={[s.payAmount, { color: theme.colors.content.primary }]}>
-              {price.sol.toFixed(price.sol >= 1 ? 2 : 3)}
+              {amount.toLocaleString('en-US', { maximumFractionDigits: amount >= 1 ? 2 : 4 })}
             </Text>
             <Text style={[s.payUnit, { color: theme.colors.content.secondary }]}>
-              SOL
+              {symbol}
             </Text>
           </View>
           {fiatAlt && (

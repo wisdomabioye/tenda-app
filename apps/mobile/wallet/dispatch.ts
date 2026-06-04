@@ -16,8 +16,8 @@
 import { VersionedTransaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import type { EscrowTxType, UnsignedTx } from '@tenda/shared'
-import { signAndSendTransactionWithWallet } from '@/wallet'
-import { sendEvmTransaction } from '@/wallet/spike/adapters/metamask'
+import { signAndSendTransaction } from '@/wallet/adapters/solana-mwa'
+import { sendEvmTransaction } from '@/wallet/adapters/metamask'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 
@@ -35,7 +35,7 @@ export async function signAndSendUnsignedTx(unsigned: UnsignedTx, chain_id?: str
       const { mwaAuthToken, setMwaAuthToken } = useAuthStore.getState()
       if (mwaAuthToken === null) throw new Error('no Solana wallet session — connect first')
       const tx = VersionedTransaction.deserialize(Buffer.from(unsigned.tx_base64, 'base64'))
-      return signAndSendTransactionWithWallet(tx, mwaAuthToken, (token) => {
+      return signAndSendTransaction(tx, mwaAuthToken, (token) => {
         void setMwaAuthToken(token)
       })
     }

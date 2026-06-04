@@ -11,7 +11,7 @@ import {
 } from '@/lib/secure-store'
 import { api, ApiClientError } from '@/api/client'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
-import { usePeerExchangeStore } from '@/stores/p2p-exchange.store'
+import { useExchangeMarketStore } from '@/stores/exchange-market.store'
 import { solanaSignIn } from '@/wallet/auth'
 
 interface AuthState {
@@ -64,13 +64,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await Promise.all([
       setJwtToken(auth.token),
       setMwaAuthToken(session.authToken),
-      setWalletAddress(session.walletAddress),
+      setWalletAddress(session.address),
     ])
     set({
       user: auth.user,
       jwt: auth.token,
       mwaAuthToken: session.authToken,
-      walletAddress: session.walletAddress,
+      walletAddress: session.address,
       isAuthenticated: true,
       // The auth response is the v2 row — same predicate the server uses.
       profileComplete: Boolean(auth.user.first_name && auth.user.last_name),
@@ -85,7 +85,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    usePeerExchangeStore.getState().clear()
+    useExchangeMarketStore.getState().clear()
     await usePendingSyncStore.getState().clear()
     await clearAuthStorage()
     set({
