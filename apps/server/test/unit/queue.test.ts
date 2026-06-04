@@ -3,6 +3,20 @@
  * Tests pin the typed surface and assert stub bodies fail loud.
  */
 
+// getConfig() runs at plugin registration since #33 — stub required env
+// before the app under test boots (same pattern as cloudinary.test.ts).
+process.env.DATABASE_URL ??= 'postgres://localhost/test'
+process.env.JWT_SECRET ??= 'test-secret'
+process.env.CLOUDINARY_CLOUD_NAME ??= 'test-cloud'
+process.env.CLOUDINARY_API_KEY ??= 'test-key'
+process.env.CLOUDINARY_API_SECRET ??= 'test-secret-cl'
+process.env.SOLANA_RPC_URL ??= 'http://127.0.0.1:8899'
+process.env.SOLANA_TREASURY_ADDRESS ??= '4Nd1mYvK4Pm1x2HCmzCx5GQDV9KbpMK128bxgL5dVDU1'
+process.env.SOLANA_PROGRAM_ID ??= '7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes'
+process.env.API_BASE_URL ??= 'https://api.tenda.test'
+delete process.env.REDIS_URL // pin the 501 stub path regardless of dev env
+
+
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import fastify from 'fastify'
@@ -45,7 +59,7 @@ test('queue.enqueue: stub throws 501 INTERNAL_ERROR (notifications)', async () =
   const app = await build()
   const err = await expectStubThrows(
     () => app.queue.enqueue('notifications', { user_id: 'u-1', title: 't', body: 'b' }),
-    /notifications.*BullMQ not provisioned/,
+    /notifications.*REDIS_URL not configured/,
   )
   assert.strictEqual(err.code, 'INTERNAL_ERROR')
   await app.close()

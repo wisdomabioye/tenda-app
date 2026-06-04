@@ -17,8 +17,10 @@
 
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
+import { Queue } from 'bullmq'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
+import { getConfig } from '@server/config'
 import type { VerifyTxJobPayload } from '@server/jobs/verify-tx'
 
 // ---------- public surface ----------------------------------------------
@@ -48,10 +50,13 @@ export interface JobPayload {
   /** Imported from `jobs/verify-tx.ts` so producer + handler share one shape. */
   'verify-tx': VerifyTxJobPayload
   reconcile: {
-    /** Window start (inclusive) ISO-8601. */
-    from_iso: string
-    /** Window end (exclusive) ISO-8601. */
-    to_iso: string
+    /**
+     * Optional log-correlation window. The handler derives its real scan
+     * window from its injected clock — repeatable jobs carry a static
+     * payload, so these can't be fresh per tick.
+     */
+    from_iso?: string
+    to_iso?: string
   }
   /** Stage-8 repeatables — tick id for log correlation. */
   'reconcile-fiat': { tick_id: string }
@@ -77,17 +82,90 @@ export interface QueueService {
 
 // ---------- plugin -------------------------------------------------------
 
+/** Default retry posture — verify-tx overrides per its confirmation cadence. */
+const DEFAULT_JOB_OPTIONS = {
+  attempts: 5,
+  backoff: { type: 'exponential' as const, delay: 2_000 },
+  removeOnComplete: { age: 24 * 3_600, count: 5_000 },
+  removeOnFail: { age: 7 * 24 * 3_600 },
+}
+
+/** Queue name prefix so several apps can share one Redis safely.
+ *  NB: BullMQ forbids ':' in queue names (its own key separator). */
+export const QUEUE_PREFIX = 'tenda'
+
+export function queueName(name: JobName): string {
+  return `${QUEUE_PREFIX}.${name}`
+}
+
+export interface QueueConnectionOptions {
+  host: string
+  port: number
+  password?: string
+  db?: number
+  /** BullMQ requirement for blocking commands. */
+  maxRetriesPerRequest: null
+}
+
+/** Parse REDIS_URL into BullMQ connection options (each Queue/Worker owns
+ *  its client — no shared-instance type coupling to a specific ioredis). */
+export function queueConnectionOptions(redis_url: string): QueueConnectionOptions {
+  const u = new URL(redis_url)
+  return {
+    host: u.hostname,
+    port: u.port === '' ? 6379 : Number(u.port),
+    ...(u.password !== '' ? { password: u.password } : {}),
+    ...(u.pathname.length > 1 ? { db: Number(u.pathname.slice(1)) } : {}),
+    maxRetriesPerRequest: null,
+  }
+}
+
 const queuePlugin: FastifyPluginAsync = async (fastify) => {
+  const { REDIS_URL } = getConfig()
+
+  if (REDIS_URL === null) {
+    // Degrade exactly as before #33: enqueue 501s; callers already treat
+    // it as best-effort (webhooks log + continue, reconcile covers).
+    const stub: QueueService = {
+      async enqueue(name, _payload, _opts) {
+        throw new AppError(
+          501,
+          ErrorCode.INTERNAL_ERROR,
+          `queue.enqueue('${name}'): REDIS_URL not configured`,
+        )
+      },
+    }
+    fastify.decorate('queue', stub)
+    return
+  }
+
+  const connection = queueConnectionOptions(REDIS_URL)
+  const queues = new Map<JobName, Queue>()
+
+  function queueFor(name: JobName): Queue {
+    let q = queues.get(name)
+    if (q === undefined) {
+      q = new Queue(queueName(name), { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS })
+      queues.set(name, q)
+    }
+    return q
+  }
+
   const queue: QueueService = {
-    async enqueue(name, _payload, _opts) {
-      throw new AppError(
-        501,
-        ErrorCode.INTERNAL_ERROR,
-        `queue.enqueue('${name}'): BullMQ not provisioned — lands with #33 (Redis provisioning)`,
-      )
+    async enqueue(name, payload, opts) {
+      const job = await queueFor(name).add(name, payload, {
+        ...(opts?.job_id !== undefined ? { jobId: opts.job_id } : {}),
+        ...(opts?.delay_ms !== undefined ? { delay: opts.delay_ms } : {}),
+        ...(opts?.attempts !== undefined ? { attempts: opts.attempts } : {}),
+      })
+      return { job_id: job.id ?? opts?.job_id ?? 'unknown' }
     },
   }
   fastify.decorate('queue', queue)
+
+  fastify.addHook('onClose', async () => {
+    await Promise.allSettled([...queues.values()].map((q) => q.close()))
+  })
 }
 
 export default fp(queuePlugin, { name: 'queue' })

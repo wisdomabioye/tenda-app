@@ -70,6 +70,8 @@ export interface Config {
   ONRAMPMONEY_WEBHOOK_SECRET: string | null
   /** NIP name-enquiry credentials — bank-account verification. */
   NIP_API_KEY: string | null
+  /** Redis for BullMQ (#33). Unset = queue 501s and no workers start. */
+  REDIS_URL: string | null
   /** Stage 3 — BASE (eip155). All null-gated: unset = chain not registered. */
   BASE_RPC_URL: string | null
   BASE_ESCROW_ADDR: string | null
@@ -145,6 +147,7 @@ export function loadConfig(): Config {
     ONRAMPMONEY_API_SECRET:     process.env.ONRAMPMONEY_API_SECRET ?? null,
     ONRAMPMONEY_WEBHOOK_SECRET: process.env.ONRAMPMONEY_WEBHOOK_SECRET ?? null,
     NIP_API_KEY:                process.env.NIP_API_KEY ?? null,
+    REDIS_URL:              process.env.REDIS_URL ?? null,
     BASE_RPC_URL:           process.env.BASE_RPC_URL ?? null,
     BASE_ESCROW_ADDR:       process.env.BASE_ESCROW_ADDR ?? null,
     BASE_USDC_ADDR:         process.env.BASE_USDC_ADDR ?? null,
