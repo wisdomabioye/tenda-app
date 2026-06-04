@@ -13,7 +13,7 @@
  * The worst pipeline decision wins: block > warn > approve.
  */
 
-import type { ModerationDecision } from '@tenda/shared/db/schema-v2/moderation'
+import type { ModerationDecision } from '@tenda/shared/db/schema/moderation'
 import { moderationConfig } from '@server/features/moderation/config'
 import { cacheKey, inputHash } from '@server/features/moderation/normalize'
 import { screenKeywords } from '@server/features/moderation/providers/keyword'

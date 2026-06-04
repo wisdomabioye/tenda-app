@@ -16,7 +16,7 @@
  * stringified for u64/u256 precision safety.
  */
 
-import type { ChainNamespace } from '@tenda/shared/db/schema-v2/chains'
+import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 
 // ---------- shared value types --------------------------------------------
 

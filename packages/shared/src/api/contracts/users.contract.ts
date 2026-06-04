@@ -3,17 +3,15 @@ import type {
   User,
   PublicUser,
   UpdateUserInput,
-  Gig,
-  UserGigsQuery,
   UserTransactionsQuery,
   PaginatedResponse,
-  UserTransaction,
-  ExchangeOfferSummary,
-  UserExchangeOffersQuery,
+  EscrowListRow,
+  UserEscrowTransaction,
+  UserEscrowsQuery,
 } from '../../types'
 import type { Review, GetUserReviewsQuery } from '../../types/review'
 import type { LinkedWallet } from './auth.contract'
-import type { RestrictionKind } from '../../db/schema-v2/reputation'
+import type { RestrictionKind } from '../../db/schema/reputation'
 
 // ---------- Stage 7: standing (#57/#58) ------------------------------------
 
@@ -99,8 +97,7 @@ export interface UsersContract {
   standing:       Endpoint<'GET', { id: string }, undefined,   undefined,                  UserStandingResponse>
   get:            Endpoint<'GET', { id: string }, undefined,        undefined,                  PublicUser>
   update:         Endpoint<'PUT', { id: string }, UpdateUserInput,  undefined,                  User>
-  gigs:           Endpoint<'GET', { id: string }, undefined,        UserGigsQuery,              PaginatedResponse<Gig>>
+  escrows:        Endpoint<'GET', { id: string }, undefined,        UserEscrowsQuery,           PaginatedResponse<EscrowListRow>>
   reviews:        Endpoint<'GET', { id: string }, undefined,        GetUserReviewsQuery,        PaginatedResponse<Review>>
-  transactions:   Endpoint<'GET', { id: string }, undefined,        UserTransactionsQuery,      PaginatedResponse<UserTransaction>>
-  exchangeOffers: Endpoint<'GET', { id: string }, undefined,        UserExchangeOffersQuery,    PaginatedResponse<ExchangeOfferSummary>>
+  transactions:   Endpoint<'GET', { id: string }, undefined,        UserTransactionsQuery,      PaginatedResponse<UserEscrowTransaction>>
 }

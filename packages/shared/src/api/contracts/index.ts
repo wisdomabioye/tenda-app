@@ -9,7 +9,7 @@ import type { ConversationsContract } from './conversations.contract'
 import type { NotificationsContract } from './notifications.contract'
 import type { SubscriptionsContract } from './subscriptions.contract'
 import type { ReportsContract } from './reports.contract'
-import type { ExchangeContract, ExchangeAccountsContract, ExchangeBlockchainContract } from './exchange.contract'
+import type { ExchangeContract } from './exchange.contract'
 import type { ModerationContract } from './moderation.contract'
 import type { FiatContract } from './fiat.contract'
 
@@ -24,12 +24,10 @@ export interface ApiContract {
   conversations: ConversationsContract
   notifications: NotificationsContract
   subscriptions: SubscriptionsContract
-  reports:            ReportsContract
-  exchange:           ExchangeContract
-  exchangeAccounts:   ExchangeAccountsContract
-  exchangeBlockchain: ExchangeBlockchainContract
-  moderation:         ModerationContract
-  fiat:               FiatContract
+  reports: ReportsContract
+  exchange: ExchangeContract
+  moderation: ModerationContract
+  fiat: FiatContract
 }
 
 export type {
@@ -70,7 +68,7 @@ export type { ConversationsContract } from './conversations.contract'
 export type { NotificationsContract } from './notifications.contract'
 export type { SubscriptionsContract } from './subscriptions.contract'
 export type { ReportsContract } from './reports.contract'
-export type { ExchangeContract, ExchangeAccountsContract, ExchangeBlockchainContract } from './exchange.contract'
+export type { ExchangeContract } from './exchange.contract'
 export type {
   FiatContract,
   FiatDirection,

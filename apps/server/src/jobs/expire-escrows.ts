@@ -18,7 +18,7 @@
  */
 
 import { and, eq, gte, isNull, lt } from 'drizzle-orm'
-import { escrows } from '@tenda/shared/db/schema-v2'
+import { escrows } from '@tenda/shared/db/schema'
 import type { JobPayload, QueueService } from '@server/plugins/queue'
 import type { AppDatabase } from '@server/plugins/db'
 

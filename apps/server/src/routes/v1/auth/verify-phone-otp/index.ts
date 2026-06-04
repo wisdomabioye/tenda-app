@@ -10,7 +10,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, eq, ne } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
-import { users } from '@tenda/shared/db/schema-v2/identity'
+import { users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 import { verifyPhoneOtp } from '@server/lib/otp'
 import { dispatchGasSeeds } from '@server/lib/gas-seed'

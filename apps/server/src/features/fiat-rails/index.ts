@@ -4,24 +4,24 @@
  * single import surface).
  *
  * `buildFiatDeps(fastify)` assembles the live dependency set:
- *  - p2p_internal: always present. Pre-cutover the drizzle fulfilment
- *    rides the legacy SOL exchange (offramp only); the v2 exchange widens
- *    it at cutover by swapping the fulfilment implementation.
+ *  - p2p_internal: always present. The drizzle fulfilment opens v2
+ *    exchange escrows (kind='exchange'; offramp only — onramp lands when
+ *    the buy side of the order book ships).
  *  - yellowcard / onrampmoney: present only when their env credentials
  *    exist (#61) — a missing key means the provider simply isn't offered.
  */
 
 import type { FastifyInstance } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { exchange_offers } from '@tenda/shared/db/schema'
-import { fiat_providers } from '@tenda/shared/db/schema-v2/fiat'
+import { assets, escrows, exchange_details } from '@tenda/shared/db/schema'
+import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { getConfig } from '@server/config'
 import { getExchangeRates } from '@server/lib/exchange-rates'
 import { appEvents } from '@server/lib/events'
 import type { SupportedCurrency } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
-import { P2P_INTERNAL_ID } from './config'
+import { P2P_INTERNAL_ID, P2P_INTERNAL_PAYMENT_WINDOW_SECONDS } from './config'
 import { drizzleFiatStore } from './store'
 import {
   p2pInternalProvider,
@@ -68,9 +68,10 @@ function solRateSource(): RateSource {
 // ---------- live P2P fulfilment ---------------------------------------------------
 
 /**
- * Offramp via the legacy exchange: open a sell-SOL offer (draft) on the
- * user's behalf — the user publishes it from the exchange surface (signs
- * the escrow tx), buyers fulfil, and `status` maps the offer lifecycle.
+ * Offramp via the v2 exchange: open a sell escrow (kind='exchange',
+ * draft) on the user's behalf — the user publishes it from the exchange
+ * surface (signs the escrow tx), buyers fulfil, and `status` maps the
+ * escrow lifecycle.
  */
 function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
   return {
@@ -78,32 +79,53 @@ function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
       if (input.direction !== 'offramp') {
         throw new AppError(503, ErrorCode.PROVIDER_UNAVAILABLE, 'p2p onramp lands with the v2 exchange')
       }
-      const lamports = Number(input.asset_amount_raw)
-      const [offer] = await fastify.db
-        .insert(exchange_offers)
-        .values({
-          seller_id: input.user_id,
-          lamports_amount: lamports,
-          fiat_amount: Math.round(input.fiat_amount),
+      // The asset registry owns the asset → chain mapping.
+      const [asset] = await fastify.db
+        .select({ chain_id: assets.chain_id })
+        .from(assets)
+        .where(eq(assets.id, input.asset))
+        .limit(1)
+      if (asset === undefined) {
+        throw new AppError(
+          503,
+          ErrorCode.PROVIDER_UNAVAILABLE,
+          `asset '${input.asset}' is not registered — cannot open a p2p offer`,
+        )
+      }
+      // Escrow + details land together or not at all.
+      const escrow_id = await fastify.db.transaction(async (tx) => {
+        const [escrow] = await tx
+          .insert(escrows)
+          .values({
+            kind: 'exchange',
+            chain_id: asset.chain_id,
+            asset: input.asset,
+            amount_raw: input.asset_amount_raw,
+            creator_id: input.user_id,
+            status: 'draft',
+          })
+          .returning({ id: escrows.id })
+        await tx.insert(exchange_details).values({
+          escrow_id: escrow.id,
+          fiat_amount: input.fiat_amount.toFixed(4),
           fiat_currency: input.fiat_currency,
-          // Legacy column semantics: fiat per SOL — the rate source already
-          // quotes in display units, so this is a direct carry.
-          rate: input.rate,
-          status: 'draft',
+          rate: String(input.rate),
+          payment_window_seconds: P2P_INTERNAL_PAYMENT_WINDOW_SECONDS,
         })
-        .returning({ id: exchange_offers.id })
-      return { offer_id: offer.id }
+        return escrow.id
+      })
+      return { offer_id: escrow_id }
     },
 
     async status(offer_id) {
-      const [offer] = await fastify.db
-        .select({ status: exchange_offers.status })
-        .from(exchange_offers)
-        .where(eq(exchange_offers.id, offer_id))
+      const [escrow] = await fastify.db
+        .select({ status: escrows.status })
+        .from(escrows)
+        .where(eq(escrows.id, offer_id))
         .limit(1)
-      if (offer === undefined) return 'not_found'
-      if (offer.status === 'completed' || offer.status === 'resolved') return 'completed'
-      if (offer.status === 'cancelled' || offer.status === 'expired') return 'failed'
+      if (escrow === undefined) return 'not_found'
+      if (escrow.status === 'completed' || escrow.status === 'resolved') return 'completed'
+      if (escrow.status === 'cancelled' || escrow.status === 'refunded') return 'failed'
       return 'pending'
     },
   }

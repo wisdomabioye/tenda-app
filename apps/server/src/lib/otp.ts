@@ -15,7 +15,7 @@
 import { isE164 } from '@tenda/shared'
 import { randomInt, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { and, eq, gte, isNull, sql } from 'drizzle-orm'
-import { phone_otps } from '@tenda/shared/db/schema-v2/identity'
+import { phone_otps } from '@tenda/shared/db/schema/identity'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import type { AppDatabase } from '@server/plugins/db'

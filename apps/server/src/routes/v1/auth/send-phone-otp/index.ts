@@ -8,7 +8,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
-import { users } from '@tenda/shared/db/schema-v2/identity'
+import { users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 import { sendPhoneOtp } from '@server/lib/otp'
 import { buildOtpDeps } from '@server/lib/onboarding-deps'

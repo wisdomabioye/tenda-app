@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
-import { reports, gigs, messages, users, reviews } from '@tenda/shared/db/schema'
+import { reports, escrows, gig_details, messages, users, reviews } from '@tenda/shared/db/schema'
 import { ErrorCode, REPORT_CONTENT_TYPES, REPORT_REASONS } from '@tenda/shared'
 import type { ApiError, ReportContentType, ReportReason } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '@server/lib/db'
@@ -35,12 +35,15 @@ const reportsRoute: FastifyPluginAsync = async (fastify) => {
       let contentSnapshot: string | null = null
 
       switch (content_type) {
-        case 'gig': {
+        case 'escrow': {
+          // Title for gigs; exchanges have no text content worth snapshotting.
           const [row] = await fastify.db
-            .select({ poster_id: gigs.poster_id, title: gigs.title })
-            .from(gigs).where(eq(gigs.id, content_id)).limit(1)
+            .select({ creator_id: escrows.creator_id, title: gig_details.title })
+            .from(escrows)
+            .leftJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
+            .where(eq(escrows.id, content_id)).limit(1)
           if (!row) throw new AppError(404, ErrorCode.NOT_FOUND, 'Content not found')
-          reportedUserId  = row.poster_id
+          reportedUserId  = row.creator_id
           contentSnapshot = row.title
           break
         }

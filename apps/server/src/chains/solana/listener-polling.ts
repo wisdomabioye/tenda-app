@@ -122,7 +122,7 @@ export function createSolanaPollingListener(
 // ---------- drizzle cursor store --------------------------------------------------
 
 import { eq } from 'drizzle-orm'
-import { chain_cursors } from '@tenda/shared/db/schema-v2/ops'
+import { chain_cursors } from '@tenda/shared/db/schema/ops'
 import type { AppDatabase } from '@server/plugins/db'
 
 export function drizzleCursorStore(db: AppDatabase): CursorStore {

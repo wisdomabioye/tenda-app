@@ -1,30 +1,7 @@
 import type { Endpoint } from '../endpoint'
-import type {
-  EscrowRequest,
-  EscrowResponse,
-  ApproveEscrowRequest,
-  CancelEscrowRequest,
-  AcceptGigRequest,
-  SubmitProofRequest,
-  RefundExpiredRequest,
-  DisputeGigRequest,
-  WithdrawEarningsRequest,
-  CreateUserAccountRequest,
-  TransactionStatus,
-} from '../../types'
 import type { ClientPingBody, ClientPingResponse } from './escrows.contract'
 
 export interface BlockchainContract {
   /** v2 client-ping (#62): report a broadcast tx for async verification. */
-  clientPing:        Endpoint<'POST', undefined,             ClientPingBody,           undefined, ClientPingResponse>
-  transaction:       Endpoint<'GET',  { signature: string }, undefined,                undefined, TransactionStatus>
-  createEscrow:      Endpoint<'POST', undefined,             EscrowRequest,            undefined, EscrowResponse>
-  approveEscrow:     Endpoint<'POST', undefined,             ApproveEscrowRequest,     undefined, EscrowResponse>
-  cancelEscrow:      Endpoint<'POST', undefined,             CancelEscrowRequest,      undefined, EscrowResponse>
-  acceptGig:         Endpoint<'POST', undefined,             AcceptGigRequest,         undefined, EscrowResponse>
-  submitProof:       Endpoint<'POST', undefined,             SubmitProofRequest,       undefined, EscrowResponse>
-  refundExpired:     Endpoint<'POST', undefined,             RefundExpiredRequest,     undefined, EscrowResponse>
-  disputeGig:        Endpoint<'POST', undefined,             DisputeGigRequest,        undefined, EscrowResponse>
-  withdrawEarnings:  Endpoint<'POST', undefined,             WithdrawEarningsRequest,  undefined, EscrowResponse>
-  createUserAccount: Endpoint<'POST', undefined,             CreateUserAccountRequest, undefined, EscrowResponse>
+  clientPing: Endpoint<'POST', undefined, ClientPingBody, undefined, ClientPingResponse>
 }

@@ -6,7 +6,7 @@
  */
 
 import type { Endpoint } from '../endpoint'
-import type { ModerationDecision } from '../../db/schema-v2/moderation'
+import type { ModerationDecision } from '../../db/schema/moderation'
 
 export type { ModerationDecision }
 

@@ -29,7 +29,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { and, eq, gt, sql } from 'drizzle-orm'
-import { users } from '@tenda/shared/db/schema-v2'
+import { users } from '@tenda/shared/db/schema'
 import type { ChainId } from '@server/chains/types'
 import type { AppDatabase } from '@server/plugins/db'
 

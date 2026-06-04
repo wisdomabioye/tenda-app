@@ -14,9 +14,9 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, eq, inArray, or } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
-import { chainNamespaceEnum, chains, type ChainNamespace } from '@tenda/shared/db/schema-v2/chains'
-import { escrows } from '@tenda/shared/db/schema-v2/escrow'
-import { user_wallets } from '@tenda/shared/db/schema-v2/identity'
+import { chainNamespaceEnum, chains, type ChainNamespace } from '@tenda/shared/db/schema/chains'
+import { escrows } from '@tenda/shared/db/schema/escrow'
+import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 
 interface Body {

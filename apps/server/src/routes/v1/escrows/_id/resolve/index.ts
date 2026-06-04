@@ -12,7 +12,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
-import { disputes } from '@tenda/shared/db/schema-v2/governance'
+import { disputes } from '@tenda/shared/db/schema/governance'
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/lib/escrow-routes'
 

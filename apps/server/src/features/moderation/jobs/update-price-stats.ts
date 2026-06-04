@@ -7,8 +7,8 @@
  */
 
 import { and, eq, sql } from 'drizzle-orm'
-import { escrows, gig_details } from '@tenda/shared/db/schema-v2/escrow'
-import { category_price_stats } from '@tenda/shared/db/schema-v2/moderation'
+import { escrows, gig_details } from '@tenda/shared/db/schema/escrow'
+import { category_price_stats } from '@tenda/shared/db/schema/moderation'
 import type { AppDatabase } from '@server/plugins/db'
 
 // ---------- pure percentile math (tested directly) ----------------------------

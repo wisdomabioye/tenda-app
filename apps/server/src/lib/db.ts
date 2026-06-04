@@ -1,5 +1,5 @@
 import { AppError } from './errors'
-import type { ErrorCode } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
 
 /** Returns true if err is a Postgres unique-constraint violation (error code 23505). */
 export function isPostgresUniqueViolation(err: unknown): boolean {
@@ -9,6 +9,15 @@ export function isPostgresUniqueViolation(err: unknown): boolean {
     'code' in err &&
     (err as { code: string }).code === '23505'
   )
+}
+
+/**
+ * Throws a 409 AppError if a TOCTOU-guarded DB update returned no row.
+ * Use after transactions that include a status guard in the WHERE clause.
+ */
+export function ensureTxUpdated<T>(result: T | null | undefined, message: string): T {
+  if (result == null) throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, message)
+  return result
 }
 
 /**

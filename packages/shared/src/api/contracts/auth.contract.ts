@@ -1,6 +1,6 @@
 import type { Endpoint } from '../endpoint'
-import type { WalletAuthBody, AuthResponse, User } from '../../types'
-import type { ChainNamespace } from '../../db/schema-v2/chains'
+import type { AuthResponse, User } from '../../types'
+import type { ChainNamespace } from '../../db/schema/chains'
 
 /** Response of POST /v1/auth/nonce (server-issued, single-use, 5-min TTL). */
 export interface AuthNonceResponse {
@@ -89,12 +89,8 @@ export interface SetPrimaryWalletResponse {
 
 export interface AuthContract {
   nonce: Endpoint<'POST', undefined, undefined, undefined, AuthNonceResponse>
-  /**
-   * Server expects `WalletNonceAuthBody` since #28. The legacy
-   * `WalletAuthBody` (timestamp flow) remains in the union only so the
-   * pre-cutover mobile code keeps compiling; the route rejects it.
-   */
-  wallet: Endpoint<'POST', undefined, WalletNonceAuthBody | WalletAuthBody, undefined, AuthResponse>
+  /** Server-nonce auth flow (#28) — the legacy timestamp flow died at the #34 cutover. */
+  wallet: Endpoint<'POST', undefined, WalletNonceAuthBody, undefined, AuthResponse>
   me: Endpoint<'GET', undefined, undefined, undefined, User>
   sendPhoneOtp: Endpoint<'POST', undefined, SendPhoneOtpBody, undefined, SendPhoneOtpResponse>
   verifyPhoneOtp: Endpoint<'POST', undefined, VerifyPhoneOtpBody, undefined, VerifyPhoneOtpResponse>

@@ -1,9 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
-import { and, eq, lt, lte, or, desc, isNull, ne, sql } from 'drizzle-orm'
-import { conversations, messages, gigs, exchange_offers } from '@tenda/shared/db/schema'
+import { and, eq, lt, lte, or, desc, isNull, ne, sql, type SQL } from 'drizzle-orm'
+import { conversations, messages, escrows, gig_details, exchange_details } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { appEvents } from '@server/lib/events'
-import { moderateBody } from '@server/lib/moderation'
 import { AppError } from '@server/lib/errors'
 import { UPLOAD_CONSTRAINTS, isValidChatAttachmentUrl } from '@server/lib/cloudinary'
 import { channelName } from '@server/lib/ws'
@@ -15,7 +14,30 @@ type SendMessageRoute = ConversationsContract['sendMessage']
 
 const MESSAGES_PAGE_SIZE = 30
 
+/**
+ * Context-divider label for a referenced escrow: the gig title for gigs,
+ * a trade summary for exchanges (which have no title).
+ */
+const escrowTitleSql: SQL<string | null> = sql<string | null>`CASE
+  WHEN ${gig_details.title} IS NOT NULL THEN ${gig_details.title}
+  WHEN ${exchange_details.escrow_id} IS NOT NULL
+    THEN 'Trade: ' || ${exchange_details.fiat_amount}::text || ' ' || ${exchange_details.fiat_currency}
+  ELSE NULL
+END`
+
 const messagesRoute: FastifyPluginAsync = async (fastify) => {
+  /** Resolve the context-divider title for one escrow id (post-insert path). */
+  async function escrowTitleFor(escrow_id: string): Promise<string | null> {
+    const [row] = await fastify.db
+      .select({ title: escrowTitleSql })
+      .from(escrows)
+      .leftJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
+      .leftJoin(exchange_details, eq(exchange_details.escrow_id, escrows.id))
+      .where(eq(escrows.id, escrow_id))
+      .limit(1)
+    return row?.title ?? null
+  }
+
   // GET /v1/conversations/:id/messages — paginated message history (cursor-based, newest first)
   fastify.get<{
     Params: GetMessagesRoute['params']
@@ -56,30 +78,29 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       // Prevents gaps when two messages share the same timestamp.
       const cursorCondition = cursorCreatedAt
         ? or(
-            lt(messages.created_at,  cursorCreatedAt),
+            lt(messages.created_at, cursorCreatedAt),
             and(lte(messages.created_at, cursorCreatedAt), lt(messages.id, before_id!)),
           )!
         : undefined
 
       const rows = await fastify.db
         .select({
-          id:              messages.id,
+          id: messages.id,
           conversation_id: messages.conversation_id,
-          sender_id:       messages.sender_id,
-          gig_id:      messages.gig_id,
-          gig_title:   gigs.title,
-          offer_id:    messages.offer_id,
-          offer_title: sql<string | null>`CASE WHEN ${exchange_offers.id} IS NOT NULL THEN 'Trade: ' || ${exchange_offers.fiat_amount}::text || ' ' || ${exchange_offers.fiat_currency} ELSE NULL END`,
-          content:     messages.content,
-          attachment_url:  messages.attachment_url,
+          sender_id: messages.sender_id,
+          escrow_id: messages.escrow_id,
+          escrow_title: escrowTitleSql,
+          content: messages.content,
+          attachment_url: messages.attachment_url,
           attachment_type: messages.attachment_type,
           attachment_size: messages.attachment_size,
-          read_at:     messages.read_at,
-          created_at:  messages.created_at,
+          read_at: messages.read_at,
+          created_at: messages.created_at,
         })
         .from(messages)
-        .leftJoin(gigs, eq(messages.gig_id, gigs.id))
-        .leftJoin(exchange_offers, eq(messages.offer_id, exchange_offers.id))
+        .leftJoin(escrows, eq(messages.escrow_id, escrows.id))
+        .leftJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
+        .leftJoin(exchange_details, eq(exchange_details.escrow_id, escrows.id))
         .where(
           cursorCondition
             ? and(eq(messages.conversation_id, id), cursorCondition)
@@ -106,10 +127,9 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
 
       return rows.map((m) => ({
         ...m,
-        gig_title:   m.gig_title ?? null,
-        offer_title: m.offer_title ?? null,
-        read_at:     m.read_at?.toISOString() ?? null,
-        created_at:  m.created_at?.toISOString() ?? null,
+        escrow_title: m.escrow_title ?? null,
+        read_at: m.read_at?.toISOString() ?? null,
+        created_at: m.created_at?.toISOString() ?? null,
       }))
     },
   )
@@ -121,10 +141,12 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
     Reply: SendMessageRoute['response'] | ApiError
   }>(
     '/',
-    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate, moderateBody<SendMessageRoute['body']>(fastify, ['content'])] },
+    // Chat-message moderation is report-driven (stage-6 scope decision) —
+    // the legacy keyword guard died with blocked_keywords at the cutover.
+    { config: { rateLimit: { max: 60, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
     async (request, reply) => {
       const { id } = request.params
-      const { content, gig_id, offer_id, attachment_url, attachment_type, attachment_size } = request.body
+      const { content, escrow_id, attachment_url, attachment_type, attachment_size } = request.body
       const userId = request.user.id
 
       // S5.2: attachment validation — all three fields together or none;
@@ -160,6 +182,19 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         }
       }
 
+      // Context references must resolve — a bad id would otherwise surface
+      // as an FK violation (500) instead of a client error.
+      if (escrow_id !== undefined) {
+        const [referenced] = await fastify.db
+          .select({ id: escrows.id })
+          .from(escrows)
+          .where(eq(escrows.id, escrow_id))
+          .limit(1)
+        if (referenced === undefined) {
+          throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'escrow_id does not reference an existing escrow')
+        }
+      }
+
       const [conv] = await fastify.db
         .select()
         .from(conversations)
@@ -190,11 +225,10 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
           .insert(messages)
           .values({
             conversation_id: id,
-            sender_id:       userId,
-            gig_id:          gig_id  ?? null,
-            offer_id:        offer_id ?? null,
-            content:         trimmed,
-            attachment_url:  attachment_url ?? null,
+            sender_id: userId,
+            escrow_id: escrow_id ?? null,
+            content: trimmed,
+            attachment_url: attachment_url ?? null,
             attachment_type: attachment_type ?? null,
             attachment_size: attachment_size ?? null,
           })
@@ -210,41 +244,23 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
 
       if (!newMessage) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'This conversation has been closed')
 
-      let gig_title: string | null = null
-      if (newMessage.gig_id) {
-        const [g] = await fastify.db
-          .select({ title: gigs.title })
-          .from(gigs)
-          .where(eq(gigs.id, newMessage.gig_id))
-          .limit(1)
-        gig_title = g?.title ?? null
-      }
-
-      let offer_title: string | null = null
-      if (newMessage.offer_id) {
-        const [o] = await fastify.db
-          .select({ fiat_amount: exchange_offers.fiat_amount, fiat_currency: exchange_offers.fiat_currency })
-          .from(exchange_offers)
-          .where(eq(exchange_offers.id, newMessage.offer_id))
-          .limit(1)
-        offer_title = o ? `Trade: ${o.fiat_amount} ${o.fiat_currency}` : null
-      }
+      const escrow_title =
+        newMessage.escrow_id === null ? null : await escrowTitleFor(newMessage.escrow_id)
 
       const recipientId = conv.user_a_id === userId ? conv.user_b_id : conv.user_a_id
       const preview = messagePreview(trimmed, hasAttachment) ?? ''
 
       appEvents.emit('message.sent', {
         conversationId: id,
-        senderId:       userId,
+        senderId: userId,
         recipientId,
         preview,
       })
 
       const serialized = {
         ...newMessage,
-        gig_title,
-        offer_title,
-        read_at:    newMessage.read_at?.toISOString() ?? null,
+        escrow_title,
+        read_at: newMessage.read_at?.toISOString() ?? null,
         created_at: newMessage.created_at?.toISOString() ?? null,
       }
 

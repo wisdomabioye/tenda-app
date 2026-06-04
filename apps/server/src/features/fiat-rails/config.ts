@@ -24,3 +24,10 @@ export const P2P_INTERNAL_SPREAD_BPS = 100
 
 /** The always-available fallback provider id (§ Provider routing). */
 export const P2P_INTERNAL_ID = 'p2p_internal'
+
+/**
+ * Payment window stamped on p2p_internal exchange escrows (how long the
+ * counterparty has to pay fiat after accepting). Mirrors the legacy
+ * exchange default.
+ */
+export const P2P_INTERNAL_PAYMENT_WINDOW_SECONDS = 24 * 60 * 60

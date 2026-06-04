@@ -5,32 +5,45 @@ import { userRoleEnum } from '../db/schema'
 export type User = InferSelectModel<typeof users>
 export type NewUser = InferInsertModel<typeof users>
 
-export type UserRole   = typeof userRoleEnum.enumValues[number]
-export type UserStatus = typeof userStatusEnum.enumValues[number] // 'active' | 'suspended'
+export type UserRole = (typeof userRoleEnum.enumValues)[number]
+export type UserStatus = (typeof userStatusEnum.enumValues)[number] // 'active' | 'suspended'
 
-// All roles that grant admin panel access. Use this for role guards and permission checks.
-// 'admin' is the legacy value (pre-migration alias for 'super_admin') — included for backward compat.
+// All roles that grant admin panel access. Use this for role guards and
+// permission checks. v2 collapsed the legacy role zoo (decision #17) to
+// 'dispute_admin' + 'super_admin'.
 export type AdminRole = Exclude<UserRole, 'user'>
 
-export const ADMIN_ROLES: readonly AdminRole[] = [
-  'super_admin', 'dispute_resolver', 'support', 'moderator', 'marketing', 'airdrop', 'finance', 'admin',
-] as const
+export const ADMIN_ROLES: readonly AdminRole[] = userRoleEnum.enumValues.filter(
+  (r): r is AdminRole => r !== 'user',
+)
 
 // Roles that can be assigned via PATCH /admin/users/:id/role.
-// Excludes the deprecated 'admin' alias — new assignments must use 'super_admin'.
-export const ASSIGNABLE_ROLES: readonly UserRole[] = userRoleEnum.enumValues.filter(
-  (r): r is UserRole => r !== 'admin'
-) as readonly UserRole[]
+export const ASSIGNABLE_ROLES: readonly UserRole[] = userRoleEnum.enumValues
 
-export type PublicUser = Omit<User, 'wallet_address' | 'updated_at' | 'status' | 'last_active_at'>
+/**
+ * Public profile projection. Excludes moderation state, activity tracking,
+ * PII (phone_e164 never leaves the server — phone_verified_at stays:
+ * "verified human" is a public trust signal) and private account prefs.
+ */
+export type PublicUser = Omit<
+  User,
+  | 'updated_at'
+  | 'status'
+  | 'last_active_at'
+  | 'phone_e164'
+  | 'sponsored_tx_remaining'
+  | 'advanced_mode_enabled'
+  | 'display_currency'
+>
 
-export interface WalletAuthBody {
-  wallet_address: string
-  signature: string
-  message: string
-  is_seeker?: boolean
-  country?: string
-}
+/**
+ * Minimal user projection embedded in listing/detail responses (gig +
+ * exchange summaries, admin rows).
+ */
+export type UserRef = Pick<
+  User,
+  'id' | 'first_name' | 'last_name' | 'avatar_url' | 'review_score' | 'is_seeker' | 'country'
+>
 
 export interface UpdateUserInput {
   first_name?: string

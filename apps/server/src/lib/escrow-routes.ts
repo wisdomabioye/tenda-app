@@ -19,7 +19,7 @@
  */
 
 import { eq } from 'drizzle-orm'
-import { escrows } from '@tenda/shared/db/schema-v2'
+import { escrows } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import {

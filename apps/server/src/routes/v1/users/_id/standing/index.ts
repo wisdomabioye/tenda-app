@@ -7,7 +7,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { users } from '@tenda/shared/db/schema-v2/identity'
+import { users } from '@tenda/shared/db/schema/identity'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { toPublicStanding } from '@server/features/reputation/service'

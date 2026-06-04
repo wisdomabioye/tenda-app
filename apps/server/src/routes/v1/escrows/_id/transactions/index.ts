@@ -5,7 +5,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { asc, eq } from 'drizzle-orm'
-import { escrow_transactions } from '@tenda/shared/db/schema-v2'
+import { escrow_transactions } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { deriveCaller, loadEscrowOr404 } from '@server/lib/escrow-routes'

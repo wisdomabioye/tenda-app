@@ -6,16 +6,18 @@ import type { AppDatabase } from '@server/plugins/db'
 import { AppError } from './errors'
 
 /**
- * Standard public user column projection — id, name, avatar, reputation.
- * Use wherever a user summary is joined or selected, to keep projections consistent.
+ * Standard public user column projection — matches the shared `UserRef`
+ * wire type exactly. Use wherever a user summary is joined or selected,
+ * to keep projections consistent.
  */
 export const USER_COLS = {
-  id:               users.id,
-  first_name:       users.first_name,
-  last_name:        users.last_name,
-  avatar_url:       users.avatar_url,
-  reputation_score: users.reputation_score,
-  is_seeker:        users.is_seeker,
+  id: users.id,
+  first_name: users.first_name,
+  last_name: users.last_name,
+  avatar_url: users.avatar_url,
+  review_score: users.review_score,
+  is_seeker: users.is_seeker,
+  country: users.country,
 }
 
 /**

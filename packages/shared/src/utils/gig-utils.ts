@@ -1,53 +1,92 @@
-import type { Gig } from '../types'
-import { computeCompletionDeadline } from '../types/gig'
+import type { EscrowStatus } from '../types/escrow'
 
 /**
- * Returns the most relevant deadline for a gig given its current status.
+ * Client-side action-visibility helpers over the v2 escrow shape
+ * (creator/counterparty vocabulary — gigs and exchanges alike). These
+ * mirror, but never replace, the server's lib/escrow.ts state machine:
+ * the server re-checks every transition.
+ *
+ * Structural param types keep them usable with both wire projections
+ * (ISO strings) and Drizzle rows.
+ */
+
+interface EscrowParties {
+  creator_id: string
+  counterparty_id: string | null
+}
+
+type EscrowLike = EscrowParties & { status: EscrowStatus }
+
+function isParty(e: EscrowParties, userId: string): boolean {
+  return userId === e.creator_id || userId === e.counterparty_id
+}
+
+/**
+ * Returns the most relevant deadline for an escrow given its status.
  * - open: accept_deadline (null if indefinitely open)
- * - accepted/submitted: completion deadline = accepted_at + completion_duration_seconds
+ * - accepted: completion_deadline (set at accept)
+ * - submitted: approval_deadline (claim-stalled window)
  * - other: null
  */
-export function computeRelevantDeadline(gig: Pick<Gig, 'status' | 'accept_deadline' | 'accepted_at' | 'completion_duration_seconds'>): Date | null {
-  if (gig.status === 'open') {
-    return gig.accept_deadline ? new Date(gig.accept_deadline) : null
-  }
-  if (gig.status === 'accepted' || gig.status === 'submitted') {
-    if (!gig.accepted_at) return null
-    return computeCompletionDeadline(new Date(gig.accepted_at), gig.completion_duration_seconds)
-  }
-  return null
+export function computeRelevantDeadline(
+  e: Pick<EscrowLike, 'status'> & {
+    accept_deadline: string | Date | null
+    completion_deadline: string | Date | null
+    approval_deadline: string | Date | null
+  },
+): Date | null {
+  const pick =
+    e.status === 'open'
+      ? e.accept_deadline
+      : e.status === 'accepted'
+        ? e.completion_deadline
+        : e.status === 'submitted'
+          ? e.approval_deadline
+          : null
+  return pick === null ? null : new Date(pick)
 }
 
-export function canAccept(gig: Pick<Gig, 'status' | 'poster_id'>, userId: string): boolean {
-  return gig.status === 'open' && userId !== gig.poster_id
+export function canPublish(e: EscrowLike, userId: string): boolean {
+  return e.status === 'draft' && userId === e.creator_id
 }
 
-export function canPublish(gig: Pick<Gig, 'status' | 'poster_id'>, userId: string): boolean {
-  return gig.status === 'draft' && userId === gig.poster_id
+export function canAccept(e: EscrowLike, userId: string): boolean {
+  return e.status === 'open' && userId !== e.creator_id
 }
 
-export function canSubmit(gig: Pick<Gig, 'status' | 'worker_id'>, userId: string): boolean {
-  return gig.status === 'accepted' && gig.worker_id === userId
+export function canSubmit(e: EscrowLike, userId: string): boolean {
+  return e.status === 'accepted' && e.counterparty_id === userId
 }
 
-export function canAddProof(gig: Pick<Gig, 'status' | 'worker_id'>, userId: string): boolean {
-  return gig.status === 'submitted' && gig.worker_id === userId
+export function canAddProof(e: EscrowLike, userId: string): boolean {
+  return e.status === 'submitted' && e.counterparty_id === userId
 }
 
-export function canApprove(gig: Pick<Gig, 'status' | 'poster_id'>, userId: string): boolean {
-  return gig.status === 'submitted' && userId === gig.poster_id
+export function canApprove(e: EscrowLike, userId: string): boolean {
+  return e.status === 'submitted' && userId === e.creator_id
 }
 
-export function canDispute(gig: Pick<Gig, 'status' | 'poster_id' | 'worker_id'>, userId: string): boolean {
-  const isParty = userId === gig.poster_id || userId === gig.worker_id
-  return isParty && (gig.status === 'accepted' || gig.status === 'submitted')
+export function canDispute(e: EscrowLike, userId: string): boolean {
+  return isParty(e, userId) && (e.status === 'accepted' || e.status === 'submitted')
 }
 
-export function canReview(gig: Pick<Gig, 'status' | 'poster_id' | 'worker_id'>, userId: string): boolean {
-  const isParty = userId === gig.poster_id || userId === gig.worker_id
-  return isParty && (gig.status === 'completed' || gig.status === 'resolved')
+export function canReview(e: EscrowLike, userId: string): boolean {
+  return isParty(e, userId) && (e.status === 'completed' || e.status === 'resolved')
 }
 
-export function canCancel(gig: Pick<Gig, 'status' | 'poster_id'>, userId: string): boolean {
-  return (gig.status === 'draft' || gig.status === 'open') && userId === gig.poster_id
+export function canCancel(e: EscrowLike, userId: string): boolean {
+  return (e.status === 'draft' || e.status === 'open') && userId === e.creator_id
+}
+
+/**
+ * Claim-stalled (counterparty, after approval_deadline passes with no
+ * dispute). The server enforces the deadline on-chain; this only gates UI.
+ */
+export function canClaim(
+  e: EscrowLike & { approval_deadline: string | Date | null },
+  userId: string,
+  now: Date = new Date(),
+): boolean {
+  if (e.status !== 'submitted' || e.counterparty_id !== userId) return false
+  return e.approval_deadline !== null && now > new Date(e.approval_deadline)
 }

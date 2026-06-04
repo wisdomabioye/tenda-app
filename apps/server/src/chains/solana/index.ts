@@ -9,10 +9,9 @@
  *   - `computeFee`: delegates to `lib/escrow.ts:computePlatformFee` — single
  *     source of truth for fee math across chains.
  *
- * Wallet + asset resolution are injected (`SolanaAdapterDeps`): until the
- * Stage-0 cutover the implementations read the legacy `users.wallet_address`
- * column and a config-driven asset map; at cutover they flip to
- * `user_wallets` / `assets` (schema-v2) with no adapter change.
+ * Wallet + asset resolution are injected (`SolanaAdapterDeps`): the live
+ * implementations (plugins/chains.ts) read `user_wallets` and the seeded
+ * `assets` registry — the adapter itself never touches the DB.
  */
 
 import { Program } from '@coral-xyz/anchor'

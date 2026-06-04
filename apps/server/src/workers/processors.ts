@@ -10,10 +10,10 @@
  *      LEARN about the event (the non-actor), resolved from the escrow row.
  */
 
-import { eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, or } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { device_tokens } from '@tenda/shared/db/schema'
-import { escrows } from '@tenda/shared/db/schema-v2/escrow'
+import { device_tokens, gig_subscriptions } from '@tenda/shared/db/schema'
+import { escrows, gig_details } from '@tenda/shared/db/schema/escrow'
 import { channelName } from '@server/lib/ws'
 import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
 import { buildPushServices, routePush, type PlatformToken } from '@server/lib/push-services'
@@ -88,6 +88,57 @@ const NOTICE_BY_EVENT: Partial<Record<InternalEscrowEvent, EventNotice>> = {
   },
 }
 
+/**
+ * New-gig fan-out: when the on-chain create confirms (escrow → open),
+ * notify gig_subscriptions matching the gig's city/category ('*' is the
+ * any-value sentinel). Moved here from the legacy notifications plugin —
+ * v2 has no publish route; "the gig went live" IS the created event.
+ */
+async function fanOutNewGigToSubscribers(
+  fastify: FastifyInstance,
+  escrow_id: string,
+): Promise<void> {
+  const [gig] = await fastify.db
+    .select({
+      creator_id: escrows.creator_id,
+      title: gig_details.title,
+      city: gig_details.city,
+      category: gig_details.category,
+    })
+    .from(escrows)
+    .innerJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
+    .where(and(eq(escrows.id, escrow_id), eq(escrows.kind, 'gig')))
+    .limit(1)
+  // Exchange escrows have no gig_details row — nothing to fan out.
+  if (gig === undefined) return
+
+  // Remote gigs match wildcard-city subscribers only; local gigs match
+  // city + wildcard. Category filtered the same way.
+  const subs = await fastify.db
+    .select({ user_id: gig_subscriptions.user_id })
+    .from(gig_subscriptions)
+    .where(
+      and(
+        gig.city === null
+          ? eq(gig_subscriptions.city, '*')
+          : or(eq(gig_subscriptions.city, gig.city), eq(gig_subscriptions.city, '*')),
+        or(eq(gig_subscriptions.category, gig.category), eq(gig_subscriptions.category, '*')),
+      ),
+    )
+
+  const subscriberIds = [...new Set(subs.map((s) => s.user_id))].filter(
+    (uid) => uid !== gig.creator_id,
+  )
+  for (const user_id of subscriberIds) {
+    await fastify.queue.enqueue('notifications', {
+      user_id,
+      title: 'New Gig Posted',
+      body: `"${gig.title}" in ${gig.city ?? 'Remote'}`,
+      data: { screen: 'escrow', escrowId: escrow_id },
+    })
+  }
+}
+
 async function fanOutEscrowEvent(
   fastify: FastifyInstance,
   event: { internal_event: InternalEscrowEvent; escrow_id: string; tx_ref: string; wire_event: string },
@@ -100,7 +151,14 @@ async function fanOutEscrowEvent(
     tx_ref: event.tx_ref,
   })
 
-  // 2. Push fan-out for high-signal events.
+  // 2. New-gig subscriber fan-out (created = went live; the actor needs no
+  //    notice, subscribers do).
+  if (event.internal_event === 'escrow.created') {
+    await fanOutNewGigToSubscribers(fastify, event.escrow_id)
+    return
+  }
+
+  // 3. Push fan-out for high-signal events.
   const notice = NOTICE_BY_EVENT[event.internal_event]
   if (notice === undefined) return
 

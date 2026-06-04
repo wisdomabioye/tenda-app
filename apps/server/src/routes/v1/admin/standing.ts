@@ -9,7 +9,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
-import { standing_overrides } from '@tenda/shared/db/schema-v2/reputation'
+import { standing_overrides } from '@tenda/shared/db/schema/reputation'
 import { AppError } from '@server/lib/errors'
 import { requireRole } from '@server/lib/guards'
 import { applyFraudConfirmed } from '@server/features/reputation/service'

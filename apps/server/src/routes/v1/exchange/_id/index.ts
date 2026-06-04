@@ -1,179 +1,95 @@
+/**
+ * GET /v1/exchange/:id — exchange detail (cutover §3 rewrite): escrows ⨝
+ * exchange_details + creator/counterparty refs, proofs, dispute and
+ * reviews. Read-only; transitions live under /v1/escrows/:id/*. Drafts
+ * are private staging rows (fiat-rails opens them) — 404 to everyone but
+ * their creator's tooling via /v1/fiat intents.
+ */
 import { FastifyPluginAsync } from 'fastify'
-import { eq, and } from 'drizzle-orm'
-import { exchange_offers, exchange_transactions } from '@tenda/shared/db/schema'
-import { ErrorCode, computePlatformFee } from '@tenda/shared'
-import type { ExchangeContract, ApiError } from '@tenda/shared'
-import { ensureSignatureVerified } from '@server/lib/solana'
-import { getPlatformConfig } from '@server/lib/platform'
-import { AppError } from '@server/lib/errors'
+import { eq, inArray } from 'drizzle-orm'
 import {
-  ensureOfferExists, ensureOfferOwnership, ensureOfferStatus, ensureOfferTxUpdated,
-  buildOfferDetail, checkAndExpireOffer, computeExchangeRate,
-} from '@server/lib/exchange'
-import { handleUniqueConflict } from '@server/lib/db'
-import { appEvents } from '@server/lib/events'
+  escrows,
+  exchange_details,
+  users,
+  escrow_proofs,
+  disputes,
+  reviews,
+} from '@tenda/shared/db/schema'
+import { ErrorCode } from '@tenda/shared'
+import type { ExchangeContract, ApiError, UserRef } from '@tenda/shared'
+import { AppError } from '@server/lib/errors'
+import { USER_COLS } from '@server/lib/users'
 
-type GetRoute    = ExchangeContract['get']
-type UpdateRoute = ExchangeContract['update']
-type CancelRoute = ExchangeContract['cancel']
+type GetRoute = ExchangeContract['get']
+
+const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString())
 
 const exchangeById: FastifyPluginAsync = async (fastify) => {
-
-  // GET /v1/exchange/:id — get offer detail (auth required for payment detail visibility rules)
   fastify.get<{
     Params: GetRoute['params']
     Reply: GetRoute['response'] | ApiError
-  }>(
-    '/',
-    { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
-      const { id } = request.params
+  }>('/', { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    const { id } = request.params
 
-      const [fetchedOffer, config] = await Promise.all([
-        ensureOfferExists(fastify.db, id),
-        getPlatformConfig(fastify.db),
-      ])
-
-      // Hidden offers are not accessible via the public detail route.
-      if (fetchedOffer.hidden) throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
-
-      const offer = await checkAndExpireOffer(fetchedOffer, fastify.db, config.grace_period_seconds)
-
-      const detail = await buildOfferDetail(fastify.db, offer, request.user.id)
-      return reply.send(detail)
+    const [row] = await fastify.db
+      .select()
+      .from(escrows)
+      .innerJoin(exchange_details, eq(exchange_details.escrow_id, escrows.id))
+      .where(eq(escrows.id, id))
+      .limit(1)
+    if (row === undefined) {
+      throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
     }
-  )
+    const escrow = row.escrows
+    const details = row.exchange_details
 
-  // PATCH /v1/exchange/:id — update a draft offer (seller only)
-  fastify.patch<{
-    Params: UpdateRoute['params']
-    Body:   UpdateRoute['body']
-    Reply:  UpdateRoute['response'] | ApiError
-  }>(
-    '/',
-    { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
-      const { id } = request.params
-      const { lamports_amount, fiat_amount, fiat_currency, payment_window_seconds, accept_deadline, account_ids } = request.body
-
-      const offer = await ensureOfferExists(fastify.db, id)
-      ensureOfferOwnership(offer, request.user.id, 'seller', 'Only the seller can edit this offer')
-      ensureOfferStatus(offer, 'draft')
-
-      // Recompute rate whenever lamports or fiat changes — never allow a manually-supplied rate
-      // that could diverge from the actual ratio.
-      const effectiveLamports = lamports_amount != null ? Number(lamports_amount) : offer.lamports_amount
-      const effectiveFiat     = fiat_amount     != null ? fiat_amount             : offer.fiat_amount
-      const computedRate      = computeExchangeRate(effectiveLamports, effectiveFiat)
-
-      const [updated] = await fastify.db
-        .update(exchange_offers)
-        .set({
-          ...(lamports_amount          != null && { lamports_amount: Number(lamports_amount) }),
-          ...(fiat_amount              != null && { fiat_amount }),
-          ...(fiat_currency            != null && { fiat_currency }),
-          ...(payment_window_seconds   != null && { payment_window_seconds }),
-          ...(accept_deadline !== undefined    && { accept_deadline: accept_deadline ? new Date(accept_deadline) : null }),
-          ...(account_ids              != null && { payment_account_ids: account_ids }),
-          rate: computedRate,
-          updated_at: new Date(),
-        })
-        .where(and(eq(exchange_offers.id, id), eq(exchange_offers.status, 'draft')))
-        .returning()
-
-      const result = ensureOfferTxUpdated(updated, 'Offer status changed — it may have already been published or cancelled')
-      return reply.send(result)
+    if (escrow.status === 'draft') {
+      throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
     }
-  )
 
-  // DELETE /v1/exchange/:id — cancel offer (seller only)
-  // draft: no escrow exists — just update status, no signature needed
-  // open:  escrow is funded — requires on-chain cancel_gig signature to record refund
-  fastify.delete<{
-    Params: CancelRoute['params']
-    Body:   CancelRoute['body']
-    Reply:  CancelRoute['response'] | ApiError
-  }>(
-    '/',
-    { preHandler: [fastify.authenticate] },
-    async (request, reply) => {
-      const { id } = request.params
-      const { signature } = request.body ?? {}
+    const userIds =
+      escrow.counterparty_id === null
+        ? [escrow.creator_id]
+        : [escrow.creator_id, escrow.counterparty_id]
 
-      const offer = await ensureOfferExists(fastify.db, id)
-      ensureOfferOwnership(offer, request.user.id, 'seller', 'Only the seller can cancel this offer')
-      ensureOfferStatus(offer, 'draft', 'open')
+    const [userRows, proofs, disputeRows, offerReviews] = await Promise.all([
+      fastify.db.select(USER_COLS).from(users).where(inArray(users.id, userIds)),
+      fastify.db.select().from(escrow_proofs).where(eq(escrow_proofs.escrow_id, id)),
+      fastify.db.select().from(disputes).where(eq(disputes.escrow_id, id)).limit(1),
+      fastify.db.select().from(reviews).where(eq(reviews.escrow_id, id)),
+    ])
 
-      if (offer.status === 'open' && !signature) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'signature is required when cancelling an open offer')
-      }
-
-      // Open offer: verify the cancel transaction on-chain before recording
-      if (offer.status === 'open' && signature) {
-        await ensureSignatureVerified(signature, 'cancel_gig')
-
-        const config = await getPlatformConfig(fastify.db)
-        const effectiveFeeBps = request.user.is_seeker ? config.seeker_fee_bps : config.fee_bps
-        const platform_fee_lamports = computePlatformFee(BigInt(offer.lamports_amount), effectiveFeeBps)
-
-        let txResult
-        try {
-          txResult = await fastify.db.transaction(async (tx) => {
-            const [cancelled] = await tx
-              .update(exchange_offers)
-              .set({ status: 'cancelled', updated_at: new Date() })
-              .where(and(eq(exchange_offers.id, id), eq(exchange_offers.status, 'open')))
-              .returning()
-
-            if (!cancelled) return null
-
-            await tx.insert(exchange_transactions).values({
-              offer_id:              id,
-              type:                  'cancel_refund',
-              signature,
-              amount_lamports:       offer.lamports_amount + platform_fee_lamports,
-              platform_fee_lamports: 0, // full refund — platform takes no fee on cancellation
-            })
-
-            return cancelled
-          })
-        } catch (err: unknown) {
-          handleUniqueConflict(err, ErrorCode.DUPLICATE_SIGNATURE, 'This transaction signature has already been recorded')
-        }
-
-        const cancelledOpen = ensureOfferTxUpdated(txResult, 'Offer status changed — it may have already been accepted or cancelled')
-
-        appEvents.emit('exchange.cancelled', {
-          offerId:    id,
-          sellerId:   offer.seller_id,
-          buyerId:    offer.buyer_id,
-          currency:   offer.fiat_currency,
-          fiatAmount: offer.fiat_amount,
-        })
-
-        return reply.send(cancelledOpen)
-      }
-
-      // Draft cancellation — no escrow, no signature needed
-      const [cancelled] = await fastify.db
-        .update(exchange_offers)
-        .set({ status: 'cancelled', updated_at: new Date() })
-        .where(and(eq(exchange_offers.id, id), eq(exchange_offers.status, 'draft')))
-        .returning()
-
-      const cancelledDraft = ensureOfferTxUpdated(cancelled, 'Offer status changed — it may have already been published or cancelled')
-
-      appEvents.emit('exchange.cancelled', {
-        offerId:    id,
-        sellerId:   offer.seller_id,
-        buyerId:    offer.buyer_id,
-        currency:   offer.fiat_currency,
-        fiatAmount: offer.fiat_amount,
-      })
-
-      return reply.send(cancelledDraft)
+    const userMap = new Map<string, UserRef>(userRows.map((u) => [u.id, u]))
+    const creator = userMap.get(escrow.creator_id)
+    if (creator === undefined) {
+      throw new AppError(500, ErrorCode.INTERNAL_ERROR, 'escrow creator row missing')
     }
-  )
+    const counterparty =
+      escrow.counterparty_id === null ? null : (userMap.get(escrow.counterparty_id) ?? null)
+
+    return reply.send({
+      escrow_id: escrow.id,
+      chain_id: escrow.chain_id,
+      asset: escrow.asset,
+      amount_raw: escrow.amount_raw,
+      status: escrow.status,
+      fiat_amount: details.fiat_amount,
+      fiat_currency: details.fiat_currency,
+      rate: details.rate,
+      payment_window_seconds: details.payment_window_seconds,
+      accept_deadline: iso(escrow.accept_deadline),
+      created_at: escrow.created_at.toISOString(),
+      creator,
+      payment_proof_url: details.payment_proof_url,
+      completion_deadline: iso(escrow.completion_deadline),
+      submitted_at: iso(escrow.submitted_at),
+      approval_deadline: iso(escrow.approval_deadline),
+      counterparty,
+      proofs,
+      dispute: disputeRows[0] ?? null,
+      reviews: offerReviews,
+    })
+  })
 }
 
 export default exchangeById

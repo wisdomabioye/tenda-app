@@ -2,7 +2,7 @@ export type {
   User,
   NewUser,
   PublicUser,
-  WalletAuthBody,
+  UserRef,
   UpdateUserInput,
   AuthResponse,
   UserRole,
@@ -10,62 +10,27 @@ export type {
   AdminRole,
 } from './user'
 export { ADMIN_ROLES, ASSIGNABLE_ROLES } from './user'
-export { GIG_STATUSES } from './gig'
 export { GIG_CATEGORIES } from '../constants/categories'
-export { EXCHANGE_OFFER_STATUSES } from './exchange'
 export type {
-  Gig,
-  NewGig,
+  Escrow,
+  NewEscrow,
+  EscrowTransaction,
+  EscrowProof,
   Dispute,
   NewDispute,
-  GigProof,
-  GigTransaction,
-  UserGigTransaction,
-  GigStatus,
-  DisputeWinner,
-  GigTransactionType,
-  GigDetail,
-  CreateGigInput,
-  UpdateGigInput,
-  PublishGigInput,
-  CancelGigInput,
-  AcceptGigInput,
-  DisputeGigInput,
-  ResolveDisputeInput,
-  SubmitProofInput,
-  AddProofsInput,
-  ApproveGigInput,
-  RefundExpiredInput,
-  GigListQuery,
-  UserGigsQuery,
+  GigDetailsRow,
+  ExchangeDetailsRow,
+  EscrowKind,
+  EscrowStatus,
+  EscrowListRow,
+  UserEscrowTransaction,
+  UserEscrowsQuery,
   UserTransactionsQuery,
-} from './gig'
-export {
-  GIG_STATUS_TRANSITIONS,
-  canTransition,
-  isGigEditable,
-  isGigAcceptable,
-  computeCompletionDeadline,
-} from './gig'
-export type {
-  Review,
-  NewReview,
-  ReviewInput,
-  GetUserReviewsQuery,
-} from './review'
-export type {
-  EscrowRequest,
-  EscrowResponse,
-  ApproveEscrowRequest,
-  CancelEscrowRequest,
-  AcceptGigRequest,
-  SubmitProofRequest,
-  RefundExpiredRequest,
-  DisputeGigRequest,
-  WithdrawEarningsRequest,
-  CreateUserAccountRequest,
-  TransactionStatus,
-} from './blockchain'
+} from './escrow'
+export type { GigSummary, GigDetail, GigCategory, GigListQuery } from './gig'
+export { isGigAcceptable, computeCompletionDeadline } from './gig'
+export type { ExchangeSummary, ExchangeDetail, ExchangeListQuery } from './exchange'
+export type { Review, NewReview, ReviewInput, GetUserReviewsQuery } from './review'
 export type { CloudinarySignature, UploadType } from './upload'
 export type { PaginatedResponse, ApiError } from './api'
 export type {
@@ -83,94 +48,24 @@ export { ATTACHMENT_PREVIEW } from './chat'
 export type { CreateReportInput } from './moderation'
 export { REPORT_STATUSES, REPORT_CONTENT_TYPES } from '../constants/moderation'
 export type {
-  ExchangeOffer,
-  UserExchangeAccount,
-  ExchangeProof,
-  ExchangeTransaction,
-  ExchangeDispute,
-  ExchangeOfferStatus,
-  ExchangeTransactionType,
-  ExchangeDisputeWinner,
-  UserExchangeTransaction,
-  ExchangeOfferDetail,
-  ExchangeOfferSummary,
-  CreateUserExchangeAccountInput,
-  CreateExchangeOfferInput,
-  UpdateExchangeOfferInput,
-  ExchangePublishInput,
-  ExchangeAcceptInput,
-  ExchangePaidInput,
-  ExchangeConfirmInput,
-  ExchangeDisputeInput,
-  ExchangeResolveInput,
-  ExchangeCancelInput,
-  ExchangeRefundInput,
-  ExchangeAddProofsInput,
-  ExchangeListQuery,
-  UserExchangeOffersQuery,
-  ExchangeEscrowRequest,
-  ExchangeAcceptRequest,
-  ExchangeSubmitProofRequest,
-  ExchangeConfirmRequest,
-  ExchangeCancelRequest,
-  ExchangeDisputeRequest,
-  ExchangeRefundRequest,
-} from './exchange'
-export {
-  EXCHANGE_STATUS_TRANSITIONS,
-  canExchangeTransition,
-} from './exchange'
-
-/** Discriminated union of gig + exchange transactions for the wallet screen. */
-export type UserTransaction =
-  import('./gig').UserGigTransaction |
-  import('./exchange').UserExchangeTransaction
-export type {
-  AdminGig,
-  AdminExchangeOffer,
-  AdminGigListQuery,
-  AdminExchangeListQuery,
+  AdminEscrowRow,
+  AdminEscrowListQuery,
   AdminPlatformConfig,
-  BlockedKeyword,
+  AdminAuditEntry,
   Report,
   Announcement,
-  DisputeThread,
-  DisputeMessage,
-  AirdropCampaign,
-  AirdropRecipient,
-  AirdropStatus,
-  AirdropRecipientStatus,
-  DisputeSender,
-  DisputeType,
   UpdateUserStatusBody,
   UpdateUserRoleBody,
-  HideContentBody,
   ActionReportBody,
   DisputeSummary,
-  DisputeAssignBody,
-  DisputeSendMessageBody,
-  DisputeResolveBody,
-  OpenThreadResponse,
-  AddKeywordBody,
-  AddKeywordResponse,
   UpdatePlatformConfigBody,
   CreateAnnouncementBody,
   UpdateAnnouncementBody,
   PushBroadcastTarget,
   BroadcastPushBody,
   BroadcastPushResponse,
-  CreateAirdropCampaignBody,
-  AddAirdropRecipientsBody,
-  AddAirdropRecipientsResponse,
-  AirdropCampaignDetail,
-  AirdropBatchSummary,
-  BuildBatchResponse,
-  ConfirmBatchBody,
-  ConfirmBatchResponse,
-  FinanceLedgerType,
   FinanceFeeRow,
   FinanceFeeSummary,
   FinanceFeesResponse,
   ReportStatus,
 } from './admin'
-

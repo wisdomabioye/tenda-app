@@ -16,9 +16,9 @@
  */
 
 import { and, eq } from 'drizzle-orm'
-import { chains } from '@tenda/shared/db/schema-v2/chains'
-import { gas_grants, user_wallets } from '@tenda/shared/db/schema-v2/identity'
-import type { ChainNamespace } from '@tenda/shared/db/schema-v2/chains'
+import { chains } from '@tenda/shared/db/schema/chains'
+import { gas_grants, user_wallets } from '@tenda/shared/db/schema/identity'
+import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import type { AppDatabase } from '@server/plugins/db'
 
 // ---------- sender abstraction ------------------------------------------------

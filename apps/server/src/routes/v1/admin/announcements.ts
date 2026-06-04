@@ -8,7 +8,7 @@ import { appEvents } from '@server/lib/events'
 import type { ApiError } from '@tenda/shared'
 
 // marketing and super_admin can manage announcements
-const ANNOUNCEMENT_ROLES = ['marketing', 'super_admin'] as const
+const ANNOUNCEMENT_ROLES = ['super_admin'] as const
 
 const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
   // GET /v1/admin/announcements — all announcements (active and inactive)
@@ -98,7 +98,6 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
 
     appEvents.emit('admin.create_announcement', {
       adminId:        request.user.id,
-      adminWallet:    request.user.wallet_address,
       adminRole:      request.user.role,
       announcementId: row!.id,
       title:          row!.title,
@@ -160,7 +159,6 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
 
     appEvents.emit('admin.update_announcement', {
       adminId:        request.user.id,
-      adminWallet:    request.user.wallet_address,
       adminRole:      request.user.role,
       announcementId: updated!.id,
       title:          updated!.title,
@@ -185,7 +183,6 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
 
     appEvents.emit('admin.delete_announcement', {
       adminId:        request.user.id,
-      adminWallet:    request.user.wallet_address,
       adminRole:      request.user.role,
       announcementId: deleted.id,
       title:          deleted.title,

@@ -8,7 +8,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { users } from '@tenda/shared/db/schema-v2'
+import { users } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 

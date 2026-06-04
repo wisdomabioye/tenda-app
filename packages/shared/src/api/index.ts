@@ -48,8 +48,6 @@ export type {
   SubscriptionsContract,
   ReportsContract,
   ExchangeContract,
-  ExchangeAccountsContract,
-  ExchangeBlockchainContract,
   FiatContract,
   FiatDirection,
   FiatIntentStatus,

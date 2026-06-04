@@ -8,13 +8,13 @@
  */
 
 import { and, eq, gte, sql } from 'drizzle-orm'
-import { escrows } from '@tenda/shared/db/schema-v2/escrow'
-import { disputes } from '@tenda/shared/db/schema-v2/governance'
+import { escrows } from '@tenda/shared/db/schema/escrow'
+import { disputes } from '@tenda/shared/db/schema/governance'
 import {
   standing_events,
   user_standing,
   type StandingEventKind,
-} from '@tenda/shared/db/schema-v2/reputation'
+} from '@tenda/shared/db/schema/reputation'
 import type { AppDatabase } from '@server/plugins/db'
 import type { ReputationStore } from '@server/features/reputation/service'
 

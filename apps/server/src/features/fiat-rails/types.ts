@@ -6,7 +6,7 @@
  * (locked decision #15) — no escrow linkage anywhere in this module.
  */
 
-import type { FiatDirection, FiatIntentStatus } from '@tenda/shared/db/schema-v2/fiat'
+import type { FiatDirection, FiatIntentStatus } from '@tenda/shared/db/schema/fiat'
 
 export type { FiatDirection, FiatIntentStatus }
 

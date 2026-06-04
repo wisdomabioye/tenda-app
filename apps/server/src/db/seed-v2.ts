@@ -20,10 +20,10 @@ import 'dotenv/config'
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { ESCROW_IDL } from '@tenda/shared/idl'
-import { assets, chains } from '@tenda/shared/db/schema-v2/chains'
-import { fiat_providers } from '@tenda/shared/db/schema-v2/fiat'
+import { assets, chains } from '@tenda/shared/db/schema/chains'
+import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { CELO_CUSD_ADDR, CELO_USDC_ADDR } from '@server/chains/celo/config'
-import { platform_config } from '@tenda/shared/db/schema-v2/governance'
+import { platform_config } from '@tenda/shared/db/schema/governance'
 import { loadConfig, type Config } from '@server/config'
 
 // ---------- pure row builder (unit-tested) ---------------------------------

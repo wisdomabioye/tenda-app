@@ -8,8 +8,8 @@ import { and, eq } from 'drizzle-orm'
 import {
   category_price_stats,
   moderation_verdicts,
-} from '@tenda/shared/db/schema-v2/moderation'
-import { platform_config } from '@tenda/shared/db/schema-v2/governance'
+} from '@tenda/shared/db/schema/moderation'
+import { platform_config } from '@tenda/shared/db/schema/governance'
 import type { FastifyInstance } from 'fastify'
 import { getConfig } from '@server/config'
 import type { AppDatabase } from '@server/plugins/db'

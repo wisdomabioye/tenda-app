@@ -10,8 +10,8 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
-import { chainNamespaceEnum, type ChainNamespace } from '@tenda/shared/db/schema-v2/chains'
-import { user_wallets } from '@tenda/shared/db/schema-v2/identity'
+import { chainNamespaceEnum, type ChainNamespace } from '@tenda/shared/db/schema/chains'
+import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 
 interface Body {

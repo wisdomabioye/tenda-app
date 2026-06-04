@@ -13,7 +13,7 @@
  * fiat) only ever see the snake_case form.
  */
 
-import type { ChainNamespace } from '@tenda/shared/db/schema-v2/chains'
+import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import type { EscrowTxType } from '@tenda/shared'
 import type { DecodedEvent, EscrowEvent } from '@server/chains/types'
 import type { EscrowStatus } from '@server/lib/escrow'
@@ -270,9 +270,9 @@ export async function applyEscrowEvent(
 // co-located, tests use the seam.
 
 import { and, eq, inArray } from 'drizzle-orm'
-import { escrows, escrow_transactions } from '@tenda/shared/db/schema-v2/escrow'
-import { disputes } from '@tenda/shared/db/schema-v2/governance'
-import { user_wallets } from '@tenda/shared/db/schema-v2/identity'
+import { escrows, escrow_transactions } from '@tenda/shared/db/schema/escrow'
+import { disputes } from '@tenda/shared/db/schema/governance'
+import { user_wallets } from '@tenda/shared/db/schema/identity'
 import type { AppDatabase } from '@server/plugins/db'
 
 export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {

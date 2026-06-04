@@ -12,7 +12,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
-import { user_wallets, users } from '@tenda/shared/db/schema-v2/identity'
+import { user_wallets, users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 
 interface PatchBody {

@@ -16,7 +16,7 @@
 import { and, eq, or } from 'drizzle-orm'
 import { WS_AUTH_SUBPROTOCOL, wsChannelName } from '@tenda/shared'
 import { conversations } from '@tenda/shared/db/schema'
-import { escrows } from '@tenda/shared/db/schema-v2/escrow'
+import { escrows } from '@tenda/shared/db/schema/escrow'
 import type { AppDatabase } from '@server/plugins/db'
 
 // ---------- subprotocol auth -------------------------------------------------

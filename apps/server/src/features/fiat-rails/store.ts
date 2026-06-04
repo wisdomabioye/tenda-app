@@ -5,7 +5,7 @@
  */
 
 import { and, eq, inArray, lt, sql } from 'drizzle-orm'
-import { fiat_intents, bank_accounts } from '@tenda/shared/db/schema-v2/fiat'
+import { fiat_intents, bank_accounts } from '@tenda/shared/db/schema/fiat'
 import type { AppDatabase } from '@server/plugins/db'
 import type { FiatIntentRow, FiatIntentStatus, FiatDirection } from './types'
 

@@ -4,7 +4,7 @@ import { platform_config } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { requireRole } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
-import { ensureTxUpdated } from '@server/lib/gigs'
+import { ensureTxUpdated } from '@server/lib/db'
 import { invalidatePlatformConfigCache } from '@server/lib/platform'
 import { appEvents } from '@server/lib/events'
 import type { ApiError } from '@tenda/shared'
@@ -71,7 +71,6 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
     }
     appEvents.emit('admin.update_platform_config', {
       adminId:     request.user.id,
-      adminWallet: request.user.wallet_address,
       adminRole:   request.user.role,
       changes,
     })

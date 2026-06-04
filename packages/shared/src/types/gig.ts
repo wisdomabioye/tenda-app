@@ -1,195 +1,54 @@
-import type { InferSelectModel, InferInsertModel } from 'drizzle-orm'
-import type { gigs, disputes, gig_proofs, gig_transactions } from '../db/schema'
+/**
+ * Gig READ surface (post-cutover). Gigs are escrows with kind='gig' —
+ * creation and every transition go through /v1/escrows (escrows.contract).
+ * This file only types the public browse surface: /v1/gigs (listing) and
+ * /v1/gigs/:id (detail), both served from escrows ⨝ gig_details.
+ */
 import type { GigCategory } from '../constants/categories'
+import type { Dispute, EscrowProof, EscrowStatus } from './escrow'
 import type { Review } from './review'
+import type { UserRef } from './user'
 
 export type { GigCategory }
 
-// ── Base types inferred from schema ───────────────────────────────────
+// ── Wire projections ──────────────────────────────────────────────────
 
-export type Gig            = InferSelectModel<typeof gigs>
-export type NewGig         = InferInsertModel<typeof gigs>
-export type Dispute        = InferSelectModel<typeof disputes>
-export type NewDispute     = InferInsertModel<typeof disputes>
-export type GigProof       = InferSelectModel<typeof gig_proofs>
-export type NewGigProof    = InferInsertModel<typeof gig_proofs>
-export type GigTransaction = InferSelectModel<typeof gig_transactions>
-
-// ── Enums ─────────────────────────────────────────────────────────────
-
-export type GigStatus =
-  | 'draft'
-  | 'open'
-  | 'accepted'
-  | 'submitted'
-  | 'completed'
-  | 'disputed'
-  | 'resolved'
-  | 'expired'
-  | 'cancelled'
-
-export const GIG_STATUSES = [
-  'draft', 'open', 'accepted', 'submitted', 'completed',
-  'disputed', 'resolved', 'expired', 'cancelled',
-] as const satisfies readonly GigStatus[]
-
-export type DisputeWinner = 'worker' | 'poster' | 'split'
-
-export type GigTransactionType =
-  | 'create_escrow'
-  | 'accept_gig'
-  | 'release_payment'
-  | 'cancel_refund'
-  | 'expired_refund'
-  | 'dispute_resolved'
-
-// ── Status transitions ────────────────────────────────────────────────
-
-export const GIG_STATUS_TRANSITIONS: Record<GigStatus, GigStatus[]> = {
-  draft:     ['open', 'cancelled'],
-  open:      ['accepted', 'expired', 'cancelled'],
-  accepted:  ['submitted', 'disputed', 'expired'],
-  submitted: ['completed', 'disputed'],
-  completed: [],
-  disputed:  ['resolved'],
-  resolved:  [],
-  expired:   [],
-  cancelled: [],
-}
-
-export function canTransition(from: GigStatus, to: GigStatus): boolean {
-  return GIG_STATUS_TRANSITIONS[from].includes(to)
-}
-
-// ── Input types ───────────────────────────────────────────────────────
-
-export interface CreateGigInput {
+/** Listing item: escrows ⨝ gig_details, timestamps as ISO strings. */
+export interface GigSummary {
+  /** The escrow id — also the path param for /v1/escrows/:id/* actions. */
+  escrow_id: string
+  chain_id: string
+  asset: string
+  amount_raw: string
+  status: EscrowStatus
+  accept_deadline: string | null
+  created_at: string | null
   title: string
-  description: string
-  payment_lamports: number
+  description: string | null
   category: GigCategory
-  country?: string   // optional for remote gigs — server defaults from poster's profile
-  remote?: boolean
-  city?: string        // omitted for remote gigs
-  address?: string
-  latitude?: number
-  longitude?: number
-  completion_duration_seconds: number  // how long worker has after accepting
-  accept_deadline?: string             // ISO 8601, optional — null = indefinitely open
+  country: string | null
+  city: string | null
+  latitude: number | null
+  longitude: number | null
+  remote: boolean
+  cross_border: boolean
+  creator: UserRef
 }
 
-export interface UpdateGigInput {
-  title?: string
-  description?: string
-  payment_lamports?: number
-  category?: GigCategory
-  country?: string
-  remote?: boolean
-  city?: string | null
-  address?: string | null
-  latitude?: number | null
-  longitude?: number | null
-  completion_duration_seconds?: number
-  accept_deadline?: string | null      // null explicitly removes the cutoff
-}
-
-export interface PublishGigInput {
-  signature: string  // on-chain tx signature for create_gig_escrow
-  // escrow_address derived server-side: findProgramAddressSync([ESCROW_SEED, gig_id])
-}
-
-export interface CancelGigInput {
-  signature?: string  // required when cancelling an open gig (escrow refund tx); omit for draft
-}
-
-export interface DisputeGigInput {
-  reason: string
-  signature: string  // on-chain tx signature for dispute_gig
-}
-
-export interface ResolveDisputeInput {
-  winner: DisputeWinner
-  signature: string  // on-chain tx signature for resolve_dispute
-  // resolver_wallet_address taken from request.user.wallet_address
-}
-
-export interface AcceptGigInput {
-  signature: string  // on-chain tx signature for accept_gig
-}
-
-export interface SubmitProofInput {
-  proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>
-  signature: string  // on-chain tx signature for submit_proof
-}
-
-export interface AddProofsInput {
-  proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>
-}
-
-export interface ApproveGigInput {
-  signature: string  // on-chain tx signature for approve_completion
-  // amount_lamports derived from gig.payment_lamports
-  // platform_fee_lamports derived from payment_lamports * PLATFORM_FEE_BPS / 10_000
-}
-
-export interface RefundExpiredInput {
-  signature: string  // on-chain tx signature for refund_expired
-}
-
-// ── Response types ────────────────────────────────────────────────────
-
-export interface GigDetail extends Gig {
-  poster: {
-    id: string
-    first_name: string | null
-    last_name: string | null
-    avatar_url: string | null
-    reputation_score: number | null
-    is_seeker: boolean
-    country: string | null
-  }
-  worker: {
-    id: string
-    first_name: string | null
-    last_name: string | null
-    avatar_url: string | null
-    reputation_score: number | null
-    is_seeker: boolean
-    country: string | null
-  } | null
-  proofs: GigProof[]
+export interface GigDetail extends GigSummary {
+  completion_duration_seconds: number | null
+  completion_deadline: string | null
+  submitted_at: string | null
+  approval_deadline: string | null
+  dispute_bond_raw: string
+  assigned_counterparty_id: string | null
+  counterparty: UserRef | null
+  proofs: EscrowProof[]
   dispute: Dispute | null
   reviews: Review[]
 }
 
-/** A gig_transaction enriched with minimal gig context for the wallet screen. */
-export interface UserGigTransaction extends Omit<GigTransaction, 'created_at'> {
-  source: 'gig'
-  created_at: string | null
-  /** Populated for dispute_resolved transactions only; null otherwise. Values: 'worker' | 'poster' | 'split' */
-  winner: string | null
-  gig: {
-    id: string
-    title: string
-    status: GigStatus
-    payment_lamports: number
-    poster_id: string
-    worker_id: string | null
-  }
-}
-
 // ── Query types ───────────────────────────────────────────────────────
-
-export interface UserGigsQuery {
-  role?: 'poster' | 'worker'
-  limit?: number
-  offset?: number
-}
-
-export interface UserTransactionsQuery {
-  limit?: number
-  offset?: number
-}
 
 export interface GigListQuery {
   // status intentionally omitted — public feed is always 'open'
@@ -198,10 +57,12 @@ export interface GigListQuery {
   cross_border?: boolean
   city?: string
   category?: GigCategory
-  min_payment_lamports?: number
-  max_payment_lamports?: number
-  sort?: 'created_at' | 'payment_asc' | 'payment_desc'
-  lat?: number    // proximity search centre
+  /** S5.3 full-text search over title + description. */
+  q?: string
+  min_amount_raw?: string
+  max_amount_raw?: string
+  sort?: 'created_at' | 'amount_asc' | 'amount_desc'
+  lat?: number // proximity search centre
   lng?: number
   radius_km?: number
   limit?: number
@@ -210,21 +71,19 @@ export interface GigListQuery {
 
 // ── Helpers (safe for frontend + backend) ─────────────────────────────
 
-/** Whether a gig is in a state that allows editing (draft only) */
-export function isGigEditable(status: GigStatus): boolean {
-  return status === 'draft'
-}
-
-/** Whether a worker can still accept this gig */
-export function isGigAcceptable(gig: Pick<Gig, 'status' | 'accept_deadline'>): boolean {
+/** Whether a worker can still accept this gig. */
+export function isGigAcceptable(
+  gig: Pick<GigSummary, 'status' | 'accept_deadline'>,
+  now: Date = new Date(),
+): boolean {
   if (gig.status !== 'open') return false
-  if (gig.accept_deadline && new Date() > new Date(gig.accept_deadline)) return false
+  if (gig.accept_deadline !== null && now > new Date(gig.accept_deadline)) return false
   return true
 }
 
 /**
  * Compute the completion deadline from accepted_at + duration.
- * Not stored in DB — call this whenever you need to display or enforce it.
+ * Mirrors the server's lib/escrow.ts math for display purposes.
  */
 export function computeCompletionDeadline(
   accepted_at: Date,

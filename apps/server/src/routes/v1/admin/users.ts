@@ -1,21 +1,20 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq, ilike, or, and, desc, sql, SQL } from 'drizzle-orm'
-import { users } from '@tenda/shared/db/schema'
+import { eq, exists, ilike, or, and, desc, sql, SQL } from 'drizzle-orm'
+import { users, user_wallets } from '@tenda/shared/db/schema'
 import {
   ADMIN_ROLES, ASSIGNABLE_ROLES, ErrorCode, MAX_PAGINATION_LIMIT,
 } from '@tenda/shared'
 import { requireRole } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
-import { ensureTxUpdated } from '@server/lib/gigs'
+import { ensureTxUpdated } from '@server/lib/db'
 import { appEvents } from '@server/lib/events'
-import { clearAssignedThreads } from '@server/lib/disputes'
 import type { ApiError, UserRole, UserStatus } from '@tenda/shared'
 
-const USER_MGMT_ROLES = ['support', 'moderator', 'dispute_resolver', 'super_admin'] as const
+const USER_MGMT_ROLES = ['super_admin'] as const
 
 const adminUsers: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/admin/users — list users (role: support, moderator, dispute_resolver, super_admin)
-  // marketing and finance are excluded per Fix #23 (no PII access)
+  // GET /v1/admin/users — list users (super_admin only post-#34: the
+  // legacy role zoo collapsed to dispute_admin + super_admin)
   fastify.get<{
     Querystring: { status?: string; role?: string; search?: string; limit?: number; offset?: number }
     Reply: { data: unknown[]; total: number; limit: number; offset: number } | ApiError
@@ -41,11 +40,18 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
 
     if (search && search.trim().length > 0) {
       const pattern = `%${search.trim()}%`
+      // Wallets are multi-row in v2 — match any linked address (the
+      // text_pattern_ops index covers prefix searches, S5.7/A6).
       conditions.push(
         or(
-          ilike(users.first_name,     pattern),
-          ilike(users.last_name,      pattern),
-          ilike(users.wallet_address, pattern),
+          ilike(users.first_name, pattern),
+          ilike(users.last_name, pattern),
+          exists(
+            fastify.db
+              .select({ one: sql`1` })
+              .from(user_wallets)
+              .where(and(eq(user_wallets.user_id, users.id), ilike(user_wallets.address, pattern))),
+          ),
         )!,
       )
     }
@@ -58,13 +64,12 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
           id:               users.id,
           first_name:       users.first_name,
           last_name:        users.last_name,
-          wallet_address:   users.wallet_address,
           role:             users.role,
           status:           users.status,
           is_seeker:        users.is_seeker,
           country:          users.country,
           city:             users.city,
-          reputation_score: users.reputation_score,
+          review_score:     users.review_score,
           created_at:       users.created_at,
           last_active_at:   users.last_active_at,
         })
@@ -107,7 +112,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Body:   { status: 'active' | 'suspended' }
     Reply:  { id: string; status: string } | ApiError
-  }>('/:id/status', { preHandler: [requireRole('support', 'moderator', 'super_admin')] }, async (request) => {
+  }>('/:id/status', { preHandler: [requireRole(...USER_MGMT_ROLES)] }, async (request) => {
     const { id } = request.params
     const { status } = request.body
 
@@ -137,7 +142,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
 
     appEvents.emit(
       status === 'suspended' ? 'admin.suspend_user' : 'admin.reinstate_user',
-      { adminId: request.user.id, adminWallet: request.user.wallet_address, adminRole: request.user.role, userId: id, previousStatus: target.status },
+      { adminId: request.user.id, adminRole: request.user.role, userId: id, previousStatus: target.status },
     )
 
     return result
@@ -178,16 +183,8 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
 
     const result = ensureTxUpdated(updated, 'User not found')
 
-    // Fix #38: when a user who can be assigned disputes loses that capability,
-    // clear any open thread assignments so they're re-queued for triage.
-    const canBeAssigned = (r: UserRole) => r === 'dispute_resolver' || r === 'super_admin'
-    if (canBeAssigned(current.role) && !canBeAssigned(role)) {
-      await clearAssignedThreads(fastify.db, id)
-    }
-
     appEvents.emit('admin.change_role', {
       adminId:      request.user.id,
-      adminWallet:  request.user.wallet_address,
       adminRole:    request.user.role,
       userId:       id,
       previousRole: current.role,

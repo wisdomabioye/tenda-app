@@ -10,7 +10,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { assets } from '@tenda/shared/db/schema-v2/chains'
+import { assets } from '@tenda/shared/db/schema/chains'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { isAmountRaw } from '@server/chains/types'

@@ -19,7 +19,7 @@
 
 import { randomBytes } from 'node:crypto'
 import { and, eq, gt, isNull } from 'drizzle-orm'
-import { auth_nonces } from '@tenda/shared/db/schema-v2'
+import { auth_nonces } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import type { AppDatabase } from '@server/plugins/db'

@@ -22,7 +22,7 @@
 import {
   chainNamespaceEnum,
   type ChainNamespace,
-} from '@tenda/shared/db/schema-v2/chains'
+} from '@tenda/shared/db/schema/chains'
 import { ESCROW_EVENTS, type EscrowEvent } from '@server/chains/types'
 
 export interface DedupKeyArgs {

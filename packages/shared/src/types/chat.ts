@@ -28,10 +28,10 @@ export interface Message {
   id: string
   conversation_id: string
   sender_id: string
-  gig_id: string | null
-  gig_title: string | null
-  offer_id: string | null
-  offer_title: string | null
+  /** Chat context divider: the escrow (gig or exchange) being discussed. */
+  escrow_id: string | null
+  /** gig_details.title when the escrow is a gig; null otherwise. */
+  escrow_title: string | null
   content: string
   attachment_url: string | null
   attachment_type: 'image' | 'file' | null
@@ -42,8 +42,8 @@ export interface Message {
 
 export interface SendMessageInput {
   content: string
-  gig_id?: string
-  offer_id?: string
+  /** Optional context: the escrow this message is about. */
+  escrow_id?: string
   /** S5.2: Cloudinary URL under the conversation's chat folder. */
   attachment_url?: string
   attachment_type?: 'image' | 'file'

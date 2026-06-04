@@ -5,7 +5,7 @@
  * pipeline"; a Verdict is decisive and stops the pipeline.
  */
 
-import type { ModerationDecision } from '@tenda/shared/db/schema-v2/moderation'
+import type { ModerationDecision } from '@tenda/shared/db/schema/moderation'
 
 export interface ModerationInput {
   title: string

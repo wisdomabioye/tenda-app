@@ -68,7 +68,18 @@ const LEGACY_PATHS = [
   'apps/server/src/routes/v1/gigs/_id/dispute',
   'apps/server/src/routes/v1/gigs/_id/resolve',
   'apps/server/src/routes/v1/gigs/_id/publish',
-  'apps/server/src/routes/v1/exchange/_id',
+  // NOTE: routes/v1/exchange/_id/index.ts was RECREATED post-deletion as the
+  // v2 read-only detail route — only the legacy transition subdirs are
+  // forbidden here.
+  'apps/server/src/routes/v1/exchange/_id/accept',
+  'apps/server/src/routes/v1/exchange/_id/confirm',
+  'apps/server/src/routes/v1/exchange/_id/paid',
+  'apps/server/src/routes/v1/exchange/_id/publish',
+  'apps/server/src/routes/v1/exchange/_id/refund',
+  'apps/server/src/routes/v1/exchange/_id/resolve',
+  'apps/server/src/routes/v1/exchange/_id/dispute',
+  'apps/server/src/routes/v1/exchange/_id/review',
+  'apps/server/src/routes/v1/exchange/_id/proofs',
   'apps/server/src/routes/v1/admin/airdrop.ts',
   'packages/shared/src/idl/legacy',
   'packages/shared/src/db/schema.ts',

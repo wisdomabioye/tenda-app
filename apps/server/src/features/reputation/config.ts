@@ -7,7 +7,7 @@
  * + stage-7 body); the contract's bond stays fixed at create time.
  */
 
-import type { RestrictionKind, StandingEventKind } from '@tenda/shared/db/schema-v2/reputation'
+import type { RestrictionKind, StandingEventKind } from '@tenda/shared/db/schema/reputation'
 
 export interface RestrictionTier {
   /** Windowed signal the tier counts. */

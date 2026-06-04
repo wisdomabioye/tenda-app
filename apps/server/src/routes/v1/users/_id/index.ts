@@ -5,7 +5,6 @@ import { ErrorCode, isCloudinaryUrl, LOCATIONS, isCityInCountry } from '@tenda/s
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { ensureValidCoordinates } from '@server/lib/validation'
 import { AppError } from '@server/lib/errors'
-import { moderateBody } from '@server/lib/moderation'
 
 type GetRoute    = UsersContract['get']
 type UpdateRoute = UsersContract['update']
@@ -29,7 +28,8 @@ const userById: FastifyPluginAsync = async (fastify) => {
         city:             users.city,
         latitude:         users.latitude,
         longitude:        users.longitude,
-        reputation_score: users.reputation_score,
+        phone_verified_at: users.phone_verified_at,
+        review_score:     users.review_score,
         role:             users.role,
         is_seeker:        users.is_seeker,
         created_at:       users.created_at,
@@ -43,14 +43,14 @@ const userById: FastifyPluginAsync = async (fastify) => {
     return user
   })
 
-  // PUT /v1/users/:id — update own profile
+  // PATCH /v1/users/:id — update own profile.
+  // Profile-text moderation is report-driven (stage-6 scope decision) —
+  // the legacy keyword guard died with blocked_keywords at the cutover.
   fastify.patch<{
     Params: UpdateRoute['params']
     Body: UpdateRoute['body']
     Reply: UpdateRoute['response'] | ApiError
-  }>('/', { 
-    preHandler: [fastify.authenticate, moderateBody<UpdateRoute['body']>(fastify, ['bio'])] 
-  }, async (request) => {
+  }>('/', { preHandler: [fastify.authenticate] }, async (request) => {
     const { id } = request.params
 
     if (id !== request.user.id) throw new AppError(403, ErrorCode.FORBIDDEN, 'Can only update your own profile')

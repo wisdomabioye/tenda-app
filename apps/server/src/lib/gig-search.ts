@@ -9,7 +9,7 @@
  */
 
 import { sql, type SQL } from 'drizzle-orm'
-import { gig_details } from '@tenda/shared/db/schema-v2/escrow'
+import { gig_details } from '@tenda/shared/db/schema/escrow'
 
 export function gigSearchCondition(q: string): SQL {
   return sql`${gig_details.search_vector} @@ plainto_tsquery('english', ${q})`

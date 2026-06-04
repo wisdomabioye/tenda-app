@@ -21,7 +21,7 @@ import {
   COLD_START_MIN_OUTCOMES,
   RESTRICTION_TIERS,
 } from '@server/features/reputation/config'
-import type { StandingEventKind } from '@tenda/shared/db/schema-v2/reputation'
+import type { StandingEventKind } from '@tenda/shared/db/schema/reputation'
 
 const NOW = new Date('2026-06-04T12:00:00Z')
 const PARTIES = { creator_id: 'creator-1', counterparty_id: 'cp-1' }

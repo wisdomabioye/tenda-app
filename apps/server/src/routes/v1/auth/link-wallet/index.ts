@@ -20,9 +20,9 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { user_wallets } from '@tenda/shared/db/schema-v2'
-import { users } from '@tenda/shared/db/schema-v2/identity'
-import type { ChainNamespace } from '@tenda/shared/db/schema-v2/chains'
+import { user_wallets } from '@tenda/shared/db/schema'
+import { users } from '@tenda/shared/db/schema/identity'
+import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { drizzleNonceStore, consumeNonce } from '@server/lib/nonce'

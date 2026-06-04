@@ -24,7 +24,7 @@
  */
 
 import { eq } from 'drizzle-orm'
-import { escrow_transactions, tx_attempts } from '@tenda/shared/db/schema-v2'
+import { escrow_transactions, tx_attempts } from '@tenda/shared/db/schema'
 import type { ChainRegistry, EscrowEvent } from '@server/chains/types'
 import type { AppDatabase } from '@server/plugins/db'
 import {

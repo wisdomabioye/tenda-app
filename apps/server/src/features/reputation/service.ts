@@ -13,7 +13,7 @@
 import type {
   RestrictionKind,
   StandingEventKind,
-} from '@tenda/shared/db/schema-v2/reputation'
+} from '@tenda/shared/db/schema/reputation'
 import type { InternalEscrowEvent } from '@server/lib/escrow-events'
 import {
   FRAUD_RESTRICTION_REASON,

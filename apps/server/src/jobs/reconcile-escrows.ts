@@ -16,7 +16,7 @@
 
 import { and, isNull, lt, sql } from 'drizzle-orm'
 import { eq } from 'drizzle-orm'
-import { escrows, tx_attempts } from '@tenda/shared/db/schema-v2/escrow'
+import { escrows, tx_attempts } from '@tenda/shared/db/schema/escrow'
 import { EVENT_BY_TX_TYPE, type ChainRegistry, type EscrowTxType } from '@server/chains/types'
 import type { AppDatabase } from '@server/plugins/db'
 import type { JobPayload, QueueService } from '@server/plugins/queue'

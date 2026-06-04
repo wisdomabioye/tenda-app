@@ -12,7 +12,7 @@ import type { ApiError, UserRole } from '@tenda/shared'
 type BroadcastTarget = 'all' | 'role' | 'country' | 'city'
 const VALID_TARGETS: BroadcastTarget[] = ['all', 'role', 'country', 'city']
 
-const PUSH_ROLES = ['marketing', 'super_admin'] as const
+const PUSH_ROLES = ['super_admin'] as const
 
 const adminPush: FastifyPluginAsync = async (fastify) => {
   // POST /v1/admin/push/broadcast
@@ -88,7 +88,6 @@ const adminPush: FastifyPluginAsync = async (fastify) => {
     if (tokens.length === 0) {
       appEvents.emit('admin.broadcast_push', {
         adminId:        request.user.id,
-        adminWallet:    request.user.wallet_address,
         adminRole:      request.user.role,
         target,
         targetValue:    target_value,
@@ -112,7 +111,6 @@ const adminPush: FastifyPluginAsync = async (fastify) => {
 
     appEvents.emit('admin.broadcast_push', {
       adminId:        request.user.id,
-      adminWallet:    request.user.wallet_address,
       adminRole:      request.user.role,
       target,
       targetValue:    target_value,

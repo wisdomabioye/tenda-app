@@ -1,4 +1,4 @@
-export const REPORT_CONTENT_TYPES = ['gig', 'message', 'user', 'review'] as const
+export const REPORT_CONTENT_TYPES = ['escrow', 'message', 'user', 'review'] as const
 export const REPORT_REASONS       = ['spam', 'harassment', 'inappropriate', 'fraud', 'other'] as const
 export const REPORT_STATUSES      = ['pending', 'reviewed', 'actioned', 'dismissed'] as const
 

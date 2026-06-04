@@ -8,7 +8,7 @@
  * proof_submitted / dispute_raised — they carry no signal.
  */
 
-import type { StandingEventKind } from '@tenda/shared/db/schema-v2/reputation'
+import type { StandingEventKind } from '@tenda/shared/db/schema/reputation'
 import type { InternalEscrowEvent } from '@server/lib/escrow-events'
 
 export interface EscrowParties {
