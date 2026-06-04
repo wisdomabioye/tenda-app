@@ -24,7 +24,7 @@ swap transports per platform without touching the consumer surface.
 │   • Picker filters by isAvailable() per device  │
 └─────────────────────────────────────────────────┘
             │
-            ├─── metamask.ts  → @metamask/connect-multichain (CAIP-25)
+            ├─── metamask.ts  → @metamask/connect-evm (EIP-1193, EVM-only)
             ├─── solana-mwa.ts → Solana Mobile Wallet Adapter (Android)
             └─── phantom.ts    → Phantom universal links (iOS, device-verify pending)
 ```
@@ -81,7 +81,7 @@ its own universal-link protocol, so per-wallet entries make sense.
 
 | Package | Why |
 |---|---|
-| `@metamask/connect-multichain` | MM Connect Multichain client (CAIP-25 sessions) |
+| `@metamask/connect-evm` | MM Connect EVM client (EIP-1193; W2 rewrite — connectWith sign fallback) |
 | `@solana-mobile/mobile-wallet-adapter-protocol-web3js` | Android Solana transport |
 | `@react-native-async-storage/async-storage` | Session/auth-token persistence |
 | `bs58` | Solana message encoding utilities |
