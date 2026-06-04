@@ -60,6 +60,16 @@ export interface Config {
    * (project decision). Null = moderation runs keyword-only.
    */
   OPENROUTER_API_KEY: string | null
+  /**
+   * S5.1 push credentials (#53). FCM: base64-encoded service-account JSON
+   * (HTTP v1 — the legacy server-key API is retired). APNs: p8 token auth.
+   * Null = that platform's tokens fail loudly; Expo remains the fallback.
+   */
+  FCM_SERVICE_ACCOUNT_B64: string | null
+  APNS_KEY_ID: string | null
+  APNS_TEAM_ID: string | null
+  APNS_PRIVATE_KEY_B64: string | null
+  APNS_TOPIC: string | null
   CORS_ORIGIN:  string[] | null  // null = allow any origin (dev); set to domain list in production
   ADMIN_ORIGIN: string[] | null  // null = allow any origin (dev); set to admin panel domain in production
 }
@@ -105,6 +115,11 @@ export function loadConfig(): Config {
     HELIUS_WEBHOOK_SECRET: process.env.HELIUS_WEBHOOK_SECRET ?? null,
     LISTENER_PROVIDER:     process.env.LISTENER_PROVIDER === 'polling' ? 'polling' : 'helius',
     OPENROUTER_API_KEY:    process.env.OPENROUTER_API_KEY ?? null,
+    FCM_SERVICE_ACCOUNT_B64: process.env.FCM_SERVICE_ACCOUNT_B64 ?? null,
+    APNS_KEY_ID:           process.env.APNS_KEY_ID ?? null,
+    APNS_TEAM_ID:          process.env.APNS_TEAM_ID ?? null,
+    APNS_PRIVATE_KEY_B64:  process.env.APNS_PRIVATE_KEY_B64 ?? null,
+    APNS_TOPIC:            process.env.APNS_TOPIC ?? null,
     CORS_ORIGIN:           process.env.CORS_ORIGIN
                              ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
                              : null,
