@@ -111,7 +111,9 @@ test('JobPayload shapes are statically distinct (compile-time check)', () => {
   assert.strictEqual(noti.user_id, 'u-1')
   assert.strictEqual(exp.tick_id, '1')
   assert.strictEqual(ver.tx_ref, 'sig')
-  assert.ok(rec.from_iso < rec.to_iso)
+  // Window fields are optional on the payload (repeatables carry static
+  // payloads) — narrow before comparing.
+  assert.ok(rec.from_iso !== undefined && rec.to_iso !== undefined && rec.from_iso < rec.to_iso)
 })
 
 test('QueueService.enqueue: signature is generic over JobName (compile-time check)', () => {
