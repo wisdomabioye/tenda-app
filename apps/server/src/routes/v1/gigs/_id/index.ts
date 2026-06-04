@@ -5,7 +5,8 @@
  *
  * Drafts are pre-publish staging rows: 404 to the public, but the CREATOR
  * must see them (my-gigs lists drafts; the Delete Draft CTA lives here),
- * so a draft hit attempts JWT verification and compares the caller.
+ * so a draft hit runs the full authenticate (suspended accounts rejected
+ * like everywhere else) and compares the caller.
  */
 import { FastifyPluginAsync } from 'fastify'
 import { eq, inArray } from 'drizzle-orm'
@@ -41,10 +42,11 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     // Pre-publish drafts are private staging rows — creator-only.
     if (escrow.status === 'draft') {
       try {
-        await request.jwtVerify()
+        await fastify.authenticate(request, reply)
       } catch {
         throw new AppError(404, ErrorCode.NOT_FOUND, 'Gig not found')
       }
+      if (reply.sent) return reply
       if (request.user.id !== escrow.creator_id) {
         throw new AppError(404, ErrorCode.NOT_FOUND, 'Gig not found')
       }

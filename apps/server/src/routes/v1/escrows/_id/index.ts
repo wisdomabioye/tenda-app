@@ -8,8 +8,8 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { and, eq } from 'drizzle-orm'
-import { escrows } from '@tenda/shared/db/schema'
+import { and, eq, isNull } from 'drizzle-orm'
+import { escrows, tx_attempts } from '@tenda/shared/db/schema'
 import { loadEscrowOr404, deriveCaller } from '@server/lib/escrow-routes'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
@@ -52,6 +52,29 @@ const route: FastifyPluginAsync = async (fastify) => {
           409,
           ErrorCode.ESCROW_WRONG_STATUS,
           'Only drafts can be deleted — published escrows are cancelled on-chain',
+        )
+      }
+      // A signed-and-broadcast create tx leaves the row 'draft' until the
+      // verifier confirms it. Deleting in that window would orphan an
+      // on-chain funded escrow with no server record — block while a
+      // create ping is pending (failed/expired attempts don't count).
+      const [pendingCreate] = await fastify.db
+        .select({ id: tx_attempts.id })
+        .from(tx_attempts)
+        .where(
+          and(
+            eq(tx_attempts.escrow_id, escrow.id),
+            eq(tx_attempts.action, 'create'),
+            isNull(tx_attempts.confirmed_at),
+            isNull(tx_attempts.failed_at),
+          ),
+        )
+        .limit(1)
+      if (pendingCreate !== undefined) {
+        throw new AppError(
+          409,
+          ErrorCode.ESCROW_WRONG_STATUS,
+          'A create transaction is awaiting confirmation — wait for it to settle before discarding',
         )
       }
       // Status guard inside the DELETE so a create-tx confirming between

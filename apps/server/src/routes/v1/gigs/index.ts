@@ -38,7 +38,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
-  }>('/', async (request) => {
+  }>('/', async (request, reply) => {
     const {
       country,
       remote,
@@ -77,11 +77,10 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       if (mine !== 'created' && mine !== 'working') {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, "mine must be 'created' or 'working'")
       }
-      try {
-        await request.jwtVerify()
-      } catch {
-        throw new AppError(401, ErrorCode.UNAUTHORIZED, 'authentication required for mine=')
-      }
+      // Full authenticate (not bare jwtVerify) so suspended accounts are
+      // rejected here exactly like every other authenticated surface.
+      await fastify.authenticate(request, reply)
+      if (reply.sent) return reply
       const userId = request.user.id
       conditions.push(
         mine === 'created'
