@@ -96,7 +96,9 @@ test('fcm: unregistered tokens count as failed; transport errors never throw', a
     now: () => NOW,
   })
   const r = await svc.send({ tokens: ['ok1', 'gone', 'boom'], title: 't', body: 'b' })
-  assert.deepStrictEqual(r, { ok: 1, failed: 2 })
+  // Only the provider-reported-GONE token is prunable — the transport
+  // error ('boom') counts failed but must never be deleted.
+  assert.deepStrictEqual(r, { ok: 1, failed: 2, invalid_tokens: ['gone'] })
 })
 
 // ---------- APNs JWT --------------------------------------------------------------
@@ -148,6 +150,24 @@ test('apnsPushService reuses the provider JWT for the Apple-sanctioned window', 
   assert.strictEqual(jwts.size, 2)
 })
 
+test('apns: 410 tokens land in invalid_tokens; transport errors do not', async () => {
+  const transport: ApnsTransport = {
+    async send({ token }) {
+      if (token === 'gone410') return 'unregistered'
+      if (token === 'boom') throw new Error('h2 stream error')
+      return 'ok'
+    },
+  }
+  const svc = apnsPushService({
+    creds: APNS_CREDS,
+    transport,
+    log: { warn() {} },
+    now: () => NOW,
+  })
+  const r = await svc.send({ tokens: ['live', 'gone410', 'boom'], title: 't', body: 'b' })
+  assert.deepStrictEqual(r, { ok: 1, failed: 2, invalid_tokens: ['gone410'] })
+})
+
 // ---------- router ------------------------------------------------------------------
 
 function countingService(): PushService & { seen: string[] } {
@@ -156,10 +176,24 @@ function countingService(): PushService & { seen: string[] } {
     seen,
     async send({ tokens }) {
       seen.push(...tokens)
-      return { ok: tokens.length, failed: 0 }
+      return { ok: tokens.length, failed: 0, invalid_tokens: [] }
     },
   }
 }
+
+test('routePush aggregates invalid_tokens across services; unconfigured tokens are never prunable', async () => {
+  const fcm: PushService = {
+    async send({ tokens }) {
+      return { ok: 0, failed: tokens.length, invalid_tokens: [...tokens] }
+    },
+  }
+  const tokens: PlatformToken[] = [
+    { token: 'dead-f', platform: 'fcm' },
+    { token: 'a1', platform: 'apns' }, // unconfigured — failed, NOT invalid
+  ]
+  const r = await routePush({ services: { fcm }, log: { warn() {} } }, tokens, { title: 't', body: 'b' })
+  assert.deepStrictEqual(r, { ok: 0, failed: 2, invalid_tokens: ['dead-f'] })
+})
 
 test('routePush splits by platform; unconfigured platforms fail loudly', async () => {
   const fcm = countingService()
@@ -185,11 +219,11 @@ test('routePush splits by platform; unconfigured platforms fail loudly', async (
   )
   assert.deepStrictEqual(fcm.seen, ['f1', 'f2'])
   assert.deepStrictEqual(expo.seen, ['e1'])
-  assert.deepStrictEqual(r, { ok: 3, failed: 1 })
+  assert.deepStrictEqual(r, { ok: 3, failed: 1, invalid_tokens: [] })
   assert.strictEqual(warned.length, 1)
 })
 
 test('routePush with no tokens is a clean zero', async () => {
   const r = await routePush({ services: {}, log: { warn() {} } }, [], { title: 't', body: 'b' })
-  assert.deepStrictEqual(r, { ok: 0, failed: 0 })
+  assert.deepStrictEqual(r, { ok: 0, failed: 0, invalid_tokens: [] })
 })

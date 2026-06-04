@@ -337,6 +337,33 @@
 |---|-------|---------|-------------------|
 | ~~M51~~ | ~~Day-grouping format inconsistency between wallet and chat~~ | ✅ Resolved during DRY refactor (D2/D10). `lib/date.ts` now exports `formatRelativeDay`, `formatRelativeShort`, `formatConvoTime`, `formatRelativeDayWithTime`, plus a generic `groupByDay` reducer. Wallet uses `groupByDay` + `formatRelativeDay`; chat uses `formatRelativeDay` via `ChatTimestampGroup`; `ConversationItem` uses `formatConvoTime`; `ReviewCard` uses `formatRelativeShort` |
 
+## Stage 0 cutover (#34) — follow-ups
+
+> Deferred work and product decisions recorded during the 2026-06-04 cutover.
+> CO-prefix ids (CO = cutover). None block the dev loop; CO1/CO2 should land before launch.
+
+### 🟠 Significant
+
+| # | Issue | File(s) | Fix |
+|---|-------|---------|-----|
+| CO1 | **No admin takedown for live listings** — v2 escrows/gig_details have no `hidden` flag (legacy column died at cutover; Stage-6 moderation only gates pre-publish). A fraudulent listing that slips past moderation cannot be removed from the feed without suspending its creator; `ActionReportBody.hide_content` was removed accordingly | `packages/shared/src/db/schema/escrow.ts`, `apps/server/src/routes/v1/admin/reports.ts`, `apps/server/src/routes/v1/gigs/index.ts` | Decide the model: (a) `escrows.hidden` boolean + admin route + `hidden = false` filter in both public listings, or (b) feed-filter via `moderation_overrides`. (a) is simpler; requires db:generate |
+| CO2 | **No HTTP-level integration tests for the new v2 route handlers** — gigs create-detail guards (ownership/kind/status/moderation-block), `DELETE /v1/escrows/:id` TOCTOU, proofs cap, review uniqueness→409, dispute reason upsert, and `mine=` auth are only covered where logic was extracted (`lib/gig-details`, shared helpers); the handler wiring itself is untested | `apps/server/test/**` | Build a `fastify.inject()` harness with a test DB (or pg-mem) and cover the route matrix; raises real coverage on the new surface past the 90% bar |
+| CO3 | **TransactionMonitor's RPC fallback is Solana-only** — for EVM tx refs `getTransactionStatus` (Solana `getSignatureStatus`) returns `not_found` forever, so EVM confirmation rides ONLY the WS path; if the socket is down the 60s timeout reports "timed out" even after the tx confirmed | `apps/mobile/components/feedback/TransactionMonitor.tsx`, `apps/mobile/wallet/index.ts` | Make the fallback chain-aware: skip the Solana poll for non-`solana:` chains and add an EVM receipt poll (`eth_getTransactionReceipt` via the connected provider), or lengthen the WS-only timeout with a "still pending" state |
+| CO4 | **Exchange order-book creation has no UI** — the legacy create wizard (`components/exchange/create`, user_exchange_accounts) was deleted; fiat-rails opens sell offers server-side (offramp), but an advanced-mode user cannot hand-create a `kind='exchange'` escrow, and `p2p_internal` onramp still throws 503 ("lands with the v2 exchange") | `apps/server/src/features/fiat-rails/index.ts`, `apps/mobile/app/(tabs)/exchange.tsx` | Ship the advanced-mode offer-creation flow on `POST /v1/escrows` + `exchange_details` attach (needs an exchange-details create route, mirroring the gig one), then enable p2p onramp routing |
+
+### 🟡 Minor
+
+| # | Issue | File(s) | Fix |
+|---|-------|---------|-----|
+| CO5 | **Gig creation form is Solana-native** — `create-gig.tsx` hardcodes `chain_id`/`asset` to the env's Solana network even though `POST /v1/escrows` and the wallet dispatcher are multichain; EVM gig creation has no UI entry | `apps/mobile/app/(tabs)/create-gig.tsx`, `apps/mobile/components/gig/GigForm.tsx` | Add a chain/asset picker (assets from the registry; gate EVM options on a linked eip155 wallet) — natural follow-on to #47/#49 externals |
+| CO6 | **Draft editing removed; no re-publish path** — v2 drafts are ephemeral pre-sign rows; abandoning the create signature leaves a draft whose only CTA is Delete Draft, and fixing a typo means re-creating | `apps/server/src/routes/v1/escrows/index.ts`, deleted `app/gig/[id]/edit.tsx` | If users complain: add `POST /v1/escrows/:id/build-create` (rebuild unsigned tx for an owned draft) + PATCH for `gig_details` while draft + resurrect the edit screen |
+| CO7 | **Dispute mediation threads dropped** — admin↔parties communication during a dispute now relies on ordinary user-to-user chat; there is no admin-visible per-dispute thread or assignment | (was `dispute_threads`/`dispute_messages`) | Re-introduce on demand as a satellite of `disputes` (table + admin routes + screen); the `disputes` row is the anchor |
+| CO8 | **Featured listings and granular admin roles dropped** — `featured` flag and the support/moderator/marketing/finance roles died with the legacy schema; all specialised admin routes now require `super_admin` | `apps/server/src/routes/v1/admin/*` | Re-granularise per-route `*_ROLES` constants + extend the role enum when an admin team exists; featured needs a column + listing sort hook |
+| CO9 | **Pre-existing mobile lint debt (19 errors in 7 untouched files)** — `theme/index.ts` duplicate exports, support screens, SearchSheet, SeekerWelcomeSheet, +not-found | `apps/mobile/theme/index.ts` et al. | Fix when those files are next touched (file-size rule pass) |
+| CO10 | **`p2p_internal` quote rate is SOL-denominated only** — `solRateSource` rejects non-SOL assets, so p2p fiat quotes for USDC escrows 503 until a stable-asset rate source lands | `apps/server/src/features/fiat-rails/index.ts` | Extend the rate source with a USD-stable path (≈1:1 to USD then FX) when USDC offramp via p2p is wanted |
+
+---
+
 ## Open cross-stage questions (from STATUS.md)
 
 | # | Question | Affected stage | Status |

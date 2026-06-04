@@ -143,6 +143,7 @@ export function fcmPushService(args: {
     async send({ tokens, title, body, data }) {
       let ok = 0
       let failed = 0
+      const invalid_tokens: string[] = []
       const token = await accessToken()
       for (const t of tokens) {
         try {
@@ -153,13 +154,16 @@ export function fcmPushService(args: {
             payload: { title, body, ...(data !== undefined ? { data } : {}) },
           })
           if (result === 'ok') ok += 1
-          else failed += 1 // unregistered — caller prunes via failed count
+          else {
+            failed += 1
+            invalid_tokens.push(t) // UNREGISTERED — caller prunes the row
+          }
         } catch (err) {
           failed += 1
           args.log.warn({ err }, 'fcm send failed')
         }
       }
-      return { ok, failed }
+      return { ok, failed, invalid_tokens }
     },
   }
 }
@@ -260,6 +264,7 @@ export function apnsPushService(args: {
     async send({ tokens, title, body, data }) {
       let ok = 0
       let failed = 0
+      const invalid_tokens: string[] = []
       for (const t of tokens) {
         try {
           const result = await args.transport.send({
@@ -269,13 +274,16 @@ export function apnsPushService(args: {
             payload: { title, body, ...(data !== undefined ? { data } : {}) },
           })
           if (result === 'ok') ok += 1
-          else failed += 1
+          else {
+            failed += 1
+            invalid_tokens.push(t) // 410 — token gone, caller prunes the row
+          }
         } catch (err) {
           failed += 1
           args.log.warn({ err }, 'apns send failed')
         }
       }
-      return { ok, failed }
+      return { ok, failed, invalid_tokens }
     },
   }
 }
@@ -304,7 +312,7 @@ export async function routePush(
   deps: PushRouterDeps,
   tokens: ReadonlyArray<PlatformToken>,
   payload: PushPayload,
-): Promise<{ ok: number; failed: number }> {
+): Promise<{ ok: number; failed: number; invalid_tokens: string[] }> {
   const grouped = new Map<DevicePlatform, string[]>()
   for (const t of tokens) {
     const list = grouped.get(t.platform) ?? []
@@ -314,9 +322,11 @@ export async function routePush(
 
   let ok = 0
   let failed = 0
+  const invalid_tokens: string[] = []
   for (const [platform, list] of grouped) {
     const service = deps.services[platform]
     if (service === undefined) {
+      // Unconfigured provider ≠ dead tokens — counted failed, never pruned.
       failed += list.length
       deps.log.warn({ platform, count: list.length }, 'push: provider not configured')
       continue
@@ -324,8 +334,9 @@ export async function routePush(
     const result = await service.send({ tokens: list, title: payload.title, body: payload.body, ...(payload.data !== undefined ? { data: payload.data } : {}) })
     ok += result.ok
     failed += result.failed
+    invalid_tokens.push(...result.invalid_tokens)
   }
-  return { ok, failed }
+  return { ok, failed, invalid_tokens }
 }
 
 // ---------- config → services builder (the #33 worker composes via this) -------
@@ -345,7 +356,7 @@ export function buildPushServices(
     expo: {
       async send({ tokens, title, body, data }) {
         const invalid = await sendPush([...tokens], { title, body, data }, log)
-        return { ok: tokens.length - invalid.length, failed: invalid.length }
+        return { ok: tokens.length - invalid.length, failed: invalid.length, invalid_tokens: invalid }
       },
     },
   }

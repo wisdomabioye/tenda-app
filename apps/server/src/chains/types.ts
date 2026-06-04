@@ -365,7 +365,16 @@ export interface PushService {
     title: string
     body: string
     data?: Record<string, string>
-  }): Promise<{ ok: number; failed: number }>
+  }): Promise<{
+    ok: number
+    failed: number
+    /**
+     * Tokens the provider reported as permanently GONE (Expo
+     * DeviceNotRegistered / FCM UNREGISTERED / APNs 410) — callers prune
+     * these from device_tokens. Transient failures are NOT included.
+     */
+    invalid_tokens: string[]
+  }>
 }
 
 // ---------- registry shape (concrete instance in `chains/index.ts`) -------

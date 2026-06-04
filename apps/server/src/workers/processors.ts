@@ -203,11 +203,14 @@ async function deliverNotification(
 
   const services = buildPushServices(getConfig(), fastify.log)
   const tokens: PlatformToken[] = rows.map((r) => ({ token: r.token, platform: r.platform }))
-  await routePush({ services, log: fastify.log }, tokens, {
+  const result = await routePush({ services, log: fastify.log }, tokens, {
     title: payload.title,
     body: payload.body,
     ...(payload.data !== undefined ? { data: payload.data } : {}),
   })
+  // Prune tokens the providers reported permanently gone (resolved issue
+  // C1 — regressed when fan-out moved off the legacy plugin at #34).
+  await removeTokens(fastify, result.invalid_tokens)
 }
 
 /** Prune device tokens the providers reported dead. Exported for reuse. */
