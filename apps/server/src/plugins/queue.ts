@@ -31,8 +31,12 @@ export type JobName = 'notifications' | 'expire-escrows' | 'verify-tx' | 'reconc
  */
 export interface JobPayload {
   notifications: {
-    /** Expo push tokens (deduped upstream). */
-    tokens: ReadonlyArray<string>
+    /**
+     * Recipient user — the delivery worker resolves device tokens at send
+     * time (tokens churn between enqueue and delivery; resolving early
+     * would push to stale devices).
+     */
+    user_id: string
     title: string
     body: string
     data?: Record<string, string>

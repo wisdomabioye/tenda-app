@@ -44,7 +44,7 @@ test('queue plugin: decorates fastify.queue with QueueService shape', async () =
 test('queue.enqueue: stub throws 501 INTERNAL_ERROR (notifications)', async () => {
   const app = await build()
   const err = await expectStubThrows(
-    () => app.queue.enqueue('notifications', { tokens: ['t'], title: 't', body: 'b' }),
+    () => app.queue.enqueue('notifications', { user_id: 'u-1', title: 't', body: 'b' }),
     /notifications.*BullMQ not provisioned/,
   )
   assert.strictEqual(err.code, 'INTERNAL_ERROR')
@@ -82,7 +82,7 @@ test('JobName covers all 4 Stage 0 queues', () => {
 })
 
 test('JobPayload shapes are statically distinct (compile-time check)', () => {
-  const noti: JobPayload['notifications'] = { tokens: ['t'], title: 'a', body: 'b' }
+  const noti: JobPayload['notifications'] = { user_id: 'u-1', title: 'a', body: 'b' }
   const exp: JobPayload['expire-escrows'] = { tick_id: '1' }
   const ver: JobPayload['verify-tx'] = {
     chain_id: 'solana:devnet',
@@ -94,7 +94,7 @@ test('JobPayload shapes are statically distinct (compile-time check)', () => {
     from_iso: '2026-01-01T00:00:00Z',
     to_iso: '2026-01-02T00:00:00Z',
   }
-  assert.strictEqual(noti.tokens.length, 1)
+  assert.strictEqual(noti.user_id, 'u-1')
   assert.strictEqual(exp.tick_id, '1')
   assert.strictEqual(ver.tx_ref, 'sig')
   assert.ok(rec.from_iso < rec.to_iso)
