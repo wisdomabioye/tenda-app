@@ -37,6 +37,17 @@ export interface Config {
    * escrows rejected with a clear error (native SOL still works).
    */
   SOLANA_USDC_MINT: string | null
+  /**
+   * Termii credentials for phone OTP (#32). Null = OTP codes are logged to
+   * the server console instead of sent — development interim only.
+   */
+  TERMII_API_KEY: string | null
+  TERMII_SENDER_ID: string | null
+  /**
+   * base58-encoded secret key of the Solana gas-seed hot wallet (#40).
+   * Null = gas seeds are skipped with a logged warning.
+   */
+  SOLANA_GAS_SEED_WALLET_KEY: string | null
   CORS_ORIGIN:  string[] | null  // null = allow any origin (dev); set to domain list in production
   ADMIN_ORIGIN: string[] | null  // null = allow any origin (dev); set to admin panel domain in production
 }
@@ -76,6 +87,9 @@ export function loadConfig(): Config {
     JWT_EXPIRES_IN:        process.env.JWT_EXPIRES_IN ?? '7d',
     SOLANA_NETWORK:        process.env.SOLANA_NETWORK ?? 'devnet',
     SOLANA_USDC_MINT:      process.env.SOLANA_USDC_MINT ?? null,
+    TERMII_API_KEY:        process.env.TERMII_API_KEY ?? null,
+    TERMII_SENDER_ID:      process.env.TERMII_SENDER_ID ?? null,
+    SOLANA_GAS_SEED_WALLET_KEY: process.env.SOLANA_GAS_SEED_WALLET_KEY ?? null,
     CORS_ORIGIN:           process.env.CORS_ORIGIN
                              ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
                              : null,

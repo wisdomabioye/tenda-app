@@ -22,12 +22,13 @@ import { ErrorCode } from '@tenda/shared'
 import { escrows } from '@tenda/shared/db/schema-v2'
 import { users } from '@tenda/shared/db/schema-v2/identity'
 import { AppError } from '@server/lib/errors'
+import { requireProfileComplete } from '@server/lib/guards'
 import { validateCreateEscrow, type CreateEscrowBody } from '@server/lib/escrow-create'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: CreateEscrowBody }>(
     '/',
-    { preHandler: [fastify.authenticate] },
+    { preHandler: [fastify.authenticate, requireProfileComplete] },
     async (request, reply) => {
       const input = validateCreateEscrow(
         {

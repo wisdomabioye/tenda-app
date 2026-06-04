@@ -41,7 +41,8 @@ const app: FastifyPluginAsync<AppOptions> = async (
         error: error.errorLabel,
         message: error.message,
         code: error.code as ErrorCode,
-      } satisfies ApiError)
+        ...(error.details !== undefined ? { details: error.details } : {}),
+      })
     }
 
     const statusCode = error.statusCode ?? 500

@@ -19,12 +19,16 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
+import { eq } from 'drizzle-orm'
 import { user_wallets } from '@tenda/shared/db/schema-v2'
+import { users } from '@tenda/shared/db/schema-v2/identity'
 import type { ChainNamespace } from '@tenda/shared/db/schema-v2/chains'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { drizzleNonceStore, consumeNonce } from '@server/lib/nonce'
 import { assertAuthMessage, parseAuthMessage } from '@server/lib/auth-message'
+import { dispatchGasSeeds } from '@server/lib/gas-seed'
+import { buildGasSeedDeps } from '@server/lib/onboarding-deps'
 import { getConfig } from '@server/config'
 
 interface Body {
@@ -89,6 +93,21 @@ const route: FastifyPluginAsync = async (fastify) => {
           409,
           ErrorCode.VALIDATION_ERROR,
           `wallet ${chain_ns}:${address} is already linked`,
+        )
+      }
+
+      // Gas-seed check on every successful link (stage-1, decision #16):
+      // only phone-verified users are eligible; the dispatcher itself is
+      // idempotent per (user, chain). Fire-and-forget — linking must not
+      // block on an RPC transfer.
+      const [me] = await fastify.db
+        .select({ phone_verified_at: users.phone_verified_at })
+        .from(users)
+        .where(eq(users.id, request.user.id))
+        .limit(1)
+      if (me?.phone_verified_at != null) {
+        void dispatchGasSeeds(buildGasSeedDeps(fastify), request.user.id).catch((err) =>
+          fastify.log.warn({ err, user_id: request.user.id }, 'gas seed on link failed'),
         )
       }
 

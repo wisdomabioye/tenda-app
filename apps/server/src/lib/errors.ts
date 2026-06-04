@@ -6,6 +6,12 @@ export class AppError extends Error {
     public readonly statusCode: number,
     public readonly code: ErrorCode | string,
     message: string,
+    /**
+     * Optional machine-readable payload serialized alongside the error
+     * (e.g. WALLET_IN_USE returns the blocking escrow_ids). Keep it small
+     * and JSON-safe — it goes straight to the client.
+     */
+    public readonly details?: Record<string, unknown>,
   ) {
     super(message)
     this.name = 'AppError'

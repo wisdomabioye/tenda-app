@@ -38,6 +38,13 @@ export const ErrorCode = {
   AUTH_NONCE_UNKNOWN:            'AUTH_NONCE_UNKNOWN',
   AUTH_NONCE_REPLAY:             'AUTH_NONCE_REPLAY',
   AUTH_NONCE_EXPIRED:            'AUTH_NONCE_EXPIRED',
+  // Stage 1 — onboarding (phone OTP, multi-wallet management)
+  PROFILE_INCOMPLETE:            'PROFILE_INCOMPLETE',
+  WALLET_IN_USE:                 'WALLET_IN_USE',
+  OTP_RATE_LIMITED:              'OTP_RATE_LIMITED',
+  OTP_INVALID:                   'OTP_INVALID',
+  OTP_EXPIRED:                   'OTP_EXPIRED',
+  PHONE_ALREADY_VERIFIED:        'PHONE_ALREADY_VERIFIED',
   // Generic
   NOT_FOUND:                     'NOT_FOUND',
   VALIDATION_ERROR:              'VALIDATION_ERROR',
