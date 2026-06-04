@@ -15,6 +15,7 @@
 
 import { SOLANA_CAIP_BY_NETWORK } from '@tenda/shared'
 import { solanaAdapter, type SolanaAdapterDeps } from '@server/chains/solana'
+import { evmAdapter, type EvmAdapterDeps } from '@server/chains/evm'
 import type { Config } from '@server/config'
 import type { ChainAdapter, ChainId, ChainRegistry } from '@server/chains/types'
 
@@ -25,6 +26,8 @@ import type { ChainAdapter, ChainId, ChainRegistry } from '@server/chains/types'
  */
 export interface ChainRegistryDeps {
   solana: SolanaAdapterDeps
+  /** Stage 3+: present only when an EVM chain is configured. */
+  evm?: EvmAdapterDeps
 }
 
 /**
@@ -63,6 +66,22 @@ export function buildChainRegistry(config: Config, deps: ChainRegistryDeps): Cha
       deps: deps.solana,
     }),
   )
+
+  // ---- BASE (Stage 3) --------------------------------------------------
+  // Registered only when the deployment configures it (#47 externals:
+  // RPC + deployed contract). The same evmAdapter serves CELO in Stage 4
+  // with its own args block.
+  if (config.BASE_RPC_URL !== null && config.BASE_ESCROW_ADDR !== null && deps.evm !== undefined) {
+    register(
+      evmAdapter({
+        chain_id: 'eip155:8453',
+        rpc_url: config.BASE_RPC_URL,
+        escrow_contract: config.BASE_ESCROW_ADDR as `0x${string}`,
+        min_confirmations: 5,
+        deps: deps.evm,
+      }),
+    )
+  }
 
   return {
     get(chain_id) {

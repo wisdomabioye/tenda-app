@@ -47,7 +47,10 @@ export interface SeedRows {
 }
 
 export function buildSeedRows(
-  config: Pick<Config, 'SOLANA_TREASURY_ADDRESS' | 'SOLANA_USDC_MINT'>,
+  config: Pick<
+    Config,
+    'SOLANA_TREASURY_ADDRESS' | 'SOLANA_USDC_MINT' | 'BASE_ESCROW_ADDR' | 'BASE_USDC_ADDR' | 'MULTISIG_BASE_ADDR'
+  >,
   /** Network this deployment targets — the USDC mint belongs to it. */
   active_chain_id: 'solana:mainnet' | 'solana:devnet',
 ): SeedRows {
@@ -96,6 +99,48 @@ export function buildSeedRows(
     })
   } else {
     skipped.push('USDC_SOL (SOLANA_USDC_MINT not set)')
+  }
+
+  // Stage 3: BASE — rows land only when the deployment configures the
+  // contract (#47 externals). ETH_BASE is exchange-only by server policy.
+  // typeof guards (not !== null): a partial config object that omits the
+  // BASE keys entirely must read as "unset", same as env-null.
+  const baseEscrow = typeof config.BASE_ESCROW_ADDR === 'string' ? config.BASE_ESCROW_ADDR : null
+  const baseMultisig = typeof config.MULTISIG_BASE_ADDR === 'string' ? config.MULTISIG_BASE_ADDR : null
+  if ((baseEscrow === null) !== (baseMultisig === null)) {
+    // Half-configured is a misconfiguration — warn; fully unset is the
+    // normal pre-#47 state and stays silent.
+    skipped.push('BASE chain (BASE_ESCROW_ADDR and MULTISIG_BASE_ADDR must both be set)')
+  }
+  if (baseEscrow !== null && baseMultisig !== null) {
+    chainRows.push({
+      id: 'eip155:8453',
+      namespace: 'eip155',
+      display_name: 'BASE',
+      min_confirmations: 5,
+      treasury_address: baseMultisig,
+      escrow_program: baseEscrow,
+    })
+    if (typeof config.BASE_USDC_ADDR === 'string') {
+      assetRows.push({
+        id: 'USDC_BASE',
+        chain_id: 'eip155:8453',
+        symbol: 'USDC',
+        decimals: 6,
+        token_address: config.BASE_USDC_ADDR,
+        is_stable: true,
+      })
+    } else {
+      skipped.push('USDC_BASE (BASE_USDC_ADDR not set)')
+    }
+    assetRows.push({
+      id: 'ETH_BASE',
+      chain_id: 'eip155:8453',
+      symbol: 'ETH',
+      decimals: 18,
+      token_address: null,
+      is_stable: false,
+    })
   }
 
   // Stage 8: routing registry (enable/priority only — credentials live in

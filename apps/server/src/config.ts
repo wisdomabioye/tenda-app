@@ -70,6 +70,14 @@ export interface Config {
   ONRAMPMONEY_WEBHOOK_SECRET: string | null
   /** NIP name-enquiry credentials — bank-account verification. */
   NIP_API_KEY: string | null
+  /** Stage 3 — BASE (eip155). All null-gated: unset = chain not registered. */
+  BASE_RPC_URL: string | null
+  BASE_ESCROW_ADDR: string | null
+  BASE_USDC_ADDR: string | null
+  /** Safe 3-of-5 on BASE — protocol admin / treasury. */
+  MULTISIG_BASE_ADDR: string | null
+  COINBASE_PAYMASTER_URL: string | null
+  ALCHEMY_WEBHOOK_SECRET: string | null
   /**
    * S5.1 push credentials (#53). FCM: base64-encoded service-account JSON
    * (HTTP v1 — the legacy server-key API is retired). APNs: p8 token auth.
@@ -133,6 +141,12 @@ export function loadConfig(): Config {
     ONRAMPMONEY_API_SECRET:     process.env.ONRAMPMONEY_API_SECRET ?? null,
     ONRAMPMONEY_WEBHOOK_SECRET: process.env.ONRAMPMONEY_WEBHOOK_SECRET ?? null,
     NIP_API_KEY:                process.env.NIP_API_KEY ?? null,
+    BASE_RPC_URL:           process.env.BASE_RPC_URL ?? null,
+    BASE_ESCROW_ADDR:       process.env.BASE_ESCROW_ADDR ?? null,
+    BASE_USDC_ADDR:         process.env.BASE_USDC_ADDR ?? null,
+    MULTISIG_BASE_ADDR:     process.env.MULTISIG_BASE_ADDR ?? null,
+    COINBASE_PAYMASTER_URL: process.env.COINBASE_PAYMASTER_URL ?? null,
+    ALCHEMY_WEBHOOK_SECRET: process.env.ALCHEMY_WEBHOOK_SECRET ?? null,
     FCM_SERVICE_ACCOUNT_B64: process.env.FCM_SERVICE_ACCOUNT_B64 ?? null,
     APNS_KEY_ID:           process.env.APNS_KEY_ID ?? null,
     APNS_TEAM_ID:          process.env.APNS_TEAM_ID ?? null,

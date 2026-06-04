@@ -34,10 +34,15 @@
       "types": "./dist/idl/legacy/index.d.ts",
       "require": "./dist/idl/legacy/index.js",
       "default": "./dist/idl/legacy/index.js"
+    },
+    "./abi": {
+      "types": "./dist/abi/index.d.ts",
+      "require": "./dist/abi/index.js",
+      "default": "./dist/abi/index.js"
     }
   },
   "scripts": {
-    "build": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/idl/legacy/tenda_escrow.json dist/idl/legacy/",
+    "build": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/idl/legacy/tenda_escrow.json dist/idl/legacy/ && cp src/abi/tenda_escrow_evm.json dist/abi/",
     "prepare": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/idl/legacy/tenda_escrow.json dist/idl/legacy/",
     "build:watch": "tsc -w",
     "type-check": "tsc --noEmit",
