@@ -42,6 +42,7 @@ const SUPPORTED_NETWORKS: Record<Hex, string> = {
   '0x1': 'https://cloudflare-eth.com',
   '0x2105': 'https://mainnet.base.org', // Base (8453)
   '0x14a34': 'https://sepolia.base.org', // Base Sepolia (84532)
+  '0xa4ec': 'https://forno.celo.org', // CELO (42220)
 }
 
 let clientPromise: Promise<MetamaskConnectEVM> | null = null
@@ -140,6 +141,45 @@ async function getRestoredAccount(): Promise<SpikeAccount | null> {
   } catch {
     return null
   }
+}
+
+/**
+ * Send a prepared EVM transaction through the connected MetaMask session
+ * (stage-3 § mobile). `feeCurrency` rides along for CELO — wallets that
+ * support the field show gas in cUSD; others ignore it.
+ * Returns the tx hash.
+ */
+export async function sendEvmTransaction(input: {
+  from: string
+  to: string
+  data: string
+  /** Decimal string (wei). */
+  value: string
+  /** CAIP-2 ('eip155:8453') — the wallet switches here before sending. */
+  chainId?: string
+  feeCurrency?: string
+}): Promise<string> {
+  const client = await getClient()
+  if (input.chainId !== undefined) {
+    const decimal = Number(input.chainId.split(':')[1])
+    if (Number.isFinite(decimal)) {
+      await client.switchChain({ chainId: `0x${decimal.toString(16)}` as Hex })
+    }
+  }
+  const result = await client.getProvider().request({
+    method: 'eth_sendTransaction',
+    params: [
+      {
+        from: input.from,
+        to: input.to,
+        data: input.data,
+        value: `0x${BigInt(input.value).toString(16)}`,
+        ...(input.feeCurrency !== undefined ? { feeCurrency: input.feeCurrency } : {}),
+      },
+    ],
+  })
+  if (typeof result !== 'string') throw new Error('MetaMask returned a non-string tx hash')
+  return result
 }
 
 export const metamaskAdapter: WalletAdapter = {

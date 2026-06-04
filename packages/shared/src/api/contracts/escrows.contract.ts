@@ -43,6 +43,8 @@ export type UnsignedTx =
       data: string
       value: string
       gas_limit?: string
+      /** CELO gas abstraction: pay gas in this ERC-20 (cUSD). */
+      fee_currency?: string
     }
   | {
       kind: 'evm-userop'
