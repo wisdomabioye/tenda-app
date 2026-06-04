@@ -1,0 +1,125 @@
+/**
+ * Stage-0 cutover seeds (cutover checklist §1): chains, assets,
+ * platform_config. Idempotent by construction — every insert is
+ * `ON CONFLICT DO NOTHING` (checklist §10.5), so re-runs are no-ops and
+ * boot-time invocation is safe.
+ *
+ * Run: `pnpm --filter tenda-server db:seed` (requires DATABASE_URL +
+ * SOLANA_* env). Values are config/IDL-driven — nothing chain-shaped is
+ * hardcoded here:
+ *   - escrow program id ← @tenda/shared/idl (the deployed artifact)
+ *   - treasury           ← SOLANA_TREASURY_ADDRESS
+ *   - USDC mint          ← SOLANA_USDC_MINT (asset skipped + warned if unset)
+ *   - gas-seed columns stay NULL until the hot wallet exists (#40); the
+ *     paired CHECK constraint requires both-or-neither.
+ *
+ * BASE/CELO rows land in Stages 3/4 by extending `buildSeedRows`.
+ */
+
+import 'dotenv/config'
+import postgres from 'postgres'
+import { drizzle } from 'drizzle-orm/postgres-js'
+import { ESCROW_IDL } from '@tenda/shared/idl'
+import { assets, chains } from '@tenda/shared/db/schema-v2/chains'
+import { platform_config } from '@tenda/shared/db/schema-v2/governance'
+import { loadConfig, type Config } from '@server/config'
+
+// ---------- pure row builder (unit-tested) ---------------------------------
+
+type ChainRow = typeof chains.$inferInsert
+type AssetRow = typeof assets.$inferInsert
+
+export interface SeedRows {
+  chains: ChainRow[]
+  assets: AssetRow[]
+  /** Assets skipped because their config inputs are missing. */
+  skipped: string[]
+}
+
+export function buildSeedRows(
+  config: Pick<Config, 'SOLANA_TREASURY_ADDRESS' | 'SOLANA_USDC_MINT'>,
+  /** Network this deployment targets — the USDC mint belongs to it. */
+  active_chain_id: 'solana:mainnet' | 'solana:devnet',
+): SeedRows {
+  const escrow_program = ESCROW_IDL.address
+  const chainRows: ChainRow[] = [
+    {
+      id: 'solana:mainnet',
+      namespace: 'solana',
+      display_name: 'Solana',
+      min_confirmations: 1,
+      treasury_address: config.SOLANA_TREASURY_ADDRESS,
+      escrow_program,
+    },
+    {
+      id: 'solana:devnet',
+      namespace: 'solana',
+      display_name: 'Solana Devnet',
+      min_confirmations: 1,
+      treasury_address: config.SOLANA_TREASURY_ADDRESS,
+      escrow_program,
+    },
+  ]
+
+  const assetRows: AssetRow[] = []
+  const skipped: string[] = []
+  for (const chain of chainRows) {
+    assetRows.push({
+      id: chain.id === 'solana:mainnet' ? 'SOL' : 'SOL_DEVNET',
+      chain_id: chain.id,
+      symbol: 'SOL',
+      decimals: 9,
+      token_address: null,
+      is_stable: false,
+    })
+  }
+  if (config.SOLANA_USDC_MINT !== null) {
+    // The mint differs per network — the configured value belongs to the
+    // network this deployment targets, so only that side gets the row.
+    assetRows.push({
+      id: 'USDC_SOL',
+      chain_id: active_chain_id,
+      symbol: 'USDC',
+      decimals: 6,
+      token_address: config.SOLANA_USDC_MINT,
+      is_stable: true,
+    })
+  } else {
+    skipped.push('USDC_SOL (SOLANA_USDC_MINT not set)')
+  }
+
+  return { chains: chainRows, assets: assetRows, skipped }
+}
+
+// ---------- I/O wrapper ------------------------------------------------------
+
+async function seed(): Promise<void> {
+  const config = loadConfig()
+  const activeChainId =
+    config.SOLANA_NETWORK === 'mainnet-beta' ? 'solana:mainnet' : 'solana:devnet'
+  const rows = buildSeedRows(config, activeChainId)
+
+  const sql = postgres(config.DATABASE_URL, { max: 1 })
+  const db = drizzle(sql)
+  try {
+    await db.insert(chains).values(rows.chains).onConflictDoNothing({ target: chains.id })
+    await db.insert(assets).values(rows.assets).onConflictDoNothing({ target: assets.id })
+    await db.insert(platform_config).values({ id: 1 }).onConflictDoNothing({
+      target: platform_config.id,
+    })
+    console.log(
+      `seed-v2: ${rows.chains.length} chains, ${rows.assets.length} assets, platform_config ensured`,
+    )
+    for (const s of rows.skipped) console.warn(`seed-v2: skipped ${s}`)
+  } finally {
+    await sql.end()
+  }
+}
+
+// Execute only when run directly (tsx src/db/seed-v2.ts), not on import.
+if (require.main === module) {
+  seed().catch((err) => {
+    console.error('seed-v2 failed:', err)
+    process.exitCode = 1
+  })
+}
