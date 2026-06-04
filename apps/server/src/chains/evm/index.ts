@@ -54,6 +54,12 @@ export interface EvmAdapterArgs {
   escrow_contract: `0x${string}`
   /** Reorg safety margin before a receipt counts as confirmed. */
   min_confirmations: number
+  /**
+   * CELO-style gas abstraction: when set, every plain tx carries
+   * `feeCurrency` so the user pays gas in stables (stage-4 final policy:
+   * always-on for CELO — no counter, no paymaster).
+   */
+  fee_currency?: `0x${string}`
   deps: EvmAdapterDeps
 }
 
@@ -115,6 +121,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       to: args.escrow_contract,
       data: call.data,
       value: call.value_raw,
+      ...(args.fee_currency !== undefined ? { fee_currency: args.fee_currency } : {}),
     }
   }
 

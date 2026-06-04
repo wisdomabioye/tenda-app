@@ -404,3 +404,27 @@ test('extractTxHashes: dedupes valid hashes, ignores junk shapes', () => {
   assert.deepStrictEqual(extractTxHashes(null), [])
   assert.deepStrictEqual(extractTxHashes({ event: {} }), [])
 })
+
+test('fee_currency (CELO): plain txs carry it; userops and other chains never do', async () => {
+  const CUSD = '0x765DE816845861e75A25fCA122bb6898B8B1282a' as const
+  const celo = evmAdapter({
+    chain_id: 'eip155:42220',
+    rpc_url: 'http://unused.invalid',
+    escrow_contract: CONTRACT,
+    min_confirmations: 3,
+    fee_currency: CUSD,
+    deps: {
+      resolveWalletAddress: async () => CREATOR,
+      resolveAsset: async () => ({ token_address: null }),
+      rpc: fakeRpc(),
+    },
+  })
+  const tx = await celo.buildTx({ action: 'acceptEscrow', user_id: 'u1', payload: { escrow_id: UUID } })
+  assert.strictEqual(tx.kind, 'evm-tx')
+  if (tx.kind === 'evm-tx') assert.strictEqual(tx.fee_currency, CUSD)
+
+  // BASE adapter (no fee_currency arg) must not grow the field.
+  const base = makeAdapter()
+  const baseTx = await base.buildTx({ action: 'acceptEscrow', user_id: 'u1', payload: { escrow_id: UUID } })
+  if (baseTx.kind === 'evm-tx') assert.strictEqual('fee_currency' in baseTx, false)
+})

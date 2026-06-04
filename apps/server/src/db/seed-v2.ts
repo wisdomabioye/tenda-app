@@ -22,6 +22,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { ESCROW_IDL } from '@tenda/shared/idl'
 import { assets, chains } from '@tenda/shared/db/schema-v2/chains'
 import { fiat_providers } from '@tenda/shared/db/schema-v2/fiat'
+import { CELO_CUSD_ADDR, CELO_USDC_ADDR } from '@server/chains/celo/config'
 import { platform_config } from '@tenda/shared/db/schema-v2/governance'
 import { loadConfig, type Config } from '@server/config'
 
@@ -49,7 +50,13 @@ export interface SeedRows {
 export function buildSeedRows(
   config: Pick<
     Config,
-    'SOLANA_TREASURY_ADDRESS' | 'SOLANA_USDC_MINT' | 'BASE_ESCROW_ADDR' | 'BASE_USDC_ADDR' | 'MULTISIG_BASE_ADDR'
+    | 'SOLANA_TREASURY_ADDRESS'
+    | 'SOLANA_USDC_MINT'
+    | 'BASE_ESCROW_ADDR'
+    | 'BASE_USDC_ADDR'
+    | 'MULTISIG_BASE_ADDR'
+    | 'CELO_ESCROW_ADDR'
+    | 'MULTISIG_CELO_ADDR'
   >,
   /** Network this deployment targets — the USDC mint belongs to it. */
   active_chain_id: 'solana:mainnet' | 'solana:devnet',
@@ -141,6 +148,29 @@ export function buildSeedRows(
       token_address: null,
       is_stable: false,
     })
+  }
+
+  // Stage 4: CELO — same gating semantics as BASE; token addresses are
+  // canonical mainnet constants (chains/celo/config.ts).
+  const celoEscrow = typeof config.CELO_ESCROW_ADDR === 'string' ? config.CELO_ESCROW_ADDR : null
+  const celoMultisig = typeof config.MULTISIG_CELO_ADDR === 'string' ? config.MULTISIG_CELO_ADDR : null
+  if ((celoEscrow === null) !== (celoMultisig === null)) {
+    skipped.push('CELO chain (CELO_ESCROW_ADDR and MULTISIG_CELO_ADDR must both be set)')
+  }
+  if (celoEscrow !== null && celoMultisig !== null) {
+    chainRows.push({
+      id: 'eip155:42220',
+      namespace: 'eip155',
+      display_name: 'CELO',
+      min_confirmations: 3,
+      treasury_address: celoMultisig,
+      escrow_program: celoEscrow,
+    })
+    assetRows.push(
+      { id: 'cUSD', chain_id: 'eip155:42220', symbol: 'cUSD', decimals: 18, token_address: CELO_CUSD_ADDR, is_stable: true },
+      { id: 'USDC_CELO', chain_id: 'eip155:42220', symbol: 'USDC', decimals: 6, token_address: CELO_USDC_ADDR, is_stable: true },
+      { id: 'CELO', chain_id: 'eip155:42220', symbol: 'CELO', decimals: 18, token_address: null, is_stable: false },
+    )
   }
 
   // Stage 8: routing registry (enable/priority only — credentials live in

@@ -218,6 +218,12 @@ export type UnsignedTx =
       data: `0x${string}`
       value: AmountRaw
       gas_limit?: AmountRaw
+      /**
+       * CELO gas abstraction (stage-4): pay gas in this whitelisted ERC-20
+       * (cUSD) instead of native CELO. Wallets that support the field show
+       * "Gas fee: 0.001 cUSD"; absent everywhere else.
+       */
+      fee_currency?: `0x${string}`
     }
   | {
       kind: 'evm-userop'

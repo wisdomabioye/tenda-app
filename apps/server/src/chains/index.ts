@@ -16,6 +16,7 @@
 import { SOLANA_CAIP_BY_NETWORK } from '@tenda/shared'
 import { solanaAdapter, type SolanaAdapterDeps } from '@server/chains/solana'
 import { evmAdapter, type EvmAdapterDeps } from '@server/chains/evm'
+import { CELO_CHAIN_ID, CELO_CUSD_ADDR, CELO_MIN_CONFIRMATIONS } from '@server/chains/celo/config'
 import type { Config } from '@server/config'
 import type { ChainAdapter, ChainId, ChainRegistry } from '@server/chains/types'
 
@@ -26,8 +27,12 @@ import type { ChainAdapter, ChainId, ChainRegistry } from '@server/chains/types'
  */
 export interface ChainRegistryDeps {
   solana: SolanaAdapterDeps
-  /** Stage 3+: present only when an EVM chain is configured. */
-  evm?: EvmAdapterDeps
+  /**
+   * Stage 3/4: per-chain dep sets (BASE carries the paymaster +
+   * sponsorship probe; CELO carries neither — gas rides feeCurrency).
+   */
+  base?: EvmAdapterDeps
+  celo?: EvmAdapterDeps
 }
 
 /**
@@ -71,14 +76,31 @@ export function buildChainRegistry(config: Config, deps: ChainRegistryDeps): Cha
   // Registered only when the deployment configures it (#47 externals:
   // RPC + deployed contract). The same evmAdapter serves CELO in Stage 4
   // with its own args block.
-  if (config.BASE_RPC_URL !== null && config.BASE_ESCROW_ADDR !== null && deps.evm !== undefined) {
+  if (config.BASE_RPC_URL !== null && config.BASE_ESCROW_ADDR !== null && deps.base !== undefined) {
     register(
       evmAdapter({
         chain_id: 'eip155:8453',
         rpc_url: config.BASE_RPC_URL,
         escrow_contract: config.BASE_ESCROW_ADDR as `0x${string}`,
         min_confirmations: 5,
-        deps: deps.evm,
+        deps: deps.base,
+      }),
+    )
+  }
+
+  // ---- CELO (Stage 4) ----------------------------------------------------
+  // Same generic adapter; the differences are config: feeCurrency=cUSD on
+  // every plain tx (no paymaster, no counter — stage-4 final policy) and a
+  // shorter confirmation margin.
+  if (config.CELO_RPC_URL !== null && config.CELO_ESCROW_ADDR !== null && deps.celo !== undefined) {
+    register(
+      evmAdapter({
+        chain_id: CELO_CHAIN_ID,
+        rpc_url: config.CELO_RPC_URL,
+        escrow_contract: config.CELO_ESCROW_ADDR as `0x${string}`,
+        min_confirmations: CELO_MIN_CONFIRMATIONS,
+        fee_currency: CELO_CUSD_ADDR,
+        deps: deps.celo,
       }),
     )
   }

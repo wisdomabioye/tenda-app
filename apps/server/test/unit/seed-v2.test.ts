@@ -11,10 +11,12 @@ import { buildSeedRows } from '@server/db/seed-v2'
 const CONFIG = {
   SOLANA_TREASURY_ADDRESS: 'Treas1111111111111111111111111111111111111',
   SOLANA_USDC_MINT: 'Mint11111111111111111111111111111111111111',
-  // Stage 3 — unset by default; the BASE test below opts in.
+  // Stage 3/4 — unset by default; the chain tests below opt in.
   BASE_ESCROW_ADDR: null,
   BASE_USDC_ADDR: null,
   MULTISIG_BASE_ADDR: null,
+  CELO_ESCROW_ADDR: null,
+  MULTISIG_CELO_ADDR: null,
 }
 
 const BASE_CONFIG = {
@@ -92,4 +94,26 @@ test('BASE without the USDC address seeds the chain + ETH, skips USDC loudly', (
   assert.ok(!rows.assets.some((a) => a.id === 'USDC_BASE'))
   assert.ok(rows.assets.some((a) => a.id === 'ETH_BASE'))
   assert.ok(rows.skipped.some((m) => m.includes('USDC_BASE')))
+})
+
+test('CELO rows are env-gated with canonical token constants', () => {
+  const unset = buildSeedRows(CONFIG, 'solana:devnet')
+  assert.ok(!unset.chains.some((c) => c.id === 'eip155:42220'))
+  assert.strictEqual(unset.skipped.length, 0)
+
+  const half = buildSeedRows({ ...CONFIG, CELO_ESCROW_ADDR: '0xce10' }, 'solana:devnet')
+  assert.ok(half.skipped.some((m) => m.includes('CELO')))
+
+  const set = buildSeedRows(
+    { ...CONFIG, CELO_ESCROW_ADDR: '0xce10', MULTISIG_CELO_ADDR: '0xsafe' },
+    'solana:devnet',
+  )
+  const celo = set.chains.find((c) => c.id === 'eip155:42220')
+  assert.ok(celo && celo.min_confirmations === 3)
+  const ids = set.assets.map((a) => a.id)
+  assert.ok(ids.includes('cUSD') && ids.includes('USDC_CELO') && ids.includes('CELO'))
+  const cusd = set.assets.find((a) => a.id === 'cUSD')
+  assert.ok(cusd && cusd.decimals === 18 && cusd.is_stable === true)
+  const native = set.assets.find((a) => a.id === 'CELO')
+  assert.ok(native && native.token_address === null && native.is_stable === false)
 })

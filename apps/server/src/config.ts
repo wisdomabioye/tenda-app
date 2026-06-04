@@ -78,6 +78,10 @@ export interface Config {
   MULTISIG_BASE_ADDR: string | null
   COINBASE_PAYMASTER_URL: string | null
   ALCHEMY_WEBHOOK_SECRET: string | null
+  /** Stage 4 — CELO (eip155:42220). Null-gated like BASE. */
+  CELO_RPC_URL: string | null
+  CELO_ESCROW_ADDR: string | null
+  MULTISIG_CELO_ADDR: string | null
   /**
    * S5.1 push credentials (#53). FCM: base64-encoded service-account JSON
    * (HTTP v1 — the legacy server-key API is retired). APNs: p8 token auth.
@@ -147,6 +151,9 @@ export function loadConfig(): Config {
     MULTISIG_BASE_ADDR:     process.env.MULTISIG_BASE_ADDR ?? null,
     COINBASE_PAYMASTER_URL: process.env.COINBASE_PAYMASTER_URL ?? null,
     ALCHEMY_WEBHOOK_SECRET: process.env.ALCHEMY_WEBHOOK_SECRET ?? null,
+    CELO_RPC_URL:       process.env.CELO_RPC_URL ?? null,
+    CELO_ESCROW_ADDR:   process.env.CELO_ESCROW_ADDR ?? null,
+    MULTISIG_CELO_ADDR: process.env.MULTISIG_CELO_ADDR ?? null,
     FCM_SERVICE_ACCOUNT_B64: process.env.FCM_SERVICE_ACCOUNT_B64 ?? null,
     APNS_KEY_ID:           process.env.APNS_KEY_ID ?? null,
     APNS_TEAM_ID:          process.env.APNS_TEAM_ID ?? null,
