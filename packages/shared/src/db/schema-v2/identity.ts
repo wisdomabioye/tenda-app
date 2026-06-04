@@ -70,6 +70,12 @@ export const user_wallets = pgTable(
     uniqueIndex('user_wallets_one_primary_per_user_idx')
       .on(t.user_id)
       .where(sql`${t.is_primary} = true`),
+    // S5.7 (closes open A6): admin wallet prefix search (LIKE 'abc%') needs
+    // the text_pattern_ops operator class.
+    index('user_wallets_address_prefix_idx').using(
+      'btree',
+      sql`${t.address} text_pattern_ops`,
+    ),
   ],
 )
 

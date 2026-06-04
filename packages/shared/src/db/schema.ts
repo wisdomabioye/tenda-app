@@ -268,6 +268,10 @@ export const conversations = pgTable('conversations', {
   user_pair_unique: uniqueIndex('conversations_user_pair_unique').on(t.user_a_id, t.user_b_id),
   user_a_idx:       index('conversations_user_a_idx').on(t.user_a_id),
   user_b_idx:       index('conversations_user_b_idx').on(t.user_b_id),
+  // S5.7 (closes open 86): inbox ordering — list a user's conversations
+  // newest-message-first without a sort node.
+  user_a_last_msg_idx: index('conversations_user_a_last_msg_idx').on(t.user_a_id, t.last_message_at.desc()),
+  user_b_last_msg_idx: index('conversations_user_b_last_msg_idx').on(t.user_b_id, t.last_message_at.desc()),
 }))
 
 export const messages = pgTable('messages', {
@@ -337,6 +341,8 @@ export const reports = pgTable('reports', {
   status_idx:              index('reports_status_idx').on(t.status),
   content_type_status_idx: index('reports_content_type_status_idx').on(t.content_type, t.status),
   content_id_idx:          index('reports_content_id_idx').on(t.content_id),
+  // S5.7 (closes open 87): report queue is sorted newest-first.
+  created_at_idx:          index('reports_created_at_idx').on(t.created_at.desc()),
   reported_user_idx:       index('reports_reported_user_id_idx').on(t.reported_user_id),
 }))
 

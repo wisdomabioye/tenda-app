@@ -13,7 +13,7 @@ export interface ProofFile {
  * Returns the secure CDN URL.
  */
 export async function uploadToCloudinary(file: ProofFile, type: UploadType): Promise<string> {
-  const { signature, timestamp, cloud_name, api_key, folder } = await api.upload.signature({ type })
+  const { signature, timestamp, cloud_name, api_key, folder, allowed_formats } = await api.upload.signature({ type })
 
   const formData = new FormData()
   formData.append('file', {
@@ -25,6 +25,8 @@ export async function uploadToCloudinary(file: ProofFile, type: UploadType): Pro
   formData.append('timestamp', String(timestamp))
   formData.append('signature', signature)
   formData.append('folder', folder)
+  // Signed param (S5.12) — must be sent or Cloudinary rejects the signature.
+  formData.append('allowed_formats', allowed_formats)
 
   // Abort the upload after 120 s to prevent silent hangs on large files / slow connections.
   const controller = new AbortController()

@@ -1,5 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq, and, desc, sql, SQL } from 'drizzle-orm'
+import { inArray, eq, and, desc, sql, SQL } from 'drizzle-orm'
 import { gigs, users } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import { requireRole } from '@server/lib/guards'
@@ -197,13 +197,25 @@ const adminGigs: FastifyPluginAsync = async (fastify) => {
   }, async (request) => {
     const { id } = request.params
 
+    // S5.9: only live gigs are featurable — completed/cancelled/disputed
+    // gigs in the public feed would be dead links.
     const [updated] = await fastify.db
       .update(gigs)
       .set({ featured: true, updated_at: new Date() })
-      .where(eq(gigs.id, id))
+      .where(and(eq(gigs.id, id), inArray(gigs.status, ['open', 'accepted'])))
       .returning({ id: gigs.id, featured: gigs.featured })
 
-    if (!updated) throw new AppError(404, ErrorCode.GIG_NOT_FOUND, 'Gig not found')
+    if (!updated) {
+      const [exists] = await fastify.db
+        .select({ status: gigs.status })
+        .from(gigs)
+        .where(eq(gigs.id, id))
+        .limit(1)
+      if (exists) {
+        throw new AppError(409, ErrorCode.GIG_WRONG_STATUS, `cannot feature a '${exists.status}' gig`)
+      }
+      throw new AppError(404, ErrorCode.GIG_NOT_FOUND, 'Gig not found')
+    }
 
     appEvents.emit('admin.feature_gig', {
       adminId: request.user.id, adminWallet: request.user.wallet_address, adminRole: request.user.role,
