@@ -7,11 +7,15 @@ const POLL_INTERVAL_MS = 15_000
 /**
  * Polls conversations in the background to keep the unread badge current.
  * Pauses automatically when the app is backgrounded.
+ *
+ * `enabled` lets useInboxRealtime park this loop while the WS connection
+ * is healthy (E4: polling is the fallback, not the default).
  */
-export function useConversationPolling() {
+export function useConversationPolling(enabled = true) {
   const appState = useRef(AppState.currentState)
 
   useEffect(() => {
+    if (!enabled) return
     let timer: ReturnType<typeof setTimeout> | null = null
     let cancelled = false
 
@@ -46,5 +50,5 @@ export function useConversationPolling() {
       if (timer) clearTimeout(timer)
       sub.remove()
     }
-  }, [])
+  }, [enabled])
 }

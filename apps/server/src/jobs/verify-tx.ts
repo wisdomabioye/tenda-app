@@ -149,6 +149,8 @@ export interface VerifyTxDeps {
     internal_event: InternalEscrowEvent
     escrow_id: string
     wire_event: EscrowEvent
+    /** On-chain signature/hash — clients correlate WS frames against it. */
+    tx_ref: string
   }): Promise<void>
   log: { warn(obj: Record<string, unknown>, msg: string): void }
 }
@@ -225,6 +227,7 @@ export async function verifyTxJobHandler(
         internal_event: result.internal_event,
         escrow_id: result.escrow_id,
         wire_event: verified.event.name,
+        tx_ref: job.tx_ref,
       })
     } catch (err) {
       deps.log.warn(

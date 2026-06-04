@@ -4,6 +4,7 @@ import { conversations, messages, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { ConversationsContract, ApiError, Conversation } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '@server/lib/db'
+import { messagePreview } from '@server/lib/chat'
 import { AppError } from '@server/lib/errors'
 
 type ListRoute       = ConversationsContract['list']
@@ -85,6 +86,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
           .selectDistinctOn([messages.conversation_id], {
             conversation_id: messages.conversation_id,
             content:         messages.content,
+            attachment_url:  messages.attachment_url,
           })
           .from(messages)
           .where(inArray(messages.conversation_id, convIds))
@@ -93,7 +95,9 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
 
       const otherUserMap = new Map(otherUsers.map((u) => [u.id, u]))
       const unreadMap    = new Map(unreadRows.map((r) => [r.conversation_id, r.count]))
-      const lastMsgMap   = new Map(lastMsgRows.map((r) => [r.conversation_id, r.content]))
+      const lastMsgMap   = new Map(
+        lastMsgRows.map((r) => [r.conversation_id, messagePreview(r.content, r.attachment_url !== null)]),
+      )
 
       // Assemble the response — no additional DB calls
       const result: Conversation[] = rows.map((conv) => {
@@ -198,14 +202,15 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
               isNull(messages.read_at),
             )),
           fastify.db
-            .selectDistinctOn([messages.conversation_id], { content: messages.content })
+            .selectDistinctOn([messages.conversation_id], { content: messages.content, attachment_url: messages.attachment_url })
             .from(messages)
             .where(eq(messages.conversation_id, existing.id))
             .orderBy(messages.conversation_id, desc(messages.created_at))
             .limit(1),
         ])
         unread_count = unreadResult[0]?.count ?? 0
-        last_message = lastMsgResult[0]?.content ?? null
+        const lastMsg = lastMsgResult[0]
+        last_message = lastMsg ? messagePreview(lastMsg.content, lastMsg.attachment_url !== null) : null
       }
 
       return {

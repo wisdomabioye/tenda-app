@@ -1,11 +1,18 @@
 import { create } from 'zustand'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
-import type { Conversation, Message } from '@tenda/shared'
+import { ATTACHMENT_PREVIEW, type Conversation, type Message } from '@tenda/shared'
 
 // A message optimistically added before server confirmation
 export type LocalMessage = Message & {
   _status?: 'sending' | 'sent' | 'failed'
+}
+
+/** Already-uploaded Cloudinary attachment riding along with a message. */
+export interface MessageAttachment {
+  url: string
+  type: 'image' | 'file'
+  size: number
 }
 
 interface ChatState {
@@ -16,10 +23,11 @@ interface ChatState {
   fetchConversations: () => Promise<void>
   findOrCreate:       (userId: string) => Promise<Conversation>
   fetchMessages:      (conversationId: string, beforeId?: string) => Promise<Message[]>
-  sendMessage:        (conversationId: string, content: string, gigId?: string, offerId?: string) => Promise<void>
+  sendMessage:        (conversationId: string, content: string, gigId?: string, offerId?: string, attachment?: MessageAttachment) => Promise<void>
   retryMessage:       (conversationId: string, message: LocalMessage) => void
   closeConversation:  (conversationId: string) => Promise<void>
   appendMessage:      (conversationId: string, message: LocalMessage) => void
+  receiveMessage:     (conversationId: string, message: Message) => void
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -75,7 +83,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     return fetched
   },
 
-  sendMessage: async (conversationId, content, gigId, offerId) => {
+  sendMessage: async (conversationId, content, gigId, offerId, attachment) => {
     const tempId = `temp_${Date.now()}`
     const optimistic: LocalMessage = {
       id:              tempId,
@@ -86,9 +94,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
       offer_id:        offerId ?? null,
       offer_title:     null,
       content,
-      attachment_url:  null,
-      attachment_type: null,
-      attachment_size: null,
+      attachment_url:  attachment?.url  ?? null,
+      attachment_type: attachment?.type ?? null,
+      attachment_size: attachment?.size ?? null,
       read_at:         null,
       created_at:      new Date().toISOString(),
       _status:         'sending',
@@ -96,15 +104,26 @@ export const useChatStore = create<ChatState>((set, get) => ({
     get().appendMessage(conversationId, optimistic)
 
     try {
-      const sent = await api.conversations.sendMessage({ id: conversationId }, { content, gig_id: gigId, offer_id: offerId })
-      set((s) => ({
-        messages: {
-          ...s.messages,
-          [conversationId]: (s.messages[conversationId] ?? []).map((m) =>
-            m.id === tempId ? { ...sent, _status: 'sent' as const } : m,
-          ),
+      const sent = await api.conversations.sendMessage(
+        { id: conversationId },
+        {
+          content,
+          gig_id:  gigId,
+          offer_id: offerId,
+          ...(attachment !== undefined
+            ? { attachment_url: attachment.url, attachment_type: attachment.type, attachment_size: attachment.size }
+            : {}),
         },
-      }))
+      )
+      set((s) => {
+        const existing = s.messages[conversationId] ?? []
+        // The WS echo of our own message may land before this response —
+        // if the server id is already present, just drop the temp copy.
+        const updated = existing.some((m) => m.id === sent.id)
+          ? existing.filter((m) => m.id !== tempId)
+          : existing.map((m) => (m.id === tempId ? { ...sent, _status: 'sent' as const } : m))
+        return { messages: { ...s.messages, [conversationId]: updated } }
+      })
     } catch {
       set((s) => ({
         messages: {
@@ -118,14 +137,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   retryMessage: (conversationId, message) => {
-    // Remove the failed optimistic message then re-send its content
+    // Remove the failed optimistic message then re-send its content (and
+    // any already-uploaded attachment — the Cloudinary URL stays valid).
     set((s) => ({
       messages: {
         ...s.messages,
         [conversationId]: (s.messages[conversationId] ?? []).filter((m) => m.id !== message.id),
       },
     }))
-    void get().sendMessage(conversationId, message.content, message.gig_id ?? undefined, message.offer_id ?? undefined)
+    const attachment =
+      message.attachment_url !== null && message.attachment_type !== null && message.attachment_size !== null
+        ? { url: message.attachment_url, type: message.attachment_type, size: message.attachment_size }
+        : undefined
+    void get().sendMessage(conversationId, message.content, message.gig_id ?? undefined, message.offer_id ?? undefined, attachment)
   },
 
   closeConversation: async (conversationId) => {
@@ -142,5 +166,32 @@ export const useChatStore = create<ChatState>((set, get) => ({
         [conversationId]: [...(s.messages[conversationId] ?? []), message],
       },
     }))
+  },
+
+  // WS delivery — dedupes by id (the broadcast echoes the sender's own
+  // message back, and a reconnect-era fetchMessages may already have it).
+  receiveMessage: (conversationId, message) => {
+    set((s) => {
+      const existing = s.messages[conversationId] ?? []
+      if (existing.some((m) => m.id === message.id)) return s
+
+      const isOwn = message.sender_id === useAuthStore.getState().user?.id
+      const conversations = s.conversations.map((c) =>
+        c.id === conversationId
+          ? {
+              ...c,
+              last_message:    message.content.length > 0 ? message.content : ATTACHMENT_PREVIEW,
+              last_message_at: message.created_at,
+            }
+          : c,
+      )
+      return {
+        messages: {
+          ...s.messages,
+          [conversationId]: [...existing, isOwn ? { ...message, _status: 'sent' as const } : message],
+        },
+        conversations,
+      }
+    })
   },
 }))

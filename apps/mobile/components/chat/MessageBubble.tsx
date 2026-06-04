@@ -1,5 +1,7 @@
-import { View, Pressable, StyleSheet } from 'react-native'
+import { View, Pressable, StyleSheet, Linking } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
+import { Image } from 'expo-image'
+import { FileText } from 'lucide-react-native'
 import { Text } from '@/components/ui/Text'
 import { useIsDark } from '@/lib/theme'
 import type { LocalMessage } from '@/stores/chat.store'
@@ -39,6 +41,8 @@ export function MessageBubble({ message, isMine, onRetry, onLongPress }: Message
 
   const containerStyle = [s.row, isMine ? s.rowMine : s.rowTheirs]
 
+  const attachmentUrl = message.attachment_url
+
   return (
     <View style={containerStyle}>
       <View style={s.column}>
@@ -55,9 +59,34 @@ export function MessageBubble({ message, isMine, onRetry, onLongPress }: Message
             pressed && (isFailed || (!isMine && onLongPress)) && s.bubblePressed,
           ]}
         >
-          <Text style={[s.content, { color: textColor }]}>
-            {message.content}
-          </Text>
+          {attachmentUrl !== null && message.attachment_type === 'image' && (
+            <Image
+              source={{ uri: attachmentUrl }}
+              style={s.attachmentImage}
+              contentFit="cover"
+              accessibilityLabel="Image attachment"
+            />
+          )}
+
+          {attachmentUrl !== null && message.attachment_type === 'file' && (
+            <Pressable
+              onPress={() => { void Linking.openURL(attachmentUrl) }}
+              style={({ pressed }) => [s.fileChip, pressed && { opacity: 0.7 }]}
+              accessibilityLabel="Open document attachment"
+              accessibilityRole="link"
+            >
+              <FileText size={16} color={textColor} />
+              <Text size={13} weight="medium" color={textColor}>
+                Document
+              </Text>
+            </Pressable>
+          )}
+
+          {message.content.length > 0 && (
+            <Text style={[s.content, { color: textColor }, attachmentUrl !== null && s.contentBelowAttachment]}>
+              {message.content}
+            </Text>
+          )}
 
           {isFailed && (
             <Pressable
@@ -67,7 +96,7 @@ export function MessageBubble({ message, isMine, onRetry, onLongPress }: Message
               accessibilityRole="button"
             >
               <Text size={11.5} color={theme.colors.feedback.danger.base}>
-                Didn't send
+                Didn&apos;t send
               </Text>
               <Text size={11.5} color={theme.colors.content.tertiary}>·</Text>
               <Text size={11.5} weight="semibold" color={theme.colors.feedback.danger.base}>
@@ -128,6 +157,20 @@ const s = StyleSheet.create({
   content: {
     fontSize: 14.5,
     lineHeight: 20,
+  },
+  contentBelowAttachment: {
+    marginTop: 6,
+  },
+  attachmentImage: {
+    width: 220,
+    height: 220,
+    borderRadius: 12,
+  },
+  fileChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 2,
   },
   retryRow: {
     flexDirection: 'row',

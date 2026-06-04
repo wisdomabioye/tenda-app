@@ -270,7 +270,7 @@ export const api = {
   },
 
   upload: {
-    signature: (body: { type: UploadType }) =>
+    signature: (body: { type: UploadType; conversation_id?: string }) =>
       request<CloudinarySignature>('POST', upload.signature, { body }),
   },
 

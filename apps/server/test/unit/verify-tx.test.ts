@@ -48,7 +48,7 @@ function makeDeps(opts: {
   calls: {
     confirmed: string[]
     failed: Array<{ tx_ref: string; code: string }>
-    republished: Array<{ internal_event: string; escrow_id: string }>
+    republished: Array<{ internal_event: string; escrow_id: string; tx_ref: string }>
     warned: string[]
     transitions: Array<{ from: EscrowStatus[]; patch: EscrowPatch }>
   }
@@ -56,7 +56,7 @@ function makeDeps(opts: {
   const calls = {
     confirmed: [] as string[],
     failed: [] as Array<{ tx_ref: string; code: string }>,
-    republished: [] as Array<{ internal_event: string; escrow_id: string }>,
+    republished: [] as Array<{ internal_event: string; escrow_id: string; tx_ref: string }>,
     warned: [] as string[],
     transitions: [] as Array<{ from: EscrowStatus[]; patch: EscrowPatch }>,
   }
@@ -115,7 +115,7 @@ function makeDeps(opts: {
     eventStore,
     async republish(e) {
       if (opts.republishFails ?? false) throw new Error('bus down')
-      calls.republished.push({ internal_event: e.internal_event, escrow_id: e.escrow_id })
+      calls.republished.push({ internal_event: e.internal_event, escrow_id: e.escrow_id, tx_ref: e.tx_ref })
     },
     log: {
       warn(_obj, msg) {
@@ -169,7 +169,7 @@ test('happy path: applies the event, confirms the attempt, republishes snake_cas
   assert.strictEqual(r.applied, true)
   assert.deepStrictEqual(calls.confirmed, ['sig-abc'])
   assert.deepStrictEqual(calls.republished, [
-    { internal_event: 'escrow.accepted', escrow_id: ESCROW_ID },
+    { internal_event: 'escrow.accepted', escrow_id: ESCROW_ID, tx_ref: 'sig-abc' },
   ])
   assert.deepStrictEqual(calls.transitions[0].from, ['open'])
 })

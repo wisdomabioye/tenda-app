@@ -13,6 +13,7 @@ import { useAppReady } from '@/hooks/useAppReady'
 import { useNotificationDeepLink } from '@/hooks/useNotificationDeepLink'
 import { useForegroundSync } from '@/hooks/useForegroundSync'
 import { usePushToken } from '@/hooks/usePushToken'
+import { useRealtimeConnection } from '@/hooks/useRealtimeConnection'
 import '@/theme'
 
 initReporter()
@@ -26,6 +27,7 @@ export default wrapApp(function RootLayout() {
   useNotificationDeepLink()
   useForegroundSync()
   usePushToken()
+  useRealtimeConnection()
 
   if (!isReady) return null
 

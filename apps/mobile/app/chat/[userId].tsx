@@ -10,7 +10,7 @@ import {
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { Ban } from 'lucide-react-native'
+import { Ban, Image as ImageIcon, FileText } from 'lucide-react-native'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Text } from '@/components/ui/Text'
 import { BottomSheet } from '@/components/ui/BottomSheet'
@@ -26,8 +26,10 @@ import { showToast } from '@/components/ui/Toast'
 import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useConversation } from '@/hooks/useConversation'
-import { useMessagePolling } from '@/hooks/useMessagePolling'
+import { useChatRealtime } from '@/hooks/useChatRealtime'
 import { buildMessageFeed, isDivider, isTimestamp } from '@/lib/chat'
+import { uploadToCloudinaryDetailed } from '@/lib/upload'
+import { pickImage, pickDocument } from '@/components/form/FilePicker'
 import { spacing } from '@/theme/tokens'
 import type { LocalMessage } from '@/stores/chat.store'
 
@@ -42,10 +44,12 @@ export default function ChatScreen() {
   const myId = useAuthStore((s) => s.user?.id ?? '')
   const { sendMessage, retryMessage, closeConversation, messages } = useChatStore()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [attachOpen, setAttachOpen] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [reportingMessageId, setReportingMessageId] = useState<string | null>(null)
 
   const { conversationId, otherUser, loading, initError, retry } = useConversation(userId)
-  useMessagePolling(conversationId)
+  useChatRealtime(conversationId)
 
   const msgs = conversationId ? (messages[conversationId] ?? []) : []
   const feed = useMemo(() => buildMessageFeed(msgs), [msgs])
@@ -53,6 +57,26 @@ export default function ChatScreen() {
   function handleSend(text: string) {
     if (!conversationId) return
     void sendMessage(conversationId, text, gigId, offerId)
+  }
+
+  async function handlePickAttachment(kind: 'image' | 'document') {
+    setAttachOpen(false)
+    if (!conversationId || uploading) return
+    const file = kind === 'image' ? await pickImage() : await pickDocument(['application/pdf'])
+    if (!file) return
+    setUploading(true)
+    try {
+      const { url, bytes } = await uploadToCloudinaryDetailed(file, 'chat', conversationId)
+      await sendMessage(conversationId, '', gigId, offerId, {
+        url,
+        type: file.type === 'image' ? 'image' : 'file',
+        size: bytes,
+      })
+    } catch (e) {
+      showToast('error', e instanceof Error ? e.message : 'Upload failed — please try again')
+    } finally {
+      setUploading(false)
+    }
   }
 
   function handleRetry(msg: LocalMessage) {
@@ -156,7 +180,12 @@ export default function ChatScreen() {
             offerTitle={offerTitle ? decodeURIComponent(offerTitle) : null}
           />
         )}
-        <ChatInput onSend={handleSend} />
+        {uploading && (
+          <Text size={12} color={theme.colors.content.tertiary} align="center" style={s.uploadingHint}>
+            Uploading attachment…
+          </Text>
+        )}
+        <ChatInput onSend={handleSend} onAttach={() => setAttachOpen(true)} disabled={uploading} />
       </KeyboardAvoidingView>
 
       {reportingMessageId !== null && (
@@ -167,6 +196,49 @@ export default function ChatScreen() {
           contentId={reportingMessageId}
         />
       )}
+
+      <BottomSheet visible={attachOpen} onClose={() => setAttachOpen(false)} title="Attach">
+        <Pressable
+          style={({ pressed }) => [
+            s.menuItem,
+            { borderTopColor: theme.colors.border.subtle },
+            pressed && { opacity: 0.7 },
+          ]}
+          onPress={() => { void handlePickAttachment('image') }}
+          accessibilityRole="button"
+          accessibilityLabel="Attach a photo"
+        >
+          <View style={[s.menuIcon, { backgroundColor: theme.colors.surface.inset }]}>
+            <ImageIcon size={18} color={theme.colors.brand.primary} />
+          </View>
+          <View style={s.menuBody}>
+            <Text size={15} weight="semibold" style={s.menuTitle}>Photo</Text>
+            <Text size={12.5} color={theme.colors.content.secondary} style={s.menuDesc}>
+              JPG, PNG or WebP — up to 10 MB.
+            </Text>
+          </View>
+        </Pressable>
+        <Pressable
+          style={({ pressed }) => [
+            s.menuItem,
+            { borderTopColor: theme.colors.border.subtle },
+            pressed && { opacity: 0.7 },
+          ]}
+          onPress={() => { void handlePickAttachment('document') }}
+          accessibilityRole="button"
+          accessibilityLabel="Attach a document"
+        >
+          <View style={[s.menuIcon, { backgroundColor: theme.colors.surface.inset }]}>
+            <FileText size={18} color={theme.colors.brand.primary} />
+          </View>
+          <View style={s.menuBody}>
+            <Text size={15} weight="semibold" style={s.menuTitle}>Document</Text>
+            <Text size={12.5} color={theme.colors.content.secondary} style={s.menuDesc}>
+              PDF — up to 10 MB.
+            </Text>
+          </View>
+        </Pressable>
+      </BottomSheet>
 
       <BottomSheet visible={menuOpen} onClose={() => setMenuOpen(false)} title="Options">
         <Pressable
@@ -187,7 +259,7 @@ export default function ChatScreen() {
               Close conversation
             </Text>
             <Text size={12.5} color={theme.colors.content.secondary} style={s.menuDesc}>
-              You'll stop seeing this thread in Messages. It reopens if either of you sends a new message.
+              You&apos;ll stop seeing this thread in Messages. It reopens if either of you sends a new message.
             </Text>
           </View>
         </Pressable>
@@ -216,6 +288,7 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   menuBody: { flex: 1 },
+  uploadingHint: { paddingVertical: 4 },
   menuTitle: { letterSpacing: -0.15 },
   menuDesc: { lineHeight: 17.5, marginTop: 3 },
 })

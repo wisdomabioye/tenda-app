@@ -12,6 +12,8 @@ export interface PickedFile {
   type: 'image' | 'video' | 'document'
   name: string
   mimeType: string
+  /** Bytes, when the picker reports it (S5.2 attachment size guard). */
+  size?: number
 }
 
 type AcceptType = 'image' | 'video' | 'document' | 'any'
@@ -25,7 +27,7 @@ interface FilePickerProps {
   showPreview?: boolean
 }
 
-async function pickImage(): Promise<PickedFile | null> {
+export async function pickImage(): Promise<PickedFile | null> {
   try {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -38,6 +40,7 @@ async function pickImage(): Promise<PickedFile | null> {
       type: 'image',
       name: asset.fileName ?? `photo_${Date.now()}.jpg`,
       mimeType: asset.mimeType ?? 'image/jpeg',
+      size: asset.fileSize,
     }
   } catch {
     return null
@@ -63,9 +66,12 @@ async function pickVideo(): Promise<PickedFile | null> {
   }
 }
 
-async function pickDocument(): Promise<PickedFile | null> {
+export async function pickDocument(mimeTypes?: string[]): Promise<PickedFile | null> {
   try {
-    const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true })
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      ...(mimeTypes !== undefined ? { type: mimeTypes } : {}),
+    })
     if (result.canceled || !result.assets?.length) return null
     const asset = result.assets[0]
     return {
@@ -73,6 +79,7 @@ async function pickDocument(): Promise<PickedFile | null> {
       type: 'document',
       name: asset.name,
       mimeType: asset.mimeType ?? 'application/octet-stream',
+      size: asset.size,
     }
   } catch {
     return null

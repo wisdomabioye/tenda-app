@@ -32,3 +32,12 @@ export type {
   ExchangeAccountsContract,
   ExchangeBlockchainContract,
 } from './contracts'
+export {
+  WS_PATH,
+  WS_AUTH_SUBPROTOCOL,
+  wsChannelName,
+  type WsChannelKind,
+  type ChatMessageFrame,
+  type EscrowEventFrame,
+  type WsServerFrame,
+} from './contracts'

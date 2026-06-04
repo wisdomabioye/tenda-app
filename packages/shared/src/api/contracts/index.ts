@@ -52,3 +52,12 @@ export type { NotificationsContract } from './notifications.contract'
 export type { SubscriptionsContract } from './subscriptions.contract'
 export type { ReportsContract } from './reports.contract'
 export type { ExchangeContract, ExchangeAccountsContract, ExchangeBlockchainContract } from './exchange.contract'
+export {
+  WS_PATH,
+  WS_AUTH_SUBPROTOCOL,
+  wsChannelName,
+  type WsChannelKind,
+  type ChatMessageFrame,
+  type EscrowEventFrame,
+  type WsServerFrame,
+} from './ws.contract'

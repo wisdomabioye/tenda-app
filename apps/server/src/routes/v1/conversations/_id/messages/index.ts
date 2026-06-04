@@ -6,6 +6,8 @@ import { appEvents } from '@server/lib/events'
 import { moderateBody } from '@server/lib/moderation'
 import { AppError } from '@server/lib/errors'
 import { UPLOAD_CONSTRAINTS, isValidChatAttachmentUrl } from '@server/lib/cloudinary'
+import { channelName } from '@server/lib/ws'
+import { messagePreview } from '@server/lib/chat'
 import type { ConversationsContract, ApiError } from '@tenda/shared'
 
 type GetMessagesRoute = ConversationsContract['messages']
@@ -125,14 +127,16 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       const { content, gig_id, offer_id, attachment_url, attachment_type, attachment_size } = request.body
       const userId = request.user.id
 
-      if (!content || content.trim().length === 0) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'content is required')
-      if (content.length > 2000) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Message content must be at most 2000 characters')
-
       // S5.2: attachment validation — all three fields together or none;
       // URL must live under THIS conversation's sender-scoped folder so a
       // signature minted for one conversation can't be replayed in another.
       const attachmentFields = [attachment_url, attachment_type, attachment_size]
       const hasAttachment = attachmentFields.some((f) => f !== undefined)
+
+      const trimmed = (content ?? '').trim()
+      // Attachment-only messages carry empty content.
+      if (trimmed.length === 0 && !hasAttachment) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'content is required')
+      if (trimmed.length > 2000) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Message content must be at most 2000 characters')
       if (hasAttachment) {
         if (attachmentFields.some((f) => f === undefined)) {
           throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'attachment_url, attachment_type and attachment_size are required together')
@@ -189,7 +193,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
             sender_id:       userId,
             gig_id:          gig_id  ?? null,
             offer_id:        offer_id ?? null,
-            content:         content.trim(),
+            content:         trimmed,
             attachment_url:  attachment_url ?? null,
             attachment_type: attachment_type ?? null,
             attachment_size: attachment_size ?? null,
@@ -227,7 +231,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       const recipientId = conv.user_a_id === userId ? conv.user_b_id : conv.user_a_id
-      const preview = content.trim().slice(0, 100)
+      const preview = messagePreview(trimmed, hasAttachment) ?? ''
 
       appEvents.emit('message.sent', {
         conversationId: id,
@@ -236,13 +240,28 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         preview,
       })
 
-      return reply.code(201).send({
+      const serialized = {
         ...newMessage,
         gig_title,
         offer_title,
         read_at:    newMessage.read_at?.toISOString() ?? null,
         created_at: newMessage.created_at?.toISOString() ?? null,
-      })
+      }
+
+      // Live fan-out to open chat screens. Reaches the sender's own socket
+      // too — the client dedupes by message id against its optimistic copy.
+      fastify.wsBroadcast.broadcast(
+        channelName({ kind: 'chat', id }),
+        { type: 'message', message: serialized },
+      )
+      // Mirror onto the recipient's user channel so the inbox / unread
+      // badge updates without the conversation screen being open.
+      fastify.wsBroadcast.broadcast(
+        channelName({ kind: 'user', id: recipientId }),
+        { type: 'message', message: serialized },
+      )
+
+      return reply.code(201).send(serialized)
     },
   )
 }

@@ -5,15 +5,37 @@ export interface ProofFile {
   uri: string
   mimeType: string
   name: string
+  /** Bytes, when the picker reports it — pre-flight size guard. */
+  size?: number
+}
+
+export interface UploadResult {
+  url: string
+  /** Authoritative size from Cloudinary's response. */
+  bytes: number
 }
 
 /**
  * Upload a file to Cloudinary using a server-signed upload request.
  * Supports images, videos, and documents.
- * Returns the secure CDN URL.
+ * `conversationId` is required for type 'chat' — the server scopes the
+ * signed folder to the conversation and rejects unscoped requests.
  */
-export async function uploadToCloudinary(file: ProofFile, type: UploadType): Promise<string> {
-  const { signature, timestamp, cloud_name, api_key, folder, allowed_formats } = await api.upload.signature({ type })
+export async function uploadToCloudinaryDetailed(
+  file: ProofFile,
+  type: UploadType,
+  conversationId?: string,
+): Promise<UploadResult> {
+  const { signature, timestamp, cloud_name, api_key, folder, allowed_formats, max_file_bytes } =
+    await api.upload.signature(
+      conversationId !== undefined ? { type, conversation_id: conversationId } : { type },
+    )
+
+  // Pre-flight guard — saves the user a doomed upload when the picker
+  // reports a size. The hard cap is the Cloudinary upload preset.
+  if (file.size !== undefined && file.size > max_file_bytes) {
+    throw new Error(`File is too large — max ${Math.floor(max_file_bytes / (1024 * 1024))} MB`)
+  }
 
   const formData = new FormData()
   formData.append('file', {
@@ -56,6 +78,15 @@ export async function uploadToCloudinary(file: ProofFile, type: UploadType): Pro
     throw new Error(error?.error?.message ?? 'Cloudinary upload failed')
   }
 
-  const result = await response.json() as { secure_url: string }
-  return result.secure_url
+  const result = await response.json() as { secure_url: string; bytes: number }
+  return { url: result.secure_url, bytes: result.bytes }
+}
+
+/** Convenience wrapper returning just the secure CDN URL. */
+export async function uploadToCloudinary(
+  file: ProofFile,
+  type: UploadType,
+  conversationId?: string,
+): Promise<string> {
+  return (await uploadToCloudinaryDetailed(file, type, conversationId)).url
 }

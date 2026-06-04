@@ -79,6 +79,7 @@ export type {
   RegisterDeviceTokenInput,
   MessagesQuery,
 } from './chat'
+export { ATTACHMENT_PREVIEW } from './chat'
 export type { CreateReportInput } from './moderation'
 export { REPORT_STATUSES, REPORT_CONTENT_TYPES } from '../constants/moderation'
 export type {

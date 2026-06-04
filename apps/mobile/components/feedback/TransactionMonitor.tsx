@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { View, Modal, StyleSheet, ActivityIndicator } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { CheckCircle, XCircle } from 'lucide-react-native'
@@ -6,9 +6,12 @@ import { radius, spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import { getTransactionStatus } from '@/wallet'
+import { useRealtimeStore, subscribeEscrowChannel } from '@/stores/realtime.store'
 
 const POLL_INTERVAL_MS = 2_000
-const TIMEOUT_ATTEMPTS = 30   // 60 s total
+const POLL_FALLBACK_MS = 30_000  // RPC cadence while the WS channel is live
+const TIMEOUT_MS = 60_000
+const CONFIRM_DISMISS_MS = 800
 
 type TxState = 'waiting' | 'confirmed' | 'failed'
 
@@ -18,56 +21,75 @@ interface TransactionMonitorProps {
   onFailed: (msg: string) => void
   /** When true, shows one-time setup messaging instead of the generic confirming text. */
   setupPhase?: boolean
+  /**
+   * v2 escrow flows: subscribe `escrow:<id>` so confirmation arrives over
+   * WS (verify-tx republish); the RPC poll stretches to a slow fallback
+   * while the socket is healthy. Legacy flows omit it and keep the fast poll.
+   */
+  escrowId?: string
 }
 
-export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false }: TransactionMonitorProps) {
+export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false, escrowId }: TransactionMonitorProps) {
   const { theme } = useUnistyles()
   const [txState, setTxState] = useState<TxState>('waiting')
   const [failMsg, setFailMsg] = useState('')
-  const attempts = useRef(0)
-  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
-    if (!signature) {
-      setTxState('waiting')
-      attempts.current = 0
-      return
+    setTxState('waiting')
+    setFailMsg('')
+    if (!signature) return
+
+    let settled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+    const deadline = Date.now() + TIMEOUT_MS
+
+    function settle(state: Exclude<TxState, 'waiting'>, msg = '') {
+      if (settled) return
+      settled = true
+      if (timer) clearTimeout(timer)
+      setTxState(state)
+      if (state === 'confirmed') setTimeout(() => onConfirmed(), CONFIRM_DISMISS_MS)
+      else setFailMsg(msg)
     }
 
-    setTxState('waiting')
-    attempts.current = 0
+    // Live path — escrow events pushed by the verify-tx pipeline.
+    const unsubscribe = escrowId
+      ? subscribeEscrowChannel(escrowId, (frame) => {
+          if (frame.tx_ref === signature) settle('confirmed')
+        })
+      : null
 
-    timerRef.current = setInterval(async () => {
-      attempts.current += 1
-
-      if (attempts.current > TIMEOUT_ATTEMPTS) {
-        clearInterval(timerRef.current!)
-        setTxState('failed')
-        setFailMsg('Transaction timed out. It will sync when confirmed.')
+    async function poll() {
+      if (settled || !signature) return
+      if (Date.now() > deadline) {
+        settle('failed', 'Transaction timed out. It will sync when confirmed.')
         return
       }
-
       try {
         const status = await getTransactionStatus(signature)
-        if (status === 'confirmed' || status === 'finalized') {
-          clearInterval(timerRef.current!)
-          setTxState('confirmed')
-          setTimeout(() => onConfirmed(), 800)
-        } else if (status === 'failed') {
-          clearInterval(timerRef.current!)
-          setTxState('failed')
-          setFailMsg('Transaction failed on chain.')
-        }
+        if (status === 'confirmed' || status === 'finalized') return settle('confirmed')
+        if (status === 'failed') return settle('failed', 'Transaction failed on chain.')
         // 'not_found' → keep polling
       } catch {
         // RPC error — keep polling
       }
-    }, POLL_INTERVAL_MS)
+      schedule()
+    }
+
+    function schedule() {
+      if (settled) return
+      const slow = escrowId !== undefined && useRealtimeStore.getState().connected
+      timer = setTimeout(() => { void poll() }, slow ? POLL_FALLBACK_MS : POLL_INTERVAL_MS)
+    }
+
+    void poll()
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
+      settled = true
+      if (timer) clearTimeout(timer)
+      unsubscribe?.()
     }
-  }, [signature]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [signature, escrowId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleDismiss() {
     onFailed(failMsg || 'Transaction failed')

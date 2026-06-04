@@ -14,13 +14,14 @@
  */
 
 import { and, eq, or } from 'drizzle-orm'
+import { WS_AUTH_SUBPROTOCOL, wsChannelName } from '@tenda/shared'
 import { conversations } from '@tenda/shared/db/schema'
 import { escrows } from '@tenda/shared/db/schema-v2/escrow'
 import type { AppDatabase } from '@server/plugins/db'
 
 // ---------- subprotocol auth -------------------------------------------------
 
-export const WS_AUTH_SUBPROTOCOL = 'tenda.v1.auth'
+export { WS_AUTH_SUBPROTOCOL }
 
 /**
  * Parse `Sec-WebSocket-Protocol: tenda.v1.auth, <JWT>`. Returns the token
@@ -54,7 +55,7 @@ export function parseChannel(name: unknown): WsChannel | null {
 }
 
 export function channelName(c: WsChannel): string {
-  return `${c.kind}:${c.id}`
+  return wsChannelName(c.kind, c.id)
 }
 
 // ---------- authorization --------------------------------------------------------

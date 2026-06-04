@@ -21,6 +21,9 @@ export interface Conversation {
   last_message: string | null
 }
 
+/** Inbox/push preview placeholder for attachment-only messages (S5.2). */
+export const ATTACHMENT_PREVIEW = '📎 Attachment'
+
 export interface Message {
   id: string
   conversation_id: string
