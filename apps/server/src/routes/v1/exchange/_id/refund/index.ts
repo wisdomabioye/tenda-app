@@ -37,7 +37,7 @@ const exchangeRefund: FastifyPluginAsync = async (fastify) => {
 
       // Lazily expire the offer if its deadlines have passed — so a seller who
       // hits this endpoint directly still gets the correct 'expired' status.
-      let offer = await checkAndExpireOffer(fetchedOffer, fastify.db, config.grace_period_seconds)
+      const offer = await checkAndExpireOffer(fetchedOffer, fastify.db, config.grace_period_seconds)
 
       ensureOfferStatus(offer, 'expired')
       ensureOfferOwnership(offer, request.user.id, 'seller')

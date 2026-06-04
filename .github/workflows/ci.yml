@@ -1,0 +1,116 @@
+# PR gates per multichain-migration-stages/testing-strategy.md § CI gates.
+#
+# Gate map:
+#   1. unit/route/adapter/job tests  → server job (tsx --test, offline by design)
+#   2. contract tests                → live in the tenda-escrow repo's own CI
+#   3. tsc --noEmit clean            → server + shared + mobile jobs
+#   4. lint clean                    → server (eslint flat config) + mobile (expo lint)
+#   5. coverage delta non-negative   → c8 runs locally via `npm test`; delta
+#      enforcement needs a baseline store — wired when a remote exists.
+#
+# Long-running E2E (test/integration, devnet) is nightly/pre-release only,
+# never per-PR.
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @tenda/shared build
+      - name: Typecheck (src + test)
+        working-directory: apps/server
+        run: npx tsc --noEmit && npx tsc -p test/tsconfig.json
+      - name: Lint
+        working-directory: apps/server
+        run: pnpm lint
+      - name: Unit tests (offline — no network per testing-strategy)
+        working-directory: apps/server
+        run: npx tsx --test "test/unit/*.test.ts"
+
+  shared:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @tenda/shared type-check
+      - run: pnpm --filter @tenda/shared build
+
+  mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @tenda/shared build
+      - name: Typecheck
+        working-directory: apps/mobile
+        run: npx tsc --noEmit
+      - name: Lint
+        working-directory: apps/mobile
+        run: npx expo lint
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # High+ severity blocks; moderate noise doesn't gate merges.
+      - run: pnpm audit --audit-level high
+
+  # Drift control (testing-strategy § Drift control): deleted tests surface
+  # as a PR warning routed for review — deletion without replacement is a
+  # process smell, not an automatic failure.
+  tests-deleted:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Warn on deleted test files
+        run: |
+          BASE="origin/${{ github.base_ref }}"
+          git fetch origin "${{ github.base_ref }}" --depth=1
+          DELETED=$(git diff --diff-filter=D --name-only "$BASE"...HEAD -- '*.test.ts' '*.test.tsx' || true)
+          if [ -n "$DELETED" ]; then
+            echo "::warning title=tests deleted::The following test files were deleted in this PR:"
+            echo "$DELETED" | while read -r f; do echo "::warning file=$f::deleted test file"; done
+          else
+            echo "No test files deleted."
+          fi
+
+  cutover-debt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Reporting mode (exit 0) until the Stage-0 cutover; flip to --post after #34.
+      - run: node scripts/cutover-verify.mjs
