@@ -57,6 +57,9 @@ export const apiRoutes: {
   upload: {
     signature: '/v1/upload/signature',
   },
+  moderation: {
+    preview: '/v1/moderation/preview',
+  },
   blockchain: {
     clientPing:        '/v1/blockchain/transaction',
     transaction:       '/v1/blockchain/transaction/:signature',

@@ -26,3 +26,20 @@ export function solanaChainId(network: string): string {
   }
   return caip
 }
+
+/**
+ * Native-SOL asset-registry id per network (mirrors seed-v2). Drives the
+ * moderation price-sanity lookup for legacy lamports-denominated gigs.
+ */
+export const SOLANA_NATIVE_ASSET_BY_NETWORK: Readonly<Record<string, string>> = {
+  devnet: 'SOL_DEVNET',
+  'mainnet-beta': 'SOL',
+}
+
+export function solanaNativeAssetId(network: string): string {
+  const id = SOLANA_NATIVE_ASSET_BY_NETWORK[network]
+  if (id === undefined) {
+    throw new Error(`unsupported Solana network '${network}' (expected 'devnet' or 'mainnet-beta')`)
+  }
+  return id
+}

@@ -19,6 +19,8 @@ import {
 } from '@tenda/shared'
 import { getDeviceCountry } from '@/lib/device'
 import { useAuthStore } from '@/stores/auth.store'
+import { useModerationPreview } from '@/hooks/useModerationPreview'
+import { PriceWarningSheet } from '@/components/moderation/PriceWarningSheet'
 import { LOCATIONS } from '@tenda/shared'
 import type { GigCategory, CountryCode } from '@tenda/shared'
 
@@ -77,6 +79,18 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
   const [selectedCity, setSelectedCity]           = useState<string | null>(initialValues?.city ?? null)
   const [acceptDeadlineHours, setAcceptDeadlineHours] = useState<number | null>(initialValues?.acceptDeadlineHours ?? null)
 
+  const [warnSheetOpen, setWarnSheetOpen] = useState(false)
+
+  // Stage-6 live moderation hints — debounced, advisory only; the server
+  // re-runs the same pipeline on create and stays authoritative.
+  const moderation = useModerationPreview({
+    title,
+    description,
+    category: selectedCategory,
+    country: selectedCountry,
+    paymentLamports,
+  })
+
   const isValid =
     title.trim().length > 0 &&
     description.trim().length > 0 &&
@@ -87,6 +101,16 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
 
   async function handleSubmit() {
     if (!isValid) return
+    // Warn verdicts get one explicit confirmation before publishing.
+    if (moderation?.decision === 'warn' && !warnSheetOpen) {
+      setWarnSheetOpen(true)
+      return
+    }
+    setWarnSheetOpen(false)
+    await submitValues()
+  }
+
+  async function submitValues() {
     await onSubmit({
       title,
       description,
@@ -231,6 +255,35 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
         <View style={s.spacer} />
       </ScrollView>
 
+      {/* Stage-6 live moderation hint — advisory, never blocking */}
+      {moderation !== null && moderation.decision !== 'approve' && moderation.reasons.length > 0 && (
+        <View
+          style={[
+            s.moderationHint,
+            {
+              backgroundColor:
+                moderation.decision === 'block'
+                  ? theme.colors.feedback.danger.surface
+                  : theme.colors.feedback.warning.surface,
+            },
+          ]}
+        >
+          <Text
+            style={[
+              s.moderationHintText,
+              {
+                color:
+                  moderation.decision === 'block'
+                    ? theme.colors.feedback.danger.base
+                    : theme.colors.feedback.warning.base,
+              },
+            ]}
+          >
+            {moderation.reasons[0].message}
+          </Text>
+        </View>
+      )}
+
       {/* Sticky submit bar */}
       <View
         style={[
@@ -252,6 +305,16 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
           {submitLabel}
         </Button>
       </View>
+
+      <PriceWarningSheet
+        visible={warnSheetOpen}
+        reasons={moderation?.reasons ?? []}
+        onPublishAnyway={() => {
+          setWarnSheetOpen(false)
+          void submitValues()
+        }}
+        onEdit={() => setWarnSheetOpen(false)}
+      />
     </KeyboardAvoidingView>
   )
 }
@@ -300,6 +363,17 @@ const s = StyleSheet.create({
   },
   spacer: {
     height: 24,
+  },
+  moderationHint: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  moderationHintText: {
+    fontSize: 12.5,
+    lineHeight: 17,
   },
   submitBar: {
     flexShrink: 0,

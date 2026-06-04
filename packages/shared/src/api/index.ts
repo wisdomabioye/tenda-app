@@ -50,6 +50,11 @@ export type {
   ExchangeContract,
   ExchangeAccountsContract,
   ExchangeBlockchainContract,
+  ModerationContract,
+  ModerationDecision,
+  ModerationReason,
+  ModerationPreviewBody,
+  ModerationPreviewResponse,
 } from './contracts'
 export {
   WS_PATH,

@@ -10,6 +10,7 @@ import type { NotificationsContract } from './notifications.contract'
 import type { SubscriptionsContract } from './subscriptions.contract'
 import type { ReportsContract } from './reports.contract'
 import type { ExchangeContract, ExchangeAccountsContract, ExchangeBlockchainContract } from './exchange.contract'
+import type { ModerationContract } from './moderation.contract'
 
 export interface ApiContract {
   auth: AuthContract
@@ -26,6 +27,7 @@ export interface ApiContract {
   exchange:           ExchangeContract
   exchangeAccounts:   ExchangeAccountsContract
   exchangeBlockchain: ExchangeBlockchainContract
+  moderation:         ModerationContract
 }
 
 export type {
@@ -67,6 +69,13 @@ export type { NotificationsContract } from './notifications.contract'
 export type { SubscriptionsContract } from './subscriptions.contract'
 export type { ReportsContract } from './reports.contract'
 export type { ExchangeContract, ExchangeAccountsContract, ExchangeBlockchainContract } from './exchange.contract'
+export type {
+  ModerationContract,
+  ModerationDecision,
+  ModerationReason,
+  ModerationPreviewBody,
+  ModerationPreviewResponse,
+} from './moderation.contract'
 export {
   WS_PATH,
   WS_AUTH_SUBPROTOCOL,

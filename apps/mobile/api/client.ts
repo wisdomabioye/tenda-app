@@ -94,6 +94,8 @@ import {
   type UpdateMeResponse,
   type MyStandingResponse,
   type UserStandingResponse,
+  type ModerationPreviewBody,
+  type ModerationPreviewResponse,
   type CreateEscrowApiBody,
   type CreateEscrowApiResponse,
   type EscrowActionResponse,
@@ -192,7 +194,7 @@ async function request<TResponse>(
   }
 }
 
-const { auth, escrows, gigs, users, upload, blockchain, platform, conversations, notifications, subscriptions, reports, exchange, exchangeAccounts, exchangeBlockchain } = apiRoutes
+const { auth, escrows, gigs, users, upload, blockchain, platform, conversations, notifications, subscriptions, reports, exchange, exchangeAccounts, exchangeBlockchain, moderation } = apiRoutes
 
 export const api = {
   auth: {
@@ -304,6 +306,11 @@ export const api = {
   upload: {
     signature: (body: { type: UploadType; conversation_id?: string }) =>
       request<CloudinarySignature>('POST', upload.signature, { body }),
+  },
+
+  moderation: {
+    preview: (body: ModerationPreviewBody) =>
+      request<ModerationPreviewResponse>('POST', moderation.preview, { body }),
   },
 
   blockchain: {

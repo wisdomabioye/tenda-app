@@ -7,14 +7,16 @@ import { showToast } from '@/components/ui/Toast'
 import { GigForm } from '@/components/gig/GigForm'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
-import { api } from '@/api/client'
-import { coerceCityForCountry } from '@tenda/shared'
+import { api, ApiClientError } from '@/api/client'
+import { coerceCityForCountry, ErrorCode } from '@tenda/shared'
+import { ModerationBlockedDialog } from '@/components/moderation/ModerationBlockedDialog'
 import type { GigFormValues } from '@/components/gig/GigForm'
 
 export default function PostGigScreen() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [showNudge, setShowNudge] = useState(false)
+  const [blockedMessage, setBlockedMessage] = useState<string | null>(null)
   const { dismissedNudges } = useOnboardingStore()
 
   useEffect(() => {
@@ -48,7 +50,12 @@ export default function PostGigScreen() {
       router.navigate('/(tabs)/home' as any)
       router.push(`/gig/${gig.id}` as any)
     } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to create gig')
+      // Stage-6: block verdicts get the full dialog — no retry path.
+      if (e instanceof ApiClientError && e.code === ErrorCode.CONTENT_MODERATED) {
+        setBlockedMessage(e.message)
+      } else {
+        showToast('error', e instanceof Error ? e.message : 'Failed to create gig')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -69,6 +76,11 @@ export default function PostGigScreen() {
         <RestrictionBanner />
         <GigForm submitLabel="Save Draft" onSubmit={handleSubmit} isLoading={isLoading} />
       </ScreenContainer>
+      <ModerationBlockedDialog
+        visible={blockedMessage !== null}
+        message={blockedMessage ?? ''}
+        onEdit={() => setBlockedMessage(null)}
+      />
     </>
   )
 }
