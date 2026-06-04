@@ -1,20 +1,4 @@
-import { ASSET_META, CURRENCY_META, LAMPORTS_PER_SOL, amountRawToDisplay, type SupportedCurrency } from '@tenda/shared'
-
-export interface PaymentDisplay {
-  fiat: number
-  sol: number
-}
-
-/**
- * Convert payment_lamports to display values (SOL + fiat equivalent).
- * Pass the rate for the user's preferred currency from useExchangeRateStore().
- * Returns fiat = 0 if rate is not yet available (rates = null).
- */
-export function toPaymentDisplay(paymentLamports: number, rate: number | null): PaymentDisplay {
-  const sol = paymentLamports / LAMPORTS_PER_SOL
-  const fiat = rate != null && rate > 0 ? sol * rate : 0
-  return { fiat, sol }
-}
+import { ASSET_META, CURRENCY_META, amountRawToDisplay, type SupportedCurrency } from '@tenda/shared'
 
 export interface AssetPaymentDisplay {
   /** Display units (raw / 10^decimals). */
@@ -37,12 +21,6 @@ export function toAssetPaymentDisplay(
   const symbol = ASSET_META[asset]?.symbol ?? asset
   const fiat = symbol === 'SOL' && rate !== null && rate > 0 ? amount * rate : null
   return { amount, symbol, fiat }
-}
-
-/** Format lamports as a SOL string, e.g. "0.05 SOL" */
-export function formatSol(lamports: number): string {
-  const sol = lamports / LAMPORTS_PER_SOL
-  return `${sol.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })} SOL`
 }
 
 /** Format a SOL amount (already in SOL, not lamports) as a display string, e.g. "0.05 SOL" */

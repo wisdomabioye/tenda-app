@@ -21,6 +21,7 @@ import type {
   EscrowTxType,
   UnsignedTx,
 } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
 import { api, ApiClientError } from '@/api/client'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 
@@ -99,8 +100,18 @@ export const useEscrowStore = create<EscrowState>((set) => {
           ...(input.escrow_id !== undefined ? { escrow_id: input.escrow_id } : {}),
         })
       } catch (e) {
-        // A 4xx means the server understood and rejected — replaying the
-        // identical ping can never succeed, so surface it instead.
+        // 409 DUPLICATE_SIGNATURE = this tx_ref is already recorded — the
+        // ping's job is done. Same semantics as the pending-sync replay
+        // path; surfacing it as an error would hide a successful action.
+        if (
+          e instanceof ApiClientError &&
+          e.statusCode === 409 &&
+          e.error === ErrorCode.DUPLICATE_SIGNATURE
+        ) {
+          return { status: 'queued', recorded: false, enqueued: false }
+        }
+        // Any other 4xx means the server understood and rejected —
+        // replaying the identical ping can never succeed, so surface it.
         if (e instanceof ApiClientError && e.statusCode < 500) throw e
         // Offline / 5xx — the signed tx is already on chain; queue the ping
         // so verification is only delayed, never lost.
