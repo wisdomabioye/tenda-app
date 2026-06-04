@@ -740,6 +740,56 @@ export type TendaEscrow = {
       "args": []
     },
     {
+      "name": "closeLegacyPlatform",
+      "docs": [
+        "Devnet migration: close a stale pre-rewrite platform PDA so",
+        "`initialize_platform` can re-create it. Permanent no-op against a",
+        "current-layout platform (see instruction docs)."
+      ],
+      "discriminator": [
+        109,
+        238,
+        145,
+        143,
+        180,
+        162,
+        231,
+        232
+      ],
+      "accounts": [
+        {
+          "name": "platformRaw",
+          "docs": [
+            "`PlatformState`; the handler enforces ownership and the size guard."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "createEscrowSol",
       "discriminator": [
         92,
@@ -2649,6 +2699,11 @@ export type TendaEscrow = {
       "code": 6031,
       "name": "amountBelowVaultRentMinimum",
       "msg": "SOL escrow amount below the vault rent-exempt minimum"
+    },
+    {
+      "code": 6032,
+      "name": "platformLayoutCurrent",
+      "msg": "platform account already uses the current layout — nothing legacy to close"
     }
   ],
   "types": [
