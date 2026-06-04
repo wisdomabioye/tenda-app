@@ -23,7 +23,7 @@ import type { VerifyTxJobPayload } from '@server/jobs/verify-tx'
 
 // ---------- public surface ----------------------------------------------
 
-export type JobName = 'notifications' | 'expire-escrows' | 'verify-tx' | 'reconcile'
+export type JobName = 'notifications' | 'expire-escrows' | 'verify-tx' | 'reconcile' | 'reconcile-fiat' | 'expire-fiat-quotes'
 
 /**
  * Per-queue payload shapes. Stage 0 freezes the surface; #33 implementer
@@ -53,6 +53,9 @@ export interface JobPayload {
     /** Window end (exclusive) ISO-8601. */
     to_iso: string
   }
+  /** Stage-8 repeatables — tick id for log correlation. */
+  'reconcile-fiat': { tick_id: string }
+  'expire-fiat-quotes': { tick_id: string }
 }
 
 export interface EnqueueOptions {

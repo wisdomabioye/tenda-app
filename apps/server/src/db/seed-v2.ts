@@ -21,6 +21,7 @@ import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { ESCROW_IDL } from '@tenda/shared/idl'
 import { assets, chains } from '@tenda/shared/db/schema-v2/chains'
+import { fiat_providers } from '@tenda/shared/db/schema-v2/fiat'
 import { platform_config } from '@tenda/shared/db/schema-v2/governance'
 import { loadConfig, type Config } from '@server/config'
 
@@ -29,9 +30,18 @@ import { loadConfig, type Config } from '@server/config'
 type ChainRow = typeof chains.$inferInsert
 type AssetRow = typeof assets.$inferInsert
 
+export interface FiatProviderRow {
+  id: string
+  display_name: string
+  capabilities: { onramp: boolean; offramp: boolean; currencies: string[]; assets: string[] }
+  priority: number
+  is_enabled: boolean
+}
+
 export interface SeedRows {
   chains: ChainRow[]
   assets: AssetRow[]
+  fiat_providers: FiatProviderRow[]
   /** Assets skipped because their config inputs are missing. */
   skipped: string[]
 }
@@ -88,7 +98,33 @@ export function buildSeedRows(
     skipped.push('USDC_SOL (SOLANA_USDC_MINT not set)')
   }
 
-  return { chains: chainRows, assets: assetRows, skipped }
+  // Stage 8: routing registry (enable/priority only — credentials live in
+  // env; a provider without keys is simply never constructed).
+  const fiatProviderRows: FiatProviderRow[] = [
+    {
+      id: 'yellowcard',
+      display_name: 'Yellow Card',
+      capabilities: { onramp: true, offramp: true, currencies: ['NGN'], assets: ['USDC_SOL', 'USDC_BASE'] },
+      priority: 10,
+      is_enabled: true,
+    },
+    {
+      id: 'onrampmoney',
+      display_name: 'Onramp.money',
+      capabilities: { onramp: true, offramp: false, currencies: ['NGN'], assets: ['USDC_SOL', 'USDC_BASE'] },
+      priority: 20,
+      is_enabled: true,
+    },
+    {
+      id: 'p2p_internal',
+      display_name: 'Tenda P2P',
+      capabilities: { onramp: false, offramp: true, currencies: ['NGN'], assets: ['SOL', 'SOL_DEVNET'] },
+      priority: 100,
+      is_enabled: true,
+    },
+  ]
+
+  return { chains: chainRows, assets: assetRows, fiat_providers: fiatProviderRows, skipped }
 }
 
 // ---------- I/O wrapper ------------------------------------------------------
@@ -107,8 +143,13 @@ async function seed(): Promise<void> {
     await db.insert(platform_config).values({ id: 1 }).onConflictDoNothing({
       target: platform_config.id,
     })
+    await db
+      .insert(fiat_providers)
+      .values(rows.fiat_providers)
+      .onConflictDoNothing({ target: fiat_providers.id })
     console.log(
-      `seed-v2: ${rows.chains.length} chains, ${rows.assets.length} assets, platform_config ensured`,
+      `seed-v2: ${rows.chains.length} chains, ${rows.assets.length} assets, ` +
+        `${rows.fiat_providers.length} fiat providers, platform_config ensured`,
     )
     for (const s of rows.skipped) console.warn(`seed-v2: skipped ${s}`)
   } finally {

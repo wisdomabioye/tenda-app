@@ -48,7 +48,13 @@ export const ErrorCode = {
   OTP_INVALID:                   'OTP_INVALID',
   OTP_EXPIRED:                   'OTP_EXPIRED',
   PHONE_ALREADY_VERIFIED:        'PHONE_ALREADY_VERIFIED',
+  // Stage 8 — fiat rails
+  QUOTE_EXPIRED:                 'QUOTE_EXPIRED',
+  FIAT_RAILS_DISABLED:           'FIAT_RAILS_DISABLED',
+  PROVIDER_UNAVAILABLE:          'PROVIDER_UNAVAILABLE',
+  BANK_ACCOUNT_INVALID:          'BANK_ACCOUNT_INVALID',
   // Generic
+  SERVICE_UNAVAILABLE:           'SERVICE_UNAVAILABLE',
   NOT_FOUND:                     'NOT_FOUND',
   VALIDATION_ERROR:              'VALIDATION_ERROR',
   INTERNAL_ERROR:                'INTERNAL_ERROR',

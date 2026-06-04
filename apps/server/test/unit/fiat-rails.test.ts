@@ -1,0 +1,606 @@
+/**
+ * features/fiat-rails — quote→initiate→settle pipeline, provider routing
+ * with fallback, p2p quoting math, webhook outcome mapping, licensed-http
+ * adapter narrowing, reconcile + expire jobs. Fully offline via in-memory
+ * store + fake providers.
+ */
+
+import { test } from 'node:test'
+import * as assert from 'node:assert'
+import { randomUUID } from 'node:crypto'
+import {
+  requestQuote,
+  initiateIntent,
+  cancelIntent,
+  settleFromProvider,
+  reconcileIntent,
+  type FiatDeps,
+  type FiatEvent,
+} from '@server/features/fiat-rails/service'
+import { pickCandidates, supportsRequest } from '@server/features/fiat-rails/routing'
+import { p2pInternalProvider, type P2pFulfilment } from '@server/features/fiat-rails/providers/p2p-internal'
+import {
+  licensedHttpProvider,
+  type ProviderHttp,
+} from '@server/features/fiat-rails/providers/licensed-http'
+import { YELLOWCARD_SPEC } from '@server/features/fiat-rails/providers/specs'
+import { mapWebhookOutcome } from '@server/features/fiat-rails/webhooks'
+import { reconcileFiatIntentsHandler } from '@server/jobs/reconcile-fiat-intents'
+import { expireFiatQuotesHandler } from '@server/jobs/expire-fiat-quotes'
+import type {
+  FiatProvider,
+  FiatIntentRow,
+  FiatIntentStatus,
+  QuoteRequest,
+} from '@server/features/fiat-rails/types'
+import type { FiatStore, NewFiatIntent, IntentPatch } from '@server/features/fiat-rails/store'
+import { AppError } from '@server/lib/errors'
+
+const NOW = new Date('2026-06-01T12:00:00Z')
+
+// ---------- fakes ---------------------------------------------------------
+
+function memoryStore(): FiatStore & { rows: Map<string, FiatIntentRow> } {
+  const rows = new Map<string, FiatIntentRow>()
+  return {
+    rows,
+    async insertIntent(r: NewFiatIntent) {
+      const row: FiatIntentRow = {
+        ...r,
+        id: randomUUID(),
+        created_at: NOW,
+        updated_at: NOW,
+      }
+      rows.set(row.id, row)
+      return row
+    },
+    async getIntent(id) {
+      return rows.get(id) ?? null
+    },
+    async getIntentByProviderRef(provider, ref) {
+      for (const r of rows.values()) {
+        if (r.provider === provider && r.provider_ref === ref) return r
+      }
+      return null
+    },
+    async listIntentsByUser(user_id, limit) {
+      return [...rows.values()].filter((r) => r.user_id === user_id).slice(0, limit)
+    },
+    async transition(id, from, patch: IntentPatch) {
+      const row = rows.get(id)
+      if (row === undefined || !from.includes(row.status)) return null
+      const updated = { ...row, ...patch, updated_at: new Date(NOW.getTime() + 1) } as FiatIntentRow
+      rows.set(id, updated)
+      return updated
+    },
+    async listStaleOpen(olderThan, limit) {
+      const open: FiatIntentStatus[] = ['quoted', 'awaiting_user', 'awaiting_provider', 'settling']
+      return [...rows.values()]
+        .filter((r) => open.includes(r.status) && r.updated_at < olderThan)
+        .slice(0, limit)
+    },
+    async listExpiredQuotes(now, limit) {
+      return [...rows.values()]
+        .filter((r) => (r.status === 'quoted' || r.status === 'awaiting_user') && r.expires_at < now)
+        .slice(0, limit)
+    },
+  }
+}
+
+function fakeProvider(
+  id: string,
+  overrides: Partial<FiatProvider> = {},
+): FiatProvider {
+  return {
+    id,
+    capabilities: { onramp: true, offramp: true, currencies: ['NGN'], assets: ['USDC_SOL'] },
+    async quote() {
+      return {
+        quote_ref: `${id}-q1`,
+        rate: 1500,
+        fee_amount: 100,
+        fiat_amount: 15_000,
+        asset_amount_raw: '9933333',
+        kyc_required: false,
+        kyc_url: null,
+      }
+    },
+    async initiate() {
+      return {
+        provider_ref: `${id}-ref-1`,
+        instruction: {
+          kind: 'bank_transfer',
+          bank_name: 'GTBank',
+          account_number: '0123456789',
+          account_name: 'Provider Ltd',
+          narration: 'TENDA-1',
+        },
+        kyc_url: null,
+      }
+    },
+    async status() {
+      return 'pending'
+    },
+    ...overrides,
+  }
+}
+
+function makeDeps(providers: FiatProvider[], registry?: Array<{ id: string; priority: number; is_enabled: boolean }>) {
+  const store = memoryStore()
+  const settled: FiatEvent[] = []
+  const failed: Array<FiatEvent & { reason: string }> = []
+  const warned: string[] = []
+  const deps: FiatDeps = {
+    store,
+    providers: new Map(providers.map((p) => [p.id, p])),
+    registry: registry ?? providers.map((p, i) => ({ id: p.id, priority: i, is_enabled: true })),
+    events: {
+      settled: (e) => settled.push(e),
+      failed: (e) => failed.push(e),
+    },
+    now: () => NOW,
+    log: { warn: (_o, msg) => warned.push(msg) },
+  }
+  return { deps, store, settled, failed, warned }
+}
+
+const ONRAMP_INPUT = {
+  direction: 'onramp' as const,
+  fiat_currency: 'NGN',
+  fiat_amount: 15_000,
+  asset: 'USDC_SOL',
+  asset_decimals: 6,
+  asset_amount_raw: null,
+  country: 'NG',
+  wallet_address: 'WALLET',
+  chain_id: 'solana:devnet',
+}
+
+// ---------- routing ---------------------------------------------------------
+
+test('routing: priority order, capability + enabled filters, p2p appended last', () => {
+  const a = fakeProvider('a')
+  const b = fakeProvider('b')
+  const offrampOnly = fakeProvider('c', {
+    capabilities: { onramp: false, offramp: true, currencies: ['NGN'], assets: ['USDC_SOL'] },
+  })
+  const p2p = fakeProvider('p2p_internal', {
+    capabilities: { onramp: true, offramp: true, currencies: ['NGN'], assets: ['*'] },
+  })
+  const providers = new Map([a, b, offrampOnly, p2p].map((p) => [p.id, p]))
+  const registry = [
+    { id: 'a', priority: 20, is_enabled: true },
+    { id: 'b', priority: 10, is_enabled: true },
+    { id: 'c', priority: 1, is_enabled: true },
+    { id: 'p2p_internal', priority: 100, is_enabled: true },
+  ]
+  const req: QuoteRequest = { ...ONRAMP_INPUT }
+  const picked = pickCandidates(registry, providers, req).map((p) => p.id)
+  // c filtered (no onramp); b before a (priority); p2p appended last.
+  assert.deepStrictEqual(picked, ['b', 'a', 'p2p_internal'])
+
+  // Disabled licensed provider drops out; disabled p2p drops the fallback.
+  const reg2 = registry.map((r) => (r.id === 'b' ? { ...r, is_enabled: false } : r))
+  assert.deepStrictEqual(pickCandidates(reg2, providers, req).map((p) => p.id), ['a', 'p2p_internal'])
+  const reg3 = registry.map((r) => (r.id === 'p2p_internal' ? { ...r, is_enabled: false } : r))
+  assert.ok(!pickCandidates(reg3, providers, req).some((p) => p.id === 'p2p_internal'))
+})
+
+test('routing: unknown registry rows default licensed providers to disabled, p2p to enabled', () => {
+  const a = fakeProvider('a')
+  const p2p = fakeProvider('p2p_internal')
+  const picked = pickCandidates([], new Map([[a.id, a], [p2p.id, p2p]]), { ...ONRAMP_INPUT })
+  assert.deepStrictEqual(picked.map((p) => p.id), ['p2p_internal'])
+})
+
+test('supportsRequest: currency and asset filters, wildcard assets', () => {
+  const p = fakeProvider('x', {
+    capabilities: { onramp: true, offramp: false, currencies: ['NGN'], assets: ['*'] },
+  })
+  assert.strictEqual(supportsRequest(p, { ...ONRAMP_INPUT, asset: 'ANYTHING' }), true)
+  assert.strictEqual(supportsRequest(p, { ...ONRAMP_INPUT, fiat_currency: 'KES' }), false)
+  assert.strictEqual(supportsRequest(p, { ...ONRAMP_INPUT, direction: 'offramp' }), false)
+})
+
+// ---------- quote ------------------------------------------------------------
+
+test('requestQuote: persists a quoted intent with 10-min expiry', async () => {
+  const { deps, store } = makeDeps([fakeProvider('a')])
+  const result = await requestQuote(deps, 'user-1', { ...ONRAMP_INPUT })
+  assert.strictEqual(result.provider, 'a')
+  const row = store.rows.get(result.intent_id)
+  assert.ok(row)
+  assert.strictEqual(row.status, 'quoted')
+  assert.strictEqual(row.fiat_amount, '15000.0000')
+  assert.strictEqual(new Date(result.expires_at).getTime(), NOW.getTime() + 10 * 60_000)
+  const meta = row.metadata as { quote_ref: string }
+  assert.strictEqual(meta.quote_ref, 'a-q1')
+})
+
+test('requestQuote: failing provider falls through to the next; all fail → 503', async () => {
+  const broken = fakeProvider('broken', {
+    async quote() {
+      throw new Error('outage')
+    },
+  })
+  const { deps, warned } = makeDeps([broken, fakeProvider('backup')])
+  const result = await requestQuote(deps, 'user-1', { ...ONRAMP_INPUT })
+  assert.strictEqual(result.provider, 'backup')
+  assert.strictEqual(warned.length, 1)
+
+  const { deps: deadDeps } = makeDeps([broken])
+  await assert.rejects(
+    requestQuote(deadDeps, 'user-1', { ...ONRAMP_INPUT }),
+    (e: unknown) => e instanceof AppError && e.statusCode === 503,
+  )
+})
+
+test('requestQuote: no capable provider → 503', async () => {
+  const { deps } = makeDeps([fakeProvider('a')])
+  await assert.rejects(
+    requestQuote(deps, 'user-1', { ...ONRAMP_INPUT, fiat_currency: 'KES' }),
+    (e: unknown) => e instanceof AppError && e.statusCode === 503,
+  )
+})
+
+// ---------- initiate ------------------------------------------------------------
+
+async function quotedIntent(deps: FiatDeps, user = 'user-1') {
+  const q = await requestQuote(deps, user, { ...ONRAMP_INPUT })
+  return q.intent_id
+}
+
+test('initiate: transitions to awaiting_user, persists instruction + provider_ref', async () => {
+  const { deps, store } = makeDeps([fakeProvider('a')])
+  const intent_id = await quotedIntent(deps)
+  const out = await initiateIntent(deps, 'user-1', intent_id, {})
+  assert.strictEqual(out.status, 'awaiting_user')
+  assert.strictEqual(out.instruction !== null && 'kind' in out.instruction && out.instruction.kind, 'bank_transfer')
+  const row = store.rows.get(intent_id)
+  assert.ok(row)
+  assert.strictEqual(row.provider_ref, 'a-ref-1')
+  const meta = row.metadata as { instruction: { kind: string } }
+  assert.strictEqual(meta.instruction.kind, 'bank_transfer')
+})
+
+test('initiate: KYC url parks the intent on awaiting_provider', async () => {
+  const kyc = fakeProvider('a', {
+    async initiate() {
+      return {
+        provider_ref: 'a-ref-2',
+        instruction: { kind: 'redirect', url: 'https://kyc.example' },
+        kyc_url: 'https://kyc.example',
+      }
+    },
+  })
+  const { deps } = makeDeps([kyc])
+  const intent_id = await quotedIntent(deps)
+  const out = await initiateIntent(deps, 'user-1', intent_id, {})
+  assert.strictEqual(out.status, 'awaiting_provider')
+  assert.strictEqual(out.kyc_url, 'https://kyc.example')
+})
+
+test('initiate guards: ownership 404, wrong status 409, offramp without bank 422', async () => {
+  const { deps } = makeDeps([fakeProvider('a')])
+  const intent_id = await quotedIntent(deps)
+  await assert.rejects(
+    initiateIntent(deps, 'someone-else', intent_id, {}),
+    (e: unknown) => e instanceof AppError && e.statusCode === 404,
+  )
+  await initiateIntent(deps, 'user-1', intent_id, {})
+  await assert.rejects(
+    initiateIntent(deps, 'user-1', intent_id, {}),
+    (e: unknown) => e instanceof AppError && e.statusCode === 409,
+  )
+})
+
+test('initiate: expired quote → intent failed + 410', async () => {
+  const { deps, store } = makeDeps([fakeProvider('a')])
+  const intent_id = await quotedIntent(deps)
+  const row = store.rows.get(intent_id)
+  assert.ok(row)
+  store.rows.set(intent_id, { ...row, expires_at: new Date(NOW.getTime() - 1) })
+  await assert.rejects(
+    initiateIntent(deps, 'user-1', intent_id, {}),
+    (e: unknown) => e instanceof AppError && e.statusCode === 410,
+  )
+  assert.strictEqual(store.rows.get(intent_id)?.status, 'failed')
+})
+
+// ---------- cancel ----------------------------------------------------------------
+
+test('cancel: quoted/awaiting_user cancellable; settling is not', async () => {
+  const { deps, store } = makeDeps([fakeProvider('a')])
+  const intent_id = await quotedIntent(deps)
+  await cancelIntent(deps, 'user-1', intent_id)
+  assert.strictEqual(store.rows.get(intent_id)?.status, 'cancelled')
+
+  const second = await quotedIntent(deps)
+  const row = store.rows.get(second)
+  assert.ok(row)
+  store.rows.set(second, { ...row, status: 'settling' })
+  await assert.rejects(
+    cancelIntent(deps, 'user-1', second),
+    (e: unknown) => e instanceof AppError && e.statusCode === 409,
+  )
+})
+
+// ---------- settlement ----------------------------------------------------------------
+
+test('settleFromProvider: completed → settled + event; replay is idempotent', async () => {
+  const { deps, store, settled } = makeDeps([fakeProvider('a')])
+  const intent_id = await quotedIntent(deps)
+  await initiateIntent(deps, 'user-1', intent_id, {})
+
+  const first = await settleFromProvider(deps, { provider: 'a', provider_ref: 'a-ref-1', outcome: 'completed' })
+  assert.strictEqual(first?.status, 'settled')
+  assert.strictEqual(settled.length, 1)
+  assert.strictEqual(settled[0].intent_id, intent_id)
+
+  const replay = await settleFromProvider(deps, { provider: 'a', provider_ref: 'a-ref-1', outcome: 'completed' })
+  assert.strictEqual(replay?.status, 'settled')
+  assert.strictEqual(settled.length, 1) // no double fan-out
+  assert.strictEqual(store.rows.get(intent_id)?.status, 'settled')
+})
+
+test('settleFromProvider: failed outcome emits reasoned failure; unknown ref dropped with warn', async () => {
+  const { deps, failed, warned } = makeDeps([fakeProvider('a')])
+  const intent_id = await quotedIntent(deps)
+  await initiateIntent(deps, 'user-1', intent_id, {})
+
+  await settleFromProvider(deps, { provider: 'a', provider_ref: 'a-ref-1', outcome: 'failed', reason: 'declined' })
+  assert.strictEqual(failed.length, 1)
+  assert.strictEqual(failed[0].reason, 'declined')
+
+  const ghost = await settleFromProvider(deps, { provider: 'a', provider_ref: 'nope', outcome: 'completed' })
+  assert.strictEqual(ghost, null)
+  assert.ok(warned.some((m) => m.includes('unknown provider_ref')))
+})
+
+// ---------- reconcile -------------------------------------------------------------------
+
+test('reconcileIntent: provider completed converges; pending no-op; young not_found waits', async () => {
+  const states: Record<string, 'pending' | 'completed' | 'failed' | 'not_found'> = {}
+  const probe = fakeProvider('a', {
+    async status(ref) {
+      return states[ref] ?? 'pending'
+    },
+  })
+  const { deps, store, settled } = makeDeps([probe])
+  const intent_id = await quotedIntent(deps)
+  await initiateIntent(deps, 'user-1', intent_id, {})
+  const row = () => store.rows.get(intent_id)
+
+  states['a-ref-1'] = 'pending'
+  await reconcileIntent(deps, row()!)
+  assert.strictEqual(row()?.status, 'awaiting_user')
+
+  states['a-ref-1'] = 'not_found' // young — provider lag, keep waiting
+  await reconcileIntent(deps, row()!)
+  assert.strictEqual(row()?.status, 'awaiting_user')
+
+  states['a-ref-1'] = 'completed'
+  await reconcileIntent(deps, row()!)
+  assert.strictEqual(row()?.status, 'settled')
+  assert.strictEqual(settled.length, 1)
+})
+
+test('reconcileIntent: not_found past 24h fails the intent', async () => {
+  const probe = fakeProvider('a', {
+    async status() {
+      return 'not_found'
+    },
+  })
+  const { deps, store, failed } = makeDeps([probe])
+  const intent_id = await quotedIntent(deps)
+  await initiateIntent(deps, 'user-1', intent_id, {})
+  const row = store.rows.get(intent_id)
+  assert.ok(row)
+  store.rows.set(intent_id, { ...row, created_at: new Date(NOW.getTime() - 25 * 3_600_000) })
+
+  await reconcileIntent(deps, store.rows.get(intent_id)!)
+  assert.strictEqual(store.rows.get(intent_id)?.status, 'failed')
+  assert.ok(failed[0].reason.includes('no record'))
+})
+
+test('reconcile job: scans stale opens, isolates per-intent provider errors', async () => {
+  const moody = fakeProvider('a', {
+    async status(ref) {
+      if (ref === 'a-ref-1') throw new Error('flaky')
+      return 'pending'
+    },
+  })
+  const { deps, store, warned } = makeDeps([moody])
+  const intent_id = await quotedIntent(deps)
+  await initiateIntent(deps, 'user-1', intent_id, {})
+  // Make it stale.
+  const row = store.rows.get(intent_id)
+  assert.ok(row)
+  store.rows.set(intent_id, { ...row, updated_at: new Date(NOW.getTime() - 6 * 60_000) })
+
+  const result = await reconcileFiatIntentsHandler(deps)
+  assert.strictEqual(result.scanned, 1)
+  assert.ok(warned.some((m) => m.includes('status poll failed')))
+})
+
+// ---------- expire job ---------------------------------------------------------------------
+
+test('expire job: quoted intents past validity fail with a quote-expired event', async () => {
+  const { deps, store, failed } = makeDeps([fakeProvider('a')])
+  const intent_id = await quotedIntent(deps)
+  const row = store.rows.get(intent_id)
+  assert.ok(row)
+  store.rows.set(intent_id, { ...row, expires_at: new Date(NOW.getTime() - 1) })
+
+  const result = await expireFiatQuotesHandler(deps)
+  assert.strictEqual(result.expired, 1)
+  assert.strictEqual(store.rows.get(intent_id)?.status, 'failed')
+  assert.strictEqual(failed[0].reason, 'quote expired')
+
+  // Second run: nothing left to expire.
+  const again = await expireFiatQuotesHandler(deps)
+  assert.strictEqual(again.expired, 0)
+})
+
+// ---------- p2p provider ----------------------------------------------------------------------
+
+function p2p(overrides: Partial<{ mid: number; fulfilment: P2pFulfilment }> = {}) {
+  const opened: unknown[] = []
+  const fulfilment: P2pFulfilment = overrides.fulfilment ?? {
+    async open(input) {
+      opened.push(input)
+      return { offer_id: 'offer-1' }
+    },
+    async status() {
+      return 'pending'
+    },
+  }
+  const provider = p2pInternalProvider({
+    rates: { midRate: async () => overrides.mid ?? 1500 },
+    fulfilment,
+    capabilities: { onramp: true, offramp: true, currencies: ['NGN'], assets: ['SOL', 'SOL_DEVNET'] },
+    now: () => NOW,
+  })
+  return { provider, opened }
+}
+
+test('p2p quote: onramp marks rate up, offramp down; amounts derived from the right side', async () => {
+  const { provider } = p2p({ mid: 1000 })
+  const on = await provider.quote({ ...ONRAMP_INPUT, asset: 'SOL_DEVNET', asset_decimals: 9, fiat_amount: 10_100 })
+  assert.strictEqual(on.rate, 1010) // +100bps
+  assert.strictEqual(on.asset_amount_raw, String(Math.floor((10_100 / 1010) * 1e9)))
+
+  const off = await provider.quote({
+    ...ONRAMP_INPUT,
+    direction: 'offramp',
+    asset: 'SOL_DEVNET',
+    asset_decimals: 9,
+    fiat_amount: null,
+    asset_amount_raw: '2000000000',
+  })
+  assert.strictEqual(off.rate, 990) // -100bps
+  assert.strictEqual(off.fiat_amount, 1980)
+})
+
+test('p2p quote validation: onramp needs fiat_amount, offramp needs asset_amount_raw', async () => {
+  const { provider } = p2p()
+  await assert.rejects(
+    provider.quote({ ...ONRAMP_INPUT, asset: 'SOL_DEVNET', fiat_amount: null }),
+    (e: unknown) => e instanceof AppError && e.statusCode === 422,
+  )
+  await assert.rejects(
+    provider.quote({
+      ...ONRAMP_INPUT,
+      direction: 'offramp',
+      asset: 'SOL_DEVNET',
+      fiat_amount: null,
+      asset_amount_raw: null,
+    }),
+    (e: unknown) => e instanceof AppError && e.statusCode === 422,
+  )
+})
+
+test('p2p initiate: stateless — opens the exchange leg from the supplied quote snapshot', async () => {
+  const { provider, opened } = p2p()
+  const q = await provider.quote({ ...ONRAMP_INPUT, asset: 'SOL_DEVNET', asset_decimals: 9 })
+  // Fresh instance (deps rebuilt per request) — must still initiate fine.
+  const { provider: fresh, opened: freshOpened } = p2p()
+  const init = await fresh.initiate({
+    quote_ref: q.quote_ref,
+    user_id: 'user-1',
+    wallet_address: 'W',
+    direction: 'onramp',
+    quote: {
+      fiat_currency: 'NGN',
+      fiat_amount: q.fiat_amount,
+      asset: 'SOL_DEVNET',
+      asset_amount_raw: q.asset_amount_raw,
+      rate: q.rate,
+    },
+  })
+  assert.deepStrictEqual(init.instruction, { kind: 'p2p', offer_id: 'offer-1' })
+  assert.strictEqual(opened.length, 0) // first instance unused
+  assert.strictEqual(freshOpened.length, 1)
+})
+
+// ---------- licensed-http adapter ------------------------------------------------------------------
+
+test('licensed-http: signs requests, narrows responses, maps statuses', async () => {
+  const calls: Array<{ url: string; body: unknown; headers: Record<string, string> }> = []
+  const http: ProviderHttp = {
+    async post(url, body, headers) {
+      calls.push({ url, body, headers })
+      if (url.endsWith(YELLOWCARD_SPEC.paths.quote)) {
+        return {
+          quote_ref: 'q-1',
+          rate: 1500,
+          fee_amount: 50,
+          fiat_amount: 15_000,
+          asset_amount_raw: '9966666',
+          kyc_required: true,
+          kyc_url: 'https://kyc',
+        }
+      }
+      return {
+        provider_ref: 'yc-1',
+        instruction: { kind: 'ussd', code: '*737*1#' },
+      }
+    },
+    async get(url, headers) {
+      calls.push({ url, body: undefined, headers })
+      return { status: 'processing' }
+    },
+  }
+  const provider = licensedHttpProvider(
+    YELLOWCARD_SPEC,
+    { api_key: 'key', api_secret: 'secret' },
+    http,
+  )
+  const quote = await provider.quote({ ...ONRAMP_INPUT })
+  assert.strictEqual(quote.kyc_required, true)
+  assert.strictEqual(quote.kyc_url, 'https://kyc')
+  assert.strictEqual(calls[0].headers['X-Api-Key'], 'key')
+  assert.match(calls[0].headers['X-Signature'], /^[0-9a-f]{64}$/)
+
+  const init = await provider.initiate({
+    quote_ref: 'q-1',
+    user_id: 'u',
+    wallet_address: 'W',
+    direction: 'onramp',
+    quote: { fiat_currency: 'NGN', fiat_amount: 15_000, asset: 'USDC_SOL', asset_amount_raw: '9966666', rate: 1500 },
+  })
+  assert.deepStrictEqual(init.instruction, { kind: 'ussd', code: '*737*1#' })
+
+  assert.strictEqual(await provider.status('yc-1'), 'pending') // 'processing' maps to pending
+  assert.ok(calls[2].url.includes('yc-1'))
+})
+
+test('licensed-http: malformed responses → 502 PROVIDER_UNAVAILABLE', async () => {
+  const http: ProviderHttp = {
+    async post() {
+      return { rate: 1500 } // missing quote_ref etc.
+    },
+    async get() {
+      return {}
+    },
+  }
+  const provider = licensedHttpProvider(YELLOWCARD_SPEC, { api_key: 'k', api_secret: 's' }, http)
+  await assert.rejects(
+    provider.quote({ ...ONRAMP_INPUT }),
+    (e: unknown) => e instanceof AppError && e.statusCode === 502,
+  )
+  // Unknown status string degrades to 'pending', never throws.
+  assert.strictEqual(await provider.status('x'), 'pending')
+})
+
+// ---------- webhook outcome mapping -----------------------------------------------------------------
+
+test('mapWebhookOutcome: terminal statuses map, phase updates return null', () => {
+  assert.strictEqual(mapWebhookOutcome('completed'), 'completed')
+  assert.strictEqual(mapWebhookOutcome('success'), 'completed')
+  assert.strictEqual(mapWebhookOutcome('failed'), 'failed')
+  assert.strictEqual(mapWebhookOutcome('cancelled'), 'failed')
+  assert.strictEqual(mapWebhookOutcome('declined'), 'failed')
+  assert.strictEqual(mapWebhookOutcome('processing'), null)
+  assert.strictEqual(mapWebhookOutcome(undefined), null)
+})

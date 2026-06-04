@@ -35,6 +35,9 @@ export interface AppEvents {
   'gig.resolved':       GigEventBase & { winner: string }
   'gig.created':        { gigId: string; posterId: string; city: string | null; category: string; title: string }
   'message.sent':       { conversationId: string; senderId: string; recipientId: string; preview: string }
+  // Stage 8 — fiat rails (onramp/offramp settlement fan-out)
+  'fiat.settled':       { intent_id: string; user_id: string; direction: 'onramp' | 'offramp'; fiat_currency: string; fiat_amount: string; asset: string; asset_amount_raw: string }
+  'fiat.failed':        { intent_id: string; user_id: string; direction: 'onramp' | 'offramp'; fiat_currency: string; fiat_amount: string; asset: string; asset_amount_raw: string; reason: string }
   'review.submitted':   { gigId: string; reviewerId: string; revieweeId: string; score: number; title: string }
   'proof.added':        GigEventBase
   'exchange.accepted':  ExchangeEventBase

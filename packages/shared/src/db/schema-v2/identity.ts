@@ -12,6 +12,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  varchar,
 } from 'drizzle-orm/pg-core'
 import { chainNamespacePgEnum, chains } from './chains'
 
@@ -43,6 +44,8 @@ export const users = pgTable(
     review_score: numeric('review_score', { precision: 3, scale: 2 }),
     sponsored_tx_remaining: integer('sponsored_tx_remaining').notNull().default(3),
     advanced_mode_enabled: boolean('advanced_mode_enabled').notNull().default(false),
+    /** UI rendering preference ('NGN', 'USD'); null = show raw asset (stage-8). */
+    display_currency: varchar('display_currency', { length: 3 }),
     last_active_at: timestamp('last_active_at'),
     created_at: timestamp('created_at').notNull().defaultNow(),
     updated_at: timestamp('updated_at')

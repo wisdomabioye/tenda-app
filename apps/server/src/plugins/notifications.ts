@@ -277,6 +277,38 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
       fastify.log.error({ err }, '[notifications] exchange.cancelled listener failed')
     }
   })
+
+  // ── Stage 8: fiat intent settled / failed → notify the user ─────────────
+  appEvents.on('fiat.settled', async (data) => {
+    try {
+      const tokens = await tokensFor(data.user_id)
+      const stale = await sendPush(tokens, {
+        title: data.direction === 'onramp' ? 'Funds Arrived' : 'Cash-out Complete',
+        body:
+          data.direction === 'onramp'
+            ? 'Your purchase settled — the funds are in your wallet.'
+            : `Your ${data.fiat_currency} payout was sent to your bank.`,
+        data: { screen: 'fiat-intent', intentId: data.intent_id },
+      }, fastify.log)
+      await removeStaleTokens(stale)
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] fiat.settled listener failed')
+    }
+  })
+
+  appEvents.on('fiat.failed', async (data) => {
+    try {
+      const tokens = await tokensFor(data.user_id)
+      const stale = await sendPush(tokens, {
+        title: data.direction === 'onramp' ? 'Purchase Failed' : 'Cash-out Failed',
+        body: data.reason,
+        data: { screen: 'fiat-intent', intentId: data.intent_id },
+      }, fastify.log)
+      await removeStaleTokens(stale)
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] fiat.failed listener failed')
+    }
+  })
 }
 
 export default fp(notificationsPlugin, {

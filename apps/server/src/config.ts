@@ -60,6 +60,16 @@ export interface Config {
    * (project decision). Null = moderation runs keyword-only.
    */
   OPENROUTER_API_KEY: string | null
+  /** Stage 8 — fiat rails. Feature gate + provider credentials (#61). */
+  FIAT_RAILS_ENABLED: boolean
+  YELLOWCARD_API_KEY: string | null
+  YELLOWCARD_API_SECRET: string | null
+  YELLOWCARD_WEBHOOK_SECRET: string | null
+  ONRAMPMONEY_API_KEY: string | null
+  ONRAMPMONEY_API_SECRET: string | null
+  ONRAMPMONEY_WEBHOOK_SECRET: string | null
+  /** NIP name-enquiry credentials — bank-account verification. */
+  NIP_API_KEY: string | null
   /**
    * S5.1 push credentials (#53). FCM: base64-encoded service-account JSON
    * (HTTP v1 — the legacy server-key API is retired). APNs: p8 token auth.
@@ -115,6 +125,14 @@ export function loadConfig(): Config {
     HELIUS_WEBHOOK_SECRET: process.env.HELIUS_WEBHOOK_SECRET ?? null,
     LISTENER_PROVIDER:     process.env.LISTENER_PROVIDER === 'polling' ? 'polling' : 'helius',
     OPENROUTER_API_KEY:    process.env.OPENROUTER_API_KEY ?? null,
+    FIAT_RAILS_ENABLED:    process.env.FIAT_RAILS_ENABLED !== 'false',
+    YELLOWCARD_API_KEY:        process.env.YELLOWCARD_API_KEY ?? null,
+    YELLOWCARD_API_SECRET:     process.env.YELLOWCARD_API_SECRET ?? null,
+    YELLOWCARD_WEBHOOK_SECRET: process.env.YELLOWCARD_WEBHOOK_SECRET ?? null,
+    ONRAMPMONEY_API_KEY:        process.env.ONRAMPMONEY_API_KEY ?? null,
+    ONRAMPMONEY_API_SECRET:     process.env.ONRAMPMONEY_API_SECRET ?? null,
+    ONRAMPMONEY_WEBHOOK_SECRET: process.env.ONRAMPMONEY_WEBHOOK_SECRET ?? null,
+    NIP_API_KEY:                process.env.NIP_API_KEY ?? null,
     FCM_SERVICE_ACCOUNT_B64: process.env.FCM_SERVICE_ACCOUNT_B64 ?? null,
     APNS_KEY_ID:           process.env.APNS_KEY_ID ?? null,
     APNS_TEAM_ID:          process.env.APNS_TEAM_ID ?? null,
