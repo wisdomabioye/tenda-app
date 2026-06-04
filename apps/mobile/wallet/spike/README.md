@@ -26,7 +26,7 @@ swap transports per platform without touching the consumer surface.
             │
             ├─── metamask.ts  → @metamask/connect-multichain (CAIP-25)
             ├─── solana-mwa.ts → Solana Mobile Wallet Adapter (Android)
-            └─── phantom.ts    → Phantom universal links (iOS, pending)
+            └─── phantom.ts    → Phantom universal links (iOS, device-verify pending)
 ```
 
 Files under `apps/mobile/wallet/spike/`:
@@ -44,7 +44,7 @@ Files under `apps/mobile/wallet/spike/`:
 | `adapters/metamask.ts` | MetaMask Connect Multichain (EVM + Solana via MM) |
 | `adapters/mwa-shared.ts` | Shared MWA helpers (auth/retry/error classification) |
 | `adapters/solana-mwa.ts` | Generic Android-Solana entry (MWA routes via OS) |
-| `adapters/phantom.ts` | iOS-only stub for Phantom universal links |
+| `adapters/phantom.ts` | iOS Phantom universal-link transport (X25519 + nacl.box; device verification pending) |
 | `../../app/spike-wallet.tsx` | Test screen with connect/sign/disconnect + log |
 
 ## Why this design (and not WalletConnect or Reown AppKit)
