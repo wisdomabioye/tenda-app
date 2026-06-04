@@ -40,13 +40,25 @@ function baseConfig(): Config {
     PLATFORM_FEE_BPS: 250,
     JWT_EXPIRES_IN: '7d',
     SOLANA_NETWORK: 'devnet',
+    SOLANA_USDC_MINT: null,
     CORS_ORIGIN: null,
     ADMIN_ORIGIN: null,
   }
 }
 
+const TEST_REGISTRY_DEPS = {
+  solana: {
+    async resolveWalletAddress(): Promise<string> {
+      throw new Error('not used in verify-tx tests')
+    },
+    async resolveAsset(): Promise<{ token_address: string | null }> {
+      throw new Error('not used in verify-tx tests')
+    },
+  },
+}
+
 function deps(store: VerifyTxStore): VerifyTxDeps {
-  return { store, chains: buildChainRegistry(baseConfig()) }
+  return { store, chains: buildChainRegistry(baseConfig(), TEST_REGISTRY_DEPS) }
 }
 
 function job(over: Partial<VerifyTxJobPayload> = {}): VerifyTxJobPayload {

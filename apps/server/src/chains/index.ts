@@ -13,16 +13,25 @@
  * import the cached registry, not raw factories).
  */
 
-import { solanaAdapter } from '@server/chains/solana'
+import { solanaAdapter, type SolanaAdapterDeps } from '@server/chains/solana'
 import type { Config } from '@server/config'
 import type { ChainAdapter, ChainId, ChainRegistry } from '@server/chains/types'
+
+/**
+ * Per-namespace adapter dependencies. The chains plugin constructs these
+ * (it owns DB access for the wallet/asset resolvers); the registry stays a
+ * pure factory over config + deps.
+ */
+export interface ChainRegistryDeps {
+  solana: SolanaAdapterDeps
+}
 
 /**
  * Build the registry from config. Throws on duplicate registration so a
  * typo in the registration block fails at boot rather than at first
  * request.
  */
-export function buildChainRegistry(config: Config): ChainRegistry {
+export function buildChainRegistry(config: Config, deps: ChainRegistryDeps): ChainRegistry {
   const adapters = new Map<ChainId, ChainAdapter>()
 
   function register(adapter: ChainAdapter): void {
@@ -57,7 +66,7 @@ export function buildChainRegistry(config: Config): ChainRegistry {
     solanaAdapter({
       chain_id: solanaChainId,
       rpc_url: config.SOLANA_RPC_URL,
-      program_id: config.SOLANA_PROGRAM_ID,
+      deps: deps.solana,
     }),
   )
 

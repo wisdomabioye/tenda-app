@@ -9,8 +9,10 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
+import { eq } from 'drizzle-orm'
 import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
+import { disputes } from '@tenda/shared/db/schema-v2/governance'
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/lib/escrow-routes'
 
@@ -33,11 +35,26 @@ const route: FastifyPluginAsync = async (fastify) => {
         grace_period_seconds: cfg.grace_period_seconds,
         transition: 'resolve',
       })
+      // The on-chain resolve instruction routes the bond by raiser identity;
+      // recover it from the dispute record (one row per escrow — unique FK).
+      const disputeRows = await fastify.db
+        .select({ raised_by: disputes.raised_by })
+        .from(disputes)
+        .where(eq(disputes.escrow_id, escrow.id))
+        .limit(1)
+      const dispute = disputeRows[0]
+      if (dispute === undefined) {
+        throw new AppError(
+          409,
+          ErrorCode.ESCROW_WRONG_STATUS,
+          `escrow ${escrow.id} has no dispute record to resolve`,
+        )
+      }
       const adapter = fastify.chains.get(escrow.chain_id)
       const unsigned = await adapter.buildTx({
         action: 'resolveDispute',
         user_id: request.user.id,
-        payload: { escrow_id: escrow.id, winner },
+        payload: { escrow_id: escrow.id, winner, raiser_user_id: dispute.raised_by },
       })
       return { unsigned }
     },

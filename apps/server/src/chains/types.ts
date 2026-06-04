@@ -127,6 +127,14 @@ export interface DisputeEscrowPayload {
 export interface ResolveDisputePayload {
   escrow_id: string
   winner: 'creator' | 'counterparty' | 'split'
+  /**
+   * User id of the party that raised the dispute (`disputes.raised_by`).
+   * Solana's `resolve_dispute_*` takes the raiser's wallet as an instruction
+   * argument (bond routing) — the adapter resolves the wallet through its
+   * injected resolver. The EVM contract records the raiser on-chain at
+   * `disputeEscrow` and ignores this field.
+   */
+  raiser_user_id: string
 }
 
 export type BuildTxArgs =
@@ -209,6 +217,44 @@ export type VerifiedTx =
   | { confirmed: true; failed: true; reason: string }
   | { confirmed: true; failed: false; event: DecodedEvent }
 
+// ---------- escrow state snapshot -----------------------------------------
+
+/**
+ * Decoded on-chain escrow account state — a snapshot, not an event
+ * (resolves open_issues.md §10.10). Field vocabulary matches the DB
+ * `escrows` row so reconciliation can diff directly.
+ */
+export interface EscrowState {
+  escrow_ref: string
+  /** UUID string recovered from the on-chain 16-byte escrow_id. */
+  escrow_id: string
+  kind: 'gig' | 'exchange'
+  /** SPL mint / ERC-20 address; null = native asset. */
+  asset_address: string | null
+  amount_raw: AmountRaw
+  creator_address: string
+  counterparty_address: string | null
+  assigned_counterparty_address: string | null
+  status:
+    | 'open'
+    | 'accepted'
+    | 'submitted'
+    | 'completed'
+    | 'cancelled'
+    | 'refunded'
+    | 'disputed'
+    | 'resolved'
+  accept_deadline_unix: number
+  completion_duration_seconds: number
+  /** 0 until accepted. */
+  completion_deadline_unix: number
+  /** 0 until submitted. */
+  approval_deadline_unix: number
+  dispute_bond_raw: AmountRaw
+  is_seeker: boolean
+  created_at_unix: number
+}
+
 // ---------- auth-sig verify ----------------------------------------------
 
 export interface VerifyAuthSigArgs {
@@ -237,8 +283,8 @@ export interface ChainAdapter {
   /** Verify the user's wallet-sig over the auth message. */
   verifyAuthSig(args: VerifyAuthSigArgs): Promise<boolean>
 
-  /** Latest on-chain escrow state for reconciliation. */
-  fetchEscrowState(escrow_ref: string): Promise<DecodedEvent | null>
+  /** Latest on-chain escrow state for reconciliation. Null = no account. */
+  fetchEscrowState(escrow_ref: string): Promise<EscrowState | null>
 
   /**
    * Platform fee in raw units. Same surface as `lib/escrow.ts:computePlatformFee`

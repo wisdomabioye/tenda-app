@@ -29,11 +29,16 @@
       "types": "./dist/idl/index.d.ts",
       "require": "./dist/idl/index.js",
       "default": "./dist/idl/index.js"
+    },
+    "./idl/legacy": {
+      "types": "./dist/idl/legacy/index.d.ts",
+      "require": "./dist/idl/legacy/index.js",
+      "default": "./dist/idl/legacy/index.js"
     }
   },
   "scripts": {
-    "build": "tsc && cp src/idl/tenda_escrow.json dist/idl/tenda_escrow.json",
-    "prepare": "tsc && cp src/idl/tenda_escrow.json dist/idl/tenda_escrow.json",
+    "build": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/idl/legacy/tenda_escrow.json dist/idl/legacy/",
+    "prepare": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/idl/legacy/tenda_escrow.json dist/idl/legacy/",
     "build:watch": "tsc -w",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"

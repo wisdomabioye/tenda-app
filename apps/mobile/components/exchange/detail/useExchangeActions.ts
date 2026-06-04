@@ -20,7 +20,7 @@ import { usePlatformConfigStore } from '@/stores/platform-config.store'
 import type { PendingSync } from '@/stores/pending-sync.store'
 import type { ExchangeOfferDetail, ReviewInput } from '@tenda/shared'
 import { EXCHANGE_DISPUTE_REASON_MIN_LENGTH, computePlatformFee, SOLANA_TX_FEE_LAMPORTS } from '@tenda/shared'
-import type { InstructionName } from '@tenda/shared/idl'
+import type { InstructionName } from '@tenda/shared/idl/legacy'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

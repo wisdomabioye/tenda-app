@@ -14,20 +14,20 @@ export type TendaEscrow = {
   },
   "instructions": [
     {
-      "name": "acceptGig",
+      "name": "acceptEscrow",
       "discriminator": [
-        94,
-        129,
-        189,
-        107,
-        220,
-        74,
-        82,
-        57
+        193,
+        2,
+        224,
+        245,
+        36,
+        116,
+        65,
+        154
       ],
       "accounts": [
         {
-          "name": "gigEscrow",
+          "name": "escrow",
           "writable": true,
           "pda": {
             "seeds": [
@@ -44,138 +44,14 @@ export type TendaEscrow = {
               },
               {
                 "kind": "account",
-                "path": "gig_escrow.gig_id",
-                "account": "gigEscrow"
-              }
-            ]
-          }
-        },
-        {
-          "name": "workerAccount",
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "worker"
-              }
-            ]
-          }
-        },
-        {
-          "name": "worker",
-          "writable": true,
-          "signer": true
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "airdropGasSubsidy",
-      "discriminator": [
-        12,
-        67,
-        136,
-        81,
-        143,
-        201,
-        48,
-        51
-      ],
-      "accounts": [
-        {
-          "name": "userAccount",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              }
-            ]
-          }
-        },
-        {
-          "name": "user",
-          "writable": true
-        },
-        {
-          "name": "treasury",
-          "docs": [
-            "Platform treasury that sends the airdrop"
-          ],
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "amount",
-          "type": "u64"
-        }
-      ]
-    },
-    {
-      "name": "approveCompletion",
-      "discriminator": [
-        191,
-        196,
-        91,
-        103,
-        232,
-        146,
-        6,
-        67
-      ],
-      "accounts": [
-        {
-          "name": "gigEscrow",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  101,
-                  115,
-                  99,
-                  114,
-                  111,
-                  119
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "gig_escrow.gig_id",
-                "account": "gigEscrow"
+                "path": "escrow.escrow_id",
+                "account": "escrow"
               }
             ]
           }
         },
         {
           "name": "platformState",
-          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -195,88 +71,27 @@ export type TendaEscrow = {
           }
         },
         {
-          "name": "workerAccount",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "worker"
-              }
-            ]
-          }
-        },
-        {
-          "name": "poster",
-          "writable": true,
+          "name": "signer",
           "signer": true
-        },
-        {
-          "name": "worker",
-          "writable": true
-        },
-        {
-          "name": "treasury",
-          "writable": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
     },
     {
-      "name": "batchAirdropGasSubsidy",
-      "docs": [
-        "Distribute gas-subsidy airdrops to multiple recipients in a single transaction.",
-        "remaining_accounts layout: [treasury, system_program, pda_0, wallet_0, ..., pda_n, wallet_n].",
-        "`amounts[i]` maps to the [pda_i, wallet_i] pair at index 2+i*2."
-      ],
+      "name": "approveCompletionSol",
       "discriminator": [
-        20,
-        84,
-        186,
-        227,
-        49,
-        110,
-        44,
-        11
-      ],
-      "accounts": [],
-      "args": [
-        {
-          "name": "amounts",
-          "type": {
-            "vec": "u64"
-          }
-        }
-      ]
-    },
-    {
-      "name": "cancelGig",
-      "discriminator": [
-        109,
-        142,
-        65,
-        80,
-        226,
-        145,
-        135,
-        185
+        192,
+        4,
+        178,
+        86,
+        79,
+        181,
+        106,
+        28
       ],
       "accounts": [
         {
-          "name": "gigEscrow",
+          "name": "escrow",
           "writable": true,
           "pda": {
             "seeds": [
@@ -293,15 +108,88 @@ export type TendaEscrow = {
               },
               {
                 "kind": "account",
-                "path": "gig_escrow.gig_id",
-                "account": "gigEscrow"
+                "path": "escrow.escrow_id",
+                "account": "escrow"
               }
             ]
           }
         },
         {
-          "name": "poster",
+          "name": "platformState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
           "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "counterparty",
+          "docs": [
+            "`escrow.counterparty` (cannot use `has_one` because the field is an",
+            "Option). Handlers that don't pay counterparty (e.g. reclaim) must",
+            "still pass the correct account to satisfy this struct; in those cases",
+            "we just don't transfer anything to it."
+          ],
+          "writable": true
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "relations": [
+            "platformState"
+          ]
+        },
+        {
+          "name": "signer",
           "signer": true
         },
         {
@@ -312,20 +200,560 @@ export type TendaEscrow = {
       "args": []
     },
     {
-      "name": "createGigEscrow",
+      "name": "approveCompletionSpl",
       "discriminator": [
-        193,
-        117,
-        69,
-        70,
-        18,
-        123,
-        67,
-        33
+        236,
+        17,
+        111,
+        161,
+        202,
+        142,
+        54,
+        175
       ],
       "accounts": [
         {
-          "name": "gigEscrow",
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platformState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vaultTokenAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "counterparty"
+        },
+        {
+          "name": "treasury",
+          "relations": [
+            "platformState"
+          ]
+        },
+        {
+          "name": "creatorTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "counterpartyTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "treasuryTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "signer",
+          "signer": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancelEscrowSol",
+      "discriminator": [
+        124,
+        184,
+        202,
+        166,
+        255,
+        222,
+        202,
+        177
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "cancelEscrowSpl",
+      "discriminator": [
+        245,
+        93,
+        217,
+        242,
+        48,
+        113,
+        173,
+        145
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vaultTokenAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creatorTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claimStalledPaymentSol",
+      "discriminator": [
+        212,
+        137,
+        8,
+        120,
+        49,
+        57,
+        157,
+        224
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platformState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "counterparty",
+          "docs": [
+            "`escrow.counterparty` (cannot use `has_one` because the field is an",
+            "Option). Handlers that don't pay counterparty (e.g. reclaim) must",
+            "still pass the correct account to satisfy this struct; in those cases",
+            "we just don't transfer anything to it."
+          ],
+          "writable": true
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "relations": [
+            "platformState"
+          ]
+        },
+        {
+          "name": "signer",
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claimStalledPaymentSpl",
+      "discriminator": [
+        85,
+        157,
+        137,
+        90,
+        30,
+        87,
+        83,
+        38
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platformState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vaultTokenAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "counterparty"
+        },
+        {
+          "name": "treasury",
+          "relations": [
+            "platformState"
+          ]
+        },
+        {
+          "name": "creatorTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "counterpartyTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "treasuryTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "signer",
+          "signer": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "createEscrowSol",
+      "discriminator": [
+        92,
+        113,
+        86,
+        137,
+        12,
+        174,
+        217,
+        134
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
           "writable": true,
           "pda": {
             "seeds": [
@@ -342,14 +770,213 @@ export type TendaEscrow = {
               },
               {
                 "kind": "arg",
-                "path": "gigId"
+                "path": "args.escrow_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "docs": [
+            "System-owned PDA holding escrowed lamports + dispute bond. Created as",
+            "a zero-data system account so its lamport balance is the escrow value."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "args.escrow_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "createEscrowArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "createEscrowSpl",
+      "discriminator": [
+        156,
+        161,
+        63,
+        58,
+        59,
+        1,
+        42,
+        175
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "args.escrow_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vaultTokenAccount",
+          "docs": [
+            "Per-escrow token vault. PDA-owned token account whose `authority` is",
+            "the Escrow data PDA — settlement instructions sign as that PDA."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "args.escrow_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "creatorTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "createEscrowArgs"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "declineAssignedEscrow",
+      "discriminator": [
+        32,
+        114,
+        79,
+        221,
+        99,
+        228,
+        139,
+        25
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
               }
             ]
           }
         },
         {
           "name": "platformState",
-          "writable": true,
           "pda": {
             "seeds": [
               {
@@ -369,101 +996,27 @@ export type TendaEscrow = {
           }
         },
         {
-          "name": "poster",
-          "writable": true,
+          "name": "signer",
           "signer": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
-        }
-      ],
-      "args": [
-        {
-          "name": "gigId",
-          "type": "string"
-        },
-        {
-          "name": "paymentAmount",
-          "type": "u64"
-        },
-        {
-          "name": "completionDurationSeconds",
-          "type": "u64"
-        },
-        {
-          "name": "acceptDeadline",
-          "type": {
-            "option": "i64"
-          }
-        },
-        {
-          "name": "isSeeker",
-          "type": "bool"
-        }
-      ]
-    },
-    {
-      "name": "createUserAccount",
-      "discriminator": [
-        146,
-        68,
-        100,
-        69,
-        63,
-        46,
-        182,
-        199
-      ],
-      "accounts": [
-        {
-          "name": "userAccount",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              }
-            ]
-          }
-        },
-        {
-          "name": "user",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
         }
       ],
       "args": []
     },
     {
-      "name": "disputeGig",
+      "name": "disputeEscrowSol",
       "discriminator": [
-        235,
-        80,
-        86,
-        158,
-        192,
-        86,
-        167,
-        190
+        187,
+        38,
+        190,
+        58,
+        27,
+        179,
+        75,
+        44
       ],
       "accounts": [
         {
-          "name": "gigEscrow",
+          "name": "escrow",
           "writable": true,
           "pda": {
             "seeds": [
@@ -480,21 +1033,144 @@ export type TendaEscrow = {
               },
               {
                 "kind": "account",
-                "path": "gig_escrow.gig_id",
-                "account": "gigEscrow"
+                "path": "escrow.escrow_id",
+                "account": "escrow"
               }
             ]
           }
         },
         {
-          "name": "initiator",
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "raiser",
+          "writable": true,
           "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "reason",
-          "type": "string"
+          "name": "bondAmount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "disputeEscrowSpl",
+      "discriminator": [
+        62,
+        198,
+        212,
+        133,
+        4,
+        8,
+        199,
+        97
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vaultTokenAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "raiserTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "raiser",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "bondAmount",
+          "type": "u64"
         }
       ]
     },
@@ -533,12 +1209,9 @@ export type TendaEscrow = {
           }
         },
         {
-          "name": "admin",
+          "name": "payer",
           "writable": true,
           "signer": true
-        },
-        {
-          "name": "treasury"
         },
         {
           "name": "systemProgram",
@@ -547,34 +1220,30 @@ export type TendaEscrow = {
       ],
       "args": [
         {
-          "name": "platformFeeBps",
-          "type": "u16"
-        },
-        {
-          "name": "seekerFeeBps",
-          "type": "u16"
-        },
-        {
-          "name": "gracePeriodSeconds",
-          "type": "i64"
+          "name": "args",
+          "type": {
+            "defined": {
+              "name": "initializePlatformArgs"
+            }
+          }
         }
       ]
     },
     {
-      "name": "refundExpired",
+      "name": "reclaimAbandonedSol",
       "discriminator": [
-        118,
-        153,
-        164,
-        244,
-        40,
-        128,
-        242,
-        250
+        210,
+        136,
+        34,
+        193,
+        231,
+        74,
+        237,
+        66
       ],
       "accounts": [
         {
-          "name": "gigEscrow",
+          "name": "escrow",
           "writable": true,
           "pda": {
             "seeds": [
@@ -591,8 +1260,8 @@ export type TendaEscrow = {
               },
               {
                 "kind": "account",
-                "path": "gig_escrow.gig_id",
-                "account": "gigEscrow"
+                "path": "escrow.escrow_id",
+                "account": "escrow"
               }
             ]
           }
@@ -618,8 +1287,62 @@ export type TendaEscrow = {
           }
         },
         {
-          "name": "poster",
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "counterparty",
+          "docs": [
+            "`escrow.counterparty` (cannot use `has_one` because the field is an",
+            "Option). Handlers that don't pay counterparty (e.g. reclaim) must",
+            "still pass the correct account to satisfy this struct; in those cases",
+            "we just don't transfer anything to it."
+          ],
           "writable": true
+        },
+        {
+          "name": "treasury",
+          "writable": true,
+          "relations": [
+            "platformState"
+          ]
+        },
+        {
+          "name": "signer",
+          "signer": true
         },
         {
           "name": "systemProgram",
@@ -629,20 +1352,20 @@ export type TendaEscrow = {
       "args": []
     },
     {
-      "name": "resolveDispute",
+      "name": "reclaimAbandonedSpl",
       "discriminator": [
-        231,
-        6,
-        202,
-        6,
-        96,
-        103,
-        12,
-        230
+        157,
+        168,
+        24,
+        67,
+        244,
+        92,
+        34,
+        159
       ],
       "accounts": [
         {
-          "name": "gigEscrow",
+          "name": "escrow",
           "writable": true,
           "pda": {
             "seeds": [
@@ -659,8 +1382,8 @@ export type TendaEscrow = {
               },
               {
                 "kind": "account",
-                "path": "gig_escrow.gig_id",
-                "account": "gigEscrow"
+                "path": "escrow.escrow_id",
+                "account": "escrow"
               }
             ]
           }
@@ -686,41 +1409,352 @@ export type TendaEscrow = {
           }
         },
         {
-          "name": "workerAccount",
+          "name": "vaultTokenAccount",
           "writable": true,
           "pda": {
             "seeds": [
               {
                 "kind": "const",
                 "value": [
-                  117,
-                  115,
                   101,
-                  114
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
                 ]
               },
               {
                 "kind": "account",
-                "path": "worker"
+                "path": "escrow.escrow_id",
+                "account": "escrow"
               }
             ]
           }
         },
         {
-          "name": "admin",
-          "signer": true
+          "name": "creator",
+          "relations": [
+            "escrow"
+          ]
         },
         {
-          "name": "poster",
+          "name": "counterparty"
+        },
+        {
+          "name": "treasury",
+          "relations": [
+            "platformState"
+          ]
+        },
+        {
+          "name": "creatorTokenAccount",
           "writable": true
         },
         {
-          "name": "worker",
+          "name": "counterpartyTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "treasuryTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "signer",
+          "signer": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "refundExpiredSol",
+      "discriminator": [
+        68,
+        234,
+        109,
+        246,
+        75,
+        192,
+        27,
+        215
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "refundExpiredSpl",
+      "discriminator": [
+        249,
+        142,
+        182,
+        227,
+        217,
+        19,
+        44,
+        163
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vaultTokenAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creatorTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resolveDisputeSol",
+      "discriminator": [
+        17,
+        252,
+        31,
+        28,
+        181,
+        13,
+        132,
+        85
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platformState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "writable": true,
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "counterparty",
           "writable": true
         },
         {
           "name": "treasury",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "platformState"
+          ]
+        },
+        {
+          "name": "disputeAdmin",
+          "signer": true,
+          "relations": [
+            "platformState"
+          ]
         },
         {
           "name": "systemProgram",
@@ -735,6 +1769,449 @@ export type TendaEscrow = {
               "name": "disputeWinner"
             }
           }
+        },
+        {
+          "name": "raiser",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "resolveDisputeSpl",
+      "discriminator": [
+        192,
+        38,
+        201,
+        202,
+        164,
+        196,
+        37,
+        96
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platformState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "vaultTokenAccount",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119,
+                  95,
+                  116,
+                  111,
+                  107,
+                  101,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "creator",
+          "relations": [
+            "escrow"
+          ]
+        },
+        {
+          "name": "counterparty"
+        },
+        {
+          "name": "treasury",
+          "relations": [
+            "platformState"
+          ]
+        },
+        {
+          "name": "creatorTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "counterpartyTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "treasuryTokenAccount",
+          "writable": true
+        },
+        {
+          "name": "disputeAdmin",
+          "signer": true,
+          "relations": [
+            "platformState"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "winner",
+          "type": {
+            "defined": {
+              "name": "disputeWinner"
+            }
+          }
+        },
+        {
+          "name": "raiser",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "setApprovalWindow",
+      "discriminator": [
+        83,
+        96,
+        72,
+        177,
+        64,
+        17,
+        110,
+        173
+      ],
+      "accounts": [
+        {
+          "name": "platformState",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "protocolAdmin",
+          "signer": true,
+          "relations": [
+            "platformState"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "seconds",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "setDisputeAdmin",
+      "discriminator": [
+        34,
+        74,
+        134,
+        213,
+        180,
+        58,
+        145,
+        209
+      ],
+      "accounts": [
+        {
+          "name": "platformState",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "protocolAdmin",
+          "signer": true,
+          "relations": [
+            "platformState"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "newAdmin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "setFeeBps",
+      "discriminator": [
+        2,
+        161,
+        245,
+        141,
+        111,
+        32,
+        39,
+        198
+      ],
+      "accounts": [
+        {
+          "name": "platformState",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "protocolAdmin",
+          "signer": true,
+          "relations": [
+            "platformState"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "feeBps",
+          "type": "u16"
+        },
+        {
+          "name": "seekerFeeBps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "setGracePeriod",
+      "discriminator": [
+        204,
+        152,
+        174,
+        131,
+        164,
+        249,
+        113,
+        224
+      ],
+      "accounts": [
+        {
+          "name": "platformState",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "protocolAdmin",
+          "signer": true,
+          "relations": [
+            "platformState"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "seconds",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "setProtocolAdmin",
+      "discriminator": [
+        48,
+        249,
+        109,
+        189,
+        157,
+        197,
+        31,
+        183
+      ],
+      "accounts": [
+        {
+          "name": "platformState",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "protocolAdmin",
+          "signer": true,
+          "relations": [
+            "platformState"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "newAdmin",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "setTreasury",
+      "discriminator": [
+        57,
+        97,
+        196,
+        95,
+        195,
+        206,
+        106,
+        136
+      ],
+      "accounts": [
+        {
+          "name": "platformState",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "protocolAdmin",
+          "signer": true,
+          "relations": [
+            "platformState"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "newTreasury",
+          "type": "pubkey"
         }
       ]
     },
@@ -752,7 +2229,7 @@ export type TendaEscrow = {
       ],
       "accounts": [
         {
-          "name": "gigEscrow",
+          "name": "escrow",
           "writable": true,
           "pda": {
             "seeds": [
@@ -769,8 +2246,8 @@ export type TendaEscrow = {
               },
               {
                 "kind": "account",
-                "path": "gig_escrow.gig_id",
-                "account": "gigEscrow"
+                "path": "escrow.escrow_id",
+                "account": "escrow"
               }
             ]
           }
@@ -796,77 +2273,35 @@ export type TendaEscrow = {
           }
         },
         {
-          "name": "worker",
-          "writable": true,
+          "name": "signer",
           "signer": true
-        }
-      ],
-      "args": []
-    },
-    {
-      "name": "withdrawEarnings",
-      "discriminator": [
-        6,
-        132,
-        233,
-        254,
-        241,
-        87,
-        247,
-        185
-      ],
-      "accounts": [
-        {
-          "name": "userAccount",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  117,
-                  115,
-                  101,
-                  114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "user"
-              }
-            ]
-          }
-        },
-        {
-          "name": "user",
-          "writable": true,
-          "signer": true
-        },
-        {
-          "name": "systemProgram",
-          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "amount",
-          "type": "u64"
+          "name": "proofHash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     }
   ],
   "accounts": [
     {
-      "name": "gigEscrow",
+      "name": "escrow",
       "discriminator": [
-        28,
-        152,
-        50,
-        155,
-        169,
-        194,
-        206,
-        20
+        31,
+        213,
+        123,
+        187,
+        186,
+        22,
+        218,
+        155
       ]
     },
     {
@@ -881,33 +2316,20 @@ export type TendaEscrow = {
         78,
         239
       ]
-    },
-    {
-      "name": "userAccount",
-      "discriminator": [
-        211,
-        33,
-        136,
-        16,
-        186,
-        110,
-        242,
-        127
-      ]
     }
   ],
   "events": [
     {
-      "name": "disputeOpened",
+      "name": "disputeRaised",
       "discriminator": [
-        239,
-        222,
-        102,
-        235,
-        193,
-        85,
-        1,
-        214
+        246,
+        167,
+        109,
+        37,
+        142,
+        45,
+        38,
+        176
       ]
     },
     {
@@ -924,94 +2346,120 @@ export type TendaEscrow = {
       ]
     },
     {
-      "name": "earningsWithdrawn",
+      "name": "escrowAbandoned",
       "discriminator": [
-        2,
-        155,
-        160,
-        28,
-        85,
-        112,
-        127,
-        79
-      ]
-    },
-    {
-      "name": "gasSubsidyAirdropped",
-      "discriminator": [
-        187,
-        53,
-        103,
-        186,
-        251,
-        132,
-        247,
-        164
-      ]
-    },
-    {
-      "name": "gigAccepted",
-      "discriminator": [
-        6,
-        108,
-        227,
-        152,
-        237,
-        213,
-        4,
-        1
-      ]
-    },
-    {
-      "name": "gigCancelled",
-      "discriminator": [
-        125,
-        193,
-        224,
-        148,
-        176,
-        113,
-        250,
-        18
-      ]
-    },
-    {
-      "name": "gigCompleted",
-      "discriminator": [
+        189,
+        88,
+        100,
+        222,
         42,
-        114,
-        160,
-        40,
-        3,
+        86,
+        171,
+        42
+      ]
+    },
+    {
+      "name": "escrowAccepted",
+      "discriminator": [
+        129,
+        122,
+        76,
+        235,
+        127,
+        11,
+        32,
+        165
+      ]
+    },
+    {
+      "name": "escrowApproved",
+      "discriminator": [
+        87,
+        181,
+        230,
+        68,
+        208,
+        43,
+        121,
+        31
+      ]
+    },
+    {
+      "name": "escrowCancelled",
+      "discriminator": [
+        98,
         241,
-        149,
-        64
+        195,
+        122,
+        213,
+        0,
+        162,
+        161
       ]
     },
     {
-      "name": "gigCreated",
+      "name": "escrowCreated",
       "discriminator": [
-        99,
-        221,
-        204,
-        160,
-        24,
-        21,
+        70,
+        127,
+        105,
         102,
-        174
+        92,
+        97,
+        7,
+        173
       ]
     },
     {
-      "name": "gigExpired",
+      "name": "escrowDeclined",
       "discriminator": [
-        37,
-        103,
-        61,
-        206,
-        111,
-        4,
+        5,
+        132,
+        93,
         142,
-        244
+        193,
+        165,
+        170,
+        67
+      ]
+    },
+    {
+      "name": "escrowExpired",
+      "discriminator": [
+        189,
+        22,
+        170,
+        250,
+        75,
+        218,
+        58,
+        112
+      ]
+    },
+    {
+      "name": "paymentClaimed",
+      "discriminator": [
+        238,
+        86,
+        136,
+        254,
+        229,
+        217,
+        63,
+        80
+      ]
+    },
+    {
+      "name": "platformConfigChanged",
+      "discriminator": [
+        77,
+        52,
+        192,
+        53,
+        141,
+        149,
+        24,
+        112
       ]
     },
     {
@@ -1039,245 +2487,261 @@ export type TendaEscrow = {
         5,
         139
       ]
-    },
-    {
-      "name": "userAccountCreated",
-      "discriminator": [
-        16,
-        133,
-        225,
-        182,
-        145,
-        219,
-        182,
-        3
-      ]
     }
   ],
   "errors": [
     {
       "code": 6000,
       "name": "platformFeeTooHigh",
-      "msg": "Platform fee exceeds maximum allowed (5%)"
+      "msg": "platform fee bps exceeds MAX_PLATFORM_FEE_BPS"
     },
     {
       "code": 6001,
       "name": "seekerFeeExceedsStandardFee",
-      "msg": "Seeker fee must not exceed the standard platform fee"
+      "msg": "seeker_fee_bps must not exceed fee_bps"
     },
     {
       "code": 6002,
-      "name": "platformAlreadyInitialized",
-      "msg": "Platform is already initialized"
+      "name": "approvalWindowOutOfRange",
+      "msg": "approval_window_seconds out of allowed range"
     },
     {
       "code": 6003,
-      "name": "userAccountAlreadyExists",
-      "msg": "User account already exists"
+      "name": "gracePeriodOutOfRange",
+      "msg": "grace_period_seconds out of allowed range"
     },
     {
       "code": 6004,
-      "name": "alreadyReceivedAirdrop",
-      "msg": "User has already received gas subsidy"
+      "name": "notProtocolAdmin",
+      "msg": "caller is not the protocol admin"
     },
     {
       "code": 6005,
-      "name": "airdropAmountTooHigh",
-      "msg": "Airdrop amount exceeds maximum allowed"
+      "name": "notDisputeAdmin",
+      "msg": "caller is not the dispute admin"
     },
     {
       "code": 6006,
-      "name": "insufficientBalance",
-      "msg": "Insufficient balance to withdraw"
+      "name": "amountTooLow",
+      "msg": "amount below MIN_ESCROW_AMOUNT"
     },
     {
       "code": 6007,
-      "name": "airdropStillLocked",
-      "msg": "Must complete at least 1 gig to unlock airdrop"
+      "name": "completionDurationOutOfRange",
+      "msg": "completion_duration_seconds out of allowed range"
     },
     {
       "code": 6008,
-      "name": "userAccountNotFound",
-      "msg": "User account does not exist"
+      "name": "acceptDeadlineInPast",
+      "msg": "accept_deadline must be in the future"
     },
     {
       "code": 6009,
-      "name": "emptyBatch",
-      "msg": "Batch must contain at least one recipient"
+      "name": "invalidAssetForInstruction",
+      "msg": "invalid asset for this instruction (SOL escrow expects system_program; SPL expects mint)"
     },
     {
       "code": 6010,
-      "name": "invalidBatchLength",
-      "msg": "Remaining accounts length must equal 2 × number of amounts"
+      "name": "mintMismatch",
+      "msg": "supplied mint does not match escrow.asset"
     },
     {
       "code": 6011,
-      "name": "invalidUserAccount",
-      "msg": "User account PDA does not match expected derivation for this wallet"
+      "name": "vaultMismatch",
+      "msg": "supplied vault PDA does not match escrow"
     },
     {
       "code": 6012,
-      "name": "treasuryMustSign",
-      "msg": "Treasury account must be a signer"
+      "name": "tokenAccountMismatch",
+      "msg": "supplied token account does not match escrow"
     },
     {
       "code": 6013,
-      "name": "accountNotWritable",
-      "msg": "Account must be writable"
+      "name": "treasuryMismatch",
+      "msg": "supplied treasury account does not match platform state"
     },
     {
       "code": 6014,
-      "name": "invalidSystemProgram",
-      "msg": "System program account is invalid"
+      "name": "invalidEscrowStatus",
+      "msg": "escrow status disallows this operation"
     },
     {
       "code": 6015,
-      "name": "insufficientTreasuryBalance",
-      "msg": "Treasury has insufficient balance for this batch"
+      "name": "notCreator",
+      "msg": "caller is not the escrow creator"
     },
     {
       "code": 6016,
-      "name": "invalidRecipient",
-      "msg": "Recipient wallet must be a system-owned account"
+      "name": "notCounterparty",
+      "msg": "caller is not the escrow counterparty"
     },
     {
       "code": 6017,
-      "name": "paymentTooLow",
-      "msg": "Payment amount below minimum"
+      "name": "creatorCannotAccept",
+      "msg": "creator cannot accept their own escrow"
     },
     {
       "code": 6018,
-      "name": "invalidDeadline",
-      "msg": "Deadline must be in the future"
+      "name": "notAssignedCounterparty",
+      "msg": "escrow has an assigned counterparty; only that wallet may accept"
     },
     {
       "code": 6019,
-      "name": "acceptDeadlinePassed",
-      "msg": "Accept deadline has passed"
+      "name": "noAssignedCounterparty",
+      "msg": "declineAssignedEscrow requires assigned_counterparty != null"
     },
     {
       "code": 6020,
-      "name": "durationTooShort",
-      "msg": "Completion duration is below minimum allowed"
+      "name": "acceptDeadlinePassed",
+      "msg": "accept_deadline has passed"
     },
     {
       "code": 6021,
-      "name": "durationTooLong",
-      "msg": "Completion duration exceeds maximum allowed"
+      "name": "acceptDeadlineNotPassed",
+      "msg": "accept_deadline has not yet passed (refundExpired requires expiry)"
     },
     {
       "code": 6022,
-      "name": "gigIdTooLong",
-      "msg": "Gig ID is too long"
+      "name": "submissionWindowClosed",
+      "msg": "submission window has closed (completion_deadline + grace_period_seconds elapsed)"
     },
     {
       "code": 6023,
-      "name": "insufficientFunds",
-      "msg": "Insufficient funds for escrow deposit"
+      "name": "approvalDeadlineNotPassed",
+      "msg": "approval_deadline has not yet passed; counterparty cannot claim stalled"
     },
     {
       "code": 6024,
-      "name": "invalidGigStatus",
-      "msg": "Invalid gig status for this operation"
+      "name": "reclaimWindowNotOpen",
+      "msg": "reclaim requires completion_deadline + grace_period_seconds to have elapsed"
     },
     {
       "code": 6025,
-      "name": "notPoster",
-      "msg": "Caller is not the poster"
+      "name": "notDisputeParty",
+      "msg": "caller is not creator or counterparty (dispute only by parties)"
     },
     {
       "code": 6026,
-      "name": "notWorker",
-      "msg": "Caller is not the worker"
+      "name": "noCounterpartyForDispute",
+      "msg": "escrow has no counterparty yet (cannot dispute Open status)"
     },
     {
       "code": 6027,
-      "name": "cannotAcceptOwnGig",
-      "msg": "Cannot accept own gig"
+      "name": "disputeBondMismatch",
+      "msg": "supplied dispute bond does not match escrow.dispute_bond"
     },
     {
       "code": 6028,
-      "name": "gigNotOpen",
-      "msg": "Gig is not open for acceptance"
+      "name": "arithmeticOverflow",
+      "msg": "arithmetic overflow"
     },
     {
       "code": 6029,
-      "name": "gigNotAccepted",
-      "msg": "Gig has not been accepted yet"
+      "name": "arithmeticUnderflow",
+      "msg": "arithmetic underflow"
     },
     {
       "code": 6030,
-      "name": "proofNotSubmitted",
-      "msg": "Proof has not been submitted"
+      "name": "vaultUnderfunded",
+      "msg": "escrow vault balance is below the amount being settled"
     },
     {
       "code": 6031,
-      "name": "gigNotExpired",
-      "msg": "Gig has not expired yet"
-    },
-    {
-      "code": 6032,
-      "name": "cannotRefundWithProof",
-      "msg": "Cannot refund gig with submitted proof"
-    },
-    {
-      "code": 6033,
-      "name": "submissionDeadlinePassed",
-      "msg": "Submission deadline has passed"
-    },
-    {
-      "code": 6034,
-      "name": "disputeReasonTooLong",
-      "msg": "Dispute reason is too long"
-    },
-    {
-      "code": 6035,
-      "name": "cannotDispute",
-      "msg": "Cannot dispute gig in current status"
-    },
-    {
-      "code": 6036,
-      "name": "notAuthorizedToDispute",
-      "msg": "Caller is not authorized to dispute"
-    },
-    {
-      "code": 6037,
-      "name": "gigNotDisputed",
-      "msg": "Gig is not disputed"
-    },
-    {
-      "code": 6038,
-      "name": "notAdmin",
-      "msg": "Caller is not admin"
-    },
-    {
-      "code": 6039,
-      "name": "arithmeticOverflow",
-      "msg": "Arithmetic overflow"
-    },
-    {
-      "code": 6040,
-      "name": "arithmeticUnderflow",
-      "msg": "Arithmetic underflow"
+      "name": "amountBelowVaultRentMinimum",
+      "msg": "SOL escrow amount below the vault rent-exempt minimum"
     }
   ],
   "types": [
     {
-      "name": "disputeOpened",
+      "name": "createEscrowArgs",
+      "docs": [
+        "Args shared by `create_escrow_sol` and `create_escrow_spl`. Both paths",
+        "validate identically; the only difference is which account-set the runtime",
+        "produces (lamport vault vs. SPL token account).",
+        "",
+        "`accept_deadline` is absolute Unix seconds (matches what the server already",
+        "produces — no client-side relative-time computation). `completion_duration`",
+        "is relative because completion_deadline is computed at accept-time, not",
+        "create-time."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "gigId",
-            "type": "string"
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
           },
           {
-            "name": "initiator",
+            "name": "kind",
+            "type": {
+              "defined": {
+                "name": "escrowKind"
+              }
+            }
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "assignedCounterparty",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "acceptDeadline",
+            "type": "i64"
+          },
+          {
+            "name": "completionDurationSeconds",
+            "type": "i64"
+          },
+          {
+            "name": "disputeBond",
+            "type": "u64"
+          },
+          {
+            "name": "isSeeker",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "disputeRaised",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "raisedBy",
             "type": "pubkey"
           },
           {
-            "name": "reason",
-            "type": "string"
+            "name": "fromStatus",
+            "type": {
+              "defined": {
+                "name": "escrowStatus"
+              }
+            }
+          },
+          {
+            "name": "bondAmount",
+            "type": "u64"
           },
           {
             "name": "timestamp",
@@ -1292,23 +2756,47 @@ export type TendaEscrow = {
         "kind": "struct",
         "fields": [
           {
-            "name": "gigId",
-            "type": "string"
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
           },
           {
             "name": "winner",
-            "type": "string"
+            "type": {
+              "defined": {
+                "name": "disputeWinner"
+              }
+            }
           },
           {
-            "name": "posterPayout",
+            "name": "creatorPayout",
             "type": "u64"
           },
           {
-            "name": "workerPayout",
+            "name": "counterpartyPayout",
             "type": "u64"
           },
           {
             "name": "platformFee",
+            "type": "u64"
+          },
+          {
+            "name": "bondRefundTo",
+            "docs": [
+              "`bond_refund_to` is `Some(creator)` or `Some(counterparty)` when the",
+              "bond is returned to its raiser, `None` when forfeited to the other",
+              "party (see dispute economics note in `dispute/resolve.rs`)."
+            ],
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "bondAmount",
             "type": "u64"
           },
           {
@@ -1320,14 +2808,21 @@ export type TendaEscrow = {
     },
     {
       "name": "disputeWinner",
+      "docs": [
+        "Winner selection for `resolve_dispute`. Wire encoding `u8` so the on-chain",
+        "payload survives IDL rebuilds without reordering surprises."
+      ],
+      "repr": {
+        "kind": "rust"
+      },
       "type": {
         "kind": "enum",
         "variants": [
           {
-            "name": "poster"
+            "name": "creator"
           },
           {
-            "name": "worker"
+            "name": "counterparty"
           },
           {
             "name": "split"
@@ -1336,296 +2831,131 @@ export type TendaEscrow = {
       }
     },
     {
-      "name": "earningsWithdrawn",
+      "name": "escrow",
+      "docs": [
+        "Single chain-agnostic escrow primitive. Mirrors the future Solidity surface",
+        "1:1 (see `stage-0-foundation.md` § Solana contract rewrite).",
+        "",
+        "`escrow_id` is a 16-byte UUID supplied by the server. It is the second seed",
+        "of the data PDA, the SOL vault PDA, and the SPL vault PDA — so an",
+        "`escrow_id` collision is detected at account creation (the PDA already",
+        "exists; the `init` constraint fails).",
+        "",
+        "`counterparty` is `None` at creation, set by `accept_escrow`.",
+        "`assigned_counterparty`:",
+        "- `None` ⇒ public escrow, anyone (except creator) may accept.",
+        "- `Some(pk)` ⇒ direct-assigned; only `pk` may accept.",
+        "The assigned worker may release the assignment via",
+        "`decline_assigned_escrow`, which clears `assigned_counterparty` to `None`",
+        "and leaves status = Open."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "user",
-            "type": "pubkey"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "remainingBalance",
-            "type": "u64"
-          },
-          {
-            "name": "timestamp",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "gasSubsidyAirdropped",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "user",
-            "type": "pubkey"
-          },
-          {
-            "name": "amount",
-            "type": "u64"
-          },
-          {
-            "name": "timestamp",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "gigAccepted",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "gigId",
-            "type": "string"
-          },
-          {
-            "name": "poster",
-            "type": "pubkey"
-          },
-          {
-            "name": "worker",
-            "type": "pubkey"
-          },
-          {
-            "name": "completionDeadline",
-            "type": "i64"
-          },
-          {
-            "name": "timestamp",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "gigCancelled",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "gigId",
-            "type": "string"
-          },
-          {
-            "name": "poster",
-            "type": "pubkey"
-          },
-          {
-            "name": "refundAmount",
-            "type": "u64"
-          },
-          {
-            "name": "timestamp",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "gigCompleted",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "gigId",
-            "type": "string"
-          },
-          {
-            "name": "poster",
-            "type": "pubkey"
-          },
-          {
-            "name": "worker",
-            "type": "pubkey"
-          },
-          {
-            "name": "paymentAmount",
-            "type": "u64"
-          },
-          {
-            "name": "platformFee",
-            "type": "u64"
-          },
-          {
-            "name": "timestamp",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "gigCreated",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "gigId",
-            "type": "string"
-          },
-          {
-            "name": "poster",
-            "type": "pubkey"
-          },
-          {
-            "name": "paymentAmount",
-            "type": "u64"
-          },
-          {
-            "name": "platformFee",
-            "type": "u64"
-          },
-          {
-            "name": "completionDurationSeconds",
-            "type": "u64"
-          },
-          {
-            "name": "acceptDeadline",
+            "name": "escrowId",
             "type": {
-              "option": "i64"
+              "array": [
+                "u8",
+                16
+              ]
             }
           },
           {
-            "name": "timestamp",
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "gigEscrow",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "gigId",
-            "docs": [
-              "Unique gig identifier (UUID from backend)"
-            ],
-            "type": "string"
+            "name": "kind",
+            "type": {
+              "defined": {
+                "name": "escrowKind"
+              }
+            }
           },
           {
-            "name": "poster",
+            "name": "asset",
             "docs": [
-              "Poster wallet address"
+              "SPL mint pubkey for token escrows; `system_program::ID` for native SOL."
             ],
             "type": "pubkey"
           },
           {
-            "name": "worker",
-            "docs": [
-              "Worker wallet address (None until accepted)"
-            ],
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "counterparty",
             "type": {
               "option": "pubkey"
             }
           },
           {
-            "name": "paymentAmount",
-            "docs": [
-              "Gig payment in lamports"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "platformFee",
-            "docs": [
-              "Platform fee in lamports"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "totalLocked",
-            "docs": [
-              "Total locked in escrow (payment + fee)"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "acceptDeadline",
-            "docs": [
-              "Optional hard cutoff for worker acceptance (Unix timestamp).",
-              "None means the gig is indefinitely open until poster cancels."
-            ],
+            "name": "assignedCounterparty",
             "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "completionDurationSeconds",
-            "docs": [
-              "How long (in seconds) the worker has to complete after accepting."
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "completionDeadline",
-            "docs": [
-              "Computed at acceptance: accepted_at + completion_duration_seconds.",
-              "None until a worker accepts the gig."
-            ],
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "createdAt",
-            "docs": [
-              "When gig escrow was created (gig published)"
-            ],
-            "type": "i64"
-          },
-          {
-            "name": "acceptedAt",
-            "docs": [
-              "When worker accepted gig"
-            ],
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "submittedAt",
-            "docs": [
-              "When proof was submitted"
-            ],
-            "type": {
-              "option": "i64"
-            }
-          },
-          {
-            "name": "completedAt",
-            "docs": [
-              "When payment was released"
-            ],
-            "type": {
-              "option": "i64"
+              "option": "pubkey"
             }
           },
           {
             "name": "status",
-            "docs": [
-              "Current gig status"
-            ],
             "type": {
               "defined": {
-                "name": "gigStatus"
+                "name": "escrowStatus"
               }
             }
           },
           {
+            "name": "acceptDeadline",
+            "type": "i64"
+          },
+          {
+            "name": "completionDurationSeconds",
+            "docs": [
+              "Stored at create-time so `accept_escrow` can compute",
+              "`completion_deadline = now + completion_duration_seconds` without",
+              "requiring the caller to supply it again."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "completionDeadline",
+            "docs": [
+              "0 at create; set by `accept_escrow` to `now + completion_duration_seconds`."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "approvalDeadline",
+            "docs": [
+              "0 at create; set by `submit_proof` to",
+              "`now + platform_state.approval_window_seconds`."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "disputeBond",
+            "type": "u64"
+          },
+          {
+            "name": "isSeeker",
+            "type": "bool"
+          },
+          {
+            "name": "createdAt",
+            "type": "i64"
+          },
+          {
             "name": "bump",
             "docs": [
-              "PDA bump seed"
+              "Bump for the Escrow data PDA. Stored so settlement instructions can",
+              "`signer = [ESCROW_SEED, escrow_id.as_ref(), &[bump]]` without re-deriving."
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "vaultBump",
+            "docs": [
+              "Bump for the per-escrow SOL vault PDA. 0 if `kind != Sol`."
             ],
             "type": "u8"
           }
@@ -1633,16 +2963,25 @@ export type TendaEscrow = {
       }
     },
     {
-      "name": "gigExpired",
+      "name": "escrowAbandoned",
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "gigId",
-            "type": "string"
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
           },
           {
-            "name": "poster",
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "counterparty",
             "type": "pubkey"
           },
           {
@@ -1657,7 +2996,248 @@ export type TendaEscrow = {
       }
     },
     {
-      "name": "gigStatus",
+      "name": "escrowAccepted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "counterparty",
+            "type": "pubkey"
+          },
+          {
+            "name": "completionDeadline",
+            "type": "i64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "escrowApproved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "counterparty",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "platformFee",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "escrowCancelled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "refundAmount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "escrowCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "kind",
+            "type": {
+              "defined": {
+                "name": "escrowKind"
+              }
+            }
+          },
+          {
+            "name": "asset",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "assignedCounterparty",
+            "type": {
+              "option": "pubkey"
+            }
+          },
+          {
+            "name": "acceptDeadline",
+            "type": "i64"
+          },
+          {
+            "name": "completionDurationSeconds",
+            "type": "i64"
+          },
+          {
+            "name": "disputeBond",
+            "type": "u64"
+          },
+          {
+            "name": "isSeeker",
+            "type": "bool"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "escrowDeclined",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "declinedBy",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "escrowExpired",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "creator",
+            "type": "pubkey"
+          },
+          {
+            "name": "refundAmount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "escrowKind",
+      "docs": [
+        "Escrow asset class. Wider type than a bool because Stage 3+ will add EVM",
+        "variants and a discriminant gives the IDL a stable shape across chains."
+      ],
+      "repr": {
+        "kind": "rust"
+      },
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "gig"
+          },
+          {
+            "name": "exchange"
+          }
+        ]
+      }
+    },
+    {
+      "name": "escrowStatus",
+      "docs": [
+        "On-chain status. Discriminants are explicit so server-side decoders are",
+        "not broken by reordering. The DB-only `Draft` status (foundation.md L548)",
+        "never appears here."
+      ],
+      "repr": {
+        "kind": "rust"
+      },
       "type": {
         "kind": "enum",
         "variants": [
@@ -1674,16 +3254,123 @@ export type TendaEscrow = {
             "name": "completed"
           },
           {
+            "name": "cancelled"
+          },
+          {
+            "name": "refunded"
+          },
+          {
             "name": "disputed"
           },
           {
             "name": "resolved"
+          }
+        ]
+      }
+    },
+    {
+      "name": "initializePlatformArgs",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "protocolAdmin",
+            "type": "pubkey"
           },
           {
-            "name": "cancelled"
+            "name": "disputeAdmin",
+            "type": "pubkey"
           },
           {
-            "name": "expired"
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "feeBps",
+            "type": "u16"
+          },
+          {
+            "name": "seekerFeeBps",
+            "type": "u16"
+          },
+          {
+            "name": "approvalWindowSeconds",
+            "type": "i64"
+          },
+          {
+            "name": "gracePeriodSeconds",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "paymentClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "counterparty",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "platformFee",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "platformConfigChanged",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "parameter",
+            "docs": [
+              "Identifier of the parameter that changed:",
+              "`\"fee_bps\"`, `\"seeker_fee_bps\"`, `\"approval_window_seconds\"`,",
+              "`\"grace_period_seconds\"`, `\"dispute_admin\"`, `\"protocol_admin\"`,",
+              "`\"treasury\"`. Listener routes on this value."
+            ],
+            "type": "string"
+          },
+          {
+            "name": "oldValue",
+            "docs": [
+              "Old value rendered as base-10 (numbers) or base-58 (pubkeys) so a",
+              "single `String` works across heterogeneous parameter types."
+            ],
+            "type": "string"
+          },
+          {
+            "name": "newValue",
+            "type": "string"
+          },
+          {
+            "name": "changedBy",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
           }
         ]
       }
@@ -1694,16 +3381,28 @@ export type TendaEscrow = {
         "kind": "struct",
         "fields": [
           {
-            "name": "admin",
+            "name": "protocolAdmin",
             "type": "pubkey"
           },
           {
-            "name": "platformFeeBps",
+            "name": "disputeAdmin",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "feeBps",
             "type": "u16"
           },
           {
             "name": "seekerFeeBps",
             "type": "u16"
+          },
+          {
+            "name": "approvalWindowSeconds",
+            "type": "i64"
           },
           {
             "name": "gracePeriodSeconds",
@@ -1718,57 +3417,58 @@ export type TendaEscrow = {
     },
     {
       "name": "platformState",
+      "docs": [
+        "Singleton platform-config PDA. Seeds = [PLATFORM_SEED].",
+        "",
+        "`protocol_admin` and `dispute_admin` are deliberately separate (foundation",
+        "L522, L587): routine dispute resolution runs through a single ops-held key",
+        "(rotatable to 2-of-3 in Stage 5) while parameter changes require the",
+        "3-of-5 Squads multisig.",
+        "",
+        "`grace_period_seconds` and `approval_window_seconds` are mutable via",
+        "admin-only instructions so we can tune without a contract redeploy."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
           {
-            "name": "admin",
-            "docs": [
-              "Platform admin wallet"
-            ],
+            "name": "protocolAdmin",
             "type": "pubkey"
           },
           {
-            "name": "platformFeeBps",
-            "docs": [
-              "Standard platform fee in basis points (e.g., 250 = 2.5%)"
-            ],
+            "name": "disputeAdmin",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "feeBps",
             "type": "u16"
           },
           {
             "name": "seekerFeeBps",
-            "docs": [
-              "Reduced fee for Seeker device users in basis points (e.g., 100 = 1%)"
-            ],
             "type": "u16"
           },
           {
-            "name": "treasury",
-            "docs": [
-              "Platform treasury for collecting fees"
-            ],
-            "type": "pubkey"
+            "name": "approvalWindowSeconds",
+            "type": "i64"
           },
           {
-            "name": "totalGigs",
-            "docs": [
-              "Total number of gigs created"
-            ],
-            "type": "u64"
+            "name": "gracePeriodSeconds",
+            "type": "i64"
           },
           {
             "name": "totalVolume",
             "docs": [
-              "Total volume processed in lamports"
+              "Saturating-add — analytics only, never gates logic."
             ],
             "type": "u64"
           },
           {
-            "name": "gracePeriodSeconds",
-            "docs": [
-              "Grace period after deadline in seconds (default: 86400 = 24h)"
-            ],
-            "type": "i64"
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }
@@ -1779,78 +3479,34 @@ export type TendaEscrow = {
         "kind": "struct",
         "fields": [
           {
-            "name": "gigId",
-            "type": "string"
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
           },
           {
-            "name": "worker",
+            "name": "counterparty",
             "type": "pubkey"
           },
           {
-            "name": "timestamp",
+            "name": "approvalDeadline",
             "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "userAccount",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "wallet",
-            "docs": [
-              "User wallet address"
-            ],
-            "type": "pubkey"
           },
           {
-            "name": "airdropSol",
+            "name": "proofHash",
             "docs": [
-              "Locked airdrop SOL (unlocks after 1 completed gig)"
+              "32-byte hash of the proof bundle (URI + metadata). Server stores the",
+              "pre-image in `gig_proofs`; on-chain only carries the commitment."
             ],
-            "type": "u64"
-          },
-          {
-            "name": "earnedSol",
-            "docs": [
-              "Lifetime earnings tracker (paid directly to wallet on gig completion — not held here)"
-            ],
-            "type": "u64"
-          },
-          {
-            "name": "completedGigs",
-            "docs": [
-              "Total completed gigs"
-            ],
-            "type": "u32"
-          },
-          {
-            "name": "phoneVerified",
-            "docs": [
-              "Phone verification status"
-            ],
-            "type": "bool"
-          },
-          {
-            "name": "createdAt",
-            "docs": [
-              "Account creation timestamp"
-            ],
-            "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "userAccountCreated",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "wallet",
-            "type": "pubkey"
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           },
           {
             "name": "timestamp",
@@ -1863,18 +3519,40 @@ export type TendaEscrow = {
   "constants": [
     {
       "name": "escrowSeed",
+      "docs": [
+        "Escrow data PDA: seeds = [ESCROW_SEED, escrow_id]."
+      ],
       "type": "bytes",
       "value": "[101, 115, 99, 114, 111, 119]"
     },
     {
-      "name": "platformSeed",
+      "name": "escrowTokenSeed",
+      "docs": [
+        "Per-escrow SPL token ATA-equivalent PDA: seeds = [ESCROW_TOKEN_SEED, escrow_id].",
+        "Holds SPL token balance for token escrows. Owned by Token Program; the",
+        "authority is the Escrow data PDA so settlement instructions sign as that PDA."
+      ],
       "type": "bytes",
-      "value": "[112, 108, 97, 116, 102, 111, 114, 109]"
+      "value": "[101, 115, 99, 114, 111, 119, 95, 116, 111, 107, 101, 110]"
     },
     {
-      "name": "userSeed",
+      "name": "escrowVaultSeed",
+      "docs": [
+        "Per-escrow SOL vault PDA (system-owned): seeds = [ESCROW_VAULT_SEED, escrow_id].",
+        "Holds lamports for native-SOL escrows. Separate from the data PDA so",
+        "rent-exempt lamports never mingle with the escrowed amount + bond — a",
+        "standard footgun the two-vault layout eliminates."
+      ],
       "type": "bytes",
-      "value": "[117, 115, 101, 114]"
+      "value": "[101, 115, 99, 114, 111, 119, 95, 118, 97, 117, 108, 116]"
+    },
+    {
+      "name": "platformSeed",
+      "docs": [
+        "PlatformState PDA: seeds = [PLATFORM_SEED]."
+      ],
+      "type": "bytes",
+      "value": "[112, 108, 97, 116, 102, 111, 114, 109]"
     }
   ]
 };

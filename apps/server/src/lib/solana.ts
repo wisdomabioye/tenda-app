@@ -4,7 +4,7 @@ import { ErrorCode } from '@tenda/shared'
 import bs58 from 'bs58'
 import { PublicKey, Connection, Transaction, Keypair, TransactionInstruction, AccountMeta, SystemProgram } from '@solana/web3.js'
 import { Program, AnchorProvider, Wallet, BN } from '@coral-xyz/anchor'
-import { ESCROW_IDL as IDL, discriminatorFor as _discriminatorFor, type TendaEscrow, type InstructionName } from '@tenda/shared/idl'
+import { ESCROW_IDL as IDL, discriminatorFor as _discriminatorFor, type TendaEscrow, type InstructionName } from '@tenda/shared/idl/legacy'
 import { getConfig } from '@server/config'
 
 const ESCROW_SEED   = 'escrow'

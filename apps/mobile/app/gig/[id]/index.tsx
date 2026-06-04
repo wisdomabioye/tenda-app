@@ -63,7 +63,7 @@ import {
 } from '@/wallet'
 import type { PendingSync } from '@/stores/pending-sync.store'
 import type { GigDetail } from '@tenda/shared'
-import type { InstructionName } from '@tenda/shared/idl'
+import type { InstructionName } from '@tenda/shared/idl/legacy'
 
 type SyncEntry = PendingSync extends infer T
   ? T extends { id: string; createdAt: number; retryCount: number }

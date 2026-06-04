@@ -30,6 +30,13 @@ export interface Config {
   SOLANA_PROGRAM_ID: string
   JWT_EXPIRES_IN: string         // e.g. '7d', '24h'
   SOLANA_NETWORK: string         // 'devnet' | 'testnet' | 'mainnet-beta'
+  /**
+   * SPL mint address for the USDC asset on the configured network. Interim
+   * asset source until the Stage-0 cutover seeds the `assets` table — the
+   * chains plugin resolves `'USDC_SOL'` through this value. Null = USDC
+   * escrows rejected with a clear error (native SOL still works).
+   */
+  SOLANA_USDC_MINT: string | null
   CORS_ORIGIN:  string[] | null  // null = allow any origin (dev); set to domain list in production
   ADMIN_ORIGIN: string[] | null  // null = allow any origin (dev); set to admin panel domain in production
 }
@@ -68,6 +75,7 @@ export function loadConfig(): Config {
     SOLANA_PROGRAM_ID:     programId,
     JWT_EXPIRES_IN:        process.env.JWT_EXPIRES_IN ?? '7d',
     SOLANA_NETWORK:        process.env.SOLANA_NETWORK ?? 'devnet',
+    SOLANA_USDC_MINT:      process.env.SOLANA_USDC_MINT ?? null,
     CORS_ORIGIN:           process.env.CORS_ORIGIN
                              ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
                              : null,

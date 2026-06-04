@@ -10,7 +10,7 @@ import {
 import { transact, type Web3MobileWallet } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
 import { getEnv } from '@/lib/env'
 import { apiConfig, solanaChainId } from '@tenda/shared'
-import { ESCROW_IDL, discriminatorFor, type InstructionName } from '@tenda/shared/idl'
+import { ESCROW_IDL, discriminatorFor, type InstructionName } from '@tenda/shared/idl/legacy'
 
 const env = getEnv()
 const ENV_CONFIG = apiConfig[env]

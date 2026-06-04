@@ -1,63 +1,77 @@
 /**
- * Solana ChainAdapter — Stage 0.
+ * Solana ChainAdapter — full Stage 0 implementation against the rewritten
+ * escrow program (#29).
  *
- * What works today:
+ *   - `buildTx`: all 11 escrow actions, SOL/SPL instruction forking from
+ *     on-chain state (`builders.ts`).
+ *   - `verifyTx` / `fetchEscrowState`: event + account decoding (`verify.ts`).
  *   - `verifyAuthSig`: tweetnacl Ed25519 over the auth-message bytes.
  *   - `computeFee`: delegates to `lib/escrow.ts:computePlatformFee` — single
  *     source of truth for fee math across chains.
  *
- * What's deferred to #29 (Anchor program rewrite):
- *   - `buildTx` for the 11 escrow actions — needs the new IDL.
- *   - `verifyTx` + event decoders — needs `emit_cpi!` decode against new IDL.
- *   - `fetchEscrowState` — needs new Escrow account layout.
- *
- * Deferred to Stage 2 (listeners):
- *   - `RpcProvider` impl for direct-RPC tx status checks (reconciliation).
- *
- * Stubs throw `AppError(501, INTERNAL_ERROR, ...)` so callers fail loud
- * rather than silently no-op.
+ * Wallet + asset resolution are injected (`SolanaAdapterDeps`): until the
+ * Stage-0 cutover the implementations read the legacy `users.wallet_address`
+ * column and a config-driven asset map; at cutover they flip to
+ * `user_wallets` / `assets` (schema-v2) with no adapter change.
  */
 
-import { PublicKey } from '@solana/web3.js'
+import { Program } from '@coral-xyz/anchor'
+import { Connection, PublicKey } from '@solana/web3.js'
 import nacl from 'tweetnacl'
-import { AppError } from '@server/lib/errors'
-import { ErrorCode } from '@tenda/shared'
+import { ESCROW_IDL, type TendaEscrow } from '@tenda/shared/idl'
 import { computePlatformFee } from '@server/lib/escrow'
+import { createSolanaBuilders } from '@server/chains/solana/builders'
+import { createSolanaRpc, commitmentFor, type SolanaRpc } from '@server/chains/solana/rpc'
+import { createSolanaVerifier } from '@server/chains/solana/verify'
 import type {
   AmountRaw,
-  BuildTxArgs,
+  AssetId,
   ChainAdapter,
   ChainId,
-  DecodedEvent,
-  UnsignedTx,
-  VerifiedTx,
   VerifyAuthSigArgs,
-  VerifyTxArgs,
 } from '@server/chains/types'
+
+export interface SolanaAdapterDeps {
+  /** user_id → the user's Solana wallet address (base58). */
+  resolveWalletAddress(user_id: string): Promise<string>
+  /** AssetId → SPL mint address (`null` = native SOL). Throws on unknown. */
+  resolveAsset(asset: AssetId): Promise<{ token_address: string | null }>
+  /** Test seam: replace the network-backed RPC with a fake. */
+  rpc?: SolanaRpc
+}
 
 export interface SolanaAdapterArgs {
   /** CAIP-2 id, e.g. `'solana:mainnet'` or `'solana:devnet'`. */
   chain_id: ChainId
   /** RPC endpoint URL from `SOLANA_RPC_URL`. */
   rpc_url: string
-  /** Anchor program ID from `SOLANA_PROGRAM_ID`. */
-  program_id: string
+  deps: SolanaAdapterDeps
 }
 
 export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
-  // args.rpc_url + args.program_id are held for buildTx/verifyTx wiring at
-  // #29; not read by any Stage-0-live method.
+  const rpc =
+    args.deps.rpc ?? createSolanaRpc({ rpc_url: args.rpc_url, chain_id: args.chain_id })
+
+  // The Program instance encodes instructions only; its Connection is never
+  // used for fetches (all reads go through `rpc`), so construction is free.
+  const program = new Program<TendaEscrow>(ESCROW_IDL, {
+    connection: new Connection(args.rpc_url, commitmentFor(args.chain_id)),
+  })
+
+  const builders = createSolanaBuilders({
+    rpc,
+    program,
+    resolveWalletAddress: args.deps.resolveWalletAddress,
+    resolveAsset: args.deps.resolveAsset,
+  })
+  const verifier = createSolanaVerifier({ rpc, chain_id: args.chain_id, program })
+
   return {
     namespace: 'solana',
     chain_id: args.chain_id,
-
-    async buildTx(_args: BuildTxArgs): Promise<UnsignedTx> {
-      throw notImplemented('buildTx')
-    },
-
-    async verifyTx(_tx_ref: string, _args: VerifyTxArgs): Promise<VerifiedTx> {
-      throw notImplemented('verifyTx')
-    },
+    buildTx: builders.buildTx,
+    verifyTx: verifier.verifyTx,
+    fetchEscrowState: verifier.fetchEscrowState,
 
     async verifyAuthSig(a: VerifyAuthSigArgs): Promise<boolean> {
       return verifyEd25519({
@@ -65,10 +79,6 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
         message: a.message,
         signature_b64: a.signature,
       })
-    },
-
-    async fetchEscrowState(_escrow_ref: string): Promise<DecodedEvent | null> {
-      throw notImplemented('fetchEscrowState')
     },
 
     computeFee(fee_args): AmountRaw {
@@ -98,14 +108,4 @@ export function verifyEd25519(args: {
   } catch {
     return false
   }
-}
-
-// ---------- internals ---------------------------------------------------
-
-function notImplemented(method: string): AppError {
-  return new AppError(
-    501,
-    ErrorCode.INTERNAL_ERROR,
-    `solana.${method}: not implemented — lands with Anchor program rewrite (#29)`,
-  )
 }
