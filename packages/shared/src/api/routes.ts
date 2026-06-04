@@ -60,6 +60,16 @@ export const apiRoutes: {
   moderation: {
     preview: '/v1/moderation/preview',
   },
+  fiat: {
+    quote: '/v1/fiat/quote',
+    onramp: '/v1/fiat/onramp',
+    offramp: '/v1/fiat/offramp',
+    intent: '/v1/fiat/intents/:id',
+    cancelIntent: '/v1/fiat/intents/:id/cancel',
+    bankAccounts: '/v1/bank-accounts',
+    createBankAccount: '/v1/bank-accounts',
+    deleteBankAccount: '/v1/bank-accounts/:id',
+  },
   blockchain: {
     clientPing:        '/v1/blockchain/transaction',
     transaction:       '/v1/blockchain/transaction/:signature',

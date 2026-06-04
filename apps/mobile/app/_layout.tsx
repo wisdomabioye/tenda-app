@@ -49,6 +49,9 @@ export default wrapApp(function RootLayout() {
           <Stack.Screen name="gig/[id]/edit" />
           <Stack.Screen name="chat/[userId]" />
           <Stack.Screen name="settings/linked-wallets" />
+          <Stack.Screen name="settings/bank-accounts" />
+          <Stack.Screen name="wallet/buy-sell" />
+          <Stack.Screen name="wallet/intents/[id]" />
           <Stack.Screen name="+not-found" />
         </Stack>
       </ToastProvider>

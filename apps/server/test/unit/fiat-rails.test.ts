@@ -425,16 +425,27 @@ test('reconcile job: scans stale opens, isolates per-intent provider errors', as
 
 // ---------- expire job ---------------------------------------------------------------------
 
-test('expire job: quoted intents past validity fail with a quote-expired event', async () => {
+test('expire job: never-initiated quotes expire SILENTLY; initiated ones notify', async () => {
   const { deps, store, failed } = makeDeps([fakeProvider('a')])
-  const intent_id = await quotedIntent(deps)
-  const row = store.rows.get(intent_id)
-  assert.ok(row)
-  store.rows.set(intent_id, { ...row, expires_at: new Date(NOW.getTime() - 1) })
+  // Abandoned quote — no provider_ref (a debounced amount edit).
+  const abandoned = await quotedIntent(deps)
+  // Initiated intent — the user saw an instruction.
+  const active = await quotedIntent(deps)
+  await initiateIntent(deps, 'user-1', active, {})
+
+  for (const id of [abandoned, active]) {
+    const row = store.rows.get(id)
+    assert.ok(row)
+    store.rows.set(id, { ...row, expires_at: new Date(NOW.getTime() - 1) })
+  }
 
   const result = await expireFiatQuotesHandler(deps)
-  assert.strictEqual(result.expired, 1)
-  assert.strictEqual(store.rows.get(intent_id)?.status, 'failed')
+  assert.strictEqual(result.expired, 2)
+  assert.strictEqual(store.rows.get(abandoned)?.status, 'failed')
+  assert.strictEqual(store.rows.get(active)?.status, 'failed')
+  // Exactly ONE event — for the initiated intent.
+  assert.strictEqual(failed.length, 1)
+  assert.strictEqual(failed[0].intent_id, active)
   assert.strictEqual(failed[0].reason, 'quote expired')
 
   // Second run: nothing left to expire.

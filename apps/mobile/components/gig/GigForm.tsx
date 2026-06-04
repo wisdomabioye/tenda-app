@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native'
+import { useRouter } from 'expo-router'
+import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
 import { Input } from '@/components/ui/Input'
@@ -20,6 +21,7 @@ import {
 import { getDeviceCountry } from '@/lib/device'
 import { useAuthStore } from '@/stores/auth.store'
 import { useModerationPreview } from '@/hooks/useModerationPreview'
+import { useWalletBalance } from '@/hooks/useWalletBalance'
 import { PriceWarningSheet } from '@/components/moderation/PriceWarningSheet'
 import { LOCATIONS } from '@tenda/shared'
 import type { GigCategory, CountryCode } from '@tenda/shared'
@@ -66,6 +68,8 @@ interface GigFormProps {
 
 export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: GigFormProps) {
   const { theme } = useUnistyles()
+  const router = useRouter()
+  const { balanceLamports } = useWalletBalance()
   const homeCountry = useAuthStore((s) => s.user?.country ?? null)
 
   const [title, setTitle]                         = useState(initialValues?.title ?? '')
@@ -217,6 +221,24 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
         <SectionLabel>Budget</SectionLabel>
         <PaymentInput value={paymentLamports} onChange={setPaymentLamports} />
 
+        {/* Stage 8: chained buy-then-post — advisory only; funding happens at publish */}
+        {balanceLamports !== null && paymentLamports > balanceLamports && (
+          <Pressable
+            onPress={() => router.push('/wallet/buy-sell?tab=buy' as Parameters<typeof router.push>[0])}
+            style={({ pressed }) => [
+              s.addFunds,
+              { backgroundColor: theme.colors.brand.primarySurface, borderColor: theme.colors.brand.primaryBorder },
+              pressed && { opacity: 0.8 },
+            ]}
+            accessibilityRole="button"
+            accessibilityLabel="Add funds"
+          >
+            <Text style={[s.addFundsText, { color: theme.colors.brand.primary }]}>
+              Your balance won&apos;t cover this amount — add funds. Your draft stays right here.
+            </Text>
+          </Pressable>
+        )}
+
         {/* Timing */}
         <SectionLabel>Timing</SectionLabel>
         <View style={s.durationWrap}>
@@ -363,6 +385,18 @@ const s = StyleSheet.create({
   },
   spacer: {
     height: 24,
+  },
+  addFunds: {
+    marginHorizontal: 20,
+    marginTop: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  addFundsText: {
+    fontSize: 12.5,
+    lineHeight: 17,
   },
   moderationHint: {
     marginHorizontal: 20,

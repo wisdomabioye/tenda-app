@@ -11,6 +11,7 @@ import type { SubscriptionsContract } from './subscriptions.contract'
 import type { ReportsContract } from './reports.contract'
 import type { ExchangeContract, ExchangeAccountsContract, ExchangeBlockchainContract } from './exchange.contract'
 import type { ModerationContract } from './moderation.contract'
+import type { FiatContract } from './fiat.contract'
 
 export interface ApiContract {
   auth: AuthContract
@@ -28,6 +29,7 @@ export interface ApiContract {
   exchangeAccounts:   ExchangeAccountsContract
   exchangeBlockchain: ExchangeBlockchainContract
   moderation:         ModerationContract
+  fiat:               FiatContract
 }
 
 export type {
@@ -69,6 +71,20 @@ export type { NotificationsContract } from './notifications.contract'
 export type { SubscriptionsContract } from './subscriptions.contract'
 export type { ReportsContract } from './reports.contract'
 export type { ExchangeContract, ExchangeAccountsContract, ExchangeBlockchainContract } from './exchange.contract'
+export type {
+  FiatContract,
+  FiatDirection,
+  FiatIntentStatus,
+  FiatQuoteBody,
+  FiatQuoteResponse,
+  FiatInstruction,
+  FiatInitiateBody,
+  FiatOfframpInitiateBody,
+  FiatInitiateResponse,
+  FiatIntentDetail,
+  BankAccountSummary,
+  CreateBankAccountBody,
+} from './fiat.contract'
 export type {
   ModerationContract,
   ModerationDecision,

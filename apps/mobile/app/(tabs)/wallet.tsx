@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import { View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { PublicKey } from '@solana/web3.js'
 import { Copy } from 'lucide-react-native'
@@ -24,6 +24,7 @@ import type { UserTransaction, SupportedCurrency } from '@tenda/shared'
 
 export default function WalletScreen() {
   const { theme } = useUnistyles()
+  const router = useRouter()
   const user          = useAuthStore((s) => s.user)
   const walletAddress = useAuthStore((s) => s.walletAddress)
   const rates         = useExchangeRateStore((s) => s.rates)
@@ -180,6 +181,22 @@ export default function WalletScreen() {
                   ≈ {formatFiat(balanceFiat, currency)}
                 </Text>
               )}
+
+              {/* Stage 8: Buy/Sell is a first-class wallet operation */}
+              <Pressable
+                onPress={() => router.push('/wallet/buy-sell' as Parameters<typeof router.push>[0])}
+                style={({ pressed }) => [
+                  s.buySell,
+                  { backgroundColor: theme.colors.brand.primary },
+                  pressed && { opacity: 0.85 },
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel="Buy or sell"
+              >
+                <Text style={[s.buySellText, { color: theme.colors.brand.onPrimary }]}>
+                  Buy / Sell
+                </Text>
+              </Pressable>
             </View>
 
             {/* Earnings summary */}
@@ -325,6 +342,17 @@ const s = StyleSheet.create({
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '500',
+  },
+  buySell: {
+    marginTop: 12,
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  buySellText: {
+    fontSize: 14,
+    fontFamily: typography.fonts.body.semibold,
   },
   heroFiat: {
     fontFamily: typography.fonts.mono,
