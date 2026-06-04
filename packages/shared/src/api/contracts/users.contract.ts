@@ -13,6 +13,39 @@ import type {
 } from '../../types'
 import type { Review, GetUserReviewsQuery } from '../../types/review'
 import type { LinkedWallet } from './auth.contract'
+import type { RestrictionKind } from '../../db/schema-v2/reputation'
+
+// ---------- Stage 7: standing (#57/#58) ------------------------------------
+
+export type { RestrictionKind }
+
+/** GET /v1/users/:id/standing — rolled-up public signals only. */
+export interface UserStandingResponse {
+  /** Null below the cold-start floor — UI shows "New user". */
+  completion_rate: number | null
+  completed_count: number
+  /** True for restrictions visible to other users ("limited account"). */
+  is_limited: boolean
+  /** Numeric(3,2) — serialized as a string by the driver, null if unrated. */
+  review_score: string | null
+  /** ISO-8601 account creation, null for legacy rows. */
+  member_since: string | null
+}
+
+export interface MyRestriction {
+  kind: RestrictionKind
+  /** ISO-8601; null = indefinite (manual_review). */
+  until: string | null
+  reason: string
+}
+
+/** GET /v1/users/me/standing — own view, including the active restriction. */
+export interface MyStandingResponse {
+  completion_rate: number | null
+  completed_count: number
+  is_limited: boolean
+  restriction: MyRestriction | null
+}
 
 // ---------- Stage 1: /v1/users/me (#38) -----------------------------------
 
@@ -62,6 +95,8 @@ export interface UpdateMeResponse {
 export interface UsersContract {
   me:             Endpoint<'GET', undefined, undefined,        undefined,                  MeResponse>
   updateMe:       Endpoint<'PATCH', undefined, UpdateMeInput,  undefined,                  UpdateMeResponse>
+  myStanding:     Endpoint<'GET', undefined, undefined,        undefined,                  MyStandingResponse>
+  standing:       Endpoint<'GET', { id: string }, undefined,   undefined,                  UserStandingResponse>
   get:            Endpoint<'GET', { id: string }, undefined,        undefined,                  PublicUser>
   update:         Endpoint<'PUT', { id: string }, UpdateUserInput,  undefined,                  User>
   gigs:           Endpoint<'GET', { id: string }, undefined,        UserGigsQuery,              PaginatedResponse<Gig>>

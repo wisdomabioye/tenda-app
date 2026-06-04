@@ -92,6 +92,8 @@ import {
   type MeResponse,
   type UpdateMeInput,
   type UpdateMeResponse,
+  type MyStandingResponse,
+  type UserStandingResponse,
   type CreateEscrowApiBody,
   type CreateEscrowApiResponse,
   type EscrowActionResponse,
@@ -270,6 +272,9 @@ export const api = {
     me: () => request<MeResponse>('GET', users.me),
     updateMe: (body: UpdateMeInput) =>
       request<UpdateMeResponse>('PATCH', users.updateMe, { body }),
+    myStanding: () => request<MyStandingResponse>('GET', users.myStanding),
+    standing: (params: { id: string }) =>
+      request<UserStandingResponse>('GET', users.standing, { params }),
     get: (params: { id: string }) =>
       request<PublicUser>('GET', users.get, { params }),
     update: (params: { id: string }, body: UpdateUserInput) =>

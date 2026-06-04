@@ -6,9 +6,11 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import {
+  activeRestriction,
   applyFraudConfirmed,
   applyStandingEvent,
   checkOperationAllowed,
+  defaultRestrictionReason,
   toPublicStanding,
   type ReputationDeps,
   type ReputationStore,
@@ -300,4 +302,42 @@ test('tier table sanity: thresholds strictly increase per kind with durations', 
     const sorted = [...thresholds].sort((a, b) => a - b)
     assert.deepStrictEqual(thresholds, sorted)
   }
+})
+
+test('activeRestriction: null row / no kind / expired → null; unexpiring + future stay active', () => {
+  assert.strictEqual(activeRestriction(null, NOW), null)
+  assert.strictEqual(activeRestriction(blankRow(), NOW), null)
+  assert.strictEqual(
+    activeRestriction(
+      { ...blankRow(), restriction_kind: 'accept_cooldown', restriction_until: new Date(NOW.getTime() - 1) },
+      NOW,
+    ),
+    null,
+  )
+  const future = activeRestriction(
+    {
+      ...blankRow(),
+      restriction_kind: 'accept_cooldown',
+      restriction_until: new Date(NOW.getTime() + 1000),
+      restriction_reason: 'too many abandonments',
+    },
+    NOW,
+  )
+  assert.deepStrictEqual(future, {
+    kind: 'accept_cooldown',
+    until: new Date(NOW.getTime() + 1000),
+    reason: 'too many abandonments',
+  })
+  // manual_review has no until — stays active indefinitely.
+  const review = activeRestriction(
+    { ...blankRow(), restriction_kind: 'manual_review', restriction_until: null, restriction_reason: null },
+    NOW,
+  )
+  assert.deepStrictEqual(review, { kind: 'manual_review', until: null, reason: null })
+})
+
+test('defaultRestrictionReason: manual_review wording differs from cooldowns', () => {
+  assert.strictEqual(defaultRestrictionReason('manual_review'), 'account under review')
+  assert.strictEqual(defaultRestrictionReason('accept_cooldown'), 'temporarily restricted')
+  assert.strictEqual(defaultRestrictionReason('dispute_cooldown'), 'temporarily restricted')
 })

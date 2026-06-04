@@ -58,7 +58,7 @@ export type {
   ClientPingResponse,
 } from './escrows.contract'
 export type { GigsContract } from './gigs.contract'
-export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse } from './users.contract'
+export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse } from './users.contract'
 export type { UploadContract } from './upload.contract'
 export type { BlockchainContract } from './blockchain.contract'
 export type { PlatformContract, PlatformConfig, ExchangeRates } from './platform.contract'

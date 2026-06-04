@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'expo-router'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui'
+import { RestrictionBanner } from '@/components/reputation'
 import { showToast } from '@/components/ui/Toast'
 import { GigForm } from '@/components/gig/GigForm'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
@@ -65,6 +66,7 @@ export default function PostGigScreen() {
       />
       <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
         <Header title="Post a gig" showBack />
+        <RestrictionBanner />
         <GigForm submitLabel="Save Draft" onSubmit={handleSubmit} isLoading={isLoading} />
       </ScreenContainer>
     </>

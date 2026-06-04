@@ -7,6 +7,7 @@ import { Copy } from 'lucide-react-native'
 import * as Clipboard from 'expo-clipboard'
 import { typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Header, showToast } from '@/components/ui'
+import { RestrictionBanner } from '@/components/reputation'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useAuthStore } from '@/stores/auth.store'
 import { FailedSyncPanel } from '@/components/sync/FailedSyncPanel'
@@ -107,6 +108,7 @@ export default function WalletScreen() {
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <Header title="Wallet" variant="large" />
+      <RestrictionBanner />
       <FlatList
         data={feed}
         keyExtractor={(item) => item.key}

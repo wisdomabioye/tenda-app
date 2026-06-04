@@ -22,6 +22,7 @@ import {
   SeekerBadge,
 } from '@/components/ui'
 import { Header } from '@/components/ui/Header'
+import { RestrictionBanner } from '@/components/reputation'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { SeekerWelcomeSheet } from '@/components/seeker/SeekerWelcomeSheet'
 import { useAuthStore } from '@/stores/auth.store'
@@ -108,6 +109,7 @@ export default function ProfileScreen() {
   return (
     <ScreenContainer scroll padding={false} edges={['left', 'right']}>
       <Header title="Profile" showBack />
+      <RestrictionBanner />
 
       {/* Hero */}
       <View style={s.hero}>

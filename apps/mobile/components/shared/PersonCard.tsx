@@ -4,6 +4,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { Eyebrow } from '@/components/ui/Eyebrow'
+import { StandingBadge } from '@/components/reputation'
 
 interface PersonCardUser {
   id: string
@@ -85,6 +86,7 @@ export function PersonCard({
               </>
             )}
           </View>
+          <StandingBadge userId={user.id} displayName={isSelf ? 'You' : displayName} />
         </View>
         {!isSelf && showMessageButton && (
           <Pressable

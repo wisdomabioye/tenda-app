@@ -45,6 +45,8 @@ export const apiRoutes: {
   users: {
     me:             '/v1/users/me',
     updateMe:       '/v1/users/me',
+    myStanding:     '/v1/users/me/standing',
+    standing:       '/v1/users/:id/standing',
     get:            '/v1/users/:id',
     update:         '/v1/users/:id',
     gigs:           '/v1/users/:id/gigs',

@@ -187,6 +187,31 @@ export type OperationCheck =
   | { allowed: true }
   | { allowed: false; kind: RestrictionKind; until: Date | null; reason: string }
 
+/** A restriction currently in force (expiry already accounted for). */
+export interface ActiveRestriction {
+  kind: RestrictionKind
+  until: Date | null
+  reason: string | null
+}
+
+/**
+ * Single source of truth for "is a restriction in force right now" —
+ * the guard, the public summary and /users/me/standing all defer here.
+ */
+export function activeRestriction(row: StandingRow | null, now: Date): ActiveRestriction | null {
+  if (row === null || row.restriction_kind === null) return null
+  if (row.restriction_until !== null && row.restriction_until < now) return null
+  return {
+    kind: row.restriction_kind,
+    until: row.restriction_until,
+    reason: row.restriction_reason,
+  }
+}
+
+export function defaultRestrictionReason(kind: RestrictionKind): string {
+  return kind === 'manual_review' ? 'account under review' : 'temporarily restricted'
+}
+
 /**
  * The authoritative gate the routes call. Expired restrictions pass
  * transparently (the row is cleaned lazily on the next event).
@@ -197,24 +222,23 @@ export async function checkOperationAllowed(
   op: GuardedOperation,
 ): Promise<OperationCheck> {
   const standing = await deps.store.getStanding(user_id)
-  if (standing === null || standing.restriction_kind === null) return { allowed: true }
-  const expired = standing.restriction_until !== null && standing.restriction_until < deps.now()
-  if (expired) return { allowed: true }
+  const active = activeRestriction(standing, deps.now())
+  if (active === null) return { allowed: true }
 
-  if (standing.restriction_kind === 'manual_review') {
+  if (active.kind === 'manual_review') {
     return {
       allowed: false,
       kind: 'manual_review',
       until: null,
-      reason: standing.restriction_reason ?? 'account under review',
+      reason: active.reason ?? defaultRestrictionReason('manual_review'),
     }
   }
-  if (standing.restriction_kind === KIND_BY_OPERATION[op]) {
+  if (active.kind === KIND_BY_OPERATION[op]) {
     return {
       allowed: false,
-      kind: standing.restriction_kind,
-      until: standing.restriction_until,
-      reason: standing.restriction_reason ?? 'temporarily restricted',
+      kind: active.kind,
+      until: active.until,
+      reason: active.reason ?? defaultRestrictionReason(active.kind),
     }
   }
   return { allowed: true }
@@ -235,12 +259,7 @@ export function toPublicStanding(row: StandingRow | null, now: Date): PublicStan
   const outcomes = row.completed_count + row.abandoned_count + row.ghosted_count
   const completion_rate =
     outcomes >= COLD_START_MIN_OUTCOMES ? row.completed_count / outcomes : null
-  const active =
-    row.restriction_kind !== null &&
-    (row.restriction_until === null || row.restriction_until >= now)
-  const is_limited =
-    active &&
-    row.restriction_kind !== null &&
-    PUBLICLY_VISIBLE_KINDS.includes(row.restriction_kind)
+  const active = activeRestriction(row, now)
+  const is_limited = active !== null && PUBLICLY_VISIBLE_KINDS.includes(active.kind)
   return { completion_rate, completed_count: row.completed_count, is_limited }
 }
