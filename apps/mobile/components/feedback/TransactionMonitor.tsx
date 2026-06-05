@@ -5,7 +5,7 @@ import { CheckCircle, XCircle } from 'lucide-react-native'
 import { radius, spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
-import { getTransactionStatus } from '@/wallet'
+import { getTransactionStatus, getEvmTransactionStatus } from '@/wallet'
 import { useRealtimeStore, subscribeEscrowChannel } from '@/stores/realtime.store'
 
 const POLL_INTERVAL_MS = 2_000
@@ -27,9 +27,15 @@ interface TransactionMonitorProps {
    * while the socket is healthy. Legacy flows omit it and keep the fast poll.
    */
   escrowId?: string
+  /**
+   * CAIP-2 chain of the tx (CO3). Selects the RPC fallback: solana
+   * signature-status (also the default for legacy callers), EVM receipt
+   * poll via the connected provider for eip155, WS-only for anything else.
+   */
+  chainId?: string
 }
 
-export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false, escrowId }: TransactionMonitorProps) {
+export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false, escrowId, chainId }: TransactionMonitorProps) {
   const { theme } = useUnistyles()
   const [txState, setTxState] = useState<TxState>('waiting')
   const [failMsg, setFailMsg] = useState('')
@@ -66,10 +72,19 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
         return
       }
       try {
-        const status = await getTransactionStatus(signature)
-        if (status === 'confirmed' || status === 'finalized') return settle('confirmed')
-        if (status === 'failed') return settle('failed', 'Transaction failed on chain.')
-        // 'not_found' → keep polling
+        // CO3: pick the RPC fallback by chain. Unknown namespaces get no
+        // poll at all — confirmation rides the WS channel alone.
+        const namespace = chainId?.split(':')[0] ?? 'solana'
+        if (namespace === 'solana') {
+          const status = await getTransactionStatus(signature)
+          if (status === 'confirmed' || status === 'finalized') return settle('confirmed')
+          if (status === 'failed') return settle('failed', 'Transaction failed on chain.')
+        } else if (namespace === 'eip155') {
+          const status = await getEvmTransactionStatus(signature)
+          if (status === 'confirmed') return settle('confirmed')
+          if (status === 'failed') return settle('failed', 'Transaction failed on chain.')
+        }
+        // 'not_found' / WS-only namespace → keep polling
       } catch {
         // RPC error — keep polling
       }
@@ -89,7 +104,7 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
       if (timer) clearTimeout(timer)
       unsubscribe?.()
     }
-  }, [signature, escrowId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [signature, escrowId, chainId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleDismiss() {
     onFailed(failMsg || 'Transaction failed')

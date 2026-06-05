@@ -40,10 +40,17 @@ export async function signAndSendUnsignedTx(unsigned: UnsignedTx, chain_id?: str
       })
     }
     case 'evm-tx': {
-      const { walletAddress } = useAuthStore.getState()
-      if (walletAddress === null) throw new Error('no wallet connected')
+      // CO3: `from` must be an eip155 account — walletAddress is the
+      // SOLANA sign-in address and never valid here. Prefer the live
+      // spike session; fall back to the verified linked EVM wallet.
+      const { evmAddress, wallets } = useAuthStore.getState()
+      const linked = wallets.find((w) => w.chain_ns === 'eip155' && w.verified_at !== null)
+      const from = evmAddress ?? linked?.address ?? null
+      if (from === null) {
+        throw new Error('no EVM wallet connected — link one in Settings → Wallets first')
+      }
       return sendEvmTransaction({
-        from: walletAddress,
+        from,
         to: unsigned.to,
         data: unsigned.data,
         value: unsigned.value,

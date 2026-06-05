@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react'
 import { WalletPicker } from './picker'
+import { useAuthStore } from '@/stores/auth.store'
 import { adapters, requireAdapter } from './adapters/registry'
 import type { WalletAdapter } from './adapters/types'
 import type {
@@ -17,6 +18,17 @@ import type {
 } from './types'
 
 const WalletSpikeContext = createContext<SpikeWalletAPI | null>(null)
+
+/**
+ * CO3: the evm-tx dispatch path (wallet/dispatch.ts) runs outside React
+ * and needs the CONNECTED eip155 account as `from` — publish it to the
+ * auth store whenever the spike session changes.
+ */
+function publishEvmSession(account: SpikeAccount | null): void {
+  useAuthStore
+    .getState()
+    .setEvmAddress(account !== null && account.namespace === 'eip155' ? account.address : null)
+}
 
 export function WalletSpikeProvider({ children }: { children: ReactNode }) {
   const [account, setAccount] = useState<SpikeAccount | null>(null)
@@ -33,6 +45,7 @@ export function WalletSpikeProvider({ children }: { children: ReactNode }) {
           if (cancelled) return
           if (restored) {
             setAccount(restored)
+            publishEvmSession(restored)
             return
           }
         } catch {
@@ -54,6 +67,7 @@ export function WalletSpikeProvider({ children }: { children: ReactNode }) {
     try {
       const connected = await adapter.connect()
       setAccount(connected)
+      publishEvmSession(connected)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'connect failed'
       console.warn('[wallet] connect failed:', err)
@@ -71,6 +85,7 @@ export function WalletSpikeProvider({ children }: { children: ReactNode }) {
       console.warn('[wallet] disconnect error:', err)
     }
     setAccount(null)
+    publishEvmSession(null)
   }, [account])
 
   const signMessage = useCallback(

@@ -19,6 +19,13 @@ interface AuthState {
   jwt: string | null
   mwaAuthToken: string | null
   walletAddress: string | null
+  /**
+   * Connected EVM account (CO3) — session-scoped, set by the wallet spike
+   * at eip155 connect/restore and cleared on disconnect. The evm-tx
+   * dispatch path sources `from` here; falls back to the verified linked
+   * eip155 wallet.
+   */
+  evmAddress: string | null
   isAuthenticated: boolean
   isLoading: boolean
   /** Stage 1 multi-wallet state — from GET /v1/users/me. */
@@ -40,6 +47,7 @@ interface AuthState {
   /** Re-fetch wallets + profile_complete from /v1/users/me. */
   refreshMe: () => Promise<void>
   setMwaAuthToken: (token: string) => Promise<void>
+  setEvmAddress: (address: string | null) => void
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -47,6 +55,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   jwt: null,
   mwaAuthToken: null,
   walletAddress: null,
+  evmAddress: null,
   isAuthenticated: false,
   isLoading: true,
   wallets: [],
@@ -93,6 +102,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       jwt: null,
       mwaAuthToken: null,
       walletAddress: null,
+      evmAddress: null,
       isAuthenticated: false,
       wallets: [],
       profileComplete: null,
@@ -172,6 +182,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await setMwaAuthToken(token)
     set({ mwaAuthToken: token })
   },
+
+  setEvmAddress: (address) => set({ evmAddress: address }),
 }))
 
 /**

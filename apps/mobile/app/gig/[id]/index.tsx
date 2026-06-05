@@ -173,6 +173,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
         <TransactionMonitor
           signature={actions.pendingTxRef}
           escrowId={gig.escrow_id}
+          chainId={gig.chain_id}
           onConfirmed={handleTransactionConfirmed}
           onFailed={(msg) => {
             actions.clearPending()

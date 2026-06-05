@@ -65,6 +65,8 @@ export async function getBalance(publicKey: PublicKey): Promise<number> {
   return connection.getBalance(publicKey)
 }
 
+export { getEvmTransactionStatus } from '@/wallet/adapters/metamask'
+
 export type OnChainTxStatus = 'confirmed' | 'finalized' | 'failed' | 'not_found'
 
 export async function getTransactionStatus(signature: string): Promise<OnChainTxStatus> {

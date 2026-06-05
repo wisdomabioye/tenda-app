@@ -182,6 +182,26 @@ export async function sendEvmTransaction(input: {
   return result
 }
 
+/**
+ * EVM receipt poll for TransactionMonitor's RPC fallback (CO3). Rides the
+ * connected MetaMask provider — no extra RPC config. `status` is '0x1' on
+ * success, '0x0' on revert; a missing receipt means still pending.
+ */
+export async function getEvmTransactionStatus(
+  tx_hash: string,
+): Promise<'confirmed' | 'failed' | 'not_found'> {
+  const client = await getClient()
+  const receipt = await client.getProvider().request({
+    method: 'eth_getTransactionReceipt',
+    params: [tx_hash],
+  })
+  if (receipt === null || receipt === undefined) return 'not_found'
+  const status = (receipt as { status?: string }).status
+  if (status === '0x1') return 'confirmed'
+  if (status === '0x0') return 'failed'
+  return 'not_found'
+}
+
 export const metamaskAdapter: WalletAdapter = {
   id: 'metamask',
   name: 'MetaMask',

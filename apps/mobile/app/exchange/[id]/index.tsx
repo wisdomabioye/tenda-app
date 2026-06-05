@@ -215,6 +215,7 @@ function ExchangeDetailContent({
       <TransactionMonitor
         signature={actions.pendingTxRef}
         escrowId={offer.escrow_id}
+        chainId={offer.chain_id}
         onConfirmed={handleTransactionConfirmed}
         onFailed={(msg) => {
           actions.clearPending()
