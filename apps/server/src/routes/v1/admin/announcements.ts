@@ -2,13 +2,11 @@ import { FastifyPluginAsync } from 'fastify'
 import { eq, desc, sql } from 'drizzle-orm'
 import { announcements } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import type { ApiError } from '@tenda/shared'
 
-// marketing and super_admin can manage announcements
-const ANNOUNCEMENT_ROLES = ['super_admin'] as const
 
 const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
   // GET /v1/admin/announcements — all announcements (active and inactive)
@@ -16,7 +14,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
     Querystring: { limit?: number; offset?: number; active?: string }
     Reply: { data: unknown[]; total: number; limit: number; offset: number } | ApiError
   }>('/', {
-    preHandler: [requireRole(...ANNOUNCEMENT_ROLES)],
+    preHandler: [requirePermission('announcements.read')],
   }, async (request) => {
     const { limit = 20, offset = 0, active } = request.query
     const safeLimit  = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
@@ -48,7 +46,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Reply: unknown | ApiError
   }>('/:id', {
-    preHandler: [requireRole(...ANNOUNCEMENT_ROLES)],
+    preHandler: [requirePermission('announcements.read')],
   }, async (request) => {
     const [row] = await fastify.db
       .select()
@@ -64,7 +62,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
     Body:  { title: string; body: string; priority?: number; is_active?: boolean; expires_at?: string }
     Reply: unknown | ApiError
   }>('/', {
-    preHandler: [requireRole(...ANNOUNCEMENT_ROLES)],
+    preHandler: [requirePermission('announcements.write')],
   }, async (request) => {
     const { title, body, priority = 0, is_active = true, expires_at } = request.body
 
@@ -113,7 +111,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
     Body:  { title?: string; body?: string; priority?: number; is_active?: boolean; expires_at?: string | null }
     Reply: unknown | ApiError
   }>('/:id', {
-    preHandler: [requireRole(...ANNOUNCEMENT_ROLES)],
+    preHandler: [requirePermission('announcements.write')],
   }, async (request) => {
     const { title, body, priority, is_active, expires_at } = request.body
 
@@ -172,7 +170,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Reply:  { id: string } | ApiError
   }>('/:id', {
-    preHandler: [requireRole(...ANNOUNCEMENT_ROLES)],
+    preHandler: [requirePermission('announcements.write')],
   }, async (request) => {
     const [deleted] = await fastify.db
       .delete(announcements)

@@ -7,11 +7,10 @@ import { FastifyPluginAsync } from 'fastify'
 import { desc, eq, sql, and, gte, lte, type SQL } from 'drizzle-orm'
 import { escrows, escrow_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import type { ApiError, EscrowKind, FinanceFeeRow } from '@tenda/shared'
 
-const FINANCE_ROLES = ['super_admin'] as const
 
 function parseDateRange(from?: string, to?: string): { fromDate: Date | null; toDate: Date | null } {
   const fromDate = from ? new Date(from) : null
@@ -32,7 +31,7 @@ const adminFinance: FastifyPluginAsync = async (fastify) => {
     Querystring: { from?: string; to?: string }
     Reply: unknown | ApiError
   }>('/fees', {
-    preHandler: [requireRole(...FINANCE_ROLES)],
+    preHandler: [requirePermission('finance.read')],
   }, async (request) => {
     const { fromDate, toDate } = parseDateRange(request.query.from, request.query.to)
 
@@ -93,7 +92,7 @@ const adminFinance: FastifyPluginAsync = async (fastify) => {
     }
     Reply: { data: unknown[]; total: number; limit: number; offset: number } | ApiError
   }>('/transactions', {
-    preHandler: [requireRole(...FINANCE_ROLES)],
+    preHandler: [requirePermission('finance.read')],
   }, async (request) => {
     const { kind, from, to, tx_type, limit = 20, offset = 0 } = request.query
     const safeLimit = Math.min(Number(limit), MAX_PAGINATION_LIMIT)

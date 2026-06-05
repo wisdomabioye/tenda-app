@@ -6,12 +6,12 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { sql } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.get(
     '/',
-    { preHandler: [fastify.authenticate, requireRole('super_admin')] },
+    { preHandler: [fastify.authenticate, requirePermission('metrics.read')] },
     async () => {
       const [row] = await fastify.db
         .select({

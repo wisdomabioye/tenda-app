@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { eq, inArray } from 'drizzle-orm'
 import { device_tokens, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { sendPush } from '@server/lib/push'
@@ -12,7 +12,6 @@ import type { ApiError, UserRole } from '@tenda/shared'
 type BroadcastTarget = 'all' | 'role' | 'country' | 'city'
 const VALID_TARGETS: BroadcastTarget[] = ['all', 'role', 'country', 'city']
 
-const PUSH_ROLES = ['super_admin'] as const
 
 const adminPush: FastifyPluginAsync = async (fastify) => {
   // POST /v1/admin/push/broadcast
@@ -23,7 +22,7 @@ const adminPush: FastifyPluginAsync = async (fastify) => {
     Body:  { title: string; body: string; target: string; target_value?: string; data?: Record<string, unknown> }
     Reply: { attempted: number } | ApiError
   }>('/broadcast', {
-    preHandler: [requireRole(...PUSH_ROLES)],
+    preHandler: [requirePermission('push.broadcast')],
     config:     { rateLimit: { max: 10, timeWindow: '1 hour' } },
   }, async (request) => {
     const { title, body, target, target_value, data: pushData } = request.body

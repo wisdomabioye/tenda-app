@@ -17,10 +17,9 @@ import type {
   PaginatedResponse,
 } from '@tenda/shared'
 import { escrowStatusEnum } from '@tenda/shared/db/schema/escrow'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 
-const ESCROW_VIEW_ROLES = ['dispute_admin', 'super_admin'] as const
 
 const adminEscrows: FastifyPluginAsync = async (fastify) => {
   const rowCols = {
@@ -64,7 +63,7 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Querystring: AdminEscrowListQuery
     Reply: PaginatedResponse<AdminEscrowRow> | ApiError
-  }>('/', { preHandler: [requireRole(...ESCROW_VIEW_ROLES)] }, async (request) => {
+  }>('/', { preHandler: [requirePermission('escrows.read')] }, async (request) => {
     const { kind, status, chain_id, category, country, creator_id, limit = 20, offset = 0 } =
       request.query
     const safeLimit = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
@@ -118,7 +117,7 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { id: string }
     Reply: AdminEscrowRow | ApiError
-  }>('/:id', { preHandler: [requireRole(...ESCROW_VIEW_ROLES)] }, async (request) => {
+  }>('/:id', { preHandler: [requirePermission('escrows.read')] }, async (request) => {
     const [row] = await rowQuery().where(eq(escrows.id, request.params.id)).limit(1)
     if (row === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Escrow not found')
     return toRow(row)

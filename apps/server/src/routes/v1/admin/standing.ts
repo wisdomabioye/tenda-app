@@ -11,7 +11,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { standing_overrides } from '@tenda/shared/db/schema/reputation'
 import { AppError } from '@server/lib/errors'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 import { applyFraudConfirmed } from '@server/features/reputation/service'
 import { drizzleReputationStore } from '@server/features/reputation/store'
 
@@ -42,7 +42,7 @@ function narrowAction(v: unknown): OverrideAction {
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Params: { user_id: string } }>(
     '/:user_id',
-    { preHandler: [fastify.authenticate, requireRole('super_admin')] },
+    { preHandler: [fastify.authenticate, requirePermission('standing.read')] },
     async (request) => {
       const standing = await drizzleReputationStore(fastify.db).getStanding(
         request.params.user_id,
@@ -56,7 +56,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { user_id: string }; Body: OverrideBody }>(
     '/:user_id/override',
-    { preHandler: [fastify.authenticate, requireRole('super_admin')] },
+    { preHandler: [fastify.authenticate, requirePermission('standing.manage')] },
     async (request) => {
       const action = narrowAction(request.body?.action)
       const reason = request.body?.reason

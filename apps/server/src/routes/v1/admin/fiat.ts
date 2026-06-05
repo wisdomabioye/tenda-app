@@ -16,7 +16,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
 import { fiat_intents, fiat_providers, fiatIntentStatusEnum, type FiatIntentStatus } from '@tenda/shared/db/schema/fiat'
 import { AppError } from '@server/lib/errors'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 import { buildFiatDeps } from '@server/features/fiat-rails'
 
 const LIST_LIMIT = 50
@@ -36,7 +36,7 @@ function requireReason(body: OverrideBody | undefined): string {
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { status?: string; provider?: string; user_id?: string } }>(
     '/intents',
-    { preHandler: [fastify.authenticate, requireRole('super_admin')] },
+    { preHandler: [fastify.authenticate, requirePermission('fiat.read')] },
     async (request) => {
       const { status, provider, user_id } = request.query
       const filters = []
@@ -64,7 +64,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
   fastify.get<{ Params: { id: string } }>(
     '/intents/:id',
-    { preHandler: [fastify.authenticate, requireRole('super_admin')] },
+    { preHandler: [fastify.authenticate, requirePermission('fiat.read')] },
     async (request) => {
       const [row] = await fastify.db
         .select()
@@ -78,7 +78,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { id: string }; Body: OverrideBody }>(
     '/intents/:id/force-settle',
-    { preHandler: [fastify.authenticate, requireRole('super_admin')] },
+    { preHandler: [fastify.authenticate, requirePermission('fiat.manage')] },
     async (request) => {
       const reason = requireReason(request.body)
       const deps = await buildFiatDeps(fastify)
@@ -115,7 +115,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { id: string }; Body: OverrideBody }>(
     '/intents/:id/refund',
-    { preHandler: [fastify.authenticate, requireRole('super_admin')] },
+    { preHandler: [fastify.authenticate, requirePermission('fiat.manage')] },
     async (request) => {
       const reason = requireReason(request.body)
       const deps = await buildFiatDeps(fastify)
@@ -143,7 +143,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
   fastify.get(
     '/providers',
-    { preHandler: [fastify.authenticate, requireRole('super_admin')] },
+    { preHandler: [fastify.authenticate, requirePermission('fiat.read')] },
     async () => {
       const rows = await fastify.db.select().from(fiat_providers).orderBy(fiat_providers.priority)
       return { providers: rows }
@@ -152,7 +152,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
   fastify.patch<{ Params: { id: string }; Body: { is_enabled?: unknown; priority?: unknown } }>(
     '/providers/:id',
-    { preHandler: [fastify.authenticate, requireRole('super_admin')] },
+    { preHandler: [fastify.authenticate, requirePermission('fiat.manage')] },
     async (request) => {
       const b = request.body ?? {}
       const patch: { is_enabled?: boolean; priority?: number } = {}

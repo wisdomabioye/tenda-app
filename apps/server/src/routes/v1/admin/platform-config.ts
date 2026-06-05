@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { platform_config } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/db'
 import { invalidatePlatformConfigCache } from '@server/lib/platform'
@@ -10,9 +10,9 @@ import { appEvents } from '@server/lib/events'
 import type { ApiError } from '@tenda/shared'
 
 const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/admin/platform-config — super_admin only
-  fastify.get('/', { 
-    preHandler: [requireRole('super_admin')] 
+  // GET /v1/admin/platform-config
+  fastify.get('/', {
+    preHandler: [requirePermission('config.read')]
   }, async () => {
     const [row] = await fastify.db.select().from(platform_config).limit(1)
     if (!row) throw new AppError(404, ErrorCode.INTERNAL_ERROR, 'Platform config not found — seed the database first')
@@ -23,8 +23,8 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
   fastify.patch<{
     Body:  { fee_bps?: number; seeker_fee_bps?: number; grace_period_seconds?: number }
     Reply: unknown | ApiError
-  }>('/', { 
-    preHandler: [requireRole('super_admin')] 
+  }>('/', {
+    preHandler: [requirePermission('config.write')]
   }, async (request) => {
     const { fee_bps, seeker_fee_bps, grace_period_seconds } = request.body
 

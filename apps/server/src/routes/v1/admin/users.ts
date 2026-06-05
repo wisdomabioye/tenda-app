@@ -4,13 +4,12 @@ import { users, user_wallets } from '@tenda/shared/db/schema'
 import {
   ADMIN_ROLES, ASSIGNABLE_ROLES, ErrorCode, MAX_PAGINATION_LIMIT,
 } from '@tenda/shared'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/db'
 import { appEvents } from '@server/lib/events'
 import type { ApiError, UserRole, UserStatus } from '@tenda/shared'
 
-const USER_MGMT_ROLES = ['super_admin'] as const
 
 const adminUsers: FastifyPluginAsync = async (fastify) => {
   // GET /v1/admin/users — list users (super_admin only post-#34: the
@@ -19,7 +18,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     Querystring: { status?: string; role?: string; search?: string; limit?: number; offset?: number }
     Reply: { data: unknown[]; total: number; limit: number; offset: number } | ApiError
   }>('/', { 
-    preHandler: [requireRole(...USER_MGMT_ROLES)] 
+    preHandler: [requirePermission('users.read')] 
   }, async (request) => {
     const { status, role, search, limit = 20, offset = 0 } = request.query
     const safeLimit  = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
@@ -92,7 +91,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Reply: unknown | ApiError
   }>('/:id', { 
-    preHandler: [requireRole(...USER_MGMT_ROLES)] 
+    preHandler: [requirePermission('users.read')] 
   }, async (request) => {
     const { id } = request.params
 
@@ -112,7 +111,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Body:   { status: 'active' | 'suspended' }
     Reply:  { id: string; status: string } | ApiError
-  }>('/:id/status', { preHandler: [requireRole(...USER_MGMT_ROLES)] }, async (request) => {
+  }>('/:id/status', { preHandler: [requirePermission('users.suspend')] }, async (request) => {
     const { id } = request.params
     const { status } = request.body
 
@@ -154,7 +153,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     Body:   { role: UserRole }
     Reply:  { id: string; role: string } | ApiError
   }>('/:id/role', { 
-    preHandler: [requireRole('super_admin')] 
+    preHandler: [requirePermission('users.assign_roles')] 
   }, async (request) => {
     const { id } = request.params
     const { role } = request.body

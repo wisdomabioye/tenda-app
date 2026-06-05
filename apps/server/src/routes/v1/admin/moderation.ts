@@ -14,14 +14,14 @@ import { ErrorCode } from '@tenda/shared'
 import { moderation_verdicts } from '@tenda/shared/db/schema/moderation'
 import { platform_config } from '@tenda/shared/db/schema/governance'
 import { AppError } from '@server/lib/errors'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 
 const PAGE_SIZE = 50
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.get<{ Querystring: { decision?: string; page?: string } }>(
     '/verdicts',
-    { preHandler: [fastify.authenticate, requireRole('super_admin')] },
+    { preHandler: [fastify.authenticate, requirePermission('moderation.read')] },
     async (request) => {
       const page = Math.max(Number(request.query.page ?? '0') || 0, 0)
       const decision = request.query.decision
@@ -42,7 +42,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Params: { id: string }; Body: { reason?: unknown } }>(
     '/verdicts/:id/override',
-    { preHandler: [fastify.authenticate, requireRole('super_admin')] },
+    { preHandler: [fastify.authenticate, requirePermission('moderation.override')] },
     async (request) => {
       const reason = request.body?.reason
       if (typeof reason !== 'string' || reason.length === 0) {

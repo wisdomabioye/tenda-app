@@ -351,6 +351,14 @@
 | CO3 | **TransactionMonitor's RPC fallback is Solana-only** — for EVM tx refs `getTransactionStatus` (Solana `getSignatureStatus`) returns `not_found` forever, so EVM confirmation rides ONLY the WS path; if the socket is down the 60s timeout reports "timed out" even after the tx confirmed. **Related (pre-existing #46):** `wallet/dispatch.ts`'s evm-tx path sources `from` from `auth.store.walletAddress`, which is only ever set by the SOLANA sign-in — EVM sends need the connected eip155 account (spike provider / `user_wallets` primary) instead | `apps/mobile/components/feedback/TransactionMonitor.tsx`, `apps/mobile/wallet/index.ts`, `apps/mobile/wallet/dispatch.ts` | Make the fallback chain-aware: skip the Solana poll for non-`solana:` chains and add an EVM receipt poll (`eth_getTransactionReceipt` via the connected provider), or lengthen the WS-only timeout with a "still pending" state; fix the evm `from` sourcing in the same pass (it's untestable until #68 device runs) |
 | CO4 | **Exchange order-book creation has no UI** — the legacy create wizard (`components/exchange/create`, user_exchange_accounts) was deleted; fiat-rails opens sell offers server-side (offramp), but an advanced-mode user cannot hand-create a `kind='exchange'` escrow, and `p2p_internal` onramp still throws 503 ("lands with the v2 exchange") | `apps/server/src/features/fiat-rails/index.ts`, `apps/mobile/app/(tabs)/exchange.tsx` | Ship the advanced-mode offer-creation flow on `POST /v1/escrows` + `exchange_details` attach (needs an exchange-details create route, mirroring the gig one), then enable p2p onramp routing |
 
+> **Found & fixed while wiring the permission layer (2026-06-05):** the entire
+> `/v1/admin/*` surface was unreachable — @fastify/autoload loads ONLY a
+> directory's index file ("…unless the directory contains an index file. In
+> which case, only the index file (and the potential sub-directories) will be
+> loaded"), so `admin/index.ts` silently swallowed all 12 sibling route files.
+> `admin/index.ts` now registers each module explicitly with its prefix;
+> `test/integration/admin-permissions.test.ts` guards the wiring.
+
 ### 🟡 Minor
 
 | # | Issue | File(s) | Fix |

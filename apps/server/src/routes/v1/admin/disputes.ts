@@ -10,10 +10,9 @@ import { eq, and, desc, isNull, isNotNull, sql, type SQL } from 'drizzle-orm'
 import { disputes, escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import type { ApiError, DisputeSummary, PaginatedResponse } from '@tenda/shared'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 
-const DISPUTE_ROLES = ['dispute_admin', 'super_admin'] as const
 
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString())
 
@@ -55,7 +54,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Querystring: { status?: 'open' | 'resolved'; kind?: 'gig' | 'exchange'; limit?: number; offset?: number }
     Reply: PaginatedResponse<DisputeSummary> | ApiError
-  }>('/', { preHandler: [requireRole(...DISPUTE_ROLES)] }, async (request) => {
+  }>('/', { preHandler: [requirePermission('disputes.read')] }, async (request) => {
     const { status, kind, limit = 20, offset = 0 } = request.query
     const safeLimit = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
     const safeOffset = Number(offset)
@@ -92,7 +91,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: { id: string }
     Reply: DisputeSummary | ApiError
-  }>('/:id', { preHandler: [requireRole(...DISPUTE_ROLES)] }, async (request) => {
+  }>('/:id', { preHandler: [requirePermission('disputes.read')] }, async (request) => {
     const [row] = await summaryQuery().where(eq(disputes.id, request.params.id)).limit(1)
     if (row === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Dispute not found')
     return toSummary(row)

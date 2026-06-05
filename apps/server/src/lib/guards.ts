@@ -1,7 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { eq } from 'drizzle-orm'
-import type { UserRole } from '@tenda/shared'
-import { ErrorCode } from '@tenda/shared'
+import type { Permission, UserRole } from '@tenda/shared'
+import { ErrorCode, ROLE_PERMISSIONS } from '@tenda/shared'
 import { users } from '@tenda/shared/db/schema/identity'
 
 /**
@@ -14,6 +14,33 @@ export function requireRole(...roles: UserRole[]) {
 
   return async (request: FastifyRequest, reply: FastifyReply) => {
     if (!effective.has(request.user.role)) {
+      return reply.code(403).send({
+        statusCode: 403,
+        error: 'Forbidden',
+        message: 'Insufficient permissions',
+        code: ErrorCode.FORBIDDEN,
+      })
+    }
+  }
+}
+
+// Precomputed per-role permission sets — O(1) checks, zero extra queries
+// (the role rides the JWT and is refreshed by authenticate's status cache).
+const PERMISSION_SETS: ReadonlyMap<string, ReadonlySet<Permission>> = new Map(
+  Object.entries(ROLE_PERMISSIONS).map(([role, perms]) => [role, new Set(perms)]),
+)
+
+/**
+ * Fastify preHandler enforcing a single permission from the shared
+ * PERMISSIONS map. Prefer this over requireRole for every admin route —
+ * granting a future role is then a map edit in @tenda/shared, not a route
+ * sweep. Always use after fastify.authenticate:
+ *   { preHandler: [fastify.authenticate, requirePermission('users.suspend')] }
+ */
+export function requirePermission(permission: Permission) {
+  return async (request: FastifyRequest, reply: FastifyReply) => {
+    const granted = PERMISSION_SETS.get(request.user.role)
+    if (granted === undefined || !granted.has(permission)) {
       return reply.code(403).send({
         statusCode: 403,
         error: 'Forbidden',

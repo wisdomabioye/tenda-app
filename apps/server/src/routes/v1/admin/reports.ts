@@ -5,20 +5,18 @@ import {
   ErrorCode, MAX_PAGINATION_LIMIT, REPORT_STATUSES, REPORT_CONTENT_TYPES,
 } from '@tenda/shared'
 import type { ApiError, ReportStatus, ReportContentType } from '@tenda/shared'
-import { requireRole } from '@server/lib/guards'
+import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/db'
 import { appEvents } from '@server/lib/events'
 
-// All report routes: moderator, support, super_admin (role matrix: "Action reports")
-const REPORT_ROLES = ['super_admin'] as const
 
 const adminReports: FastifyPluginAsync = async (fastify) => {
   // GET /v1/admin/reports
   fastify.get<{
     Querystring: { status?: ReportStatus; content_type?: string; limit?: number; offset?: number }
   }>('/', { 
-    preHandler: [requireRole(...REPORT_ROLES)] 
+    preHandler: [requirePermission('reports.read')] 
   }, async (request) => {
     const { status, content_type, limit = 20, offset = 0 } = request.query
     const safeLimit  = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
@@ -78,7 +76,7 @@ const adminReports: FastifyPluginAsync = async (fastify) => {
     Body:  { status: ReportStatus; admin_note?: string }
     Reply: unknown | ApiError
   }>('/:id', { 
-    preHandler: [requireRole(...REPORT_ROLES)] 
+    preHandler: [requirePermission('reports.action')] 
   }, async (request) => {
     const { status, admin_note } = request.body
 

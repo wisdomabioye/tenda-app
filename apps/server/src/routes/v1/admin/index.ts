@@ -1,10 +1,29 @@
 // Parent scope plugin for all /v1/admin/* routes.
-// Loaded first by fastify-autoload; all sibling files in this directory
-// are registered inside this scope and inherit its hooks.
+//
+// IMPORTANT (autoload semantics): because this directory has an index file,
+// @fastify/autoload loads ONLY this file — sibling route files are NOT
+// auto-registered ("…unless the directory contains an index file. In which
+// case, only the index file (and the potential sub-directories) will be
+// loaded"). Every admin module must therefore be registered EXPLICITLY
+// below; a module missing from this list is silently unreachable. The
+// integration suite (test/integration/admin-permissions.test.ts) covers the
+// wiring.
 import { FastifyPluginAsync } from 'fastify'
 import { ADMIN_ROLES } from '@tenda/shared'
 import { requireRole } from '@server/lib/guards'
 import { getConfig } from '@server/config'
+import announcements from './announcements'
+import disputes from './disputes'
+import escrows from './escrows'
+import fiat from './fiat'
+import finance from './finance'
+import metrics from './metrics'
+import moderation from './moderation'
+import platformConfig from './platform-config'
+import push from './push'
+import reports from './reports'
+import standing from './standing'
+import users from './users'
 
 const adminScope: FastifyPluginAsync = async (fastify) => {
   // Scoped origin guard: in production, admin routes are only accessible from
@@ -23,9 +42,22 @@ const adminScope: FastifyPluginAsync = async (fastify) => {
   }
 
   // All admin routes require a valid JWT and at minimum any admin role.
-  // Individual routes can add stricter role guards via their preHandler array.
+  // Individual routes add the granular requirePermission guard on top.
   fastify.addHook('preHandler', fastify.authenticate)
   fastify.addHook('preHandler', requireRole(...ADMIN_ROLES))
+
+  await fastify.register(announcements, { prefix: '/announcements' })
+  await fastify.register(disputes, { prefix: '/disputes' })
+  await fastify.register(escrows, { prefix: '/escrows' })
+  await fastify.register(fiat, { prefix: '/fiat' })
+  await fastify.register(finance, { prefix: '/finance' })
+  await fastify.register(metrics, { prefix: '/metrics' })
+  await fastify.register(moderation, { prefix: '/moderation' })
+  await fastify.register(platformConfig, { prefix: '/platform-config' })
+  await fastify.register(push, { prefix: '/push' })
+  await fastify.register(reports, { prefix: '/reports' })
+  await fastify.register(standing, { prefix: '/standing' })
+  await fastify.register(users, { prefix: '/users' })
 }
 
 export default adminScope
