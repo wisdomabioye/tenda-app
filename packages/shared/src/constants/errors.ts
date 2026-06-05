@@ -51,6 +51,8 @@ export const ErrorCode = {
   OTP_INVALID:                   'OTP_INVALID',
   OTP_EXPIRED:                   'OTP_EXPIRED',
   PHONE_ALREADY_VERIFIED:        'PHONE_ALREADY_VERIFIED',
+  // #84–#87 — admin email-OTP login (admin_users registry)
+  EMAIL_IN_USE:                  'EMAIL_IN_USE',
   // Stage 8 — fiat rails
   QUOTE_EXPIRED:                 'QUOTE_EXPIRED',
   FIAT_RAILS_DISABLED:           'FIAT_RAILS_DISABLED',
