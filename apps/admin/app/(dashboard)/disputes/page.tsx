@@ -15,7 +15,7 @@ import { DisputeTable } from '@/components/disputes/dispute-table'
 import { ListPagination } from '@/components/common/list-pagination'
 import { adminApi, type DisputeListQuery } from '@/api/client'
 import { ApiError } from '@/lib/api'
-import { getSessionUser } from '@/lib/auth'
+import { useSessionUser } from '@/lib/use-session'
 
 const PAGE_SIZE = 20
 type Tab = 'pool' | 'mine' | 'all'
@@ -37,7 +37,7 @@ export default function DisputesPage() {
   const [rows, setRows] = useState<DisputeSummary[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
-  const meId = getSessionUser()?.id ?? ''
+  const meId = useSessionUser()?.id ?? ''
 
   // setState lives in the .then callbacks (react-hooks/set-state-in-effect);
   // refreshKey bumps re-run the fetch after mutations.

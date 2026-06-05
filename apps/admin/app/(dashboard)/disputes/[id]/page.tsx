@@ -16,14 +16,14 @@ import { ClaimActions } from '@/components/disputes/claim-actions'
 import { ThreadView } from '@/components/disputes/thread-view'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
-import { getSessionUser } from '@/lib/auth'
+import { useSessionUser } from '@/lib/use-session'
 
 export default function DisputeDetailPage() {
   const params = useParams<{ id: string }>()
   const disputeId = params.id
   const [dispute, setDispute] = useState<DisputeSummary | null>(null)
   const [notFound, setNotFound] = useState(false)
-  const meId = getSessionUser()?.id ?? ''
+  const meId = useSessionUser()?.id ?? ''
 
   // setState lives in the .then callbacks (react-hooks/set-state-in-effect);
   // refreshKey bumps re-run the fetch after claim/release/resolution.

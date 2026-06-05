@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
-import { getSessionUser } from '@/lib/auth'
+import { useSessionUser } from '@/lib/use-session'
 import { mergeMessages, nextCursor } from '@/lib/dispute-thread'
 
 const POLL_INTERVAL_MS = 5_000
@@ -33,7 +33,7 @@ interface ThreadViewProps {
 }
 
 export function ThreadView({ escrowId, onAssignee }: ThreadViewProps) {
-  const meId = getSessionUser()?.id ?? ''
+  const meId = useSessionUser()?.id ?? ''
   const [messages, setMessages] = useState<DisputeMessage[]>([])
   const [readOnly, setReadOnly] = useState(false)
   const [assignedToId, setAssignedToId] = useState<string | null>(null)

@@ -157,17 +157,6 @@ export const adminApi = {
     verifyEmailOtp: (body: { email: string; code: string }) =>
       api.post<VerifyEmailOtpResponse>(adminRoutes.auth.verifyEmailOtp, body),
   },
-  users: {
-    grantLoginEmail: (id: string, email: string) =>
-      api.put<{ user_id: string; email: string; role: string }>(
-        buildPath(adminRoutes.users.grantLoginEmail, { id }),
-        { email },
-      ),
-    revokeLoginEmail: (id: string) =>
-      api.delete<{ user_id: string; revoked: boolean }>(
-        buildPath(adminRoutes.users.revokeLoginEmail, { id }),
-      ),
-  },
   disputes: {
     list: (query: DisputeListQuery = {}) =>
       api.get<PaginatedResponse<DisputeSummary>>(withQuery(adminRoutes.disputes.list, query)),
@@ -221,6 +210,15 @@ export const adminApi = {
       api.patch<{ id: string; role: string }>(buildPath(adminRoutes.users.updateRole, { id }), {
         role,
       }),
+    grantLoginEmail: (id: string, email: string) =>
+      api.put<{ user_id: string; email: string; role: string }>(
+        buildPath(adminRoutes.users.grantLoginEmail, { id }),
+        { email },
+      ),
+    revokeLoginEmail: (id: string) =>
+      api.delete<{ user_id: string; revoked: boolean }>(
+        buildPath(adminRoutes.users.revokeLoginEmail, { id }),
+      ),
   },
   featured: {
     list: () => api.get<{ data: FeaturedSlotRow[] }>(adminRoutes.featured.list),

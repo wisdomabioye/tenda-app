@@ -26,9 +26,11 @@ export const adminRoutes = {
     release: '/v1/admin/disputes/:id/release',
   },
   disputeThread: {
-    // Thread routes live on the escrow (shared with the parties).
+    // Thread routes live on the escrow (shared with the parties). There is
+    // deliberately NO resolve path here: resolution is an on-chain tx
+    // signed by the dispute-admin key via the party-facing flow — the
+    // dashboard documents that hand-off instead of wiring it.
     messages: '/v1/escrows/:id/dispute/messages',
-    resolve: '/v1/escrows/:id/resolve',
   },
   reports: {
     list: '/v1/admin/reports',

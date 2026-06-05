@@ -16,7 +16,7 @@ import { NativeSelect } from '@/components/ui/native-select'
 import { ConfirmDialog } from '@/components/common/confirm-dialog'
 import { adminApi, type AdminUserDetail } from '@/api/client'
 import { ApiError } from '@/lib/api'
-import { getSessionUser } from '@/lib/auth'
+import { useSessionUser } from '@/lib/use-session'
 
 interface UserActionsProps {
   user: AdminUserDetail
@@ -28,7 +28,7 @@ function isAssignableRole(v: string): v is UserRole {
 }
 
 export function UserActions({ user, onChanged }: UserActionsProps) {
-  const meId = getSessionUser()?.id ?? ''
+  const meId = useSessionUser()?.id ?? ''
   const isAdminRole = (ADMIN_ROLES as readonly string[]).includes(user.role)
   const [role, setRole] = useState<UserRole>(user.role)
   const [loginEmail, setLoginEmail] = useState('')
@@ -122,7 +122,7 @@ export function UserActions({ user, onChanged }: UserActionsProps) {
                 disabled={busy || loginEmail.trim() === ''}
                 onClick={() =>
                   void run(async () => {
-                    const granted = await adminApi.users.grantLoginEmail(user.id, loginEmail.trim())
+                    const granted = await adminApi.adminUsers.grantLoginEmail(user.id, loginEmail.trim())
                     setLoginEmail('')
                     return granted
                   }, 'Login email granted')
@@ -134,7 +134,7 @@ export function UserActions({ user, onChanged }: UserActionsProps) {
                 size="sm"
                 variant="outline"
                 disabled={busy}
-                onClick={() => void run(() => adminApi.users.revokeLoginEmail(user.id), 'Login email revoked')}
+                onClick={() => void run(() => adminApi.adminUsers.revokeLoginEmail(user.id), 'Login email revoked')}
               >
                 Revoke
               </Button>
