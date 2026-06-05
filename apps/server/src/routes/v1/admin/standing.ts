@@ -13,6 +13,7 @@ import { standing_overrides } from '@tenda/shared/db/schema/reputation'
 import { AppError } from '@server/lib/errors'
 import { requirePermission } from '@server/lib/guards'
 import { applyFraudConfirmed } from '@server/features/reputation/service'
+import { computeDisputeRate } from '@server/features/reputation/fraud-flag'
 import { drizzleReputationStore } from '@server/features/reputation/store'
 
 const OVERRIDE_ACTIONS = [
@@ -50,7 +51,9 @@ const route: FastifyPluginAsync = async (fastify) => {
       if (standing === null) {
         throw new AppError(404, ErrorCode.NOT_FOUND, 'no standing record for this user')
       }
-      return { standing }
+      // #82: live dispute-rate metric — FLAG only, never auto-restricts.
+      const dispute_metric = await computeDisputeRate(fastify.db, request.params.user_id)
+      return { standing, dispute_metric }
     },
   )
 

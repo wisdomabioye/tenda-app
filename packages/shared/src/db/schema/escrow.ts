@@ -41,6 +41,18 @@ export const escrowStatusEnum = pgEnum('escrow_status', [
   'resolved',
 ])
 
+/**
+ * Statuses with no outgoing transition (lib/escrow.ts state machine):
+ * the escrow's book is closed. `disputed` is NOT terminal — it exits
+ * only via resolve → resolved.
+ */
+export const TERMINAL_ESCROW_STATUSES = [
+  'completed',
+  'cancelled',
+  'refunded',
+  'resolved',
+] as const satisfies ReadonlyArray<(typeof escrowStatusEnum.enumValues)[number]>
+
 export const escrowTxTypeEnum = pgEnum('escrow_tx_type', [
   'create',
   'accept',

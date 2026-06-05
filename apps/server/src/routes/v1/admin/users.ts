@@ -5,6 +5,7 @@ import {
   ADMIN_ROLES, ASSIGNABLE_ROLES, ErrorCode, MAX_PAGINATION_LIMIT,
 } from '@tenda/shared'
 import { hasPermission, requirePermission } from '@server/lib/guards'
+import { computeDisputeRate } from '@server/features/reputation/fraud-flag'
 import { AppError } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/db'
 import { appEvents } from '@server/lib/events'
@@ -103,7 +104,10 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
 
     if (!user) throw new AppError(404, ErrorCode.USER_NOT_FOUND, 'User not found')
 
-    return user
+    // #82: live dispute-rate metric — FLAG only, never auto-restricts.
+    const dispute_metric = await computeDisputeRate(fastify.db, id)
+
+    return { ...user, dispute_metric }
   })
 
   // PATCH /v1/admin/users/:id/status — suspend or reinstate (role: support, moderator, super_admin)

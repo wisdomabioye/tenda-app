@@ -82,6 +82,14 @@ export const FRAUD_RESTRICTION_REASON = 'fraud confirmed — account under revie
 /** Below this many outcomes the public completion_rate is null ("New user"). */
 export const COLD_START_MIN_OUTCOMES = 3
 
+// ── #82 fraud FLAG (admin-only signal — never an automatic restriction) ────
+
+/** Dispute rate strictly above this (in basis points) raises the flag. */
+export const DISPUTE_RATE_FLAG_THRESHOLD_BPS = 3000
+
+/** Below this many closed two-party engagements the flag never raises. */
+export const DISPUTE_RATE_MIN_ENGAGEMENTS = 5
+
 /** Restriction kinds visible to OTHER users as "limited account". */
 export const PUBLICLY_VISIBLE_KINDS: ReadonlyArray<RestrictionKind> = [
   'accept_cooldown',
