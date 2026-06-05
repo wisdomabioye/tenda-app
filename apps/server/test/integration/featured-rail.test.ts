@@ -166,3 +166,29 @@ test('featured: PATCH reschedules, DELETE removes; admin list shows upcoming', {
   })
   assert.strictEqual(gone.statusCode, 404)
 })
+
+test('featured: PATCH negatives — 404 unknown slot, inverted window 400', { skip }, async () => {
+  const app = getApp()
+  const admin = await createUser(app, { role: 'super_admin' })
+
+  const missing = await app.inject({
+    method: 'PATCH',
+    url: '/v1/admin/featured/f0e36d8a-0000-0000-0000-000000000000',
+    headers: authHeader(admin.token),
+    payload: window(HOUR),
+  })
+  assert.strictEqual(missing.statusCode, 404)
+
+  const { escrow } = await openGig(app)
+  const created = await feature(escrow.id, admin.token)
+  const inverted = await app.inject({
+    method: 'PATCH',
+    url: `/v1/admin/featured/${created.json().id}`,
+    headers: authHeader(admin.token),
+    payload: {
+      starts_at: new Date(Date.now() + 2 * HOUR).toISOString(),
+      ends_at: new Date(Date.now() + HOUR).toISOString(),
+    },
+  })
+  assert.strictEqual(inverted.statusCode, 400)
+})

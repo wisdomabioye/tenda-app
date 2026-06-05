@@ -295,3 +295,84 @@ test('p2p status: a dead open offer fails the onramp intent (hidden / lapsed)', 
   await app.db.update(escrows).set({ status: 'cancelled' }).where(eq(escrows.id, cancelled.id))
   assert.strictEqual(await provider.status(cancelled.id, asBuyer), 'failed')
 })
+
+// ---------- advanced-mode gate + new-offer deadline stamping ------------------
+
+test('PATCH /users/me: advanced_mode_enabled toggles on and off; non-boolean 422', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+
+  const on = await app.inject({
+    method: 'PATCH',
+    url: '/v1/users/me',
+    headers: authHeader(u.token),
+    payload: { advanced_mode_enabled: true },
+  })
+  assert.strictEqual(on.statusCode, 200)
+  assert.strictEqual(on.json().user.advanced_mode_enabled, true)
+
+  const off = await app.inject({
+    method: 'PATCH',
+    url: '/v1/users/me',
+    headers: authHeader(u.token),
+    payload: { advanced_mode_enabled: false },
+  })
+  assert.strictEqual(off.json().user.advanced_mode_enabled, false)
+
+  const bad = await app.inject({
+    method: 'PATCH',
+    url: '/v1/users/me',
+    headers: authHeader(u.token),
+    payload: { advanced_mode_enabled: 'yes' },
+  })
+  assert.strictEqual(bad.statusCode, 422)
+})
+
+test('p2p offramp: server-opened offers are publishable as-is (deadlines stamped)', { skip }, async () => {
+  const app = getApp()
+  const seller = await createUser(app)
+  const provider = p2pProvider(app)
+
+  const before = Date.now()
+  const { instruction } = await provider.initiate({
+    quote_ref: 'q-offramp',
+    user_id: seller.row.id,
+    wallet_address: 'SellerWallet111111111111111111111111111111',
+    direction: 'offramp',
+    quote: {
+      fiat_currency: 'NGN',
+      fiat_amount: 10_000,
+      asset: TEST_NATIVE_ASSET,
+      asset_amount_raw: '6500000000',
+      rate: 1538.46,
+    },
+  })
+  assert.ok('kind' in instruction && instruction.kind === 'p2p')
+  const offer_id = (instruction as { kind: 'p2p'; offer_id: string }).offer_id
+
+  const [row] = await app.db.select().from(escrows).where(eq(escrows.id, offer_id))
+  assert.strictEqual(row.status, 'draft')
+  assert.strictEqual(row.completion_duration_seconds, 86_400) // payment window
+  assert.ok((row.accept_deadline?.getTime() ?? 0) > before) // stamped, future
+
+  // ...and build-create accepts it without needing the backfill path
+  const published = await app.inject({
+    method: 'POST',
+    url: `/v1/escrows/${offer_id}/build-create`,
+    headers: authHeader(seller.token),
+  })
+  assert.strictEqual(published.statusCode, 200)
+})
+
+test('POST /v1/exchange: absurd terms hit the validation rails, not the driver', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  const escrow = await createEscrow(app, { creator_id: u.row.id, kind: 'exchange' })
+  const post = (payload: Record<string, unknown>) =>
+    app.inject({ method: 'POST', url: '/v1/exchange', headers: authHeader(u.token), payload })
+
+  const hugeFiat = await post(offerBody(escrow.id, { fiat_amount: 1e18 }))
+  assert.strictEqual(hugeFiat.statusCode, 400)
+  const hugeRate = await post(offerBody(escrow.id, { rate: 1e12 }))
+  assert.strictEqual(hugeRate.statusCode, 400)
+})

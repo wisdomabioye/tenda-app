@@ -11,7 +11,9 @@ import { ScrollView, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import {
+  DEFAULT_ACCEPT_WINDOW_SECONDS,
   EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS,
+  LAMPORTS_PER_SOL,
   solanaChainId,
   solanaNativeAssetId,
   formatAssetAmount,
@@ -24,8 +26,8 @@ import { APP_IDENTITY } from '@/wallet'
 import { signSendAndReport } from '@/wallet/dispatch'
 import { spacing } from '@/theme/tokens'
 
-const LAMPORTS_PER_SOL = 1_000_000_000
-const ACCEPT_WINDOW_DAYS = 7
+/** Float→raw stays exact below this (well under 2^53 lamports). */
+const MAX_OFFER_SOL = 1_000_000
 
 export default function CreateOfferScreen() {
   const router = useRouter()
@@ -39,7 +41,11 @@ export default function CreateOfferScreen() {
   const amountSol = Number(amount)
   const rateNum = Number(rate)
   const valid =
-    Number.isFinite(amountSol) && amountSol > 0 && Number.isFinite(rateNum) && rateNum > 0
+    Number.isFinite(amountSol) &&
+    amountSol > 0 &&
+    amountSol <= MAX_OFFER_SOL &&
+    Number.isFinite(rateNum) &&
+    rateNum > 0
   const fiatTotal = valid ? Math.floor(amountSol * rateNum * 100) / 100 : 0
   const amountRaw = useMemo(
     () => (valid ? String(Math.round(amountSol * LAMPORTS_PER_SOL)) : '0'),
@@ -50,9 +56,7 @@ export default function CreateOfferScreen() {
     if (!valid || submitting) return
     const chain_id = solanaChainId(APP_IDENTITY.network)
     const asset = solanaNativeAssetId(APP_IDENTITY.network)
-    const accept_deadline_unix = Math.floor(
-      (Date.now() + ACCEPT_WINDOW_DAYS * 86_400_000) / 1000,
-    )
+    const accept_deadline_unix = Math.floor(Date.now() / 1000) + DEFAULT_ACCEPT_WINDOW_SECONDS
 
     setSubmitting(true)
     let escrow_id: string | null = null

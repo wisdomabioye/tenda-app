@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
-import { escrows, tx_attempts } from '@tenda/shared/db/schema'
+import { assets, chains, escrows, tx_attempts } from '@tenda/shared/db/schema'
 import { DEFAULT_ACCEPT_WINDOW_SECONDS } from '@tenda/shared'
 import {
   TEST_DB_CONFIGURED,
@@ -170,4 +170,40 @@ test('build-create: gig draft without a completion window → 422', { skip }, as
     headers: authHeader(creator.token),
   })
   assert.strictEqual(res.statusCode, 422)
+})
+
+test('build-create: 503 when the draft chain is no longer registered', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  // A chain present in the DB but absent from the runtime registry
+  // (e.g. BASE env removed after the draft was created).
+  await app.db.insert(chains).values({
+    id: 'solana:mainnet',
+    namespace: 'solana',
+    display_name: 'Solana Mainnet',
+    min_confirmations: 1,
+    treasury_address: 'treasury',
+    escrow_program: 'program',
+  })
+  await app.db.insert(assets).values({
+    id: 'USDC_SOL_MAINNET_TEST',
+    chain_id: 'solana:mainnet',
+    symbol: 'USDC',
+    decimals: 6,
+    token_address: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+    is_stable: true,
+  })
+  const draft = await createEscrow(app, {
+    creator_id: creator.row.id,
+    chain_id: 'solana:mainnet',
+    asset: 'USDC_SOL_MAINNET_TEST',
+  })
+
+  const res = await app.inject({
+    method: 'POST',
+    url: url(draft.id),
+    headers: authHeader(creator.token),
+  })
+  assert.strictEqual(res.statusCode, 503)
+  assert.strictEqual(res.json().code, 'SERVICE_UNAVAILABLE')
 })

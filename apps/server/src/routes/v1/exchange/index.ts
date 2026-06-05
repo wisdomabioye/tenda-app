@@ -20,6 +20,8 @@ import {
   EXCHANGE_PAYMENT_WINDOW_MIN_SECONDS,
   EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS,
   EXCHANGE_PAYMENT_WINDOW_MAX_SECONDS,
+  EXCHANGE_MAX_FIAT_AMOUNT,
+  EXCHANGE_MAX_RATE,
 } from '@tenda/shared'
 import type { ExchangeContract, ApiError, SupportedCurrency } from '@tenda/shared'
 import { isAmountRaw } from '@server/chains/types'
@@ -110,13 +112,28 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'escrow_id is required')
     }
 
+    // Upper rails keep absurd values a clean 400 instead of a numeric
+    // column overflow (driver error → 500) at insert time.
     const fiat_amount = body.fiat_amount
-    if (typeof fiat_amount !== 'number' || !Number.isFinite(fiat_amount) || fiat_amount <= 0) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'fiat_amount must be a positive number')
+    if (
+      typeof fiat_amount !== 'number' ||
+      !Number.isFinite(fiat_amount) ||
+      fiat_amount <= 0 ||
+      fiat_amount > EXCHANGE_MAX_FIAT_AMOUNT
+    ) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_ERROR,
+        `fiat_amount must be a positive number ≤ ${EXCHANGE_MAX_FIAT_AMOUNT}`,
+      )
     }
     const rate = body.rate
-    if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'rate must be a positive number')
+    if (typeof rate !== 'number' || !Number.isFinite(rate) || rate <= 0 || rate > EXCHANGE_MAX_RATE) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_ERROR,
+        `rate must be a positive number ≤ ${EXCHANGE_MAX_RATE}`,
+      )
     }
     const fiat_currency = String(body.fiat_currency ?? '').toUpperCase()
     if (!SUPPORTED_CURRENCIES.includes(fiat_currency as SupportedCurrency)) {
