@@ -69,3 +69,11 @@ export type {
   FinanceFeesResponse,
   ReportStatus,
 } from './admin'
+
+export type {
+  DisputeMessage,
+  DisputeMessageRow,
+  DisputeReadCursor,
+  DisputeThreadResponse,
+  SendDisputeMessageBody,
+} from './dispute'

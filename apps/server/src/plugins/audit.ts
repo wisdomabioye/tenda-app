@@ -95,6 +95,24 @@ const auditPlugin: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  appEvents.on('admin.claim_dispute', async (d) => {
+    try {
+      await write(d.adminId, d.adminRole, 'claim_dispute', 'dispute', d.disputeId)
+    } catch (err) {
+      fastify.log.warn({ err }, '[audit] admin.claim_dispute write failed')
+    }
+  })
+
+  appEvents.on('admin.release_dispute', async (d) => {
+    try {
+      await write(d.adminId, d.adminRole, 'release_dispute', 'dispute', d.disputeId, {
+        previous_assignee: d.previousAssignee,
+      })
+    } catch (err) {
+      fastify.log.warn({ err }, '[audit] admin.release_dispute write failed')
+    }
+  })
+
   // ── Marketing & announcements ──────────────────────────────────────────────
 
   appEvents.on('admin.create_announcement', async (d) => {

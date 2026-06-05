@@ -72,6 +72,9 @@ export interface DisputeSummary {
   raised_by_first_name: string | null
   raised_by_last_name: string | null
   reason: string
+  /** Mediating admin (CO7 claim-based assignment); null while unclaimed. */
+  assigned_to_id: string | null
+  assigned_at: string | null
   winner: 'creator' | 'counterparty' | 'split' | null
   resolved_by_id: string | null
   resolved_at: string | null

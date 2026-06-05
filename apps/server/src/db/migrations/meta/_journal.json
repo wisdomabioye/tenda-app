@@ -15,6 +15,20 @@
       "when": 1780620383069,
       "tag": "0001_brief_wasp",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780621645751,
+      "tag": "0002_fresh_owl",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780622014018,
+      "tag": "0003_rich_lester",
+      "breakpoints": true
     }
   ]
 }

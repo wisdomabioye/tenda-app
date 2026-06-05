@@ -23,6 +23,8 @@ export const apiRoutes: {
     cancel: '/v1/escrows/:id/cancel',
     refund: '/v1/escrows/:id/refund',
     dispute: '/v1/escrows/:id/dispute',
+    disputeMessages: '/v1/escrows/:id/dispute/messages',
+    sendDisputeMessage: '/v1/escrows/:id/dispute/messages',
     resolve: '/v1/escrows/:id/resolve',
     delete: '/v1/escrows/:id',
     proofs: '/v1/escrows/:id/proofs',

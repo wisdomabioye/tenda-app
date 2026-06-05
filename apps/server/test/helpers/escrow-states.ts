@@ -4,6 +4,7 @@
  * each suite reading as "what's being asserted", per the helpers convention.
  */
 import type { FastifyInstance } from 'fastify'
+import { disputes } from '@tenda/shared/db/schema'
 import {
   TEST_CHAIN_ID,
   TEST_ASSET,
@@ -60,6 +61,26 @@ export async function partiedEscrow(
     status,
   })
   return { creator, worker, escrow }
+}
+
+export interface DisputedEscrow extends PartiedEscrow {
+  dispute_id: string
+}
+
+/** Parties + a live dispute row (escrow status 'disputed'). */
+export async function disputedEscrow(app: FastifyInstance): Promise<DisputedEscrow> {
+  const creator = await createUser(app)
+  const worker = await createUser(app)
+  const escrow = await createEscrow(app, {
+    creator_id: creator.row.id,
+    counterparty_id: worker.row.id,
+    status: 'disputed',
+  })
+  const [row] = await app.db
+    .insert(disputes)
+    .values({ escrow_id: escrow.id, raised_by: creator.row.id, reason: 'Work was never delivered as agreed' })
+    .returning({ id: disputes.id })
+  return { creator, worker, escrow, dispute_id: row.id }
 }
 
 /** A publicly-listed open gig (escrow + details satellite). */

@@ -172,7 +172,14 @@ function ExchangeDetailContent({
         {offer.dispute && offer.status === 'disputed' && (
           <>
             <Divider />
-            <DisputeReasonBlock reason={offer.dispute.reason} />
+            <DisputeReasonBlock
+              reason={offer.dispute.reason}
+              onOpenThread={
+                isCreator || userId === offer.counterparty?.id
+                  ? () => router.push(`/dispute/${offer.escrow_id}` as Parameters<typeof router.push>[0])
+                  : undefined
+              }
+            />
           </>
         )}
 

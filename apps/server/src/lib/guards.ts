@@ -31,6 +31,15 @@ const PERMISSION_SETS: ReadonlyMap<string, ReadonlySet<Permission>> = new Map(
 )
 
 /**
+ * In-handler permission check — for routes whose access rule is
+ * "permission OR something else" (e.g. dispute threads: escrow party OR
+ * disputes.mediate) where a preHandler can't express the disjunction.
+ */
+export function hasPermission(role: string, permission: Permission): boolean {
+  return PERMISSION_SETS.get(role)?.has(permission) ?? false
+}
+
+/**
  * Fastify preHandler enforcing a single permission from the shared
  * PERMISSIONS map. Prefer this over requireRole for every admin route —
  * granting a future role is then a map edit in @tenda/shared, not a route
@@ -39,8 +48,7 @@ const PERMISSION_SETS: ReadonlyMap<string, ReadonlySet<Permission>> = new Map(
  */
 export function requirePermission(permission: Permission) {
   return async (request: FastifyRequest, reply: FastifyReply) => {
-    const granted = PERMISSION_SETS.get(request.user.role)
-    if (granted === undefined || !granted.has(permission)) {
+    if (!hasPermission(request.user.role, permission)) {
       return reply.code(403).send({
         statusCode: 403,
         error: 'Forbidden',

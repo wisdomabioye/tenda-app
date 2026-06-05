@@ -136,6 +136,9 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
             userId={userId}
             onProofPress={setSelectedProof}
             onReport={() => setReportGigOpen(true)}
+            onOpenDisputeThread={() =>
+              router.push(`/dispute/${gig.escrow_id}` as Parameters<typeof router.push>[0])
+            }
           />
         </ScrollView>
 

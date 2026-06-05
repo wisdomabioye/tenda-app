@@ -30,6 +30,9 @@ import {
   type ExchangeListQuery,
   type EscrowListRow,
   type EscrowProof,
+  type DisputeMessage,
+  type DisputeThreadResponse,
+  type SendDisputeMessageBody,
   type UserEscrowsQuery,
   type UserEscrowTransaction,
   type UserTransactionsQuery,
@@ -130,6 +133,11 @@ export const api = {
       request<EscrowActionResponse>('POST', escrows.refund, { params }),
     dispute: (params: { id: string }, body: DisputeEscrowApiBody) =>
       request<EscrowActionResponse>('POST', escrows.dispute, { params, body }),
+    // CO7 mediation thread — one shared conversation per dispute.
+    disputeThread: (params: { id: string }, query?: { after?: string }) =>
+      request<DisputeThreadResponse>('GET', escrows.disputeMessages, { params, query }),
+    sendDisputeMessage: (params: { id: string }, body: SendDisputeMessageBody) =>
+      request<DisputeMessage>('POST', escrows.sendDisputeMessage, { params, body }),
     resolve: (params: { id: string }, body: ResolveEscrowApiBody) =>
       request<EscrowActionResponse>('POST', escrows.resolve, { params, body }),
     delete: (params: { id: string }) =>

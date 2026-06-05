@@ -4,7 +4,8 @@ import * as Notifications from 'expo-notifications'
 
 /**
  * Listens for notification taps and deep-links to the relevant screen.
- * Supported: { screen: 'gig', gigId } and { screen: 'chat', userId }.
+ * Supported: { screen: 'gig', gigId }, { screen: 'chat', userId } and
+ * { screen: 'dispute', escrowId } (CO7 mediation thread).
  */
 export function useNotificationDeepLink() {
   const router = useRouter()
@@ -17,6 +18,8 @@ export function useNotificationDeepLink() {
         router.push(`/gig/${data.gigId}` as Parameters<typeof router.push>[0])
       } else if (data.screen === 'chat' && data.userId) {
         router.push(`/chat/${data.userId}` as Parameters<typeof router.push>[0])
+      } else if (data.screen === 'dispute' && data.escrowId) {
+        router.push(`/dispute/${data.escrowId}` as Parameters<typeof router.push>[0])
       }
     })
     return () => sub.remove()

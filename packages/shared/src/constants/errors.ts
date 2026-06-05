@@ -16,6 +16,9 @@ export const ErrorCode = {
   // Disputes / grace period
   DISPUTE_ALREADY_EXISTS:        'DISPUTE_ALREADY_EXISTS',
   GRACE_PERIOD_EXPIRED:          'GRACE_PERIOD_EXPIRED',
+  // CO7 — mediation threads (claim-based assignment)
+  DISPUTE_ALREADY_CLAIMED:       'DISPUTE_ALREADY_CLAIMED',
+  DISPUTE_RESOLVED:              'DISPUTE_RESOLVED',
   // Reviews
   REVIEW_ALREADY_EXISTS:         'REVIEW_ALREADY_EXISTS',
   REVIEW_NOT_ALLOWED:            'REVIEW_NOT_ALLOWED',

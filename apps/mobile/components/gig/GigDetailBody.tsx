@@ -18,14 +18,18 @@ interface Props {
   userId: string
   onProofPress: (proof: ProofItem) => void
   onReport: () => void
+  /** CO7: opens the shared dispute-mediation thread (parties only). */
+  onOpenDisputeThread?: () => void
 }
 
 /** Scroll-body sections of the gig detail screen (badges → report link). */
-export function GigDetailBody({ gig, userId, onProofPress, onReport }: Props) {
+export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDisputeThread }: Props) {
   const { theme } = useUnistyles()
   const [descExpanded, setDescExpanded] = useState(false)
 
   const isCreator = userId === gig.creator.id
+  const isParty =
+    isCreator || userId === gig.counterparty?.id || userId === gig.assigned_counterparty_id
   const categoryMeta = CATEGORY_META.find((c) => c.key === gig.category)
   const deadlineLbl = deadlineLabel(computeRelevantDeadline(gig))
 
@@ -123,7 +127,10 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport }: Props) {
       {gig.dispute && gig.status === 'disputed' && (
         <>
           <Divider />
-          <DisputeReasonBlock reason={gig.dispute.reason} />
+          <DisputeReasonBlock
+            reason={gig.dispute.reason}
+            onOpenThread={isParty ? onOpenDisputeThread : undefined}
+          />
         </>
       )}
 

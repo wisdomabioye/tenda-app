@@ -9,6 +9,7 @@ import type { Endpoint } from '../endpoint'
 import type { EscrowTxType } from '../../constants/escrow'
 import type { EscrowProof } from '../../types/escrow'
 import type { Review, ReviewInput } from '../../types/review'
+import type { DisputeMessage, DisputeThreadResponse, SendDisputeMessageBody } from '../../types/dispute'
 
 // ---------- wire types ------------------------------------------------------
 
@@ -126,6 +127,9 @@ export interface EscrowsContract {
   /** Covers refund_expired (open) AND reclaim_abandoned (accepted) — server picks by status. */
   refund: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
   dispute: Endpoint<'POST', IdParam, DisputeEscrowApiBody, undefined, EscrowActionResponse>
+  /** CO7 mediation thread — one shared conversation per dispute (same path, GET/POST). */
+  disputeMessages: Endpoint<'GET', IdParam, undefined, { after?: string }, DisputeThreadResponse>
+  sendDisputeMessage: Endpoint<'POST', IdParam, SendDisputeMessageBody, undefined, DisputeMessage>
   resolve: Endpoint<'POST', IdParam, ResolveEscrowApiBody, undefined, EscrowActionResponse>
   /** Off-chain: draft discard, evidence files, post-completion reviews. */
   delete: Endpoint<'DELETE', IdParam, undefined, undefined, { deleted: true }>
