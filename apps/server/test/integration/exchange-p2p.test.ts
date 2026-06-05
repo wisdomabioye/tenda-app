@@ -11,7 +11,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
+import type { FastifyInstance } from 'fastify'
 import { escrows } from '@tenda/shared/db/schema'
+import { buildProviders } from '@server/features/fiat-rails'
 import {
   TEST_DB_CONFIGURED,
   TEST_CHAIN_ID,
@@ -26,6 +28,13 @@ import {
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
+
+/** The live p2p provider over the harness DB (status-mapping tests). */
+function p2pProvider(app: FastifyInstance) {
+  const provider = buildProviders(app).get('p2p_internal')
+  assert.ok(provider !== undefined)
+  return provider
+}
 
 // ---------- POST /v1/exchange ---------------------------------------------------
 
@@ -228,4 +237,61 @@ test('p2p onramp: matched offer taken before initiate → 503', { skip }, async 
     payload: { intent_id: quoted.json().intent_id },
   })
   assert.strictEqual(initiated.statusCode, 503)
+})
+
+test('p2p status: an onramp intent only completes with ITS buyer', { skip }, async () => {
+  const app = getApp()
+  const provider = p2pProvider(app)
+
+  const buyer = await createUser(app)
+  const rival = await createUser(app)
+  const seller = await createUser(app)
+  const offer = await liveSellOffer(app, seller, 10_000)
+  const asBuyer = { user_id: buyer.row.id, direction: 'onramp' as const }
+
+  // live and unclaimed → still pending
+  assert.strictEqual(await provider.status(offer.id, asBuyer), 'pending')
+
+  // the RIVAL accepts → this buyer's match is gone
+  await app.db
+    .update(escrows)
+    .set({ status: 'accepted', counterparty_id: rival.row.id })
+    .where(eq(escrows.id, offer.id))
+  assert.strictEqual(await provider.status(offer.id, asBuyer), 'failed')
+
+  // ...and the rival completing it must NOT settle this buyer's intent
+  await app.db.update(escrows).set({ status: 'completed' }).where(eq(escrows.id, offer.id))
+  assert.strictEqual(await provider.status(offer.id, asBuyer), 'failed')
+  // while the offramp view (the seller's own intent) correctly completes
+  assert.strictEqual(
+    await provider.status(offer.id, { user_id: seller.row.id, direction: 'offramp' }),
+    'completed',
+  )
+
+  // a fresh offer accepted by THIS buyer stays pending, then completes
+  const mine = await liveSellOffer(app, seller, 10_000)
+  await app.db
+    .update(escrows)
+    .set({ status: 'accepted', counterparty_id: buyer.row.id })
+    .where(eq(escrows.id, mine.id))
+  assert.strictEqual(await provider.status(mine.id, asBuyer), 'pending')
+  await app.db.update(escrows).set({ status: 'completed' }).where(eq(escrows.id, mine.id))
+  assert.strictEqual(await provider.status(mine.id, asBuyer), 'completed')
+})
+
+test('p2p status: a dead open offer fails the onramp intent (hidden / lapsed)', { skip }, async () => {
+  const app = getApp()
+  const provider = p2pProvider(app)
+
+  const buyer = await createUser(app)
+  const seller = await createUser(app)
+  const asBuyer = { user_id: buyer.row.id, direction: 'onramp' as const }
+
+  const hiddenOffer = await liveSellOffer(app, seller, 10_000)
+  await app.db.update(escrows).set({ hidden: true }).where(eq(escrows.id, hiddenOffer.id))
+  assert.strictEqual(await provider.status(hiddenOffer.id, asBuyer), 'failed')
+
+  const cancelled = await liveSellOffer(app, seller, 10_000)
+  await app.db.update(escrows).set({ status: 'cancelled' }).where(eq(escrows.id, cancelled.id))
+  assert.strictEqual(await provider.status(cancelled.id, asBuyer), 'failed')
 })

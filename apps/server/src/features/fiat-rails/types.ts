@@ -109,6 +109,18 @@ export interface ProviderCapabilities {
 }
 
 /**
+ * Intent context for `status()` polls. The internal order book needs to
+ * know WHO the intent belongs to: an onramp intent only completed if the
+ * matched offer settled with THIS buyer — a rival accepting the same
+ * offer must fail the intent, not settle it. Licensed providers track
+ * intents by provider_ref alone and ignore this.
+ */
+export interface ProviderStatusContext {
+  user_id: string
+  direction: FiatDirection
+}
+
+/**
  * One interface for both directions — `capabilities` says which a
  * provider supports; routing filters on it. All methods are remote calls
  * (or DB work for p2p_internal) and may throw; the service maps failures
@@ -127,7 +139,7 @@ export interface FiatProvider {
     quote: IntentQuoteSnapshot
     bank_account?: BankAccountRef
   }): Promise<InitiateResult>
-  status(provider_ref: string): Promise<ProviderIntentStatus>
+  status(provider_ref: string, ctx?: ProviderStatusContext): Promise<ProviderIntentStatus>
   /** Optional pre-routing liquidity probe; absent = assumed available. */
   checkLiquidity?(req: QuoteRequest): Promise<{ available: boolean }>
 }

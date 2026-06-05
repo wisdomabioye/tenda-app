@@ -147,7 +147,8 @@ export function useTestApp(): () => FastifyInstance {
   })
   after(async () => {
     if (!TEST_DB_CONFIGURED) return
-    await app.close()
+    // `app` is undefined when before() failed — don't mask the root error.
+    if (app !== undefined) await app.close()
     if (lock !== null) {
       await lock`SELECT pg_advisory_unlock(${SUITE_LOCK_KEY})`
       await lock.end()

@@ -104,6 +104,15 @@ const route: FastifyPluginAsync = async (fastify) => {
           .where(and(eq(escrows.id, escrow.id), eq(escrows.status, 'draft')))
       }
 
+      // The chain may have been deconfigured since the draft was created
+      // (e.g. BASE env removed) — surface a clean 503, not a raw throw.
+      if (!fastify.chains.has(escrow.chain_id)) {
+        throw new AppError(
+          503,
+          ErrorCode.SERVICE_UNAVAILABLE,
+          `chain '${escrow.chain_id}' is not currently available`,
+        )
+      }
       const adapter = fastify.chains.get(escrow.chain_id)
       const unsigned = await adapter.buildTx({
         action: 'createEscrow',

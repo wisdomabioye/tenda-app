@@ -203,13 +203,43 @@ function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
       return { offer_id: escrow_id }
     },
 
-    async status(offer_id) {
+    async status(offer_id, ctx) {
       const [escrow] = await fastify.db
-        .select({ status: escrows.status })
+        .select({
+          status: escrows.status,
+          counterparty_id: escrows.counterparty_id,
+          hidden: escrows.hidden,
+          accept_deadline: escrows.accept_deadline,
+        })
         .from(escrows)
         .where(eq(escrows.id, offer_id))
         .limit(1)
       if (escrow === undefined) return 'not_found'
+
+      // Onramp: the intent only completes if the offer settled with THIS
+      // buyer. A rival accepting (or the seller cancelling, a takedown,
+      // or the window lapsing) means the match is gone — fail the intent
+      // so the buyer re-quotes instead of waiting on someone else's trade.
+      if (ctx?.direction === 'onramp') {
+        const mine = escrow.counterparty_id === ctx.user_id
+        if (escrow.status === 'completed' || escrow.status === 'resolved') {
+          return mine ? 'completed' : 'failed'
+        }
+        if (escrow.status === 'accepted' || escrow.status === 'submitted' || escrow.status === 'disputed') {
+          return mine ? 'pending' : 'failed'
+        }
+        if (escrow.status === 'open') {
+          const live =
+            !escrow.hidden &&
+            (escrow.accept_deadline === null || escrow.accept_deadline.getTime() > Date.now())
+          return live ? 'pending' : 'failed'
+        }
+        // draft / cancelled / refunded — the offer never traded (with anyone).
+        return 'failed'
+      }
+
+      // Offramp (the intent user IS the offer creator): the escrow's own
+      // lifecycle is the intent's lifecycle.
       if (escrow.status === 'completed' || escrow.status === 'resolved') return 'completed'
       if (escrow.status === 'cancelled' || escrow.status === 'refunded') return 'failed'
       return 'pending'

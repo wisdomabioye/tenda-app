@@ -33,18 +33,32 @@ export function useDisputeThread(escrowId: string | null): DisputeThreadState {
   const isFetching = useRef(false)
   const lastSeenAt = useRef<string | null>(null)
 
-  const applyBatch = useCallback((incoming: DisputeMessage[]) => {
+  /**
+   * Merge a batch into the list (id-deduped). Only SERVER batches advance
+   * the poll cursor — advancing it from our own send() would skip any
+   * counterparty message timestamped between our last poll and the send
+   * (it would sort before the cursor and never be fetched again). The
+   * sent message re-arrives on the next poll and dedupes away.
+   */
+  const applyBatch = useCallback((incoming: DisputeMessage[], advanceCursor: boolean) => {
     if (incoming.length === 0) return 0
     let appended = 0
     setMessages((prev) => {
       const seen = new Set(prev.map((m) => m.id))
       const fresh = incoming.filter((m) => !seen.has(m.id))
       appended = fresh.length
-      return fresh.length === 0 ? prev : [...prev, ...fresh]
+      if (fresh.length === 0) return prev
+      // Re-sort: a just-sent message lands before older counterparty
+      // messages the next poll backfills.
+      return [...prev, ...fresh].sort((a, b) =>
+        a.created_at === b.created_at ? a.id.localeCompare(b.id) : a.created_at.localeCompare(b.created_at),
+      )
     })
-    const last = incoming[incoming.length - 1]
-    if (lastSeenAt.current === null || last.created_at > lastSeenAt.current) {
-      lastSeenAt.current = last.created_at
+    if (advanceCursor) {
+      const last = incoming[incoming.length - 1]
+      if (lastSeenAt.current === null || last.created_at > lastSeenAt.current) {
+        lastSeenAt.current = last.created_at
+      }
     }
     return appended
   }, [])
@@ -57,7 +71,7 @@ export function useDisputeThread(escrowId: string | null): DisputeThreadState {
         tail && lastSeenAt.current !== null ? { after: lastSeenAt.current } : undefined,
       )
       setThread(meta)
-      const appended = applyBatch(batch)
+      const appended = applyBatch(batch, true)
       emptyPollCount.current = appended === 0 ? emptyPollCount.current + 1 : 0
     },
     [escrowId, applyBatch],
@@ -100,7 +114,7 @@ export function useDisputeThread(escrowId: string | null): DisputeThreadState {
       if (escrowId === null) return false
       try {
         const message = await api.escrows.sendDisputeMessage({ id: escrowId }, { body })
-        applyBatch([message])
+        applyBatch([message], false)
         return true
       } catch {
         return false

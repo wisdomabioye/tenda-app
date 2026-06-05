@@ -307,7 +307,10 @@ export async function reconcileIntent(deps: FiatDeps, intent: FiatIntentRow): Pr
 
   let status: Awaited<ReturnType<FiatProvider['status']>>
   try {
-    status = await provider.status(intent.provider_ref)
+    status = await provider.status(intent.provider_ref, {
+      user_id: intent.user_id,
+      direction: intent.direction,
+    })
   } catch (err) {
     deps.log.warn({ err, intent_id: intent.id }, 'fiat: provider status poll failed')
     return

@@ -60,12 +60,12 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
     const num = parseFloat(raw)
     if (isNaN(num) || num <= 0) return
 
-    let units: number
-    if (mode === 'FIAT' && rate != null) {
-      units = num / rate
-    } else {
-      units = num
-    }
+    // No rate yet → a FIAT entry can't convert; emitting it as ASSET units
+    // would misprice by orders of magnitude. Wait for the rate (the toggle
+    // to the asset tab always works).
+    if (mode === 'FIAT' && rate == null) return
+
+    const units = mode === 'FIAT' && rate != null ? num / rate : num
     const { max_raw } = gigAmountBounds(asset)
     onChange(Math.min(Math.round(units * scale), max_raw))
   }

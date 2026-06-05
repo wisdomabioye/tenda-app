@@ -44,7 +44,8 @@ export async function signAndSendUnsignedTx(unsigned: UnsignedTx, chain_id?: str
       // SOLANA sign-in address and never valid here. Prefer the live
       // spike session; fall back to the verified linked EVM wallet.
       const { evmAddress, wallets } = useAuthStore.getState()
-      const linked = wallets.find((w) => w.chain_ns === 'eip155' && w.verified_at !== null)
+      const verified = wallets.filter((w) => w.chain_ns === 'eip155' && w.verified_at !== null)
+      const linked = verified.find((w) => w.is_primary) ?? verified[0]
       const from = evmAddress ?? linked?.address ?? null
       if (from === null) {
         throw new Error('no EVM wallet connected — link one in Settings → Wallets first')

@@ -22,6 +22,7 @@ import type {
   ProviderCapabilities,
   ProviderQuote,
   ProviderIntentStatus,
+  ProviderStatusContext,
 } from '../types'
 
 /** Mid-rate source: fiat per display unit of asset (e.g. NGN per USDC). */
@@ -70,7 +71,7 @@ export interface P2pFulfilment {
     /** Onramp: the quote-time matched offer to re-validate. */
     offer_ref?: string
   }): Promise<{ offer_id: string }>
-  status(offer_id: string): Promise<ProviderIntentStatus>
+  status(offer_id: string, ctx?: ProviderStatusContext): Promise<ProviderIntentStatus>
 }
 
 export interface P2pInternalDeps {
@@ -168,8 +169,8 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
       }
     },
 
-    async status(provider_ref) {
-      return deps.fulfilment.status(provider_ref)
+    async status(provider_ref, ctx) {
+      return deps.fulfilment.status(provider_ref, ctx)
     },
   }
 }
