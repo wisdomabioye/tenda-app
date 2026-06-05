@@ -1,8 +1,10 @@
 /**
- * Exchange order-book surface — gated by advanced_mode_enabled
- * (decision #14). Exchanges are escrows (kind='exchange'); the
- * chain-agnostic core and transitions live in escrows.contract; `create`
- * attaches the exchange_details satellite to a draft (CO4).
+ * Exchange order-book surface. Browsing + accepting offers is open to all
+ * authenticated users; advanced_mode_enabled gates offer CREATION only
+ * (decision #14, settled 2026-06-05). Exchanges are escrows
+ * (kind='exchange'); the chain-agnostic core and transitions live in
+ * escrows.contract; `create` attaches the exchange_details satellite to a
+ * draft (CO4).
  */
 import type { Endpoint } from '../endpoint'
 import type {

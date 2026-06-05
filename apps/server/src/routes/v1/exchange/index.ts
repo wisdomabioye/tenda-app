@@ -1,8 +1,9 @@
 /**
  * Exchange order-book surface (cutover §3 rewrite): escrows kind='exchange'
  * ⨝ exchange_details ⨝ users.
- *   GET  / — the order book (auth required to keep it off public scrapers;
- *            advanced-mode gating is a client concern, decision #14).
+ *   GET  / — the order book (auth required to keep it off public scrapers).
+ *            Browsing/accepting is open to ALL users; advanced_mode_enabled
+ *            gates offer CREATION only (decision #14, settled 2026-06-05).
  *   POST / — attach exchange_details to the caller's DRAFT escrow (CO4
  *            advanced-mode offer creation — mirror of the gig create-detail
  *            step). Transitions live under /v1/escrows. The data carries no
