@@ -3,7 +3,13 @@
  * (route annotations) and the admin frontend. Single source of truth.
  */
 import type { InferSelectModel } from 'drizzle-orm'
-import type { platform_config, reports, announcements, admin_audit_log } from '../db/schema'
+import type {
+  platform_config,
+  reports,
+  announcements,
+  admin_audit_log,
+  admin_users,
+} from '../db/schema'
 import type { UserRole, UserStatus } from './user'
 import type { EscrowKind, EscrowStatus, EscrowListRow } from './escrow'
 import type { GigCategory } from '../constants/categories'
@@ -16,6 +22,8 @@ export type AdminPlatformConfig = InferSelectModel<typeof platform_config>
 export type Report = InferSelectModel<typeof reports>
 export type Announcement = InferSelectModel<typeof announcements>
 export type AdminAuditEntry = InferSelectModel<typeof admin_audit_log>
+/** Dashboard-login registry row (#84) — NEVER an authorization source. */
+export type AdminUserRow = InferSelectModel<typeof admin_users>
 
 // ─── Admin list rows (custom projections returned by admin list endpoints) ────
 

@@ -108,6 +108,53 @@ export const phone_otps = pgTable(
   (t) => [index('phone_otps_phone_idx').on(t.phone_e164, t.created_at)],
 )
 
+/**
+ * Admin-dashboard LOGIN REGISTRY — and nothing more (#84).
+ *
+ * INVARIANT (user-approved 2026-06-05): this table answers exactly one
+ * question — "may a login email be sent for this account, and to which
+ * address?" It is NEVER an authorization source: every permission check
+ * reads `users.role` through ROLE_PERMISSIONS, and the OTP-verify route
+ * re-checks role + status at verify time. A row here with a non-admin
+ * `users.role` grants nothing. Likewise, a future optional `users.email`
+ * profile column carries ZERO security weight — admin login email lives
+ * here and only here.
+ *
+ * Email is stored lowercase (write sites normalise; the unique constraint
+ * backstops case-collisions). Rows are provisioned via the ops grant
+ * script (#85) or the super_admin surface (#87) and revoked in the same
+ * transaction as a demotion to a non-admin role.
+ */
+export const admin_users = pgTable('admin_users', {
+  user_id: uuid('user_id')
+    .primaryKey()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  email: varchar('email', { length: 255 }).notNull().unique('admin_users_email_uq'),
+  added_by: uuid('added_by').references(() => users.id, { onDelete: 'set null' }),
+  created_at: timestamp('created_at').notNull().defaultNow(),
+})
+
+// Email OTP for admin-dashboard login (#84) — mirrors phone_otps, with one
+// deliberate divergence: user_id is NOT NULL. Phone OTPs serve pre-signup
+// verification (no user yet); email OTPs are only ever sent to registered
+// admin_users rows, so the sender always knows the account.
+export const email_otps = pgTable(
+  'email_otps',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    email: varchar('email', { length: 255 }).notNull(),
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    code_hash: text('code_hash').notNull(),
+    expires_at: timestamp('expires_at').notNull(),
+    attempts: integer('attempts').notNull().default(0),
+    consumed_at: timestamp('consumed_at'),
+    created_at: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [index('email_otps_email_idx').on(t.email, t.created_at)],
+)
+
 // First-link native-gas seed grants. PRIMARY KEY (user_id, chain_id) keeps
 // the grant idempotent across wallet rotations on the same chain.
 export const gas_grants = pgTable(
