@@ -20,7 +20,7 @@ import { getExchangeRates } from '@server/lib/exchange-rates'
 import { appEvents } from '@server/lib/events'
 import type { SupportedCurrency } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { ErrorCode } from '@tenda/shared'
+import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
 import {
   P2P_INTERNAL_ID,
   P2P_INTERNAL_PAYMENT_WINDOW_SECONDS,
@@ -173,7 +173,10 @@ function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
           `asset '${input.asset}' is not registered — cannot open a p2p offer`,
         )
       }
-      // Escrow + details land together or not at all.
+      // Escrow + details land together or not at all. The deadlines are
+      // stamped HERE so the draft is publishable as-is via build-create —
+      // accept window = the shared default; completion window = the time
+      // the buyer gets to pay fiat after accepting.
       const escrow_id = await fastify.db.transaction(async (tx) => {
         const [escrow] = await tx
           .insert(escrows)
@@ -184,6 +187,8 @@ function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
             amount_raw: input.asset_amount_raw,
             creator_id: input.user_id,
             status: 'draft',
+            accept_deadline: new Date(Date.now() + DEFAULT_ACCEPT_WINDOW_SECONDS * 1000),
+            completion_duration_seconds: P2P_INTERNAL_PAYMENT_WINDOW_SECONDS,
           })
           .returning({ id: escrows.id })
         await tx.insert(exchange_details).values({

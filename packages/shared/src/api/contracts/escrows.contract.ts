@@ -118,6 +118,9 @@ type IdParam = { id: string }
 
 export interface EscrowsContract {
   create: Endpoint<'POST', undefined, CreateEscrowApiBody, undefined, CreateEscrowApiResponse>
+  /** Rebuild the unsigned create tx for an owned draft (publish path for
+   *  server-opened offramp drafts + signing-declined retries). */
+  buildCreate: Endpoint<'POST', IdParam, undefined, undefined, CreateEscrowApiResponse>
   accept: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
   decline: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
   submit: Endpoint<'POST', IdParam, SubmitEscrowProofBody, undefined, EscrowActionResponse>

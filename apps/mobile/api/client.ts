@@ -120,6 +120,9 @@ export const api = {
   escrows: {
     create: (body: CreateEscrowApiBody) =>
       request<CreateEscrowApiResponse>('POST', escrows.create, { body }),
+    // Publish path for drafts that never got (or lost) their unsigned tx.
+    buildCreate: (params: { id: string }) =>
+      request<CreateEscrowApiResponse>('POST', escrows.buildCreate, { params }),
     accept: (params: { id: string }) =>
       request<EscrowActionResponse>('POST', escrows.accept, { params }),
     decline: (params: { id: string }) =>

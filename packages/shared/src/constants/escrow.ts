@@ -23,3 +23,11 @@ export type EscrowTxType = (typeof ESCROW_TX_TYPES)[number]
 export function isEscrowTxType(v: unknown): v is EscrowTxType {
   return typeof v === 'string' && (ESCROW_TX_TYPES as readonly string[]).includes(v)
 }
+
+/**
+ * Accept window stamped when a draft is (re)given a publish path: the
+ * mobile create flows' default, the window fiat-rails stamps on
+ * server-opened sell offers, and the refresh build-create applies to a
+ * draft whose deadline lapsed before publishing.
+ */
+export const DEFAULT_ACCEPT_WINDOW_SECONDS = 7 * 24 * 60 * 60

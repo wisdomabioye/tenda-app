@@ -34,6 +34,8 @@ interface EscrowState {
   createEscrow: (body: CreateEscrowApiBody) => Promise<CreateEscrowApiResponse>
 
   /** Transition builders — each returns the unsigned tx to sign. */
+  /** Rebuild the unsigned create tx for an owned draft (publish path). */
+  requestBuildCreate: (id: string) => Promise<UnsignedTx>
   requestAccept: (id: string) => Promise<UnsignedTx>
   requestDecline: (id: string) => Promise<UnsignedTx>
   requestSubmit: (id: string, proof_hash: string) => Promise<UnsignedTx>
@@ -78,6 +80,7 @@ export const useEscrowStore = create<EscrowState>((set) => {
 
     createEscrow: (body) => run(() => api.escrows.create(body)),
 
+    requestBuildCreate: (id) => run(async () => (await api.escrows.buildCreate({ id })).unsigned),
     requestAccept: (id) => run(async () => (await api.escrows.accept({ id })).unsigned),
     requestDecline: (id) => run(async () => (await api.escrows.decline({ id })).unsigned),
     requestSubmit: (id, proof_hash) =>

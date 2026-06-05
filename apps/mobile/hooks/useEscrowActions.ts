@@ -83,6 +83,9 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
     pendingAction,
     clearPending,
 
+    /** Publish a draft: rebuild + sign the create tx (offramp drafts /
+     *  signing-declined retries — the escrow id is preserved). */
+    publish: () => dispatch('create', () => store.requestBuildCreate(escrowId)),
     accept: () => dispatch('accept', () => store.requestAccept(escrowId)),
     decline: () => dispatch('decline', () => store.requestDecline(escrowId)),
     approve: () => dispatch('approve', () => store.requestApprove(escrowId)),

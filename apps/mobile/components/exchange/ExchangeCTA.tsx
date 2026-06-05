@@ -27,11 +27,23 @@ export function ExchangeCTA({ offer, userId, actions, onSheet }: Props) {
   const isCreator = userId === offer.creator.id
   const busy = actions.busyAction !== null
 
+  // Drafts: publish (build-create rebuilds the unsigned tx — covers
+  // fiat-offramp drafts that never had one and signing-declined retries)
+  // or discard.
   if (offer.status === 'draft' && isCreator) {
     return (
-      <Button variant="outline" size="xl" fullWidth onPress={() => onSheet('delete')}>
-        Delete Draft
-      </Button>
+      <View style={s.row}>
+        <View style={s.flex}>
+          <Button variant="outline" size="xl" fullWidth onPress={() => onSheet('delete')}>
+            Delete Draft
+          </Button>
+        </View>
+        <View style={s.flex}>
+          <Button variant="primary" size="xl" fullWidth loading={busy} onPress={() => void actions.publish()}>
+            Publish Offer
+          </Button>
+        </View>
+      </View>
     )
   }
   if (canAccept(parties, userId)) {

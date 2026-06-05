@@ -14,6 +14,6 @@ export {
 } from './exchange'
 export { REPORT_CONTENT_TYPES, REPORT_REASONS, REPORT_STATUSES, REPORT_REASON_LABEL } from './moderation'
 export type { ReportContentType, ReportReason, ReportStatus } from './moderation'
-export { ESCROW_TX_TYPES, isEscrowTxType, type EscrowTxType } from './escrow'
+export { ESCROW_TX_TYPES, isEscrowTxType, DEFAULT_ACCEPT_WINDOW_SECONDS, type EscrowTxType } from './escrow'
 export { PERMISSIONS, ROLE_PERMISSIONS, type Permission } from './permissions'
 export * from './assets'

@@ -38,6 +38,7 @@ import { formatAssetAmount } from '@tenda/shared'
 import type { EscrowTxType, ExchangeDetail, SupportedCurrency } from '@tenda/shared'
 
 const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
+  create: 'Offer published — it goes live once the escrow confirms.',
   accept: 'Offer accepted!',
   submit: 'Payment marked — waiting for the seller to confirm.',
   approve: 'Payment confirmed — crypto released.',
