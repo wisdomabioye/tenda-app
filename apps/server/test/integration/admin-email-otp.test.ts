@@ -12,28 +12,11 @@ import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { email_otps, users } from '@tenda/shared/db/schema/identity'
 import { grantAdminEmail } from '../../src/lib/admin-auth'
-import { sendAdminLoginOtp, type AdminOtpDeps } from '../../src/lib/admin-otp'
+import { issueAdminCode as issueCode } from '../helpers/admin-auth'
 import { TEST_DB_CONFIGURED, useTestApp, createUser, type TestUser } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
-
-/** Issue a code via the lib with a capturing sender; returns the code. */
-async function issueCode(app: FastifyInstance, email: string, at?: Date): Promise<string> {
-  let captured = ''
-  const deps: AdminOtpDeps = {
-    db: app.db,
-    sender: {
-      async send(_to, code) {
-        captured = code
-      },
-    },
-    now: () => at ?? new Date(),
-  }
-  await sendAdminLoginOtp(deps, { email })
-  assert.notStrictEqual(captured, '', 'expected a code to be issued')
-  return captured
-}
 
 async function makeAdmin(app: FastifyInstance, email: string, role: 'dispute_admin' | 'super_admin' = 'super_admin'): Promise<TestUser> {
   const admin = await createUser(app, { role })
