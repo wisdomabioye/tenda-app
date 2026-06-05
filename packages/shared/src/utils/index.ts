@@ -15,6 +15,8 @@ export {
   MAX_PAGINATION_LIMIT,
   MAX_REVIEW_COMMENT_LENGTH,
   isValidPaymentLamports,
+  gigAmountBounds,
+  isValidGigAmountRaw,
   isValidCompletionDuration,
   isValidWalletAddress,
   isValidReviewScore,

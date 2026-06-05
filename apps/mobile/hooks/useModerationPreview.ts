@@ -1,11 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { solanaNativeAssetId, type ModerationPreviewResponse } from '@tenda/shared'
+import { ASSET_META, type ModerationPreviewResponse } from '@tenda/shared'
 import { api } from '@/api/client'
-import { APP_IDENTITY } from '@/wallet'
 
 const DEBOUNCE_MS = 800
-/** Native SOL — legacy gigs are lamports-denominated. */
-const SOL_DECIMALS = 9
 const MIN_TITLE_CHARS = 4
 
 export interface ModerationPreviewInput {
@@ -13,7 +10,9 @@ export interface ModerationPreviewInput {
   description: string
   category: string | null
   country: string | null
-  paymentLamports: number
+  /** Asset registry id + budget in its raw units (CO5). */
+  asset: string
+  paymentRaw: number
 }
 
 /**
@@ -27,12 +26,12 @@ export function useModerationPreview(input: ModerationPreviewInput): ModerationP
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const requestSeq = useRef(0)
 
-  const { title, description, category, country, paymentLamports } = input
+  const { title, description, category, country, asset, paymentRaw } = input
   const ready =
     title.trim().length >= MIN_TITLE_CHARS &&
     category !== null &&
     country !== null &&
-    paymentLamports > 0
+    paymentRaw > 0
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current)
@@ -48,9 +47,9 @@ export function useModerationPreview(input: ModerationPreviewInput): ModerationP
           description: description.trim(),
           category: category,
           country: country,
-          asset: solanaNativeAssetId(APP_IDENTITY.network),
-          amount_raw: String(paymentLamports),
-          asset_decimals: SOL_DECIMALS,
+          asset,
+          amount_raw: String(paymentRaw),
+          asset_decimals: ASSET_META[asset]?.decimals ?? 9,
         })
         .then((v) => {
           // Drop stale responses — only the latest input's verdict counts.
@@ -63,7 +62,7 @@ export function useModerationPreview(input: ModerationPreviewInput): ModerationP
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
-  }, [ready, title, description, category, country, paymentLamports])
+  }, [ready, title, description, category, country, asset, paymentRaw])
 
   return verdict
 }

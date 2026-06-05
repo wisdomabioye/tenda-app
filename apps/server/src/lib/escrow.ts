@@ -9,7 +9,7 @@
  */
 
 import { AppError } from '@server/lib/errors'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, GIG_ASSET_BY_CHAIN } from '@tenda/shared'
 import type { AmountRaw, AssetId, ChainId } from '@server/chains/types'
 
 // ---------- state machine -------------------------------------------------
@@ -314,22 +314,11 @@ export function computeApprovalDeadline(a: ApprovalDeadlineArgs): Date {
  * decision #3). Even chains with other stables (cUSD on CELO) restrict gigs
  * to USDC. Exchange escrows have no asset restriction and don't call this.
  *
- * Add a chain here when its `chains` + `assets` rows are seeded (per
- * stage-3-base.md L228, stage-4-celo.md L48). Testnet variants are explicit
- * — Stage 0 cutover targets `solana:devnet`, so it must register before any
- * gig flow exercises it.
+ * The map itself lives in @tenda/shared (GIG_ASSET_BY_CHAIN) since CO5 —
+ * the mobile chain picker reads the SAME source, so client options and
+ * this guard can never disagree. Add a chain there when its `chains` +
+ * `assets` rows are seeded (stage-3-base.md L228, stage-4-celo.md L48).
  */
-// `Partial<Record<...>>` so indexing an unknown chain returns `AssetId | undefined`
-// at the type level. Without this, TypeScript would consider the undefined
-// check in `assertGigAsset` unreachable. Closes open_issues.md S0-3.
-const GIG_ASSET_BY_CHAIN: Readonly<Partial<Record<ChainId, AssetId>>> = {
-  'solana:mainnet': 'USDC_SOL',
-  'solana:devnet': 'USDC_SOL',
-  'eip155:8453': 'USDC_BASE',
-  'eip155:84532': 'USDC_BASE',
-  'eip155:42220': 'USDC_CELO',
-  'eip155:44787': 'USDC_CELO',
-}
 
 /**
  * Throws if `asset_id` isn't the gig-eligible USDC variant for `chain_id`.

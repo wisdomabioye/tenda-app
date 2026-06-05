@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'expo-router'
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
@@ -14,17 +14,22 @@ import { LocationPicker } from '@/components/form/LocationPicker'
 import { RemoteToggle } from '@/components/form/RemoteToggle'
 import { FeeSummary } from '@/components/shared/FeeSummary'
 import {
-  isValidPaymentLamports,
+  isValidGigAmountRaw,
   MIN_COMPLETION_DURATION_SECONDS,
   isCrossBorder,
+  ASSET_META,
+  GIG_ASSET_BY_CHAIN,
+  solanaChainId,
+  LOCATIONS,
 } from '@tenda/shared'
 import { getDeviceCountry } from '@/lib/device'
+import { api } from '@/api/client'
+import { APP_IDENTITY } from '@/wallet'
 import { useAuthStore } from '@/stores/auth.store'
 import { useModerationPreview } from '@/hooks/useModerationPreview'
 import { useWalletBalance } from '@/hooks/useWalletBalance'
 import { PriceWarningSheet } from '@/components/moderation/PriceWarningSheet'
-import { LOCATIONS } from '@tenda/shared'
-import type { GigCategory, CountryCode } from '@tenda/shared'
+import type { GigCategory, CountryCode, ChainRegistryEntry } from '@tenda/shared'
 
 const TITLE_MAX = 80
 const DESC_MAX = 1500
@@ -39,7 +44,7 @@ const CATEGORY_HINTS: Record<GigCategory, string> = {
 
 // v2 escrows REQUIRE an accept deadline (the on-chain refund window keys
 // off it) — '30d' is the long-tail option that replaced 'No limit'.
-export const ACCEPT_DEADLINE_OPTIONS: Array<{ label: string; hours: number }> = [
+export const ACCEPT_DEADLINE_OPTIONS: { label: string; hours: number }[] = [
   { label: '12h', hours: 12 },
   { label: '24h', hours: 24 },
   { label: '48h', hours: 48 },
@@ -51,7 +56,11 @@ export const ACCEPT_DEADLINE_OPTIONS: Array<{ label: string; hours: number }> = 
 export interface GigFormValues {
   title: string
   description: string
-  paymentLamports: number
+  /** CAIP-2 chain + its gig asset (CO5) — always a GIG_ASSET_BY_CHAIN pair. */
+  chainId: string
+  asset: string
+  /** Budget in raw units of `asset`. */
+  paymentRaw: number
   completionDuration: number
   category: GigCategory | null
   country: string | null
@@ -72,10 +81,14 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
   const router = useRouter()
   const { balanceLamports } = useWalletBalance()
   const homeCountry = useAuthStore((s) => s.user?.country ?? null)
+  const wallets = useAuthStore((s) => s.wallets)
 
+  const defaultChainId = solanaChainId(APP_IDENTITY.network)
   const [title, setTitle]                         = useState(initialValues?.title ?? '')
   const [description, setDescription]             = useState(initialValues?.description ?? '')
-  const [paymentLamports, setPaymentLamports]     = useState(initialValues?.paymentLamports ?? 0)
+  const [chainId, setChainId]                     = useState(initialValues?.chainId ?? defaultChainId)
+  const [paymentRaw, setPaymentRaw]               = useState(initialValues?.paymentRaw ?? 0)
+  const [registry, setRegistry]                   = useState<ChainRegistryEntry[]>([])
   const [completionDuration, setCompletionDuration] = useState(initialValues?.completionDuration ?? 86_400)
   const [selectedCategory, setSelectedCategory]   = useState<GigCategory | null>(initialValues?.category ?? null)
   const [selectedCountry, setSelectedCountry]     = useState<string | null>(initialValues?.country ?? getDeviceCountry())
@@ -85,6 +98,33 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
 
   const [warnSheetOpen, setWarnSheetOpen] = useState(false)
 
+  // CO5: chain options come from the server registry; a chain is gig-
+  // eligible when the shared GIG_ASSET_BY_CHAIN policy names an asset the
+  // registry actually carries. EVM chains stay disabled until the user
+  // links an eip155 wallet.
+  useEffect(() => {
+    api.platform
+      .chains()
+      .then(({ data }) => setRegistry(data))
+      .catch(() => setRegistry([])) // silent: the Solana default still works
+  }, [])
+
+  const hasEvmWallet = wallets.some((w) => w.chain_ns === 'eip155' && w.verified_at !== null)
+  const chainOptions = registry
+    .filter((c) => {
+      const gigAsset = GIG_ASSET_BY_CHAIN[c.id]
+      return gigAsset !== undefined && c.assets.some((a) => a.id === gigAsset)
+    })
+    .map((c) => ({
+      id: c.id,
+      label: c.display_name,
+      enabled: c.namespace !== 'eip155' || hasEvmWallet,
+    }))
+
+  // The asset is POLICY-derived, never user-picked: gigs are USDC-only.
+  const asset = GIG_ASSET_BY_CHAIN[chainId] ?? GIG_ASSET_BY_CHAIN[defaultChainId] ?? 'USDC_SOL'
+  const assetSymbol = ASSET_META[asset]?.symbol ?? asset
+
   // Stage-6 live moderation hints — debounced, advisory only; the server
   // re-runs the same pipeline on create and stays authoritative.
   const moderation = useModerationPreview({
@@ -92,13 +132,14 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
     description,
     category: selectedCategory,
     country: selectedCountry,
-    paymentLamports,
+    asset,
+    paymentRaw,
   })
 
   const isValid =
     title.trim().length > 0 &&
     description.trim().length > 0 &&
-    isValidPaymentLamports(paymentLamports) &&
+    isValidGigAmountRaw(asset, paymentRaw) &&
     selectedCategory !== null &&
     (isRemote || (selectedCountry !== null && selectedCity !== null)) &&
     completionDuration >= MIN_COMPLETION_DURATION_SECONDS
@@ -118,7 +159,9 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
     await onSubmit({
       title,
       description,
-      paymentLamports,
+      chainId,
+      asset,
+      paymentRaw,
       completionDuration,
       category: selectedCategory,
       country: selectedCountry,
@@ -199,17 +242,44 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
               ↔ Cross-border posting
             </Text>
             <Text size={12} color={theme.colors.brand.primary} style={s.bannerSub}>
-              Workers in {LOCATIONS[selectedCountry as CountryCode]?.name ?? selectedCountry} receive SOL and can off-ramp via Tenda P2P.
+              Workers in {LOCATIONS[selectedCountry as CountryCode]?.name ?? selectedCountry} receive{' '}
+              {assetSymbol} and can off-ramp via Tenda P2P.
             </Text>
           </View>
         )}
 
+        {/* Network (CO5) — gigs are USDC-denominated on every chain */}
+        {chainOptions.length > 1 && (
+          <>
+            <SectionLabel>Network</SectionLabel>
+            <Text style={[s.sectionHint, { color: theme.colors.content.tertiary }]}>
+              Where the escrow lives. Workers are paid in {assetSymbol} on this network.
+            </Text>
+            <View style={s.chipRow}>
+              {chainOptions.map((opt) => (
+                <Chip
+                  key={opt.id}
+                  label={opt.enabled ? opt.label : `${opt.label} (link a wallet)`}
+                  variant="form"
+                  selected={chainId === opt.id}
+                  disabled={!opt.enabled}
+                  onPress={() => opt.enabled && setChainId(opt.id)}
+                />
+              ))}
+            </View>
+          </>
+        )}
+
         {/* Budget */}
         <SectionLabel>Budget</SectionLabel>
-        <PaymentInput value={paymentLamports} onChange={setPaymentLamports} />
+        <PaymentInput asset={asset} value={paymentRaw} onChange={setPaymentRaw} />
 
-        {/* Stage 8: chained buy-then-post — advisory only; funding happens at publish */}
-        {balanceLamports !== null && paymentLamports > balanceLamports && (
+        {/* Stage 8: chained buy-then-post — advisory only; funding happens at
+            publish. The wallet-balance hook is SOL-native, so the nudge only
+            renders when the budget is denominated in native SOL. */}
+        {ASSET_META[asset]?.is_stable !== true &&
+          balanceLamports !== null &&
+          paymentRaw > balanceLamports && (
           <Pressable
             onPress={() => router.push('/wallet/buy-sell?tab=buy' as Parameters<typeof router.push>[0])}
             style={({ pressed }) => [
@@ -250,11 +320,12 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
         </View>
 
         {/* Summary — fee breakdown */}
-        {paymentLamports > 0 && (
+        {paymentRaw > 0 && (
           <>
             <SectionLabel>Summary</SectionLabel>
             <FeeSummary
-              principalLamports={paymentLamports}
+              asset={asset}
+              principalRaw={paymentRaw}
               eyebrow="YOU WILL ESCROW"
               totalLabel="Total to escrow"
             />

@@ -1,3 +1,5 @@
+import { ASSET_META, GIG_STABLE_MIN_RAW, GIG_STABLE_MAX_RAW } from '../constants/assets'
+
 /** E.164 phone format, e.g. +2348012345678 (stage-1 OTP routes). */
 export const E164_RE = /^\+[1-9]\d{7,14}$/
 
@@ -34,6 +36,23 @@ export function isValidPaymentLamports(amount: number): boolean {
     amount >= MIN_PAYMENT_LAMPORTS &&
     amount <= MAX_PAYMENT_LAMPORTS
   )
+}
+
+/**
+ * Per-asset gig budget rails (CO5): stables get USDC bounds, native SOL
+ * keeps the legacy lamport rails. Advisory UX limits — the program only
+ * enforces amount > 0.
+ */
+export function gigAmountBounds(asset: string): { min_raw: number; max_raw: number } {
+  if (ASSET_META[asset]?.is_stable === true) {
+    return { min_raw: GIG_STABLE_MIN_RAW, max_raw: GIG_STABLE_MAX_RAW }
+  }
+  return { min_raw: MIN_PAYMENT_LAMPORTS, max_raw: MAX_PAYMENT_LAMPORTS }
+}
+
+export function isValidGigAmountRaw(asset: string, amount: number): boolean {
+  const bounds = gigAmountBounds(asset)
+  return Number.isInteger(amount) && amount >= bounds.min_raw && amount <= bounds.max_raw
 }
 
 export function isValidCompletionDuration(seconds: number): boolean {

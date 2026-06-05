@@ -17,6 +17,7 @@ import {
   type GetUserReviewsQuery,
   type PlatformConfig,
   type ExchangeRates,
+  type ChainRegistryEntry,
   type Conversation,
   type Message,
   type SendMessageInput,
@@ -237,6 +238,8 @@ export const api = {
   platform: {
     config: () => request<PlatformConfig>('GET', platform.config),
     exchangeRates: () => request<ExchangeRates>('GET', platform.exchangeRates),
+    // CO5: enabled chains + assets (chain/asset picker source).
+    chains: () => request<{ data: ChainRegistryEntry[] }>('GET', platform.chains),
   },
 
   conversations: {

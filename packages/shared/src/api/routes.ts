@@ -70,6 +70,7 @@ export const apiRoutes: {
   platform: {
     config:        '/v1/platform/config',
     exchangeRates: '/v1/platform/exchange-rates',
+    chains:        '/v1/platform/chains',
   },
   conversations: {
     list:         '/v1/conversations',

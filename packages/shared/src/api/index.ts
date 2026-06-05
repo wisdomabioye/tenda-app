@@ -44,6 +44,7 @@ export type {
   PlatformContract,
   PlatformConfig,
   ExchangeRates,
+  ChainRegistryEntry,
   ConversationsContract,
   NotificationsContract,
   SubscriptionsContract,

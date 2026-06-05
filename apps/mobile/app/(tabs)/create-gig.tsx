@@ -9,13 +9,7 @@ import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { api, ApiClientError } from '@/api/client'
-import {
-  coerceCityForCountry,
-  solanaChainId,
-  solanaNativeAssetId,
-  ErrorCode,
-} from '@tenda/shared'
-import { APP_IDENTITY } from '@/wallet'
+import { coerceCityForCountry, ErrorCode } from '@tenda/shared'
 import { signSendAndReport } from '@/wallet/dispatch'
 import { ModerationBlockedDialog } from '@/components/moderation/ModerationBlockedDialog'
 import type { GigFormValues } from '@/components/gig/GigForm'
@@ -49,7 +43,9 @@ export default function PostGigScreen() {
         setDraftValues({
           title: draft.title,
           description: draft.description ?? '',
-          paymentLamports: Number(draft.amount_raw),
+          chainId: draft.chain_id,
+          asset: draft.asset,
+          paymentRaw: Number(draft.amount_raw),
           completionDuration: draft.completion_duration_seconds ?? 86_400,
           category: draft.category,
           country: draft.country,
@@ -76,8 +72,10 @@ export default function PostGigScreen() {
     const safeCity = coerceCityForCountry(values.country, values.city)
     if (!values.remote && (!values.country || !safeCity)) return
 
-    const chain_id = solanaChainId(APP_IDENTITY.network)
-    const asset = solanaNativeAssetId(APP_IDENTITY.network)
+    // CO5: chain + USDC asset come from the form's picker (policy pair
+    // from the shared GIG_ASSET_BY_CHAIN map — the server re-asserts it).
+    const chain_id = values.chainId
+    const asset = values.asset
     const accept_deadline_unix = Math.floor(
       (Date.now() + values.acceptDeadlineHours * 3_600_000) / 1000,
     )
@@ -89,7 +87,7 @@ export default function PostGigScreen() {
         kind: 'gig',
         chain_id,
         asset,
-        amount_raw: String(values.paymentLamports),
+        amount_raw: String(values.paymentRaw),
         accept_deadline_unix,
         completion_duration_seconds: values.completionDuration,
       })

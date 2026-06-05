@@ -1,17 +1,18 @@
 import { useEffect } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { computePlatformFee, LAMPORTS_PER_SOL } from '@tenda/shared'
+import { computePlatformFee, formatAssetAmount } from '@tenda/shared'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { useIsSeeker } from '@/stores/auth.store'
 import { usePlatformConfigStore } from '@/stores/platform-config.store'
-import { formatSolDisplay } from '@/lib/currency'
 
 interface FeeSummaryProps {
-  /** Principal amount in lamports — gig payment / offer escrow */
-  principalLamports: number
+  /** Asset registry id — drives decimals + symbol (CO5). */
+  asset: string
+  /** Principal in raw units of `asset` — gig payment / offer escrow */
+  principalRaw: number
   /** Optional eyebrow override; defaults to "YOU WILL ESCROW" */
   eyebrow?: string
   /** Total row label override; defaults to "Total to escrow" */
@@ -24,7 +25,8 @@ interface FeeSummaryProps {
  * else fee_bps) and renders Principal / Platform fee / Total rows in mono.
  */
 export function FeeSummary({
-  principalLamports,
+  asset,
+  principalRaw,
   eyebrow = 'YOU WILL ESCROW',
   totalLabel = 'Total to escrow',
 }: FeeSummaryProps) {
@@ -39,12 +41,10 @@ export function FeeSummary({
     ? (isSeeker ? config.seeker_fee_bps : config.fee_bps)
     : null
 
-  const principalSol = principalLamports / LAMPORTS_PER_SOL
-  const feeLamports = feeBps != null
-    ? Number(computePlatformFee(BigInt(principalLamports), feeBps))
+  const feeRaw = feeBps != null
+    ? Number(computePlatformFee(BigInt(principalRaw), feeBps))
     : null
-  const feeSol = feeLamports != null ? feeLamports / LAMPORTS_PER_SOL : null
-  const totalSol = feeSol != null ? principalSol + feeSol : null
+  const totalRaw = feeRaw != null ? principalRaw + feeRaw : null
   const feePct = feeBps != null ? (feeBps / 100).toFixed(2) : '—'
 
   return (
@@ -61,7 +61,7 @@ export function FeeSummary({
       <View style={s.row}>
         <Text size={13.5} color={theme.colors.content.secondary}>Principal</Text>
         <Text style={[s.v, { color: theme.colors.content.primary }]}>
-          {formatSolDisplay(principalSol)}
+          {formatAssetAmount(String(principalRaw), asset)}
         </Text>
       </View>
       <View style={s.row}>
@@ -69,7 +69,7 @@ export function FeeSummary({
           {`Platform fee (${feePct}%)`}
         </Text>
         <Text style={[s.v, { color: theme.colors.content.primary }]}>
-          {feeSol != null ? formatSolDisplay(feeSol) : '—'}
+          {feeRaw != null ? formatAssetAmount(String(feeRaw), asset) : '—'}
         </Text>
       </View>
       <View
@@ -83,7 +83,7 @@ export function FeeSummary({
           {totalLabel}
         </Text>
         <Text style={[s.vTotal, { color: theme.colors.content.primary }]}>
-          {totalSol != null ? formatSolDisplay(totalSol) : '—'}
+          {totalRaw != null ? formatAssetAmount(String(totalRaw), asset) : '—'}
         </Text>
       </View>
     </View>

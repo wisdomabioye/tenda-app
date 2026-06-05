@@ -13,6 +13,8 @@ interface ChipProps {
   variant?: Variant
   category?: Category
   icon?: ReactNode
+  /** Renders dimmed and ignores presses (e.g. a chain without a linked wallet). */
+  disabled?: boolean
 }
 
 const s = StyleSheet.create({
@@ -38,6 +40,7 @@ const s = StyleSheet.create({
     alignSelf: 'flex-start' as const,
   },
   pressed: { opacity: 0.85 },
+  disabled: { opacity: 0.45 },
 })
 
 export function Chip({
@@ -47,6 +50,7 @@ export function Chip({
   variant = 'filter',
   category,
   icon,
+  disabled = false,
 }: ChipProps) {
   const { theme } = useUnistyles()
 
@@ -89,7 +93,7 @@ export function Chip({
     </>
   )
 
-  if (onPress) {
+  if (onPress && !disabled) {
     return (
       <Pressable
         onPress={onPress}
@@ -105,7 +109,7 @@ export function Chip({
   }
 
   return (
-    <View style={[containerStyle, { backgroundColor, borderColor }]}>
+    <View style={[containerStyle, { backgroundColor, borderColor }, disabled && s.disabled]}>
       {inner}
     </View>
   )

@@ -22,6 +22,28 @@ export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
   CELO: { symbol: 'CELO', decimals: 18, is_stable: false },
 }
 
+/**
+ * Gig-eligible asset per chain (stablecoin policy: gigs are USDC-only so
+ * pricing is intelligible — S0-3). SINGLE SOURCE shared by the server's
+ * assertGigAsset guard and the mobile chain picker (CO5); a chain absent
+ * here cannot carry gigs.
+ */
+export const GIG_ASSET_BY_CHAIN: Readonly<Partial<Record<string, string>>> = {
+  'solana:mainnet': 'USDC_SOL',
+  'solana:devnet': 'USDC_SOL',
+  'eip155:8453': 'USDC_BASE',
+  'eip155:84532': 'USDC_BASE',
+  'eip155:42220': 'USDC_CELO',
+  'eip155:44787': 'USDC_CELO',
+}
+
+/**
+ * Client-side gig budget bounds for stable assets (raw units, 6dp USDC):
+ * 1–50,000 USDC. Advisory UX rails — the program only enforces > 0.
+ */
+export const GIG_STABLE_MIN_RAW = 1_000_000
+export const GIG_STABLE_MAX_RAW = 50_000_000_000
+
 /** Display units for a raw integer amount ('5000000', 'USDC_SOL' → 5). */
 export function amountRawToDisplay(amount_raw: string, asset: string): number {
   const meta = ASSET_META[asset]
