@@ -63,7 +63,7 @@ test('verify: correct code → JWT {id, role} with the 12h admin lifetime', { sk
   })
   assert.strictEqual(res.statusCode, 200)
   const body = res.json()
-  assert.strictEqual(body.expires_in, '12h')
+  assert.strictEqual(body.token_ttl, '12h')
   assert.strictEqual(body.user.id, admin.row.id)
   assert.strictEqual(body.user.role, 'super_admin')
 

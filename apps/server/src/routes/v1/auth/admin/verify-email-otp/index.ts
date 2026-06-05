@@ -37,6 +37,9 @@ const route: FastifyPluginAsync = async (fastify) => {
         { email, code },
       )
 
+      // `token_ttl` (a duration string, e.g. '12h') — deliberately NOT
+      // `expires_in`, which the send route uses for the CODE lifetime in
+      // seconds; same-named fields with different units would be a trap.
       const expiresIn = getConfig().ADMIN_JWT_EXPIRES_IN
       const token = fastify.jwt.sign({ id: admin.user_id, role: admin.role }, { expiresIn })
 
@@ -51,7 +54,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         .where(eq(users.id, admin.user_id))
         .limit(1)
 
-      return { token, expires_in: expiresIn, user: profile }
+      return { token, token_ttl: expiresIn, user: profile }
     },
   )
 }

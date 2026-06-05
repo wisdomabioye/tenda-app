@@ -1,7 +1,9 @@
 import type { ApiError as SharedApiError, PaginatedResponse } from '@tenda/shared'
 import { getToken, clearSession } from './auth'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+// Fallback matches the API server's default (server.ts: PORT ?? 3000);
+// the dashboard's own dev/start scripts bind 3100 to stay clear of it.
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000'
 
 export class ApiError extends Error {
   constructor(

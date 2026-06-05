@@ -33,7 +33,9 @@ import { adminRoutes, buildPath } from './routes'
 
 export interface VerifyEmailOtpResponse {
   token: string
-  expires_in: string
+  /** JWT lifetime as a duration string ('12h') — the send route's
+   * `expires_in` is the CODE lifetime in seconds; distinct names on purpose. */
+  token_ttl: string
   user: AdminSessionUser
 }
 

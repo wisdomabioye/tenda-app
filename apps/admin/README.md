@@ -5,11 +5,15 @@ Next.js (App Router) dashboard over the Tenda v2 admin API.
 ## Run
 
 ```bash
-pnpm --filter admin dev        # http://localhost:3000 (Next default port)
+pnpm --filter admin dev        # http://localhost:3100
 ```
 
+The dev/start scripts bind port 3100 — the API server's default is 3000
+(`PORT ?? 3000` in server.ts), so the two never collide locally.
+
 Env: `NEXT_PUBLIC_API_URL` — the API server origin (defaults to
-`http://localhost:3001`). Set it in `.env.local`.
+`http://localhost:3000`, the server's default port). Override in
+`.env.local` when the API lives elsewhere.
 
 ## Auth (#86–#90)
 
