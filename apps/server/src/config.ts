@@ -96,6 +96,15 @@ export interface Config {
   APNS_TOPIC: string | null
   CORS_ORIGIN:  string[] | null  // null = allow any origin (dev); set to domain list in production
   ADMIN_ORIGIN: string[] | null  // null = allow any origin (dev); set to admin panel domain in production
+  /**
+   * Resend credentials for admin-dashboard login OTP emails (#86/#89).
+   * Both unset = dev logs the code (NODE_ENV !== 'production'); in
+   * production an unset key makes send-email-otp answer an explicit 503.
+   */
+  RESEND_API_KEY: string | null
+  EMAIL_FROM: string | null
+  /** Admin-dashboard JWT lifetime (#86) — own knob; mobile JWT_EXPIRES_IN stays 7d. */
+  ADMIN_JWT_EXPIRES_IN: string
 }
 
 let _config: Config | undefined
@@ -168,6 +177,9 @@ export function loadConfig(): Config {
     ADMIN_ORIGIN:          process.env.ADMIN_ORIGIN
                              ? process.env.ADMIN_ORIGIN.split(',').map((o) => o.trim())
                              : null,
+    RESEND_API_KEY:        process.env.RESEND_API_KEY ?? null,
+    EMAIL_FROM:            process.env.EMAIL_FROM ?? null,
+    ADMIN_JWT_EXPIRES_IN:  process.env.ADMIN_JWT_EXPIRES_IN ?? '12h',
   }
 
   return _config

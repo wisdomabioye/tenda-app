@@ -49,6 +49,9 @@ function baseConfig(overrides: Partial<Config> = {}): Config {
     ONRAMPMONEY_WEBHOOK_SECRET: null,
     NIP_API_KEY: null,
     REDIS_URL: null,
+    RESEND_API_KEY: null,
+    EMAIL_FROM: null,
+    ADMIN_JWT_EXPIRES_IN: '12h',
     ...overrides,
   }
 }
