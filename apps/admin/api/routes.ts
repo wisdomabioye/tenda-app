@@ -51,11 +51,20 @@ export const adminRoutes = {
     update: '/v1/admin/announcements/:id',
     remove: '/v1/admin/announcements/:id',
   },
-  moderation: '/v1/admin/moderation',
-  finance: '/v1/admin/finance',
+  moderation: {
+    verdicts: '/v1/admin/moderation/verdicts',
+    override: '/v1/admin/moderation/verdicts/:id/override',
+  },
+  finance: { fees: '/v1/admin/finance/fees' },
   metrics: '/v1/admin/metrics',
-  fiat: '/v1/admin/fiat',
-  push: { broadcast: '/v1/admin/push' },
+  fiat: {
+    intents: '/v1/admin/fiat/intents',
+    forceSettle: '/v1/admin/fiat/intents/:id/force-settle',
+    refund: '/v1/admin/fiat/intents/:id/refund',
+    providers: '/v1/admin/fiat/providers',
+    updateProvider: '/v1/admin/fiat/providers/:id',
+  },
+  push: { broadcast: '/v1/admin/push/broadcast' },
 } as const
 
 /** Replace :params in a route path; throws on a missing param. */

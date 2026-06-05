@@ -1,36 +1,45 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tenda Admin Dashboard
 
-## Getting Started
+Next.js (App Router) dashboard over the Tenda v2 admin API.
 
-First, run the development server:
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm --filter admin dev        # http://localhost:3000 (Next default port)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Env: `NEXT_PUBLIC_API_URL` — the API server origin (defaults to
+`http://localhost:3001`). Set it in `.env.local`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Auth (#86–#90)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Passwordless email OTP against `/v1/auth/admin/{send,verify}-email-otp`.
+The bearer token lives in localStorage and rides the `Authorization`
+header on every call. There is deliberately **NO Edge middleware** (see
+open_issues A5): the API server is the only JWT verifier; the client-side
+guard is a UX convenience and 401s bounce to `/login`.
 
-## Learn More
+Bootstrap the first login with the server ops script:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+pnpm --filter tenda-server admin:grant-email -- <user-id> <email>
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## DEPLOY NOTE — ADMIN_ORIGIN
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The server scopes `/v1/admin/*` to origins listed in its `ADMIN_ORIGIN`
+env (comma-separated). **The deployed dashboard origin MUST be in that
+list** or every admin call fails CORS with 403. Dev leaves it unset
+(allow-all). `/v1/auth/admin/*` login routes ride the global CORS policy
+(`CORS_ORIGIN`) — include the dashboard origin there too when it is set.
 
-## Deploy on Vercel
+## Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `lib/auth.ts` + `lib/use-session.ts` — token/session storage (+
+  `useSyncExternalStore` hooks, cross-tab logout)
+- `lib/nav.ts` — permission-tagged nav filtered through the shared
+  `ROLE_PERMISSIONS` map (same source as the server guards)
+- `api/routes.ts` + `api/client.ts` — typed v2 client; every method maps
+  to a route that exists on the server
+- `lib/dispute-thread.ts` — inclusive-gte cursor mechanics (tested)
+- `test/` — node:test suites (`pnpm --filter admin test`)

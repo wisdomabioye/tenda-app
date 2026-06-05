@@ -8,13 +8,22 @@
 import type {
   ActionReportBody,
   AdminEscrowRow,
+  AdminPlatformConfig,
+  Announcement,
+  BroadcastPushBody,
+  CreateAnnouncementBody,
+  CreateFeaturedSlotBody,
   DisputeMessage,
   DisputeRateMetric,
   DisputeSummary,
   DisputeThreadResponse,
+  FeaturedSlotRow,
+  FinanceFeesResponse,
   PaginatedResponse,
   Report,
   ReportStatus,
+  UpdateAnnouncementBody,
+  UpdateFeaturedSlotBody,
   UserRole,
   UserStatus,
 } from '@tenda/shared'
@@ -85,6 +94,49 @@ export interface AdminUserDetail extends AdminUserListRow {
   phone_e164: string | null
   advanced_mode_enabled: boolean
   dispute_metric: DisputeRateMetric
+}
+
+/** Stage-6 verdict row (route returns the full table row). */
+export interface ModerationVerdictRow {
+  id: string
+  subject_kind: string
+  subject_id: string | null
+  decision: 'approve' | 'warn' | 'block'
+  reasons: unknown
+  provider: string
+  model: string | null
+  cost_usd: string | null
+  latency_ms: number | null
+  created_at: string
+}
+
+/** Stage-8 intent row — the display subset of fiat_intents. */
+export interface FiatIntentRow {
+  id: string
+  user_id: string
+  direction: 'onramp' | 'offramp'
+  provider: string
+  status: string
+  fiat_currency: string
+  fiat_amount: string
+  asset: string
+  asset_amount_raw: string
+  created_at: string
+}
+
+export interface FiatProviderRow {
+  id: string
+  display_name: string
+  priority: number
+  is_enabled: boolean
+}
+
+export interface AdminMetrics {
+  total_users: number
+  active_24h: number
+  active_7d: number
+  active_30d: number
+  suspended: number
 }
 
 function withQuery(path: string, params: Record<string, string | number | undefined>): string {
@@ -167,5 +219,59 @@ export const adminApi = {
       api.patch<{ id: string; role: string }>(buildPath(adminRoutes.users.updateRole, { id }), {
         role,
       }),
+  },
+  featured: {
+    list: () => api.get<{ data: FeaturedSlotRow[] }>(adminRoutes.featured.list),
+    create: (body: CreateFeaturedSlotBody) =>
+      api.post<FeaturedSlotRow>(adminRoutes.featured.create, body),
+    update: (id: string, body: UpdateFeaturedSlotBody) =>
+      api.patch<FeaturedSlotRow>(buildPath(adminRoutes.featured.update, { id }), body),
+    remove: (id: string) =>
+      api.delete<{ deleted: true }>(buildPath(adminRoutes.featured.remove, { id })),
+  },
+  platformConfig: {
+    get: () => api.get<AdminPlatformConfig>(adminRoutes.platformConfig),
+    update: (body: { fee_bps?: number; seeker_fee_bps?: number; grace_period_seconds?: number }) =>
+      api.patch<AdminPlatformConfig>(adminRoutes.platformConfig, body),
+  },
+  announcements: {
+    list: (query: { limit?: number; offset?: number; active?: string } = {}) =>
+      api.get<PaginatedResponse<Announcement>>(withQuery(adminRoutes.announcements.list, query)),
+    create: (body: CreateAnnouncementBody) =>
+      api.post<Announcement>(adminRoutes.announcements.create, body),
+    update: (id: string, body: UpdateAnnouncementBody) =>
+      api.patch<Announcement>(buildPath(adminRoutes.announcements.update, { id }), body),
+    remove: (id: string) =>
+      api.delete<{ id: string }>(buildPath(adminRoutes.announcements.remove, { id })),
+  },
+  moderation: {
+    verdicts: (query: { decision?: string; page?: number } = {}) =>
+      api.get<{ verdicts: ModerationVerdictRow[]; page: number }>(
+        withQuery(adminRoutes.moderation.verdicts, query),
+      ),
+    override: (id: string, reason: string) =>
+      api.post<unknown>(buildPath(adminRoutes.moderation.override, { id }), { reason }),
+  },
+  finance: {
+    fees: (query: { from?: string; to?: string } = {}) =>
+      api.get<FinanceFeesResponse>(withQuery(adminRoutes.finance.fees, query)),
+  },
+  metrics: {
+    get: () => api.get<{ metrics: AdminMetrics }>(adminRoutes.metrics),
+  },
+  fiat: {
+    intents: (query: { status?: string; provider?: string; user_id?: string } = {}) =>
+      api.get<{ intents: FiatIntentRow[] }>(withQuery(adminRoutes.fiat.intents, query)),
+    forceSettle: (id: string, reason: string) =>
+      api.post<unknown>(buildPath(adminRoutes.fiat.forceSettle, { id }), { reason }),
+    refund: (id: string, reason: string) =>
+      api.post<unknown>(buildPath(adminRoutes.fiat.refund, { id }), { reason }),
+    providers: () => api.get<{ providers: FiatProviderRow[] }>(adminRoutes.fiat.providers),
+    updateProvider: (id: string, body: { is_enabled?: boolean; priority?: number }) =>
+      api.patch<FiatProviderRow>(buildPath(adminRoutes.fiat.updateProvider, { id }), body),
+  },
+  push: {
+    broadcast: (body: BroadcastPushBody) =>
+      api.post<{ attempted: number }>(adminRoutes.push.broadcast, body),
   },
 }
