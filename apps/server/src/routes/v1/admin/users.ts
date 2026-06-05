@@ -1,10 +1,10 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq, exists, ilike, or, and, desc, sql, SQL } from 'drizzle-orm'
-import { users, user_wallets } from '@tenda/shared/db/schema'
+import { eq, exists, ilike, or, and, desc, isNull, sql, SQL } from 'drizzle-orm'
+import { users, user_wallets, disputes } from '@tenda/shared/db/schema'
 import {
   ADMIN_ROLES, ASSIGNABLE_ROLES, ErrorCode, MAX_PAGINATION_LIMIT,
 } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { hasPermission, requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/db'
 import { appEvents } from '@server/lib/events'
@@ -174,11 +174,29 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
 
     if (!current) throw new AppError(404, ErrorCode.USER_NOT_FOUND, 'User not found')
 
-    const [updated] = await fastify.db
-      .update(users)
-      .set({ role, updated_at: new Date() })
-      .where(eq(users.id, id))
-      .returning({ id: users.id, role: users.role })
+    // Role change + caseload release land together or not at all (A15):
+    // a role that can no longer mediate must not keep disputes assigned —
+    // they'd strand until a super_admin force-released each one. The
+    // trigger is permission-driven (NOT a role list) so adding roles to
+    // the map never silently breaks this. Resolved disputes keep their
+    // assignee for audit history.
+    const { updated, releasedDisputes } = await fastify.db.transaction(async (tx) => {
+      const [row] = await tx
+        .update(users)
+        .set({ role, updated_at: new Date() })
+        .where(eq(users.id, id))
+        .returning({ id: users.id, role: users.role })
+
+      let released: { id: string }[] = []
+      if (!hasPermission(role, 'disputes.mediate')) {
+        released = await tx
+          .update(disputes)
+          .set({ assigned_to: null, assigned_at: null })
+          .where(and(eq(disputes.assigned_to, id), isNull(disputes.resolved_at)))
+          .returning({ id: disputes.id })
+      }
+      return { updated: row, releasedDisputes: released.length }
+    })
 
     const result = ensureTxUpdated(updated, 'User not found')
 
@@ -188,6 +206,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
       userId:       id,
       previousRole: current.role,
       newRole:      role,
+      releasedDisputes,
     })
 
     return result

@@ -133,3 +133,78 @@ test('list: assigned=me and assigned=none partition the queue', { skip }, async 
   assert.strictEqual(pool.json().total, 1)
   assert.notStrictEqual(pool.json().data[0].dispute_id, a.dispute_id)
 })
+
+// ── A15 (#81): demotion auto-releases claimed disputes ──────────────────────
+
+test('demotion: role losing disputes.mediate releases unresolved claims, keeps resolved', { skip }, async () => {
+  const app = getApp()
+  const root = await createUser(app, { role: 'super_admin' })
+  const mediator = await createUser(app, { role: 'dispute_admin' })
+  const live = await disputedEscrow(app)
+  const closed = await disputedEscrow(app)
+
+  for (const d of [live, closed]) {
+    const claim = await app.inject({
+      method: 'POST',
+      url: `/v1/admin/disputes/${d.dispute_id}/claim`,
+      headers: authHeader(mediator.token),
+    })
+    assert.strictEqual(claim.statusCode, 200)
+  }
+  // Resolve one while still claimed — its assignee is audit history.
+  await app.db
+    .update(disputes)
+    .set({ resolved_at: new Date(), resolved_by: mediator.row.id, winner: 'creator' })
+    .where(eq(disputes.id, closed.dispute_id))
+
+  const demote = await app.inject({
+    method: 'PATCH',
+    url: `/v1/admin/users/${mediator.row.id}/role`,
+    headers: authHeader(root.token),
+    payload: { role: 'user' },
+  })
+  assert.strictEqual(demote.statusCode, 200)
+  assert.strictEqual(demote.json().role, 'user')
+
+  const [liveRow] = await app.db.select().from(disputes).where(eq(disputes.id, live.dispute_id))
+  assert.strictEqual(liveRow.assigned_to, null)
+  assert.strictEqual(liveRow.assigned_at, null)
+
+  const [closedRow] = await app.db.select().from(disputes).where(eq(disputes.id, closed.dispute_id))
+  assert.strictEqual(closedRow.assigned_to, mediator.row.id)
+
+  // The released dispute is back in the open pool for other mediators.
+  const other = await createUser(app, { role: 'dispute_admin' })
+  const pool = await app.inject({
+    method: 'GET',
+    url: '/v1/admin/disputes?assigned=none',
+    headers: authHeader(other.token),
+  })
+  const poolIds = pool.json().data.map((d: { dispute_id: string }) => d.dispute_id)
+  assert.ok(poolIds.includes(live.dispute_id))
+  assert.ok(!poolIds.includes(closed.dispute_id))
+})
+
+test('demotion: role change that keeps disputes.mediate leaves claims intact', { skip }, async () => {
+  const app = getApp()
+  const root = await createUser(app, { role: 'super_admin' })
+  const mediator = await createUser(app, { role: 'super_admin' })
+  const { dispute_id } = await disputedEscrow(app)
+
+  await app.inject({
+    method: 'POST',
+    url: `/v1/admin/disputes/${dispute_id}/claim`,
+    headers: authHeader(mediator.token),
+  })
+
+  const lateral = await app.inject({
+    method: 'PATCH',
+    url: `/v1/admin/users/${mediator.row.id}/role`,
+    headers: authHeader(root.token),
+    payload: { role: 'dispute_admin' },
+  })
+  assert.strictEqual(lateral.statusCode, 200)
+
+  const [row] = await app.db.select().from(disputes).where(eq(disputes.id, dispute_id))
+  assert.strictEqual(row.assigned_to, mediator.row.id)
+})

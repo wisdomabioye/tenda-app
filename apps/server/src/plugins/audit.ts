@@ -54,6 +54,7 @@ const auditPlugin: FastifyPluginAsync = async (fastify) => {
       await write(d.adminId, d.adminRole, 'change_role', 'user', d.userId, {
         previous_role: d.previousRole,
         new_role: d.newRole,
+        released_disputes: d.releasedDisputes,
       })
     } catch (err) {
       fastify.log.warn({ err }, '[audit] admin.change_role write failed')

@@ -55,7 +55,13 @@ export interface AppEvents {
   // log entry without the route knowing anything about the audit table.
   'admin.suspend_user': AdminEventBase & { userId: string; previousStatus: string }
   'admin.reinstate_user': AdminEventBase & { userId: string }
-  'admin.change_role': AdminEventBase & { userId: string; previousRole: string; newRole: string }
+  'admin.change_role': AdminEventBase & {
+    userId: string
+    previousRole: string
+    newRole: string
+    /** Claimed disputes returned to the pool when the new role can't mediate (A15). */
+    releasedDisputes: number
+  }
   'admin.update_platform_config': AdminEventBase & {
     changes: {
       fee_bps?: number
