@@ -26,6 +26,8 @@ interface GigCTABarProps {
   onAction: (action: ActiveSheet) => void
   onApprove: () => void
   onClaim: () => void
+  /** CO6 "retry from draft": prefill the create form from this draft. */
+  onRetryDraft: () => void
 }
 
 export function GigCTABar({
@@ -36,6 +38,7 @@ export function GigCTABar({
   onAction,
   onApprove,
   onClaim,
+  onRetryDraft,
 }: GigCTABarProps) {
   const { theme } = useUnistyles()
 
@@ -66,12 +69,22 @@ export function GigCTABar({
     }
 
     // v2 drafts are pre-sign staging rows: signing happens in the create
-    // flow, so the only draft action here is deleting the leftover.
+    // flow. CO6 "retry from draft" — prefill a fresh create instead of
+    // editing in place (the unsigned tx is already bound to this id).
     if (gig.status === 'draft' && isCreator) {
       return (
-        <Button variant="outline" size="xl" fullWidth onPress={() => onAction('delete')}>
-          Delete Draft
-        </Button>
+        <View style={s.ctaRow}>
+          <View style={s.ctaFlex}>
+            <Button variant="outline" size="xl" fullWidth onPress={() => onAction('delete')}>
+              Delete Draft
+            </Button>
+          </View>
+          <View style={s.ctaFlex}>
+            <Button variant="primary" size="xl" fullWidth onPress={onRetryDraft}>
+              Edit & repost
+            </Button>
+          </View>
+        </View>
       )
     }
 

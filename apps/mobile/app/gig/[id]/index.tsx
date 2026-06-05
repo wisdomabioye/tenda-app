@@ -150,6 +150,9 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           onAction={setActiveSheet}
           onApprove={() => void actions.approve()}
           onClaim={() => void actions.claim()}
+          onRetryDraft={() =>
+            router.push(`/(tabs)/create-gig?draftId=${gig.escrow_id}` as Parameters<typeof router.push>[0])
+          }
         />
 
         <GigActionSheets

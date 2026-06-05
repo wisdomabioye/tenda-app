@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
-import { useRouter } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui'
 import { RestrictionBanner } from '@/components/reputation'
 import { showToast } from '@/components/ui/Toast'
 import { GigForm } from '@/components/gig/GigForm'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
+import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { api, ApiClientError } from '@/api/client'
 import {
@@ -21,14 +22,50 @@ import type { GigFormValues } from '@/components/gig/GigForm'
 
 export default function PostGigScreen() {
   const router = useRouter()
+  const params = useLocalSearchParams<{ draftId?: string }>()
+  // Tab screens retain params across visits — '' (cleared) reads as absent.
+  const draftId = params.draftId !== undefined && params.draftId !== '' ? params.draftId : undefined
   const [isLoading, setIsLoading] = useState(false)
   const [showNudge, setShowNudge] = useState(false)
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null)
+  // CO6 "retry from draft": prefill from an abandoned draft, then recreate
+  // fresh and discard the old row (the unsigned create tx is bound to the
+  // old escrow id, so in-place editing is impossible by design).
+  const [draftValues, setDraftValues] = useState<Partial<GigFormValues> | null>(null)
+  const [draftLoading, setDraftLoading] = useState(draftId !== undefined)
   const { dismissedNudges } = useOnboardingStore()
 
   useEffect(() => {
     if (!dismissedNudges.post) setShowNudge(true)
   }, [])
+
+  useEffect(() => {
+    if (draftId === undefined) return
+    let cancelled = false
+    void (async () => {
+      try {
+        const draft = await api.gigs.get({ id: draftId })
+        if (cancelled) return
+        setDraftValues({
+          title: draft.title,
+          description: draft.description ?? '',
+          paymentLamports: Number(draft.amount_raw),
+          completionDuration: draft.completion_duration_seconds ?? 86_400,
+          category: draft.category,
+          country: draft.country,
+          remote: draft.remote,
+          city: draft.city,
+        })
+      } catch {
+        if (!cancelled) showToast('info', 'Could not load the draft — starting fresh')
+      } finally {
+        if (!cancelled) setDraftLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [draftId])
 
   // v2 create chain (cutover §6): 1) draft escrow + unsigned create tx,
   // 2) attach gig_details (Stage-6 moderation gate — a block deletes the
@@ -76,6 +113,13 @@ export default function PostGigScreen() {
         throw e
       }
 
+      // Retry-from-draft: the listing now lives on the NEW draft — discard
+      // the abandoned one. A 409 (its create tx is still pending) leaves it
+      // alone; it stays deletable from its own page.
+      if (draftId !== undefined && draftId !== created.escrow_id) {
+        await api.escrows.delete({ id: draftId }).catch(() => {})
+      }
+
       await signSendAndReport({
         unsigned: created.unsigned,
         action: 'create',
@@ -84,6 +128,11 @@ export default function PostGigScreen() {
       })
 
       showToast('success', 'Gig submitted! It goes live once the escrow confirms.')
+      // Clear the retry param so the next visit to this tab starts blank.
+      if (draftId !== undefined) {
+        setDraftValues(null)
+        router.setParams({ draftId: '' })
+      }
       router.navigate('/(tabs)/home' as any)
       router.push(`/gig/${created.escrow_id}` as any)
     } catch (e) {
@@ -114,9 +163,20 @@ export default function PostGigScreen() {
         onClose={() => setShowNudge(false)}
       />
       <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
-        <Header title="Post a gig" showBack />
+        <Header title={draftId !== undefined ? 'Edit & repost' : 'Post a gig'} showBack />
         <RestrictionBanner />
-        <GigForm submitLabel="Post Gig" onSubmit={handleSubmit} isLoading={isLoading} />
+        {draftLoading ? (
+          <LoadingScreen />
+        ) : (
+          <GigForm
+            // Remount when the prefill arrives — GigForm seeds its state once.
+            key={draftValues !== null ? draftId : 'blank'}
+            initialValues={draftValues ?? undefined}
+            submitLabel={draftId !== undefined ? 'Repost Gig' : 'Post Gig'}
+            onSubmit={handleSubmit}
+            isLoading={isLoading}
+          />
+        )}
       </ScreenContainer>
       <ModerationBlockedDialog
         visible={blockedMessage !== null}
