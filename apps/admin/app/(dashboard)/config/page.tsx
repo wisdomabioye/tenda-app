@@ -16,6 +16,13 @@ import { Label } from '@/components/ui/label'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
 
+/** Whole number or null — never coerces '' to 0. */
+function parseIntStrict(raw: string): number | null {
+  if (raw.trim() === '') return null
+  const n = Number(raw)
+  return Number.isInteger(n) ? n : null
+}
+
 export default function ConfigPage() {
   const [config, setConfig] = useState<AdminPlatformConfig | null>(null)
   const [feeBps, setFeeBps] = useState('')
@@ -44,12 +51,21 @@ export default function ConfigPage() {
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
+    // Number('') is 0 — a cleared field must BLOCK the save, not silently
+    // zero the platform fee or the grace period.
+    const fee_bps = parseIntStrict(feeBps)
+    const seeker_fee_bps = parseIntStrict(seekerFeeBps)
+    const grace_period_seconds = parseIntStrict(graceSeconds)
+    if (fee_bps === null || seeker_fee_bps === null || grace_period_seconds === null) {
+      toast.error('All three fields need a whole number')
+      return
+    }
     setBusy(true)
     try {
       const updated = await adminApi.platformConfig.update({
-        fee_bps: Number(feeBps),
-        seeker_fee_bps: Number(seekerFeeBps),
-        grace_period_seconds: Number(graceSeconds),
+        fee_bps,
+        seeker_fee_bps,
+        grace_period_seconds,
       })
       setConfig(updated)
       toast.success('Config saved — server cache busted')

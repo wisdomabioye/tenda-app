@@ -5,7 +5,7 @@
  * summary fetch supplies the escrow id the thread rides on.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -30,12 +30,25 @@ export default function DisputeDetailPage() {
   const [refreshKey, setRefreshKey] = useState(0)
   const refresh = useCallback(() => setRefreshKey((k) => k + 1), [])
 
+  // The thread poll back-feeds the assignee; the ref lets onAssignee make
+  // its decisions OUTSIDE the state updater (updaters must stay pure) and
+  // bail out without a re-render when nothing changed.
+  const knownRef = useRef<{ assignedToId: string | null; resolved: boolean }>({
+    assignedToId: null,
+    resolved: false,
+  })
+
   useEffect(() => {
     let alive = true
     adminApi.disputes
       .get(disputeId)
       .then((summary) => {
-        if (alive) setDispute(summary)
+        if (!alive) return
+        knownRef.current = {
+          assignedToId: summary.assigned_to_id,
+          resolved: summary.resolved_at !== null,
+        }
+        setDispute(summary)
       })
       .catch((err: unknown) => {
         if (!alive) return
@@ -53,11 +66,16 @@ export default function DisputeDetailPage() {
   // (it carries winner + resolved_at; never synthesize them).
   const onAssignee = useCallback(
     (assignedToId: string | null, readOnly: boolean) => {
-      setDispute((prev) => {
-        if (prev === null) return prev
-        if (readOnly && prev.resolved_at === null) refresh()
-        return { ...prev, assigned_to_id: assignedToId }
-      })
+      const known = knownRef.current
+      if (readOnly && !known.resolved) {
+        knownRef.current = { ...known, resolved: true }
+        refresh()
+        return // the refetch carries the assignee too
+      }
+      if (assignedToId !== known.assignedToId) {
+        knownRef.current = { ...known, assignedToId }
+        setDispute((prev) => (prev === null ? prev : { ...prev, assigned_to_id: assignedToId }))
+      }
     },
     [refresh],
   )

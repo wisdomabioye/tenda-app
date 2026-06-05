@@ -19,6 +19,7 @@ import type { ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { requirePermission } from '@server/lib/guards'
 import { grantAdminEmail } from '@server/lib/admin-auth'
+import { isUuidLike } from '@server/lib/escrow-routes'
 import { appEvents } from '@server/lib/events'
 
 const route: FastifyPluginAsync = async (fastify) => {
@@ -56,6 +57,11 @@ const route: FastifyPluginAsync = async (fastify) => {
     '/:id/login-email',
     { preHandler: [requirePermission('users.assign_roles')] },
     async (request) => {
+      // Pre-validate like loadEscrowOr404 does — a junk id must 422, not
+      // surface as a PG uuid-cast 500 (PUT gets this via grantAdminEmail).
+      if (!isUuidLike(request.params.id)) {
+        throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'id must be a UUID')
+      }
       const deleted = await fastify.db
         .delete(admin_users)
         .where(eq(admin_users.user_id, request.params.id))

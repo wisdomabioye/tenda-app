@@ -185,6 +185,29 @@ test('demotion: role losing disputes.mediate releases unresolved claims, keeps r
   assert.ok(!poolIds.includes(closed.dispute_id))
 })
 
+// A7 (review pass): the resolve builder is guarded in the HANDLER (caller
+// derivation + state machine), not by an /admin prefix — pin it over HTTP.
+test('resolve: parties and outsiders 403; dispute_admin receives the unsigned tx', { skip }, async () => {
+  const app = getApp()
+  const { escrow, creator } = await disputedEscrow(app)
+  const outsider = await createUser(app)
+  const mediator = await createUser(app, { role: 'dispute_admin' })
+  const resolve = (token: string) =>
+    app.inject({
+      method: 'POST',
+      url: `/v1/escrows/${escrow.id}/resolve`,
+      headers: authHeader(token),
+      payload: { winner: 'creator' },
+    })
+
+  assert.strictEqual((await resolve(creator.token)).statusCode, 403)
+  assert.strictEqual((await resolve(outsider.token)).statusCode, 403)
+
+  const ok = await resolve(mediator.token)
+  assert.strictEqual(ok.statusCode, 200)
+  assert.ok(ok.json().unsigned, 'dispute_admin gets the unsigned resolve tx')
+})
+
 test('demotion: role change that keeps disputes.mediate leaves claims intact', { skip }, async () => {
   const app = getApp()
   const root = await createUser(app, { role: 'super_admin' })

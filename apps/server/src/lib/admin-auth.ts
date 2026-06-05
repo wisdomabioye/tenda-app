@@ -12,6 +12,7 @@ import { admin_users, users } from '@tenda/shared/db/schema/identity'
 import { ADMIN_ROLES, ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { isPostgresUniqueViolation } from '@server/lib/db'
+import { isUuidLike } from '@server/lib/escrow-routes'
 import type { AppDatabase } from '@server/plugins/db'
 
 export const ADMIN_EMAIL_MAX_LENGTH = 255
@@ -19,7 +20,6 @@ export const ADMIN_EMAIL_MAX_LENGTH = 255
 // Shape check only (catches typos, not RFC corner cases) — deliverability
 // is proven by the OTP round-trip itself.
 const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-const UUID_SHAPE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** Lowercase + trim; null when the shape is invalid (write sites MUST use this). */
 export function normalizeAdminEmail(raw: string): string | null {
@@ -39,7 +39,7 @@ export async function grantAdminEmail(
   db: AppDatabase,
   args: { user_id: string; email: string; added_by: string | null },
 ): Promise<{ user_id: string; email: string; role: string }> {
-  if (!UUID_SHAPE.test(args.user_id)) {
+  if (!isUuidLike(args.user_id)) {
     throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'user_id must be a UUID')
   }
   const email = normalizeAdminEmail(args.email)

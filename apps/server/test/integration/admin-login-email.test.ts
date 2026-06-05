@@ -128,6 +128,14 @@ test('DELETE login-email: revokes once (event emitted), idempotent + silent afte
 
   const rows = await app.db.select().from(admin_users).where(eq(admin_users.user_id, target.row.id))
   assert.strictEqual(rows.length, 0)
+
+  // Junk id is pre-validated (review fix) — 422, never a PG uuid-cast 500.
+  const junk = await app.inject({
+    method: 'DELETE',
+    url: '/v1/admin/users/not-a-uuid/login-email',
+    headers: authHeader(root.token),
+  })
+  assert.strictEqual(junk.statusCode, 422)
 })
 
 test('demotion to non-admin revokes the login in the role transaction; lateral admin move keeps it', { skip }, async () => {
