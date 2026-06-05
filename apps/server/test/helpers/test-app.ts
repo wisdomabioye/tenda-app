@@ -35,6 +35,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { users, escrows, gig_details, exchange_details, chains, assets } from '@tenda/shared/db/schema'
 import { registerErrorHandlers } from '@server/lib/http-errors'
+import { invalidateFeaturedCache } from '@server/lib/featured'
 import dbPlugin from '@server/plugins/db'
 import authPlugin from '@server/plugins/auth'
 import queuePlugin from '@server/plugins/queue'
@@ -170,6 +171,9 @@ export async function resetDb(app: FastifyInstance): Promise<void> {
     const list = tables.map((t) => `"${t.tablename}"`).join(', ')
     await app.db.execute(sql.raw(`TRUNCATE ${list} RESTART IDENTITY CASCADE`))
   }
+  // In-process caches survive a TRUNCATE — drop them so a warmed rail
+  // never leaks into the next test.
+  invalidateFeaturedCache()
   await app.db.insert(chains).values({
     id: TEST_CHAIN_ID,
     namespace: 'solana',

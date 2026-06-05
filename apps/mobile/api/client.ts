@@ -153,6 +153,7 @@ export const api = {
   // Browse surfaces (escrows ⨝ details server-side) + the create-detail
   // satellite (create flow step 2 — step 1 is escrows.create).
   gigs: {
+    featured: () => request<{ data: GigSummary[] }>('GET', gigs.featured),
     list: (query?: GigListQuery) =>
       request<PaginatedResponse<GigSummary>>('GET', gigs.list, {
         query: query as Record<string, unknown>,

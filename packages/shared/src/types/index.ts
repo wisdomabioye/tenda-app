@@ -68,6 +68,9 @@ export type {
   FinanceFeeSummary,
   FinanceFeesResponse,
   ReportStatus,
+  FeaturedSlotRow,
+  CreateFeaturedSlotBody,
+  UpdateFeaturedSlotBody,
 } from './admin'
 
 export type {

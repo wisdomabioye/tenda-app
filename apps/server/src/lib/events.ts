@@ -69,6 +69,8 @@ export interface AppEvents {
   'admin.set_escrow_hidden': AdminEventBase & { escrowId: string; hidden: boolean }
   'admin.claim_dispute': AdminEventBase & { disputeId: string }
   'admin.release_dispute': AdminEventBase & { disputeId: string; previousAssignee: string }
+  'admin.create_featured_slot': AdminEventBase & { slotId: string; escrowId: string }
+  'admin.delete_featured_slot': AdminEventBase & { slotId: string; escrowId: string }
   'admin.create_announcement': AdminEventBase & {
     announcementId: string
     title: string

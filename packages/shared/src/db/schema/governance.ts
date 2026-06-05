@@ -67,6 +67,33 @@ export const dispute_messages = pgTable(
   (t) => [index('dispute_messages_dispute_idx').on(t.dispute_id, t.created_at)],
 )
 
+/**
+ * CO8 featured listings: admin-curated, scheduled placements served as a
+ * separate cached rail (GET /v1/gigs/featured) — never a boolean on
+ * escrows, so the feed query stays untouched and a slot can be scheduled
+ * ahead of time. A listing may hold multiple (even overlapping) slots;
+ * the rail dedupes.
+ */
+export const featured_slots = pgTable(
+  'featured_slots',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    escrow_id: uuid('escrow_id')
+      .notNull()
+      .references(() => escrows.id, { onDelete: 'cascade' }),
+    starts_at: timestamp('starts_at').notNull(),
+    ends_at: timestamp('ends_at').notNull(),
+    /** Lower renders first within the rail. */
+    position: integer('position').notNull().default(0),
+    created_by: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+    created_at: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    index('featured_slots_window_idx').on(t.starts_at, t.ends_at),
+    check('featured_slots_window_chk', sql`${t.ends_at} > ${t.starts_at}`),
+  ],
+)
+
 /** Per-participant last-read pointer for a dispute thread (CO7). */
 export const dispute_reads = pgTable(
   'dispute_reads',

@@ -15,6 +15,7 @@ import { getConfig } from '@server/config'
 import announcements from './announcements'
 import disputes from './disputes'
 import escrows from './escrows'
+import featured from './featured'
 import fiat from './fiat'
 import finance from './finance'
 import metrics from './metrics'
@@ -49,6 +50,7 @@ const adminScope: FastifyPluginAsync = async (fastify) => {
   await fastify.register(announcements, { prefix: '/announcements' })
   await fastify.register(disputes, { prefix: '/disputes' })
   await fastify.register(escrows, { prefix: '/escrows' })
+  await fastify.register(featured, { prefix: '/featured' })
   await fastify.register(fiat, { prefix: '/fiat' })
   await fastify.register(finance, { prefix: '/finance' })
   await fastify.register(metrics, { prefix: '/metrics' })

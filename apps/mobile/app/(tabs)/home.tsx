@@ -13,6 +13,7 @@ import {
 } from '@/components/ui'
 import { LoadingScreen, ErrorState, ServerStatus } from '@/components/feedback'
 import { GigCardCompact } from '@/components/gig'
+import { FeaturedRail } from '@/components/gig/FeaturedRail'
 import { Drawer, DrawerHeader } from '@/components/navigation'
 import { CATEGORY_META } from '@/data/mock'
 import { useAuthStore } from '@/stores/auth.store'
@@ -30,6 +31,7 @@ export default function HomeScreen() {
   const [selectedRemote, setSelectedRemote] = useState<boolean | null>(null)
   const [selectedCrossBorder, setSelectedCrossBorder] = useState<boolean | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [railRefreshKey, setRailRefreshKey] = useState(0)
   const router = useRouter()
   const { theme } = useUnistyles()
   const user = useAuthStore((s) => s.user)
@@ -54,6 +56,7 @@ export default function HomeScreen() {
 
   async function handleRefresh() {
     setRefreshing(true)
+    setRailRefreshKey((k) => k + 1)
     await fetchGigs()
     setRefreshing(false)
   }
@@ -140,6 +143,7 @@ export default function HomeScreen() {
             }
             ListHeaderComponent={
               <>
+                <FeaturedRail refreshKey={railRefreshKey} />
                 <View style={s.feedRow}>
                   <Text style={[s.feedTitle, { color: theme.colors.content.primary }]}>
                     Feed

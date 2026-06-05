@@ -113,6 +113,26 @@ const auditPlugin: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  appEvents.on('admin.create_featured_slot', async (d) => {
+    try {
+      await write(d.adminId, d.adminRole, 'create_featured_slot', 'escrow', d.escrowId, {
+        slot_id: d.slotId,
+      })
+    } catch (err) {
+      fastify.log.warn({ err }, '[audit] admin.create_featured_slot write failed')
+    }
+  })
+
+  appEvents.on('admin.delete_featured_slot', async (d) => {
+    try {
+      await write(d.adminId, d.adminRole, 'delete_featured_slot', 'escrow', d.escrowId, {
+        slot_id: d.slotId,
+      })
+    } catch (err) {
+      fastify.log.warn({ err }, '[audit] admin.delete_featured_slot write failed')
+    }
+  })
+
   // ── Marketing & announcements ──────────────────────────────────────────────
 
   appEvents.on('admin.create_announcement', async (d) => {

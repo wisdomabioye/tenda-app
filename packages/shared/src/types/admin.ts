@@ -81,6 +81,35 @@ export interface DisputeSummary {
   raised_at: string | null
 }
 
+// ─── Featured slots (CO8) ────────────────────────────────────────────────────
+
+/** Wire row for GET /admin/featured (Date → ISO; gig title joined). */
+export interface FeaturedSlotRow {
+  id: string
+  escrow_id: string
+  starts_at: string
+  ends_at: string
+  position: number
+  created_by: string | null
+  created_at: string
+  /** gig_details.title of the featured listing. */
+  title: string | null
+}
+
+export interface CreateFeaturedSlotBody {
+  escrow_id: string
+  /** ISO timestamps; ends_at must be after starts_at. */
+  starts_at: string
+  ends_at: string
+  position?: number
+}
+
+export interface UpdateFeaturedSlotBody {
+  starts_at?: string
+  ends_at?: string
+  position?: number
+}
+
 // ─── Platform config ─────────────────────────────────────────────────────────
 
 export interface UpdatePlatformConfigBody {
