@@ -1,14 +1,19 @@
 import { AppError } from './errors'
 import { ErrorCode } from '@tenda/shared'
 
-/** Returns true if err is a Postgres unique-constraint violation (error code 23505). */
+/**
+ * Returns true if err is a Postgres unique-constraint violation (error code
+ * 23505). Drizzle wraps driver errors in DrizzleQueryError with the original
+ * PostgresError on `cause`, so the chain is walked — checking only the top
+ * error would misreport every conflict as a 500.
+ */
 export function isPostgresUniqueViolation(err: unknown): boolean {
-  return (
-    typeof err === 'object' &&
-    err !== null &&
-    'code' in err &&
-    (err as { code: string }).code === '23505'
-  )
+  let current: unknown = err
+  for (let depth = 0; depth < 5 && typeof current === 'object' && current !== null; depth++) {
+    if ('code' in current && (current as { code: unknown }).code === '23505') return true
+    current = (current as { cause?: unknown }).cause
+  }
+  return false
 }
 
 /**

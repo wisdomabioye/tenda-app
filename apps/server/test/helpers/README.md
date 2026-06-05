@@ -5,7 +5,8 @@ Shared infrastructure for unit / schema / route / adapter / job tests per
 
 | File | Purpose | Status |
 |---|---|---|
-| `db.ts` | `withTestDb(t, fn)` — transactional Postgres per test, rolled back on exit | Types-only scaffold; concrete impl lands when test-DB provisioning is wired (Stage 0 work-pass) |
+| `test-app.ts` | `useTestApp()`/`buildTestApp()` — real Fastify app over a dedicated Postgres (`TEST_DATABASE_URL`) with a fake chain registry; cross-process suite lock, `resetDb()`, `createUser()`, `createEscrow()` DB-backed fixtures | **Implemented** — supersedes the old `db.ts` scaffold |
+| `escrow-states.ts` | `partiedEscrow()`, `openGig()`, request-body builders shared by the `test/integration/escrows-*` route-matrix suites | **Implemented** |
 | `redis.ts` | `withTestRedis(t, fn)` — flushed Redis for BullMQ tests | Types-only; arrives with `plugins/queue.ts` |
 | `chain.ts` | `mockSolanaRpc({...})`, `mockEvmRpc({...})` — no real RPC in unit/route tests | Types-only; concrete impls live in adapter tests |
 | `fixtures.ts` | `userFixture()`, `walletFixture()`, `escrowFixture()`, … typed object factories | **Implemented** — usable now |

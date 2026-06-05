@@ -11,10 +11,12 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { assets } from '@tenda/shared/db/schema/chains'
+import { users } from '@tenda/shared/db/schema/identity'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { isAmountRaw } from '@server/chains/types'
 import { buildFiatDeps, requestQuote } from '@server/features/fiat-rails'
+import { DEFAULT_FIAT_COUNTRY } from '@server/features/fiat-rails/config'
 import { requireFiatRails, requireStr, optionalStr } from '@server/lib/fiat-routes'
 
 interface Body {
@@ -71,6 +73,14 @@ const route: FastifyPluginAsync = async (fastify) => {
       }
 
       const deps = await buildFiatDeps(fastify)
+      // Country from the row, not the JWT — claims go stale for up to the
+      // token lifetime (same rationale as the gig create-detail route).
+      const [me] = await fastify.db
+        .select({ country: users.country })
+        .from(users)
+        .where(eq(users.id, request.user.id))
+        .limit(1)
+
       return requestQuote(deps, request.user.id, {
         direction,
         fiat_currency,
@@ -78,7 +88,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         asset,
         asset_decimals: assetRow.decimals,
         asset_amount_raw,
-        country: request.user.country ?? 'NG',
+        country: me?.country ?? DEFAULT_FIAT_COUNTRY,
         wallet_address,
         chain_id,
         gig_id: optionalStr('gig_id', b.gig_id, 100),

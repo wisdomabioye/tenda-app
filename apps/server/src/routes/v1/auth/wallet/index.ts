@@ -99,20 +99,11 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(403, ErrorCode.USER_SUSPENDED, 'account suspended')
       }
 
-      // 6. Mint JWT. `wallet_address` holds whatever-chain-just-authed and
-      // is preserved for legacy-route compatibility until #34 cutover
-      // deletes those routes. Post-cutover, EVM auth would put a 0x-address
-      // here that legacy Solana-only handlers couldn't decode — but those
-      // handlers are scheduled for deletion at the same point. Do NOT read
-      // this field from any new code.
+      // 6. Mint JWT — id + role only (cutover §11). Identity is
+      // multi-wallet (user_wallets); profile fields are read from the DB
+      // at use time, never from up-to-7-day-stale claims.
       const token = fastify.jwt.sign(
-        {
-          id: user.id,
-          wallet_address: address,
-          role: user.role,
-          is_seeker: user.is_seeker,
-          country: user.country ?? null,
-        },
+        { id: user.id, role: user.role },
         { expiresIn: getConfig().JWT_EXPIRES_IN },
       )
 

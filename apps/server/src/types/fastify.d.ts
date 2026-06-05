@@ -49,17 +49,11 @@ declare module '@fastify/jwt' {
   interface FastifyJWT {
     payload: {
       id: string
-      wallet_address: string
       role: string
-      is_seeker: boolean
-      country: string | null
     }
     user: {
       id: string
-      wallet_address: string
       role: string
-      is_seeker: boolean
-      country: string | null
     }
   }
 }

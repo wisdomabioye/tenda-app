@@ -26,6 +26,12 @@ export const P2P_INTERNAL_SPREAD_BPS = 100
 export const P2P_INTERNAL_ID = 'p2p_internal'
 
 /**
+ * Quote-routing fallback when the user has no stored country — Nigeria is
+ * the launch market (stage-8 § Scope).
+ */
+export const DEFAULT_FIAT_COUNTRY = 'NG'
+
+/**
  * Payment window stamped on p2p_internal exchange escrows (how long the
  * counterparty has to pay fiat after accepting). Mirrors the legacy
  * exchange default.
