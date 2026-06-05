@@ -9,7 +9,7 @@
  * Resolved disputes keep a readable, frozen thread.
  */
 import type { FastifyPluginAsync } from 'fastify'
-import { and, asc, eq, gt, type SQL } from 'drizzle-orm'
+import { and, asc, eq, gte, type SQL } from 'drizzle-orm'
 import { disputes, dispute_messages, dispute_reads } from '@tenda/shared/db/schema'
 import { DISPUTE_MESSAGE_MAX_LENGTH, ErrorCode } from '@tenda/shared'
 import type {
@@ -70,7 +70,11 @@ const route: FastifyPluginAsync = async (fastify) => {
       if (Number.isNaN(after.getTime())) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'after must be an ISO timestamp')
       }
-      conditions.push(gt(dispute_messages.created_at, after))
+      // INCLUSIVE on purpose: with a strict `gt`, a sibling message in the
+      // SAME millisecond as the cursor (poll racing two inserts, or a page
+      // boundary) would never be fetched again. The boundary message
+      // re-arrives and the client dedupes it by id.
+      conditions.push(gte(dispute_messages.created_at, after))
     }
 
     const [messages] = await Promise.all([

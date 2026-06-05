@@ -148,8 +148,12 @@ test('thread: ?after returns only the tail', { skip }, async () => {
     url: threadUrl(escrow.id, cursor),
     headers: authHeader(creator.token),
   })
-  assert.strictEqual(tail.json().messages.length, 1)
-  assert.strictEqual(tail.json().messages[0].body, 'second message')
+  // gte: the boundary message echoes (client dedupes by id) so same-ms
+  // siblings can never be skipped — the tail is [boundary, newer].
+  assert.deepStrictEqual(
+    tail.json().messages.map((m: { body: string }) => m.body),
+    ['first message', 'second message'],
+  )
 
   const bad = await app.inject({
     method: 'GET',
