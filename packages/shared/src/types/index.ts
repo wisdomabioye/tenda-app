@@ -56,6 +56,8 @@ export type {
   Announcement,
   UpdateUserStatusBody,
   UpdateUserRoleBody,
+  AdminUserRow,
+  DisputeRateMetric,
   ActionReportBody,
   DisputeSummary,
   UpdatePlatformConfigBody,

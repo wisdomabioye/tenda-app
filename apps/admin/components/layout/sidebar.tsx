@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
@@ -30,7 +29,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { clearSession, getSessionUser, type AdminSessionUser } from '@/lib/auth'
+import { clearSession } from '@/lib/auth'
+import { useSessionUser } from '@/lib/use-session'
 import { visibleNav } from '@/lib/nav'
 
 // Icons keyed by href — lib/nav.ts stays UI-free so node:test can load it.
@@ -52,11 +52,9 @@ const NAV_ICONS: Record<string, LucideIcon> = {
 export function AppSidebar() {
   const pathname = usePathname()
   const router = useRouter()
-  // Session is read post-mount (localStorage) — SSR renders an empty menu.
-  const [user, setUser] = useState<AdminSessionUser | null>(null)
-  useEffect(() => {
-    setUser(getSessionUser())
-  }, [])
+  // useSyncExternalStore: SSR renders an empty menu, the client snapshot
+  // fills it post-hydration, storage events keep tabs in sync.
+  const user = useSessionUser()
 
   const items = user === null ? [] : visibleNav(user.role)
 

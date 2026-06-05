@@ -6,7 +6,7 @@
  * thread.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
 import type { DisputeSummary } from '@tenda/shared'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -39,26 +39,30 @@ export default function DisputesPage() {
   const [loading, setLoading] = useState(true)
   const meId = getSessionUser()?.id ?? ''
 
-  const refetch = useCallback(async () => {
-    setLoading(true)
-    try {
-      const res = await adminApi.disputes.list({
-        ...TAB_QUERY[tab],
-        limit: PAGE_SIZE,
-        offset: (page - 1) * PAGE_SIZE,
-      })
-      setRows(res.data)
-      setTotal(res.total)
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to load disputes')
-    } finally {
-      setLoading(false)
-    }
-  }, [tab, page])
+  // setState lives in the .then callbacks (react-hooks/set-state-in-effect);
+  // refreshKey bumps re-run the fetch after mutations.
+  const [refreshKey, setRefreshKey] = useState(0)
+  const refresh = () => setRefreshKey((k) => k + 1)
 
   useEffect(() => {
-    void refetch()
-  }, [refetch])
+    let alive = true
+    adminApi.disputes
+      .list({ ...TAB_QUERY[tab], limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE })
+      .then((res) => {
+        if (!alive) return
+        setRows(res.data)
+        setTotal(res.total)
+        setLoading(false)
+      })
+      .catch((err: unknown) => {
+        if (!alive) return
+        setLoading(false)
+        toast.error(err instanceof ApiError ? err.message : 'Failed to load disputes')
+      })
+    return () => {
+      alive = false
+    }
+  }, [tab, page, refreshKey])
 
   return (
     <>
@@ -82,7 +86,7 @@ export default function DisputesPage() {
         {loading ? (
           <p className="p-6 text-sm text-muted-foreground">Loading…</p>
         ) : (
-          <DisputeTable disputes={rows} meId={meId} onChanged={() => void refetch()} />
+          <DisputeTable disputes={rows} meId={meId} onChanged={refresh} />
         )}
 
         <ListPagination

@@ -25,18 +25,27 @@ export default function DisputeDetailPage() {
   const [notFound, setNotFound] = useState(false)
   const meId = getSessionUser()?.id ?? ''
 
-  const refetch = useCallback(async () => {
-    try {
-      setDispute(await adminApi.disputes.get(disputeId))
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 404) setNotFound(true)
-      else toast.error(err instanceof ApiError ? err.message : 'Failed to load dispute')
-    }
-  }, [disputeId])
+  // setState lives in the .then callbacks (react-hooks/set-state-in-effect);
+  // refreshKey bumps re-run the fetch after claim/release/resolution.
+  const [refreshKey, setRefreshKey] = useState(0)
+  const refresh = useCallback(() => setRefreshKey((k) => k + 1), [])
 
   useEffect(() => {
-    void refetch()
-  }, [refetch])
+    let alive = true
+    adminApi.disputes
+      .get(disputeId)
+      .then((summary) => {
+        if (alive) setDispute(summary)
+      })
+      .catch((err: unknown) => {
+        if (!alive) return
+        if (err instanceof ApiError && err.status === 404) setNotFound(true)
+        else toast.error(err instanceof ApiError ? err.message : 'Failed to load dispute')
+      })
+    return () => {
+      alive = false
+    }
+  }, [disputeId, refreshKey])
 
   // The thread poll is the freshest assignee source — mirror it locally so
   // the claim button flips without a manual refresh. When the thread
@@ -46,11 +55,11 @@ export default function DisputeDetailPage() {
     (assignedToId: string | null, readOnly: boolean) => {
       setDispute((prev) => {
         if (prev === null) return prev
-        if (readOnly && prev.resolved_at === null) void refetch()
+        if (readOnly && prev.resolved_at === null) refresh()
         return { ...prev, assigned_to_id: assignedToId }
       })
     },
-    [refetch],
+    [refresh],
   )
 
   if (notFound) {
@@ -94,7 +103,7 @@ export default function DisputeDetailPage() {
             assignedToId={dispute.assigned_to_id}
             resolved={resolved}
             meId={meId}
-            onChanged={() => void refetch()}
+            onChanged={refresh}
           />
         </div>
 

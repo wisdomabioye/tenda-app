@@ -13,22 +13,16 @@
 
 import { and, eq, inArray, isNotNull, or, sql } from 'drizzle-orm'
 import { escrows, TERMINAL_ESCROW_STATUSES } from '@tenda/shared/db/schema/escrow'
+import type { DisputeRateMetric } from '@tenda/shared'
 import type { AppDatabase } from '@server/plugins/db'
 import {
   DISPUTE_RATE_FLAG_THRESHOLD_BPS,
   DISPUTE_RATE_MIN_ENGAGEMENTS,
 } from '@server/features/reputation/config'
 
-export interface DisputeRateMetric {
-  /** Terminal escrows the user was party to that had a counterparty. */
-  closed_engagements: number
-  /** Of those, how many closed through dispute resolution. */
-  disputed: number
-  /** disputed ÷ closed in basis points; null with zero engagements. */
-  dispute_rate_bps: number | null
-  /** Strictly above threshold AND at least the minimum volume. */
-  fraud_flag: boolean
-}
+// Wire type lives in @tenda/shared types/admin.ts (#92 dashboard reads it);
+// re-exported so existing server imports keep working.
+export type { DisputeRateMetric }
 
 export async function computeDisputeRate(
   db: AppDatabase,

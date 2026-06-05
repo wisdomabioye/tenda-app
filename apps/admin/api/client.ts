@@ -6,10 +6,17 @@
  */
 
 import type {
+  ActionReportBody,
+  AdminEscrowRow,
   DisputeMessage,
+  DisputeRateMetric,
   DisputeSummary,
   DisputeThreadResponse,
   PaginatedResponse,
+  Report,
+  ReportStatus,
+  UserRole,
+  UserStatus,
 } from '@tenda/shared'
 import type { AdminSessionUser } from '@/lib/auth'
 import { api } from '@/lib/api'
@@ -21,13 +28,63 @@ export interface VerifyEmailOtpResponse {
   user: AdminSessionUser
 }
 
-// type (not interface): keeps the implicit index signature Record needs.
+// types (not interfaces): keeps the implicit index signature Record needs.
 export type DisputeListQuery = {
   status?: 'open' | 'resolved'
   kind?: 'gig' | 'exchange'
   assigned?: 'me' | 'none'
   limit?: number
   offset?: number
+}
+
+export type ReportListQuery = {
+  status?: ReportStatus
+  content_type?: string
+  limit?: number
+  offset?: number
+}
+
+export type EscrowListAdminQuery = {
+  kind?: 'gig' | 'exchange'
+  status?: string
+  chain_id?: string
+  category?: string
+  country?: string
+  creator_id?: string
+  limit?: number
+  offset?: number
+}
+
+export type UserListQuery = {
+  status?: UserStatus
+  role?: UserRole
+  search?: string
+  limit?: number
+  offset?: number
+}
+
+/** Projection returned by GET /v1/admin/users (route-local on the server). */
+export interface AdminUserListRow {
+  id: string
+  first_name: string
+  last_name: string
+  role: UserRole
+  status: UserStatus
+  is_seeker: boolean
+  country: string | null
+  city: string | null
+  review_score: string | null
+  created_at: string
+  last_active_at: string | null
+}
+
+/** Full users row + the #82 fraud-flag metric. */
+export interface AdminUserDetail extends AdminUserListRow {
+  bio: string | null
+  avatar_url: string | null
+  phone_e164: string | null
+  advanced_mode_enabled: boolean
+  dispute_metric: DisputeRateMetric
 }
 
 function withQuery(path: string, params: Record<string, string | number | undefined>): string {
@@ -79,6 +136,36 @@ export const adminApi = {
     send: (escrowId: string, body: string) =>
       api.post<DisputeMessage>(buildPath(adminRoutes.disputeThread.messages, { id: escrowId }), {
         body,
+      }),
+  },
+  reports: {
+    list: (query: ReportListQuery = {}) =>
+      api.get<PaginatedResponse<Report>>(withQuery(adminRoutes.reports.list, query)),
+    action: (id: string, body: ActionReportBody) =>
+      api.patch<Report>(buildPath(adminRoutes.reports.action, { id }), body),
+  },
+  escrows: {
+    list: (query: EscrowListAdminQuery = {}) =>
+      api.get<PaginatedResponse<AdminEscrowRow>>(withQuery(adminRoutes.escrows.list, query)),
+    setHidden: (id: string, hidden: boolean) =>
+      api.patch<{ id: string; hidden: boolean }>(
+        buildPath(adminRoutes.escrows.setHidden, { id }),
+        { hidden },
+      ),
+  },
+  adminUsers: {
+    list: (query: UserListQuery = {}) =>
+      api.get<PaginatedResponse<AdminUserListRow>>(withQuery(adminRoutes.users.list, query)),
+    get: (id: string) =>
+      api.get<AdminUserDetail>(buildPath(adminRoutes.users.get, { id })),
+    updateStatus: (id: string, status: UserStatus) =>
+      api.patch<{ id: string; status: string }>(
+        buildPath(adminRoutes.users.updateStatus, { id }),
+        { status },
+      ),
+    updateRole: (id: string, role: UserRole) =>
+      api.patch<{ id: string; role: string }>(buildPath(adminRoutes.users.updateRole, { id }), {
+        role,
       }),
   },
 }

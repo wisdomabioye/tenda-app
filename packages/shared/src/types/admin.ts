@@ -58,6 +58,22 @@ export interface UpdateUserRoleBody {
   role: UserRole
 }
 
+/**
+ * #82 fraud FLAG (admin-only signal, never an automatic restriction) —
+ * computed live by the server (features/reputation/fraud-flag.ts) and
+ * returned as `dispute_metric` on GET /admin/users/:id + /admin/standing.
+ */
+export interface DisputeRateMetric {
+  /** Terminal escrows the user was party to that had a counterparty. */
+  closed_engagements: number
+  /** Of those, how many closed through dispute resolution. */
+  disputed: number
+  /** disputed ÷ closed in basis points; null with zero engagements. */
+  dispute_rate_bps: number | null
+  /** Strictly above threshold AND at least the minimum volume. */
+  fraud_flag: boolean
+}
+
 // ─── Reports ──────────────────────────────────────────────────────────────────
 
 export interface ActionReportBody {
