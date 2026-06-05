@@ -1,5 +1,5 @@
 import type { ApiError as SharedApiError, PaginatedResponse } from '@tenda/shared'
-import { getToken, clearToken } from './auth'
+import { getToken, clearSession } from './auth'
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
 
@@ -23,8 +23,10 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const res = await fetch(`${BASE_URL}${path}`, { ...init, headers })
 
-  if (res.status === 401) {
-    clearToken()
+  if (res.status === 401 && !path.startsWith('/v1/auth/')) {
+    // Expired/revoked session — the server is the verifier (no middleware).
+    // Auth routes are excluded: a wrong OTP must surface inline, not bounce.
+    clearSession()
     window.location.href = '/login'
     throw new ApiError(401, 'UNAUTHORIZED', 'Session expired')
   }

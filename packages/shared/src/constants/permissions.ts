@@ -68,3 +68,15 @@ export const ROLE_PERMISSIONS: Readonly<Record<AdminRole, ReadonlyArray<Permissi
   // Everything, by construction.
   super_admin: PERMISSIONS,
 }
+
+// Precomputed per-role permission sets — O(1) checks. Shared by the server
+// guards (requirePermission) and the admin dashboard (nav filtering, #90)
+// so the two surfaces can never disagree on what a role may do.
+const PERMISSION_SETS: ReadonlyMap<string, ReadonlySet<Permission>> = new Map(
+  Object.entries(ROLE_PERMISSIONS).map(([role, perms]) => [role, new Set(perms)]),
+)
+
+/** True iff `role` holds `permission`; unmapped roles hold the empty set. */
+export function hasPermission(role: string, permission: Permission): boolean {
+  return PERMISSION_SETS.get(role)?.has(permission) ?? false
+}

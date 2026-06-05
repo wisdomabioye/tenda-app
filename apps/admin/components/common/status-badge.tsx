@@ -1,18 +1,11 @@
 import { Badge } from '@/components/ui/badge'
-import type { GigStatus, ExchangeOfferStatus, UserStatus } from '@tenda/shared'
+import type { EscrowStatus, UserStatus } from '@tenda/shared'
 
-export function GigStatusBadge({ status }: { status: GigStatus }) {
+/** v2 unified escrow badge (gigs + exchange share one status vocabulary). */
+export function EscrowStatusBadge({ status }: { status: EscrowStatus }) {
   const variant =
-    status === 'completed' ? 'default' :
-    status === 'disputed' || status === 'cancelled' || status === 'expired' ? 'destructive' :
-    'outline'
-  return <Badge variant={variant} className="capitalize">{status}</Badge>
-}
-
-export function ExchangeStatusBadge({ status }: { status: ExchangeOfferStatus }) {
-  const variant =
-    status === 'completed' ? 'default' :
-    status === 'disputed' || status === 'cancelled' || status === 'expired' ? 'destructive' :
+    status === 'completed' || status === 'resolved' ? 'default' :
+    status === 'disputed' || status === 'cancelled' || status === 'refunded' ? 'destructive' :
     'outline'
   return <Badge variant={variant} className="capitalize">{status}</Badge>
 }

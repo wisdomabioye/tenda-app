@@ -1,75 +1,67 @@
-import { apiRoutes } from '@tenda/shared'
-
-/** Admin-specific route paths — all prefixed /v1/admin */
+/**
+ * v2 admin route paths (#90) — only surfaces that EXIST on the server.
+ * Path params use :placeholders resolved by api/client.ts buildPath.
+ */
 export const adminRoutes = {
+  auth: {
+    sendEmailOtp: '/v1/auth/admin/send-email-otp',
+    verifyEmailOtp: '/v1/auth/admin/verify-email-otp',
+  },
   users: {
-    list:         '/v1/admin/users',
-    get:          '/v1/admin/users/:id',
+    list: '/v1/admin/users',
+    get: '/v1/admin/users/:id',
     updateStatus: '/v1/admin/users/:id/status',
-    updateRole:   '/v1/admin/users/:id/role',
+    updateRole: '/v1/admin/users/:id/role',
+    grantLoginEmail: '/v1/admin/users/:id/login-email',
+    revokeLoginEmail: '/v1/admin/users/:id/login-email',
   },
-  gigs: {
-    list:      '/v1/admin/gigs',
-    get:       '/v1/admin/gigs/:id',
-    hide:      '/v1/admin/gigs/:id/hide',
-    unhide:    '/v1/admin/gigs/:id/unhide',
-    expire:    '/v1/admin/gigs/:id/expire',
-    feature:   '/v1/admin/gigs/:id/feature',
-    unfeature: '/v1/admin/gigs/:id/unfeature',
-  },
-  exchange: {
-    list:   '/v1/admin/exchange',
-    get:    '/v1/admin/exchange/:id',
-    hide:   '/v1/admin/exchange/:id/hide',
-    unhide: '/v1/admin/exchange/:id/unhide',
-  },
-  reports: {
-    list:   '/v1/admin/reports',
-    action: '/v1/admin/reports/:id',
+  escrows: {
+    list: '/v1/admin/escrows',
+    setHidden: '/v1/admin/escrows/:id/hidden',
   },
   disputes: {
-    list:           '/v1/admin/disputes',
-    get:            '/v1/admin/disputes/:type/:id',
-    openThread:     '/v1/admin/disputes/:type/:id/thread',
-    getThread:      '/v1/admin/disputes/:type/:id/thread',
-    sendMessage:    '/v1/admin/disputes/:type/:id/thread/messages',
-    assignThread:   '/v1/admin/disputes/:type/:id/thread/assign',
-    resolve:        '/v1/admin/disputes/:type/:id/resolve',
+    list: '/v1/admin/disputes',
+    claim: '/v1/admin/disputes/:id/claim',
+    release: '/v1/admin/disputes/:id/release',
   },
-  keywords: {
-    list:    '/v1/admin/blocked-keywords',
-    add:     '/v1/admin/blocked-keywords',
-    remove:  '/v1/admin/blocked-keywords/:id',
-    refresh: '/v1/admin/blocked-keywords/refresh',
+  disputeThread: {
+    // Thread routes live on the escrow (shared with the parties).
+    messages: '/v1/escrows/:id/dispute/messages',
+    resolve: '/v1/escrows/:id/resolve',
   },
-  config: {
-    get:    '/v1/admin/platform-config',
-    update: '/v1/admin/platform-config',
+  reports: {
+    list: '/v1/admin/reports',
+    action: '/v1/admin/reports/:id',
   },
+  featured: {
+    list: '/v1/admin/featured',
+    create: '/v1/admin/featured',
+    update: '/v1/admin/featured/:id',
+    remove: '/v1/admin/featured/:id',
+  },
+  standing: {
+    get: '/v1/admin/standing/:user_id',
+    override: '/v1/admin/standing/:user_id/override',
+  },
+  platformConfig: '/v1/admin/platform-config',
   announcements: {
-    list:   '/v1/admin/announcements',
-    get:    '/v1/admin/announcements/:id',
+    list: '/v1/admin/announcements',
     create: '/v1/admin/announcements',
     update: '/v1/admin/announcements/:id',
     remove: '/v1/admin/announcements/:id',
   },
-  push: {
-    broadcast: '/v1/admin/push/broadcast',
-  },
-  airdrop: {
-    list:         '/v1/admin/airdrop',
-    get:          '/v1/admin/airdrop/:id',
-    create:       '/v1/admin/airdrop',
-    addRecipients:'/v1/admin/airdrop/:id/recipients',
-    approve:      '/v1/admin/airdrop/:id/approve',
-    buildBatch:   '/v1/admin/airdrop/:id/batches/:batchIndex/build',
-    confirmBatch: '/v1/admin/airdrop/:id/batches/:batchIndex/confirm',
-  },
-  finance: {
-    fees:         '/v1/admin/finance/fees',
-    transactions: '/v1/admin/finance/transactions',
-  },
+  moderation: '/v1/admin/moderation',
+  finance: '/v1/admin/finance',
+  metrics: '/v1/admin/metrics',
+  fiat: '/v1/admin/fiat',
+  push: { broadcast: '/v1/admin/push' },
 } as const
 
-/** Shared routes re-exported for use in auth flows */
-export { apiRoutes }
+/** Replace :params in a route path; throws on a missing param. */
+export function buildPath(template: string, params: Record<string, string>): string {
+  return template.replace(/:([A-Za-z_]+)/g, (_, name: string) => {
+    const value = params[name]
+    if (value === undefined) throw new Error(`missing path param '${name}' for ${template}`)
+    return encodeURIComponent(value)
+  })
+}

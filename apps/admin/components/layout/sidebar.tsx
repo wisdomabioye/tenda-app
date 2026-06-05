@@ -1,20 +1,23 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import {
-  UsersIcon,
-  BriefcaseIcon,
-  ArrowLeftRightIcon,
-  BarChart2Icon,
   ScaleIcon,
-  TriangleAlertIcon,
+  BarChart2Icon,
+  BriefcaseIcon,
+  UsersIcon,
+  StarIcon,
+  ShieldAlertIcon,
   MegaphoneIcon,
   BellIcon,
-  GiftIcon,
   DollarSignIcon,
+  ActivityIcon,
+  BanknoteIcon,
   SettingsIcon,
   LogOutIcon,
+  type LucideIcon,
 } from 'lucide-react'
 import {
   Sidebar,
@@ -27,29 +30,38 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { clearToken } from '@/lib/auth'
-import { useRouter } from 'next/navigation'
+import { clearSession, getSessionUser, type AdminSessionUser } from '@/lib/auth'
+import { visibleNav } from '@/lib/nav'
 
-const navItems = [
-  { href: '/users',         label: 'Users',              icon: UsersIcon },
-  { href: '/gigs',          label: 'Gigs',               icon: BriefcaseIcon },
-  { href: '/exchange',      label: 'Exchange',           icon: ArrowLeftRightIcon },
-  { href: '/reports',       label: 'Reports',            icon: BarChart2Icon },
-  { href: '/disputes',      label: 'Disputes',           icon: ScaleIcon },
-  { href: '/keywords',      label: 'Blocked Keywords',   icon: TriangleAlertIcon },
-  { href: '/announcements', label: 'Announcements',      icon: MegaphoneIcon },
-  { href: '/push',          label: 'Push Notifications', icon: BellIcon },
-  { href: '/airdrop',       label: 'Airdrop',            icon: GiftIcon },
-  { href: '/finance',       label: 'Finance',            icon: DollarSignIcon },
-  { href: '/config',        label: 'Platform Config',    icon: SettingsIcon },
-]
+// Icons keyed by href — lib/nav.ts stays UI-free so node:test can load it.
+const NAV_ICONS: Record<string, LucideIcon> = {
+  '/disputes': ScaleIcon,
+  '/reports': BarChart2Icon,
+  '/escrows': BriefcaseIcon,
+  '/users': UsersIcon,
+  '/featured': StarIcon,
+  '/moderation': ShieldAlertIcon,
+  '/announcements': MegaphoneIcon,
+  '/push': BellIcon,
+  '/finance': DollarSignIcon,
+  '/metrics': ActivityIcon,
+  '/fiat': BanknoteIcon,
+  '/config': SettingsIcon,
+}
 
 export function AppSidebar() {
   const pathname = usePathname()
-  const router   = useRouter()
+  const router = useRouter()
+  // Session is read post-mount (localStorage) — SSR renders an empty menu.
+  const [user, setUser] = useState<AdminSessionUser | null>(null)
+  useEffect(() => {
+    setUser(getSessionUser())
+  }, [])
+
+  const items = user === null ? [] : visibleNav(user.role)
 
   function handleSignOut() {
-    clearToken()
+    clearSession()
     router.push('/login')
   }
 
@@ -57,22 +69,30 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="px-4 py-5">
         <span className="text-lg font-bold tracking-tight">Tenda Admin</span>
+        {user !== null && (
+          <span className="text-xs text-muted-foreground">
+            {user.first_name} {user.last_name} · {user.role}
+          </span>
+        )}
       </SidebarHeader>
 
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Management</SidebarGroupLabel>
           <SidebarMenu>
-            {navItems.map(({ href, label, icon: Icon }) => (
-              <SidebarMenuItem key={href}>
-                <SidebarMenuButton asChild isActive={pathname.startsWith(href)}>
-                  <Link href={href}>
-                    <Icon size={18} />
-                    <span>{label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
+            {items.map(({ href, label }) => {
+              const Icon = NAV_ICONS[href]
+              return (
+                <SidebarMenuItem key={href}>
+                  <SidebarMenuButton asChild isActive={pathname.startsWith(href)}>
+                    <Link href={href}>
+                      {Icon !== undefined && <Icon size={18} />}
+                      <span>{label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )
+            })}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>

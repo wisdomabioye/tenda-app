@@ -17,5 +17,5 @@ export {
 export { REPORT_CONTENT_TYPES, REPORT_REASONS, REPORT_STATUSES, REPORT_REASON_LABEL } from './moderation'
 export type { ReportContentType, ReportReason, ReportStatus } from './moderation'
 export { ESCROW_TX_TYPES, isEscrowTxType, DEFAULT_ACCEPT_WINDOW_SECONDS, type EscrowTxType } from './escrow'
-export { PERMISSIONS, ROLE_PERMISSIONS, type Permission } from './permissions'
+export { PERMISSIONS, ROLE_PERMISSIONS, hasPermission, type Permission } from './permissions'
 export * from './assets'

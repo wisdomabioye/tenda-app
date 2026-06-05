@@ -1,76 +1,131 @@
 'use client'
 
+/**
+ * Admin login (#90) — passwordless email OTP against
+ * /v1/auth/admin/{send,verify}-email-otp. The send step always reports
+ * success (the API is deliberately oracle-free); a wrong or expired code
+ * surfaces inline on the verify step.
+ */
+
 import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { adminApi } from '@/api/client'
-import { buildAuthMessage, setToken, parseJwt, isAdminRole } from '@/lib/auth'
+import { ApiError } from '@/lib/api'
+import { setSession } from '@/lib/auth'
 
-declare global {
-  interface Window {
-    solana?: {
-      isPhantom?: boolean
-      connect: () => Promise<{ publicKey: { toString: () => string } }>
-      signMessage: (msg: Uint8Array, encoding: string) => Promise<{ signature: Uint8Array }>
-    }
-  }
-}
+type Step = 'email' | 'code'
 
 export default function LoginPage() {
-  const router       = useRouter()
-  const searchParams = useSearchParams()
+  const router = useRouter()
+  const [step, setStep] = useState<Step>('email')
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
 
-  async function handleConnect() {
-    if (!window.solana) {
-      toast.error('Phantom wallet not found. Please install it.')
-      return
-    }
-
+  async function handleSendCode(e: React.FormEvent) {
+    e.preventDefault()
     setLoading(true)
     try {
-      const { publicKey } = await window.solana.connect()
-      const wallet_address = publicKey.toString()
-
-      const message   = buildAuthMessage()
-      const encoded   = new TextEncoder().encode(message)
-      const { signature } = await window.solana.signMessage(encoded, 'utf8')
-      const signatureB58 = Buffer.from(signature).toString('base64')
-
-      const { token } = await adminApi.auth.wallet({ wallet_address, message, signature: signatureB58 })
-
-      const payload = parseJwt(token)
-      if (!payload || !isAdminRole(payload.role)) {
-        toast.error('Access denied. Admin account required.')
-        return
-      }
-
-      setToken(token)
-      const from = searchParams.get('from') ?? '/users'
-      router.replace(from)
+      await adminApi.auth.sendEmailOtp({ email })
+      setStep('code')
+      toast.success('If that email belongs to an admin, a code is on its way.')
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Authentication failed'
-      toast.error(message)
+      toast.error(err instanceof ApiError ? err.message : 'Could not send the code')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleVerify(e: React.FormEvent) {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const { token, user } = await adminApi.auth.verifyEmailOtp({ email, code })
+      setSession(token, user)
+      router.push('/disputes')
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Login failed')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <main className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Tenda Admin</CardTitle>
-          <CardDescription>Connect your admin wallet to continue</CardDescription>
+          <CardDescription>
+            {step === 'email'
+              ? 'Sign in with your admin email — we’ll send a one-time code.'
+              : `Enter the 6-digit code sent to ${email}.`}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Button className="w-full" onClick={handleConnect} disabled={loading}>
-            {loading ? 'Connecting…' : 'Connect Wallet'}
-          </Button>
+          {step === 'email' ? (
+            <form onSubmit={handleSendCode} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@tenda.app"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading || email === ''}>
+                {loading ? 'Sending…' : 'Send code'}
+              </Button>
+            </form>
+          ) : (
+            <form onSubmit={handleVerify} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="code">One-time code</Label>
+                <Input
+                  id="code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  required
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="123456"
+                />
+              </div>
+              <Button type="submit" className="w-full" disabled={loading || code.length !== 6}>
+                {loading ? 'Verifying…' : 'Sign in'}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full"
+                disabled={loading}
+                onClick={() => {
+                  setCode('')
+                  setStep('email')
+                }}
+              >
+                Use a different email
+              </Button>
+            </form>
+          )}
         </CardContent>
       </Card>
-    </div>
+    </main>
   )
 }

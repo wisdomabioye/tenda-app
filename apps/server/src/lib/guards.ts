@@ -1,8 +1,13 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { eq } from 'drizzle-orm'
 import type { Permission, UserRole } from '@tenda/shared'
-import { ErrorCode, ROLE_PERMISSIONS } from '@tenda/shared'
+import { ErrorCode, hasPermission } from '@tenda/shared'
 import { users } from '@tenda/shared/db/schema/identity'
+
+// hasPermission moved to @tenda/shared (#90) so the admin dashboard's nav
+// filter and the server guards share one implementation. Re-exported here —
+// existing `from '@server/lib/guards'` imports stay valid.
+export { hasPermission }
 
 /**
  * Fastify preHandler that enforces one of the given roles.
@@ -22,21 +27,6 @@ export function requireRole(...roles: UserRole[]) {
       })
     }
   }
-}
-
-// Precomputed per-role permission sets — O(1) checks, zero extra queries
-// (the role rides the JWT and is refreshed by authenticate's status cache).
-const PERMISSION_SETS: ReadonlyMap<string, ReadonlySet<Permission>> = new Map(
-  Object.entries(ROLE_PERMISSIONS).map(([role, perms]) => [role, new Set(perms)]),
-)
-
-/**
- * In-handler permission check — for routes whose access rule is
- * "permission OR something else" (e.g. dispute threads: escrow party OR
- * disputes.mediate) where a preHandler can't express the disjunction.
- */
-export function hasPermission(role: string, permission: Permission): boolean {
-  return PERMISSION_SETS.get(role)?.has(permission) ?? false
 }
 
 /**
