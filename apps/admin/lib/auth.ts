@@ -8,7 +8,8 @@
  */
 
 const TOKEN_KEY = 'tenda_admin_token'
-const USER_KEY = 'tenda_admin_user'
+/** Exported for lib/use-session.ts — one source for the storage key. */
+export const USER_KEY = 'tenda_admin_user'
 
 /** Profile returned by POST /v1/auth/admin/verify-email-otp. */
 export interface AdminSessionUser {

@@ -8,9 +8,7 @@
  */
 
 import { useSyncExternalStore } from 'react'
-import { getToken, type AdminSessionUser } from './auth'
-
-const USER_KEY = 'tenda_admin_user'
+import { getToken, USER_KEY, type AdminSessionUser } from './auth'
 
 function subscribe(onChange: () => void): () => void {
   window.addEventListener('storage', onChange)

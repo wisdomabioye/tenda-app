@@ -132,15 +132,20 @@ export async function sendAdminLoginOtp(
 
   const code = String(randomInt(0, 10 ** OTP_CODE_DIGITS)).padStart(OTP_CODE_DIGITS, '0')
   // One active code per email: a new send invalidates every prior one.
-  await deps.db
-    .update(email_otps)
-    .set({ consumed_at: now })
-    .where(and(eq(email_otps.email, email), isNull(email_otps.consumed_at)))
-  await deps.db.insert(email_otps).values({
-    email,
-    user_id: admin.user_id,
-    code_hash: hashOtpCode(code),
-    expires_at: new Date(now.getTime() + OTP_TTL_SECONDS * 1000),
+  // Atomic with the insert (project rule: related writes never split
+  // across two awaits) — also closes the two-concurrent-sends race that
+  // could otherwise leave two live codes.
+  await deps.db.transaction(async (tx) => {
+    await tx
+      .update(email_otps)
+      .set({ consumed_at: now })
+      .where(and(eq(email_otps.email, email), isNull(email_otps.consumed_at)))
+    await tx.insert(email_otps).values({
+      email,
+      user_id: admin.user_id,
+      code_hash: hashOtpCode(code),
+      expires_at: new Date(now.getTime() + OTP_TTL_SECONDS * 1000),
+    })
   })
   await deps.sender.send(email, code)
 }
