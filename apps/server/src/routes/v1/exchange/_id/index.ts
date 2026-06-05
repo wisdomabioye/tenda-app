@@ -19,6 +19,7 @@ import {
 import { ErrorCode } from '@tenda/shared'
 import type { ExchangeContract, ApiError, UserRef } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { canViewHidden } from '@server/lib/escrow-routes'
 import { USER_COLS } from '@server/lib/users'
 
 type GetRoute = ExchangeContract['get']
@@ -46,6 +47,12 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
 
     // Route is authenticated — the creator check needs no extra verify.
     if (escrow.status === 'draft' && escrow.creator_id !== request.user.id) {
+      throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
+    }
+
+    // Taken-down offers (CO1) 404 to the public but stay visible to the
+    // parties (the escrow may be mid-flight on-chain) and to admins.
+    if (escrow.hidden && !canViewHidden(escrow, request.user.id, request.user.role)) {
       throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
     }
 

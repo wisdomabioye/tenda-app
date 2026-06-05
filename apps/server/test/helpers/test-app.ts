@@ -33,7 +33,7 @@ import postgres from 'postgres'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
-import { users, escrows, gig_details, chains, assets } from '@tenda/shared/db/schema'
+import { users, escrows, gig_details, exchange_details, chains, assets } from '@tenda/shared/db/schema'
 import { registerErrorHandlers } from '@server/lib/http-errors'
 import dbPlugin from '@server/plugins/db'
 import authPlugin from '@server/plugins/auth'
@@ -247,6 +247,21 @@ export async function attachGigDetails(
     city: 'Lagos',
     remote: false,
     cross_border: false,
+    ...overrides,
+  })
+}
+
+export async function attachExchangeDetails(
+  app: FastifyInstance,
+  escrow_id: string,
+  overrides: { fiat_amount?: string; fiat_currency?: string; rate?: string } = {},
+): Promise<void> {
+  await app.db.insert(exchange_details).values({
+    escrow_id,
+    fiat_amount: '15000.0000',
+    fiat_currency: 'NGN',
+    rate: '1500.0000000000',
+    payment_window_seconds: 86_400,
     ...overrides,
   })
 }

@@ -8,6 +8,13 @@
       "when": 1780607891272,
       "tag": "0000_short_stone_men",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780620383069,
+      "tag": "0001_brief_wasp",
+      "breakpoints": true
     }
   ]
 }

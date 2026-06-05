@@ -21,7 +21,7 @@
 import { eq } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
-import { ErrorCode } from '@tenda/shared'
+import { ADMIN_ROLES, ErrorCode } from '@tenda/shared'
 import {
   type Caller,
   type EscrowStatus,
@@ -97,6 +97,27 @@ export function deriveCaller(args: CallerArgs): Caller | null {
   if (escrow.assigned_counterparty_id === user_id) return 'assigned_counterparty'
   if (role === 'dispute_admin') return 'dispute_admin'
   return null
+}
+
+/**
+ * Visibility check for taken-down listings (CO1: escrows.hidden). A hidden
+ * escrow vanishes from public browse/detail but stays visible to its
+ * parties (funds may be locked on-chain — they must still operate it) and
+ * to any admin role (takedown review). Distinct from deriveCaller: this is
+ * a READ gate, not a transition-caller mapping — super_admin can look but
+ * still can't act on the escrow.
+ */
+export function canViewHidden(
+  escrow: Pick<EscrowRow, 'creator_id' | 'counterparty_id' | 'assigned_counterparty_id'>,
+  user_id: string,
+  role: string,
+): boolean {
+  return (
+    escrow.creator_id === user_id ||
+    escrow.counterparty_id === user_id ||
+    escrow.assigned_counterparty_id === user_id ||
+    ADMIN_ROLES.includes(role as (typeof ADMIN_ROLES)[number])
+  )
 }
 
 export function requireCaller(args: CallerArgs): Caller {

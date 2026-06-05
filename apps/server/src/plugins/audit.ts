@@ -85,6 +85,16 @@ const auditPlugin: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  appEvents.on('admin.set_escrow_hidden', async (d) => {
+    try {
+      await write(d.adminId, d.adminRole, 'set_escrow_hidden', 'escrow', d.escrowId, {
+        hidden: d.hidden,
+      })
+    } catch (err) {
+      fastify.log.warn({ err }, '[audit] admin.set_escrow_hidden write failed')
+    }
+  })
+
   // ── Marketing & announcements ──────────────────────────────────────────────
 
   appEvents.on('admin.create_announcement', async (d) => {

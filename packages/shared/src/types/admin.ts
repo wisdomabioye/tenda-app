@@ -21,6 +21,8 @@ export type AdminAuditEntry = InferSelectModel<typeof admin_audit_log>
 
 /** Unified gig + exchange row for GET /admin/escrows. */
 export interface AdminEscrowRow extends EscrowListRow {
+  /** Admin takedown flag (CO1) — hidden listings are off the public surfaces. */
+  hidden: boolean
   /** gig_details location; null for exchanges. */
   country: string | null
   city: string | null

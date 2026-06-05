@@ -93,8 +93,11 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     } else {
       // Public feed shows only open gigs whose accept window hasn't
       // passed — display-correct even between expire-escrows job ticks.
+      // Taken-down listings (CO1) never surface here; the owner still sees
+      // them through mine= above.
       conditions.push(
         eq(escrows.status, 'open'),
+        eq(escrows.hidden, false),
         or(isNull(escrows.accept_deadline), gt(escrows.accept_deadline, now)) as SQL,
       )
     }

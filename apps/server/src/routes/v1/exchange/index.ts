@@ -32,8 +32,10 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     const conditions: SQL[] = [
       eq(escrows.kind, 'exchange'),
       // Market feed: open offers whose accept window hasn't passed —
-      // display-correct even between expire-escrows job ticks.
+      // display-correct even between expire-escrows job ticks. Taken-down
+      // offers (CO1) never surface here.
       eq(escrows.status, 'open'),
+      eq(escrows.hidden, false),
       or(isNull(escrows.accept_deadline), gt(escrows.accept_deadline, now)) as SQL,
     ]
 

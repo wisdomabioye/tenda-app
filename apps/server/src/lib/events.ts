@@ -66,6 +66,7 @@ export interface AppEvents {
     }
   }
   'admin.action_report': AdminEventBase & { reportId: string; newStatus: string; adminNote?: string }
+  'admin.set_escrow_hidden': AdminEventBase & { escrowId: string; hidden: boolean }
   'admin.create_announcement': AdminEventBase & {
     announcementId: string
     title: string

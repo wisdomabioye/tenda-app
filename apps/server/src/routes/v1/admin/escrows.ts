@@ -1,9 +1,9 @@
 /**
  * Admin escrow oversight (cutover §2): replaces the legacy admin/gigs +
- * admin/exchange split with one kind-agnostic listing + detail. Read-only:
- * v2 has no hidden/featured flags — admin intervention happens through the
- * dispute flow (/v1/escrows/:id/resolve), user suspension, or Stage-6
- * moderation overrides.
+ * admin/exchange split with one kind-agnostic listing + detail, plus the
+ * CO1 takedown toggle (PATCH /:id/hidden — escrows.takedown). Other admin
+ * intervention happens through the dispute flow (/v1/escrows/:id/resolve),
+ * user suspension, or Stage-6 moderation overrides.
  */
 import { FastifyPluginAsync } from 'fastify'
 import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
@@ -19,6 +19,7 @@ import type {
 import { escrowStatusEnum } from '@tenda/shared/db/schema/escrow'
 import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
+import { appEvents } from '@server/lib/events'
 
 
 const adminEscrows: FastifyPluginAsync = async (fastify) => {
@@ -26,6 +27,7 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
     id: escrows.id,
     kind: escrows.kind,
     status: escrows.status,
+    hidden: escrows.hidden,
     chain_id: escrows.chain_id,
     asset: escrows.asset,
     amount_raw: escrows.amount_raw,
@@ -121,6 +123,37 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
     const [row] = await rowQuery().where(eq(escrows.id, request.params.id)).limit(1)
     if (row === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Escrow not found')
     return toRow(row)
+  })
+
+  // PATCH /v1/admin/escrows/:id/hidden — CO1 takedown toggle. Hides the
+  // listing from the public browse/detail surfaces; the escrow itself stays
+  // fully operable by its parties (funds may be locked on-chain), so this
+  // never touches status or the state machine.
+  fastify.patch<{
+    Params: { id: string }
+    Body: { hidden: boolean }
+    Reply: { id: string; hidden: boolean } | ApiError
+  }>('/:id/hidden', { preHandler: [requirePermission('escrows.takedown')] }, async (request) => {
+    const hidden = request.body?.hidden
+    if (typeof hidden !== 'boolean') {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'hidden must be a boolean')
+    }
+
+    const [updated] = await fastify.db
+      .update(escrows)
+      .set({ hidden, updated_at: new Date() })
+      .where(eq(escrows.id, request.params.id))
+      .returning({ id: escrows.id, hidden: escrows.hidden })
+    if (updated === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Escrow not found')
+
+    appEvents.emit('admin.set_escrow_hidden', {
+      adminId: request.user.id,
+      adminRole: request.user.role,
+      escrowId: updated.id,
+      hidden: updated.hidden,
+    })
+
+    return updated
   })
 }
 

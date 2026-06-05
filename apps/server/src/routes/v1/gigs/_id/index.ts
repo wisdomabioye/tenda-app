@@ -14,6 +14,7 @@ import { escrows, gig_details, users, escrow_proofs, disputes, reviews } from '@
 import { ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError, UserRef } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { canViewHidden } from '@server/lib/escrow-routes'
 import { USER_COLS } from '@server/lib/users'
 
 type GetRoute = GigsContract['get']
@@ -39,15 +40,24 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     const escrow = row.escrows
     const details = row.gig_details
 
-    // Pre-publish drafts are private staging rows — creator-only.
-    if (escrow.status === 'draft') {
-      try {
-        await fastify.authenticate(request, reply)
-      } catch {
+    // Private rows (pre-publish drafts; CO1 taken-down listings) must read
+    // as 404 to anyone unauthorized — anonymous callers get the 404
+    // directly (authenticate would 401 and leak that the id exists).
+    // Authenticated callers go through the full authenticate (suspended
+    // accounts rejected like everywhere else), then the ownership check:
+    // drafts are creator-only; hidden listings stay visible to all parties
+    // (the escrow may be mid-flight on-chain) and to admins.
+    if (escrow.status === 'draft' || escrow.hidden) {
+      if (request.headers.authorization === undefined) {
         throw new AppError(404, ErrorCode.NOT_FOUND, 'Gig not found')
       }
+      await fastify.authenticate(request, reply)
       if (reply.sent) return reply
-      if (request.user.id !== escrow.creator_id) {
+      const allowed =
+        escrow.status === 'draft'
+          ? request.user.id === escrow.creator_id
+          : canViewHidden(escrow, request.user.id, request.user.role)
+      if (!allowed) {
         throw new AppError(404, ErrorCode.NOT_FOUND, 'Gig not found')
       }
     }

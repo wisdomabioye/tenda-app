@@ -104,6 +104,7 @@ export interface EscrowRow {
   counterparty_id: string | null
   assigned_counterparty_id: string | null
   status: EscrowStatus
+  hidden: boolean
   escrow_ref: string | null
   accept_deadline: Date | null
   completion_duration_seconds: number | null
@@ -135,6 +136,7 @@ export function escrowFixture(overrides: Partial<EscrowRow> = {}): EscrowRow {
     counterparty_id: null,
     assigned_counterparty_id: null,
     status,
+    hidden: false,
     escrow_ref: status === 'draft' ? null : `escrow-ref-${id}`,
     accept_deadline: new Date('2026-01-08T00:00:00Z'),
     completion_duration_seconds: 86_400,

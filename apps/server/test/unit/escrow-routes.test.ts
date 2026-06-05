@@ -32,6 +32,7 @@ function row(over: Partial<EscrowRow> = {}): EscrowRow {
     counterparty_id: null,
     assigned_counterparty_id: null,
     status: 'open',
+    hidden: false,
     escrow_ref: null,
     accept_deadline: T_FUTURE,
     completion_duration_seconds: 86400,

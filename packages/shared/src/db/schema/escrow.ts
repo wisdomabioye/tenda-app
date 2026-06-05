@@ -83,6 +83,11 @@ export const escrows = pgTable(
       onDelete: 'restrict',
     }),
     status: escrowStatusEnum('status').notNull(),
+    // Admin takedown (CO1): hidden listings vanish from the public browse
+    // surfaces (gig feed, exchange order book, public detail) but stay fully
+    // operable by their parties — funds may be locked on-chain. Toggled via
+    // PATCH /v1/admin/escrows/:id/hidden (escrows.takedown permission).
+    hidden: boolean('hidden').notNull().default(false),
     escrow_ref: text('escrow_ref').unique('escrows_escrow_ref_uq'),
     accept_deadline: timestamp('accept_deadline'),
     completion_duration_seconds: integer('completion_duration_seconds'),
