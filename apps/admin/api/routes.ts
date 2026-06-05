@@ -21,6 +21,7 @@ export const adminRoutes = {
   },
   disputes: {
     list: '/v1/admin/disputes',
+    get: '/v1/admin/disputes/:id',
     claim: '/v1/admin/disputes/:id/claim',
     release: '/v1/admin/disputes/:id/release',
   },
