@@ -11,7 +11,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { ADMIN_ROLES } from '@tenda/shared'
 import { requireRole } from '@server/lib/guards'
-import { getConfig } from '@server/config'
 import announcements from './announcements'
 import disputes from './disputes'
 import escrows from './escrows'
@@ -28,20 +27,10 @@ import standing from './standing'
 import users from './users'
 
 const adminScope: FastifyPluginAsync = async (fastify) => {
-  // Scoped origin guard: in production, admin routes are only accessible from
-  // ADMIN_ORIGIN (the admin panel domain). In dev (ADMIN_ORIGIN unset) all origins pass.
-  const { ADMIN_ORIGIN } = getConfig()
-  if (ADMIN_ORIGIN) {
-    const allowedSet = new Set(ADMIN_ORIGIN)
-    fastify.addHook('onRequest', async (request, reply) => {
-      const origin = request.headers.origin
-      // Allow requests with no Origin header (e.g., server-to-server, curl).
-      // Reject browser requests originating from non-admin domains.
-      if (origin && !allowedSet.has(origin)) {
-        return reply.code(403).send({ statusCode: 403, error: 'Forbidden', message: 'Origin not permitted', code: 'FORBIDDEN' })
-      }
-    })
-  }
+  // NOTE: admin-origin enforcement lives in plugins/cors.ts (the single
+  // enforcement point — it also owns the preflight semantics the #90
+  // dashboard needs). Duplicating an origin hook here once caused the two
+  // checks to disagree about dev behaviour.
 
   // All admin routes require a valid JWT and at minimum any admin role.
   // Individual routes add the granular requirePermission guard on top.

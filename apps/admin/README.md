@@ -33,9 +33,10 @@ pnpm --filter tenda-server admin:grant-email -- <user-id> <email>
 
 The server scopes `/v1/admin/*` to origins listed in its `ADMIN_ORIGIN`
 env (comma-separated). **The deployed dashboard origin MUST be in that
-list** or every admin call fails CORS with 403. Dev leaves it unset
-(allow-all). `/v1/auth/admin/*` login routes ride the global CORS policy
-(`CORS_ORIGIN`) — include the dashboard origin there too when it is set.
+list** or every admin call fails with 403. Dev leaves it unset
+(allow-all). Setting `ADMIN_ORIGIN` alone is sufficient: the server's
+CORS plugin unions it into the browser allow-list, which also covers the
+`/v1/auth/admin/*` login routes and preflights (plugins/cors.ts).
 
 ## Structure
 
