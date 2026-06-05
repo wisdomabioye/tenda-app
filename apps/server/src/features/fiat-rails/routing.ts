@@ -16,7 +16,10 @@ export interface ProviderRegistryRow {
   is_enabled: boolean
 }
 
-export function supportsRequest(provider: FiatProvider, req: QuoteRequest): boolean {
+/** Routing only reads capability-relevant fields — user identity is not one. */
+export type RoutingRequest = Pick<QuoteRequest, 'direction' | 'fiat_currency' | 'asset'>
+
+export function supportsRequest(provider: FiatProvider, req: RoutingRequest): boolean {
   const caps = provider.capabilities
   if (req.direction === 'onramp' && !caps.onramp) return false
   if (req.direction === 'offramp' && !caps.offramp) return false
@@ -28,7 +31,7 @@ export function supportsRequest(provider: FiatProvider, req: QuoteRequest): bool
 export function pickCandidates(
   registry: ProviderRegistryRow[],
   providers: Map<string, FiatProvider>,
-  req: QuoteRequest,
+  req: RoutingRequest,
 ): FiatProvider[] {
   const byId = new Map(registry.map((r) => [r.id, r]))
 

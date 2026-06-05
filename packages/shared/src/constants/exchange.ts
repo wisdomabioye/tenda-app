@@ -6,3 +6,8 @@ export const EXCHANGE_DISPUTE_REASON_MAX_LENGTH = 2000
 
 /** Maximum character count for a dispute-thread message (CO7 mediation). */
 export const DISPUTE_MESSAGE_MAX_LENGTH = 2000
+
+/** Payment-window bounds for exchange offers (accept → fiat paid). */
+export const EXCHANGE_PAYMENT_WINDOW_MIN_SECONDS = 3_600
+export const EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS = 24 * 60 * 60
+export const EXCHANGE_PAYMENT_WINDOW_MAX_SECONDS = 7 * 24 * 60 * 60

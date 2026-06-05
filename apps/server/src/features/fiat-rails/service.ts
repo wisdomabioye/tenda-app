@@ -75,7 +75,7 @@ function toEvent(intent: FiatIntentRow): FiatEvent {
 
 // ---------- quote -----------------------------------------------------------
 
-export interface QuoteInput extends QuoteRequest {
+export interface QuoteInput extends Omit<QuoteRequest, 'user_id'> {
   wallet_address: string
   chain_id: string
   /** Optional analytics linkage (chained buy-then-post flow). */
@@ -110,7 +110,7 @@ export async function requestQuote(
 
   for (const provider of candidates) {
     try {
-      const quote = await provider.quote(input)
+      const quote = await provider.quote({ ...input, user_id })
       const expires_at = new Date(deps.now().getTime() + QUOTE_TTL_MS)
       const intent = await deps.store.insertIntent({
         direction: input.direction,

@@ -29,10 +29,34 @@ export interface RateSource {
   midRate(asset: string, fiat_currency: string): Promise<number>
 }
 
+/** A live sell offer the onramp side can quote against (CO4). */
+export interface P2pOpenOffer {
+  offer_id: string
+  fiat_amount: number
+  asset_amount_raw: string
+  rate: number
+}
+
 /**
- * Exchange-side fulfilment seam. `open` posts/locates an offer for the
- * intent; `status` reports how the exchange leg is doing. The drizzle
- * implementation rides the existing exchange feature tables.
+ * Order-book read seam (CO4 onramp): the buyer's quote is grounded in a
+ * REAL open sell offer — no offer, no quote. Exchange escrows are
+ * all-or-nothing (the buyer accepts the whole offer), so matching is
+ * size-tolerant, never partial.
+ */
+export interface P2pOrderBook {
+  bestMatch(input: {
+    buyer_id: string
+    asset: string
+    fiat_currency: string
+    fiat_amount: number
+  }): Promise<P2pOpenOffer | null>
+}
+
+/**
+ * Exchange-side fulfilment seam. `open` posts (offramp) or re-validates
+ * (onramp, via offer_ref) an offer for the intent; `status` reports how
+ * the exchange leg is doing. The drizzle implementation rides the
+ * existing exchange feature tables.
  */
 export interface P2pFulfilment {
   open(input: {
@@ -43,18 +67,17 @@ export interface P2pFulfilment {
     asset: string
     asset_amount_raw: string
     rate: number
+    /** Onramp: the quote-time matched offer to re-validate. */
+    offer_ref?: string
   }): Promise<{ offer_id: string }>
   status(offer_id: string): Promise<ProviderIntentStatus>
 }
 
 export interface P2pInternalDeps {
   rates: RateSource
+  book: P2pOrderBook
   fulfilment: P2pFulfilment
-  /**
-   * Declared by the fulfilment implementation: the pre-cutover drizzle
-   * impl rides the legacy SOL-denominated exchange (offramp only); the
-   * v2 exchange surface widens this at cutover without provider changes.
-   */
+  /** Declared by the fulfilment implementation. */
   capabilities: ProviderCapabilities
   now(): Date
 }
@@ -65,33 +88,53 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
     capabilities: deps.capabilities,
 
     async quote(req) {
+      // Onramp (CO4): quote FROM the order book — the buyer gets a real
+      // offer's exact terms, or no quote at all.
+      if (req.direction === 'onramp') {
+        if (req.fiat_amount === null || req.fiat_amount <= 0) {
+          throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'fiat_amount required for onramp quotes')
+        }
+        const offer = await deps.book.bestMatch({
+          buyer_id: req.user_id,
+          asset: req.asset,
+          fiat_currency: req.fiat_currency,
+          fiat_amount: req.fiat_amount,
+        })
+        if (offer === null) {
+          throw new AppError(
+            503,
+            ErrorCode.PROVIDER_UNAVAILABLE,
+            'no open sell offer matches this amount',
+          )
+        }
+        return {
+          // The offer id IS the quote ref — initiate re-validates it.
+          quote_ref: offer.offer_id,
+          rate: offer.rate,
+          fee_amount: 0,
+          fiat_amount: offer.fiat_amount,
+          asset_amount_raw: offer.asset_amount_raw,
+          kyc_required: false,
+          kyc_url: null,
+        }
+      }
+
+      // Offramp: synthetic quote at mid − spread; initiate opens a fresh
+      // sell offer at this rate.
       const mid = await deps.rates.midRate(req.asset, req.fiat_currency)
       if (!Number.isFinite(mid) || mid <= 0) {
         throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, 'no exchange rate available')
       }
       // Spread protects matched counterparties from quoting at exact mid.
       const spread = P2P_INTERNAL_SPREAD_BPS / 10_000
-      // Onramp: user pays fiat, receives asset → rate marked UP (fewer
-      // asset units per fiat). Offramp: user receives fiat → rate DOWN.
-      const rate = req.direction === 'onramp' ? mid * (1 + spread) : mid * (1 - spread)
+      const rate = mid * (1 - spread)
 
-      const scale = 10 ** req.asset_decimals
-      let fiat_amount: number
-      let asset_amount_raw: string
-      if (req.direction === 'onramp') {
-        if (req.fiat_amount === null || req.fiat_amount <= 0) {
-          throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'fiat_amount required for onramp quotes')
-        }
-        fiat_amount = req.fiat_amount
-        asset_amount_raw = String(Math.floor((req.fiat_amount / rate) * scale))
-      } else {
-        if (req.asset_amount_raw === null) {
-          throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'asset_amount_raw required for offramp quotes')
-        }
-        const display = Number(req.asset_amount_raw) / scale
-        fiat_amount = Math.floor(display * rate * 100) / 100
-        asset_amount_raw = req.asset_amount_raw
+      if (req.asset_amount_raw === null) {
+        throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'asset_amount_raw required for offramp quotes')
       }
+      const scale = 10 ** req.asset_decimals
+      const display = Number(req.asset_amount_raw) / scale
+      const fiat_amount = Math.floor(display * rate * 100) / 100
 
       const quote: ProviderQuote = {
         quote_ref: randomUUID(),
@@ -99,14 +142,14 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
         // No Tenda margin on conversion (stage-8 open questions: pass-through).
         fee_amount: 0,
         fiat_amount,
-        asset_amount_raw,
+        asset_amount_raw: req.asset_amount_raw,
         kyc_required: false,
         kyc_url: null,
       }
       return quote
     },
 
-    async initiate({ user_id, direction, quote }) {
+    async initiate({ user_id, direction, quote, quote_ref }) {
       const { offer_id } = await deps.fulfilment.open({
         user_id,
         direction,
@@ -115,6 +158,8 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
         asset: quote.asset,
         asset_amount_raw: quote.asset_amount_raw,
         rate: quote.rate,
+        // Onramp: quote_ref carries the matched offer id (see quote()).
+        ...(direction === 'onramp' ? { offer_ref: quote_ref } : {}),
       })
       return {
         provider_ref: offer_id,

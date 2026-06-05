@@ -23,6 +23,7 @@ interface PatchBody {
   bio?: unknown
   avatar_url?: unknown
   is_seeker?: unknown
+  advanced_mode_enabled?: unknown
 }
 
 const PUBLIC_COLUMNS = {
@@ -99,6 +100,14 @@ const route: FastifyPluginAsync = async (fastify) => {
           throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'is_seeker must be a boolean')
         }
         patch.is_seeker = b.is_seeker
+      }
+
+      // CO4: unlocks the P2P exchange surface (order book + offer creation).
+      if (b.advanced_mode_enabled !== undefined) {
+        if (typeof b.advanced_mode_enabled !== 'boolean') {
+          throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'advanced_mode_enabled must be a boolean')
+        }
+        patch.advanced_mode_enabled = b.advanced_mode_enabled
       }
       if (Object.keys(patch).length === 0) {
         throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'no updatable fields supplied')

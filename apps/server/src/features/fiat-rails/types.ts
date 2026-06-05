@@ -14,6 +14,11 @@ export type { FiatDirection, FiatIntentStatus }
 
 export interface QuoteRequest {
   direction: FiatDirection
+  /**
+   * Quoting user — the internal order book excludes their own offers
+   * (you can't buy from yourself). Licensed providers ignore it.
+   */
+  user_id: string
   /** ISO-4217, e.g. 'NGN'. */
   fiat_currency: string
   /**

@@ -18,7 +18,11 @@ import {
   type FiatEvent,
 } from '@server/features/fiat-rails/service'
 import { pickCandidates, supportsRequest } from '@server/features/fiat-rails/routing'
-import { p2pInternalProvider, type P2pFulfilment } from '@server/features/fiat-rails/providers/p2p-internal'
+import {
+  p2pInternalProvider,
+  type P2pFulfilment,
+  type P2pOpenOffer,
+} from '@server/features/fiat-rails/providers/p2p-internal'
 import {
   licensedHttpProvider,
   type ProviderHttp,
@@ -146,6 +150,7 @@ function makeDeps(providers: FiatProvider[], registry?: Array<{ id: string; prio
 
 const ONRAMP_INPUT = {
   direction: 'onramp' as const,
+  user_id: 'buyer-1',
   fiat_currency: 'NGN',
   fiat_amount: 15_000,
   asset: 'USDC_SOL',
@@ -455,7 +460,9 @@ test('expire job: never-initiated quotes expire SILENTLY; initiated ones notify'
 
 // ---------- p2p provider ----------------------------------------------------------------------
 
-function p2p(overrides: Partial<{ mid: number; fulfilment: P2pFulfilment }> = {}) {
+function p2p(
+  overrides: Partial<{ mid: number; fulfilment: P2pFulfilment; offer: P2pOpenOffer | null }> = {},
+) {
   const opened: unknown[] = []
   const fulfilment: P2pFulfilment = overrides.fulfilment ?? {
     async open(input) {
@@ -468,6 +475,7 @@ function p2p(overrides: Partial<{ mid: number; fulfilment: P2pFulfilment }> = {}
   }
   const provider = p2pInternalProvider({
     rates: { midRate: async () => overrides.mid ?? 1500 },
+    book: { bestMatch: async () => overrides.offer ?? null },
     fulfilment,
     capabilities: { onramp: true, offramp: true, currencies: ['NGN'], assets: ['SOL', 'SOL_DEVNET'] },
     now: () => NOW,
@@ -475,12 +483,31 @@ function p2p(overrides: Partial<{ mid: number; fulfilment: P2pFulfilment }> = {}
   return { provider, opened }
 }
 
-test('p2p quote: onramp marks rate up, offramp down; amounts derived from the right side', async () => {
-  const { provider } = p2p({ mid: 1000 })
-  const on = await provider.quote({ ...ONRAMP_INPUT, asset: 'SOL_DEVNET', asset_decimals: 9, fiat_amount: 10_100 })
-  assert.strictEqual(on.rate, 1010) // +100bps
-  assert.strictEqual(on.asset_amount_raw, String(Math.floor((10_100 / 1010) * 1e9)))
+const OPEN_OFFER: P2pOpenOffer = {
+  offer_id: 'offer-live',
+  fiat_amount: 10_000,
+  asset_amount_raw: '6500000000',
+  rate: 1538.46,
+}
 
+test('p2p quote: onramp returns the matched offer terms; no match -> 503', async () => {
+  const { provider } = p2p({ offer: OPEN_OFFER })
+  const on = await provider.quote({ ...ONRAMP_INPUT, asset: 'SOL_DEVNET', asset_decimals: 9, fiat_amount: 10_100 })
+  // The quote IS the offer — ref, rate and both amounts come from the book.
+  assert.strictEqual(on.quote_ref, 'offer-live')
+  assert.strictEqual(on.rate, OPEN_OFFER.rate)
+  assert.strictEqual(on.fiat_amount, OPEN_OFFER.fiat_amount)
+  assert.strictEqual(on.asset_amount_raw, OPEN_OFFER.asset_amount_raw)
+
+  const { provider: dryBook } = p2p({ offer: null })
+  await assert.rejects(
+    dryBook.quote({ ...ONRAMP_INPUT, asset: 'SOL_DEVNET', asset_decimals: 9 }),
+    (e: unknown) => e instanceof AppError && e.statusCode === 503,
+  )
+})
+
+test('p2p quote: offramp marks the mid-rate down by the spread', async () => {
+  const { provider } = p2p({ mid: 1000 })
   const off = await provider.quote({
     ...ONRAMP_INPUT,
     direction: 'offramp',
@@ -512,7 +539,7 @@ test('p2p quote validation: onramp needs fiat_amount, offramp needs asset_amount
 })
 
 test('p2p initiate: stateless — opens the exchange leg from the supplied quote snapshot', async () => {
-  const { provider, opened } = p2p()
+  const { provider, opened } = p2p({ offer: OPEN_OFFER })
   const q = await provider.quote({ ...ONRAMP_INPUT, asset: 'SOL_DEVNET', asset_decimals: 9 })
   // Fresh instance (deps rebuilt per request) — must still initiate fine.
   const { provider: fresh, opened: freshOpened } = p2p()
@@ -532,6 +559,8 @@ test('p2p initiate: stateless — opens the exchange leg from the supplied quote
   assert.deepStrictEqual(init.instruction, { kind: 'p2p', offer_id: 'offer-1' })
   assert.strictEqual(opened.length, 0) // first instance unused
   assert.strictEqual(freshOpened.length, 1)
+  // Onramp threads the matched offer through quote_ref -> offer_ref.
+  assert.strictEqual((freshOpened[0] as { offer_ref?: string }).offer_ref, q.quote_ref)
 })
 
 // ---------- licensed-http adapter ------------------------------------------------------------------

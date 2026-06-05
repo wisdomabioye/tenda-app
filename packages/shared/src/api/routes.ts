@@ -91,6 +91,7 @@ export const apiRoutes: {
   },
   exchange: {
     list: '/v1/exchange',
+    create: '/v1/exchange',
     get: '/v1/exchange/:id',
   },
 }

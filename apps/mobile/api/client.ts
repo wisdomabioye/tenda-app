@@ -28,6 +28,8 @@ import {
   type ExchangeSummary,
   type ExchangeDetail,
   type ExchangeListQuery,
+  type CreateExchangeDetailsBody,
+  type ExchangeDetailsRow,
   type EscrowListRow,
   type EscrowProof,
   type DisputeMessage,
@@ -168,6 +170,9 @@ export const api = {
       request<PaginatedResponse<ExchangeSummary>>('GET', exchange.list, {
         query: query as Record<string, unknown>,
       }),
+    // CO4: attach offer terms to a draft escrow (create flow step 2).
+    create: (body: CreateExchangeDetailsBody) =>
+      request<ExchangeDetailsRow>('POST', exchange.create, { body }),
     get: (params: { id: string }) => request<ExchangeDetail>('GET', exchange.get, { params }),
   },
 

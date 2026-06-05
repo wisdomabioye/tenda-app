@@ -83,6 +83,8 @@ export interface UpdateMeInput {
   bio?: string
   avatar_url?: string
   is_seeker?: boolean
+  /** CO4: unlocks the P2P exchange surface (order book + offer creation). */
+  advanced_mode_enabled?: boolean
 }
 
 export interface UpdateMeResponse {

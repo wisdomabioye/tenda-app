@@ -1,9 +1,9 @@
 import { useCallback, useState } from 'react'
-import { View, Pressable, StyleSheet, ActivityIndicator, Linking } from 'react-native'
+import { View, Pressable, StyleSheet, ActivityIndicator, Linking, Switch } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useFocusEffect, useRouter } from 'expo-router'
 import * as Notifications from 'expo-notifications'
-import { Sun, Moon, Smartphone, Bell, Trash2, HelpCircle, ChevronRight, Plus, Check, Wallet, PhoneCall } from 'lucide-react-native'
+import { Sun, Moon, Smartphone, Bell, Trash2, HelpCircle, ChevronRight, Plus, Check, Wallet, PhoneCall, ArrowLeftRight } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Header, showToast } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
@@ -28,7 +28,10 @@ export default function SettingsScreen() {
   const router = useRouter()
   const { theme: currentTheme, setTheme, currency, setCurrency } = useSettingsStore()
   const phoneVerified = useAuthStore((st) => st.phoneVerified)
+  const user = useAuthStore((st) => st.user)
+  const updateUser = useAuthStore((st) => st.updateUser)
   const [currencySheetOpen, setCurrencySheetOpen] = useState(false)
+  const [advancedSaving, setAdvancedSaving] = useState(false)
   const [subscriptions, setSubscriptions] = useState<GigSubscription[]>([])
   const [loadingSubs,   setLoadingSubs]   = useState(false)
   const [subsError,     setSubsError]     = useState(false)
@@ -140,6 +143,29 @@ export default function SettingsScreen() {
           </Text>
           <ChevronRight size={16} color={theme.colors.content.tertiary} />
         </Pressable>
+
+        {/* CO4: unlocks the P2P exchange (order book + offer creation). */}
+        <View style={s.row}>
+          <View style={[s.rowIc, { backgroundColor: theme.colors.surface.inset }]}>
+            <ArrowLeftRight size={16} color={theme.colors.content.secondary} />
+          </View>
+          <Text style={[s.rowLabel, { color: theme.colors.content.primary }]} numberOfLines={1}>
+            P2P Exchange
+          </Text>
+          <Switch
+            value={user?.advanced_mode_enabled ?? false}
+            disabled={advancedSaving || user === null}
+            onValueChange={(next) => {
+              if (user === null) return
+              setAdvancedSaving(true)
+              api.users
+                .updateMe({ advanced_mode_enabled: next })
+                .then(() => updateUser({ ...user, advanced_mode_enabled: next }))
+                .catch(() => showToast('error', 'Could not update the setting — try again'))
+                .finally(() => setAdvancedSaving(false))
+            }}
+          />
+        </View>
       </View>
 
       {/* Notifications */}

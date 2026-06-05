@@ -42,6 +42,25 @@ export interface ExchangeDetail extends ExchangeSummary {
   reviews: Review[]
 }
 
+// ── Create-detail satellite (CO4 advanced-mode offer creation) ─────────
+
+/**
+ * POST /v1/exchange — attach exchange_details to the caller's DRAFT
+ * escrow (mirror of the gig create-detail step; the chain-agnostic core
+ * comes from POST /v1/escrows first).
+ */
+export interface CreateExchangeDetailsBody {
+  escrow_id: string
+  /** Fiat the buyer pays for the whole offer. */
+  fiat_amount: number
+  /** ISO-4217, must be a SUPPORTED_CURRENCIES member. */
+  fiat_currency: string
+  /** Fiat per whole asset unit. */
+  rate: number
+  /** Defaults to EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS. */
+  payment_window_seconds?: number
+}
+
 // ── Query types ───────────────────────────────────────────────────────
 
 export interface ExchangeListQuery {

@@ -34,6 +34,7 @@ import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { users, escrows, gig_details, exchange_details, chains, assets } from '@tenda/shared/db/schema'
+import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { registerErrorHandlers } from '@server/lib/http-errors'
 import { invalidateFeaturedCache } from '@server/lib/featured'
 import dbPlugin from '@server/plugins/db'
@@ -51,6 +52,7 @@ export const TEST_DB_CONFIGURED = process.env.TEST_DATABASE_URL !== undefined
  */
 export const TEST_CHAIN_ID = 'solana:devnet'
 export const TEST_ASSET = 'USDC_SOL'
+export const TEST_NATIVE_ASSET = 'SOL_DEVNET'
 
 /** Stable dummy unsigned tx — routes only relay it, never decode it. */
 export const FAKE_UNSIGNED: UnsignedTx = {
@@ -171,6 +173,14 @@ export async function resetDb(app: FastifyInstance): Promise<void> {
     const list = tables.map((t) => `"${t.tablename}"`).join(', ')
     await app.db.execute(sql.raw(`TRUNCATE ${list} RESTART IDENTITY CASCADE`))
   }
+  // Always-available fallback provider — fiat_intents.provider FKs it.
+  await app.db.insert(fiat_providers).values({
+    id: 'p2p_internal',
+    display_name: 'Tenda P2P',
+    capabilities: { onramp: true, offramp: true, currencies: ['NGN'], assets: ['SOL', 'SOL_DEVNET'] },
+    priority: 100,
+    is_enabled: true,
+  })
   // In-process caches survive a TRUNCATE — drop them so a warmed rail
   // never leaks into the next test.
   invalidateFeaturedCache()
@@ -182,14 +192,25 @@ export async function resetDb(app: FastifyInstance): Promise<void> {
     treasury_address: process.env.SOLANA_TREASURY_ADDRESS ?? '',
     escrow_program: process.env.SOLANA_PROGRAM_ID ?? '',
   })
-  await app.db.insert(assets).values({
-    id: TEST_ASSET,
-    chain_id: TEST_CHAIN_ID,
-    symbol: 'USDC',
-    decimals: 6,
-    token_address: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // devnet USDC mint
-    is_stable: true,
-  })
+  await app.db.insert(assets).values([
+    {
+      id: TEST_ASSET,
+      chain_id: TEST_CHAIN_ID,
+      symbol: 'USDC',
+      decimals: 6,
+      token_address: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU', // devnet USDC mint
+      is_stable: true,
+    },
+    // Native asset — the p2p exchange (CO4) trades SOL_DEVNET.
+    {
+      id: TEST_NATIVE_ASSET,
+      chain_id: TEST_CHAIN_ID,
+      symbol: 'SOL',
+      decimals: 9,
+      token_address: null,
+      is_stable: false,
+    },
+  ])
 }
 
 // ---------- fixtures (DB-backed; object shapes come from ./fixtures) -------

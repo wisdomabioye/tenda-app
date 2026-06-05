@@ -115,6 +115,13 @@ function BuyTab() {
     setSubmitting(true)
     try {
       const result = await api.fiat.onramp({ intent_id: quote.intent_id })
+      // CO4 p2p match: the quote was a live sell offer — accept it on the
+      // exchange surface (on-chain accept + fiat payment flow).
+      if ('kind' in result.instruction && result.instruction.kind === 'p2p') {
+        showToast('success', 'Matched with a seller — accept the offer to lock the trade')
+        router.replace(`/exchange/${result.instruction.offer_id}` as Parameters<typeof router.replace>[0])
+        return
+      }
       if (result.kyc_url !== null) {
         await Linking.openURL(result.kyc_url)
       } else if ('kind' in result.instruction && result.instruction.kind === 'redirect') {
@@ -140,7 +147,7 @@ function BuyTab() {
       />
 
       {error === 'unavailable' && (
-        <UnavailableNotice copy="Buying isn't available yet — licensed providers are coming soon. You can still sell via the P2P exchange." />
+        <UnavailableNotice copy="No sell offer matches this amount right now — try a slightly different amount or check back soon." />
       )}
       {error === 'failed' && (
         <Text size={12.5} color={theme.colors.feedback.danger.base}>

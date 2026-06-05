@@ -22,6 +22,13 @@ export const RECONCILE_BATCH_LIMIT = 100
 /** p2p_internal spread over the platform mid-rate (bps). */
 export const P2P_INTERNAL_SPREAD_BPS = 100
 
+/**
+ * Onramp order-book matching tolerance (CO4): exchange escrows are
+ * all-or-nothing, so a buyer's fiat amount matches offers within ±10% —
+ * the quote then reflects the OFFER's exact terms.
+ */
+export const P2P_ONRAMP_MATCH_TOLERANCE_BPS = 1_000
+
 /** The always-available fallback provider id (§ Provider routing). */
 export const P2P_INTERNAL_ID = 'p2p_internal'
 

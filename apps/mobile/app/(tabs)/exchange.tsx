@@ -4,9 +4,9 @@ import {
   ScrollView, Animated, Pressable, useWindowDimensions,
 } from 'react-native'
 import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
-import { useFocusEffect } from 'expo-router'
+import { useFocusEffect, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { SlidersHorizontal, Check, X } from 'lucide-react-native'
+import { SlidersHorizontal, Check, X, Plus } from 'lucide-react-native'
 import { spacing, radius } from '@/theme/tokens'
 import { 
   ScreenContainer, 
@@ -23,6 +23,7 @@ import type { EscrowListRow } from '@tenda/shared'
 export default function ExchangeScreen() {
   const { theme }          = useUnistyles()
   const { width: SW }      = useWindowDimensions()
+  const router             = useRouter()
   const user               = useAuthStore((s) => s.user)
 
   const { offers, isLoading, isLoadingMore, hasFetched, error, fetchOffers, loadMore, setFilters, resetFilters } =
@@ -96,7 +97,19 @@ export default function ExchangeScreen() {
   return (
     <ScreenContainer scroll={false} padding={false}>
       {/* ── Large-title header ── */}
-      <Header variant="large" title="Trade" subtitle="Swap crypto with sellers" />
+      <Header
+        variant="large"
+        title="Trade"
+        subtitle="Swap crypto with sellers"
+        // CO4: hand-create a sell offer (advanced mode only).
+        {...(user?.advanced_mode_enabled
+          ? {
+              rightIcon: Plus,
+              onRightPress: () =>
+                router.push('/exchange/create' as Parameters<typeof router.push>[0]),
+            }
+          : {})}
+      />
 
       {/* ── Tab row + animated underline ── */}
       <View style={[s.tabRow, { borderBottomColor: theme.colors.border.subtle }]}>
