@@ -61,7 +61,13 @@ export interface AppEvents {
     newRole: string
     /** Claimed disputes returned to the pool when the new role can't mediate (A15). */
     releasedDisputes: number
+    /** Dashboard login revoked because the new role is non-admin (#87). */
+    revokedLogin: boolean
   }
+  // #87 — admin_users login registry provisioning (grant is LOGIN only,
+  // never authority; see schema/identity.ts invariant)
+  'admin.grant_login_email': AdminEventBase & { userId: string; email: string }
+  'admin.revoke_login_email': AdminEventBase & { userId: string }
   'admin.update_platform_config': AdminEventBase & {
     changes: {
       fee_bps?: number
@@ -107,4 +113,6 @@ class TypedEventEmitter extends EventEmitter {
 
 // Singleton shared across the process.
 export const appEvents = new TypedEventEmitter()
-appEvents.setMaxListeners(20)
+// audit (16) + notifications (4) listeners as of #87 — keep headroom so
+// new audit events and test-time capture listeners never trip the warning.
+appEvents.setMaxListeners(32)

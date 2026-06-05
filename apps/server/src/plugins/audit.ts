@@ -55,9 +55,28 @@ const auditPlugin: FastifyPluginAsync = async (fastify) => {
         previous_role: d.previousRole,
         new_role: d.newRole,
         released_disputes: d.releasedDisputes,
+        revoked_login: d.revokedLogin,
       })
     } catch (err) {
       fastify.log.warn({ err }, '[audit] admin.change_role write failed')
+    }
+  })
+
+  appEvents.on('admin.grant_login_email', async (d) => {
+    try {
+      await write(d.adminId, d.adminRole, 'grant_login_email', 'user', d.userId, {
+        email: d.email,
+      })
+    } catch (err) {
+      fastify.log.warn({ err }, '[audit] admin.grant_login_email write failed')
+    }
+  })
+
+  appEvents.on('admin.revoke_login_email', async (d) => {
+    try {
+      await write(d.adminId, d.adminRole, 'revoke_login_email', 'user', d.userId)
+    } catch (err) {
+      fastify.log.warn({ err }, '[audit] admin.revoke_login_email write failed')
     }
   })
 

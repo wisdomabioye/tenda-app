@@ -18,6 +18,7 @@ import escrows from './escrows'
 import featured from './featured'
 import fiat from './fiat'
 import finance from './finance'
+import loginEmail from './login-email'
 import metrics from './metrics'
 import moderation from './moderation'
 import platformConfig from './platform-config'
@@ -53,6 +54,8 @@ const adminScope: FastifyPluginAsync = async (fastify) => {
   await fastify.register(featured, { prefix: '/featured' })
   await fastify.register(fiat, { prefix: '/fiat' })
   await fastify.register(finance, { prefix: '/finance' })
+  // Shares the /users prefix with the users module (#87 provisioning).
+  await fastify.register(loginEmail, { prefix: '/users' })
   await fastify.register(metrics, { prefix: '/metrics' })
   await fastify.register(moderation, { prefix: '/moderation' })
   await fastify.register(platformConfig, { prefix: '/platform-config' })

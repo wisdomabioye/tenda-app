@@ -1,6 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq, exists, ilike, or, and, desc, isNull, sql, SQL } from 'drizzle-orm'
-import { users, user_wallets, disputes } from '@tenda/shared/db/schema'
+import { users, user_wallets, disputes, admin_users } from '@tenda/shared/db/schema'
 import {
   ADMIN_ROLES, ASSIGNABLE_ROLES, ErrorCode, MAX_PAGINATION_LIMIT,
 } from '@tenda/shared'
@@ -178,13 +178,14 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
 
     if (!current) throw new AppError(404, ErrorCode.USER_NOT_FOUND, 'User not found')
 
-    // Role change + caseload release land together or not at all (A15):
-    // a role that can no longer mediate must not keep disputes assigned —
-    // they'd strand until a super_admin force-released each one. The
-    // trigger is permission-driven (NOT a role list) so adding roles to
-    // the map never silently breaks this. Resolved disputes keep their
-    // assignee for audit history.
-    const { updated, releasedDisputes } = await fastify.db.transaction(async (tx) => {
+    // Role change + caseload release + login revoke land together or not
+    // at all (A15 + #87). Two DISTINCT triggers, on purpose:
+    //   - dispute release is permission-driven (new role lacks
+    //     disputes.mediate) so adding roles to the map never breaks it;
+    //     resolved disputes keep their assignee for audit history.
+    //   - login revoke is role-CLASS driven (new role is non-admin = no
+    //     dashboard at all); a dispute_admin keeps their login.
+    const { updated, releasedDisputes, revokedLogin } = await fastify.db.transaction(async (tx) => {
       const [row] = await tx
         .update(users)
         .set({ role, updated_at: new Date() })
@@ -199,7 +200,15 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
           .where(and(eq(disputes.assigned_to, id), isNull(disputes.resolved_at)))
           .returning({ id: disputes.id })
       }
-      return { updated: row, releasedDisputes: released.length }
+
+      let revoked: { user_id: string }[] = []
+      if (!ADMIN_ROLES.includes(role as (typeof ADMIN_ROLES)[number])) {
+        revoked = await tx
+          .delete(admin_users)
+          .where(eq(admin_users.user_id, id))
+          .returning({ user_id: admin_users.user_id })
+      }
+      return { updated: row, releasedDisputes: released.length, revokedLogin: revoked.length > 0 }
     })
 
     const result = ensureTxUpdated(updated, 'User not found')
@@ -211,6 +220,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
       previousRole: current.role,
       newRole:      role,
       releasedDisputes,
+      revokedLogin,
     })
 
     return result
