@@ -16,7 +16,7 @@ import { Input } from './Input'
 import { Chip } from './Chip'
 import { IconButton } from './IconButton'
 import { LocationPicker } from '@/components/form/LocationPicker'
-import { CATEGORY_META } from '@/data/mock'
+import { CATEGORY_META } from '@/lib/categories'
 
 const SHEET_HEIGHT = 580
 

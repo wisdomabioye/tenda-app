@@ -9,7 +9,7 @@ import type { ProofItem } from './ProofViewerModal'
 import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel } from '@/lib/gig-display'
 import { PersonCard, ReviewsSection } from '@/components/shared'
 import { DisputeReasonBlock, ReportContentLink } from '@/components/escrow'
-import { CATEGORY_META } from '@/data/mock'
+import { CATEGORY_META } from '@/lib/categories'
 import { computeRelevantDeadline } from '@tenda/shared'
 import type { GigDetail } from '@tenda/shared'
 
