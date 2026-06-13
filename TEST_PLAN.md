@@ -10,6 +10,83 @@ false-confidence tests, document (never silently drop) any coverage exclusion.
 
 ---
 
+## Review pass 2 — issues & gaps (must read before executing)
+
+These were found by checking the plan against the *actual* CI and harness, not
+in the abstract. The first is structural and changes Phase 0 materially.
+
+### G1 (CRITICAL) — the coverage gate can't run in CI as the repo stands
+- `.github/workflows/ci.yml` provisions **no postgres**. The server CI job runs
+  **only** `tsx --test "test/unit/*.test.ts"` (393 cases). The **18 integration
+  files / 119 cases (~23% of the suite) never run in CI**, and `npm test` (the c8
+  full run) is **never invoked in CI** — coverage is local-only and the
+  "coverage-delta" gate is explicitly *unwired* ("when a remote exists").
+- The server's routes/features are covered by the **integration** tests, which are
+  DB-gated (`TEST_DB_CONFIGURED = TEST_DATABASE_URL !== undefined`). So a coverage
+  number computed from unit-only is far below 90% **by construction** — the gate is
+  meaningless until integration runs under c8 **with a database**.
+- This also collides with the **existing documented strategy** (testing-strategy
+  § CI gates) that deliberately keeps integration *nightly/pre-release, never
+  per-PR*. Enforcing 90% per-PR reverses that decision.
+- **Good news:** Redis is **not** needed — the harness `delete`s `REDIS_URL` and the
+  queue stays a 501 stub. Only postgres must be provisioned.
+- **DECISION REQUIRED (yours):** where does the 90% gate run?
+  - **(A)** Add a postgres **service container** to a per-PR coverage job (runs
+    migrations → `npm test` with c8 threshold). ~+30–90s per PR, reverses the
+    "integration is nightly" stance but gives real per-PR protection. *(Recommended.)*
+  - **(B)** Keep the fast unit job per-PR; run the **full c8 gate nightly** only.
+    PRs stay fast but a coverage regression can merge and is caught next night.
+  - Either way Phase 0 must: add the PG service, run `drizzle-kit migrate` against
+    it, set `TEST_DATABASE_URL`, and switch the gating step to the c8 full suite.
+
+### G2 — "measure the baseline" itself needs the DB
+Corollary of G1: the Phase-0 baseline measurement must run the **full** suite with
+`TEST_DATABASE_URL` set, not the unit subset. I can run it locally (a tenda_test DB
+exists) to size 1B; it can't be sized from CI as-is.
+
+### G3 — time/non-determinism is unaddressed
+`gigDeadlineMeta` + countdown chips use `Date.now()`; chat polling uses `setTimeout`;
+reanimated drives timers. Without a controlled clock these tests flake. Add to Phase 0:
+per-runner fake-timer policy — `jest.useFakeTimers()` + a fixed `setSystemTime` (mobile),
+vitest `vi.useFakeTimers()` (admin), and inject/freeze `Date.now` in shared/server pure
+tests. Deadline/countdown/polling tests are written against a frozen clock, never wall time.
+
+### G4 — exclusion integrity (don't let the % lie)
+If mobile excludes `wallet/`, `ws`, `notifications`, `secure-store`, `device` **and**
+router-heavy screens, "90% of what's left" can mask low absolute coverage. Rule added:
+each package's coverage report prints **absolute covered/total statements**, the
+**enumerated** exclusion list, and the **excluded fraction must stay ≤ 15%** of
+statements (anything higher needs a written justification in this doc). The gate is on
+the *included* set; the *excluded* fraction is reported alongside so the number can't hide.
+
+### G5 — admin vitest needs Next-specific mocks (not just jsdom)
+Rendering Next 16 client components under vitest+jsdom also requires mocking
+`next/navigation` (`useRouter`/`useSearchParams`/`redirect`), `next/link`, `next/image`,
+and resolving the `@/` alias in `vitest.config.ts`. Any `next/headers`/`server-only`
+import fails fast — reinforces the RSC caveat (those pages are Playwright-only).
+
+### G6 — shared `api/` directory needs an include/exclude decision
+16 `api/contracts/*` + `endpoint.ts` + `routes.ts` + `api/config.ts`. Decision:
+**include** runtime logic (URL building in `endpoint`/`routes`, `api/config`) and test
+representative zod/contract `.parse` validators (real branch value); **exclude** pure
+type re-exports. Stated so it isn't silently dropped from the denominator.
+
+### G7 — `apps/tendahq` is explicitly OUT of scope
+Separate, untouched app. Not part of the four surfaces; no tests added, not in the gate.
+
+### Minor notes
+- **G8:** the server `test` script runs a full `build:ts` before tests even though
+  execution is ts-node-against-src; the coverage job can skip that build to halve
+  compile time (tests resolve `@server/*` → `src/` via ts-node, so c8 `--include
+  'src/**'` is correct).
+- **G9:** CI must run `drizzle-kit migrate` against the fresh PG service **before**
+  the suite (the harness assumes a migrated baseline).
+- **G10:** mobile harness setup (jest-expo SDK54 + RN 0.81 New Architecture +
+  reanimated-4 worklet init + unistyles Nitro mock) is a **spike, ~1 day**, not part
+  of the 0.5-day Phase-0 estimate — budget it separately.
+
+---
+
 ## Verified baseline (2026-06-13)
 
 | Surface | Tests | Runner today | Coverage tool | Notes |
@@ -65,11 +142,18 @@ false-confidence tests, document (never silently drop) any coverage exclusion.
    `jest.config.js` (preset `jest-expo`, `transformIgnorePatterns` for RN/expo/reanimated/
    unistyles ESM), `jest.setup.ts` wiring the unistyles + reanimated mocks and
    gesture-handler/secure-store/expo-router stubs; `test`/`test:coverage` scripts.
-6. **Root**: add `test` + `test:coverage` tasks to `turbo.json` (currently absent);
-   add a CI job per package that fails under threshold.
+6. **Root**: add `test` + `test:coverage` tasks to `turbo.json` (currently absent).
+7. **CI (the big one — see G1):** add a **postgres service container** to the server
+   job (no Redis needed), run `drizzle-kit migrate` against it, set
+   `TEST_DATABASE_URL`, and switch the gating step from `tsx --test test/unit/*` to the
+   **c8 full suite** so integration coverage counts. Resolve the **gate-location
+   decision (A per-PR vs B nightly)** first — it shapes this job. Add net-new
+   `test`/`coverage` CI steps for shared (node), admin (vitest), mobile (jest); none
+   run tests today.
 
-**Exit:** `pnpm test:coverage` runs all four; each prints a coverage table; CI gates
-at the (initially baseline, later 90) threshold.
+**Exit:** `pnpm test:coverage` runs all four locally; CI runs the **DB-backed** server
+suite under c8 + the three other suites; each prints absolute covered/total + exclusion
+list (G4); thresholds start at measured baseline, ratchet to 90 per package.
 
 ---
 
@@ -144,7 +228,9 @@ toward the 90% line number.
 
 | Step | Effort | Gating output |
 |---|---|---|
-| Phase 0 (tooling + baseline) | 0.5d | all runners green, thresholds wired |
+| Phase 0a (CI postgres + full-suite gate, G1/G9) | 0.5–1d | server suite runs in CI |
+| Phase 0b (shared/admin/server tooling + baseline) | 0.5d | runners green, thresholds wired |
+| Phase 0c (mobile harness spike, G10) | ~1d | jest-expo green on a smoke test |
 | 1A Shared | 1d | shared ≥90 |
 | 1B Server gap-fill | **sized by 0.1** | server gate → 90 |
 | 1C Admin | 1d | admin ≥90 (client surface) |
@@ -172,3 +258,11 @@ delta; ratchet the threshold up as suites land.
   actually clears it — interim commits gate at the rising baseline so CI stays green.
 - **Phase 2 infra** (emulator, Playwright browsers, both services up) is heavier
   than Phase 1 and may need CI runner changes; kept out of the blocking coverage job.
+  Maestro mobile E2E in CI specifically needs an Android emulator (KVM runner) — may
+  be **local/nightly only**, not per-PR.
+- **Per-PR vs nightly gate (G1) is unresolved** and is yours to decide; the rest of
+  the plan assumes option A (per-PR with a PG service). If you pick B, the 90% number
+  protects nightly, not merges.
+- **Strategy conflict:** enforcing integration coverage per-PR reverses the existing
+  testing-strategy doc's "integration is nightly only." That doc should be updated in
+  the same change so the two don't contradict.
