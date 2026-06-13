@@ -5,7 +5,7 @@ import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Chip } from '@/components/ui/Chip'
 
-const PRESETS: Array<{ label: string; seconds: number }> = [
+const PRESETS: { label: string; seconds: number }[] = [
   { label: '1d',  seconds: 86_400 },
   { label: '3d',  seconds: 259_200 },
   { label: '7d',  seconds: 604_800 },

@@ -10,7 +10,6 @@ import { ScreenContainer, Text, Spacer, EmptyState, Header } from '@/components/
 import { GigCardCompact } from '@/components/gig'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUserGigsStore } from '@/stores/user-gigs.store'
-import type { GigSummary } from '@tenda/shared'
 import { ClipboardList } from 'lucide-react-native'
 import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
 

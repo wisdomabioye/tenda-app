@@ -10,10 +10,8 @@ import { CATEGORY_META } from '@/lib/categories'
 import { toAssetPaymentDisplay } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { LOCATIONS, type CountryCode } from '@tenda/shared'
+import { LOCATIONS, type CountryCode , GigSummary } from '@tenda/shared'
 import { gigDeadlineMeta } from '@/lib/gig-display'
-import { useGracePeriodSeconds } from '@/stores/platform-config.store'
-import type { GigSummary } from '@tenda/shared'
 
 interface Props {
   gig: GigSummary
@@ -37,7 +35,6 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
   const rate = rates?.[currency] ?? null
   const price = toAssetPaymentDisplay(gig.amount_raw, gig.asset, rate)
-  const gracePeriodSeconds = useGracePeriodSeconds()
   const deadlineMeta = gigDeadlineMeta(gig)
 
   return (

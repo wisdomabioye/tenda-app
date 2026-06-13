@@ -41,7 +41,7 @@ export function SeekerWelcomeSheet({ onDismiss }: SeekerWelcomeSheetProps) {
       </View>
       <Spacer size={spacing.sm} />
       <Text variant="body" align="center" style={s.subtitle}>
-        You're on Solana's first crypto-native mobile device. Here's what you get on Tenda:
+        You&apos;re on Solana&apos;s first crypto-native mobile device. Here&apos;s what you get on Tenda:
       </Text>
       <Spacer size={spacing.lg} />
       <View style={s.perks}>
@@ -56,7 +56,7 @@ export function SeekerWelcomeSheet({ onDismiss }: SeekerWelcomeSheetProps) {
       </View>
       <Spacer size={spacing.xl} />
       <Button variant="primary" fullWidth onPress={handleDismiss}>
-        Let's go
+        Let&apos;s go
       </Button>
     </BottomSheet>
   )

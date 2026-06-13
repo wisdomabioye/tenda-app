@@ -8,10 +8,8 @@ import { CATEGORY_META } from '@/lib/categories'
 import { toAssetPaymentDisplay, formatFiat } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { useGracePeriodSeconds } from '@/stores/platform-config.store'
-import { LOCATIONS, type CountryCode } from '@tenda/shared'
+import { LOCATIONS, type CountryCode , GigSummary } from '@tenda/shared'
 import { gigDeadlineMeta } from '@/lib/gig-display'
-import type { GigSummary } from '@tenda/shared'
 import { STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
 
 interface Props {
@@ -30,7 +28,6 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
   const rates = useExchangeRateStore((s) => s.rates)
   const currency = useSettingsStore((s) => s.currency)
 
-  const gracePeriodSeconds = useGracePeriodSeconds()
   const categoryColor = theme.colors.category[gig.category]
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category

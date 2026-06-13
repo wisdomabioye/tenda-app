@@ -110,8 +110,8 @@ export function groupByDay<T, TKey extends string = 'item'>(
   getIso: (item: T) => string | null | undefined,
   getKey: (item: T) => string,
   tag: TKey = 'item' as TKey,
-): Array<DayGroupHeader<TKey> | DayGroupItem<T, TKey>> {
-  const out: Array<DayGroupHeader<TKey> | DayGroupItem<T, TKey>> = []
+): (DayGroupHeader<TKey> | DayGroupItem<T, TKey>)[] {
+  const out: (DayGroupHeader<TKey> | DayGroupItem<T, TKey>)[] = []
   let lastDay: string | null = null
   for (const item of items) {
     const iso = getIso(item)

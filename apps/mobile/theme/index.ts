@@ -9,11 +9,15 @@ type AppThemes = {
 };
 
 declare module 'react-native-unistyles' {
+  // Empty-extends interfaces are required here: unistyles merges these via
+  // declaration merging, which only works with `interface`, not `type`.
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   export interface UnistylesBreakpoints extends AppBreakpoints {}
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type
   export interface UnistylesThemes extends AppThemes {}
 }
 
-export { lightTheme, darkTheme };
+// lightTheme/darkTheme/AppTheme are re-exported via `export * from './themes'`.
 export * from './tokens';
 export * from './themes';
 

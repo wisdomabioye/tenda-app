@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
 
-const CHAIN_LABEL: ReadonlyArray<{ prefix: string; label: string }> = [
+const CHAIN_LABEL: readonly { prefix: string; label: string }[] = [
   { prefix: 'solana:', label: 'Solana' },
   { prefix: 'eip155:8453', label: 'BASE' },
   { prefix: 'eip155:84532', label: 'BASE' },

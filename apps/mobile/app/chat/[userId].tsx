@@ -52,8 +52,10 @@ export default function ChatScreen() {
   const { conversationId, otherUser, loading, initError, retry } = useConversation(userId)
   useChatRealtime(conversationId)
 
-  const msgs = conversationId ? (messages[conversationId] ?? []) : []
-  const feed = useMemo(() => buildMessageFeed(msgs), [msgs])
+  const feed = useMemo(() => {
+    const msgs = conversationId ? (messages[conversationId] ?? []) : []
+    return buildMessageFeed(msgs)
+  }, [conversationId, messages])
 
   const escrowContext = escrowId ? { escrowId, kind: kind ?? null } : undefined
 

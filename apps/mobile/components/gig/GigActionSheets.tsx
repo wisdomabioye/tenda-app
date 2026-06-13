@@ -29,8 +29,8 @@ interface GigActionSheetsProps {
   onAcceptConfirmed: () => void
   onCancelOpenConfirmed: () => void
   onRefundExpiredConfirmed: () => void
-  onProofsReady: (proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>) => Promise<boolean>
-  onAddProofsReady: (proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>) => Promise<void>
+  onProofsReady: (proofs: { url: string; type: 'image' | 'video' | 'document' }[]) => Promise<boolean>
+  onAddProofsReady: (proofs: { url: string; type: 'image' | 'video' | 'document' }[]) => Promise<void>
   onDisputeReady: (reason: string) => Promise<boolean>
 }
 
@@ -78,7 +78,7 @@ export function GigActionSheets({
     if (proofFiles.length === 0) return
     setProofUploading(true)
     try {
-      const proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }> = []
+      const proofs: { url: string; type: 'image' | 'video' | 'document' }[] = []
       for (const file of proofFiles) {
         try {
           const url = await uploadToCloudinary(file, 'proof')
@@ -102,7 +102,7 @@ export function GigActionSheets({
     if (addProofFiles.length === 0) return
     setAddProofUploading(true)
     try {
-      const proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }> = []
+      const proofs: { url: string; type: 'image' | 'video' | 'document' }[] = []
       for (const file of addProofFiles) {
         try {
           const url = await uploadToCloudinary(file, 'proof')

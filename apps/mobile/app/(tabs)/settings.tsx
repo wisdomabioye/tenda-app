@@ -17,7 +17,7 @@ import type { GigSubscription, SupportedCurrency } from '@tenda/shared'
 
 type ThemeChoice = 'light' | 'dark' | 'system'
 
-const THEME_OPTIONS: Array<{ value: ThemeChoice; label: string; Icon: typeof Sun }> = [
+const THEME_OPTIONS: { value: ThemeChoice; label: string; Icon: typeof Sun }[] = [
   { value: 'light',  label: 'Light',  Icon: Sun },
   { value: 'dark',   label: 'Dark',   Icon: Moon },
   { value: 'system', label: 'System', Icon: Smartphone },

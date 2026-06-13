@@ -64,7 +64,7 @@ export default function GlossaryScreen() {
 
       <ScrollView contentContainerStyle={s.scroll}>
         <Text style={[s.intro, { color: theme.colors.content.secondary }]}>
-          Plain-English definitions of the crypto and Tenda terms you'll see across the app.
+          Plain-English definitions of the crypto and Tenda terms you&apos;ll see across the app.
         </Text>
 
         <View

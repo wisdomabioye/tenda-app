@@ -29,7 +29,7 @@ export function Spinner({ size = 36, color, strokeWidth = 2.5 }: SpinnerProps) {
       -1,
       false
     );
-  }, []);
+  }, [rotation]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${rotation.value}deg` }],

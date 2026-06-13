@@ -51,7 +51,7 @@ export function Drawer({ isOpen, onClose, onOpen, onNavigate, children }: Drawer
       translateX.value = withSpring(-DRAWER_WIDTH, SPRING_CONFIG);
       overlayOpacity.value = withTiming(0, { duration: 200 });
     }
-  }, [isOpen]);
+  }, [isOpen, isOpenShared, translateX, overlayOpacity]);
 
   const closeDrawer = useCallback(() => {
     'worklet';

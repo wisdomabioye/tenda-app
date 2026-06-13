@@ -18,8 +18,7 @@ import { DevnetBadge } from '@/components/feedback'
 import { useExchangeRateStore, useSettingsStore } from '@/stores'
 import { formatFiat } from '@/lib/currency'
 import { groupByDay } from '@/lib/date'
-import { LAMPORTS_PER_SOL, truncateWallet } from '@tenda/shared'
-import { ASSET_META } from '@tenda/shared'
+import { LAMPORTS_PER_SOL, truncateWallet , ASSET_META } from '@tenda/shared'
 import type { UserEscrowTransaction, SupportedCurrency } from '@tenda/shared'
 
 

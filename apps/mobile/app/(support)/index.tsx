@@ -80,7 +80,7 @@ export default function SupportIndexScreen() {
           {filtered.length === 0 && (
             <View style={s.empty}>
               <Text style={[s.emptyText, { color: theme.colors.content.tertiary }]}>
-                No topics match "{query}"
+                No topics match &quot;{query}&quot;
               </Text>
             </View>
           )}

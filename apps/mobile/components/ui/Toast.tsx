@@ -57,14 +57,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
+    const activeTimers = timers.current
     toastListener = (msg) => {
       setToasts((prev) => [...prev, msg])
       const timer = setTimeout(() => removeToast(msg.id), msg.duration ?? 3000)
-      timers.current.set(msg.id, timer)
+      activeTimers.set(msg.id, timer)
     }
     return () => {
       toastListener = null
-      timers.current.forEach(clearTimeout)
+      activeTimers.forEach(clearTimeout)
     }
   }, [removeToast])
 

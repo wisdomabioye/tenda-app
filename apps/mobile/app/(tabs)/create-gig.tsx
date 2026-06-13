@@ -31,7 +31,7 @@ export default function PostGigScreen() {
 
   useEffect(() => {
     if (!dismissedNudges.post) setShowNudge(true)
-  }, [])
+  }, [dismissedNudges.post])
 
   useEffect(() => {
     if (draftId === undefined) return

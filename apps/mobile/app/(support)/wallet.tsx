@@ -58,7 +58,7 @@ export default function WalletGuideScreen() {
         >
           <AlertTriangle size={16} color={theme.colors.feedback.warning.base} />
           <Text style={[s.warnText, { color: theme.colors.feedback.warning.base }]}>
-            Solflare doesn't auto-return you to Tenda on some devices. You may need to switch apps manually after connecting.
+            Solflare doesn&apos;t auto-return you to Tenda on some devices. You may need to switch apps manually after connecting.
           </Text>
         </View>
         <View
@@ -102,7 +102,7 @@ export default function WalletGuideScreen() {
           </AccordionItem>
           <AccordionItem title="I closed the wallet by mistake">
             <Text style={[s.body, { color: theme.colors.content.secondary }]}>
-              Tap "Try again" on the error screen, then "Connect Wallet" to reopen the prompt.
+              Tap &quot;Try again&quot; on the error screen, then &quot;Connect Wallet&quot; to reopen the prompt.
             </Text>
           </AccordionItem>
           <AccordionItem title="My wallet isn't listed" last>

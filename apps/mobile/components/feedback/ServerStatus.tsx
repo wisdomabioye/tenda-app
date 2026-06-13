@@ -75,7 +75,7 @@ export function ServerStatus() {
       if (timer) clearTimeout(timer)
       sub.remove()
     }
-  }, [])
+  }, [opacity])
 
   return (
     <Animated.View style={{ opacity }}>

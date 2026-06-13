@@ -13,7 +13,7 @@ interface BadgeProps {
 }
 
 type FeedbackVariant = Extract<Variant, 'success' | 'warning' | 'danger' | 'info'>
-const FEEDBACK_TONES: ReadonlyArray<Variant> = ['success', 'warning', 'danger', 'info']
+const FEEDBACK_TONES: readonly Variant[] = ['success', 'warning', 'danger', 'info']
 
 const HEIGHTS: Record<Size, number> = { sm: 22, md: 24 }
 const FONT_SIZES: Record<Size, number> = { sm: 11, md: 11.5 }

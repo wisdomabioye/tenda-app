@@ -134,7 +134,7 @@ export function SearchSheet({
             ListEmptyComponent={
               <View style={s.empty}>
                 <Text variant="body" color={theme.colors.content.tertiary}>
-                  No results for "{query}"
+                  No results for &quot;{query}&quot;
                 </Text>
               </View>
             }

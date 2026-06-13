@@ -28,7 +28,7 @@ export default function NotFoundScreen() {
           <Text style={[s.title, { color: theme.colors.content.primary }]}>Page not found</Text>
           <Spacer size={10} />
           <Text style={[s.desc, { color: theme.colors.content.secondary }]}>
-            This screen doesn't exist or has moved. Head back home and try a different path.
+            This screen doesn&apos;t exist or has moved. Head back home and try a different path.
           </Text>
 
           <Spacer size={28} />
