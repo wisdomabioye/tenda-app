@@ -22,7 +22,12 @@ in the abstract. The first is structural and changes Phase 0 materially.
 >   `0005` baseline. Server baseline **measured** (see below). The harness needs
 >   only postgres (Redis stays a 501 stub).
 > - **Shared (1A) DONE:** 102 tests, 100% lines/branch/funcs/stmts, gate live.
-> - **Admin tooling (0b) DONE:** vitest+jsdom+RTL harness green (11 tests).
+> - **Admin tooling (0b) DONE:** vitest+jsdom+RTL harness green.
+> - **Admin (1C) DONE:** 148 tests, **98.1% lines / 85.21% branch** — gate live
+>   (lines 90 / branch 85 / stmts 90 / funcs 85, the last floored as the inline-
+>   JSX-arrow metric lags per the plan caveat). Covers lib, all components
+>   (shadcn `ui/**` excluded as vendored), `api/client`, and all 14 pages +
+>   login; RSC layouts/root-page excluded → Phase 2 Playwright.
 > - **Server baseline (0b) DONE / gate floor set (#97):** with honest `all:true`
 >   denominator and exclusions (entry `server.ts`, ops `scripts/**`, type-only
 >   `*/types.ts`, migrations, `*.d.ts`): **75.4% lines / 83.4% branch / 78.5%
