@@ -6,7 +6,7 @@ import {
 } from '@tenda/shared'
 import { hasPermission, requirePermission } from '@server/lib/guards'
 import { computeDisputeRate } from '@server/features/reputation/fraud-flag'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/db'
 import { appEvents } from '@server/lib/events'
 import type { ApiError, UserRole, UserStatus } from '@tenda/shared'
@@ -117,7 +117,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     Reply:  { id: string; status: string } | ApiError
   }>('/:id/status', { preHandler: [requirePermission('users.suspend')] }, async (request) => {
     const { id } = request.params
-    const { status } = request.body
+    const { status } = requireBody(request.body)
 
     if (status !== 'active' && status !== 'suspended') {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'status must be "active" or "suspended"')
@@ -160,7 +160,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     preHandler: [requirePermission('users.assign_roles')] 
   }, async (request) => {
     const { id } = request.params
-    const { role } = request.body
+    const { role } = requireBody(request.body)
 
     if (!ASSIGNABLE_ROLES.includes(role)) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, `role must be one of: ${ASSIGNABLE_ROLES.join(', ')}`)

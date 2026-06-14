@@ -3,7 +3,7 @@ import { and, eq, or } from 'drizzle-orm'
 import { conversations } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { generateUploadSignature } from '@server/lib/cloudinary'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 import type { UploadContract, ApiError } from '@tenda/shared'
 
 type SignatureRoute = UploadContract['signature']
@@ -17,7 +17,7 @@ const upload: FastifyPluginAsync = async (fastify) => {
     '/signature',
     { preHandler: [fastify.authenticate] },
     async (request) => {
-      const { type, conversation_id } = request.body
+      const { type, conversation_id } = requireBody(request.body)
 
       if (!type || (type !== 'avatar' && type !== 'proof' && type !== 'chat')) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'type must be "avatar", "proof" or "chat"')

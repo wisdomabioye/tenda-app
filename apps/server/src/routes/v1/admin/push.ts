@@ -3,7 +3,7 @@ import { eq, inArray } from 'drizzle-orm'
 import { device_tokens, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { sendPush } from '@server/lib/push'
 import type { ApiError, UserRole } from '@tenda/shared'
@@ -25,7 +25,7 @@ const adminPush: FastifyPluginAsync = async (fastify) => {
     preHandler: [requirePermission('push.broadcast')],
     config:     { rateLimit: { max: 10, timeWindow: '1 hour' } },
   }, async (request) => {
-    const { title, body, target, target_value, data: pushData } = request.body
+    const { title, body, target, target_value, data: pushData } = requireBody(request.body)
 
     if (!title || title.trim().length === 0) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'title is required')

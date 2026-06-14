@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { device_tokens } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { NotificationsContract, ApiError } from '@tenda/shared'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 
 type RegisterRoute = NotificationsContract['registerToken']
 
@@ -16,7 +16,7 @@ const deviceToken: FastifyPluginAsync = async (fastify) => {
     '/',
     { config: { rateLimit: { max: 10, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
     async (request, reply) => {
-      const { token, platform = 'expo' } = request.body
+      const { token, platform = 'expo' } = requireBody(request.body)
       const userId = request.user.id
 
       if (!token || typeof token !== 'string') throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'token is required')

@@ -10,7 +10,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/lib/escrow-routes'
@@ -22,7 +22,7 @@ const route: FastifyPluginAsync = async (fastify) => {
     '/',
     { preHandler: [fastify.authenticate] },
     async (request) => {
-      const { proof_hash } = request.body
+      const { proof_hash } = requireBody(request.body)
       if (typeof proof_hash !== 'string' || proof_hash.length === 0) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'proof_hash required')
       }

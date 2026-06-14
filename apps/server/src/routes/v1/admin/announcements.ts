@@ -3,7 +3,7 @@ import { eq, desc, sql } from 'drizzle-orm'
 import { announcements } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import type { ApiError } from '@tenda/shared'
 
@@ -64,7 +64,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
   }>('/', {
     preHandler: [requirePermission('announcements.write')],
   }, async (request) => {
-    const { title, body, priority = 0, is_active = true, expires_at } = request.body
+    const { title, body, priority = 0, is_active = true, expires_at } = requireBody(request.body)
 
     if (!title || title.trim().length === 0) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'title is required')
@@ -113,7 +113,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
   }>('/:id', {
     preHandler: [requirePermission('announcements.write')],
   }, async (request) => {
-    const { title, body, priority, is_active, expires_at } = request.body
+    const { title, body, priority, is_active, expires_at } = requireBody(request.body)
 
     if (title !== undefined && title.trim().length === 0) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'title cannot be empty')

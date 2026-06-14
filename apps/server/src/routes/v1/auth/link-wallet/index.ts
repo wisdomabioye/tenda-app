@@ -23,7 +23,7 @@ import { eq } from 'drizzle-orm'
 import { user_wallets } from '@tenda/shared/db/schema'
 import { users } from '@tenda/shared/db/schema/identity'
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { drizzleNonceStore, consumeNonce } from '@server/lib/nonce'
 import { assertAuthMessage, parseAuthMessage } from '@server/lib/auth-message'
@@ -46,7 +46,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     },
     async (request) => {
-      const { chain_id, address, message, signature } = request.body
+      const { chain_id, address, message, signature } = requireBody(request.body)
       requireString('chain_id', chain_id)
       requireString('address', address)
       requireString('message', message)

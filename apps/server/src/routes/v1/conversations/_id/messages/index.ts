@@ -3,7 +3,7 @@ import { and, eq, lt, lte, or, desc, isNull, ne, sql, type SQL } from 'drizzle-o
 import { conversations, messages, escrows, gig_details, exchange_details } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { appEvents } from '@server/lib/events'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 import { UPLOAD_CONSTRAINTS, isValidChatAttachmentUrl } from '@server/lib/cloudinary'
 import { channelName } from '@server/lib/ws'
 import { messagePreview } from '@server/lib/chat'
@@ -150,7 +150,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
     { config: { rateLimit: { max: 60, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
     async (request, reply) => {
       const { id } = request.params
-      const { content, escrow_id, attachment_url, attachment_type, attachment_size } = request.body
+      const { content, escrow_id, attachment_url, attachment_type, attachment_size } = requireBody(request.body)
       const userId = request.user.id
 
       // S5.2: attachment validation — all three fields together or none;

@@ -6,7 +6,7 @@ import {
 } from '@tenda/shared'
 import type { ApiError, ReportStatus, ReportContentType } from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/db'
 import { appEvents } from '@server/lib/events'
 
@@ -78,7 +78,7 @@ const adminReports: FastifyPluginAsync = async (fastify) => {
   }>('/:id', { 
     preHandler: [requirePermission('reports.action')] 
   }, async (request) => {
-    const { status, admin_note } = request.body
+    const { status, admin_note } = requireBody(request.body)
 
     if (!REPORT_STATUSES.includes(status)) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, `status must be one of: ${REPORT_STATUSES.join(', ')}`)

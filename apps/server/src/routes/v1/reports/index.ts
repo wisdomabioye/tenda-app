@@ -4,7 +4,7 @@ import { reports, escrows, gig_details, messages, users, reviews } from '@tenda/
 import { ErrorCode, REPORT_CONTENT_TYPES, REPORT_REASONS } from '@tenda/shared'
 import type { ApiError, ReportContentType, ReportReason } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '@server/lib/db'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 
 const reportsRoute: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
@@ -18,7 +18,7 @@ const reportsRoute: FastifyPluginAsync = async (fastify) => {
       preHandler: [fastify.authenticate],
     },
     async (request, reply) => {
-      const { content_type, content_id, reason, note } = request.body
+      const { content_type, content_id, reason, note } = requireBody(request.body)
       const reporterId = request.user.id
 
       if (!REPORT_CONTENT_TYPES.includes(content_type)) {

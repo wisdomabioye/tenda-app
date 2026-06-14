@@ -13,7 +13,7 @@ import { isValidReviewScore, MAX_REVIEW_COMMENT_LENGTH, ErrorCode } from '@tenda
 import type { ApiError, Review, ReviewInput } from '@tenda/shared'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { handleUniqueConflict } from '@server/lib/db'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 
 const reviewEscrow: FastifyPluginAsync = async (fastify) => {
@@ -29,7 +29,7 @@ const reviewEscrow: FastifyPluginAsync = async (fastify) => {
     },
     async (request, reply) => {
       const { id } = request.params
-      const { score, comment } = request.body
+      const { score, comment } = requireBody(request.body)
       const reviewerId = request.user.id
 
       const escrow = await loadEscrowOr404(fastify.db, id)

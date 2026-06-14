@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { platform_config } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/db'
 import { invalidatePlatformConfigCache } from '@server/lib/platform'
 import { appEvents } from '@server/lib/events'
@@ -26,7 +26,7 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
   }>('/', {
     preHandler: [requirePermission('config.write')]
   }, async (request) => {
-    const { fee_bps, seeker_fee_bps, grace_period_seconds } = request.body
+    const { fee_bps, seeker_fee_bps, grace_period_seconds } = requireBody(request.body)
 
     if (fee_bps !== undefined && (fee_bps < 0 || fee_bps > 10_000 || !Number.isInteger(fee_bps))) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'fee_bps must be an integer between 0 and 10000')

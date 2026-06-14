@@ -4,7 +4,7 @@ import { users } from '@tenda/shared/db/schema'
 import { ErrorCode, isCloudinaryUrl, LOCATIONS, isCityInCountry } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { ensureValidCoordinates } from '@server/lib/validation'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 
 type GetRoute    = UsersContract['get']
 type UpdateRoute = UsersContract['update']
@@ -55,7 +55,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
 
     if (id !== request.user.id) throw new AppError(403, ErrorCode.FORBIDDEN, 'Can only update your own profile')
 
-    const { first_name, last_name, avatar_url, bio, country, city, latitude, longitude } = request.body
+    const { first_name, last_name, avatar_url, bio, country, city, latitude, longitude } = requireBody(request.body)
 
     // Reject avatar URLs that don't come from Cloudinary CDN
     if (avatar_url !== undefined && avatar_url !== null && !isCloudinaryUrl(avatar_url)) {

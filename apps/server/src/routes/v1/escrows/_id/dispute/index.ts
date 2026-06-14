@@ -16,7 +16,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { disputes } from '@tenda/shared/db/schema'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { ErrorCode, EXCHANGE_DISPUTE_REASON_MIN_LENGTH, EXCHANGE_DISPUTE_REASON_MAX_LENGTH } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
@@ -33,7 +33,7 @@ const route: FastifyPluginAsync = async (fastify) => {
     '/',
     { preHandler: [fastify.authenticate, requireGoodStanding('dispute')] },
     async (request) => {
-      const { bond_raw, reason } = request.body
+      const { bond_raw, reason } = requireBody(request.body)
       if (!isAmountRaw(bond_raw)) {
         throw new AppError(
           400,

@@ -5,7 +5,7 @@ import { ErrorCode } from '@tenda/shared'
 import type { ConversationsContract, ApiError, Conversation } from '@tenda/shared'
 import { isPostgresUniqueViolation } from '@server/lib/db'
 import { messagePreview } from '@server/lib/chat'
-import { AppError } from '@server/lib/errors'
+import { AppError, requireBody } from '@server/lib/errors'
 
 type ListRoute       = ConversationsContract['list']
 type FindOrCreateRoute = ConversationsContract['findOrCreate']
@@ -132,7 +132,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
     { config: { rateLimit: { max: 20, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
     async (request) => {
       const userId = request.user.id
-      const { user_id: targetId } = request.body
+      const { user_id: targetId } = requireBody(request.body)
 
       if (!targetId || typeof targetId !== 'string') throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'user_id is required')
       if (targetId === userId) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot start a conversation with yourself')
