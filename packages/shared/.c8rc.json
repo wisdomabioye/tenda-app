@@ -1,0 +1,15 @@
+{
+  "all": true,
+  "src": ["src"],
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "src/types/**",
+    "src/db/schema/**",
+    "src/idl/**",
+    "src/abi/**",
+    "src/**/*.d.ts"
+  ],
+  "reporter": ["text", "html", "lcov"],
+  "report-dir": "coverage",
+  "clean": true
+}

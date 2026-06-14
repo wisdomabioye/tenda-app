@@ -33,14 +33,20 @@
   },
   "scripts": {
     "build": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/abi/tenda_escrow_evm.json dist/abi/",
-    "prepare": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/idl/legacy/tenda_escrow.json dist/idl/legacy/",
+    "prepare": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/abi/tenda_escrow_evm.json dist/abi/",
     "build:watch": "tsc -w",
     "type-check": "tsc --noEmit",
-    "clean": "rm -rf dist"
+    "type-check:test": "tsc -p test/tsconfig.json",
+    "test": "node --test -r ts-node/register \"test/**/*.test.ts\"",
+    "test:coverage": "c8 node --test -r ts-node/register \"test/**/*.test.ts\"",
+    "clean": "rm -rf dist coverage"
   },
   "devDependencies": {
+    "@types/node": "^24.10.13",
+    "c8": "^10.1.2",
     "drizzle-orm": "^0.44.7",
     "postgres": "^3.4.8",
+    "ts-node": "^10.9.2",
     "typescript": "~5.9.3"
   }
 }

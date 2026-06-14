@@ -14,5 +14,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
+  "ts-node": {
+    "transpileOnly": true
+  },
   "include": ["src/**/*.ts"]
 }
