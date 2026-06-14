@@ -1,7 +1,7 @@
 /**
  * #91 — cursor mechanics for the inclusive-gte thread contract.
  */
-import { test } from 'node:test'
+import { test } from 'vitest'
 import assert from 'node:assert'
 import type { DisputeMessage } from '@tenda/shared'
 import { mergeMessages, nextCursor } from '../lib/dispute-thread'

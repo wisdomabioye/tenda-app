@@ -3,7 +3,7 @@
  * ROLE_PERMISSIONS exactly (same shared hasPermission), so a role never
  * sees a surface the API would 403.
  */
-import { test } from 'node:test'
+import { test } from 'vitest'
 import assert from 'node:assert'
 import { PERMISSIONS } from '@tenda/shared'
 import { NAV_ITEMS, visibleNav } from '../lib/nav'
