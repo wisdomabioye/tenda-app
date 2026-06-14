@@ -255,7 +255,7 @@ toward the 90% line number.
 | Phase 0b (shared/admin/server tooling + baseline) | 0.5d | runners green, thresholds wired |
 | Phase 0c (mobile harness spike, G10) | ~1d | jest-expo green on a smoke test |
 | 1A Shared | 1d | shared ≥90 |
-| 1B Server gap-fill | **IN PROGRESS: 75.4→79.5% lines** (45 route-handler tests added — users/profile/reviews/transactions/escrows, subscriptions, reports, conversations+messages, standing, chat-close). Floor ratcheted to 79/81. Branch dipped 83.4→81.9 (denominator effect: partially-covered cold files expose more branches than tests cover — recovers as files complete). **Remaining to 90:** escrow-lifecycle error branches, auth-wallet routes (wallet/link/unlink/set-primary/verify-phone), fiat routes, upload, moderation/preview, ws; external-integration libs (push/openrouter/paymaster/rpc/exchange-rates/gas-seed) need HTTP-mock-or-documented-exclude. | server gate → 90 |
+| 1B Server gap-fill | **IN PROGRESS: 75.4→80.0% lines** (57 tests added incl. escrow-lifecycle transitions — users/profile/reviews/transactions/escrows, subscriptions, reports, conversations+messages, standing, chat-close). Floor ratcheted to 79/81. Branch dipped 83.4→81.9 (denominator effect: partially-covered cold files expose more branches than tests cover — recovers as files complete). **Remaining to 90:** escrow-lifecycle error branches, auth-wallet routes (wallet/link/unlink/set-primary/verify-phone), fiat routes, upload, moderation/preview, ws; external-integration libs (push/openrouter/paymaster/rpc/exchange-rates/gas-seed) need HTTP-mock-or-documented-exclude. | server gate → 90 |
 | 1C Admin | 1d | admin ≥90 (client surface) |
 | 1D Mobile | 2–3d | mobile ≥90 (lib+stores+components) |
 | Phase 2 E2E | 1–2d | Maestro + Playwright smoke |
