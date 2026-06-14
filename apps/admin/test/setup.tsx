@@ -8,6 +8,37 @@ afterEach(() => {
   cleanup()
 })
 
+// jsdom gaps that radix/recharts/components rely on at render time.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {}
+}
+if (!window.matchMedia) {
+  window.matchMedia = (query: string): MediaQueryList =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList
+}
+class ResizeObserverStub {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+window.ResizeObserver ??= ResizeObserverStub
+
+// next-themes: every dashboard page renders AppHeader, which calls useTheme.
+// jsdom has no ThemeProvider, so stand it in with a controllable light theme.
+vi.mock('next-themes', () => ({
+  useTheme: () => ({ resolvedTheme: 'light', theme: 'light', setTheme: vi.fn(), themes: ['light', 'dark'] }),
+  ThemeProvider: ({ children }: { children: ReactNode }) => children,
+}))
+
 // Next 16 client-runtime shims. jsdom has no Next router/Image/Link runtime;
 // these stand in so client components under test render without the App
 // Router. Server-only imports (next/headers, server-only) are intentionally

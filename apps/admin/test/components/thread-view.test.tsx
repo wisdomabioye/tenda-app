@@ -1,0 +1,90 @@
+import { test, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import type { DisputeMessage, DisputeThreadResponse } from '@tenda/shared'
+import { ThreadView } from '@/components/disputes/thread-view'
+import { adminApi } from '@/api/client'
+import { ApiError } from '@/lib/api'
+import { toast } from 'sonner'
+import { setSession } from '@/lib/auth'
+
+vi.mock('@/api/client', () => ({
+  adminApi: { disputeThread: { get: vi.fn(), send: vi.fn() } },
+}))
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
+
+const get = vi.mocked(adminApi.disputeThread.get)
+const send = vi.mocked(adminApi.disputeThread.send)
+const err = vi.mocked(toast.error)
+
+function thread(over: Partial<DisputeThreadResponse> = {}): DisputeThreadResponse {
+  return { dispute_id: 'd1', escrow_id: 'e1', assigned_to_id: 'me', read_only: false, messages: [], reads: [], ...over }
+}
+function msg(over: Partial<DisputeMessage> = {}): DisputeMessage {
+  return { id: 'm1', dispute_id: 'd1', sender_id: 'me', body: 'hi', created_at: '2026-06-10T00:00:00.000Z', ...over }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  localStorage.clear()
+  setSession('jwt', { id: 'me', role: 'dispute_admin', first_name: 'D', last_name: 'A' })
+})
+
+test('first poll loads and renders thread messages', async () => {
+  get.mockResolvedValue(thread({ messages: [msg({ id: 'm1', body: 'hello there', sender_id: 'other' })] }))
+  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  expect(await screen.findByText('hello there')).toBeInTheDocument()
+})
+
+test('empty thread shows the no-messages placeholder', async () => {
+  get.mockResolvedValue(thread({ messages: [] }))
+  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  expect(await screen.findByText('No messages yet.')).toBeInTheDocument()
+})
+
+test('read-only thread renders the frozen banner and no composer', async () => {
+  get.mockResolvedValue(thread({ read_only: true }))
+  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  expect(await screen.findByText(/this thread is frozen/)).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
+})
+
+test('claim held by another mediator disables the composer', async () => {
+  get.mockResolvedValue(thread({ assigned_to_id: 'someone-else' }))
+  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  const send = await screen.findByRole('button', { name: 'Send' })
+  expect(send).toBeDisabled()
+  expect(screen.getByPlaceholderText('Claim the dispute to post')).toBeDisabled()
+})
+
+test('the claimer can post, which calls send and appends the message', async () => {
+  get.mockResolvedValue(thread())
+  send.mockResolvedValueOnce(msg({ id: 'new', body: 'my reply' }))
+  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  const box = await screen.findByPlaceholderText('Write to both parties…')
+  await userEvent.type(box, 'my reply')
+  await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+  await waitFor(() => expect(send).toHaveBeenCalledWith('e1', 'my reply'))
+  expect(await screen.findByText('my reply')).toBeInTheDocument()
+})
+
+test('a send that 403s prompts the claim-first toast', async () => {
+  get.mockResolvedValue(thread())
+  send.mockRejectedValueOnce(new ApiError(403, 'FORBIDDEN', 'x'))
+  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  const box = await screen.findByPlaceholderText('Write to both parties…')
+  await userEvent.type(box, 'hi')
+  await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+  await waitFor(() => expect(err).toHaveBeenCalledWith('Claim the dispute before posting'))
+})
+
+test('a send rejected as DISPUTE_RESOLVED freezes the thread', async () => {
+  get.mockResolvedValue(thread())
+  send.mockRejectedValueOnce(new ApiError(409, 'DISPUTE_RESOLVED', 'x'))
+  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  const box = await screen.findByPlaceholderText('Write to both parties…')
+  await userEvent.type(box, 'hi')
+  await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+  await waitFor(() => expect(err).toHaveBeenCalledWith('Dispute resolved — the thread is read-only'))
+  expect(await screen.findByText(/this thread is frozen/)).toBeInTheDocument()
+})
