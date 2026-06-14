@@ -16,8 +16,11 @@ These were found by checking the plan against the *actual* CI and harness, not
 in the abstract. The first is structural and changes Phase 0 materially.
 
 > **EXECUTION UPDATE (2026-06-14):** decisions G1 + test-DB resolved by the user.
-> - **G1 gate location → option A** (per-PR + postgres service). Phase 0a (#103)
->   builds this; the existing testing-strategy doc will be updated in that change.
+> - **G1 gate location → option A** (per-PR + postgres service). **Phase 0a (#103)
+>   DONE:** `ci.yml` now runs the server full-c8 suite against a postgres service
+>   (harness migrates it; no Redis), plus gated shared (c8) + a new admin (vitest)
+>   job; mobile jest wires in once #101 lands. Header comment supersedes the
+>   external testing-strategy doc's "integration is nightly-only" note.
 > - **Test DB → created.** `tenda_test` exists on local postgres, migrated to the
 >   `0005` baseline. Server baseline **measured** (see below). The harness needs
 >   only postgres (Redis stays a 501 stub).

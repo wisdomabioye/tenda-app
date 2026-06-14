@@ -1,15 +1,20 @@
-# PR gates per multichain-migration-stages/testing-strategy.md § CI gates.
+# PR gates (TEST_PLAN.md G1 decision: option A — per-PR coverage with a
+# postgres service). Supersedes the prior "integration is nightly-only" note
+# in multichain-migration-stages/testing-strategy.md.
 #
 # Gate map:
-#   1. unit/route/adapter/job tests  → server job (tsx --test, offline by design)
-#   2. contract tests                → live in the tenda-escrow repo's own CI
-#   3. tsc --noEmit clean            → server + shared + mobile jobs
-#   4. lint clean                    → server (eslint flat config) + mobile (expo lint)
-#   5. coverage delta non-negative   → c8 runs locally via `npm test`; delta
-#      enforcement needs a baseline store — wired when a remote exists.
+#   1. coverage gates (DB-backed, per-PR):
+#        - server → full c8 suite (unit + integration) against a postgres
+#          service; thresholds in apps/server/.c8rc.json (ratchets toward 90/85)
+#        - shared → c8 (apps-free); thresholds in packages/shared/.c8rc.json (100)
+#        - admin  → vitest+jsdom v8; thresholds in apps/admin/vitest.config.ts (90/85)
+#   2. contract tests   → live in the tenda-escrow repo's own CI
+#   3. tsc --noEmit     → server + shared + admin + mobile
+#   4. lint             → server + admin (eslint) + mobile (expo lint)
+#   5. mobile tests     → jest-expo coverage WIRED once the harness lands (#101)
 #
-# Long-running E2E (test/integration, devnet) is nightly/pre-release only,
-# never per-PR.
+# Redis is NOT a test dependency: the harness deletes REDIS_URL and the queue
+# stays a 501 stub. devnet/E2E (Maestro/Playwright) remain nightly/pre-release.
 
 name: ci
 
@@ -21,6 +26,23 @@ on:
 jobs:
   server:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tenda_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      # The harness migrates this DB programmatically on first use; no Redis.
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/tenda_test
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -37,9 +59,9 @@ jobs:
       - name: Lint
         working-directory: apps/server
         run: pnpm lint
-      - name: Unit tests (offline — no network per testing-strategy)
+      - name: Tests + coverage gate (full c8 suite, DB-backed)
         working-directory: apps/server
-        run: npx tsx --test "test/unit/*.test.ts"
+        run: pnpm test
 
   shared:
     runs-on: ubuntu-latest
@@ -53,6 +75,30 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @tenda/shared type-check
       - run: pnpm --filter @tenda/shared build
+      - name: Tests + coverage gate
+        run: pnpm --filter @tenda/shared test:coverage
+
+  admin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @tenda/shared build
+      - name: Typecheck
+        working-directory: apps/admin
+        run: pnpm type-check
+      - name: Lint
+        working-directory: apps/admin
+        run: pnpm lint
+      - name: Tests + coverage gate (vitest + jsdom)
+        working-directory: apps/admin
+        run: pnpm test:coverage
 
   mobile:
     runs-on: ubuntu-latest
@@ -72,6 +118,7 @@ jobs:
       - name: Lint
         working-directory: apps/mobile
         run: npx expo lint
+      # Mobile jest-expo coverage gate is wired here once the harness lands (#101).
 
   audit:
     runs-on: ubuntu-latest
