@@ -5,7 +5,6 @@ import type { AdminPlatformConfig } from '@tenda/shared'
 import { renderPage } from '../test-utils'
 import ConfigPage from '@/app/(dashboard)/config/page'
 import { adminApi } from '@/api/client'
-import { ApiError } from '@/lib/api'
 import { toast } from 'sonner'
 
 vi.mock('@/api/client', () => ({ adminApi: { platformConfig: { get: vi.fn(), update: vi.fn() } } }))
