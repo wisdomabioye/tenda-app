@@ -19,11 +19,12 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
-      include: ['lib/**/*.ts', 'app/**/*.tsx'],
-      // Pure-type decls and App-Router layouts (server components, not
-      // renderable under jsdom) carry no unit-testable logic. RSC page
-      // exclusions are enumerated in #100 once the real coverage map exists.
-      exclude: ['**/*.d.ts', 'app/**/layout.tsx'],
+      include: ['lib/**/*.ts', 'app/**/*.tsx', 'components/**/*.tsx', 'api/**/*.ts'],
+      // Excluded with reasons (G4): vendored shadcn UI primitives
+      // (components/ui/** — upstream-maintained, not our logic), App-Router
+      // layouts + the root redirect page (server components, not renderable
+      // under jsdom — Playwright covers those in Phase 2), and type decls.
+      exclude: ['**/*.d.ts', 'app/**/layout.tsx', 'app/page.tsx', 'components/ui/**'],
       thresholds: { lines: 90, branches: 85, functions: 90, statements: 90 },
     },
   },

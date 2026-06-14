@@ -18,8 +18,16 @@ function respond(status: number, body: unknown, opts: { jsonThrows?: boolean } =
   }
 }
 
+// The shape lib/api.ts passes as the second fetch arg — typed so the mock's
+// recorded calls destructure cleanly (no any/unknown).
+interface CapturedInit {
+  method: string
+  headers: Record<string, string>
+  body?: string
+}
+
 function mockFetch(res: FakeResponse) {
-  const fn = vi.fn(() => Promise.resolve(res))
+  const fn = vi.fn<(url: string, init: CapturedInit) => Promise<FakeResponse>>(() => Promise.resolve(res))
   vi.stubGlobal('fetch', fn)
   return fn
 }
@@ -40,7 +48,7 @@ test('GET success returns parsed JSON and sends no Authorization header when log
   const fetchFn = mockFetch(respond(200, { ok: true }))
   const result = await api.get<{ ok: boolean }>('/v1/gigs')
   expect(result).toEqual({ ok: true })
-  const [url, init] = fetchFn.mock.calls[0]
+  const [url, init] = fetchFn.mock.calls[0]!
   expect(url).toBe(`${BASE}/v1/gigs`)
   expect(init.method).toBe('GET')
   expect(init.headers['Content-Type']).toBe('application/json')
@@ -51,13 +59,13 @@ test('attaches a Bearer token when a session exists', async () => {
   setSession('jwt-xyz', { id: 'u1', role: 'super_admin', first_name: 'A', last_name: 'B' })
   const fetchFn = mockFetch(respond(200, {}))
   await api.get('/v1/users/me')
-  expect(fetchFn.mock.calls[0][1].headers['Authorization']).toBe('Bearer jwt-xyz')
+  expect(fetchFn.mock.calls[0]![1].headers['Authorization']).toBe('Bearer jwt-xyz')
 })
 
 test('POST serialises the body and sets the method', async () => {
   const fetchFn = mockFetch(respond(200, { id: 'x' }))
   await api.post('/v1/reports', { reason: 'spam' })
-  const init = fetchFn.mock.calls[0][1]
+  const init = fetchFn.mock.calls[0]![1]
   expect(init.method).toBe('POST')
   expect(init.body).toBe(JSON.stringify({ reason: 'spam' }))
 })

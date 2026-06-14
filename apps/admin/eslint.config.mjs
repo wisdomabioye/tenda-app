@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated istanbul HTML report (vendored JS, not our source).
+    "coverage/**",
   ]),
 ]);
 
