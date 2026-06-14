@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit } from '@server/lib/pagination'
 import { and, eq, lt, lte, or, desc, isNull, ne, sql, type SQL } from 'drizzle-orm'
 import { conversations, messages, escrows, gig_details, exchange_details } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
@@ -64,7 +65,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         throw new AppError(403, ErrorCode.FORBIDDEN, 'Not a participant of this conversation')
       }
 
-      const pageSize = Math.min(Number(limit) || MESSAGES_PAGE_SIZE, 100)
+      const pageSize = clampLimit(Number(limit) || MESSAGES_PAGE_SIZE)
 
       let cursorCreatedAt: Date | undefined
       if (before_id) {

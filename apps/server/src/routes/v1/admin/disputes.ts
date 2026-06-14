@@ -6,9 +6,10 @@
  * there); this surface is read-only triage.
  */
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, and, or, desc, isNull, isNotNull, sql, type SQL } from 'drizzle-orm'
 import { disputes, escrows, gig_details, users } from '@tenda/shared/db/schema'
-import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
 import type { ApiError, DisputeSummary, PaginatedResponse } from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
@@ -66,8 +67,8 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     Reply: PaginatedResponse<DisputeSummary> | ApiError
   }>('/', { preHandler: [requirePermission('disputes.read')] }, async (request) => {
     const { status, kind, assigned, limit = 20, offset = 0 } = request.query
-    const safeLimit = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     const conditions: SQL[] = []
     // 'open' also requires the on-chain dispute to be live: the triage row

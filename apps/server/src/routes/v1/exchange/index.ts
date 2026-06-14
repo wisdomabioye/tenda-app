@@ -11,11 +11,12 @@
  *            bank_accounts, revealed only inside an accepted intent).
  */
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, and, gt, gte, isNull, lte, or, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, exchange_details, users } from '@tenda/shared/db/schema'
 import {
   ErrorCode,
-  MAX_PAGINATION_LIMIT,
+  
   SUPPORTED_CURRENCIES,
   EXCHANGE_PAYMENT_WINDOW_MIN_SECONDS,
   EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS,
@@ -40,8 +41,8 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
   }>('/', { preHandler: [fastify.authenticate] }, async (request) => {
     const { currency, min_amount_raw, max_amount_raw, limit = 20, offset = 0 } = request.query
 
-    const safeLimit = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     const now = new Date()
     const conditions: SQL[] = [

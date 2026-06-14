@@ -6,9 +6,10 @@
  * user suspension, or Stage-6 moderation overrides.
  */
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, exchange_details, users } from '@tenda/shared/db/schema'
-import { ErrorCode, GIG_CATEGORIES, MAX_PAGINATION_LIMIT } from '@tenda/shared'
+import { ErrorCode, GIG_CATEGORIES } from '@tenda/shared'
 import type {
   AdminEscrowListQuery,
   AdminEscrowRow,
@@ -68,8 +69,8 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
   }>('/', { preHandler: [requirePermission('escrows.read')] }, async (request) => {
     const { kind, status, chain_id, category, country, creator_id, limit = 20, offset = 0 } =
       request.query
-    const safeLimit = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     const conditions: SQL[] = []
     if (kind === 'gig' || kind === 'exchange') conditions.push(eq(escrows.kind, kind))

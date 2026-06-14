@@ -1,7 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { or, eq, desc, and, sql } from 'drizzle-orm'
 import { escrows, escrow_transactions, disputes, gig_details } from '@tenda/shared/db/schema'
-import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 
@@ -24,8 +25,8 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
     }
 
     const { limit = 20, offset = 0 } = request.query
-    const safeLimit = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     const isParty = or(eq(escrows.creator_id, id), eq(escrows.counterparty_id, id))
 

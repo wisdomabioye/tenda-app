@@ -1,7 +1,8 @@
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, desc, sql } from 'drizzle-orm'
 import { announcements } from '@tenda/shared/db/schema'
-import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
@@ -17,8 +18,8 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
     preHandler: [requirePermission('announcements.read')],
   }, async (request) => {
     const { limit = 20, offset = 0, active } = request.query
-    const safeLimit  = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit  = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     const where = active === 'true'  ? eq(announcements.is_active, true)
                 : active === 'false' ? eq(announcements.is_active, false)

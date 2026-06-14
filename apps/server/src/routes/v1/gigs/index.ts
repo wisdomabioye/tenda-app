@@ -8,13 +8,14 @@
  * Transitions live under /v1/escrows/:id/*.
  */
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, and, gt, gte, isNull, lte, or, asc, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, users } from '@tenda/shared/db/schema'
 import {
   isValidLatitude,
   isValidLongitude,
   MAX_GIG_DESCRIPTION_LENGTH,
-  MAX_PAGINATION_LIMIT,
+  
   ASSET_META,
   LOCATIONS,
   GIG_CATEGORIES,
@@ -65,8 +66,8 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       )
     }
 
-    const safeLimit = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     const now = new Date()
     const conditions: SQL[] = [eq(escrows.kind, 'gig')]

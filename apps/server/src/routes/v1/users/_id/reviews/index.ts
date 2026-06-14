@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, sql } from 'drizzle-orm'
 import { reviews } from '@tenda/shared/db/schema'
-import { MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import { ensureUserExists } from '@server/lib/users'
 import type { UsersContract, ApiError } from '@tenda/shared'
 
@@ -17,8 +17,8 @@ const userReviews: FastifyPluginAsync = async (fastify) => {
     const { id } = request.params
     const { limit = 20, offset = 0 } = request.query
 
-    const safeLimit  = Math.min(Number(limit),  MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit  = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     await ensureUserExists(fastify.db, id)
 

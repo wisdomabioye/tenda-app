@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { and, desc, isNull, or, gt, eq, sql } from 'drizzle-orm'
 import { announcements } from '@tenda/shared/db/schema'
-import { MAX_PAGINATION_LIMIT } from '@tenda/shared'
 import type { ApiError } from '@tenda/shared'
 
 const announcementsRoute: FastifyPluginAsync = async (fastify) => {
@@ -13,8 +13,8 @@ const announcementsRoute: FastifyPluginAsync = async (fastify) => {
     Reply: { data: unknown[]; total: number; limit: number; offset: number } | ApiError
   }>('/', async (request) => {
     const { limit = 20, offset = 0 } = request.query
-    const safeLimit  = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit  = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     const now = new Date()
     const where = and(

@@ -4,9 +4,10 @@
  * filtered by escrow kind. Amounts are raw-unit strings (numeric 78,0).
  */
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { desc, eq, sql, and, gte, lte, type SQL } from 'drizzle-orm'
 import { escrows, escrow_transactions } from '@tenda/shared/db/schema'
-import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import type { ApiError, EscrowKind, FinanceFeeRow } from '@tenda/shared'
@@ -95,8 +96,8 @@ const adminFinance: FastifyPluginAsync = async (fastify) => {
     preHandler: [requirePermission('finance.read')],
   }, async (request) => {
     const { kind, from, to, tx_type, limit = 20, offset = 0 } = request.query
-    const safeLimit = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     if (kind !== undefined && kind !== 'gig' && kind !== 'exchange') {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'kind must be "gig" or "exchange"')

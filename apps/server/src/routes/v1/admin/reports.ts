@@ -1,8 +1,9 @@
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, and, desc, sql } from 'drizzle-orm'
 import { reports } from '@tenda/shared/db/schema'
 import {
-  ErrorCode, MAX_PAGINATION_LIMIT, REPORT_STATUSES, REPORT_CONTENT_TYPES,
+  ErrorCode, REPORT_STATUSES, REPORT_CONTENT_TYPES,
 } from '@tenda/shared'
 import type { ApiError, ReportStatus, ReportContentType } from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
@@ -19,8 +20,8 @@ const adminReports: FastifyPluginAsync = async (fastify) => {
     preHandler: [requirePermission('reports.read')] 
   }, async (request) => {
     const { status, content_type, limit = 20, offset = 0 } = request.query
-    const safeLimit  = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit  = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     if (status && !REPORT_STATUSES.includes(status)) {
       return { data: [], total: 0, limit: safeLimit, offset: safeOffset }

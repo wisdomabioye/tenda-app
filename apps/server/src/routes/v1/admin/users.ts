@@ -1,8 +1,9 @@
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, exists, ilike, or, and, desc, isNull, sql, SQL } from 'drizzle-orm'
 import { users, user_wallets, disputes, admin_users } from '@tenda/shared/db/schema'
 import {
-  ADMIN_ROLES, ASSIGNABLE_ROLES, ErrorCode, MAX_PAGINATION_LIMIT,
+  ADMIN_ROLES, ASSIGNABLE_ROLES, ErrorCode,
 } from '@tenda/shared'
 import { hasPermission, requirePermission } from '@server/lib/guards'
 import { computeDisputeRate } from '@server/features/reputation/fraud-flag'
@@ -22,8 +23,8 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     preHandler: [requirePermission('users.read')] 
   }, async (request) => {
     const { status, role, search, limit = 20, offset = 0 } = request.query
-    const safeLimit  = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit  = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     const conditions: SQL[] = []
 

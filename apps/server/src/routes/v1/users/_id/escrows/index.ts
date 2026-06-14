@@ -5,9 +5,10 @@
  * lifecycle states are visible here, unlike the public browse surfaces.
  */
 import { FastifyPluginAsync } from 'fastify'
+import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { or, eq, and, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, exchange_details } from '@tenda/shared/db/schema'
-import { ErrorCode, MAX_PAGINATION_LIMIT } from '@tenda/shared'
+import { ErrorCode } from '@tenda/shared'
 import type { UsersContract, ApiError, EscrowListRow } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 
@@ -26,8 +27,8 @@ const userEscrows: FastifyPluginAsync = async (fastify) => {
     }
 
     const { role, kind, limit = 20, offset = 0 } = request.query
-    const safeLimit = Math.min(Number(limit), MAX_PAGINATION_LIMIT)
-    const safeOffset = Number(offset)
+    const safeLimit = clampLimit(Number(limit))
+    const safeOffset = clampOffset(Number(offset))
 
     const conditions: SQL[] = []
     if (role === 'creator') {
