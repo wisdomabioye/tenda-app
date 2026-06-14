@@ -15,6 +15,21 @@ false-confidence tests, document (never silently drop) any coverage exclusion.
 These were found by checking the plan against the *actual* CI and harness, not
 in the abstract. The first is structural and changes Phase 0 materially.
 
+> **EXECUTION UPDATE (2026-06-14):** decisions G1 + test-DB resolved by the user.
+> - **G1 gate location → option A** (per-PR + postgres service). Phase 0a (#103)
+>   builds this; the existing testing-strategy doc will be updated in that change.
+> - **Test DB → created.** `tenda_test` exists on local postgres, migrated to the
+>   `0005` baseline. Server baseline **measured** (see below). The harness needs
+>   only postgres (Redis stays a 501 stub).
+> - **Shared (1A) DONE:** 102 tests, 100% lines/branch/funcs/stmts, gate live.
+> - **Admin tooling (0b) DONE:** vitest+jsdom+RTL harness green (11 tests).
+> - **Server baseline (0b) DONE / gate floor set (#97):** with honest `all:true`
+>   denominator and exclusions (entry `server.ts`, ops `scripts/**`, type-only
+>   `*/types.ts`, migrations, `*.d.ts`): **75.4% lines / 83.4% branch / 78.5%
+>   funcs**, 554 pass / 3 skip / 0 fail. Gate floor wired at lines 75 / branches
+>   83 / funcs 78 / stmts 75 in `apps/server/.c8rc.json`; **1B (#98) ratchets it
+>   toward 90/85** as gaps close.
+
 ### G1 (CRITICAL) — the coverage gate can't run in CI as the repo stands
 - `.github/workflows/ci.yml` provisions **no postgres**. The server CI job runs
   **only** `tsx --test "test/unit/*.test.ts"` (393 cases). The **18 integration
@@ -232,7 +247,7 @@ toward the 90% line number.
 | Phase 0b (shared/admin/server tooling + baseline) | 0.5d | runners green, thresholds wired |
 | Phase 0c (mobile harness spike, G10) | ~1d | jest-expo green on a smoke test |
 | 1A Shared | 1d | shared ≥90 |
-| 1B Server gap-fill | **sized by 0.1** | server gate → 90 |
+| 1B Server gap-fill | **~15pt line gap** (75.4→90; worst: reports 19%, transactions 21%, push/openrouter/paymaster libs) | server gate → 90 |
 | 1C Admin | 1d | admin ≥90 (client surface) |
 | 1D Mobile | 2–3d | mobile ≥90 (lib+stores+components) |
 | Phase 2 E2E | 1–2d | Maestro + Playwright smoke |

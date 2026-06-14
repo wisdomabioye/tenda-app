@@ -1,0 +1,21 @@
+{
+  "all": true,
+  "src": ["src"],
+  "include": ["src/**/*.ts"],
+  "exclude": [
+    "src/db/migrations/**",
+    "src/server.ts",
+    "src/scripts/**",
+    "src/features/fiat-rails/types.ts",
+    "src/features/moderation/types.ts",
+    "src/**/*.d.ts"
+  ],
+  "reporter": ["text", "lcov"],
+  "report-dir": "coverage",
+  "clean": true,
+  "check-coverage": true,
+  "lines": 75,
+  "branches": 83,
+  "functions": 78,
+  "statements": 75
+}
