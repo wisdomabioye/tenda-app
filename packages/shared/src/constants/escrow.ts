@@ -31,3 +31,12 @@ export function isEscrowTxType(v: unknown): v is EscrowTxType {
  * draft whose deadline lapsed before publishing.
  */
 export const DEFAULT_ACCEPT_WINDOW_SECONDS = 7 * 24 * 60 * 60
+
+/**
+ * Maximum digit count an `amount_raw` string may carry — mirrors the
+ * `numeric(78,0)` precision of every amount column (db/schema/escrow.ts,
+ * identity.ts, fiat.ts, …). Client-supplied amounts are length-checked
+ * against this so an over-range value fails validation (422) up front
+ * instead of overflowing the column at insert time (a postgres 500).
+ */
+export const AMOUNT_RAW_PRECISION = 78

@@ -7,7 +7,7 @@
  * fail fast with typed errors, not to be the security boundary).
  */
 
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, AMOUNT_RAW_PRECISION } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { assertGigAsset } from '@server/lib/escrow'
 import { isAmountRaw, type AmountRaw, type AssetId, type ChainId } from '@server/chains/types'
@@ -79,10 +79,16 @@ export function validateCreateEscrow(
   if (!isAmountRaw(body.amount_raw)) fail('amount_raw must be a canonical integer string')
   const amount_raw = body.amount_raw
   if (amount_raw === '0') fail('amount_raw must be positive')
+  if (amount_raw.length > AMOUNT_RAW_PRECISION) {
+    fail(`amount_raw exceeds the maximum precision of ${AMOUNT_RAW_PRECISION} digits`)
+  }
 
   const dispute_bond_raw = body.dispute_bond_raw ?? '0'
   if (!isAmountRaw(dispute_bond_raw)) {
     fail('dispute_bond_raw must be a canonical integer string')
+  }
+  if (dispute_bond_raw.length > AMOUNT_RAW_PRECISION) {
+    fail(`dispute_bond_raw exceeds the maximum precision of ${AMOUNT_RAW_PRECISION} digits`)
   }
 
   if (

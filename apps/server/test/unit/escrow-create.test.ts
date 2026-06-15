@@ -111,3 +111,16 @@ test('completion duration must be a positive integer', () => {
 test('self-assignment rejected', () => {
   expectRejects(body({ assigned_counterparty_id: 'user-1' }), 422, /cannot be the creator/)
 })
+
+test('amount_raw at the numeric(78,0) precision boundary: 78 digits ok, 79 rejected', () => {
+  // ADVERSARIAL: an over-precision amount must fail validation (422) rather
+  // than overflow the numeric(78,0) column at insert time (postgres 500).
+  const at = '9'.repeat(78)
+  const over = '9'.repeat(79)
+  assert.strictEqual(validateCreateEscrow(deps(), body({ amount_raw: at })).amount_raw, at)
+  expectRejects(body({ amount_raw: over }), 422, /amount_raw exceeds the maximum precision/)
+})
+
+test('dispute_bond_raw is bounded by the same precision', () => {
+  expectRejects(body({ dispute_bond_raw: '9'.repeat(79) }), 422, /dispute_bond_raw exceeds the maximum precision/)
+})

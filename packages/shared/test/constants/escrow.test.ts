@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { ESCROW_TX_TYPES, isEscrowTxType, DEFAULT_ACCEPT_WINDOW_SECONDS } from '../../src/constants/escrow'
+import { ESCROW_TX_TYPES, isEscrowTxType, DEFAULT_ACCEPT_WINDOW_SECONDS, AMOUNT_RAW_PRECISION } from '../../src/constants/escrow'
 
 test('ESCROW_TX_TYPES: non-empty and free of duplicates', () => {
   assert.ok(ESCROW_TX_TYPES.length > 0)
@@ -21,4 +21,8 @@ test('isEscrowTxType: rejects unknown strings and non-strings', () => {
 
 test('DEFAULT_ACCEPT_WINDOW_SECONDS equals 7 days', () => {
   assert.equal(DEFAULT_ACCEPT_WINDOW_SECONDS, 7 * 24 * 60 * 60)
+})
+
+test('AMOUNT_RAW_PRECISION matches the numeric(78,0) column precision', () => {
+  assert.equal(AMOUNT_RAW_PRECISION, 78)
 })
