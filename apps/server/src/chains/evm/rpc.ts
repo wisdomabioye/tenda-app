@@ -4,13 +4,7 @@
  * implementation for production and in-memory fakes in tests.
  */
 
-import {
-  createPublicClient,
-  http,
-  type Abi,
-  type PublicClient,
-  type TransactionReceipt,
-} from 'viem'
+import { createPublicClient, http, type Abi } from 'viem'
 import { TENDA_ESCROW_EVM_ABI } from '@tenda/shared/abi'
 
 /** The contract ABI, narrowed once at this boundary (same pattern as the
@@ -63,16 +57,36 @@ export const DEFAULT_EVM_RPC_TIMEOUT_MS = 15_000
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
-export function createEvmRpc(args: { rpc_url: string; timeout_ms?: number }): EvmRpc {
-  const client: PublicClient = createPublicClient({
-    transport: http(args.rpc_url, { timeout: args.timeout_ms ?? DEFAULT_EVM_RPC_TIMEOUT_MS }),
-  })
+/**
+ * Minimal viem-client surface the wrapper consumes. Tests inject a fake
+ * against this port (no network, no viem client construction);
+ * `createEvmRpc` builds the real PublicClient and adapts it.
+ */
+export interface EvmClientReceipt {
+  status: 'success' | 'reverted'
+  blockNumber: bigint
+  logs: ReadonlyArray<{ address: string; data: `0x${string}`; topics: readonly `0x${string}`[] }>
+}
 
+export interface EvmClientPort {
+  /** Throws when the hash is unknown — the wrapper maps that to `null`. */
+  getTransactionReceipt(hash: `0x${string}`): Promise<EvmClientReceipt>
+  getBlockNumber(): Promise<bigint>
+  readContract(args: {
+    address: `0x${string}`
+    abi: Abi
+    functionName: string
+    args: readonly unknown[]
+  }): Promise<unknown>
+}
+
+/** Wrap a client port into the EvmRpc the adapter consumes (the testable unit). */
+export function evmRpcFromClient(client: EvmClientPort): EvmRpc {
   return {
     async getTransactionReceipt(hash) {
-      let receipt: TransactionReceipt
+      let receipt: EvmClientReceipt
       try {
-        receipt = await client.getTransactionReceipt({ hash })
+        receipt = await client.getTransactionReceipt(hash)
       } catch {
         // viem throws TransactionReceiptNotFoundError for unknown hashes —
         // the verify pipeline treats that as "not confirmed yet".
@@ -136,6 +150,20 @@ export function createEvmRpc(args: { rpc_url: string; timeout_ms?: number }): Ev
       }
     },
   }
+}
+
+export function createEvmRpc(args: { rpc_url: string; timeout_ms?: number }): EvmRpc {
+  const vc = createPublicClient({
+    transport: http(args.rpc_url, { timeout: args.timeout_ms ?? DEFAULT_EVM_RPC_TIMEOUT_MS }),
+  })
+  const client: EvmClientPort = {
+    getTransactionReceipt: (hash) => vc.getTransactionReceipt({ hash }),
+    getBlockNumber: () => vc.getBlockNumber(),
+    // viem's readContract param is ABI-generic; the loose port shape needs a
+    // boundary cast (the result is already cast to the tuple downstream).
+    readContract: (a) => vc.readContract(a as Parameters<typeof vc.readContract>[0]),
+  }
+  return evmRpcFromClient(client)
 }
 
 export { ZERO_ADDRESS }
