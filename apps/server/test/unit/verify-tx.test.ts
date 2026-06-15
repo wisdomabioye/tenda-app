@@ -72,15 +72,13 @@ function makeDeps(opts: {
     },
   }
   const eventStore: EscrowEventStore = {
-    async applyTransition({ from, patch }) {
+    async applyEvent({ from, patch }) {
       calls.transitions.push({ from, patch })
       return !(opts.guardTrips ?? false)
     },
-    async insertTransaction() {},
     async resolveUserByWallet() {
       return 'user-1'
     },
-    async recordDisputeResolution() {},
   }
   const adapter: ChainAdapter = {
     namespace: 'solana',

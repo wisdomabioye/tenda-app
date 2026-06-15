@@ -39,18 +39,19 @@ function makeDeps(opts: { guardTrips?: boolean; wallets?: Record<string, string>
 } {
   const rec: Recorded = { transitions: [], transactions: [], resolutions: [] }
   const store: EscrowEventStore = {
-    async applyTransition(args) {
-      rec.transitions.push(args)
-      return !(opts.guardTrips ?? false)
-    },
-    async insertTransaction(row) {
-      rec.transactions.push(row)
+    // Mirrors the real store's atomicity: the audit row + dispute stamp are
+    // written only when the status guard passes, all in one applyEvent call.
+    async applyEvent({ escrow_id, from, patch, transaction, disputeResolution }) {
+      rec.transitions.push({ escrow_id, from, patch })
+      if (opts.guardTrips ?? false) return false
+      rec.transactions.push({ escrow_id, ...transaction })
+      if (disputeResolution !== undefined) {
+        rec.resolutions.push({ escrow_id, winner: disputeResolution.winner })
+      }
+      return true
     },
     async resolveUserByWallet(_ns, address) {
       return opts.wallets?.[address] ?? null
-    },
-    async recordDisputeResolution(args) {
-      rec.resolutions.push(args)
     },
   }
   return { deps: { store, chain_ns: 'solana' }, rec }

@@ -49,32 +49,38 @@ export interface EscrowPatch {
   approval_deadline?: Date
 }
 
+/** Audit row recorded alongside every applied transition. */
+export interface EscrowEventTransaction {
+  type: EscrowTxType
+  tx_ref: string
+  amount_raw: string | null
+  platform_fee_raw: string | null
+  actor_id: string | null
+}
+
 export interface EscrowEventStore {
   /**
-   * Status-guarded UPDATE: apply `patch` iff the row's status is in `from`.
-   * Returns false when the guard trips (another worker already applied) —
-   * the caller treats that as an idempotent no-op, not an error.
+   * Apply one event ATOMICALLY: the status-guarded `escrows` UPDATE, the
+   * `escrow_transactions` audit INSERT, and (for DisputeResolved) the
+   * `disputes` stamp all commit inside ONE db.transaction. This is load-
+   * bearing: verify-tx's `isProcessed` dedup keys on the audit row, so the
+   * transition and that row must never be split across commits (a crash in
+   * between would transition the escrow but lose the audit row, and the
+   * idempotent guard would never re-insert it).
+   *
+   * Returns false when the status guard trips (another worker already
+   * applied) — the caller treats that as an idempotent no-op, and neither
+   * the audit row nor the dispute stamp is written.
    */
-  applyTransition(args: {
+  applyEvent(args: {
     escrow_id: string
     from: EscrowStatus[]
     patch: EscrowPatch
+    transaction: EscrowEventTransaction
+    disputeResolution?: { winner: 'creator' | 'counterparty' | 'split' }
   }): Promise<boolean>
-  insertTransaction(row: {
-    escrow_id: string
-    type: EscrowTxType
-    tx_ref: string
-    amount_raw: string | null
-    platform_fee_raw: string | null
-    actor_id: string | null
-  }): Promise<void>
   /** Wallet address → user id on the namespace; null if unknown. */
   resolveUserByWallet(chain_ns: ChainNamespace, address: string): Promise<string | null>
-  /** Stamp the dispute row when DisputeResolved lands. */
-  recordDisputeResolution(args: {
-    escrow_id: string
-    winner: 'creator' | 'counterparty' | 'split'
-  }): Promise<void>
 }
 
 // ---------- per-event application table --------------------------------------
@@ -222,6 +228,8 @@ export async function applyEscrowEvent(
 
   const patch = app.patch(event.fields)
 
+  // Resolve all wallet→user reads BEFORE the atomic apply so the write
+  // bundle (transition + audit row + dispute stamp) happens in one shot.
   // EscrowCreated stamps the on-chain ref; EscrowAccepted resolves the
   // accepting wallet to a user id. Both need data beyond the static table.
   if (event.name === 'EscrowCreated') {
@@ -235,31 +243,34 @@ export async function applyEscrowEvent(
         : null
   }
 
-  const applied = await deps.store.applyTransition({ escrow_id, from: app.from, patch })
+  const actorAddress = app.actor_field !== undefined ? event.fields[app.actor_field] : undefined
+  const actor_id =
+    actorAddress !== undefined
+      ? await deps.store.resolveUserByWallet(deps.chain_ns, actorAddress)
+      : null
 
-  if (applied) {
-    const actorAddress = app.actor_field !== undefined ? event.fields[app.actor_field] : undefined
-    const actor_id =
-      actorAddress !== undefined
-        ? await deps.store.resolveUserByWallet(deps.chain_ns, actorAddress)
-        : null
-    await deps.store.insertTransaction({
-      escrow_id,
+  let disputeResolution: { winner: Winner } | undefined
+  if (event.name === 'DisputeResolved') {
+    const winner = narrowWinner(event.fields.winner)
+    if (winner !== null) disputeResolution = { winner }
+  }
+
+  // One atomic apply: the status guard + audit row + dispute stamp commit
+  // together (or not at all). The store skips the audit/stamp writes when
+  // the guard trips, so a replay stays an idempotent no-op.
+  const applied = await deps.store.applyEvent({
+    escrow_id,
+    from: app.from,
+    patch,
+    transaction: {
       type: app.tx_type,
       tx_ref,
-      amount_raw:
-        app.amount_field !== undefined ? (event.fields[app.amount_field] ?? null) : null,
+      amount_raw: app.amount_field !== undefined ? (event.fields[app.amount_field] ?? null) : null,
       platform_fee_raw: app.fee_field !== undefined ? (event.fields[app.fee_field] ?? null) : null,
       actor_id,
-    })
-
-    if (event.name === 'DisputeResolved') {
-      const winner = narrowWinner(event.fields.winner)
-      if (winner !== null) {
-        await deps.store.recordDisputeResolution({ escrow_id, winner })
-      }
-    }
-  }
+    },
+    ...(disputeResolution !== undefined ? { disputeResolution } : {}),
+  })
 
   return { applied, escrow_id, internal_event: INTERNAL_EVENT_BY_WIRE[event.name] }
 }
@@ -277,19 +288,30 @@ import type { AppDatabase } from '@server/plugins/db'
 
 export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
   return {
-    async applyTransition({ escrow_id, from, patch }) {
-      const updated = await db
-        .update(escrows)
-        .set(patch)
-        .where(and(eq(escrows.id, escrow_id), inArray(escrows.status, from)))
-        .returning({ id: escrows.id })
-      return updated.length > 0
-    },
-    async insertTransaction(row) {
-      // tx_ref UNIQUE — a replayed insert is a no-op (defence in depth on
-      // top of the caller's isProcessed dedup).
-      await db.insert(escrow_transactions).values(row).onConflictDoNothing({
-        target: escrow_transactions.tx_ref,
+    async applyEvent({ escrow_id, from, patch, transaction, disputeResolution }) {
+      // All writes in ONE transaction so the audit row (which isProcessed
+      // keys on) can never be lost relative to the status transition.
+      return db.transaction(async (tx) => {
+        const updated = await tx
+          .update(escrows)
+          .set(patch)
+          .where(and(eq(escrows.id, escrow_id), inArray(escrows.status, from)))
+          .returning({ id: escrows.id })
+        if (updated.length === 0) return false // status guard tripped — idempotent no-op
+
+        // tx_ref UNIQUE — a replayed insert is a no-op (defence in depth on
+        // top of the caller's isProcessed dedup).
+        await tx.insert(escrow_transactions).values({ escrow_id, ...transaction }).onConflictDoNothing({
+          target: escrow_transactions.tx_ref,
+        })
+
+        if (disputeResolution !== undefined) {
+          await tx
+            .update(disputes)
+            .set({ winner: disputeResolution.winner, resolved_at: new Date() })
+            .where(eq(disputes.escrow_id, escrow_id))
+        }
+        return true
       })
     },
     async resolveUserByWallet(chain_ns, address) {
@@ -299,12 +321,6 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
         .where(and(eq(user_wallets.chain_ns, chain_ns), eq(user_wallets.address, address)))
         .limit(1)
       return rows[0]?.user_id ?? null
-    },
-    async recordDisputeResolution({ escrow_id, winner }) {
-      await db
-        .update(disputes)
-        .set({ winner, resolved_at: new Date() })
-        .where(eq(disputes.escrow_id, escrow_id))
     },
   }
 }
