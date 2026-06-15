@@ -53,9 +53,12 @@ export function decodeEscrowLogs(
     if (typeof escrowIdRaw !== 'string') continue
 
     // Stringify every arg so uint256 amounts survive (mirrors the Solana
-    // decoder's contract: DecodedEvent.fields are strings).
-    const fields: Record<string, string> = {}
+    // decoder's contract: DecodedEvent.fields are strings). `escrowId` is
+    // rendered canonically as `escrow_id` (the UUID) — the key applyEscrowEvent
+    // and the Solana decoder both use — so the raw bytes16 form is dropped.
+    const fields: Record<string, string> = { escrow_id: escrowIdHexToUuid(escrowIdRaw) }
     for (const [k, v] of Object.entries(args)) {
+      if (k === 'escrowId') continue
       fields[k] = typeof v === 'bigint' ? v.toString() : String(v)
     }
 
@@ -64,7 +67,7 @@ export function decodeEscrowLogs(
       name: decoded.eventName,
       escrow_ref: escrowIdRaw,
       ...(actorRaw !== null ? { actor: `${chain_id}:${actorRaw}` as DecodedEvent['actor'] } : {}),
-      fields: { ...fields, escrow_id_uuid: escrowIdHexToUuid(escrowIdRaw) },
+      fields,
     })
   }
   return out

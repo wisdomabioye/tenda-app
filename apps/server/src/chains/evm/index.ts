@@ -173,7 +173,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
             : 'no escrow event in transaction',
       }
     }
-    if (verify.escrow_id !== undefined && match.fields.escrow_id_uuid !== verify.escrow_id) {
+    if (verify.escrow_id !== undefined && match.fields.escrow_id !== verify.escrow_id) {
       return { confirmed: true, failed: true, reason: 'escrow_id mismatch' }
     }
     return { confirmed: true, failed: false, event: match }

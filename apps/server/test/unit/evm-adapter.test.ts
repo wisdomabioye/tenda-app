@@ -22,6 +22,13 @@ import { ESCROW_EVM_ABI, ZERO_ADDRESS, type EvmReceipt, type EvmRpc } from '@ser
 import type { PaymasterHttp } from '@server/chains/evm/paymaster'
 import { uuidToBytes } from '@server/chains/ids'
 import { extractTxHashes } from '@server/routes/v1/webhooks/alchemy'
+import {
+  applyEscrowEvent,
+  type EscrowEventStore,
+  type EscrowEventTransaction,
+  type EscrowPatch,
+} from '@server/lib/escrow-events'
+import type { EscrowStatus } from '@server/lib/escrow'
 
 const CHAIN_ID = 'eip155:8453'
 const CONTRACT = '0x00000000000000000000000000000000000000e5' as const
@@ -197,11 +204,44 @@ test('decodeEscrowLogs: decodes wire events, stringifies amounts, recovers the U
   const created = events[0]
   assert.strictEqual(created.name, 'EscrowCreated')
   assert.strictEqual(created.fields.amount, '1000000')
-  assert.strictEqual(created.fields.escrow_id_uuid, UUID)
+  // The canonical escrow id key MUST be `escrow_id` (the key applyEscrowEvent
+  // and the Solana decoder both use) — never the adapter-local `escrow_id_uuid`.
+  assert.strictEqual(created.fields.escrow_id, UUID)
+  assert.strictEqual(created.fields.escrow_id_uuid, undefined)
   assert.strictEqual(created.actor, `${CHAIN_ID}:${CREATOR}`)
 
   assert.strictEqual(events[1].name, 'EscrowAccepted')
   assert.strictEqual(events[1].actor, `${CHAIN_ID}:${WORKER}`)
+})
+
+// ADVERSARIAL (cross-seam): the EVM decoder feeds applyEscrowEvent, which
+// reads `event.fields.escrow_id` and throws "missing escrow_id" otherwise.
+// The old decoder emitted only `escrow_id_uuid`, so EVERY EVM event threw
+// here. We exercise the real seam (decode → apply) rather than asserting the
+// decoder's output shape in isolation. Fails against the pre-fix decoder.
+test('decoded EVM EscrowCreated applies through applyEscrowEvent end-to-end', async () => {
+  const [created] = decodeEscrowLogs([createdLog()], CONTRACT, CHAIN_ID)
+  const rec = { transitions: [] as Array<{ from: EscrowStatus[]; patch: EscrowPatch }>, txs: [] as EscrowEventTransaction[] }
+  const store: EscrowEventStore = {
+    async applyEvent({ from, patch, transaction }) {
+      rec.transitions.push({ from, patch })
+      rec.txs.push(transaction)
+      return true
+    },
+    async resolveUserByWallet(_ns, address) {
+      return address === CREATOR ? 'user-creator' : null
+    },
+  }
+  const r = await applyEscrowEvent({ store, chain_ns: 'eip155' }, created, TX)
+
+  assert.strictEqual(r.applied, true)
+  assert.strictEqual(r.escrow_id, UUID) // extracted from fields.escrow_id, not a throw
+  assert.strictEqual(r.internal_event, 'escrow.created')
+  assert.deepStrictEqual(rec.transitions[0].from, ['draft'])
+  assert.strictEqual(rec.transitions[0].patch.status, 'open')
+  assert.strictEqual(rec.transitions[0].patch.escrow_ref, UUID_HEX) // EVM escrow_ref = bytes16 hex
+  assert.strictEqual(rec.txs[0].amount_raw, '1000000')
+  assert.strictEqual(rec.txs[0].actor_id, 'user-creator')
 })
 
 test('escrowIdHexToUuid round-trips uuidToBytes', () => {
