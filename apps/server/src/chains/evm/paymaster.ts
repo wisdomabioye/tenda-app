@@ -61,7 +61,10 @@ export function fetchPaymasterHttp(url: string, timeout_ms = 15_000): PaymasterH
         }
         error?: { message?: string }
       }
-      if (body.error !== undefined || body.result === undefined) {
+      // JSON-RPC 2.0 omits `error` on success, but many servers send
+      // `error: null` — treat null AND undefined as "no error" (`!= null`)
+      // so a valid result alongside an explicit null error isn't rejected.
+      if (body.error != null || body.result === undefined) {
         throw new AppError(
           502,
           ErrorCode.PROVIDER_UNAVAILABLE,
