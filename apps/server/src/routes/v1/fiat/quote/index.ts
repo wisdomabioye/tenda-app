@@ -12,7 +12,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { assets } from '@tenda/shared/db/schema/chains'
 import { users } from '@tenda/shared/db/schema/identity'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, EXCHANGE_MAX_FIAT_AMOUNT, AMOUNT_RAW_PRECISION } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { isAmountRaw } from '@server/chains/types'
 import { buildFiatDeps, requestQuote } from '@server/features/fiat-rails'
@@ -51,13 +51,34 @@ const route: FastifyPluginAsync = async (fastify) => {
       let fiat_amount: number | null = null
       let asset_amount_raw: string | null = null
       if (direction === 'onramp') {
-        if (typeof b.fiat_amount !== 'number' || !Number.isFinite(b.fiat_amount) || b.fiat_amount <= 0) {
-          throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'fiat_amount must be a positive number')
+        // Upper rail mirrors the exchange-offer guard: keep absurd values a
+        // clean 422 instead of overflowing fiat_intents.fiat_amount
+        // numeric(20,4) at persist time (a postgres 500).
+        if (
+          typeof b.fiat_amount !== 'number' ||
+          !Number.isFinite(b.fiat_amount) ||
+          b.fiat_amount <= 0 ||
+          b.fiat_amount > EXCHANGE_MAX_FIAT_AMOUNT
+        ) {
+          throw new AppError(
+            422,
+            ErrorCode.VALIDATION_ERROR,
+            `fiat_amount must be a positive number ≤ ${EXCHANGE_MAX_FIAT_AMOUNT}`,
+          )
         }
         fiat_amount = b.fiat_amount
       } else {
         if (!isAmountRaw(b.asset_amount_raw)) {
           throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'asset_amount_raw must be canonical')
+        }
+        // Bound to the numeric(78,0) precision so an over-range value fails
+        // up front instead of overflowing the column at persist time.
+        if (b.asset_amount_raw.length > AMOUNT_RAW_PRECISION) {
+          throw new AppError(
+            422,
+            ErrorCode.VALIDATION_ERROR,
+            `asset_amount_raw exceeds the maximum precision of ${AMOUNT_RAW_PRECISION} digits`,
+          )
         }
         asset_amount_raw = b.asset_amount_raw
       }
