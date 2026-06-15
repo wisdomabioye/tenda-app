@@ -19,7 +19,7 @@ import { fetchPaymasterHttp } from '@server/chains/evm/paymaster'
 import { CELO_CHAIN_ID } from '@server/chains/celo/config'
 import { getConfig } from '@server/config'
 import { AppError } from '@server/lib/errors'
-import { drizzleSponsorStore, reserveSponsoredTx } from '@server/lib/sponsor'
+import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/sponsor'
 
 type ChainNs = 'solana' | 'eip155'
 
@@ -96,6 +96,13 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
           chain_id: 'eip155:8453',
         })
         return result.sponsored
+      },
+
+      // Symmetric refund for the reserve above: the adapter calls this when a
+      // sponsored build fails after the slot was reserved (paymaster outage),
+      // so the quota slot isn't leaked.
+      async releaseSponsorship(user_id) {
+        await releaseSponsoredTx(drizzleSponsorStore(fastify.db), { user_id })
       },
 
       ...(config.COINBASE_PAYMASTER_URL !== null

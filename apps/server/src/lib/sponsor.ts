@@ -84,19 +84,19 @@ export async function reserveSponsoredTx(
 
 export async function releaseSponsoredTx(
   store: SponsorStore,
-  args: { user_id: string; reservation_id: string },
+  args: { user_id: string },
 ): Promise<void> {
-  // reservation_id is opaque here; the route layer is responsible for
-  // tracking which IDs have been settled. Stage 2 reconciliation cron
-  // cleans up drift.
-  void args.reservation_id
+  // The paymaster quota is a per-user counter (not a per-reservation row),
+  // so a release is simply "give the slot back to this user". The opaque
+  // reservation_id from reserve is for the Stage-3 per-attempt tracking
+  // (#45), not needed to release.
   await store.refund(args.user_id)
 }
 
 /** No-op for the paymaster model — the decrement at reserve time IS the commit. */
 export async function commitSponsoredTx(
   _store: SponsorStore,
-  args: { user_id: string; reservation_id: string },
+  args: { user_id: string },
 ): Promise<void> {
   void args
 }

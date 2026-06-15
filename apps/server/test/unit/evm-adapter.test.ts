@@ -426,6 +426,105 @@ test('buildTx: no quota / value-carrying / paymaster failure all degrade to a pl
   assert.strictEqual(t3.kind, 'evm-tx')
 })
 
+// ADVERSARIAL: a sponsored build that fails AFTER the quota slot is reserved
+// must release the slot, else it leaks (user loses a free tx yet pays gas).
+// We model the real per-user counter: shouldSponsor reserves (decrement-if-
+// positive), releaseSponsorship refunds. The pre-fix adapter never released
+// on the degradation path, so the counter stays stuck below its start —
+// these fail against it.
+function quotaDeps(start: number): {
+  remaining: () => number
+  shouldSponsor: (user_id: string) => Promise<boolean>
+  releaseSponsorship: (user_id: string) => Promise<void>
+} {
+  let remaining = start
+  return {
+    remaining: () => remaining,
+    async shouldSponsor() {
+      if (remaining <= 0) return false
+      remaining -= 1
+      return true
+    },
+    async releaseSponsorship() {
+      remaining += 1
+    },
+  }
+}
+
+test('buildTx: paymaster outage refunds the reserved quota slot (no leak)', async () => {
+  const quota = quotaDeps(3)
+  const adapter = makeAdapter({
+    paymaster: {
+      async sponsorUserOperation() {
+        throw new Error('rate limited')
+      },
+    },
+    shouldSponsor: quota.shouldSponsor,
+    releaseSponsorship: quota.releaseSponsorship,
+  })
+  const tx = await adapter.buildTx({ action: 'acceptEscrow', user_id: 'u1', payload: { escrow_id: UUID } })
+  assert.strictEqual(tx.kind, 'evm-tx') // degraded
+  assert.strictEqual(quota.remaining(), 3) // reserved then released — net zero
+})
+
+test('buildTx: wallet-resolution failure after reserve also refunds the slot', async () => {
+  const quota = quotaDeps(1)
+  const adapter = makeAdapter({
+    resolveWalletAddress: async () => {
+      throw new Error('no wallet linked')
+    },
+    paymaster: {
+      async sponsorUserOperation() {
+        throw new Error('should not reach the paymaster')
+      },
+    },
+    shouldSponsor: quota.shouldSponsor,
+    releaseSponsorship: quota.releaseSponsorship,
+  })
+  const tx = await adapter.buildTx({ action: 'acceptEscrow', user_id: 'u1', payload: { escrow_id: UUID } })
+  assert.strictEqual(tx.kind, 'evm-tx') // degraded, did not throw
+  assert.strictEqual(quota.remaining(), 1) // slot restored
+})
+
+test('buildTx: successful sponsorship KEEPS the reserved slot (decrement is the commit)', async () => {
+  const quota = quotaDeps(2)
+  const adapter = makeAdapter({
+    paymaster: {
+      async sponsorUserOperation() {
+        return {
+          paymaster_and_data: '0xfeed',
+          pre_verification_gas: '0x1',
+          verification_gas_limit: '0x2',
+          call_gas_limit: '0x3',
+        }
+      },
+    },
+    shouldSponsor: quota.shouldSponsor,
+    releaseSponsorship: quota.releaseSponsorship,
+  })
+  const tx = await adapter.buildTx({ action: 'acceptEscrow', user_id: 'u1', payload: { escrow_id: UUID } })
+  assert.strictEqual(tx.kind, 'evm-userop')
+  assert.strictEqual(quota.remaining(), 1) // one slot spent, not refunded
+})
+
+test('buildTx: a refund hiccup never turns degradation into a hard failure', async () => {
+  const adapter = makeAdapter({
+    paymaster: {
+      async sponsorUserOperation() {
+        throw new Error('rate limited')
+      },
+    },
+    shouldSponsor: async () => true,
+    releaseSponsorship: async () => {
+      throw new Error('db down')
+    },
+  })
+  // Must still resolve to a plain tx — the build must not propagate the
+  // refund error.
+  const tx = await adapter.buildTx({ action: 'acceptEscrow', user_id: 'u1', payload: { escrow_id: UUID } })
+  assert.strictEqual(tx.kind, 'evm-tx')
+})
+
 // ---------- alchemy webhook extraction ------------------------------------------------------
 
 test('extractTxHashes: dedupes valid hashes, ignores junk shapes', () => {

@@ -37,9 +37,17 @@ export interface EvmAdapterDeps {
   resolveAsset(asset: AssetId): Promise<{ token_address: string | null }>
   /**
    * Should this user's next tx be sponsored? (lib/sponsor.ts policy —
-   * remaining quota etc.). Absent = never sponsor.
+   * remaining quota etc.). A `true` result has ALREADY reserved (decremented)
+   * a quota slot — see `releaseSponsorship`. Absent = never sponsor.
    */
   shouldSponsor?(user_id: string): Promise<boolean>
+  /**
+   * Give back a quota slot reserved by `shouldSponsor` when the sponsored
+   * build fails after reservation (paymaster outage / wallet-resolution
+   * error). Without it the reserved slot leaks — the user loses a free tx
+   * yet pays gas. Absent = no-op (chains that never reserve, e.g. CELO).
+   */
+  releaseSponsorship?(user_id: string): Promise<void>
   /** Test seam: replace the network-backed RPC with a fake. */
   rpc?: EvmRpc
   /** Paymaster endpoint seam; absent = sponsorship unavailable. */
@@ -87,8 +95,12 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       (await (args.deps.shouldSponsor?.(build.user_id) ?? Promise.resolve(false)))
 
     if (sponsorable && args.deps.paymaster !== undefined) {
-      const sender = (await args.deps.resolveWalletAddress(build.user_id)) as `0x${string}`
+      // A quota slot was reserved in shouldSponsor(). EVERY exit from here on
+      // must either keep it (sponsored build succeeds) or release it (any
+      // failure → plain-tx degradation) — wallet resolution included, so it
+      // sits inside the try.
       try {
+        const sender = (await args.deps.resolveWalletAddress(build.user_id)) as `0x${string}`
         const sponsored = await args.deps.paymaster.sponsorUserOperation(
           { sender, call_data: call.data },
           ENTRY_POINT_V06,
@@ -112,7 +124,16 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
         }
       } catch {
         // Documented degradation: sponsorship unavailable → user pays gas
-        // (~$0.01 on BASE). Fall through to the plain tx.
+        // (~$0.01 on BASE). Release the reserved slot so it isn't burned for
+        // a sponsorship the user never received, then fall through to the
+        // plain tx. Best-effort: a release hiccup must NOT turn the
+        // degradation into a hard failure — residual drift is swept by the
+        // Stage-3 sponsored-tx reconcile (#45, open_issues X3).
+        try {
+          await args.deps.releaseSponsorship?.(build.user_id)
+        } catch {
+          // swallow — never block the build on a refund failure
+        }
       }
     }
 

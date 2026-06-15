@@ -125,7 +125,7 @@ test('reserve: 10 parallel calls with 3 slots → exactly 3 succeed', async () =
 
 test('release: refunds the counter', async () => {
   const store = inMemoryStore(new Map([[USER, 0]]))
-  await releaseSponsoredTx(store, { user_id: USER, reservation_id: 'token' })
+  await releaseSponsoredTx(store, { user_id: USER })
   assert.strictEqual(store._slots.get(USER), 1)
 })
 
@@ -135,7 +135,7 @@ test('reserve + release round-trip restores counter', async () => {
   assert.strictEqual(result.sponsored, true)
   if (!result.sponsored) return
   assert.strictEqual(store._slots.get(USER), 2)
-  await releaseSponsoredTx(store, { user_id: USER, reservation_id: result.reservation_id })
+  await releaseSponsoredTx(store, { user_id: USER })
   assert.strictEqual(store._slots.get(USER), 3)
 })
 
@@ -145,7 +145,7 @@ test('commit: no-op (counter unchanged from reserve)', async () => {
   const store = inMemoryStore(new Map([[USER, 3]]))
   const result = await reserveSponsoredTx(store, { user_id: USER, chain_id: 'eip155:8453' })
   if (!result.sponsored) return assert.fail('expected sponsored')
-  await commitSponsoredTx(store, { user_id: USER, reservation_id: result.reservation_id })
+  await commitSponsoredTx(store, { user_id: USER })
   assert.strictEqual(store._slots.get(USER), 2, 'commit must not refund')
 })
 
