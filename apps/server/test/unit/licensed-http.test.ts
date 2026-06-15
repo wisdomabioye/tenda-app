@@ -161,11 +161,17 @@ test('initiate: deposit preserves memo when present, null when absent', async ()
   })
 })
 
-test('initiate: redirect maps url; unknown kind → 502', async () => {
+test('initiate: redirect + ussd map their fields; unknown kind → 502', async () => {
   const redirect = providerReturning({ kind: 'redirect', url: 'https://pay' })
   assert.deepStrictEqual((await redirect.initiate(INIT_INPUT)).instruction, {
     kind: 'redirect',
     url: 'https://pay',
+  })
+
+  const ussd = providerReturning({ kind: 'ussd', code: '*123*1#' })
+  assert.deepStrictEqual((await ussd.initiate(INIT_INPUT)).instruction, {
+    kind: 'ussd',
+    code: '*123*1#',
   })
 
   const unknown = providerReturning({ kind: 'wormhole' })

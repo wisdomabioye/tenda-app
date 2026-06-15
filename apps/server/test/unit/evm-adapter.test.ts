@@ -544,7 +544,7 @@ test('extractTxHashes: dedupes valid hashes, ignores junk shapes', () => {
   assert.deepStrictEqual(extractTxHashes({ event: {} }), [])
 })
 
-test('fee_currency (CELO): plain txs carry it; userops and other chains never do', async () => {
+test('fee_currency (CELO): plain txs carry it; a BASE adapter never does', async () => {
   const CUSD = '0x765DE816845861e75A25fCA122bb6898B8B1282a' as const
   const celo = evmAdapter({
     chain_id: 'eip155:42220',
