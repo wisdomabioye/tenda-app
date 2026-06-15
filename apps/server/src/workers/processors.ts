@@ -16,7 +16,13 @@ import { device_tokens, gig_subscriptions } from '@tenda/shared/db/schema'
 import { escrows, gig_details } from '@tenda/shared/db/schema/escrow'
 import { channelName } from '@server/lib/ws'
 import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
-import { buildPushServices, routePush, type PlatformToken } from '@server/lib/push-services'
+import {
+  buildPushServices,
+  routePush,
+  type DevicePlatform,
+  type PlatformToken,
+} from '@server/lib/push-services'
+import type { PushService } from '@server/chains/types'
 import { getConfig } from '@server/config'
 import { buildFiatDeps } from '@server/features/fiat-rails'
 import {
@@ -191,17 +197,19 @@ async function fanOutEscrowEvent(
 
 async function deliverNotification(
   fastify: FastifyInstance,
+  services: Partial<Record<DevicePlatform, PushService>>,
   payload: JobPayload['notifications'],
 ): Promise<void> {
   // Tokens resolve at DELIVERY time (queue.ts doc: tokens churn between
-  // enqueue and delivery; resolving early pushes to stale devices).
+  // enqueue and delivery; resolving early pushes to stale devices). The push
+  // `services` are built ONCE in buildProcessors and reused — see the note
+  // there on why they must not be rebuilt per delivery.
   const rows = await fastify.db
     .select({ token: device_tokens.token, platform: device_tokens.platform })
     .from(device_tokens)
     .where(eq(device_tokens.user_id, payload.user_id))
   if (rows.length === 0) return
 
-  const services = buildPushServices(getConfig(), fastify.log)
   const tokens: PlatformToken[] = rows.map((r) => ({ token: r.token, platform: r.platform }))
   const result = await routePush({ services, log: fastify.log }, tokens, {
     title: payload.title,
@@ -235,7 +243,18 @@ export function buildVerifyTxDeps(fastify: FastifyInstance): VerifyTxDeps {
 
 export type JobProcessor<N extends JobName> = (payload: JobPayload[N]) => Promise<unknown>
 
-export function buildProcessors(fastify: FastifyInstance): { [N in JobName]: JobProcessor<N> } {
+export function buildProcessors(
+  fastify: FastifyInstance,
+  // Built ONCE here (default) for the worker's lifetime. Each service instance
+  // holds its provider auth-token cache (FCM OAuth access token / APNS JWT,
+  // ~50-min refresh — see lib/push-services). buildProcessors runs once at
+  // worker-plugin init, so rebuilding per delivery would discard the cache and
+  // re-exchange the token on every single notification. Injectable for tests.
+  pushServices: Partial<Record<DevicePlatform, PushService>> = buildPushServices(
+    getConfig(),
+    fastify.log,
+  ),
+): { [N in JobName]: JobProcessor<N> } {
   return {
     'verify-tx': (payload) => verifyTxJobHandler(buildVerifyTxDeps(fastify), payload),
 
@@ -266,6 +285,6 @@ export function buildProcessors(fastify: FastifyInstance): { [N in JobName]: Job
 
     'expire-fiat-quotes': async () => expireFiatQuotesHandler(await buildFiatDeps(fastify)),
 
-    notifications: (payload) => deliverNotification(fastify, payload),
+    notifications: (payload) => deliverNotification(fastify, pushServices, payload),
   }
 }

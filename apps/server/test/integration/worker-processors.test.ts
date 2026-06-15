@@ -17,6 +17,8 @@ import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { device_tokens, gig_subscriptions } from '@tenda/shared/db/schema'
 import { buildVerifyTxDeps, buildProcessors, removeTokens } from '@server/workers/processors'
+import type { DevicePlatform } from '@server/lib/push-services'
+import type { PushService } from '@server/chains/types'
 import { channelName } from '@server/lib/ws'
 import { INTERNAL_EVENT_BY_WIRE } from '@server/lib/escrow-events'
 import type { EscrowEvent } from '@server/chains/types'
@@ -271,6 +273,34 @@ test('notifications: an Expo DeviceNotRegistered token is pruned, the live one k
     rows.map((r) => r.token),
     ['ExponentPushToken[live]'],
   )
+})
+
+test('every notification delivery reuses the ONE services instance from buildProcessors (token cache survives)', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  await app.db.insert(device_tokens).values({ user_id: u.row.id, token: 'fcm-a', platform: 'fcm' })
+
+  // A single injected services object with a counting fcm transport. Both
+  // deliveries must route through THIS instance — proving deliverNotification
+  // uses the services built once by buildProcessors, not a per-delivery
+  // rebuild (which would discard the FCM OAuth / APNS JWT token cache).
+  let sends = 0
+  const services: Partial<Record<DevicePlatform, PushService>> = {
+    fcm: {
+      async send() {
+        sends += 1
+        return { ok: 1, failed: 0, invalid_tokens: [] }
+      },
+    },
+  }
+
+  const procs = buildProcessors(app, services)
+  await procs.notifications({ user_id: u.row.id, title: 't1', body: 'b1' })
+  await procs.notifications({ user_id: u.row.id, title: 't2', body: 'b2' })
+
+  // If deliverNotification rebuilt services internally, the injected fcm
+  // service would be ignored (expo-only default) → sends would stay 0.
+  assert.strictEqual(sends, 2)
 })
 
 test('removeTokens deletes the listed tokens; an empty list is a no-op', { skip }, async () => {
