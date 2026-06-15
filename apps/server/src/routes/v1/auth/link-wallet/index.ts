@@ -63,6 +63,12 @@ const route: FastifyPluginAsync = async (fastify) => {
 
       // Verify signature FIRST — CPU work, no side effect on failure. See
       // wallet/index.ts for the nonce-burn DoS rationale.
+      // Reject an unregistered (but well-formed) chain_id with a 400 — without
+      // this guard `chains.get` throws a bare Error → 500 on untrusted input
+      // (same fix as wallet/index.ts; both nonce+sig routes are symmetric).
+      if (!fastify.chains.has(chain_id)) {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `unsupported chain_id '${chain_id}'`)
+      }
       const adapter = fastify.chains.get(chain_id)
       const sigOk = await adapter.verifyAuthSig({ address, message, signature })
       if (!sigOk) {

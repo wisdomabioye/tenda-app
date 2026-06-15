@@ -21,11 +21,11 @@ import {
   useTestApp,
   createUser,
 } from '../helpers/test-app'
+import { AUTH_URI, issueNonce, buildAuthMessage as buildMessage } from '../helpers/auth-message'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
 
-const URI = 'https://api.tenda.test' // = API_BASE_URL stubbed by the harness
 const GOOD_SIG = 'sig:ok'
 
 let addrSeq = 0
@@ -34,31 +34,6 @@ function freshAddress(): string {
 }
 
 type App = ReturnType<typeof getApp>
-
-async function issueNonce(app: App): Promise<{ nonce: string; issued_at: string }> {
-  const res = await app.inject({ method: 'POST', url: '/v1/auth/nonce' })
-  assert.strictEqual(res.statusCode, 200)
-  const body = res.json()
-  return { nonce: body.nonce, issued_at: body.issued_at }
-}
-
-function buildMessage(opts: {
-  address: string
-  chain_id?: string
-  uri?: string
-  nonce: string
-  issued_at: string
-}): string {
-  return [
-    'Tenda wants you to sign in with your wallet:',
-    opts.address,
-    '',
-    `Chain: ${opts.chain_id ?? TEST_CHAIN_ID}`,
-    `URI: ${opts.uri ?? URI}`,
-    `Nonce: ${opts.nonce}`,
-    `Issued At: ${opts.issued_at}`,
-  ].join('\n')
-}
 
 function login(
   app: App,
@@ -159,7 +134,7 @@ test('wallet login: missing signature → 400 VALIDATION_ERROR', { skip }, async
 test('wallet login: malformed message (no Nonce line) → 400', { skip }, async () => {
   const app = getApp()
   const address = freshAddress()
-  const message = `Tenda wants you to sign in with your wallet:\n${address}\n\nChain: ${TEST_CHAIN_ID}\nURI: ${URI}\nIssued At: ${new Date().toISOString()}`
+  const message = `Tenda wants you to sign in with your wallet:\n${address}\n\nChain: ${TEST_CHAIN_ID}\nURI: ${AUTH_URI}\nIssued At: ${new Date().toISOString()}`
   const res = await login(app, { address, message })
   assert.strictEqual(res.statusCode, 400)
 })
