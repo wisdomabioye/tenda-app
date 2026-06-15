@@ -22,6 +22,10 @@ import {
 import {
   rawPercentile,
   rollupGroup,
+  updatePriceStatsHandler,
+  type PriceGroup,
+  type PriceStatsRow,
+  type PriceStatsStore,
 } from '@server/features/moderation/jobs/update-price-stats'
 import type {
   ModerationInput,
@@ -299,4 +303,28 @@ test('rollupGroup sorts numerically (not lexically) and reports sample size', ()
   assert.strictEqual(row.p10_amount_raw, '9')
   assert.strictEqual(row.p90_amount_raw, '100')
   assert.strictEqual(row.sample_size, 3)
+})
+
+test('updatePriceStatsHandler: rolls up each group, skips empties, reports the count', async () => {
+  const groups: PriceGroup[] = [
+    { category: 'Writing', country: 'NG', asset: 'USDC_SOL', amounts_raw: ['10', '30', '20'] },
+    { category: 'Design', country: 'KE', asset: 'USDC_SOL', amounts_raw: [] }, // empty → skipped
+    { category: 'Audio', country: 'GH', asset: 'USDC_SOL', amounts_raw: ['500'] },
+  ]
+  const upserted: PriceStatsRow[] = []
+  const store: PriceStatsStore = {
+    async findCompletedGigGroups() {
+      return groups
+    },
+    async upsertStats(row) {
+      upserted.push(row)
+    },
+  }
+  const r = await updatePriceStatsHandler({ store, log: { info() {} } })
+
+  // The empty group is counted in the total but never upserted.
+  assert.strictEqual(r.groups, 3)
+  assert.deepStrictEqual(upserted.map((u) => u.category), ['Writing', 'Audio'])
+  assert.strictEqual(upserted[0].p50_amount_raw, '20')
+  assert.strictEqual(upserted[1].sample_size, 1)
 })

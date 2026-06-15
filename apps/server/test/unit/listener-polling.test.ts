@@ -6,7 +6,11 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { pollTick, type PollTickDeps } from '@server/chains/solana/listener-polling'
+import {
+  pollTick,
+  createSolanaPollingListener,
+  type PollTickDeps,
+} from '@server/chains/solana/listener-polling'
 import { fakeSolanaRpc } from '../helpers/solana'
 
 function makeDeps(opts: {
@@ -99,4 +103,28 @@ test('fresh start (cursor 0) sweeps the whole batch', async () => {
   })
   await pollTick(deps)
   assert.deepStrictEqual(calls.enqueued, ['s1', 's2'])
+})
+
+// ---------- listener lifecycle (the setInterval shim around pollTick) --------
+
+test('createSolanaPollingListener: start ticks pollTick on the interval; stop halts it', async (t) => {
+  t.mock.timers.enable({ apis: ['setInterval'] })
+  t.after(() => t.mock.timers.reset())
+
+  const { deps, calls } = makeDeps({ signatures: [{ signature: 's1', slot: 5 }] })
+  const listener = createSolanaPollingListener({ ...deps, interval_ms: 1000 })
+
+  await listener.start()
+  assert.deepStrictEqual(calls.enqueued, []) // nothing before the first interval
+
+  t.mock.timers.tick(1000)
+  // pollTick is fire-and-forget inside the interval; flush its async chain.
+  await new Promise((r) => setImmediate(r))
+  await new Promise((r) => setImmediate(r))
+  assert.deepStrictEqual(calls.enqueued, ['s1'])
+
+  await listener.stop()
+  t.mock.timers.tick(5000) // no further ticks after stop
+  await new Promise((r) => setImmediate(r))
+  assert.strictEqual(calls.enqueued.length, 1)
 })
