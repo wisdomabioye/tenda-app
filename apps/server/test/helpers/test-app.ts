@@ -62,6 +62,13 @@ export const FAKE_UNSIGNED: UnsignedTx = {
   last_valid_block_height: 1,
 }
 
+/**
+ * Signature value the fake adapter treats as INVALID — lets wallet-auth
+ * tests exercise the 401 path deterministically (every other signature
+ * string verifies). Exported so tests reference the sentinel, not a literal.
+ */
+export const FAKE_BAD_SIGNATURE = 'sig:invalid'
+
 function fakeAdapter(chain_id: string): ChainAdapter {
   const unimplemented = (op: string) => () => {
     throw new Error(`fake adapter: ${op} not used by HTTP routes under test`)
@@ -71,7 +78,9 @@ function fakeAdapter(chain_id: string): ChainAdapter {
     chain_id,
     buildTx: async () => FAKE_UNSIGNED,
     verifyTx: unimplemented('verifyTx'),
-    verifyAuthSig: unimplemented('verifyAuthSig'),
+    // Offline stand-in for tweetnacl/viem sig verify: any signature passes
+    // except the explicit bad sentinel (the wallet-auth 401 path).
+    verifyAuthSig: async ({ signature }) => signature !== FAKE_BAD_SIGNATURE,
     fetchEscrowState: unimplemented('fetchEscrowState'),
     computeFee: unimplemented('computeFee'),
   }
