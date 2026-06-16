@@ -42,4 +42,32 @@ config.resolver.extraNodeModules = {
   ...nodeBuiltins,
 };
 
+// Redirect the Node-only `whatwg-url`/`webidl-conversions` to the RN-safe
+// versions Expo already ships and runs on Hermes (whatwg-url-without-unicode +
+// webidl-conversions@5).
+//
+// Why: the admin app's test tooling (vitest + jsdom@28) drags whatwg-url@16 ->
+// webidl-conversions@8 into the workspace-root node_modules. Because mobile's
+// resolver is flat (disableHierarchicalLookup + nodeModulesPaths above), Metro
+// resolves EVERY `require('whatwg-url')` to that hoisted v16 — even though
+// mobile's real importers (node-fetch via @solana/web3.js, MetaMask) declare
+// whatwg-url@5. v16/webidl-conversions@8 use ES2024 APIs Hermes lacks
+// (SharedArrayBuffer, resizable buffers, String.prototype.toWellFormed) and
+// crash at bundle evaluation. Pinning to the Hermes-proven pair fixes the
+// mis-resolution at its seam instead of polyfilling each missing feature.
+const safeUrlRedirects = {
+  "whatwg-url": require.resolve("whatwg-url-without-unicode"),
+  "webidl-conversions": require.resolve("webidl-conversions", {
+    paths: [path.dirname(require.resolve("whatwg-url-without-unicode/package.json"))],
+  }),
+};
+const defaultResolveRequest = config.resolver.resolveRequest;
+config.resolver.resolveRequest = (context, moduleName, platform) => {
+  const redirected = safeUrlRedirects[moduleName];
+  if (redirected) {
+    return { type: "sourceFile", filePath: redirected };
+  }
+  return (defaultResolveRequest ?? context.resolveRequest)(context, moduleName, platform);
+};
+
 module.exports = config;
