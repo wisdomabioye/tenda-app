@@ -26,13 +26,14 @@ import { Linking } from 'react-native'
 import { Buffer } from 'buffer'
 import { createEVMClient, type MetamaskConnectEVM, type Hex } from '@metamask/connect-evm'
 import { canOpenScheme } from './detect'
-import { metadata, SPIKE_CHAINS } from '../config'
+import { connectThenSign } from './connect-then-sign'
+import { metadata, WALLET_CHAINS } from '../config'
 import type { SignMessageResult, SpikeAccount } from '../types'
-import type { WalletAdapter } from './types'
+import type { AuthenticateResult, WalletAdapter } from './types'
 
-/** Active EVM chain as hex (SPIKE_CHAINS is CAIP-2: 'eip155:<decimal>'). */
+/** Active EVM chain as hex (WALLET_CHAINS is CAIP-2: 'eip155:<decimal>'). */
 function spikeChainHex(): Hex {
-  const decimal = Number(SPIKE_CHAINS.eip155.split(':')[1])
+  const decimal = Number(WALLET_CHAINS.eip155.split(':')[1])
   return `0x${decimal.toString(16)}` as Hex
 }
 
@@ -118,6 +119,13 @@ async function signMessage(account: SpikeAccount, message: string): Promise<Sign
   })
   if (typeof result !== 'string') throw new Error('MetaMask returned a non-string signature')
   return { signature: result, message }
+}
+
+function authenticate(
+  buildMessage: (account: SpikeAccount) => string,
+  opts?: { forceFresh?: boolean },
+): Promise<AuthenticateResult | null> {
+  return connectThenSign({ connect, signMessage, disconnect }, buildMessage, opts)
 }
 
 async function disconnect(): Promise<void> {
@@ -211,6 +219,7 @@ export const metamaskAdapter: WalletAdapter = {
   isInstalled: () => canOpenScheme('metamask'),
   connect,
   signMessage,
+  authenticate,
   disconnect,
   getRestoredAccount,
 }

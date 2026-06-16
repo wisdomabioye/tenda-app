@@ -2,6 +2,21 @@ import type { ImageRequireSource } from 'react-native'
 import type { Namespace, SignMessageResult, SpikeAccount } from '../types'
 
 /**
+ * Outcome of a wallet authentication round-trip (connect + prove ownership by
+ * signing the server nonce message). `null` is reserved for a user-decline;
+ * transport/server failures throw.
+ */
+export interface AuthenticateResult {
+  /** The wallet account that connected + signed. */
+  account: SpikeAccount
+  /** Signature over `message`, in the encoding the server expects per chain:
+   *  base64 (Solana) / `0x`-hex (EVM). */
+  signature: string
+  /** The exact literal message string that was signed. */
+  message: string
+}
+
+/**
  * Uniform surface every wallet integration implements. The picker, provider,
  * and any consumer code interact with wallets only through this interface —
  * the underlying transport (MetaMask SDK, Coinbase SDK, Solana MWA, Phantom
@@ -35,6 +50,22 @@ export interface WalletAdapter {
 
   /** Request the wallet to sign `message` for `account`. */
   signMessage(account: SpikeAccount, message: string): Promise<SignMessageResult>
+
+  /**
+   * One auth round-trip for the server-nonce flow: connect (revealing the
+   * address), build the message from the connected account, and sign it.
+   * Each adapter implements this optimally — MWA folds connect+sign into a
+   * single wallet session; EVM/Phantom compose `connect()` then
+   * `signMessage()` via the shared `connectThenSign` helper.
+   *
+   * Returns `null` when the user declines; throws on transport failure.
+   * `forceFresh` discards any existing session first (wallet-linking, where
+   * the user must be able to pick a different account).
+   */
+  authenticate(
+    buildMessage: (account: SpikeAccount) => string,
+    opts?: { forceFresh?: boolean },
+  ): Promise<AuthenticateResult | null>
 
   /** End any persistent session this adapter holds. Safe to call when not connected. */
   disconnect(): Promise<void>

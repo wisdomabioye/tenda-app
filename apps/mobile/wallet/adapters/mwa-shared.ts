@@ -9,14 +9,8 @@ import {
   transact,
   type Web3MobileWallet,
 } from '@solana-mobile/mobile-wallet-adapter-protocol-web3js'
-import { getEnv } from '@/lib/env'
-import { WalletError } from '@/wallet'
-import { metadata } from '../config'
-
-const env = getEnv()
-
-export const SOLANA_CLUSTER: 'devnet' | 'mainnet-beta' =
-  env === 'production' ? 'mainnet-beta' : 'devnet'
+import { WalletError } from '@/wallet/errors'
+import { metadata, SOLANA_NETWORK } from '../config'
 
 // MWA spec: `identity.icon` MUST be a relative URI. Don't reuse the absolute
 // `metadata.iconUrl` (that one is for MM Connect / dApp registries).
@@ -112,7 +106,7 @@ export async function authorizeSession(
     }
   }
   const auth = await wallet.authorize({
-    chain: `solana:${SOLANA_CLUSTER}`,
+    chain: `solana:${SOLANA_NETWORK}`,
     identity: IDENTITY,
   })
   const account = auth.accounts[0]

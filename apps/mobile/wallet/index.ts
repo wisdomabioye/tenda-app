@@ -1,65 +1,26 @@
 /**
  * Chain-agnostic wallet utilities (post-#34). Wallet CONNECTIONS live in
- * the promoted adapter stack (provider.tsx + adapters/*); unsigned-tx
- * signing + client-ping live in dispatch.ts. This module keeps only the
- * Solana RPC helpers and the shared error type that screens consume.
+ * the promoted adapter stack (adapters/* behind the WalletAdapter interface);
+ * sign-in/link orchestration lives in auth.ts; unsigned-tx signing +
+ * client-ping live in dispatch.ts. This module owns the Solana RPC helpers
+ * (getBalance / getTransactionStatus) and re-exports the single-source chain
+ * config + error type as a convenience surface (the canonical homes are
+ * ./config and ./errors — prefer those in new code to avoid the native pull).
  *
  * The legacy MWA + idl/legacy escrow flow died at the cutover — escrow
  * transactions are built server-side (/v1/escrows) and signed via
  * dispatch.signSendAndReport.
  */
-import { Connection, PublicKey, clusterApiUrl, type Cluster } from '@solana/web3.js'
-import { getEnv } from '@/lib/env'
-import { apiConfig } from '@tenda/shared'
+import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js'
+import { SOLANA_NETWORK } from './config'
 
-const env = getEnv()
-const ENV_CONFIG = apiConfig[env]
+// Re-export the single-source chain config (wallet/config.ts) and the wallet
+// error type (wallet/errors.ts) so barrel consumers keep importing from
+// '@/wallet'.
+export { SOLANA_NETWORK, WALLET_CHAINS } from './config'
+export { WalletError, type WalletErrorCode } from './errors'
 
-const APP_IDENTITY_ENV: Record<
-  typeof env,
-  {
-    name: string
-    uri: string
-    icon: string
-    network: Cluster
-  }
-> = {
-  development: {
-    name: 'Tenda Dev',
-    uri: ENV_CONFIG.baseUrl,
-    network: 'devnet',
-    icon: './favicon.ico',
-  },
-  staging: {
-    name: 'Tenda Staging',
-    uri: ENV_CONFIG.baseUrl,
-    network: 'devnet',
-    icon: './favicon.ico',
-  },
-  production: {
-    name: 'Tenda',
-    uri: ENV_CONFIG.baseUrl,
-    network: 'mainnet-beta',
-    icon: './favicon.ico',
-  },
-}
-
-export const APP_IDENTITY = APP_IDENTITY_ENV[env]
-
-const connection = new Connection(clusterApiUrl(APP_IDENTITY.network), 'confirmed')
-
-export type WalletErrorCode = 'no_wallet' | 'declined' | 'network' | 'unknown'
-
-export class WalletError extends Error {
-  constructor(
-    public readonly code: WalletErrorCode,
-    message: string,
-    public readonly cause?: unknown,
-  ) {
-    super(message)
-    this.name = 'WalletError'
-  }
-}
+const connection = new Connection(clusterApiUrl(SOLANA_NETWORK), 'confirmed')
 
 export async function getBalance(publicKey: PublicKey): Promise<number> {
   return connection.getBalance(publicKey)

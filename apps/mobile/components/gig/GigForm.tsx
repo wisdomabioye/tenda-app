@@ -24,7 +24,7 @@ import {
 } from '@tenda/shared'
 import { getDeviceCountry } from '@/lib/device'
 import { api } from '@/api/client'
-import { APP_IDENTITY } from '@/wallet'
+import { SOLANA_NETWORK } from '@/wallet/config'
 import { useAuthStore } from '@/stores/auth.store'
 import { useModerationPreview } from '@/hooks/useModerationPreview'
 import { useWalletBalance } from '@/hooks/useWalletBalance'
@@ -83,7 +83,7 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
   const homeCountry = useAuthStore((s) => s.user?.country ?? null)
   const wallets = useAuthStore((s) => s.wallets)
 
-  const defaultChainId = solanaChainId(APP_IDENTITY.network)
+  const defaultChainId = solanaChainId(SOLANA_NETWORK)
   const [title, setTitle]                         = useState(initialValues?.title ?? '')
   const [description, setDescription]             = useState(initialValues?.description ?? '')
   const [chainId, setChainId]                     = useState(initialValues?.chainId ?? defaultChainId)

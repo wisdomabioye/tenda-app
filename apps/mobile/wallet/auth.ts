@@ -1,132 +1,85 @@
 /**
- * Wallet sign-in via the server-nonce flow (cutover §6, replaces the ±5min
- * timestamp window the server no longer accepts since #28).
+ * Wallet sign-in / linking via the server-nonce flow (cutover §6, replaces the
+ * ±5min timestamp window the server dropped at #28).
  *
- * Flow: POST /v1/auth/nonce → buildAuthMessage (shared template — the
- * server parses the same format, a server unit test round-trips the two)
- * → wallet signs the literal string → POST /v1/auth/wallet.
- *
- * Transport-agnostic: the caller supplies `signMessage`, so this works with
- * today's MWA facade and the Stage-1 adapter façade after promotion.
+ * Flow: POST /v1/auth/nonce → `adapter.authenticate` builds + signs the shared
+ * `buildAuthMessage` template → POST /v1/auth/wallet (sign-in) or
+ * /v1/auth/link-wallet (link). Adapter-agnostic: each WalletAdapter owns its
+ * own connect+sign round-trip; this module only orchestrates the nonce↔server
+ * exchange and pins the canonical, server-registered chain id per namespace
+ * (WALLET_CHAINS — single source, wallet/config.ts).
  */
 
-import { buildAuthMessage, solanaChainId, apiConfig, type AuthResponse } from '@tenda/shared'
+import { buildAuthMessage, apiConfig, type AuthResponse } from '@tenda/shared'
 import { api } from '@/api/client'
 import { getEnv } from '@/lib/env'
-import { APP_IDENTITY } from '@/wallet'
-import { connectAndSignMessage, type ConnectAndSignResult } from '@/wallet/adapters/solana-mwa'
+import { WALLET_CHAINS } from '@/wallet/config'
+import type { SpikeAccount } from '@/wallet/types'
+import type { WalletAdapter } from '@/wallet/adapters/types'
 
-export interface SignInWithWalletArgs {
-  /** Wallet address: base58 (Solana) or 0x-hex (EVM). */
-  address: string
-  /**
-   * CAIP-2 chain id the wallet belongs to. Defaults to the Solana network
-   * for the current build environment.
-   */
-  chain_id?: string
-  /**
-   * Sign the literal message string; returns base64 (Solana) or 0x-hex
-   * (EVM). Provided by whichever wallet transport is active.
-   */
-  signMessage(message: string): Promise<string>
-  is_seeker?: boolean
-  country?: string | null
-}
-
-export async function signInWithWallet(args: SignInWithWalletArgs): Promise<AuthResponse> {
-  const env = getEnv()
-  // APP_IDENTITY maps build env → Solana cluster; solanaChainId maps the
-  // cluster to the canonical CAIP id the server registry knows.
-  const chain_id = args.chain_id ?? solanaChainId(APP_IDENTITY.network)
-  const { nonce } = await api.auth.nonce()
-
-  const message = buildAuthMessage({
-    address: args.address,
-    chain_id,
-    uri: apiConfig[env].baseUrl,
+/**
+ * Nonce-bound auth message for a connected account, built with the canonical
+ * server-registered chain id for that account's namespace (NOT the wallet's
+ * arbitrary current chain — the signature is namespace-scoped, and the server
+ * only verifies against registered chains).
+ */
+function authMessageFor(account: SpikeAccount, nonce: string): string {
+  return buildAuthMessage({
+    address: account.address,
+    chain_id: WALLET_CHAINS[account.namespace],
+    uri: apiConfig[getEnv()].baseUrl,
     nonce,
   })
-  const signature = await args.signMessage(message)
-
-  return api.auth.wallet({
-    chain_id,
-    address: args.address,
-    message,
-    signature,
-    ...(args.is_seeker !== undefined ? { is_seeker: args.is_seeker } : {}),
-    ...(args.country !== undefined ? { country: args.country } : {}),
-  })
 }
 
-// ---------- MWA-backed flows (Android Solana — the working transport) -----
-
-export interface SolanaSignInResult {
+export interface WalletSignInResult {
   auth: AuthResponse
-  session: Pick<ConnectAndSignResult, 'authToken' | 'address'>
-}
-
-function solanaAuthContext() {
-  return {
-    chain_id: solanaChainId(APP_IDENTITY.network),
-    uri: apiConfig[getEnv()].baseUrl,
-  }
+  account: SpikeAccount
 }
 
 /**
- * Full sign-in: prefetch nonce (5-min TTL — ample), one MWA session for
- * connect + sign (message built once the wallet reveals its address), then
- * the server exchange. Returns null when the user declines in the wallet.
+ * Sign in with any wallet adapter: nonce → authenticate → POST /v1/auth/wallet.
+ * Resolves to null when the user declines in the wallet; throws on transport or
+ * server failure.
  */
-export async function solanaSignIn(opts: {
-  mwaAuthToken?: string
-  is_seeker?: boolean
-  country?: string | null
-}): Promise<SolanaSignInResult | null> {
-  const { chain_id, uri } = solanaAuthContext()
+export async function signInWithWallet(
+  adapter: WalletAdapter,
+  opts: { is_seeker?: boolean; country?: string | null } = {},
+): Promise<WalletSignInResult | null> {
   const { nonce } = await api.auth.nonce()
+  const result = await adapter.authenticate((account) => authMessageFor(account, nonce))
+  if (result === null) return null
 
-  const signed = await connectAndSignMessage(
-    (address) => buildAuthMessage({ address, chain_id, uri, nonce }),
-    opts.mwaAuthToken ?? null,
-  )
-  if (signed === null) return null
-
+  const { account, signature, message } = result
   const auth = await api.auth.wallet({
-    chain_id,
-    address: signed.address,
-    message: signed.message,
-    signature: signed.signature,
+    chain_id: WALLET_CHAINS[account.namespace],
+    address: account.address,
+    message,
+    signature,
     ...(opts.is_seeker !== undefined ? { is_seeker: opts.is_seeker } : {}),
     ...(opts.country !== undefined ? { country: opts.country } : {}),
   })
-  return { auth, session: { authToken: signed.authToken, address: signed.address } }
+  return { auth, account }
 }
 
 /**
- * Link an additional Solana wallet to the authenticated account
- * (POST /v1/auth/link-wallet). Same nonce + signature dance as sign-in;
- * the JWT proves the existing account. Returns the linked address, or
- * null when the user declines.
- *
- * No mwaAuthToken is passed on purpose — a cached MWA authorization would
- * silently re-link the wallet already on the account; a fresh authorize
- * lets the user pick a different account in their wallet app.
+ * Link an additional wallet to the authenticated account: nonce →
+ * authenticate(forceFresh) → POST /v1/auth/link-wallet. `forceFresh` discards
+ * any existing wallet session so the user can pick a DIFFERENT account than the
+ * one already on their JWT. Returns the linked account, or null on decline.
  */
-export async function solanaLinkWallet(): Promise<{ address: string } | null> {
-  const { chain_id, uri } = solanaAuthContext()
+export async function linkWalletWith(adapter: WalletAdapter): Promise<SpikeAccount | null> {
   const { nonce } = await api.auth.nonce()
-
-  const signed = await connectAndSignMessage(
-    (address) => buildAuthMessage({ address, chain_id, uri, nonce }),
-    null,
-  )
-  if (signed === null) return null
+  const result = await adapter.authenticate((account) => authMessageFor(account, nonce), {
+    forceFresh: true,
+  })
+  if (result === null) return null
 
   await api.auth.linkWallet({
-    chain_id,
-    address: signed.address,
-    message: signed.message,
-    signature: signed.signature,
+    chain_id: WALLET_CHAINS[result.account.namespace],
+    address: result.account.address,
+    message: result.message,
+    signature: result.signature,
   })
-  return { address: signed.address }
+  return result.account
 }

@@ -22,7 +22,7 @@ import { ScreenContainer, Text, Spacer, Header, Button, Input, showToast } from 
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { api, ApiClientError } from '@/api/client'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
-import { APP_IDENTITY } from '@/wallet'
+import { SOLANA_NETWORK } from '@/wallet/config'
 import { signSendAndReport } from '@/wallet/dispatch'
 import { spacing } from '@/theme/tokens'
 
@@ -54,8 +54,8 @@ export default function CreateOfferScreen() {
 
   async function handleSubmit() {
     if (!valid || submitting) return
-    const chain_id = solanaChainId(APP_IDENTITY.network)
-    const asset = solanaNativeAssetId(APP_IDENTITY.network)
+    const chain_id = solanaChainId(SOLANA_NETWORK)
+    const asset = solanaNativeAssetId(SOLANA_NETWORK)
     const accept_deadline_unix = Math.floor(Date.now() / 1000) + DEFAULT_ACCEPT_WINDOW_SECONDS
 
     setSubmitting(true)
@@ -134,7 +134,7 @@ export default function CreateOfferScreen() {
           <View style={[s.summary, { backgroundColor: theme.colors.surface.inset }]}>
             <Text variant="caption" color={theme.colors.content.secondary}>
               The buyer pays you {fiatTotal.toLocaleString('en-US')} NGN for{' '}
-              {formatAssetAmount(amountRaw, solanaNativeAssetId(APP_IDENTITY.network))}. They get
+              {formatAssetAmount(amountRaw, solanaNativeAssetId(SOLANA_NETWORK))}. They get
               24 hours to pay after accepting; the escrow releases when you confirm receipt.
             </Text>
           </View>

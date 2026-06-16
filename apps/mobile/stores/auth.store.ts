@@ -3,8 +3,6 @@ import type { User, LinkedWallet } from '@tenda/shared'
 import {
   getJwtToken,
   setJwtToken,
-  getMwaAuthToken,
-  setMwaAuthToken,
   getWalletAddress,
   setWalletAddress,
   clearAuthStorage,
@@ -12,18 +10,19 @@ import {
 import { api, ApiClientError } from '@/api/client'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useExchangeMarketStore } from '@/stores/exchange-market.store'
-import { solanaSignIn } from '@/wallet/auth'
+import { signInWithWallet as walletSignIn } from '@/wallet/auth'
+import type { WalletAdapter } from '@/wallet/adapters/types'
 
 interface AuthState {
   user: User | null
   jwt: string | null
-  mwaAuthToken: string | null
   walletAddress: string | null
   /**
-   * Connected EVM account (CO3) — session-scoped, set by the wallet spike
-   * at eip155 connect/restore and cleared on disconnect. The evm-tx
-   * dispatch path sources `from` here; falls back to the verified linked
-   * eip155 wallet.
+   * Connected EVM account (CO3) — session-scoped, set by `signInWithWallet`
+   * on an eip155 sign-in and cleared on logout. NOT persisted: after a
+   * restart it stays null and the evm-tx dispatch path falls back to the
+   * verified linked eip155 wallet (from `wallets[]`). It only bridges the
+   * window between an EVM login and the first `refreshMe`.
    */
   evmAddress: string | null
   isAuthenticated: boolean
@@ -35,25 +34,27 @@ interface AuthState {
   phoneVerified: boolean
 
   /**
-   * Full MWA sign-in (nonce → connect+sign → JWT). Resolves to false when
-   * the user declines in the wallet, true on success. Throws on transport
-   * or server failure.
+   * Sign in with any wallet adapter (nonce → authenticate → JWT). Resolves to
+   * false when the user declines in the wallet, true on success. Throws on
+   * transport or server failure. The connected account's address is published
+   * to the namespace-appropriate slot (`walletAddress` for Solana — consumed
+   * as a Solana pubkey — or `evmAddress` for EVM).
    */
-  signInWithSolana: (opts?: { is_seeker?: boolean; country?: string | null }) => Promise<boolean>
+  signInWithWallet: (
+    adapter: WalletAdapter,
+    opts?: { is_seeker?: boolean; country?: string | null },
+  ) => Promise<boolean>
   logout: () => Promise<void>
   loadSession: () => Promise<void>
   updateUser: (user: User) => void
   refreshUser: () => Promise<void>
   /** Re-fetch wallets + profile_complete from /v1/users/me. */
   refreshMe: () => Promise<void>
-  setMwaAuthToken: (token: string) => Promise<void>
-  setEvmAddress: (address: string | null) => void
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   jwt: null,
-  mwaAuthToken: null,
   walletAddress: null,
   evmAddress: null,
   isAuthenticated: false,
@@ -62,24 +63,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   profileComplete: null,
   phoneVerified: false,
 
-  signInWithSolana: async (opts = {}) => {
-    const result = await solanaSignIn({
-      mwaAuthToken: get().mwaAuthToken ?? undefined,
-      ...opts,
-    })
+  signInWithWallet: async (adapter, opts = {}) => {
+    const result = await walletSignIn(adapter, opts)
     if (result === null) return false
 
-    const { auth, session } = result
+    const { auth, account } = result
+    const isSolana = account.namespace === 'solana'
     await Promise.all([
       setJwtToken(auth.token),
-      setMwaAuthToken(session.authToken),
-      setWalletAddress(session.address),
+      // walletAddress is consumed as a Solana pubkey (balance, fiat quotes) —
+      // only persist it for a Solana account; an EVM login publishes evmAddress.
+      isSolana ? setWalletAddress(account.address) : Promise.resolve(),
     ])
     set({
       user: auth.user,
       jwt: auth.token,
-      mwaAuthToken: session.authToken,
-      walletAddress: session.address,
+      ...(isSolana
+        ? { walletAddress: account.address }
+        : { evmAddress: account.address }),
       isAuthenticated: true,
       // The auth response is the v2 row — same predicate the server uses.
       profileComplete: Boolean(auth.user.first_name && auth.user.last_name),
@@ -100,7 +101,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({
       user: null,
       jwt: null,
-      mwaAuthToken: null,
       walletAddress: null,
       evmAddress: null,
       isAuthenticated: false,
@@ -112,25 +112,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   loadSession: async () => {
     // Declare outside try so the catch block can reference them.
-    // If the SecureStore read itself fails, all three remain null and the
-    // catch will set isLoading: false with no credentials — safe default.
+    // If the SecureStore read itself fails, both remain null and the catch
+    // will set isLoading: false with no credentials — safe default.
     let jwt: string | null = null
-    let mwaAuthToken: string | null = null
     let walletAddress: string | null = null
 
     try {
-      const stored = await Promise.all([getJwtToken(), getMwaAuthToken(), getWalletAddress()])
-      jwt          = stored[0]
-      mwaAuthToken = stored[1]
-      walletAddress = stored[2]
+      const stored = await Promise.all([getJwtToken(), getWalletAddress()])
+      jwt           = stored[0]
+      walletAddress = stored[1]
 
       if (!jwt) {
-        set({ jwt: null, mwaAuthToken, walletAddress, isAuthenticated: false, isLoading: false })
+        set({ jwt: null, walletAddress, isAuthenticated: false, isLoading: false })
         return
       }
 
       const user = await api.auth.me()
-      set({ user, jwt, mwaAuthToken, walletAddress, isAuthenticated: true, isLoading: false })
+      set({ user, jwt, walletAddress, isAuthenticated: true, isLoading: false })
       // Wallets + profile_complete ride a second, non-blocking call — the
       // legacy /v1/auth/me shape feeds the existing screens unchanged.
       void get().refreshMe()
@@ -140,7 +138,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({
           user: null,
           jwt: null,
-          mwaAuthToken: null,
           walletAddress: null,
           isAuthenticated: false,
           isLoading: false,
@@ -148,7 +145,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         // Transient network error — commit the credentials we already read from SecureStore
         // into Zustand state so the UI shows a "reconnecting" state rather than the login screen.
-        set({ jwt, mwaAuthToken, walletAddress, isLoading: false })
+        set({ jwt, walletAddress, isLoading: false })
       }
     }
   },
@@ -177,13 +174,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // the value derived at sign-in.
     }
   },
-
-  setMwaAuthToken: async (token) => {
-    await setMwaAuthToken(token)
-    set({ mwaAuthToken: token })
-  },
-
-  setEvmAddress: (address) => set({ evmAddress: address }),
 }))
 
 /**

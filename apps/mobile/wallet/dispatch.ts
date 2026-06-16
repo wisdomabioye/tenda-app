@@ -16,7 +16,7 @@
 import { VersionedTransaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import type { EscrowTxType, UnsignedTx } from '@tenda/shared'
-import { signAndSendTransaction } from '@/wallet/adapters/solana-mwa'
+import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
 import { sendEvmTransaction } from '@/wallet/adapters/metamask'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
@@ -32,17 +32,15 @@ export class UnsupportedUnsignedTxError extends Error {
 export async function signAndSendUnsignedTx(unsigned: UnsignedTx, chain_id?: string): Promise<string> {
   switch (unsigned.kind) {
     case 'solana-tx': {
-      const { mwaAuthToken, setMwaAuthToken } = useAuthStore.getState()
-      if (mwaAuthToken === null) throw new Error('no Solana wallet session — connect first')
+      // The MWA adapter owns its session token (AsyncStorage) — single source
+      // of truth, no auth-store round-trip.
       const tx = VersionedTransaction.deserialize(Buffer.from(unsigned.tx_base64, 'base64'))
-      return signAndSendTransaction(tx, mwaAuthToken, (token) => {
-        void setMwaAuthToken(token)
-      })
+      return signAndSendStored(tx)
     }
     case 'evm-tx': {
       // CO3: `from` must be an eip155 account — walletAddress is the
-      // SOLANA sign-in address and never valid here. Prefer the live
-      // spike session; fall back to the verified linked EVM wallet.
+      // SOLANA sign-in address and never valid here. Prefer the live EVM
+      // login session (evmAddress); fall back to the verified linked EVM wallet.
       const { evmAddress, wallets } = useAuthStore.getState()
       const verified = wallets.filter((w) => w.chain_ns === 'eip155' && w.verified_at !== null)
       const linked = verified.find((w) => w.is_primary) ?? verified[0]

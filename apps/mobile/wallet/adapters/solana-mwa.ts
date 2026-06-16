@@ -8,11 +8,11 @@ import {
   clusterApiUrl,
   type Transaction,
 } from '@solana/web3.js'
-import { authorizeSession, withMwaRetry, SOLANA_CLUSTER } from './mwa-shared'
-import { WalletError } from '@/wallet'
-import { SPIKE_CHAINS } from '../config'
+import { authorizeSession, withMwaRetry } from './mwa-shared'
+import { WalletError } from '@/wallet/errors'
+import { SOLANA_NETWORK, WALLET_CHAINS } from '../config'
 import type { SignMessageResult, SpikeAccount } from '../types'
-import type { WalletAdapter } from './types'
+import type { AuthenticateResult, WalletAdapter } from './types'
 
 /**
  * Generic Android-Solana adapter via Solana Mobile Wallet Adapter (MWA).
@@ -38,6 +38,10 @@ function addressToBase64(address: string): string {
   return Buffer.from(new PublicKey(address).toBytes()).toString('base64')
 }
 
+function accountFor(address: string): SpikeAccount {
+  return { namespace: 'solana', chainId: WALLET_CHAINS.solana, address, walletId: ADAPTER_ID }
+}
+
 async function connect(): Promise<SpikeAccount> {
   const stored = await AsyncStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
   const result = await withMwaRetry((wallet) => authorizeSession(wallet, stored))
@@ -46,12 +50,24 @@ async function connect(): Promise<SpikeAccount> {
     [STORAGE_KEY_AUTH_TOKEN, result.authToken],
     [STORAGE_KEY_ADDRESS, address],
   ])
-  return {
-    namespace: 'solana',
-    chainId: SPIKE_CHAINS.solana,
-    address,
-    walletId: ADAPTER_ID,
-  }
+  return accountFor(address)
+}
+
+/**
+ * One-shot auth: connect + sign the nonce message in a SINGLE MWA session
+ * (connect() then signMessage() would open the wallet twice). Reuses the
+ * stored auth token unless `forceFresh` (wallet-linking). connectAndSignMessage
+ * persists the (possibly rotated) token, so the adapter remains the owner of
+ * its MWA session.
+ */
+async function authenticate(
+  buildMessage: (account: SpikeAccount) => string,
+  opts?: { forceFresh?: boolean },
+): Promise<AuthenticateResult | null> {
+  const existing = opts?.forceFresh ? null : await AsyncStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
+  const signed = await connectAndSignMessage((address) => buildMessage(accountFor(address)), existing)
+  if (signed === null) return null
+  return { account: accountFor(signed.address), signature: signed.signature, message: signed.message }
 }
 
 async function signMessage(
@@ -74,7 +90,7 @@ async function signMessage(
   return { signature: Buffer.from(signedBytes).toString('base64'), message }
 }
 
-export interface ConnectAndSignResult {
+interface ConnectAndSignResult {
   authToken: string
   /** base58 wallet address. */
   address: string
@@ -93,7 +109,7 @@ export interface ConnectAndSignResult {
  * (e.g. wallet linking, where the user must be able to pick a different
  * account in their wallet app).
  */
-export async function connectAndSignMessage(
+async function connectAndSignMessage(
   buildMessage: (address: string) => string,
   existingAuthToken: string | null,
 ): Promise<ConnectAndSignResult | null> {
@@ -126,7 +142,7 @@ export async function connectAndSignMessage(
   }
 }
 
-const connection = new Connection(clusterApiUrl(SOLANA_CLUSTER), 'confirmed')
+const connection = new Connection(clusterApiUrl(SOLANA_NETWORK), 'confirmed')
 
 /**
  * Sign a server-built transaction in the wallet, then broadcast from the
@@ -135,7 +151,7 @@ const connection = new Connection(clusterApiUrl(SOLANA_CLUSTER), 'confirmed')
  * prompt from appearing). Returns the tx signature (the client-ping
  * tx_ref).
  */
-export async function signAndSendTransaction(
+async function signAndSendTransaction(
   transaction: Transaction | VersionedTransaction,
   authToken: string,
   onNewAuthToken?: (token: string) => void,
@@ -156,6 +172,25 @@ export async function signAndSendTransaction(
   return connection.sendRawTransaction(rawTx, { preflightCommitment: 'confirmed' })
 }
 
+/**
+ * Sign + broadcast a server-built tx using THIS adapter's stored MWA session
+ * token. The adapter owns its session (AsyncStorage) — dispatch no longer
+ * threads the token through the auth store, so there is a SINGLE source of
+ * truth. Persists a rotated token and throws a typed `WalletError('no_wallet')`
+ * when no session exists (user must connect first).
+ */
+export async function signAndSendStored(
+  transaction: Transaction | VersionedTransaction,
+): Promise<string> {
+  const token = await AsyncStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
+  if (!token) {
+    throw new WalletError('no_wallet', 'no Solana wallet session — connect first')
+  }
+  return signAndSendTransaction(transaction, token, (rotated) => {
+    void AsyncStorage.setItem(STORAGE_KEY_AUTH_TOKEN, rotated)
+  })
+}
+
 async function disconnect(): Promise<void> {
   // Local-only. MWA `deauthorize()` requires a wallet round-trip via
   // `transact()`, which would open the wallet just to send a revoke message.
@@ -170,12 +205,7 @@ async function getRestoredAccount(): Promise<SpikeAccount | null> {
     AsyncStorage.getItem(STORAGE_KEY_ADDRESS),
   ])
   if (!token || !address) return null
-  return {
-    namespace: 'solana',
-    chainId: SPIKE_CHAINS.solana,
-    address,
-    walletId: ADAPTER_ID,
-  }
+  return accountFor(address)
 }
 
 const unavailable = (op: string) => () => {
@@ -195,6 +225,7 @@ export const solanaMwaAdapter: WalletAdapter = {
   isInstalled: async () => true,
   connect: Platform.OS === 'android' ? connect : unavailable('connect'),
   signMessage: Platform.OS === 'android' ? signMessage : unavailable('signMessage'),
+  authenticate: Platform.OS === 'android' ? authenticate : unavailable('authenticate'),
   disconnect: Platform.OS === 'android' ? disconnect : unavailable('disconnect'),
   getRestoredAccount:
     Platform.OS === 'android' ? getRestoredAccount : async () => null,

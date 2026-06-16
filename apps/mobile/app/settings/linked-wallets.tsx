@@ -8,15 +8,19 @@ import { ScreenContainer, Text, Header, Button, BottomSheet, showToast } from '@
 import { WalletCard } from '@/components/onboarding/WalletCard'
 import { useAuthStore } from '@/stores/auth.store'
 import { api, ApiClientError } from '@/api/client'
-import { solanaLinkWallet } from '@/wallet/auth'
-import { WalletError } from '@/wallet'
+import { linkWalletWith } from '@/wallet/auth'
+import { WalletError } from '@/wallet/errors'
+import { WalletPicker } from '@/wallet/picker'
+import type { WalletAdapter } from '@/wallet/adapters/types'
 import { spacing } from '@/theme/tokens'
 
 /**
  * Settings → Linked wallets (stage-1-onboarding.md § Linked-wallets UI).
- * Add = the same nonce + MWA signature dance as sign-in, against
- * /v1/auth/link-wallet. The server enforces the primary/sole/in-use
- * unlink guards — this screen just surfaces its answers.
+ * Add = the same nonce + signature dance as sign-in (any adapter — Solana or
+ * EVM — via the shared picker), against /v1/auth/link-wallet with
+ * `forceFresh` so the user can pick a DIFFERENT account than the one on their
+ * JWT. The server enforces the primary/sole/in-use unlink guards — this screen
+ * just surfaces its answers.
  */
 export default function LinkedWalletsScreen() {
   const router = useRouter()
@@ -24,6 +28,7 @@ export default function LinkedWalletsScreen() {
   const wallets = useAuthStore((s) => s.wallets)
   const refreshMe = useAuthStore((s) => s.refreshMe)
   const [managing, setManaging] = useState<LinkedWallet | null>(null)
+  const [pickerVisible, setPickerVisible] = useState(false)
   const [busy, setBusy] = useState(false)
 
   useFocusEffect(
@@ -32,11 +37,11 @@ export default function LinkedWalletsScreen() {
     }, [refreshMe]),
   )
 
-  async function handleAdd() {
-    if (busy) return
+  async function handleLinkWallet(adapter: WalletAdapter) {
+    setPickerVisible(false)
     setBusy(true)
     try {
-      const linked = await solanaLinkWallet()
+      const linked = await linkWalletWith(adapter)
       if (linked === null) {
         showToast('error', 'Wallet prompt was closed')
         return
@@ -45,7 +50,7 @@ export default function LinkedWalletsScreen() {
       await refreshMe()
     } catch (e) {
       if (e instanceof ApiClientError) showToast('error', e.message)
-      else if (e instanceof WalletError && e.code === 'no_wallet') showToast('error', 'No Solana wallet app installed')
+      else if (e instanceof WalletError && e.code === 'no_wallet') showToast('error', 'No wallet app installed')
       else showToast('error', 'Could not link the wallet — please try again')
     } finally {
       setBusy(false)
@@ -114,10 +119,22 @@ export default function LinkedWalletsScreen() {
           )}
         </View>
 
-        <Button variant="outline" size="lg" fullWidth loading={busy} onPress={() => void handleAdd()}>
+        <Button
+          variant="outline"
+          size="lg"
+          fullWidth
+          loading={busy}
+          onPress={() => { if (!busy) setPickerVisible(true) }}
+        >
           Add another wallet
         </Button>
       </ScrollView>
+
+      <WalletPicker
+        visible={pickerVisible}
+        onClose={() => setPickerVisible(false)}
+        onSelect={handleLinkWallet}
+      />
 
       <BottomSheet visible={managing !== null} onClose={() => setManaging(null)} title="Manage wallet">
         {managing !== null && (

@@ -10,7 +10,10 @@ import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { useAuthStore } from '@/stores/auth.store'
-import { WalletError } from '@/wallet'
+import { WalletError } from '@/wallet/errors'
+import { ApiClientError } from '@/api/client'
+import { WalletPicker } from '@/wallet/picker'
+import type { WalletAdapter } from '@/wallet/adapters/types'
 import { APP_INFO } from '@/lib/app-info'
 import { isSeekerDevice, getDeviceCountry } from '@/lib/device'
 
@@ -48,8 +51,7 @@ function classifyError(error: unknown): ConnectError {
         return { title: 'Something went wrong', description: 'An unexpected error occurred. Please try again.' }
     }
   }
-  const status = (error as any)?.statusCode ?? (error as any)?.status
-  if (status === 401 || status === 403) {
+  if (error instanceof ApiClientError && (error.statusCode === 401 || error.statusCode === 403)) {
     return { title: 'Sign-in failed', description: "The server couldn't verify your wallet. Please try again." }
   }
   const message = error instanceof Error ? error.message.toLowerCase() : ''
@@ -63,14 +65,19 @@ export default function ConnectWalletScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
   const [isConnecting, setIsConnecting] = useState(false)
+  const [pickerVisible, setPickerVisible] = useState(false)
   const [connectError, setConnectError] = useState<ConnectError | null>(null)
-  const signInWithSolana = useAuthStore((st) => st.signInWithSolana)
+  const signInWithWallet = useAuthStore((st) => st.signInWithWallet)
 
-  const handleConnectWallet = async () => {
+  // Sign in with the wallet the user picked from the sheet. Each adapter owns
+  // its own connect+sign round-trip; the store persists the session and routes
+  // to onboarding vs home based on profile completeness.
+  const handleSelectWallet = async (adapter: WalletAdapter) => {
+    setPickerVisible(false)
     setIsConnecting(true)
     setConnectError(null)
     try {
-      const ok = await signInWithSolana({
+      const ok = await signInWithWallet(adapter, {
         is_seeker: isSeekerDevice(),
         country: getDeviceCountry(),
       })
@@ -82,7 +89,7 @@ export default function ConnectWalletScreen() {
         setConnectError({ title: 'Connection cancelled', description: 'You closed the wallet prompt. Tap below to try again.' })
       }
     } catch (error) {
-      console.log('connect error', error)
+      if (__DEV__) console.warn('[connect-wallet] sign-in failed:', error)
       setConnectError(classifyError(error))
     } finally {
       setIsConnecting(false)
@@ -119,7 +126,7 @@ export default function ConnectWalletScreen() {
                 Connect your wallet
               </Text>
               <Text style={[s.heroBody, { color: theme.colors.content.secondary }]}>
-                Link a Solana wallet to start posting and accepting gigs on Tenda.
+                Connect a wallet to start posting and accepting gigs on Tenda.
               </Text>
             </View>
 
@@ -161,7 +168,7 @@ export default function ConnectWalletScreen() {
                 fullWidth
                 loading={isConnecting}
                 icon={!isConnecting ? <Wallet size={18} color={theme.colors.brand.onPrimary} /> : undefined}
-                onPress={handleConnectWallet}
+                onPress={() => setPickerVisible(true)}
               >
                 {isConnecting ? 'Connecting…' : 'Connect Wallet'}
               </Button>
@@ -180,6 +187,12 @@ export default function ConnectWalletScreen() {
             </View>
           </>
         )}
+
+        <WalletPicker
+          visible={pickerVisible}
+          onClose={() => setPickerVisible(false)}
+          onSelect={handleSelectWallet}
+        />
       </View>
     </ScreenContainer>
   )

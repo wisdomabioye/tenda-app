@@ -1,7 +1,6 @@
 import * as SecureStore from 'expo-secure-store'
 
 const JWT_TOKEN_KEY = 'jwt_token'
-const MWA_AUTH_TOKEN_KEY = 'mwa_auth_token'
 const WALLET_ADDRESS_KEY = 'wallet_address'
 
 export async function getJwtToken(): Promise<string | null> {
@@ -14,18 +13,6 @@ export async function setJwtToken(token: string): Promise<void> {
 
 export async function deleteJwtToken(): Promise<void> {
   await SecureStore.deleteItemAsync(JWT_TOKEN_KEY)
-}
-
-export async function getMwaAuthToken(): Promise<string | null> {
-  return SecureStore.getItemAsync(MWA_AUTH_TOKEN_KEY)
-}
-
-export async function setMwaAuthToken(token: string): Promise<void> {
-  await SecureStore.setItemAsync(MWA_AUTH_TOKEN_KEY, token)
-}
-
-export async function deleteMwaAuthToken(): Promise<void> {
-  await SecureStore.deleteItemAsync(MWA_AUTH_TOKEN_KEY)
 }
 
 export async function getWalletAddress(): Promise<string | null> {
@@ -43,7 +30,6 @@ export async function deleteWalletAddress(): Promise<void> {
 export async function clearAuthStorage(): Promise<void> {
   await Promise.all([
     deleteJwtToken(),
-    deleteMwaAuthToken(),
     deleteWalletAddress(),
   ])
 }

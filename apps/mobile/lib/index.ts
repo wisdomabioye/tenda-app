@@ -11,7 +11,6 @@ export { configureNotifications, registerPushToken } from './notifications'
 export { initReporter, captureError, captureMessage, setUser, wrapApp } from './reporter'
 export {
   getJwtToken, setJwtToken, deleteJwtToken,
-  getMwaAuthToken, setMwaAuthToken, deleteMwaAuthToken,
   getWalletAddress, setWalletAddress, deleteWalletAddress,
   clearAuthStorage,
 } from './secure-store'

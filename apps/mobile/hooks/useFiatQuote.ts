@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { solanaChainId, solanaNativeAssetId, type FiatQuoteResponse } from '@tenda/shared'
 import { api, ApiClientError } from '@/api/client'
-import { APP_IDENTITY } from '@/wallet'
+import { SOLANA_NETWORK } from '@/wallet/config'
 import { useAuthStore } from '@/stores/auth.store'
 
 const DEBOUNCE_MS = 600
@@ -59,8 +59,8 @@ export function useFiatQuote(input: FiatQuoteInput | null): FiatQuoteState {
           fiat_currency: 'NGN',
           ...(direction === 'onramp' ? { fiat_amount: fiatAmount } : {}),
           ...(direction === 'offramp' ? { asset_amount_raw: assetAmountRaw } : {}),
-          asset: solanaNativeAssetId(APP_IDENTITY.network),
-          chain_id: solanaChainId(APP_IDENTITY.network),
+          asset: solanaNativeAssetId(SOLANA_NETWORK),
+          chain_id: solanaChainId(SOLANA_NETWORK),
           wallet_address: walletAddress,
         })
         .then((quote) => {
