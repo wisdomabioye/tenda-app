@@ -1,51 +1,67 @@
-# Wallet Spike (adapter-based multi-transport)
+# Wallet (adapter-based multi-transport)
 
-Validates self-custodial multichain (Solana + EVM) using a per-wallet
-**adapter** model. Each transport (MetaMask Connect, Solana MWA, Phantom
-universal links) is isolated behind a uniform `WalletAdapter` interface, so the
-picker and provider don't know which protocol any given entry speaks. We can
-swap transports per platform without touching the consumer surface.
+**Status: promoted (live).** This started as a spike validating self-custodial
+multichain (Solana + EVM) via a per-wallet **adapter** model; it now backs the
+real login (`app/(auth)/connect-wallet.tsx`) and wallet-link
+(`app/settings/linked-wallets.tsx`) flows, end-to-end to the server-nonce auth
+endpoints. Each transport (MetaMask Connect, Solana MWA, Phantom universal
+links) is isolated behind a uniform `WalletAdapter` interface, so consumers
+never know which protocol an entry speaks. Transports swap per platform without
+touching the consumer surface.
+
+Device-verification status is at the bottom — only the **Android-Solana (MWA)**
+path is device-proven; EVM sign + iOS-Phantom remain **#68-gated**.
 
 ## Architecture
 
+No React context/provider — screens drive the picker directly and the store
+owns the session. The MWA adapter owns its own persisted token (AsyncStorage),
+so escrow-tx signing reads it from the adapter, not the auth store.
+
 ```
-┌─────────────────────────────────────────────────┐
-│ <WalletSpikeProvider>                           │
-│   • Owns connect/disconnect state               │
-│   • Renders <WalletPicker>                      │
-│   • Exposes useSpikeWallet() via context        │
-└─────────────────────────────────────────────────┘
-            │
-            │ uses
-            ▼
-┌─────────────────────────────────────────────────┐
-│ adapters/registry.ts                            │
-│   • Static list of WalletAdapter implementations│
-│   • Picker filters by isAvailable() per device  │
-└─────────────────────────────────────────────────┘
-            │
-            ├─── metamask.ts  → @metamask/connect-evm (EIP-1193, EVM-only)
-            ├─── solana-mwa.ts → Solana Mobile Wallet Adapter (Android)
-            └─── phantom.ts    → Phantom universal links (iOS, device-verify pending)
+app/(auth)/connect-wallet.tsx   app/settings/linked-wallets.tsx
+  (login: signInWithWallet)       (link: linkWalletWith, forceFresh)
+            │                              │
+            └──────────► <WalletPicker> ◄──┘
+                              │ onSelect(adapter)
+                              ▼
+                      adapters/registry.ts
+                  (WalletAdapter[] · isAvailable() per device)
+                              │
+        ┌─────────────────────┼─────────────────────┐
+        ▼                     ▼                     ▼
+   metamask.ts           solana-mwa.ts          phantom.ts
+  @metamask/connect-evm   Solana MWA (Android)   universal links (iOS)
+        │                     │                     │
+        └─── adapter.authenticate(buildMessage) ────┘   ← connect + sign nonce
+                              │
+              ┌───────────────┴───────────────┐
+              ▼                               ▼
+        wallet/auth.ts                  wallet/dispatch.ts
+  nonce → authenticate → POST      escrow UnsignedTx → sign + broadcast
+  /v1/auth/{wallet,link-wallet}    (solana-mwa.signAndSendStored / metamask)
 ```
 
 Files under `apps/mobile/wallet/`:
 
 | File | Purpose |
 |---|---|
-| `types.ts` | `SpikeWalletAPI`, `SpikeAccount`, `Namespace`, `SignMessageResult` |
-| `config.ts` | App metadata, env-driven `SPIKE_CHAINS` (CAIP-2 ids) |
-| `provider.tsx` | `<WalletSpikeProvider>` + `useSpikeWallet()` context |
-| `picker.tsx` | `<WalletPicker>` — BottomSheet listing adapters with installed badge |
+| `types.ts` | `SpikeAccount`, `Namespace`, `SignMessageResult` (canonical account types) |
+| `config.ts` | Single-source `metadata`, env-driven `SOLANA_NETWORK` + `WALLET_CHAINS` (CAIP-2 ids) |
+| `errors.ts` | `WalletError` / `WalletErrorCode` — standalone so pure consumers skip the native barrel |
+| `auth.ts` | `signInWithWallet` / `linkWalletWith` — nonce ↔ server orchestration |
+| `dispatch.ts` | `signSendAndReport` — routes a server-built `UnsignedTx` to the right transport |
+| `index.ts` | Solana RPC helpers (`getBalance`, `getTransactionStatus`) + convenience re-exports |
+| `picker.tsx` | `<WalletPicker>` — controlled BottomSheet listing adapters with installed badge |
 | `wallet-icon.tsx` | Rounded `Image`-based wallet icon |
-| `adapters/types.ts` | `WalletAdapter` interface (connect / sign / disconnect / restore) |
+| `adapters/types.ts` | `WalletAdapter` interface (connect / sign / **authenticate** / disconnect / restore) |
 | `adapters/registry.ts` | Adapter list + `findAdapter` / `requireAdapter` |
+| `adapters/connect-then-sign.ts` | Shared `authenticate` composer + `isUserRejection` for split connect/sign transports |
 | `adapters/detect.ts` | `canOpenScheme()` wrapper over `Linking.canOpenURL` |
-| `adapters/metamask.ts` | MetaMask Connect Multichain (EVM + Solana via MM) |
+| `adapters/metamask.ts` | MetaMask Connect EVM client (EIP-1193) |
 | `adapters/mwa-shared.ts` | Shared MWA helpers (auth/retry/error classification) |
-| `adapters/solana-mwa.ts` | Generic Android-Solana entry (MWA routes via OS) |
-| `adapters/phantom.ts` | iOS Phantom universal-link transport (X25519 + nacl.box; device verification pending) |
-| `../../app/spike-wallet.tsx` | Test screen with connect/sign/disconnect + log |
+| `adapters/solana-mwa.ts` | Generic Android-Solana entry (MWA routes via OS) + `signAndSendStored` |
+| `adapters/phantom.ts` | iOS Phantom universal-link transport (X25519 + nacl.box) |
 
 ## Why this design (and not WalletConnect or Reown AppKit)
 
@@ -61,6 +77,19 @@ strengths (MM Connect's CAIP-25 sessions for EVM, MWA's OS-level chooser for
 Android-Solana, Phantom's encrypted universal links for iOS-Solana). The
 common `WalletAdapter` shape keeps the consumer surface uniform.
 
+## Chain config (single source)
+
+`config.ts` is the **only** place env → network is encoded:
+
+- `SOLANA_NETWORK` — `Cluster` (`mainnet-beta` in prod, else `devnet`).
+- `WALLET_CHAINS` — CAIP-2 ids the **server** registers: `solana` via the shared
+  `solanaChainId(SOLANA_NETWORK)` (NOT the genesis-hash form — that was a spike
+  bug that 400'd the server), `eip155` Base / Base-Sepolia by env.
+
+`auth.ts` pins `WALLET_CHAINS[account.namespace]` on every signature — the
+server only verifies against registered chains, so the account's own `chainId`
+is never trusted for auth.
+
 ## Picker layout
 
 Adapters' `isAvailable()` is what determines visibility per platform:
@@ -73,9 +102,8 @@ Adapters' `isAvailable()` is what determines visibility per platform:
 Android collapses all Solana wallets behind one generic **Solana Wallet**
 entry because MWA's `transact()` has no local wallet-targeting API — the OS
 routes to the default Solana wallet (or shows a chooser if none is default).
-A separate Phantom/Solflare row would have been misleading: tapping either
-would route through the same OS chooser. On iOS, each Solana wallet exposes
-its own universal-link protocol, so per-wallet entries make sense.
+On iOS, each Solana wallet exposes its own universal-link protocol, so
+per-wallet entries make sense.
 
 ## What's installed
 
@@ -83,8 +111,8 @@ its own universal-link protocol, so per-wallet entries make sense.
 |---|---|
 | `@metamask/connect-evm` | MM Connect EVM client (EIP-1193; W2 rewrite — connectWith sign fallback) |
 | `@solana-mobile/mobile-wallet-adapter-protocol-web3js` | Android Solana transport |
-| `@react-native-async-storage/async-storage` | Session/auth-token persistence |
-| `bs58` | Solana message encoding utilities |
+| `@react-native-async-storage/async-storage` | Adapter session/auth-token persistence |
+| `bs58` | Solana message/signature encoding |
 | `lucide-react-native` | `CircleCheck` filled badge for installed wallets |
 
 WC v2, Reown AppKit (`@reown/appkit-*`), wagmi, viem, @tanstack/react-query,
@@ -94,56 +122,12 @@ Coinbase Wallet Mobile SDK (unmaintained) were all removed.
 ## Polyfills
 
 MM Connect's transitive deps (`eciesjs`, `@metamask/mobile-wallet-protocol-*`)
-need a browser-like environment. `apps/mobile/shims/polyfills.ts` provides:
-
-- `Event` / `CustomEvent` / `dispatchEvent` / `addEventListener`
-- `window` shim with `location` and event APIs
-- `Buffer` global
-- Static pre-imports of `eciesjs` and the MM mobile protocol packages so Metro
-  bundles them into the main chunk (avoids an async-require race that
-  manifested as `Cannot set property 'importedAll' of undefined`).
-
-Node-builtin stubs live in `metro.config.js` (`extraNodeModules`).
-
-## Run the validation
-
-1. `pnpm --filter tenda-mobile prebuild` (runs `with-wallet-queries` so Android
-   `<queries>` and iOS `LSApplicationQueriesSchemes` are populated for
-   `metamask`, `phantom`, `solflare`).
-2. `pnpm --filter tenda-mobile android` (full rebuild — Metro reload alone
-   won't pick up native manifest changes).
-3. On device, navigate to `/spike-wallet`
-   (e.g. `adb shell am start -a android.intent.action.VIEW -d "tenda://spike-wallet" com.tendahq.mobile`).
-4. Open picker → tap a wallet → approve → Sign auth message → log shows result.
-
-## Findings
-
-| Scenario | Android | iOS | Notes |
-|---|---|---|---|
-| MetaMask connect (CAIP-25 multi-scope) | ✅ | ⬜ | Mainnet EVM scopes granted reliably; Base Sepolia often dropped even when enabled in MM. |
-| MetaMask `personal_sign` (EVM) | ❌ | ⬜ | MM opens on `metamask://connect/mwp?id=…` but the approval sheet never renders; `invokeMethod` times out with RPCErr53. Matches docs verbatim — gap is on MM's RN sign flow. |
-| MetaMask `solana_signMessage` | ❌ | ⬜ | Same RPCErr53 timeout as EVM. |
-| MetaMask disconnect | ✅ | ⬜ | Local state always cleared even if revoke didn't reach MM. |
-| Solana Wallet (MWA) connect | ✅ | — | Android only; OS routes to default Solana wallet. |
-| Solana Wallet (MWA) signMessage | ✅ | — | Round-trip OK with Phantom and Solflare via MWA. |
-| Solana Wallet (MWA) disconnect | ✅ | — | Local-only (skip wallet round-trip) — opening wallet just to revoke is bad UX. |
-| Phantom (iOS universal links) | — | ⬜ | Pending impl (X25519 + nacl.box). |
-
-## Known issues / parked work
-
-- **MM Connect sign on RN is broken.** Connect works, sign times out. We
-  matched the official quickstart + sign guide exactly; the failure is below
-  our layer. Next try is `@metamask/connect-evm` (EVM-only client, possibly
-  different RN transport): `https://docs.metamask.io/metamask-connect/evm/quickstart/react-native/`.
-  BASE / CELO support depends on this.
-- **iOS Phantom universal-link** implementation pending. Stub throws a clear
-  "pending universal-link implementation" error on any op.
-- **MWA `identity.icon` must be a relative URI** — we use `./favicon.ico`.
-  Absolute URLs (like `metadata.iconUrl`) get rejected with protocol error -32602.
-- **MWA has no local wallet-targeting API.** `transact({ baseUri })` only
-  accepts an absolute `https://` hierarchical URI (for remote MWA), so we can't
-  use `phantom:` / `solflare:` to route to a specific wallet. Hence the
-  collapsed "Solana Wallet" entry on Android.
+need a browser-like environment. `apps/mobile/shims/polyfills.ts` provides
+`Event`/`CustomEvent`/`dispatchEvent`/`addEventListener`, a `window` shim, the
+`Buffer` global, and static pre-imports so Metro bundles them into the main
+chunk. Node-builtin stubs live in `metro.config.js` (`extraNodeModules`); that
+file also redirects `whatwg-url`/`webidl-conversions` to RN-safe builds (admin
+jsdom otherwise leaks ES2024 Node libs into the flat-resolved RN bundle).
 
 ## Native-config requirement
 
@@ -153,16 +137,44 @@ in `AndroidManifest.xml` `<queries>` and iOS `LSApplicationQueriesSchemes`
 returns false on iOS and `openURL` silently fails on Android 11+. The plugin
 runs at every `expo prebuild` so the native config stays in sync.
 
-## Promotion criteria
+## Device-verification status
 
-Promote `wallet/*` → `wallet/*` (retire legacy `wallet/index.ts`, add
-`wallet/auth.ts` to wrap signMessage with the server-nonce flow) **iff**:
+Only the **Android-Solana (MWA)** path is device-proven. Everything else is
+tracked under **#68** (device verification passes).
 
-- MM Connect (or `connect-evm`) sign round-trips on Android + iOS.
-- iOS Phantom universal links connect + sign + disconnect work.
-- p95 signMessage < 5s on a real network across all adapters.
-- Wallet-killed mid-flow surfaces a clear error (no silent hang).
+| Scenario | Android | iOS | Notes |
+|---|---|---|---|
+| Solana Wallet (MWA) connect + signMessage (login) | ✅ | — | OS routes to default Solana wallet; round-trip OK with Phantom + Solflare. |
+| Solana Wallet (MWA) escrow tx sign + broadcast | ✅ | — | `signAndSendStored` reads the adapter's persisted token; broadcast from app RPC. |
+| Solana Wallet (MWA) disconnect | ✅ | — | Local-only (opening the wallet just to revoke is bad UX). |
+| MetaMask connect (CAIP-25 multi-scope) | ✅ | ⬜ | Mainnet EVM scopes granted; Base Sepolia often dropped even when enabled in MM. |
+| MetaMask `personal_sign` (EVM login/link) | ❌ | ⬜ | **#68** — MM opens but the approval sheet never renders; `invokeMethod` times out (RPCErr53). Failure is below our layer; W2 `connect-evm` rewrite is the unblock attempt. |
+| MetaMask EVM escrow send (`eth_sendTransaction`) | ⬜ | ⬜ | **#68** — gated on the sign path above. |
+| Phantom (iOS universal links) connect + sign | — | ⬜ | **#68** — implemented (X25519 + nacl.box, base64 sig); never device-verified. |
 
-If MM Connect signing can't be unblocked on RN, fallback strategy: use MM's
-own deeplink (`metamask://wc?uri=…`) over a WC v2 transport for EVM only,
-keep MWA + Phantom universal links for Solana, drop the unified picker idea.
+### Known limitation (post-promotion)
+
+`dispatch.ts` routes `solana-tx` to the MWA adapter only. A **Phantom (iOS)**
+login can authenticate but cannot yet sign escrow txs (no Phantom tx-signing in
+dispatch). Phantom is `isAvailable: iOS-only`, so the proven Android path is
+unaffected; wire Phantom tx-signing when iOS is device-verified (**#68**).
+
+An EVM-primary login leaves `walletAddress` (the Solana-pubkey the balance/fiat
+screens read) null, so those screens are empty for an EVM-only user even after
+they link a Solana wallet — graceful (null-guarded, no crash). Fix = source the
+Solana display address from `wallets[]`; folded into the **#68** EVM-login
+verification since that path isn't device-testable yet.
+
+## Promotion criteria — status
+
+Original gate, with current state:
+
+- ✅ Promoted into live login + link; legacy MWA-only `solanaSignIn`/`solanaLinkWallet` retired.
+- ✅ Server-nonce flow (`auth.ts`) + `adapter.authenticate(buildMessage)` across all transports.
+- ✅ Single-source chain config; signatures pinned to server-registered CAIP-2 ids.
+- ✅ Wallet-killed mid-flow surfaces a typed error / decline → `null` (no silent hang); unit-tested.
+- ⬜ **#68** — MM Connect sign round-trips on Android + iOS; iOS Phantom connect+sign+disconnect; EVM escrow send; p95 signMessage < 5s on a real network.
+
+If MM Connect signing can't be unblocked on RN, the fallback is MM's own
+deeplink (`metamask://wc?uri=…`) over a WC v2 transport for EVM only, keeping
+MWA + Phantom universal links for Solana.
