@@ -35,7 +35,7 @@ test('signature covers allowed_formats + folder + timestamp in alphabetical orde
     .digest('hex')
   assert.strictEqual(sig.signature, expected)
   assert.strictEqual(sig.allowed_formats, 'jpg,png,webp')
-  assert.strictEqual(sig.max_file_bytes, 2 * 1024 * 1024)
+  assert.strictEqual(sig.max_file_bytes, 10 * 1024 * 1024)
 })
 
 test('proof type: pdf allowed, 10MB guard, per-user folder', () => {

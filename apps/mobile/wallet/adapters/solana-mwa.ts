@@ -9,7 +9,6 @@ import {
   type Transaction,
 } from '@solana/web3.js'
 import { authorizeSession, withMwaRetry } from './mwa-shared'
-import { connectThenSign } from './connect-then-sign'
 import { WalletError } from '@/wallet/errors'
 import { SOLANA_NETWORK, WALLET_CHAINS } from '../config'
 import type { SignMessageResult, SpikeAccount } from '../types'
@@ -55,22 +54,49 @@ async function connect(): Promise<SpikeAccount> {
 }
 
 /**
- * Auth = connect (one MWA session) then sign (a second session). We deliberately
- * do NOT fold both into a single `transact`: when the wallet backgrounds the
- * dapp after its authorize/connect prompt, the MWA association WebSocket is torn
- * down, so a following `signMessages` in the same session throws "Cannot send in
- * CLOSED" and the sign sheet never opens. `connect()` persists the auth token,
- * so the sign session's `reauthorize` is silent (no second connect prompt) —
- * returning users see only the sign sheet, first-timers see connect then sign.
+ * One-shot auth: authorize + sign the nonce message in a SINGLE MWA `transact`,
+ * so the wallet opens ONCE (connect + sign in one foregrounded visit). This is
+ * the legacy/proven shape.
  *
- * `forceFresh` (wallet-linking) → `connectThenSign` calls `disconnect()` first,
- * dropping the stored token so `connect()` does a fresh authorize.
+ * Every attempt is a FRESH authorize — we drop any stored session first and
+ * pass `null` to `authorizeSession`. Reusing a token makes it `reauthorize`,
+ * which can hand control back to the dapp mid-session and tear down the MWA
+ * association WebSocket ("Cannot send in CLOSED") before `signMessages` runs.
+ * Starting clean keeps the wallet foregrounded through both prompts and also
+ * lets a linking user pick a different account (so this is correct for
+ * `forceFresh` too — hence no `opts`).
+ *
+ * The auth message is built ONCE and the exact bytes signed are returned: the
+ * server verifies the signature over that literal string (buildAuthMessage
+ * stamps a fresh `Issued At` each call, so re-building would diverge).
+ *
+ * Exported for unit testing; the picker/consumers reach it via `adapter.authenticate`.
  */
-function authenticate(
+export async function authenticate(
   buildMessage: (account: SpikeAccount) => string,
-  opts?: { forceFresh?: boolean },
 ): Promise<AuthenticateResult | null> {
-  return connectThenSign({ connect, signMessage, disconnect }, buildMessage, opts)
+  await AsyncStorage.multiRemove([STORAGE_KEY_AUTH_TOKEN, STORAGE_KEY_ADDRESS])
+  try {
+    return await withMwaRetry(async (wallet) => {
+      const session = await authorizeSession(wallet, null)
+      const address = base64ToAddress(session.addressBase64)
+      const account = accountFor(address)
+      const message = buildMessage(account)
+      const [signed] = await wallet.signMessages({
+        addresses: [session.addressBase64],
+        payloads: [new TextEncoder().encode(message)],
+      })
+      await AsyncStorage.multiSet([
+        [STORAGE_KEY_AUTH_TOKEN, session.authToken],
+        [STORAGE_KEY_ADDRESS, address],
+      ])
+      return { account, signature: Buffer.from(signed).toString('base64'), message }
+    })
+  } catch (err) {
+    // A decline is the user's answer, not a failure.
+    if (err instanceof WalletError && err.code === 'declined') return null
+    throw err
+  }
 }
 
 async function signMessage(

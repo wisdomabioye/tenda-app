@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useRouter } from 'expo-router'
-import * as ImagePicker from 'expo-image-picker'
 import { Camera } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Header, Avatar, Button, showToast } from '@/components/ui'
@@ -13,7 +12,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/api/client'
 import { uploadToCloudinary } from '@/lib/upload'
 import { findCountryForCity, coerceCityForCountry } from '@tenda/shared'
-import type { PickedFile } from '@/components/form/FilePicker'
+import { pickAvatar, type PickedFile } from '@/components/form/FilePicker'
 
 const BIO_MAX = 1200
 
@@ -34,17 +33,10 @@ export default function UpdateProfileScreen() {
   const [isLoading,     setIsLoading]     = useState(false)
 
   async function handleChangePhoto() {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 })
-    if (result.canceled || !result.assets?.length) return
-    const asset = result.assets[0]
-    const file: PickedFile = {
-      uri: asset.uri,
-      type: 'image',
-      name: asset.fileName ?? `photo_${Date.now()}.jpg`,
-      mimeType: asset.mimeType ?? 'image/jpeg',
-    }
+    const file = await pickAvatar()
+    if (!file) return
     setPickedAvatar(file)
-    setAvatarPreview(asset.uri)
+    setAvatarPreview(file.uri)
   }
 
   async function handleSave() {

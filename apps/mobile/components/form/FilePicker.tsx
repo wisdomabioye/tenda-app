@@ -1,5 +1,7 @@
 import * as ImagePicker from 'expo-image-picker'
 import * as DocumentPicker from 'expo-document-picker'
+import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
+import { File } from 'expo-file-system'
 import { View, Pressable, StyleSheet, Image, ScrollView } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Plus, X, FileText, Film } from 'lucide-react-native'
@@ -25,6 +27,44 @@ interface FilePickerProps {
   max?: number
   /** Hide the thumbnail preview strip. Useful when the parent already shows a preview (e.g. Avatar). */
   showPreview?: boolean
+}
+
+/** Largest dimension kept for an avatar. They render small, so downscaling
+ *  here keeps the upload well under the size cap and makes it fast. */
+const AVATAR_MAX_DIMENSION = 1024
+
+/**
+ * Pick + downscale an avatar to a compressed JPEG. SINGLE source of truth for
+ * both the onboarding (profile-setup) and settings (update-profile) screens —
+ * they must produce the same shape, and an avatar is always compressed so a
+ * full-res phone photo can't blow the upload size cap. Returns null on cancel.
+ */
+export async function pickAvatar(): Promise<PickedFile | null> {
+  try {
+    // quality: 1 — we re-encode below, so don't double-compress at pick time.
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 })
+    if (result.canceled || !result.assets?.length) return null
+
+    const asset = result.assets[0]
+    const context = ImageManipulator.manipulate(asset.uri)
+    // Only downscale — never upscale a smaller source.
+    if (typeof asset.width === 'number' && asset.width > AVATAR_MAX_DIMENSION) {
+      context.resize({ width: AVATAR_MAX_DIMENSION })
+    }
+    const rendered = await context.renderAsync()
+    const out = await rendered.saveAsync({ compress: 0.8, format: SaveFormat.JPEG })
+
+    const size = new File(out.uri).size ?? undefined
+    return {
+      uri: out.uri,
+      type: 'image',
+      name: `avatar_${Date.now()}.jpg`,
+      mimeType: 'image/jpeg',
+      ...(size !== undefined ? { size } : {}),
+    }
+  } catch {
+    return null
+  }
 }
 
 export async function pickImage(): Promise<PickedFile | null> {

@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useRouter } from 'expo-router'
-import * as ImagePicker from 'expo-image-picker'
 import { Camera } from 'lucide-react-native'
 import { ScreenContainer, Text, Spacer, Header, Avatar, Button, showToast } from '@/components/ui'
 import { Input } from '@/components/ui/Input'
@@ -14,7 +13,7 @@ import { api, ApiClientError } from '@/api/client'
 import { uploadToCloudinary } from '@/lib/upload'
 import { getDeviceCountry } from '@/lib/device'
 import { isE164 } from '@tenda/shared'
-import type { PickedFile } from '@/components/form/FilePicker'
+import { pickAvatar, type PickedFile } from '@/components/form/FilePicker'
 
 
 export default function ProfileSetupScreen() {
@@ -33,17 +32,10 @@ export default function ProfileSetupScreen() {
   const [isSaving, setIsSaving] = useState(false)
 
   async function handleChangePhoto() {
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 })
-    if (result.canceled || !result.assets?.length) return
-    const asset = result.assets[0]
-    setPickedAvatar({
-      uri: asset.uri,
-      type: 'image',
-      name: asset.fileName ?? `photo_${Date.now()}.jpg`,
-      mimeType: asset.mimeType ?? 'image/jpeg',
-      size: asset.fileSize,
-    })
-    setAvatarPreview(asset.uri)
+    const file = await pickAvatar()
+    if (!file) return
+    setPickedAvatar(file)
+    setAvatarPreview(file.uri)
   }
 
   const trimmedPhone = phone.trim()
@@ -78,7 +70,16 @@ export default function ProfileSetupScreen() {
       }
       router.replace('/(tabs)/home')
     } catch (e) {
-      const msg = e instanceof ApiClientError ? e.message : 'Could not save your profile — please try again'
+      if (__DEV__) console.warn('[profile-setup] finish failed:', e)
+      // Server errors carry a user-meaningful message. Other failures (e.g. the
+      // direct Cloudinary avatar upload) throw a plain Error — surface its text
+      // on dev builds so the real cause is visible instead of the generic copy.
+      const msg =
+        e instanceof ApiClientError
+          ? e.message
+          : __DEV__ && e instanceof Error
+            ? `Could not save your profile: ${e.message}`
+            : 'Could not save your profile — please try again'
       showToast('error', msg)
     } finally {
       setIsSaving(false)

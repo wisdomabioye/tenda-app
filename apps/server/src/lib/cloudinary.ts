@@ -20,7 +20,10 @@ export const UPLOAD_CONSTRAINTS: Record<
   UploadType,
   { allowed_formats: string; max_file_bytes: number }
 > = {
-  avatar: { allowed_formats: 'jpg,png,webp', max_file_bytes: 2 * 1024 * 1024 },
+  // Client downscales avatars before upload (mobile pickAvatar), so this cap is
+  // generous headroom for the rare large-after-compression case rather than a
+  // tight gate — keeps a big source photo from being rejected outright.
+  avatar: { allowed_formats: 'jpg,png,webp', max_file_bytes: 10 * 1024 * 1024 },
   proof: { allowed_formats: 'jpg,png,webp,pdf', max_file_bytes: 10 * 1024 * 1024 },
   chat: { allowed_formats: 'jpg,png,webp,pdf', max_file_bytes: 10 * 1024 * 1024 },
 }

@@ -144,7 +144,7 @@ tracked under **#68** (device verification passes).
 
 | Scenario | Android | iOS | Notes |
 |---|---|---|---|
-| Solana Wallet (MWA) connect + signMessage (login) | ✅ | — | OS routes to default Solana wallet. NOTE: the one-shot authorize+sign in a single `transact` threw `Cannot send in CLOSED` (wallet backgrounds the dapp after authorize → MWA association WS torn down → `signMessages` can't send). Fixed by splitting into connect (one session, stores token) then sign (second session, silent reauthorize) — `authenticate` now uses `connectThenSign`. |
+| Solana Wallet (MWA) connect + signMessage (login) | ✅ | — | OS routes to default Solana wallet. `authenticate` is a one-shot: authorize + `signMessages` in a SINGLE `transact` (one wallet visit), matching the legacy/proven flow. It ALWAYS starts fresh (drops any stored token, passes `null` to `authorizeSession`) — reusing a token forces a `reauthorize` that can background the dapp and tear down the association WS mid-session (`Cannot send in CLOSED`). An earlier 2-session split avoided that error but opened the wallet twice (×retry = bad UX); reverted. |
 | Solana Wallet (MWA) escrow tx sign + broadcast | ✅ | — | `signAndSendStored` reads the adapter's persisted token; broadcast from app RPC. |
 | Solana Wallet (MWA) disconnect | ✅ | — | Local-only (opening the wallet just to revoke is bad UX). |
 | MetaMask connect (CAIP-25 multi-scope) | ✅ | ⬜ | Mainnet EVM scopes granted; Base Sepolia often dropped even when enabled in MM. |
