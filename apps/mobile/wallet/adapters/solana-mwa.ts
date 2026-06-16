@@ -9,6 +9,7 @@ import {
   type Transaction,
 } from '@solana/web3.js'
 import { authorizeSession, withMwaRetry } from './mwa-shared'
+import { connectThenSign } from './connect-then-sign'
 import { WalletError } from '@/wallet/errors'
 import { SOLANA_NETWORK, WALLET_CHAINS } from '../config'
 import type { SignMessageResult, SpikeAccount } from '../types'
@@ -54,20 +55,22 @@ async function connect(): Promise<SpikeAccount> {
 }
 
 /**
- * One-shot auth: connect + sign the nonce message in a SINGLE MWA session
- * (connect() then signMessage() would open the wallet twice). Reuses the
- * stored auth token unless `forceFresh` (wallet-linking). connectAndSignMessage
- * persists the (possibly rotated) token, so the adapter remains the owner of
- * its MWA session.
+ * Auth = connect (one MWA session) then sign (a second session). We deliberately
+ * do NOT fold both into a single `transact`: when the wallet backgrounds the
+ * dapp after its authorize/connect prompt, the MWA association WebSocket is torn
+ * down, so a following `signMessages` in the same session throws "Cannot send in
+ * CLOSED" and the sign sheet never opens. `connect()` persists the auth token,
+ * so the sign session's `reauthorize` is silent (no second connect prompt) —
+ * returning users see only the sign sheet, first-timers see connect then sign.
+ *
+ * `forceFresh` (wallet-linking) → `connectThenSign` calls `disconnect()` first,
+ * dropping the stored token so `connect()` does a fresh authorize.
  */
-async function authenticate(
+function authenticate(
   buildMessage: (account: SpikeAccount) => string,
   opts?: { forceFresh?: boolean },
 ): Promise<AuthenticateResult | null> {
-  const existing = opts?.forceFresh ? null : await AsyncStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
-  const signed = await connectAndSignMessage((address) => buildMessage(accountFor(address)), existing)
-  if (signed === null) return null
-  return { account: accountFor(signed.address), signature: signed.signature, message: signed.message }
+  return connectThenSign({ connect, signMessage, disconnect }, buildMessage, opts)
 }
 
 async function signMessage(
@@ -88,58 +91,6 @@ async function signMessage(
     return signed
   })
   return { signature: Buffer.from(signedBytes).toString('base64'), message }
-}
-
-interface ConnectAndSignResult {
-  authToken: string
-  /** base58 wallet address. */
-  address: string
-  /** base64 Ed25519 signature over the literal message string. */
-  signature: string
-  message: string
-}
-
-/**
- * Connect + sign a message in ONE MWA `transact` session (a single wallet
- * round-trip — connect() then signMessage() would open the wallet twice).
- * Used by the auth flows: the message can only be built once the wallet
- * reveals its address. Returns null when the user declines.
- *
- * Pass `existingAuthToken: null` deliberately to force a fresh authorize
- * (e.g. wallet linking, where the user must be able to pick a different
- * account in their wallet app).
- */
-async function connectAndSignMessage(
-  buildMessage: (address: string) => string,
-  existingAuthToken: string | null,
-): Promise<ConnectAndSignResult | null> {
-  try {
-    const result = await withMwaRetry(async (wallet) => {
-      const session = await authorizeSession(wallet, existingAuthToken)
-      const address = base64ToAddress(session.addressBase64)
-      const message = buildMessage(address)
-      const [signed] = await wallet.signMessages({
-        addresses: [session.addressBase64],
-        payloads: [new TextEncoder().encode(message)],
-      })
-      return {
-        authToken: session.authToken,
-        address,
-        signature: Buffer.from(signed).toString('base64'),
-        message,
-      }
-    })
-    await AsyncStorage.multiSet([
-      [STORAGE_KEY_AUTH_TOKEN, result.authToken],
-      [STORAGE_KEY_ADDRESS, result.address],
-    ])
-    return result
-  } catch (err) {
-    // withMwaRetry surfaces typed WalletErrors; a decline is the user's
-    // answer, not a failure.
-    if (err instanceof WalletError && err.code === 'declined') return null
-    throw err
-  }
 }
 
 const connection = new Connection(clusterApiUrl(SOLANA_NETWORK), 'confirmed')

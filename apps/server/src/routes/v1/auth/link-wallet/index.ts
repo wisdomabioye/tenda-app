@@ -26,10 +26,9 @@ import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import { AppError, requireBody } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { drizzleNonceStore, consumeNonce } from '@server/lib/nonce'
-import { assertAuthMessage, parseAuthMessage } from '@server/lib/auth-message'
+import { assertAuthMessage, parseAuthMessage, expectedAuthUri } from '@server/lib/auth-message'
 import { dispatchGasSeeds } from '@server/lib/gas-seed'
 import { buildGasSeedDeps } from '@server/lib/onboarding-deps'
-import { getConfig } from '@server/config'
 
 interface Body {
   chain_id: string
@@ -57,7 +56,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         parsed,
         expected_chain_id: chain_id,
         expected_address: address,
-        expected_uri: getConfig().API_BASE_URL,
+        expected_uri: expectedAuthUri(),
         now: new Date(),
       })
 

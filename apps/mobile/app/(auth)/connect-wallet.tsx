@@ -58,7 +58,16 @@ function classifyError(error: unknown): ConnectError {
   if (message.includes('network') || message.includes('fetch') || message.includes('timeout')) {
     return { title: 'No connection', description: 'Check your internet connection and try again.' }
   }
-  return { title: 'Something went wrong', description: 'An unexpected error occurred. Please try again.' }
+  // Surface the underlying error on dev builds so an unverified wallet flow
+  // (#68: Phantom iOS, MetaMask sign) is debuggable on-device instead of
+  // hiding behind a generic message.
+  const detail = error instanceof Error ? error.message : String(error)
+  return {
+    title: 'Something went wrong',
+    description: __DEV__
+      ? `Unexpected error: ${detail}`
+      : 'An unexpected error occurred. Please try again.',
+  }
 }
 
 export default function ConnectWalletScreen() {

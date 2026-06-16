@@ -19,6 +19,7 @@
  */
 
 import { AppError } from '@server/lib/errors'
+import { getConfig } from '@server/config'
 import { ErrorCode } from '@tenda/shared'
 
 export interface AuthMessageFields {
@@ -27,6 +28,23 @@ export interface AuthMessageFields {
   uri: string
   nonce: string
   issued_at: Date
+}
+
+/**
+ * The auth-message URI to enforce (`assertAuthMessage`'s `expected_uri`), or
+ * `undefined` to skip the binding.
+ *
+ * The URI binding is a cross-DEPLOYMENT replay defense: it stops a signature
+ * minted for one deployment being replayed against another. It only holds when
+ * the client signs with the same origin the server calls itself. That's true in
+ * production/staging (both point at the public API URL), but NOT in local dev:
+ * a physical device must reach the dev server over the host's LAN IP
+ * (`EXPO_PUBLIC_API_URL`), which can never equal the server's `API_BASE_URL`
+ * (`localhost`). So enforce only in production; matches the repo's dev
+ * convention (`NODE_ENV !== 'production'`, see server.ts / admin-otp.ts).
+ */
+export function expectedAuthUri(): string | undefined {
+  return process.env.NODE_ENV === 'production' ? getConfig().API_BASE_URL : undefined
 }
 
 /** Maximum clock skew allowed between client `Issued At` and server now. */
