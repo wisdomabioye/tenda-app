@@ -24,6 +24,20 @@ export const userRoleEnum = pgEnum('user_role', [
 
 export const userStatusEnum = pgEnum('user_status', ['active', 'suspended'])
 
+/**
+ * Login-credential kinds for `user_identities` (Stage 9). Wallet is NOT here
+ * — it lives in `user_wallets` because it carries chain-specific structure
+ * (chain_ns, one-primary index, gas-grant FK) AND is a transaction
+ * capability, not just a credential. The login layer unions both tables via
+ * `lib/auth/resolver.ts`. Adding a value here flows to the TS union.
+ */
+export const identityKindEnum = pgEnum('identity_kind', ['phone', 'email', 'google', 'apple'])
+
+export type IdentityKind = (typeof identityKindEnum.enumValues)[number]
+
+/** Runtime array for iteration / Set construction. Mirrors `IdentityKind`. */
+export const identityKindValues: ReadonlyArray<IdentityKind> = identityKindEnum.enumValues
+
 export const users = pgTable(
   'users',
   {
@@ -36,8 +50,9 @@ export const users = pgTable(
     city: text('city'),
     latitude: doublePrecision('latitude'),
     longitude: doublePrecision('longitude'),
-    phone_e164: text('phone_e164').unique('users_phone_e164_uq'),
-    phone_verified_at: timestamp('phone_verified_at'),
+    // Stage 9A: phone moved to `user_identities` (kind='phone'). The public
+    // "verified human" signal (phone_verified_at) is now derived by the read
+    // routes from the verified phone identity, not stored here.
     role: userRoleEnum('role').notNull().default('user'),
     status: userStatusEnum('status').notNull().default('active'),
     is_seeker: boolean('is_seeker').notNull().default(false),
@@ -82,6 +97,39 @@ export const user_wallets = pgTable(
   ],
 )
 
+/**
+ * Stage 9 login-credential registry. One row per (kind, identifier) →
+ * exactly one user (UNIQUE). Holds phone, email, and OAuth (google/apple)
+ * credentials; wallet stays in `user_wallets`. `email` carries the verified
+ * address for any row that has one (kind='email' → equals identifier;
+ * oauth → the provider's verified email claim; phone → null) so the login
+ * orchestrator can enforce the cross-method invariant "a verified email maps
+ * to exactly one user". `verified_at` is set when control was proven (OTP
+ * confirm / OIDC token). NOT an authz source — `users.role` governs access.
+ */
+export const user_identities = pgTable(
+  'user_identities',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    kind: identityKindEnum('kind').notNull(),
+    /** Normalised unique key: E.164 phone | lowercased email | OAuth `sub`. */
+    identifier: text('identifier').notNull(),
+    /** Verified email when the credential yields one; null otherwise. */
+    email: text('email'),
+    verified_at: timestamp('verified_at'),
+    created_at: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('user_identities_kind_identifier_uq').on(t.kind, t.identifier),
+    index('user_identities_user_idx').on(t.user_id),
+    // Cross-method verified-email dedup lookup (kind-agnostic).
+    index('user_identities_email_idx').on(t.email),
+  ],
+)
+
 export const auth_nonces = pgTable(
   'auth_nonces',
   {
@@ -92,12 +140,27 @@ export const auth_nonces = pgTable(
   (t) => [index('auth_nonces_expires_idx').on(t.expires_at)],
 )
 
-// Phone OTP (Termii / Twilio). Pre-account-creation rows have user_id = null.
-export const phone_otps = pgTable(
-  'phone_otps',
+/** Delivery channel for a consumer auth OTP (Stage 9 — phone SMS or email). */
+export const otpChannelEnum = pgEnum('otp_channel', ['phone', 'email'])
+
+export type OtpChannel = (typeof otpChannelEnum.enumValues)[number]
+
+/** Runtime array for iteration. Mirrors `OtpChannel`. */
+export const otpChannelValues: ReadonlyArray<OtpChannel> = otpChannelEnum.enumValues
+
+/**
+ * Consumer auth OTP (Stage 9 — generalises the former phone_otps to phone +
+ * email; one lifecycle, one table). `identifier` is the E.164 phone or the
+ * lowercased email. Pre-account-creation rows (passwordless first sign-in)
+ * have user_id = null; authenticated link rows bind to the user. Admin
+ * email_otps stays separate (it is admin-registry-scoped + user_id NOT NULL).
+ */
+export const auth_otps = pgTable(
+  'auth_otps',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    phone_e164: text('phone_e164').notNull(),
+    channel: otpChannelEnum('channel').notNull(),
+    identifier: text('identifier').notNull(),
     user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
     code_hash: text('code_hash').notNull(),
     expires_at: timestamp('expires_at').notNull(),
@@ -105,7 +168,7 @@ export const phone_otps = pgTable(
     consumed_at: timestamp('consumed_at'),
     created_at: timestamp('created_at').notNull().defaultNow(),
   },
-  (t) => [index('phone_otps_phone_idx').on(t.phone_e164, t.created_at)],
+  (t) => [index('auth_otps_channel_identifier_idx').on(t.channel, t.identifier, t.created_at)],
 )
 
 /**

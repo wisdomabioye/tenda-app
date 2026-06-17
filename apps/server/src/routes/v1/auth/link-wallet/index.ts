@@ -19,14 +19,11 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
 import { user_wallets } from '@tenda/shared/db/schema'
-import { users } from '@tenda/shared/db/schema/identity'
-import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import { AppError, requireBody } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
-import { drizzleNonceStore, consumeNonce } from '@server/lib/nonce'
-import { assertAuthMessage, parseAuthMessage, expectedAuthUri } from '@server/lib/auth-message'
+import { verifyWalletAuth } from '@server/lib/auth/strategies/wallet'
+import { hasVerifiedPhone } from '@server/lib/auth/resolver'
 import { dispatchGasSeeds } from '@server/lib/gas-seed'
 import { buildGasSeedDeps } from '@server/lib/onboarding-deps'
 
@@ -51,32 +48,13 @@ const route: FastifyPluginAsync = async (fastify) => {
       requireString('message', message)
       requireString('signature', signature)
 
-      const parsed = parseAuthMessage(message)
-      assertAuthMessage({
-        parsed,
-        expected_chain_id: chain_id,
-        expected_address: address,
-        expected_uri: expectedAuthUri(),
-        now: new Date(),
-      })
-
-      // Verify signature FIRST — CPU work, no side effect on failure. See
-      // wallet/index.ts for the nonce-burn DoS rationale.
-      // Reject an unregistered (but well-formed) chain_id with a 400 — without
-      // this guard `chains.get` throws a bare Error → 500 on untrusted input
-      // (same fix as wallet/index.ts; both nonce+sig routes are symmetric).
-      if (!fastify.chains.has(chain_id)) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, `unsupported chain_id '${chain_id}'`)
-      }
-      const adapter = fastify.chains.get(chain_id)
-      const sigOk = await adapter.verifyAuthSig({ address, message, signature })
-      if (!sigOk) {
-        throw new AppError(401, ErrorCode.INVALID_SIGNATURE, 'wallet signature did not verify')
-      }
-
-      await consumeNonce(drizzleNonceStore(fastify.db), parsed.nonce)
-
-      const chain_ns = deriveChainNs(chain_id)
+      // Shared verify-message-and-signature flow (parse → assert → sig-verify
+      // → single-use nonce consume); identical to /auth/wallet + the unified
+      // /auth/verify wallet strategy.
+      const { chain_ns } = await verifyWalletAuth(
+        { chains: fastify.chains, db: fastify.db, now: () => new Date() },
+        { chain_id, address, message, signature },
+      )
 
       // Race-safe insert: rely on the (chain_ns, address) UNIQUE constraint
       // to settle parallel link attempts. `onConflictDoNothing` returns 0
@@ -105,12 +83,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       // only phone-verified users are eligible; the dispatcher itself is
       // idempotent per (user, chain). Fire-and-forget — linking must not
       // block on an RPC transfer.
-      const [me] = await fastify.db
-        .select({ phone_verified_at: users.phone_verified_at })
-        .from(users)
-        .where(eq(users.id, request.user.id))
-        .limit(1)
-      if (me?.phone_verified_at != null) {
+      if (await hasVerifiedPhone(fastify.db, request.user.id)) {
         void dispatchGasSeeds(buildGasSeedDeps(fastify), request.user.id).catch((err) =>
           fastify.log.warn({ err, user_id: request.user.id }, 'gas seed on link failed'),
         )
@@ -131,14 +104,4 @@ function requireString(field: string, value: unknown): void {
       `${field} is required and must be a non-empty string`,
     )
   }
-}
-
-function deriveChainNs(chain_id: string): ChainNamespace {
-  const ns = chain_id.split(':')[0]
-  if (ns === 'solana' || ns === 'eip155') return ns
-  throw new AppError(
-    400,
-    ErrorCode.VALIDATION_ERROR,
-    `chain_id '${chain_id}' has unsupported namespace`,
-  )
 }

@@ -1,35 +1,46 @@
 /**
- * Phone OTP issue/verify (stage-1-onboarding.md § Server).
+ * Consumer auth OTP — channel-agnostic issue/verify over the `auth_otps`
+ * table (Stage 9 generalised the former phone-only service to phone + email;
+ * one lifecycle so the two channels can't drift). Admin login OTP lives in
+ * lib/admin-otp.ts (separate table + anti-enumeration semantics).
  *
  * Rules enforced here (route handlers stay thin):
- *   - send: 3 sends per phone per hour, 10 per user per day (DB-counted —
- *     multi-pod safe, unlike in-memory rate limiting)
- *   - verify: max 5 attempts per OTP, 10-minute expiry, single-use
- *   - codes are 6-digit, hashed with scrypt (node:crypto — no new dep;
- *     equivalent strength to the bcrypt the stage doc suggests)
+ *   - send: 3 sends per identifier per hour; 10 per user per day (only when
+ *     authenticated — pre-account sign-in has no user, so the per-identifier
+ *     cap + the route-level per-IP limit carry it).
+ *   - verify: max 5 attempts per OTP, 10-minute expiry, single-use.
+ *   - codes are 6-digit, scrypt-hashed (node:crypto — no new dep).
  *
- * Delivery is behind `OtpSender`: Termii when configured (#32), console
- * logging otherwise (development interim).
+ * Delivery is behind `OtpSender`, one per channel (Termii SMS / Resend email,
+ * console fallback in dev).
  */
 
-import { isE164 } from '@tenda/shared'
+import { isE164, normalizeEmail } from '@tenda/shared'
+import type { OtpChannel } from '@tenda/shared/db/schema'
+import { auth_otps } from '@tenda/shared/db/schema'
+
+export type { OtpChannel }
 import { randomInt, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import { and, eq, gte, isNull, sql } from 'drizzle-orm'
-import { phone_otps } from '@tenda/shared/db/schema/identity'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { sendViaResend, type ResendConfig } from '@server/lib/email'
 import type { AppDatabase } from '@server/plugins/db'
 
 // ---------- policy constants ------------------------------------------------
 
 export const OTP_TTL_SECONDS = 10 * 60
 export const OTP_MAX_ATTEMPTS = 5
-export const OTP_MAX_SENDS_PER_PHONE_PER_HOUR = 3
+export const OTP_MAX_SENDS_PER_IDENTIFIER_PER_HOUR = 3
 export const OTP_MAX_SENDS_PER_USER_PER_DAY = 10
 export const OTP_CODE_DIGITS = 6
 
-/** Loose E.164: '+' then 8–15 digits, no leading zero after '+'. */
 export { isE164 }
+
+/** True when `identifier` is well-formed for the channel (pre-send guard). */
+export function isValidOtpIdentifier(channel: OtpChannel, identifier: string): boolean {
+  return channel === 'phone' ? isE164(identifier) : normalizeEmail(identifier) !== null
+}
 
 // ---------- code hashing ------------------------------------------------------
 
@@ -52,20 +63,20 @@ export function verifyOtpHash(code: string, stored: string): boolean {
 // ---------- sender abstraction -----------------------------------------------
 
 export interface OtpSender {
-  send(phone_e164: string, code: string): Promise<void>
+  send(identifier: string, code: string): Promise<void>
 }
 
 export const TERMII_SMS_URL = 'https://api.ng.termii.com/api/sms/send'
 
 export function termiiSender(args: { api_key: string; sender_id: string }): OtpSender {
   return {
-    async send(phone_e164, code) {
+    async send(identifier, code) {
       const res = await fetch(TERMII_SMS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           api_key: args.api_key,
-          to: phone_e164,
+          to: identifier,
           from: args.sender_id,
           sms: `Your Tenda verification code is ${code}. Expires in 10 minutes.`,
           type: 'plain',
@@ -83,11 +94,30 @@ export function termiiSender(args: { api_key: string; sender_id: string }): OtpS
   }
 }
 
-/** Development interim (#32 unset): code lands in the server log. */
-export function consoleSender(log: { warn(obj: object, msg: string): void }): OtpSender {
+/** Email OTP delivery via the shared Resend transport (consumer copy). */
+export function emailOtpSender(cfg: ResendConfig): OtpSender {
   return {
-    async send(phone_e164, code) {
-      log.warn({ phone_e164, code }, 'TERMII_API_KEY unset — OTP code logged, not sent')
+    async send(identifier, code) {
+      await sendViaResend(cfg, {
+        to: identifier,
+        subject: 'Your Tenda verification code',
+        text: `Your Tenda verification code is ${code}. It expires in 10 minutes.\n\nIf you did not request this, ignore this email.`,
+      })
+    },
+  }
+}
+
+/** Development interim (provider key unset): code lands in the server log. */
+export function consoleSender(
+  log: { warn(obj: object, msg: string): void },
+  channel: OtpChannel = 'phone',
+): OtpSender {
+  return {
+    async send(identifier, code) {
+      log.warn(
+        { channel, identifier, code },
+        `${channel} OTP provider unset — code logged, not sent`,
+      )
     },
   }
 }
@@ -95,22 +125,25 @@ export function consoleSender(log: { warn(obj: object, msg: string): void }): Ot
 // ---------- store abstraction --------------------------------------------------
 
 export interface OtpStore {
-  countRecentByPhone(phone_e164: string, since: Date): Promise<number>
+  countRecentByIdentifier(channel: OtpChannel, identifier: string, since: Date): Promise<number>
   countRecentByUser(user_id: string, since: Date): Promise<number>
   insert(row: {
-    phone_e164: string
+    channel: OtpChannel
+    identifier: string
     user_id: string | null
     code_hash: string
     expires_at: Date
   }): Promise<void>
   /**
-   * Latest unconsumed OTP for (phone, user), or null. The user binding
-   * stops a second authenticated account from consuming a code issued in
-   * someone else's session (shared-device edge).
+   * Latest unconsumed OTP for (channel, identifier, user binding). A null
+   * user_id matches pre-account rows (passwordless first sign-in); a set
+   * user_id binds to that user (stops a second authenticated session from
+   * consuming a code issued in someone else's — shared-device edge).
    */
   findActive(
-    phone_e164: string,
-    user_id: string,
+    channel: OtpChannel,
+    identifier: string,
+    user_id: string | null,
   ): Promise<{
     id: string
     code_hash: string
@@ -123,104 +156,126 @@ export interface OtpStore {
 
 export function drizzleOtpStore(db: AppDatabase): OtpStore {
   return {
-    async countRecentByPhone(phone_e164, since) {
+    async countRecentByIdentifier(channel, identifier, since) {
       const rows = await db
         .select({ n: sql<number>`count(*)::int` })
-        .from(phone_otps)
-        .where(and(eq(phone_otps.phone_e164, phone_e164), gte(phone_otps.created_at, since)))
+        .from(auth_otps)
+        .where(
+          and(
+            eq(auth_otps.channel, channel),
+            eq(auth_otps.identifier, identifier),
+            gte(auth_otps.created_at, since),
+          ),
+        )
       return rows[0]?.n ?? 0
     },
     async countRecentByUser(user_id, since) {
       const rows = await db
         .select({ n: sql<number>`count(*)::int` })
-        .from(phone_otps)
-        .where(and(eq(phone_otps.user_id, user_id), gte(phone_otps.created_at, since)))
+        .from(auth_otps)
+        .where(and(eq(auth_otps.user_id, user_id), gte(auth_otps.created_at, since)))
       return rows[0]?.n ?? 0
     },
     async insert(row) {
-      await db.insert(phone_otps).values(row)
+      await db.insert(auth_otps).values(row)
     },
-    async findActive(phone_e164, user_id) {
+    async findActive(channel, identifier, user_id) {
       const rows = await db
         .select({
-          id: phone_otps.id,
-          code_hash: phone_otps.code_hash,
-          expires_at: phone_otps.expires_at,
-          attempts: phone_otps.attempts,
+          id: auth_otps.id,
+          code_hash: auth_otps.code_hash,
+          expires_at: auth_otps.expires_at,
+          attempts: auth_otps.attempts,
         })
-        .from(phone_otps)
+        .from(auth_otps)
         .where(
           and(
-            eq(phone_otps.phone_e164, phone_e164),
-            eq(phone_otps.user_id, user_id),
-            isNull(phone_otps.consumed_at),
+            eq(auth_otps.channel, channel),
+            eq(auth_otps.identifier, identifier),
+            user_id === null ? isNull(auth_otps.user_id) : eq(auth_otps.user_id, user_id),
+            isNull(auth_otps.consumed_at),
           ),
         )
-        .orderBy(sql`${phone_otps.created_at} DESC`)
+        .orderBy(sql`${auth_otps.created_at} DESC`)
         .limit(1)
       return rows[0] ?? null
     },
     async recordAttempt(id) {
       await db
-        .update(phone_otps)
-        .set({ attempts: sql`${phone_otps.attempts} + 1` })
-        .where(eq(phone_otps.id, id))
+        .update(auth_otps)
+        .set({ attempts: sql`${auth_otps.attempts} + 1` })
+        .where(eq(auth_otps.id, id))
     },
     async consume(id) {
-      await db.update(phone_otps).set({ consumed_at: new Date() }).where(eq(phone_otps.id, id))
+      await db.update(auth_otps).set({ consumed_at: new Date() }).where(eq(auth_otps.id, id))
     },
   }
 }
 
 // ---------- service ------------------------------------------------------------
 
+export interface OtpInput {
+  channel: OtpChannel
+  identifier: string
+  /** null for pre-account passwordless sign-in; the user id for an authenticated link. */
+  user_id: string | null
+}
+
 export interface OtpDeps {
   store: OtpStore
-  sender: OtpSender
+  /** One sender per channel; the service picks by `input.channel`. */
+  senders: Record<OtpChannel, OtpSender>
   now(): Date
 }
 
-export async function sendPhoneOtp(
-  deps: OtpDeps,
-  input: { phone_e164: string; user_id: string },
-): Promise<{ expires_in: number }> {
-  if (!isE164(input.phone_e164)) {
-    throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'phone must be E.164 (+234…)')
+export async function sendOtp(deps: OtpDeps, input: OtpInput): Promise<{ expires_in: number }> {
+  if (!isValidOtpIdentifier(input.channel, input.identifier)) {
+    throw new AppError(422, ErrorCode.VALIDATION_ERROR, `invalid ${input.channel} identifier`)
   }
   const now = deps.now()
   const hourAgo = new Date(now.getTime() - 3_600_000)
-  const dayAgo = new Date(now.getTime() - 86_400_000)
 
-  const [byPhone, byUser] = await Promise.all([
-    deps.store.countRecentByPhone(input.phone_e164, hourAgo),
-    deps.store.countRecentByUser(input.user_id, dayAgo),
-  ])
-  if (byPhone >= OTP_MAX_SENDS_PER_PHONE_PER_HOUR || byUser >= OTP_MAX_SENDS_PER_USER_PER_DAY) {
+  const byIdentifier = await deps.store.countRecentByIdentifier(
+    input.channel,
+    input.identifier,
+    hourAgo,
+  )
+  if (byIdentifier >= OTP_MAX_SENDS_PER_IDENTIFIER_PER_HOUR) {
     throw new AppError(429, ErrorCode.OTP_RATE_LIMITED, 'too many OTP requests — try again later')
+  }
+  // Per-user cap only applies to authenticated sends (a pre-account send has
+  // no user to attribute; the per-identifier + per-IP limits carry that case).
+  if (input.user_id !== null) {
+    const dayAgo = new Date(now.getTime() - 86_400_000)
+    const byUser = await deps.store.countRecentByUser(input.user_id, dayAgo)
+    if (byUser >= OTP_MAX_SENDS_PER_USER_PER_DAY) {
+      throw new AppError(429, ErrorCode.OTP_RATE_LIMITED, 'too many OTP requests — try again later')
+    }
   }
 
   const code = String(randomInt(0, 10 ** OTP_CODE_DIGITS)).padStart(OTP_CODE_DIGITS, '0')
   await deps.store.insert({
-    phone_e164: input.phone_e164,
+    channel: input.channel,
+    identifier: input.identifier,
     user_id: input.user_id,
     code_hash: hashOtpCode(code),
     expires_at: new Date(now.getTime() + OTP_TTL_SECONDS * 1000),
   })
-  await deps.sender.send(input.phone_e164, code)
+  await deps.senders[input.channel].send(input.identifier, code)
   return { expires_in: OTP_TTL_SECONDS }
 }
 
 /**
- * Verify a code. Throws OTP_INVALID / OTP_EXPIRED; consuming the OTP on
+ * Verify a code. Throws OTP_INVALID / OTP_EXPIRED; consumes the OTP on
  * success. The 6th wrong attempt invalidates the OTP (attempts >= max).
  */
-export async function verifyPhoneOtp(
-  deps: OtpDeps,
-  input: { phone_e164: string; code: string; user_id: string },
+export async function verifyOtp(
+  deps: Pick<OtpDeps, 'store' | 'now'>,
+  input: OtpInput & { code: string },
 ): Promise<void> {
-  const active = await deps.store.findActive(input.phone_e164, input.user_id)
+  const active = await deps.store.findActive(input.channel, input.identifier, input.user_id)
   if (active === null) {
-    throw new AppError(401, ErrorCode.OTP_INVALID, 'no active code for this phone')
+    throw new AppError(401, ErrorCode.OTP_INVALID, 'no active code for this identifier')
   }
   if (deps.now() > active.expires_at) {
     throw new AppError(401, ErrorCode.OTP_EXPIRED, 'code expired — request a new one')

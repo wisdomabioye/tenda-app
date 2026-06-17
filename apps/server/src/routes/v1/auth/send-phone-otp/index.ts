@@ -6,12 +6,11 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
-import { users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
-import { sendPhoneOtp } from '@server/lib/otp'
+import { sendOtp } from '@server/lib/otp'
 import { buildOtpDeps } from '@server/lib/onboarding-deps'
+import { hasVerifiedPhone } from '@server/lib/auth/resolver'
 
 interface Body {
   phone_e164?: unknown
@@ -27,17 +26,13 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'phone_e164 is required')
       }
 
-      const rows = await fastify.db
-        .select({ phone_verified_at: users.phone_verified_at })
-        .from(users)
-        .where(eq(users.id, request.user.id))
-        .limit(1)
-      if (rows[0]?.phone_verified_at != null) {
+      if (await hasVerifiedPhone(fastify.db, request.user.id)) {
         throw new AppError(409, ErrorCode.PHONE_ALREADY_VERIFIED, 'phone already verified')
       }
 
-      const result = await sendPhoneOtp(buildOtpDeps(fastify), {
-        phone_e164: phone,
+      const result = await sendOtp(buildOtpDeps(fastify), {
+        channel: 'phone',
+        identifier: phone,
         user_id: request.user.id,
       })
       return reply.code(202).send(result)

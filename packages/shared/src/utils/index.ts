@@ -26,6 +26,9 @@ export {
   validateGigDeadlines,
   E164_RE,
   isE164,
+  EMAIL_MAX_LENGTH,
+  EMAIL_SHAPE,
+  normalizeEmail,
 } from './validation'
 export type { ValidationResult } from './validation'
 export { buildAuthMessage, type AuthMessageInput } from './auth-message'

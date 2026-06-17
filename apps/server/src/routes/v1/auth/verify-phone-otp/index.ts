@@ -1,18 +1,22 @@
 /**
- * POST /v1/auth/verify-phone-otp — confirm the code, mark
- * users.phone_verified_at, then run the retroactive gas-seed check
- * (stage-1: a user who skipped phone at signup and verifies later still
- * receives the seed for already-linked wallets).
+ * POST /v1/auth/verify-phone-otp — confirm the code, then attach a VERIFIED
+ * phone identity to the authenticated user (Stage 9: phone lives in
+ * user_identities, not a users column). Runs the retroactive gas-seed check
+ * (a user who skipped phone at signup and verifies later still receives the
+ * seed for already-linked wallets).
+ *
+ * Legacy shim: the unified surface is POST /v1/auth/challenge + /verify
+ * (method 'phone', authenticated). This route keeps the mobile contract until
+ * Stage 9C. Collision (phone owned by another account) → IDENTITY_ALREADY_LINKED.
  *
  * Body: { phone_e164, code }.
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { and, eq, ne } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
-import { users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
-import { verifyPhoneOtp } from '@server/lib/otp'
+import { verifyOtp } from '@server/lib/otp'
+import { resolveOrLink } from '@server/lib/auth/orchestrator'
 import { dispatchGasSeeds } from '@server/lib/gas-seed'
 import { buildGasSeedDeps, buildOtpDeps } from '@server/lib/onboarding-deps'
 
@@ -32,31 +36,21 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'phone_e164 and code are required')
       }
 
-      // Phone numbers are unique account anchors — refuse a phone another
-      // account already verified BEFORE burning the OTP attempt.
-      const taken = await fastify.db
-        .select({ id: users.id })
-        .from(users)
-        .where(and(eq(users.phone_e164, phone), ne(users.id, request.user.id)))
-        .limit(1)
-      if (taken.length > 0) {
-        throw new AppError(
-          409,
-          ErrorCode.VALIDATION_ERROR,
-          'phone number is already verified on another account',
-        )
-      }
-
-      await verifyPhoneOtp(buildOtpDeps(fastify), {
-        phone_e164: phone,
+      // Prove control of the phone (the code was issued to THIS user's session).
+      await verifyOtp(buildOtpDeps(fastify), {
+        channel: 'phone',
+        identifier: phone,
         code,
         user_id: request.user.id,
       })
 
-      await fastify.db
-        .update(users)
-        .set({ phone_e164: phone, phone_verified_at: new Date() })
-        .where(eq(users.id, request.user.id))
+      // Attach the verified phone identity — the orchestrator blocks if the
+      // phone already belongs to another account (IDENTITY_ALREADY_LINKED).
+      await resolveOrLink(
+        fastify.db,
+        { type: 'identity', identity: { kind: 'phone', identifier: phone, email: null } },
+        request.user.id,
+      )
 
       // Retroactive seed: fire-and-forget — verification must not block on
       // an RPC transfer; failures are logged and retried on next link.

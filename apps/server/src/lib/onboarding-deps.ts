@@ -9,21 +9,27 @@ import { getConfig } from '@server/config'
 import {
   consoleSender,
   drizzleOtpStore,
+  emailOtpSender,
   termiiSender,
   type OtpDeps,
+  type OtpSender,
 } from '@server/lib/otp'
 import { drizzleGasSeedStore, type GasSeedDeps } from '@server/lib/gas-seed'
 import { solanaGasSeedSender } from '@server/chains/solana/gas-seed-sender'
 
 export function buildOtpDeps(fastify: FastifyInstance): OtpDeps {
   const config = getConfig()
-  const sender =
+  const phone: OtpSender =
     config.TERMII_API_KEY !== null && config.TERMII_SENDER_ID !== null
       ? termiiSender({ api_key: config.TERMII_API_KEY, sender_id: config.TERMII_SENDER_ID })
-      : consoleSender(fastify.log)
+      : consoleSender(fastify.log, 'phone')
+  const email: OtpSender =
+    config.RESEND_API_KEY !== null && config.EMAIL_FROM !== null
+      ? emailOtpSender({ api_key: config.RESEND_API_KEY, from: config.EMAIL_FROM })
+      : consoleSender(fastify.log, 'email')
   return {
     store: drizzleOtpStore(fastify.db),
-    sender,
+    senders: { phone, email },
     now: () => new Date(),
   }
 }

@@ -24,8 +24,6 @@ export interface UserRow {
   city: string | null
   latitude: number | null
   longitude: number | null
-  phone_e164: string | null
-  phone_verified_at: Date | null
   role: 'user' | 'dispute_admin' | 'super_admin'
   status: 'active' | 'suspended'
   is_seeker: boolean
@@ -49,8 +47,6 @@ export function userFixture(overrides: Partial<UserRow> = {}): UserRow {
     city: null,
     latitude: null,
     longitude: null,
-    phone_e164: null,
-    phone_verified_at: null,
     role: 'user',
     status: 'active',
     is_seeker: false,

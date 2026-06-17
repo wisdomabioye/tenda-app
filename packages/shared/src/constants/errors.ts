@@ -53,6 +53,19 @@ export const ErrorCode = {
   PHONE_ALREADY_VERIFIED:        'PHONE_ALREADY_VERIFIED',
   // #84–#87 — admin email-OTP login (admin_users registry)
   EMAIL_IN_USE:                  'EMAIL_IN_USE',
+  // Stage 9 — multi-method passwordless auth
+  /** Linking an identity that already belongs to a different account (block, no merge). */
+  IDENTITY_ALREADY_LINKED:       'IDENTITY_ALREADY_LINKED',
+  /** Wallet sign-in for a wallet not yet attached to any account — wallet signs in, never creates. */
+  WALLET_NOT_LINKED:             'WALLET_NOT_LINKED',
+  /** Transaction gate: the action needs a linked wallet for the target chain. */
+  WALLET_REQUIRED:               'WALLET_REQUIRED',
+  /** Transaction gate: the action needs at least one verified contact (email/phone). */
+  CONTACT_REQUIRED:              'CONTACT_REQUIRED',
+  /** Refused: removing this credential would leave the account with no way to sign in. */
+  LAST_CREDENTIAL:               'LAST_CREDENTIAL',
+  /** Unknown/unsupported auth method kind on the generic challenge/verify routes. */
+  UNSUPPORTED_AUTH_METHOD:       'UNSUPPORTED_AUTH_METHOD',
   // Stage 8 — fiat rails
   QUOTE_EXPIRED:                 'QUOTE_EXPIRED',
   FIAT_RAILS_DISABLED:           'FIAT_RAILS_DISABLED',

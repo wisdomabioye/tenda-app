@@ -9,23 +9,18 @@
 
 import { eq } from 'drizzle-orm'
 import { admin_users, users } from '@tenda/shared/db/schema/identity'
-import { ADMIN_ROLES, ErrorCode } from '@tenda/shared'
+import { ADMIN_ROLES, ErrorCode, EMAIL_MAX_LENGTH, normalizeEmail } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { isPostgresUniqueViolation } from '@server/lib/db'
 import { isUuidLike } from '@server/lib/escrow-routes'
 import type { AppDatabase } from '@server/plugins/db'
 
-export const ADMIN_EMAIL_MAX_LENGTH = 255
+/** @deprecated alias kept for call sites — admin email cap is the shared {@link EMAIL_MAX_LENGTH}. */
+export const ADMIN_EMAIL_MAX_LENGTH = EMAIL_MAX_LENGTH
 
-// Shape check only (catches typos, not RFC corner cases) — deliverability
-// is proven by the OTP round-trip itself.
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-
-/** Lowercase + trim; null when the shape is invalid (write sites MUST use this). */
+/** Lowercase + trim; null when the shape is invalid. Delegates to the shared normaliser. */
 export function normalizeAdminEmail(raw: string): string | null {
-  const email = raw.trim().toLowerCase()
-  if (email.length === 0 || email.length > ADMIN_EMAIL_MAX_LENGTH) return null
-  return EMAIL_SHAPE.test(email) ? email : null
+  return normalizeEmail(raw)
 }
 
 /**

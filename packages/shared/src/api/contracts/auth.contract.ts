@@ -1,6 +1,7 @@
 import type { Endpoint } from '../endpoint'
 import type { AuthResponse, User } from '../../types'
 import type { ChainNamespace } from '../../db/schema/chains'
+import type { IdentityKind } from '../../db/schema/identity'
 
 /** Response of POST /v1/auth/nonce (server-issued, single-use, 5-min TTL). */
 export interface AuthNonceResponse {
@@ -87,8 +88,52 @@ export interface SetPrimaryWalletResponse {
   primary: { chain_ns: ChainNamespace; address: string }
 }
 
+// ---------- Stage 9: unified passwordless auth ----------------------------
+
+/** A login method on the unified /auth routes — identity kinds plus wallet. */
+export type AuthMethodWire = IdentityKind | 'wallet'
+
+/** POST /v1/auth/challenge — issue an OTP (phone/email). Wallet uses /nonce. */
+export interface ChallengeBody {
+  method: AuthMethodWire
+  identifier: string
+}
+
+export interface ChallengeResponse {
+  /** Seconds until an issued OTP expires (OTP channels only). */
+  expires_in?: number
+}
+
+/**
+ * POST /v1/auth/verify — fields are method-dependent: phone/email use
+ * { identifier, code }; wallet uses { chain_id, address, message, signature };
+ * google/apple use { id_token }. `is_seeker`/`country` bootstrap a new account.
+ * A bearer token turns this into a LINK; anonymous logs in or creates.
+ */
+export interface VerifyBody {
+  method: AuthMethodWire
+  identifier?: string
+  code?: string
+  chain_id?: string
+  address?: string
+  message?: string
+  signature?: string
+  id_token?: string
+  is_seeker?: boolean
+  country?: string | null
+}
+
+export interface VerifyResponse {
+  token: string
+  user: User
+  /** True when this verify created the account (vs logged into an existing one). */
+  is_new: boolean
+}
+
 export interface AuthContract {
   nonce: Endpoint<'POST', undefined, undefined, undefined, AuthNonceResponse>
+  challenge: Endpoint<'POST', undefined, ChallengeBody, undefined, ChallengeResponse>
+  verify: Endpoint<'POST', undefined, VerifyBody, undefined, VerifyResponse>
   /** Server-nonce auth flow (#28) — the legacy timestamp flow died at the #34 cutover. */
   wallet: Endpoint<'POST', undefined, WalletNonceAuthBody, undefined, AuthResponse>
   me: Endpoint<'GET', undefined, undefined, undefined, User>

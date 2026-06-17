@@ -24,6 +24,7 @@ import {
   OTP_CODE_DIGITS,
 } from '@server/lib/otp'
 import { normalizeAdminEmail } from '@server/lib/admin-auth'
+import { sendViaResend } from '@server/lib/email'
 import type { AppDatabase } from '@server/plugins/db'
 
 // ---------- policy constants (deliberately the phone values — own knobs) ----
@@ -37,28 +38,14 @@ export interface AdminEmailSender {
   send(email: string, code: string): Promise<void>
 }
 
-export const RESEND_API_URL = 'https://api.resend.com/emails'
-
 export function resendSender(args: { api_key: string; from: string }): AdminEmailSender {
   return {
     async send(email, code) {
-      const res = await fetch(RESEND_API_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${args.api_key}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: args.from,
-          to: [email],
-          subject: 'Your Tenda admin login code',
-          text: `Your Tenda admin dashboard login code is ${code}. It expires in 10 minutes.\n\nIf you did not request this, ignore this email.`,
-        }),
-        signal: AbortSignal.timeout(15_000),
+      await sendViaResend(args, {
+        to: email,
+        subject: 'Your Tenda admin login code',
+        text: `Your Tenda admin dashboard login code is ${code}. It expires in 10 minutes.\n\nIf you did not request this, ignore this email.`,
       })
-      if (!res.ok) {
-        throw new AppError(502, ErrorCode.INTERNAL_ERROR, `Resend send failed with status ${res.status}`)
-      }
     },
   }
 }

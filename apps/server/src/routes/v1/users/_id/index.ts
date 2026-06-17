@@ -5,6 +5,7 @@ import { ErrorCode, isCloudinaryUrl, LOCATIONS, isCityInCountry } from '@tenda/s
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { ensureValidCoordinates } from '@server/lib/validation'
 import { AppError, requireBody } from '@server/lib/errors'
+import { phoneVerifiedAt } from '@server/lib/auth/resolver'
 
 type GetRoute    = UsersContract['get']
 type UpdateRoute = UsersContract['update']
@@ -28,7 +29,6 @@ const userById: FastifyPluginAsync = async (fastify) => {
         city:             users.city,
         latitude:         users.latitude,
         longitude:        users.longitude,
-        phone_verified_at: users.phone_verified_at,
         review_score:     users.review_score,
         role:             users.role,
         is_seeker:        users.is_seeker,
@@ -40,7 +40,9 @@ const userById: FastifyPluginAsync = async (fastify) => {
 
     if (!user) throw new AppError(404, ErrorCode.USER_NOT_FOUND, 'User not found')
 
-    return user
+    // phone_verified_at is the public "verified human" signal, now derived
+    // from the verified phone identity (the users column was dropped at S9A).
+    return { ...user, phone_verified_at: await phoneVerifiedAt(fastify.db, id) }
   })
 
   // PATCH /v1/users/:id — update own profile.

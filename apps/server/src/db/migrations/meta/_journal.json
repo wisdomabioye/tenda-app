@@ -43,6 +43,27 @@
       "when": 1780650320842,
       "tag": "0005_stormy_vin_gonzales",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1781686073293,
+      "tag": "0006_sloppy_doctor_spectrum",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1781689789164,
+      "tag": "0007_blue_bloodstrike",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781692265173,
+      "tag": "0008_great_nightmare",
+      "breakpoints": true
     }
   ]
 }

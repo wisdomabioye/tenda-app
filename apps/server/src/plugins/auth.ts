@@ -90,4 +90,13 @@ export default fp(async (fastify) => {
       })
     }
   })
+
+  // Optional auth (Stage 9 unified /auth routes): no Authorization header →
+  // proceed anonymously (login/create). Header present → it MUST be valid +
+  // not suspended (delegates to `authenticate`), so a stale token can't be
+  // silently treated as a fresh sign-up.
+  fastify.decorate('optionalAuthenticate', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (request.headers.authorization === undefined) return
+    return fastify.authenticate(request, reply)
+  })
 })

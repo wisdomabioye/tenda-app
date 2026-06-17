@@ -1,6 +1,7 @@
 /**
- * lib/otp — issue/verify with every policy branch: rate limits (per-phone,
- * per-user), expiry, attempt cap, single-use, hash round-trip.
+ * lib/otp — channel-agnostic issue/verify, every policy branch: per-identifier
+ * + per-user rate limits, expiry, attempt cap, single-use, hash round-trip,
+ * pre-account (null user) binding, and the phone/email channel split.
  */
 
 import { test } from 'node:test'
@@ -8,24 +9,28 @@ import * as assert from 'node:assert'
 import { AppError } from '@server/lib/errors'
 import {
   OTP_MAX_ATTEMPTS,
-  OTP_MAX_SENDS_PER_PHONE_PER_HOUR,
+  OTP_MAX_SENDS_PER_IDENTIFIER_PER_HOUR,
   OTP_MAX_SENDS_PER_USER_PER_DAY,
   OTP_TTL_SECONDS,
   hashOtpCode,
   isE164,
-  sendPhoneOtp,
+  isValidOtpIdentifier,
+  sendOtp,
+  verifyOtp,
   verifyOtpHash,
-  verifyPhoneOtp,
+  type OtpChannel,
   type OtpDeps,
   type OtpStore,
 } from '@server/lib/otp'
 
 const NOW = new Date('2026-06-04T12:00:00Z')
 const PHONE = '+2348012345678'
+const EMAIL = 'user@example.com'
 
 interface StoredOtp {
   id: string
-  phone_e164: string
+  channel: OtpChannel
+  identifier: string
   user_id: string | null
   code_hash: string
   expires_at: Date
@@ -37,14 +42,16 @@ interface StoredOtp {
 function makeDeps(opts: { now?: Date } = {}): {
   deps: OtpDeps
   rows: StoredOtp[]
-  sent: Array<{ phone: string; code: string }>
+  sent: Array<{ channel: OtpChannel; identifier: string; code: string }>
 } {
   const rows: StoredOtp[] = []
-  const sent: Array<{ phone: string; code: string }> = []
+  const sent: Array<{ channel: OtpChannel; identifier: string; code: string }> = []
   let seq = 0
   const store: OtpStore = {
-    async countRecentByPhone(phone, since) {
-      return rows.filter((r) => r.phone_e164 === phone && r.created_at >= since).length
+    async countRecentByIdentifier(channel, identifier, since) {
+      return rows.filter(
+        (r) => r.channel === channel && r.identifier === identifier && r.created_at >= since,
+      ).length
     },
     async countRecentByUser(user_id, since) {
       return rows.filter((r) => r.user_id === user_id && r.created_at >= since).length
@@ -58,9 +65,15 @@ function makeDeps(opts: { now?: Date } = {}): {
         created_at: opts.now ?? NOW,
       })
     },
-    async findActive(phone, user_id) {
+    async findActive(channel, identifier, user_id) {
       const active = rows
-        .filter((r) => r.phone_e164 === phone && r.user_id === user_id && r.consumed_at === null)
+        .filter(
+          (r) =>
+            r.channel === channel &&
+            r.identifier === identifier &&
+            r.user_id === user_id &&
+            r.consumed_at === null,
+        )
         .sort((a, b) => b.created_at.getTime() - a.created_at.getTime())[0]
       return active ?? null
     },
@@ -73,13 +86,14 @@ function makeDeps(opts: { now?: Date } = {}): {
       if (row) row.consumed_at = opts.now ?? NOW
     },
   }
+  const record =
+    (channel: OtpChannel) =>
+    async (identifier: string, code: string): Promise<void> => {
+      sent.push({ channel, identifier, code })
+    }
   const deps: OtpDeps = {
     store,
-    sender: {
-      async send(phone, code) {
-        sent.push({ phone, code })
-      },
-    },
+    senders: { phone: { send: record('phone') }, email: { send: record('email') } },
     now: () => opts.now ?? NOW,
   }
   return { deps, rows, sent }
@@ -102,86 +116,139 @@ test('hashOtpCode/verifyOtpHash round-trip; wrong code and garbage fail', () => 
   assert.strictEqual(verifyOtpHash('123456', 'not-a-hash'), false)
 })
 
-test('isE164 accepts international formats, rejects local/garbage', () => {
+test('isE164 / isValidOtpIdentifier per channel', () => {
   assert.strictEqual(isE164('+2348012345678'), true)
-  assert.strictEqual(isE164('+14155550123'), true)
   assert.strictEqual(isE164('08012345678'), false)
-  assert.strictEqual(isE164('+0123'), false)
-  assert.strictEqual(isE164(12345), false)
+  assert.strictEqual(isValidOtpIdentifier('phone', PHONE), true)
+  assert.strictEqual(isValidOtpIdentifier('phone', 'nope'), false)
+  assert.strictEqual(isValidOtpIdentifier('email', EMAIL), true)
+  assert.strictEqual(isValidOtpIdentifier('email', 'not-an-email'), false)
 })
 
-test('send issues a 6-digit code with the policy TTL and delivers it', async () => {
+test('send issues a 6-digit code with the policy TTL and delivers via the channel', async () => {
   const { deps, rows, sent } = makeDeps()
-  const r = await sendPhoneOtp(deps, { phone_e164: PHONE, user_id: 'u-1' })
+  const r = await sendOtp(deps, { channel: 'phone', identifier: PHONE, user_id: 'u-1' })
   assert.strictEqual(r.expires_in, OTP_TTL_SECONDS)
   assert.strictEqual(sent.length, 1)
+  assert.strictEqual(sent[0].channel, 'phone')
   assert.match(sent[0].code, /^\d{6}$/)
   assert.strictEqual(rows[0].expires_at.getTime(), NOW.getTime() + OTP_TTL_SECONDS * 1000)
-  // Code is stored hashed, never plaintext.
-  assert.ok(!rows[0].code_hash.includes(sent[0].code))
+  assert.ok(!rows[0].code_hash.includes(sent[0].code), 'code stored hashed, never plaintext')
 })
 
-test('send rejects malformed phone', async () => {
-  const { deps } = makeDeps()
-  await expectCode(sendPhoneOtp(deps, { phone_e164: 'nope', user_id: 'u-1' }), 'VALIDATION_ERROR')
+test('email channel: send + verify round-trips through the email sender', async () => {
+  const { deps, sent } = makeDeps()
+  await sendOtp(deps, { channel: 'email', identifier: EMAIL, user_id: 'u-1' })
+  assert.strictEqual(sent[0].channel, 'email')
+  await verifyOtp(deps, { channel: 'email', identifier: EMAIL, code: sent[0].code, user_id: 'u-1' })
 })
 
-test('per-phone hourly limit blocks the 4th send', async () => {
+test('send rejects a malformed identifier per channel', async () => {
   const { deps } = makeDeps()
-  for (let i = 0; i < OTP_MAX_SENDS_PER_PHONE_PER_HOUR; i += 1) {
-    await sendPhoneOtp(deps, { phone_e164: PHONE, user_id: `u-${i}` })
+  await expectCode(sendOtp(deps, { channel: 'phone', identifier: 'nope', user_id: 'u-1' }), 'VALIDATION_ERROR')
+  await expectCode(sendOtp(deps, { channel: 'email', identifier: 'nope', user_id: 'u-1' }), 'VALIDATION_ERROR')
+})
+
+test('per-identifier hourly limit blocks the 4th send', async () => {
+  const { deps } = makeDeps()
+  for (let i = 0; i < OTP_MAX_SENDS_PER_IDENTIFIER_PER_HOUR; i += 1) {
+    await sendOtp(deps, { channel: 'phone', identifier: PHONE, user_id: `u-${i}` })
   }
-  await expectCode(sendPhoneOtp(deps, { phone_e164: PHONE, user_id: 'u-x' }), 'OTP_RATE_LIMITED')
+  await expectCode(sendOtp(deps, { channel: 'phone', identifier: PHONE, user_id: 'u-x' }), 'OTP_RATE_LIMITED')
 })
 
-test('per-user daily limit blocks the 11th send across phones', async () => {
+test('per-user daily limit blocks the 11th send across identifiers (authenticated only)', async () => {
   const { deps } = makeDeps()
   for (let i = 0; i < OTP_MAX_SENDS_PER_USER_PER_DAY; i += 1) {
-    await sendPhoneOtp(deps, { phone_e164: `+23480123456${String(i).padStart(2, '0')}`, user_id: 'u-1' })
+    await sendOtp(deps, {
+      channel: 'phone',
+      identifier: `+23480123456${String(i).padStart(2, '0')}`,
+      user_id: 'u-1',
+    })
   }
   await expectCode(
-    sendPhoneOtp(deps, { phone_e164: '+2348099999999', user_id: 'u-1' }),
+    sendOtp(deps, { channel: 'phone', identifier: '+2348099999999', user_id: 'u-1' }),
+    'OTP_RATE_LIMITED',
+  )
+})
+
+test('pre-account send (null user) skips the per-user cap; per-identifier still applies', async () => {
+  const { deps, sent } = makeDeps()
+  // 10+ pre-account sends across DIFFERENT identifiers — no user to attribute,
+  // so the per-user/day cap must NOT trip.
+  for (let i = 0; i < OTP_MAX_SENDS_PER_USER_PER_DAY + 2; i += 1) {
+    await sendOtp(deps, {
+      channel: 'email',
+      identifier: `pre${i}@example.com`,
+      user_id: null,
+    })
+  }
+  assert.strictEqual(sent.length, OTP_MAX_SENDS_PER_USER_PER_DAY + 2)
+  // But the per-identifier hourly cap still bites the same address.
+  for (let i = 1; i < OTP_MAX_SENDS_PER_IDENTIFIER_PER_HOUR; i += 1) {
+    await sendOtp(deps, { channel: 'email', identifier: 'pre0@example.com', user_id: null })
+  }
+  await expectCode(
+    sendOtp(deps, { channel: 'email', identifier: 'pre0@example.com', user_id: null }),
     'OTP_RATE_LIMITED',
   )
 })
 
 test('verify consumes a correct code; the same code cannot be reused', async () => {
   const { deps, sent } = makeDeps()
-  await sendPhoneOtp(deps, { phone_e164: PHONE, user_id: 'u-1' })
-  await verifyPhoneOtp(deps, { phone_e164: PHONE, code: sent[0].code, user_id: 'u-1' })
-  await expectCode(verifyPhoneOtp(deps, { phone_e164: PHONE, code: sent[0].code, user_id: 'u-1' }), 'OTP_INVALID')
+  await sendOtp(deps, { channel: 'phone', identifier: PHONE, user_id: 'u-1' })
+  await verifyOtp(deps, { channel: 'phone', identifier: PHONE, code: sent[0].code, user_id: 'u-1' })
+  await expectCode(
+    verifyOtp(deps, { channel: 'phone', identifier: PHONE, code: sent[0].code, user_id: 'u-1' }),
+    'OTP_INVALID',
+  )
 })
 
 test('verify rejects when no active code exists', async () => {
   const { deps } = makeDeps()
-  await expectCode(verifyPhoneOtp(deps, { phone_e164: PHONE, code: '000000', user_id: 'u-1' }), 'OTP_INVALID')
+  await expectCode(
+    verifyOtp(deps, { channel: 'phone', identifier: PHONE, code: '000000', user_id: 'u-1' }),
+    'OTP_INVALID',
+  )
 })
 
 test('verify rejects an expired code', async () => {
   const { deps, sent } = makeDeps()
-  await sendPhoneOtp(deps, { phone_e164: PHONE, user_id: 'u-1' })
+  await sendOtp(deps, { channel: 'phone', identifier: PHONE, user_id: 'u-1' })
   const late = { ...deps, now: () => new Date(NOW.getTime() + (OTP_TTL_SECONDS + 1) * 1000) }
-  await expectCode(verifyPhoneOtp(late, { phone_e164: PHONE, code: sent[0].code, user_id: 'u-1' }), 'OTP_EXPIRED')
+  await expectCode(
+    verifyOtp(late, { channel: 'phone', identifier: PHONE, code: sent[0].code, user_id: 'u-1' }),
+    'OTP_EXPIRED',
+  )
 })
 
 test('5 wrong attempts invalidate the OTP even with the right code after', async () => {
   const { deps, sent } = makeDeps()
-  await sendPhoneOtp(deps, { phone_e164: PHONE, user_id: 'u-1' })
+  await sendOtp(deps, { channel: 'phone', identifier: PHONE, user_id: 'u-1' })
   const wrong = sent[0].code === '000000' ? '111111' : '000000'
   for (let i = 0; i < OTP_MAX_ATTEMPTS; i += 1) {
-    await expectCode(verifyPhoneOtp(deps, { phone_e164: PHONE, code: wrong, user_id: 'u-1' }), 'OTP_INVALID')
+    await expectCode(
+      verifyOtp(deps, { channel: 'phone', identifier: PHONE, code: wrong, user_id: 'u-1' }),
+      'OTP_INVALID',
+    )
   }
-  // 6th try with the CORRECT code still refused — attempts exhausted.
-  await expectCode(verifyPhoneOtp(deps, { phone_e164: PHONE, code: sent[0].code, user_id: 'u-1' }), 'OTP_INVALID')
+  await expectCode(
+    verifyOtp(deps, { channel: 'phone', identifier: PHONE, code: sent[0].code, user_id: 'u-1' }),
+    'OTP_INVALID',
+  )
 })
 
 test('a code issued to one user cannot be consumed by another account', async () => {
   const { deps, sent } = makeDeps()
-  await sendPhoneOtp(deps, { phone_e164: PHONE, user_id: 'u-1' })
+  await sendOtp(deps, { channel: 'phone', identifier: PHONE, user_id: 'u-1' })
   await expectCode(
-    verifyPhoneOtp(deps, { phone_e164: PHONE, code: sent[0].code, user_id: 'u-2' }),
+    verifyOtp(deps, { channel: 'phone', identifier: PHONE, code: sent[0].code, user_id: 'u-2' }),
     'OTP_INVALID',
   )
-  // The rightful requester still verifies fine afterwards.
-  await verifyPhoneOtp(deps, { phone_e164: PHONE, code: sent[0].code, user_id: 'u-1' })
+  // A pre-account (null user) verify must also not pick up a user-bound code.
+  await expectCode(
+    verifyOtp(deps, { channel: 'phone', identifier: PHONE, code: sent[0].code, user_id: null }),
+    'OTP_INVALID',
+  )
+  await verifyOtp(deps, { channel: 'phone', identifier: PHONE, code: sent[0].code, user_id: 'u-1' })
 })

@@ -14,6 +14,7 @@ import { eq } from 'drizzle-orm'
 import { ErrorCode } from '@tenda/shared'
 import { user_wallets, users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
+import { phoneVerifiedAt } from '@server/lib/auth/resolver'
 
 interface PatchBody {
   first_name?: unknown
@@ -34,7 +35,6 @@ const PUBLIC_COLUMNS = {
   avatar_url: users.avatar_url,
   country: users.country,
   city: users.city,
-  phone_verified_at: users.phone_verified_at,
   role: users.role,
   is_seeker: users.is_seeker,
   advanced_mode_enabled: users.advanced_mode_enabled,
@@ -70,7 +70,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       .where(eq(user_wallets.user_id, request.user.id))
 
     return {
-      user,
+      user: { ...user, phone_verified_at: await phoneVerifiedAt(fastify.db, request.user.id) },
       wallets,
       profile_complete: user.first_name !== '' && user.last_name !== '',
     }
@@ -122,7 +122,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(401, ErrorCode.UNAUTHORIZED, 'user no longer exists')
       }
       return {
-        user: updated,
+        user: { ...updated, phone_verified_at: await phoneVerifiedAt(fastify.db, request.user.id) },
         profile_complete: updated.first_name !== '' && updated.last_name !== '',
       }
     },

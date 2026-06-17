@@ -31,6 +31,13 @@ declare module 'fastify' {
     /** JWT-auth preHandler — registered by `plugins/auth.ts`. */
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
 
+    /**
+     * Optional JWT-auth preHandler (Stage 9 /auth/{challenge,verify}) — no
+     * Authorization header passes through anonymously; a present header is
+     * fully validated. Registered by `plugins/auth.ts`.
+     */
+    optionalAuthenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
+
     /** Bust the moderation blocklist cache — registered by `plugins/moderation.ts`. */
     invalidateBlocklistCache(): void
 

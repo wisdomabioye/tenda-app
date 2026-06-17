@@ -22,19 +22,22 @@ export const ASSIGNABLE_ROLES: readonly UserRole[] = userRoleEnum.enumValues
 
 /**
  * Public profile projection. Excludes moderation state, activity tracking,
- * PII (phone_e164 never leaves the server — phone_verified_at stays:
- * "verified human" is a public trust signal) and private account prefs.
+ * and private account prefs. `phone_verified_at` — the public "verified
+ * human" trust signal — is no longer a `users` column (Stage 9A moved phone
+ * into `user_identities`); the read routes derive it, so it is added back
+ * here explicitly as a computed field.
  */
 export type PublicUser = Omit<
   User,
   | 'updated_at'
   | 'status'
   | 'last_active_at'
-  | 'phone_e164'
   | 'sponsored_tx_remaining'
   | 'advanced_mode_enabled'
   | 'display_currency'
->
+> & {
+  phone_verified_at: Date | null
+}
 
 /**
  * Minimal user projection embedded in listing/detail responses (gig +

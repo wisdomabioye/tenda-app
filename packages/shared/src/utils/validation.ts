@@ -7,6 +7,20 @@ export function isE164(v: unknown): v is string {
   return typeof v === 'string' && E164_RE.test(v)
 }
 
+/** Max stored email length — mirrors the admin_users / user_identities columns. */
+export const EMAIL_MAX_LENGTH = 255
+
+// Shape check only (catches typos, not RFC corner cases) — deliverability is
+// proven by the OTP round-trip. Shared by admin login + consumer email auth.
+export const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+/** Lowercase + trim; null when shape/length is invalid. Write sites MUST use this. */
+export function normalizeEmail(raw: string): string | null {
+  const email = raw.trim().toLowerCase()
+  if (email.length === 0 || email.length > EMAIL_MAX_LENGTH) return null
+  return EMAIL_SHAPE.test(email) ? email : null
+}
+
 export const MAX_REVIEW_COMMENT_LENGTH = 1000
 
 export function isValidLatitude(lat: number): boolean {
