@@ -41,6 +41,10 @@ import {
   type UserTransactionsQuery,
   type AuthNonceResponse,
   type WalletNonceAuthBody,
+  type ChallengeBody,
+  type ChallengeResponse,
+  type VerifyBody,
+  type VerifyResponse,
   type SendPhoneOtpBody,
   type SendPhoneOtpResponse,
   type VerifyPhoneOtpBody,
@@ -99,6 +103,15 @@ const {
 export const api = {
   auth: {
     nonce: () => request<AuthNonceResponse>('POST', auth.nonce),
+    /** Stage 9 unified — issue an OTP (phone/email). Wallet/OAuth challenge off-device. */
+    challenge: (body: ChallengeBody) =>
+      request<ChallengeResponse>('POST', auth.challenge, { body }),
+    /**
+     * Stage 9 unified — verify a proof → { token, user, is_new }. The request
+     * layer auto-attaches the stored JWT, so a logged-in caller LINKS the
+     * identity while an anonymous caller LOGS IN / creates.
+     */
+    verify: (body: VerifyBody) => request<VerifyResponse>('POST', auth.verify, { body }),
     wallet: (body: WalletNonceAuthBody) =>
       request<AuthResponse>('POST', auth.wallet, { body }),
     me: () => request<User>('GET', auth.me),

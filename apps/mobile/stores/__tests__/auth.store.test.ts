@@ -28,7 +28,7 @@ jest.mock('@/api/client', () => {
   }
   return {
     api: {
-      auth: { me: jest.fn() },
+      auth: { me: jest.fn(), verify: jest.fn() },
       users: { me: jest.fn() },
     },
     ApiClientError,
@@ -57,6 +57,7 @@ import { getJwtToken, getWalletAddress, setWalletAddress, setJwtToken } from '@/
 
 const walletSignInMock = walletSignIn as jest.Mock
 const meMock = api.auth.me as jest.Mock
+const verifyMock = api.auth.verify as jest.Mock
 const usersMeMock = api.users.me as jest.Mock
 const getJwt = getJwtToken as jest.Mock
 const getAddr = getWalletAddress as jest.Mock
@@ -166,6 +167,47 @@ describe('signInWithWallet', () => {
   it('propagates a server/transport failure', async () => {
     walletSignInMock.mockRejectedValue(new Error('500 boom'))
     await expect(useAuthStore.getState().signInWithWallet(stubAdapter())).rejects.toThrow('500 boom')
+  })
+})
+
+describe('signInWithVerify', () => {
+  it('sets a walletless session from the verify response and returns is_new', async () => {
+    verifyMock.mockResolvedValue({ token: 'jwt-v', user: USER, is_new: true })
+
+    const { isNew } = await useAuthStore.getState().signInWithVerify({
+      method: 'email',
+      identifier: 'a@x.io',
+      code: '123456',
+    })
+
+    expect(isNew).toBe(true)
+    const s = useAuthStore.getState()
+    expect(s.isAuthenticated).toBe(true)
+    expect(s.user).toEqual(USER)
+    expect(s.jwt).toBe('jwt-v')
+    expect(s.walletAddress).toBeNull() // no wallet on a credential sign-in
+    expect(s.profileComplete).toBe(true)
+    expect(setJwt).toHaveBeenCalledWith('jwt-v')
+  })
+
+  it('passes is_new=false through for an existing-account login', async () => {
+    verifyMock.mockResolvedValue({ token: 't', user: USER, is_new: false })
+    const { isNew } = await useAuthStore.getState().signInWithVerify({ method: 'phone', identifier: '+1', code: '1' })
+    expect(isNew).toBe(false)
+  })
+
+  it('propagates a verify failure (e.g. WALLET_NOT_LINKED) to the caller', async () => {
+    verifyMock.mockRejectedValue(new ApiClientError(404, 'Not Found', 'wallet not linked'))
+    await expect(
+      useAuthStore.getState().signInWithVerify({
+        method: 'wallet',
+        chain_id: 'solana:devnet',
+        address: 'A',
+        message: 'm',
+        signature: 's',
+      }),
+    ).rejects.toBeInstanceOf(ApiClientError)
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
   })
 })
 

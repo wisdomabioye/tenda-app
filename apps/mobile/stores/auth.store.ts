@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { User, LinkedWallet } from '@tenda/shared'
+import type { User, LinkedWallet, VerifyBody } from '@tenda/shared'
 import {
   getJwtToken,
   setJwtToken,
@@ -44,6 +44,15 @@ interface AuthState {
     adapter: WalletAdapter,
     opts?: { is_seeker?: boolean; country?: string | null },
   ) => Promise<boolean>
+  /**
+   * Stage 9 unified sign-in — verify a credential proof (phone/email OTP,
+   * OAuth id_token, or wallet signature) via POST /v1/auth/verify and set the
+   * session. No wallet is required. Anonymous → login/create; an
+   * already-authenticated caller LINKS (the request layer sends the JWT).
+   * Returns whether the account was just created. Throws ApiClientError (the
+   * caller maps WALLET_NOT_LINKED / IDENTITY_ALREADY_LINKED to the Tier-0 UX).
+   */
+  signInWithVerify: (body: VerifyBody) => Promise<{ isNew: boolean }>
   logout: () => Promise<void>
   loadSession: () => Promise<void>
   updateUser: (user: User) => void
@@ -92,6 +101,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     void get().refreshUser()
     void get().refreshMe()
     return true
+  },
+
+  signInWithVerify: async (body) => {
+    const res = await api.auth.verify(body)
+    await setJwtToken(res.token)
+    set({
+      user: res.user,
+      jwt: res.token,
+      isAuthenticated: true,
+      // Same profile-complete predicate the server uses.
+      profileComplete: Boolean(res.user.first_name && res.user.last_name),
+    })
+    // Settle wallets[] + phone state in the background; navigation only needs
+    // profileComplete, already set above.
+    void get().refreshMe()
+    return { isNew: res.is_new }
   },
 
   logout: async () => {
