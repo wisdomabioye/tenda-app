@@ -17,6 +17,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.tendahq.mobile',
+    // Stage 9C — Sign in with Apple entitlement (App Store 4.8: required
+    // alongside Google sign-in). The expo-apple-authentication plugin adds it.
+    usesAppleSignIn: true,
     // backgroundColor: '',
     // icon: '',
   },
@@ -92,6 +95,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     'expo-location',
     'expo-font',
     '@react-native-community/datetimepicker',
+    // Stage 9C — Sign in with Apple (adds the iOS entitlement).
+    'expo-apple-authentication',
+    // Google sign-in's iOS build needs the reversed-client-id URL scheme. It's
+    // only known once the Google OAuth client exists (USER ACTION), so the
+    // plugin is added ONLY when GOOGLE_IOS_URL_SCHEME is set — keeps
+    // `expo config` / the dev loop working before the credential is provisioned.
+    ...(process.env.GOOGLE_IOS_URL_SCHEME
+      ? [
+          [
+            '@react-native-google-signin/google-signin',
+            { iosUrlScheme: process.env.GOOGLE_IOS_URL_SCHEME },
+          ] as [string, { iosUrlScheme: string }],
+        ]
+      : []),
   ],
   experiments: {
     typedRoutes: true,
