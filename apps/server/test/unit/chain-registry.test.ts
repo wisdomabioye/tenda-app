@@ -52,6 +52,8 @@ function baseConfig(overrides: Partial<Config> = {}): Config {
     RESEND_API_KEY: null,
     EMAIL_FROM: null,
     ADMIN_JWT_EXPIRES_IN: '12h',
+    GOOGLE_OAUTH_CLIENT_IDS: null,
+    APPLE_OAUTH_CLIENT_IDS: null,
     ...overrides,
   }
 }

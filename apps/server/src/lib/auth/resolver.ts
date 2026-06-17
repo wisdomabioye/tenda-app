@@ -15,7 +15,7 @@ import { user_identities, user_wallets } from '@tenda/shared/db/schema'
 import type { ChainNamespace, IdentityKind } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import type { AppDatabase } from '@server/plugins/db'
+import type { AppDatabase, AppDb } from '@server/plugins/db'
 
 /** A non-wallet credential reference (phone/email/google/apple). */
 export interface IdentityRef {
@@ -30,7 +30,7 @@ export type LoginMethod =
 
 /** Resolve the user that owns a non-wallet credential, or null if unlinked. */
 export async function resolveUserByIdentity(
-  db: AppDatabase,
+  db: AppDb,
   ref: IdentityRef,
 ): Promise<string | null> {
   const rows = await db
@@ -43,7 +43,7 @@ export async function resolveUserByIdentity(
 
 /** Resolve the user that owns a wallet, or null if unlinked. */
 export async function resolveUserByWallet(
-  db: AppDatabase,
+  db: AppDb,
   wallet: { chain_ns: ChainNamespace; address: string },
 ): Promise<string | null> {
   const rows = await db
@@ -61,7 +61,7 @@ export async function resolveUserByWallet(
  * relies on this to keep "a verified email maps to exactly one user".
  */
 export async function findUserByVerifiedEmail(
-  db: AppDatabase,
+  db: AppDb,
   email: string,
 ): Promise<string | null> {
   const rows = await db

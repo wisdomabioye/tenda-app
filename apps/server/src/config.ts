@@ -105,6 +105,22 @@ export interface Config {
   EMAIL_FROM: string | null
   /** Admin-dashboard JWT lifetime (#86) — own knob; mobile JWT_EXPIRES_IN stays 7d. */
   ADMIN_JWT_EXPIRES_IN: string
+  /**
+   * Stage 9B — OAuth (Google/Apple) accepted audiences. Comma-separated client
+   * IDs: Google issues id_tokens whose `aud` is the iOS/web/android client ID
+   * depending on the SDK config, so this is a LIST. Apple's `aud` is the app
+   * bundle ID (native) or Services ID (web). Null/empty = that provider's
+   * sign-in method is not registered (verify answers UNSUPPORTED_AUTH_METHOD).
+   */
+  GOOGLE_OAUTH_CLIENT_IDS: string[] | null
+  APPLE_OAUTH_CLIENT_IDS: string[] | null
+}
+
+/** Parse a comma-separated env var into a trimmed non-empty list, or null. */
+function csvEnv(raw: string | undefined): string[] | null {
+  if (raw === undefined) return null
+  const items = raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+  return items.length > 0 ? items : null
 }
 
 let _config: Config | undefined
@@ -180,6 +196,8 @@ export function loadConfig(): Config {
     RESEND_API_KEY:        process.env.RESEND_API_KEY ?? null,
     EMAIL_FROM:            process.env.EMAIL_FROM ?? null,
     ADMIN_JWT_EXPIRES_IN:  process.env.ADMIN_JWT_EXPIRES_IN ?? '12h',
+    GOOGLE_OAUTH_CLIENT_IDS: csvEnv(process.env.GOOGLE_OAUTH_CLIENT_IDS),
+    APPLE_OAUTH_CLIENT_IDS:  csvEnv(process.env.APPLE_OAUTH_CLIENT_IDS),
   }
 
   return _config

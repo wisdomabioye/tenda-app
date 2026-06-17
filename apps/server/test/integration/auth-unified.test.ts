@@ -129,6 +129,15 @@ test('verify: wrong code → 401, missing code → 400, unknown method → 400',
   assert.strictEqual((await verify(app, { method: 'nope', identifier: phone, code: CODE })).statusCode, 400)
 })
 
+test('verify: an OAuth method with no configured client IDs → 400 UNSUPPORTED_AUTH_METHOD', { skip }, async () => {
+  const app = getApp()
+  // The test app sets no GOOGLE/APPLE_OAUTH_CLIENT_IDS → those strategies are
+  // absent from the registry, so the method is reported unsupported (not 500).
+  const res = await verify(app, { method: 'google', id_token: 'whatever' })
+  assert.strictEqual(res.statusCode, 400)
+  assert.strictEqual(res.json().code, 'UNSUPPORTED_AUTH_METHOD')
+})
+
 // ---------- verify: wallet find-or-reject -----------------------------------
 
 test('verify wallet: unlinked → 404 WALLET_NOT_LINKED; linked → logs in', { skip }, async () => {
