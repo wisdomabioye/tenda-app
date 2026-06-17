@@ -7,6 +7,15 @@
 
 import { ApiClientError } from '@/api/client'
 
+/**
+ * Where to go after a successful sign-in: incomplete profiles detour through
+ * setup before home. Pure (caller passes the store's profile-complete flag),
+ * so it stays unit-testable in isolation. Shared by every sign-in entry point.
+ */
+export function postAuthRoute(profileComplete: boolean | null): '/(tabs)/home' | '/(auth)/profile-setup' {
+  return profileComplete ? '/(tabs)/home' : '/(auth)/profile-setup'
+}
+
 export type Tier0Reason = 'wallet_not_linked' | 'identity_already_linked'
 
 /** Map a verify failure to its Tier-0 reason, or null for a generic error. */

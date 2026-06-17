@@ -35,7 +35,7 @@ export default function WelcomeScreen() {
             variant="primary"
             size="xl"
             fullWidth
-            onPress={() => router.push('/(auth)/connect-wallet')}
+            onPress={() => router.push('/(auth)/get-started')}
           >
             Get started
           </Button>
