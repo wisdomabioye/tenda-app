@@ -16,7 +16,7 @@ review, not a live target.
 | File | Tables / enums |
 |---|---|
 | `chains.ts` | `chains`, `assets` |
-| `identity.ts` | `users`, `user_wallets`, `auth_nonces`, `phone_otps` |
+| `identity.ts` | `users`, `user_wallets`, `user_identities`, `auth_nonces`, `auth_otps`, `admin_users`, `email_otps`, `gas_grants` |
 | `escrow.ts` | `escrows`, `gig_details`, `exchange_details`, `escrow_transactions`, `tx_attempts`, `escrow_proofs` |
 | `governance.ts` | `disputes`, `reviews`, `platform_config` |
 | `ops.ts` | `chain_cursors` |

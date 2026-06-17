@@ -17,7 +17,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { and, eq } from 'drizzle-orm'
 import { users, user_wallets } from '@tenda/shared/db/schema'
 import type { ChainNamespace } from '@tenda/shared/db/schema'
-import { AppError, requireBody } from '@server/lib/errors'
+import { AppError, requireBody, requireNonEmptyString } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { verifyWalletAuth } from '@server/lib/auth/strategies/wallet'
 import { mintAuthResponse } from '@server/lib/auth/session'
@@ -39,10 +39,10 @@ const route: FastifyPluginAsync = async (fastify) => {
     async (request) => {
       const { chain_id, address, message, signature, is_seeker = false, country = null } =
         requireBody(request.body)
-      requireString('chain_id', chain_id)
-      requireString('address', address)
-      requireString('message', message)
-      requireString('signature', signature)
+      requireNonEmptyString(chain_id, 'chain_id')
+      requireNonEmptyString(address, 'address')
+      requireNonEmptyString(message, 'message')
+      requireNonEmptyString(signature, 'signature')
 
       const { chain_ns } = await verifyWalletAuth(
         { chains: fastify.chains, db: fastify.db, now: () => new Date() },
@@ -58,16 +58,6 @@ const route: FastifyPluginAsync = async (fastify) => {
 export default route
 
 // ---------- helpers ------------------------------------------------------
-
-function requireString(field: string, value: unknown): void {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new AppError(
-      400,
-      ErrorCode.VALIDATION_ERROR,
-      `${field} is required and must be a non-empty string`,
-    )
-  }
-}
 
 async function findOrCreateUserByWallet(
   db: AppDatabase,

@@ -10,7 +10,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
-import { AppError, requireBody } from '@server/lib/errors'
+import { AppError, requireBody, requireNonEmptyString } from '@server/lib/errors'
 import { isAuthMethod, type VerifyProof } from '@server/lib/auth/strategy'
 import { buildAuthStrategies } from '@server/lib/auth/registry'
 import { resolveOrLink, type UserBootstrap } from '@server/lib/auth/orchestrator'
@@ -29,13 +29,6 @@ interface Body {
   country?: unknown
 }
 
-function requireString(value: unknown, field: string): string {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new AppError(422, ErrorCode.VALIDATION_ERROR, `${field} is required`)
-  }
-  return value
-}
-
 /** Build the discriminated proof for a method, validating its shape (422 on miss). */
 function parseProof(method: string, body: Body, bearerUserId: string | null): VerifyProof {
   switch (method) {
@@ -43,21 +36,21 @@ function parseProof(method: string, body: Body, bearerUserId: string | null): Ve
     case 'email':
       return {
         method,
-        identifier: requireString(body.identifier, 'identifier'),
-        code: requireString(body.code, 'code'),
+        identifier: requireNonEmptyString(body.identifier, 'identifier'),
+        code: requireNonEmptyString(body.code, 'code'),
         user_id: bearerUserId,
       }
     case 'wallet':
       return {
         method,
-        chain_id: requireString(body.chain_id, 'chain_id'),
-        address: requireString(body.address, 'address'),
-        message: requireString(body.message, 'message'),
-        signature: requireString(body.signature, 'signature'),
+        chain_id: requireNonEmptyString(body.chain_id, 'chain_id'),
+        address: requireNonEmptyString(body.address, 'address'),
+        message: requireNonEmptyString(body.message, 'message'),
+        signature: requireNonEmptyString(body.signature, 'signature'),
       }
     case 'google':
     case 'apple':
-      return { method, id_token: requireString(body.id_token, 'id_token') }
+      return { method, id_token: requireNonEmptyString(body.id_token, 'id_token') }
     default:
       throw new AppError(400, ErrorCode.UNSUPPORTED_AUTH_METHOD, `unknown auth method '${method}'`)
   }

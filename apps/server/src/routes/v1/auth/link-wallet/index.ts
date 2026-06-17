@@ -20,7 +20,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { user_wallets } from '@tenda/shared/db/schema'
-import { AppError, requireBody } from '@server/lib/errors'
+import { AppError, requireBody, requireNonEmptyString } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { verifyWalletAuth } from '@server/lib/auth/strategies/wallet'
 import { hasVerifiedPhone } from '@server/lib/auth/resolver'
@@ -43,10 +43,10 @@ const route: FastifyPluginAsync = async (fastify) => {
     },
     async (request) => {
       const { chain_id, address, message, signature } = requireBody(request.body)
-      requireString('chain_id', chain_id)
-      requireString('address', address)
-      requireString('message', message)
-      requireString('signature', signature)
+      requireNonEmptyString(chain_id, 'chain_id')
+      requireNonEmptyString(address, 'address')
+      requireNonEmptyString(message, 'message')
+      requireNonEmptyString(signature, 'signature')
 
       // Shared verify-message-and-signature flow (parse → assert → sig-verify
       // → single-use nonce consume); identical to /auth/wallet + the unified
@@ -95,13 +95,3 @@ const route: FastifyPluginAsync = async (fastify) => {
 }
 
 export default route
-
-function requireString(field: string, value: unknown): void {
-  if (typeof value !== 'string' || value.length === 0) {
-    throw new AppError(
-      400,
-      ErrorCode.VALIDATION_ERROR,
-      `${field} is required and must be a non-empty string`,
-    )
-  }
-}

@@ -119,12 +119,13 @@ test('verify phone: anon creates then logs in (is_new flips)', { skip }, async (
   assert.strictEqual(loggedIn.json().user.id, userId)
 })
 
-test('verify: wrong code → 401, missing code → 422, unknown method → 400', { skip }, async () => {
+test('verify: wrong code → 401, missing code → 400, unknown method → 400', { skip }, async () => {
   const app = getApp()
   const phone = uniqPhone()
   await seedOtp(app, { channel: 'phone', identifier: phone, user_id: null })
   assert.strictEqual((await verify(app, { method: 'phone', identifier: phone, code: '000000' })).statusCode, 401)
-  assert.strictEqual((await verify(app, { method: 'phone', identifier: phone })).statusCode, 422)
+  // Missing required field → 400 (shared requireNonEmptyString, matches requireBody).
+  assert.strictEqual((await verify(app, { method: 'phone', identifier: phone })).statusCode, 400)
   assert.strictEqual((await verify(app, { method: 'nope', identifier: phone, code: CODE })).statusCode, 400)
 })
 
@@ -188,6 +189,26 @@ test('verify link: bearer attaches a new email; a foreign email is blocked', { s
   const blocked = await verify(app, { method: 'email', identifier: email, code: CODE }, b.token)
   assert.strictEqual(blocked.statusCode, 409)
   assert.strictEqual(blocked.json().code, 'IDENTITY_ALREADY_LINKED')
+})
+
+test('verify link: re-linking the same identity to the same user is idempotent', { skip }, async () => {
+  const app = getApp()
+  const phone = uniqPhone()
+  await seedOtp(app, { channel: 'phone', identifier: phone, user_id: null })
+  const a = (await verify(app, { method: 'phone', identifier: phone, code: CODE })).json()
+
+  const email = uniqEmail()
+  await seedOtp(app, { channel: 'email', identifier: email, user_id: a.user.id })
+  assert.strictEqual((await verify(app, { method: 'email', identifier: email, code: CODE }, a.token)).statusCode, 200)
+  // Verify the SAME email again (re-verification) → still 200, no duplicate row.
+  await seedOtp(app, { channel: 'email', identifier: email, user_id: a.user.id })
+  assert.strictEqual((await verify(app, { method: 'email', identifier: email, code: CODE }, a.token)).statusCode, 200)
+  const emailRows = await app.db.select().from(user_identities)
+  assert.strictEqual(
+    emailRows.filter((i) => i.user_id === a.user.id && i.kind === 'email').length,
+    1,
+    'idempotent re-link must not duplicate the identity row',
+  )
 })
 
 // ---------- verify: suspended gate ------------------------------------------

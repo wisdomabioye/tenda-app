@@ -37,3 +37,15 @@ export function requireBody<T>(body: T): NonNullable<T> {
   }
   return body
 }
+
+/**
+ * Validate that a field is a non-empty string and return it (422 otherwise).
+ * Single home for the check the auth routes all need — replaces the per-route
+ * `requireString` copies.
+ */
+export function requireNonEmptyString(value: unknown, field: string): string {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new AppError(400, ErrorCode.VALIDATION_ERROR, `${field} is required and must be a non-empty string`)
+  }
+  return value
+}

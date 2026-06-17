@@ -28,6 +28,8 @@ test('body-less POSTs return 400 (not 500) across body-reading routes', { skip }
   const cases: Array<{ method: 'POST' | 'PATCH'; url: string }> = [
     { method: 'POST', url: '/v1/reports' },
     { method: 'POST', url: '/v1/conversations' },
+    { method: 'POST', url: '/v1/auth/challenge' },
+    { method: 'POST', url: '/v1/auth/verify' },
     { method: 'POST', url: '/v1/auth/link-wallet' },
     { method: 'POST', url: '/v1/notifications/device-token' },
     { method: 'PATCH', url: `/v1/users/${u.row.id}` },

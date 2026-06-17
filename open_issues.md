@@ -378,6 +378,27 @@
 
 ---
 
+## Stage 9 — multi-method auth (#105→#109) — follow-ups
+
+> Recorded during the Stage 9A end-to-end review (2026-06-17). None block 9A
+> (the routes ship correctly); X7 becomes *reachable* only once OAuth lands.
+
+### 🟠 Significant
+
+| # | Issue | File(s) | Fix |
+|---|-------|---------|-----|
+| X7 | **Cross-method verified-email dedup is a TOCTOU race, not DB-enforced.** `resolveOrLink` reads `findUserByVerifiedEmail` then `createUserWithIdentity` inserts with `onConflictDoNothing` only on `(kind, identifier)`. Two concurrent FIRST-logins with the same verified email via DIFFERENT methods (e.g. Google + Apple, or Google + email-OTP) both see `emailOwner=null` and create two users with the same verified email → violates "one verified email → one user". **NOT reachable in 9A** (the only email-bearing method is email-OTP, whose `(kind='email', identifier)` unique serialises same-email creates); becomes reachable when **9B** adds OAuth (different `kind`/`sub`, same email). A plain unique on `email` is WRONG (one user may legitimately hold google+apple+email rows all = X). | `apps/server/src/lib/auth/orchestrator.ts` | In 9B, wrap the email-bearing create/dedup in one tx that first takes `pg_advisory_xact_lock(hashtext(normalized_email))`, re-checks `findUserByVerifiedEmail` inside the lock, then creates-or-attaches. Add a concurrency test (two parallel oauth logins, same email → one user). |
+
+### 🟡 Minor
+
+| # | Issue | File(s) | Fix |
+|---|-------|---------|-----|
+| X8 | **`emailOwner` LOGIN-attach dedup branch is unreachable/untested in 9A** (needs a cross-method verified email → OAuth). Correct forward-looking code, but no integration coverage until 9B. | `orchestrator.ts:97-100` | Cover with the 9B OAuth suite (email-OTP user X, then Google login email X → same account). |
+| X9 | **Extra per-request query for `phone_verified_at`** — `GET /v1/users/me` and `GET /v1/users/:id` now run a separate `phoneVerifiedAt` SELECT (was a column). Fine for single-user endpoints; if public-profile reads get hot, fold it into the main select as a correlated subquery. | `routes/v1/users/{me,_id}/index.ts` | Correlated subquery / lateral join if profile-view QPS warrants. |
+| X10 | **`auth_otps` rows are never garbage-collected** (pre-existing pattern inherited from `phone_otps`). Ephemeral + small, but they accumulate. | `lib/otp.ts` | A periodic prune (BullMQ repeatable) of consumed/expired OTPs, if table growth matters. |
+
+---
+
 ## Open cross-stage questions (from STATUS.md)
 
 | # | Question | Affected stage | Status |
