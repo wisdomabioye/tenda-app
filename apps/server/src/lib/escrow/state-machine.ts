@@ -1,18 +1,11 @@
 /**
- * Escrow business logic — single home for status transitions, fee math,
- * deadline math, and validation. Replaces the per-domain `lib/gigs.ts` +
- * `lib/exchange.ts` + `lib/disputes.ts` split.
- *
- * State-machine reference: `multichain-migration-stages/stage-0-foundation.md`
- * § state-machine diagram. The transition table here is the executable
- * encoding of that diagram — keep them in sync.
+ * Escrow state machine — status/transition types, the pure status mapper, the
+ * legality check, and their internal guards. The executable encoding of the
+ * stage-0 § state-machine diagram — keep them in sync.
  */
 
 import { AppError } from '@server/lib/errors'
-import { ErrorCode, GIG_ASSET_BY_CHAIN } from '@tenda/shared'
-import type { AmountRaw, AssetId, ChainId } from '@server/chains/types'
-
-// ---------- state machine -------------------------------------------------
+import { ErrorCode } from '@tenda/shared'
 
 export type EscrowStatus =
   | 'draft'
@@ -172,11 +165,7 @@ export function transition(ctx: TransitionContext, t: EscrowTransition): EscrowS
 
 // ---------- internal guards ----------------------------------------------
 
-function requireStatus(
-  ctx: TransitionContext,
-  expected: EscrowStatus,
-  t: EscrowTransition,
-): void {
+function requireStatus(ctx: TransitionContext, expected: EscrowStatus, t: EscrowTransition): void {
   if (ctx.status !== expected) {
     throw new AppError(
       409,
@@ -200,151 +189,24 @@ function requireCaller(
   }
 }
 
-function requireBefore(
-  ctx: TransitionContext,
-  deadline: Date | null,
-  label: string,
-): void {
+function requireBefore(ctx: TransitionContext, deadline: Date | null, label: string): void {
   if (deadline === null) {
-    throw new AppError(
-      500,
-      ErrorCode.INTERNAL_ERROR,
-      `${label} missing on escrow row — transition requires it`,
-    )
+    throw new AppError(500, ErrorCode.INTERNAL_ERROR, `${label} missing on escrow row — transition requires it`)
   }
   if (ctx.now.getTime() >= deadline.getTime()) {
-    throw new AppError(
-      409,
-      ErrorCode.ESCROW_DEADLINE_PASSED,
-      `${label} has passed`,
-    )
+    throw new AppError(409, ErrorCode.ESCROW_DEADLINE_PASSED, `${label} has passed`)
   }
 }
 
-function requireAfter(
-  ctx: TransitionContext,
-  deadline: Date | null,
-  label: string,
-): void {
+function requireAfter(ctx: TransitionContext, deadline: Date | null, label: string): void {
   if (deadline === null) {
-    throw new AppError(
-      500,
-      ErrorCode.INTERNAL_ERROR,
-      `${label} missing on escrow row — transition requires it`,
-    )
+    throw new AppError(500, ErrorCode.INTERNAL_ERROR, `${label} missing on escrow row — transition requires it`)
   }
   if (ctx.now.getTime() < deadline.getTime()) {
-    throw new AppError(
-      409,
-      ErrorCode.ESCROW_DEADLINE_NOT_REACHED,
-      `${label} not yet reached`,
-    )
+    throw new AppError(409, ErrorCode.ESCROW_DEADLINE_NOT_REACHED, `${label} not yet reached`)
   }
 }
 
 function addSeconds(d: Date | null, seconds: number): Date | null {
   return d === null ? null : new Date(d.getTime() + seconds * 1000)
-}
-
-// ---------- fee math ------------------------------------------------------
-
-export interface FeeArgs {
-  amount_raw: AmountRaw
-  is_seeker: boolean
-  fee_bps: number
-  seeker_fee_bps: number
-}
-
-/**
- * Returns the platform fee in raw units, rounded toward zero.
- * BigInt division truncates toward zero — equivalent to floor for non-negative
- * inputs, which is what we want here (DB CHECK ensures `amount_raw > 0` and
- * `fee_bps ∈ [0, 10000]`).
- */
-export function computePlatformFee(args: FeeArgs): AmountRaw {
-  const amount = BigInt(args.amount_raw)
-  const bps = BigInt(effectiveBps(args))
-  return ((amount * bps) / 10_000n).toString()
-}
-
-/** Returns `amount - fee` — what the counterparty actually receives. */
-export function computeNetPayout(args: FeeArgs): AmountRaw {
-  const amount = BigInt(args.amount_raw)
-  const fee = BigInt(computePlatformFee(args))
-  return (amount - fee).toString()
-}
-
-function effectiveBps(args: FeeArgs): number {
-  return args.is_seeker ? args.seeker_fee_bps : args.fee_bps
-}
-
-// ---------- deadline math ------------------------------------------------
-
-export interface AcceptDeadlineArgs {
-  now: Date
-  accept_window_seconds: number
-}
-
-export function computeAcceptDeadline(a: AcceptDeadlineArgs): Date {
-  return new Date(a.now.getTime() + a.accept_window_seconds * 1000)
-}
-
-export interface CompletionDeadlineArgs {
-  accepted_at: Date
-  completion_duration_seconds: number
-}
-
-export function computeCompletionDeadline(a: CompletionDeadlineArgs): Date {
-  return new Date(a.accepted_at.getTime() + a.completion_duration_seconds * 1000)
-}
-
-export interface ApprovalDeadlineArgs {
-  submitted_at: Date
-  approval_window_seconds: number
-}
-
-export function computeApprovalDeadline(a: ApprovalDeadlineArgs): Date {
-  return new Date(a.submitted_at.getTime() + a.approval_window_seconds * 1000)
-}
-
-// ---------- validation guards -------------------------------------------
-
-/**
- * Canonical USDC asset id per chain — the only asset gigs accept (locked
- * decision #3). Even chains with other stables (cUSD on CELO) restrict gigs
- * to USDC. Exchange escrows have no asset restriction and don't call this.
- *
- * The map itself lives in @tenda/shared (GIG_ASSET_BY_CHAIN) since CO5 —
- * the mobile chain picker reads the SAME source, so client options and
- * this guard can never disagree. Add a chain there when its `chains` +
- * `assets` rows are seeded (stage-3-base.md L228, stage-4-celo.md L48).
- */
-
-/**
- * Throws if `asset_id` isn't the gig-eligible USDC variant for `chain_id`.
- * Pure — does not consult the DB. The `assets` table is the canonical source
- * of truth for asset existence; this guard is a narrow policy filter layered
- * on top to enforce "USDC only" for gigs without a per-request DB roundtrip.
- *
- * Throws `ESCROW_INVALID_ASSET` for both unknown chains and wrong assets —
- * route handlers should not distinguish the two (both are user-input errors,
- * not server faults). 422 because the input is well-formed but semantically
- * rejected by business policy.
- */
-export function assertGigAsset(asset_id: AssetId, chain_id: ChainId): void {
-  const expected = GIG_ASSET_BY_CHAIN[chain_id]
-  if (expected === undefined) {
-    throw new AppError(
-      422,
-      ErrorCode.ESCROW_INVALID_ASSET,
-      `chain '${chain_id}' is not configured for gig escrows`,
-    )
-  }
-  if (asset_id !== expected) {
-    throw new AppError(
-      422,
-      ErrorCode.ESCROW_INVALID_ASSET,
-      `gigs on '${chain_id}' must use '${expected}'; got '${asset_id}'`,
-    )
-  }
 }
