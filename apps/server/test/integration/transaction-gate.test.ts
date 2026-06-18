@@ -71,6 +71,36 @@ test('create: wallet + verified contact → 201 (gate passes)', { skip }, async 
   assert.strictEqual(res.statusCode, 201)
 })
 
+// ---------- direct assignment: the assignee needs a wallet too ----------------
+
+test('create: direct-assign to a walletless counterparty → 422 ASSIGNEE_WALLET_REQUIRED', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  await makeTransactable(app, creator.row.id) // caller clears the gate first
+  const assignee = await createUser(app) // no wallet — can't have their address baked in
+  const res = await app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token),
+    payload: createEscrowBody({ assigned_counterparty_id: assignee.row.id }),
+  })
+  assert.strictEqual(res.statusCode, 422)
+  assert.strictEqual(res.json().code, 'ASSIGNEE_WALLET_REQUIRED')
+  // The client gets the chain + assignee so it can prompt the right person.
+  assert.strictEqual(res.json().details?.assignee_id, assignee.row.id)
+})
+
+test('create: direct-assign to a counterparty WITH a wallet → 201', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  await makeTransactable(app, creator.row.id)
+  const assignee = await createUser(app)
+  await makeTransactable(app, assignee.row.id) // assignee has a solana wallet to bake in
+  const res = await app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token),
+    payload: createEscrowBody({ assigned_counterparty_id: assignee.row.id }),
+  })
+  assert.strictEqual(res.statusCode, 201)
+})
+
 // ---------- accept -----------------------------------------------------------
 
 test('accept: counterparty without a wallet → 403 WALLET_REQUIRED', { skip }, async () => {

@@ -231,3 +231,27 @@ export async function assertCanTransact(
     )
   }
 }
+
+/**
+ * Direct-assign create guard (Stage 9D follow-up): a directly-assigned escrow
+ * bakes the assignee's wallet address into the on-chain account at creation, so
+ * the assignee must already have a wallet on the chain. Distinct from
+ * `assertCanTransact` (which gates the CALLER) and from WALLET_REQUIRED — the
+ * client must NOT route the caller to link a wallet; it's the assignee who
+ * needs one. Without this the adapter's raw `resolveWalletAddress` throws a
+ * misleading 404 USER_NOT_FOUND that also leaks the assignee's id.
+ */
+export async function assertAssigneeHasWallet(
+  db: AppDatabase,
+  assigneeId: string,
+  chainNs: ChainNamespace,
+): Promise<void> {
+  if (!(await hasWalletOnChain(db, assigneeId, chainNs))) {
+    throw new AppError(
+      422,
+      ErrorCode.ASSIGNEE_WALLET_REQUIRED,
+      'the assigned counterparty has not linked a wallet on this chain yet',
+      { chain_ns: chainNs, assignee_id: assigneeId },
+    )
+  }
+}

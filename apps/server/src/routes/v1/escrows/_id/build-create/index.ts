@@ -18,7 +18,7 @@ import { AppError } from '@server/lib/errors'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
-import { assertCanTransact } from '@server/lib/auth/resolver'
+import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
 
 /** Deadlines closer than this get refreshed — the program rejects a create
  *  whose accept window is already (about to be) over. */
@@ -107,6 +107,10 @@ const route: FastifyPluginAsync = async (fastify) => {
       // (covers server-opened fiat-offramp drafts that never hit create's gate).
       // Runs BEFORE the deadline write so a rejected publish mutates nothing.
       await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
+      // A direct-assigned draft bakes the assignee's wallet into the create tx.
+      if (escrow.assigned_counterparty_id !== null) {
+        await assertAssigneeHasWallet(fastify.db, escrow.assigned_counterparty_id, adapter.namespace)
+      }
 
       // Persist what the unsigned tx will encode, so the DB row and the
       // on-chain account can never disagree after confirmation.

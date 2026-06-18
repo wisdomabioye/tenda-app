@@ -24,7 +24,7 @@ import { users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
-import { assertCanTransact } from '@server/lib/auth/resolver'
+import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
 import { validateCreateEscrow, type CreateEscrowBody } from '@server/lib/escrow-create'
 
 const route: FastifyPluginAsync = async (fastify) => {
@@ -55,6 +55,11 @@ const route: FastifyPluginAsync = async (fastify) => {
       const adapter = fastify.chains.get(input.chain_id)
       // First-transaction gate: a wallet on this chain + a verified contact.
       await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
+      // Direct assignment bakes the assignee's wallet into the escrow at create,
+      // so they must already have one (clean 422 vs the adapter's raw 404).
+      if (input.assigned_counterparty_id !== null) {
+        await assertAssigneeHasWallet(fastify.db, input.assigned_counterparty_id, adapter.namespace)
+      }
       const unsigned = await adapter.buildTx({
         action: 'createEscrow',
         user_id: request.user.id,

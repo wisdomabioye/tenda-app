@@ -62,6 +62,10 @@ export const ErrorCode = {
   WALLET_REQUIRED:               'WALLET_REQUIRED',
   /** Transaction gate: the action needs at least one verified contact (email/phone). */
   CONTACT_REQUIRED:              'CONTACT_REQUIRED',
+  /** Direct-assign create: the assigned counterparty has no wallet on the chain
+   *  (their address must be baked into the escrow at creation). Distinct from
+   *  WALLET_REQUIRED — it's the ASSIGNEE, not the caller, who must link one. */
+  ASSIGNEE_WALLET_REQUIRED:      'ASSIGNEE_WALLET_REQUIRED',
   /** Refused: removing this credential would leave the account with no way to sign in. */
   LAST_CREDENTIAL:               'LAST_CREDENTIAL',
   /** Unknown/unsupported auth method kind on the generic challenge/verify routes. */
