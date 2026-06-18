@@ -15,6 +15,7 @@ import {
   useTestApp,
   createUser,
   createEscrow,
+  makeTransactable,
   authHeader,
 } from '../helpers/test-app'
 import { createEscrowBody, gigDetailsBody } from '../helpers/escrow-states'
@@ -96,6 +97,7 @@ test('POST /v1/escrows: 400 when the client supplies an id', { skip }, async () 
 test('POST /v1/escrows: 201 inserts a draft and returns the unsigned tx', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
+  await makeTransactable(app, u.row.id) // wallet + verified contact (9D gate)
   const res = await app.inject({
     method: 'POST',
     url: '/v1/escrows',

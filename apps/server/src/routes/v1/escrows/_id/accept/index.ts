@@ -10,6 +10,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { getPlatformConfig } from '@server/lib/platform'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
+import { assertCanTransact } from '@server/lib/auth/resolver'
 import { guardTransition } from '@server/lib/escrow-routes'
 
 const route: FastifyPluginAsync = async (fastify) => {
@@ -28,6 +29,9 @@ const route: FastifyPluginAsync = async (fastify) => {
         transition: 'accept',
       })
       const adapter = fastify.chains.get(escrow.chain_id)
+      // First-transaction gate: the accepter needs a wallet on this chain + a
+      // verified contact before they can enter the escrow.
+      await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
       const unsigned = await adapter.buildTx({
         action: 'acceptEscrow',
         user_id: request.user.id,

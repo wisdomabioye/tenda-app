@@ -9,7 +9,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import {
-  TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, authHeader,
+  TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, makeTransactable, authHeader,
 } from '../helpers/test-app'
 import { partiedEscrow } from '../helpers/escrow-states'
 
@@ -30,6 +30,7 @@ test('POST accept: the assigned counterparty accepts an open escrow → unsigned
   const app = getApp()
   const creator = await createUser(app)
   const worker = await createUser(app)
+  await makeTransactable(app, worker.row.id) // wallet + verified contact (9D gate)
   const e = await createEscrow(app, {
     creator_id: creator.row.id, status: 'open', assigned_counterparty_id: worker.row.id,
   })

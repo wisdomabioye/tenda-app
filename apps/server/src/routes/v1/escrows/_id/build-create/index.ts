@@ -18,6 +18,7 @@ import { AppError } from '@server/lib/errors'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
+import { assertCanTransact } from '@server/lib/auth/resolver'
 
 /** Deadlines closer than this get refreshed — the program rejects a create
  *  whose accept window is already (about to be) over. */
@@ -114,6 +115,9 @@ const route: FastifyPluginAsync = async (fastify) => {
         )
       }
       const adapter = fastify.chains.get(escrow.chain_id)
+      // Publishing IS creating — same first-transaction gate as POST /v1/escrows
+      // (covers server-opened fiat-offramp drafts that never hit create's gate).
+      await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
       const unsigned = await adapter.buildTx({
         action: 'createEscrow',
         user_id: request.user.id,

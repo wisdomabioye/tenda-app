@@ -33,7 +33,7 @@ import postgres from 'postgres'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
-import { users, escrows, gig_details, exchange_details, chains, assets } from '@tenda/shared/db/schema'
+import { users, user_wallets, user_identities, escrows, gig_details, exchange_details, chains, assets } from '@tenda/shared/db/schema'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { registerErrorHandlers } from '@server/lib/http-errors'
 import { invalidateFeaturedCache } from '@server/lib/featured'
@@ -237,6 +237,29 @@ export async function createUser(
   const row = userFixture(overrides)
   await app.db.insert(users).values(row)
   return { row, token: app.jwt.sign({ id: row.id, role: row.role }) }
+}
+
+/**
+ * Link a Solana wallet (matches TEST_CHAIN_ID's namespace) + a verified email
+ * to a user so they clear the Stage-9D first-transaction gate
+ * (`assertCanTransact`). The wallet address is derived from the user id so it
+ * stays unique under the (chain_ns, address) constraint across many users.
+ */
+export async function makeTransactable(app: FastifyInstance, userId: string): Promise<void> {
+  await app.db.insert(user_wallets).values({
+    chain_ns: 'solana',
+    address: `SoTx${userId.replace(/-/g, '')}`,
+    user_id: userId,
+    is_primary: true,
+    verified_at: new Date(),
+  })
+  await app.db.insert(user_identities).values({
+    user_id: userId,
+    kind: 'email',
+    identifier: `tx-${userId}@example.com`,
+    email: `tx-${userId}@example.com`,
+    verified_at: new Date(),
+  })
 }
 
 /**

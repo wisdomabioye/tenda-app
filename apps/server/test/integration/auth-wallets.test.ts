@@ -7,7 +7,8 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { user_wallets } from '@tenda/shared/db/schema/identity'
+import { eq } from 'drizzle-orm'
+import { user_wallets, user_identities } from '@tenda/shared/db/schema/identity'
 import { walletFixture } from '../helpers/fixtures'
 import {
   TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, authHeader,
@@ -56,16 +57,36 @@ test('unlink-wallet: 404 when the wallet is not linked', { skip }, async () => {
   assert.strictEqual(res.statusCode, 404)
 })
 
-test('unlink-wallet: 409 cannot unlink the only wallet', { skip }, async () => {
+test('unlink-wallet: 409 LAST_CREDENTIAL when the wallet is the only sign-in method', { skip }, async () => {
   const app = getApp()
-  const u = await createUser(app)
+  const u = await createUser(app) // no identities → the wallet is the sole credential
   const w = await link(app, u.row.id, { is_primary: true })
   const res = await app.inject({
     method: 'POST', url: '/v1/auth/unlink-wallet', headers: authHeader(u.token),
     payload: { chain_ns: w.chain_ns, address: w.address },
   })
   assert.strictEqual(res.statusCode, 409)
-  assert.strictEqual(res.json().code, 'WALLET_IN_USE')
+  assert.strictEqual(res.json().code, 'LAST_CREDENTIAL')
+})
+
+test('unlink-wallet: 200 unlinks the sole wallet when a verified contact remains', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  const w = await link(app, u.row.id, { is_primary: true })
+  // A verified email keeps the account reachable + sign-in-able, so dropping
+  // the only wallet is allowed (credential model — wallet re-links at next tx).
+  await app.db.insert(user_identities).values({
+    user_id: u.row.id, kind: 'email', identifier: `keep-${u.row.id}@x.io`,
+    email: `keep-${u.row.id}@x.io`, verified_at: new Date(),
+  })
+  const res = await app.inject({
+    method: 'POST', url: '/v1/auth/unlink-wallet', headers: authHeader(u.token),
+    payload: { chain_ns: w.chain_ns, address: w.address },
+  })
+  assert.strictEqual(res.statusCode, 200)
+  assert.strictEqual(res.json().unlinked, true)
+  const left = await app.db.select().from(user_wallets).where(eq(user_wallets.user_id, u.row.id))
+  assert.strictEqual(left.length, 0)
 })
 
 test('unlink-wallet: 409 cannot unlink the primary while another exists', { skip }, async () => {

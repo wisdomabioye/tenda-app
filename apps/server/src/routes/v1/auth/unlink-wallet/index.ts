@@ -1,8 +1,13 @@
 /**
- * POST /v1/auth/unlink-wallet — remove a linked wallet. Three guards
- * (stage-1-onboarding.md):
- *   1. cannot unlink the sole wallet on the account
- *   2. cannot unlink the primary unless another wallet exists
+ * POST /v1/auth/unlink-wallet — remove a linked wallet. Three guards:
+ *   1. cannot remove your LAST sign-in method (identities ∪ wallets) — Stage 9D
+ *      credential model: a wallet-only account can't drop its wallet, but an
+ *      account that still has a verified email/phone CAN (it logs back in by
+ *      contact and re-links a wallet at the next transaction) → 409
+ *      LAST_CREDENTIAL.
+ *   2. cannot unlink the primary while ANOTHER wallet exists (must re-designate
+ *      a primary first); skipped when this is the only wallet — there is no
+ *      primary to maintain once it's gone → 409 WALLET_IN_USE.
  *   3. cannot unlink a wallet that is a party to any escrow in
  *      {open, accepted, submitted, disputed} on its namespace —
  *      409 WALLET_IN_USE with the affected escrow ids (the user must not
@@ -18,6 +23,7 @@ import { chainNamespaceEnum, chains, type ChainNamespace } from '@tenda/shared/d
 import { escrows } from '@tenda/shared/db/schema/escrow'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
+import { assertNotLastCredential } from '@server/lib/auth/resolver'
 
 interface Body {
   chain_ns?: unknown
@@ -58,10 +64,12 @@ const route: FastifyPluginAsync = async (fastify) => {
       if (target === undefined) {
         throw new AppError(404, ErrorCode.NOT_FOUND, 'wallet not linked to this account')
       }
-      if (wallets.length === 1) {
-        throw new AppError(409, ErrorCode.WALLET_IN_USE, 'cannot unlink the only wallet')
-      }
-      if (target.is_primary) {
+      // Guard 1: never strand the account — block only if this wallet is the
+      // last sign-in method overall (a remaining email/phone makes it safe).
+      await assertNotLastCredential(fastify.db, user_id)
+      // Guard 2: re-designate a primary first, but only when another wallet
+      // remains — removing the sole wallet leaves no primary to maintain.
+      if (target.is_primary && wallets.length > 1) {
         throw new AppError(
           409,
           ErrorCode.WALLET_IN_USE,
