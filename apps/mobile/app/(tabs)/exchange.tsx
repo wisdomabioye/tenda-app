@@ -1,52 +1,42 @@
 import { useRef, useCallback, useState } from 'react'
-import {
-  View, FlatList, ActivityIndicator, StyleSheet, RefreshControl,
-  ScrollView, Animated, Pressable, useWindowDimensions,
-} from 'react-native'
+import { View, StyleSheet, ScrollView, Animated, Pressable, useWindowDimensions } from 'react-native'
 import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { SlidersHorizontal, Check, X, Plus } from 'lucide-react-native'
-import { spacing, radius } from '@/theme/tokens'
-import { 
-  ScreenContainer, 
-  Text, Spacer, EmptyState, 
-  Button, Header, BottomSheet,
-  Skeleton 
-} from '@/components/ui'
-import { ExchangeOfferCard, MyOfferRow } from '@/components/exchange'
+import { Plus } from 'lucide-react-native'
+import { ScreenContainer, Text, Header } from '@/components/ui'
+import {
+  ExchangeMarketPage,
+  ExchangeMyOffersPage,
+  CurrencyFilterSheet,
+} from '@/components/exchange'
 import { useExchangeMarketStore, useAuthStore } from '@/stores'
 import { api } from '@/api/client'
-import { SUPPORTED_CURRENCIES } from '@tenda/shared'
 import type { EscrowListRow } from '@tenda/shared'
 
 export default function ExchangeScreen() {
-  const { theme }          = useUnistyles()
-  const { width: SW }      = useWindowDimensions()
-  const router             = useRouter()
-  const user               = useAuthStore((s) => s.user)
+  const { theme }     = useUnistyles()
+  const { width: SW } = useWindowDimensions()
+  const router        = useRouter()
+  const user          = useAuthStore((s) => s.user)
 
   const { offers, isLoading, isLoadingMore, hasFetched, error, fetchOffers, loadMore, setFilters, resetFilters } =
     useExchangeMarketStore()
 
-  const [pageIndex, setPageIndex]               = useState(0)
-  const [currency, setCurrency]                 = useState<string | null>(null)
+  const [pageIndex, setPageIndex]                 = useState(0)
+  const [currency, setCurrency]                   = useState<string | null>(null)
   const [currencySheetOpen, setCurrencySheetOpen] = useState(false)
-  const [refreshing, setRefreshing]             = useState(false)
-  const [myOffers, setMyOffers]                 = useState<EscrowListRow[]>([])
-  const [isLoadingMine, setIsLoadingMine]       = useState(false)
+  const [refreshing, setRefreshing]               = useState(false)
+  const [myOffers, setMyOffers]                   = useState<EscrowListRow[]>([])
+  const [isLoadingMine, setIsLoadingMine]         = useState(false)
 
   const scrollRef = useRef<ScrollView>(null)
   const scrollX   = useRef(new Animated.Value(0)).current
 
   // Underline slides from 0 → SW/2 as the pager moves from page 0 → page 1
-  const underlineX = scrollX.interpolate({
-    inputRange: [0, SW],
-    outputRange: [0, SW / 2],
-    extrapolate: 'clamp',
-  })
+  const underlineX = scrollX.interpolate({ inputRange: [0, SW], outputRange: [0, SW / 2], extrapolate: 'clamp' })
 
-  async function loadMyOffers() {
+  const loadMyOffers = useCallback(async () => {
     if (!user) return
     setIsLoadingMine(true)
     try {
@@ -57,7 +47,7 @@ export default function ExchangeScreen() {
     } finally {
       setIsLoadingMine(false)
     }
-  }
+  }, [user])
 
   useFocusEffect(useCallback(() => {
     if (pageIndex === 1) loadMyOffers()
@@ -71,17 +61,23 @@ export default function ExchangeScreen() {
     setRefreshing(false)
   }
 
+  function goToMine() {
+    setCurrency(null)
+    resetFilters()
+    loadMyOffers()
+  }
+
   function scrollToPage(index: number) {
     setPageIndex(index)
     scrollRef.current?.scrollTo({ x: index * SW, animated: true })
-    if (index === 1) { setCurrency(null); resetFilters(); loadMyOffers() }
+    if (index === 1) goToMine()
   }
 
   function handleScrollEnd(e: NativeSyntheticEvent<NativeScrollEvent>) {
     const index = Math.round(e.nativeEvent.contentOffset.x / SW)
     if (index === pageIndex) return
     setPageIndex(index)
-    if (index === 1) { setCurrency(null); resetFilters(); loadMyOffers() }
+    if (index === 1) goToMine()
   }
 
   function handleCurrencySelect(cur: string) {
@@ -91,27 +87,19 @@ export default function ExchangeScreen() {
     setCurrencySheetOpen(false)
   }
 
-  const showMarketSkeleton = !hasFetched && isLoading
-  const showMineSkeleton   = isLoadingMine && myOffers.length === 0
-
   return (
     <ScreenContainer scroll={false} padding={false}>
-      {/* ── Large-title header ── */}
       <Header
         variant="large"
         title="Trade"
         subtitle="Swap crypto with sellers"
         // CO4: hand-create a sell offer (advanced mode only).
         {...(user?.advanced_mode_enabled
-          ? {
-              rightIcon: Plus,
-              onRightPress: () =>
-                router.push('/exchange/create' as Parameters<typeof router.push>[0]),
-            }
+          ? { rightIcon: Plus, onRightPress: () => router.push('/exchange/create' as Parameters<typeof router.push>[0]) }
           : {})}
       />
 
-      {/* ── Tab row + animated underline ── */}
+      {/* Tab row + animated underline */}
       <View style={[s.tabRow, { borderBottomColor: theme.colors.border.subtle }]}>
         {(['Market', 'My Offers'] as const).map((label, i) => (
           <Pressable key={label} style={s.tab} onPress={() => scrollToPage(i)}>
@@ -129,174 +117,53 @@ export default function ExchangeScreen() {
         />
       </View>
 
-      {/* ── Swipeable pages ── */}
+      {/* Swipeable pages */}
       <ScrollView
         ref={scrollRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
         scrollEventThrottle={16}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: false },
-        )}
+        onScroll={Animated.event([{ nativeEvent: { contentOffset: { x: scrollX } } }], { useNativeDriver: false })}
         onMomentumScrollEnd={handleScrollEnd}
         style={s.pager}
       >
-        {/* Page 0 — Market */}
-        <View style={{ width: SW }}>
-          {/* Currency filter pill */}
-          <View style={[s.filterRow, { borderBottomColor: theme.colors.border.subtle }]}>
-            <Pressable
-              style={[s.filterBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
-              onPress={() => setCurrencySheetOpen(true)}
-            >
-              <SlidersHorizontal size={13} color={theme.colors.content.secondary} />
-              <Text variant="caption" weight="medium" color={theme.colors.content.secondary}>
-                {currency ?? 'All currencies'}
-              </Text>
-            </Pressable>
-            {currency && (
-              <Pressable hitSlop={8} onPress={() => { setCurrency(null); resetFilters() }}>
-                <X size={16} color={theme.colors.content.secondary} />
-              </Pressable>
-            )}
-          </View>
-
-          {showMarketSkeleton ? (
-            <View style={s.skeletonWrap}>
-              {[0, 1, 2].map((i) => (
-                <View key={i} style={s.skeletonCard}><Skeleton width="100%" height={110} radius={12} /></View>
-              ))}
-            </View>
-          ) : error ? (
-            <View style={s.center}>
-              <Text color={theme.colors.feedback.danger.text}>{error}</Text>
-              <Spacer size={spacing.sm} />
-              <Button variant="outline" size="sm" onPress={fetchOffers}>Retry</Button>
-            </View>
-          ) : (
-            <FlatList
-              data={offers}
-              keyExtractor={(item) => item.escrow_id}
-              renderItem={({ item }) => <ExchangeOfferCard offer={item} showStatus={false} />}
-              contentContainerStyle={s.list}
-              ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.brand.primary} />}
-              onEndReached={loadMore}
-              onEndReachedThreshold={0.3}
-              ListFooterComponent={isLoadingMore ? <ActivityIndicator style={s.footer} color={theme.colors.brand.primary} /> : null}
-              ListEmptyComponent={
-                <EmptyState
-                  title="No open offers"
-                  description={currency ? `No open ${currency} offers right now` : 'Check back soon for new offers'}
-                />
-              }
-            />
-          )}
-        </View>
-
-        {/* Page 1 — My Offers */}
-        <View style={{ width: SW }}>
-          {showMineSkeleton ? (
-            <View style={s.skeletonWrap}>
-              {[0, 1, 2].map((i) => (
-                <View key={i} style={s.skeletonCard}><Skeleton width="100%" height={110} radius={12} /></View>
-              ))}
-            </View>
-          ) : (
-            <FlatList
-              data={myOffers}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => <MyOfferRow offer={item} />}
-              contentContainerStyle={s.list}
-              ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={theme.colors.brand.primary} />}
-              ListEmptyComponent={
-                <EmptyState
-                  title="No offers yet"
-                  description='Use Buy / Sell to post your first offer'
-                />
-              }
-            />
-          )}
-        </View>
+        <ExchangeMarketPage
+          width={SW}
+          currency={currency}
+          offers={offers}
+          showSkeleton={!hasFetched && isLoading}
+          error={error}
+          refreshing={refreshing}
+          isLoadingMore={isLoadingMore}
+          onOpenFilter={() => setCurrencySheetOpen(true)}
+          onClearCurrency={() => { setCurrency(null); resetFilters() }}
+          onRetry={fetchOffers}
+          onRefresh={handleRefresh}
+          onLoadMore={loadMore}
+        />
+        <ExchangeMyOffersPage
+          width={SW}
+          myOffers={myOffers}
+          showSkeleton={isLoadingMine && myOffers.length === 0}
+          refreshing={refreshing}
+          onRefresh={handleRefresh}
+        />
       </ScrollView>
 
-      {/* ── Currency picker ── */}
-      <BottomSheet
+      <CurrencyFilterSheet
         visible={currencySheetOpen}
         onClose={() => setCurrencySheetOpen(false)}
-        title="Filter by currency"
-      >
-        {SUPPORTED_CURRENCIES.map((cur) => (
-          <Pressable
-            key={cur}
-            onPress={() => handleCurrencySelect(cur)}
-            style={[s.currencyOption, { borderBottomColor: theme.colors.border.subtle }]}
-          >
-            <Text
-              weight={currency === cur ? 'semibold' : 'regular'}
-              color={currency === cur ? theme.colors.brand.primary : theme.colors.content.primary}
-            >
-              {cur}
-            </Text>
-            {currency === cur && <Check size={16} color={theme.colors.brand.primary} />}
-          </Pressable>
-        ))}
-      </BottomSheet>
+        currency={currency}
+        onSelect={handleCurrencySelect}
+      />
     </ScreenContainer>
   )
 }
 
 const s = StyleSheet.create({
-  header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: spacing.md, paddingTop: spacing.lg, paddingBottom: spacing.sm, borderBottomWidth: 1,
-  },
-  tabRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  underline: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    width: '50%',
-    height: 2,
-  },
+  tabRow: { flexDirection: 'row', borderBottomWidth: 1 },
+  tab: { flex: 1, alignItems: 'center', paddingVertical: 14 },
+  underline: { position: 'absolute', bottom: 0, left: 0, width: '50%', height: 2 },
   pager: { flex: 1 },
-  filterRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-  },
-  filterBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingVertical: 6,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.full,
-  },
-  list:         { padding: spacing.md, paddingBottom: spacing['2xl'] },
-  skeletonWrap: { padding: spacing.md },
-  skeletonCard: { marginBottom: spacing.sm },
-  center:       { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  footer:       { paddingVertical: spacing.md },
-  currencyOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-  },
 })
