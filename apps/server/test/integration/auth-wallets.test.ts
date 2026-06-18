@@ -9,6 +9,8 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { user_wallets, user_identities } from '@tenda/shared/db/schema/identity'
+import { AppError } from '@server/lib/errors'
+import { unlinkWallet } from '@server/lib/auth/wallet-unlink'
 import { walletFixture } from '../helpers/fixtures'
 import {
   TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, authHeader,
@@ -126,6 +128,33 @@ test('unlink-wallet: 200 unlinks a non-primary idle wallet', { skip }, async () 
   })
   assert.strictEqual(res.statusCode, 200)
   assert.strictEqual(res.json().unlinked, true)
+})
+
+test('unlink-wallet: concurrent unlinks of two wallets cannot strand the account', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app) // no identities → these wallets are the ONLY credentials
+  const w1 = await link(app, u.row.id, { is_primary: false })
+  const w2 = await link(app, u.row.id, { is_primary: false })
+
+  // Drive the core directly (the race is at the DB layer, below the route) so
+  // the two transactions genuinely run in parallel on the pool — without the
+  // per-user advisory lock both read count=2 and both delete → 0 credentials
+  // (stranded). With it, the loser sees count=1 and throws LAST_CREDENTIAL.
+  const results = await Promise.allSettled([
+    unlinkWallet(app.db, { userId: u.row.id, chain_ns: w1.chain_ns, address: w1.address }),
+    unlinkWallet(app.db, { userId: u.row.id, chain_ns: w2.chain_ns, address: w2.address }),
+  ])
+
+  const fulfilled = results.filter((r) => r.status === 'fulfilled')
+  const rejected = results.filter((r) => r.status === 'rejected')
+  assert.strictEqual(fulfilled.length, 1, 'exactly one unlink succeeds')
+  assert.strictEqual(rejected.length, 1, 'the other is refused')
+  const reason = rejected[0]?.status === 'rejected' ? rejected[0].reason : null
+  assert.ok(reason instanceof AppError && reason.code === 'LAST_CREDENTIAL')
+
+  // The account is never stranded — exactly one wallet remains.
+  const left = await app.db.select().from(user_wallets).where(eq(user_wallets.user_id, u.row.id))
+  assert.strictEqual(left.length, 1)
 })
 
 // ---------- set-primary-wallet ---------------------------------------------------

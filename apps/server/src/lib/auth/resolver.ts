@@ -94,7 +94,7 @@ export async function listLoginMethods(
 }
 
 /** Total count of sign-in methods (identities + wallets) for last-credential guards. */
-export async function countLoginMethods(db: AppDatabase, userId: string): Promise<number> {
+export async function countLoginMethods(db: AppDb, userId: string): Promise<number> {
   const [identities, wallets] = await Promise.all([
     db
       .select({ n: sql<number>`count(*)::int` })
@@ -113,7 +113,7 @@ export async function countLoginMethods(db: AppDatabase, userId: string): Promis
  * sign back in. Call BEFORE the delete (count reflects current state, so a
  * count of 1 means the row being removed is the last one).
  */
-export async function assertNotLastCredential(db: AppDatabase, userId: string): Promise<void> {
+export async function assertNotLastCredential(db: AppDb, userId: string): Promise<void> {
   if ((await countLoginMethods(db, userId)) <= 1) {
     throw new AppError(
       409,
