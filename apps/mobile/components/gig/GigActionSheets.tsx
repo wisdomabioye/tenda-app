@@ -1,23 +1,13 @@
-import { useState } from 'react'
-import { View, Modal, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
-import { useUnistyles } from 'react-native-unistyles'
-import { spacing, radius } from '@/theme/tokens'
-import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
-import { Spacer } from '@/components/ui/Spacer'
-import { Text } from '@/components/ui/Text'
 import { showToast } from '@/components/ui/Toast'
-import { BottomSheet } from '@/components/ui/BottomSheet'
-import { FilePicker, type PickedFile } from '@/components/form/FilePicker'
-import { StarRating } from '@/components/form/StarRating'
-import { useGigsStore } from '@/stores/gigs.store'
 import { api } from '@/api/client'
-import { uploadToCloudinary } from '@/lib/upload'
-import type { GigDetail, ReviewInput } from '@tenda/shared'
+import type { GigDetail } from '@tenda/shared'
 import type { ActiveSheet } from './GigCTABar'
-
-type Score = 1 | 2 | 3 | 4 | 5
+import { ProofUploadSheet } from './gig-action-sheets/ProofUploadSheet'
+import { DisputeSheet } from './gig-action-sheets/DisputeSheet'
+import { ReviewSheet } from './gig-action-sheets/ReviewSheet'
+import { ConfirmModal, type ConfirmKind } from './gig-action-sheets/ConfirmModal'
+import type { Proof } from './gig-action-sheets/upload'
 
 interface GigActionSheetsProps {
   /** Only the escrow id is consumed — gig and exchange details both fit. */
@@ -29,10 +19,12 @@ interface GigActionSheetsProps {
   onAcceptConfirmed: () => void
   onCancelOpenConfirmed: () => void
   onRefundExpiredConfirmed: () => void
-  onProofsReady: (proofs: { url: string; type: 'image' | 'video' | 'document' }[]) => Promise<boolean>
-  onAddProofsReady: (proofs: { url: string; type: 'image' | 'video' | 'document' }[]) => Promise<void>
+  onProofsReady: (proofs: Proof[]) => Promise<boolean>
+  onAddProofsReady: (proofs: Proof[]) => Promise<void>
   onDisputeReady: (reason: string) => Promise<boolean>
 }
+
+const CONFIRM_KINDS: ConfirmKind[] = ['accept', 'cancel', 'delete', 'refund']
 
 export function GigActionSheets({
   gig,
@@ -47,103 +39,9 @@ export function GigActionSheets({
   onDisputeReady,
 }: GigActionSheetsProps) {
   const router = useRouter()
-  const { theme } = useUnistyles()
-  const { reviewEscrow } = useGigsStore()
-
-  const [proofFiles, setProofFiles] = useState<PickedFile[]>([])
-  const [proofUploading, setProofUploading] = useState(false)
-  const [disputeLoading, setDisputeLoading] = useState(false)
-  const [addProofFiles, setAddProofFiles] = useState<PickedFile[]>([])
-  const [addProofUploading, setAddProofUploading] = useState(false)
-  const [disputeReason, setDisputeReason] = useState('')
-  const [reviewScore, setReviewScore] = useState<Score | null>(null)
-  const [reviewComment, setReviewComment] = useState('')
-
-  // Reset form state when a sheet closes so stale input doesn't persist across opens.
-  function handleClose() {
-    setDisputeReason('')
-    setReviewScore(null)
-    setReviewComment('')
-    onClose()
-  }
-
-  // Accept: close modal, hand off to parent for blockchain tx + monitoring
-  function handleAccept() {
-    handleClose()
-    onAcceptConfirmed()
-  }
-
-  // Submit proof: upload files to Cloudinary, then hand off URLs to parent for blockchain tx
-  async function handleSubmitProof() {
-    if (proofFiles.length === 0) return
-    setProofUploading(true)
-    try {
-      const proofs: { url: string; type: 'image' | 'video' | 'document' }[] = []
-      for (const file of proofFiles) {
-        try {
-          const url = await uploadToCloudinary(file, 'proof')
-          proofs.push({ url, type: file.type })
-        } catch (e) {
-          showToast('error', `Failed to upload "${file.name}": ${(e as Error).message}`)
-          // Stop the loop — files already uploaded are discarded; user retries with all files.
-          return
-        }
-      }
-      if (await onProofsReady(proofs)) {
-        handleClose()
-        setProofFiles([])
-      }
-    } finally {
-      setProofUploading(false)
-    }
-  }
-
-  async function handleAddProof() {
-    if (addProofFiles.length === 0) return
-    setAddProofUploading(true)
-    try {
-      const proofs: { url: string; type: 'image' | 'video' | 'document' }[] = []
-      for (const file of addProofFiles) {
-        try {
-          const url = await uploadToCloudinary(file, 'proof')
-          proofs.push({ url, type: file.type })
-        } catch (e) {
-          showToast('error', `Failed to upload "${file.name}": ${(e as Error).message}`)
-          return
-        }
-      }
-      handleClose()
-      setAddProofFiles([])
-      await onAddProofsReady(proofs)
-    } finally {
-      setAddProofUploading(false)
-    }
-  }
-
-  async function handleDispute() {
-    if (!disputeReason.trim()) return
-    setDisputeLoading(true)
-    try {
-      if (await onDisputeReady(disputeReason.trim())) handleClose()
-    } finally {
-      setDisputeLoading(false)
-    }
-  }
-
-  async function handleReview() {
-    if (!reviewScore) return
-    try {
-      await reviewEscrow(gig.escrow_id, { score: reviewScore as ReviewInput['score'], comment: reviewComment.trim() || undefined })
-      handleClose()
-      onReviewSubmitted()
-      showToast('success', 'Review submitted!')
-    } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to submit review')
-    }
-  }
 
   async function handleCancelDraft() {
-    handleClose()
+    onClose()
     try {
       // Drafts are pre-sign staging rows — discarded off-chain.
       await api.escrows.delete({ id: gig.escrow_id })
@@ -154,174 +52,53 @@ export function GigActionSheets({
     }
   }
 
-  // Cancel open gig: close modal, hand off to parent for blockchain tx + monitoring
-  function handleCancelOpen() {
-    handleClose()
-    onCancelOpenConfirmed()
+  // Map a confirm dialog kind to its action. On-chain actions close then hand
+  // off to the parent (tx signing + monitoring); delete is handled locally.
+  const confirmKind = CONFIRM_KINDS.includes(activeSheet as ConfirmKind) ? (activeSheet as ConfirmKind) : null
+  function handleConfirm() {
+    if (confirmKind === 'delete') {
+      void handleCancelDraft()
+      return
+    }
+    onClose()
+    if (confirmKind === 'accept') onAcceptConfirmed()
+    else if (confirmKind === 'cancel') onCancelOpenConfirmed()
+    else if (confirmKind === 'refund') onRefundExpiredConfirmed()
   }
-
-  // Refund expired: close modal, hand off to parent for blockchain tx + monitoring
-  function handleRefundConfirm() {
-    handleClose()
-    onRefundExpiredConfirmed()
-  }
-
-  const isConfirm = activeSheet === 'accept' || activeSheet === 'cancel' || activeSheet === 'delete' || activeSheet === 'refund'
 
   return (
     <>
-      <BottomSheet visible={activeSheet === 'proof'} onClose={handleClose} title="Submit proof">
-        <FilePicker files={proofFiles} onChange={setProofFiles} accept="any" max={5} />
-        <Spacer size={spacing.md} />
-        <Button
-          variant="primary"
-          size="xl"
-          fullWidth
-          disabled={proofFiles.length === 0}
-          loading={proofUploading}
-          onPress={handleSubmitProof}
-        >
-          Submit
-        </Button>
-      </BottomSheet>
+      <ProofUploadSheet
+        visible={activeSheet === 'proof'}
+        onClose={onClose}
+        title="Submit proof"
+        submitLabel="Submit"
+        closeMode="on-success"
+        onSubmit={onProofsReady}
+      />
 
-      <BottomSheet visible={activeSheet === 'addProof'} onClose={handleClose} title="Add more proof">
-        <FilePicker files={addProofFiles} onChange={setAddProofFiles} accept="any" max={5} />
-        <Spacer size={spacing.md} />
-        <Button
-          variant="primary"
-          size="xl"
-          fullWidth
-          disabled={addProofFiles.length === 0}
-          loading={addProofUploading}
-          onPress={handleAddProof}
-        >
-          Upload
-        </Button>
-      </BottomSheet>
+      <ProofUploadSheet
+        visible={activeSheet === 'addProof'}
+        onClose={onClose}
+        title="Add more proof"
+        submitLabel="Upload"
+        closeMode="before-submit"
+        onSubmit={async (proofs) => {
+          await onAddProofsReady(proofs)
+          return true
+        }}
+      />
 
-      <BottomSheet visible={activeSheet === 'dispute'} onClose={handleClose} title="Raise a dispute">
-        <Input
-          label="Reason"
-          placeholder="Describe the issue clearly..."
-          helper="An admin will review and reach out. Max 2000 characters."
-          value={disputeReason}
-          onChangeText={setDisputeReason}
-          multiline
-          numberOfLines={5}
-          style={s.multiline}
-          maxLength={2000}
-        />
-        <Spacer size={spacing.md} />
-        <Button
-          variant="danger"
-          size="xl"
-          fullWidth
-          disabled={!disputeReason.trim()}
-          loading={disputeLoading}
-          onPress={handleDispute}
-        >
-          Raise Dispute
-        </Button>
-      </BottomSheet>
+      <DisputeSheet visible={activeSheet === 'dispute'} onClose={onClose} onDisputeReady={onDisputeReady} />
 
-      <BottomSheet visible={activeSheet === 'review'} onClose={handleClose} title="Leave a review">
-        <View style={s.starRow}>
-          <StarRating value={reviewScore} onChange={(v) => setReviewScore(v as Score)} />
-        </View>
-        <Spacer size={spacing.md} />
-        <Input
-          label="Comment (optional)"
-          placeholder="Share your experience..."
-          helper="Optional — describe how the gig went"
-          value={reviewComment}
-          onChangeText={setReviewComment}
-          multiline
-          numberOfLines={3}
-          style={s.multiline}
-        />
-        <Spacer size={spacing.md} />
-        <Button
-          variant="primary"
-          size="xl"
-          fullWidth
-          disabled={!reviewScore}
-          onPress={handleReview}
-        >
-          Submit Review
-        </Button>
-      </BottomSheet>
+      <ReviewSheet
+        visible={activeSheet === 'review'}
+        onClose={onClose}
+        escrowId={gig.escrow_id}
+        onReviewSubmitted={onReviewSubmitted}
+      />
 
-      <Modal visible={isConfirm} transparent animationType="fade" onRequestClose={handleClose}>
-        <View style={[s.modalOverlay, { backgroundColor: theme.colors.surface.overlay }]}>
-          <View style={[s.modalCard, { backgroundColor: theme.colors.surface.card }]}>
-            <Text variant="subheading">
-              {activeSheet === 'accept' ? 'Accept this gig?' :
-               activeSheet === 'cancel' ? 'Cancel this gig?' :
-               activeSheet === 'refund' ? 'Claim refund?' :
-               'Delete this draft?'}
-            </Text>
-            <Spacer size={spacing.sm} />
-            <Text variant="body" color={theme.colors.content.secondary}>
-              {activeSheet === 'accept'
-                ? 'You will be responsible for completing this gig within the deadline.'
-                : activeSheet === 'cancel'
-                ? 'The escrow will be refunded to your wallet on-chain.'
-                : activeSheet === 'refund'
-                ? 'The escrowed funds will be returned to your wallet. This cannot be undone.'
-                : 'This action cannot be undone.'}
-            </Text>
-            <Spacer size={spacing.lg} />
-            <View style={s.ctaRow}>
-              <Button variant="ghost" size="md" style={s.ctaFlex} onPress={handleClose}>
-                Cancel
-              </Button>
-              <Button
-                variant={activeSheet === 'accept' ? 'primary' : 'danger'}
-                size="md"
-                style={s.ctaFlex}
-                onPress={
-                  activeSheet === 'accept' ? handleAccept :
-                  activeSheet === 'cancel' ? handleCancelOpen :
-                  activeSheet === 'refund' ? handleRefundConfirm :
-                  handleCancelDraft
-                }
-              >
-                Confirm
-              </Button>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      <ConfirmModal kind={confirmKind} onCancel={onClose} onConfirm={handleConfirm} />
     </>
   )
 }
-
-const s = StyleSheet.create({
-  multiline: {
-    minHeight: 80,
-    textAlignVertical: 'top',
-  },
-  starRow: {
-    alignItems: 'center',
-  },
-  modalOverlay: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  modalCard: {
-    width: '100%',
-    maxWidth: 340,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-  },
-  ctaRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  ctaFlex: {
-    flex: 1,
-  },
-})
