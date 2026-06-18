@@ -120,7 +120,7 @@ describe('signInWithWallet', () => {
   it('publishes a Solana account to walletAddress + SecureStore', async () => {
     walletSignInMock.mockResolvedValue({ auth: AUTH, account: account('solana') })
 
-    const ok = await useAuthStore.getState().signInWithWallet(stubAdapter(), { is_seeker: true })
+    const ok = await useAuthStore.getState().signInWithWallet(stubAdapter())
 
     expect(ok).toBe(true)
     const s = useAuthStore.getState()
@@ -130,7 +130,8 @@ describe('signInWithWallet', () => {
     expect(s.profileComplete).toBe(true)
     expect(setJwt).toHaveBeenCalledWith('jwt-123')
     expect(setAddr).toHaveBeenCalledWith('SoLaNaAddr')
-    expect(walletSignInMock).toHaveBeenCalledWith(expect.anything(), { is_seeker: true })
+    // Find-or-reject: the adapter is the sole argument — no signup bootstrap.
+    expect(walletSignInMock.mock.calls[0]).toHaveLength(1)
   })
 
   it('publishes an EVM account to evmAddress only — no Solana persist', async () => {

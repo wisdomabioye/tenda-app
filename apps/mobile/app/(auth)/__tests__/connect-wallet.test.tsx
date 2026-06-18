@@ -102,17 +102,16 @@ jest.mock('@/wallet/picker', () => {
   }
 })
 
-jest.mock('@/lib/device', () => ({
-  isSeekerDevice: () => true,
-  getDeviceCountry: () => 'NG',
-}))
-
 jest.mock('@/api/client', () => {
+  // Defined inside the factory so auth-flow's `instanceof ApiClientError`
+  // resolves to THIS class (the test imports it from the mocked module too).
   class ApiClientError extends Error {
     statusCode: number
-    constructor(statusCode: number, error: string, message: string) {
+    code?: string
+    constructor(statusCode: number, error: string, message: string, code?: string) {
       super(message)
       this.statusCode = statusCode
+      this.code = code
     }
   }
   return { ApiClientError }
@@ -152,14 +151,12 @@ describe('ConnectWalletScreen', () => {
     expect(screen.getByText('picker-visible')).toBeTruthy()
   })
 
-  it('signs in and routes to home for a complete profile', async () => {
+  it('signs in (adapter only — no signup bootstrap) and routes to home for a complete profile', async () => {
     signInMock.mockResolvedValue(true)
     render(<ConnectWalletScreen />)
     selectWallet()
-    await waitFor(() => expect(signInMock).toHaveBeenCalledWith(FAKE_ADAPTER, {
-      is_seeker: true,
-      country: 'NG',
-    }))
+    await waitFor(() => expect(signInMock).toHaveBeenCalledWith(FAKE_ADAPTER))
+    expect(signInMock.mock.calls[0]).toHaveLength(1)
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)/home')
   })
 
@@ -192,6 +189,18 @@ describe('ConnectWalletScreen', () => {
     render(<ConnectWalletScreen />)
     selectWallet()
     await waitFor(() => expect(screen.getByText('Sign-in failed')).toBeTruthy())
+  })
+
+  it('steers an unlinked wallet (WALLET_NOT_LINKED) to get-started', async () => {
+    signInMock.mockRejectedValue(
+      new ApiClientError(404, 'Not Found', 'not linked', 'WALLET_NOT_LINKED'),
+    )
+    render(<ConnectWalletScreen />)
+    selectWallet()
+    await waitFor(() => expect(screen.getByText('Wallet not linked')).toBeTruthy())
+    // The secondary CTA routes to the multi-method entry, not a dead end.
+    fireEvent.press(screen.getByText('Get started'))
+    expect(mockReplace).toHaveBeenCalledWith('/(auth)/get-started')
   })
 
   it.each([

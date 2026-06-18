@@ -6,6 +6,7 @@
  * imports, so factory-referenced vars are `mock`-prefixed.)
  */
 import { render, fireEvent, waitFor, screen } from '@testing-library/react-native'
+import type { ChallengeBody } from '@tenda/shared'
 
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
@@ -47,9 +48,9 @@ jest.mock('@/stores/auth.store', () => ({
   ),
 }))
 
-const mockChallenge = jest.fn(async () => ({ expires_in: 600 }))
+const mockChallenge = jest.fn(async (_body: ChallengeBody) => ({ expires_in: 600 }))
 jest.mock('@/api/client', () => ({
-  api: { auth: { challenge: (...a: unknown[]) => mockChallenge(...a) } },
+  api: { auth: { challenge: (body: ChallengeBody) => mockChallenge(body) } },
   ApiClientError: class extends Error {},
 }))
 
@@ -98,7 +99,7 @@ test('Google: verifies the id_token then routes', async () => {
 })
 
 test('Google cancellation is silent — no toast, no nav', async () => {
-  mockSignInWithGoogle.mockRejectedValue(new GoogleSignInError('cancelled'))
+  mockSignInWithGoogle.mockRejectedValue(new GoogleSignInError('cancelled', 'user cancelled'))
   render(<GetStartedScreen />)
   fireEvent.press(screen.getByText('Continue with Google'))
   await waitFor(() => expect(mockSignInWithGoogle).toHaveBeenCalled())

@@ -34,16 +34,16 @@ interface AuthState {
   phoneVerified: boolean
 
   /**
-   * Sign in with any wallet adapter (nonce → authenticate → JWT). Resolves to
-   * false when the user declines in the wallet, true on success. Throws on
-   * transport or server failure. The connected account's address is published
-   * to the namespace-appropriate slot (`walletAddress` for Solana — consumed
-   * as a Solana pubkey — or `evmAddress` for EVM).
+   * Sign in with any wallet adapter (nonce → authenticate → verify → JWT).
+   * Find-or-reject (decision #3): an unknown wallet throws WALLET_NOT_LINKED;
+   * the wallet never creates an account. Resolves to false when the user
+   * declines in the wallet, true on success. Throws on transport or server
+   * failure (the connect-wallet screen maps WALLET_NOT_LINKED to Tier-0). The
+   * connected account's address is published to the namespace-appropriate slot
+   * (`walletAddress` for Solana — consumed as a Solana pubkey — or `evmAddress`
+   * for EVM).
    */
-  signInWithWallet: (
-    adapter: WalletAdapter,
-    opts?: { is_seeker?: boolean; country?: string | null },
-  ) => Promise<boolean>
+  signInWithWallet: (adapter: WalletAdapter) => Promise<boolean>
   /**
    * Stage 9 unified sign-in — verify a credential proof (phone/email OTP,
    * OAuth id_token, or wallet signature) via POST /v1/auth/verify and set the
@@ -72,8 +72,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   profileComplete: null,
   phoneVerified: false,
 
-  signInWithWallet: async (adapter, opts = {}) => {
-    const result = await walletSignIn(adapter, opts)
+  signInWithWallet: async (adapter) => {
+    const result = await walletSignIn(adapter)
     if (result === null) return false
 
     const { auth, account } = result

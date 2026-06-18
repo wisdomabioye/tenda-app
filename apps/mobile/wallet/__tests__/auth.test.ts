@@ -12,7 +12,7 @@ jest.mock('@/api/client', () => ({
   api: {
     auth: {
       nonce: jest.fn(),
-      wallet: jest.fn(),
+      verify: jest.fn(),
       linkWallet: jest.fn(),
     },
   },
@@ -23,16 +23,17 @@ import { WALLET_CHAINS } from '@/wallet/config'
 import { signInWithWallet, linkWalletWith } from '@/wallet/auth'
 import type { WalletAdapter, AuthenticateResult } from '@/wallet/adapters/types'
 import type { Namespace, SpikeAccount, SignMessageResult } from '@/wallet/types'
-import type { AuthResponse } from '@tenda/shared'
+import type { VerifyResponse } from '@tenda/shared'
 
 const nonceMock = api.auth.nonce as jest.Mock
-const walletMock = api.auth.wallet as jest.Mock
+const verifyMock = api.auth.verify as jest.Mock
 const linkWalletMock = api.auth.linkWallet as jest.Mock
 
-const AUTH_RESPONSE: AuthResponse = {
+const VERIFY_RESPONSE: VerifyResponse = {
   token: 'jwt.token.here',
   // user shape is opaque to this module; a minimal stand-in keeps the type happy.
-  user: { id: 'u1' } as AuthResponse['user'],
+  user: { id: 'u1' } as VerifyResponse['user'],
+  is_new: false,
 }
 
 function accountFor(namespace: Namespace): SpikeAccount {
@@ -94,24 +95,26 @@ function fakeAdapter(
 
 beforeEach(() => {
   nonceMock.mockResolvedValue({ nonce: 'NONCE-123' })
-  walletMock.mockResolvedValue(AUTH_RESPONSE)
+  verifyMock.mockResolvedValue(VERIFY_RESPONSE)
   linkWalletMock.mockResolvedValue({ wallet: { address: 'x' } })
 })
 
 describe('signInWithWallet', () => {
   it.each<Namespace>(['solana', 'eip155'])(
-    'signs in over the %s namespace with the registered chain id',
+    'signs in over the %s namespace via verify with the registered chain id',
     async (namespace) => {
       const account = accountFor(namespace)
       const adapter = fakeAdapter(account)
 
       const result = await signInWithWallet(adapter)
 
-      expect(result).toEqual({ auth: AUTH_RESPONSE, account })
+      expect(result).toEqual({ auth: VERIFY_RESPONSE, account })
       expect(nonceMock).toHaveBeenCalledTimes(1)
-      // The body's chain_id is the canonical registered id, not account.chainId.
-      expect(walletMock).toHaveBeenCalledWith(
+      // Routed through the unified verify surface as method 'wallet'; the
+      // chain_id is the canonical registered id, not account.chainId.
+      expect(verifyMock).toHaveBeenCalledWith(
         expect.objectContaining({
+          method: 'wallet',
           chain_id: WALLET_CHAINS[namespace],
           address: account.address,
           signature: 'sig',
@@ -123,16 +126,10 @@ describe('signInWithWallet', () => {
     },
   )
 
-  it('forwards is_seeker and country only when provided', async () => {
-    const adapter = fakeAdapter(accountFor('solana'))
-    await signInWithWallet(adapter, { is_seeker: true, country: 'NG' })
-    expect(walletMock).toHaveBeenCalledWith(
-      expect.objectContaining({ is_seeker: true, country: 'NG' }),
-    )
-
-    walletMock.mockClear()
+  it('never sends signup bootstrap — wallet is find-or-reject (decision #3)', async () => {
     await signInWithWallet(fakeAdapter(accountFor('solana')))
-    const body = walletMock.mock.calls[0][0]
+    const body = verifyMock.mock.calls[0][0]
+    expect(body.method).toBe('wallet')
     expect(body).not.toHaveProperty('is_seeker')
     expect(body).not.toHaveProperty('country')
   })
@@ -140,13 +137,13 @@ describe('signInWithWallet', () => {
   it('returns null on user decline and never calls the server', async () => {
     const adapter = fakeAdapter(accountFor('eip155'), { decline: true })
     expect(await signInWithWallet(adapter)).toBeNull()
-    expect(walletMock).not.toHaveBeenCalled()
+    expect(verifyMock).not.toHaveBeenCalled()
   })
 
-  it('propagates a server failure', async () => {
-    walletMock.mockRejectedValueOnce(new Error('401 unauthorized'))
+  it('propagates a WALLET_NOT_LINKED rejection (find-or-reject)', async () => {
+    verifyMock.mockRejectedValueOnce(new Error('WALLET_NOT_LINKED'))
     await expect(signInWithWallet(fakeAdapter(accountFor('solana')))).rejects.toThrow(
-      '401 unauthorized',
+      'WALLET_NOT_LINKED',
     )
   })
 
@@ -177,7 +174,7 @@ describe('linkWalletWith', () => {
           message: expect.stringContaining(WALLET_CHAINS[namespace]),
         }),
       )
-      expect(walletMock).not.toHaveBeenCalled()
+      expect(verifyMock).not.toHaveBeenCalled()
     },
   )
 

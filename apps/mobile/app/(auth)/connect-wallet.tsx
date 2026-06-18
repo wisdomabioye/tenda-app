@@ -15,7 +15,7 @@ import { ApiClientError } from '@/api/client'
 import { WalletPicker } from '@/wallet/picker'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 import { APP_INFO } from '@/lib/app-info'
-import { isSeekerDevice, getDeviceCountry } from '@/lib/device'
+import { classifyVerifyError, TIER0_MESSAGE } from '@/lib/auth-flow'
 
 const Logo = require('@/assets/images/logo.png')
 
@@ -86,10 +86,7 @@ export default function ConnectWalletScreen() {
     setIsConnecting(true)
     setConnectError(null)
     try {
-      const ok = await signInWithWallet(adapter, {
-        is_seeker: isSeekerDevice(),
-        country: getDeviceCountry(),
-      })
+      const ok = await signInWithWallet(adapter)
       if (ok) {
         // Stage 1: incomplete profiles detour through setup before home.
         const complete = useAuthStore.getState().profileComplete
@@ -99,7 +96,19 @@ export default function ConnectWalletScreen() {
       }
     } catch (error) {
       if (__DEV__) console.warn('[connect-wallet] sign-in failed:', error)
-      setConnectError(classifyError(error))
+      // Decision #3: an unlinked wallet can't sign in or create — steer the
+      // user to get-started (a contact method makes the account, then they
+      // link this wallet) instead of showing a dead-end error.
+      if (classifyVerifyError(error) === 'wallet_not_linked') {
+        setConnectError({
+          title: 'Wallet not linked',
+          description: TIER0_MESSAGE.wallet_not_linked,
+          secondaryLabel: 'Get started',
+          onSecondaryPress: () => router.replace('/(auth)/get-started'),
+        })
+      } else {
+        setConnectError(classifyError(error))
+      }
     } finally {
       setIsConnecting(false)
     }
