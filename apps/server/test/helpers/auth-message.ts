@@ -1,6 +1,7 @@
 /**
  * Shared wallet-auth test helpers — the server-nonce + signed-message flow
- * used by BOTH /v1/auth/wallet (login) and /v1/auth/link-wallet. Kept here so
+ * used by BOTH /v1/auth/verify { method: 'wallet' } (login) and
+ * /v1/auth/link-wallet. Kept here so
  * the two suites don't each re-implement the message format (one source of
  * truth for the Chain/URI/Nonce/Issued-At envelope `parseAuthMessage` reads).
  */

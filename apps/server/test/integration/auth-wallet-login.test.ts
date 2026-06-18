@@ -1,10 +1,15 @@
 /**
- * #98 gap-fill — POST /v1/auth/wallet (the login route) chained with
+ * Wallet sign-in via POST /v1/auth/verify { method: 'wallet' } chained with
  * POST /v1/auth/nonce. Exercises the full flow end-to-end against the real
  * app + DB: nonce issue → message build → sig verify → nonce consume →
- * find-or-create user → JWT. Covers every guard + the adversarial cases
- * (bad sig must NOT burn the nonce; replay; expiry; mismatch; suspended;
- * unregistered chain → 400 not 500).
+ * find-or-REJECT (decision #3: wallet signs in but never creates) → JWT.
+ *
+ * This is the deep wallet-lifecycle suite (#98 gap-fill): it owns the
+ * adversarial cases the unified-surface smoke (auth-unified) does not — bad
+ * sig must NOT burn the nonce, replay, never-issued nonce, issued_at window,
+ * chain/address mismatch, unregistered chain → 400 not 500, and the suspended
+ * gate. The legacy find-or-CREATE /v1/auth/wallet route was removed at 9C(4b);
+ * a wallet that no account owns now returns 404 WALLET_NOT_LINKED.
  *
  * Gated on TEST_DATABASE_URL.
  */
@@ -35,14 +40,26 @@ function freshAddress(): string {
 
 type App = ReturnType<typeof getApp>
 
+/** Create a user and link a Solana wallet to it — the precondition for a
+ *  successful wallet login now that the route is find-or-reject. */
+async function linkedWallet(
+  app: App,
+  over: { status?: 'active' | 'suspended' } = {},
+): Promise<{ address: string; userId: string }> {
+  const u = await createUser(app, over.status ? { status: over.status } : {})
+  const address = freshAddress()
+  await app.db.insert(user_wallets).values(walletFixture({ user_id: u.row.id, address }))
+  return { address, userId: u.row.id }
+}
+
 function login(
   app: App,
   body: { chain_id?: string; address: string; message: string; signature?: string } & Record<string, unknown>,
 ) {
   return app.inject({
     method: 'POST',
-    url: '/v1/auth/wallet',
-    payload: { chain_id: TEST_CHAIN_ID, signature: GOOD_SIG, ...body },
+    url: '/v1/auth/verify',
+    payload: { method: 'wallet', chain_id: TEST_CHAIN_ID, signature: GOOD_SIG, ...body },
   })
 }
 
@@ -53,67 +70,43 @@ async function loginFresh(app: App, address: string, over: Record<string, unknow
   return login(app, { address, message, ...over })
 }
 
-// ---------- happy paths --------------------------------------------------------
+// ---------- find-or-reject (decision #3) ---------------------------------------
 
-test('wallet login: a new wallet creates user + primary wallet and returns a JWT', { skip }, async () => {
+test('wallet login: an unlinked wallet → 404 WALLET_NOT_LINKED and creates NO user', { skip }, async () => {
   const app = getApp()
   const address = freshAddress()
+  const before = (await app.db.select().from(users)).length
+
   const res = await loginFresh(app, address)
-  assert.strictEqual(res.statusCode, 200)
+  assert.strictEqual(res.statusCode, 404)
+  assert.strictEqual(res.json().code, 'WALLET_NOT_LINKED')
 
-  const out = res.json()
-  assert.ok(typeof out.token === 'string' && out.token.length > 0)
-  assert.strictEqual(out.user.status, 'active')
-
-  // The wallet row exists, is primary, and points at the returned user.
-  const [w] = await app.db
-    .select()
-    .from(user_wallets)
-    .where(eq(user_wallets.address, address))
-  assert.strictEqual(w.user_id, out.user.id)
-  assert.strictEqual(w.is_primary, true)
-  assert.strictEqual(w.chain_ns, 'solana')
-
-  // The JWT carries the user id + role.
-  const decoded = app.jwt.verify<{ id: string; role: string }>(out.token)
-  assert.strictEqual(decoded.id, out.user.id)
+  // Wallet never creates: no user row, no wallet row materialised.
+  assert.strictEqual((await app.db.select().from(users)).length, before)
+  assert.strictEqual(
+    (await app.db.select().from(user_wallets).where(eq(user_wallets.address, address))).length,
+    0,
+  )
 })
 
-test('wallet login: an existing wallet resolves to the same user (no duplicate)', { skip }, async () => {
+test('wallet login: a linked wallet logs in and returns a JWT carrying id + role', { skip }, async () => {
   const app = getApp()
-  const u = await createUser(app, { first_name: 'Existing' })
-  const address = freshAddress()
-  await app.db.insert(user_wallets).values(walletFixture({ user_id: u.row.id, address }))
+  const { address, userId } = await linkedWallet(app)
 
   const before = (await app.db.select().from(users)).length
   const res = await loginFresh(app, address)
   assert.strictEqual(res.statusCode, 200)
-  assert.strictEqual(res.json().user.id, u.row.id)
-  assert.strictEqual((await app.db.select().from(users)).length, before) // no new user
-})
 
-test('wallet login: two concurrent logins for the same new wallet resolve to ONE user', { skip }, async () => {
-  const app = getApp()
-  const address = freshAddress()
+  const out = res.json()
+  assert.strictEqual(out.user.id, userId)
+  assert.strictEqual(out.user.status, 'active')
+  assert.strictEqual(out.is_new, false) // wallet never creates
+  assert.ok(typeof out.token === 'string' && out.token.length > 0)
 
-  // Each login needs its own single-use nonce; fire both in parallel so they
-  // race on the user_wallets unique insert (the find-or-create loser path).
-  const a = await issueNonce(app)
-  const b = await issueNonce(app)
-  const [r1, r2] = await Promise.all([
-    login(app, { address, message: buildMessage({ address, nonce: a.nonce, issued_at: a.issued_at }) }),
-    login(app, { address, message: buildMessage({ address, nonce: b.nonce, issued_at: b.issued_at }) }),
-  ])
-
-  assert.strictEqual(r1.statusCode, 200)
-  assert.strictEqual(r2.statusCode, 200)
-  // Both requests must converge on the same user — no duplicate, no orphan.
-  assert.strictEqual(r1.json().user.id, r2.json().user.id)
-
-  const wallets = await app.db.select().from(user_wallets).where(eq(user_wallets.address, address))
-  assert.strictEqual(wallets.length, 1)
-  const allUsers = await app.db.select().from(users)
-  assert.strictEqual(allUsers.length, 1) // the orphan from the losing insert was rolled back
+  const decoded = app.jwt.verify<{ id: string; role: string }>(out.token)
+  assert.strictEqual(decoded.id, userId)
+  // No duplicate user from a login.
+  assert.strictEqual((await app.db.select().from(users)).length, before)
 })
 
 // ---------- input validation ---------------------------------------------------
@@ -124,8 +117,8 @@ test('wallet login: missing signature → 400 VALIDATION_ERROR', { skip }, async
   const address = freshAddress()
   const res = await app.inject({
     method: 'POST',
-    url: '/v1/auth/wallet',
-    payload: { chain_id: TEST_CHAIN_ID, address, message: buildMessage({ address, nonce, issued_at }) },
+    url: '/v1/auth/verify',
+    payload: { method: 'wallet', chain_id: TEST_CHAIN_ID, address, message: buildMessage({ address, nonce, issued_at }) },
   })
   assert.strictEqual(res.statusCode, 400)
   assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
@@ -186,7 +179,8 @@ test('wallet login: an unregistered (well-formed) chain_id → 400, not 500', { 
 
 test('wallet login: a bad signature → 401 and does NOT consume the nonce', { skip }, async () => {
   const app = getApp()
-  const address = freshAddress()
+  // Linked so the post-recovery good login reaches a 200 (find-or-reject).
+  const { address } = await linkedWallet(app)
   const { nonce, issued_at } = await issueNonce(app)
   const message = buildMessage({ address, nonce, issued_at })
 
@@ -202,7 +196,7 @@ test('wallet login: a bad signature → 401 and does NOT consume the nonce', { s
 
 test('wallet login: replaying a consumed nonce → 409 AUTH_NONCE_REPLAY', { skip }, async () => {
   const app = getApp()
-  const address = freshAddress()
+  const { address } = await linkedWallet(app)
   const { nonce, issued_at } = await issueNonce(app)
   const message = buildMessage({ address, nonce, issued_at })
 
@@ -226,9 +220,7 @@ test('wallet login: a never-issued nonce → 401 AUTH_NONCE_UNKNOWN', { skip }, 
 
 test('wallet login: a suspended user → 403 USER_SUSPENDED', { skip }, async () => {
   const app = getApp()
-  const u = await createUser(app, { status: 'suspended' })
-  const address = freshAddress()
-  await app.db.insert(user_wallets).values(walletFixture({ user_id: u.row.id, address }))
+  const { address } = await linkedWallet(app, { status: 'suspended' })
 
   const res = await loginFresh(app, address)
   assert.strictEqual(res.statusCode, 403)

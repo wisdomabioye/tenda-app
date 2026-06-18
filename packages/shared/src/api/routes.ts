@@ -7,7 +7,6 @@ export const apiRoutes: {
     nonce: '/v1/auth/nonce',
     challenge: '/v1/auth/challenge',
     verify: '/v1/auth/verify',
-    wallet: '/v1/auth/wallet',
     me: '/v1/auth/me',
     sendPhoneOtp: '/v1/auth/send-phone-otp',
     verifyPhoneOtp: '/v1/auth/verify-phone-otp',

@@ -1,6 +1,5 @@
 import {
   apiRoutes,
-  type AuthResponse,
   type User,
   type UpdateUserInput,
   type PublicUser,
@@ -40,7 +39,6 @@ import {
   type UserEscrowTransaction,
   type UserTransactionsQuery,
   type AuthNonceResponse,
-  type WalletNonceAuthBody,
   type ChallengeBody,
   type ChallengeResponse,
   type VerifyBody,
@@ -112,8 +110,6 @@ export const api = {
      * identity while an anonymous caller LOGS IN / creates.
      */
     verify: (body: VerifyBody) => request<VerifyResponse>('POST', auth.verify, { body }),
-    wallet: (body: WalletNonceAuthBody) =>
-      request<AuthResponse>('POST', auth.wallet, { body }),
     me: () => request<User>('GET', auth.me),
     sendPhoneOtp: (body: SendPhoneOtpBody) =>
       request<SendPhoneOtpResponse>('POST', auth.sendPhoneOtp, { body }),

@@ -5,7 +5,6 @@ export type {
   ApiContract,
   AuthContract,
   AuthNonceResponse,
-  WalletNonceAuthBody,
   AuthMethodWire,
   ChallengeBody,
   ChallengeResponse,

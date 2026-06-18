@@ -14,7 +14,7 @@
  *   Issued At: {ISO8601}
  *
  * The wallet signs the LITERAL bytes of this string — clients must send the
- * exact same string to POST /v1/auth/wallet.
+ * exact same string to POST /v1/auth/verify { method: 'wallet' }.
  */
 
 export interface AuthMessageInput {

@@ -11,7 +11,7 @@
  */
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
-import { auth_otps, user_identities } from '@tenda/shared/db/schema'
+import { auth_otps, user_identities, user_wallets } from '@tenda/shared/db/schema'
 import { hashOtpCode, type OtpChannel } from '@server/lib/otp'
 import {
   TEST_DB_CONFIGURED,
@@ -21,6 +21,7 @@ import {
   createUser,
   resetDb,
 } from '../helpers/test-app'
+import { walletFixture } from '../helpers/fixtures'
 import { issueNonce, buildAuthMessage } from '../helpers/auth-message'
 
 const skip = !TEST_DB_CONFIGURED
@@ -148,22 +149,13 @@ test('verify wallet: unlinked → 404 WALLET_NOT_LINKED; linked → logs in', { 
   assert.strictEqual(rejected.statusCode, 404)
   assert.strictEqual(rejected.json().code, 'WALLET_NOT_LINKED')
 
-  // Create the wallet account via the legacy route, then /auth/verify logs in.
-  const { nonce, issued_at } = await issueNonce(app)
-  const created = await app.inject({
-    method: 'POST',
-    url: '/v1/auth/wallet',
-    payload: {
-      chain_id: TEST_CHAIN_ID,
-      address,
-      message: buildAuthMessage({ address, nonce, issued_at }),
-      signature: GOOD_SIG,
-    },
-  })
-  assert.strictEqual(created.statusCode, 200)
+  // Link the wallet to a user directly (the find-or-create route is gone),
+  // then /auth/verify logs into that account.
+  const u = await createUser(app, {})
+  await app.db.insert(user_wallets).values(walletFixture({ user_id: u.row.id, address }))
   const loggedIn = await walletVerify(app, address)
   assert.strictEqual(loggedIn.statusCode, 200)
-  assert.strictEqual(loggedIn.json().user.id, created.json().user.id)
+  assert.strictEqual(loggedIn.json().user.id, u.row.id)
 })
 
 test('verify wallet: a bad signature → 401, does not log in', { skip }, async () => {

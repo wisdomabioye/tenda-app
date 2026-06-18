@@ -1,7 +1,7 @@
 /**
  * #98 gap-fill + review finding — POST /v1/auth/link-wallet. Adds a SECOND
  * wallet to an already-authenticated user via the same nonce + signed-message
- * flow as /v1/auth/wallet, but signed from the NEW wallet.
+ * flow as wallet sign-in, but signed from the NEW wallet.
  *
  * Lead case is the review finding: a well-formed but UNREGISTERED chain_id
  * must 400, not 500 — link-wallet shared the wallet route's unguarded

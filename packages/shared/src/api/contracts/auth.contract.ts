@@ -1,5 +1,5 @@
 import type { Endpoint } from '../endpoint'
-import type { AuthResponse, User } from '../../types'
+import type { User } from '../../types'
 import type { ChainNamespace } from '../../db/schema/chains'
 import type { IdentityKind } from '../../db/schema/identity'
 
@@ -10,23 +10,6 @@ export interface AuthNonceResponse {
   expires_in: number
   /** ISO-8601 issue timestamp — echo into the auth message's Issued At. */
   issued_at: string
-}
-
-/**
- * Body of POST /v1/auth/wallet — the nonce flow (replaced the ±5min
- * timestamp window in Stage 0 #28). `message` is the literal string built
- * by `buildAuthMessage` and signed by the wallet.
- */
-export interface WalletNonceAuthBody {
-  /** CAIP-2 chain id, e.g. 'solana:devnet'. */
-  chain_id: string
-  /** Wallet address: base58 (Solana) or 0x-hex (EVM). */
-  address: string
-  message: string
-  /** base64 (Solana) or 0x-hex (EVM) signature over the literal message. */
-  signature: string
-  is_seeker?: boolean
-  country?: string | null
 }
 
 // ---------- Stage 1: phone OTP + wallet management (#38) -------------------
@@ -63,7 +46,7 @@ export interface VerifyPhoneOtpResponse {
   verified: true
 }
 
-/** Same shape as WalletNonceAuthBody minus the signup-only fields. */
+/** The nonce-flow wallet proof (CAIP-2 chain id + address + signed message). */
 export interface LinkWalletBody {
   chain_id: string
   address: string
@@ -134,8 +117,6 @@ export interface AuthContract {
   nonce: Endpoint<'POST', undefined, undefined, undefined, AuthNonceResponse>
   challenge: Endpoint<'POST', undefined, ChallengeBody, undefined, ChallengeResponse>
   verify: Endpoint<'POST', undefined, VerifyBody, undefined, VerifyResponse>
-  /** Server-nonce auth flow (#28) — the legacy timestamp flow died at the #34 cutover. */
-  wallet: Endpoint<'POST', undefined, WalletNonceAuthBody, undefined, AuthResponse>
   me: Endpoint<'GET', undefined, undefined, undefined, User>
   sendPhoneOtp: Endpoint<'POST', undefined, SendPhoneOtpBody, undefined, SendPhoneOtpResponse>
   verifyPhoneOtp: Endpoint<'POST', undefined, VerifyPhoneOtpBody, undefined, VerifyPhoneOtpResponse>

@@ -1,8 +1,8 @@
 /**
  * Wallet auth strategy — verifies a server-nonce signature and resolves to a
  * wallet outcome. The verify-message-and-signature flow is extracted here
- * (`verifyWalletAuth`) so the legacy /auth/wallet + /auth/link-wallet routes
- * and this strategy share ONE implementation instead of four copies.
+ * (`verifyWalletAuth`) so the /auth/link-wallet route and this strategy share
+ * ONE implementation instead of duplicating the nonce/sig logic.
  *
  * Decision #3: wallet signs in but never creates — the find-or-reject lives
  * in the orchestrator; this strategy only proves control of the wallet.

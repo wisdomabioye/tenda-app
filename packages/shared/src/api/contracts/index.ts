@@ -33,7 +33,6 @@ export interface ApiContract {
 export type {
   AuthContract,
   AuthNonceResponse,
-  WalletNonceAuthBody,
   AuthMethodWire,
   ChallengeBody,
   ChallengeResponse,
