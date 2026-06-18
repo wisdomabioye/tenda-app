@@ -12,6 +12,7 @@
  * 0x-hex for EVM (matching SubmitEscrowProofBody's per-chain format).
  */
 import { useState } from 'react'
+import { useRouter } from 'expo-router'
 import { sha256 } from '@noble/hashes/sha256'
 import { Buffer } from 'buffer'
 import bs58 from 'bs58'
@@ -20,6 +21,11 @@ import { useEscrowStore } from '@/stores/escrow.store'
 import { signSendAndReport } from '@/wallet/dispatch'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui'
+import {
+  classifyTransactionGateError,
+  TRANSACTION_GATE_MESSAGE,
+  transactionGateRoute,
+} from '@/lib/transaction-gate'
 
 export interface ProofFile {
   url: string
@@ -42,6 +48,7 @@ interface UseEscrowActionsArgs {
 
 export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowActionsArgs) {
   const store = useEscrowStore()
+  const router = useRouter()
   const [busyAction, setBusyAction] = useState<EscrowTxType | null>(null)
   /** Feeds TransactionMonitor (signature + escrowId → WS-first confirm). */
   const [pendingTxRef, setPendingTxRef] = useState<string | null>(null)
@@ -70,6 +77,15 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
       onBroadcast?.(tx_ref, action)
       return true
     } catch (e) {
+      // First-transaction gate (9D): route to link-wallet / verify-contact
+      // instead of a dead-end toast. The 403 surfaces from request() (the
+      // server build-tx call), before any wallet signing.
+      const gate = classifyTransactionGateError(e)
+      if (gate !== null) {
+        showToast('error', TRANSACTION_GATE_MESSAGE[gate])
+        router.push(transactionGateRoute(gate))
+        return false
+      }
       showToast('error', (e as Error).message || 'Transaction failed — please try again')
       return false
     } finally {

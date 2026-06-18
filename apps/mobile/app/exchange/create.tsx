@@ -24,6 +24,11 @@ import { api, ApiClientError } from '@/api/client'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { SOLANA_NETWORK } from '@/wallet/config'
 import { signSendAndReport } from '@/wallet/dispatch'
+import {
+  classifyTransactionGateError,
+  TRANSACTION_GATE_MESSAGE,
+  transactionGateRoute,
+} from '@/lib/transaction-gate'
 import { spacing } from '@/theme/tokens'
 
 /** Float→raw stays exact below this (well under 2^53 lamports). */
@@ -96,7 +101,13 @@ export default function CreateOfferScreen() {
       showToast('success', 'Offer submitted! It hits the order book once the escrow confirms.')
       router.replace(`/exchange/${created.escrow_id}` as Parameters<typeof router.replace>[0])
     } catch (e) {
-      if (escrow_id !== null) {
+      // 9D first-transaction gate: route to link-wallet / verify-contact. It
+      // surfaces from escrows.create() before escrow_id is set.
+      const gate = classifyTransactionGateError(e)
+      if (gate !== null) {
+        showToast('error', TRANSACTION_GATE_MESSAGE[gate])
+        router.push(transactionGateRoute(gate))
+      } else if (escrow_id !== null) {
         // Terms saved but signing failed/declined — the draft survives.
         showToast('info', e instanceof Error ? e.message : 'Signing incomplete — draft saved')
         router.replace(`/exchange/${escrow_id}` as Parameters<typeof router.replace>[0])

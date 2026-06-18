@@ -11,6 +11,11 @@ import { useOnboardingStore } from '@/stores/onboarding.store'
 import { api, ApiClientError } from '@/api/client'
 import { coerceCityForCountry, ErrorCode } from '@tenda/shared'
 import { signSendAndReport } from '@/wallet/dispatch'
+import {
+  classifyTransactionGateError,
+  TRANSACTION_GATE_MESSAGE,
+  transactionGateRoute,
+} from '@/lib/transaction-gate'
 import { ModerationBlockedDialog } from '@/components/moderation/ModerationBlockedDialog'
 import type { GigFormValues } from '@/components/gig/GigForm'
 
@@ -134,8 +139,15 @@ export default function PostGigScreen() {
       router.navigate('/(tabs)/home' as any)
       router.push(`/gig/${created.escrow_id}` as any)
     } catch (e) {
-      // Stage-6: block verdicts get the full dialog — no retry path.
-      if (e instanceof ApiClientError && e.code === ErrorCode.CONTENT_MODERATED) {
+      // 9D first-transaction gate: route to link-wallet / verify-contact.
+      // It surfaces from escrows.create() before escrow_id is set, so there
+      // is no orphan draft to clean up here.
+      const gate = classifyTransactionGateError(e)
+      if (gate !== null) {
+        showToast('error', TRANSACTION_GATE_MESSAGE[gate])
+        router.push(transactionGateRoute(gate))
+      } else if (e instanceof ApiClientError && e.code === ErrorCode.CONTENT_MODERATED) {
+        // Stage-6: block verdicts get the full dialog — no retry path.
         setBlockedMessage(e.message)
       } else if (escrow_id !== null) {
         // Details saved but signing failed/declined — the draft survives
