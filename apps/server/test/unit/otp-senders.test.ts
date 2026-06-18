@@ -73,6 +73,19 @@ test('twilioSmsSender: POSTs to the Messages API with Basic auth + the code in t
   assert.match(form.get('Body') ?? '', /135790/)
 })
 
+test('twilioSmsSender: an MG… Messaging Service SID is sent as MessagingServiceSid, not From', async () => {
+  const bodies: string[] = []
+  globalThis.fetch = (async (_url: string, init?: { body?: string }) => {
+    bodies.push(init?.body ?? '')
+    return { ok: true, status: 201 } as Response
+  }) as typeof fetch
+
+  await twilioSmsSender({ account_sid: 'AC1', auth_token: 't', from: 'MG0123456789' }).send('+1999', '000000')
+  const form = new URLSearchParams(bodies[0])
+  assert.strictEqual(form.get('MessagingServiceSid'), 'MG0123456789')
+  assert.strictEqual(form.get('From'), null) // never both — Twilio rejects an MG SID in From
+})
+
 test('twilioSmsSender: non-2xx → 502 AppError carrying the status', async () => {
   globalThis.fetch = (async () => ({ ok: false, status: 401 }) as Response) as typeof fetch
   await assert.rejects(

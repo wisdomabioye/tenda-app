@@ -106,14 +106,19 @@ export const TWILIO_API_BASE = 'https://api.twilio.com/2010-04-01'
  * Twilio Programmable SMS (the `/Messages` API) — global delivery. We keep our
  * own code lifecycle (auth_otps store + hash + rate-limit + expiry), so Twilio
  * is a transport here, NOT Twilio Verify (which would own the code and fork our
- * channel-agnostic OTP model). `from` is an E.164 number or Messaging Service
- * SID; auth is HTTP Basic (AccountSid:AuthToken).
+ * channel-agnostic OTP model). `from` is EITHER an E.164 sender number OR a
+ * Messaging Service SID (`MG…`, the recommended production sender) — they go in
+ * different request params, so we route by prefix. Auth is HTTP Basic
+ * (AccountSid:AuthToken).
  */
 export function twilioSmsSender(args: {
   account_sid: string
   auth_token: string
   from: string
 }): OtpSender {
+  // A Messaging Service SID must be sent as `MessagingServiceSid`; an E.164
+  // number as `From`. Twilio rejects an `MG…` SID passed as `From` (err 21212).
+  const senderParam = args.from.startsWith('MG') ? 'MessagingServiceSid' : 'From'
   return {
     async send(identifier, code) {
       const url = `${TWILIO_API_BASE}/Accounts/${args.account_sid}/Messages.json`
@@ -124,7 +129,7 @@ export function twilioSmsSender(args: {
           Authorization: `Basic ${credentials}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: new URLSearchParams({ To: identifier, From: args.from, Body: otpSmsText(code) }).toString(),
+        body: new URLSearchParams({ To: identifier, [senderParam]: args.from, Body: otpSmsText(code) }).toString(),
       })
       if (!res.ok) {
         throw new AppError(

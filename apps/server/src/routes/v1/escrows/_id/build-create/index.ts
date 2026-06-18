@@ -93,18 +93,6 @@ const route: FastifyPluginAsync = async (fastify) => {
         accept_deadline = new Date(now + DEFAULT_ACCEPT_WINDOW_SECONDS * 1000)
       }
 
-      // Persist what the unsigned tx will encode, so the DB row and the
-      // on-chain account can never disagree after confirmation.
-      if (
-        accept_deadline !== escrow.accept_deadline ||
-        completion_duration_seconds !== escrow.completion_duration_seconds
-      ) {
-        await fastify.db
-          .update(escrows)
-          .set({ accept_deadline, completion_duration_seconds })
-          .where(and(eq(escrows.id, escrow.id), eq(escrows.status, 'draft')))
-      }
-
       // The chain may have been deconfigured since the draft was created
       // (e.g. BASE env removed) — surface a clean 503, not a raw throw.
       if (!fastify.chains.has(escrow.chain_id)) {
@@ -117,7 +105,21 @@ const route: FastifyPluginAsync = async (fastify) => {
       const adapter = fastify.chains.get(escrow.chain_id)
       // Publishing IS creating — same first-transaction gate as POST /v1/escrows
       // (covers server-opened fiat-offramp drafts that never hit create's gate).
+      // Runs BEFORE the deadline write so a rejected publish mutates nothing.
       await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
+
+      // Persist what the unsigned tx will encode, so the DB row and the
+      // on-chain account can never disagree after confirmation.
+      if (
+        accept_deadline !== escrow.accept_deadline ||
+        completion_duration_seconds !== escrow.completion_duration_seconds
+      ) {
+        await fastify.db
+          .update(escrows)
+          .set({ accept_deadline, completion_duration_seconds })
+          .where(and(eq(escrows.id, escrow.id), eq(escrows.status, 'draft')))
+      }
+
       const unsigned = await adapter.buildTx({
         action: 'createEscrow',
         user_id: request.user.id,

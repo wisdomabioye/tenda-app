@@ -6,8 +6,10 @@
  * seed for already-linked wallets).
  *
  * Legacy shim: the unified surface is POST /v1/auth/challenge + /verify
- * (method 'phone', authenticated). This route keeps the mobile contract until
- * Stage 9C. Collision (phone owned by another account) → IDENTITY_ALREADY_LINKED.
+ * (method 'phone', authenticated). Kept while the mobile client still calls it;
+ * retire (like the 9C wallet shim) once mobile phone-verify moves to the
+ * unified surface — the gas-seed trigger already covers that path.
+ * Collision (phone owned by another account) → IDENTITY_ALREADY_LINKED.
  *
  * Body: { phone_e164, code }.
  */
