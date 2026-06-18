@@ -6,7 +6,18 @@
 
 import { test, afterEach } from 'node:test'
 import * as assert from 'node:assert'
-import { termiiSender, consoleSender, emailOtpSender, TERMII_SMS_URL } from '@server/lib/otp'
+import {
+  termiiSender,
+  twilioSmsSender,
+  routedSmsSender,
+  composePhoneSender,
+  otpSmsText,
+  consoleSender,
+  emailOtpSender,
+  TERMII_SMS_URL,
+  TWILIO_API_BASE,
+  type OtpSender,
+} from '@server/lib/otp'
 import { sendViaResend, RESEND_API_URL } from '@server/lib/email'
 import { AppError } from '@server/lib/errors'
 
@@ -36,6 +47,88 @@ test('termiiSender: non-2xx → 502 AppError carrying the status', async () => {
     () => termiiSender({ api_key: 'K', sender_id: 'S' }).send('+2348000000000', '000000'),
     (e: unknown) => e instanceof AppError && e.statusCode === 502 && /status 500/.test(e.message),
   )
+})
+
+test('otpSmsText: embeds the code (single source shared by every SMS transport)', () => {
+  assert.match(otpSmsText('424242'), /424242/)
+})
+
+test('twilioSmsSender: POSTs to the Messages API with Basic auth + the code in the body', async () => {
+  const calls: { url: string; auth: string; body: string }[] = []
+  globalThis.fetch = (async (url: string, init?: { headers?: Record<string, string>; body?: string }) => {
+    calls.push({ url: String(url), auth: init?.headers?.Authorization ?? '', body: init?.body ?? '' })
+    return { ok: true, status: 201 } as Response
+  }) as typeof fetch
+
+  await twilioSmsSender({ account_sid: 'AC123', auth_token: 'tok', from: '+15550000000' }).send(
+    '+447700900000',
+    '135790',
+  )
+  assert.strictEqual(calls[0].url, `${TWILIO_API_BASE}/Accounts/AC123/Messages.json`)
+  // Basic base64('AC123:tok').
+  assert.strictEqual(calls[0].auth, `Basic ${Buffer.from('AC123:tok').toString('base64')}`)
+  const form = new URLSearchParams(calls[0].body)
+  assert.strictEqual(form.get('To'), '+447700900000')
+  assert.strictEqual(form.get('From'), '+15550000000')
+  assert.match(form.get('Body') ?? '', /135790/)
+})
+
+test('twilioSmsSender: non-2xx → 502 AppError carrying the status', async () => {
+  globalThis.fetch = (async () => ({ ok: false, status: 401 }) as Response) as typeof fetch
+  await assert.rejects(
+    () => twilioSmsSender({ account_sid: 'AC', auth_token: 't', from: '+1' }).send('+1999', '000000'),
+    (e: unknown) => e instanceof AppError && e.statusCode === 502 && /status 401/.test(e.message),
+  )
+})
+
+test('routedSmsSender: matching prefix → route sender; everything else → fallback', async () => {
+  const hit: string[] = []
+  const fake = (label: string): OtpSender => ({
+    async send(identifier) {
+      hit.push(`${label}:${identifier}`)
+    },
+  })
+  const sender = routedSmsSender([{ prefixes: ['+234'], sender: fake('termii') }], fake('twilio'))
+
+  await sender.send('+2348012345678', '111111') // matches → termii
+  await sender.send('+447700900000', '222222') // no match → twilio fallback
+  assert.deepStrictEqual(hit, ['termii:+2348012345678', 'twilio:+447700900000'])
+})
+
+test('composePhoneSender: routes by provider availability across all four cases', async () => {
+  const tag = (label: string, sink: string[]): OtpSender => ({
+    async send(identifier) {
+      sink.push(`${label}:${identifier}`)
+    },
+  })
+
+  // both → +234 to Termii, rest to Twilio.
+  const both: string[] = []
+  await composePhoneSender({
+    termii: tag('termii', both), twilio: tag('twilio', both), prefixes: ['+234'], fallback: tag('console', both),
+  }).send('+2348011112222', '1')
+  await composePhoneSender({
+    termii: tag('termii', both), twilio: tag('twilio', both), prefixes: ['+234'], fallback: tag('console', both),
+  }).send('+447700900000', '2')
+  assert.deepStrictEqual(both, ['termii:+2348011112222', 'twilio:+447700900000'])
+
+  // twilio-only → all numbers to Twilio (even +234).
+  const tw: string[] = []
+  await composePhoneSender({ termii: null, twilio: tag('twilio', tw), prefixes: ['+234'], fallback: tag('c', tw) })
+    .send('+2348000000000', '3')
+  assert.deepStrictEqual(tw, ['twilio:+2348000000000'])
+
+  // termii-only → all numbers to Termii.
+  const tm: string[] = []
+  await composePhoneSender({ termii: tag('termii', tm), twilio: null, prefixes: ['+234'], fallback: tag('c', tm) })
+    .send('+447700900000', '4')
+  assert.deepStrictEqual(tm, ['termii:+447700900000'])
+
+  // neither → the dev fallback (console).
+  const none: string[] = []
+  await composePhoneSender({ termii: null, twilio: null, prefixes: ['+234'], fallback: tag('console', none) })
+    .send('+10000000000', '5')
+  assert.deepStrictEqual(none, ['console:+10000000000'])
 })
 
 test('consoleSender: logs the code + identifier + channel and never throws', async () => {

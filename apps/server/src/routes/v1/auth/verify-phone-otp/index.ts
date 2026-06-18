@@ -17,8 +17,7 @@ import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { verifyOtp } from '@server/lib/otp'
 import { resolveOrLink } from '@server/lib/auth/orchestrator'
-import { dispatchGasSeeds } from '@server/lib/gas-seed'
-import { buildGasSeedDeps, buildOtpDeps } from '@server/lib/onboarding-deps'
+import { buildOtpDeps, fireRetroactiveGasSeed } from '@server/lib/onboarding-deps'
 
 interface Body {
   phone_e164?: unknown
@@ -52,11 +51,8 @@ const route: FastifyPluginAsync = async (fastify) => {
         request.user.id,
       )
 
-      // Retroactive seed: fire-and-forget — verification must not block on
-      // an RPC transfer; failures are logged and retried on next link.
-      void dispatchGasSeeds(buildGasSeedDeps(fastify), request.user.id).catch((err) =>
-        fastify.log.warn({ err, user_id: request.user.id }, 'retroactive gas seed failed'),
-      )
+      // Retroactive seed for any already-linked wallets (shared trigger).
+      fireRetroactiveGasSeed(fastify, request.user.id)
 
       return { verified: true }
     },

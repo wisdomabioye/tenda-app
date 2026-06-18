@@ -38,11 +38,25 @@ export interface Config {
    */
   SOLANA_USDC_MINT: string | null
   /**
-   * Termii credentials for phone OTP (#32). Null = OTP codes are logged to
-   * the server console instead of sent — development interim only.
+   * Termii credentials for phone OTP (#32) — regional (NG/Africa). Null = no
+   * Termii transport. When neither Termii nor Twilio is set, codes are logged
+   * to the server console instead of sent — development interim only.
    */
   TERMII_API_KEY: string | null
   TERMII_SENDER_ID: string | null
+  /**
+   * E.164 prefixes routed to Termii when BOTH Termii and Twilio are
+   * configured (cost-optimal local delivery); everything else goes to Twilio.
+   * Defaults to Termii's home market (+234). Ignored unless both are set.
+   */
+  TERMII_COUNTRY_PREFIXES: string[]
+  /**
+   * Twilio Programmable SMS credentials (#32) for GLOBAL phone OTP delivery.
+   * All three required to enable; null = no Twilio transport.
+   */
+  TWILIO_ACCOUNT_SID: string | null
+  TWILIO_AUTH_TOKEN: string | null
+  TWILIO_SMS_FROM: string | null
   /**
    * base58-encoded secret key of the Solana gas-seed hot wallet (#40).
    * Null = gas seeds are skipped with a logged warning.
@@ -160,6 +174,10 @@ export function loadConfig(): Config {
     SOLANA_USDC_MINT:      process.env.SOLANA_USDC_MINT ?? null,
     TERMII_API_KEY:        process.env.TERMII_API_KEY ?? null,
     TERMII_SENDER_ID:      process.env.TERMII_SENDER_ID ?? null,
+    TERMII_COUNTRY_PREFIXES: csvEnv(process.env.TERMII_COUNTRY_PREFIXES) ?? ['+234'],
+    TWILIO_ACCOUNT_SID:    process.env.TWILIO_ACCOUNT_SID ?? null,
+    TWILIO_AUTH_TOKEN:     process.env.TWILIO_AUTH_TOKEN ?? null,
+    TWILIO_SMS_FROM:       process.env.TWILIO_SMS_FROM ?? null,
     SOLANA_GAS_SEED_WALLET_KEY: process.env.SOLANA_GAS_SEED_WALLET_KEY ?? null,
     HELIUS_WEBHOOK_SECRET: process.env.HELIUS_WEBHOOK_SECRET ?? null,
     LISTENER_PROVIDER:     process.env.LISTENER_PROVIDER === 'polling' ? 'polling' : 'helius',

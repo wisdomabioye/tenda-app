@@ -24,8 +24,7 @@ import { AppError, requireBody, requireNonEmptyString } from '@server/lib/errors
 import { ErrorCode } from '@tenda/shared'
 import { verifyWalletAuth } from '@server/lib/auth/strategies/wallet'
 import { hasVerifiedPhone } from '@server/lib/auth/resolver'
-import { dispatchGasSeeds } from '@server/lib/gas-seed'
-import { buildGasSeedDeps } from '@server/lib/onboarding-deps'
+import { fireRetroactiveGasSeed } from '@server/lib/onboarding-deps'
 
 interface Body {
   chain_id: string
@@ -84,9 +83,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       // idempotent per (user, chain). Fire-and-forget — linking must not
       // block on an RPC transfer.
       if (await hasVerifiedPhone(fastify.db, request.user.id)) {
-        void dispatchGasSeeds(buildGasSeedDeps(fastify), request.user.id).catch((err) =>
-          fastify.log.warn({ err, user_id: request.user.id }, 'gas seed on link failed'),
-        )
+        fireRetroactiveGasSeed(fastify, request.user.id)
       }
 
       return { ok: true }

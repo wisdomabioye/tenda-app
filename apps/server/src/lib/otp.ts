@@ -66,8 +66,14 @@ export interface OtpSender {
   send(identifier: string, code: string): Promise<void>
 }
 
+/** The verification SMS body — single source for every SMS transport. */
+export function otpSmsText(code: string): string {
+  return `Your Tenda verification code is ${code}. Expires in 10 minutes.`
+}
+
 export const TERMII_SMS_URL = 'https://api.ng.termii.com/api/sms/send'
 
+/** Termii SMS — regional (api.ng.termii.com is NG/Africa-only). */
 export function termiiSender(args: { api_key: string; sender_id: string }): OtpSender {
   return {
     async send(identifier, code) {
@@ -78,7 +84,7 @@ export function termiiSender(args: { api_key: string; sender_id: string }): OtpS
           api_key: args.api_key,
           to: identifier,
           from: args.sender_id,
-          sms: `Your Tenda verification code is ${code}. Expires in 10 minutes.`,
+          sms: otpSmsText(code),
           type: 'plain',
           channel: 'generic',
         }),
@@ -92,6 +98,84 @@ export function termiiSender(args: { api_key: string; sender_id: string }): OtpS
       }
     },
   }
+}
+
+export const TWILIO_API_BASE = 'https://api.twilio.com/2010-04-01'
+
+/**
+ * Twilio Programmable SMS (the `/Messages` API) — global delivery. We keep our
+ * own code lifecycle (auth_otps store + hash + rate-limit + expiry), so Twilio
+ * is a transport here, NOT Twilio Verify (which would own the code and fork our
+ * channel-agnostic OTP model). `from` is an E.164 number or Messaging Service
+ * SID; auth is HTTP Basic (AccountSid:AuthToken).
+ */
+export function twilioSmsSender(args: {
+  account_sid: string
+  auth_token: string
+  from: string
+}): OtpSender {
+  return {
+    async send(identifier, code) {
+      const url = `${TWILIO_API_BASE}/Accounts/${args.account_sid}/Messages.json`
+      const credentials = Buffer.from(`${args.account_sid}:${args.auth_token}`).toString('base64')
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${credentials}`,
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({ To: identifier, From: args.from, Body: otpSmsText(code) }).toString(),
+      })
+      if (!res.ok) {
+        throw new AppError(
+          502,
+          ErrorCode.INTERNAL_ERROR,
+          `Twilio send failed with status ${res.status}`,
+        )
+      }
+    },
+  }
+}
+
+/** One routing rule: a number whose E.164 starts with any of `prefixes` → `sender`. */
+export interface SmsRoute {
+  prefixes: string[]
+  sender: OtpSender
+}
+
+/**
+ * Compose SMS transports by destination prefix: a number matching a rule's
+ * prefix goes to that sender, everything else to `fallback`. Lets a regional
+ * provider (Termii for +234) coexist with a global one (Twilio) behind the
+ * single per-channel sender the OTP store expects — routing happens per number
+ * at send-time, so the rule set stays config-driven (no hardcoded geography).
+ */
+export function routedSmsSender(routes: SmsRoute[], fallback: OtpSender): OtpSender {
+  return {
+    async send(identifier, code) {
+      const route = routes.find((r) => r.prefixes.some((p) => identifier.startsWith(p)))
+      await (route?.sender ?? fallback).send(identifier, code)
+    },
+  }
+}
+
+/**
+ * Pick the phone SMS transport from the configured providers (pure — the
+ * candidates are pre-built so this stays unit-testable, decoupled from config):
+ *   • both → route `prefixes` to Termii (cheaper locally), rest to Twilio.
+ *   • one  → that provider for all numbers.
+ *   • none → the dev `fallback` (console).
+ */
+export function composePhoneSender(opts: {
+  termii: OtpSender | null
+  twilio: OtpSender | null
+  prefixes: string[]
+  fallback: OtpSender
+}): OtpSender {
+  if (opts.termii !== null && opts.twilio !== null) {
+    return routedSmsSender([{ prefixes: opts.prefixes, sender: opts.termii }], opts.twilio)
+  }
+  return opts.twilio ?? opts.termii ?? opts.fallback
 }
 
 /** Email OTP delivery via the shared Resend transport (consumer copy). */
