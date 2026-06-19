@@ -1,9 +1,11 @@
 /**
  * Continue-with contact step (Stage 9C). The phone/email identifier screen,
  * now its own route so back pops to get-started. Exercises control flow:
- * channel copy from the `method` param (defaulting to phone), client-side
- * validation (real @tenda/shared validators), the challenge→verify-code hop,
- * and error surfacing. Native/UI deps stubbed.
+ * channel copy/placeholder from the `method` param (defaulting to phone),
+ * client-side validation (real @tenda/shared validators) surfaced as an inline
+ * error + disabled button, the challenge→verify-code hop, and error surfacing.
+ * Native/UI deps stubbed. (Title lives in the mocked Header, so channel is
+ * detected via the body placeholder.)
  */
 import { render, fireEvent, waitFor, screen } from '@testing-library/react-native'
 import type { ChallengeBody } from '@tenda/shared'
@@ -15,7 +17,7 @@ jest.mock('expo-router', () => ({
   useLocalSearchParams: () => mockParams,
 }))
 jest.mock('react-native-unistyles', () => ({
-  useUnistyles: () => ({ theme: { colors: { content: { primary: '#000', secondary: '#333' } } } }),
+  useUnistyles: () => ({ theme: { colors: { content: { primary: '#000', secondary: '#333' }, feedback: { danger: { base: '#f00' } } } } }),
 }))
 
 const mockShowToast = jest.fn()
@@ -25,8 +27,8 @@ jest.mock('@/components/ui', () => {
     ScreenContainer: ({ children }: { children: React.ReactNode }) => children,
     Header: () => null,
     Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text>,
-    Button: ({ children, onPress, loading }: { children: React.ReactNode; onPress?: () => void; loading?: boolean }) => (
-      <Pressable accessibilityRole="button" disabled={loading} onPress={onPress}>
+    Button: ({ children, onPress, loading, disabled }: { children: React.ReactNode; onPress?: () => void; loading?: boolean; disabled?: boolean }) => (
+      <Pressable accessibilityRole="button" disabled={disabled || loading} onPress={onPress}>
         <Text>{children}</Text>
       </Pressable>
     ),
@@ -56,24 +58,24 @@ beforeEach(() => {
   delete mockParams.method
 })
 
-test('phone: renders the phone copy and placeholder', () => {
+test('phone: renders the phone placeholder and lede', () => {
   mockParams.method = 'phone'
   render(<ContinueWithScreen />)
-  expect(screen.getByText('Your phone number')).toBeTruthy()
   expect(screen.getByPlaceholderText('+2348012345678')).toBeTruthy()
+  expect(screen.getByText('We’ll text you a 6-digit code to confirm it’s you.')).toBeTruthy()
 })
 
-test('email: renders the email copy and placeholder', () => {
+test('email: renders the email placeholder and lede', () => {
   mockParams.method = 'email'
   render(<ContinueWithScreen />)
-  expect(screen.getByText('Your email')).toBeTruthy()
   expect(screen.getByPlaceholderText('you@example.com')).toBeTruthy()
+  expect(screen.getByText('We’ll email you a 6-digit code to confirm it’s you.')).toBeTruthy()
 })
 
-test('defaults to phone when the method param is absent or invalid', () => {
+test('defaults to the phone channel when the method param is absent or invalid', () => {
   mockParams.method = 'garbage'
   render(<ContinueWithScreen />)
-  expect(screen.getByText('Your phone number')).toBeTruthy()
+  expect(screen.getByPlaceholderText('+2348012345678')).toBeTruthy()
 })
 
 test('phone: a valid E.164 number challenges then routes to verify-code', async () => {
@@ -90,12 +92,13 @@ test('phone: a valid E.164 number challenges then routes to verify-code', async 
   })
 })
 
-test('phone: an invalid number is rejected before any challenge', async () => {
+test('phone: an invalid number shows an inline error and never challenges', async () => {
   mockParams.method = 'phone'
   render(<ContinueWithScreen />)
   fireEvent.changeText(screen.getByPlaceholderText('+2348012345678'), '08012345678') // not E.164
+  expect(screen.getByText('Use international format, e.g. +2348012345678')).toBeTruthy()
   fireEvent.press(screen.getByText('Send code'))
-  await waitFor(() => expect(mockShowToast).toHaveBeenCalled())
+  await waitFor(() => expect(screen.getByText('Send code')).toBeTruthy())
   expect(mockChallenge).not.toHaveBeenCalled()
   expect(mockPush).not.toHaveBeenCalled()
 })
@@ -114,12 +117,13 @@ test('email: a valid address is normalized, challenged, then routes', async () =
   })
 })
 
-test('email: an empty value is rejected before any challenge', async () => {
+test('email: an empty value never challenges (button disabled, no error shown)', async () => {
   mockParams.method = 'email'
   render(<ContinueWithScreen />)
   fireEvent.press(screen.getByText('Send code'))
-  await waitFor(() => expect(mockShowToast).toHaveBeenCalled())
+  await waitFor(() => expect(screen.getByText('Send code')).toBeTruthy())
   expect(mockChallenge).not.toHaveBeenCalled()
+  expect(mockPush).not.toHaveBeenCalled()
 })
 
 test('a failed challenge surfaces an error toast and does not navigate', async () => {
