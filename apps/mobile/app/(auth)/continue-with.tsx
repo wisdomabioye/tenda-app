@@ -1,9 +1,8 @@
 import { useState } from 'react'
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { isE164, normalizeEmail } from '@tenda/shared'
-import { spacing } from '@/theme/tokens'
 import { ScreenContainer, Text, Header, Button, showToast } from '@/components/ui'
 import { Input } from '@/components/ui/Input'
 import { api, ApiClientError } from '@/api/client'
@@ -36,10 +35,14 @@ const COPY: Record<ContactMethod, { title: string; lede: string; label: string; 
 /**
  * Stage 9C contact step — collect a phone/email, issue the OTP challenge, then
  * route to verify-code. Its own route (not a get-started sub-view) so the
- * header AND Android hardware back pop cleanly to get-started. Layout mirrors
- * settings/phone (the canonical single-input screen): top-aligned under a
- * titled header, default inset Input, inline validation, button disabled until
- * valid — so the focused field stays clear of the keyboard. A bad/absent
+ * header AND Android hardware back pop cleanly to get-started.
+ *
+ * Layout: a ScrollView whose content container is `flexGrow:1 +
+ * justifyContent:center` — the field block centres when there's room and stays
+ * scroll-reachable / keyboard-pushed when the autofocus keyboard shrinks the
+ * viewport (the earlier top-aligned/centred-View versions either jammed the
+ * field to the top or let the keyboard cover it). The Input uses the `compact`
+ * variant (label ABOVE the box) so nothing reads as overlapping. A bad/absent
  * `method` param falls back to phone so the screen can never render label-less.
  */
 export default function ContinueWithScreen() {
@@ -80,33 +83,43 @@ export default function ContinueWithScreen() {
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Header title={copy.title} showBack />
+        <Header showBack transparent />
 
-        <View style={s.body}>
-          <Text size={13.5} color={theme.colors.content.secondary} style={s.lede}>
-            {copy.lede}
-          </Text>
-
-          <Input
-            label={copy.label}
-            placeholder={copy.placeholder}
-            value={identifier}
-            onChangeText={setIdentifier}
-            keyboardType={channel === 'phone' ? 'phone-pad' : 'email-address'}
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoFocus
-          />
-          {showInvalid && (
-            <Text size={12} color={theme.colors.feedback.danger.base}>
-              {copy.invalid}
+        <ScrollView
+          style={s.flex}
+          contentContainerStyle={s.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={s.hero}>
+            <Text style={[s.title, { color: theme.colors.content.primary }]}>{copy.title}</Text>
+            <Text size={14} style={s.lede} color={theme.colors.content.secondary}>
+              {copy.lede}
             </Text>
-          )}
+          </View>
 
-          <Button variant="primary" size="lg" fullWidth loading={busy} disabled={!valid} onPress={() => void handleSendCode()}>
-            Send code
-          </Button>
-        </View>
+          <View style={s.form}>
+            <Input
+              variant="compact"
+              label={copy.label}
+              placeholder={copy.placeholder}
+              value={identifier}
+              onChangeText={setIdentifier}
+              keyboardType={channel === 'phone' ? 'phone-pad' : 'email-address'}
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+            />
+            {showInvalid && (
+              <Text size={12.5} color={theme.colors.feedback.danger.base}>
+                {copy.invalid}
+              </Text>
+            )}
+            <Button variant="primary" size="xl" fullWidth loading={busy} disabled={!valid} onPress={() => void handleSendCode()}>
+              Send code
+            </Button>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </ScreenContainer>
   )
@@ -114,6 +127,9 @@ export default function ContinueWithScreen() {
 
 const s = StyleSheet.create({
   flex: { flex: 1 },
-  body: { flex: 1, padding: spacing.md, gap: 12 },
-  lede: { lineHeight: 19 },
+  content: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: 24, paddingVertical: 32, gap: 28 },
+  hero: { gap: 10 },
+  title: { fontSize: 27, lineHeight: 33, fontWeight: '700', letterSpacing: -0.7 },
+  lede: { lineHeight: 21 },
+  form: { gap: 14 },
 })
