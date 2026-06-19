@@ -9,6 +9,7 @@ import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import { ErrorState } from '@/components/feedback/ErrorState'
 import { ConnectWalletIntro } from '@/components/auth/ConnectWalletIntro'
+import { TermsNotice } from '@/components/auth/TermsNotice'
 import { useAuthStore } from '@/stores/auth.store'
 import { WalletPicker } from '@/wallet/picker'
 import type { WalletAdapter } from '@/wallet/adapters/types'
@@ -102,18 +103,13 @@ export default function ConnectWalletScreen() {
               >
                 {isConnecting ? 'Connecting…' : 'Connect Wallet'}
               </Button>
-              <Text style={[s.tos, { color: theme.colors.content.tertiary }]}>
-                {isConnecting
-                  ? 'Waiting for wallet approval — keep Tenda open.'
-                  : (
-                    <>
-                      By connecting you agree to our{' '}
-                      <Text style={[s.tosBold, { color: theme.colors.content.secondary }]}>Terms</Text>
-                      {' '}and{' '}
-                      <Text style={[s.tosBold, { color: theme.colors.content.secondary }]}>Privacy</Text>.
-                    </>
-                  )}
-              </Text>
+              {isConnecting ? (
+                <Text style={[s.tos, { color: theme.colors.content.tertiary }]}>
+                  Waiting for wallet approval — keep Tenda open.
+                </Text>
+              ) : (
+                <TermsNotice verb="connecting" />
+              )}
             </View>
           </>
         )}
@@ -149,5 +145,4 @@ const s = StyleSheet.create({
   infoText: { flex: 1, fontSize: 12.5, lineHeight: 18 },
   ctaStack: { paddingHorizontal: 20, paddingBottom: 28, gap: 12 },
   tos: { fontSize: 11.5, lineHeight: 17, textAlign: 'center', paddingHorizontal: 20 },
-  tosBold: { fontWeight: '600' },
 })

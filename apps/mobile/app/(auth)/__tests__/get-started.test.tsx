@@ -1,19 +1,20 @@
 /**
  * Get-started screen (Stage 9C). Exercises control flow, not pixels: the
  * method options render, Google runs verify → routes, a cancelled Google
- * sign-in is silent, and the phone path validates → challenges → routes to
- * verify-code. Native/UI deps are stubbed. (jest hoists mock factories above
- * imports, so factory-referenced vars are `mock`-prefixed.)
+ * sign-in is silent, and phone/email/wallet push to their respective routes
+ * (the contact step is now its own `continue-with` route). Native/UI deps are
+ * stubbed. (jest hoists mock factories above imports, so factory-referenced
+ * vars are `mock`-prefixed.)
  */
 import { render, fireEvent, waitFor, screen } from '@testing-library/react-native'
-import type { ChallengeBody } from '@tenda/shared'
 
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }))
+jest.mock('expo-image', () => ({ Image: () => null }))
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
 jest.mock('react-native-unistyles', () => ({
-  useUnistyles: () => ({ theme: { colors: { content: { primary: '#000', secondary: '#333' } } } }),
+  useUnistyles: () => ({ theme: { colors: { content: { primary: '#000', secondary: '#333' }, brand: { primary: '#00f' } } } }),
 }))
 
 const mockShowToast = jest.fn()
@@ -31,14 +32,6 @@ jest.mock('@/components/ui', () => {
     showToast: (...a: unknown[]) => mockShowToast(...a),
   }
 })
-jest.mock('@/components/ui/Input', () => {
-  const { TextInput } = require('react-native')
-  return {
-    Input: ({ value, onChangeText, placeholder }: { value: string; onChangeText: (t: string) => void; placeholder?: string }) => (
-      <TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} />
-    ),
-  }
-})
 
 const mockSignInWithVerify = jest.fn(async () => ({ isNew: true }))
 jest.mock('@/stores/auth.store', () => ({
@@ -48,11 +41,7 @@ jest.mock('@/stores/auth.store', () => ({
   ),
 }))
 
-const mockChallenge = jest.fn(async (_body: ChallengeBody) => ({ expires_in: 600 }))
-jest.mock('@/api/client', () => ({
-  api: { auth: { challenge: (body: ChallengeBody) => mockChallenge(body) } },
-  ApiClientError: class extends Error {},
-}))
+jest.mock('@/api/client', () => ({ ApiClientError: class extends Error {} }))
 
 const mockSignInWithGoogle = jest.fn()
 jest.mock('@/lib/google-signin', () => ({
@@ -77,7 +66,7 @@ beforeEach(() => {
   mockPush.mockReset(); mockReplace.mockReset(); mockShowToast.mockReset()
   mockSignInWithVerify.mockClear()
   mockSignInWithGoogle.mockReset()
-  mockChallenge.mockReset(); mockChallenge.mockResolvedValue({ expires_in: 600 })
+  mockIsAppleAvailable.mockReset(); mockIsAppleAvailable.mockResolvedValue(false)
 })
 
 test('renders the contact + social options', async () => {
@@ -86,6 +75,18 @@ test('renders the contact + social options', async () => {
   expect(screen.getByText('Continue with phone')).toBeTruthy()
   expect(screen.getByText('Continue with email')).toBeTruthy()
   expect(screen.getByText('Sign in with a wallet')).toBeTruthy()
+})
+
+test('Apple option is hidden when the platform has no Apple sign-in', async () => {
+  render(<GetStartedScreen />)
+  await waitFor(() => expect(screen.getByText('Continue with Google')).toBeTruthy())
+  expect(screen.queryByText('Continue with Apple')).toBeNull()
+})
+
+test('Apple option appears when available', async () => {
+  mockIsAppleAvailable.mockResolvedValue(true)
+  render(<GetStartedScreen />)
+  await waitFor(() => expect(screen.getByText('Continue with Apple')).toBeTruthy())
 })
 
 test('Google: verifies the id_token then routes', async () => {
@@ -107,25 +108,28 @@ test('Google cancellation is silent — no toast, no nav', async () => {
   expect(mockReplace).not.toHaveBeenCalled()
 })
 
-test('phone: a valid number challenges then routes to verify-code', async () => {
+test('Google failure surfaces an error toast', async () => {
+  mockSignInWithGoogle.mockRejectedValue(new Error('boom'))
   render(<GetStartedScreen />)
-  fireEvent.press(screen.getByText('Continue with phone'))
-  fireEvent.changeText(screen.getByPlaceholderText('+2348012345678'), '+2348012345678')
-  fireEvent.press(screen.getByText('Send code'))
-  await waitFor(() =>
-    expect(mockChallenge).toHaveBeenCalledWith({ method: 'phone', identifier: '+2348012345678' }),
-  )
-  expect(mockPush).toHaveBeenCalledWith({
-    pathname: '/(auth)/verify-code',
-    params: { channel: 'phone', identifier: '+2348012345678' },
-  })
+  fireEvent.press(screen.getByText('Continue with Google'))
+  await waitFor(() => expect(mockShowToast).toHaveBeenCalled())
+  expect(mockReplace).not.toHaveBeenCalled()
 })
 
-test('phone: an invalid number is rejected before any challenge', async () => {
+test('phone pushes to the contact route', async () => {
   render(<GetStartedScreen />)
   fireEvent.press(screen.getByText('Continue with phone'))
-  fireEvent.changeText(screen.getByPlaceholderText('+2348012345678'), '08012345678') // not E.164
-  fireEvent.press(screen.getByText('Send code'))
-  await waitFor(() => expect(mockShowToast).toHaveBeenCalled())
-  expect(mockChallenge).not.toHaveBeenCalled()
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/(auth)/continue-with', params: { method: 'phone' } })
+})
+
+test('email pushes to the contact route', async () => {
+  render(<GetStartedScreen />)
+  fireEvent.press(screen.getByText('Continue with email'))
+  expect(mockPush).toHaveBeenCalledWith({ pathname: '/(auth)/continue-with', params: { method: 'email' } })
+})
+
+test('wallet pushes to connect-wallet', async () => {
+  render(<GetStartedScreen />)
+  fireEvent.press(screen.getByText('Sign in with a wallet'))
+  expect(mockPush).toHaveBeenCalledWith('/(auth)/connect-wallet')
 })

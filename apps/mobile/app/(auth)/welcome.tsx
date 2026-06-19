@@ -1,4 +1,4 @@
-import { View, Pressable, StyleSheet } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Image } from 'expo-image'
 import { useUnistyles } from 'react-native-unistyles'
@@ -6,6 +6,7 @@ import { typography } from '@/theme/tokens'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
+import { TermsNotice } from '@/components/auth/TermsNotice'
 
 const Logo = require('@/assets/images/logo.png')
 
@@ -47,14 +48,7 @@ export default function WelcomeScreen() {
           >
             Learn more
           </Button>
-          <Pressable hitSlop={4}>
-            <Text style={[s.tos, { color: theme.colors.content.tertiary }]}>
-              By continuing you agree to our{' '}
-              <Text style={[s.tosBold, { color: theme.colors.content.secondary }]}>Terms</Text>
-              {' '}and{' '}
-              <Text style={[s.tosBold, { color: theme.colors.content.secondary }]}>Privacy</Text>.
-            </Text>
-          </Pressable>
+          <TermsNotice verb="continuing" />
         </View>
       </View>
     </ScreenContainer>
@@ -106,14 +100,5 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 28,
     gap: 12,
-  },
-  tos: {
-    fontSize: 11.5,
-    lineHeight: 17,
-    textAlign: 'center',
-    paddingHorizontal: 20,
-  },
-  tosBold: {
-    fontWeight: '600',
   },
 })

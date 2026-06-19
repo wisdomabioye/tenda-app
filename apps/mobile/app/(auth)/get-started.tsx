@@ -1,25 +1,26 @@
 import { useEffect, useState } from 'react'
-import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
+import { Image } from 'expo-image'
 import { useUnistyles } from 'react-native-unistyles'
-import { Mail, Phone, Wallet, ArrowLeft } from 'lucide-react-native'
-import { isE164, normalizeEmail } from '@tenda/shared'
+import { Mail, Phone, Wallet } from 'lucide-react-native'
 import { ScreenContainer, Text, Header, Button, showToast } from '@/components/ui'
-import { Input } from '@/components/ui/Input'
 import { useAuthStore } from '@/stores/auth.store'
-import { api, ApiClientError } from '@/api/client'
+import { ApiClientError } from '@/api/client'
 import { signInWithGoogle, configureGoogleSignIn, GoogleSignInError } from '@/lib/google-signin'
 import { signInWithApple, isAppleAvailable, AppleSignInError } from '@/lib/apple-signin'
 import { classifyVerifyError, TIER0_MESSAGE, postAuthRoute } from '@/lib/auth-flow'
 
-type Busy = null | 'google' | 'apple' | 'contact'
-type ContactMode = null | 'phone' | 'email'
+type Busy = null | 'google' | 'apple'
+
+const Logo = require('@/assets/images/logo.png')
 
 /**
- * Stage 9C get-started — the multi-method entry. Phone/email issue an OTP then
- * route to verify-code; Google/Apple verify an id_token inline; wallet routes
- * to the existing connect-wallet flow. A new account is born from a
- * contact-bearing method (decision #3 — wallet signs in, never creates).
+ * Stage 9C get-started — the multi-method entry. Google/Apple verify an
+ * id_token inline; phone/email push to the contact route (continue-with) which
+ * issues the OTP; wallet routes to connect-wallet. A new account is born from a
+ * contact-bearing method (decision #3 — wallet signs in, never creates). The
+ * layout mirrors welcome: a centred brand hero over a bottom method stack.
  */
 export default function GetStartedScreen() {
   const router = useRouter()
@@ -28,8 +29,6 @@ export default function GetStartedScreen() {
 
   const [busy, setBusy] = useState<Busy>(null)
   const [appleAvailable, setAppleAvailable] = useState(false)
-  const [contactMode, setContactMode] = useState<ContactMode>(null)
-  const [identifier, setIdentifier] = useState('')
 
   useEffect(() => {
     void isAppleAvailable().then(setAppleAvailable)
@@ -84,71 +83,28 @@ export default function GetStartedScreen() {
     }
   }
 
-  async function handleContinueContact(): Promise<void> {
-    if (contactMode === null) return
-    const value =
-      contactMode === 'phone' ? identifier.trim() : (normalizeEmail(identifier) ?? '')
-    const valid = contactMode === 'phone' ? isE164(value) : value !== ''
-    if (!valid) {
-      showToast('error', `Enter a valid ${contactMode} ${contactMode === 'phone' ? '(+234…)' : 'address'}`)
-      return
-    }
-    setBusy('contact')
-    try {
-      await api.auth.challenge({ method: contactMode, identifier: value })
-      router.push({ pathname: '/(auth)/verify-code', params: { channel: contactMode, identifier: value } })
-    } catch (e) {
-      reportError(e)
-    } finally {
-      setBusy(null)
-    }
+  function goToContact(method: 'phone' | 'email'): void {
+    router.push({ pathname: '/(auth)/continue-with', params: { method } })
   }
 
   const anyBusy = busy !== null
 
-  // Contact sub-view: collect the phone/email, then issue the OTP.
-  if (contactMode !== null) {
-    return (
-      <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
-        <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <Header title={contactMode === 'phone' ? 'Your phone number' : 'Your email'} showBack transparent />
-          <View style={s.body}>
-            <Input
-              label={contactMode === 'phone' ? 'Phone number' : 'Email'}
-              placeholder={contactMode === 'phone' ? '+2348012345678' : 'you@example.com'}
-              value={identifier}
-              onChangeText={setIdentifier}
-              keyboardType={contactMode === 'phone' ? 'phone-pad' : 'email-address'}
-              autoCapitalize="none"
-              autoFocus
-            />
-            <Button variant="primary" size="lg" fullWidth loading={busy === 'contact'} onPress={handleContinueContact}>
-              Send code
-            </Button>
-            <Button
-              variant="ghost"
-              size="md"
-              fullWidth
-              icon={<ArrowLeft size={16} color={theme.colors.content.secondary} />}
-              onPress={() => { setContactMode(null); setIdentifier('') }}
-            >
-              Back to all options
-            </Button>
-          </View>
-        </KeyboardAvoidingView>
-      </ScreenContainer>
-    )
-  }
-
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
       <View style={s.flex}>
-        <Header title="Get started" transparent />
-        <View style={s.body}>
-          <Text style={[s.lede, { color: theme.colors.content.secondary }]}>
+        <Header showBack transparent />
+
+        <View style={s.hero}>
+          <View style={[s.logoWrap, { shadowColor: theme.colors.brand.primary }]}>
+            <Image source={Logo} style={s.logo} contentFit="contain" />
+          </View>
+          <Text style={[s.title, { color: theme.colors.content.primary }]}>Get started</Text>
+          <Text style={[s.subtitle, { color: theme.colors.content.secondary }]}>
             Choose how you’d like to continue. You can link a wallet later when you’re ready to transact.
           </Text>
+        </View>
 
+        <View style={s.methods}>
           <Button variant="outline" size="lg" fullWidth loading={busy === 'google'} disabled={anyBusy}
             onPress={handleGoogle}>
             Continue with Google
@@ -163,13 +119,13 @@ export default function GetStartedScreen() {
 
           <Button variant="outline" size="lg" fullWidth disabled={anyBusy}
             icon={<Phone size={18} color={theme.colors.content.primary} />}
-            onPress={() => setContactMode('phone')}>
+            onPress={() => goToContact('phone')}>
             Continue with phone
           </Button>
 
           <Button variant="outline" size="lg" fullWidth disabled={anyBusy}
             icon={<Mail size={18} color={theme.colors.content.primary} />}
-            onPress={() => setContactMode('email')}>
+            onPress={() => goToContact('email')}>
             Continue with email
           </Button>
 
@@ -186,6 +142,41 @@ export default function GetStartedScreen() {
 
 const s = StyleSheet.create({
   flex: { flex: 1 },
-  body: { paddingHorizontal: 20, paddingTop: 8, gap: 12 },
-  lede: { fontSize: 14, lineHeight: 21, marginBottom: 4 },
+  hero: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 28,
+    gap: 14,
+  },
+  logoWrap: {
+    width: 72,
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 24,
+    elevation: 6,
+  },
+  logo: { width: 64, height: 64 },
+  title: {
+    fontSize: 30,
+    lineHeight: 36,
+    fontWeight: '700',
+    letterSpacing: -0.9,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 14.5,
+    lineHeight: 22,
+    textAlign: 'center',
+    maxWidth: 300,
+  },
+  methods: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    gap: 12,
+  },
 })
