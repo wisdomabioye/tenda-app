@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { View, StyleSheet } from 'react-native'
+import { View, ScrollView, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { Image } from 'expo-image'
 import { useUnistyles } from 'react-native-unistyles'
@@ -94,47 +94,54 @@ export default function GetStartedScreen() {
       <View style={s.flex}>
         <Header showBack transparent />
 
-        <View style={s.hero}>
-          <View style={[s.logoWrap, { shadowColor: theme.colors.brand.primary }]}>
-            <Image source={Logo} style={s.logo} contentFit="contain" />
+        <ScrollView
+          style={s.flex}
+          contentContainerStyle={s.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={s.hero}>
+            <View style={[s.logoWrap, { shadowColor: theme.colors.brand.primary }]}>
+              <Image source={Logo} style={s.logo} contentFit="contain" />
+            </View>
+            <Text style={[s.title, { color: theme.colors.content.primary }]}>Get started</Text>
+            <Text style={[s.subtitle, { color: theme.colors.content.secondary }]}>
+              Choose how you’d like to continue. You can link a wallet later when you’re ready to transact.
+            </Text>
           </View>
-          <Text style={[s.title, { color: theme.colors.content.primary }]}>Get started</Text>
-          <Text style={[s.subtitle, { color: theme.colors.content.secondary }]}>
-            Choose how you’d like to continue. You can link a wallet later when you’re ready to transact.
-          </Text>
-        </View>
 
-        <View style={s.methods}>
-          <Button variant="outline" size="lg" fullWidth loading={busy === 'google'} disabled={anyBusy}
-            onPress={handleGoogle}>
-            Continue with Google
-          </Button>
-
-          {appleAvailable && (
-            <Button variant="outline" size="lg" fullWidth loading={busy === 'apple'} disabled={anyBusy}
-              onPress={handleApple}>
-              Continue with Apple
+          <View style={s.methods}>
+            <Button variant="outline" size="lg" fullWidth loading={busy === 'google'} disabled={anyBusy}
+              onPress={handleGoogle}>
+              Continue with Google
             </Button>
-          )}
 
-          <Button variant="outline" size="lg" fullWidth disabled={anyBusy}
-            icon={<Phone size={18} color={theme.colors.content.primary} />}
-            onPress={() => goToContact('phone')}>
-            Continue with phone
-          </Button>
+            {appleAvailable && (
+              <Button variant="outline" size="lg" fullWidth loading={busy === 'apple'} disabled={anyBusy}
+                onPress={handleApple}>
+                Continue with Apple
+              </Button>
+            )}
 
-          <Button variant="outline" size="lg" fullWidth disabled={anyBusy}
-            icon={<Mail size={18} color={theme.colors.content.primary} />}
-            onPress={() => goToContact('email')}>
-            Continue with email
-          </Button>
+            <Button variant="outline" size="lg" fullWidth disabled={anyBusy}
+              icon={<Phone size={18} color={theme.colors.content.primary} />}
+              onPress={() => goToContact('phone')}>
+              Continue with phone
+            </Button>
 
-          <Button variant="ghost" size="md" fullWidth disabled={anyBusy}
-            icon={<Wallet size={16} color={theme.colors.content.secondary} />}
-            onPress={() => router.push('/(auth)/connect-wallet')}>
-            Sign in with a wallet
-          </Button>
-        </View>
+            <Button variant="outline" size="lg" fullWidth disabled={anyBusy}
+              icon={<Mail size={18} color={theme.colors.content.primary} />}
+              onPress={() => goToContact('email')}>
+              Continue with email
+            </Button>
+
+            <Button variant="ghost" size="md" fullWidth disabled={anyBusy}
+              icon={<Wallet size={16} color={theme.colors.content.secondary} />}
+              onPress={() => router.push('/(auth)/connect-wallet')}>
+              Sign in with a wallet
+            </Button>
+          </View>
+        </ScrollView>
       </View>
     </ScreenContainer>
   )
@@ -142,10 +149,15 @@ export default function GetStartedScreen() {
 
 const s = StyleSheet.create({
   flex: { flex: 1 },
-  hero: {
-    flex: 1,
-    alignItems: 'center',
+  content: {
+    flexGrow: 1,
     justifyContent: 'center',
+    paddingTop: 8,
+    paddingBottom: 28,
+    gap: 28,
+  },
+  hero: {
+    alignItems: 'center',
     paddingHorizontal: 28,
     gap: 14,
   },
@@ -176,7 +188,6 @@ const s = StyleSheet.create({
   },
   methods: {
     paddingHorizontal: 20,
-    paddingBottom: 28,
     gap: 12,
   },
 })
