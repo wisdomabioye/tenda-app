@@ -30,18 +30,20 @@
 import { randomUUID } from 'node:crypto'
 import { and, eq, gt, sql } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
+import { CHAIN_MANIFEST } from '@tenda/shared'
 import type { ChainId } from '@server/chains/types'
 import type { AppDatabase } from '@server/plugins/db'
 
 /**
  * Chains whose unsigned-tx build path goes through this module's reservation
  * pattern. Other chains return `{ sponsored: false }` without touching the
- * counter. Move to a `chains.paymaster_managed` column at Stage 3.
+ * counter. Derived from the manifest's `gasPolicy: 'paymaster'` entries — the
+ * single source — so a new paymaster chain becomes sponsorship-eligible by
+ * adding its manifest entry, with no edit here.
  */
-const PAYMASTER_MANAGED_CHAINS: ReadonlySet<ChainId> = new Set([
-  'eip155:8453', // BASE mainnet
-  'eip155:84532', // Base Sepolia
-])
+const PAYMASTER_MANAGED_CHAINS: ReadonlySet<ChainId> = new Set(
+  CHAIN_MANIFEST.filter((c) => c.gasPolicy === 'paymaster').map((c) => c.id),
+)
 
 /**
  * Discriminated so `reservation_id` is only accessible after the
