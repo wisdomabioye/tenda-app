@@ -20,7 +20,6 @@ const EVM_RPC = 'https://base-sepolia.example/v2/key'
 function solanaDevnetEnv(): NodeJS.ProcessEnv {
   return {
     CHAIN_SOLANA_DEVNET_RPC_URL: RPC,
-    CHAIN_SOLANA_DEVNET_PROGRAM_ID: SOL_PUBKEY,
     CHAIN_SOLANA_DEVNET_TREASURY_ADDR: SOL_PUBKEY,
   }
 }
@@ -55,7 +54,6 @@ test('a fully-configured Solana chain resolves with the solana shape', () => {
   const sol = secrets.get('solana:devnet')
   assert.ok(sol && sol.namespace === 'solana')
   assert.equal(sol.rpcUrl, RPC)
-  assert.equal(sol.programId, SOL_PUBKEY)
   assert.equal(sol.treasury, SOL_PUBKEY)
   assert.equal(sol.usdcMint, undefined)
   assert.equal(sol.gasSeedKey, undefined)
@@ -107,7 +105,7 @@ test('empty-string and whitespace-only values are treated as absent', () => {
 test('partial required config throws and names the missing key', () => {
   assert.throws(
     () => loadChainSecrets({ CHAIN_SOLANA_DEVNET_RPC_URL: RPC }),
-    /partially configured.*CHAIN_SOLANA_DEVNET_PROGRAM_ID/s,
+    /partially configured.*CHAIN_SOLANA_DEVNET_TREASURY_ADDR/s,
   )
 })
 
@@ -132,10 +130,10 @@ test('a malformed RPC url throws', () => {
   )
 })
 
-test('a malformed base58 program id throws', () => {
+test('a malformed base58 treasury address throws', () => {
   assert.throws(
-    () => loadChainSecrets({ ...solanaDevnetEnv(), CHAIN_SOLANA_DEVNET_PROGRAM_ID: '0OIl-invalid' }),
-    /malformed.*PROGRAM_ID/s,
+    () => loadChainSecrets({ ...solanaDevnetEnv(), CHAIN_SOLANA_DEVNET_TREASURY_ADDR: '0OIl-invalid' }),
+    /malformed.*TREASURY_ADDR/s,
   )
 })
 

@@ -1,17 +1,17 @@
 /**
  * Listener boot plugin (stage-2-listeners.md § plugins/listeners.ts).
  *
- * LISTENER_PROVIDER:
- *   - 'helius' (default): push-based — the webhook route is the intake;
+ * Provider is INFERRED from the Solana chain's secrets, not a separate env:
+ *   - WEBHOOK_SECRET set  → Helius push: the webhook route is the intake;
  *     nothing to start here.
- *   - 'polling': self-hosted fallback — starts the chain_cursors-driven
- *     polling loop and stops it on shutdown. Flip the env to fail open
- *     during a Helius outage (stage-2 risk table).
+ *   - WEBHOOK_SECRET unset → self-hosted polling fallback: start the
+ *     chain_cursors-driven loop and stop it on shutdown. To fail open during a
+ *     Helius outage, unset the chain's WEBHOOK_SECRET (stage-2 risk table).
  */
 
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
-import { getConfig } from '@server/config'
+import { solanaSecret } from '@server/chains/secrets'
 import { createSolanaRpc } from '@server/chains/solana/rpc'
 import {
   createSolanaPollingListener,
@@ -19,18 +19,19 @@ import {
 } from '@server/chains/solana/listener-polling'
 
 const listenersPlugin: FastifyPluginAsync = async (fastify) => {
-  const config = getConfig()
-  if (config.LISTENER_PROVIDER !== 'polling') return
+  const solana = solanaSecret()
+  // No Solana chain, or Helius push configured → nothing to poll.
+  if (solana === undefined || solana.webhookSecret !== undefined) return
 
-  const solana = fastify.chains.list().find((a) => a.namespace === 'solana')
-  if (solana === undefined) {
+  const adapter = fastify.chains.list().find((a) => a.namespace === 'solana')
+  if (adapter === undefined) {
     fastify.log.warn({}, 'polling listener: no solana adapter registered — not started')
     return
   }
 
   const listener = createSolanaPollingListener({
-    rpc: createSolanaRpc({ rpc_url: config.SOLANA_RPC_URL, chain_id: solana.chain_id }),
-    chain_id: solana.chain_id,
+    rpc: createSolanaRpc({ rpc_url: solana.rpcUrl, chain_id: adapter.chain_id }),
+    chain_id: adapter.chain_id,
     cursors: drizzleCursorStore(fastify.db),
     queue: fastify.queue,
     log: fastify.log,

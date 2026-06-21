@@ -3,10 +3,9 @@
  *
  * The hosted endpoint speaks ERC-4337 JSON-RPC: `pm_sponsorUserOperation`
  * fills the paymaster fields + gas limits for a UserOperation we assemble
- * around the escrow calldata. Env-gated (#47): without
- * COINBASE_PAYMASTER_URL the adapter never offers sponsorship and falls
- * back to a regular tx — the documented degradation ("you'll pay a small
- * fee").
+ * around the escrow calldata. Gated on the chain's PAYMASTER_URL secret (#47):
+ * without it the adapter never offers sponsorship and falls back to a regular
+ * tx — the documented degradation ("you'll pay a small fee").
  *
  * EOA mode: the client signs the userOpHash with personal_sign; nonce and
  * init_code are bundler-resolved fields the client fills via its 4337 SDK.

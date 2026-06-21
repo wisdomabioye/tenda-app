@@ -17,12 +17,11 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { getConfig } from '@server/config'
+import { paymasterChainSecret } from '@server/chains/secrets'
 import { verifyHmac } from '@server/core/webhooks/verify-hmac'
 import { verifyTxDedupKey } from '@server/jobs/verify-tx'
 
 const SIGNATURE_HEADER = 'x-alchemy-signature'
-const BASE_CHAIN_ID = 'eip155:8453'
 
 interface RawJsonBody {
   raw: string
@@ -57,19 +56,22 @@ const route: FastifyPluginAsync = async (fastify) => {
   })
 
   fastify.post<{ Body: RawJsonBody }>('/', async (request, reply) => {
-    const config = getConfig()
-    if (config.ALCHEMY_WEBHOOK_SECRET === null) {
+    // The Alchemy hook serves the active paymaster-managed EVM chain (BASE or
+    // its testnet) — resolved from the manifest+secrets, never hardcoded.
+    const evm = paymasterChainSecret()
+    if (evm?.webhookSecret === undefined) {
       throw new AppError(503, ErrorCode.INTERNAL_ERROR, 'Alchemy webhook not configured')
     }
     const signature = request.headers[SIGNATURE_HEADER]
     if (
       typeof signature !== 'string' ||
-      !verifyHmac({ payload: request.body.raw, signature, secret: config.ALCHEMY_WEBHOOK_SECRET })
+      !verifyHmac({ payload: request.body.raw, signature, secret: evm.webhookSecret })
     ) {
       throw new AppError(401, ErrorCode.UNAUTHORIZED, 'webhook signature mismatch')
     }
 
-    if (!fastify.chains.has(BASE_CHAIN_ID)) {
+    const chainId = evm.chainId
+    if (!fastify.chains.has(chainId)) {
       throw new AppError(503, ErrorCode.INTERNAL_ERROR, 'BASE adapter not registered')
     }
 
@@ -79,8 +81,8 @@ const route: FastifyPluginAsync = async (fastify) => {
       try {
         await fastify.queue.enqueue(
           'verify-tx',
-          { chain_id: BASE_CHAIN_ID, tx_ref, source: 'webhook' },
-          { job_id: verifyTxDedupKey({ chain_id: BASE_CHAIN_ID, tx_ref, event: 'Any' }) },
+          { chain_id: chainId, tx_ref, source: 'webhook' },
+          { job_id: verifyTxDedupKey({ chain_id: chainId, tx_ref, event: 'Any' }) },
         )
         enqueued += 1
       } catch (err) {

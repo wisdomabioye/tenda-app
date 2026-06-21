@@ -1,6 +1,6 @@
 /**
- * Self-hosted polling listener (stage-2-listeners.md): the
- * LISTENER_PROVIDER=polling fallback when Helius is down or unconfigured.
+ * Self-hosted polling listener (stage-2-listeners.md): the fallback that runs
+ * when the Solana chain's WEBHOOK_SECRET is unset (Helius down or unconfigured).
  *
  * The ONLY consumer of `chain_cursors` (webhooks are push-based and dedup
  * via job ids). Each tick fetches recent program signatures, enqueues

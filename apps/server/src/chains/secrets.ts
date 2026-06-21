@@ -38,9 +38,11 @@ interface SecretFieldSpec {
  * needs no schema change. The resolved record's shape mirrors this 1:1.
  */
 const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
+  // NOTE: the Solana program id is NOT a secret — it is the deployed IDL
+  // artifact (ESCROW_IDL.address), the single source used by the adapter,
+  // pdas, and the seeder. Treasury + RPC are the genuine per-deployment values.
   solana: [
     { key: 'rpcUrl', envSuffix: 'RPC_URL', required: true, kind: 'url' },
-    { key: 'programId', envSuffix: 'PROGRAM_ID', required: true, kind: 'base58' },
     { key: 'treasury', envSuffix: 'TREASURY_ADDR', required: true, kind: 'base58' },
     { key: 'usdcMint', envSuffix: 'USDC_MINT', required: false, kind: 'base58' },
     { key: 'gasSeedKey', envSuffix: 'GAS_SEED_KEY', required: false, kind: 'str' },
@@ -61,7 +63,6 @@ export type ResolvedChainSecret =
       namespace: 'solana'
       chainId: string
       rpcUrl: string
-      programId: string
       treasury: string
       usdcMint?: string
       gasSeedKey?: string
@@ -137,7 +138,6 @@ function assemble(
       namespace: 'solana',
       chainId: entry.id,
       rpcUrl: must(present, 'rpcUrl', entry.id),
-      programId: must(present, 'programId', entry.id),
       treasury: must(present, 'treasury', entry.id),
       usdcMint: present.get('usdcMint'),
       gasSeedKey: present.get('gasSeedKey'),

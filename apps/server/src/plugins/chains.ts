@@ -13,18 +13,17 @@ import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
 import { and, desc, eq } from 'drizzle-orm'
 import { assets, user_wallets } from '@tenda/shared/db/schema'
-import { ErrorCode, SOLANA_CAIP_BY_NETWORK } from '@tenda/shared'
-import { buildChainRegistry } from '@server/chains'
+import { ErrorCode } from '@tenda/shared'
+import { buildAdapters, buildChainRegistry, type AdapterDepsFactory } from '@server/chains'
+import type { EvmAdapterDeps } from '@server/chains/evm'
 import { fetchPaymasterHttp } from '@server/chains/evm/paymaster'
-import { CELO_CHAIN_ID } from '@server/chains/celo/config'
-import { getConfig } from '@server/config'
+import { getChainSecrets } from '@server/chains/secrets'
 import { AppError } from '@server/lib/errors'
 import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/sponsor'
 
 type ChainNs = 'solana' | 'eip155'
 
 const chainsPlugin: FastifyPluginAsync = async (fastify) => {
-  const config = getConfig()
 
   /**
    * One linked wallet per (user, namespace) serves every chain in that
@@ -71,54 +70,56 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
     }
   }
 
-  const solanaChainId = SOLANA_CAIP_BY_NETWORK[config.SOLANA_NETWORK]
-  if (solanaChainId === undefined) {
-    throw new Error(`unsupported SOLANA_NETWORK '${config.SOLANA_NETWORK}'`)
+  /**
+   * Per-chain deps, selected by `gasPolicy` (not bespoke per-chain keys):
+   *   - solana: wallet + asset resolvers.
+   *   - paymaster EVM (BASE-style): adds the reserve-at-build sponsorship
+   *     probe + symmetric release, and the paymaster client when its URL is
+   *     configured. Reserve IS the atomic quota decrement; the reconcile cron
+   *     repairs drift when a sponsored build never lands.
+   *   - feeCurrency / none EVM (CELO-style): plain resolvers — gas rides
+   *     feeCurrency, no probe, counter never touched.
+   * A new EVM chain inherits the right wiring from its manifest gasPolicy
+   * with no edit here.
+   */
+  const depsFactory: AdapterDepsFactory = {
+    solana: (chainId) => ({
+      resolveWalletAddress: dbWalletResolver('solana'),
+      resolveAsset: dbAssetResolver(chainId),
+    }),
+    evm: (chainId, secret, entry) => {
+      const base: EvmAdapterDeps = {
+        resolveWalletAddress: dbWalletResolver('eip155'),
+        resolveAsset: dbAssetResolver(chainId),
+      }
+      if (entry.gasPolicy !== 'paymaster') return base
+      return {
+        ...base,
+        async shouldSponsor(user_id) {
+          const result = await reserveSponsoredTx(drizzleSponsorStore(fastify.db), {
+            user_id,
+            chain_id: chainId,
+          })
+          return result.sponsored
+        },
+        async releaseSponsorship(user_id) {
+          await releaseSponsoredTx(drizzleSponsorStore(fastify.db), { user_id })
+        },
+        ...(secret.paymasterUrl !== undefined
+          ? { paymaster: fetchPaymasterHttp(secret.paymasterUrl) }
+          : {}),
+      }
+    },
   }
 
-  const registry = buildChainRegistry(config, {
-    solana: {
-      resolveWalletAddress: dbWalletResolver('solana'),
-      resolveAsset: dbAssetResolver(solanaChainId),
-    },
+  const adapters = buildAdapters(getChainSecrets(), depsFactory)
+  if (adapters.length === 0) {
+    throw new Error(
+      'no chains configured — set CHAIN_<ID>_* env for at least one manifest chain (e.g. CHAIN_SOLANA_DEVNET_RPC_URL)',
+    )
+  }
 
-    // Stage 3 (BASE) + Stage 4 (CELO) share the eip155 wallet rows.
-    base: {
-      resolveWalletAddress: dbWalletResolver('eip155'),
-      resolveAsset: dbAssetResolver('eip155:8453'),
-
-      // Reserve-at-build (stage-3 § Paymaster): a successful probe IS the
-      // atomic quota decrement; the reconciliation cron repairs drift when
-      // a sponsored build never lands on-chain.
-      async shouldSponsor(user_id) {
-        const result = await reserveSponsoredTx(drizzleSponsorStore(fastify.db), {
-          user_id,
-          chain_id: 'eip155:8453',
-        })
-        return result.sponsored
-      },
-
-      // Symmetric refund for the reserve above: the adapter calls this when a
-      // sponsored build fails after the slot was reserved (paymaster outage),
-      // so the quota slot isn't leaked.
-      async releaseSponsorship(user_id) {
-        await releaseSponsoredTx(drizzleSponsorStore(fastify.db), { user_id })
-      },
-
-      ...(config.COINBASE_PAYMASTER_URL !== null
-        ? { paymaster: fetchPaymasterHttp(config.COINBASE_PAYMASTER_URL) }
-        : {}),
-    },
-
-    // CELO: NO paymaster and NO sponsorship probe — gas rides
-    // feeCurrency=cUSD on every tx.
-    celo: {
-      resolveWalletAddress: dbWalletResolver('eip155'),
-      resolveAsset: dbAssetResolver(CELO_CHAIN_ID),
-    },
-  })
-
-  fastify.decorate('chains', registry)
+  fastify.decorate('chains', buildChainRegistry(adapters))
 }
 
 export default fp(chainsPlugin, { name: 'chains', dependencies: ['db'] })

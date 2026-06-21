@@ -18,6 +18,7 @@ import {
 } from '@server/lib/otp'
 import { dispatchGasSeeds, drizzleGasSeedStore, type GasSeedDeps } from '@server/lib/gas-seed'
 import { solanaGasSeedSender } from '@server/chains/solana/gas-seed-sender'
+import { solanaSecret } from '@server/chains/secrets'
 
 /**
  * Pick the phone SMS transport: prefer cost-optimal routing (Termii for its
@@ -78,16 +79,18 @@ export function fireRetroactiveGasSeed(fastify: FastifyInstance, userId: string)
 }
 
 export function buildGasSeedDeps(fastify: FastifyInstance): GasSeedDeps {
-  const config = getConfig()
+  // Seed only when the active Solana chain supplies a gas-seed key; the chain
+  // id and RPC come from that same secret (no hardcoded fallback).
+  const solana = solanaSecret()
   return {
     store: drizzleGasSeedStore(fastify.db),
     senders:
-      config.SOLANA_GAS_SEED_WALLET_KEY !== null
+      solana?.gasSeedKey !== undefined
         ? {
             solana: solanaGasSeedSender({
-              rpc_url: config.SOLANA_RPC_URL,
-              chain_id: fastify.chains.list()[0]?.chain_id ?? 'solana:devnet',
-              secret_key_base58: config.SOLANA_GAS_SEED_WALLET_KEY,
+              rpc_url: solana.rpcUrl,
+              chain_id: solana.chainId,
+              secret_key_base58: solana.gasSeedKey,
             }),
           }
         : {},

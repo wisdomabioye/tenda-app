@@ -1,19 +1,18 @@
 /**
- * Stage-0 cutover seeds (cutover checklist §1): chains, assets,
- * platform_config. Idempotent by construction — every insert is
- * `ON CONFLICT DO NOTHING` (checklist §10.5), so re-runs are no-ops and
- * boot-time invocation is safe.
+ * Cutover seeds: chains, assets, platform_config. Idempotent by construction —
+ * every insert is `ON CONFLICT DO NOTHING`, so re-runs are no-ops and boot-time
+ * invocation is safe.
  *
  * Run: `pnpm --filter tenda-server db:seed` (requires DATABASE_URL +
- * SOLANA_* env). Values are config/IDL-driven — nothing chain-shaped is
- * hardcoded here:
- *   - escrow program id ← @tenda/shared/idl (the deployed artifact)
- *   - treasury           ← SOLANA_TREASURY_ADDRESS
- *   - USDC mint          ← SOLANA_USDC_MINT (asset skipped + warned if unset)
+ * `CHAIN_<ID>_*` env). Fully manifest + secrets driven — nothing chain-shaped
+ * is hardcoded here:
+ *   - which chains  ← the ACTIVE chain secrets (chains/secrets.ts)
+ *   - display/confirmations/token addresses ← the shared CHAIN_MANIFEST
+ *   - solana escrow program id ← @tenda/shared/idl (the deployed artifact)
+ *   - EVM escrow + treasury    ← the chain's secrets
+ *   - solana USDC mint         ← the chain's secret (`fromSecret`); skipped + warned if unset
  *   - gas-seed columns stay NULL until the hot wallet exists (#40); the
  *     paired CHECK constraint requires both-or-neither.
- *
- * BASE/CELO rows land in Stages 3/4 by extending `buildSeedRows`.
  */
 
 import 'dotenv/config'
@@ -22,10 +21,10 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { ESCROW_IDL } from '@tenda/shared/idl'
 import { assets, chains } from '@tenda/shared/db/schema/chains'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
-import { CELO_CUSD_ADDR, CELO_USDC_ADDR } from '@server/chains/celo/config'
-import { ASSET_META } from '@tenda/shared'
+import { ASSET_META, chainById, type ChainAsset } from '@tenda/shared'
 import { platform_config } from '@tenda/shared/db/schema/governance'
-import { loadConfig, type Config } from '@server/config'
+import { loadConfig } from '@server/config'
+import { getChainSecrets, type ResolvedChainSecret } from '@server/chains/secrets'
 
 // ---------- pure row builder (unit-tested) ---------------------------------
 
@@ -48,40 +47,27 @@ export interface SeedRows {
   skipped: string[]
 }
 
-export function buildSeedRows(
-  config: Pick<
-    Config,
-    | 'SOLANA_TREASURY_ADDRESS'
-    | 'SOLANA_USDC_MINT'
-    | 'BASE_ESCROW_ADDR'
-    | 'BASE_USDC_ADDR'
-    | 'MULTISIG_BASE_ADDR'
-    | 'CELO_ESCROW_ADDR'
-    | 'MULTISIG_CELO_ADDR'
-  >,
-  /** Network this deployment targets — the USDC mint belongs to it. */
-  active_chain_id: 'solana:mainnet' | 'solana:devnet',
-): SeedRows {
-  const escrow_program = ESCROW_IDL.address
-  const chainRows: ChainRow[] = [
-    {
-      id: 'solana:mainnet',
-      namespace: 'solana',
-      display_name: 'Solana',
-      min_confirmations: 1,
-      treasury_address: config.SOLANA_TREASURY_ADDRESS,
-      escrow_program,
-    },
-    {
-      id: 'solana:devnet',
-      namespace: 'solana',
-      display_name: 'Solana Devnet',
-      min_confirmations: 1,
-      treasury_address: config.SOLANA_TREASURY_ADDRESS,
-      escrow_program,
-    },
-  ]
+/**
+ * Resolve an asset's seedable token address. A `fromSecret` asset (Solana USDC
+ * — the mint differs per cluster and is not canonical) is supplied by the
+ * chain's secret and skipped when absent; otherwise the manifest token (canonical
+ * EVM contract) or `null` (native) is used.
+ */
+function resolveAssetToken(
+  asset: ChainAsset,
+  secret: ResolvedChainSecret,
+): { token: string | null; skip: boolean } {
+  if (asset.fromSecret === undefined) return { token: asset.token, skip: false }
+  if (secret.namespace === 'solana' && asset.fromSecret === 'usdcMint') {
+    return secret.usdcMint !== undefined
+      ? { token: secret.usdcMint, skip: false }
+      : { token: null, skip: true }
+  }
+  return { token: null, skip: true }
+}
 
+export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>): SeedRows {
+  const chainRows: ChainRow[] = []
   const assetRows: AssetRow[] = []
   const skipped: string[] = []
 
@@ -92,66 +78,27 @@ export function buildSeedRows(
     if (meta === undefined) throw new Error(`asset '${id}' missing from shared ASSET_META`)
     return { id, chain_id, symbol: meta.symbol, decimals: meta.decimals, token_address, is_stable: meta.is_stable }
   }
-  for (const chain of chainRows) {
-    assetRows.push(assetRow(chain.id === 'solana:mainnet' ? 'SOL' : 'SOL_DEVNET', chain.id, null))
-  }
-  if (config.SOLANA_USDC_MINT !== null) {
-    // The mint differs per network — the configured value belongs to the
-    // network this deployment targets, so only that side gets the row.
-    assetRows.push(assetRow('USDC_SOL', active_chain_id, config.SOLANA_USDC_MINT))
-  } else {
-    skipped.push('USDC_SOL (SOLANA_USDC_MINT not set)')
-  }
 
-  // Stage 3: BASE — rows land only when the deployment configures the
-  // contract (#47 externals). ETH_BASE is exchange-only by server policy.
-  // typeof guards (not !== null): a partial config object that omits the
-  // BASE keys entirely must read as "unset", same as env-null.
-  const baseEscrow = typeof config.BASE_ESCROW_ADDR === 'string' ? config.BASE_ESCROW_ADDR : null
-  const baseMultisig = typeof config.MULTISIG_BASE_ADDR === 'string' ? config.MULTISIG_BASE_ADDR : null
-  if ((baseEscrow === null) !== (baseMultisig === null)) {
-    // Half-configured is a misconfiguration — warn; fully unset is the
-    // normal pre-#47 state and stays silent.
-    skipped.push('BASE chain (BASE_ESCROW_ADDR and MULTISIG_BASE_ADDR must both be set)')
-  }
-  if (baseEscrow !== null && baseMultisig !== null) {
+  // One row set per ACTIVE chain. Solana's escrow program id is the deployed
+  // IDL artifact (single source); EVM's is the deployed contract from secrets.
+  for (const secret of secrets.values()) {
+    const entry = chainById(secret.chainId)
     chainRows.push({
-      id: 'eip155:8453',
-      namespace: 'eip155',
-      display_name: 'BASE',
-      min_confirmations: 5,
-      treasury_address: baseMultisig,
-      escrow_program: baseEscrow,
+      id: entry.id,
+      namespace: entry.namespace,
+      display_name: entry.displayName,
+      min_confirmations: entry.minConfirmations,
+      treasury_address: secret.treasury,
+      escrow_program: secret.namespace === 'solana' ? ESCROW_IDL.address : secret.escrow,
     })
-    if (typeof config.BASE_USDC_ADDR === 'string') {
-      assetRows.push(assetRow('USDC_BASE', 'eip155:8453', config.BASE_USDC_ADDR))
-    } else {
-      skipped.push('USDC_BASE (BASE_USDC_ADDR not set)')
+    for (const asset of entry.assets) {
+      const resolved = resolveAssetToken(asset, secret)
+      if (resolved.skip) {
+        skipped.push(`${asset.id} on ${entry.id} (${asset.fromSecret} not configured)`)
+        continue
+      }
+      assetRows.push(assetRow(asset.id, entry.id, resolved.token))
     }
-    assetRows.push(assetRow('ETH_BASE', 'eip155:8453', null))
-  }
-
-  // Stage 4: CELO — same gating semantics as BASE; token addresses are
-  // canonical mainnet constants (chains/celo/config.ts).
-  const celoEscrow = typeof config.CELO_ESCROW_ADDR === 'string' ? config.CELO_ESCROW_ADDR : null
-  const celoMultisig = typeof config.MULTISIG_CELO_ADDR === 'string' ? config.MULTISIG_CELO_ADDR : null
-  if ((celoEscrow === null) !== (celoMultisig === null)) {
-    skipped.push('CELO chain (CELO_ESCROW_ADDR and MULTISIG_CELO_ADDR must both be set)')
-  }
-  if (celoEscrow !== null && celoMultisig !== null) {
-    chainRows.push({
-      id: 'eip155:42220',
-      namespace: 'eip155',
-      display_name: 'CELO',
-      min_confirmations: 3,
-      treasury_address: celoMultisig,
-      escrow_program: celoEscrow,
-    })
-    assetRows.push(
-      assetRow('cUSD', 'eip155:42220', CELO_CUSD_ADDR),
-      assetRow('USDC_CELO', 'eip155:42220', CELO_USDC_ADDR),
-      assetRow('CELO', 'eip155:42220', null),
-    )
   }
 
   // Stage 8: routing registry (enable/priority only — credentials live in
@@ -187,9 +134,7 @@ export function buildSeedRows(
 
 async function seed(): Promise<void> {
   const config = loadConfig()
-  const activeChainId =
-    config.SOLANA_NETWORK === 'mainnet-beta' ? 'solana:mainnet' : 'solana:devnet'
-  const rows = buildSeedRows(config, activeChainId)
+  const rows = buildSeedRows(getChainSecrets())
 
   const sql = postgres(config.DATABASE_URL, { max: 1 })
   const db = drizzle(sql)

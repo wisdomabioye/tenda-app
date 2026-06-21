@@ -3,121 +3,110 @@
  * `escrow.chain_id` via `chainRegistry.get(chain_id)` — no chain-namespace
  * branching outside this folder.
  *
- * Stage 0 registers exactly one Solana chain — whichever matches
- * `SOLANA_NETWORK` (a deployment points its RPC at one network at a time).
- * EVM adapters land in Stage 3 (BASE) and Stage 4 (CELO) by adding more
- * `register()` calls here; no other file changes.
- *
- * Construction is lazy: `buildChainRegistry(getConfig())` is called once at
- * server boot and cached on `fastify.chains` via the plugin (Stage 0 routes
- * import the cached registry, not raw factories).
+ * Adapters are built generically from the ACTIVE chain secrets (one entry per
+ * configured chain) against the shared CHAIN_MANIFEST: `namespace` picks the
+ * adapter, `gasPolicy` picks the dep wiring (supplied by the plugin via the
+ * dep factory), and confirmations / feeCurrency come from the manifest. Adding
+ * a chain is a manifest entry + its env secrets — no edit here.
  */
 
-import { SOLANA_CAIP_BY_NETWORK } from '@tenda/shared'
+import {
+  CHAIN_MANIFEST,
+  chainById,
+  feeCurrencyAddress,
+  type ChainManifestEntry,
+} from '@tenda/shared'
 import { solanaAdapter, type SolanaAdapterDeps } from '@server/chains/solana'
 import { evmAdapter, type EvmAdapterDeps } from '@server/chains/evm'
-import { CELO_CHAIN_ID, CELO_CUSD_ADDR, CELO_MIN_CONFIRMATIONS } from '@server/chains/celo/config'
-import type { Config } from '@server/config'
+import type { ResolvedChainSecret, EvmChainSecret } from '@server/chains/secrets'
 import type { ChainAdapter, ChainId, ChainRegistry } from '@server/chains/types'
 
 /**
- * Per-namespace adapter dependencies. The chains plugin constructs these
- * (it owns DB access for the wallet/asset resolvers); the registry stays a
- * pure factory over config + deps.
+ * Per-chain dependency factory. The plugin implements this (it owns DB access
+ * for the wallet/asset resolvers and the sponsorship/paymaster wiring); the
+ * builder stays a pure function over secrets + manifest + this factory.
  */
-export interface ChainRegistryDeps {
-  solana: SolanaAdapterDeps
-  /**
-   * Stage 3/4: per-chain dep sets (BASE carries the paymaster +
-   * sponsorship probe; CELO carries neither — gas rides feeCurrency).
-   */
-  base?: EvmAdapterDeps
-  celo?: EvmAdapterDeps
+export interface AdapterDepsFactory {
+  solana(chainId: ChainId): SolanaAdapterDeps
+  evm(chainId: ChainId, secret: EvmChainSecret, entry: ChainManifestEntry): EvmAdapterDeps
+}
+
+/** A feeCurrency chain's stable-gas token address — guaranteed by the manifest. */
+function requireFeeCurrency(entry: ChainManifestEntry): `0x${string}` {
+  const addr = feeCurrencyAddress(entry)
+  if (addr === null) {
+    // Unreachable: assertManifestValid enforces feeCurrency resolves an address.
+    throw new Error(`chain ${entry.id} has gasPolicy feeCurrency but no token address`)
+  }
+  return addr as `0x${string}`
 }
 
 /**
- * Build the registry from config. Throws on duplicate registration so a
- * typo in the registration block fails at boot rather than at first
- * request.
+ * Build one adapter per active chain secret. Pure over its inputs (the factory
+ * carries the side-effecting deps), so it is unit-testable with stub deps.
  */
-export function buildChainRegistry(config: Config, deps: ChainRegistryDeps): ChainRegistry {
-  const adapters = new Map<ChainId, ChainAdapter>()
+export function buildAdapters(
+  secrets: ReadonlyMap<string, ResolvedChainSecret>,
+  deps: AdapterDepsFactory,
+): ChainAdapter[] {
+  const adapters: ChainAdapter[] = []
+  for (const secret of secrets.values()) {
+    const entry = chainById(secret.chainId)
+    if (secret.namespace === 'solana') {
+      adapters.push(
+        solanaAdapter({
+          chain_id: secret.chainId,
+          rpc_url: secret.rpcUrl,
+          deps: deps.solana(secret.chainId),
+        }),
+      )
+    } else {
+      adapters.push(
+        evmAdapter({
+          chain_id: secret.chainId,
+          rpc_url: secret.rpcUrl,
+          escrow_contract: secret.escrow as `0x${string}`,
+          min_confirmations: entry.minConfirmations,
+          ...(entry.gasPolicy === 'feeCurrency' ? { fee_currency: requireFeeCurrency(entry) } : {}),
+          deps: deps.evm(secret.chainId, secret, entry),
+        }),
+      )
+    }
+  }
+  return adapters
+}
 
-  function register(adapter: ChainAdapter): void {
-    if (adapters.has(adapter.chain_id)) {
+/**
+ * Wrap built adapters in the registry surface. Throws on a duplicate chain id
+ * so a manifest/secret mistake fails at boot rather than at first request.
+ */
+export function buildChainRegistry(adapters: readonly ChainAdapter[]): ChainRegistry {
+  const byId = new Map<ChainId, ChainAdapter>()
+  for (const adapter of adapters) {
+    if (byId.has(adapter.chain_id)) {
       throw new Error(`duplicate chain registration: ${adapter.chain_id}`)
     }
-    adapters.set(adapter.chain_id, adapter)
-  }
-
-  // ---- Solana ---------------------------------------------------------
-  // Same program_id + treasury reused across networks at launch; only RPC
-  // URL differs per network. The network → CAIP-2 map lives in
-  // @tenda/shared (SOLANA_CAIP_BY_NETWORK) — the mobile auth flow resolves
-  // through the same map, so the two sides cannot disagree on the chain id.
-  // An unsupported value like SOLANA_NETWORK='testnet' fails at boot rather
-  // than silently aliasing to devnet — testnet has no seeded `assets` rows.
-  const solanaChainId: ChainId | undefined = SOLANA_CAIP_BY_NETWORK[config.SOLANA_NETWORK]
-  if (solanaChainId === undefined) {
-    throw new Error(
-      `unsupported SOLANA_NETWORK='${config.SOLANA_NETWORK}' (expected 'mainnet-beta' or 'devnet')`,
-    )
-  }
-
-  register(
-    solanaAdapter({
-      chain_id: solanaChainId,
-      rpc_url: config.SOLANA_RPC_URL,
-      deps: deps.solana,
-    }),
-  )
-
-  // ---- BASE (Stage 3) --------------------------------------------------
-  // Registered only when the deployment configures it (#47 externals:
-  // RPC + deployed contract). The same evmAdapter serves CELO in Stage 4
-  // with its own args block.
-  if (config.BASE_RPC_URL !== null && config.BASE_ESCROW_ADDR !== null && deps.base !== undefined) {
-    register(
-      evmAdapter({
-        chain_id: 'eip155:8453',
-        rpc_url: config.BASE_RPC_URL,
-        escrow_contract: config.BASE_ESCROW_ADDR as `0x${string}`,
-        min_confirmations: 5,
-        deps: deps.base,
-      }),
-    )
-  }
-
-  // ---- CELO (Stage 4) ----------------------------------------------------
-  // Same generic adapter; the differences are config: feeCurrency=cUSD on
-  // every plain tx (no paymaster, no counter — stage-4 final policy) and a
-  // shorter confirmation margin.
-  if (config.CELO_RPC_URL !== null && config.CELO_ESCROW_ADDR !== null && deps.celo !== undefined) {
-    register(
-      evmAdapter({
-        chain_id: CELO_CHAIN_ID,
-        rpc_url: config.CELO_RPC_URL,
-        escrow_contract: config.CELO_ESCROW_ADDR as `0x${string}`,
-        min_confirmations: CELO_MIN_CONFIRMATIONS,
-        fee_currency: CELO_CUSD_ADDR,
-        deps: deps.celo,
-      }),
-    )
+    byId.set(adapter.chain_id, adapter)
   }
 
   return {
     get(chain_id) {
-      const a = adapters.get(chain_id)
-      if (a === undefined) {
+      const adapter = byId.get(chain_id)
+      if (adapter === undefined) {
         throw new Error(`no adapter registered for chain_id '${chain_id}'`)
       }
-      return a
+      return adapter
     },
     has(chain_id) {
-      return adapters.has(chain_id)
+      return byId.has(chain_id)
     },
     list() {
-      return [...adapters.values()]
+      return [...byId.values()]
     },
   }
 }
+
+/** The manifest's paymaster-managed chain ids — used by sponsorship wiring. */
+export const PAYMASTER_CHAIN_IDS: readonly string[] = CHAIN_MANIFEST.filter(
+  (c) => c.gasPolicy === 'paymaster',
+).map((c) => c.id)

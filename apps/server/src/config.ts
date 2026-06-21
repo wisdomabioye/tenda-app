@@ -1,12 +1,12 @@
+// Chain endpoints/keys (RPC, program id, treasury, escrow, webhooks…) are NOT
+// here — they are per-chain flat env vars loaded + validated by
+// `chains/secrets.ts` (CHAIN_<ID>_*), keyed off the shared CHAIN_MANIFEST.
 const REQUIRED_ENV_VARS = [
   'DATABASE_URL',
   'JWT_SECRET',
   'CLOUDINARY_CLOUD_NAME',
   'CLOUDINARY_API_KEY',
   'CLOUDINARY_API_SECRET',
-  'SOLANA_RPC_URL',
-  'SOLANA_TREASURY_ADDRESS',
-  'SOLANA_PROGRAM_ID',
   'API_BASE_URL',
 ] as const
 
@@ -16,8 +16,6 @@ export interface Config {
   CLOUDINARY_CLOUD_NAME: string
   CLOUDINARY_API_KEY: string
   CLOUDINARY_API_SECRET: string
-  SOLANA_RPC_URL: string
-  SOLANA_TREASURY_ADDRESS: string  // platform treasury wallet — required for approve_completion
   /**
    * Public base URL of this API deployment (no trailing slash). Used by the
    * wallet auth flow to assert the `URI:` line of the signed auth message
@@ -27,16 +25,7 @@ export interface Config {
   API_BASE_URL: string
   // Optional — defaults applied here; do not re-read from process.env elsewhere
   PLATFORM_FEE_BPS: number       // seed fallback only — runtime fee is read from platform_config table
-  SOLANA_PROGRAM_ID: string
   JWT_EXPIRES_IN: string         // e.g. '7d', '24h'
-  SOLANA_NETWORK: string         // 'devnet' | 'testnet' | 'mainnet-beta'
-  /**
-   * SPL mint address for the USDC asset on the configured network. Interim
-   * asset source until the Stage-0 cutover seeds the `assets` table — the
-   * chains plugin resolves `'USDC_SOL'` through this value. Null = USDC
-   * escrows rejected with a clear error (native SOL still works).
-   */
-  SOLANA_USDC_MINT: string | null
   /**
    * Termii credentials for phone OTP (#32) — regional (NG/Africa). Null = no
    * Termii transport. When neither Termii nor Twilio is set, codes are logged
@@ -58,18 +47,6 @@ export interface Config {
   TWILIO_AUTH_TOKEN: string | null
   TWILIO_SMS_FROM: string | null
   /**
-   * base58-encoded secret key of the Solana gas-seed hot wallet (#40).
-   * Null = gas seeds are skipped with a logged warning.
-   */
-  SOLANA_GAS_SEED_WALLET_KEY: string | null
-  /**
-   * Shared secret Helius sends in the Authorization header (#43). Null =
-   * the webhook route answers 503 (polling fallback carries verification).
-   */
-  HELIUS_WEBHOOK_SECRET: string | null
-  /** 'helius' (push, default) | 'polling' (self-hosted fallback). */
-  LISTENER_PROVIDER: 'helius' | 'polling'
-  /**
    * OpenRouter API key (#56) — ALL LLM calls route through OpenRouter
    * (project decision). Null = moderation runs keyword-only.
    */
@@ -86,18 +63,6 @@ export interface Config {
   NIP_API_KEY: string | null
   /** Redis for BullMQ (#33). Unset = queue 501s and no workers start. */
   REDIS_URL: string | null
-  /** Stage 3 — BASE (eip155). All null-gated: unset = chain not registered. */
-  BASE_RPC_URL: string | null
-  BASE_ESCROW_ADDR: string | null
-  BASE_USDC_ADDR: string | null
-  /** Safe 3-of-5 on BASE — protocol admin / treasury. */
-  MULTISIG_BASE_ADDR: string | null
-  COINBASE_PAYMASTER_URL: string | null
-  ALCHEMY_WEBHOOK_SECRET: string | null
-  /** Stage 4 — CELO (eip155:42220). Null-gated like BASE. */
-  CELO_RPC_URL: string | null
-  CELO_ESCROW_ADDR: string | null
-  MULTISIG_CELO_ADDR: string | null
   /**
    * S5.1 push credentials (#53). FCM: base64-encoded service-account JSON
    * (HTTP v1 — the legacy server-key API is retired). APNs: p8 token auth.
@@ -152,35 +117,21 @@ export function loadConfig(): Config {
     throw new Error(`Missing required environment variables: ${missing.join(', ')}`)
   }
 
-  // Validate SOLANA_PROGRAM_ID is a valid base58 Solana public key (32–44 chars)
-  const programId = process.env.SOLANA_PROGRAM_ID!
-  if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(programId)) {
-    throw new Error('SOLANA_PROGRAM_ID is not a valid Solana public key (expected base58, 32–44 chars)')
-  }
-
   _config = {
     DATABASE_URL:          process.env.DATABASE_URL!,
     JWT_SECRET:            process.env.JWT_SECRET!,
     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME!,
     CLOUDINARY_API_KEY:    process.env.CLOUDINARY_API_KEY!,
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET!,
-    SOLANA_RPC_URL:          process.env.SOLANA_RPC_URL!,
-    SOLANA_TREASURY_ADDRESS: process.env.SOLANA_TREASURY_ADDRESS!,
     API_BASE_URL:            stripTrailingSlash(process.env.API_BASE_URL!),
     PLATFORM_FEE_BPS:      Number(process.env.PLATFORM_FEE_BPS ?? 250),
-    SOLANA_PROGRAM_ID:     programId,
     JWT_EXPIRES_IN:        process.env.JWT_EXPIRES_IN ?? '7d',
-    SOLANA_NETWORK:        process.env.SOLANA_NETWORK ?? 'devnet',
-    SOLANA_USDC_MINT:      process.env.SOLANA_USDC_MINT ?? null,
     TERMII_API_KEY:        process.env.TERMII_API_KEY ?? null,
     TERMII_SENDER_ID:      process.env.TERMII_SENDER_ID ?? null,
     TERMII_COUNTRY_PREFIXES: csvEnv(process.env.TERMII_COUNTRY_PREFIXES) ?? ['+234'],
     TWILIO_ACCOUNT_SID:    process.env.TWILIO_ACCOUNT_SID ?? null,
     TWILIO_AUTH_TOKEN:     process.env.TWILIO_AUTH_TOKEN ?? null,
     TWILIO_SMS_FROM:       process.env.TWILIO_SMS_FROM ?? null,
-    SOLANA_GAS_SEED_WALLET_KEY: process.env.SOLANA_GAS_SEED_WALLET_KEY ?? null,
-    HELIUS_WEBHOOK_SECRET: process.env.HELIUS_WEBHOOK_SECRET ?? null,
-    LISTENER_PROVIDER:     process.env.LISTENER_PROVIDER === 'polling' ? 'polling' : 'helius',
     OPENROUTER_API_KEY:    process.env.OPENROUTER_API_KEY ?? null,
     FIAT_RAILS_ENABLED:    process.env.FIAT_RAILS_ENABLED !== 'false',
     YELLOWCARD_API_KEY:        process.env.YELLOWCARD_API_KEY ?? null,
@@ -191,15 +142,6 @@ export function loadConfig(): Config {
     ONRAMPMONEY_WEBHOOK_SECRET: process.env.ONRAMPMONEY_WEBHOOK_SECRET ?? null,
     NIP_API_KEY:                process.env.NIP_API_KEY ?? null,
     REDIS_URL:              process.env.REDIS_URL ?? null,
-    BASE_RPC_URL:           process.env.BASE_RPC_URL ?? null,
-    BASE_ESCROW_ADDR:       process.env.BASE_ESCROW_ADDR ?? null,
-    BASE_USDC_ADDR:         process.env.BASE_USDC_ADDR ?? null,
-    MULTISIG_BASE_ADDR:     process.env.MULTISIG_BASE_ADDR ?? null,
-    COINBASE_PAYMASTER_URL: process.env.COINBASE_PAYMASTER_URL ?? null,
-    ALCHEMY_WEBHOOK_SECRET: process.env.ALCHEMY_WEBHOOK_SECRET ?? null,
-    CELO_RPC_URL:       process.env.CELO_RPC_URL ?? null,
-    CELO_ESCROW_ADDR:   process.env.CELO_ESCROW_ADDR ?? null,
-    MULTISIG_CELO_ADDR: process.env.MULTISIG_CELO_ADDR ?? null,
     FCM_SERVICE_ACCOUNT_B64: process.env.FCM_SERVICE_ACCOUNT_B64 ?? null,
     APNS_KEY_ID:           process.env.APNS_KEY_ID ?? null,
     APNS_TEAM_ID:          process.env.APNS_TEAM_ID ?? null,

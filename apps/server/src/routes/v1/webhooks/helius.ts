@@ -17,7 +17,7 @@ import { timingSafeEqual } from 'node:crypto'
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { getConfig } from '@server/config'
+import { solanaSecret } from '@server/chains/secrets'
 import { verifyTxDedupKey } from '@server/jobs/verify-tx'
 
 /** Defensive signature extraction from Helius enhanced-webhook items. */
@@ -42,19 +42,19 @@ export function authHeaderMatches(header: string | undefined, secret: string): b
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: unknown }>('/', async (request, reply) => {
-    const config = getConfig()
-    if (config.HELIUS_WEBHOOK_SECRET === null) {
+    const solana = solanaSecret()
+    if (solana?.webhookSecret === undefined) {
       throw new AppError(
         503,
         ErrorCode.INTERNAL_ERROR,
-        'Helius webhook not configured (HELIUS_WEBHOOK_SECRET unset)',
+        'Helius webhook not configured (Solana chain WEBHOOK_SECRET unset)',
       )
     }
-    if (!authHeaderMatches(request.headers.authorization, config.HELIUS_WEBHOOK_SECRET)) {
+    if (!authHeaderMatches(request.headers.authorization, solana.webhookSecret)) {
       throw new AppError(401, ErrorCode.UNAUTHORIZED, 'webhook authorization mismatch')
     }
 
-    // One Solana chain per deployment (Stage 0 registry invariant).
+    // One Solana chain per deployment (registry invariant).
     const chain = fastify.chains.list().find((a) => a.namespace === 'solana')
     if (chain === undefined) {
       throw new AppError(503, ErrorCode.INTERNAL_ERROR, 'no solana adapter registered')
