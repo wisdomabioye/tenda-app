@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/react-native'
 
 export function initReporter(): void {
   Sentry.init({
-    dsn: 'https://91c2e230421350a8e1d5fbaac4b21895@o4509884634300416.ingest.de.sentry.io/4510993768448080',
+    dsn: 'https://9f209e745f5cdd04d1b3f0441a565444@o4509884645244928.ingest.us.sentry.io/4511603941048320',
     sendDefaultPii: true,
     enableLogs: false,
     environment: __DEV__ ? 'development' : 'production',
