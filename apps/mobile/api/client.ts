@@ -98,12 +98,27 @@ const {
   fiat,
 } = apiRoutes
 
+/**
+ * OTP challenge timeout (ms). Must exceed the server's email/SMS send budget
+ * (RESEND_TIMEOUT_MS = 15s) plus network headroom — the send is synchronous in
+ * the request path, so a shorter client timeout aborts before the code is
+ * delivered. Kept above the default profile timeouts (dev 5s / staging 10s /
+ * prod 15s) for this one slow-by-design endpoint only.
+ */
+const OTP_CHALLENGE_TIMEOUT_MS = 20_000
+
 export const api = {
   auth: {
     nonce: () => request<AuthNonceResponse>('POST', auth.nonce),
-    /** Stage 9 unified — issue an OTP (phone/email). Wallet/OAuth challenge off-device. */
+    /**
+     * Stage 9 unified — issue an OTP (phone/email). Wallet/OAuth challenge
+     * off-device. The send blocks on a third-party email/SMS provider (server
+     * budget 15s, cold sends measured ~6s), so this call gets a longer timeout
+     * than the default profile — otherwise the client aborts mid-send and
+     * shows a false error while the code is still delivered.
+     */
     challenge: (body: ChallengeBody) =>
-      request<ChallengeResponse>('POST', auth.challenge, { body }),
+      request<ChallengeResponse>('POST', auth.challenge, { body, timeoutMs: OTP_CHALLENGE_TIMEOUT_MS }),
     /**
      * Stage 9 unified — verify a proof → { token, user, is_new }. The request
      * layer auto-attaches the stored JWT, so a logged-in caller LINKS the

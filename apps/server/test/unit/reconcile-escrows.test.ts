@@ -146,7 +146,8 @@ test('attempt without escrow falls back to the registered chain', async () => {
   })
   const r = await reconcileEscrowsHandler(deps, WINDOW)
   assert.strictEqual(r.enqueued, 1)
-  assert.match(calls.enqueued[0].job_id ?? '', /solana:devnet/)
+  // ':' is sanitised out of the dedup key (BullMQ jobId constraint)
+  assert.match(calls.enqueued[0].job_id ?? '', /solana\.devnet/)
 })
 
 test('full batch logs the overflow (no silent cap)', async () => {

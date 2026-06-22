@@ -195,3 +195,18 @@ test('verifyTxDedupKey: deterministic and event-scoped', () => {
   assert.strictEqual(a, b)
   assert.notStrictEqual(a, c)
 })
+
+test('verifyTxDedupKey: BullMQ-safe — no ":" survives the CAIP-2 chain id', () => {
+  // BullMQ rejects a custom jobId containing ':' ("Custom Id cannot contain :").
+  const key = verifyTxDedupKey({ chain_id: 'solana:devnet', tx_ref: 'sig', event: 'Any' })
+  assert.ok(!key.includes(':'), `dedup key must not contain ':' (got "${key}")`)
+  // EVM chain ids (eip155:8453) carry a colon too — same guard.
+  const evm = verifyTxDedupKey({ chain_id: 'eip155:8453', tx_ref: 'tx', event: 'Any' })
+  assert.ok(!evm.includes(':'), `dedup key must not contain ':' (got "${evm}")`)
+})
+
+test('verifyTxDedupKey: distinct chains do not collide after sanitisation', () => {
+  const devnet = verifyTxDedupKey({ chain_id: 'solana:devnet', tx_ref: 's', event: 'Any' })
+  const mainnet = verifyTxDedupKey({ chain_id: 'solana:mainnet', tx_ref: 's', event: 'Any' })
+  assert.notStrictEqual(devnet, mainnet)
+})

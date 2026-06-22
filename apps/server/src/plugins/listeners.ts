@@ -41,4 +41,4 @@ const listenersPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.addHook('onClose', async () => listener.stop())
 }
 
-export default fp(listenersPlugin, { name: 'listeners', dependencies: ['db', 'chains'] })
+export default fp(listenersPlugin, { name: 'listeners', dependencies: ['db', 'chains', 'queue'] })

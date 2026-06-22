@@ -162,8 +162,9 @@ export interface VerifyTxDeps {
  * Stage 0 inlines the format so the queue.ts plugin's `EnqueueOptions.job_id`
  * can be populated consistently.
  *
- * Format: `verify-tx:{chain_id}:{tx_ref}:{event}` — colons are safe in
- * BullMQ jobIds, and `tx_ref` is the high-entropy component (base58 sig or
+ * Format: `verify-tx.{chain_id}.{tx_ref}.{event}` with ':' stripped — BullMQ
+ * rejects a jobId containing ':' (its Redis key separator) and CAIP-2 chain
+ * ids carry one. `tx_ref` is the high-entropy component (base58 sig or
  * 0x-hex hash) so collisions across (chain, event) tuples are vanishingly
  * unlikely. Event is included because the same tx can emit multiple
  * EscrowEvent types in principle (though current contract emits one).
@@ -174,7 +175,14 @@ export function verifyTxDedupKey(args: {
   /** Producers without an expectation (webhook/polling) pass 'Any'. */
   event: EscrowEvent | 'Any'
 }): string {
-  return `verify-tx:${args.chain_id}:${args.tx_ref}:${args.event}`
+  // BullMQ uses ':' as its Redis key separator and rejects any custom jobId
+  // containing it; CAIP-2 chain ids (e.g. 'solana:devnet') carry one. Join
+  // with '.' and strip ':' from every part so the id stays BullMQ-safe and
+  // deterministic. ':' is the ONLY reserved char in the inputs, so swapping
+  // it for '.' can't collide (no part otherwise contains '.').
+  return ['verify-tx', args.chain_id, args.tx_ref, args.event]
+    .join('.')
+    .replaceAll(':', '.')
 }
 
 // ---------- handler ------------------------------------------------------
