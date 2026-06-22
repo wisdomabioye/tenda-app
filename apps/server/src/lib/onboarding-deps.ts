@@ -6,11 +6,13 @@
 
 import type { FastifyInstance } from 'fastify'
 import { getConfig } from '@server/config'
+import type { OtpChannel } from '@tenda/shared/db/schema'
 import {
   composePhoneSender,
   consoleSender,
   drizzleOtpStore,
   emailOtpSender,
+  otpDispatch,
   termiiSender,
   twilioSmsSender,
   type OtpDeps,
@@ -50,15 +52,36 @@ function buildPhoneSender(fastify: FastifyInstance): OtpSender {
   })
 }
 
-export function buildOtpDeps(fastify: FastifyInstance): OtpDeps {
+/**
+ * Resolve one concrete sender per channel from config (Resend/console for
+ * email, Termii/Twilio/console for phone). Shared by the inline-dispatch
+ * fallback here AND the `send-otp` worker processor — single source so the two
+ * delivery paths can never drift.
+ */
+export function buildOtpSenders(fastify: FastifyInstance): Record<OtpChannel, OtpSender> {
   const config = getConfig()
   const email: OtpSender =
     config.RESEND_API_KEY !== null && config.EMAIL_FROM !== null
       ? emailOtpSender({ api_key: config.RESEND_API_KEY, from: config.EMAIL_FROM })
       : consoleSender(fastify.log, 'email')
+  return { phone: buildPhoneSender(fastify), email }
+}
+
+export function buildOtpDeps(fastify: FastifyInstance): OtpDeps {
+  const { REDIS_URL } = getConfig()
   return {
     store: drizzleOtpStore(fastify.db),
-    senders: { phone: buildPhoneSender(fastify), email },
+    // With Redis, hand delivery to the queue so the request never blocks on the
+    // provider; without it (dev / test harness) fall back to an inline send.
+    dispatch: otpDispatch({
+      enqueue:
+        REDIS_URL !== null
+          ? async (msg) => {
+              await fastify.queue.enqueue('send-otp', msg, { remove_on_complete: true })
+            }
+          : null,
+      inlineSenders: () => buildOtpSenders(fastify),
+    }),
     now: () => new Date(),
   }
 }

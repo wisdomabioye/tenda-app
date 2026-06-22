@@ -55,14 +55,6 @@ export async function request<TResponse>(
     params?: Record<string, string>
     body?: unknown
     query?: Record<string, unknown>
-    /**
-     * Per-call timeout override (ms). For endpoints whose server-side budget
-     * exceeds the default profile timeout — e.g. the OTP challenge, which
-     * blocks on a third-party email/SMS send the server allows up to 15s.
-     * Without this the client aborts before the server replies, raising a
-     * false "Something went wrong" even though the OTP was actually sent.
-     */
-    timeoutMs?: number
   },
 ): Promise<TResponse> {
   const env = getEnv()
@@ -80,7 +72,7 @@ export async function request<TResponse>(
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), options?.timeoutMs ?? config.timeout)
+  const timeoutId = setTimeout(() => controller.abort(), config.timeout)
 
   try {
     const response = await fetch(url, {

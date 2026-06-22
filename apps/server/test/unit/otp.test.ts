@@ -86,14 +86,12 @@ function makeDeps(opts: { now?: Date } = {}): {
       if (row) row.consumed_at = opts.now ?? NOW
     },
   }
-  const record =
-    (channel: OtpChannel) =>
-    async (identifier: string, code: string): Promise<void> => {
-      sent.push({ channel, identifier, code })
-    }
   const deps: OtpDeps = {
     store,
-    senders: { phone: { send: record('phone') }, email: { send: record('email') } },
+    // Capture the dispatched message (the seam sendOtp hands the minted code to).
+    dispatch: async ({ channel, identifier, code }) => {
+      sent.push({ channel, identifier, code })
+    },
     now: () => opts.now ?? NOW,
   }
   return { deps, rows, sent }

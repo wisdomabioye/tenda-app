@@ -22,10 +22,18 @@ import { AppError } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { getConfig } from '@server/config'
 import type { VerifyTxJobPayload } from '@server/jobs/verify-tx'
+import type { OtpMessage } from '@server/lib/otp'
 
 // ---------- public surface ----------------------------------------------
 
-export type JobName = 'notifications' | 'expire-escrows' | 'verify-tx' | 'reconcile' | 'reconcile-fiat' | 'expire-fiat-quotes'
+export type JobName =
+  | 'notifications'
+  | 'expire-escrows'
+  | 'verify-tx'
+  | 'reconcile'
+  | 'reconcile-fiat'
+  | 'expire-fiat-quotes'
+  | 'send-otp'
 
 /**
  * Per-queue payload shapes. Stage 0 freezes the surface; #33 implementer
@@ -61,6 +69,12 @@ export interface JobPayload {
   /** Stage-8 repeatables — tick id for log correlation. */
   'reconcile-fiat': { tick_id: string }
   'expire-fiat-quotes': { tick_id: string }
+  /**
+   * Decoupled OTP delivery — the auth challenge persists the code then enqueues
+   * this so the response never blocks on the email/SMS provider. Carries the
+   * plaintext code (short-lived; removed on completion via `remove_on_complete`).
+   */
+  'send-otp': OtpMessage
 }
 
 export interface EnqueueOptions {
@@ -70,6 +84,12 @@ export interface EnqueueOptions {
   delay_ms?: number
   /** Max retry attempts; defaults defined by #33 worker config. */
   attempts?: number
+  /**
+   * Drop the job from Redis the moment it completes, overriding the queue's
+   * default retention. Set for jobs whose payload carries a secret (e.g.
+   * `send-otp`'s plaintext code) so it doesn't linger in completed-job history.
+   */
+  remove_on_complete?: boolean
 }
 
 export interface QueueService {
@@ -157,6 +177,9 @@ const queuePlugin: FastifyPluginAsync = async (fastify) => {
         ...(opts?.job_id !== undefined ? { jobId: opts.job_id } : {}),
         ...(opts?.delay_ms !== undefined ? { delay: opts.delay_ms } : {}),
         ...(opts?.attempts !== undefined ? { attempts: opts.attempts } : {}),
+        ...(opts?.remove_on_complete !== undefined
+          ? { removeOnComplete: opts.remove_on_complete }
+          : {}),
       })
       return { job_id: job.id ?? opts?.job_id ?? 'unknown' }
     },

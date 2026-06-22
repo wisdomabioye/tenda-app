@@ -30,6 +30,7 @@ import { buildProcessors } from '@server/workers/processors'
 const WORKER_CONCURRENCY: Record<JobName, number> = {
   'verify-tx': 8,
   notifications: 8,
+  'send-otp': 8, // user-facing latency-sensitive; parallelise like notifications
   'expire-escrows': 1, // repeatable batch jobs never need parallelism
   reconcile: 1,
   'reconcile-fiat': 1,

@@ -25,6 +25,8 @@ import {
 import type { PushService } from '@server/chains/types'
 import { getConfig } from '@server/config'
 import { buildFiatDeps } from '@server/features/fiat-rails'
+import { buildOtpSenders } from '@server/lib/onboarding-deps'
+import { deliverOtp } from '@server/lib/otp'
 import {
   drizzleVerifyTxStore,
   verifyTxJobHandler,
@@ -255,6 +257,10 @@ export function buildProcessors(
     fastify.log,
   ),
 ): { [N in JobName]: JobProcessor<N> } {
+  // Built ONCE for the worker's lifetime (stateless fetch clients) — the
+  // send-otp processor reuses them across every delivery. Same source the
+  // inline (no-Redis) dispatch uses, so the two paths can't drift.
+  const otpSenders = buildOtpSenders(fastify)
   return {
     'verify-tx': (payload) => verifyTxJobHandler(buildVerifyTxDeps(fastify), payload),
 
@@ -286,5 +292,9 @@ export function buildProcessors(
     'expire-fiat-quotes': async () => expireFiatQuotesHandler(await buildFiatDeps(fastify)),
 
     notifications: (payload) => deliverNotification(fastify, pushServices, payload),
+
+    // Decoupled OTP delivery — a throw here propagates so BullMQ retries on the
+    // queue's exponential backoff (well within the 10-min code TTL).
+    'send-otp': (payload) => deliverOtp(otpSenders, payload),
   }
 }

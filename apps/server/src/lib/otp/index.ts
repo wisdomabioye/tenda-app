@@ -68,11 +68,52 @@ export interface OtpInput {
   user_id: string | null
 }
 
+/** A freshly minted code ready for delivery — the unit passed across the
+ *  async-delivery seam (queue job payload OR inline send). */
+export interface OtpMessage {
+  channel: OtpChannel
+  identifier: string
+  code: string
+}
+
+/**
+ * Delivery seam. `sendOtp` hands the minted code to `dispatch` and returns
+ * WITHOUT awaiting the provider — production enqueues a `send-otp` job so the
+ * request never blocks on a slow email/SMS round-trip; tests + the no-Redis
+ * fallback run the send inline. Either way the OTP is already persisted, so
+ * the code is valid the instant `dispatch` is called.
+ */
+export type OtpDispatch = (msg: OtpMessage) => Promise<void>
+
 export interface OtpDeps {
   store: OtpStore
-  /** One sender per channel; the service picks by `input.channel`. */
-  senders: Record<OtpChannel, OtpSender>
+  dispatch: OtpDispatch
   now(): Date
+}
+
+/** Run the channel's sender for a message. Single source shared by the worker
+ *  processor and the inline (no-Redis) dispatch. */
+export async function deliverOtp(
+  senders: Record<OtpChannel, OtpSender>,
+  msg: OtpMessage,
+): Promise<void> {
+  await senders[msg.channel].send(msg.identifier, msg.code)
+}
+
+/**
+ * Build the delivery dispatch. With a queue (`enqueue` provided) delivery is
+ * handed off and the request returns immediately; without one it falls back to
+ * an inline send — so dev without Redis and the test harness behave exactly as
+ * before. `inlineSenders` is a thunk so the senders are built ONLY on the
+ * fallback path (never when enqueuing).
+ */
+export function otpDispatch(opts: {
+  enqueue: OtpDispatch | null
+  inlineSenders: () => Record<OtpChannel, OtpSender>
+}): OtpDispatch {
+  if (opts.enqueue !== null) return opts.enqueue
+  const senders = opts.inlineSenders()
+  return (msg) => deliverOtp(senders, msg)
 }
 
 export async function sendOtp(deps: OtpDeps, input: OtpInput): Promise<{ expires_in: number }> {
@@ -108,7 +149,9 @@ export async function sendOtp(deps: OtpDeps, input: OtpInput): Promise<{ expires
     code_hash: hashOtpCode(code),
     expires_at: new Date(now.getTime() + OTP_TTL_SECONDS * 1000),
   })
-  await deps.senders[input.channel].send(input.identifier, code)
+  // Code is persisted → valid now. Hand delivery to `dispatch` (enqueue in
+  // production) so the response never blocks on the email/SMS provider.
+  await deps.dispatch({ channel: input.channel, identifier: input.identifier, code })
   return { expires_in: OTP_TTL_SECONDS }
 }
 
