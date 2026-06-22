@@ -20,7 +20,7 @@ export function otpSmsText(code: string): string {
   return `Your Tenda verification code is ${code}. Expires in 10 minutes.`
 }
 
-export const TERMII_SMS_URL = 'https://api.ng.termii.com/api/sms/send'
+export const TERMII_SMS_URL = 'https://v3.api.termii.com/api/sms/send'
 
 /** Termii SMS — regional (api.ng.termii.com is NG/Africa-only). */
 export function termiiSender(args: { api_key: string; sender_id: string }): OtpSender {
