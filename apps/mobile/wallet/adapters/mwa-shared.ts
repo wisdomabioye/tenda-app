@@ -76,10 +76,93 @@ export function isMwaNoWallet(err: unknown): boolean {
   )
 }
 
+/**
+ * The stable `.code` on a `SolanaMobileWalletAdapterError` (per the SDK's
+ * `SolanaMobileWalletAdapterErrorCode` enum), or null for any other shape.
+ * Reading the code is more robust than message-substring matching for the
+ * native-originated session errors below, whose messages vary by device.
+ */
+function mwaErrorCode(err: unknown): string | null {
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    (err as Record<string, unknown>).name === 'SolanaMobileWalletAdapterError' &&
+    typeof (err as Record<string, unknown>).code === 'string'
+  ) {
+    return (err as { code: string }).code
+  }
+  return null
+}
+
+/**
+ * The local association failed to ESTABLISH, or was torn down before the wallet
+ * answered — distinct from a real decline (a `SolanaMobileWalletAdapterProtocol-
+ * Error` with code -1, see `isMwaUserDeclined`). `ERROR_SESSION_TIMEOUT` is a
+ * slow/cold wallet losing the association handshake race (Phantom is heavy to
+ * cold-start, so its sheet sometimes never appears); `ERROR_SESSION_CLOSED` is
+ * the association dropping when the wallet fails to auto-return to the dapp and
+ * the user backs out ("Local association cancelled"). Both are retryable: the
+ * first attempt launches and warms the wallet, so a second attempt usually
+ * establishes cleanly. The cost is that a *deliberate* back-out also re-prompts,
+ * but that's bounded by MAX_RETRIES and far better than a dead-end on every cold
+ * Phantom connect. (A real in-wallet "Cancel" surfaces as the -1 decline above
+ * and is never retried.)
+ */
+export function isMwaSessionInterrupted(err: unknown): boolean {
+  const code = mwaErrorCode(err)
+  return code === 'ERROR_SESSION_TIMEOUT' || code === 'ERROR_SESSION_CLOSED'
+}
+
+/**
+ * The dapp (we are the WebSocket *client*) couldn't reach the wallet's local
+ * association server before the native connect-retry budget (~9s) expired —
+ * `ConnectionFailedException: Unable to connect to websocket server`, from
+ * repeated ECONNREFUSED. This is a pure cold-start race: a heavy wallet
+ * (Phantom is itself a React-Native app) hasn't booted its MWA server yet,
+ * with NO user action. Retryable: the retry re-launches the now-warming wallet
+ * and opens a fresh connect window; no association was established so nothing
+ * is left half-open.
+ *
+ * It surfaces as a RAW native error (no `SolanaMobileWalletAdapterError` code),
+ * so we match its message — but ONLY this exact reason. The sibling
+ * `ConnectionFailedException: "Scenario closed while connecting" / "...during
+ * session establishment"` fire from `onActivityResult` when the USER returned
+ * to the app (backed out of the wallet/chooser) before establishment — a user
+ * action we must NOT auto-retry, or the wallet/chooser re-opens "on its own".
+ * Device logcat (2026-06-23) showed every failure on this hardware was the
+ * Scenario-closed variant, so matching the broad class would be actively wrong.
+ */
+function mwaMessage(err: unknown): string {
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    typeof (err as Record<string, unknown>).message === 'string'
+  ) {
+    return (err as { message: string }).message
+  }
+  return ''
+}
+
+export function isMwaConnectionFailed(err: unknown): boolean {
+  const msg = mwaMessage(err)
+  return (
+    msg.includes('Unable to connect to websocket server') &&
+    !msg.includes('Scenario closed')
+  )
+}
+
 export interface AuthorizeResult {
   authToken: string
   addressBase64: string
 }
+
+/**
+ * The slice of the MWA wallet `authorizeSession` actually uses. Narrowing the
+ * parameter to this (rather than the full `Web3MobileWallet`) is interface
+ * segregation: real callers inside `transact()` still pass a full wallet, but
+ * tests can supply a two-method double without standing up the whole surface.
+ */
+export type AuthorizingWallet = Pick<Web3MobileWallet, 'authorize' | 'reauthorize'>
 
 /**
  * Reauthorize with an existing token if available; fall through to a fresh
@@ -87,7 +170,7 @@ export interface AuthorizeResult {
  * bubble — they're real failures (network, declined) we want to surface.
  */
 export async function authorizeSession(
-  wallet: Web3MobileWallet,
+  wallet: AuthorizingWallet,
   existingAuthToken: string | null,
 ): Promise<AuthorizeResult> {
   if (existingAuthToken) {
@@ -116,16 +199,27 @@ export async function authorizeSession(
 
 const MAX_RETRIES = 3
 const RETRY_DELAY_MS = 500
+// Session-interruption retries wait a touch longer: the first attempt has just
+// launched (and is still warming) a heavy wallet like Phantom, so give it a
+// moment to settle before re-establishing the association.
+const SESSION_RETRY_DELAY_MS = 800
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
 /**
- * Wraps `transact()` with retry on MWA's CancellationException — a known
- * transient when the user dismisses-and-reopens the wallet picker. Also
- * maps user-declined and no-wallet errors to clearer messages so adapter
- * callers don't have to know MWA's protocol error strings.
+ * Wraps `transact()` with retry on the recoverable MWA failures:
+ *  - CancellationException — the user dismissed-and-reopened the wallet picker;
+ *  - session establishment/teardown (`ERROR_SESSION_TIMEOUT` / `..._CLOSED`) —
+ *    a slow/cold wallet losing the association race or failing to auto-return,
+ *    which a warm second attempt usually clears (see `isMwaSessionInterrupted`);
+ *  - the cold-start WebSocket `ConnectionFailedException` — a heavy wallet
+ *    (Phantom) whose MWA server hasn't booted inside the native ~9s connect
+ *    budget; the retry re-launches it and opens a fresh window
+ *    (see `isMwaConnectionFailed`).
+ * User-declined and no-wallet errors are mapped to clearer typed `WalletError`s
+ * and never retried, so adapter callers don't need MWA's protocol error strings.
  *
  * `baseUri` targets a specific wallet's MWA endpoint (e.g. `'phantom:'` or
  * `'solflare:'`) so the OS routes directly to that wallet instead of showing
@@ -140,12 +234,14 @@ export async function withMwaRetry<T>(
       return await transact(op, baseUri ? { baseUri } : undefined)
     } catch (err) {
       // Typed errors so screens can branch on .code (connect-wallet's
-      // no_wallet install prompt, decline handling, etc.).
+      // no_wallet install prompt, decline handling, etc.). A real decline is
+      // checked first so it can never be swept into the session-retry path.
       if (isMwaUserDeclined(err)) {
         throw new WalletError('declined', 'Wallet request declined', err)
       }
-      if (isMwaTransient(err) && attempt < MAX_RETRIES) {
-        await delay(RETRY_DELAY_MS)
+      const warming = isMwaSessionInterrupted(err) || isMwaConnectionFailed(err)
+      if ((isMwaTransient(err) || warming) && attempt < MAX_RETRIES) {
+        await delay(warming ? SESSION_RETRY_DELAY_MS : RETRY_DELAY_MS)
         continue
       }
       if (isMwaNoWallet(err)) {

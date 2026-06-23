@@ -61,11 +61,50 @@ const safeUrlRedirects = {
     paths: [path.dirname(require.resolve("whatwg-url-without-unicode/package.json"))],
   }),
 };
+// MWA codec version pinning. The Solana Mobile Wallet Adapter protocol is built
+// against @solana/codecs-*@^4.0.0 (it uses codecs-strings to encode the local
+// association's wire messages) and ships those 4.0.0 copies NESTED. But
+// @solana/web3.js drags @solana/codecs-*@2.0.0-rc.1 to the top level, and the
+// flat resolver above (disableHierarchicalLookup, load-bearing for single-React)
+// would otherwise force MWA onto that 2.0.0-rc.1 — a major-version skew that
+// corrupts the encoded association bytes and nulls the native MessageSender, so
+// connect/sign fails intermittently on every Solana wallet. We can't dedupe (the
+// two consumers genuinely need different majors), so we redirect ONLY the MWA
+// subtree's codec imports to its own nested 4.0.0 native build; web3.js keeps
+// 2.0.0-rc.1 everywhere else. The predicate also catches the 4.0.0 codecs'
+// internal cross-imports (their paths sit under the MWA subtree), so the whole
+// graph resolves to 4.0.0 consistently.
+const mwaProtoDir = path.resolve(
+  workspaceRoot,
+  "node_modules/@solana-mobile/mobile-wallet-adapter-protocol",
+);
+const mwaCodecTargets = Object.fromEntries(
+  [
+    "@solana/codecs-strings",
+    "@solana/codecs-numbers",
+    "@solana/codecs-core",
+    "@solana/errors",
+  ].map((name) => {
+    const dir = path.join(mwaProtoDir, "node_modules", name);
+    const pkg = require(path.join(dir, "package.json"));
+    const entry = pkg["react-native"] || pkg.module || pkg.main;
+    return [name, path.resolve(dir, entry)];
+  }),
+);
+
 const defaultResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const redirected = safeUrlRedirects[moduleName];
   if (redirected) {
     return { type: "sourceFile", filePath: redirected };
+  }
+  const mwaCodec = mwaCodecTargets[moduleName];
+  if (
+    mwaCodec &&
+    context.originModulePath &&
+    context.originModulePath.includes("mobile-wallet-adapter-protocol")
+  ) {
+    return { type: "sourceFile", filePath: mwaCodec };
   }
   return (defaultResolveRequest ?? context.resolveRequest)(context, moduleName, platform);
 };
