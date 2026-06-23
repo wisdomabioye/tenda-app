@@ -1,63 +1,111 @@
 /**
- * MetaMask via `@metamask/connect-evm` (W2 retry, #36).
+ * MetaMask via `@metamask/connect-multichain` — the React-Native-supported
+ * MetaMask Connect package (it ships a real `react-native` build with a
+ * relay-WebSocket + deeplink transport, per MetaMask's RN quickstart).
  *
- * History: `@metamask/connect-multichain` connected fine but EVERY
- * separate `invokeMethod` sign call timed out on RN — MM Mobile woke on
- * the `metamask://connect/mwp?id=` deeplink but never rendered the
- * approval sheet (open_issues.md W2). This rewrite switches to the
- * EVM-only client whose `connectWith`/`connectAndSign` primitives carry
- * the RPC INSIDE the connection round-trip — the one deeplink flow that
- * did reliably render MM's UI.
+ * History / why this package: the prior `@metamask/connect-evm` (W2, #36) was a
+ * BROWSER-ONLY build (`dist/browser` is its sole bundle, no `react-native`
+ * entry). On RN it could SEND the request deeplink (via our `preferredOpenLink`
+ * hook) but had no way to RECEIVE MetaMask's response — that path is browser
+ * redirect/window only. Root-caused on-device 2026-06-23: connect succeeded,
+ * every `personal_sign` hung on MetaMask's splash and ended in
+ * `Failed to resume session: Resume timeout` (no return deeplink ever arrived).
+ * `connect-multichain` receives the response over its relay, so signing
+ * completes. Metro already maps the Node-builtin stubs this package needs.
  *
- * Sign strategy:
- *   1. `provider.request(personal_sign)` on the live session (fast path —
- *      no extra wallet hop if MM's transport behaves).
- *   2. On timeout, fall back to `connectWith(personal_sign)` which rides
- *      the connect deeplink end-to-end.
+ * Session model: `connect()` authorizes ONE multichain session across our EVM
+ * scopes; sign/send then ride `invokeMethod({ scope, request })` on that session
+ * (no per-call `switchChain`). Read calls (receipt) are served from
+ * `api.supportedNetworks` RPC, so they don't wake the wallet. EVM ONLY — Solana
+ * stays on MWA (Android) / Phantom (iOS).
  *
- * Scope change vs the multichain adapter: EVM ONLY. Solana is owned by
- * MWA (Android) and the Phantom universal-link adapter (iOS) — MM-Solana
- * was a bonus the broken transport never delivered anyway.
- *
- * ⚠ W2 (#36): needs verification on a physical device with MM Mobile —
- * the deeplink round-trips cannot run in CI or a simulator.
+ * ⚠ #68: needs on-device verification with MetaMask Mobile (connect AND sign);
+ * the deeplink/relay round-trips can't run in CI or a simulator.
  */
 import { Linking } from 'react-native'
 import { Buffer } from 'buffer'
-import { createEVMClient, type MetamaskConnectEVM, type Hex } from '@metamask/connect-evm'
+import {
+  createMultichainClient,
+  isRejectionError,
+  type MultichainCore,
+  type RpcUrlsMap,
+  type Scope,
+} from '@metamask/connect-multichain'
+import { WalletError } from '@/wallet/errors'
 import { canOpenScheme } from './detect'
 import { connectThenSign } from './connect-then-sign'
 import { metadata, WALLET_CHAINS } from '../config'
 import type { SignMessageResult, SpikeAccount } from '../types'
 import type { AuthenticateResult, WalletAdapter } from './types'
 
-/** Active EVM chain as hex (WALLET_CHAINS is CAIP-2: 'eip155:<decimal>'). */
-function spikeChainHex(): Hex {
-  const decimal = Number(WALLET_CHAINS.eip155.split(':')[1])
-  return `0x${decimal.toString(16)}` as Hex
+// CAIP-2 EVM scopes we support → read RPC endpoints. `connect()` authorizes all
+// of them in one session, so sign/send can target any by scope without a
+// separate switch hop. Public, no-key endpoints — swap for Alchemy/Infura in
+// production. `supportedNetworks` also routes the SDK's read RPC (receipts).
+const SUPPORTED_NETWORKS: RpcUrlsMap = {
+  'eip155:1': 'https://cloudflare-eth.com',
+  'eip155:8453': 'https://mainnet.base.org', // Base
+  'eip155:84532': 'https://sepolia.base.org', // Base Sepolia
+  'eip155:42220': 'https://forno.celo.org', // CELO
+}
+const EVM_SCOPES = Object.keys(SUPPORTED_NETWORKS) as Scope[]
+
+/** A CAIP-2 scope ('eip155:8453'), defaulting to our configured primary chain. */
+function asScope(chainId: string | undefined): Scope {
+  return (chainId && chainId.startsWith('eip155:') ? chainId : WALLET_CHAINS.eip155) as Scope
 }
 
-// Public, no-key RPC endpoints for read-only calls — good enough for the
-// spike. Swap for Alchemy/QuickNode in production.
-const SUPPORTED_NETWORKS: Record<Hex, string> = {
-  '0x1': 'https://cloudflare-eth.com',
-  '0x2105': 'https://mainnet.base.org', // Base (8453)
-  '0x14a34': 'https://sepolia.base.org', // Base Sepolia (84532)
-  '0xa4ec': 'https://forno.celo.org', // CELO (42220)
+/** A transport timeout — `TransportTimeoutError`, or the `RPCErr53` whose
+ *  message carries "Transport request timed out". MetaMask received the request
+ *  but never answered (e.g. it hung without rendering the approval sheet). */
+function isTransportTimeout(err: unknown): boolean {
+  if (typeof err !== 'object' || err === null) return false
+  const e = err as { name?: unknown; message?: unknown }
+  return (
+    e.name === 'TransportTimeoutError' ||
+    (typeof e.message === 'string' && e.message.includes('Transport request timed out'))
+  )
 }
 
-let clientPromise: Promise<MetamaskConnectEVM> | null = null
+/**
+ * Runs a wallet op and normalises its failures:
+ *  - a decline → typed `WalletError('declined')` (connectThenSign maps it to
+ *    `null` instead of a hard error);
+ *  - a transport timeout → tear the session down before rethrowing, so the NEXT
+ *    attempt reconnects cleanly instead of hitting MetaMask's "Existing
+ *    connection is pending" — a wedged session that otherwise needs an app
+ *    restart. The timeout still surfaces so the screen shows the failure.
+ */
+async function runWalletOp<T>(op: () => Promise<T>): Promise<T> {
+  try {
+    return await op()
+  } catch (err) {
+    if (isRejectionError(err)) {
+      throw new WalletError('declined', 'Wallet request declined', err)
+    }
+    if (isTransportTimeout(err)) {
+      try {
+        const client = await getClient()
+        await client.disconnect()
+      } catch {
+        // Best-effort reset — clearing the wedged session is what matters; the
+        // original timeout is what we rethrow.
+      }
+    }
+    throw err
+  }
+}
 
-function getClient(): Promise<MetamaskConnectEVM> {
+let clientPromise: Promise<MultichainCore> | null = null
+
+function getClient(): Promise<MultichainCore> {
   if (!clientPromise) {
-    clientPromise = createEVMClient({
-      dapp: {
-        name: metadata.name,
-        url: metadata.url,
-        iconUrl: metadata.iconUrl,
-      },
+    clientPromise = createMultichainClient({
+      dapp: { name: metadata.name, url: metadata.url, iconUrl: metadata.iconUrl },
       api: { supportedNetworks: SUPPORTED_NETWORKS },
       mobile: {
+        // RN uses the `metamask://` deeplink (not the https universal link).
+        useDeeplink: true,
         preferredOpenLink: (deeplink: string) => {
           if (__DEV__) console.log('[metamask] openLink', deeplink)
           void Linking.openURL(deeplink)
@@ -69,13 +117,29 @@ function getClient(): Promise<MetamaskConnectEVM> {
   return clientPromise
 }
 
-function toSpikeAccount(address: string, chainHex: Hex): SpikeAccount {
+/** CAIP-10 ('eip155:8453:0xADDR') → SpikeAccount. */
+function toSpikeAccount(caipAccountId: string): SpikeAccount {
+  const [namespace, reference, address] = caipAccountId.split(':')
   return {
     namespace: 'eip155',
-    chainId: `eip155:${parseInt(chainHex, 16)}`,
-    address,
+    chainId: `${namespace}:${reference}`,
+    address: address ?? '',
     walletId: 'metamask',
   }
+}
+
+/** First authorized account from the live session, preferring the primary chain. */
+async function firstAuthorizedAccount(client: MultichainCore): Promise<SpikeAccount | null> {
+  const session = await client.provider.getSession()
+  if (!session) return null
+  const scopes = Object.entries(session.sessionScopes)
+  const primary = scopes.find(([scope]) => scope === WALLET_CHAINS.eip155)?.[1]?.accounts?.[0]
+  if (primary !== undefined) return toSpikeAccount(primary)
+  for (const [, scopeObject] of scopes) {
+    const account = scopeObject.accounts?.[0]
+    if (account !== undefined) return toSpikeAccount(account)
+  }
+  return null
 }
 
 async function connect(): Promise<SpikeAccount> {
@@ -83,10 +147,10 @@ async function connect(): Promise<SpikeAccount> {
     throw new Error('MetaMask is not installed on this device')
   }
   const client = await getClient()
-  const { accounts, chainId } = await client.connect({ chainIds: [spikeChainHex()] })
-  const address = accounts[0]
-  if (address === undefined) throw new Error('MetaMask did not return an account')
-  return toSpikeAccount(address, chainId)
+  await runWalletOp(() => client.connect(EVM_SCOPES, []))
+  const account = await firstAuthorizedAccount(client)
+  if (account === null) throw new Error('MetaMask did not return an account')
+  return account
 }
 
 function hexMessage(message: string): string {
@@ -95,28 +159,12 @@ function hexMessage(message: string): string {
 
 async function signMessage(account: SpikeAccount, message: string): Promise<SignMessageResult> {
   const client = await getClient()
-  const hex = hexMessage(message)
-
-  // Fast path: sign on the live session.
-  try {
-    const result = await client.getProvider().request({
-      method: 'personal_sign',
-      params: [hex, account.address],
-    })
-    if (typeof result !== 'string') throw new Error('MetaMask returned a non-string signature')
-    return { signature: result, message }
-  } catch (err) {
-    if (__DEV__) console.warn('[metamask] personal_sign on session failed, retrying via connectWith:', err)
-  }
-
-  // W2 fallback: ride the connect deeplink — the flow whose approval UI
-  // reliably renders on MM Mobile RN.
-  const { result } = await client.connectWith({
-    method: 'personal_sign',
-    params: (addr) => [hex, addr],
-    chainIds: [spikeChainHex()],
-    account: account.address,
-  })
+  const result = await runWalletOp(() =>
+    client.invokeMethod({
+      scope: asScope(account.chainId),
+      request: { method: 'personal_sign', params: [hexMessage(message), account.address] },
+    }),
+  )
   if (typeof result !== 'string') throw new Error('MetaMask returned a non-string signature')
   return { signature: result, message }
 }
@@ -130,8 +178,8 @@ function authenticate(
 
 async function disconnect(): Promise<void> {
   const client = await getClient()
-  // Swallow any disconnect error so the app's local state always gets cleared
-  // — if the revoke didn't reach MM, the user can disconnect from MM's own UI.
+  // Swallow any disconnect error so the app's local state always gets cleared —
+  // if the revoke didn't reach MM, the user can disconnect from MM's own UI.
   try {
     await client.disconnect()
   } catch (err) {
@@ -142,10 +190,7 @@ async function disconnect(): Promise<void> {
 async function getRestoredAccount(): Promise<SpikeAccount | null> {
   try {
     const client = await getClient()
-    const address = client.selectedAccount
-    const chainId = client.selectedChainId
-    if (address === undefined) return null
-    return toSpikeAccount(address, chainId ?? spikeChainHex())
+    return await firstAuthorizedAccount(client)
   } catch {
     return null
   }
@@ -153,9 +198,9 @@ async function getRestoredAccount(): Promise<SpikeAccount | null> {
 
 /**
  * Send a prepared EVM transaction through the connected MetaMask session
- * (stage-3 § mobile). `feeCurrency` rides along for CELO — wallets that
- * support the field show gas in cUSD; others ignore it.
- * Returns the tx hash.
+ * (stage-3 § mobile). Targets `input.chainId`'s scope directly (it's already in
+ * the authorized session). `feeCurrency` rides along for CELO — wallets that
+ * support it show gas in cUSD; others ignore it. Returns the tx hash.
  */
 export async function sendEvmTransaction(input: {
   from: string
@@ -163,45 +208,46 @@ export async function sendEvmTransaction(input: {
   data: string
   /** Decimal string (wei). */
   value: string
-  /** CAIP-2 ('eip155:8453') — the wallet switches here before sending. */
+  /** CAIP-2 ('eip155:8453') — the scope the tx is sent on. */
   chainId?: string
   feeCurrency?: string
 }): Promise<string> {
   const client = await getClient()
-  if (input.chainId !== undefined) {
-    const decimal = Number(input.chainId.split(':')[1])
-    if (Number.isFinite(decimal)) {
-      await client.switchChain({ chainId: `0x${decimal.toString(16)}` as Hex })
-    }
-  }
-  const result = await client.getProvider().request({
-    method: 'eth_sendTransaction',
-    params: [
-      {
-        from: input.from,
-        to: input.to,
-        data: input.data,
-        value: `0x${BigInt(input.value).toString(16)}`,
-        ...(input.feeCurrency !== undefined ? { feeCurrency: input.feeCurrency } : {}),
+  const result = await runWalletOp(() =>
+    client.invokeMethod({
+      scope: asScope(input.chainId),
+      request: {
+        method: 'eth_sendTransaction',
+        params: [
+          {
+            from: input.from,
+            to: input.to,
+            data: input.data,
+            value: `0x${BigInt(input.value).toString(16)}`,
+            ...(input.feeCurrency !== undefined ? { feeCurrency: input.feeCurrency } : {}),
+          },
+        ],
       },
-    ],
-  })
+    }),
+  )
   if (typeof result !== 'string') throw new Error('MetaMask returned a non-string tx hash')
   return result
 }
 
 /**
- * EVM receipt poll for TransactionMonitor's RPC fallback (CO3). Rides the
- * connected MetaMask provider — no extra RPC config. `status` is '0x1' on
- * success, '0x0' on revert; a missing receipt means still pending.
+ * EVM receipt poll for TransactionMonitor's RPC fallback (CO3). Served from the
+ * `supportedNetworks` RPC (no wallet round-trip). `status` is '0x1' on success,
+ * '0x0' on revert; a missing receipt means still pending. Queries the primary
+ * EVM scope — sufficient for the common case; a cross-chain receipt would need
+ * the caller to thread the chain through (the signature predates multichain).
  */
 export async function getEvmTransactionStatus(
   tx_hash: string,
 ): Promise<'confirmed' | 'failed' | 'not_found'> {
   const client = await getClient()
-  const receipt = await client.getProvider().request({
-    method: 'eth_getTransactionReceipt',
-    params: [tx_hash],
+  const receipt = await client.invokeMethod({
+    scope: asScope(undefined),
+    request: { method: 'eth_getTransactionReceipt', params: [tx_hash] },
   })
   if (receipt === null || receipt === undefined) return 'not_found'
   const status = (receipt as { status?: string }).status

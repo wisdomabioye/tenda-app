@@ -132,9 +132,9 @@ importers:
       '@expo/vector-icons':
         specifier: ^15.0.3
         version: 15.1.1(expo-font@14.0.11(expo@54.0.33)(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0))(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))(react@19.1.0)
-      '@metamask/connect-evm':
-        specifier: 1.4.0
-        version: 1.4.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0)))(bufferutil@4.1.0)
+      '@metamask/connect-multichain':
+        specifier: 0.15.0
+        version: 0.15.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0)))(bufferutil@4.1.0)
       '@noble/hashes':
         specifier: ^1.8.0
         version: 1.8.0
@@ -2233,10 +2233,6 @@ packages:
     resolution: {integrity: sha512-L250lV3PANTcKqhZkmRV1Obkyddm6JDQvDBuUVAi+7TmPdOVdpavWNXyEh7ErscjwG0z2wiF9Ne0ihK/nCdX0w==}
     engines: {node: '>=20.19.0'}
 
-  '@metamask/connect-evm@1.4.0':
-    resolution: {integrity: sha512-SX3GDh6UOTFaVDCLU9V5a+UTymz7avxuisRb4wedI/mwfE768XYq3TvLVXVTf52DeeIFmO5pRh8ShabsOsfF5w==}
-    engines: {node: '>=20.19.0'}
-
   '@metamask/connect-multichain@0.15.0':
     resolution: {integrity: sha512-ufLG7nvmUTHv+xLojCD2jS4tB/fJ2z78k6njGycO3kfsnJSvJhG97mUV/J7iU23Ojfk2tT3obwbhR8QRM16pXg==}
     engines: {node: '>=20.19.0'}
@@ -2642,7 +2638,7 @@ packages:
 
   '@paulmillr/qr@0.2.1':
     resolution: {integrity: sha512-IHnV6A+zxU7XwmKFinmYjUcwlyK9+xkG3/s9KcQhI9BjQKycrJ1JRO+FbNYPwZiPKW3je/DR0k7w8/gLa5eaxQ==}
-    deprecated: 'The package is now available as "qr": npm install qr'
+    deprecated: 'Switch to "qr" (new package name) for security updates: npm install qr'
 
   '@pinojs/redact@0.4.0':
     resolution: {integrity: sha512-k2ENnmBugE/rzQfEcdWHcCY+/FM3VLzH9cYEsbdsoqrvzAKRhUZeRNhAZvB8OitQJ1TBed3yqWtdjzS6wJKBwg==}
@@ -12314,18 +12310,6 @@ snapshots:
     dependencies:
       openapi-fetch: 0.13.8
 
-  '@metamask/connect-evm@1.4.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0)))(bufferutil@4.1.0)':
-    dependencies:
-      '@metamask/analytics': 0.6.0
-      '@metamask/connect-multichain': 0.15.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0)))(bufferutil@4.1.0)
-      '@metamask/utils': 11.11.0
-    transitivePeerDependencies:
-      - '@react-native-async-storage/async-storage'
-      - bufferutil
-      - encoding
-      - supports-color
-      - utf-8-validate
-
   '@metamask/connect-multichain@0.15.0(@react-native-async-storage/async-storage@2.2.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0)))(bufferutil@4.1.0)':
     dependencies:
       '@metamask/analytics': 0.6.0
@@ -12344,7 +12328,7 @@ snapshots:
       eventemitter3: 5.0.4
       pako: 2.1.0
       uuid: 11.1.0
-      ws: 8.19.0(bufferutil@4.1.0)(utf-8-validate@6.0.6)
+      ws: 8.20.1(bufferutil@4.1.0)(utf-8-validate@6.0.6)
     optionalDependencies:
       '@react-native-async-storage/async-storage': 2.2.0(react-native@0.81.5(@babel/core@7.29.0)(@types/react@19.1.17)(bufferutil@4.1.0)(react@19.1.0))
     transitivePeerDependencies:
@@ -12399,7 +12383,7 @@ snapshots:
       debug: 4.4.3
       lodash: 4.18.1
       pony-cause: 2.1.11
-      semver: 7.7.4
+      semver: 7.8.0
       uuid: 9.0.1
     transitivePeerDependencies:
       - supports-color
