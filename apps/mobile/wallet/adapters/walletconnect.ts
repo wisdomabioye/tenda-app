@@ -1,0 +1,163 @@
+/**
+ * WalletConnect (Reown AppKit v2) — the live EVM `WalletAdapter`. One adapter
+ * covers EVERY WC v2 wallet (MetaMask, Trust, Rainbow, SafePal, Coinbase…):
+ * AppKit shows its own wallet list, the relay carries connect + sign, and the
+ * user keeps their keys. This replaced `@metamask/connect-multichain`, whose RN
+ * sign path hung on-device (device-verified 2026-06-23: Trust, Rainbow, SafePal
+ * all connect + `personal_sign` cleanly over WC where MetaMask's own SDK did not).
+ *
+ * Hook→imperative seam: AppKit's API is hook-based, so the connection lives in
+ * `<ReownProvider>` (mounted at the app root, in `reown/bridge`) and is mirrored
+ * into the React-free `connectionSignal` singleton, which this adapter drives
+ * imperatively. Connect/sign compose through the shared `connectThenSign` helper
+ * — same path Phantom uses — so decline→`null` handling is centralised (DRY).
+ *
+ * EVM ONLY. Solana stays on MWA (Android) / Phantom (iOS).
+ */
+import { Buffer } from 'buffer'
+import { WalletError } from '@/wallet/errors'
+import { connectThenSign } from './connect-then-sign'
+import { connectionSignal, type EvmRequestProvider } from '../reown/connection-signal'
+import { reownConfigured } from '../reown/config'
+import { EVM_NETWORKS } from '../reown/networks'
+import { WALLET_CHAINS } from '../config'
+import type { SignMessageResult, SpikeAccount } from '../types'
+import type { AuthenticateResult, WalletAdapter } from './types'
+
+/** A CAIP-2 EVM scope ('eip155:8453'), defaulting to our configured primary chain. */
+function asScope(chainId: string | undefined): string {
+  return chainId !== undefined && chainId.startsWith('eip155:') ? chainId : WALLET_CHAINS.eip155
+}
+
+/** The live EVM provider, or a typed error when no session is active. */
+function requireProvider(): EvmRequestProvider {
+  const provider = connectionSignal.getProvider()
+  if (provider === undefined) {
+    throw new WalletError('network', 'No EVM wallet connected — connect one first')
+  }
+  return provider
+}
+
+function hexMessage(message: string): string {
+  return '0x' + Buffer.from(message, 'utf8').toString('hex')
+}
+
+async function connect(): Promise<SpikeAccount> {
+  return connectionSignal.connect()
+}
+
+async function signMessage(account: SpikeAccount, message: string): Promise<SignMessageResult> {
+  const provider = requireProvider()
+  const signature = await provider.request<string>({
+    method: 'personal_sign',
+    params: [hexMessage(message), account.address],
+  })
+  if (typeof signature !== 'string') throw new Error('Wallet returned a non-string signature')
+  return { signature, message }
+}
+
+async function disconnect(): Promise<void> {
+  await connectionSignal.disconnect()
+}
+
+function authenticate(
+  buildMessage: (account: SpikeAccount) => string,
+  opts?: { forceFresh?: boolean },
+): Promise<AuthenticateResult | null> {
+  // Login reuses a restored session if AppKit auto-reconnected one (fast path,
+  // no extra round-trip); linking passes forceFresh to disconnect first so the
+  // user can pick a DIFFERENT wallet. To keep login from silently reusing a
+  // STALE session across accounts, logout clears the WC session (auth.store) so
+  // the next login starts clean and shows the sheet.
+  return connectThenSign({ connect, signMessage, disconnect }, buildMessage, opts)
+}
+
+async function getRestoredAccount(): Promise<SpikeAccount | null> {
+  return connectionSignal.getAccount()
+}
+
+/**
+ * Send a prepared EVM transaction over the connected WC session. Targets
+ * `input.chainId`'s scope directly. `feeCurrency` rides along for CELO — wallets
+ * that support it show gas in cUSD; others ignore it. Returns the tx hash.
+ */
+export async function sendEvmTransaction(input: {
+  from: string
+  to: string
+  data: string
+  /** Decimal string (wei). */
+  value: string
+  /** CAIP-2 ('eip155:8453') — the scope the tx is sent on. */
+  chainId?: string
+  feeCurrency?: string
+}): Promise<string> {
+  const provider = requireProvider()
+  const hash = await provider.request<string>(
+    {
+      method: 'eth_sendTransaction',
+      params: [
+        {
+          from: input.from,
+          to: input.to,
+          data: input.data,
+          value: `0x${BigInt(input.value).toString(16)}`,
+          ...(input.feeCurrency !== undefined ? { feeCurrency: input.feeCurrency } : {}),
+        },
+      ],
+    },
+    asScope(input.chainId),
+  )
+  if (typeof hash !== 'string') throw new Error('Wallet returned a non-string tx hash')
+  return hash
+}
+
+/** HTTP RPC endpoint of our primary EVM chain (Base / Base Sepolia per env). */
+function primaryRpcUrl(): string {
+  const network = EVM_NETWORKS.find((n) => n.caipNetworkId === WALLET_CHAINS.eip155)
+  const url = network?.rpcUrls.default.http[0]
+  if (url === undefined) throw new Error(`No RPC URL configured for ${WALLET_CHAINS.eip155}`)
+  return url
+}
+
+/**
+ * EVM receipt poll for TransactionMonitor's RPC fallback (CO3). Queried over a
+ * direct JSON-RPC `fetch` to the primary chain's public RPC — NOT the wallet
+ * session — so it never wakes the wallet and works while it's backgrounded.
+ * `status` is '0x1' on success, '0x0' on revert; a missing receipt = pending.
+ * Queries the primary EVM scope (sufficient for the common case; a cross-chain
+ * receipt would need the caller to thread the chain through).
+ */
+export async function getEvmTransactionStatus(
+  tx_hash: string,
+): Promise<'confirmed' | 'failed' | 'not_found'> {
+  const response = await fetch(primaryRpcUrl(), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getTransactionReceipt', params: [tx_hash] }),
+  })
+  const body: unknown = await response.json()
+  const receipt =
+    typeof body === 'object' && body !== null && 'result' in body
+      ? (body as { result: { status?: string } | null }).result
+      : null
+  if (receipt === null) return 'not_found'
+  if (receipt.status === '0x1') return 'confirmed'
+  if (receipt.status === '0x0') return 'failed'
+  return 'not_found'
+}
+
+export const walletConnectAdapter: WalletAdapter = {
+  id: 'walletconnect',
+  name: 'EVM Wallet',
+  tagline: 'MetaMask, Trust, Rainbow & more',
+  namespaces: ['eip155'],
+  // No bundled icon — falls back to the generic wallet glyph (AppKit shows the
+  // real per-wallet icons inside its own modal).
+  isAvailable: async () => reownConfigured,
+  isInstalled: async () => true,
+  connect,
+  signMessage,
+  authenticate,
+  disconnect,
+  getRestoredAccount,
+}

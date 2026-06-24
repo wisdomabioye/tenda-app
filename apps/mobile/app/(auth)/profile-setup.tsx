@@ -11,6 +11,7 @@ import { RemoteToggle } from '@/components/form/RemoteToggle'
 import { useAuthStore } from '@/stores/auth.store'
 import { api, ApiClientError } from '@/api/client'
 import { uploadToCloudinary } from '@/lib/upload'
+import { usePostAuthReset } from '@/lib/post-auth-nav'
 import { getDeviceCountry } from '@/lib/device'
 import { isE164 } from '@tenda/shared'
 import { pickAvatar, type PickedFile } from '@/components/form/FilePicker'
@@ -19,6 +20,7 @@ import { pickAvatar, type PickedFile } from '@/components/form/FilePicker'
 export default function ProfileSetupScreen() {
   const { theme } = useUnistyles()
   const router = useRouter()
+  const resetToAuthedRoot = usePostAuthReset()
   const user = useAuthStore((s) => s.user)
 
   const [firstName, setFirstName] = useState(user?.first_name ?? '')
@@ -68,7 +70,8 @@ export default function ProfileSetupScreen() {
         router.replace({ pathname: '/(auth)/verify-phone', params: { phone: trimmedPhone, next: 'home' } })
         return
       }
-      router.replace('/(tabs)/home')
+      // Onboarding done → reset so back from home exits, not back to setup.
+      resetToAuthedRoot(true)
     } catch (e) {
       if (__DEV__) console.warn('[profile-setup] finish failed:', e)
       // Server errors carry a user-meaningful message. Other failures (e.g. the

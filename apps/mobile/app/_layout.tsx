@@ -6,6 +6,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import * as SplashScreen from 'expo-splash-screen'
 import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ToastProvider } from '@/components/ui/Toast'
+import { ReownProvider } from '@/wallet/reown/bridge'
 import { DevnetBanner, IS_DEVNET } from '@/components/feedback/DevnetBanner'
 import { configureNotifications } from '@/lib/notifications'
 import { initReporter, wrapApp } from '@/lib/reporter'
@@ -33,6 +34,7 @@ export default wrapApp(function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.surface.background }}>
+      <ReownProvider>
       <DevnetBanner />
       {/* When the banner is visible it consumes insets.top, so we zero it out
           for everything below to prevent the header double-counting it. */}
@@ -57,6 +59,7 @@ export default wrapApp(function RootLayout() {
       </ToastProvider>
       </SafeAreaInsetsContext.Provider>
       <StatusBar style="auto" />
+      </ReownProvider>
     </GestureHandlerRootView>
   )
 })

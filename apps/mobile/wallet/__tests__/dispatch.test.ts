@@ -17,7 +17,7 @@ jest.mock('@solana/web3.js', () => ({
 jest.mock('@/wallet/adapters/solana-mwa', () => ({
   signAndSendStored: jest.fn(),
 }))
-jest.mock('@/wallet/adapters/metamask', () => ({
+jest.mock('@/wallet/adapters/walletconnect', () => ({
   sendEvmTransaction: jest.fn(),
 }))
 jest.mock('@/stores/auth.store', () => ({
@@ -33,7 +33,7 @@ import {
   UnsupportedUnsignedTxError,
 } from '@/wallet/dispatch'
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
-import { sendEvmTransaction } from '@/wallet/adapters/metamask'
+import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 import { VersionedTransaction } from '@solana/web3.js'

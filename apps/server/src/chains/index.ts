@@ -20,6 +20,7 @@ import { solanaAdapter, type SolanaAdapterDeps } from '@server/chains/solana'
 import { evmAdapter, type EvmAdapterDeps } from '@server/chains/evm'
 import type { ResolvedChainSecret, EvmChainSecret } from '@server/chains/secrets'
 import type { ChainAdapter, ChainId, ChainRegistry } from '@server/chains/types'
+import { deriveChainNamespace, verifyWalletSignature } from '@server/lib/wallet-signature'
 
 /**
  * Per-chain dependency factory. The plugin implements this (it owns DB access
@@ -102,6 +103,11 @@ export function buildChainRegistry(adapters: readonly ChainAdapter[]): ChainRegi
     },
     list() {
       return [...byId.values()]
+    },
+    verifyAuthSig(chain_id, args) {
+      // Namespace-dispatched, NOT `byId.get` — login must work for a supported
+      // namespace even if that chain isn't provisioned on this deployment.
+      return verifyWalletSignature(deriveChainNamespace(chain_id), args)
     },
   }
 }

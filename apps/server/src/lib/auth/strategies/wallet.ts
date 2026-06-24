@@ -13,20 +13,10 @@ import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { drizzleNonceStore, consumeNonce } from '@server/lib/nonce'
 import { assertAuthMessage, parseAuthMessage, expectedAuthUri } from '@server/lib/auth-message'
+import { deriveChainNamespace } from '@server/lib/wallet-signature'
 import type { ChainRegistry } from '@server/chains/types'
 import type { AppDatabase } from '@server/plugins/db'
 import type { AuthStrategy, VerifyOutcome, VerifyProof } from '@server/lib/auth/strategy'
-
-/** Derive the chain namespace from a CAIP-2 id; 400 on an unsupported namespace. */
-export function deriveChainNamespace(chain_id: string): ChainNamespace {
-  const ns = chain_id.split(':')[0]
-  if (ns === 'solana' || ns === 'eip155') return ns
-  throw new AppError(
-    400,
-    ErrorCode.VALIDATION_ERROR,
-    `chain_id '${chain_id}' has unsupported namespace`,
-  )
-}
 
 export interface WalletAuthDeps {
   chains: ChainRegistry
@@ -60,11 +50,11 @@ export async function verifyWalletAuth(
     now: deps.now(),
   })
 
-  if (!deps.chains.has(input.chain_id)) {
-    throw new AppError(400, ErrorCode.VALIDATION_ERROR, `unsupported chain_id '${input.chain_id}'`)
-  }
-  const adapter = deps.chains.get(input.chain_id)
-  const sigOk = await adapter.verifyAuthSig({
+  // Namespace gate (400 on an unsupported namespace). Login does NOT require the
+  // chain to be PROVISIONED on this deployment — proving key control is pure
+  // offline crypto (verifyAuthSig dispatches by namespace, no escrow/RPC needed).
+  const chain_ns = deriveChainNamespace(input.chain_id)
+  const sigOk = await deps.chains.verifyAuthSig(input.chain_id, {
     address: input.address,
     message: input.message,
     signature: input.signature,
@@ -74,7 +64,7 @@ export async function verifyWalletAuth(
   }
 
   await consumeNonce(drizzleNonceStore(deps.db), parsed.nonce)
-  return { chain_ns: deriveChainNamespace(input.chain_id), address: input.address }
+  return { chain_ns, address: input.address }
 }
 
 export function walletStrategy(deps: WalletAuthDeps): AuthStrategy {

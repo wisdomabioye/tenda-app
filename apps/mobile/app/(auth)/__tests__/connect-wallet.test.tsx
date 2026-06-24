@@ -11,6 +11,11 @@ import { render, fireEvent, waitFor, screen } from '@testing-library/react-nativ
 const mockReplace = jest.fn()
 jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace }) }))
 
+// Post-login navigation resets the stack (so back can't return to auth); the
+// screen calls the hook's returned fn with profileComplete.
+const mockReset = jest.fn()
+jest.mock('@/lib/post-auth-nav', () => ({ usePostAuthReset: () => mockReset }))
+
 jest.mock('expo-image', () => ({ Image: () => null }))
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
 
@@ -157,7 +162,7 @@ describe('ConnectWalletScreen', () => {
     selectWallet()
     await waitFor(() => expect(signInMock).toHaveBeenCalledWith(FAKE_ADAPTER))
     expect(signInMock.mock.calls[0]).toHaveLength(1)
-    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/home')
+    expect(mockReset).toHaveBeenCalledWith(true)
   })
 
   it('routes to profile-setup when the profile is incomplete', async () => {
@@ -165,7 +170,7 @@ describe('ConnectWalletScreen', () => {
     authState.profileComplete = false
     render(<ConnectWalletScreen />)
     selectWallet()
-    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/(auth)/profile-setup'))
+    await waitFor(() => expect(mockReset).toHaveBeenCalledWith(false))
   })
 
   it('shows a cancelled state when the user declines', async () => {
@@ -173,7 +178,7 @@ describe('ConnectWalletScreen', () => {
     render(<ConnectWalletScreen />)
     selectWallet()
     await waitFor(() => expect(screen.getByText('Connection cancelled')).toBeTruthy())
-    expect(mockReplace).not.toHaveBeenCalled()
+    expect(mockReset).not.toHaveBeenCalled()
   })
 
   it('classifies a no_wallet WalletError with a Get Phantom action', async () => {

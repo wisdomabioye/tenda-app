@@ -165,6 +165,24 @@ describe('signInWithWallet', () => {
     expect(setJwt).not.toHaveBeenCalled()
   })
 
+  it('flags walletAuthInProgress true mid-flight and clears it after (success)', async () => {
+    let release: (v: { auth: typeof AUTH; account: ReturnType<typeof account> }) => void = () => {}
+    walletSignInMock.mockReturnValue(new Promise((res) => { release = res }))
+
+    const pending = useAuthStore.getState().signInWithWallet(stubAdapter())
+    expect(useAuthStore.getState().walletAuthInProgress).toBe(true)
+
+    release({ auth: AUTH, account: account('eip155') })
+    await pending
+    expect(useAuthStore.getState().walletAuthInProgress).toBe(false)
+  })
+
+  it('clears walletAuthInProgress even when sign-in throws', async () => {
+    walletSignInMock.mockRejectedValue(new Error('boom'))
+    await expect(useAuthStore.getState().signInWithWallet(stubAdapter())).rejects.toThrow('boom')
+    expect(useAuthStore.getState().walletAuthInProgress).toBe(false)
+  })
+
   it('propagates a server/transport failure', async () => {
     walletSignInMock.mockRejectedValue(new Error('500 boom'))
     await expect(useAuthStore.getState().signInWithWallet(stubAdapter())).rejects.toThrow('500 boom')

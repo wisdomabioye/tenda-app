@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { WalletPicker } from '@/wallet/picker'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 import { classifyVerifyError, TIER0_MESSAGE } from '@/lib/auth-flow'
+import { usePostAuthReset } from '@/lib/post-auth-nav'
 import { classifyConnectError, type ConnectError } from '@/lib/connect-wallet-error'
 
 export default function ConnectWalletScreen() {
@@ -23,6 +24,7 @@ export default function ConnectWalletScreen() {
   const [pickerVisible, setPickerVisible] = useState(false)
   const [connectError, setConnectError] = useState<ConnectError | null>(null)
   const signInWithWallet = useAuthStore((st) => st.signInWithWallet)
+  const resetToAuthedRoot = usePostAuthReset()
 
   // Sign in with the wallet the user picked from the sheet. Each adapter owns
   // its own connect+sign round-trip; the store persists the session and routes
@@ -35,8 +37,8 @@ export default function ConnectWalletScreen() {
       const ok = await signInWithWallet(adapter)
       if (ok) {
         // Stage 1: incomplete profiles detour through setup before home.
-        const complete = useAuthStore.getState().profileComplete
-        router.replace(complete ? '/(tabs)/home' : '/(auth)/profile-setup')
+        // reset (not replace) so Android back can't return to the auth stack.
+        resetToAuthedRoot(useAuthStore.getState().profileComplete)
       } else {
         setConnectError({ title: 'Connection cancelled', description: 'You closed the wallet prompt. Tap below to try again.' })
       }

@@ -69,7 +69,7 @@ export function WalletPicker({ visible, onClose, onSelect }: WalletPickerProps) 
                 {adapter.name}
               </Text>
               <Text variant="caption">
-                {formatNamespaces(adapter.namespaces)}
+                {adapter.tagline ?? formatNamespaces(adapter.namespaces)}
                 {!installed && ' · not installed'}
               </Text>
             </View>

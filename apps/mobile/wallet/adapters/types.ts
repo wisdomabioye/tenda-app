@@ -27,8 +27,17 @@ export interface WalletAdapter {
   readonly id: string
   /** Display name in the picker. */
   readonly name: string
-  /** Bundled wallet icon. `require('@/assets/wallets/<id>.png')` result. */
-  readonly iconSource: ImageRequireSource
+  /**
+   * Bundled wallet icon, `require('@/assets/wallets/<id>.png')`. Optional:
+   * aggregator adapters (WalletConnect) cover many wallets and have no single
+   * icon — the picker falls back to a generic wallet glyph.
+   */
+  readonly iconSource?: ImageRequireSource
+  /**
+   * Optional one-line picker subtitle naming example wallets (e.g. "Trust,
+   * Rainbow & more"). Falls back to the namespace label when absent.
+   */
+  readonly tagline?: string
   /** Which CAIP-2 namespaces this adapter can talk to. */
   readonly namespaces: readonly Namespace[]
 

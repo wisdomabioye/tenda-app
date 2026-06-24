@@ -37,10 +37,26 @@ const timeoutErr = {
   code: 'ERROR_SESSION_TIMEOUT',
   message: 'Session establishment timed out',
 }
+// ERROR_SESSION_CLOSED for a NON-user reason (wallet failed to auto-return) —
+// retryable. The explicit user-cancel variant is `cancelledErr` below.
 const closedErr = {
   name: 'SolanaMobileWalletAdapterError',
   code: 'ERROR_SESSION_CLOSED',
+  message: 'the association closed before the wallet answered',
+}
+// User dismissed the OS wallet chooser before picking one — a decline, not a
+// failure (same code as closedErr, but the message marks it as the user's act).
+const cancelledErr = {
+  name: 'SolanaMobileWalletAdapterError',
+  code: 'ERROR_SESSION_CLOSED',
   message: 'Local association cancelled by user',
+}
+// Same cancel, but the phrase lands on the reject `.code` (American spelling)
+// while .message is generic — the classifier must read both fields/spellings.
+const cancelledByCodeErr = {
+  name: 'Error',
+  code: 'Session not established: Local association canceled by user',
+  message: 'rejected',
 }
 const declinedErr = {
   name: 'SolanaMobileWalletAdapterError',
@@ -134,10 +150,13 @@ describe('MWA error classifiers', () => {
     expect(isMwaTransient(null)).toBe(false)
   })
 
-  it('isMwaUserDeclined: AuthorizationDeclined OR protocol code -1', () => {
+  it('isMwaUserDeclined: AuthorizationDeclined, OS-chooser cancel (message or code, either spelling), OR protocol code -1', () => {
     expect(isMwaUserDeclined(declinedErr)).toBe(true)
+    expect(isMwaUserDeclined(cancelledErr)).toBe(true) // ".message: cancelled by user"
+    expect(isMwaUserDeclined(cancelledByCodeErr)).toBe(true) // ".code: canceled by user"
     expect(isMwaUserDeclined(protocolDeclineErr)).toBe(true)
-    expect(isMwaUserDeclined(closedErr)).toBe(false)
+    expect(isMwaUserDeclined(closedErr)).toBe(false) // non-user session close → retryable
+    expect(isMwaUserDeclined(transientErr)).toBe(false) // CancellationException ≠ "by user"
     expect(isMwaUserDeclined({ message: 'no name' })).toBe(false)
   })
 
@@ -176,6 +195,17 @@ describe('withMwaRetry error mapping', () => {
 
   it('never retries a protocol -1 decline even though it looks session-ish', async () => {
     mockTransact.mockRejectedValue(protocolDeclineErr)
+    await expect(withMwaRetry(() => Promise.resolve('x'))).rejects.toMatchObject({
+      code: 'declined',
+    })
+    expect(mockTransact).toHaveBeenCalledTimes(1)
+  })
+
+  it('maps an OS-chooser cancel to "declined" and does NOT retry (decline beats the session-close retry)', async () => {
+    // Issue-2 fix: cancelledErr shares ERROR_SESSION_CLOSED with the retryable
+    // closedErr, but the user-cancel message is classified as a decline FIRST,
+    // so it returns immediately instead of re-opening the chooser.
+    mockTransact.mockRejectedValue(cancelledErr)
     await expect(withMwaRetry(() => Promise.resolve('x'))).rejects.toMatchObject({
       code: 'declined',
     })

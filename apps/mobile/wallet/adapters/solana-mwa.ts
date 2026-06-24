@@ -192,6 +192,7 @@ const unavailable = (op: string) => () => {
 export const solanaMwaAdapter: WalletAdapter = {
   id: ADAPTER_ID,
   name: 'Solana Wallet',
+  tagline: 'Solflare, Phantom & more',
   iconSource: require('@/assets/wallets/Solana.png'),
   namespaces: ['solana'],
   isAvailable: async () => Platform.OS === 'android',

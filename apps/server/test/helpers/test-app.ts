@@ -96,6 +96,10 @@ function fakeRegistry(): ChainRegistry {
     },
     has: (chain_id) => adapters.has(chain_id),
     list: () => [...adapters.values()],
+    // Offline stand-in for tweetnacl/viem sig verify (namespace-dispatched, like
+    // the real registry): any signature passes except the explicit bad sentinel
+    // (the wallet-auth 401 path). Works for unprovisioned chains too.
+    verifyAuthSig: async (_chain_id, { signature }) => signature !== FAKE_BAD_SIGNATURE,
   }
 }
 

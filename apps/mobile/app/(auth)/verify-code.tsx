@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { View, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
-import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { ScreenContainer, Text, Header, Button, showToast } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth.store'
 import { api, ApiClientError } from '@/api/client'
-import { classifyVerifyError, TIER0_MESSAGE, postAuthRoute } from '@/lib/auth-flow'
+import { classifyVerifyError, TIER0_MESSAGE } from '@/lib/auth-flow'
+import { usePostAuthReset } from '@/lib/post-auth-nav'
 import { typography } from '@/theme/tokens'
 
 const CODE_LENGTH = 6
@@ -22,9 +23,9 @@ type OtpChannel = 'phone' | 'email'
  */
 export default function VerifyCodeScreen() {
   const { channel, identifier } = useLocalSearchParams<{ channel: OtpChannel; identifier: string }>()
-  const router = useRouter()
   const { theme } = useUnistyles()
   const signInWithVerify = useAuthStore((s) => s.signInWithVerify)
+  const resetToAuthedRoot = usePostAuthReset()
 
   const [code, setCode] = useState('')
   const [isVerifying, setIsVerifying] = useState(false)
@@ -42,7 +43,8 @@ export default function VerifyCodeScreen() {
     setIsVerifying(true)
     try {
       await signInWithVerify({ method: channel, identifier, code: value })
-      router.replace(postAuthRoute(useAuthStore.getState().profileComplete))
+      // reset (not replace) so back can't return to the auth stack after sign-in.
+      resetToAuthedRoot(useAuthStore.getState().profileComplete)
     } catch (e) {
       setCode('')
       const tier0 = classifyVerifyError(e)

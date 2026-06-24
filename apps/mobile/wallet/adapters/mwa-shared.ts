@@ -50,12 +50,34 @@ export function isMwaTransient(err: unknown): boolean {
   )
 }
 
+/** "cancelled by user" / "canceled by user" (either spelling). */
+const CANCELLED_BY_USER = /cancell?ed by user/i
+
+/** The error's `.code` as a string, or '' — `code` may be a string or absent. */
+function mwaCodeText(err: unknown): string {
+  if (typeof err === 'object' && err !== null) {
+    const code = (err as { code?: unknown }).code
+    if (typeof code === 'string') return code
+  }
+  return ''
+}
+
 export function isMwaUserDeclined(err: unknown): boolean {
   if (!isMwaError(err)) return false
+  // Tapped "Cancel" inside the wallet.
   if (
     err.name === 'SolanaMobileWalletAdapterError' &&
     err.message.includes('AuthorizationDeclined')
   ) {
+    return true
+  }
+  // Dismissed the OS wallet chooser before picking one — the native layer
+  // rejects with "Local association cancel(l)ed by user" on EITHER the message
+  // or the reject `.code` (it varies by SDK layer / device), and the wrapped
+  // error's `name` is not always `SolanaMobileWalletAdapterError`, so we match
+  // the phrase on both fields and both spellings. "by user" keeps this from
+  // catching the transient `CancellationException` (which we retry).
+  if (CANCELLED_BY_USER.test(err.message) || CANCELLED_BY_USER.test(mwaCodeText(err))) {
     return true
   }
   // Protocol error code -1 = "approval denied" per the MWA spec.
@@ -96,17 +118,15 @@ function mwaErrorCode(err: unknown): string | null {
 
 /**
  * The local association failed to ESTABLISH, or was torn down before the wallet
- * answered — distinct from a real decline (a `SolanaMobileWalletAdapterProtocol-
- * Error` with code -1, see `isMwaUserDeclined`). `ERROR_SESSION_TIMEOUT` is a
+ * answered for a NON-user reason — distinct from a decline (in-wallet "Cancel" =
+ * protocol code -1; dismissing the OS chooser = "cancelled by user"; both caught
+ * first by `isMwaUserDeclined` and never retried). `ERROR_SESSION_TIMEOUT` is a
  * slow/cold wallet losing the association handshake race (Phantom is heavy to
- * cold-start, so its sheet sometimes never appears); `ERROR_SESSION_CLOSED` is
- * the association dropping when the wallet fails to auto-return to the dapp and
- * the user backs out ("Local association cancelled"). Both are retryable: the
- * first attempt launches and warms the wallet, so a second attempt usually
- * establishes cleanly. The cost is that a *deliberate* back-out also re-prompts,
- * but that's bounded by MAX_RETRIES and far better than a dead-end on every cold
- * Phantom connect. (A real in-wallet "Cancel" surfaces as the -1 decline above
- * and is never retried.)
+ * cold-start, so its sheet sometimes never appears); `ERROR_SESSION_CLOSED` here
+ * is the association dropping when the wallet fails to auto-return to the dapp
+ * (without the explicit user-cancel message). Both are retryable: the first
+ * attempt launches and warms the wallet, so a second attempt usually establishes
+ * cleanly — far better than a dead-end on every cold Phantom connect.
  */
 export function isMwaSessionInterrupted(err: unknown): boolean {
   const code = mwaErrorCode(err)

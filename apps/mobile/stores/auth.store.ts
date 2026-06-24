@@ -11,6 +11,7 @@ import { api, ApiClientError } from '@/api/client'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useExchangeMarketStore } from '@/stores/exchange-market.store'
 import { signInWithWallet as walletSignIn } from '@/wallet/auth'
+import { connectionSignal } from '@/wallet/reown/connection-signal'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 
 interface AuthState {
@@ -27,6 +28,13 @@ interface AuthState {
   evmAddress: string | null
   isAuthenticated: boolean
   isLoading: boolean
+  /**
+   * A wallet sign-in is mid-flight (nonce → authenticate → verify). The wallet's
+   * `tenda://` return deep link can bounce the app through the `/` index route
+   * before verify completes; `index` reads this to hold a spinner instead of
+   * flashing the welcome/get-started screen. Cleared when the flow settles.
+   */
+  walletAuthInProgress: boolean
   /** Stage 1 multi-wallet state — from GET /v1/users/me. */
   wallets: LinkedWallet[]
   /** null until /v1/users/me has answered at least once this session. */
@@ -68,39 +76,47 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   evmAddress: null,
   isAuthenticated: false,
   isLoading: true,
+  walletAuthInProgress: false,
   wallets: [],
   profileComplete: null,
   phoneVerified: false,
 
   signInWithWallet: async (adapter) => {
-    const result = await walletSignIn(adapter)
-    if (result === null) return false
+    // Flag the in-flight sign-in so `index` holds a spinner instead of flashing
+    // welcome if the wallet's `tenda://` return bounces through `/` mid-verify.
+    set({ walletAuthInProgress: true })
+    try {
+      const result = await walletSignIn(adapter)
+      if (result === null) return false
 
-    const { auth, account } = result
-    const isSolana = account.namespace === 'solana'
-    await Promise.all([
-      setJwtToken(auth.token),
-      // walletAddress is consumed as a Solana pubkey (balance, fiat quotes) —
-      // only persist it for a Solana account; an EVM login publishes evmAddress.
-      isSolana ? setWalletAddress(account.address) : Promise.resolve(),
-    ])
-    set({
-      user: auth.user,
-      jwt: auth.token,
-      ...(isSolana
-        ? { walletAddress: account.address }
-        : { evmAddress: account.address }),
-      isAuthenticated: true,
-      // The auth response is the v2 row — same predicate the server uses.
-      profileComplete: Boolean(auth.user.first_name && auth.user.last_name),
-    })
+      const { auth, account } = result
+      const isSolana = account.namespace === 'solana'
+      await Promise.all([
+        setJwtToken(auth.token),
+        // walletAddress is consumed as a Solana pubkey (balance, fiat quotes) —
+        // only persist it for a Solana account; an EVM login publishes evmAddress.
+        isSolana ? setWalletAddress(account.address) : Promise.resolve(),
+      ])
+      set({
+        user: auth.user,
+        jwt: auth.token,
+        ...(isSolana
+          ? { walletAddress: account.address }
+          : { evmAddress: account.address }),
+        isAuthenticated: true,
+        // The auth response is the v2 row — same predicate the server uses.
+        profileComplete: Boolean(auth.user.first_name && auth.user.last_name),
+      })
 
-    // Settle the legacy /v1/auth/me user shape (wallet_address etc.) and
-    // wallets[] + phone state in the background; navigation only needs
-    // profileComplete, already set above.
-    void get().refreshUser()
-    void get().refreshMe()
-    return true
+      // Settle the legacy /v1/auth/me user shape (wallet_address etc.) and
+      // wallets[] + phone state in the background; navigation only needs
+      // profileComplete, already set above.
+      void get().refreshUser()
+      void get().refreshMe()
+      return true
+    } finally {
+      set({ walletAuthInProgress: false })
+    }
   },
 
   signInWithVerify: async (body) => {
@@ -122,6 +138,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   logout: async () => {
     useExchangeMarketStore.getState().clear()
     await usePendingSyncStore.getState().clear()
+    // Drop any WalletConnect (EVM) session so the next login starts clean and
+    // shows the wallet sheet instead of silently reusing the prior wallet.
+    // Fire-and-forget — logout must not block on a relay round-trip.
+    void connectionSignal.disconnect()
     await clearAuthStorage()
     set({
       user: null,

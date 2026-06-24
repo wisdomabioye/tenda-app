@@ -9,7 +9,8 @@ import { useAuthStore } from '@/stores/auth.store'
 import { ApiClientError } from '@/api/client'
 import { signInWithGoogle, configureGoogleSignIn, GoogleSignInError } from '@/lib/google-signin'
 import { signInWithApple, isAppleAvailable, AppleSignInError } from '@/lib/apple-signin'
-import { classifyVerifyError, TIER0_MESSAGE, postAuthRoute } from '@/lib/auth-flow'
+import { classifyVerifyError, TIER0_MESSAGE } from '@/lib/auth-flow'
+import { usePostAuthReset } from '@/lib/post-auth-nav'
 
 type Busy = null | 'google' | 'apple'
 
@@ -26,6 +27,7 @@ export default function GetStartedScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
   const signInWithVerify = useAuthStore((s) => s.signInWithVerify)
+  const resetToAuthedRoot = usePostAuthReset()
 
   const [busy, setBusy] = useState<Busy>(null)
   const [appleAvailable, setAppleAvailable] = useState(false)
@@ -52,7 +54,8 @@ export default function GetStartedScreen() {
   }
 
   function afterAuth(): void {
-    router.replace(postAuthRoute(useAuthStore.getState().profileComplete))
+    // reset (not replace) so back can't return to the auth stack after sign-in.
+    resetToAuthedRoot(useAuthStore.getState().profileComplete)
   }
 
   async function handleGoogle(): Promise<void> {

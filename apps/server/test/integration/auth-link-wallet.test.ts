@@ -72,14 +72,24 @@ test('link-wallet: links a new wallet (non-primary) to the authed user', { skip 
   assert.strictEqual(w.chain_ns, 'solana')
 })
 
-// ---------- the review finding -------------------------------------------------
+// ---------- chain gate (decoupled from escrow provisioning) --------------------
 
-test('link-wallet: an unregistered (well-formed) chain_id → 400, not 500', { skip }, async () => {
+test('link-wallet: a valid namespace on an UNPROVISIONED chain links successfully (login ≠ provisioning)', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
   const address = freshAddress()
-  // eip155:8453 is valid CAIP-2 but not in the harness registry (solana:devnet only).
+  // eip155:8453 is valid CAIP-2 but not in the harness registry (solana:devnet
+  // only). Linking verifies the sig by NAMESPACE (pure crypto), so it succeeds.
   const res = await link(app, u.token, address, { chain_id: 'eip155:8453' })
+  assert.strictEqual(res.statusCode, 200)
+  const [w] = await app.db.select().from(user_wallets).where(eq(user_wallets.address, address))
+  assert.strictEqual(w.chain_ns, 'eip155')
+})
+
+test('link-wallet: an unsupported chain NAMESPACE → 400 VALIDATION_ERROR', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  const res = await link(app, u.token, freshAddress(), { chain_id: 'cosmos:1' })
   assert.strictEqual(res.statusCode, 400)
   assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
 })

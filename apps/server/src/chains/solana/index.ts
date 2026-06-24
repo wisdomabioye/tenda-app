@@ -15,10 +15,10 @@
  */
 
 import { Program } from '@coral-xyz/anchor'
-import { Connection, PublicKey } from '@solana/web3.js'
-import nacl from 'tweetnacl'
+import { Connection } from '@solana/web3.js'
 import { ESCROW_IDL, type TendaEscrow } from '@tenda/shared/idl'
 import { computePlatformFee } from '@server/lib/escrow'
+import { verifyWalletSignature } from '@server/lib/wallet-signature'
 import { createSolanaBuilders } from '@server/chains/solana/builders'
 import { createSolanaRpc, commitmentFor, type SolanaRpc } from '@server/chains/solana/rpc'
 import { createSolanaVerifier } from '@server/chains/solana/verify'
@@ -72,13 +72,9 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     verifyTx: verifier.verifyTx,
     fetchEscrowState: verifier.fetchEscrowState,
 
-    async verifyAuthSig(a: VerifyAuthSigArgs): Promise<boolean> {
-      return verifyEd25519({
-        address: a.address,
-        message: a.message,
-        signature_b64: a.signature,
-      })
-    },
+    // Namespace-level crypto (ed25519) — single source in lib/wallet-signature;
+    // the registry's verifyAuthSig delegates to the same.
+    verifyAuthSig: (a: VerifyAuthSigArgs) => verifyWalletSignature('solana', a),
 
     computeFee(fee_args): AmountRaw {
       return computePlatformFee(fee_args)
@@ -86,25 +82,5 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
   }
 }
 
-// ---------- live primitives ---------------------------------------------
-
-/**
- * Ed25519 signature check over the literal `message` bytes (Tenda's custom
- * auth template, NOT SIWS). Returns `false` for any decode failure rather
- * than throwing — callers translate `false` into `INVALID_SIGNATURE`.
- */
-export function verifyEd25519(args: {
-  address: string
-  message: string
-  signature_b64: string
-}): boolean {
-  try {
-    const pk = new PublicKey(args.address).toBytes()
-    const msg = new TextEncoder().encode(args.message)
-    const sig = Buffer.from(args.signature_b64, 'base64')
-    if (sig.length !== 64) return false
-    return nacl.sign.detached.verify(msg, sig, pk)
-  } catch {
-    return false
-  }
-}
+/** Ed25519 auth-sig check — re-exported from the single source for callers/tests. */
+export { verifyEd25519 } from '@server/lib/wallet-signature'

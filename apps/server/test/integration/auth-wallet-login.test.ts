@@ -161,15 +161,31 @@ test('wallet login: issued_at outside the ±60s window → 400', { skip }, async
   assert.strictEqual(res.statusCode, 400)
 })
 
-test('wallet login: an unregistered (well-formed) chain_id → 400, not 500', { skip }, async () => {
+test('wallet login: a valid namespace on an UNPROVISIONED chain is accepted (login ≠ escrow provisioning)', { skip }, async () => {
   const app = getApp()
   const address = freshAddress()
   const { nonce, issued_at } = await issueNonce(app)
-  // eip155:8453 is a valid CAIP-2 but not registered in the harness registry.
+  // eip155:8453 is a valid CAIP-2 but NOT registered in the harness registry.
+  // Login verifies the signature by NAMESPACE (pure crypto, no escrow/RPC), so
+  // the chain gate passes and an unknown wallet surfaces as 404 — NOT a 400
+  // "unsupported chain" rejection (the old coupling, now removed).
   const res = await login(app, {
     chain_id: 'eip155:8453',
     address,
     message: buildMessage({ address, chain_id: 'eip155:8453', nonce, issued_at }),
+  })
+  assert.strictEqual(res.statusCode, 404)
+  assert.strictEqual(res.json().code, 'WALLET_NOT_LINKED')
+})
+
+test('wallet login: an unsupported chain NAMESPACE → 400 VALIDATION_ERROR', { skip }, async () => {
+  const app = getApp()
+  const address = freshAddress()
+  const { nonce, issued_at } = await issueNonce(app)
+  const res = await login(app, {
+    chain_id: 'cosmos:1',
+    address,
+    message: buildMessage({ address, chain_id: 'cosmos:1', nonce, issued_at }),
   })
   assert.strictEqual(res.statusCode, 400)
   assert.strictEqual(res.json().code, 'VALIDATION_ERROR')

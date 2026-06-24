@@ -11,8 +11,9 @@
  * pattern).
  */
 
-import { recoverMessageAddress, toHex } from 'viem'
+import { toHex } from 'viem'
 import { computePlatformFee } from '@server/lib/escrow'
+import { verifyWalletSignature } from '@server/lib/wallet-signature'
 import { bytesToUuid, uuidToBytes } from '@server/chains/ids'
 import type {
   AssetId,
@@ -232,28 +233,14 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     }
   }
 
-  async function verifyAuthSig(a: VerifyAuthSigArgs): Promise<boolean> {
-    // EOA-only at this stage: pure ECDSA recovery over the EIP-191
-    // personal_sign envelope (offline — no RPC). ERC-1271 smart-account
-    // signatures land with the smart-account follow-on (stage-3 out of
-    // scope note).
-    try {
-      const recovered = await recoverMessageAddress({
-        message: a.message,
-        signature: a.signature as `0x${string}`,
-      })
-      return recovered.toLowerCase() === a.address.toLowerCase()
-    } catch {
-      return false
-    }
-  }
-
   return {
     namespace: 'eip155',
     chain_id: args.chain_id,
     buildTx,
     verifyTx,
-    verifyAuthSig,
+    // Namespace-level crypto (EIP-191 ecrecover) — single source in
+    // lib/wallet-signature; the registry's verifyAuthSig delegates to the same.
+    verifyAuthSig: (a: VerifyAuthSigArgs) => verifyWalletSignature('eip155', a),
     fetchEscrowState,
     computeFee: (fee_args) => computePlatformFee(fee_args),
   }

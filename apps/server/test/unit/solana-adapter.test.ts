@@ -654,7 +654,7 @@ test('verifyAuthSig: tampered message / wrong address / malformed input → fals
 test('verifyEd25519: helper export matches adapter behaviour', () => {
   const { address, secret } = makeKeypair()
   assert.strictEqual(
-    verifyEd25519({ address, message: 'msg', signature_b64: sign(secret, 'msg') }),
+    verifyEd25519({ address, message: 'msg', signature: sign(secret, 'msg') }),
     true,
   )
 })

@@ -383,4 +383,11 @@ export interface ChainRegistry {
   get(chain_id: ChainId): ChainAdapter
   has(chain_id: ChainId): boolean
   list(): ReadonlyArray<ChainAdapter>
+  /**
+   * Verify a wallet auth-signature for `chain_id` by NAMESPACE — pure offline
+   * crypto that works even when the chain is NOT provisioned on this deployment
+   * (so login never requires a deployed escrow contract). 400 on an unsupported
+   * namespace. Distinct from per-chain `get(id).verifyTx` (which needs RPC).
+   */
+  verifyAuthSig(chain_id: string, args: VerifyAuthSigArgs): Promise<boolean>
 }

@@ -1,6 +1,6 @@
 /**
  * jest-expo harness (#101). Strategy: heavy native transports (Solana MWA,
- * @solana/web3.js, @metamask/connect-evm) and storage (AsyncStorage,
+ * @solana/web3.js, WalletConnect/Reown) and storage (AsyncStorage,
  * expo-secure-store) are MOCKED in jest.setup.js / per-test, so the suite
  * exercises OUR logic, not the SDKs — which also sidesteps having to transform
  * those packages. `transformIgnorePatterns` therefore only needs to whitelist

@@ -1,6 +1,6 @@
 /**
  * Global test setup. Mocks the app-wide native modules every suite touches;
- * transport-specific mocks (Solana MWA, @metamask/connect-evm, @solana/web3.js)
+ * transport-specific mocks (Solana MWA, WalletConnect/Reown, @solana/web3.js)
  * live in their adapter tests so each stays self-contained.
  */
 

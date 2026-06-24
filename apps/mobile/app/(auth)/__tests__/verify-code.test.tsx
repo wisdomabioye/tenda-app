@@ -11,6 +11,9 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ replace: mockReplace }),
   useLocalSearchParams: () => ({ channel: 'email', identifier: 'a@x.io' }),
 }))
+// Post-login resets the stack; the screen calls it with profileComplete.
+const mockAuthReset = jest.fn()
+jest.mock('@/lib/post-auth-nav', () => ({ usePostAuthReset: () => mockAuthReset }))
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
     theme: { colors: { content: { primary: '#000', secondary: '#333' }, border: { default: '#ccc' } } },
@@ -61,7 +64,7 @@ import VerifyCodeScreen from '@/app/(auth)/verify-code'
 import { ApiClientError } from '@/api/client'
 
 beforeEach(() => {
-  mockReplace.mockReset(); mockShowToast.mockReset(); mockSignInWithVerify.mockReset()
+  mockReplace.mockReset(); mockAuthReset.mockReset(); mockShowToast.mockReset(); mockSignInWithVerify.mockReset()
 })
 
 test('6 digits auto-submit → verify → route to profile setup', async () => {
@@ -71,7 +74,7 @@ test('6 digits auto-submit → verify → route to profile setup', async () => {
   await waitFor(() =>
     expect(mockSignInWithVerify).toHaveBeenCalledWith({ method: 'email', identifier: 'a@x.io', code: '424242' }),
   )
-  expect(mockReplace).toHaveBeenCalledWith('/(auth)/profile-setup')
+  expect(mockAuthReset).toHaveBeenCalledWith(false)
 })
 
 test('a blocked identity shows the Tier-0 message and does not route', async () => {
@@ -81,7 +84,7 @@ test('a blocked identity shows the Tier-0 message and does not route', async () 
   await waitFor(() =>
     expect(mockShowToast).toHaveBeenCalledWith('error', TIER0_MESSAGE.identity_already_linked),
   )
-  expect(mockReplace).not.toHaveBeenCalled()
+  expect(mockAuthReset).not.toHaveBeenCalled()
 })
 
 test('non-numeric input is stripped; under 6 digits does not submit', () => {

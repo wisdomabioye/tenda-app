@@ -13,11 +13,11 @@ config.resolver.nodeModulesPaths = [
 ];
 config.resolver.disableHierarchicalLookup = true;
 
-// Node-builtin shims for @metamask/connect-multichain. The library was built
-// browser-first; on RN we map most Node built-ins to an empty stub (the code
-// paths aren't actually reached) and `stream` to its userland reimplementation.
-// If a real runtime call ever hits one of these stubs we'll see a clear error
-// and can swap in the proper shim then.
+// Node-builtin shims for the web3 stack (WalletConnect/Reown relay +
+// @solana/web3.js), which reference Node built-ins that don't exist on RN. We
+// map most to an empty stub (the code paths aren't actually reached) and
+// `stream` to its userland reimplementation. If a real runtime call ever hits
+// one of these stubs we'll see a clear error and can swap in the proper shim then.
 const emptyModule = path.resolve(projectRoot, "shims/empty-module.js");
 const nodeBuiltins = {
   assert: emptyModule,
@@ -50,7 +50,7 @@ config.resolver.extraNodeModules = {
 // webidl-conversions@8 into the workspace-root node_modules. Because mobile's
 // resolver is flat (disableHierarchicalLookup + nodeModulesPaths above), Metro
 // resolves EVERY `require('whatwg-url')` to that hoisted v16 — even though
-// mobile's real importers (node-fetch via @solana/web3.js, MetaMask) declare
+// mobile's real importers (node-fetch via @solana/web3.js) declare
 // whatwg-url@5. v16/webidl-conversions@8 use ES2024 APIs Hermes lacks
 // (SharedArrayBuffer, resizable buffers, String.prototype.toWellFormed) and
 // crash at bundle evaluation. Pinning to the Hermes-proven pair fixes the

@@ -4,8 +4,8 @@
  * and returns the chain's tx_ref for the client-ping.
  *
  *  - solana-tx   → MWA sign + app-side broadcast (existing Stage-0 path)
- *  - evm-tx      → MetaMask connect-evm eth_sendTransaction (W2 transport;
- *                  feeCurrency passes through for CELO)
+ *  - evm-tx      → WalletConnect (Reown) eth_sendTransaction over the connected
+ *                  session; feeCurrency passes through for CELO
  *  - evm-userop  → BLOCKED on #47: signing a sponsored UserOperation needs
  *                  the bundler endpoint (Coinbase) to resolve nonce/gas and
  *                  accept eth_sendUserOperation. The server only emits this
@@ -17,7 +17,7 @@ import { VersionedTransaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import type { EscrowTxType, UnsignedTx } from '@tenda/shared'
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
-import { sendEvmTransaction } from '@/wallet/adapters/metamask'
+import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 

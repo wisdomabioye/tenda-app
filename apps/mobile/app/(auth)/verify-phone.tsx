@@ -5,6 +5,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { ScreenContainer, Text, Header, Button, showToast } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth.store'
 import { api, ApiClientError } from '@/api/client'
+import { usePostAuthReset } from '@/lib/post-auth-nav'
 import { typography } from '@/theme/tokens'
 
 const CODE_LENGTH = 6
@@ -18,6 +19,7 @@ const RESEND_COOLDOWN_S = 60
 export default function VerifyPhoneScreen() {
   const { phone, next } = useLocalSearchParams<{ phone: string; next?: string }>()
   const router = useRouter()
+  const resetToAuthedRoot = usePostAuthReset()
   const { theme } = useUnistyles()
 
   const [code, setCode] = useState('')
@@ -34,8 +36,10 @@ export default function VerifyPhoneScreen() {
   function finish() {
     // Phone state changed server-side — refresh wallets/phone flags.
     void useAuthStore.getState().refreshMe()
+    // From settings → just pop back. From onboarding (next=home) → reset so
+    // back from home exits instead of returning to the auth/onboarding stack.
     if (next === 'back') router.back()
-    else router.replace('/(tabs)/home')
+    else resetToAuthedRoot(true)
   }
 
   async function handleVerify(value: string) {

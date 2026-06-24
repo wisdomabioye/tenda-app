@@ -11,6 +11,9 @@ import { render, fireEvent, waitFor, screen } from '@testing-library/react-nativ
 const mockPush = jest.fn()
 const mockReplace = jest.fn()
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }))
+// Post-login resets the stack; afterAuth calls it with profileComplete.
+const mockAuthReset = jest.fn()
+jest.mock('@/lib/post-auth-nav', () => ({ usePostAuthReset: () => mockAuthReset }))
 jest.mock('expo-image', () => ({ Image: () => null }))
 jest.mock('lucide-react-native', () => new Proxy({}, { get: () => () => null }))
 jest.mock('react-native-unistyles', () => ({
@@ -63,7 +66,7 @@ import GetStartedScreen from '@/app/(auth)/get-started'
 import { GoogleSignInError } from '@/lib/google-signin'
 
 beforeEach(() => {
-  mockPush.mockReset(); mockReplace.mockReset(); mockShowToast.mockReset()
+  mockPush.mockReset(); mockReplace.mockReset(); mockAuthReset.mockReset(); mockShowToast.mockReset()
   mockSignInWithVerify.mockClear()
   mockSignInWithGoogle.mockReset()
   mockIsAppleAvailable.mockReset(); mockIsAppleAvailable.mockResolvedValue(false)
@@ -96,7 +99,7 @@ test('Google: verifies the id_token then routes', async () => {
   await waitFor(() =>
     expect(mockSignInWithVerify).toHaveBeenCalledWith({ method: 'google', id_token: 'id-tok' }),
   )
-  expect(mockReplace).toHaveBeenCalledWith('/(auth)/profile-setup') // profileComplete=false
+  expect(mockAuthReset).toHaveBeenCalledWith(false) // profileComplete=false
 })
 
 test('Google cancellation is silent — no toast, no nav', async () => {
@@ -105,7 +108,7 @@ test('Google cancellation is silent — no toast, no nav', async () => {
   fireEvent.press(screen.getByText('Continue with Google'))
   await waitFor(() => expect(mockSignInWithGoogle).toHaveBeenCalled())
   expect(mockShowToast).not.toHaveBeenCalled()
-  expect(mockReplace).not.toHaveBeenCalled()
+  expect(mockAuthReset).not.toHaveBeenCalled()
 })
 
 test('Google failure surfaces an error toast', async () => {
@@ -113,7 +116,7 @@ test('Google failure surfaces an error toast', async () => {
   render(<GetStartedScreen />)
   fireEvent.press(screen.getByText('Continue with Google'))
   await waitFor(() => expect(mockShowToast).toHaveBeenCalled())
-  expect(mockReplace).not.toHaveBeenCalled()
+  expect(mockAuthReset).not.toHaveBeenCalled()
 })
 
 test('phone pushes to the contact route', async () => {
