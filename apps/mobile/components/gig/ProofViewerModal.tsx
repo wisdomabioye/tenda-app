@@ -5,7 +5,6 @@ import {
   StyleSheet,
   Pressable,
   ActivityIndicator,
-  Alert,
   Linking,
   ScrollView,
 } from 'react-native'
@@ -18,6 +17,7 @@ import { File, Paths } from 'expo-file-system/next'
 import * as MediaLibrary from 'expo-media-library'
 import * as Sharing from 'expo-sharing'
 import { Text } from '@/components/ui/Text'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { spacing, radius } from '@/theme/tokens'
 
 export type ProofItem = {
@@ -50,6 +50,10 @@ export function ProofViewerModal({ proof, onClose }: Props) {
   const { theme } = useUnistyles()
   const insets = useSafeAreaInsets()
   const [downloading, setDownloading] = useState(false)
+  const [permissionPrompt, setPermissionPrompt] = useState(false)
+  // A success/failure notice — shown via our dialog because a toast would render
+  // BEHIND this fullscreen modal.
+  const [notice, setNotice] = useState<string | null>(null)
 
   if (!proof) return null
 
@@ -71,25 +75,16 @@ export function ProofViewerModal({ proof, onClose }: Props) {
       if (proof.type === 'image' || proof.type === 'video') {
         const { status, canAskAgain } = await MediaLibrary.requestPermissionsAsync()
         if (status !== 'granted') {
-          if (!canAskAgain) {
-            Alert.alert(
-              'Permission required',
-              'Gallery access was denied. Enable it in your device settings.',
-              [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Open Settings', onPress: () => Linking.openSettings() },
-              ],
-            )
-          }
+          if (!canAskAgain) setPermissionPrompt(true)
           return
         }
         await MediaLibrary.saveToLibraryAsync(file.uri)
-        Alert.alert('Saved', `${proof.type === 'image' ? 'Image' : 'Video'} saved to your gallery.`)
+        setNotice(`${proof.type === 'image' ? 'Image' : 'Video'} saved to your gallery.`)
       } else {
         await Sharing.shareAsync(file.uri)
       }
     } catch (e) {
-      Alert.alert('Download failed', (e as Error).message ?? 'Could not download the file.')
+      setNotice((e as Error).message ?? 'Could not download the file.')
     } finally {
       setDownloading(false)
     }
@@ -177,6 +172,28 @@ export function ProofViewerModal({ proof, onClose }: Props) {
         )}
 
       </View>
+
+      <ConfirmDialog
+        visible={permissionPrompt}
+        title="Permission required"
+        message="Gallery access was denied. Enable it in your device settings."
+        confirmLabel="Open Settings"
+        onConfirm={() => {
+          setPermissionPrompt(false)
+          void Linking.openSettings()
+        }}
+        onCancel={() => setPermissionPrompt(false)}
+      />
+
+      <ConfirmDialog
+        visible={notice !== null}
+        title="Download"
+        message={notice ?? undefined}
+        confirmLabel="OK"
+        hideCancel
+        onConfirm={() => setNotice(null)}
+        onCancel={() => setNotice(null)}
+      />
     </Modal>
   )
 }

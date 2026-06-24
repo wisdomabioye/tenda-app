@@ -13,6 +13,7 @@ import type { EscrowTxType } from '@tenda/shared'
 import { escrows, escrow_transactions } from '@tenda/shared/db/schema/escrow'
 import { disputes } from '@tenda/shared/db/schema/governance'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
+import { walletAddressEquals } from '@server/lib/auth/wallet-address'
 import type { AppDatabase } from '@server/plugins/db'
 import type { EscrowStatus } from '@server/lib/escrow'
 
@@ -83,10 +84,13 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
       })
     },
     async resolveUserByWallet(chain_ns, address) {
+      // The address comes from decoded on-chain event data — viem returns EVM
+      // addresses EIP-55 checksummed. Match case-insensitively (EVM) so the
+      // counterparty/actor resolves regardless of the stored row's case.
       const rows = await db
         .select({ user_id: user_wallets.user_id })
         .from(user_wallets)
-        .where(and(eq(user_wallets.chain_ns, chain_ns), eq(user_wallets.address, address)))
+        .where(and(eq(user_wallets.chain_ns, chain_ns), walletAddressEquals(chain_ns, address)))
         .limit(1)
       return rows[0]?.user_id ?? null
     },

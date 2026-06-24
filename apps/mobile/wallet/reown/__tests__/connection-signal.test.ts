@@ -12,12 +12,13 @@ const provider: EvmRequestProvider = { request: jest.fn() }
 function makeLive(overrides: Partial<ReownLiveState> = {}): ReownLiveState {
   return {
     open: jest.fn(),
-    disconnect: jest.fn(),
+    disconnect: jest.fn(async () => {}),
     provider,
     address: undefined,
     namespace: undefined,
     chainId: undefined,
     isConnected: false,
+    peerRedirect: undefined,
     ...overrides,
   }
 }
@@ -47,6 +48,17 @@ describe('ConnectionSignal.connect', () => {
       walletId: 'walletconnect',
     })
     expect(live.open).not.toHaveBeenCalled()
+  })
+
+  it('fresh skips the connected fast path and re-opens the modal (wallet-linking)', async () => {
+    const sig = new ConnectionSignal()
+    const live = makeLive(connected)
+    sig.sync(live)
+    const pending = sig.connect({ fresh: true })
+    expect(live.open).toHaveBeenCalledTimes(1) // did NOT short-circuit
+    // a different wallet connects in
+    sig.sync(makeLive({ isConnected: true, address: '0xDEF', namespace: 'eip155', chainId: '8453' }))
+    await expect(pending).resolves.toMatchObject({ address: '0xDEF' })
   })
 
   it('opens the modal and resolves once an account is synced in', async () => {
@@ -118,25 +130,33 @@ describe('ConnectionSignal.disconnect', () => {
     await expect(sig.disconnect()).resolves.toBeUndefined()
   })
 
-  it('calls the wallet and resolves once the session drops', async () => {
+  it("awaits AppKit's own disconnect promise (no re-render wait)", async () => {
     const sig = new ConnectionSignal()
-    const live = makeLive(connected)
+    let settle: (() => void) | undefined
+    const live = makeLive({
+      ...connected,
+      disconnect: jest.fn(() => new Promise<void>((res) => { settle = res })),
+    })
     sig.sync(live)
+
     const pending = sig.disconnect()
     expect(live.disconnect).toHaveBeenCalledTimes(1)
-    sig.sync(makeLive({ isConnected: false }))
+    let done = false
+    void pending.then(() => { done = true })
+    await Promise.resolve()
+    expect(done).toBe(false) // still pending until AppKit settles — NOT a sync re-render
+    settle?.()
     await expect(pending).resolves.toBeUndefined()
   })
 
-  it('does not start a second wallet disconnect while one is pending', async () => {
+  it('propagates a disconnect rejection from AppKit', async () => {
     const sig = new ConnectionSignal()
-    const live = makeLive(connected)
+    const live = makeLive({
+      ...connected,
+      disconnect: jest.fn(async () => { throw new Error('relay down') }),
+    })
     sig.sync(live)
-    const first = sig.disconnect()
-    await expect(sig.disconnect()).resolves.toBeUndefined() // second short-circuits
-    expect(live.disconnect).toHaveBeenCalledTimes(1)
-    sig.sync(makeLive({ isConnected: false }))
-    await expect(first).resolves.toBeUndefined()
+    await expect(sig.disconnect()).rejects.toThrow('relay down')
   })
 })
 
@@ -146,6 +166,13 @@ describe('ConnectionSignal accessors', () => {
     expect(sig.getProvider()).toBeUndefined()
     sig.sync(makeLive({ provider }))
     expect(sig.getProvider()).toBe(provider)
+  })
+
+  it('exposes the connected wallet deep link for foregrounding', () => {
+    const sig = new ConnectionSignal()
+    expect(sig.getPeerRedirect()).toBeUndefined()
+    sig.sync(makeLive({ peerRedirect: 'trust://' }))
+    expect(sig.getPeerRedirect()).toBe('trust://')
   })
 
   it('returns the account when connected and null otherwise', () => {

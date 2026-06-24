@@ -16,6 +16,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { escrows, escrow_transactions } from '@tenda/shared/db/schema/escrow'
+import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
 import { TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow } from '../helpers/test-app'
 
@@ -96,4 +97,23 @@ test('applyEvent: a tripped status guard writes nothing (idempotent no-op)', { s
   assert.strictEqual(applied, false)
   const audit = await app.db.select().from(escrow_transactions).where(eq(escrow_transactions.tx_ref, tx_ref))
   assert.strictEqual(audit.length, 0, 'no audit row when the guard trips')
+})
+
+test('resolveUserByWallet: a checksummed on-chain EVM address resolves the row regardless of stored case', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  const store = drizzleEscrowEventStore(app.db)
+  // A legacy row stored MIXED-CASE; event-decoded addresses arrive EIP-55
+  // checksummed — the lookup must fold case on both sides to attribute it.
+  const mixed = '0xAbC0000000000000000000000000000000000fed'
+  await app.db
+    .insert(user_wallets)
+    .values({ chain_ns: 'eip155', address: mixed, user_id: u.row.id, is_primary: false })
+  assert.strictEqual(await store.resolveUserByWallet('eip155', mixed.toLowerCase()), u.row.id)
+  assert.strictEqual(await store.resolveUserByWallet('eip155', mixed.toUpperCase()), u.row.id)
+  // An unknown wallet resolves to null (negative).
+  assert.strictEqual(
+    await store.resolveUserByWallet('eip155', '0x0000000000000000000000000000000000000001'),
+    null,
+  )
 })

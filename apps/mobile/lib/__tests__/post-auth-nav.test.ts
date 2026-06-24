@@ -11,7 +11,7 @@ jest.mock('expo-router', () => ({
 }))
 
 import { renderHook } from '@testing-library/react-native'
-import { usePostAuthReset } from '@/lib/post-auth-nav'
+import { usePostAuthReset, useReturnToLinkedWallets } from '@/lib/post-auth-nav'
 
 beforeEach(() => {
   mockReset.mockClear()
@@ -43,6 +43,22 @@ describe('usePostAuthReset', () => {
   it('does nothing until the navigation container is ready', () => {
     mockReady = false
     renderHook(() => usePostAuthReset()).result.current(true)
+    expect(mockReset).not.toHaveBeenCalled()
+  })
+})
+
+describe('useReturnToLinkedWallets', () => {
+  it('rebuilds the stack as [(tabs), settings/linked-wallets] (back → tabs)', () => {
+    renderHook(() => useReturnToLinkedWallets()).result.current()
+    expect(mockReset).toHaveBeenCalledWith({
+      index: 1,
+      routes: [{ name: '(tabs)' }, { name: 'settings/linked-wallets' }],
+    })
+  })
+
+  it('does nothing until the navigation container is ready', () => {
+    mockReady = false
+    renderHook(() => useReturnToLinkedWallets()).result.current()
     expect(mockReset).not.toHaveBeenCalled()
   })
 })

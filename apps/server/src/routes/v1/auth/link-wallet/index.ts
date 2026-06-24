@@ -19,11 +19,13 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
+import { and, eq } from 'drizzle-orm'
 import { user_wallets } from '@tenda/shared/db/schema'
 import { AppError, requireBody, requireNonEmptyString } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { verifyWalletAuth } from '@server/lib/auth/strategies/wallet'
 import { hasVerifiedPhone } from '@server/lib/auth/resolver'
+import { walletAddressEquals } from '@server/lib/auth/wallet-address'
 import { fireRetroactiveGasSeed } from '@server/lib/onboarding-deps'
 
 interface Body {
@@ -41,24 +43,38 @@ const route: FastifyPluginAsync = async (fastify) => {
       config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     },
     async (request) => {
-      const { chain_id, address, message, signature } = requireBody(request.body)
-      requireNonEmptyString(chain_id, 'chain_id')
-      requireNonEmptyString(address, 'address')
-      requireNonEmptyString(message, 'message')
-      requireNonEmptyString(signature, 'signature')
+      const body = requireBody(request.body)
+      requireNonEmptyString(body.chain_id, 'chain_id')
+      requireNonEmptyString(body.address, 'address')
+      requireNonEmptyString(body.message, 'message')
+      requireNonEmptyString(body.signature, 'signature')
 
       // Shared verify-message-and-signature flow (parse → assert → sig-verify
       // → single-use nonce consume); identical to /auth/wallet + the unified
-      // /auth/verify wallet strategy.
-      const { chain_ns } = await verifyWalletAuth(
+      // /auth/verify wallet strategy. Returns the CANONICAL address (EVM
+      // lowercased) so the dedup constraint catches the same wallet linked in a
+      // different case.
+      const { chain_ns, address } = await verifyWalletAuth(
         { chains: fastify.chains, db: fastify.db, now: () => new Date() },
-        { chain_id, address, message, signature },
+        body,
       )
 
-      // Race-safe insert: rely on the (chain_ns, address) UNIQUE constraint
-      // to settle parallel link attempts. `onConflictDoNothing` returns 0
-      // rows when the wallet is already linked anywhere; we map that to
-      // the existing 409. See open_issues.md S0-2.
+      // Case-insensitive "already linked" check (EVM): the PK is case-sensitive,
+      // so a wallet stored as a legacy mixed-case row wouldn't conflict with its
+      // lowercased re-link — re-creating the duplicate. Reject any case-variant
+      // that already exists for anyone.
+      const existing = await fastify.db
+        .select({ user_id: user_wallets.user_id })
+        .from(user_wallets)
+        .where(and(eq(user_wallets.chain_ns, chain_ns), walletAddressEquals(chain_ns, address)))
+        .limit(1)
+      if (existing.length > 0) {
+        throw new AppError(409, ErrorCode.VALIDATION_ERROR, `wallet ${chain_ns}:${address} is already linked`)
+      }
+
+      // Race-safe insert: the (chain_ns, address) UNIQUE constraint still settles
+      // parallel exact-case attempts (the pre-check can't, not being atomic);
+      // `onConflictDoNothing` → 0 rows maps to the same 409. See open_issues S0-2.
       const inserted = await fastify.db
         .insert(user_wallets)
         .values({

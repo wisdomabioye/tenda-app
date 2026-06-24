@@ -46,7 +46,12 @@ export const ErrorCode = {
   ACCOUNT_UNDER_REVIEW:          'ACCOUNT_UNDER_REVIEW',
   // Stage 1 — onboarding (phone OTP, multi-wallet management)
   PROFILE_INCOMPLETE:            'PROFILE_INCOMPLETE',
+  /** Refused: this wallet is a party to an active escrow on its chain. */
   WALLET_IN_USE:                 'WALLET_IN_USE',
+  /** Refused: can't unlink the PRIMARY wallet while another remains — set a new
+   *  primary first. Distinct from WALLET_IN_USE so the client shows the right
+   *  message (not the active-escrow copy). */
+  WALLET_IS_PRIMARY:             'WALLET_IS_PRIMARY',
   OTP_RATE_LIMITED:              'OTP_RATE_LIMITED',
   OTP_INVALID:                   'OTP_INVALID',
   OTP_EXPIRED:                   'OTP_EXPIRED',
@@ -68,6 +73,10 @@ export const ErrorCode = {
   ASSIGNEE_WALLET_REQUIRED:      'ASSIGNEE_WALLET_REQUIRED',
   /** Refused: removing this credential would leave the account with no way to sign in. */
   LAST_CREDENTIAL:               'LAST_CREDENTIAL',
+  /** Refused: removing this wallet would leave the account with no linked wallet
+   *  (a wallet is required to transact — stricter than LAST_CREDENTIAL, which a
+   *  verified email/phone would otherwise satisfy). */
+  LAST_WALLET:                   'LAST_WALLET',
   /** Unknown/unsupported auth method kind on the generic challenge/verify routes. */
   UNSUPPORTED_AUTH_METHOD:       'UNSUPPORTED_AUTH_METHOD',
   // Stage 8 — fiat rails

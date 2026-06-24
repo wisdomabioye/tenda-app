@@ -5,7 +5,6 @@ import {
   Platform,
   StyleSheet,
   View,
-  Alert,
   Pressable,
 } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -14,6 +13,7 @@ import { Ban, Image as ImageIcon, FileText } from 'lucide-react-native'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Text } from '@/components/ui/Text'
 import { BottomSheet } from '@/components/ui/BottomSheet'
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
 import { ErrorState } from '@/components/feedback'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { MessageBubble } from '@/components/chat/MessageBubble'
@@ -48,6 +48,8 @@ export default function ChatScreen() {
   const [attachOpen, setAttachOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [reportingMessageId, setReportingMessageId] = useState<string | null>(null)
+  const [closeConfirm, setCloseConfirm] = useState(false)
+  const [closing, setClosing] = useState(false)
 
   const { conversationId, otherUser, loading, initError, retry } = useConversation(userId)
   useChatRealtime(conversationId)
@@ -92,21 +94,21 @@ export default function ChatScreen() {
   function handleCloseConversation() {
     if (!conversationId) return
     setMenuOpen(false)
-    Alert.alert(
-      'Close Conversation',
-      'This will hide the conversation from your inbox. It will reopen if you message again.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Close',
-          style: 'destructive',
-          onPress: () =>
-            closeConversation(conversationId)
-              .then(() => router.back())
-              .catch(() => showToast('error', 'Failed to close conversation — please try again')),
-        },
-      ],
-    )
+    setCloseConfirm(true)
+  }
+
+  async function confirmCloseConversation() {
+    if (!conversationId) return
+    setClosing(true)
+    try {
+      await closeConversation(conversationId)
+      setCloseConfirm(false)
+      router.back()
+    } catch {
+      showToast('error', 'Failed to close conversation — please try again')
+    } finally {
+      setClosing(false)
+    }
   }
 
   if (loading) return <LoadingScreen />
@@ -269,6 +271,17 @@ export default function ChatScreen() {
           </View>
         </Pressable>
       </BottomSheet>
+
+      <ConfirmDialog
+        visible={closeConfirm}
+        title="Close conversation"
+        message="This will hide the conversation from your inbox. It will reopen if you message again."
+        confirmLabel="Close"
+        destructive
+        loading={closing}
+        onConfirm={() => void confirmCloseConversation()}
+        onCancel={() => setCloseConfirm(false)}
+      />
     </ScreenContainer>
   )
 }

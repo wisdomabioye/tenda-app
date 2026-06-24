@@ -54,8 +54,13 @@ export interface WalletAdapter {
    */
   isInstalled(): Promise<boolean>
 
-  /** Open the wallet, request approval, and resolve with the connected account. */
-  connect(): Promise<SpikeAccount>
+  /**
+   * Open the wallet, request approval, and resolve with the connected account.
+   * `fresh` forces a new picker round-trip even if a session is already live
+   * (wallet-linking, where the user must be able to choose a different account);
+   * transports without a reusable session ignore it.
+   */
+  connect(opts?: { fresh?: boolean }): Promise<SpikeAccount>
 
   /** Request the wallet to sign `message` for `account`. */
   signMessage(account: SpikeAccount, message: string): Promise<SignMessageResult>

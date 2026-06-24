@@ -48,6 +48,8 @@ describe('connectThenSign', () => {
     const result = await connectThenSign(p, buildMessage)
     expect(result).toEqual({ account: ACCOUNT, signature: '0xsig', message: 'MSG:0xabc' })
     expect(p.connect).toHaveBeenCalledTimes(1)
+    // No forceFresh ⇒ ordinary connect (may reuse a live session).
+    expect(p.connect).toHaveBeenCalledWith(undefined)
     expect(p.signMessage).toHaveBeenCalledWith(ACCOUNT, 'MSG:0xabc')
     expect(p.disconnect).not.toHaveBeenCalled()
   })
@@ -81,6 +83,8 @@ describe('connectThenSign', () => {
     })
     await connectThenSign(p, buildMessage, { forceFresh: true })
     expect(order).toEqual(['disconnect', 'connect'])
+    // forceFresh ⇒ connect is told to ignore any reusable session and re-pick.
+    expect(p.connect).toHaveBeenCalledWith({ fresh: true })
   })
 
   it('forceFresh swallows a disconnect failure and still proceeds', async () => {

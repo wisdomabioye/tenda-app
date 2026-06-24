@@ -2,12 +2,10 @@
  * POST /v1/auth/unlink-wallet — remove a linked wallet. Thin wrapper: validates
  * the body, then delegates to `unlinkWallet` (lib/auth/wallet-unlink) which owns
  * the atomic load → guard → delete under a per-user advisory lock. Guards:
- *   1. cannot remove your LAST sign-in method (identities ∪ wallets) — Stage 9D
- *      credential model: a wallet-only account can't drop its wallet, but an
- *      account that still has a verified email/phone CAN (it logs back in by
- *      contact and re-links a wallet at the next transaction) → 409
- *      LAST_CREDENTIAL.
- *   2. cannot unlink the primary while ANOTHER wallet exists → 409 WALLET_IN_USE.
+ *   1. cannot unlink your ONLY wallet → 409 LAST_WALLET. A wallet is required to
+ *      transact, so the account must always keep at least one — this holds even
+ *      when a verified email/phone would satisfy the looser last-credential rule.
+ *   2. cannot unlink the primary while ANOTHER wallet exists → 409 WALLET_IS_PRIMARY.
  *   3. cannot unlink a wallet that is a party to an active escrow on its
  *      namespace → 409 WALLET_IN_USE with the affected escrow ids.
  *

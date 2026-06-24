@@ -27,12 +27,25 @@ export interface EvmRequestProvider {
 /** The live AppKit state the bridge mirrors in on every render. */
 export interface ReownLiveState {
   open: () => void
-  disconnect: () => void
+  /**
+   * End the active session. Resolves when AppKit has actually torn the session
+   * down — we await this promise directly rather than waiting for a follow-up
+   * `sync` to report `isConnected === false` (that re-render can lag or never
+   * arrive, which previously hung wallet-linking / the old login forceFresh).
+   */
+  disconnect: () => Promise<void>
   provider: EvmRequestProvider | undefined
   address: string | undefined
   namespace: string | undefined
   chainId: string | undefined
   isConnected: boolean
+  /**
+   * The CONNECTED WALLET's own deep link (`redirect.native` ?? `.universal`,
+   * from AppKit `useWalletInfo`). Used to foreground the wallet when we send it
+   * a sign / tx request — WC/AppKit-RN does not auto-reopen the wallet for a
+   * session request in this setup, so the adapter opens this itself.
+   */
+  peerRedirect: string | undefined
 }
 
 /** CAIP-2 chain id for the active account — falls back to our primary EVM chain. */
@@ -62,11 +75,11 @@ export class ConnectionSignal {
     resolve: (account: SpikeAccount) => void
     reject: (err: Error) => void
   } | null = null
-  private pendingDisconnect: (() => void) | null = null
 
   /**
    * Mirror the latest AppKit hook values. Settles any in-flight connect once an
-   * account is populated, and any in-flight disconnect once the session drops.
+   * account is populated. (Disconnect resolves off AppKit's own promise — see
+   * `disconnect()` — so it needs no settle here.)
    */
   sync(state: ReownLiveState): void {
     this.live = state
@@ -74,11 +87,6 @@ export class ConnectionSignal {
       const { resolve } = this.pendingConnect
       this.pendingConnect = null
       resolve(toAccount(state))
-    }
-    if (this.pendingDisconnect !== null && !state.isConnected) {
-      const done = this.pendingDisconnect
-      this.pendingDisconnect = null
-      done()
     }
   }
 
@@ -99,13 +107,20 @@ export class ConnectionSignal {
     reject(new WalletError('declined', message))
   }
 
-  /** Open the AppKit modal and resolve with the account once connected. */
-  connect(): Promise<SpikeAccount> {
+  /**
+   * Open the AppKit modal and resolve with the account once connected.
+   *
+   * `fresh` (wallet-linking) skips the already-connected fast path so the modal
+   * always opens — letting the user pick a DIFFERENT wallet than the one on
+   * their JWT. Without it, a just-disconnected-but-not-yet-re-synced session
+   * would short-circuit back to the same account.
+   */
+  connect(opts?: { fresh?: boolean }): Promise<SpikeAccount> {
     const live = this.live
     if (live === null) {
       return Promise.reject(new WalletError('network', 'Wallet bridge is not ready yet'))
     }
-    if (live.isConnected && live.address) return Promise.resolve(toAccount(live))
+    if (!opts?.fresh && live.isConnected && live.address) return Promise.resolve(toAccount(live))
     if (this.pendingConnect !== null) {
       return Promise.reject(new WalletError('unknown', 'A wallet connection is already in progress'))
     }
@@ -115,20 +130,25 @@ export class ConnectionSignal {
     })
   }
 
-  /** End the active session; resolves once the session is actually dropped. */
+  /**
+   * End the active session. Resolves off AppKit's own `disconnect()` promise so
+   * it settles deterministically (the previous re-render wait could hang the
+   * caller — the forceFresh link path awaits this before re-opening the modal).
+   */
   disconnect(): Promise<void> {
     const live = this.live
     if (live === null || !live.isConnected) return Promise.resolve()
-    if (this.pendingDisconnect !== null) return Promise.resolve()
-    return new Promise<void>((resolve) => {
-      this.pendingDisconnect = resolve
-      live.disconnect()
-    })
+    return live.disconnect()
   }
 
   /** The live EVM provider, or `undefined` when no session is active. */
   getProvider(): EvmRequestProvider | undefined {
     return this.live?.provider
+  }
+
+  /** The connected wallet's deep link, for foregrounding it on a request. */
+  getPeerRedirect(): string | undefined {
+    return this.live?.peerRedirect
   }
 
   /** The connected account, or `null` when not connected. */

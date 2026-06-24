@@ -1,17 +1,17 @@
 import { useCallback, useState } from 'react'
-import { View, StyleSheet, ScrollView, Alert, Pressable } from 'react-native'
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { Star, Unlink } from 'lucide-react-native'
 import { ErrorCode, type LinkedWallet } from '@tenda/shared'
-import { ScreenContainer, Text, Header, Button, BottomSheet, showToast } from '@/components/ui'
+import { ScreenContainer, Text, Header, Button, BottomSheet, ConfirmDialog, showToast } from '@/components/ui'
 import { WalletCard } from '@/components/onboarding/WalletCard'
 import { useAuthStore } from '@/stores/auth.store'
 import { api, ApiClientError } from '@/api/client'
-import { linkWalletWith } from '@/wallet/auth'
 import { WalletError } from '@/wallet/errors'
 import { WalletPicker } from '@/wallet/picker'
 import type { WalletAdapter } from '@/wallet/adapters/types'
+import { useReturnToLinkedWallets } from '@/lib/post-auth-nav'
 import { spacing } from '@/theme/tokens'
 
 /**
@@ -27,7 +27,11 @@ export default function LinkedWalletsScreen() {
   const { theme } = useUnistyles()
   const wallets = useAuthStore((s) => s.wallets)
   const refreshMe = useAuthStore((s) => s.refreshMe)
+  const linkWallet = useAuthStore((s) => s.linkWallet)
+  const returnToLinkedWallets = useReturnToLinkedWallets()
   const [managing, setManaging] = useState<LinkedWallet | null>(null)
+  const [unlinkTarget, setUnlinkTarget] = useState<LinkedWallet | null>(null)
+  const [unlinking, setUnlinking] = useState(false)
   const [pickerVisible, setPickerVisible] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -41,13 +45,16 @@ export default function LinkedWalletsScreen() {
     setPickerVisible(false)
     setBusy(true)
     try {
-      const linked = await linkWalletWith(adapter)
-      if (linked === null) {
+      const linked = await linkWallet(adapter)
+      if (!linked) {
         showToast('error', 'Wallet prompt was closed')
         return
       }
       showToast('success', 'Wallet linked')
-      await refreshMe()
+      // The wallet's `tenda://` auto-return may have popped this screen to `/`
+      // mid-link; rebuild the stack back onto it (its focus effect re-fetches
+      // the now-updated wallets[]). No-op visually when we never left.
+      returnToLinkedWallets()
     } catch (e) {
       if (e instanceof ApiClientError) showToast('error', e.message)
       else if (e instanceof WalletError && e.code === 'no_wallet') showToast('error', 'No wallet app installed')
@@ -70,32 +77,29 @@ export default function LinkedWalletsScreen() {
 
   function handleUnlink(w: LinkedWallet) {
     setManaging(null)
-    Alert.alert(
-      'Unlink wallet',
-      `Remove ${w.address.slice(0, 6)}… from your account? You can re-link it later.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Unlink',
-          style: 'destructive',
-          onPress: () => {
-            api.auth
-              .unlinkWallet({ chain_ns: w.chain_ns, address: w.address })
-              .then(async () => {
-                showToast('success', 'Wallet unlinked')
-                await refreshMe()
-              })
-              .catch((e: unknown) => {
-                if (e instanceof ApiClientError && e.code === ErrorCode.WALLET_IN_USE) {
-                  showToast('error', 'This wallet is part of an active escrow — finish or cancel it first')
-                } else {
-                  showToast('error', e instanceof ApiClientError ? e.message : 'Could not unlink the wallet')
-                }
-              })
-          },
-        },
-      ],
-    )
+    setUnlinkTarget(w)
+  }
+
+  async function confirmUnlink() {
+    const w = unlinkTarget
+    if (w === null) return
+    setUnlinking(true)
+    try {
+      await api.auth.unlinkWallet({ chain_ns: w.chain_ns, address: w.address })
+      showToast('success', 'Wallet unlinked')
+      await refreshMe()
+      setUnlinkTarget(null)
+    } catch (e) {
+      if (e instanceof ApiClientError && e.code === ErrorCode.WALLET_IS_PRIMARY) {
+        showToast('error', 'Make another wallet your primary first, then unlink this one')
+      } else if (e instanceof ApiClientError && e.code === ErrorCode.WALLET_IN_USE) {
+        showToast('error', 'This wallet is part of an active escrow — finish or cancel it first')
+      } else {
+        showToast('error', e instanceof ApiClientError ? e.message : 'Could not unlink the wallet')
+      }
+    } finally {
+      setUnlinking(false)
+    }
   }
 
   return (
@@ -134,6 +138,21 @@ export default function LinkedWalletsScreen() {
         visible={pickerVisible}
         onClose={() => setPickerVisible(false)}
         onSelect={handleLinkWallet}
+      />
+
+      <ConfirmDialog
+        visible={unlinkTarget !== null}
+        title="Unlink wallet"
+        message={
+          unlinkTarget !== null
+            ? `Remove ${unlinkTarget.address.slice(0, 6)}… from your account? You can re-link it later.`
+            : undefined
+        }
+        confirmLabel="Unlink"
+        destructive
+        loading={unlinking}
+        onConfirm={() => void confirmUnlink()}
+        onCancel={() => setUnlinkTarget(null)}
       />
 
       <BottomSheet visible={managing !== null} onClose={() => setManaging(null)} title="Manage wallet">

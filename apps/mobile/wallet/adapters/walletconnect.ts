@@ -15,6 +15,7 @@
  * EVM ONLY. Solana stays on MWA (Android) / Phantom (iOS).
  */
 import { Buffer } from 'buffer'
+import { Linking } from 'react-native'
 import { WalletError } from '@/wallet/errors'
 import { connectThenSign } from './connect-then-sign'
 import { connectionSignal, type EvmRequestProvider } from '../reown/connection-signal'
@@ -42,16 +43,45 @@ function hexMessage(message: string): string {
   return '0x' + Buffer.from(message, 'utf8').toString('hex')
 }
 
-async function connect(): Promise<SpikeAccount> {
-  return connectionSignal.connect()
+/**
+ * Bring the connected wallet to the foreground so the user actually SEES the
+ * pending request.
+ *
+ * WalletConnect/AppKit-RN does NOT auto-reopen the wallet for a session request
+ * here: `sign-client` only reopens via a `WALLETCONNECT_DEEPLINK_CHOICE` that
+ * nothing in this stack ever writes. After a fresh connect the wallet has
+ * auto-returned to Tenda (backgrounded), so a `personal_sign` /
+ * `eth_sendTransaction` would sit unseen on the relay until it EXPIRES
+ * ("Request expired"). Opening the wallet's own deep link (from AppKit
+ * `useWalletInfo`) is exactly what WC's `handleDeeplinkRedirect` would do — the
+ * wallet foregrounds and renders the pending request. Best-effort: a missing or
+ * un-openable link just means the user reopens the wallet manually.
+ */
+async function foregroundConnectedWallet(): Promise<void> {
+  const href = connectionSignal.getPeerRedirect()
+  if (href === undefined || href === '') return
+  try {
+    await Linking.openURL(href)
+  } catch {
+    // Not installed / can't open — the request still stands; user opens it.
+  }
+}
+
+async function connect(opts?: { fresh?: boolean }): Promise<SpikeAccount> {
+  return connectionSignal.connect(opts)
 }
 
 async function signMessage(account: SpikeAccount, message: string): Promise<SignMessageResult> {
   const provider = requireProvider()
-  const signature = await provider.request<string>({
+  // Dispatch first (publishes the request to the relay), THEN foreground the
+  // wallet so the prompt is waiting when it opens. Don't await the request
+  // before opening — it won't resolve until the user signs.
+  const pending = provider.request<string>({
     method: 'personal_sign',
     params: [hexMessage(message), account.address],
   })
+  await foregroundConnectedWallet()
+  const signature = await pending
   if (typeof signature !== 'string') throw new Error('Wallet returned a non-string signature')
   return { signature, message }
 }
@@ -92,7 +122,9 @@ export async function sendEvmTransaction(input: {
   feeCurrency?: string
 }): Promise<string> {
   const provider = requireProvider()
-  const hash = await provider.request<string>(
+  // Same foreground dance as signMessage — the wallet must come forward to
+  // approve the tx or the request expires unseen on the relay.
+  const pending = provider.request<string>(
     {
       method: 'eth_sendTransaction',
       params: [
@@ -107,6 +139,8 @@ export async function sendEvmTransaction(input: {
     },
     asScope(input.chainId),
   )
+  await foregroundConnectedWallet()
+  const hash = await pending
   if (typeof hash !== 'string') throw new Error('Wallet returned a non-string tx hash')
   return hash
 }

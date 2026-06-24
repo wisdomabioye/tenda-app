@@ -10,7 +10,9 @@
  *
  * Guards (throw AppError, rolling the tx back):
  *   1. target must be linked to the user (404 NOT_FOUND).
- *   2. never the LAST sign-in method, identities ∪ wallets (409 LAST_CREDENTIAL).
+ *   2. never the user's ONLY wallet (409 LAST_WALLET) — a wallet is required to
+ *      transact, so the account must always keep at least one (stricter than the
+ *      identities∪wallets last-credential rule, which a verified email satisfies).
  *   3. not the primary while another wallet remains (409 WALLET_IN_USE).
  *   4. not a party to an active escrow on its namespace (409 WALLET_IN_USE).
  */
@@ -21,7 +23,7 @@ import { chains, type ChainNamespace } from '@tenda/shared/db/schema/chains'
 import { escrows } from '@tenda/shared/db/schema/escrow'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
-import { assertNotLastCredential } from '@server/lib/auth/resolver'
+import { sameWalletAddress } from '@server/lib/auth/wallet-address'
 import type { AppDatabase } from '@server/plugins/db'
 
 /** Escrow states whose parties still need their wallet's signature. */
@@ -38,7 +40,7 @@ export async function unlinkWallet(
   db: AppDatabase,
   args: { userId: string; chain_ns: ChainNamespace; address: string },
 ): Promise<void> {
-  const { userId, chain_ns, address } = args
+  const { userId, chain_ns } = args
   await db.transaction(async (tx) => {
     await tx.execute(
       sql`select pg_advisory_xact_lock(${WALLET_UNLINK_LOCK_NS}::int4, hashtext(${userId}))`,
@@ -53,19 +55,30 @@ export async function unlinkWallet(
       .from(user_wallets)
       .where(eq(user_wallets.user_id, userId))
 
-    const target = wallets.find((w) => w.chain_ns === chain_ns && w.address === address)
+    // Compare case-insensitively for EVM (the stored row may be checksummed
+    // legacy data); the DELETE below targets the ACTUAL stored address.
+    const target = wallets.find((w) => w.chain_ns === chain_ns && sameWalletAddress(chain_ns, w.address, args.address))
     if (target === undefined) {
-      throw new AppError(404, ErrorCode.NOT_FOUND, 'wallet not linked to this account')
+      throw new AppError(404, ErrorCode.NOT_FOUND, 'that wallet isn’t linked to your account')
     }
-    // Never strand the account — block only if this wallet is the last sign-in
-    // method overall (a remaining email/phone makes it safe).
-    await assertNotLastCredential(tx, userId)
-    // Re-designate a primary first, but only when another wallet remains —
-    // removing the sole wallet leaves no primary to maintain.
-    if (target.is_primary && wallets.length > 1) {
+    // Always keep at least one wallet — a wallet is required to transact, so the
+    // account must never go wallet-free (even with a verified email/phone). The
+    // load runs under the per-user advisory lock, so two concurrent unlinks
+    // can't both read "2 remain" and strand the account.
+    if (wallets.length <= 1) {
       throw new AppError(
         409,
-        ErrorCode.WALLET_IN_USE,
+        ErrorCode.LAST_WALLET,
+        'keep at least one wallet linked — you can’t unlink your only wallet',
+      )
+    }
+    // Another wallet always remains here (the sole-wallet guard above ensures
+    // length > 1), so a primary target must hand off the marker first. Its own
+    // code (not WALLET_IN_USE) so the client doesn't mislabel it as an escrow.
+    if (target.is_primary) {
+      throw new AppError(
+        409,
+        ErrorCode.WALLET_IS_PRIMARY,
         'set another wallet as primary before unlinking this one',
       )
     }
@@ -94,7 +107,7 @@ export async function unlinkWallet(
         and(
           eq(user_wallets.user_id, userId),
           eq(user_wallets.chain_ns, chain_ns),
-          eq(user_wallets.address, address),
+          eq(user_wallets.address, target.address),
         ),
       )
   })

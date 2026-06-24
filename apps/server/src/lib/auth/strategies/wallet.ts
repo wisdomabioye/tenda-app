@@ -14,6 +14,7 @@ import { AppError } from '@server/lib/errors'
 import { drizzleNonceStore, consumeNonce } from '@server/lib/nonce'
 import { assertAuthMessage, parseAuthMessage, expectedAuthUri } from '@server/lib/auth-message'
 import { deriveChainNamespace } from '@server/lib/wallet-signature'
+import { normalizeWalletAddress } from '@server/lib/auth/wallet-address'
 import type { ChainRegistry } from '@server/chains/types'
 import type { AppDatabase } from '@server/plugins/db'
 import type { AuthStrategy, VerifyOutcome, VerifyProof } from '@server/lib/auth/strategy'
@@ -64,7 +65,9 @@ export async function verifyWalletAuth(
   }
 
   await consumeNonce(drizzleNonceStore(deps.db), parsed.nonce)
-  return { chain_ns, address: input.address }
+  // Canonicalise before the address reaches storage/lookup so a checksummed and
+  // a lowercased form of the same EVM wallet resolve to ONE row (link + login).
+  return { chain_ns, address: normalizeWalletAddress(chain_ns, input.address) }
 }
 
 export function walletStrategy(deps: WalletAuthDeps): AuthStrategy {

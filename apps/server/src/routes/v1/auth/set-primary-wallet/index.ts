@@ -13,6 +13,7 @@ import { ErrorCode } from '@tenda/shared'
 import { chainNamespaceEnum, type ChainNamespace } from '@tenda/shared/db/schema/chains'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
+import { walletAddressEquals } from '@server/lib/auth/wallet-address'
 
 interface Body {
   chain_ns?: unknown
@@ -37,7 +38,9 @@ const route: FastifyPluginAsync = async (fastify) => {
       const ns = chain_ns as ChainNamespace
       const user_id = request.user.id
 
-      await fastify.db.transaction(async (tx) => {
+      // Match case-insensitively for EVM (legacy rows may be checksummed); the
+      // updates target the ACTUAL stored address the lookup returns.
+      const stored = await fastify.db.transaction(async (tx) => {
         const target = await tx
           .select({ address: user_wallets.address })
           .from(user_wallets)
@@ -45,12 +48,13 @@ const route: FastifyPluginAsync = async (fastify) => {
             and(
               eq(user_wallets.user_id, user_id),
               eq(user_wallets.chain_ns, ns),
-              eq(user_wallets.address, address),
+              walletAddressEquals(ns, address),
             ),
           )
           .limit(1)
-        if (target.length === 0) {
-          throw new AppError(404, ErrorCode.NOT_FOUND, 'wallet not linked to this account')
+        const storedAddress = target[0]?.address
+        if (storedAddress === undefined) {
+          throw new AppError(404, ErrorCode.NOT_FOUND, 'that wallet isn’t linked to your account')
         }
         await tx
           .update(user_wallets)
@@ -63,11 +67,12 @@ const route: FastifyPluginAsync = async (fastify) => {
             and(
               eq(user_wallets.user_id, user_id),
               eq(user_wallets.chain_ns, ns),
-              eq(user_wallets.address, address),
+              eq(user_wallets.address, storedAddress),
             ),
           )
+        return storedAddress
       })
-      return { primary: { chain_ns: ns, address } }
+      return { primary: { chain_ns: ns, address: stored } }
     },
   )
 }

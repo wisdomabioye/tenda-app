@@ -11,7 +11,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { walletFixture } from '../helpers/fixtures'
 import {
@@ -82,8 +82,11 @@ test('link-wallet: a valid namespace on an UNPROVISIONED chain links successfull
   // only). Linking verifies the sig by NAMESPACE (pure crypto), so it succeeds.
   const res = await link(app, u.token, address, { chain_id: 'eip155:8453' })
   assert.strictEqual(res.statusCode, 200)
-  const [w] = await app.db.select().from(user_wallets).where(eq(user_wallets.address, address))
+  const [w] = await app.db.select().from(user_wallets).where(eq(user_wallets.user_id, u.row.id))
   assert.strictEqual(w.chain_ns, 'eip155')
+  // EVM addresses are stored canonical (lowercased) so the same wallet can't be
+  // re-linked in a different case.
+  assert.strictEqual(w.address, address.toLowerCase())
 })
 
 test('link-wallet: an unsupported chain NAMESPACE → 400 VALIDATION_ERROR', { skip }, async () => {
@@ -167,4 +170,35 @@ test('link-wallet: linking a wallet already linked to anyone → 409', { skip },
   const res = await link(app, other.token, address)
   assert.strictEqual(res.statusCode, 409)
   assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
+})
+
+test('link-wallet: the SAME EVM wallet in a different case is deduped → 409', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  const lower = '0xfeed000000000000000000000000000000000abc'
+  const first = await link(app, u.token, lower, { chain_id: 'eip155:8453' })
+  assert.strictEqual(first.statusCode, 200)
+  // Same wallet, checksummed/upper-cased — must NOT land as a second row (the
+  // bug: one address shown twice, one lower- and one upper-cased).
+  const second = await link(app, u.token, lower.toUpperCase(), { chain_id: 'eip155:8453' })
+  assert.strictEqual(second.statusCode, 409)
+  const rows = await app.db
+    .select().from(user_wallets)
+    .where(and(eq(user_wallets.user_id, u.row.id), eq(user_wallets.chain_ns, 'eip155')))
+  assert.strictEqual(rows.length, 1)
+})
+
+test('link-wallet: re-linking a LEGACY mixed-case wallet (any case) is rejected — no new dup row', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  // A pre-fix row stored checksummed. The PK is case-sensitive, so a lowercased
+  // re-link wouldn't conflict on it — the case-insensitive guard must catch it.
+  const mixed = '0xFeEd000000000000000000000000000000000ABC'
+  await app.db.insert(user_wallets).values(walletFixture({ user_id: u.row.id, chain_ns: 'eip155', address: mixed }))
+  const res = await link(app, u.token, mixed.toLowerCase(), { chain_id: 'eip155:8453' })
+  assert.strictEqual(res.statusCode, 409)
+  const rows = await app.db
+    .select().from(user_wallets)
+    .where(and(eq(user_wallets.user_id, u.row.id), eq(user_wallets.chain_ns, 'eip155')))
+  assert.strictEqual(rows.length, 1) // still just the one legacy row
 })

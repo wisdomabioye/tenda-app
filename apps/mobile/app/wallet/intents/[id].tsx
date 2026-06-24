@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { View, StyleSheet, Alert } from 'react-native'
+import { View, StyleSheet } from 'react-native'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { CheckCircle2, Clock, XCircle } from 'lucide-react-native'
 import type { FiatIntentDetail } from '@tenda/shared'
-import { ScreenContainer, Text, Header, Button, showToast } from '@/components/ui'
+import { ScreenContainer, Text, Header, Button, ConfirmDialog, showToast } from '@/components/ui'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { api, ApiClientError } from '@/api/client'
 import { instructionCopy, INTENT_STATUS_COPY, isCancellable, isTerminal } from '@/lib/fiat'
@@ -23,6 +23,8 @@ export default function FiatIntentScreen() {
   const { theme } = useUnistyles()
   const [intent, setIntent] = useState<FiatIntentDetail | null>(null)
   const [notFound, setNotFound] = useState(false)
+  const [cancelConfirm, setCancelConfirm] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const load = useCallback(async () => {
@@ -55,21 +57,21 @@ export default function FiatIntentScreen() {
 
   function handleCancel() {
     if (!intent) return
-    Alert.alert('Cancel this transaction?', 'You can always start a new one.', [
-      { text: 'Keep it', style: 'cancel' },
-      {
-        text: 'Cancel transaction',
-        style: 'destructive',
-        onPress: () => {
-          api.fiat
-            .cancelIntent({ id: intent.id })
-            .then(() => void load())
-            .catch((e: unknown) =>
-              showToast('error', e instanceof ApiClientError ? e.message : 'Could not cancel'),
-            )
-        },
-      },
-    ])
+    setCancelConfirm(true)
+  }
+
+  async function confirmCancel() {
+    if (!intent) return
+    setCancelling(true)
+    try {
+      await api.fiat.cancelIntent({ id: intent.id })
+      setCancelConfirm(false)
+      void load()
+    } catch (e) {
+      showToast('error', e instanceof ApiClientError ? e.message : 'Could not cancel')
+    } finally {
+      setCancelling(false)
+    }
   }
 
   if (notFound) {
@@ -117,6 +119,18 @@ export default function FiatIntentScreen() {
           </Button>
         )}
       </View>
+
+      <ConfirmDialog
+        visible={cancelConfirm}
+        title="Cancel this transaction?"
+        message="You can always start a new one."
+        confirmLabel="Cancel transaction"
+        cancelLabel="Keep it"
+        destructive
+        loading={cancelling}
+        onConfirm={() => void confirmCancel()}
+        onCancel={() => setCancelConfirm(false)}
+      />
     </ScreenContainer>
   )
 }

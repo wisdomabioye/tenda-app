@@ -71,6 +71,7 @@ function makeDeps(opts: {
     get: () => adapter,
     has: () => true,
     list: () => [adapter],
+    verifyAuthSig: async () => true, // not exercised by reconcile; satisfies ChainRegistry
   }
   const deps: ReconcileDeps = {
     store: {

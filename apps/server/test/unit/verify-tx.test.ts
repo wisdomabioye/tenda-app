@@ -106,6 +106,7 @@ function makeDeps(opts: {
     },
     has: () => true,
     list: () => [adapter],
+    verifyAuthSig: async () => true, // not exercised by tx-verify; satisfies ChainRegistry
   }
   const deps: VerifyTxDeps = {
     store,

@@ -1,10 +1,10 @@
 import { useCallback, useState } from 'react'
-import { View, StyleSheet, ScrollView, Alert, Pressable } from 'react-native'
+import { View, StyleSheet, ScrollView, Pressable } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { Landmark, Trash2 } from 'lucide-react-native'
 import type { BankAccountSummary } from '@tenda/shared'
-import { ScreenContainer, Text, Header, Button, BottomSheet, showToast } from '@/components/ui'
+import { ScreenContainer, Text, Header, Button, BottomSheet, ConfirmDialog, showToast } from '@/components/ui'
 import { Input } from '@/components/ui/Input'
 import { api, ApiClientError } from '@/api/client'
 import { spacing } from '@/theme/tokens'
@@ -23,6 +23,8 @@ export default function BankAccountsScreen() {
   const [accountNumber, setAccountNumber] = useState('')
   const [accountName, setAccountName] = useState('')
   const [saving, setSaving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<BankAccountSummary | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const load = useCallback(() => {
     api.fiat
@@ -65,21 +67,22 @@ export default function BankAccountsScreen() {
   }
 
   function handleDelete(a: BankAccountSummary) {
-    Alert.alert('Remove account', `${a.account_name} · ${a.account_number_masked}`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove',
-        style: 'destructive',
-        onPress: () => {
-          api.fiat
-            .deleteBankAccount({ id: a.id })
-            .then(load)
-            .catch((e: unknown) =>
-              showToast('error', e instanceof ApiClientError ? e.message : 'Could not remove the account'),
-            )
-        },
-      },
-    ])
+    setDeleteTarget(a)
+  }
+
+  async function confirmDelete() {
+    const a = deleteTarget
+    if (a === null) return
+    setDeleting(true)
+    try {
+      await api.fiat.deleteBankAccount({ id: a.id })
+      setDeleteTarget(null)
+      await load()
+    } catch (e) {
+      showToast('error', e instanceof ApiClientError ? e.message : 'Could not remove the account')
+    } finally {
+      setDeleting(false)
+    }
   }
 
   return (
@@ -127,6 +130,21 @@ export default function BankAccountsScreen() {
           </Button>
         </View>
       </BottomSheet>
+
+      <ConfirmDialog
+        visible={deleteTarget !== null}
+        title="Remove account"
+        message={
+          deleteTarget !== null
+            ? `${deleteTarget.account_name} · ${deleteTarget.account_number_masked}`
+            : undefined
+        }
+        confirmLabel="Remove"
+        destructive
+        loading={deleting}
+        onConfirm={() => void confirmDelete()}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </ScreenContainer>
   )
 }

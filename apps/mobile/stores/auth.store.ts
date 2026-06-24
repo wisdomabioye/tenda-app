@@ -10,7 +10,7 @@ import {
 import { api, ApiClientError } from '@/api/client'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useExchangeMarketStore } from '@/stores/exchange-market.store'
-import { signInWithWallet as walletSignIn } from '@/wallet/auth'
+import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { connectionSignal } from '@/wallet/reown/connection-signal'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 
@@ -52,6 +52,16 @@ interface AuthState {
    * for EVM).
    */
   signInWithWallet: (adapter: WalletAdapter) => Promise<boolean>
+  /**
+   * Link an ADDITIONAL wallet to the already-authenticated account (nonce →
+   * authenticate(forceFresh) → POST /v1/auth/link-wallet → refreshMe). Sets
+   * `walletAuthInProgress` for the same reason sign-in does: the new wallet's
+   * `tenda://` return deep link bounces the app through `/`, and `index` must
+   * hold a spinner rather than redirect an authed user home mid-link. Resolves
+   * true on link, false when the user declines; throws ApiClientError (the
+   * screen maps 409/etc. to a toast).
+   */
+  linkWallet: (adapter: WalletAdapter) => Promise<boolean>
   /**
    * Stage 9 unified sign-in — verify a credential proof (phone/email OTP,
    * OAuth id_token, or wallet signature) via POST /v1/auth/verify and set the
@@ -113,6 +123,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // profileComplete, already set above.
       void get().refreshUser()
       void get().refreshMe()
+      return true
+    } finally {
+      set({ walletAuthInProgress: false })
+    }
+  },
+
+  linkWallet: async (adapter) => {
+    // Same in-flight flag as sign-in: the link's `tenda://` auto-return routes
+    // through `/`, where `index` would otherwise redirect this authed user home
+    // and pop the linked-wallets screen mid-link. Hold the spinner instead.
+    set({ walletAuthInProgress: true })
+    try {
+      const account = await linkWalletWith(adapter)
+      if (account === null) return false
+      // Reflect the freshly-linked wallet in the cached wallets[] list.
+      await get().refreshMe()
       return true
     } finally {
       set({ walletAuthInProgress: false })

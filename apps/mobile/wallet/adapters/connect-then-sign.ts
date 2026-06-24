@@ -43,7 +43,10 @@ export async function connectThenSign(
 
   let account: SpikeAccount
   try {
-    account = await parts.connect()
+    // Pass `fresh` after a forceFresh revoke so transports that reuse a live
+    // session (WalletConnect) re-open the picker instead of short-circuiting
+    // back to the just-disconnected account.
+    account = await parts.connect(opts?.forceFresh ? { fresh: true } : undefined)
   } catch (err) {
     if (isUserRejection(err)) return null
     throw err

@@ -15,6 +15,7 @@ import { user_identities, user_wallets } from '@tenda/shared/db/schema'
 import type { ChainNamespace, IdentityKind } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { walletAddressEquals } from '@server/lib/auth/wallet-address'
 import type { AppDatabase, AppDb } from '@server/plugins/db'
 
 /** A non-wallet credential reference (phone/email/google/apple). */
@@ -49,7 +50,7 @@ export async function resolveUserByWallet(
   const rows = await db
     .select({ user_id: user_wallets.user_id })
     .from(user_wallets)
-    .where(and(eq(user_wallets.chain_ns, wallet.chain_ns), eq(user_wallets.address, wallet.address)))
+    .where(and(eq(user_wallets.chain_ns, wallet.chain_ns), walletAddressEquals(wallet.chain_ns, wallet.address)))
     .limit(1)
   return rows[0]?.user_id ?? null
 }

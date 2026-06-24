@@ -20,6 +20,7 @@ import {
   useAppKit,
   useAppKitEventSubscription,
   useProvider,
+  useWalletInfo,
 } from '@reown/appkit-react-native'
 import { appKit, reownConfigured } from './config'
 import { connectionSignal } from './connection-signal'
@@ -28,11 +29,26 @@ function ReownBridge(): null {
   const { open, disconnect } = useAppKit()
   const { address, isConnected, chainId, namespace } = useAccount()
   const { provider } = useProvider()
+  const { walletInfo } = useWalletInfo()
 
   // Mirror the live AppKit state into the signal on every render — this is what
-  // settles in-flight connect/disconnect promises once the account changes.
+  // settles an in-flight connect once the account changes. AppKit types
+  // `disconnect` as `() => void` but it returns its real `Promise<void>` at
+  // runtime; `Promise.resolve` adopts that thenable so the signal can await the
+  // actual teardown (no cast, honest `Promise<void>`).
   useEffect(() => {
-    connectionSignal.sync({ open, disconnect, provider, address, isConnected, chainId, namespace })
+    connectionSignal.sync({
+      open,
+      disconnect: () => Promise.resolve(disconnect()),
+      provider,
+      address,
+      isConnected,
+      chainId,
+      namespace,
+      // The connected wallet's own deep link — the adapter opens this to bring
+      // the wallet forward for a sign/tx (WC/AppKit-RN won't do it for us).
+      peerRedirect: walletInfo?.redirect?.native ?? walletInfo?.redirect?.universal,
+    })
   })
 
   useAppKitEventSubscription('MODAL_CLOSE', (event) => {

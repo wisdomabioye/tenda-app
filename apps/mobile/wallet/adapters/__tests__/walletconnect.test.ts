@@ -13,6 +13,7 @@ jest.mock('../../reown/connection-signal', () => ({
     disconnect: jest.fn(() => Promise.resolve()),
     getProvider: jest.fn(),
     getAccount: jest.fn(),
+    getPeerRedirect: jest.fn(() => 'trust://'),
   },
 }))
 let mockReownConfigured = true
@@ -23,6 +24,7 @@ jest.mock('../../reown/config', () => ({
 }))
 
 import { Buffer } from 'buffer'
+import { Linking } from 'react-native'
 import {
   walletConnectAdapter,
   sendEvmTransaction,
@@ -36,6 +38,13 @@ const mockConnect = connectionSignal.connect as jest.Mock
 const mockDisconnect = connectionSignal.disconnect as jest.Mock
 const mockGetProvider = connectionSignal.getProvider as jest.Mock
 const mockGetAccount = connectionSignal.getAccount as jest.Mock
+const mockGetPeerRedirect = connectionSignal.getPeerRedirect as jest.Mock
+const mockOpenURL = Linking.openURL as jest.Mock
+
+beforeEach(() => {
+  mockOpenURL.mockReset().mockResolvedValue(undefined)
+  mockGetPeerRedirect.mockReturnValue('trust://')
+})
 
 const account: SpikeAccount = {
   namespace: 'eip155',
@@ -84,6 +93,25 @@ describe('signMessage', () => {
       method: 'personal_sign',
       params: ['0x' + Buffer.from('hello', 'utf8').toString('hex'), '0xABC'],
     })
+    // The connected wallet is foregrounded so the prompt is actually seen.
+    expect(mockOpenURL).toHaveBeenCalledWith('trust://')
+  })
+
+  it('skips the foreground deep link when none is known (no throw)', async () => {
+    mockGetPeerRedirect.mockReturnValue(undefined)
+    mockProvider(jest.fn().mockResolvedValue('0xsig'))
+    await expect(walletConnectAdapter.signMessage(account, 'hi')).resolves.toMatchObject({
+      signature: '0xsig',
+    })
+    expect(mockOpenURL).not.toHaveBeenCalled()
+  })
+
+  it('still signs when foregrounding the wallet throws (best-effort)', async () => {
+    mockOpenURL.mockRejectedValue(new Error('no activity'))
+    mockProvider(jest.fn().mockResolvedValue('0xsig'))
+    await expect(walletConnectAdapter.signMessage(account, 'hi')).resolves.toMatchObject({
+      signature: '0xsig',
+    })
   })
 
   it('throws when no provider is connected', async () => {
@@ -113,6 +141,7 @@ describe('authenticate', () => {
     mockProvider(jest.fn().mockResolvedValue('0xsig'))
     await walletConnectAdapter.authenticate(() => 'm')
     expect(mockDisconnect).not.toHaveBeenCalled()
+    expect(mockConnect).toHaveBeenCalledWith(undefined) // ordinary connect, may reuse session
   })
 
   it('returns null when the user declines the connection', async () => {
@@ -131,6 +160,8 @@ describe('authenticate', () => {
     mockProvider(jest.fn().mockResolvedValue('0xsig'))
     await walletConnectAdapter.authenticate(() => 'm', { forceFresh: true })
     expect(mockDisconnect).toHaveBeenCalled()
+    // …and the connect is told to re-pick rather than reuse the dropped session.
+    expect(mockConnect).toHaveBeenCalledWith({ fresh: true })
   })
 })
 
@@ -153,6 +184,8 @@ describe('sendEvmTransaction', () => {
       },
       'eip155:8453',
     )
+    // Wallet is foregrounded to approve the tx too.
+    expect(mockOpenURL).toHaveBeenCalledWith('trust://')
   })
 
   it('includes feeCurrency for CELO and defaults the scope to the primary chain', async () => {

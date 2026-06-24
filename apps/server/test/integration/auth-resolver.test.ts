@@ -74,6 +74,33 @@ test('resolveUserByWallet — finds owner, null when unknown', { skip }, async (
   assert.strictEqual(await resolveUserByWallet(getApp().db, { chain_ns: 'solana', address: uniq('Nope') }), null)
 })
 
+test('resolveUserByWallet — eip155 is case-insensitive; solana is NOT', { skip }, async () => {
+  const { row } = await createUser(getApp())
+  // A legacy row stored MIXED-CASE: login derives the address fresh from the
+  // signature (any case) and must still resolve the owner.
+  const evm = `0xAbC${(idSeq += 1).toString(16).padStart(37, '0')}`
+  await getApp().db
+    .insert(user_wallets)
+    .values({ chain_ns: 'eip155', address: evm, user_id: row.id, is_primary: false })
+  assert.strictEqual(
+    await resolveUserByWallet(getApp().db, { chain_ns: 'eip155', address: evm.toLowerCase() }),
+    row.id,
+  )
+  assert.strictEqual(
+    await resolveUserByWallet(getApp().db, { chain_ns: 'eip155', address: evm.toUpperCase() }),
+    row.id,
+  )
+
+  // Solana stays case-sensitive — an upper-cased base58 string is a different
+  // address and must NOT resolve to the owner.
+  const sol = uniq('SolCase')
+  await addWallet(sol, row.id)
+  assert.strictEqual(
+    await resolveUserByWallet(getApp().db, { chain_ns: 'solana', address: sol.toUpperCase() }),
+    null,
+  )
+})
+
 test('findUserByVerifiedEmail — cross-method, but VERIFIED only', { skip }, async () => {
   const { row } = await createUser(getApp())
   const email = uniq('a') + '@x.io'

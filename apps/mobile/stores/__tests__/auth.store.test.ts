@@ -51,11 +51,12 @@ jest.mock('@/stores/exchange-market.store', () => ({
 }))
 
 import { useAuthStore } from '@/stores/auth.store'
-import { signInWithWallet as walletSignIn } from '@/wallet/auth'
+import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { api, ApiClientError } from '@/api/client'
 import { getJwtToken, getWalletAddress, setWalletAddress, setJwtToken } from '@/lib/secure-store'
 
 const walletSignInMock = walletSignIn as jest.Mock
+const linkWalletMock = linkWalletWith as jest.Mock
 const meMock = api.auth.me as jest.Mock
 const verifyMock = api.auth.verify as jest.Mock
 const usersMeMock = api.users.me as jest.Mock
@@ -186,6 +187,51 @@ describe('signInWithWallet', () => {
   it('propagates a server/transport failure', async () => {
     walletSignInMock.mockRejectedValue(new Error('500 boom'))
     await expect(useAuthStore.getState().signInWithWallet(stubAdapter())).rejects.toThrow('500 boom')
+  })
+})
+
+describe('linkWallet', () => {
+  it('links a wallet, refreshes wallets[], and returns true', async () => {
+    linkWalletMock.mockResolvedValue(account('eip155'))
+    usersMeMock.mockResolvedValueOnce({
+      wallets: [{ chain_ns: 'eip155', address: '0xEvmAddr', is_primary: false, verified_at: 'now' }],
+      profile_complete: true,
+      user: { phone_verified_at: null },
+    })
+
+    const ok = await useAuthStore.getState().linkWallet(stubAdapter())
+
+    expect(ok).toBe(true)
+    expect(linkWalletMock).toHaveBeenCalledTimes(1)
+    expect(useAuthStore.getState().wallets).toHaveLength(1)
+    // Linking never mints/replaces the session JWT.
+    expect(setJwt).not.toHaveBeenCalled()
+  })
+
+  it('returns false on decline (null) without refreshing', async () => {
+    linkWalletMock.mockResolvedValue(null)
+    usersMeMock.mockClear()
+    const ok = await useAuthStore.getState().linkWallet(stubAdapter())
+    expect(ok).toBe(false)
+    expect(usersMeMock).not.toHaveBeenCalled()
+  })
+
+  it('flags walletAuthInProgress true mid-flight, clears it after success', async () => {
+    let release: (v: ReturnType<typeof account>) => void = () => {}
+    linkWalletMock.mockReturnValue(new Promise((res) => { release = res }))
+
+    const pending = useAuthStore.getState().linkWallet(stubAdapter())
+    expect(useAuthStore.getState().walletAuthInProgress).toBe(true)
+
+    release(account('eip155'))
+    await pending
+    expect(useAuthStore.getState().walletAuthInProgress).toBe(false)
+  })
+
+  it('clears walletAuthInProgress and propagates when link throws (e.g. 409)', async () => {
+    linkWalletMock.mockRejectedValue(new ApiClientError(409, 'Conflict', 'already linked'))
+    await expect(useAuthStore.getState().linkWallet(stubAdapter())).rejects.toBeInstanceOf(ApiClientError)
+    expect(useAuthStore.getState().walletAuthInProgress).toBe(false)
   })
 })
 
