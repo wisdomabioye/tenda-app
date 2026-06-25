@@ -43,10 +43,7 @@ import {
   type ChallengeResponse,
   type VerifyBody,
   type VerifyResponse,
-  type SendPhoneOtpBody,
-  type SendPhoneOtpResponse,
-  type VerifyPhoneOtpBody,
-  type VerifyPhoneOtpResponse,
+  type LoginMethodsResponse,
   type LinkWalletBody,
   type LinkWalletResponse,
   type WalletRefBody,
@@ -111,10 +108,8 @@ export const api = {
      */
     verify: (body: VerifyBody) => request<VerifyResponse>('POST', auth.verify, { body }),
     me: () => request<User>('GET', auth.me),
-    sendPhoneOtp: (body: SendPhoneOtpBody) =>
-      request<SendPhoneOtpResponse>('POST', auth.sendPhoneOtp, { body }),
-    verifyPhoneOtp: (body: VerifyPhoneOtpBody) =>
-      request<VerifyPhoneOtpResponse>('POST', auth.verifyPhoneOtp, { body }),
+    /** Stage 9 — the caller's non-wallet sign-in identities (Sign-in & security). */
+    methods: () => request<LoginMethodsResponse>('GET', auth.methods),
     linkWallet: (body: LinkWalletBody) =>
       request<LinkWalletResponse>('POST', auth.linkWallet, { body }),
     unlinkWallet: (body: WalletRefBody) =>

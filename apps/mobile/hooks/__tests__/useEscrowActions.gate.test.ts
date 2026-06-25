@@ -65,7 +65,7 @@ test('accept: CONTACT_REQUIRED routes to the verify-contact screen', async () =>
   await act(async () => { await result.current.accept() })
 
   expect(mockShowToast).toHaveBeenCalledWith('error', TRANSACTION_GATE_MESSAGE.contact_required)
-  expect(mockPush).toHaveBeenCalledWith('/settings/phone')
+  expect(mockPush).toHaveBeenCalledWith('/settings/security')
 })
 
 test('accept: an unrelated failure shows the generic toast and never navigates', async () => {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { StyleSheet, Switch } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useRouter } from 'expo-router'
-import { HelpCircle, Wallet, PhoneCall, ArrowLeftRight } from 'lucide-react-native'
+import { HelpCircle, Wallet, ShieldCheck, ArrowLeftRight } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Header, showToast } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
@@ -19,7 +19,6 @@ export default function SettingsScreen() {
   const { theme } = useUnistyles()
   const router = useRouter()
   const { theme: currentTheme, setTheme, currency, setCurrency } = useSettingsStore()
-  const phoneVerified = useAuthStore((st) => st.phoneVerified)
   const user = useAuthStore((st) => st.user)
   const updateUser = useAuthStore((st) => st.updateUser)
   const [currencySheetOpen, setCurrencySheetOpen] = useState(false)
@@ -70,19 +69,17 @@ export default function SettingsScreen() {
       <SectionLabel>Account</SectionLabel>
       <SettingsGroup>
         <SettingsRow
+          icon={<ShieldCheck size={16} color={theme.colors.content.primary} />}
+          label="Sign-in & security"
+          onPress={() => router.push('/settings/security' as Parameters<typeof router.push>[0])}
+          showChevron
+        />
+        <SettingsRow
           icon={<Wallet size={16} color={theme.colors.content.primary} />}
           label="Linked wallets"
           onPress={() => router.push('/settings/linked-wallets' as Parameters<typeof router.push>[0])}
           showChevron
         />
-        {!phoneVerified && (
-          <SettingsRow
-            icon={<PhoneCall size={16} color={theme.colors.content.primary} />}
-            label="Verify phone number"
-            onPress={() => router.push('/settings/phone' as Parameters<typeof router.push>[0])}
-            showChevron
-          />
-        )}
       </SettingsGroup>
 
       <SectionLabel>Help</SectionLabel>

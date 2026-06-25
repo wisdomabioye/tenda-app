@@ -48,8 +48,8 @@ export default wrapApp(function RootLayout() {
           <Stack.Screen name="(support)" />
           <Stack.Screen name="error" />
           <Stack.Screen name="gig/[id]/index" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-          <Stack.Screen name="gig/[id]/edit" />
           <Stack.Screen name="chat/[userId]" />
+          <Stack.Screen name="settings/security" />
           <Stack.Screen name="settings/linked-wallets" />
           <Stack.Screen name="settings/bank-accounts" />
           <Stack.Screen name="wallet/buy-sell" />

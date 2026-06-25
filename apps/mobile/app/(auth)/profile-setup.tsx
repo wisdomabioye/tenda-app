@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, Pressable } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { useRouter } from 'expo-router'
 import { Camera } from 'lucide-react-native'
 import { ScreenContainer, Text, Spacer, Header, Avatar, Button, showToast } from '@/components/ui'
 import { Input } from '@/components/ui/Input'
@@ -13,13 +12,11 @@ import { api, ApiClientError } from '@/api/client'
 import { uploadToCloudinary } from '@/lib/upload'
 import { usePostAuthReset } from '@/lib/post-auth-nav'
 import { getDeviceCountry } from '@/lib/device'
-import { isE164 } from '@tenda/shared'
 import { pickAvatar, type PickedFile } from '@/components/form/FilePicker'
 
 
 export default function ProfileSetupScreen() {
   const { theme } = useUnistyles()
-  const router = useRouter()
   const resetToAuthedRoot = usePostAuthReset()
   const user = useAuthStore((s) => s.user)
 
@@ -28,7 +25,6 @@ export default function ProfileSetupScreen() {
   const [country,   setCountry]   = useState<string | null>(user?.country ?? getDeviceCountry())
   const [city,      setCity]      = useState<string | null>(user?.city ?? null)
   const [isSeeker,  setIsSeeker]  = useState<boolean>(user?.is_seeker ?? false)
-  const [phone,     setPhone]     = useState('')
   const [pickedAvatar,  setPickedAvatar]  = useState<PickedFile | null>(null)
   const [avatarPreview, setAvatarPreview] = useState<string | null>(user?.avatar_url ?? null)
   const [isSaving, setIsSaving] = useState(false)
@@ -40,9 +36,7 @@ export default function ProfileSetupScreen() {
     setAvatarPreview(file.uri)
   }
 
-  const trimmedPhone = phone.trim()
-  const phoneValid = trimmedPhone === '' || isE164(trimmedPhone)
-  const canSubmit = firstName.trim().length > 0 && lastName.trim().length > 0 && phoneValid && !isSaving
+  const canSubmit = firstName.trim().length > 0 && lastName.trim().length > 0 && !isSaving
 
   async function handleSubmit() {
     if (!canSubmit) return
@@ -65,12 +59,11 @@ export default function ProfileSetupScreen() {
       // Settle the legacy user shape the rest of the app reads.
       void useAuthStore.getState().refreshUser()
 
-      if (trimmedPhone !== '') {
-        await api.auth.sendPhoneOtp({ phone_e164: trimmedPhone })
-        router.replace({ pathname: '/(auth)/verify-phone', params: { phone: trimmedPhone, next: 'home' } })
-        return
-      }
-      // Onboarding done → reset so back from home exits, not back to setup.
+      // Onboarding is name-only — no phone step. A phone (and its gas-seed perk)
+      // is added later from Settings → Sign-in & security, where the OTP proves
+      // ownership before we ever persist the number (an unverified phone can't
+      // be stored safely — it would let one user squat another's number).
+      // Reset so back from home exits, not back to setup.
       resetToAuthedRoot(true)
     } catch (e) {
       if (__DEV__) console.warn('[profile-setup] finish failed:', e)
@@ -98,8 +91,8 @@ export default function ProfileSetupScreen() {
 
         <ScrollView style={s.flex} contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled">
           <Text style={[s.lede, { color: theme.colors.content.secondary }]}>
-            A name is all you need to start. Phone and photo are optional —
-            verifying your phone unlocks a small gas top-up for your wallet.
+            A name is all you need to start. Everything else is optional — you can
+            add a photo, location and a verified phone later from Settings.
           </Text>
 
           {/* Avatar (optional) */}
@@ -140,33 +133,12 @@ export default function ProfileSetupScreen() {
             hint={isSeeker ? 'You post gigs and pay workers.' : 'You find gigs and get paid for work.'}
           />
 
-          <SectionLabel>Phone (optional)</SectionLabel>
-          <View style={[s.card, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default }]}>
-            <Input
-              label="Phone number"
-              placeholder="+2348012345678"
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              autoCapitalize="none"
-            />
-            {!phoneValid && (
-              <Text size={12} color={theme.colors.feedback.danger.base} style={s.fieldError}>
-                Use international format, e.g. +2348012345678
-              </Text>
-            )}
-            <Text size={12} color={theme.colors.content.tertiary} style={s.fieldHint}>
-              We&apos;ll text you a 6-digit code. Verified accounts get a one-time
-              SOL top-up to cover network fees.
-            </Text>
-          </View>
-
           <Spacer size={20} />
         </ScrollView>
 
         <View style={[s.saveBar, { backgroundColor: theme.colors.surface.background, borderTopColor: theme.colors.border.subtle }]}>
           <Button variant="primary" size="lg" fullWidth loading={isSaving} disabled={!canSubmit} onPress={handleSubmit}>
-            {trimmedPhone !== '' ? 'Continue' : 'Finish'}
+            Finish
           </Button>
         </View>
       </KeyboardAvoidingView>
@@ -193,7 +165,5 @@ const s = StyleSheet.create({
   },
   card: { borderWidth: 1, borderRadius: 16, padding: 14 },
   cardSplit: { paddingVertical: 4 },
-  fieldError: { marginTop: 6 },
-  fieldHint: { marginTop: 8, lineHeight: 17 },
   saveBar: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 12, borderTopWidth: 1 },
 })

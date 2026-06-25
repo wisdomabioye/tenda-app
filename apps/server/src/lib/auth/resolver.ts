@@ -26,7 +26,7 @@ export interface IdentityRef {
 
 /** A login method as surfaced to "list my sign-in methods" / last-credential checks. */
 export type LoginMethod =
-  | { type: 'identity'; kind: IdentityKind; identifier: string }
+  | { type: 'identity'; kind: IdentityKind; identifier: string; email: string | null; verified: boolean }
   | { type: 'wallet'; chain_ns: ChainNamespace; address: string }
 
 /** Resolve the user that owns a non-wallet credential, or null if unlinked. */
@@ -80,7 +80,12 @@ export async function listLoginMethods(
 ): Promise<LoginMethod[]> {
   const [identities, wallets] = await Promise.all([
     db
-      .select({ kind: user_identities.kind, identifier: user_identities.identifier })
+      .select({
+        kind: user_identities.kind,
+        identifier: user_identities.identifier,
+        email: user_identities.email,
+        verified_at: user_identities.verified_at,
+      })
       .from(user_identities)
       .where(eq(user_identities.user_id, userId)),
     db
@@ -89,7 +94,13 @@ export async function listLoginMethods(
       .where(eq(user_wallets.user_id, userId)),
   ])
   return [
-    ...identities.map((i): LoginMethod => ({ type: 'identity', kind: i.kind, identifier: i.identifier })),
+    ...identities.map((i): LoginMethod => ({
+      type: 'identity',
+      kind: i.kind,
+      identifier: i.identifier,
+      email: i.email,
+      verified: i.verified_at !== null,
+    })),
     ...wallets.map((w): LoginMethod => ({ type: 'wallet', chain_ns: w.chain_ns, address: w.address })),
   ]
 }

@@ -11,7 +11,7 @@ import { render, fireEvent, waitFor, screen } from '@testing-library/react-nativ
 import type { ChallengeBody } from '@tenda/shared'
 
 const mockPush = jest.fn()
-const mockParams: { method?: string } = {}
+const mockParams: { method?: string; mode?: string } = {}
 jest.mock('expo-router', () => ({
   useRouter: () => ({ push: mockPush }),
   useLocalSearchParams: () => mockParams,
@@ -56,6 +56,7 @@ beforeEach(() => {
   mockPush.mockReset(); mockShowToast.mockReset()
   mockChallenge.mockReset(); mockChallenge.mockResolvedValue({ expires_in: 600 })
   delete mockParams.method
+  delete mockParams.mode
 })
 
 test('phone: renders the phone placeholder and lede', () => {
@@ -124,6 +125,22 @@ test('email: an empty value never challenges (button disabled, no error shown)',
   await waitFor(() => expect(screen.getByText('Send code')).toBeTruthy())
   expect(mockChallenge).not.toHaveBeenCalled()
   expect(mockPush).not.toHaveBeenCalled()
+})
+
+test('link mode: shows the add-to-account copy and forwards mode to verify-code', async () => {
+  mockParams.method = 'email'
+  mockParams.mode = 'link'
+  render(<ContinueWithScreen />)
+  // Link-specific title + lede (vs the sign-in copy).
+  expect(screen.getByText('Add your email')).toBeTruthy()
+  expect(screen.getByText('We’ll email you a 6-digit code to add this address to your account.')).toBeTruthy()
+  fireEvent.changeText(screen.getByPlaceholderText('you@example.com'), 'me@example.com')
+  fireEvent.press(screen.getByText('Send code'))
+  await waitFor(() => expect(mockChallenge).toHaveBeenCalledWith({ method: 'email', identifier: 'me@example.com' }))
+  expect(mockPush).toHaveBeenCalledWith({
+    pathname: '/(auth)/verify-code',
+    params: { channel: 'email', identifier: 'me@example.com', mode: 'link' },
+  })
 })
 
 test('a failed challenge surfaces an error toast and does not navigate', async () => {

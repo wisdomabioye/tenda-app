@@ -25,27 +25,6 @@ export interface LinkedWallet {
   verified_at: string | null
 }
 
-export interface SendPhoneOtpBody {
-  /** E.164, e.g. +2348012345678. */
-  phone_e164: string
-}
-
-/** 202 response — the code rides out-of-band via SMS. */
-export interface SendPhoneOtpResponse {
-  /** Seconds until the OTP expires. */
-  expires_in: number
-}
-
-export interface VerifyPhoneOtpBody {
-  phone_e164: string
-  /** 6-digit code. */
-  code: string
-}
-
-export interface VerifyPhoneOtpResponse {
-  verified: true
-}
-
 /** The nonce-flow wallet proof (CAIP-2 chain id + address + signed message). */
 export interface LinkWalletBody {
   chain_id: string
@@ -113,13 +92,29 @@ export interface VerifyResponse {
   is_new: boolean
 }
 
+/**
+ * A non-wallet sign-in identity as surfaced to the "Sign-in & security" screen.
+ * `identifier` is the normalised key (E.164 phone | lowercased email | OAuth
+ * `sub`); `email` is the human-readable address when the credential carries one.
+ */
+export interface IdentityMethodWire {
+  kind: IdentityKind
+  identifier: string
+  email: string | null
+  verified: boolean
+}
+
+/** GET /v1/auth/methods — the caller's identities (wallets ride /v1/users/me). */
+export interface LoginMethodsResponse {
+  identities: IdentityMethodWire[]
+}
+
 export interface AuthContract {
   nonce: Endpoint<'POST', undefined, undefined, undefined, AuthNonceResponse>
   challenge: Endpoint<'POST', undefined, ChallengeBody, undefined, ChallengeResponse>
   verify: Endpoint<'POST', undefined, VerifyBody, undefined, VerifyResponse>
   me: Endpoint<'GET', undefined, undefined, undefined, User>
-  sendPhoneOtp: Endpoint<'POST', undefined, SendPhoneOtpBody, undefined, SendPhoneOtpResponse>
-  verifyPhoneOtp: Endpoint<'POST', undefined, VerifyPhoneOtpBody, undefined, VerifyPhoneOtpResponse>
+  methods: Endpoint<'GET', undefined, undefined, undefined, LoginMethodsResponse>
   linkWallet: Endpoint<'POST', undefined, LinkWalletBody, undefined, LinkWalletResponse>
   unlinkWallet: Endpoint<'POST', undefined, WalletRefBody, undefined, UnlinkWalletResponse>
   setPrimaryWallet: Endpoint<'POST', undefined, WalletRefBody, undefined, SetPrimaryWalletResponse>

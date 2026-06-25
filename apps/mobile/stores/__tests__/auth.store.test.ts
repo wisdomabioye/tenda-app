@@ -28,7 +28,7 @@ jest.mock('@/api/client', () => {
   }
   return {
     api: {
-      auth: { me: jest.fn(), verify: jest.fn() },
+      auth: { me: jest.fn(), verify: jest.fn(), methods: jest.fn() },
       users: { me: jest.fn() },
     },
     ApiClientError,
@@ -59,6 +59,7 @@ const walletSignInMock = walletSignIn as jest.Mock
 const linkWalletMock = linkWalletWith as jest.Mock
 const meMock = api.auth.me as jest.Mock
 const verifyMock = api.auth.verify as jest.Mock
+const methodsMock = api.auth.methods as jest.Mock
 const usersMeMock = api.users.me as jest.Mock
 const getJwt = getJwtToken as jest.Mock
 const getAddr = getWalletAddress as jest.Mock
@@ -104,7 +105,7 @@ const INITIAL = {
   isLoading: true,
   wallets: [],
   profileComplete: null,
-  phoneVerified: false,
+  identities: [],
 }
 
 beforeEach(() => {
@@ -335,5 +336,47 @@ describe('loadSession', () => {
     expect(s.jwt).toBe('jwt-123')
     expect(s.walletAddress).toBe('SoLaNaAddr')
     expect(s.isLoading).toBe(false)
+  })
+})
+
+describe('linkIdentity', () => {
+  it('links a verified contact without disturbing the session, then refreshes identities', async () => {
+    // Pre-authenticate the session so we can assert it stays put.
+    useAuthStore.setState({ isAuthenticated: true, jwt: 'jwt-123', user: USER })
+    verifyMock.mockResolvedValue({ token: 'fresh-but-discarded', user: USER, is_new: false })
+    usersMeMock.mockResolvedValue({ wallets: [], profile_complete: true, user: { phone_verified_at: null } })
+    methodsMock.mockResolvedValue({ identities: [{ kind: 'email', identifier: 'me@x.io', email: 'me@x.io', verified: true }] })
+
+    await useAuthStore.getState().linkIdentity({ method: 'email', identifier: 'me@x.io', code: '424242' })
+
+    expect(verifyMock).toHaveBeenCalledWith({ method: 'email', identifier: 'me@x.io', code: '424242' })
+    const s = useAuthStore.getState()
+    // Session token is NOT replaced by the verify response (link is not a sign-in).
+    expect(s.jwt).toBe('jwt-123')
+    expect(s.isAuthenticated).toBe(true)
+    // The freshly-linked identity is reflected.
+    expect(s.identities).toEqual([{ kind: 'email', identifier: 'me@x.io', email: 'me@x.io', verified: true }])
+  })
+
+  it('propagates a verify error (e.g. IDENTITY_ALREADY_LINKED) to the caller', async () => {
+    verifyMock.mockRejectedValue(new ApiClientError(409, 'Conflict', 'blocked'))
+    await expect(
+      useAuthStore.getState().linkIdentity({ method: 'email', identifier: 'me@x.io', code: '000000' }),
+    ).rejects.toBeInstanceOf(ApiClientError)
+  })
+})
+
+describe('loadMethods', () => {
+  it('populates identities from GET /v1/auth/methods', async () => {
+    methodsMock.mockResolvedValue({ identities: [{ kind: 'phone', identifier: '+234', email: null, verified: true }] })
+    await useAuthStore.getState().loadMethods()
+    expect(useAuthStore.getState().identities).toEqual([{ kind: 'phone', identifier: '+234', email: null, verified: true }])
+  })
+
+  it('swallows errors and leaves the existing list intact', async () => {
+    useAuthStore.setState({ identities: [{ kind: 'email', identifier: 'a@x.io', email: 'a@x.io', verified: true }] })
+    methodsMock.mockRejectedValue(new Error('offline'))
+    await useAuthStore.getState().loadMethods()
+    expect(useAuthStore.getState().identities).toEqual([{ kind: 'email', identifier: 'a@x.io', email: 'a@x.io', verified: true }])
   })
 })

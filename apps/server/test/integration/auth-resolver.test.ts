@@ -122,7 +122,11 @@ test('listLoginMethods + countLoginMethods — unions identities and wallets', {
 
   const methods = await listLoginMethods(getApp().db, row.id)
   assert.strictEqual(methods.length, 2)
-  assert.ok(methods.some((m) => m.type === 'identity' && m.kind === 'email'))
+  const emailMethod = methods.find((m) => m.type === 'identity' && m.kind === 'email')
+  assert.ok(emailMethod && emailMethod.type === 'identity')
+  // The display fields the Sign-in & security screen reads.
+  assert.strictEqual(emailMethod.verified, true)
+  assert.ok(emailMethod.email && emailMethod.email.includes('@'))
   assert.ok(methods.some((m) => m.type === 'wallet'))
   assert.strictEqual(await countLoginMethods(getApp().db, row.id), 2)
 })

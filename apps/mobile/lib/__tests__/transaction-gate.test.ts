@@ -43,9 +43,9 @@ describe('classifyTransactionGateError', () => {
 })
 
 describe('transactionGateRoute', () => {
-  it('routes wallet_required → linked-wallets and contact_required → phone', () => {
+  it('routes wallet_required → linked-wallets and contact_required → security', () => {
     expect(transactionGateRoute('wallet_required')).toBe('/settings/linked-wallets')
-    expect(transactionGateRoute('contact_required')).toBe('/settings/phone')
+    expect(transactionGateRoute('contact_required')).toBe('/settings/security')
   })
 })
 

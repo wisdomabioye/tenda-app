@@ -29,9 +29,10 @@ export const TRANSACTION_GATE_MESSAGE: Record<TransactionGateReason, string> = {
     'Verify an email or phone number before your first transaction so we can reach you about it.',
 }
 
-/** Where to send the user to clear each gate. */
+/** Where to send the user to clear each gate. The contact gate accepts a
+ *  verified email OR phone, so it routes to the Sign-in & security screen. */
 export function transactionGateRoute(
   reason: TransactionGateReason,
-): '/settings/linked-wallets' | '/settings/phone' {
-  return reason === 'wallet_required' ? '/settings/linked-wallets' : '/settings/phone'
+): '/settings/linked-wallets' | '/settings/security' {
+  return reason === 'wallet_required' ? '/settings/linked-wallets' : '/settings/security'
 }

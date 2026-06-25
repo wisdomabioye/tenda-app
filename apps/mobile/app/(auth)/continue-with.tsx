@@ -15,17 +15,35 @@ function isContactMethod(v: string | undefined): v is ContactMethod {
   return v === 'phone' || v === 'email'
 }
 
-const COPY: Record<ContactMethod, { title: string; lede: string; label: string; placeholder: string; invalid: string }> = {
+interface ChannelCopy {
+  /** Title in sign-in mode. */
+  title: string
+  /** Title when linking to an existing account (Sign-in & security). */
+  linkTitle: string
+  /** Lede in sign-in mode. */
+  lede: string
+  /** Lede when linking. */
+  linkLede: string
+  label: string
+  placeholder: string
+  invalid: string
+}
+
+const COPY: Record<ContactMethod, ChannelCopy> = {
   phone: {
     title: 'Your phone number',
+    linkTitle: 'Verify your phone',
     lede: 'We’ll text you a 6-digit code to confirm it’s you.',
+    linkLede: 'We’ll text you a 6-digit code to add this number to your account.',
     label: 'Phone number',
     placeholder: '+2348012345678',
     invalid: 'Use international format, e.g. +2348012345678',
   },
   email: {
     title: 'Your email',
+    linkTitle: 'Add your email',
     lede: 'We’ll email you a 6-digit code to confirm it’s you.',
+    linkLede: 'We’ll email you a 6-digit code to add this address to your account.',
     label: 'Email',
     placeholder: 'you@example.com',
     invalid: 'Enter a valid email address',
@@ -48,9 +66,12 @@ const COPY: Record<ContactMethod, { title: string; lede: string; label: string; 
 export default function ContinueWithScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
-  const { method } = useLocalSearchParams<{ method: string }>()
+  const { method, mode } = useLocalSearchParams<{ method: string; mode?: string }>()
   const channel: ContactMethod = isContactMethod(method) ? method : 'phone'
+  const isLink: boolean = mode === 'link'
   const copy = COPY[channel]
+  const title = isLink ? copy.linkTitle : copy.title
+  const lede = isLink ? copy.linkLede : copy.lede
 
   const [identifier, setIdentifier] = useState('')
   const [busy, setBusy] = useState(false)
@@ -64,7 +85,10 @@ export default function ContinueWithScreen() {
     setBusy(true)
     try {
       await api.auth.challenge({ method: channel, identifier: value })
-      router.push({ pathname: '/(auth)/verify-code', params: { channel, identifier: value } })
+      router.push({
+        pathname: '/(auth)/verify-code',
+        params: { channel, identifier: value, ...(isLink ? { mode: 'link' } : {}) },
+      })
     } catch (e) {
       const tier0 = classifyVerifyError(e)
       showToast(
@@ -92,9 +116,9 @@ export default function ContinueWithScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={s.hero}>
-            <Text style={[s.title, { color: theme.colors.content.primary }]}>{copy.title}</Text>
+            <Text style={[s.title, { color: theme.colors.content.primary }]}>{title}</Text>
             <Text size={14} style={s.lede} color={theme.colors.content.secondary}>
-              {copy.lede}
+              {lede}
             </Text>
           </View>
 

@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
-import { View, StyleSheet, TextInput, KeyboardAvoidingView, Platform } from 'react-native'
-import { useLocalSearchParams } from 'expo-router'
+import { useEffect, useState } from 'react'
+import { View, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { ScreenContainer, Text, Header, Button, showToast } from '@/components/ui'
+import { OtpCodeField } from '@/components/auth/OtpCodeField'
 import { useAuthStore } from '@/stores/auth.store'
 import { api, ApiClientError } from '@/api/client'
 import { classifyVerifyError, TIER0_MESSAGE } from '@/lib/auth-flow'
 import { usePostAuthReset } from '@/lib/post-auth-nav'
-import { typography } from '@/theme/tokens'
 
 const CODE_LENGTH = 6
 const RESEND_COOLDOWN_S = 60
@@ -16,21 +16,31 @@ const RESEND_COOLDOWN_S = 60
 type OtpChannel = 'phone' | 'email'
 
 /**
- * Generic OTP entry for the unified sign-in (Stage 9C) — phone OR email.
- * Reached from the get-started screen after a challenge was issued. Verifying
- * sets the session (signInWithVerify) and routes to home or profile setup.
+ * Generic OTP entry for the unified contact flow (Stage 9C) — phone OR email.
+ * Two modes share this one screen:
+ *   - 'signin' (default, from get-started): verifying sets the session
+ *     (signInWithVerify) and resets to home / profile setup.
+ *   - 'link' (from Sign-in & security): attaches the verified contact to the
+ *     current account (linkIdentity) WITHOUT touching the session, then returns
+ *     to the security screen.
  * IDENTITY_ALREADY_LINKED surfaces the Tier-0 message (block, no merge).
  */
 export default function VerifyCodeScreen() {
-  const { channel, identifier } = useLocalSearchParams<{ channel: OtpChannel; identifier: string }>()
+  const { channel, identifier, mode } = useLocalSearchParams<{
+    channel: OtpChannel
+    identifier: string
+    mode?: string
+  }>()
   const { theme } = useUnistyles()
+  const router = useRouter()
   const signInWithVerify = useAuthStore((s) => s.signInWithVerify)
+  const linkIdentity = useAuthStore((s) => s.linkIdentity)
   const resetToAuthedRoot = usePostAuthReset()
+  const isLink = mode === 'link'
 
   const [code, setCode] = useState('')
   const [isVerifying, setIsVerifying] = useState(false)
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_S)
-  const inputRef = useRef<TextInput>(null)
 
   useEffect(() => {
     if (cooldown <= 0) return
@@ -42,9 +52,16 @@ export default function VerifyCodeScreen() {
     if (!channel || !identifier || value.length !== CODE_LENGTH || isVerifying) return
     setIsVerifying(true)
     try {
-      await signInWithVerify({ method: channel, identifier, code: value })
-      // reset (not replace) so back can't return to the auth stack after sign-in.
-      resetToAuthedRoot(useAuthStore.getState().profileComplete)
+      if (isLink) {
+        await linkIdentity({ method: channel, identifier, code: value })
+        showToast('success', channel === 'email' ? 'Email verified' : 'Phone verified')
+        // Pop both the OTP + contact screens back to Sign-in & security.
+        router.dismissTo('/settings/security')
+      } else {
+        await signInWithVerify({ method: channel, identifier, code: value })
+        // reset (not replace) so back can't return to the auth stack after sign-in.
+        resetToAuthedRoot(useAuthStore.getState().profileComplete)
+      }
     } catch (e) {
       setCode('')
       const tier0 = classifyVerifyError(e)
@@ -81,17 +98,13 @@ export default function VerifyCodeScreen() {
             We sent a 6-digit code to your {destination}. Enter it below to continue.
           </Text>
 
-          <TextInput
-            ref={inputRef}
-            style={[s.codeInput, { color: theme.colors.content.primary, borderColor: theme.colors.border.default }]}
+          <OtpCodeField
             value={code}
-            onChangeText={(t) => {
-              const digits = t.replace(/\D/g, '').slice(0, CODE_LENGTH)
+            onChange={(digits) => {
               setCode(digits)
               if (digits.length === CODE_LENGTH) void handleVerify(digits)
             }}
-            keyboardType="number-pad"
-            maxLength={CODE_LENGTH}
+            length={CODE_LENGTH}
             autoFocus
             editable={!isVerifying}
             accessibilityLabel="Verification code"
@@ -115,13 +128,4 @@ const s = StyleSheet.create({
   flex: { flex: 1 },
   body: { paddingHorizontal: 20, paddingTop: 8, gap: 16 },
   lede: { fontSize: 14, lineHeight: 21 },
-  codeInput: {
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 16,
-    textAlign: 'center',
-    fontSize: 28,
-    letterSpacing: 8,
-    fontFamily: typography.fonts.mono,
-  },
 })

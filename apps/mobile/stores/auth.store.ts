@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { User, LinkedWallet, VerifyBody } from '@tenda/shared'
+import type { User, LinkedWallet, VerifyBody, IdentityMethodWire } from '@tenda/shared'
 import {
   getJwtToken,
   setJwtToken,
@@ -39,7 +39,11 @@ interface AuthState {
   wallets: LinkedWallet[]
   /** null until /v1/users/me has answered at least once this session. */
   profileComplete: boolean | null
-  phoneVerified: boolean
+  /**
+   * Non-wallet sign-in identities (phone/email/OAuth) from GET /v1/auth/methods,
+   * for the Sign-in & security screen. Empty until `loadMethods` answers.
+   */
+  identities: IdentityMethodWire[]
 
   /**
    * Sign in with any wallet adapter (nonce → authenticate → verify → JWT).
@@ -71,6 +75,17 @@ interface AuthState {
    * caller maps WALLET_NOT_LINKED / IDENTITY_ALREADY_LINKED to the Tier-0 UX).
    */
   signInWithVerify: (body: VerifyBody) => Promise<{ isNew: boolean }>
+  /**
+   * Stage 9 — LINK a verified contact (phone/email OTP) to the ALREADY-signed-in
+   * account, used by the Sign-in & security screen. Same POST /v1/auth/verify as
+   * sign-in (bearer auto-attached → server links to the current user), but it
+   * does NOT touch the session token or navigation — it just refreshes the
+   * cached user/wallets/identities. Throws ApiClientError (the screen maps
+   * IDENTITY_ALREADY_LINKED etc. to a toast).
+   */
+  linkIdentity: (body: VerifyBody) => Promise<void>
+  /** Re-fetch sign-in identities from GET /v1/auth/methods. */
+  loadMethods: () => Promise<void>
   logout: () => Promise<void>
   loadSession: () => Promise<void>
   updateUser: (user: User) => void
@@ -89,7 +104,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   walletAuthInProgress: false,
   wallets: [],
   profileComplete: null,
-  phoneVerified: false,
+  identities: [],
 
   signInWithWallet: async (adapter) => {
     // Flag the in-flight sign-in so `index` holds a spinner instead of flashing
@@ -161,6 +176,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { isNew: res.is_new }
   },
 
+  linkIdentity: async (body) => {
+    // The request layer attaches the stored JWT → the server links this verified
+    // identity to the current user (rather than creating/logging in). We discard
+    // the returned token: the existing session is still valid and we must not
+    // disturb the auth/nav state from a settings action.
+    await api.auth.verify(body)
+    // Reflect the new contact across the surfaces that show it.
+    await Promise.all([get().refreshMe(), get().loadMethods()])
+    void get().refreshUser()
+  },
+
+  loadMethods: async () => {
+    try {
+      const res = await api.auth.methods()
+      set({ identities: res.identities })
+    } catch {
+      // Non-fatal — the security screen shows a retry; stale list is acceptable.
+    }
+  },
+
   logout: async () => {
     useExchangeMarketStore.getState().clear()
     await usePendingSyncStore.getState().clear()
@@ -177,7 +212,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       wallets: [],
       profileComplete: null,
-      phoneVerified: false,
+      identities: [],
     })
   },
 
@@ -238,7 +273,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({
         wallets: me.wallets,
         profileComplete: me.profile_complete,
-        phoneVerified: me.user.phone_verified_at !== null,
       })
     } catch {
       // Non-fatal — wallets UI shows a retry; profile gate falls back to
