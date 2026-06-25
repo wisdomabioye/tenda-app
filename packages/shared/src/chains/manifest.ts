@@ -60,6 +60,15 @@ export interface ChainManifestEntry {
   displayName: string
   /** Reorg-safety margin before a receipt counts as confirmed. */
   minConfirmations: number
+  /**
+   * Public, client-safe JSON-RPC endpoint — used for read-only client calls
+   * (the mobile wallet screen's balance reads) and the AppKit connector.
+   * Required for EVM chains (validated below); Solana clients derive their RPC
+   * from `clusterApiUrl`. This is NOT the server's RPC: the deployment's private
+   * / keyed endpoint stays a secret (`CHAIN_<id>_RPC_URL`, secrets.ts), so
+   * metered backend traffic never leaks to clients.
+   */
+  publicRpcUrl?: string
   gasPolicy: GasPolicy
   /**
    * Asset id whose token address funds gas, for `gasPolicy: 'feeCurrency'`.
@@ -109,6 +118,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     kind: 'mainnet',
     displayName: 'BASE',
     minConfirmations: 5,
+    publicRpcUrl: 'https://mainnet.base.org',
     gasPolicy: 'paymaster',
     assets: [
       // Circle USDC on BASE (verified in repo: apps/server/.env.example).
@@ -123,6 +133,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     kind: 'testnet',
     displayName: 'Base Sepolia',
     minConfirmations: 5,
+    publicRpcUrl: 'https://sepolia.base.org',
     gasPolicy: 'paymaster',
     assets: [
       // Circle's published USDC on Base Sepolia — CONFIRM before activating.
@@ -137,6 +148,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     kind: 'mainnet',
     displayName: 'CELO',
     minConfirmations: 3,
+    publicRpcUrl: 'https://forno.celo.org',
     gasPolicy: 'feeCurrency',
     feeCurrency: 'cUSD',
     assets: [
@@ -176,6 +188,25 @@ export function gigAssetByChain(id: string): string | null {
   return findChain(id)?.assets.find((a) => a.role === 'gig')?.id ?? null
 }
 
+/**
+ * Client-safe public RPC URL for an EVM chain id, or null if unknown / non-EVM.
+ * The single source for client-side balance reads — callers must not hardcode
+ * RPC endpoints. Non-throwing (a registry chain with no manifest match simply
+ * yields no reads rather than crashing the screen).
+ */
+export function evmPublicRpcUrl(id: string): string | null {
+  return findChain(id)?.publicRpcUrl ?? null
+}
+
+/** Throwing variant for call sites that require the URL (manifest guarantees it). */
+export function requireEvmPublicRpcUrl(id: string): string {
+  const url = evmPublicRpcUrl(id)
+  if (url === null) {
+    throw new Error(`no publicRpcUrl for EVM chain '${id}' (not in CHAIN_MANIFEST)`)
+  }
+  return url
+}
+
 /** Resolve the feeCurrency token address from the chain's asset list. */
 export function feeCurrencyAddress(entry: ChainManifestEntry): string | null {
   if (entry.feeCurrency === undefined) return null
@@ -204,6 +235,9 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     }
     if (entry.assets.filter(isNativeAsset).length !== 1) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' must have exactly one native asset`)
+    }
+    if (entry.namespace === 'eip155' && (entry.publicRpcUrl ?? '').length === 0) {
+      throw new Error(`CHAIN_MANIFEST: EVM chain '${entry.id}' must set a publicRpcUrl`)
     }
     if ((entry.gasPolicy === 'feeCurrency') !== (entry.feeCurrency !== undefined)) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrency must be set iff gasPolicy is 'feeCurrency'`)

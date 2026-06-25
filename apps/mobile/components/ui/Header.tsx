@@ -1,5 +1,6 @@
 import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StyleSheet, useUnistyles } from 'react-native-unistyles';
 import { ArrowLeft } from 'lucide-react-native';
 import type { LucideIcon } from 'lucide-react-native';
@@ -34,6 +35,10 @@ export function Header({
 }: HeaderProps) {
   const { theme } = useUnistyles();
   const router = useRouter();
+  // Edge-to-edge (SDK 54): the app draws behind the status bar. Every screen
+  // mounts Header inside a ScreenContainer whose SafeAreaView never claims the
+  // top edge, so the header owns the top inset here — once, for all screens.
+  const insets = useSafeAreaInsets();
 
   const handleBack = () => {
     if (onBackPress) {
@@ -48,6 +53,7 @@ export function Header({
       <View
         style={[
           styles.lhdr,
+          { paddingTop: styles.lhdr.paddingTop + insets.top },
           { backgroundColor: transparent ? 'transparent' : theme.colors.surface.background },
         ]}
       >
@@ -69,6 +75,7 @@ export function Header({
     <View
       style={[
         styles.hdr,
+        { paddingTop: insets.top, height: styles.hdr.height + insets.top },
         transparent
           ? { backgroundColor: 'transparent' }
           : {

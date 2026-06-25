@@ -34,7 +34,12 @@ export function DrawerHeader({
       style={[
         s.hdr,
         {
+          // Edge-to-edge (SDK 54): the bar draws behind the status bar, so its
+          // height is the 56px content row PLUS the inset — paddingTop must add
+          // to the height, never eat into a fixed one (that clipped the icons
+          // and spilled them into the body).
           paddingTop: insets.top,
+          height: 56 + insets.top,
           backgroundColor: theme.colors.surface.background,
           borderBottomColor: theme.colors.border.subtle,
         },
@@ -79,7 +84,6 @@ const s = StyleSheet.create({
   hdr: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 56,
     paddingHorizontal: 16,
     gap: 12,
     borderBottomWidth: 1,

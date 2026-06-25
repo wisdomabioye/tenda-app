@@ -14,6 +14,7 @@ import {
 } from '@expo-google-fonts/manrope'
 import { useAuthStore } from '@/stores/auth.store'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
+import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useOnboardingStore } from '@/stores/onboarding.store'
@@ -41,6 +42,9 @@ export function useAppReady(): boolean {
       useAuthStore.getState().loadSession(),
       useExchangeRateStore.getState().loadPersistedRates().then(() =>
         useExchangeRateStore.getState().fetchRates()
+      ),
+      useChainRegistryStore.getState().loadPersisted().then(() =>
+        useChainRegistryStore.getState().fetch()
       ),
       useSettingsStore.getState().loadSettings(),
       useOnboardingStore.getState().load(),

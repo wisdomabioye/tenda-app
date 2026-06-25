@@ -1,47 +1,46 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useFocusEffect } from 'expo-router'
-import { PublicKey } from '@solana/web3.js'
 import { api } from '@/api/client'
-import { getBalance } from '@/wallet'
 import { useAuthStore } from '@/stores/auth.store'
-import { useExchangeRateStore, useSettingsStore } from '@/stores'
+import { useChainRegistryStore } from '@/stores/chain-registry.store'
+import { readWalletBalances, sumUsdcRaw, type WalletChainBalance } from '@/wallet/balances'
 import { groupByDay } from '@/lib/date'
-import { LAMPORTS_PER_SOL, ASSET_META } from '@tenda/shared'
-import type { UserEscrowTransaction, SupportedCurrency } from '@tenda/shared'
+import { ASSET_META, amountRawToDisplay } from '@tenda/shared'
+import type { UserEscrowTransaction } from '@tenda/shared'
 
-// Totals are SOL-denominated for the header card — only SOL-asset rows
-// contribute (multi-asset totals would mix units; per-asset rows still
-// show their own amounts in the feed).
-const isSolTx = (tx: UserEscrowTransaction) =>
-  (ASSET_META[tx.escrow.asset]?.symbol ?? tx.escrow.asset) === 'SOL'
+// USDC is the gig settlement unit on every chain; lifetime totals are summed in
+// USDC base units (all 6dp) so they never mix units. Non-USDC rows (native gas,
+// SOL exchange escrows) still show their own amounts in the feed via TxRow.
+const isUsdcTx = (tx: UserEscrowTransaction): boolean =>
+  (ASSET_META[tx.escrow.asset]?.symbol ?? tx.escrow.asset) === 'USDC'
 
 /**
- * Wallet screen data controller — owns the SOL balance + transaction feed,
- * refresh state, and the SOL-denominated earned/spent lifetime totals.
+ * Wallet screen data controller — multichain. Drives off the authoritative
+ * linked-wallet list (`wallets[]`) and the chain registry (token addresses),
+ * NOT the single Solana session address. Owns: per-(wallet,chain) balances, the
+ * summed-USDC headline, the transaction feed, and USDC lifetime earned/spent.
  */
 export function useWalletScreen() {
-  const user          = useAuthStore((s) => s.user)
-  const walletAddress = useAuthStore((s) => s.walletAddress)
-  const rates         = useExchangeRateStore((s) => s.rates)
-  const currency      = useSettingsStore((s) => s.currency) as SupportedCurrency
+  const user     = useAuthStore((s) => s.user)
+  const wallets  = useAuthStore((s) => s.wallets)
+  const chains   = useChainRegistryStore((s) => s.chains)
 
-  const [balanceLamports, setBalanceLamports] = useState<number | null>(null)
-  const [transactions, setTransactions]       = useState<UserEscrowTransaction[]>([])
-  const [isLoading, setIsLoading]             = useState(true)
-  const [refreshing, setRefreshing]           = useState(false)
+  const [balances, setBalances]         = useState<WalletChainBalance[]>([])
+  const [transactions, setTransactions] = useState<UserEscrowTransaction[]>([])
+  const [isLoading, setIsLoading]       = useState(true)
+  const [refreshing, setRefreshing]     = useState(false)
+
+  const hasWallet = wallets.length > 0
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
     else setIsLoading(true)
     try {
-      // Use allSettled so one failure (e.g. transient RPC error) doesn't
-      // leave the screen stuck on the skeleton forever.
+      // allSettled so one failure (RPC hiccup / tx fetch) can't wedge the screen.
       await Promise.allSettled([
-        walletAddress
-          ? getBalance(new PublicKey(walletAddress))
-              .then((b) => setBalanceLamports(b))
-              .catch(() => setBalanceLamports(0))
-          : Promise.resolve(setBalanceLamports(0)),
+        readWalletBalances(wallets, chains ?? [])
+          .then(setBalances)
+          .catch(() => setBalances([])),
         user?.id
           ? api.users.transactions({ id: user.id })
               .then((r) => setTransactions(r.data))
@@ -49,36 +48,37 @@ export function useWalletScreen() {
           : Promise.resolve(setTransactions([])),
       ])
     } finally {
+      // Always settle loading — no early-return path can strand the skeleton.
       if (isRefresh) setRefreshing(false)
       else setIsLoading(false)
     }
-  }, [user?.id, walletAddress])
+  }, [user?.id, wallets, chains])
 
   useFocusEffect(
     useCallback(() => {
-      if (!user?.id || !walletAddress) return
-      load()
-    }, [user?.id, walletAddress, load]),
+      void load()
+    }, [load]),
   )
 
   const handleRefresh = useCallback(() => load(true), [load])
 
-  const balanceSol = balanceLamports !== null ? balanceLamports / LAMPORTS_PER_SOL : null
-  const rate = rates?.[currency] ?? null
-  const balanceFiat = balanceSol !== null && rate !== null ? balanceSol * rate : null
+  // Headline: USDC summed across every wallet×chain (one unit, exact base-units).
+  const totalUsdcRaw = sumUsdcRaw(balances)
+  const usdcAssetId = balances.find((b) => b.usdc)?.usdc?.assetId ?? 'USDC_SOL'
+  const totalUsdc = amountRawToDisplay(totalUsdcRaw, usdcAssetId)
 
-  const earnedSol = transactions.reduce((sum, tx) => {
-    if (!isSolTx(tx) || tx.escrow.counterparty_id !== user?.id) return sum
+  const earnedUsdc = transactions.reduce((sum, tx) => {
+    if (!isUsdcTx(tx) || tx.escrow.counterparty_id !== user?.id) return sum
     if (tx.type === 'approve' || tx.type === 'claim_stalled' || (tx.type === 'resolve' && tx.winner === 'counterparty')) {
-      const amount = Number(tx.amount_raw ?? '0') - Number(tx.platform_fee_raw ?? '0')
-      return sum + amount / LAMPORTS_PER_SOL
+      const net = BigInt(tx.amount_raw ?? '0') - BigInt(tx.platform_fee_raw ?? '0')
+      return sum + amountRawToDisplay(net.toString(), tx.escrow.asset)
     }
     return sum
   }, 0)
 
-  const spentSol = transactions.reduce((sum, tx) => {
-    if (!isSolTx(tx) || tx.escrow.creator_id !== user?.id || tx.type !== 'create') return sum
-    return sum + Number(tx.amount_raw ?? tx.escrow.amount_raw) / LAMPORTS_PER_SOL
+  const spentUsdc = transactions.reduce((sum, tx) => {
+    if (!isUsdcTx(tx) || tx.escrow.creator_id !== user?.id || tx.type !== 'create') return sum
+    return sum + amountRawToDisplay(tx.amount_raw ?? tx.escrow.amount_raw, tx.escrow.asset)
   }, 0)
 
   const feed = useMemo(
@@ -88,12 +88,11 @@ export function useWalletScreen() {
 
   return {
     user,
-    walletAddress,
-    currency,
-    balanceSol,
-    balanceFiat,
-    earnedSol,
-    spentSol,
+    hasWallet,
+    balances,
+    totalUsdc,
+    earnedUsdc,
+    spentUsdc,
     feed,
     isLoading,
     refreshing,

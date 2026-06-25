@@ -4,10 +4,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StatusBar } from 'expo-status-bar'
 import { useUnistyles } from 'react-native-unistyles'
 import * as SplashScreen from 'expo-splash-screen'
-import { SafeAreaInsetsContext, useSafeAreaInsets } from 'react-native-safe-area-context'
+import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context'
 import { ToastProvider } from '@/components/ui/Toast'
 import { ReownProvider } from '@/wallet/reown/bridge'
-import { DevnetBanner, IS_DEVNET } from '@/components/feedback/DevnetBanner'
 import { configureNotifications } from '@/lib/notifications'
 import { initReporter, wrapApp } from '@/lib/reporter'
 import { useAppReady } from '@/hooks/useAppReady'
@@ -24,7 +23,6 @@ SplashScreen.preventAutoHideAsync()
 export default wrapApp(function RootLayout() {
   const { theme } = useUnistyles()
   const isReady = useAppReady()
-  const insets = useSafeAreaInsets()
   useNotificationDeepLink()
   useForegroundSync()
   usePushToken()
@@ -34,11 +32,12 @@ export default wrapApp(function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.surface.background }}>
+      {/* The single safe-area provider for the app — measures real device insets
+          (status bar / notch / nav bar) that every screen header reads via
+          useSafeAreaInsets. Seeded with initialWindowMetrics for a jump-free
+          first frame. */}
+      <SafeAreaProvider initialMetrics={initialWindowMetrics}>
       <ReownProvider>
-      <DevnetBanner />
-      {/* When the banner is visible it consumes insets.top, so we zero it out
-          for everything below to prevent the header double-counting it. */}
-      <SafeAreaInsetsContext.Provider value={{ ...insets, top: IS_DEVNET ? 0 : insets.top }}>
       <ToastProvider>
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: theme.colors.surface.background }, animation: 'slide_from_right' }}>
           <Stack.Screen name="index" />
@@ -57,9 +56,9 @@ export default wrapApp(function RootLayout() {
           <Stack.Screen name="+not-found" />
         </Stack>
       </ToastProvider>
-      </SafeAreaInsetsContext.Provider>
       <StatusBar style="auto" />
       </ReownProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   )
 })

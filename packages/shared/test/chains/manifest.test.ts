@@ -142,7 +142,8 @@ test('assertManifestValid rejects a chain without exactly one native asset', () 
 test('assertManifestValid rejects feeCurrency/gasPolicy mismatch', () => {
   const mismatch: ChainManifestEntry = {
     id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
-    displayName: 'X', minConfirmations: 1, gasPolicy: 'none', feeCurrency: 'cUSD',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
+    gasPolicy: 'none', feeCurrency: 'cUSD',
     assets: [{ id: 'ETH_BASE', role: 'exchange', token: null }],
   }
   assert.throws(() => assertManifestValid([mismatch]), /feeCurrency must be set iff/)
@@ -152,10 +153,24 @@ test('assertManifestValid rejects feeCurrency that resolves no address', () => {
   // gasPolicy feeCurrency + feeCurrency id present, but that asset has no token.
   const bad: ChainManifestEntry = {
     id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
-    displayName: 'X', minConfirmations: 1, gasPolicy: 'feeCurrency', feeCurrency: 'CELO',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
+    gasPolicy: 'feeCurrency', feeCurrency: 'CELO',
     assets: [{ id: 'CELO', role: 'exchange', token: null }],
   }
   assert.throws(() => assertManifestValid([bad]), /has no token address/)
+})
+
+test('every EVM manifest chain exposes a publicRpcUrl; assertManifestValid enforces it', () => {
+  for (const entry of CHAIN_MANIFEST) {
+    if (entry.namespace !== 'eip155') continue
+    assert.ok((entry.publicRpcUrl ?? '').length > 0, `${entry.id} missing publicRpcUrl`)
+  }
+  const noRpc: ChainManifestEntry = {
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    displayName: 'X', minConfirmations: 1, gasPolicy: 'none',
+    assets: [{ id: 'ETH_BASE', role: 'exchange', token: null }],
+  }
+  assert.throws(() => assertManifestValid([noRpc]), /must set a publicRpcUrl/)
 })
 
 test('exactly one chain is active per family across mainnet/testnet pairs', () => {

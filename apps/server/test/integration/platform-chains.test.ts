@@ -32,7 +32,17 @@ test('platform/chains: enabled chains with their enabled assets', { skip }, asyn
     [TEST_NATIVE_ASSET, TEST_ASSET].sort(),
   )
   const usdc = data[0].assets.find((a: { id: string }) => a.id === TEST_ASSET)
-  assert.deepStrictEqual(usdc, { id: TEST_ASSET, symbol: 'USDC', decimals: 6, is_stable: true })
+  // token_address is the single source the mobile balance reader consumes.
+  assert.deepStrictEqual(usdc, {
+    id: TEST_ASSET,
+    symbol: 'USDC',
+    decimals: 6,
+    is_stable: true,
+    token_address: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+  })
+  // Native gas asset carries a null token_address (not a contract).
+  const native = data[0].assets.find((a: { id: string }) => a.id === TEST_NATIVE_ASSET)
+  assert.strictEqual(native.token_address, null)
 })
 
 test('platform/chains: disabled assets and chains drop out', { skip }, async () => {

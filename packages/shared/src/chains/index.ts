@@ -4,6 +4,8 @@ export {
   findChain,
   gigAssetByChain,
   feeCurrencyAddress,
+  evmPublicRpcUrl,
+  requireEvmPublicRpcUrl,
   isNativeAsset,
   assertManifestValid,
   type ChainManifestEntry,

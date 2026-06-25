@@ -26,6 +26,26 @@ export async function getBalance(publicKey: PublicKey): Promise<number> {
   return connection.getBalance(publicKey)
 }
 
+/** Token-amount shape inside a parsed SPL token account (web3.js types it `any`). */
+interface ParsedSplAmount {
+  info?: { tokenAmount?: { amount?: string } }
+}
+
+/**
+ * Total SPL-token balance (base units, as a string) an owner holds of `mint`,
+ * summed across all their token accounts for that mint. 0 when none exist.
+ * Drives the wallet screen's USDC reading on Solana.
+ */
+export async function getSplTokenBalance(owner: PublicKey, mint: PublicKey): Promise<string> {
+  const { value } = await connection.getParsedTokenAccountsByOwner(owner, { mint })
+  let total = 0n
+  for (const { account } of value) {
+    const amount = (account.data.parsed as ParsedSplAmount).info?.tokenAmount?.amount
+    if (typeof amount === 'string') total += BigInt(amount)
+  }
+  return total.toString()
+}
+
 export { getEvmTransactionStatus } from '@/wallet/adapters/walletconnect'
 
 export type OnChainTxStatus = 'confirmed' | 'finalized' | 'failed' | 'not_found'

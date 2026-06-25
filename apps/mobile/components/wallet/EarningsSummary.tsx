@@ -3,8 +3,8 @@ import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui'
 
-/** Two lifetime stat cards (SOL earned / spent) under the wallet hero. */
-export function EarningsSummary({ earnedSol, spentSol }: { earnedSol: number; spentSol: number }) {
+/** Two lifetime stat cards (USDC earned / spent) under the wallet hero. */
+export function EarningsSummary({ earnedUsdc, spentUsdc }: { earnedUsdc: number; spentUsdc: number }) {
   const { theme } = useUnistyles()
   return (
     <View style={s.earnings}>
@@ -15,8 +15,8 @@ export function EarningsSummary({ earnedSol, spentSol }: { earnedSol: number; sp
             EARNED
           </Text>
         </View>
-        <Text style={[s.statValue, { color: theme.colors.numeric.positive }]}>+ {earnedSol.toFixed(2)}</Text>
-        <Text style={[s.statUnit, { color: theme.colors.content.tertiary }]}>SOL · lifetime</Text>
+        <Text style={[s.statValue, { color: theme.colors.numeric.positive }]}>+ {earnedUsdc.toFixed(2)}</Text>
+        <Text style={[s.statUnit, { color: theme.colors.content.tertiary }]}>USDC · lifetime</Text>
       </View>
       <View style={[s.statCard, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default }]}>
         <View style={s.statLabelRow}>
@@ -25,8 +25,8 @@ export function EarningsSummary({ earnedSol, spentSol }: { earnedSol: number; sp
             SPENT
           </Text>
         </View>
-        <Text style={[s.statValue, { color: theme.colors.numeric.negative }]}>− {spentSol.toFixed(2)}</Text>
-        <Text style={[s.statUnit, { color: theme.colors.content.tertiary }]}>SOL · lifetime</Text>
+        <Text style={[s.statValue, { color: theme.colors.numeric.negative }]}>− {spentUsdc.toFixed(2)}</Text>
+        <Text style={[s.statUnit, { color: theme.colors.content.tertiary }]}>USDC · lifetime</Text>
       </View>
     </View>
   )

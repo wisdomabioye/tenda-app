@@ -4,19 +4,25 @@ import { typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Header } from '@/components/ui'
 import { RestrictionBanner } from '@/components/reputation'
 import { FailedSyncPanel } from '@/components/sync/FailedSyncPanel'
-import { TxRow, WalletHeroCard, EarningsSummary } from '@/components/wallet'
+import {
+  TxRow,
+  WalletHeroCard,
+  EarningsSummary,
+  WalletBalanceRows,
+  WalletActions,
+  WalletEmptyState,
+} from '@/components/wallet'
 import { useWalletScreen } from '@/hooks/useWalletScreen'
 
 export default function WalletScreen() {
   const { theme } = useUnistyles()
   const {
     user,
-    walletAddress,
-    currency,
-    balanceSol,
-    balanceFiat,
-    earnedSol,
-    spentSol,
+    hasWallet,
+    balances,
+    totalUsdc,
+    earnedUsdc,
+    spentUsdc,
     feed,
     isLoading,
     refreshing,
@@ -43,14 +49,16 @@ export default function WalletScreen() {
         ListHeaderComponent={
           <>
             <FailedSyncPanel />
-            <WalletHeroCard
-              walletAddress={walletAddress}
-              balanceSol={balanceSol}
-              balanceFiat={balanceFiat}
-              currency={currency}
-              isLoading={isLoading}
-            />
-            <EarningsSummary earnedSol={earnedSol} spentSol={spentSol} />
+            {hasWallet ? (
+              <>
+                <WalletHeroCard totalUsdc={totalUsdc} isLoading={isLoading} />
+                <WalletBalanceRows balances={balances} />
+                <WalletActions />
+                <EarningsSummary earnedUsdc={earnedUsdc} spentUsdc={spentUsdc} />
+              </>
+            ) : (
+              <WalletEmptyState />
+            )}
             <Text style={[s.sectionTitle, { color: theme.colors.content.tertiary }]}>TRANSACTION HISTORY</Text>
           </>
         }

@@ -1,3 +1,6 @@
 export { TxRow } from './TxRow'
 export { WalletHeroCard } from './WalletHeroCard'
 export { EarningsSummary } from './EarningsSummary'
+export { WalletBalanceRows } from './WalletBalanceRows'
+export { WalletActions } from './WalletActions'
+export { WalletEmptyState } from './WalletEmptyState'

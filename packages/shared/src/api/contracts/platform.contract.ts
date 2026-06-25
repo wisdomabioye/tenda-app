@@ -23,6 +23,9 @@ export interface ChainRegistryEntry {
     symbol: string
     decimals: number
     is_stable: boolean
+    /** On-chain SPL mint / ERC-20 contract, or null for the native gas token.
+     *  Single source for client-side balance reads (mobile wallet screen). */
+    token_address: string | null
   }>
 }
 

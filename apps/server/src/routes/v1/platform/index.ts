@@ -44,6 +44,7 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
           symbol: assets.symbol,
           decimals: assets.decimals,
           is_stable: assets.is_stable,
+          token_address: assets.token_address,
         })
         .from(assets)
         .where(eq(assets.is_enabled, true))

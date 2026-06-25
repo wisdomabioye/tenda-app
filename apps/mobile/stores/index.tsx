@@ -1,6 +1,7 @@
 export { useAuthStore } from './auth.store'
 export { useChatStore } from './chat.store'
 export { useExchangeRateStore } from './exchange-rate.store'
+export { useChainRegistryStore } from './chain-registry.store'
 export { useGigsStore } from './gigs.store'
 export { useOnboardingStore } from './onboarding.store'
 export { useExchangeMarketStore } from './exchange-market.store'

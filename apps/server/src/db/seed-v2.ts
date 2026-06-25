@@ -18,6 +18,7 @@
 import 'dotenv/config'
 import postgres from 'postgres'
 import { drizzle } from 'drizzle-orm/postgres-js'
+import { inArray, notInArray } from 'drizzle-orm'
 import { ESCROW_IDL } from '@tenda/shared/idl'
 import { assets, chains } from '@tenda/shared/db/schema/chains'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
@@ -148,9 +149,24 @@ async function seed(): Promise<void> {
       .insert(fiat_providers)
       .values(rows.fiat_providers)
       .onConflictDoNothing({ target: fiat_providers.id })
+
+    // Reconcile enablement so the registry reflects EXACTLY the active config
+    // (one chain per family). The seed is insert-only and never deletes, so a
+    // chain/asset from a prior env (e.g. a switched-out Solana cluster) would
+    // otherwise linger enabled and get served by /v1/platform/chains — surfacing
+    // as a duplicate row on the wallet screen. Enable the active set, disable
+    // everything else.
+    const activeChainIds = rows.chains.map((c) => c.id)
+    const activeAssetIds = rows.assets.map((a) => a.id)
+    await db.update(chains).set({ is_enabled: true }).where(inArray(chains.id, activeChainIds))
+    await db.update(chains).set({ is_enabled: false }).where(notInArray(chains.id, activeChainIds))
+    await db.update(assets).set({ is_enabled: true }).where(inArray(assets.id, activeAssetIds))
+    await db.update(assets).set({ is_enabled: false }).where(notInArray(assets.id, activeAssetIds))
+
     console.log(
       `seed-v2: ${rows.chains.length} chains, ${rows.assets.length} assets, ` +
-        `${rows.fiat_providers.length} fiat providers, platform_config ensured`,
+        `${rows.fiat_providers.length} fiat providers, platform_config ensured; ` +
+        `enablement reconciled to active set`,
     )
     for (const s of rows.skipped) console.warn(`seed-v2: skipped ${s}`)
   } finally {
