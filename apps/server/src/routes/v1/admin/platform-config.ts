@@ -1,7 +1,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { platform_config } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, ESCROW_LIMITS } from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/db'
@@ -28,21 +28,27 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
   }, async (request) => {
     const { fee_bps, seeker_fee_bps, grace_period_seconds } = requireBody(request.body)
 
-    if (fee_bps !== undefined && (fee_bps < 0 || fee_bps > 10_000 || !Number.isInteger(fee_bps))) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'fee_bps must be an integer between 0 and 10000')
+    // Caps mirror the on-chain limits (ESCROW_LIMITS, guarded == both contracts)
+    // so an admin can't configure a value the contract would revert: the
+    // contract caps platform fee at MAX_PLATFORM_FEE_BPS and grace at
+    // MAX_GRACE_PERIOD_SECONDS, and the server's off-chain reclaim-window math
+    // must stay within the window the chain actually enforces.
+    const { maxPlatformFeeBps, maxGracePeriodSeconds } = ESCROW_LIMITS
+
+    if (fee_bps !== undefined && (fee_bps < 0 || fee_bps > maxPlatformFeeBps || !Number.isInteger(fee_bps))) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `fee_bps must be an integer between 0 and ${maxPlatformFeeBps}`)
     }
 
-    if (seeker_fee_bps !== undefined && (seeker_fee_bps < 0 || seeker_fee_bps > 10_000 || !Number.isInteger(seeker_fee_bps))) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'seeker_fee_bps must be an integer between 0 and 10000')
+    if (seeker_fee_bps !== undefined && (seeker_fee_bps < 0 || seeker_fee_bps > maxPlatformFeeBps || !Number.isInteger(seeker_fee_bps))) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `seeker_fee_bps must be an integer between 0 and ${maxPlatformFeeBps}`)
     }
 
-    const MAX_GRACE_PERIOD_SECONDS = 30 * 24 * 60 * 60
     if (grace_period_seconds !== undefined && (
       grace_period_seconds < 0 ||
       !Number.isInteger(grace_period_seconds) ||
-      grace_period_seconds > MAX_GRACE_PERIOD_SECONDS
+      grace_period_seconds > maxGracePeriodSeconds
     )) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `grace_period_seconds must be a non-negative integer ≤ ${MAX_GRACE_PERIOD_SECONDS} (30 days)`)
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `grace_period_seconds must be a non-negative integer ≤ ${maxGracePeriodSeconds} (14 days)`)
     }
 
     if (fee_bps === undefined && seeker_fee_bps === undefined && grace_period_seconds === undefined) {

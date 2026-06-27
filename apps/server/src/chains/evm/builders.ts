@@ -15,6 +15,7 @@
  */
 
 import { encodeFunctionData, toHex } from 'viem'
+import { DISPUTE_WINNER_CODE, ESCROW_KIND_CODE } from '@tenda/shared'
 import { uuidToBytes } from '@server/chains/ids'
 import { ESCROW_EVM_ABI, ZERO_ADDRESS } from './rpc'
 import type { BuildTxArgs } from '@server/chains/types'
@@ -32,7 +33,6 @@ export interface BuildContext {
   assigned_counterparty_address: string | null
 }
 
-const WINNER_CODE = { creator: 0, counterparty: 1, split: 2 } as const
 
 function escrowIdHex(escrow_id: string): `0x${string}` {
   return toHex(uuidToBytes(escrow_id))
@@ -53,7 +53,7 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
           functionName: 'createEscrow',
           args: [
             escrowIdHex(p.escrow_id),
-            p.kind === 'gig' ? 0 : 1,
+            ESCROW_KIND_CODE[p.kind],
             asAddress(ctx.asset_address),
             BigInt(p.amount_raw),
             asAddress(ctx.assigned_counterparty_address),
@@ -97,7 +97,7 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
           functionName: 'resolveDispute',
           // raiser_user_id intentionally unused: the EVM contract records
           // raisedBy at disputeEscrow time (chains/types.ts documents this).
-          args: [escrowIdHex(p.escrow_id), WINNER_CODE[p.winner]],
+          args: [escrowIdHex(p.escrow_id), DISPUTE_WINNER_CODE[p.winner]],
         }),
         value_raw: '0',
       }

@@ -12,6 +12,7 @@
  */
 
 import { toHex } from 'viem'
+import { ESCROW_STATUS_ORDER } from '@tenda/shared'
 import { computePlatformFee } from '@server/lib/escrow'
 import { verifyWalletSignature } from '@server/lib/wallet-signature'
 import { bytesToUuid, uuidToBytes } from '@server/chains/ids'
@@ -72,16 +73,10 @@ export interface EvmAdapterArgs {
   deps: EvmAdapterDeps
 }
 
-const EVM_STATUS: ReadonlyArray<EscrowState['status']> = [
-  'open',
-  'accepted',
-  'submitted',
-  'completed',
-  'cancelled',
-  'refunded',
-  'disputed',
-  'resolved',
-]
+// On-chain status enum → wire status, indexed by the contract's uint8. Sourced
+// from the single shared order (guarded against both contracts by
+// check-contract-parity) so a contract enum reorder can't silently mis-decode.
+const EVM_STATUS: ReadonlyArray<EscrowState['status']> = ESCROW_STATUS_ORDER
 
 export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
   const rpc = args.deps.rpc ?? createEvmRpc({ rpc_url: args.rpc_url })

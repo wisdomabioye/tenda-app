@@ -13,9 +13,15 @@
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
     "clean": "turbo run clean && rm -rf node_modules",
-    "sync:idl": "node scripts/sync-idl.mjs"
+    "sync:idl": "node scripts/sync-idl.mjs",
+    "sync:abi": "node scripts/sync-abi.mjs",
+    "check:program-id": "node scripts/check-program-id.mjs",
+    "test:scripts": "node --test \"scripts/**/*.test.mjs\"",
+    "test:scripts:coverage": "node --test --experimental-test-coverage \"scripts/**/*.test.mjs\"",
+    "prepare": "lefthook install || true"
   },
   "devDependencies": {
+    "lefthook": "^2.1.9",
     "turbo": "^2.7.5"
   },
   "packageManager": "pnpm@10.22.0",

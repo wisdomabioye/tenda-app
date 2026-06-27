@@ -3,6 +3,10 @@
   "compilerOptions": {
     "noEmit": true,
     "rootDir": "..",
+    // baseUrl is required for `paths` to resolve relative to apps/server/ (not
+    // this test/ dir). Without it, "@server/*" -> "./src/*" resolved to
+    // test/src/* and every @server import failed under `tsc -p test/tsconfig`.
+    "baseUrl": "..",
     "paths": {
       "@server/*": ["./src/*"]
     }

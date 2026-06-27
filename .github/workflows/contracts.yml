@@ -1,0 +1,107 @@
+# Contract drift control. The shared ABI/IDL (packages/shared/src/{abi,idl})
+# are GENERATED from the in-repo contracts; this workflow rebuilds them from
+# source and fails if the committed artifact differs — so a contract change can
+# never merge with a stale ABI/IDL, with no human needing to run a sync script.
+#
+# Path-filtered so it only runs when contracts, the generated artifacts, or the
+# sync machinery change (the main ci.yml pipeline stays fast on app-only PRs).
+#
+# Reproducibility: the ABI is solc output (solc_version pinned in
+# contracts/evm/foundry.toml) and the IDL is anchor output (anchor 0.32.1
+# pinned via avm) — both deterministic from source, so the diff gate reflects
+# real drift, not toolchain version noise.
+
+name: contracts
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - 'packages/shared/src/abi/**'
+      - 'packages/shared/src/idl/**'
+      - 'scripts/**'
+      - '.github/workflows/contracts.yml'
+
+jobs:
+  # Unit tests for the drift machinery itself (pure, no contract toolchain).
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --test "scripts/**/*.test.mjs"
+      # Semantic parity (enum order + protocol limits) across both contracts and
+      # the shared TS constants — catches the drift the ABI/IDL guard can't see.
+      - run: node scripts/check-contract-parity.mjs
+
+  evm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        # `version: stable` tracks latest stable forge; the ABI is solc-pinned so
+        # the drift gate is unaffected by the forge version (only `fmt` tracks it).
+        with:
+          version: stable
+      - name: Format check
+        working-directory: contracts/evm
+        run: forge fmt --check
+      - name: Build
+        working-directory: contracts/evm
+        run: forge build --sizes
+      - name: Test
+        working-directory: contracts/evm
+        run: forge test -vvv
+      - name: Regenerate shared ABI from source
+        run: node scripts/sync-abi.mjs --no-build
+      - name: Fail on ABI drift
+        run: |
+          git diff --exit-code -- packages/shared/src/abi/tenda_escrow_evm.json \
+            || { echo "::error::shared ABI is stale — run \`pnpm sync:abi\` after changing the contract"; exit 1; }
+
+  solana:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        # `stable` builds avm/anchor-cli; `anchor build` then self-selects the
+        # pinned toolchain via contracts/solana/rust-toolchain.toml.
+        with:
+          toolchain: stable
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+      - name: Install Anchor 0.32.1 (avm)
+        run: |
+          cargo install --git https://github.com/coral-xyz/anchor avm --force
+          avm install 0.32.1
+          avm use 0.32.1
+      - run: pnpm install --frozen-lockfile
+      - name: Build program (rust toolchain pinned by contracts/solana/rust-toolchain.toml)
+        working-directory: contracts/solana
+        run: anchor build
+      - name: Test (litesvm)
+        run: pnpm --filter @tenda/contracts-solana test
+      - name: Regenerate shared IDL from source
+        run: node scripts/sync-idl.mjs --no-build
+      - name: Program id consistency (declare_id == Anchor.toml == IDL)
+        run: node scripts/check-program-id.mjs
+      - name: Fail on IDL drift
+        run: |
+          git diff --exit-code -- packages/shared/src/idl/tenda_escrow.json packages/shared/src/idl/tenda_escrow.ts \
+            || { echo "::error::shared IDL is stale — run \`pnpm sync:idl\` after changing the program"; exit 1; }

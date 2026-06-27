@@ -1,0 +1,22 @@
+# Anti-drift (local, fast-feedback half of the guarantee — CI's `contracts`
+# workflow is the hard backstop). When contract SOURCE changes, regenerate the
+# shared ABI/IDL and stage it, so a contract edit can never be committed with a
+# stale generated artifact. Globs are scoped to the source that actually drives
+# each artifact (the ABI tracks src/*.sol; the IDL tracks programs/**/*.rs).
+pre-commit:
+  parallel: false
+  commands:
+    evm-abi:
+      glob: "contracts/evm/src/**/*.sol"
+      run: forge build --root contracts/evm && node scripts/sync-abi.mjs --no-build && git add packages/shared/src/abi/tenda_escrow_evm.json
+    solana-idl:
+      glob: "contracts/solana/programs/**/*.rs"
+      run: (cd contracts/solana && anchor build) && node scripts/sync-idl.mjs --no-build && node scripts/check-program-id.mjs && git add packages/shared/src/idl/tenda_escrow.json packages/shared/src/idl/tenda_escrow.ts
+    # Semantic parity (enum order + limits) — runs on any change to the contract
+    # source or the shared constants that mirror it (parse-only, fast).
+    contract-parity:
+      glob:
+        - "contracts/evm/src/**/*.sol"
+        - "contracts/solana/programs/**/*.rs"
+        - "packages/shared/src/constants/escrow.ts"
+      run: node scripts/check-contract-parity.mjs

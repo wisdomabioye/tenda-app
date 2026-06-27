@@ -1,0 +1,31 @@
+{
+  "name": "@tenda/contracts-solana",
+  "version": "0.0.1",
+  "private": true,
+  "description": "TendaEscrow Anchor program — source of truth for the shared IDL (packages/shared/src/idl).",
+  "license": "ISC",
+  "scripts": {
+    "compile": "anchor build",
+    "test": "ts-mocha -p ./tsconfig.json -t 120000 \"tests/**/*.test.ts\"",
+    "sync": "node ../../scripts/sync-idl.mjs",
+    "lint:fix": "prettier --write \"**/*.ts\"",
+    "lint": "prettier --check \"**/*.ts\""
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.32.1"
+  },
+  "devDependencies": {
+    "@solana/spl-token": "0.4.14",
+    "@types/bn.js": "^5.1.0",
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^25.9.1",
+    "anchor-litesvm": "0.2.1",
+    "chai": "^4.3.4",
+    "litesvm": "0.3.3",
+    "mocha": "^11.7.6",
+    "prettier": "^3.8.5",
+    "ts-mocha": "^11.1.0",
+    "typescript": "^5.7.3"
+  }
+}

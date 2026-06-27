@@ -40,3 +40,52 @@ export const DEFAULT_ACCEPT_WINDOW_SECONDS = 7 * 24 * 60 * 60
  * instead of overflowing the column at insert time (a postgres 500).
  */
 export const AMOUNT_RAW_PRECISION = 78
+
+/**
+ * Canonical escrow lifecycle status order. The INDEX is the on-chain `uint8`
+ * wire value on every chain — the EVM `Status` enum and the Anchor
+ * `EscrowStatus` enum both number their variants in exactly this order. This
+ * is the single app-side source the server decodes EVM receipts against; the
+ * `check-contract-parity` guard asserts it equals both contracts' enums, so a
+ * contract reorder (invisible to the ABI, which renders enums as bare `uint8`)
+ * fails CI instead of silently mis-decoding.
+ */
+export const ESCROW_STATUS_ORDER = [
+  'open',
+  'accepted',
+  'submitted',
+  'completed',
+  'cancelled',
+  'refunded',
+  'disputed',
+  'resolved',
+] as const
+
+export type EscrowStatusName = (typeof ESCROW_STATUS_ORDER)[number]
+
+/** Escrow kind → on-chain `uint8` (EVM `KIND_*`, Anchor `EscrowKind`). */
+export const ESCROW_KIND_CODE = { gig: 0, exchange: 1 } as const
+
+export type EscrowKindName = keyof typeof ESCROW_KIND_CODE
+
+/** Dispute winner → on-chain `uint8` (EVM `WINNER_*`, Anchor `DisputeWinner`). */
+export const DISPUTE_WINNER_CODE = { creator: 0, counterparty: 1, split: 2 } as const
+
+export type DisputeWinnerName = keyof typeof DISPUTE_WINNER_CODE
+
+/**
+ * Protocol limits enforced ON-CHAIN by both contracts (EVM `TendaEscrow.sol`
+ * constants + Anchor `constants.rs`). Single app-side source so off-chain
+ * validation (e.g. the admin platform-config caps) can never be looser than
+ * what the chain accepts — an over-limit value the contract would revert must
+ * fail server-side first. The `check-contract-parity` guard asserts these
+ * equal both contracts. Durations are in seconds.
+ */
+export const ESCROW_LIMITS = {
+  maxPlatformFeeBps: 1000,
+  minApprovalWindowSeconds: 3600,
+  maxApprovalWindowSeconds: 30 * 24 * 60 * 60,
+  maxGracePeriodSeconds: 14 * 24 * 60 * 60,
+  minCompletionDurationSeconds: 3600,
+  maxCompletionDurationSeconds: 180 * 24 * 60 * 60,
+} as const
