@@ -12,6 +12,7 @@
 #   3. tsc --noEmit     → server + shared + admin + mobile
 #   4. lint             → server + admin (eslint) + mobile (expo lint)
 #   5. mobile tests     → jest-expo coverage WIRED once the harness lands (#101)
+#   6. docker image     → build-only assembly check of apps/server/Dockerfile
 #
 # Redis is NOT a test dependency: the harness deletes REDIS_URL and the queue
 # stays a 501 stub. devnet/E2E (Maestro/Playwright) remain nightly/pre-release.
@@ -161,3 +162,31 @@ jobs:
       - uses: actions/checkout@v4
       # Reporting mode (exit 0) until the Stage-0 cutover; flip to --post after #34.
       - run: node scripts/cutover-verify.mjs
+
+  # The server Dockerfile is outside every other test perimeter — nothing else
+  # compiles it, so a workspace rename, dist-layout change, or instrument.js
+  # move would only surface at deploy time. Build-only: no registry, no push,
+  # no secrets. The migrate target shares the build stage, so it is nearly
+  # free once the runtime build is cached.
+  docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build runtime image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          target: runtime
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Build migrate image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/server/Dockerfile
+          target: migrate
+          push: false
+          cache-from: type=gha
