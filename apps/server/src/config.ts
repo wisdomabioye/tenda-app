@@ -1,7 +1,9 @@
 // Chain endpoints/keys (RPC, program id, treasury, escrow, webhooks…) are NOT
 // here — they are per-chain flat env vars loaded + validated by
 // `chains/secrets.ts` (CHAIN_<ID>_*), keyed off the shared CHAIN_MANIFEST.
-const REQUIRED_ENV_VARS = [
+// Exported for the .env.example parity test — every boot-required var must
+// stay documented in the example file.
+export const REQUIRED_ENV_VARS = [
   'DATABASE_URL',
   'JWT_SECRET',
   'CLOUDINARY_CLOUD_NAME',

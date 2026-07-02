@@ -36,6 +36,10 @@ import { drizzleExpireEscrowsStore, handleExpireEscrows } from '@server/jobs/exp
 import { drizzleReconcileStore, reconcileEscrowsHandler } from '@server/jobs/reconcile-escrows'
 import { reconcileFiatIntentsHandler } from '@server/jobs/reconcile-fiat-intents'
 import { expireFiatQuotesHandler } from '@server/jobs/expire-fiat-quotes'
+import {
+  drizzlePriceStatsStore,
+  updatePriceStatsHandler,
+} from '@server/features/moderation/jobs/update-price-stats'
 import type { JobName, JobPayload } from '@server/plugins/queue'
 import type { InternalEscrowEvent } from '@server/lib/escrow-events'
 
@@ -290,6 +294,9 @@ export function buildProcessors(
     'reconcile-fiat': async () => reconcileFiatIntentsHandler(await buildFiatDeps(fastify)),
 
     'expire-fiat-quotes': async () => expireFiatQuotesHandler(await buildFiatDeps(fastify)),
+
+    'update-price-stats': () =>
+      updatePriceStatsHandler({ store: drizzlePriceStatsStore(fastify.db), log: fastify.log }),
 
     notifications: (payload) => deliverNotification(fastify, pushServices, payload),
 

@@ -3,8 +3,8 @@
 Status at time of writing: **contract code-complete, never deployed.** `forge build`
 + `forge test` are green (31/31), `forge` 1.7.1 is installed, `lib/` deps present.
 No `broadcast/` artifacts exist — nothing is on-chain on any network. The server
-adapter is written but dormant (all `BASE_*` / `CELO_*` env keys are unset, so
-`chains/index.ts` registers Solana only).
+adapter is written but dormant (no `CHAIN_EIP155_*` env vars are set, so the
+secrets loader (`apps/server/src/chains/secrets.ts`) activates Solana only).
 
 This runbook covers BASE (eip155:8453). CELO (eip155:42220) is identical — swap the
 `BASE_` prefixes for `CELO_` and the chain-specific addresses.
@@ -18,10 +18,10 @@ until they are:
 
 | Item | Produces | Needed for |
 |---|---|---|
-| **Safe 3-of-5 multisig on BASE** | `MULTISIG_BASE_ADDR` | `TENDA_ADMIN` + `TENDA_TREASURY` |
+| **Safe 3-of-5 multisig on BASE** | the Safe address | `TENDA_ADMIN` + `TENDA_TREASURY` (constructor) and `CHAIN_EIP155_8453_TREASURY_ADDR` (server) |
 | **Dispute-authority key** (ops key at launch, can migrate to its own Safe) | `TENDA_DISPUTE_ADMIN` | constructor |
-| **Alchemy account** (BASE app) | `BASE_RPC_URL`, `ALCHEMY_WEBHOOK_SECRET` | server adapter + event ingest |
-| **Coinbase paymaster** (BASE) | `COINBASE_PAYMASTER_URL` | gasless UserOps (mobile #46) |
+| **Alchemy account** (BASE app) | `CHAIN_EIP155_8453_RPC_URL`, `CHAIN_EIP155_8453_WEBHOOK_SECRET` | server adapter + event ingest |
+| **Coinbase paymaster** (BASE) | `CHAIN_EIP155_8453_PAYMASTER_URL` | gasless UserOps (mobile #46) |
 | **Solidity audit** | sign-off | mainnet only |
 | **Deployer EOA** funded with ETH on BASE | `DEPLOYER_KEY` | broadcasting the deploy tx |
 | **Basescan API key** | `--etherscan-api-key` | source verification |
@@ -31,10 +31,10 @@ until they are:
 
 ---
 
-## 1. Pre-flight (in `tenda-escrow-evm/`)
+## 1. Pre-flight (in `contracts/evm/`)
 
 ```bash
-cd /home/abioye/tenda/tenda-escrow-evm
+cd contracts/evm
 forge build          # must compile (solc 0.8.35, via_ir)
 forge test           # must be 31/31 green
 forge fmt --check     # style gate
@@ -96,7 +96,8 @@ forge script script/Deploy.s.sol:Deploy \
   --private-key "$DEPLOYER_KEY"
 ```
 
-The script logs `TendaEscrow deployed: 0x...` — **that address is `BASE_ESCROW_ADDR`.**
+The script logs `TendaEscrow deployed: 0x...` — **that address is
+`CHAIN_EIP155_8453_ESCROW_ADDR`.**
 Foundry also writes `broadcast/Deploy.s.sol/8453/run-latest.json` (commit-worthy
 deployment record) and the verified source on Basescan.
 
@@ -119,29 +120,33 @@ cast call $BASE_ESCROW_ADDR "feeBps()(uint16)"        --rpc-url $BASE_RPC_URL  #
 
 ## 5. Wire the server (`apps/server/.env`)
 
-Add — **all of these, or the chain stays unregistered.** The adapter gate is
-`config.BASE_RPC_URL !== null && config.BASE_ESCROW_ADDR !== null`
-(`apps/server/src/chains/index.ts:79`); the seed needs the escrow **and** multisig
-addresses together (`seed-v2.ts:112` warns on half-config):
+Chain secrets are flat env vars keyed by CAIP-2 id — `CHAIN_<SANITISED_ID>_<FIELD>`,
+loaded and validated by `apps/server/src/chains/secrets.ts`. Activation rule:
+**none set → chain inactive (silently skipped); all three required set → active;
+some-but-not-all, or any malformed value → boot error naming the exact key.**
+At most one chain per family may be active (BASE mainnet XOR Base Sepolia).
 
 ```dotenv
-BASE_RPC_URL=https://base-mainnet.g.alchemy.com/v2/<key>
-BASE_ESCROW_ADDR=0x...            # from step 3 deploy output
-BASE_USDC_ADDR=0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
-MULTISIG_BASE_ADDR=0x...          # the Safe (treasury_address in the chain row)
-COINBASE_PAYMASTER_URL=https://...
-ALCHEMY_WEBHOOK_SECRET=...        # HMAC signing key from the Alchemy webhook
+# required (all three, or partial-config boot error)
+CHAIN_EIP155_8453_RPC_URL=https://base-mainnet.g.alchemy.com/v2/<key>
+CHAIN_EIP155_8453_ESCROW_ADDR=0x...     # from step 3 deploy output
+CHAIN_EIP155_8453_TREASURY_ADDR=0x...   # the Safe (treasury_address in the chain row)
+# optional
+CHAIN_EIP155_8453_PAYMASTER_URL=https://...   # unset = no gasless UserOps (users pay gas)
+CHAIN_EIP155_8453_WEBHOOK_SECRET=...          # HMAC signing key from the Alchemy webhook
 ```
+
+USDC is **not** an env var — the token address is a manifest constant
+(`packages/shared/src/chains/manifest.ts`, `USDC_BASE`), seeded from there.
 
 Then seed the chain + asset registry rows (USDC_BASE + ETH_BASE):
 
 ```bash
 cd apps/server
-pnpm db:seed-v2        # idempotent; inserts eip155:8453 chain row + assets
+pnpm db:seed           # idempotent (src/db/seed-v2.ts); inserts eip155:8453 chain row + assets
 ```
 
-Restart the server. On boot the registry now mounts the BASE adapter; without the
-keys it silently registers Solana only (no crash).
+Restart the server. On boot the registry now mounts the BASE adapter.
 
 ---
 
@@ -153,9 +158,10 @@ Create an Alchemy **Custom Webhook** (or Address Activity) on the BASE app point
 POST https://<server-host>/v1/webhooks/alchemy
 ```
 
-- Watch address: `BASE_ESCROW_ADDR`.
-- The signing key Alchemy generates is `ALCHEMY_WEBHOOK_SECRET`; the route verifies
-  the HMAC (`src/core/webhooks/verify-hmac.ts`) and drops unsigned/mismatched calls.
+- Watch address: the deployed escrow (`CHAIN_EIP155_8453_ESCROW_ADDR`).
+- The signing key Alchemy generates is `CHAIN_EIP155_8453_WEBHOOK_SECRET`; the route
+  verifies the HMAC (`src/core/webhooks/verify-hmac.ts`) and drops unsigned/mismatched
+  calls.
 - This is the push path that confirms on-chain escrow events; the client-ping
   (`POST /v1/blockchain/transaction`) + BullMQ verify-tx job is the pull fallback.
 
@@ -175,17 +181,18 @@ POST https://<server-host>/v1/webhooks/alchemy
 
 ## 8. CELO (eip155:42220) — deltas only
 
-Same flow, with: `CELO_RPC_URL`, `CELO_ESCROW_ADDR`, `MULTISIG_CELO_ADDR`. CELO uses
-`feeCurrency=cUSD` on every tx (no paymaster, no UserOp counter — token addresses are
-canonical mainnet constants in `apps/server/src/chains/celo/config.ts`). Confirmation
-margin is shorter. No `COINBASE_PAYMASTER_URL` / Alchemy paymaster needed.
+Same flow, with: `CHAIN_EIP155_42220_RPC_URL`, `CHAIN_EIP155_42220_ESCROW_ADDR`,
+`CHAIN_EIP155_42220_TREASURY_ADDR`. CELO uses `feeCurrency=cUSD` on every tx (no
+paymaster, no UserOp counter — token addresses are canonical mainnet constants in
+the shared `CHAIN_MANIFEST`). Confirmation margin is shorter. No
+`CHAIN_EIP155_42220_PAYMASTER_URL` needed.
 
 ---
 
 ## Rollback / kill-switch
 
-There is no contract-level pause. To take EVM offline operationally, unset
-`BASE_RPC_URL` / `BASE_ESCROW_ADDR` and restart the server — the adapter stops
-registering and `eip155:8453` requests fail closed with
+There is no contract-level pause. To take EVM offline operationally, unset **all**
+`CHAIN_EIP155_8453_*` vars (a partial unset is a boot error) and restart the server —
+the adapter stops registering and `eip155:8453` requests fail closed with
 `no adapter registered for chain_id 'eip155:8453'`. Funds already in escrows remain
 claimable directly on-chain via the Safe.

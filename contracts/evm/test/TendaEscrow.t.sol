@@ -654,6 +654,149 @@ contract TendaEscrowTest is Test {
         new TendaEscrow(admin, disputeAdmin, treasury, FEE_BPS, SEEKER_FEE_BPS, 0, GRACE);
     }
 
+    function test_admin_setters_successPaths_updateStateAndEmit() public {
+        vm.startPrank(admin);
+
+        vm.expectEmit(true, false, false, true);
+        emit TendaEscrow.PlatformConfigChanged("fee_bps", admin);
+        escrow.setFeeBps(300, 50);
+        assertEq(escrow.feeBps(), 300);
+        assertEq(escrow.seekerFeeBps(), 50);
+
+        vm.expectEmit(true, false, false, true);
+        emit TendaEscrow.PlatformConfigChanged("approval_window_seconds", admin);
+        escrow.setApprovalWindow(24 hours);
+        assertEq(escrow.approvalWindowSeconds(), 24 hours);
+
+        vm.expectEmit(true, false, false, true);
+        emit TendaEscrow.PlatformConfigChanged("grace_period_seconds", admin);
+        escrow.setGracePeriod(2 hours);
+        assertEq(escrow.gracePeriodSeconds(), 2 hours);
+
+        vm.stopPrank();
+    }
+
+    function test_admin_setters_zeroAddress_and_fullGating() public {
+        vm.startPrank(admin);
+        vm.expectRevert(TendaEscrow.ZeroAddress.selector);
+        escrow.setTreasury(address(0));
+        vm.expectRevert(TendaEscrow.ZeroAddress.selector);
+        escrow.setProtocolAdmin(address(0));
+        vm.stopPrank();
+
+        // EVERY setter is admin-gated, not just the ones the rotation test hits.
+        vm.startPrank(outsider);
+        vm.expectRevert(TendaEscrow.NotAdmin.selector);
+        escrow.setFeeBps(300, 50);
+        vm.expectRevert(TendaEscrow.NotAdmin.selector);
+        escrow.setApprovalWindow(24 hours);
+        vm.expectRevert(TendaEscrow.NotAdmin.selector);
+        escrow.setGracePeriod(2 hours);
+        vm.expectRevert(TendaEscrow.NotAdmin.selector);
+        escrow.setProtocolAdmin(outsider);
+        vm.expectRevert(TendaEscrow.NotAdmin.selector);
+        escrow.setDisputeAdmin(outsider);
+        vm.stopPrank();
+    }
+
+    function test_wrongStatus_guards_everyTransition() public {
+        bytes16 id = newId();
+        acceptedNative(id); // Accepted
+
+        vm.prank(outsider);
+        vm.expectRevert(TendaEscrow.InvalidEscrowStatus.selector);
+        escrow.acceptEscrow(id); // not Open
+        vm.prank(outsider);
+        vm.expectRevert(TendaEscrow.InvalidEscrowStatus.selector);
+        escrow.declineAssignedEscrow(id); // not Open
+        vm.prank(worker);
+        vm.expectRevert(TendaEscrow.InvalidEscrowStatus.selector);
+        escrow.claimStalledPayment(id); // not Submitted
+        vm.prank(creator);
+        vm.expectRevert(TendaEscrow.InvalidEscrowStatus.selector);
+        escrow.refundExpired(id); // not Open
+
+        bytes16 id2 = newId();
+        createNative(id2); // Open
+        vm.prank(worker);
+        vm.expectRevert(TendaEscrow.InvalidEscrowStatus.selector);
+        escrow.submitProof(id2, PROOF); // not Accepted
+    }
+
+    function test_refund_and_reclaim_notCreator_reverts() public {
+        bytes16 id = newId();
+        createNative(id);
+        vm.warp(block.timestamp + ACCEPT_WINDOW + 1);
+        vm.prank(outsider);
+        vm.expectRevert(TendaEscrow.NotCreator.selector);
+        escrow.refundExpired(id);
+
+        bytes16 id2 = newId();
+        acceptedNative(id2);
+        vm.warp(block.timestamp + DURATION + GRACE + 1);
+        vm.prank(worker); // the counterparty may NOT reclaim, only the creator
+        vm.expectRevert(TendaEscrow.NotCreator.selector);
+        escrow.reclaimAbandoned(id2);
+    }
+
+    function test_dispute_erc20_rejectsNativeValue() public {
+        bytes16 id = newId();
+        createUsdc(id, 100e6);
+        vm.prank(worker);
+        escrow.acceptEscrow(id);
+
+        vm.prank(creator);
+        vm.expectRevert(TendaEscrow.BadNativeValue.selector);
+        escrow.disputeEscrow{value: 1}(id); // ERC-20 escrow must not carry value
+    }
+
+    function test_resolve_split_oneWeiEscrow_zeroHalfShortCircuits() public {
+        // Dust boundary: amount 1 → half = 0. The creator leg must hit
+        // _payout's amount==0 short-circuit (no revert, no send), the
+        // counterparty gets the full wei, and the raiser gets the bond back.
+        bytes16 id = newId();
+        vm.prank(creator);
+        escrow.createEscrow{value: 1}(
+            id, 0, address(0), 1, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+        );
+        vm.prank(worker);
+        escrow.acceptEscrow(id);
+        vm.prank(worker);
+        escrow.disputeEscrow{value: BOND}(id);
+
+        uint256 creatorBefore = creator.balance;
+        uint256 workerBefore = worker.balance;
+        vm.prank(disputeAdmin);
+        escrow.resolveDispute(id, 2); // split
+
+        assertEq(creator.balance, creatorBefore); // half == 0 → nothing sent
+        assertEq(worker.balance - workerBefore, 1 + BOND); // full wei + bond refund
+        assertEq(address(escrow).balance, 0);
+    }
+
+    function test_dispute_zeroBond_resolves_zeroBondPayoutShortCircuits() public {
+        // createUsdc sets disputeBond = 0: dispute pulls nothing, and the
+        // resolve-time bond refund exercises _payout's amount==0 short-circuit.
+        bytes16 id = newId();
+        createUsdc(id, 100e6);
+        vm.prank(worker);
+        escrow.acceptEscrow(id);
+        vm.prank(worker);
+        escrow.disputeEscrow(id);
+        assertEq(uint8(status(id)), 6); // Disputed
+
+        uint256 workerBefore = usdc.balanceOf(worker);
+        uint256 treasuryBefore = usdc.balanceOf(treasury);
+        vm.prank(disputeAdmin);
+        escrow.resolveDispute(id, 1); // counterparty wins: payout - fee, bond refund of 0
+
+        uint256 amount = 100e6;
+        uint256 expectedFee = (amount * FEE_BPS) / 10_000;
+        assertEq(usdc.balanceOf(treasury) - treasuryBefore, expectedFee);
+        assertEq(usdc.balanceOf(worker) - workerBefore, amount - expectedFee);
+        assertEq(usdc.balanceOf(address(escrow)), 0); // vault drained, nothing stuck
+    }
+
     // ---------------------------------------------------------------------
     // reentrancy
     // ---------------------------------------------------------------------

@@ -1,8 +1,17 @@
+// Sentry bootstrap — must load before every other module (server.ts imports
+// this file first). dotenv loads here too, BEFORE server.ts's own
+// `import 'dotenv/config'`, so SENTRY_DSN can live in .env like every other
+// secret rather than being hardcoded into a source file.
+require("dotenv/config");
 const Sentry = require("@sentry/node");
-// Ensure to call this before requiring any other modules!
-Sentry.init({
-  dsn: "https://c0f414d35ac9c437ad28a841df2b0a53@o4509884634300416.ingest.de.sentry.io/4510994023907408",
-  // Adds request headers and IP for users, for more info visit:
-  // https://docs.sentry.io/platforms/javascript/guides/node/configuration/options/#sendDefaultPii
-  sendDefaultPii: true,
-});
+
+// No DSN = Sentry disabled (dev, forks, CI). Sentry.setupFastifyErrorHandler
+// stays safe to call either way — capture is a no-op without a client.
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    // Adds request headers and IP for users, for more info visit:
+    // https://docs.sentry.io/platforms/javascript/guides/node/configuration/options/#sendDefaultPii
+    sendDefaultPii: true,
+  });
+}

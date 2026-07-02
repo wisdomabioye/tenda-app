@@ -35,6 +35,7 @@ const WORKER_CONCURRENCY: Record<JobName, number> = {
   reconcile: 1,
   'reconcile-fiat': 1,
   'expire-fiat-quotes': 1,
+  'update-price-stats': 1,
 }
 
 interface RepeatableSpec<N extends JobName> {
@@ -47,11 +48,18 @@ function repeatable<N extends JobName>(spec: RepeatableSpec<N>): RepeatableSpec<
   return spec
 }
 
-const REPEATABLES = [
+/**
+ * The complete periodic schedule — exported so tests can assert that every
+ * repeatable handler is actually registered here (the price-stats rollup
+ * shipped tested-but-unscheduled once; the schedule test pins against that).
+ */
+export const REPEATABLES = [
   repeatable({ name: 'expire-escrows', every_ms: 60_000, payload: { tick_id: 'cron' } }),
   repeatable({ name: 'reconcile', every_ms: 5 * 60_000, payload: {} }),
   repeatable({ name: 'reconcile-fiat', every_ms: 5 * 60_000, payload: { tick_id: 'cron' } }),
   repeatable({ name: 'expire-fiat-quotes', every_ms: 60_000, payload: { tick_id: 'cron' } }),
+  // Nightly rollup (stage-6): grounds the moderation price-sanity prompts.
+  repeatable({ name: 'update-price-stats', every_ms: 24 * 3_600_000, payload: { tick_id: 'cron' } }),
 ] as const
 
 const workersPlugin: FastifyPluginAsync = async (fastify) => {

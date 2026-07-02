@@ -2,8 +2,8 @@
  * Nightly category_price_stats rollup (stage-6-moderation.md): percentile
  * RAW amounts from completed gig escrows per (category, country, asset).
  * Grounds the price-sanity prompts; minSampleSize keeps thin groups from
- * gating anyone. Scheduling lands with the worker wiring (#33) — the
- * handler is complete and tested now (same pattern as every other job).
+ * gating anyone. Scheduled as the nightly 'update-price-stats' repeatable
+ * (plugins/workers.ts REPEATABLES; processor wired in workers/processors.ts).
  */
 
 import { and, eq, sql } from 'drizzle-orm'

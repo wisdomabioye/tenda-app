@@ -13,9 +13,11 @@
  */
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
+import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { device_tokens, gig_subscriptions } from '@tenda/shared/db/schema'
+import { category_price_stats } from '@tenda/shared/db/schema/moderation'
 import { buildVerifyTxDeps, buildProcessors, removeTokens } from '@server/workers/processors'
 import type { DevicePlatform } from '@server/lib/push-services'
 import type { PushService } from '@server/chains/types'
@@ -338,6 +340,10 @@ test('buildVerifyTxDeps wires the live chains registry + a republish fn', { skip
 test('buildProcessors exposes a handler fn for every job name', { skip }, async () => {
   const app = getApp()
   const procs = buildProcessors(app)
+  // NB: this list once drifted (send-otp and update-price-stats were missing
+  // while they existed as JobNames) — keep it the FULL JobName set; the
+  // compiler enforces buildProcessors covers JobName, this asserts the
+  // handlers are real functions at runtime.
   const names: JobName[] = [
     'verify-tx',
     'expire-escrows',
@@ -345,6 +351,8 @@ test('buildProcessors exposes a handler fn for every job name', { skip }, async 
     'reconcile-fiat',
     'expire-fiat-quotes',
     'notifications',
+    'send-otp',
+    'update-price-stats',
   ]
   for (const n of names) assert.strictEqual(typeof procs[n], 'function', `${n} must be a function`)
 })
@@ -356,4 +364,63 @@ test('the expire-escrows + reconcile processors run their handlers (no-op on an 
   await procs['expire-escrows']({ tick_id: 'tick-1' })
   await procs['reconcile']({})
   assert.strictEqual(cap.enqueued.length, 0)
+})
+
+// ---------- update-price-stats processor ----------------------------------------
+
+test('update-price-stats rolls completed gigs into category_price_stats percentiles', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  // Unique category per run — the rollup scans the whole DB and the harness
+  // does not truncate between tests; filtering by category isolates this test.
+  const category = `svc-${randomUUID().slice(0, 8)}`
+  for (const amount_raw of ['100', '300', '200']) {
+    const e = await createEscrow(app, {
+      creator_id: creator.row.id,
+      kind: 'gig',
+      status: 'completed',
+      amount_raw,
+    })
+    await attachGigDetails(app, e.id, { category, country: 'NG' })
+  }
+
+  await buildProcessors(app)['update-price-stats']({ tick_id: 'tick-ps' })
+
+  const rows = await app.db
+    .select()
+    .from(category_price_stats)
+    .where(eq(category_price_stats.category, category))
+  assert.strictEqual(rows.length, 1)
+  assert.strictEqual(rows[0].sample_size, 3)
+  assert.strictEqual(rows[0].p10_amount_raw, '100')
+  assert.strictEqual(rows[0].p50_amount_raw, '200')
+  assert.strictEqual(rows[0].p90_amount_raw, '300')
+})
+
+test('update-price-stats ignores non-completed gigs and exchange escrows', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const category = `svc-${randomUUID().slice(0, 8)}`
+  const open = await createEscrow(app, {
+    creator_id: creator.row.id,
+    kind: 'gig',
+    status: 'open',
+    amount_raw: '999',
+  })
+  await attachGigDetails(app, open.id, { category, country: 'NG' })
+  // Exchange escrows carry no gig_details — excluded by the join even when completed.
+  await createEscrow(app, {
+    creator_id: creator.row.id,
+    kind: 'exchange',
+    status: 'completed',
+    amount_raw: '5',
+  })
+
+  await buildProcessors(app)['update-price-stats']({ tick_id: 'tick-ps-neg' })
+
+  const rows = await app.db
+    .select()
+    .from(category_price_stats)
+    .where(eq(category_price_stats.category, category))
+  assert.strictEqual(rows.length, 0)
 })

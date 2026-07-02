@@ -1,8 +1,11 @@
 /**
  * Squads multisig helpers for the Solana `protocol_admin` 3-of-5 (locked
- * decision #5). Stage 0 ships the **typed surface only** — concrete bodies
- * land alongside the Anchor program rewrite (#29), since the on-chain admin
- * instructions they wrap don't exist yet.
+ * decision #5). This is still the **typed surface only**: the on-chain admin
+ * instructions it wraps exist (set_fee_bps, set_treasury, … shipped with the
+ * #29 program rewrite), but the Squads-SDK-backed bodies are deferred until
+ * the multisig vault exists (#30 key ceremony) — until then every admin op
+ * is executed directly through Squads' own tooling (app.squads.so / CLI),
+ * and nothing in the server can meaningfully call this module.
  *
  * Scope (what Squads 3-of-5 controls):
  *   - `setFeeBps`, `setSeekerFeeBps`
@@ -16,8 +19,8 @@
  * is rare and deliberate. The functions are async to leave room for the
  * Squads SDK's RPC roundtrips when implementation lands.
  *
- * Reading this file before #29 ships: treat every body as a placeholder that
- * throws `INTERNAL_ERROR`. The types are stable and safe to import.
+ * Reading this file before the vault exists: treat every body as a
+ * placeholder that throws 501. The types are stable and safe to import.
  */
 
 import { AppError } from '@server/lib/errors'
@@ -76,7 +79,7 @@ export interface ProposalStatus {
  *     twice with the same signer is a no-op on-chain (Squads dedupes).
  *
  *   - `executeProposal`: invokes `vault_transaction_execute`. Refuses below
- *     threshold (#29 implementer adds a `MULTISIG_*` ErrorCode family; the
+ *     threshold (the implementer adds a `MULTISIG_*` ErrorCode family; the
  *     escrow state-machine codes don't apply here). Idempotent —
  *     re-executing an already-executed proposal returns the original tx_ref.
  *
@@ -99,10 +102,10 @@ export interface SquadsClientArgs {
 }
 
 /**
- * Returns a `MultisigClient` whose methods throw `INTERNAL_ERROR` until #29
- * ships. The factory itself is safe to call — it returns a typed surface so
- * downstream wiring (admin scripts, DI graphs) can be authored against the
- * interface today.
+ * Returns a `MultisigClient` whose methods throw 501 until the Squads vault
+ * exists (#30) and the SDK-backed implementation lands. The factory itself is
+ * safe to call — it returns a typed surface so downstream wiring (admin
+ * scripts, DI graphs) can be authored against the interface today.
  */
 export function squadsClient(_args: SquadsClientArgs): MultisigClient {
   return {
@@ -125,6 +128,6 @@ function notImplemented(name: string): AppError {
   return new AppError(
     501,
     ErrorCode.INTERNAL_ERROR,
-    `multisig.${name}: not implemented — lands with Anchor program rewrite (#29)`,
+    `multisig.${name}: not implemented — Squads-backed client lands once the multisig vault exists (#30)`,
   )
 }

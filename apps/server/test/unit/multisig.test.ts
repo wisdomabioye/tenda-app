@@ -1,8 +1,8 @@
 /**
- * Stage 0 ships lib/multisig.ts as a typed surface only — bodies land with
- * #29 (Anchor program rewrite). These tests pin the surface so callers can
- * be written against it today, and the stubs fail loud (501) rather than
- * silently no-opping.
+ * lib/multisig.ts is a typed surface only — the Squads-SDK-backed bodies
+ * land once the multisig vault exists (#30 key ceremony). These tests pin
+ * the surface so callers can be written against it today, and the stubs
+ * fail loud (501) rather than silently no-opping.
  */
 
 import { test } from 'node:test'
@@ -73,9 +73,9 @@ test('getProposalStatus: stub throws 501', async () => {
 // ---------- type-surface regression --------------------------------------
 
 test('AdminOp discriminated union covers all 5 protocol-admin ops', () => {
-  // If a variant is added/removed in lib/multisig.ts AND #29 doesn't update
-  // this exhaustive list, this test still passes structurally — but the
-  // explicit list serves as documentation + grep-anchor for review.
+  // If a variant is added/removed in lib/multisig.ts without updating this
+  // exhaustive list, this test still passes structurally — but the explicit
+  // list serves as documentation + grep-anchor for review.
   const ops: ReadonlyArray<AdminOp> = [
     { kind: 'setFeeBps', bps: 250 },
     { kind: 'setSeekerFeeBps', bps: 100 },

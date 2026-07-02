@@ -8,6 +8,7 @@
     "compile": "anchor build",
     "test": "ts-mocha -p ./tsconfig.json -t 120000 \"tests/**/*.test.ts\"",
     "sync": "node ../../scripts/sync-idl.mjs",
+    "type-check": "tsc --noEmit -p tsconfig.json",
     "lint:fix": "prettier --write \"**/*.ts\"",
     "lint": "prettier --check \"**/*.ts\""
   },

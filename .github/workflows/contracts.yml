@@ -97,6 +97,12 @@ jobs:
         run: anchor build
       - name: Test (litesvm)
         run: pnpm --filter @tenda/contracts-solana test
+      # Whole-package tsc (tests, tests-devnet AND migrations/) against the
+      # freshly built target/types — ts-mocha only transpiles what the suites
+      # require, so this is the sole gate that keeps ops scripts like
+      # migrations/deploy.ts in sync with the program's instruction surface.
+      - name: Type-check (incl. migrations/deploy.ts)
+        run: pnpm --filter @tenda/contracts-solana type-check
       - name: Regenerate shared IDL from source
         run: node scripts/sync-idl.mjs --no-build
       - name: Program id consistency (declare_id == Anchor.toml == IDL)

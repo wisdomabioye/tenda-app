@@ -108,7 +108,17 @@ function isValid(kind: SecretKind, value: string): boolean {
   }
 }
 
-/** Every env key the manifest could legitimately read — for typo detection. */
+/**
+ * Every env key the manifest could legitimately read — powers the boot-time
+ * typo guard AND the .env.example parity test (documented CHAIN_* names must
+ * be names the loader actually reads, so the docs can't silently rot).
+ */
+export function knownChainEnvKeys(
+  manifest: readonly ChainManifestEntry[] = CHAIN_MANIFEST,
+): Set<string> {
+  return knownKeys(manifest)
+}
+
 function knownKeys(manifest: readonly ChainManifestEntry[]): Set<string> {
   const keys = new Set<string>()
   for (const entry of manifest) {
