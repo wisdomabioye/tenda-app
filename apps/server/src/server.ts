@@ -3,6 +3,7 @@ import 'dotenv/config'
 import Fastify from 'fastify'
 import {app, options} from './app'
 import { loadConfig } from './config'
+import { migrateOnBoot } from './lib/boot-migrate'
 import * as Sentry from "@sentry/node";
 
 const isDev = process.env.NODE_ENV !== 'production'
@@ -18,6 +19,9 @@ const server = Fastify({
 const startServer = async () => {
   try {
     loadConfig();
+
+    // Opt-in boot-time migration — no-op unless MIGRATE_ON_BOOT=true.
+    await migrateOnBoot(server.log)
 
     // Register Sentry error handler before app routes so it captures all errors
     Sentry.setupFastifyErrorHandler(server)

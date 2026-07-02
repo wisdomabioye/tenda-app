@@ -72,6 +72,10 @@ COPY --from=build --chown=node:node /app/apps/server/dist ./dist
 # dist/server.js imports '../instrument.js' (Sentry bootstrap) — it must sit
 # beside dist/ at the app root or error reporting silently disappears.
 COPY --from=build --chown=node:node /app/apps/server/instrument.js ./instrument.js
+# SQL migrations for the opt-in MIGRATE_ON_BOOT=true path (lib/boot-migrate.ts,
+# advisory-locked, multi-replica safe). Without the flag the runtime image
+# never touches the schema — migrate-then-roll via the migrate target.
+COPY --from=build --chown=node:node /app/apps/server/src/db/migrations ./migrations
 
 USER node
 EXPOSE 3000
