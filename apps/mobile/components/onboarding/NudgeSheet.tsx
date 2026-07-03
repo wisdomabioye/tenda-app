@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router'
+import { useRouter, type Href } from 'expo-router'
 import { spacing } from '@/theme/tokens'
 import { BottomSheet, Text, Button, Spacer } from '@/components/ui'
 import { useOnboardingStore } from '@/stores/onboarding.store'
@@ -9,7 +9,7 @@ interface NudgeSheetProps {
   nudgeKey: NudgeKey
   title: string
   body: string
-  guideRoute: string
+  guideRoute: Href
   onClose: () => void
 }
 
@@ -25,7 +25,7 @@ export function NudgeSheet({ visible, nudgeKey, title, body, guideRoute, onClose
   async function handleShowGuide() {
     await dismissNudge(nudgeKey)
     onClose()
-    router.push(guideRoute as any)
+    router.push(guideRoute)
   }
 
   return (

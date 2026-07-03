@@ -38,6 +38,19 @@ in the abstract. The first is structural and changes Phase 0 materially.
 >   83 / funcs 78 / stmts 75 in `apps/server/.c8rc.json`; **1B (#98) ratchets it
 >   toward 90/85** as gaps close.
 
+> **EXECUTION UPDATE (2026-07-02):** current state of the tracks.
+> - **Server:** 876 tests (873 pass / 3 skipped = live-Redis gated), coverage
+>   **88.7% lines / 85.0% branch / 86.7% funcs**; gates ratcheted to
+>   81/82/80/81. #98 (→ 90) remains open.
+> - **Mobile harness (0c/#101) DONE:** jest-expo + RTL, 240 tests green
+>   (`pnpm --filter tenda-mobile test`); coverage track #102 (→ 90) open.
+> - **Contracts:** EVM 38/38 forge tests at 100% line/branch/func coverage;
+>   Solana 85/85 litesvm with every instruction covered ± (not part of the
+>   four-surface c8 goal, tracked in contracts.yml).
+> - **G1 is resolved** (option A, per-PR postgres service) — the "unresolved"
+>   bullet in *Honest caveats* below predates this and is superseded.
+> - Phase 2 (thin E2E, #104) not started.
+
 ### G1 (CRITICAL) — the coverage gate can't run in CI as the repo stands
 - `.github/workflows/ci.yml` provisions **no postgres**. The server CI job runs
   **only** `tsx --test "test/unit/*.test.ts"` (393 cases). The **18 integration

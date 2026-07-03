@@ -4,19 +4,23 @@
 multichain (Solana + EVM) via a per-wallet **adapter** model; it now backs the
 real login (`app/(auth)/connect-wallet.tsx`) and wallet-link
 (`app/settings/linked-wallets.tsx`) flows, end-to-end to the server-nonce auth
-endpoints. Each transport (MetaMask Connect, Solana MWA, Phantom universal
-links) is isolated behind a uniform `WalletAdapter` interface, so consumers
-never know which protocol an entry speaks. Transports swap per platform without
-touching the consumer surface.
+endpoints. Each transport (Reown/WalletConnect for EVM, Solana MWA, Phantom
+universal links) is isolated behind a uniform `WalletAdapter` interface, so
+consumers never know which protocol an entry speaks. Transports swap per
+platform without touching the consumer surface.
 
-Device-verification status is at the bottom — only the **Android-Solana (MWA)**
-path is device-proven; EVM sign + iOS-Phantom remain **#68-gated**.
+Device-verification status is at the bottom — the **Android-Solana (MWA)**
+path is device-proven; EVM sign + iOS-Phantom device passes are pending
+(tracked as #68 until it was dropped from the task list 2026-07-01; the code
+paths are unit-tested).
 
 ## Architecture
 
-No React context/provider — screens drive the picker directly and the store
-owns the session. The MWA adapter owns its own persisted token (AsyncStorage),
-so escrow-tx signing reads it from the adapter, not the auth store.
+Screens drive the picker directly and the store owns the session; the only
+React provider is the thin `ReownProvider` AppKit requires (#110 — a pure
+connection-signal bridge, no wallet state in React). The MWA adapter owns its
+own persisted token (AsyncStorage), so escrow-tx signing reads it from the
+adapter, not the auth store.
 
 ```
 app/(auth)/connect-wallet.tsx   app/settings/linked-wallets.tsx
@@ -30,8 +34,8 @@ app/(auth)/connect-wallet.tsx   app/settings/linked-wallets.tsx
                               │
         ┌─────────────────────┼─────────────────────┐
         ▼                     ▼                     ▼
-   metamask.ts           solana-mwa.ts          phantom.ts
-  @metamask/connect-evm   Solana MWA (Android)   universal links (iOS)
+  walletconnect.ts       solana-mwa.ts          phantom.ts
+  Reown AppKit (EVM)     Solana MWA (Android)   universal links (iOS)
         │                     │                     │
         └─── adapter.authenticate(buildMessage) ────┘   ← connect + sign nonce
                               │
@@ -39,7 +43,8 @@ app/(auth)/connect-wallet.tsx   app/settings/linked-wallets.tsx
               ▼                               ▼
         wallet/auth.ts                  wallet/dispatch.ts
   nonce → authenticate → POST      escrow UnsignedTx → sign + broadcast
-  /v1/auth/{wallet,link-wallet}    (solana-mwa.signAndSendStored / metamask)
+  /v1/auth/{wallet,link-wallet}    (solana-mwa.signAndSendStored /
+                                    walletconnect.sendEvmTransaction)
 ```
 
 Files under `apps/mobile/wallet/`:
@@ -50,32 +55,32 @@ Files under `apps/mobile/wallet/`:
 | `config.ts` | Single-source `metadata`, env-driven `SOLANA_NETWORK` + `WALLET_CHAINS` (CAIP-2 ids) |
 | `errors.ts` | `WalletError` / `WalletErrorCode` — standalone so pure consumers skip the native barrel |
 | `auth.ts` | `signInWithWallet` / `linkWalletWith` — nonce ↔ server orchestration |
-| `dispatch.ts` | `signSendAndReport` — routes a server-built `UnsignedTx` to the right transport |
+| `dispatch.ts` | `signSendAndReport` — routes a server-built `UnsignedTx` to the right transport (`solana-tx` → MWA, `evm-tx` → WalletConnect; `evm-userop` blocked on #47 paymaster) |
 | `index.ts` | Solana RPC helpers (`getBalance`, `getTransactionStatus`) + convenience re-exports |
+| `balances/` | Pluggable per-namespace balance readers (solana + evm) for the wallet screen — chain facts from `/v1/platform/chains` |
+| `reown/` | AppKit config + EVM network defs (`networks.ts` — RPCs come from the shared `CHAIN_MANIFEST`) |
 | `picker.tsx` | `<WalletPicker>` — controlled BottomSheet listing adapters with installed badge |
 | `wallet-icon.tsx` | Rounded `Image`-based wallet icon |
 | `adapters/types.ts` | `WalletAdapter` interface (connect / sign / **authenticate** / disconnect / restore) |
 | `adapters/registry.ts` | Adapter list + `findAdapter` / `requireAdapter` |
 | `adapters/connect-then-sign.ts` | Shared `authenticate` composer + `isUserRejection` for split connect/sign transports |
 | `adapters/detect.ts` | `canOpenScheme()` wrapper over `Linking.canOpenURL` |
-| `adapters/metamask.ts` | MetaMask Connect EVM client (EIP-1193) |
+| `adapters/walletconnect.ts` | Reown/WalletConnect EVM adapter (AppKit session; `sendEvmTransaction`) |
 | `adapters/mwa-shared.ts` | Shared MWA helpers (auth/retry/error classification) |
 | `adapters/solana-mwa.ts` | Generic Android-Solana entry (MWA routes via OS) + `signAndSendStored` |
 | `adapters/phantom.ts` | iOS Phantom universal-link transport (X25519 + nacl.box) |
 
-## Why this design (and not WalletConnect or Reown AppKit)
+## Transport history (why the EVM path is Reown now)
 
-We tried both first. WC v2 (with our own picker, or via Reown free-tier) is a
-single-namespace transport with significant friction: stuck pairings on retry,
-flaky DNS to `relay.walletconnect.org`, no auto-return after wallet approval,
-hangs in the sign step. Reown's unified multi-namespace session is gated
-behind Pro (~$890/yr) and AppKit pulled in wagmi/viem/react-query without
-solving the friction.
-
-Adapters per wallet sidestep that entirely — each transport plays to its
-strengths (MM Connect's CAIP-25 sessions for EVM, MWA's OS-level chooser for
-Android-Solana, Phantom's encrypted universal links for iOS-Solana). The
-common `WalletAdapter` shape keeps the consumer surface uniform.
+The spike originally used **MetaMask Connect** for EVM and rejected
+WC/Reown (stuck pairings, relay DNS flakiness, Pro-gated multi-namespace).
+MM Connect's `personal_sign` then proved unfixable on RN — the approval sheet
+never rendered (`invokeMethod` timeout, below our layer) — so #110–#112
+swapped the EVM adapter to **Reown AppKit/WalletConnect** behind the same
+`WalletAdapter` interface: a thin provider + pure connection-signal bridge,
+EVM-namespace only (free tier), consumers untouched. Solana stays on MWA
+(Android) + Phantom universal links (iOS) — the adapter model is exactly what
+made this transport swap a two-file change.
 
 ## Chain config (single source)
 
@@ -88,7 +93,8 @@ common `WalletAdapter` shape keeps the consumer surface uniform.
 
 `auth.ts` pins `WALLET_CHAINS[account.namespace]` on every signature — the
 server only verifies against registered chains, so the account's own `chainId`
-is never trusted for auth.
+is never trusted for auth. EVM AppKit networks (`reown/networks.ts`) source
+their RPC URLs from the shared `CHAIN_MANIFEST` (`requireEvmPublicRpcUrl`).
 
 ## Picker layout
 
@@ -96,38 +102,42 @@ Adapters' `isAvailable()` is what determines visibility per platform:
 
 | Platform | Entries shown | Transport |
 |---|---|---|
-| Android | MetaMask, Solana Wallet | MM Connect / MWA (OS picks Phantom/Solflare/etc.) |
-| iOS | MetaMask, Phantom | MM Connect / Phantom universal links |
+| Android | EVM Wallet, Solana Wallet | Reown/WalletConnect / MWA (OS picks Phantom/Solflare/etc.) |
+| iOS | EVM Wallet, Phantom | Reown/WalletConnect / Phantom universal links |
 
 Android collapses all Solana wallets behind one generic **Solana Wallet**
 entry because MWA's `transact()` has no local wallet-targeting API — the OS
 routes to the default Solana wallet (or shows a chooser if none is default).
 On iOS, each Solana wallet exposes its own universal-link protocol, so
-per-wallet entries make sense.
+per-wallet entries make sense. EVM wallets ride WalletConnect's own pairing
+UI, so one **EVM Wallet** entry covers them all.
 
 ## What's installed
 
 | Package | Why |
 |---|---|
-| `@metamask/connect-evm` | MM Connect EVM client (EIP-1193; W2 rewrite — connectWith sign fallback) |
+| `@reown/appkit-react-native` + `@reown/appkit-ethers-react-native` | AppKit EVM session + ethers adapter |
+| `@walletconnect/react-native-compat` | RN environment shims (TextEncoder, URL, …) — imported before any AppKit code |
+| `@walletconnect/utils` | Pairing/session utilities |
 | `@solana-mobile/mobile-wallet-adapter-protocol-web3js` | Android Solana transport |
 | `@react-native-async-storage/async-storage` | Adapter session/auth-token persistence |
 | `bs58` | Solana message/signature encoding |
 | `lucide-react-native` | `CircleCheck` filled badge for installed wallets |
 
-WC v2, Reown AppKit (`@reown/appkit-*`), wagmi, viem, @tanstack/react-query,
-react-native-modal, `@metamask/sdk-react-native` (deprecated), and the
-Coinbase Wallet Mobile SDK (unmaintained) were all removed.
+`@metamask/connect-evm` (and earlier: `@metamask/sdk-react-native`, wagmi,
+viem, @tanstack/react-query, the Coinbase Wallet Mobile SDK) were removed.
 
 ## Polyfills
 
-MM Connect's transitive deps (`eciesjs`, `@metamask/mobile-wallet-protocol-*`)
-need a browser-like environment. `apps/mobile/shims/polyfills.ts` provides
-`Event`/`CustomEvent`/`dispatchEvent`/`addEventListener`, a `window` shim, the
-`Buffer` global, and static pre-imports so Metro bundles them into the main
-chunk. Node-builtin stubs live in `metro.config.js` (`extraNodeModules`); that
-file also redirects `whatwg-url`/`webidl-conversions` to RN-safe builds (admin
-jsdom otherwise leaks ES2024 Node libs into the flat-resolved RN bundle).
+`apps/mobile/shims/polyfills.ts` installs the global `Buffer` early (several
+web3/crypto libs read it at import time); `react-native-get-random-values`
+installs `crypto.getRandomValues` before it. The rest of the WalletConnect/
+Reown environment (TextEncoder, URL, btoa/atob, Linking, Platform, NetInfo)
+comes from `@walletconnect/react-native-compat`, which `wallet/reown/config.ts`
+imports before any AppKit code. Node-builtin stubs live in `metro.config.js`
+(`extraNodeModules`); that file also redirects `whatwg-url`/`webidl-conversions`
+to RN-safe builds (admin jsdom otherwise leaks ES2024 Node libs into the
+flat-resolved RN bundle).
 
 ## Native-config requirement
 
@@ -139,31 +149,29 @@ runs at every `expo prebuild` so the native config stays in sync.
 
 ## Device-verification status
 
-Only the **Android-Solana (MWA)** path is device-proven. Everything else is
-tracked under **#68** (device verification passes).
+The **Android-Solana (MWA)** path is device-proven. The remaining passes were
+tracked as **#68** until it was dropped from the task list (2026-07-01) —
+the code paths below are implemented + unit-tested but not device-verified.
 
 | Scenario | Android | iOS | Notes |
 |---|---|---|---|
-| Solana Wallet (MWA) connect + signMessage (login) | ✅ | — | OS routes to default Solana wallet. `authenticate` is a one-shot: authorize + `signMessages` in a SINGLE `transact` (one wallet visit), matching the legacy/proven flow. It ALWAYS starts fresh (drops any stored token, passes `null` to `authorizeSession`) — reusing a token forces a `reauthorize` that can background the dapp and tear down the association WS mid-session (`Cannot send in CLOSED`). An earlier 2-session split avoided that error but opened the wallet twice (×retry = bad UX); reverted. |
+| Solana Wallet (MWA) connect + signMessage (login) | ✅ | — | OS routes to default Solana wallet. `authenticate` is a one-shot: authorize + `signMessages` in a SINGLE `transact` (one wallet visit). It ALWAYS starts fresh (drops any stored token, passes `null` to `authorizeSession`) — reusing a token forces a `reauthorize` that can background the dapp and tear down the association WS mid-session (`Cannot send in CLOSED`). An earlier 2-session split avoided that error but opened the wallet twice (×retry = bad UX); reverted. |
 | Solana Wallet (MWA) escrow tx sign + broadcast | ✅ | — | `signAndSendStored` reads the adapter's persisted token; broadcast from app RPC. |
 | Solana Wallet (MWA) disconnect | ✅ | — | Local-only (opening the wallet just to revoke is bad UX). |
-| MetaMask connect (CAIP-25 multi-scope) | ✅ | ⬜ | Mainnet EVM scopes granted; Base Sepolia often dropped even when enabled in MM. |
-| MetaMask `personal_sign` (EVM login/link) | ❌ | ⬜ | **#68** — MM opens but the approval sheet never renders; `invokeMethod` times out (RPCErr53). Failure is below our layer; W2 `connect-evm` rewrite is the unblock attempt. |
-| MetaMask EVM escrow send (`eth_sendTransaction`) | ⬜ | ⬜ | **#68** — gated on the sign path above. |
-| Phantom (iOS universal links) connect + sign | — | ⬜ | **#68** — implemented (X25519 + nacl.box, base64 sig); never device-verified. |
+| EVM Wallet (Reown/WalletConnect) connect + `personal_sign` | ⬜ | ⬜ | Adapter swap #111 — unit-tested; device pass pending |
+| EVM Wallet escrow send (`eth_sendTransaction`) | ⬜ | ⬜ | `sendEvmTransaction` — device pass pending |
+| Phantom (iOS universal links) connect + sign | — | ⬜ | Implemented (X25519 + nacl.box, base64 sig); never device-verified |
 
 ### Known limitation (post-promotion)
 
 `dispatch.ts` routes `solana-tx` to the MWA adapter only. A **Phantom (iOS)**
-login can authenticate but cannot yet sign escrow txs (no Phantom tx-signing in
-dispatch). Phantom is `isAvailable: iOS-only`, so the proven Android path is
-unaffected; wire Phantom tx-signing when iOS is device-verified (**#68**).
+login can authenticate but cannot yet sign escrow txs (no Phantom tx-signing
+in dispatch). Phantom is `isAvailable: iOS-only`, so the proven Android path
+is unaffected; wire Phantom tx-signing when iOS gets a device pass.
 
-An EVM-primary login leaves `walletAddress` (the Solana-pubkey the balance/fiat
-screens read) null, so those screens are empty for an EVM-only user even after
-they link a Solana wallet — graceful (null-guarded, no crash). Fix = source the
-Solana display address from `wallets[]`; folded into the **#68** EVM-login
-verification since that path isn't device-testable yet.
+(The earlier "EVM-primary login leaves the wallet screen empty" limitation was
+fixed by the multichain wallet-screen rework (#121): balances now derive from
+`wallets[]` + the chain registry, not the session `walletAddress`.)
 
 ## Promotion criteria — status
 
@@ -173,8 +181,7 @@ Original gate, with current state:
 - ✅ Server-nonce flow (`auth.ts`) + `adapter.authenticate(buildMessage)` across all transports.
 - ✅ Single-source chain config; signatures pinned to server-registered CAIP-2 ids.
 - ✅ Wallet-killed mid-flow surfaces a typed error / decline → `null` (no silent hang); unit-tested.
-- ⬜ **#68** — MM Connect sign round-trips on Android + iOS; iOS Phantom connect+sign+disconnect; EVM escrow send; p95 signMessage < 5s on a real network.
-
-If MM Connect signing can't be unblocked on RN, the fallback is MM's own
-deeplink (`metamask://wc?uri=…`) over a WC v2 transport for EVM only, keeping
-MWA + Phantom universal links for Solana.
+- ✅ EVM transport unblocked by the Reown/WalletConnect swap (#110–#112) after
+  MM Connect signing proved unfixable on RN.
+- ⬜ Device passes: EVM connect/sign/send on Android + iOS; iOS Phantom
+  connect+sign+disconnect; p95 signMessage < 5s on a real network (formerly #68).

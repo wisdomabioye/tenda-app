@@ -16,6 +16,16 @@ export interface UploadResult {
 }
 
 /**
+ * React Native's FormData accepts a `{ uri, name, type }` file part (the
+ * native uploader streams the file at `uri`), but the TS DOM lib types only
+ * model `string | Blob`. This helper is the ONE sanctioned bridge cast —
+ * typed input, single site — so the escape hatch can't spread.
+ */
+function rnFilePart(part: { uri: string; name: string; type: string }): Blob {
+  return part as unknown as Blob
+}
+
+/**
  * Upload a file to Cloudinary using a server-signed upload request.
  * Supports images, videos, and documents.
  * `conversationId` is required for type 'chat' — the server scopes the
@@ -38,11 +48,7 @@ export async function uploadToCloudinaryDetailed(
   }
 
   const formData = new FormData()
-  formData.append('file', {
-    uri: file.uri,
-    name: file.name,
-    type: file.mimeType,
-  } as any)
+  formData.append('file', rnFilePart({ uri: file.uri, name: file.name, type: file.mimeType }))
   formData.append('api_key', api_key)
   formData.append('timestamp', String(timestamp))
   formData.append('signature', signature)

@@ -10,6 +10,8 @@ let _cache: CachedExchangeRates | null = null
 let _cacheExpiry = 0
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
+export const COINGECKO_PRICE_URL = 'https://api.coingecko.com/api/v3/simple/price'
+
 /**
  * Fetch SOL exchange rates from CoinGecko, cached for 5 minutes.
  * On CoinGecko failure, returns stale cache if available rather than erroring.
@@ -24,7 +26,7 @@ export async function getExchangeRates(): Promise<CachedExchangeRates> {
   let response: Response
   try {
     response = await fetch(
-      `https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=${vs}`,
+      `${COINGECKO_PRICE_URL}?ids=solana&vs_currencies=${vs}`,
       { signal: AbortSignal.timeout(10_000) },
     )
   } catch {

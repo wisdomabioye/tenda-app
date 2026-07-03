@@ -136,8 +136,8 @@ export default function PostGigScreen() {
         setDraftValues(null)
         router.setParams({ draftId: '' })
       }
-      router.navigate('/(tabs)/home' as any)
-      router.push(`/gig/${created.escrow_id}` as any)
+      router.navigate('/(tabs)/home')
+      router.push(`/gig/${created.escrow_id}`)
     } catch (e) {
       // 9D first-transaction gate: route to link-wallet / verify-contact.
       // It surfaces from escrows.create() before escrow_id is set, so there
@@ -153,7 +153,7 @@ export default function PostGigScreen() {
         // Details saved but signing failed/declined — the draft survives
         // with a Delete Draft CTA on its page.
         showToast('info', e instanceof Error ? e.message : 'Signing incomplete — draft saved')
-        router.push(`/gig/${escrow_id}` as any)
+        router.push(`/gig/${escrow_id}`)
       } else {
         showToast('error', e instanceof Error ? e.message : 'Failed to create gig')
       }

@@ -4,7 +4,9 @@ React Native app for the Tenda gig marketplace. Android only (for now).
 
 ## Stack
 
-Expo SDK · Expo Router · Unistyles · Zustand · Solana Mobile Wallet Adapter · Sentry
+Expo SDK · Expo Router (typed routes) · Unistyles · Zustand · multi-transport
+wallets (Solana MWA, Phantom universal links, Reown/WalletConnect for EVM —
+see `wallet/README.md`) · Sentry
 
 ## Setup
 
@@ -14,6 +16,13 @@ pnpm --filter @tenda/shared build   # required before first run
 
 # Start dev client (requires a development build installed on device/emulator)
 pnpm dev
+```
+
+## Tests
+
+```bash
+pnpm test        # jest-expo suite
+npx tsc --noEmit && npx expo lint
 ```
 
 ## Builds
@@ -28,4 +37,5 @@ Set `APP_ENV` in each profile in `eas.json` — do not rely on the profile name.
 
 ## Smart contracts
 
-[github.com/wisdomabioye/tenda-escrow](https://github.com/wisdomabioye/tenda-escrow)
+In-repo: [`../../contracts/`](../../contracts/README.md) (Solana Anchor +
+EVM Foundry; the shared IDL/ABI in `@tenda/shared` are generated from them).

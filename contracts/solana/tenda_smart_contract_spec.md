@@ -1,6 +1,18 @@
 # Tenda - Smart Contract Specification
 
-**Version:** 1.0  
+> ## ⚠️ SUPERSEDED — historical v1 spec, do not implement against this
+>
+> This describes the ORIGINAL program, which was fully rewritten at Stage 0
+> (#29, 2026-06). Nothing here matches the deployed program anymore: the gas-
+> subsidy airdrop and `UserAccount` are gone; there are now TWO authorities
+> (`protocol_admin` + `dispute_admin`), a seeker fee, SPL-token custody
+> (`_sol`/`_spl` instruction pairs), exchange-kind escrows, and dispute bonds.
+>
+> **Current truth:** the program source (`programs/tenda_escrow/`),
+> [`README.md`](README.md) (instruction table), and
+> `docs/production_setup_guide.md` § 4. Retained only as design history.
+
+**Version:** 1.0 (historical)  
 **Platform:** Solana (Anchor Framework)  
 **Language:** Rust
 

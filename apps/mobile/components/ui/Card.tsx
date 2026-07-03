@@ -54,9 +54,9 @@ export function Card({
           padding !== undefined && { padding },
           pressed && shadows.card,
           pressed && { opacity: 0.96, transform: [{ scale: 0.995 }] },
-          style as any,
+          style,
         ]}
-        {...(props as any)}
+        {...props}
       >
         {children}
       </Pressable>
@@ -69,7 +69,7 @@ export function Card({
         s.base,
         variantStyle,
         padding !== undefined && { padding },
-        style as any,
+        style,
       ]}
       {...props}
     >

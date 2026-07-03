@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react'
-import { Pressable, type PressableProps, StyleSheet } from 'react-native'
+import { Pressable, type PressableProps, type GestureResponderEvent, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import * as Haptics from 'expo-haptics'
 import { radius } from '@/theme/tokens'
@@ -38,7 +38,7 @@ export function IconButton({
 }: IconButtonProps) {
   const { theme } = useUnistyles()
 
-  const handlePress = (e: any) => {
+  const handlePress = (e: GestureResponderEvent) => {
     if (haptic) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     onPress?.(e)
   }
@@ -53,12 +53,14 @@ export function IconButton({
     <Pressable
       onPress={handlePress}
       disabled={disabled}
-      style={[
+      style={(state) => [
         s.base,
         s[`size_${size}`],
         { backgroundColor: variantBg[variant] },
         disabled && s.disabled,
-        style as any,
+        // Pressable's style prop is a value OR a state callback — resolve it
+        // so callers can pass either without a cast.
+        typeof style === 'function' ? style(state) : style,
       ]}
       {...props}
     >

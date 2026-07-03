@@ -13,6 +13,11 @@ import { registerErrorHandlers } from './lib/http-errors'
 
 export interface AppOptions extends FastifyServerOptions, Partial<AutoloadPluginOptions> {}
 
+// Single source for the Android identity — assetlinks verification and the
+// Play Store fallback link must always agree on the package name.
+export const ANDROID_PACKAGE_NAME = 'com.tendahq.mobile'
+export const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_NAME}`
+
 const options: AppOptions = {}
 
 const app: FastifyPluginAsync<AppOptions> = async (
@@ -47,7 +52,7 @@ const app: FastifyPluginAsync<AppOptions> = async (
         relation: ['delegate_permission/common.handle_all_urls'],
         target: {
           namespace: 'android_app',
-          package_name: 'com.tendahq.mobile',
+          package_name: ANDROID_PACKAGE_NAME,
           sha256_cert_fingerprints: [process.env.ANDROID_SHA256_FINGERPRINT ?? ''],
         },
       },
@@ -58,7 +63,7 @@ const app: FastifyPluginAsync<AppOptions> = async (
   fastify.get<{ Params: { id: string } }>('/gig/:id', async (request, reply) => {
     const { id } = request.params
     const deepLink = `tenda://gig/${id}`
-    const storeUrl = 'https://play.google.com/store/apps/details?id=com.tendahq.mobile'
+    const storeUrl = PLAY_STORE_URL
     reply.type('text/html').send(`<!DOCTYPE html>
       <html lang="en">
       <head>

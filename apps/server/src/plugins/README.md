@@ -1,16 +1,22 @@
-# Plugins Folder
+# plugins/
 
-Plugins define behavior that is common to all the routes in your
-application. Authentication, caching, templates, and all the other cross
-cutting concerns should be handled by plugins placed in this folder.
+Autoloaded cross-cutting Fastify plugins (loaded before routes; most are
+`fastify-plugin`-wrapped so their decorators are app-wide).
 
-Files in this folder are typically defined through the
-[`fastify-plugin`](https://github.com/fastify/fastify-plugin) module,
-making them non-encapsulated. They can define decorators and set hooks
-that will then be used in the rest of your application.
+| Plugin | Provides |
+|---|---|
+| `db.ts` | `fastify.db` — Drizzle over postgres-js (`AppDatabase` / `AppTransaction` types) |
+| `auth.ts` | JWT verify + `fastify.authenticate`; token refresh |
+| `chains.ts` | `fastify.chains` — per-chain adapter registry built from `CHAIN_MANIFEST` + env secrets |
+| `queue.ts` | BullMQ producers (typed `JobName` union); 501 stub without `REDIS_URL` |
+| `workers.ts` | BullMQ consumers + `REPEATABLES` schedule (in-process with the API — documented decision) |
+| `listeners.ts` | Chain event listeners (polling fallback; webhook routes complement) |
+| `notifications.ts` | App-event listeners → push/WS fan-out |
+| `websocket.ts` | Realtime WS channel (escrow events, chat) |
+| `cors.ts` | Browser allow-list — `CORS_ORIGIN` + `ADMIN_ORIGIN` union |
+| `rate-limit.ts` | Global + per-route rate limiting (trustProxy-aware) |
+| `audit.ts` | `admin_audit_log` writes for admin mutations |
+| `sensible.ts` | `@fastify/sensible` helpers |
 
-Check out:
-
-* [The hitchhiker's guide to plugins](https://fastify.dev/docs/latest/Guides/Plugins-Guide/)
-* [Fastify decorators](https://fastify.dev/docs/latest/Reference/Decorators/).
-* [Fastify lifecycle](https://fastify.dev/docs/latest/Reference/Lifecycle/).
+Schedule drift guard: `test/unit/worker-schedule.test.ts` pins the repeatable
+job set — adding a periodic job without scheduling it fails the suite.

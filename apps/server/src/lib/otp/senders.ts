@@ -22,6 +22,13 @@ export function otpSmsText(code: string): string {
 
 export const TERMII_SMS_URL = 'https://v3.api.termii.com/api/sms/send'
 
+/**
+ * Abort budget for SMS provider calls — same convention as the other outbound
+ * transports (email RESEND_TIMEOUT_MS, push 15s). Without it a hung provider
+ * holds a send-otp worker slot for undici's multi-minute default.
+ */
+export const SMS_SEND_TIMEOUT_MS = 15_000
+
 /** Termii SMS — regional (api.ng.termii.com is NG/Africa-only). */
 export function termiiSender(args: { api_key: string; sender_id: string }): OtpSender {
   return {
@@ -29,6 +36,7 @@ export function termiiSender(args: { api_key: string; sender_id: string }): OtpS
       const res = await fetch(TERMII_SMS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(SMS_SEND_TIMEOUT_MS),
         body: JSON.stringify({
           api_key: args.api_key,
           to: identifier,
@@ -78,6 +86,7 @@ export function twilioSmsSender(args: {
           Authorization: `Basic ${credentials}`,
           'Content-Type': 'application/x-www-form-urlencoded',
         },
+        signal: AbortSignal.timeout(SMS_SEND_TIMEOUT_MS),
         body: new URLSearchParams({ To: identifier, [senderParam]: args.from, Body: otpSmsText(code) }).toString(),
       })
       if (!res.ok) {

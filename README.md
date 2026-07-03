@@ -46,6 +46,9 @@ pnpm dev                   # or: pnpm dev:server / pnpm dev:mobile
 The full requirements matrix (required vs optional env, contract deployment,
 multisig, external services) lives in **`../docs/production_setup_guide.md`**.
 
+Server Docker image (runtime + migrate targets, built from the repo root):
+`docker build -f apps/server/Dockerfile .` — deploy notes in the guide § 3.5.
+
 ## Useful commands
 
 | Command | Description |

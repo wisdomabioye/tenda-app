@@ -1,7 +1,11 @@
 # Tenda Admin — Implementation Plan
 
-> Reference document. Review each section before building.
-> Cross-references `open_issues.md` where relevant.
+> **STATUS: IMPLEMENTED** (#84–#93, 2026-06) — the admin backend + dashboard
+> shipped per this plan; `apps/admin/README.md` documents the built system.
+> Retained as the design reference (role system, mediation Option B rationale).
+> Where this document and the code disagree, the code is right.
+>
+> Reference document. Cross-references `open_issues.md` where relevant.
 > **Rev 3** — incorporates findings from second review pass (50 total issues resolved: Rev 2 had 27, Rev 3 adds 23 more [Fix #28–#50]).
 
 ---

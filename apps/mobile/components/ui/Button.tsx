@@ -1,5 +1,5 @@
 import { type ReactNode } from 'react'
-import { ActivityIndicator, Pressable, type PressableProps, View, StyleSheet, type ViewStyle, type TextStyle } from 'react-native'
+import { ActivityIndicator, Pressable, type PressableProps, type GestureResponderEvent, View, StyleSheet, type ViewStyle, type TextStyle } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import * as Haptics from 'expo-haptics'
 import { shadows, typography } from '@/theme/tokens'
@@ -61,7 +61,7 @@ export function Button({
   const { theme } = useUnistyles()
   const isDisabled = disabled || loading
 
-  const handlePress = (e: any) => {
+  const handlePress = (e: GestureResponderEvent) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     onPress?.(e)
   }
@@ -119,13 +119,15 @@ export function Button({
     <Pressable
       onPress={handlePress}
       disabled={isDisabled}
-      style={({ pressed }) => [
+      style={(state) => [
         s.base,
         { height, paddingHorizontal, borderRadius },
         variantStyle,
         fullWidth && s.fullWidth,
-        pressed && !isDisabled && s.pressed,
-        style as any,
+        state.pressed && !isDisabled && s.pressed,
+        // Pressable's style prop is a value OR a state callback — resolve it
+        // so callers can pass either without a cast.
+        typeof style === 'function' ? style(state) : style,
       ]}
       {...props}
     >

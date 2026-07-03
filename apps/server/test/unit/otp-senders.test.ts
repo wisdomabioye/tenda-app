@@ -53,6 +53,34 @@ test('otpSmsText: embeds the code (single source shared by every SMS transport)'
   assert.match(otpSmsText('424242'), /424242/)
 })
 
+test('SMS senders attach an abort signal — a hung provider cannot hold a worker slot', async () => {
+  const signals: unknown[] = []
+  globalThis.fetch = (async (_url: string, init?: { signal?: unknown }) => {
+    signals.push(init?.signal)
+    return { ok: true, status: 200 } as Response
+  }) as typeof fetch
+
+  await termiiSender({ api_key: 'K', sender_id: 'S' }).send('+2348000000000', '111111')
+  await twilioSmsSender({ account_sid: 'AC', auth_token: 't', from: '+1' }).send('+1999', '222222')
+  assert.strictEqual(signals.length, 2)
+  for (const s of signals) assert.ok(s instanceof AbortSignal, 'fetch must carry an AbortSignal')
+})
+
+test('SMS senders: a provider timeout rejects (surfaces to the send-otp retry path)', async () => {
+  globalThis.fetch = (async () => {
+    throw new DOMException('The operation was aborted due to timeout', 'TimeoutError')
+  }) as typeof fetch
+
+  await assert.rejects(
+    () => termiiSender({ api_key: 'K', sender_id: 'S' }).send('+2348000000000', '000000'),
+    (e: unknown) => e instanceof DOMException && e.name === 'TimeoutError',
+  )
+  await assert.rejects(
+    () => twilioSmsSender({ account_sid: 'AC', auth_token: 't', from: '+1' }).send('+1999', '000000'),
+    (e: unknown) => e instanceof DOMException && e.name === 'TimeoutError',
+  )
+})
+
 test('twilioSmsSender: POSTs to the Messages API with Basic auth + the code in the body', async () => {
   const calls: { url: string; auth: string; body: string }[] = []
   globalThis.fetch = (async (url: string, init?: { headers?: Record<string, string>; body?: string }) => {
