@@ -52,6 +52,7 @@ export type {
   EscrowsContract,
   UnsignedTx,
   WireUserOperation,
+  PermitSignatureBody,
   CreateEscrowApiBody,
   CreateEscrowApiResponse,
   EscrowActionResponse,
@@ -65,7 +66,12 @@ export type {
 export type { GigsContract } from './gigs.contract'
 export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse } from './users.contract'
 export type { UploadContract } from './upload.contract'
-export type { BlockchainContract } from './blockchain.contract'
+export type {
+  BlockchainContract,
+  PermitTypedData,
+  PermitPayloadBody,
+  PermitPayloadResponse,
+} from './blockchain.contract'
 export type { PlatformContract, PlatformConfig, ExchangeRates, ChainRegistryEntry } from './platform.contract'
 export type { ConversationsContract } from './conversations.contract'
 export type { NotificationsContract } from './notifications.contract'

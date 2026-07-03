@@ -3,7 +3,13 @@ import { asc, eq } from 'drizzle-orm'
 import { chains, assets } from '@tenda/shared/db/schema'
 import { getPlatformConfig } from '@server/lib/platform'
 import { getExchangeRates } from '@server/lib/exchange-rates'
-import type { ChainRegistryEntry, PlatformContract } from '@tenda/shared'
+import { findChain, type ChainRegistryEntry, type PlatformContract } from '@tenda/shared'
+
+/** EIP-2612 capability comes from the manifest (config), not the DB row. */
+function supportsPermit(chain_id: string, asset_id: string): boolean {
+  const asset = findChain(chain_id)?.assets.find((a) => a.id === asset_id)
+  return asset?.permit !== undefined
+}
 
 type ConfigRoute        = PlatformContract['config']
 type ExchangeRatesRoute = PlatformContract['exchangeRates']
@@ -33,7 +39,12 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
   }>('/chains', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async () => {
     const [chainRows, assetRows] = await Promise.all([
       fastify.db
-        .select({ id: chains.id, namespace: chains.namespace, display_name: chains.display_name })
+        .select({
+          id: chains.id,
+          namespace: chains.namespace,
+          display_name: chains.display_name,
+          escrow_address: chains.escrow_program,
+        })
         .from(chains)
         .where(eq(chains.is_enabled, true))
         .orderBy(asc(chains.id)),
@@ -55,7 +66,10 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
       ...c,
       assets: assetRows
         .filter((a) => a.chain_id === c.id)
-        .map(({ chain_id: _chain_id, ...asset }) => asset),
+        .map(({ chain_id: _chain_id, ...asset }) => ({
+          ...asset,
+          supports_permit: supportsPermit(c.id, asset.id),
+        })),
     }))
     return { data }
   })

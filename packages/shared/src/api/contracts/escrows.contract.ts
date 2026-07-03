@@ -48,6 +48,11 @@ export type UnsignedTx =
       gas_limit?: string
       /** CELO gas abstraction: pay gas in this ERC-20 (cUSD). */
       fee_currency?: string
+      /** ERC-20 prerequisite the wallet must satisfy BEFORE broadcasting:
+       *  allowance(owner → spender) ≥ amount_raw, topped up via approve()
+       *  if short. Absent for native assets and for permit-built calls
+       *  (there the allowance rides the tx itself). */
+      approval?: { token: string; spender: string; amount_raw: string }
     }
   | {
       kind: 'evm-userop'
@@ -55,6 +60,20 @@ export type UnsignedTx =
       entry_point: string
       paymaster_url?: string
     }
+
+/**
+ * EIP-2612 signature over the exact transfer an action needs — obtained by
+ * signing the payload from POST /v1/blockchain/permit-payload with
+ * eth_signTypedData_v4. ERC-20 assets flagged `supports_permit` only; the
+ * server encodes the *WithPermit contract call when this rides the body.
+ */
+export interface PermitSignatureBody {
+  /** Base-unit value the owner signed — must cover the amount/bond exactly. */
+  value_raw: string
+  deadline_unix: number
+  /** 65-byte 0x-hex signature; the server splits v/r/s. */
+  signature: string
+}
 
 export interface CreateEscrowApiBody {
   kind: 'gig' | 'exchange'
@@ -67,6 +86,9 @@ export interface CreateEscrowApiBody {
   completion_duration_seconds: number
   dispute_bond_raw?: string
   assigned_counterparty_id?: string
+  /** EIP-2612 path: sign first, then create — the server returns the
+   *  createEscrowWithPermit call instead of createEscrow + approval hint. */
+  permit?: PermitSignatureBody
 }
 
 export interface CreateEscrowApiResponse {
@@ -93,6 +115,8 @@ export interface DisputeEscrowApiBody {
   bond_raw: string
   /** Triage reason for the admin dispute queue (validated 10–2000 chars). */
   reason: string
+  /** EIP-2612 path for the ERC-20 bond (disputeEscrowWithPermit). */
+  permit?: PermitSignatureBody
 }
 
 export interface ResolveEscrowApiBody {

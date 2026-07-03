@@ -31,6 +31,9 @@ test('platform/chains: enabled chains with their enabled assets', { skip }, asyn
     data[0].assets.map((a: { id: string }) => a.id).sort(),
     [TEST_NATIVE_ASSET, TEST_ASSET].sort(),
   )
+  // escrow_address serves the seeded escrow program/contract — the client-side
+  // approve/permit spender.
+  assert.strictEqual(data[0].escrow_address, process.env.SOLANA_PROGRAM_ID ?? '')
   const usdc = data[0].assets.find((a: { id: string }) => a.id === TEST_ASSET)
   // token_address is the single source the mobile balance reader consumes.
   assert.deepStrictEqual(usdc, {
@@ -39,10 +42,49 @@ test('platform/chains: enabled chains with their enabled assets', { skip }, asyn
     decimals: 6,
     is_stable: true,
     token_address: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+    // Solana has no EIP-2612 — capability must read false despite USDC.
+    supports_permit: false,
   })
   // Native gas asset carries a null token_address (not a contract).
   const native = data[0].assets.find((a: { id: string }) => a.id === TEST_NATIVE_ASSET)
   assert.strictEqual(native.token_address, null)
+  assert.strictEqual(native.supports_permit, false)
+})
+
+test('platform/chains: EVM USDC reads supports_permit from the manifest', { skip }, async () => {
+  const app = getApp()
+  const EVM_CHAIN = 'eip155:84532'
+  const EVM_ESCROW = `0x${'f1'.repeat(20)}`
+  await app.db.insert(chains).values({
+    id: EVM_CHAIN,
+    namespace: 'eip155',
+    display_name: 'Base Sepolia',
+    min_confirmations: 5,
+    treasury_address: `0x${'aa'.repeat(20)}`,
+    escrow_program: EVM_ESCROW,
+    is_enabled: true,
+  })
+  await app.db.insert(assets).values({
+    id: 'USDC_BASE',
+    chain_id: EVM_CHAIN,
+    symbol: 'USDC',
+    decimals: 6,
+    token_address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+    is_stable: true,
+    is_enabled: true,
+  })
+  try {
+    const res = await app.inject({ method: 'GET', url: '/v1/platform/chains' })
+    const evm = res.json().data.find((c: { id: string }) => c.id === EVM_CHAIN)
+    assert.ok(evm, 'EVM chain should be served')
+    assert.strictEqual(evm.escrow_address, EVM_ESCROW)
+    const usdc = evm.assets.find((a: { id: string }) => a.id === 'USDC_BASE')
+    // Manifest declares permit v2 for USDC_BASE → capability true on the wire.
+    assert.strictEqual(usdc.supports_permit, true)
+  } finally {
+    await app.db.delete(assets).where(eq(assets.id, 'USDC_BASE'))
+    await app.db.delete(chains).where(eq(chains.id, EVM_CHAIN))
+  }
 })
 
 test('platform/chains: disabled assets and chains drop out', { skip }, async () => {

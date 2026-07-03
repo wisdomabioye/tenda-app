@@ -15,9 +15,10 @@ function chain(over: Partial<ChainRegistryEntry> = {}): ChainRegistryEntry {
     id: 'eip155:84532',
     namespace: 'eip155',
     display_name: 'Base Sepolia',
+    escrow_address: '0xEscrow',
     assets: [
-      { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xToken' },
-      { id: 'ETH_BASE', symbol: 'ETH', decimals: 18, is_stable: false, token_address: null },
+      { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xToken', supports_permit: true },
+      { id: 'ETH_BASE', symbol: 'ETH', decimals: 18, is_stable: false, token_address: null, supports_permit: false },
     ],
     ...over,
   }

@@ -67,6 +67,7 @@ export const apiRoutes: {
   },
   blockchain: {
     clientPing: '/v1/blockchain/transaction',
+    permitPayload: '/v1/blockchain/permit-payload',
   },
   platform: {
     config:        '/v1/platform/config',

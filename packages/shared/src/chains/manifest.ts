@@ -48,6 +48,16 @@ export interface ChainAsset {
   role: AssetRole
   token: string | null
   fromSecret?: string
+  /**
+   * EIP-2612 permit support — the token's EIP-712 domain `version` string,
+   * verified against the LIVE token (its `version()` getter plus a
+   * DOMAIN_SEPARATOR recomputation) before being recorded here. Present =
+   * the escrow's *WithPermit entry points may be used for this asset;
+   * absent = approve-flow fallback (cUSD's domain is non-standard —
+   * verified on-chain 2026-07-03 — so it deliberately has NO entry).
+   * ERC-20 assets with a canonical manifest token only.
+   */
+  permit?: { version: string }
 }
 
 export interface ChainManifestEntry {
@@ -122,7 +132,13 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     gasPolicy: 'paymaster',
     assets: [
       // Circle USDC on BASE (verified in repo: apps/server/.env.example).
-      { id: 'USDC_BASE', role: 'gig', token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' },
+      // permit version read from the live token's version() on 2026-07-03.
+      {
+        id: 'USDC_BASE',
+        role: 'gig',
+        token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+        permit: { version: '2' },
+      },
       { id: 'ETH_BASE', role: 'exchange', token: null },
     ],
   },
@@ -136,8 +152,14 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     publicRpcUrl: 'https://sepolia.base.org',
     gasPolicy: 'paymaster',
     assets: [
-      // Circle's published USDC on Base Sepolia — CONFIRM before activating.
-      { id: 'USDC_BASE', role: 'gig', token: '0x036CbD53842c5426634e7929541eC2318f3dCF7e' },
+      // Circle USDC on Base Sepolia — confirmed live (dress-rehearsal #124);
+      // permit version() + DOMAIN_SEPARATOR verified on-chain 2026-07-03.
+      {
+        id: 'USDC_BASE',
+        role: 'gig',
+        token: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
+        permit: { version: '2' },
+      },
       { id: 'ETH_BASE', role: 'exchange', token: null },
     ],
   },
@@ -153,7 +175,15 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     feeCurrency: 'cUSD',
     assets: [
       // Verified in repo: apps/server/src/chains/celo/config.ts.
-      { id: 'USDC_CELO', role: 'gig', token: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C' },
+      // USDC permit version read from the live token 2026-07-03; cUSD has a
+      // NON-standard EIP-712 domain (rename to 'Mento Dollar' + custom
+      // fields, verified on-chain) — approve flow only, no permit entry.
+      {
+        id: 'USDC_CELO',
+        role: 'gig',
+        token: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C',
+        permit: { version: '2' },
+      },
       { id: 'cUSD', role: 'exchange', token: '0x765DE816845861e75A25fCA122bb6898B8B1282a' },
       { id: 'CELO', role: 'exchange', token: null },
     ],
@@ -231,6 +261,14 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     for (const asset of entry.assets) {
       if (ASSET_META[asset.id] === undefined) {
         throw new Error(`CHAIN_MANIFEST: asset '${asset.id}' on '${entry.id}' missing from ASSET_META`)
+      }
+      if (asset.permit !== undefined && asset.token === null) {
+        throw new Error(
+          `CHAIN_MANIFEST: '${asset.id}' on '${entry.id}' declares permit but has no canonical token address`,
+        )
+      }
+      if (asset.permit !== undefined && asset.permit.version.length === 0) {
+        throw new Error(`CHAIN_MANIFEST: '${asset.id}' on '${entry.id}' has an empty permit version`)
       }
     }
     if (entry.assets.filter(isNativeAsset).length !== 1) {

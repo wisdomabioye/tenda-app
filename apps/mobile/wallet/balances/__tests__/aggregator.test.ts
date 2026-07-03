@@ -15,18 +15,18 @@ import { readWalletBalances, sumUsdcRaw } from '@/wallet/balances'
 
 function evmChain(id: string, name: string): ChainRegistryEntry {
   return {
-    id, namespace: 'eip155', display_name: name,
+    id, namespace: 'eip155', display_name: name, escrow_address: '0xEscrow',
     assets: [
-      { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT' },
-      { id: 'ETH_BASE', symbol: 'ETH', decimals: 18, is_stable: false, token_address: null },
+      { id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true },
+      { id: 'ETH_BASE', symbol: 'ETH', decimals: 18, is_stable: false, token_address: null, supports_permit: false },
     ],
   }
 }
 const solChain: ChainRegistryEntry = {
-  id: 'solana:devnet', namespace: 'solana', display_name: 'Solana Devnet',
+  id: 'solana:devnet', namespace: 'solana', display_name: 'Solana Devnet', escrow_address: 'PROGRAM',
   assets: [
-    { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MINT' },
-    { id: 'SOL_DEVNET', symbol: 'SOL', decimals: 9, is_stable: false, token_address: null },
+    { id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MINT', supports_permit: false },
+    { id: 'SOL_DEVNET', symbol: 'SOL', decimals: 9, is_stable: false, token_address: null, supports_permit: false },
   ],
 }
 

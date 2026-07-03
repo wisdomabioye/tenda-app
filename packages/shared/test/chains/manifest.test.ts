@@ -173,6 +173,46 @@ test('every EVM manifest chain exposes a publicRpcUrl; assertManifestValid enfor
   assert.throws(() => assertManifestValid([noRpc]), /must set a publicRpcUrl/)
 })
 
+// ---------- EIP-2612 permit config ------------------------------------------
+
+test('permit config: USDC carries version 2 on every EVM chain; cUSD and natives carry none', () => {
+  // Versions were read from the LIVE tokens (version() + DOMAIN_SEPARATOR
+  // recomputation, 2026-07-03). cUSD's domain is non-standard → no entry.
+  for (const entry of CHAIN_MANIFEST) {
+    for (const asset of entry.assets) {
+      if (entry.namespace === 'eip155' && asset.role === 'gig') {
+        assert.deepEqual(asset.permit, { version: '2' }, `${asset.id} on ${entry.id} should be permit v2`)
+      } else {
+        assert.equal(asset.permit, undefined, `${asset.id} on ${entry.id} must not declare permit`)
+      }
+    }
+  }
+})
+
+test('assertManifestValid rejects permit on an asset without a canonical token', () => {
+  const bad: ChainManifestEntry = {
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
+    assets: [
+      { id: 'ETH_BASE', role: 'exchange', token: null, permit: { version: '2' } },
+      { id: 'USDC_BASE', role: 'gig', token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' },
+    ],
+  }
+  assert.throws(() => assertManifestValid([bad]), /declares permit but has no canonical token/)
+})
+
+test('assertManifestValid rejects an empty permit version', () => {
+  const bad: ChainManifestEntry = {
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
+    assets: [
+      { id: 'ETH_BASE', role: 'exchange', token: null },
+      { id: 'USDC_BASE', role: 'gig', token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', permit: { version: '' } },
+    ],
+  }
+  assert.throws(() => assertManifestValid([bad]), /empty permit version/)
+})
+
 test('exactly one chain is active per family across mainnet/testnet pairs', () => {
   // Not a uniqueness assertion (families repeat by design) — documents that
   // families group networks, which the secret loader uses to enforce one

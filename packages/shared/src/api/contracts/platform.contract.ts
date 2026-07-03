@@ -18,6 +18,9 @@ export interface ChainRegistryEntry {
   id: string
   namespace: 'solana' | 'eip155'
   display_name: string
+  /** Deployed escrow contract (EVM) / program id (Solana) — the approve /
+   *  permit SPENDER for client-side ERC-20 flows (allowance screen, permit). */
+  escrow_address: string
   assets: Array<{
     id: string
     symbol: string
@@ -26,6 +29,9 @@ export interface ChainRegistryEntry {
     /** On-chain SPL mint / ERC-20 contract, or null for the native gas token.
      *  Single source for client-side balance reads (mobile wallet screen). */
     token_address: string | null
+    /** EIP-2612: the escrow's *WithPermit entry points work for this asset.
+     *  Capability only — the domain version stays server-side. */
+    supports_permit: boolean
   }>
 }
 

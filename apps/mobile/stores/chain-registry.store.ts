@@ -3,7 +3,10 @@ import * as SecureStore from 'expo-secure-store'
 import { api } from '@/api/client'
 import type { ChainRegistryEntry } from '@tenda/shared'
 
-const STORAGE_KEY = 'chain_registry'
+// Versioned: bump when ChainRegistryEntry gains REQUIRED fields, so a stale
+// persisted snapshot (older shape) is ignored instead of rehydrating as the
+// new type with undefined fields. v2 = escrow_address + supports_permit.
+const STORAGE_KEY = 'chain_registry_v2'
 
 /**
  * Cached enabled-chain registry (id, namespace, display name, and each asset's
