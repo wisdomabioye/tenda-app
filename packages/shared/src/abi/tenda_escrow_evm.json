@@ -318,6 +318,91 @@
     },
     {
       "type": "function",
+      "name": "createEscrowWithPermit",
+      "inputs": [
+        {
+          "name": "escrowId",
+          "type": "bytes16",
+          "internalType": "bytes16"
+        },
+        {
+          "name": "kind",
+          "type": "uint8",
+          "internalType": "uint8"
+        },
+        {
+          "name": "asset",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "assignedCounterparty",
+          "type": "address",
+          "internalType": "address"
+        },
+        {
+          "name": "acceptDeadline",
+          "type": "uint64",
+          "internalType": "uint64"
+        },
+        {
+          "name": "completionDuration",
+          "type": "uint64",
+          "internalType": "uint64"
+        },
+        {
+          "name": "disputeBond",
+          "type": "uint256",
+          "internalType": "uint256"
+        },
+        {
+          "name": "isSeeker",
+          "type": "bool",
+          "internalType": "bool"
+        },
+        {
+          "name": "permit_",
+          "type": "tuple",
+          "internalType": "struct TendaEscrow.Permit",
+          "components": [
+            {
+              "name": "value",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "deadline",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "v",
+              "type": "uint8",
+              "internalType": "uint8"
+            },
+            {
+              "name": "r",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "s",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ]
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
       "name": "declineAssignedEscrow",
       "inputs": [
         {
@@ -354,6 +439,51 @@
       ],
       "outputs": [],
       "stateMutability": "payable"
+    },
+    {
+      "type": "function",
+      "name": "disputeEscrowWithPermit",
+      "inputs": [
+        {
+          "name": "escrowId",
+          "type": "bytes16",
+          "internalType": "bytes16"
+        },
+        {
+          "name": "permit_",
+          "type": "tuple",
+          "internalType": "struct TendaEscrow.Permit",
+          "components": [
+            {
+              "name": "value",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "deadline",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "v",
+              "type": "uint8",
+              "internalType": "uint8"
+            },
+            {
+              "name": "r",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            },
+            {
+              "name": "s",
+              "type": "bytes32",
+              "internalType": "bytes32"
+            }
+          ]
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
     },
     {
       "type": "function",
@@ -973,6 +1103,11 @@
     {
       "type": "error",
       "name": "InvalidWinner",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "NativeAssetPermit",
       "inputs": []
     },
     {

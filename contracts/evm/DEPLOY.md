@@ -1,7 +1,7 @@
 # TendaEscrow — EVM deploy runbook (BASE / CELO)
 
 Status: **deployed on Base Sepolia (2026-07-03, dress-rehearsal #124)** —
-`TendaEscrow` at `0x9d0193f7b607a15079bfe29ae28d69044f62c391` on eip155:84532
+`TendaEscrow` at `0xf1dedfff3fa2cb6cf157096204219a879e734fdc` on eip155:84532
 (record: `broadcast/Deploy.s.sol/84532/run-latest.json`; not source-verified on
 Basescan yet). `cast call` sanity green, `CHAIN_EIP155_84532_*` env + registry
 seed wired in dev, server adapter verified against the live RPC. **Mainnet:
@@ -38,7 +38,7 @@ until they are:
 ```bash
 cd contracts/evm
 forge build          # must compile (solc 0.8.35, via_ir)
-forge test           # all tests green (38 at last rehearsal)
+forge test           # all tests green (50 at last rehearsal, incl. permit paths)
 forge fmt --check     # style gate
 ```
 

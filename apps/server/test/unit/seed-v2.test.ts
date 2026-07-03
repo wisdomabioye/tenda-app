@@ -1,9 +1,10 @@
 /**
  * db/seed-v2 — pure row builder over the ACTIVE chain secrets + the shared
- * manifest. The I/O wrapper is a thin onConflictDoNothing pass; the row VALUES
- * are what need guarding. Secrets are built through the real loader. Partial /
- * malformed config is rejected upstream by the loader (see secrets.test), so
- * the seeder only ever sees clean, active chains.
+ * manifest; the row VALUES are what need guarding here. The I/O wrapper
+ * (applySeed — registry-fact upserts + enablement reconcile) is DB-tested in
+ * integration/seed-upsert.test.ts. Secrets are built through the real loader.
+ * Partial / malformed config is rejected upstream by the loader (see
+ * secrets.test), so the seeder only ever sees clean, active chains.
  */
 import { test } from 'node:test'
 import * as assert from 'node:assert'

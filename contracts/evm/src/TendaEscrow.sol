@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {IERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Address} from "openzeppelin-contracts/contracts/utils/Address.sol";
 import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
@@ -16,7 +17,9 @@ import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/Reentrancy
 ///         instead.
 /// @dev    Funds semantics:
 ///         - `asset == address(0)` → native (ETH on BASE, CELO on Celo).
-///         - otherwise ERC-20 via SafeERC20 (caller approves first).
+///         - otherwise ERC-20 via SafeERC20: caller approves first, OR uses
+///           the *WithPermit entry points (EIP-2612 — allowance rides the
+///           same tx; USDC supports it, cUSD does not).
 ///         The dispute bond is denominated in the SAME asset as the escrow
 ///         (exactly like the Anchor vaults).
 ///
@@ -57,6 +60,18 @@ contract TendaEscrow is ReentrancyGuard {
     uint8 public constant WINNER_CREATOR = 0;
     uint8 public constant WINNER_COUNTERPARTY = 1;
     uint8 public constant WINNER_SPLIT = 2;
+
+    /// @dev EIP-2612 signature bundle for the *WithPermit entry points.
+    ///      `value` is the exact amount the owner signed (must cover the
+    ///      transfer — the server validates off-chain; transferFrom enforces
+    ///      on-chain). ERC-20 assets only.
+    struct Permit {
+        uint256 value;
+        uint256 deadline;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+    }
 
     struct Escrow {
         bytes16 escrowId;
@@ -144,6 +159,7 @@ contract TendaEscrow is ReentrancyGuard {
     error DisputeBondMismatch();
     error InvalidWinner();
     error BadNativeValue();
+    error NativeAssetPermit();
     error FeeBpsOutOfRange();
     error ApprovalWindowOutOfRange();
     error GracePeriodOutOfRange();
@@ -239,6 +255,60 @@ contract TendaEscrow is ReentrancyGuard {
         uint256 disputeBond,
         bool isSeeker
     ) external payable nonReentrant {
+        _create(
+            escrowId,
+            kind,
+            asset,
+            amount,
+            assignedCounterparty,
+            acceptDeadline,
+            completionDuration,
+            disputeBond,
+            isSeeker
+        );
+    }
+
+    /// @notice createEscrow with an EIP-2612 permit riding the same tx — no
+    ///         separate approve. ERC-20 assets only (native funds via
+    ///         msg.value and needs no allowance).
+    function createEscrowWithPermit(
+        bytes16 escrowId,
+        uint8 kind,
+        address asset,
+        uint256 amount,
+        address assignedCounterparty,
+        uint64 acceptDeadline,
+        uint64 completionDuration,
+        uint256 disputeBond,
+        bool isSeeker,
+        Permit calldata permit_
+    ) external nonReentrant {
+        if (asset == address(0)) revert NativeAssetPermit();
+        _applyPermit(asset, permit_);
+        _create(
+            escrowId,
+            kind,
+            asset,
+            amount,
+            assignedCounterparty,
+            acceptDeadline,
+            completionDuration,
+            disputeBond,
+            isSeeker
+        );
+    }
+
+    function _create(
+        bytes16 escrowId,
+        uint8 kind,
+        address asset,
+        uint256 amount,
+        address assignedCounterparty,
+        uint64 acceptDeadline,
+        uint64 completionDuration,
+        uint256 disputeBond,
+        bool isSeeker
+    ) private {
         if (kind > KIND_EXCHANGE) revert InvalidKind();
         if (amount == 0) revert AmountTooLow();
         if (acceptDeadline <= block.timestamp) revert AcceptDeadlineInPast();
@@ -377,19 +447,43 @@ contract TendaEscrow is ReentrancyGuard {
     ///         escrow's asset (native via msg.value, ERC-20 via approve +
     ///         transferFrom) — mirrors the Anchor vault flow.
     function disputeEscrow(bytes16 escrowId) external payable nonReentrant {
-        Escrow storage e = _mustExist(escrowId);
-        if (e.status != Status.Accepted && e.status != Status.Submitted) revert InvalidEscrowStatus();
-        if (msg.sender != e.creator && msg.sender != e.counterparty) revert NotDisputeParty();
+        Escrow storage e = _disputable(escrowId);
 
         if (e.asset == address(0)) {
             if (msg.value != e.disputeBond) revert DisputeBondMismatch();
         } else {
             if (msg.value != 0) revert BadNativeValue();
-            if (e.disputeBond > 0) {
-                IERC20(e.asset).safeTransferFrom(msg.sender, address(this), e.disputeBond);
-            }
+            _collectBond(e);
         }
 
+        _raiseDispute(e, escrowId);
+    }
+
+    /// @notice disputeEscrow with an EIP-2612 permit covering the ERC-20
+    ///         bond — no separate approve. ERC-20 escrows only.
+    function disputeEscrowWithPermit(bytes16 escrowId, Permit calldata permit_) external nonReentrant {
+        Escrow storage e = _disputable(escrowId);
+        if (e.asset == address(0)) revert NativeAssetPermit();
+
+        _applyPermit(e.asset, permit_);
+        _collectBond(e);
+
+        _raiseDispute(e, escrowId);
+    }
+
+    function _disputable(bytes16 escrowId) private view returns (Escrow storage e) {
+        e = _mustExist(escrowId);
+        if (e.status != Status.Accepted && e.status != Status.Submitted) revert InvalidEscrowStatus();
+        if (msg.sender != e.creator && msg.sender != e.counterparty) revert NotDisputeParty();
+    }
+
+    function _collectBond(Escrow storage e) private {
+        if (e.disputeBond > 0) {
+            IERC20(e.asset).safeTransferFrom(msg.sender, address(this), e.disputeBond);
+        }
+    }
+
+    function _raiseDispute(Escrow storage e, bytes16 escrowId) private {
         e.status = Status.Disputed;
         e.raisedBy = msg.sender;
 
@@ -437,6 +531,18 @@ contract TendaEscrow is ReentrancyGuard {
     function _mustExist(bytes16 escrowId) private view returns (Escrow storage e) {
         e = escrows[escrowId];
         if (e.creator == address(0)) revert EscrowNotFound();
+    }
+
+    /// @dev Best-effort EIP-2612: a front-runner can lift the signature from
+    ///      the mempool and call token.permit directly, consuming the nonce
+    ///      so this inner call reverts — but the allowance is then ALREADY
+    ///      set, so the subsequent transferFrom decides. A failed permit
+    ///      with no allowance still reverts there. (Standard griefing
+    ///      mitigation — do NOT let the permit call bubble.)
+    function _applyPermit(address asset, Permit calldata permit_) private {
+        try IERC20Permit(asset)
+            .permit(msg.sender, address(this), permit_.value, permit_.deadline, permit_.v, permit_.r, permit_.s) {}
+            catch {}
     }
 
     function _collect(address asset, uint256 amount) private {

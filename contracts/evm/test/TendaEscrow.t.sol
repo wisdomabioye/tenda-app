@@ -5,9 +5,13 @@ import {Test} from "forge-std/Test.sol";
 import {TendaEscrow} from "../src/TendaEscrow.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import {ERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
-contract MockUSDC is ERC20 {
-    constructor() ERC20("Mock USDC", "USDC") {}
+/// @dev EIP-2612 like the real thing (Circle's FiatTokenV2 implements permit)
+///      so the *WithPermit paths are exercised against a genuine
+///      signature-verifying token, not a stub.
+contract MockUSDC is ERC20, ERC20Permit {
+    constructor() ERC20("Mock USDC", "USDC") ERC20Permit("Mock USDC") {}
 
     function mint(address to, uint256 amount) external {
         _mint(to, amount);
@@ -817,6 +821,234 @@ contract TendaEscrowTest is Test {
         assertEq(treasury.balance, fee(AMOUNT));
         assertEq(address(escrow).balance, 0);
         assertEq(uint8(status(id)), 3);
+    }
+
+    // ---------------------------------------------------------------------
+    // EIP-2612 permit paths (+ the no-approval negatives these flows imply)
+    // ---------------------------------------------------------------------
+
+    bytes32 private constant PERMIT_TYPEHASH =
+        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+
+    /// @dev Keyed signer (makeAddr has no private key), funded like the
+    ///      standard actors.
+    function newPermitOwner() internal returns (address owner, uint256 key) {
+        (owner, key) = makeAddrAndKey("permitOwner");
+        vm.deal(owner, 100 ether);
+        usdc.mint(owner, 1_000_000e6);
+    }
+
+    /// @dev Signs against the token's own domain separator — nothing about
+    ///      the domain is reconstructed by hand.
+    function signPermit(uint256 ownerKey, address owner, uint256 value, uint256 deadline)
+        internal
+        view
+        returns (TendaEscrow.Permit memory)
+    {
+        bytes32 structHash =
+            keccak256(abi.encode(PERMIT_TYPEHASH, owner, address(escrow), value, usdc.nonces(owner), deadline));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", usdc.DOMAIN_SEPARATOR(), structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerKey, digest);
+        return TendaEscrow.Permit({value: value, deadline: deadline, v: v, r: r, s: s});
+    }
+
+    function createUsdcWithPermit(bytes16 id, address owner, uint256 amount, TendaEscrow.Permit memory p) internal {
+        vm.prank(owner);
+        escrow.createEscrowWithPermit(
+            id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, false, p
+        );
+    }
+
+    function test_createEscrowWithPermit_noPriorApprove_succeeds() public {
+        (address owner, uint256 key) = newPermitOwner();
+        bytes16 id = newId();
+        uint256 amount = 100e6;
+        TendaEscrow.Permit memory p = signPermit(key, owner, amount, block.timestamp + 15 minutes);
+
+        assertEq(usdc.allowance(owner, address(escrow)), 0); // truly no prior approve
+        createUsdcWithPermit(id, owner, amount, p);
+
+        assertEq(usdc.balanceOf(address(escrow)), amount);
+        assertEq(uint8(status(id)), 0); // Open
+        assertEq(usdc.allowance(owner, address(escrow)), 0); // exact-value permit leaves no residue
+    }
+
+    function test_createEscrowWithPermit_frontRunConsumedSig_stillSucceeds() public {
+        (address owner, uint256 key) = newPermitOwner();
+        bytes16 id = newId();
+        uint256 amount = 100e6;
+        TendaEscrow.Permit memory p = signPermit(key, owner, amount, block.timestamp + 15 minutes);
+
+        // Griefing attempt: anyone can lift the sig from the mempool and
+        // consume it directly. The allowance lands anyway...
+        vm.prank(outsider);
+        usdc.permit(owner, address(escrow), p.value, p.deadline, p.v, p.r, p.s);
+
+        // ...so the embedded (now-reverting) permit is swallowed and create
+        // proceeds on the already-set allowance.
+        createUsdcWithPermit(id, owner, amount, p);
+        assertEq(usdc.balanceOf(address(escrow)), amount);
+    }
+
+    function test_createEscrowWithPermit_invalidSig_noAllowance_reverts() public {
+        (address owner, uint256 key) = newPermitOwner();
+        uint256 amount = 100e6;
+        TendaEscrow.Permit memory p = signPermit(key, owner, amount, block.timestamp + 15 minutes);
+        p.s = bytes32(uint256(p.s) ^ 1); // corrupt — permit fails, no allowance
+
+        vm.expectRevert(); // token-level: insufficient allowance at transferFrom
+        createUsdcWithPermit(newId(), owner, amount, p);
+    }
+
+    function test_createEscrowWithPermit_expiredDeadline_noAllowance_reverts() public {
+        (address owner, uint256 key) = newPermitOwner();
+        uint256 amount = 100e6;
+        uint256 deadline = block.timestamp + 15 minutes;
+        TendaEscrow.Permit memory p = signPermit(key, owner, amount, deadline);
+        vm.warp(deadline + 1);
+
+        vm.expectRevert();
+        vm.prank(owner);
+        escrow.createEscrowWithPermit(
+            newId(),
+            0,
+            address(usdc),
+            amount,
+            address(0),
+            uint64(block.timestamp) + ACCEPT_WINDOW,
+            DURATION,
+            0,
+            false,
+            p
+        );
+    }
+
+    function test_createEscrowWithPermit_valueAboveAmount_succeedsWithResidualAllowance() public {
+        // Over-permitting works but leaves spendable allowance behind — the
+        // reason the server validates and clients sign EXACT values, and why
+        // the in-app approvals screen surfaces residuals.
+        (address owner, uint256 key) = newPermitOwner();
+        bytes16 id = newId();
+        uint256 amount = 100e6;
+        TendaEscrow.Permit memory p = signPermit(key, owner, amount + 5e6, block.timestamp + 15 minutes);
+
+        createUsdcWithPermit(id, owner, amount, p);
+
+        assertEq(usdc.balanceOf(address(escrow)), amount);
+        assertEq(usdc.allowance(owner, address(escrow)), 5e6); // residual
+    }
+
+    function test_createEscrowWithPermit_valueBelowAmount_reverts() public {
+        (address owner, uint256 key) = newPermitOwner();
+        uint256 amount = 100e6;
+        TendaEscrow.Permit memory p = signPermit(key, owner, amount - 1, block.timestamp + 15 minutes);
+
+        vm.expectRevert(); // allowance (amount-1) < amount at transferFrom
+        createUsdcWithPermit(newId(), owner, amount, p);
+    }
+
+    function test_createEscrowWithPermit_nativeAsset_reverts() public {
+        (address owner, uint256 key) = newPermitOwner();
+        TendaEscrow.Permit memory p = signPermit(key, owner, AMOUNT, block.timestamp + 15 minutes);
+
+        vm.expectRevert(TendaEscrow.NativeAssetPermit.selector);
+        vm.prank(owner);
+        escrow.createEscrowWithPermit(
+            newId(),
+            0,
+            address(0),
+            AMOUNT,
+            address(0),
+            uint64(block.timestamp) + ACCEPT_WINDOW,
+            DURATION,
+            BOND,
+            false,
+            p
+        );
+    }
+
+    /// @dev THE dress-rehearsal gap: nothing ever asserted the approve
+    ///      precondition as a product flow (every ERC-20 test pre-approved
+    ///      in its harness).
+    function test_createEscrow_erc20_withoutApprove_reverts() public {
+        vm.prank(creator);
+        vm.expectRevert(); // token-level: insufficient allowance
+        escrow.createEscrow(
+            newId(), 0, address(usdc), 100e6, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, false
+        );
+    }
+
+    function test_disputeEscrow_erc20Bond_withoutApprove_reverts() public {
+        bytes16 id = newId();
+        uint256 amount = 100e6;
+        uint256 bond = 10e6;
+        vm.startPrank(creator);
+        usdc.approve(address(escrow), amount);
+        escrow.createEscrow(
+            id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, bond, false
+        );
+        vm.stopPrank();
+        vm.prank(worker);
+        escrow.acceptEscrow(id);
+
+        vm.prank(worker); // worker never approved the bond
+        vm.expectRevert();
+        escrow.disputeEscrow(id);
+    }
+
+    function test_disputeEscrowWithPermit_erc20Bond_succeeds() public {
+        (address owner, uint256 key) = newPermitOwner();
+        bytes16 id = newId();
+        uint256 amount = 100e6;
+        uint256 bond = 10e6;
+        vm.startPrank(creator);
+        usdc.approve(address(escrow), amount);
+        escrow.createEscrow(
+            id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, bond, false
+        );
+        vm.stopPrank();
+        vm.prank(owner);
+        escrow.acceptEscrow(id);
+
+        TendaEscrow.Permit memory p = signPermit(key, owner, bond, block.timestamp + 15 minutes);
+        vm.prank(owner);
+        escrow.disputeEscrowWithPermit(id, p);
+
+        assertEq(uint8(status(id)), 6); // Disputed
+        assertEq(usdc.balanceOf(address(escrow)), amount + bond);
+    }
+
+    function test_disputeEscrowWithPermit_nativeAsset_reverts() public {
+        (address owner, uint256 key) = newPermitOwner();
+        bytes16 id = newId();
+        createNative(id);
+        vm.prank(owner);
+        escrow.acceptEscrow(id);
+
+        TendaEscrow.Permit memory p = signPermit(key, owner, BOND, block.timestamp + 15 minutes);
+        vm.prank(owner);
+        vm.expectRevert(TendaEscrow.NativeAssetPermit.selector);
+        escrow.disputeEscrowWithPermit(id, p);
+    }
+
+    function test_disputeEscrowWithPermit_zeroBond_succeeds() public {
+        // Zero-bond escrow: the permit is superfluous but harmless — the
+        // bond collection short-circuits and the dispute still lands.
+        (address owner, uint256 key) = newPermitOwner();
+        bytes16 id = newId();
+        vm.startPrank(creator);
+        usdc.approve(address(escrow), 100e6);
+        escrow.createEscrow(
+            id, 0, address(usdc), 100e6, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, false
+        );
+        vm.stopPrank();
+        vm.prank(owner);
+        escrow.acceptEscrow(id);
+
+        TendaEscrow.Permit memory p = signPermit(key, owner, 0, block.timestamp + 15 minutes);
+        vm.prank(owner);
+        escrow.disputeEscrowWithPermit(id, p);
+        assertEq(uint8(status(id)), 6); // Disputed
     }
 
     // ---------------------------------------------------------------------

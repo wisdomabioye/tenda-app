@@ -1,7 +1,9 @@
 /**
  * Cutover seeds: chains, assets, platform_config. Idempotent by construction —
- * every insert is `ON CONFLICT DO NOTHING`, so re-runs are no-ops and boot-time
- * invocation is safe.
+ * registry FACTS (chain/asset rows) upsert so a redeploy or manifest change
+ * propagates on re-run; operator-tunable rows (platform_config,
+ * fiat_providers) stay `ON CONFLICT DO NOTHING` so re-seeding never clobbers
+ * admin edits. Boot-time invocation is safe.
  *
  * Run: `pnpm --filter tenda-server db:seed` (requires DATABASE_URL +
  * `CHAIN_<ID>_*` env). Fully manifest + secrets driven — nothing chain-shaped
@@ -17,8 +19,8 @@
 
 import 'dotenv/config'
 import postgres from 'postgres'
-import { drizzle } from 'drizzle-orm/postgres-js'
-import { inArray, notInArray } from 'drizzle-orm'
+import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
+import { inArray, notInArray, sql } from 'drizzle-orm'
 import { ESCROW_IDL } from '@tenda/shared/idl'
 import { assets, chains } from '@tenda/shared/db/schema/chains'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
@@ -133,35 +135,66 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
 
 // ---------- I/O wrapper ------------------------------------------------------
 
+/**
+ * Apply seed rows to a database (exported for the DB-backed upsert test).
+ * Registry facts follow config; operator-tunable rows are ensure-only.
+ */
+export async function applySeed(db: PostgresJsDatabase, rows: SeedRows): Promise<void> {
+  // Registry facts follow config: a contract redeploy or manifest change must
+  // land on re-seed (a DO NOTHING here once stranded a stale escrow address
+  // after the Base Sepolia redeploy). `is_enabled` is deliberately NOT in the
+  // update set — the reconcile below owns it.
+  await db.insert(chains).values(rows.chains).onConflictDoUpdate({
+    target: chains.id,
+    set: {
+      namespace: sql`excluded.namespace`,
+      display_name: sql`excluded.display_name`,
+      min_confirmations: sql`excluded.min_confirmations`,
+      treasury_address: sql`excluded.treasury_address`,
+      escrow_program: sql`excluded.escrow_program`,
+    },
+  })
+  await db.insert(assets).values(rows.assets).onConflictDoUpdate({
+    target: assets.id,
+    set: {
+      chain_id: sql`excluded.chain_id`,
+      symbol: sql`excluded.symbol`,
+      decimals: sql`excluded.decimals`,
+      token_address: sql`excluded.token_address`,
+      is_stable: sql`excluded.is_stable`,
+    },
+  })
+  await db.insert(platform_config).values({ id: 1 }).onConflictDoNothing({
+    target: platform_config.id,
+  })
+  await db
+    .insert(fiat_providers)
+    .values(rows.fiat_providers)
+    .onConflictDoNothing({ target: fiat_providers.id })
+
+  // Reconcile enablement so the registry reflects EXACTLY the active config
+  // (one chain per family). The seed never deletes, so a chain/asset from a
+  // prior env (e.g. a switched-out Solana cluster) would otherwise linger
+  // enabled and get served by /v1/platform/chains — surfacing as a duplicate
+  // row on the wallet screen. Enable the active set, disable everything else.
+  const activeChainIds = rows.chains.map((c) => c.id)
+  const activeAssetIds = rows.assets.map((a) => a.id)
+  await db.update(chains).set({ is_enabled: true }).where(inArray(chains.id, activeChainIds))
+  await db.update(chains).set({ is_enabled: false }).where(notInArray(chains.id, activeChainIds))
+  await db.update(assets).set({ is_enabled: true }).where(inArray(assets.id, activeAssetIds))
+  await db.update(assets).set({ is_enabled: false }).where(notInArray(assets.id, activeAssetIds))
+}
+
 async function seed(): Promise<void> {
   const config = loadConfig()
   const rows = buildSeedRows(getChainSecrets())
 
-  const sql = postgres(config.DATABASE_URL, { max: 1 })
-  const db = drizzle(sql)
+  // NB: the client is not named `sql` — that would shadow drizzle's sql``
+  // template used in applySeed's upsert sets (a shadowed call executes a
+  // query and stringifies the Promise into the parameter).
+  const client = postgres(config.DATABASE_URL, { max: 1 })
   try {
-    await db.insert(chains).values(rows.chains).onConflictDoNothing({ target: chains.id })
-    await db.insert(assets).values(rows.assets).onConflictDoNothing({ target: assets.id })
-    await db.insert(platform_config).values({ id: 1 }).onConflictDoNothing({
-      target: platform_config.id,
-    })
-    await db
-      .insert(fiat_providers)
-      .values(rows.fiat_providers)
-      .onConflictDoNothing({ target: fiat_providers.id })
-
-    // Reconcile enablement so the registry reflects EXACTLY the active config
-    // (one chain per family). The seed is insert-only and never deletes, so a
-    // chain/asset from a prior env (e.g. a switched-out Solana cluster) would
-    // otherwise linger enabled and get served by /v1/platform/chains — surfacing
-    // as a duplicate row on the wallet screen. Enable the active set, disable
-    // everything else.
-    const activeChainIds = rows.chains.map((c) => c.id)
-    const activeAssetIds = rows.assets.map((a) => a.id)
-    await db.update(chains).set({ is_enabled: true }).where(inArray(chains.id, activeChainIds))
-    await db.update(chains).set({ is_enabled: false }).where(notInArray(chains.id, activeChainIds))
-    await db.update(assets).set({ is_enabled: true }).where(inArray(assets.id, activeAssetIds))
-    await db.update(assets).set({ is_enabled: false }).where(notInArray(assets.id, activeAssetIds))
+    await applySeed(drizzle(client), rows)
 
     console.log(
       `seed-v2: ${rows.chains.length} chains, ${rows.assets.length} assets, ` +
@@ -170,7 +203,7 @@ async function seed(): Promise<void> {
     )
     for (const s of rows.skipped) console.warn(`seed-v2: skipped ${s}`)
   } finally {
-    await sql.end()
+    await client.end()
   }
 }
 
