@@ -1,10 +1,12 @@
 # TendaEscrow — EVM deploy runbook (BASE / CELO)
 
-Status at time of writing: **contract code-complete, never deployed.** `forge build`
-+ `forge test` are green (31/31), `forge` 1.7.1 is installed, `lib/` deps present.
-No `broadcast/` artifacts exist — nothing is on-chain on any network. The server
-adapter is written but dormant (no `CHAIN_EIP155_*` env vars are set, so the
-secrets loader (`apps/server/src/chains/secrets.ts`) activates Solana only).
+Status: **deployed on Base Sepolia (2026-07-03, dress-rehearsal #124)** —
+`TendaEscrow` at `0x9d0193f7b607a15079bfe29ae28d69044f62c391` on eip155:84532
+(record: `broadcast/Deploy.s.sol/84532/run-latest.json`; not source-verified on
+Basescan yet). `cast call` sanity green, `CHAIN_EIP155_84532_*` env + registry
+seed wired in dev, server adapter verified against the live RPC. **Mainnet:
+never deployed** — the steps below remain the mainnet runbook; §0 externals
+(Safe, audit, Alchemy, paymaster) are still open.
 
 This runbook covers BASE (eip155:8453). CELO (eip155:42220) is identical — swap the
 `BASE_` prefixes for `CELO_` and the chain-specific addresses.
@@ -36,7 +38,7 @@ until they are:
 ```bash
 cd contracts/evm
 forge build          # must compile (solc 0.8.35, via_ir)
-forge test           # must be 31/31 green
+forge test           # all tests green (38 at last rehearsal)
 forge fmt --check     # style gate
 ```
 
