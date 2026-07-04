@@ -8,6 +8,17 @@ flow automation for happy paths only.
 Standing contract: positive **and** negative cases, real assertions, no
 false-confidence tests, document (never silently drop) any coverage exclusion.
 
+**Standing principle (added 2026-07-04, from the permit effort): server-built
+calldata must execute against a real node.** Unit tests that only decode our
+own ABI encoding are self-referential — they can't catch a missing approval,
+a wrong domain hash, or fee math that reverts on-chain. Every EVM
+builder/adapter path that produces calldata gets exercised end-to-end in
+`apps/server/test/integration/evm-lifecycle.anvil.test.ts` (spawns `anvil`,
+deploys the REAL forge artifacts, broadcasts the builder's actual output;
+self-skips without anvil, and CI installs foundry so it never self-skips
+there). Origin: the missing-ERC-20-approval gap shipped precisely because no
+test ever ran the built create-escrow calldata against a chain.
+
 ---
 
 ## Review pass 2 — issues & gaps (must read before executing)
@@ -50,6 +61,16 @@ in the abstract. The first is structural and changes Phase 0 materially.
 > - **G1 is resolved** (option A, per-PR postgres service) — the "unresolved"
 >   bullet in *Honest caveats* below predates this and is superseded.
 > - Phase 2 (thin E2E, #104) not started.
+
+> **EXECUTION UPDATE (2026-07-04, permit Stage E):** EIP-2612 permit + approval
+> flow fully tested across layers — contract (forge, incl. `*WithPermit` +
+> griefing/replay negatives), server (permit helpers unit vectors anchored to
+> the REAL Base Sepolia USDC `DOMAIN_SEPARATOR`, adapter encode/negative
+> matrix, HTTP-surface negatives incl. the blockchain-route 404 regression,
+> and the anvil lifecycle suite per the standing principle above), mobile
+> (allowance module, permit decision table, dispatch approval-hint ordering,
+> token-approvals screen component test). Contract-side invariant/stateful
+> fuzzing (#123) **must include the permit entry points** when it lands.
 
 ### G1 (CRITICAL) — the coverage gate can't run in CI as the repo stands
 - `.github/workflows/ci.yml` provisions **no postgres**. The server CI job runs

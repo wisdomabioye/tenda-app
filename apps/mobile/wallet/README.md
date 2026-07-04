@@ -55,9 +55,12 @@ Files under `apps/mobile/wallet/`:
 | `config.ts` | Single-source `metadata`, env-driven `SOLANA_NETWORK` + `WALLET_CHAINS` (CAIP-2 ids) |
 | `errors.ts` | `WalletError` / `WalletErrorCode` — standalone so pure consumers skip the native barrel |
 | `auth.ts` | `signInWithWallet` / `linkWalletWith` — nonce ↔ server orchestration |
-| `dispatch.ts` | `signSendAndReport` — routes a server-built `UnsignedTx` to the right transport (`solana-tx` → MWA, `evm-tx` → WalletConnect; `evm-userop` blocked on #47 paymaster) |
+| `dispatch.ts` | `signSendAndReport` — routes a server-built `UnsignedTx` to the right transport (`solana-tx` → MWA, `evm-tx` → WalletConnect; `evm-userop` blocked on #47 paymaster). Consumes the server's `approval` hint (allowance-before-broadcast) and exports `resolveEvmFrom()` — the single EVM-account resolution shared with the permit flow |
 | `index.ts` | Solana RPC helpers (`getBalance`, `getTransactionStatus`) + convenience re-exports |
+| `evm-rpc.ts` | Minimal JSON-RPC + ABI-word helpers shared by balances and allowance (public RPCs only) |
 | `balances/` | Pluggable per-namespace balance readers (solana + evm) for the wallet screen — chain facts from `/v1/platform/chains` |
+| `allowance/` | Reusable ERC-20 allowance module: `readAllowance` / `sendApprove` / `waitForReceipt` / `ensureAllowance` — backs both dispatch's approve fallback and the Token-approvals settings screen |
+| `permit.ts` | `buildPermitFor()` — fetches the server-built EIP-2612 typed data (`/v1/blockchain/permit-payload`), signs via `eth_signTypedData_v4`, returns the wire permit body; `undefined` = caller falls back to approve |
 | `reown/` | AppKit config + EVM network defs (`networks.ts` — RPCs come from the shared `CHAIN_MANIFEST`) |
 | `picker.tsx` | `<WalletPicker>` — controlled BottomSheet listing adapters with installed badge |
 | `wallet-icon.tsx` | Rounded `Image`-based wallet icon |
@@ -81,6 +84,34 @@ swapped the EVM adapter to **Reown AppKit/WalletConnect** behind the same
 EVM-namespace only (free tier), consumers untouched. Solana stays on MWA
 (Android) + Phantom universal links (iOS) — the adapter model is exactly what
 made this transport swap a two-file change.
+
+## ERC-20 funding: permit first, approve fallback
+
+EVM escrow funding (create, and dispute bonds) needs the escrow contract to
+`transferFrom` the user's token. Two paths, decided per call:
+
+1. **EIP-2612 permit (preferred — one wallet interaction).** Before the
+   create/dispute API call, the flow asks `buildPermitFor()` (`permit.ts`):
+   it checks the chain registry (`supports_permit` on the asset — pure
+   config), asks the server for the full typed-data payload
+   (`POST /v1/blockchain/permit-payload` — the client **never** constructs
+   EIP-712 domains), signs it with `eth_signTypedData_v4`, and rides the
+   signature in the request body. The server then encodes
+   `createEscrowWithPermit`/`disputeEscrowWithPermit` so approval + escrow
+   land in ONE transaction.
+2. **Approve fallback (two wallet interactions).** When permit is
+   unavailable (non-permit token, live `DOMAIN_SEPARATOR` drift →
+   `PERMIT_UNAVAILABLE`, or the user's wallet can't sign typed data), the
+   server's unsigned `evm-tx` carries an `approval` hint; `dispatch.ts` runs
+   `ensureAllowance()` (read → approve → wait for receipt) **before**
+   broadcasting, skipping the approve when the standing allowance already
+   covers the amount.
+
+`buildPermitFor` returns `undefined` for every "fall back" condition and
+**throws** only on real errors and user declines — a decline must abort the
+flow, not silently downgrade it. Standing allowances are user-visible and
+editable at **Settings → Token approvals** (`app/settings/token-approvals.tsx`,
+rows straight from the chain registry).
 
 ## Chain config (single source)
 
@@ -160,6 +191,7 @@ the code paths below are implemented + unit-tested but not device-verified.
 | Solana Wallet (MWA) disconnect | ✅ | — | Local-only (opening the wallet just to revoke is bad UX). |
 | EVM Wallet (Reown/WalletConnect) connect + `personal_sign` | ⬜ | ⬜ | Adapter swap #111 — unit-tested; device pass pending |
 | EVM Wallet escrow send (`eth_sendTransaction`) | ⬜ | ⬜ | `sendEvmTransaction` — device pass pending |
+| EVM permit sign (`eth_signTypedData_v4`) + approve fallback | ⬜ | ⬜ | `signEvmTypedData` / `ensureAllowance` — unit-tested; device pass rides the #124 Base Sepolia lifecycle smoke |
 | Phantom (iOS universal links) connect + sign | — | ⬜ | Implemented (X25519 + nacl.box, base64 sig); never device-verified |
 
 ### Known limitation (post-promotion)

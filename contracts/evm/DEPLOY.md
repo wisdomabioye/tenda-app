@@ -141,6 +141,26 @@ CHAIN_EIP155_8453_WEBHOOK_SECRET=...          # HMAC signing key from the Alchem
 USDC is **not** an env var — the token address is a manifest constant
 (`packages/shared/src/chains/manifest.ts`, `USDC_BASE`), seeded from there.
 
+**EIP-2612 permit capability is also manifest config** — the asset's
+`permit: { version }` entry (Circle FiatToken = version `"2"`). When set, the
+server offers one-transaction `createEscrowWithPermit`/`disputeEscrowWithPermit`
+funding; when absent, clients use the two-step approve flow. Before enabling it
+for a new chain/token, verify the live token actually speaks EIP-2612 with the
+declared domain:
+
+```bash
+cast call $USDC_ADDR "DOMAIN_SEPARATOR()(bytes32)" --rpc-url $RPC  # exists ⇒ EIP-2612-capable
+cast call $USDC_ADDR "version()(string)"           --rpc-url $RPC  # must equal the manifest permit.version
+```
+
+(The domain `name` and per-owner `nonces` are read live by the server on every
+permit-payload request — only the `version` is declared config.)
+
+The server re-checks this at runtime on every permit-payload request
+(reconstructed domain hash vs the token's live `DOMAIN_SEPARATOR()`); a
+mismatch degrades to `PERMIT_UNAVAILABLE` and clients fall back to approve —
+so a wrong manifest entry is a lost optimisation, never stuck funds.
+
 Then seed the chain + asset registry rows (USDC_BASE + ETH_BASE):
 
 ```bash
@@ -178,6 +198,10 @@ POST https://<server-host>/v1/webhooks/alchemy
    `EscrowAccepted`, `ProofSubmitted`, `EscrowApproved`, `PaymentClaimed`) and that
    the server's verify-tx job + WS republish reflect it.
 4. Confirm fee math: `treasury` receives `feeBps`/`seekerFeeBps` of principal.
+5. Permit paths: create a gig with a permit-capable wallet (ONE wallet prompt —
+   typed-data sign, no separate approve tx) and confirm the escrow funds; then
+   check **Settings → Token approvals** shows no residual allowance. Repeat with
+   a dispute bond (`disputeEscrowWithPermit`).
 
 ---
 
