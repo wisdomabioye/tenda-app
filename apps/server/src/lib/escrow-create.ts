@@ -7,9 +7,10 @@
  * fail fast with typed errors, not to be the security boundary).
  */
 
-import { ErrorCode, AMOUNT_RAW_PRECISION } from '@tenda/shared'
+import { ErrorCode, AMOUNT_RAW_PRECISION, type PermitSignatureBody } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { assertGigAsset } from '@server/lib/escrow'
+import { validateWirePermit } from '@server/chains/evm/permit'
 import { isAmountRaw, type AmountRaw, type AssetId, type ChainId } from '@server/chains/types'
 
 export interface CreateEscrowBody {
@@ -21,6 +22,8 @@ export interface CreateEscrowBody {
   completion_duration_seconds?: unknown
   dispute_bond_raw?: unknown
   assigned_counterparty_id?: unknown
+  /** EIP-2612 signature riding the create (EVM ERC-20 assets only). */
+  permit?: unknown
   /** Forbidden — server generates ids (stage-0 exit criterion). */
   id?: unknown
 }
@@ -34,6 +37,7 @@ export interface ValidatedCreateEscrow {
   completion_duration_seconds: number
   dispute_bond_raw: AmountRaw
   assigned_counterparty_id: string | null
+  permit: PermitSignatureBody | null
 }
 
 export interface ValidateCreateDeps {
@@ -122,6 +126,13 @@ export function validateCreateEscrow(
     assigned_counterparty_id = body.assigned_counterparty_id
   }
 
+  // Field-level permit checks are pure and live here; the route enforces
+  // the namespace (eip155 only) and the builder rejects native assets.
+  const permit =
+    body.permit !== undefined && body.permit !== null
+      ? validateWirePermit({ raw: body.permit, transfer_amount_raw: amount_raw, now: deps.now() })
+      : null
+
   return {
     kind,
     chain_id,
@@ -131,5 +142,6 @@ export function validateCreateEscrow(
     completion_duration_seconds,
     dispute_bond_raw,
     assigned_counterparty_id,
+    permit,
   }
 }

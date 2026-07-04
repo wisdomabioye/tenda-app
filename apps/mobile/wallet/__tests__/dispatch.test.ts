@@ -26,6 +26,9 @@ jest.mock('@/stores/auth.store', () => ({
 jest.mock('@/stores/escrow.store', () => ({
   useEscrowStore: { getState: jest.fn() },
 }))
+jest.mock('@/wallet/allowance', () => ({
+  ensureAllowance: jest.fn(),
+}))
 
 import {
   signAndSendUnsignedTx,
@@ -34,6 +37,7 @@ import {
 } from '@/wallet/dispatch'
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
+import { ensureAllowance } from '@/wallet/allowance'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 import { VersionedTransaction } from '@solana/web3.js'
@@ -43,6 +47,7 @@ const storedMock = signAndSendStored as jest.Mock
 const sendEvmMock = sendEvmTransaction as jest.Mock
 const authStateMock = useAuthStore.getState as jest.Mock
 const escrowStateMock = useEscrowStore.getState as jest.Mock
+const ensureAllowanceMock = ensureAllowance as jest.Mock
 
 function evmWallet(over: Partial<LinkedWallet>): LinkedWallet {
   return {
@@ -65,6 +70,7 @@ const EVM_TX: UnsignedTx = { kind: 'evm-tx', to: '0xTo', data: '0xData', value: 
 
 beforeEach(() => {
   authStateMock.mockReturnValue({ evmAddress: null, wallets: [] })
+  ensureAllowanceMock.mockReset()
 })
 
 describe('signAndSendUnsignedTx — solana-tx', () => {
@@ -121,6 +127,58 @@ describe('signAndSendUnsignedTx — evm-tx from precedence', () => {
     expect(sendEvmMock).toHaveBeenCalledWith(
       expect.objectContaining({ feeCurrency: '0xcUSD' }),
     )
+  })
+})
+
+describe('signAndSendUnsignedTx — evm-tx approval hint', () => {
+  const HINTED: UnsignedTx = {
+    ...EVM_TX,
+    approval: { token: '0xToken', spender: '0xEscrow', amount_raw: '1000000' },
+  }
+
+  it('ensures the allowance BEFORE broadcasting when the hint is present', async () => {
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [] })
+    const order: string[] = []
+    ensureAllowanceMock.mockImplementation(async () => {
+      order.push('allowance')
+      return 'approved'
+    })
+    sendEvmMock.mockImplementation(async () => {
+      order.push('send')
+      return 'evm-ref'
+    })
+
+    await signAndSendUnsignedTx(HINTED, 'eip155:84532')
+
+    expect(ensureAllowanceMock).toHaveBeenCalledWith({
+      chainId: 'eip155:84532',
+      token: '0xToken',
+      spender: '0xEscrow',
+      amountRaw: '1000000',
+      owner: '0xLive',
+    })
+    expect(order).toEqual(['allowance', 'send'])
+  })
+
+  it('skips the allowance leg entirely when there is no hint (permit/native)', async () => {
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [] })
+    sendEvmMock.mockResolvedValue('evm-ref')
+    await signAndSendUnsignedTx(EVM_TX, 'eip155:84532')
+    expect(ensureAllowanceMock).not.toHaveBeenCalled()
+  })
+
+  it('a failed approval aborts the flow — the escrow tx is never broadcast', async () => {
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [] })
+    ensureAllowanceMock.mockRejectedValue(new Error('approval reverted'))
+    await expect(signAndSendUnsignedTx(HINTED, 'eip155:84532')).rejects.toThrow('approval reverted')
+    expect(sendEvmMock).not.toHaveBeenCalled()
+  })
+
+  it('a hint without a chain_id throws loudly — never silently broadcast a doomed tx', async () => {
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [] })
+    await expect(signAndSendUnsignedTx(HINTED)).rejects.toBeInstanceOf(UnsupportedUnsignedTxError)
+    expect(ensureAllowanceMock).not.toHaveBeenCalled()
+    expect(sendEvmMock).not.toHaveBeenCalled()
   })
 })
 

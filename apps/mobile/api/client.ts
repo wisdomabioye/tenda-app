@@ -72,6 +72,8 @@ import {
   type DisputeEscrowApiBody,
   type ResolveEscrowApiBody,
   type ClientPingBody,
+  type PermitPayloadBody,
+  type PermitPayloadResponse,
   type ClientPingResponse,
 } from '@tenda/shared'
 import { request, ApiClientError } from './request'
@@ -240,6 +242,9 @@ export const api = {
   blockchain: {
     clientPing: (body: ClientPingBody) =>
       request<ClientPingResponse>('POST', blockchain.clientPing, { body }),
+    // EIP-2612: server-built typed data for eth_signTypedData_v4.
+    permitPayload: (body: PermitPayloadBody) =>
+      request<PermitPayloadResponse>('POST', blockchain.permitPayload, { body }),
   },
 
   platform: {

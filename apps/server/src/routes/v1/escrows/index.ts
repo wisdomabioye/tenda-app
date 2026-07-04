@@ -53,6 +53,15 @@ const route: FastifyPluginAsync = async (fastify) => {
 
       const escrow_id = randomUUID()
       const adapter = fastify.chains.get(input.chain_id)
+      // EIP-2612 is an EVM-token concept — never forward a permit to an
+      // adapter whose namespace can't encode it.
+      if (input.permit !== null && adapter.namespace !== 'eip155') {
+        throw new AppError(
+          422,
+          ErrorCode.VALIDATION_ERROR,
+          `permit is not supported on ${input.chain_id}`,
+        )
+      }
       // First-transaction gate: a wallet on this chain + a verified contact.
       await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
       // Direct assignment bakes the assignee's wallet into the escrow at create,
@@ -75,6 +84,7 @@ const route: FastifyPluginAsync = async (fastify) => {
           completion_duration_seconds: input.completion_duration_seconds,
           dispute_bond_raw: input.dispute_bond_raw,
           is_seeker: user.is_seeker,
+          ...(input.permit !== null ? { permit: input.permit } : {}),
         },
       })
 

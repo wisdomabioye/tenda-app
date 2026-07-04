@@ -104,7 +104,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   }
 
   async function handleDisputeReady(reason: string): Promise<boolean> {
-    return actions.dispute(reason, gig.dispute_bond_raw)
+    return actions.dispute(reason, gig.dispute_bond_raw, gig.asset)
   }
 
   return (

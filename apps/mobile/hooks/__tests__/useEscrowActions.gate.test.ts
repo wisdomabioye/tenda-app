@@ -16,6 +16,10 @@ jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockShowTo
 const mockSignSendAndReport = jest.fn()
 jest.mock('@/wallet/dispatch', () => ({ signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a) }))
 
+// The permit helper's import chain reaches the Reown/AppKit native ESM —
+// stub it like dispatch (the gate tests never exercise the permit path).
+jest.mock('@/wallet/permit', () => ({ buildPermitFor: jest.fn() }))
+
 const mockRequestAccept = jest.fn()
 jest.mock('@/stores/escrow.store', () => ({
   useEscrowStore: () => ({ requestAccept: mockRequestAccept }),

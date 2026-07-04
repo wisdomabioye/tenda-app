@@ -84,7 +84,7 @@ export function ExchangeDetailContent({
   }
 
   async function handleDisputeReady(reason: string): Promise<boolean> {
-    return actions.dispute(reason, offer.dispute_bond_raw)
+    return actions.dispute(reason, offer.dispute_bond_raw, offer.asset)
   }
 
   return (

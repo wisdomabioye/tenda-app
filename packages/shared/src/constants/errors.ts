@@ -83,6 +83,10 @@ export const ErrorCode = {
   FIAT_RAILS_DISABLED:           'FIAT_RAILS_DISABLED',
   PROVIDER_UNAVAILABLE:          'PROVIDER_UNAVAILABLE',
   BANK_ACCOUNT_INVALID:          'BANK_ACCOUNT_INVALID',
+  // EIP-2612 permit — the client's signal to FALL BACK to the approve flow
+  // (asset/chain has no permit support, or the token's live domain no longer
+  // matches config).
+  PERMIT_UNAVAILABLE:            'PERMIT_UNAVAILABLE',
   // Generic
   SERVICE_UNAVAILABLE:           'SERVICE_UNAVAILABLE',
   NOT_FOUND:                     'NOT_FOUND',

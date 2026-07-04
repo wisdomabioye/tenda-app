@@ -19,6 +19,7 @@ import type {
   CreateEscrowApiBody,
   CreateEscrowApiResponse,
   EscrowTxType,
+  PermitSignatureBody,
   UnsignedTx,
 } from '@tenda/shared'
 import { ErrorCode } from '@tenda/shared'
@@ -43,7 +44,12 @@ interface EscrowState {
   requestClaim: (id: string) => Promise<UnsignedTx>
   requestCancel: (id: string) => Promise<UnsignedTx>
   requestRefund: (id: string) => Promise<UnsignedTx>
-  requestDispute: (id: string, bond_raw: string, reason: string) => Promise<UnsignedTx>
+  requestDispute: (
+    id: string,
+    bond_raw: string,
+    reason: string,
+    permit?: PermitSignatureBody,
+  ) => Promise<UnsignedTx>
   requestResolve: (
     id: string,
     winner: 'creator' | 'counterparty' | 'split',
@@ -89,8 +95,16 @@ export const useEscrowStore = create<EscrowState>((set) => {
     requestClaim: (id) => run(async () => (await api.escrows.claim({ id })).unsigned),
     requestCancel: (id) => run(async () => (await api.escrows.cancel({ id })).unsigned),
     requestRefund: (id) => run(async () => (await api.escrows.refund({ id })).unsigned),
-    requestDispute: (id, bond_raw, reason) =>
-      run(async () => (await api.escrows.dispute({ id }, { bond_raw, reason })).unsigned),
+    requestDispute: (id, bond_raw, reason, permit) =>
+      run(
+        async () =>
+          (
+            await api.escrows.dispute(
+              { id },
+              { bond_raw, reason, ...(permit !== undefined ? { permit } : {}) },
+            )
+          ).unsigned,
+      ),
     requestResolve: (id, winner) =>
       run(async () => (await api.escrows.resolve({ id }, { winner })).unsigned),
 

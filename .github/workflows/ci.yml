@@ -54,6 +54,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Build shared package
         run: pnpm --filter @tenda/shared build
+      # The anvil lifecycle suite (test/integration/evm-lifecycle.anvil.test.ts)
+      # drives REAL builder output through a real node — it self-skips without
+      # anvil + forge artifacts, so CI must provide both or the guard is moot.
+      - name: Install Foundry (anvil for the EVM lifecycle suite)
+        uses: foundry-rs/foundry-toolchain@v1
+      - name: Build contract artifacts for the anvil suite
+        working-directory: contracts/evm
+        run: forge build
       - name: Typecheck (src + test)
         working-directory: apps/server
         run: npx tsc --noEmit && npx tsc -p test/tsconfig.json

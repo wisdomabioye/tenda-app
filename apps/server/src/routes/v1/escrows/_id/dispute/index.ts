@@ -21,11 +21,14 @@ import { requireGoodStanding } from '@server/features/reputation/guards'
 import { ErrorCode, EXCHANGE_DISPUTE_REASON_MIN_LENGTH, EXCHANGE_DISPUTE_REASON_MAX_LENGTH } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/lib/escrow-routes'
+import { validateWirePermit } from '@server/chains/evm/permit'
 import { isAmountRaw } from '@server/chains/types'
 
 interface Body {
   bond_raw: string
   reason: string
+  /** EIP-2612 signature covering the ERC-20 bond (EVM only). */
+  permit?: unknown
 }
 
 const route: FastifyPluginAsync = async (fastify) => {
@@ -52,6 +55,18 @@ const route: FastifyPluginAsync = async (fastify) => {
           `reason must be ${EXCHANGE_DISPUTE_REASON_MIN_LENGTH}–${EXCHANGE_DISPUTE_REASON_MAX_LENGTH} characters`,
         )
       }
+      // Pure field validation BEFORE any write — an invalid permit must not
+      // leave a triage row behind. (Namespace check stays below: it needs
+      // the escrow's chain.)
+      const permit =
+        request.body?.permit !== undefined && request.body.permit !== null
+          ? validateWirePermit({
+              raw: request.body.permit,
+              transfer_amount_raw: bond_raw,
+              now: new Date(),
+            })
+          : null
+
       const cfg = await getPlatformConfig(fastify.db)
       const { escrow } = await guardTransition({
         db: fastify.db,
@@ -63,6 +78,15 @@ const route: FastifyPluginAsync = async (fastify) => {
         transition: 'dispute',
       })
 
+      const adapter = fastify.chains.get(escrow.chain_id)
+      if (permit !== null && adapter.namespace !== 'eip155') {
+        throw new AppError(
+          422,
+          ErrorCode.VALIDATION_ERROR,
+          `permit is not supported on ${escrow.chain_id}`,
+        )
+      }
+
       // Triage row for the admin queue. Upsert: a retry after a failed
       // broadcast refreshes the reason rather than 409ing.
       await fastify.db
@@ -72,12 +96,10 @@ const route: FastifyPluginAsync = async (fastify) => {
           target: disputes.escrow_id,
           set: { raised_by: request.user.id, reason: trimmedReason },
         })
-
-      const adapter = fastify.chains.get(escrow.chain_id)
       const unsigned = await adapter.buildTx({
         action: 'disputeEscrow',
         user_id: request.user.id,
-        payload: { escrow_id: escrow.id, bond_raw },
+        payload: { escrow_id: escrow.id, bond_raw, ...(permit !== null ? { permit } : {}) },
       })
       return { unsigned }
     },

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { StyleSheet, Switch } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useRouter } from 'expo-router'
-import { HelpCircle, Wallet, ShieldCheck, ArrowLeftRight } from 'lucide-react-native'
+import { HelpCircle, Wallet, ShieldCheck, ArrowLeftRight, Coins } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Header, showToast } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
@@ -78,6 +78,12 @@ export default function SettingsScreen() {
           icon={<Wallet size={16} color={theme.colors.content.primary} />}
           label="Linked wallets"
           onPress={() => router.push('/settings/linked-wallets' as Parameters<typeof router.push>[0])}
+          showChevron
+        />
+        <SettingsRow
+          icon={<Coins size={16} color={theme.colors.content.primary} />}
+          label="Token approvals"
+          onPress={() => router.push('/settings/token-approvals' as Parameters<typeof router.push>[0])}
           showChevron
         />
       </SettingsGroup>

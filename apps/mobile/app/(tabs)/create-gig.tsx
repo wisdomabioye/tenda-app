@@ -11,6 +11,7 @@ import { useOnboardingStore } from '@/stores/onboarding.store'
 import { api, ApiClientError } from '@/api/client'
 import { coerceCityForCountry, ErrorCode } from '@tenda/shared'
 import { signSendAndReport } from '@/wallet/dispatch'
+import { buildPermitFor } from '@/wallet/permit'
 import {
   classifyTransactionGateError,
   TRANSACTION_GATE_MESSAGE,
@@ -88,6 +89,13 @@ export default function PostGigScreen() {
     setIsLoading(true)
     let escrow_id: string | null = null
     try {
+      // EIP-2612: sign the allowance BEFORE creating so it rides the create
+      // tx (undefined = approve fallback via the unsigned tx's approval hint).
+      const permit = await buildPermitFor({
+        chain_id,
+        asset,
+        value_raw: String(values.paymentRaw),
+      })
       const created = await api.escrows.create({
         kind: 'gig',
         chain_id,
@@ -95,6 +103,7 @@ export default function PostGigScreen() {
         amount_raw: String(values.paymentRaw),
         accept_deadline_unix,
         completion_duration_seconds: values.completionDuration,
+        ...(permit !== undefined ? { permit } : {}),
       })
       escrow_id = created.escrow_id
 

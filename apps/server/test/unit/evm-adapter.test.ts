@@ -12,6 +12,7 @@ import {
   decodeFunctionData,
   encodeAbiParameters,
   encodeEventTopics,
+  hashDomain,
   toHex,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -51,6 +52,9 @@ function fakeRpc(overrides: Partial<EvmRpc> = {}): EvmRpc {
     },
     async readEscrow() {
       return null
+    },
+    async readPermitFacts() {
+      return { name: 'USDC', nonce: 0n, domain_separator: `0x${'00'.repeat(32)}` as const }
     },
     ...overrides,
   }
@@ -124,6 +128,89 @@ test('builders: native create carries amount as value; native dispute carries bo
     { asset_address: USDC, assigned_counterparty_address: null },
   )
   assert.strictEqual(disputeErc20.value_raw, '0')
+})
+
+// A well-formed (not cryptographically valid) 65-byte signature: the builder
+// only splits it; the token verifies it on-chain.
+const SIG_65 = `0x${'11'.repeat(32)}${'22'.repeat(32)}1b`
+const PERMIT_BODY = { value_raw: '1000000', deadline_unix: 1_900_000_000, signature: SIG_65 }
+
+test('builders: permit create encodes createEscrowWithPermit with the signed tuple, value 0', () => {
+  const call = buildEvmCall(
+    { ...CREATE_ARGS, payload: { ...CREATE_ARGS.payload, permit: PERMIT_BODY } },
+    { asset_address: USDC, assigned_counterparty_address: null },
+  )
+  assert.strictEqual(call.value_raw, '0')
+  const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: call.data })
+  assert.strictEqual(decoded.functionName, 'createEscrowWithPermit')
+  const args = decoded.args as readonly unknown[]
+  assert.strictEqual(args[3], 1_000_000n) // create args unchanged
+  const tuple = args[9] as { value: bigint; deadline: bigint; v: number; r: string; s: string }
+  assert.strictEqual(tuple.value, 1_000_000n)
+  assert.strictEqual(tuple.deadline, 1_900_000_000n)
+  assert.strictEqual(tuple.v, 27)
+  assert.strictEqual(tuple.r, `0x${'11'.repeat(32)}`)
+  assert.strictEqual(tuple.s, `0x${'22'.repeat(32)}`)
+})
+
+test('builders: permit on a native asset is rejected (last line of defense)', () => {
+  assert.throws(
+    () =>
+      buildEvmCall(
+        {
+          ...CREATE_ARGS,
+          payload: { ...CREATE_ARGS.payload, asset: 'ETH_BASE', permit: PERMIT_BODY },
+        },
+        { asset_address: null, assigned_counterparty_address: null },
+      ),
+    /native asset/,
+  )
+  assert.throws(
+    () =>
+      buildEvmCall(
+        {
+          action: 'disputeEscrow',
+          user_id: 'u1',
+          payload: { escrow_id: UUID, bond_raw: '777', permit: PERMIT_BODY },
+        },
+        { asset_address: null, assigned_counterparty_address: null },
+      ),
+    /native asset/,
+  )
+})
+
+test('builders: permit dispute encodes disputeEscrowWithPermit, value 0', () => {
+  const call = buildEvmCall(
+    {
+      action: 'disputeEscrow',
+      user_id: 'u1',
+      payload: { escrow_id: UUID, bond_raw: '777', permit: { ...PERMIT_BODY, value_raw: '777' } },
+    },
+    { asset_address: USDC, assigned_counterparty_address: null },
+  )
+  assert.strictEqual(call.value_raw, '0')
+  const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: call.data })
+  assert.strictEqual(decoded.functionName, 'disputeEscrowWithPermit')
+  const args = decoded.args as readonly unknown[]
+  const tuple = args[1] as { value: bigint }
+  assert.strictEqual(tuple.value, 777n)
+})
+
+test('builders: malformed permit signature rejects with 422', () => {
+  assert.throws(
+    () =>
+      buildEvmCall(
+        {
+          ...CREATE_ARGS,
+          payload: {
+            ...CREATE_ARGS.payload,
+            permit: { ...PERMIT_BODY, signature: '0xdead' },
+          },
+        },
+        { asset_address: USDC, assigned_counterparty_address: null },
+      ),
+    /65-byte/,
+  )
 })
 
 test('builders: every escrow-id action encodes its own selector; resolveDispute maps winner codes', () => {
@@ -523,6 +610,167 @@ test('buildTx: a refund hiccup never turns degradation into a hard failure', asy
   // refund error.
   const tx = await adapter.buildTx({ action: 'acceptEscrow', user_id: 'u1', payload: { escrow_id: UUID } })
   assert.strictEqual(tx.kind, 'evm-tx')
+})
+
+// ---------- approval hint (ERC-20 prerequisite on plain calls) ---------------
+
+test('buildTx: plain ERC-20 create carries the approval hint; permit and native do not', async () => {
+  const adapter = makeAdapter()
+  const plain = await adapter.buildTx(CREATE_ARGS)
+  assert.strictEqual(plain.kind, 'evm-tx')
+  if (plain.kind === 'evm-tx') {
+    assert.deepStrictEqual(plain.approval, { token: USDC, spender: CONTRACT, amount_raw: '1000000' })
+  }
+
+  const withPermit = await adapter.buildTx({
+    ...CREATE_ARGS,
+    payload: { ...CREATE_ARGS.payload, permit: PERMIT_BODY },
+  })
+  if (withPermit.kind === 'evm-tx') {
+    assert.strictEqual('approval' in withPermit, false)
+    const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: withPermit.data })
+    assert.strictEqual(decoded.functionName, 'createEscrowWithPermit')
+  }
+
+  const native = await adapter.buildTx({
+    ...CREATE_ARGS,
+    payload: { ...CREATE_ARGS.payload, asset: 'ETH_BASE' },
+  })
+  if (native.kind === 'evm-tx') assert.strictEqual('approval' in native, false)
+})
+
+test('buildTx: ERC-20 dispute bond carries the approval hint; zero bond does not', async () => {
+  const erc20Escrow = {
+    escrow_id: UUID_HEX as `0x${string}`,
+    kind: 0,
+    asset: USDC as `0x${string}`,
+    amount: 1_000_000n,
+    creator: CREATOR as `0x${string}`,
+    counterparty: WORKER as `0x${string}`,
+    assigned_counterparty: ZERO_ADDRESS as `0x${string}`,
+    status: 1,
+    accept_deadline: 1_900_000_000n,
+    completion_duration: 7_200n,
+    completion_deadline: 0n,
+    approval_deadline: 0n,
+    dispute_bond: 777n,
+    is_seeker: false,
+    raised_by: ZERO_ADDRESS as `0x${string}`,
+  }
+  const adapter = makeAdapter({ rpc: fakeRpc({ readEscrow: async () => erc20Escrow }) })
+  const withBond = await adapter.buildTx({
+    action: 'disputeEscrow',
+    user_id: 'u1',
+    payload: { escrow_id: UUID, bond_raw: '777' },
+  })
+  if (withBond.kind === 'evm-tx') {
+    assert.deepStrictEqual(withBond.approval, { token: USDC, spender: CONTRACT, amount_raw: '777' })
+  }
+
+  const zeroBond = await adapter.buildTx({
+    action: 'disputeEscrow',
+    user_id: 'u1',
+    payload: { escrow_id: UUID, bond_raw: '0' },
+  })
+  if (zeroBond.kind === 'evm-tx') assert.strictEqual('approval' in zeroBond, false)
+})
+
+// ---------- buildPermitPayload ------------------------------------------------
+
+/** Live-matching fixture: separator computed from the domain the adapter builds. */
+function matchingSeparator(chainId: number, token: string): `0x${string}` {
+  return hashDomain({
+    domain: { name: 'USDC', version: '2', chainId: BigInt(chainId), verifyingContract: token as `0x${string}` },
+    types: {
+      EIP712Domain: [
+        { name: 'name', type: 'string' },
+        { name: 'version', type: 'string' },
+        { name: 'chainId', type: 'uint256' },
+        { name: 'verifyingContract', type: 'address' },
+      ],
+    },
+  })
+}
+
+test('buildPermitPayload: happy path builds verifiable typed data with the live nonce', async () => {
+  const adapter = makeAdapter({
+    verifyWalletOwnership: async (user, address) => user === 'u1' && address === CREATOR,
+    rpc: fakeRpc({
+      readPermitFacts: async () => ({
+        name: 'USDC',
+        nonce: 7n,
+        domain_separator: matchingSeparator(8453, USDC),
+      }),
+    }),
+  })
+  assert.ok(adapter.buildPermitPayload)
+  const res = await adapter.buildPermitPayload({
+    user_id: 'u1',
+    owner: CREATOR,
+    asset: 'USDC_BASE',
+    value_raw: '1000000',
+  })
+  assert.strictEqual(res.typed_data.domain.name, 'USDC')
+  assert.strictEqual(res.typed_data.domain.version, '2')
+  assert.strictEqual(res.typed_data.domain.chainId, 8453)
+  assert.strictEqual(res.typed_data.domain.verifyingContract, USDC)
+  assert.strictEqual(res.typed_data.message.owner, CREATOR)
+  assert.strictEqual(res.typed_data.message.spender, CONTRACT)
+  assert.strictEqual(res.typed_data.message.value, '1000000')
+  assert.strictEqual(res.typed_data.message.nonce, '7')
+  assert.strictEqual(res.value_raw, '1000000')
+  assert.ok(res.deadline_unix > Math.floor(Date.now() / 1000))
+  assert.strictEqual(Number(res.typed_data.message.deadline), res.deadline_unix)
+})
+
+test('buildPermitPayload: negatives — ownership, capability, domain mismatch, bad inputs', async () => {
+  const owned = async () => true
+  const goodFacts = fakeRpc({
+    readPermitFacts: async () => ({
+      name: 'USDC',
+      nonce: 0n,
+      domain_separator: matchingSeparator(8453, USDC),
+    }),
+  })
+
+  // owner not a linked wallet → 422 (never leaks whether the wallet exists)
+  const notOwned = makeAdapter({ verifyWalletOwnership: async () => false, rpc: goodFacts })
+  await assert.rejects(
+    notOwned.buildPermitPayload!({ user_id: 'u1', owner: CREATOR, asset: 'USDC_BASE', value_raw: '1' }),
+    /not one of your verified linked wallets/,
+  )
+
+  // no ownership dep at all → same rejection (fail closed)
+  const noDep = makeAdapter({ rpc: goodFacts })
+  await assert.rejects(
+    noDep.buildPermitPayload!({ user_id: 'u1', owner: CREATOR, asset: 'USDC_BASE', value_raw: '1' }),
+    /not one of your verified linked wallets/,
+  )
+
+  // native asset / no manifest permit entry → PERMIT_UNAVAILABLE
+  const adapter = makeAdapter({ verifyWalletOwnership: owned, rpc: goodFacts })
+  await assert.rejects(
+    adapter.buildPermitPayload!({ user_id: 'u1', owner: CREATOR, asset: 'ETH_BASE', value_raw: '1' }),
+    (err: { code?: string }) => err.code === 'PERMIT_UNAVAILABLE',
+  )
+
+  // live domain mismatch (token renamed/upgraded) → PERMIT_UNAVAILABLE
+  const mismatched = makeAdapter({ verifyWalletOwnership: owned }) // default facts: zero separator
+  await assert.rejects(
+    mismatched.buildPermitPayload!({ user_id: 'u1', owner: CREATOR, asset: 'USDC_BASE', value_raw: '1' }),
+    (err: { code?: string; message: string }) =>
+      err.code === 'PERMIT_UNAVAILABLE' && /domain mismatch/.test(err.message),
+  )
+
+  // malformed owner / value
+  await assert.rejects(
+    adapter.buildPermitPayload!({ user_id: 'u1', owner: 'not-an-address', asset: 'USDC_BASE', value_raw: '1' }),
+    /0x-hex EVM address/,
+  )
+  await assert.rejects(
+    adapter.buildPermitPayload!({ user_id: 'u1', owner: CREATOR, asset: 'USDC_BASE', value_raw: '0' }),
+    /positive canonical integer/,
+  )
 })
 
 // ---------- alchemy webhook extraction ------------------------------------------------------

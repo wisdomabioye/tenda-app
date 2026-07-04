@@ -17,6 +17,7 @@
  */
 
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
+import type { PermitPayloadResponse, PermitSignatureBody } from '@tenda/shared'
 
 // ---------- shared value types --------------------------------------------
 
@@ -141,6 +142,13 @@ export interface CreateEscrowPayload {
   completion_duration_seconds: number
   dispute_bond_raw: AmountRaw
   is_seeker: boolean
+  /**
+   * EIP-2612 signature covering `amount_raw` — EVM ERC-20 assets only. When
+   * present the builder encodes `createEscrowWithPermit` (allowance rides
+   * the tx); validated by lib/escrow-create + the builder (native asset
+   * rejects). Routes never forward it to non-eip155 adapters.
+   */
+  permit?: PermitSignatureBody
 }
 
 export interface EscrowIdPayload {
@@ -157,6 +165,8 @@ export interface DisputeEscrowPayload {
   escrow_id: string
   /** Bond `msg.value` for EVM; lamport transfer for Solana. */
   bond_raw: AmountRaw
+  /** EIP-2612 signature covering the ERC-20 bond (disputeEscrowWithPermit). */
+  permit?: PermitSignatureBody
 }
 
 export interface ResolveDisputePayload {
@@ -224,6 +234,14 @@ export type UnsignedTx =
        * "Gas fee: 0.001 cUSD"; absent everywhere else.
        */
       fee_currency?: `0x${string}`
+      /**
+       * ERC-20 prerequisite the wallet must satisfy BEFORE broadcasting a
+       * plain call: allowance(owner → spender) ≥ amount_raw, topped up via
+       * approve() if short. Absent for native assets and permit-built calls
+       * (there the allowance rides the tx itself). Mirrors the shared wire
+       * contract (escrows.contract.ts UnsignedTx).
+       */
+      approval?: { token: string; spender: string; amount_raw: AmountRaw }
     }
   | {
       kind: 'evm-userop'
@@ -331,6 +349,19 @@ export interface ChainAdapter {
 
   /** Latest on-chain escrow state for reconciliation. Null = no account. */
   fetchEscrowState(escrow_ref: string): Promise<EscrowState | null>
+
+  /**
+   * Build the EIP-712 typed data for an EIP-2612 permit (EVM only — absent
+   * on chains without token-permit semantics; the route maps absence to a
+   * typed PERMIT_UNAVAILABLE so clients fall back to the approve flow).
+   * `owner` MUST already be verified as one of the caller's linked wallets.
+   */
+  buildPermitPayload?(args: {
+    user_id: string
+    owner: string
+    asset: AssetId
+    value_raw: AmountRaw
+  }): Promise<PermitPayloadResponse>
 
   /**
    * Platform fee in raw units. Same surface as `lib/escrow.ts:computePlatformFee`

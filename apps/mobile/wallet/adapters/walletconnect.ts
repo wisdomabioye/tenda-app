@@ -145,6 +145,35 @@ export async function sendEvmTransaction(input: {
   return hash
 }
 
+/**
+ * Sign EIP-712 typed data over the connected WC session
+ * (eth_signTypedData_v4). The payload arrives fully built from the server
+ * (permit flow) — this layer stringifies and forwards it verbatim, so the
+ * wallet hashes exactly what the server verified against the token's
+ * on-chain domain.
+ */
+export async function signEvmTypedData(input: {
+  from: string
+  typedData: object
+  /** CAIP-2 ('eip155:84532') — the scope the request is sent on. */
+  chainId?: string
+}): Promise<string> {
+  const provider = requireProvider()
+  // Same foreground dance as signMessage — the wallet must come forward to
+  // show the signature prompt or the request expires unseen on the relay.
+  const pending = provider.request<string>(
+    {
+      method: 'eth_signTypedData_v4',
+      params: [input.from, JSON.stringify(input.typedData)],
+    },
+    asScope(input.chainId),
+  )
+  await foregroundConnectedWallet()
+  const signature = await pending
+  if (typeof signature !== 'string') throw new Error('Wallet returned a non-string signature')
+  return signature
+}
+
 /** HTTP RPC endpoint of our primary EVM chain (Base / Base Sepolia per env). */
 function primaryRpcUrl(): string {
   const network = EVM_NETWORKS.find((n) => n.caipNetworkId === WALLET_CHAINS.eip155)

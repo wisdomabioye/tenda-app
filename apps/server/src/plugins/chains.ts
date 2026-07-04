@@ -11,7 +11,7 @@
 
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, sql } from 'drizzle-orm'
 import { assets, user_wallets } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { buildAdapters, buildChainRegistry, type AdapterDepsFactory } from '@server/chains'
@@ -91,6 +91,24 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
       const base: EvmAdapterDeps = {
         resolveWalletAddress: dbWalletResolver('eip155'),
         resolveAsset: dbAssetResolver(chainId),
+        // Permit-payload gate: the owner must be a linked wallet of the
+        // caller (rows only exist after signature verification — verified_at
+        // is NOT NULL by construction). Case-insensitive: EVM addresses may
+        // be stored checksummed.
+        async verifyWalletOwnership(user_id, address) {
+          const rows = await fastify.db
+            .select({ address: user_wallets.address })
+            .from(user_wallets)
+            .where(
+              and(
+                eq(user_wallets.user_id, user_id),
+                eq(user_wallets.chain_ns, 'eip155'),
+                sql`lower(${user_wallets.address}) = lower(${address})`,
+              ),
+            )
+            .limit(1)
+          return rows.length > 0
+        },
       }
       if (entry.gasPolicy !== 'paymaster') return base
       return {

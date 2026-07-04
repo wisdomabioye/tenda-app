@@ -60,7 +60,25 @@ test('valid exchange body normalizes (bond defaults to 0, no assignment)', () =>
     completion_duration_seconds: 7_200,
     dispute_bond_raw: '0',
     assigned_counterparty_id: null,
+    permit: null,
   })
+})
+
+test('permit: a valid body passes through typed; field violations are 422s', () => {
+  const sig = `0x${'11'.repeat(32)}${'22'.repeat(32)}1b`
+  const permit = { value_raw: '1000000000', deadline_unix: NOW_UNIX + 600, signature: sig }
+  const v = validateCreateEscrow(deps(), body({ permit }))
+  assert.deepStrictEqual(v.permit, permit)
+
+  // signed value below the escrow amount
+  expectRejects(body({ permit: { ...permit, value_raw: '1' } }), 422, /below the transfer amount/)
+  // deadline already passed
+  expectRejects(body({ permit: { ...permit, deadline_unix: NOW_UNIX } }), 422, /already passed/)
+  // malformed signature
+  expectRejects(body({ permit: { ...permit, signature: '0xdead' } }), 422, /65-byte/)
+  // wrong shapes
+  expectRejects(body({ permit: 'yes' }), 422, /must be an object/)
+  expectRejects(body({ permit: { value_raw: 5 } }), 422, /value_raw must be a string/)
 })
 
 test('assigned counterparty + explicit bond pass through', () => {

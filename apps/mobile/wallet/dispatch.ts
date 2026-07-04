@@ -18,6 +18,7 @@ import { Buffer } from 'buffer'
 import type { EscrowTxType, UnsignedTx } from '@tenda/shared'
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
+import { ensureAllowance } from '@/wallet/allowance'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 
@@ -26,6 +27,21 @@ export class UnsupportedUnsignedTxError extends Error {
     super(`cannot sign '${kind}': ${detail}`)
     this.name = 'UnsupportedUnsignedTxError'
   }
+}
+
+/**
+ * The EVM account this device signs/sends from — the SINGLE resolution both
+ * dispatch and the permit flow use, so the permit's `owner` can never
+ * diverge from the eventual `msg.sender`. CO3: `from` must be an eip155
+ * account — walletAddress is the SOLANA sign-in address and never valid
+ * here. Prefer the live EVM login session (evmAddress); fall back to the
+ * verified linked EVM wallet.
+ */
+export function resolveEvmFrom(): string | null {
+  const { evmAddress, wallets } = useAuthStore.getState()
+  const verified = wallets.filter((w) => w.chain_ns === 'eip155' && w.verified_at !== null)
+  const linked = verified.find((w) => w.is_primary) ?? verified[0]
+  return evmAddress ?? linked?.address ?? null
 }
 
 /** Sign + broadcast a server-built unsigned tx. Returns the tx_ref. */
@@ -38,15 +54,29 @@ export async function signAndSendUnsignedTx(unsigned: UnsignedTx, chain_id?: str
       return signAndSendStored(tx)
     }
     case 'evm-tx': {
-      // CO3: `from` must be an eip155 account — walletAddress is the
-      // SOLANA sign-in address and never valid here. Prefer the live EVM
-      // login session (evmAddress); fall back to the verified linked EVM wallet.
-      const { evmAddress, wallets } = useAuthStore.getState()
-      const verified = wallets.filter((w) => w.chain_ns === 'eip155' && w.verified_at !== null)
-      const linked = verified.find((w) => w.is_primary) ?? verified[0]
-      const from = evmAddress ?? linked?.address ?? null
+      const from = resolveEvmFrom()
       if (from === null) {
         throw new Error('no EVM wallet connected — link one in Settings → Wallets first')
+      }
+      // The server's approval hint: this ERC-20 call transferFroms, so the
+      // allowance must cover it BEFORE broadcast (permit-built calls carry
+      // no hint — their allowance rides the tx). Ordering lives HERE so
+      // every flow (create, publish-draft, dispute) inherits it.
+      if (unsigned.approval !== undefined) {
+        if (chain_id === undefined) {
+          // Silently skipping would broadcast a tx guaranteed to revert.
+          throw new UnsupportedUnsignedTxError(
+            'evm-tx',
+            'the approval hint needs the chain_id to read/set the allowance — pass it (signSendAndReport always does)',
+          )
+        }
+        await ensureAllowance({
+          chainId: chain_id,
+          token: unsigned.approval.token,
+          spender: unsigned.approval.spender,
+          amountRaw: unsigned.approval.amount_raw,
+          owner: from,
+        })
       }
       return sendEvmTransaction({
         from,

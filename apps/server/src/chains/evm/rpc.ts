@@ -45,17 +45,51 @@ export interface EvmEscrowTuple {
   raised_by: `0x${string}`
 }
 
+/** Live token facts an EIP-2612 permit payload needs (read per request). */
+export interface EvmPermitFacts {
+  name: string
+  nonce: bigint
+  domain_separator: `0x${string}`
+}
+
 export interface EvmRpc {
   /** Null = transaction unknown to the node (not yet mined / dropped). */
   getTransactionReceipt(hash: `0x${string}`): Promise<EvmReceipt | null>
   getBlockNumber(): Promise<bigint>
   /** Null = escrow id never created (zero creator sentinel). */
   readEscrow(escrow_contract: `0x${string}`, escrow_id: `0x${string}`): Promise<EvmEscrowTuple | null>
+  /** name() + nonces(owner) + DOMAIN_SEPARATOR() off an EIP-2612 token. */
+  readPermitFacts(token: `0x${string}`, owner: `0x${string}`): Promise<EvmPermitFacts>
 }
 
 export const DEFAULT_EVM_RPC_TIMEOUT_MS = 15_000
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+
+/** Minimal EIP-2612 read surface (subset every permit token implements). */
+const ERC20_PERMIT_READS_ABI = [
+  {
+    type: 'function',
+    name: 'name',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'string' }],
+  },
+  {
+    type: 'function',
+    name: 'nonces',
+    stateMutability: 'view',
+    inputs: [{ name: 'owner', type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'DOMAIN_SEPARATOR',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'bytes32' }],
+  },
+] as const satisfies Abi
 
 /**
  * Minimal viem-client surface the wrapper consumes. Tests inject a fake
@@ -107,6 +141,24 @@ export function evmRpcFromClient(client: EvmClientPort): EvmRpc {
       return client.getBlockNumber()
     },
 
+    async readPermitFacts(token, owner) {
+      const [name, nonce, domain_separator] = await Promise.all([
+        client.readContract({ address: token, abi: ERC20_PERMIT_READS_ABI, functionName: 'name', args: [] }),
+        client.readContract({ address: token, abi: ERC20_PERMIT_READS_ABI, functionName: 'nonces', args: [owner] }),
+        client.readContract({
+          address: token,
+          abi: ERC20_PERMIT_READS_ABI,
+          functionName: 'DOMAIN_SEPARATOR',
+          args: [],
+        }),
+      ])
+      return {
+        name: name as string,
+        nonce: nonce as bigint,
+        domain_separator: domain_separator as `0x${string}`,
+      }
+    },
+
     async readEscrow(escrow_contract, escrow_id) {
       const result = (await client.readContract({
         address: escrow_contract,
@@ -155,6 +207,11 @@ export function evmRpcFromClient(client: EvmClientPort): EvmRpc {
 export function createEvmRpc(args: { rpc_url: string; timeout_ms?: number }): EvmRpc {
   const vc = createPublicClient({
     transport: http(args.rpc_url, { timeout: args.timeout_ms ?? DEFAULT_EVM_RPC_TIMEOUT_MS }),
+    // Confirmation counting needs a FRESH head: viem's default ~4s
+    // blockNumber cache can lag the receipt's block (a stale head only
+    // delays confirmation in prod, but reads negative on instant-mining
+    // nodes). Never cache.
+    cacheTime: 0,
   })
   const client: EvmClientPort = {
     getTransactionReceipt: (hash) => vc.getTransactionReceipt({ hash }),

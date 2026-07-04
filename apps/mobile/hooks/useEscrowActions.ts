@@ -19,6 +19,7 @@ import bs58 from 'bs58'
 import type { EscrowTxType, UnsignedTx } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
 import { signSendAndReport } from '@/wallet/dispatch'
+import { buildPermitFor } from '@/wallet/permit'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui'
 import {
@@ -142,7 +143,18 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
       }
     },
 
-    dispute: (reason: string, bondRaw: string) =>
-      dispatch('dispute', () => store.requestDispute(escrowId, bondRaw, reason)),
+    /**
+     * `asset` enables the EIP-2612 path for ERC-20 bonds (screens pass the
+     * escrow's asset id); omitted or a zero bond falls back to the approve
+     * hint on the unsigned tx.
+     */
+    dispute: (reason: string, bondRaw: string, asset?: string) =>
+      dispatch('dispute', async () => {
+        const permit =
+          asset !== undefined && bondRaw !== '0'
+            ? await buildPermitFor({ chain_id: chainId, asset, value_raw: bondRaw })
+            : undefined
+        return store.requestDispute(escrowId, bondRaw, reason, permit)
+      }),
   }
 }

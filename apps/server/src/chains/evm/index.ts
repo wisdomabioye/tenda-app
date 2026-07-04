@@ -11,25 +11,34 @@
  * pattern).
  */
 
-import { toHex } from 'viem'
-import { ESCROW_STATUS_ORDER } from '@tenda/shared'
+import { isAddress, toHex } from 'viem'
+import { chainById, ErrorCode, ESCROW_STATUS_ORDER, type PermitPayloadResponse } from '@tenda/shared'
+import { AppError } from '@server/lib/errors'
 import { computePlatformFee } from '@server/lib/escrow'
 import { verifyWalletSignature } from '@server/lib/wallet-signature'
 import { bytesToUuid, uuidToBytes } from '@server/chains/ids'
-import type {
-  AssetId,
-  BuildTxArgs,
-  ChainAdapter,
-  ChainId,
-  EscrowState,
-  UnsignedTx,
-  VerifiedTx,
-  VerifyAuthSigArgs,
-  VerifyTxArgs,
+import {
+  isAmountRaw,
+  type AmountRaw,
+  type AssetId,
+  type BuildTxArgs,
+  type ChainAdapter,
+  type ChainId,
+  type EscrowState,
+  type UnsignedTx,
+  type VerifiedTx,
+  type VerifyAuthSigArgs,
+  type VerifyTxArgs,
 } from '@server/chains/types'
 import { buildEvmCall } from './builders'
 import { decodeEscrowLogs } from './verify'
 import { createEvmRpc, ZERO_ADDRESS, type EvmRpc } from './rpc'
+import {
+  buildPermitTypedData,
+  evmNumericChainId,
+  PERMIT_DEADLINE_SECONDS,
+  permitDomainMatches,
+} from './permit'
 import { ENTRY_POINT_V06, type PaymasterHttp } from './paymaster'
 
 export interface EvmAdapterDeps {
@@ -50,6 +59,13 @@ export interface EvmAdapterDeps {
    * yet pays gas. Absent = no-op (chains that never reserve, e.g. CELO).
    */
   releaseSponsorship?(user_id: string): Promise<void>
+  /**
+   * Is `address` one of the user's VERIFIED linked eip155 wallets? Gates
+   * permit-payload building: the permit's owner must be an account the
+   * caller actually controls (and will send from). Absent = permit payloads
+   * unavailable on this adapter instance.
+   */
+  verifyWalletOwnership?(user_id: string, address: string): Promise<boolean>
   /** Test seam: replace the network-backed RPC with a fake. */
   rpc?: EvmRpc
   /** Paymaster endpoint seam; absent = sponsorship unavailable. */
@@ -139,7 +155,114 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       data: call.data,
       value: call.value_raw,
       ...(args.fee_currency !== undefined ? { fee_currency: args.fee_currency } : {}),
+      ...approvalHint(build, ctx.asset_address),
     }
+  }
+
+  /**
+   * ERC-20 prerequisite the wallet must satisfy before broadcasting a PLAIN
+   * call: allowance(owner → escrow) ≥ the pull amount. Permit-built calls
+   * carry their own allowance; native assets fund via msg.value.
+   */
+  function approvalHint(
+    build: BuildTxArgs,
+    asset_address: string | null,
+  ): { approval?: { token: string; spender: string; amount_raw: AmountRaw } } {
+    if (asset_address === null) return {}
+    if (build.action === 'createEscrow' && build.payload.permit === undefined) {
+      return {
+        approval: {
+          token: asset_address,
+          spender: args.escrow_contract,
+          amount_raw: build.payload.amount_raw,
+        },
+      }
+    }
+    if (
+      build.action === 'disputeEscrow' &&
+      build.payload.permit === undefined &&
+      build.payload.bond_raw !== '0'
+    ) {
+      return {
+        approval: {
+          token: asset_address,
+          spender: args.escrow_contract,
+          amount_raw: build.payload.bond_raw,
+        },
+      }
+    }
+    return {}
+  }
+
+  async function buildPermitPayload(payload_args: {
+    user_id: string
+    owner: string
+    asset: AssetId
+    value_raw: AmountRaw
+  }): Promise<PermitPayloadResponse> {
+    const { user_id, owner, asset, value_raw } = payload_args
+    if (!isAddress(owner)) {
+      throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'owner must be a 0x-hex EVM address')
+    }
+    if (!isAmountRaw(value_raw) || value_raw === '0') {
+      throw new AppError(
+        422,
+        ErrorCode.VALIDATION_ERROR,
+        'value_raw must be a positive canonical integer string',
+      )
+    }
+    // The permit owner must be an account the caller controls AND will send
+    // from — client-supplied, server-verified against verified linked wallets.
+    const owned = (await args.deps.verifyWalletOwnership?.(user_id, owner)) ?? false
+    if (!owned) {
+      throw new AppError(
+        422,
+        ErrorCode.VALIDATION_ERROR,
+        'owner is not one of your verified linked wallets on this chain',
+      )
+    }
+    // Capability is config: no manifest permit entry → approve flow.
+    const permit_config = chainById(args.chain_id).assets.find((a) => a.id === asset)?.permit
+    if (permit_config === undefined) {
+      throw new AppError(
+        422,
+        ErrorCode.PERMIT_UNAVAILABLE,
+        `asset '${asset}' has no EIP-2612 permit support on ${args.chain_id} — use the approve flow`,
+      )
+    }
+    const { token_address } = await args.deps.resolveAsset(asset)
+    if (token_address === null) {
+      throw new AppError(
+        422,
+        ErrorCode.PERMIT_UNAVAILABLE,
+        `asset '${asset}' is native on ${args.chain_id} — no allowance needed`,
+      )
+    }
+
+    const facts = await rpc.readPermitFacts(token_address as `0x${string}`, owner)
+    const deadline_unix = Math.floor(Date.now() / 1000) + PERMIT_DEADLINE_SECONDS
+    const typed_data = buildPermitTypedData({
+      token_name: facts.name,
+      permit_version: permit_config.version,
+      chain_numeric_id: evmNumericChainId(args.chain_id),
+      token: token_address,
+      owner,
+      spender: args.escrow_contract,
+      value_raw,
+      nonce: facts.nonce,
+      deadline_unix,
+    })
+    // Runtime guard: the reconstructed domain must hash to the token's LIVE
+    // DOMAIN_SEPARATOR — a token rename/upgrade degrades to the approve flow
+    // instead of producing signatures the token would reject.
+    if (!permitDomainMatches(typed_data, facts.domain_separator)) {
+      throw new AppError(
+        422,
+        ErrorCode.PERMIT_UNAVAILABLE,
+        `token domain mismatch for '${asset}' on ${args.chain_id} — use the approve flow`,
+      )
+    }
+    return { typed_data, value_raw, deadline_unix }
   }
 
   async function buildContext(build: BuildTxArgs) {
@@ -232,6 +355,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     namespace: 'eip155',
     chain_id: args.chain_id,
     buildTx,
+    buildPermitPayload,
     verifyTx,
     // Namespace-level crypto (EIP-191 ecrecover) — single source in
     // lib/wallet-signature; the registry's verifyAuthSig delegates to the same.
