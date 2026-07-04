@@ -5,8 +5,8 @@ import { useUnistyles } from 'react-native-unistyles'
 import { isE164, normalizeEmail } from '@tenda/shared'
 import { ScreenContainer, Text, Header, Button, showToast } from '@/components/ui'
 import { Input } from '@/components/ui/Input'
-import { api, ApiClientError } from '@/api/client'
-import { classifyVerifyError, TIER0_MESSAGE } from '@/lib/auth-flow'
+import { api } from '@/api/client'
+import { verifyErrorMessage } from '@/lib/auth-flow'
 
 /** The two contact channels that issue an OTP from this screen. */
 type ContactMethod = 'phone' | 'email'
@@ -84,21 +84,15 @@ export default function ContinueWithScreen() {
     if (!valid || busy) return
     setBusy(true)
     try {
-      await api.auth.challenge({ method: channel, identifier: value })
+      // The bearer is only sent when LINKING — sign-in must stay anonymous so a
+      // stale stored JWT can never 401 the challenge.
+      await api.auth.challenge({ method: channel, identifier: value }, { link: isLink })
       router.push({
         pathname: '/(auth)/verify-code',
         params: { channel, identifier: value, ...(isLink ? { mode: 'link' } : {}) },
       })
     } catch (e) {
-      const tier0 = classifyVerifyError(e)
-      showToast(
-        'error',
-        tier0
-          ? TIER0_MESSAGE[tier0]
-          : e instanceof ApiClientError
-            ? e.message
-            : 'Something went wrong — please try again',
-      )
+      showToast('error', verifyErrorMessage(e, 'Something went wrong — please try again'))
     } finally {
       setBusy(false)
     }

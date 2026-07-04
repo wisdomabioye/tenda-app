@@ -1,5 +1,7 @@
 /**
- * lib/auth-flow — Tier-0 classification of /auth/verify failures.
+ * lib/auth-flow — Tier-0 classification of /auth/verify failures + the shared
+ * user-facing message mapping (incl. never surfacing the JWT guard's raw
+ * "Invalid or missing token" envelope).
  */
 
 jest.mock('@/api/client', () => {
@@ -16,7 +18,7 @@ jest.mock('@/api/client', () => {
   return { ApiClientError }
 })
 
-import { classifyVerifyError, TIER0_MESSAGE } from '@/lib/auth-flow'
+import { classifyVerifyError, verifyErrorMessage, TIER0_MESSAGE } from '@/lib/auth-flow'
 import { ApiClientError } from '@/api/client'
 
 describe('classifyVerifyError', () => {
@@ -37,5 +39,31 @@ describe('classifyVerifyError', () => {
   it('has user-facing copy for every Tier-0 reason', () => {
     expect(TIER0_MESSAGE.wallet_not_linked).toMatch(/wallet/i)
     expect(TIER0_MESSAGE.identity_already_linked).toMatch(/another account/i)
+  })
+})
+
+describe('verifyErrorMessage', () => {
+  const FALLBACK = 'Something went wrong — please try again'
+
+  it('prefers Tier-0 copy when the code maps to a Tier-0 reason', () => {
+    const e = new ApiClientError(404, 'Not Found', 'wallet not linked', 'WALLET_NOT_LINKED')
+    expect(verifyErrorMessage(e, FALLBACK)).toBe(TIER0_MESSAGE.wallet_not_linked)
+  })
+
+  it('replaces the JWT guard\'s raw 401 envelope with friendly retry copy', () => {
+    const e = new ApiClientError(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    const msg = verifyErrorMessage(e, FALLBACK)
+    expect(msg).not.toMatch(/invalid or missing token/i)
+    expect(msg).toMatch(/try again/i)
+  })
+
+  it('surfaces the server message for other API errors', () => {
+    const e = new ApiClientError(401, 'Unauthorized', 'Invalid or expired code', 'OTP_INVALID')
+    expect(verifyErrorMessage(e, FALLBACK)).toBe('Invalid or expired code')
+  })
+
+  it('uses the caller fallback for non-API errors', () => {
+    expect(verifyErrorMessage(new TypeError('Network request failed'), FALLBACK)).toBe(FALLBACK)
+    expect(verifyErrorMessage(null, FALLBACK)).toBe(FALLBACK)
   })
 })

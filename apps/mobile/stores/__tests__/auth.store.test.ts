@@ -21,9 +21,11 @@ jest.mock('@/api/client', () => {
   // ApiClientError` matches because both sides resolve to this same class.
   class ApiClientError extends Error {
     statusCode: number
-    constructor(statusCode: number, error: string, message: string) {
+    code?: string
+    constructor(statusCode: number, error: string, message: string, code?: string) {
       super(message)
       this.statusCode = statusCode
+      this.code = code
     }
   }
   return {
@@ -53,7 +55,13 @@ jest.mock('@/stores/exchange-market.store', () => ({
 import { useAuthStore } from '@/stores/auth.store'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { api, ApiClientError } from '@/api/client'
-import { getJwtToken, getWalletAddress, setWalletAddress, setJwtToken } from '@/lib/secure-store'
+import {
+  getJwtToken,
+  getWalletAddress,
+  setWalletAddress,
+  setJwtToken,
+  clearAuthStorage,
+} from '@/lib/secure-store'
 
 const walletSignInMock = walletSignIn as jest.Mock
 const linkWalletMock = linkWalletWith as jest.Mock
@@ -65,6 +73,12 @@ const getJwt = getJwtToken as jest.Mock
 const getAddr = getWalletAddress as jest.Mock
 const setAddr = setWalletAddress as jest.Mock
 const setJwt = setJwtToken as jest.Mock
+const clearAuth = clearAuthStorage as jest.Mock
+
+/** The JWT guard's rejection of a stale bearer (plugins/auth.ts envelope). */
+function staleTokenError(): InstanceType<typeof ApiClientError> {
+  return new ApiClientError(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+}
 
 const USER: AuthResponse['user'] = {
   id: 'u1',
@@ -189,6 +203,19 @@ describe('signInWithWallet', () => {
     walletSignInMock.mockRejectedValue(new Error('500 boom'))
     await expect(useAuthStore.getState().signInWithWallet(stubAdapter())).rejects.toThrow('500 boom')
   })
+
+  it('purges the stored session when the wallet flow 401s UNAUTHORIZED (stale token)', async () => {
+    useAuthStore.setState({ jwt: 'dead-jwt' })
+    walletSignInMock.mockRejectedValue(staleTokenError())
+
+    await expect(useAuthStore.getState().signInWithWallet(stubAdapter())).rejects.toMatchObject({
+      code: 'UNAUTHORIZED',
+    })
+
+    expect(clearAuth).toHaveBeenCalledTimes(1)
+    expect(useAuthStore.getState().jwt).toBeNull()
+    expect(useAuthStore.getState().walletAuthInProgress).toBe(false)
+  })
 })
 
 describe('linkWallet', () => {
@@ -275,6 +302,40 @@ describe('signInWithVerify', () => {
     ).rejects.toBeInstanceOf(ApiClientError)
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
   })
+
+  it('calls verify ANONYMOUSLY — sign-in never passes link intent', async () => {
+    verifyMock.mockResolvedValue({ token: 't', user: USER, is_new: false })
+    const body = { method: 'google' as const, id_token: 'g-idt' }
+    await useAuthStore.getState().signInWithVerify(body)
+    // Exactly one argument: no { link: true }, so the request layer sends no
+    // bearer and a stale stored JWT can never 401 a sign-in.
+    expect(verifyMock).toHaveBeenCalledWith(body)
+  })
+
+  it('purges the stored session when verify 401s UNAUTHORIZED (stale token), so retry works', async () => {
+    // The repro: app launched with the server down → loadSession kept a dead
+    // token → server comes up → sign-in 401s. The purge must clear storage.
+    useAuthStore.setState({ jwt: 'dead-jwt', walletAddress: 'SoLaNaAddr' })
+    verifyMock.mockRejectedValue(staleTokenError())
+
+    await expect(
+      useAuthStore.getState().signInWithVerify({ method: 'google', id_token: 'g-idt' }),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' })
+
+    expect(clearAuth).toHaveBeenCalledTimes(1)
+    const s = useAuthStore.getState()
+    expect(s.jwt).toBeNull()
+    expect(s.walletAddress).toBeNull()
+    expect(s.isAuthenticated).toBe(false)
+  })
+
+  it('does NOT purge storage on other verify failures (e.g. bad OTP)', async () => {
+    verifyMock.mockRejectedValue(new ApiClientError(401, 'Unauthorized', 'Invalid code', 'OTP_INVALID'))
+    await expect(
+      useAuthStore.getState().signInWithVerify({ method: 'email', identifier: 'a@x.io', code: '000000' }),
+    ).rejects.toBeInstanceOf(ApiClientError)
+    expect(clearAuth).not.toHaveBeenCalled()
+  })
 })
 
 describe('logout', () => {
@@ -349,7 +410,11 @@ describe('linkIdentity', () => {
 
     await useAuthStore.getState().linkIdentity({ method: 'email', identifier: 'me@x.io', code: '424242' })
 
-    expect(verifyMock).toHaveBeenCalledWith({ method: 'email', identifier: 'me@x.io', code: '424242' })
+    // link: true is what attaches the bearer — the server's link discriminator.
+    expect(verifyMock).toHaveBeenCalledWith(
+      { method: 'email', identifier: 'me@x.io', code: '424242' },
+      { link: true },
+    )
     const s = useAuthStore.getState()
     // Session token is NOT replaced by the verify response (link is not a sign-in).
     expect(s.jwt).toBe('jwt-123')

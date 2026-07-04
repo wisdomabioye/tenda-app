@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { ErrorCode } from '@tenda/shared'
 import type { User, LinkedWallet, VerifyBody, IdentityMethodWire } from '@tenda/shared'
 import {
   getJwtToken,
@@ -69,8 +70,9 @@ interface AuthState {
   /**
    * Stage 9 unified sign-in — verify a credential proof (phone/email OTP,
    * OAuth id_token, or wallet signature) via POST /v1/auth/verify and set the
-   * session. No wallet is required. Anonymous → login/create; an
-   * already-authenticated caller LINKS (the request layer sends the JWT).
+   * session. No wallet is required. Always calls verify ANONYMOUSLY (no
+   * bearer) — the header is the server's link/sign-in discriminator, and a
+   * stale stored JWT would otherwise 401 every sign-in attempt.
    * Returns whether the account was just created. Throws ApiClientError (the
    * caller maps WALLET_NOT_LINKED / IDENTITY_ALREADY_LINKED to the Tier-0 UX).
    */
@@ -78,10 +80,10 @@ interface AuthState {
   /**
    * Stage 9 — LINK a verified contact (phone/email OTP) to the ALREADY-signed-in
    * account, used by the Sign-in & security screen. Same POST /v1/auth/verify as
-   * sign-in (bearer auto-attached → server links to the current user), but it
-   * does NOT touch the session token or navigation — it just refreshes the
-   * cached user/wallets/identities. Throws ApiClientError (the screen maps
-   * IDENTITY_ALREADY_LINKED etc. to a toast).
+   * sign-in but with `link: true` (bearer attached → server links to the current
+   * user), and it does NOT touch the session token or navigation — it just
+   * refreshes the cached user/wallets/identities. Throws ApiClientError (the
+   * screen maps IDENTITY_ALREADY_LINKED etc. to a toast).
    */
   linkIdentity: (body: VerifyBody) => Promise<void>
   /** Re-fetch sign-in identities from GET /v1/auth/methods. */
@@ -92,6 +94,20 @@ interface AuthState {
   refreshUser: () => Promise<void>
   /** Re-fetch wallets + profile_complete from /v1/users/me. */
   refreshMe: () => Promise<void>
+}
+
+/**
+ * A SIGN-IN call answered 401 UNAUTHORIZED — only the server's JWT guard mints
+ * that code, so a dead stored token leaked onto the request. Purge it so the
+ * very next attempt starts clean: loadSession can only clear it when the
+ * server is reachable at launch, so without this a server-down start leaves
+ * sign-in permanently poisoned within the session.
+ */
+async function purgeIfStaleSession(e: unknown): Promise<void> {
+  if (e instanceof ApiClientError && e.statusCode === 401 && e.code === ErrorCode.UNAUTHORIZED) {
+    await clearAuthStorage()
+    useAuthStore.setState({ jwt: null, walletAddress: null, isAuthenticated: false })
+  }
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -111,7 +127,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // welcome if the wallet's `tenda://` return bounces through `/` mid-verify.
     set({ walletAuthInProgress: true })
     try {
-      const result = await walletSignIn(adapter)
+      const result = await walletSignIn(adapter).catch(async (e: unknown) => {
+        await purgeIfStaleSession(e)
+        throw e
+      })
       if (result === null) return false
 
       const { auth, account } = result
@@ -161,7 +180,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithVerify: async (body) => {
-    const res = await api.auth.verify(body)
+    const res = await api.auth.verify(body).catch(async (e: unknown) => {
+      await purgeIfStaleSession(e)
+      throw e
+    })
     await setJwtToken(res.token)
     set({
       user: res.user,
@@ -177,11 +199,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   linkIdentity: async (body) => {
-    // The request layer attaches the stored JWT → the server links this verified
+    // `link: true` attaches the stored JWT → the server links this verified
     // identity to the current user (rather than creating/logging in). We discard
     // the returned token: the existing session is still valid and we must not
     // disturb the auth/nav state from a settings action.
-    await api.auth.verify(body)
+    await api.auth.verify(body, { link: true })
     // Reflect the new contact across the surfaces that show it.
     await Promise.all([get().refreshMe(), get().loadMethods()])
     void get().refreshUser()

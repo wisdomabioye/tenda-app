@@ -100,15 +100,22 @@ const {
 export const api = {
   auth: {
     nonce: () => request<AuthNonceResponse>('POST', auth.nonce),
-    /** Stage 9 unified — issue an OTP (phone/email). Wallet/OAuth challenge off-device. */
-    challenge: (body: ChallengeBody) =>
-      request<ChallengeResponse>('POST', auth.challenge, { body }),
     /**
-     * Stage 9 unified — verify a proof → { token, user, is_new }. The request
-     * layer auto-attaches the stored JWT, so a logged-in caller LINKS the
-     * identity while an anonymous caller LOGS IN / creates.
+     * Stage 9 unified — issue an OTP (phone/email). Wallet/OAuth challenge
+     * off-device. The bearer is the server's link/sign-in discriminator, so it
+     * is sent ONLY with `link: true`; sign-in stays anonymous even when a
+     * (possibly stale) JWT is stored.
      */
-    verify: (body: VerifyBody) => request<VerifyResponse>('POST', auth.verify, { body }),
+    challenge: (body: ChallengeBody, opts?: { link?: boolean }) =>
+      request<ChallengeResponse>('POST', auth.challenge, { body, auth: opts?.link === true }),
+    /**
+     * Stage 9 unified — verify a proof → { token, user, is_new }. Anonymous by
+     * default (LOGS IN / creates); pass `link: true` to attach the bearer and
+     * LINK the identity to the current account instead. Never auto-attaches
+     * the stored JWT: a dead token on the sign-in path would 401 every retry.
+     */
+    verify: (body: VerifyBody, opts?: { link?: boolean }) =>
+      request<VerifyResponse>('POST', auth.verify, { body, auth: opts?.link === true }),
     me: () => request<User>('GET', auth.me),
     /** Stage 9 — the caller's non-wallet sign-in identities (Sign-in & security). */
     methods: () => request<LoginMethodsResponse>('GET', auth.methods),

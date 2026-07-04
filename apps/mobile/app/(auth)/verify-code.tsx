@@ -6,7 +6,7 @@ import { ScreenContainer, Text, Header, Button, showToast } from '@/components/u
 import { OtpCodeField } from '@/components/auth/OtpCodeField'
 import { useAuthStore } from '@/stores/auth.store'
 import { api, ApiClientError } from '@/api/client'
-import { classifyVerifyError, TIER0_MESSAGE } from '@/lib/auth-flow'
+import { verifyErrorMessage } from '@/lib/auth-flow'
 import { usePostAuthReset } from '@/lib/post-auth-nav'
 
 const CODE_LENGTH = 6
@@ -64,13 +64,7 @@ export default function VerifyCodeScreen() {
       }
     } catch (e) {
       setCode('')
-      const tier0 = classifyVerifyError(e)
-      const msg = tier0
-        ? TIER0_MESSAGE[tier0]
-        : e instanceof ApiClientError
-          ? e.message
-          : 'Verification failed — please try again'
-      showToast('error', msg)
+      showToast('error', verifyErrorMessage(e, 'Verification failed — please try again'))
     } finally {
       setIsVerifying(false)
     }
@@ -79,7 +73,8 @@ export default function VerifyCodeScreen() {
   async function handleResend() {
     if (!channel || !identifier || cooldown > 0) return
     try {
-      await api.auth.challenge({ method: channel, identifier })
+      // Match the original challenge's intent: bearer only when LINKING.
+      await api.auth.challenge({ method: channel, identifier }, { link: isLink })
       setCooldown(RESEND_COOLDOWN_S)
       showToast('success', 'A new code is on its way')
     } catch (e) {

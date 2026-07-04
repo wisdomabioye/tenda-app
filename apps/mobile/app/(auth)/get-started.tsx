@@ -6,10 +6,9 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Mail, Phone, Wallet } from 'lucide-react-native'
 import { ScreenContainer, Text, Header, Button, showToast } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth.store'
-import { ApiClientError } from '@/api/client'
 import { signInWithGoogle, configureGoogleSignIn, GoogleSignInError } from '@/lib/google-signin'
 import { signInWithApple, isAppleAvailable, AppleSignInError } from '@/lib/apple-signin'
-import { classifyVerifyError, TIER0_MESSAGE } from '@/lib/auth-flow'
+import { verifyErrorMessage } from '@/lib/auth-flow'
 import { usePostAuthReset } from '@/lib/post-auth-nav'
 
 type Busy = null | 'google' | 'apple'
@@ -42,15 +41,7 @@ export default function GetStartedScreen() {
   }, [])
 
   function reportError(e: unknown): void {
-    const tier0 = classifyVerifyError(e)
-    showToast(
-      'error',
-      tier0
-        ? TIER0_MESSAGE[tier0]
-        : e instanceof ApiClientError
-          ? e.message
-          : 'Something went wrong — please try again',
-    )
+    showToast('error', verifyErrorMessage(e, 'Something went wrong — please try again'))
   }
 
   function afterAuth(): void {
