@@ -6,7 +6,11 @@
  */
 
 import { BN, type Program } from '@coral-xyz/anchor'
-import { PublicKey, SystemProgram } from '@solana/web3.js'
+import { PublicKey, SystemProgram, type TransactionInstruction } from '@solana/web3.js'
+import {
+  createAssociatedTokenAccountIdempotentInstruction,
+  getAssociatedTokenAddressSync,
+} from '@solana/spl-token'
 import bs58 from 'bs58'
 import { ErrorCode } from '@tenda/shared'
 import type { TendaEscrow } from '@tenda/shared/idl'
@@ -82,6 +86,42 @@ export function counterpartyOrThrow(escrow: EscrowAccount): PublicKey {
     )
   }
   return escrow.counterparty
+}
+
+/**
+ * Idempotent ATA-provisioning instructions for an SPL settlement/resolve tx.
+ *
+ * Anchor deserializes every `Account<TokenAccount>` field in `SettleSpl` /
+ * `ResolveSpl` before the handler runs, so each recipient's Associated Token
+ * Account must already be an initialized token account for the tx to validate
+ * — regardless of whether the handler actually pays it (e.g. `reclaim` never
+ * pays counterparty/treasury but the shared struct still loads them; a Split
+ * dispute pays treasury nothing but still deserializes its ATA). Solana has no
+ * lazy-init: unlike an EVM ERC-20 balance mapping, a fresh (owner, mint) pair
+ * has no on-chain account until one is created.
+ *
+ * We prepend a `createAssociatedTokenAccountIdempotent` per owner so the ATAs
+ * exist by the time the settlement instruction is validated later in the same
+ * transaction. The idempotent variant is a no-op when the ATA already exists,
+ * so the only real cost is first-ever creation (rent paid by `payer`, the tx
+ * fee-payer). Owners are de-duplicated to avoid emitting redundant creations
+ * when two roles share a wallet.
+ */
+export function ataProvisioningIx(
+  payer: PublicKey,
+  owners: PublicKey[],
+  mint: PublicKey,
+): TransactionInstruction[] {
+  const seen = new Set<string>()
+  const ixs: TransactionInstruction[] = []
+  for (const owner of owners) {
+    const key = owner.toBase58()
+    if (seen.has(key)) continue
+    seen.add(key)
+    const ata = getAssociatedTokenAddressSync(mint, owner)
+    ixs.push(createAssociatedTokenAccountIdempotentInstruction(payer, ata, owner, mint))
+  }
+  return ixs
 }
 
 export function toBn(value: AmountRaw, field: string): BN {

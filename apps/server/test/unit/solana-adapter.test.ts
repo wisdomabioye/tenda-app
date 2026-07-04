@@ -16,10 +16,11 @@ import nacl from 'tweetnacl'
 import bs58 from 'bs58'
 import { BN } from '@coral-xyz/anchor'
 import { SystemProgram, VersionedTransaction } from '@solana/web3.js'
-import { getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { ASSOCIATED_TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { discriminatorFor, type InstructionName } from '@tenda/shared/idl'
 import { AppError } from '@server/lib/errors'
 import { solanaAdapter, verifyEd25519 } from '@server/chains/solana'
+import { ataProvisioningIx } from '@server/chains/solana/builder-internals'
 import { escrowPdaFromUuid, platformPda, tokenVaultPda, vaultPda } from '@server/chains/solana/pdas'
 import { uuidToBytes, bytesToUuid } from '@server/chains/ids'
 import type { UnsignedTx } from '@server/chains/types'
@@ -69,11 +70,19 @@ function makeAdapter(rpc: FakeSolanaRpc, resolvedUserIds: string[] = []) {
 }
 
 /** Decode an UnsignedTx and return its single instruction's parts. */
+/**
+ * Decode an unsigned tx. The action's own instruction is always last; any
+ * instructions before it are idempotent ATA-provisioning creations (SPL
+ * settlement/resolve). `ataOwners` lists the owner pubkey each provisioning
+ * instruction targets (owner is account index 2 of the SPL ATA instruction).
+ */
 function decodeUnsigned(unsigned: UnsignedTx): {
   programId: string
   discriminator: Buffer
   keys: string[]
   payer: string
+  instructionCount: number
+  ataOwners: string[]
 } {
   assert.strictEqual(unsigned.kind, 'solana-tx')
   if (unsigned.kind !== 'solana-tx') throw new Error('unreachable')
@@ -81,14 +90,25 @@ function decodeUnsigned(unsigned: UnsignedTx): {
   assert.strictEqual(unsigned.last_valid_block_height, TEST_LAST_VALID_BLOCK_HEIGHT)
   const tx = VersionedTransaction.deserialize(Buffer.from(unsigned.tx_base64, 'base64'))
   const msg = tx.message
-  assert.strictEqual(msg.compiledInstructions.length, 1)
-  const ix = msg.compiledInstructions[0]
+  assert.ok(msg.compiledInstructions.length >= 1)
   const keys = msg.staticAccountKeys.map((k) => k.toBase58())
+  const ixs = msg.compiledInstructions
+  const ata = ASSOCIATED_TOKEN_PROGRAM_ID.toBase58()
+  const ataOwners = ixs
+    .filter((ix) => keys[ix.programIdIndex] === ata)
+    .map((ix) => keys[ix.accountKeyIndexes[2]])
+  const main = ixs[ixs.length - 1]
+  // Every non-final instruction must be an ATA provisioning instruction.
+  for (const ix of ixs.slice(0, -1)) {
+    assert.strictEqual(keys[ix.programIdIndex], ata, 'non-final instruction is not an ATA creation')
+  }
   return {
-    programId: keys[ix.programIdIndex],
-    discriminator: Buffer.from(ix.data.slice(0, 8)),
-    keys: ix.accountKeyIndexes.map((i) => keys[i]),
+    programId: keys[main.programIdIndex],
+    discriminator: Buffer.from(main.data.slice(0, 8)),
+    keys: main.accountKeyIndexes.map((i) => keys[i]),
     payer: keys[0],
+    instructionCount: ixs.length,
+    ataOwners,
   }
 }
 
@@ -249,6 +269,9 @@ test('buildTx approveCompletion (SOL escrow): settle accounts from on-chain stat
   for (const expected of [CREATOR, COUNTERPARTY, TREASURY]) {
     assert.ok(d.keys.includes(expected.toBase58()), `missing ${expected.toBase58()}`)
   }
+  // SOL settlement moves lamports directly — no ATA provisioning.
+  assert.strictEqual(d.instructionCount, 1)
+  assert.deepStrictEqual(d.ataOwners, [])
 })
 
 test('buildTx approveCompletion (SPL escrow): forks to _spl with party ATAs', async () => {
@@ -268,9 +291,19 @@ test('buildTx approveCompletion (SPL escrow): forks to _spl with party ATAs', as
       `missing ATA for ${owner.toBase58()}`,
     )
   }
+  // Prepends idempotent ATA creation for all three settlement recipients so
+  // the settlement instruction validates even against never-funded parties
+  // (issue #88). Provisioning ix (3) + settlement ix (1).
+  assert.strictEqual(d.instructionCount, 4)
+  assert.deepStrictEqual(
+    d.ataOwners.sort(),
+    [CREATOR, COUNTERPARTY, TREASURY].map((k) => k.toBase58()).sort(),
+  )
+  // Fee-payer (creator, the approver) funds any first-time ATA rent.
+  assert.strictEqual(d.payer, CREATOR.toBase58())
 })
 
-test('buildTx claimStalledPayment / reclaimAbandoned: pick the right instruction', async () => {
+test('buildTx claimStalledPayment / reclaimAbandoned (SOL): right instruction, no ATA provisioning', async () => {
   const rpc = fakeSolanaRpc()
   await stageAcceptedEscrow(rpc)
   const a = makeAdapter(rpc)
@@ -282,6 +315,7 @@ test('buildTx claimStalledPayment / reclaimAbandoned: pick the right instruction
     }),
   )
   expectDiscriminator(claim.discriminator, 'claimStalledPaymentSol')
+  assert.strictEqual(claim.instructionCount, 1)
   const reclaim = decodeUnsigned(
     await a.buildTx({
       action: 'reclaimAbandoned',
@@ -290,6 +324,50 @@ test('buildTx claimStalledPayment / reclaimAbandoned: pick the right instruction
     }),
   )
   expectDiscriminator(reclaim.discriminator, 'reclaimAbandonedSol')
+  assert.strictEqual(reclaim.instructionCount, 1)
+})
+
+test('buildTx claimStalledPayment (SPL): provisions all three settlement ATAs, payer = claimant', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { submitted: {} }, asset: USDC_MINT })
+  const a = makeAdapter(rpc)
+  const d = decodeUnsigned(
+    await a.buildTx({
+      action: 'claimStalledPayment',
+      user_id: 'user-counterparty',
+      payload: { escrow_id: ESCROW_UUID },
+    }),
+  )
+  expectDiscriminator(d.discriminator, 'claimStalledPaymentSpl')
+  assert.strictEqual(d.instructionCount, 4)
+  assert.deepStrictEqual(
+    d.ataOwners.sort(),
+    [CREATOR, COUNTERPARTY, TREASURY].map((k) => k.toBase58()).sort(),
+  )
+  // The claimant (counterparty) is the fee-payer and funds first-time ATA rent.
+  assert.strictEqual(d.payer, COUNTERPARTY.toBase58())
+})
+
+test('buildTx reclaimAbandoned (SPL): provisions counterparty+treasury ATAs it never pays (issue #88 collateral fix)', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { asset: USDC_MINT })
+  const a = makeAdapter(rpc)
+  const d = decodeUnsigned(
+    await a.buildTx({
+      action: 'reclaimAbandoned',
+      user_id: 'user-creator',
+      payload: { escrow_id: ESCROW_UUID },
+    }),
+  )
+  expectDiscriminator(d.discriminator, 'reclaimAbandonedSpl')
+  // reclaim only refunds the creator, but `SettleSpl` still deserializes the
+  // counterparty + treasury token accounts, so all three must be provisioned.
+  assert.strictEqual(d.instructionCount, 4)
+  assert.deepStrictEqual(
+    d.ataOwners.sort(),
+    [CREATOR, COUNTERPARTY, TREASURY].map((k) => k.toBase58()).sort(),
+  )
+  assert.strictEqual(d.payer, CREATOR.toBase58())
 })
 
 test('buildTx settlement without counterparty on-chain → 409 ESCROW_WRONG_STATUS', async () => {
@@ -420,6 +498,7 @@ test('buildTx disputeEscrow: bond arg validated; resolveDispute resolves raiser 
   )
   expectDiscriminator(resolved.discriminator, 'resolveDisputeSol')
   assert.strictEqual(resolved.payer, WALLETS['user-admin'])
+  assert.strictEqual(resolved.instructionCount, 1)
 })
 
 test('buildTx disputeEscrow / resolveDispute on an SPL escrow: _spl variants with raiser + party ATAs', async () => {
@@ -439,6 +518,9 @@ test('buildTx disputeEscrow / resolveDispute on an SPL escrow: _spl variants wit
     dispute.keys.includes(getAssociatedTokenAddressSync(USDC_MINT, COUNTERPARTY).toBase58()),
     'missing raiser ATA',
   )
+  // The raiser bonds from their own (already-funded) ATA — nothing to provision.
+  assert.strictEqual(dispute.instructionCount, 1)
+  assert.deepStrictEqual(dispute.ataOwners, [])
 
   const resolve = decodeUnsigned(
     await a.buildTx({
@@ -454,6 +536,42 @@ test('buildTx disputeEscrow / resolveDispute on an SPL escrow: _spl variants wit
       `missing ATA for ${owner.toBase58()}`,
     )
   }
+  // `ResolveSpl` deserializes all three token accounts for every winner
+  // outcome, so all three are provisioned regardless of who wins. Provisioning
+  // ix (3) + resolve ix (1); dispute_admin funds first-time rent.
+  assert.strictEqual(resolve.instructionCount, 4)
+  assert.deepStrictEqual(
+    resolve.ataOwners.sort(),
+    [CREATOR, COUNTERPARTY, TREASURY].map((k) => k.toBase58()).sort(),
+  )
+  assert.strictEqual(resolve.payer, WALLETS['user-admin'])
+})
+
+// ---------- ataProvisioningIx helper ---------------------------------------
+
+test('ataProvisioningIx: one idempotent ATA-create per unique owner, correct account layout', async () => {
+  const ixs = ataProvisioningIx(CREATOR, [CREATOR, COUNTERPARTY, TREASURY], USDC_MINT)
+  assert.strictEqual(ixs.length, 3)
+  ixs.forEach((ix, i) => {
+    const owner = [CREATOR, COUNTERPARTY, TREASURY][i]
+    assert.ok(ix.programId.equals(ASSOCIATED_TOKEN_PROGRAM_ID))
+    // Idempotent create is ATA-program instruction index 1 (no-op if it exists).
+    assert.deepStrictEqual(Array.from(ix.data), [1])
+    // Account order: payer, ata, owner, mint, systemProgram, tokenProgram.
+    assert.ok(ix.keys[0].pubkey.equals(CREATOR), 'payer')
+    assert.ok(ix.keys[1].pubkey.equals(getAssociatedTokenAddressSync(USDC_MINT, owner)), 'ata')
+    assert.ok(ix.keys[2].pubkey.equals(owner), 'owner')
+    assert.ok(ix.keys[3].pubkey.equals(USDC_MINT), 'mint')
+  })
+})
+
+test('ataProvisioningIx: de-duplicates repeated owners (e.g. treasury === creator)', async () => {
+  const ixs = ataProvisioningIx(CREATOR, [CREATOR, COUNTERPARTY, CREATOR], USDC_MINT)
+  assert.strictEqual(ixs.length, 2)
+})
+
+test('ataProvisioningIx: empty owners → no instructions', async () => {
+  assert.deepStrictEqual(ataProvisioningIx(CREATOR, [], USDC_MINT), [])
 })
 
 // ---------- verifyTx -------------------------------------------------------

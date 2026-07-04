@@ -14,6 +14,7 @@ import { uuidToBytes } from '@server/chains/ids'
 import { escrowPda, platformPda, tokenVaultPda, vaultPda } from '@server/chains/solana/pdas'
 import type { BuildTxArgs } from '@server/chains/types'
 import {
+  ataProvisioningIx,
   counterpartyOrThrow,
   decodeProofHash,
   fetchEscrow,
@@ -24,11 +25,17 @@ import {
   type SolanaBuilderDeps,
 } from '@server/chains/solana/builder-internals'
 
+/**
+ * Encode the instruction(s) for one escrow action. Returns an array because
+ * SPL settlement/dispute-resolution paths prepend idempotent ATA-provisioning
+ * instructions (see `ataProvisioningIx`); every other path returns a single
+ * instruction. The action's own instruction is always last.
+ */
 export async function buildInstruction(
   deps: SolanaBuilderDeps,
   args: BuildTxArgs,
   wallet: PublicKey,
-): Promise<TransactionInstruction> {
+): Promise<TransactionInstruction[]> {
   switch (args.action) {
     case 'createEscrow': {
       const p = args.payload
@@ -48,28 +55,32 @@ export async function buildInstruction(
         isSeeker: p.is_seeker,
       }
       if (asset.token_address === null) {
-        return deps.program.methods
-          .createEscrowSol(ixArgs)
-          .accountsPartial({
-            escrow: escrowPda(idBytes),
-            vault: vaultPda(idBytes),
-            creator: wallet,
-            systemProgram: SystemProgram.programId,
-          })
-          .instruction()
+        return [
+          await deps.program.methods
+            .createEscrowSol(ixArgs)
+            .accountsPartial({
+              escrow: escrowPda(idBytes),
+              vault: vaultPda(idBytes),
+              creator: wallet,
+              systemProgram: SystemProgram.programId,
+            })
+            .instruction(),
+        ]
       }
       const mint = new PublicKey(asset.token_address)
-      return deps.program.methods
-        .createEscrowSpl(ixArgs)
-        .accountsPartial({
-          escrow: escrowPda(idBytes),
-          vaultTokenAccount: tokenVaultPda(idBytes),
-          mint,
-          creatorTokenAccount: getAssociatedTokenAddressSync(mint, wallet),
-          creator: wallet,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .instruction()
+      return [
+        await deps.program.methods
+          .createEscrowSpl(ixArgs)
+          .accountsPartial({
+            escrow: escrowPda(idBytes),
+            vaultTokenAccount: tokenVaultPda(idBytes),
+            mint,
+            creatorTokenAccount: getAssociatedTokenAddressSync(mint, wallet),
+            creator: wallet,
+            tokenProgram: TOKEN_PROGRAM_ID,
+          })
+          .instruction(),
+      ]
     }
 
     case 'acceptEscrow':
@@ -79,17 +90,21 @@ export async function buildInstruction(
         args.action === 'acceptEscrow'
           ? deps.program.methods.acceptEscrow()
           : deps.program.methods.declineAssignedEscrow()
-      return method
-        .accountsPartial({ escrow: escrowAddr, platformState: platformPda(), signer: wallet })
-        .instruction()
+      return [
+        await method
+          .accountsPartial({ escrow: escrowAddr, platformState: platformPda(), signer: wallet })
+          .instruction(),
+      ]
     }
 
     case 'submitProof': {
       const { escrowAddr } = await fetchEscrow(deps, args.payload.escrow_id)
-      return deps.program.methods
-        .submitProof(decodeProofHash(args.payload.proof_hash))
-        .accountsPartial({ escrow: escrowAddr, platformState: platformPda(), signer: wallet })
-        .instruction()
+      return [
+        await deps.program.methods
+          .submitProof(decodeProofHash(args.payload.proof_hash))
+          .accountsPartial({ escrow: escrowAddr, platformState: platformPda(), signer: wallet })
+          .instruction(),
+      ]
     }
 
     case 'approveCompletion':
@@ -111,11 +126,11 @@ export async function buildInstruction(
         }
         switch (args.action) {
           case 'approveCompletion':
-            return deps.program.methods.approveCompletionSol().accountsPartial(accounts).instruction()
+            return [await deps.program.methods.approveCompletionSol().accountsPartial(accounts).instruction()]
           case 'claimStalledPayment':
-            return deps.program.methods.claimStalledPaymentSol().accountsPartial(accounts).instruction()
+            return [await deps.program.methods.claimStalledPaymentSol().accountsPartial(accounts).instruction()]
           case 'reclaimAbandoned':
-            return deps.program.methods.reclaimAbandonedSol().accountsPartial(accounts).instruction()
+            return [await deps.program.methods.reclaimAbandonedSol().accountsPartial(accounts).instruction()]
         }
       }
       const mint = escrow.asset
@@ -132,13 +147,16 @@ export async function buildInstruction(
         signer: wallet,
         tokenProgram: TOKEN_PROGRAM_ID,
       }
+      // `SettleSpl` deserializes creator/counterparty/treasury token accounts
+      // regardless of which the handler pays, so provision all three.
+      const preIx = ataProvisioningIx(wallet, [escrow.creator, counterparty, platform.treasury], mint)
       switch (args.action) {
         case 'approveCompletion':
-          return deps.program.methods.approveCompletionSpl().accountsPartial(accounts).instruction()
+          return [...preIx, await deps.program.methods.approveCompletionSpl().accountsPartial(accounts).instruction()]
         case 'claimStalledPayment':
-          return deps.program.methods.claimStalledPaymentSpl().accountsPartial(accounts).instruction()
+          return [...preIx, await deps.program.methods.claimStalledPaymentSpl().accountsPartial(accounts).instruction()]
         case 'reclaimAbandoned':
-          return deps.program.methods.reclaimAbandonedSpl().accountsPartial(accounts).instruction()
+          return [...preIx, await deps.program.methods.reclaimAbandonedSpl().accountsPartial(accounts).instruction()]
       }
       // Exhaustive switch above — unreachable, but satisfies control-flow analysis.
       throw new AppError(500, ErrorCode.INTERNAL_ERROR, `unhandled settle action`)
@@ -154,9 +172,11 @@ export async function buildInstruction(
           creator: wallet,
           systemProgram: SystemProgram.programId,
         }
-        return args.action === 'cancelEscrow'
-          ? deps.program.methods.cancelEscrowSol().accountsPartial(accounts).instruction()
-          : deps.program.methods.refundExpiredSol().accountsPartial(accounts).instruction()
+        return [
+          args.action === 'cancelEscrow'
+            ? await deps.program.methods.cancelEscrowSol().accountsPartial(accounts).instruction()
+            : await deps.program.methods.refundExpiredSol().accountsPartial(accounts).instruction(),
+        ]
       }
       const accounts = {
         escrow: escrowAddr,
@@ -165,35 +185,41 @@ export async function buildInstruction(
         creator: wallet,
         tokenProgram: TOKEN_PROGRAM_ID,
       }
-      return args.action === 'cancelEscrow'
-        ? deps.program.methods.cancelEscrowSpl().accountsPartial(accounts).instruction()
-        : deps.program.methods.refundExpiredSpl().accountsPartial(accounts).instruction()
+      return [
+        args.action === 'cancelEscrow'
+          ? await deps.program.methods.cancelEscrowSpl().accountsPartial(accounts).instruction()
+          : await deps.program.methods.refundExpiredSpl().accountsPartial(accounts).instruction(),
+      ]
     }
 
     case 'disputeEscrow': {
       const { escrowAddr, idBytes, escrow } = await fetchEscrow(deps, args.payload.escrow_id)
       const bond = toBn(args.payload.bond_raw, 'bond_raw')
       if (isNativeSol(escrow)) {
-        return deps.program.methods
-          .disputeEscrowSol(bond)
+        return [
+          await deps.program.methods
+            .disputeEscrowSol(bond)
+            .accountsPartial({
+              escrow: escrowAddr,
+              vault: vaultPda(idBytes),
+              raiser: wallet,
+              systemProgram: SystemProgram.programId,
+            })
+            .instruction(),
+        ]
+      }
+      return [
+        await deps.program.methods
+          .disputeEscrowSpl(bond)
           .accountsPartial({
             escrow: escrowAddr,
-            vault: vaultPda(idBytes),
+            vaultTokenAccount: tokenVaultPda(idBytes),
+            raiserTokenAccount: getAssociatedTokenAddressSync(escrow.asset, wallet),
             raiser: wallet,
-            systemProgram: SystemProgram.programId,
+            tokenProgram: TOKEN_PROGRAM_ID,
           })
-          .instruction()
-      }
-      return deps.program.methods
-        .disputeEscrowSpl(bond)
-        .accountsPartial({
-          escrow: escrowAddr,
-          vaultTokenAccount: tokenVaultPda(idBytes),
-          raiserTokenAccount: getAssociatedTokenAddressSync(escrow.asset, wallet),
-          raiser: wallet,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .instruction()
+          .instruction(),
+      ]
     }
 
     case 'resolveDispute': {
@@ -203,37 +229,46 @@ export async function buildInstruction(
       const winner = WINNER_ARG[args.payload.winner]
       const raiser = new PublicKey(await deps.resolveWalletAddress(args.payload.raiser_user_id))
       if (isNativeSol(escrow)) {
-        return deps.program.methods
-          .resolveDisputeSol(winner, raiser)
+        return [
+          await deps.program.methods
+            .resolveDisputeSol(winner, raiser)
+            .accountsPartial({
+              escrow: escrowAddr,
+              platformState: platformPda(),
+              vault: vaultPda(idBytes),
+              creator: escrow.creator,
+              counterparty,
+              treasury: platform.treasury,
+              disputeAdmin: wallet,
+              systemProgram: SystemProgram.programId,
+            })
+            .instruction(),
+        ]
+      }
+      const mint = escrow.asset
+      // `ResolveSpl` deserializes all three token accounts for every winner
+      // outcome (a Split pays treasury nothing yet still loads its ATA), so
+      // provision creator/counterparty/treasury unconditionally.
+      const preIx = ataProvisioningIx(wallet, [escrow.creator, counterparty, platform.treasury], mint)
+      return [
+        ...preIx,
+        await deps.program.methods
+          .resolveDisputeSpl(winner, raiser)
           .accountsPartial({
             escrow: escrowAddr,
             platformState: platformPda(),
-            vault: vaultPda(idBytes),
+            vaultTokenAccount: tokenVaultPda(idBytes),
             creator: escrow.creator,
             counterparty,
             treasury: platform.treasury,
+            creatorTokenAccount: getAssociatedTokenAddressSync(mint, escrow.creator),
+            counterpartyTokenAccount: getAssociatedTokenAddressSync(mint, counterparty),
+            treasuryTokenAccount: getAssociatedTokenAddressSync(mint, platform.treasury),
             disputeAdmin: wallet,
-            systemProgram: SystemProgram.programId,
+            tokenProgram: TOKEN_PROGRAM_ID,
           })
-          .instruction()
-      }
-      const mint = escrow.asset
-      return deps.program.methods
-        .resolveDisputeSpl(winner, raiser)
-        .accountsPartial({
-          escrow: escrowAddr,
-          platformState: platformPda(),
-          vaultTokenAccount: tokenVaultPda(idBytes),
-          creator: escrow.creator,
-          counterparty,
-          treasury: platform.treasury,
-          creatorTokenAccount: getAssociatedTokenAddressSync(mint, escrow.creator),
-          counterpartyTokenAccount: getAssociatedTokenAddressSync(mint, counterparty),
-          treasuryTokenAccount: getAssociatedTokenAddressSync(mint, platform.treasury),
-          disputeAdmin: wallet,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
-        .instruction()
+          .instruction(),
+      ]
     }
   }
 }
