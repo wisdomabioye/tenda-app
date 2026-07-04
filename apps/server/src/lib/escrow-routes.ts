@@ -187,6 +187,34 @@ function assertEscrowStatus(s: string): EscrowStatus {
 // ---------- orchestrator -----------------------------------------------
 
 /**
+ * `accept` is the one transition where `requireCaller` doesn't apply as-is:
+ * for a public gig (no `assigned_counterparty_id`), `counterparty_id` is
+ * still NULL going into the call — it's only set as a side effect of a
+ * successful accept (see `EscrowAccepted` in escrow-events/applications.ts).
+ * So the first person to accept a public escrow has no prior relationship
+ * for `deriveCaller` to find, and would otherwise always get rejected as
+ * `ESCROW_WRONG_CALLER` before the state machine's own accept logic runs.
+ *
+ * Per the on-chain spec (stage-0-foundation.md `acceptEscrow`): when
+ * `assigned_counterparty` is null, any non-creator caller may accept — that
+ * act is what makes them the counterparty. This is scoped to `accept` only;
+ * every other transition still goes through the normal `requireCaller`
+ * relationship check.
+ */
+function resolveTransitionCaller(
+  args: { user_id: string; role: string; transition: EscrowTransition },
+  escrow: EscrowRow,
+): Caller {
+  const isPublicAccept =
+    args.transition === 'accept' &&
+    escrow.assigned_counterparty_id === null &&
+    escrow.counterparty_id === null &&
+    escrow.creator_id !== args.user_id
+  if (isPublicAccept) return 'counterparty'
+  return requireCaller({ user_id: args.user_id, role: args.role, escrow })
+}
+
+/**
  * One-call wrapper that loads, derives caller, builds context, and runs the
  * state-machine guard. Returns `{ escrow, ctx }` for the route to pass into
  * `adapter.buildTx`. Throws the standard escrow errors on illegal moves.
@@ -206,7 +234,7 @@ export async function guardTransition(args: {
   transition: EscrowTransition
 }): Promise<{ escrow: EscrowRow; ctx: TransitionContext }> {
   const escrow = await loadEscrowOr404(args.db, args.escrow_id)
-  const caller = requireCaller({ user_id: args.user_id, role: args.role, escrow })
+  const caller = resolveTransitionCaller(args, escrow)
   const ctx = buildContext({
     escrow,
     caller,

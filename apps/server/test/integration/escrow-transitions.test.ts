@@ -3,6 +3,10 @@
  * paths + caller/status guards), exercising lib/escrow-routes + lib/escrow:
  *   accept / decline / submit / approve / cancel
  *
+ * `accept` is kind-agnostic (gig vs exchange/p2p-order share the same
+ * transition code), so the public-accept coverage includes one exchange
+ * case alongside the gig cases to pin that down.
+ *
  * The harness uses a fake chain registry, so buildTx returns FAKE_UNSIGNED
  * (no RPC). Real app via fastify.inject; gated on TEST_DATABASE_URL.
  */
@@ -10,6 +14,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import {
   TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, makeTransactable, authHeader,
+  attachExchangeDetails,
 } from '../helpers/test-app'
 import { partiedEscrow } from '../helpers/escrow-states'
 
@@ -41,6 +46,43 @@ test('POST accept: the assigned counterparty accepts an open escrow → unsigned
   assert.ok(res.json().unsigned, 'returns an unsigned tx')
 })
 
+test('POST accept: a stranger accepts a public (unassigned) open escrow → unsigned tx', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const stranger = await createUser(app)
+  await makeTransactable(app, stranger.row.id)
+  const e = await createEscrow(app, { creator_id: creator.row.id, status: 'open' })
+  const res = await app.inject({
+    method: 'POST', url: `/v1/escrows/${e.id}/accept`, headers: authHeader(stranger.token),
+  })
+  assert.strictEqual(res.statusCode, 200)
+  assert.ok(res.json().unsigned, 'returns an unsigned tx')
+})
+
+test('POST accept: a stranger takes a public (unassigned) exchange order → unsigned tx', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const taker = await createUser(app)
+  await makeTransactable(app, taker.row.id)
+  const e = await createEscrow(app, { creator_id: creator.row.id, status: 'open', kind: 'exchange' })
+  await attachExchangeDetails(app, e.id)
+  const res = await app.inject({
+    method: 'POST', url: `/v1/escrows/${e.id}/accept`, headers: authHeader(taker.token),
+  })
+  assert.strictEqual(res.statusCode, 200)
+  assert.ok(res.json().unsigned, 'returns an unsigned tx')
+})
+
+test('POST accept: the creator cannot accept their own public escrow', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const e = await createEscrow(app, { creator_id: creator.row.id, status: 'open' })
+  const res = await app.inject({
+    method: 'POST', url: `/v1/escrows/${e.id}/accept`, headers: authHeader(creator.token),
+  })
+  assert.strictEqual(res.statusCode, 403)
+})
+
 test('POST accept: the creator cannot accept their own escrow', { skip }, async () => {
   const app = getApp()
   const creator = await createUser(app)
@@ -50,6 +92,20 @@ test('POST accept: the creator cannot accept their own escrow', { skip }, async 
   })
   const res = await app.inject({
     method: 'POST', url: `/v1/escrows/${e.id}/accept`, headers: authHeader(creator.token),
+  })
+  assert.strictEqual(res.statusCode, 403)
+})
+
+test('POST accept: a stranger cannot accept an escrow assigned to someone else', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const worker = await createUser(app)
+  const stranger = await createUser(app)
+  const e = await createEscrow(app, {
+    creator_id: creator.row.id, status: 'open', assigned_counterparty_id: worker.row.id,
+  })
+  const res = await app.inject({
+    method: 'POST', url: `/v1/escrows/${e.id}/accept`, headers: authHeader(stranger.token),
   })
   assert.strictEqual(res.statusCode, 403)
 })
