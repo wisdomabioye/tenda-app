@@ -23,6 +23,15 @@ import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/Reentrancy
 ///         The dispute bond is denominated in the SAME asset as the escrow
 ///         (exactly like the Anchor vaults).
 ///
+///         ASSET TRUST MODEL (explicit non-goal): createEscrow is
+///         permissionless in `asset`, but the protocol only SUPPORTS the
+///         server-registered asset list (vanilla ERC-20s: USDC, cUSD).
+///         Fee-on-transfer, rebasing, or transfer-reverting tokens are NOT
+///         supported: such an escrow can strand or grief only its own
+///         parties' funds — never another escrow's (per-escrow accounting,
+///         no shared pot beyond exact balances; see the invariant suite's
+///         solvency checks).
+///
 ///         AUDIT NOTE (push-payment griefing): native payouts use
 ///         Address.sendValue, so a contract party that reverts on receive
 ///         blocks only payouts *to itself* (self-grief). The one shared
@@ -161,6 +170,7 @@ contract TendaEscrow is ReentrancyGuard {
     error BadNativeValue();
     error NativeAssetPermit();
     error FeeBpsOutOfRange();
+    error SeekerFeeAboveFee();
     error ApprovalWindowOutOfRange();
     error GracePeriodOutOfRange();
     error ZeroAddress();
@@ -582,6 +592,10 @@ contract TendaEscrow is ReentrancyGuard {
 
     function _validateFeeBps(uint16 fee, uint16 seekerFee) private pure {
         if (fee > MAX_PLATFORM_FEE_BPS || seekerFee > MAX_PLATFORM_FEE_BPS) revert FeeBpsOutOfRange();
+        // Parity with the Anchor program's validate_fee_bps
+        // (SeekerFeeExceedsStandardFee): the reduced seeker fee can never
+        // exceed the standard fee.
+        if (seekerFee > fee) revert SeekerFeeAboveFee();
     }
 
     function _validateApprovalWindow(uint64 window) private pure {

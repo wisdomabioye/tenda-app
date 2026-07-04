@@ -627,6 +627,13 @@ contract TendaEscrowTest is Test {
         vm.expectRevert(TendaEscrow.FeeBpsOutOfRange.selector);
         escrow.setFeeBps(1_001, 100);
 
+        // Anchor-parity rule (SeekerFeeExceedsStandardFee): the seeker fee
+        // may equal but never exceed the standard fee.
+        vm.expectRevert(TendaEscrow.SeekerFeeAboveFee.selector);
+        escrow.setFeeBps(100, 250);
+        escrow.setFeeBps(300, 300); // equal is allowed
+        assertEq(escrow.seekerFeeBps(), 300);
+
         vm.expectRevert(TendaEscrow.ApprovalWindowOutOfRange.selector);
         escrow.setApprovalWindow(3_599);
         vm.expectRevert(TendaEscrow.ApprovalWindowOutOfRange.selector);
@@ -654,6 +661,8 @@ contract TendaEscrowTest is Test {
         new TendaEscrow(address(0), disputeAdmin, treasury, FEE_BPS, SEEKER_FEE_BPS, APPROVAL_WINDOW, GRACE);
         vm.expectRevert(TendaEscrow.FeeBpsOutOfRange.selector);
         new TendaEscrow(admin, disputeAdmin, treasury, 1_001, SEEKER_FEE_BPS, APPROVAL_WINDOW, GRACE);
+        vm.expectRevert(TendaEscrow.SeekerFeeAboveFee.selector);
+        new TendaEscrow(admin, disputeAdmin, treasury, 100, 250, APPROVAL_WINDOW, GRACE);
         vm.expectRevert(TendaEscrow.ApprovalWindowOutOfRange.selector);
         new TendaEscrow(admin, disputeAdmin, treasury, FEE_BPS, SEEKER_FEE_BPS, 0, GRACE);
     }

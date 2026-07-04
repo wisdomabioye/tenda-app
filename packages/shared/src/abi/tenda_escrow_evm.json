@@ -1163,6 +1163,11 @@
     },
     {
       "type": "error",
+      "name": "SeekerFeeAboveFee",
+      "inputs": []
+    },
+    {
+      "type": "error",
       "name": "SubmissionWindowClosed",
       "inputs": []
     },

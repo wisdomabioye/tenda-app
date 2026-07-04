@@ -70,7 +70,35 @@ in the abstract. The first is structural and changes Phase 0 materially.
 > and the anvil lifecycle suite per the standing principle above), mobile
 > (allowance module, permit decision table, dispatch approval-hint ordering,
 > token-approvals screen component test). Contract-side invariant/stateful
-> fuzzing (#123) **must include the permit entry points** when it lands.
+> fuzzing (#123) **DONE 2026-07-04** — `contracts/evm/test/invariant/`:
+> handler-based suite (fail_on_revert, every entry point incl. both permit
+> functions, front-run-consumed permits, garbage permits, mid-flight admin
+> param changes, time warps) checking exact ERC20+native solvency, treasury
+> fee conservation, total value conservation, and ghost-model equivalence
+> after every call, plus an afterInvariant liquidation sweep proving no
+> escrow can be left stuck. Runs in `forge test` (so contracts.yml CI);
+> mutation-checked (a planted ±1 fee drift fails the treasury invariant).
+
+> **EXECUTION UPDATE (2026-07-04, contract-test gap closure):** the gap
+> assessment's findings are closed. (1) **Parity rule**: the EVM contract now
+> enforces Solana's `seekerFee <= fee` (`SeekerFeeAboveFee`) — was a real
+> validation divergence the enum/limits parity gate couldn't see; ABI
+> re-synced. (2) **Settlement golden vectors**: `contracts/settlement-vectors.json`
+> is consumed by BOTH `contracts/evm/test/SettlementParity.t.sol` (forge)
+> and `contracts/solana/tests/settlement-parity.test.ts` (litesvm) — the
+> independently implemented fee/split math is now cross-pinned; a rounding
+> divergence is unmergeable. (3) **Push-payment griefing** machine-checked
+> (`TendaEscrowEdges.t.sol`): a reverting-receiver party blocks only payouts
+> to itself; every dispute keeps ≥1 executable resolution. (4) **Exact
+> deadline boundaries** tested on EVM; Rust comparison operators verified
+> identical (accept/submit strictly-before; refund/reclaim/claim
+> at-or-after). (5) **Solana stateful harness**
+> (`tests/stateful-random.test.ts`): seeded 110-action random sequences over
+> mixed SOL+SPL pools with per-step vault-solvency + ghost-model-equivalence
+> checks and a liquidation drain — mutation-checked. Plus: admin-rotation ×
+> in-flight tests, `compute_fee` u64-overflow fail-closed test, and the
+> hostile-asset non-goal documented in the contract header. EVM forge 65/65;
+> Solana litesvm 91/91.
 
 ### G1 (CRITICAL) — the coverage gate can't run in CI as the repo stands
 - `.github/workflows/ci.yml` provisions **no postgres**. The server CI job runs
