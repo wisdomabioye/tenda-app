@@ -87,6 +87,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       chain_id: escrow.chain_id,
       asset: escrow.asset,
       amount_raw: escrow.amount_raw,
+      is_seeker: escrow.is_seeker,
       status: escrow.status,
       accept_deadline: iso(escrow.accept_deadline),
       created_at: escrow.created_at.toISOString(),

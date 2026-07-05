@@ -125,12 +125,7 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
         {f.paymentRaw > 0 && (
           <>
             <SectionLabel>Summary</SectionLabel>
-            <FeeSummary
-              asset={f.asset}
-              principalRaw={f.paymentRaw}
-              eyebrow="YOU WILL ESCROW"
-              totalLabel="Total to escrow"
-            />
+            <FeeSummary asset={f.asset} principalRaw={f.paymentRaw} />
           </>
         )}
 

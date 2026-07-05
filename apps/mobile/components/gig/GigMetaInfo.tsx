@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { MapPin, Clock, Calendar, Globe } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
@@ -7,7 +8,8 @@ import { formatDuration } from '@/lib/gig-display'
 import { formatFiat } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { LOCATIONS, ASSET_META, amountRawToDisplay } from '@tenda/shared'
+import { usePlatformConfigStore } from '@/stores/platform-config.store'
+import { LOCATIONS, ASSET_META, amountRawToDisplay, computePlatformFee } from '@tenda/shared'
 import type { GigDetail, CountryCode, SupportedCurrency, EscrowStatus } from '@tenda/shared'
 import type { LucideIcon } from 'lucide-react-native'
 
@@ -29,7 +31,7 @@ interface Props {
     GigDetail,
     | 'city' | 'country' | 'remote'
     | 'completion_duration_seconds'
-    | 'amount_raw' | 'asset' | 'status'
+    | 'amount_raw' | 'asset' | 'status' | 'is_seeker'
   >
   deadlineLbl: string | null
 }
@@ -56,6 +58,22 @@ export function GigMetaInfo({ gig, deadlineLbl }: Props) {
   const isSolAsset = symbol === 'SOL'
   const fiatAlt =
     isSolAsset && rate !== null && rate > 0 ? `≈ ${formatFiat(amount * rate, currency)}` : null
+
+  // Worker net-of-fee: the platform fee is deducted from the payout on
+  // completion, so the worker actually receives amount − fee. Fee tier is the
+  // one baked into the escrow (gig.is_seeker), mirroring the contract.
+  const config = usePlatformConfigStore((s) => s.config)
+  const fetchConfig = usePlatformConfigStore((s) => s.fetch)
+  useEffect(() => { fetchConfig() }, [fetchConfig])
+
+  const feeBps = config != null ? (gig.is_seeker ? config.seeker_fee_bps : config.fee_bps) : null
+  const workerNet = feeBps != null
+    ? amountRawToDisplay(
+        (BigInt(gig.amount_raw) - BigInt(computePlatformFee(BigInt(gig.amount_raw), feeBps))).toString(),
+        gig.asset,
+      )
+    : null
+  const feePctLabel = feeBps != null ? (feeBps / 100).toFixed(2) : null
 
   // Escrow is funded once the gig leaves draft (the create tx confirming is
   // what flips draft → open).
@@ -121,6 +139,11 @@ export function GigMetaInfo({ gig, deadlineLbl }: Props) {
           {fiatAlt && (
             <Text style={[s.payFiat, { color: theme.colors.content.tertiary }]}>
               {fiatAlt}
+            </Text>
+          )}
+          {workerNet != null && (
+            <Text style={[s.payNet, { color: theme.colors.content.tertiary }]}>
+              Worker gets {workerNet.toLocaleString('en-US', { maximumFractionDigits: workerNet >= 1 ? 2 : 4 })} {symbol} · after {feePctLabel}% fee
             </Text>
           )}
         </View>
@@ -220,6 +243,11 @@ const s = StyleSheet.create({
     fontSize: 12,
     lineHeight: 16,
     marginTop: 2,
+  },
+  payNet: {
+    fontSize: 12,
+    lineHeight: 16,
+    marginTop: 4,
   },
   escrow: {
     flexShrink: 0,

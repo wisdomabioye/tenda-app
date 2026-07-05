@@ -46,6 +46,12 @@ export interface GigDetail extends GigSummary {
   proofs: EscrowProof[]
   dispute: Dispute | null
   reviews: Review[]
+  /**
+   * Fee tier baked into the escrow at create (from the poster's seeker status).
+   * Drives the worker's net-payout display — the contract charges
+   * seeker_fee_bps vs fee_bps off this flag.
+   */
+  is_seeker: boolean
 }
 
 // ── Input types ───────────────────────────────────────────────────────

@@ -11,24 +11,23 @@ import { usePlatformConfigStore } from '@/stores/platform-config.store'
 interface FeeSummaryProps {
   /** Asset registry id, drives decimals + symbol (CO5). */
   asset: string
-  /** Principal in raw units of `asset`, gig payment / offer escrow */
+  /** Principal in raw units of `asset` — the budget the poster escrows. */
   principalRaw: number
-  /** Optional eyebrow override; defaults to "YOU WILL ESCROW" */
+  /** Optional eyebrow override; defaults to "PAYMENT BREAKDOWN" */
   eyebrow?: string
-  /** Total row label override; defaults to "Total to escrow" */
-  totalLabel?: string
 }
 
 /**
- * Reusable platform-fee breakdown card used in create-gig and create-offer
- * review steps. Fetches platform config (seeker_fee_bps if user is seeker,
- * else fee_bps) and renders Principal / Platform fee / Total rows in mono.
+ * Platform-fee breakdown card for the create-gig review step. The poster
+ * escrows exactly the budget; the platform fee is deducted from the worker's
+ * payout on settlement (see the contract's `approve`: payout = amount − fee).
+ * So this shows: You escrow (budget) / Platform fee / Worker receives (net) —
+ * never budget + fee, which would misrepresent the fee as the poster's.
  */
 export function FeeSummary({
   asset,
   principalRaw,
-  eyebrow = 'YOU WILL ESCROW',
-  totalLabel = 'Total to escrow',
+  eyebrow = 'PAYMENT BREAKDOWN',
 }: FeeSummaryProps) {
   const { theme } = useUnistyles()
   const isSeeker = useIsSeeker()
@@ -44,7 +43,7 @@ export function FeeSummary({
   const feeRaw = feeBps != null
     ? Number(computePlatformFee(BigInt(principalRaw), feeBps))
     : null
-  const totalRaw = feeRaw != null ? principalRaw + feeRaw : null
+  const workerReceivesRaw = feeRaw != null ? principalRaw - feeRaw : null
   const feePct = feeBps != null ? (feeBps / 100).toFixed(2) : '—'
 
   return (
@@ -59,7 +58,7 @@ export function FeeSummary({
     >
       <Eyebrow style={s.eyebrowSpacing}>{eyebrow}</Eyebrow>
       <View style={s.row}>
-        <Text size={13.5} color={theme.colors.content.secondary}>Principal</Text>
+        <Text size={13.5} color={theme.colors.content.secondary}>You escrow</Text>
         <Text style={[s.v, { color: theme.colors.content.primary }]}>
           {formatAssetAmount(String(principalRaw), asset)}
         </Text>
@@ -68,8 +67,8 @@ export function FeeSummary({
         <Text size={13.5} color={theme.colors.content.secondary}>
           {`Platform fee (${feePct}%)`}
         </Text>
-        <Text style={[s.v, { color: theme.colors.content.primary }]}>
-          {feeRaw != null ? formatAssetAmount(String(feeRaw), asset) : '—'}
+        <Text style={[s.v, { color: theme.colors.content.secondary }]}>
+          {feeRaw != null ? `− ${formatAssetAmount(String(feeRaw), asset)}` : '—'}
         </Text>
       </View>
       <View
@@ -80,12 +79,15 @@ export function FeeSummary({
         ]}
       >
         <Text size={13.5} weight="semibold" color={theme.colors.content.primary}>
-          {totalLabel}
+          Worker receives
         </Text>
         <Text style={[s.vTotal, { color: theme.colors.content.primary }]}>
-          {totalRaw != null ? formatAssetAmount(String(totalRaw), asset) : '—'}
+          {workerReceivesRaw != null ? formatAssetAmount(String(workerReceivesRaw), asset) : '—'}
         </Text>
       </View>
+      <Text size={11.5} color={theme.colors.content.tertiary} style={s.note}>
+        You escrow the full budget. The {feePct}% fee is taken from the worker&apos;s payout on completion.
+      </Text>
     </View>
   )
 }
@@ -122,5 +124,9 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
     letterSpacing: -0.075,
+  },
+  note: {
+    marginTop: 10,
+    lineHeight: 16,
   },
 })
