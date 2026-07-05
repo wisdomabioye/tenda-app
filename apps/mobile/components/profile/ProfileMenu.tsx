@@ -44,10 +44,12 @@ export function ProfileMenu({ items }: { items: MenuItem[] }) {
               <Text style={[s.rowLabel, { color: theme.colors.content.primary }]} numberOfLines={1}>
                 {item.label}
               </Text>
-              {item.value && (
+              {item.value ? (
                 <Text style={[s.rowValue, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
                   {item.value}
                 </Text>
+              ) : (
+                <View style={s.spacer} />
               )}
               <ChevronRight size={16} color={theme.colors.content.tertiary} />
             </Pressable>
@@ -71,4 +73,5 @@ const s = StyleSheet.create({
     flexShrink: 0,
     marginLeft: 'auto',
   },
+  spacer: { flex: 1 },
 })
