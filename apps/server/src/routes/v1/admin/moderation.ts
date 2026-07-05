@@ -3,7 +3,7 @@
  *   GET  /v1/admin/moderation/verdicts                audit log (filterable)
  *   POST /v1/admin/moderation/verdicts/:id/override   reverse a block
  *
- * An override never mutates the original verdict — it appends a NEW
+ * An override never mutates the original verdict, it appends a NEW
  * approve verdict (provider='admin') referencing the same input hash and
  * bumps moderation_rules_version so cached block verdicts die lazily.
  */
@@ -70,7 +70,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         .returning({ id: moderation_verdicts.id })
 
       // Bump the rules epoch: cached verdicts under the old version become
-      // unreachable (lazy invalidation — no mass delete).
+      // unreachable (lazy invalidation, no mass delete).
       await fastify.db
         .update(platform_config)
         .set({

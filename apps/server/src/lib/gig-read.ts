@@ -7,7 +7,7 @@ import { escrows, gig_details } from '@tenda/shared/db/schema'
 import type { GigCategory, GigSummary, UserRef } from '@tenda/shared'
 import { USER_COLS } from '@server/lib/users'
 
-/** escrows ⨝ gig_details ⨝ users — matches the shared GigSummary wire type. */
+/** escrows ⨝ gig_details ⨝ users, matches the shared GigSummary wire type. */
 export const GIG_SUMMARY_COLS = {
   escrow_id: escrows.id,
   chain_id: escrows.chain_id,

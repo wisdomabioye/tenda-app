@@ -16,7 +16,7 @@ type ExchangeRatesRoute = PlatformContract['exchangeRates']
 type ChainsRoute        = PlatformContract['chains']
 
 const platformRoutes: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/platform/config — public endpoint returning current platform fee
+  // GET /v1/platform/config, public endpoint returning current platform fee
   fastify.get<{
     Reply: ConfigRoute['response']
   }>('/config', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async () => {
@@ -24,7 +24,7 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
     return { fee_bps, seeker_fee_bps, grace_period_seconds }
   })
 
-  // GET /v1/platform/exchange-rates — public endpoint proxying CoinGecko (5-min server cache)
+  // GET /v1/platform/exchange-rates, public endpoint proxying CoinGecko (5-min server cache)
   // Centralises rate fetching so devices share one quota instead of each calling CoinGecko directly.
   fastify.get<{
     Reply: ExchangeRatesRoute['response']
@@ -32,7 +32,7 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
     return getExchangeRates()
   })
 
-  // GET /v1/platform/chains — enabled chains + their enabled assets (CO5
+  // GET /v1/platform/chains, enabled chains + their enabled assets (CO5
   // chain/asset picker source). Public; the seed owns the data.
   fastify.get<{
     Reply: ChainsRoute['response']

@@ -7,7 +7,7 @@
  *      the OpenRouter provider; LLM unavailable → keyword-only fallback
  *      (failOpen=false semantics: gigs stay publishable)
  *   3. price sanity: only if content passed AND stats are thick enough AND
- *      the amount is an outlier — otherwise approve without an LLM call
+ *      the amount is an outlier, otherwise approve without an LLM call
  *   4. persist verdict (append-only) + cache
  *
  * The worst pipeline decision wins: block > warn > approve.
@@ -32,7 +32,7 @@ export interface VerdictCache {
 }
 
 /**
- * In-process cache — the S5.4 Redis write-through replaces this behind the
+ * In-process cache, the S5.4 Redis write-through replaces this behind the
  * same seam (multi-pod coherence is a Stage-5 concern by plan).
  */
 export function inProcessVerdictCache(now: () => number = Date.now): VerdictCache {
@@ -54,7 +54,7 @@ export function inProcessVerdictCache(now: () => number = Date.now): VerdictCach
 }
 
 export interface ModerationStore {
-  /** platform_config.moderation_rules_version — the cache-key epoch. */
+  /** platform_config.moderation_rules_version, the cache-key epoch. */
   getRulesVersion(): Promise<number>
   getPriceStats(category: string, country: string, asset: string): Promise<PriceStats | null>
   insertVerdict(v: {
@@ -72,7 +72,7 @@ export interface ModerationStore {
 export interface ModerationDeps {
   store: ModerationStore
   cache: VerdictCache
-  /** Null when OPENROUTER_API_KEY is unset — keyword-only operation. */
+  /** Null when OPENROUTER_API_KEY is unset, keyword-only operation. */
   llm: ModerationProvider | null
   log: { warn(obj: Record<string, unknown>, msg: string): void }
   now(): number
@@ -119,14 +119,14 @@ export async function moderateGig(
   const screen = screenKeywords(input)
   let content: Verdict
   if (screen.verdict !== null) {
-    content = screen.verdict // critical keyword block — no LLM spend
+    content = screen.verdict // critical keyword block, no LLM spend
   } else if (deps.llm?.contentSafety !== undefined) {
     try {
       content = (await deps.llm.contentSafety(input)) ?? APPROVE
     } catch (err) {
       // Provider outage: fall back to keyword-only (gigs stay publishable;
       // suspicious-keyword inputs degrade to a warn so a human still looks).
-      deps.log.warn({ err }, 'moderation: LLM unavailable — keyword-only fallback')
+      deps.log.warn({ err }, 'moderation: LLM unavailable, keyword-only fallback')
       content = screen.suspicious
         ? {
             decision: 'warn',
@@ -175,7 +175,7 @@ export function isPriceOutlier(amount_raw: string, stats: PriceStats): boolean {
 async function checkPriceSanity(deps: ModerationDeps, input: ModerationInput): Promise<Verdict> {
   const stats = await deps.store.getPriceStats(input.category, input.country, input.asset)
   if (stats === null || stats.sample_size < moderationConfig.thresholds.minSampleSize) {
-    return APPROVE // cold start — never penalize without data
+    return APPROVE // cold start, never penalize without data
   }
   if (!isPriceOutlier(input.amount_raw, stats)) return APPROVE
   if (deps.llm?.priceSanity === undefined) return APPROVE // keyword-only mode
@@ -183,7 +183,7 @@ async function checkPriceSanity(deps: ModerationDeps, input: ModerationInput): P
   try {
     return (await deps.llm.priceSanity(input, stats)) ?? APPROVE
   } catch (err) {
-    deps.log.warn({ err }, 'moderation: price-sanity LLM unavailable — approving')
+    deps.log.warn({ err }, 'moderation: price-sanity LLM unavailable, approving')
     return APPROVE
   }
 }

@@ -1,5 +1,5 @@
 /**
- * POST /v1/escrows/:id/review — leave a review for a completed or resolved
+ * POST /v1/escrows/:id/review, leave a review for a completed or resolved
  * escrow (gig or exchange alike; ported from the legacy gig review route
  * at the #34 cutover). One review per reviewer per escrow
  * (reviews_escrow_reviewer_uq); the reviewee's running review_score
@@ -62,7 +62,7 @@ const reviewEscrow: FastifyPluginAsync = async (fastify) => {
       const revieweeId =
         escrow.creator_id === reviewerId ? escrow.counterparty_id : escrow.creator_id
       if (revieweeId === null) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot determine reviewee — escrow has no counterparty')
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Cannot determine reviewee, escrow has no counterparty')
       }
 
       try {

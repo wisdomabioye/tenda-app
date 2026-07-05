@@ -1,7 +1,7 @@
 /**
- * GET /v1/users/me/standing — the authenticated user's own standing,
+ * GET /v1/users/me/standing, the authenticated user's own standing,
  * INCLUDING the active restriction (kind/until/reason). The public
- * /users/:id/standing deliberately never exposes these — soft cooldowns
+ * /users/:id/standing deliberately never exposes these, soft cooldowns
  * stay private to the affected user (stage-7 § UX placements).
  */
 

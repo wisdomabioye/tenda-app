@@ -5,7 +5,7 @@
  *
  * Tier evaluation reads windowed counts from `standing_events` (never
  * denormalized), applies the strictest matching tier, and reports
- * `restricted` ONLY on threshold crossings — recalculations that keep an
+ * `restricted` ONLY on threshold crossings, recalculations that keep an
  * existing restriction do not re-emit (stage-7 risk table: no
  * notification floods).
  */
@@ -96,7 +96,7 @@ export async function applyStandingEvent(
     })
     await deps.store.bumpCounter(signal.user_id, signal.kind)
 
-    // Only tier-bearing signals can change a restriction — positive/neutral
+    // Only tier-bearing signals can change a restriction, positive/neutral
     // kinds skip the window queries entirely.
     if (!TIER_SIGNALS.includes(signal.kind)) continue
     const applied = await evaluateTiers(deps, signal.user_id)
@@ -133,7 +133,7 @@ export async function applyFraudConfirmed(
  * tier; emits `restricted` only when the restriction actually changes
  * (crossing), returns the applied kind then, null otherwise.
  *
- * manual_review is never overridden by tier evaluation — only admin lifts.
+ * manual_review is never overridden by tier evaluation, only admin lifts.
  */
 async function evaluateTiers(
   deps: ReputationDeps,
@@ -195,7 +195,7 @@ export interface ActiveRestriction {
 }
 
 /**
- * Single source of truth for "is a restriction in force right now" —
+ * Single source of truth for "is a restriction in force right now",
  * the guard, the public summary and /users/me/standing all defer here.
  */
 export function activeRestriction(row: StandingRow | null, now: Date): ActiveRestriction | null {
@@ -245,7 +245,7 @@ export async function checkOperationAllowed(
 }
 
 export interface PublicStanding {
-  /** Null below the cold-start floor — UI shows "New user". */
+  /** Null below the cold-start floor, UI shows "New user". */
   completion_rate: number | null
   completed_count: number
   /** True for restrictions visible to other users ("limited account"). */

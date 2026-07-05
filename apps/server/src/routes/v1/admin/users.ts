@@ -14,7 +14,7 @@ import type { ApiError, UserRole, UserStatus } from '@tenda/shared'
 
 
 const adminUsers: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/admin/users — list users (super_admin only post-#34: the
+  // GET /v1/admin/users, list users (super_admin only post-#34: the
   // legacy role zoo collapsed to dispute_admin + super_admin)
   fastify.get<{
     Querystring: { status?: string; role?: string; search?: string; limit?: number; offset?: number }
@@ -41,7 +41,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
 
     if (search && search.trim().length > 0) {
       const pattern = `%${search.trim()}%`
-      // Wallets are multi-row in v2 — match any linked address (the
+      // Wallets are multi-row in v2, match any linked address (the
       // text_pattern_ops index covers prefix searches, S5.7/A6).
       conditions.push(
         or(
@@ -88,7 +88,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     return { data, total: countResult[0].count, limit: safeLimit, offset: safeOffset }
   })
 
-  // GET /v1/admin/users/:id — full user detail (same PII restriction as list)
+  // GET /v1/admin/users/:id, full user detail (same PII restriction as list)
   fastify.get<{
     Params: { id: string }
     Reply: unknown | ApiError
@@ -105,13 +105,13 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
 
     if (!user) throw new AppError(404, ErrorCode.USER_NOT_FOUND, 'User not found')
 
-    // #82: live dispute-rate metric — FLAG only, never auto-restricts.
+    // #82: live dispute-rate metric, FLAG only, never auto-restricts.
     const dispute_metric = await computeDisputeRate(fastify.db, id)
 
     return { ...user, dispute_metric }
   })
 
-  // PATCH /v1/admin/users/:id/status — suspend or reinstate (role: support, moderator, super_admin)
+  // PATCH /v1/admin/users/:id/status, suspend or reinstate (role: support, moderator, super_admin)
   fastify.patch<{
     Params: { id: string }
     Body:   { status: 'active' | 'suspended' }
@@ -152,7 +152,7 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     return result
   })
 
-  // PATCH /v1/admin/users/:id/role — promote or demote a user
+  // PATCH /v1/admin/users/:id/role, promote or demote a user
   fastify.patch<{
     Params: { id: string }
     Body:   { role: UserRole }

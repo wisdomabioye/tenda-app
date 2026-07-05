@@ -1,5 +1,5 @@
 /**
- * Shared HTTP error/404 handlers — registered by the production app
+ * Shared HTTP error/404 handlers, registered by the production app
  * (src/app.ts) AND the integration-test harness (test/helpers/test-app.ts)
  * so injected requests surface the exact same error envelope as prod.
  */

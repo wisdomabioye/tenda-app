@@ -1,4 +1,4 @@
-/** DELETE /v1/bank-accounts/:id — remove a saved account. */
+/** DELETE /v1/bank-accounts/:id, remove a saved account. */
 
 import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'

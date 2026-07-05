@@ -2,7 +2,7 @@
  * Shared HMAC-signature verification for inbound provider webhooks
  * (Helius, Alchemy, Yellow Card, Onramp.money, ...).
  *
- * Single source of truth — referenced by stage-0 exit criteria
+ * Single source of truth, referenced by stage-0 exit criteria
  * ("core/webhooks/verify-hmac.ts exists and is the only HMAC implementation").
  *
  * Uses Node's `timingSafeEqual` so a leaked signature can't be guessed
@@ -14,9 +14,9 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 export type HmacAlgorithm = 'sha256' | 'sha512'
 
 /**
- * `'base64'` — strict standard alphabet (`A-Za-z0-9+/=`). Stripe-class APIs.
- * `'base64url'` — URL-safe alphabet (`A-Za-z0-9-_=`). Some JWT-adjacent
- * providers. NOT mixed — strict per-mode validation so Buffer.from never
+ * `'base64'`, strict standard alphabet (`A-Za-z0-9+/=`). Stripe-class APIs.
+ * `'base64url'`, URL-safe alphabet (`A-Za-z0-9-_=`). Some JWT-adjacent
+ * providers. NOT mixed, strict per-mode validation so Buffer.from never
  * silently truncates on an unexpected character.
  */
 export type SignatureEncoding = 'hex' | 'base64' | 'base64url'
@@ -25,7 +25,7 @@ export type SignatureEncoding = 'hex' | 'base64' | 'base64url'
 export const MAX_PAYLOAD_BYTES = 1_048_576
 
 export interface VerifyHmacArgs {
-  /** Raw request body bytes — never the parsed JSON. */
+  /** Raw request body bytes, never the parsed JSON. */
   payload: string | Buffer
   /** Signature header as provider sent it. */
   signature: string
@@ -79,7 +79,7 @@ function safeFromBase64Standard(b64: string): Buffer | null {
 function safeFromBase64Url(b64: string): Buffer | null {
   if (b64.length === 0) return null
   if (!/^[A-Za-z0-9_-]+={0,2}$/.test(b64)) return null
-  // Buffer.from('base64') only handles the standard alphabet — translate first.
+  // Buffer.from('base64') only handles the standard alphabet, translate first.
   const standard = b64.replace(/-/g, '+').replace(/_/g, '/')
   return Buffer.from(standard, 'base64')
 }

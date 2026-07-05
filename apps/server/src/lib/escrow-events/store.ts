@@ -2,7 +2,7 @@
  * Escrow-event store seam + drizzle impl (co-located per the lib convention).
  * The apply is ATOMIC: the status-guarded `escrows` UPDATE, the
  * `escrow_transactions` audit INSERT, and (for DisputeResolved) the `disputes`
- * stamp all commit inside ONE db.transaction — load-bearing because verify-tx's
+ * stamp all commit inside ONE db.transaction, load-bearing because verify-tx's
  * `isProcessed` dedup keys on the audit row, so the transition and that row must
  * never split across commits.
  */
@@ -40,7 +40,7 @@ export interface EscrowEventTransaction {
 export interface EscrowEventStore {
   /**
    * Apply one event atomically (see file header). Returns false when the
-   * status guard trips (another worker already applied) — the caller treats
+   * status guard trips (another worker already applied), the caller treats
    * that as an idempotent no-op, and neither the audit row nor the dispute
    * stamp is written.
    */
@@ -66,9 +66,9 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
           .set(patch)
           .where(and(eq(escrows.id, escrow_id), inArray(escrows.status, from)))
           .returning({ id: escrows.id })
-        if (updated.length === 0) return false // status guard tripped — idempotent no-op
+        if (updated.length === 0) return false // status guard tripped, idempotent no-op
 
-        // tx_ref UNIQUE — a replayed insert is a no-op (defence in depth on
+        // tx_ref UNIQUE, a replayed insert is a no-op (defence in depth on
         // top of the caller's isProcessed dedup).
         await tx.insert(escrow_transactions).values({ escrow_id, ...transaction }).onConflictDoNothing({
           target: escrow_transactions.tx_ref,
@@ -84,7 +84,7 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
       })
     },
     async resolveUserByWallet(chain_ns, address) {
-      // The address comes from decoded on-chain event data — viem returns EVM
+      // The address comes from decoded on-chain event data, viem returns EVM
       // addresses EIP-55 checksummed. Match case-insensitively (EVM) so the
       // counterparty/actor resolves regardless of the stored row's case.
       const rows = await db

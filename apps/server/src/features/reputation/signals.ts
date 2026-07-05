@@ -1,11 +1,11 @@
 /**
  * Internal event → standing signals (stage-7-reputation.md § What gets
- * tracked). Each event maps to zero, one or two signals — never any
+ * tracked). Each event maps to zero, one or two signals, never any
  * branching on prior escrow state (that's why refund_expired and
  * reclaim_abandoned are separate events).
  *
  * Reputation deliberately ignores escrow.created / accepted /
- * proof_submitted / dispute_raised — they carry no signal.
+ * proof_submitted / dispute_raised, they carry no signal.
  */
 
 import type { StandingEventKind } from '@tenda/shared/db/schema/reputation'
@@ -53,7 +53,7 @@ export function signalsFor(event: InternalEscrowEvent, ctx: SignalContext): Stan
       ])
     case 'escrow.declined':
       // Neutral by design (workers should decline rather than abandon),
-      // and the assignee never became the counterparty — there is no
+      // and the assignee never became the counterparty, there is no
       // reliable user id on the escrow row to record against. No signal.
       return []
     case 'escrow.cancelled':

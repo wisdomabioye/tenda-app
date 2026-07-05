@@ -1,8 +1,8 @@
 /**
- * GET /v1/auth/me — return the authenticated user's row.
+ * GET /v1/auth/me, return the authenticated user's row.
  *
  * Preserved from the legacy auth surface; reads from v2 `users`. Wallets
- * are NOT included in the response — clients call /v1/users/:id/wallets
+ * are NOT included in the response, clients call /v1/users/:id/wallets
  * for those (added at #27 when the user routes consolidate).
  */
 

@@ -1,5 +1,5 @@
 /**
- * Solana GasSeedSender — transfers the one-time SOL seed from the hot
+ * Solana GasSeedSender, transfers the one-time SOL seed from the hot
  * wallet (#40, SOLANA_GAS_SEED_WALLET_KEY) to a newly linked wallet.
  *
  * Kept as a leaf under chains/solana: lib/gas-seed.ts orchestrates via the

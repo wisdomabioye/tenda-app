@@ -25,7 +25,7 @@ const COUNTER_BY_KIND: Record<StandingEventKind, keyof typeof COUNTER_COLUMNS | 
   disputed_won: 'disputed_won_count',
   disputed_lost: 'disputed_lost_count',
   fraud_confirmed: 'fraud_confirmed_count',
-  // Neutral bookkeeping kinds — recorded as events, no lifetime counter.
+  // Neutral bookkeeping kinds, recorded as events, no lifetime counter.
   declined: null,
   cancelled: null,
 }

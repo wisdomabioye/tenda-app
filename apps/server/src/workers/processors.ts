@@ -1,10 +1,10 @@
 /**
  * Job-name → processor routing (#33 worker wiring). Pure composition over
- * the Stage-0/2/8 handlers — every handler already exists and is
+ * the Stage-0/2/8 handlers, every handler already exists and is
  * unit-tested; this layer only assembles their live deps from fastify.
  *
  * verify-tx republish (stage-2 § listener step 5) does both fan-outs:
- *   1. WS: `escrow:<id>` frame `{type:'escrow_event', event, tx_ref}` —
+ *   1. WS: `escrow:<id>` frame `{type:'escrow_event', event, tx_ref}`,
  *      the exact contract TransactionMonitor subscribes to (#42).
  *   2. Push: a 'notifications' job addressed to the party who needs to
  *      LEARN about the event (the non-actor), resolved from the escrow row.
@@ -46,14 +46,14 @@ import type { InternalEscrowEvent } from '@server/lib/escrow-events'
 // ---------- escrow-event push fan-out ---------------------------------------
 
 interface EventNotice {
-  /** Which party learns about it — the one who didn't act. */
+  /** Which party learns about it, the one who didn't act. */
   recipient: 'creator' | 'counterparty' | 'both'
   title: string
   body: string
 }
 
 /**
- * High-signal events only — lifecycle steps the OTHER party must react
+ * High-signal events only, lifecycle steps the OTHER party must react
  * to. Expiry notices ride the expire-escrows job; created/cancelled are
  * the actor's own doing.
  */
@@ -61,7 +61,7 @@ const NOTICE_BY_EVENT: Partial<Record<InternalEscrowEvent, EventNotice>> = {
   'escrow.accepted': {
     recipient: 'creator',
     title: 'Gig accepted',
-    body: 'A worker accepted your gig — work is underway.',
+    body: 'A worker accepted your gig, work is underway.',
   },
   'escrow.declined': {
     recipient: 'creator',
@@ -71,7 +71,7 @@ const NOTICE_BY_EVENT: Partial<Record<InternalEscrowEvent, EventNotice>> = {
   'escrow.proof_submitted': {
     recipient: 'creator',
     title: 'Work submitted',
-    body: 'Proof of completion is in — review and approve to release payment.',
+    body: 'Proof of completion is in, review and approve to release payment.',
   },
   'escrow.approved': {
     recipient: 'counterparty',
@@ -96,14 +96,14 @@ const NOTICE_BY_EVENT: Partial<Record<InternalEscrowEvent, EventNotice>> = {
   'escrow.dispute_resolved': {
     recipient: 'both',
     title: 'Dispute resolved',
-    body: 'Your dispute has been resolved — check the escrow for the outcome.',
+    body: 'Your dispute has been resolved, check the escrow for the outcome.',
   },
 }
 
 /**
  * New-gig fan-out: when the on-chain create confirms (escrow → open),
  * notify gig_subscriptions matching the gig's city/category ('*' is the
- * any-value sentinel). Moved here from the legacy notifications plugin —
+ * any-value sentinel). Moved here from the legacy notifications plugin,
  * v2 has no publish route; "the gig went live" IS the created event.
  */
 async function fanOutNewGigToSubscribers(
@@ -121,7 +121,7 @@ async function fanOutNewGigToSubscribers(
     .innerJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
     .where(and(eq(escrows.id, escrow_id), eq(escrows.kind, 'gig')))
     .limit(1)
-  // Exchange escrows have no gig_details row — nothing to fan out.
+  // Exchange escrows have no gig_details row, nothing to fan out.
   if (gig === undefined) return
 
   // Remote gigs match wildcard-city subscribers only; local gigs match
@@ -155,7 +155,7 @@ async function fanOutEscrowEvent(
   fastify: FastifyInstance,
   event: { internal_event: InternalEscrowEvent; escrow_id: string; tx_ref: string; wire_event: string },
 ): Promise<void> {
-  // 1. Live WS frame — matches shared EscrowEventFrame exactly.
+  // 1. Live WS frame, matches shared EscrowEventFrame exactly.
   fastify.wsBroadcast.broadcast(channelName({ kind: 'escrow', id: event.escrow_id }), {
     type: 'escrow_event',
     escrow_id: event.escrow_id,
@@ -208,7 +208,7 @@ async function deliverNotification(
 ): Promise<void> {
   // Tokens resolve at DELIVERY time (queue.ts doc: tokens churn between
   // enqueue and delivery; resolving early pushes to stale devices). The push
-  // `services` are built ONCE in buildProcessors and reused — see the note
+  // `services` are built ONCE in buildProcessors and reused, see the note
   // there on why they must not be rebuilt per delivery.
   const rows = await fastify.db
     .select({ token: device_tokens.token, platform: device_tokens.platform })
@@ -223,7 +223,7 @@ async function deliverNotification(
     ...(payload.data !== undefined ? { data: payload.data } : {}),
   })
   // Prune tokens the providers reported permanently gone (resolved issue
-  // C1 — regressed when fan-out moved off the legacy plugin at #34).
+  // C1, regressed when fan-out moved off the legacy plugin at #34).
   await removeTokens(fastify, result.invalid_tokens)
 }
 
@@ -253,7 +253,7 @@ export function buildProcessors(
   fastify: FastifyInstance,
   // Built ONCE here (default) for the worker's lifetime. Each service instance
   // holds its provider auth-token cache (FCM OAuth access token / APNS JWT,
-  // ~50-min refresh — see lib/push-services). buildProcessors runs once at
+  // ~50-min refresh, see lib/push-services). buildProcessors runs once at
   // worker-plugin init, so rebuilding per delivery would discard the cache and
   // re-exchange the token on every single notification. Injectable for tests.
   pushServices: Partial<Record<DevicePlatform, PushService>> = buildPushServices(
@@ -261,7 +261,7 @@ export function buildProcessors(
     fastify.log,
   ),
 ): { [N in JobName]: JobProcessor<N> } {
-  // Built ONCE for the worker's lifetime (stateless fetch clients) — the
+  // Built ONCE for the worker's lifetime (stateless fetch clients), the
   // send-otp processor reuses them across every delivery. Same source the
   // inline (no-Redis) dispatch uses, so the two paths can't drift.
   const otpSenders = buildOtpSenders(fastify)
@@ -300,7 +300,7 @@ export function buildProcessors(
 
     notifications: (payload) => deliverNotification(fastify, pushServices, payload),
 
-    // Decoupled OTP delivery — a throw here propagates so BullMQ retries on the
+    // Decoupled OTP delivery, a throw here propagates so BullMQ retries on the
     // queue's exponential backoff (well within the 10-min code TTL).
     'send-otp': (payload) => deliverOtp(otpSenders, payload),
   }

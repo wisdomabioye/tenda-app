@@ -12,9 +12,9 @@ interface ClientPingBody {
 }
 
 const transaction: FastifyPluginAsync = async (fastify) => {
-  // POST /v1/blockchain/transaction — client-ping after broadcasting a tx
+  // POST /v1/blockchain/transaction, client-ping after broadcasting a tx
   // (cutover §3). Records the attempt in tx_attempts and enqueues the
-  // idempotent verify-tx job; responds 202 immediately — verification is
+  // idempotent verify-tx job; responds 202 immediately, verification is
   // never in the request path. Replays are no-ops (tx_ref UNIQUE + job_id
   // dedup), so the client can ping freely on retry.
   fastify.post<{ Body: ClientPingBody }>(

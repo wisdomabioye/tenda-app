@@ -1,7 +1,7 @@
 /**
  * Unsigned-transaction orchestrator for every escrow action: resolve the
- * signer wallet, encode the action's instruction(s) (instructions.ts) — SPL
- * settlement/resolve paths prepend idempotent ATA-provisioning instructions —
+ * signer wallet, encode the action's instruction(s) (instructions.ts), SPL
+ * settlement/resolve paths prepend idempotent ATA-provisioning instructions,
  * wrap them in a v0 `VersionedTransaction` against a fresh blockhash, and
  * serialize. Asset forking + on-chain lookups live in instructions.ts /
  * builder-internals.ts; the only network I/O here is the injected `SolanaRpc`.

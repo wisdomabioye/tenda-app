@@ -5,7 +5,7 @@ import { ErrorCode, hasPermission } from '@tenda/shared'
 import { users } from '@tenda/shared/db/schema/identity'
 
 // hasPermission moved to @tenda/shared (#90) so the admin dashboard's nav
-// filter and the server guards share one implementation. Re-exported here —
+// filter and the server guards share one implementation. Re-exported here,
 // existing `from '@server/lib/guards'` imports stay valid.
 export { hasPermission }
 
@@ -31,7 +31,7 @@ export function requireRole(...roles: UserRole[]) {
 
 /**
  * Fastify preHandler enforcing a single permission from the shared
- * PERMISSIONS map. Prefer this over requireRole for every admin route —
+ * PERMISSIONS map. Prefer this over requireRole for every admin route,
  * granting a future role is then a map edit in @tenda/shared, not a route
  * sweep. Always use after fastify.authenticate:
  *   { preHandler: [fastify.authenticate, requirePermission('users.suspend')] }
@@ -53,7 +53,7 @@ export function requirePermission(permission: Permission) {
  * Fastify preHandler enforcing a completed profile (stage-1: first_name AND
  * last_name set) before posting or accepting work. Applied to the v2
  * surface: POST /v1/escrows + escrows accept/decline. Reads the v2 users
- * row per request — only four routes carry this, and profile fields are
+ * row per request, only four routes carry this, and profile fields are
  * not in the auth status cache by design (they change via PATCH /users/me
  * and must take effect immediately).
  */

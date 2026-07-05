@@ -1,12 +1,12 @@
 /**
- * Cutover seeds: chains, assets, platform_config. Idempotent by construction —
+ * Cutover seeds: chains, assets, platform_config. Idempotent by construction,
  * registry FACTS (chain/asset rows) upsert so a redeploy or manifest change
  * propagates on re-run; operator-tunable rows (platform_config,
  * fiat_providers) stay `ON CONFLICT DO NOTHING` so re-seeding never clobbers
  * admin edits. Boot-time invocation is safe.
  *
  * Run: `pnpm --filter tenda-server db:seed` (requires DATABASE_URL +
- * `CHAIN_<ID>_*` env). Fully manifest + secrets driven — nothing chain-shaped
+ * `CHAIN_<ID>_*` env). Fully manifest + secrets driven, nothing chain-shaped
  * is hardcoded here:
  *   - which chains  ← the ACTIVE chain secrets (chains/secrets.ts)
  *   - display/confirmations/token addresses ← the shared CHAIN_MANIFEST
@@ -52,7 +52,7 @@ export interface SeedRows {
 
 /**
  * Resolve an asset's seedable token address. A `fromSecret` asset (Solana USDC
- * — the mint differs per cluster and is not canonical) is supplied by the
+ *, the mint differs per cluster and is not canonical) is supplied by the
  * chain's secret and skipped when absent; otherwise the manifest token (canonical
  * EVM contract) or `null` (native) is used.
  */
@@ -74,7 +74,7 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
   const assetRows: AssetRow[] = []
   const skipped: string[] = []
 
-  // symbol/decimals/is_stable come from the shared ASSET_META registry —
+  // symbol/decimals/is_stable come from the shared ASSET_META registry,
   // the seed only contributes the deployment-specific chain/token wiring.
   function assetRow(id: string, chain_id: string, token_address: string | null): AssetRow {
     const meta = ASSET_META[id]
@@ -104,7 +104,7 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
     }
   }
 
-  // Stage 8: routing registry (enable/priority only — credentials live in
+  // Stage 8: routing registry (enable/priority only, credentials live in
   // env; a provider without keys is simply never constructed).
   const fiatProviderRows: FiatProviderRow[] = [
     {
@@ -143,7 +143,7 @@ export async function applySeed(db: PostgresJsDatabase, rows: SeedRows): Promise
   // Registry facts follow config: a contract redeploy or manifest change must
   // land on re-seed (a DO NOTHING here once stranded a stale escrow address
   // after the Base Sepolia redeploy). `is_enabled` is deliberately NOT in the
-  // update set — the reconcile below owns it.
+  // update set, the reconcile below owns it.
   await db.insert(chains).values(rows.chains).onConflictDoUpdate({
     target: chains.id,
     set: {
@@ -175,7 +175,7 @@ export async function applySeed(db: PostgresJsDatabase, rows: SeedRows): Promise
   // Reconcile enablement so the registry reflects EXACTLY the active config
   // (one chain per family). The seed never deletes, so a chain/asset from a
   // prior env (e.g. a switched-out Solana cluster) would otherwise linger
-  // enabled and get served by /v1/platform/chains — surfacing as a duplicate
+  // enabled and get served by /v1/platform/chains, surfacing as a duplicate
   // row on the wallet screen. Enable the active set, disable everything else.
   const activeChainIds = rows.chains.map((c) => c.id)
   const activeAssetIds = rows.assets.map((a) => a.id)
@@ -189,7 +189,7 @@ async function seed(): Promise<void> {
   const config = loadConfig()
   const rows = buildSeedRows(getChainSecrets())
 
-  // NB: the client is not named `sql` — that would shadow drizzle's sql``
+  // NB: the client is not named `sql`, that would shadow drizzle's sql``
   // template used in applySeed's upsert sets (a shadowed call executes a
   // query and stringifies the Promise into the parameter).
   const client = postgres(config.DATABASE_URL, { max: 1 })

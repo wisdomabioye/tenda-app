@@ -1,15 +1,15 @@
 /**
- * POST /v1/webhooks/helius — managed-listener push (stage-2-listeners.md).
+ * POST /v1/webhooks/helius, managed-listener push (stage-2-listeners.md).
  *
  * Auth: Helius sends a configured shared secret in the Authorization
- * header (their webhook auth model is a static header, not payload HMAC —
+ * header (their webhook auth model is a static header, not payload HMAC,
  * documented deviation from the stage doc's "HMAC" shorthand). Compared
  * timing-safe; tampered/absent → 401. Secret unset (#43 pending) → 503,
  * and the polling fallback + reconciliation carry verification.
  *
  * The payload is treated as a NOTIFICATION ONLY (stage-2 risk table):
  * we extract signatures and enqueue idempotent verify-tx jobs without an
- * expected_event — the job re-fetches and decodes from the chain, which is
+ * expected_event, the job re-fetches and decodes from the chain, which is
  * the source of truth. Always 200 fast so Helius doesn't disable the hook.
  */
 
@@ -71,7 +71,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         )
         enqueued += 1
       } catch (err) {
-        // Queue down — reconciliation sweeps tx_attempts; webhook-only txs
+        // Queue down, reconciliation sweeps tx_attempts; webhook-only txs
         // (no client ping) are re-pushed by Helius retries.
         request.log.warn({ err, tx_ref }, 'helius webhook: enqueue failed')
       }

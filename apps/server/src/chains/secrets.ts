@@ -4,7 +4,7 @@
  * flat, conventionally-named env vars and returns one validated, typed record
  * per ACTIVE chain.
  *
- * Env convention — `CHAIN_<SANITISED_ID>_<FIELD>`, e.g.
+ * Env convention, `CHAIN_<SANITISED_ID>_<FIELD>`, e.g.
  *   CHAIN_EIP155_8453_RPC_URL, CHAIN_SOLANA_DEVNET_PROGRAM_ID
  * Keys are CONSTRUCTED from the manifest id + a fixed per-namespace field set,
  * never parsed back, so single-underscore separators are unambiguous.
@@ -34,11 +34,11 @@ interface SecretFieldSpec {
 
 /**
  * Secret schema keyed by NAMESPACE (not family): every EVM chain reads the
- * same fields, every Solana chain reads the same fields — so adding an EVM L2
+ * same fields, every Solana chain reads the same fields, so adding an EVM L2
  * needs no schema change. The resolved record's shape mirrors this 1:1.
  */
 const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
-  // NOTE: the Solana program id is NOT a secret — it is the deployed IDL
+  // NOTE: the Solana program id is NOT a secret, it is the deployed IDL
   // artifact (ESCROW_IDL.address), the single source used by the adapter,
   // pdas, and the seeder. Treasury + RPC are the genuine per-deployment values.
   solana: [
@@ -57,7 +57,7 @@ const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
   ],
 }
 
-/** Resolved secrets per active chain — a discriminated union over namespace. */
+/** Resolved secrets per active chain, a discriminated union over namespace. */
 export type ResolvedChainSecret =
   | {
       namespace: 'solana'
@@ -109,7 +109,7 @@ function isValid(kind: SecretKind, value: string): boolean {
 }
 
 /**
- * Every env key the manifest could legitimately read — powers the boot-time
+ * Every env key the manifest could legitimately read, powers the boot-time
  * typo guard AND the .env.example parity test (documented CHAIN_* names must
  * be names the loader actually reads, so the docs can't silently rot).
  */
@@ -185,7 +185,7 @@ export function loadChainSecrets(
     (k) => k.startsWith('CHAIN_') && !valid.has(k) && (env[k] ?? '').trim().length > 0,
   )
   if (unknown.length > 0) {
-    errors.push(`unrecognised chain env var(s): ${unknown.sort().join(', ')} — check spelling against the manifest`)
+    errors.push(`unrecognised chain env var(s): ${unknown.sort().join(', ')}, check spelling against the manifest`)
   }
 
   for (const entry of manifest) {
@@ -200,7 +200,7 @@ export function loadChainSecrets(
       if (value.length > 0) present.set(spec.key, value)
     }
 
-    if (present.size === 0) continue // inactive — chain not configured here
+    if (present.size === 0) continue // inactive, chain not configured here
 
     const missingRequired = schema
       .filter((s) => s.required && !present.has(s.key))
@@ -214,7 +214,7 @@ export function loadChainSecrets(
     }
 
     if (missingRequired.length > 0) {
-      errors.push(`${entry.id}: partially configured — missing ${missingRequired.join(', ')}`)
+      errors.push(`${entry.id}: partially configured, missing ${missingRequired.join(', ')}`)
     }
     if (malformed.length > 0) {
       errors.push(`${entry.id}: malformed value(s) for ${malformed.join(', ')}`)
@@ -224,7 +224,7 @@ export function loadChainSecrets(
     const clash = activeByFamily.get(entry.family)
     if (clash !== undefined) {
       errors.push(
-        `${entry.id} and ${clash} are both configured but share family '${entry.family}' — a deployment runs one network per family`,
+        `${entry.id} and ${clash} are both configured but share family '${entry.family}', a deployment runs one network per family`,
       )
       continue
     }

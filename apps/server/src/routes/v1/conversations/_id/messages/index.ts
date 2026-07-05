@@ -41,7 +41,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
     return { title: row?.title ?? null, kind: row?.kind ?? null }
   }
 
-  // GET /v1/conversations/:id/messages — paginated message history (cursor-based, newest first)
+  // GET /v1/conversations/:id/messages, paginated message history (cursor-based, newest first)
   fastify.get<{
     Params: GetMessagesRoute['params']
     Querystring: GetMessagesRoute['query']
@@ -139,14 +139,14 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  // POST /v1/conversations/:id/messages — send a message
+  // POST /v1/conversations/:id/messages, send a message
   fastify.post<{
     Params: SendMessageRoute['params']
     Body: SendMessageRoute['body']
     Reply: SendMessageRoute['response'] | ApiError
   }>(
     '/',
-    // Chat-message moderation is report-driven (stage-6 scope decision) —
+    // Chat-message moderation is report-driven (stage-6 scope decision),
     // the legacy keyword guard died with blocked_keywords at the cutover.
     { config: { rateLimit: { max: 60, timeWindow: '1 minute' } }, preHandler: [fastify.authenticate] },
     async (request, reply) => {
@@ -154,7 +154,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       const { content, escrow_id, attachment_url, attachment_type, attachment_size } = requireBody(request.body)
       const userId = request.user.id
 
-      // S5.2: attachment validation — all three fields together or none;
+      // S5.2: attachment validation, all three fields together or none;
       // URL must live under THIS conversation's sender-scoped folder so a
       // signature minted for one conversation can't be replayed in another.
       const attachmentFields = [attachment_url, attachment_type, attachment_size]
@@ -187,7 +187,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      // Context references must resolve — a bad id would otherwise surface
+      // Context references must resolve, a bad id would otherwise surface
       // as an FK violation (500) instead of a client error.
       if (escrow_id !== undefined) {
         const [referenced] = await fastify.db
@@ -273,7 +273,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       }
 
       // Live fan-out to open chat screens. Reaches the sender's own socket
-      // too — the client dedupes by message id against its optimistic copy.
+      // too, the client dedupes by message id against its optimistic copy.
       fastify.wsBroadcast.broadcast(
         channelName({ kind: 'chat', id }),
         { type: 'message', message: serialized },

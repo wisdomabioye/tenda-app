@@ -15,7 +15,7 @@ import type { AppDatabase } from '@server/plugins/db'
 
 /**
  * Nearest-rank percentile over RAW amounts (bigint-safe via string sort on
- * normalized values is unsafe — we parse to BigInt and sort numerically).
+ * normalized values is unsafe, we parse to BigInt and sort numerically).
  */
 export function rawPercentile(sorted: ReadonlyArray<bigint>, p: number): bigint {
   if (sorted.length === 0) throw new Error('rawPercentile: empty input')

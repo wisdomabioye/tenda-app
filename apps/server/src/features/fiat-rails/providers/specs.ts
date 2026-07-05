@@ -1,6 +1,6 @@
 /**
  * Wire specs for the licensed providers (stage-8). These constants are the
- * ONLY thing #61 onboarding needs to finalize — paths/capabilities come
+ * ONLY thing #61 onboarding needs to finalize, paths/capabilities come
  * from the partner docs once merchant accounts exist. The adapter code
  * (`licensed-http.ts`) is wire-shape-agnostic.
  */

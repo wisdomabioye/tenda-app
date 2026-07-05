@@ -94,7 +94,7 @@ export function counterpartyOrThrow(escrow: EscrowAccount): PublicKey {
  * Anchor deserializes every `Account<TokenAccount>` field in `SettleSpl` /
  * `ResolveSpl` before the handler runs, so each recipient's Associated Token
  * Account must already be an initialized token account for the tx to validate
- * — regardless of whether the handler actually pays it (e.g. `reclaim` never
+ *, regardless of whether the handler actually pays it (e.g. `reclaim` never
  * pays counterparty/treasury but the shared struct still loads them; a Split
  * dispute pays treasury nothing but still deserializes its ATA). Solana has no
  * lazy-init: unlike an EVM ERC-20 balance mapping, a fresh (owner, mint) pair

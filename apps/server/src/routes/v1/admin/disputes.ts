@@ -1,6 +1,6 @@
 /**
  * Admin dispute queue (cutover §2 rewrite): v2 has ONE disputes table
- * keyed on escrow_id — the legacy gig/exchange split, mediation threads
+ * keyed on escrow_id, the legacy gig/exchange split, mediation threads
  * and HTTP resolve are gone. Resolution itself goes through
  * POST /v1/escrows/:id/resolve (on-chain multisig path, admin-gated
  * there); this surface is read-only triage.
@@ -55,7 +55,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     raised_at: iso(row.raised_at),
   })
 
-  // GET /v1/admin/disputes — triage queue, newest first.
+  // GET /v1/admin/disputes, triage queue, newest first.
   fastify.get<{
     Querystring: {
       status?: 'open' | 'resolved'
@@ -101,7 +101,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // GET /v1/admin/disputes/:id — single dispute detail.
+  // GET /v1/admin/disputes/:id, single dispute detail.
   fastify.get<{
     Params: { id: string }
     Reply: DisputeSummary | ApiError
@@ -111,7 +111,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     return toSummary(row)
   })
 
-  // POST /v1/admin/disputes/:id/claim — take the dispute from the open
+  // POST /v1/admin/disputes/:id/claim, take the dispute from the open
   // pool (CO7). Atomic: the WHERE clause loses the race instead of
   // double-assigning; re-claiming your own dispute is a no-op 200.
   fastify.post<{
@@ -152,7 +152,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     throw new AppError(409, ErrorCode.DISPUTE_ALREADY_CLAIMED, 'Dispute already claimed by another mediator')
   })
 
-  // POST /v1/admin/disputes/:id/release — return the dispute to the open
+  // POST /v1/admin/disputes/:id/release, return the dispute to the open
   // pool. Claimer-only; super_admin can force-release a colleague's claim.
   fastify.post<{
     Params: { id: string }

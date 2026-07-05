@@ -3,14 +3,14 @@
  * every 60s). Replaces the legacy request-path lazy expiry
  * (`lib/gigs.ts:checkAndExpireGig`) once the cutover removes it.
  *
- * v2 semantics: there is NO `expired` status — `escrows.status` is a
+ * v2 semantics: there is NO `expired` status, `escrows.status` is a
  * faithful mirror of on-chain state, and the chain keeps an unaccepted
  * escrow `Open` until the creator pulls `refund_expired`. What expiry means
  * server-side is therefore:
  *   1. Listings exclude open escrows past `accept_deadline` at query time
  *      (listing-route concern, cutover §3).
  *   2. This job nudges creators to reclaim: one notification per expired
- *      escrow, made idempotent by a deterministic BullMQ job_id — re-ticks
+ *      escrow, made idempotent by a deterministic BullMQ job_id, re-ticks
  *      never re-notify.
  *
  * The repeatable scheduling + worker wiring land with #33 (Redis); the
@@ -35,7 +35,7 @@ export interface ExpireEscrowsStore {
    * Open, never-accepted escrows whose accept_deadline fell inside
    * `[since, until)`. The bounded window is the idempotency backbone: an
    * unclaimed escrow stays `open` in the DB indefinitely, and BullMQ job_id
-   * dedup only holds while the completed notification job is retained — so
+   * dedup only holds while the completed notification job is retained, so
    * an unbounded "deadline < now" scan would re-notify every tick once the
    * job is pruned. A row can only match while its deadline is inside the
    * window; the deterministic job_id absorbs the overlap between ticks.
@@ -75,12 +75,12 @@ export const EXPIRE_BATCH_LIMIT = 200
  * Must exceed the tick interval (60s) so consecutive windows overlap.
  *
  * #33 worker-config constraint: completed `notifications` jobs must be
- * retained (removeOnComplete age) for at least this long — the job_id
+ * retained (removeOnComplete age) for at least this long, the job_id
  * dedup covers the window overlap only while the prior job still exists.
  */
 export const EXPIRE_LOOKBACK_MS = 5 * 60_000
 
-/** Deterministic notification job id — the idempotency guarantee. */
+/** Deterministic notification job id, the idempotency guarantee. */
 export function expireNoticeJobId(escrow_id: string): string {
   return `expire-notice:${escrow_id}`
 }
@@ -142,7 +142,7 @@ export async function handleExpireEscrows(
     // No silent caps: surface that this tick did not drain the backlog.
     deps.log.warn(
       { tick_id: payload.tick_id, limit: EXPIRE_BATCH_LIMIT },
-      'expire-escrows: batch limit hit — remainder picked up next tick',
+      'expire-escrows: batch limit hit, remainder picked up next tick',
     )
   }
   deps.log.info(

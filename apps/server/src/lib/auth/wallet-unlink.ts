@@ -10,7 +10,7 @@
  *
  * Guards (throw AppError, rolling the tx back):
  *   1. target must be linked to the user (404 NOT_FOUND).
- *   2. never the user's ONLY wallet (409 LAST_WALLET) — a wallet is required to
+ *   2. never the user's ONLY wallet (409 LAST_WALLET), a wallet is required to
  *      transact, so the account must always keep at least one (stricter than the
  *      identities∪wallets last-credential rule, which a verified email satisfies).
  *   3. not the primary while another wallet remains (409 WALLET_IN_USE).
@@ -61,7 +61,7 @@ export async function unlinkWallet(
     if (target === undefined) {
       throw new AppError(404, ErrorCode.NOT_FOUND, 'that wallet isn’t linked to your account')
     }
-    // Always keep at least one wallet — a wallet is required to transact, so the
+    // Always keep at least one wallet, a wallet is required to transact, so the
     // account must never go wallet-free (even with a verified email/phone). The
     // load runs under the per-user advisory lock, so two concurrent unlinks
     // can't both read "2 remain" and strand the account.
@@ -69,7 +69,7 @@ export async function unlinkWallet(
       throw new AppError(
         409,
         ErrorCode.LAST_WALLET,
-        'keep at least one wallet linked — you can’t unlink your only wallet',
+        'keep at least one wallet linked, you can’t unlink your only wallet',
       )
     }
     // Another wallet always remains here (the sole-wallet guard above ensures

@@ -1,12 +1,12 @@
 /**
- * #82 fraud FLAG — admin-only signal, never an automatic restriction.
+ * #82 fraud FLAG, admin-only signal, never an automatic restriction.
  * Of the user's CLOSED two-party engagements, what share went through a
  * dispute? Computed live from escrows (no denormalized column to drift).
  *
  * Denominator counts only terminal escrows that HAD a counterparty:
  * cancelled drafts and nobody-accepted refunds are not engagements and
  * would otherwise let a bad actor dilute the rate below the threshold.
- * Numerator is status='resolved' — the only terminal status a disputed
+ * Numerator is status='resolved', the only terminal status a disputed
  * escrow can reach (lib/escrow.ts: disputed exits solely via resolve).
  * Live disputes sit on neither side; the book is judged once closed.
  */

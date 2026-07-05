@@ -1,6 +1,6 @@
 /**
  * Validation + normalisation for the gig create-detail body
- * (POST /v1/gigs — cutover §3). Pure: DB guards (escrow ownership/state)
+ * (POST /v1/gigs, cutover §3). Pure: DB guards (escrow ownership/state)
  * and the Stage-6 moderation gate stay in the route; everything testable
  * without I/O lives here.
  */
@@ -60,7 +60,7 @@ export function validateGigDetails(
   ensureValidCoordinates(latitude, longitude)
 
   // Remote gigs are location-agnostic: they carry no country or city. Physical
-  // gigs must name the country (and city) where the WORK happens — the worker's
+  // gigs must name the country (and city) where the WORK happens, the worker's
   // location, independent of where the poster posts from. We never back-fill the
   // creator's country onto a remote gig.
   let resolvedCountry: CountryCode | null = null

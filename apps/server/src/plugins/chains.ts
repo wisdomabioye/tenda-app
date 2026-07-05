@@ -4,7 +4,7 @@
  * without re-running the factory per request.
  *
  * Post-cutover (#34) the resolvers are DB-backed:
- *   - wallet: `user_wallets` (multi-wallet, decision #13) — primary wallet
+ *   - wallet: `user_wallets` (multi-wallet, decision #13), primary wallet
  *     first, falling back to the only linked wallet for the namespace.
  *   - asset:  the seeded `assets` registry table, keyed (id, chain_id).
  */
@@ -50,7 +50,7 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
     }
   }
 
-  /** Assets registry lookup — seeded by db:seed; Stages 3/4 add EVM rows. */
+  /** Assets registry lookup, seeded by db:seed; Stages 3/4 add EVM rows. */
   function dbAssetResolver(chain_id: string): (asset: string) => Promise<{ token_address: string | null }> {
     return async (asset) => {
       const rows = await fastify.db
@@ -77,7 +77,7 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
    *     probe + symmetric release, and the paymaster client when its URL is
    *     configured. Reserve IS the atomic quota decrement; the reconcile cron
    *     repairs drift when a sponsored build never lands.
-   *   - feeCurrency / none EVM (CELO-style): plain resolvers — gas rides
+   *   - feeCurrency / none EVM (CELO-style): plain resolvers, gas rides
    *     feeCurrency, no probe, counter never touched.
    * A new EVM chain inherits the right wiring from its manifest gasPolicy
    * with no edit here.
@@ -92,7 +92,7 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
         resolveWalletAddress: dbWalletResolver('eip155'),
         resolveAsset: dbAssetResolver(chainId),
         // Permit-payload gate: the owner must be a linked wallet of the
-        // caller (rows only exist after signature verification — verified_at
+        // caller (rows only exist after signature verification, verified_at
         // is NOT NULL by construction). Case-insensitive: EVM addresses may
         // be stored checksummed.
         async verifyWalletOwnership(user_id, address) {
@@ -133,7 +133,7 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
   const adapters = buildAdapters(getChainSecrets(), depsFactory)
   if (adapters.length === 0) {
     throw new Error(
-      'no chains configured — set CHAIN_<ID>_* env for at least one manifest chain (e.g. CHAIN_SOLANA_DEVNET_RPC_URL)',
+      'no chains configured, set CHAIN_<ID>_* env for at least one manifest chain (e.g. CHAIN_SOLANA_DEVNET_RPC_URL)',
     )
   }
 

@@ -20,7 +20,7 @@ const startServer = async () => {
   try {
     loadConfig();
 
-    // Opt-in boot-time migration — no-op unless MIGRATE_ON_BOOT=true.
+    // Opt-in boot-time migration, no-op unless MIGRATE_ON_BOOT=true.
     await migrateOnBoot(server.log)
 
     // Register Sentry error handler before app routes so it captures all errors
@@ -44,7 +44,7 @@ const startServer = async () => {
   }
 }
 
-// Handle graceful shutdown — let in-flight requests finish before the process exits.
+// Handle graceful shutdown, let in-flight requests finish before the process exits.
 // Required for clean container restarts in Docker / k8s.
 const gracefulShutdown = async (signal: string) => {
   server.log.info(`Received ${signal}, closing server...`)

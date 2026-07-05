@@ -1,5 +1,5 @@
 /**
- * CO8 featured rail — admin-curated, scheduled placements served separately
+ * CO8 featured rail, admin-curated, scheduled placements served separately
  * from the feed (GET /v1/gigs/featured). Single in-process cache (same
  * pattern as lib/platform.ts); admin CRUD invalidates so curation shows
  * immediately on the curating pod, and the short TTL bounds staleness on
@@ -11,7 +11,7 @@ import type { GigSummary } from '@tenda/shared'
 import { GIG_SUMMARY_COLS, toGigSummary } from '@server/lib/gig-read'
 import type { AppDatabase } from '@server/plugins/db'
 
-/** Rail size cap — a carousel, not a second feed. */
+/** Rail size cap, a carousel, not a second feed. */
 export const FEATURED_RAIL_LIMIT = 10
 
 const CACHE_TTL_MS = 60_000
@@ -28,7 +28,7 @@ export function invalidateFeaturedCache(): void {
 /**
  * Active-window slots joined to their listings, position-ordered and
  * deduped (a listing may hold overlapping slots). Only LIVE listings
- * surface: open, not taken down, accept window still open — a slot whose
+ * surface: open, not taken down, accept window still open, a slot whose
  * gig got accepted or hidden silently drops out of the rail.
  */
 export async function getFeaturedGigs(db: AppDatabase): Promise<GigSummary[]> {

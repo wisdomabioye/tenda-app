@@ -1,7 +1,7 @@
 import fp from 'fastify-plugin'
 import postgres from 'postgres'
 import { drizzle, PostgresJsDatabase } from 'drizzle-orm/postgres-js'
-// The whole promoted barrel — the schema map can never drift from the
+// The whole promoted barrel, the schema map can never drift from the
 // source of truth as tables are added.
 import * as schema from '@tenda/shared/db/schema'
 import { getConfig } from '@server/config'
@@ -15,7 +15,7 @@ export type AppDatabase = PostgresJsDatabase<typeof schema>
 export type AppTransaction = Parameters<Parameters<AppDatabase['transaction']>[0]>[0]
 
 /**
- * Either the root client or a transaction — for helpers that must run both
+ * Either the root client or a transaction, for helpers that must run both
  * standalone and inside a caller's transaction (e.g. the advisory-locked
  * create/dedup path) without an `any` cast.
  */

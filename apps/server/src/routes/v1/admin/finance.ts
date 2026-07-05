@@ -26,7 +26,7 @@ function parseDateRange(from?: string, to?: string): { fromDate: Date | null; to
 }
 
 const adminFinance: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/admin/finance/fees — aggregate platform fee income, grouped by
+  // GET /v1/admin/finance/fees, aggregate platform fee income, grouped by
   // escrow kind + transaction type. Optional filters: from / to (ISO date).
   fastify.get<{
     Querystring: { from?: string; to?: string }
@@ -80,7 +80,7 @@ const adminFinance: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // GET /v1/admin/finance/transactions — paginated escrow-transaction ledger.
+  // GET /v1/admin/finance/transactions, paginated escrow-transaction ledger.
   // Optional filters: kind ('gig' | 'exchange'), tx_type, from / to.
   fastify.get<{
     Querystring: {

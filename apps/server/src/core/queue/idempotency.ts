@@ -11,7 +11,7 @@
  * Validation rules:
  *   - chain_ns is lowercase, no colons
  *   - tx_ref is the on-chain reference; Solana base58 sig (~88 chars) or
- *     EVM 0x-prefixed 32-byte hash. We don't parse it — we just forbid the
+ *     EVM 0x-prefixed 32-byte hash. We don't parse it, we just forbid the
  *     separator (`:`) so the key is unambiguously parseable.
  *   - event_kind matches the PascalCase wire names from `chains/types.ts`.
  *
@@ -33,7 +33,7 @@ export interface DedupKeyArgs {
 
 const SEPARATOR = ':'
 
-// Set typed loosely so the type guard doesn't need an `as` cast — the runtime
+// Set typed loosely so the type guard doesn't need an `as` cast, the runtime
 // values are still narrowed to `EscrowEvent` by the guard's return type.
 const VALID_EVENTS: ReadonlySet<string> = new Set<string>(ESCROW_EVENTS)
 const VALID_NAMESPACES: ReadonlySet<string> = new Set<string>(chainNamespaceEnum)

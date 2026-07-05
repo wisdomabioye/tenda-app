@@ -17,7 +17,7 @@
  * marking a tx confirmed without applying state.
  *
  * Idempotency:
- *   - BullMQ jobId = `dedupKey({chain_id, tx_ref, event})` — duplicate
+ *   - BullMQ jobId = `dedupKey({chain_id, tx_ref, event})`, duplicate
  *     enqueues no-op (BullMQ-level dedup).
  *   - Handler dedup: `escrow_transactions.tx_ref` UNIQUE catches anything
  *     the queue layer missed (different chain_id values, manual retries).
@@ -36,7 +36,7 @@ import {
 // ---------- store abstraction --------------------------------------------
 
 /**
- * Decoupled DB surface — matches the `SponsorStore` / `NonceStore` pattern
+ * Decoupled DB surface, matches the `SponsorStore` / `NonceStore` pattern
  * (see lib/sponsor.ts, lib/nonce.ts). Lets unit tests use an in-memory
  * implementation without standing up Postgres.
  */
@@ -49,7 +49,7 @@ export interface VerifyTxStore {
    * Stamp tx_attempts.failed_at + failure_code (no-op if no row).
    * Stage-3 note: when the BASE paymaster lands (#45), failed SPONSORED
    * attempts (was_sponsored) must also restore the user's
-   * sponsored_tx_remaining via lib/sponsor.ts — the column exists for
+   * sponsored_tx_remaining via lib/sponsor.ts, the column exists for
    * exactly that; Solana has no sponsored txs so nothing restores today.
    */
   markAttemptFailed(tx_ref: string, failure_code: string): Promise<void>
@@ -88,13 +88,13 @@ export interface VerifyTxJobPayload {
   /** Solana signature (base58) or EVM tx hash (0x…). */
   tx_ref: string
   /**
-   * Event the producer expected — cross-checked against the decoded
+   * Event the producer expected, cross-checked against the decoded
    * payload. Webhook/polling producers omit it (they only know a signature
    * touched the program); the adapter then matches any escrow event.
    */
   expected_event?: EscrowEvent
   /**
-   * Optional client-side hint — verified against decoded `escrow_ref`.
+   * Optional client-side hint, verified against decoded `escrow_ref`.
    * Mismatched hint is treated as fraud and logged.
    */
   escrow_id?: string
@@ -105,9 +105,9 @@ export interface VerifyTxJobPayload {
 // ---------- result -------------------------------------------------------
 
 export type VerifyTxResult =
-  /** `tx_ref` already settled, or not an escrow tx — no work to do. */
+  /** `tx_ref` already settled, or not an escrow tx, no work to do. */
   | { skipped: true; reason: 'already_processed' | 'not_an_escrow_tx' }
-  /** Tx confirmed but execution failed / event mismatched — terminal. */
+  /** Tx confirmed but execution failed / event mismatched, terminal. */
   | { skipped: false; failed: true; reason: string }
   /** State applied (or guard-absorbed) and internal event republished. */
   | {
@@ -123,7 +123,7 @@ export type VerifyTxResult =
 // ---------- retryable signal --------------------------------------------
 
 /**
- * Thrown when the tx isn't confirmed yet — BullMQ should retry with backoff.
+ * Thrown when the tx isn't confirmed yet, BullMQ should retry with backoff.
  * Distinct from `AppError` so the worker config can branch on it (retry
  * vs dead-letter). Has no HTTP semantics; never thrown from a route.
  */
@@ -141,7 +141,7 @@ export interface VerifyTxDeps {
   chains: ChainRegistry
   eventStore: EscrowEventStore
   /**
-   * Republish seam — the worker wiring (#33) hooks the notifications queue
+   * Republish seam, the worker wiring (#33) hooks the notifications queue
    * and the WS broadcaster here. Best-effort: a republish failure must not
    * fail the (already-applied) state transition.
    */
@@ -149,7 +149,7 @@ export interface VerifyTxDeps {
     internal_event: InternalEscrowEvent
     escrow_id: string
     wire_event: EscrowEvent
-    /** On-chain signature/hash — clients correlate WS frames against it. */
+    /** On-chain signature/hash, clients correlate WS frames against it. */
     tx_ref: string
   }): Promise<void>
   log: { warn(obj: Record<string, unknown>, msg: string): void }
@@ -162,7 +162,7 @@ export interface VerifyTxDeps {
  * Stage 0 inlines the format so the queue.ts plugin's `EnqueueOptions.job_id`
  * can be populated consistently.
  *
- * Format: `verify-tx.{chain_id}.{tx_ref}.{event}` with ':' stripped — BullMQ
+ * Format: `verify-tx.{chain_id}.{tx_ref}.{event}` with ':' stripped, BullMQ
  * rejects a jobId containing ':' (its Redis key separator) and CAIP-2 chain
  * ids carry one. `tx_ref` is the high-entropy component (base58 sig or
  * 0x-hex hash) so collisions across (chain, event) tuples are vanishingly
@@ -190,20 +190,20 @@ export function verifyTxDedupKey(args: {
 /**
  * Entry point for the BullMQ worker (stage-2-listeners.md § Verify job
  * handler). Returns `{ skipped: true }` if the tx_ref was already
- * processed. Throws `RetryableError` when the tx isn't confirmed yet —
+ * processed. Throws `RetryableError` when the tx isn't confirmed yet,
  * BullMQ retries with backoff; everything else is terminal.
  */
 export async function verifyTxJobHandler(
   deps: VerifyTxDeps,
   job: VerifyTxJobPayload,
 ): Promise<VerifyTxResult> {
-  // Step 1 — idempotency check.
+  // Step 1, idempotency check.
   if (await deps.store.isProcessed(job.tx_ref)) {
     return { skipped: true, reason: 'already_processed' }
   }
 
-  // Step 2 — fetch + verify on-chain; decode the event. The decoded
-  // payload is the source of truth — the producer's hints are only
+  // Step 2, fetch + verify on-chain; decode the event. The decoded
+  // payload is the source of truth, the producer's hints are only
   // cross-checked inside the adapter.
   const adapter = deps.chains.get(job.chain_id)
   const verified = await adapter.verifyTx(job.tx_ref, {
@@ -225,7 +225,7 @@ export async function verifyTxJobHandler(
     return { skipped: false, failed: true, reason: verified.reason }
   }
 
-  // Steps 3+4 — status-guarded transition + escrow_transactions audit row.
+  // Steps 3+4, status-guarded transition + escrow_transactions audit row.
   const result = await applyEscrowEvent(
     { store: deps.eventStore, chain_ns: adapter.namespace },
     verified.event,
@@ -233,7 +233,7 @@ export async function verifyTxJobHandler(
   )
   await deps.store.markAttemptConfirmed(job.tx_ref)
 
-  // Step 5 — republish for notifications + WS. Best-effort: the state is
+  // Step 5, republish for notifications + WS. Best-effort: the state is
   // already durable; a republish failure is logged, never thrown.
   if (result.applied) {
     try {

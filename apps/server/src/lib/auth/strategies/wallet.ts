@@ -1,10 +1,10 @@
 /**
- * Wallet auth strategy — verifies a server-nonce signature and resolves to a
+ * Wallet auth strategy, verifies a server-nonce signature and resolves to a
  * wallet outcome. The verify-message-and-signature flow is extracted here
  * (`verifyWalletAuth`) so the /auth/link-wallet route and this strategy share
  * ONE implementation instead of duplicating the nonce/sig logic.
  *
- * Decision #3: wallet signs in but never creates — the find-or-reject lives
+ * Decision #3: wallet signs in but never creates, the find-or-reject lives
  * in the orchestrator; this strategy only proves control of the wallet.
  */
 
@@ -34,7 +34,7 @@ export interface WalletAuthInput {
 
 /**
  * Verify a wallet's server-nonce signature: parse + validate the auth message,
- * verify the signature (CPU work, no side effect on failure — BEFORE nonce
+ * verify the signature (CPU work, no side effect on failure, BEFORE nonce
  * consumption so an observed nonce can't be burned with a garbage sig), then
  * single-use-consume the nonce. Returns the proven (chain_ns, address).
  */
@@ -52,7 +52,7 @@ export async function verifyWalletAuth(
   })
 
   // Namespace gate (400 on an unsupported namespace). Login does NOT require the
-  // chain to be PROVISIONED on this deployment — proving key control is pure
+  // chain to be PROVISIONED on this deployment, proving key control is pure
   // offline crypto (verifyAuthSig dispatches by namespace, no escrow/RPC needed).
   const chain_ns = deriveChainNamespace(input.chain_id)
   const sigOk = await deps.chains.verifyAuthSig(input.chain_id, {

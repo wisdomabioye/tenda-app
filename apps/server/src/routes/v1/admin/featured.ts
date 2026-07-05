@@ -66,7 +66,7 @@ const adminFeatured: FastifyPluginAsync = async (fastify) => {
     created_at: row.created_at.toISOString(),
   })
 
-  // GET /v1/admin/featured — current + upcoming slots (expired drop off).
+  // GET /v1/admin/featured, current + upcoming slots (expired drop off).
   fastify.get<{ Reply: { data: FeaturedSlotRow[] } | ApiError }>(
     '/',
     { preHandler: [requirePermission('escrows.feature')] },
@@ -81,7 +81,7 @@ const adminFeatured: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  // POST /v1/admin/featured — schedule a placement.
+  // POST /v1/admin/featured, schedule a placement.
   fastify.post<{ Body: CreateFeaturedSlotBody; Reply: FeaturedSlotRow | ApiError }>(
     '/',
     { preHandler: [requirePermission('escrows.feature')] },
@@ -126,7 +126,7 @@ const adminFeatured: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  // PATCH /v1/admin/featured/:id — reschedule / reorder.
+  // PATCH /v1/admin/featured/:id, reschedule / reorder.
   fastify.patch<{ Params: { id: string }; Body: UpdateFeaturedSlotBody; Reply: FeaturedSlotRow | ApiError }>(
     '/:id',
     { preHandler: [requirePermission('escrows.feature')] },
@@ -156,7 +156,7 @@ const adminFeatured: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  // DELETE /v1/admin/featured/:id — remove a placement.
+  // DELETE /v1/admin/featured/:id, remove a placement.
   fastify.delete<{ Params: { id: string }; Reply: { deleted: true } | ApiError }>(
     '/:id',
     { preHandler: [requirePermission('escrows.feature')] },

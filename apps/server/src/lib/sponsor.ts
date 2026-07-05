@@ -7,13 +7,13 @@
  *   - **BASE / Base-Sepolia**: routed through Coinbase Paymaster (Stage 3).
  *     This module reserves a sponsorship slot from `users.sponsored_tx_remaining`.
  *   - **CELO**: gas paid in cUSD natively via `feeCurrency` (Stage 4).
- *     Bypasses this module entirely — counter never decremented.
+ *     Bypasses this module entirely, counter never decremented.
  *
  * Atomicity: `tryReserve` is a single
  *   `UPDATE users SET sponsored_tx_remaining = sponsored_tx_remaining - 1
  *    WHERE id = $1 AND sponsored_tx_remaining > 0 RETURNING ...`
  * so N parallel reserves across the same user resolve to MIN(N, slots-available)
- * successes — no over-spend race.
+ * successes, no over-spend race.
  *
  * Reservation lifecycle invariant (caller's responsibility): every successful
  * reservation MUST be followed by exactly one of `releaseSponsoredTx` or
@@ -37,8 +37,8 @@ import type { AppDatabase } from '@server/plugins/db'
 /**
  * Chains whose unsigned-tx build path goes through this module's reservation
  * pattern. Other chains return `{ sponsored: false }` without touching the
- * counter. Derived from the manifest's `gasPolicy: 'paymaster'` entries — the
- * single source — so a new paymaster chain becomes sponsorship-eligible by
+ * counter. Derived from the manifest's `gasPolicy: 'paymaster'` entries, the
+ * single source, so a new paymaster chain becomes sponsorship-eligible by
  * adding its manifest entry, with no edit here.
  */
 const PAYMASTER_MANAGED_CHAINS: ReadonlySet<ChainId> = new Set(
@@ -47,7 +47,7 @@ const PAYMASTER_MANAGED_CHAINS: ReadonlySet<ChainId> = new Set(
 
 /**
  * Discriminated so `reservation_id` is only accessible after the
- * `sponsored: true` check — release/commit can't be called on an unsponsored
+ * `sponsored: true` check, release/commit can't be called on an unsponsored
  * result by accident.
  */
 export type ReservationResult =
@@ -55,9 +55,9 @@ export type ReservationResult =
   | {
       sponsored: true
       /**
-       * Opaque token returned for caller symmetry — NOT validated against
+       * Opaque token returned for caller symmetry, NOT validated against
        * any DB row. Each successful reservation MUST be released or
-       * committed exactly once (caller responsibility — see file header).
+       * committed exactly once (caller responsibility, see file header).
        */
       reservation_id: string
     }
@@ -95,7 +95,7 @@ export async function releaseSponsoredTx(
   await store.refund(args.user_id)
 }
 
-/** No-op for the paymaster model — the decrement at reserve time IS the commit. */
+/** No-op for the paymaster model, the decrement at reserve time IS the commit. */
 export async function commitSponsoredTx(
   _store: SponsorStore,
   args: { user_id: string },

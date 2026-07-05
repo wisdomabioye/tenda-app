@@ -1,5 +1,5 @@
 /**
- * One-time cleanup logic for case-duplicate wallet rows — the residue of the
+ * One-time cleanup logic for case-duplicate wallet rows, the residue of the
  * pre-fix era when `(chain_ns, address)` dedup was case-SENSITIVE, so the same
  * EVM wallet could land twice (e.g. checksummed + lowercased). The live code now
  * folds case on every read/compare AND blocks new case-variant links, so this is
@@ -37,7 +37,7 @@ export function chooseWalletKeeper(group: readonly WalletRow[]): WalletRow {
 }
 
 /**
- * Given a set of wallet rows, return exactly the rows to DELETE — every
+ * Given a set of wallet rows, return exactly the rows to DELETE, every
  * case-duplicate beyond the chosen keeper in each group. Rows with no duplicate
  * are never returned, and a primary row is only ever deleted if it is NOT the
  * keeper (which `chooseWalletKeeper` never does), so the primary marker is

@@ -1,9 +1,9 @@
 /**
- * CO7 dispute-mediation thread — ONE shared conversation per dispute:
- *   GET  /v1/escrows/:id/dispute/messages — parties + any disputes.mediate
+ * CO7 dispute-mediation thread, ONE shared conversation per dispute:
+ *   GET  /v1/escrows/:id/dispute/messages, parties + any disputes.mediate
  *        holder read the same messages; fetching advances the caller's
  *        read cursor.
- *   POST /v1/escrows/:id/dispute/messages — parties post while the dispute
+ *   POST /v1/escrows/:id/dispute/messages, parties post while the dispute
  *        is unresolved; admins must hold the claim (admin/disputes
  *        claim/release) so two mediators never work at cross purposes.
  * Resolved disputes keep a readable, frozen thread.
@@ -55,7 +55,7 @@ const route: FastifyPluginAsync = async (fastify) => {
     return { escrow, dispute, isParty }
   }
 
-  // GET — full thread (or the tail after ?after=<ISO>); advances the
+  // GET, full thread (or the tail after ?after=<ISO>); advances the
   // caller's read cursor as a side effect.
   fastify.get<{
     Params: { id: string }
@@ -108,7 +108,7 @@ const route: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // POST — append a message.
+  // POST, append a message.
   fastify.post<{
     Params: { id: string }
     Body: SendDisputeMessageBody
@@ -131,7 +131,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
       const { dispute, escrow, isParty } = await loadThread(request.params.id, request.user)
       if (dispute.resolved_at !== null) {
-        throw new AppError(409, ErrorCode.DISPUTE_RESOLVED, 'Dispute resolved — thread is read-only')
+        throw new AppError(409, ErrorCode.DISPUTE_RESOLVED, 'Dispute resolved, thread is read-only')
       }
       // Mediators must hold the claim; read access alone doesn't grant a voice.
       if (!isParty && dispute.assigned_to !== request.user.id) {
@@ -151,7 +151,7 @@ const route: FastifyPluginAsync = async (fastify) => {
           set: { last_read_at: inserted.created_at },
         })
 
-      // Off-chain action — notify the other thread participants directly.
+      // Off-chain action, notify the other thread participants directly.
       const recipients = [
         escrow.creator_id,
         escrow.counterparty_id,

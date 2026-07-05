@@ -8,7 +8,7 @@ import { AppError } from '@server/lib/errors'
 type CloseRoute = ConversationsContract['close']
 
 const closeConversation: FastifyPluginAsync = async (fastify) => {
-  // POST /v1/conversations/:id/close — close a conversation (hide it from inbox)
+  // POST /v1/conversations/:id/close, close a conversation (hide it from inbox)
   fastify.post<{
     Params: CloseRoute['params']
     Reply: CloseRoute['response'] | ApiError

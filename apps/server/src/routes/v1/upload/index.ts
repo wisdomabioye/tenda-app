@@ -9,7 +9,7 @@ import type { UploadContract, ApiError } from '@tenda/shared'
 type SignatureRoute = UploadContract['signature']
 
 const upload: FastifyPluginAsync = async (fastify) => {
-  // POST /v1/upload/signature — return Cloudinary signed params
+  // POST /v1/upload/signature, return Cloudinary signed params
   fastify.post<{
     Body: SignatureRoute['body']
     Reply: SignatureRoute['response'] | ApiError
@@ -24,7 +24,7 @@ const upload: FastifyPluginAsync = async (fastify) => {
       }
 
       // S5.2: chat uploads are scoped to a conversation the caller belongs
-      // to — membership checked BEFORE a signature is issued.
+      // to, membership checked BEFORE a signature is issued.
       if (type === 'chat') {
         if (typeof conversation_id !== 'string' || conversation_id === '') {
           throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'conversation_id is required for chat uploads')

@@ -1,5 +1,5 @@
 /**
- * GET /v1/admin/metrics — active-user counts off users.last_active_at
+ * GET /v1/admin/metrics, active-user counts off users.last_active_at
  * (S5.8; the lazy ≤1/hour update already lives in plugins/auth.ts).
  */
 

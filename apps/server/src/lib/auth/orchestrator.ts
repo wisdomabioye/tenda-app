@@ -1,5 +1,5 @@
 /**
- * Stage 9 auth orchestrator — turns a strategy `VerifyOutcome` into a user,
+ * Stage 9 auth orchestrator, turns a strategy `VerifyOutcome` into a user,
  * applying the locked policy:
  *   - block-on-collision (decision #4): linking an identity owned by another
  *     account throws IDENTITY_ALREADY_LINKED; never auto-merge.
@@ -72,7 +72,7 @@ async function resolveWalletLogin(
     throw new AppError(
       404,
       ErrorCode.WALLET_NOT_LINKED,
-      'this wallet is not linked to an account — sign in or get started with phone, email, Google, or Apple, then link it',
+      'this wallet is not linked to an account, sign in or get started with phone, email, Google, or Apple, then link it',
     )
   }
   return { user: await loadUser(db, userId), isNew: false }
@@ -109,7 +109,7 @@ async function resolveIdentity(
     })
   }
 
-  // No email (phone / OAuth without email) — the (kind,identifier) UNIQUE fully
+  // No email (phone / OAuth without email), the (kind,identifier) UNIQUE fully
   // serialises duplicates, so no advisory lock is needed.
   if (bearerUserId !== null) return linkToUser(db, identity, bearerUserId)
   const owner = await resolveUserByIdentity(db, {
@@ -170,7 +170,7 @@ async function insertIdentity(
     .onConflictDoNothing()
     .returning({ id: user_identities.id })
   if (inserted.length === 0) {
-    // Lost the (kind, identifier) race — re-resolve and block if it landed elsewhere.
+    // Lost the (kind, identifier) race, re-resolve and block if it landed elsewhere.
     const owner = await resolveUserByIdentity(db, {
       kind: identity.kind,
       identifier: identity.identifier,
@@ -227,7 +227,7 @@ async function createUserAndIdentity(
 
   if (inserted.length > 0) return { user: created, isNew: true }
 
-  // Concurrent first-login created the same identity — roll back our orphan
+  // Concurrent first-login created the same identity, roll back our orphan
   // user (net-zero) and log in as the race winner instead.
   await db.delete(users).where(eq(users.id, created.id))
   const winnerId = await resolveUserByIdentity(db, {

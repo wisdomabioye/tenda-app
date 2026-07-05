@@ -3,7 +3,7 @@
  *
  * Events are emitted via `emit!` (program-log encoding, Stage 0 decision in
  * the program's lib.rs) and decoded with Anchor's EventParser. Decoded
- * payloads are re-verified against the caller's expectations — the webhook /
+ * payloads are re-verified against the caller's expectations, the webhook /
  * client hint is never trusted as source of truth (stage-2 risk table).
  */
 
@@ -31,7 +31,7 @@ import {
 export interface SolanaVerifierDeps {
   rpc: SolanaRpc
   chain_id: ChainId
-  /** Coder source — the Program constructor camelCases the IDL (see pdas.ts). */
+  /** Coder source, the Program constructor camelCases the IDL (see pdas.ts). */
   program: Program<TendaEscrow>
 }
 
@@ -48,7 +48,7 @@ function wireEventName(coderName: string): EscrowEvent | null {
 
 /**
  * Which decoded field names the actor for each event. DisputeResolved is
- * admin-initiated — no party actor.
+ * admin-initiated, no party actor.
  */
 const ACTOR_FIELD: Record<EscrowEvent, string | null> = {
   EscrowCreated: 'creator',
@@ -80,7 +80,7 @@ export function createSolanaVerifier(deps: SolanaVerifierDeps) {
     // Wide net = the polling/webhook producers, which enqueue every signature
     // touching the program and pass no `expected_event`. On that path a
     // confirmed tx that emits NO escrow event is not an escrow state-change
-    // (every escrow instruction emits one) — it's program-maintenance traffic
+    // (every escrow instruction emits one), it's program-maintenance traffic
     // (upgrade / IDL write) or an unrelated tx, so it is `irrelevant`, never a
     // failed attempt. When an `expected_event` IS given (client-ping /
     // reconcile), behaviour is unchanged: a missing/mismatched event is a
@@ -181,7 +181,7 @@ function renderField(key: string, value: unknown): { key: string; value: string 
     return { key: snakeCase(key), value: String(value) }
   }
   if (Array.isArray(value)) {
-    // Fixed byte arrays (e.g. proof_hash) — render as hex for log-friendliness.
+    // Fixed byte arrays (e.g. proof_hash), render as hex for log-friendliness.
     return { key: snakeCase(key), value: Buffer.from(value as number[]).toString('hex') }
   }
   if (typeof value === 'object') {

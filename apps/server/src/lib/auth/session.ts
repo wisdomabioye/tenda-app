@@ -1,5 +1,5 @@
 /**
- * Mint the auth response (JWT + user) for the unified /auth/verify route — one
+ * Mint the auth response (JWT + user) for the unified /auth/verify route, one
  * place that enforces the suspended gate and signs the id+role token (no
  * wallet/PII in the claims, cutover §11).
  */

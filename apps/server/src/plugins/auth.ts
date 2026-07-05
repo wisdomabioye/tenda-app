@@ -42,7 +42,7 @@ export default fp(async (fastify) => {
     }
 
     // Check if the user is suspended. Use the in-process cache to avoid
-    // a DB query on every request — cache misses fall back to the DB.
+    // a DB query on every request, cache misses fall back to the DB.
     const userId = request.user.id
     const now = Date.now()
     let cached = statusCache.get(userId)

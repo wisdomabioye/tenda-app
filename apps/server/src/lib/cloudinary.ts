@@ -10,7 +10,7 @@ const FOLDER_MAP: Record<UploadType, string> = {
 
 /**
  * S5.12 (closes open #26) per-type upload constraints.
- * `allowed_formats` is a signed Cloudinary upload parameter — uploads with
+ * `allowed_formats` is a signed Cloudinary upload parameter, uploads with
  * other formats are rejected server-side by Cloudinary. `max_file_bytes`
  * is NOT a signable upload-API parameter (Cloudinary enforces size caps
  * via upload presets); it is returned as the client-side guard value and
@@ -22,13 +22,13 @@ export const UPLOAD_CONSTRAINTS: Record<
 > = {
   // Client downscales avatars before upload (mobile pickAvatar), so this cap is
   // generous headroom for the rare large-after-compression case rather than a
-  // tight gate — keeps a big source photo from being rejected outright.
+  // tight gate, keeps a big source photo from being rejected outright.
   avatar: { allowed_formats: 'jpg,png,webp', max_file_bytes: 10 * 1024 * 1024 },
   proof: { allowed_formats: 'jpg,png,webp,pdf', max_file_bytes: 10 * 1024 * 1024 },
   chat: { allowed_formats: 'jpg,png,webp,pdf', max_file_bytes: 10 * 1024 * 1024 },
 }
 
-/** Conversation-scoped chat folder — the send route validates URLs live here. */
+/** Conversation-scoped chat folder, the send route validates URLs live here. */
 export function chatUploadFolder(conversation_id: string, user_id: string): string {
   return `${FOLDER_MAP.chat}/${conversation_id}/${user_id}`
 }
@@ -36,7 +36,7 @@ export function chatUploadFolder(conversation_id: string, user_id: string): stri
 /**
  * Strict attachment-URL check: parsed (query strings can't fake a match),
  * hostname pinned to Cloudinary, and the PATH must contain the
- * sender-scoped conversation folder — a signature minted for one
+ * sender-scoped conversation folder, a signature minted for one
  * conversation cannot be replayed into another.
  */
 export function isValidChatAttachmentUrl(

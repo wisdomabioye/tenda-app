@@ -1,13 +1,13 @@
 /**
- * POST /v1/blockchain/permit-payload — server-built EIP-712 typed data for an
+ * POST /v1/blockchain/permit-payload, server-built EIP-712 typed data for an
  * EIP-2612 permit. The client signs it verbatim (eth_signTypedData_v4) and
- * passes the signature back in the create/dispute `permit` body — it never
+ * passes the signature back in the create/dispute `permit` body, it never
  * constructs or hashes domains itself.
  *
  * The adapter reads the token's live facts (name, owner nonce,
  * DOMAIN_SEPARATOR) over the server's RPC, takes the domain version from the
  * manifest, and verifies the reconstructed domain against the on-chain
- * separator before returning — a mismatch (token rename/upgrade) degrades to
+ * separator before returning, a mismatch (token rename/upgrade) degrades to
  * PERMIT_UNAVAILABLE so the client falls back to the approve flow.
  */
 
@@ -27,7 +27,7 @@ const permitPayload: FastifyPluginAsync = async (fastify) => {
     '/',
     {
       preHandler: [fastify.authenticate],
-      // Each build is 3 live RPC reads on the keyed endpoint — cap per user.
+      // Each build is 3 live RPC reads on the keyed endpoint, cap per user.
       config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     },
     async (request) => {
@@ -54,12 +54,12 @@ const permitPayload: FastifyPluginAsync = async (fastify) => {
 
       const adapter = fastify.chains.get(body.chain_id)
       if (adapter.buildPermitPayload === undefined) {
-        // Non-EVM namespaces have no token-permit semantics — typed so the
+        // Non-EVM namespaces have no token-permit semantics, typed so the
         // client branches to the approve flow, not an error screen.
         throw new AppError(
           422,
           ErrorCode.PERMIT_UNAVAILABLE,
-          `chain '${body.chain_id}' has no permit support — use the approve flow`,
+          `chain '${body.chain_id}' has no permit support, use the approve flow`,
         )
       }
       return adapter.buildPermitPayload({

@@ -47,10 +47,10 @@ export function buildPushServices(
           now: () => Date.now(),
         })
       } else {
-        log.warn({}, 'FCM_SERVICE_ACCOUNT_B64 missing required fields — fcm disabled')
+        log.warn({}, 'FCM_SERVICE_ACCOUNT_B64 missing required fields, fcm disabled')
       }
     } catch (err) {
-      log.warn({ err }, 'FCM_SERVICE_ACCOUNT_B64 is not valid base64 JSON — fcm disabled')
+      log.warn({ err }, 'FCM_SERVICE_ACCOUNT_B64 is not valid base64 JSON, fcm disabled')
     }
   }
 

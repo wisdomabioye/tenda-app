@@ -18,7 +18,7 @@ function canonicalPair(a: string, b: string): [string, string] {
 }
 
 const conversationsRoute: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/conversations — list conversations for the authenticated user
+  // GET /v1/conversations, list conversations for the authenticated user
   fastify.get<{
     Reply: ListRoute['response'] | ApiError
   }>(
@@ -27,7 +27,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
     async (request, _reply) => {
       const userId = request.user.id
 
-      // 1. Fetch conversations — bounded to CONVERSATIONS_LIMIT rows
+      // 1. Fetch conversations, bounded to CONVERSATIONS_LIMIT rows
       const rows = await fastify.db
         .select({
           id:              conversations.id,
@@ -54,7 +54,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
       const convIds  = rows.map((r) => r.id)
       const otherIds = rows.map((r) => r.user_a_id === userId ? r.user_b_id : r.user_a_id)
 
-      // Queries 2–4 are independent reads — run in parallel.
+      // Queries 2–4 are independent reads, run in parallel.
       // @scalability: CONVERSATIONS_LIMIT caps at 50. Add cursor pagination
       // (before_id querystring + WHERE last_message_at < cursor) when users
       // with large conversation histories become a support complaint.
@@ -65,7 +65,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
           .from(users)
           .where(inArray(users.id, otherIds)),
 
-        // 3. Exact unread counts via SQL COUNT — no artificial cap
+        // 3. Exact unread counts via SQL COUNT, no artificial cap
         fastify.db
           .select({
             conversation_id: messages.conversation_id,
@@ -99,7 +99,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
         lastMsgRows.map((r) => [r.conversation_id, messagePreview(r.content, r.attachment_url !== null)]),
       )
 
-      // Assemble the response — no additional DB calls
+      // Assemble the response, no additional DB calls
       const result: Conversation[] = rows.map((conv) => {
         const otherId = conv.user_a_id === userId ? conv.user_b_id : conv.user_a_id
         const other   = otherUserMap.get(otherId)
@@ -123,7 +123,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  // POST /v1/conversations — find or create a conversation with another user
+  // POST /v1/conversations, find or create a conversation with another user
   fastify.post<{
     Body: FindOrCreateRoute['body']
     Reply: FindOrCreateRoute['response'] | ApiError
@@ -148,7 +148,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
 
       const [userA, userB] = canonicalPair(userId, targetId)
 
-      // Try to find existing conversation (including closed ones — reopen on new contact)
+      // Try to find existing conversation (including closed ones, reopen on new contact)
       let [existing] = await fastify.db
         .select()
         .from(conversations)
@@ -186,7 +186,7 @@ const conversationsRoute: FastifyPluginAsync = async (fastify) => {
           .returning()
       }
 
-      // New conversations have no messages yet — skip the DB round-trips.
+      // New conversations have no messages yet, skip the DB round-trips.
       // Existing and reopened conversations may have history and unread messages.
       let unread_count = 0
       let last_message: string | null = null

@@ -2,11 +2,11 @@
  * Client-ping intake: record a submitted tx in the `tx_attempts` audit log
  * and (best-effort) enqueue verification.
  *
- * Idempotency: `tx_attempts.tx_ref` is UNIQUE — replays no-op the insert
+ * Idempotency: `tx_attempts.tx_ref` is UNIQUE, replays no-op the insert
  * and re-enqueue (the verify-tx job id is deterministic, so the queue
  * layer dedups too). Until #33 provisions Redis the queue stub throws; the
  * attempt row is still recorded and the Stage-2 reconciliation cron sweeps
- * pending rows, so a dead queue degrades to slower verification — never to
+ * pending rows, so a dead queue degrades to slower verification, never to
  * a lost transaction.
  */
 
@@ -97,11 +97,11 @@ export async function recordTxAttempt(
     )
     enqueued = true
   } catch (err) {
-    // Queue stub (pre-#33) or transient Redis failure — the pending
+    // Queue stub (pre-#33) or transient Redis failure, the pending
     // tx_attempts row is the durable record; reconciliation sweeps it.
     deps.log.warn(
       { err, tx_ref: input.tx_ref, action: input.action },
-      'verify-tx enqueue unavailable — relying on reconciliation sweep',
+      'verify-tx enqueue unavailable, relying on reconciliation sweep',
     )
   }
 

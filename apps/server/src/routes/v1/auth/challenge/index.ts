@@ -1,5 +1,5 @@
 /**
- * POST /v1/auth/challenge — Stage 9 unified challenge. Issues a credential
+ * POST /v1/auth/challenge, Stage 9 unified challenge. Issues a credential
  * challenge for the given method:
  *   - phone / email → sends an OTP (202 { expires_in })
  *   - wallet        → use POST /v1/auth/nonce instead (no challenge here)
@@ -7,7 +7,7 @@
  *
  * Optional auth: a bearer binds the OTP to the current user (link flow);
  * anonymous issues a pre-account code (passwordless sign-in). Per-IP rate
- * limited on top of the per-identifier DB cap (lib/otp) — the public surface
+ * limited on top of the per-identifier DB cap (lib/otp), the public surface
  * must not become an SMS/email-cost or enumeration oracle.
  */
 

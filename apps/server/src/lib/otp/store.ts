@@ -23,7 +23,7 @@ export interface OtpStore {
    * Latest unconsumed OTP for (channel, identifier, user binding). A null
    * user_id matches pre-account rows (passwordless first sign-in); a set
    * user_id binds to that user (stops a second authenticated session from
-   * consuming a code issued in someone else's — shared-device edge).
+   * consuming a code issued in someone else's, shared-device edge).
    */
   findActive(
     channel: OtpChannel,

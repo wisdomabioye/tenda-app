@@ -5,7 +5,7 @@
  * fills the paymaster fields + gas limits for a UserOperation we assemble
  * around the escrow calldata. Gated on the chain's PAYMASTER_URL secret (#47):
  * without it the adapter never offers sponsorship and falls back to a regular
- * tx — the documented degradation ("you'll pay a small fee").
+ * tx, the documented degradation ("you'll pay a small fee").
  *
  * EOA mode: the client signs the userOpHash with personal_sign; nonce and
  * init_code are bundler-resolved fields the client fills via its 4337 SDK.
@@ -16,7 +16,7 @@ import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import type { UserOperation } from '@server/chains/types'
 
-/** ERC-4337 v0.6 EntryPoint — canonical address on BASE (and most chains). */
+/** ERC-4337 v0.6 EntryPoint, canonical address on BASE (and most chains). */
 export const ENTRY_POINT_V06 = '0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789' as const
 
 export interface PaymasterSponsorResult {
@@ -26,7 +26,7 @@ export interface PaymasterSponsorResult {
   call_gas_limit: `0x${string}`
 }
 
-/** HTTP seam — tests inject a fake; production posts JSON-RPC. */
+/** HTTP seam, tests inject a fake; production posts JSON-RPC. */
 export interface PaymasterHttp {
   sponsorUserOperation(
     user_op: Partial<UserOperation>,
@@ -61,7 +61,7 @@ export function fetchPaymasterHttp(url: string, timeout_ms = 15_000): PaymasterH
         error?: { message?: string }
       }
       // JSON-RPC 2.0 omits `error` on success, but many servers send
-      // `error: null` — treat null AND undefined as "no error" (`!= null`)
+      // `error: null`, treat null AND undefined as "no error" (`!= null`)
       // so a valid result alongside an explicit null error isn't rejected.
       if (body.error != null || body.result === undefined) {
         throw new AppError(

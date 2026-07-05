@@ -11,7 +11,7 @@ type GetRoute    = UsersContract['get']
 type UpdateRoute = UsersContract['update']
 
 const userById: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/users/:id — public profile (no wallet_address)
+  // GET /v1/users/:id, public profile (no wallet_address)
   fastify.get<{
     Params: GetRoute['params']
     Reply: GetRoute['response'] | ApiError
@@ -45,8 +45,8 @@ const userById: FastifyPluginAsync = async (fastify) => {
     return { ...user, phone_verified_at: await phoneVerifiedAt(fastify.db, id) }
   })
 
-  // PATCH /v1/users/:id — update own profile.
-  // Profile-text moderation is report-driven (stage-6 scope decision) —
+  // PATCH /v1/users/:id, update own profile.
+  // Profile-text moderation is report-driven (stage-6 scope decision),
   // the legacy keyword guard died with blocked_keywords at the cutover.
   fastify.patch<{
     Params: UpdateRoute['params']
@@ -81,7 +81,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
     if (longitude !== undefined)  updates.longitude  = longitude
 
     // Cross-validate country↔city pairing. We need the *effective* values after
-    // this PATCH applies — a partial update may change one without the other.
+    // this PATCH applies, a partial update may change one without the other.
     if (country !== undefined || city !== undefined) {
       const [existing] = await fastify.db
         .select({ country: users.country, city: users.city })
@@ -91,7 +91,7 @@ const userById: FastifyPluginAsync = async (fastify) => {
       const effectiveCountry = country !== undefined ? country : existing?.country ?? null
       const effectiveCity    = city    !== undefined ? city    : existing?.city    ?? null
       if (effectiveCity && !isCityInCountry(effectiveCountry, effectiveCity)) {
-        // Country changed without a matching city — null the orphan rather than
+        // Country changed without a matching city, null the orphan rather than
         // rejecting the whole PATCH, so partial updates degrade gracefully.
         updates.city = null
       }

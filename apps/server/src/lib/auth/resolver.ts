@@ -1,5 +1,5 @@
 /**
- * Stage 9 login-identity resolver — the SINGLE place that unifies the two
+ * Stage 9 login-identity resolver, the SINGLE place that unifies the two
  * physical credential stores (`user_identities` for phone/email/OAuth,
  * `user_wallets` for wallets) behind one logical "who can sign in as this
  * user" interface. Every auth/link/unlink route consumes these helpers so
@@ -130,7 +130,7 @@ export async function assertNotLastCredential(db: AppDb, userId: string): Promis
     throw new AppError(
       409,
       ErrorCode.LAST_CREDENTIAL,
-      'cannot remove your only sign-in method — add another first',
+      'cannot remove your only sign-in method, add another first',
     )
   }
 }
@@ -138,7 +138,7 @@ export async function assertNotLastCredential(db: AppDb, userId: string): Promis
 /**
  * Timestamp the user's phone was verified (latest verified phone identity), or
  * null. Replaces the dropped `users.phone_verified_at` column as the public
- * "verified human" trust signal — kept Date-typed so the wire field is
+ * "verified human" trust signal, kept Date-typed so the wire field is
  * unchanged (Fastify ISO-serialises it).
  */
 export async function phoneVerifiedAt(db: AppDatabase, userId: string): Promise<Date | null> {
@@ -174,7 +174,7 @@ export async function hasVerifiedPhone(db: AppDatabase, userId: string): Promise
 }
 
 /**
- * True if the user has at least one verified contact channel — a verified
+ * True if the user has at least one verified contact channel, a verified
  * phone, or any identity carrying a verified email (email-OTP or OAuth).
  * Backs the first-transaction reachability gate (Stage 9D).
  */
@@ -193,7 +193,7 @@ export async function hasVerifiedContact(db: AppDatabase, userId: string): Promi
   return rows.length > 0
 }
 
-/** True if the user has a linked wallet on the given chain namespace — the
+/** True if the user has a linked wallet on the given chain namespace, the
  *  "can sign a tx on this chain" half of the first-transaction gate (9D). */
 export async function hasWalletOnChain(
   db: AppDatabase,
@@ -209,7 +209,7 @@ export async function hasWalletOnChain(
 }
 
 /**
- * First-transaction gate (Stage 9D — deferred wallet + verified contact).
+ * First-transaction gate (Stage 9D, deferred wallet + verified contact).
  * Before building any unsigned tx the caller must sign (escrow create / accept
  * / publish), require BOTH:
  *   1. a linked wallet on the escrow's chain namespace → 403 WALLET_REQUIRED,
@@ -248,7 +248,7 @@ export async function assertCanTransact(
  * Direct-assign create guard (Stage 9D follow-up): a directly-assigned escrow
  * bakes the assignee's wallet address into the on-chain account at creation, so
  * the assignee must already have a wallet on the chain. Distinct from
- * `assertCanTransact` (which gates the CALLER) and from WALLET_REQUIRED — the
+ * `assertCanTransact` (which gates the CALLER) and from WALLET_REQUIRED, the
  * client must NOT route the caller to link a wallet; it's the assignee who
  * needs one. Without this the adapter's raw `resolveWalletAddress` throws a
  * misleading 404 USER_NOT_FOUND that also leaks the assignee's id.

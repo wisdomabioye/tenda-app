@@ -1,10 +1,10 @@
 /**
  * Escrow proof files (ported from the legacy gig proofs route at the #34
- * cutover). The on-chain submit carries only the 32-byte digest — the
+ * cutover). The on-chain submit carries only the 32-byte digest, the
  * actual evidence (Cloudinary URLs) lands here:
- *   POST — counterparty adds proofs while accepted (pre-submit upload) or
+ *   POST, counterparty adds proofs while accepted (pre-submit upload) or
  *          submitted (poster requested more evidence). Off-chain.
- *   GET  — either party lists them.
+ *   GET , either party lists them.
  */
 import { FastifyPluginAsync } from 'fastify'
 import { count, eq } from 'drizzle-orm'
@@ -75,7 +75,7 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
         )
         .returning()
 
-      // Only notify when the escrow is ALREADY submitted — i.e. the on-chain
+      // Only notify when the escrow is ALREADY submitted, i.e. the on-chain
       // submit confirmed and the poster is reviewing, and the worker is now
       // adding MORE evidence. While `accepted`, this is pre-submit staging:
       // the worker uploads proof, THEN broadcasts the submit tx, which may
@@ -88,7 +88,7 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
           await fastify.queue.enqueue('notifications', {
             user_id: escrow.creator_id,
             title: 'Additional proof submitted',
-            body: 'The worker added more evidence — review and approve.',
+            body: 'The worker added more evidence, review and approve.',
             data: { screen: 'escrow', escrowId: id },
           })
         } catch (err) {
@@ -100,7 +100,7 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  // GET /v1/escrows/:id/proofs — parties only.
+  // GET /v1/escrows/:id/proofs, parties only.
   fastify.get<{
     Params: { id: string }
     Reply: EscrowProof[] | ApiError

@@ -12,7 +12,7 @@
  *   Nonce: {nonce}
  *   Issued At: {ISO8601}
  *
- * The signature is over the LITERAL bytes of the message — clients must send
+ * The signature is over the LITERAL bytes of the message, clients must send
  * exactly what was signed. Parsing is by line prefix; field order is
  * documented but not strictly enforced (clients could shuffle), so we look
  * up each line by prefix rather than positionally.
@@ -52,7 +52,7 @@ export const AUTH_MESSAGE_MAX_AGE_SECONDS = 60
 
 /**
  * Parse the four header fields out of an auth message. Returns the raw
- * fields without semantic validation — callers run additional checks
+ * fields without semantic validation, callers run additional checks
  * (address vs claimed-signer, chain match, nonce freshness, age).
  *
  * Throws `VALIDATION_ERROR` on a missing or malformed field.
@@ -90,7 +90,7 @@ export function parseAuthMessage(message: string): AuthMessageFields {
  *   - address mismatch (signed by a different wallet than claimed)
  *   - issued_at outside [now - max_age, now + max_age]
  *
- * Nonce-freshness is enforced separately by `lib/nonce.ts:consumeNonce` —
+ * Nonce-freshness is enforced separately by `lib/nonce.ts:consumeNonce`,
  * this function doesn't touch the DB.
  */
 export function assertAuthMessage(args: {
@@ -100,7 +100,7 @@ export function assertAuthMessage(args: {
   /**
    * Server's own URI. Cross-deployment replay defense per
    * stage-1-onboarding.md L263. When omitted, URI is parsed but not
-   * validated — useful for tests; production routes always pass it.
+   * validated, useful for tests; production routes always pass it.
    */
   expected_uri?: string
   now: Date

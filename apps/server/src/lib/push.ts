@@ -1,6 +1,6 @@
 // Sends push notifications via the Expo Push Notification API.
 // Tokens must be valid Expo push tokens (ExponentPushToken[...]).
-// Silently swaps out expired tokens (DeviceNotRegistered) — callers must handle DB cleanup separately.
+// Silently swaps out expired tokens (DeviceNotRegistered), callers must handle DB cleanup separately.
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send'
 const BATCH_SIZE = 100

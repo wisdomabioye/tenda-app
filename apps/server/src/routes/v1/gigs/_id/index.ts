@@ -1,5 +1,5 @@
 /**
- * GET /v1/gigs/:id — public gig detail (cutover §3 rewrite): escrows ⨝
+ * GET /v1/gigs/:id, public gig detail (cutover §3 rewrite): escrows ⨝
  * gig_details + creator/counterparty refs, proofs, dispute and reviews.
  * Read-only; transitions live under /v1/escrows/:id/*.
  *
@@ -41,7 +41,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     const details = row.gig_details
 
     // Private rows (pre-publish drafts; CO1 taken-down listings) must read
-    // as 404 to anyone unauthorized — anonymous callers get the 404
+    // as 404 to anyone unauthorized, anonymous callers get the 404
     // directly (authenticate would 401 and leak that the id exists).
     // Authenticated callers go through the full authenticate (suspended
     // accounts rejected like everywhere else), then the ownership check:

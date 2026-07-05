@@ -1,7 +1,7 @@
 /**
  * Quote operation: route → provider.quote → persist intent(status='quoted').
  * Candidates are tried in priority order; a provider that throws is skipped
- * (§ Provider routing — outage falls through, ultimately to p2p_internal).
+ * (§ Provider routing, outage falls through, ultimately to p2p_internal).
  */
 
 import { AppError } from '@server/lib/errors'
@@ -76,7 +76,7 @@ export async function requestQuote(
         expires_at: expires_at.toISOString(),
       }
     } catch (err) {
-      deps.log.warn({ err, provider: provider.id }, 'fiat: provider quote failed — trying next')
+      deps.log.warn({ err, provider: provider.id }, 'fiat: provider quote failed, trying next')
     }
   }
   throw new AppError(503, ErrorCode.PROVIDER_UNAVAILABLE, 'all providers failed to quote')

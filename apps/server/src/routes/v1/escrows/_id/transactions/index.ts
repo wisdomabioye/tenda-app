@@ -1,5 +1,5 @@
 /**
- * GET /v1/escrows/:id/transactions — list confirmed transactions on this
+ * GET /v1/escrows/:id/transactions, list confirmed transactions on this
  * escrow, oldest first. Read-only audit trail; any party may read.
  */
 

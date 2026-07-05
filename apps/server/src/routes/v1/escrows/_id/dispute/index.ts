@@ -1,12 +1,12 @@
 /**
- * POST /v1/escrows/:id/dispute — either party raises a dispute.
+ * POST /v1/escrows/:id/dispute, either party raises a dispute.
  *
- * Body: { bond_raw, reason } — dispute bond paid by the raiser; refunded
+ * Body: { bond_raw, reason }, dispute bond paid by the raiser; refunded
  * on win, forfeited on loss. Amount validated against platform_config at
  * the contract layer; server passes through.
  *
  * The disputes triage row (reason + raiser) is upserted HERE at request
- * time — the on-chain DisputeRaised event only flips escrow.status, and
+ * time, the on-chain DisputeRaised event only flips escrow.status, and
  * recordDisputeResolution later stamps the winner onto this row. Re-raising
  * after a failed broadcast refreshes the reason instead of erroring
  * (disputes.escrow_id is UNIQUE).
@@ -55,7 +55,7 @@ const route: FastifyPluginAsync = async (fastify) => {
           `reason must be ${EXCHANGE_DISPUTE_REASON_MIN_LENGTH}–${EXCHANGE_DISPUTE_REASON_MAX_LENGTH} characters`,
         )
       }
-      // Pure field validation BEFORE any write — an invalid permit must not
+      // Pure field validation BEFORE any write, an invalid permit must not
       // leave a triage row behind. (Namespace check stays below: it needs
       // the escrow's chain.)
       const permit =

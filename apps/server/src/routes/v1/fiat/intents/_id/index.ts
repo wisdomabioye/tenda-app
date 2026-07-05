@@ -1,5 +1,5 @@
 /**
- * GET /v1/fiat/intents/:id — intent status for resume-after-restart
+ * GET /v1/fiat/intents/:id, intent status for resume-after-restart
  * (stage-8 § Key UX principles: mid-flow exits are graceful).
  */
 

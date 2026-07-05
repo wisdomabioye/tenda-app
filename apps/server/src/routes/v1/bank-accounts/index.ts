@@ -1,6 +1,6 @@
 /**
  * /v1/bank-accounts (stage-8): GET list, POST create (NIP name-enquiry
- * when configured; rate-limited 5/min/user — the enquiry API is paid per
+ * when configured; rate-limited 5/min/user, the enquiry API is paid per
  * call).
  */
 
@@ -28,7 +28,7 @@ function serialize(a: {
     id: a.id,
     country: a.country,
     bank_code: a.bank_code,
-    // Masked except the tail — full numbers never re-leave the API.
+    // Masked except the tail, full numbers never re-leave the API.
     account_number_masked: `****${a.account_number.slice(-4)}`,
     account_name: a.account_name,
     is_default: a.is_default,
@@ -74,7 +74,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       if (enquiry !== null) {
         const resolved = await enquiry.lookup(bank_code, account_number)
         if (resolved === null) {
-          throw new AppError(422, ErrorCode.BANK_ACCOUNT_INVALID, 'account did not resolve — check the number')
+          throw new AppError(422, ErrorCode.BANK_ACCOUNT_INVALID, 'account did not resolve, check the number')
         }
         account_name = resolved
         verified_at = new Date()

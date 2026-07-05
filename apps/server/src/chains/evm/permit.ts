@@ -1,17 +1,17 @@
 /**
- * EIP-2612 permit helpers — pure over their inputs (no RPC, no DB) so every
+ * EIP-2612 permit helpers, pure over their inputs (no RPC, no DB) so every
  * rule is unit-testable; the adapter supplies live token facts (name, nonce,
  * on-chain DOMAIN_SEPARATOR) read over its RPC.
  *
  * Design invariants:
- *   - The client NEVER constructs or hashes EIP-712 — the server builds the
+ *   - The client NEVER constructs or hashes EIP-712, the server builds the
  *     full typed data and the wallet hashes it (`eth_signTypedData_v4`).
  *   - The reconstructed domain is verified against the token's on-chain
  *     DOMAIN_SEPARATOR before a payload is returned, so a token rename or
  *     upgrade degrades to the approve flow instead of yielding unsignable
  *     payloads (cUSD's non-standard domain is exactly this case).
  *   - The signed `value` is immutable inside the signature: the server
- *     validates it COVERS the transfer and rejects otherwise — it can never
+ *     validates it COVERS the transfer and rejects otherwise, it can never
  *     "fix" it.
  */
 
@@ -23,7 +23,7 @@ import { isAmountRaw, type AmountRaw } from '@server/chains/types'
 /** Permit deadline horizon: long enough to sign, short enough to limit replay. */
 export const PERMIT_DEADLINE_SECONDS = 15 * 60
 
-/** The standard 5-field EIP712Domain — what USDC (FiatTokenV2) implements. */
+/** The standard 5-field EIP712Domain, what USDC (FiatTokenV2) implements. */
 const EIP712_DOMAIN_FIELDS = [
   { name: 'name', type: 'string' },
   { name: 'version', type: 'string' },
@@ -61,7 +61,7 @@ export function parsePermitSignature(signature: string): ParsedPermitSignature {
 }
 
 /**
- * Validate a permit body against the transfer it must cover — the pure field
+ * Validate a permit body against the transfer it must cover, the pure field
  * checks routes run before building (the signed value is immutable, so the
  * server rejects rather than fixes). The native-asset rejection lives in the
  * builder, which is the layer that resolves the asset address.
@@ -80,7 +80,7 @@ export function validatePermitBody(args: {
     fail(
       422,
       ErrorCode.VALIDATION_ERROR,
-      'permit.value_raw is below the transfer amount — the signed value cannot cover it',
+      'permit.value_raw is below the transfer amount, the signed value cannot cover it',
     )
   }
   if (!Number.isInteger(permit.deadline_unix)) {
@@ -166,7 +166,7 @@ export function buildPermitTypedData(args: {
 
 /**
  * True iff the typed data's domain hashes to the token's live
- * DOMAIN_SEPARATOR — the runtime guard that keeps config-declared permit
+ * DOMAIN_SEPARATOR, the runtime guard that keeps config-declared permit
  * support honest against the actual deployed token.
  */
 export function permitDomainMatches(
@@ -180,7 +180,7 @@ export function permitDomainMatches(
       chainId: BigInt(typed_data.domain.chainId),
       verifyingContract: typed_data.domain.verifyingContract as `0x${string}`,
     },
-    // hashDomain hashes over the declared field list — pass OUR domain type
+    // hashDomain hashes over the declared field list, pass OUR domain type
     // so the check hashes exactly what wallets will hash from typed_data.
     types: { EIP712Domain: [...EIP712_DOMAIN_FIELDS] },
   })

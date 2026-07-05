@@ -1,7 +1,7 @@
 /**
  * Gig surface (cutover §3 rewrite): listings + create-detail only.
- *   GET  / — the public feed over escrows ⨝ gig_details ⨝ users.
- *   POST / — attach gig_details to the caller's DRAFT escrow (the
+ *   GET  /, the public feed over escrows ⨝ gig_details ⨝ users.
+ *   POST /, attach gig_details to the caller's DRAFT escrow (the
  *            chain-agnostic core is created by POST /v1/escrows first;
  *            this satellite carries the human-facing listing fields and
  *            runs the Stage-6 moderation gate).
@@ -35,7 +35,7 @@ type ListRoute = GigsContract['list']
 type CreateRoute = GigsContract['create']
 
 const gigsRoutes: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/gigs — list open gigs with filters
+  // GET /v1/gigs, list open gigs with filters
   fastify.get<{
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
@@ -73,7 +73,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     const conditions: SQL[] = [eq(escrows.kind, 'gig')]
 
     if (mine !== undefined) {
-      // Own listings (my-gigs surface): every status incl. drafts — auth
+      // Own listings (my-gigs surface): every status incl. drafts, auth
       // required; identity comes from the JWT, never a param.
       if (mine !== 'created' && mine !== 'working') {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, "mine must be 'created' or 'working'")
@@ -93,7 +93,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       )
     } else {
       // Public feed shows only open gigs whose accept window hasn't
-      // passed — display-correct even between expire-escrows job ticks.
+      // passed, display-correct even between expire-escrows job ticks.
       // Taken-down listings (CO1) never surface here; the owner still sees
       // them through mine= above.
       conditions.push(
@@ -201,7 +201,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // POST /v1/gigs — attach listing details to the caller's draft escrow.
+  // POST /v1/gigs, attach listing details to the caller's draft escrow.
   // Upsert while draft so a retry after a validation/moderation fix never
   // 409s; once the create tx confirms (draft → open) the satellite is
   // immutable through this route. Field validation lives in

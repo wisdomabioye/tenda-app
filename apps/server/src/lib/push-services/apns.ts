@@ -1,5 +1,5 @@
 /**
- * APNs token-auth transport (S5.1). Requires HTTP/2 — node:http2 directly
+ * APNs token-auth transport (S5.1). Requires HTTP/2, node:http2 directly
  * (undici fetch doesn't speak h2 to APNs); auth is the p8 token scheme
  * (ES256 JWT, reused for up to 50 minutes per Apple guidance). The transport
  * is a seam so the JWT logic unit-tests offline.
@@ -14,7 +14,7 @@ export interface ApnsCredentials {
   team_id: string
   /** ES256 private key (p8 contents). */
   private_key: string
-  /** App bundle id — the apns-topic header. */
+  /** App bundle id, the apns-topic header. */
   topic: string
 }
 
@@ -115,7 +115,7 @@ export function apnsPushService(args: {
           if (result === 'ok') ok += 1
           else {
             failed += 1
-            invalid_tokens.push(t) // 410 — token gone, caller prunes the row
+            invalid_tokens.push(t) // 410, token gone, caller prunes the row
           }
         } catch (err) {
           failed += 1

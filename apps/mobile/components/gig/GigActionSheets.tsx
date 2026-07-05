@@ -1,49 +1,57 @@
 import { useRouter } from 'expo-router'
 import { showToast } from '@/components/ui/Toast'
-import { formatDuration } from '@/lib/gig-display'
 import { api } from '@/api/client'
-import type { GigDetail } from '@tenda/shared'
+import { formatAssetAmount } from '@tenda/shared'
 import type { ActiveSheet } from './GigCTABar'
 import { ProofUploadSheet } from './gig-action-sheets/ProofUploadSheet'
 import { DisputeSheet } from './gig-action-sheets/DisputeSheet'
 import { ReviewSheet } from './gig-action-sheets/ReviewSheet'
-import { ConfirmModal, type ConfirmKind } from './gig-action-sheets/ConfirmModal'
+import { DeleteDraftDialog } from './gig-action-sheets/DeleteDraftDialog'
 import type { Proof } from './gig-action-sheets/upload'
 
+/** Wallet note for the on-chain proof commit — reassures no funds move. */
+const PROOF_ONCHAIN_HINT =
+  "You'll approve this in your wallet to record it on-chain — no funds leave your wallet."
+
+/** The minimal escrow shape the sheets need; gig + exchange both satisfy it. */
+interface EscrowActionTarget {
+  escrow_id: string
+  /** Base-units bond ('0' when none) — feeds the dispute sheet's bond note. */
+  dispute_bond_raw: string
+  asset: string
+}
+
 interface GigActionSheetsProps {
-  /** escrow_id drives the action routes; completion_duration_seconds names the
-   *  accept dialog's "deliver within" window. Exchange offers omit the duration
-   *  (→ generic accept copy), so it's optional here. */
-  gig: Pick<GigDetail, 'escrow_id'> & { completion_duration_seconds?: number | null }
+  gig: EscrowActionTarget
   activeSheet: ActiveSheet | null
   onClose: () => void
   onReviewSubmitted: () => void
-  // Blockchain-backed actions: parent handles tx signing + monitoring
-  onAcceptConfirmed: () => void
-  onCancelOpenConfirmed: () => void
-  onRefundExpiredConfirmed: () => void
   onProofsReady: (proofs: Proof[]) => Promise<boolean>
   onAddProofsReady: (proofs: Proof[]) => Promise<void>
   onDisputeReady: (reason: string) => Promise<boolean>
 }
 
-const CONFIRM_KINDS: ConfirmKind[] = ['accept', 'cancel', 'delete', 'refund']
-
+/**
+ * Input + off-chain sheets for the gig/exchange detail screens. The
+ * wallet-opening transitions (accept/approve/claim/cancel/refund) are gated by
+ * the screen's shared TxConfirmDialog; this owns proof upload, dispute input,
+ * review, and the off-chain draft delete.
+ */
 export function GigActionSheets({
   gig,
   activeSheet,
   onClose,
   onReviewSubmitted,
-  onAcceptConfirmed,
-  onCancelOpenConfirmed,
-  onRefundExpiredConfirmed,
   onProofsReady,
   onAddProofsReady,
   onDisputeReady,
 }: GigActionSheetsProps) {
   const router = useRouter()
 
-  async function handleCancelDraft() {
+  const bondLabel =
+    gig.dispute_bond_raw !== '0' ? formatAssetAmount(gig.dispute_bond_raw, gig.asset) : null
+
+  async function handleDeleteDraft() {
     onClose()
     try {
       // Drafts are pre-sign staging rows, discarded off-chain.
@@ -55,20 +63,6 @@ export function GigActionSheets({
     }
   }
 
-  // Map a confirm dialog kind to its action. On-chain actions close then hand
-  // off to the parent (tx signing + monitoring); delete is handled locally.
-  const confirmKind = CONFIRM_KINDS.includes(activeSheet as ConfirmKind) ? (activeSheet as ConfirmKind) : null
-  function handleConfirm() {
-    if (confirmKind === 'delete') {
-      void handleCancelDraft()
-      return
-    }
-    onClose()
-    if (confirmKind === 'accept') onAcceptConfirmed()
-    else if (confirmKind === 'cancel') onCancelOpenConfirmed()
-    else if (confirmKind === 'refund') onRefundExpiredConfirmed()
-  }
-
   return (
     <>
       <ProofUploadSheet
@@ -76,7 +70,10 @@ export function GigActionSheets({
         onClose={onClose}
         title="Submit proof"
         submitLabel="Submit"
-        closeMode="on-success"
+        // On-chain commit: hand off to the progress modal as soon as the files
+        // upload, so it (not the sheet) owns the wallet + confirm phases.
+        closeMode="before-submit"
+        hint={PROOF_ONCHAIN_HINT}
         onSubmit={onProofsReady}
       />
 
@@ -92,7 +89,12 @@ export function GigActionSheets({
         }}
       />
 
-      <DisputeSheet visible={activeSheet === 'dispute'} onClose={onClose} onDisputeReady={onDisputeReady} />
+      <DisputeSheet
+        visible={activeSheet === 'dispute'}
+        onClose={onClose}
+        bondLabel={bondLabel}
+        onDisputeReady={onDisputeReady}
+      />
 
       <ReviewSheet
         visible={activeSheet === 'review'}
@@ -101,16 +103,7 @@ export function GigActionSheets({
         onReviewSubmitted={onReviewSubmitted}
       />
 
-      <ConfirmModal
-        kind={confirmKind}
-        deliverWithin={
-          gig.completion_duration_seconds != null
-            ? formatDuration(gig.completion_duration_seconds)
-            : null
-        }
-        onCancel={onClose}
-        onConfirm={handleConfirm}
-      />
+      <DeleteDraftDialog visible={activeSheet === 'delete'} onCancel={onClose} onConfirm={handleDeleteDraft} />
     </>
   )
 }

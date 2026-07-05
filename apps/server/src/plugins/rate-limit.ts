@@ -7,7 +7,7 @@ export default fp(async (fastify) => {
     // Individual routes can override via config.rateLimit in their route options.
     max: 100,
     timeWindow: '1 minute',
-    // Key by IP address — use X-Forwarded-For in production behind a proxy
+    // Key by IP address, use X-Forwarded-For in production behind a proxy
     keyGenerator: (request) => request.ip,
   })
 })

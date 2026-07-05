@@ -1,9 +1,9 @@
 /**
- * GET /v1/ws — WebSocket upgrade (stage-2-listeners.md § WebSocket
+ * GET /v1/ws, WebSocket upgrade (stage-2-listeners.md § WebSocket
  * protocol).
  *
  * Auth order:
- *   1. Subprotocol header (`tenda.v1.auth, <JWT>`) — preferred; the JWT
+ *   1. Subprotocol header (`tenda.v1.auth, <JWT>`), preferred; the JWT
  *      never appears in URLs/access logs.
  *   2. Fallback for clients that can't set subprotocols: accept the
  *      upgrade, wait ≤AUTH_GRACE_MS for a first `{ "auth": "<JWT>" }`
@@ -46,12 +46,12 @@ const route: FastifyPluginAsync = async (fastify) => {
     let user_id = headerToken !== null ? verifyToken(headerToken) : null
 
     if (headerToken !== null && user_id === null) {
-      // A token was presented and it's bad — reject immediately.
+      // A token was presented and it's bad, reject immediately.
       socket.close(4001, 'unauthorized')
       return
     }
 
-    // Fallback path: no subprotocol auth — allow a short window for an
+    // Fallback path: no subprotocol auth, allow a short window for an
     // auth frame before disconnecting.
     const authTimer =
       user_id === null

@@ -6,7 +6,7 @@ import type { AppDatabase } from '@server/plugins/db'
 import { AppError } from './errors'
 
 /**
- * Standard public user column projection — matches the shared `UserRef`
+ * Standard public user column projection, matches the shared `UserRef`
  * wire type exactly. Use wherever a user summary is joined or selected,
  * to keep projections consistent.
  */
@@ -22,7 +22,7 @@ export const USER_COLS = {
 
 /**
  * Verifies a user exists. Throws a 404 AppError if not found.
- * Selects only `id` — callers that need additional columns should query directly.
+ * Selects only `id`, callers that need additional columns should query directly.
  */
 export async function ensureUserExists(db: AppDatabase, id: string): Promise<{ id: string }> {
   const [user] = await db

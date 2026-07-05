@@ -1,5 +1,5 @@
 /**
- * POST /v1/escrows/:id/resolve — dispute_admin decides outcome.
+ * POST /v1/escrows/:id/resolve, dispute_admin decides outcome.
  *
  * Body: { winner: 'creator' | 'counterparty' | 'split' }.
  *
@@ -36,7 +36,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         transition: 'resolve',
       })
       // The on-chain resolve instruction routes the bond by raiser identity;
-      // recover it from the dispute record (one row per escrow — unique FK).
+      // recover it from the dispute record (one row per escrow, unique FK).
       const disputeRows = await fastify.db
         .select({ raised_by: disputes.raised_by })
         .from(disputes)
@@ -62,7 +62,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 }
 
 function narrowWinner(v: unknown): Winner {
-  // Switch-narrowing without a cast — matches the project rule.
+  // Switch-narrowing without a cast, matches the project rule.
   if (v === 'creator' || v === 'counterparty' || v === 'split') return v
   throw new AppError(
     400,

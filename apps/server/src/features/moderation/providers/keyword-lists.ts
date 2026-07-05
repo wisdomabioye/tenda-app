@@ -3,7 +3,7 @@
  * (deviation from the doc's YAML suggestion: equally version-controlled
  * and editable, zero parser dependency, typo-checked by the compiler).
  *
- * Matching runs against `normalizeForKeywords` output — entries must be
+ * Matching runs against `normalizeForKeywords` output, entries must be
  * lowercase, leet-collapsed forms. Local-language curation (Yoruba, Igbo,
  * Hausa, …) is tracked under task #56; seed entries below are the
  * English-language critical set.

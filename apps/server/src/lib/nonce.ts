@@ -13,7 +13,7 @@
  * the Stage 0 cutover migration runs.
  *
  * Tests use the `InMemoryNonceStore` from `apps/server/test/helpers/`
- * (added inline in the test file for now — promoted to a helper if a second
+ * (added inline in the test file for now, promoted to a helper if a second
  * caller needs it).
  */
 
@@ -38,7 +38,7 @@ export interface IssuedNonce {
   /**
    * ISO-8601 issued-at the client embeds in the auth-message template.
    * Server validates "issued_at within ±60s of receipt" at consume time;
-   * not persisted to `auth_nonces` (nonce uniqueness handles replay — this
+   * not persisted to `auth_nonces` (nonce uniqueness handles replay, this
    * is a clock-skew guard against signed-message replay outside the window).
    */
   issued_at: string
@@ -94,7 +94,7 @@ export async function consumeNonce(store: NonceStore, nonce: string): Promise<vo
 /**
  * Production NonceStore backed by Postgres via Drizzle. The `AppDatabase`
  * generic is typed against the legacy schema, but Drizzle's `insert/update/
- * select(table)` accept the imported table directly — type-flows correctly.
+ * select(table)` accept the imported table directly, type-flows correctly.
  */
 export function drizzleNonceStore(db: AppDatabase): NonceStore {
   return {
@@ -126,7 +126,7 @@ export function drizzleNonceStore(db: AppDatabase): NonceStore {
       if (!row) return 'unknown'
       if (row.consumed_at !== null) return 'replayed'
       if (row.expires_at.getTime() <= now.getTime()) return 'expired'
-      // Row exists, not consumed, not expired — but the UPDATE failed.
+      // Row exists, not consumed, not expired, but the UPDATE failed.
       // The only way this can happen is a concurrent consume that won the
       // race between our UPDATE and this probe. Classify as replayed: the
       // user's request is the loser, the other request consumed the nonce.

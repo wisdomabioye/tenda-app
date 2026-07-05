@@ -5,7 +5,7 @@
  *           avatar_url, is_seeker). Phone changes go through the OTP
  *           routes, never here; wallet changes through link/unlink.
  *
- * profile_complete = first_name AND last_name set — the same predicate
+ * profile_complete = first_name AND last_name set, the same predicate
  * `requireProfileComplete` enforces on the create/accept surface.
  */
 

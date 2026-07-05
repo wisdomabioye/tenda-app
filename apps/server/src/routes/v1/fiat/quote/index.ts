@@ -83,7 +83,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         asset_amount_raw = b.asset_amount_raw
       }
 
-      // Decimals come from the asset registry — never from the client.
+      // Decimals come from the asset registry, never from the client.
       const [assetRow] = await fastify.db
         .select({ decimals: assets.decimals, chain_id: assets.chain_id, is_enabled: assets.is_enabled })
         .from(assets)
@@ -94,7 +94,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       }
 
       const deps = await buildFiatDeps(fastify)
-      // Country from the row, not the JWT — claims go stale for up to the
+      // Country from the row, not the JWT, claims go stale for up to the
       // token lifetime (same rationale as the gig create-detail route).
       const [me] = await fastify.db
         .select({ country: users.country })

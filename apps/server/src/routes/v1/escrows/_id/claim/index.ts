@@ -1,5 +1,5 @@
 /**
- * POST /v1/escrows/:id/claim — counterparty claims after approval_deadline
+ * POST /v1/escrows/:id/claim, counterparty claims after approval_deadline
  * (creator ghosted). State machine: submitted → completed, time-gated.
  */
 

@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events'
 
 // ── Admin base shape ──────────────────────────────────────────────────────────
 // v2 identity is multi-wallet: the durable admin identity is id + role
-// (admin_audit_log mirrors this — no wallet column post-#34).
+// (admin_audit_log mirrors this, no wallet column post-#34).
 
 interface AdminEventBase {
   adminId: string
@@ -29,7 +29,7 @@ export interface AppEvents {
     /** gig_details.title; null for exchange escrows. */
     title: string | null
   }
-  // Stage 8 — fiat rails (onramp/offramp settlement fan-out)
+  // Stage 8, fiat rails (onramp/offramp settlement fan-out)
   'fiat.settled': {
     intent_id: string
     user_id: string
@@ -64,7 +64,7 @@ export interface AppEvents {
     /** Dashboard login revoked because the new role is non-admin (#87). */
     revokedLogin: boolean
   }
-  // #87 — admin_users login registry provisioning (grant is LOGIN only,
+  // #87, admin_users login registry provisioning (grant is LOGIN only,
   // never authority; see schema/identity.ts invariant)
   'admin.grant_login_email': AdminEventBase & { userId: string; email: string }
   'admin.revoke_login_email': AdminEventBase & { userId: string }
@@ -113,6 +113,6 @@ class TypedEventEmitter extends EventEmitter {
 
 // Singleton shared across the process.
 export const appEvents = new TypedEventEmitter()
-// audit (16) + notifications (4) listeners as of #87 — keep headroom so
+// audit (16) + notifications (4) listeners as of #87, keep headroom so
 // new audit events and test-time capture listeners never trip the warning.
 appEvents.setMaxListeners(32)

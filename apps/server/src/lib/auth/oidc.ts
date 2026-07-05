@@ -2,7 +2,7 @@
  * OIDC id_token verification for Google + Apple sign-in (Stage 9B). Uses
  * `jose` to verify the RS256 signature against the provider JWKS and validate
  * iss / aud / exp. The key source is injected (`createOidcVerifier`) so prod
- * wires a cached remote JWKS while tests wire a local key set — both exercise
+ * wires a cached remote JWKS while tests wire a local key set, both exercise
  * the SAME signature + claim logic.
  */
 
@@ -12,7 +12,7 @@ import { AppError } from '@server/lib/errors'
 
 /** Normalised claims extracted from a verified id_token. */
 export interface OidcClaims {
-  /** Stable provider subject id — the identity's `identifier`. */
+  /** Stable provider subject id, the identity's `identifier`. */
   sub: string
   /** Verified email (lowercased) if the token carries one and it is verified; else null. */
   email: string | null
@@ -23,7 +23,7 @@ export interface OidcVerifier {
 }
 
 export interface OidcVerifierConfig {
-  /** jose key resolver — `createRemoteJWKSet(url)` (prod) or `createLocalJWKSet(jwks)` (test). */
+  /** jose key resolver, `createRemoteJWKSet(url)` (prod) or `createLocalJWKSet(jwks)` (test). */
   keys: JWTVerifyGetKey
   /** Accepted issuer(s). */
   issuer: string | string[]
@@ -77,7 +77,7 @@ function extractVerifiedEmail(payload: JWTPayload): string | null {
   return isVerified ? email.trim().toLowerCase() : null
 }
 
-/** Production Google verifier — remote JWKS is fetched + cached by jose. */
+/** Production Google verifier, remote JWKS is fetched + cached by jose. */
 export function googleVerifier(audiences: string[]): OidcVerifier {
   return createOidcVerifier({
     keys: createRemoteJWKSet(new URL(GOOGLE_JWKS_URI)),
@@ -86,7 +86,7 @@ export function googleVerifier(audiences: string[]): OidcVerifier {
   })
 }
 
-/** Production Apple verifier — remote JWKS is fetched + cached by jose. */
+/** Production Apple verifier, remote JWKS is fetched + cached by jose. */
 export function appleVerifier(audiences: string[]): OidcVerifier {
   return createOidcVerifier({
     keys: createRemoteJWKSet(new URL(APPLE_JWKS_URI)),

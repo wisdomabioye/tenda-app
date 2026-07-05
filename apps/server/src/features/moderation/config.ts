@@ -1,7 +1,7 @@
 /**
  * Moderation configuration (stage-6-moderation.md § Configuration).
  *
- * LLM access goes through OpenRouter (project decision — one gateway/key,
+ * LLM access goes through OpenRouter (project decision, one gateway/key,
  * OpenAI-compatible API): the doc's separate claude/openai providers
  * collapse into ONE gateway provider with different model ids here, so an
  * alt-vendor incident response is a config change, not new code.
@@ -10,7 +10,7 @@
 export const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions'
 
 export const moderationConfig = {
-  /** Default model for both pipelines — cheap + fast Haiku class. */
+  /** Default model for both pipelines, cheap + fast Haiku class. */
   model: 'anthropic/claude-haiku-4.5',
   /** Escalation model for low-confidence content verdicts. */
   escalationModel: 'anthropic/claude-sonnet-4.5',

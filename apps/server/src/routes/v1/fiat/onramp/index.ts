@@ -1,5 +1,5 @@
 /**
- * POST /v1/fiat/onramp { intent_id } — initiate a quoted onramp intent
+ * POST /v1/fiat/onramp { intent_id }, initiate a quoted onramp intent
  * (stage-8 § Onramp pipeline step 4). Returns the PaymentInstruction the
  * user follows (bank transfer / redirect / USSD).
  */

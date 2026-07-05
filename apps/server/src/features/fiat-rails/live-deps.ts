@@ -2,7 +2,7 @@
  * `buildFiatDeps(fastify)` assembles the live dependency set:
  *  - p2p_internal: always present (drizzle order book + fulfilment).
  *  - yellowcard / onrampmoney: present only when their env credentials exist
- *    (#61) — a missing key means the provider simply isn't offered.
+ *    (#61), a missing key means the provider simply isn't offered.
  */
 
 import type { FastifyInstance } from 'fastify'

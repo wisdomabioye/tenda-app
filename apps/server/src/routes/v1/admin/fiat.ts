@@ -7,7 +7,7 @@
  *   GET   /v1/admin/fiat/providers               registry rows
  *   PATCH /v1/admin/fiat/providers/:id           enable/disable, priority
  *
- * Overrides require a reason and are appended to the intent's metadata —
+ * Overrides require a reason and are appended to the intent's metadata,
  * the row itself is the audit trail (admin id + reason + timestamp).
  */
 
@@ -41,7 +41,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       const { status, provider, user_id } = request.query
       const filters = []
       if (status !== undefined) {
-        // Validate against the enum — junk filters 422 instead of a DB error.
+        // Validate against the enum, junk filters 422 instead of a DB error.
         const valid = fiatIntentStatusEnum.enumValues as readonly string[]
         const wanted = status.split(',').filter((v): v is FiatIntentStatus => valid.includes(v))
         if (wanted.length !== status.split(',').length) {
@@ -98,7 +98,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         },
       )
       if (updated === null) {
-        throw new AppError(409, ErrorCode.VALIDATION_ERROR, `intent is ${intent.status} — cannot force-settle`)
+        throw new AppError(409, ErrorCode.VALIDATION_ERROR, `intent is ${intent.status}, cannot force-settle`)
       }
       deps.events.settled({
         intent_id: updated.id,
@@ -135,7 +135,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         },
       )
       if (updated === null) {
-        throw new AppError(409, ErrorCode.VALIDATION_ERROR, `intent is ${intent.status} — cannot mark refunded`)
+        throw new AppError(409, ErrorCode.VALIDATION_ERROR, `intent is ${intent.status}, cannot mark refunded`)
       }
       return { intent: updated }
     },

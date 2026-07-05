@@ -1,5 +1,5 @@
 /**
- * POST /v1/escrows/:id/accept — counterparty (or assigned counterparty)
+ * POST /v1/escrows/:id/accept, counterparty (or assigned counterparty)
  * accepts an open escrow.
  *
  * State machine: open → accepted, time-gated by accept_deadline.

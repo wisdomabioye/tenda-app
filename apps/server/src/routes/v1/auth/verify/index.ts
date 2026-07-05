@@ -1,8 +1,8 @@
 /**
- * POST /v1/auth/verify — Stage 9 unified verify. Validates the method's proof
+ * POST /v1/auth/verify, Stage 9 unified verify. Validates the method's proof
  * (OTP code / wallet signature / OAuth id_token) and then:
  *   - anonymous → logs in or creates the account (wallet: login-only, never
- *     creates — decision #3)
+ *     creates, decision #3)
  *   - bearer    → links the verified identity to the current account
  * Collisions are blocked (IDENTITY_ALREADY_LINKED), and a verified email maps
  * to exactly one user (cross-method dedup). Returns { token, user, is_new }.

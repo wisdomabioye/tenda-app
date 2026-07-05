@@ -1,11 +1,11 @@
 /**
- * p2p_internal provider — the always-available fallback AND the canonical
+ * p2p_internal provider, the always-available fallback AND the canonical
  * home of the exchange primitive (locked decision #14; stage-8 § Provider
  * routing). Quotes at the platform mid-rate plus a fixed spread; initiate
  * surfaces the intent on the P2P exchange where existing offers fulfil it.
  *
  * Settlement is driven by the exchange flow's own events, not a provider
- * webhook — the reconcile job treats matched-and-confirmed exchanges as
+ * webhook, the reconcile job treats matched-and-confirmed exchanges as
  * completed (see `P2pFulfilment` seam).
  *
  * STATELESS between quote and initiate: deps are rebuilt per request, so
@@ -40,7 +40,7 @@ export interface P2pOpenOffer {
 
 /**
  * Order-book read seam (CO4 onramp): the buyer's quote is grounded in a
- * REAL open sell offer — no offer, no quote. Exchange escrows are
+ * REAL open sell offer, no offer, no quote. Exchange escrows are
  * all-or-nothing (the buyer accepts the whole offer), so matching is
  * size-tolerant, never partial.
  */
@@ -89,7 +89,7 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
     capabilities: deps.capabilities,
 
     async quote(req) {
-      // Onramp (CO4): quote FROM the order book — the buyer gets a real
+      // Onramp (CO4): quote FROM the order book, the buyer gets a real
       // offer's exact terms, or no quote at all.
       if (req.direction === 'onramp') {
         if (req.fiat_amount === null || req.fiat_amount <= 0) {
@@ -109,7 +109,7 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
           )
         }
         return {
-          // The offer id IS the quote ref — initiate re-validates it.
+          // The offer id IS the quote ref, initiate re-validates it.
           quote_ref: offer.offer_id,
           rate: offer.rate,
           fee_amount: 0,

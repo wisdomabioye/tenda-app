@@ -1,7 +1,7 @@
 /**
- * GET /v1/users/:id/standing — public standing summary (stage-7).
+ * GET /v1/users/:id/standing, public standing summary (stage-7).
  * Rolled-up signals ONLY: raw abandoned/dispute counters never leak
- * (prevents adversarial pattern-mining). Optional auth — the response is
+ * (prevents adversarial pattern-mining). Optional auth, the response is
  * identical either way.
  */
 

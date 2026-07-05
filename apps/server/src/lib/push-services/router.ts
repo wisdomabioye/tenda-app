@@ -1,7 +1,7 @@
 /**
  * Per-platform push router (S5.1): split tokens by platform and dispatch to
  * each configured service. Unconfigured platforms degrade loudly (logged +
- * counted failed) — never silently dropped, and never pruned as dead tokens.
+ * counted failed), never silently dropped, and never pruned as dead tokens.
  */
 
 import type { PushService } from '@server/chains/types'
@@ -31,7 +31,7 @@ export async function routePush(
   for (const [platform, list] of grouped) {
     const service = deps.services[platform]
     if (service === undefined) {
-      // Unconfigured provider ≠ dead tokens — counted failed, never pruned.
+      // Unconfigured provider ≠ dead tokens, counted failed, never pruned.
       failed += list.length
       deps.log.warn({ platform, count: list.length }, 'push: provider not configured')
       continue

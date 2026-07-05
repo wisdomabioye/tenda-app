@@ -2,7 +2,7 @@
  * One-time cleanup of case-duplicate wallet rows (ops script, NOT a runtime
  * surface):
  *
- *   pnpm dedupe-wallets            # DRY RUN — prints the plan, deletes nothing
+ *   pnpm dedupe-wallets            # DRY RUN, prints the plan, deletes nothing
  *   pnpm dedupe-wallets -- --apply # actually delete the duplicates
  *
  * Residue of the pre-fix case-SENSITIVE `(chain_ns, address)` dedup: the same
@@ -45,7 +45,7 @@ async function main(): Promise<void> {
 
     const toDelete = planWalletDedupe(rows)
     if (toDelete.length === 0) {
-      console.log(`✓ no case-duplicate wallets among ${rows.length} rows — nothing to do`)
+      console.log(`✓ no case-duplicate wallets among ${rows.length} rows, nothing to do`)
       return
     }
 
@@ -55,7 +55,7 @@ async function main(): Promise<void> {
     }
 
     if (!apply) {
-      console.log('\nDRY RUN — re-run with `-- --apply` to delete these rows.')
+      console.log('\nDRY RUN, re-run with `-- --apply` to delete these rows.')
       return
     }
 

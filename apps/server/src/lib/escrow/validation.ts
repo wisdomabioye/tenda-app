@@ -1,6 +1,6 @@
 /**
  * Gig asset-policy guard. The canonical USDC asset per chain lives in
- * @tenda/shared (GIG_ASSET_BY_CHAIN) since CO5 — the mobile chain picker reads
+ * @tenda/shared (GIG_ASSET_BY_CHAIN) since CO5, the mobile chain picker reads
  * the SAME source, so client options and this guard can never disagree. Add a
  * chain there when its `chains` + `assets` rows are seeded.
  */
@@ -11,11 +11,11 @@ import type { AssetId, ChainId } from '@server/chains/types'
 
 /**
  * Throws if `asset_id` isn't the gig-eligible USDC variant for `chain_id`.
- * Pure — does not consult the DB. The `assets` table is the canonical source
+ * Pure, does not consult the DB. The `assets` table is the canonical source
  * of truth for asset existence; this guard is a narrow policy filter layered
  * on top to enforce "USDC only" for gigs without a per-request DB roundtrip.
  *
- * Throws `ESCROW_INVALID_ASSET` (422) for both unknown chains and wrong assets —
+ * Throws `ESCROW_INVALID_ASSET` (422) for both unknown chains and wrong assets,
  * route handlers should not distinguish the two (both are user-input errors).
  */
 export function assertGigAsset(asset_id: AssetId, chain_id: ChainId): void {

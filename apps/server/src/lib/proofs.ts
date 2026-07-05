@@ -32,7 +32,7 @@ export function validateProofs(
     throw new AppError(
       400,
       ErrorCode.VALIDATION_ERROR,
-      `Too many proofs — maximum ${maxCount} allowed per submission`,
+      `Too many proofs, maximum ${maxCount} allowed per submission`,
     )
   }
 

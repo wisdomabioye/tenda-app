@@ -1,6 +1,6 @@
 /**
  * FCM HTTP v1 transport (S5.1). The legacy server-key API was retired by
- * Google in 2024 — this uses HTTP v1 with a service-account OAuth token,
+ * Google in 2024, this uses HTTP v1 with a service-account OAuth token,
  * minted from a hand-rolled RS256 JWT (node:crypto; no google-auth-library
  * dependency). The transport is a seam so the JWT/routing logic unit-tests
  * offline; live delivery needs the #53 credentials.
@@ -128,7 +128,7 @@ export function fcmPushService(args: {
           if (result === 'ok') ok += 1
           else {
             failed += 1
-            invalid_tokens.push(t) // UNREGISTERED — caller prunes the row
+            invalid_tokens.push(t) // UNREGISTERED, caller prunes the row
           }
         } catch (err) {
           failed += 1

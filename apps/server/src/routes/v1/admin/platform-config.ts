@@ -15,7 +15,7 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
     preHandler: [requirePermission('config.read')]
   }, async () => {
     const [row] = await fastify.db.select().from(platform_config).limit(1)
-    if (!row) throw new AppError(404, ErrorCode.INTERNAL_ERROR, 'Platform config not found — seed the database first')
+    if (!row) throw new AppError(404, ErrorCode.INTERNAL_ERROR, 'Platform config not found, seed the database first')
     return row
   })
 
@@ -66,7 +66,7 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
       .where(eq(platform_config.id, 1))
       .returning()
 
-    const result = ensureTxUpdated(updated, 'Platform config not found — seed the database first')
+    const result = ensureTxUpdated(updated, 'Platform config not found, seed the database first')
 
     invalidatePlatformConfigCache()
 

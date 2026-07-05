@@ -33,6 +33,14 @@ export interface ProofFile {
   type: 'image' | 'video' | 'document'
 }
 
+/**
+ * Lifecycle of a single transition, drives the progress modal:
+ *  - preparing  → building the unsigned tx (server round-trip)
+ *  - signing    → wallet is open, awaiting the user's signature + broadcast
+ *  - confirming → broadcast, waiting on-chain confirmation (pendingTxRef set)
+ */
+export type TxPhase = 'idle' | 'preparing' | 'signing' | 'confirming'
+
 export function proofHashFor(chainId: string, urls: string[]): string {
   const digest = sha256(new TextEncoder().encode(urls.join('\n')))
   return chainId.startsWith('solana:')
@@ -54,10 +62,12 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
   /** Feeds TransactionMonitor (signature + escrowId → WS-first confirm). */
   const [pendingTxRef, setPendingTxRef] = useState<string | null>(null)
   const [pendingAction, setPendingAction] = useState<EscrowTxType | null>(null)
+  const [phase, setPhase] = useState<TxPhase>('idle')
 
   function clearPending() {
     setPendingTxRef(null)
     setPendingAction(null)
+    setPhase('idle')
   }
 
   async function dispatch(
@@ -65,8 +75,10 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
     request: () => Promise<UnsignedTx>,
   ): Promise<boolean> {
     setBusyAction(action)
+    setPhase('preparing')
     try {
       const unsigned = await request()
+      setPhase('signing')
       const tx_ref = await signSendAndReport({
         unsigned,
         action,
@@ -75,9 +87,11 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
       })
       setPendingTxRef(tx_ref)
       setPendingAction(action)
+      setPhase('confirming')
       onBroadcast?.(tx_ref, action)
       return true
     } catch (e) {
+      setPhase('idle')
       // First-transaction gate (9D): route to link-wallet / verify-contact
       // instead of a dead-end toast. The 403 surfaces from request() (the
       // server build-tx call), before any wallet signing.
@@ -98,6 +112,10 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
     busyAction,
     pendingTxRef,
     pendingAction,
+    /** Lifecycle for the progress modal (preparing → signing → confirming). */
+    phase,
+    /** Action currently in flight across all phases (build → confirm). */
+    activeAction: busyAction ?? pendingAction,
     clearPending,
 
     /** Publish a draft: rebuild + sign the create tx (offramp drafts /
@@ -120,10 +138,12 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
     /** Upload satellite rows first, then commit the digest on-chain. */
     submit: async (proofs: ProofFile[]): Promise<boolean> => {
       setBusyAction('submit')
+      setPhase('preparing')
       try {
         await api.escrows.addProofs({ id: escrowId }, { proofs })
       } catch (e) {
         setBusyAction(null)
+        setPhase('idle')
         showToast('error', (e as Error).message || 'Failed to save proof files')
         return false
       }

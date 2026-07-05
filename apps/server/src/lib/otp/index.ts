@@ -1,15 +1,15 @@
 /**
- * Consumer auth OTP — channel-agnostic issue/verify over the `auth_otps`
+ * Consumer auth OTP, channel-agnostic issue/verify over the `auth_otps`
  * table (Stage 9 generalised the former phone-only service to phone + email;
  * one lifecycle so the two channels can't drift). Admin login OTP lives in
  * lib/admin-otp.ts (separate table + anti-enumeration semantics).
  *
  * Rules enforced here (route handlers stay thin):
  *   - send: 3 sends per identifier per hour; 10 per user per day (only when
- *     authenticated — pre-account sign-in has no user, so the per-identifier
+ *     authenticated, pre-account sign-in has no user, so the per-identifier
  *     cap + the route-level per-IP limit carry it).
  *   - verify: max 5 attempts per OTP, 10-minute expiry, single-use.
- *   - codes are 6-digit, scrypt-hashed (node:crypto — no new dep).
+ *   - codes are 6-digit, scrypt-hashed (node:crypto, no new dep).
  *
  * Delivery is behind `OtpSender` (./senders); persistence behind `OtpStore`
  * (./store). Barrel keeps the `@server/lib/otp` import surface stable.
@@ -68,7 +68,7 @@ export interface OtpInput {
   user_id: string | null
 }
 
-/** A freshly minted code ready for delivery — the unit passed across the
+/** A freshly minted code ready for delivery, the unit passed across the
  *  async-delivery seam (queue job payload OR inline send). */
 export interface OtpMessage {
   channel: OtpChannel
@@ -78,7 +78,7 @@ export interface OtpMessage {
 
 /**
  * Delivery seam. `sendOtp` hands the minted code to `dispatch` and returns
- * WITHOUT awaiting the provider — production enqueues a `send-otp` job so the
+ * WITHOUT awaiting the provider, production enqueues a `send-otp` job so the
  * request never blocks on a slow email/SMS round-trip; tests + the no-Redis
  * fallback run the send inline. Either way the OTP is already persisted, so
  * the code is valid the instant `dispatch` is called.
@@ -103,7 +103,7 @@ export async function deliverOtp(
 /**
  * Build the delivery dispatch. With a queue (`enqueue` provided) delivery is
  * handed off and the request returns immediately; without one it falls back to
- * an inline send — so dev without Redis and the test harness behave exactly as
+ * an inline send, so dev without Redis and the test harness behave exactly as
  * before. `inlineSenders` is a thunk so the senders are built ONLY on the
  * fallback path (never when enqueuing).
  */
@@ -129,7 +129,7 @@ export async function sendOtp(deps: OtpDeps, input: OtpInput): Promise<{ expires
     hourAgo,
   )
   if (byIdentifier >= OTP_MAX_SENDS_PER_IDENTIFIER_PER_HOUR) {
-    throw new AppError(429, ErrorCode.OTP_RATE_LIMITED, 'too many OTP requests — try again later')
+    throw new AppError(429, ErrorCode.OTP_RATE_LIMITED, 'too many OTP requests, try again later')
   }
   // Per-user cap only applies to authenticated sends (a pre-account send has
   // no user to attribute; the per-identifier + per-IP limits carry that case).
@@ -137,7 +137,7 @@ export async function sendOtp(deps: OtpDeps, input: OtpInput): Promise<{ expires
     const dayAgo = new Date(now.getTime() - 86_400_000)
     const byUser = await deps.store.countRecentByUser(input.user_id, dayAgo)
     if (byUser >= OTP_MAX_SENDS_PER_USER_PER_DAY) {
-      throw new AppError(429, ErrorCode.OTP_RATE_LIMITED, 'too many OTP requests — try again later')
+      throw new AppError(429, ErrorCode.OTP_RATE_LIMITED, 'too many OTP requests, try again later')
     }
   }
 
@@ -168,10 +168,10 @@ export async function verifyOtp(
     throw new AppError(401, ErrorCode.OTP_INVALID, 'no active code for this identifier')
   }
   if (deps.now() > active.expires_at) {
-    throw new AppError(401, ErrorCode.OTP_EXPIRED, 'code expired — request a new one')
+    throw new AppError(401, ErrorCode.OTP_EXPIRED, 'code expired, request a new one')
   }
   if (active.attempts >= OTP_MAX_ATTEMPTS) {
-    throw new AppError(401, ErrorCode.OTP_INVALID, 'too many wrong attempts — request a new code')
+    throw new AppError(401, ErrorCode.OTP_INVALID, 'too many wrong attempts, request a new code')
   }
   if (!verifyOtpHash(input.code, active.code_hash)) {
     await deps.store.recordAttempt(active.id)

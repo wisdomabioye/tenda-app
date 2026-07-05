@@ -49,7 +49,7 @@ function asAddress(v: string | null): `0x${string}` {
 /** Wire permit → the contract's `Permit` calldata tuple. ERC-20 only. */
 function permitTuple(permit: PermitSignatureBody, asset_address: string | null) {
   if (asset_address === null) {
-    // Routes validate this too — the builder is the last line of defense
+    // Routes validate this too, the builder is the last line of defense
     // (mirrors the contract's own NativeAssetPermit revert).
     throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'permit is not applicable to a native asset')
   }

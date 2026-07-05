@@ -25,29 +25,29 @@ import type { WsBroadcaster } from '../lib/ws'
 
 declare module 'fastify' {
   interface FastifyInstance {
-    /** Drizzle client — registered by `plugins/db.ts`. */
+    /** Drizzle client, registered by `plugins/db.ts`. */
     db: AppDatabase
 
-    /** JWT-auth preHandler — registered by `plugins/auth.ts`. */
+    /** JWT-auth preHandler, registered by `plugins/auth.ts`. */
     authenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
 
     /**
-     * Optional JWT-auth preHandler (Stage 9 /auth/{challenge,verify}) — no
+     * Optional JWT-auth preHandler (Stage 9 /auth/{challenge,verify}), no
      * Authorization header passes through anonymously; a present header is
      * fully validated. Registered by `plugins/auth.ts`.
      */
     optionalAuthenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
 
-    /** Bust the moderation blocklist cache — registered by `plugins/moderation.ts`. */
+    /** Bust the moderation blocklist cache, registered by `plugins/moderation.ts`. */
     invalidateBlocklistCache(): void
 
-    /** BullMQ queue service — registered by `plugins/queue.ts`. */
+    /** BullMQ queue service, registered by `plugins/queue.ts`. */
     queue: QueueService
 
-    /** In-process WS pub/sub — registered by `plugins/websocket.ts`. */
+    /** In-process WS pub/sub, registered by `plugins/websocket.ts`. */
     wsBroadcast: WsBroadcaster
 
-    /** Chain adapter registry — registered by `plugins/chains.ts`. */
+    /** Chain adapter registry, registered by `plugins/chains.ts`. */
     chains: ChainRegistry
   }
 }

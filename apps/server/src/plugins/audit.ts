@@ -1,5 +1,5 @@
 // Fastify plugin that centralises all admin audit-log writes.
-// Route handlers emit typed 'admin.*' events — this plugin is the single place
+// Route handlers emit typed 'admin.*' events, this plugin is the single place
 // that translates them into admin_audit_log rows. Follows the same pattern as
 // plugins/notifications.ts (event-driven, fire-and-forget per listener).
 import fp from 'fastify-plugin'
@@ -8,7 +8,7 @@ import { admin_audit_log } from '@tenda/shared/db/schema'
 import { appEvents } from '@server/lib/events'
 
 const auditPlugin: FastifyPluginAsync = async (fastify) => {
-  // JSON-serializable value — used only internally for the jsonb metadata column.
+  // JSON-serializable value, used only internally for the jsonb metadata column.
   type JsonValue = string | number | boolean | null | JsonValue[] | { [k: string]: JsonValue }
 
   async function write(

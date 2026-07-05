@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
+import { Text } from '@/components/ui/Text'
 import { Spacer } from '@/components/ui/Spacer'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { FilePicker, type PickedFile } from '@/components/form/FilePicker'
@@ -20,6 +22,7 @@ export function ProofUploadSheet({
   title,
   submitLabel,
   closeMode,
+  hint,
   onSubmit,
 }: {
   visible: boolean
@@ -27,8 +30,11 @@ export function ProofUploadSheet({
   title: string
   submitLabel: string
   closeMode: 'on-success' | 'before-submit'
+  /** Optional note above the button, e.g. that submitting opens the wallet. */
+  hint?: string
   onSubmit: (proofs: Proof[]) => Promise<boolean>
 }) {
+  const { theme } = useUnistyles()
   const [files, setFiles] = useState<PickedFile[]>([])
   const [uploading, setUploading] = useState(false)
 
@@ -54,6 +60,14 @@ export function ProofUploadSheet({
   return (
     <BottomSheet visible={visible} onClose={onClose} title={title}>
       <FilePicker files={files} onChange={setFiles} accept="any" max={5} />
+      {hint !== undefined && (
+        <>
+          <Spacer size={spacing.sm} />
+          <Text variant="caption" color={theme.colors.content.secondary}>
+            {hint}
+          </Text>
+        </>
+      )}
       <Spacer size={spacing.md} />
       <Button variant="primary" size="xl" fullWidth disabled={files.length === 0} loading={uploading} onPress={handleSubmit}>
         {submitLabel}

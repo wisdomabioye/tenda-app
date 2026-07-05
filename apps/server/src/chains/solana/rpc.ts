@@ -1,7 +1,7 @@
 /**
  * Thin RPC seam for the Solana adapter.
  *
- * `SolanaRpc` is the complete network surface the adapter touches — builders
+ * `SolanaRpc` is the complete network surface the adapter touches, builders
  * and verifiers depend on this interface, never on `Connection` directly, so
  * adapter tests run fully offline against a fake (testing-strategy.md:
  * "no real network in unit / route tests").
@@ -27,7 +27,7 @@ export interface SolanaRpc {
   /** Raw account data. Null = account does not exist. */
   getAccountData(address: string): Promise<Buffer | null>
   /**
-   * Recent signatures touching an address (newest first) — the polling
+   * Recent signatures touching an address (newest first), the polling
    * listener's feed. Failed txs are included; verify-tx classifies them.
    */
   getSignaturesForAddress(
@@ -50,7 +50,7 @@ export function commitmentFor(chain_id: ChainId): Commitment {
 /**
  * Minimal `Connection` surface the wrapper consumes. Tests inject a fake
  * against this port (no web3 Connection, no network); `createSolanaRpc`
- * builds the real Connection — owning commitment + PublicKey construction —
+ * builds the real Connection, owning commitment + PublicKey construction,
  * and adapts it here.
  */
 export interface SolanaConnectionPort {
@@ -66,7 +66,7 @@ export interface SolanaConnectionPort {
 }
 
 /**
- * Wrap a connection port into the SolanaRpc the adapter consumes — the
+ * Wrap a connection port into the SolanaRpc the adapter consumes, the
  * testable unit: the per-call timeout race plus response→interface mapping.
  */
 export function solanaRpcFromConnection(

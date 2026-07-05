@@ -6,7 +6,7 @@ import { spacing, typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Badge, Divider, Spacer, showToast } from '@/components/ui'
 import { GigActionSheets, type ActiveSheet } from '@/components/gig'
 import { ExchangeStatusBadge, ExchangeTermsCard, ExchangeCTA } from '@/components/exchange'
-import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink } from '@/components/escrow'
+import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
 import { PersonCard, ReviewsSection } from '@/components/shared'
 import { TransactionMonitor } from '@/components/feedback'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
@@ -44,11 +44,26 @@ export function ExchangeDetailContent({
   const insets = useSafeAreaInsets()
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
+  const [confirmAction, setConfirmAction] = useState<EscrowTxType | null>(null)
   const [reportOpen, setReportOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
 
   const actions = useEscrowActions({ escrowId: offer.escrow_id, chainId: offer.chain_id })
   const isCreator = userId === offer.creator.id
+
+  // Fire the gated transition the confirm dialog was showing ('create' here is
+  // the draft publish — rebuild + sign the create tx), then close it.
+  function runConfirmedAction() {
+    const action = confirmAction
+    setConfirmAction(null)
+    switch (action) {
+      case 'create': return void actions.publish()
+      case 'accept': return void actions.accept()
+      case 'cancel': return void actions.cancel()
+      case 'approve': return void actions.approve()
+      case 'claim_stalled': return void actions.claim()
+    }
+  }
   const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
   const contextTitle = `Trade: ${offer.fiat_amount} ${offer.fiat_currency}`
 
@@ -178,19 +193,27 @@ export function ExchangeDetailContent({
       </ScrollView>
 
       <DetailBottomBar txInProgress={actions.pendingTxRef !== null}>
-        <ExchangeCTA offer={offer} userId={userId} actions={actions} onSheet={setActiveSheet} />
+        <ExchangeCTA
+          offer={offer}
+          userId={userId}
+          busy={actions.busyAction !== null}
+          onTxAction={setConfirmAction}
+          onSheet={setActiveSheet}
+        />
       </DetailBottomBar>
+
+      <TxConfirmDialog
+        action={confirmAction}
+        ctx={{ amount: formatAssetAmount(offer.amount_raw, offer.asset), kind: 'exchange' }}
+        onConfirm={runConfirmedAction}
+        onCancel={() => setConfirmAction(null)}
+      />
 
       <GigActionSheets
         gig={offer}
         activeSheet={activeSheet}
         onClose={() => setActiveSheet(null)}
         onReviewSubmitted={() => void refresh()}
-        onAcceptConfirmed={() => void actions.accept()}
-        onCancelOpenConfirmed={() => void actions.cancel()}
-        onRefundExpiredConfirmed={() =>
-          void actions.refund(offer.status === 'open' ? 'refund_expired' : 'reclaim_abandoned')
-        }
         onProofsReady={handleProofsReady}
         onAddProofsReady={handleAddProofsReady}
         onDisputeReady={handleDisputeReady}
@@ -198,6 +221,8 @@ export function ExchangeDetailContent({
 
       <TransactionMonitor
         signature={actions.pendingTxRef}
+        phase={actions.phase}
+        actionLabel={actions.activeAction !== null ? TX_PROGRESS_LABEL[actions.activeAction] : undefined}
         escrowId={offer.escrow_id}
         chainId={offer.chain_id}
         onConfirmed={handleTransactionConfirmed}

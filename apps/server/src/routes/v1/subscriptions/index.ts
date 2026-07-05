@@ -11,7 +11,7 @@ type UpsertRoute = SubscriptionsContract['upsert']
 type RemoveRoute = SubscriptionsContract['remove']
 
 const subscriptions: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/subscriptions — list user's gig subscriptions
+  // GET /v1/subscriptions, list user's gig subscriptions
   fastify.get<{
     Reply: ListRoute['response'] | ApiError
   }>(
@@ -31,7 +31,7 @@ const subscriptions: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  // POST /v1/subscriptions — add or update a subscription
+  // POST /v1/subscriptions, add or update a subscription
   fastify.post<{
     Body: UpsertRoute['body']
     Reply: UpsertRoute['response'] | ApiError
@@ -80,7 +80,7 @@ const subscriptions: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  // DELETE /v1/subscriptions/:id — remove a subscription
+  // DELETE /v1/subscriptions/:id, remove a subscription
   fastify.delete<{
     Params: RemoveRoute['params']
     Reply: RemoveRoute['response'] | ApiError

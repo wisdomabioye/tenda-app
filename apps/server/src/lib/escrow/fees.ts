@@ -1,5 +1,5 @@
 /**
- * Platform-fee math (raw base units). BigInt division truncates toward zero —
+ * Platform-fee math (raw base units). BigInt division truncates toward zero,
  * equivalent to floor for non-negative inputs, which is what we want (DB CHECK
  * ensures `amount_raw > 0` and `fee_bps ∈ [0, 10000]`).
  */
@@ -20,7 +20,7 @@ export function computePlatformFee(args: FeeArgs): AmountRaw {
   return ((amount * bps) / 10_000n).toString()
 }
 
-/** Returns `amount - fee` — what the counterparty actually receives. */
+/** Returns `amount - fee`, what the counterparty actually receives. */
 export function computeNetPayout(args: FeeArgs): AmountRaw {
   const amount = BigInt(args.amount_raw)
   const fee = BigInt(computePlatformFee(args))

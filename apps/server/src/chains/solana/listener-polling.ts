@@ -8,7 +8,7 @@
  * advances the cursor to the highest slot seen.
  *
  * Cursor boundary: signatures landing later in the SAME slot as the cursor
- * can be skipped by the strict `slot > cursor` filter — accepted, because
+ * can be skipped by the strict `slot > cursor` filter, accepted, because
  * the reconciliation sweep catches anything a tick misses (defence in
  * depth is the design, not single-pass perfection).
  */
@@ -76,8 +76,8 @@ export async function pollTick(deps: PollTickDeps): Promise<PollTickResult> {
       enqueued += 1
     } catch (err) {
       // Queue down: stop the tick WITHOUT advancing the cursor past this
-      // signature — the next tick retries from here.
-      deps.log.warn({ err, signature: s.signature }, 'polling: enqueue failed — tick aborted')
+      // signature, the next tick retries from here.
+      deps.log.warn({ err, signature: s.signature }, 'polling: enqueue failed, tick aborted')
       const lastGood = s.slot - 1
       if (lastGood > cursor) await deps.cursors.setCursor(deps.chain_id, lastGood)
       return { fetched: signatures.length, enqueued, cursor: Math.max(cursor, lastGood) }

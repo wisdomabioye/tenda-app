@@ -13,7 +13,7 @@ export type ProviderOutcome = 'completed' | 'failed'
 /**
  * Apply a provider-side outcome. Idempotent: replays miss the status guard and
  * return the row unchanged. Returns the intent or null when no row matches the
- * (provider, provider_ref) pair — webhooks for unknown refs are logged and
+ * (provider, provider_ref) pair, webhooks for unknown refs are logged and
  * dropped (cross-provider ref confusion / spam).
  */
 export async function settleFromProvider(
@@ -29,7 +29,7 @@ export async function settleFromProvider(
     return null
   }
   if (intent.status === 'settled' || intent.status === 'failed' || intent.status === 'cancelled') {
-    return intent // replay — already terminal
+    return intent // replay, already terminal
   }
 
   if (args.outcome === 'completed') {

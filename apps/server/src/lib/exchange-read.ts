@@ -7,7 +7,7 @@ import { escrows, exchange_details } from '@tenda/shared/db/schema'
 import type { ExchangeSummary, UserRef } from '@tenda/shared'
 import { USER_COLS } from '@server/lib/users'
 
-/** escrows ⨝ exchange_details ⨝ users — matches the shared ExchangeSummary wire type. */
+/** escrows ⨝ exchange_details ⨝ users, matches the shared ExchangeSummary wire type. */
 export const EXCHANGE_SUMMARY_COLS = {
   escrow_id: escrows.id,
   chain_id: escrows.chain_id,

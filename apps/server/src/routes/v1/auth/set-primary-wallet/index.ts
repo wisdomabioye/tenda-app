@@ -1,5 +1,5 @@
 /**
- * POST /v1/auth/set-primary-wallet — switch the primary marker. The
+ * POST /v1/auth/set-primary-wallet, switch the primary marker. The
  * partial unique index (`one primary per user`) makes the invariant
  * DB-enforced; the swap runs in one transaction so no window exists with
  * two primaries or none.

@@ -1,5 +1,5 @@
 /**
- * POST /v1/escrows/:id/refund — creator recovers funds.
+ * POST /v1/escrows/:id/refund, creator recovers funds.
  *
  * The same client-facing endpoint covers two distinct on-chain transitions
  * (per stage-0-foundation.md state machine):

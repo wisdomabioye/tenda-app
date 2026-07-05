@@ -1,7 +1,7 @@
 // Chain endpoints/keys (RPC, program id, treasury, escrow, webhooks…) are NOT
-// here — they are per-chain flat env vars loaded + validated by
+// here, they are per-chain flat env vars loaded + validated by
 // `chains/secrets.ts` (CHAIN_<ID>_*), keyed off the shared CHAIN_MANIFEST.
-// Exported for the .env.example parity test — every boot-required var must
+// Exported for the .env.example parity test, every boot-required var must
 // stay documented in the example file.
 export const REQUIRED_ENV_VARS = [
   'DATABASE_URL',
@@ -21,17 +21,17 @@ export interface Config {
   /**
    * Public base URL of this API deployment (no trailing slash). Used by the
    * wallet auth flow to assert the `URI:` line of the signed auth message
-   * matches this server — cross-deployment replay defense per
+   * matches this server, cross-deployment replay defense per
    * stage-1-onboarding.md L263.
    */
   API_BASE_URL: string
-  // Optional — defaults applied here; do not re-read from process.env elsewhere
-  PLATFORM_FEE_BPS: number       // seed fallback only — runtime fee is read from platform_config table
+  // Optional, defaults applied here; do not re-read from process.env elsewhere
+  PLATFORM_FEE_BPS: number       // seed fallback only, runtime fee is read from platform_config table
   JWT_EXPIRES_IN: string         // e.g. '7d', '24h'
   /**
-   * Termii credentials for phone OTP (#32) — regional (NG/Africa). Null = no
+   * Termii credentials for phone OTP (#32), regional (NG/Africa). Null = no
    * Termii transport. When neither Termii nor Twilio is set, codes are logged
-   * to the server console instead of sent — development interim only.
+   * to the server console instead of sent, development interim only.
    */
   TERMII_API_KEY: string | null
   TERMII_SENDER_ID: string | null
@@ -49,11 +49,11 @@ export interface Config {
   TWILIO_AUTH_TOKEN: string | null
   TWILIO_SMS_FROM: string | null
   /**
-   * OpenRouter API key (#56) — ALL LLM calls route through OpenRouter
+   * OpenRouter API key (#56), ALL LLM calls route through OpenRouter
    * (project decision). Null = moderation runs keyword-only.
    */
   OPENROUTER_API_KEY: string | null
-  /** Stage 8 — fiat rails. Feature gate + provider credentials (#61). */
+  /** Stage 8, fiat rails. Feature gate + provider credentials (#61). */
   FIAT_RAILS_ENABLED: boolean
   YELLOWCARD_API_KEY: string | null
   YELLOWCARD_API_SECRET: string | null
@@ -61,13 +61,13 @@ export interface Config {
   ONRAMPMONEY_API_KEY: string | null
   ONRAMPMONEY_API_SECRET: string | null
   ONRAMPMONEY_WEBHOOK_SECRET: string | null
-  /** NIP name-enquiry credentials — bank-account verification. */
+  /** NIP name-enquiry credentials, bank-account verification. */
   NIP_API_KEY: string | null
   /** Redis for BullMQ (#33). Unset = queue 501s and no workers start. */
   REDIS_URL: string | null
   /**
    * S5.1 push credentials (#53). FCM: base64-encoded service-account JSON
-   * (HTTP v1 — the legacy server-key API is retired). APNs: p8 token auth.
+   * (HTTP v1, the legacy server-key API is retired). APNs: p8 token auth.
    * Null = that platform's tokens fail loudly; Expo remains the fallback.
    */
   FCM_SERVICE_ACCOUNT_B64: string | null
@@ -84,10 +84,10 @@ export interface Config {
    */
   RESEND_API_KEY: string | null
   EMAIL_FROM: string | null
-  /** Admin-dashboard JWT lifetime (#86) — own knob; mobile JWT_EXPIRES_IN stays 7d. */
+  /** Admin-dashboard JWT lifetime (#86), own knob; mobile JWT_EXPIRES_IN stays 7d. */
   ADMIN_JWT_EXPIRES_IN: string
   /**
-   * Stage 9B — OAuth (Google/Apple) accepted audiences. Comma-separated client
+   * Stage 9B, OAuth (Google/Apple) accepted audiences. Comma-separated client
    * IDs: Google issues id_tokens whose `aud` is the iOS/web/android client ID
    * depending on the SDK config, so this is a LIST. Apple's `aud` is the app
    * bundle ID (native) or Services ID (web). Null/empty = that provider's

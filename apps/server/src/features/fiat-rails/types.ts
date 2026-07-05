@@ -3,7 +3,7 @@
  *
  * Tenda NEVER holds fiat: providers move money provider ↔ user directly;
  * intents only track the operation. Onramp/offramp are escrow-independent
- * (locked decision #15) — no escrow linkage anywhere in this module.
+ * (locked decision #15), no escrow linkage anywhere in this module.
  */
 
 import type { FiatDirection, FiatIntentStatus } from '@tenda/shared/db/schema/fiat'
@@ -15,7 +15,7 @@ export type { FiatDirection, FiatIntentStatus }
 export interface QuoteRequest {
   direction: FiatDirection
   /**
-   * Quoting user — the internal order book excludes their own offers
+   * Quoting user, the internal order book excludes their own offers
    * (you can't buy from yourself). Licensed providers ignore it.
    */
   user_id: string
@@ -29,9 +29,9 @@ export interface QuoteRequest {
   /** Asset registry id, e.g. 'USDC_SOL'. */
   asset: string
   asset_decimals: number
-  /** Offramp only — raw units the user will send. */
+  /** Offramp only, raw units the user will send. */
   asset_amount_raw: string | null
-  /** User country, ISO 3166-1 alpha-2 — routing input. */
+  /** User country, ISO 3166-1 alpha-2, routing input. */
   country: string
 }
 
@@ -59,13 +59,13 @@ export type PaymentInstruction =
       bank_name: string
       account_number: string
       account_name: string
-      /** MUST appear in the transfer narration — provider matching key. */
+      /** MUST appear in the transfer narration, provider matching key. */
       narration: string
     }
   | { kind: 'redirect'; url: string }
   | { kind: 'ussd'; code: string }
   | {
-      /** P2P internal — the exchange surface fulfils the intent. */
+      /** P2P internal, the exchange surface fulfils the intent. */
       kind: 'p2p'
       offer_id: string
     }
@@ -86,7 +86,7 @@ export interface InitiateResult {
 
 /**
  * Quote snapshot the service re-supplies at initiate time from the intent
- * row — providers stay stateless between the two calls (deps are rebuilt
+ * row, providers stay stateless between the two calls (deps are rebuilt
  * per request; in-memory provider state would not survive).
  */
 export interface IntentQuoteSnapshot {
@@ -111,7 +111,7 @@ export interface ProviderCapabilities {
 /**
  * Intent context for `status()` polls. The internal order book needs to
  * know WHO the intent belongs to: an onramp intent only completed if the
- * matched offer settled with THIS buyer — a rival accepting the same
+ * matched offer settled with THIS buyer, a rival accepting the same
  * offer must fail the intent, not settle it. Licensed providers track
  * intents by provider_ref alone and ignore this.
  */
@@ -121,7 +121,7 @@ export interface ProviderStatusContext {
 }
 
 /**
- * One interface for both directions — `capabilities` says which a
+ * One interface for both directions, `capabilities` says which a
  * provider supports; routing filters on it. All methods are remote calls
  * (or DB work for p2p_internal) and may throw; the service maps failures
  * to the next routing candidate.

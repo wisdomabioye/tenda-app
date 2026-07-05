@@ -7,7 +7,7 @@
  *   1. Load the escrow row by URL :id.
  *   2. Derive the caller's role (creator | counterparty | assigned | admin).
  *   3. Build a `TransitionContext` from the row + platform_config.
- *   4. Run `assertCanTransition(ctx, transition)` — LIVE state-machine check.
+ *   4. Run `assertCanTransition(ctx, transition)`, LIVE state-machine check.
  *   5. Resolve `chains.get(escrow.chain_id)` and call `adapter.buildTx(...)`.
  *   6. Insert a `tx_attempts` audit row keyed by the unsigned-tx output.
  *   7. Return the unsigned tx for the client to sign + submit.
@@ -37,7 +37,7 @@ export type EscrowRow = typeof escrows.$inferSelect
 
 /**
  * Standard 8-4-4-4-12 UUID shape (case-insensitive). Used to short-circuit
- * `loadEscrowOr404` before the Drizzle query — postgres's `uuid` column
+ * `loadEscrowOr404` before the Drizzle query, postgres's `uuid` column
  * rejects non-UUID input with `invalid input syntax for type uuid`, which
  * would surface as a 500 instead of a clean 404. Exported for direct unit
  * testing so the guard doesn't need a fake `AppDatabase` to exercise.
@@ -63,7 +63,7 @@ export async function loadEscrowOr404(db: AppDatabase, id: string): Promise<Escr
 
 export interface CallerArgs {
   user_id: string
-  /** From the JWT — already widened to `string` per the v1↔v2 transition. */
+  /** From the JWT, already widened to `string` per the v1↔v2 transition. */
   role: string
   escrow: EscrowRow
 }
@@ -77,7 +77,7 @@ export interface CallerArgs {
  *   - creator_id match → 'creator'
  *   - counterparty_id match → 'counterparty' (canonical post-accept role)
  *   - assigned_counterparty_id match → 'assigned_counterparty' (pre-accept only;
- *     `counterparty_id` is NULL during the assignment window — see state-machine
+ *     `counterparty_id` is NULL during the assignment window, see state-machine
  *     diagram in stage-0-foundation.md)
  *   - role === 'dispute_admin' AND no party match → 'dispute_admin'
  *
@@ -87,7 +87,7 @@ export interface CallerArgs {
  * `submit`, `approve`, `claim_stalled`, `dispute`, and `reclaim_abandoned`,
  * since the state machine only accepts `'counterparty'` for those.
  *
- * Returns `null` when the user has no relationship to the escrow — callers
+ * Returns `null` when the user has no relationship to the escrow, callers
  * should map that to `FORBIDDEN`.
  */
 export function deriveCaller(args: CallerArgs): Caller | null {
@@ -102,9 +102,9 @@ export function deriveCaller(args: CallerArgs): Caller | null {
 /**
  * Visibility check for taken-down listings (CO1: escrows.hidden). A hidden
  * escrow vanishes from public browse/detail but stays visible to its
- * parties (funds may be locked on-chain — they must still operate it) and
+ * parties (funds may be locked on-chain, they must still operate it) and
  * to any admin role (takedown review). Distinct from deriveCaller: this is
- * a READ gate, not a transition-caller mapping — super_admin can look but
+ * a READ gate, not a transition-caller mapping, super_admin can look but
  * still can't act on the escrow.
  */
 export function canViewHidden(
@@ -157,11 +157,11 @@ export function buildContext(args: ContextArgs): TransitionContext {
 /**
  * The DB enum and `EscrowStatus` union are 1:1 by design, but the DB column
  * is typed as the pg-enum string. This narrowing function asserts the value
- * is one of the known statuses and throws INTERNAL_ERROR otherwise — a
+ * is one of the known statuses and throws INTERNAL_ERROR otherwise, a
  * mismatch indicates schema drift, not a user error.
  */
 function assertEscrowStatus(s: string): EscrowStatus {
-  // Switch-based narrowing instead of `as` cast — TS narrows the literal
+  // Switch-based narrowing instead of `as` cast, TS narrows the literal
   // type in each case arm. Adding a new EscrowStatus variant requires
   // adding a case here; falling through hits the default and throws.
   switch (s) {
@@ -179,7 +179,7 @@ function assertEscrowStatus(s: string): EscrowStatus {
       throw new AppError(
         500,
         ErrorCode.INTERNAL_ERROR,
-        `escrow.status='${s}' not in EscrowStatus union — schema drift`,
+        `escrow.status='${s}' not in EscrowStatus union, schema drift`,
       )
   }
 }
@@ -189,14 +189,14 @@ function assertEscrowStatus(s: string): EscrowStatus {
 /**
  * `accept` is the one transition where `requireCaller` doesn't apply as-is:
  * for a public gig (no `assigned_counterparty_id`), `counterparty_id` is
- * still NULL going into the call — it's only set as a side effect of a
+ * still NULL going into the call, it's only set as a side effect of a
  * successful accept (see `EscrowAccepted` in escrow-events/applications.ts).
  * So the first person to accept a public escrow has no prior relationship
  * for `deriveCaller` to find, and would otherwise always get rejected as
  * `ESCROW_WRONG_CALLER` before the state machine's own accept logic runs.
  *
  * Per the on-chain spec (stage-0-foundation.md `acceptEscrow`): when
- * `assigned_counterparty` is null, any non-creator caller may accept — that
+ * `assigned_counterparty` is null, any non-creator caller may accept, that
  * act is what makes them the counterparty. This is scoped to `accept` only;
  * every other transition still goes through the normal `requireCaller`
  * relationship check.

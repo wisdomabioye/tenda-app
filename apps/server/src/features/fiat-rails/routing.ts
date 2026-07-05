@@ -2,21 +2,21 @@
  * Provider routing (stage-8 § Provider routing): enabled + capable
  * providers in priority order; p2p_internal is appended as the
  * unconditional fallback so a licensed-provider outage never blocks the
- * user. The caller (service) walks the candidate list — a provider that
+ * user. The caller (service) walks the candidate list, a provider that
  * throws simply yields to the next.
  */
 
 import { P2P_INTERNAL_ID } from './config'
 import type { FiatProvider, QuoteRequest } from './types'
 
-/** Enable/priority row — mirrors the fiat_providers table. */
+/** Enable/priority row, mirrors the fiat_providers table. */
 export interface ProviderRegistryRow {
   id: string
   priority: number
   is_enabled: boolean
 }
 
-/** Routing only reads capability-relevant fields — user identity is not one. */
+/** Routing only reads capability-relevant fields, user identity is not one. */
 export type RoutingRequest = Pick<QuoteRequest, 'direction' | 'fiat_currency' | 'asset'>
 
 export function supportsRequest(provider: FiatProvider, req: RoutingRequest): boolean {

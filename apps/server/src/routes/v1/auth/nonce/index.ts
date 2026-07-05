@@ -1,10 +1,10 @@
 /**
- * POST /v1/auth/nonce — issue a single-use auth nonce.
+ * POST /v1/auth/nonce, issue a single-use auth nonce.
  *
  * No body, no auth. Response goes into the client's auth-message template
  * under `Nonce: {nonce}`. The client signs the full message; the wallet
  * route consumes the nonce when verifying the signature, so re-issuing the
- * same client a second nonce before they spend the first is fine — the
+ * same client a second nonce before they spend the first is fine, the
  * first becomes useless after expiry (300s).
  */
 

@@ -1,7 +1,7 @@
 /**
  * Validation + normalization for POST /v1/escrows (the create entry).
  *
- * Pure module — no DB, no chain I/O — so every rule is unit-testable. The
+ * Pure module, no DB, no chain I/O, so every rule is unit-testable. The
  * route supplies caller identity and persistence; the on-chain program
  * re-validates everything that matters financially (this layer exists to
  * fail fast with typed errors, not to be the security boundary).
@@ -24,7 +24,7 @@ export interface CreateEscrowBody {
   assigned_counterparty_id?: unknown
   /** EIP-2612 signature riding the create (EVM ERC-20 assets only). */
   permit?: unknown
-  /** Forbidden — server generates ids (stage-0 exit criterion). */
+  /** Forbidden, server generates ids (stage-0 exit criterion). */
   id?: unknown
 }
 
@@ -41,11 +41,11 @@ export interface ValidatedCreateEscrow {
 }
 
 export interface ValidateCreateDeps {
-  /** Registry membership check — unknown chains fail fast. */
+  /** Registry membership check, unknown chains fail fast. */
   hasChain(chain_id: ChainId): boolean
   /** Injected clock for deterministic deadline tests. */
   now(): Date
-  /** Caller identity — assigned counterparty must differ. */
+  /** Caller identity, assigned counterparty must differ. */
   caller_user_id: string
 }
 
@@ -58,7 +58,7 @@ export function validateCreateEscrow(
   body: CreateEscrowBody,
 ): ValidatedCreateEscrow {
   if (body.id !== undefined) {
-    // Server-generated ids only — a client-supplied id could front-run the
+    // Server-generated ids only, a client-supplied id could front-run the
     // PDA derivation of someone else's draft.
     throw new AppError(
       400,

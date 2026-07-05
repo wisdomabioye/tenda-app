@@ -1,11 +1,11 @@
 /**
  * Expire stale fiat quotes (stage-8 § jobs). Repeatable BullMQ job (#33):
  * quoted / awaiting_user intents past their quote validity transition to
- * 'failed'. `initiateIntent` also expires lazily on touch — this job just
+ * 'failed'. `initiateIntent` also expires lazily on touch, this job just
  * keeps abandoned rows from lingering as open.
  *
  * NOTE: awaiting_user intents that expire are FAILED, not silently
- * retried — the provider re-quotes on late settlement per the stage-8
+ * retried, the provider re-quotes on late settlement per the stage-8
  * risk table (never honor an expired quote at the original rate).
  */
 
@@ -26,7 +26,7 @@ export async function expireFiatQuotesHandler(deps: FiatDeps): Promise<ExpireFia
     })
     if (updated !== null) {
       expired += 1
-      // Never-initiated quotes (no provider_ref) expire SILENTLY — every
+      // Never-initiated quotes (no provider_ref) expire SILENTLY, every
       // debounced amount edit on the Buy/Sell page creates one, and a
       // delayed "failed" push for each abandoned keystroke would be noise.
       // Only initiated intents (the user saw an instruction) notify.

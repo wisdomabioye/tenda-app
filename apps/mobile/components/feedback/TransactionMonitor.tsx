@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { View, Modal, StyleSheet, ActivityIndicator } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { CheckCircle, XCircle } from 'lucide-react-native'
+import { CheckCircle, XCircle, Wallet } from 'lucide-react-native'
 import { radius, spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import { getTransactionStatus, getEvmTransactionStatus } from '@/wallet'
 import { useRealtimeStore, subscribeEscrowChannel } from '@/stores/realtime.store'
+import type { TxPhase } from '@/hooks/useEscrowActions'
 
 const POLL_INTERVAL_MS = 2_000
 const POLL_FALLBACK_MS = 30_000  // RPC cadence while the WS channel is live
@@ -33,9 +34,22 @@ interface TransactionMonitorProps {
    * poll via the connected provider for eip155, WS-only for anything else.
    */
   chainId?: string
+  /**
+   * Lifecycle before the signature exists (build → wallet signature). When
+   * provided, the modal opens as soon as the phase leaves 'idle', so the
+   * user gets "Approve in your wallet" guidance while the popup is up — not
+   * a blank gap. Omitted → legacy behaviour, the modal shows only once a
+   * signature is broadcast.
+   */
+  phase?: TxPhase
+  /** Present-tense verb for the confirming heading, e.g. "Releasing payment". */
+  actionLabel?: string
 }
 
-export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false, escrowId, chainId }: TransactionMonitorProps) {
+/** Visual state = internal poll result once broadcast, else the pre-sign phase. */
+type Display = 'preparing' | 'signing' | 'confirming' | 'confirmed' | 'failed'
+
+export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false, escrowId, chainId, phase, actionLabel }: TransactionMonitorProps) {
   const { theme } = useUnistyles()
   const [txState, setTxState] = useState<TxState>('waiting')
   const [failMsg, setFailMsg] = useState('')
@@ -110,27 +124,72 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
     onFailed(failMsg || 'Transaction failed')
   }
 
-  if (!signature) return null
+  // The confirming spinner covers everything from broadcast onward; the phase
+  // (when supplied) drives the pre-signature messaging.
+  const phaseActive = phase !== undefined && phase !== 'idle'
+  const open = phaseActive || !!signature
+  if (!open) return null
+
+  const display: Display =
+    txState === 'confirmed'
+      ? 'confirmed'
+      : txState === 'failed'
+        ? 'failed'
+        : phase === 'preparing'
+          ? 'preparing'
+          : phase === 'signing'
+            ? 'signing'
+            : 'confirming'
+
+  const confirmingTitle = actionLabel
+    ? `${actionLabel}…`
+    : setupPhase
+      ? 'Setting up worker account…'
+      : 'Confirming transaction…'
 
   return (
-    <Modal transparent animationType="fade" visible={!!signature}>
+    <Modal transparent animationType="fade" visible={open}>
       <View style={s.overlay}>
         <View style={[s.card, { backgroundColor: theme.colors.surface.card }]}>
-          {txState === 'waiting' && (
+          {display === 'preparing' && (
             <>
               <ActivityIndicator size="large" color={theme.colors.brand.primary} />
               <Text variant="subheading" align="center" style={s.title}>
-                {setupPhase ? 'Setting up worker account…' : 'Confirming transaction…'}
+                Preparing transaction…
               </Text>
               <Text variant="caption" color={theme.colors.content.secondary} align="center">
-                {setupPhase
-                  ? 'One-time setup required to accept gigs. Please wait.'
-                  : 'This may take a few seconds. Please wait.'}
+                Getting your request ready, one moment.
               </Text>
             </>
           )}
 
-          {txState === 'confirmed' && (
+          {display === 'signing' && (
+            <>
+              <Wallet size={48} color={theme.colors.brand.primary} />
+              <Text variant="subheading" align="center" style={s.title}>
+                Approve in your wallet
+              </Text>
+              <Text variant="caption" color={theme.colors.content.secondary} align="center">
+                Your wallet is opening — approve the transaction there to continue.
+              </Text>
+            </>
+          )}
+
+          {display === 'confirming' && (
+            <>
+              <ActivityIndicator size="large" color={theme.colors.brand.primary} />
+              <Text variant="subheading" align="center" style={s.title}>
+                {confirmingTitle}
+              </Text>
+              <Text variant="caption" color={theme.colors.content.secondary} align="center">
+                {setupPhase
+                  ? 'One-time setup required to accept gigs. Please wait.'
+                  : 'Confirming on-chain. This may take a few seconds.'}
+              </Text>
+            </>
+          )}
+
+          {display === 'confirmed' && (
             <>
               <CheckCircle size={56} color={theme.colors.feedback.success.base} />
               <Text variant="subheading" align="center" style={s.title}>
@@ -139,7 +198,7 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
             </>
           )}
 
-          {txState === 'failed' && (
+          {display === 'failed' && (
             <>
               <XCircle size={56} color={theme.colors.feedback.danger.base} />
               <Text variant="subheading" align="center" style={s.title}>

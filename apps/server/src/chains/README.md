@@ -9,7 +9,7 @@ shared `CHAIN_MANIFEST` (see `secrets.ts` + `index.ts#buildAdapters`):
 `namespace` picks the adapter (`solana/` vs `evm/`), `gasPolicy` picks the dep
 wiring (paymaster / feeCurrency / plain), and confirmations + token addresses
 come from the manifest. **Adding a chain is one manifest entry plus its
-`CHAIN_<ID>_*` env secrets — no code change here.**
+`CHAIN_<ID>_*` env secrets, no code change here.**
 
 | Concern | Source |
 |---|---|

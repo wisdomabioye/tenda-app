@@ -9,7 +9,7 @@ export class AppError extends Error {
     /**
      * Optional machine-readable payload serialized alongside the error
      * (e.g. WALLET_IN_USE returns the blocking escrow_ids). Keep it small
-     * and JSON-safe — it goes straight to the client.
+     * and JSON-safe, it goes straight to the client.
      */
     public readonly details?: Record<string, unknown>,
   ) {
@@ -26,7 +26,7 @@ export class AppError extends Error {
 /**
  * Guard a request body before destructuring it. Fastify types `request.body`
  * as the declared Body shape, but at runtime it is `null` for a body-less
- * POST/PATCH — destructuring that throws a TypeError → 500. This narrows it
+ * POST/PATCH, destructuring that throws a TypeError → 500. This narrows it
  * to a real object and returns a clean 400 instead (only null/undefined crash
  * a destructure; a non-object body yields `undefined` fields the route's own
  * validation already rejects).
@@ -40,7 +40,7 @@ export function requireBody<T>(body: T): NonNullable<T> {
 
 /**
  * Validate that a field is a non-empty string and return it (422 otherwise).
- * Single home for the check the auth routes all need — replaces the per-route
+ * Single home for the check the auth routes all need, replaces the per-route
  * `requireString` copies.
  */
 export function requireNonEmptyString(value: unknown, field: string): string {

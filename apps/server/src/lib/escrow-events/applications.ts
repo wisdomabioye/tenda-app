@@ -1,5 +1,5 @@
 /**
- * Per-event application table: one declarative entry per on-chain event —
+ * Per-event application table: one declarative entry per on-chain event,
  * which `escrow_transactions.type` it records, which prior statuses are legal
  * (the status guard), which decoded fields carry amount/fee/actor, and the
  * column patch it stamps. Decoded payloads come from the chain; the
@@ -30,7 +30,7 @@ export type InternalEscrowEvent = (typeof INTERNAL_EVENT_BY_WIRE)[EscrowEvent]
 
 export interface EventApplication {
   tx_type: EscrowTxType
-  /** Legal prior statuses — the status guard. */
+  /** Legal prior statuses, the status guard. */
   from: EscrowStatus[]
   /** Field name carrying the settled amount, if any. */
   amount_field?: string
@@ -67,7 +67,7 @@ export const EVENT_APPLICATIONS: Record<EscrowEvent, EventApplication> = {
     tx_type: 'decline',
     from: ['open'],
     actor_field: 'declined_by',
-    // Status stays open — the decline clears the assignment only.
+    // Status stays open, the decline clears the assignment only.
     patch: () => ({ assigned_counterparty_id: null }),
   },
   ProofSubmitted: {

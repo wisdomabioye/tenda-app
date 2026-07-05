@@ -1,5 +1,5 @@
 /**
- * EVM ChainAdapter (stage-3-base.md) — viem-backed, generic across EVM
+ * EVM ChainAdapter (stage-3-base.md), viem-backed, generic across EVM
  * chains: BASE here, CELO in Stage 4 (same adapter, different
  * EvmAdapterArgs). Slots into the Stage-0 registry beside the Solana
  * adapter; verify-tx, reconcile and the routes are untouched.
@@ -47,15 +47,15 @@ export interface EvmAdapterDeps {
   /** AssetId → ERC-20 address (`null` = native). Throws on unknown. */
   resolveAsset(asset: AssetId): Promise<{ token_address: string | null }>
   /**
-   * Should this user's next tx be sponsored? (lib/sponsor.ts policy —
+   * Should this user's next tx be sponsored? (lib/sponsor.ts policy,
    * remaining quota etc.). A `true` result has ALREADY reserved (decremented)
-   * a quota slot — see `releaseSponsorship`. Absent = never sponsor.
+   * a quota slot, see `releaseSponsorship`. Absent = never sponsor.
    */
   shouldSponsor?(user_id: string): Promise<boolean>
   /**
    * Give back a quota slot reserved by `shouldSponsor` when the sponsored
    * build fails after reservation (paymaster outage / wallet-resolution
-   * error). Without it the reserved slot leaks — the user loses a free tx
+   * error). Without it the reserved slot leaks, the user loses a free tx
    * yet pays gas. Absent = no-op (chains that never reserve, e.g. CELO).
    */
   releaseSponsorship?(user_id: string): Promise<void>
@@ -83,7 +83,7 @@ export interface EvmAdapterArgs {
   /**
    * CELO-style gas abstraction: when set, every plain tx carries
    * `feeCurrency` so the user pays gas in stables (stage-4 final policy:
-   * always-on for CELO — no counter, no paymaster).
+   * always-on for CELO, no counter, no paymaster).
    */
   fee_currency?: `0x${string}`
   deps: EvmAdapterDeps
@@ -109,7 +109,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     if (sponsorable && args.deps.paymaster !== undefined) {
       // A quota slot was reserved in shouldSponsor(). EVERY exit from here on
       // must either keep it (sponsored build succeeds) or release it (any
-      // failure → plain-tx degradation) — wallet resolution included, so it
+      // failure → plain-tx degradation), wallet resolution included, so it
       // sits inside the try.
       try {
         const sender = (await args.deps.resolveWalletAddress(build.user_id)) as `0x${string}`
@@ -139,12 +139,12 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
         // (~$0.01 on BASE). Release the reserved slot so it isn't burned for
         // a sponsorship the user never received, then fall through to the
         // plain tx. Best-effort: a release hiccup must NOT turn the
-        // degradation into a hard failure — residual drift is swept by the
+        // degradation into a hard failure, residual drift is swept by the
         // Stage-3 sponsored-tx reconcile (#45, open_issues X3).
         try {
           await args.deps.releaseSponsorship?.(build.user_id)
         } catch {
-          // swallow — never block the build on a refund failure
+          // swallow, never block the build on a refund failure
         }
       }
     }
@@ -212,7 +212,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       )
     }
     // The permit owner must be an account the caller controls AND will send
-    // from — client-supplied, server-verified against verified linked wallets.
+    // from, client-supplied, server-verified against verified linked wallets.
     const owned = (await args.deps.verifyWalletOwnership?.(user_id, owner)) ?? false
     if (!owned) {
       throw new AppError(
@@ -227,7 +227,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       throw new AppError(
         422,
         ErrorCode.PERMIT_UNAVAILABLE,
-        `asset '${asset}' has no EIP-2612 permit support on ${args.chain_id} — use the approve flow`,
+        `asset '${asset}' has no EIP-2612 permit support on ${args.chain_id}, use the approve flow`,
       )
     }
     const { token_address } = await args.deps.resolveAsset(asset)
@@ -235,7 +235,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       throw new AppError(
         422,
         ErrorCode.PERMIT_UNAVAILABLE,
-        `asset '${asset}' is native on ${args.chain_id} — no allowance needed`,
+        `asset '${asset}' is native on ${args.chain_id}, no allowance needed`,
       )
     }
 
@@ -253,13 +253,13 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       deadline_unix,
     })
     // Runtime guard: the reconstructed domain must hash to the token's LIVE
-    // DOMAIN_SEPARATOR — a token rename/upgrade degrades to the approve flow
+    // DOMAIN_SEPARATOR, a token rename/upgrade degrades to the approve flow
     // instead of producing signatures the token would reject.
     if (!permitDomainMatches(typed_data, facts.domain_separator)) {
       throw new AppError(
         422,
         ErrorCode.PERMIT_UNAVAILABLE,
-        `token domain mismatch for '${asset}' on ${args.chain_id} — use the approve flow`,
+        `token domain mismatch for '${asset}' on ${args.chain_id}, use the approve flow`,
       )
     }
     return { typed_data, value_raw, deadline_unix }
@@ -275,7 +275,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       return { asset_address: token_address, assigned_counterparty_address: assigned }
     }
     if (build.action === 'disputeEscrow') {
-      // Bond denomination follows the escrow's asset — read it on-chain so
+      // Bond denomination follows the escrow's asset, read it on-chain so
       // the value rule can't drift from contract state.
       const state = await fetchEscrowState(escrowRefOf(build.payload.escrow_id))
       return {
@@ -327,7 +327,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     const tuple = await rpc.readEscrow(args.escrow_contract, escrow_ref as `0x${string}`)
     if (tuple === null) return null
     const status = EVM_STATUS[tuple.status]
-    if (status === undefined) return null // unknown enum value — treat as absent
+    if (status === undefined) return null // unknown enum value, treat as absent
     return {
       escrow_ref,
       escrow_id: bytesToUuid(Buffer.from(tuple.escrow_id.slice(2), 'hex')),
@@ -357,7 +357,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     buildTx,
     buildPermitPayload,
     verifyTx,
-    // Namespace-level crypto (EIP-191 ecrecover) — single source in
+    // Namespace-level crypto (EIP-191 ecrecover), single source in
     // lib/wallet-signature; the registry's verifyAuthSig delegates to the same.
     verifyAuthSig: (a: VerifyAuthSigArgs) => verifyWalletSignature('eip155', a),
     fetchEscrowState,

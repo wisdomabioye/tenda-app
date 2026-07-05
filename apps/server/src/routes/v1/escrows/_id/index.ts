@@ -1,5 +1,5 @@
 /**
- * GET /v1/escrows/:id — return the escrow row + appropriate details satellite.
+ * GET /v1/escrows/:id, return the escrow row + appropriate details satellite.
  *
  * Authorization: any party with a role on the escrow (creator, counterparty,
  * assigned, or dispute_admin) may read. Stage 0 returns just the base row;
@@ -36,7 +36,7 @@ const route: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  // DELETE /v1/escrows/:id — discard an abandoned DRAFT (a staging row the
+  // DELETE /v1/escrows/:id, discard an abandoned DRAFT (a staging row the
   // creator never signed; nothing exists on-chain). Published escrows
   // unwind through the on-chain cancel/refund transitions instead.
   fastify.delete<{ Params: { id: string } }>(
@@ -51,12 +51,12 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(
           409,
           ErrorCode.ESCROW_WRONG_STATUS,
-          'Only drafts can be deleted — published escrows are cancelled on-chain',
+          'Only drafts can be deleted, published escrows are cancelled on-chain',
         )
       }
       // A signed-and-broadcast create tx leaves the row 'draft' until the
       // verifier confirms it. Deleting in that window would orphan an
-      // on-chain funded escrow with no server record — block while a
+      // on-chain funded escrow with no server record, block while a
       // create ping is pending (failed/expired attempts don't count).
       const [pendingCreate] = await fastify.db
         .select({ id: tx_attempts.id })
@@ -74,7 +74,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(
           409,
           ErrorCode.ESCROW_WRONG_STATUS,
-          'A create transaction is awaiting confirmation — wait for it to settle before discarding',
+          'A create transaction is awaiting confirmation, wait for it to settle before discarding',
         )
       }
       // Status guard inside the DELETE so a create-tx confirming between
@@ -88,7 +88,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(
           409,
           ErrorCode.ESCROW_WRONG_STATUS,
-          'Escrow left draft state — it may have just been published',
+          'Escrow left draft state, it may have just been published',
         )
       }
       return { deleted: true }

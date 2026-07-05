@@ -1,11 +1,11 @@
 /**
- * #87 — admin dashboard login provisioning (admin_users registry):
- *   PUT    /v1/admin/users/:id/login-email { email } — grant or rotate
- *   DELETE /v1/admin/users/:id/login-email           — revoke (idempotent)
+ * #87, admin dashboard login provisioning (admin_users registry):
+ *   PUT    /v1/admin/users/:id/login-email { email }, grant or rotate
+ *   DELETE /v1/admin/users/:id/login-email          , revoke (idempotent)
  *
  * Guarded by users.assign_roles (super_admin): provisioning a login is
  * part of the admin lifecycle that permission already governs. Granting
- * is LOGIN only — never authority (schema/identity.ts invariant); the
+ * is LOGIN only, never authority (schema/identity.ts invariant); the
  * target must ALREADY hold an admin role (grantAdminEmail refuses
  * otherwise). Demotion revokes the login inside the role-PATCH
  * transaction (users.ts); this DELETE is the manual path.
@@ -57,7 +57,7 @@ const route: FastifyPluginAsync = async (fastify) => {
     '/:id/login-email',
     { preHandler: [requirePermission('users.assign_roles')] },
     async (request) => {
-      // Pre-validate like loadEscrowOr404 does — a junk id must 422, not
+      // Pre-validate like loadEscrowOr404 does, a junk id must 422, not
       // surface as a PG uuid-cast 500 (PUT gets this via grantAdminEmail).
       if (!isUuidLike(request.params.id)) {
         throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'id must be a UUID')

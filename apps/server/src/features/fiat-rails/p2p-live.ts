@@ -1,7 +1,7 @@
 /**
  * Live drizzle wiring of the internal P2P provider: the SOL-denominated rate
  * source, the onramp order-book matcher, and the offramp/onramp fulfilment
- * that opens v2 exchange escrows. Pure DB/RPC plumbing — the provider policy
+ * that opens v2 exchange escrows. Pure DB/RPC plumbing, the provider policy
  * lives in providers/p2p-internal; this is the adapter to live data.
  */
 
@@ -16,7 +16,7 @@ import { P2P_INTERNAL_PAYMENT_WINDOW_SECONDS, P2P_ONRAMP_MATCH_TOLERANCE_BPS } f
 import type { P2pFulfilment, P2pOrderBook, RateSource } from './providers/p2p-internal'
 
 /**
- * Pre-cutover: the platform rate cache is SOL-denominated (CoinGecko) —
+ * Pre-cutover: the platform rate cache is SOL-denominated (CoinGecko),
  * exactly what the legacy P2P exchange trades. Other assets reject until the
  * v2 exchange brings its own pricing.
  */
@@ -94,7 +94,7 @@ export function drizzleP2pOrderBook(fastify: FastifyInstance): P2pOrderBook {
 
 /**
  * Offramp via the v2 exchange: open a sell escrow (kind='exchange', draft) on
- * the user's behalf — the user publishes it from the exchange surface (signs
+ * the user's behalf, the user publishes it from the exchange surface (signs
  * the escrow tx), buyers fulfil, and `status` maps the escrow lifecycle.
  * Onramp (CO4): re-validate the quote-time matched offer and hand it to the
  * buyer to accept on-chain.
@@ -106,7 +106,7 @@ export function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
         if (input.offer_ref === undefined) {
           throw new AppError(503, ErrorCode.PROVIDER_UNAVAILABLE, 'onramp intent carries no matched offer')
         }
-        // The offer may have been accepted/cancelled/hidden since the quote —
+        // The offer may have been accepted/cancelled/hidden since the quote,
         // re-check it is still live and not the buyer's own.
         const [offer] = await fastify.db
           .select({ id: escrows.id })
@@ -134,11 +134,11 @@ export function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
         throw new AppError(
           503,
           ErrorCode.PROVIDER_UNAVAILABLE,
-          `asset '${input.asset}' is not registered — cannot open a p2p offer`,
+          `asset '${input.asset}' is not registered, cannot open a p2p offer`,
         )
       }
       // Escrow + details land together or not at all. The deadlines are
-      // stamped HERE so the draft is publishable as-is via build-create —
+      // stamped HERE so the draft is publishable as-is via build-create,
       // accept window = the shared default; completion window = the time the
       // buyer gets to pay fiat after accepting.
       const escrow_id = await fastify.db.transaction(async (tx) => {
@@ -182,7 +182,7 @@ export function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
 
       // Onramp: the intent only completes if the offer settled with THIS
       // buyer. A rival accepting (or the seller cancelling, a takedown, or the
-      // window lapsing) means the match is gone — fail the intent so the buyer
+      // window lapsing) means the match is gone, fail the intent so the buyer
       // re-quotes instead of waiting on someone else's trade.
       if (ctx?.direction === 'onramp') {
         const mine = escrow.counterparty_id === ctx.user_id
@@ -198,7 +198,7 @@ export function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
             (escrow.accept_deadline === null || escrow.accept_deadline.getTime() > Date.now())
           return live ? 'pending' : 'failed'
         }
-        // draft / cancelled / refunded — the offer never traded (with anyone).
+        // draft / cancelled / refunded, the offer never traded (with anyone).
         return 'failed'
       }
 

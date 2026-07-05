@@ -1,8 +1,8 @@
 /**
- * GET /v1/auth/methods — the authenticated user's non-wallet sign-in identities
+ * GET /v1/auth/methods, the authenticated user's non-wallet sign-in identities
  * (phone / email / google / apple), for the mobile "Sign-in & security" screen.
  *
- * Wallets are intentionally NOT here — they already ride /v1/users/me (with
+ * Wallets are intentionally NOT here, they already ride /v1/users/me (with
  * chain + primary structure). This route is the read counterpart to the unified
  * link flow (POST /v1/auth/challenge + /verify with a bearer): the screen lists
  * what's linked, and routes the user into the OTP flow to add what isn't.

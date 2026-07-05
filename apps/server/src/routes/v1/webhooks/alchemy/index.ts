@@ -1,15 +1,15 @@
 /**
- * POST /v1/webhooks/alchemy — BASE address-activity push (stage-3-base.md).
+ * POST /v1/webhooks/alchemy, BASE address-activity push (stage-3-base.md).
  *
  * Auth: Alchemy signs the RAW body with HMAC-SHA256 (signing key from the
- * webhook dashboard) in the `x-alchemy-signature` header — verified via
+ * webhook dashboard) in the `x-alchemy-signature` header, verified via
  * core/webhooks/verify-hmac with a scoped raw-body parser (same pattern as
  * the provider webhooks). Tampered/absent → 401; unconfigured → 503 (the
  * polling listener + reconciliation carry verification meanwhile).
  *
  * Payload is a NOTIFICATION ONLY (same stance as the Helius hook): extract
  * tx hashes touching the escrow contract and enqueue idempotent verify-tx
- * jobs — the EVM adapter re-fetches receipts and decodes from the chain,
+ * jobs, the EVM adapter re-fetches receipts and decodes from the chain,
  * which is the source of truth. Always 200 fast so Alchemy doesn't disable
  * the hook.
  */
@@ -57,7 +57,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
   fastify.post<{ Body: RawJsonBody }>('/', async (request, reply) => {
     // The Alchemy hook serves the active paymaster-managed EVM chain (BASE or
-    // its testnet) — resolved from the manifest+secrets, never hardcoded.
+    // its testnet), resolved from the manifest+secrets, never hardcoded.
     const evm = paymasterChainSecret()
     if (evm?.webhookSecret === undefined) {
       throw new AppError(503, ErrorCode.INTERNAL_ERROR, 'Alchemy webhook not configured')
@@ -86,7 +86,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         )
         enqueued += 1
       } catch (err) {
-        // Queue down (#33 pending) — reconciliation covers; never bounce
+        // Queue down (#33 pending), reconciliation covers; never bounce
         // the webhook over it.
         fastify.log.warn({ err, tx_ref }, 'alchemy webhook: enqueue failed')
       }

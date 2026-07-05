@@ -1,6 +1,6 @@
 /**
  * NIP name-enquiry seam (stage-8 § bank accounts). The live HTTP
- * implementation lands with the #61 NIP API credentials — vendor-specific
+ * implementation lands with the #61 NIP API credentials, vendor-specific
  * paths/fields finalize there. Until then accounts save unverified
  * (verified_at null) with the user-supplied name; the offramp provider
  * re-validates the account on its own side regardless.
@@ -12,7 +12,7 @@ export interface NameEnquiry {
 }
 
 /**
- * Null until the #61 vendor integration lands — setting NIP_API_KEY alone
+ * Null until the #61 vendor integration lands, setting NIP_API_KEY alone
  * must not break bank-account creation with a stub that throws. The env
  * var is reserved so deploys can stage the secret ahead of the code.
  */

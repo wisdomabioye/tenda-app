@@ -1,11 +1,11 @@
 /**
  * Gig full-text search helpers (S5.3, closes open #25). The tsvector
  * GENERATED column + GIN index live on v2 `gig_details`; these builders
- * are consumed by the v2 listing route (cutover §3 rewrite) — defined now
+ * are consumed by the v2 listing route (cutover §3 rewrite), defined now
  * so the rewrite and any admin search share one implementation.
  *
  * `plainto_tsquery` parses raw user input safely (no tsquery syntax is
- * interpreted) — no manual escaping needed or wanted.
+ * interpreted), no manual escaping needed or wanted.
  */
 
 import { sql, type SQL } from 'drizzle-orm'

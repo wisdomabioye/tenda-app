@@ -1,5 +1,5 @@
 /**
- * POST /v1/auth/admin/send-email-otp — start an admin-dashboard login (#86).
+ * POST /v1/auth/admin/send-email-otp, start an admin-dashboard login (#86).
  *
  * Body: { email }. Answers 200 UNCONDITIONALLY (anti-enumeration): a code
  * goes out only when the email belongs to an ACTIVE admin via admin_users,
@@ -28,7 +28,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       if (typeof email !== 'string' || email === '') {
         throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'email is required')
       }
-      // Sender availability is decided BEFORE any lookup — the 503 fires
+      // Sender availability is decided BEFORE any lookup, the 503 fires
       // for every request alike, so it carries no admin-email signal.
       const sender = resolveAdminEmailSender(getConfig(), fastify.log)
       await sendAdminLoginOtp(

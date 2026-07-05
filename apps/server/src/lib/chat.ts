@@ -10,7 +10,7 @@ export { ATTACHMENT_PREVIEW }
 
 /**
  * Inbox / push-notification preview for a message. Attachment-only
- * messages (S5.2) carry empty content — surface a placeholder instead of
+ * messages (S5.2) carry empty content, surface a placeholder instead of
  * a blank line.
  */
 export function messagePreview(content: string | null, hasAttachment: boolean): string | null {

@@ -55,7 +55,7 @@ function buildPhoneSender(fastify: FastifyInstance): OtpSender {
 /**
  * Resolve one concrete sender per channel from config (Resend/console for
  * email, Termii/Twilio/console for phone). Shared by the inline-dispatch
- * fallback here AND the `send-otp` worker processor — single source so the two
+ * fallback here AND the `send-otp` worker processor, single source so the two
  * delivery paths can never drift.
  */
 export function buildOtpSenders(fastify: FastifyInstance): Record<OtpChannel, OtpSender> {

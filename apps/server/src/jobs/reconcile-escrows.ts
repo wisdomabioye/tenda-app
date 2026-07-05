@@ -5,13 +5,13 @@
  * Scans pending `tx_attempts` (no confirmed_at / failed_at) older than the
  * probe delay, probes the chain directly, and:
  *   - confirmed (success OR failure) → enqueue the idempotent verify-tx
- *     job — one code path applies state / marks failures, never two.
+ *     job, one code path applies state / marks failures, never two.
  *   - still unknown past the give-up horizon → failed_at = TIMEOUT.
  *
  * Chain resolution: tx_attempts has no chain column by design; the row
  * joins through its escrow. Attempts without an escrow hint (create pings
  * that never landed) fall back to the deployment's single registered chain
- * — revisit when Stage 3 registers a second chain.
+ *, revisit when Stage 3 registers a second chain.
  */
 
 import { and, isNull, lt, sql } from 'drizzle-orm'
@@ -24,7 +24,7 @@ import { verifyTxDedupKey } from '@server/jobs/verify-tx'
 
 // ---------- policy constants ---------------------------------------------
 
-/** Don't probe attempts younger than this — the normal path is still live. */
+/** Don't probe attempts younger than this, the normal path is still live. */
 export const RECONCILE_MIN_AGE_MS = 5 * 60_000
 /** Unknown on chain past this age → failed_at = TIMEOUT (blockhash expired). */
 export const RECONCILE_GIVE_UP_MS = 30 * 60_000
@@ -120,7 +120,7 @@ export async function reconcileEscrowsHandler(
   for (const attempt of pending) {
     const chain_id = attempt.chain_id ?? deps.chains.list()[0]?.chain_id
     if (chain_id === undefined) {
-      deps.log.warn({ tx_ref: attempt.tx_ref }, 'reconcile: no chain to probe — skipping')
+      deps.log.warn({ tx_ref: attempt.tx_ref }, 'reconcile: no chain to probe, skipping')
       result.still_pending += 1
       continue
     }
@@ -135,7 +135,7 @@ export async function reconcileEscrowsHandler(
       })
       confirmed = probe.confirmed
     } catch (err) {
-      // RPC trouble — leave the row pending; next tick retries.
+      // RPC trouble, leave the row pending; next tick retries.
       deps.log.warn({ err, tx_ref: attempt.tx_ref }, 'reconcile: probe failed')
       result.still_pending += 1
       continue
@@ -175,7 +175,7 @@ export async function reconcileEscrowsHandler(
   if (pending.length === RECONCILE_BATCH_LIMIT) {
     deps.log.warn(
       { window: payload, limit: RECONCILE_BATCH_LIMIT },
-      'reconcile: batch limit hit — remainder swept next tick',
+      'reconcile: batch limit hit, remainder swept next tick',
     )
   }
   deps.log.info({ ...result }, 'reconcile tick complete')

@@ -19,14 +19,15 @@ import {
   type ProofItem,
   type ActiveSheet,
 } from '@/components/gig'
-import { DetailChrome } from '@/components/escrow'
+import { DetailChrome, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
 import { TransactionMonitor, LoadingScreen, ErrorState } from '@/components/feedback'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { useAuthStore, useGigsStore } from '@/stores'
-import { apiConfig } from '@tenda/shared'
+import { apiConfig, formatAssetAmount } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
+import { formatDuration } from '@/lib/gig-display'
 import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
 import type { EscrowTxType, GigDetail } from '@tenda/shared'
 
@@ -47,6 +48,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const { fetchGigDetail } = useGigsStore()
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
+  const [confirmAction, setConfirmAction] = useState<EscrowTxType | null>(null)
   const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
   const [reportGigOpen, setReportGigOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -54,6 +56,20 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const { dismissedNudges } = useOnboardingStore()
 
   const actions = useEscrowActions({ escrowId: gig.escrow_id, chainId: gig.chain_id })
+
+  // Fire the gated transition the confirm dialog was showing, then close it.
+  function runConfirmedAction() {
+    const action = confirmAction
+    setConfirmAction(null)
+    switch (action) {
+      case 'accept': return void actions.accept()
+      case 'approve': return void actions.approve()
+      case 'claim_stalled': return void actions.claim()
+      case 'cancel': return void actions.cancel()
+      case 'refund_expired': return void actions.refund('refund_expired')
+      case 'reclaim_abandoned': return void actions.refund('reclaim_abandoned')
+    }
+  }
 
   const isWorkerOpportunity = gig.status === 'open' && userId !== gig.creator.id
 
@@ -148,11 +164,22 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           isTxBuilding={actions.busyAction !== null}
           txInProgress={actions.pendingTxRef !== null}
           onAction={setActiveSheet}
-          onApprove={() => void actions.approve()}
-          onClaim={() => void actions.claim()}
+          onTxAction={setConfirmAction}
           onRetryDraft={() =>
             router.push(`/(tabs)/create-gig?draftId=${gig.escrow_id}` as Parameters<typeof router.push>[0])
           }
+        />
+
+        <TxConfirmDialog
+          action={confirmAction}
+          ctx={{
+            amount: formatAssetAmount(gig.amount_raw, gig.asset),
+            kind: 'gig',
+            deliverWithin:
+              gig.completion_duration_seconds != null ? formatDuration(gig.completion_duration_seconds) : null,
+          }}
+          onConfirm={runConfirmedAction}
+          onCancel={() => setConfirmAction(null)}
         />
 
         <GigActionSheets
@@ -160,11 +187,6 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           activeSheet={activeSheet}
           onClose={() => setActiveSheet(null)}
           onReviewSubmitted={() => fetchGigDetail(gig.escrow_id)}
-          onAcceptConfirmed={() => void actions.accept()}
-          onCancelOpenConfirmed={() => void actions.cancel()}
-          onRefundExpiredConfirmed={() =>
-            void actions.refund(gig.status === 'open' ? 'refund_expired' : 'reclaim_abandoned')
-          }
           onProofsReady={handleProofsReady}
           onAddProofsReady={handleAddProofsReady}
           onDisputeReady={handleDisputeReady}
@@ -172,6 +194,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
         <TransactionMonitor
           signature={actions.pendingTxRef}
+          phase={actions.phase}
+          actionLabel={actions.activeAction !== null ? TX_PROGRESS_LABEL[actions.activeAction] : undefined}
           escrowId={gig.escrow_id}
           chainId={gig.chain_id}
           onConfirmed={handleTransactionConfirmed}

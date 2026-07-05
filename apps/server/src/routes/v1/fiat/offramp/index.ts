@@ -1,5 +1,5 @@
 /**
- * POST /v1/fiat/offramp { intent_id, bank_account_id } — initiate a quoted
+ * POST /v1/fiat/offramp { intent_id, bank_account_id }, initiate a quoted
  * offramp (stage-8 § Offramp pipeline step 5). Returns the provider's
  * DepositInstruction; the user signs the USDC/SOL transfer themselves.
  */

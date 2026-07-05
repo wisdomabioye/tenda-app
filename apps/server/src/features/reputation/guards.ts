@@ -1,5 +1,5 @@
 /**
- * requireGoodStanding(op) — Fastify preHandler gating create / accept /
+ * requireGoodStanding(op), Fastify preHandler gating create / accept /
  * dispute behind the active restriction (stage-7-reputation.md § server).
  * Expired restrictions pass transparently; manual_review blocks everything.
  */

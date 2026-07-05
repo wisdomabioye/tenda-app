@@ -1,7 +1,7 @@
 // Parent scope plugin for all /v1/admin/* routes.
 //
 // IMPORTANT (autoload semantics): because this directory has an index file,
-// @fastify/autoload loads ONLY this file — sibling route files are NOT
+// @fastify/autoload loads ONLY this file, sibling route files are NOT
 // auto-registered ("…unless the directory contains an index file. In which
 // case, only the index file (and the potential sub-directories) will be
 // loaded"). Every admin module must therefore be registered EXPLICITLY
@@ -28,7 +28,7 @@ import users from './users'
 
 const adminScope: FastifyPluginAsync = async (fastify) => {
   // NOTE: admin-origin enforcement lives in plugins/cors.ts (the single
-  // enforcement point — it also owns the preflight semantics the #90
+  // enforcement point, it also owns the preflight semantics the #90
   // dashboard needs). Duplicating an origin hook here once caused the two
   // checks to disagree about dev behaviour.
 

@@ -1,5 +1,5 @@
 /**
- * Keyword pre-screen provider — always runs first (~free, offline). A
+ * Keyword pre-screen provider, always runs first (~free, offline). A
  * critical match blocks without an LLM call; suspicious matches return
  * `null` (inconclusive) so the LLM pipeline inspects; a fully clean input
  * also returns `null` UNLESS the pipeline is running keyword-only (LLM
@@ -16,7 +16,7 @@ import type { ModerationInput, ModerationProvider, Verdict } from '@server/featu
 export interface KeywordScreen {
   /** Decisive block (critical match) or null. */
   verdict: Verdict | null
-  /** True when suspicious phrases matched — the LLM should look closer. */
+  /** True when suspicious phrases matched, the LLM should look closer. */
   suspicious: boolean
 }
 

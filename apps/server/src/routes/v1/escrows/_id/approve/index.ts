@@ -1,5 +1,5 @@
 /**
- * POST /v1/escrows/:id/approve — creator approves submitted proof.
+ * POST /v1/escrows/:id/approve, creator approves submitted proof.
  * State machine: submitted → completed. Releases funds + fee.
  */
 

@@ -2,7 +2,7 @@
  * Admin-dashboard login helpers (#84–#87).
  *
  * INVARIANT (schema/identity.ts admin_users doc-comment): admin_users is
- * the LOGIN REGISTRY only — granting an email here never grants authority;
+ * the LOGIN REGISTRY only, granting an email here never grants authority;
  * users.role through ROLE_PERMISSIONS stays the single truth, and the
  * OTP-verify route re-checks role + status at verify time.
  */
@@ -15,7 +15,7 @@ import { isPostgresUniqueViolation } from '@server/lib/db'
 import { isUuidLike } from '@server/lib/escrow-routes'
 import type { AppDatabase } from '@server/plugins/db'
 
-/** @deprecated alias kept for call sites — admin email cap is the shared {@link EMAIL_MAX_LENGTH}. */
+/** @deprecated alias kept for call sites, admin email cap is the shared {@link EMAIL_MAX_LENGTH}. */
 export const ADMIN_EMAIL_MAX_LENGTH = EMAIL_MAX_LENGTH
 
 /** Lowercase + trim; null when the shape is invalid. Delegates to the shared normaliser. */
@@ -25,7 +25,7 @@ export function normalizeAdminEmail(raw: string): string | null {
 
 /**
  * Attach (or rotate) the dashboard login email for an EXISTING admin.
- * Grants LOGIN only — never touches users.role; promotion is
+ * Grants LOGIN only, never touches users.role; promotion is
  * PATCH /v1/admin/users/:id/role. Callers: the ops bootstrap script
  * (#85, added_by = null) and the super_admin provisioning surface (#87,
  * added_by = acting admin).
@@ -54,7 +54,7 @@ export async function grantAdminEmail(
     throw new AppError(
       422,
       ErrorCode.VALIDATION_ERROR,
-      `user role is '${user.role}' — login email requires an existing admin; promote via PATCH /v1/admin/users/:id/role first`,
+      `user role is '${user.role}', login email requires an existing admin; promote via PATCH /v1/admin/users/:id/role first`,
     )
   }
 
@@ -67,7 +67,7 @@ export async function grantAdminEmail(
         set: { email, added_by: args.added_by },
       })
   } catch (err) {
-    // The user_id conflict is handled above — reaching here means the
+    // The user_id conflict is handled above, reaching here means the
     // EMAIL unique constraint: another admin already logs in with it.
     if (isPostgresUniqueViolation(err)) {
       throw new AppError(409, ErrorCode.EMAIL_IN_USE, 'email already assigned to another admin')

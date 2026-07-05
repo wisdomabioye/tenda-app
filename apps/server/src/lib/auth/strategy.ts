@@ -1,5 +1,5 @@
 /**
- * Stage 9 unified auth — pluggable strategy contract. Every login method
+ * Stage 9 unified auth, pluggable strategy contract. Every login method
  * (phone, email, google, apple, wallet) normalises to one `verify` →
  * `VerifyOutcome` shape so the `/auth/challenge` + `/auth/verify` routes stay
  * method-agnostic. Adding a method = register one strategy; routes never
@@ -43,7 +43,7 @@ export interface ChallengeInput {
   user_id: string | null
 }
 
-/** Outcome of a challenge — OTP channels report `expires_in`; others omit it. */
+/** Outcome of a challenge, OTP channels report `expires_in`; others omit it. */
 export interface ChallengeOutcome {
   expires_in?: number
 }
@@ -60,5 +60,5 @@ export interface AuthStrategy {
   verify(proof: VerifyProof): Promise<VerifyOutcome>
 }
 
-/** The strategy set is partial — methods not yet wired (e.g. OAuth pre-9B) are absent. */
+/** The strategy set is partial, methods not yet wired (e.g. OAuth pre-9B) are absent. */
 export type AuthStrategyRegistry = Partial<Record<AuthMethod, AuthStrategy>>

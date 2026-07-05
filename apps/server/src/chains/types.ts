@@ -8,7 +8,7 @@
  *
  * Status: types-only scaffolding. Implementations land per stage:
  *   - Solana adapter:  Stage 0
- *   - EVM adapter:     Stage 3 (BASE) — same impl reused for Stage 4 (CELO)
+ *   - EVM adapter:     Stage 3 (BASE), same impl reused for Stage 4 (CELO)
  *   - Listeners:       Stage 2 onward
  *
  * No `any` / `unknown` casts allowed (project rule). Payloads are discriminated
@@ -49,7 +49,7 @@ export function isAmountRaw(value: unknown): value is AmountRaw {
 
 /**
  * Discriminated escrow action. The wire-name (`'createEscrow'`) maps to the
- * Solana instruction / Solidity function 1:1 — adapters do not rename.
+ * Solana instruction / Solidity function 1:1, adapters do not rename.
  */
 export type EscrowAction =
   | 'createEscrow'
@@ -89,8 +89,8 @@ export type EscrowEvent = (typeof ESCROW_EVENTS)[number]
 
 /**
  * DB-vocabulary transaction types (`escrow_transactions.type` /
- * `tx_attempts.action` — snake_case). Single source lives in @tenda/shared
- * (mobile builds client-ping bodies from the same const — resolves
+ * `tx_attempts.action`, snake_case). Single source lives in @tenda/shared
+ * (mobile builds client-ping bodies from the same const, resolves
  * open_issues §10.9 for the tx-type axis); re-exported here so chain code
  * keeps one import surface.
  */
@@ -126,7 +126,7 @@ export interface CreateEscrowPayload {
   /**
    * Server-generated DB row id (`escrows.id`, UUID), populated by the route
    * handler from the `INSERT ... RETURNING id` of the draft escrow row.
-   * NOT the on-chain `escrow_ref` — that's emitted by the contract.
+   * NOT the on-chain `escrow_ref`, that's emitted by the contract.
    */
   escrow_id: string
   kind: 'gig' | 'exchange'
@@ -143,7 +143,7 @@ export interface CreateEscrowPayload {
   dispute_bond_raw: AmountRaw
   is_seeker: boolean
   /**
-   * EIP-2612 signature covering `amount_raw` — EVM ERC-20 assets only. When
+   * EIP-2612 signature covering `amount_raw`, EVM ERC-20 assets only. When
    * present the builder encodes `createEscrowWithPermit` (allowance rides
    * the tx); validated by lib/escrow-create + the builder (native asset
    * rejects). Routes never forward it to non-eip155 adapters.
@@ -175,7 +175,7 @@ export interface ResolveDisputePayload {
   /**
    * User id of the party that raised the dispute (`disputes.raised_by`).
    * Solana's `resolve_dispute_*` takes the raiser's wallet as an instruction
-   * argument (bond routing) — the adapter resolves the wallet through its
+   * argument (bond routing), the adapter resolves the wallet through its
    * injected resolver. The EVM contract records the raiser on-chain at
    * `disputeEscrow` and ignores this field.
    */
@@ -254,12 +254,12 @@ export type UnsignedTx =
 
 export interface VerifyTxArgs {
   /**
-   * Event the producer expects. Omitted by webhook/polling producers —
+   * Event the producer expects. Omitted by webhook/polling producers,
    * they only know a signature touched the program; the adapter then
    * matches ANY escrow event in the transaction.
    */
   expected_event?: EscrowEvent
-  /** Optional client hint — verified against decoded event payload. */
+  /** Optional client hint, verified against decoded event payload. */
   escrow_id?: string
 }
 
@@ -285,8 +285,8 @@ export type VerifiedTx =
    * (e.g. a program upgrade, IDL write, or any tx that touched the program
    * without emitting an escrow event). Only produced on the wide-net path
    * (no `expected_event`), where a producer polls every signature touching
-   * the program. Terminal + inert: nothing to apply, and — unlike `failed`
-   * — no failed attempt is recorded, so program-maintenance traffic never
+   * the program. Terminal + inert: nothing to apply, and, unlike `failed`
+   *, no failed attempt is recorded, so program-maintenance traffic never
    * pollutes `tx_attempts`.
    */
   | { confirmed: true; irrelevant: true; failed?: undefined; reason?: string }
@@ -294,7 +294,7 @@ export type VerifiedTx =
 // ---------- escrow state snapshot -----------------------------------------
 
 /**
- * Decoded on-chain escrow account state — a snapshot, not an event
+ * Decoded on-chain escrow account state, a snapshot, not an event
  * (resolves open_issues.md §10.10). Field vocabulary matches the DB
  * `escrows` row so reconciliation can diff directly.
  */
@@ -334,7 +334,7 @@ export interface EscrowState {
 export interface VerifyAuthSigArgs {
   address: string
   /**
-   * Raw auth-message string the user signed (Tenda-custom template — not
+   * Raw auth-message string the user signed (Tenda-custom template, not
    * strict SIWS/SIWE; see stage-1 § Auth-message template).
    */
   message: string
@@ -361,7 +361,7 @@ export interface ChainAdapter {
   fetchEscrowState(escrow_ref: string): Promise<EscrowState | null>
 
   /**
-   * Build the EIP-712 typed data for an EIP-2612 permit (EVM only — absent
+   * Build the EIP-712 typed data for an EIP-2612 permit (EVM only, absent
    * on chains without token-permit semantics; the route maps absence to a
    * typed PERMIT_UNAVAILABLE so clients fall back to the approve flow).
    * `owner` MUST already be verified as one of the caller's linked wallets.
@@ -375,7 +375,7 @@ export interface ChainAdapter {
 
   /**
    * Platform fee in raw units. Same surface as `lib/escrow.ts:computePlatformFee`
-   * — adapter delegates to the shared implementation; lives on the interface so
+   *, adapter delegates to the shared implementation; lives on the interface so
    * adapter consumers don't have to import from two places.
    */
   computeFee(args: {
@@ -390,7 +390,7 @@ export interface ChainAdapter {
 
 export interface RpcProvider {
   readonly chain_id: ChainId
-  /** Direct RPC fetch — reconciliation only, not request path. */
+  /** Direct RPC fetch, reconciliation only, not request path. */
   getTransactionStatus(tx_ref: string): Promise<'unknown' | 'pending' | 'confirmed' | 'failed'>
 }
 
@@ -411,7 +411,7 @@ export interface PushService {
     failed: number
     /**
      * Tokens the provider reported as permanently GONE (Expo
-     * DeviceNotRegistered / FCM UNREGISTERED / APNs 410) — callers prune
+     * DeviceNotRegistered / FCM UNREGISTERED / APNs 410), callers prune
      * these from device_tokens. Transient failures are NOT included.
      */
     invalid_tokens: string[]
@@ -425,7 +425,7 @@ export interface ChainRegistry {
   has(chain_id: ChainId): boolean
   list(): ReadonlyArray<ChainAdapter>
   /**
-   * Verify a wallet auth-signature for `chain_id` by NAMESPACE — pure offline
+   * Verify a wallet auth-signature for `chain_id` by NAMESPACE, pure offline
    * crypto that works even when the chain is NOT provisioned on this deployment
    * (so login never requires a deployed escrow contract). 400 on an unsupported
    * namespace. Distinct from per-chain `get(id).verifyTx` (which needs RPC).

@@ -1,5 +1,5 @@
 /**
- * GET /v1/users/:id/escrows — the user's own escrows (gigs and exchanges
+ * GET /v1/users/:id/escrows, the user's own escrows (gigs and exchanges
  * alike), newest first. Replaces the legacy /users/:id/gigs +
  * /users/:id/exchange split (cutover §2). Own-data only: drafts and full
  * lifecycle states are visible here, unlike the public browse surfaces.

@@ -1,7 +1,7 @@
 /**
  * In-process BullMQ workers + repeatable schedules (#33; stage-0 open
  * question resolved: in-process is fine until volume justifies a separate
- * worker deployment — at which point this plugin moves verbatim into its
+ * worker deployment, at which point this plugin moves verbatim into its
  * own entrypoint).
  *
  * Gated on REDIS_URL: without it nothing starts and the API behaves
@@ -9,10 +9,10 @@
  * lazy expiry carry the load).
  *
  * Retry posture: verify-tx throws RetryableError while a tx awaits
- * confirmation — BullMQ retries on the queue's exponential backoff; once
+ * confirmation, BullMQ retries on the queue's exponential backoff; once
  * attempts exhaust, the reconcile repeatable owns the attempt (its 5-min
  * scan re-enqueues anything the chain eventually confirms and times out
- * the rest at 30min — stage-2 § reconciliation).
+ * the rest at 30min, stage-2 § reconciliation).
  */
 
 import fp from 'fastify-plugin'
@@ -49,7 +49,7 @@ function repeatable<N extends JobName>(spec: RepeatableSpec<N>): RepeatableSpec<
 }
 
 /**
- * The complete periodic schedule — exported so tests can assert that every
+ * The complete periodic schedule, exported so tests can assert that every
  * repeatable handler is actually registered here (the price-stats rollup
  * shipped tested-but-unscheduled once; the schedule test pins against that).
  */
@@ -65,7 +65,7 @@ export const REPEATABLES = [
 const workersPlugin: FastifyPluginAsync = async (fastify) => {
   const { REDIS_URL } = getConfig()
   if (REDIS_URL === null) {
-    fastify.log.info('workers: REDIS_URL unset — queue consumers not started')
+    fastify.log.info('workers: REDIS_URL unset, queue consumers not started')
     return
   }
 
@@ -85,7 +85,7 @@ const workersPlugin: FastifyPluginAsync = async (fastify) => {
       { connection, concurrency: WORKER_CONCURRENCY[name] },
     )
     worker.on('failed', (job, err) => {
-      // RetryableError exhausting attempts is expected for slow chains —
+      // RetryableError exhausting attempts is expected for slow chains,
       // the reconcile repeatable owns the attempt from here. Anything
       // else deserves a louder line.
       if (err.name === 'RetryableError') {
@@ -103,7 +103,7 @@ const workersPlugin: FastifyPluginAsync = async (fastify) => {
     workers.push(worker)
   }
 
-  // Repeatable schedules — deterministic scheduler ids make boot
+  // Repeatable schedules, deterministic scheduler ids make boot
   // re-registration an upsert, never a duplicate.
   const schedulerQueues: Queue[] = []
   for (const r of REPEATABLES) {

@@ -69,7 +69,7 @@ const adminReports: FastifyPluginAsync = async (fastify) => {
     return { data, total: countResult[0].count, limit: safeLimit, offset: safeOffset }
   })
 
-  // PATCH /v1/admin/reports/:id — action a report. Content takedown has no
+  // PATCH /v1/admin/reports/:id, action a report. Content takedown has no
   // v2 'hidden' flag: act on the OWNER (suspend via /admin/users) or the
   // listing's lifecycle (dispute/resolve) instead.
   fastify.patch<{

@@ -52,10 +52,10 @@ export interface FiatStore {
   /**
    * Status-guarded patch: applies only while the row is in one of
    * `from`. Returns the updated row or null when the guard missed
-   * (concurrent transition — caller treats as already-handled).
+   * (concurrent transition, caller treats as already-handled).
    */
   transition(id: string, from: readonly FiatIntentStatus[], patch: IntentPatch): Promise<FiatIntentRow | null>
-  /** Open intents older than `olderThan` — reconcile candidates. */
+  /** Open intents older than `olderThan`, reconcile candidates. */
   listStaleOpen(olderThan: Date, limit: number): Promise<FiatIntentRow[]>
   /** Quoted/awaiting_user intents whose quote expired before `now`. */
   listExpiredQuotes(now: Date, limit: number): Promise<FiatIntentRow[]>

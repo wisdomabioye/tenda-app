@@ -1,5 +1,5 @@
 /**
- * CORS policy (S5.5, closes open A3; reworked for the #90 dashboard — the
+ * CORS policy (S5.5, closes open A3; reworked for the #90 dashboard, the
  * first real BROWSER consumer of this API):
  *   - Plugin level: CORS_ORIGIN list ∪ ADMIN_ORIGIN list (null CORS_ORIGIN
  *     = mirror any origin, dev only). The union matters: @fastify/cors is
@@ -8,13 +8,13 @@
  *     origin must also reach the /v1/auth/admin/* login routes, which sit
  *     OUTSIDE the admin prefix. Setting ADMIN_ORIGIN alone is sufficient.
  *   - /v1/admin/*: the hook below additionally scopes browser access to
- *     ADMIN_ORIGIN when it is set — app web origins can never call admin
+ *     ADMIN_ORIGIN when it is set, app web origins can never call admin
  *     routes even though they pass the plugin. This closes the
  *     XSS-exfiltration path for a leaked admin JWT. ADMIN_ORIGIN unset =
  *     dev allow-all (matching the documented dev semantics); non-browser
  *     clients send no Origin header and rely on JWT auth alone.
  *
- * This is the SINGLE admin-origin enforcement point — routes/v1/admin/
+ * This is the SINGLE admin-origin enforcement point, routes/v1/admin/
  * index.ts deliberately has no origin hook of its own.
  */
 
@@ -33,7 +33,7 @@ export default fp(async (fastify) => {
       CORS_ORIGIN === null
         ? true
         : [...new Set([...CORS_ORIGIN, ...(ADMIN_ORIGIN ?? [])])],
-    // @fastify/cors defaults to GET,HEAD,POST — the dashboard's PATCH/PUT/
+    // @fastify/cors defaults to GET,HEAD,POST, the dashboard's PATCH/PUT/
     // DELETE preflights (takedown, role changes, config) need the rest.
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   })
@@ -45,7 +45,7 @@ export default fp(async (fastify) => {
     if (!request.url.startsWith(ADMIN_PREFIX)) return
     if (ADMIN_ORIGIN === null) return // dev: allow-all (documented semantics)
     const origin = request.headers.origin
-    if (origin === undefined) return // non-browser client — JWT auth still applies
+    if (origin === undefined) return // non-browser client, JWT auth still applies
     if (ADMIN_ORIGIN.includes(origin)) return
     return reply.code(403).send({
       statusCode: 403,

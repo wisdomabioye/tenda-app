@@ -1,9 +1,9 @@
 /**
- * POST /v1/auth/admin/verify-email-otp — finish an admin-dashboard login (#86).
+ * POST /v1/auth/admin/verify-email-otp, finish an admin-dashboard login (#86).
  *
  * Body: { email, code } → { token, expires_in, user }. The JWT payload is
  * the same { id, role } every other surface uses (auth plugin + statusCache
- * work unchanged); only the lifetime differs — ADMIN_JWT_EXPIRES_IN (12h
+ * work unchanged); only the lifetime differs, ADMIN_JWT_EXPIRES_IN (12h
  * default), never the mobile 7d. Role + status are re-checked at verify
  * time inside verifyAdminLoginOtp; failures are a uniform 401 OTP_INVALID
  * (no admin-email oracle), with OTP_EXPIRED only for the correct code.
@@ -37,7 +37,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         { email, code },
       )
 
-      // `token_ttl` (a duration string, e.g. '12h') — deliberately NOT
+      // `token_ttl` (a duration string, e.g. '12h'), deliberately NOT
       // `expires_in`, which the send route uses for the CODE lifetime in
       // seconds; same-named fields with different units would be a trap.
       const expiresIn = getConfig().ADMIN_JWT_EXPIRES_IN

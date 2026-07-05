@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { StyleSheet } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { Text } from '@/components/ui/Text'
 import { Spacer } from '@/components/ui/Spacer'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 
@@ -10,14 +12,24 @@ import { BottomSheet } from '@/components/ui/BottomSheet'
 export function DisputeSheet({
   visible,
   onClose,
+  bondLabel = null,
   onDisputeReady,
 }: {
   visible: boolean
   onClose: () => void
+  /** Formatted dispute bond (e.g. "5 USDC"), or null when no bond is required. */
+  bondLabel?: string | null
   onDisputeReady: (reason: string) => Promise<boolean>
 }) {
+  const { theme } = useUnistyles()
   const [reason, setReason] = useState('')
   const [loading, setLoading] = useState(false)
+
+  // Spell out the on-chain cost + wallet step before the user commits.
+  const note =
+    bondLabel !== null
+      ? `A ${bondLabel} bond is locked in escrow when you open a dispute (returned if it resolves in your favour). Your wallet will open to approve.`
+      : 'Your wallet will open to approve when you raise the dispute.'
 
   function close() {
     setReason('')
@@ -47,6 +59,10 @@ export function DisputeSheet({
         style={s.multiline}
         maxLength={2000}
       />
+      <Spacer size={spacing.sm} />
+      <Text variant="caption" color={theme.colors.content.secondary}>
+        {note}
+      </Text>
       <Spacer size={spacing.md} />
       <Button variant="danger" size="xl" fullWidth disabled={!reason.trim()} loading={loading} onPress={handleDispute}>
         Raise Dispute

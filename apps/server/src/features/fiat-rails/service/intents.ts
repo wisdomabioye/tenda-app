@@ -36,7 +36,7 @@ export async function initiateIntent(
   }
   if (intent.expires_at < deps.now()) {
     await deps.store.transition(intent.id, ['quoted'], { status: 'failed' })
-    throw new AppError(410, ErrorCode.QUOTE_EXPIRED, 'quote expired — request a new one')
+    throw new AppError(410, ErrorCode.QUOTE_EXPIRED, 'quote expired, request a new one')
   }
   if (intent.direction === 'offramp' && opts.bank_account === undefined) {
     throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'bank_account_id required for offramp')
@@ -78,7 +78,7 @@ export async function initiateIntent(
     metadata: { ...(meta ?? {}), instruction: result.instruction },
   })
   if (updated === null) {
-    throw new AppError(409, ErrorCode.VALIDATION_ERROR, 'intent changed concurrently — refetch')
+    throw new AppError(409, ErrorCode.VALIDATION_ERROR, 'intent changed concurrently, refetch')
   }
   return {
     intent_id: intent.id,
@@ -97,6 +97,6 @@ export async function cancelIntent(deps: FiatDeps, user_id: string, intent_id: s
     status: 'cancelled',
   })
   if (updated === null) {
-    throw new AppError(409, ErrorCode.VALIDATION_ERROR, `intent is ${intent.status} — cannot cancel`)
+    throw new AppError(409, ErrorCode.VALIDATION_ERROR, `intent is ${intent.status}, cannot cancel`)
   }
 }

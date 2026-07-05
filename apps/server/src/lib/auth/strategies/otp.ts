@@ -1,5 +1,5 @@
 /**
- * OTP-based auth strategy (phone + email) — one factory for both channels;
+ * OTP-based auth strategy (phone + email), one factory for both channels;
  * they differ only in identifier normalisation and which sender fires. Wraps
  * the channel-agnostic lib/otp service.
  */

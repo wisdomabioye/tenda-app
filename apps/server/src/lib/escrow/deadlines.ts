@@ -1,5 +1,5 @@
 /**
- * Escrow deadline math — accept window, completion window, approval window.
+ * Escrow deadline math, accept window, completion window, approval window.
  * Pure date arithmetic; the windows themselves come from platform_config.
  */
 

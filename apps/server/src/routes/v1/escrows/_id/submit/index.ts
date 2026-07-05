@@ -1,7 +1,7 @@
 /**
- * POST /v1/escrows/:id/submit — counterparty submits proof of completion.
+ * POST /v1/escrows/:id/submit, counterparty submits proof of completion.
  *
- * Body: { proof_hash } — 32-byte hex (EVM) or base58 (Solana) digest of the
+ * Body: { proof_hash }, 32-byte hex (EVM) or base58 (Solana) digest of the
  * proof bundle. Server doesn't verify the hash format here; the chain
  * contract validates length.
  *

@@ -1,5 +1,5 @@
 /**
- * POST /v1/fiat/intents/:id/cancel — user-initiated cancel; only quoted /
+ * POST /v1/fiat/intents/:id/cancel, user-initiated cancel; only quoted /
  * awaiting_user intents qualify (in-flight provider work can't be
  * unilaterally abandoned).
  */

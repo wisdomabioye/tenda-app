@@ -1,11 +1,11 @@
 /**
- * Wallet auth-signature verification — a NAMESPACE-level concern (eip155 =
+ * Wallet auth-signature verification, a NAMESPACE-level concern (eip155 =
  * EIP-191 ecrecover, solana = ed25519), NOT a per-chain or per-deployment one.
  *
  * It is pure offline crypto: a wallet proves control of its key without the
  * chain being PROVISIONED on this deployment (no RPC, no deployed escrow
  * contract). So LOGIN works for any supported namespace even when only one
- * chain is configured — escrow signing still needs the provisioned adapter.
+ * chain is configured, escrow signing still needs the provisioned adapter.
  *
  * This is the SINGLE source of the sig crypto: the chain registry's
  * `verifyAuthSig` and the per-chain adapters both delegate here (no duplication).
@@ -44,7 +44,7 @@ async function verifyEip155(a: VerifyAuthSigArgs): Promise<boolean> {
 
 /**
  * Ed25519 over the literal `message` bytes (base64 signature). Returns `false`
- * for any decode failure rather than throwing — callers map `false` to a 401.
+ * for any decode failure rather than throwing, callers map `false` to a 401.
  */
 export function verifyEd25519(a: VerifyAuthSigArgs): boolean {
   try {

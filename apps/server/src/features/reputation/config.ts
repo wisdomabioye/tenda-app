@@ -1,7 +1,7 @@
 /**
  * Restriction tier table (stage-7-reputation.md § Restriction tiers).
  * Thresholds read the on-the-fly windowed counts, never denormalized
- * columns. Cooldowns are absolute timestamps — no decay job.
+ * columns. Cooldowns are absolute timestamps, no decay job.
  *
  * Serial-disputer deterrence is the dispute_cooldown (locked decision #17
  * + stage-7 body); the contract's bond stays fixed at create time.
@@ -77,12 +77,12 @@ export const RESTRICTION_TIERS: ReadonlyArray<RestrictionTier> = [
 ]
 
 /** fraud_confirmed ≥ 1 → manual_review (no expiry; admin lifts). */
-export const FRAUD_RESTRICTION_REASON = 'fraud confirmed — account under review'
+export const FRAUD_RESTRICTION_REASON = 'fraud confirmed, account under review'
 
 /** Below this many outcomes the public completion_rate is null ("New user"). */
 export const COLD_START_MIN_OUTCOMES = 3
 
-// ── #82 fraud FLAG (admin-only signal — never an automatic restriction) ────
+// ── #82 fraud FLAG (admin-only signal, never an automatic restriction) ────
 
 /** Dispute rate strictly above this (in basis points) raises the flag. */
 export const DISPUTE_RATE_FLAG_THRESHOLD_BPS = 3000

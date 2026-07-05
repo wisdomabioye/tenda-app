@@ -1,7 +1,7 @@
 /**
- * Escrow state machine — status/transition types, the pure status mapper, the
+ * Escrow state machine, status/transition types, the pure status mapper, the
  * legality check, and their internal guards. The executable encoding of the
- * stage-0 § state-machine diagram — keep them in sync.
+ * stage-0 § state-machine diagram, keep them in sync.
  */
 
 import { AppError } from '@server/lib/errors'
@@ -48,7 +48,7 @@ export interface TransitionContext {
 
 /**
  * Pure mapper: given the current state + transition, return the resulting
- * status. **Assumes** the transition is legal — callers MUST first call
+ * status. **Assumes** the transition is legal, callers MUST first call
  * `assertCanTransition(ctx, t)` (it throws on illegal). Splitting the pure
  * mapping from the legality check keeps each function single-purpose and
  * makes testing the transition table cheap.
@@ -60,7 +60,7 @@ export function nextStatus(_ctx: TransitionContext, t: EscrowTransition): Escrow
     case 'accept':
       return 'accepted'
     case 'decline':
-      // Decline keeps status `open` — clears the assignment elsewhere. The
+      // Decline keeps status `open`, clears the assignment elsewhere. The
       // status itself doesn't change. Per stage-0 § state machine + the EVM
       // contract spec (stage-3-base.md `declineAssignedEscrow`).
       return 'open'
@@ -84,7 +84,7 @@ export function nextStatus(_ctx: TransitionContext, t: EscrowTransition): Escrow
 /**
  * Throws an `AppError` with a precise code if the transition is disallowed
  * by the state machine, caller, or deadline. Returns `void` on legal
- * transitions — call `nextStatus(ctx, t)` next.
+ * transitions, call `nextStatus(ctx, t)` next.
  */
 export function assertCanTransition(ctx: TransitionContext, t: EscrowTransition): void {
   switch (t) {
@@ -191,7 +191,7 @@ function requireCaller(
 
 function requireBefore(ctx: TransitionContext, deadline: Date | null, label: string): void {
   if (deadline === null) {
-    throw new AppError(500, ErrorCode.INTERNAL_ERROR, `${label} missing on escrow row — transition requires it`)
+    throw new AppError(500, ErrorCode.INTERNAL_ERROR, `${label} missing on escrow row, transition requires it`)
   }
   if (ctx.now.getTime() >= deadline.getTime()) {
     throw new AppError(409, ErrorCode.ESCROW_DEADLINE_PASSED, `${label} has passed`)
@@ -200,7 +200,7 @@ function requireBefore(ctx: TransitionContext, deadline: Date | null, label: str
 
 function requireAfter(ctx: TransitionContext, deadline: Date | null, label: string): void {
   if (deadline === null) {
-    throw new AppError(500, ErrorCode.INTERNAL_ERROR, `${label} missing on escrow row — transition requires it`)
+    throw new AppError(500, ErrorCode.INTERNAL_ERROR, `${label} missing on escrow row, transition requires it`)
   }
   if (ctx.now.getTime() < deadline.getTime()) {
     throw new AppError(409, ErrorCode.ESCROW_DEADLINE_NOT_REACHED, `${label} not yet reached`)

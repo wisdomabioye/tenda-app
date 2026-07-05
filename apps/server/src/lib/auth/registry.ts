@@ -2,7 +2,7 @@
  * Build the per-request auth strategy set from the Fastify context. OTP +
  * wallet strategies are cheap/stateless and built per call; the OAuth
  * verifiers wrap a remote JWKS whose cache lives INSIDE the verifier, so they
- * are built ONCE (module-level memo) and reused — rebuilding per request would
+ * are built ONCE (module-level memo) and reused, rebuilding per request would
  * defeat jose's JWKS cache and re-fetch provider keys on every sign-in.
  *
  * A provider with no configured audiences is simply absent from the registry;

@@ -10,7 +10,7 @@ import { AppError } from '@server/lib/errors'
 
 export const RESEND_API_URL = 'https://api.resend.com/emails'
 
-/** Timeout for the outbound Resend call — fail fast, do not hang a request. */
+/** Timeout for the outbound Resend call, fail fast, do not hang a request. */
 export const RESEND_TIMEOUT_MS = 15_000
 
 export interface EmailMessage {

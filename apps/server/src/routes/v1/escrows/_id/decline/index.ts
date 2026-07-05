@@ -1,5 +1,5 @@
 /**
- * POST /v1/escrows/:id/decline — assigned counterparty declines.
+ * POST /v1/escrows/:id/decline, assigned counterparty declines.
  *
  * State machine: open → open (status unchanged); on-chain action clears the
  * assignment so the gig becomes publicly acceptable. No penalty.

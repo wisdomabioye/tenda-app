@@ -51,7 +51,7 @@ export function escrowPdaFromUuid(escrow_id: string): PublicKey {
 }
 
 /**
- * Account decoders take the coder from a constructed `Program` — the
+ * Account decoders take the coder from a constructed `Program`, the
  * Program constructor camelCases the IDL, so account/field/event names line
  * up with the generated `TendaEscrow` type. Building a raw
  * `new BorshCoder(ESCROW_IDL)` would keep the JSON's snake_case names and

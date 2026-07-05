@@ -2,14 +2,14 @@
  * WebSocket protocol helpers + in-process broadcaster
  * (stage-2-listeners.md § WebSocket protocol).
  *
- * Auth travels in the subprotocol header — never the query string (JWTs in
+ * Auth travels in the subprotocol header, never the query string (JWTs in
  * URLs leak into proxy/access logs):
  *
  *   Sec-WebSocket-Protocol: tenda.v1.auth, <JWT>
  *
  * Channels: `escrow:<id>` (parties only), `chat:<conversation_id>`
  * (members only), `user:<id>` (self only). The broadcaster is in-process
- * pub/sub — Redis pub/sub lands with horizontal scaling (stage-2 open
+ * pub/sub, Redis pub/sub lands with horizontal scaling (stage-2 open
  * question, deliberately deferred).
  */
 
@@ -119,7 +119,7 @@ export async function authorizeChannel(
 
 // ---------- broadcaster ------------------------------------------------------------
 
-/** Minimal sink — the @fastify/websocket socket satisfies it structurally. */
+/** Minimal sink, the @fastify/websocket socket satisfies it structurally. */
 export interface WsSink {
   send(data: string): void
 }
@@ -166,7 +166,7 @@ export function createWsBroadcaster(): WsBroadcaster {
           sink.send(data)
           sent += 1
         } catch {
-          // Dead socket — drop it so the set self-heals.
+          // Dead socket, drop it so the set self-heals.
           set.delete(sink)
         }
       }

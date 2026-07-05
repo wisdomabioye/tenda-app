@@ -1,14 +1,14 @@
 /**
  * First-link native-gas seed (stage-1-onboarding.md, decision #16):
  * phone-verified users with a wallet on a seed-bearing chain receive a
- * one-time native-token grant. Chain-driven — a chain qualifies iff
+ * one-time native-token grant. Chain-driven, a chain qualifies iff
  * `chains.gas_seed_amount_raw IS NOT NULL`; adding a future chain is a DB
  * row + env var, no code change.
  *
  * Idempotency: `gas_grants` PK (user_id, chain_id) + insert-before-send.
  * The grant row is claimed FIRST with a placeholder tx_ref; only the
  * claimer performs the transfer, then stamps the real tx_ref. A concurrent
- * duplicate call loses the insert race and exits — the hot wallet can
+ * duplicate call loses the insert race and exits, the hot wallet can
  * never double-pay one user on one chain.
  *
  * The transfer itself is behind `GasSeedSender` so tests run offline and
@@ -43,7 +43,7 @@ export interface GasSeedStore {
   findWalletAddress(user_id: string, namespace: ChainNamespace): Promise<string | null>
   /**
    * Claim the grant slot. Returns false when a grant already exists
-   * (PK conflict) — the caller must not transfer.
+   * (PK conflict), the caller must not transfer.
    */
   claimGrant(row: {
     user_id: string
@@ -123,10 +123,10 @@ export interface GasSeedResult {
 
 /**
  * Run the seed check for one user across every seedable chain. Safe to call
- * on every wallet link AND after phone verification (the retroactive path) —
+ * on every wallet link AND after phone verification (the retroactive path),
  * non-eligible cases exit cheaply, duplicates are blocked by the claim.
  *
- * Caller must have already established phone verification — this function
+ * Caller must have already established phone verification, this function
  * does not re-check it (single responsibility; the routes own eligibility).
  */
 export async function dispatchGasSeeds(deps: GasSeedDeps, user_id: string): Promise<GasSeedResult> {
@@ -137,7 +137,7 @@ export async function dispatchGasSeeds(deps: GasSeedDeps, user_id: string): Prom
     const sender = deps.senders[chain.namespace]
     if (sender === undefined) {
       result.skipped.push({ chain_id: chain.chain_id, reason: 'seed wallet key not configured' })
-      deps.log.warn({ chain_id: chain.chain_id }, 'gas seed skipped — sender not configured')
+      deps.log.warn({ chain_id: chain.chain_id }, 'gas seed skipped, sender not configured')
       continue
     }
     const address = await deps.store.findWalletAddress(user_id, chain.namespace)
@@ -147,7 +147,7 @@ export async function dispatchGasSeeds(deps: GasSeedDeps, user_id: string): Prom
     }
 
     // Claim first: the placeholder tx_ref must be unique per slot (tx_ref
-    // has a UNIQUE constraint) — derive it from the PK.
+    // has a UNIQUE constraint), derive it from the PK.
     const placeholder = `pending:${user_id}:${chain.chain_id}`
     const claimed = await deps.store.claimGrant({
       user_id,
@@ -169,7 +169,7 @@ export async function dispatchGasSeeds(deps: GasSeedDeps, user_id: string): Prom
       result.granted.push({ chain_id: chain.chain_id, tx_ref })
       deps.log.info({ user_id, chain_id: chain.chain_id, tx_ref }, 'gas seed granted')
     } catch (err) {
-      // Transfer failed — release the slot so a later attempt can retry.
+      // Transfer failed, release the slot so a later attempt can retry.
       await deps.store.releaseGrant(user_id, chain.chain_id)
       result.skipped.push({ chain_id: chain.chain_id, reason: 'transfer failed' })
       deps.log.warn({ err, user_id, chain_id: chain.chain_id }, 'gas seed transfer failed')

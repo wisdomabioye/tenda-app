@@ -1,5 +1,5 @@
 /**
- * POST /v1/escrows/:id/cancel — creator unwinds before any acceptance.
+ * POST /v1/escrows/:id/cancel, creator unwinds before any acceptance.
  * State machine: open (no counterparty acted) → cancelled.
  */
 

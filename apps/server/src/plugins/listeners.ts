@@ -25,7 +25,7 @@ const listenersPlugin: FastifyPluginAsync = async (fastify) => {
 
   const adapter = fastify.chains.list().find((a) => a.namespace === 'solana')
   if (adapter === undefined) {
-    fastify.log.warn({}, 'polling listener: no solana adapter registered — not started')
+    fastify.log.warn({}, 'polling listener: no solana adapter registered, not started')
     return
   }
 

@@ -1,14 +1,14 @@
 /**
- * BullMQ + Redis queue plugin. Stage 0 ships a **typed surface only** —
+ * BullMQ + Redis queue plugin. Stage 0 ships a **typed surface only**,
  * the BullMQ + ioredis dependency add and connection wiring land alongside
  * #33 (Redis provisioning). Until then, `fastify.queue.enqueue(...)` throws
  * `INTERNAL_ERROR` so call sites fail loud instead of silently dropping jobs.
  *
  * Spec (stage-0-foundation.md § Infrastructure):
- *   - `notifications`  — push fan-out
- *   - `expire-escrows` — repeatable job (every 60s)
- *   - `verify-tx`      — Stage 2 producer (class exists; no producers yet)
- *   - `reconcile`      — Stage 2 placeholder
+ *   - `notifications` , push fan-out
+ *   - `expire-escrows`, repeatable job (every 60s)
+ *   - `verify-tx`     , Stage 2 producer (class exists; no producers yet)
+ *   - `reconcile`     , Stage 2 placeholder
  *
  * Adding a new queue: add the variant to `JobName` + matching payload to
  * `JobPayload`. TypeScript exhaustiveness ensures callers can't enqueue an
@@ -43,7 +43,7 @@ export type JobName =
 export interface JobPayload {
   notifications: {
     /**
-     * Recipient user — the delivery worker resolves device tokens at send
+     * Recipient user, the delivery worker resolves device tokens at send
      * time (tokens churn between enqueue and delivery; resolving early
      * would push to stale devices).
      */
@@ -61,27 +61,27 @@ export interface JobPayload {
   reconcile: {
     /**
      * Optional log-correlation window. The handler derives its real scan
-     * window from its injected clock — repeatable jobs carry a static
+     * window from its injected clock, repeatable jobs carry a static
      * payload, so these can't be fresh per tick.
      */
     from_iso?: string
     to_iso?: string
   }
-  /** Stage-8 repeatables — tick id for log correlation. */
+  /** Stage-8 repeatables, tick id for log correlation. */
   'reconcile-fiat': { tick_id: string }
   'expire-fiat-quotes': { tick_id: string }
   /**
-   * Decoupled OTP delivery — the auth challenge persists the code then enqueues
+   * Decoupled OTP delivery, the auth challenge persists the code then enqueues
    * this so the response never blocks on the email/SMS provider. Carries the
    * plaintext code (short-lived; removed on completion via `remove_on_complete`).
    */
   'send-otp': OtpMessage
-  /** Nightly category_price_stats rollup (stage-6) — tick id for log correlation. */
+  /** Nightly category_price_stats rollup (stage-6), tick id for log correlation. */
   'update-price-stats': { tick_id: string }
 }
 
 export interface EnqueueOptions {
-  /** Idempotency key — BullMQ `jobId`. Same id de-dups across enqueues. */
+  /** Idempotency key, BullMQ `jobId`. Same id de-dups across enqueues. */
   job_id?: string
   /** Delay before the job becomes available, in milliseconds. */
   delay_ms?: number
@@ -105,7 +105,7 @@ export interface QueueService {
 
 // ---------- plugin -------------------------------------------------------
 
-/** Default retry posture — verify-tx overrides per its confirmation cadence. */
+/** Default retry posture, verify-tx overrides per its confirmation cadence. */
 const DEFAULT_JOB_OPTIONS = {
   attempts: 5,
   backoff: { type: 'exponential' as const, delay: 2_000 },
@@ -131,7 +131,7 @@ export interface QueueConnectionOptions {
 }
 
 /** Parse REDIS_URL into BullMQ connection options (each Queue/Worker owns
- *  its client — no shared-instance type coupling to a specific ioredis). */
+ *  its client, no shared-instance type coupling to a specific ioredis). */
 export function queueConnectionOptions(redis_url: string): QueueConnectionOptions {
   const u = new URL(redis_url)
   return {

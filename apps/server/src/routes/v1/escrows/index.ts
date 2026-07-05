@@ -1,5 +1,5 @@
 /**
- * POST /v1/escrows — the create entry for the escrow primitive.
+ * POST /v1/escrows, the create entry for the escrow primitive.
  *
  * Flow: validate (lib/escrow-create.ts) → generate the id server-side →
  * build the unsigned createEscrow tx (the DB id is the on-chain PDA seed)
@@ -8,10 +8,10 @@
  * the unsigned tx is only returned when the row exists.
  *
  * Domain satellites (gig_details / exchange_details) are attached by the
- * kind-specific create routes (cutover §3 — "gigs/: listings +
+ * kind-specific create routes (cutover §3, "gigs/: listings +
  * create-detail only"); this route owns the chain-agnostic core.
  *
- * is_seeker comes from the DB user row, never the request body — it
+ * is_seeker comes from the DB user row, never the request body, it
  * selects the fee tier and must not be client-claimed.
  */
 
@@ -53,7 +53,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
       const escrow_id = randomUUID()
       const adapter = fastify.chains.get(input.chain_id)
-      // EIP-2612 is an EVM-token concept — never forward a permit to an
+      // EIP-2612 is an EVM-token concept, never forward a permit to an
       // adapter whose namespace can't encode it.
       if (input.permit !== null && adapter.namespace !== 'eip155') {
         throw new AppError(

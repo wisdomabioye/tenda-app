@@ -1,6 +1,6 @@
 /**
  * Fiat-rails public surface (stage-8-fiat-rails.md). Routes/webhooks/jobs
- * import from HERE — never from the module internals (exit criterion: single
+ * import from HERE, never from the module internals (exit criterion: single
  * import surface). Live DI assembly is in ./live-deps; the P2P drizzle wiring
  * it composes is in ./p2p-live; the quote/initiate/settle service is ./service.
  */

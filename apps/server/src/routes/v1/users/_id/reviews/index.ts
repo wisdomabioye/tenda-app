@@ -8,7 +8,7 @@ import type { UsersContract, ApiError } from '@tenda/shared'
 type ReviewsRoute = UsersContract['reviews']
 
 const userReviews: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/users/:id/reviews — paginated list of reviews for a user
+  // GET /v1/users/:id/reviews, paginated list of reviews for a user
   fastify.get<{
     Params: ReviewsRoute['params']
     Querystring: ReviewsRoute['query']

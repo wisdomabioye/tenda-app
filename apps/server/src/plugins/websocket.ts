@@ -14,7 +14,7 @@ const websocketPlugin: FastifyPluginAsync = async (fastify) => {
   await fastify.register(websocket, {
     options: {
       // Browsers ABORT the connection when they request subprotocols and
-      // the server's handshake response doesn't select one — echo the auth
+      // the server's handshake response doesn't select one, echo the auth
       // marker back when offered (the JWT rides as a second "protocol" and
       // must not be echoed).
       handleProtocols(protocols: Set<string>) {

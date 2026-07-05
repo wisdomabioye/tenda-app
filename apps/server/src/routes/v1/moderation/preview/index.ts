@@ -1,5 +1,5 @@
 /**
- * POST /v1/moderation/preview — dry-run verdict for live UI hints while
+ * POST /v1/moderation/preview, dry-run verdict for live UI hints while
  * the user types (stage-6: debounced 800ms client-side, never blocking).
  * Persists with subject_kind='gig_draft' and no subject id; the cache
  * makes the final-submit call free when the input didn't change.

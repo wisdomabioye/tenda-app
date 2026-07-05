@@ -1,11 +1,11 @@
 /**
  * Exchange order-book surface (cutover §3 rewrite): escrows kind='exchange'
  * ⨝ exchange_details ⨝ users.
- *   GET  / — the order book (auth required to keep it off public scrapers).
+ *   GET  /, the order book (auth required to keep it off public scrapers).
  *            Browsing/accepting is open to ALL users; advanced_mode_enabled
  *            gates offer CREATION only (decision #14, settled 2026-06-05).
- *   POST / — attach exchange_details to the caller's DRAFT escrow (CO4
- *            advanced-mode offer creation — mirror of the gig create-detail
+ *   POST /, attach exchange_details to the caller's DRAFT escrow (CO4
+ *            advanced-mode offer creation, mirror of the gig create-detail
  *            step). Transitions live under /v1/escrows. The data carries no
  *            payment-account PII (bank details live in fiat-rails
  *            bank_accounts, revealed only inside an accepted intent).
@@ -34,7 +34,7 @@ type ListRoute = ExchangeContract['list']
 type CreateRoute = ExchangeContract['create']
 
 const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/exchange — order book (auth required to prevent scraping)
+  // GET /v1/exchange, order book (auth required to prevent scraping)
   fastify.get<{
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
@@ -47,7 +47,7 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     const now = new Date()
     const conditions: SQL[] = [
       eq(escrows.kind, 'exchange'),
-      // Market feed: open offers whose accept window hasn't passed —
+      // Market feed: open offers whose accept window hasn't passed,
       // display-correct even between expire-escrows job ticks. Taken-down
       // offers (CO1) never surface here.
       eq(escrows.status, 'open'),
@@ -100,10 +100,10 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // POST /v1/exchange — attach the offer terms to the caller's draft
+  // POST /v1/exchange, attach the offer terms to the caller's draft
   // escrow (CO4). Upsert while draft so a retry after a validation fix
   // never 409s; once the create tx confirms (draft → open) the satellite
-  // is immutable through this route. Numbers only — no moderation gate.
+  // is immutable through this route. Numbers only, no moderation gate.
   fastify.post<{
     Body: CreateRoute['body']
     Reply: CreateRoute['response'] | ApiError

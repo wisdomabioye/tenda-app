@@ -1,17 +1,17 @@
 /**
- * Solana ChainAdapter — full Stage 0 implementation against the rewritten
+ * Solana ChainAdapter, full Stage 0 implementation against the rewritten
  * escrow program (#29).
  *
  *   - `buildTx`: all 11 escrow actions, SOL/SPL instruction forking from
  *     on-chain state (`builders.ts`).
  *   - `verifyTx` / `fetchEscrowState`: event + account decoding (`verify.ts`).
  *   - `verifyAuthSig`: tweetnacl Ed25519 over the auth-message bytes.
- *   - `computeFee`: delegates to `lib/escrow.ts:computePlatformFee` — single
+ *   - `computeFee`: delegates to `lib/escrow.ts:computePlatformFee`, single
  *     source of truth for fee math across chains.
  *
  * Wallet + asset resolution are injected (`SolanaAdapterDeps`): the live
  * implementations (plugins/chains.ts) read `user_wallets` and the seeded
- * `assets` registry — the adapter itself never touches the DB.
+ * `assets` registry, the adapter itself never touches the DB.
  */
 
 import { Program } from '@coral-xyz/anchor'
@@ -72,7 +72,7 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     verifyTx: verifier.verifyTx,
     fetchEscrowState: verifier.fetchEscrowState,
 
-    // Namespace-level crypto (ed25519) — single source in lib/wallet-signature;
+    // Namespace-level crypto (ed25519), single source in lib/wallet-signature;
     // the registry's verifyAuthSig delegates to the same.
     verifyAuthSig: (a: VerifyAuthSigArgs) => verifyWalletSignature('solana', a),
 
@@ -82,5 +82,5 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
   }
 }
 
-/** Ed25519 auth-sig check — re-exported from the single source for callers/tests. */
+/** Ed25519 auth-sig check, re-exported from the single source for callers/tests. */
 export { verifyEd25519 } from '@server/lib/wallet-signature'

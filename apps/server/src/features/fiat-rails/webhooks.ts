@@ -2,7 +2,7 @@
  * Provider settlement webhooks (stage-8 § Onramp pipeline step 6).
  *
  * HMAC-SHA256 over the RAW request body (a scoped content-type parser
- * preserves the exact bytes — re-serializing parsed JSON would break
+ * preserves the exact bytes, re-serializing parsed JSON would break
  * signatures on whitespace/key-order). Tampered/absent signatures → 401;
  * unconfigured secret → 503 (reconciliation polling still converges
  * intents while the webhook is dark).
@@ -74,7 +74,7 @@ export function providerWebhookPlugin(args: {
       }
       const outcome = mapWebhookOutcome(field(payload, 'status'))
       if (outcome === null) {
-        // Non-terminal phase update — acknowledge without transitioning.
+        // Non-terminal phase update, acknowledge without transitioning.
         return reply.code(202).send({ ok: true })
       }
 
@@ -86,7 +86,7 @@ export function providerWebhookPlugin(args: {
         outcome,
         reason: typeof reason === 'string' ? reason : undefined,
       })
-      // 200 even for unknown refs (logged + dropped) — retry storms from
+      // 200 even for unknown refs (logged + dropped), retry storms from
       // the provider gain nothing.
       return reply.code(200).send({ ok: true })
     })

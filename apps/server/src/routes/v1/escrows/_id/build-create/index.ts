@@ -1,11 +1,11 @@
 /**
- * POST /v1/escrows/:id/build-create — rebuild the unsigned createEscrow tx
+ * POST /v1/escrows/:id/build-create, rebuild the unsigned createEscrow tx
  * for an OWNED DRAFT, giving server-opened drafts a publish path (CO4
  * residual: fiat-offramp sell offers are inserted without an unsigned tx)
  * and signing-declined drafts a retry that keeps their id.
  *
  * Drafts are pre-publish staging rows, so a lapsed/missing accept deadline
- * is refreshed (shared default window) rather than rejected — nothing the
+ * is refreshed (shared default window) rather than rejected, nothing the
  * counterparty saw has changed. The buyer-visible terms (asset, amount,
  * rate) are never touched here.
  */
@@ -20,14 +20,14 @@ import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
 
-/** Deadlines closer than this get refreshed — the program rejects a create
+/** Deadlines closer than this get refreshed, the program rejects a create
  *  whose accept window is already (about to be) over. */
 const REFRESH_MARGIN_MS = 60_000
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string } }>(
     '/',
-    // Publishing IS creating a live listing — same gates as POST /v1/escrows.
+    // Publishing IS creating a live listing, same gates as POST /v1/escrows.
     { preHandler: [fastify.authenticate, requireProfileComplete, requireGoodStanding('create')] },
     async (request) => {
       const escrow = await loadEscrowOr404(fastify.db, request.params.id)
@@ -38,11 +38,11 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(
           409,
           ErrorCode.ESCROW_WRONG_STATUS,
-          'Only drafts can be published — this escrow already left the draft state',
+          'Only drafts can be published, this escrow already left the draft state',
         )
       }
 
-      // A signed-and-broadcast create may still be verifying — building a
+      // A signed-and-broadcast create may still be verifying, building a
       // second create tx now would just fail on-chain (the PDA exists) and
       // confuse the client. Same guard as DELETE /v1/escrows/:id.
       const [pendingCreate] = await fastify.db
@@ -61,12 +61,12 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(
           409,
           ErrorCode.ESCROW_WRONG_STATUS,
-          'A create transaction is awaiting confirmation — wait for it to settle',
+          'A create transaction is awaiting confirmation, wait for it to settle',
         )
       }
 
       // Completion window: gigs always carry it (the create flow demands
-      // it); server-opened exchange drafts may predate the stamped insert —
+      // it); server-opened exchange drafts may predate the stamped insert,
       // fall back to the offer's fiat payment window.
       let completion_duration_seconds = escrow.completion_duration_seconds
       if (completion_duration_seconds === null && escrow.kind === 'exchange') {
@@ -81,7 +81,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(
           422,
           ErrorCode.VALIDATION_ERROR,
-          'Draft has no completion window — delete it and create the listing again',
+          'Draft has no completion window, delete it and create the listing again',
         )
       }
 
@@ -94,7 +94,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       }
 
       // The chain may have been deconfigured since the draft was created
-      // (e.g. BASE env removed) — surface a clean 503, not a raw throw.
+      // (e.g. BASE env removed), surface a clean 503, not a raw throw.
       if (!fastify.chains.has(escrow.chain_id)) {
         throw new AppError(
           503,
@@ -103,7 +103,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         )
       }
       const adapter = fastify.chains.get(escrow.chain_id)
-      // Publishing IS creating — same first-transaction gate as POST /v1/escrows
+      // Publishing IS creating, same first-transaction gate as POST /v1/escrows
       // (covers server-opened fiat-offramp drafts that never hit create's gate).
       // Runs BEFORE the deadline write so a rejected publish mutates nothing.
       await assertCanTransact(fastify.db, request.user.id, adapter.namespace)

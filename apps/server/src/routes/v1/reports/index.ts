@@ -13,7 +13,7 @@ const reportsRoute: FastifyPluginAsync = async (fastify) => {
   }>(
     '/',
     {
-      // Tighter rate limit — prevents admin queue flooding from a single user.
+      // Tighter rate limit, prevents admin queue flooding from a single user.
       config:     { rateLimit: { max: 5, timeWindow: '1 minute' } },
       preHandler: [fastify.authenticate],
     },
@@ -95,7 +95,7 @@ const reportsRoute: FastifyPluginAsync = async (fastify) => {
           .returning({ id: reports.id })
 
         if (!inserted) {
-          // Duplicate — idempotent re-submit (e.g. client retry after network error).
+          // Duplicate, idempotent re-submit (e.g. client retry after network error).
           const [existing] = await fastify.db
             .select({ id: reports.id })
             .from(reports)

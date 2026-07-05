@@ -24,7 +24,7 @@ export interface EvmReceipt {
 }
 
 /**
- * On-chain `escrows(bytes16)` tuple — field order matches the Solidity
+ * On-chain `escrows(bytes16)` tuple, field order matches the Solidity
  * struct exactly (the public mapping getter flattens it).
  */
 export interface EvmEscrowTuple {
@@ -103,7 +103,7 @@ export interface EvmClientReceipt {
 }
 
 export interface EvmClientPort {
-  /** Throws when the hash is unknown — the wrapper maps that to `null`. */
+  /** Throws when the hash is unknown, the wrapper maps that to `null`. */
   getTransactionReceipt(hash: `0x${string}`): Promise<EvmClientReceipt>
   getBlockNumber(): Promise<bigint>
   readContract(args: {
@@ -122,7 +122,7 @@ export function evmRpcFromClient(client: EvmClientPort): EvmRpc {
       try {
         receipt = await client.getTransactionReceipt(hash)
       } catch {
-        // viem throws TransactionReceiptNotFoundError for unknown hashes —
+        // viem throws TransactionReceiptNotFoundError for unknown hashes,
         // the verify pipeline treats that as "not confirmed yet".
         return null
       }

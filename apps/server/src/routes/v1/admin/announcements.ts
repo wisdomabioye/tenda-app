@@ -10,7 +10,7 @@ import type { ApiError } from '@tenda/shared'
 
 
 const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/admin/announcements — all announcements (active and inactive)
+  // GET /v1/admin/announcements, all announcements (active and inactive)
   fastify.get<{
     Querystring: { limit?: number; offset?: number; active?: string }
     Reply: { data: unknown[]; total: number; limit: number; offset: number } | ApiError
@@ -58,7 +58,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
     return row
   })
 
-  // POST /v1/admin/announcements — create
+  // POST /v1/admin/announcements, create
   fastify.post<{
     Body:  { title: string; body: string; priority?: number; is_active?: boolean; expires_at?: string }
     Reply: unknown | ApiError
@@ -106,7 +106,7 @@ const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
     return row
   })
 
-  // PATCH /v1/admin/announcements/:id — update
+  // PATCH /v1/admin/announcements/:id, update
   fastify.patch<{
     Params: { id: string }
     Body:  { title?: string; body?: string; priority?: number; is_active?: boolean; expires_at?: string | null }

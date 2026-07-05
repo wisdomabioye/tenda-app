@@ -1,10 +1,10 @@
 /**
- * Admin-dashboard email-OTP login (#86) — send/verify service over the
+ * Admin-dashboard email-OTP login (#86), send/verify service over the
  * email_otps table. Reuses the scrypt code hashing + TTL/attempt policy
  * from lib/otp.ts (phone) so the two OTP channels can't drift.
  *
  * Anti-enumeration: send NEVER reveals whether an email belongs to an
- * admin — unknown emails, demoted/suspended admins, and internally
+ * admin, unknown emails, demoted/suspended admins, and internally
  * rate-limited sends all produce the same 200. Verify fails with one
  * uniform 401 OTP_INVALID for every "no valid admin + code" combination;
  * OTP_EXPIRED is only reachable with the CORRECT code in hand (expiry is
@@ -27,7 +27,7 @@ import { normalizeAdminEmail } from '@server/lib/admin-auth'
 import { sendViaResend } from '@server/lib/email'
 import type { AppDatabase } from '@server/plugins/db'
 
-// ---------- policy constants (deliberately the phone values — own knobs) ----
+// ---------- policy constants (deliberately the phone values, own knobs) ----
 
 export const ADMIN_OTP_MAX_SENDS_PER_EMAIL_PER_HOUR = 3
 export const ADMIN_OTP_MAX_SENDS_PER_USER_PER_DAY = 10
@@ -54,7 +54,7 @@ export function resendSender(args: { api_key: string; from: string }): AdminEmai
 export function consoleEmailSender(log: { warn(obj: object, msg: string): void }): AdminEmailSender {
   return {
     async send(email, code) {
-      log.warn({ email, code }, 'RESEND_API_KEY unset — admin OTP code logged, not sent')
+      log.warn({ email, code }, 'RESEND_API_KEY unset, admin OTP code logged, not sent')
     },
   }
 }
@@ -88,7 +88,7 @@ async function findActiveAdmin(
 
 /**
  * Issue a login code. Resolves void in EVERY outcome the caller may
- * surface — the route returns the same 200 whether a code was sent,
+ * surface, the route returns the same 200 whether a code was sent,
  * the email is unknown, or the account is internally rate-limited.
  */
 export async function sendAdminLoginOtp(
@@ -112,7 +112,7 @@ export async function sendAdminLoginOtp(
     byEmail >= ADMIN_OTP_MAX_SENDS_PER_EMAIL_PER_HOUR ||
     byUser >= ADMIN_OTP_MAX_SENDS_PER_USER_PER_DAY
   ) {
-    // Silent skip — a 429 here would be an admin-email oracle.
+    // Silent skip, a 429 here would be an admin-email oracle.
     log?.info({ email }, 'admin OTP send skipped: rate limited')
     return
   }
@@ -120,7 +120,7 @@ export async function sendAdminLoginOtp(
   const code = String(randomInt(0, 10 ** OTP_CODE_DIGITS)).padStart(OTP_CODE_DIGITS, '0')
   // One active code per email: a new send invalidates every prior one.
   // Atomic with the insert (project rule: related writes never split
-  // across two awaits) — also closes the two-concurrent-sends race that
+  // across two awaits), also closes the two-concurrent-sends race that
   // could otherwise leave two live codes.
   await deps.db.transaction(async (tx) => {
     await tx
@@ -141,7 +141,7 @@ const UNIFORM_INVALID = 'invalid email or code'
 
 /**
  * Verify a code and return the admin identity for JWT minting. Role +
- * status are re-checked HERE (not just at send time) — a demotion or
+ * status are re-checked HERE (not just at send time), a demotion or
  * suspension between send and verify kills the login.
  */
 export async function verifyAdminLoginOtp(
@@ -187,7 +187,7 @@ export async function verifyAdminLoginOtp(
   }
   // Expiry AFTER the hash match: only the code holder can learn "expired".
   if (deps.now() > active.expires_at) {
-    throw new AppError(401, ErrorCode.OTP_EXPIRED, 'code expired — request a new one')
+    throw new AppError(401, ErrorCode.OTP_EXPIRED, 'code expired, request a new one')
   }
   await deps.db
     .update(email_otps)
@@ -214,7 +214,7 @@ async function countSince(
  * Resolve the email sender from config (#89 env-gating):
  *   key + from set            → Resend
  *   unset, non-production     → console log (dev interim)
- *   unset, production         → explicit 503 — never silently drop codes
+ *   unset, production         → explicit 503, never silently drop codes
  */
 export function resolveAdminEmailSender(
   config: { RESEND_API_KEY: string | null; EMAIL_FROM: string | null },

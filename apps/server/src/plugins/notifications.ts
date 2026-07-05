@@ -1,6 +1,6 @@
 // Fastify plugin that translates in-process app events into push
 // notifications. Post-cutover (#34, checklist §3) listeners do NOT push
-// directly — they enqueue 'notifications' jobs; workers/processors.ts
+// directly, they enqueue 'notifications' jobs; workers/processors.ts
 // resolves device tokens at delivery time and routes per platform.
 //
 // Escrow lifecycle pushes do not ride this plugin: verify-tx republish
@@ -54,7 +54,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         data.user_id,
         data.direction === 'onramp' ? 'Funds Arrived' : 'Cash-out Complete',
         data.direction === 'onramp'
-          ? 'Your purchase settled — the funds are in your wallet.'
+          ? 'Your purchase settled, the funds are in your wallet.'
           : `Your ${data.fiat_currency} payout was sent to your bank.`,
         { screen: 'fiat-intent', intentId: data.intent_id },
       )

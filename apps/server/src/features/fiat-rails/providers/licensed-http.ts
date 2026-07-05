@@ -1,5 +1,5 @@
 /**
- * Licensed-provider HTTP adapter — one generic implementation serving both
+ * Licensed-provider HTTP adapter, one generic implementation serving both
  * Yellow Card and Onramp.money entries.
  *
  * IMPORTANT (#61): both providers gate their partner APIs behind merchant
@@ -7,11 +7,11 @@
  * wire mapping is therefore isolated in ONE place (`LicensedProviderSpec`)
  * so onboarding finalizes a constant, not code. Until the matching env
  * credentials exist the provider is simply absent from the registry and
- * routing falls through to p2p_internal — the platform never breaks on a
+ * routing falls through to p2p_internal, the platform never breaks on a
  * missing key.
  *
  * Request signing: HMAC-SHA256 over the JSON body with the API secret in
- * an `X-Signature` header + `X-Api-Key` — the prevailing pattern for both
+ * an `X-Signature` header + `X-Api-Key`, the prevailing pattern for both
  * vendors; revalidated at onboarding.
  */
 
@@ -46,7 +46,7 @@ export interface LicensedProviderCreds {
   api_secret: string
 }
 
-/** Minimal HTTP seam — tests inject a fake; production uses fetch. */
+/** Minimal HTTP seam, tests inject a fake; production uses fetch. */
 export interface ProviderHttp {
   post(url: string, body: unknown, headers: Record<string, string>): Promise<unknown>
   get(url: string, headers: Record<string, string>): Promise<unknown>

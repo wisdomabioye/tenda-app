@@ -5,7 +5,7 @@ import { MAX_PAGINATION_LIMIT } from '@tenda/shared'
  * otherwise flows straight into LIMIT/OFFSET: a negative OFFSET makes
  * postgres throw (→ 500 on malformed input), and a negative/NaN LIMIT leaks
  * into the response contract. limit ∈ [1, MAX], offset ∈ [0, ∞). The caller's
- * destructure default still supplies the value for an omitted param — these
+ * destructure default still supplies the value for an omitted param, these
  * only guard out-of-range/garbage input.
  */
 export function clampLimit(limit: number): number {

@@ -3,7 +3,7 @@
  *   GET  /v1/admin/standing/:user_id            full standing detail
  *   POST /v1/admin/standing/:user_id/override   { action, reason }
  *
- * Every override is recorded in standing_overrides — immutable audit
+ * Every override is recorded in standing_overrides, immutable audit
  * trail with the acting admin and reason.
  */
 
@@ -51,7 +51,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       if (standing === null) {
         throw new AppError(404, ErrorCode.NOT_FOUND, 'no standing record for this user')
       }
-      // #82: live dispute-rate metric — FLAG only, never auto-restricts.
+      // #82: live dispute-rate metric, FLAG only, never auto-restricts.
       const dispute_metric = await computeDisputeRate(fastify.db, request.params.user_id)
       return { standing, dispute_metric }
     },
@@ -83,7 +83,7 @@ const route: FastifyPluginAsync = async (fastify) => {
           break
         case 'reset_counters':
           // Lifetime counters zeroed; standing_events stay for audit (the
-          // windowed tiers therefore still see recent behaviour — admin
+          // windowed tiers therefore still see recent behaviour, admin
           // lifts restrictions separately and deliberately).
           await store.resetCounters(user_id)
           break

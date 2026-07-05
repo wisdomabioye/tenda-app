@@ -6,17 +6,17 @@ import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { getConfig } from '@server/config'
 import type { FastifyBaseLogger } from 'fastify'
 
-// Anything with pino's info() — keeps tests from having to fake a full logger.
+// Anything with pino's info(), keeps tests from having to fake a full logger.
 type BootLogger = Pick<FastifyBaseLogger, 'info'>
 
-// Fixed app-wide advisory lock key (0x74656e6461 — 'tenda' in hex). Concurrent
+// Fixed app-wide advisory lock key (0x74656e6461, 'tenda' in hex). Concurrent
 // replicas serialize here: the first applies pending migrations, the rest
 // acquire the lock after it, find the journal current, and no-op. A string
 // (cast to bigint in SQL) because postgres.js's types reject bigint params.
 const MIGRATE_LOCK_KEY = '499917939809'
 
 /**
- * Image layout (/app/migrations — see the runtime stage COPY in the
+ * Image layout (/app/migrations, see the runtime stage COPY in the
  * Dockerfile) vs repo layout (dev/tests run with CWD apps/server).
  */
 export function resolveMigrationsFolder(): string {

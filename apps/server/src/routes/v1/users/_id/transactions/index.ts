@@ -9,7 +9,7 @@ import { AppError } from '@server/lib/errors'
 type TransactionsRoute = UsersContract['transactions']
 
 const userTransactions: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/users/:id/transactions — escrow transactions where the user is
+  // GET /v1/users/:id/transactions, escrow transactions where the user is
   // a party (creator or counterparty), gigs and exchanges alike, in one
   // descending-chronological list for the wallet screen (cutover §2: the
   // legacy gig/exchange merge collapses into one escrow_transactions query).
@@ -41,7 +41,7 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
           platform_fee_raw: escrow_transactions.platform_fee_raw,
           actor_id: escrow_transactions.actor_id,
           created_at: escrow_transactions.created_at,
-          // Winner only matters on resolve rows — the join condition keeps
+          // Winner only matters on resolve rows, the join condition keeps
           // other rows NULL without a second query.
           dispute_winner: disputes.winner,
           escrow_kind: escrows.kind,

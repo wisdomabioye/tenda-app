@@ -13,7 +13,7 @@ import { registerErrorHandlers } from './lib/http-errors'
 
 export interface AppOptions extends FastifyServerOptions, Partial<AutoloadPluginOptions> {}
 
-// Single source for the Android identity — assetlinks verification and the
+// Single source for the Android identity, assetlinks verification and the
 // Play Store fallback link must always agree on the package name.
 export const ANDROID_PACKAGE_NAME = 'com.tendahq.mobile'
 export const PLAY_STORE_URL = `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE_NAME}`
@@ -59,7 +59,7 @@ const app: FastifyPluginAsync<AppOptions> = async (
     ])
   })
 
-  // Web fallback for shared gig links — redirects to app or Play Store
+  // Web fallback for shared gig links, redirects to app or Play Store
   fastify.get<{ Params: { id: string } }>('/gig/:id', async (request, reply) => {
     const { id } = request.params
     const deepLink = `tenda://gig/${id}`
@@ -69,7 +69,7 @@ const app: FastifyPluginAsync<AppOptions> = async (
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Tenda — View Gig</title>
+        <title>Tenda, View Gig</title>
         <style>
           body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center;
                 justify-content: center; min-height: 100vh; margin: 0; background: #fafaf8; color: #3d4d63; }

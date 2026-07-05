@@ -1,5 +1,5 @@
 /**
- * OAuth (Google / Apple) auth strategy — one factory for both providers; they
+ * OAuth (Google / Apple) auth strategy, one factory for both providers; they
  * differ only in which verifier (issuer + JWKS + audiences) is injected. The
  * native SDK challenges on-device, so there is no server `challenge`.
  */
@@ -21,7 +21,7 @@ export function oauthStrategy(kind: 'google' | 'apple', verifier: OidcVerifier):
         type: 'identity',
         // `sub` is the stable per-provider id; the verified email (if any) rides
         // along for cross-method dedup + the contact gate. Apple omits email
-        // after the first authorization — that's fine, the sub is the key.
+        // after the first authorization, that's fine, the sub is the key.
         identity: { kind, identifier: claims.sub, email: claims.email },
       }
     },

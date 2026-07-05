@@ -1,7 +1,7 @@
 /**
  * Moderation contracts (stage-6-moderation.md § Provider interface).
  *
- * Providers return `null` for "inconclusive — try the next provider in the
+ * Providers return `null` for "inconclusive, try the next provider in the
  * pipeline"; a Verdict is decisive and stops the pipeline.
  */
 
@@ -15,7 +15,7 @@ export interface ModerationInput {
   /** Asset registry id, e.g. 'USDC_SOL'. */
   asset: string
   amount_raw: string
-  /** Asset decimals — converts amount_raw to display units for price sanity. */
+  /** Asset decimals, converts amount_raw to display units for price sanity. */
   asset_decimals: number
 }
 
@@ -36,7 +36,7 @@ export interface Verdict {
 }
 
 /**
- * Percentiles in RAW units of the row's asset (numeric(78,0) columns) —
+ * Percentiles in RAW units of the row's asset (numeric(78,0) columns),
  * outlier checks compare raw-to-raw with integer math; only the LLM
  * prompt converts to display units (via the input's asset_decimals).
  */
@@ -49,7 +49,7 @@ export interface PriceStats {
 
 export interface ModerationProvider {
   name: Verdict['provider']
-  /** Null = inconclusive — fall through to the next provider. */
+  /** Null = inconclusive, fall through to the next provider. */
   contentSafety?(input: ModerationInput): Promise<Verdict | null>
   priceSanity?(input: ModerationInput, stats: PriceStats): Promise<Verdict | null>
 }

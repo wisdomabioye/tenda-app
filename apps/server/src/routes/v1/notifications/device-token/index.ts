@@ -8,7 +8,7 @@ import { AppError, requireBody } from '@server/lib/errors'
 type RegisterRoute = NotificationsContract['registerToken']
 
 const deviceToken: FastifyPluginAsync = async (fastify) => {
-  // POST /v1/notifications/device-token — upsert a push token for the authenticated user.
+  // POST /v1/notifications/device-token, upsert a push token for the authenticated user.
   fastify.post<{
     Body: RegisterRoute['body']
     Reply: RegisterRoute['response'] | ApiError
@@ -22,7 +22,7 @@ const deviceToken: FastifyPluginAsync = async (fastify) => {
       if (!token || typeof token !== 'string') throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'token is required')
 
       // Insert the token for this user. On conflict (same token already registered),
-      // only refresh updated_at — never reassign user_id so an attacker who learns
+      // only refresh updated_at, never reassign user_id so an attacker who learns
       // another user's token cannot redirect their notifications.
       await fastify.db
         .insert(device_tokens)
@@ -36,7 +36,7 @@ const deviceToken: FastifyPluginAsync = async (fastify) => {
     },
   )
 
-  // DELETE /v1/notifications/device-token — remove the token (called on logout)
+  // DELETE /v1/notifications/device-token, remove the token (called on logout)
   fastify.delete<{
     Body: { token: string }
     Reply: { ok: boolean } | ApiError

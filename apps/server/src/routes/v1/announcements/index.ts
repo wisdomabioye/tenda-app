@@ -5,8 +5,8 @@ import { announcements } from '@tenda/shared/db/schema'
 import type { ApiError } from '@tenda/shared'
 
 const announcementsRoute: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/announcements — active, non-expired announcements for the mobile app
-  // Public endpoint — no authentication required.
+  // GET /v1/announcements, active, non-expired announcements for the mobile app
+  // Public endpoint, no authentication required.
   // Ordered by priority DESC so urgent notices appear first.
   fastify.get<{
     Querystring: { limit?: number; offset?: number }

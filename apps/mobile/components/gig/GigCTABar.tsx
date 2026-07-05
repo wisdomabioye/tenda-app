@@ -4,17 +4,10 @@ import { spacing, radius } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
 import { Text } from '@/components/ui/Text'
 import { canAccept, canSubmit, canAddProof, canReview, canClaim } from '@tenda/shared'
-import type { GigDetail } from '@tenda/shared'
+import type { EscrowTxType, GigDetail } from '@tenda/shared'
 
-export type ActiveSheet =
-  | 'proof'
-  | 'addProof'
-  | 'dispute'
-  | 'review'
-  | 'accept'
-  | 'cancel'
-  | 'delete'
-  | 'refund'
+/** Input/off-chain sheets the CTA opens (on-chain moves go via onTxAction). */
+export type ActiveSheet = 'proof' | 'addProof' | 'dispute' | 'review' | 'delete'
 
 interface GigCTABarProps {
   gig: GigDetail
@@ -24,8 +17,8 @@ interface GigCTABarProps {
   /** True while a broadcast tx awaits confirmation. */
   txInProgress: boolean
   onAction: (action: ActiveSheet) => void
-  onApprove: () => void
-  onClaim: () => void
+  /** Wallet-opening transition → screen shows the shared confirm gate first. */
+  onTxAction: (action: EscrowTxType) => void
   /** CO6 "retry from draft": prefill the create form from this draft. */
   onRetryDraft: () => void
 }
@@ -36,8 +29,7 @@ export function GigCTABar({
   isTxBuilding,
   txInProgress,
   onAction,
-  onApprove,
-  onClaim,
+  onTxAction,
   onRetryDraft,
 }: GigCTABarProps) {
   const { theme } = useUnistyles()
@@ -91,21 +83,21 @@ export function GigCTABar({
     if (gig.status === 'open') {
       if (acceptExpired && isCreator) {
         return (
-          <Button variant="primary" size="xl" fullWidth loading={isTxBuilding} onPress={() => onAction('refund')}>
+          <Button variant="primary" size="xl" fullWidth loading={isTxBuilding} onPress={() => onTxAction('refund_expired')}>
             Claim Refund
           </Button>
         )
       }
       if (canAccept(parties, userId)) {
         return (
-          <Button variant="primary" size="xl" fullWidth onPress={() => onAction('accept')}>
+          <Button variant="primary" size="xl" fullWidth onPress={() => onTxAction('accept')}>
             Accept Gig
           </Button>
         )
       }
       if (isCreator) {
         return (
-          <Button variant="danger" size="xl" fullWidth onPress={() => onAction('cancel')}>
+          <Button variant="danger" size="xl" fullWidth onPress={() => onTxAction('cancel')}>
             Cancel Gig
           </Button>
         )
@@ -126,7 +118,7 @@ export function GigCTABar({
       // row beneath it.
       return (
         <View style={s.ctaStack}>
-          <Button variant="primary" size="xl" fullWidth loading={isTxBuilding} onPress={onApprove}>
+          <Button variant="primary" size="xl" fullWidth loading={isTxBuilding} onPress={() => onTxAction('approve')}>
             Approve & Pay
           </Button>
           <Button variant="danger" size="xl" fullWidth onPress={() => onAction('dispute')}>
@@ -141,7 +133,7 @@ export function GigCTABar({
       if (canClaim({ ...parties, approval_deadline: gig.approval_deadline }, userId)) {
         return (
           <View style={s.ctaRow}>
-            <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={onClaim}>
+            <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={() => onTxAction('claim_stalled')}>
               Claim Payment
             </Button>
             <Button variant="outline" size="xl" onPress={() => onAction('addProof')}>
@@ -171,7 +163,7 @@ export function GigCTABar({
       if (completionPassed) {
         return (
           <View style={s.ctaRow}>
-            <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={() => onAction('refund')}>
+            <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={() => onTxAction('reclaim_abandoned')}>
               Reclaim Escrow
             </Button>
             <Button variant="danger" size="xl" onPress={() => onAction('dispute')}>

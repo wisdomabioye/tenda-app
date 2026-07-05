@@ -21,7 +21,7 @@ export async function reconcileFiatIntentsHandler(deps: FiatDeps): Promise<Recon
     try {
       await reconcileIntent(deps, intent)
     } catch (err) {
-      deps.log.warn({ err, intent_id: intent.id }, 'fiat reconcile: intent failed — continuing')
+      deps.log.warn({ err, intent_id: intent.id }, 'fiat reconcile: intent failed, continuing')
     }
   }
   return { scanned: stale.length }

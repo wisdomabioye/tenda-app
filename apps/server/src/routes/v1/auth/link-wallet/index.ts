@@ -1,5 +1,5 @@
 /**
- * POST /v1/auth/link-wallet — add a second wallet to an authenticated user.
+ * POST /v1/auth/link-wallet, add a second wallet to an authenticated user.
  *
  * Same nonce + signature flow as /wallet, but starts with an authenticated
  * session (the existing user) and signs from the NEW wallet to prove it.
@@ -61,7 +61,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
       // Case-insensitive "already linked" check (EVM): the PK is case-sensitive,
       // so a wallet stored as a legacy mixed-case row wouldn't conflict with its
-      // lowercased re-link — re-creating the duplicate. Reject any case-variant
+      // lowercased re-link, re-creating the duplicate. Reject any case-variant
       // that already exists for anyone.
       const existing = await fastify.db
         .select({ user_id: user_wallets.user_id })
@@ -96,7 +96,7 @@ const route: FastifyPluginAsync = async (fastify) => {
 
       // Gas-seed check on every successful link (stage-1, decision #16):
       // only phone-verified users are eligible; the dispatcher itself is
-      // idempotent per (user, chain). Fire-and-forget — linking must not
+      // idempotent per (user, chain). Fire-and-forget, linking must not
       // block on an RPC transfer.
       if (await hasVerifiedPhone(fastify.db, request.user.id)) {
         fireRetroactiveGasSeed(fastify, request.user.id)

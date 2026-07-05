@@ -1,7 +1,7 @@
 /**
  * Admin escrow oversight (cutover §2): replaces the legacy admin/gigs +
  * admin/exchange split with one kind-agnostic listing + detail, plus the
- * CO1 takedown toggle (PATCH /:id/hidden — escrows.takedown). Other admin
+ * CO1 takedown toggle (PATCH /:id/hidden, escrows.takedown). Other admin
  * intervention happens through the dispute flow (/v1/escrows/:id/resolve),
  * user suspension, or Stage-6 moderation overrides.
  */
@@ -62,7 +62,7 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
     created_at: row.created_at.toISOString(),
   })
 
-  // GET /v1/admin/escrows — filterable listing across both kinds.
+  // GET /v1/admin/escrows, filterable listing across both kinds.
   fastify.get<{
     Querystring: AdminEscrowListQuery
     Reply: PaginatedResponse<AdminEscrowRow> | ApiError
@@ -116,7 +116,7 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
     }
   })
 
-  // GET /v1/admin/escrows/:id — full row for triage (incl. drafts).
+  // GET /v1/admin/escrows/:id, full row for triage (incl. drafts).
   fastify.get<{
     Params: { id: string }
     Reply: AdminEscrowRow | ApiError
@@ -126,7 +126,7 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
     return toRow(row)
   })
 
-  // PATCH /v1/admin/escrows/:id/hidden — CO1 takedown toggle. Hides the
+  // PATCH /v1/admin/escrows/:id/hidden, CO1 takedown toggle. Hides the
   // listing from the public browse/detail surfaces; the escrow itself stays
   // fully operable by its parties (funds may be locked on-chain), so this
   // never touches status or the state machine.
