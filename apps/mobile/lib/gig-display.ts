@@ -71,12 +71,14 @@ export function deadlineLabel(deadline: Date | null): string {
   if (!deadline) return ''
 
   const now = new Date()
-  if (deadline < now) return 'Expired'
-
   const diffMs = deadline.getTime() - now.getTime()
-  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+  if (diffMs <= 0) return 'Expired'
 
-  if (diffDays === 0) return 'Due today'
+  // Under a day out, surface hours/minutes so urgency is legible
+  // ("4h left" / "45m left") instead of a flat "Tomorrow".
+  if (diffMs < 86_400_000) return `${formatCountdown(diffMs)} left`
+
+  const diffDays = Math.floor(diffMs / 86_400_000)
   if (diffDays === 1) return 'Tomorrow'
   return `${diffDays} days left`
 }

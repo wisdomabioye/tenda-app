@@ -41,7 +41,10 @@ export function useGigForm(
   const [registry, setRegistry]                   = useState<ChainRegistryEntry[]>([])
   const [completionDuration, setCompletionDuration] = useState(initialValues?.completionDuration ?? 86_400)
   const [selectedCategory, setSelectedCategory]   = useState<GigCategory | null>(initialValues?.category ?? null)
-  const [selectedCountry, setSelectedCountry]     = useState<string | null>(initialValues?.country ?? getDeviceCountry())
+  // Prefer the user's account country; fall back to the device locale region
+  // (often the phone's language, not where the user actually is) only when the
+  // account has none.
+  const [selectedCountry, setSelectedCountry]     = useState<string | null>(initialValues?.country ?? homeCountry ?? getDeviceCountry())
   const [isRemote, setIsRemote]                   = useState(initialValues?.remote ?? false)
   const [selectedCity, setSelectedCity]           = useState<string | null>(initialValues?.city ?? null)
   const [acceptDeadlineHours, setAcceptDeadlineHours] = useState<number>(initialValues?.acceptDeadlineHours ?? 168)

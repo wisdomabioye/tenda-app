@@ -3,19 +3,32 @@ import { MapPin, Clock, Calendar, ArrowLeftRight, Globe } from 'lucide-react-nat
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { formatDuration, formatDeadline } from '@/lib/gig-display'
+import { formatDuration } from '@/lib/gig-display'
 import { formatFiat } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { LOCATIONS, ASSET_META, amountRawToDisplay } from '@tenda/shared'
-import type { GigDetail, CountryCode, SupportedCurrency } from '@tenda/shared'
+import type { GigDetail, CountryCode, SupportedCurrency, EscrowStatus } from '@tenda/shared'
 import type { LucideIcon } from 'lucide-react-native'
+
+/**
+ * Status-specific label for the single deadline row. The value itself comes
+ * from computeRelevantDeadline upstream, which already picks the right
+ * underlying deadline per status; this just names it so we never show both a
+ * stale "Accept by" and a generic "Deadline". Statuses with no live deadline
+ * are omitted (computeRelevantDeadline returns null → no row).
+ */
+const DEADLINE_LABEL: Partial<Record<EscrowStatus, string>> = {
+  open: 'Accept by',
+  accepted: 'Deliver by',
+  submitted: 'Review by',
+}
 
 interface Props {
   gig: Pick<
     GigDetail,
     | 'city' | 'country' | 'remote'
-    | 'completion_duration_seconds' | 'accept_deadline'
+    | 'completion_duration_seconds'
     | 'cross_border' | 'amount_raw' | 'asset' | 'status'
   >
   posterCountry: string | null
@@ -59,12 +72,19 @@ export function GigMetaInfo({ gig, posterCountry, deadlineLbl }: Props) {
     })
   }
 
+  const workCountry = LOCATIONS[gig.country as CountryCode]?.name ?? gig.country
   rows.push({
     Icon: gig.remote ? Globe : MapPin,
     label: 'Location',
+    // Remote gigs are digital / location-agnostic, so just "Remote". Physical
+    // gigs show where the work happens — city + work country ("Lagos, Nigeria").
+    // That work country is the point of a cross-border gig; the poster's own
+    // country is shown separately in the Cross-border row below.
     value: gig.remote
-      ? `Remote · ${LOCATIONS[gig.country as CountryCode]?.name ?? gig.country}`
-      : (gig.city ?? '—'),
+      ? 'Remote'
+      : gig.city
+        ? `${gig.city}, ${workCountry}`
+        : workCountry,
     iconTint: gig.remote ? theme.colors.brand.primary : undefined,
   })
 
@@ -78,18 +98,15 @@ export function GigMetaInfo({ gig, posterCountry, deadlineLbl }: Props) {
     })
   }
 
-  if (gig.accept_deadline) {
+  // One status-aware deadline row (open → "Accept by", accepted → "Deliver by",
+  // submitted → "Review by"); replaces the old duplicate "Accept by" + generic
+  // "Deadline" pair, which showed the same moment on open and a stale accept
+  // deadline once the gig moved on.
+  const deadlineRowLabel = DEADLINE_LABEL[gig.status]
+  if (deadlineLbl && deadlineRowLabel) {
     rows.push({
       Icon: Clock,
-      label: 'Accept by',
-      value: formatDeadline(gig.accept_deadline),
-    })
-  }
-
-  if (deadlineLbl) {
-    rows.push({
-      Icon: Clock,
-      label: 'Deadline',
+      label: deadlineRowLabel,
       value: deadlineLbl,
     })
   }
