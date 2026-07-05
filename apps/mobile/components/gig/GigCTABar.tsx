@@ -121,13 +121,16 @@ export function GigCTABar({
     }
 
     if (gig.status === 'submitted' && isCreator) {
+      // Approve is the happy path and owns a full-width row so its label never
+      // wraps on narrow devices; Dispute stays prominent as a full-width danger
+      // row beneath it.
       return (
-        <View style={s.ctaRow}>
-          <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={onApprove}>
+        <View style={s.ctaStack}>
+          <Button variant="primary" size="xl" fullWidth loading={isTxBuilding} onPress={onApprove}>
             Approve & Pay
           </Button>
-          <Button variant="danger" size="xl" onPress={() => onAction('dispute')}>
-            Dispute
+          <Button variant="danger" size="xl" fullWidth onPress={() => onAction('dispute')}>
+            Dispute delivery
           </Button>
         </View>
       )
@@ -225,6 +228,9 @@ const s = StyleSheet.create({
   ctaRow: {
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  ctaStack: {
+    gap: spacing.xs,
   },
   ctaFlex: {
     flex: 1,

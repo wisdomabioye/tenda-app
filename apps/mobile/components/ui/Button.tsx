@@ -139,6 +139,7 @@ export function Button({
           <Text
             style={[typography.styles.button, LABEL_BY_SIZE[size]]}
             color={textColor}
+            numberOfLines={1}
           >
             {children}
           </Text>

@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router'
 import { showToast } from '@/components/ui/Toast'
+import { formatDuration } from '@/lib/gig-display'
 import { api } from '@/api/client'
 import type { GigDetail } from '@tenda/shared'
 import type { ActiveSheet } from './GigCTABar'
@@ -10,8 +11,10 @@ import { ConfirmModal, type ConfirmKind } from './gig-action-sheets/ConfirmModal
 import type { Proof } from './gig-action-sheets/upload'
 
 interface GigActionSheetsProps {
-  /** Only the escrow id is consumed, gig and exchange details both fit. */
-  gig: Pick<GigDetail, 'escrow_id'>
+  /** escrow_id drives the action routes; completion_duration_seconds names the
+   *  accept dialog's "deliver within" window. Exchange offers omit the duration
+   *  (→ generic accept copy), so it's optional here. */
+  gig: Pick<GigDetail, 'escrow_id'> & { completion_duration_seconds?: number | null }
   activeSheet: ActiveSheet | null
   onClose: () => void
   onReviewSubmitted: () => void
@@ -98,7 +101,16 @@ export function GigActionSheets({
         onReviewSubmitted={onReviewSubmitted}
       />
 
-      <ConfirmModal kind={confirmKind} onCancel={onClose} onConfirm={handleConfirm} />
+      <ConfirmModal
+        kind={confirmKind}
+        deliverWithin={
+          gig.completion_duration_seconds != null
+            ? formatDuration(gig.completion_duration_seconds)
+            : null
+        }
+        onCancel={onClose}
+        onConfirm={handleConfirm}
+      />
     </>
   )
 }

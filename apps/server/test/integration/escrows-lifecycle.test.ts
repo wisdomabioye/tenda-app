@@ -2,14 +2,17 @@
  * CO2 route matrix — escrow lifecycle reads/writes:
  *   DELETE /v1/escrows/:id        (draft-only + pending-create TOCTOU guard)
  *   GET    /v1/escrows/:id        (caller derivation)
- *   POST/GET /v1/escrows/:id/proofs (status/counterparty guards + total cap)
+ *   POST/GET /v1/escrows/:id/proofs (status/counterparty guards + total cap +
+ *                                    completion-notification gating)
  *
  * Real app via fastify.inject; gated on TEST_DATABASE_URL (helpers/test-app).
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
+import type { FastifyInstance } from 'fastify'
 import { escrows, tx_attempts } from '@tenda/shared/db/schema'
+import type { QueueService, JobName, JobPayload } from '@server/plugins/queue'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
@@ -21,6 +24,38 @@ import { partiedEscrow, proofUrl } from '../helpers/escrow-states'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
+
+// ---------- queue spy -------------------------------------------------------
+
+interface EnqueueCall {
+  name: JobName
+  payload: JobPayload[JobName]
+}
+
+/**
+ * Replace the harness queue stub (which 501s) with a recorder so tests can
+ * assert which notifications a route enqueued. Reinstalled per test → no
+ * cross-test leakage.
+ */
+function installQueueSpy(app: FastifyInstance): EnqueueCall[] {
+  const calls: EnqueueCall[] = []
+  const spy: QueueService['enqueue'] = async (name, payload) => {
+    calls.push({ name, payload })
+    return { job_id: 'test-job' }
+  }
+  app.queue.enqueue = spy
+  return calls
+}
+
+/** Type-narrowing filter for the notification enqueues (no casts). */
+function notifications(
+  calls: EnqueueCall[],
+): { name: 'notifications'; payload: JobPayload['notifications'] }[] {
+  return calls.filter(
+    (c): c is { name: 'notifications'; payload: JobPayload['notifications'] } =>
+      c.name === 'notifications',
+  )
+}
 
 // ---------- DELETE /v1/escrows/:id ---------------------------------------------
 
@@ -221,4 +256,48 @@ test('GET proofs: parties read, strangers 403', { skip }, async () => {
     headers: authHeader(stranger.token),
   })
   assert.strictEqual(denied.statusCode, 403)
+})
+
+// ---------- proof-upload notification gating --------------------------------
+// An `accepted`-state upload is PRE-SUBMIT staging (the worker uploads, THEN
+// broadcasts the submit tx, which may fail), so it must NOT notify the poster
+// of a completion that never confirmed on-chain. The genuine "Work submitted"
+// push rides verify-tx republish once the submit tx confirms. Only additional
+// evidence while `submitted` (poster already reviewing) notifies here.
+
+test('POST proofs while accepted: persists but does NOT notify (pre-submit staging)', { skip }, async () => {
+  const app = getApp()
+  const calls = installQueueSpy(app)
+  const { worker, escrow } = await partiedEscrow(app, 'accepted')
+  const res = await app.inject({
+    method: 'POST',
+    url: `/v1/escrows/${escrow.id}/proofs`,
+    headers: authHeader(worker.token),
+    payload: { proofs: [{ url: proofUrl(worker.row.id, 1), type: 'image' }] },
+  })
+  assert.strictEqual(res.statusCode, 201)
+  assert.strictEqual(res.json().length, 1, 'proof is persisted even without a notification')
+  assert.strictEqual(
+    notifications(calls).length,
+    0,
+    'accepted-state upload must not notify — the submit tx has not confirmed',
+  )
+})
+
+test('POST proofs while submitted: notifies the creator exactly once', { skip }, async () => {
+  const app = getApp()
+  const calls = installQueueSpy(app)
+  const { creator, worker, escrow } = await partiedEscrow(app, 'submitted')
+  const res = await app.inject({
+    method: 'POST',
+    url: `/v1/escrows/${escrow.id}/proofs`,
+    headers: authHeader(worker.token),
+    payload: { proofs: [{ url: proofUrl(worker.row.id, 2), type: 'image' }] },
+  })
+  assert.strictEqual(res.statusCode, 201)
+  const notifs = notifications(calls)
+  assert.strictEqual(notifs.length, 1, 'additional evidence during review notifies once')
+  assert.strictEqual(notifs[0].payload.user_id, creator.row.id, 'the poster is the recipient')
+  assert.strictEqual(notifs[0].payload.title, 'Additional proof submitted')
+  assert.deepStrictEqual(notifs[0].payload.data, { screen: 'escrow', escrowId: escrow.id })
 })

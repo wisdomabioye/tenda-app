@@ -75,17 +75,25 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
         )
         .returning()
 
-      // Off-chain action — no verify-tx republish fires, so notify the
-      // creator directly through the notifications queue.
-      try {
-        await fastify.queue.enqueue('notifications', {
-          user_id: escrow.creator_id,
-          title: 'Additional proof submitted',
-          body: 'The worker added more evidence — review and approve.',
-          data: { screen: 'escrow', escrowId: id },
-        })
-      } catch (err) {
-        request.log.warn({ err }, 'proofs: notification enqueue failed (queue unavailable)')
+      // Only notify when the escrow is ALREADY submitted — i.e. the on-chain
+      // submit confirmed and the poster is reviewing, and the worker is now
+      // adding MORE evidence. While `accepted`, this is pre-submit staging:
+      // the worker uploads proof, THEN broadcasts the submit tx, which may
+      // fail. Notifying here would tell the poster "work is in, review &
+      // approve" for a completion that never happened on-chain. The genuine
+      // "Work submitted" push rides verify-tx republish (escrow.proof_submitted)
+      // once the submit tx confirms, so this path stays silent when accepted.
+      if (escrow.status === 'submitted') {
+        try {
+          await fastify.queue.enqueue('notifications', {
+            user_id: escrow.creator_id,
+            title: 'Additional proof submitted',
+            body: 'The worker added more evidence — review and approve.',
+            data: { screen: 'escrow', escrowId: id },
+          })
+        } catch (err) {
+          request.log.warn({ err }, 'proofs: notification enqueue failed (queue unavailable)')
+        }
       }
 
       return reply.code(201).send(inserted)
