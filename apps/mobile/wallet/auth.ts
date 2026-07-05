@@ -7,10 +7,10 @@
  * (sign-in, Stage 9) or /v1/auth/link-wallet (link). Adapter-agnostic: each
  * WalletAdapter owns its own connect+sign round-trip; this module only
  * orchestrates the nonce↔server exchange and pins the canonical,
- * server-registered chain id per namespace (WALLET_CHAINS — single source,
+ * server-registered chain id per namespace (WALLET_CHAINS, single source,
  * wallet/config.ts).
  *
- * Decision #3 (Stage 9): wallet signs in but never CREATES an account — the
+ * Decision #3 (Stage 9): wallet signs in but never CREATES an account, the
  * unified verify route is find-or-reject (404 WALLET_NOT_LINKED for an unknown
  * wallet). New accounts are born from a contact-bearing method on get-started;
  * device-derived signup bootstrap (is_seeker/country) therefore has no home on
@@ -27,7 +27,7 @@ import type { WalletAdapter } from '@/wallet/adapters/types'
 /**
  * Nonce-bound auth message for a connected account, built with the canonical
  * server-registered chain id for that account's namespace (NOT the wallet's
- * arbitrary current chain — the signature is namespace-scoped, and the server
+ * arbitrary current chain, the signature is namespace-scoped, and the server
  * only verifies against registered chains).
  */
 function authMessageFor(account: SpikeAccount, nonce: string): string {
@@ -46,7 +46,7 @@ export interface WalletSignInResult {
 
 /**
  * Sign in with any wallet adapter: nonce → authenticate → POST /v1/auth/verify
- * { method: 'wallet' }. Find-or-reject — an unknown wallet throws
+ * { method: 'wallet' }. Find-or-reject, an unknown wallet throws
  * WALLET_NOT_LINKED (the caller maps it to the Tier-0 "get started first" UX).
  * Resolves to null when the user declines in the wallet; throws on transport or
  * server failure.

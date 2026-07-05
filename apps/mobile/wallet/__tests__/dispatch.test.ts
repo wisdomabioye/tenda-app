@@ -6,7 +6,7 @@
  */
 import type { LinkedWallet, UnsignedTx } from '@tenda/shared'
 
-// dispatch only touches VersionedTransaction.deserialize — stub it so we never
+// dispatch only touches VersionedTransaction.deserialize, stub it so we never
 // parse a real wire transaction. The fn is created INSIDE the factory (ESM
 // imports run before any module-scope const, so an outer ref would be
 // undefined at first require); we retrieve it from the mocked module below.
@@ -73,7 +73,7 @@ beforeEach(() => {
   ensureAllowanceMock.mockReset()
 })
 
-describe('signAndSendUnsignedTx — solana-tx', () => {
+describe('signAndSendUnsignedTx, solana-tx', () => {
   it('deserializes the wire tx and delegates to the adapter-owned signer', async () => {
     storedMock.mockResolvedValue('sol-sig')
     const ref = await signAndSendUnsignedTx(SOLANA_TX, 'solana:devnet')
@@ -83,7 +83,7 @@ describe('signAndSendUnsignedTx — solana-tx', () => {
   })
 })
 
-describe('signAndSendUnsignedTx — evm-tx from precedence', () => {
+describe('signAndSendUnsignedTx, evm-tx from precedence', () => {
   it('prefers the live spike session (evmAddress)', async () => {
     authStateMock.mockReturnValue({
       evmAddress: '0xLive',
@@ -130,7 +130,7 @@ describe('signAndSendUnsignedTx — evm-tx from precedence', () => {
   })
 })
 
-describe('signAndSendUnsignedTx — evm-tx approval hint', () => {
+describe('signAndSendUnsignedTx, evm-tx approval hint', () => {
   const HINTED: UnsignedTx = {
     ...EVM_TX,
     approval: { token: '0xToken', spender: '0xEscrow', amount_raw: '1000000' },
@@ -167,14 +167,14 @@ describe('signAndSendUnsignedTx — evm-tx approval hint', () => {
     expect(ensureAllowanceMock).not.toHaveBeenCalled()
   })
 
-  it('a failed approval aborts the flow — the escrow tx is never broadcast', async () => {
+  it('a failed approval aborts the flow, the escrow tx is never broadcast', async () => {
     authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [] })
     ensureAllowanceMock.mockRejectedValue(new Error('approval reverted'))
     await expect(signAndSendUnsignedTx(HINTED, 'eip155:84532')).rejects.toThrow('approval reverted')
     expect(sendEvmMock).not.toHaveBeenCalled()
   })
 
-  it('a hint without a chain_id throws loudly — never silently broadcast a doomed tx', async () => {
+  it('a hint without a chain_id throws loudly, never silently broadcast a doomed tx', async () => {
     authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [] })
     await expect(signAndSendUnsignedTx(HINTED)).rejects.toBeInstanceOf(UnsupportedUnsignedTxError)
     expect(ensureAllowanceMock).not.toHaveBeenCalled()
@@ -182,7 +182,7 @@ describe('signAndSendUnsignedTx — evm-tx approval hint', () => {
   })
 })
 
-describe('signAndSendUnsignedTx — evm-userop', () => {
+describe('signAndSendUnsignedTx, evm-userop', () => {
   it('throws the typed unsupported error (blocked on the bundler config)', async () => {
     const userOp: UnsignedTx = {
       kind: 'evm-userop',

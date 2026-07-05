@@ -7,7 +7,7 @@ import { Text } from '@/components/ui'
 type RouterPush = Parameters<ReturnType<typeof useRouter>['push']>[0]
 
 /**
- * Wallet actions row — a full-width Buy/Sell entry point (Stage 8), lifted OUT
+ * Wallet actions row, a full-width Buy/Sell entry point (Stage 8), lifted OUT
  * of the balance hero so it's no longer cramped/clipped inside a fixed card.
  */
 export function WalletActions() {

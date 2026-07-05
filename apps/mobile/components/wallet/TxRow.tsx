@@ -35,7 +35,7 @@ const EXCHANGE_TYPE_LABEL: Partial<Record<EscrowTxType, string>> = {
 }
 
 /**
- * Direction of value FROM THE VIEWER'S PERSPECTIVE — null for neutral
+ * Direction of value FROM THE VIEWER'S PERSPECTIVE, null for neutral
  * lifecycle rows (accept/submit/dispute carry no transfer to the viewer).
  */
 function getTxSign(tx: UserEscrowTransaction, userId: string): '+' | '-' | null {

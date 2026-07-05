@@ -6,7 +6,7 @@ import { MyOfferRow } from './MyOfferRow'
 import { OfferListSkeleton } from './OfferListSkeleton'
 import type { EscrowListRow } from '@tenda/shared'
 
-/** "My Offers" page — the current user's created exchange offers. */
+/** "My Offers" page, the current user's created exchange offers. */
 export function ExchangeMyOffersPage({
   width,
   myOffers,

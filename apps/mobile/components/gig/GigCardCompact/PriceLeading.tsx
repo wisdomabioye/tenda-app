@@ -18,7 +18,7 @@ interface Props {
 }
 
 /**
- * Variant A — Price-Leading (home.html `.card` proposal).
+ * Variant A, Price-Leading (home.html `.card` proposal).
  * Two-column grid 86 / 1fr. Left strip carries the SOL amount + fiat alt;
  * right body carries category/status label, deadline chip, title, and location meta.
  */

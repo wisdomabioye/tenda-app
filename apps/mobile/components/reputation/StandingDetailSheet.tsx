@@ -37,7 +37,7 @@ export function StandingDetailSheet({ visible, onClose, standing, displayName }:
       value:
         standing.completion_rate !== null
           ? `${Math.round(standing.completion_rate * 100)}% · ${standing.completed_count} completed`
-          : 'New user — not enough history yet',
+          : 'New user, not enough history yet',
     },
     ...(memberSince !== null
       ? [{ Icon: CalendarDays, label: 'Member since', value: memberSince }]

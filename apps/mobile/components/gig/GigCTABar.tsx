@@ -42,7 +42,7 @@ export function GigCTABar({
 }: GigCTABarProps) {
   const { theme } = useUnistyles()
 
-  // The shared visibility helpers take the party shape — derive it once.
+  // The shared visibility helpers take the party shape, derive it once.
   const parties = {
     status: gig.status,
     creator_id: gig.creator.id,
@@ -51,7 +51,7 @@ export function GigCTABar({
   const isCreator = userId === gig.creator.id
 
   // Display-derived expiry: an open gig whose accept window passed (v2 has
-  // no 'expired' status — the creator reclaims via refund_expired).
+  // no 'expired' status, the creator reclaims via refund_expired).
   const acceptExpired =
     gig.status === 'open' &&
     gig.accept_deadline !== null &&
@@ -62,14 +62,14 @@ export function GigCTABar({
       return (
         <View style={[s.infoNotice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
           <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
-            Transaction in progress — please wait…
+            Transaction in progress, please wait…
           </Text>
         </View>
       )
     }
 
     // v2 drafts are pre-sign staging rows: signing happens in the create
-    // flow. CO6 "retry from draft" — prefill a fresh create instead of
+    // flow. CO6 "retry from draft", prefill a fresh create instead of
     // editing in place (the unsigned tx is already bound to this id).
     if (gig.status === 'draft' && isCreator) {
       return (

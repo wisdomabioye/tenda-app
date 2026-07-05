@@ -20,7 +20,7 @@ export interface DisputeThreadState {
 /**
  * Loads the CO7 dispute thread for an escrow, then tails it with the
  * project-standard recursive-setTimeout poll (backs off after 3 empty
- * polls — same cadence as chat's useMessagePolling).
+ * polls, same cadence as chat's useMessagePolling).
  */
 export function useDisputeThread(escrowId: string | null): DisputeThreadState {
   const [loading, setLoading] = useState(true)
@@ -35,7 +35,7 @@ export function useDisputeThread(escrowId: string | null): DisputeThreadState {
 
   /**
    * Merge a batch into the list (id-deduped). Only SERVER batches advance
-   * the poll cursor — advancing it from our own send() would skip any
+   * the poll cursor, advancing it from our own send() would skip any
    * counterparty message timestamped between our last poll and the send
    * (it would sort before the cursor and never be fetched again). The
    * sent message re-arrives on the next poll and dedupes away.
@@ -86,7 +86,7 @@ export function useDisputeThread(escrowId: string | null): DisputeThreadState {
         try {
           await load(true)
         } catch {
-          // Poll errors are silent — the next cycle retries.
+          // Poll errors are silent, the next cycle retries.
         } finally {
           isFetching.current = false
         }

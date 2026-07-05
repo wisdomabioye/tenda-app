@@ -6,7 +6,7 @@
  *
  * The rest of the WalletConnect/Reown environment (TextEncoder, URL, btoa/atob,
  * Linking, Platform, NetInfo) is set up by `@walletconnect/react-native-compat`,
- * which `wallet/reown/config.ts` imports before any AppKit code — so we don't
+ * which `wallet/reown/config.ts` imports before any AppKit code, so we don't
  * duplicate it here.
  */
 import { Buffer } from 'buffer'

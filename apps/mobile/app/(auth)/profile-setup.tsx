@@ -59,23 +59,23 @@ export default function ProfileSetupScreen() {
       // Settle the legacy user shape the rest of the app reads.
       void useAuthStore.getState().refreshUser()
 
-      // Onboarding is name-only — no phone step. A phone (and its gas-seed perk)
+      // Onboarding is name-only, no phone step. A phone (and its gas-seed perk)
       // is added later from Settings → Sign-in & security, where the OTP proves
       // ownership before we ever persist the number (an unverified phone can't
-      // be stored safely — it would let one user squat another's number).
+      // be stored safely, it would let one user squat another's number).
       // Reset so back from home exits, not back to setup.
       resetToAuthedRoot(true)
     } catch (e) {
       if (__DEV__) console.warn('[profile-setup] finish failed:', e)
       // Server errors carry a user-meaningful message. Other failures (e.g. the
-      // direct Cloudinary avatar upload) throw a plain Error — surface its text
+      // direct Cloudinary avatar upload) throw a plain Error, surface its text
       // on dev builds so the real cause is visible instead of the generic copy.
       const msg =
         e instanceof ApiClientError
           ? e.message
           : __DEV__ && e instanceof Error
             ? `Could not save your profile: ${e.message}`
-            : 'Could not save your profile — please try again'
+            : 'Could not save your profile, please try again'
       showToast('error', msg)
     } finally {
       setIsSaving(false)
@@ -91,7 +91,7 @@ export default function ProfileSetupScreen() {
 
         <ScrollView style={s.flex} contentContainerStyle={s.scrollContent} keyboardShouldPersistTaps="handled">
           <Text style={[s.lede, { color: theme.colors.content.secondary }]}>
-            A name is all you need to start. Everything else is optional — you can
+            A name is all you need to start. Everything else is optional, you can
             add a photo, location and a verified phone later from Settings.
           </Text>
 

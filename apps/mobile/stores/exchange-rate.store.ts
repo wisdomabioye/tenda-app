@@ -44,7 +44,7 @@ export const useExchangeRateStore = create<ExchangeRateState>((set, get) => ({
     try {
       const { rates, fetched_at } = await api.platform.exchangeRates()
 
-      // Merge with existing rates — only update currencies the server returned
+      // Merge with existing rates, only update currencies the server returned
       const existing = get().rates
       const merged: RateMap = { ...existing, ...rates }
 
@@ -52,7 +52,7 @@ export const useExchangeRateStore = create<ExchangeRateState>((set, get) => ({
 
       await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify({ rates: merged, fetchedAt: fetched_at }))
     } catch {
-      // Keep previous values — never crash on rate fetch failure
+      // Keep previous values, never crash on rate fetch failure
       set({ isLoading: false })
     }
   },

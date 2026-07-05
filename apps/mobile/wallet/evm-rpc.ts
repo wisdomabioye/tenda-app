@@ -1,6 +1,6 @@
 /**
  * Minimal EVM JSON-RPC helpers shared by every client-side read path
- * (balance readers, the allowance module). Public RPC endpoints only —
+ * (balance readers, the allowance module). Public RPC endpoints only,
  * chain facts come from the shared manifest / chain registry; the server's
  * keyed RPC never leaks here.
  */
@@ -59,7 +59,7 @@ export function addressWord(address: string): string {
 
 /**
  * Left-pad a base-unit decimal amount to a 32-byte ABI word (no 0x).
- * Throws on amounts beyond uint256 — padStart never truncates, so letting
+ * Throws on amounts beyond uint256, padStart never truncates, so letting
  * one through would emit malformed calldata.
  */
 export function amountWord(amountRaw: string): string {

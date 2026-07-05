@@ -17,7 +17,7 @@ export interface ModerationPreviewInput {
 
 /**
  * Live moderation hints while the user types (stage-6 § Mobile): debounced
- * 800ms, never blocking — the create path re-runs the same pipeline
+ * 800ms, never blocking, the create path re-runs the same pipeline
  * server-side and stays authoritative. Null until a verdict arrives;
  * errors are silent (the hint simply doesn't show).
  */
@@ -52,7 +52,7 @@ export function useModerationPreview(input: ModerationPreviewInput): ModerationP
           asset_decimals: ASSET_META[asset]?.decimals ?? 9,
         })
         .then((v) => {
-          // Drop stale responses — only the latest input's verdict counts.
+          // Drop stale responses, only the latest input's verdict counts.
           if (seq === requestSeq.current) setVerdict(v)
         })
         .catch(() => {

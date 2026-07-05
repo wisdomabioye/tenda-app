@@ -13,7 +13,7 @@ export function instructionCopy(instruction: FiatInstruction): string {
     case 'redirect':
       return 'Continue on the provider page to complete payment.'
     case 'p2p':
-      return 'Your offer is live on the P2P exchange — publish it to match with a buyer.'
+      return 'Your offer is live on the P2P exchange, publish it to match with a buyer.'
   }
 }
 

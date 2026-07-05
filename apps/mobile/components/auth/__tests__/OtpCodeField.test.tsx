@@ -1,5 +1,5 @@
 /**
- * OtpCodeField — the shared segmented one-time-code input. A hidden numeric
+ * OtpCodeField, the shared segmented one-time-code input. A hidden numeric
  * TextInput drives N visual cells. Asserts digit-only sanitisation, length cap,
  * and that the entered digits surface in the cells.
  */

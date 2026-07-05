@@ -1,6 +1,6 @@
 /**
  * Shared display constants for GigCardCompact variants.
- * Status mappings live in @/lib/gig-display — see STATUS_LABEL / statusDotColor.
+ * Status mappings live in @/lib/gig-display, see STATUS_LABEL / statusDotColor.
  */
 export { STATUS_LABEL, statusDotColor as STATUS_DOT_COLOR } from '@/lib/gig-display'
 

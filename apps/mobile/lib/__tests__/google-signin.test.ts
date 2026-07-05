@@ -1,5 +1,5 @@
 /**
- * lib/google-signin — native sheet → id_token, with the error-code mapping.
+ * lib/google-signin, native sheet → id_token, with the error-code mapping.
  * The native module is mocked; we drive its responses.
  */
 

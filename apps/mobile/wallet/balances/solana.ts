@@ -10,7 +10,7 @@ export const solanaBalanceReader: BalanceReader = {
     try {
       owner = new PublicKey(address)
     } catch {
-      return [] // Malformed address — nothing to read.
+      return [] // Malformed address, nothing to read.
     }
 
     const results = await Promise.allSettled(

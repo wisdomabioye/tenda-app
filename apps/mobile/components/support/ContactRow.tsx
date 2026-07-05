@@ -10,9 +10,9 @@ interface ContactRowProps {
   Icon: LucideIcon
   label: string
   value: string
-  /** External URL — opened via `Linking.openURL`. */
+  /** External URL, opened via `Linking.openURL`. */
   url: string
-  /** Icon tile tint — defaults to `brand`. */
+  /** Icon tile tint, defaults to `brand`. */
   tone?: Tone
   /** Whether to render the bottom hairline. */
   showDivider?: boolean

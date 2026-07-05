@@ -5,7 +5,7 @@ export interface ProofFile {
   uri: string
   mimeType: string
   name: string
-  /** Bytes, when the picker reports it — pre-flight size guard. */
+  /** Bytes, when the picker reports it, pre-flight size guard. */
   size?: number
 }
 
@@ -18,8 +18,8 @@ export interface UploadResult {
 /**
  * React Native's FormData accepts a `{ uri, name, type }` file part (the
  * native uploader streams the file at `uri`), but the TS DOM lib types only
- * model `string | Blob`. This helper is the ONE sanctioned bridge cast —
- * typed input, single site — so the escape hatch can't spread.
+ * model `string | Blob`. This helper is the ONE sanctioned bridge cast,
+ * typed input, single site, so the escape hatch can't spread.
  */
 function rnFilePart(part: { uri: string; name: string; type: string }): Blob {
   return part as unknown as Blob
@@ -28,7 +28,7 @@ function rnFilePart(part: { uri: string; name: string; type: string }): Blob {
 /**
  * Upload a file to Cloudinary using a server-signed upload request.
  * Supports images, videos, and documents.
- * `conversationId` is required for type 'chat' — the server scopes the
+ * `conversationId` is required for type 'chat', the server scopes the
  * signed folder to the conversation and rejects unscoped requests.
  */
 export async function uploadToCloudinaryDetailed(
@@ -41,10 +41,10 @@ export async function uploadToCloudinaryDetailed(
       conversationId !== undefined ? { type, conversation_id: conversationId } : { type },
     )
 
-  // Pre-flight guard — saves the user a doomed upload when the picker
+  // Pre-flight guard, saves the user a doomed upload when the picker
   // reports a size. The hard cap is the Cloudinary upload preset.
   if (file.size !== undefined && file.size > max_file_bytes) {
-    throw new Error(`File is too large — max ${Math.floor(max_file_bytes / (1024 * 1024))} MB`)
+    throw new Error(`File is too large, max ${Math.floor(max_file_bytes / (1024 * 1024))} MB`)
   }
 
   const formData = new FormData()
@@ -53,7 +53,7 @@ export async function uploadToCloudinaryDetailed(
   formData.append('timestamp', String(timestamp))
   formData.append('signature', signature)
   formData.append('folder', folder)
-  // Signed param (S5.12) — must be sent or Cloudinary rejects the signature.
+  // Signed param (S5.12), must be sent or Cloudinary rejects the signature.
   formData.append('allowed_formats', allowed_formats)
 
   // Abort the upload after 120 s to prevent silent hangs on large files / slow connections.
@@ -72,7 +72,7 @@ export async function uploadToCloudinaryDetailed(
     )
   } catch (err) {
     if ((err as Error).name === 'AbortError') {
-      throw new Error('Upload timed out — check your connection and try again')
+      throw new Error('Upload timed out, check your connection and try again')
     }
     throw err
   } finally {

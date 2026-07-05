@@ -11,14 +11,14 @@ const env = getEnv()
  * MWA `chain` param (adapters/mwa-shared.ts), the CAIP id below, and the
  * app-level network the gig/exchange/fiat screens read. Previously this env→
  * cluster decision was duplicated in three places (index.ts, mwa-shared.ts,
- * and — hardcoded wrong — here).
+ * and, hardcoded wrong, here).
  */
 export const SOLANA_NETWORK: Cluster = env === 'production' ? 'mainnet-beta' : 'devnet'
 
 /**
- * Active CAIP-2 chain id per namespace — the value sent to the server (auth,
+ * Active CAIP-2 chain id per namespace, the value sent to the server (auth,
  * escrow create). Solana resolves through the shared `solanaChainId` so it
- * matches the server registry EXACTLY (`solana:devnet` / `solana:mainnet` — NOT
+ * matches the server registry EXACTLY (`solana:devnet` / `solana:mainnet`, NOT
  * the genesis-hash form, which the registry never registered and which a dev
  * build must never send). EVM is Base / Base Sepolia per env.
  */
@@ -29,7 +29,7 @@ export const WALLET_CHAINS: Record<Namespace, string> = {
 
 /**
  * App identity surfaced to wallet apps during connect / authorize / sign
- * (MetaMask Connect, Phantom universal links, and — via mwa-shared — MWA,
+ * (MetaMask Connect, Phantom universal links, and, via mwa-shared, MWA,
  * which substitutes a relative icon since it rejects absolute icon URIs).
  */
 export const metadata = {

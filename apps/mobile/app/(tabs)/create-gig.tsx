@@ -23,7 +23,7 @@ import type { GigFormValues } from '@/components/gig/GigForm'
 export default function PostGigScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ draftId?: string }>()
-  // Tab screens retain params across visits — '' (cleared) reads as absent.
+  // Tab screens retain params across visits, '' (cleared) reads as absent.
   const draftId = params.draftId !== undefined && params.draftId !== '' ? params.draftId : undefined
   const [isLoading, setIsLoading] = useState(false)
   const [showNudge, setShowNudge] = useState(false)
@@ -59,7 +59,7 @@ export default function PostGigScreen() {
           city: draft.city,
         })
       } catch {
-        if (!cancelled) showToast('info', 'Could not load the draft — starting fresh')
+        if (!cancelled) showToast('info', 'Could not load the draft, starting fresh')
       } finally {
         if (!cancelled) setDraftLoading(false)
       }
@@ -70,7 +70,7 @@ export default function PostGigScreen() {
   }, [draftId])
 
   // v2 create chain (cutover §6): 1) draft escrow + unsigned create tx,
-  // 2) attach gig_details (Stage-6 moderation gate — a block deletes the
+  // 2) attach gig_details (Stage-6 moderation gate, a block deletes the
   // orphan draft), 3) wallet signs + broadcasts + client-pings. The gig
   // goes live (draft → open) when the verify pipeline confirms the tx.
   async function handleSubmit(values: GigFormValues) {
@@ -79,7 +79,7 @@ export default function PostGigScreen() {
     if (!values.remote && (!values.country || !safeCity)) return
 
     // CO5: chain + USDC asset come from the form's picker (policy pair
-    // from the shared GIG_ASSET_BY_CHAIN map — the server re-asserts it).
+    // from the shared GIG_ASSET_BY_CHAIN map, the server re-asserts it).
     const chain_id = values.chainId
     const asset = values.asset
     const accept_deadline_unix = Math.floor(
@@ -119,13 +119,13 @@ export default function PostGigScreen() {
         })
       } catch (e) {
         // Stage-6 block (or validation failure): the chain-agnostic draft
-        // would be an orphan — discard it before surfacing the error.
+        // would be an orphan, discard it before surfacing the error.
         await api.escrows.delete({ id: created.escrow_id }).catch(() => {})
         escrow_id = null
         throw e
       }
 
-      // Retry-from-draft: the listing now lives on the NEW draft — discard
+      // Retry-from-draft: the listing now lives on the NEW draft, discard
       // the abandoned one. A 409 (its create tx is still pending) leaves it
       // alone; it stays deletable from its own page.
       if (draftId !== undefined && draftId !== created.escrow_id) {
@@ -156,12 +156,12 @@ export default function PostGigScreen() {
         showToast('error', TRANSACTION_GATE_MESSAGE[gate])
         router.push(transactionGateRoute(gate))
       } else if (e instanceof ApiClientError && e.code === ErrorCode.CONTENT_MODERATED) {
-        // Stage-6: block verdicts get the full dialog — no retry path.
+        // Stage-6: block verdicts get the full dialog, no retry path.
         setBlockedMessage(e.message)
       } else if (escrow_id !== null) {
-        // Details saved but signing failed/declined — the draft survives
+        // Details saved but signing failed/declined, the draft survives
         // with a Delete Draft CTA on its page.
-        showToast('info', e instanceof Error ? e.message : 'Signing incomplete — draft saved')
+        showToast('info', e instanceof Error ? e.message : 'Signing incomplete, draft saved')
         router.push(`/gig/${escrow_id}`)
       } else {
         showToast('error', e instanceof Error ? e.message : 'Failed to create gig')
@@ -188,7 +188,7 @@ export default function PostGigScreen() {
           <LoadingScreen />
         ) : (
           <GigForm
-            // Remount when the prefill arrives — GigForm seeds its state once.
+            // Remount when the prefill arrives, GigForm seeds its state once.
             key={draftValues !== null ? draftId : 'blank'}
             initialValues={draftValues ?? undefined}
             submitLabel={draftId !== undefined ? 'Repost Gig' : 'Post Gig'}

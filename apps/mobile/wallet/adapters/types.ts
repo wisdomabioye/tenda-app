@@ -18,7 +18,7 @@ export interface AuthenticateResult {
 
 /**
  * Uniform surface every wallet integration implements. The picker, provider,
- * and any consumer code interact with wallets only through this interface —
+ * and any consumer code interact with wallets only through this interface,
  * the underlying transport (MetaMask SDK, Coinbase SDK, Solana MWA, Phantom
  * universal links) is an implementation detail of each adapter.
  */
@@ -30,7 +30,7 @@ export interface WalletAdapter {
   /**
    * Bundled wallet icon, `require('@/assets/wallets/<id>.png')`. Optional:
    * aggregator adapters (WalletConnect) cover many wallets and have no single
-   * icon — the picker falls back to a generic wallet glyph.
+   * icon, the picker falls back to a generic wallet glyph.
    */
   readonly iconSource?: ImageRequireSource
   /**
@@ -43,13 +43,13 @@ export interface WalletAdapter {
 
   /**
    * Whether this adapter is usable on the current device/platform. Picker
-   * hides adapters that return `false` — e.g. Solflare on iOS (no SDK).
+   * hides adapters that return `false`, e.g. Solflare on iOS (no SDK).
    */
   isAvailable(): Promise<boolean>
 
   /**
    * Whether the wallet app is present on the device. Picker shows a check
-   * mark when `true`. Uses `Linking.canOpenURL` under the hood — relies on
+   * mark when `true`. Uses `Linking.canOpenURL` under the hood, relies on
    * the wallet's deeplink scheme being declared in `with-wallet-queries`.
    */
   isInstalled(): Promise<boolean>
@@ -68,7 +68,7 @@ export interface WalletAdapter {
   /**
    * One auth round-trip for the server-nonce flow: connect (revealing the
    * address), build the message from the connected account, and sign it.
-   * Each adapter implements this optimally — MWA folds connect+sign into a
+   * Each adapter implements this optimally, MWA folds connect+sign into a
    * single wallet session; EVM/Phantom compose `connect()` then
    * `signMessage()` via the shared `connectThenSign` helper.
    *

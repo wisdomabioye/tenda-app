@@ -101,7 +101,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
         },
       ]}
     >
-      {/* Header — avatar + name + handle + role pill */}
+      {/* Header, avatar + name + handle + role pill */}
       <TouchableOpacity
         onPress={handleProfilePress}
         activeOpacity={0.85}
@@ -138,7 +138,7 @@ export function DrawerContent({ onClose, onNavigate }: DrawerContentProps) {
         </View>
       </TouchableOpacity>
 
-      {/* Body — sections + rows */}
+      {/* Body, sections + rows */}
       <ScrollView
         style={s.scroll}
         contentContainerStyle={s.scrollContent}

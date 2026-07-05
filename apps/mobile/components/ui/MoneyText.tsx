@@ -6,7 +6,7 @@ import { formatFiat } from '@/lib/currency'
 import type { SupportedCurrency } from '@tenda/shared'
 
 interface MoneyTextProps {
-  /** Fiat value in the given currency — null hides the fiat headline ('—'). */
+  /** Fiat value in the given currency, null hides the fiat headline ('—'). */
   fiat: number | null
   currency: SupportedCurrency
   /** Pre-formatted asset amount, e.g. "0.05 SOL" / "5 USDC". */

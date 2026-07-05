@@ -20,7 +20,7 @@ interface AuthState {
   jwt: string | null
   walletAddress: string | null
   /**
-   * Connected EVM account (CO3) — session-scoped, set by `signInWithWallet`
+   * Connected EVM account (CO3), session-scoped, set by `signInWithWallet`
    * on an eip155 sign-in and cleared on logout. NOT persisted: after a
    * restart it stays null and the evm-tx dispatch path falls back to the
    * verified linked eip155 wallet (from `wallets[]`). It only bridges the
@@ -36,7 +36,7 @@ interface AuthState {
    * flashing the welcome/get-started screen. Cleared when the flow settles.
    */
   walletAuthInProgress: boolean
-  /** Stage 1 multi-wallet state — from GET /v1/users/me. */
+  /** Stage 1 multi-wallet state, from GET /v1/users/me. */
   wallets: LinkedWallet[]
   /** null until /v1/users/me has answered at least once this session. */
   profileComplete: boolean | null
@@ -53,7 +53,7 @@ interface AuthState {
    * declines in the wallet, true on success. Throws on transport or server
    * failure (the connect-wallet screen maps WALLET_NOT_LINKED to Tier-0). The
    * connected account's address is published to the namespace-appropriate slot
-   * (`walletAddress` for Solana — consumed as a Solana pubkey — or `evmAddress`
+   * (`walletAddress` for Solana, consumed as a Solana pubkey, or `evmAddress`
    * for EVM).
    */
   signInWithWallet: (adapter: WalletAdapter) => Promise<boolean>
@@ -68,20 +68,20 @@ interface AuthState {
    */
   linkWallet: (adapter: WalletAdapter) => Promise<boolean>
   /**
-   * Stage 9 unified sign-in — verify a credential proof (phone/email OTP,
+   * Stage 9 unified sign-in, verify a credential proof (phone/email OTP,
    * OAuth id_token, or wallet signature) via POST /v1/auth/verify and set the
    * session. No wallet is required. Always calls verify ANONYMOUSLY (no
-   * bearer) — the header is the server's link/sign-in discriminator, and a
+   * bearer), the header is the server's link/sign-in discriminator, and a
    * stale stored JWT would otherwise 401 every sign-in attempt.
    * Returns whether the account was just created. Throws ApiClientError (the
    * caller maps WALLET_NOT_LINKED / IDENTITY_ALREADY_LINKED to the Tier-0 UX).
    */
   signInWithVerify: (body: VerifyBody) => Promise<{ isNew: boolean }>
   /**
-   * Stage 9 — LINK a verified contact (phone/email OTP) to the ALREADY-signed-in
+   * Stage 9, LINK a verified contact (phone/email OTP) to the ALREADY-signed-in
    * account, used by the Sign-in & security screen. Same POST /v1/auth/verify as
    * sign-in but with `link: true` (bearer attached → server links to the current
-   * user), and it does NOT touch the session token or navigation — it just
+   * user), and it does NOT touch the session token or navigation, it just
    * refreshes the cached user/wallets/identities. Throws ApiClientError (the
    * screen maps IDENTITY_ALREADY_LINKED etc. to a toast).
    */
@@ -97,7 +97,7 @@ interface AuthState {
 }
 
 /**
- * A SIGN-IN call answered 401 UNAUTHORIZED — only the server's JWT guard mints
+ * A SIGN-IN call answered 401 UNAUTHORIZED, only the server's JWT guard mints
  * that code, so a dead stored token leaked onto the request. Purge it so the
  * very next attempt starts clean: loadSession can only clear it when the
  * server is reachable at launch, so without this a server-down start leaves
@@ -137,7 +137,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const isSolana = account.namespace === 'solana'
       await Promise.all([
         setJwtToken(auth.token),
-        // walletAddress is consumed as a Solana pubkey (balance, fiat quotes) —
+        // walletAddress is consumed as a Solana pubkey (balance, fiat quotes),
         // only persist it for a Solana account; an EVM login publishes evmAddress.
         isSolana ? setWalletAddress(account.address) : Promise.resolve(),
       ])
@@ -148,7 +148,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           ? { walletAddress: account.address }
           : { evmAddress: account.address }),
         isAuthenticated: true,
-        // The auth response is the v2 row — same predicate the server uses.
+        // The auth response is the v2 row, same predicate the server uses.
         profileComplete: Boolean(auth.user.first_name && auth.user.last_name),
       })
 
@@ -214,7 +214,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const res = await api.auth.methods()
       set({ identities: res.identities })
     } catch {
-      // Non-fatal — the security screen shows a retry; stale list is acceptable.
+      // Non-fatal, the security screen shows a retry; stale list is acceptable.
     }
   },
 
@@ -223,7 +223,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await usePendingSyncStore.getState().clear()
     // Drop any WalletConnect (EVM) session so the next login starts clean and
     // shows the wallet sheet instead of silently reusing the prior wallet.
-    // Fire-and-forget — logout must not block on a relay round-trip.
+    // Fire-and-forget, logout must not block on a relay round-trip.
     void connectionSignal.disconnect()
     await clearAuthStorage()
     set({
@@ -241,7 +241,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loadSession: async () => {
     // Declare outside try so the catch block can reference them.
     // If the SecureStore read itself fails, both remain null and the catch
-    // will set isLoading: false with no credentials — safe default.
+    // will set isLoading: false with no credentials, safe default.
     let jwt: string | null = null
     let walletAddress: string | null = null
 
@@ -257,7 +257,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       const user = await api.auth.me()
       set({ user, jwt, walletAddress, isAuthenticated: true, isLoading: false })
-      // Wallets + profile_complete ride a second, non-blocking call — the
+      // Wallets + profile_complete ride a second, non-blocking call, the
       // legacy /v1/auth/me shape feeds the existing screens unchanged.
       void get().refreshMe()
     } catch (e) {
@@ -271,7 +271,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false,
         })
       } else {
-        // Transient network error — commit the credentials we already read from SecureStore
+        // Transient network error, commit the credentials we already read from SecureStore
         // into Zustand state so the UI shows a "reconnecting" state rather than the login screen.
         set({ jwt, walletAddress, isLoading: false })
       }
@@ -285,7 +285,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const user = await api.auth.me()
       set({ user })
     } catch {
-      // Silently ignore — stale data is better than a crash on focus
+      // Silently ignore, stale data is better than a crash on focus
     }
   },
 
@@ -297,7 +297,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         profileComplete: me.profile_complete,
       })
     } catch {
-      // Non-fatal — wallets UI shows a retry; profile gate falls back to
+      // Non-fatal, wallets UI shows a retry; profile gate falls back to
       // the value derived at sign-in.
     }
   },

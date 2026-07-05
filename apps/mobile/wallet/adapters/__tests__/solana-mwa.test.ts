@@ -1,6 +1,6 @@
 /**
  * solana-mwa.signAndSendStored (Stage 3). The adapter owns its MWA session
- * token (AsyncStorage) — dispatch reads it from here, not the auth store.
+ * token (AsyncStorage), dispatch reads it from here, not the auth store.
  * Verifies the no-session guard and the connect→sign→broadcast happy path.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -96,7 +96,7 @@ describe('authenticate (one-shot, always-fresh)', () => {
     const result = await authenticate(buildMessage)
     if (result === null) throw new Error('expected an AuthenticateResult')
 
-    // Fresh authorize (null token) — never reauthorize with the stale one.
+    // Fresh authorize (null token), never reauthorize with the stale one.
     expect(authorizeMock).toHaveBeenCalledWith(wallet, null)
     // One wallet visit.
     expect(withRetryMock).toHaveBeenCalledTimes(1)

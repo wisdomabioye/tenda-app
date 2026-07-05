@@ -6,7 +6,7 @@ import { ASSET_META } from '@tenda/shared'
 import { useWalletBalance } from '@/hooks/useWalletBalance'
 
 /**
- * Stage 8 chained buy-then-post nudge — advisory only; funding happens at
+ * Stage 8 chained buy-then-post nudge, advisory only; funding happens at
  * publish. The wallet-balance hook is SOL-native, so the nudge only renders
  * when the budget is in native SOL and exceeds the current balance.
  */
@@ -30,7 +30,7 @@ export function AddFundsNudge({ asset, paymentRaw }: { asset: string; paymentRaw
       accessibilityLabel="Add funds"
     >
       <Text style={[s.addFundsText, { color: theme.colors.brand.primary }]}>
-        Your balance won&apos;t cover this amount — add funds. Your draft stays right here.
+        Your balance won&apos;t cover this amount, add funds. Your draft stays right here.
       </Text>
     </Pressable>
   )

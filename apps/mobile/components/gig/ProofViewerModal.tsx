@@ -51,7 +51,7 @@ export function ProofViewerModal({ proof, onClose }: Props) {
   const insets = useSafeAreaInsets()
   const [downloading, setDownloading] = useState(false)
   const [permissionPrompt, setPermissionPrompt] = useState(false)
-  // A success/failure notice — shown via our dialog because a toast would render
+  // A success/failure notice, shown via our dialog because a toast would render
   // BEHIND this fullscreen modal.
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -93,7 +93,7 @@ export function ProofViewerModal({ proof, onClose }: Props) {
   const typeLabel =
     proof.type === 'image' ? 'IMAGE' : proof.type === 'video' ? 'VIDEO' : 'DOCUMENT'
 
-  // Black background is intentional — matches system gallery/camera UX.
+  // Black background is intentional, matches system gallery/camera UX.
   // Overlays are relative to that fixed black bg, not theme-dependent.
   const OVERLAY_DIM = 'rgba(255,255,255,0.12)'
   const OVERLAY_TEXT = 'rgba(255,255,255,0.5)'

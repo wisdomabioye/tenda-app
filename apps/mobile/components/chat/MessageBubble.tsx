@@ -13,7 +13,7 @@ interface MessageBubbleProps {
   onLongPress?:  () => void
 }
 
-// Custom softer chat-bubble blues — derived from brand but desaturated
+// Custom softer chat-bubble blues, derived from brand but desaturated
 // so the conversation feels calmer than a flat saturated brand fill.
 // Light: hue-aligned with brand.primary but less aggressive.
 // Dark:  deeper muted variant, easier on the eye against --bg-dark.
@@ -27,7 +27,7 @@ export function MessageBubble({ message, isMine, onRetry, onLongPress }: Message
   const isFailed  = message._status === 'failed'
   const isSending = message._status === 'sending'
 
-  // Their bubble: warm/calm surface — slightly softened in dark from raw --inset
+  // Their bubble: warm/calm surface, slightly softened in dark from raw --inset
   const themBg = isDark ? '#1B2231' : theme.colors.surface.inset
   const meBg = isDark ? ME_BG_DARK : ME_BG_LIGHT
 

@@ -17,7 +17,7 @@ export function configureNotifications() {
 
 /**
  * Request permission and register the device push token with the server.
- * Safe to call multiple times — silently no-ops if permission is denied.
+ * Safe to call multiple times, silently no-ops if permission is denied.
  */
 export async function registerPushToken(): Promise<void> {
   // Android requires a channel before requesting a token

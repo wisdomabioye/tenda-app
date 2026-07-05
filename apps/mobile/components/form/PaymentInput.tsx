@@ -8,7 +8,7 @@ import { useSettingsStore } from '@/stores/settings.store'
 import { ASSET_META, CURRENCY_META, gigAmountBounds } from '@tenda/shared'
 
 interface PaymentInputProps {
-  /** Asset registry id (CO5) — drives decimals, symbol and budget rails. */
+  /** Asset registry id (CO5), drives decimals, symbol and budget rails. */
   asset: string
   /** Raw units of `asset` (lamports for SOL, 6dp for USDC). */
   value: number
@@ -20,7 +20,7 @@ type Mode = 'FIAT' | 'ASSET'
 /**
  * Budget card per `create-gig.html .budget-card`:
  *   inset 72h R14 with mono 22/700 amount + mono 13 unit suffix + mono 12.5 fiat alt right-aligned.
- *   Asset-aware since CO5 — the FIAT alt converts via the platform SOL rate
+ *   Asset-aware since CO5, the FIAT alt converts via the platform SOL rate
  *   (stables ride the USD leg: NGN-per-USDC ≈ rates.NGN / rates.USD).
  */
 export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {

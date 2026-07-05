@@ -18,7 +18,7 @@ interface InputProps extends TextInputProps {
 const s = StyleSheet.create({
   wrapper: { gap: 6 },
 
-  // Anatomy A — `inset` (canonical create-gig.html .input)
+  // Anatomy A, `inset` (canonical create-gig.html .input)
   insetContainer: {
     borderRadius: 14,
     borderWidth: 1,
@@ -58,7 +58,7 @@ const s = StyleSheet.create({
     textAlignVertical: 'top',
   },
 
-  // Anatomy B — `compact` (update-profile.html .field/.input)
+  // Anatomy B, `compact` (update-profile.html .field/.input)
   compactWrapper: {
     flexDirection: 'column',
     gap: 6,
@@ -97,7 +97,7 @@ const s = StyleSheet.create({
     alignItems: 'flex-start',
   },
 
-  // Footer (shared by both anatomies — outside container)
+  // Footer (shared by both anatomies, outside container)
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',

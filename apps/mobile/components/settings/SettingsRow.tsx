@@ -25,7 +25,7 @@ interface SettingsRowProps {
   value?: string
   onPress?: () => void
   showChevron?: boolean
-  /** Trailing control (e.g. a Switch) — mutually exclusive with chevron in practice. */
+  /** Trailing control (e.g. a Switch), mutually exclusive with chevron in practice. */
   trailing?: ReactNode
 }
 

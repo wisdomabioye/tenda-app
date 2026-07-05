@@ -19,7 +19,7 @@ function formatSubLabel(sub: GigSubscription): string {
 }
 
 /**
- * Notifications section — new-gig subscriptions. Owns its own data fetch +
+ * Notifications section, new-gig subscriptions. Owns its own data fetch +
  * notification-permission state; the banner steers a denied user to iOS
  * Settings and disables the add row until permission is restored.
  */

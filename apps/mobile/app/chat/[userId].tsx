@@ -80,7 +80,7 @@ export default function ChatScreen() {
         size: bytes,
       })
     } catch (e) {
-      showToast('error', e instanceof Error ? e.message : 'Upload failed — please try again')
+      showToast('error', e instanceof Error ? e.message : 'Upload failed, please try again')
     } finally {
       setUploading(false)
     }
@@ -105,7 +105,7 @@ export default function ChatScreen() {
       setCloseConfirm(false)
       router.back()
     } catch {
-      showToast('error', 'Failed to close conversation — please try again')
+      showToast('error', 'Failed to close conversation, please try again')
     } finally {
       setClosing(false)
     }
@@ -221,7 +221,7 @@ export default function ChatScreen() {
           <View style={s.menuBody}>
             <Text size={15} weight="semibold" style={s.menuTitle}>Photo</Text>
             <Text size={12.5} color={theme.colors.content.secondary} style={s.menuDesc}>
-              JPG, PNG or WebP — up to 10 MB.
+              JPG, PNG or WebP, up to 10 MB.
             </Text>
           </View>
         </Pressable>
@@ -241,7 +241,7 @@ export default function ChatScreen() {
           <View style={s.menuBody}>
             <Text size={15} weight="semibold" style={s.menuTitle}>Document</Text>
             <Text size={12.5} color={theme.colors.content.secondary} style={s.menuDesc}>
-              PDF — up to 10 MB.
+              PDF, up to 10 MB.
             </Text>
           </View>
         </Pressable>

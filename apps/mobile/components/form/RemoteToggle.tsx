@@ -36,7 +36,7 @@ export function RemoteToggle({ value, onChange, title = 'Remote', hint }: Remote
   })
 
   const defaultHint = value
-    ? 'No physical location — visible globally.'
+    ? 'No physical location, visible globally.'
     : 'Worker comes to a specific location.'
 
   return (

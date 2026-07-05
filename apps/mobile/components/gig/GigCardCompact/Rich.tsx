@@ -18,9 +18,9 @@ interface Props {
 }
 
 /**
- * Variant C — Rich Compact (home.html `.card-rich`, shipped in the rendered list preview).
+ * Variant C, Rich Compact (home.html `.card-rich`, shipped in the rendered list preview).
  * Vertical stack: top row (cat/status + deadline), title, 2-line excerpt, foot row
- * with location + remote-pill + price + fiat alt. Densest of the variants — surfaces
+ * with location + remote-pill + price + fiat alt. Densest of the variants, surfaces
  * the gig's description preview alongside price and meta.
  */
 export function GigCardCompactRich({ gig, showStatus = false }: Props) {

@@ -1,7 +1,7 @@
 /**
- * useWalletScreen — multichain data controller. Asserts the no-wallet loading
+ * useWalletScreen, multichain data controller. Asserts the no-wallet loading
  * fix (isLoading must SETTLE, not strand the skeleton, when no wallet is linked
- * — the old hook early-returned and looped forever) and the USDC-total wiring.
+ *, the old hook early-returned and looped forever) and the USDC-total wiring.
  */
 import { renderHook, waitFor } from '@testing-library/react-native'
 

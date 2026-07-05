@@ -1,7 +1,7 @@
 /**
- * api/request — HTTP core. Pins the Authorization contract: the stored JWT is
+ * api/request, HTTP core. Pins the Authorization contract: the stored JWT is
  * attached by default, and `auth: false` forces an anonymous call even when a
- * token is stored (sign-in surfaces depend on this — the server treats a
+ * token is stored (sign-in surfaces depend on this, the server treats a
  * present bearer on /v1/auth/{challenge,verify} as link intent and hard-401s
  * a stale one). Plus the ApiError envelope → ApiClientError mapping.
  */
@@ -28,7 +28,7 @@ function sentHeaders(fetchMock: jest.Mock): Record<string, string> {
   return fetchMock.mock.calls[0][1].headers
 }
 
-describe('request — Authorization header', () => {
+describe('request, Authorization header', () => {
   it('attaches the stored JWT by default', async () => {
     getJwt.mockResolvedValue('jwt-abc')
     const fetchMock = mockFetch()
@@ -75,7 +75,7 @@ describe('request — Authorization header', () => {
   })
 })
 
-describe('request — error envelope', () => {
+describe('request, error envelope', () => {
   it('maps a non-2xx ApiError envelope to ApiClientError with its code', async () => {
     getJwt.mockResolvedValue(null)
     mockFetch(401, {

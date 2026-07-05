@@ -1,5 +1,5 @@
 /**
- * Verify-code screen (Stage 9C) — generic OTP entry, two modes:
+ * Verify-code screen (Stage 9C), generic OTP entry, two modes:
  *   - signin (default): auto-submit on 6 digits → signInWithVerify → reset stack.
  *   - link (Sign-in & security): → linkIdentity → toast + dismiss to security,
  *     WITHOUT touching the session. A blocked identity surfaces the Tier-0

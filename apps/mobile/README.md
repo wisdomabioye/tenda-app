@@ -5,7 +5,7 @@ React Native app for the Tenda gig marketplace. Android only (for now).
 ## Stack
 
 Expo SDK · Expo Router (typed routes) · Unistyles · Zustand · multi-transport
-wallets (Solana MWA, Phantom universal links, Reown/WalletConnect for EVM —
+wallets (Solana MWA, Phantom universal links, Reown/WalletConnect for EVM,
 see `wallet/README.md`) · Sentry
 
 ## Setup
@@ -33,7 +33,7 @@ pnpm build:aab   # Android AAB via EAS (production profile)
 ```
 
 EAS build profiles: `development` → `preview` (staging) → `production`.
-Set `APP_ENV` in each profile in `eas.json` — do not rely on the profile name.
+Set `APP_ENV` in each profile in `eas.json`, do not rely on the profile name.
 
 ## Smart contracts
 

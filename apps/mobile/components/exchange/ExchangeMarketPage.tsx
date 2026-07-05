@@ -7,7 +7,7 @@ import { ExchangeOfferCard } from './ExchangeOfferCard'
 import { OfferListSkeleton } from './OfferListSkeleton'
 import type { ExchangeSummary } from '@tenda/shared'
 
-/** Market page (open offers) — currency filter pill + paginated offer list. */
+/** Market page (open offers), currency filter pill + paginated offer list. */
 export function ExchangeMarketPage({
   width,
   currency,

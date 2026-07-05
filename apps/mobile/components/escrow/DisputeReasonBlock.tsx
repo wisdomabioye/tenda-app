@@ -8,7 +8,7 @@ import { Spacer } from '@/components/ui/Spacer'
 interface Props {
   reason: string
   /**
-   * CO7: opens the shared mediation thread. Parties only — the caller
+   * CO7: opens the shared mediation thread. Parties only, the caller
    * decides; omitted = no chat affordance (e.g. public viewers).
    */
   onOpenThread?: () => void

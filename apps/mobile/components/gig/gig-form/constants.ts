@@ -12,7 +12,7 @@ export const CATEGORY_HINTS: Record<GigCategory, string> = {
 }
 
 // v2 escrows REQUIRE an accept deadline (the on-chain refund window keys
-// off it) — '30d' is the long-tail option that replaced 'No limit'.
+// off it), '30d' is the long-tail option that replaced 'No limit'.
 export const ACCEPT_DEADLINE_OPTIONS: { label: string; hours: number }[] = [
   { label: '12h', hours: 12 },
   { label: '24h', hours: 24 },
@@ -25,7 +25,7 @@ export const ACCEPT_DEADLINE_OPTIONS: { label: string; hours: number }[] = [
 export interface GigFormValues {
   title: string
   description: string
-  /** CAIP-2 chain + its gig asset (CO5) — always a GIG_ASSET_BY_CHAIN pair. */
+  /** CAIP-2 chain + its gig asset (CO5), always a GIG_ASSET_BY_CHAIN pair. */
   chainId: string
   asset: string
   /** Budget in raw units of `asset`. */

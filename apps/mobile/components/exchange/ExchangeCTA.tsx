@@ -14,7 +14,7 @@ interface Props {
 }
 
 /**
- * Exchange CTA set over the shared visibility helpers — 'submit' is the
+ * Exchange CTA set over the shared visibility helpers, 'submit' is the
  * buyer's fiat-payment proof ("Mark as Paid"); the seller's approve
  * releases the crypto.
  */
@@ -27,7 +27,7 @@ export function ExchangeCTA({ offer, userId, actions, onSheet }: Props) {
   const isCreator = userId === offer.creator.id
   const busy = actions.busyAction !== null
 
-  // Drafts: publish (build-create rebuilds the unsigned tx — covers
+  // Drafts: publish (build-create rebuilds the unsigned tx, covers
   // fiat-offramp drafts that never had one and signing-declined retries)
   // or discard.
   if (offer.status === 'draft' && isCreator) {

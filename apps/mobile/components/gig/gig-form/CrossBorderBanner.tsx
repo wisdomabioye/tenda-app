@@ -6,7 +6,7 @@ import type { CountryCode } from '@tenda/shared'
 
 /**
  * Advisory banner shown when the gig's country differs from the poster's
- * home country — renders null when the posting isn't cross-border.
+ * home country, renders null when the posting isn't cross-border.
  */
 export function CrossBorderBanner({
   remote,

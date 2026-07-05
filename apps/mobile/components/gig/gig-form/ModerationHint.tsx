@@ -4,7 +4,7 @@ import { Text } from '@/components/ui/Text'
 import type { ModerationPreviewResponse } from '@tenda/shared'
 
 /**
- * Stage-6 live moderation hint above the submit bar — advisory, never
+ * Stage-6 live moderation hint above the submit bar, advisory, never
  * blocking. Renders null on approve or when there's no reason to show.
  */
 export function ModerationHint({ moderation }: { moderation: ModerationPreviewResponse | null }) {

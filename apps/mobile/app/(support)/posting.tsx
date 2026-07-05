@@ -18,9 +18,9 @@ export default function PostingGuideScreen() {
         >
           <AccordionItem title="How to create a gig" defaultExpanded>
             <GuideStep step={1} title="Tap + Post a Gig" description="From the center tab or the Drawer." />
-            <GuideStep step={2} title="Describe the job" description="Be specific — workers decide to accept based on what you write." />
+            <GuideStep step={2} title="Describe the job" description="Be specific, workers decide to accept based on what you write." />
             <GuideStep step={3} title="Set the payment in SOL" description="The equivalent in your local currency is shown for reference." />
-            <GuideStep step={4} title="Review your draft" description="Your gig saves as a draft first — check title, description, location, and payment before publishing." />
+            <GuideStep step={4} title="Review your draft" description="Your gig saves as a draft first, check title, description, location, and payment before publishing." />
             <GuideStep
               step={5}
               title="Publish + fund the escrow"

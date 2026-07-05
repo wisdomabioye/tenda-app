@@ -16,10 +16,10 @@ type Busy = null | 'google' | 'apple'
 const Logo = require('@/assets/images/logo.png')
 
 /**
- * Stage 9C get-started — the multi-method entry. Google/Apple verify an
+ * Stage 9C get-started, the multi-method entry. Google/Apple verify an
  * id_token inline; phone/email push to the contact route (continue-with) which
  * issues the OTP; wallet routes to connect-wallet. A new account is born from a
- * contact-bearing method (decision #3 — wallet signs in, never creates). The
+ * contact-bearing method (decision #3, wallet signs in, never creates). The
  * layout mirrors welcome: a centred brand hero over a bottom method stack.
  */
 export default function GetStartedScreen() {
@@ -41,7 +41,7 @@ export default function GetStartedScreen() {
   }, [])
 
   function reportError(e: unknown): void {
-    showToast('error', verifyErrorMessage(e, 'Something went wrong — please try again'))
+    showToast('error', verifyErrorMessage(e, 'Something went wrong, please try again'))
   }
 
   function afterAuth(): void {

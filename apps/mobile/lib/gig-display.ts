@@ -6,7 +6,7 @@
  *     other surface that needs to display an escrow status)
  *
  * Post-#34 these key off the v2 EscrowStatus vocabulary: there is no
- * 'expired' status — an expired-open escrow becomes 'refunded' once the
+ * 'expired' status, an expired-open escrow becomes 'refunded' once the
  * creator reclaims, and the deadline chip derives "Expired" from the
  * accept_deadline. Deadlines come straight off the escrow row
  * (completion_deadline / approval_deadline are stored, not derived).
@@ -107,17 +107,17 @@ export interface GigDeadlineMeta {
   label: string
   /** Leading glyph hint (consumer renders the matching lucide icon). */
   glyph: GigDeadlineGlyph
-  /** Visual tone — drives chip background + foreground. */
+  /** Visual tone, drives chip background + foreground. */
   tone: GigDeadlineTone
 }
 
-/** Minimal escrow shape the chip needs — wire strings and Dates both work. */
+/** Minimal escrow shape the chip needs, wire strings and Dates both work. */
 export interface GigDeadlineSource {
   status: EscrowStatus
   accept_deadline: string | Date | null
-  /** Stored on the escrow at accept (v2) — null while open/draft. */
+  /** Stored on the escrow at accept (v2), null while open/draft. */
   completion_deadline?: string | Date | null
-  /** Stored on the escrow at submit (v2) — the poster's review window. */
+  /** Stored on the escrow at submit (v2), the poster's review window. */
   approval_deadline?: string | Date | null
   /** Used for the "3d ago" chip on completed/resolved rows. */
   updated_at?: string | Date | null

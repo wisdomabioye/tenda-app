@@ -1,15 +1,15 @@
 /**
- * Reown AppKit ↔ imperative-adapter bridge — the React glue half.
+ * Reown AppKit ↔ imperative-adapter bridge, the React glue half.
  *
  * `<ReownProvider>` mounts once at the app root: it wires AppKit's context, the
  * modal (`<AppKit />`), and a headless `<ReownBridge>` that mirrors the AppKit
  * hooks + modal events into the React-free `connectionSignal`
  * ([[connection-signal]]). The EVM `WalletAdapter` then drives connect/sign
- * imperatively through that signal — see `adapters/walletconnect.ts`.
+ * imperatively through that signal, see `adapters/walletconnect.ts`.
  *
  * When no Reown project id is configured, this renders children untouched (the
  * WalletConnect adapter reports `isAvailable() === false`, so the picker simply
- * hides the EVM entry — the app still boots).
+ * hides the EVM entry, the app still boots).
  */
 import type { ReactNode } from 'react'
 import { useEffect } from 'react'
@@ -31,7 +31,7 @@ function ReownBridge(): null {
   const { provider } = useProvider()
   const { walletInfo } = useWalletInfo()
 
-  // Mirror the live AppKit state into the signal on every render — this is what
+  // Mirror the live AppKit state into the signal on every render, this is what
   // settles an in-flight connect once the account changes. AppKit types
   // `disconnect` as `() => void` but it returns its real `Promise<void>` at
   // runtime; `Promise.resolve` adopts that thenable so the signal can await the
@@ -45,7 +45,7 @@ function ReownBridge(): null {
       isConnected,
       chainId,
       namespace,
-      // The connected wallet's own deep link — the adapter opens this to bring
+      // The connected wallet's own deep link, the adapter opens this to bring
       // the wallet forward for a sign/tx (WC/AppKit-RN won't do it for us).
       peerRedirect: walletInfo?.redirect?.native ?? walletInfo?.redirect?.universal,
     })

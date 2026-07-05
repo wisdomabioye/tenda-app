@@ -10,7 +10,7 @@
  *                  the bundler endpoint (Coinbase) to resolve nonce/gas and
  *                  accept eth_sendUserOperation. The server only emits this
  *                  kind once the paymaster env exists, so the typed error
- *                  below is unreachable until then — and loud if reached.
+ *                  below is unreachable until then, and loud if reached.
  */
 
 import { VersionedTransaction } from '@solana/web3.js'
@@ -30,10 +30,10 @@ export class UnsupportedUnsignedTxError extends Error {
 }
 
 /**
- * The EVM account this device signs/sends from — the SINGLE resolution both
+ * The EVM account this device signs/sends from, the SINGLE resolution both
  * dispatch and the permit flow use, so the permit's `owner` can never
  * diverge from the eventual `msg.sender`. CO3: `from` must be an eip155
- * account — walletAddress is the SOLANA sign-in address and never valid
+ * account, walletAddress is the SOLANA sign-in address and never valid
  * here. Prefer the live EVM login session (evmAddress); fall back to the
  * verified linked EVM wallet.
  */
@@ -48,7 +48,7 @@ export function resolveEvmFrom(): string | null {
 export async function signAndSendUnsignedTx(unsigned: UnsignedTx, chain_id?: string): Promise<string> {
   switch (unsigned.kind) {
     case 'solana-tx': {
-      // The MWA adapter owns its session token (AsyncStorage) — single source
+      // The MWA adapter owns its session token (AsyncStorage), single source
       // of truth, no auth-store round-trip.
       const tx = VersionedTransaction.deserialize(Buffer.from(unsigned.tx_base64, 'base64'))
       return signAndSendStored(tx)
@@ -56,18 +56,18 @@ export async function signAndSendUnsignedTx(unsigned: UnsignedTx, chain_id?: str
     case 'evm-tx': {
       const from = resolveEvmFrom()
       if (from === null) {
-        throw new Error('no EVM wallet connected — link one in Settings → Wallets first')
+        throw new Error('no EVM wallet connected, link one in Settings → Wallets first')
       }
       // The server's approval hint: this ERC-20 call transferFroms, so the
       // allowance must cover it BEFORE broadcast (permit-built calls carry
-      // no hint — their allowance rides the tx). Ordering lives HERE so
+      // no hint, their allowance rides the tx). Ordering lives HERE so
       // every flow (create, publish-draft, dispute) inherits it.
       if (unsigned.approval !== undefined) {
         if (chain_id === undefined) {
           // Silently skipping would broadcast a tx guaranteed to revert.
           throw new UnsupportedUnsignedTxError(
             'evm-tx',
-            'the approval hint needs the chain_id to read/set the allowance — pass it (signSendAndReport always does)',
+            'the approval hint needs the chain_id to read/set the allowance, pass it (signSendAndReport always does)',
           )
         }
         await ensureAllowance({
@@ -98,7 +98,7 @@ export async function signAndSendUnsignedTx(unsigned: UnsignedTx, chain_id?: str
 
 /**
  * The full client leg in one call: sign + broadcast, then client-ping so
- * the server's verify pipeline takes over (deferred on network failure —
+ * the server's verify pipeline takes over (deferred on network failure,
  * the pending-sync queue replays it).
  */
 export async function signSendAndReport(args: {

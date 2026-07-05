@@ -3,7 +3,7 @@
  * (kind='exchange' escrow). Mirrors the gig create chain:
  *   1) POST /v1/escrows → draft + unsigned create tx
  *   2) POST /v1/exchange → attach offer terms (a failure discards the draft)
- *   3) wallet signs + broadcasts + client-pings — the offer goes live
+ *   3) wallet signs + broadcasts + client-pings, the offer goes live
  *      (draft → open) when the verify pipeline confirms.
  */
 import { useMemo, useState } from 'react'
@@ -108,8 +108,8 @@ export default function CreateOfferScreen() {
         showToast('error', TRANSACTION_GATE_MESSAGE[gate])
         router.push(transactionGateRoute(gate))
       } else if (escrow_id !== null) {
-        // Terms saved but signing failed/declined — the draft survives.
-        showToast('info', e instanceof Error ? e.message : 'Signing incomplete — draft saved')
+        // Terms saved but signing failed/declined, the draft survives.
+        showToast('info', e instanceof Error ? e.message : 'Signing incomplete, draft saved')
         router.replace(`/exchange/${escrow_id}` as Parameters<typeof router.replace>[0])
       } else {
         showToast('error', e instanceof ApiClientError ? e.message : 'Failed to create the offer')

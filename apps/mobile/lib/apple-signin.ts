@@ -18,7 +18,7 @@ export class AppleSignInError extends Error {
 export interface AppleSignInResult {
   idToken: string
   /**
-   * Apple includes the name ONLY on the FIRST sign-in for a client — use it to
+   * Apple includes the name ONLY on the FIRST sign-in for a client, use it to
    * prefill profile setup. Later sign-ins return null and it can't be retrieved.
    */
   fullName: string | null

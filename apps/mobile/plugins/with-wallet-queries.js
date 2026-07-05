@@ -5,7 +5,7 @@
  * fails on Android and returns `false` from `canOpenURL` on iOS.
  *
  * Each wallet SDK / universal-link integration uses the wallet's native
- * scheme — declared here so the OS lets us discover and open them.
+ * scheme, declared here so the OS lets us discover and open them.
  *
  * Survives `expo prebuild --clean` because it re-runs during prebuild.
  */

@@ -43,7 +43,7 @@ export default function ExchangeScreen() {
       const result = await api.users.escrows({ id: user.id }, { role: 'creator', kind: 'exchange' })
       setMyOffers(result.data)
     } catch {
-      // Non-fatal — list stays stale
+      // Non-fatal, list stays stale
     } finally {
       setIsLoadingMine(false)
     }

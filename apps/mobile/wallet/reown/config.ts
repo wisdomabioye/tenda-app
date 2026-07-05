@@ -1,8 +1,8 @@
 /**
- * Reown AppKit (WalletConnect v2) initialisation — the live EVM wallet path.
+ * Reown AppKit (WalletConnect v2) initialisation, the live EVM wallet path.
  * Relay-based, non-custodial: the user keeps their keys in their own wallet
  * app; we never touch them. WalletConnect is the battle-tested protocol path
- * the big-name EVM SDKs (MetaMask Connect) failed to deliver on-device — it
+ * the big-name EVM SDKs (MetaMask Connect) failed to deliver on-device, it
  * works across every WC v2 wallet (MetaMask, Trust, Rainbow, SafePal, Coinbase…).
  *
  * `@walletconnect/react-native-compat` MUST be imported before any AppKit/WC
@@ -11,7 +11,7 @@
  * module is safe to import in isolation.
  *
  * Requires a free Reown Cloud project id in `EXPO_PUBLIC_REOWN_PROJECT_ID`
- * (https://cloud.reown.com). Without it we skip init so the app still boots —
+ * (https://cloud.reown.com). Without it we skip init so the app still boots,
  * the WalletConnect adapter then reports `isAvailable() === false` and the
  * picker hides the EVM entry.
  */
@@ -46,7 +46,7 @@ export const appKit = reownConfigured
         // Auto-return: the wallet bounces back to Tenda via `tenda://` after
         // approve/sign. That return lands on the `/` index route mid-verify, but
         // `index` holds a spinner while `walletAuthInProgress` (auth.store) is
-        // set — so it no longer flashes welcome/get-started — then redirects home
+        // set, so it no longer flashes welcome/get-started, then redirects home
         // once verify completes.
         redirect: { native: `${metadata.redirectScheme}://`, universal: metadata.url },
       },

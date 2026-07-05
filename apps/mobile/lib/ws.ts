@@ -1,7 +1,7 @@
 /**
  * Singleton WebSocket client (stage-2-listeners.md § Mobile).
  *
- * Auth rides the subprotocol header — ['tenda.v1.auth', <JWT>] — matching
+ * Auth rides the subprotocol header, ['tenda.v1.auth', <JWT>], matching
  * the server's parser; the JWT never appears in the URL. Reconnects with
  * exponential backoff + jitter, resubscribes every channel after a
  * reconnect, and exposes connection state so the polling hooks can act as
@@ -48,12 +48,12 @@ function wsUrl(): string {
   return base.replace(/^http/, 'ws') + WS_PATH
 }
 
-/** send() throws on a socket past CLOSING — never let that hit callers. */
+/** send() throws on a socket past CLOSING, never let that hit callers. */
 function safeSend(socket: WebSocket, payload: Record<string, unknown>): void {
   try {
     socket.send(JSON.stringify(payload))
   } catch {
-    // Socket died between the connected check and the send — the onclose
+    // Socket died between the connected check and the send, the onclose
     // handler reconnects and resubscribes; nothing to do here.
   }
 }
@@ -87,14 +87,14 @@ async function open(): Promise<void> {
   // disconnect() may have run while we awaited the token.
   if (!state.enabled || state.socket !== null) return
   if (!token) {
-    scheduleReconnect() // not signed in yet — retry later
+    scheduleReconnect() // not signed in yet, retry later
     return
   }
 
   const socket = new WebSocket(wsUrl(), [WS_AUTH_SUBPROTOCOL, token])
   state.socket = socket
 
-  // Every handler checks identity — a stale socket's late events (e.g. the
+  // Every handler checks identity, a stale socket's late events (e.g. the
   // onclose of one torn down by disconnect()) must not touch the state of a
   // newer socket created since.
   socket.onopen = () => {
@@ -129,13 +129,13 @@ async function open(): Promise<void> {
     scheduleReconnect()
   }
   socket.onerror = () => {
-    // onclose follows — reconnect handled there.
+    // onclose follows, reconnect handled there.
     socket.close()
   }
 }
 
 export const ws = {
-  /** Idempotent — call on sign-in / app foreground. */
+  /** Idempotent, call on sign-in / app foreground. */
   connect(): void {
     state.enabled = true
     void open()

@@ -38,7 +38,7 @@ export function useMessagePolling(conversationId: string | null) {
           emptyPollCount.current = 0
         }
       } catch {
-        // Poll errors are silent — the next cycle retries.
+        // Poll errors are silent, the next cycle retries.
       } finally {
         isFetching.current = false
         scheduleNextPoll(convId)

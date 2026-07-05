@@ -28,7 +28,7 @@ export function useConversationPolling(enabled = true) {
       try {
         await useChatStore.getState().fetchConversations()
       } catch {
-        // polling errors are silent — the badge just won't update this cycle
+        // polling errors are silent, the badge just won't update this cycle
       }
       if (!cancelled) schedule()
     }

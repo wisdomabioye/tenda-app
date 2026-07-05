@@ -16,7 +16,7 @@ const RESEND_COOLDOWN_S = 60
 type OtpChannel = 'phone' | 'email'
 
 /**
- * Generic OTP entry for the unified contact flow (Stage 9C) — phone OR email.
+ * Generic OTP entry for the unified contact flow (Stage 9C), phone OR email.
  * Two modes share this one screen:
  *   - 'signin' (default, from get-started): verifying sets the session
  *     (signInWithVerify) and resets to home / profile setup.
@@ -64,7 +64,7 @@ export default function VerifyCodeScreen() {
       }
     } catch (e) {
       setCode('')
-      showToast('error', verifyErrorMessage(e, 'Verification failed — please try again'))
+      showToast('error', verifyErrorMessage(e, 'Verification failed, please try again'))
     } finally {
       setIsVerifying(false)
     }

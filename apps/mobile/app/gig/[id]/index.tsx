@@ -34,7 +34,7 @@ const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
   accept: 'Gig accepted!',
   approve: 'Payment released to worker!',
   claim_stalled: 'Payment claimed!',
-  cancel: 'Gig cancelled — escrow refunded.',
+  cancel: 'Gig cancelled, escrow refunded.',
   refund_expired: 'Refund claimed successfully.',
   reclaim_abandoned: 'Escrow reclaimed.',
   submit: 'Proof submitted!',
@@ -177,7 +177,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           onConfirmed={handleTransactionConfirmed}
           onFailed={(msg) => {
             actions.clearPending()
-            showToast('info', msg || 'Transaction pending — will sync when confirmed')
+            showToast('info', msg || 'Transaction pending, will sync when confirmed')
           }}
         />
 

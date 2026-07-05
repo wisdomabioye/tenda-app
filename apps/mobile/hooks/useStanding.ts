@@ -11,7 +11,7 @@ interface CacheEntry {
   fetched_at: number
 }
 
-// Module-level cache — PersonCards re-mount per screen; one fetch per user
+// Module-level cache, PersonCards re-mount per screen; one fetch per user
 // per TTL window is plenty (standing moves on escrow events, not seconds).
 const cache = new Map<string, CacheEntry>()
 const inflight = new Map<string, Promise<UserStandingResponse>>()
@@ -35,7 +35,7 @@ async function fetchStanding(userId: string): Promise<UserStandingResponse> {
 }
 
 /**
- * Public standing for any user (stage-7 § mobile) — drives StandingBadge
+ * Public standing for any user (stage-7 § mobile), drives StandingBadge
  * and the detail sheet. Null while loading or on fetch failure (the badge
  * simply doesn't render).
  */
@@ -50,7 +50,7 @@ export function useUserStanding(userId: string | null): UserStandingResponse | n
         if (!cancelled) setStanding(value)
       })
       .catch(() => {
-        // Badge is decorative — a failed fetch just hides it.
+        // Badge is decorative, a failed fetch just hides it.
       })
     return () => {
       cancelled = true
@@ -61,7 +61,7 @@ export function useUserStanding(userId: string | null): UserStandingResponse | n
 }
 
 /**
- * The current user's own standing including the active restriction —
+ * The current user's own standing including the active restriction,
  * drives RestrictionBanner. Refreshes on screen focus; WS live updates
  * slot in once the worker republish lands (#33).
  */
@@ -75,7 +75,7 @@ export function useMyStanding(): MyStandingResponse | null {
       .myStanding()
       .then(setStanding)
       .catch(() => {
-        // Keep the last known value — the banner is advisory; the server
+        // Keep the last known value, the banner is advisory; the server
         // guard is authoritative on every gated action.
       })
   }, [isAuthenticated])

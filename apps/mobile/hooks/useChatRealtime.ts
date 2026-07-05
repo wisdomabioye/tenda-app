@@ -13,7 +13,7 @@ const READ_SYNC_DEBOUNCE_MS = 1_000
  *
  * Incoming messages are appended instantly by the channel subscription; a
  * debounced fetchMessages follows so the server marks the conversation
- * read (read-marking rides GET /messages — see the route's @scalability
+ * read (read-marking rides GET /messages, see the route's @scalability
  * note about a dedicated read endpoint).
  */
 export function useChatRealtime(conversationId: string | null) {
@@ -28,7 +28,7 @@ export function useChatRealtime(conversationId: string | null) {
       if (readSyncTimer.current) clearTimeout(readSyncTimer.current)
       readSyncTimer.current = setTimeout(() => {
         useChatStore.getState().fetchMessages(conversationId).catch(() => {
-          // Read-sync is best-effort — the message is already displayed.
+          // Read-sync is best-effort, the message is already displayed.
         })
       }, READ_SYNC_DEBOUNCE_MS)
     })
@@ -38,12 +38,12 @@ export function useChatRealtime(conversationId: string | null) {
     }
   }, [conversationId])
 
-  // Catch-up after a reconnect — anything sent while the socket was down.
+  // Catch-up after a reconnect, anything sent while the socket was down.
   const wasConnected = useRef(connected)
   useEffect(() => {
     if (conversationId && connected && !wasConnected.current) {
       useChatStore.getState().fetchMessages(conversationId).catch(() => {
-        // Catch-up is best-effort — the fallback poll covers a failure.
+        // Catch-up is best-effort, the fallback poll covers a failure.
       })
     }
     wasConnected.current = connected

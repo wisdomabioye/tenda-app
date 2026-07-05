@@ -12,7 +12,7 @@ export interface AssetBalance {
 
 /**
  * Reads on-chain balances for one wallet on one chain. Implemented per
- * namespace (solana / eip155) and registered in `READERS` — adding a chain
+ * namespace (solana / eip155) and registered in `READERS`, adding a chain
  * family is one new reader, no call-site change (the "pluggable" requirement).
  */
 export interface BalanceReader {

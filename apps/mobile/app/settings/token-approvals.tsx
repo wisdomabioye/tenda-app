@@ -16,7 +16,7 @@ import { spacing } from '@/theme/tokens'
 
 /**
  * Settings → Token approvals: every standing ERC-20 allowance this wallet
- * has granted the escrow contract, per enabled EVM chain — view, set a
+ * has granted the escrow contract, per enabled EVM chain, view, set a
  * custom limit, or revoke, independent of any escrow flow. (Escrow creation
  * itself signs exact-value permits or approves per amount; residual
  * allowances usually come from over-permits or manual limits set here.)
@@ -124,7 +124,7 @@ export default function TokenApprovalsScreen() {
       <ScrollView contentContainerStyle={s.body}>
         <Text variant="caption" style={{ color: theme.colors.content.secondary }}>
           Standing spending limits you have granted the Tenda escrow contract. Escrow flows request
-          exact amounts automatically — anything listed here stays spendable until you change it.
+          exact amounts automatically, anything listed here stays spendable until you change it.
         </Text>
         {owner === null ? (
           <Text style={s.empty}>Link an EVM wallet to view its token approvals.</Text>

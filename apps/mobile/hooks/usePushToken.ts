@@ -27,7 +27,7 @@ async function getExpoPushToken(): Promise<string | null> {
 
     const projectId = Constants.expoConfig?.extra?.eas?.projectId as string | undefined
     if (!projectId) {
-      console.warn('[push] Missing EAS projectId — cannot get push token')
+      console.warn('[push] Missing EAS projectId, cannot get push token')
       return null
     }
 

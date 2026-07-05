@@ -1,5 +1,5 @@
 /**
- * lib/apple-signin — native sheet → { idToken, fullName }, error mapping, and
+ * lib/apple-signin, native sheet → { idToken, fullName }, error mapping, and
  * availability. The native module is mocked.
  */
 

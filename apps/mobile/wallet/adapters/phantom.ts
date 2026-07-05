@@ -22,7 +22,7 @@ import type { SignMessageResult, SpikeAccount } from '../types'
  * `isAvailable: true` on iOS.
  *
  * ⚠ W1 (#35): implemented to the documented protocol; needs verification
- * on a physical iOS device with Phantom installed — universal-link
+ * on a physical iOS device with Phantom installed, universal-link
  * round-trips cannot be exercised in CI or a simulator without the
  * wallet app.
  */
@@ -37,11 +37,11 @@ const RESPONSE_TIMEOUT_MS = 120_000
 const PHANTOM_USER_REJECTED = '4001'
 
 interface StoredSession {
-  /** Phantom's opaque session token — sent inside every signed payload. */
+  /** Phantom's opaque session token, sent inside every signed payload. */
   session: string
   /** Connected wallet address (base58). */
   wallet_pubkey: string
-  /** Our X25519 secret key (base58) — pairs with Phantom's key for ECDH. */
+  /** Our X25519 secret key (base58), pairs with Phantom's key for ECDH. */
   dapp_secret_b58: string
   /** Phantom's encryption public key (base58). */
   phantom_pubkey_b58: string
@@ -83,7 +83,7 @@ function queryParams(url: string): Record<string, string> {
 
 /**
  * Open a universal link and resolve with the params of the matching
- * redirect. One in-flight request at a time — Phantom serializes its
+ * redirect. One in-flight request at a time, Phantom serializes its
  * approval UI anyway.
  */
 async function roundTrip(url: string, redirectPath: string): Promise<Record<string, string>> {
@@ -200,7 +200,7 @@ async function signMessage(_account: SpikeAccount, message: string): Promise<Sig
     throw new Error('phantom: sign payload missing signature')
   }
   // Phantom returns the signature base58-encoded; the server's Solana
-  // verifier (verifyEd25519) decodes base64, so normalise here — every
+  // verifier (verifyEd25519) decodes base64, so normalise here, every
   // Solana adapter must hand the server base64 (matches solana-mwa).
   return { signature: Buffer.from(bs58.decode(payload.signature)).toString('base64'), message }
 }
@@ -220,7 +220,7 @@ async function disconnect(): Promise<void> {
     })
     await roundTrip(`${UL_BASE}/disconnect?${params.toString()}`, 'disconnect')
   } catch {
-    // Local session is already gone — a failed remote disconnect is benign.
+    // Local session is already gone, a failed remote disconnect is benign.
   }
 }
 

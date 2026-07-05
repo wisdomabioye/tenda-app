@@ -1,6 +1,6 @@
 /**
  * Token-approvals screen (permit Stage D/E). Rows derive purely from the
- * chain registry (eip155 chains × ERC-20 assets — natives excluded), reads
+ * chain registry (eip155 chains × ERC-20 assets, natives excluded), reads
  * go through readAllowance per row, and set/revoke ride sendApprove +
  * waitForReceipt with the shared ConfirmDialog/BottomSheet UX. Uses the REAL
  * AllowanceRow + displayToAmountRaw so formatting and input parsing are
@@ -73,7 +73,7 @@ jest.mock('@/components/ui', () => {
   }
 })
 
-// dispatch pulls the full adapter stack (Reown ESM) — mock at the module edge.
+// dispatch pulls the full adapter stack (Reown ESM), mock at the module edge.
 jest.mock('@/wallet/dispatch', () => ({
   resolveEvmFrom: jest.fn(),
 }))
@@ -126,7 +126,7 @@ const BASE_SEPOLIA: ChainRegistryEntry = {
       token_address: '0xUSDC',
       supports_permit: true,
     },
-    // Native gas token — token_address null, must NOT produce a row.
+    // Native gas token, token_address null, must NOT produce a row.
     {
       id: 'ETH_BASE_SEPOLIA',
       symbol: 'ETH',
@@ -154,7 +154,7 @@ beforeEach(() => {
   waitForReceiptMock.mockResolvedValue('confirmed')
 })
 
-describe('TokenApprovalsScreen — states', () => {
+describe('TokenApprovalsScreen, states', () => {
   it('asks for an EVM wallet when none resolves; never reads', () => {
     resolveEvmFromMock.mockReturnValue(null)
     render(<TokenApprovalsScreen />)
@@ -177,7 +177,7 @@ describe('TokenApprovalsScreen — states', () => {
   })
 })
 
-describe('TokenApprovalsScreen — rows from the registry', () => {
+describe('TokenApprovalsScreen, rows from the registry', () => {
   it('renders one row per ERC-20 asset (natives excluded) and reads its allowance', async () => {
     render(<TokenApprovalsScreen />)
     await waitFor(() => expect(screen.getByText('45 USDC')).toBeTruthy())
@@ -192,7 +192,7 @@ describe('TokenApprovalsScreen — rows from the registry', () => {
     })
   })
 
-  it('a failed read shows "Unavailable" — never a fake zero', async () => {
+  it('a failed read shows "Unavailable", never a fake zero', async () => {
     readAllowanceMock.mockRejectedValue(new Error('rpc down'))
     render(<TokenApprovalsScreen />)
     await waitFor(() => expect(screen.getByText('Unavailable')).toBeTruthy())
@@ -207,7 +207,7 @@ describe('TokenApprovalsScreen — rows from the registry', () => {
   })
 })
 
-describe('TokenApprovalsScreen — set a custom limit', () => {
+describe('TokenApprovalsScreen, set a custom limit', () => {
   async function openSetSheet() {
     render(<TokenApprovalsScreen />)
     await waitFor(() => expect(screen.getByText('45 USDC')).toBeTruthy())
@@ -258,7 +258,7 @@ describe('TokenApprovalsScreen — set a custom limit', () => {
   })
 })
 
-describe('TokenApprovalsScreen — revoke', () => {
+describe('TokenApprovalsScreen, revoke', () => {
   it('confirms first, then approves zero', async () => {
     render(<TokenApprovalsScreen />)
     await waitFor(() => expect(screen.getByText('Revoke')).toBeTruthy())

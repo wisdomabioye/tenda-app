@@ -44,7 +44,7 @@ export default function ConnectWalletScreen() {
       }
     } catch (error) {
       if (__DEV__) console.warn('[connect-wallet] sign-in failed:', error)
-      // Decision #3: an unlinked wallet can't sign in or create — steer the
+      // Decision #3: an unlinked wallet can't sign in or create, steer the
       // user to get-started (a contact method makes the account, then they
       // link this wallet) instead of showing a dead-end error.
       if (classifyVerifyError(error) === 'wallet_not_linked') {
@@ -107,7 +107,7 @@ export default function ConnectWalletScreen() {
               </Button>
               {isConnecting ? (
                 <Text style={[s.tos, { color: theme.colors.content.tertiary }]}>
-                  Waiting for wallet approval — keep Tenda open.
+                  Waiting for wallet approval, keep Tenda open.
                 </Text>
               ) : (
                 <TermsNotice verb="connecting" />

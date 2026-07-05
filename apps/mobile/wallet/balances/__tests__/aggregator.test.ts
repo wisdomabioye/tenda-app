@@ -1,5 +1,5 @@
 /**
- * readWalletBalances + sumUsdcRaw — the multichain fan-out. Verifies it pairs
+ * readWalletBalances + sumUsdcRaw, the multichain fan-out. Verifies it pairs
  * each wallet with same-namespace enabled chains (an EVM address across two EVM
  * chains), picks USDC + native from each read, sums USDC across chains in exact
  * base units, and survives a reader rejection.

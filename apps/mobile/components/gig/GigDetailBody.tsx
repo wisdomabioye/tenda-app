@@ -80,7 +80,7 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
         showMessageButton={gig.status === 'open' || userId === gig.counterparty?.id}
       />
 
-      {/* Worker — only visible to participants (poster + worker) */}
+      {/* Worker, only visible to participants (poster + worker) */}
       {gig.counterparty && (isCreator || userId === gig.counterparty.id) && (
         <>
           <Spacer size={spacing.md} />

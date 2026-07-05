@@ -8,15 +8,15 @@ import type { WalletAdapter } from './types'
  * adapter's `isAvailable()` so the picker shows only entries with a real
  * transport on the current device:
  *
- *   • EVM     → WalletConnect (Reown AppKit) — one entry, AppKit's modal lists
+ *   • EVM     → WalletConnect (Reown AppKit), one entry, AppKit's modal lists
  *               every WC v2 wallet (MetaMask, Trust, Rainbow, SafePal…). Hidden
  *               when no Reown project id is configured.
- *   • Android → Solana Wallet (MWA — OS picks Phantom/Solflare/etc.)
+ *   • Android → Solana Wallet (MWA, OS picks Phantom/Solflare/etc.)
  *   • iOS     → Phantom (universal links)
  *
  * The split mirrors the actual transport landscape: WC is wallet-agnostic by
  * design; MWA on Android is too (no targeting API); but iOS Solana uses each
- * wallet's own universal-link protocol — so iOS gets per-wallet Solana entries.
+ * wallet's own universal-link protocol, so iOS gets per-wallet Solana entries.
  */
 export const adapters: readonly WalletAdapter[] = [
   walletConnectAdapter,

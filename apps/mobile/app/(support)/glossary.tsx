@@ -6,7 +6,7 @@ const TERMS = [
   {
     term: 'Blockchain',
     definition:
-      'A permanent public record of all transactions that no one can change or delete. Think of it like a ledger kept by millions of computers at once — no single person controls it.',
+      'A permanent public record of all transactions that no one can change or delete. Think of it like a ledger kept by millions of computers at once, no single person controls it.',
   },
   {
     term: 'Escrow',
@@ -16,7 +16,7 @@ const TERMS = [
   {
     term: 'Lamports',
     definition:
-      "The smallest unit of SOL, like Kobo is to Naira. 1 SOL = 1,000,000,000 lamports. You'll rarely need to think about lamports — Tenda handles the conversion.",
+      "The smallest unit of SOL, like Kobo is to Naira. 1 SOL = 1,000,000,000 lamports. You'll rarely need to think about lamports, Tenda handles the conversion.",
   },
   {
     term: 'Seed Phrase',
@@ -26,17 +26,17 @@ const TERMS = [
   {
     term: 'Signature',
     definition:
-      "Your digital approval of a transaction. When your wallet asks you to 'sign', it's like signing a cheque — you're confirming you authorise that specific action.",
+      "Your digital approval of a transaction. When your wallet asks you to 'sign', it's like signing a cheque, you're confirming you authorise that specific action.",
   },
   {
     term: 'Smart Contract',
     definition:
-      "A self-executing agreement stored on the blockchain. Tenda's escrow is a smart contract — the rules are written into code and enforced automatically.",
+      "A self-executing agreement stored on the blockchain. Tenda's escrow is a smart contract, the rules are written into code and enforced automatically.",
   },
   {
     term: 'SOL',
     definition:
-      'The digital currency of the Solana blockchain — the network Tenda runs on. All gig payments on Tenda are in SOL. The local currency equivalent is shown alongside.',
+      'The digital currency of the Solana blockchain, the network Tenda runs on. All gig payments on Tenda are in SOL. The local currency equivalent is shown alongside.',
   },
   {
     term: 'Solana',
@@ -46,7 +46,7 @@ const TERMS = [
   {
     term: 'Transaction',
     definition:
-      'Any action recorded on the blockchain — publishing a gig, accepting, submitting proof, or approving payment. Each transaction is permanent and publicly verifiable.',
+      'Any action recorded on the blockchain: publishing a gig, accepting, submitting proof, or approving payment. Each transaction is permanent and publicly verifiable.',
   },
   {
     term: 'Wallet',

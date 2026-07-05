@@ -19,7 +19,7 @@ interface Props {
 }
 
 /**
- * Variant — Classic (pre-V2 anatomy, kept for revertibility).
+ * Variant, Classic (pre-V2 anatomy, kept for revertibility).
  * Vertical stack: category dot + label, title (2-line), MoneyText (fiat ≈ sol horizontal),
  * footer meta. Visually different from wireframe variant B `.card-classic` (which is a
  * horizontal row); the name follows the wireframe taxonomy convention without claiming

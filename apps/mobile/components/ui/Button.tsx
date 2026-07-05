@@ -125,7 +125,7 @@ export function Button({
         variantStyle,
         fullWidth && s.fullWidth,
         state.pressed && !isDisabled && s.pressed,
-        // Pressable's style prop is a value OR a state callback — resolve it
+        // Pressable's style prop is a value OR a state callback, resolve it
         // so callers can pass either without a cast.
         typeof style === 'function' ? style(state) : style,
       ]}

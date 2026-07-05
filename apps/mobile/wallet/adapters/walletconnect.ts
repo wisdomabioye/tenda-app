@@ -1,5 +1,5 @@
 /**
- * WalletConnect (Reown AppKit v2) — the live EVM `WalletAdapter`. One adapter
+ * WalletConnect (Reown AppKit v2), the live EVM `WalletAdapter`. One adapter
  * covers EVERY WC v2 wallet (MetaMask, Trust, Rainbow, SafePal, Coinbase…):
  * AppKit shows its own wallet list, the relay carries connect + sign, and the
  * user keeps their keys. This replaced `@metamask/connect-multichain`, whose RN
@@ -10,7 +10,7 @@
  * `<ReownProvider>` (mounted at the app root, in `reown/bridge`) and is mirrored
  * into the React-free `connectionSignal` singleton, which this adapter drives
  * imperatively. Connect/sign compose through the shared `connectThenSign` helper
- * — same path Phantom uses — so decline→`null` handling is centralised (DRY).
+ *, same path Phantom uses, so decline→`null` handling is centralised (DRY).
  *
  * EVM ONLY. Solana stays on MWA (Android) / Phantom (iOS).
  */
@@ -34,7 +34,7 @@ function asScope(chainId: string | undefined): string {
 function requireProvider(): EvmRequestProvider {
   const provider = connectionSignal.getProvider()
   if (provider === undefined) {
-    throw new WalletError('network', 'No EVM wallet connected — connect one first')
+    throw new WalletError('network', 'No EVM wallet connected, connect one first')
   }
   return provider
 }
@@ -53,7 +53,7 @@ function hexMessage(message: string): string {
  * auto-returned to Tenda (backgrounded), so a `personal_sign` /
  * `eth_sendTransaction` would sit unseen on the relay until it EXPIRES
  * ("Request expired"). Opening the wallet's own deep link (from AppKit
- * `useWalletInfo`) is exactly what WC's `handleDeeplinkRedirect` would do — the
+ * `useWalletInfo`) is exactly what WC's `handleDeeplinkRedirect` would do, the
  * wallet foregrounds and renders the pending request. Best-effort: a missing or
  * un-openable link just means the user reopens the wallet manually.
  */
@@ -63,7 +63,7 @@ async function foregroundConnectedWallet(): Promise<void> {
   try {
     await Linking.openURL(href)
   } catch {
-    // Not installed / can't open — the request still stands; user opens it.
+    // Not installed / can't open, the request still stands; user opens it.
   }
 }
 
@@ -75,7 +75,7 @@ async function signMessage(account: SpikeAccount, message: string): Promise<Sign
   const provider = requireProvider()
   // Dispatch first (publishes the request to the relay), THEN foreground the
   // wallet so the prompt is waiting when it opens. Don't await the request
-  // before opening — it won't resolve until the user signs.
+  // before opening, it won't resolve until the user signs.
   const pending = provider.request<string>({
     method: 'personal_sign',
     params: [hexMessage(message), account.address],
@@ -108,7 +108,7 @@ async function getRestoredAccount(): Promise<SpikeAccount | null> {
 
 /**
  * Send a prepared EVM transaction over the connected WC session. Targets
- * `input.chainId`'s scope directly. `feeCurrency` rides along for CELO — wallets
+ * `input.chainId`'s scope directly. `feeCurrency` rides along for CELO, wallets
  * that support it show gas in cUSD; others ignore it. Returns the tx hash.
  */
 export async function sendEvmTransaction(input: {
@@ -117,12 +117,12 @@ export async function sendEvmTransaction(input: {
   data: string
   /** Decimal string (wei). */
   value: string
-  /** CAIP-2 ('eip155:8453') — the scope the tx is sent on. */
+  /** CAIP-2 ('eip155:8453'), the scope the tx is sent on. */
   chainId?: string
   feeCurrency?: string
 }): Promise<string> {
   const provider = requireProvider()
-  // Same foreground dance as signMessage — the wallet must come forward to
+  // Same foreground dance as signMessage, the wallet must come forward to
   // approve the tx or the request expires unseen on the relay.
   const pending = provider.request<string>(
     {
@@ -148,18 +148,18 @@ export async function sendEvmTransaction(input: {
 /**
  * Sign EIP-712 typed data over the connected WC session
  * (eth_signTypedData_v4). The payload arrives fully built from the server
- * (permit flow) — this layer stringifies and forwards it verbatim, so the
+ * (permit flow), this layer stringifies and forwards it verbatim, so the
  * wallet hashes exactly what the server verified against the token's
  * on-chain domain.
  */
 export async function signEvmTypedData(input: {
   from: string
   typedData: object
-  /** CAIP-2 ('eip155:84532') — the scope the request is sent on. */
+  /** CAIP-2 ('eip155:84532'), the scope the request is sent on. */
   chainId?: string
 }): Promise<string> {
   const provider = requireProvider()
-  // Same foreground dance as signMessage — the wallet must come forward to
+  // Same foreground dance as signMessage, the wallet must come forward to
   // show the signature prompt or the request expires unseen on the relay.
   const pending = provider.request<string>(
     {
@@ -184,8 +184,8 @@ function primaryRpcUrl(): string {
 
 /**
  * EVM receipt poll for TransactionMonitor's RPC fallback (CO3). Queried over a
- * direct JSON-RPC `fetch` to the primary chain's public RPC — NOT the wallet
- * session — so it never wakes the wallet and works while it's backgrounded.
+ * direct JSON-RPC `fetch` to the primary chain's public RPC, NOT the wallet
+ * session, so it never wakes the wallet and works while it's backgrounded.
  * `status` is '0x1' on success, '0x0' on revert; a missing receipt = pending.
  * Queries the primary EVM scope (sufficient for the common case; a cross-chain
  * receipt would need the caller to thread the chain through).
@@ -214,7 +214,7 @@ export const walletConnectAdapter: WalletAdapter = {
   name: 'EVM Wallet',
   tagline: 'MetaMask, Trust, Rainbow & more',
   namespaces: ['eip155'],
-  // No bundled icon — falls back to the generic wallet glyph (AppKit shows the
+  // No bundled icon, falls back to the generic wallet glyph (AppKit shows the
   // real per-wallet icons inside its own modal).
   isAvailable: async () => reownConfigured,
   isInstalled: async () => true,

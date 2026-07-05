@@ -4,7 +4,7 @@ import { MapPin, Wallet } from 'lucide-react-native'
 import { Text, Avatar, SeekerBadge } from '@/components/ui'
 import { typography } from '@/theme/tokens'
 
-/** Profile header — avatar ring, name, optional seeker badge, location + wallet pills. */
+/** Profile header, avatar ring, name, optional seeker badge, location + wallet pills. */
 export function ProfileHero({
   fullName,
   avatarUrl,

@@ -1,10 +1,10 @@
 /**
- * Reusable ERC-20 allowance module — ONE implementation behind both the
+ * Reusable ERC-20 allowance module, ONE implementation behind both the
  * escrow flow's approve fallback (dispatch consumes the server's `approval`
  * hint through ensureAllowance) and the standalone Token-approvals settings
  * screen (read / set / revoke, independent of any escrow).
  *
- * Reads go over the chain's PUBLIC RPC (shared manifest — same source as
+ * Reads go over the chain's PUBLIC RPC (shared manifest, same source as
  * the balance readers); the approve transaction itself rides the connected
  * wallet session (sendEvmTransaction), so keys never leave the wallet.
  */
@@ -30,7 +30,7 @@ export function encodeApprove(spender: string, amountRaw: string): string {
 /**
  * User-typed decimal amount → base units ('12.5', 6 → '12500000').
  * Null on anything that isn't a plain positive decimal or that exceeds the
- * asset's precision — the approvals screen surfaces it as invalid input.
+ * asset's precision, the approvals screen surfaces it as invalid input.
  */
 export function displayToAmountRaw(display: string, decimals: number): string | null {
   const match = /^(\d+)(?:\.(\d+))?$/.exec(display.trim())
@@ -53,7 +53,7 @@ function requireRpcUrl(chainId: string): string {
 
 /**
  * Live `allowance(owner → spender)` in base units. Throws WalletError when
- * the read fails (RPC error, empty eth_call return) — an unreadable
+ * the read fails (RPC error, empty eth_call return), an unreadable
  * allowance must never masquerade as zero, or ensureAllowance prompts a
  * spurious approve and the approvals screen shows "No standing approval"
  * for a value it never saw.
@@ -73,10 +73,10 @@ export async function readAllowance(args: {
     try {
       return BigInt(hex).toString()
     } catch {
-      // malformed quantity — fall through to the typed error
+      // malformed quantity, fall through to the typed error
     }
   }
-  throw new WalletError('network', `Could not read the current allowance on ${args.chainId} — please try again`)
+  throw new WalletError('network', `Could not read the current allowance on ${args.chainId}, please try again`)
 }
 
 /** Send `approve(spender, amountRaw)` through the connected wallet session. */
@@ -97,7 +97,7 @@ export async function sendApprove(args: {
 }
 
 /**
- * Poll until the tx is mined. 'timeout' does NOT mean failure — the tx may
+ * Poll until the tx is mined. 'timeout' does NOT mean failure, the tx may
  * still land; callers decide whether to re-check or surface a retry.
  */
 export async function waitForReceipt(args: {
@@ -123,7 +123,7 @@ export async function waitForReceipt(args: {
 
 /**
  * Make sure `allowance(owner → spender) ≥ amountRaw` before a transferFrom-
- * dependent call broadcasts — the client leg of the server's `approval`
+ * dependent call broadcasts, the client leg of the server's `approval`
  * hint. Skips the wallet round-trip entirely when the standing allowance
  * already covers the amount.
  */
@@ -159,7 +159,7 @@ export async function ensureAllowance(args: {
     ...(args.intervalMs !== undefined ? { intervalMs: args.intervalMs } : {}),
   })
   if (outcome === 'reverted') {
-    throw new WalletError('network', 'The approval transaction reverted — please try again')
+    throw new WalletError('network', 'The approval transaction reverted, please try again')
   }
   if (outcome === 'timeout') {
     // Belt-and-braces: the approve may have landed after the poll window.
@@ -170,7 +170,7 @@ export async function ensureAllowance(args: {
       spender: args.spender,
     })
     if (BigInt(after) < BigInt(args.amountRaw)) {
-      throw new WalletError('network', 'Approval is taking too long to confirm — please retry')
+      throw new WalletError('network', 'Approval is taking too long to confirm, please retry')
     }
   }
   return 'approved'

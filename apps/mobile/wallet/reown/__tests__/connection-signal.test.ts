@@ -1,7 +1,7 @@
 /**
- * ConnectionSignal — the React-free Reown bridge state machine. Drives the full
+ * ConnectionSignal, the React-free Reown bridge state machine. Drives the full
  * connect/disconnect promise lifecycle the `<ReownBridge>` feeds and the EVM
- * adapter consumes. Pure: no AppKit, no React — every branch is exercised here.
+ * adapter consumes. Pure: no AppKit, no React, every branch is exercised here.
  */
 import { ConnectionSignal, type EvmRequestProvider, type ReownLiveState } from '../connection-signal'
 import { WalletError } from '@/wallet/errors'
@@ -83,7 +83,7 @@ describe('ConnectionSignal.connect', () => {
     const sig = new ConnectionSignal()
     sig.sync(makeLive({ isConnected: false }))
     const pending = sig.connect()
-    sig.onModalClose(true) // success close — must NOT reject
+    sig.onModalClose(true) // success close, must NOT reject
     sig.sync(makeLive(connected))
     await expect(pending).resolves.toMatchObject({ address: '0xABC' })
   })
@@ -144,7 +144,7 @@ describe('ConnectionSignal.disconnect', () => {
     let done = false
     void pending.then(() => { done = true })
     await Promise.resolve()
-    expect(done).toBe(false) // still pending until AppKit settles — NOT a sync re-render
+    expect(done).toBe(false) // still pending until AppKit settles, NOT a sync re-render
     settle?.()
     await expect(pending).resolves.toBeUndefined()
   })

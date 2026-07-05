@@ -7,7 +7,7 @@ export type { AssetBalance, WalletChainBalance } from './types'
 
 /**
  * Per-namespace reader registry. Adding a chain family (e.g. a new VM) is one
- * entry here plus its reader file — call sites never change.
+ * entry here plus its reader file, call sites never change.
  */
 const READERS: Record<ChainNamespace, BalanceReader> = {
   solana: solanaBalanceReader,
@@ -57,7 +57,7 @@ export async function readWalletBalances(
 
 /**
  * Sum of USDC across all (wallet, chain) results, in base units. Exact integer
- * math — valid because every USDC has the same 6 decimals (ASSET_META), so base
+ * math, valid because every USDC has the same 6 decimals (ASSET_META), so base
  * units are directly summable. The caller formats with USDC's decimals.
  */
 export function sumUsdcRaw(balances: readonly WalletChainBalance[]): string {

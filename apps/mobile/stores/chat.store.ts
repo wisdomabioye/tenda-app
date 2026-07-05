@@ -120,7 +120,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       )
       set((s) => {
         const existing = s.messages[conversationId] ?? []
-        // The WS echo of our own message may land before this response —
+        // The WS echo of our own message may land before this response,
         // if the server id is already present, just drop the temp copy.
         const updated = existing.some((m) => m.id === sent.id)
           ? existing.filter((m) => m.id !== tempId)
@@ -141,7 +141,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   retryMessage: (conversationId, message) => {
     // Remove the failed optimistic message then re-send its content (and
-    // any already-uploaded attachment — the Cloudinary URL stays valid).
+    // any already-uploaded attachment, the Cloudinary URL stays valid).
     set((s) => ({
       messages: {
         ...s.messages,
@@ -176,7 +176,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }))
   },
 
-  // WS delivery — dedupes by id (the broadcast echoes the sender's own
+  // WS delivery, dedupes by id (the broadcast echoes the sender's own
   // message back, and a reconnect-era fetchMessages may already have it).
   receiveMessage: (conversationId, message) => {
     set((s) => {

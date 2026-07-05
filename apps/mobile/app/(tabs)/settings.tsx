@@ -56,7 +56,7 @@ export default function SettingsScreen() {
                 api.users
                   .updateMe({ advanced_mode_enabled: next })
                   .then(() => updateUser({ ...user, advanced_mode_enabled: next }))
-                  .catch(() => showToast('error', 'Could not update the setting — try again'))
+                  .catch(() => showToast('error', 'Could not update the setting, try again'))
                   .finally(() => setAdvancedSaving(false))
               }}
             />

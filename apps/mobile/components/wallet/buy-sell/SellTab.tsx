@@ -49,7 +49,7 @@ export function SellTab() {
       const result = await api.fiat.offramp({ intent_id: quote.intent_id, bank_account_id: selected })
       const inst = result.instruction
       if ('kind' in inst && inst.kind === 'p2p') {
-        showToast('success', 'Offer created — publish it to match with a buyer')
+        showToast('success', 'Offer created, publish it to match with a buyer')
         router.replace(`/exchange/${inst.offer_id}` as Parameters<typeof router.replace>[0])
         return
       }
@@ -102,11 +102,11 @@ export function SellTab() {
       ))}
 
       {error === 'unavailable' && (
-        <UnavailableNotice copy="No cash-out route is available for this amount right now — please try again later." />
+        <UnavailableNotice copy="No cash-out route is available for this amount right now, please try again later." />
       )}
       {error === 'failed' && (
         <Text size={12.5} color={theme.colors.feedback.danger.base}>
-          Could not fetch a quote — please try again.
+          Could not fetch a quote, please try again.
         </Text>
       )}
 

@@ -10,7 +10,7 @@ import { ConfirmModal, type ConfirmKind } from './gig-action-sheets/ConfirmModal
 import type { Proof } from './gig-action-sheets/upload'
 
 interface GigActionSheetsProps {
-  /** Only the escrow id is consumed — gig and exchange details both fit. */
+  /** Only the escrow id is consumed, gig and exchange details both fit. */
   gig: Pick<GigDetail, 'escrow_id'>
   activeSheet: ActiveSheet | null
   onClose: () => void
@@ -43,7 +43,7 @@ export function GigActionSheets({
   async function handleCancelDraft() {
     onClose()
     try {
-      // Drafts are pre-sign staging rows — discarded off-chain.
+      // Drafts are pre-sign staging rows, discarded off-chain.
       await api.escrows.delete({ id: gig.escrow_id })
       showToast('success', 'Draft deleted')
       router.back()

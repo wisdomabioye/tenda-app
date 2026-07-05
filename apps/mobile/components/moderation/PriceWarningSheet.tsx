@@ -16,7 +16,7 @@ interface PriceWarningSheetProps {
 
 /**
  * Warn-decision sheet (stage-6 § UX): shown before submitting a gig the
- * moderation pipeline flagged with warnings. "Publish anyway" proceeds —
+ * moderation pipeline flagged with warnings. "Publish anyway" proceeds,
  * the server records the acknowledgment alongside the verdict.
  */
 export function PriceWarningSheet({ visible, reasons, onPublishAnyway, onEdit }: PriceWarningSheetProps) {

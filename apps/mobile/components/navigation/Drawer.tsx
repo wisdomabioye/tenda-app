@@ -76,7 +76,7 @@ export function Drawer({ isOpen, onClose, onOpen, onNavigate, children }: Drawer
     if (onOpen) scheduleOnRN(onOpen);
   }, [translateX, overlayOpacity, onOpen]);
 
-  // Drawer pan (close) — scoped to drawer only
+  // Drawer pan (close), scoped to drawer only
   const drawerPanGesture = Gesture.Pan()
     .minDistance(10)
     .activeOffsetX([-10, 10])
@@ -102,7 +102,7 @@ export function Drawer({ isOpen, onClose, onOpen, onNavigate, children }: Drawer
       }
     });
 
-  // Edge pan (open) — only when closed
+  // Edge pan (open), only when closed
   const edgePanGesture = Gesture.Pan()
     .minDistance(10)
     .activeOffsetX([10, 9999])
@@ -148,7 +148,7 @@ export function Drawer({ isOpen, onClose, onOpen, onNavigate, children }: Drawer
         </GestureDetector>
       )}
 
-      {/* Overlay — Pressable handles tap-to-close */}
+      {/* Overlay, Pressable handles tap-to-close */}
       {isOpen && (
         <Animated.View
           style={[
@@ -161,7 +161,7 @@ export function Drawer({ isOpen, onClose, onOpen, onNavigate, children }: Drawer
         </Animated.View>
       )}
 
-      {/* Drawer — pan only on drawer to avoid blocking taps */}
+      {/* Drawer, pan only on drawer to avoid blocking taps */}
       <GestureDetector gesture={drawerPanGesture}>
         <Animated.View
           style={[

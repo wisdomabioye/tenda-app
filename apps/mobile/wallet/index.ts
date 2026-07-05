@@ -5,9 +5,9 @@
  * client-ping live in dispatch.ts. This module owns the Solana RPC helpers
  * (getBalance / getTransactionStatus) and re-exports the single-source chain
  * config + error type as a convenience surface (the canonical homes are
- * ./config and ./errors — prefer those in new code to avoid the native pull).
+ * ./config and ./errors, prefer those in new code to avoid the native pull).
  *
- * The legacy MWA + idl/legacy escrow flow died at the cutover — escrow
+ * The legacy MWA + idl/legacy escrow flow died at the cutover, escrow
  * transactions are built server-side (/v1/escrows) and signed via
  * dispatch.signSendAndReport.
  */

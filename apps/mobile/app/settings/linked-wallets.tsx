@@ -16,10 +16,10 @@ import { spacing } from '@/theme/tokens'
 
 /**
  * Settings → Linked wallets (stage-1-onboarding.md § Linked-wallets UI).
- * Add = the same nonce + signature dance as sign-in (any adapter — Solana or
- * EVM — via the shared picker), against /v1/auth/link-wallet with
+ * Add = the same nonce + signature dance as sign-in (any adapter, Solana or
+ * EVM, via the shared picker), against /v1/auth/link-wallet with
  * `forceFresh` so the user can pick a DIFFERENT account than the one on their
- * JWT. The server enforces the primary/sole/in-use unlink guards — this screen
+ * JWT. The server enforces the primary/sole/in-use unlink guards, this screen
  * just surfaces its answers.
  */
 export default function LinkedWalletsScreen() {
@@ -58,7 +58,7 @@ export default function LinkedWalletsScreen() {
     } catch (e) {
       if (e instanceof ApiClientError) showToast('error', e.message)
       else if (e instanceof WalletError && e.code === 'no_wallet') showToast('error', 'No wallet app installed')
-      else showToast('error', 'Could not link the wallet — please try again')
+      else showToast('error', 'Could not link the wallet, please try again')
     } finally {
       setBusy(false)
     }
@@ -93,7 +93,7 @@ export default function LinkedWalletsScreen() {
       if (e instanceof ApiClientError && e.code === ErrorCode.WALLET_IS_PRIMARY) {
         showToast('error', 'Make another wallet your primary first, then unlink this one')
       } else if (e instanceof ApiClientError && e.code === ErrorCode.WALLET_IN_USE) {
-        showToast('error', 'This wallet is part of an active escrow — finish or cancel it first')
+        showToast('error', 'This wallet is part of an active escrow, finish or cancel it first')
       } else {
         showToast('error', e instanceof ApiClientError ? e.message : 'Could not unlink the wallet')
       }
@@ -118,7 +118,7 @@ export default function LinkedWalletsScreen() {
           ))}
           {wallets.length === 0 && (
             <Text size={13} color={theme.colors.content.tertiary} align="center" style={s.empty}>
-              No wallets loaded yet — pull to refresh or re-open this screen.
+              No wallets loaded yet, pull to refresh or re-open this screen.
             </Text>
           )}
         </View>

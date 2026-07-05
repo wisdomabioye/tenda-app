@@ -71,7 +71,7 @@ test('a verified email shows its address (no Add email row)', () => {
   expect(screen.queryByText('Add email')).toBeNull()
 })
 
-test('an UNverified email never shows a verified badge — falls back to Add email', () => {
+test('an UNverified email never shows a verified badge, falls back to Add email', () => {
   // Defensive: the ✓ must reflect the real verified state (mirrors the phone row).
   mockState.identities = [{ kind: 'email', identifier: 'me@x.io', email: 'me@x.io', verified: false }]
   render(<SecuritySettingsScreen />)

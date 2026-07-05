@@ -27,7 +27,7 @@ export default function WorkingGuideScreen() {
             <GuideStep
               step={2}
               title="Approve the transaction"
-              description="Your wallet opens and asks you to sign — this records your acceptance on-chain."
+              description="Your wallet opens and asks you to sign, this records your acceptance on-chain."
               tip="Payment is already in escrow. You're not paying anything to accept."
             />
             <GuideStep step={3} title="Get to work" description="Start as agreed. Message the poster from the gig screen if you have questions." />
@@ -36,7 +36,7 @@ export default function WorkingGuideScreen() {
           <AccordionItem title="How to submit proof of work">
             <GuideStep step={1} title="Complete the work first" description="Make sure everything matches the gig description before submitting." />
             <GuideStep step={2} title="Tap Submit Proof" description="Upload photos, a link, or a short description of what you delivered." />
-            <GuideStep step={3} title="Sign the submission" description="Your wallet asks you to approve — this records the submission on-chain." />
+            <GuideStep step={3} title="Sign the submission" description="Your wallet asks you to approve, this records the submission on-chain." />
             <GuideStep step={4} title="Wait for the client" description="The poster reviews and approves, or raises a dispute." />
           </AccordionItem>
 

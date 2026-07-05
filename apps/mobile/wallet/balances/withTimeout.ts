@@ -4,7 +4,7 @@ export const RPC_TIMEOUT_MS = 10_000
 /**
  * Reject if `promise` hasn't settled within `ms`. The wallet screen awaits a
  * `Promise.allSettled` over every (wallet × chain × asset) read, and allSettled
- * only resolves once EVERY child settles — so a single hung RPC endpoint would
+ * only resolves once EVERY child settles, so a single hung RPC endpoint would
  * otherwise strand `isLoading` on a perpetual skeleton. Bounding each read keeps
  * one dead endpoint from wedging the screen (the timed-out read is dropped).
  */

@@ -16,7 +16,7 @@ interface FabMenuProps {
   visible:     boolean
   onClose:     () => void
   actions:     FabAction[]
-  bottomInset: number   // tab bar height — cards float just above it
+  bottomInset: number   // tab bar height, cards float just above it
 }
 
 const STAGGER_MS = 50
@@ -36,7 +36,7 @@ export function FabMenu({ visible, onClose, actions, bottomInset }: FabMenuProps
         toValue: 1, duration: 200, useNativeDriver: true,
       }).start()
 
-      // Stagger cards in — bottom card first
+      // Stagger cards in, bottom card first
       const animations = [...cards].reverse().map((c, i) =>
         Animated.sequence([
           Animated.delay(i * STAGGER_MS),

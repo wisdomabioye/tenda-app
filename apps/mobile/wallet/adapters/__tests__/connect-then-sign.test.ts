@@ -1,5 +1,5 @@
 /**
- * connectThenSign + isUserRejection (Stage 2). Pure composer — covers the
+ * connectThenSign + isUserRejection (Stage 2). Pure composer, covers the
  * decline normalisation every EVM/Phantom adapter relies on, forceFresh
  * session reset, and error propagation.
  */

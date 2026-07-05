@@ -27,8 +27,8 @@ function pickPhone(identities: IdentityMethodWire[]): IdentityMethodWire | null 
 }
 
 /**
- * Settings → Sign-in & security. Lists how the user can sign in — email, phone,
- * wallets — and lets them ADD what's missing. Adding a contact reuses the same
+ * Settings → Sign-in & security. Lists how the user can sign in, email, phone,
+ * wallets, and lets them ADD what's missing. Adding a contact reuses the same
  * unified OTP screens as onboarding (continue-with → verify-code) in `link`
  * mode, so there is exactly one contact-verification flow in the app. Wallets
  * link via the existing Linked-wallets screen.
@@ -63,7 +63,7 @@ export default function SecuritySettingsScreen() {
 
       <Text style={[s.lede, { color: theme.colors.content.secondary }]}>
         These are the ways you can sign in to your account. Add a verified email
-        or phone so we can always reach you — and so you never lose access.
+        or phone so we can always reach you, and so you never lose access.
       </Text>
 
       <SectionLabel tight>Contacts</SectionLabel>

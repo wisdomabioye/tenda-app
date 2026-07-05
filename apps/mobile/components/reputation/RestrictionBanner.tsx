@@ -15,7 +15,7 @@ function formatUntil(iso: string | null): string | null {
 /**
  * Persistent banner for the affected user's own active restriction
  * (stage-7 § UX placements). Renders nothing in good standing. The server
- * guard stays authoritative — this only explains it ahead of time.
+ * guard stays authoritative, this only explains it ahead of time.
  */
 export function RestrictionBanner() {
   const { theme } = useUnistyles()

@@ -49,7 +49,7 @@ config.resolver.extraNodeModules = {
 // Why: the admin app's test tooling (vitest + jsdom@28) drags whatwg-url@16 ->
 // webidl-conversions@8 into the workspace-root node_modules. Because mobile's
 // resolver is flat (disableHierarchicalLookup + nodeModulesPaths above), Metro
-// resolves EVERY `require('whatwg-url')` to that hoisted v16 — even though
+// resolves EVERY `require('whatwg-url')` to that hoisted v16, even though
 // mobile's real importers (node-fetch via @solana/web3.js) declare
 // whatwg-url@5. v16/webidl-conversions@8 use ES2024 APIs Hermes lacks
 // (SharedArrayBuffer, resizable buffers, String.prototype.toWellFormed) and
@@ -66,7 +66,7 @@ const safeUrlRedirects = {
 // association's wire messages) and ships those 4.0.0 copies NESTED. But
 // @solana/web3.js drags @solana/codecs-*@2.0.0-rc.1 to the top level, and the
 // flat resolver above (disableHierarchicalLookup, load-bearing for single-React)
-// would otherwise force MWA onto that 2.0.0-rc.1 — a major-version skew that
+// would otherwise force MWA onto that 2.0.0-rc.1, a major-version skew that
 // corrupts the encoded association bytes and nulls the native MessageSender, so
 // connect/sign fails intermittently on every Solana wallet. We can't dedupe (the
 // two consumers genuinely need different majors), so we redirect ONLY the MWA

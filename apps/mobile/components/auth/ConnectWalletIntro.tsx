@@ -9,7 +9,7 @@ const Logo = require('@/assets/images/logo.png')
 const FEATURES = [
   { Icon: ShieldCheck, title: 'Secure escrow',         description: 'Payments locked until work is approved.' },
   { Icon: Zap,         title: 'Instant settlement',    description: 'Funds released on-chain in seconds.' },
-  { Icon: Wallet,      title: 'Your keys, your money', description: 'Non-custodial — you control your wallet.' },
+  { Icon: Wallet,      title: 'Your keys, your money', description: 'Non-custodial, you control your wallet.' },
 ] as const
 
 /** Hero + value-prop list for the connect-wallet screen (static, presentational). */

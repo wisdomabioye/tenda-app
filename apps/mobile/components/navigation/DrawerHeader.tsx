@@ -35,7 +35,7 @@ export function DrawerHeader({
         s.hdr,
         {
           // Edge-to-edge (SDK 54): the bar draws behind the status bar, so its
-          // height is the 56px content row PLUS the inset — paddingTop must add
+          // height is the 56px content row PLUS the inset, paddingTop must add
           // to the height, never eat into a fixed one (that clipped the icons
           // and spilled them into the body).
           paddingTop: insets.top,

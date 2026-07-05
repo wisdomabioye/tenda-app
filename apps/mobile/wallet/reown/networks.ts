@@ -1,6 +1,6 @@
 /**
  * EVM networks for the Reown AppKit EVM path, as `AppKitNetwork` objects (the
- * native AppKit shape — same fields as the SDK's built-in solana/bitcoin
+ * native AppKit shape, same fields as the SDK's built-in solana/bitcoin
  * networks). AppKit also accepts `viem/chains`, but we define ours inline to
  * stay explicit about exactly the four EVM chains Tenda supports and avoid a
  * viem dependency just for chain metadata.

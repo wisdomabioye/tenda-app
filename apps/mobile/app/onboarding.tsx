@@ -18,12 +18,12 @@ const SLIDES = [
   {
     Icon: Briefcase,
     title: 'Get paid for work you do',
-    body: 'Find gigs or post work. The payment is locked in escrow before anyone starts — so you always get paid.',
+    body: 'Find gigs or post work. The payment is locked in escrow before anyone starts so you always get paid.',
   },
   {
     Icon: ShieldCheck,
     title: 'How payment works',
-    body: 'The client pays upfront into escrow — a trusted lockbox. You deliver, they approve, and the money is released straight to you.',
+    body: 'The client pays upfront into escrow, a trusted lockbox. You deliver, they approve, and the money is released straight to you.',
   },
   {
     Icon: Smartphone,
@@ -49,7 +49,7 @@ export default function OnboardingScreen() {
 
   async function handleFinish() {
     await completeOnboarding()
-    // "Learn more" lands on the multi-method entry, not wallet-connect — an
+    // "Learn more" lands on the multi-method entry, not wallet-connect, an
     // account is born from a contact method (decision #3), wallet links later.
     router.replace('/(auth)/get-started')
   }
@@ -64,7 +64,7 @@ export default function OnboardingScreen() {
     try {
       await Notifications.requestPermissionsAsync()
     } finally {
-      // Do NOT reset isRequesting before navigating — resetting state while
+      // Do NOT reset isRequesting before navigating, resetting state while
       // simultaneously navigating after returning from an Android system dialog
       // causes a view reconciliation race in Fabric (ReactClippingViewManager crash).
       await handleFinish()

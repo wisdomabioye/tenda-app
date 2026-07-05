@@ -5,7 +5,7 @@ import { APP_INFO } from '@/lib/app-info'
 
 /**
  * Shared "By {verb} you agree to our Terms and Privacy" line for the auth
- * screens. Terms/Privacy are real links (APP_INFO.legal) — previously the
+ * screens. Terms/Privacy are real links (APP_INFO.legal), previously the
  * welcome copy was inert. `verb` distinguishes "continuing" (welcome) from
  * "connecting" (wallet). Imports Text from its concrete path so screens that
  * mock @/components/ui/Text in jest keep rendering the stub.

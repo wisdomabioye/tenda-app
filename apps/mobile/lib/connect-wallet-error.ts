@@ -12,7 +12,7 @@ export type ConnectError = {
 
 /**
  * Map a wallet connect/sign failure to a user-facing ErrorState. WALLET_NOT_LINKED
- * is handled by the caller (it routes to get-started) — everything else lands here.
+ * is handled by the caller (it routes to get-started), everything else lands here.
  * Dev builds surface the raw message so the #68 device flows stay debuggable.
  */
 export function classifyConnectError(error: unknown): ConnectError {

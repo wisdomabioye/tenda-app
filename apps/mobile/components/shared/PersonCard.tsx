@@ -11,7 +11,7 @@ interface PersonCardUser {
   first_name: string | null
   last_name: string | null
   avatar_url: string | null
-  /** numeric(3,2) — string on the wire, null when unrated. */
+  /** numeric(3,2), string on the wire, null when unrated. */
   review_score: string | null
   is_seeker?: boolean
 }
@@ -24,9 +24,9 @@ interface Props {
   contextTitle: string
   isOffer?: boolean
   showMessageButton?: boolean
-  /** Avatar gradient — `'accent'` (default, sellers/posters) or `'brand'` (buyers) */
+  /** Avatar gradient, `'accent'` (default, sellers/posters) or `'brand'` (buyers) */
   gradient?: 'accent' | 'brand'
-  /** Override the trailing pill label — defaults to "Message" */
+  /** Override the trailing pill label, defaults to "Message" */
   ctaLabel?: string
 }
 

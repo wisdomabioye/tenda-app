@@ -6,7 +6,7 @@ import { Text } from './Text'
 interface SeekerBadgeProps {
   /** compact: small inline pill for person cards; full: larger pill for profile hero */
   variant?: 'compact' | 'full'
-  /** Override the label — defaults to "Seeker" / "Active seeker · Verified" */
+  /** Override the label, defaults to "Seeker" / "Active seeker · Verified" */
   label?: string
 }
 

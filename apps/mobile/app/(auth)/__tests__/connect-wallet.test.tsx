@@ -4,7 +4,7 @@
  * by profile completeness. Decline and typed errors render the ErrorState.
  *
  * Native/styling deps (unistyles, expo-image, lucide) and the UI kit are
- * stubbed — this test exercises the screen's control flow, not its pixels.
+ * stubbed, this test exercises the screen's control flow, not its pixels.
  */
 import { render, fireEvent, waitFor, screen } from '@testing-library/react-native'
 
@@ -156,7 +156,7 @@ describe('ConnectWalletScreen', () => {
     expect(screen.getByText('picker-visible')).toBeTruthy()
   })
 
-  it('signs in (adapter only — no signup bootstrap) and routes to home for a complete profile', async () => {
+  it('signs in (adapter only, no signup bootstrap) and routes to home for a complete profile', async () => {
     signInMock.mockResolvedValue(true)
     render(<ConnectWalletScreen />)
     selectWallet()

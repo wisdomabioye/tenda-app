@@ -1,5 +1,5 @@
 /**
- * Linked-wallets screen (Stage 4 — EVM link parity). "Add another wallet"
+ * Linked-wallets screen (Stage 4, EVM link parity). "Add another wallet"
  * opens the shared WalletPicker; selecting an adapter runs the store's
  * `linkWallet` action and surfaces the outcome via toasts. On success it
  * returns to this screen (the wallet's `tenda://` auto-return may have popped
@@ -164,7 +164,7 @@ function openPickerAndSelect() {
   fireEvent.press(screen.getByText('pick-wallet'))
 }
 
-describe('LinkedWalletsScreen — add wallet', () => {
+describe('LinkedWalletsScreen, add wallet', () => {
   it('opens the picker on "Add another wallet"', () => {
     render(<LinkedWalletsScreen />)
     expect(screen.queryByText('picker-visible')).toBeNull()
@@ -209,7 +209,7 @@ describe('LinkedWalletsScreen — add wallet', () => {
   })
 })
 
-describe('LinkedWalletsScreen — manage wallets', () => {
+describe('LinkedWalletsScreen, manage wallets', () => {
   const PRIMARY: LinkedWallet = {
     chain_ns: 'solana',
     address: '0xPrimary',
@@ -274,7 +274,7 @@ describe('LinkedWalletsScreen — manage wallets', () => {
     await waitFor(() =>
       expect(mockShowToast).toHaveBeenCalledWith(
         'error',
-        'This wallet is part of an active escrow — finish or cancel it first',
+        'This wallet is part of an active escrow, finish or cancel it first',
       ),
     )
   })

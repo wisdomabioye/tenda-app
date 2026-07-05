@@ -15,14 +15,14 @@ export interface ConfirmDialogProps {
   destructive?: boolean
   /** Shows a spinner on the confirm button while the action is in flight. */
   loading?: boolean
-  /** Drop the cancel button — an acknowledge-only notice (single action). */
+  /** Drop the cancel button, an acknowledge-only notice (single action). */
   hideCancel?: boolean
   onConfirm: () => void
   onCancel: () => void
 }
 
 /**
- * The app's styled confirm/cancel dialog — the custom replacement for the native
+ * The app's styled confirm/cancel dialog, the custom replacement for the native
  * `Alert.alert(...)` two-button prompt. Centered card over a dimmed overlay,
  * themed via unistyles. Controlled by `visible`; the caller owns the open state
  * and the confirm/cancel handlers. Use `showToast` for fire-and-forget notices

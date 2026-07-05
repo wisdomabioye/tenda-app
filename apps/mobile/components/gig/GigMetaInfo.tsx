@@ -39,7 +39,7 @@ export function GigMetaInfo({ gig, posterCountry, deadlineLbl }: Props) {
   const amount = amountRawToDisplay(gig.amount_raw, gig.asset)
   const symbol = assetMeta?.symbol ?? gig.asset
 
-  // The platform rate cache is SOL-denominated — a fiat equivalent is only
+  // The platform rate cache is SOL-denominated, a fiat equivalent is only
   // meaningful for native-SOL gigs. Stable assets read as ≈ face value.
   const isSolAsset = symbol === 'SOL'
   const fiatAlt =

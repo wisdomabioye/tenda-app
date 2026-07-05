@@ -1,5 +1,5 @@
 /**
- * CO7 dispute-mediation thread (party view) — ONE shared conversation per
+ * CO7 dispute-mediation thread (party view), ONE shared conversation per
  * dispute: both parties and the mediating admin read/write the same
  * messages. Polls the tail (recursive setTimeout, chat cadence); freezes
  * read-only once the dispute resolves.
@@ -40,7 +40,7 @@ export default function DisputeThreadScreen() {
 
   async function handleSend(text: string) {
     const ok = await send(text)
-    if (!ok) showToast('error', 'Message not sent — try again')
+    if (!ok) showToast('error', 'Message not sent, try again')
   }
 
   if (loading) return <LoadingScreen />
@@ -71,7 +71,7 @@ export default function DisputeThreadScreen() {
         {thread.read_only && (
           <View style={[s.banner, { backgroundColor: theme.colors.surface.inset }]}>
             <Text variant="caption" color={theme.colors.content.secondary}>
-              This dispute is resolved — the conversation is read-only.
+              This dispute is resolved, the conversation is read-only.
             </Text>
           </View>
         )}
@@ -84,7 +84,7 @@ export default function DisputeThreadScreen() {
           ListEmptyComponent={
             <View style={s.empty}>
               <Text variant="caption" color={theme.colors.content.tertiary} style={s.emptyText}>
-                No messages yet. Explain your side — the other party and the mediator see the same thread.
+                No messages yet. Explain your side, the other party and the mediator see the same thread.
               </Text>
             </View>
           }
@@ -106,7 +106,7 @@ const s = StyleSheet.create({
   },
   empty: {
     padding: spacing.xl,
-    // inverted list flips children — flip the empty state back upright
+    // inverted list flips children, flip the empty state back upright
     transform: [{ scaleY: -1 }],
   },
   emptyText: { textAlign: 'center' },

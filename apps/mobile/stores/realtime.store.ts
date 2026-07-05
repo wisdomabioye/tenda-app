@@ -1,5 +1,5 @@
 /**
- * Realtime store (stage-2-listeners.md § Mobile) — bridges the singleton
+ * Realtime store (stage-2-listeners.md § Mobile), bridges the singleton
  * WS client into Zustand + the feature stores.
  *
  * `connected` is the polling hooks' suppression signal: while true, chat
@@ -53,7 +53,7 @@ export function isEscrowEventFrame(f: WsFrame): f is EscrowEventFrame & WsFrame 
 
 /**
  * Live messages for an open chat screen. Frames echo back to the sender
- * too — receiveMessage dedupes by id against the optimistic copy.
+ * too, receiveMessage dedupes by id against the optimistic copy.
  */
 export function subscribeChatChannel(
   conversationId: string,
@@ -67,7 +67,7 @@ export function subscribeChatChannel(
 }
 
 /**
- * Inbox-level updates — the server mirrors each chat message onto the
+ * Inbox-level updates, the server mirrors each chat message onto the
  * recipient's `user:<id>` channel so the conversations list / unread badge
  * stays current without polling.
  */
@@ -75,7 +75,7 @@ export function subscribeUserChannel(userId: string): () => void {
   return ws.subscribe(wsChannelName('user', userId), (frame) => {
     if (!isChatMessageFrame(frame)) return
     useChatStore.getState().fetchConversations().catch(() => {
-      // Network hiccup — the next frame or the fallback poll catches up.
+      // Network hiccup, the next frame or the fallback poll catches up.
     })
   })
 }

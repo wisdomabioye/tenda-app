@@ -4,7 +4,7 @@ export interface AssetPaymentDisplay {
   /** Display units (raw / 10^decimals). */
   amount: number
   symbol: string
-  /** Fiat equivalent — null when not derivable (rates are SOL-denominated). */
+  /** Fiat equivalent, null when not derivable (rates are SOL-denominated). */
   fiat: number | null
 }
 
@@ -47,7 +47,7 @@ export function formatFiat(amount: number, currency: SupportedCurrency): string 
 }
 
 /**
- * Compact currency display used in card densities — e.g. "₦240k", "$1.5M".
+ * Compact currency display used in card densities, e.g. "₦240k", "$1.5M".
  * Falls back to full formatFiat() for amounts < 1,000.
  */
 export function formatFiatShort(amount: number, currency: SupportedCurrency): string {

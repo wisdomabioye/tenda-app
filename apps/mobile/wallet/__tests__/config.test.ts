@@ -13,7 +13,7 @@ function loadConfig(env: AppEnv): ConfigModule {
   return require('../config') as ConfigModule
 }
 
-describe('wallet/config — env-derived chain config', () => {
+describe('wallet/config, env-derived chain config', () => {
   const cases: ReadonlyArray<{
     env: AppEnv
     network: string

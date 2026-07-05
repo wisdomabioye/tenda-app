@@ -1,8 +1,8 @@
 /**
  * WalletConnect (Reown) EVM adapter. The bridge (`reown/connection-signal`) and
- * Reown config are mocked so we exercise the adapter's own logic — the
+ * Reown config are mocked so we exercise the adapter's own logic, the
  * personal_sign / eth_sendTransaction request shapes, decline→null mapping, and
- * the direct-RPC receipt poll — without AppKit or a device.
+ * the direct-RPC receipt poll, without AppKit or a device.
  */
 // Defined inside the factory (jest hoists jest.mock above this file's consts,
 // so any outer reference would still be in its TDZ when the factory runs); the
@@ -134,7 +134,7 @@ describe('authenticate', () => {
     expect(result).toEqual({ account, signature: '0xsig', message: 'MESSAGE' })
   })
 
-  it('plain login does NOT disconnect first (reuses a restored session — no blocking round-trip)', async () => {
+  it('plain login does NOT disconnect first (reuses a restored session, no blocking round-trip)', async () => {
     // Login passes no opts → connectThenSign skips the disconnect. Logout clears
     // the WC session so a stale one can't be reused across accounts.
     mockConnect.mockResolvedValueOnce(account)

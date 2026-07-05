@@ -55,7 +55,7 @@ export function ReviewSheet({
       <Input
         label="Comment (optional)"
         placeholder="Share your experience..."
-        helper="Optional — describe how the gig went"
+        helper="Optional, describe how the gig went"
         value={comment}
         onChangeText={setComment}
         multiline

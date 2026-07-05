@@ -1,5 +1,5 @@
 /**
- * WalletEmptyState — shown when no wallet is linked. Renders the prompt and
+ * WalletEmptyState, shown when no wallet is linked. Renders the prompt and
  * routes to linked-wallets (replacing the old perpetual skeleton).
  */
 import { render, fireEvent, screen } from '@testing-library/react-native'

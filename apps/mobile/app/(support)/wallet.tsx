@@ -39,10 +39,10 @@ export default function WalletGuideScreen() {
           <GuideStep
             step={2}
             title="Create or import a wallet"
-            description="Set a passcode. Write down your recovery phrase on paper — never screenshot it."
+            description="Set a passcode. Write down your recovery phrase on paper and never screenshot it."
             warning="Anyone with your recovery phrase can empty your wallet."
           />
-          <GuideStep step={3} title="Come back to Tenda" description="Tap Connect Wallet — Phantom opens, you approve, and you're back here automatically." />
+          <GuideStep step={3} title="Come back to Tenda" description="Tap Connect Wallet, Wallet opens, you approve, and you're back here automatically." />
         </View>
 
         {/* Solflare */}
@@ -79,7 +79,7 @@ export default function WalletGuideScreen() {
             step={2}
             title="Set up your wallet"
             description="Create new or import. Save the recovery phrase offline."
-            tip="Use the hardware wallet option if you have a Ledger — Solflare supports it natively."
+            tip="Use the hardware wallet option if you have a Ledger. Solflare supports it natively."
           />
           <GuideStep step={3} title="Return to Tenda manually" description="After approving in Solflare, switch back to Tenda by tapping the Tenda icon or your task switcher." />
         </View>
@@ -255,5 +255,5 @@ const s = StyleSheet.create({
   },
 })
 
-// Suppress unused warning for typography import — kept for future tweaks.
+// Suppress unused warning for typography import, kept for future tweaks.
 void typography

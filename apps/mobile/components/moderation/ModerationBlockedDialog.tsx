@@ -14,7 +14,7 @@ interface ModerationBlockedDialogProps {
 
 /**
  * Block-decision dialog (stage-6 § UX): the gig cannot be published as
- * written. No retry path — the only exit is editing the content.
+ * written. No retry path, the only exit is editing the content.
  */
 export function ModerationBlockedDialog({ visible, message, onEdit }: ModerationBlockedDialogProps) {
   const { theme } = useUnistyles()

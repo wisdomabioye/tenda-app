@@ -6,7 +6,7 @@ import { SectionLabel } from '@/components/ui/SectionLabel'
 import type { ChainOption } from './useGigForm'
 
 /**
- * Network (chain) selector — CO5. Gigs are USDC-denominated on every chain,
+ * Network (chain) selector, CO5. Gigs are USDC-denominated on every chain,
  * so this only picks where the escrow lives. Renders null when there's a
  * single eligible chain (no choice to make).
  */

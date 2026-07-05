@@ -11,7 +11,7 @@ const STORAGE_KEY = 'chain_registry_v2'
 /**
  * Cached enabled-chain registry (id, namespace, display name, and each asset's
  * symbol/decimals/token_address). The SINGLE client-side source of token
- * addresses — the wallet balance readers consume it so a USDC address change is
+ * addresses, the wallet balance readers consume it so a USDC address change is
  * a server config/seed edit, never an app change. Persisted to SecureStore for
  * a fast first paint; refreshed from `/v1/platform/chains` on app start.
  */
@@ -48,7 +48,7 @@ export const useChainRegistryStore = create<ChainRegistryState>((set, get) => ({
         await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(data))
       })
       .catch(() => {
-        // Keep previous value — never crash on a registry fetch failure.
+        // Keep previous value, never crash on a registry fetch failure.
       })
       .finally(() => {
         inflight = null

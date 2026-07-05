@@ -10,7 +10,7 @@ import { SellTab } from '@/components/wallet/buy-sell/SellTab'
 type Tab = 'buy' | 'sell'
 
 /**
- * Buy/Sell page (stage-8 § Mobile) — Naira-first; the traded asset is the
+ * Buy/Sell page (stage-8 § Mobile), Naira-first; the traded asset is the
  * wallet's native asset pre-cutover (SOL; USDC arrives with the licensed
  * providers). Buy gracefully degrades to "not available yet" until a
  * provider with onramp capability is live (#61).

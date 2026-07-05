@@ -25,7 +25,7 @@ function formatAllowance(row: AllowanceRowData): string {
   if (row.allowanceRaw === '0') return 'No standing approval'
   const raw = BigInt(row.allowanceRaw)
   if (raw >= UNLIMITED_THRESHOLD) return `Unlimited ${row.symbol}`
-  // Exact BigInt split — float division misrounds above 2^53 base units.
+  // Exact BigInt split, float division misrounds above 2^53 base units.
   const scale = 10n ** BigInt(row.decimals)
   const whole = raw / scale
   const frac = (raw % scale).toString().padStart(row.decimals, '0').replace(/0+$/, '')
@@ -41,7 +41,7 @@ interface Props {
   onRevoke: (row: AllowanceRowData) => void
 }
 
-/** Presentational row — the screen owns reads/writes and confirmation. */
+/** Presentational row, the screen owns reads/writes and confirmation. */
 export function AllowanceRow({ row, busy, onSet, onRevoke }: Props) {
   const { theme } = useUnistyles()
   const hasAllowance = row.allowanceRaw !== null && row.allowanceRaw !== 'error' && row.allowanceRaw !== '0'

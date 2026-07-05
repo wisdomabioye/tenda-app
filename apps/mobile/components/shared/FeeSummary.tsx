@@ -9,9 +9,9 @@ import { useIsSeeker } from '@/stores/auth.store'
 import { usePlatformConfigStore } from '@/stores/platform-config.store'
 
 interface FeeSummaryProps {
-  /** Asset registry id — drives decimals + symbol (CO5). */
+  /** Asset registry id, drives decimals + symbol (CO5). */
   asset: string
-  /** Principal in raw units of `asset` — gig payment / offer escrow */
+  /** Principal in raw units of `asset`, gig payment / offer escrow */
   principalRaw: number
   /** Optional eyebrow override; defaults to "YOU WILL ESCROW" */
   eyebrow?: string

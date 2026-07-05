@@ -101,7 +101,7 @@ export const api = {
   auth: {
     nonce: () => request<AuthNonceResponse>('POST', auth.nonce),
     /**
-     * Stage 9 unified — issue an OTP (phone/email). Wallet/OAuth challenge
+     * Stage 9 unified, issue an OTP (phone/email). Wallet/OAuth challenge
      * off-device. The bearer is the server's link/sign-in discriminator, so it
      * is sent ONLY with `link: true`; sign-in stays anonymous even when a
      * (possibly stale) JWT is stored.
@@ -109,7 +109,7 @@ export const api = {
     challenge: (body: ChallengeBody, opts?: { link?: boolean }) =>
       request<ChallengeResponse>('POST', auth.challenge, { body, auth: opts?.link === true }),
     /**
-     * Stage 9 unified — verify a proof → { token, user, is_new }. Anonymous by
+     * Stage 9 unified, verify a proof → { token, user, is_new }. Anonymous by
      * default (LOGS IN / creates); pass `link: true` to attach the bearer and
      * LINK the identity to the current account instead. Never auto-attaches
      * the stored JWT: a dead token on the sign-in path would 401 every retry.
@@ -117,7 +117,7 @@ export const api = {
     verify: (body: VerifyBody, opts?: { link?: boolean }) =>
       request<VerifyResponse>('POST', auth.verify, { body, auth: opts?.link === true }),
     me: () => request<User>('GET', auth.me),
-    /** Stage 9 — the caller's non-wallet sign-in identities (Sign-in & security). */
+    /** Stage 9, the caller's non-wallet sign-in identities (Sign-in & security). */
     methods: () => request<LoginMethodsResponse>('GET', auth.methods),
     linkWallet: (body: LinkWalletBody) =>
       request<LinkWalletResponse>('POST', auth.linkWallet, { body }),
@@ -127,7 +127,7 @@ export const api = {
       request<SetPrimaryWalletResponse>('POST', auth.setPrimaryWallet, { body }),
   },
 
-  // v2 escrow primitive — every on-chain action returns an unsigned tx the
+  // v2 escrow primitive, every on-chain action returns an unsigned tx the
   // wallet signs; the broadcast result is reported via blockchain.clientPing.
   // proofs/review are off-chain satellites.
   escrows: {
@@ -152,7 +152,7 @@ export const api = {
       request<EscrowActionResponse>('POST', escrows.refund, { params }),
     dispute: (params: { id: string }, body: DisputeEscrowApiBody) =>
       request<EscrowActionResponse>('POST', escrows.dispute, { params, body }),
-    // CO7 mediation thread — one shared conversation per dispute.
+    // CO7 mediation thread, one shared conversation per dispute.
     disputeThread: (params: { id: string }, query?: { after?: string }) =>
       request<DisputeThreadResponse>('GET', escrows.disputeMessages, { params, query }),
     sendDisputeMessage: (params: { id: string }, body: SendDisputeMessageBody) =>
@@ -170,7 +170,7 @@ export const api = {
   },
 
   // Browse surfaces (escrows ⨝ details server-side) + the create-detail
-  // satellite (create flow step 2 — step 1 is escrows.create).
+  // satellite (create flow step 2, step 1 is escrows.create).
   gigs: {
     featured: () => request<{ data: GigSummary[] }>('GET', gigs.featured),
     list: (query?: GigListQuery) =>

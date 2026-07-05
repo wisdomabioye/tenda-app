@@ -1,5 +1,5 @@
 /**
- * v2 escrow transition store (cutover §6) — replaces the transition methods
+ * v2 escrow transition store (cutover §6), replaces the transition methods
  * scattered across gigs.store.ts / p2p-exchange.store.ts. Display stores
  * keep owning their listing/detail state; this store owns the
  * sign-and-report lifecycle shared by both kinds:
@@ -8,7 +8,7 @@
  *   reportTx() (client-ping; server verifies async) →
  *   screens refresh their display store when the verified event lands.
  *
- * The wallet is NOT imported here — screens pass the signed tx_ref in.
+ * The wallet is NOT imported here, screens pass the signed tx_ref in.
  * Keeping signing out of the store means one store serves MWA today and
  * the Stage-1 adapter façade after promotion.
  */
@@ -31,10 +31,10 @@ interface EscrowState {
   isBusy: boolean
   error: string | null
 
-  /** POST /v1/escrows — returns the draft id + unsigned createEscrow tx. */
+  /** POST /v1/escrows, returns the draft id + unsigned createEscrow tx. */
   createEscrow: (body: CreateEscrowApiBody) => Promise<CreateEscrowApiResponse>
 
-  /** Transition builders — each returns the unsigned tx to sign. */
+  /** Transition builders, each returns the unsigned tx to sign. */
   /** Rebuild the unsigned create tx for an owned draft (publish path). */
   requestBuildCreate: (id: string) => Promise<UnsignedTx>
   requestAccept: (id: string) => Promise<UnsignedTx>
@@ -117,7 +117,7 @@ export const useEscrowStore = create<EscrowState>((set) => {
           ...(input.escrow_id !== undefined ? { escrow_id: input.escrow_id } : {}),
         })
       } catch (e) {
-        // 409 DUPLICATE_SIGNATURE = this tx_ref is already recorded — the
+        // 409 DUPLICATE_SIGNATURE = this tx_ref is already recorded, the
         // ping's job is done. Same semantics as the pending-sync replay
         // path; surfacing it as an error would hide a successful action.
         if (
@@ -127,10 +127,10 @@ export const useEscrowStore = create<EscrowState>((set) => {
         ) {
           return { status: 'queued', recorded: false, enqueued: false }
         }
-        // Any other 4xx means the server understood and rejected —
+        // Any other 4xx means the server understood and rejected,
         // replaying the identical ping can never succeed, so surface it.
         if (e instanceof ApiClientError && e.statusCode < 500) throw e
-        // Offline / 5xx — the signed tx is already on chain; queue the ping
+        // Offline / 5xx, the signed tx is already on chain; queue the ping
         // so verification is only delayed, never lost.
         usePendingSyncStore.getState().add({
           action: 'escrow_ping',

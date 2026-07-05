@@ -58,7 +58,7 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
       else setFailMsg(msg)
     }
 
-    // Live path — escrow events pushed by the verify-tx pipeline.
+    // Live path, escrow events pushed by the verify-tx pipeline.
     const unsubscribe = escrowId
       ? subscribeEscrowChannel(escrowId, (frame) => {
           if (frame.tx_ref === signature) settle('confirmed')
@@ -73,7 +73,7 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
       }
       try {
         // CO3: pick the RPC fallback by chain. Unknown namespaces get no
-        // poll at all — confirmation rides the WS channel alone.
+        // poll at all, confirmation rides the WS channel alone.
         const namespace = chainId?.split(':')[0] ?? 'solana'
         if (namespace === 'solana') {
           const status = await getTransactionStatus(signature)
@@ -86,7 +86,7 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
         }
         // 'not_found' / WS-only namespace → keep polling
       } catch {
-        // RPC error — keep polling
+        // RPC error, keep polling
       }
       schedule()
     }

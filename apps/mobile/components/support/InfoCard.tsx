@@ -7,7 +7,7 @@ import { Eyebrow } from '@/components/ui/Eyebrow'
 interface InfoCardProps {
   /** Mono uppercase eyebrow at the top of the card. */
   label: string
-  /** Plain string body — for richer content pass `children` instead. */
+  /** Plain string body, for richer content pass `children` instead. */
   body?: string
   children?: ReactNode
 }

@@ -15,7 +15,7 @@ const isUsdcTx = (tx: UserEscrowTransaction): boolean =>
   (ASSET_META[tx.escrow.asset]?.symbol ?? tx.escrow.asset) === 'USDC'
 
 /**
- * Wallet screen data controller — multichain. Drives off the authoritative
+ * Wallet screen data controller, multichain. Drives off the authoritative
  * linked-wallet list (`wallets[]`) and the chain registry (token addresses),
  * NOT the single Solana session address. Owns: per-(wallet,chain) balances, the
  * summed-USDC headline, the transaction feed, and USDC lifetime earned/spent.
@@ -48,7 +48,7 @@ export function useWalletScreen() {
           : Promise.resolve(setTransactions([])),
       ])
     } finally {
-      // Always settle loading — no early-return path can strand the skeleton.
+      // Always settle loading, no early-return path can strand the skeleton.
       if (isRefresh) setRefreshing(false)
       else setIsLoading(false)
     }

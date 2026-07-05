@@ -6,7 +6,7 @@ export type Proof = { url: string; type: 'image' | 'video' | 'document' }
 
 /**
  * Upload picked proof files to Cloudinary in order. Returns the proof list on
- * success, or null if any file fails — the failing file is toasted and the
+ * success, or null if any file fails, the failing file is toasted and the
  * already-uploaded ones are discarded (the user retries with the full set).
  */
 export async function uploadProofs(files: PickedFile[]): Promise<Proof[] | null> {

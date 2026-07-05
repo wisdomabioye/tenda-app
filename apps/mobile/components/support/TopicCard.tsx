@@ -16,7 +16,7 @@ interface TopicCardProps {
 }
 
 /**
- * Wireframe `topic-row` (§(support)). 72h grid row, no card fill — relies on
+ * Wireframe `topic-row` (§(support)). 72h grid row, no card fill, relies on
  * a hairline between rows. Icon tile is brand-tinted 44×44.
  */
 export function TopicCard({ Icon, title, description, route, showDivider = true }: TopicCardProps) {

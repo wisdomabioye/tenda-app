@@ -37,7 +37,7 @@ export function Header({
   const router = useRouter();
   // Edge-to-edge (SDK 54): the app draws behind the status bar. Every screen
   // mounts Header inside a ScreenContainer whose SafeAreaView never claims the
-  // top edge, so the header owns the top inset here — once, for all screens.
+  // top edge, so the header owns the top inset here, once, for all screens.
   const insets = useSafeAreaInsets();
 
   const handleBack = () => {

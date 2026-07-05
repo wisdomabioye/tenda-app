@@ -17,7 +17,7 @@ export function DetailBottomBar({ txInProgress, children }: Props) {
   const content = txInProgress ? (
     <View style={[s.infoNotice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
       <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
-        Transaction in progress — please wait…
+        Transaction in progress, please wait…
       </Text>
     </View>
   ) : (

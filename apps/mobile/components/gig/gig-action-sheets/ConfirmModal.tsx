@@ -16,7 +16,7 @@ const COPY: Record<ConfirmKind, { title: string; body: string }> = {
 }
 
 /**
- * Destructive/confirm dialog for the on-chain (and draft-delete) gig actions —
+ * Destructive/confirm dialog for the on-chain (and draft-delete) gig actions,
  * the gig-specific kind→copy wrapper over the shared `ConfirmDialog`.
  */
 export function ConfirmModal({

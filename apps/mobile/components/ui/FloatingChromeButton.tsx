@@ -10,7 +10,7 @@ interface Props {
 
 /**
  * 36×36 ghost icon button used on modal-style detail screens (gig/[id], exchange/[id]).
- * Sits floating over the scroll content with a translucent inset fill — gives the
+ * Sits floating over the scroll content with a translucent inset fill, gives the
  * "no header bar" wireframe look. (When expo-blur ships, swap the bg for a BlurView.)
  */
 export function FloatingChromeButton({ Icon, onPress, accessibilityLabel }: Props) {

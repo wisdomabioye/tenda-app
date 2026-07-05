@@ -6,7 +6,7 @@ import { useAuthStore } from '@/stores/auth.store'
 
 /**
  * Connected wallet's native balance in lamports; null while unknown.
- * Refreshes on screen focus — drives the stage-8 "Add funds" CTA on gig
+ * Refreshes on screen focus, drives the stage-8 "Add funds" CTA on gig
  * creation (mobile-side orchestration only; no server coupling).
  */
 export function useWalletBalance(): { balanceLamports: number | null; refresh: () => void } {
@@ -21,7 +21,7 @@ export function useWalletBalance(): { balanceLamports: number | null; refresh: (
     getBalance(new PublicKey(walletAddress))
       .then(setBalance)
       .catch(() => {
-        // RPC hiccup — keep the last known value; CTA stays advisory.
+        // RPC hiccup, keep the last known value; CTA stays advisory.
       })
   }, [walletAddress])
 

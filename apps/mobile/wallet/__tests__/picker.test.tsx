@@ -1,5 +1,5 @@
 /**
- * WalletPicker — renders one row per AVAILABLE adapter, captioned by its
+ * WalletPicker, renders one row per AVAILABLE adapter, captioned by its
  * `tagline` (falling back to the namespace label), with an install hint and a
  * tap-to-select. The registry is mocked with fixture adapters (icon + no-icon,
  * installed + not) so we exercise the picker AND the WalletIcon fallback glyph

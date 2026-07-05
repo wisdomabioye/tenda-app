@@ -1,5 +1,5 @@
 /**
- * ConfirmDialog — the styled confirm/cancel modal that replaces native
+ * ConfirmDialog, the styled confirm/cancel modal that replaces native
  * `Alert.alert`. Verifies it renders title/message/actions when visible, wires
  * the confirm/cancel callbacks, stays hidden when not visible, and supports the
  * acknowledge-only (`hideCancel`) variant.

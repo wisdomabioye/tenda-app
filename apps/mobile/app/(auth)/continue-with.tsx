@@ -51,12 +51,12 @@ const COPY: Record<ContactMethod, ChannelCopy> = {
 }
 
 /**
- * Stage 9C contact step — collect a phone/email, issue the OTP challenge, then
+ * Stage 9C contact step, collect a phone/email, issue the OTP challenge, then
  * route to verify-code. Its own route (not a get-started sub-view) so the
  * header AND Android hardware back pop cleanly to get-started.
  *
  * Layout: a ScrollView whose content container is `flexGrow:1 +
- * justifyContent:center` — the field block centres when there's room and stays
+ * justifyContent:center`, the field block centres when there's room and stays
  * scroll-reachable / keyboard-pushed when the autofocus keyboard shrinks the
  * viewport (the earlier top-aligned/centred-View versions either jammed the
  * field to the top or let the keyboard cover it). The Input uses the `compact`
@@ -84,7 +84,7 @@ export default function ContinueWithScreen() {
     if (!valid || busy) return
     setBusy(true)
     try {
-      // The bearer is only sent when LINKING — sign-in must stay anonymous so a
+      // The bearer is only sent when LINKING, sign-in must stay anonymous so a
       // stale stored JWT can never 401 the challenge.
       await api.auth.challenge({ method: channel, identifier: value }, { link: isLink })
       router.push({
@@ -92,7 +92,7 @@ export default function ContinueWithScreen() {
         params: { channel, identifier: value, ...(isLink ? { mode: 'link' } : {}) },
       })
     } catch (e) {
-      showToast('error', verifyErrorMessage(e, 'Something went wrong — please try again'))
+      showToast('error', verifyErrorMessage(e, 'Something went wrong, please try again'))
     } finally {
       setBusy(false)
     }

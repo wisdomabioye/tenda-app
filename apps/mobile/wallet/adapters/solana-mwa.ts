@@ -16,7 +16,7 @@ import type { AuthenticateResult, WalletAdapter } from './types'
 
 /**
  * Generic Android-Solana adapter via Solana Mobile Wallet Adapter (MWA).
- * The MWA spec doesn't expose a wallet-targeting API for local Android — the
+ * The MWA spec doesn't expose a wallet-targeting API for local Android, the
  * OS routes the association intent to its default Solana wallet, or shows a
  * disambiguation chooser if none is set as default. Our picker therefore
  * presents a single "Solana Wallet" entry on Android; per-wallet branding
@@ -58,13 +58,13 @@ async function connect(): Promise<SpikeAccount> {
  * so the wallet opens ONCE (connect + sign in one foregrounded visit). This is
  * the legacy/proven shape.
  *
- * Every attempt is a FRESH authorize — we drop any stored session first and
+ * Every attempt is a FRESH authorize, we drop any stored session first and
  * pass `null` to `authorizeSession`. Reusing a token makes it `reauthorize`,
  * which can hand control back to the dapp mid-session and tear down the MWA
  * association WebSocket ("Cannot send in CLOSED") before `signMessages` runs.
  * Starting clean keeps the wallet foregrounded through both prompts and also
  * lets a linking user pick a different account (so this is correct for
- * `forceFresh` too — hence no `opts`).
+ * `forceFresh` too, hence no `opts`).
  *
  * The auth message is built ONCE and the exact bytes signed are returned: the
  * server verifies the signature over that literal string (buildAuthMessage
@@ -151,7 +151,7 @@ async function signAndSendTransaction(
 
 /**
  * Sign + broadcast a server-built tx using THIS adapter's stored MWA session
- * token. The adapter owns its session (AsyncStorage) — dispatch no longer
+ * token. The adapter owns its session (AsyncStorage), dispatch no longer
  * threads the token through the auth store, so there is a SINGLE source of
  * truth. Persists a rotated token and throws a typed `WalletError('no_wallet')`
  * when no session exists (user must connect first).
@@ -161,7 +161,7 @@ export async function signAndSendStored(
 ): Promise<string> {
   const token = await AsyncStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
   if (!token) {
-    throw new WalletError('no_wallet', 'no Solana wallet session — connect first')
+    throw new WalletError('no_wallet', 'no Solana wallet session, connect first')
   }
   return signAndSendTransaction(transaction, token, (rotated) => {
     void AsyncStorage.setItem(STORAGE_KEY_AUTH_TOKEN, rotated)
@@ -197,7 +197,7 @@ export const solanaMwaAdapter: WalletAdapter = {
   namespaces: ['solana'],
   isAvailable: async () => Platform.OS === 'android',
   // The OS-level chooser is what surfaces "installed Solana wallets" on
-  // Android — we can't probe individual wallets here without a target. So we
+  // Android, we can't probe individual wallets here without a target. So we
   // return true unconditionally and let MWA report "no installed wallet" at
   // connect time if there genuinely is none.
   isInstalled: async () => true,

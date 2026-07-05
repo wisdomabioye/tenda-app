@@ -1,5 +1,5 @@
 /**
- * CO8 featured rail — horizontal carousel of admin-curated listings at the
+ * CO8 featured rail, horizontal carousel of admin-curated listings at the
  * top of the home feed. Renders nothing while empty or failed: curation is
  * decoration, never a blocker.
  */

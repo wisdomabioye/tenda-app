@@ -1,5 +1,5 @@
 /**
- * Auth store — wallet sign-in + session lifecycle (Stage 3). Covers the
+ * Auth store, wallet sign-in + session lifecycle (Stage 3). Covers the
  * namespace-aware address publishing (Solana → walletAddress + SecureStore;
  * EVM → evmAddress, no Solana persist), decline → false, server-error
  * propagation, logout reset, and loadSession's three branches (no-jwt,
@@ -16,7 +16,7 @@ jest.mock('@/wallet/auth', () => ({
 }))
 
 jest.mock('@/api/client', () => {
-  // Defined inside the factory (jest hoists mocks above imports — an
+  // Defined inside the factory (jest hoists mocks above imports, an
   // out-of-scope class reference is disallowed). The store's `instanceof
   // ApiClientError` matches because both sides resolve to this same class.
   class ApiClientError extends Error {
@@ -146,11 +146,11 @@ describe('signInWithWallet', () => {
     expect(s.profileComplete).toBe(true)
     expect(setJwt).toHaveBeenCalledWith('jwt-123')
     expect(setAddr).toHaveBeenCalledWith('SoLaNaAddr')
-    // Find-or-reject: the adapter is the sole argument — no signup bootstrap.
+    // Find-or-reject: the adapter is the sole argument, no signup bootstrap.
     expect(walletSignInMock.mock.calls[0]).toHaveLength(1)
   })
 
-  it('publishes an EVM account to evmAddress only — no Solana persist', async () => {
+  it('publishes an EVM account to evmAddress only, no Solana persist', async () => {
     walletSignInMock.mockResolvedValue({ auth: AUTH, account: account('eip155') })
 
     const ok = await useAuthStore.getState().signInWithWallet(stubAdapter())
@@ -303,7 +303,7 @@ describe('signInWithVerify', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
   })
 
-  it('calls verify ANONYMOUSLY — sign-in never passes link intent', async () => {
+  it('calls verify ANONYMOUSLY, sign-in never passes link intent', async () => {
     verifyMock.mockResolvedValue({ token: 't', user: USER, is_new: false })
     const body = { method: 'google' as const, id_token: 'g-idt' }
     await useAuthStore.getState().signInWithVerify(body)
@@ -410,7 +410,7 @@ describe('linkIdentity', () => {
 
     await useAuthStore.getState().linkIdentity({ method: 'email', identifier: 'me@x.io', code: '424242' })
 
-    // link: true is what attaches the bearer — the server's link discriminator.
+    // link: true is what attaches the bearer, the server's link discriminator.
     expect(verifyMock).toHaveBeenCalledWith(
       { method: 'email', identifier: 'me@x.io', code: '424242' },
       { link: true },

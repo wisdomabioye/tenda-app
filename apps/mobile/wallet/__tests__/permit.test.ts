@@ -1,10 +1,10 @@
 /**
- * wallet/permit — buildPermitFor's decision table: when to sign (capability
+ * wallet/permit, buildPermitFor's decision table: when to sign (capability
  * + owner + server payload all line up), when to fall back to the approve
  * flow (undefined), and when to abort (wallet decline / unexpected errors).
  */
 jest.mock('@/api/client', () => {
-  // No TS parameter properties here — Babel would hoist them as out-of-scope
+  // No TS parameter properties here, Babel would hoist them as out-of-scope
   // references inside the mock factory.
   class ApiClientError extends Error {
     statusCode: number
@@ -139,7 +139,7 @@ test('other API errors propagate (never silently downgrade)', async () => {
   await expect(buildPermitFor(ARGS)).rejects.toThrow('owner is not linked')
 })
 
-test('a wallet decline aborts the flow — the user said no', async () => {
+test('a wallet decline aborts the flow, the user said no', async () => {
   payloadMock.mockResolvedValue(PAYLOAD)
   signMock.mockRejectedValue(new Error('User rejected the request'))
   await expect(buildPermitFor(ARGS)).rejects.toThrow('User rejected')

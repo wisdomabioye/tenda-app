@@ -10,7 +10,7 @@ export interface MenuItem {
   label: string
   /** Right-aligned trailing text (mono). */
   value?: string
-  /** Tinted icon variant — defaults to 'inset' (neutral) */
+  /** Tinted icon variant, defaults to 'inset' (neutral) */
   tone?: 'inset' | 'brand' | 'accent'
   onPress: () => void
 }

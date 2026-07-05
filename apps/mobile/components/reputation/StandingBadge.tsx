@@ -13,7 +13,7 @@ interface StandingBadgeProps {
 /**
  * Inline standing chip (stage-7 § mobile): completion % (or "New user")
  * plus a "Limited" marker for publicly visible restrictions. Tapping
- * opens the breakdown sheet. Renders nothing until standing is loaded —
+ * opens the breakdown sheet. Renders nothing until standing is loaded,
  * it is decorative, never blocking.
  */
 export function StandingBadge({ userId, displayName }: StandingBadgeProps) {

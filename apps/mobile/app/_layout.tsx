@@ -32,7 +32,7 @@ export default wrapApp(function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.surface.background }}>
-      {/* The single safe-area provider for the app — measures real device insets
+      {/* The single safe-area provider for the app, measures real device insets
           (status bar / notch / nav bar) that every screen header reads via
           useSafeAreaInsets. Seeded with initialWindowMetrics for a jump-free
           first frame. */}

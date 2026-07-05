@@ -102,7 +102,7 @@ test('Google: verifies the id_token then routes', async () => {
   expect(mockAuthReset).toHaveBeenCalledWith(false) // profileComplete=false
 })
 
-test('Google cancellation is silent — no toast, no nav', async () => {
+test('Google cancellation is silent, no toast, no nav', async () => {
   mockSignInWithGoogle.mockRejectedValue(new GoogleSignInError('cancelled', 'user cancelled'))
   render(<GetStartedScreen />)
   fireEvent.press(screen.getByText('Continue with Google'))

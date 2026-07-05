@@ -37,13 +37,13 @@ export function QuoteSummary({
       <Text size={11.5} color={theme.colors.content.tertiary}>
         {expiresIn > 0
           ? `Quote valid for ${Math.floor(expiresIn / 60)}:${String(expiresIn % 60).padStart(2, '0')}`
-          : 'Quote expired — amounts refresh on change'}
+          : 'Quote expired, amounts refresh on change'}
       </Text>
     </View>
   )
 }
 
-/** Soft "this route isn't available yet" panel (provider not live — #61). */
+/** Soft "this route isn't available yet" panel (provider not live, #61). */
 export function UnavailableNotice({ copy }: { copy: string }) {
   const { theme } = useUnistyles()
   return (

@@ -18,7 +18,7 @@ export function useInboxRealtime() {
     return subscribeUserChannel(myId)
   }, [myId])
 
-  // Initial badge load — with WS healthy the fallback poll never runs, so
+  // Initial badge load, with WS healthy the fallback poll never runs, so
   // fetch once on mount instead of waiting for the first incoming message.
   useEffect(() => {
     useChatStore.getState().fetchConversations().catch(() => {})

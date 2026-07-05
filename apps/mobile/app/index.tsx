@@ -9,7 +9,7 @@ export default function Index() {
 
   // A wallet sign-in OR an additional-wallet link bounces the app through `/`
   // via the wallet's `tenda://` auto-return deep link, mid round-trip. Hold a
-  // spinner — checked BEFORE the authed redirect so a LINK (the user is already
+  // spinner, checked BEFORE the authed redirect so a LINK (the user is already
   // authenticated) isn't yanked to home, which would pop the linked-wallets
   // screen and abort the in-flight sign+POST. The owning flow navigates on
   // completion (usePostAuthReset for sign-in, useReturnToLinkedWallets for a
@@ -31,7 +31,7 @@ export default function Index() {
 
   if (isAuthenticated && user && jwt) {
     // Stage 1: a signed-in user without a name detours through setup.
-    // null = /v1/users/me hasn't answered yet — don't block on it; the
+    // null = /v1/users/me hasn't answered yet, don't block on it; the
     // legacy user row carries the same fields for the common case.
     const complete =
       profileComplete ?? Boolean(user.first_name && user.last_name)

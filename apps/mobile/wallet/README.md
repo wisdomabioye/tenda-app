@@ -9,7 +9,7 @@ universal links) is isolated behind a uniform `WalletAdapter` interface, so
 consumers never know which protocol an entry speaks. Transports swap per
 platform without touching the consumer surface.
 
-Device-verification status is at the bottom — the **Android-Solana (MWA)**
+Device-verification status is at the bottom, the **Android-Solana (MWA)**
 path is device-proven; EVM sign + iOS-Phantom device passes are pending
 (tracked as #68 until it was dropped from the task list 2026-07-01; the code
 paths are unit-tested).
@@ -17,7 +17,7 @@ paths are unit-tested).
 ## Architecture
 
 Screens drive the picker directly and the store owns the session; the only
-React provider is the thin `ReownProvider` AppKit requires (#110 — a pure
+React provider is the thin `ReownProvider` AppKit requires (#110, a pure
 connection-signal bridge, no wallet state in React). The MWA adapter owns its
 own persisted token (AsyncStorage), so escrow-tx signing reads it from the
 adapter, not the auth store.
@@ -53,16 +53,16 @@ Files under `apps/mobile/wallet/`:
 |---|---|
 | `types.ts` | `SpikeAccount`, `Namespace`, `SignMessageResult` (canonical account types) |
 | `config.ts` | Single-source `metadata`, env-driven `SOLANA_NETWORK` + `WALLET_CHAINS` (CAIP-2 ids) |
-| `errors.ts` | `WalletError` / `WalletErrorCode` — standalone so pure consumers skip the native barrel |
-| `auth.ts` | `signInWithWallet` / `linkWalletWith` — nonce ↔ server orchestration |
-| `dispatch.ts` | `signSendAndReport` — routes a server-built `UnsignedTx` to the right transport (`solana-tx` → MWA, `evm-tx` → WalletConnect; `evm-userop` blocked on #47 paymaster). Consumes the server's `approval` hint (allowance-before-broadcast) and exports `resolveEvmFrom()` — the single EVM-account resolution shared with the permit flow |
+| `errors.ts` | `WalletError` / `WalletErrorCode`, standalone so pure consumers skip the native barrel |
+| `auth.ts` | `signInWithWallet` / `linkWalletWith`, nonce ↔ server orchestration |
+| `dispatch.ts` | `signSendAndReport`, routes a server-built `UnsignedTx` to the right transport (`solana-tx` → MWA, `evm-tx` → WalletConnect; `evm-userop` blocked on #47 paymaster). Consumes the server's `approval` hint (allowance-before-broadcast) and exports `resolveEvmFrom()`, the single EVM-account resolution shared with the permit flow |
 | `index.ts` | Solana RPC helpers (`getBalance`, `getTransactionStatus`) + convenience re-exports |
 | `evm-rpc.ts` | Minimal JSON-RPC + ABI-word helpers shared by balances and allowance (public RPCs only) |
-| `balances/` | Pluggable per-namespace balance readers (solana + evm) for the wallet screen — chain facts from `/v1/platform/chains` |
-| `allowance/` | Reusable ERC-20 allowance module: `readAllowance` / `sendApprove` / `waitForReceipt` / `ensureAllowance` — backs both dispatch's approve fallback and the Token-approvals settings screen |
-| `permit.ts` | `buildPermitFor()` — fetches the server-built EIP-2612 typed data (`/v1/blockchain/permit-payload`), signs via `eth_signTypedData_v4`, returns the wire permit body; `undefined` = caller falls back to approve |
-| `reown/` | AppKit config + EVM network defs (`networks.ts` — RPCs come from the shared `CHAIN_MANIFEST`) |
-| `picker.tsx` | `<WalletPicker>` — controlled BottomSheet listing adapters with installed badge |
+| `balances/` | Pluggable per-namespace balance readers (solana + evm) for the wallet screen, chain facts from `/v1/platform/chains` |
+| `allowance/` | Reusable ERC-20 allowance module: `readAllowance` / `sendApprove` / `waitForReceipt` / `ensureAllowance`, backs both dispatch's approve fallback and the Token-approvals settings screen |
+| `permit.ts` | `buildPermitFor()`, fetches the server-built EIP-2612 typed data (`/v1/blockchain/permit-payload`), signs via `eth_signTypedData_v4`, returns the wire permit body; `undefined` = caller falls back to approve |
+| `reown/` | AppKit config + EVM network defs (`networks.ts`, RPCs come from the shared `CHAIN_MANIFEST`) |
+| `picker.tsx` | `<WalletPicker>`, controlled BottomSheet listing adapters with installed badge |
 | `wallet-icon.tsx` | Rounded `Image`-based wallet icon |
 | `adapters/types.ts` | `WalletAdapter` interface (connect / sign / **authenticate** / disconnect / restore) |
 | `adapters/registry.ts` | Adapter list + `findAdapter` / `requireAdapter` |
@@ -77,12 +77,12 @@ Files under `apps/mobile/wallet/`:
 
 The spike originally used **MetaMask Connect** for EVM and rejected
 WC/Reown (stuck pairings, relay DNS flakiness, Pro-gated multi-namespace).
-MM Connect's `personal_sign` then proved unfixable on RN — the approval sheet
-never rendered (`invokeMethod` timeout, below our layer) — so #110–#112
+MM Connect's `personal_sign` then proved unfixable on RN, the approval sheet
+never rendered (`invokeMethod` timeout, below our layer), so #110–#112
 swapped the EVM adapter to **Reown AppKit/WalletConnect** behind the same
 `WalletAdapter` interface: a thin provider + pure connection-signal bridge,
 EVM-namespace only (free tier), consumers untouched. Solana stays on MWA
-(Android) + Phantom universal links (iOS) — the adapter model is exactly what
+(Android) + Phantom universal links (iOS), the adapter model is exactly what
 made this transport swap a two-file change.
 
 ## ERC-20 funding: permit first, approve fallback
@@ -90,11 +90,11 @@ made this transport swap a two-file change.
 EVM escrow funding (create, and dispute bonds) needs the escrow contract to
 `transferFrom` the user's token. Two paths, decided per call:
 
-1. **EIP-2612 permit (preferred — one wallet interaction).** Before the
+1. **EIP-2612 permit (preferred, one wallet interaction).** Before the
    create/dispute API call, the flow asks `buildPermitFor()` (`permit.ts`):
-   it checks the chain registry (`supports_permit` on the asset — pure
+   it checks the chain registry (`supports_permit` on the asset, pure
    config), asks the server for the full typed-data payload
-   (`POST /v1/blockchain/permit-payload` — the client **never** constructs
+   (`POST /v1/blockchain/permit-payload`, the client **never** constructs
    EIP-712 domains), signs it with `eth_signTypedData_v4`, and rides the
    signature in the request body. The server then encodes
    `createEscrowWithPermit`/`disputeEscrowWithPermit` so approval + escrow
@@ -108,7 +108,7 @@ EVM escrow funding (create, and dispute bonds) needs the escrow contract to
    covers the amount.
 
 `buildPermitFor` returns `undefined` for every "fall back" condition and
-**throws** only on real errors and user declines — a decline must abort the
+**throws** only on real errors and user declines, a decline must abort the
 flow, not silently downgrade it. Standing allowances are user-visible and
 editable at **Settings → Token approvals** (`app/settings/token-approvals.tsx`,
 rows straight from the chain registry).
@@ -117,12 +117,12 @@ rows straight from the chain registry).
 
 `config.ts` is the **only** place env → network is encoded:
 
-- `SOLANA_NETWORK` — `Cluster` (`mainnet-beta` in prod, else `devnet`).
-- `WALLET_CHAINS` — CAIP-2 ids the **server** registers: `solana` via the shared
-  `solanaChainId(SOLANA_NETWORK)` (NOT the genesis-hash form — that was a spike
+- `SOLANA_NETWORK`, `Cluster` (`mainnet-beta` in prod, else `devnet`).
+- `WALLET_CHAINS`, CAIP-2 ids the **server** registers: `solana` via the shared
+  `solanaChainId(SOLANA_NETWORK)` (NOT the genesis-hash form, that was a spike
   bug that 400'd the server), `eip155` Base / Base-Sepolia by env.
 
-`auth.ts` pins `WALLET_CHAINS[account.namespace]` on every signature — the
+`auth.ts` pins `WALLET_CHAINS[account.namespace]` on every signature, the
 server only verifies against registered chains, so the account's own `chainId`
 is never trusted for auth. EVM AppKit networks (`reown/networks.ts`) source
 their RPC URLs from the shared `CHAIN_MANIFEST` (`requireEvmPublicRpcUrl`).
@@ -137,7 +137,7 @@ Adapters' `isAvailable()` is what determines visibility per platform:
 | iOS | EVM Wallet, Phantom | Reown/WalletConnect / Phantom universal links |
 
 Android collapses all Solana wallets behind one generic **Solana Wallet**
-entry because MWA's `transact()` has no local wallet-targeting API — the OS
+entry because MWA's `transact()` has no local wallet-targeting API, the OS
 routes to the default Solana wallet (or shows a chooser if none is default).
 On iOS, each Solana wallet exposes its own universal-link protocol, so
 per-wallet entries make sense. EVM wallets ride WalletConnect's own pairing
@@ -148,7 +148,7 @@ UI, so one **EVM Wallet** entry covers them all.
 | Package | Why |
 |---|---|
 | `@reown/appkit-react-native` + `@reown/appkit-ethers-react-native` | AppKit EVM session + ethers adapter |
-| `@walletconnect/react-native-compat` | RN environment shims (TextEncoder, URL, …) — imported before any AppKit code |
+| `@walletconnect/react-native-compat` | RN environment shims (TextEncoder, URL, …), imported before any AppKit code |
 | `@walletconnect/utils` | Pairing/session utilities |
 | `@solana-mobile/mobile-wallet-adapter-protocol-web3js` | Android Solana transport |
 | `@react-native-async-storage/async-storage` | Adapter session/auth-token persistence |
@@ -181,18 +181,18 @@ runs at every `expo prebuild` so the native config stays in sync.
 ## Device-verification status
 
 The **Android-Solana (MWA)** path is device-proven. The remaining passes were
-tracked as **#68** until it was dropped from the task list (2026-07-01) —
+tracked as **#68** until it was dropped from the task list (2026-07-01),
 the code paths below are implemented + unit-tested but not device-verified.
 
 | Scenario | Android | iOS | Notes |
 |---|---|---|---|
-| Solana Wallet (MWA) connect + signMessage (login) | ✅ | — | OS routes to default Solana wallet. `authenticate` is a one-shot: authorize + `signMessages` in a SINGLE `transact` (one wallet visit). It ALWAYS starts fresh (drops any stored token, passes `null` to `authorizeSession`) — reusing a token forces a `reauthorize` that can background the dapp and tear down the association WS mid-session (`Cannot send in CLOSED`). An earlier 2-session split avoided that error but opened the wallet twice (×retry = bad UX); reverted. |
-| Solana Wallet (MWA) escrow tx sign + broadcast | ✅ | — | `signAndSendStored` reads the adapter's persisted token; broadcast from app RPC. |
-| Solana Wallet (MWA) disconnect | ✅ | — | Local-only (opening the wallet just to revoke is bad UX). |
-| EVM Wallet (Reown/WalletConnect) connect + `personal_sign` | ⬜ | ⬜ | Adapter swap #111 — unit-tested; device pass pending |
-| EVM Wallet escrow send (`eth_sendTransaction`) | ⬜ | ⬜ | `sendEvmTransaction` — device pass pending |
-| EVM permit sign (`eth_signTypedData_v4`) + approve fallback | ⬜ | ⬜ | `signEvmTypedData` / `ensureAllowance` — unit-tested; device pass rides the #124 Base Sepolia lifecycle smoke |
-| Phantom (iOS universal links) connect + sign | — | ⬜ | Implemented (X25519 + nacl.box, base64 sig); never device-verified |
+| Solana Wallet (MWA) connect + signMessage (login) | ✅ |, | OS routes to default Solana wallet. `authenticate` is a one-shot: authorize + `signMessages` in a SINGLE `transact` (one wallet visit). It ALWAYS starts fresh (drops any stored token, passes `null` to `authorizeSession`), reusing a token forces a `reauthorize` that can background the dapp and tear down the association WS mid-session (`Cannot send in CLOSED`). An earlier 2-session split avoided that error but opened the wallet twice (×retry = bad UX); reverted. |
+| Solana Wallet (MWA) escrow tx sign + broadcast | ✅ |, | `signAndSendStored` reads the adapter's persisted token; broadcast from app RPC. |
+| Solana Wallet (MWA) disconnect | ✅ |, | Local-only (opening the wallet just to revoke is bad UX). |
+| EVM Wallet (Reown/WalletConnect) connect + `personal_sign` | ⬜ | ⬜ | Adapter swap #111, unit-tested; device pass pending |
+| EVM Wallet escrow send (`eth_sendTransaction`) | ⬜ | ⬜ | `sendEvmTransaction`, device pass pending |
+| EVM permit sign (`eth_signTypedData_v4`) + approve fallback | ⬜ | ⬜ | `signEvmTypedData` / `ensureAllowance`, unit-tested; device pass rides the #124 Base Sepolia lifecycle smoke |
+| Phantom (iOS universal links) connect + sign |, | ⬜ | Implemented (X25519 + nacl.box, base64 sig); never device-verified |
 
 ### Known limitation (post-promotion)
 
@@ -205,7 +205,7 @@ is unaffected; wire Phantom tx-signing when iOS gets a device pass.
 fixed by the multichain wallet-screen rework (#121): balances now derive from
 `wallets[]` + the chain registry, not the session `walletAddress`.)
 
-## Promotion criteria — status
+## Promotion criteria, status
 
 Original gate, with current state:
 

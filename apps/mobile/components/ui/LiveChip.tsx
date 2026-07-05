@@ -12,7 +12,7 @@ interface LiveChipProps {
  * "Live" indicator per `home.html .live-dot`:
  *   • 6×6 dot in --ok with a 3px ok-tinted halo
  *   • mono 11/500 +0.06em uppercase --ink-3 label
- * No pill bg, no icon — just the dot + label inline.
+ * No pill bg, no icon, just the dot + label inline.
  */
 export function LiveChip({ label = 'Live' }: LiveChipProps) {
   const { theme } = useUnistyles()

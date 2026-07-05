@@ -8,7 +8,7 @@ import { Text } from '@/components/ui'
 type RouterPush = Parameters<ReturnType<typeof useRouter>['push']>[0]
 
 /**
- * Shown on the wallet screen when no wallet is linked — replaces the balance
+ * Shown on the wallet screen when no wallet is linked, replaces the balance
  * hero (which would otherwise sit on a perpetual skeleton). Routes to the
  * linked-wallets screen to connect one.
  */

@@ -37,11 +37,11 @@ export function ReportSheet({ visible, onClose, contentType, contentId, onSucces
     setLoading(true)
     try {
       await api.reports.create({ content_type: contentType, content_id: contentId, reason, note: note.trim() || undefined })
-      showToast('success', 'Report submitted — our team will review it.')
+      showToast('success', 'Report submitted, our team will review it.')
       handleClose()
       onSuccess?.()
     } catch {
-      showToast('error', 'Failed to submit report — please try again.')
+      showToast('error', 'Failed to submit report, please try again.')
     } finally {
       setLoading(false)
     }

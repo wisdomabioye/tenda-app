@@ -40,7 +40,7 @@ export default function TabsLayout() {
 
   const fabSpin = fabRotate.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '45deg'] })
 
-  // Use initialWindowMetrics as a stable fallback — on Android, screen wake briefly
+  // Use initialWindowMetrics as a stable fallback, on Android, screen wake briefly
   // reports insets as 0 before system bars finish rendering, causing a layout jump.
   const stableBottom = insets.bottom > 0 ? insets.bottom : (initialWindowMetrics?.insets.bottom ?? 0)
   const tabBarHeight = 72 + stableBottom

@@ -1,5 +1,5 @@
 /**
- * Kind-agnostic escrow action hook (cutover §6) — ONE implementation of
+ * Kind-agnostic escrow action hook (cutover §6), ONE implementation of
  * the v2 client leg shared by the gig and exchange detail screens:
  *
  *   request unsigned tx (escrow.store) → sign + broadcast + client-ping
@@ -8,7 +8,7 @@
  * Proof submission is two-phase: the proof FILES go to the off-chain
  * satellite (POST /v1/escrows/:id/proofs) first, then the on-chain submit
  * commits a digest over their URLs. The digest is sha256 over the
- * '\n'-joined URLs in upload order — encoded base58 for Solana chains,
+ * '\n'-joined URLs in upload order, encoded base58 for Solana chains,
  * 0x-hex for EVM (matching SubmitEscrowProofBody's per-chain format).
  */
 import { useState } from 'react'
@@ -87,7 +87,7 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
         router.push(transactionGateRoute(gate))
         return false
       }
-      showToast('error', (e as Error).message || 'Transaction failed — please try again')
+      showToast('error', (e as Error).message || 'Transaction failed, please try again')
       return false
     } finally {
       setBusyAction(null)
@@ -101,7 +101,7 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
     clearPending,
 
     /** Publish a draft: rebuild + sign the create tx (offramp drafts /
-     *  signing-declined retries — the escrow id is preserved). */
+     *  signing-declined retries, the escrow id is preserved). */
     publish: () => dispatch('create', () => store.requestBuildCreate(escrowId)),
     accept: () => dispatch('accept', () => store.requestAccept(escrowId)),
     decline: () => dispatch('decline', () => store.requestDecline(escrowId)),
@@ -131,14 +131,14 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
       return dispatch('submit', () => store.requestSubmit(escrowId, proof_hash))
     },
 
-    /** Supplementary evidence while submitted — off-chain only. */
+    /** Supplementary evidence while submitted, off-chain only. */
     addProofs: async (proofs: ProofFile[]): Promise<boolean> => {
       try {
         await api.escrows.addProofs({ id: escrowId }, { proofs })
         showToast('success', 'Proof added!')
         return true
       } catch (e) {
-        showToast('error', (e as Error).message || 'Failed to add proof — please try again')
+        showToast('error', (e as Error).message || 'Failed to add proof, please try again')
         return false
       }
     },

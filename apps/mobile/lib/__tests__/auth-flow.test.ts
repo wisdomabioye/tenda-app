@@ -1,5 +1,5 @@
 /**
- * lib/auth-flow — Tier-0 classification of /auth/verify failures + the shared
+ * lib/auth-flow, Tier-0 classification of /auth/verify failures + the shared
  * user-facing message mapping (incl. never surfacing the JWT guard's raw
  * "Invalid or missing token" envelope).
  */
@@ -43,7 +43,7 @@ describe('classifyVerifyError', () => {
 })
 
 describe('verifyErrorMessage', () => {
-  const FALLBACK = 'Something went wrong — please try again'
+  const FALLBACK = 'Something went wrong, please try again'
 
   it('prefers Tier-0 copy when the code maps to a Tier-0 reason', () => {
     const e = new ApiClientError(404, 'Not Found', 'wallet not linked', 'WALLET_NOT_LINKED')

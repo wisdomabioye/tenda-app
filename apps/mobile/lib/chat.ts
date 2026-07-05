@@ -30,7 +30,7 @@ export function isTimestamp(item: FeedItem): item is TimestampGroupItem {
  *
  * 1. Insert a TimestampGroupItem before the first message and whenever the
  *    calendar date changes between adjacent messages (one header per day, like
- *    WhatsApp). Time-of-day grouping is intentionally avoided — it produces a
+ *    WhatsApp). Time-of-day grouping is intentionally avoided, it produces a
  *    header on nearly every message during active back-and-forth.
  * 2. Insert a ContextDividerItem whenever the escrow context changes between
  *    adjacent messages.

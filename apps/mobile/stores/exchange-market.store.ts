@@ -1,5 +1,5 @@
 /**
- * Exchange order-book store (post-#34) — read-only browse over
+ * Exchange order-book store (post-#34), read-only browse over
  * /v1/exchange (escrows kind='exchange' ⨝ exchange_details). Replaces the
  * legacy p2p-exchange store; transitions ride the escrow store + wallet
  * dispatch like every other escrow.
@@ -59,7 +59,7 @@ export const useExchangeMarketStore = create<ExchangeMarketState>((set, get) => 
       })
       set({ offers: [...offers, ...data], total: nextTotal, isLoadingMore: false })
     } catch {
-      // Non-fatal — the next end-reach retries.
+      // Non-fatal, the next end-reach retries.
       set({ isLoadingMore: false })
     }
   },

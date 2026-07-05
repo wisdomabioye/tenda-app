@@ -1,5 +1,5 @@
 /**
- * useEscrowActions — Stage-9D gate wiring on the shared dispatch path. A
+ * useEscrowActions, Stage-9D gate wiring on the shared dispatch path. A
  * transition whose server build-tx call returns WALLET_REQUIRED /
  * CONTACT_REQUIRED routes the user to the fix screen instead of a dead-end
  * toast; an unrelated failure still shows the generic toast and never
@@ -16,7 +16,7 @@ jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockShowTo
 const mockSignSendAndReport = jest.fn()
 jest.mock('@/wallet/dispatch', () => ({ signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a) }))
 
-// The permit helper's import chain reaches the Reown/AppKit native ESM —
+// The permit helper's import chain reaches the Reown/AppKit native ESM,
 // stub it like dispatch (the gate tests never exercise the permit path).
 jest.mock('@/wallet/permit', () => ({ buildPermitFor: jest.fn() }))
 

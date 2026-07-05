@@ -14,7 +14,7 @@ const POLL_MS = 10_000
 
 /**
  * In-progress intent status (stage-8 § Mobile): resumable after an app
- * restart — the instruction persists on the intent. Polls while open;
+ * restart, the instruction persists on the intent. Polls while open;
  * push/WS settlement events land regardless.
  */
 export default function FiatIntentScreen() {

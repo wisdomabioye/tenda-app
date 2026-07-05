@@ -1,5 +1,5 @@
 /**
- * "My gigs" store (post-#34): own listings via GET /v1/gigs?mine= —
+ * "My gigs" store (post-#34): own listings via GET /v1/gigs?mine=,
  * identity rides the JWT, all statuses included (drafts too), and rows
  * are full GigSummary so the card components render unchanged.
  */

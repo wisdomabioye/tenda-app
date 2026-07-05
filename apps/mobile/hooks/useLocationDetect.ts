@@ -33,7 +33,7 @@ export function useLocationDetect({ onDetected }: UseLocationDetectOptions): Use
     try {
       const { status } = await Location.requestForegroundPermissionsAsync()
       if (status !== 'granted') {
-        setError('Location permission denied — please select manually.')
+        setError('Location permission denied, please select manually.')
         return
       }
 
@@ -46,7 +46,7 @@ export function useLocationDetect({ onDetected }: UseLocationDetectOptions): Use
       const isoCode = geocode?.isoCountryCode?.toUpperCase()
       if (!isoCode || !(isoCode in LOCATIONS)) {
         setError(
-          `${geocode?.country ?? 'Your country'} is not supported yet — please select manually.`,
+          `${geocode?.country ?? 'Your country'} is not supported yet, please select manually.`,
         )
         return
       }
@@ -68,11 +68,11 @@ export function useLocationDetect({ onDetected }: UseLocationDetectOptions): Use
         onDetected(isoCode, city)
       } else {
         setError(
-          `"${candidates[0] ?? 'your city'}" is not in our supported cities yet — please select manually.`,
+          `"${candidates[0] ?? 'your city'}" is not in our supported cities yet, please select manually.`,
         )
       }
     } catch {
-      setError('Could not detect location — please select manually.')
+      setError('Could not detect location, please select manually.')
     } finally {
       setDetecting(false)
     }

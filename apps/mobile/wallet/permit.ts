@@ -8,7 +8,7 @@
  *
  * Returns `undefined` whenever permit is NOT the right path (non-EVM chain,
  * asset without permit support, no session, server says PERMIT_UNAVAILABLE)
- * — callers then simply omit `permit` and the server's `approval` hint +
+ *, callers then simply omit `permit` and the server's `approval` hint +
  * dispatch's ensureAllowance cover the approve fallback. A wallet DECLINE
  * is not a fallback: the user said no, so it throws to abort the flow.
  */

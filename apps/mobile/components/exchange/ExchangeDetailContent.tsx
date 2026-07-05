@@ -16,18 +16,18 @@ import { formatAssetAmount } from '@tenda/shared'
 import type { EscrowTxType, ExchangeDetail, SupportedCurrency } from '@tenda/shared'
 
 const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
-  create: 'Offer published — it goes live once the escrow confirms.',
+  create: 'Offer published, it goes live once the escrow confirms.',
   accept: 'Offer accepted!',
-  submit: 'Payment marked — waiting for the seller to confirm.',
-  approve: 'Payment confirmed — crypto released.',
+  submit: 'Payment marked, waiting for the seller to confirm.',
+  approve: 'Payment confirmed, crypto released.',
   claim_stalled: 'Payment claimed!',
-  cancel: 'Offer cancelled — escrow refunded.',
+  cancel: 'Offer cancelled, escrow refunded.',
   refund_expired: 'Refund claimed successfully.',
   dispute: 'Dispute raised. An admin will review shortly.',
 }
 
 /**
- * Exchange detail body — read surface over a kind='exchange' escrow. Every
+ * Exchange detail body, read surface over a kind='exchange' escrow. Every
  * transition rides the shared escrow action hook (sign → broadcast →
  * client-ping), the same leg as gigs; CTA logic lives in ExchangeCTA.
  */
@@ -203,7 +203,7 @@ export function ExchangeDetailContent({
         onConfirmed={handleTransactionConfirmed}
         onFailed={(msg) => {
           actions.clearPending()
-          showToast('info', msg || 'Transaction pending — will sync when confirmed')
+          showToast('info', msg || 'Transaction pending, will sync when confirmed')
         }}
       />
 

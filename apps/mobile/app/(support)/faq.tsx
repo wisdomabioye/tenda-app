@@ -10,7 +10,7 @@ const FAQS = [
   {
     question: 'Do I need crypto to use Tenda?',
     answer:
-      "No — you can receive payouts directly to your bank. The wallet holds what you've earned; you cash out in your local currency through Trade.",
+      "No, you can receive payouts directly to your bank. The wallet holds what you've earned; you cash out in your local currency through Trade.",
   },
   {
     question: 'Will my money be safe?',
@@ -121,7 +121,7 @@ export default function FaqScreen() {
   )
 }
 
-// Suppress unused warning for InfoCard import — kept as the canonical wrapper
+// Suppress unused warning for InfoCard import, kept as the canonical wrapper
 // when extending FAQ with intro/explainer blocks.
 void InfoCard
 

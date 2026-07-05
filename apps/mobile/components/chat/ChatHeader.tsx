@@ -25,7 +25,7 @@ export function ChatHeader({ name, avatarUrl, presence, online, onBack, onMenu }
   const { theme } = useUnistyles()
   // Edge-to-edge (SDK 54): the app draws behind the status bar and the enclosing
   // ScreenContainer never claims the top edge, so the header owns the top inset
-  // here — mirroring the generic `Header`.
+  // here, mirroring the generic `Header`.
   const insets = useSafeAreaInsets()
   return (
     <View

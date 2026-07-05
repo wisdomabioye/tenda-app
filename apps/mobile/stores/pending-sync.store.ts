@@ -27,7 +27,7 @@ export interface PendingSync {
   retryCount: number
 }
 
-/** Human-readable label for each pending-sync action. Exhaustive by type — update when adding new actions. */
+/** Human-readable label for each pending-sync action. Exhaustive by type, update when adding new actions. */
 export const PENDING_SYNC_ACTION_LABEL: Record<PendingSync['action'], string> = {
   escrow_ping: 'Confirm on-chain transaction',
 }
@@ -36,9 +36,9 @@ type PendingSyncEntry = Omit<PendingSync, 'id' | 'createdAt' | 'retryCount'>
 
 interface PendingSyncState {
   queue:       PendingSync[]
-  /** Dead-letter queue — items that exceeded MAX_RETRY_COUNT. Signature preserved for manual recovery. */
+  /** Dead-letter queue, items that exceeded MAX_RETRY_COUNT. Signature preserved for manual recovery. */
   failed:      PendingSync[]
-  /** True while replayAll is running — prevents concurrent invocations. */
+  /** True while replayAll is running, prevents concurrent invocations. */
   isReplaying: boolean
   add:           (entry: PendingSyncEntry) => string
   remove:        (id: string) => void
@@ -76,7 +76,7 @@ async function saveQueue(queue: PendingSync[]): Promise<void> {
   try {
     await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(queue))
   } catch {
-    // Non-fatal — in-memory state still intact
+    // Non-fatal, in-memory state still intact
   }
 }
 
@@ -142,7 +142,7 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
   },
 
   replayAll: async () => {
-    // Re-entrancy guard — prevent concurrent invocations from processing the same items.
+    // Re-entrancy guard, prevent concurrent invocations from processing the same items.
     if (get().isReplaying) return
     set({ isReplaying: true })
 
@@ -166,7 +166,7 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
     const toProcess = [...merged]
     for (const entry of toProcess) {
       if (entry.retryCount >= MAX_RETRY_COUNT) {
-        // Move to dead-letter instead of discarding — signature preserved for manual recovery.
+        // Move to dead-letter instead of discarding, signature preserved for manual recovery.
         const queue  = get().queue.filter((i) => i.id !== entry.id)
         const failed = [...get().failed.filter((i) => i.id !== entry.id), entry]
         set({ queue, failed })
@@ -184,7 +184,7 @@ export const usePendingSyncStore = create<PendingSyncState>((set, get) => ({
         })
         get().remove(entry.id)
       } catch (err) {
-        // 409 DUPLICATE_SIGNATURE = already recorded — treat as success.
+        // 409 DUPLICATE_SIGNATURE = already recorded, treat as success.
         if (err instanceof ApiClientError && err.statusCode === 409 && err.error === ErrorCode.DUPLICATE_SIGNATURE) {
           get().remove(entry.id)
           continue

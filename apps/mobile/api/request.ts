@@ -57,7 +57,7 @@ export async function request<TResponse>(
     query?: Record<string, unknown>
     /**
      * false → force an anonymous call: no Authorization header even when a JWT
-     * is stored. Sign-in surfaces need this — the server treats a present
+     * is stored. Sign-in surfaces need this, the server treats a present
      * bearer on /v1/auth/{challenge,verify} as link intent and hard-401s a
      * stale one, which would poison every retry until storage is cleared.
      */

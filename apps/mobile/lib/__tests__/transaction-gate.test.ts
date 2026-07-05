@@ -1,5 +1,5 @@
 /**
- * lib/transaction-gate — classification + routing for the Stage-9D
+ * lib/transaction-gate, classification + routing for the Stage-9D
  * first-transaction gate (deferred wallet + verified contact).
  */
 

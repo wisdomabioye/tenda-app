@@ -22,7 +22,7 @@ export interface ChainOption {
 }
 
 /**
- * Controller for the gig create/edit form — owns all field state, the
+ * Controller for the gig create/edit form, owns all field state, the
  * server chain registry, the live moderation preview, and submit/validation.
  * The screen stays presentational and just wires the returned values to the UI.
  */
@@ -74,7 +74,7 @@ export function useGigForm(
   const asset = GIG_ASSET_BY_CHAIN[chainId] ?? GIG_ASSET_BY_CHAIN[defaultChainId] ?? 'USDC_SOL'
   const assetSymbol = ASSET_META[asset]?.symbol ?? asset
 
-  // Stage-6 live moderation hints — debounced, advisory only; the server
+  // Stage-6 live moderation hints, debounced, advisory only; the server
   // re-runs the same pipeline on create and stays authoritative.
   const moderation = useModerationPreview({
     title,

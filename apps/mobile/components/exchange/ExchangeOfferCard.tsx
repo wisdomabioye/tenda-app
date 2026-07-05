@@ -19,14 +19,14 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
   const router = useRouter()
   const { theme } = useUnistyles()
 
-  // numeric(20,4)/(30,10) arrive as strings — display-only conversion.
+  // numeric(20,4)/(30,10) arrive as strings, display-only conversion.
   const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
   const rate = formatFiat(Number(offer.rate), offer.fiat_currency as SupportedCurrency)
   const symbol = ASSET_META[offer.asset]?.symbol ?? offer.asset
   const sellerName =
     `${offer.creator.first_name ?? ''} ${offer.creator.last_name ?? ''}`.trim() || 'Seller'
   const handle = offer.creator.first_name ? `@${offer.creator.first_name.toLowerCase()}` : null
-  // numeric(3,2) — string on the wire, null when unrated.
+  // numeric(3,2), string on the wire, null when unrated.
   const score = offer.creator.review_score === null ? null : Number(offer.creator.review_score)
 
   return (
@@ -41,7 +41,7 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
       <Avatar src={offer.creator.avatar_url} name={sellerName} size="md" />
 
       <View style={s.body}>
-        {/* Row 1 — asset → fiat */}
+        {/* Row 1, asset → fiat */}
         <View style={s.row1}>
           <Text style={[s.sol, { color: theme.colors.content.primary }]} numberOfLines={1}>
             {formatAssetAmount(offer.amount_raw, offer.asset)}
@@ -52,7 +52,7 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
           </Text>
         </View>
 
-        {/* Row 2 — handle · ★ rating · rate/asset */}
+        {/* Row 2, handle · ★ rating · rate/asset */}
         <View style={s.row2}>
           {handle && (
             <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>{handle}</Text>
@@ -72,7 +72,7 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
           </Text>
         </View>
 
-        {/* Row 3 — offer status (My Offers variant) */}
+        {/* Row 3, offer status (My Offers variant) */}
         {showStatus && (
           <View style={s.row3}>
             <ExchangeStatusBadge status={offer.status} />

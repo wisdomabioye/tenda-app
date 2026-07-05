@@ -27,7 +27,7 @@ function cityItems(countryCode: string): SearchSheetItem[] {
 }
 
 /**
- * Split-row variant of LocationPicker — renders Country and City as two stacked
+ * Split-row variant of LocationPicker, renders Country and City as two stacked
  * picker rows sharing a parent card-split shell. Use inside a parent View with
  * `borderRadius` + `overflow: 'hidden'` to get the grouped-card look.
  *
@@ -49,7 +49,7 @@ export function CountryCityPicker({ country, city, onChange }: CountryCityPicker
     setCountryOpen(false)
     if (code !== country) {
       onChange(code, null)
-      // Guide the user to finish the pair — prevents leaving country set
+      // Guide the user to finish the pair, prevents leaving country set
       // while city is still empty / orphaned from the old country.
       setTimeout(() => setCityOpen(true), 250)
     }

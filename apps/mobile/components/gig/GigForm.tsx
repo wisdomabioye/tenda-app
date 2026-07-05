@@ -93,7 +93,7 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
           assetSymbol={f.assetSymbol}
         />
 
-        {/* Network (CO5) — gigs are USDC-denominated on every chain */}
+        {/* Network (CO5), gigs are USDC-denominated on every chain */}
         <NetworkPicker
           options={f.chainOptions}
           selected={f.chainId}
@@ -115,7 +115,7 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
         {/* Accept deadline */}
         <AcceptDeadlinePicker value={f.acceptDeadlineHours} onChange={f.setAcceptDeadlineHours} />
 
-        {/* Summary — fee breakdown */}
+        {/* Summary, fee breakdown */}
         {f.paymentRaw > 0 && (
           <>
             <SectionLabel>Summary</SectionLabel>

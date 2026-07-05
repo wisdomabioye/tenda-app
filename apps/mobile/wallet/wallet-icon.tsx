@@ -11,7 +11,7 @@ interface WalletIconProps {
 export function WalletIcon({ adapter, size = 36 }: WalletIconProps) {
   const { theme } = useUnistyles()
 
-  // Aggregator adapters (WalletConnect) have no single bundled icon — show a
+  // Aggregator adapters (WalletConnect) have no single bundled icon, show a
   // generic wallet glyph on a brand-tinted circle instead.
   if (adapter.iconSource === undefined) {
     return (

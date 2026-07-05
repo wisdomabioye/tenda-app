@@ -1,5 +1,5 @@
 /**
- * Gig browse store — DISPLAY ONLY post-#34. Listings/detail come from the
+ * Gig browse store, DISPLAY ONLY post-#34. Listings/detail come from the
  * read surface (/v1/gigs over escrows ⨝ gig_details); every lifecycle
  * transition goes through the escrow store + wallet dispatch
  * (signSendAndReport). The one off-chain action kept here is the

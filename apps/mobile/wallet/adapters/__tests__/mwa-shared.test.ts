@@ -2,8 +2,8 @@
  * mwa-shared transport core. Covers the recoverable-failure policy that keeps
  * Solana connect/sign stable across wallets:
  *  - retry on MWA's transient CancellationException,
- *  - retry on session establishment/teardown (ERROR_SESSION_TIMEOUT / _CLOSED) —
- *    the slow-cold-Phantom case — with a longer warm-up delay,
+ *  - retry on session establishment/teardown (ERROR_SESSION_TIMEOUT / _CLOSED),
+ *    the slow-cold-Phantom case, with a longer warm-up delay,
  *  - never retry a genuine decline or no-wallet; map both to typed WalletErrors.
  *
  * `transact` (the only native dependency) is mocked, so these exercise OUR
@@ -37,14 +37,14 @@ const timeoutErr = {
   code: 'ERROR_SESSION_TIMEOUT',
   message: 'Session establishment timed out',
 }
-// ERROR_SESSION_CLOSED for a NON-user reason (wallet failed to auto-return) —
+// ERROR_SESSION_CLOSED for a NON-user reason (wallet failed to auto-return),
 // retryable. The explicit user-cancel variant is `cancelledErr` below.
 const closedErr = {
   name: 'SolanaMobileWalletAdapterError',
   code: 'ERROR_SESSION_CLOSED',
   message: 'the association closed before the wallet answered',
 }
-// User dismissed the OS wallet chooser before picking one — a decline, not a
+// User dismissed the OS wallet chooser before picking one, a decline, not a
 // failure (same code as closedErr, but the message marks it as the user's act).
 const cancelledErr = {
   name: 'SolanaMobileWalletAdapterError',
@@ -52,7 +52,7 @@ const cancelledErr = {
   message: 'Local association cancelled by user',
 }
 // Same cancel, but the phrase lands on the reject `.code` (American spelling)
-// while .message is generic — the classifier must read both fields/spellings.
+// while .message is generic, the classifier must read both fields/spellings.
 const cancelledByCodeErr = {
   name: 'Error',
   code: 'Session not established: Local association canceled by user',
@@ -129,7 +129,7 @@ describe('MWA error classifiers', () => {
     expect(
       isMwaConnectionFailed({ message: 'Unable to connect to websocket server' }),
     ).toBe(true)
-    // The "Scenario closed" reason is a USER back-out — must NOT be retryable.
+    // The "Scenario closed" reason is a USER back-out, must NOT be retryable.
     expect(isMwaConnectionFailed(scenarioClosedErr)).toBe(false)
     // Not a connection failure at all.
     expect(isMwaConnectionFailed(timeoutErr)).toBe(false)
@@ -138,7 +138,7 @@ describe('MWA error classifiers', () => {
     expect(isMwaConnectionFailed({ message: 42 })).toBe(false)
   })
 
-  it('does NOT auto-retry a user-cancel "Scenario closed" — it surfaces as-is', async () => {
+  it('does NOT auto-retry a user-cancel "Scenario closed", it surfaces as-is', async () => {
     mockTransact.mockRejectedValue(scenarioClosedErr)
     await expect(withMwaRetry(() => Promise.resolve('x'))).rejects.toBe(scenarioClosedErr)
     expect(mockTransact).toHaveBeenCalledTimes(1)
@@ -378,7 +378,7 @@ describe('authorizeSession', () => {
   })
 
   it('single-flight is not assumed: concurrent calls each reach transact', async () => {
-    // Guards against an accidental reintroduction of a module-level gate — the
+    // Guards against an accidental reintroduction of a module-level gate, the
     // current design serialises at the UI, not here.
     mockTransact.mockImplementation((op: (w: unknown) => Promise<unknown>) => op({}))
     const a = withMwaRetry(async () => 'a')

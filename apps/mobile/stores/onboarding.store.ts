@@ -40,7 +40,7 @@ async function persist(data: PersistedOnboarding): Promise<void> {
   try {
     await SecureStore.setItemAsync(STORAGE_KEY, JSON.stringify(data))
   } catch {
-    // silent — non-critical
+    // silent, non-critical
   }
 }
 
@@ -55,7 +55,7 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
         set({ ...DEFAULTS, ...parsed })
       }
     } catch {
-      // silent — use defaults
+      // silent, use defaults
     }
   },
 

@@ -1,5 +1,5 @@
 /**
- * wallet/allowance — pure encoders, the allowance read, and the
+ * wallet/allowance, pure encoders, the allowance read, and the
  * ensureAllowance composition (skip-if-sufficient / approve-then-wait /
  * revert-and-timeout failure modes). RPC rides mocked global fetch (same
  * pattern as balances/evm tests); the approve tx rides a mocked wallet
@@ -88,7 +88,7 @@ describe('readAllowance', () => {
     ).rejects.toThrow('rpc down')
   })
 
-  it('a JSON-RPC error object throws too — an unreadable allowance is never zero', async () => {
+  it('a JSON-RPC error object throws too, an unreadable allowance is never zero', async () => {
     fetchMock.mockResolvedValue({
       json: async () => ({ jsonrpc: '2.0', id: 1, error: { code: -32000, message: 'execution reverted' } }),
     })
@@ -97,7 +97,7 @@ describe('readAllowance', () => {
     ).rejects.toThrow('Could not read the current allowance')
   })
 
-  it('an empty eth_call return (0x — no contract code) throws, not zero', async () => {
+  it('an empty eth_call return (0x, no contract code) throws, not zero', async () => {
     fetchMock.mockResolvedValue(rpcResult('0x'))
     await expect(
       readAllowance({ chainId: CHAIN, token: TOKEN, owner: OWNER, spender: SPENDER }),

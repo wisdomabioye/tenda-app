@@ -1,5 +1,5 @@
 /**
- * usePostAuthReset — resets the root navigation container after sign-in so the
+ * usePostAuthReset, resets the root navigation container after sign-in so the
  * pushed auth screens leave history (Android back from home exits the app
  * instead of returning to welcome / connect-wallet). Verifies the reset target
  * per profile-completeness and the not-ready guard.

@@ -1,5 +1,5 @@
 /**
- * EVM balance reader — native via eth_getBalance, USDC via ERC-20 balanceOf
+ * EVM balance reader, native via eth_getBalance, USDC via ERC-20 balanceOf
  * (eth_call), parsed from hex. Verifies the balanceOf calldata, hex→decimal
  * conversion, an unknown chain → [], and that one failing asset read is omitted
  * (not thrown). RPC is a mocked global fetch.
@@ -59,7 +59,7 @@ test('an unknown / non-EVM chain id yields no balances (no RPC call)', async () 
   expect(fetchMock).not.toHaveBeenCalled()
 })
 
-test('a hung RPC is aborted by the timeout — the read is omitted, never strands', async () => {
+test('a hung RPC is aborted by the timeout, the read is omitted, never strands', async () => {
   jest.useFakeTimers()
   // Native never resolves until aborted; USDC answers immediately.
   fetchMock.mockImplementation((_url: string, init: { body: string; signal?: AbortSignal }) => {
@@ -77,7 +77,7 @@ test('a hung RPC is aborted by the timeout — the read is omitted, never strand
   jest.useRealTimers()
 })
 
-test('empty hex (0x) and a rejected read are handled — 0 / omitted, never thrown', async () => {
+test('empty hex (0x) and a rejected read are handled, 0 / omitted, never thrown', async () => {
   fetchMock.mockImplementation((_url: string, init: { body: string }) => {
     const { method } = JSON.parse(init.body) as { method: string }
     if (method === 'eth_call') return Promise.resolve(rpcReply('0x')) // empty → 0

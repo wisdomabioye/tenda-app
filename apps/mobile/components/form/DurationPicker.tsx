@@ -21,7 +21,7 @@ interface DurationPickerProps {
 }
 
 /**
- * Completion window picker — same chip-row anatomy as the Accept deadline
+ * Completion window picker, same chip-row anatomy as the Accept deadline
  * picker in GigForm: form-variant chips (40h R12 --card with --line border).
  * "Custom" chip reveals a small numeric input + day/hour unit toggle.
  */

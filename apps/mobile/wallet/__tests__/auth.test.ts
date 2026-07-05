@@ -3,7 +3,7 @@
  * exchange through a FAKE WalletAdapter so both namespaces (solana, eip155),
  * the decline→null path, and server-error propagation are exercised without a
  * native transport. Asserts the server always receives the canonical,
- * server-registered chain id per namespace (WALLET_CHAINS) — NOT whatever
+ * server-registered chain id per namespace (WALLET_CHAINS), NOT whatever
  * chainId the account happens to carry.
  */
 import type { ImageRequireSource } from 'react-native'
@@ -40,7 +40,7 @@ function accountFor(namespace: Namespace): SpikeAccount {
   return namespace === 'solana'
     ? {
         namespace,
-        // Deliberately a DIFFERENT chainId than WALLET_CHAINS.solana — proves the
+        // Deliberately a DIFFERENT chainId than WALLET_CHAINS.solana, proves the
         // orchestrator pins the registered chain id, not the account's own.
         chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
         address: 'So1anaAddr111111111111111111111111111111111',
@@ -57,7 +57,7 @@ function accountFor(namespace: Namespace): SpikeAccount {
 /**
  * Fake adapter whose `authenticate` runs the real buildMessage callback (so we
  * can assert the message embeds the canonical chain id) and returns a canned
- * signature — or null to simulate a user decline.
+ * signature, or null to simulate a user decline.
  */
 function fakeAdapter(
   account: SpikeAccount,
@@ -126,7 +126,7 @@ describe('signInWithWallet', () => {
     },
   )
 
-  it('never sends signup bootstrap — wallet is find-or-reject (decision #3)', async () => {
+  it('never sends signup bootstrap, wallet is find-or-reject (decision #3)', async () => {
     await signInWithWallet(fakeAdapter(accountFor('solana')))
     const body = verifyMock.mock.calls[0][0]
     expect(body.method).toBe('wallet')

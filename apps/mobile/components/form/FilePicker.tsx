@@ -35,19 +35,19 @@ const AVATAR_MAX_DIMENSION = 1024
 
 /**
  * Pick + downscale an avatar to a compressed JPEG. SINGLE source of truth for
- * both the onboarding (profile-setup) and settings (update-profile) screens —
+ * both the onboarding (profile-setup) and settings (update-profile) screens,
  * they must produce the same shape, and an avatar is always compressed so a
  * full-res phone photo can't blow the upload size cap. Returns null on cancel.
  */
 export async function pickAvatar(): Promise<PickedFile | null> {
   try {
-    // quality: 1 — we re-encode below, so don't double-compress at pick time.
+    // quality: 1, we re-encode below, so don't double-compress at pick time.
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1 })
     if (result.canceled || !result.assets?.length) return null
 
     const asset = result.assets[0]
     const context = ImageManipulator.manipulate(asset.uri)
-    // Only downscale — never upscale a smaller source.
+    // Only downscale, never upscale a smaller source.
     if (typeof asset.width === 'number' && asset.width > AVATAR_MAX_DIMENSION) {
       context.resize({ width: AVATAR_MAX_DIMENSION })
     }

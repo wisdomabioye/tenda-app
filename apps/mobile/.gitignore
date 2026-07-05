@@ -44,5 +44,5 @@ app-example
 
 .env.local
 
-# Firebase credentials — stored as EAS file secret, never committed
+# Firebase credentials, stored as EAS file secret, never committed
 google-services.json
