@@ -51,8 +51,19 @@ test('GET success returns parsed JSON and sends no Authorization header when log
   const [url, init] = fetchFn.mock.calls[0]!
   expect(url).toBe(`${BASE}/v1/gigs`)
   expect(init.method).toBe('GET')
-  expect(init.headers['Content-Type']).toBe('application/json')
+  // No body → no JSON content-type (sending it on an empty body trips
+  // Fastify: "Body cannot be empty when content-type is set to ...").
+  expect(init.headers['Content-Type']).toBeUndefined()
   expect(init.headers['Authorization']).toBeUndefined()
+})
+
+test('bodyless POST omits the JSON content-type and sends no body', async () => {
+  const fetchFn = mockFetch(respond(200, { id: 'd1', assigned_to_id: 'u1' }))
+  await api.post('/v1/admin/disputes/d1/claim')
+  const init = fetchFn.mock.calls[0]![1]
+  expect(init.method).toBe('POST')
+  expect(init.headers['Content-Type']).toBeUndefined()
+  expect(init.body).toBeUndefined()
 })
 
 test('attaches a Bearer token when a session exists', async () => {

@@ -19,7 +19,11 @@ export class ApiError extends Error {
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken()
 
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  const headers: Record<string, string> = {}
+  // Only declare a JSON body when one is actually sent. Bodyless POSTs
+  // (e.g. dispute claim/release) would otherwise trip Fastify's parser:
+  // "Body cannot be empty when content-type is set to 'application/json'".
+  if (init.body != null) headers['Content-Type'] = 'application/json'
   if (init.headers) Object.assign(headers, init.headers)
   if (token) headers['Authorization'] = `Bearer ${token}`
 
