@@ -280,6 +280,16 @@ export type VerifiedTx =
   | { confirmed: false; pending?: boolean; reason?: string }
   | { confirmed: true; failed: true; reason: string }
   | { confirmed: true; failed: false; event: DecodedEvent }
+  /**
+   * Confirmed on-chain, but the transaction is not an escrow state-change
+   * (e.g. a program upgrade, IDL write, or any tx that touched the program
+   * without emitting an escrow event). Only produced on the wide-net path
+   * (no `expected_event`), where a producer polls every signature touching
+   * the program. Terminal + inert: nothing to apply, and — unlike `failed`
+   * — no failed attempt is recorded, so program-maintenance traffic never
+   * pollutes `tx_attempts`.
+   */
+  | { confirmed: true; irrelevant: true; failed?: undefined; reason?: string }
 
 // ---------- escrow state snapshot -----------------------------------------
 

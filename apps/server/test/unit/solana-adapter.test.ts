@@ -348,7 +348,7 @@ test('buildTx claimStalledPayment (SPL): provisions all three settlement ATAs, p
   assert.strictEqual(d.payer, COUNTERPARTY.toBase58())
 })
 
-test('buildTx reclaimAbandoned (SPL): provisions counterparty+treasury ATAs it never pays (issue #88 collateral fix)', async () => {
+test('buildTx reclaimAbandoned (SPL): tight ReclaimSpl accounts, zero ATA provisioning (issue #88 redesign)', async () => {
   const rpc = fakeSolanaRpc()
   await stageAcceptedEscrow(rpc, { asset: USDC_MINT })
   const a = makeAdapter(rpc)
@@ -360,12 +360,19 @@ test('buildTx reclaimAbandoned (SPL): provisions counterparty+treasury ATAs it n
     }),
   )
   expectDiscriminator(d.discriminator, 'reclaimAbandonedSpl')
-  // reclaim only refunds the creator, but `SettleSpl` still deserializes the
-  // counterparty + treasury token accounts, so all three must be provisioned.
-  assert.strictEqual(d.instructionCount, 4)
-  assert.deepStrictEqual(
-    d.ataOwners.sort(),
-    [CREATOR, COUNTERPARTY, TREASURY].map((k) => k.toBase58()).sort(),
+  // `ReclaimSpl` refunds only the creator — it never loads the counterparty or
+  // treasury token accounts, so no ATA is provisioned (no phantom storage).
+  assert.strictEqual(d.instructionCount, 1)
+  assert.deepStrictEqual(d.ataOwners, [])
+  // Only the creator's own ATA is referenced; counterparty/treasury ATAs absent.
+  assert.ok(d.keys.includes(getAssociatedTokenAddressSync(USDC_MINT, CREATOR).toBase58()))
+  assert.ok(
+    !d.keys.includes(getAssociatedTokenAddressSync(USDC_MINT, COUNTERPARTY).toBase58()),
+    'counterparty ATA must not appear',
+  )
+  assert.ok(
+    !d.keys.includes(getAssociatedTokenAddressSync(USDC_MINT, TREASURY).toBase58()),
+    'treasury ATA must not appear',
   )
   assert.strictEqual(d.payer, CREATOR.toBase58())
 })
@@ -654,6 +661,63 @@ test('verifyTx: unframeable logs (unrelated tx) → failed, never throws', async
   const a = makeAdapter(rpc)
   const r = await a.verifyTx('weird-sig', { expected_event: 'EscrowApproved' })
   assert.ok(r.confirmed === true && r.failed === true)
+})
+
+// ---- wide-net path (polling / webhook: no expected_event) -----------------
+// A program upgrade / IDL write / unrelated tx that the polling feed picks up
+// must be classified `irrelevant` — NOT a failed attempt (issue #88 hardening).
+
+test('verifyTx (wide net): unframeable logs (program-upgrade tx) → irrelevant, not failed', async () => {
+  const rpc = fakeSolanaRpc()
+  rpc.stageTransaction('upgrade-sig', {
+    failed: false,
+    failure_reason: null,
+    log_messages: ['Program BPFLoaderUpgradeab1e11111111111111111111111 success'],
+  })
+  const a = makeAdapter(rpc)
+  const r = await a.verifyTx('upgrade-sig', {}) // no expected_event = wide net
+  assert.ok(r.confirmed === true && 'irrelevant' in r && r.irrelevant === true)
+  assert.ok(!('failed' in r), 'must not be marked failed')
+})
+
+test('verifyTx (wide net): confirmed tx that emits no escrow event → irrelevant', async () => {
+  const rpc = fakeSolanaRpc()
+  rpc.stageTransaction('idl-sig', {
+    failed: false,
+    failure_reason: null,
+    // Frameable program logs, but no `emit!` escrow event (e.g. an IDL write).
+    log_messages: ['Program log: Instruction: IdlWrite'],
+  })
+  const a = makeAdapter(rpc)
+  const r = await a.verifyTx('idl-sig', {})
+  assert.ok(r.confirmed === true && 'irrelevant' in r && r.irrelevant === true)
+})
+
+test('verifyTx (wide net): a real escrow event still decodes (no regression)', async () => {
+  const rpc = fakeSolanaRpc()
+  const logs = eventLogs('escrowCancelled', {
+    escrowId: Array.from(uuidToBytes(ESCROW_UUID)),
+    creator: CREATOR,
+    refundAmount: new BN('1000000000'),
+    timestamp: new BN(1_899_000_000),
+  })
+  rpc.stageTransaction('wide-ok-sig', { failed: false, failure_reason: null, log_messages: logs })
+  const a = makeAdapter(rpc)
+  const r = await a.verifyTx('wide-ok-sig', {}) // wide net matches any escrow event
+  assert.ok(r.confirmed === true && r.failed === false)
+  assert.strictEqual(r.event.name, 'EscrowCancelled')
+})
+
+test('verifyTx (wide net): a genuinely failed tx is still failed, never irrelevant', async () => {
+  const rpc = fakeSolanaRpc()
+  rpc.stageTransaction('wide-failed-sig', {
+    failed: true,
+    failure_reason: '{"InstructionError":[1,{"Custom":6014}]}',
+    log_messages: [],
+  })
+  const a = makeAdapter(rpc)
+  const r = await a.verifyTx('wide-failed-sig', {})
+  assert.ok(r.confirmed === true && 'failed' in r && r.failed === true)
 })
 
 test('verifyTx: escrow_id hint mismatch → failed', async () => {

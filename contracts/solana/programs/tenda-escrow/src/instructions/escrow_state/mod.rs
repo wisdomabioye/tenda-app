@@ -18,4 +18,4 @@ pub mod submit;
 // Re-export only the public types named by lib.rs. Handlers are reached via
 // their module path; the `handler*` collisions otherwise cause
 // ambiguous-glob warnings.
-pub use settlement_accounts::{compute_fee, EscrowMutation, SettleSol, SettleSpl};
+pub use settlement_accounts::{compute_fee, EscrowMutation, ReclaimSpl, SettleSol, SettleSpl};

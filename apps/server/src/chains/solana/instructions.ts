@@ -134,6 +134,26 @@ export async function buildInstruction(
         }
       }
       const mint = escrow.asset
+      if (args.action === 'reclaimAbandoned') {
+        // `ReclaimSpl` refunds only the creator, so it declares just the vault
+        // and the creator's ATA — no counterparty/treasury token accounts. The
+        // creator's ATA already exists (they deposited from it at create), so
+        // this path provisions nothing.
+        return [
+          await deps.program.methods
+            .reclaimAbandonedSpl()
+            .accountsPartial({
+              escrow: escrowAddr,
+              platformState: platformPda(),
+              vaultTokenAccount: tokenVaultPda(idBytes),
+              creator: escrow.creator,
+              creatorTokenAccount: getAssociatedTokenAddressSync(mint, escrow.creator),
+              signer: wallet,
+              tokenProgram: TOKEN_PROGRAM_ID,
+            })
+            .instruction(),
+        ]
+      }
       const accounts = {
         escrow: escrowAddr,
         platformState: platformPda(),
@@ -155,8 +175,6 @@ export async function buildInstruction(
           return [...preIx, await deps.program.methods.approveCompletionSpl().accountsPartial(accounts).instruction()]
         case 'claimStalledPayment':
           return [...preIx, await deps.program.methods.claimStalledPaymentSpl().accountsPartial(accounts).instruction()]
-        case 'reclaimAbandoned':
-          return [...preIx, await deps.program.methods.reclaimAbandonedSpl().accountsPartial(accounts).instruction()]
       }
       // Exhaustive switch above — unreachable, but satisfies control-flow analysis.
       throw new AppError(500, ErrorCode.INTERNAL_ERROR, `unhandled settle action`)

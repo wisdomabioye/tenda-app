@@ -27,6 +27,7 @@ import {
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
   createAssociatedTokenAccountInstruction,
+  createCloseAccountInstruction,
   createInitializeMint2Instruction,
   createMintToInstruction,
   getAssociatedTokenAddressSync,
@@ -590,4 +591,34 @@ export function settleSplAccounts(
     signer,
     tokenProgram: TOKEN_PROGRAM_ID,
   };
+}
+
+/**
+ * Accounts bundle for `ReclaimSpl` — the tight reclaim-only struct. Declares
+ * just the vault and the creator's ATA; no counterparty/treasury token
+ * accounts (reclaim pays only the creator, takes no fee).
+ */
+export function reclaimSplAccounts(
+  ctx: TestCtx,
+  e: SplEscrow,
+  signer: PublicKey,
+) {
+  return {
+    escrow: e.escrow,
+    platformState: ctx.platformPda,
+    vaultTokenAccount: e.vaultTokenAccount,
+    creator: ctx.creator.publicKey,
+    creatorTokenAccount: ata(e.spl, ctx.creator.publicKey),
+    signer,
+    tokenProgram: TOKEN_PROGRAM_ID,
+  };
+}
+
+/** Close a (zero-balance) ATA, refunding rent to `authority`. */
+export function closeAtaIx(
+  spl: SplFixture,
+  owner: PublicKey,
+  authority: PublicKey,
+): TransactionInstruction {
+  return createCloseAccountInstruction(ata(spl, owner), authority, authority);
 }

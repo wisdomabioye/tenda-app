@@ -1489,24 +1489,7 @@
           ]
         },
         {
-          "name": "counterparty"
-        },
-        {
-          "name": "treasury",
-          "relations": [
-            "platform_state"
-          ]
-        },
-        {
           "name": "creator_token_account",
-          "writable": true
-        },
-        {
-          "name": "counterparty_token_account",
-          "writable": true
-        },
-        {
-          "name": "treasury_token_account",
           "writable": true
         },
         {

@@ -141,6 +141,53 @@ pub struct SettleSpl<'info> {
     pub token_program: Program<'info, Token>,
 }
 
+/// SPL reclaim — vault_token_account → creator_ata only.
+///
+/// Split out of `SettleSpl` because `reclaim_abandoned_spl` refunds *only* the
+/// creator (counterparty ghosted past grace, no fee). Sharing `SettleSpl`
+/// would force Anchor to deserialize the counterparty + treasury token
+/// accounts it never touches, which in turn forces the client to provision
+/// (and rent) those ATAs for no reason. This tight struct declares just the
+/// vault and the creator's ATA, so no phantom ATA is ever required or created.
+/// No `has_one = treasury` on platform_state either — reclaim takes no fee.
+#[derive(Accounts)]
+pub struct ReclaimSpl<'info> {
+    #[account(
+        mut,
+        seeds = [ESCROW_SEED, escrow.escrow_id.as_ref()],
+        bump = escrow.bump,
+        has_one = creator @ TendaError::NotCreator,
+    )]
+    pub escrow: Account<'info, Escrow>,
+
+    #[account(
+        seeds = [PLATFORM_SEED],
+        bump = platform_state.bump,
+    )]
+    pub platform_state: Account<'info, PlatformState>,
+
+    #[account(
+        mut,
+        seeds = [ESCROW_TOKEN_SEED, escrow.escrow_id.as_ref()],
+        bump = escrow.vault_bump,
+        constraint = vault_token_account.mint == escrow.asset @ TendaError::MintMismatch,
+    )]
+    pub vault_token_account: Account<'info, TokenAccount>,
+
+    /// CHECK: address-only validation via `escrow.creator`.
+    pub creator: AccountInfo<'info>,
+
+    #[account(
+        mut,
+        constraint = creator_token_account.mint == escrow.asset @ TendaError::MintMismatch,
+        constraint = creator_token_account.owner == creator.key() @ TendaError::TokenAccountMismatch,
+    )]
+    pub creator_token_account: Account<'info, TokenAccount>,
+
+    pub signer: Signer<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
 /// Shared fee math — mirrors `lib/escrow.ts:computePlatformFee` bit-for-bit
 /// (floor division, no rounding). Single source of truth on-chain.
 pub fn compute_fee(amount: u64, fee_bps: u16) -> Result<u64> {

@@ -12,7 +12,7 @@ use crate::events::EscrowAbandoned;
 use crate::instructions::vault::transfer_lamports_from_vault;
 use crate::state::EscrowStatus;
 
-use super::settlement_accounts::{SettleSol, SettleSpl};
+use super::settlement_accounts::{ReclaimSpl, SettleSol};
 
 pub fn handler_sol(ctx: Context<SettleSol>) -> Result<()> {
     let escrow = &ctx.accounts.escrow;
@@ -55,7 +55,7 @@ pub fn handler_sol(ctx: Context<SettleSol>) -> Result<()> {
     Ok(())
 }
 
-pub fn handler_spl(ctx: Context<SettleSpl>) -> Result<()> {
+pub fn handler_spl(ctx: Context<ReclaimSpl>) -> Result<()> {
     let escrow = &ctx.accounts.escrow;
     require!(escrow.status == EscrowStatus::Accepted, TendaError::InvalidEscrowStatus);
     require!(ctx.accounts.signer.key() == escrow.creator, TendaError::NotCreator);

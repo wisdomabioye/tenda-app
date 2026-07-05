@@ -172,7 +172,7 @@ pub mod tenda_escrow {
         instructions::escrow_state::reclaim::handler_sol(ctx)
     }
 
-    pub fn reclaim_abandoned_spl(ctx: Context<SettleSpl>) -> Result<()> {
+    pub fn reclaim_abandoned_spl(ctx: Context<ReclaimSpl>) -> Result<()> {
         instructions::escrow_state::reclaim::handler_spl(ctx)
     }
 

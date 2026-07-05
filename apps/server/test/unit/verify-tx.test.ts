@@ -158,6 +158,18 @@ test('confirmed-but-failed tx marks the attempt failed and returns terminal', as
   assert.strictEqual(calls.transitions.length, 0)
 })
 
+test('irrelevant tx (program upgrade / non-escrow) skips clean — no failed attempt recorded', async () => {
+  const { deps, calls } = makeDeps({
+    verdict: { confirmed: true, irrelevant: true, reason: 'not an escrow instruction' },
+  })
+  const r = await verifyTxJobHandler(deps, job())
+  assert.ok(r.skipped === true && r.reason === 'not_an_escrow_tx')
+  // Terminal + inert: nothing marked failed/confirmed, nothing applied.
+  assert.deepStrictEqual(calls.failed, [])
+  assert.deepStrictEqual(calls.confirmed, [])
+  assert.strictEqual(calls.transitions.length, 0)
+})
+
 test('happy path: applies the event, confirms the attempt, republishes snake_case', async () => {
   const { deps, calls } = makeDeps({})
   const r = await verifyTxJobHandler(deps, job())

@@ -105,8 +105,8 @@ export interface VerifyTxJobPayload {
 // ---------- result -------------------------------------------------------
 
 export type VerifyTxResult =
-  /** `tx_ref` already settled — no work to do. */
-  | { skipped: true; reason: 'already_processed' }
+  /** `tx_ref` already settled, or not an escrow tx — no work to do. */
+  | { skipped: true; reason: 'already_processed' | 'not_an_escrow_tx' }
   /** Tx confirmed but execution failed / event mismatched — terminal. */
   | { skipped: false; failed: true; reason: string }
   /** State applied (or guard-absorbed) and internal event republished. */
@@ -213,6 +213,12 @@ export async function verifyTxJobHandler(
 
   if (!verified.confirmed) {
     throw new RetryableError(verified.reason ?? 'not_yet_confirmed')
+  }
+  // Confirmed but not an escrow state-change (program upgrade / IDL write /
+  // unrelated tx picked up by the wide-net polling feed). Terminal + inert:
+  // record no failed attempt, apply nothing.
+  if ('irrelevant' in verified) {
+    return { skipped: true, reason: 'not_an_escrow_tx' }
   }
   if (verified.failed) {
     await deps.store.markAttemptFailed(job.tx_ref, 'TX_FAILED')

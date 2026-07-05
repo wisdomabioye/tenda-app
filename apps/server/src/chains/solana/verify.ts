@@ -77,19 +77,27 @@ export function createSolanaVerifier(deps: SolanaVerifierDeps) {
     }
 
     const expected = args.expected_event
-    // EventParser throws on log shapes it can't frame (e.g. a transaction
-    // that never invoked our program). A malformed/unrelated tx is a
-    // verification failure, not a server error.
+    // Wide net = the polling/webhook producers, which enqueue every signature
+    // touching the program and pass no `expected_event`. On that path a
+    // confirmed tx that emits NO escrow event is not an escrow state-change
+    // (every escrow instruction emits one) — it's program-maintenance traffic
+    // (upgrade / IDL write) or an unrelated tx, so it is `irrelevant`, never a
+    // failed attempt. When an `expected_event` IS given (client-ping /
+    // reconcile), behaviour is unchanged: a missing/mismatched event is a
+    // failure.
+    const wideNet = expected === undefined
+    let sawEscrowEvent = false
+    // EventParser throws on log shapes it can't frame (e.g. a program-upgrade
+    // tx that never invoked our program).
     try {
       for (const decoded of parser.parseLogs(tx.log_messages)) {
-        // With an expectation: exact match. Without (webhook/polling
-        // producers): any escrow event in the tx qualifies.
-        let name: EscrowEvent | null
-        if (expected !== undefined) {
-          name = decoded.name === coderEventName(expected) ? expected : null
-        } else {
-          name = wireEventName(decoded.name)
-        }
+        const wire = wireEventName(decoded.name)
+        if (wire === null) continue
+        sawEscrowEvent = true
+        // With an expectation: exact match. Without: any escrow event qualifies.
+        const name: EscrowEvent | null = wideNet
+          ? wire
+          : decoded.name === coderEventName(expected) ? expected : null
         if (name === null) continue
         const event = toDecodedEvent(name, decoded.data as Record<string, unknown>)
         if (args.escrow_id !== undefined && event.fields.escrow_id !== args.escrow_id) {
@@ -102,11 +110,19 @@ export function createSolanaVerifier(deps: SolanaVerifierDeps) {
         return { confirmed: true, failed: false, event }
       }
     } catch (e) {
+      // Unframeable logs. On the wide-net path this is a non-escrow tx →
+      // inert skip; with an expectation it's a genuine verification failure.
+      if (wideNet) {
+        return { confirmed: true, irrelevant: true, reason: 'transaction is not an escrow instruction' }
+      }
       return {
         confirmed: true,
         failed: true,
         reason: `could not parse transaction logs: ${e instanceof Error ? e.message : String(e)}`,
       }
+    }
+    if (wideNet && !sawEscrowEvent) {
+      return { confirmed: true, irrelevant: true, reason: 'no escrow event in transaction' }
     }
     return {
       confirmed: true,

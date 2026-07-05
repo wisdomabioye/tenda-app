@@ -1495,24 +1495,7 @@ export type TendaEscrow = {
           ]
         },
         {
-          "name": "counterparty"
-        },
-        {
-          "name": "treasury",
-          "relations": [
-            "platformState"
-          ]
-        },
-        {
           "name": "creatorTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "counterpartyTokenAccount",
-          "writable": true
-        },
-        {
-          "name": "treasuryTokenAccount",
           "writable": true
         },
         {

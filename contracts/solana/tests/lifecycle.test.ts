@@ -29,7 +29,9 @@ import {
   expectTendaError,
   initPlatform,
   newCtx,
+  closeAtaIx,
   now,
+  reclaimSplAccounts,
   sendIxs,
   settleSolAccounts,
   settleSplAccounts,
@@ -585,7 +587,39 @@ describe("lifecycle", () => {
 
       await ctx.program.methods
         .reclaimAbandonedSpl()
-        .accountsPartial(settleSplAccounts(ctx, e, ctx.creator.publicKey))
+        .accountsPartial(reclaimSplAccounts(ctx, e, ctx.creator.publicKey))
+        .signers([ctx.creator])
+        .rpc();
+
+      assert.equal(
+        (tokenBalance(ctx, creatorAta) - before).toString(),
+        e.args.amount.toString(),
+      );
+      const esc = await ctx.program.account.escrow.fetch(e.escrow);
+      assert.equal(enumKey(esc.status), "refunded");
+    });
+
+    // Lock-in for issue #88: `ReclaimSpl` must not require the counterparty or
+    // treasury token accounts. We close the (zero-balance) treasury ATA so it
+    // no longer exists on-chain, then prove reclaim still succeeds — impossible
+    // under the old shared `SettleSpl`, which deserialized that account.
+    it("reclaim_abandoned_spl succeeds when the treasury ATA does not exist", async () => {
+      const e = await acceptedSpl();
+      sendIxs(
+        ctx,
+        [closeAtaIx(e.spl, ctx.treasury.publicKey, ctx.treasury.publicKey)],
+        [ctx.treasury],
+      );
+      warpBy(
+        ctx,
+        DEFAULT_COMPLETION_DURATION + PLATFORM_DEFAULTS.gracePeriodSeconds + 1,
+      );
+      const creatorAta = ata(e.spl, ctx.creator.publicKey);
+      const before = tokenBalance(ctx, creatorAta);
+
+      await ctx.program.methods
+        .reclaimAbandonedSpl()
+        .accountsPartial(reclaimSplAccounts(ctx, e, ctx.creator.publicKey))
         .signers([ctx.creator])
         .rpc();
 
