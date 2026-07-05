@@ -58,7 +58,7 @@ export default function DisputeThreadScreen() {
   }
 
   return (
-    <ScreenContainer>
+    <ScreenContainer scroll={false} padding={false}>
       <Header title="Dispute mediation" showBack onBackPress={() => router.back()} />
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         {thread.assigned_to_id === null && !thread.read_only && (
