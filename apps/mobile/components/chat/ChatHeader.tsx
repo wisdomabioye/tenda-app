@@ -1,4 +1,5 @@
 import { View, Pressable, StyleSheet } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 import { ChevronLeft, MoreVertical } from 'lucide-react-native'
 import { Text } from '@/components/ui/Text'
@@ -22,8 +23,18 @@ interface ChatHeaderProps {
  */
 export function ChatHeader({ name, avatarUrl, presence, online, onBack, onMenu }: ChatHeaderProps) {
   const { theme } = useUnistyles()
+  // Edge-to-edge (SDK 54): the app draws behind the status bar and the enclosing
+  // ScreenContainer never claims the top edge, so the header owns the top inset
+  // here — mirroring the generic `Header`.
+  const insets = useSafeAreaInsets()
   return (
-    <View style={[s.row, { backgroundColor: theme.colors.surface.background, borderBottomColor: theme.colors.border.subtle }]}>
+    <View
+      style={[
+        s.row,
+        { paddingTop: insets.top, height: s.row.height + insets.top },
+        { backgroundColor: theme.colors.surface.background, borderBottomColor: theme.colors.border.subtle },
+      ]}
+    >
       <Pressable
         onPress={onBack}
         accessibilityRole="button"
