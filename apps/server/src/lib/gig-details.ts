@@ -21,7 +21,7 @@ export interface ValidatedGigDetails {
   title: string
   description: string | null
   category: GigCategory
-  country: CountryCode
+  country: CountryCode | null
   city: string | null
   latitude: number | null
   longitude: number | null
@@ -34,9 +34,10 @@ function fail(message: string): never {
 }
 
 /**
- * Validates the listing fields and resolves country/cross-border against
- * the creator's stored country (remote gigs may omit country — it falls
- * back to the creator's). Throws AppError(400) on the first violation.
+ * Validates the listing fields. Remote gigs carry no country/city; physical
+ * gigs require both (the work location). The cross-border flag is derived by
+ * comparing the work country against the creator's stored country. Throws
+ * AppError(400) on the first violation.
  */
 export function validateGigDetails(
   body: Partial<CreateGigDetailsBody>,
@@ -58,13 +59,19 @@ export function validateGigDetails(
   if (!remote && !country) fail('country is required for non-remote gigs')
   ensureValidCoordinates(latitude, longitude)
 
-  // Creator's stored country: remote-gig fallback + cross-border flag.
-  const resolvedCountry = (country ?? creatorCountry) as CountryCode | null
-  if (!resolvedCountry || !(resolvedCountry in LOCATIONS)) {
-    fail(`country must be one of: ${Object.keys(LOCATIONS).join(', ')}`)
-  }
-  if (!remote && country && city && !isCityInCountry(country, city)) {
-    fail(`city "${city}" is not in country ${country}`)
+  // Remote gigs are location-agnostic: they carry no country or city. Physical
+  // gigs must name the country (and city) where the WORK happens — the worker's
+  // location, independent of where the poster posts from. We never back-fill the
+  // creator's country onto a remote gig.
+  let resolvedCountry: CountryCode | null = null
+  if (!remote) {
+    resolvedCountry = country as CountryCode
+    if (!(resolvedCountry in LOCATIONS)) {
+      fail(`country must be one of: ${Object.keys(LOCATIONS).join(', ')}`)
+    }
+    if (city && !isCityInCountry(resolvedCountry, city)) {
+      fail(`city "${city}" is not in country ${resolvedCountry}`)
+    }
   }
 
   return {

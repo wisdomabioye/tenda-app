@@ -59,7 +59,7 @@ export interface CreateGigDetailsBody {
   title: string
   description?: string | null
   category: GigCategory
-  /** Optional for remote gigs — server falls back to the creator's country. */
+  /** Omitted for remote gigs (they carry no location); required for physical gigs. */
   country?: string
   remote?: boolean
   city?: string

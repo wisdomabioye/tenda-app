@@ -243,7 +243,9 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         title: details.title,
         description: (details.description ?? '').slice(0, MAX_GIG_DESCRIPTION_LENGTH),
         category: details.category,
-        country: details.country,
+        // Remote gigs persist no country; for price-sanity stats fall back to
+        // the poster's market (moderation-only, never stored on the gig).
+        country: details.country ?? creator?.country ?? '',
         asset: escrow.asset,
         amount_raw: escrow.amount_raw,
         asset_decimals: ASSET_META[escrow.asset]?.decimals ?? 0,

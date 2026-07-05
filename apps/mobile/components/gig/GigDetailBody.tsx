@@ -45,7 +45,7 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
       <Text style={s.gigTitle}>{gig.title}</Text>
       <Spacer size={spacing.md} />
 
-      <GigMetaInfo gig={gig} posterCountry={gig.creator.country} deadlineLbl={deadlineLbl} />
+      <GigMetaInfo gig={gig} deadlineLbl={deadlineLbl} />
 
       <Spacer size={spacing.lg} />
 

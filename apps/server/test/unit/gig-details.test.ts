@@ -1,7 +1,8 @@
 /**
  * lib/gig-details — validation matrix for the gig create-detail body
- * (POST /v1/gigs). Positive + negative cases per field; country/cross-
- * border resolution against the creator's stored country.
+ * (POST /v1/gigs). Positive + negative cases per field. Invariant: remote
+ * gigs carry no country/city; physical gigs require both. Cross-border is
+ * derived by comparing the work country against the creator's country.
  */
 
 import { test } from 'node:test'
@@ -40,10 +41,18 @@ test('happy path: trims text, keeps city, computes cross_border=false for same c
   assert.strictEqual(v.cross_border, false)
 })
 
-test('remote gig: country falls back to the creator country; city nulled', () => {
+test('remote gig: carries no country or city (no creator-country fallback)', () => {
   const v = validateGigDetails(body({ remote: true, country: undefined, city: undefined }), 'NG')
-  assert.strictEqual(v.country, 'NG')
+  assert.strictEqual(v.country, null)
   assert.strictEqual(v.city, null)
+  assert.strictEqual(v.cross_border, false)
+})
+
+test('remote gig: any provided country/city is dropped (remote is location-agnostic)', () => {
+  const v = validateGigDetails(body({ remote: true, country: 'NG', city: 'Lagos' }), 'KE')
+  assert.strictEqual(v.country, null)
+  assert.strictEqual(v.city, null)
+  assert.strictEqual(v.cross_border, false)
 })
 
 test('empty description normalises to null', () => {
@@ -70,10 +79,14 @@ test('non-remote: city and country required', () => {
   expect400(body({ country: undefined }), 'NG', /country is required/)
 })
 
-test('country must exist in LOCATIONS (incl. remote fallback misses)', () => {
+test('country must exist in LOCATIONS (non-remote)', () => {
   expect400(body({ country: 'ZZ' }), 'NG', /country must be one of/)
-  // Remote with no body country and no creator country → unresolvable.
-  expect400(body({ remote: true, country: undefined }), null, /country must be one of/)
+})
+
+test('remote gig is valid without any country, even when creator has none', () => {
+  const v = validateGigDetails(body({ remote: true, country: undefined, city: undefined }), null)
+  assert.strictEqual(v.country, null)
+  assert.strictEqual(v.remote, true)
 })
 
 test('city must belong to the provided country', () => {

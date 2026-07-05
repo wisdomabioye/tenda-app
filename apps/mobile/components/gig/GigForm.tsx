@@ -2,11 +2,12 @@ import { View, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 're
 import { useUnistyles } from 'react-native-unistyles'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { Text } from '@/components/ui/Text'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { CategoryGrid } from '@/components/gig/CategoryGrid'
 import { PaymentInput } from '@/components/form/PaymentInput'
 import { DurationPicker } from '@/components/form/DurationPicker'
-import { LocationPicker } from '@/components/form/LocationPicker'
+import { CountryCityPicker } from '@/components/form/CountryCityPicker'
 import { RemoteToggle } from '@/components/form/RemoteToggle'
 import { FeeSummary } from '@/components/shared/FeeSummary'
 import { PriceWarningSheet } from '@/components/moderation/PriceWarningSheet'
@@ -41,6 +42,10 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Category — chosen first so the description hint below reflects it */}
+        <SectionLabel>Category</SectionLabel>
+        <CategoryGrid selected={f.selectedCategory} onChange={f.setSelectedCategory} />
+
         {/* Details */}
         <SectionLabel>Details</SectionLabel>
         <View style={s.fieldWrap}>
@@ -67,18 +72,19 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
           />
         </View>
 
-        {/* Category */}
-        <SectionLabel>Category</SectionLabel>
-        <CategoryGrid selected={f.selectedCategory} onChange={f.setSelectedCategory} />
-
         {/* Location */}
         <SectionLabel>Location</SectionLabel>
         <View style={s.toggleWrap}>
           <RemoteToggle value={f.isRemote} onChange={f.setIsRemote} />
         </View>
         {!f.isRemote && (
-          <View style={s.locationWrap}>
-            <LocationPicker
+          <View
+            style={[
+              s.locationCard,
+              { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default },
+            ]}
+          >
+            <CountryCityPicker
               country={f.selectedCountry}
               city={f.selectedCity}
               onChange={(c, ci) => { f.setSelectedCountry(c); f.setSelectedCity(ci) }}
@@ -140,6 +146,17 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
           { backgroundColor: theme.colors.surface.background, borderTopColor: theme.colors.border.subtle },
         ]}
       >
+        {f.missingRequirement && (
+          <Text
+            size={12.5}
+            weight="medium"
+            align="center"
+            color={theme.colors.feedback.warning.base}
+            style={s.submitHint}
+          >
+            {f.missingRequirement} to post your gig
+          </Text>
+        )}
         <Button
           variant="primary"
           size="lg"
@@ -169,11 +186,17 @@ const s = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingBottom: 20 },
   fieldWrap: { marginHorizontal: 20 },
-  // LocationPicker has its own marginHorizontal: 20 baked in
-  locationWrap: { marginTop: 10 },
+  locationCard: {
+    marginTop: 10,
+    marginHorizontal: 20,
+    borderWidth: 1,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
   toggleWrap: { marginTop: 10 },
   durationWrap: { paddingHorizontal: 20 },
   spacer: { height: 24 },
+  submitHint: { marginBottom: 8 },
   submitBar: {
     flexShrink: 0,
     paddingTop: 12,

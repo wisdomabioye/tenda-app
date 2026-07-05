@@ -97,16 +97,14 @@ const s = StyleSheet.create({
     alignItems: 'flex-start',
   },
 
-  // Footer (shared by both anatomies, outside container)
+  // Footer (shared by both anatomies, outside container). Column layout: helper
+  // on its own row, counter on a separate row aligned to the right edge.
   footer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: 8,
+    gap: 3,
     paddingHorizontal: 4,
   },
-  footerLeft: { flex: 1 },
   count: {
+    alignSelf: 'flex-end',
     fontFamily: typography.fonts.mono,
     fontSize: 12,
     lineHeight: 16,
@@ -139,15 +137,15 @@ export function Input({
   const nearLimit = max !== undefined && charCount >= max * 0.9
   const atLimit = max !== undefined && charCount >= max
 
+  // Helper/error and the counter each get their own row so a growing counter
+  // ("5/1500" → "1234/1500") never reflows or crowds the helper text.
   const footer = (error || helper || (showCounter && max !== undefined)) ? (
     <View style={s.footer}>
-      <View style={s.footerLeft}>
-        {error ? (
-          <Text size={12} weight="medium" color={theme.colors.feedback.danger.base}>{error}</Text>
-        ) : helper ? (
-          <Text size={12} color={theme.colors.content.tertiary}>{helper}</Text>
-        ) : null}
-      </View>
+      {error ? (
+        <Text size={12} weight="medium" color={theme.colors.feedback.danger.base}>{error}</Text>
+      ) : helper ? (
+        <Text size={12} color={theme.colors.content.tertiary}>{helper}</Text>
+      ) : null}
       {showCounter && max !== undefined && (
         <Text
           style={[

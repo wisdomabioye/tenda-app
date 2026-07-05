@@ -11,6 +11,9 @@ export const CATEGORY_HINTS: Record<GigCategory, string> = {
   digital:  'Scope, deliverable format, revision rounds, tools/accounts.',
 }
 
+/** Appended to every description hint — proof is required to complete any gig. */
+export const PROOF_NOTE = 'Proof required before the gig can be considered completed.'
+
 // v2 escrows REQUIRE an accept deadline (the on-chain refund window keys
 // off it), '30d' is the long-tail option that replaced 'No limit'.
 export const ACCEPT_DEADLINE_OPTIONS: { label: string; hours: number }[] = [

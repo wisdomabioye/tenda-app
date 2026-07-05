@@ -1,5 +1,5 @@
 import { View, StyleSheet } from 'react-native'
-import { MapPin, Clock, Calendar, ArrowLeftRight, Globe } from 'lucide-react-native'
+import { MapPin, Clock, Calendar, Globe } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
@@ -29,9 +29,8 @@ interface Props {
     GigDetail,
     | 'city' | 'country' | 'remote'
     | 'completion_duration_seconds'
-    | 'cross_border' | 'amount_raw' | 'asset' | 'status'
+    | 'amount_raw' | 'asset' | 'status'
   >
-  posterCountry: string | null
   deadlineLbl: string | null
 }
 
@@ -42,7 +41,7 @@ interface Row {
   iconTint?: string
 }
 
-export function GigMetaInfo({ gig, posterCountry, deadlineLbl }: Props) {
+export function GigMetaInfo({ gig, deadlineLbl }: Props) {
   const { theme } = useUnistyles()
   const rates = useExchangeRateStore((s) => s.rates)
   const currency = useSettingsStore((s) => s.currency) as SupportedCurrency
@@ -72,31 +71,15 @@ export function GigMetaInfo({ gig, posterCountry, deadlineLbl }: Props) {
     })
   }
 
-  const workCountry = LOCATIONS[gig.country as CountryCode]?.name ?? gig.country
+  // Remote gigs carry no location (country/city are null); physical gigs always
+  // have both. So: "Remote" or the work location, "City, Country".
+  const workCountry = gig.country ? (LOCATIONS[gig.country as CountryCode]?.name ?? gig.country) : null
   rows.push({
     Icon: gig.remote ? Globe : MapPin,
     label: 'Location',
-    // Remote gigs are digital / location-agnostic, so just "Remote". Physical
-    // gigs show where the work happens — city + work country ("Lagos, Nigeria").
-    // That work country is the point of a cross-border gig; the poster's own
-    // country is shown separately in the Cross-border row below.
-    value: gig.remote
-      ? 'Remote'
-      : gig.city
-        ? `${gig.city}, ${workCountry}`
-        : workCountry,
+    value: gig.remote ? 'Remote' : ([gig.city, workCountry].filter(Boolean).join(', ') || '—'),
     iconTint: gig.remote ? theme.colors.brand.primary : undefined,
   })
-
-  if (gig.cross_border) {
-    rows.push({
-      Icon: ArrowLeftRight,
-      label: 'Cross-border',
-      value: posterCountry
-        ? `Posted from ${LOCATIONS[posterCountry as CountryCode]?.name ?? posterCountry}`
-        : 'Yes',
-    })
-  }
 
   // One status-aware deadline row (open → "Accept by", accepted → "Deliver by",
   // submitted → "Review by"); replaces the old duplicate "Accept by" + generic

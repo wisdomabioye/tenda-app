@@ -12,7 +12,7 @@ import { api } from '@/api/client'
 import { SOLANA_NETWORK } from '@/wallet/config'
 import { useAuthStore } from '@/stores/auth.store'
 import { useModerationPreview } from '@/hooks/useModerationPreview'
-import { CATEGORY_HINTS } from './constants'
+import { CATEGORY_HINTS, PROOF_NOTE } from './constants'
 import type { GigFormValues } from './constants'
 
 export interface ChainOption {
@@ -88,13 +88,20 @@ export function useGigForm(
     paymentRaw,
   })
 
-  const isValid =
-    title.trim().length > 0 &&
-    description.trim().length > 0 &&
-    isValidGigAmountRaw(asset, paymentRaw) &&
-    selectedCategory !== null &&
-    (isRemote || (selectedCountry !== null && selectedCity !== null)) &&
-    completionDuration >= MIN_COMPLETION_DURATION_SECONDS
+  // First unmet requirement, in the order the fields appear on the form. Drives
+  // both the submit button's disabled state and the hint shown above it, so the
+  // user always sees *why* they can't post yet — never a silently dead button.
+  const missingRequirement: string | null =
+    title.trim().length === 0          ? 'Add a title'
+    : description.trim().length === 0   ? 'Add a description'
+    : selectedCategory === null         ? 'Pick a category'
+    : !isRemote && selectedCountry === null ? 'Select a country'
+    : !isRemote && selectedCity === null    ? 'Select a city'
+    : !isValidGigAmountRaw(asset, paymentRaw) ? 'Set a budget'
+    : completionDuration < MIN_COMPLETION_DURATION_SECONDS ? 'Set a delivery time'
+    : null
+
+  const isValid = missingRequirement === null
 
   async function submitValues() {
     await onSubmit({
@@ -105,7 +112,8 @@ export function useGigForm(
       paymentRaw,
       completionDuration,
       category: selectedCategory,
-      country: selectedCountry,
+      // Remote gigs carry no location; physical gigs send the work country + city.
+      country: isRemote ? null : selectedCountry,
       remote: isRemote,
       city: isRemote ? null : selectedCity,
       acceptDeadlineHours,
@@ -123,9 +131,9 @@ export function useGigForm(
     await submitValues()
   }
 
-  const descriptionHint = selectedCategory
-    ? CATEGORY_HINTS[selectedCategory]
-    : 'Include scope, requirements, and expectations.'
+  const descriptionHint = `${
+    selectedCategory ? CATEGORY_HINTS[selectedCategory] : 'Include scope, requirements, and expectations.'
+  } ${PROOF_NOTE}`
 
   return {
     title, setTitle,
@@ -145,6 +153,7 @@ export function useGigForm(
     assetSymbol,
     moderation,
     isValid,
+    missingRequirement,
     descriptionHint,
     handleSubmit,
     submitValues,
