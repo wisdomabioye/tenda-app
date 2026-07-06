@@ -19,12 +19,19 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov'],
-      include: ['lib/**/*.ts', 'app/**/*.tsx', 'components/**/*.tsx', 'api/**/*.ts'],
+      include: ['lib/**/*.ts', 'app/**/*.tsx', 'components/**/*.tsx', 'api/**/*.ts', 'hooks/**/*.ts'],
       // Excluded with reasons (G4): vendored shadcn UI primitives
       // (components/ui/** — upstream-maintained, not our logic), App-Router
       // layouts + the root redirect page (server components, not renderable
       // under jsdom — Playwright covers those in Phase 2), and type decls.
-      exclude: ['**/*.d.ts', 'app/**/layout.tsx', 'app/page.tsx', 'components/ui/**'],
+      exclude: [
+        '**/*.d.ts',
+        'app/**/layout.tsx',
+        'app/page.tsx',
+        'components/ui/**',
+        // Vendored shadcn hook (upstream-maintained, not our logic).
+        'hooks/use-mobile.ts',
+      ],
       // Plan target is line 90 / branch 85 (TEST_PLAN.md). Achieved: lines
       // 98 / branch 85 / stmts 98. `functions` is floored at 85, not 90: the
       // metric counts every inline JSX arrow (onChange state-setters) as a

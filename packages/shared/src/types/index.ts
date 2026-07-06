@@ -82,3 +82,13 @@ export type {
   DisputeThreadResponse,
   SendDisputeMessageBody,
 } from './dispute'
+
+export type {
+  AdminEscrowDossier,
+  DossierParty,
+  DossierProof,
+  DossierTransaction,
+  DossierGigDetails,
+  DossierExchangeDetails,
+  ProofType,
+} from './dossier'

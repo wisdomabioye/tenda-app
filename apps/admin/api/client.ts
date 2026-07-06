@@ -7,6 +7,7 @@
 
 import type {
   ActionReportBody,
+  AdminEscrowDossier,
   AdminEscrowRow,
   AdminPlatformConfig,
   Announcement,
@@ -190,6 +191,8 @@ export const adminApi = {
   escrows: {
     list: (query: EscrowListAdminQuery = {}) =>
       api.get<PaginatedResponse<AdminEscrowRow>>(withQuery(adminRoutes.escrows.list, query)),
+    dossier: (id: string) =>
+      api.get<AdminEscrowDossier>(buildPath(adminRoutes.escrows.dossier, { id })),
     setHidden: (id: string, hidden: boolean) =>
       api.patch<{ id: string; hidden: boolean }>(
         buildPath(adminRoutes.escrows.setHidden, { id }),

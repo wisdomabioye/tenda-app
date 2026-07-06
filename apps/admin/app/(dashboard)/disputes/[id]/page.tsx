@@ -14,9 +14,11 @@ import { AppHeader } from '@/components/layout/header'
 import { Badge } from '@/components/ui/badge'
 import { ClaimActions } from '@/components/disputes/claim-actions'
 import { ThreadView } from '@/components/disputes/thread-view'
+import { DossierPanel } from '@/components/disputes/dossier'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
 import { useSessionUser } from '@/lib/use-session'
+import { useEscrowDossier } from '@/hooks/use-dossier'
 
 export default function DisputeDetailPage() {
   const params = useParams<{ id: string }>()
@@ -24,6 +26,7 @@ export default function DisputeDetailPage() {
   const [dispute, setDispute] = useState<DisputeSummary | null>(null)
   const [notFound, setNotFound] = useState(false)
   const meId = useSessionUser()?.id ?? ''
+  const { dossier } = useEscrowDossier(dispute?.escrow_id ?? null)
 
   // setState lives in the .then callbacks (react-hooks/set-state-in-effect);
   // refreshKey bumps re-run the fetch after claim/release/resolution.
@@ -125,7 +128,23 @@ export default function DisputeDetailPage() {
           />
         </div>
 
-        <ThreadView escrowId={dispute.escrow_id} onAssignee={onAssignee} />
+        <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
+          <div className="lg:w-[380px] lg:shrink-0 lg:overflow-y-auto">
+            {dossier !== null ? (
+              <DossierPanel dossier={dossier} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Loading context…</p>
+            )}
+          </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ThreadView
+              escrowId={dispute.escrow_id}
+              onAssignee={onAssignee}
+              kind={dispute.kind}
+              parties={dossier?.parties ?? []}
+            />
+          </div>
+        </div>
       </div>
     </>
   )

@@ -14,9 +14,15 @@
  * duplicating a signing surface it has no wallet for.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import type { DisputeMessage } from '@tenda/shared'
+import {
+  partyRoleLabel,
+  displayName,
+  type DisputeMessage,
+  type DossierParty,
+  type EscrowKind,
+} from '@tenda/shared'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { adminApi } from '@/api/client'
@@ -30,9 +36,13 @@ interface ThreadViewProps {
   escrowId: string
   /** Called with the latest assignee so the header stays in sync. */
   onAssignee: (assignedToId: string | null, readOnly: boolean) => void
+  /** Escrow kind — drives kind-aware party labels (Poster/Worker vs Maker/Taker). */
+  kind: EscrowKind
+  /** Parties to the escrow, from the dossier — labels non-mediator senders. */
+  parties: DossierParty[]
 }
 
-export function ThreadView({ escrowId, onAssignee }: ThreadViewProps) {
+export function ThreadView({ escrowId, onAssignee, kind, parties }: ThreadViewProps) {
   const meId = useSessionUser()?.id ?? ''
   const [messages, setMessages] = useState<DisputeMessage[]>([])
   const [readOnly, setReadOnly] = useState(false)
@@ -99,6 +109,24 @@ export function ThreadView({ escrowId, onAssignee }: ThreadViewProps) {
 
   const canPost = !readOnly && assignedToId === meId
 
+  const partyById = useMemo(
+    () => new Map(parties.map((p) => [p.user_id, p])),
+    [parties],
+  )
+
+  // Who sent a message: me → "You"; the claiming mediator → "Mediator";
+  // otherwise the party's kind-aware role + name so a mediator can always
+  // tell the poster/worker (or maker/taker) apart in the thread.
+  function senderLabel(senderId: string): string {
+    if (senderId === meId) return 'You'
+    if (senderId === assignedToId) return 'Mediator'
+    const party = partyById.get(senderId)
+    if (party !== undefined) {
+      return `${partyRoleLabel(kind, party.role)} · ${displayName(party.first_name, party.last_name, party.user_id)}`
+    }
+    return 'Participant'
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-3">
       <div className="flex-1 space-y-2 overflow-y-auto rounded-md border p-3">
@@ -108,7 +136,10 @@ export function ThreadView({ escrowId, onAssignee }: ThreadViewProps) {
         {messages.map((m) => {
           const mine = m.sender_id === meId
           return (
-            <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+            <div key={m.id} className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
+              <span className="mb-0.5 px-1 text-[10px] font-medium text-muted-foreground">
+                {senderLabel(m.sender_id)}
+              </span>
               <div
                 className={`max-w-[70%] rounded-lg px-3 py-2 text-sm ${
                   mine ? 'bg-primary text-primary-foreground' : 'bg-muted'

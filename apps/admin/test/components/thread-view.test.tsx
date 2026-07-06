@@ -1,7 +1,8 @@
 import { test, expect, vi, beforeEach } from 'vitest'
+import { type ComponentProps } from 'react'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { DisputeMessage, DisputeThreadResponse } from '@tenda/shared'
+import type { DisputeMessage, DisputeThreadResponse, DossierParty } from '@tenda/shared'
 import { ThreadView } from '@/components/disputes/thread-view'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
@@ -24,6 +25,18 @@ function msg(over: Partial<DisputeMessage> = {}): DisputeMessage {
   return { id: 'm1', dispute_id: 'd1', sender_id: 'me', body: 'hi', created_at: '2026-06-10T00:00:00.000Z', ...over }
 }
 
+const PARTIES: DossierParty[] = [
+  { role: 'creator', user_id: 'poster', first_name: 'Ada', last_name: 'Lovelace', raised_dispute: false },
+  { role: 'counterparty', user_id: 'worker', first_name: 'Tunde', last_name: 'Bello', raised_dispute: true },
+]
+
+// Default props keep every case focused on the behaviour under test.
+function renderThread(props: Partial<ComponentProps<typeof ThreadView>> = {}) {
+  return render(
+    <ThreadView escrowId="e1" onAssignee={vi.fn()} kind="gig" parties={PARTIES} {...props} />,
+  )
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   localStorage.clear()
@@ -32,26 +45,50 @@ beforeEach(() => {
 
 test('first poll loads and renders thread messages', async () => {
   get.mockResolvedValue(thread({ messages: [msg({ id: 'm1', body: 'hello there', sender_id: 'other' })] }))
-  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  renderThread()
   expect(await screen.findByText('hello there')).toBeInTheDocument()
+})
+
+test('labels each sender: own → You, mediator → Mediator, parties → role · name', async () => {
+  // Session id 'me' is also the claiming mediator (assigned_to_id default 'me').
+  get.mockResolvedValue(
+    thread({
+      assigned_to_id: 'med',
+      messages: [
+        msg({ id: 'a', sender_id: 'me', body: 'from me' }),
+        msg({ id: 'b', sender_id: 'med', body: 'from mediator' }),
+        msg({ id: 'c', sender_id: 'poster', body: 'from poster' }),
+        msg({ id: 'd', sender_id: 'worker', body: 'from worker' }),
+        msg({ id: 'e', sender_id: 'ghost', body: 'from unknown' }),
+      ],
+    }),
+  )
+  renderThread()
+  expect(await screen.findByText('from worker')).toBeInTheDocument()
+  expect(screen.getByText('You')).toBeInTheDocument()
+  expect(screen.getByText('Mediator')).toBeInTheDocument()
+  expect(screen.getByText('Poster · Ada Lovelace')).toBeInTheDocument()
+  expect(screen.getByText('Worker · Tunde Bello')).toBeInTheDocument()
+  // A sender who is neither the mediator nor a known party falls back.
+  expect(screen.getByText('Participant')).toBeInTheDocument()
 })
 
 test('empty thread shows the no-messages placeholder', async () => {
   get.mockResolvedValue(thread({ messages: [] }))
-  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  renderThread()
   expect(await screen.findByText('No messages yet.')).toBeInTheDocument()
 })
 
 test('read-only thread renders the frozen banner and no composer', async () => {
   get.mockResolvedValue(thread({ read_only: true }))
-  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  renderThread()
   expect(await screen.findByText(/this thread is frozen/)).toBeInTheDocument()
   expect(screen.queryByRole('button', { name: 'Send' })).toBeNull()
 })
 
 test('claim held by another mediator disables the composer', async () => {
   get.mockResolvedValue(thread({ assigned_to_id: 'someone-else' }))
-  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  renderThread()
   const send = await screen.findByRole('button', { name: 'Send' })
   expect(send).toBeDisabled()
   expect(screen.getByPlaceholderText('Claim the dispute to post')).toBeDisabled()
@@ -60,7 +97,7 @@ test('claim held by another mediator disables the composer', async () => {
 test('the claimer can post, which calls send and appends the message', async () => {
   get.mockResolvedValue(thread())
   send.mockResolvedValueOnce(msg({ id: 'new', body: 'my reply' }))
-  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  renderThread()
   const box = await screen.findByPlaceholderText('Write to both parties…')
   await userEvent.type(box, 'my reply')
   await userEvent.click(screen.getByRole('button', { name: 'Send' }))
@@ -71,7 +108,7 @@ test('the claimer can post, which calls send and appends the message', async () 
 test('a send that 403s prompts the claim-first toast', async () => {
   get.mockResolvedValue(thread())
   send.mockRejectedValueOnce(new ApiError(403, 'FORBIDDEN', 'x'))
-  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  renderThread()
   const box = await screen.findByPlaceholderText('Write to both parties…')
   await userEvent.type(box, 'hi')
   await userEvent.click(screen.getByRole('button', { name: 'Send' }))
@@ -81,7 +118,7 @@ test('a send that 403s prompts the claim-first toast', async () => {
 test('a send rejected as DISPUTE_RESOLVED freezes the thread', async () => {
   get.mockResolvedValue(thread())
   send.mockRejectedValueOnce(new ApiError(409, 'DISPUTE_RESOLVED', 'x'))
-  render(<ThreadView escrowId="e1" onAssignee={vi.fn()} />)
+  renderThread()
   const box = await screen.findByPlaceholderText('Write to both parties…')
   await userEvent.type(box, 'hi')
   await userEvent.click(screen.getByRole('button', { name: 'Send' }))

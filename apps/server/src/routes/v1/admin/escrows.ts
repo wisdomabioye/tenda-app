@@ -11,6 +11,7 @@ import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, exchange_details, users } from '@tenda/shared/db/schema'
 import { ErrorCode, GIG_CATEGORIES } from '@tenda/shared'
 import type {
+  AdminEscrowDossier,
   AdminEscrowListQuery,
   AdminEscrowRow,
   ApiError,
@@ -21,6 +22,7 @@ import { escrowStatusEnum } from '@tenda/shared/db/schema/escrow'
 import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
+import { buildEscrowDossier } from '@server/lib/escrow/dossier'
 
 
 const adminEscrows: FastifyPluginAsync = async (fastify) => {
@@ -124,6 +126,17 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
     const [row] = await rowQuery().where(eq(escrows.id, request.params.id)).limit(1)
     if (row === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Escrow not found')
     return toRow(row)
+  })
+
+  // GET /v1/admin/escrows/:id/dossier, full mediation context (parties,
+  // amounts, kind-specific details, proofs, tx timeline) behind a dispute.
+  fastify.get<{
+    Params: { id: string }
+    Reply: AdminEscrowDossier | ApiError
+  }>('/:id/dossier', { preHandler: [requirePermission('escrows.read')] }, async (request) => {
+    const dossier = await buildEscrowDossier(fastify.db, request.params.id)
+    if (dossier === null) throw new AppError(404, ErrorCode.NOT_FOUND, 'Escrow not found')
+    return dossier
   })
 
   // PATCH /v1/admin/escrows/:id/hidden, CO1 takedown toggle. Hides the

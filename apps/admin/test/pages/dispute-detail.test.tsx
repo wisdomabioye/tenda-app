@@ -1,6 +1,6 @@
 import { test, expect, vi, beforeEach } from 'vitest'
 import { screen } from '@testing-library/react'
-import type { DisputeSummary, DisputeThreadResponse } from '@tenda/shared'
+import type { AdminEscrowDossier, DisputeSummary, DisputeThreadResponse } from '@tenda/shared'
 import { renderPage } from '../test-utils'
 import DisputeDetailPage from '@/app/(dashboard)/disputes/[id]/page'
 import { adminApi } from '@/api/client'
@@ -11,12 +11,23 @@ vi.mock('@/api/client', () => ({
   adminApi: {
     disputes: { get: vi.fn(), claim: vi.fn(), release: vi.fn() },
     disputeThread: { get: vi.fn(), send: vi.fn() },
+    escrows: { dossier: vi.fn() },
   },
 }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
 const get = vi.mocked(adminApi.disputes.get)
 const threadGet = vi.mocked(adminApi.disputeThread.get)
+const dossierGet = vi.mocked(adminApi.escrows.dossier)
+
+const dossier: AdminEscrowDossier = {
+  escrow_id: 'e1', kind: 'gig', status: 'disputed', chain_id: 'solana:devnet',
+  asset: 'USDC_SOL', amount_raw: '5000000', dispute_bond_raw: '0',
+  created_at: '2026-06-10T00:00:00.000Z',
+  parties: [{ role: 'creator', user_id: 'r1', first_name: 'R', last_name: 'X', raised_dispute: true }],
+  gig: { title: 'Broken delivery', description: null, category: 'errands', country: null, city: null, remote: true },
+  exchange: null, proofs: [], transactions: [],
+}
 
 function summary(over: Partial<DisputeSummary> = {}): DisputeSummary {
   return {
@@ -35,6 +46,7 @@ beforeEach(() => {
   localStorage.clear()
   setSession('jwt', { id: 'me', role: 'dispute_admin', first_name: 'D', last_name: 'A' })
   threadGet.mockResolvedValue(emptyThread)
+  dossierGet.mockResolvedValue(dossier)
 })
 
 test('renders the dispute header, unclaimed badge, claim button and thread', async () => {
@@ -44,6 +56,15 @@ test('renders the dispute header, unclaimed badge, claim button and thread', asy
   expect(screen.getByText('unclaimed')).toBeInTheDocument()
   expect(screen.getByText('item never arrived')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Claim' })).toBeInTheDocument()
+})
+
+test('loads and renders the mediation context panel beside the thread', async () => {
+  get.mockResolvedValue(summary())
+  renderPage(<DisputeDetailPage />)
+  // Amount headline + a party role from the dossier confirm the panel wired in.
+  expect(await screen.findByText(/5 USDC/)).toBeInTheDocument()
+  expect(screen.getByText('Poster')).toBeInTheDocument()
+  expect(dossierGet).toHaveBeenCalledWith('e1')
 })
 
 test('a 404 renders the not-found state', async () => {

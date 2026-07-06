@@ -3,6 +3,7 @@ export { computePlatformFee } from './fees'
 export { isCrossBorder } from './cross-border'
 export { LAMPORTS_PER_SOL } from './constants'
 export { truncateWallet } from './wallet'
+export { partyRoleLabel, displayName, type PartyRole } from './parties'
 
 export {
   MIN_PAYMENT_LAMPORTS,

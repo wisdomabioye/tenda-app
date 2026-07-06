@@ -17,6 +17,7 @@ export const adminRoutes = {
   },
   escrows: {
     list: '/v1/admin/escrows',
+    dossier: '/v1/admin/escrows/:id/dossier',
     setHidden: '/v1/admin/escrows/:id/hidden',
   },
   disputes: {
