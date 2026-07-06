@@ -133,6 +133,28 @@ const auditPlugin: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  appEvents.on('admin.propose_resolution', async (d) => {
+    try {
+      await write(d.adminId, d.adminRole, 'propose_resolution', 'dispute', d.disputeId, {
+        resolution_id: d.resolutionId,
+        winner: d.winner,
+      })
+    } catch (err) {
+      fastify.log.warn({ err }, '[audit] admin.propose_resolution write failed')
+    }
+  })
+
+  appEvents.on('admin.reject_resolution', async (d) => {
+    try {
+      await write(d.adminId, d.adminRole, 'reject_resolution', 'dispute', d.disputeId, {
+        resolution_id: d.resolutionId,
+        reason: d.reason,
+      })
+    } catch (err) {
+      fastify.log.warn({ err }, '[audit] admin.reject_resolution write failed')
+    }
+  })
+
   appEvents.on('admin.create_featured_slot', async (d) => {
     try {
       await write(d.adminId, d.adminRole, 'create_featured_slot', 'escrow', d.escrowId, {

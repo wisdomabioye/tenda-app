@@ -23,6 +23,7 @@ import moderation from './moderation'
 import platformConfig from './platform-config'
 import push from './push'
 import reports from './reports'
+import resolutions from './resolutions'
 import standing from './standing'
 import users from './users'
 
@@ -50,6 +51,7 @@ const adminScope: FastifyPluginAsync = async (fastify) => {
   await fastify.register(platformConfig, { prefix: '/platform-config' })
   await fastify.register(push, { prefix: '/push' })
   await fastify.register(reports, { prefix: '/reports' })
+  await fastify.register(resolutions, { prefix: '/resolutions' })
   await fastify.register(standing, { prefix: '/standing' })
   await fastify.register(users, { prefix: '/users' })
 }

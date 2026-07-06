@@ -16,11 +16,15 @@ import type {
   CreateFeaturedSlotBody,
   DisputeMessage,
   DisputeRateMetric,
+  DisputeResolution,
   DisputeSummary,
   DisputeThreadResponse,
   FeaturedSlotRow,
   FinanceFeesResponse,
   PaginatedResponse,
+  ResolutionQueueRow,
+  ResolutionStatus,
+  ResolutionWinner,
   Report,
   ReportStatus,
   UpdateAnnouncementBody,
@@ -170,6 +174,16 @@ export const adminApi = {
       api.post<{ id: string; assigned_to_id: null }>(
         buildPath(adminRoutes.disputes.release, { id }),
       ),
+    getResolution: (id: string) =>
+      api.get<DisputeResolution | null>(buildPath(adminRoutes.disputes.resolution, { id })),
+    propose: (id: string, winner: ResolutionWinner) =>
+      api.post<DisputeResolution>(buildPath(adminRoutes.disputes.resolution, { id }), { winner }),
+  },
+  resolutions: {
+    queue: (query: { status?: ResolutionStatus; limit?: number; offset?: number } = {}) =>
+      api.get<PaginatedResponse<ResolutionQueueRow>>(withQuery(adminRoutes.resolutions.list, query)),
+    reject: (id: string, reason: string) =>
+      api.post<DisputeResolution>(buildPath(adminRoutes.resolutions.reject, { id }), { reason }),
   },
   disputeThread: {
     /** Thread rides the ESCROW id (shared with the parties' app). */

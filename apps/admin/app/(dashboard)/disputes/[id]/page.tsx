@@ -15,6 +15,7 @@ import { Badge } from '@/components/ui/badge'
 import { ClaimActions } from '@/components/disputes/claim-actions'
 import { ThreadView } from '@/components/disputes/thread-view'
 import { DossierPanel } from '@/components/disputes/dossier'
+import { ResolutionPanel } from '@/components/disputes/resolution'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
 import { useSessionUser } from '@/lib/use-session'
@@ -129,7 +130,12 @@ export default function DisputeDetailPage() {
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-          <div className="lg:w-[380px] lg:shrink-0 lg:overflow-y-auto">
+          <div className="flex flex-col gap-4 lg:w-[380px] lg:shrink-0 lg:overflow-y-auto">
+            <ResolutionPanel
+              disputeId={dispute.dispute_id}
+              kind={dispute.kind}
+              canPropose={dispute.assigned_to_id === meId && !resolved}
+            />
             {dossier !== null ? (
               <DossierPanel dossier={dossier} />
             ) : (

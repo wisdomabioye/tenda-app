@@ -24,6 +24,15 @@ export function partyRoleLabel(kind: EscrowKind, role: PartyRole): string {
 }
 
 /**
+ * Human label for a dispute outcome. `creator`/`counterparty` reuse the
+ * party labels; `split` returns the shared even-split wording. Single source
+ * for the resolution UI so option lists never hardcode outcome copy.
+ */
+export function winnerLabel(kind: EscrowKind, winner: PartyRole | 'split'): string {
+  return winner === 'split' ? 'Split evenly' : partyRoleLabel(kind, winner)
+}
+
+/**
  * Best-effort display name from the two nullable name columns. Falls back
  * to the shortened id so a party with no profile name is still referenceable.
  */

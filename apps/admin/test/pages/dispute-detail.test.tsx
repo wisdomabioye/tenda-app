@@ -9,9 +9,10 @@ import { setSession } from '@/lib/auth'
 
 vi.mock('@/api/client', () => ({
   adminApi: {
-    disputes: { get: vi.fn(), claim: vi.fn(), release: vi.fn() },
+    disputes: { get: vi.fn(), claim: vi.fn(), release: vi.fn(), getResolution: vi.fn(), propose: vi.fn() },
     disputeThread: { get: vi.fn(), send: vi.fn() },
     escrows: { dossier: vi.fn() },
+    resolutions: { reject: vi.fn() },
   },
 }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
@@ -19,6 +20,7 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 const get = vi.mocked(adminApi.disputes.get)
 const threadGet = vi.mocked(adminApi.disputeThread.get)
 const dossierGet = vi.mocked(adminApi.escrows.dossier)
+const resolutionGet = vi.mocked(adminApi.disputes.getResolution)
 
 const dossier: AdminEscrowDossier = {
   escrow_id: 'e1', kind: 'gig', status: 'disputed', chain_id: 'solana:devnet',
@@ -47,6 +49,7 @@ beforeEach(() => {
   setSession('jwt', { id: 'me', role: 'dispute_admin', first_name: 'D', last_name: 'A' })
   threadGet.mockResolvedValue(emptyThread)
   dossierGet.mockResolvedValue(dossier)
+  resolutionGet.mockResolvedValue(null)
 })
 
 test('renders the dispute header, unclaimed badge, claim button and thread', async () => {

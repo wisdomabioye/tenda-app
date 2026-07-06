@@ -15,6 +15,7 @@ export interface NavItem {
 // Ordered by the dashboard build order (#91 → #93) then ops tail.
 export const NAV_ITEMS: ReadonlyArray<NavItem> = [
   { href: '/disputes', label: 'Disputes', permission: 'disputes.read' },
+  { href: '/resolutions', label: 'Resolutions', permission: 'disputes.execute' },
   { href: '/reports', label: 'Reports', permission: 'reports.read' },
   { href: '/escrows', label: 'Listings', permission: 'escrows.read' },
   { href: '/users', label: 'Users', permission: 'users.read' },

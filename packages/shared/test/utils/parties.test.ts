@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { partyRoleLabel, displayName } from '../../src/utils/parties'
+import { partyRoleLabel, winnerLabel, displayName } from '../../src/utils/parties'
 
 test('partyRoleLabel: gig uses Poster / Worker', () => {
   assert.equal(partyRoleLabel('gig', 'creator'), 'Poster')
@@ -10,6 +10,13 @@ test('partyRoleLabel: gig uses Poster / Worker', () => {
 test('partyRoleLabel: exchange uses Maker / Taker', () => {
   assert.equal(partyRoleLabel('exchange', 'creator'), 'Maker')
   assert.equal(partyRoleLabel('exchange', 'counterparty'), 'Taker')
+})
+
+test('winnerLabel: parties reuse the role labels, split is even-split copy', () => {
+  assert.equal(winnerLabel('gig', 'creator'), 'Poster')
+  assert.equal(winnerLabel('gig', 'counterparty'), 'Worker')
+  assert.equal(winnerLabel('exchange', 'counterparty'), 'Taker')
+  assert.equal(winnerLabel('gig', 'split'), 'Split evenly')
 })
 
 test('displayName: joins both names', () => {

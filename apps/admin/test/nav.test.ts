@@ -20,6 +20,12 @@ test('dispute_admin sees exactly the dispute-workflow surfaces', () => {
   )
 })
 
+test('the resolutions queue is gated on disputes.execute (signers only)', () => {
+  // super_admin holds disputes.execute → sees it; dispute_admin does not.
+  assert.ok(visibleNav('super_admin').some((i) => i.href === '/resolutions'))
+  assert.ok(!visibleNav('dispute_admin').some((i) => i.href === '/resolutions'))
+})
+
 test('plain users and unknown roles see nothing', () => {
   assert.deepStrictEqual(visibleNav('user'), [])
   assert.deepStrictEqual(visibleNav('made_up_role'), [])

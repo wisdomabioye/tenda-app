@@ -11,7 +11,7 @@ import { and, eq, inArray } from 'drizzle-orm'
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import type { EscrowTxType } from '@tenda/shared'
 import { escrows, escrow_transactions } from '@tenda/shared/db/schema/escrow'
-import { disputes } from '@tenda/shared/db/schema/governance'
+import { disputes, dispute_resolutions } from '@tenda/shared/db/schema/governance'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { walletAddressEquals } from '@server/lib/auth/wallet-address'
 import type { AppDatabase } from '@server/plugins/db'
@@ -75,10 +75,25 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
         })
 
         if (disputeResolution !== undefined) {
-          await tx
+          const [stamped] = await tx
             .update(disputes)
             .set({ winner: disputeResolution.winner, resolved_at: new Date() })
             .where(eq(disputes.escrow_id, escrow_id))
+            .returning({ id: disputes.id })
+          // On-chain finality is the ONLY thing that confirms a proposal
+          // (Issue-3): flip the active proposal, if any, in the same commit.
+          // A no-op when resolution went through CLI/direct-resolve instead.
+          if (stamped !== undefined) {
+            await tx
+              .update(dispute_resolutions)
+              .set({ status: 'confirmed', resolved_tx_ref: transaction.tx_ref })
+              .where(
+                and(
+                  eq(dispute_resolutions.dispute_id, stamped.id),
+                  inArray(dispute_resolutions.status, ['pending', 'executing']),
+                ),
+              )
+          }
         }
         return true
       })

@@ -81,6 +81,13 @@ export type {
   DisputeReadCursor,
   DisputeThreadResponse,
   SendDisputeMessageBody,
+  DisputeResolution,
+  DisputeResolutionRow,
+  ResolutionQueueRow,
+  ResolutionWinner,
+  ResolutionStatus,
+  ProposeResolutionBody,
+  RejectResolutionBody,
 } from './dispute'
 
 export type {

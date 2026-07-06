@@ -25,6 +25,12 @@ export const adminRoutes = {
     get: '/v1/admin/disputes/:id',
     claim: '/v1/admin/disputes/:id/claim',
     release: '/v1/admin/disputes/:id/release',
+    // Issue-3: the dispute's proposed resolution (GET latest / POST propose).
+    resolution: '/v1/admin/disputes/:id/resolution',
+  },
+  resolutions: {
+    list: '/v1/admin/resolutions',
+    reject: '/v1/admin/resolutions/:id/reject',
   },
   disputeThread: {
     // Thread routes live on the escrow (shared with the parties). There is

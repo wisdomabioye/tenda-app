@@ -64,6 +64,13 @@
       "when": 1781692265173,
       "tag": "0008_great_nightmare",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783299507147,
+      "tag": "0009_new_bloodscream",
+      "breakpoints": true
     }
   ]
 }

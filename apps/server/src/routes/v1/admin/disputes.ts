@@ -8,12 +8,24 @@
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, and, or, desc, isNull, isNotNull, sql, type SQL } from 'drizzle-orm'
-import { disputes, escrows, gig_details, users } from '@tenda/shared/db/schema'
+import { disputes, dispute_resolutions, escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import type { ApiError, DisputeSummary, PaginatedResponse } from '@tenda/shared'
+import type {
+  ApiError,
+  DisputeResolution,
+  DisputeSummary,
+  PaginatedResponse,
+  ProposeResolutionBody,
+} from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
+import {
+  getActiveResolution,
+  getLatestResolution,
+  narrowWinner,
+  toResolutionWire,
+} from '@server/lib/disputes/resolution-store'
 
 
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString())
@@ -181,6 +193,72 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
       previousAssignee: row.assigned_to,
     })
     return { id: row.id, assigned_to_id: null }
+  })
+
+  // GET /v1/admin/disputes/:id/resolution, the dispute's latest proposal (any
+  // state) or null. Lets the detail view show pending / rejected / confirmed.
+  fastify.get<{
+    Params: { id: string }
+    Reply: DisputeResolution | null | ApiError
+  }>('/:id/resolution', { preHandler: [requirePermission('disputes.read')] }, async (request) => {
+    const row = await getLatestResolution(fastify.db, request.params.id)
+    return row === undefined ? null : toResolutionWire(row)
+  })
+
+  // POST /v1/admin/disputes/:id/resolution, a claim-holding mediator records
+  // a verdict → a PENDING proposal for a key-holder to sign. No on-chain
+  // effect: resolution is confirmed only when the signed tx lands.
+  fastify.post<{
+    Params: { id: string }
+    Body: ProposeResolutionBody
+    Reply: DisputeResolution | ApiError
+  }>('/:id/resolution', { preHandler: [requirePermission('disputes.mediate')] }, async (request) => {
+    const winner = narrowWinner(request.body?.winner)
+    if (winner === null) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'winner must be one of: creator | counterparty | split')
+    }
+
+    const [dispute] = await fastify.db
+      .select({ id: disputes.id, assigned_to: disputes.assigned_to, resolved_at: disputes.resolved_at, escrow_status: escrows.status })
+      .from(disputes)
+      .innerJoin(escrows, eq(escrows.id, disputes.escrow_id))
+      .where(eq(disputes.id, request.params.id))
+      .limit(1)
+    if (dispute === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Dispute not found')
+    if (dispute.resolved_at !== null) {
+      throw new AppError(409, ErrorCode.DISPUTE_RESOLVED, 'Dispute already resolved')
+    }
+    // The escrow must still be on-chain disputed to be resolvable.
+    if (dispute.escrow_status !== 'disputed') {
+      throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, `escrow is ${dispute.escrow_status}, not disputed`)
+    }
+    // Only the mediator holding the claim may propose (mirrors the thread).
+    if (dispute.assigned_to !== request.user.id) {
+      throw new AppError(403, ErrorCode.DISPUTE_NOT_CLAIMED, 'Claim the dispute before proposing a resolution')
+    }
+    if ((await getActiveResolution(fastify.db, dispute.id)) !== undefined) {
+      throw new AppError(409, ErrorCode.RESOLUTION_ALREADY_EXISTS, 'A resolution is already awaiting signature')
+    }
+
+    // The partial-unique index is the race backstop for a concurrent propose.
+    let inserted
+    try {
+      ;[inserted] = await fastify.db
+        .insert(dispute_resolutions)
+        .values({ dispute_id: dispute.id, proposed_winner: winner, proposed_by: request.user.id })
+        .returning()
+    } catch {
+      throw new AppError(409, ErrorCode.RESOLUTION_ALREADY_EXISTS, 'A resolution is already awaiting signature')
+    }
+
+    appEvents.emit('admin.propose_resolution', {
+      adminId: request.user.id,
+      adminRole: request.user.role,
+      disputeId: dispute.id,
+      resolutionId: inserted.id,
+      winner,
+    })
+    return toResolutionWire(inserted)
   })
 }
 

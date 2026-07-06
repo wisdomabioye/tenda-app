@@ -19,6 +19,11 @@ export const ErrorCode = {
   // CO7 — mediation threads (claim-based assignment)
   DISPUTE_ALREADY_CLAIMED:       'DISPUTE_ALREADY_CLAIMED',
   DISPUTE_RESOLVED:              'DISPUTE_RESOLVED',
+  // Issue-3 — resolution propose→sign queue
+  DISPUTE_NOT_CLAIMED:           'DISPUTE_NOT_CLAIMED',
+  RESOLUTION_ALREADY_EXISTS:     'RESOLUTION_ALREADY_EXISTS',
+  RESOLUTION_NOT_FOUND:          'RESOLUTION_NOT_FOUND',
+  RESOLUTION_NOT_ACTIVE:         'RESOLUTION_NOT_ACTIVE',
   // Reviews
   REVIEW_ALREADY_EXISTS:         'REVIEW_ALREADY_EXISTS',
   REVIEW_NOT_ALLOWED:            'REVIEW_NOT_ALLOWED',

@@ -18,9 +18,12 @@
 import type { AdminRole } from '../types/user'
 
 export const PERMISSIONS = [
-  // dispute triage queue (+ #77 mediation threads)
+  // dispute triage queue (+ #77 mediation threads, Issue-3 resolution queue)
   'disputes.read',
   'disputes.mediate',
+  // execute a proposed resolution (reject/sign) — key-holder authority,
+  // kept separate from `mediate` so proposer and approver can differ.
+  'disputes.execute',
   // admin escrow browser (+ #70 takedown, #78 featured rail)
   'escrows.read',
   'escrows.takedown',

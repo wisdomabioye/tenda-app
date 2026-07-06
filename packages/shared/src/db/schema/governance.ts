@@ -9,6 +9,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
@@ -19,6 +20,22 @@ export const disputeWinnerEnum = pgEnum('dispute_winner', [
   'creator',
   'counterparty',
   'split',
+])
+
+/**
+ * Lifecycle of a proposed dispute resolution (Issue-3 propose→sign queue):
+ *   pending    — a mediator recorded a verdict; awaiting a key-holder.
+ *   executing  — a signer built the on-chain resolve tx and is signing it
+ *                (set by the C2 wallet flow; reserved here so the enum needs
+ *                no later ALTER).
+ *   confirmed  — the DisputeResolved event applied on-chain; terminal.
+ *   rejected   — a reviewer returned it; the mediator may propose again.
+ */
+export const resolutionStatusEnum = pgEnum('resolution_status', [
+  'pending',
+  'executing',
+  'confirmed',
+  'rejected',
 ])
 
 export const disputes = pgTable('disputes', {
@@ -41,6 +58,51 @@ export const disputes = pgTable('disputes', {
   resolved_at: timestamp('resolved_at'),
   created_at: timestamp('created_at').notNull().defaultNow(),
 })
+
+/**
+ * Dispute-resolution proposals (Issue-3): decouples the mediator's verdict
+ * from the on-chain signature. A mediator proposes an outcome (pending); a
+ * key-holder later signs it on-chain (C2). Confirmation is stamped ONLY by
+ * the verify-tx apply path (lib/escrow-events/store.ts) when DisputeResolved
+ * lands — a proposal never resolves the dispute by itself, so an unsigned
+ * proposal leaves the thread live.
+ *
+ * `threshold` is the number of approvals required to execute (1 at launch;
+ * the multisig path raises it without a schema change). The partial unique
+ * index enforces at most ONE active (pending|executing) proposal per dispute.
+ */
+export const dispute_resolutions = pgTable(
+  'dispute_resolutions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    dispute_id: uuid('dispute_id')
+      .notNull()
+      .references(() => disputes.id, { onDelete: 'cascade' }),
+    proposed_winner: disputeWinnerEnum('proposed_winner').notNull(),
+    proposed_by: uuid('proposed_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    status: resolutionStatusEnum('status').notNull().default('pending'),
+    threshold: integer('threshold').notNull().default(1),
+    reject_reason: text('reject_reason'),
+    rejected_by: uuid('rejected_by').references(() => users.id, { onDelete: 'restrict' }),
+    /** On-chain ref that confirmed the resolution; set by the apply path. */
+    resolved_tx_ref: text('resolved_tx_ref'),
+    created_at: timestamp('created_at').notNull().defaultNow(),
+    updated_at: timestamp('updated_at')
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    index('dispute_resolutions_dispute_idx').on(t.dispute_id),
+    // At most one live proposal per dispute; rejected/confirmed rows are history.
+    uniqueIndex('dispute_resolutions_active_uq')
+      .on(t.dispute_id)
+      .where(sql`${t.status} IN ('pending', 'executing')`),
+    check('dispute_resolutions_threshold_positive_chk', sql`${t.threshold} >= 1`),
+  ],
+)
 
 /**
  * CO7 mediation thread: ONE shared conversation per dispute — both escrow
