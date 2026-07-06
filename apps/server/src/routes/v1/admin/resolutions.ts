@@ -8,14 +8,15 @@
  * (dispute-scoped); both share lib/disputes/resolution-store.ts.
  */
 import type { FastifyPluginAsync } from 'fastify'
-import { eq } from 'drizzle-orm'
-import { dispute_resolutions } from '@tenda/shared/db/schema'
+import { and, eq, inArray } from 'drizzle-orm'
+import { dispute_resolutions, disputes, escrows } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_DISPUTE_REASON_LENGTH } from '@tenda/shared'
 import type {
   ApiError,
   DisputeResolution,
   PaginatedResponse,
   RejectResolutionBody,
+  ResolutionExecuteBuild,
   ResolutionQueueRow,
   ResolutionStatus,
 } from '@tenda/shared'
@@ -23,6 +24,8 @@ import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
+import { buildResolveTx } from '@server/lib/escrow/resolve-tx'
+import { disputeAdminFor } from '@server/chains/secrets'
 import {
   ACTIVE_RESOLUTION_STATUSES,
   getResolutionById,
@@ -88,6 +91,61 @@ const adminResolutions: FastifyPluginAsync = async (fastify) => {
       reason,
     })
     return toResolutionWire(updated)
+  })
+
+  // POST /v1/admin/resolutions/:id/execute-build — build the unsigned resolve
+  // tx for the STORED winner so a key-holder can sign it (C2). The winner is
+  // NOT taken from the request: the signer can only sign what was reviewed.
+  // Marks the proposal 'executing'; on-chain confirmation later flips it to
+  // 'confirmed' via the verify-tx apply hook. No status change to the escrow
+  // here — that lands with the confirmed transaction.
+  fastify.post<{
+    Params: { id: string }
+    Reply: ResolutionExecuteBuild | ApiError
+  }>('/:id/execute-build', { preHandler: [requirePermission('disputes.execute')] }, async (request) => {
+    const resolution = await getResolutionById(fastify.db, request.params.id)
+    if (resolution === undefined) throw new AppError(404, ErrorCode.RESOLUTION_NOT_FOUND, 'Resolution not found')
+    if (!isActive(resolution.status)) {
+      throw new AppError(409, ErrorCode.RESOLUTION_NOT_ACTIVE, `resolution is ${resolution.status}, not active`)
+    }
+
+    // The escrow must still be on-chain disputed for the resolve tx to land.
+    const [row] = await fastify.db
+      .select({ escrow_id: disputes.escrow_id, chain_id: escrows.chain_id, escrow_status: escrows.status, resolved_at: disputes.resolved_at })
+      .from(disputes)
+      .innerJoin(escrows, eq(escrows.id, disputes.escrow_id))
+      .where(eq(disputes.id, resolution.dispute_id))
+      .limit(1)
+    if (row === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Dispute not found')
+    if (row.resolved_at !== null) throw new AppError(409, ErrorCode.DISPUTE_RESOLVED, 'Dispute already resolved')
+    if (row.escrow_status !== 'disputed') {
+      throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, `escrow is ${row.escrow_status}, not disputed`)
+    }
+
+    const unsigned = await buildResolveTx(
+      { db: fastify.db, chains: fastify.chains },
+      {
+        escrow_id: row.escrow_id,
+        chain_id: row.chain_id,
+        winner: resolution.proposed_winner,
+        signer_user_id: request.user.id,
+      },
+    )
+
+    // Only advance a still-pending proposal (a concurrent reject wins the race).
+    await fastify.db
+      .update(dispute_resolutions)
+      .set({ status: 'executing' })
+      .where(and(eq(dispute_resolutions.id, resolution.id), inArray(dispute_resolutions.status, [...ACTIVE_RESOLUTION_STATUSES])))
+
+    return {
+      resolution_id: resolution.id,
+      escrow_id: row.escrow_id,
+      chain_id: row.chain_id,
+      proposed_winner: resolution.proposed_winner,
+      dispute_admin_authority: disputeAdminFor(row.chain_id) ?? null,
+      unsigned,
+    }
   })
 }
 

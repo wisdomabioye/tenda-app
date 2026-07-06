@@ -88,6 +88,7 @@ export type {
   ResolutionStatus,
   ProposeResolutionBody,
   RejectResolutionBody,
+  ResolutionExecuteBuild,
 } from './dispute'
 
 export type {

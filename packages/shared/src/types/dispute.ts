@@ -6,6 +6,7 @@
 import type { InferSelectModel } from 'drizzle-orm'
 import type { dispute_messages, dispute_resolutions } from '../db/schema'
 import type { EscrowKind } from './escrow'
+import type { UnsignedTx } from '../api/contracts/escrows.contract'
 
 export type DisputeMessageRow = InferSelectModel<typeof dispute_messages>
 export type DisputeResolutionRow = InferSelectModel<typeof dispute_resolutions>
@@ -45,6 +46,25 @@ export interface ProposeResolutionBody {
 /** POST /v1/admin/resolutions/:id/reject */
 export interface RejectResolutionBody {
   reason: string
+}
+
+/**
+ * POST /v1/admin/resolutions/:id/execute-build — the unsigned on-chain
+ * resolve tx for the STORED proposed_winner, plus the fields the signer
+ * needs to broadcast + client-ping without a second round-trip.
+ */
+export interface ResolutionExecuteBuild {
+  resolution_id: string
+  escrow_id: string
+  chain_id: string
+  proposed_winner: ResolutionWinner
+  /**
+   * The configured on-chain dispute authority for this chain (the wallet the
+   * signer must connect); null when unconfigured, so the client skips the
+   * pre-flight check rather than blocking.
+   */
+  dispute_admin_authority: string | null
+  unsigned: UnsignedTx
 }
 
 /** Wire shape (Date → ISO string). */

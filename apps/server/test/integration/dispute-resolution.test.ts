@@ -17,10 +17,13 @@ import {
   TEST_DB_CONFIGURED,
   useTestApp,
   createUser,
+  createEscrow,
   authHeader,
+  FAKE_UNSIGNED,
   type TestUser,
 } from '../helpers/test-app'
 import { disputedEscrow } from '../helpers/escrow-states'
+import { buildResolveTx } from '@server/lib/escrow/resolve-tx'
 import type { FastifyInstance } from 'fastify'
 
 const skip = !TEST_DB_CONFIGURED
@@ -217,6 +220,108 @@ test('detail: no proposal yet returns null', { skip }, async () => {
   })
   assert.strictEqual(res.statusCode, 200)
   assert.strictEqual(res.json(), null)
+})
+
+test('buildResolveTx: an escrow with no dispute record is a 409 (defensive)', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const escrow = await createEscrow(app, { creator_id: creator.row.id, status: 'disputed' })
+  await assert.rejects(
+    buildResolveTx(
+      { db: app.db, chains: app.chains },
+      { escrow_id: escrow.id, chain_id: escrow.chain_id, winner: 'creator', signer_user_id: creator.row.id },
+    ),
+    (e: unknown) => e instanceof Error && 'statusCode' in e && e.statusCode === 409,
+  )
+})
+
+function executeBuild(app: FastifyInstance, resolutionId: string, token: string) {
+  return app.inject({
+    method: 'POST',
+    url: `/v1/admin/resolutions/${resolutionId}/execute-build`,
+    headers: authHeader(token),
+  })
+}
+
+test('execute-build: a mediator without disputes.execute is refused', { skip }, async () => {
+  const app = getApp()
+  const { dispute_id, mediator } = await claimedDispute(app)
+  const proposal = (await propose(app, dispute_id, mediator.token)).json()
+  const res = await executeBuild(app, proposal.id, mediator.token)
+  assert.strictEqual(res.statusCode, 403)
+})
+
+test('execute-build: signer gets the unsigned tx for the STORED winner and it goes executing', { skip }, async () => {
+  const app = getApp()
+  const { escrow_id, dispute_id, mediator } = await claimedDispute(app)
+  // Mediator proposes 'split'; the signer must not be able to change that.
+  const proposal = (await propose(app, dispute_id, mediator.token, 'split')).json()
+  const signer = await createUser(app, { role: 'super_admin' })
+
+  const res = await executeBuild(app, proposal.id, signer.token)
+  assert.strictEqual(res.statusCode, 200)
+  const body = res.json()
+  assert.strictEqual(body.resolution_id, proposal.id)
+  assert.strictEqual(body.escrow_id, escrow_id)
+  assert.strictEqual(body.proposed_winner, 'split') // the reviewed winner, not a request input
+  assert.deepStrictEqual(body.unsigned, FAKE_UNSIGNED)
+
+  const [row] = await app.db.select().from(dispute_resolutions).where(eq(dispute_resolutions.id, proposal.id))
+  assert.strictEqual(row.status, 'executing')
+
+  // Re-building an already-executing proposal is idempotent (signer retries).
+  const again = await executeBuild(app, proposal.id, signer.token)
+  assert.strictEqual(again.statusCode, 200)
+})
+
+test('execute-build: escrow no longer disputed → 409', { skip }, async () => {
+  const app = getApp()
+  const { escrow_id, dispute_id, mediator } = await claimedDispute(app)
+  const proposal = (await propose(app, dispute_id, mediator.token)).json()
+  const signer = await createUser(app, { role: 'super_admin' })
+  await app.db.update(escrows).set({ status: 'accepted' }).where(eq(escrows.id, escrow_id))
+  const res = await executeBuild(app, proposal.id, signer.token)
+  assert.strictEqual(res.statusCode, 409)
+  assert.strictEqual(res.json().code, 'ESCROW_WRONG_STATUS')
+})
+
+test('execute-build: a rejected proposal cannot be built, unknown id → 404', { skip }, async () => {
+  const app = getApp()
+  const { dispute_id, mediator } = await claimedDispute(app)
+  const proposal = (await propose(app, dispute_id, mediator.token)).json()
+  const signer = await createUser(app, { role: 'super_admin' })
+  await app.inject({
+    method: 'POST',
+    url: `/v1/admin/resolutions/${proposal.id}/reject`,
+    headers: authHeader(signer.token),
+    payload: { reason: 'not this outcome' },
+  })
+  const rejected = await executeBuild(app, proposal.id, signer.token)
+  assert.strictEqual(rejected.statusCode, 409)
+  assert.strictEqual(rejected.json().code, 'RESOLUTION_NOT_ACTIVE')
+
+  const missing = await executeBuild(app, '00000000-0000-0000-0000-000000000000', signer.token)
+  assert.strictEqual(missing.statusCode, 404)
+})
+
+test('execute-build → confirm hook: an executing proposal confirms on DisputeResolved', { skip }, async () => {
+  const app = getApp()
+  const { escrow_id, dispute_id, mediator } = await claimedDispute(app)
+  const proposal = (await propose(app, dispute_id, mediator.token, 'counterparty')).json()
+  const signer = await createUser(app, { role: 'super_admin' })
+  assert.strictEqual((await executeBuild(app, proposal.id, signer.token)).statusCode, 200)
+
+  const store = drizzleEscrowEventStore(app.db)
+  await store.applyEvent({
+    escrow_id,
+    from: ['disputed'],
+    patch: { status: 'resolved' },
+    transaction: { type: 'resolve', tx_ref: `resolve-${escrow_id}`, amount_raw: null, platform_fee_raw: null, actor_id: null },
+    disputeResolution: { winner: 'counterparty' },
+  })
+  const [row] = await app.db.select().from(dispute_resolutions).where(eq(dispute_resolutions.id, proposal.id))
+  assert.strictEqual(row.status, 'confirmed')
+  assert.strictEqual(row.resolved_tx_ref, `resolve-${escrow_id}`)
 })
 
 test('confirm hook: DisputeResolved marks the active proposal confirmed', { skip }, async () => {

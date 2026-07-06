@@ -44,6 +44,9 @@ const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
   solana: [
     { key: 'rpcUrl', envSuffix: 'RPC_URL', required: true, kind: 'url' },
     { key: 'treasury', envSuffix: 'TREASURY_ADDR', required: true, kind: 'base58' },
+    // On-chain dispute-resolution authority (rotatable via the multisig).
+    // Optional: enables the admin sign pre-flight check when set.
+    { key: 'disputeAdmin', envSuffix: 'DISPUTE_ADMIN_ADDR', required: false, kind: 'base58' },
     { key: 'usdcMint', envSuffix: 'USDC_MINT', required: false, kind: 'base58' },
     { key: 'gasSeedKey', envSuffix: 'GAS_SEED_KEY', required: false, kind: 'str' },
     { key: 'webhookSecret', envSuffix: 'WEBHOOK_SECRET', required: false, kind: 'str' },
@@ -52,6 +55,7 @@ const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
     { key: 'rpcUrl', envSuffix: 'RPC_URL', required: true, kind: 'url' },
     { key: 'escrow', envSuffix: 'ESCROW_ADDR', required: true, kind: 'evmAddr' },
     { key: 'treasury', envSuffix: 'TREASURY_ADDR', required: true, kind: 'evmAddr' },
+    { key: 'disputeAdmin', envSuffix: 'DISPUTE_ADMIN_ADDR', required: false, kind: 'evmAddr' },
     { key: 'paymasterUrl', envSuffix: 'PAYMASTER_URL', required: false, kind: 'url' },
     { key: 'webhookSecret', envSuffix: 'WEBHOOK_SECRET', required: false, kind: 'str' },
   ],
@@ -64,6 +68,7 @@ export type ResolvedChainSecret =
       chainId: string
       rpcUrl: string
       treasury: string
+      disputeAdmin?: string
       usdcMint?: string
       gasSeedKey?: string
       webhookSecret?: string
@@ -74,6 +79,7 @@ export type ResolvedChainSecret =
       rpcUrl: string
       escrow: string
       treasury: string
+      disputeAdmin?: string
       paymasterUrl?: string
       webhookSecret?: string
     }
@@ -149,6 +155,7 @@ function assemble(
       chainId: entry.id,
       rpcUrl: must(present, 'rpcUrl', entry.id),
       treasury: must(present, 'treasury', entry.id),
+      disputeAdmin: present.get('disputeAdmin'),
       usdcMint: present.get('usdcMint'),
       gasSeedKey: present.get('gasSeedKey'),
       webhookSecret: present.get('webhookSecret'),
@@ -160,6 +167,7 @@ function assemble(
     rpcUrl: must(present, 'rpcUrl', entry.id),
     escrow: must(present, 'escrow', entry.id),
     treasury: must(present, 'treasury', entry.id),
+    disputeAdmin: present.get('disputeAdmin'),
     paymasterUrl: present.get('paymasterUrl'),
     webhookSecret: present.get('webhookSecret'),
   }
@@ -271,6 +279,18 @@ export function solanaSecret(
     if (secret.namespace === 'solana') return secret
   }
   return undefined
+}
+
+/**
+ * The configured on-chain dispute-resolution authority for a chain, or
+ * undefined when unset. Powers the admin sign pre-flight (connected wallet
+ * must equal this) and degrades gracefully to "no check" when absent.
+ */
+export function disputeAdminFor(
+  chain_id: string,
+  secrets: Map<string, ResolvedChainSecret> = getChainSecrets(),
+): string | undefined {
+  return secrets.get(chain_id)?.disputeAdmin
 }
 
 /** The active paymaster-managed EVM chain (BASE-style), if configured. */
