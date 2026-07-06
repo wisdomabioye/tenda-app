@@ -19,3 +19,8 @@ export function bpsToPercent(bps: number): string {
 export function secondsToDays(seconds: number): string {
   return (seconds / 86_400).toFixed(1)
 }
+
+/** Middle-truncate a wallet address for display, e.g. `C9PX…JWL`. */
+export function shortenAddress(address: string): string {
+  return address.length <= 11 ? address : `${address.slice(0, 4)}…${address.slice(-4)}`
+}

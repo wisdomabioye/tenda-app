@@ -20,6 +20,8 @@ import {
   createEscrow,
   authHeader,
   FAKE_UNSIGNED,
+  FAKE_DISPUTE_AUTHORITY,
+  TEST_CHAIN_ID,
   type TestUser,
 } from '../helpers/test-app'
 import { disputedEscrow } from '../helpers/escrow-states'
@@ -81,6 +83,9 @@ test('propose: claim-holder records a pending proposal, visible in queue + detai
     headers: authHeader(mediator.token),
   })
   assert.strictEqual(detail.json().id, proposal.id)
+  // The read carries the sign context so the panel can reactively gate signing.
+  assert.strictEqual(detail.json().chain_id, TEST_CHAIN_ID)
+  assert.strictEqual(detail.json().dispute_admin_authority, FAKE_DISPUTE_AUTHORITY)
 
   // Signing queue (default 'pending') includes it with escrow context.
   const queue = await app.inject({
@@ -235,6 +240,22 @@ test('buildResolveTx: an escrow with no dispute record is a 409 (defensive)', { 
   )
 })
 
+test('buildResolveTx: chain with no configured dispute authority → 409 CHAIN_NOT_CONFIGURED', { skip }, async () => {
+  const app = getApp()
+  const { escrow_id } = await claimedDispute(app)
+  // An adapter that carries no dispute authority (e.g. the env var is unset):
+  // the resolve build must refuse rather than fall back to a user's wallet.
+  const base = app.chains.get(TEST_CHAIN_ID)
+  const chains = { ...app.chains, get: () => ({ ...base, disputeAuthority: undefined }) }
+  await assert.rejects(
+    buildResolveTx(
+      { db: app.db, chains },
+      { escrow_id, chain_id: TEST_CHAIN_ID, winner: 'creator', signer_user_id: 'irrelevant' },
+    ),
+    (e: unknown) => e instanceof Error && 'code' in e && e.code === 'CHAIN_NOT_CONFIGURED',
+  )
+})
+
 function executeBuild(app: FastifyInstance, resolutionId: string, token: string) {
   return app.inject({
     method: 'POST',
@@ -302,6 +323,50 @@ test('execute-build: a rejected proposal cannot be built, unknown id → 404', {
 
   const missing = await executeBuild(app, '00000000-0000-0000-0000-000000000000', signer.token)
   assert.strictEqual(missing.statusCode, 404)
+})
+
+function broadcast(app: FastifyInstance, resolutionId: string, token: string, tx_ref = 'sig-abc') {
+  return app.inject({
+    method: 'POST',
+    url: `/v1/admin/resolutions/${resolutionId}/broadcast`,
+    headers: authHeader(token),
+    payload: { tx_ref },
+  })
+}
+
+test('broadcast: rejected before the proposal has been built (still pending) → 409', { skip }, async () => {
+  const app = getApp()
+  const { dispute_id, mediator } = await claimedDispute(app)
+  const proposal = (await propose(app, dispute_id, mediator.token)).json()
+  const signer = await createUser(app, { role: 'super_admin' })
+  const res = await broadcast(app, proposal.id, signer.token)
+  assert.strictEqual(res.statusCode, 409)
+  assert.strictEqual(res.json().code, 'RESOLUTION_NOT_ACTIVE')
+})
+
+test('broadcast: after build, a signer pings the tx ref and it queues (202)', { skip }, async () => {
+  const app = getApp()
+  const { dispute_id, mediator } = await claimedDispute(app)
+  const proposal = (await propose(app, dispute_id, mediator.token)).json()
+  const signer = await createUser(app, { role: 'super_admin' })
+  await executeBuild(app, proposal.id, signer.token)
+  const res = await broadcast(app, proposal.id, signer.token, 'sig-resolve-1')
+  assert.strictEqual(res.statusCode, 202)
+  assert.strictEqual(res.json().status, 'queued')
+})
+
+test('broadcast: missing tx_ref → 400; a mediator without execute → 403', { skip }, async () => {
+  const app = getApp()
+  const { dispute_id, mediator } = await claimedDispute(app)
+  const proposal = (await propose(app, dispute_id, mediator.token)).json()
+  const signer = await createUser(app, { role: 'super_admin' })
+  await executeBuild(app, proposal.id, signer.token)
+
+  const noRef = await broadcast(app, proposal.id, signer.token, '')
+  assert.strictEqual(noRef.statusCode, 400)
+
+  const forbidden = await broadcast(app, proposal.id, mediator.token, 'sig-x')
+  assert.strictEqual(forbidden.statusCode, 403)
 })
 
 test('execute-build → confirm hook: an executing proposal confirms on DisputeResolved', { skip }, async () => {

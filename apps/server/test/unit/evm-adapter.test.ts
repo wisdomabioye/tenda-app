@@ -235,6 +235,8 @@ test('builders: every escrow-id action encodes its own selector; resolveDispute 
     {
       action: 'resolveDispute',
       user_id: 'admin',
+      // Signed by the configured dispute authority; not encoded in calldata.
+      signer_address: '0x05A400000000000000000000000000000000dead',
       payload: { escrow_id: UUID, winner: 'split', raiser_user_id: 'u9' },
     },
     { asset_address: null, assigned_counterparty_address: null },

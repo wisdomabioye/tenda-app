@@ -16,22 +16,14 @@
  */
 import { eq, sql, type SQL } from 'drizzle-orm'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
+import { normalizeChainAddress, sameChainAddress } from '@tenda/shared'
 import type { ChainNamespace } from '@tenda/shared/db/schema'
 
-export function normalizeWalletAddress(chain_ns: ChainNamespace, address: string): string {
-  return chain_ns === 'eip155' ? address.toLowerCase() : address
-}
-
-/**
- * Two addresses are the SAME wallet, namespace-aware. Because the column is only
- * normalised on WRITE going forward (legacy rows may still be checksummed), and
- * EVM is case-insensitive, comparisons must fold case on BOTH sides, never just
- * normalise one side and compare to the raw stored value, which silently misses
- * legacy mixed-case rows. Solana (base58) stays exact.
- */
-export function sameWalletAddress(chain_ns: ChainNamespace, a: string, b: string): boolean {
-  return normalizeWalletAddress(chain_ns, a) === normalizeWalletAddress(chain_ns, b)
-}
+// Canonical normalize/compare live in @tenda/shared (shared with the admin
+// resolve-sign pre-flight); re-exported here under the server's names so the
+// existing call sites and the SQL helper below stay put.
+export const normalizeWalletAddress = normalizeChainAddress
+export const sameWalletAddress = sameChainAddress
 
 /**
  * A SQL WHERE fragment matching `user_wallets.address` to `address` the same

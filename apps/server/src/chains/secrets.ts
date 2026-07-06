@@ -281,18 +281,6 @@ export function solanaSecret(
   return undefined
 }
 
-/**
- * The configured on-chain dispute-resolution authority for a chain, or
- * undefined when unset. Powers the admin sign pre-flight (connected wallet
- * must equal this) and degrades gracefully to "no check" when absent.
- */
-export function disputeAdminFor(
-  chain_id: string,
-  secrets: Map<string, ResolvedChainSecret> = getChainSecrets(),
-): string | undefined {
-  return secrets.get(chain_id)?.disputeAdmin
-}
-
 /** The active paymaster-managed EVM chain (BASE-style), if configured. */
 export function paymasterChainSecret(
   secrets: Map<string, ResolvedChainSecret> = getChainSecrets(),

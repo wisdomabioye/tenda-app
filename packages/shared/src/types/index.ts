@@ -11,6 +11,7 @@ export type {
 } from './user'
 export { ADMIN_ROLES, ASSIGNABLE_ROLES } from './user'
 export { GIG_CATEGORIES } from '../constants/categories'
+export type { ChainNamespace } from '../db/schema/chains'
 export type {
   Escrow,
   NewEscrow,
@@ -83,6 +84,7 @@ export type {
   SendDisputeMessageBody,
   DisputeResolution,
   DisputeResolutionRow,
+  AdminResolutionView,
   ResolutionQueueRow,
   ResolutionWinner,
   ResolutionStatus,

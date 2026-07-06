@@ -44,6 +44,8 @@ export interface SolanaAdapterArgs {
   chain_id: ChainId
   /** RPC endpoint URL from `SOLANA_RPC_URL`. */
   rpc_url: string
+  /** Configured dispute-resolution authority (base58), if any. */
+  dispute_authority?: string
   deps: SolanaAdapterDeps
 }
 
@@ -68,6 +70,7 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
   return {
     namespace: 'solana',
     chain_id: args.chain_id,
+    disputeAuthority: args.dispute_authority,
     buildTx: builders.buildTx,
     verifyTx: verifier.verifyTx,
     fetchEscrowState: verifier.fetchEscrowState,

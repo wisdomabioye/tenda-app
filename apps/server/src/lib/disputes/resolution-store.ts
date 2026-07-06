@@ -80,6 +80,32 @@ export async function getResolutionById(
   return row
 }
 
+export interface ResolutionEscrow {
+  escrow_id: string
+  chain_id: string
+  escrow_status: string
+  resolved_at: Date | null
+}
+
+/** The escrow a dispute rides on (chain + live status), for the sign flow. */
+export async function getResolutionEscrow(
+  db: AppDatabase,
+  disputeId: string,
+): Promise<ResolutionEscrow | undefined> {
+  const [row] = await db
+    .select({
+      escrow_id: disputes.escrow_id,
+      chain_id: escrows.chain_id,
+      escrow_status: escrows.status,
+      resolved_at: disputes.resolved_at,
+    })
+    .from(disputes)
+    .innerJoin(escrows, eq(escrows.id, disputes.escrow_id))
+    .where(eq(disputes.id, disputeId))
+    .limit(1)
+  return row
+}
+
 /** Signing queue: proposals in the given state + escrow context for triage. */
 export async function getResolutionQueue(
   db: AppDatabase,

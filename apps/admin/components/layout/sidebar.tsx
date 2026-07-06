@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import {
   ScaleIcon,
+  GavelIcon,
   BarChart2Icon,
   BriefcaseIcon,
   UsersIcon,
@@ -36,6 +37,7 @@ import { visibleNav } from '@/lib/nav'
 // Icons keyed by href — lib/nav.ts stays UI-free so node:test can load it.
 const NAV_ICONS: Record<string, LucideIcon> = {
   '/disputes': ScaleIcon,
+  '/resolutions': GavelIcon,
   '/reports': BarChart2Icon,
   '/escrows': BriefcaseIcon,
   '/users': UsersIcon,

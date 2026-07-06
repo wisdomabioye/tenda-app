@@ -47,6 +47,9 @@ const WALLETS: Record<string, string> = {
   'user-counterparty': COUNTERPARTY.toBase58(),
   'user-admin': '4Nd1mYvK4Pm1x2HCmzCx5GQDV9KbpMK128bxgL5dVDU1',
 }
+// The chain's configured dispute-resolution authority — the resolveDispute
+// signer/fee-payer, passed in explicitly (NOT resolved from any user wallet).
+const DISPUTE_AUTHORITY = '9n2vi3JQE5MzTeRyHA4SeGJRf536noeV4jaJWZ5q2Wu8'
 
 function makeAdapter(rpc: FakeSolanaRpc, resolvedUserIds: string[] = []) {
   return solanaAdapter({
@@ -496,15 +499,18 @@ test('buildTx disputeEscrow: bond arg validated; resolveDispute resolves raiser 
 
   const rpcDisputed = fakeSolanaRpc()
   await stageAcceptedEscrow(rpcDisputed)
+  // The signing admin has NO linked Solana wallet (not in WALLETS): the resolve
+  // tx must still build, fee-paid by the configured authority, never the admin.
   const resolved = decodeUnsigned(
     await makeAdapter(rpcDisputed).buildTx({
       action: 'resolveDispute',
-      user_id: 'user-admin',
+      user_id: 'user-admin-no-wallet',
+      signer_address: DISPUTE_AUTHORITY,
       payload: { escrow_id: ESCROW_UUID, winner: 'split', raiser_user_id: 'user-counterparty' },
     }),
   )
   expectDiscriminator(resolved.discriminator, 'resolveDisputeSol')
-  assert.strictEqual(resolved.payer, WALLETS['user-admin'])
+  assert.strictEqual(resolved.payer, DISPUTE_AUTHORITY)
   assert.strictEqual(resolved.instructionCount, 1)
 })
 
@@ -532,7 +538,8 @@ test('buildTx disputeEscrow / resolveDispute on an SPL escrow: _spl variants wit
   const resolve = decodeUnsigned(
     await a.buildTx({
       action: 'resolveDispute',
-      user_id: 'user-admin',
+      user_id: 'user-admin-no-wallet',
+      signer_address: DISPUTE_AUTHORITY,
       payload: { escrow_id: ESCROW_UUID, winner: 'creator', raiser_user_id: 'user-creator' },
     }),
   )
@@ -551,7 +558,7 @@ test('buildTx disputeEscrow / resolveDispute on an SPL escrow: _spl variants wit
     resolve.ataOwners.sort(),
     [CREATOR, COUNTERPARTY, TREASURY].map((k) => k.toBase58()).sort(),
   )
-  assert.strictEqual(resolve.payer, WALLETS['user-admin'])
+  assert.strictEqual(resolve.payer, DISPUTE_AUTHORITY)
 })
 
 // ---------- ataProvisioningIx helper ---------------------------------------

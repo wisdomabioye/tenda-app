@@ -86,6 +86,8 @@ export interface EvmAdapterArgs {
    * always-on for CELO, no counter, no paymaster).
    */
   fee_currency?: `0x${string}`
+  /** Configured dispute-resolution authority (0x address), if any. */
+  dispute_authority?: string
   deps: EvmAdapterDeps
 }
 
@@ -103,6 +105,10 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
 
     const sponsorable =
       args.deps.paymaster !== undefined &&
+      // resolveDispute is signed by the configured dispute authority (an EOA
+      // paying its own gas), never sponsored — a userop would also target the
+      // wrong sender and the admin signer can't sign one.
+      build.action !== 'resolveDispute' &&
       call.value_raw === '0' && // paymasters won't fund msg.value
       (await (args.deps.shouldSponsor?.(build.user_id) ?? Promise.resolve(false)))
 
@@ -354,6 +360,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
   return {
     namespace: 'eip155',
     chain_id: args.chain_id,
+    disputeAuthority: args.dispute_authority,
     buildTx,
     buildPermitPayload,
     verifyTx,

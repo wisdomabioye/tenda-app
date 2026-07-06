@@ -16,7 +16,14 @@ export type { SolanaBuilderDeps }
 
 export function createSolanaBuilders(deps: SolanaBuilderDeps) {
   async function buildTx(args: BuildTxArgs): Promise<UnsignedTx> {
-    const wallet = new PublicKey(await deps.resolveWalletAddress(args.user_id))
+    // resolveDispute is signed by the chain's configured dispute authority
+    // (fee-payer + `disputeAdmin` account), passed in explicitly. Every other
+    // action is signed by the acting user, resolved from their linked wallet.
+    const signerAddress =
+      args.action === 'resolveDispute'
+        ? args.signer_address
+        : await deps.resolveWalletAddress(args.user_id)
+    const wallet = new PublicKey(signerAddress)
     const instructions = await buildInstruction(deps, args, wallet)
     const { blockhash, last_valid_block_height } = await deps.rpc.getLatestBlockhash()
     const message = new TransactionMessage({

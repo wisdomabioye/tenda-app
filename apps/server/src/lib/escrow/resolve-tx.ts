@@ -23,7 +23,7 @@ export interface BuildResolveTxArgs {
   escrow_id: string
   chain_id: string
   winner: ResolutionWinner
-  /** The signing admin's user id (passed through to the adapter). */
+  /** The signing admin's user id — attribution only, NOT the signer wallet. */
   signer_user_id: string
 }
 
@@ -45,9 +45,25 @@ export async function buildResolveTx(
   }
 
   const adapter = deps.chains.get(args.chain_id)
+
+  // The resolve tx is authorised by the chain's dispute-resolution key, whose
+  // public address rides the adapter (from its secret). It is the signer
+  // (Solana bakes it in as fee-payer/`disputeAdmin`; EVM signs from it) —
+  // never the calling admin's personal wallet, which may not exist for this
+  // chain's namespace.
+  const signer_address = adapter.disputeAuthority
+  if (signer_address === undefined) {
+    throw new AppError(
+      409,
+      ErrorCode.CHAIN_NOT_CONFIGURED,
+      `no dispute-resolution authority configured for ${args.chain_id}`,
+    )
+  }
+
   return adapter.buildTx({
     action: 'resolveDispute',
     user_id: args.signer_user_id,
+    signer_address,
     payload: { escrow_id: args.escrow_id, winner: args.winner, raiser_user_id: dispute.raised_by },
   })
 }

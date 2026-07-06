@@ -31,6 +31,8 @@ export const adminRoutes = {
   resolutions: {
     list: '/v1/admin/resolutions',
     reject: '/v1/admin/resolutions/:id/reject',
+    executeBuild: '/v1/admin/resolutions/:id/execute-build',
+    broadcast: '/v1/admin/resolutions/:id/broadcast',
   },
   disputeThread: {
     // Thread routes live on the escrow (shared with the parties). There is

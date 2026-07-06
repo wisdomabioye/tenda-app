@@ -1,7 +1,7 @@
 import { test, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { act } from '@testing-library/react'
-import type { DisputeResolution } from '@tenda/shared'
+import type { AdminResolutionView } from '@tenda/shared'
 import { useResolution } from '@/hooks/use-resolution'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
@@ -10,10 +10,11 @@ vi.mock('@/api/client', () => ({ adminApi: { disputes: { getResolution: vi.fn() 
 
 const getResolution = vi.mocked(adminApi.disputes.getResolution)
 
-const proposal: DisputeResolution = {
+const proposal: AdminResolutionView = {
   id: 'r1', dispute_id: 'd1', proposed_winner: 'creator', proposed_by: 'm1',
   status: 'pending', threshold: 1, reject_reason: null, rejected_by: null,
   resolved_tx_ref: null, created_at: '2026-07-01T00:00:00.000Z', updated_at: '2026-07-01T00:00:00.000Z',
+  chain_id: 'solana:devnet', dispute_admin_authority: 'C9PXauthority',
 }
 
 beforeEach(() => vi.clearAllMocks())

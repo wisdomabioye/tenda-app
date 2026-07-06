@@ -11,6 +11,7 @@ import { eq, and, or, desc, isNull, isNotNull, sql, type SQL } from 'drizzle-orm
 import { disputes, dispute_resolutions, escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type {
+  AdminResolutionView,
   ApiError,
   DisputeResolution,
   DisputeSummary,
@@ -23,6 +24,7 @@ import { appEvents } from '@server/lib/events'
 import {
   getActiveResolution,
   getLatestResolution,
+  getResolutionEscrow,
   narrowWinner,
   toResolutionWire,
 } from '@server/lib/disputes/resolution-store'
@@ -199,10 +201,19 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
   // state) or null. Lets the detail view show pending / rejected / confirmed.
   fastify.get<{
     Params: { id: string }
-    Reply: DisputeResolution | null | ApiError
+    Reply: AdminResolutionView | null | ApiError
   }>('/:id/resolution', { preHandler: [requirePermission('disputes.read')] }, async (request) => {
     const row = await getLatestResolution(fastify.db, request.params.id)
-    return row === undefined ? null : toResolutionWire(row)
+    if (row === undefined) return null
+    // Attach the sign context so the panel can reactively gate the sign button
+    // (connected wallet must match this chain's authority) without building.
+    const escrow = await getResolutionEscrow(fastify.db, request.params.id)
+    const chain_id = escrow?.chain_id ?? ''
+    const dispute_admin_authority =
+      escrow !== undefined && fastify.chains.has(escrow.chain_id)
+        ? (fastify.chains.get(escrow.chain_id).disputeAuthority ?? null)
+        : null
+    return { ...toResolutionWire(row), chain_id, dispute_admin_authority }
   })
 
   // POST /v1/admin/disputes/:id/resolution, a claim-holding mediator records

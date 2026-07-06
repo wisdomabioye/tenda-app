@@ -193,7 +193,13 @@ export type BuildTxArgs =
   | { action: 'refundExpired'; user_id: string; payload: EscrowIdPayload }
   | { action: 'reclaimAbandoned'; user_id: string; payload: EscrowIdPayload }
   | { action: 'disputeEscrow'; user_id: string; payload: DisputeEscrowPayload }
-  | { action: 'resolveDispute'; user_id: string; payload: ResolveDisputePayload }
+  // resolveDispute is signed by the chain's configured dispute-resolution
+  // authority (NOT the calling admin's personal wallet), so the signer address
+  // is passed explicitly rather than resolved from the admin's `user_wallets`.
+  // Solana bakes it in as fee-payer + `disputeAdmin`; EVM signs from the
+  // connected authority wallet (this is the pre-flighted address). `user_id`
+  // stays for tx-attempt attribution only.
+  | { action: 'resolveDispute'; user_id: string; signer_address: string; payload: ResolveDisputePayload }
 
 /**
  * ERC-4337 UserOperation shape. Per the spec; bundlers expect every field
@@ -347,6 +353,14 @@ export interface VerifyAuthSigArgs {
 export interface ChainAdapter {
   readonly namespace: ChainNamespace
   readonly chain_id: ChainId
+
+  /**
+   * Public address of this chain's configured dispute-resolution authority
+   * (from its secret), or undefined when unset. Single source for BOTH the
+   * admin sign pre-flight (connected wallet must equal this) AND the resolve
+   * tx's signer/fee-payer, so the two can never drift apart.
+   */
+  readonly disputeAuthority?: string
 
   /** Build an unsigned transaction the client will sign. */
   buildTx(args: BuildTxArgs): Promise<UnsignedTx>

@@ -5,7 +5,6 @@ import {
   chainEnvPrefix,
   solanaSecret,
   paymasterChainSecret,
-  disputeAdminFor,
   getChainSecrets,
   resetChainSecretsCache,
 } from '@server/chains/secrets'
@@ -215,21 +214,18 @@ test('dispute_admin authority: Solana reads a base58 value, per chain', () => {
   const env = { ...solanaDevnetEnv(), CHAIN_SOLANA_DEVNET_DISPUTE_ADMIN_ADDR: SOL_PUBKEY }
   const secrets = loadChainSecrets(env)
   assert.equal(secrets.get('solana:devnet')?.disputeAdmin, SOL_PUBKEY)
-  assert.equal(disputeAdminFor('solana:devnet', secrets), SOL_PUBKEY)
 })
 
 test('dispute_admin authority: EVM reads a 0x value, distinct from Solana', () => {
   const env = { ...baseMainnetEnv(), CHAIN_EIP155_8453_DISPUTE_ADMIN_ADDR: EVM_ADDR }
   const secrets = loadChainSecrets(env)
   assert.equal(secrets.get('eip155:8453')?.disputeAdmin, EVM_ADDR)
-  assert.equal(disputeAdminFor('eip155:8453', secrets), EVM_ADDR)
 })
 
 test('dispute_admin authority: optional — absent leaves it undefined, no error', () => {
   const secrets = loadChainSecrets(solanaDevnetEnv())
   assert.equal(secrets.get('solana:devnet')?.disputeAdmin, undefined)
-  assert.equal(disputeAdminFor('solana:devnet', secrets), undefined)
-  assert.equal(disputeAdminFor('eip155:8453', secrets), undefined) // unconfigured chain
+  assert.equal(secrets.get('eip155:8453')?.disputeAdmin, undefined) // unconfigured chain
 })
 
 test('dispute_admin authority: a malformed value is a boot error naming the key', () => {

@@ -5,11 +5,11 @@ package_manager = "pnpm"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-tenda_escrow = "7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes"
-
 [programs.devnet]
-tenda_escrow = "7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes"
+tenda_escrow = "996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv"
+
+[programs.localnet]
+tenda_escrow = "996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv"
 
 [registry]
 url = "https://api.apr.dev"

@@ -13,6 +13,7 @@ import type {
   Announcement,
   BroadcastPushBody,
   CreateAnnouncementBody,
+  AdminResolutionView,
   CreateFeaturedSlotBody,
   DisputeMessage,
   DisputeRateMetric,
@@ -22,6 +23,7 @@ import type {
   FeaturedSlotRow,
   FinanceFeesResponse,
   PaginatedResponse,
+  ResolutionExecuteBuild,
   ResolutionQueueRow,
   ResolutionStatus,
   ResolutionWinner,
@@ -175,7 +177,7 @@ export const adminApi = {
         buildPath(adminRoutes.disputes.release, { id }),
       ),
     getResolution: (id: string) =>
-      api.get<DisputeResolution | null>(buildPath(adminRoutes.disputes.resolution, { id })),
+      api.get<AdminResolutionView | null>(buildPath(adminRoutes.disputes.resolution, { id })),
     propose: (id: string, winner: ResolutionWinner) =>
       api.post<DisputeResolution>(buildPath(adminRoutes.disputes.resolution, { id }), { winner }),
   },
@@ -184,6 +186,10 @@ export const adminApi = {
       api.get<PaginatedResponse<ResolutionQueueRow>>(withQuery(adminRoutes.resolutions.list, query)),
     reject: (id: string, reason: string) =>
       api.post<DisputeResolution>(buildPath(adminRoutes.resolutions.reject, { id }), { reason }),
+    executeBuild: (id: string) =>
+      api.post<ResolutionExecuteBuild>(buildPath(adminRoutes.resolutions.executeBuild, { id })),
+    broadcast: (id: string, tx_ref: string) =>
+      api.post<{ status: string }>(buildPath(adminRoutes.resolutions.broadcast, { id }), { tx_ref }),
   },
   disputeThread: {
     /** Thread rides the ESCROW id (shared with the parties' app). */

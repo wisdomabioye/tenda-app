@@ -56,7 +56,7 @@ mod _anchor_reexports {
 pub use _anchor_reexports::*;
 use state::DisputeWinner;
 
-declare_id!("7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes");
+declare_id!("996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv");
 
 #[program]
 pub mod tenda_escrow {

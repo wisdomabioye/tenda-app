@@ -1,11 +1,12 @@
 'use client'
 
-import { hasPermission, winnerLabel, type EscrowKind, type DisputeResolution } from '@tenda/shared'
+import { hasPermission, winnerLabel, type EscrowKind, type AdminResolutionView } from '@tenda/shared'
 import { Badge } from '@/components/ui/badge'
 import { useSessionUser } from '@/lib/use-session'
 import { useResolution } from '@/hooks/use-resolution'
 import { ProposeForm } from './propose-form'
 import { RejectAction } from './reject-action'
+import { SignAction } from './sign-action'
 
 const ACTIVE = new Set(['pending', 'executing'])
 
@@ -15,7 +16,7 @@ function ActiveProposal({
   canExecute,
   onChanged,
 }: {
-  resolution: DisputeResolution
+  resolution: AdminResolutionView
   kind: EscrowKind
   canExecute: boolean
   onChanged: () => void
@@ -27,9 +28,19 @@ function ActiveProposal({
         <Badge variant="secondary">awaiting signature</Badge>
       </div>
       <p className="text-xs text-muted-foreground">
-        A key-holder signs this on-chain to release the funds. Signing lands in a later step.
+        A key-holder signs this on-chain to release the funds.
       </p>
-      {canExecute && <RejectAction resolutionId={resolution.id} onRejected={onChanged} />}
+      {canExecute && (
+        <div className="flex flex-col gap-2">
+          <SignAction
+            resolutionId={resolution.id}
+            chainId={resolution.chain_id}
+            authority={resolution.dispute_admin_authority}
+            onSigned={onChanged}
+          />
+          <RejectAction resolutionId={resolution.id} onRejected={onChanged} />
+        </div>
+      )}
     </div>
   )
 }

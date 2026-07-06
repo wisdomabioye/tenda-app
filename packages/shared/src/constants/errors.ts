@@ -33,6 +33,9 @@ export const ErrorCode = {
   DUPLICATE_SIGNATURE:           'DUPLICATE_SIGNATURE',
   ESCROW_NOT_FUNDED:             'ESCROW_NOT_FUNDED',
   ESCROW_MISMATCH:               'ESCROW_MISMATCH',
+  /** A chain-level prerequisite (e.g. the dispute-resolution authority) is not
+   *  configured on the server for the target chain. */
+  CHAIN_NOT_CONFIGURED:          'CHAIN_NOT_CONFIGURED',
   // Moderation
   CONTENT_MODERATED:             'CONTENT_MODERATED',
   CANNOT_REPORT_SELF:            'CANNOT_REPORT_SELF',

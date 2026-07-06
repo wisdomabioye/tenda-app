@@ -58,6 +58,7 @@ export function buildAdapters(
         solanaAdapter({
           chain_id: secret.chainId,
           rpc_url: secret.rpcUrl,
+          dispute_authority: secret.disputeAdmin,
           deps: deps.solana(secret.chainId),
         }),
       )
@@ -68,6 +69,7 @@ export function buildAdapters(
           rpc_url: secret.rpcUrl,
           escrow_contract: secret.escrow as `0x${string}`,
           min_confirmations: entry.minConfirmations,
+          dispute_authority: secret.disputeAdmin,
           ...(entry.gasPolicy === 'feeCurrency' ? { fee_currency: requireFeeCurrency(entry) } : {}),
           deps: deps.evm(secret.chainId, secret, entry),
         }),

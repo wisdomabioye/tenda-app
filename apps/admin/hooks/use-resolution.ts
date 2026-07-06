@@ -7,12 +7,12 @@
  */
 
 import { useCallback, useEffect, useState } from 'react'
-import type { DisputeResolution } from '@tenda/shared'
+import type { AdminResolutionView } from '@tenda/shared'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
 
 interface ResolutionState {
-  resolution: DisputeResolution | null
+  resolution: AdminResolutionView | null
   loading: boolean
   error: string | null
   reload: () => void
@@ -20,7 +20,7 @@ interface ResolutionState {
 
 interface Settled {
   key: string
-  resolution: DisputeResolution | null
+  resolution: AdminResolutionView | null
   error: string | null
 }
 

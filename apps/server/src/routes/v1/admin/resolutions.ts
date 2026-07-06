@@ -9,7 +9,7 @@
  */
 import type { FastifyPluginAsync } from 'fastify'
 import { and, eq, inArray } from 'drizzle-orm'
-import { dispute_resolutions, disputes, escrows } from '@tenda/shared/db/schema'
+import { dispute_resolutions } from '@tenda/shared/db/schema'
 import { ErrorCode, MAX_DISPUTE_REASON_LENGTH } from '@tenda/shared'
 import type {
   ApiError,
@@ -25,10 +25,11 @@ import { requirePermission } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { buildResolveTx } from '@server/lib/escrow/resolve-tx'
-import { disputeAdminFor } from '@server/chains/secrets'
+import { drizzleTxAttemptsStore, recordTxAttempt } from '@server/lib/tx-attempts'
 import {
   ACTIVE_RESOLUTION_STATUSES,
   getResolutionById,
+  getResolutionEscrow,
   getResolutionQueue,
   toResolutionWire,
 } from '@server/lib/disputes/resolution-store'
@@ -110,12 +111,7 @@ const adminResolutions: FastifyPluginAsync = async (fastify) => {
     }
 
     // The escrow must still be on-chain disputed for the resolve tx to land.
-    const [row] = await fastify.db
-      .select({ escrow_id: disputes.escrow_id, chain_id: escrows.chain_id, escrow_status: escrows.status, resolved_at: disputes.resolved_at })
-      .from(disputes)
-      .innerJoin(escrows, eq(escrows.id, disputes.escrow_id))
-      .where(eq(disputes.id, resolution.dispute_id))
-      .limit(1)
+    const row = await getResolutionEscrow(fastify.db, resolution.dispute_id)
     if (row === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Dispute not found')
     if (row.resolved_at !== null) throw new AppError(409, ErrorCode.DISPUTE_RESOLVED, 'Dispute already resolved')
     if (row.escrow_status !== 'disputed') {
@@ -143,9 +139,46 @@ const adminResolutions: FastifyPluginAsync = async (fastify) => {
       escrow_id: row.escrow_id,
       chain_id: row.chain_id,
       proposed_winner: resolution.proposed_winner,
-      dispute_admin_authority: disputeAdminFor(row.chain_id) ?? null,
+      dispute_admin_authority: fastify.chains.get(row.chain_id).disputeAuthority ?? null,
       unsigned,
     }
+  })
+
+  // POST /v1/admin/resolutions/:id/broadcast — the signer's client-ping after
+  // broadcasting the signed resolve tx. Admin-scoped (consistent CORS) and
+  // server-authoritative: escrow/chain/action derive from the resolution, the
+  // client sends only the tx ref. Records the attempt + enqueues verify-tx,
+  // which applies DisputeResolved → the C1 confirm-hook flips the proposal.
+  fastify.post<{
+    Params: { id: string }
+    Body: { tx_ref?: unknown }
+    Reply: { status: string } | ApiError
+  }>('/:id/broadcast', { preHandler: [requirePermission('disputes.execute')] }, async (request, reply) => {
+    const tx_ref = typeof request.body?.tx_ref === 'string' ? request.body.tx_ref.trim() : ''
+    if (tx_ref === '') throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'tx_ref is required')
+
+    const resolution = await getResolutionById(fastify.db, request.params.id)
+    if (resolution === undefined) throw new AppError(404, ErrorCode.RESOLUTION_NOT_FOUND, 'Resolution not found')
+    // Must have been built first (execute-build → 'executing').
+    if (resolution.status !== 'executing') {
+      throw new AppError(409, ErrorCode.RESOLUTION_NOT_ACTIVE, `resolution is ${resolution.status}, not awaiting a signature`)
+    }
+    const escrow = await getResolutionEscrow(fastify.db, resolution.dispute_id)
+    if (escrow === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Dispute not found')
+
+    const adapter = fastify.chains.get(escrow.chain_id)
+    const result = await recordTxAttempt(
+      { store: drizzleTxAttemptsStore(fastify.db), queue: fastify.queue, log: request.log },
+      {
+        user_id: request.user.id,
+        escrow_id: escrow.escrow_id,
+        action: 'resolve',
+        tx_ref,
+        chain_id: escrow.chain_id,
+        chain_ns: adapter.namespace,
+      },
+    )
+    return reply.code(202).send({ status: 'queued', ...result })
   })
 }
 

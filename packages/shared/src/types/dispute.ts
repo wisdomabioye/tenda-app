@@ -30,6 +30,19 @@ export interface DisputeResolution {
   updated_at: string
 }
 
+/**
+ * A proposal enriched with the sign context (chain + configured authority) so
+ * the admin panel can reactively gate the sign button — show the connected
+ * wallet, and only enable signing once it matches this chain's authority —
+ * without the side-effecting execute-build. Returned by the admin resolution
+ * read (GET /v1/admin/disputes/:id/resolution).
+ */
+export interface AdminResolutionView extends DisputeResolution {
+  chain_id: string
+  /** Configured dispute authority for the chain; null when unconfigured. */
+  dispute_admin_authority: string | null
+}
+
 /** A pending proposal in the signing queue, with escrow context for triage. */
 export interface ResolutionQueueRow extends DisputeResolution {
   escrow_id: string

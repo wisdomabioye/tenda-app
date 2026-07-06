@@ -2,7 +2,7 @@ import { test, expect, vi, beforeEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
-import type { DisputeResolution, ResolutionQueueRow } from '@tenda/shared'
+import type { AdminResolutionView, ResolutionQueueRow } from '@tenda/shared'
 import { ProposeForm } from '@/components/disputes/resolution/propose-form'
 import { RejectAction } from '@/components/disputes/resolution/reject-action'
 import { ResolutionPanel } from '@/components/disputes/resolution/resolution-panel'
@@ -22,11 +22,12 @@ const propose = vi.mocked(adminApi.disputes.propose)
 const reject = vi.mocked(adminApi.resolutions.reject)
 const getResolution = vi.mocked(adminApi.disputes.getResolution)
 
-function resolution(over: Partial<DisputeResolution> = {}): DisputeResolution {
+function resolution(over: Partial<AdminResolutionView> = {}): AdminResolutionView {
   return {
     id: 'r1', dispute_id: 'd1', proposed_winner: 'creator', proposed_by: 'm1',
     status: 'pending', threshold: 1, reject_reason: null, rejected_by: null,
     resolved_tx_ref: null, created_at: '2026-07-01T00:00:00.000Z', updated_at: '2026-07-01T00:00:00.000Z',
+    chain_id: 'solana:devnet', dispute_admin_authority: 'C9PXauthority',
     ...over,
   }
 }

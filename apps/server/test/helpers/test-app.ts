@@ -69,6 +69,9 @@ export const FAKE_UNSIGNED: UnsignedTx = {
  */
 export const FAKE_BAD_SIGNATURE = 'sig:invalid'
 
+/** Fake chain's configured dispute-resolution authority (a valid base58). */
+export const FAKE_DISPUTE_AUTHORITY = '4Nd1mYvK4Pm1x2HCmzCx5GQDV9KbpMK128bxgL5dVDU1'
+
 function fakeAdapter(chain_id: string): ChainAdapter {
   const unimplemented = (op: string) => () => {
     throw new Error(`fake adapter: ${op} not used by HTTP routes under test`)
@@ -76,6 +79,9 @@ function fakeAdapter(chain_id: string): ChainAdapter {
   return {
     namespace: 'solana',
     chain_id,
+    // Stand-in dispute authority so resolve-tx builds under test (the real
+    // value rides each chain's secret).
+    disputeAuthority: FAKE_DISPUTE_AUTHORITY,
     buildTx: async () => FAKE_UNSIGNED,
     verifyTx: unimplemented('verifyTx'),
     // Offline stand-in for tweetnacl/viem sig verify: any signature passes
