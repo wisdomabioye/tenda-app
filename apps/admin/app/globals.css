@@ -49,6 +49,10 @@
 }
 
 :root {
+  /* Paints native controls (the <select> option popup, scrollbars, date
+     pickers) in the active theme — without it the browser renders the
+     dropdown popup light (white) even in dark mode. */
+  color-scheme: light;
   --background: oklch(1 0 0);
   --foreground: oklch(0.148 0.004 228.8);
   --card: oklch(1 0 0);
@@ -84,6 +88,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --background: oklch(0.148 0.004 228.8);
   --foreground: oklch(0.987 0.002 197.1);
   --card: oklch(0.218 0.008 223.9);
@@ -126,5 +131,15 @@
   }
   html {
     @apply font-sans;
+  }
+  /* Native <select> popups are OS-painted: the option list ignores the
+     trigger's Tailwind classes and renders white in dark mode. The <option>
+     elements carry no utilities, so theming them here (with the popover
+     tokens, which flip with the theme) paints the dropdown list itself.
+     `color-scheme` above covers scrollbars/caret. */
+  select[data-slot="native-select"] option,
+  select[data-slot="native-select"] optgroup {
+    background-color: var(--popover);
+    color: var(--popover-foreground);
   }
 }
