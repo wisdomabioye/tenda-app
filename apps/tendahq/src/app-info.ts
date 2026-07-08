@@ -25,7 +25,7 @@ export const APP_INFO = {
   qrTarget: 'tenda.so/get',
 
   /** Build / release. */
-  version: 'v0.2.1-devnet',
+  version: 'v0.3.1-devnet',
   buildLocation: 'Lagos',
 
   /** Solana chain identity surfaced in the proof band + footer status. */
