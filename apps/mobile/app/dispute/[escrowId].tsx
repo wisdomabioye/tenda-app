@@ -5,7 +5,7 @@
  * read-only once the dispute resolves.
  */
 import { useMemo } from 'react'
-import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
+import { FlatList, KeyboardAvoidingView, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
@@ -71,7 +71,11 @@ export default function DisputeThreadScreen() {
   return (
     <ScreenContainer scroll={false} padding={false}>
       <Header title="Dispute mediation" showBack onBackPress={() => router.back()} />
-      <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {/* SDK 54 edge-to-edge: Android ignores softInputMode for the IME, so the
+          window never moves (config is 'resize' precisely to keep the OS inert,
+          not pan). The KAV therefore owns the avoidance in JS via 'padding' —
+          the single lift, no OS double-move. */}
+      <KeyboardAvoidingView style={s.flex} behavior="padding">
         {thread.context !== null && (
           <DisputeContextHeader context={thread.context} currentUserId={myId} />
         )}

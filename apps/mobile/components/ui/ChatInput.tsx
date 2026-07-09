@@ -3,6 +3,7 @@ import { View, TextInput, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Paperclip, ArrowUp } from 'lucide-react-native'
+import { useKeyboardVisible } from '@/hooks/useKeyboardVisible'
 import { typography, shadows } from '@/theme/tokens'
 
 interface ChatInputProps {
@@ -14,6 +15,9 @@ interface ChatInputProps {
 export function ChatInput({ onSend, onAttach, disabled }: ChatInputProps) {
   const { theme } = useUnistyles()
   const insets = useSafeAreaInsets()
+  // The KeyboardAvoidingView lifts this bar by the full keyboard height (which
+  // spans the nav-bar area), so the nav-bar inset is only needed when closed.
+  const keyboardVisible = useKeyboardVisible()
   const [text, setText] = useState('')
 
   function handleSend() {
@@ -32,7 +36,7 @@ export function ChatInput({ onSend, onAttach, disabled }: ChatInputProps) {
         {
           backgroundColor: theme.colors.surface.background,
           borderTopColor: theme.colors.border.subtle,
-          paddingBottom: 12 + insets.bottom,
+          paddingBottom: keyboardVisible ? 12 : 12 + insets.bottom,
         },
       ]}
     >

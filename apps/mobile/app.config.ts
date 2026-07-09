@@ -24,7 +24,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // icon: '',
   },
   android: {
-    softwareKeyboardLayoutMode: 'pan',
+    // 'resize' pairs with the app-wide KeyboardAvoidingView idiom
+    // (behavior={undefined} on Android): the window resizes so bottom-anchored
+    // inputs (ChatInput on the chat + dispute threads) fully clear the keyboard.
+    // 'pan' only guaranteed the cursor cleared it, leaving the input row's lower
+    // edge tucked under the keyboard.
+    softwareKeyboardLayoutMode: 'resize',
     adaptiveIcon: {
       backgroundColor: '#3b82f6',
       foregroundImage: './assets/images/android-icon-foreground.png',
