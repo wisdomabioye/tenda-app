@@ -8,7 +8,7 @@ import { GigProofsGrid } from './GigProofsGrid'
 import type { ProofItem } from './ProofViewerModal'
 import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel } from '@/lib/gig-display'
 import { PersonCard, ReviewsSection } from '@/components/shared'
-import { DisputeReasonBlock, ReportContentLink } from '@/components/escrow'
+import { DisputeReasonBlock, ReportContentLink, ChainBadge } from '@/components/escrow'
 import { CATEGORY_META } from '@/lib/categories'
 import { computeRelevantDeadline } from '@tenda/shared'
 import type { GigDetail } from '@tenda/shared'
@@ -39,6 +39,8 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
       <View style={s.badgeRow}>
         <Badge variant={STATUS_BADGE_VARIANT[gig.status]} label={STATUS_LABEL[gig.status]} />
         {categoryMeta && <Badge variant="brand" label={categoryMeta.label} />}
+        {/* Which network the escrow (and its payout) lives on. */}
+        <ChainBadge chainId={gig.chain_id} />
       </View>
 
       <Spacer size={spacing.sm} />

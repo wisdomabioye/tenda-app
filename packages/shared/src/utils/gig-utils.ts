@@ -58,8 +58,14 @@ export function canSubmit(e: EscrowLike, userId: string): boolean {
   return e.status === 'accepted' && e.counterparty_id === userId
 }
 
+/**
+ * The counterparty (worker) may attach evidence while the poster reviews
+ * (`submitted`) AND while the escrow is under dispute (`disputed`) — a
+ * mediator often needs more proof mid-review, so the upload stays open until
+ * the dispute resolves. Kept off-chain; it never changes the escrow status.
+ */
 export function canAddProof(e: EscrowLike, userId: string): boolean {
-  return e.status === 'submitted' && e.counterparty_id === userId
+  return (e.status === 'submitted' || e.status === 'disputed') && e.counterparty_id === userId
 }
 
 export function canApprove(e: EscrowLike, userId: string): boolean {

@@ -128,7 +128,9 @@ export function GigCTABar({
       )
     }
 
-    if (canAddProof(parties, userId)) {
+    // Disputed is handled in its own branch below (the worker still adds
+    // evidence, but must not see a redundant "Dispute" button).
+    if (canAddProof(parties, userId) && gig.status !== 'disputed') {
       // Approval window passed with no dispute → the worker can claim.
       if (canClaim({ ...parties, approval_deadline: gig.approval_deadline }, userId)) {
         return (
@@ -188,11 +190,22 @@ export function GigCTABar({
     }
 
     if (gig.status === 'disputed') {
-      return (
+      // The worker can keep adding evidence for the mediator while the dispute
+      // is open; both parties still see the "under review" status.
+      const notice = (
         <View style={[s.infoNotice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
           <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
             Under review by admin
           </Text>
+        </View>
+      )
+      if (!canAddProof(parties, userId)) return notice
+      return (
+        <View style={s.ctaStack}>
+          <Button variant="outline" size="xl" fullWidth onPress={() => onAction('addProof')}>
+            Add Evidence
+          </Button>
+          {notice}
         </View>
       )
     }

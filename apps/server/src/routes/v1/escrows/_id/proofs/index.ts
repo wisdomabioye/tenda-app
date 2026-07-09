@@ -8,7 +8,7 @@
  */
 import { FastifyPluginAsync } from 'fastify'
 import { count, eq } from 'drizzle-orm'
-import { escrow_proofs } from '@tenda/shared/db/schema'
+import { escrow_proofs, disputes } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { ApiError, EscrowProof } from '@tenda/shared'
 import { loadEscrowOr404, deriveCaller } from '@server/lib/escrow-routes'
@@ -33,11 +33,15 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
       const { proofs } = request.body ?? {}
 
       const escrow = await loadEscrowOr404(fastify.db, id)
-      if (escrow.status !== 'accepted' && escrow.status !== 'submitted') {
+      // accepted/submitted = the normal delivery flow; disputed = the worker
+      // adds evidence for the mediator while the dispute is open (off-chain,
+      // no status change either way).
+      const PROOFABLE = ['accepted', 'submitted', 'disputed']
+      if (!PROOFABLE.includes(escrow.status)) {
         throw new AppError(
           409,
           ErrorCode.ESCROW_WRONG_STATUS,
-          'Proofs can only be added while the escrow is accepted or submitted',
+          'Proofs can only be added while the escrow is accepted, submitted, or under dispute',
         )
       }
       if (escrow.counterparty_id !== request.user.id) {
@@ -93,6 +97,29 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
           })
         } catch (err) {
           request.log.warn({ err }, 'proofs: notification enqueue failed (queue unavailable)')
+        }
+      } else if (escrow.status === 'disputed') {
+        // Mid-dispute evidence: alert the other party and the assigned mediator
+        // (if any), deep-linking to the shared mediation thread where the proof
+        // now shows. Only the counterparty can reach here, so the "other party"
+        // is always the creator.
+        try {
+          const [dispute] = await fastify.db
+            .select({ assigned_to: disputes.assigned_to })
+            .from(disputes)
+            .where(eq(disputes.escrow_id, id))
+          const recipients = new Set<string>([escrow.creator_id])
+          if (dispute?.assigned_to) recipients.add(dispute.assigned_to)
+          for (const user_id of recipients) {
+            await fastify.queue.enqueue('notifications', {
+              user_id,
+              title: 'New dispute evidence',
+              body: 'The worker added evidence to the dispute.',
+              data: { screen: 'dispute', escrowId: id },
+            })
+          }
+        } catch (err) {
+          request.log.warn({ err }, 'proofs: dispute notification enqueue failed (queue unavailable)')
         }
       }
 

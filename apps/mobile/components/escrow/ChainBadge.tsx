@@ -1,23 +1,13 @@
-import { View, StyleSheet } from 'react-native'
+import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
+import { chainLabel } from '@/lib/chains'
 
-const CHAIN_LABEL: readonly { prefix: string; label: string }[] = [
-  { prefix: 'solana:', label: 'Solana' },
-  { prefix: 'eip155:8453', label: 'BASE' },
-  { prefix: 'eip155:84532', label: 'BASE' },
-  { prefix: 'eip155:42220', label: 'CELO' },
-]
-
-export function chainLabel(chain_id: string): string {
-  return CHAIN_LABEL.find((c) => chain_id.startsWith(c.prefix))?.label ?? 'Unknown'
-}
-
-/** Small chain marker for escrow detail (stage-3 § mobile). */
-export function ChainBadge({ chainId }: { chainId: string }) {
+/** Small chain marker: names the network an escrow/gig lives on. */
+export function ChainBadge({ chainId, style }: { chainId: string; style?: StyleProp<ViewStyle> }) {
   const { theme } = useUnistyles()
   return (
-    <View style={[s.badge, { backgroundColor: theme.colors.surface.inset }]}>
+    <View style={[s.badge, { backgroundColor: theme.colors.surface.inset }, style]}>
       <Text size={10.5} weight="semibold" color={theme.colors.content.secondary}>
         {chainLabel(chainId)}
       </Text>

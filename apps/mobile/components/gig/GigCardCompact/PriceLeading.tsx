@@ -10,6 +10,7 @@ import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { LOCATIONS, type CountryCode , GigSummary } from '@tenda/shared'
 import { gigDeadlineMeta } from '@/lib/gig-display'
+import { ChainBadge } from '@/components/escrow/ChainBadge'
 import { STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
 
 interface Props {
@@ -79,6 +80,7 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
               {fiatAlt}
             </Text>
           ) : null}
+          <ChainBadge chainId={gig.chain_id} style={s.chain} />
         </View>
       </View>
 
@@ -227,6 +229,7 @@ const s = StyleSheet.create({
     letterSpacing: 0.105,
     marginTop: 4,
   },
+  chain: { marginTop: 6 },
   body: {
     flex: 1,
     minWidth: 0,

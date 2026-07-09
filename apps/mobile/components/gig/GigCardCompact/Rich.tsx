@@ -10,6 +10,7 @@ import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { LOCATIONS, type CountryCode , GigSummary } from '@tenda/shared'
 import { gigDeadlineMeta } from '@/lib/gig-display'
+import { ChainBadge } from '@/components/escrow/ChainBadge'
 import { STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
 
 interface Props {
@@ -155,6 +156,8 @@ export function GigCardCompactRich({ gig, showStatus = false }: Props) {
             </Text>
           </View>
         </View>
+
+        <ChainBadge chainId={gig.chain_id} />
 
         <Text
           style={[s.price, { color: theme.colors.content.primary }]}

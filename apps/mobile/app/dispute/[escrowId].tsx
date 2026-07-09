@@ -7,6 +7,7 @@
 import { useMemo } from 'react'
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 import { displayName, type DisputeMessage } from '@tenda/shared'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
@@ -28,6 +29,7 @@ export default function DisputeThreadScreen() {
   const { escrowId } = useLocalSearchParams<{ escrowId: string }>()
   const router = useRouter()
   const { theme } = useUnistyles()
+  const insets = useSafeAreaInsets()
   const myId = useAuthStore((s) => s.user?.id ?? '')
 
   const { loading, error, thread, messages, send, reload } = useDisputeThread(escrowId ?? null)
@@ -113,7 +115,14 @@ export default function DisputeThreadScreen() {
             </View>
           }
         />
-        {!thread.read_only && <ChatInput onSend={(text) => void handleSend(text)} />}
+        {!thread.read_only ? (
+          <ChatInput onSend={(text) => void handleSend(text)} />
+        ) : (
+          // Resolved threads drop the ChatInput, which was the only element
+          // reserving the bottom safe-area. Without this spacer the inverted
+          // list's newest message renders behind the Android nav bar.
+          <View style={{ height: insets.bottom }} />
+        )}
       </KeyboardAvoidingView>
     </ScreenContainer>
   )
@@ -128,10 +137,9 @@ const s = StyleSheet.create({
     borderRadius: 10,
     padding: spacing.sm,
   },
-  empty: {
-    padding: spacing.xl,
-    // inverted list flips children, flip the empty state back upright
-    transform: [{ scaleY: -1 }],
-  },
+  // Mirrors the chat screen: an inverted FlatList does not flip its
+  // ListEmptyComponent in this RN version, so no counter-transform is needed —
+  // adding one would render the copy upside-down.
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
   emptyText: { textAlign: 'center' },
 })

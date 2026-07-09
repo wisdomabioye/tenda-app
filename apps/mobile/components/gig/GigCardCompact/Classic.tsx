@@ -6,6 +6,7 @@ import { spacing, radius, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { MoneyText } from '@/components/ui/MoneyText'
 import { GigStatusBadge } from '../GigStatusBadge'
+import { ChainBadge } from '@/components/escrow/ChainBadge'
 import { CATEGORY_META } from '@/lib/categories'
 import { toAssetPaymentDisplay } from '@/lib/currency'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
@@ -62,6 +63,8 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
       </Text>
 
       <MoneyText fiat={price.fiat} currency={currency} amountLabel={`${price.amount.toFixed(price.amount >= 1 ? 2 : 3)} ${price.symbol}`} size={typography.styles.body.fontSize} />
+
+      <ChainBadge chainId={gig.chain_id} style={s.chain} />
 
       <View style={s.footer}>
         <View style={s.metaItem}>
@@ -125,6 +128,7 @@ const s = StyleSheet.create({
   categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   categoryDot: { width: 8, height: 8, borderRadius: 4 },
   title: { marginTop: spacing.sm, marginBottom: spacing.xs },
+  chain: { marginTop: spacing.xs },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   footer: {
     flexDirection: 'row',

@@ -80,10 +80,15 @@ test('canSubmit: only the counterparty on an accepted escrow', () => {
   assert.equal(canSubmit(escrow('open'), COUNTERPARTY), false)
 })
 
-test('canAddProof: only the counterparty on a submitted escrow', () => {
+test('canAddProof: the counterparty while submitted OR disputed, never others', () => {
   assert.equal(canAddProof(escrow('submitted'), COUNTERPARTY), true)
+  // Evidence stays open through a dispute so the mediator can request more.
+  assert.equal(canAddProof(escrow('disputed'), COUNTERPARTY), true)
   assert.equal(canAddProof(escrow('submitted'), CREATOR), false)
+  assert.equal(canAddProof(escrow('disputed'), CREATOR), false)
+  assert.equal(canAddProof(escrow('disputed'), STRANGER), false)
   assert.equal(canAddProof(escrow('accepted'), COUNTERPARTY), false)
+  assert.equal(canAddProof(escrow('completed'), COUNTERPARTY), false)
 })
 
 test('canApprove: only the creator on a submitted escrow', () => {
