@@ -10,7 +10,14 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { disputes } from '@tenda/shared/db/schema'
-import { TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, authHeader } from '../helpers/test-app'
+import {
+  TEST_DB_CONFIGURED,
+  useTestApp,
+  createUser,
+  createEscrow,
+  attachGigDetails,
+  authHeader,
+} from '../helpers/test-app'
 import { disputedEscrow } from '../helpers/escrow-states'
 
 const skip = !TEST_DB_CONFIGURED
@@ -84,6 +91,105 @@ test('thread: both parties + mediator share one conversation', { skip }, async (
   // the GET advanced the worker's read cursor
   const readers = thread.reads.map((r: { user_id: string }) => r.user_id)
   assert.ok(readers.includes(worker.row.id))
+})
+
+test('thread: full load carries escrow + party context, creator-first', { skip }, async () => {
+  const app = getApp()
+  const { creator, worker, escrow } = await disputedEscrow(app)
+  await attachGigDetails(app, escrow.id, { title: 'Fix my leaking tap' })
+
+  const res = await app.inject({
+    method: 'GET',
+    url: threadUrl(escrow.id),
+    headers: authHeader(worker.token),
+  })
+  assert.strictEqual(res.statusCode, 200)
+  const { context } = res.json()
+  assert.notStrictEqual(context, null)
+  assert.strictEqual(context.kind, 'gig')
+  assert.strictEqual(context.status, 'disputed')
+  assert.strictEqual(context.subject_title, 'Fix my leaking tap')
+  assert.strictEqual(context.reason, 'Work was never delivered as agreed')
+  assert.strictEqual(context.winner, null)
+  assert.strictEqual(context.resolved_at, null)
+  // creator-first ordering, kind-agnostic structural roles, raiser marked.
+  assert.deepStrictEqual(
+    context.parties.map((p: { role: string; user_id: string; raised_dispute: boolean }) => ({
+      role: p.role,
+      user_id: p.user_id,
+      raised_dispute: p.raised_dispute,
+    })),
+    [
+      { role: 'creator', user_id: creator.row.id, raised_dispute: true },
+      { role: 'counterparty', user_id: worker.row.id, raised_dispute: false },
+    ],
+  )
+})
+
+test('thread: exchange context has a null subject_title (no gig details)', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const worker = await createUser(app)
+  const escrow = await createEscrow(app, {
+    kind: 'exchange',
+    creator_id: creator.row.id,
+    counterparty_id: worker.row.id,
+    status: 'disputed',
+  })
+  await app.db
+    .insert(disputes)
+    .values({ escrow_id: escrow.id, raised_by: worker.row.id, reason: 'Paid but the seller never released' })
+
+  const res = await app.inject({
+    method: 'GET',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+  })
+  const { context } = res.json()
+  assert.strictEqual(context.kind, 'exchange')
+  assert.strictEqual(context.subject_title, null)
+  // Raiser marker follows the actual raiser (the worker here), not creator-first.
+  const worker_party = context.parties.find((p: { role: string }) => p.role === 'counterparty')
+  assert.strictEqual(worker_party.raised_dispute, true)
+})
+
+test('thread: ?after tail polls omit the context (client keeps the first copy)', { skip }, async () => {
+  const app = getApp()
+  const { creator, escrow } = await disputedEscrow(app)
+  const first = await app.inject({
+    method: 'POST',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+    payload: { body: 'opening statement' },
+  })
+  const cursor = first.json().created_at
+
+  const tail = await app.inject({
+    method: 'GET',
+    url: threadUrl(escrow.id, cursor),
+    headers: authHeader(creator.token),
+  })
+  assert.strictEqual(tail.statusCode, 200)
+  assert.strictEqual(tail.json().context, null)
+})
+
+test('thread: resolved context reports winner + resolved_at', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow, dispute_id } = await disputedEscrow(app)
+  const admin = await createUser(app, { role: 'super_admin' })
+  await app.db
+    .update(disputes)
+    .set({ resolved_at: new Date(), resolved_by: admin.row.id, winner: 'creator' })
+    .where(eq(disputes.id, dispute_id))
+
+  const res = await app.inject({
+    method: 'GET',
+    url: threadUrl(escrow.id),
+    headers: authHeader(worker.token),
+  })
+  const { context } = res.json()
+  assert.strictEqual(context.winner, 'creator')
+  assert.notStrictEqual(context.resolved_at, null)
 })
 
 test('thread: unclaimed admins read but cannot post', { skip }, async () => {

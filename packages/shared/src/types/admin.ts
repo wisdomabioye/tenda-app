@@ -36,6 +36,9 @@ export interface AdminEscrowRow extends EscrowListRow {
   city: string | null
   creator_first_name: string | null
   creator_last_name: string | null
+  /** The escrow's dispute row id (disputed/resolved escrows), else null —
+   *  lets the listings row deep-link straight to the dispute. */
+  dispute_id: string | null
 }
 
 export interface AdminEscrowListQuery {

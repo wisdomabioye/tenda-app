@@ -114,6 +114,14 @@ export default function UserDetailPage() {
             ) : (
               <p className="mt-2 text-xs text-muted-foreground">Below the flag threshold.</p>
             )}
+            {metric.disputed > 0 && (
+              <Link
+                href={`/disputes?party=${params.id}`}
+                className="mt-3 inline-block text-xs underline underline-offset-2 hover:no-underline"
+              >
+                View this user&apos;s disputes →
+              </Link>
+            )}
           </div>
         </div>
 

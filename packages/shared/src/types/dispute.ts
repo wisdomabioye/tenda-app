@@ -5,7 +5,9 @@
  */
 import type { InferSelectModel } from 'drizzle-orm'
 import type { dispute_messages, dispute_resolutions } from '../db/schema'
-import type { EscrowKind } from './escrow'
+import type { EscrowKind, EscrowStatus } from './escrow'
+import type { DossierParty } from './dossier'
+import type { PartyRole } from '../utils/parties'
 import type { UnsignedTx } from '../api/contracts/escrows.contract'
 
 export type DisputeMessageRow = InferSelectModel<typeof dispute_messages>
@@ -95,6 +97,31 @@ export interface DisputeReadCursor {
   last_read_at: string
 }
 
+/**
+ * Read-only escrow context shown atop the mediation thread so a party (or the
+ * mediator) can see WHO they are disputing with and WHAT the escrow was
+ * without leaving the thread. Reuses the dossier party shape and the
+ * structural creator|counterparty vocabulary. Built only on the full thread
+ * load — the `?after=` tail polls omit it (the client keeps the first copy).
+ */
+export interface DisputeThreadContext {
+  kind: EscrowKind
+  status: EscrowStatus
+  chain_id: string
+  asset: string
+  amount_raw: string
+  /** gig_details.title for gigs; null for exchanges (client derives the label). */
+  subject_title: string | null
+  /** Creator-first; counterparty omitted only if the escrow was never assigned. */
+  parties: DossierParty[]
+  /** Dispute triage reason (the raiser's statement). */
+  reason: string
+  raised_at: string | null
+  /** Resolved outcome in structural vocabulary; null while unresolved. */
+  winner: ResolutionWinner | null
+  resolved_at: string | null
+}
+
 /** GET /v1/escrows/:id/dispute/messages */
 export interface DisputeThreadResponse {
   dispute_id: string
@@ -103,6 +130,8 @@ export interface DisputeThreadResponse {
   assigned_to_id: string | null
   /** Resolved disputes keep a readable, frozen thread. */
   read_only: boolean
+  /** Escrow + party context; present on the full load, null on `?after=` polls. */
+  context: DisputeThreadContext | null
   messages: DisputeMessage[]
   reads: DisputeReadCursor[]
 }
@@ -110,4 +139,41 @@ export interface DisputeThreadResponse {
 /** POST /v1/escrows/:id/dispute/messages */
 export interface SendDisputeMessageBody {
   body: string
+}
+
+// ─── "My Disputes" (party-facing list) ───────────────────────────────────────
+
+export type MyDisputeStatus = 'open' | 'resolved'
+
+/** GET /v1/disputes query. Omit `status` for the caller's full history. */
+export interface MyDisputesQuery {
+  status?: MyDisputeStatus
+  limit?: number
+  offset?: number
+}
+
+/**
+ * One row in the caller's "My Disputes" list (GET /v1/disputes) — enough to
+ * render the row and deep-link into /dispute/:escrow_id. `my_role` and
+ * `counterparty_name` are resolved relative to the caller.
+ */
+export interface MyDisputeRow {
+  dispute_id: string
+  escrow_id: string
+  kind: EscrowKind
+  /** gig_details.title for gigs; null for exchanges. */
+  subject_title: string | null
+  /** Escrow status ('disputed' while open; terminal once resolved). */
+  status: EscrowStatus
+  /** The caller's structural role in this escrow. */
+  my_role: PartyRole
+  /** The other party's display name; null when they have no profile name. */
+  counterparty_name: string | null
+  reason: string
+  raised_at: string | null
+  /** Resolved outcome in structural vocabulary; null while open. */
+  winner: ResolutionWinner | null
+  resolved_at: string | null
+  /** True when the caller is the one who raised the dispute. */
+  raised_by_me: boolean
 }

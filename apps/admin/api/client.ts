@@ -51,6 +51,8 @@ export type DisputeListQuery = {
   status?: 'open' | 'resolved'
   kind?: 'gig' | 'exchange'
   assigned?: 'me' | 'none'
+  /** Filter to disputes where this user is a party (user-detail cross-link). */
+  party?: string
   limit?: number
   offset?: number
 }

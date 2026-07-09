@@ -19,7 +19,7 @@ const send = vi.mocked(adminApi.disputeThread.send)
 const err = vi.mocked(toast.error)
 
 function thread(over: Partial<DisputeThreadResponse> = {}): DisputeThreadResponse {
-  return { dispute_id: 'd1', escrow_id: 'e1', assigned_to_id: 'me', read_only: false, messages: [], reads: [], ...over }
+  return { dispute_id: 'd1', escrow_id: 'e1', assigned_to_id: 'me', read_only: false, context: null, messages: [], reads: [], ...over }
 }
 function msg(over: Partial<DisputeMessage> = {}): DisputeMessage {
   return { id: 'm1', dispute_id: 'd1', sender_id: 'me', body: 'hi', created_at: '2026-06-10T00:00:00.000Z', ...over }

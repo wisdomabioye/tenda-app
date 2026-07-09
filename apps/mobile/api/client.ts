@@ -35,6 +35,8 @@ import {
   type DisputeMessage,
   type DisputeThreadResponse,
   type SendDisputeMessageBody,
+  type MyDisputeRow,
+  type MyDisputesQuery,
   type UserEscrowsQuery,
   type UserEscrowTransaction,
   type UserTransactionsQuery,
@@ -83,6 +85,7 @@ export { ApiClientError }
 const {
   auth,
   escrows,
+  disputes,
   gigs,
   users,
   upload,
@@ -167,6 +170,15 @@ export const api = {
       request<EscrowProof[]>('POST', escrows.addProofs, { params, body }),
     review: (params: { id: string }, body: ReviewInput) =>
       request<Review>('POST', escrows.review, { params, body }),
+  },
+
+  // Party-facing dispute list (the caller's own disputes) — keeps a dispute
+  // findable after its push notification is dismissed.
+  disputes: {
+    mine: (query?: MyDisputesQuery) =>
+      request<PaginatedResponse<MyDisputeRow>>('GET', disputes.mine, {
+        query: query as Record<string, unknown>,
+      }),
   },
 
   // Browse surfaces (escrows ⨝ details server-side) + the create-detail

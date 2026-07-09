@@ -8,16 +8,19 @@ import { useMemo } from 'react'
 import { FlatList, KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import type { DisputeMessage } from '@tenda/shared'
+import { displayName, type DisputeMessage } from '@tenda/shared'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
 import { ChatInput } from '@/components/ui/ChatInput'
+import { ChatTimestampGroup } from '@/components/chat/ChatTimestampGroup'
 import { ErrorState } from '@/components/feedback'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { showToast } from '@/components/ui/Toast'
 import { DisputeMessageBubble, type DisputeSenderKind } from '@/components/dispute/DisputeMessageBubble'
+import { DisputeContextHeader } from '@/components/dispute/DisputeContextHeader'
 import { useDisputeThread } from '@/hooks/useDisputeThread'
+import { buildDisputeFeed, isDisputeDay } from '@/lib/dispute-thread'
 import { useAuthStore } from '@/stores/auth.store'
 import { spacing } from '@/theme/tokens'
 
@@ -29,8 +32,14 @@ export default function DisputeThreadScreen() {
 
   const { loading, error, thread, messages, send, reload } = useDisputeThread(escrowId ?? null)
 
-  // Inverted list wants newest-first.
-  const feed = useMemo(() => [...messages].reverse(), [messages])
+  // Day headers + consecutive-sender grouping, reversed for the inverted list.
+  const feed = useMemo(() => buildDisputeFeed(messages), [messages])
+
+  // The single other disputant's name, for the counterparty bubble label.
+  const otherPartyName = useMemo(() => {
+    const other = thread?.context?.parties.find((p) => p.user_id !== myId)
+    return other ? displayName(other.first_name, other.last_name, other.user_id) : undefined
+  }, [thread?.context, myId])
 
   function senderKind(message: DisputeMessage): DisputeSenderKind {
     if (message.sender_id === myId) return 'me'
@@ -61,6 +70,9 @@ export default function DisputeThreadScreen() {
     <ScreenContainer scroll={false} padding={false}>
       <Header title="Dispute mediation" showBack onBackPress={() => router.back()} />
       <KeyboardAvoidingView style={s.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        {thread.context !== null && (
+          <DisputeContextHeader context={thread.context} currentUserId={myId} />
+        )}
         {thread.assigned_to_id === null && !thread.read_only && (
           <View style={[s.banner, { backgroundColor: theme.colors.surface.inset }]}>
             <Text variant="caption" color={theme.colors.content.secondary}>
@@ -77,8 +89,20 @@ export default function DisputeThreadScreen() {
         )}
         <FlatList
           data={feed}
-          keyExtractor={(m) => m.id}
-          renderItem={({ item }) => <DisputeMessageBubble message={item} sender={senderKind(item)} />}
+          keyExtractor={(item) => (isDisputeDay(item) ? item._key : item.message.id)}
+          renderItem={({ item }) =>
+            isDisputeDay(item) ? (
+              <ChatTimestampGroup iso={item.iso} />
+            ) : (
+              <DisputeMessageBubble
+                message={item.message}
+                sender={senderKind(item.message)}
+                senderName={otherPartyName}
+                showSender={item.showSender}
+                showTime={item.showTime}
+              />
+            )
+          }
           inverted
           contentContainerStyle={s.list}
           ListEmptyComponent={

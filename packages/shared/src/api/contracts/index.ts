@@ -12,10 +12,12 @@ import type { ReportsContract } from './reports.contract'
 import type { ExchangeContract } from './exchange.contract'
 import type { ModerationContract } from './moderation.contract'
 import type { FiatContract } from './fiat.contract'
+import type { DisputesContract } from './disputes.contract'
 
 export interface ApiContract {
   auth: AuthContract
   escrows: EscrowsContract
+  disputes: DisputesContract
   gigs: GigsContract
   users: UsersContract
   upload: UploadContract
@@ -64,6 +66,7 @@ export type {
   ClientPingResponse,
 } from './escrows.contract'
 export type { GigsContract } from './gigs.contract'
+export type { DisputesContract } from './disputes.contract'
 export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse } from './users.contract'
 export type { UploadContract } from './upload.contract'
 export type {

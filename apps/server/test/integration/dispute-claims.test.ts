@@ -134,6 +134,40 @@ test('list: assigned=me and assigned=none partition the queue', { skip }, async 
   assert.notStrictEqual(pool.json().data[0].dispute_id, a.dispute_id)
 })
 
+test('list: party filters to every dispute a given user is involved in', { skip }, async () => {
+  const app = getApp()
+  const mine = await disputedEscrow(app)
+  await disputedEscrow(app) // unrelated dispute, must not match
+  const admin = await createUser(app, { role: 'dispute_admin' })
+
+  // The creator is a party.
+  const byCreator = await app.inject({
+    method: 'GET',
+    url: `/v1/admin/disputes?party=${mine.creator.row.id}`,
+    headers: authHeader(admin.token),
+  })
+  assert.strictEqual(byCreator.json().total, 1)
+  assert.strictEqual(byCreator.json().data[0].dispute_id, mine.dispute_id)
+
+  // The worker (counterparty) is a party too.
+  const byWorker = await app.inject({
+    method: 'GET',
+    url: `/v1/admin/disputes?party=${mine.worker.row.id}`,
+    headers: authHeader(admin.token),
+  })
+  assert.strictEqual(byWorker.json().total, 1)
+  assert.strictEqual(byWorker.json().data[0].dispute_id, mine.dispute_id)
+
+  // A user party to nothing gets an empty queue.
+  const stranger = await createUser(app)
+  const none = await app.inject({
+    method: 'GET',
+    url: `/v1/admin/disputes?party=${stranger.row.id}`,
+    headers: authHeader(admin.token),
+  })
+  assert.strictEqual(none.json().total, 0)
+})
+
 // ── A15 (#81): demotion auto-releases claimed disputes ──────────────────────
 
 test('demotion: role losing disputes.mediate releases unresolved claims, keeps resolved', { skip }, async () => {

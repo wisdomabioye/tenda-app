@@ -22,6 +22,7 @@ import type {
 import { AppError } from '@server/lib/errors'
 import { hasPermission } from '@server/lib/guards'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { buildDisputeThreadContext } from '@server/lib/disputes/thread-context'
 
 const MESSAGES_PAGE_LIMIT = 100
 
@@ -98,11 +99,20 @@ const route: FastifyPluginAsync = async (fastify) => {
       .from(dispute_reads)
       .where(eq(dispute_reads.dispute_id, dispute.id))
 
+    // Context is stable for the life of the thread, so it rides only the full
+    // load; the frequent `?after=` tail polls skip the extra queries and the
+    // client keeps the copy from the first fetch.
+    const context =
+      request.query.after === undefined
+        ? await buildDisputeThreadContext(fastify.db, escrow, dispute)
+        : null
+
     return {
       dispute_id: dispute.id,
       escrow_id: escrow.id,
       assigned_to_id: dispute.assigned_to,
       read_only: dispute.resolved_at !== null,
+      context,
       messages: messages.map(toWire),
       reads: reads.map((r) => ({ user_id: r.user_id, last_read_at: r.last_read_at.toISOString() })),
     }

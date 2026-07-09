@@ -8,7 +8,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, and, desc, sql, type SQL } from 'drizzle-orm'
-import { escrows, gig_details, exchange_details, users } from '@tenda/shared/db/schema'
+import { escrows, gig_details, exchange_details, users, disputes } from '@tenda/shared/db/schema'
 import { ErrorCode, GIG_CATEGORIES } from '@tenda/shared'
 import type {
   AdminEscrowDossier,
@@ -44,6 +44,7 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
     city: gig_details.city,
     creator_first_name: users.first_name,
     creator_last_name: users.last_name,
+    dispute_id: disputes.id,
   }
 
   function rowQuery() {
@@ -53,6 +54,8 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
       .leftJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
       .leftJoin(exchange_details, eq(exchange_details.escrow_id, escrows.id))
       .innerJoin(users, eq(users.id, escrows.creator_id))
+      // disputes.escrow_id is UNIQUE, so this never multiplies rows.
+      .leftJoin(disputes, eq(disputes.escrow_id, escrows.id))
       .$dynamic()
   }
 

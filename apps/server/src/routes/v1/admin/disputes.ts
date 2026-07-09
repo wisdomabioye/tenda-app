@@ -75,12 +75,14 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
       status?: 'open' | 'resolved'
       kind?: 'gig' | 'exchange'
       assigned?: 'me' | 'none'
+      /** Filter to disputes where this user is a party (user-detail cross-link). */
+      party?: string
       limit?: number
       offset?: number
     }
     Reply: PaginatedResponse<DisputeSummary> | ApiError
   }>('/', { preHandler: [requirePermission('disputes.read')] }, async (request) => {
-    const { status, kind, assigned, limit = 20, offset = 0 } = request.query
+    const { status, kind, assigned, party, limit = 20, offset = 0 } = request.query
     const safeLimit = clampLimit(Number(limit))
     const safeOffset = clampOffset(Number(offset))
 
@@ -96,6 +98,16 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     // Claim-pool views (CO7): my caseload vs the unclaimed pool.
     if (assigned === 'me') conditions.push(eq(disputes.assigned_to, request.user.id))
     if (assigned === 'none') conditions.push(isNull(disputes.assigned_to))
+    // Party cross-link: every dispute a given user is involved in.
+    if (party !== undefined && party !== '') {
+      conditions.push(
+        or(
+          eq(escrows.creator_id, party),
+          eq(escrows.counterparty_id, party),
+          eq(escrows.assigned_counterparty_id, party),
+        ) as SQL,
+      )
+    }
     const where = conditions.length > 0 ? and(...conditions) : undefined
 
     const [rows, countResult] = await Promise.all([

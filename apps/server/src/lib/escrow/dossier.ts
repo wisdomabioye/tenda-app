@@ -21,11 +21,11 @@ import {
 } from '@tenda/shared/db/schema'
 import type {
   AdminEscrowDossier,
-  DossierParty,
   DossierGigDetails,
   DossierExchangeDetails,
 } from '@tenda/shared'
 import type { AppDatabase } from '@server/plugins/db'
+import { deriveDisputeParties, partyIdsOf } from '@server/lib/disputes/parties'
 
 const iso = (d: Date): string => d.toISOString()
 
@@ -36,12 +36,7 @@ export async function buildEscrowDossier(
   const [escrow] = await db.select().from(escrows).where(eq(escrows.id, escrow_id)).limit(1)
   if (escrow === undefined) return null
 
-  // The accepted counterparty is authoritative; the pre-assignment is a
-  // fallback so an unaccepted-but-assigned escrow still names the party.
-  const counterpartyId = escrow.counterparty_id ?? escrow.assigned_counterparty_id
-  const partyIds = [escrow.creator_id, counterpartyId].filter(
-    (id): id is string => id !== null,
-  )
+  const partyIds = partyIdsOf(escrow)
 
   const [dispute, partyUsers, gigRow, exchangeRow, proofRows, txRows] = await Promise.all([
     db
@@ -72,27 +67,7 @@ export async function buildEscrowDossier(
   ])
 
   const raisedBy = dispute[0]?.raised_by ?? null
-  const nameOf = (id: string) => partyUsers.find((u) => u.id === id) ?? null
-
-  const parties: DossierParty[] = []
-  const creator = nameOf(escrow.creator_id)
-  parties.push({
-    role: 'creator',
-    user_id: escrow.creator_id,
-    first_name: creator?.first_name ?? null,
-    last_name: creator?.last_name ?? null,
-    raised_dispute: raisedBy === escrow.creator_id,
-  })
-  if (counterpartyId !== null) {
-    const cp = nameOf(counterpartyId)
-    parties.push({
-      role: 'counterparty',
-      user_id: counterpartyId,
-      first_name: cp?.first_name ?? null,
-      last_name: cp?.last_name ?? null,
-      raised_dispute: raisedBy === counterpartyId,
-    })
-  }
+  const parties = deriveDisputeParties(escrow, raisedBy, partyUsers)
 
   const gig: DossierGigDetails | null =
     gigRow[0] === undefined

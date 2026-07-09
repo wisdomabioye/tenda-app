@@ -70,7 +70,9 @@ export function useDisputeThread(escrowId: string | null): DisputeThreadState {
         { id: escrowId },
         tail && lastSeenAt.current !== null ? { after: lastSeenAt.current } : undefined,
       )
-      setThread(meta)
+      // Context rides only the full load; keep the first copy through the
+      // context-less tail polls instead of blanking the header every 4s.
+      setThread((prev) => ({ ...meta, context: meta.context ?? prev?.context ?? null }))
       const appended = applyBatch(batch, true)
       emptyPollCount.current = appended === 0 ? emptyPollCount.current + 1 : 0
     },

@@ -9,6 +9,7 @@ import {
   Settings,
   CircleHelp,
   CircleDollarSign,
+  Scale,
 } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer } from '@/components/ui'
@@ -73,6 +74,12 @@ export default function ProfileScreen() {
       tone: 'brand',
       value: walletShort,
       onPress: () => router.push('/(tabs)/wallet'),
+    },
+    {
+      Icon: Scale,
+      label: 'My disputes',
+      // Typed-routes are dev-server-generated; cast until /disputes is in the map.
+      onPress: () => router.push('/disputes' as Parameters<typeof router.push>[0]),
     },
   ]
 

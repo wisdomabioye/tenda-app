@@ -40,7 +40,7 @@ function summary(over: Partial<DisputeSummary> = {}): DisputeSummary {
   } as DisputeSummary
 }
 const emptyThread: DisputeThreadResponse = {
-  dispute_id: 'p1', escrow_id: 'e1', assigned_to_id: null, read_only: false, messages: [], reads: [],
+  dispute_id: 'p1', escrow_id: 'e1', assigned_to_id: null, read_only: false, context: null, messages: [], reads: [],
 }
 
 beforeEach(() => {

@@ -32,6 +32,9 @@ export const apiRoutes: {
     addProofs: '/v1/escrows/:id/proofs',
     review: '/v1/escrows/:id/review',
   },
+  disputes: {
+    mine: '/v1/disputes',
+  },
   gigs: {
     list: '/v1/gigs',
     featured: '/v1/gigs/featured',
