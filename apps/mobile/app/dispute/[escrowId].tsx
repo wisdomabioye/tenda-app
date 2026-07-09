@@ -5,7 +5,7 @@
  * read-only once the dispute resolves.
  */
 import { useMemo } from 'react'
-import { FlatList, KeyboardAvoidingView, StyleSheet, View } from 'react-native'
+import { FlatList, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
@@ -21,6 +21,7 @@ import { showToast } from '@/components/ui/Toast'
 import { DisputeMessageBubble, type DisputeSenderKind } from '@/components/dispute/DisputeMessageBubble'
 import { DisputeContextHeader } from '@/components/dispute/DisputeContextHeader'
 import { useDisputeThread } from '@/hooks/useDisputeThread'
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'
 import { buildDisputeFeed, isDisputeDay } from '@/lib/dispute-thread'
 import { useAuthStore } from '@/stores/auth.store'
 import { spacing } from '@/theme/tokens'
@@ -30,6 +31,7 @@ export default function DisputeThreadScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
   const insets = useSafeAreaInsets()
+  const keyboardHeight = useKeyboardHeight()
   const myId = useAuthStore((s) => s.user?.id ?? '')
 
   const { loading, error, thread, messages, send, reload } = useDisputeThread(escrowId ?? null)
@@ -71,11 +73,10 @@ export default function DisputeThreadScreen() {
   return (
     <ScreenContainer scroll={false} padding={false}>
       <Header title="Dispute mediation" showBack onBackPress={() => router.back()} />
-      {/* SDK 54 edge-to-edge: Android ignores softInputMode for the IME, so the
-          window never moves (config is 'resize' precisely to keep the OS inert,
-          not pan). The KAV therefore owns the avoidance in JS via 'padding' —
-          the single lift, no OS double-move. */}
-      <KeyboardAvoidingView style={s.flex} behavior="padding">
+      {/* SDK 54 edge-to-edge: the OS never moves the window for the IME, so we
+          do the avoidance ourselves — pad the column by the exact keyboard
+          height (0 at rest, so no spurious gap when the keyboard hides). */}
+      <View style={[s.flex, { paddingBottom: keyboardHeight }]}>
         {thread.context !== null && (
           <DisputeContextHeader context={thread.context} currentUserId={myId} />
         )}
@@ -127,7 +128,7 @@ export default function DisputeThreadScreen() {
           // list's newest message renders behind the Android nav bar.
           <View style={{ height: insets.bottom }} />
         )}
-      </KeyboardAvoidingView>
+      </View>
     </ScreenContainer>
   )
 }

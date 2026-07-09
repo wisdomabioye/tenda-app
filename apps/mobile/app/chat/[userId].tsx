@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import {
   FlatList,
-  KeyboardAvoidingView,
   StyleSheet,
   View,
   Pressable,
@@ -25,6 +24,7 @@ import { showToast } from '@/components/ui/Toast'
 import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { useConversation } from '@/hooks/useConversation'
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'
 import { useChatRealtime } from '@/hooks/useChatRealtime'
 import { buildMessageFeed, isDivider, isTimestamp } from '@/lib/chat'
 import { uploadToCloudinaryDetailed } from '@/lib/upload'
@@ -52,6 +52,7 @@ export default function ChatScreen() {
 
   const { conversationId, otherUser, loading, initError, retry } = useConversation(userId)
   useChatRealtime(conversationId)
+  const keyboardHeight = useKeyboardHeight()
 
   const feed = useMemo(() => {
     const msgs = conversationId ? (messages[conversationId] ?? []) : []
@@ -132,11 +133,10 @@ export default function ChatScreen() {
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
-      {/* SDK 54 edge-to-edge: Android ignores softInputMode for the IME, so the
-          window never moves (config is 'resize' precisely to keep the OS inert,
-          not pan). The KAV therefore owns the avoidance in JS via 'padding' —
-          the single lift, no OS double-move. */}
-      <KeyboardAvoidingView style={s.flex} behavior="padding">
+      {/* SDK 54 edge-to-edge: the OS never moves the window for the IME, so we
+          do the avoidance ourselves — pad the column by the exact keyboard
+          height (0 at rest, so no spurious gap when the keyboard hides). */}
+      <View style={[s.flex, { paddingBottom: keyboardHeight }]}>
         <ChatHeader
           name={displayName}
           avatarUrl={otherUser?.avatar_url}
@@ -196,7 +196,7 @@ export default function ChatScreen() {
           </Text>
         )}
         <ChatInput onSend={handleSend} onAttach={() => setAttachOpen(true)} disabled={uploading} />
-      </KeyboardAvoidingView>
+      </View>
 
       {reportingMessageId !== null && (
         <ReportSheet
