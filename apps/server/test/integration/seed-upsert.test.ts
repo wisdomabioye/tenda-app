@@ -11,11 +11,15 @@ import postgres from 'postgres'
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import { eq, inArray, notInArray } from 'drizzle-orm'
 import { assets, chains } from '@tenda/shared/db/schema/chains'
-import { TEST_DB_CONFIGURED } from '../helpers/test-app'
+import { TEST_DB_CONFIGURED, useSuiteLock } from '../helpers/test-app'
 import { applySeed, buildSeedRows } from '@server/db/seed-v2'
 import type { ResolvedChainSecret } from '@server/chains/secrets'
 
 const skip = !TEST_DB_CONFIGURED
+
+// This suite mutates the shared registry with its own client — hold the
+// cross-process suite lock so a sibling harness TRUNCATE can't wipe it mid-run.
+useSuiteLock()
 
 const CHAIN_ID = 'eip155:84532'
 const ESCROW_V1 = `0x${'11'.repeat(20)}`

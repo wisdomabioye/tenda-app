@@ -26,9 +26,24 @@ export const PAYOUT_CURRENCIES: SupportedCurrency[] = [
   ...new Set(Object.values(PAYOUT_COUNTRY_SPECS).map((s) => s.currency)),
 ]
 
+/**
+ * Fallback settlement currency when a user's country isn't a payout market
+ * (the launch anchor). Asserted to be one of PAYOUT_CURRENCIES by the tests.
+ */
+export const DEFAULT_PAYOUT_CURRENCY: SupportedCurrency = 'NGN'
+
 /** Country spec, or null when the country isn't a supported payout market. */
 export function getPayoutSpec(country: string): PayoutCountrySpec | null {
   return PAYOUT_COUNTRY_SPECS[country] ?? null
+}
+
+/**
+ * The single fiat currency payouts settle in for a country, or the launch
+ * default when the country has no spec. One source for every surface that
+ * needs "which currency does this seller quote in" (Sell/cash-out + P2P post).
+ */
+export function payoutCurrencyForCountry(country: string | null): SupportedCurrency {
+  return (country !== null ? getPayoutSpec(country)?.currency : undefined) ?? DEFAULT_PAYOUT_CURRENCY
 }
 
 /** A specific rail (bank / mobile_money) for a country, or null if unsupported. */

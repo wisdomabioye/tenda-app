@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { solanaChainId, solanaNativeAssetId, type FiatQuoteResponse } from '@tenda/shared'
+import type { FiatQuoteResponse } from '@tenda/shared'
 import { api, ApiClientError } from '@/api/client'
-import { SOLANA_NETWORK } from '@/wallet/config'
-import { useAuthStore } from '@/stores/auth.store'
 
 const DEBOUNCE_MS = 600
 
@@ -17,24 +15,35 @@ export interface FiatQuoteState {
 
 export interface FiatQuoteInput {
   direction: 'onramp' | 'offramp'
-  /** Onramp: NGN the user pays. */
+  /** Asset registry id being traded (e.g. 'USDC_BASE', 'SOL_DEVNET'). */
+  asset: string
+  /** CAIP-2 chain the asset lives on. */
+  chainId: string
+  /** The seller's wallet address on that chain. */
+  walletAddress: string
+  /** ISO-4217 fiat currency (derived from the payout account's country). */
+  fiatCurrency: string
+  /** Onramp: fiat the user pays. */
   fiatAmount?: number
-  /** Offramp: lamports the user sells. */
+  /** Offramp: base units the user sells. */
   assetAmountRaw?: string
 }
 
 /**
- * Debounced fiat quote (stage-8 § mobile useFiatQuote) with an expiry
- * countdown so the UI can prompt a re-quote. Naira-first: the currency is
- * fixed to NGN at launch.
+ * Debounced fiat quote with an expiry countdown so the UI can prompt a
+ * re-quote. Asset, chain, wallet, and currency are all supplied by the caller
+ * (multi-asset, multi-currency) — nothing is hardcoded here.
  */
 export function useFiatQuote(input: FiatQuoteInput | null): FiatQuoteState {
-  const walletAddress = useAuthStore((s) => s.walletAddress)
   const [state, setState] = useState<FiatQuoteState>({ quote: null, expiresIn: 0, loading: false, error: null })
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const seq = useRef(0)
 
   const direction = input?.direction ?? null
+  const asset = input?.asset
+  const chainId = input?.chainId
+  const walletAddress = input?.walletAddress
+  const fiatCurrency = input?.fiatCurrency
   const fiatAmount = input?.fiatAmount
   const assetAmountRaw = input?.assetAmountRaw
 
@@ -42,7 +51,10 @@ export function useFiatQuote(input: FiatQuoteInput | null): FiatQuoteState {
     if (timer.current) clearTimeout(timer.current)
     const ready =
       direction !== null &&
-      walletAddress !== null &&
+      asset !== undefined &&
+      chainId !== undefined &&
+      walletAddress !== undefined &&
+      fiatCurrency !== undefined &&
       (direction === 'onramp'
         ? fiatAmount !== undefined && fiatAmount > 0
         : assetAmountRaw !== undefined && assetAmountRaw !== '0' && assetAmountRaw !== '')
@@ -56,11 +68,11 @@ export function useFiatQuote(input: FiatQuoteInput | null): FiatQuoteState {
       api.fiat
         .quote({
           direction,
-          fiat_currency: 'NGN',
+          fiat_currency: fiatCurrency,
           ...(direction === 'onramp' ? { fiat_amount: fiatAmount } : {}),
           ...(direction === 'offramp' ? { asset_amount_raw: assetAmountRaw } : {}),
-          asset: solanaNativeAssetId(SOLANA_NETWORK),
-          chain_id: solanaChainId(SOLANA_NETWORK),
+          asset,
+          chain_id: chainId,
           wallet_address: walletAddress,
         })
         .then((quote) => {
@@ -77,15 +89,13 @@ export function useFiatQuote(input: FiatQuoteInput | null): FiatQuoteState {
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
-  }, [direction, fiatAmount, assetAmountRaw, walletAddress])
+  }, [direction, asset, chainId, walletAddress, fiatCurrency, fiatAmount, assetAmountRaw])
 
   // Countdown tick while a quote is live.
   useEffect(() => {
     if (state.quote === null || state.expiresIn <= 0) return
     const t = setTimeout(() => {
-      setState((s) =>
-        s.quote === null ? s : { ...s, expiresIn: secondsUntil(s.quote.expires_at) },
-      )
+      setState((s) => (s.quote === null ? s : { ...s, expiresIn: secondsUntil(s.quote.expires_at) }))
     }, 1_000)
     return () => clearTimeout(t)
   }, [state.quote, state.expiresIn])

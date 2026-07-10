@@ -53,7 +53,7 @@ export default function TabsLayout() {
     },
     {
       icon:    <Coins size={20} color={theme.colors.brand.primary} />,
-      label:   'Buy / Sell',
+      label:   'Sell / Cash out',
       onPress: () => router.navigate('/wallet/buy-sell' as never),
     },
   ]

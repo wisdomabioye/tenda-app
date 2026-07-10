@@ -34,7 +34,7 @@ export function ExchangeMyOffersPage({
           ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.brand.primary} />}
           ListEmptyComponent={
-            <EmptyState title="No offers yet" description="Use Buy / Sell to post your first offer" />
+            <EmptyState title="No offers yet" description="Post a sell offer to see it here" />
           }
         />
       )}

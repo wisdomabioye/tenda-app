@@ -1,10 +1,12 @@
 /**
- * CO4 advanced-mode offer creation: hand-create a sell offer
- * (kind='exchange' escrow). Mirrors the gig create chain:
+ * Hand-create a P2P sell offer (kind='exchange' escrow). Mirrors the gig
+ * create chain:
  *   1) POST /v1/escrows → draft + unsigned create tx
  *   2) POST /v1/exchange → attach offer terms (a failure discards the draft)
  *   3) wallet signs + broadcasts + client-pings, the offer goes live
  *      (draft → open) when the verify pipeline confirms.
+ * Multi-asset: the asset/chain come from the picker; the fiat currency is the
+ * seller's home-country payout currency.
  */
 import { useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
@@ -13,16 +15,17 @@ import { useUnistyles } from 'react-native-unistyles'
 import {
   DEFAULT_ACCEPT_WINDOW_SECONDS,
   EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS,
-  LAMPORTS_PER_SOL,
-  solanaChainId,
-  solanaNativeAssetId,
+  parseUnits,
   formatAssetAmount,
+  payoutCurrencyForCountry,
+  CURRENCY_META,
 } from '@tenda/shared'
 import { ScreenContainer, Text, Spacer, Header, Button, Input, showToast } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { api, ApiClientError } from '@/api/client'
-import { useExchangeRateStore } from '@/stores/exchange-rate.store'
-import { SOLANA_NETWORK } from '@/wallet/config'
+import { useAuthStore } from '@/stores/auth.store'
+import { useExchangeAssetOptions } from '@/hooks/useExchangeAssetOptions'
+import { AssetChainPicker, optionKey } from '@/components/exchange/AssetChainPicker'
 import { signSendAndReport } from '@/wallet/dispatch'
 import {
   classifyTransactionGateError,
@@ -31,36 +34,32 @@ import {
 } from '@/lib/transaction-gate'
 import { spacing } from '@/theme/tokens'
 
-/** Float→raw stays exact below this (well under 2^53 lamports). */
-const MAX_OFFER_SOL = 1_000_000
-
 export default function CreateOfferScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
-  const rates = useExchangeRateStore((s) => s.rates)
+  const country = useAuthStore((s) => s.user?.country ?? null)
 
-  const [amount, setAmount] = useState('')
-  const [rate, setRate] = useState(() => (rates?.NGN !== undefined ? String(Math.round(rates.NGN)) : ''))
-  const [submitting, setSubmitting] = useState(false)
-
-  const amountSol = Number(amount)
-  const rateNum = Number(rate)
-  const valid =
-    Number.isFinite(amountSol) &&
-    amountSol > 0 &&
-    amountSol <= MAX_OFFER_SOL &&
-    Number.isFinite(rateNum) &&
-    rateNum > 0
-  const fiatTotal = valid ? Math.floor(amountSol * rateNum * 100) / 100 : 0
-  const amountRaw = useMemo(
-    () => (valid ? String(Math.round(amountSol * LAMPORTS_PER_SOL)) : '0'),
-    [valid, amountSol],
+  const options = useExchangeAssetOptions()
+  const [pickedKey, setPickedKey] = useState<string | null>(null)
+  const option = useMemo(
+    () => options.find((o) => optionKey(o) === pickedKey) ?? options[0] ?? null,
+    [options, pickedKey],
   )
 
+  const currency = payoutCurrencyForCountry(country)
+  const currencySymbol = CURRENCY_META[currency].symbol
+
+  const [amount, setAmount] = useState('')
+  const [rate, setRate] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const rateNum = Number(rate)
+  const amountRaw = option !== null ? parseUnits(amount, option.decimals) : null
+  const valid = option !== null && amountRaw !== null && amountRaw !== '0' && Number.isFinite(rateNum) && rateNum > 0
+  const fiatTotal = valid ? Math.floor(Number(amount) * rateNum * 100) / 100 : 0
+
   async function handleSubmit() {
-    if (!valid || submitting) return
-    const chain_id = solanaChainId(SOLANA_NETWORK)
-    const asset = solanaNativeAssetId(SOLANA_NETWORK)
+    if (!valid || option === null || amountRaw === null || submitting) return
     const accept_deadline_unix = Math.floor(Date.now() / 1000) + DEFAULT_ACCEPT_WINDOW_SECONDS
 
     setSubmitting(true)
@@ -68,8 +67,8 @@ export default function CreateOfferScreen() {
     try {
       const created = await api.escrows.create({
         kind: 'exchange',
-        chain_id,
-        asset,
+        chain_id: option.chainId,
+        asset: option.assetId,
         amount_raw: amountRaw,
         accept_deadline_unix,
         completion_duration_seconds: EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS,
@@ -80,7 +79,7 @@ export default function CreateOfferScreen() {
         await api.exchange.create({
           escrow_id: created.escrow_id,
           fiat_amount: fiatTotal,
-          fiat_currency: 'NGN',
+          fiat_currency: currency,
           rate: rateNum,
           payment_window_seconds: EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS,
         })
@@ -94,7 +93,7 @@ export default function CreateOfferScreen() {
       await signSendAndReport({
         unsigned: created.unsigned,
         action: 'create',
-        chain_id,
+        chain_id: option.chainId,
         escrow_id: created.escrow_id,
       })
 
@@ -119,23 +118,34 @@ export default function CreateOfferScreen() {
     }
   }
 
+  const symbol = option?.symbol ?? ''
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <Header title="Post a sell offer" showBack />
       <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
         <SectionLabel>You sell</SectionLabel>
+        <AssetChainPicker
+          options={options}
+          selectedKey={option !== null ? optionKey(option) : ''}
+          onSelect={(o) => setPickedKey(optionKey(o))}
+        />
         <Input
-          label="Amount (SOL)"
+          label={`Amount${symbol !== '' ? ` (${symbol})` : ''}`}
           placeholder="2.5"
           value={amount}
           onChangeText={setAmount}
           keyboardType="numeric"
         />
+        {options.length === 0 && (
+          <Text variant="caption" color={theme.colors.content.tertiary}>
+            Connect a wallet to post an offer.
+          </Text>
+        )}
 
         <SectionLabel>Your rate</SectionLabel>
         <Input
-          label="NGN per SOL"
-          placeholder={rates?.NGN !== undefined ? String(Math.round(rates.NGN)) : '150000'}
+          label={`${currency} per ${symbol || 'unit'}`}
+          placeholder="150000"
           value={rate}
           onChangeText={setRate}
           keyboardType="numeric"
@@ -144,9 +154,9 @@ export default function CreateOfferScreen() {
         {valid && (
           <View style={[s.summary, { backgroundColor: theme.colors.surface.inset }]}>
             <Text variant="caption" color={theme.colors.content.secondary}>
-              The buyer pays you {fiatTotal.toLocaleString('en-US')} NGN for{' '}
-              {formatAssetAmount(amountRaw, solanaNativeAssetId(SOLANA_NETWORK))}. They get
-              24 hours to pay after accepting; the escrow releases when you confirm receipt.
+              The buyer pays you {currencySymbol}{fiatTotal.toLocaleString('en-US')} for{' '}
+              {formatAssetAmount(amountRaw ?? '0', option?.assetId ?? '')}. They get 24 hours to pay
+              after accepting; the escrow releases when you confirm receipt.
             </Text>
           </View>
         )}

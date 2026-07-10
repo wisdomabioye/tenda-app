@@ -12,11 +12,12 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { escrows } from '@tenda/shared/db/schema'
+import { escrows, exchange_details } from '@tenda/shared/db/schema'
 import { buildProviders } from '@server/features/fiat-rails'
 import {
   TEST_DB_CONFIGURED,
   TEST_CHAIN_ID,
+  TEST_ASSET,
   TEST_NATIVE_ASSET,
   useTestApp,
   createUser,
@@ -117,26 +118,38 @@ test('POST /v1/exchange: 201, and the draft upsert retries clean', { skip }, asy
 
 // ---------- p2p onramp ------------------------------------------------------------
 
-/** Live SOL_DEVNET sell offer: 6.5 SOL for 10,000 NGN. */
-async function liveSellOffer(app: ReturnType<typeof getApp>, seller: TestUser, fiat = 10_000) {
+interface OfferSpec {
+  fiat?: number
+  currency?: string
+  asset?: string
+  amount_raw?: string
+  rate?: string
+}
+
+/** Live sell offer — defaults to 6.5 SOL_DEVNET for 10,000 NGN. */
+async function liveSellOffer(app: ReturnType<typeof getApp>, seller: TestUser, spec: OfferSpec = {}) {
   const escrow = await createEscrow(app, {
     creator_id: seller.row.id,
     kind: 'exchange',
     status: 'open',
-    asset: TEST_NATIVE_ASSET,
-    amount_raw: '6500000000',
+    asset: spec.asset ?? TEST_NATIVE_ASSET,
+    amount_raw: spec.amount_raw ?? '6500000000',
   })
   await attachExchangeDetails(app, escrow.id, {
-    fiat_amount: fiat.toFixed(4),
-    fiat_currency: 'NGN',
-    rate: '1538.4600000000',
+    fiat_amount: (spec.fiat ?? 10_000).toFixed(4),
+    fiat_currency: spec.currency ?? 'NGN',
+    rate: spec.rate ?? '1538.4600000000',
   })
   return escrow
 }
 
-function quoteBody(fiat_amount: number) {
+function quoteBody(fiat_amount: number, over: Partial<ReturnType<typeof baseQuote>> = {}) {
+  return { ...baseQuote(fiat_amount), ...over }
+}
+
+function baseQuote(fiat_amount: number) {
   return {
-    direction: 'onramp',
+    direction: 'onramp' as const,
     fiat_currency: 'NGN',
     fiat_amount,
     asset: TEST_NATIVE_ASSET,
@@ -161,7 +174,7 @@ test('p2p onramp: own offers and out-of-tolerance sizes never match', { skip }, 
   const app = getApp()
   const buyer = await createUser(app)
   // own offer — exact size, still excluded
-  await liveSellOffer(app, buyer, 10_000)
+  await liveSellOffer(app, buyer, { fiat: 10_000 })
   const own = await app.inject({
     method: 'POST',
     url: '/v1/fiat/quote',
@@ -172,7 +185,7 @@ test('p2p onramp: own offers and out-of-tolerance sizes never match', { skip }, 
 
   // someone else's offer but 3x the requested size — outside ±10%
   const seller = await createUser(app)
-  await liveSellOffer(app, seller, 30_000)
+  await liveSellOffer(app, seller, { fiat: 30_000 })
   const oversized = await app.inject({
     method: 'POST',
     url: '/v1/fiat/quote',
@@ -186,7 +199,7 @@ test('p2p onramp: quote mirrors the offer; initiate hands back its id', { skip }
   const app = getApp()
   const buyer = await createUser(app)
   const seller = await createUser(app)
-  const offer = await liveSellOffer(app, seller, 10_000)
+  const offer = await liveSellOffer(app, seller, { fiat: 10_000 })
 
   const quoted = await app.inject({
     method: 'POST',
@@ -215,7 +228,7 @@ test('p2p onramp: matched offer taken before initiate → 503', { skip }, async 
   const buyer = await createUser(app)
   const seller = await createUser(app)
   const rival = await createUser(app)
-  const offer = await liveSellOffer(app, seller, 10_000)
+  const offer = await liveSellOffer(app, seller, { fiat: 10_000 })
 
   const quoted = await app.inject({
     method: 'POST',
@@ -247,7 +260,7 @@ test('p2p status: an onramp intent only completes with ITS buyer', { skip }, asy
   const buyer = await createUser(app)
   const rival = await createUser(app)
   const seller = await createUser(app)
-  const offer = await liveSellOffer(app, seller, 10_000)
+  const offer = await liveSellOffer(app, seller, { fiat: 10_000 })
   const asBuyer = { user_id: buyer.row.id, direction: 'onramp' as const }
 
   // live and unclaimed → still pending
@@ -270,7 +283,7 @@ test('p2p status: an onramp intent only completes with ITS buyer', { skip }, asy
   )
 
   // a fresh offer accepted by THIS buyer stays pending, then completes
-  const mine = await liveSellOffer(app, seller, 10_000)
+  const mine = await liveSellOffer(app, seller, { fiat: 10_000 })
   await app.db
     .update(escrows)
     .set({ status: 'accepted', counterparty_id: buyer.row.id })
@@ -288,13 +301,205 @@ test('p2p status: a dead open offer fails the onramp intent (hidden / lapsed)', 
   const seller = await createUser(app)
   const asBuyer = { user_id: buyer.row.id, direction: 'onramp' as const }
 
-  const hiddenOffer = await liveSellOffer(app, seller, 10_000)
+  const hiddenOffer = await liveSellOffer(app, seller, { fiat: 10_000 })
   await app.db.update(escrows).set({ hidden: true }).where(eq(escrows.id, hiddenOffer.id))
   assert.strictEqual(await provider.status(hiddenOffer.id, asBuyer), 'failed')
 
-  const cancelled = await liveSellOffer(app, seller, 10_000)
+  const cancelled = await liveSellOffer(app, seller, { fiat: 10_000 })
   await app.db.update(escrows).set({ status: 'cancelled' }).where(eq(escrows.id, cancelled.id))
   assert.strictEqual(await provider.status(cancelled.id, asBuyer), 'failed')
+})
+
+// ---------- multi-asset / multi-currency (all supported exchange assets) ------
+
+test('p2p onramp: matches an offer across assets AND launch currencies', { skip }, async () => {
+  const app = getApp()
+  const buyer = await createUser(app)
+  const seller = await createUser(app)
+
+  // A stablecoin offer priced in KES...
+  await liveSellOffer(app, seller, {
+    asset: TEST_ASSET, // USDC_SOL (6 dp)
+    amount_raw: '2000000', // 2 USDC
+    currency: 'KES',
+    fiat: 5_000,
+    rate: '2500.0000000000',
+  })
+  const usdcKes = await app.inject({
+    method: 'POST',
+    url: '/v1/fiat/quote',
+    headers: authHeader(buyer.token),
+    payload: quoteBody(5_000, { asset: TEST_ASSET, fiat_currency: 'KES' }),
+  })
+  assert.strictEqual(usdcKes.statusCode, 200)
+  assert.strictEqual(usdcKes.json().fiat_amount, 5_000)
+  assert.strictEqual(usdcKes.json().asset_amount_raw, '2000000')
+
+  // ...and a native-asset offer priced in GHS, matched independently.
+  await liveSellOffer(app, seller, {
+    asset: TEST_NATIVE_ASSET, // SOL_DEVNET (9 dp)
+    amount_raw: '1000000000', // 1 SOL
+    currency: 'GHS',
+    fiat: 2_500,
+    rate: '2500.0000000000',
+  })
+  const solGhs = await app.inject({
+    method: 'POST',
+    url: '/v1/fiat/quote',
+    headers: authHeader(buyer.token),
+    payload: quoteBody(2_500, { asset: TEST_NATIVE_ASSET, fiat_currency: 'GHS' }),
+  })
+  assert.strictEqual(solGhs.statusCode, 200)
+  assert.strictEqual(solGhs.json().fiat_amount, 2_500)
+  assert.strictEqual(solGhs.json().asset_amount_raw, '1000000000')
+})
+
+test('p2p onramp: the asset AND the currency must both match the offer', { skip }, async () => {
+  const app = getApp()
+  const buyer = await createUser(app)
+  const seller = await createUser(app)
+  // The only live offer: USDC priced in NGN.
+  await liveSellOffer(app, seller, { asset: TEST_ASSET, currency: 'NGN', fiat: 10_000 })
+
+  // Right asset, wrong currency → no match.
+  const wrongCurrency = await app.inject({
+    method: 'POST',
+    url: '/v1/fiat/quote',
+    headers: authHeader(buyer.token),
+    payload: quoteBody(10_000, { asset: TEST_ASSET, fiat_currency: 'KES' }),
+  })
+  assert.strictEqual(wrongCurrency.statusCode, 503)
+
+  // Right currency, wrong asset → no match.
+  const wrongAsset = await app.inject({
+    method: 'POST',
+    url: '/v1/fiat/quote',
+    headers: authHeader(buyer.token),
+    payload: quoteBody(10_000, { asset: TEST_NATIVE_ASSET, fiat_currency: 'NGN' }),
+  })
+  assert.strictEqual(wrongAsset.statusCode, 503)
+})
+
+test('p2p offramp: opens a draft for any asset/currency, exact precision + registry chain', { skip }, async () => {
+  const app = getApp()
+  const provider = p2pProvider(app)
+  const seller = await createUser(app)
+
+  const cases = [
+    { asset: TEST_ASSET, amount_raw: '1500000', currency: 'KES', fiat: 3_750, rate: 2_500 }, // 1.5 USDC (6 dp)
+    { asset: TEST_NATIVE_ASSET, amount_raw: '6500000000', currency: 'GHS', fiat: 16_250, rate: 2_500 }, // 6.5 SOL (9 dp)
+  ]
+
+  for (const c of cases) {
+    const { instruction } = await provider.initiate({
+      quote_ref: `q-${c.asset}`,
+      user_id: seller.row.id,
+      wallet_address: 'SellerWallet111111111111111111111111111111',
+      direction: 'offramp',
+      quote: {
+        fiat_currency: c.currency,
+        fiat_amount: c.fiat,
+        asset: c.asset,
+        asset_amount_raw: c.amount_raw,
+        rate: c.rate,
+      },
+    })
+    assert.ok('kind' in instruction && instruction.kind === 'p2p')
+    const offer_id = (instruction as { kind: 'p2p'; offer_id: string }).offer_id
+
+    const [row] = await app.db.select().from(escrows).where(eq(escrows.id, offer_id))
+    assert.strictEqual(row.asset, c.asset)
+    assert.strictEqual(row.chain_id, TEST_CHAIN_ID) // resolved from the asset registry
+    assert.strictEqual(row.amount_raw, c.amount_raw) // base units survive verbatim
+    assert.strictEqual(row.status, 'draft')
+
+    const [details] = await app.db
+      .select()
+      .from(exchange_details)
+      .where(eq(exchange_details.escrow_id, offer_id))
+    assert.strictEqual(details.fiat_currency, c.currency)
+    assert.strictEqual(Number(details.fiat_amount), c.fiat)
+  }
+})
+
+test('offramp quote: prices any exchange asset in any launch currency (rate-sourced)', { skip }, async () => {
+  const app = getApp()
+  const buyer = await createUser(app)
+
+  // Deterministic CoinGecko: usd-coin ~ stable per fiat, solana volatile.
+  // (invalidateExchangeRatesCache in resetDb guarantees this stub is hit.)
+  const realFetch = global.fetch
+  global.fetch = (async () =>
+    new Response(
+      JSON.stringify({
+        'usd-coin': { ngn: 1600, kes: 129, ghs: 15 },
+        solana: { ngn: 300_000, kes: 25_000, ghs: 2_500 },
+      }),
+      { status: 200, headers: { 'content-type': 'application/json' } },
+    )) as typeof fetch
+
+  // mid × (1 − 1% spread) × display, floored to cents.
+  const cases = [
+    { asset: TEST_ASSET, amount_raw: '2000000', currency: 'NGN', expect: 3168 }, // 2 USDC × 1584
+    { asset: TEST_NATIVE_ASSET, amount_raw: '1000000000', currency: 'KES', expect: 24750 }, // 1 SOL × 24750
+    { asset: TEST_ASSET, amount_raw: '5000000', currency: 'GHS', expect: 74.25 }, // 5 USDC × 14.85
+  ]
+  try {
+    for (const c of cases) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/v1/fiat/quote',
+        headers: authHeader(buyer.token),
+        payload: {
+          direction: 'offramp',
+          fiat_currency: c.currency,
+          asset: c.asset,
+          asset_amount_raw: c.amount_raw,
+          chain_id: TEST_CHAIN_ID,
+          wallet_address: 'SellerWallet111111111111111111111111111111',
+        },
+      })
+      assert.strictEqual(res.statusCode, 200, `${c.asset}/${c.currency}`)
+      const q = res.json()
+      assert.strictEqual(q.provider, 'p2p_internal')
+      assert.strictEqual(q.fiat_amount, c.expect)
+      assert.strictEqual(q.asset_amount_raw, c.amount_raw)
+    }
+  } finally {
+    global.fetch = realFetch
+  }
+})
+
+test('offramp quote: an in-precision amount whose fiat overflows the max is 422, not a 500', { skip }, async () => {
+  const app = getApp()
+  const buyer = await createUser(app)
+
+  const realFetch = global.fetch
+  global.fetch = (async () =>
+    new Response(JSON.stringify({ 'usd-coin': { ngn: 1600 } }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })) as typeof fetch
+  try {
+    // 7e8 USDC × 1584 ≈ 1.11e12 > EXCHANGE_MAX_FIAT_AMOUNT (1e12), yet the raw
+    // amount is well within numeric(78,0) — the T15 bound must catch it.
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/fiat/quote',
+      headers: authHeader(buyer.token),
+      payload: {
+        direction: 'offramp',
+        fiat_currency: 'NGN',
+        asset: TEST_ASSET,
+        asset_amount_raw: '700000000000000', // 7e8 USDC (6 dp)
+        chain_id: TEST_CHAIN_ID,
+        wallet_address: 'SellerWallet111111111111111111111111111111',
+      },
+    })
+    assert.strictEqual(res.statusCode, 422)
+  } finally {
+    global.fetch = realFetch
+  }
 })
 
 // ---------- advanced-mode gate + new-offer deadline stamping ------------------

@@ -8,8 +8,18 @@ import type { SupportedCurrency } from '../../constants/currencies'
  * country = one entry in that country's `rails`.
  */
 
-/** How money reaches the recipient. Persisted as `bank_accounts.kind`. */
-export type PayoutRailKind = 'bank' | 'mobile_money'
+/**
+ * How money reaches the recipient. The runtime array is the SINGLE source —
+ * the union type derives from it, the route validates against it, and a test
+ * pins it to the `payout_rail_kind` DB enum. Persisted as `bank_accounts.kind`.
+ */
+export const PAYOUT_RAIL_KINDS = ['bank', 'mobile_money'] as const
+export type PayoutRailKind = (typeof PAYOUT_RAIL_KINDS)[number]
+
+/** Runtime membership check that narrows an unknown to a PayoutRailKind. */
+export function isPayoutRailKind(value: unknown): value is PayoutRailKind {
+  return typeof value === 'string' && (PAYOUT_RAIL_KINDS as readonly string[]).includes(value)
+}
 
 /** The three persisted columns a payout account always carries. */
 export interface PayoutAccountInput {

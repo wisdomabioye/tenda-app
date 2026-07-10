@@ -37,6 +37,8 @@ import { users, user_wallets, user_identities, escrows, gig_details, exchange_de
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { registerErrorHandlers } from '@server/lib/http-errors'
 import { invalidateFeaturedCache } from '@server/lib/featured'
+import { invalidateExchangeRatesCache } from '@server/lib/exchange-rates'
+import { PAYOUT_CURRENCIES } from '@tenda/shared'
 import dbPlugin from '@server/plugins/db'
 import authPlugin from '@server/plugins/auth'
 import queuePlugin from '@server/plugins/queue'
@@ -149,6 +151,35 @@ export async function buildTestApp(): Promise<FastifyInstance> {
  */
 const SUITE_LOCK_KEY = 813_370
 
+/** Open a dedicated connection and hold the cross-process suite lock on it. */
+async function acquireSuiteLock(): Promise<postgres.Sql> {
+  const lock = postgres(process.env.DATABASE_URL as string, { max: 1, onnotice: () => {} })
+  await lock`SELECT pg_advisory_lock(${SUITE_LOCK_KEY})`
+  return lock
+}
+
+async function releaseSuiteLock(lock: postgres.Sql): Promise<void> {
+  await lock`SELECT pg_advisory_unlock(${SUITE_LOCK_KEY})`
+  await lock.end()
+}
+
+/**
+ * Take the cross-process suite lock for a file that talks to the shared test
+ * DB WITHOUT the full app harness (seed/registry tests). Without it a sibling
+ * suite's `resetDb` TRUNCATE can wipe the registry rows mid-test. Pair with
+ * `{ skip: !TEST_DB_CONFIGURED }`.
+ */
+export function useSuiteLock(): void {
+  let lock: postgres.Sql | null = null
+  before(async () => {
+    if (!TEST_DB_CONFIGURED) return
+    lock = await acquireSuiteLock()
+  })
+  after(async () => {
+    if (lock !== null) await releaseSuiteLock(lock)
+  })
+}
+
 /**
  * Per-suite boilerplate: takes the cross-process suite lock, boots the app
  * once, resets the DB before every test, releases on exit. Returns a getter
@@ -160,18 +191,14 @@ export function useTestApp(): () => FastifyInstance {
   let lock: postgres.Sql | null = null
   before(async () => {
     if (!TEST_DB_CONFIGURED) return
-    lock = postgres(process.env.DATABASE_URL as string, { max: 1, onnotice: () => {} })
-    await lock`SELECT pg_advisory_lock(${SUITE_LOCK_KEY})`
+    lock = await acquireSuiteLock()
     app = await buildTestApp()
   })
   after(async () => {
     if (!TEST_DB_CONFIGURED) return
     // `app` is undefined when before() failed — don't mask the root error.
     if (app !== undefined) await app.close()
-    if (lock !== null) {
-      await lock`SELECT pg_advisory_unlock(${SUITE_LOCK_KEY})`
-      await lock.end()
-    }
+    if (lock !== null) await releaseSuiteLock(lock)
   })
   beforeEach(async () => {
     if (!TEST_DB_CONFIGURED) return
@@ -193,17 +220,21 @@ export async function resetDb(app: FastifyInstance): Promise<void> {
     const list = tables.map((t) => `"${t.tablename}"`).join(', ')
     await app.db.execute(sql.raw(`TRUNCATE ${list} RESTART IDENTITY CASCADE`))
   }
-  // Always-available fallback provider — fiat_intents.provider FKs it.
+  // Always-available fallback provider — fiat_intents.provider FKs it. The
+  // `capabilities` column here is descriptive only: routing reads the LIVE
+  // in-memory capabilities that buildProviders() derives from the manifest
+  // (PAYOUT_CURRENCIES + exchange assets), never this row.
   await app.db.insert(fiat_providers).values({
     id: 'p2p_internal',
     display_name: 'Tenda P2P',
-    capabilities: { onramp: true, offramp: true, currencies: ['NGN'], assets: ['SOL', 'SOL_DEVNET'] },
+    capabilities: { onramp: true, offramp: true, currencies: PAYOUT_CURRENCIES, assets: ['*'] },
     priority: 100,
     is_enabled: true,
   })
   // In-process caches survive a TRUNCATE — drop them so a warmed rail
-  // never leaks into the next test.
+  // (or a stubbed exchange rate) never leaks into the next test.
   invalidateFeaturedCache()
+  invalidateExchangeRatesCache()
   await app.db.insert(chains).values({
     id: TEST_CHAIN_ID,
     namespace: 'solana',

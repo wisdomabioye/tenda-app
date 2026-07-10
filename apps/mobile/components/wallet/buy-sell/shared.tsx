@@ -20,20 +20,24 @@ function Row({ label, value, bold = false }: { label: string; value: string; bol
 export function QuoteSummary({
   rate,
   fee,
-  receiveLine,
+  fiatAmount,
+  currencySymbol,
+  assetSymbol,
   expiresIn,
 }: {
   rate: number
   fee: number
-  receiveLine: string
+  fiatAmount: number
+  currencySymbol: string
+  assetSymbol: string
   expiresIn: number
 }) {
   const { theme } = useUnistyles()
   return (
     <View style={[s.quoteCard, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default }]}>
-      <Row label="Rate" value={`₦${rate.toLocaleString()} / SOL`} />
-      <Row label="Conversion fee" value={fee > 0 ? `₦${fee.toLocaleString()}` : 'Free'} />
-      <Row label="You receive" value={receiveLine} bold />
+      <Row label="Rate" value={`${currencySymbol}${rate.toLocaleString()} / ${assetSymbol}`} />
+      <Row label="Conversion fee" value={fee > 0 ? `${currencySymbol}${fee.toLocaleString()}` : 'Free'} />
+      <Row label="You receive" value={`${currencySymbol}${fiatAmount.toLocaleString()}`} bold />
       <Text size={11.5} color={theme.colors.content.tertiary}>
         {expiresIn > 0
           ? `Quote valid for ${Math.floor(expiresIn / 60)}:${String(expiresIn % 60).padStart(2, '0')}`

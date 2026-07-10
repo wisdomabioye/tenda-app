@@ -7,7 +7,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { ErrorCode, getPayoutSpec, getPayoutRail } from '@tenda/shared'
+import { ErrorCode, getPayoutSpec, getPayoutRail, isPayoutRailKind, PAYOUT_RAIL_KINDS } from '@tenda/shared'
 import type { PayoutRailKind, BankAccountSummary } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { drizzleBankAccountStore } from '@server/features/fiat-rails'
@@ -45,8 +45,8 @@ interface CreateBody {
 
 function parseKind(raw: unknown): PayoutRailKind {
   if (raw === undefined) return 'bank'
-  if (raw !== 'bank' && raw !== 'mobile_money') {
-    throw new AppError(422, ErrorCode.VALIDATION_ERROR, "kind must be 'bank' or 'mobile_money'")
+  if (!isPayoutRailKind(raw)) {
+    throw new AppError(422, ErrorCode.VALIDATION_ERROR, `kind must be one of: ${PAYOUT_RAIL_KINDS.join(', ')}`)
   }
   return raw
 }

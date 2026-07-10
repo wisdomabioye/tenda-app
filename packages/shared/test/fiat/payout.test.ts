@@ -4,11 +4,16 @@ import {
   PAYOUT_COUNTRY_SPECS,
   SUPPORTED_PAYOUT_COUNTRIES,
   PAYOUT_CURRENCIES,
+  PAYOUT_RAIL_KINDS,
+  DEFAULT_PAYOUT_CURRENCY,
   GH_MOMO_NETWORKS,
   getPayoutSpec,
   getPayoutRail,
+  isPayoutRailKind,
+  payoutCurrencyForCountry,
 } from '../../src/fiat/payout'
 import { SUPPORTED_CURRENCIES } from '../../src/constants/currencies'
+import { payoutRailKindEnum } from '../../src/db/schema/fiat'
 
 // ---------- registry shape -------------------------------------------------
 
@@ -36,6 +41,37 @@ test('every spec is structurally sound (currency, ≥1 rail, fields map to colum
       }
     }
   }
+})
+
+test('PAYOUT_RAIL_KINDS is the single source: it equals the payout_rail_kind DB enum', () => {
+  // The route validates against PAYOUT_RAIL_KINDS and the union type derives
+  // from it; pinning it to the DB enum closes the last drift edge so the three
+  // representations (const, union, enum) can never diverge silently.
+  assert.deepEqual([...PAYOUT_RAIL_KINDS], [...payoutRailKindEnum.enumValues])
+})
+
+test('isPayoutRailKind narrows known values and rejects everything else', () => {
+  for (const k of PAYOUT_RAIL_KINDS) assert.ok(isPayoutRailKind(k))
+  for (const bad of ['crypto', '', 'BANK', undefined, null, 7]) assert.equal(isPayoutRailKind(bad), false)
+})
+
+test('every rail kind used by a spec is a known PAYOUT_RAIL_KIND (no drift)', () => {
+  for (const spec of Object.values(PAYOUT_COUNTRY_SPECS)) {
+    for (const rail of spec.rails) {
+      assert.ok(isPayoutRailKind(rail.kind), `rail kind '${rail.kind}' must be a known kind`)
+    }
+  }
+})
+
+test('DEFAULT_PAYOUT_CURRENCY is itself a supported payout currency', () => {
+  assert.ok(PAYOUT_CURRENCIES.includes(DEFAULT_PAYOUT_CURRENCY))
+})
+
+test('payoutCurrencyForCountry resolves a market, else the launch default', () => {
+  assert.equal(payoutCurrencyForCountry('GH'), 'GHS')
+  assert.equal(payoutCurrencyForCountry('KE'), 'KES')
+  assert.equal(payoutCurrencyForCountry('US'), DEFAULT_PAYOUT_CURRENCY) // unsupported → default
+  assert.equal(payoutCurrencyForCountry(null), DEFAULT_PAYOUT_CURRENCY) // unknown → default
 })
 
 test('getPayoutSpec / getPayoutRail resolve and reject correctly', () => {

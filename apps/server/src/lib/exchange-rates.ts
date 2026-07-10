@@ -15,6 +15,16 @@ interface CacheEntry {
 const _cache = new Map<string, CacheEntry>()
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
+/**
+ * Drop the in-process rate cache. The cache is a module singleton that
+ * survives a DB TRUNCATE, so tests that stub the CoinGecko fetch must clear
+ * it first (mirrors the harness's other in-memory cache resets) to avoid a
+ * warmed entry masking the stub.
+ */
+export function invalidateExchangeRatesCache(): void {
+  _cache.clear()
+}
+
 export const COINGECKO_PRICE_URL = 'https://api.coingecko.com/api/v3/simple/price'
 
 /** CoinGecko id for SOL — the asset the wallet-display endpoint prices. */
@@ -62,7 +72,12 @@ export async function getAssetRates(coingeckoId: string): Promise<CachedExchange
   }
 
   const value: CachedExchangeRates = { rates, fetched_at: now }
-  _cache.set(coingeckoId, { value, expiry: now + CACHE_TTL_MS })
+  // Only cache a populated result — a 200 that omits the coin (partial
+  // CoinGecko response) must not poison this id for the whole TTL; let the
+  // next call retry instead.
+  if (Object.keys(rates).length > 0) {
+    _cache.set(coingeckoId, { value, expiry: now + CACHE_TTL_MS })
+  }
   return value
 }
 

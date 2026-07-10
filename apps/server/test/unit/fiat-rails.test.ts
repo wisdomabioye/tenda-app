@@ -18,7 +18,7 @@ import {
   type FiatEvent,
 } from '@server/features/fiat-rails/service'
 import { pickCandidates, supportsRequest } from '@server/features/fiat-rails/routing'
-import { PAYOUT_CURRENCIES, CHAIN_MANIFEST, exchangeAssetsByChain } from '@tenda/shared'
+import { PAYOUT_CURRENCIES, CHAIN_MANIFEST, exchangeAssetsByChain, EXCHANGE_MAX_FIAT_AMOUNT } from '@tenda/shared'
 import {
   p2pInternalProvider,
   type P2pFulfilment,
@@ -264,6 +264,25 @@ test('requestQuote: failing provider falls through to the next; all fail → 503
     requestQuote(deadDeps, 'user-1', { ...ONRAMP_INPUT }),
     (e: unknown) => e instanceof AppError && e.statusCode === 503,
   )
+})
+
+test('requestQuote: an over-max computed fiat_amount is a terminal 422, never persisted', async () => {
+  const huge = fakeProvider('huge', {
+    async quote() {
+      return {
+        quote_ref: 'huge-q', rate: 1, fee_amount: 0,
+        fiat_amount: EXCHANGE_MAX_FIAT_AMOUNT + 1, // one past the numeric(20,4) rail
+        asset_amount_raw: '1', kyc_required: false, kyc_url: null,
+      }
+    },
+  })
+  // A backup exists, but the bound is terminal — it must NOT fall through to it.
+  const { deps, store } = makeDeps([huge, fakeProvider('backup')])
+  await assert.rejects(
+    requestQuote(deps, 'user-1', { ...ONRAMP_INPUT }),
+    (e: unknown) => e instanceof AppError && e.statusCode === 422 && /exceeds the maximum/.test(e.message),
+  )
+  assert.strictEqual(store.rows.size, 0, 'no intent may be persisted when the fiat bound is exceeded')
 })
 
 test('requestQuote: no capable provider → 503', async () => {

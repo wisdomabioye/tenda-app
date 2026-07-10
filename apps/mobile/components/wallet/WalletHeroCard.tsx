@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 /**
  * Wallet balance hero, the USDC-first total across every linked wallet/chain
  * (gigs settle in USDC on all chains, so it's one summable unit). Per-chain
- * breakdown + the Buy/Sell action live below it (WalletBalanceRows /
+ * breakdown + the Sell / cash-out action live below it (WalletBalanceRows /
  * WalletActions). Display-only; the screen owns the data + actions.
  */
 export function WalletHeroCard({ totalUsdc, isLoading }: { totalUsdc: number; isLoading: boolean }) {

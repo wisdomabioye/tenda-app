@@ -28,6 +28,12 @@ import { ASSET_META, chainById, type ChainAsset } from '@tenda/shared'
 import { platform_config } from '@tenda/shared/db/schema/governance'
 import { loadConfig } from '@server/config'
 import { getChainSecrets, type ResolvedChainSecret } from '@server/chains/secrets'
+import {
+  P2P_INTERNAL_ID,
+  P2P_INTERNAL_CAPABILITIES,
+  YELLOWCARD_SPEC,
+  ONRAMPMONEY_SPEC,
+} from '@server/features/fiat-rails'
 
 // ---------- pure row builder (unit-tested) ---------------------------------
 
@@ -106,25 +112,28 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
 
   // Stage 8: routing registry (enable/priority only, credentials live in
   // env; a provider without keys is simply never constructed).
+  // Capabilities are single-sourced from the provider definitions (licensed
+  // specs + the derived p2p surface) so this admin-visible row can't drift from
+  // the live routing. Only priority/enablement are seed-tunable defaults.
   const fiatProviderRows: FiatProviderRow[] = [
     {
-      id: 'yellowcard',
+      id: YELLOWCARD_SPEC.id,
       display_name: 'Yellow Card',
-      capabilities: { onramp: true, offramp: true, currencies: ['NGN'], assets: ['USDC_SOL', 'USDC_BASE'] },
+      capabilities: YELLOWCARD_SPEC.capabilities,
       priority: 10,
       is_enabled: true,
     },
     {
-      id: 'onrampmoney',
+      id: ONRAMPMONEY_SPEC.id,
       display_name: 'Onramp.money',
-      capabilities: { onramp: true, offramp: false, currencies: ['NGN'], assets: ['USDC_SOL', 'USDC_BASE'] },
+      capabilities: ONRAMPMONEY_SPEC.capabilities,
       priority: 20,
       is_enabled: true,
     },
     {
-      id: 'p2p_internal',
+      id: P2P_INTERNAL_ID,
       display_name: 'Tenda P2P',
-      capabilities: { onramp: false, offramp: true, currencies: ['NGN'], assets: ['SOL', 'SOL_DEVNET'] },
+      capabilities: P2P_INTERNAL_CAPABILITIES,
       priority: 100,
       is_enabled: true,
     },

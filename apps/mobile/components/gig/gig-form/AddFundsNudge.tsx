@@ -20,7 +20,7 @@ export function AddFundsNudge({ asset, paymentRaw }: { asset: string; paymentRaw
 
   return (
     <Pressable
-      onPress={() => router.push('/wallet/buy-sell?tab=buy' as Parameters<typeof router.push>[0])}
+      onPress={() => router.push('/exchange' as Parameters<typeof router.push>[0])}
       style={({ pressed }) => [
         s.addFunds,
         { backgroundColor: theme.colors.brand.primarySurface, borderColor: theme.colors.brand.primaryBorder },

@@ -93,10 +93,10 @@ export default function ExchangeScreen() {
         variant="large"
         title="Trade"
         subtitle="Swap crypto with sellers"
-        // CO4: hand-create a sell offer (advanced mode only).
-        {...(user?.advanced_mode_enabled
-          ? { rightIcon: Plus, onRightPress: () => router.push('/exchange/create' as Parameters<typeof router.push>[0]) }
-          : {})}
+        // Post a P2P sell offer — available to all users (the create screen
+        // gates on having a linked wallet, not on advanced mode).
+        rightIcon={Plus}
+        onRightPress={() => router.push('/exchange/create' as Parameters<typeof router.push>[0])}
       />
 
       {/* Tab row + animated underline */}

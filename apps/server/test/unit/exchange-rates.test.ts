@@ -106,3 +106,11 @@ test('getAssetRates: a coin absent from the response body yields empty rates, no
   const result = await getAssetRates('celo-dollar')
   assert.deepStrictEqual(result.rates, {})
 })
+
+test('getAssetRates: an empty result is NOT cached — the next call retries (no 5-min poison)', async () => {
+  let calls = 0
+  globalThis.fetch = (() => { calls += 1; return Promise.resolve(jsonResponse(200, {})) }) as typeof fetch
+  await getAssetRates('polkadot')
+  await getAssetRates('polkadot')
+  assert.strictEqual(calls, 2, 'empty response must not be served from cache')
+})

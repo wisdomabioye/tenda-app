@@ -7,10 +7,10 @@
 
 import type { FastifyInstance } from 'fastify'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
-import { CHAIN_MANIFEST, exchangeAssetsByChain, PAYOUT_CURRENCIES } from '@tenda/shared'
 import { getConfig } from '@server/config'
 import { appEvents } from '@server/lib/events'
 import { P2P_INTERNAL_ID } from './config'
+import { P2P_INTERNAL_CAPABILITIES } from './capabilities'
 import { drizzleFiatStore } from './store'
 import { p2pInternalProvider } from './providers/p2p-internal'
 import { licensedHttpProvider, fetchProviderHttp } from './providers/licensed-http'
@@ -30,13 +30,6 @@ function liveEventSink(): FiatEventSink {
   }
 }
 
-/**
- * Every exchange-tradable asset across all supported chains (USDC + natives),
- * de-duplicated — the p2p provider's declared asset support. Derived from the
- * manifest so it tracks new chains/assets automatically.
- */
-const EXCHANGE_ASSETS: string[] = [...new Set(CHAIN_MANIFEST.flatMap((c) => exchangeAssetsByChain(c.id)))]
-
 export function buildProviders(fastify: FastifyInstance): Map<string, FiatProvider> {
   const cfg = getConfig()
   const providers = new Map<string, FiatProvider>()
@@ -47,15 +40,8 @@ export function buildProviders(fastify: FastifyInstance): Map<string, FiatProvid
       rates: assetRateSource(),
       book: drizzleP2pOrderBook(fastify),
       fulfilment: drizzleP2pFulfilment(fastify),
-      capabilities: {
-        // CO4: onramp quotes against live sell offers (no offer → no quote).
-        onramp: true,
-        offramp: true,
-        // Launch payout currencies (derived from the country specs) and the
-        // full exchange-tradable asset set — single sources, no hardcoding.
-        currencies: PAYOUT_CURRENCIES,
-        assets: EXCHANGE_ASSETS,
-      },
+      // Single source, shared with the seed's descriptive registry row.
+      capabilities: P2P_INTERNAL_CAPABILITIES,
       now: () => new Date(),
     }),
   )
