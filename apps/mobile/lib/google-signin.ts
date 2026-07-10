@@ -16,6 +16,7 @@ export class GoogleSignInError extends Error {
     | 'cancelled'
     | 'in_progress'
     | 'play_services_unavailable'
+    | 'developer_error'
     | 'no_id_token'
     | 'unknown'
   constructor(reason: GoogleSignInError['reason'], message: string) {
@@ -48,6 +49,19 @@ export async function signInWithGoogle(): Promise<string> {
   } catch (err) {
     if (err instanceof GoogleSignInError) throw err
     if (isErrorWithCode(err)) {
+      // Android emits DEVELOPER_ERROR (Play Services code 10) when the running
+      // build's package + signing SHA-1 + client IDs don't match an OAuth client
+      // in Google Cloud Console — the classic "works in local build, fails in the
+      // EAS build" cause (different signing key). It has no named statusCodes
+      // constant, so match the raw code/message. Surfaced distinctly so the UI
+      // can say "configuration" instead of a useless "something went wrong".
+      const code = String(err.code)
+      if (code === 'DEVELOPER_ERROR' || code === '10' || /DEVELOPER_ERROR/i.test(err.message)) {
+        throw new GoogleSignInError(
+          'developer_error',
+          `Google sign-in configuration error (DEVELOPER_ERROR): the app's package name / signing SHA-1 / client IDs don't match an OAuth client in Google Cloud Console. ${err.message}`,
+        )
+      }
       switch (err.code) {
         case statusCodes.SIGN_IN_CANCELLED:
           throw new GoogleSignInError('cancelled', 'Google sign-in was cancelled')

@@ -56,7 +56,14 @@ export default function GetStartedScreen() {
       await signInWithVerify({ method: 'google', id_token: idToken })
       afterAuth()
     } catch (e) {
-      if (e instanceof GoogleSignInError && e.reason === 'cancelled') return
+      if (e instanceof GoogleSignInError) {
+        if (e.reason === 'cancelled') return
+        // Show the native reason directly (esp. developer_error / no_id_token) so
+        // config problems in a build are diagnosable instead of a generic toast.
+        console.warn('[google-signin]', e.reason, e.message)
+        showToast('error', e.message)
+        return
+      }
       reportError(e)
     } finally {
       setBusy(null)
