@@ -28,6 +28,7 @@ import type { ExchangeContract, ApiError, SupportedCurrency } from '@tenda/share
 import { isAmountRaw } from '@server/chains/types'
 import { AppError } from '@server/lib/errors'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { assertExchangeAsset } from '@server/lib/escrow'
 import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/lib/exchange-read'
 
 type ListRoute = ExchangeContract['list']
@@ -164,6 +165,9 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     if (escrow.kind !== 'exchange') {
       throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'Offer terms can only be attached to exchange escrows')
     }
+    // Defense in depth: the asset was guarded at escrow-create, re-assert it is
+    // exchange-tradable here so this route is correct independently.
+    assertExchangeAsset(escrow.asset, escrow.chain_id)
     if (escrow.status !== 'draft') {
       throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'Offer terms can only be attached while the escrow is a draft')
     }

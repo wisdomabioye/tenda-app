@@ -2,15 +2,18 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   CHAIN_MANIFEST,
-  chainById,
-  findChain,
-  gigAssetByChain,
   feeCurrencyAddress,
   isNativeAsset,
   assertManifestValid,
   type ChainManifestEntry,
 } from '../../src/chains/manifest'
-import { ASSET_META, GIG_ASSET_BY_CHAIN } from '../../src/constants/assets'
+import {
+  chainById,
+  findChain,
+  gigAssetByChain,
+  exchangeAssetsByChain,
+} from '../../src/chains/manifest-queries'
+import { ASSET_META } from '../../src/constants/assets'
 
 // The manifest is a hand-maintained data table that the server registry,
 // seeder, sponsor, and webhooks all key off — these invariants are what keep
@@ -51,7 +54,7 @@ test('fromSecret assets are not counted native and have null manifest token', ()
 
 test('at most one gig asset per chain', () => {
   for (const entry of CHAIN_MANIFEST) {
-    const gigs = entry.assets.filter((a) => a.role === 'gig')
+    const gigs = entry.assets.filter((a) => a.roles.includes('gig'))
     assert.ok(gigs.length <= 1, `${entry.id} has ${gigs.length} gig assets`)
   }
 })
@@ -101,13 +104,45 @@ test('findChain returns undefined on unknown without throwing', () => {
   assert.ok(findChain('solana:devnet') !== undefined)
 })
 
-test('gigAssetByChain matches the legacy GIG_ASSET_BY_CHAIN for every manifest chain', () => {
-  // Cross-check against the existing constant to prove no drift while the two
-  // coexist (Phase 2 retires GIG_ASSET_BY_CHAIN in favour of this helper).
+test('gigAssetByChain resolves a USDC stablecoin for every chain, null when unknown', () => {
   for (const entry of CHAIN_MANIFEST) {
-    assert.equal(gigAssetByChain(entry.id), GIG_ASSET_BY_CHAIN[entry.id] ?? null, `gig asset drift on ${entry.id}`)
+    const gigAsset = gigAssetByChain(entry.id)
+    assert.ok(gigAsset !== null, `${entry.id} should have a gig asset`)
+    const meta = ASSET_META[gigAsset]
+    assert.ok(meta !== undefined, `${entry.id} -> ${gigAsset} present in ASSET_META`)
+    assert.equal(meta.is_stable, true, `${entry.id} gig asset must be a stablecoin`)
+    assert.equal(meta.symbol, 'USDC', `${entry.id} gig asset must be USDC`)
   }
   assert.equal(gigAssetByChain('unknown:chain'), null)
+})
+
+test('exchangeAssetsByChain returns USDC + the native token per chain; empty for unknown', () => {
+  for (const entry of CHAIN_MANIFEST) {
+    const ids = exchangeAssetsByChain(entry.id)
+    assert.ok(ids.length >= 1, `${entry.id} should have at least one exchange asset`)
+    // Every returned id is exchange-tagged in the manifest and resolves in ASSET_META.
+    for (const id of ids) {
+      const asset = entry.assets.find((a) => a.id === id)
+      assert.ok(asset?.roles.includes('exchange'), `${id} on ${entry.id} must be exchange-tagged`)
+      assert.ok(ASSET_META[id] !== undefined, `${id} present in ASSET_META`)
+    }
+    // The chain's native token is always exchange-tradable.
+    const native = entry.assets.find(isNativeAsset)
+    assert.ok(native !== undefined && ids.includes(native.id), `${entry.id} native must be exchange-tradable`)
+    // The gig USDC is also exchange-tradable (roles overlap).
+    const gigAsset = gigAssetByChain(entry.id)
+    assert.ok(gigAsset !== null && ids.includes(gigAsset), `${entry.id} USDC must be exchange-tradable`)
+  }
+  assert.deepEqual(exchangeAssetsByChain('unknown:chain'), [])
+})
+
+test('assertManifestValid rejects an asset that declares no roles', () => {
+  const bad: ChainManifestEntry = {
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
+    assets: [{ id: 'ETH_BASE', roles: [], token: null }],
+  }
+  assert.throws(() => assertManifestValid([bad]), /declares no roles/)
 })
 
 // ---------- assertManifestValid (the import-time integrity guard) -----------
@@ -125,7 +160,7 @@ test('assertManifestValid rejects an asset missing from ASSET_META', () => {
   const bad: ChainManifestEntry = {
     id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
     displayName: 'X', minConfirmations: 1, gasPolicy: 'none',
-    assets: [{ id: 'NOT_A_REAL_ASSET', role: 'gig', token: null }],
+    assets: [{ id: 'NOT_A_REAL_ASSET', roles: ['gig'], token: null }],
   }
   assert.throws(() => assertManifestValid([bad]), /missing from ASSET_META/)
 })
@@ -134,7 +169,7 @@ test('assertManifestValid rejects a chain without exactly one native asset', () 
   const noNative: ChainManifestEntry = {
     id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
     displayName: 'X', minConfirmations: 1, gasPolicy: 'none',
-    assets: [{ id: 'USDC_BASE', role: 'gig', token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' }],
+    assets: [{ id: 'USDC_BASE', roles: ['gig'], token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' }],
   }
   assert.throws(() => assertManifestValid([noNative]), /exactly one native asset/)
 })
@@ -144,7 +179,7 @@ test('assertManifestValid rejects feeCurrency/gasPolicy mismatch', () => {
     id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
     gasPolicy: 'none', feeCurrency: 'cUSD',
-    assets: [{ id: 'ETH_BASE', role: 'exchange', token: null }],
+    assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
   }
   assert.throws(() => assertManifestValid([mismatch]), /feeCurrency must be set iff/)
 })
@@ -155,7 +190,7 @@ test('assertManifestValid rejects feeCurrency that resolves no address', () => {
     id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
     gasPolicy: 'feeCurrency', feeCurrency: 'CELO',
-    assets: [{ id: 'CELO', role: 'exchange', token: null }],
+    assets: [{ id: 'CELO', roles: ['exchange'], token: null }],
   }
   assert.throws(() => assertManifestValid([bad]), /has no token address/)
 })
@@ -168,7 +203,7 @@ test('every EVM manifest chain exposes a publicRpcUrl; assertManifestValid enfor
   const noRpc: ChainManifestEntry = {
     id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
     displayName: 'X', minConfirmations: 1, gasPolicy: 'none',
-    assets: [{ id: 'ETH_BASE', role: 'exchange', token: null }],
+    assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
   }
   assert.throws(() => assertManifestValid([noRpc]), /must set a publicRpcUrl/)
 })
@@ -180,7 +215,7 @@ test('permit config: USDC carries version 2 on every EVM chain; cUSD and natives
   // recomputation, 2026-07-03). cUSD's domain is non-standard → no entry.
   for (const entry of CHAIN_MANIFEST) {
     for (const asset of entry.assets) {
-      if (entry.namespace === 'eip155' && asset.role === 'gig') {
+      if (entry.namespace === 'eip155' && asset.roles.includes('gig')) {
         assert.deepEqual(asset.permit, { version: '2' }, `${asset.id} on ${entry.id} should be permit v2`)
       } else {
         assert.equal(asset.permit, undefined, `${asset.id} on ${entry.id} must not declare permit`)
@@ -194,8 +229,8 @@ test('assertManifestValid rejects permit on an asset without a canonical token',
     id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
     assets: [
-      { id: 'ETH_BASE', role: 'exchange', token: null, permit: { version: '2' } },
-      { id: 'USDC_BASE', role: 'gig', token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' },
+      { id: 'ETH_BASE', roles: ['exchange'], token: null, permit: { version: '2' } },
+      { id: 'USDC_BASE', roles: ['gig'], token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' },
     ],
   }
   assert.throws(() => assertManifestValid([bad]), /declares permit but has no canonical token/)
@@ -206,8 +241,8 @@ test('assertManifestValid rejects an empty permit version', () => {
     id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
     assets: [
-      { id: 'ETH_BASE', role: 'exchange', token: null },
-      { id: 'USDC_BASE', role: 'gig', token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', permit: { version: '' } },
+      { id: 'ETH_BASE', roles: ['exchange'], token: null },
+      { id: 'USDC_BASE', roles: ['gig'], token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', permit: { version: '' } },
     ],
   }
   assert.throws(() => assertManifestValid([bad]), /empty permit version/)

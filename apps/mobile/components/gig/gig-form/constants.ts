@@ -28,7 +28,7 @@ export const ACCEPT_DEADLINE_OPTIONS: { label: string; hours: number }[] = [
 export interface GigFormValues {
   title: string
   description: string
-  /** CAIP-2 chain + its gig asset (CO5), always a GIG_ASSET_BY_CHAIN pair. */
+  /** CAIP-2 chain + its gig asset (CO5), always a gigAssetByChain pair. */
   chainId: string
   asset: string
   /** Budget in raw units of `asset`. */

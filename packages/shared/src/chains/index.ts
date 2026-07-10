@@ -1,11 +1,6 @@
 export {
   CHAIN_MANIFEST,
-  chainById,
-  findChain,
-  gigAssetByChain,
   feeCurrencyAddress,
-  evmPublicRpcUrl,
-  requireEvmPublicRpcUrl,
   isNativeAsset,
   assertManifestValid,
   type ChainManifestEntry,
@@ -13,3 +8,11 @@ export {
   type AssetRole,
   type GasPolicy,
 } from './manifest'
+export {
+  chainById,
+  findChain,
+  gigAssetByChain,
+  exchangeAssetsByChain,
+  evmPublicRpcUrl,
+  requireEvmPublicRpcUrl,
+} from './manifest-queries'

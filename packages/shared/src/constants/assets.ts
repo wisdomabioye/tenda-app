@@ -9,32 +9,19 @@ export interface AssetMeta {
   symbol: string
   decimals: number
   is_stable: boolean
+  /** CoinGecko coin id used to price this asset in fiat (rate source). */
+  coingeckoId: string
 }
 
 export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
-  SOL: { symbol: 'SOL', decimals: 9, is_stable: false },
-  SOL_DEVNET: { symbol: 'SOL', decimals: 9, is_stable: false },
-  USDC_SOL: { symbol: 'USDC', decimals: 6, is_stable: true },
-  USDC_BASE: { symbol: 'USDC', decimals: 6, is_stable: true },
-  ETH_BASE: { symbol: 'ETH', decimals: 18, is_stable: false },
-  cUSD: { symbol: 'cUSD', decimals: 18, is_stable: true },
-  USDC_CELO: { symbol: 'USDC', decimals: 6, is_stable: true },
-  CELO: { symbol: 'CELO', decimals: 18, is_stable: false },
-}
-
-/**
- * Gig-eligible asset per chain (stablecoin policy: gigs are USDC-only so
- * pricing is intelligible — S0-3). SINGLE SOURCE shared by the server's
- * assertGigAsset guard and the mobile chain picker (CO5); a chain absent
- * here cannot carry gigs.
- */
-export const GIG_ASSET_BY_CHAIN: Readonly<Partial<Record<string, string>>> = {
-  'solana:mainnet': 'USDC_SOL',
-  'solana:devnet': 'USDC_SOL',
-  'eip155:8453': 'USDC_BASE',
-  'eip155:84532': 'USDC_BASE',
-  'eip155:42220': 'USDC_CELO',
-  'eip155:44787': 'USDC_CELO',
+  SOL: { symbol: 'SOL', decimals: 9, is_stable: false, coingeckoId: 'solana' },
+  SOL_DEVNET: { symbol: 'SOL', decimals: 9, is_stable: false, coingeckoId: 'solana' },
+  USDC_SOL: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
+  USDC_BASE: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
+  ETH_BASE: { symbol: 'ETH', decimals: 18, is_stable: false, coingeckoId: 'ethereum' },
+  cUSD: { symbol: 'cUSD', decimals: 18, is_stable: true, coingeckoId: 'celo-dollar' },
+  USDC_CELO: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
+  CELO: { symbol: 'CELO', decimals: 18, is_stable: false, coingeckoId: 'celo' },
 }
 
 /**

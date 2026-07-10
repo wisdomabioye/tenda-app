@@ -1,35 +1,32 @@
 /**
- * /v1/bank-accounts (stage-8): GET list, POST create (NIP name-enquiry
- * when configured; rate-limited 5/min/user, the enquiry API is paid per
- * call).
+ * /v1/bank-accounts (stage-8): GET list, POST create. Country + rail rules
+ * come from the shared payout-spec registry (getPayoutSpec / getPayoutRail) —
+ * the SAME source the mobile payout screen renders, so client fields and this
+ * validation can never diverge. NIP name-enquiry (Nigeria bank only, when
+ * configured; rate-limited 5/min/user as the API is paid per call).
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, getPayoutSpec, getPayoutRail } from '@tenda/shared'
+import type { PayoutRailKind, BankAccountSummary } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { drizzleBankAccountStore } from '@server/features/fiat-rails'
+import type { BankAccountRow } from '@server/features/fiat-rails'
 import { buildNameEnquiry } from '@server/lib/nip'
 import { isPostgresUniqueViolation } from '@server/lib/db'
 import { requireFiatRails, requireStr } from '@server/lib/fiat-routes'
 
-const NG_ACCOUNT_RE = /^\d{10}$/
-
-function serialize(a: {
-  id: string
-  country: string
-  bank_code: string
-  account_number: string
-  account_name: string
-  is_default: boolean
-  verified_at: Date | null
-  created_at: Date
-}) {
+function serialize(a: BankAccountRow): BankAccountSummary {
+  // Mask via the rail's own rule (banks show 4, MoMo shows 3); fall back to a
+  // 4-tail mask if the country/rail is somehow unknown.
+  const rail = getPayoutRail(a.country, a.kind)
+  const account_number_masked = rail?.maskAccountNumber(a.account_number) ?? `•••• ${a.account_number.slice(-4)}`
   return {
     id: a.id,
     country: a.country,
+    kind: a.kind,
     bank_code: a.bank_code,
-    // Masked except the tail, full numbers never re-leave the API.
-    account_number_masked: `****${a.account_number.slice(-4)}`,
+    account_number_masked,
     account_name: a.account_name,
     is_default: a.is_default,
     verified: a.verified_at !== null,
@@ -39,10 +36,19 @@ function serialize(a: {
 
 interface CreateBody {
   country?: unknown
+  kind?: unknown
   bank_code?: unknown
   account_number?: unknown
   account_name?: unknown
   is_default?: unknown
+}
+
+function parseKind(raw: unknown): PayoutRailKind {
+  if (raw === undefined) return 'bank'
+  if (raw !== 'bank' && raw !== 'mobile_money') {
+    throw new AppError(422, ErrorCode.VALIDATION_ERROR, "kind must be 'bank' or 'mobile_money'")
+  }
+  return raw
 }
 
 const route: FastifyPluginAsync = async (fastify) => {
@@ -60,15 +66,23 @@ const route: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const b = request.body ?? {}
       const country = requireStr('country', b.country, 2).toUpperCase()
-      const bank_code = requireStr('bank_code', b.bank_code, 10)
-      const account_number = requireStr('account_number', b.account_number, 20)
-      if (country === 'NG' && !NG_ACCOUNT_RE.test(account_number)) {
-        throw new AppError(422, ErrorCode.BANK_ACCOUNT_INVALID, 'NG account numbers are 10 digits')
+      const kind = parseKind(b.kind)
+
+      // Country + rail must be a supported payout market (single source).
+      if (getPayoutSpec(country) === null) {
+        throw new AppError(422, ErrorCode.BANK_ACCOUNT_INVALID, `payouts are not supported in '${country}'`)
+      }
+      const rail = getPayoutRail(country, kind)
+      if (rail === null) {
+        throw new AppError(422, ErrorCode.BANK_ACCOUNT_INVALID, `${kind} payouts are not available in '${country}'`)
       }
 
-      // NIP name-enquiry when configured; otherwise the user-supplied name
-      // saves unverified and the offramp provider re-validates on its side.
-      const enquiry = buildNameEnquiry()
+      const bank_code = requireStr('bank_code', b.bank_code, 30)
+      const account_number = requireStr('account_number', b.account_number, 30)
+
+      // Name from NIP name-enquiry (Nigeria bank only, when configured);
+      // user-supplied and unverified otherwise.
+      const enquiry = country === 'NG' && kind === 'bank' ? buildNameEnquiry() : null
       let account_name: string
       let verified_at: Date | null = null
       if (enquiry !== null) {
@@ -82,10 +96,17 @@ const route: FastifyPluginAsync = async (fastify) => {
         account_name = requireStr('account_name', b.account_name, 200)
       }
 
+      // Authoritative field validation via the rail spec.
+      const invalid = rail.validate({ bank_code, account_number, account_name })
+      if (invalid !== null) {
+        throw new AppError(422, ErrorCode.BANK_ACCOUNT_INVALID, invalid)
+      }
+
       try {
         const row = await drizzleBankAccountStore(fastify.db).insert({
           user_id: request.user.id,
           country,
+          kind,
           bank_code,
           account_number,
           account_name,

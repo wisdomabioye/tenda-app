@@ -18,6 +18,7 @@ import {
   type FiatEvent,
 } from '@server/features/fiat-rails/service'
 import { pickCandidates, supportsRequest } from '@server/features/fiat-rails/routing'
+import { PAYOUT_CURRENCIES, CHAIN_MANIFEST, exchangeAssetsByChain } from '@tenda/shared'
 import {
   p2pInternalProvider,
   type P2pFulfilment,
@@ -205,6 +206,31 @@ test('supportsRequest: currency and asset filters, wildcard assets', () => {
   assert.strictEqual(supportsRequest(p, { ...ONRAMP_INPUT, asset: 'ANYTHING' }), true)
   assert.strictEqual(supportsRequest(p, { ...ONRAMP_INPUT, fiat_currency: 'KES' }), false)
   assert.strictEqual(supportsRequest(p, { ...ONRAMP_INPUT, direction: 'offramp' }), false)
+})
+
+test('launch capability matrix: p2p supports USDC+native across chains in NGN/KES/GHS, rejects off-launch', () => {
+  // Mirror the live p2p_internal wiring (live-deps): PAYOUT_CURRENCIES + the
+  // union of exchange-tradable assets. Locks the launch surface end-to-end.
+  const exchangeAssets = [...new Set(CHAIN_MANIFEST.flatMap((c) => exchangeAssetsByChain(c.id)))]
+  const p2p = fakeProvider('p2p', {
+    capabilities: { onramp: true, offramp: true, currencies: PAYOUT_CURRENCIES, assets: exchangeAssets },
+  })
+  // USDC + natives, in each launch currency, both directions.
+  for (const currency of ['NGN', 'KES', 'GHS']) {
+    for (const asset of ['USDC_SOL', 'SOL_DEVNET', 'USDC_BASE', 'ETH_BASE', 'USDC_CELO', 'cUSD', 'CELO']) {
+      for (const direction of ['onramp', 'offramp'] as const) {
+        assert.strictEqual(
+          supportsRequest(p2p, { ...ONRAMP_INPUT, direction, fiat_currency: currency, asset }),
+          true,
+          `${direction} ${asset}/${currency} should be supported`,
+        )
+      }
+    }
+  }
+  // Off-launch currency (supported ISO but not a payout market) is rejected.
+  assert.strictEqual(supportsRequest(p2p, { ...ONRAMP_INPUT, fiat_currency: 'USD', asset: 'USDC_SOL' }), false)
+  // Gig-only / unregistered asset is rejected.
+  assert.strictEqual(supportsRequest(p2p, { ...ONRAMP_INPUT, fiat_currency: 'NGN', asset: 'MYSTERY' }), false)
 })
 
 // ---------- quote ------------------------------------------------------------
@@ -518,6 +544,22 @@ test('p2p quote: offramp marks the mid-rate down by the spread', async () => {
   })
   assert.strictEqual(off.rate, 990) // -100bps
   assert.strictEqual(off.fiat_amount, 1980)
+})
+
+test('p2p quote: offramp handles an 18-decimal asset (ETH) via BigInt-exact conversion', async () => {
+  // 1.5 ETH at 18 dp — the base-unit count (1.5e18) exceeds 2^53, so the raw→
+  // display step must not go through float Number(raw)/10**decimals.
+  const { provider } = p2p({ mid: 2000 })
+  const off = await provider.quote({
+    ...ONRAMP_INPUT,
+    direction: 'offramp',
+    asset: 'ETH_BASE',
+    asset_decimals: 18,
+    fiat_amount: null,
+    asset_amount_raw: '1500000000000000000',
+  })
+  assert.strictEqual(off.rate, 1980) // 2000 − 100bps
+  assert.strictEqual(off.fiat_amount, 2970) // 1.5 × 1980
 })
 
 test('p2p quote validation: onramp needs fiat_amount, offramp needs asset_amount_raw', async () => {

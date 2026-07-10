@@ -2,18 +2,18 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   ASSET_META,
-  GIG_ASSET_BY_CHAIN,
   GIG_STABLE_MIN_RAW,
   GIG_STABLE_MAX_RAW,
   amountRawToDisplay,
   formatAssetAmount,
 } from '../../src/constants/assets'
 
-test('ASSET_META: every entry has a symbol, non-negative decimals, and boolean is_stable', () => {
+test('ASSET_META: every entry has a symbol, non-negative decimals, boolean is_stable, coingeckoId', () => {
   for (const [id, meta] of Object.entries(ASSET_META)) {
     assert.ok(meta.symbol.length > 0, `${id} symbol`)
     assert.ok(Number.isInteger(meta.decimals) && meta.decimals >= 0, `${id} decimals`)
     assert.equal(typeof meta.is_stable, 'boolean', `${id} is_stable`)
+    assert.ok(meta.coingeckoId.length > 0, `${id} coingeckoId`)
   }
 })
 
@@ -23,16 +23,6 @@ test('ASSET_META: stablecoins are flagged, native coins are not', () => {
   assert.equal(ASSET_META.cUSD.is_stable, true)
   assert.equal(ASSET_META.SOL.is_stable, false)
   assert.equal(ASSET_META.ETH_BASE.is_stable, false)
-})
-
-test('GIG_ASSET_BY_CHAIN: every mapped asset exists in ASSET_META and is a stablecoin (USDC-only policy)', () => {
-  for (const [chain, asset] of Object.entries(GIG_ASSET_BY_CHAIN)) {
-    assert.ok(asset !== undefined)
-    const meta = ASSET_META[asset]
-    assert.ok(meta !== undefined, `${chain} -> ${asset} present in ASSET_META`)
-    assert.equal(meta.is_stable, true, `${chain} gig asset must be a stablecoin`)
-    assert.equal(meta.symbol, 'USDC', `${chain} gig asset must be USDC`)
-  }
 })
 
 test('GIG_STABLE bounds are ordered and positive', () => {

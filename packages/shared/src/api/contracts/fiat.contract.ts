@@ -5,6 +5,7 @@
  */
 
 import type { Endpoint } from '../endpoint'
+import type { PayoutRailKind } from '../../fiat/payout/types'
 
 export type FiatDirection = 'onramp' | 'offramp'
 
@@ -90,6 +91,7 @@ export interface FiatIntentDetail {
 export interface BankAccountSummary {
   id: string
   country: string
+  kind: PayoutRailKind
   bank_code: string
   account_number_masked: string
   account_name: string
@@ -100,9 +102,11 @@ export interface BankAccountSummary {
 
 export interface CreateBankAccountBody {
   country: string
+  /** Payout rail; defaults to 'bank' when omitted (back-compat). */
+  kind?: PayoutRailKind
   bank_code: string
   account_number: string
-  /** Required while NIP name-enquiry is unconfigured; ignored once live. */
+  /** Required while name-enquiry is unconfigured; ignored once live. */
   account_name?: string
   is_default?: boolean
 }

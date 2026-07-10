@@ -9,7 +9,7 @@
 
 import { ErrorCode, AMOUNT_RAW_PRECISION, type PermitSignatureBody } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { assertGigAsset } from '@server/lib/escrow'
+import { assertGigAsset, assertExchangeAsset } from '@server/lib/escrow'
 import { validateWirePermit } from '@server/chains/evm/permit'
 import { isAmountRaw, type AmountRaw, type AssetId, type ChainId } from '@server/chains/types'
 
@@ -79,6 +79,7 @@ export function validateCreateEscrow(
   if (typeof body.asset !== 'string' || body.asset === '') fail('asset is required')
   const asset = body.asset
   if (kind === 'gig') assertGigAsset(asset, chain_id)
+  else assertExchangeAsset(asset, chain_id)
 
   if (!isAmountRaw(body.amount_raw)) fail('amount_raw must be a canonical integer string')
   const amount_raw = body.amount_raw

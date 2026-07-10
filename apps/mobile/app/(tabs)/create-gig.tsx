@@ -100,7 +100,7 @@ export default function PostGigScreen() {
 
     const safeCity = coerceCityForCountry(values.country, values.city)
     // CO5: chain + USDC asset come from the form's picker (policy pair
-    // from the shared GIG_ASSET_BY_CHAIN map, the server re-asserts it).
+    // from the shared gigAssetByChain helper, the server re-asserts it).
     const chain_id = values.chainId
     const asset = values.asset
     const accept_deadline_unix = Math.floor(

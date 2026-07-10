@@ -8,7 +8,7 @@
  * the balance readers); the approve transaction itself rides the connected
  * wallet session (sendEvmTransaction), so keys never leave the wallet.
  */
-import { evmPublicRpcUrl } from '@tenda/shared'
+import { evmPublicRpcUrl, parseUnits } from '@tenda/shared'
 import { WalletError } from '@/wallet/errors'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
 import { addressWord, amountWord, evmRpc, evmRpcString } from '../evm-rpc'
@@ -27,20 +27,18 @@ export function encodeApprove(spender: string, amountRaw: string): string {
   return `${APPROVE_SELECTOR}${addressWord(spender)}${amountWord(amountRaw)}`
 }
 
+/** ERC-20 `approve(uint256)` ceiling — the biggest amount an allowance can carry. */
+const MAX_UINT256 = 2n ** 256n - 1n
+
 /**
- * User-typed decimal amount → base units ('12.5', 6 → '12500000').
- * Null on anything that isn't a plain positive decimal or that exceeds the
- * asset's precision, the approvals screen surfaces it as invalid input.
+ * User-typed decimal amount → base units ('12.5', 6 → '12500000'). Delegates
+ * the BigInt-exact parse to the shared util, adding the EVM-specific uint256
+ * ceiling; null (invalid input) is surfaced by the approvals screen.
  */
 export function displayToAmountRaw(display: string, decimals: number): string | null {
-  const match = /^(\d+)(?:\.(\d+))?$/.exec(display.trim())
-  if (match === null) return null
-  const whole = match[1]
-  const frac = match[2] ?? ''
-  if (frac.length > decimals) return null
-  const raw = BigInt(whole) * 10n ** BigInt(decimals) + BigInt(frac.padEnd(decimals, '0') || '0')
-  if (raw > 2n ** 256n - 1n) return null // approve(uint256) can't carry it
-  return raw.toString()
+  const raw = parseUnits(display, decimals)
+  if (raw === null || BigInt(raw) > MAX_UINT256) return null
+  return raw
 }
 
 function requireRpcUrl(chainId: string): string {

@@ -8,25 +8,28 @@
 import type { FastifyInstance } from 'fastify'
 import { and, asc, eq, gt, isNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { assets, escrows, exchange_details } from '@tenda/shared/db/schema'
-import { getExchangeRates } from '@server/lib/exchange-rates'
-import type { SupportedCurrency } from '@tenda/shared'
+import { getAssetRates } from '@server/lib/exchange-rates'
+import { ASSET_META, type SupportedCurrency } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
 import { P2P_INTERNAL_PAYMENT_WINDOW_SECONDS, P2P_ONRAMP_MATCH_TOLERANCE_BPS } from './config'
 import type { P2pFulfilment, P2pOrderBook, RateSource } from './providers/p2p-internal'
 
 /**
- * Pre-cutover: the platform rate cache is SOL-denominated (CoinGecko),
- * exactly what the legacy P2P exchange trades. Other assets reject until the
- * v2 exchange brings its own pricing.
+ * Mid-rate for any exchange-tradable asset, priced via CoinGecko (per-asset
+ * coin id from ASSET_META). Stablecoins resolve to ~1 USD in the target fiat;
+ * volatiles (SOL/ETH/CELO) to their live price. Unknown assets or a currency
+ * CoinGecko doesn't return reject 503 (the service falls through to the next
+ * provider, or surfaces the outage).
  */
-export function solRateSource(): RateSource {
+export function assetRateSource(): RateSource {
   return {
     async midRate(asset, fiat_currency) {
-      if (asset !== 'SOL' && asset !== 'SOL_DEVNET') {
+      const meta = ASSET_META[asset]
+      if (meta === undefined) {
         throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate source for asset '${asset}'`)
       }
-      const { rates } = await getExchangeRates()
+      const { rates } = await getAssetRates(meta.coingeckoId)
       const rate = rates[fiat_currency as SupportedCurrency]
       if (rate === undefined) {
         throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate for currency '${fiat_currency}'`)

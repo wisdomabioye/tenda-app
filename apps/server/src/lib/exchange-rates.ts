@@ -6,51 +6,71 @@ export interface CachedExchangeRates {
   fetched_at: number
 }
 
-let _cache: CachedExchangeRates | null = null
-let _cacheExpiry = 0
+interface CacheEntry {
+  value: CachedExchangeRates
+  expiry: number
+}
+
+/** Per-coin cache (CoinGecko id → rates), so each asset is fetched at most once per TTL. */
+const _cache = new Map<string, CacheEntry>()
 const CACHE_TTL_MS = 5 * 60 * 1000 // 5 minutes
 
 export const COINGECKO_PRICE_URL = 'https://api.coingecko.com/api/v3/simple/price'
 
+/** CoinGecko id for SOL — the asset the wallet-display endpoint prices. */
+const SOL_COINGECKO_ID = 'solana'
+
 /**
- * Fetch SOL exchange rates from CoinGecko, cached for 5 minutes.
- * On CoinGecko failure, returns stale cache if available rather than erroring.
- * Throws 503 only when there is no cached data to fall back on.
+ * Fetch a CoinGecko coin's fiat rates (all SUPPORTED_CURRENCIES) by coin id,
+ * cached per id for 5 minutes. On CoinGecko failure, returns stale cache for
+ * that id if available rather than erroring; throws 503 only when there is no
+ * cached data to fall back on. Stablecoins (usd-coin, celo-dollar) resolve to
+ * ~1 unit of USD in each fiat — exactly the conversion the offramp needs.
  */
-export async function getExchangeRates(): Promise<CachedExchangeRates> {
+export async function getAssetRates(coingeckoId: string): Promise<CachedExchangeRates> {
   const now = Date.now()
-  if (_cache && now < _cacheExpiry) return _cache
+  const cached = _cache.get(coingeckoId)
+  if (cached && now < cached.expiry) return cached.value
 
   const vs = SUPPORTED_CURRENCIES.map((c) => CURRENCY_META[c].coingeckoKey).join(',')
 
   let response: Response
   try {
     response = await fetch(
-      `${COINGECKO_PRICE_URL}?ids=solana&vs_currencies=${vs}`,
+      `${COINGECKO_PRICE_URL}?ids=${coingeckoId}&vs_currencies=${vs}`,
       { signal: AbortSignal.timeout(10_000) },
     )
   } catch {
-    if (_cache) return _cache
+    if (cached) return cached.value
     throw new AppError(503, 'EXCHANGE_RATE_UNAVAILABLE', 'Exchange rate service is currently unavailable')
   }
 
   if (!response.ok) {
-    if (_cache) return _cache
+    if (cached) return cached.value
     throw new AppError(503, 'EXCHANGE_RATE_UNAVAILABLE', 'Exchange rate service is currently unavailable')
   }
 
-  const data = await response.json() as { solana: Record<string, number> }
-  const solana = data.solana
+  const data = (await response.json()) as Record<string, Record<string, number>>
+  const coin = data[coingeckoId] ?? {}
 
   const rates: Partial<Record<SupportedCurrency, number>> = {}
   for (const currency of SUPPORTED_CURRENCIES) {
     const key = CURRENCY_META[currency].coingeckoKey
-    if (typeof solana[key] === 'number' && solana[key] > 0) {
-      rates[currency] = solana[key]
+    if (typeof coin[key] === 'number' && coin[key] > 0) {
+      rates[currency] = coin[key]
     }
   }
 
-  _cache = { rates, fetched_at: now }
-  _cacheExpiry = now + CACHE_TTL_MS
-  return _cache
+  const value: CachedExchangeRates = { rates, fetched_at: now }
+  _cache.set(coingeckoId, { value, expiry: now + CACHE_TTL_MS })
+  return value
+}
+
+/**
+ * SOL fiat rates for the wallet-display endpoint (GET /v1/platform/exchange-rates).
+ * A thin alias over getAssetRates so the display surface and the offramp rate
+ * source share one CoinGecko client + cache.
+ */
+export async function getExchangeRates(): Promise<CachedExchangeRates> {
+  return getAssetRates(SOL_COINGECKO_ID)
 }

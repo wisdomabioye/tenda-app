@@ -31,7 +31,11 @@ export type GasPolicy =
   | 'feeCurrency' // CELO-style: gas paid in a stable via EIP-2930 feeCurrency.
   | 'none' //        User pays gas in the native token; no abstraction.
 
-/** What an asset is used for. Native gas tokens are `token: null` (see below). */
+/**
+ * What an asset may be used for. An asset can serve more than one role — USDC
+ * is both gig-eligible (the stablecoin gig policy) AND exchange-tradable, so
+ * `roles` is a set, not a single value. Native gas tokens are `token: null`.
+ */
 export type AssetRole = 'gig' | 'exchange'
 
 /**
@@ -45,7 +49,8 @@ export type AssetRole = 'gig' | 'exchange'
 export interface ChainAsset {
   /** Asset-registry id; MUST exist in ASSET_META. */
   id: string
-  role: AssetRole
+  /** Non-empty set of roles this asset serves on the chain (see AssetRole). */
+  roles: AssetRole[]
   token: string | null
   fromSecret?: string
   /**
@@ -104,8 +109,8 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     minConfirmations: 1,
     gasPolicy: 'native-seed',
     assets: [
-      { id: 'SOL', role: 'exchange', token: null },
-      { id: 'USDC_SOL', role: 'gig', token: null, fromSecret: 'usdcMint' },
+      { id: 'SOL', roles: ['exchange'], token: null },
+      { id: 'USDC_SOL', roles: ['gig', 'exchange'], token: null, fromSecret: 'usdcMint' },
     ],
   },
   {
@@ -117,8 +122,8 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     minConfirmations: 1,
     gasPolicy: 'native-seed',
     assets: [
-      { id: 'SOL_DEVNET', role: 'exchange', token: null },
-      { id: 'USDC_SOL', role: 'gig', token: null, fromSecret: 'usdcMint' },
+      { id: 'SOL_DEVNET', roles: ['exchange'], token: null },
+      { id: 'USDC_SOL', roles: ['gig', 'exchange'], token: null, fromSecret: 'usdcMint' },
     ],
   },
   {
@@ -135,11 +140,11 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
       // permit version read from the live token's version() on 2026-07-03.
       {
         id: 'USDC_BASE',
-        role: 'gig',
+        roles: ['gig', 'exchange'],
         token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
         permit: { version: '2' },
       },
-      { id: 'ETH_BASE', role: 'exchange', token: null },
+      { id: 'ETH_BASE', roles: ['exchange'], token: null },
     ],
   },
   {
@@ -156,11 +161,11 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
       // permit version() + DOMAIN_SEPARATOR verified on-chain 2026-07-03.
       {
         id: 'USDC_BASE',
-        role: 'gig',
+        roles: ['gig', 'exchange'],
         token: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
         permit: { version: '2' },
       },
-      { id: 'ETH_BASE', role: 'exchange', token: null },
+      { id: 'ETH_BASE', roles: ['exchange'], token: null },
     ],
   },
   {
@@ -180,12 +185,12 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
       // fields, verified on-chain) — approve flow only, no permit entry.
       {
         id: 'USDC_CELO',
-        role: 'gig',
+        roles: ['gig', 'exchange'],
         token: '0xcebA9300f2b948710d2653dD7B07f33A8B32118C',
         permit: { version: '2' },
       },
-      { id: 'cUSD', role: 'exchange', token: '0x765DE816845861e75A25fCA122bb6898B8B1282a' },
-      { id: 'CELO', role: 'exchange', token: null },
+      { id: 'cUSD', roles: ['exchange'], token: '0x765DE816845861e75A25fCA122bb6898B8B1282a' },
+      { id: 'CELO', roles: ['exchange'], token: null },
     ],
   },
 ]
@@ -193,48 +198,6 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
 /** True iff the asset is the chain's native gas token (no contract, no secret). */
 export function isNativeAsset(asset: ChainAsset): boolean {
   return asset.token === null && asset.fromSecret === undefined
-}
-
-/** Look up a chain by CAIP-2 id; throws on unknown so callers fail loud. */
-export function chainById(id: string): ChainManifestEntry {
-  const entry = CHAIN_MANIFEST.find((c) => c.id === id)
-  if (entry === undefined) {
-    throw new Error(`unknown chain id '${id}' (not in CHAIN_MANIFEST)`)
-  }
-  return entry
-}
-
-/** Non-throwing lookup for membership checks. */
-export function findChain(id: string): ChainManifestEntry | undefined {
-  return CHAIN_MANIFEST.find((c) => c.id === id)
-}
-
-/**
- * The gig-eligible (USDC) asset id for a chain, or null if the chain carries
- * no gigs. Derived from the asset list — the single source — superseding the
- * old standalone GIG_ASSET_BY_CHAIN map.
- */
-export function gigAssetByChain(id: string): string | null {
-  return findChain(id)?.assets.find((a) => a.role === 'gig')?.id ?? null
-}
-
-/**
- * Client-safe public RPC URL for an EVM chain id, or null if unknown / non-EVM.
- * The single source for client-side balance reads — callers must not hardcode
- * RPC endpoints. Non-throwing (a registry chain with no manifest match simply
- * yields no reads rather than crashing the screen).
- */
-export function evmPublicRpcUrl(id: string): string | null {
-  return findChain(id)?.publicRpcUrl ?? null
-}
-
-/** Throwing variant for call sites that require the URL (manifest guarantees it). */
-export function requireEvmPublicRpcUrl(id: string): string {
-  const url = evmPublicRpcUrl(id)
-  if (url === null) {
-    throw new Error(`no publicRpcUrl for EVM chain '${id}' (not in CHAIN_MANIFEST)`)
-  }
-  return url
 }
 
 /** Resolve the feeCurrency token address from the chain's asset list. */
@@ -261,6 +224,9 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     for (const asset of entry.assets) {
       if (ASSET_META[asset.id] === undefined) {
         throw new Error(`CHAIN_MANIFEST: asset '${asset.id}' on '${entry.id}' missing from ASSET_META`)
+      }
+      if (asset.roles.length === 0) {
+        throw new Error(`CHAIN_MANIFEST: asset '${asset.id}' on '${entry.id}' declares no roles`)
       }
       if (asset.permit !== undefined && asset.token === null) {
         throw new Error(

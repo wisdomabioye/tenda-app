@@ -3,7 +3,7 @@ import {
   isValidGigAmountRaw,
   MIN_COMPLETION_DURATION_SECONDS,
   ASSET_META,
-  GIG_ASSET_BY_CHAIN,
+  gigAssetByChain,
   solanaChainId,
 } from '@tenda/shared'
 import type { GigCategory, ChainRegistryEntry } from '@tenda/shared'
@@ -51,7 +51,7 @@ export function useGigForm(
   const [warnSheetOpen, setWarnSheetOpen] = useState(false)
 
   // CO5: chain options come from the server registry; a chain is gig-
-  // eligible when the shared GIG_ASSET_BY_CHAIN policy names an asset the
+  // eligible when the shared gigAssetByChain policy names an asset the
   // registry actually carries. EVM chains stay disabled until the user
   // links an eip155 wallet.
   useEffect(() => {
@@ -64,8 +64,8 @@ export function useGigForm(
   const hasEvmWallet = wallets.some((w) => w.chain_ns === 'eip155' && w.verified_at !== null)
   const chainOptions: ChainOption[] = registry
     .filter((c) => {
-      const gigAsset = GIG_ASSET_BY_CHAIN[c.id]
-      return gigAsset !== undefined && c.assets.some((a) => a.id === gigAsset)
+      const gigAsset = gigAssetByChain(c.id)
+      return gigAsset !== null && c.assets.some((a) => a.id === gigAsset)
     })
     .map((c) => ({
       id: c.id,
@@ -74,7 +74,7 @@ export function useGigForm(
     }))
 
   // The asset is POLICY-derived, never user-picked: gigs are USDC-only.
-  const asset = GIG_ASSET_BY_CHAIN[chainId] ?? GIG_ASSET_BY_CHAIN[defaultChainId] ?? 'USDC_SOL'
+  const asset = gigAssetByChain(chainId) ?? gigAssetByChain(defaultChainId) ?? 'USDC_SOL'
   const assetSymbol = ASSET_META[asset]?.symbol ?? asset
 
   // Stage-6 live moderation hints, debounced, advisory only; the server

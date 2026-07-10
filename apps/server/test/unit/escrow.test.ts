@@ -8,6 +8,7 @@ import {
   type TransitionContext,
   assertCanTransition,
   assertGigAsset,
+  assertExchangeAsset,
   computeAcceptDeadline,
   computeApprovalDeadline,
   computeCompletionDeadline,
@@ -382,8 +383,11 @@ test('assertGigAsset: USDC_CELO on eip155:42220 passes', () => {
   assertGigAsset('USDC_CELO', 'eip155:42220')
 })
 
-test('assertGigAsset: USDC_CELO on eip155:44787 (Alfajores) passes', () => {
-  assertGigAsset('USDC_CELO', 'eip155:44787')
+test('assertGigAsset: eip155:44787 (Alfajores, not in the manifest) → ESCROW_INVALID_ASSET', () => {
+  // Alfajores is not a supported chain (absent from CHAIN_MANIFEST); the guard
+  // now reads the manifest as the single source, so it rejects rather than
+  // relying on the retired standalone map.
+  expectError(() => assertGigAsset('USDC_CELO', 'eip155:44787'), 'ESCROW_INVALID_ASSET')
 })
 
 test('assertGigAsset: unknown chain → ESCROW_INVALID_ASSET (422)', () => {
@@ -413,4 +417,44 @@ test('assertGigAsset: cross-chain USDC rejected (USDC_BASE on solana)', () => {
 test('assertGigAsset: empty strings rejected', () => {
   expectError(() => assertGigAsset('', 'solana:mainnet'), 'ESCROW_INVALID_ASSET')
   expectError(() => assertGigAsset('USDC_SOL', ''), 'ESCROW_INVALID_ASSET')
+})
+
+// ---------- assertExchangeAsset (USDC + native per chain) ----------------
+
+test('assertExchangeAsset: native token is tradable on every chain', () => {
+  assertExchangeAsset('SOL', 'solana:mainnet')
+  assertExchangeAsset('SOL_DEVNET', 'solana:devnet')
+  assertExchangeAsset('ETH_BASE', 'eip155:8453')
+  assertExchangeAsset('ETH_BASE', 'eip155:84532')
+  assertExchangeAsset('CELO', 'eip155:42220')
+})
+
+test('assertExchangeAsset: USDC is also tradable on every chain (roles overlap)', () => {
+  assertExchangeAsset('USDC_SOL', 'solana:mainnet')
+  assertExchangeAsset('USDC_SOL', 'solana:devnet')
+  assertExchangeAsset('USDC_BASE', 'eip155:8453')
+  assertExchangeAsset('USDC_CELO', 'eip155:42220')
+})
+
+test('assertExchangeAsset: cUSD tradable on CELO (exchange asset, unlike gigs)', () => {
+  assertExchangeAsset('cUSD', 'eip155:42220')
+})
+
+test('assertExchangeAsset: unknown chain → ESCROW_INVALID_ASSET (422)', () => {
+  const err = expectError(() => assertExchangeAsset('ETH_BASE', 'eip155:1'), 'ESCROW_INVALID_ASSET')
+  assert.strictEqual(err.statusCode, 422)
+})
+
+test('assertExchangeAsset: unlisted asset on a known chain → ESCROW_INVALID_ASSET', () => {
+  // USDC_SOL is not registered on Base.
+  expectError(() => assertExchangeAsset('USDC_SOL', 'eip155:8453'), 'ESCROW_INVALID_ASSET')
+})
+
+test('assertExchangeAsset: cross-chain native rejected (SOL on Base)', () => {
+  expectError(() => assertExchangeAsset('SOL', 'eip155:8453'), 'ESCROW_INVALID_ASSET')
+})
+
+test('assertExchangeAsset: empty strings rejected', () => {
+  expectError(() => assertExchangeAsset('', 'solana:mainnet'), 'ESCROW_INVALID_ASSET')
+  expectError(() => assertExchangeAsset('SOL', ''), 'ESCROW_INVALID_ASSET')
 })

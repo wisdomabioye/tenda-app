@@ -29,7 +29,7 @@ function body(over: Partial<CreateEscrowBody> = {}): CreateEscrowBody {
   return {
     kind: 'exchange',
     chain_id: 'solana:devnet',
-    asset: 'SOL',
+    asset: 'SOL_DEVNET',
     amount_raw: '1000000000',
     accept_deadline_unix: NOW_UNIX + 3_600,
     completion_duration_seconds: 7_200,
@@ -54,7 +54,7 @@ test('valid exchange body normalizes (bond defaults to 0, no assignment)', () =>
   assert.deepStrictEqual(v, {
     kind: 'exchange',
     chain_id: 'solana:devnet',
-    asset: 'SOL',
+    asset: 'SOL_DEVNET',
     amount_raw: '1000000000',
     accept_deadline_unix: NOW_UNIX + 3_600,
     completion_duration_seconds: 7_200,
@@ -103,6 +103,16 @@ test('bad kind / missing chain / unregistered chain reject', () => {
 test('gig asset rules enforced via assertGigAsset', () => {
   // SOL is not a USDC asset — gigs must reject it.
   assert.throws(() => validateCreateEscrow(deps(), body({ kind: 'gig', asset: 'SOL' })), AppError)
+})
+
+test('exchange asset rules enforced via assertExchangeAsset', () => {
+  // USDC_SOL (gig+exchange) and the devnet native are tradable on devnet…
+  assert.deepStrictEqual(
+    validateCreateEscrow(deps(), body({ asset: 'USDC_SOL' })).asset,
+    'USDC_SOL',
+  )
+  // …but an unlisted/cross-chain asset is rejected on the exchange branch too.
+  assert.throws(() => validateCreateEscrow(deps(), body({ asset: 'ETH_BASE' })), AppError)
 })
 
 test('amount validation: non-canonical, zero', () => {

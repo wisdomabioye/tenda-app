@@ -6,6 +6,7 @@
 
 import { and, eq, inArray, lt, sql } from 'drizzle-orm'
 import { fiat_intents, bank_accounts } from '@tenda/shared/db/schema/fiat'
+import type { PayoutRailKindDb } from '@tenda/shared/db/schema/fiat'
 import type { AppDatabase } from '@server/plugins/db'
 import type { FiatIntentRow, FiatIntentStatus, FiatDirection } from './types'
 
@@ -139,6 +140,7 @@ export interface BankAccountRow {
   id: string
   user_id: string
   country: string
+  kind: PayoutRailKindDb
   bank_code: string
   account_number: string
   account_name: string
@@ -153,6 +155,7 @@ export interface BankAccountStore {
   insert(row: {
     user_id: string
     country: string
+    kind: PayoutRailKindDb
     bank_code: string
     account_number: string
     account_name: string

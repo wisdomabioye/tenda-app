@@ -15,7 +15,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { AppError } from '@server/lib/errors'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, formatUnits } from '@tenda/shared'
 import { P2P_INTERNAL_ID, P2P_INTERNAL_SPREAD_BPS } from '../config'
 import type {
   FiatProvider,
@@ -133,8 +133,9 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
       if (req.asset_amount_raw === null) {
         throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'asset_amount_raw required for offramp quotes')
       }
-      const scale = 10 ** req.asset_decimals
-      const display = Number(req.asset_amount_raw) / scale
+      // BigInt-exact base-units → display; Number() is safe here because the
+      // decimal string is small-magnitude (float would corrupt 18-dp raw).
+      const display = Number(formatUnits(req.asset_amount_raw, req.asset_decimals))
       const fiat_amount = Math.floor(display * rate * 100) / 100
 
       const quote: ProviderQuote = {
