@@ -65,3 +65,15 @@ test('submitted seller still gets Confirm & Release (branch not shadowed by canA
   render(<ExchangeCTA offer={offer('submitted')} userId={SELLER} onSheet={noop} {...baseProps} />)
   expect(screen.getByText('Confirm & Release')).toBeTruthy()
 })
+
+test('submitted buyer past the approval deadline gets Claim Crypto, NOT the proof button', () => {
+  // Regression: canAddProof and canClaim are BOTH true here; claiming must win
+  // so the buyer can still recover their crypto when the seller stalls.
+  const stalled: ExchangeDetail = {
+    ...offer('submitted'),
+    approval_deadline: new Date(Date.now() - 60_000).toISOString(),
+  }
+  render(<ExchangeCTA offer={stalled} userId={BUYER} onSheet={noop} {...baseProps} />)
+  expect(screen.getByText('Claim Crypto')).toBeTruthy()
+  expect(screen.queryByText('Add More Proof')).toBeNull()
+})

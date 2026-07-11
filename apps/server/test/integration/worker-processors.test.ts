@@ -102,7 +102,9 @@ test('accepted notifies the creator only', { skip }, async () => {
   await buildVerifyTxDeps(app).republish(evt('EscrowAccepted', e.id))
   assert.deepStrictEqual(notifUserIds(), [creator.row.id])
   assert.strictEqual(cap.enqueued[0].payload.title, 'Gig accepted')
-  assert.deepStrictEqual(cap.enqueued[0].payload.data, { screen: 'escrow', escrowId: e.id })
+  // `kind` is part of the deep-link contract (useNotificationDeepLink routes
+  // gig vs exchange on it), so the push data carries it — here a default gig.
+  assert.deepStrictEqual(cap.enqueued[0].payload.data, { screen: 'escrow', escrowId: e.id, kind: 'gig' })
 })
 
 test('approved notifies the counterparty only', { skip }, async () => {

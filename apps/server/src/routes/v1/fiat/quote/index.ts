@@ -5,7 +5,8 @@
  *     wallet_address, gig_id? }
  *   { direction: 'offramp', fiat_currency, asset, asset_amount_raw,
  *     chain_id, wallet_address }
- * → QuoteResult (intent persisted as status='quoted', 10-min validity).
+ * → QuoteResult (quote cached in Redis with a 10-min TTL, NOT a Postgres row;
+ *   the durable intent is created at commit — see initiateIntent).
  */
 
 import type { FastifyPluginAsync } from 'fastify'

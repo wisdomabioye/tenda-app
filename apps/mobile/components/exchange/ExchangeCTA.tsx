@@ -80,6 +80,16 @@ export function ExchangeCTA({ offer, userId, busy, onTxAction, onSheet }: Props)
       </View>
     )
   }
+  // Claim is checked BEFORE add-proof: a submitted buyer past the approval
+  // deadline satisfies BOTH canClaim and canAddProof, and getting their crypto
+  // must win over uploading more evidence (else the claim action is hidden).
+  if (canClaim({ ...parties, approval_deadline: offer.approval_deadline }, userId)) {
+    return (
+      <Button variant="primary" size="xl" fullWidth loading={busy} onPress={() => onTxAction('claim_stalled')}>
+        Claim Crypto
+      </Button>
+    )
+  }
   // The buyer (counterparty) keeps adding payment evidence while the seller
   // reviews (submitted) or the mediator does (disputed) — parity with the gig
   // path, where a dropped-off "Add Evidence" affordance during a dispute is
@@ -88,13 +98,6 @@ export function ExchangeCTA({ offer, userId, busy, onTxAction, onSheet }: Props)
     return (
       <Button variant="outline" size="xl" fullWidth onPress={() => onSheet('addProof')}>
         {offer.status === 'disputed' ? 'Add Evidence' : 'Add More Proof'}
-      </Button>
-    )
-  }
-  if (canClaim({ ...parties, approval_deadline: offer.approval_deadline }, userId)) {
-    return (
-      <Button variant="primary" size="xl" fullWidth loading={busy} onPress={() => onTxAction('claim_stalled')}>
-        Claim Crypto
       </Button>
     )
   }

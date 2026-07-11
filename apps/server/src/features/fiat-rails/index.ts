@@ -9,6 +9,8 @@ export { requestQuote, initiateIntent, cancelIntent, settleFromProvider, reconci
 export type { QuoteInput, QuoteResult, InitiateOutput, FiatDeps, FiatEvent } from './service'
 export { drizzleFiatStore, drizzleBankAccountStore, OPEN_STATUSES } from './store'
 export type { FiatStore, BankAccountStore, BankAccountRow } from './store'
+export { redisQuoteCache, inMemoryQuoteCache, quoteKey } from './quote-cache'
+export type { QuoteCache, StoredQuote } from './quote-cache'
 export { pickCandidates, supportsRequest } from './routing'
 export type { ProviderRegistryRow } from './routing'
 export * from './types'

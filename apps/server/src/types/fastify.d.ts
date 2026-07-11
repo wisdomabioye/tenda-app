@@ -22,6 +22,7 @@ import type { AppDatabase } from '../plugins/db'
 import type { QueueService } from '../plugins/queue'
 import type { ChainRegistry } from '../chains/types'
 import type { WsBroadcaster } from '../lib/ws'
+import type { QuoteCache } from '../features/fiat-rails/quote-cache'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -43,6 +44,9 @@ declare module 'fastify' {
 
     /** BullMQ queue service, registered by `plugins/queue.ts`. */
     queue: QueueService
+
+    /** Fiat pre-commit quote cache (Redis), registered by `plugins/quote-cache.ts`. */
+    quoteCache: QuoteCache
 
     /** In-process WS pub/sub, registered by `plugins/websocket.ts`. */
     wsBroadcast: WsBroadcaster

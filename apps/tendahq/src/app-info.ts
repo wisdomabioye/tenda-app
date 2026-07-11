@@ -19,18 +19,18 @@ export const APP_INFO = {
     'Tenda is the on-chain marketplace for gig work and P2P fiat trades. The escrow program lives on Solana — funds lock when work is posted and release the moment proof clears. Built for emerging markets first.',
 
   /** Distribution. */
-  apkUrl: 'https://github.com/wisdomabioye/tenda-app/releases/download/v0.3.1-devnet/v0.3.1-devnet.apk',
+  apkUrl: 'https://github.com/wisdomabioye/tenda-app/releases/download/v0.3.2-devnet/v0.3.2-devnet.apk',
   appStoreUrl: '#',
   playStoreUrl: '#',
   qrTarget: 'tenda.so/get',
 
   /** Build / release. */
-  version: 'v0.3.1-devnet',
+  version: 'v0.3.2-devnet',
   buildLocation: 'Lagos',
 
   /** Solana chain identity surfaced in the proof band + footer status. */
   chain: {
-    network: 'Solana · devnet',
+    network: 'Solana devnet | Base Sepolia',
     /** Truncated program id; full address goes in support docs, not the marketing site. */
     programIdShort: 'Tend…9k2A',
     explorerUrl: 'https://explorer.solana.com/?cluster=devnet',

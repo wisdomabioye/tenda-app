@@ -5,11 +5,13 @@
  * the published offer is live for hours/days, governed by its own
  * accept_deadline + reconcile — not the 10-minute quote TTL.
  *
- * DB-backed (exercises the real listExpiredQuotes SQL); gated on
- * TEST_DATABASE_URL.
+ * DB-backed (exercises the real listExpiredAwaitingUser SQL); gated on
+ * TEST_DATABASE_URL. Pre-commit quotes are no longer Postgres rows (Redis
+ * cache), so this scans only committed awaiting_user intents.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
+import { randomUUID } from 'node:crypto'
 import { P2P_PROVIDER_ID } from '@tenda/shared'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { drizzleFiatStore } from '@server/features/fiat-rails'
@@ -38,6 +40,7 @@ async function seedIntent(
   over: { provider: string; status: FiatIntentStatus; expires_at: Date },
 ) {
   return drizzleFiatStore(app.db).insertIntent({
+    id: randomUUID(),
     direction: 'offramp',
     user_id,
     wallet_address: 'SellerWallet111111111111111111111111111111',
@@ -56,7 +59,7 @@ async function seedIntent(
   })
 }
 
-test('listExpiredQuotes: skips an OPENED p2p offramp intent (awaiting_user)', { skip }, async () => {
+test('listExpiredAwaitingUser: expires stale licensed intents, skips opened p2p offers', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
   await app.db.insert(fiat_providers).values({
@@ -70,9 +73,6 @@ test('listExpiredQuotes: skips an OPENED p2p offramp intent (awaiting_user)', { 
   const opened = await seedIntent(app, u.row.id, {
     provider: P2P_PROVIDER_ID, status: 'awaiting_user', expires_at: PAST,
   })
-  const quotedP2p = await seedIntent(app, u.row.id, {
-    provider: P2P_PROVIDER_ID, status: 'quoted', expires_at: PAST,
-  })
   const licensed = await seedIntent(app, u.row.id, {
     provider: LICENSED_PROVIDER, status: 'awaiting_user', expires_at: PAST,
   })
@@ -80,11 +80,10 @@ test('listExpiredQuotes: skips an OPENED p2p offramp intent (awaiting_user)', { 
     provider: P2P_PROVIDER_ID, status: 'awaiting_user', expires_at: FUTURE,
   })
 
-  const expired = await drizzleFiatStore(app.db).listExpiredQuotes(new Date(), 100)
+  const expired = await drizzleFiatStore(app.db).listExpiredAwaitingUser(new Date(), 100)
   const ids = new Set(expired.map((r) => r.id))
 
   assert.ok(!ids.has(opened.id), 'a live p2p offer must NOT be quote-expired')
   assert.ok(!ids.has(notYetExpired.id), 'future expiry excluded')
-  assert.ok(ids.has(quotedP2p.id), 'never-initiated p2p quote still expires')
   assert.ok(ids.has(licensed.id), 'licensed deposit instruction still expires on TTL')
 })

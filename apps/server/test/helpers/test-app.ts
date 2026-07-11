@@ -43,6 +43,7 @@ import dbPlugin from '@server/plugins/db'
 import authPlugin from '@server/plugins/auth'
 import queuePlugin from '@server/plugins/queue'
 import websocketPlugin from '@server/plugins/websocket'
+import { inMemoryQuoteCache } from '@server/features/fiat-rails/quote-cache'
 import type { ChainAdapter, ChainRegistry, UnsignedTx } from '@server/chains/types'
 import { userFixture, escrowFixture, type UserRow, type EscrowRow } from './fixtures'
 
@@ -135,6 +136,10 @@ export async function buildTestApp(): Promise<FastifyInstance> {
   await app.register(queuePlugin)
   await app.register(websocketPlugin)
   app.decorate('chains', fakeRegistry())
+  // The plugins dir isn't autoloaded here, so the quote-cache plugin never
+  // runs — decorate the behaviourally-identical in-memory cache so fiat quote
+  // + initiate exercise the real path (no Redis dependency in tests).
+  app.decorate('quoteCache', inMemoryQuoteCache())
 
   await app.register(AutoLoad, {
     dir: join(__dirname, '..', '..', 'src', 'routes'),

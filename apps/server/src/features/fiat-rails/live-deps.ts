@@ -80,6 +80,7 @@ export async function buildFiatDeps(fastify: FastifyInstance): Promise<FiatDeps>
 
   return {
     store: drizzleFiatStore(fastify.db),
+    quoteCache: fastify.quoteCache,
     providers: buildProviders(fastify),
     registry,
     events: liveEventSink(),

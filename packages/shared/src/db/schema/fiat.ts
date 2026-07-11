@@ -35,6 +35,10 @@ export const payoutRailKindEnum = pgEnum('payout_rail_kind', ['bank', 'mobile_mo
 export type PayoutRailKindDb = (typeof payoutRailKindEnum.enumValues)[number]
 
 export const fiatIntentStatusEnum = pgEnum('fiat_intent_status', [
+  // 'quoted' is VESTIGIAL: pre-commit quotes now live in the Redis quote cache
+  // (native TTL), never as a row. The first persisted status is awaiting_*.
+  // Kept in the enum on purpose — dropping a Postgres enum value is a painful
+  // migration for zero benefit; no code writes it.
   'quoted',
   'awaiting_user',
   'awaiting_provider',
