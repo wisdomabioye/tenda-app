@@ -28,7 +28,7 @@ import { api, ApiClientError } from '@/api/client'
 import { useExchangeAssetOptions } from '@/hooks/useExchangeAssetOptions'
 import { usePayoutAccounts } from '@/hooks/usePayoutAccounts'
 import { AssetChainPicker, optionKey } from '@/components/exchange/AssetChainPicker'
-import { PayoutAccountPicker } from '@/components/payout'
+import { PayoutAccountSelect } from '@/components/payout'
 import { signSendAndReport } from '@/wallet/dispatch'
 import {
   classifyTransactionGateError,
@@ -55,7 +55,7 @@ export default function CreateOfferScreen() {
   // The buyer pays fiat into this account, so the offer's currency follows the
   // SELECTED account's country (not the profile) — an NGN offer can't be backed
   // by a KES account (the server re-asserts this).
-  const { accounts, selectedId, setSelectedId, selected: account } = usePayoutAccounts()
+  const { accounts, selectedId, setSelectedId, selected: account, reload } = usePayoutAccounts()
   const currency = payoutCurrencyForCountry(account?.country ?? null)
   const currencySymbol = CURRENCY_META[currency].symbol
 
@@ -167,11 +167,12 @@ export default function CreateOfferScreen() {
         />
 
         <SectionLabel>Payout account</SectionLabel>
-        <PayoutAccountPicker
+        <PayoutAccountSelect
           accounts={accounts}
           selectedId={selectedId}
+          selected={account}
           onSelect={setSelectedId}
-          onAddAccount={() => router.push('/settings/bank-accounts' as Parameters<typeof router.push>[0])}
+          reload={reload}
         />
 
         {valid && option !== null && amountRaw !== null && (

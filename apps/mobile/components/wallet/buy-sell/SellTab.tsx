@@ -11,7 +11,7 @@ import { useFiatQuote } from '@/hooks/useFiatQuote'
 import { useExchangeAssetOptions } from '@/hooks/useExchangeAssetOptions'
 import { usePayoutAccounts } from '@/hooks/usePayoutAccounts'
 import { AssetChainPicker, optionKey } from '@/components/exchange/AssetChainPicker'
-import { PayoutAccountPicker } from '@/components/payout'
+import { PayoutAccountSelect } from '@/components/payout'
 import { FeeSummary } from '@/components/shared/FeeSummary'
 import { QuoteSummary, UnavailableNotice, tabBodyStyle } from './shared'
 
@@ -33,7 +33,7 @@ export function SellTab() {
 
   // Focus-refreshing loader: a payout account added on the bank-accounts screen
   // shows up the moment we return here (fixes the stale list).
-  const { accounts, selectedId, setSelectedId, selected: account } = usePayoutAccounts()
+  const { accounts, selectedId, setSelectedId, selected: account, reload } = usePayoutAccounts()
   const [submitting, setSubmitting] = useState(false)
 
   const currency = payoutCurrencyForCountry(account?.country ?? null)
@@ -102,11 +102,12 @@ export function SellTab() {
       />
 
       <SectionLabel>Payout account</SectionLabel>
-      <PayoutAccountPicker
+      <PayoutAccountSelect
         accounts={accounts}
         selectedId={selectedId}
+        selected={account}
         onSelect={setSelectedId}
-        onAddAccount={() => router.push('/settings/bank-accounts' as Parameters<typeof router.push>[0])}
+        reload={reload}
       />
 
       {error === 'unavailable' && (

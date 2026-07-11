@@ -2,37 +2,24 @@ import { View, StyleSheet, Pressable } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Landmark, Smartphone } from 'lucide-react-native'
 import type { BankAccountSummary } from '@tenda/shared'
-import { Text, Button } from '@/components/ui'
+import { Text } from '@/components/ui'
 
 interface Props {
-  /** null while loading; [] once loaded-but-empty. */
-  accounts: BankAccountSummary[] | null
+  accounts: BankAccountSummary[]
   selectedId: string | null
   onSelect: (id: string) => void
-  /** Navigate to add a payout account (shown only when none exist yet). */
-  onAddAccount: () => void
 }
 
 /**
- * Selectable list of saved payout accounts (radio semantics) shared by the
- * sell / create-offer flows. Distinct from PayoutAccountRow, which is the
- * delete-oriented management row on the settings screen. When the user has no
- * account yet it collapses to a single "add" affordance.
+ * Selectable list of saved payout accounts (radio semantics), used inside the
+ * PayoutAccountSelect dropdown sheet. Purely presentational — empty/add
+ * affordances belong to the dropdown, and deletion to PayoutAccountRow.
  */
-export function PayoutAccountPicker({ accounts, selectedId, onSelect, onAddAccount }: Props) {
+export function PayoutAccountList({ accounts, selectedId, onSelect }: Props) {
   const { theme } = useUnistyles()
-
-  if (accounts !== null && accounts.length === 0) {
-    return (
-      <Button variant="outline" size="md" fullWidth onPress={onAddAccount}>
-        Add a payout account
-      </Button>
-    )
-  }
-
   return (
     <View style={s.list}>
-      {accounts?.map((a) => {
+      {accounts.map((a) => {
         const Icon = a.kind === 'mobile_money' ? Smartphone : Landmark
         const selected = selectedId === a.id
         return (
