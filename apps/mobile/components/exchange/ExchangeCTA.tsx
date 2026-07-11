@@ -1,7 +1,7 @@
 import { View, StyleSheet } from 'react-native'
 import { spacing } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
-import { canAccept, canSubmit, canCancel, canClaim, canDispute, canReview } from '@tenda/shared'
+import { canAccept, canSubmit, canCancel, canClaim, canDispute, canReview, canAddProof } from '@tenda/shared'
 import type { EscrowTxType, ExchangeDetail } from '@tenda/shared'
 import type { ActiveSheet } from '@/components/gig'
 
@@ -78,6 +78,17 @@ export function ExchangeCTA({ offer, userId, busy, onTxAction, onSheet }: Props)
           Dispute
         </Button>
       </View>
+    )
+  }
+  // The buyer (counterparty) keeps adding payment evidence while the seller
+  // reviews (submitted) or the mediator does (disputed) — parity with the gig
+  // path, where a dropped-off "Add Evidence" affordance during a dispute is
+  // exactly the bug this mirrors. canAddProof is counterparty + submitted|disputed.
+  if (canAddProof(parties, userId)) {
+    return (
+      <Button variant="outline" size="xl" fullWidth onPress={() => onSheet('addProof')}>
+        {offer.status === 'disputed' ? 'Add Evidence' : 'Add More Proof'}
+      </Button>
     )
   }
   if (canClaim({ ...parties, approval_deadline: offer.approval_deadline }, userId)) {
