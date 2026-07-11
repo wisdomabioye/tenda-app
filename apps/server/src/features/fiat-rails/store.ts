@@ -4,9 +4,10 @@
  * regress a settled intent.
  */
 
-import { and, eq, inArray, lt, sql } from 'drizzle-orm'
+import { and, eq, inArray, lt, ne, or, sql } from 'drizzle-orm'
 import { fiat_intents, bank_accounts } from '@tenda/shared/db/schema/fiat'
 import type { PayoutRailKindDb } from '@tenda/shared/db/schema/fiat'
+import { P2P_PROVIDER_ID } from '@tenda/shared'
 import type { AppDatabase } from '@server/plugins/db'
 import type { FiatIntentRow, FiatIntentStatus, FiatDirection } from './types'
 
@@ -125,6 +126,17 @@ export function drizzleFiatStore(db: AppDatabase): FiatStore {
           and(
             inArray(fiat_intents.status, ['quoted', 'awaiting_user']),
             lt(fiat_intents.expires_at, now),
+            // A P2P offer, once OPENED (awaiting_user), is governed by the
+            // offer's own accept_deadline + reconcile via provider.status —
+            // NOT the 10-min quote TTL. Expiring it here fired a false
+            // "cash-out failed, quote expired" push while the published offer
+            // was still live. Quote-STAGE p2p intents (never initiated) still
+            // expire; so do all licensed-provider deposit instructions.
+            // i.e. NOT (awaiting_user AND p2p_internal).
+            or(
+              ne(fiat_intents.status, 'awaiting_user'),
+              ne(fiat_intents.provider, P2P_PROVIDER_ID),
+            ),
           ),
         )
         .orderBy(fiat_intents.expires_at)

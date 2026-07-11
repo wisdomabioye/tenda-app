@@ -16,7 +16,7 @@ import { eq, and, gt, gte, isNull, lte, or, desc, sql, type SQL } from 'drizzle-
 import { escrows, exchange_details, users } from '@tenda/shared/db/schema'
 import {
   ErrorCode,
-  
+  payoutCurrencyForCountry,
   SUPPORTED_CURRENCIES,
   EXCHANGE_PAYMENT_WINDOW_MIN_SECONDS,
   EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS,
@@ -29,6 +29,7 @@ import { isAmountRaw } from '@server/chains/types'
 import { AppError } from '@server/lib/errors'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { assertExchangeAsset } from '@server/lib/escrow'
+import { drizzleBankAccountStore } from '@server/features/fiat-rails'
 import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/lib/exchange-read'
 
 type ListRoute = ExchangeContract['list']
@@ -172,12 +173,32 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
       throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'Offer terms can only be attached while the escrow is a draft')
     }
 
+    // Payout target: a sell offer with nowhere for the buyer to pay can never
+    // settle. Must belong to the caller and match the offer's fiat currency —
+    // a KES account can't back an NGN-priced offer (checked after the escrow
+    // guards so ownership/kind/status still take precedence).
+    if (typeof body.payout_account_id !== 'string' || body.payout_account_id === '') {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'payout_account_id is required')
+    }
+    const account = await drizzleBankAccountStore(fastify.db).get(request.user.id, body.payout_account_id)
+    if (account === null) {
+      throw new AppError(404, ErrorCode.NOT_FOUND, 'payout account not found')
+    }
+    if (payoutCurrencyForCountry(account.country) !== fiat_currency) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_ERROR,
+        'payout account currency does not match the offer currency',
+      )
+    }
+
     const values = {
       escrow_id: escrow.id,
       fiat_amount: fiat_amount.toFixed(4),
       fiat_currency,
       rate: rate.toFixed(10),
       payment_window_seconds,
+      payout_account_id: account.id,
     }
     const [row] = await fastify.db
       .insert(exchange_details)

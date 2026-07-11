@@ -1,6 +1,7 @@
 export { ExchangeStatusBadge } from './ExchangeStatusBadge'
 export { ExchangeOfferCard } from './ExchangeOfferCard'
 export { ExchangeTermsCard } from './ExchangeTermsCard'
+export { PaymentInstructionsCard, shouldShowPaymentInstructions } from './PaymentInstructionsCard'
 export { ExchangeCTA } from './ExchangeCTA'
 export { MyOfferRow } from './MyOfferRow'
 export { OfferListSkeleton } from './OfferListSkeleton'

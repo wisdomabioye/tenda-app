@@ -1,12 +1,14 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { ChevronRight } from 'lucide-react-native'
+import { ChevronRight, Clock } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
 import { formatFiat } from '@/lib/currency'
+import { chainLabel } from '@/lib/chains'
+import { formatDurationShort } from '@/lib/countdown'
 import { formatAssetAmount, ASSET_META } from '@tenda/shared'
 import type { ExchangeSummary, SupportedCurrency } from '@tenda/shared'
 
@@ -41,8 +43,23 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
       <Avatar src={offer.creator.avatar_url} name={sellerName} size="md" />
 
       <View style={s.body}>
-        {/* Row 1, asset → fiat */}
+        {/* Row 1, seller identity + network */}
         <View style={s.row1}>
+          <Text
+            style={[s.seller, { color: theme.colors.content.primary }]}
+            numberOfLines={1}
+          >
+            {sellerName}
+          </Text>
+          <View style={[s.netPill, { backgroundColor: theme.colors.surface.inset }]}>
+            <Text style={[s.netText, { color: theme.colors.content.secondary }]} numberOfLines={1}>
+              {chainLabel(offer.chain_id)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Row 2, the trade: asset → fiat */}
+        <View style={s.tradeRow}>
           <Text style={[s.sol, { color: theme.colors.content.primary }]} numberOfLines={1}>
             {formatAssetAmount(offer.amount_raw, offer.asset)}
           </Text>
@@ -52,8 +69,8 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
           </Text>
         </View>
 
-        {/* Row 2, handle · ★ rating · rate/asset */}
-        <View style={s.row2}>
+        {/* Row 3, handle · ★ rating · rate/asset · window */}
+        <View style={s.metaRow}>
           {handle && (
             <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>{handle}</Text>
           )}
@@ -72,12 +89,18 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
           </Text>
         </View>
 
-        {/* Row 3, offer status (My Offers variant) */}
-        {showStatus && (
-          <View style={s.row3}>
-            <ExchangeStatusBadge status={offer.status} />
-          </View>
-        )}
+        {/* Row 4, payment window + optional status */}
+        <View style={s.footerRow}>
+          <Clock size={12} color={theme.colors.content.tertiary} />
+          <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>
+            Pay within {formatDurationShort(offer.payment_window_seconds)}
+          </Text>
+          {showStatus && (
+            <View style={s.statusWrap}>
+              <ExchangeStatusBadge status={offer.status} />
+            </View>
+          )}
+        </View>
       </View>
 
       <ChevronRight size={20} color={theme.colors.content.tertiary} style={s.chev} />
@@ -101,8 +124,32 @@ const s = StyleSheet.create({
   },
   row1: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  seller: {
+    fontSize: 14,
+    lineHeight: 18,
+    fontWeight: '600',
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  netPill: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+    flexShrink: 0,
+  },
+  netText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: '600',
+  },
+  tradeRow: {
+    flexDirection: 'row',
     alignItems: 'baseline',
     gap: 6,
+    marginTop: 4,
   },
   sol: {
     fontFamily: typography.fonts.mono,
@@ -126,11 +173,11 @@ const s = StyleSheet.create({
     flexShrink: 1,
     minWidth: 0,
   },
-  row2: {
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginTop: 3,
+    marginTop: 4,
     flexWrap: 'wrap',
   },
   metaText: {
@@ -142,9 +189,14 @@ const s = StyleSheet.create({
     lineHeight: 16,
     opacity: 0.5,
   },
-  row3: {
+  footerRow: {
     flexDirection: 'row',
-    marginTop: 8,
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  statusWrap: {
+    marginLeft: 4,
   },
   chev: {
     alignSelf: 'center',

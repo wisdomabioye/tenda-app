@@ -35,12 +35,15 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
   // ── Review submitted → notify reviewee ───────────────────────────────────
   appEvents.on('review.submitted', async (data) => {
     try {
-      const subject = data.title === null ? 'your exchange' : `"${data.title}"`
+      // title === null uniquely marks an exchange escrow (no gig_details),
+      // so it doubles as the deep-link kind — routes /exchange vs /gig.
+      const isExchange = data.title === null
+      const subject = isExchange ? 'your exchange' : `"${data.title}"`
       await notify(
         data.revieweeId,
         'New Review',
         `You received a ${data.score}-star review for ${subject}.`,
-        { screen: 'escrow', escrowId: data.escrowId },
+        { screen: 'escrow', escrowId: data.escrowId, kind: isExchange ? 'exchange' : 'gig' },
       )
     } catch (err) {
       fastify.log.error({ err }, '[notifications] review.submitted listener failed')

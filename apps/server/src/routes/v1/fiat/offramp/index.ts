@@ -5,7 +5,7 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, payoutCurrencyForCountry } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { buildFiatDeps, initiateIntent, drizzleBankAccountStore } from '@server/features/fiat-rails'
 import { requireFiatRails, requireStr } from '@server/lib/fiat-routes'
@@ -28,8 +28,21 @@ const route: FastifyPluginAsync = async (fastify) => {
 
       const deps = await buildFiatDeps(fastify)
       const intent = await deps.store.getIntent(intent_id)
-      if (intent !== null && intent.user_id === request.user.id && intent.direction !== 'offramp') {
-        throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'intent is not an offramp')
+      if (intent !== null && intent.user_id === request.user.id) {
+        if (intent.direction !== 'offramp') {
+          throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'intent is not an offramp')
+        }
+        // The account is persisted on the P2P offer as the buyer's payout
+        // target, so its currency must match the offer the intent was quoted
+        // in — a KES account can't back an NGN cash-out. Mirrors the guard on
+        // the manual create route (routes/v1/exchange).
+        if (payoutCurrencyForCountry(account.country) !== intent.fiat_currency) {
+          throw new AppError(
+            422,
+            ErrorCode.VALIDATION_ERROR,
+            'payout account currency does not match the offramp currency',
+          )
+        }
       }
       return initiateIntent(deps, request.user.id, intent_id, {
         bank_account: {
@@ -37,6 +50,8 @@ const route: FastifyPluginAsync = async (fastify) => {
           account_number: account.account_number,
           account_name: account.account_name,
         },
+        // Persisted on the P2P offer so an accepted buyer sees where to pay.
+        payout_account_id: account.id,
       })
     },
   )

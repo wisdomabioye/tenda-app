@@ -30,7 +30,7 @@ export type {
 } from './escrow'
 export type { GigSummary, GigDetail, GigCategory, GigListQuery, CreateGigDetailsBody } from './gig'
 export { isGigAcceptable, computeCompletionDeadline } from './gig'
-export type { ExchangeSummary, ExchangeDetail, ExchangeListQuery, CreateExchangeDetailsBody } from './exchange'
+export type { ExchangeSummary, ExchangeDetail, ExchangePayoutAccount, ExchangeListQuery, CreateExchangeDetailsBody } from './exchange'
 export type { Review, NewReview, ReviewInput, GetUserReviewsQuery } from './review'
 export type { CloudinarySignature, UploadType } from './upload'
 export type { PaginatedResponse, ApiError } from './api'

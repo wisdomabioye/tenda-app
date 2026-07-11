@@ -17,6 +17,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { assets, chains } from './chains'
 import { users } from './identity'
+import { bank_accounts } from './fiat'
 
 // S5.3 (closes open #25): Postgres tsvector for gig full-text search.
 // drizzle has no built-in tsvector — minimal customType; the column is
@@ -178,6 +179,14 @@ export const exchange_details = pgTable('exchange_details', {
   rate: numeric('rate', { precision: 30, scale: 10 }).notNull(),
   payment_window_seconds: integer('payment_window_seconds').notNull(),
   payment_proof_url: text('payment_proof_url'),
+  /**
+   * The seller's payout account the accepted buyer pays fiat into. Nullable:
+   * older offers predate it and a deleted account nulls out (set null) rather
+   * than cascading the whole offer. Revealed only to the offer's parties.
+   */
+  payout_account_id: uuid('payout_account_id').references(() => bank_accounts.id, {
+    onDelete: 'set null',
+  }),
 })
 
 export const escrow_transactions = pgTable(

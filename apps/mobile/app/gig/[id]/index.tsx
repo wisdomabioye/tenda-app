@@ -29,6 +29,7 @@ import { apiConfig, formatAssetAmount } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
 import { formatDuration } from '@/lib/gig-display'
 import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
+import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import type { EscrowTxType, GigDetail } from '@tenda/shared'
 
 const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
@@ -56,6 +57,10 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const { dismissedNudges } = useOnboardingStore()
 
   const actions = useEscrowActions({ escrowId: gig.escrow_id, chainId: gig.chain_id })
+
+  // Live-update when the counterparty acts (accept / submit / approve), not
+  // just on focus — the escrow WS channel drives the refetch.
+  useEscrowLiveRefresh(gig.escrow_id, () => fetchGigDetail(gig.escrow_id))
 
   // Fire the gated transition the confirm dialog was showing, then close it.
   function runConfirmedAction() {

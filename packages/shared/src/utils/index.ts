@@ -1,5 +1,5 @@
 export * from './gig-utils'
-export { computePlatformFee } from './fees'
+export { computePlatformFee, computePlatformFeeRaw } from './fees'
 export { isCrossBorder } from './cross-border'
 export { LAMPORTS_PER_SOL } from './constants'
 export { parseUnits, formatUnits } from './units'

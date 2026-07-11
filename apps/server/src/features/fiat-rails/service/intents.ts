@@ -25,7 +25,7 @@ export async function initiateIntent(
   deps: FiatDeps,
   user_id: string,
   intent_id: string,
-  opts: { bank_account?: BankAccountRef },
+  opts: { bank_account?: BankAccountRef; payout_account_id?: string },
 ): Promise<InitiateOutput> {
   const intent = await deps.store.getIntent(intent_id)
   if (intent === null || intent.user_id !== user_id) {
@@ -66,6 +66,7 @@ export async function initiateIntent(
       rate: Number(intent.rate),
     },
     bank_account: opts.bank_account,
+    payout_account_id: opts.payout_account_id,
   })
 
   // KYC redirect parks the intent on the provider until the user returns.

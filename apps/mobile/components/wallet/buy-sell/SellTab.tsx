@@ -1,16 +1,18 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { View, ScrollView, Pressable, StyleSheet } from 'react-native'
+import { useMemo, useState } from 'react'
+import { ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import { Landmark, Smartphone } from 'lucide-react-native'
-import { parseUnits, payoutCurrencyForCountry, CURRENCY_META, type BankAccountSummary } from '@tenda/shared'
+import { parseUnits, payoutCurrencyForCountry, CURRENCY_META, P2P_PROVIDER_ID } from '@tenda/shared'
 import { Text, Button, showToast } from '@/components/ui'
 import { Input } from '@/components/ui/Input'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { api, ApiClientError } from '@/api/client'
 import { useFiatQuote } from '@/hooks/useFiatQuote'
 import { useExchangeAssetOptions } from '@/hooks/useExchangeAssetOptions'
+import { usePayoutAccounts } from '@/hooks/usePayoutAccounts'
 import { AssetChainPicker, optionKey } from '@/components/exchange/AssetChainPicker'
+import { PayoutAccountPicker } from '@/components/payout'
+import { FeeSummary } from '@/components/shared/FeeSummary'
 import { QuoteSummary, UnavailableNotice, tabBodyStyle } from './shared'
 
 /** Sell (offramp): crypto out → fiat to a saved payout account. Multi-asset. */
@@ -29,22 +31,11 @@ export function SellTab() {
   const amountRaw = option !== null ? parseUnits(amount, option.decimals) : null
   const amountValid = amountRaw !== null && amountRaw !== '0'
 
-  const [accounts, setAccounts] = useState<BankAccountSummary[] | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
+  // Focus-refreshing loader: a payout account added on the bank-accounts screen
+  // shows up the moment we return here (fixes the stale list).
+  const { accounts, selectedId, setSelectedId, selected: account } = usePayoutAccounts()
   const [submitting, setSubmitting] = useState(false)
 
-  const loadAccounts = useCallback(() => {
-    api.fiat
-      .bankAccounts()
-      .then((rows) => {
-        setAccounts(rows)
-        setSelectedId((cur) => cur ?? rows.find((r) => r.is_default)?.id ?? rows[0]?.id ?? null)
-      })
-      .catch(() => setAccounts([]))
-  }, [])
-  useEffect(() => { loadAccounts() }, [loadAccounts])
-
-  const account = accounts?.find((a) => a.id === selectedId) ?? null
   const currency = payoutCurrencyForCountry(account?.country ?? null)
   const currencySymbol = CURRENCY_META[currency].symbol
 
@@ -88,18 +79,12 @@ export function SellTab() {
 
   return (
     <ScrollView contentContainerStyle={tabBodyStyle} keyboardShouldPersistTaps="handled">
-      <SectionLabel>Amount</SectionLabel>
+      {/* Asset first — you pick WHAT you're selling before HOW MUCH. */}
+      <SectionLabel>You sell</SectionLabel>
       <AssetChainPicker
         options={options}
         selectedKey={option !== null ? optionKey(option) : ''}
         onSelect={(o) => setPickedKey(optionKey(o))}
-      />
-      <Input
-        label={`You sell${option !== null ? ` (${option.symbol})` : ''}`}
-        placeholder="2.5"
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="numeric"
       />
       {options.length === 0 && (
         <Text size={12.5} color={theme.colors.content.tertiary}>
@@ -107,43 +92,22 @@ export function SellTab() {
         </Text>
       )}
 
+      <SectionLabel>Amount</SectionLabel>
+      <Input
+        label={`Amount${option !== null ? ` (${option.symbol})` : ''}`}
+        placeholder="2.5"
+        value={amount}
+        onChangeText={setAmount}
+        keyboardType="numeric"
+      />
+
       <SectionLabel>Payout account</SectionLabel>
-      {accounts !== null && accounts.length === 0 && (
-        <Button
-          variant="outline"
-          size="md"
-          fullWidth
-          onPress={() => router.push('/settings/bank-accounts' as Parameters<typeof router.push>[0])}
-        >
-          Add a payout account
-        </Button>
-      )}
-      {accounts?.map((a) => {
-        const Icon = a.kind === 'mobile_money' ? Smartphone : Landmark
-        return (
-          <Pressable
-            key={a.id}
-            onPress={() => setSelectedId(a.id)}
-            style={[
-              s.accountRow,
-              {
-                backgroundColor: theme.colors.surface.card,
-                borderColor: selectedId === a.id ? theme.colors.brand.primary : theme.colors.border.default,
-              },
-            ]}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: selectedId === a.id }}
-          >
-            <Icon size={16} color={theme.colors.content.secondary} />
-            <View style={s.accountBody}>
-              <Text size={13.5} weight="semibold">{a.account_name}</Text>
-              <Text size={12} color={theme.colors.content.tertiary}>
-                {a.bank_code} · {a.account_number_masked}
-              </Text>
-            </View>
-          </Pressable>
-        )
-      })}
+      <PayoutAccountPicker
+        accounts={accounts}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        onAddAccount={() => router.push('/settings/bank-accounts' as Parameters<typeof router.push>[0])}
+      />
 
       {error === 'unavailable' && (
         <UnavailableNotice copy="No cash-out route is available for this amount right now, please try again later." />
@@ -169,6 +133,13 @@ export function SellTab() {
           {quote === null && loading && (
             <Text size={12.5} color={theme.colors.content.tertiary}>Fetching price…</Text>
           )}
+          {/* P2P cash-out is a Tenda escrow — the platform fee (borne by the
+              buyer's crypto) is disclosed here so the quote never reads as
+              entirely fee-free. Not shown for licensed-provider routes, which
+              carry no escrow fee. */}
+          {quote?.provider === P2P_PROVIDER_ID && option !== null && amountRaw !== null && (
+            <FeeSummary variant="exchange" asset={option.assetId} principalRaw={amountRaw} />
+          )}
           <Button variant="primary" size="lg" fullWidth loading={submitting} onPress={() => void handleConfirm()}>
             Confirm cash-out
           </Button>
@@ -177,15 +148,3 @@ export function SellTab() {
     </ScrollView>
   )
 }
-
-const s = StyleSheet.create({
-  accountRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    borderWidth: 1.5,
-    borderRadius: 12,
-    padding: 12,
-  },
-  accountBody: { flex: 1, gap: 2 },
-})

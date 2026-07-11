@@ -70,6 +70,8 @@ export interface P2pFulfilment {
     rate: number
     /** Onramp: the quote-time matched offer to re-validate. */
     offer_ref?: string
+    /** Offramp: the seller's payout account, persisted on the new offer. */
+    payout_account_id?: string
   }): Promise<{ offer_id: string }>
   status(offer_id: string, ctx?: ProviderStatusContext): Promise<ProviderIntentStatus>
 }
@@ -151,7 +153,7 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
       return quote
     },
 
-    async initiate({ user_id, direction, quote, quote_ref }) {
+    async initiate({ user_id, direction, quote, quote_ref, payout_account_id }) {
       const { offer_id } = await deps.fulfilment.open({
         user_id,
         direction,
@@ -162,6 +164,8 @@ export function p2pInternalProvider(deps: P2pInternalDeps): FiatProvider {
         rate: quote.rate,
         // Onramp: quote_ref carries the matched offer id (see quote()).
         ...(direction === 'onramp' ? { offer_ref: quote_ref } : {}),
+        // Offramp: persist the seller's payout account on the new offer.
+        ...(direction === 'offramp' && payout_account_id !== undefined ? { payout_account_id } : {}),
       })
       return {
         provider_ref: offer_id,

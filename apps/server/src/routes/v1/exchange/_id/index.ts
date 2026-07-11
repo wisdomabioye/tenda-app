@@ -15,9 +15,10 @@ import {
   escrow_proofs,
   disputes,
   reviews,
+  bank_accounts,
 } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import type { ExchangeContract, ApiError, UserRef } from '@tenda/shared'
+import type { ExchangeContract, ApiError, UserRef, ExchangePayoutAccount } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { canViewHidden } from '@server/lib/escrow-routes'
 import { USER_COLS } from '@server/lib/users'
@@ -76,6 +77,27 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     const counterparty =
       escrow.counterparty_id === null ? null : (userMap.get(escrow.counterparty_id) ?? null)
 
+    // Payout account is PII: reveal the full details only to the offer's
+    // parties (creator + accepted counterparty), so a matched buyer knows
+    // where to pay. Absent to everyone else, and before an account is linked.
+    const isParty =
+      request.user.id === escrow.creator_id || request.user.id === escrow.counterparty_id
+    let payout_account: ExchangePayoutAccount | null = null
+    if (isParty && details.payout_account_id !== null) {
+      const [acct] = await fastify.db
+        .select({
+          kind: bank_accounts.kind,
+          bank_code: bank_accounts.bank_code,
+          account_number: bank_accounts.account_number,
+          account_name: bank_accounts.account_name,
+          country: bank_accounts.country,
+        })
+        .from(bank_accounts)
+        .where(eq(bank_accounts.id, details.payout_account_id))
+        .limit(1)
+      payout_account = acct ?? null
+    }
+
     return reply.send({
       escrow_id: escrow.id,
       chain_id: escrow.chain_id,
@@ -98,6 +120,7 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       proofs,
       dispute: disputeRows[0] ?? null,
       reviews: offerReviews,
+      payout_account,
     })
   })
 }

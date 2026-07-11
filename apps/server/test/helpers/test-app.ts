@@ -34,7 +34,7 @@ import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { users, user_wallets, user_identities, escrows, gig_details, exchange_details, chains, assets } from '@tenda/shared/db/schema'
-import { fiat_providers } from '@tenda/shared/db/schema/fiat'
+import { fiat_providers, bank_accounts } from '@tenda/shared/db/schema/fiat'
 import { registerErrorHandlers } from '@server/lib/http-errors'
 import { invalidateFeaturedCache } from '@server/lib/featured'
 import { invalidateExchangeRatesCache } from '@server/lib/exchange-rates'
@@ -353,7 +353,12 @@ export async function attachGigDetails(
 export async function attachExchangeDetails(
   app: FastifyInstance,
   escrow_id: string,
-  overrides: { fiat_amount?: string; fiat_currency?: string; rate?: string } = {},
+  overrides: {
+    fiat_amount?: string
+    fiat_currency?: string
+    rate?: string
+    payout_account_id?: string
+  } = {},
 ): Promise<void> {
   await app.db.insert(exchange_details).values({
     escrow_id,
@@ -363,6 +368,35 @@ export async function attachExchangeDetails(
     payment_window_seconds: 86_400,
     ...overrides,
   })
+}
+
+/** A saved payout account for a user. Country drives the payout currency (NG → NGN). */
+export async function createBankAccount(
+  app: FastifyInstance,
+  user_id: string,
+  overrides: Partial<{
+    country: string
+    kind: 'bank' | 'mobile_money'
+    bank_code: string
+    account_number: string
+    account_name: string
+    is_default: boolean
+  }> = {},
+): Promise<{ id: string }> {
+  const [row] = await app.db
+    .insert(bank_accounts)
+    .values({
+      user_id,
+      country: 'NG',
+      kind: 'bank',
+      bank_code: '058',
+      account_number: '0123456789',
+      account_name: 'Test Seller',
+      is_default: true,
+      ...overrides,
+    })
+    .returning({ id: bank_accounts.id })
+  return row
 }
 
 export function authHeader(token: string): { authorization: string } {

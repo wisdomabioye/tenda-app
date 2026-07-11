@@ -10,9 +10,10 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { escrows, exchange_details } from '@tenda/shared/db/schema'
+import { EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS } from '@tenda/shared'
 import { buildProviders } from '@server/features/fiat-rails'
 import {
   TEST_DB_CONFIGURED,
@@ -22,6 +23,7 @@ import {
   useTestApp,
   createUser,
   createEscrow,
+  createBankAccount,
   makeTransactable,
   attachExchangeDetails,
   authHeader,
@@ -96,24 +98,138 @@ test('POST /v1/exchange: 403 non-creator, 409 gig escrow, 409 published', { skip
 test('POST /v1/exchange: 201, and the draft upsert retries clean', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
+  const account = await createBankAccount(app, u.row.id) // NG → NGN, matches the offer
   const escrow = await createEscrow(app, { creator_id: u.row.id, kind: 'exchange' })
   const first = await app.inject({
     method: 'POST',
     url: '/v1/exchange',
     headers: authHeader(u.token),
-    payload: offerBody(escrow.id),
+    payload: offerBody(escrow.id, { payout_account_id: account.id }),
   })
   assert.strictEqual(first.statusCode, 201)
   assert.strictEqual(first.json().fiat_currency, 'NGN')
+  assert.strictEqual(first.json().payout_account_id, account.id)
 
   const retry = await app.inject({
     method: 'POST',
     url: '/v1/exchange',
     headers: authHeader(u.token),
-    payload: offerBody(escrow.id, { rate: 1_550 }),
+    payload: offerBody(escrow.id, { rate: 1_550, payout_account_id: account.id }),
   })
   assert.strictEqual(retry.statusCode, 201)
   assert.strictEqual(retry.json().rate, '1550.0000000000')
+})
+
+// ---------- payout account (#5) -------------------------------------------------
+
+test('POST /v1/exchange: payout_account_id is required (after the escrow guards)', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  const escrow = await createEscrow(app, { creator_id: u.row.id, kind: 'exchange' })
+  const res = await app.inject({
+    method: 'POST',
+    url: '/v1/exchange',
+    headers: authHeader(u.token),
+    payload: offerBody(escrow.id), // no payout_account_id
+  })
+  assert.strictEqual(res.statusCode, 400)
+  assert.match(res.json().message, /payout_account_id/i)
+})
+
+test('POST /v1/exchange: a foreign payout account is 404 (ownership enforced)', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  const other = await createUser(app)
+  const foreign = await createBankAccount(app, other.row.id)
+  const escrow = await createEscrow(app, { creator_id: u.row.id, kind: 'exchange' })
+  const res = await app.inject({
+    method: 'POST',
+    url: '/v1/exchange',
+    headers: authHeader(u.token),
+    payload: offerBody(escrow.id, { payout_account_id: foreign.id }),
+  })
+  assert.strictEqual(res.statusCode, 404)
+})
+
+test('POST /v1/exchange: a KES account cannot back an NGN offer (currency mismatch)', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  const kenyan = await createBankAccount(app, u.row.id, { country: 'KE', bank_code: 'MPESA', kind: 'mobile_money' })
+  const escrow = await createEscrow(app, { creator_id: u.row.id, kind: 'exchange' })
+  const res = await app.inject({
+    method: 'POST',
+    url: '/v1/exchange',
+    headers: authHeader(u.token),
+    payload: offerBody(escrow.id, { fiat_currency: 'NGN', payout_account_id: kenyan.id }),
+  })
+  assert.strictEqual(res.statusCode, 400)
+  assert.match(res.json().message, /currency/i)
+})
+
+// ---------- GET /v1/exchange/:id — payout account visibility (#5) ---------------
+
+/** An accepted offer (visible to all) whose seller linked a payout account. */
+async function acceptedOfferWithPayout(app: ReturnType<typeof getApp>, seller: TestUser, buyer: TestUser) {
+  const account = await createBankAccount(app, seller.row.id, { account_number: '9988776655', account_name: 'SELLER PAYEE' })
+  const escrow = await createEscrow(app, {
+    creator_id: seller.row.id,
+    kind: 'exchange',
+    status: 'accepted',
+    counterparty_id: buyer.row.id,
+  })
+  await attachExchangeDetails(app, escrow.id, { payout_account_id: account.id })
+  return escrow
+}
+
+test('GET /v1/exchange/:id: the accepted buyer sees the seller\'s FULL payout account', { skip }, async () => {
+  const app = getApp()
+  const seller = await createUser(app)
+  const buyer = await createUser(app)
+  const offer = await acceptedOfferWithPayout(app, seller, buyer)
+
+  const res = await app.inject({ method: 'GET', url: `/v1/exchange/${offer.id}`, headers: authHeader(buyer.token) })
+  assert.strictEqual(res.statusCode, 200)
+  const payout = res.json().payout_account
+  assert.ok(payout !== null)
+  assert.strictEqual(payout.account_number, '9988776655') // FULL, not masked
+  assert.strictEqual(payout.account_name, 'SELLER PAYEE')
+})
+
+test('GET /v1/exchange/:id: the seller sees their own payout account', { skip }, async () => {
+  const app = getApp()
+  const seller = await createUser(app)
+  const buyer = await createUser(app)
+  const offer = await acceptedOfferWithPayout(app, seller, buyer)
+
+  const res = await app.inject({ method: 'GET', url: `/v1/exchange/${offer.id}`, headers: authHeader(seller.token) })
+  assert.strictEqual(res.statusCode, 200)
+  assert.ok(res.json().payout_account !== null)
+})
+
+test('GET /v1/exchange/:id: a stranger (non-party) never sees the payout account', { skip }, async () => {
+  const app = getApp()
+  const seller = await createUser(app)
+  const buyer = await createUser(app)
+  const stranger = await createUser(app)
+  const offer = await acceptedOfferWithPayout(app, seller, buyer)
+
+  const res = await app.inject({ method: 'GET', url: `/v1/exchange/${offer.id}`, headers: authHeader(stranger.token) })
+  assert.strictEqual(res.statusCode, 200) // an accepted offer is publicly readable...
+  assert.strictEqual(res.json().payout_account, null) // ...but the PII is not
+})
+
+test('GET /v1/exchange/:id: an offer with no linked account reports payout_account null', { skip }, async () => {
+  const app = getApp()
+  const seller = await createUser(app)
+  const buyer = await createUser(app)
+  const escrow = await createEscrow(app, {
+    creator_id: seller.row.id, kind: 'exchange', status: 'accepted', counterparty_id: buyer.row.id,
+  })
+  await attachExchangeDetails(app, escrow.id) // no payout_account_id
+
+  const res = await app.inject({ method: 'GET', url: `/v1/exchange/${escrow.id}`, headers: authHeader(buyer.token) })
+  assert.strictEqual(res.statusCode, 200)
+  assert.strictEqual(res.json().payout_account, null)
 })
 
 // ---------- p2p onramp ------------------------------------------------------------
@@ -559,7 +675,7 @@ test('p2p offramp: server-opened offers are publishable as-is (deadlines stamped
 
   const [row] = await app.db.select().from(escrows).where(eq(escrows.id, offer_id))
   assert.strictEqual(row.status, 'draft')
-  assert.strictEqual(row.completion_duration_seconds, 86_400) // payment window
+  assert.strictEqual(row.completion_duration_seconds, EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS) // payment window (12h)
   assert.ok((row.accept_deadline?.getTime() ?? 0) > before) // stamped, future
 
   // ...and build-create accepts it without needing the backfill path
@@ -569,6 +685,122 @@ test('p2p offramp: server-opened offers are publishable as-is (deadlines stamped
     headers: authHeader(seller.token),
   })
   assert.strictEqual(published.statusCode, 200)
+})
+
+test('p2p offramp: initiate persists the seller\'s payout account on the new offer', { skip }, async () => {
+  const app = getApp()
+  const provider = p2pProvider(app)
+  const seller = await createUser(app)
+  const account = await createBankAccount(app, seller.row.id, { account_number: '5551234567' })
+
+  const { instruction } = await provider.initiate({
+    quote_ref: 'q-offramp-payout',
+    user_id: seller.row.id,
+    wallet_address: 'SellerWallet111111111111111111111111111111',
+    direction: 'offramp',
+    quote: {
+      fiat_currency: 'NGN', fiat_amount: 10_000, asset: TEST_NATIVE_ASSET,
+      asset_amount_raw: '6500000000', rate: 1538.46,
+    },
+    payout_account_id: account.id,
+  })
+  assert.ok('kind' in instruction && instruction.kind === 'p2p')
+  const offer_id = (instruction as { kind: 'p2p'; offer_id: string }).offer_id
+
+  const [details] = await app.db
+    .select()
+    .from(exchange_details)
+    .where(eq(exchange_details.escrow_id, offer_id))
+  assert.strictEqual(details.payout_account_id, account.id)
+})
+
+// POST /v1/fiat/offramp binds the payout account to the offer the buyer pays
+// into, so the account's currency must match the intent it was quoted in. Guard
+// mirrors the manual create route (routes/v1/exchange).
+async function quoteOfframpNgn(app: ReturnType<typeof getApp>, token: string): Promise<string> {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/v1/fiat/quote',
+    headers: authHeader(token),
+    payload: {
+      direction: 'offramp',
+      fiat_currency: 'NGN',
+      asset: TEST_ASSET,
+      asset_amount_raw: '2000000', // 2 USDC
+      chain_id: TEST_CHAIN_ID,
+      wallet_address: 'SellerWallet111111111111111111111111111111',
+    },
+  })
+  assert.strictEqual(res.statusCode, 200)
+  return res.json().intent_id
+}
+
+test('POST /v1/fiat/offramp: a mismatched-currency payout account is rejected (422), no offer opened', { skip }, async () => {
+  const app = getApp()
+  const seller = await createUser(app)
+  const kenyan = await createBankAccount(app, seller.row.id, {
+    country: 'KE', bank_code: 'MPESA', kind: 'mobile_money', account_number: '254700000000',
+  })
+
+  const realFetch = global.fetch
+  global.fetch = (async () =>
+    new Response(JSON.stringify({ 'usd-coin': { ngn: 1600 } }), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    })) as typeof fetch
+  try {
+    const intent_id = await quoteOfframpNgn(app, seller.token)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/fiat/offramp',
+      headers: authHeader(seller.token),
+      payload: { intent_id, bank_account_id: kenyan.id },
+    })
+    assert.strictEqual(res.statusCode, 422)
+    assert.match(res.json().message, /currency does not match/i)
+  } finally {
+    global.fetch = realFetch
+  }
+
+  // The guard fires BEFORE initiate, so no draft offer leaks out.
+  const drafts = await app.db
+    .select({ id: escrows.id })
+    .from(escrows)
+    .where(and(eq(escrows.creator_id, seller.row.id), eq(escrows.kind, 'exchange')))
+  assert.strictEqual(drafts.length, 0)
+})
+
+test('POST /v1/fiat/offramp: a matching-currency account opens the offer with the account bound', { skip }, async () => {
+  const app = getApp()
+  const seller = await createUser(app)
+  const nigerian = await createBankAccount(app, seller.row.id, { account_number: '0123456789' }) // NG → NGN
+
+  const realFetch = global.fetch
+  global.fetch = (async () =>
+    new Response(JSON.stringify({ 'usd-coin': { ngn: 1600 } }), {
+      status: 200, headers: { 'content-type': 'application/json' },
+    })) as typeof fetch
+  try {
+    const intent_id = await quoteOfframpNgn(app, seller.token)
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/fiat/offramp',
+      headers: authHeader(seller.token),
+      payload: { intent_id, bank_account_id: nigerian.id },
+    })
+    assert.strictEqual(res.statusCode, 200)
+    const inst = res.json().instruction
+    assert.ok('kind' in inst && inst.kind === 'p2p')
+
+    const [details] = await app.db
+      .select()
+      .from(exchange_details)
+      .where(eq(exchange_details.escrow_id, inst.offer_id))
+    assert.strictEqual(details.payout_account_id, nigerian.id)
+  } finally {
+    global.fetch = realFetch
+  }
 })
 
 test('POST /v1/exchange: absurd terms hit the validation rails, not the driver', { skip }, async () => {

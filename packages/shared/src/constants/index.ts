@@ -13,6 +13,7 @@ export {
   EXCHANGE_PAYMENT_WINDOW_MAX_SECONDS,
   EXCHANGE_MAX_FIAT_AMOUNT,
   EXCHANGE_MAX_RATE,
+  P2P_PROVIDER_ID,
 } from './exchange'
 export { REPORT_CONTENT_TYPES, REPORT_REASONS, REPORT_STATUSES, REPORT_REASON_LABEL } from './moderation'
 export type { ReportContentType, ReportReason, ReportStatus } from './moderation'

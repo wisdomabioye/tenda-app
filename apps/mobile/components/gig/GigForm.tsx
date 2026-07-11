@@ -125,7 +125,9 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
         {f.paymentRaw > 0 && (
           <>
             <SectionLabel>Summary</SectionLabel>
-            <FeeSummary asset={f.asset} principalRaw={f.paymentRaw} />
+            <View style={s.feeWrap}>
+              <FeeSummary asset={f.asset} principalRaw={String(f.paymentRaw)} />
+            </View>
           </>
         )}
 
@@ -190,6 +192,7 @@ const s = StyleSheet.create({
   },
   toggleWrap: { marginTop: 10 },
   durationWrap: { paddingHorizontal: 20 },
+  feeWrap: { paddingHorizontal: 20, marginTop: 4 },
   spacer: { height: 24 },
   submitHint: { marginBottom: 8 },
   submitBar: {

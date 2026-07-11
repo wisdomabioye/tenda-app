@@ -8,6 +8,7 @@
 import type { Dispute, EscrowProof, EscrowStatus } from './escrow'
 import type { Review } from './review'
 import type { UserRef } from './user'
+import type { PayoutRailKind } from '../fiat/payout/types'
 
 // ── Wire projections ──────────────────────────────────────────────────
 
@@ -30,6 +31,20 @@ export interface ExchangeSummary {
   creator: UserRef
 }
 
+/**
+ * The seller's payout account, as revealed to an accepted buyer so they can
+ * pay the fiat off-platform. Carries the FULL account_number (unlike the
+ * owner-facing masked BankAccountSummary) — a matched buyer needs it to
+ * transfer. Server exposes it ONLY to the offer's parties; null otherwise.
+ */
+export interface ExchangePayoutAccount {
+  kind: PayoutRailKind
+  bank_code: string
+  account_number: string
+  account_name: string
+  country: string
+}
+
 export interface ExchangeDetail extends ExchangeSummary {
   payment_proof_url: string | null
   dispute_bond_raw: string
@@ -40,6 +55,8 @@ export interface ExchangeDetail extends ExchangeSummary {
   proofs: EscrowProof[]
   dispute: Dispute | null
   reviews: Review[]
+  /** Seller's payout account — present only for the offer's parties. */
+  payout_account: ExchangePayoutAccount | null
 }
 
 // ── Create-detail satellite (CO4 advanced-mode offer creation) ─────────
@@ -59,6 +76,12 @@ export interface CreateExchangeDetailsBody {
   rate: number
   /** Defaults to EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS. */
   payment_window_seconds?: number
+  /**
+   * The caller's bank_accounts row the accepted buyer pays into. Required —
+   * a sell offer with no payout target can never be settled. The server
+   * asserts ownership + fiat-currency consistency.
+   */
+  payout_account_id: string
 }
 
 // ── Query types ───────────────────────────────────────────────────────

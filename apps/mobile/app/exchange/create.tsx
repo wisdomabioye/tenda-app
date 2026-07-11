@@ -11,6 +11,7 @@
 import { useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, View } from 'react-native'
 import { useRouter } from 'expo-router'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 import {
   DEFAULT_ACCEPT_WINDOW_SECONDS,
@@ -22,10 +23,12 @@ import {
 } from '@tenda/shared'
 import { ScreenContainer, Text, Spacer, Header, Button, Input, showToast } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
+import { FeeSummary } from '@/components/shared/FeeSummary'
 import { api, ApiClientError } from '@/api/client'
-import { useAuthStore } from '@/stores/auth.store'
 import { useExchangeAssetOptions } from '@/hooks/useExchangeAssetOptions'
+import { usePayoutAccounts } from '@/hooks/usePayoutAccounts'
 import { AssetChainPicker, optionKey } from '@/components/exchange/AssetChainPicker'
+import { PayoutAccountPicker } from '@/components/payout'
 import { signSendAndReport } from '@/wallet/dispatch'
 import {
   classifyTransactionGateError,
@@ -37,7 +40,10 @@ import { spacing } from '@/theme/tokens'
 export default function CreateOfferScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
-  const country = useAuthStore((s) => s.user?.country ?? null)
+  // ScreenContainer owns only the L/R edges (edge-to-edge), so the scroll must
+  // pad past the Android nav bar / gesture area itself — otherwise the "Post
+  // offer" button sits under the system controls and can't be tapped.
+  const insets = useSafeAreaInsets()
 
   const options = useExchangeAssetOptions()
   const [pickedKey, setPickedKey] = useState<string | null>(null)
@@ -46,7 +52,11 @@ export default function CreateOfferScreen() {
     [options, pickedKey],
   )
 
-  const currency = payoutCurrencyForCountry(country)
+  // The buyer pays fiat into this account, so the offer's currency follows the
+  // SELECTED account's country (not the profile) — an NGN offer can't be backed
+  // by a KES account (the server re-asserts this).
+  const { accounts, selectedId, setSelectedId, selected: account } = usePayoutAccounts()
+  const currency = payoutCurrencyForCountry(account?.country ?? null)
   const currencySymbol = CURRENCY_META[currency].symbol
 
   const [amount, setAmount] = useState('')
@@ -55,11 +65,13 @@ export default function CreateOfferScreen() {
 
   const rateNum = Number(rate)
   const amountRaw = option !== null ? parseUnits(amount, option.decimals) : null
-  const valid = option !== null && amountRaw !== null && amountRaw !== '0' && Number.isFinite(rateNum) && rateNum > 0
+  const valid =
+    option !== null && amountRaw !== null && amountRaw !== '0' &&
+    Number.isFinite(rateNum) && rateNum > 0 && account !== null
   const fiatTotal = valid ? Math.floor(Number(amount) * rateNum * 100) / 100 : 0
 
   async function handleSubmit() {
-    if (!valid || option === null || amountRaw === null || submitting) return
+    if (!valid || option === null || amountRaw === null || account === null || submitting) return
     const accept_deadline_unix = Math.floor(Date.now() / 1000) + DEFAULT_ACCEPT_WINDOW_SECONDS
 
     setSubmitting(true)
@@ -82,6 +94,7 @@ export default function CreateOfferScreen() {
           fiat_currency: currency,
           rate: rateNum,
           payment_window_seconds: EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS,
+          payout_account_id: account.id,
         })
       } catch (e) {
         // Validation failure: discard the orphan draft before surfacing.
@@ -122,8 +135,10 @@ export default function CreateOfferScreen() {
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
       <Header title="Post a sell offer" showBack />
-      <ScrollView contentContainerStyle={s.body} keyboardShouldPersistTaps="handled">
-        <SectionLabel>You sell</SectionLabel>
+      <ScrollView
+        contentContainerStyle={[s.body, { paddingBottom: insets.bottom + spacing.xl }]}
+        keyboardShouldPersistTaps="handled"
+      >
         <AssetChainPicker
           options={options}
           selectedKey={option !== null ? optionKey(option) : ''}
@@ -151,14 +166,27 @@ export default function CreateOfferScreen() {
           keyboardType="numeric"
         />
 
-        {valid && (
-          <View style={[s.summary, { backgroundColor: theme.colors.surface.inset }]}>
-            <Text variant="caption" color={theme.colors.content.secondary}>
-              The buyer pays you {currencySymbol}{fiatTotal.toLocaleString('en-US')} for{' '}
-              {formatAssetAmount(amountRaw ?? '0', option?.assetId ?? '')}. They get 24 hours to pay
-              after accepting; the escrow releases when you confirm receipt.
-            </Text>
-          </View>
+        <SectionLabel>Payout account</SectionLabel>
+        <PayoutAccountPicker
+          accounts={accounts}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onAddAccount={() => router.push('/settings/bank-accounts' as Parameters<typeof router.push>[0])}
+        />
+
+        {valid && option !== null && amountRaw !== null && (
+          <>
+            <View style={[s.summary, { backgroundColor: theme.colors.surface.inset }]}>
+              <Text variant="caption" color={theme.colors.content.secondary}>
+                The buyer pays you {currencySymbol}{fiatTotal.toLocaleString('en-US')} for{' '}
+                {formatAssetAmount(amountRaw, option.assetId)}. They pay after accepting; the escrow
+                releases when you confirm receipt.
+              </Text>
+            </View>
+            {/* Honest platform-fee disclosure (the buyer receives crypto net of
+                the fee) — parity with the gig create breakdown. */}
+            <FeeSummary variant="exchange" asset={option.assetId} principalRaw={amountRaw} />
+          </>
         )}
 
         <Spacer size={spacing.lg} />

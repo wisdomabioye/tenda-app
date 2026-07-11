@@ -18,7 +18,7 @@ import {
   type FiatEvent,
 } from '@server/features/fiat-rails/service'
 import { pickCandidates, supportsRequest } from '@server/features/fiat-rails/routing'
-import { PAYOUT_CURRENCIES, CHAIN_MANIFEST, exchangeAssetsByChain, EXCHANGE_MAX_FIAT_AMOUNT } from '@tenda/shared'
+import { PAYOUT_CURRENCIES, CHAIN_MANIFEST, exchangeAssetsByChain, EXCHANGE_MAX_FIAT_AMOUNT, P2P_PROVIDER_ID } from '@tenda/shared'
 import {
   p2pInternalProvider,
   type P2pFulfilment,
@@ -86,7 +86,13 @@ function memoryStore(): FiatStore & { rows: Map<string, FiatIntentRow> } {
     },
     async listExpiredQuotes(now, limit) {
       return [...rows.values()]
-        .filter((r) => (r.status === 'quoted' || r.status === 'awaiting_user') && r.expires_at < now)
+        .filter(
+          (r) =>
+            (r.status === 'quoted' || r.status === 'awaiting_user') &&
+            r.expires_at < now &&
+            // Mirror the real store: an OPENED p2p offer is not quote-expired.
+            !(r.status === 'awaiting_user' && r.provider === P2P_PROVIDER_ID),
+        )
         .slice(0, limit)
     },
   }

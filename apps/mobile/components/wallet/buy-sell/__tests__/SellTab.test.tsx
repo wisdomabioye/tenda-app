@@ -38,6 +38,10 @@ jest.mock('@/components/wallet/buy-sell/shared', () => {
     UnavailableNotice: ({ copy }: { copy: string }) => <Text>{copy}</Text>,
   }
 })
+jest.mock('@/components/shared/FeeSummary', () => {
+  const { Text } = require('react-native')
+  return { FeeSummary: ({ variant }: { variant?: string }) => <Text>{`FEE_SUMMARY:${variant ?? 'gig'}`}</Text> }
+})
 jest.mock('@/components/ui', () => {
   const { Text, Pressable } = require('react-native')
   return {
@@ -58,7 +62,14 @@ jest.mock('@/components/ui/SectionLabel', () => {
   const { Text } = require('react-native')
   return { SectionLabel: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
 })
-jest.mock('expo-router', () => ({ useRouter: () => ({ replace: jest.fn(), push: jest.fn() }) }))
+jest.mock('expo-router', () => {
+  const React = require('react')
+  return {
+    useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
+    // usePayoutAccounts loads on focus; run it once like a mount effect.
+    useFocusEffect: (cb: () => void) => React.useEffect(cb, []),
+  }
+})
 
 const mockOfframp = jest.fn().mockResolvedValue({ instruction: { kind: 'p2p', offer_id: 'off-1' }, intent_id: 'i1' })
 jest.mock('@/api/client', () => ({
@@ -101,6 +112,36 @@ test('submitting without a fresh quote is blocked and nudges instead of calling 
   fireEvent.press(await screen.findByText('Confirm cash-out'))
   await waitFor(() => expect(showToast).toHaveBeenCalledWith('info', expect.stringMatching(/latest price/i)))
   expect(mockOfframp).not.toHaveBeenCalled()
+})
+
+test('layout order: asset section precedes the amount input, then payout', async () => {
+  render(<SellTab />)
+  await screen.findByText('ADAEZE')
+  const labels = screen
+    .getAllByText(/^(You sell|Amount|Payout account)$/)
+    .map((n) => n.props.children)
+  expect(labels).toEqual(['You sell', 'Amount', 'Payout account'])
+})
+
+test('a P2P-routed quote discloses the platform fee (no "free" trade)', async () => {
+  quoteState.quote = { intent_id: 'q', provider: 'p2p_internal', rate: 1600, fee_amount: 0, fiat_amount: 16000, expires_at: new Date(Date.now() + 3e5).toISOString() }
+  quoteState.expiresIn = 300
+  quoteState.loading = false
+  render(<SellTab />)
+  await screen.findByText('ADAEZE')
+  fireEvent.changeText(screen.getByPlaceholderText('2.5'), '10')
+  expect(await screen.findByText('FEE_SUMMARY:exchange')).toBeTruthy()
+})
+
+test('a licensed-provider quote shows NO escrow fee breakdown', async () => {
+  quoteState.quote = { intent_id: 'q', provider: 'yellowcard', rate: 1600, fee_amount: 50, fiat_amount: 16000, expires_at: new Date(Date.now() + 3e5).toISOString() }
+  quoteState.expiresIn = 300
+  quoteState.loading = false
+  render(<SellTab />)
+  await screen.findByText('ADAEZE')
+  fireEvent.changeText(screen.getByPlaceholderText('2.5'), '10')
+  await screen.findByText('Confirm cash-out')
+  expect(screen.queryByText('FEE_SUMMARY:exchange')).toBeNull()
 })
 
 test('with a fresh quote, Confirm calls offramp with the quote intent + account', async () => {

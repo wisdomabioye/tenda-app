@@ -40,7 +40,9 @@ export default function ExchangeScreen() {
     if (!user) return
     setIsLoadingMine(true)
     try {
-      const result = await api.users.escrows({ id: user.id }, { role: 'creator', kind: 'exchange' })
+      // No role filter → both sides: offers posted (creator) and offers
+      // accepted (counterparty). The row derives selling/buying from creator_id.
+      const result = await api.users.escrows({ id: user.id }, { kind: 'exchange' })
       setMyOffers(result.data)
     } catch {
       // Non-fatal, list stays stale
@@ -101,7 +103,7 @@ export default function ExchangeScreen() {
 
       {/* Tab row + animated underline */}
       <View style={[s.tabRow, { borderBottomColor: theme.colors.border.subtle }]}>
-        {(['Market', 'My Offers'] as const).map((label, i) => (
+        {(['Market', 'My Trades'] as const).map((label, i) => (
           <Pressable key={label} style={s.tab} onPress={() => scrollToPage(i)}>
             <Text
               weight="semibold"
@@ -145,9 +147,11 @@ export default function ExchangeScreen() {
         <ExchangeMyOffersPage
           width={SW}
           myOffers={myOffers}
+          currentUserId={user?.id ?? null}
           showSkeleton={isLoadingMine && myOffers.length === 0}
           refreshing={refreshing}
           onRefresh={handleRefresh}
+          onPostOffer={() => router.push('/exchange/create' as Parameters<typeof router.push>[0])}
         />
       </ScrollView>
 

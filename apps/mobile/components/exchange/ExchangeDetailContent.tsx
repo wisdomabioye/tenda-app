@@ -5,14 +5,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { spacing, typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Badge, Divider, Spacer, showToast } from '@/components/ui'
 import { GigActionSheets, type ActiveSheet } from '@/components/gig'
-import { ExchangeStatusBadge, ExchangeTermsCard, ExchangeCTA } from '@/components/exchange'
+import { ExchangeStatusBadge, ExchangeTermsCard, ExchangeCTA, PaymentInstructionsCard, shouldShowPaymentInstructions } from '@/components/exchange'
 import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
 import { PersonCard, ReviewsSection } from '@/components/shared'
 import { TransactionMonitor } from '@/components/feedback'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { formatFiat } from '@/lib/currency'
 import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
-import { formatAssetAmount } from '@tenda/shared'
+import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
+import { formatAssetAmount, computeRelevantDeadline } from '@tenda/shared'
 import type { EscrowTxType, ExchangeDetail, SupportedCurrency } from '@tenda/shared'
 
 const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
@@ -50,6 +51,10 @@ export function ExchangeDetailContent({
 
   const actions = useEscrowActions({ escrowId: offer.escrow_id, chainId: offer.chain_id })
   const isCreator = userId === offer.creator.id
+
+  // Live-update when the counterparty acts (accept / mark-paid / confirm), not
+  // just on focus — the escrow WS channel drives the refetch.
+  useEscrowLiveRefresh(offer.escrow_id, refresh)
 
   // Fire the gated transition the confirm dialog was showing ('create' here is
   // the draft publish — rebuild + sign the create tx), then close it.
@@ -124,6 +129,22 @@ export function ExchangeDetailContent({
         <Spacer size={spacing.md} />
 
         <ExchangeTermsCard offer={offer} />
+
+        {/* Accepted buyer's payment context: the seller's account, the exact
+            amount, and a reference — the info the old screen never surfaced.
+            Hidden once disputed (see shouldShowPaymentInstructions). */}
+        {shouldShowPaymentInstructions(offer, userId) && offer.payout_account !== null && (
+          <>
+            <Spacer size={spacing.md} />
+            <PaymentInstructionsCard
+              account={offer.payout_account}
+              fiatDisplay={fiat}
+              reference={offer.escrow_id.slice(0, 8).toUpperCase()}
+              status={offer.status}
+              deadline={computeRelevantDeadline(offer)}
+            />
+          </>
+        )}
 
         <Spacer size={spacing.lg} />
 

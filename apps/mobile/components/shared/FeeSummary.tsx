@@ -1,32 +1,58 @@
 import { useEffect } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { computePlatformFee, formatAssetAmount } from '@tenda/shared'
+import { computePlatformFeeRaw, formatAssetAmount } from '@tenda/shared'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { useIsSeeker } from '@/stores/auth.store'
 import { usePlatformConfigStore } from '@/stores/platform-config.store'
 
+/** gig: poster escrows, worker is paid net. exchange: seller locks crypto, the buyer is paid net. */
+type FeeVariant = 'gig' | 'exchange'
+
+interface VariantCopy {
+  escrowLabel: string
+  netLabel: string
+  note: (feePct: string) => string
+}
+
+const VARIANT_COPY: Record<FeeVariant, VariantCopy> = {
+  gig: {
+    escrowLabel: 'You escrow',
+    netLabel: 'Worker receives',
+    note: (pct) => `You escrow the full budget. The ${pct}% fee is taken from the worker's payout on completion.`,
+  },
+  exchange: {
+    escrowLabel: 'You lock',
+    netLabel: 'Buyer receives',
+    note: (pct) => `You lock the full amount. The ${pct}% platform fee is taken from the buyer's crypto when the trade completes.`,
+  },
+}
+
 interface FeeSummaryProps {
   /** Asset registry id, drives decimals + symbol (CO5). */
   asset: string
-  /** Principal in raw units of `asset` — the budget the poster escrows. */
-  principalRaw: number
-  /** Optional eyebrow override; defaults to "PAYMENT BREAKDOWN" */
+  /** Principal in raw base units of `asset` (string — BigInt-exact, no precision loss on 18-dp assets). */
+  principalRaw: string
+  /** gig (default) frames the fee from the poster/worker side; exchange from seller/buyer. */
+  variant?: FeeVariant
+  /** Optional eyebrow override; defaults to "PAYMENT BREAKDOWN". */
   eyebrow?: string
 }
 
 /**
- * Platform-fee breakdown card for the create-gig review step. The poster
- * escrows exactly the budget; the platform fee is deducted from the worker's
- * payout on settlement (see the contract's `approve`: payout = amount − fee).
- * So this shows: You escrow (budget) / Platform fee / Worker receives (net) —
- * never budget + fee, which would misrepresent the fee as the poster's.
+ * Platform-fee breakdown card for the create review step. The creator locks
+ * exactly the principal; the platform fee is deducted from the COUNTERPARTY's
+ * payout on settlement (contract `approve`: payout = amount − fee) — the worker
+ * for a gig, the buyer for a P2P exchange. So this shows: locked principal /
+ * platform fee / counterparty net — never principal + fee, which would
+ * misrepresent the fee as the creator's own cost.
  */
 export function FeeSummary({
   asset,
   principalRaw,
+  variant = 'gig',
   eyebrow = 'PAYMENT BREAKDOWN',
 }: FeeSummaryProps) {
   const { theme } = useUnistyles()
@@ -40,11 +66,11 @@ export function FeeSummary({
     ? (isSeeker ? config.seeker_fee_bps : config.fee_bps)
     : null
 
-  const feeRaw = feeBps != null
-    ? Number(computePlatformFee(BigInt(principalRaw), feeBps))
-    : null
-  const workerReceivesRaw = feeRaw != null ? principalRaw - feeRaw : null
+  const principal = BigInt(principalRaw)
+  const feeRaw = feeBps != null ? computePlatformFeeRaw(principal, feeBps) : null
+  const netRaw = feeRaw != null ? principal - feeRaw : null
   const feePct = feeBps != null ? (feeBps / 100).toFixed(2) : '—'
+  const copy = VARIANT_COPY[variant]
 
   return (
     <View
@@ -58,9 +84,9 @@ export function FeeSummary({
     >
       <Eyebrow style={s.eyebrowSpacing}>{eyebrow}</Eyebrow>
       <View style={s.row}>
-        <Text size={13.5} color={theme.colors.content.secondary}>You escrow</Text>
+        <Text size={13.5} color={theme.colors.content.secondary}>{copy.escrowLabel}</Text>
         <Text style={[s.v, { color: theme.colors.content.primary }]}>
-          {formatAssetAmount(String(principalRaw), asset)}
+          {formatAssetAmount(principalRaw, asset)}
         </Text>
       </View>
       <View style={s.row}>
@@ -68,7 +94,7 @@ export function FeeSummary({
           {`Platform fee (${feePct}%)`}
         </Text>
         <Text style={[s.v, { color: theme.colors.content.secondary }]}>
-          {feeRaw != null ? `− ${formatAssetAmount(String(feeRaw), asset)}` : '—'}
+          {feeRaw != null ? `− ${formatAssetAmount(feeRaw.toString(), asset)}` : '—'}
         </Text>
       </View>
       <View
@@ -79,23 +105,23 @@ export function FeeSummary({
         ]}
       >
         <Text size={13.5} weight="semibold" color={theme.colors.content.primary}>
-          Worker receives
+          {copy.netLabel}
         </Text>
         <Text style={[s.vTotal, { color: theme.colors.content.primary }]}>
-          {workerReceivesRaw != null ? formatAssetAmount(String(workerReceivesRaw), asset) : '—'}
+          {netRaw != null ? formatAssetAmount(netRaw.toString(), asset) : '—'}
         </Text>
       </View>
       <Text size={11.5} color={theme.colors.content.tertiary} style={s.note}>
-        You escrow the full budget. The {feePct}% fee is taken from the worker&apos;s payout on completion.
+        {copy.note(feePct)}
       </Text>
     </View>
   )
 }
 
 const s = StyleSheet.create({
+  // Flush card — the parent owns horizontal placement so it drops into both
+  // the gig form (20px gutters) and the sell flow (tab padding) cleanly.
   card: {
-    marginHorizontal: 20,
-    marginTop: 4,
     borderRadius: 16,
     borderWidth: 1,
     paddingVertical: 14,

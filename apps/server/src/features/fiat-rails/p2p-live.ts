@@ -164,6 +164,8 @@ export function drizzleP2pFulfilment(fastify: FastifyInstance): P2pFulfilment {
           fiat_currency: input.fiat_currency,
           rate: String(input.rate),
           payment_window_seconds: P2P_INTERNAL_PAYMENT_WINDOW_SECONDS,
+          // The seller's payout account so the matched buyer knows where to pay.
+          payout_account_id: input.payout_account_id ?? null,
         })
         return escrow.id
       })
