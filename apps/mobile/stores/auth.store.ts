@@ -13,6 +13,7 @@ import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useExchangeMarketStore } from '@/stores/exchange-market.store'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { connectionSignal } from '@/wallet/reown/connection-signal'
+import { isLinkedWallet } from '@/wallet/wallet-address'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 
 interface AuthState {
@@ -292,10 +293,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   refreshMe: async () => {
     try {
       const me = await api.users.me()
-      set({
+      // Reconcile the session address slots against the source of truth: an
+      // address that's no longer a verified linked wallet (e.g. just unlinked)
+      // is dropped, so the store never advertises a wallet the user removed.
+      set((state) => ({
         wallets: me.wallets,
         profileComplete: me.profile_complete,
-      })
+        walletAddress:
+          state.walletAddress !== null && isLinkedWallet('solana', state.walletAddress, me.wallets)
+            ? state.walletAddress
+            : null,
+        evmAddress:
+          state.evmAddress !== null && isLinkedWallet('eip155', state.evmAddress, me.wallets)
+            ? state.evmAddress
+            : null,
+      }))
     } catch {
       // Non-fatal, wallets UI shows a retry; profile gate falls back to
       // the value derived at sign-in.

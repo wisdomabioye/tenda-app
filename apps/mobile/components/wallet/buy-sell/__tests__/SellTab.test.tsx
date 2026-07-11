@@ -30,6 +30,15 @@ jest.mock('@/components/exchange/AssetChainPicker', () => ({
   AssetChainPicker: () => null,
   optionKey: (o: { chainId: string; assetId: string }) => `${o.chainId}:${o.assetId}`,
 }))
+// The payout dropdown has its own suite; here it only needs to surface the
+// selected account name so the flow assertions can find it.
+jest.mock('@/components/payout', () => {
+  const { Text } = require('react-native')
+  return {
+    PayoutAccountSelect: ({ selected }: { selected: { account_name: string } | null }) =>
+      selected !== null ? <Text>{selected.account_name}</Text> : <Text>no-account</Text>,
+  }
+})
 jest.mock('@/components/wallet/buy-sell/shared', () => {
   const { Text } = require('react-native')
   return {

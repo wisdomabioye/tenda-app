@@ -19,6 +19,7 @@ import type { EscrowTxType, UnsignedTx } from '@tenda/shared'
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
 import { ensureAllowance } from '@/wallet/allowance'
+import { pickWalletAddress } from '@/wallet/wallet-address'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 
@@ -31,17 +32,14 @@ export class UnsupportedUnsignedTxError extends Error {
 
 /**
  * The EVM account this device signs/sends from, the SINGLE resolution both
- * dispatch and the permit flow use, so the permit's `owner` can never
- * diverge from the eventual `msg.sender`. CO3: `from` must be an eip155
- * account, walletAddress is the SOLANA sign-in address and never valid
- * here. Prefer the live EVM login session (evmAddress); fall back to the
- * verified linked EVM wallet.
+ * dispatch and the permit flow use, so the permit's `owner` can never diverge
+ * from the eventual `msg.sender`. `wallets[]` is the source of trust: the live
+ * EVM session (evmAddress) is used only when it's still a verified linked
+ * wallet, otherwise the primary (or first) verified linked EVM wallet.
  */
 export function resolveEvmFrom(): string | null {
   const { evmAddress, wallets } = useAuthStore.getState()
-  const verified = wallets.filter((w) => w.chain_ns === 'eip155' && w.verified_at !== null)
-  const linked = verified.find((w) => w.is_primary) ?? verified[0]
-  return evmAddress ?? linked?.address ?? null
+  return pickWalletAddress('eip155', evmAddress, wallets)
 }
 
 /** Sign + broadcast a server-built unsigned tx. Returns the tx_ref. */

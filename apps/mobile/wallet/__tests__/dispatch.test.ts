@@ -84,16 +84,30 @@ describe('signAndSendUnsignedTx, solana-tx', () => {
 })
 
 describe('signAndSendUnsignedTx, evm-tx from precedence', () => {
-  it('prefers the live spike session (evmAddress)', async () => {
+  it('prefers the live session when it is a verified linked wallet', async () => {
     authStateMock.mockReturnValue({
       evmAddress: '0xLive',
-      wallets: [evmWallet({ address: '0xLinked', is_primary: true })],
+      wallets: [
+        evmWallet({ address: '0xLive' }),
+        evmWallet({ address: '0xOther', is_primary: true }),
+      ],
     })
     sendEvmMock.mockResolvedValue('evm-ref')
     await signAndSendUnsignedTx(EVM_TX, 'eip155:84532')
     expect(sendEvmMock).toHaveBeenCalledWith(
       expect.objectContaining({ from: '0xLive', to: '0xTo', chainId: 'eip155:84532' }),
     )
+  })
+
+  it('ignores a live session that is not a linked wallet (uses the primary)', async () => {
+    // e.g. the session wallet was unlinked — wallets[] is the source of trust.
+    authStateMock.mockReturnValue({
+      evmAddress: '0xStale',
+      wallets: [evmWallet({ address: '0xPrimary', is_primary: true })],
+    })
+    sendEvmMock.mockResolvedValue('evm-ref')
+    await signAndSendUnsignedTx(EVM_TX, 'eip155:84532')
+    expect(sendEvmMock).toHaveBeenCalledWith(expect.objectContaining({ from: '0xPrimary' }))
   })
 
   it('falls back to the primary verified linked wallet', async () => {
@@ -121,7 +135,10 @@ describe('signAndSendUnsignedTx, evm-tx from precedence', () => {
   })
 
   it('forwards fee_currency for CELO gas abstraction', async () => {
-    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [] })
+    authStateMock.mockReturnValue({
+      evmAddress: '0xLive',
+      wallets: [evmWallet({ address: '0xLive', is_primary: true })],
+    })
     sendEvmMock.mockResolvedValue('evm-ref')
     await signAndSendUnsignedTx({ ...EVM_TX, fee_currency: '0xcUSD' }, 'eip155:42220')
     expect(sendEvmMock).toHaveBeenCalledWith(
@@ -137,7 +154,7 @@ describe('signAndSendUnsignedTx, evm-tx approval hint', () => {
   }
 
   it('ensures the allowance BEFORE broadcasting when the hint is present', async () => {
-    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [] })
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [evmWallet({ address: '0xLive', is_primary: true })] })
     const order: string[] = []
     ensureAllowanceMock.mockImplementation(async () => {
       order.push('allowance')
@@ -161,21 +178,21 @@ describe('signAndSendUnsignedTx, evm-tx approval hint', () => {
   })
 
   it('skips the allowance leg entirely when there is no hint (permit/native)', async () => {
-    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [] })
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [evmWallet({ address: '0xLive', is_primary: true })] })
     sendEvmMock.mockResolvedValue('evm-ref')
     await signAndSendUnsignedTx(EVM_TX, 'eip155:84532')
     expect(ensureAllowanceMock).not.toHaveBeenCalled()
   })
 
   it('a failed approval aborts the flow, the escrow tx is never broadcast', async () => {
-    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [] })
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [evmWallet({ address: '0xLive', is_primary: true })] })
     ensureAllowanceMock.mockRejectedValue(new Error('approval reverted'))
     await expect(signAndSendUnsignedTx(HINTED, 'eip155:84532')).rejects.toThrow('approval reverted')
     expect(sendEvmMock).not.toHaveBeenCalled()
   })
 
   it('a hint without a chain_id throws loudly, never silently broadcast a doomed tx', async () => {
-    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [] })
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [evmWallet({ address: '0xLive', is_primary: true })] })
     await expect(signAndSendUnsignedTx(HINTED)).rejects.toBeInstanceOf(UnsupportedUnsignedTxError)
     expect(ensureAllowanceMock).not.toHaveBeenCalled()
     expect(sendEvmMock).not.toHaveBeenCalled()

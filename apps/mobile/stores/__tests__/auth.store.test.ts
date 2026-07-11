@@ -135,6 +135,11 @@ beforeEach(() => {
 describe('signInWithWallet', () => {
   it('publishes a Solana account to walletAddress + SecureStore', async () => {
     walletSignInMock.mockResolvedValue({ auth: AUTH, account: account('solana') })
+    // The signed-in wallet is linked, so the reconcile (refreshMe) keeps it.
+    usersMeMock.mockResolvedValue({
+      wallets: [{ chain_ns: 'solana', address: 'SoLaNaAddr', is_primary: true, verified_at: 'now' }],
+      profile_complete: true,
+    })
 
     const ok = await useAuthStore.getState().signInWithWallet(stubAdapter())
 
@@ -152,6 +157,10 @@ describe('signInWithWallet', () => {
 
   it('publishes an EVM account to evmAddress only, no Solana persist', async () => {
     walletSignInMock.mockResolvedValue({ auth: AUTH, account: account('eip155') })
+    usersMeMock.mockResolvedValue({
+      wallets: [{ chain_ns: 'eip155', address: '0xEvmAddr', is_primary: true, verified_at: 'now' }],
+      profile_complete: true,
+    })
 
     const ok = await useAuthStore.getState().signInWithWallet(stubAdapter())
 
@@ -338,6 +347,44 @@ describe('signInWithVerify', () => {
   })
 })
 
+describe('refreshMe (session reconcile against wallets[])', () => {
+  it('keeps session addresses that are still verified linked wallets', async () => {
+    useAuthStore.setState({ walletAddress: 'SoLAddr', evmAddress: '0xEvm' })
+    usersMeMock.mockResolvedValue({
+      wallets: [
+        { chain_ns: 'solana', address: 'SoLAddr', is_primary: true, verified_at: 'now' },
+        { chain_ns: 'eip155', address: '0xEvm', is_primary: true, verified_at: 'now' },
+      ],
+      profile_complete: true,
+    })
+    await useAuthStore.getState().refreshMe()
+    const s = useAuthStore.getState()
+    expect(s.walletAddress).toBe('SoLAddr')
+    expect(s.evmAddress).toBe('0xEvm')
+  })
+
+  it('drops a session address that is no longer a linked wallet (unlinked)', async () => {
+    useAuthStore.setState({ walletAddress: 'SoLAddr', evmAddress: '0xStale' })
+    usersMeMock.mockResolvedValue({
+      wallets: [{ chain_ns: 'solana', address: 'SoLAddr', is_primary: true, verified_at: 'now' }],
+      profile_complete: true,
+    })
+    await useAuthStore.getState().refreshMe()
+    const s = useAuthStore.getState()
+    expect(s.walletAddress).toBe('SoLAddr') // still linked → kept
+    expect(s.evmAddress).toBeNull() // unlinked → dropped
+  })
+
+  it('leaves session addresses untouched when the fetch fails', async () => {
+    useAuthStore.setState({ walletAddress: 'SoLAddr', evmAddress: '0xEvm' })
+    usersMeMock.mockRejectedValueOnce(new Error('network'))
+    await useAuthStore.getState().refreshMe()
+    const s = useAuthStore.getState()
+    expect(s.walletAddress).toBe('SoLAddr')
+    expect(s.evmAddress).toBe('0xEvm')
+  })
+})
+
 describe('logout', () => {
   it('clears credentials and session state', async () => {
     useAuthStore.setState({
@@ -371,6 +418,12 @@ describe('loadSession', () => {
   it('restores the session when a jwt resolves', async () => {
     getJwt.mockResolvedValue('jwt-123')
     getAddr.mockResolvedValue('SoLaNaAddr')
+    // Background refreshMe reconciles the restored address against wallets[];
+    // it stays because it's a verified linked wallet.
+    usersMeMock.mockResolvedValue({
+      wallets: [{ chain_ns: 'solana', address: 'SoLaNaAddr', is_primary: true, verified_at: 'now' }],
+      profile_complete: true,
+    })
     await useAuthStore.getState().loadSession()
     const s = useAuthStore.getState()
     expect(s.isAuthenticated).toBe(true)
