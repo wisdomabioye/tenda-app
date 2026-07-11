@@ -130,7 +130,7 @@ const connection = new Connection(clusterApiUrl(SOLANA_NETWORK), 'confirmed')
  */
 async function signAndSendTransaction(
   transaction: Transaction | VersionedTransaction,
-  authToken: string,
+  authToken: string | null,
   onNewAuthToken?: (token: string) => void,
 ): Promise<string> {
   const signed = await withMwaRetry(async (wallet) => {
@@ -150,19 +150,23 @@ async function signAndSendTransaction(
 }
 
 /**
- * Sign + broadcast a server-built tx using THIS adapter's stored MWA session
- * token. The adapter owns its session (AsyncStorage), dispatch no longer
- * threads the token through the auth store, so there is a SINGLE source of
- * truth. Persists a rotated token and throws a typed `WalletError('no_wallet')`
- * when no session exists (user must connect first).
+ * Sign + broadcast a server-built tx using THIS adapter's MWA session. The
+ * adapter owns its session (AsyncStorage), dispatch no longer threads the token
+ * through the auth store, so there is a SINGLE source of truth.
+ *
+ * A stored token is REUSED (reauthorize) when present; when absent we pass
+ * `null` and `authorizeSession` does a fresh `authorize()` — the wallet opens,
+ * the user approves this device, and signing proceeds in the same MWA visit.
+ * We do NOT dead-end on a missing device token: whether the user is linked is a
+ * `wallets[]` question resolved upstream at the action gate, not a device-local
+ * one. A rotated/fresh token is persisted for reuse. (If the user authorizes an
+ * account other than the escrow's signer, the server-built tx's fixed signer
+ * makes the broadcast fail downstream — the on-chain guard, not a client one.)
  */
 export async function signAndSendStored(
   transaction: Transaction | VersionedTransaction,
 ): Promise<string> {
   const token = await AsyncStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
-  if (!token) {
-    throw new WalletError('no_wallet', 'no Solana wallet session, connect first')
-  }
   return signAndSendTransaction(transaction, token, (rotated) => {
     void AsyncStorage.setItem(STORAGE_KEY_AUTH_TOKEN, rotated)
   })

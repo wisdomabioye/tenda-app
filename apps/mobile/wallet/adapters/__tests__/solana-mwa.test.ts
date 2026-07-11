@@ -52,12 +52,6 @@ beforeEach(async () => {
 })
 
 describe('signAndSendStored', () => {
-  it('throws a typed no_wallet error when there is no stored session', async () => {
-    const tx = new Transaction()
-    await expect(signAndSendStored(tx)).rejects.toBeInstanceOf(WalletError)
-    await expect(signAndSendStored(tx)).rejects.toMatchObject({ code: 'no_wallet' })
-  })
-
   it('signs with the stored token and returns the broadcast signature', async () => {
     await AsyncStorage.setItem(STORAGE_KEY, 'tok-1')
     const tx = new Transaction()
@@ -69,6 +63,26 @@ describe('signAndSendStored', () => {
 
     expect(ref).toBe('broadcast-sig')
     expect(withRetryMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('acquires a session on demand (fresh authorize) when the device has no stored token', async () => {
+    // No stored token: linkage is a wallets[] question resolved upstream, so
+    // the adapter must NOT dead-end — it authorizes fresh and signs in one visit.
+    const tx = new Transaction()
+    const wallet = {
+      signTransactions: jest.fn(async ({ transactions }: { transactions: Transaction[] }) => transactions),
+    }
+    // authorizeSession sees null (no stored token) and returns a fresh session.
+    authorizeMock.mockResolvedValue({ authToken: 'fresh-tok', addressBase64: 'AAAA' })
+    withRetryMock.mockImplementation((op: (w: typeof wallet) => Promise<unknown>) => op(wallet))
+
+    const ref = await signAndSendStored(tx)
+
+    expect(authorizeMock).toHaveBeenCalledWith(wallet, null)
+    expect(wallet.signTransactions).toHaveBeenCalled()
+    expect(ref).toBe('broadcast-sig')
+    // The fresh token is persisted for reuse on the next signature.
+    expect(await AsyncStorage.getItem(STORAGE_KEY)).toBe('fresh-tok')
   })
 })
 
