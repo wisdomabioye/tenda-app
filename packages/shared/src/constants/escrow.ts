@@ -33,6 +33,22 @@ export function isEscrowTxType(v: unknown): v is EscrowTxType {
 export const DEFAULT_ACCEPT_WINDOW_SECONDS = 7 * 24 * 60 * 60
 
 /**
+ * Selectable accept-window options (in hours) for the create flows — how long
+ * an escrow stays open for a counterparty to accept. Shared by the gig form and
+ * the exchange offer form (both are escrows); the server only requires a future
+ * timestamp, so this is purely the client's option set. '30d' is the long-tail
+ * option that replaced the legacy 'No limit'.
+ */
+export const ACCEPT_DEADLINE_OPTIONS: readonly { label: string; hours: number }[] = [
+  { label: '12h', hours: 12 },
+  { label: '24h', hours: 24 },
+  { label: '48h', hours: 48 },
+  { label: '3d', hours: 72 },
+  { label: '7d', hours: 168 },
+  { label: '30d', hours: 720 },
+]
+
+/**
  * Maximum digit count an `amount_raw` string may carry — mirrors the
  * `numeric(78,0)` precision of every amount column (db/schema/escrow.ts,
  * identity.ts, fiat.ts, …). Client-supplied amounts are length-checked

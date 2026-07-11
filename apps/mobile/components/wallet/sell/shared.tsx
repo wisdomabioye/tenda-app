@@ -3,7 +3,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui'
 import { spacing } from '@/theme/tokens'
 
-/** Shared ScrollView content padding for both Buy and Sell tabs. */
+/** Shared ScrollView content padding for both sell tabs. */
 export const tabBodyStyle = { padding: spacing.md, gap: 12 } as const
 
 function Row({ label, value, bold = false }: { label: string; value: string; bold?: boolean }) {

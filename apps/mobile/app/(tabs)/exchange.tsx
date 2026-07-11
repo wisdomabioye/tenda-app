@@ -98,7 +98,7 @@ export default function ExchangeScreen() {
         // Post a P2P sell offer — available to all users (the create screen
         // gates on having a linked wallet, not on advanced mode).
         rightIcon={Plus}
-        onRightPress={() => router.push('/exchange/create' as Parameters<typeof router.push>[0])}
+        onRightPress={() => router.push('/wallet/buy-sell?mode=offer' as Parameters<typeof router.push>[0])}
       />
 
       {/* Tab row + animated underline */}
@@ -151,7 +151,7 @@ export default function ExchangeScreen() {
           showSkeleton={isLoadingMine && myOffers.length === 0}
           refreshing={refreshing}
           onRefresh={handleRefresh}
-          onPostOffer={() => router.push('/exchange/create' as Parameters<typeof router.push>[0])}
+          onPostOffer={() => router.push('/wallet/buy-sell?mode=offer' as Parameters<typeof router.push>[0])}
         />
       </ScrollView>
 
