@@ -10,8 +10,10 @@ export function optionKey(o: Pick<ExchangeAssetOption, 'chainId' | 'assetId'>): 
 
 /**
  * Asset + chain selector for the sell flow: one chip per tradable (asset, chain)
- * pair the user holds a wallet for. Renders null when there's a single option
- * (no choice to make). Presentational — options + selection come from the hook.
+ * pair the user holds a wallet for. Always shows the selected asset (a single
+ * option renders as one selected chip, so "what you're selling" is never a
+ * mystery); the caller shows NoLinkedWalletNotice when there are none.
+ * Presentational — options + selection come from the hook.
  */
 export function AssetChainPicker({
   options,
@@ -22,7 +24,7 @@ export function AssetChainPicker({
   selectedKey: string
   onSelect: (option: ExchangeAssetOption) => void
 }) {
-  if (options.length <= 1) return null
+  if (options.length === 0) return null
   return (
     <View>
       <SectionLabel>Asset</SectionLabel>

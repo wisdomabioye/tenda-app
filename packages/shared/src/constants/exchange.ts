@@ -25,6 +25,18 @@ export const EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS = 12 * 60 * 60
 export const EXCHANGE_PAYMENT_WINDOW_MAX_SECONDS = 12 * 60 * 60
 
 /**
+ * Selectable payment-window options for the offer form, in seconds. Endpoints
+ * are anchored to the MIN/MAX bounds so they can never drift out of range; the
+ * server clamps to the same [MIN, MAX] regardless.
+ */
+export const EXCHANGE_PAYMENT_WINDOW_OPTIONS: readonly { label: string; seconds: number }[] = [
+  { label: '1h', seconds: EXCHANGE_PAYMENT_WINDOW_MIN_SECONDS },
+  { label: '3h', seconds: 3 * 60 * 60 },
+  { label: '6h', seconds: 6 * 60 * 60 },
+  { label: '12h', seconds: EXCHANGE_PAYMENT_WINDOW_MAX_SECONDS },
+]
+
+/**
  * Upper rails for offer terms — far below the numeric(20,4)/numeric(30,10)
  * column limits so absurd input fails validation (400) instead of
  * overflowing in the driver (500).
