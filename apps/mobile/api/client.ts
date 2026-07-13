@@ -100,6 +100,16 @@ const {
   fiat,
 } = apiRoutes
 
+/**
+ * Timeout budget (ms) for endpoints that synchronously run the moderation LLM.
+ * The server's worst case is two OpenRouter calls (content + low-confidence
+ * escalation) at `moderationConfig.timeoutMs` each; this must sit above that
+ * plus network overhead, well clear of the global 5s dev default that
+ * otherwise aborts gig creation mid-moderation (raw "Aborted", wallet never
+ * opens). Keep in sync with the server moderation budget.
+ */
+const MODERATION_TIMEOUT_MS = 20_000
+
 export const api = {
   auth: {
     nonce: () => request<AuthNonceResponse>('POST', auth.nonce),
@@ -190,7 +200,7 @@ export const api = {
         query: query as Record<string, unknown>,
       }),
     create: (body: CreateGigDetailsBody) =>
-      request<GigDetailsRow>('POST', gigs.create, { body }),
+      request<GigDetailsRow>('POST', gigs.create, { body, timeout: MODERATION_TIMEOUT_MS }),
     get: (params: { id: string }) => request<GigDetail>('GET', gigs.get, { params }),
   },
 
@@ -239,7 +249,7 @@ export const api = {
 
   moderation: {
     preview: (body: ModerationPreviewBody) =>
-      request<ModerationPreviewResponse>('POST', moderation.preview, { body }),
+      request<ModerationPreviewResponse>('POST', moderation.preview, { body, timeout: MODERATION_TIMEOUT_MS }),
   },
 
   fiat: {

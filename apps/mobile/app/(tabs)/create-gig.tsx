@@ -256,6 +256,7 @@ export default function PostGigScreen() {
         signature={monitor?.signature ?? null}
         phase={phase}
         actionLabel={TX_PROGRESS_LABEL.create}
+        preparingCaption="Reviewing your gig against our guidelines — this takes a few seconds before your wallet opens."
         escrowId={monitor?.escrowId}
         chainId={monitor?.chainId}
         onConfirmed={handleFunded}

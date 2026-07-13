@@ -62,6 +62,14 @@ export async function request<TResponse>(
      * stale one, which would poison every retry until storage is cleared.
      */
     auth?: boolean
+    /**
+     * Per-request timeout override (ms). Defaults to `apiConfig[env].timeout`.
+     * Endpoints that synchronously run the moderation LLM (gig create,
+     * moderation preview) need a budget above the server's worst-case LLM
+     * latency — the global dev 5s default aborts mid-moderation, surfacing as
+     * a raw "Aborted" before the wallet ever opens.
+     */
+    timeout?: number
   },
 ): Promise<TResponse> {
   const env = getEnv()
@@ -79,7 +87,7 @@ export async function request<TResponse>(
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), config.timeout)
+  const timeoutId = setTimeout(() => controller.abort(), options?.timeout ?? config.timeout)
 
   try {
     const response = await fetch(url, {

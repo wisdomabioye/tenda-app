@@ -44,12 +44,19 @@ interface TransactionMonitorProps {
   phase?: TxPhase
   /** Present-tense verb for the confirming heading, e.g. "Releasing payment". */
   actionLabel?: string
+  /**
+   * Overrides the caption under the "Preparing transaction…" heading. Gig
+   * creation runs the moderation gate here (a several-second LLM review before
+   * the wallet opens), so it sets this to explain the wait rather than leave
+   * the user staring at a generic spinner.
+   */
+  preparingCaption?: string
 }
 
 /** Visual state = internal poll result once broadcast, else the pre-sign phase. */
 type Display = 'preparing' | 'signing' | 'confirming' | 'confirmed' | 'failed'
 
-export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false, escrowId, chainId, phase, actionLabel }: TransactionMonitorProps) {
+export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false, escrowId, chainId, phase, actionLabel, preparingCaption }: TransactionMonitorProps) {
   const { theme } = useUnistyles()
   const [txState, setTxState] = useState<TxState>('waiting')
   const [failMsg, setFailMsg] = useState('')
@@ -158,7 +165,7 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
                 Preparing transaction…
               </Text>
               <Text variant="caption" color={theme.colors.content.secondary} align="center">
-                Getting your request ready, one moment.
+                {preparingCaption ?? 'Getting your request ready, one moment.'}
               </Text>
             </>
           )}

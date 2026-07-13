@@ -73,6 +73,22 @@ test('idle phase with no signature renders nothing', () => {
 test('preparing phase shows the build-in-progress copy before any wallet prompt', () => {
   render(<TransactionMonitor signature={null} phase="preparing" onConfirmed={noop} onFailed={noop} />)
   expect(screen.getByText('Preparing transaction…')).toBeTruthy()
+  expect(screen.getByText('Getting your request ready, one moment.')).toBeTruthy()
+})
+
+test('preparingCaption overrides the default caption (gig moderation-review wait)', () => {
+  const caption = 'Reviewing your gig against our guidelines — this takes a few seconds before your wallet opens.'
+  render(
+    <TransactionMonitor
+      signature={null}
+      phase="preparing"
+      preparingCaption={caption}
+      onConfirmed={noop}
+      onFailed={noop}
+    />,
+  )
+  expect(screen.getByText(caption)).toBeTruthy()
+  expect(screen.queryByText('Getting your request ready, one moment.')).toBeNull()
 })
 
 test('signing phase tells the user their wallet is opening (the key newcomer cue)', () => {

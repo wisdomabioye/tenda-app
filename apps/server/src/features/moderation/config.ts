@@ -16,8 +16,18 @@ export const moderationConfig = {
   escalationModel: 'anthropic/claude-sonnet-4.5',
   /** Confidence below which the content pipeline escalates models. */
   escalationConfidenceBelow: 0.7,
-  /** LLM call timeout. */
-  timeoutMs: 10_000,
+  /**
+   * Per-LLM-call timeout. Gig creation blocks the client on this synchronously
+   * (POST /v1/gigs → moderateGig), and a low-confidence content verdict spends
+   * a SECOND call on the escalation model — so the worst case the client waits
+   * is ~2 × timeoutMs. Kept at 6s (worst case ~12s) to stay clear of the
+   * mobile client's per-request moderation budget (MODERATION_TIMEOUT_MS = 20s
+   * in apps/mobile/api/client.ts); a longer budget here re-opens the "Aborted"
+   * gig-create abort. Haiku/Sonnet moderation of a short gig returns well
+   * inside 6s in practice, so this rarely truncates a real verdict (and a
+   * timeout degrades to the keyword-only fallback, gigs stay publishable).
+   */
+  timeoutMs: 6_000,
   thresholds: {
     /** amount < p10 × this → trigger the price-sanity LLM check. */
     priceLowMultiplier: 0.3,

@@ -143,7 +143,11 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     family: 'base',
     kind: 'mainnet',
     displayName: 'BASE',
-    minConfirmations: 5,
+    // OP-stack L2 with a single sequencer: sub-sequencer reorgs are rare, so 2
+    // keeps near-instant UX while retaining a small reorg margin for real
+    // funds. reconcile re-verifies state regardless. (Was 5 — over-conservative
+    // for an L2, cost ~10s to reflect on-chain actions in the UI.)
+    minConfirmations: 2,
     publicRpcUrl: 'https://mainnet.base.org',
     explorerUrl: 'https://basescan.org',
     gasPolicy: 'paymaster',
@@ -165,7 +169,9 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     family: 'base',
     kind: 'testnet',
     displayName: 'Base Sepolia',
-    minConfirmations: 5,
+    // Testnet: confirm at the first block (~Solana-instant UX for dev/device
+    // smoke). Mainnet keeps a 2-block margin.
+    minConfirmations: 1,
     publicRpcUrl: 'https://sepolia.base.org',
     explorerUrl: 'https://sepolia.basescan.org',
     gasPolicy: 'paymaster',

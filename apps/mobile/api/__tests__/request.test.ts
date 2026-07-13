@@ -75,6 +75,35 @@ describe('request, Authorization header', () => {
   })
 })
 
+describe('request, timeout budget', () => {
+  it('honours a per-request timeout override (moderation-bearing calls)', async () => {
+    getJwt.mockResolvedValue(null)
+    mockFetch()
+    const spy = jest.spyOn(global, 'setTimeout')
+
+    await request('POST', '/v1/gigs', { body: {}, timeout: 20_000 })
+
+    const delays = spy.mock.calls.map((c) => c[1])
+    expect(delays).toContain(20_000)
+    spy.mockRestore()
+  })
+
+  it('falls back to the env default timeout when no override is given', async () => {
+    getJwt.mockResolvedValue(null)
+    mockFetch()
+    const spy = jest.spyOn(global, 'setTimeout')
+
+    await request('POST', '/v1/gigs', { body: {} })
+
+    const delays = spy.mock.calls.map((c) => c[1])
+    // The env default (5s dev / 10s staging / 15s prod) is the reason gig
+    // creation aborted mid-moderation — it must NOT silently pick 20s here.
+    expect(delays).not.toContain(20_000)
+    expect(delays.some((d) => typeof d === 'number' && d > 0)).toBe(true)
+    spy.mockRestore()
+  })
+})
+
 describe('request, error envelope', () => {
   it('maps a non-2xx ApiError envelope to ApiClientError with its code', async () => {
     getJwt.mockResolvedValue(null)
