@@ -1,9 +1,13 @@
 /**
  * Chain manifest — the SINGLE source of truth for every public, deployment-
  * independent fact about a supported chain. Imported by the server (registry,
- * seeder, sponsor, webhooks) and mobile (asset/chain metadata). Adding a chain
- * in an already-supported family (any Solana cluster, any EVM L2) is ONE entry
- * here plus its per-deployment secrets — no other code changes.
+ * seeder, sponsor, webhooks) and mobile (asset/chain metadata, the AppKit EVM
+ * network list, and the wallet's per-namespace chain id). Adding a chain in an
+ * already-supported namespace (any Solana cluster, any EVM L2) is ONE entry here
+ * plus its per-deployment secrets — no other code changes, on the server OR in
+ * the mobile app. (A brand-new native gas token still needs its one ASSET_META
+ * row — display data, keyed by asset id.) Every EVM entry MUST carry both
+ * `publicRpcUrl` and `explorerUrl`, the public facts the mobile network needs.
  *
  * Split of responsibilities (everything that is NOT here):
  *   - SECRETS / endpoints (RPC URL, deployed contract/treasury addresses,
@@ -84,6 +88,13 @@ export interface ChainManifestEntry {
    * metered backend traffic never leaks to clients.
    */
   publicRpcUrl?: string
+  /**
+   * Block-explorer base URL (e.g. `https://basescan.org`) — the public fact the
+   * mobile AppKit network definition needs for its `blockExplorers` entry.
+   * Required for EVM chains (validated below); Solana links, when needed, are
+   * derived elsewhere so no explorer is recorded here for Solana clusters.
+   */
+  explorerUrl?: string
   gasPolicy: GasPolicy
   /**
    * Asset id whose token address funds gas, for `gasPolicy: 'feeCurrency'`.
@@ -134,6 +145,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     displayName: 'BASE',
     minConfirmations: 5,
     publicRpcUrl: 'https://mainnet.base.org',
+    explorerUrl: 'https://basescan.org',
     gasPolicy: 'paymaster',
     assets: [
       // Circle USDC on BASE (verified in repo: apps/server/.env.example).
@@ -155,6 +167,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     displayName: 'Base Sepolia',
     minConfirmations: 5,
     publicRpcUrl: 'https://sepolia.base.org',
+    explorerUrl: 'https://sepolia.basescan.org',
     gasPolicy: 'paymaster',
     assets: [
       // Circle USDC on Base Sepolia — confirmed live (dress-rehearsal #124);
@@ -176,6 +189,7 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     displayName: 'CELO',
     minConfirmations: 3,
     publicRpcUrl: 'https://forno.celo.org',
+    explorerUrl: 'https://celoscan.io',
     gasPolicy: 'feeCurrency',
     feeCurrency: 'cUSD',
     assets: [
@@ -242,6 +256,9 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     }
     if (entry.namespace === 'eip155' && (entry.publicRpcUrl ?? '').length === 0) {
       throw new Error(`CHAIN_MANIFEST: EVM chain '${entry.id}' must set a publicRpcUrl`)
+    }
+    if (entry.namespace === 'eip155' && (entry.explorerUrl ?? '').length === 0) {
+      throw new Error(`CHAIN_MANIFEST: EVM chain '${entry.id}' must set an explorerUrl`)
     }
     if ((entry.gasPolicy === 'feeCurrency') !== (entry.feeCurrency !== undefined)) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrency must be set iff gasPolicy is 'feeCurrency'`)

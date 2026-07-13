@@ -25,6 +25,12 @@ test('ASSET_META: stablecoins are flagged, native coins are not', () => {
   assert.equal(ASSET_META.ETH_BASE.is_stable, false)
 })
 
+test('ASSET_META: native gas tokens carry a long-form name for AppKit nativeCurrency', () => {
+  assert.equal(ASSET_META.ETH_BASE.name, 'Ether')
+  assert.equal(ASSET_META.CELO.name, 'Celo')
+  assert.equal(ASSET_META.SOL.name, 'Solana')
+})
+
 test('GIG_STABLE bounds are ordered and positive', () => {
   assert.ok(GIG_STABLE_MIN_RAW > 0)
   assert.ok(GIG_STABLE_MAX_RAW > GIG_STABLE_MIN_RAW)

@@ -16,11 +16,11 @@
  */
 import { Buffer } from 'buffer'
 import { Linking } from 'react-native'
+import { requireEvmPublicRpcUrl } from '@tenda/shared'
 import { WalletError } from '@/wallet/errors'
 import { connectThenSign } from './connect-then-sign'
 import { connectionSignal, type EvmRequestProvider } from '../reown/connection-signal'
 import { reownConfigured } from '../reown/config'
-import { EVM_NETWORKS } from '../reown/networks'
 import { WALLET_CHAINS } from '../config'
 import type { SignMessageResult, SpikeAccount } from '../types'
 import type { AuthenticateResult, WalletAdapter } from './types'
@@ -174,26 +174,19 @@ export async function signEvmTypedData(input: {
   return signature
 }
 
-/** HTTP RPC endpoint of our primary EVM chain (Base / Base Sepolia per env). */
-function primaryRpcUrl(): string {
-  const network = EVM_NETWORKS.find((n) => n.caipNetworkId === WALLET_CHAINS.eip155)
-  const url = network?.rpcUrls.default.http[0]
-  if (url === undefined) throw new Error(`No RPC URL configured for ${WALLET_CHAINS.eip155}`)
-  return url
-}
-
 /**
  * EVM receipt poll for TransactionMonitor's RPC fallback (CO3). Queried over a
- * direct JSON-RPC `fetch` to the primary chain's public RPC, NOT the wallet
- * session, so it never wakes the wallet and works while it's backgrounded.
+ * direct JSON-RPC `fetch` to the tx's OWN chain public RPC (resolved from the
+ * manifest, single source), NOT the wallet session, so it never wakes the wallet
+ * and works while it's backgrounded — and a receipt on any configured EVM chain
+ * (Base, Celo, …) is polled correctly, not just a single "primary" chain.
  * `status` is '0x1' on success, '0x0' on revert; a missing receipt = pending.
- * Queries the primary EVM scope (sufficient for the common case; a cross-chain
- * receipt would need the caller to thread the chain through).
  */
 export async function getEvmTransactionStatus(
   tx_hash: string,
+  chain_id: string,
 ): Promise<'confirmed' | 'failed' | 'not_found'> {
-  const response = await fetch(primaryRpcUrl(), {
+  const response = await fetch(requireEvmPublicRpcUrl(chain_id), {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'eth_getTransactionReceipt', params: [tx_hash] }),

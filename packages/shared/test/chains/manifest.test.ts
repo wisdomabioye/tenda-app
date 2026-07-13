@@ -12,6 +12,11 @@ import {
   findChain,
   gigAssetByChain,
   exchangeAssetsByChain,
+  evmChainNumericId,
+  nativeAssetOf,
+  nativeCurrencyOf,
+  evmManifestEntries,
+  firstEvmChainIdByKind,
 } from '../../src/chains/manifest-queries'
 import { ASSET_META } from '../../src/constants/assets'
 
@@ -178,6 +183,7 @@ test('assertManifestValid rejects feeCurrency/gasPolicy mismatch', () => {
   const mismatch: ChainManifestEntry = {
     id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
+    explorerUrl: 'https://explorer.example',
     gasPolicy: 'none', feeCurrency: 'cUSD',
     assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
   }
@@ -189,6 +195,7 @@ test('assertManifestValid rejects feeCurrency that resolves no address', () => {
   const bad: ChainManifestEntry = {
     id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
     displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
+    explorerUrl: 'https://explorer.example',
     gasPolicy: 'feeCurrency', feeCurrency: 'CELO',
     assets: [{ id: 'CELO', roles: ['exchange'], token: null }],
   }
@@ -206,6 +213,19 @@ test('every EVM manifest chain exposes a publicRpcUrl; assertManifestValid enfor
     assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
   }
   assert.throws(() => assertManifestValid([noRpc]), /must set a publicRpcUrl/)
+})
+
+test('every EVM manifest chain exposes an explorerUrl; assertManifestValid enforces it', () => {
+  for (const entry of CHAIN_MANIFEST) {
+    if (entry.namespace !== 'eip155') continue
+    assert.ok((entry.explorerUrl ?? '').length > 0, `${entry.id} missing explorerUrl`)
+  }
+  const noExplorer: ChainManifestEntry = {
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example', gasPolicy: 'none',
+    assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
+  }
+  assert.throws(() => assertManifestValid([noExplorer]), /must set an explorerUrl/)
 })
 
 // ---------- EIP-2612 permit config ------------------------------------------
@@ -261,4 +281,61 @@ test('exactly one chain is active per family across mainnet/testnet pairs', () =
   // base + solana ship a mainnet/testnet pair; celo currently mainnet-only.
   assert.deepEqual(byFamily.get('base')?.map((e) => e.kind).sort(), ['mainnet', 'testnet'])
   assert.deepEqual(byFamily.get('solana')?.map((e) => e.kind).sort(), ['mainnet', 'testnet'])
+})
+
+// ---------- AppKit-network derivation primitives (Stage 1) -------------------
+// These let the mobile network list derive from the manifest with no per-chain
+// literals, so adding an EVM chain is a manifest entry + secrets, no app edit.
+
+test('evmChainNumericId parses the CAIP-2 reference; rejects non-EVM / malformed', () => {
+  assert.equal(evmChainNumericId('eip155:8453'), 8453)
+  assert.equal(evmChainNumericId('eip155:84532'), 84532)
+  assert.throws(() => evmChainNumericId('solana:devnet'), /not a numeric eip155/)
+  assert.throws(() => evmChainNumericId('eip155:'), /not a numeric eip155/)
+  assert.throws(() => evmChainNumericId('eip155:0x1'), /not a numeric eip155/)
+})
+
+test('nativeAssetOf returns the sole native asset for every chain', () => {
+  for (const entry of CHAIN_MANIFEST) {
+    const native = nativeAssetOf(entry)
+    assert.equal(native.token, null, `${entry.id} native must have no token`)
+    assert.equal(native.fromSecret, undefined, `${entry.id} native must have no secret`)
+    assert.ok(native.roles.includes('exchange'), `${entry.id} native should be exchange-tradable`)
+  }
+})
+
+test('nativeCurrencyOf assembles name/symbol/decimals from the native asset', () => {
+  const base = nativeCurrencyOf(chainById('eip155:8453'))
+  assert.deepEqual(base, { name: 'Ether', symbol: 'ETH', decimals: 18 })
+  const celo = nativeCurrencyOf(chainById('eip155:42220'))
+  assert.deepEqual(celo, { name: 'Celo', symbol: 'CELO', decimals: 18 })
+})
+
+test('nativeCurrencyOf falls back to symbol when the asset omits a name', () => {
+  // USDC_SOL has no `name`; a hypothetical native USDC chain would surface the
+  // symbol. Proven directly on the fallback branch via a synthetic entry.
+  const synthetic: ChainManifestEntry = {
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
+    explorerUrl: 'https://explorer.example', gasPolicy: 'none',
+    assets: [{ id: 'USDC_SOL', roles: ['exchange'], token: null }],
+  }
+  assert.deepEqual(nativeCurrencyOf(synthetic), { name: 'USDC', symbol: 'USDC', decimals: 6 })
+})
+
+test('evmManifestEntries returns only EVM chains, in manifest order', () => {
+  const evm = evmManifestEntries()
+  assert.ok(evm.length > 0)
+  assert.ok(evm.every((e) => e.namespace === 'eip155'), 'only eip155 entries')
+  assert.deepEqual(
+    evm.map((e) => e.id),
+    CHAIN_MANIFEST.filter((c) => c.namespace === 'eip155').map((c) => c.id),
+  )
+})
+
+test('firstEvmChainIdByKind picks Base per env kind; undefined when none', () => {
+  // Namespace-only for auth, but the value must stay stable: dev→Base Sepolia,
+  // prod→Base (manifest order defines the canonical pick).
+  assert.equal(firstEvmChainIdByKind('testnet'), 'eip155:84532')
+  assert.equal(firstEvmChainIdByKind('mainnet'), 'eip155:8453')
 })

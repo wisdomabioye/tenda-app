@@ -6,7 +6,8 @@
  * needs at import time — isNativeAsset / feeCurrencyAddress).
  */
 
-import { CHAIN_MANIFEST, type ChainManifestEntry } from './manifest'
+import { CHAIN_MANIFEST, isNativeAsset, type ChainAsset, type ChainManifestEntry } from './manifest'
+import { ASSET_META } from '../constants/assets'
 
 /** Look up a chain by CAIP-2 id; throws on unknown so callers fail loud. */
 export function chainById(id: string): ChainManifestEntry {
@@ -58,4 +59,61 @@ export function requireEvmPublicRpcUrl(id: string): string {
     throw new Error(`no publicRpcUrl for EVM chain '${id}' (not in CHAIN_MANIFEST)`)
   }
   return url
+}
+
+/**
+ * Numeric EVM chain id parsed from the CAIP-2 reference (`eip155:8453` → 8453),
+ * the form AppKit/viem network objects use. Throws on a non-EVM or malformed id
+ * so a caller can't silently build a network with `id: NaN`.
+ */
+export function evmChainNumericId(id: string): number {
+  const [ns, ref] = id.split(':')
+  // Decimal digits only — `Number('0x1')` would otherwise coerce to 1 and let a
+  // malformed reference through. CAIP-2 eip155 references are base-10.
+  if (ns !== 'eip155' || ref === undefined || !/^[0-9]+$/.test(ref) || Number(ref) <= 0) {
+    throw new Error(`chain id '${id}' is not a numeric eip155 CAIP-2 id`)
+  }
+  return Number(ref)
+}
+
+/**
+ * The chain's native gas token asset (the one with no contract and no secret).
+ * The manifest guarantees exactly one (assertManifestValid), so this throws
+ * rather than returning undefined — an absent native asset is a manifest bug.
+ */
+export function nativeAssetOf(entry: ChainManifestEntry): ChainAsset {
+  const native = entry.assets.find(isNativeAsset)
+  if (native === undefined) {
+    throw new Error(`chain '${entry.id}' has no native asset (violates the manifest invariant)`)
+  }
+  return native
+}
+
+/**
+ * Native-currency display metadata for a chain, assembled from its native asset
+ * + ASSET_META — the shape an EVM network's `nativeCurrency` needs. `name` falls
+ * back to the symbol when the asset omits the long form.
+ */
+export function nativeCurrencyOf(entry: ChainManifestEntry): {
+  name: string
+  symbol: string
+  decimals: number
+} {
+  const meta = ASSET_META[nativeAssetOf(entry).id]
+  return { name: meta.name ?? meta.symbol, symbol: meta.symbol, decimals: meta.decimals }
+}
+
+/** All EVM (eip155) manifest entries, in manifest order. */
+export function evmManifestEntries(): ChainManifestEntry[] {
+  return CHAIN_MANIFEST.filter((c) => c.namespace === 'eip155')
+}
+
+/**
+ * The canonical EVM chain id for a network kind (`mainnet`/`testnet`), first by
+ * manifest order — the single namespace-scoped id the mobile wallet stamps into
+ * an auth message (which the server verifies by namespace only, so the specific
+ * chain is not load-bearing). Undefined when no EVM chain of that kind exists.
+ */
+export function firstEvmChainIdByKind(kind: ChainManifestEntry['kind']): string | undefined {
+  return evmManifestEntries().find((c) => c.kind === kind)?.id
 }

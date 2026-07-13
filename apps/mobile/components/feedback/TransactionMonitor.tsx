@@ -93,8 +93,8 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
           const status = await getTransactionStatus(signature)
           if (status === 'confirmed' || status === 'finalized') return settle('confirmed')
           if (status === 'failed') return settle('failed', 'Transaction failed on chain.')
-        } else if (namespace === 'eip155') {
-          const status = await getEvmTransactionStatus(signature)
+        } else if (namespace === 'eip155' && chainId !== undefined) {
+          const status = await getEvmTransactionStatus(signature, chainId)
           if (status === 'confirmed') return settle('confirmed')
           if (status === 'failed') return settle('failed', 'Transaction failed on chain.')
         }

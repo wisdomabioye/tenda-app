@@ -225,7 +225,7 @@ describe('getEvmTransactionStatus', () => {
 
   it('queries the primary chain RPC with eth_getTransactionReceipt', async () => {
     respondWith({ status: '0x1' })
-    await getEvmTransactionStatus('0xtx')
+    await getEvmTransactionStatus('0xtx', 'eip155:84532')
     const [url, init] = fetchMock.mock.calls[0]
     expect(url).toMatch(/^https?:\/\//)
     expect(JSON.parse(init.body)).toMatchObject({
@@ -236,27 +236,27 @@ describe('getEvmTransactionStatus', () => {
 
   it('maps receipt status 0x1 → confirmed', async () => {
     respondWith({ status: '0x1' })
-    await expect(getEvmTransactionStatus('0xtx')).resolves.toBe('confirmed')
+    await expect(getEvmTransactionStatus('0xtx', 'eip155:84532')).resolves.toBe('confirmed')
   })
 
   it('maps receipt status 0x0 → failed', async () => {
     respondWith({ status: '0x0' })
-    await expect(getEvmTransactionStatus('0xtx')).resolves.toBe('failed')
+    await expect(getEvmTransactionStatus('0xtx', 'eip155:84532')).resolves.toBe('failed')
   })
 
   it('returns not_found when the receipt is null (still pending)', async () => {
     respondWith(null)
-    await expect(getEvmTransactionStatus('0xtx')).resolves.toBe('not_found')
+    await expect(getEvmTransactionStatus('0xtx', 'eip155:84532')).resolves.toBe('not_found')
   })
 
   it('returns not_found when the RPC body has no result field', async () => {
     fetchMock.mockResolvedValue({ json: async () => ({ jsonrpc: '2.0', id: 1 }) })
-    await expect(getEvmTransactionStatus('0xtx')).resolves.toBe('not_found')
+    await expect(getEvmTransactionStatus('0xtx', 'eip155:84532')).resolves.toBe('not_found')
   })
 
   it('returns not_found for an unknown receipt status', async () => {
     respondWith({ status: '0x2' })
-    await expect(getEvmTransactionStatus('0xtx')).resolves.toBe('not_found')
+    await expect(getEvmTransactionStatus('0xtx', 'eip155:84532')).resolves.toBe('not_found')
   })
 })
 

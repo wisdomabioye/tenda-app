@@ -11,17 +11,23 @@ export interface AssetMeta {
   is_stable: boolean
   /** CoinGecko coin id used to price this asset in fiat (rate source). */
   coingeckoId: string
+  /**
+   * Human-readable currency name (e.g. 'Ether', 'Celo'). Only consumed for a
+   * chain's NATIVE gas token, where the AppKit network's `nativeCurrency.name`
+   * needs the long form; other assets omit it and callers fall back to `symbol`.
+   */
+  name?: string
 }
 
 export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
-  SOL: { symbol: 'SOL', decimals: 9, is_stable: false, coingeckoId: 'solana' },
-  SOL_DEVNET: { symbol: 'SOL', decimals: 9, is_stable: false, coingeckoId: 'solana' },
+  SOL: { symbol: 'SOL', decimals: 9, is_stable: false, coingeckoId: 'solana', name: 'Solana' },
+  SOL_DEVNET: { symbol: 'SOL', decimals: 9, is_stable: false, coingeckoId: 'solana', name: 'Solana' },
   USDC_SOL: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
   USDC_BASE: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
-  ETH_BASE: { symbol: 'ETH', decimals: 18, is_stable: false, coingeckoId: 'ethereum' },
+  ETH_BASE: { symbol: 'ETH', decimals: 18, is_stable: false, coingeckoId: 'ethereum', name: 'Ether' },
   cUSD: { symbol: 'cUSD', decimals: 18, is_stable: true, coingeckoId: 'celo-dollar' },
   USDC_CELO: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
-  CELO: { symbol: 'CELO', decimals: 18, is_stable: false, coingeckoId: 'celo' },
+  CELO: { symbol: 'CELO', decimals: 18, is_stable: false, coingeckoId: 'celo', name: 'Celo' },
 }
 
 /**
