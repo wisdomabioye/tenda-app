@@ -55,6 +55,22 @@ test('submitted buyer gets "Add More Proof" (same branch, non-dispute wording)',
   expect(onSheet).toHaveBeenCalledWith('addProof')
 })
 
+test('submitted buyer ALSO gets a Dispute button (symmetry with the gig worker)', () => {
+  const onSheet = jest.fn()
+  render(<ExchangeCTA offer={offer('submitted')} userId={BUYER} onSheet={onSheet} {...baseProps} />)
+
+  // Both affordances: add more evidence AND escalate a stalling seller.
+  expect(screen.getByText('Add More Proof')).toBeTruthy()
+  fireEvent.press(screen.getByText('Dispute'))
+  expect(onSheet).toHaveBeenCalledWith('dispute')
+})
+
+test('disputed buyer sees Add Evidence but NOT a redundant Dispute button', () => {
+  render(<ExchangeCTA offer={offer('disputed')} userId={BUYER} onSheet={noop} {...baseProps} />)
+  expect(screen.getByText('Add Evidence')).toBeTruthy()
+  expect(screen.queryByText('Dispute')).toBeNull()
+})
+
 test('disputed seller (creator) sees no evidence button — evidence is the counterparty’s', () => {
   render(<ExchangeCTA offer={offer('disputed')} userId={SELLER} onSheet={noop} {...baseProps} />)
   expect(screen.queryByText('Add Evidence')).toBeNull()

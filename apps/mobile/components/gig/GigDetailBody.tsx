@@ -4,10 +4,8 @@ import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
 import { Text, Badge, Divider, Spacer } from '@/components/ui'
 import { GigMetaInfo } from './GigMetaInfo'
-import { GigProofsGrid } from './GigProofsGrid'
-import type { ProofItem } from './ProofViewerModal'
 import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel } from '@/lib/gig-display'
-import { PersonCard, ReviewsSection } from '@/components/shared'
+import { PersonCard, ReviewsSection, ProofsGrid, type ProofItem } from '@/components/shared'
 import { DisputeReasonBlock, ReportContentLink, ChainBadge } from '@/components/escrow'
 import { CATEGORY_META } from '@/lib/categories'
 import { computeRelevantDeadline } from '@tenda/shared'
@@ -122,7 +120,7 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
             </Text>
           </View>
           <Spacer size={spacing.sm} />
-          <GigProofsGrid proofs={gig.proofs} onProofPress={onProofPress} />
+          <ProofsGrid proofs={gig.proofs} onProofPress={onProofPress} />
         </>
       )}
 

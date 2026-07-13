@@ -2,12 +2,14 @@ import { useState } from 'react'
 import { ScrollView, StyleSheet, RefreshControl, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useUnistyles } from 'react-native-unistyles'
 import { spacing, typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Badge, Divider, Spacer, showToast } from '@/components/ui'
 import { GigActionSheets, type ActiveSheet } from '@/components/gig'
 import { ExchangeStatusBadge, ExchangeTermsCard, ExchangeCTA, PaymentInstructionsCard, shouldShowPaymentInstructions } from '@/components/exchange'
 import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
-import { PersonCard, ReviewsSection } from '@/components/shared'
+import { PersonCard, ReviewsSection, ProofsGrid, type ProofItem } from '@/components/shared'
+import { ProofViewerModal } from '@/components/shared/ProofViewerModal'
 import { TransactionMonitor } from '@/components/feedback'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { formatFiat } from '@/lib/currency'
@@ -43,11 +45,13 @@ export function ExchangeDetailContent({
 }) {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  const { theme } = useUnistyles()
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [confirmAction, setConfirmAction] = useState<EscrowTxType | null>(null)
   const [reportOpen, setReportOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
 
   const actions = useEscrowActions({ escrowId: offer.escrow_id, chainId: offer.chain_id })
   const isCreator = userId === offer.creator.id
@@ -173,6 +177,20 @@ export function ExchangeDetailContent({
           </>
         )}
 
+        {offer.proofs.length > 0 && (
+          <>
+            <Divider />
+            <View style={s.sectionHead}>
+              <Text style={s.sectionTitle}>Payment proof</Text>
+              <Text style={[s.sectionTrail, { color: theme.colors.content.tertiary }]}>
+                {offer.proofs.length} {offer.proofs.length === 1 ? 'file' : 'files'}
+              </Text>
+            </View>
+            <Spacer size={spacing.sm} />
+            <ProofsGrid proofs={offer.proofs} onProofPress={setSelectedProof} />
+          </>
+        )}
+
         {offer.reviews.length > 0 && (
           <>
             <Divider />
@@ -254,6 +272,8 @@ export function ExchangeDetailContent({
       />
 
       <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} contentType="escrow" contentId={offer.escrow_id} />
+
+      <ProofViewerModal proof={selectedProof} onClose={() => setSelectedProof(null)} />
     </ScreenContainer>
   )
 }
@@ -268,5 +288,20 @@ const s = StyleSheet.create({
     lineHeight: 28,
     fontWeight: '700',
     letterSpacing: -0.44,
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '700',
+    letterSpacing: -0.17,
+  },
+  sectionTrail: {
+    fontSize: 12.5,
+    lineHeight: 16,
   },
 })

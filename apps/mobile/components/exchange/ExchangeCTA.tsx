@@ -95,6 +95,23 @@ export function ExchangeCTA({ offer, userId, busy, onTxAction, onSheet }: Props)
   // path, where a dropped-off "Add Evidence" affordance during a dispute is
   // exactly the bug this mirrors. canAddProof is counterparty + submitted|disputed.
   if (canAddProof(parties, userId)) {
+    // Submitted (not yet disputed): the buyer can escalate to a dispute too —
+    // symmetry with the gig worker (GigCTABar pairs "Add More Proof" with
+    // "Dispute"). This branch returns before the canDispute check below, so
+    // without pairing it here the buyer could never dispute a stalling seller.
+    // Once disputed, evidence only (the mediator owns it — no redundant button).
+    if (offer.status !== 'disputed' && canDispute(parties, userId)) {
+      return (
+        <View style={s.row}>
+          <Button variant="outline" size="xl" style={s.flex} onPress={() => onSheet('addProof')}>
+            Add More Proof
+          </Button>
+          <Button variant="danger" size="xl" onPress={() => onSheet('dispute')}>
+            Dispute
+          </Button>
+        </View>
+      )
+    }
     return (
       <Button variant="outline" size="xl" fullWidth onPress={() => onSheet('addProof')}>
         {offer.status === 'disputed' ? 'Add Evidence' : 'Add More Proof'}

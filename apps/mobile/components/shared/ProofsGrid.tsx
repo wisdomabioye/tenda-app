@@ -10,7 +10,7 @@ interface Props {
   onProofPress: (proof: ProofItem) => void
 }
 
-export function GigProofsGrid({ proofs, onProofPress }: Props) {
+export function ProofsGrid({ proofs, onProofPress }: Props) {
   const { theme } = useUnistyles()
 
   return (

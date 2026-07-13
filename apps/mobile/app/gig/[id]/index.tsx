@@ -15,10 +15,9 @@ import {
   GigDetailBody,
   GigCTABar,
   GigActionSheets,
-  ProofViewerModal,
-  type ProofItem,
   type ActiveSheet,
 } from '@/components/gig'
+import { ProofViewerModal, type ProofItem } from '@/components/shared/ProofViewerModal'
 import { DetailChrome, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
 import { TransactionMonitor, LoadingScreen, ErrorState } from '@/components/feedback'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
