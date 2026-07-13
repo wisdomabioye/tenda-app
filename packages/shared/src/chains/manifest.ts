@@ -97,11 +97,23 @@ export interface ChainManifestEntry {
   explorerUrl?: string
   gasPolicy: GasPolicy
   /**
-   * Asset id whose token address funds gas, for `gasPolicy: 'feeCurrency'`.
-   * Required iff the policy is feeCurrency; the address is read from that
-   * asset's `token` (single source — never restated).
+   * Asset id whose token funds gas, for `gasPolicy: 'feeCurrency'`. Required iff
+   * the policy is feeCurrency. The gas-paying ADDRESS resolves via
+   * `feeCurrencyAddress()`: an 18-decimal Mento stable (cUSD) is its own gas
+   * adapter, so the asset's `token` is used directly; a non-18-decimal token
+   * (USDC, 6 decimals) instead needs `feeCurrencyAdapter` below.
    */
   feeCurrency?: string
+  /**
+   * Celo FeeCurrencyDirectory ADAPTER address for a `feeCurrency` whose token is
+   * NOT a native 18-decimal stable. The adapter presents the 18-decimal gas
+   * interface over the underlying token, so the tx's `feeCurrency` field must
+   * carry THIS address, not the token's (paying gas with the 6-decimal USDC
+   * address directly is rejected by the node). Resolved on-chain from the
+   * directory (each adapter's `adaptedToken()` == the fee token). Absent = the
+   * fee token is its own adapter (cUSD). Only meaningful with `feeCurrency` set.
+   */
+  feeCurrencyAdapter?: string
   assets: ChainAsset[]
 }
 
@@ -197,7 +209,13 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     publicRpcUrl: 'https://forno.celo.org',
     explorerUrl: 'https://celoscan.io',
     gasPolicy: 'feeCurrency',
-    feeCurrency: 'cUSD',
+    // Gas paid in USDC (seamless onboarding: the same stablecoin users transact
+    // in also covers gas — no separate gas token to hold). USDC is 6-decimal, so
+    // the tx carries the FeeCurrencyDirectory ADAPTER (verified on-chain
+    // 2026-07-13: directory 0x15F3…6276, adapter.adaptedToken() == the USDC
+    // token), NOT the token address.
+    feeCurrency: 'USDC_CELO',
+    feeCurrencyAdapter: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B',
     assets: [
       // Verified in repo: apps/server/src/chains/celo/config.ts.
       // USDC permit version read from the live token 2026-07-03; cUSD has a
@@ -213,6 +231,33 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
       { id: 'CELO', roles: ['exchange'], token: null },
     ],
   },
+  {
+    id: 'eip155:11142220',
+    namespace: 'eip155',
+    family: 'celo',
+    kind: 'testnet',
+    displayName: 'Celo Sepolia',
+    minConfirmations: 3,
+    publicRpcUrl: 'https://forno.celo-sepolia.celo-testnet.org',
+    explorerUrl: 'https://sepolia.celoscan.io',
+    gasPolicy: 'feeCurrency',
+    // Same USDC-gas model as mainnet. Adapter resolved + verified on-chain
+    // 2026-07-13 (chainId 11142220, directory 0x9212…11BF,
+    // adapter.adaptedToken() == the USDC token below).
+    feeCurrency: 'USDC_CELO',
+    feeCurrencyAdapter: '0xbf1441Ea57f43f35f713431001f35742c88071c7',
+    assets: [
+      // Circle USDC on Celo Sepolia. permit version() read from the live token
+      // on-chain 2026-07-13 → '2' (standard FiatTokenV2).
+      {
+        id: 'USDC_CELO',
+        roles: ['gig', 'exchange'],
+        token: '0x01C5C0122039549AD1493B8220cABEdD739BC44E',
+        permit: { version: '2' },
+      },
+      { id: 'CELO', roles: ['exchange'], token: null },
+    ],
+  },
 ]
 
 /** True iff the asset is the chain's native gas token (no contract, no secret). */
@@ -220,9 +265,15 @@ export function isNativeAsset(asset: ChainAsset): boolean {
   return asset.token === null && asset.fromSecret === undefined
 }
 
-/** Resolve the feeCurrency token address from the chain's asset list. */
+/**
+ * Resolve the address the tx's `feeCurrency` field must carry. For a token that
+ * needs a FeeCurrencyDirectory adapter (non-18-decimal, e.g. USDC) that's the
+ * adapter; otherwise it's the fee asset's own token (an 18-decimal Mento stable
+ * such as cUSD is its own adapter).
+ */
 export function feeCurrencyAddress(entry: ChainManifestEntry): string | null {
   if (entry.feeCurrency === undefined) return null
+  if (entry.feeCurrencyAdapter !== undefined) return entry.feeCurrencyAdapter
   const asset = entry.assets.find((a) => a.id === entry.feeCurrency)
   return asset?.token ?? null
 }
@@ -268,6 +319,15 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     }
     if ((entry.gasPolicy === 'feeCurrency') !== (entry.feeCurrency !== undefined)) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrency must be set iff gasPolicy is 'feeCurrency'`)
+    }
+    if (entry.feeCurrency !== undefined && !entry.assets.some((a) => a.id === entry.feeCurrency)) {
+      throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrency '${entry.feeCurrency}' is not one of its assets`)
+    }
+    if (entry.feeCurrencyAdapter !== undefined && entry.feeCurrency === undefined) {
+      throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrencyAdapter set without feeCurrency`)
+    }
+    if (entry.feeCurrencyAdapter !== undefined && !/^0x[0-9a-fA-F]{40}$/.test(entry.feeCurrencyAdapter)) {
+      throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrencyAdapter is not a valid EVM address`)
     }
     if (entry.feeCurrency !== undefined && feeCurrencyAddress(entry) === null) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrency '${entry.feeCurrency}' has no token address`)

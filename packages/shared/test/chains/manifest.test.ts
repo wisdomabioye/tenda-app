@@ -278,9 +278,78 @@ test('exactly one chain is active per family across mainnet/testnet pairs', () =
     list.push(entry)
     byFamily.set(entry.family, list)
   }
-  // base + solana ship a mainnet/testnet pair; celo currently mainnet-only.
+  // base, solana, and celo each ship a mainnet/testnet pair.
   assert.deepEqual(byFamily.get('base')?.map((e) => e.kind).sort(), ['mainnet', 'testnet'])
   assert.deepEqual(byFamily.get('solana')?.map((e) => e.kind).sort(), ['mainnet', 'testnet'])
+  assert.deepEqual(byFamily.get('celo')?.map((e) => e.kind).sort(), ['mainnet', 'testnet'])
+})
+
+// ---------- feeCurrency adapter resolution (USDC gas) ------------------------
+
+test('feeCurrencyAddress returns the adapter for a USDC-gas chain, not the token', () => {
+  // Celo's USDC is 6-decimal → the tx feeCurrency must be the FeeCurrencyDirectory
+  // adapter (18-decimal gas interface), never the token itself.
+  for (const id of ['eip155:42220', 'eip155:11142220']) {
+    const entry = chainById(id)
+    assert.equal(entry.feeCurrency, 'USDC_CELO')
+    assert.ok(entry.feeCurrencyAdapter !== undefined, `${id} must carry a feeCurrencyAdapter`)
+    assert.equal(feeCurrencyAddress(entry), entry.feeCurrencyAdapter, `${id} resolves to the adapter`)
+    const usdc = entry.assets.find((a) => a.id === 'USDC_CELO')
+    assert.notEqual(feeCurrencyAddress(entry), usdc?.token, `${id} must NOT resolve to the raw token`)
+  }
+})
+
+test('feeCurrencyAddress falls back to the fee asset token when no adapter is set', () => {
+  // An 18-decimal Mento stable is its own gas adapter — synthetic entry proves
+  // the no-adapter branch still resolves the token address.
+  const nativeStable: ChainManifestEntry = {
+    id: 'eip155:42220', namespace: 'eip155', family: 'celo', kind: 'mainnet',
+    displayName: 'X', minConfirmations: 3, publicRpcUrl: 'https://rpc.example',
+    explorerUrl: 'https://explorer.example', gasPolicy: 'feeCurrency', feeCurrency: 'cUSD',
+    assets: [
+      { id: 'cUSD', roles: ['exchange'], token: '0x765DE816845861e75A25fCA122bb6898B8B1282a' },
+      { id: 'CELO', roles: ['exchange'], token: null },
+    ],
+  }
+  assert.equal(feeCurrencyAddress(nativeStable), '0x765DE816845861e75A25fCA122bb6898B8B1282a')
+})
+
+test('assertManifestValid rejects a feeCurrencyAdapter set without a feeCurrency', () => {
+  const bad: ChainManifestEntry = {
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
+    explorerUrl: 'https://explorer.example', gasPolicy: 'none',
+    feeCurrencyAdapter: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B',
+    assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
+  }
+  assert.throws(() => assertManifestValid([bad]), /feeCurrencyAdapter set without feeCurrency/)
+})
+
+test('assertManifestValid rejects a malformed feeCurrencyAdapter address', () => {
+  const bad: ChainManifestEntry = {
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
+    explorerUrl: 'https://explorer.example', gasPolicy: 'feeCurrency', feeCurrency: 'USDC_BASE',
+    feeCurrencyAdapter: '0xnope',
+    assets: [
+      { id: 'USDC_BASE', roles: ['gig'], token: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', permit: { version: '2' } },
+      { id: 'ETH_BASE', roles: ['exchange'], token: null },
+    ],
+  }
+  assert.throws(() => assertManifestValid([bad]), /feeCurrencyAdapter is not a valid EVM address/)
+})
+
+test('assertManifestValid rejects a feeCurrency id that is not one of the chain assets', () => {
+  // With an adapter present, a dangling feeCurrency id would otherwise resolve an
+  // address and slip through — this guard catches the typo explicitly.
+  const bad: ChainManifestEntry = {
+    id: 'eip155:1', namespace: 'eip155', family: 'eth', kind: 'mainnet',
+    displayName: 'X', minConfirmations: 1, publicRpcUrl: 'https://rpc.example',
+    explorerUrl: 'https://explorer.example', gasPolicy: 'feeCurrency', feeCurrency: 'USDC_CELO',
+    feeCurrencyAdapter: '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B',
+    assets: [{ id: 'ETH_BASE', roles: ['exchange'], token: null }],
+  }
+  assert.throws(() => assertManifestValid([bad]), /is not one of its assets/)
 })
 
 // ---------- AppKit-network derivation primitives (Stage 1) -------------------

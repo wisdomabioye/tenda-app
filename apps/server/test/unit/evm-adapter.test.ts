@@ -799,13 +799,16 @@ test('extractTxHashes: dedupes valid hashes, ignores junk shapes', () => {
 })
 
 test('fee_currency (CELO): plain txs carry it; a BASE adapter never does', async () => {
-  const CUSD = '0x765DE816845861e75A25fCA122bb6898B8B1282a' as const
+  // CELO pays gas in USDC via the FeeCurrencyDirectory adapter (6→18-decimal
+  // wrapper) — the tx carries the ADAPTER, not the raw USDC token. This proves
+  // the adapter passes whatever fee_currency it's built with straight through.
+  const USDC_ADAPTER = '0x2F25deB3848C207fc8E0c34035B3Ba7fC157602B' as const
   const celo = evmAdapter({
     chain_id: 'eip155:42220',
     rpc_url: 'http://unused.invalid',
     escrow_contract: CONTRACT,
     min_confirmations: 3,
-    fee_currency: CUSD,
+    fee_currency: USDC_ADAPTER,
     deps: {
       resolveWalletAddress: async () => CREATOR,
       resolveAsset: async () => ({ token_address: null }),
@@ -814,7 +817,7 @@ test('fee_currency (CELO): plain txs carry it; a BASE adapter never does', async
   })
   const tx = await celo.buildTx({ action: 'acceptEscrow', user_id: 'u1', payload: { escrow_id: UUID } })
   assert.strictEqual(tx.kind, 'evm-tx')
-  if (tx.kind === 'evm-tx') assert.strictEqual(tx.fee_currency, CUSD)
+  if (tx.kind === 'evm-tx') assert.strictEqual(tx.fee_currency, USDC_ADAPTER)
 
   // BASE adapter (no fee_currency arg) must not grow the field.
   const base = makeAdapter()
