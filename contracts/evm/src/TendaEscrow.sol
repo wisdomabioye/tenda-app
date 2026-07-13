@@ -130,9 +130,9 @@ contract TendaEscrow is ReentrancyGuard {
     // ---------------------------------------------------------------------
 
     event EscrowCreated(bytes16 indexed escrowId, address indexed creator, uint8 kind, address asset, uint256 amount);
-    event EscrowAccepted(bytes16 indexed escrowId, address indexed counterparty);
+    event EscrowAccepted(bytes16 indexed escrowId, address indexed counterparty, uint64 completion_deadline);
     event EscrowDeclined(bytes16 indexed escrowId, address indexed assignedCounterparty);
-    event ProofSubmitted(bytes16 indexed escrowId, bytes32 proofHash);
+    event ProofSubmitted(bytes16 indexed escrowId, bytes32 proofHash, uint64 timestamp, uint64 approval_deadline);
     event EscrowApproved(bytes16 indexed escrowId);
     event PaymentClaimed(bytes16 indexed escrowId, address indexed counterparty);
     event EscrowCancelled(bytes16 indexed escrowId);
@@ -363,7 +363,7 @@ contract TendaEscrow is ReentrancyGuard {
         e.status = Status.Accepted;
         e.completionDeadline = uint64(block.timestamp) + e.completionDuration;
 
-        emit EscrowAccepted(escrowId, msg.sender);
+        emit EscrowAccepted(escrowId, msg.sender, e.completionDeadline);
     }
 
     function declineAssignedEscrow(bytes16 escrowId) external nonReentrant {
@@ -386,7 +386,7 @@ contract TendaEscrow is ReentrancyGuard {
         e.approvalDeadline = uint64(block.timestamp) + approvalWindowSeconds;
         e.status = Status.Submitted;
 
-        emit ProofSubmitted(escrowId, proofHash);
+        emit ProofSubmitted(escrowId, proofHash, uint64(block.timestamp), e.approvalDeadline);
     }
 
     function approveCompletion(bytes16 escrowId) external nonReentrant {

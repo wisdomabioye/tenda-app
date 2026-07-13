@@ -1,9 +1,11 @@
 # TendaEscrow — EVM deploy runbook (BASE / CELO)
 
-Status: **deployed on Base Sepolia (2026-07-03, dress-rehearsal #124)** —
-`TendaEscrow` at `0xf1dedfff3fa2cb6cf157096204219a879e734fdc` on eip155:84532
-(record: `broadcast/Deploy.s.sol/84532/run-latest.json`; not source-verified on
-Basescan yet). `cast call` sanity green, `CHAIN_EIP155_84532_*` env + registry
+Status: **redeployed on Base Sepolia (2026-07-13)** — `TendaEscrow` at
+`0x779Fe1678ee29230896327744A461b012446290f` on eip155:84532 (record:
+`broadcast/Deploy.s.sol/84532/run-latest.json`; not source-verified on Basescan
+yet). Supersedes `0xf1dedfff…4fdc` (2026-07-03, #124) — this build carries the
+deadline-bearing `EscrowAccepted` / `ProofSubmitted` events (fixes the apply-side
+`Invalid time value` on accept/submit). `cast call` sanity green, `CHAIN_EIP155_84532_*` env + registry
 seed wired in dev, server adapter verified against the live RPC. **Mainnet:
 never deployed** — the steps below remain the mainnet runbook; §0 externals
 (Safe, audit, Alchemy, paymaster) are still open.

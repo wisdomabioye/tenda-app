@@ -262,13 +262,14 @@ test('builders: every escrow-id action encodes its own selector; resolveDispute 
 // ---------- event decode --------------------------------------------------------
 
 function acceptedLog() {
-  // EscrowAccepted(bytes16 indexed escrowId, address indexed counterparty)
+  // EscrowAccepted(bytes16 indexed escrowId, address indexed counterparty, uint64 completion_deadline)
   const topics = encodeEventTopics({
     abi: ESCROW_EVM_ABI,
     eventName: 'EscrowAccepted',
     args: { escrowId: UUID_HEX, counterparty: WORKER },
   })
-  return { address: CONTRACT, topics: [...topics] as `0x${string}`[], data: '0x' as `0x${string}` }
+  const data = encodeAbiParameters([{ type: 'uint64' }], [1_900_007_200n])
+  return { address: CONTRACT, topics: [...topics] as `0x${string}`[], data }
 }
 
 function createdLog() {
@@ -301,6 +302,9 @@ test('decodeEscrowLogs: decodes wire events, stringifies amounts, recovers the U
 
   assert.strictEqual(events[1].name, 'EscrowAccepted')
   assert.strictEqual(events[1].actor, `${CHAIN_ID}:${WORKER}`)
+  // The completion deadline now rides the event (snake_case wire key so the
+  // shared EVENT_APPLICATIONS reads it directly, matching the Solana decoder).
+  assert.strictEqual(events[1].fields.completion_deadline, '1900007200')
 })
 
 // ADVERSARIAL (cross-seam): the EVM decoder feeds applyEscrowEvent, which

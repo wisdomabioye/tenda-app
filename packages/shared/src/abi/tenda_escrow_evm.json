@@ -843,6 +843,12 @@
           "type": "address",
           "indexed": true,
           "internalType": "address"
+        },
+        {
+          "name": "completion_deadline",
+          "type": "uint64",
+          "indexed": false,
+          "internalType": "uint64"
         }
       ],
       "anonymous": false
@@ -995,6 +1001,18 @@
           "type": "bytes32",
           "indexed": false,
           "internalType": "bytes32"
+        },
+        {
+          "name": "timestamp",
+          "type": "uint64",
+          "indexed": false,
+          "internalType": "uint64"
+        },
+        {
+          "name": "approval_deadline",
+          "type": "uint64",
+          "indexed": false,
+          "internalType": "uint64"
         }
       ],
       "anonymous": false

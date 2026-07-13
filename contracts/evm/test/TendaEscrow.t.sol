@@ -197,7 +197,7 @@ contract TendaEscrowTest is Test {
         createNative(id);
         vm.prank(worker);
         vm.expectEmit(true, true, false, true);
-        emit TendaEscrow.EscrowAccepted(id, worker);
+        emit TendaEscrow.EscrowAccepted(id, worker, uint64(block.timestamp) + DURATION);
         escrow.acceptEscrow(id);
 
         (,,,,, address cp,,, uint64 _ad, uint64 _dur, uint64 completion,,,,) = escrow.escrows(id);
@@ -277,7 +277,7 @@ contract TendaEscrowTest is Test {
         acceptedNative(id);
         vm.prank(worker);
         vm.expectEmit(true, false, false, true);
-        emit TendaEscrow.ProofSubmitted(id, PROOF);
+        emit TendaEscrow.ProofSubmitted(id, PROOF, uint64(block.timestamp), uint64(block.timestamp) + APPROVAL_WINDOW);
         escrow.submitProof(id, PROOF);
         (,,,,,,,,,,, uint64 approval,,,) = escrow.escrows(id);
         assertEq(approval, uint64(block.timestamp) + APPROVAL_WINDOW);
