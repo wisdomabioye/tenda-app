@@ -352,6 +352,37 @@ test('assertManifestValid rejects a feeCurrency id that is not one of the chain 
   assert.throws(() => assertManifestValid([bad]), /is not one of its assets/)
 })
 
+// ---------- gas-seed amount (native-seed onboarding grant) ------------------
+
+test('both Solana chains carry a positive native-seed gasSeedAmountRaw', () => {
+  for (const id of ['solana:mainnet', 'solana:devnet']) {
+    const entry = CHAIN_MANIFEST.find((c) => c.id === id)
+    assert.ok(entry !== undefined, `${id} present in the manifest`)
+    assert.equal(entry.gasPolicy, 'native-seed', `${id} is a native-seed chain`)
+    assert.match(entry.gasSeedAmountRaw ?? '', /^[1-9]\d*$/, `${id} declares base-unit seed`)
+  }
+})
+
+const solanaSeedBase: ChainManifestEntry = {
+  id: 'solana:x', namespace: 'solana', family: 'solana', kind: 'mainnet',
+  displayName: 'X', minConfirmations: 1, gasPolicy: 'native-seed',
+  gasSeedAmountRaw: '7000000',
+  assets: [{ id: 'SOL', roles: ['exchange'], token: null }],
+}
+
+test('assertManifestValid rejects gasSeedAmountRaw on a non-native-seed chain', () => {
+  const bad: ChainManifestEntry = { ...solanaSeedBase, gasPolicy: 'none' }
+  assert.throws(() => assertManifestValid([bad]), /gasSeedAmountRaw set without gasPolicy 'native-seed'/)
+})
+
+test('assertManifestValid rejects a non-positive-integer gasSeedAmountRaw', () => {
+  // '0' is the sneaky one: a valid number, a useless seed. Fractional/garbage too.
+  for (const amount of ['0', '1.5', '-1', 'abc', '']) {
+    const bad: ChainManifestEntry = { ...solanaSeedBase, gasSeedAmountRaw: amount }
+    assert.throws(() => assertManifestValid([bad]), /gasSeedAmountRaw must be a positive integer string/)
+  }
+})
+
 // ---------- AppKit-network derivation primitives (Stage 1) -------------------
 // These let the mobile network list derive from the manifest with no per-chain
 // literals, so adding an EVM chain is a manifest entry + secrets, no app edit.

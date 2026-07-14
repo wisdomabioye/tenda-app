@@ -19,6 +19,16 @@ import type { GasSeedSender } from '@server/lib/gas-seed'
 import { commitmentFor } from '@server/chains/solana/rpc'
 import type { ChainId } from '@server/chains/types'
 
+/**
+ * The base58 public key of a base58-encoded 64-byte secret key. Used by the
+ * seeder to record `chains.gas_seed_wallet_address` (audit-only) from the SAME
+ * secret the sender signs with, so the recorded funder can never drift from the
+ * wallet that actually pays. Throws on a malformed key (fail-fast at seed time).
+ */
+export function gasSeedAddressFromSecret(secret_key_base58: string): string {
+  return Keypair.fromSecretKey(bs58.decode(secret_key_base58)).publicKey.toBase58()
+}
+
 export function solanaGasSeedSender(args: {
   rpc_url: string
   chain_id: ChainId

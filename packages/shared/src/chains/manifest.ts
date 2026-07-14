@@ -114,6 +114,15 @@ export interface ChainManifestEntry {
    * fee token is its own adapter (cUSD). Only meaningful with `feeCurrency` set.
    */
   feeCurrencyAdapter?: string
+  /**
+   * One-time native-gas seed, in the chain's native base units (lamports for
+   * Solana), granted to a new user's first wallet on this chain. Only meaningful
+   * with `gasPolicy: 'native-seed'`; absent = the seed stays dormant (the DB's
+   * gas_seed columns remain NULL and `dispatchGasSeeds` skips the chain). The
+   * FUNDING wallet is not recorded here — it's derived from the deployment's hot
+   * wallet secret (`CHAIN_<id>_GAS_SEED_KEY`) at seed time, so the two can't drift.
+   */
+  gasSeedAmountRaw?: string
   assets: ChainAsset[]
 }
 
@@ -131,6 +140,12 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     displayName: 'Solana',
     minConfirmations: 1,
     gasPolicy: 'native-seed',
+    // 0.007 SOL: covers one full escrow lifecycle for a 0-SOL user — escrow PDA
+    // (0.00238728) + vault token account (0.00203928) + a payout USDC ATA
+    // (0.00203928) rent, plus signature fees + headroom. Most is recoverable
+    // rent (accounts close back to the creator); phone-gated + one grant per
+    // user (gas_grants PK) bound the sybil surface.
+    gasSeedAmountRaw: '7000000',
     assets: [
       { id: 'SOL', roles: ['exchange'], token: null },
       { id: 'USDC_SOL', roles: ['gig', 'exchange'], token: null, fromSecret: 'usdcMint' },
@@ -144,6 +159,9 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
     displayName: 'Solana Devnet',
     minConfirmations: 1,
     gasPolicy: 'native-seed',
+    // Same lamport cost as mainnet (rent is a protocol constant); devnet SOL is
+    // free, so the value only matters for a representative smoke test here.
+    gasSeedAmountRaw: '7000000',
     assets: [
       { id: 'SOL_DEVNET', roles: ['exchange'], token: null },
       { id: 'USDC_SOL', roles: ['gig', 'exchange'], token: null, fromSecret: 'usdcMint' },
@@ -331,6 +349,12 @@ export function assertManifestValid(entries: readonly ChainManifestEntry[]): voi
     }
     if (entry.feeCurrency !== undefined && feeCurrencyAddress(entry) === null) {
       throw new Error(`CHAIN_MANIFEST: '${entry.id}' feeCurrency '${entry.feeCurrency}' has no token address`)
+    }
+    if (entry.gasSeedAmountRaw !== undefined && entry.gasPolicy !== 'native-seed') {
+      throw new Error(`CHAIN_MANIFEST: '${entry.id}' gasSeedAmountRaw set without gasPolicy 'native-seed'`)
+    }
+    if (entry.gasSeedAmountRaw !== undefined && !/^[1-9]\d*$/.test(entry.gasSeedAmountRaw)) {
+      throw new Error(`CHAIN_MANIFEST: '${entry.id}' gasSeedAmountRaw must be a positive integer string of base units`)
     }
   }
 }

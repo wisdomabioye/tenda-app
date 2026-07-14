@@ -22,6 +22,7 @@
     "admin:grant-email": "tsx src/scripts/grant-admin-email.ts",
     "dedupe-wallets": "tsx src/scripts/dedupe-wallets.ts",
     "verify:celo-fee-currency": "tsx src/scripts/verify-celo-feecurrency.ts",
+    "verify:gas-seed": "tsx src/scripts/verify-gas-seed.ts",
     "lint": "eslint ."
   },
   "keywords": [],

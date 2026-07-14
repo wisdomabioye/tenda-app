@@ -13,8 +13,9 @@
  *   - solana escrow program id ← @tenda/shared/idl (the deployed artifact)
  *   - EVM escrow + treasury    ← the chain's secrets
  *   - solana USDC mint         ← the chain's secret (`fromSecret`); skipped + warned if unset
- *   - gas-seed columns stay NULL until the hot wallet exists (#40); the
- *     paired CHECK constraint requires both-or-neither.
+ *   - gas-seed columns ← manifest `gasSeedAmountRaw` + the funder address DERIVED
+ *     from the chain's hot-wallet secret; both stay NULL until BOTH exist (#40),
+ *     the paired CHECK constraint requires both-or-neither.
  */
 
 import 'dotenv/config'
@@ -28,6 +29,7 @@ import { ASSET_META, chainById, type ChainAsset } from '@tenda/shared'
 import { platform_config } from '@tenda/shared/db/schema/governance'
 import { loadConfig } from '@server/config'
 import { getChainSecrets, type ResolvedChainSecret } from '@server/chains/secrets'
+import { gasSeedAddressFromSecret } from '@server/chains/solana/gas-seed-sender'
 import {
   P2P_INTERNAL_ID,
   P2P_INTERNAL_CAPABILITIES,
@@ -75,6 +77,24 @@ function resolveAssetToken(
   return { token: null, skip: true }
 }
 
+/**
+ * The paired gas-seed columns for a chain. Both are set only when the manifest
+ * declares a seed amount AND the deployment configured the hot-wallet secret
+ * that funds it — otherwise both stay NULL, keeping the chain's seed dormant and
+ * satisfying the `chains_gas_seed_paired_chk` (both-or-neither) constraint. The
+ * funder address is DERIVED from the same secret the sender signs with (no drift).
+ */
+function resolveGasSeed(
+  amount_raw: string | undefined,
+  secret: ResolvedChainSecret,
+): { amount_raw: string | null; wallet_address: string | null } {
+  const key = secret.namespace === 'solana' ? secret.gasSeedKey : undefined
+  if (amount_raw === undefined || key === undefined) {
+    return { amount_raw: null, wallet_address: null }
+  }
+  return { amount_raw, wallet_address: gasSeedAddressFromSecret(key) }
+}
+
 export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>): SeedRows {
   const chainRows: ChainRow[] = []
   const assetRows: AssetRow[] = []
@@ -92,6 +112,7 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
   // IDL artifact (single source); EVM's is the deployed contract from secrets.
   for (const secret of secrets.values()) {
     const entry = chainById(secret.chainId)
+    const gasSeed = resolveGasSeed(entry.gasSeedAmountRaw, secret)
     chainRows.push({
       id: entry.id,
       namespace: entry.namespace,
@@ -99,6 +120,8 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
       min_confirmations: entry.minConfirmations,
       treasury_address: secret.treasury,
       escrow_program: secret.namespace === 'solana' ? ESCROW_IDL.address : secret.escrow,
+      gas_seed_amount_raw: gasSeed.amount_raw,
+      gas_seed_wallet_address: gasSeed.wallet_address,
     })
     for (const asset of entry.assets) {
       const resolved = resolveAssetToken(asset, secret)
@@ -161,6 +184,8 @@ export async function applySeed(db: PostgresJsDatabase, rows: SeedRows): Promise
       min_confirmations: sql`excluded.min_confirmations`,
       treasury_address: sql`excluded.treasury_address`,
       escrow_program: sql`excluded.escrow_program`,
+      gas_seed_amount_raw: sql`excluded.gas_seed_amount_raw`,
+      gas_seed_wallet_address: sql`excluded.gas_seed_wallet_address`,
     },
   })
   await db.insert(assets).values(rows.assets).onConflictDoUpdate({

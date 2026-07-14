@@ -8,8 +8,11 @@
  */
 import { test } from 'node:test'
 import * as assert from 'node:assert'
+import { Keypair } from '@solana/web3.js'
+import bs58 from 'bs58'
 import { ESCROW_IDL } from '@tenda/shared/idl'
 import { buildSeedRows } from '@server/db/seed-v2'
+import { gasSeedAddressFromSecret } from '@server/chains/solana/gas-seed-sender'
 import { loadChainSecrets } from '@server/chains/secrets'
 
 const SOL = 'So11111111111111111111111111111111111111112'
@@ -44,9 +47,25 @@ test('seeds only the active solana chain — IDL program id + configured treasur
   assert.strictEqual(c.escrow_program, ESCROW_IDL.address)
   assert.strictEqual(c.treasury_address, SOL)
   assert.strictEqual(c.min_confirmations, 1)
-  // Gas-seed pair stays unset until #40 (paired CHECK constraint).
-  assert.strictEqual(c.gas_seed_amount_raw, undefined)
-  assert.strictEqual(c.gas_seed_wallet_address, undefined)
+  // The manifest declares a seed amount, but with no hot-wallet key configured
+  // the pair stays NULL (both-or-neither CHECK) — the chain's seed is dormant.
+  assert.strictEqual(c.gas_seed_amount_raw, null)
+  assert.strictEqual(c.gas_seed_wallet_address, null)
+})
+
+test('gas-seed pair populates from the manifest amount + derived funder when the key is set', () => {
+  const kp = Keypair.generate()
+  const key = bs58.encode(kp.secretKey)
+  const rows = buildSeedRows(
+    solDevnet({ CHAIN_SOLANA_DEVNET_USDC_MINT: MINT, CHAIN_SOLANA_DEVNET_GAS_SEED_KEY: key }),
+  )
+  const c = rows.chains[0]
+  assert.ok(c)
+  assert.strictEqual(c.gas_seed_amount_raw, '7000000')
+  // Funder address is DERIVED from the same secret the sender signs with — never
+  // a separately-configured value that could drift from it.
+  assert.strictEqual(c.gas_seed_wallet_address, kp.publicKey.toBase58())
+  assert.strictEqual(c.gas_seed_wallet_address, gasSeedAddressFromSecret(key))
 })
 
 test('native SOL + USDC bound to the active network from its secret mint', () => {
@@ -78,7 +97,7 @@ test('BASE: chain + manifest USDC + native ETH, treasury/escrow from secrets', (
   assert.ok(base)
   assert.strictEqual(base.escrow_program, EVM_ESCROW)
   assert.strictEqual(base.treasury_address, EVM_TREASURY)
-  assert.strictEqual(base.min_confirmations, 5)
+  assert.strictEqual(base.min_confirmations, 2) // manifest: 2 for an L2 (was 5)
   const usdc = rows.assets.find((a) => a.id === 'USDC_BASE')
   assert.ok(usdc)
   assert.strictEqual(usdc.token_address, '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913')
