@@ -7,9 +7,12 @@ import { renderHook, waitFor } from '@testing-library/react-native'
 
 let mockUser: { id: string } | null = { id: 'u1' }
 let mockWallets: Array<{ chain_ns: string; address: string }> = []
+let mockWalletsStatus = 'ready'
+const mockRetry = jest.fn()
 let mockChains: unknown[] = []
 jest.mock('@/stores/auth.store', () => ({
-  useAuthStore: (sel: (s: unknown) => unknown) => sel({ user: mockUser, wallets: mockWallets }),
+  useAuthStore: (sel: (s: unknown) => unknown) =>
+    sel({ user: mockUser, wallets: mockWallets, walletsStatus: mockWalletsStatus, retryWalletSync: mockRetry }),
 }))
 jest.mock('@/stores/chain-registry.store', () => ({
   useChainRegistryStore: (sel: (s: unknown) => unknown) => sel({ chains: mockChains }),
@@ -34,6 +37,8 @@ import { useWalletScreen } from '@/hooks/useWalletScreen'
 beforeEach(() => {
   mockUser = { id: 'u1' }
   mockWallets = []
+  mockWalletsStatus = 'ready'
+  mockRetry.mockReset()
   mockChains = []
   mockRead.mockReset().mockResolvedValue([])
   mockSum.mockReset().mockReturnValue('0')
@@ -61,4 +66,12 @@ test('with a wallet → reads balances and derives the USDC headline total', asy
   expect(result.current.hasWallet).toBe(true)
   await waitFor(() => expect(result.current.balances).toHaveLength(1))
   expect(result.current.totalUsdc).toBe(50)
+})
+
+test('surfaces walletsStatus and the retry handler so the screen can distinguish load states', async () => {
+  mockWalletsStatus = 'error'
+  const { result } = renderHook(() => useWalletScreen())
+  expect(result.current.walletsStatus).toBe('error')
+  expect(result.current.retryWallets).toBe(mockRetry)
+  await waitFor(() => expect(result.current.isLoading).toBe(false)) // settle the load effect
 })

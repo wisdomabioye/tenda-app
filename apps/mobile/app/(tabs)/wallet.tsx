@@ -11,6 +11,7 @@ import {
   WalletBalanceRows,
   WalletActions,
   WalletEmptyState,
+  WalletLoadError,
 } from '@/components/wallet'
 import { useWalletScreen } from '@/hooks/useWalletScreen'
 
@@ -19,6 +20,8 @@ export default function WalletScreen() {
   const {
     user,
     hasWallet,
+    walletsStatus,
+    retryWallets,
     balances,
     totalUsdc,
     earnedUsdc,
@@ -28,6 +31,24 @@ export default function WalletScreen() {
     refreshing,
     handleRefresh,
   } = useWalletScreen()
+
+  // A failed load must NOT read as "no wallet linked" (that was the bug). Only
+  // a settled `ready` load with an empty list is genuinely wallet-less; while
+  // loading, the hero skeleton stands in.
+  const walletSection = hasWallet ? (
+    <>
+      <WalletHeroCard totalUsdc={totalUsdc} isLoading={isLoading} />
+      <WalletBalanceRows balances={balances} />
+      <WalletActions />
+      <EarningsSummary earnedUsdc={earnedUsdc} spentUsdc={spentUsdc} />
+    </>
+  ) : walletsStatus === 'error' ? (
+    <WalletLoadError onRetry={retryWallets} />
+  ) : walletsStatus === 'ready' ? (
+    <WalletEmptyState />
+  ) : (
+    <WalletHeroCard totalUsdc={totalUsdc} isLoading />
+  )
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
@@ -49,16 +70,7 @@ export default function WalletScreen() {
         ListHeaderComponent={
           <>
             <FailedSyncPanel />
-            {hasWallet ? (
-              <>
-                <WalletHeroCard totalUsdc={totalUsdc} isLoading={isLoading} />
-                <WalletBalanceRows balances={balances} />
-                <WalletActions />
-                <EarningsSummary earnedUsdc={earnedUsdc} spentUsdc={spentUsdc} />
-              </>
-            ) : (
-              <WalletEmptyState />
-            )}
+            {walletSection}
             <Text style={[s.sectionTitle, { color: theme.colors.content.tertiary }]}>TRANSACTION HISTORY</Text>
           </>
         }

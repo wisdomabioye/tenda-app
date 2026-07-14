@@ -118,6 +118,7 @@ const INITIAL = {
   isAuthenticated: false,
   isLoading: true,
   wallets: [],
+  walletsStatus: 'idle' as const,
   profileComplete: null,
   identities: [],
 }
@@ -177,7 +178,9 @@ describe('signInWithWallet', () => {
       account: account('solana'),
     })
     // Background refreshMe fails → the value derived at sign-in is the fallback.
-    usersMeMock.mockRejectedValueOnce(new Error('me down'))
+    // Terminal (401) so it does NOT schedule a retry timer that would outlive
+    // this test (refreshMe is fired fire-and-forget by sign-in).
+    usersMeMock.mockRejectedValue(new ApiClientError(401, 'Unauthorized', 'me down', 'UNAUTHORIZED'))
     await useAuthStore.getState().signInWithWallet(stubAdapter())
     expect(useAuthStore.getState().profileComplete).toBe(false)
   })
@@ -375,9 +378,11 @@ describe('refreshMe (session reconcile against wallets[])', () => {
     expect(s.evmAddress).toBeNull() // unlinked → dropped
   })
 
-  it('leaves session addresses untouched when the fetch fails', async () => {
+  it('leaves session addresses untouched when the fetch fails outright', async () => {
     useAuthStore.setState({ walletAddress: 'SoLAddr', evmAddress: '0xEvm' })
-    usersMeMock.mockRejectedValueOnce(new Error('network'))
+    // Terminal failure (401) — not retried, so the reconcile never runs and the
+    // slots are preserved. (A single transient reject now RECOVERS via retry.)
+    usersMeMock.mockRejectedValue(new ApiClientError(401, 'Unauthorized', 'x', 'UNAUTHORIZED'))
     await useAuthStore.getState().refreshMe()
     const s = useAuthStore.getState()
     expect(s.walletAddress).toBe('SoLAddr')
@@ -496,5 +501,57 @@ describe('loadMethods', () => {
     methodsMock.mockRejectedValue(new Error('offline'))
     await useAuthStore.getState().loadMethods()
     expect(useAuthStore.getState().identities).toEqual([{ kind: 'email', identifier: 'a@x.io', email: 'a@x.io', verified: true }])
+  })
+})
+
+describe('refreshMe / walletsStatus lifecycle (D1)', () => {
+  const linkedEvm = [{ chain_ns: 'eip155', address: '0xEvmAddr', is_primary: true, verified_at: 'now' }]
+
+  it('sets walletsStatus ready and populates wallets on success', async () => {
+    usersMeMock.mockResolvedValue({ wallets: linkedEvm, profile_complete: true })
+    await useAuthStore.getState().refreshMe()
+    const s = useAuthStore.getState()
+    expect(s.walletsStatus).toBe('ready')
+    expect(s.wallets).toHaveLength(1)
+  })
+
+  it('does NOT retry a terminal 401 and surfaces error (empty ≠ silent-empty)', async () => {
+    usersMeMock.mockRejectedValue(new ApiClientError(401, 'Unauthorized', 'nope', 'UNAUTHORIZED'))
+    await useAuthStore.getState().refreshMe()
+    expect(useAuthStore.getState().walletsStatus).toBe('error')
+    expect(usersMeMock).toHaveBeenCalledTimes(1) // terminal → single attempt, no retry
+  })
+
+  it('retries a transient failure and marks error only after exhausting attempts', async () => {
+    jest.useFakeTimers()
+    usersMeMock.mockRejectedValue(new Error('Network request failed'))
+    const p = useAuthStore.getState().refreshMe()
+    await jest.runAllTimersAsync() // flush the backoff sleeps instantly
+    await p
+    jest.useRealTimers()
+    expect(usersMeMock).toHaveBeenCalledTimes(3) // default attempt budget
+    expect(useAuthStore.getState().walletsStatus).toBe('error')
+    expect(useAuthStore.getState().wallets).toEqual([])
+  })
+
+  it('retryWalletSync recovers from an error state', async () => {
+    useAuthStore.setState({ walletsStatus: 'error' })
+    usersMeMock.mockResolvedValue({ wallets: linkedEvm, profile_complete: true })
+    await useAuthStore.getState().retryWalletSync()
+    const s = useAuthStore.getState()
+    expect(s.walletsStatus).toBe('ready')
+    expect(s.wallets).toHaveLength(1)
+  })
+
+  it('a failed background refresh keeps the last-good list (no blanking to error)', async () => {
+    usersMeMock.mockResolvedValueOnce({ wallets: linkedEvm, profile_complete: true })
+    await useAuthStore.getState().refreshMe()
+    expect(useAuthStore.getState().walletsStatus).toBe('ready')
+
+    usersMeMock.mockRejectedValue(new ApiClientError(401, 'Unauthorized', 'x', 'UNAUTHORIZED'))
+    await useAuthStore.getState().refreshMe()
+    const s = useAuthStore.getState()
+    expect(s.walletsStatus).toBe('ready') // stays ready, not error
+    expect(s.wallets).toHaveLength(1) // last-good list intact
   })
 })

@@ -19,6 +19,7 @@ import type { EscrowTxType, UnsignedTx } from '@tenda/shared'
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
 import { ensureAllowance } from '@/wallet/allowance'
+import { ensureEvmSession } from '@/wallet/ensure-session'
 import { pickWalletAddress } from '@/wallet/wallet-address'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
@@ -52,6 +53,10 @@ export async function signAndSendUnsignedTx(unsigned: UnsignedTx, chain_id?: str
       return signAndSendStored(tx)
     }
     case 'evm-tx': {
+      // Guarantee a live, linked session first (connect-on-demand) AND sync the
+      // signer slot to it, so `resolveEvmFrom` below signs from the connected
+      // wallet instead of dead-ending when the session isn't live.
+      await ensureEvmSession()
       const from = resolveEvmFrom()
       if (from === null) {
         throw new Error('no EVM wallet connected, link one in Settings → Wallets first')

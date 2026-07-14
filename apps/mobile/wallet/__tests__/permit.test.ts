@@ -28,6 +28,9 @@ jest.mock('@/wallet/adapters/walletconnect', () => ({
 jest.mock('@/wallet/dispatch', () => ({
   resolveEvmFrom: jest.fn(),
 }))
+jest.mock('@/wallet/ensure-session', () => ({
+  ensureEvmSession: jest.fn(),
+}))
 jest.mock('@/stores/chain-registry.store', () => ({
   useChainRegistryStore: { getState: jest.fn() },
 }))
@@ -35,12 +38,14 @@ jest.mock('@/stores/chain-registry.store', () => ({
 import { api, ApiClientError } from '@/api/client'
 import { signEvmTypedData } from '@/wallet/adapters/walletconnect'
 import { resolveEvmFrom } from '@/wallet/dispatch'
+import { ensureEvmSession } from '@/wallet/ensure-session'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { buildPermitFor } from '@/wallet/permit'
 
 const payloadMock = api.blockchain.permitPayload as jest.Mock
 const signMock = signEvmTypedData as jest.Mock
 const fromMock = resolveEvmFrom as jest.Mock
+const ensureSessionMock = ensureEvmSession as jest.Mock
 const registryMock = useChainRegistryStore.getState as jest.Mock
 
 const CHAIN = 'eip155:84532'
@@ -79,6 +84,7 @@ beforeEach(() => {
   payloadMock.mockReset()
   signMock.mockReset()
   fromMock.mockReset()
+  ensureSessionMock.mockReset().mockResolvedValue(undefined)
   registryMock.mockReturnValue(registry(true))
   fromMock.mockReturnValue(OWNER)
 })
@@ -103,6 +109,18 @@ test('happy path: payload → signTypedData → PermitSignatureBody', async () =
     typedData: PAYLOAD.typed_data,
     chainId: CHAIN,
   })
+})
+
+test('runs the connect-on-demand guard before signing, but not on non-permit early returns', async () => {
+  // Non-EVM chain bails before the guard (no session needed to fall back).
+  await buildPermitFor({ ...ARGS, chain_id: 'solana:devnet' })
+  expect(ensureSessionMock).not.toHaveBeenCalled()
+
+  // Permit path ensures a live, linked session before the wallet signs.
+  payloadMock.mockResolvedValue(PAYLOAD)
+  signMock.mockResolvedValue('0xSig')
+  await buildPermitFor(ARGS)
+  expect(ensureSessionMock).toHaveBeenCalledTimes(1)
 })
 
 test('fallback (undefined) cases never touch the API or the wallet', async () => {

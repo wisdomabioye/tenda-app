@@ -21,9 +21,11 @@ const isUsdcTx = (tx: UserEscrowTransaction): boolean =>
  * summed-USDC headline, the transaction feed, and USDC lifetime earned/spent.
  */
 export function useWalletScreen() {
-  const user     = useAuthStore((s) => s.user)
-  const wallets  = useAuthStore((s) => s.wallets)
-  const chains   = useChainRegistryStore((s) => s.chains)
+  const user          = useAuthStore((s) => s.user)
+  const wallets       = useAuthStore((s) => s.wallets)
+  const walletsStatus = useAuthStore((s) => s.walletsStatus)
+  const retryWallets  = useAuthStore((s) => s.retryWalletSync)
+  const chains        = useChainRegistryStore((s) => s.chains)
 
   const [balances, setBalances]         = useState<WalletChainBalance[]>([])
   const [transactions, setTransactions] = useState<UserEscrowTransaction[]>([])
@@ -89,6 +91,11 @@ export function useWalletScreen() {
   return {
     user,
     hasWallet,
+    // Lifecycle of the linked-wallet load, so the screen distinguishes "still
+    // loading" and "load failed" from "genuinely no wallet" (was: any of these
+    // fell through to the empty state).
+    walletsStatus,
+    retryWallets,
     balances,
     totalUsdc,
     earnedUsdc,

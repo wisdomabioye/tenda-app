@@ -29,6 +29,9 @@ jest.mock('@/stores/escrow.store', () => ({
 jest.mock('@/wallet/allowance', () => ({
   ensureAllowance: jest.fn(),
 }))
+jest.mock('@/wallet/ensure-session', () => ({
+  ensureEvmSession: jest.fn(),
+}))
 
 import {
   signAndSendUnsignedTx,
@@ -38,6 +41,7 @@ import {
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
 import { ensureAllowance } from '@/wallet/allowance'
+import { ensureEvmSession } from '@/wallet/ensure-session'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 import { VersionedTransaction } from '@solana/web3.js'
@@ -48,6 +52,7 @@ const sendEvmMock = sendEvmTransaction as jest.Mock
 const authStateMock = useAuthStore.getState as jest.Mock
 const escrowStateMock = useEscrowStore.getState as jest.Mock
 const ensureAllowanceMock = ensureAllowance as jest.Mock
+const ensureSessionMock = ensureEvmSession as jest.Mock
 
 function evmWallet(over: Partial<LinkedWallet>): LinkedWallet {
   return {
@@ -71,6 +76,8 @@ const EVM_TX: UnsignedTx = { kind: 'evm-tx', to: '0xTo', data: '0xData', value: 
 beforeEach(() => {
   authStateMock.mockReturnValue({ evmAddress: null, wallets: [] })
   ensureAllowanceMock.mockReset()
+  ensureSessionMock.mockReset().mockResolvedValue(undefined)
+  sendEvmMock.mockReset()
 })
 
 describe('signAndSendUnsignedTx, solana-tx', () => {
@@ -144,6 +151,33 @@ describe('signAndSendUnsignedTx, evm-tx from precedence', () => {
     expect(sendEvmMock).toHaveBeenCalledWith(
       expect.objectContaining({ feeCurrency: '0xcUSD' }),
     )
+  })
+})
+
+describe('signAndSendUnsignedTx, evm-tx connect-on-demand guard (D6)', () => {
+  it('runs ensureEvmSession BEFORE broadcasting', async () => {
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [evmWallet({ address: '0xLive', is_primary: true })] })
+    const order: string[] = []
+    ensureSessionMock.mockImplementation(async () => void order.push('ensure'))
+    sendEvmMock.mockImplementation(async () => {
+      order.push('send')
+      return 'evm-ref'
+    })
+    await signAndSendUnsignedTx(EVM_TX, 'eip155:84532')
+    expect(order).toEqual(['ensure', 'send'])
+  })
+
+  it('does NOT broadcast when the guard fails (e.g. the user declines the connect)', async () => {
+    authStateMock.mockReturnValue({ evmAddress: '0xLive', wallets: [evmWallet({ address: '0xLive', is_primary: true })] })
+    ensureSessionMock.mockRejectedValue(new Error('Wallet connection cancelled'))
+    await expect(signAndSendUnsignedTx(EVM_TX, 'eip155:84532')).rejects.toThrow('cancelled')
+    expect(sendEvmMock).not.toHaveBeenCalled()
+  })
+
+  it('leaves the Solana path untouched (no EVM session guard)', async () => {
+    storedMock.mockResolvedValue('sol-sig')
+    await signAndSendUnsignedTx(SOLANA_TX, 'solana:devnet')
+    expect(ensureSessionMock).not.toHaveBeenCalled()
   })
 })
 

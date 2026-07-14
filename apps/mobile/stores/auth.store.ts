@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import { ErrorCode } from '@tenda/shared'
-import type { User, LinkedWallet, VerifyBody, IdentityMethodWire } from '@tenda/shared'
 import {
   getJwtToken,
   setJwtToken,
@@ -9,93 +8,13 @@ import {
   clearAuthStorage,
 } from '@/lib/secure-store'
 import { api, ApiClientError } from '@/api/client'
+import { withRetry } from '@/lib/with-retry'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useExchangeMarketStore } from '@/stores/exchange-market.store'
+import { reconcileWalletState, isRetriableMeError } from '@/stores/wallet-sync'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { connectionSignal } from '@/wallet/reown/connection-signal'
-import { isLinkedWallet } from '@/wallet/wallet-address'
-import type { WalletAdapter } from '@/wallet/adapters/types'
-
-interface AuthState {
-  user: User | null
-  jwt: string | null
-  walletAddress: string | null
-  /**
-   * Connected EVM account (CO3), session-scoped, set by `signInWithWallet`
-   * on an eip155 sign-in and cleared on logout. NOT persisted: after a
-   * restart it stays null and the evm-tx dispatch path falls back to the
-   * verified linked eip155 wallet (from `wallets[]`). It only bridges the
-   * window between an EVM login and the first `refreshMe`.
-   */
-  evmAddress: string | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  /**
-   * A wallet sign-in is mid-flight (nonce → authenticate → verify). The wallet's
-   * `tenda://` return deep link can bounce the app through the `/` index route
-   * before verify completes; `index` reads this to hold a spinner instead of
-   * flashing the welcome/get-started screen. Cleared when the flow settles.
-   */
-  walletAuthInProgress: boolean
-  /** Stage 1 multi-wallet state, from GET /v1/users/me. */
-  wallets: LinkedWallet[]
-  /** null until /v1/users/me has answered at least once this session. */
-  profileComplete: boolean | null
-  /**
-   * Non-wallet sign-in identities (phone/email/OAuth) from GET /v1/auth/methods,
-   * for the Sign-in & security screen. Empty until `loadMethods` answers.
-   */
-  identities: IdentityMethodWire[]
-
-  /**
-   * Sign in with any wallet adapter (nonce → authenticate → verify → JWT).
-   * Find-or-reject (decision #3): an unknown wallet throws WALLET_NOT_LINKED;
-   * the wallet never creates an account. Resolves to false when the user
-   * declines in the wallet, true on success. Throws on transport or server
-   * failure (the connect-wallet screen maps WALLET_NOT_LINKED to Tier-0). The
-   * connected account's address is published to the namespace-appropriate slot
-   * (`walletAddress` for Solana, consumed as a Solana pubkey, or `evmAddress`
-   * for EVM).
-   */
-  signInWithWallet: (adapter: WalletAdapter) => Promise<boolean>
-  /**
-   * Link an ADDITIONAL wallet to the already-authenticated account (nonce →
-   * authenticate(forceFresh) → POST /v1/auth/link-wallet → refreshMe). Sets
-   * `walletAuthInProgress` for the same reason sign-in does: the new wallet's
-   * `tenda://` return deep link bounces the app through `/`, and `index` must
-   * hold a spinner rather than redirect an authed user home mid-link. Resolves
-   * true on link, false when the user declines; throws ApiClientError (the
-   * screen maps 409/etc. to a toast).
-   */
-  linkWallet: (adapter: WalletAdapter) => Promise<boolean>
-  /**
-   * Stage 9 unified sign-in, verify a credential proof (phone/email OTP,
-   * OAuth id_token, or wallet signature) via POST /v1/auth/verify and set the
-   * session. No wallet is required. Always calls verify ANONYMOUSLY (no
-   * bearer), the header is the server's link/sign-in discriminator, and a
-   * stale stored JWT would otherwise 401 every sign-in attempt.
-   * Returns whether the account was just created. Throws ApiClientError (the
-   * caller maps WALLET_NOT_LINKED / IDENTITY_ALREADY_LINKED to the Tier-0 UX).
-   */
-  signInWithVerify: (body: VerifyBody) => Promise<{ isNew: boolean }>
-  /**
-   * Stage 9, LINK a verified contact (phone/email OTP) to the ALREADY-signed-in
-   * account, used by the Sign-in & security screen. Same POST /v1/auth/verify as
-   * sign-in but with `link: true` (bearer attached → server links to the current
-   * user), and it does NOT touch the session token or navigation, it just
-   * refreshes the cached user/wallets/identities. Throws ApiClientError (the
-   * screen maps IDENTITY_ALREADY_LINKED etc. to a toast).
-   */
-  linkIdentity: (body: VerifyBody) => Promise<void>
-  /** Re-fetch sign-in identities from GET /v1/auth/methods. */
-  loadMethods: () => Promise<void>
-  logout: () => Promise<void>
-  loadSession: () => Promise<void>
-  updateUser: (user: User) => void
-  refreshUser: () => Promise<void>
-  /** Re-fetch wallets + profile_complete from /v1/users/me. */
-  refreshMe: () => Promise<void>
-}
+import type { AuthState } from '@/stores/auth.types'
 
 /**
  * A SIGN-IN call answered 401 UNAUTHORIZED, only the server's JWT guard mints
@@ -120,6 +39,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: true,
   walletAuthInProgress: false,
   wallets: [],
+  walletsStatus: 'idle',
   profileComplete: null,
   identities: [],
 
@@ -234,6 +154,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       evmAddress: null,
       isAuthenticated: false,
       wallets: [],
+      walletsStatus: 'idle',
       profileComplete: null,
       identities: [],
     })
@@ -291,27 +212,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   refreshMe: async () => {
+    // Flip to `loading` only when we have nothing to show yet — a background
+    // refetch over already-`ready` data must not flash a skeleton.
+    set((s) => (s.walletsStatus === 'ready' ? {} : { walletsStatus: 'loading' }))
     try {
-      const me = await api.users.me()
-      // Reconcile the session address slots against the source of truth: an
-      // address that's no longer a verified linked wallet (e.g. just unlinked)
-      // is dropped, so the store never advertises a wallet the user removed.
-      set((state) => ({
-        wallets: me.wallets,
-        profileComplete: me.profile_complete,
-        walletAddress:
-          state.walletAddress !== null && isLinkedWallet('solana', state.walletAddress, me.wallets)
-            ? state.walletAddress
-            : null,
-        evmAddress:
-          state.evmAddress !== null && isLinkedWallet('eip155', state.evmAddress, me.wallets)
-            ? state.evmAddress
-            : null,
-      }))
+      // Bounded retry (transient blips only): the sole populator of wallets[]
+      // used to be fire-and-forget and silently swallowed failures, stranding an
+      // authenticated user with an empty list and no recovery.
+      const me = await withRetry(() => api.users.me(), { shouldRetry: isRetriableMeError })
+      set((state) => ({ ...reconcileWalletState(state, me), walletsStatus: 'ready' }))
     } catch {
-      // Non-fatal, wallets UI shows a retry; profile gate falls back to
-      // the value derived at sign-in.
+      // Only surface an error when there's nothing loaded; a failed background
+      // refresh keeps the last-good list rather than blanking the screen.
+      set((s) => (s.walletsStatus === 'ready' ? {} : { walletsStatus: 'error' }))
     }
+  },
+
+  retryWalletSync: async () => {
+    await get().refreshMe()
   },
 }))
 
