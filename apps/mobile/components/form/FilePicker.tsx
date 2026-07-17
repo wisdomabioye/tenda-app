@@ -87,22 +87,49 @@ export async function pickImage(): Promise<PickedFile | null> {
   }
 }
 
-async function pickVideo(): Promise<PickedFile | null> {
+/**
+ * Multi-select image pick, for the FilePicker collection. `limit` caps the OS
+ * selection to the caller's remaining slots. Returns [] on cancel/error. The
+ * single-file `pickImage` above is left intact for chat/avatar callers.
+ */
+export async function pickImages(limit: number): Promise<PickedFile[]> {
+  try {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.85,
+      allowsMultipleSelection: true,
+      selectionLimit: limit,
+    })
+    if (result.canceled || !result.assets?.length) return []
+    return result.assets.map((asset) => ({
+      uri: asset.uri,
+      type: 'image',
+      name: asset.fileName ?? `photo_${Date.now()}.jpg`,
+      mimeType: asset.mimeType ?? 'image/jpeg',
+      size: asset.fileSize,
+    }))
+  } catch {
+    return []
+  }
+}
+
+async function pickVideos(limit: number): Promise<PickedFile[]> {
   try {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['videos'],
       quality: 0.85,
+      allowsMultipleSelection: true,
+      selectionLimit: limit,
     })
-    if (result.canceled || !result.assets?.length) return null
-    const asset = result.assets[0]
-    return {
+    if (result.canceled || !result.assets?.length) return []
+    return result.assets.map((asset) => ({
       uri: asset.uri,
       type: 'video',
       name: asset.fileName ?? `video_${Date.now()}.mp4`,
       mimeType: asset.mimeType ?? 'video/mp4',
-    }
+    }))
   } catch {
-    return null
+    return []
   }
 }
 
@@ -126,6 +153,30 @@ export async function pickDocument(mimeTypes?: string[]): Promise<PickedFile | n
   }
 }
 
+/**
+ * Multi-select document pick, for the FilePicker collection. Returns [] on
+ * cancel/error. The single-file `pickDocument` above is left intact for chat.
+ */
+export async function pickDocuments(mimeTypes?: string[]): Promise<PickedFile[]> {
+  try {
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      multiple: true,
+      ...(mimeTypes !== undefined ? { type: mimeTypes } : {}),
+    })
+    if (result.canceled || !result.assets?.length) return []
+    return result.assets.map((asset) => ({
+      uri: asset.uri,
+      type: 'document',
+      name: asset.name,
+      mimeType: asset.mimeType ?? 'application/octet-stream',
+      size: asset.size,
+    }))
+  } catch {
+    return []
+  }
+}
+
 export function FilePicker({ files, onChange, accept = 'any', max = 5, showPreview = true }: FilePickerProps) {
   const { theme } = useUnistyles()
   const canAdd = files.length < max
@@ -134,10 +185,11 @@ export function FilePicker({ files, onChange, accept = 'any', max = 5, showPrevi
     onChange(files.filter((_, i) => i !== index))
   }
 
-  async function addFile(picker: () => Promise<PickedFile | null>) {
-    if (!canAdd) return
-    const picked = await picker()
-    if (picked) onChange([...files, picked])
+  async function addFiles(picker: (limit: number) => Promise<PickedFile[]>) {
+    const remaining = max - files.length
+    if (remaining <= 0) return
+    const picked = await picker(remaining)
+    if (picked.length > 0) onChange([...files, ...picked].slice(0, max))
   }
 
   const showImage = accept === 'image' || accept === 'any'
@@ -151,7 +203,7 @@ export function FilePicker({ files, onChange, accept = 'any', max = 5, showPrevi
         <View style={s.actions}>
           {showImage && (
             <Pressable
-              onPress={() => addFile(pickImage)}
+              onPress={() => addFiles(pickImages)}
               style={[s.actionBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
             >
               <Plus size={16} color={theme.colors.brand.primary} />
@@ -160,7 +212,7 @@ export function FilePicker({ files, onChange, accept = 'any', max = 5, showPrevi
           )}
           {showVideo && (
             <Pressable
-              onPress={() => addFile(pickVideo)}
+              onPress={() => addFiles(pickVideos)}
               style={[s.actionBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
             >
               <Film size={16} color={theme.colors.brand.primary} />
@@ -169,7 +221,7 @@ export function FilePicker({ files, onChange, accept = 'any', max = 5, showPrevi
           )}
           {showDocument && (
             <Pressable
-              onPress={() => addFile(pickDocument)}
+              onPress={() => addFiles(() => pickDocuments())}
               style={[s.actionBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
             >
               <FileText size={16} color={theme.colors.brand.primary} />
