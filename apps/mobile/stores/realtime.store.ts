@@ -8,9 +8,16 @@
  */
 
 import { create } from 'zustand'
-import { wsChannelName, type Message, type ChatMessageFrame, type EscrowEventFrame } from '@tenda/shared'
+import {
+  wsChannelName,
+  type Message,
+  type ChatMessageFrame,
+  type EscrowEventFrame,
+  type NotificationWire,
+} from '@tenda/shared'
 import { ws, type WsFrame } from '@/lib/ws'
 import { useChatStore } from '@/stores/chat.store'
+import { useNotificationsStore } from '@/stores/notifications.store'
 
 interface RealtimeState {
   connected: boolean
@@ -49,6 +56,22 @@ export function isEscrowEventFrame(f: WsFrame): f is EscrowEventFrame & WsFrame 
   )
 }
 
+function isNotificationWire(v: unknown): v is NotificationWire {
+  return (
+    typeof v === 'object' && v !== null &&
+    'id' in v && typeof v.id === 'string' &&
+    'title' in v && typeof v.title === 'string' &&
+    'body' in v && typeof v.body === 'string'
+  )
+}
+
+type NotificationFrame = WsFrame & { type: 'notification'; notification: NotificationWire }
+
+export function isNotificationFrame(f: WsFrame): f is NotificationFrame {
+  // `f.notification` is `unknown` via WsFrame's index signature — narrowed, not cast.
+  return f.type === 'notification' && isNotificationWire(f.notification)
+}
+
 // ---------- channel subscriptions ----------------------------------------------
 
 /**
@@ -73,10 +96,17 @@ export function subscribeChatChannel(
  */
 export function subscribeUserChannel(userId: string): () => void {
   return ws.subscribe(wsChannelName('user', userId), (frame) => {
-    if (!isChatMessageFrame(frame)) return
-    useChatStore.getState().fetchConversations().catch(() => {
-      // Network hiccup, the next frame or the fallback poll catches up.
-    })
+    // One subscription, two consumers: chat-message mirrors refresh the inbox
+    // badge; notification frames feed the notification centre + its bell badge.
+    if (isChatMessageFrame(frame)) {
+      useChatStore.getState().fetchConversations().catch(() => {
+        // Network hiccup, the next frame or the fallback poll catches up.
+      })
+      return
+    }
+    if (isNotificationFrame(frame)) {
+      useNotificationsStore.getState().receive(frame.notification)
+    }
   })
 }
 

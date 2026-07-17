@@ -15,7 +15,7 @@ import {
   useChatStore,
   usePendingSyncStore,
 } from '@/stores'
-import { useInboxRealtime } from '@/hooks'
+import { useInboxRealtime, useNotificationsRealtime } from '@/hooks'
 import { FabMenu } from '@/components/ui/FabMenu'
 
 const ICON_SIZE = 18
@@ -31,6 +31,7 @@ export default function TabsLayout() {
   const fabRotate    = useRef(new Animated.Value(0)).current
 
   useInboxRealtime()
+  useNotificationsRealtime()
 
   function toggleFab() {
     const toValue = fabOpen ? 0 : 1

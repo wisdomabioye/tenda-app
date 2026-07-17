@@ -18,6 +18,7 @@ import { Drawer, DrawerHeader } from '@/components/navigation'
 import { CATEGORY_META } from '@/lib/categories'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
+import { useNotificationsStore } from '@/stores/notifications.store'
 import { useGigsFeedPolling } from '@/hooks/useGigsFeedPolling'
 import type { GigSummary, GigCategory } from '@tenda/shared'
 
@@ -35,6 +36,7 @@ export default function HomeScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
   const user = useAuthStore((s) => s.user)
+  const unreadNotifications = useNotificationsStore((s) => s.unread)
   const { gigs, isLoading, hasFetched, error, fetchGigs, setFilters, resetFilters } = useGigsStore()
 
   useGigsFeedPolling()
@@ -113,7 +115,8 @@ export default function HomeScreen() {
         title="Tenda"
         onMenuPress={() => setDrawerOpen(true)}
         rightIcon={Bell}
-        onRightPress={() => router.push('/(tabs)/notifications' as never)}
+        badgeCount={unreadNotifications}
+        onRightPress={() => router.push('/notifications' as Parameters<typeof router.push>[0])}
         onAvatarPress={() => router.push('/(tabs)/profile')}
         userImage={user?.avatar_url}
         userName={[user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Anonymous'}

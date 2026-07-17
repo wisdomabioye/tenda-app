@@ -11,6 +11,7 @@ import { api, ApiClientError } from '@/api/client'
 import { withRetry } from '@/lib/with-retry'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useExchangeMarketStore } from '@/stores/exchange-market.store'
+import { useNotificationsStore } from '@/stores/notifications.store'
 import { reconcileWalletState, isRetriableMeError } from '@/stores/wallet-sync'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { connectionSignal } from '@/wallet/reown/connection-signal'
@@ -141,6 +142,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     useExchangeMarketStore.getState().clear()
+    useNotificationsStore.getState().reset()
     await usePendingSyncStore.getState().clear()
     // Drop any WalletConnect (EVM) session so the next login starts clean and
     // shows the wallet sheet instead of silently reusing the prior wallet.

@@ -24,6 +24,8 @@ import {
   type GigSubscription,
   type UpsertSubscriptionInput,
   type RegisterDeviceTokenInput,
+  type NotificationFeed,
+  type NotificationsQuery,
   type CreateReportInput,
   type ExchangeSummary,
   type ExchangeDetail,
@@ -303,6 +305,15 @@ export const api = {
       request<{ ok: boolean }>('POST', notifications.registerToken, { body }),
     removeToken: (body: { token: string }) =>
       request<{ ok: boolean }>('DELETE', notifications.registerToken, { body }),
+    // In-app notification centre (Stage 5).
+    feed: (query?: NotificationsQuery) =>
+      request<NotificationFeed>('GET', notifications.list, {
+        query: query as Record<string, unknown>,
+      }),
+    unreadCount: () => request<{ count: number }>('GET', notifications.unreadCount),
+    markRead: (params: { id: string }) =>
+      request<{ ok: boolean }>('POST', notifications.markRead, { params }),
+    markAllRead: () => request<{ ok: boolean }>('POST', notifications.markAllRead),
   },
 
   subscriptions: {
