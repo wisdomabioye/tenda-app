@@ -31,7 +31,30 @@ jest.mock('@/api/client', () => ({
   },
 }))
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockToast(...a) }))
-jest.mock('@/wallet/dispatch', () => ({ signSendAndReport: (a: unknown) => mockSign(a) }))
+jest.mock('@/wallet/dispatch', () => ({
+  signSendAndReport: (a: unknown) => mockSign(a),
+  resolveSignersForChain: () => mockSigners,
+}))
+
+// The balances barrel registers the Solana reader, which pulls @solana/web3.js
+// (ESM) into Jest. Stub it — sufficiency has its own suite. The error class is
+// real here because useOfferSell branches on `instanceof`.
+const mockEnsureSufficientBalance = jest.fn()
+let mockSigners: string[] = ['0xEvm']
+jest.mock('@/wallet/balances', () => {
+  // Plain shape: TS parameter properties trip babel-plugin-jest-hoist inside a
+  // mock factory. Only `instanceof` + `message` matter to the code under test.
+  class InsufficientBalanceError extends Error {
+    constructor(message: string) {
+      super(message)
+      this.name = 'InsufficientBalanceError'
+    }
+  }
+  return {
+    ensureSufficientBalance: (...a: unknown[]) => mockEnsureSufficientBalance(...a),
+    InsufficientBalanceError,
+  }
+})
 jest.mock('@/lib/transaction-gate', () => ({
   classifyTransactionGateError: () => mockGate,
   TRANSACTION_GATE_MESSAGE: { link_wallet: 'link a wallet' },
@@ -52,6 +75,8 @@ const ARGS = {
 
 beforeEach(() => {
   jest.spyOn(Date, 'now').mockReturnValue(NOW_MS)
+  mockSigners = ['0xEvm']
+  mockEnsureSufficientBalance.mockReset().mockResolvedValue(undefined)
   mockCreate.mockReset().mockResolvedValue({ escrow_id: 'e1', unsigned: { kind: 'evm-tx' } })
   mockExchangeCreate.mockReset().mockResolvedValue({})
   mockDelete.mockClear()
@@ -116,4 +141,71 @@ test('keeps the draft when signing is declined after terms are saved', async () 
   expect(mockDelete).not.toHaveBeenCalled() // terms saved, draft survives
   expect(mockToast).toHaveBeenCalledWith('info', 'user declined')
   expect(mockReplace).toHaveBeenCalledWith('/exchange/e1')
+})
+
+// --- balance pre-flight -----------------------------------------------------
+
+test('checks the sell amount against every candidate wallet before creating', async () => {
+  const { result } = renderHook(() => useOfferSell())
+  await act(async () => { await result.current.submit(ARGS) })
+
+  expect(mockEnsureSufficientBalance).toHaveBeenCalledWith({
+    chainId: 'eip155:84532',
+    assetId: 'USDC_BASE',
+    amountRaw: '2500000',
+    owners: ['0xEvm'],
+  })
+})
+
+test('a short balance leaves NO draft behind and never opens the wallet', async () => {
+  const { InsufficientBalanceError } = jest.requireMock<{
+    InsufficientBalanceError: new (m: string) => Error
+  }>('@/wallet/balances')
+  mockEnsureSufficientBalance.mockRejectedValue(
+    new InsufficientBalanceError('You need 2.5 USDC but your wallet holds 0 USDC.'),
+  )
+  const { result } = renderHook(() => useOfferSell())
+
+  await act(async () => { await result.current.submit(ARGS) })
+
+  // The whole point of gating before create: no escrow row, nothing to clean up.
+  expect(mockCreate).not.toHaveBeenCalled()
+  expect(mockExchangeCreate).not.toHaveBeenCalled()
+  expect(mockDelete).not.toHaveBeenCalled()
+  expect(mockSign).not.toHaveBeenCalled()
+  expect(mockReplace).not.toHaveBeenCalled()
+  // The shortfall survives — the generic branch would say "Failed to create the offer".
+  expect(mockToast).toHaveBeenCalledWith('error', 'You need 2.5 USDC but your wallet holds 0 USDC.')
+})
+
+test('releases the submitting flag after a short balance (retryable)', async () => {
+  const { InsufficientBalanceError } = jest.requireMock<{
+    InsufficientBalanceError: new (m: string) => Error
+  }>('@/wallet/balances')
+  mockEnsureSufficientBalance.mockRejectedValue(new InsufficientBalanceError('short'))
+  const { result } = renderHook(() => useOfferSell())
+
+  await act(async () => { await result.current.submit(ARGS) })
+
+  expect(result.current.submitting).toBe(false)
+})
+
+test('an unreadable balance still posts the offer (fail-open)', async () => {
+  mockEnsureSufficientBalance.mockResolvedValue(undefined)
+  const { result } = renderHook(() => useOfferSell())
+
+  await act(async () => { await result.current.submit(ARGS) })
+
+  expect(mockCreate).toHaveBeenCalled()
+  expect(mockSign).toHaveBeenCalled()
+})
+
+test('no linked wallet falls open to the 9D gate rather than a balance error', async () => {
+  mockSigners = []
+  const { result } = renderHook(() => useOfferSell())
+
+  await act(async () => { await result.current.submit(ARGS) })
+
+  expect(mockEnsureSufficientBalance).toHaveBeenCalledWith(expect.objectContaining({ owners: [] }))
+  expect(mockCreate).toHaveBeenCalled()
 })

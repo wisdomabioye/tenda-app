@@ -15,12 +15,13 @@
 
 import { VersionedTransaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
-import type { EscrowTxType, UnsignedTx } from '@tenda/shared'
+import type { ChainNamespace, EscrowTxType, UnsignedTx } from '@tenda/shared'
+import { findChain } from '@tenda/shared'
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
 import { ensureAllowance } from '@/wallet/allowance'
 import { ensureEvmSession } from '@/wallet/ensure-session'
-import { pickWalletAddress } from '@/wallet/wallet-address'
+import { orderedSignerAddresses, pickWalletAddress } from '@/wallet/wallet-address'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 
@@ -32,15 +33,45 @@ export class UnsupportedUnsignedTxError extends Error {
 }
 
 /**
+ * The account this device signs from on a namespace. `wallets[]` is the source
+ * of trust: the live session address (evmAddress / walletAddress) is honoured
+ * only while it's still a verified linked wallet, otherwise the primary (or
+ * first) verified linked wallet on that namespace wins.
+ *
+ * The auth store holds one session slot per namespace; this is the single
+ * place that maps namespace → slot, so a new chain family adds one entry
+ * rather than another bespoke `resolveXFrom`.
+ */
+export function resolveSignerFor(ns: ChainNamespace): string | null {
+  return pickWalletAddress(ns, sessionAddressFor(ns), useAuthStore.getState().wallets)
+}
+
+/** The auth store's session address slot for a namespace. */
+function sessionAddressFor(ns: ChainNamespace): string | null {
+  const { evmAddress, walletAddress } = useAuthStore.getState()
+  return ns === 'eip155' ? evmAddress : walletAddress
+}
+
+/**
+ * EVERY wallet that could sign on this chain, most-likely-signer first — the
+ * candidate set a balance check must reason over, since the signing wallet
+ * isn't fixed until the wallet app opens. Namespace comes from the manifest
+ * (never a string split on the id), so an unknown id yields [] rather than a
+ * guess.
+ */
+export function resolveSignersForChain(chainId: string): string[] {
+  const ns = findChain(chainId)?.namespace
+  if (ns === undefined) return []
+  return orderedSignerAddresses(ns, sessionAddressFor(ns), useAuthStore.getState().wallets)
+}
+
+/**
  * The EVM account this device signs/sends from, the SINGLE resolution both
  * dispatch and the permit flow use, so the permit's `owner` can never diverge
- * from the eventual `msg.sender`. `wallets[]` is the source of trust: the live
- * EVM session (evmAddress) is used only when it's still a verified linked
- * wallet, otherwise the primary (or first) verified linked EVM wallet.
+ * from the eventual `msg.sender`.
  */
 export function resolveEvmFrom(): string | null {
-  const { evmAddress, wallets } = useAuthStore.getState()
-  return pickWalletAddress('eip155', evmAddress, wallets)
+  return resolveSignerFor('eip155')
 }
 
 /** Sign + broadcast a server-built unsigned tx. Returns the tx_ref. */

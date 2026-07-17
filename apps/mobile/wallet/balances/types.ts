@@ -14,9 +14,17 @@ export interface AssetBalance {
  * Reads on-chain balances for one wallet on one chain. Implemented per
  * namespace (solana / eip155) and registered in `READERS`, adding a chain
  * family is one new reader, no call-site change (the "pluggable" requirement).
+ *
+ * `assetIds` narrows the read to specific assets (omit for all of them); every
+ * reader resolves it through the shared `selectAssets` helper. A read that
+ * fails for one asset omits that asset rather than rejecting the whole call.
  */
 export interface BalanceReader {
-  read(address: string, chain: ChainRegistryEntry): Promise<AssetBalance[]>
+  read(
+    address: string,
+    chain: ChainRegistryEntry,
+    assetIds?: readonly string[],
+  ): Promise<AssetBalance[]>
 }
 
 /** A wallet's balance on a specific chain, as surfaced to the wallet screen. */

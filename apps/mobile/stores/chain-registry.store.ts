@@ -56,3 +56,16 @@ export const useChainRegistryStore = create<ChainRegistryState>((set, get) => ({
     return inflight
   },
 }))
+
+/**
+ * One enabled chain by CAIP-2 id, or null when the registry hasn't loaded yet
+ * or doesn't carry it. Pure so both read styles share it: reactive consumers
+ * pass the value from `useChainRegistryStore(s => s.chains)`, one-shot ones
+ * pass `useChainRegistryStore.getState().chains`.
+ */
+export function selectChainById(
+  chains: ChainRegistryEntry[] | null,
+  id: string,
+): ChainRegistryEntry | null {
+  return chains?.find((c) => c.id === id) ?? null
+}

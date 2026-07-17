@@ -55,7 +55,12 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const [showAcceptNudge, setShowAcceptNudge] = useState(false)
   const { dismissedNudges } = useOnboardingStore()
 
-  const actions = useEscrowActions({ escrowId: gig.escrow_id, chainId: gig.chain_id })
+  const actions = useEscrowActions({
+    escrowId: gig.escrow_id,
+    chainId: gig.chain_id,
+    asset: gig.asset,
+    amountRaw: gig.amount_raw,
+  })
 
   // Live-update when the counterparty acts (accept / submit / approve), not
   // just on focus — the escrow WS channel drives the refetch.
@@ -124,7 +129,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   }
 
   async function handleDisputeReady(reason: string): Promise<boolean> {
-    return actions.dispute(reason, gig.dispute_bond_raw, gig.asset)
+    return actions.dispute(reason, gig.dispute_bond_raw)
   }
 
   return (

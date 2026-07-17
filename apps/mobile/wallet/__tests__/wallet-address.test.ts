@@ -5,7 +5,7 @@
  * no-wallet null case.
  */
 import type { LinkedWallet } from '@tenda/shared'
-import { pickWalletAddress, isLinkedWallet } from '../wallet-address'
+import { pickWalletAddress, isLinkedWallet, orderedSignerAddresses } from '../wallet-address'
 
 function w(over: Partial<LinkedWallet>): LinkedWallet {
   return {
@@ -71,5 +71,48 @@ describe('isLinkedWallet', () => {
     expect(isLinkedWallet('eip155', '0xLINKED', wallets)).toBe(true)
     expect(isLinkedWallet('eip155', '0xNope', wallets)).toBe(false)
     expect(isLinkedWallet('solana', 'SoL', wallets)).toBe(true)
+  })
+})
+
+// --- orderedSignerAddresses: the candidate set a balance check reasons over ---
+
+describe('orderedSignerAddresses', () => {
+  const primary = { chain_ns: 'eip155', address: '0xPRIMARY', verified_at: '2026-01-01', is_primary: true } as LinkedWallet
+  const second = { chain_ns: 'eip155', address: '0xSECOND', verified_at: '2026-01-01', is_primary: false } as LinkedWallet
+  const unverified = { chain_ns: 'eip155', address: '0xUNVERIFIED', verified_at: null, is_primary: false } as LinkedWallet
+  const solana = { chain_ns: 'solana', address: 'SoL1', verified_at: '2026-01-01', is_primary: true } as LinkedWallet
+
+  test('returns every verified wallet on the namespace', () => {
+    expect(orderedSignerAddresses('eip155', null, [primary, second])).toEqual(['0xPRIMARY', '0xSECOND'])
+  })
+
+  test('the head is exactly pickWalletAddress — the two can never disagree', () => {
+    const wallets = [primary, second]
+    for (const session of [null, '0xSECOND', '0xunknown']) {
+      const head = orderedSignerAddresses('eip155', session, wallets)[0]
+      expect(head).toBe(pickWalletAddress('eip155', session, wallets))
+    }
+  })
+
+  test('a corroborated session wallet leads, and is not duplicated', () => {
+    const out = orderedSignerAddresses('eip155', '0xSECOND', [primary, second])
+    expect(out).toEqual(['0xSECOND', '0xPRIMARY'])
+  })
+
+  test('a session address differing only in case is not duplicated (EVM checksum)', () => {
+    const out = orderedSignerAddresses('eip155', '0xprimary', [primary, second])
+    expect(out).toEqual(['0xprimary', '0xSECOND'])
+  })
+
+  test('unverified wallets are excluded — they cannot sign for this account', () => {
+    expect(orderedSignerAddresses('eip155', null, [primary, unverified])).toEqual(['0xPRIMARY'])
+  })
+
+  test('other namespaces are excluded', () => {
+    expect(orderedSignerAddresses('eip155', null, [primary, solana])).toEqual(['0xPRIMARY'])
+  })
+
+  test('no verified wallet on the namespace yields an empty set', () => {
+    expect(orderedSignerAddresses('eip155', null, [solana, unverified])).toEqual([])
   })
 })

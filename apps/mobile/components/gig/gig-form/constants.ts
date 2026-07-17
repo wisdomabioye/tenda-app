@@ -3,6 +3,12 @@ import type { GigCategory } from '@tenda/shared'
 export const TITLE_MAX = 80
 export const DESC_MAX = 1500
 
+/**
+ * Completion window a gig starts with — the form's initial value and the
+ * fallback when a draft has none. Both readers share it so the two can't drift.
+ */
+export const DEFAULT_COMPLETION_SECONDS = 86_400
+
 export const CATEGORY_HINTS: Record<GigCategory, string> = {
   delivery: 'Pickup address, drop-off, package size, fragility notes.',
   photo:    'Type of shoot (product/event/portrait), duration, edits expected.',

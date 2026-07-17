@@ -13,7 +13,17 @@ const mockShowToast = jest.fn()
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockShowToast(...a) }))
 
 const mockSignSendAndReport = jest.fn()
-jest.mock('@/wallet/dispatch', () => ({ signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a) }))
+jest.mock('@/wallet/dispatch', () => ({
+  signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a),
+  resolveSignersForChain: () => ['SIGNER'],
+}))
+
+// The balance pre-flight reaches the chain-registry store and the RPC readers;
+// stub it like dispatch. Sufficiency itself is covered in wallet/balances.
+const mockEnsureSufficientBalance = jest.fn()
+jest.mock('@/wallet/balances', () => ({
+  ensureSufficientBalance: (...a: unknown[]) => mockEnsureSufficientBalance(...a),
+}))
 const mockBuildPermitFor = jest.fn()
 jest.mock('@/wallet/permit', () => ({ buildPermitFor: (...a: unknown[]) => mockBuildPermitFor(...a) }))
 
@@ -42,7 +52,7 @@ jest.mock('@/api/client', () => {
 
 import { useEscrowActions } from '@/hooks/useEscrowActions'
 
-const ARGS = { escrowId: 'e1', chainId: 'solana:devnet' }
+const ARGS = { escrowId: 'e1', chainId: 'solana:devnet', asset: 'USDC_SOL', amountRaw: '2500000' }
 const UNSIGNED = { kind: 'solana-tx', tx_base64: 'AA==' }
 
 beforeEach(() => {
@@ -150,7 +160,7 @@ test('dispute: a zero bond skips the permit and still confirms', async () => {
   mockSignSendAndReport.mockResolvedValue('sig-d')
   const { result } = renderHook(() => useEscrowActions(ARGS))
 
-  await act(async () => { await result.current.dispute('bad work', '0', 'solana:devnet/usdc') })
+  await act(async () => { await result.current.dispute('bad work', '0') })
 
   expect(mockBuildPermitFor).not.toHaveBeenCalled()
   expect(mockRequestDispute).toHaveBeenCalledWith('e1', '0', 'bad work', undefined)
@@ -163,11 +173,13 @@ test('dispute: a non-zero ERC-20 bond builds the permit first', async () => {
   mockSignSendAndReport.mockResolvedValue('sig-d2')
   const { result } = renderHook(() => useEscrowActions(ARGS))
 
-  await act(async () => { await result.current.dispute('bad work', '5000000', 'eip155:84532/usdc') })
+  await act(async () => { await result.current.dispute('bad work', '5000000') })
 
+  // The bond rides the escrow's own asset (both contracts collect it in
+  // `escrow.asset`), which the hook now owns rather than taking per call.
   expect(mockBuildPermitFor).toHaveBeenCalledWith({
     chain_id: 'solana:devnet',
-    asset: 'eip155:84532/usdc',
+    asset: 'USDC_SOL',
     value_raw: '5000000',
   })
   expect(mockRequestDispute).toHaveBeenCalledWith('e1', '5000000', 'bad work', { signature: '0xpermit' })

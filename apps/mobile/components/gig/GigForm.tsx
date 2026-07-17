@@ -110,7 +110,7 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
         {/* Budget */}
         <SectionLabel>Budget</SectionLabel>
         <PaymentInput asset={f.asset} value={f.paymentRaw} onChange={f.setPaymentRaw} />
-        <AddFundsNudge asset={f.asset} paymentRaw={f.paymentRaw} />
+        <AddFundsNudge chainId={f.chainId} asset={f.asset} paymentRaw={f.paymentRaw} />
 
         {/* Timing */}
         <SectionLabel>Timing</SectionLabel>

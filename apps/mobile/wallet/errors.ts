@@ -4,7 +4,12 @@
  * native-heavy wallet barrel (`index.ts` constructs a @solana/web3.js
  * Connection and re-exports the WalletConnect adapter's EVM helpers).
  */
-export type WalletErrorCode = 'no_wallet' | 'declined' | 'network' | 'unknown'
+export type WalletErrorCode =
+  | 'no_wallet'
+  | 'declined'
+  | 'network'
+  | 'insufficient_balance'
+  | 'unknown'
 
 export class WalletError extends Error {
   constructor(

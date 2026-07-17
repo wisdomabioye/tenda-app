@@ -53,7 +53,12 @@ export function ExchangeDetailContent({
   const [refreshing, setRefreshing] = useState(false)
   const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
 
-  const actions = useEscrowActions({ escrowId: offer.escrow_id, chainId: offer.chain_id })
+  const actions = useEscrowActions({
+    escrowId: offer.escrow_id,
+    chainId: offer.chain_id,
+    asset: offer.asset,
+    amountRaw: offer.amount_raw,
+  })
   const isCreator = userId === offer.creator.id
 
   // Live-update when the counterparty acts (accept / mark-paid / confirm), not
@@ -108,7 +113,7 @@ export function ExchangeDetailContent({
   }
 
   async function handleDisputeReady(reason: string): Promise<boolean> {
-    return actions.dispute(reason, offer.dispute_bond_raw, offer.asset)
+    return actions.dispute(reason, offer.dispute_bond_raw)
   }
 
   return (

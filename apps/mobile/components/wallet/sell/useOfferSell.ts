@@ -3,7 +3,8 @@ import { useRouter } from 'expo-router'
 import type { BankAccountSummary } from '@tenda/shared'
 import { api, ApiClientError } from '@/api/client'
 import { showToast } from '@/components/ui'
-import { signSendAndReport } from '@/wallet/dispatch'
+import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import { ensureSufficientBalance, InsufficientBalanceError } from '@/wallet/balances'
 import {
   classifyTransactionGateError,
   TRANSACTION_GATE_MESSAGE,
@@ -43,6 +44,15 @@ export function useOfferSell() {
     setSubmitting(true)
     let escrow_id: string | null = null
     try {
+      // Before the draft exists: an underfunded seller gets a clear message
+      // instead of a wallet prompt, a revert, and an orphan draft to clean up.
+      await ensureSufficientBalance({
+        chainId: a.option.chainId,
+        assetId: a.option.assetId,
+        amountRaw: a.amountRaw,
+        owners: resolveSignersForChain(a.option.chainId),
+      })
+
       const created = await api.escrows.create({
         kind: 'exchange',
         chain_id: a.option.chainId,
@@ -84,6 +94,10 @@ export function useOfferSell() {
       if (gate !== null) {
         showToast('error', TRANSACTION_GATE_MESSAGE[gate])
         router.push(transactionGateRoute(gate))
+      } else if (e instanceof InsufficientBalanceError) {
+        // Carries the exact shortfall; the generic branch below would replace
+        // it with "Failed to create the offer" and lose the one useful fact.
+        showToast('error', e.message)
       } else if (escrow_id !== null) {
         // Terms saved but signing failed/declined, the draft survives.
         showToast('info', e instanceof Error ? e.message : 'Signing incomplete, draft saved')

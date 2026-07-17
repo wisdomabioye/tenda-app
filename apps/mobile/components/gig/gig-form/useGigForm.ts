@@ -12,7 +12,7 @@ import { api } from '@/api/client'
 import { SOLANA_NETWORK } from '@/wallet/config'
 import { useAuthStore } from '@/stores/auth.store'
 import { useModerationPreview } from '@/hooks/useModerationPreview'
-import { CATEGORY_HINTS, PROOF_NOTE } from './constants'
+import { CATEGORY_HINTS, DEFAULT_COMPLETION_SECONDS, PROOF_NOTE } from './constants'
 import type { GigFormValues } from './constants'
 
 export interface ChainOption {
@@ -39,7 +39,9 @@ export function useGigForm(
   const [chainId, setChainId]                     = useState(initialValues?.chainId ?? defaultChainId)
   const [paymentRaw, setPaymentRaw]               = useState(initialValues?.paymentRaw ?? 0)
   const [registry, setRegistry]                   = useState<ChainRegistryEntry[]>([])
-  const [completionDuration, setCompletionDuration] = useState(initialValues?.completionDuration ?? 86_400)
+  const [completionDuration, setCompletionDuration] = useState(
+    initialValues?.completionDuration ?? DEFAULT_COMPLETION_SECONDS,
+  )
   const [selectedCategory, setSelectedCategory]   = useState<GigCategory | null>(initialValues?.category ?? null)
   // Prefer the user's account country; fall back to the device locale region
   // (often the phone's language, not where the user actually is) only when the

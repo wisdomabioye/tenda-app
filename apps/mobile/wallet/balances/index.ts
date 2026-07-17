@@ -1,18 +1,14 @@
-import type { ChainNamespace, ChainRegistryEntry, LinkedWallet } from '@tenda/shared'
-import { solanaBalanceReader } from './solana'
-import { evmBalanceReader } from './evm'
-import type { AssetBalance, BalanceReader, WalletChainBalance } from './types'
+import type { ChainRegistryEntry, LinkedWallet } from '@tenda/shared'
+import { READERS } from './readers'
+import type { AssetBalance, WalletChainBalance } from './types'
 
 export type { AssetBalance, WalletChainBalance } from './types'
-
-/**
- * Per-namespace reader registry. Adding a chain family (e.g. a new VM) is one
- * entry here plus its reader file, call sites never change.
- */
-const READERS: Record<ChainNamespace, BalanceReader> = {
-  solana: solanaBalanceReader,
-  eip155: evmBalanceReader,
-}
+// `readAssetBalance` is deliberately NOT re-exported: reading a single wallet
+// is an internal step of ./spendable, and a caller reaching for it directly
+// would be asking the wrong question (see readSpendableBalance's note on why
+// one wallet can't answer "can this transaction be funded").
+export { readSpendableBalance } from './spendable'
+export { ensureSufficientBalance, InsufficientBalanceError } from './sufficiency'
 
 /** The chain's gig stablecoin (USDC) balance from a read result, if present. */
 function pickUsdc(balances: AssetBalance[], chain: ChainRegistryEntry): AssetBalance | null {

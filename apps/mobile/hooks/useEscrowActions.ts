@@ -18,7 +18,8 @@ import { Buffer } from 'buffer'
 import bs58 from 'bs58'
 import type { EscrowTxType, UnsignedTx } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
-import { signSendAndReport } from '@/wallet/dispatch'
+import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui'
@@ -51,11 +52,26 @@ export function proofHashFor(chainId: string, urls: string[]): string {
 interface UseEscrowActionsArgs {
   escrowId: string
   chainId: string
+  /**
+   * The escrow's asset. Every debit this hook can make — the create amount on
+   * publish, the dispute bond — is denominated in it (the contracts collect the
+   * bond in `escrow.asset`), so it lives here rather than being re-passed per
+   * action.
+   */
+  asset: string
+  /** The escrow's amount in base units, debited when a draft is published. */
+  amountRaw: string
   /** Called after a tx is broadcast + reported (screen refreshes on WS confirm). */
   onBroadcast?: (txRef: string, action: EscrowTxType) => void
 }
 
-export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowActionsArgs) {
+export function useEscrowActions({
+  escrowId,
+  chainId,
+  asset,
+  amountRaw,
+  onBroadcast,
+}: UseEscrowActionsArgs) {
   const store = useEscrowStore()
   const router = useRouter()
   const [busyAction, setBusyAction] = useState<EscrowTxType | null>(null)
@@ -70,13 +86,29 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
     setPhase('idle')
   }
 
+  /**
+   * `debitRaw` declares what this action takes from the signer's wallet, in
+   * base units of the escrow's asset. Pass it for value-moving actions only —
+   * accept/approve/claim/cancel/refund/submit/decline move nothing from the
+   * user (verified against both the EVM and Anchor programs), so a balance
+   * read there would be pure latency.
+   */
   async function dispatch(
     action: EscrowTxType,
     request: () => Promise<UnsignedTx>,
+    debitRaw?: string,
   ): Promise<boolean> {
     setBusyAction(action)
     setPhase('preparing')
     try {
+      if (debitRaw !== undefined) {
+        await ensureSufficientBalance({
+          chainId,
+          assetId: asset,
+          amountRaw: debitRaw,
+          owners: resolveSignersForChain(chainId),
+        })
+      }
       const unsigned = await request()
       setPhase('signing')
       const tx_ref = await signSendAndReport({
@@ -119,8 +151,9 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
     clearPending,
 
     /** Publish a draft: rebuild + sign the create tx (offramp drafts /
-     *  signing-declined retries, the escrow id is preserved). */
-    publish: () => dispatch('create', () => store.requestBuildCreate(escrowId)),
+     *  signing-declined retries, the escrow id is preserved). Funds the escrow,
+     *  so it debits the full amount. */
+    publish: () => dispatch('create', () => store.requestBuildCreate(escrowId), amountRaw),
     accept: () => dispatch('accept', () => store.requestAccept(escrowId)),
     decline: () => dispatch('decline', () => store.requestDecline(escrowId)),
     approve: () => dispatch('approve', () => store.requestApprove(escrowId)),
@@ -164,17 +197,21 @@ export function useEscrowActions({ escrowId, chainId, onBroadcast }: UseEscrowAc
     },
 
     /**
-     * `asset` enables the EIP-2612 path for ERC-20 bonds (screens pass the
-     * escrow's asset id); omitted or a zero bond falls back to the approve
-     * hint on the unsigned tx.
+     * The raiser posts the bond in the escrow's own asset, so it debits their
+     * wallet. The EIP-2612 path covers ERC-20 bonds; a zero bond falls back to
+     * the approve hint on the unsigned tx.
      */
-    dispute: (reason: string, bondRaw: string, asset?: string) =>
-      dispatch('dispute', async () => {
-        const permit =
-          asset !== undefined && bondRaw !== '0'
-            ? await buildPermitFor({ chain_id: chainId, asset, value_raw: bondRaw })
-            : undefined
-        return store.requestDispute(escrowId, bondRaw, reason, permit)
-      }),
+    dispute: (reason: string, bondRaw: string) =>
+      dispatch(
+        'dispute',
+        async () => {
+          const permit =
+            bondRaw !== '0'
+              ? await buildPermitFor({ chain_id: chainId, asset, value_raw: bondRaw })
+              : undefined
+          return store.requestDispute(escrowId, bondRaw, reason, permit)
+        },
+        bondRaw,
+      ),
   }
 }

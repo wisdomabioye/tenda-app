@@ -14,7 +14,14 @@ const mockShowToast = jest.fn()
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockShowToast(...a) }))
 
 const mockSignSendAndReport = jest.fn()
-jest.mock('@/wallet/dispatch', () => ({ signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a) }))
+jest.mock('@/wallet/dispatch', () => ({
+  signSendAndReport: (...a: unknown[]) => mockSignSendAndReport(...a),
+  resolveSignersForChain: () => ['SIGNER'],
+}))
+
+// The balance pre-flight reaches the chain-registry store and the RPC readers;
+// stub it like dispatch. These tests never exercise a value-moving action.
+jest.mock('@/wallet/balances', () => ({ ensureSufficientBalance: jest.fn() }))
 
 // The permit helper's import chain reaches the Reown/AppKit native ESM,
 // stub it like dispatch (the gate tests never exercise the permit path).
@@ -42,7 +49,7 @@ import { useEscrowActions } from '@/hooks/useEscrowActions'
 import { ApiClientError } from '@/api/client'
 import { TRANSACTION_GATE_MESSAGE } from '@/lib/transaction-gate'
 
-const ARGS = { escrowId: 'e1', chainId: 'solana:devnet' }
+const ARGS = { escrowId: 'e1', chainId: 'solana:devnet', asset: 'USDC_SOL', amountRaw: '1000000' }
 
 beforeEach(() => {
   mockPush.mockReset(); mockShowToast.mockReset()

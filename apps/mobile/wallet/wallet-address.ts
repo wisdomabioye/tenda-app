@@ -36,3 +36,28 @@ export function pickWalletAddress(
   const verified = verifiedWallets(ns, wallets)
   return (verified.find((w) => w.is_primary) ?? verified[0])?.address ?? null
 }
+
+/**
+ * EVERY verified wallet that could sign on this namespace, most-likely-signer
+ * first (that head is exactly `pickWalletAddress`, so the two can never order
+ * differently).
+ *
+ * A transaction is signed by ONE wallet, but which one isn't known until the
+ * wallet opens — the user may connect any linked wallet. Balance checks
+ * therefore reason over the whole set: "no linked wallet can cover this" is a
+ * claim we can stand behind, whereas "the primary is short" is not.
+ *
+ * Pure — callers supply the store's session address.
+ */
+export function orderedSignerAddresses(
+  ns: ChainNamespace,
+  session: string | null,
+  wallets: LinkedWallet[],
+): string[] {
+  const head = pickWalletAddress(ns, session, wallets)
+  if (head === null) return []
+  const rest = verifiedWallets(ns, wallets)
+    .map((w) => w.address)
+    .filter((a) => !addressesEqual(ns, a, head))
+  return [head, ...rest]
+}
