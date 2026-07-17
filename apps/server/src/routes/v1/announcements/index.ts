@@ -17,8 +17,12 @@ const announcementsRoute: FastifyPluginAsync = async (fastify) => {
     const safeOffset = clampOffset(Number(offset))
 
     const now = new Date()
+    // Unauthenticated surface: only everyone-notices (NULL target). Role/country/
+    // city-targeted broadcasts are private to their audience — they surface via
+    // the authenticated feed (GET /v1/notifications), never here.
     const where = and(
       eq(announcements.is_active, true),
+      isNull(announcements.target),
       or(isNull(announcements.expires_at), gt(announcements.expires_at, now)),
     )
 

@@ -15,6 +15,7 @@ test('the schedule contains exactly the known periodic jobs, each once', () => {
   const expected = [
     'expire-escrows',
     'expire-fiat-quotes',
+    'prune-notifications',
     'reconcile',
     'reconcile-fiat',
     'update-price-stats',
@@ -29,6 +30,7 @@ test('cadences: expiries every 60s, reconciles every 5min, price stats nightly',
   assert.strictEqual(byName.get('reconcile')?.every_ms, 5 * 60_000)
   assert.strictEqual(byName.get('reconcile-fiat')?.every_ms, 5 * 60_000)
   assert.strictEqual(byName.get('update-price-stats')?.every_ms, 24 * 3_600_000)
+  assert.strictEqual(byName.get('prune-notifications')?.every_ms, 24 * 3_600_000)
 })
 
 test('every repeatable has a positive interval and an object payload', () => {

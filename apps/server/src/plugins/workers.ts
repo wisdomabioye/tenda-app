@@ -36,6 +36,7 @@ const WORKER_CONCURRENCY: Record<JobName, number> = {
   'reconcile-fiat': 1,
   'expire-fiat-quotes': 1,
   'update-price-stats': 1,
+  'prune-notifications': 1,
 }
 
 interface RepeatableSpec<N extends JobName> {
@@ -60,6 +61,8 @@ export const REPEATABLES = [
   repeatable({ name: 'expire-fiat-quotes', every_ms: 60_000, payload: { tick_id: 'cron' } }),
   // Nightly rollup (stage-6): grounds the moderation price-sanity prompts.
   repeatable({ name: 'update-price-stats', every_ms: 24 * 3_600_000, payload: { tick_id: 'cron' } }),
+  // Daily retention sweep: prunes stale personal notifications (unbounded growth).
+  repeatable({ name: 'prune-notifications', every_ms: 24 * 3_600_000, payload: { tick_id: 'cron' } }),
 ] as const
 
 const workersPlugin: FastifyPluginAsync = async (fastify) => {

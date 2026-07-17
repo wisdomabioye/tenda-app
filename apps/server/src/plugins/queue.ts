@@ -35,6 +35,7 @@ export type JobName =
   | 'expire-fiat-quotes'
   | 'send-otp'
   | 'update-price-stats'
+  | 'prune-notifications'
 
 /**
  * Per-queue payload shapes. Stage 0 freezes the surface; #33 implementer
@@ -90,6 +91,8 @@ export interface JobPayload {
   'send-otp': OtpMessage
   /** Nightly category_price_stats rollup (stage-6), tick id for log correlation. */
   'update-price-stats': { tick_id: string }
+  /** Daily retention sweep of stale personal notifications, tick id for correlation. */
+  'prune-notifications': { tick_id: string }
 }
 
 export interface EnqueueOptions {

@@ -1,23 +1,22 @@
 import { FastifyPluginAsync } from 'fastify'
-import { eq, inArray } from 'drizzle-orm'
-import { device_tokens, users } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, PUSH_ANNOUNCEMENT_TTL_DAYS } from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
-import { sendPush } from '@server/lib/push'
-import type { ApiError, UserRole } from '@tenda/shared'
+import { createAnnouncement, normalizeTarget } from '@server/lib/announcements'
+import type { ApiError } from '@tenda/shared'
 
-// Valid broadcast target groups
-type BroadcastTarget = 'all' | 'role' | 'country' | 'city'
-const VALID_TARGETS: BroadcastTarget[] = ['all', 'role', 'country', 'city']
-
+const DAY_MS = 24 * 3_600_000
 
 const adminPush: FastifyPluginAsync = async (fastify) => {
   // POST /v1/admin/push/broadcast
   // target: 'all' | 'role' | 'country' | 'city'
   // target_value: required when target != 'all' (role name, country code, city name)
   // Rate-limited: 10 broadcasts per hour to prevent runaway campaigns.
+  //
+  // A broadcast persists as ONE targeted announcement (self-expiring after
+  // PUSH_ANNOUNCEMENT_TTL_DAYS) so it is readable in-app afterwards, AND pushes
+  // to the audience's devices. No per-user rows are written (fan-out on read).
   fastify.post<{
     Body:  { title: string; body: string; target: string; target_value?: string; data?: Record<string, unknown> }
     Reply: { attempted: number } | ApiError
@@ -33,90 +32,37 @@ const adminPush: FastifyPluginAsync = async (fastify) => {
     if (!body || body.trim().length === 0) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'body is required')
     }
-    if (!VALID_TARGETS.includes(target as BroadcastTarget)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `target must be one of: ${VALID_TARGETS.join(', ')}`)
+    if (!target || target.trim().length === 0) {
+      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'target is required')
     }
-    if (target !== 'all' && (!target_value || target_value.trim().length === 0)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, `target_value is required when target is "${target}"`)
-    }
+    // Shared normalizer: validates target, maps 'all' → NULL (everyone),
+    // requires target_value for role/country/city.
+    const audience = normalizeTarget(target, target_value)
 
-    // Resolve device tokens based on target
-    let tokens: string[]
-
-    if (target === 'all') {
-      const rows = await fastify.db
-        .select({ token: device_tokens.token })
-        .from(device_tokens)
-      tokens = rows.map((r) => r.token)
-    } else {
-      // First resolve matching user IDs, then their tokens
-      let userIds: string[]
-
-      if (target === 'role') {
-        const rows = await fastify.db
-          .select({ id: users.id })
-          .from(users)
-          .where(eq(users.role, target_value as UserRole))
-        userIds = rows.map((r) => r.id)
-      } else if (target === 'country') {
-        const rows = await fastify.db
-          .select({ id: users.id })
-          .from(users)
-          .where(eq(users.country, target_value!))
-        userIds = rows.map((r) => r.id)
-      } else {
-        // city
-        const rows = await fastify.db
-          .select({ id: users.id })
-          .from(users)
-          .where(eq(users.city, target_value!))
-        userIds = rows.map((r) => r.id)
-      }
-
-      if (userIds.length === 0) {
-        return { attempted: 0 }
-      }
-
-      const tokenRows = await fastify.db
-        .select({ token: device_tokens.token })
-        .from(device_tokens)
-        .where(inArray(device_tokens.user_id, userIds))
-      tokens = tokenRows.map((r) => r.token)
-    }
-
-    if (tokens.length === 0) {
-      appEvents.emit('admin.broadcast_push', {
-        adminId:        request.user.id,
-        adminRole:      request.user.role,
-        target,
-        targetValue:    target_value,
-        attemptedCount: 0,
-      })
-      return { attempted: 0 }
-    }
-
-    const staleTokens = await sendPush(
-      tokens,
-      { title: title.trim(), body: body.trim(), data: pushData },
-      fastify.log,
+    const { push_attempted } = await createAnnouncement(
+      fastify.db,
+      {
+        title:        title.trim(),
+        body:         body.trim(),
+        priority:     0,
+        is_active:    true,
+        target:       audience.target,
+        target_value: audience.target_value,
+        expires_at:   new Date(Date.now() + PUSH_ANNOUNCEMENT_TTL_DAYS * DAY_MS),
+        created_by:   request.user.id,
+      },
+      { push: true, log: fastify.log, ...(pushData ? { pushData } : {}) },
     )
-
-    // Clean up stale tokens reported by Expo
-    if (staleTokens.length > 0) {
-      await fastify.db
-        .delete(device_tokens)
-        .where(inArray(device_tokens.token, staleTokens))
-    }
 
     appEvents.emit('admin.broadcast_push', {
       adminId:        request.user.id,
       adminRole:      request.user.role,
       target,
       targetValue:    target_value,
-      attemptedCount: tokens.length,
+      attemptedCount: push_attempted,
     })
 
-    return { attempted: tokens.length }
+    return { attempted: push_attempted }
   })
 }
 

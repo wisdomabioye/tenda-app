@@ -33,6 +33,7 @@ import {
   type VerifyTxDeps,
 } from '@server/jobs/verify-tx'
 import { drizzleExpireEscrowsStore, handleExpireEscrows } from '@server/jobs/expire-escrows'
+import { handleNotificationRetention } from '@server/workers/notification-retention'
 import { drizzleReconcileStore, reconcileEscrowsHandler } from '@server/jobs/reconcile-escrows'
 import { reconcileFiatIntentsHandler } from '@server/jobs/reconcile-fiat-intents'
 import { expireFiatQuotesHandler } from '@server/jobs/expire-fiat-quotes'
@@ -150,6 +151,9 @@ export function buildProcessors(
 
     'update-price-stats': () =>
       updatePriceStatsHandler({ store: drizzlePriceStatsStore(fastify.db), log: fastify.log }),
+
+    'prune-notifications': () =>
+      handleNotificationRetention({ db: fastify.db, log: fastify.log, now: () => new Date() }),
 
     notifications: (payload) => deliverNotification(fastify, pushServices, payload),
 
