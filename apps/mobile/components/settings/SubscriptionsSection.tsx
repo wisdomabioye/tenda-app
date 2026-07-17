@@ -8,6 +8,8 @@ import { Text, showToast } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { ErrorState } from '@/components/feedback'
 import { SettingsGroup } from './SettingsRow'
+import { AddSubscriptionSheet } from './AddSubscriptionSheet'
+import { ALL_CITIES_KEY, subscriptionBody } from '@/lib/subscriptionCities'
 import { api } from '@/api/client'
 import type { GigSubscription } from '@tenda/shared'
 
@@ -29,6 +31,7 @@ export function SubscriptionsSection() {
   const [loadingSubs, setLoadingSubs] = useState(false)
   const [subsError, setSubsError] = useState(false)
   const [notifDenied, setNotifDenied] = useState(false)
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const loadSubscriptions = useCallback(() => {
     setLoadingSubs(true)
@@ -49,12 +52,14 @@ export function SubscriptionsSection() {
     }, [loadSubscriptions]),
   )
 
-  async function addSubscription() {
-    if (notifDenied) return
+  async function handlePick(city: string) {
     try {
-      const sub = await api.subscriptions.upsert({})
+      const sub = await api.subscriptions.upsert(subscriptionBody(city))
       setSubscriptions((prev) => (prev.find((s2) => s2.id === sub.id) ? prev : [sub, ...prev]))
-      showToast('success', 'Subscribed to all new gigs')
+      showToast(
+        'success',
+        city === ALL_CITIES_KEY ? 'Subscribed to all new gigs' : `Subscribed to new gigs in ${city}`,
+      )
     } catch {
       showToast('error', 'Failed to subscribe')
     }
@@ -133,7 +138,7 @@ export function SubscriptionsSection() {
               <View style={[s.rowDivider, { backgroundColor: theme.colors.border.subtle }]} />
             )}
             <Pressable
-              onPress={addSubscription}
+              onPress={() => setSheetOpen(true)}
               disabled={notifDenied}
               style={({ pressed }) => [
                 s.addRow,
@@ -169,6 +174,12 @@ export function SubscriptionsSection() {
           Re-enable notifications to add subscriptions.
         </Text>
       )}
+
+      <AddSubscriptionSheet
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+        onPick={handlePick}
+      />
     </>
   )
 }
