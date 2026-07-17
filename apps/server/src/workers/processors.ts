@@ -14,6 +14,7 @@ import { eq, inArray } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { device_tokens } from '@tenda/shared/db/schema'
 import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
+import { persistNotification } from '@server/lib/notify'
 import { fanOutEscrowEvent } from './escrow-fanout'
 import {
   buildPushServices,
@@ -48,6 +49,16 @@ async function deliverNotification(
   services: Partial<Record<DevicePlatform, PushService>>,
   payload: JobPayload['notifications'],
 ): Promise<void> {
+  // Persist + live WS FIRST, before the no-token early-return: a user with the
+  // in-app centre but no push device must still get the row + badge. Push is
+  // best-effort on top. Idempotent (onConflictDoNothing) so a retry is safe.
+  if (payload.persist) {
+    await persistNotification(
+      { db: fastify.db, wsBroadcast: fastify.wsBroadcast },
+      payload,
+    )
+  }
+
   // Tokens resolve at DELIVERY time (queue.ts doc: tokens churn between
   // enqueue and delivery; resolving early pushes to stale devices). The push
   // `services` are built ONCE in buildProcessors and reused, see the note

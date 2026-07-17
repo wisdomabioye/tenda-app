@@ -22,6 +22,7 @@ import type {
 import { AppError } from '@server/lib/errors'
 import { hasPermission } from '@server/lib/guards'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { enqueueNotification } from '@server/lib/notify'
 import { buildDisputeThreadContext } from '@server/lib/disputes/thread-context'
 
 const MESSAGES_PAGE_LIMIT = 100
@@ -170,11 +171,16 @@ const route: FastifyPluginAsync = async (fastify) => {
       ].filter((u): u is string => u !== null && u !== request.user.id)
       for (const user_id of new Set(recipients)) {
         try {
-          await fastify.queue.enqueue('notifications', {
+          // persist=false: the dispute thread has its own read surface
+          // (dispute_reads.last_read_at), so intra-thread replies push but do
+          // not duplicate into the notification centre. The dispute LIFECYCLE
+          // (opened/resolved) still persists via the escrow fan-out.
+          await enqueueNotification(fastify.queue, {
             user_id,
             title: 'New dispute message',
             body: isParty ? 'The other party replied in your dispute.' : 'The mediator replied in your dispute.',
             data: { screen: 'dispute', escrowId: escrow.id },
+            persist: false,
           })
         } catch (err) {
           request.log.warn({ err }, 'dispute message: notification enqueue failed (queue unavailable)')

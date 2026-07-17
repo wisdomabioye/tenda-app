@@ -19,6 +19,7 @@ import type { FastifyInstance } from 'fastify'
 import { gig_subscriptions } from '@tenda/shared/db/schema'
 import { escrows, gig_details } from '@tenda/shared/db/schema/escrow'
 import { channelName } from '@server/lib/ws'
+import { enqueueNotification, escrowPushData } from '@server/lib/notify'
 import type { InternalEscrowEvent } from '@server/lib/escrow-events'
 import type { EscrowEvent } from '@server/chains/types'
 import type { EscrowKind } from '@tenda/shared'
@@ -103,11 +104,6 @@ export function escrowNoticeFor(
   return { recipient: notice.recipient, ...copy }
 }
 
-/** Push `data` for an escrow deep-link — kind lets the app route gig vs exchange. */
-function escrowPushData(escrow_id: string, kind: EscrowKind): Record<string, string> {
-  return { screen: 'escrow', escrowId: escrow_id, kind }
-}
-
 /**
  * New-gig fan-out: when the on-chain create confirms (escrow → open), notify
  * gig_subscriptions matching the gig's city/category ('*' = any-value sentinel).
@@ -150,7 +146,7 @@ async function fanOutNewGigToSubscribers(
     (uid) => uid !== gig.creator_id,
   )
   for (const user_id of subscriberIds) {
-    await fastify.queue.enqueue('notifications', {
+    await enqueueNotification(fastify.queue, {
       user_id,
       title: 'New Gig Posted',
       body: `"${gig.title}" in ${gig.city ?? 'Remote'}`,
@@ -204,7 +200,7 @@ export async function fanOutEscrowEvent(
 
   for (const user_id of recipients) {
     if (user_id === null) continue
-    await fastify.queue.enqueue('notifications', {
+    await enqueueNotification(fastify.queue, {
       user_id,
       title: notice.title,
       body: notice.body,

@@ -8,6 +8,7 @@
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
 import { appEvents } from '@server/lib/events'
+import { enqueueNotification } from '@server/lib/notify'
 
 const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
   async function notify(
@@ -15,18 +16,23 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
     title: string,
     body: string,
     data: Record<string, string>,
+    persist = true,
   ): Promise<void> {
-    await fastify.queue.enqueue('notifications', { user_id, title, body, data })
+    await enqueueNotification(fastify.queue, { user_id, title, body, data, persist })
   }
 
   // ── New message → notify recipient ───────────────────────────────────────
+  // persist=false: chat has its own read surface (messages tab / read_at), so
+  // message notices push but do NOT clutter the notification centre.
   appEvents.on('message.sent', async (data) => {
     try {
-      await notify(data.recipientId, 'New Message', data.preview, {
-        screen: 'chat',
-        conversationId: data.conversationId,
-        userId: data.senderId,
-      })
+      await notify(
+        data.recipientId,
+        'New Message',
+        data.preview,
+        { screen: 'chat', conversationId: data.conversationId, userId: data.senderId },
+        false,
+      )
     } catch (err) {
       fastify.log.error({ err }, '[notifications] message.sent listener failed')
     }

@@ -13,6 +13,7 @@ import { ErrorCode } from '@tenda/shared'
 import type { ApiError, EscrowProof } from '@tenda/shared'
 import { loadEscrowOr404, deriveCaller } from '@server/lib/escrow-routes'
 import { AppError } from '@server/lib/errors'
+import { enqueueNotification } from '@server/lib/notify'
 import { validateProofs, type ProofInput } from '@server/lib/proofs'
 
 const MAX_TOTAL_PROOFS = 20
@@ -89,7 +90,7 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
       // once the submit tx confirms, so this path stays silent when accepted.
       if (escrow.status === 'submitted') {
         try {
-          await fastify.queue.enqueue('notifications', {
+          await enqueueNotification(fastify.queue, {
             user_id: escrow.creator_id,
             title: 'Additional proof submitted',
             body: 'The worker added more evidence, review and approve.',
@@ -111,11 +112,13 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
           const recipients = new Set<string>([escrow.creator_id])
           if (dispute?.assigned_to) recipients.add(dispute.assigned_to)
           for (const user_id of recipients) {
-            await fastify.queue.enqueue('notifications', {
+            // persist=false: dispute-thread activity has its own read surface.
+            await enqueueNotification(fastify.queue, {
               user_id,
               title: 'New dispute evidence',
               body: 'The worker added evidence to the dispute.',
               data: { screen: 'dispute', escrowId: id },
+              persist: false,
             })
           }
         } catch (err) {

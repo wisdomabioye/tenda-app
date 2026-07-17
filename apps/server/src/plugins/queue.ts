@@ -43,6 +43,12 @@ export type JobName =
 export interface JobPayload {
   notifications: {
     /**
+     * Stable notification id, stamped at enqueue by `enqueueNotification`. The
+     * delivery worker inserts with onConflictDoNothing so persistence is
+     * idempotent across BullMQ retries (this queue runs `attempts: 5`).
+     */
+    id: string
+    /**
      * Recipient user, the delivery worker resolves device tokens at send
      * time (tokens churn between enqueue and delivery; resolving early
      * would push to stale devices).
@@ -51,6 +57,12 @@ export interface JobPayload {
     title: string
     body: string
     data?: Record<string, string>
+    /**
+     * Persist to the in-app notification centre + WS-broadcast. false for chat
+     * (it has its own read surface); true for every escrow/review/fiat/gig
+     * notice. Always set by `enqueueNotification`.
+     */
+    persist: boolean
   }
   'expire-escrows': {
     /** Tick id for log correlation. Cron writer sets `Date.now().toString()`. */

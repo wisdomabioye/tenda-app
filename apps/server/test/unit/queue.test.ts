@@ -96,7 +96,7 @@ test('JobName covers all 4 Stage 0 queues', () => {
 })
 
 test('JobPayload shapes are statically distinct (compile-time check)', () => {
-  const noti: JobPayload['notifications'] = { user_id: 'u-1', title: 'a', body: 'b' }
+  const noti: JobPayload['notifications'] = { id: 'n-1', user_id: 'u-1', title: 'a', body: 'b', persist: true }
   const exp: JobPayload['expire-escrows'] = { tick_id: '1' }
   const ver: JobPayload['verify-tx'] = {
     chain_id: 'solana:devnet',

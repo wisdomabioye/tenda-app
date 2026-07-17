@@ -16,8 +16,9 @@ import assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
-import { device_tokens, gig_subscriptions } from '@tenda/shared/db/schema'
+import { device_tokens, gig_subscriptions, notifications } from '@tenda/shared/db/schema'
 import { category_price_stats } from '@tenda/shared/db/schema/moderation'
+import { NOTIFICATION_BODY_MAX } from '@tenda/shared'
 import { buildVerifyTxDeps, buildProcessors, removeTokens } from '@server/workers/processors'
 import type { DevicePlatform } from '@server/lib/push-services'
 import type { PushService } from '@server/chains/types'
@@ -68,6 +69,22 @@ function evt(wire: EscrowEvent, escrow_id: string, tx_ref = 'sig-tx-1') {
   return { internal_event: INTERNAL_EVENT_BY_WIRE[wire], wire_event: wire, escrow_id, tx_ref }
 }
 
+/**
+ * A delivery-job payload with a stamped id (as `enqueueNotification` would).
+ * Defaults `persist:false` so the token-delivery tests stay pure push tests;
+ * the persistence tests opt in with `persist:true`.
+ */
+function notifJob(
+  overrides: Partial<JobPayload['notifications']> & { user_id: string },
+): JobPayload['notifications'] {
+  return { id: randomUUID(), title: 't', body: 'b', persist: false, ...overrides }
+}
+
+/** All notification frames broadcast on a given user's channel. */
+function userFrames(userId: string): Array<{ channel: string; payload: Record<string, unknown> }> {
+  return cap.broadcasts.filter((b) => b.channel === channelName({ kind: 'user', id: userId }))
+}
+
 function notifUserIds(): string[] {
   return cap.enqueued.filter((e) => e.name === 'notifications').map((e) => e.payload.user_id)
 }
@@ -105,6 +122,10 @@ test('accepted notifies the creator only', { skip }, async () => {
   // `kind` is part of the deep-link contract (useNotificationDeepLink routes
   // gig vs exchange on it), so the push data carries it — here a default gig.
   assert.deepStrictEqual(cap.enqueued[0].payload.data, { screen: 'escrow', escrowId: e.id, kind: 'gig' })
+  // enqueueNotification stamps a stable id and defaults persist=true, so the
+  // notice both persists into the centre and dedupes across retries.
+  assert.strictEqual(typeof cap.enqueued[0].payload.id, 'string')
+  assert.strictEqual(cap.enqueued[0].payload.persist, true)
 })
 
 test('approved notifies the counterparty only', { skip }, async () => {
@@ -228,7 +249,7 @@ test('created on an exchange escrow (no gig_details) fans out nothing', { skip }
 test('notifications: a user with no device tokens delivers nothing (no throw)', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)
-  await buildProcessors(app).notifications({ user_id: u.row.id, title: 't', body: 'b' })
+  await buildProcessors(app).notifications(notifJob({ user_id: u.row.id }))
   // No tokens, no prune target — the row set is unchanged (empty).
   const rows = await app.db.select().from(device_tokens).where(eq(device_tokens.user_id, u.row.id))
   assert.strictEqual(rows.length, 0)
@@ -240,7 +261,7 @@ test('notifications: an unconfigured platform counts failed but never prunes the
   // FCM is not configured in the harness → routePush degrades it as failed,
   // NOT as a dead token, so the row must survive.
   await app.db.insert(device_tokens).values({ user_id: u.row.id, token: 'fcm-tok', platform: 'fcm' })
-  await buildProcessors(app).notifications({ user_id: u.row.id, title: 't', body: 'b' })
+  await buildProcessors(app).notifications(notifJob({ user_id: u.row.id }))
 
   const rows = await app.db.select().from(device_tokens).where(eq(device_tokens.user_id, u.row.id))
   assert.strictEqual(rows.length, 1)
@@ -267,7 +288,7 @@ test('notifications: an Expo DeviceNotRegistered token is pruned, the live one k
   }) as typeof fetch
 
   try {
-    await buildProcessors(app).notifications({ user_id: u.row.id, title: 't', body: 'b', data: { k: 'v' } })
+    await buildProcessors(app).notifications(notifJob({ user_id: u.row.id, data: { k: 'v' } }))
   } finally {
     globalThis.fetch = realFetch
   }
@@ -299,8 +320,8 @@ test('every notification delivery reuses the ONE services instance from buildPro
   }
 
   const procs = buildProcessors(app, services)
-  await procs.notifications({ user_id: u.row.id, title: 't1', body: 'b1' })
-  await procs.notifications({ user_id: u.row.id, title: 't2', body: 'b2' })
+  await procs.notifications(notifJob({ user_id: u.row.id, title: 't1', body: 'b1' }))
+  await procs.notifications(notifJob({ user_id: u.row.id, title: 't2', body: 'b2' }))
 
   // If deliverNotification rebuilt services internally, the injected fcm
   // service would be ignored (expo-only default) → sends would stay 0.
@@ -327,6 +348,80 @@ test('removeTokens deletes the listed tokens; an empty list is a no-op', { skip 
     rows.map((r) => r.token),
     ['keep-1'],
   )
+})
+
+// ---------- deliverNotification: persistence + WS badge -------------------------
+
+test('persist=true writes one row and broadcasts a NotificationFrame on the user channel', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  const job = notifJob({
+    user_id: u.row.id,
+    title: 'Gig accepted',
+    body: 'work underway',
+    data: { screen: 'escrow', escrowId: 'e1', kind: 'gig' },
+    persist: true,
+  })
+  await buildProcessors(app).notifications(job)
+
+  const rows = await app.db.select().from(notifications).where(eq(notifications.user_id, u.row.id))
+  assert.strictEqual(rows.length, 1)
+  assert.strictEqual(rows[0].id, job.id)
+  assert.strictEqual(rows[0].title, 'Gig accepted')
+  assert.strictEqual(rows[0].read_at, null)
+  assert.deepStrictEqual(rows[0].data, { screen: 'escrow', escrowId: 'e1', kind: 'gig' })
+
+  const frames = userFrames(u.row.id)
+  assert.strictEqual(frames.length, 1)
+  assert.strictEqual(frames[0].payload.type, 'notification')
+  const wire = (frames[0].payload as { notification: { id: string; read_at: string | null } }).notification
+  assert.strictEqual(wire.id, job.id)
+  assert.strictEqual(wire.read_at, null)
+})
+
+test('persist=false pushes but writes NO row and no notification frame', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  await buildProcessors(app).notifications(notifJob({ user_id: u.row.id, persist: false }))
+  const rows = await app.db.select().from(notifications).where(eq(notifications.user_id, u.row.id))
+  assert.strictEqual(rows.length, 0)
+  assert.strictEqual(userFrames(u.row.id).length, 0)
+})
+
+test('a persisted notification is written even when the user has NO device token', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  // No device_tokens row → persist must run BEFORE the no-token early return.
+  await buildProcessors(app).notifications(notifJob({ user_id: u.row.id, persist: true }))
+  assert.strictEqual(
+    (await app.db.select().from(notifications).where(eq(notifications.user_id, u.row.id))).length,
+    1,
+  )
+})
+
+test('delivering the SAME id twice is idempotent — one row, no double badge', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  const job = notifJob({ user_id: u.row.id, persist: true })
+  await buildProcessors(app).notifications(job)
+  await buildProcessors(app).notifications(job) // BullMQ retry — identical job.data
+
+  assert.strictEqual(
+    (await app.db.select().from(notifications).where(eq(notifications.user_id, u.row.id))).length,
+    1,
+  )
+  // The retry must NOT re-broadcast, else the unread badge double-counts.
+  assert.strictEqual(userFrames(u.row.id).length, 1)
+})
+
+test('an over-long body is clamped to the column cap (no numeric/length overflow 5xx)', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  const longBody = 'x'.repeat(NOTIFICATION_BODY_MAX + 50)
+  await buildProcessors(app).notifications(notifJob({ user_id: u.row.id, body: longBody, persist: true }))
+  const rows = await app.db.select().from(notifications).where(eq(notifications.user_id, u.row.id))
+  assert.strictEqual(rows.length, 1)
+  assert.strictEqual(rows[0].body.length, NOTIFICATION_BODY_MAX)
 })
 
 // ---------- builders ------------------------------------------------------------

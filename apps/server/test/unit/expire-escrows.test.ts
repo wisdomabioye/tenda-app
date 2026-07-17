@@ -89,8 +89,14 @@ test('enqueues one creator nudge per expired escrow with deterministic job_id', 
   assert.strictEqual(calls[0].name, 'notifications')
   assert.strictEqual(calls[0].payload.user_id, 'u-1')
   assert.strictEqual(calls[0].job_id, expireNoticeJobId('e-1'))
-  assert.strictEqual(calls[0].payload.data?.escrow_id, 'e-1')
-  assert.strictEqual(calls[0].payload.data?.reason, 'expired')
+  // Canonical deep-link data (shared escrowPushData) so the persisted expiry
+  // notice is tappable → /gig/:id vs /exchange/:id on `kind`.
+  assert.strictEqual(calls[0].payload.data?.screen, 'escrow')
+  assert.strictEqual(calls[0].payload.data?.escrowId, 'e-1')
+  assert.strictEqual(calls[0].payload.data?.kind, 'gig')
+  // enqueueNotification stamps an id and persists the expiry notice.
+  assert.strictEqual(typeof calls[0].payload.id, 'string')
+  assert.strictEqual(calls[0].payload.persist, true)
   // Kind-specific copy.
   assert.match(calls[0].payload.title, /gig/i)
   assert.match(calls[1].payload.title, /exchange/i)

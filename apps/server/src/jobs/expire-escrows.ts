@@ -19,6 +19,7 @@
 
 import { and, eq, gte, isNull, lt } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
+import { enqueueNotification, escrowPushData } from '@server/lib/notify'
 import type { JobPayload, QueueService } from '@server/plugins/queue'
 import type { AppDatabase } from '@server/plugins/db'
 
@@ -125,13 +126,13 @@ export async function handleExpireEscrows(
   let enqueued = 0
   for (const row of rows) {
     const copy = NOTICE_COPY[row.kind]
-    await deps.queue.enqueue(
-      'notifications',
+    await enqueueNotification(
+      deps.queue,
       {
         user_id: row.creator_id,
         title: copy.title,
         body: copy.body,
-        data: { escrow_id: row.id, kind: row.kind, reason: 'expired' },
+        data: escrowPushData(row.id, row.kind),
       },
       { job_id: expireNoticeJobId(row.id) },
     )
