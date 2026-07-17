@@ -86,6 +86,10 @@ export const apiRoutes: {
   },
   notifications: {
     registerToken: '/v1/notifications/device-token',
+    list:          '/v1/notifications',
+    unreadCount:   '/v1/notifications/unread-count',
+    markRead:      '/v1/notifications/:id/read',
+    markAllRead:   '/v1/notifications/read-all',
   },
   subscriptions: {
     list:   '/v1/subscriptions',

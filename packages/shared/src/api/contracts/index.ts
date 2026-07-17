@@ -109,5 +109,6 @@ export {
   type WsChannelKind,
   type ChatMessageFrame,
   type EscrowEventFrame,
+  type NotificationFrame,
   type WsServerFrame,
 } from './ws.contract'

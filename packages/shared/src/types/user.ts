@@ -35,6 +35,7 @@ export type PublicUser = Omit<
   | 'sponsored_tx_remaining'
   | 'advanced_mode_enabled'
   | 'display_currency'
+  | 'announcements_read_at'
 > & {
   phone_verified_at: Date | null
 }

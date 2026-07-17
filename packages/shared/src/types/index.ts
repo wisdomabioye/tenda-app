@@ -32,6 +32,7 @@ export type { GigSummary, GigDetail, GigCategory, GigListQuery, CreateGigDetails
 export { isGigAcceptable, computeCompletionDeadline } from './gig'
 export type { ExchangeSummary, ExchangeDetail, ExchangePayoutAccount, ExchangeListQuery, CreateExchangeDetailsBody } from './exchange'
 export type { Review, NewReview, ReviewInput, GetUserReviewsQuery } from './review'
+export type { NotificationWire, AnnouncementWire, NotificationFeed, NotificationsQuery } from './notification'
 export type { CloudinarySignature, UploadType } from './upload'
 export type { PaginatedResponse, ApiError } from './api'
 export type {

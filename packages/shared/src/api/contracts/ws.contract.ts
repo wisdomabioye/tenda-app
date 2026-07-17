@@ -10,6 +10,7 @@
  */
 
 import type { Message } from '../../types/chat'
+import type { NotificationWire } from '../../types/notification'
 
 export const WS_PATH = '/v1/ws'
 export const WS_AUTH_SUBPROTOCOL = 'tenda.v1.auth'
@@ -41,4 +42,14 @@ export interface EscrowEventFrame {
   tx_ref: string
 }
 
-export type WsServerFrame = ChatMessageFrame | EscrowEventFrame
+/**
+ * New in-app notification — broadcast on `user:<id>` after the notification
+ * is persisted, so the bell badge / feed update live without polling.
+ */
+export interface NotificationFrame {
+  channel: string
+  type: 'notification'
+  notification: NotificationWire
+}
+
+export type WsServerFrame = ChatMessageFrame | EscrowEventFrame | NotificationFrame

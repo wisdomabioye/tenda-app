@@ -61,6 +61,9 @@ export const users = pgTable(
     advanced_mode_enabled: boolean('advanced_mode_enabled').notNull().default(false),
     /** UI rendering preference ('NGN', 'USD'); null = show raw asset (stage-8). */
     display_currency: varchar('display_currency', { length: 3 }),
+    // Broadcast read cursor: announcements published at/after this are unread.
+    // NULL = never opened the notification centre (all active count as unread).
+    announcements_read_at: timestamp('announcements_read_at'),
     last_active_at: timestamp('last_active_at'),
     created_at: timestamp('created_at').notNull().defaultNow(),
     updated_at: timestamp('updated_at')

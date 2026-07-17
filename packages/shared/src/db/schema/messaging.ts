@@ -22,6 +22,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgEnum,
   pgTable,
   text,
@@ -30,6 +31,11 @@ import {
   uuid,
   varchar,
 } from 'drizzle-orm/pg-core'
+import {
+  ANNOUNCEMENT_TARGETS,
+  NOTIFICATION_TITLE_MAX,
+  NOTIFICATION_BODY_MAX,
+} from '../../constants/notifications'
 import { escrows } from './escrow'
 import { users } from './identity'
 
@@ -141,6 +147,41 @@ export const gig_subscriptions = pgTable(
   ],
 )
 
+/**
+ * Personal in-app notifications (notification centre). One row per recipient
+ * for TARGETED notices (escrow lifecycle, reviews, fiat, disputes, new-gig
+ * matches); broadcasts do NOT fan out here — they live once in `announcements`
+ * and merge in at read time. Chat is excluded (it has its own read surface).
+ *
+ * `id` is stamped by the enqueue helper (lib/notify.ts) so it is stable across
+ * BullMQ retries → the delivery worker inserts with onConflictDoNothing and
+ * persistence is idempotent. Deliberately NO defaultRandom: an omitted id is a
+ * bug the insert type should catch, not paper over with a fresh random id.
+ */
+export const notifications = pgTable(
+  'notifications',
+  {
+    id: uuid('id').primaryKey(),
+    user_id: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    title: varchar('title', { length: NOTIFICATION_TITLE_MAX }).notNull(),
+    body: varchar('body', { length: NOTIFICATION_BODY_MAX }).notNull(),
+    // Deep-link params ({ screen, escrowId, kind, ... }); null = non-routable.
+    data: jsonb('data').$type<Record<string, string>>(),
+    read_at: timestamp('read_at'),
+    created_at: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // Feed query: WHERE user_id = X ORDER BY created_at DESC (cursor-paginated).
+    index('notifications_user_created_idx').on(t.user_id, t.created_at.desc()),
+    // Partial index for the unread-count badge and mark-all-read UPDATE.
+    index('notifications_user_unread_idx')
+      .on(t.user_id)
+      .where(sql`${t.read_at} IS NULL`),
+  ],
+)
+
 export const announcements = pgTable(
   'announcements',
   {
@@ -149,6 +190,11 @@ export const announcements = pgTable(
     body: varchar('body', { length: 2000 }).notNull(),
     // priority: higher = shown first. 0 = normal, 1 = important, 2 = urgent.
     priority: integer('priority').notNull().default(0),
+    // Audience: NULL target = everyone; a non-null target requires target_value
+    // (role name / country code / city name). Evaluated against the viewer at
+    // read time (fan-out-on-read) so a broadcast is one row, never N.
+    target: text('target', { enum: ANNOUNCEMENT_TARGETS }),
+    target_value: text('target_value'),
     is_active: boolean('is_active').notNull().default(true),
     // published_at: set when first made active (set once, never cleared).
     published_at: timestamp('published_at'),
