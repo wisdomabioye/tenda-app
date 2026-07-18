@@ -22,7 +22,17 @@ function thread(over: Partial<DisputeThreadResponse> = {}): DisputeThreadRespons
   return { dispute_id: 'd1', escrow_id: 'e1', assigned_to_id: 'me', read_only: false, context: null, messages: [], reads: [], ...over }
 }
 function msg(over: Partial<DisputeMessage> = {}): DisputeMessage {
-  return { id: 'm1', dispute_id: 'd1', sender_id: 'me', body: 'hi', created_at: '2026-06-10T00:00:00.000Z', ...over }
+  return {
+    id: 'm1',
+    dispute_id: 'd1',
+    sender_id: 'me',
+    body: 'hi',
+    attachment_url: null,
+    attachment_type: null,
+    attachment_size: null,
+    created_at: '2026-06-10T00:00:00.000Z',
+    ...over,
+  }
 }
 
 const PARTIES: DossierParty[] = [
@@ -47,6 +57,47 @@ test('first poll loads and renders thread messages', async () => {
   get.mockResolvedValue(thread({ messages: [msg({ id: 'm1', body: 'hello there', sender_id: 'other' })] }))
   renderThread()
   expect(await screen.findByText('hello there')).toBeInTheDocument()
+})
+
+test('image evidence renders a thumbnail the mediator can open', async () => {
+  get.mockResolvedValue(
+    thread({
+      messages: [
+        msg({
+          id: 'm1',
+          body: '',
+          sender_id: 'other',
+          attachment_url: 'https://res.cloudinary.com/x/e.jpg',
+          attachment_type: 'image',
+          attachment_size: 2048,
+        }),
+      ],
+    }),
+  )
+  renderThread()
+  const img = await screen.findByRole('img', { name: 'Image evidence' })
+  expect(img).toHaveAttribute('src', 'https://res.cloudinary.com/x/e.jpg')
+})
+
+test('document evidence renders an openable link alongside the body', async () => {
+  get.mockResolvedValue(
+    thread({
+      messages: [
+        msg({
+          id: 'm1',
+          body: 'see attached',
+          sender_id: 'other',
+          attachment_url: 'https://res.cloudinary.com/x/e.pdf',
+          attachment_type: 'file',
+          attachment_size: 4096,
+        }),
+      ],
+    }),
+  )
+  renderThread()
+  const link = await screen.findByTitle('Document evidence')
+  expect(link).toHaveAttribute('href', 'https://res.cloudinary.com/x/e.pdf')
+  expect(screen.getByText('see attached')).toBeInTheDocument()
 })
 
 test('labels each sender: own → You, mediator → Mediator, parties → role · name', async () => {

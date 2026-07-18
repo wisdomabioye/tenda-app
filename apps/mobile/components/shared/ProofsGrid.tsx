@@ -3,11 +3,11 @@ import { Image } from 'expo-image'
 import { FileText, Film, Play } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
-import type { ProofItem } from './ProofViewerModal'
+import type { MediaItem } from './media/types'
 
 interface Props {
-  proofs: ProofItem[]
-  onProofPress: (proof: ProofItem) => void
+  proofs: MediaItem[]
+  onProofPress: (proof: MediaItem) => void
 }
 
 export function ProofsGrid({ proofs, onProofPress }: Props) {

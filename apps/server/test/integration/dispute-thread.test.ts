@@ -27,6 +27,11 @@ function threadUrl(escrowId: string, after?: string): string {
   return `/v1/escrows/${escrowId}/dispute/messages${after !== undefined ? `?after=${encodeURIComponent(after)}` : ''}`
 }
 
+/** A Cloudinary URL that lives under the sender's dispute-scoped folder. */
+function disputeAttachmentUrl(escrowId: string, userId: string): string {
+  return `https://res.cloudinary.com/demo/image/upload/v1/tenda/dispute/${escrowId}/${userId}/evidence.pdf`
+}
+
 test('thread: 404 without a dispute, 403 for strangers', { skip }, async () => {
   const app = getApp()
   const creator = await createUser(app)
@@ -267,6 +272,64 @@ test('thread: ?after returns only the tail', { skip }, async () => {
     headers: authHeader(creator.token),
   })
   assert.strictEqual(bad.statusCode, 400)
+})
+
+test('thread: attachment-only message (empty body) accepted, fields echoed', { skip }, async () => {
+  const app = getApp()
+  const { creator, escrow } = await disputedEscrow(app)
+  const url = disputeAttachmentUrl(escrow.id, creator.row.id)
+  const res = await app.inject({
+    method: 'POST',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+    payload: { body: '', attachment_url: url, attachment_type: 'file', attachment_size: 4096 },
+  })
+  assert.strictEqual(res.statusCode, 201)
+  const msg = res.json()
+  assert.strictEqual(msg.body, '')
+  assert.strictEqual(msg.attachment_url, url)
+  assert.strictEqual(msg.attachment_type, 'file')
+  assert.strictEqual(msg.attachment_size, 4096)
+})
+
+test('thread: body + attachment together accepted', { skip }, async () => {
+  const app = getApp()
+  const { creator, escrow } = await disputedEscrow(app)
+  const url = disputeAttachmentUrl(escrow.id, creator.row.id)
+  const res = await app.inject({
+    method: 'POST',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+    payload: { body: 'Here is the receipt.', attachment_url: url, attachment_type: 'image', attachment_size: 2048 },
+  })
+  assert.strictEqual(res.statusCode, 201)
+  assert.strictEqual(res.json().attachment_type, 'image')
+})
+
+test('thread: attachment URL outside the sender folder rejected (replay guard)', { skip }, async () => {
+  const app = getApp()
+  const { creator, worker, escrow } = await disputedEscrow(app)
+  // A URL scoped to the OTHER party's folder must not validate for the creator.
+  const foreign = disputeAttachmentUrl(escrow.id, worker.row.id)
+  const res = await app.inject({
+    method: 'POST',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+    payload: { body: '', attachment_url: foreign, attachment_type: 'file', attachment_size: 4096 },
+  })
+  assert.strictEqual(res.statusCode, 400)
+})
+
+test('thread: partial attachment fields rejected', { skip }, async () => {
+  const app = getApp()
+  const { creator, escrow } = await disputedEscrow(app)
+  const res = await app.inject({
+    method: 'POST',
+    url: threadUrl(escrow.id),
+    headers: authHeader(creator.token),
+    payload: { body: 'x', attachment_url: disputeAttachmentUrl(escrow.id, creator.row.id) },
+  })
+  assert.strictEqual(res.statusCode, 400)
 })
 
 test('thread: resolved disputes freeze read-only', { skip }, async () => {

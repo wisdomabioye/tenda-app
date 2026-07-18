@@ -48,5 +48,11 @@ module.exports = {
     'app/(auth)/connect-wallet.tsx',
     'app/settings/linked-wallets.tsx',
     '!wallet/**/*.d.ts',
+    // Message-attachment feature (chat + dispute).
+    'lib/attachments.ts',
+    'lib/media-download.ts',
+    'hooks/useAttachmentUpload.ts',
+    'components/shared/AttachSheet.tsx',
+    'components/shared/media/AttachmentPreview.tsx',
   ],
 }

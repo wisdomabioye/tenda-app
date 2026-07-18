@@ -10,7 +10,7 @@
  */
 import type { FastifyPluginAsync } from 'fastify'
 import { and, asc, eq, gte, type SQL } from 'drizzle-orm'
-import { disputes, dispute_messages, dispute_reads } from '@tenda/shared/db/schema'
+import { dispute_messages, dispute_reads } from '@tenda/shared/db/schema'
 import { DISPUTE_MESSAGE_MAX_LENGTH, ErrorCode } from '@tenda/shared'
 import type {
   ApiError,
@@ -20,8 +20,8 @@ import type {
   SendDisputeMessageBody,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { hasPermission } from '@server/lib/guards'
-import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { assertDisputeThreadAccess } from '@server/lib/disputes/thread-access'
+import { validateMessageAttachment } from '@server/lib/uploads/validate-attachment'
 import { enqueueNotification } from '@server/lib/notify'
 import { buildDisputeThreadContext } from '@server/lib/disputes/thread-context'
 
@@ -32,30 +32,13 @@ const toWire = (m: DisputeMessageRow): DisputeMessage => ({
   dispute_id: m.dispute_id,
   sender_id: m.sender_id,
   body: m.body,
+  attachment_url: m.attachment_url,
+  attachment_type: m.attachment_type,
+  attachment_size: m.attachment_size,
   created_at: m.created_at.toISOString(),
 })
 
 const route: FastifyPluginAsync = async (fastify) => {
-  /** Load escrow + dispute and authorize the caller for thread access. */
-  async function loadThread(escrow_id: string, user: { id: string; role: string }) {
-    const escrow = await loadEscrowOr404(fastify.db, escrow_id)
-    const [dispute] = await fastify.db
-      .select()
-      .from(disputes)
-      .where(eq(disputes.escrow_id, escrow.id))
-      .limit(1)
-    if (dispute === undefined) {
-      throw new AppError(404, ErrorCode.NOT_FOUND, 'No dispute on this escrow')
-    }
-    const isParty =
-      escrow.creator_id === user.id ||
-      escrow.counterparty_id === user.id ||
-      escrow.assigned_counterparty_id === user.id
-    if (!isParty && !hasPermission(user.role, 'disputes.mediate')) {
-      throw new AppError(403, ErrorCode.FORBIDDEN, 'No access to this dispute thread')
-    }
-    return { escrow, dispute, isParty }
-  }
 
   // GET, full thread (or the tail after ?after=<ISO>); advances the
   // caller's read cursor as a side effect.
@@ -64,7 +47,7 @@ const route: FastifyPluginAsync = async (fastify) => {
     Querystring: { after?: string }
     Reply: DisputeThreadResponse | ApiError
   }>('/', { preHandler: [fastify.authenticate] }, async (request) => {
-    const { dispute, escrow } = await loadThread(request.params.id, request.user)
+    const { dispute, escrow } = await assertDisputeThreadAccess(fastify.db, request.params.id, request.user)
 
     const conditions: SQL[] = [eq(dispute_messages.dispute_id, dispute.id)]
     if (request.query.after !== undefined) {
@@ -131,16 +114,11 @@ const route: FastifyPluginAsync = async (fastify) => {
       preHandler: [fastify.authenticate],
     },
     async (request, reply) => {
-      const body = typeof request.body?.body === 'string' ? request.body.body.trim() : ''
-      if (body.length === 0 || body.length > DISPUTE_MESSAGE_MAX_LENGTH) {
-        throw new AppError(
-          400,
-          ErrorCode.VALIDATION_ERROR,
-          `body must be 1–${DISPUTE_MESSAGE_MAX_LENGTH} characters`,
-        )
-      }
-
-      const { dispute, escrow, isParty } = await loadThread(request.params.id, request.user)
+      const { dispute, escrow, isParty } = await assertDisputeThreadAccess(
+        fastify.db,
+        request.params.id,
+        request.user,
+      )
       if (dispute.resolved_at !== null) {
         throw new AppError(409, ErrorCode.DISPUTE_RESOLVED, 'Dispute resolved, thread is read-only')
       }
@@ -149,9 +127,35 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(403, ErrorCode.FORBIDDEN, 'Claim the dispute before posting')
       }
 
+      const body = typeof request.body?.body === 'string' ? request.body.body.trim() : ''
+      if (body.length > DISPUTE_MESSAGE_MAX_LENGTH) {
+        throw new AppError(
+          400,
+          ErrorCode.VALIDATION_ERROR,
+          `body must be at most ${DISPUTE_MESSAGE_MAX_LENGTH} characters`,
+        )
+      }
+      // Evidence attachment scoped to this escrow's dispute folder (same rules
+      // as chat). An attachment-only message may carry an empty body.
+      const attachment = validateMessageAttachment(request.body ?? {}, {
+        type: 'dispute',
+        scopeId: escrow.id,
+        userId: request.user.id,
+      })
+      if (body.length === 0 && attachment === null) {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'body or an attachment is required')
+      }
+
       const [inserted] = await fastify.db
         .insert(dispute_messages)
-        .values({ dispute_id: dispute.id, sender_id: request.user.id, body })
+        .values({
+          dispute_id: dispute.id,
+          sender_id: request.user.id,
+          body,
+          attachment_url: attachment?.attachment_url ?? null,
+          attachment_type: attachment?.attachment_type ?? null,
+          attachment_size: attachment?.attachment_size ?? null,
+        })
         .returning()
       // The sender has read everything up to their own message.
       await fastify.db

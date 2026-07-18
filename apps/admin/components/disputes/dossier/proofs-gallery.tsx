@@ -6,7 +6,7 @@ const KIND_GLYPH: Record<Exclude<ProofType, 'image'>, string> = {
   document: '📄',
 }
 
-function ProofTile({ url, type, label }: { url: string; type: ProofType; label: string }) {
+export function ProofTile({ url, type, label }: { url: string; type: ProofType; label: string }) {
   return (
     <a
       href={url}

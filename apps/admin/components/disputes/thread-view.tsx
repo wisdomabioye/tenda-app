@@ -25,6 +25,7 @@ import {
 } from '@tenda/shared'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { ProofTile } from '@/components/disputes/dossier/proofs-gallery'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
 import { useSessionUser } from '@/lib/use-session'
@@ -145,7 +146,18 @@ export function ThreadView({ escrowId, onAssignee, kind, parties }: ThreadViewPr
                   mine ? 'bg-primary text-primary-foreground' : 'bg-muted'
                 }`}
               >
-                <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                {m.attachment_url !== null && m.attachment_type !== null && (
+                  <div className="mb-1">
+                    <ProofTile
+                      url={m.attachment_url}
+                      type={m.attachment_type === 'image' ? 'image' : 'document'}
+                      label={m.attachment_type === 'image' ? 'Image evidence' : 'Document evidence'}
+                    />
+                  </div>
+                )}
+                {m.body.length > 0 && (
+                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                )}
                 <p className="mt-1 text-[10px] opacity-70">
                   {new Date(m.created_at).toLocaleString()}
                 </p>

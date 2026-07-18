@@ -4,7 +4,7 @@
  * pressable tile per proof with a type label and deep-links each on press.
  */
 import { render, fireEvent, screen } from '@testing-library/react-native'
-import type { ProofItem } from '@/components/shared/ProofViewerModal'
+import type { MediaItem } from '@/components/shared/media/types'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -26,7 +26,7 @@ jest.mock('@/components/ui/Text', () => {
 
 import { ProofsGrid } from '@/components/shared/ProofsGrid'
 
-const PROOFS: ProofItem[] = [
+const PROOFS: MediaItem[] = [
   { id: 'p1', url: 'https://cdn/x/a.jpg', type: 'image' },
   { id: 'p2', url: 'https://cdn/x/b.mp4', type: 'video' },
   { id: 'p3', url: 'https://cdn/x/c.pdf', type: 'document' },

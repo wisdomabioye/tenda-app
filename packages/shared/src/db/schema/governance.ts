@@ -121,6 +121,12 @@ export const dispute_messages = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'restrict' }),
     body: varchar('body', { length: 2000 }).notNull(),
+    // Optional evidence attachment, mirroring chat messages. URL must live
+    // under the dispute-scoped Cloudinary folder (validated at send). An
+    // attachment-only message carries an empty body.
+    attachment_url: text('attachment_url'),
+    attachment_type: text('attachment_type', { enum: ['image', 'file'] }),
+    attachment_size: integer('attachment_size'),
     // precision 3 (ms): the client's ?after cursor is this value round-
     // tripped through toISOString(), which carries milliseconds only —
     // µs-precision storage would re-include boundary rows on every poll.

@@ -1,3 +1,9 @@
+/**
+ * Full-screen media viewer: pinch-to-zoom images, in-app video playback, and
+ * a download action (gallery save for image/video, share sheet for docs).
+ * Neutral over the source of the media — used for escrow proofs and for chat /
+ * dispute message attachments alike.
+ */
 import { useState } from 'react'
 import {
   Modal,
@@ -9,44 +15,22 @@ import {
   ScrollView,
 } from 'react-native'
 import { Image } from 'expo-image'
-import { VideoView, useVideoPlayer, type VideoPlayer } from 'expo-video'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
 import { X, Download, FileText } from 'lucide-react-native'
-import { File, Paths } from 'expo-file-system/next'
-import * as MediaLibrary from 'expo-media-library'
-import * as Sharing from 'expo-sharing'
 import { Text } from '@/components/ui/Text'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
+import { downloadMedia } from '@/lib/media-download'
 import { spacing, radius } from '@/theme/tokens'
-
-export type ProofItem = {
-  id: string
-  url: string
-  type: 'image' | 'video' | 'document'
-}
-
-// Separate component so useVideoPlayer hook is always called unconditionally
-function InAppVideoPlayer({ url }: { url: string }) {
-  const player = useVideoPlayer(url, (p: VideoPlayer) => {
-    p.loop = false
-    p.play()
-  })
-  return (
-    <VideoView
-      player={player}
-      style={StyleSheet.absoluteFill}
-      nativeControls
-    />
-  )
-}
+import { InAppVideoPlayer } from './InAppVideoPlayer'
+import type { MediaItem } from './types'
 
 interface Props {
-  proof: ProofItem | null
+  item: MediaItem | null
   onClose: () => void
 }
 
-export function ProofViewerModal({ proof, onClose }: Props) {
+export function MediaViewerModal({ item, onClose }: Props) {
   const { theme } = useUnistyles()
   const insets = useSafeAreaInsets()
   const [downloading, setDownloading] = useState(false)
@@ -55,43 +39,28 @@ export function ProofViewerModal({ proof, onClose }: Props) {
   // BEHIND this fullscreen modal.
   const [notice, setNotice] = useState<string | null>(null)
 
-  if (!proof) return null
+  if (!item) return null
 
   async function handleDownload() {
-    if (!proof) return
+    if (!item) return
     setDownloading(true)
     try {
-      const ext =
-        proof.url.split('?')[0].split('.').pop() ??
-        (proof.type === 'image' ? 'jpg' : proof.type === 'video' ? 'mp4' : 'pdf')
-      const filename = `tenda_proof_${proof.id}.${ext}`
-      const file = new File(Paths.cache, filename)
-
-      const response = await fetch(proof.url)
-      if (!response.ok) throw new Error(`Server returned ${response.status}`)
-      const buffer = await response.arrayBuffer()
-      file.write(new Uint8Array(buffer))
-
-      if (proof.type === 'image' || proof.type === 'video') {
-        const { status, canAskAgain } = await MediaLibrary.requestPermissionsAsync()
-        if (status !== 'granted') {
-          if (!canAskAgain) setPermissionPrompt(true)
-          return
-        }
-        await MediaLibrary.saveToLibraryAsync(file.uri)
-        setNotice(`${proof.type === 'image' ? 'Image' : 'Video'} saved to your gallery.`)
-      } else {
-        await Sharing.shareAsync(file.uri)
+      const result = await downloadMedia(item)
+      if (result.kind === 'permission-denied') {
+        if (!result.canAskAgain) setPermissionPrompt(true)
+      } else if (result.kind === 'saved') {
+        setNotice(`${result.mediaType === 'image' ? 'Image' : 'Video'} saved to your gallery.`)
       }
+      // 'shared': the OS share sheet is its own feedback, no notice needed.
     } catch (e) {
-      setNotice((e as Error).message ?? 'Could not download the file.')
+      setNotice(e instanceof Error ? e.message : 'Could not download the file.')
     } finally {
       setDownloading(false)
     }
   }
 
   const typeLabel =
-    proof.type === 'image' ? 'IMAGE' : proof.type === 'video' ? 'VIDEO' : 'DOCUMENT'
+    item.type === 'image' ? 'IMAGE' : item.type === 'video' ? 'VIDEO' : 'DOCUMENT'
 
   // Black background is intentional, matches system gallery/camera UX.
   // Overlays are relative to that fixed black bg, not theme-dependent.
@@ -113,18 +82,18 @@ export function ProofViewerModal({ proof, onClose }: Props) {
             {downloading ? (
               <ActivityIndicator color="#fff" style={s.iconBtn} />
             ) : (
-              <Pressable onPress={handleDownload} style={s.iconBtn} hitSlop={12}>
+              <Pressable onPress={handleDownload} style={s.iconBtn} hitSlop={12} accessibilityLabel="Download">
                 <Download size={22} color="#fff" />
               </Pressable>
             )}
-            <Pressable onPress={onClose} style={s.iconBtn} hitSlop={12}>
+            <Pressable onPress={onClose} style={s.iconBtn} hitSlop={12} accessibilityLabel="Close">
               <X size={22} color="#fff" />
             </Pressable>
           </View>
         </View>
 
         {/* ── Content ── */}
-        {proof.type === 'image' && (
+        {item.type === 'image' && (
           <ScrollView
             style={s.flex}
             contentContainerStyle={s.imageContainer}
@@ -135,7 +104,7 @@ export function ProofViewerModal({ proof, onClose }: Props) {
             showsVerticalScrollIndicator={false}
           >
             <Image
-              source={{ uri: proof.url }}
+              source={{ uri: item.url }}
               style={s.fullImage}
               contentFit="contain"
               transition={200}
@@ -143,26 +112,26 @@ export function ProofViewerModal({ proof, onClose }: Props) {
           </ScrollView>
         )}
 
-        {proof.type === 'video' && (
+        {item.type === 'video' && (
           <View style={s.flex}>
-            <InAppVideoPlayer url={proof.url} />
+            <InAppVideoPlayer url={item.url} />
           </View>
         )}
 
-        {proof.type === 'document' && (
+        {item.type === 'document' && (
           <View style={s.mediaCenter}>
             <View style={[s.iconCircle, { backgroundColor: OVERLAY_DIM }]}>
               <FileText size={52} color="#fff" />
             </View>
             <Text variant="subheading" color="#fff" style={s.centred}>
-              Document proof
+              Document
             </Text>
             <Text variant="caption" color={OVERLAY_TEXT} style={s.centred}>
               Opens in your browser
             </Text>
             <Pressable
               style={[s.openBtn, { backgroundColor: theme.colors.brand.primary }]}
-              onPress={() => Linking.openURL(proof.url)}
+              onPress={() => Linking.openURL(item.url)}
             >
               <Text variant="body" weight="semibold" color={theme.colors.brand.onPrimary}>
                 Open document

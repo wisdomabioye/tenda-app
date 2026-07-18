@@ -4,7 +4,7 @@
  * messages. Polls the tail (recursive setTimeout, chat cadence); freezes
  * read-only once the dispute resolves.
  */
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { FlatList, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -14,6 +14,8 @@ import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
 import { ChatInput } from '@/components/ui/ChatInput'
+import { AttachSheet } from '@/components/shared/AttachSheet'
+import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import { ChatTimestampGroup } from '@/components/chat/ChatTimestampGroup'
 import { ErrorState } from '@/components/feedback'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
@@ -22,9 +24,12 @@ import { DisputeMessageBubble, type DisputeSenderKind } from '@/components/dispu
 import { DisputeContextHeader } from '@/components/dispute/DisputeContextHeader'
 import { useDisputeThread } from '@/hooks/useDisputeThread'
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'
+import { useAttachmentUpload } from '@/hooks/useAttachmentUpload'
 import { buildDisputeFeed, isDisputeDay } from '@/lib/dispute-thread'
+import { attachmentToMediaItem } from '@/lib/attachments'
 import { useAuthStore } from '@/stores/auth.store'
 import { spacing } from '@/theme/tokens'
+import type { MediaItem } from '@/components/shared/media/types'
 
 export default function DisputeThreadScreen() {
   const { escrowId } = useLocalSearchParams<{ escrowId: string }>()
@@ -33,8 +38,19 @@ export default function DisputeThreadScreen() {
   const insets = useSafeAreaInsets()
   const keyboardHeight = useKeyboardHeight()
   const myId = useAuthStore((s) => s.user?.id ?? '')
+  const [attachOpen, setAttachOpen] = useState(false)
+  const [viewing, setViewing] = useState<MediaItem | null>(null)
 
   const { loading, error, thread, messages, send, reload } = useDisputeThread(escrowId ?? null)
+
+  const { uploading, pick } = useAttachmentUpload({
+    type: 'dispute',
+    scopeId: escrowId ?? null,
+    onUploaded: async (attachment) => {
+      const ok = await send('', attachment)
+      if (!ok) showToast('error', 'Attachment not sent, try again')
+    },
+  })
 
   // Day headers + consecutive-sender grouping, reversed for the inverted list.
   const feed = useMemo(() => buildDisputeFeed(messages), [messages])
@@ -107,6 +123,7 @@ export default function DisputeThreadScreen() {
                 senderName={otherPartyName}
                 showSender={item.showSender}
                 showTime={item.showTime}
+                onAttachmentPress={(a) => setViewing(attachmentToMediaItem(a.id, a.url, a.type))}
               />
             )
           }
@@ -120,8 +137,17 @@ export default function DisputeThreadScreen() {
             </View>
           }
         />
+        {uploading && (
+          <Text size={12} color={theme.colors.content.tertiary} align="center" style={s.uploadingHint}>
+            Uploading attachment…
+          </Text>
+        )}
         {!thread.read_only ? (
-          <ChatInput onSend={(text) => void handleSend(text)} />
+          <ChatInput
+            onSend={(text) => void handleSend(text)}
+            onAttach={() => setAttachOpen(true)}
+            disabled={uploading}
+          />
         ) : (
           // Resolved threads drop the ChatInput, which was the only element
           // reserving the bottom safe-area. Without this spacer the inverted
@@ -129,6 +155,17 @@ export default function DisputeThreadScreen() {
           <View style={{ height: insets.bottom }} />
         )}
       </View>
+
+      <AttachSheet
+        visible={attachOpen}
+        onClose={() => setAttachOpen(false)}
+        onPick={(kind) => {
+          setAttachOpen(false)
+          void pick(kind)
+        }}
+      />
+
+      <MediaViewerModal item={viewing} onClose={() => setViewing(null)} />
     </ScreenContainer>
   )
 }
@@ -147,4 +184,5 @@ const s = StyleSheet.create({
   // adding one would render the copy upside-down.
   empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl },
   emptyText: { textAlign: 'center' },
+  uploadingHint: { paddingVertical: 4 },
 })

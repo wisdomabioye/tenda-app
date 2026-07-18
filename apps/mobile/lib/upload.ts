@@ -28,17 +28,18 @@ function rnFilePart(part: { uri: string; name: string; type: string }): Blob {
 /**
  * Upload a file to Cloudinary using a server-signed upload request.
  * Supports images, videos, and documents.
- * `conversationId` is required for type 'chat', the server scopes the
- * signed folder to the conversation and rejects unscoped requests.
+ * `scopeId` is required for scoped types ('chat' → conversation id, 'dispute'
+ * → escrow id); the server scopes the signed folder to it and rejects
+ * unscoped requests.
  */
 export async function uploadToCloudinaryDetailed(
   file: ProofFile,
   type: UploadType,
-  conversationId?: string,
+  scopeId?: string,
 ): Promise<UploadResult> {
   const { signature, timestamp, cloud_name, api_key, folder, allowed_formats, max_file_bytes } =
     await api.upload.signature(
-      conversationId !== undefined ? { type, conversation_id: conversationId } : { type },
+      scopeId !== undefined ? { type, scope_id: scopeId } : { type },
     )
 
   // Pre-flight guard, saves the user a doomed upload when the picker
@@ -92,7 +93,7 @@ export async function uploadToCloudinaryDetailed(
 export async function uploadToCloudinary(
   file: ProofFile,
   type: UploadType,
-  conversationId?: string,
+  scopeId?: string,
 ): Promise<string> {
-  return (await uploadToCloudinaryDetailed(file, type, conversationId)).url
+  return (await uploadToCloudinaryDetailed(file, type, scopeId)).url
 }

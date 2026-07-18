@@ -1,3 +1,5 @@
+import type { AttachmentFields, AttachmentInput } from './attachment'
+
 export type ConversationStatus = 'active' | 'closed'
 
 export interface ConversationParticipant {
@@ -24,7 +26,7 @@ export interface Conversation {
 /** Inbox/push preview placeholder for attachment-only messages (S5.2). */
 export const ATTACHMENT_PREVIEW = '📎 Attachment'
 
-export interface Message {
+export interface Message extends AttachmentFields {
   id: string
   conversation_id: string
   sender_id: string
@@ -35,22 +37,14 @@ export interface Message {
   /** Routes the context divider to the right detail surface. */
   escrow_kind: 'gig' | 'exchange' | null
   content: string
-  attachment_url: string | null
-  attachment_type: 'image' | 'file' | null
-  attachment_size: number | null
   read_at: string | null
   created_at: string | null
 }
 
-export interface SendMessageInput {
+export interface SendMessageInput extends AttachmentInput {
   content: string
   /** Optional context: the escrow this message is about. */
   escrow_id?: string
-  /** S5.2: Cloudinary URL under the conversation's chat folder. */
-  attachment_url?: string
-  attachment_type?: 'image' | 'file'
-  /** Bytes — client-reported; the hard cap is the upload preset. */
-  attachment_size?: number
 }
 
 export interface GigSubscription {

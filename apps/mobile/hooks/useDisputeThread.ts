@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DisputeMessage, DisputeThreadResponse } from '@tenda/shared'
 import { api } from '@/api/client'
+import type { UploadedAttachment } from '@/lib/attachments'
 
 const POLL_INTERVAL_MS = 4_000
 const POLL_IDLE_MS = 10_000
@@ -11,8 +12,8 @@ export interface DisputeThreadState {
   error: string | null
   thread: Omit<DisputeThreadResponse, 'messages'> | null
   messages: DisputeMessage[]
-  /** Append a message; resolves false when the send failed. */
-  send: (body: string) => Promise<boolean>
+  /** Append a message (optionally with an attachment); false when the send failed. */
+  send: (body: string, attachment?: UploadedAttachment) => Promise<boolean>
   /** Manual refresh (pull-to-refresh / retry). */
   reload: () => Promise<void>
 }
@@ -112,10 +113,20 @@ export function useDisputeThread(escrowId: string | null): DisputeThreadState {
   }, [load])
 
   const send = useCallback(
-    async (body: string): Promise<boolean> => {
+    async (body: string, attachment?: UploadedAttachment): Promise<boolean> => {
       if (escrowId === null) return false
       try {
-        const message = await api.escrows.sendDisputeMessage({ id: escrowId }, { body })
+        const message = await api.escrows.sendDisputeMessage(
+          { id: escrowId },
+          attachment !== undefined
+            ? {
+                body,
+                attachment_url: attachment.url,
+                attachment_type: attachment.type,
+                attachment_size: attachment.size,
+              }
+            : { body },
+        )
         applyBatch([message], false)
         return true
       } catch {

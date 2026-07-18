@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
+import type { UploadedAttachment } from '@/lib/attachments'
 import { ATTACHMENT_PREVIEW, type Conversation, type Message } from '@tenda/shared'
 
 // A message optimistically added before server confirmation
@@ -8,16 +9,10 @@ export type LocalMessage = Message & {
   _status?: 'sending' | 'sent' | 'failed'
 }
 
-/** Already-uploaded Cloudinary attachment riding along with a message. */
+/** The escrow (gig/exchange) a message is contextually attached to. */
 export interface EscrowContext {
   escrowId: string
   kind: 'gig' | 'exchange' | null
-}
-
-export interface MessageAttachment {
-  url: string
-  type: 'image' | 'file'
-  size: number
 }
 
 interface ChatState {
@@ -28,7 +23,7 @@ interface ChatState {
   fetchConversations: () => Promise<void>
   findOrCreate:       (userId: string) => Promise<Conversation>
   fetchMessages:      (conversationId: string, beforeId?: string) => Promise<Message[]>
-  sendMessage:        (conversationId: string, content: string, context?: EscrowContext, attachment?: MessageAttachment) => Promise<void>
+  sendMessage:        (conversationId: string, content: string, context?: EscrowContext, attachment?: UploadedAttachment) => Promise<void>
   retryMessage:       (conversationId: string, message: LocalMessage) => void
   closeConversation:  (conversationId: string) => Promise<void>
   appendMessage:      (conversationId: string, message: LocalMessage) => void

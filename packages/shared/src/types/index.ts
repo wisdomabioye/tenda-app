@@ -33,7 +33,9 @@ export { isGigAcceptable, computeCompletionDeadline } from './gig'
 export type { ExchangeSummary, ExchangeDetail, ExchangePayoutAccount, ExchangeListQuery, CreateExchangeDetailsBody } from './exchange'
 export type { Review, NewReview, ReviewInput, GetUserReviewsQuery } from './review'
 export type { NotificationWire, AnnouncementWire, NotificationFeed, NotificationsQuery } from './notification'
-export type { CloudinarySignature, UploadType } from './upload'
+export type { CloudinarySignature, UploadType, ScopedUploadType } from './upload'
+export { SCOPED_UPLOAD_TYPES, isScopedUploadType } from './upload'
+export type { MessageAttachmentType, AttachmentFields, AttachmentInput } from './attachment'
 export type { PaginatedResponse, ApiError } from './api'
 export type {
   Conversation,

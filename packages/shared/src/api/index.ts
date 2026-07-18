@@ -43,6 +43,7 @@ export type {
   MyRestriction,
   MyStandingResponse,
   UploadContract,
+  UploadSignatureBody,
   BlockchainContract,
   PermitTypedData,
   PermitPayloadBody,

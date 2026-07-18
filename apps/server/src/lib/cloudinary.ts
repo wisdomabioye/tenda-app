@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto'
 import { getConfig } from '@server/config'
-import type { CloudinarySignature, UploadType } from '@tenda/shared'
+import { isScopedUploadType, type CloudinarySignature, type UploadType } from '@tenda/shared'
+import { scopedUploadFolder } from '@server/lib/uploads/scoped'
 
-const FOLDER_MAP: Record<UploadType, string> = {
+/** Folders for the unscoped upload types; scoped folders come from the registry. */
+const UNSCOPED_FOLDER: Record<'avatar' | 'proof', string> = {
   avatar: 'tenda/avatars',
   proof: 'tenda/proofs',
-  chat: 'tenda/chat',
 }
 
 /**
@@ -26,52 +27,40 @@ export const UPLOAD_CONSTRAINTS: Record<
   avatar: { allowed_formats: 'jpg,png,webp', max_file_bytes: 10 * 1024 * 1024 },
   proof: { allowed_formats: 'jpg,png,webp,pdf', max_file_bytes: 10 * 1024 * 1024 },
   chat: { allowed_formats: 'jpg,png,webp,pdf', max_file_bytes: 10 * 1024 * 1024 },
-}
-
-/** Conversation-scoped chat folder, the send route validates URLs live here. */
-export function chatUploadFolder(conversation_id: string, user_id: string): string {
-  return `${FOLDER_MAP.chat}/${conversation_id}/${user_id}`
+  // Dispute evidence mirrors chat exactly (image + PDF, 10 MB).
+  dispute: { allowed_formats: 'jpg,png,webp,pdf', max_file_bytes: 10 * 1024 * 1024 },
 }
 
 /**
- * Strict attachment-URL check: parsed (query strings can't fake a match),
- * hostname pinned to Cloudinary, and the PATH must contain the
- * sender-scoped conversation folder, a signature minted for one
- * conversation cannot be replayed into another.
+ * Resolve the signed folder for an upload. Scoped types (chat, dispute) pin
+ * the folder to `<base>/<scopeId>/<userId>`; `proof` is per-user; `avatar` is
+ * a flat shared folder.
  */
-export function isValidChatAttachmentUrl(
-  url: string,
-  conversation_id: string,
-  user_id: string,
-): boolean {
-  let parsed: URL
-  try {
-    parsed = new URL(url)
-  } catch {
-    return false
+function resolveUploadFolder(
+  type: UploadType,
+  userId: string | undefined,
+  scopeId: string | undefined,
+): string {
+  if (isScopedUploadType(type)) {
+    if (scopeId === undefined || userId === undefined) {
+      // Fail loud: an unscoped signature would defeat the per-resource folder
+      // isolation the send routes rely on.
+      throw new Error(`${type} upload signatures require userId + scopeId`)
+    }
+    return scopedUploadFolder(type, scopeId, userId)
   }
-  if (parsed.protocol !== 'https:' || parsed.hostname !== 'res.cloudinary.com') return false
-  return parsed.pathname.includes(`/${chatUploadFolder(conversation_id, user_id)}/`)
+  if (type === 'proof' && userId !== undefined) return `${UNSCOPED_FOLDER.proof}/${userId}`
+  return UNSCOPED_FOLDER[type]
 }
 
 export function generateUploadSignature(
   type: UploadType,
   userId?: string,
-  conversationId?: string,
+  scopeId?: string,
 ): CloudinarySignature {
   const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = getConfig()
 
-  if (type === 'chat' && (conversationId === undefined || userId === undefined)) {
-    // Fail loud: an unscoped chat signature would defeat the per-
-    // conversation folder isolation the send route relies on.
-    throw new Error('chat upload signatures require userId + conversationId')
-  }
-  const folder =
-    type === 'chat' && conversationId !== undefined && userId !== undefined
-      ? chatUploadFolder(conversationId, userId)
-      : type === 'proof' && userId
-        ? `${FOLDER_MAP.proof}/${userId}`
-        : FOLDER_MAP[type]
+  const folder = resolveUploadFolder(type, userId, scopeId)
   const timestamp = Math.round(Date.now() / 1000)
   const constraints = UPLOAD_CONSTRAINTS[type]
 

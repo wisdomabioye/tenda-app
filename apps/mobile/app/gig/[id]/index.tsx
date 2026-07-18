@@ -17,7 +17,8 @@ import {
   GigActionSheets,
   type ActiveSheet,
 } from '@/components/gig'
-import { ProofViewerModal, type ProofItem } from '@/components/shared/ProofViewerModal'
+import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
+import type { MediaItem } from '@/components/shared/media/types'
 import { DetailChrome, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
 import { TransactionMonitor, LoadingScreen, ErrorState } from '@/components/feedback'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
@@ -49,7 +50,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   const [activeSheet, setActiveSheet] = useState<ActiveSheet | null>(null)
   const [confirmAction, setConfirmAction] = useState<EscrowTxType | null>(null)
-  const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
+  const [selectedProof, setSelectedProof] = useState<MediaItem | null>(null)
   const [reportGigOpen, setReportGigOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showAcceptNudge, setShowAcceptNudge] = useState(false)
@@ -214,7 +215,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           }}
         />
 
-        <ProofViewerModal proof={selectedProof} onClose={() => setSelectedProof(null)} />
+        <MediaViewerModal item={selectedProof} onClose={() => setSelectedProof(null)} />
 
         <ReportSheet
           visible={reportGigOpen}

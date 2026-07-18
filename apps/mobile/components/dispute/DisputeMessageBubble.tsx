@@ -1,8 +1,10 @@
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
+import { AttachmentPreview } from '@/components/shared/media/AttachmentPreview'
 import { useIsDark } from '@/lib/theme'
 import { formatConvoTime } from '@/lib/date'
+import type { AttachmentPress } from '@/lib/attachments'
 import type { DisputeMessage } from '@tenda/shared'
 
 export type DisputeSenderKind = 'me' | 'party' | 'mediator'
@@ -16,6 +18,7 @@ interface Props {
   showSender?: boolean
   /** Render the timestamp — true only at the end of a same-sender run. */
   showTime?: boolean
+  onAttachmentPress?: (attachment: AttachmentPress) => void
 }
 
 // Same calmed blues as chat's MessageBubble; the mediator gets a neutral
@@ -29,6 +32,7 @@ export function DisputeMessageBubble({
   senderName,
   showSender = true,
   showTime = true,
+  onAttachmentPress,
 }: Props) {
   const { theme } = useUnistyles()
   const isDark = useIsDark()
@@ -38,6 +42,8 @@ export function DisputeMessageBubble({
   const bubbleBg = isMine ? (isDark ? ME_BG_DARK : ME_BG_LIGHT) : themBg
   const textColor = isMine ? '#FFFFFF' : theme.colors.content.primary
   const label = sender === 'mediator' ? 'Mediator' : (senderName ?? 'Other party')
+  const attachmentUrl = message.attachment_url
+  const attachmentType = message.attachment_type
 
   return (
     <View
@@ -58,7 +64,17 @@ export function DisputeMessageBubble({
             {label}
           </Text>
         )}
-        <Text color={textColor}>{message.body}</Text>
+        {attachmentUrl !== null && attachmentType !== null && (
+          <AttachmentPreview
+            url={attachmentUrl}
+            type={attachmentType}
+            textColor={textColor}
+            onPress={() =>
+              onAttachmentPress?.({ id: message.id, url: attachmentUrl, type: attachmentType })
+            }
+          />
+        )}
+        {message.body.length > 0 && <Text color={textColor} style={attachmentUrl !== null && s.bodyBelowAttachment}>{message.body}</Text>}
         {showTime && (
           <Text
             variant="caption"
@@ -90,4 +106,5 @@ const s = StyleSheet.create({
     gap: 2,
   },
   time: { alignSelf: 'flex-end' },
+  bodyBelowAttachment: { marginTop: 6 },
 })

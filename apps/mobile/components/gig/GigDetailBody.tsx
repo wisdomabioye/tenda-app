@@ -5,7 +5,7 @@ import { spacing } from '@/theme/tokens'
 import { Text, Badge, Divider, Spacer } from '@/components/ui'
 import { GigMetaInfo } from './GigMetaInfo'
 import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel } from '@/lib/gig-display'
-import { PersonCard, ReviewsSection, ProofsGrid, type ProofItem } from '@/components/shared'
+import { PersonCard, ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
 import { DisputeReasonBlock, ReportContentLink, ChainBadge } from '@/components/escrow'
 import { CATEGORY_META } from '@/lib/categories'
 import { computeRelevantDeadline } from '@tenda/shared'
@@ -14,7 +14,7 @@ import type { GigDetail } from '@tenda/shared'
 interface Props {
   gig: GigDetail
   userId: string
-  onProofPress: (proof: ProofItem) => void
+  onProofPress: (proof: MediaItem) => void
   onReport: () => void
   /** CO7: opens the shared dispute-mediation thread (parties only). */
   onOpenDisputeThread?: () => void

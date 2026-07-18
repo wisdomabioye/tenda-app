@@ -8,8 +8,8 @@ import { ScreenContainer, Text, Badge, Divider, Spacer, showToast } from '@/comp
 import { GigActionSheets, type ActiveSheet } from '@/components/gig'
 import { ExchangeStatusBadge, ExchangeTermsCard, ExchangeCTA, PaymentInstructionsCard, shouldShowPaymentInstructions } from '@/components/exchange'
 import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
-import { PersonCard, ReviewsSection, ProofsGrid, type ProofItem } from '@/components/shared'
-import { ProofViewerModal } from '@/components/shared/ProofViewerModal'
+import { PersonCard, ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
+import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import { TransactionMonitor } from '@/components/feedback'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { formatFiat } from '@/lib/currency'
@@ -51,7 +51,7 @@ export function ExchangeDetailContent({
   const [confirmAction, setConfirmAction] = useState<EscrowTxType | null>(null)
   const [reportOpen, setReportOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [selectedProof, setSelectedProof] = useState<ProofItem | null>(null)
+  const [selectedProof, setSelectedProof] = useState<MediaItem | null>(null)
 
   const actions = useEscrowActions({
     escrowId: offer.escrow_id,
@@ -278,7 +278,7 @@ export function ExchangeDetailContent({
 
       <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} contentType="escrow" contentId={offer.escrow_id} />
 
-      <ProofViewerModal proof={selectedProof} onClose={() => setSelectedProof(null)} />
+      <MediaViewerModal item={selectedProof} onClose={() => setSelectedProof(null)} />
     </ScreenContainer>
   )
 }

@@ -6,7 +6,16 @@ import { buildDisputeFeed, isDisputeDay, type DisputeFeedItem } from '@/lib/disp
 import type { DisputeMessage } from '@tenda/shared'
 
 function msg(id: string, sender_id: string, created_at: string): DisputeMessage {
-  return { id, dispute_id: 'd1', sender_id, body: `body-${id}`, created_at }
+  return {
+    id,
+    dispute_id: 'd1',
+    sender_id,
+    body: `body-${id}`,
+    attachment_url: null,
+    attachment_type: null,
+    attachment_size: null,
+    created_at,
+  }
 }
 
 /** Un-reverse for readable oldest→newest assertions. */

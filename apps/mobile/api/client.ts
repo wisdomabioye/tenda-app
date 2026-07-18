@@ -10,7 +10,7 @@ import {
   type GigDetailsRow,
   type PaginatedResponse,
   type CloudinarySignature,
-  type UploadType,
+  type UploadSignatureBody,
   type Review,
   type ReviewInput,
   type GetUserReviewsQuery,
@@ -245,7 +245,7 @@ export const api = {
   },
 
   upload: {
-    signature: (body: { type: UploadType; conversation_id?: string }) =>
+    signature: (body: UploadSignatureBody) =>
       request<CloudinarySignature>('POST', upload.signature, { body }),
   },
 

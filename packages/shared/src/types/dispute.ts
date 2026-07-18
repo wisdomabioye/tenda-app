@@ -6,6 +6,7 @@
 import type { InferSelectModel } from 'drizzle-orm'
 import type { dispute_messages, dispute_resolutions } from '../db/schema'
 import type { EscrowKind, EscrowStatus } from './escrow'
+import type { AttachmentFields, AttachmentInput } from './attachment'
 import type { DossierParty } from './dossier'
 import type { PartyRole } from '../utils/parties'
 import type { UnsignedTx } from '../api/contracts/escrows.contract'
@@ -83,7 +84,7 @@ export interface ResolutionExecuteBuild {
 }
 
 /** Wire shape (Date → ISO string). */
-export interface DisputeMessage {
+export interface DisputeMessage extends AttachmentFields {
   id: string
   dispute_id: string
   sender_id: string
@@ -137,7 +138,7 @@ export interface DisputeThreadResponse {
 }
 
 /** POST /v1/escrows/:id/dispute/messages */
-export interface SendDisputeMessageBody {
+export interface SendDisputeMessageBody extends AttachmentInput {
   body: string
 }
 

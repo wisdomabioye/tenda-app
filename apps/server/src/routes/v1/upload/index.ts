@@ -1,12 +1,13 @@
 import { FastifyPluginAsync } from 'fastify'
-import { and, eq, or } from 'drizzle-orm'
-import { conversations } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, isScopedUploadType } from '@tenda/shared'
 import { generateUploadSignature } from '@server/lib/cloudinary'
+import { authorizeScopedUpload } from '@server/lib/uploads/scoped'
 import { AppError, requireBody } from '@server/lib/errors'
-import type { UploadContract, ApiError } from '@tenda/shared'
+import type { UploadContract, UploadType, ApiError } from '@tenda/shared'
 
 type SignatureRoute = UploadContract['signature']
+
+const UPLOAD_TYPES: readonly UploadType[] = ['avatar', 'proof', 'chat', 'dispute']
 
 const upload: FastifyPluginAsync = async (fastify) => {
   // POST /v1/upload/signature, return Cloudinary signed params
@@ -17,35 +18,21 @@ const upload: FastifyPluginAsync = async (fastify) => {
     '/signature',
     { preHandler: [fastify.authenticate] },
     async (request) => {
-      const { type, conversation_id } = requireBody(request.body)
+      const { type, scope_id } = requireBody(request.body)
 
-      if (!type || (type !== 'avatar' && type !== 'proof' && type !== 'chat')) {
-        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'type must be "avatar", "proof" or "chat"')
+      if (!type || !UPLOAD_TYPES.includes(type)) {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'type must be "avatar", "proof", "chat" or "dispute"')
       }
 
-      // S5.2: chat uploads are scoped to a conversation the caller belongs
-      // to, membership checked BEFORE a signature is issued.
-      if (type === 'chat') {
-        if (typeof conversation_id !== 'string' || conversation_id === '') {
-          throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'conversation_id is required for chat uploads')
+      // Scoped uploads (chat → conversation, dispute → escrow) are pinned to a
+      // resource the caller must belong to; membership/access is checked
+      // BEFORE a signature is issued, and the signed folder is sender-scoped.
+      if (isScopedUploadType(type)) {
+        if (typeof scope_id !== 'string' || scope_id === '') {
+          throw new AppError(400, ErrorCode.VALIDATION_ERROR, `scope_id is required for ${type} uploads`)
         }
-        const member = await fastify.db
-          .select({ id: conversations.id })
-          .from(conversations)
-          .where(
-            and(
-              eq(conversations.id, conversation_id),
-              or(
-                eq(conversations.user_a_id, request.user.id),
-                eq(conversations.user_b_id, request.user.id),
-              ),
-            ),
-          )
-          .limit(1)
-        if (member.length === 0) {
-          throw new AppError(403, ErrorCode.FORBIDDEN, 'not a member of this conversation')
-        }
-        return generateUploadSignature('chat', request.user.id, conversation_id)
+        await authorizeScopedUpload(fastify.db, type, request.user, scope_id)
+        return generateUploadSignature(type, request.user.id, scope_id)
       }
 
       return generateUploadSignature(type, type === 'proof' ? request.user.id : undefined)

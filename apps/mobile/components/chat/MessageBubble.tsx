@@ -1,16 +1,17 @@
-import { View, Pressable, StyleSheet, Linking } from 'react-native'
+import { View, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { Image } from 'expo-image'
-import { FileText } from 'lucide-react-native'
 import { Text } from '@/components/ui/Text'
+import { AttachmentPreview } from '@/components/shared/media/AttachmentPreview'
 import { useIsDark } from '@/lib/theme'
+import type { AttachmentPress } from '@/lib/attachments'
 import type { LocalMessage } from '@/stores/chat.store'
 
 interface MessageBubbleProps {
-  message:       LocalMessage
-  isMine:        boolean
-  onRetry?:      () => void
-  onLongPress?:  () => void
+  message:            LocalMessage
+  isMine:             boolean
+  onRetry?:           () => void
+  onLongPress?:       () => void
+  onAttachmentPress?: (attachment: AttachmentPress) => void
 }
 
 // Custom softer chat-bubble blues, derived from brand but desaturated
@@ -20,7 +21,7 @@ interface MessageBubbleProps {
 const ME_BG_LIGHT = '#4365D2'
 const ME_BG_DARK  = '#3F5BA8'
 
-export function MessageBubble({ message, isMine, onRetry, onLongPress }: MessageBubbleProps) {
+export function MessageBubble({ message, isMine, onRetry, onLongPress, onAttachmentPress }: MessageBubbleProps) {
   const { theme } = useUnistyles()
   const isDark = useIsDark()
 
@@ -42,6 +43,7 @@ export function MessageBubble({ message, isMine, onRetry, onLongPress }: Message
   const containerStyle = [s.row, isMine ? s.rowMine : s.rowTheirs]
 
   const attachmentUrl = message.attachment_url
+  const attachmentType = message.attachment_type
 
   return (
     <View style={containerStyle}>
@@ -59,27 +61,16 @@ export function MessageBubble({ message, isMine, onRetry, onLongPress }: Message
             pressed && (isFailed || (!isMine && onLongPress)) && s.bubblePressed,
           ]}
         >
-          {attachmentUrl !== null && message.attachment_type === 'image' && (
-            <Image
-              source={{ uri: attachmentUrl }}
-              style={s.attachmentImage}
-              contentFit="cover"
-              accessibilityLabel="Image attachment"
+          {attachmentUrl !== null && attachmentType !== null && (
+            <AttachmentPreview
+              url={attachmentUrl}
+              type={attachmentType}
+              textColor={textColor}
+              onPress={() =>
+                onAttachmentPress?.({ id: message.id, url: attachmentUrl, type: attachmentType })
+              }
+              onLongPress={!isMine ? onLongPress : undefined}
             />
-          )}
-
-          {attachmentUrl !== null && message.attachment_type === 'file' && (
-            <Pressable
-              onPress={() => { void Linking.openURL(attachmentUrl) }}
-              style={({ pressed }) => [s.fileChip, pressed && { opacity: 0.7 }]}
-              accessibilityLabel="Open document attachment"
-              accessibilityRole="link"
-            >
-              <FileText size={16} color={textColor} />
-              <Text size={13} weight="medium" color={textColor}>
-                Document
-              </Text>
-            </Pressable>
           )}
 
           {message.content.length > 0 && (
@@ -160,17 +151,6 @@ const s = StyleSheet.create({
   },
   contentBelowAttachment: {
     marginTop: 6,
-  },
-  attachmentImage: {
-    width: 220,
-    height: 220,
-    borderRadius: 12,
-  },
-  fileChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 2,
   },
   retryRow: {
     flexDirection: 'row',
