@@ -4,7 +4,7 @@
  * implementation for production and in-memory fakes in tests.
  */
 
-import { createPublicClient, http, type Abi } from 'viem'
+import { createPublicClient, fallback, http, type Abi } from 'viem'
 import { TENDA_ESCROW_EVM_ABI } from '@tenda/shared/abi'
 
 /** The contract ABI, narrowed once at this boundary (same pattern as the
@@ -63,6 +63,15 @@ export interface EvmRpc {
 }
 
 export const DEFAULT_EVM_RPC_TIMEOUT_MS = 15_000
+
+/**
+ * Per-endpoint attempt timeout when a fallback RPC is configured. Failover IS
+ * the retry (two independent providers beat re-hitting a degraded one), so
+ * each transport gets one bounded attempt: worst case 2 × 6s = 12s, inside
+ * the mobile client's 20s tx-build budget (TX_BUILD_TIMEOUT_MS) — a dead
+ * primary degrades to ~6s + fallback latency instead of an aborted request.
+ */
+export const FALLBACK_EVM_RPC_TIMEOUT_MS = 6_000
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
@@ -204,9 +213,33 @@ export function evmRpcFromClient(client: EvmClientPort): EvmRpc {
   }
 }
 
-export function createEvmRpc(args: { rpc_url: string; timeout_ms?: number }): EvmRpc {
+export function createEvmRpc(args: {
+  rpc_url: string
+  /** Secondary endpoint; presence switches to the failover transport. */
+  rpc_url_fallback?: string
+  timeout_ms?: number
+}): EvmRpc {
+  const transport =
+    args.rpc_url_fallback !== undefined
+      ? fallback(
+          [
+            http(args.rpc_url, {
+              timeout: args.timeout_ms ?? FALLBACK_EVM_RPC_TIMEOUT_MS,
+              retryCount: 0,
+            }),
+            http(args.rpc_url_fallback, {
+              timeout: args.timeout_ms ?? FALLBACK_EVM_RPC_TIMEOUT_MS,
+              retryCount: 0,
+            }),
+          ],
+          // No aggregate retries either: both providers failing once is a real
+          // outage, surface it inside the client's budget rather than stacking
+          // delays past it. rank stays off, the primary is always tried first.
+          { retryCount: 0 },
+        )
+      : http(args.rpc_url, { timeout: args.timeout_ms ?? DEFAULT_EVM_RPC_TIMEOUT_MS })
   const vc = createPublicClient({
-    transport: http(args.rpc_url, { timeout: args.timeout_ms ?? DEFAULT_EVM_RPC_TIMEOUT_MS }),
+    transport,
     // Confirmation counting needs a FRESH head: viem's default ~4s
     // blockNumber cache can lag the receipt's block (a stale head only
     // delays confirmation in prod, but reads negative on instant-mining

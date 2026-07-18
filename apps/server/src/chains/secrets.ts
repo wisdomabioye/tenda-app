@@ -53,6 +53,9 @@ const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
   ],
   eip155: [
     { key: 'rpcUrl', envSuffix: 'RPC_URL', required: true, kind: 'url' },
+    // Secondary RPC endpoint: when set, the adapter's transport fails over to
+    // it on primary errors/timeouts (a degraded provider can't block tx builds).
+    { key: 'rpcUrlFallback', envSuffix: 'RPC_URL_FALLBACK', required: false, kind: 'url' },
     { key: 'escrow', envSuffix: 'ESCROW_ADDR', required: true, kind: 'evmAddr' },
     { key: 'treasury', envSuffix: 'TREASURY_ADDR', required: true, kind: 'evmAddr' },
     { key: 'disputeAdmin', envSuffix: 'DISPUTE_ADMIN_ADDR', required: false, kind: 'evmAddr' },
@@ -77,6 +80,7 @@ export type ResolvedChainSecret =
       namespace: 'eip155'
       chainId: string
       rpcUrl: string
+      rpcUrlFallback?: string
       escrow: string
       treasury: string
       disputeAdmin?: string
@@ -165,6 +169,7 @@ function assemble(
     namespace: 'eip155',
     chainId: entry.id,
     rpcUrl: must(present, 'rpcUrl', entry.id),
+    rpcUrlFallback: present.get('rpcUrlFallback'),
     escrow: must(present, 'escrow', entry.id),
     treasury: must(present, 'treasury', entry.id),
     disputeAdmin: present.get('disputeAdmin'),

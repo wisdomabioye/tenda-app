@@ -32,6 +32,21 @@ export interface AdapterDepsFactory {
   evm(chainId: ChainId, secret: EvmChainSecret, entry: ChainManifestEntry): EvmAdapterDeps
 }
 
+/**
+ * Failover endpoint for an EVM chain: the explicit RPC_URL_FALLBACK secret
+ * when set, else the manifest's publicRpcUrl (guaranteed on EVM entries, and
+ * a different operator than any keyed primary). Dropped when it would
+ * duplicate the primary — failing over to the endpoint that just failed
+ * buys nothing.
+ */
+export function resolveEvmRpcFallback(
+  secret: EvmChainSecret,
+  entry: ChainManifestEntry,
+): string | undefined {
+  const fallback = secret.rpcUrlFallback ?? entry.publicRpcUrl
+  return fallback !== undefined && fallback !== secret.rpcUrl ? fallback : undefined
+}
+
 /** A feeCurrency chain's stable-gas token address, guaranteed by the manifest. */
 function requireFeeCurrency(entry: ChainManifestEntry): `0x${string}` {
   const addr = feeCurrencyAddress(entry)
@@ -63,10 +78,12 @@ export function buildAdapters(
         }),
       )
     } else {
+      const rpc_url_fallback = resolveEvmRpcFallback(secret, entry)
       adapters.push(
         evmAdapter({
           chain_id: secret.chainId,
           rpc_url: secret.rpcUrl,
+          ...(rpc_url_fallback !== undefined ? { rpc_url_fallback } : {}),
           escrow_contract: secret.escrow as `0x${string}`,
           min_confirmations: entry.minConfirmations,
           dispute_authority: secret.disputeAdmin,

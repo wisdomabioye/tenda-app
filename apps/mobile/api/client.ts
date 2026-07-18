@@ -112,6 +112,16 @@ const {
  */
 const MODERATION_TIMEOUT_MS = 20_000
 
+/**
+ * Timeout budget (ms) for tx-build endpoints that make live EVM RPC reads
+ * server-side: dispute (readEscrow) and permit-payload (name/nonces/
+ * DOMAIN_SEPARATOR). The server's viem transport waits up to 15s per RPC
+ * attempt (DEFAULT_EVM_RPC_TIMEOUT_MS), so the global 5s dev default aborts
+ * the request while the server is still waiting on a slow RPC (raw
+ * "Aborted", wallet never opens). Keep above the server RPC timeout.
+ */
+const TX_BUILD_TIMEOUT_MS = 20_000
+
 export const api = {
   auth: {
     nonce: () => request<AuthNonceResponse>('POST', auth.nonce),
@@ -165,8 +175,14 @@ export const api = {
       request<EscrowActionResponse>('POST', escrows.cancel, { params }),
     refund: (params: { id: string }) =>
       request<EscrowActionResponse>('POST', escrows.refund, { params }),
+    // Dispute is the one escrow transition whose EVM buildTx reads on-chain
+    // state (the bond's asset), so it inherits the RPC timeout budget.
     dispute: (params: { id: string }, body: DisputeEscrowApiBody) =>
-      request<EscrowActionResponse>('POST', escrows.dispute, { params, body }),
+      request<EscrowActionResponse>('POST', escrows.dispute, {
+        params,
+        body,
+        timeout: TX_BUILD_TIMEOUT_MS,
+      }),
     // CO7 mediation thread, one shared conversation per dispute.
     disputeThread: (params: { id: string }, query?: { after?: string }) =>
       request<DisputeThreadResponse>('GET', escrows.disputeMessages, { params, query }),
@@ -273,9 +289,13 @@ export const api = {
   blockchain: {
     clientPing: (body: ClientPingBody) =>
       request<ClientPingResponse>('POST', blockchain.clientPing, { body }),
-    // EIP-2612: server-built typed data for eth_signTypedData_v4.
+    // EIP-2612: server-built typed data for eth_signTypedData_v4. Reads
+    // name/nonces/DOMAIN_SEPARATOR off the token live → RPC timeout budget.
     permitPayload: (body: PermitPayloadBody) =>
-      request<PermitPayloadResponse>('POST', blockchain.permitPayload, { body }),
+      request<PermitPayloadResponse>('POST', blockchain.permitPayload, {
+        body,
+        timeout: TX_BUILD_TIMEOUT_MS,
+      }),
   },
 
   platform: {

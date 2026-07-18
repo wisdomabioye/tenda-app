@@ -208,6 +208,31 @@ test('all errors are aggregated into one throw', () => {
   }
 })
 
+// ---------- RPC_URL_FALLBACK (EVM failover endpoint) -------------------------
+
+test('rpc fallback: EVM reads an optional secondary url', () => {
+  const env = { ...baseMainnetEnv(), CHAIN_EIP155_8453_RPC_URL_FALLBACK: 'https://mainnet.base.org' }
+  const base = loadChainSecrets(env).get('eip155:8453')
+  assert.ok(base && base.namespace === 'eip155')
+  assert.equal(base.rpcUrlFallback, 'https://mainnet.base.org')
+})
+
+test('rpc fallback: absent leaves it undefined, no error', () => {
+  const base = loadChainSecrets(baseMainnetEnv()).get('eip155:8453')
+  assert.ok(base && base.namespace === 'eip155')
+  assert.equal(base.rpcUrlFallback, undefined)
+})
+
+test('rpc fallback: a malformed url is a boot error naming the key', () => {
+  const env = { ...baseMainnetEnv(), CHAIN_EIP155_8453_RPC_URL_FALLBACK: 'not a url' }
+  assert.throws(() => loadChainSecrets(env), /malformed value\(s\) for CHAIN_EIP155_8453_RPC_URL_FALLBACK/)
+})
+
+test('rpc fallback: not a Solana key — the typo guard rejects it there', () => {
+  const env = { ...solanaDevnetEnv(), CHAIN_SOLANA_DEVNET_RPC_URL_FALLBACK: RPC }
+  assert.throws(() => loadChainSecrets(env), /unrecognised chain env var.*CHAIN_SOLANA_DEVNET_RPC_URL_FALLBACK/s)
+})
+
 // ---------- dispute_admin authority (Issue-3 C2 pre-flight) -----------------
 
 test('dispute_admin authority: Solana reads a base58 value, per chain', () => {

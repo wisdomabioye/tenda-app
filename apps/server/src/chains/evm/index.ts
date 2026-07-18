@@ -76,6 +76,8 @@ export interface EvmAdapterArgs {
   /** CAIP-2 id, e.g. `'eip155:8453'`. */
   chain_id: ChainId
   rpc_url: string
+  /** Secondary RPC endpoint, failover on primary errors/timeouts. */
+  rpc_url_fallback?: string
   /** Deployed TendaEscrow address on this chain. */
   escrow_contract: `0x${string}`
   /** Reorg safety margin before a receipt counts as confirmed. */
@@ -97,7 +99,12 @@ export interface EvmAdapterArgs {
 const EVM_STATUS: ReadonlyArray<EscrowState['status']> = ESCROW_STATUS_ORDER
 
 export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
-  const rpc = args.deps.rpc ?? createEvmRpc({ rpc_url: args.rpc_url })
+  const rpc =
+    args.deps.rpc ??
+    createEvmRpc({
+      rpc_url: args.rpc_url,
+      ...(args.rpc_url_fallback !== undefined ? { rpc_url_fallback: args.rpc_url_fallback } : {}),
+    })
 
   async function buildTx(build: BuildTxArgs): Promise<UnsignedTx> {
     const ctx = await buildContext(build)

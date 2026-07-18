@@ -6,8 +6,14 @@
  */
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { buildAdapters, buildChainRegistry, type AdapterDepsFactory } from '@server/chains'
+import {
+  buildAdapters,
+  buildChainRegistry,
+  resolveEvmRpcFallback,
+  type AdapterDepsFactory,
+} from '@server/chains'
 import { loadChainSecrets } from '@server/chains/secrets'
+import { chainById } from '@tenda/shared'
 
 const SOL = 'So11111111111111111111111111111111111111112'
 const EVM = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
@@ -80,4 +86,54 @@ test('buildChainRegistry: get() throws on an unregistered chain id', () => {
 test('buildChainRegistry: a duplicate chain id throws at build', () => {
   const adapters = buildAdapters(solSecrets(), STUB)
   assert.throws(() => buildChainRegistry([...adapters, ...adapters]), /duplicate chain registration/)
+})
+
+// ---------- resolveEvmRpcFallback (failover endpoint selection) --------------
+
+test('rpc fallback: defaults to the manifest publicRpcUrl when no override', () => {
+  const secret = baseSecrets().get('eip155:8453')
+  assert.ok(secret && secret.namespace === 'eip155')
+  assert.strictEqual(
+    resolveEvmRpcFallback(secret, chainById('eip155:8453')),
+    'https://mainnet.base.org',
+  )
+})
+
+test('rpc fallback: the RPC_URL_FALLBACK secret overrides the default', () => {
+  const secrets = loadChainSecrets({
+    CHAIN_EIP155_8453_RPC_URL: RPC,
+    CHAIN_EIP155_8453_RPC_URL_FALLBACK: 'https://keyed-fallback.example/v2/key',
+    CHAIN_EIP155_8453_ESCROW_ADDR: EVM,
+    CHAIN_EIP155_8453_TREASURY_ADDR: EVM,
+  })
+  const secret = secrets.get('eip155:8453')
+  assert.ok(secret && secret.namespace === 'eip155')
+  assert.strictEqual(
+    resolveEvmRpcFallback(secret, chainById('eip155:8453')),
+    'https://keyed-fallback.example/v2/key',
+  )
+})
+
+test('rpc fallback: dropped when it would duplicate the primary', () => {
+  // Primary IS the public endpoint → failing over to itself is pointless.
+  const secrets = loadChainSecrets({
+    CHAIN_EIP155_8453_RPC_URL: 'https://mainnet.base.org',
+    CHAIN_EIP155_8453_ESCROW_ADDR: EVM,
+    CHAIN_EIP155_8453_TREASURY_ADDR: EVM,
+  })
+  const secret = secrets.get('eip155:8453')
+  assert.ok(secret && secret.namespace === 'eip155')
+  assert.strictEqual(resolveEvmRpcFallback(secret, chainById('eip155:8453')), undefined)
+})
+
+test('rpc fallback: an explicit override equal to the primary is also dropped', () => {
+  const secrets = loadChainSecrets({
+    CHAIN_EIP155_8453_RPC_URL: RPC,
+    CHAIN_EIP155_8453_RPC_URL_FALLBACK: RPC,
+    CHAIN_EIP155_8453_ESCROW_ADDR: EVM,
+    CHAIN_EIP155_8453_TREASURY_ADDR: EVM,
+  })
+  const secret = secrets.get('eip155:8453')
+  assert.ok(secret && secret.namespace === 'eip155')
+  assert.strictEqual(resolveEvmRpcFallback(secret, chainById('eip155:8453')), undefined)
 })
