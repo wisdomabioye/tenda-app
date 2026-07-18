@@ -38,6 +38,9 @@ export const appKit = reownConfigured
       storage: reownStorage,
       networks: EVM_NETWORKS,
       adapters: [new EthersAdapter()],
+      // Wallets only: hide the web2 (email + social) sign-in options — Tenda is
+      // strictly non-custodial, so embedded-wallet auth must not be offered.
+      features: { socials: false },
       metadata: {
         name: metadata.name,
         description: metadata.description,
