@@ -20,8 +20,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // Stage 9C, Sign in with Apple entitlement (App Store 4.8: required
     // alongside Google sign-in). The expo-apple-authentication plugin adds it.
     usesAppleSignIn: true,
-    // backgroundColor: '',
-    // icon: '',
+    icon: {
+      light: './assets/images/icon.png',
+      dark: './assets/images/ios-icon-dark.png',
+      tinted: './assets/images/ios-icon-tinted.png',
+    },
   },
   android: {
     // 'resize' pairs with the app-wide KeyboardAvoidingView idiom
@@ -31,7 +34,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // edge tucked under the keyboard.
     softwareKeyboardLayoutMode: 'resize',
     adaptiveIcon: {
-      backgroundColor: '#3b82f6',
+      // Navy from the brand badge; the foreground is glyph-only ("t" + dot) so
+      // the OS mask (circle/squircle) produces the badge shape itself.
+      backgroundColor: '#000B22',
       foregroundImage: './assets/images/android-icon-foreground.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
@@ -64,20 +69,23 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-notifications',
       {
-        icon: './assets/images/splash-icon.png',
-        color: '#1b1b1b',
+        // Must be white-on-transparent: Android tints the small icon by alpha.
+        icon: './assets/images/notification-icon.png',
+        color: '#1250E3',
         defaultChannel: 'default',
       },
     ],
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#1b1b1b',
-        android: {
-          image: "./assets/images/splash-icon.png",
-          imageWidth: 50
-        }
-      }
+        backgroundColor: '#ffffff',
+        image: './assets/images/splash-icon.png',
+        imageWidth: 180,
+        dark: {
+          backgroundColor: '#1b1b1b',
+          image: './assets/images/splash-icon-dark.png',
+        },
+      },
     ],
     [
       '@sentry/react-native/expo',
