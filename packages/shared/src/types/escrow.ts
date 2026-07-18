@@ -40,6 +40,8 @@ export interface UserEscrowTransaction {
   tx_ref: string
   amount_raw: string | null
   platform_fee_raw: string | null
+  /** Resolve rows only: the creator's principal share (amount_raw carries the counterparty's). */
+  creator_payout_raw: string | null
   actor_id: string | null
   created_at: string | null
   /** Populated for resolve transactions only; null otherwise. */

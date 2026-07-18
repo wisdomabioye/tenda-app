@@ -198,8 +198,20 @@ export const escrow_transactions = pgTable(
       .references(() => escrows.id, { onDelete: 'cascade' }),
     type: escrowTxTypeEnum('type').notNull(),
     tx_ref: text('tx_ref').notNull().unique('escrow_transactions_tx_ref_uq'),
+    /**
+     * Chain-attested value moved TO THE COUNTERPARTY side of the row's
+     * transition: net payout for approve/claim (amount − fee), the
+     * counterparty's principal share for resolve, refund for cancel/expire/
+     * reclaim (credited to the creator), bond for dispute. NULL when the
+     * source event carried no amount.
+     */
     amount_raw: numeric('amount_raw', { precision: 78, scale: 0 }),
     platform_fee_raw: numeric('platform_fee_raw', { precision: 78, scale: 0 }),
+    /**
+     * Resolve rows only: the CREATOR's principal share (a split pays both
+     * sides, one column can't say who got what). NULL for every other type.
+     */
+    creator_payout_raw: numeric('creator_payout_raw', { precision: 78, scale: 0 }),
     actor_id: uuid('actor_id').references(() => users.id, { onDelete: 'restrict' }),
     created_at: timestamp('created_at').notNull().defaultNow(),
   },

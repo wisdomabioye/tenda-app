@@ -304,8 +304,8 @@ contract TendaEscrowTest is Test {
         uint256 workerBefore = worker.balance;
 
         vm.prank(creator);
-        vm.expectEmit(true, false, false, true);
-        emit TendaEscrow.EscrowApproved(id);
+        vm.expectEmit(true, true, false, true);
+        emit TendaEscrow.EscrowApproved(id, creator, worker, AMOUNT - fee(AMOUNT), fee(AMOUNT));
         escrow.approveCompletion(id);
 
         assertEq(worker.balance - workerBefore, AMOUNT - fee(AMOUNT));
@@ -371,7 +371,7 @@ contract TendaEscrowTest is Test {
         uint256 workerBefore = worker.balance;
         vm.prank(worker);
         vm.expectEmit(true, true, false, true);
-        emit TendaEscrow.PaymentClaimed(id, worker);
+        emit TendaEscrow.PaymentClaimed(id, worker, AMOUNT - fee(AMOUNT), fee(AMOUNT));
         escrow.claimStalledPayment(id);
 
         assertEq(worker.balance - workerBefore, AMOUNT - fee(AMOUNT));
@@ -427,8 +427,8 @@ contract TendaEscrowTest is Test {
         vm.warp(block.timestamp + ACCEPT_WINDOW);
         uint256 before = creator.balance;
         vm.prank(creator);
-        vm.expectEmit(true, false, false, true);
-        emit TendaEscrow.EscrowExpired(id);
+        vm.expectEmit(true, true, false, true);
+        emit TendaEscrow.EscrowExpired(id, creator, AMOUNT);
         escrow.refundExpired(id);
         assertEq(creator.balance - before, AMOUNT);
         assertEq(uint8(status(id)), 5); // Refunded
@@ -446,7 +446,7 @@ contract TendaEscrowTest is Test {
         uint256 before = creator.balance;
         vm.prank(creator);
         vm.expectEmit(true, true, false, true);
-        emit TendaEscrow.EscrowAbandoned(id, worker);
+        emit TendaEscrow.EscrowAbandoned(id, creator, worker, AMOUNT);
         escrow.reclaimAbandoned(id);
         assertEq(creator.balance - before, AMOUNT);
         assertEq(uint8(status(id)), 5);
@@ -476,7 +476,7 @@ contract TendaEscrowTest is Test {
         submittedNative(id);
         vm.prank(creator);
         vm.expectEmit(true, true, false, true);
-        emit TendaEscrow.DisputeRaised(id, creator);
+        emit TendaEscrow.DisputeRaised(id, creator, BOND);
         escrow.disputeEscrow{value: BOND}(id);
 
         assertEq(address(escrow).balance, AMOUNT + BOND);
@@ -531,7 +531,9 @@ contract TendaEscrowTest is Test {
 
         vm.prank(disputeAdmin);
         vm.expectEmit(true, false, false, true);
-        emit TendaEscrow.DisputeResolved(id, 0);
+        // Worker raised and lost: bond forfeits (bond_refund_to = 0), payouts
+        // report the PRINCIPAL share only — the bond flow rides separately.
+        emit TendaEscrow.DisputeResolved(id, 0, AMOUNT, 0, 0, address(0), BOND);
         escrow.resolveDispute(id, 0);
 
         // Principal + forfeited bond → creator, no fee.
@@ -547,6 +549,10 @@ contract TendaEscrowTest is Test {
         uint256 before = worker.balance;
 
         vm.prank(disputeAdmin);
+        vm.expectEmit(true, false, false, true);
+        // Counterparty share is NET of the fee; the raiser won so the bond
+        // returns to them (bond_refund_to = worker).
+        emit TendaEscrow.DisputeResolved(id, 1, 0, AMOUNT - fee(AMOUNT), fee(AMOUNT), worker, BOND);
         escrow.resolveDispute(id, 1);
 
         assertEq(worker.balance - before, AMOUNT - fee(AMOUNT) + BOND);
@@ -583,6 +589,10 @@ contract TendaEscrowTest is Test {
         uint256 creatorBefore = creator.balance;
         uint256 workerBefore = worker.balance;
         vm.prank(disputeAdmin);
+        vm.expectEmit(true, false, false, true);
+        // Split: floor half to creator, remainder to counterparty, no fee,
+        // bond back to its raiser (the worker).
+        emit TendaEscrow.DisputeResolved(id, 2, odd / 2, odd - odd / 2, 0, worker, BOND);
         escrow.resolveDispute(id, 2);
 
         assertEq(creator.balance - creatorBefore, odd / 2);

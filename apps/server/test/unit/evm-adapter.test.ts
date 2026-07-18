@@ -341,6 +341,79 @@ test('escrowIdHexToUuid round-trips uuidToBytes', () => {
   assert.strictEqual(escrowIdHexToUuid(UUID_HEX), UUID)
 })
 
+// ---------- settlement event decode (the enriched vocabulary) --------------------
+
+function approvedLog() {
+  // EscrowApproved(bytes16 indexed, address indexed creator, address counterparty, uint256 amount, uint256 platform_fee)
+  const topics = encodeEventTopics({
+    abi: ESCROW_EVM_ABI,
+    eventName: 'EscrowApproved',
+    args: { escrowId: UUID_HEX, creator: CREATOR },
+  })
+  const data = encodeAbiParameters(
+    [{ type: 'address' }, { type: 'uint256' }, { type: 'uint256' }],
+    [WORKER, 990_000n, 10_000n],
+  )
+  return { address: CONTRACT, topics: [...topics] as `0x${string}`[], data }
+}
+
+function resolvedLog() {
+  // DisputeResolved(bytes16 indexed, uint8 winner, uint256 creator_payout,
+  //                 uint256 counterparty_payout, uint256 platform_fee,
+  //                 address bond_refund_to, uint256 bond_amount)
+  const topics = encodeEventTopics({
+    abi: ESCROW_EVM_ABI,
+    eventName: 'DisputeResolved',
+    args: { escrowId: UUID_HEX },
+  })
+  const data = encodeAbiParameters(
+    [{ type: 'uint8' }, { type: 'uint256' }, { type: 'uint256' }, { type: 'uint256' }, { type: 'address' }, { type: 'uint256' }],
+    [2, 500_000n, 500_000n, 0n, WORKER, 100_000n],
+  )
+  return { address: CONTRACT, topics: [...topics] as `0x${string}`[], data }
+}
+
+test('decodeEscrowLogs: EscrowApproved carries the NET payout + fee, and the creator as actor', () => {
+  const [approved] = decodeEscrowLogs([approvedLog()], CONTRACT, CHAIN_ID)
+  assert.strictEqual(approved.name, 'EscrowApproved')
+  assert.strictEqual(approved.fields.amount, '990000') // net, NOT the gross principal
+  assert.strictEqual(approved.fields.platform_fee, '10000')
+  assert.strictEqual(approved.fields.creator, CREATOR)
+  assert.strictEqual(approved.actor, `${CHAIN_ID}:${CREATOR}`)
+})
+
+test('decodeEscrowLogs: DisputeResolved winner code becomes the cross-chain NAME', () => {
+  const [resolved] = decodeEscrowLogs([resolvedLog()], CONTRACT, CHAIN_ID)
+  assert.strictEqual(resolved.fields.winner, 'split') // uint8 2 → 'split', matches Solana
+  assert.strictEqual(resolved.fields.creator_payout, '500000')
+  assert.strictEqual(resolved.fields.counterparty_payout, '500000')
+  assert.strictEqual(resolved.fields.platform_fee, '0')
+  assert.strictEqual(resolved.fields.bond_amount, '100000')
+})
+
+// The seam that makes tx history honest on EVM: the approve row's amount_raw
+// must be the event's NET payout and platform_fee_raw the fee — the columns
+// were NULL before the events carried them, so the UI fell back to gross.
+test('decoded EVM EscrowApproved applies with net amount + fee + actor', async () => {
+  const [approved] = decodeEscrowLogs([approvedLog()], CONTRACT, CHAIN_ID)
+  const txs: EscrowEventTransaction[] = []
+  const store: EscrowEventStore = {
+    async applyEvent({ transaction }) {
+      txs.push(transaction)
+      return true
+    },
+    async resolveUserByWallet(_ns, address) {
+      return address === CREATOR ? 'user-creator' : null
+    },
+  }
+  const r = await applyEscrowEvent({ store, chain_ns: 'eip155' }, approved, TX)
+
+  assert.strictEqual(r.internal_event, 'escrow.approved')
+  assert.strictEqual(txs[0].amount_raw, '990000')
+  assert.strictEqual(txs[0].platform_fee_raw, '10000')
+  assert.strictEqual(txs[0].actor_id, 'user-creator')
+})
+
 // ---------- verifyTx --------------------------------------------------------------
 
 function receipt(overrides: Partial<EvmReceipt> = {}): EvmReceipt {

@@ -30,6 +30,7 @@ import { getEnv } from '@/lib/env'
 import { formatDuration } from '@/lib/gig-display'
 import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
+import { useEscrowFee } from '@/hooks/useEscrowFee'
 import type { EscrowTxType, GigDetail } from '@tenda/shared'
 
 const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
@@ -62,6 +63,10 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     asset: gig.asset,
     amountRaw: gig.amount_raw,
   })
+
+  // Worker-net projection for the confirm dialogs (approve/claim quote what
+  // is actually credited — the escrow's fee tier, live platform bps).
+  const { netRaw, feePct } = useEscrowFee(gig.is_seeker, gig.amount_raw)
 
   // Live-update when the counterparty acts (accept / submit / approve), not
   // just on focus — the escrow WS channel drives the refetch.
@@ -187,6 +192,8 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
             kind: 'gig',
             deliverWithin:
               gig.completion_duration_seconds != null ? formatDuration(gig.completion_duration_seconds) : null,
+            netAmount: netRaw !== null ? formatAssetAmount(netRaw.toString(), gig.asset) : null,
+            feePct,
           }}
           onConfirm={runConfirmedAction}
           onCancel={() => setConfirmAction(null)}

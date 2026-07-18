@@ -84,10 +84,23 @@ export function TxRow({ tx, userId }: TxRowProps) {
         ? theme.colors.numeric.negative
         : theme.colors.content.secondary
 
-  // Row amount: the transaction's own amount when recorded, else the
-  // escrow principal (lifecycle rows like accept carry no amount).
-  const amountRaw = tx.amount_raw ?? tx.escrow.amount_raw
-  const amount = amountRawToDisplay(amountRaw, tx.escrow.asset)
+  // Row amount. Settlement credits (approve/claim/resolve) are NET of the
+  // platform fee, and only the chain-attested event amount is trustworthy —
+  // falling back to the escrow principal would overstate what was credited,
+  // so rows without a recorded amount show no number at all. Non-credit rows
+  // (funding, refunds, lifecycle context) still fall back to the principal,
+  // which IS the exact figure for those transitions. Resolve rows pay per
+  // side (a split credits both parties), so each viewer sees THEIR share.
+  const isSettlementCredit = tx.type === 'approve' || tx.type === 'claim_stalled' || tx.type === 'resolve'
+  const amountRaw =
+    tx.type === 'resolve'
+      ? tx.escrow.creator_id === userId
+        ? tx.creator_payout_raw
+        : tx.escrow.counterparty_id === userId
+          ? tx.amount_raw
+          : null
+      : (tx.amount_raw ?? (isSettlementCredit ? null : tx.escrow.amount_raw))
+  const amount = amountRaw !== null ? amountRawToDisplay(amountRaw, tx.escrow.asset) : null
   const symbol = ASSET_META[tx.escrow.asset]?.symbol ?? tx.escrow.asset
 
   const subtitle = isGig
@@ -110,7 +123,7 @@ export function TxRow({ tx, userId }: TxRowProps) {
         </Text>
       </View>
 
-      {amount > 0 && (
+      {amount !== null && amount > 0 && (
         <View style={s.amt}>
           <Text style={[s.amtMain, { color: amountColor }]} numberOfLines={1}>
             {sign ? `${sign} ` : ''}

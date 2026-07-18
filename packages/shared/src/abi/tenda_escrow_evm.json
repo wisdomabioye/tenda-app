@@ -782,10 +782,16 @@
           "internalType": "bytes16"
         },
         {
-          "name": "raisedBy",
+          "name": "raised_by",
           "type": "address",
           "indexed": true,
           "internalType": "address"
+        },
+        {
+          "name": "bond_amount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
         }
       ],
       "anonymous": false
@@ -805,6 +811,36 @@
           "type": "uint8",
           "indexed": false,
           "internalType": "uint8"
+        },
+        {
+          "name": "creator_payout",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "counterparty_payout",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "platform_fee",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "bond_refund_to",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "bond_amount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
         }
       ],
       "anonymous": false
@@ -820,10 +856,22 @@
           "internalType": "bytes16"
         },
         {
-          "name": "counterparty",
+          "name": "creator",
           "type": "address",
           "indexed": true,
           "internalType": "address"
+        },
+        {
+          "name": "counterparty",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "refund_amount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
         }
       ],
       "anonymous": false
@@ -862,6 +910,30 @@
           "type": "bytes16",
           "indexed": true,
           "internalType": "bytes16"
+        },
+        {
+          "name": "creator",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "counterparty",
+          "type": "address",
+          "indexed": false,
+          "internalType": "address"
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "platform_fee",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
         }
       ],
       "anonymous": false
@@ -875,6 +947,18 @@
           "type": "bytes16",
           "indexed": true,
           "internalType": "bytes16"
+        },
+        {
+          "name": "creator",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "refund_amount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
         }
       ],
       "anonymous": false
@@ -927,7 +1011,7 @@
           "internalType": "bytes16"
         },
         {
-          "name": "assignedCounterparty",
+          "name": "declined_by",
           "type": "address",
           "indexed": true,
           "internalType": "address"
@@ -944,6 +1028,18 @@
           "type": "bytes16",
           "indexed": true,
           "internalType": "bytes16"
+        },
+        {
+          "name": "creator",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "refund_amount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
         }
       ],
       "anonymous": false
@@ -963,6 +1059,18 @@
           "type": "address",
           "indexed": true,
           "internalType": "address"
+        },
+        {
+          "name": "amount",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
+        },
+        {
+          "name": "platform_fee",
+          "type": "uint256",
+          "indexed": false,
+          "internalType": "uint256"
         }
       ],
       "anonymous": false
@@ -997,7 +1105,7 @@
           "internalType": "bytes16"
         },
         {
-          "name": "proofHash",
+          "name": "proof_hash",
           "type": "bytes32",
           "indexed": false,
           "internalType": "bytes32"

@@ -6,6 +6,7 @@ import { spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Spacer } from '@/components/ui/Spacer'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
+import { chainLabel } from '@/lib/chains'
 import { formatAssetAmount } from '@tenda/shared'
 import type { EscrowListRow } from '@tenda/shared'
 
@@ -43,7 +44,12 @@ export function MyOfferRow({ offer, side }: { offer: EscrowListRow; side: 'selli
           </Text>
         </View>
         <Spacer size={6} />
-        <ExchangeStatusBadge status={offer.status} />
+        <View style={s.metaRow}>
+          <ExchangeStatusBadge status={offer.status} />
+          <Text variant="caption" color={theme.colors.content.tertiary}>
+            {chainLabel(offer.chain_id)}
+          </Text>
+        </View>
       </View>
       <ChevronRight size={20} color={theme.colors.content.tertiary} />
     </Pressable>
@@ -67,4 +73,5 @@ const s = StyleSheet.create({
   },
   sideTag: { letterSpacing: 0.5, flexShrink: 0 },
   amount: { flexShrink: 1, minWidth: 0 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
 })

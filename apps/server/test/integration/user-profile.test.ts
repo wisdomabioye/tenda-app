@@ -155,3 +155,26 @@ test('GET /v1/users/:id/transactions: returns the caller’s escrow transactions
   assert.strictEqual(body.total, 1)
   assert.strictEqual(body.data[0].type, 'create')
 })
+
+test('GET /v1/users/:id/transactions: a resolve row serves BOTH parties\' payout shares', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const counterparty = await createUser(app)
+  const escrow = await createEscrow(app, {
+    creator_id: creator.row.id, counterparty_id: counterparty.row.id, status: 'resolved',
+  })
+  await app.db.insert(escrow_transactions).values({
+    escrow_id: escrow.id, type: 'resolve', tx_ref: `resolve-${escrow.id}`,
+    amount_raw: '501', creator_payout_raw: '500', platform_fee_raw: '0', actor_id: null,
+  })
+
+  for (const viewer of [creator, counterparty]) {
+    const res = await app.inject({
+      method: 'GET', url: `/v1/users/${viewer.row.id}/transactions`, headers: authHeader(viewer.token),
+    })
+    assert.strictEqual(res.statusCode, 200)
+    const row = res.json().data[0]
+    assert.strictEqual(row.amount_raw, '501') // counterparty share
+    assert.strictEqual(row.creator_payout_raw, '500') // creator share
+  }
+})

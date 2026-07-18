@@ -57,6 +57,15 @@ export interface TxConfirmContext {
   kind: EscrowKind
   /** Accept dialog names the concrete "deliver within" window when known. */
   deliverWithin?: string | null
+  /**
+   * Pre-formatted NET the receiving side is credited (principal − platform
+   * fee, from useEscrowFee). When absent (config not loaded) the copy falls
+   * back to naming the escrowed principal without claiming who receives it —
+   * it must never quote the gross as the credited amount.
+   */
+  netAmount?: string | null
+  /** Fee percentage that produced netAmount, e.g. "1.00". */
+  feePct?: string | null
 }
 
 export interface TxConfirmCopy {
@@ -69,7 +78,8 @@ export interface TxConfirmCopy {
 
 /** Per-action copy, before the shared wallet note is appended. */
 function buildCopy(action: EscrowTxType, ctx: TxConfirmContext): TxConfirmCopy | null {
-  const { amount, kind, deliverWithin } = ctx
+  const { amount, kind, deliverWithin, netAmount = null, feePct = null } = ctx
+  const hasNet = netAmount !== null && feePct !== null
   switch (action) {
     case 'create':
       return kind === 'gig'
@@ -98,28 +108,29 @@ function buildCopy(action: EscrowTxType, ctx: TxConfirmContext): TxConfirmCopy |
           }
         : {
             title: 'Accept this offer?',
-            body: `You'll be matched as the buyer for ${amount}. Pay the seller off-platform, then mark it as paid.`,
+            body: hasNet
+              ? `You'll be matched as the buyer for ${amount} — you receive ${netAmount} after the ${feePct}% platform fee. Pay the seller off-platform, then mark it as paid.`
+              : `You'll be matched as the buyer for ${amount}. Pay the seller off-platform, then mark it as paid.`,
             confirmLabel: 'Accept Offer',
             destructive: false,
           }
-    case 'approve':
-      return kind === 'gig'
-        ? {
-            title: 'Release payment?',
-            body: `This releases the ${amount} held in escrow to the worker. It can't be undone.`,
-            confirmLabel: 'Approve & Pay',
-            destructive: false,
-          }
-        : {
-            title: 'Confirm payment received?',
-            body: `This releases the ${amount} held in escrow to the buyer. It can't be undone.`,
-            confirmLabel: 'Confirm & Release',
-            destructive: false,
-          }
+    case 'approve': {
+      const receiver = kind === 'gig' ? 'worker' : 'buyer'
+      return {
+        title: kind === 'gig' ? 'Release payment?' : 'Confirm payment received?',
+        body: hasNet
+          ? `This releases the ${amount} escrow — the ${receiver} receives ${netAmount} after the ${feePct}% platform fee. It can't be undone.`
+          : `This releases the ${amount} escrow to the ${receiver} (less the platform fee). It can't be undone.`,
+        confirmLabel: kind === 'gig' ? 'Approve & Pay' : 'Confirm & Release',
+        destructive: false,
+      }
+    }
     case 'claim_stalled':
       return {
         title: kind === 'gig' ? 'Claim payment?' : 'Claim crypto?',
-        body: `This sends the ${amount} held in escrow to your wallet.`,
+        body: hasNet
+          ? `This sends ${netAmount} to your wallet — the ${feePct}% platform fee is deducted from the ${amount} escrow.`
+          : `This sends the escrowed ${amount} to your wallet, less the platform fee.`,
         confirmLabel: kind === 'gig' ? 'Claim Payment' : 'Claim Crypto',
         destructive: false,
       }

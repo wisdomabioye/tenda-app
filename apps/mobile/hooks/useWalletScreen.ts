@@ -71,11 +71,13 @@ export function useWalletScreen() {
 
   const earnedUsdc = transactions.reduce((sum, tx) => {
     if (!isUsdcTx(tx) || tx.escrow.counterparty_id !== user?.id) return sum
-    if (tx.type === 'approve' || tx.type === 'claim_stalled' || (tx.type === 'resolve' && tx.winner === 'counterparty')) {
-      const net = BigInt(tx.amount_raw ?? '0') - BigInt(tx.platform_fee_raw ?? '0')
-      return sum + amountRawToDisplay(net.toString(), tx.escrow.asset)
-    }
-    return sum
+    if (tx.type !== 'approve' && tx.type !== 'claim_stalled' && tx.type !== 'resolve') return sum
+    // Settlement rows record the chain-attested NET credit (the contract
+    // events emit the payout after the platform fee; resolve rows carry the
+    // counterparty's share). Rows with no attested amount are skipped —
+    // never estimated from the gross principal.
+    if (tx.amount_raw === null) return sum
+    return sum + amountRawToDisplay(tx.amount_raw, tx.escrow.asset)
   }, 0)
 
   const spentUsdc = transactions.reduce((sum, tx) => {

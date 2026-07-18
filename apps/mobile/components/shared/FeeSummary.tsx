@@ -1,12 +1,11 @@
-import { useEffect } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { computePlatformFeeRaw, formatAssetAmount } from '@tenda/shared'
+import { formatAssetAmount } from '@tenda/shared'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { useIsSeeker } from '@/stores/auth.store'
-import { usePlatformConfigStore } from '@/stores/platform-config.store'
+import { useEscrowFee } from '@/hooks/useEscrowFee'
 
 /** gig: poster escrows, worker is paid net. exchange: seller locks crypto, the buyer is paid net. */
 type FeeVariant = 'gig' | 'exchange'
@@ -39,6 +38,12 @@ interface FeeSummaryProps {
   variant?: FeeVariant
   /** Optional eyebrow override; defaults to "PAYMENT BREAKDOWN". */
   eyebrow?: string
+  /**
+   * Fee tier of the escrow. Creation flows omit it (the creator's own Seeker
+   * status is what gets baked in); read surfaces MUST pass the escrow's
+   * snapshot so the projection matches what the contract will charge.
+   */
+  isSeeker?: boolean
 }
 
 /**
@@ -54,22 +59,12 @@ export function FeeSummary({
   principalRaw,
   variant = 'gig',
   eyebrow = 'PAYMENT BREAKDOWN',
+  isSeeker,
 }: FeeSummaryProps) {
   const { theme } = useUnistyles()
-  const isSeeker = useIsSeeker()
-  const config = usePlatformConfigStore((s) => s.config)
-  const fetchConfig = usePlatformConfigStore((s) => s.fetch)
-
-  useEffect(() => { fetchConfig() }, [fetchConfig])
-
-  const feeBps = config != null
-    ? (isSeeker ? config.seeker_fee_bps : config.fee_bps)
-    : null
-
-  const principal = BigInt(principalRaw)
-  const feeRaw = feeBps != null ? computePlatformFeeRaw(principal, feeBps) : null
-  const netRaw = feeRaw != null ? principal - feeRaw : null
-  const feePct = feeBps != null ? (feeBps / 100).toFixed(2) : '—'
+  const viewerIsSeeker = useIsSeeker()
+  const { feeRaw, netRaw, feePct: feePctOrNull } = useEscrowFee(isSeeker ?? viewerIsSeeker, principalRaw)
+  const feePct = feePctOrNull ?? '—'
   const copy = VARIANT_COPY[variant]
 
   return (

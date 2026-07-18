@@ -232,6 +232,29 @@ test('GET /v1/exchange/:id: an offer with no linked account reports payout_accou
   assert.strictEqual(res.json().payout_account, null)
 })
 
+test('GET /v1/exchange/:id: is_seeker reflects the fee tier baked into the escrow', { skip }, async () => {
+  const app = getApp()
+  const seeker = await createUser(app)
+  const regular = await createUser(app)
+
+  const seekerOffer = await createEscrow(app, {
+    creator_id: seeker.row.id, kind: 'exchange', status: 'open', is_seeker: true,
+  })
+  await attachExchangeDetails(app, seekerOffer.id)
+  const regularOffer = await createEscrow(app, {
+    creator_id: regular.row.id, kind: 'exchange', status: 'open',
+  })
+  await attachExchangeDetails(app, regularOffer.id)
+
+  const seekerRes = await app.inject({ method: 'GET', url: `/v1/exchange/${seekerOffer.id}`, headers: authHeader(regular.token) })
+  assert.strictEqual(seekerRes.statusCode, 200)
+  assert.strictEqual(seekerRes.json().is_seeker, true)
+
+  const regularRes = await app.inject({ method: 'GET', url: `/v1/exchange/${regularOffer.id}`, headers: authHeader(regular.token) })
+  assert.strictEqual(regularRes.statusCode, 200)
+  assert.strictEqual(regularRes.json().is_seeker, false)
+})
+
 // ---------- p2p onramp ------------------------------------------------------------
 
 interface OfferSpec {

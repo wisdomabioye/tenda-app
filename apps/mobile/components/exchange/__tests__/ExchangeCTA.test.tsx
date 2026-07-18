@@ -29,7 +29,7 @@ function offer(status: EscrowStatus, withCounterparty = true): ExchangeDetail {
   return {
     escrow_id: 'e1', chain_id: 'solana:devnet', asset: 'USDC_SOL', amount_raw: '100000000',
     status, fiat_amount: '160000', fiat_currency: 'NGN', rate: '1600', payment_window_seconds: 43_200,
-    accept_deadline: null, created_at: '2026-07-01T00:00:00.000Z', creator: user(SELLER), payment_proof_url: null,
+    accept_deadline: null, created_at: '2026-07-01T00:00:00.000Z', creator: user(SELLER), is_seeker: false, payment_proof_url: null,
     dispute_bond_raw: '0', completion_deadline: null, submitted_at: null, approval_deadline: null,
     counterparty: withCounterparty ? user(BUYER) : null, proofs: [], dispute: null, reviews: [], payout_account: null,
   }

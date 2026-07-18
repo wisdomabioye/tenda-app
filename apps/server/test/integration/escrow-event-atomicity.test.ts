@@ -41,7 +41,7 @@ test('applyEvent: a failed audit insert rolls back the status transition', { ski
       from: ['accepted'],
       patch: { status: 'submitted' },
       transaction: {
-        type: 'submit', tx_ref, amount_raw: null, platform_fee_raw: null,
+        type: 'submit', tx_ref, amount_raw: null, platform_fee_raw: null, creator_payout_raw: null,
         actor_id: GHOST_USER, // FK violation → forces the insert to throw
       },
     }),
@@ -69,7 +69,7 @@ test('applyEvent: the happy path transitions and writes the audit row together',
     escrow_id: escrow.id,
     from: ['accepted'],
     patch: { status: 'submitted' },
-    transaction: { type: 'submit', tx_ref, amount_raw: null, platform_fee_raw: null, actor_id: worker.row.id },
+    transaction: { type: 'submit', tx_ref, amount_raw: null, platform_fee_raw: null, creator_payout_raw: null, actor_id: worker.row.id },
   })
   assert.strictEqual(applied, true)
 
@@ -92,7 +92,7 @@ test('applyEvent: a tripped status guard writes nothing (idempotent no-op)', { s
     escrow_id: escrow.id,
     from: ['accepted'],
     patch: { status: 'submitted' },
-    transaction: { type: 'submit', tx_ref, amount_raw: null, platform_fee_raw: null, actor_id: worker.row.id },
+    transaction: { type: 'submit', tx_ref, amount_raw: null, platform_fee_raw: null, creator_payout_raw: null, actor_id: worker.row.id },
   })
   assert.strictEqual(applied, false)
   const audit = await app.db.select().from(escrow_transactions).where(eq(escrow_transactions.tx_ref, tx_ref))

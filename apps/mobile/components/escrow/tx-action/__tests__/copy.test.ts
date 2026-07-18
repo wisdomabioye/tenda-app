@@ -98,3 +98,37 @@ describe('txConfirmCopy — gated actions', () => {
     expect(txConfirmCopy('accept', { ...GIG, deliverWithin: '' })?.body).toContain('agreed time window')
   })
 })
+
+describe('txConfirmCopy — net-of-fee honesty', () => {
+  const NET = { netAmount: '49.5 USDC', feePct: '1.00' }
+
+  it('approve quotes the receiver\'s NET, not just the gross escrow', () => {
+    const gig = txConfirmCopy('approve', { ...GIG, ...NET })?.body
+    expect(gig).toContain('receives 49.5 USDC')
+    expect(gig).toContain('1.00% platform fee')
+    const ex = txConfirmCopy('approve', { ...EXCHANGE, ...NET })?.body
+    expect(ex).toContain('buyer receives 49.5 USDC')
+  })
+
+  it('claim_stalled tells the claimant the NET landing in their wallet', () => {
+    const body = txConfirmCopy('claim_stalled', { ...GIG, ...NET })?.body
+    expect(body).toContain('sends 49.5 USDC to your wallet')
+    expect(body).toContain('1.00% platform fee')
+  })
+
+  it('exchange accept tells the buyer their NET up front', () => {
+    const body = txConfirmCopy('accept', { ...EXCHANGE, ...NET })?.body
+    expect(body).toContain('you receive 49.5 USDC')
+  })
+
+  it('without a net (config not loaded) it never claims the gross is credited', () => {
+    expect(txConfirmCopy('approve', GIG)?.body).toContain('less the platform fee')
+    expect(txConfirmCopy('claim_stalled', GIG)?.body).toContain('less the platform fee')
+    // Only one of the pair is present, never a bare "sends the 50 USDC to your wallet".
+    expect(txConfirmCopy('claim_stalled', GIG)?.body).not.toMatch(/wallet\.$/m)
+  })
+
+  it('the seller-side create copy is untouched — the creator DOES lock the full amount', () => {
+    expect(txConfirmCopy('create', { ...EXCHANGE, ...NET })?.body).toContain('locks 50 USDC')
+  })
+})

@@ -15,6 +15,7 @@ import Fastify, { type FastifyInstance } from 'fastify'
 import fp from 'fastify-plugin'
 import notificationsPlugin from '@server/plugins/notifications'
 import { appEvents } from '@server/lib/events'
+import type { AppDatabase } from '@server/plugins/db'
 import type { JobName, JobPayload } from '@server/plugins/queue'
 
 type NotifJob = JobPayload['notifications']
@@ -24,17 +25,26 @@ let jobs: NotifJob[] = []
 
 before(async () => {
   app = Fastify({ logger: false })
-  // Stub the two decorators the plugin declares as dependencies.
-  await app.register(fp(async (f) => f.decorate('db', {}), { name: 'db' }))
+  // Stub the two decorators the plugin declares as dependencies. The plugin
+  // never touches the db in these paths, so an empty object stands in.
   await app.register(
     fp(
-      async (f) =>
+      async (f) => {
+        f.decorate('db', {} as AppDatabase)
+      },
+      { name: 'db' },
+    ),
+  )
+  await app.register(
+    fp(
+      async (f) => {
         f.decorate('queue', {
           async enqueue(name: JobName, payload: JobPayload[JobName]) {
             if (name === 'notifications') jobs.push(payload as NotifJob)
             return { job_id: 'test' }
           },
-        }),
+        })
+      },
       { name: 'queue' },
     ),
   )
@@ -104,6 +114,9 @@ test('fiat.settled persists and deep-links the intent', async () => {
     intent_id: 'i1',
     direction: 'offramp',
     fiat_currency: 'NGN',
+    fiat_amount: '15000.00',
+    asset: 'USDC_SOL',
+    asset_amount_raw: '10000000',
   })
   await flush()
 
@@ -119,6 +132,9 @@ test('fiat.failed persists the failure reason for the intent', async () => {
     intent_id: 'i2',
     direction: 'onramp',
     fiat_currency: 'KES',
+    fiat_amount: '1300.00',
+    asset: 'USDC_SOL',
+    asset_amount_raw: '10000000',
     reason: 'Card declined',
   })
   await flush()

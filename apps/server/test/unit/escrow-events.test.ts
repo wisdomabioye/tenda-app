@@ -28,6 +28,7 @@ interface Recorded {
     tx_ref: string
     amount_raw: string | null
     platform_fee_raw: string | null
+    creator_payout_raw: string | null
     actor_id: string | null
   }>
   resolutions: Array<{ escrow_id: string; winner: string }>
@@ -89,6 +90,7 @@ test('EscrowCreated: draft→open, stamps escrow_ref, records create with amount
     tx_ref: TX_REF,
     amount_raw: '1000',
     platform_fee_raw: null,
+    creator_payout_raw: null,
     actor_id: 'user-creator',
   })
 })
@@ -162,6 +164,22 @@ test('DisputeResolved: disputed→resolved + dispute row stamped with the winner
     TX_REF,
   )
   assert.deepStrictEqual(rec.resolutions, [{ escrow_id: ESCROW_ID, winner: 'split' }])
+  // Both sides' shares land on the audit row: the counterparty's in
+  // amount_raw (same slot approve/claim use), the creator's in its own
+  // column — a split pays both, so one column could never tell the story.
+  assert.strictEqual(rec.transactions[0].amount_raw, '501')
+  assert.strictEqual(rec.transactions[0].creator_payout_raw, '500')
+  assert.strictEqual(rec.transactions[0].platform_fee_raw, '0')
+})
+
+test('non-resolve events record NO creator payout (the column is resolve-only)', async () => {
+  const { deps, rec } = makeDeps({ wallets: { C: 'user-c' } })
+  await applyEscrowEvent(
+    deps,
+    event('EscrowApproved', { amount: '975', platform_fee: '25', creator: 'C' }),
+    TX_REF,
+  )
+  assert.strictEqual(rec.transactions[0].creator_payout_raw, null)
 })
 
 test('status-guard trip: no transaction row, no resolution, applied:false', async () => {

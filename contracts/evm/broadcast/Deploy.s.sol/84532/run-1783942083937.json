@@ -4,7 +4,7 @@
       "hash": "0xd8606e207b577a6a28c7d95fa622b4b4c8a8d87071d759bc48086504a93dd3a2",
       "transactionType": "CREATE",
       "contractName": "TendaEscrow",
-      "contractAddress": "0x779fe1678ee29230896327744a461b012446290f",
+      "contractAddress": "0xd6E82103C674747ba7E54195D690e40F1f6f4d1C",
       "function": null,
       "arguments": [
         "0x79EB7c39928EbdED1e49956E7b8e0Ef845D278b9",
@@ -44,7 +44,7 @@
       "blobGasUsed": "0x229250",
       "from": "0x1f315cbfe7ff87c108f426e7ad61c6a7121e5b25",
       "to": null,
-      "contractAddress": "0x779fe1678ee29230896327744a461b012446290f",
+      "contractAddress": "0xd6E82103C674747ba7E54195D690e40F1f6f4d1C",
       "l1GasPrice": "0xf4789227",
       "l1GasUsed": "0x13d82",
       "l1Fee": "0x5a16cd630",
@@ -59,7 +59,7 @@
   "returns": {
     "escrow": {
       "internal_type": "contract TendaEscrow",
-      "value": "0x779Fe1678ee29230896327744A461b012446290f"
+      "value": "0xd6E82103C674747ba7E54195D690e40F1f6f4d1C"
     }
   },
   "timestamp": 1783942083937,

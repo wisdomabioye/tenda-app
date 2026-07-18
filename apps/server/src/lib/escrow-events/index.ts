@@ -94,6 +94,10 @@ export async function applyEscrowEvent(
       tx_ref,
       amount_raw: app.amount_field !== undefined ? (event.fields[app.amount_field] ?? null) : null,
       platform_fee_raw: app.fee_field !== undefined ? (event.fields[app.fee_field] ?? null) : null,
+      creator_payout_raw:
+        app.creator_amount_field !== undefined
+          ? (event.fields[app.creator_amount_field] ?? null)
+          : null,
       actor_id,
     },
     ...(disputeResolution !== undefined ? { disputeResolution } : {}),

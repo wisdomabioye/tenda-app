@@ -36,6 +36,12 @@ export interface EventApplication {
   amount_field?: string
   /** Field name carrying the platform fee, if any. */
   fee_field?: string
+  /**
+   * Field carrying the creator's principal share — resolve only, where a
+   * split pays BOTH parties and amount_field (the counterparty share) can't
+   * tell the whole story on its own.
+   */
+  creator_amount_field?: string
   /** Field naming the acting wallet (resolved to actor_id), if any. */
   actor_field?: string
   /** Build the column patch from decoded fields. */
@@ -127,6 +133,11 @@ export const EVENT_APPLICATIONS: Record<EscrowEvent, EventApplication> = {
   DisputeResolved: {
     tx_type: 'resolve',
     from: ['disputed'],
+    // Both contracts emit the distribution: the counterparty's principal
+    // share rides amount_raw (consistent with approve/claim = "what the
+    // counterparty side got"), the creator's share its own column.
+    amount_field: 'counterparty_payout',
+    creator_amount_field: 'creator_payout',
     fee_field: 'platform_fee',
     patch: () => ({ status: 'resolved' }),
   },

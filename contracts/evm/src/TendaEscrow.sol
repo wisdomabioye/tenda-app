@@ -129,17 +129,27 @@ contract TendaEscrow is ReentrancyGuard {
     // Events (stage-3 spec vocabulary — the listener's standing signals)
     // ---------------------------------------------------------------------
 
+    // Arg names are snake_case where the Anchor program's event fields are:
+    // the server decoder passes them through verbatim as the cross-chain
+    // field vocabulary (events.rs promises the mirror; applications.ts keys
+    // on these exact names). Settlement events carry the chain-attested
+    // amounts — payouts are NET of the platform fee, refunds are the exact
+    // amount returned — so off-chain history never reconstructs them.
     event EscrowCreated(bytes16 indexed escrowId, address indexed creator, uint8 kind, address asset, uint256 amount);
     event EscrowAccepted(bytes16 indexed escrowId, address indexed counterparty, uint64 completion_deadline);
-    event EscrowDeclined(bytes16 indexed escrowId, address indexed assignedCounterparty);
-    event ProofSubmitted(bytes16 indexed escrowId, bytes32 proofHash, uint64 timestamp, uint64 approval_deadline);
-    event EscrowApproved(bytes16 indexed escrowId);
-    event PaymentClaimed(bytes16 indexed escrowId, address indexed counterparty);
-    event EscrowCancelled(bytes16 indexed escrowId);
-    event EscrowExpired(bytes16 indexed escrowId);
-    event EscrowAbandoned(bytes16 indexed escrowId, address indexed counterparty);
-    event DisputeRaised(bytes16 indexed escrowId, address indexed raisedBy);
-    event DisputeResolved(bytes16 indexed escrowId, uint8 winner);
+    event EscrowDeclined(bytes16 indexed escrowId, address indexed declined_by);
+    event ProofSubmitted(bytes16 indexed escrowId, bytes32 proof_hash, uint64 timestamp, uint64 approval_deadline);
+    event EscrowApproved(bytes16 indexed escrowId, address indexed creator, address counterparty, uint256 amount, uint256 platform_fee);
+    event PaymentClaimed(bytes16 indexed escrowId, address indexed counterparty, uint256 amount, uint256 platform_fee);
+    event EscrowCancelled(bytes16 indexed escrowId, address indexed creator, uint256 refund_amount);
+    event EscrowExpired(bytes16 indexed escrowId, address indexed creator, uint256 refund_amount);
+    event EscrowAbandoned(bytes16 indexed escrowId, address indexed creator, address counterparty, uint256 refund_amount);
+    event DisputeRaised(bytes16 indexed escrowId, address indexed raised_by, uint256 bond_amount);
+    /// @dev Payouts are the PRINCIPAL shares only (mirror of Anchor's
+    ///      compute_distribution); the bond flow is reported separately —
+    ///      bond_refund_to is address(0) when the bond forfeits to the
+    ///      winning party rather than returning to its raiser.
+    event DisputeResolved(bytes16 indexed escrowId, uint8 winner, uint256 creator_payout, uint256 counterparty_payout, uint256 platform_fee, address bond_refund_to, uint256 bond_amount);
     event PlatformConfigChanged(string parameter, address indexed changedBy);
 
     // ---------------------------------------------------------------------
@@ -395,9 +405,9 @@ contract TendaEscrow is ReentrancyGuard {
         if (msg.sender != e.creator) revert NotCreator();
 
         e.status = Status.Completed;
-        _settleToCounterparty(e);
+        (uint256 payout, uint256 fee) = _settleToCounterparty(e);
 
-        emit EscrowApproved(escrowId);
+        emit EscrowApproved(escrowId, e.creator, e.counterparty, payout, fee);
     }
 
     /// @notice Counterparty self-serve payout after the creator ghosted the
@@ -410,9 +420,9 @@ contract TendaEscrow is ReentrancyGuard {
         if (block.timestamp < e.approvalDeadline) revert ApprovalDeadlineNotPassed();
 
         e.status = Status.Completed;
-        _settleToCounterparty(e);
+        (uint256 payout, uint256 fee) = _settleToCounterparty(e);
 
-        emit PaymentClaimed(escrowId, msg.sender);
+        emit PaymentClaimed(escrowId, msg.sender, payout, fee);
     }
 
     function cancelEscrow(bytes16 escrowId) external nonReentrant {
@@ -423,7 +433,7 @@ contract TendaEscrow is ReentrancyGuard {
         e.status = Status.Cancelled;
         _payout(e.asset, e.creator, e.amount);
 
-        emit EscrowCancelled(escrowId);
+        emit EscrowCancelled(escrowId, e.creator, e.amount);
     }
 
     /// @notice "Nobody wanted the work" — Open past acceptDeadline.
@@ -436,7 +446,7 @@ contract TendaEscrow is ReentrancyGuard {
         e.status = Status.Refunded;
         _payout(e.asset, e.creator, e.amount);
 
-        emit EscrowExpired(escrowId);
+        emit EscrowExpired(escrowId, e.creator, e.amount);
     }
 
     /// @notice "Worker took the job and ghosted" — Accepted past
@@ -450,7 +460,7 @@ contract TendaEscrow is ReentrancyGuard {
         e.status = Status.Refunded;
         _payout(e.asset, e.creator, e.amount);
 
-        emit EscrowAbandoned(escrowId, e.counterparty);
+        emit EscrowAbandoned(escrowId, e.creator, e.counterparty, e.amount);
     }
 
     /// @notice Either party escalates. The raiser posts the bond in the
@@ -497,7 +507,7 @@ contract TendaEscrow is ReentrancyGuard {
         e.status = Status.Disputed;
         e.raisedBy = msg.sender;
 
-        emit DisputeRaised(escrowId, msg.sender);
+        emit DisputeRaised(escrowId, msg.sender, e.disputeBond);
     }
 
     /// @notice dispute_admin distributes principal + bond per outcome
@@ -518,20 +528,35 @@ contract TendaEscrow is ReentrancyGuard {
         e.status = Status.Resolved;
         uint256 bond = e.disputeBond;
 
+        // Event payouts mirror Anchor's compute_distribution: principal
+        // shares only, bond reported via bond_refund_to (address(0) when it
+        // forfeits to the winning party instead of returning to its raiser).
+        uint256 creatorPayout;
+        uint256 counterpartyPayout;
+        uint256 fee;
+        address bondRefundTo;
+
         if (winner == WINNER_CREATOR) {
+            creatorPayout = e.amount;
+            if (e.raisedBy == e.creator) bondRefundTo = e.creator;
             _payout(e.asset, e.creator, e.amount + bond);
         } else if (winner == WINNER_COUNTERPARTY) {
-            uint256 fee = _fee(e.amount, e.isSeeker);
-            _payout(e.asset, e.counterparty, e.amount - fee + bond);
+            fee = _fee(e.amount, e.isSeeker);
+            counterpartyPayout = e.amount - fee;
+            if (e.raisedBy == e.counterparty) bondRefundTo = e.counterparty;
+            _payout(e.asset, e.counterparty, counterpartyPayout + bond);
             if (fee > 0) _payout(e.asset, treasury, fee);
         } else {
             uint256 half = e.amount / 2;
+            creatorPayout = half;
+            counterpartyPayout = e.amount - half;
+            bondRefundTo = e.raisedBy;
             _payout(e.asset, e.creator, half);
-            _payout(e.asset, e.counterparty, e.amount - half);
+            _payout(e.asset, e.counterparty, counterpartyPayout);
             if (bond > 0) _payout(e.asset, e.raisedBy, bond);
         }
 
-        emit DisputeResolved(escrowId, winner);
+        emit DisputeResolved(escrowId, winner, creatorPayout, counterpartyPayout, fee, bondRefundTo, bond);
     }
 
     // ---------------------------------------------------------------------
@@ -575,9 +600,11 @@ contract TendaEscrow is ReentrancyGuard {
 
     /// @dev approve + claim share one settlement: amount − fee → counterparty,
     ///      fee → treasury. Floor division mirrors Anchor's compute_fee.
-    function _settleToCounterparty(Escrow storage e) private {
-        uint256 fee = _fee(e.amount, e.isSeeker);
-        _payout(e.asset, e.counterparty, e.amount - fee);
+    ///      Returns the split so callers can attest it in their events.
+    function _settleToCounterparty(Escrow storage e) private returns (uint256 payout, uint256 fee) {
+        fee = _fee(e.amount, e.isSeeker);
+        payout = e.amount - fee;
+        _payout(e.asset, e.counterparty, payout);
         if (fee > 0) _payout(e.asset, treasury, fee);
     }
 

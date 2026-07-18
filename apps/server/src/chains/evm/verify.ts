@@ -6,10 +6,21 @@
  */
 
 import { decodeEventLog } from 'viem'
+import { DISPUTE_WINNER_CODE } from '@tenda/shared'
 import { bytesToUuid } from '@server/chains/ids'
 import { ESCROW_EVENTS, type DecodedEvent, type EscrowEvent } from '@server/chains/types'
 import { ESCROW_EVM_ABI } from './rpc'
 import type { EvmReceiptLog } from './rpc'
+
+/**
+ * uint8 winner code → cross-chain winner name ('creator'|'counterparty'|
+ * 'split'). The Anchor coder renders the enum VARIANT so Solana fields carry
+ * the name; the Solidity event can only carry the code — translate here so
+ * applyEscrowEvent's narrowWinner sees one vocabulary.
+ */
+const WINNER_NAME_BY_CODE = new Map(
+  Object.entries(DISPUTE_WINNER_CODE).map(([name, code]) => [String(code), name]),
+)
 
 function isEscrowEvent(name: string): name is EscrowEvent {
   return (ESCROW_EVENTS as readonly string[]).includes(name)
@@ -61,6 +72,9 @@ export function decodeEscrowLogs(
       if (k === 'escrowId') continue
       fields[k] = typeof v === 'bigint' ? v.toString() : String(v)
     }
+    if (decoded.eventName === 'DisputeResolved' && fields.winner !== undefined) {
+      fields.winner = WINNER_NAME_BY_CODE.get(fields.winner) ?? fields.winner
+    }
 
     const actorRaw = actorOf(decoded.eventName, args)
     out.push({
@@ -76,15 +90,17 @@ export function decodeEscrowLogs(
 /** The event arg that identifies the acting wallet, when one exists. */
 function actorOf(name: EscrowEvent, args: Record<string, unknown>): string | null {
   const key =
-    name === 'EscrowCreated'
+    name === 'EscrowCreated' || name === 'EscrowApproved'
       ? 'creator'
-      : name === 'EscrowAccepted' || name === 'PaymentClaimed' || name === 'EscrowAbandoned'
+      : name === 'EscrowAccepted' || name === 'PaymentClaimed'
         ? 'counterparty'
-        : name === 'EscrowDeclined'
-          ? 'assignedCounterparty'
-          : name === 'DisputeRaised'
-            ? 'raisedBy'
-            : null
+        : name === 'EscrowCancelled' || name === 'EscrowExpired' || name === 'EscrowAbandoned'
+          ? 'creator'
+          : name === 'EscrowDeclined'
+            ? 'declined_by'
+            : name === 'DisputeRaised'
+              ? 'raised_by'
+              : null
   if (key === null) return null
   const v = args[key]
   return typeof v === 'string' ? v : null

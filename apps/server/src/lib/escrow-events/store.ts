@@ -34,6 +34,8 @@ export interface EscrowEventTransaction {
   tx_ref: string
   amount_raw: string | null
   platform_fee_raw: string | null
+  /** Resolve rows only: the creator's principal share (see schema note). */
+  creator_payout_raw: string | null
   actor_id: string | null
 }
 

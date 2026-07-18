@@ -381,7 +381,7 @@ test('execute-build → confirm hook: an executing proposal confirms on DisputeR
     escrow_id,
     from: ['disputed'],
     patch: { status: 'resolved' },
-    transaction: { type: 'resolve', tx_ref: `resolve-${escrow_id}`, amount_raw: null, platform_fee_raw: null, actor_id: null },
+    transaction: { type: 'resolve', tx_ref: `resolve-${escrow_id}`, amount_raw: null, platform_fee_raw: null, creator_payout_raw: null, actor_id: null },
     disputeResolution: { winner: 'counterparty' },
   })
   const [row] = await app.db.select().from(dispute_resolutions).where(eq(dispute_resolutions.id, proposal.id))
@@ -400,7 +400,7 @@ test('confirm hook: DisputeResolved marks the active proposal confirmed', { skip
     escrow_id,
     from: ['disputed'],
     patch: { status: 'resolved' },
-    transaction: { type: 'resolve', tx_ref: `resolve-${escrow_id}`, amount_raw: null, platform_fee_raw: null, actor_id: null },
+    transaction: { type: 'resolve', tx_ref: `resolve-${escrow_id}`, amount_raw: null, platform_fee_raw: null, creator_payout_raw: null, actor_id: null },
     disputeResolution: { winner: 'split' },
   })
   assert.strictEqual(applied, true)

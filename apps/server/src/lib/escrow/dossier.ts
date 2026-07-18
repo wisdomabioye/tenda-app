@@ -116,6 +116,7 @@ export async function buildEscrowDossier(
       tx_ref: t.tx_ref,
       amount_raw: t.amount_raw,
       platform_fee_raw: t.platform_fee_raw,
+      creator_payout_raw: t.creator_payout_raw,
       actor_id: t.actor_id,
       created_at: iso(t.created_at),
     })),

@@ -24,6 +24,26 @@ jest.mock('@/components/ui/Text', () => {
   return { Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
 })
 
+// Preloaded platform config so useEscrowFee's REAL math runs: 1.00% regular,
+// 0.50% seeker. Tests flip `config` to null to cover the not-loaded path.
+const configState: { config: { fee_bps: number; seeker_fee_bps: number; grace_period_seconds: number } | null } = {
+  config: { fee_bps: 100, seeker_fee_bps: 50, grace_period_seconds: 172_800 },
+}
+jest.mock('@/stores/platform-config.store', () => ({
+  usePlatformConfigStore: <T,>(selector: (s: {
+    config: typeof configState.config
+    loading: boolean
+    error: string | null
+    fetch: () => Promise<typeof configState.config>
+  }) => T): T =>
+    selector({
+      config: configState.config,
+      loading: false,
+      error: null,
+      fetch: async () => configState.config,
+    }),
+}))
+
 import { ExchangeTermsCard } from '../ExchangeTermsCard'
 
 const iso = (hoursFromNow: number) => new Date(Date.now() + hoursFromNow * 3_600_000).toISOString()
@@ -34,21 +54,63 @@ const user: UserRef = {
   id: 'u1', first_name: 'A', last_name: 'B', avatar_url: null, review_score: '0', is_seeker: false, country: 'NG',
 }
 
-function makeOffer(status: EscrowStatus, deadlines: Partial<Pick<ExchangeDetail, 'accept_deadline' | 'completion_deadline' | 'approval_deadline'>>): ExchangeDetail {
+function makeOffer(
+  status: EscrowStatus,
+  deadlines: Partial<Pick<ExchangeDetail, 'accept_deadline' | 'completion_deadline' | 'approval_deadline'>>,
+  overrides: Partial<ExchangeDetail> = {},
+): ExchangeDetail {
   return {
     escrow_id: 'e1', chain_id: 'solana:devnet', asset: 'USDC_SOL', amount_raw: '100000000',
     status, fiat_amount: '160000', fiat_currency: 'NGN', rate: '1600', payment_window_seconds: 43_200,
-    accept_deadline: null, created_at: iso(-1), creator: user, payment_proof_url: null,
+    accept_deadline: null, created_at: iso(-1), creator: user, is_seeker: false, payment_proof_url: null,
     dispute_bond_raw: '0', completion_deadline: null, submitted_at: null, approval_deadline: null,
     counterparty: null, proofs: [], dispute: null, reviews: [], payout_account: null,
     ...deadlines,
+    ...overrides,
   }
 }
+
+afterEach(() => {
+  configState.config = { fee_bps: 100, seeker_fee_bps: 50, grace_period_seconds: 172_800 }
+})
 
 test('always shows rate and the payment-window duration', () => {
   render(<ExchangeTermsCard offer={makeOffer('open', { accept_deadline: iso(5) })} />)
   expect(screen.getByText('Rate')).toBeTruthy()
   expect(screen.getByText('Payment window')).toBeTruthy()
+})
+
+test('names the network the escrow lives on (from the chain manifest)', () => {
+  render(<ExchangeTermsCard offer={makeOffer('open', { accept_deadline: iso(5) })} />)
+  expect(screen.getByText('Network')).toBeTruthy()
+})
+
+test('buyer net = amount − platform fee at the regular tier (100 − 1% = 99)', () => {
+  render(<ExchangeTermsCard offer={makeOffer('open', { accept_deadline: iso(5) })} />)
+  expect(screen.getByText('Platform fee (1.00%)')).toBeTruthy()
+  expect(screen.getByText('− 1 USDC')).toBeTruthy()
+  expect(screen.getByText('Buyer receives')).toBeTruthy()
+  expect(screen.getByText('99 USDC')).toBeTruthy()
+})
+
+test('a seeker-tier escrow projects the DISCOUNTED fee (0.50%), never the regular one', () => {
+  render(<ExchangeTermsCard offer={makeOffer('open', { accept_deadline: iso(5) }, { is_seeker: true })} />)
+  expect(screen.getByText('Platform fee (0.50%)')).toBeTruthy()
+  expect(screen.getByText('− 0.5 USDC')).toBeTruthy()
+  expect(screen.getByText('99.5 USDC')).toBeTruthy()
+})
+
+test('config not yet loaded → fee/net rows degrade to em-dash, never a wrong number', () => {
+  configState.config = null
+  render(<ExchangeTermsCard offer={makeOffer('open', { accept_deadline: iso(5) })} />)
+  expect(screen.getByText('Platform fee')).toBeTruthy()
+  expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2)
+  expect(screen.queryByText('99 USDC')).toBeNull()
+})
+
+test('shows the listed date when created_at is present', () => {
+  render(<ExchangeTermsCard offer={makeOffer('open', { accept_deadline: iso(5) })} />)
+  expect(screen.getByText('Listed')).toBeTruthy()
 })
 
 test('open → "Accept in" with a live countdown clock', () => {

@@ -3,19 +3,21 @@ import { ScrollView, StyleSheet, RefreshControl, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing, typography } from '@/theme/tokens'
-import { ScreenContainer, Text, Badge, Divider, Spacer, showToast } from '@/components/ui'
+import { spacing } from '@/theme/tokens'
+import { ScreenContainer, Text, Divider, Spacer, showToast } from '@/components/ui'
 import { GigActionSheets, type ActiveSheet } from '@/components/gig'
-import { ExchangeStatusBadge, ExchangeTermsCard, ExchangeCTA, PaymentInstructionsCard, shouldShowPaymentInstructions } from '@/components/exchange'
+import { ExchangeCTA } from '@/components/exchange'
+import { ExchangeOfferOverview } from '@/components/exchange/ExchangeOfferOverview'
 import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
-import { PersonCard, ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
+import { ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import { TransactionMonitor } from '@/components/feedback'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { formatFiat } from '@/lib/currency'
 import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
-import { formatAssetAmount, computeRelevantDeadline } from '@tenda/shared'
+import { useEscrowFee } from '@/hooks/useEscrowFee'
+import { formatAssetAmount } from '@tenda/shared'
 import type { EscrowTxType, ExchangeDetail, SupportedCurrency } from '@tenda/shared'
 
 const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
@@ -60,6 +62,10 @@ export function ExchangeDetailContent({
     amountRaw: offer.amount_raw,
   })
   const isCreator = userId === offer.creator.id
+
+  // Buyer-net projection for the confirm dialogs (accept/approve/claim quote
+  // what is actually credited, mirroring the contract's settlement math).
+  const { netRaw, feePct } = useEscrowFee(offer.is_seeker, offer.amount_raw)
 
   // Live-update when the counterparty acts (accept / mark-paid / confirm), not
   // just on focus — the escrow WS channel drives the refetch.
@@ -126,61 +132,7 @@ export function ExchangeDetailContent({
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
-        <View style={s.badgeRow}>
-          <ExchangeStatusBadge status={offer.status} />
-          <Badge variant="accent" label="P2P Trade" />
-        </View>
-
-        <Spacer size={spacing.sm} />
-        <Text style={s.title}>
-          {formatAssetAmount(offer.amount_raw, offer.asset)} → {fiat}
-        </Text>
-        <Spacer size={spacing.md} />
-
-        <ExchangeTermsCard offer={offer} />
-
-        {/* Accepted buyer's payment context: the seller's account, the exact
-            amount, and a reference — the info the old screen never surfaced.
-            Hidden once disputed (see shouldShowPaymentInstructions). */}
-        {shouldShowPaymentInstructions(offer, userId) && offer.payout_account !== null && (
-          <>
-            <Spacer size={spacing.md} />
-            <PaymentInstructionsCard
-              account={offer.payout_account}
-              fiatDisplay={fiat}
-              reference={offer.escrow_id.slice(0, 8).toUpperCase()}
-              status={offer.status}
-              deadline={computeRelevantDeadline(offer)}
-            />
-          </>
-        )}
-
-        <Spacer size={spacing.lg} />
-
-        <PersonCard
-          label="Seller"
-          user={offer.creator}
-          currentUserId={userId}
-          contextId={offer.escrow_id}
-          contextTitle={contextTitle}
-          isOffer
-          showMessageButton={offer.status !== 'draft'}
-        />
-
-        {offer.counterparty && (isCreator || userId === offer.counterparty.id) && (
-          <>
-            <Spacer size={spacing.md} />
-            <PersonCard
-              label="Buyer"
-              user={offer.counterparty}
-              currentUserId={userId}
-              contextId={offer.escrow_id}
-              contextTitle={contextTitle}
-              isOffer
-              gradient="brand"
-            />
-          </>
-        )}
+        <ExchangeOfferOverview offer={offer} userId={userId} fiat={fiat} contextTitle={contextTitle} />
 
         {offer.proofs.length > 0 && (
           <>
@@ -248,7 +200,12 @@ export function ExchangeDetailContent({
 
       <TxConfirmDialog
         action={confirmAction}
-        ctx={{ amount: formatAssetAmount(offer.amount_raw, offer.asset), kind: 'exchange' }}
+        ctx={{
+          amount: formatAssetAmount(offer.amount_raw, offer.asset),
+          kind: 'exchange',
+          netAmount: netRaw !== null ? formatAssetAmount(netRaw.toString(), offer.asset) : null,
+          feePct,
+        }}
         onConfirm={runConfirmedAction}
         onCancel={() => setConfirmAction(null)}
       />
@@ -286,14 +243,6 @@ export function ExchangeDetailContent({
 const s = StyleSheet.create({
   flex: { flex: 1 },
   content: { paddingHorizontal: spacing.md },
-  badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
-  title: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 22,
-    lineHeight: 28,
-    fontWeight: '700',
-    letterSpacing: -0.44,
-  },
   sectionHead: {
     flexDirection: 'row',
     alignItems: 'baseline',

@@ -39,6 +39,7 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
           tx_ref: escrow_transactions.tx_ref,
           amount_raw: escrow_transactions.amount_raw,
           platform_fee_raw: escrow_transactions.platform_fee_raw,
+          creator_payout_raw: escrow_transactions.creator_payout_raw,
           actor_id: escrow_transactions.actor_id,
           created_at: escrow_transactions.created_at,
           // Winner only matters on resolve rows, the join condition keeps
@@ -81,6 +82,7 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
       tx_ref: row.tx_ref,
       amount_raw: row.amount_raw,
       platform_fee_raw: row.platform_fee_raw,
+      creator_payout_raw: row.creator_payout_raw,
       actor_id: row.actor_id,
       created_at: row.created_at.toISOString(),
       winner: row.dispute_winner ?? null,

@@ -1,7 +1,7 @@
 # TendaEscrow — EVM deploy runbook (BASE / CELO)
 
 Status: **redeployed on Base Sepolia (2026-07-13)** — `TendaEscrow` at
-`0x779Fe1678ee29230896327744A461b012446290f` on eip155:84532 (record:
+`0xd6E82103C674747ba7E54195D690e40F1f6f4d1C` on eip155:84532 (record:
 `broadcast/Deploy.s.sol/84532/run-latest.json`; not source-verified on Basescan
 yet). Supersedes `0xf1dedfff…4fdc` (2026-07-03, #124) — this build carries the
 deadline-bearing `EscrowAccepted` / `ProofSubmitted` events (fixes the apply-side

@@ -46,6 +46,12 @@ export interface ExchangePayoutAccount {
 }
 
 export interface ExchangeDetail extends ExchangeSummary {
+  /**
+   * Fee tier baked into the escrow at creation (escrows.is_seeker). Pairs
+   * with the live platform-config bps to project the buyer's net payout —
+   * the same mirror-of-contract math the gig surface uses.
+   */
+  is_seeker: boolean
   payment_proof_url: string | null
   dispute_bond_raw: string
   completion_deadline: string | null
