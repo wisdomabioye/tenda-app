@@ -34,9 +34,9 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // edge tucked under the keyboard.
     softwareKeyboardLayoutMode: 'resize',
     adaptiveIcon: {
-      // Navy from the brand badge; the foreground is glyph-only ("t" + dot) so
-      // the OS mask (circle/squircle) produces the badge shape itself.
-      backgroundColor: '#000B22',
+      // App dark-surface color (badge ground); the foreground is glyph-only
+      // ("t" + dot) so the OS mask (circle/squircle) produces the badge shape.
+      backgroundColor: '#0D1018',
       foregroundImage: './assets/images/android-icon-foreground.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
@@ -71,18 +71,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         // Must be white-on-transparent: Android tints the small icon by alpha.
         icon: './assets/images/notification-icon.png',
-        color: '#1250E3',
+        color: '#2E5BD6',
         defaultChannel: 'default',
       },
     ],
     [
       'expo-splash-screen',
       {
-        backgroundColor: '#ffffff',
+        // Splash grounds match the app's real surface.background tokens so the
+        // handoff from splash to first screen is seamless.
+        backgroundColor: '#F7F5F0',
         image: './assets/images/splash-icon.png',
         imageWidth: 180,
         dark: {
-          backgroundColor: '#1b1b1b',
+          backgroundColor: '#0D1018',
           image: './assets/images/splash-icon-dark.png',
         },
       },
