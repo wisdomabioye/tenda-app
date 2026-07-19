@@ -30,14 +30,32 @@ import { verifyTxDedupKey } from '@server/jobs/verify-tx'
 export const EVM_POLL_INTERVAL_MS = 15_000
 
 /**
- * Blocks per eth_getLogs call. Public endpoints commonly cap address-filtered
- * range queries around the low thousands; 2k stays inside every provider we
- * target while keeping backfill to a bounded number of calls.
+ * Per-endpoint RPC timeout for the listener's OWN client. The default
+ * createEvmRpc budgets (6s per endpoint with a fallback) are tuned for the
+ * interactive tx-build path; a background poller has no user waiting, and on
+ * a high-latency link a 6s cap makes heavier eth_getLogs calls fail
+ * spuriously (observed: ~4s for a bare eth_blockNumber). Failures only cost
+ * a retried tick, but a generous cap keeps them rare.
  */
-export const EVM_GETLOGS_MAX_RANGE = 2_000n
+export const EVM_LISTENER_RPC_TIMEOUT_MS = 30_000
 
-/** Ranges per tick: bounds a tick's RPC work; deep backfill spans ticks. */
-export const EVM_MAX_RANGES_PER_TICK = 5
+/**
+ * Blocks per eth_getLogs call: the lowest cap among the providers we target.
+ * Alchemy's FREE tier rejects ranges over 10 blocks (verified live,
+ * -32600 "up to a 10 block range" on Base Sepolia) — larger ranges silently
+ * shunted every call onto the fallback endpoint, making the fallback the
+ * de-facto primary. Steady state produces ~8 Base blocks per 15s tick, so
+ * one call usually covers it; raise this only alongside a paid tier.
+ */
+export const EVM_GETLOGS_MAX_RANGE = 10n
+
+/**
+ * Ranges per tick: bounds a tick's RPC work; deep catch-up spans ticks.
+ * 20 × 10 blocks = 200 blocks/tick (~25× Base's production rate), so outages
+ * recover quickly while a deploy-block backfill self-paces (~45k blocks in
+ * under an hour) without ever bursting past free-tier rate limits.
+ */
+export const EVM_MAX_RANGES_PER_TICK = 20
 
 /**
  * First-run lookback when the chain's ESCROW_DEPLOY_BLOCK secret is unset

@@ -83,17 +83,23 @@ function makeDeps(opts: {
   return { deps, calls }
 }
 
-test('scans (cursor, head − confirmations] and advances the cursor', async () => {
+test('scans (cursor, head − confirmations] in capped ranges and advances the cursor', async () => {
   const logA = ref('aa', 150n)
   const logB = ref('bb', 190n)
   const { deps, calls } = makeDeps({ cursor: 100, head: 205n, logs: [logA, logB] })
 
   const result = await evmPollTick(deps)
 
-  assert.deepEqual(calls.ranges, [[101n, 200n]]) // head 205 − 5 confirmations
+  // Window is (100, 200] (head 205 − 5 confirmations), covered contiguously
+  // from 101 in ranges no wider than the per-call cap.
+  assert.equal(calls.ranges[0][0], 101n)
+  assert.equal(calls.ranges[calls.ranges.length - 1][1], 200n)
+  for (const [from, to] of calls.ranges) assert.ok(to - from + 1n <= EVM_GETLOGS_MAX_RANGE)
   assert.deepEqual(calls.enqueued, [logA.tx_hash, logB.tx_hash])
-  assert.deepEqual(calls.cursors, [200])
-  assert.deepEqual(result, { ranges: 1, logs: 2, enqueued: 2, cursor: 200 })
+  assert.equal(calls.cursors[calls.cursors.length - 1], 200)
+  assert.equal(result.enqueued, 2)
+  assert.equal(result.logs, 2)
+  assert.equal(result.cursor, 200)
 })
 
 test('a multi-log transaction is enqueued exactly once', async () => {
@@ -182,7 +188,8 @@ test('a fresh low-block chain backfills from block 1', async () => {
 
   await evmPollTick(deps)
 
-  assert.deepEqual(calls.ranges, [[1n, 100n]])
+  assert.equal(calls.ranges[0][0], 1n)
+  assert.equal(calls.ranges[calls.ranges.length - 1][1], 100n)
   assert.equal(calls.enqueued.length, 1)
 })
 
@@ -212,7 +219,7 @@ test('enqueue failure: cursor stops before the failed block, tick aborts', async
 
   assert.deepEqual(calls.enqueued, [ok.tx_hash])
   // Advanced only to the block before the failure; 'after' is never reached.
-  assert.deepEqual(calls.cursors, [159])
+  assert.equal(calls.cursors[calls.cursors.length - 1], 159)
   assert.equal(result.cursor, 159)
   assert.equal(result.enqueued, 1)
 })

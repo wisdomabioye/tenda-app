@@ -20,7 +20,10 @@ import { drizzleCursorStore } from '@server/chains/cursors'
 import { createSolanaRpc } from '@server/chains/solana/rpc'
 import { createSolanaPollingListener } from '@server/chains/solana/listener-polling'
 import { createEvmRpc } from '@server/chains/evm/rpc'
-import { createEvmPollingListener } from '@server/chains/evm/listener-polling'
+import {
+  createEvmPollingListener,
+  EVM_LISTENER_RPC_TIMEOUT_MS,
+} from '@server/chains/evm/listener-polling'
 import type { ChainListener } from '@server/chains/types'
 
 const listenersPlugin: FastifyPluginAsync = async (fastify) => {
@@ -66,6 +69,9 @@ const listenersPlugin: FastifyPluginAsync = async (fastify) => {
         rpc: createEvmRpc({
           rpc_url: secret.rpcUrl,
           ...(secret.rpcUrlFallback !== undefined ? { rpc_url_fallback: secret.rpcUrlFallback } : {}),
+          // Background poller: relaxed per-endpoint budget, not the
+          // interactive tx-build one (see the constant's rationale).
+          timeout_ms: EVM_LISTENER_RPC_TIMEOUT_MS,
         }),
         chain_id: secret.chainId,
         escrow_contract: secret.escrow as `0x${string}`,
