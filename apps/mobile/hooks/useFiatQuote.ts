@@ -11,6 +11,8 @@ export interface FiatQuoteState {
   loading: boolean
   /** User-facing error ('unavailable' carries special copy). */
   error: 'unavailable' | 'failed' | null
+  /** Re-runs the fetch with the same inputs (retry after failure/expiry). */
+  refetch: () => void
 }
 
 export interface FiatQuoteInput {
@@ -35,9 +37,11 @@ export interface FiatQuoteInput {
  * (multi-asset, multi-currency) — nothing is hardcoded here.
  */
 export function useFiatQuote(input: FiatQuoteInput | null): FiatQuoteState {
-  const [state, setState] = useState<FiatQuoteState>({ quote: null, expiresIn: 0, loading: false, error: null })
+  const [state, setState] = useState<QuoteData>({ quote: null, expiresIn: 0, loading: false, error: null })
+  const [nonce, setNonce] = useState(0)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const seq = useRef(0)
+  const lastNonce = useRef(0)
 
   const direction = input?.direction ?? null
   const asset = input?.asset
@@ -63,6 +67,10 @@ export function useFiatQuote(input: FiatQuoteInput | null): FiatQuoteState {
       return
     }
     setState((s) => ({ ...s, loading: true, error: null }))
+    // A manual refetch (nonce bump) fires immediately — the debounce only
+    // exists to coalesce typing.
+    const delay = nonce !== lastNonce.current ? 0 : DEBOUNCE_MS
+    lastNonce.current = nonce
     timer.current = setTimeout(() => {
       const mySeq = ++seq.current
       api.fiat
@@ -85,11 +93,11 @@ export function useFiatQuote(input: FiatQuoteInput | null): FiatQuoteState {
             e instanceof ApiClientError && (e.code === 'PROVIDER_UNAVAILABLE' || e.code === 'FIAT_RAILS_DISABLED')
           setState({ quote: null, expiresIn: 0, loading: false, error: unavailable ? 'unavailable' : 'failed' })
         })
-    }, DEBOUNCE_MS)
+    }, delay)
     return () => {
       if (timer.current) clearTimeout(timer.current)
     }
-  }, [direction, asset, chainId, walletAddress, fiatCurrency, fiatAmount, assetAmountRaw])
+  }, [direction, asset, chainId, walletAddress, fiatCurrency, fiatAmount, assetAmountRaw, nonce])
 
   // Countdown tick while a quote is live.
   useEffect(() => {
@@ -100,8 +108,10 @@ export function useFiatQuote(input: FiatQuoteInput | null): FiatQuoteState {
     return () => clearTimeout(t)
   }, [state.quote, state.expiresIn])
 
-  return state
+  return { ...state, refetch: () => setNonce((n) => n + 1) }
 }
+
+type QuoteData = Omit<FiatQuoteState, 'refetch'>
 
 function secondsUntil(iso: string): number {
   return Math.max(0, Math.floor((new Date(iso).getTime() - Date.now()) / 1_000))

@@ -28,7 +28,7 @@ export function useInstantSell({
   const currencySymbol = CURRENCY_META[currency].symbol
   const amountValid = amountRaw !== null && amountRaw !== '0'
 
-  const { quote, expiresIn, loading, error } = useFiatQuote(
+  const { quote, expiresIn, loading, error, refetch } = useFiatQuote(
     option !== null && amountValid && account !== null
       ? {
           direction: 'offramp',
@@ -44,6 +44,7 @@ export function useInstantSell({
   async function confirm() {
     if (option === null || account === null || amountRaw === null || submitting) return
     if (quote === null || expiresIn <= 0) {
+      refetch()
       showToast('info', 'Fetching the latest price, try again in a moment')
       return
     }
@@ -64,5 +65,5 @@ export function useInstantSell({
     }
   }
 
-  return { quote, expiresIn, loading, error, currency, currencySymbol, submitting, confirm }
+  return { quote, expiresIn, loading, error, refetch, currency, currencySymbol, submitting, confirm }
 }

@@ -10,7 +10,8 @@ const OPTION = { chainId: 'solana:devnet', assetId: 'USDC_SOL', symbol: 'USDC', 
 let mockSelection = { options: [OPTION] as ExchangeAssetOption[], option: OPTION as ExchangeAssetOption | null, selectedKey: 'k', select: jest.fn() }
 let mockAccount: { id: string; country: string } | null = { id: 'acc1', country: 'NG' }
 const mockConfirm = jest.fn()
-let mockInstant = { quote: { rate: 1600, fee_amount: 0, fiat_amount: 16000, provider: 'yellowcard' } as unknown, expiresIn: 300, loading: false, error: null as string | null, currency: 'NGN', currencySymbol: '₦', submitting: false, confirm: mockConfirm }
+const mockRefetch = jest.fn()
+let mockInstant = { quote: { rate: 1600, fee_amount: 0, fiat_amount: 16000, provider: 'yellowcard' } as unknown, expiresIn: 300, loading: false, error: null as string | null, refetch: mockRefetch, currency: 'NGN', currencySymbol: '₦', submitting: false, confirm: mockConfirm }
 
 jest.mock('react-native-unistyles', () => ({ useUnistyles: () => ({ theme: { colors: { content: { tertiary: '#999' }, feedback: { danger: { base: '#f00' } } } } }) }))
 jest.mock('../useAssetSelection', () => ({ useAssetSelection: () => mockSelection }))
@@ -26,8 +27,16 @@ jest.mock('../SellPayoutSection', () => {
   return { SellPayoutSection: () => <Text>PAYOUT</Text> }
 })
 jest.mock('../shared', () => {
-  const { Text } = require('react-native')
-  return { tabBodyStyle: {}, QuoteSummary: () => <Text>QUOTE</Text>, UnavailableNotice: ({ copy }: { copy: string }) => <Text>{copy}</Text> }
+  const { Text, Pressable } = require('react-native')
+  return {
+    tabBodyStyle: {},
+    QuoteSummary: () => <Text>QUOTE</Text>,
+    QuoteLoading: () => <Text>LOADING</Text>,
+    QuoteError: ({ onRetry }: { onRetry: () => void }) => (
+      <Pressable accessibilityRole="button" onPress={onRetry}><Text>RETRY</Text></Pressable>
+    ),
+    UnavailableNotice: ({ copy }: { copy: string }) => <Text>{copy}</Text>,
+  }
 })
 jest.mock('@/components/shared/FeeSummary', () => {
   const { Text } = require('react-native')
@@ -48,8 +57,9 @@ import { InstantSellTab } from '../InstantSellTab'
 beforeEach(() => {
   mockSelection = { options: [OPTION], option: OPTION, selectedKey: 'k', select: jest.fn() }
   mockAccount = { id: 'acc1', country: 'NG' }
-  mockInstant = { quote: { rate: 1600, fee_amount: 0, fiat_amount: 16000, provider: 'yellowcard' }, expiresIn: 300, loading: false, error: null, currency: 'NGN', currencySymbol: '₦', submitting: false, confirm: mockConfirm }
+  mockInstant = { quote: { rate: 1600, fee_amount: 0, fiat_amount: 16000, provider: 'yellowcard' }, expiresIn: 300, loading: false, error: null, refetch: mockRefetch, currency: 'NGN', currencySymbol: '₦', submitting: false, confirm: mockConfirm }
   mockConfirm.mockReset()
+  mockRefetch.mockReset()
 })
 
 test('collapses to the no-wallet notice and hides the payout/CTA', () => {
@@ -68,11 +78,12 @@ test('shows the CTA on a valid amount + account + quote and fires confirm', () =
   expect(mockConfirm).toHaveBeenCalled()
 })
 
-test('shows a fetching-price hint while the quote loads', () => {
+test('shows the loading card (and no CTA) while the quote loads', () => {
   mockInstant = { ...mockInstant, quote: null, loading: true }
   render(<InstantSellTab />)
   fireEvent.changeText(screen.getByLabelText('amount'), '10')
-  expect(screen.getByText('Fetching price…')).toBeTruthy()
+  expect(screen.getByText('LOADING')).toBeTruthy()
+  expect(screen.queryByText('Confirm cash-out')).toBeNull()
 })
 
 test('discloses the platform fee for a P2P-routed quote', () => {
@@ -82,11 +93,13 @@ test('discloses the platform fee for a P2P-routed quote', () => {
   expect(screen.getByText('FEE')).toBeTruthy()
 })
 
-test('shows a retry hint when the quote fetch failed', () => {
+test('shows the retry card (no CTA) on a failed fetch and fires refetch', () => {
   mockInstant = { ...mockInstant, quote: null, error: 'failed' }
   render(<InstantSellTab />)
   fireEvent.changeText(screen.getByLabelText('amount'), '10')
-  expect(screen.getByText(/Could not fetch a quote/i)).toBeTruthy()
+  expect(screen.queryByText('Confirm cash-out')).toBeNull()
+  fireEvent.press(screen.getByText('RETRY'))
+  expect(mockRefetch).toHaveBeenCalled()
 })
 
 test('shows the unavailable-route notice and no CTA when the route is unavailable', () => {
