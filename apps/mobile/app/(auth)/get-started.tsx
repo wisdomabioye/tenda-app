@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import { View, ScrollView, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
-import { Image } from 'expo-image'
 import { useUnistyles } from 'react-native-unistyles'
 import { Mail, Phone, Wallet } from 'lucide-react-native'
-import { ScreenContainer, Text, Header, Button, showToast } from '@/components/ui'
+import { ScreenContainer, Text, Header, Button, BrandLogo, showToast } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth.store'
 import { signInWithGoogle, configureGoogleSignIn, GoogleSignInError } from '@/lib/google-signin'
 import { signInWithApple, isAppleAvailable, AppleSignInError } from '@/lib/apple-signin'
@@ -12,8 +11,6 @@ import { verifyErrorMessage } from '@/lib/auth-flow'
 import { usePostAuthReset } from '@/lib/post-auth-nav'
 
 type Busy = null | 'google' | 'apple'
-
-const Logo = require('@/assets/images/logo.png')
 
 /**
  * Stage 9C get-started, the multi-method entry. Google/Apple verify an
@@ -103,7 +100,7 @@ export default function GetStartedScreen() {
         >
           <View style={s.hero}>
             <View style={[s.logoWrap, { shadowColor: theme.colors.brand.primary }]}>
-              <Image source={Logo} style={s.logo} contentFit="contain" />
+              <BrandLogo size={64} />
             </View>
             <Text style={[s.title, { color: theme.colors.content.primary }]}>Get started</Text>
             <Text style={[s.subtitle, { color: theme.colors.content.secondary }]}>
@@ -173,7 +170,6 @@ const s = StyleSheet.create({
     shadowRadius: 24,
     elevation: 6,
   },
-  logo: { width: 64, height: 64 },
   title: {
     fontSize: 30,
     lineHeight: 36,

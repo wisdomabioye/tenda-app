@@ -26,6 +26,7 @@ jest.mock('@/components/ui', () => {
   return {
     ScreenContainer: ({ children }: { children: React.ReactNode }) => children,
     Header: () => null,
+    BrandLogo: () => null,
     Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text>,
     Button: ({ children, onPress, disabled }: { children: React.ReactNode; onPress?: () => void; disabled?: boolean }) => (
       <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}>
