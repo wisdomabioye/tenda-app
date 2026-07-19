@@ -14,6 +14,7 @@ import { useRouter } from 'expo-router'
 import { coerceCityForCountry, ErrorCode } from '@tenda/shared'
 import { api, ApiClientError } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
+import { WalletError } from '@/wallet/errors'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
@@ -143,10 +144,16 @@ export function useGigFunding({ draftId, clearDraftPrefill }: UseGigFundingArgs)
         // Stage-6: block verdicts get the full dialog, no retry path.
         setBlockedMessage(e.message)
       } else if (escrow_id !== null) {
-        // Details saved but signing failed/declined, the draft survives with a
-        // Delete Draft CTA on its page.
+        // Details saved but signing failed/declined/timed out, the draft
+        // survives with a Delete Draft CTA on its page. If the wallet actually
+        // broadcast a timed-out create, the server's chain listener confirms
+        // it and the draft flips to open on its own.
         showToast('info', e instanceof Error ? e.message : 'Signing incomplete, draft saved')
         router.push(`/gig/${escrow_id}`)
+      } else if (e instanceof WalletError && (e.code === 'declined' || e.code === 'timeout')) {
+        // Guard exit before the draft existed (e.g. the permit signature was
+        // cancelled or lost) — an expected path, not a failure.
+        showToast('info', e.message)
       } else {
         // Covers InsufficientBalanceError, whose message names the shortfall.
         showToast('error', e instanceof Error ? e.message : 'Failed to create gig')

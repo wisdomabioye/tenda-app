@@ -48,6 +48,14 @@ export async function getSplTokenBalance(owner: PublicKey, mint: PublicKey): Pro
 
 export { getEvmTransactionStatus } from '@/wallet/adapters/walletconnect'
 
+// Guarded-request surface: lets UI (TransactionMonitor's Cancel) observe and
+// abort an in-flight WalletConnect request without touching the reown stack.
+export {
+  abortPendingWalletRequest,
+  hasPendingWalletRequest,
+  subscribePendingWalletRequest,
+} from './reown/request-guard'
+
 export type OnChainTxStatus = 'confirmed' | 'finalized' | 'failed' | 'not_found'
 
 export async function getTransactionStatus(signature: string): Promise<OnChainTxStatus> {

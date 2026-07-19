@@ -83,6 +83,30 @@ test('optional fields are captured when present', () => {
   assert.equal(sol.webhookSecret, 'whsec_abc')
 })
 
+test('escrowDeployBlock: captured as an exact number when present, absent otherwise', () => {
+  const withBlock = loadChainSecrets({
+    ...baseMainnetEnv(),
+    CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK: '44318123',
+  }).get('eip155:8453')
+  assert.ok(withBlock && withBlock.namespace === 'eip155')
+  assert.strictEqual(withBlock.escrowDeployBlock, 44_318_123)
+
+  const without = loadChainSecrets(baseMainnetEnv()).get('eip155:8453')
+  assert.ok(without && without.namespace === 'eip155')
+  assert.strictEqual(without.escrowDeployBlock, undefined)
+})
+
+test('escrowDeployBlock: a non-numeric value is a boot error naming the key', () => {
+  assert.throws(
+    () =>
+      loadChainSecrets({
+        ...baseMainnetEnv(),
+        CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK: '0x2a43abb',
+      }),
+    /CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK/,
+  )
+})
+
 test('two different-family chains can both be active', () => {
   const secrets = loadChainSecrets({ ...solanaDevnetEnv(), ...baseMainnetEnv() })
   assert.equal(secrets.size, 2)

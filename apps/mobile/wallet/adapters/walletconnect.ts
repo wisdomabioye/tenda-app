@@ -20,6 +20,7 @@ import { requireEvmPublicRpcUrl } from '@tenda/shared'
 import { WalletError } from '@/wallet/errors'
 import { connectThenSign } from './connect-then-sign'
 import { connectionSignal, type EvmRequestProvider } from '../reown/connection-signal'
+import { guardWcRequest } from '../reown/request-guard'
 import { reownConfigured } from '../reown/config'
 import { WALLET_CHAINS } from '../config'
 import type { SignMessageResult, SpikeAccount } from '../types'
@@ -67,22 +68,37 @@ async function foregroundConnectedWallet(): Promise<void> {
   }
 }
 
+/**
+ * The one way a session request goes out: dispatch first (publishes the
+ * request to the relay), THEN foreground the wallet so the prompt is waiting
+ * when it opens — don't await before opening, it won't resolve until the user
+ * acts. The await rides `guardWcRequest`, which turns a lost relay response
+ * into a typed timeout (and clears the wedged session) instead of hanging the
+ * flow forever, and gives the UI's Cancel button something to abort.
+ */
+async function requestStringOverSession(
+  args: { method: string; params: unknown[] },
+  scope: string | undefined,
+  what: string,
+): Promise<string> {
+  const provider = requireProvider()
+  const pending = scope === undefined ? provider.request<string>(args) : provider.request<string>(args, scope)
+  await foregroundConnectedWallet()
+  const result = await guardWcRequest(pending)
+  if (typeof result !== 'string') throw new Error(`Wallet returned a non-string ${what}`)
+  return result
+}
+
 async function connect(opts?: { fresh?: boolean }): Promise<SpikeAccount> {
   return connectionSignal.connect(opts)
 }
 
 async function signMessage(account: SpikeAccount, message: string): Promise<SignMessageResult> {
-  const provider = requireProvider()
-  // Dispatch first (publishes the request to the relay), THEN foreground the
-  // wallet so the prompt is waiting when it opens. Don't await the request
-  // before opening, it won't resolve until the user signs.
-  const pending = provider.request<string>({
-    method: 'personal_sign',
-    params: [hexMessage(message), account.address],
-  })
-  await foregroundConnectedWallet()
-  const signature = await pending
-  if (typeof signature !== 'string') throw new Error('Wallet returned a non-string signature')
+  const signature = await requestStringOverSession(
+    { method: 'personal_sign', params: [hexMessage(message), account.address] },
+    undefined,
+    'signature',
+  )
   return { signature, message }
 }
 
@@ -121,10 +137,7 @@ export async function sendEvmTransaction(input: {
   chainId?: string
   feeCurrency?: string
 }): Promise<string> {
-  const provider = requireProvider()
-  // Same foreground dance as signMessage, the wallet must come forward to
-  // approve the tx or the request expires unseen on the relay.
-  const pending = provider.request<string>(
+  return requestStringOverSession(
     {
       method: 'eth_sendTransaction',
       params: [
@@ -138,11 +151,8 @@ export async function sendEvmTransaction(input: {
       ],
     },
     asScope(input.chainId),
+    'tx hash',
   )
-  await foregroundConnectedWallet()
-  const hash = await pending
-  if (typeof hash !== 'string') throw new Error('Wallet returned a non-string tx hash')
-  return hash
 }
 
 /**
@@ -158,20 +168,14 @@ export async function signEvmTypedData(input: {
   /** CAIP-2 ('eip155:84532'), the scope the request is sent on. */
   chainId?: string
 }): Promise<string> {
-  const provider = requireProvider()
-  // Same foreground dance as signMessage, the wallet must come forward to
-  // show the signature prompt or the request expires unseen on the relay.
-  const pending = provider.request<string>(
+  return requestStringOverSession(
     {
       method: 'eth_signTypedData_v4',
       params: [input.from, JSON.stringify(input.typedData)],
     },
     asScope(input.chainId),
+    'signature',
   )
-  await foregroundConnectedWallet()
-  const signature = await pending
-  if (typeof signature !== 'string') throw new Error('Wallet returned a non-string signature')
-  return signature
 }
 
 /**

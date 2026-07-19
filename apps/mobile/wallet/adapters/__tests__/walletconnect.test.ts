@@ -28,9 +28,11 @@ import { Linking } from 'react-native'
 import {
   walletConnectAdapter,
   sendEvmTransaction,
+  signEvmTypedData,
   getEvmTransactionStatus,
 } from '../walletconnect'
 import { connectionSignal } from '../../reown/connection-signal'
+import { WC_REQUEST_TIMEOUT_MS } from '../../reown/request-guard'
 import { WalletError } from '@/wallet/errors'
 import type { SpikeAccount } from '../../types'
 
@@ -209,6 +211,50 @@ describe('sendEvmTransaction', () => {
     await expect(
       sendEvmTransaction({ from: '0xA', to: '0xB', data: '0x', value: '0' }),
     ).rejects.toThrow('non-string tx hash')
+  })
+
+  it('a wallet that never answers rejects with the guard timeout and drops the session', async () => {
+    // The lost-relay-response scenario: the request promise never settles.
+    // Pre-guard this froze the signing modal until the app was killed.
+    jest.useFakeTimers()
+    try {
+      mockProvider(jest.fn().mockReturnValue(new Promise(() => {})))
+      const pending = sendEvmTransaction({ from: '0xA', to: '0xB', data: '0x', value: '0' })
+      // Attach the handler BEFORE advancing so the rejection is never
+      // observed as unhandled, then advance async so the foreground step's
+      // microtasks complete and the guard's timer registers before it fires.
+      const expectation = expect(pending).rejects.toMatchObject({
+        name: 'WalletError',
+        code: 'timeout',
+      })
+      await jest.advanceTimersByTimeAsync(WC_REQUEST_TIMEOUT_MS)
+      await expectation
+      expect(mockDisconnect).toHaveBeenCalled()
+    } finally {
+      jest.useRealTimers()
+    }
+  })
+})
+
+describe('signEvmTypedData', () => {
+  it('forwards the stringified payload verbatim on the chain scope', async () => {
+    const request = jest.fn().mockResolvedValue('0xsig')
+    mockProvider(request)
+    const typedData = { domain: { name: 'USDC' }, message: { value: '1' } }
+    await expect(
+      signEvmTypedData({ from: '0xABC', typedData, chainId: 'eip155:84532' }),
+    ).resolves.toBe('0xsig')
+    expect(request).toHaveBeenCalledWith(
+      { method: 'eth_signTypedData_v4', params: ['0xABC', JSON.stringify(typedData)] },
+      'eip155:84532',
+    )
+  })
+
+  it('throws when the wallet returns a non-string signature', async () => {
+    mockProvider(jest.fn().mockResolvedValue(undefined))
+    await expect(
+      signEvmTypedData({ from: '0xABC', typedData: {}, chainId: 'eip155:84532' }),
+    ).rejects.toThrow('non-string signature')
   })
 })
 

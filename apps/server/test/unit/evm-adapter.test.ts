@@ -50,6 +50,9 @@ function fakeRpc(overrides: Partial<EvmRpc> = {}): EvmRpc {
     async getBlockNumber() {
       return 100n
     },
+    async getLogRefs() {
+      return []
+    },
     async readEscrow() {
       return null
     },

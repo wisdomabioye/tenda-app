@@ -52,10 +52,25 @@ export interface EvmPermitFacts {
   domain_separator: `0x${string}`
 }
 
+/** A mined log's position, all the polling listener needs to enqueue it. */
+export interface EvmLogRef {
+  tx_hash: `0x${string}`
+  block_number: bigint
+}
+
 export interface EvmRpc {
   /** Null = transaction unknown to the node (not yet mined / dropped). */
   getTransactionReceipt(hash: `0x${string}`): Promise<EvmReceipt | null>
   getBlockNumber(): Promise<bigint>
+  /**
+   * Every mined log the contract emitted in [from_block, to_block], ascending
+   * block order. Reverted txs emit no logs, so only real state changes appear.
+   */
+  getLogRefs(
+    contract: `0x${string}`,
+    from_block: bigint,
+    to_block: bigint,
+  ): Promise<EvmLogRef[]>
   /** Null = escrow id never created (zero creator sentinel). */
   readEscrow(escrow_contract: `0x${string}`, escrow_id: `0x${string}`): Promise<EvmEscrowTuple | null>
   /** name() + nonces(owner) + DOMAIN_SEPARATOR() off an EIP-2612 token. */
@@ -115,6 +130,12 @@ export interface EvmClientPort {
   /** Throws when the hash is unknown, the wrapper maps that to `null`. */
   getTransactionReceipt(hash: `0x${string}`): Promise<EvmClientReceipt>
   getBlockNumber(): Promise<bigint>
+  /** viem getLogs shape; transactionHash is null only for pending logs. */
+  getLogs(args: {
+    address: `0x${string}`
+    fromBlock: bigint
+    toBlock: bigint
+  }): Promise<ReadonlyArray<{ transactionHash: `0x${string}` | null; blockNumber: bigint | null }>>
   readContract(args: {
     address: `0x${string}`
     abi: Abi
@@ -148,6 +169,18 @@ export function evmRpcFromClient(client: EvmClientPort): EvmRpc {
 
     async getBlockNumber() {
       return client.getBlockNumber()
+    },
+
+    async getLogRefs(contract, from_block, to_block) {
+      const logs = await client.getLogs({ address: contract, fromBlock: from_block, toBlock: to_block })
+      const refs: EvmLogRef[] = []
+      for (const log of logs) {
+        // Pending logs carry null position fields; a bounded mined-range query
+        // shouldn't return them, but never let one through as a fake ref.
+        if (log.transactionHash === null || log.blockNumber === null) continue
+        refs.push({ tx_hash: log.transactionHash, block_number: log.blockNumber })
+      }
+      return refs.sort((a, b) => (a.block_number < b.block_number ? -1 : a.block_number > b.block_number ? 1 : 0))
     },
 
     async readPermitFacts(token, owner) {
@@ -249,6 +282,7 @@ export function createEvmRpc(args: {
   const client: EvmClientPort = {
     getTransactionReceipt: (hash) => vc.getTransactionReceipt({ hash }),
     getBlockNumber: () => vc.getBlockNumber(),
+    getLogs: (a) => vc.getLogs({ address: a.address, fromBlock: a.fromBlock, toBlock: a.toBlock }),
     // viem's readContract param is ABI-generic; the loose port shape needs a
     // boundary cast (the result is already cast to the tuple downstream).
     readContract: (a) => vc.readContract(a as Parameters<typeof vc.readContract>[0]),

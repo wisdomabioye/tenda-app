@@ -1,11 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { View, Modal, StyleSheet, ActivityIndicator } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { CheckCircle, XCircle, Wallet } from 'lucide-react-native'
 import { radius, spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
-import { getTransactionStatus, getEvmTransactionStatus } from '@/wallet'
+import {
+  getTransactionStatus,
+  getEvmTransactionStatus,
+  abortPendingWalletRequest,
+  hasPendingWalletRequest,
+  subscribePendingWalletRequest,
+} from '@/wallet'
 import { useRealtimeStore, subscribeEscrowChannel } from '@/stores/realtime.store'
 import type { TxPhase } from '@/hooks/useEscrowActions'
 
@@ -60,6 +66,13 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
   const { theme } = useUnistyles()
   const [txState, setTxState] = useState<TxState>('waiting')
   const [failMsg, setFailMsg] = useState('')
+  // True only while a guarded WalletConnect request is awaiting the wallet —
+  // the one moment a Cancel can actually abort something. Solana/MWA signing
+  // never registers here, so its signing view stays button-free.
+  const canCancelSigning = useSyncExternalStore(
+    subscribePendingWalletRequest,
+    hasPendingWalletRequest,
+  )
 
   useEffect(() => {
     setTxState('waiting')
@@ -179,6 +192,11 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
               <Text variant="caption" color={theme.colors.content.secondary} align="center">
                 Your wallet is opening — approve the transaction there to continue.
               </Text>
+              {canCancelSigning && (
+                <Button variant="outline" size="md" onPress={abortPendingWalletRequest}>
+                  Cancel
+                </Button>
+              )}
             </>
           )}
 

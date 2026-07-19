@@ -21,7 +21,7 @@
 import { CHAIN_MANIFEST, chainById, type ChainManifestEntry } from '@tenda/shared'
 
 /** Validation classes for a secret value. */
-type SecretKind = 'url' | 'evmAddr' | 'base58' | 'str'
+type SecretKind = 'url' | 'evmAddr' | 'base58' | 'uint' | 'str'
 
 interface SecretFieldSpec {
   /** Logical key on the resolved record. */
@@ -57,6 +57,10 @@ const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
     // it on primary errors/timeouts (a degraded provider can't block tx builds).
     { key: 'rpcUrlFallback', envSuffix: 'RPC_URL_FALLBACK', required: false, kind: 'url' },
     { key: 'escrow', envSuffix: 'ESCROW_ADDR', required: true, kind: 'evmAddr' },
+    // Block the escrow contract was deployed at: the polling listener's exact
+    // first-run start (no event can predate it). Optional: absent falls back
+    // to the listener's bounded recency window, with a boot-time warning.
+    { key: 'escrowDeployBlock', envSuffix: 'ESCROW_DEPLOY_BLOCK', required: false, kind: 'uint' },
     { key: 'treasury', envSuffix: 'TREASURY_ADDR', required: true, kind: 'evmAddr' },
     { key: 'disputeAdmin', envSuffix: 'DISPUTE_ADMIN_ADDR', required: false, kind: 'evmAddr' },
     { key: 'paymasterUrl', envSuffix: 'PAYMASTER_URL', required: false, kind: 'url' },
@@ -82,6 +86,8 @@ export type ResolvedChainSecret =
       rpcUrl: string
       rpcUrlFallback?: string
       escrow: string
+      /** Deploy block of the escrow contract (polling first-run start). */
+      escrowDeployBlock?: number
       treasury: string
       disputeAdmin?: string
       paymasterUrl?: string
@@ -113,6 +119,10 @@ function isValid(kind: SecretKind, value: string): boolean {
       return /^0x[0-9a-fA-F]{40}$/.test(value)
     case 'base58':
       return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(value)
+    case 'uint':
+      // Decimal block ordinal; bounded so Number() stays exact (2^53 blocks
+      // is far beyond any chain's height).
+      return /^\d{1,15}$/.test(value)
     case 'str':
       return value.length > 0
   }
@@ -165,12 +175,15 @@ function assemble(
       webhookSecret: present.get('webhookSecret'),
     }
   }
+  const escrowDeployBlock = present.get('escrowDeployBlock')
   return {
     namespace: 'eip155',
     chainId: entry.id,
     rpcUrl: must(present, 'rpcUrl', entry.id),
     rpcUrlFallback: present.get('rpcUrlFallback'),
     escrow: must(present, 'escrow', entry.id),
+    // Validated as a bounded decimal ('uint'), so Number() is exact.
+    ...(escrowDeployBlock !== undefined ? { escrowDeployBlock: Number(escrowDeployBlock) } : {}),
     treasury: must(present, 'treasury', entry.id),
     disputeAdmin: present.get('disputeAdmin'),
     paymasterUrl: present.get('paymasterUrl'),

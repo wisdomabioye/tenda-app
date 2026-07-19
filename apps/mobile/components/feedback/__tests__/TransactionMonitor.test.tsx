@@ -33,14 +33,30 @@ jest.mock('@/components/ui/Text', () => {
 })
 jest.mock('@/components/ui/Button', () => {
   const { Text } = require('react-native')
-  return { Button: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
+  return {
+    Button: ({ children, onPress }: { children: React.ReactNode; onPress?: () => void }) => (
+      <Text onPress={onPress}>{children}</Text>
+    ),
+  }
 })
 
 // Controllable RPC status: default idle; individual tests override.
 const mockGetTransactionStatus = jest.fn().mockResolvedValue('not_found')
+// Controllable guarded-request registry: drives the signing-phase Cancel.
+let mockHasPending = false
+const mockPendingSubscribers = new Set<() => void>()
+const mockAbortPending = jest.fn()
 jest.mock('@/wallet', () => ({
   getTransactionStatus: (...a: unknown[]) => mockGetTransactionStatus(...a),
   getEvmTransactionStatus: jest.fn().mockResolvedValue('not_found'),
+  abortPendingWalletRequest: () => mockAbortPending(),
+  hasPendingWalletRequest: () => mockHasPending,
+  subscribePendingWalletRequest: (listener: () => void) => {
+    mockPendingSubscribers.add(listener)
+    return () => {
+      mockPendingSubscribers.delete(listener)
+    }
+  },
 }))
 
 // Capture the WS subscriber so tests can push a confirmation frame.
@@ -62,6 +78,9 @@ const noop = () => {}
 beforeEach(() => {
   wsCallback = null
   mockGetTransactionStatus.mockReset().mockResolvedValue('not_found')
+  mockHasPending = false
+  mockPendingSubscribers.clear()
+  mockAbortPending.mockReset()
 })
 
 test('idle phase with no signature renders nothing', () => {
@@ -95,6 +114,29 @@ test('signing phase tells the user their wallet is opening (the key newcomer cue
   render(<TransactionMonitor signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
   expect(screen.getByText('Approve in your wallet')).toBeTruthy()
   expect(screen.getByText(/approve the transaction there/i)).toBeTruthy()
+})
+
+test('signing phase shows NO Cancel when nothing is abortable (Solana/MWA path)', () => {
+  render(<TransactionMonitor signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
+  expect(screen.queryByText('Cancel')).toBeNull()
+})
+
+test('signing phase offers Cancel while a WC request is in flight, and it aborts', () => {
+  mockHasPending = true
+  render(<TransactionMonitor signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
+  fireEvent.press(screen.getByText('Cancel'))
+  expect(mockAbortPending).toHaveBeenCalledTimes(1)
+})
+
+test('Cancel appears live when a guarded request starts mid-signing', () => {
+  render(<TransactionMonitor signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
+  expect(screen.queryByText('Cancel')).toBeNull()
+  // The guard registers its request and notifies (useSyncExternalStore).
+  act(() => {
+    mockHasPending = true
+    for (const listener of mockPendingSubscribers) listener()
+  })
+  expect(screen.getByText('Cancel')).toBeTruthy()
 })
 
 test('confirming phase names the action via actionLabel', () => {

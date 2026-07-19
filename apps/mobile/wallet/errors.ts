@@ -9,6 +9,8 @@ export type WalletErrorCode =
   | 'declined'
   | 'network'
   | 'insufficient_balance'
+  /** The wallet never answered a session request (lost relay response). */
+  | 'timeout'
   | 'unknown'
 
 export class WalletError extends Error {

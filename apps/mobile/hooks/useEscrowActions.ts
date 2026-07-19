@@ -18,6 +18,7 @@ import { Buffer } from 'buffer'
 import bs58 from 'bs58'
 import type { EscrowTxType, UnsignedTx } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
+import { WalletError } from '@/wallet/errors'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
@@ -131,6 +132,12 @@ export function useEscrowActions({
       if (gate !== null) {
         showToast('error', TRANSACTION_GATE_MESSAGE[gate])
         router.push(transactionGateRoute(gate))
+        return false
+      }
+      // Guard exits (Cancel button / lost wallet response) are expected paths,
+      // not failures — the message already says whether the tx may still sync.
+      if (e instanceof WalletError && (e.code === 'declined' || e.code === 'timeout')) {
+        showToast('info', e.message)
         return false
       }
       showToast('error', (e as Error).message || 'Transaction failed, please try again')
