@@ -6,7 +6,7 @@
  * so `collectNetworks` fails loud at module init rather than silently dropping
  * a chain from the connect modal.
  */
-import { base, baseSepolia, celo, solana, solanaDevnet } from '@reown/appkit/networks'
+import { base, baseSepolia, celo, celoSepolia, solana, solanaDevnet } from '@reown/appkit/networks'
 import type { AppKitNetwork } from '@reown/appkit/networks'
 import { CHAIN_MANIFEST } from '@tenda/shared'
 
@@ -16,6 +16,7 @@ const NETWORK_BY_CHAIN_ID: Record<string, AppKitNetwork> = {
   'eip155:8453': base,
   'eip155:84532': baseSepolia,
   'eip155:42220': celo,
+  'eip155:11142220': celoSepolia
 }
 
 type NonEmpty = [AppKitNetwork, ...AppKitNetwork[]]
