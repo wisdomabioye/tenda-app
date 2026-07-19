@@ -236,6 +236,99 @@ describe('sendEvmTransaction', () => {
   })
 })
 
+describe('chain pinning (EIP-3326)', () => {
+  // The session reports Base mainnet; requests target Base Sepolia.
+  const onBase = { ...account, chainId: 'eip155:8453' }
+  const TX = { from: '0xA', to: '0xB', data: '0x', value: '0', chainId: 'eip155:84532' }
+
+  afterEach(() => {
+    mockGetAccount.mockReset()
+  })
+
+  it('a known chain mismatch switches the wallet BEFORE sending the tx', async () => {
+    mockGetAccount.mockReturnValue(onBase)
+    const request = jest.fn().mockImplementation(({ method }: { method: string }) =>
+      Promise.resolve(method === 'wallet_switchEthereumChain' ? null : '0xhash'),
+    )
+    mockProvider(request)
+
+    await expect(sendEvmTransaction(TX)).resolves.toBe('0xhash')
+    // Switch first (target chain as hex, sent on the CURRENT chain's scope)…
+    expect(request).toHaveBeenNthCalledWith(
+      1,
+      { method: 'wallet_switchEthereumChain', params: [{ chainId: '0x14a34' }] },
+      'eip155:8453',
+    )
+    // …then the tx on its own scope.
+    expect(request.mock.calls[1][0].method).toBe('eth_sendTransaction')
+    expect(request.mock.calls[1][1]).toBe('eip155:84532')
+  })
+
+  it('no switch when the session is already on the target chain', async () => {
+    mockGetAccount.mockReturnValue({ ...account, chainId: 'eip155:84532' })
+    const request = jest.fn().mockResolvedValue('0xhash')
+    mockProvider(request)
+
+    await sendEvmTransaction(TX)
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(request.mock.calls[0][0].method).toBe('eth_sendTransaction')
+  })
+
+  it('no switch when the session chain is unknown (falls back to scope routing)', async () => {
+    mockGetAccount.mockReturnValue(null)
+    const request = jest.fn().mockResolvedValue('0xhash')
+    mockProvider(request)
+
+    await sendEvmTransaction(TX)
+    expect(request).toHaveBeenCalledTimes(1)
+  })
+
+  it('a REJECTED switch aborts as a decline with no tx ever published', async () => {
+    mockGetAccount.mockReturnValue(onBase)
+    const request = jest.fn().mockImplementation(({ method }: { method: string }) =>
+      method === 'wallet_switchEthereumChain'
+        ? Promise.reject({ code: 4001, message: 'user rejected' })
+        : Promise.resolve('0xhash'),
+    )
+    mockProvider(request)
+
+    await expect(sendEvmTransaction(TX)).rejects.toMatchObject({
+      name: 'WalletError',
+      code: 'declined',
+    })
+    expect(request).toHaveBeenCalledTimes(1) // never reached eth_sendTransaction
+  })
+
+  it('a wallet that CANNOT switch (4902/unsupported) still sends on the scope', async () => {
+    mockGetAccount.mockReturnValue(onBase)
+    const request = jest.fn().mockImplementation(({ method }: { method: string }) =>
+      method === 'wallet_switchEthereumChain'
+        ? Promise.reject({ code: 4902, message: 'unrecognized chain' })
+        : Promise.resolve('0xhash'),
+    )
+    mockProvider(request)
+
+    await expect(sendEvmTransaction(TX)).resolves.toBe('0xhash')
+    expect(request.mock.calls[1][1]).toBe('eip155:84532')
+  })
+
+  it('typed-data signing pins too; personal_sign never does', async () => {
+    mockGetAccount.mockReturnValue(onBase)
+    const request = jest.fn().mockImplementation(({ method }: { method: string }) =>
+      Promise.resolve(method === 'wallet_switchEthereumChain' ? null : '0xsig'),
+    )
+    mockProvider(request)
+
+    await signEvmTypedData({ from: '0xA', typedData: {}, chainId: 'eip155:84532' })
+    expect(request.mock.calls[0][0].method).toBe('wallet_switchEthereumChain')
+
+    request.mockClear()
+    await walletConnectAdapter.signMessage(onBase, 'hi')
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(request.mock.calls[0][0].method).toBe('personal_sign')
+  })
+})
+
 describe('signEvmTypedData', () => {
   it('forwards the stringified payload verbatim on the chain scope', async () => {
     const request = jest.fn().mockResolvedValue('0xsig')

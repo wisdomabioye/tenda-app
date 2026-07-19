@@ -18,7 +18,7 @@ import { Buffer } from 'buffer'
 import { Linking } from 'react-native'
 import { requireEvmPublicRpcUrl } from '@tenda/shared'
 import { WalletError } from '@/wallet/errors'
-import { connectThenSign } from './connect-then-sign'
+import { connectThenSign, isUserRejection } from './connect-then-sign'
 import { connectionSignal, type EvmRequestProvider } from '../reown/connection-signal'
 import { guardWcRequest } from '../reown/request-guard'
 import { reownConfigured } from '../reown/config'
@@ -69,18 +69,56 @@ async function foregroundConnectedWallet(): Promise<void> {
 }
 
 /**
- * The one way a session request goes out: dispatch first (publishes the
- * request to the relay), THEN foreground the wallet so the prompt is waiting
- * when it opens — don't await before opening, it won't resolve until the user
- * acts. The await rides `guardWcRequest`, which turns a lost relay response
- * into a typed timeout (and clears the wedged session) instead of hanging the
- * flow forever, and gives the UI's Cancel button something to abort.
+ * Pin the wallet's ACTIVE chain to a request's scope (EIP-3326
+ * wallet_switchEthereumChain) before the request goes out. WC scope routing
+ * SHOULD make the wallet act on the scope's chain, but some wallets execute
+ * on whatever chain is active — and on the wrong chain our contracts don't
+ * exist, so every transaction "reverts" in the wallet's simulation. Only a
+ * KNOWN mismatch (session-reported chain ≠ scope) triggers the switch; a
+ * wallet that can't switch (chain not added / method unsupported) falls back
+ * to scope routing as before, while a user REJECTION aborts as a decline —
+ * broadcasting after a refused switch would be the wrong-chain bug on purpose.
+ */
+async function ensureSessionChain(scope: string): Promise<void> {
+  const current = connectionSignal.getAccount()?.chainId
+  if (current === undefined || current === scope) return
+  const provider = requireProvider()
+  const chainId = `0x${Number(scope.split(':')[1]).toString(16)}`
+  // The switch rides the CURRENT chain's scope — that's where the wallet is.
+  const pending = provider.request<null>(
+    { method: 'wallet_switchEthereumChain', params: [{ chainId }] },
+    current,
+  )
+  await foregroundConnectedWallet()
+  try {
+    await guardWcRequest(pending)
+  } catch (err) {
+    if (err instanceof WalletError) throw err // guard timeout / Cancel abort
+    if (isUserRejection(err)) {
+      throw new WalletError('declined', 'Network switch was declined in the wallet')
+    }
+    // 4902 (chain not added) / 4200 (unsupported method) / wallet quirks:
+    // keep the pre-pinning behaviour, the scope alone routes the request.
+  }
+}
+
+/**
+ * The one way a session request goes out: pin the chain when the request is
+ * chain-scoped, dispatch (publishes the request to the relay), THEN foreground
+ * the wallet so the prompt is waiting when it opens — don't await before
+ * opening, it won't resolve until the user acts. The await rides
+ * `guardWcRequest`, which turns a lost relay response into a typed timeout
+ * (and clears the wedged session) instead of hanging the flow forever, and
+ * gives the UI's Cancel button something to abort.
  */
 async function requestStringOverSession(
   args: { method: string; params: unknown[] },
   scope: string | undefined,
   what: string,
 ): Promise<string> {
+  // BEFORE publishing the main request: a rejected switch must abort with
+  // nothing queued in the wallet, not leave a dangling wrong-chain tx prompt.
+  if (scope !== undefined) await ensureSessionChain(scope)
   const provider = requireProvider()
   const pending = scope === undefined ? provider.request<string>(args) : provider.request<string>(args, scope)
   await foregroundConnectedWallet()

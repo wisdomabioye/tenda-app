@@ -55,6 +55,8 @@ export default wrapApp(function RootLayout() {
           <Stack.Screen name="settings/bank-accounts" />
           <Stack.Screen name="wallet/buy-sell" />
           <Stack.Screen name="wallet/intents/[id]" />
+          {/* WC return trampoline: pops instantly, any animation would flash. */}
+          <Stack.Screen name="wc-return" options={{ animation: 'none' }} />
           <Stack.Screen name="+not-found" />
         </Stack>
       </ToastProvider>

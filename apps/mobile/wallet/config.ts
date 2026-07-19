@@ -55,3 +55,12 @@ export const metadata = {
   // Native deeplink wallets bounce back to Tenda via this scheme after approve/sign.
   redirectScheme: 'tenda',
 }
+
+/**
+ * Deep link WalletConnect wallets return to after approve/sign. Points at the
+ * dedicated trampoline route (app/wc-return.tsx) — NOT the bare scheme, which
+ * expo-router treats as a navigation to `/` and resets the stack, yanking the
+ * user off the screen that launched the wallet round-trip (the TrustWallet
+ * "app closed and reopened" report). The trampoline just pops itself.
+ */
+export const WC_RETURN_URL = `${metadata.redirectScheme}://wc-return`

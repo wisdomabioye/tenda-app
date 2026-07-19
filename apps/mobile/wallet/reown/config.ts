@@ -18,7 +18,7 @@
 import '@walletconnect/react-native-compat'
 import { createAppKit } from '@reown/appkit-react-native'
 import { EthersAdapter } from '@reown/appkit-ethers-react-native'
-import { metadata } from '../config'
+import { metadata, WC_RETURN_URL } from '../config'
 import { EVM_NETWORKS } from './networks'
 import { reownStorage } from './storage'
 
@@ -46,12 +46,12 @@ export const appKit = reownConfigured
         description: metadata.description,
         url: metadata.url,
         icons: [metadata.iconUrl],
-        // Auto-return: the wallet bounces back to Tenda via `tenda://` after
-        // approve/sign. That return lands on the `/` index route mid-verify, but
-        // `index` holds a spinner while `walletAuthInProgress` (auth.store) is
-        // set, so it no longer flashes welcome/get-started, then redirects home
-        // once verify completes.
-        redirect: { native: `${metadata.redirectScheme}://`, universal: metadata.url },
+        // Auto-return: the wallet bounces back to Tenda after approve/sign via
+        // the wc-return trampoline route, which pops itself so the user lands
+        // on the exact screen that opened the wallet (a bare `tenda://` reset
+        // the stack to `/`). Cold starts still land on `/`, where the
+        // `walletAuthInProgress` spinner covers an in-flight auth.
+        redirect: { native: WC_RETURN_URL, universal: metadata.url },
       },
     })
   : null
