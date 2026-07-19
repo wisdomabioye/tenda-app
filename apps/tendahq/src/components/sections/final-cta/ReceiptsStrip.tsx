@@ -3,7 +3,7 @@ import { RECEIPTS } from './content'
 /**
  * Three honest pre-launch receipts. Replaces the wireframe's
  * `1.7s · 1.5% · 0.4%` triple — those numbers were placeholders without
- * a public stats endpoint. The three here are immutable Solana facts +
+ * a public stats endpoint. The three here are immutable protocol facts +
  * platform guarantees.
  */
 export function ReceiptsStrip() {

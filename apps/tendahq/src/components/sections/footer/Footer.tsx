@@ -5,7 +5,7 @@ import { FooterStatus } from './FooterStatus'
 import { FooterWordmark } from './FooterWordmark'
 
 /**
- * §11 Footer — system colophon on the dark spine. Pre-launch shape:
+ * §11 Footer — system colophon. Pre-launch shape:
  *   1. Wordmark + about + version chip + social icons
  *   2. Horizontal nav (small set; promote back to columns once page count
  *      grows — see ./content/sitemap-future.ts)
@@ -18,7 +18,7 @@ import { FooterWordmark } from './FooterWordmark'
  */
 export function Footer() {
   return (
-    <SectionShell tone="dark" padY="md" maxWidth="page">
+    <SectionShell surface="alt" padY="md" maxWidth="page">
       <FooterWordmark />
 
       <div className="mt-10">

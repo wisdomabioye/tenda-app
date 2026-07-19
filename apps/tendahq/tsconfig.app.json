@@ -26,7 +26,8 @@
 
     /* Path aliases */
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@tenda/shared/chains": ["../../packages/shared/src/chains/index.ts"]
     }
   },
   "include": ["src"]

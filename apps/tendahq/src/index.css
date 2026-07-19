@@ -1,94 +1,83 @@
 @import 'tailwindcss';
 
 /* Variable fonts — self-hosted via @fontsource */
-@import '@fontsource-variable/space-grotesk';
-@import '@fontsource-variable/manrope';
+@import '@fontsource-variable/outfit';
+@import '@fontsource-variable/instrument-sans';
 @import '@fontsource-variable/jetbrains-mono';
 
 /* =============================================================================
- * Tokens — sourced from apps/mobile/theme/tokens.ts.
- * Light is default; dark applies when [data-theme="dark"] is on <html> OR when
- * the user prefers dark and no explicit preference is set.
+ * Tokens — dark-first, blue + neutral system built around the logo (deep navy
+ * wordmark, royal-blue period). ONE theme per page view: the <html>
+ * data-theme attribute (ThemeProvider, default dark) flips the whole page;
+ * sections never pin their own theme.
+ *
+ * Colour discipline: brand blue (+ a lighter companion blue) and neutrals do
+ * ALL decorative work. Green/orange/red exist only as semantic feedback
+ * tones; per-chain brand colours appear only as micro-dots.
  * =========================================================================== */
 @layer base {
-  :root {
+  :root,
+  [data-theme='dark'] {
     /* Typography */
-    --font-display: 'Space Grotesk Variable', system-ui, sans-serif;
-    --font-body: 'Manrope Variable', system-ui, sans-serif;
+    --font-display: 'Outfit Variable', system-ui, sans-serif;
+    --font-body: 'Instrument Sans Variable', system-ui, sans-serif;
     --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 
-    /* Surfaces */
-    --surface-bg: #F7F5F0;
-    --surface-bg-alt: #F0EDE6;
-    --surface-card: #FFFFFF;
-    --surface-card-elevated: #FFFFFF;
-    --surface-inset: #EDE9E1;
-    --surface-overlay: rgba(247, 245, 240, 0.78);
-    --surface-navbar: rgba(247, 245, 240, 0.90);
-    --surface-pressed: #E8E3D9;
-    --surface-inverse: #12141B;
+    /* Surfaces — deep navy family */
+    --surface-bg: #0A0E1B;
+    --surface-bg-alt: #0C1122;
+    --surface-card: #111729;
+    --surface-card-elevated: #151C33;
+    --surface-inset: #0E1424;
+    --surface-overlay: rgba(8, 12, 24, 0.72);
+    --surface-navbar: rgba(10, 14, 27, 0.85);
+    --surface-pressed: #1A2136;
+    --surface-inverse: #F5F7FC;
 
-    /* Brand */
-    --brand: #2E5BD6;
-    --brand-pressed: #264CB5;
-    --brand-surface: #E8EEFB;
-    --brand-border: #BFD0F2;
+    /* Brand — the logo's royal blue */
+    --brand: #3D6DF2;
+    --brand-pressed: #5581F5;
+    --brand-surface: rgba(61, 109, 242, 0.15);
+    --brand-border: rgba(61, 109, 242, 0.35);
     --brand-on: #FFFFFF;
-    --brand-focus: rgba(46, 91, 214, 0.34);
+    --brand-focus: rgba(61, 109, 242, 0.45);
 
-    /* Accent (orange — seeker / highlights) */
-    --accent: #E08A3C;
-    --accent-surface: #FCEFDF;
-    --accent-border: #F3D1A8;
+    /* Companion blue — soft sky, replaces the old orange accent everywhere */
+    --accent: #8AB0F8;
+    --accent-surface: rgba(138, 176, 248, 0.12);
+    --accent-border: rgba(138, 176, 248, 0.28);
 
-    /* Live / success-ish green — used as accent on dark sections */
-    --live: #1F9D6B;
-    --live-bright: #3ACB8E;
+    /* Live — blue like the logo dot (green is reserved for real success) */
+    --live: #6E9BF7;
+    --live-bright: #8AB0F8;
 
     /* Content */
-    --content-primary: #141721;
-    --content-secondary: #4E525B;
-    --content-tertiary: #8A8E98;
-    --content-inverse: #FFFFFF;
-    --content-link: #2E5BD6;
-    --content-disabled: #9AA3AF;
+    --content-primary: #F2F5FB;
+    --content-secondary: #A9B2C7;
+    --content-tertiary: #6E7891;
+    --content-inverse: #0A0E1B;
+    --content-link: #8AB0F8;
+    --content-disabled: #5A6478;
 
     /* Borders */
-    --border-subtle: rgba(20, 17, 10, 0.05);
-    --border-default: rgba(20, 17, 10, 0.10);
-    --border-strong: rgba(20, 17, 10, 0.18);
+    --border-subtle: rgba(255, 255, 255, 0.05);
+    --border-default: rgba(255, 255, 255, 0.09);
+    --border-strong: rgba(255, 255, 255, 0.18);
 
-    /* Feedback */
-    --success: #1F9D6B;
-    --success-surface: #E6F4ED;
-    --warning: #C9780C;
-    --warning-surface: #FBEFD9;
-    --danger: #CB3A3A;
-    --danger-surface: #F9E4E4;
-    --info: #2F6CC9;
-    --info-surface: #E6EEFB;
+    /* Feedback — semantic only, never decorative */
+    --success: #3ACB8E;
+    --success-surface: rgba(58, 203, 142, 0.13);
+    --warning: #E8B25C;
+    --warning-surface: rgba(232, 178, 92, 0.13);
+    --danger: #F0706E;
+    --danger-surface: rgba(240, 112, 110, 0.13);
+    --info: #8AB0F8;
+    --info-surface: rgba(138, 176, 248, 0.13);
 
-    /* Money / numerics */
-    --money: #1F9D6B;
-    --positive: #1F9D6B;
-    --negative: #CB3A3A;
-
-    /* Categories — light pairs (base / surface / text) */
-    --cat-delivery: #3B82F6;
-    --cat-delivery-surface: rgba(59, 130, 246, 0.10);
-    --cat-delivery-text: #2A4FAA;
-    --cat-photo: #8B5CF6;
-    --cat-photo-surface: rgba(139, 92, 246, 0.10);
-    --cat-photo-text: #5A389C;
-    --cat-errand: #D98722;
-    --cat-errand-surface: rgba(217, 135, 34, 0.12);
-    --cat-errand-text: #8C5812;
-    --cat-service: #1F9D6B;
-    --cat-service-surface: rgba(31, 157, 107, 0.10);
-    --cat-service-text: #156E4A;
-    --cat-digital: #E0579D;
-    --cat-digital-surface: rgba(224, 87, 157, 0.10);
-    --cat-digital-text: #9A3E6C;
+    /* Money / numerics — semantic */
+    --money: #3ACB8E;
+    --positive: #3ACB8E;
+    --negative: #F0706E;
 
     /* Radii */
     --r-xs: 8px;
@@ -99,165 +88,72 @@
     --r-card: 20px;
     --r-sheet: 24px;
 
-    /* Shadows */
-    --shadow-card: 0 4px 12px rgba(20, 17, 10, 0.04);
-    --shadow-elevated: 0 1px 2px rgba(20, 17, 10, 0.04), 0 12px 32px rgba(20, 17, 10, 0.10);
-    --shadow-modal: 0 4px 8px rgba(20, 17, 10, 0.06), 0 32px 64px rgba(20, 17, 10, 0.18);
+    /* Shadows — deep, with a faint blue cast */
+    --shadow-card: 0 4px 16px rgba(2, 5, 14, 0.35);
+    --shadow-elevated: 0 1px 2px rgba(2, 5, 14, 0.25), 0 16px 40px rgba(2, 5, 14, 0.45);
+    --shadow-modal: 0 4px 8px rgba(2, 5, 14, 0.3), 0 32px 64px rgba(2, 5, 14, 0.6);
 
     /* Layout */
     --maxw: 1280px;
 
-    color-scheme: light dark;
+    color-scheme: dark;
   }
 
-  /* Auto-dark when no user preference is set */
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme='light']) {
-      --surface-bg: #0D1018;
-      --surface-bg-alt: #111521;
-      --surface-card: #161B29;
-      --surface-card-elevated: #1C2233;
-      --surface-inset: #131826;
-      --surface-overlay: rgba(10, 14, 20, 0.68);
-      --surface-navbar: rgba(13, 16, 24, 0.90);
-      --surface-pressed: #1A2030;
-      --surface-inverse: #F4F2ED;
+  /* Light — cool, paper-white counterpart. Same blue, navy content. */
+  [data-theme='light'] {
+    --surface-bg: #F7F8FC;
+    --surface-bg-alt: #EFF2F8;
+    --surface-card: #FFFFFF;
+    --surface-card-elevated: #FFFFFF;
+    --surface-inset: #ECEFF6;
+    --surface-overlay: rgba(247, 248, 252, 0.8);
+    --surface-navbar: rgba(247, 248, 252, 0.88);
+    --surface-pressed: #E3E8F2;
+    --surface-inverse: #10152B;
 
-      /* Brand stays at the deep saturated #2E5BD6 in dark mode too — the
-         lighter #5E87E8 looked pastel / washed-out on dark surfaces. Tinted
-         surface / border opacities are bumped slightly so the deeper hue
-         still reads against #0D1018. */
-      --brand: #2E5BD6;
-      --brand-pressed: #4774E0;
-      --brand-surface: rgba(46, 91, 214, 0.20);
-      --brand-border: rgba(46, 91, 214, 0.36);
-      --brand-focus: rgba(46, 91, 214, 0.45);
-
-      --accent: #F0A365;
-      --accent-surface: rgba(240, 163, 101, 0.14);
-      --accent-border: rgba(240, 163, 101, 0.32);
-
-      --live: #3ACB8E;
-      --live-bright: #3ACB8E;
-
-      --content-primary: #F4F2ED;
-      --content-secondary: #B6BAC5;
-      --content-tertiary: #7A8096;
-      --content-inverse: #0D1018;
-      --content-link: #7FA7F0;
-      --content-disabled: #66717F;
-
-      --border-subtle: rgba(255, 255, 255, 0.04);
-      --border-default: rgba(255, 255, 255, 0.08);
-      --border-strong: rgba(255, 255, 255, 0.18);
-
-      --success: #3ACB8E;
-      --success-surface: rgba(58, 203, 142, 0.14);
-      --warning: #F0A365;
-      --warning-surface: rgba(240, 163, 101, 0.14);
-      --danger: #F0706E;
-      --danger-surface: rgba(240, 112, 110, 0.14);
-      --info: #7FA7F0;
-      --info-surface: rgba(127, 167, 240, 0.14);
-
-      --money: #3ACB8E;
-      --positive: #3ACB8E;
-      --negative: #F0706E;
-
-      --cat-delivery: #60A5FA;
-      --cat-delivery-surface: rgba(96, 165, 250, 0.14);
-      --cat-delivery-text: #BFDBFE;
-      --cat-photo: #A78BFA;
-      --cat-photo-surface: rgba(167, 139, 250, 0.14);
-      --cat-photo-text: #DDD6FE;
-      --cat-errand: #FBBF24;
-      --cat-errand-surface: rgba(251, 191, 36, 0.14);
-      --cat-errand-text: #FDE68A;
-      --cat-service: #34D399;
-      --cat-service-surface: rgba(52, 211, 153, 0.14);
-      --cat-service-text: #A7F3D0;
-      --cat-digital: #F472B6;
-      --cat-digital-surface: rgba(244, 114, 182, 0.14);
-      --cat-digital-text: #FBCFE8;
-
-      --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.18);
-      --shadow-elevated: 0 1px 2px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.32);
-      --shadow-modal: 0 4px 8px rgba(0, 0, 0, 0.16), 0 32px 64px rgba(0, 0, 0, 0.48);
-    }
-  }
-
-  /* Explicit dark — toggled via ThemeProvider */
-  :root[data-theme='dark'] {
-    --surface-bg: #0D1018;
-    --surface-bg-alt: #111521;
-    --surface-card: #161B29;
-    --surface-card-elevated: #1C2233;
-    --surface-inset: #131826;
-    --surface-overlay: rgba(10, 14, 20, 0.68);
-    --surface-navbar: rgba(13, 16, 24, 0.90);
-    --surface-pressed: #1A2030;
-    --surface-inverse: #F4F2ED;
-
-    /* Brand stays at the deep saturated #2E5BD6 in dark mode too — the
-       lighter #5E87E8 looked pastel / washed-out on dark surfaces. Tinted
-       surface / border opacities are bumped slightly so the deeper hue still
-       reads against #0D1018. */
     --brand: #2E5BD6;
-    --brand-pressed: #4774E0;
-    --brand-surface: rgba(46, 91, 214, 0.20);
-    --brand-border: rgba(46, 91, 214, 0.36);
-    --brand-focus: rgba(46, 91, 214, 0.45);
+    --brand-pressed: #264CB5;
+    --brand-surface: #E9EEFC;
+    --brand-border: #C3D2F4;
+    --brand-on: #FFFFFF;
+    --brand-focus: rgba(46, 91, 214, 0.34);
 
-    --accent: #F0A365;
-    --accent-surface: rgba(240, 163, 101, 0.14);
-    --accent-border: rgba(240, 163, 101, 0.32);
+    --accent: #4774E0;
+    --accent-surface: #EBF0FD;
+    --accent-border: #CAD7F7;
 
-    --live: #3ACB8E;
-    --live-bright: #3ACB8E;
+    --live: #2E5BD6;
+    --live-bright: #4774E0;
 
-    --content-primary: #F4F2ED;
-    --content-secondary: #B6BAC5;
-    --content-tertiary: #7A8096;
-    --content-inverse: #0D1018;
-    --content-link: #7FA7F0;
-    --content-disabled: #66717F;
+    --content-primary: #10152B;
+    --content-secondary: #4A5168;
+    --content-tertiary: #878FA6;
+    --content-inverse: #FFFFFF;
+    --content-link: #2E5BD6;
+    --content-disabled: #9AA3B8;
 
-    --border-subtle: rgba(255, 255, 255, 0.04);
-    --border-default: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.18);
+    --border-subtle: rgba(16, 21, 43, 0.06);
+    --border-default: rgba(16, 21, 43, 0.1);
+    --border-strong: rgba(16, 21, 43, 0.18);
 
-    --success: #3ACB8E;
-    --success-surface: rgba(58, 203, 142, 0.14);
-    --warning: #F0A365;
-    --warning-surface: rgba(240, 163, 101, 0.14);
-    --danger: #F0706E;
-    --danger-surface: rgba(240, 112, 110, 0.14);
-    --info: #7FA7F0;
-    --info-surface: rgba(127, 167, 240, 0.14);
+    --success: #1F9D6B;
+    --success-surface: #E6F4ED;
+    --warning: #B07914;
+    --warning-surface: #FBF1DC;
+    --danger: #CB3A3A;
+    --danger-surface: #F9E4E4;
+    --info: #2E5BD6;
+    --info-surface: #E9EEFC;
 
-    --money: #3ACB8E;
-    --positive: #3ACB8E;
-    --negative: #F0706E;
+    --money: #1F9D6B;
+    --positive: #1F9D6B;
+    --negative: #CB3A3A;
 
-    --cat-delivery: #60A5FA;
-    --cat-delivery-surface: rgba(96, 165, 250, 0.14);
-    --cat-delivery-text: #BFDBFE;
-    --cat-photo: #A78BFA;
-    --cat-photo-surface: rgba(167, 139, 250, 0.14);
-    --cat-photo-text: #DDD6FE;
-    --cat-errand: #FBBF24;
-    --cat-errand-surface: rgba(251, 191, 36, 0.14);
-    --cat-errand-text: #FDE68A;
-    --cat-service: #34D399;
-    --cat-service-surface: rgba(52, 211, 153, 0.14);
-    --cat-service-text: #A7F3D0;
-    --cat-digital: #F472B6;
-    --cat-digital-surface: rgba(244, 114, 182, 0.14);
-    --cat-digital-text: #FBCFE8;
+    --shadow-card: 0 4px 14px rgba(16, 21, 43, 0.06);
+    --shadow-elevated: 0 1px 2px rgba(16, 21, 43, 0.04), 0 14px 36px rgba(16, 21, 43, 0.1);
+    --shadow-modal: 0 4px 8px rgba(16, 21, 43, 0.06), 0 32px 64px rgba(16, 21, 43, 0.18);
 
-    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.18);
-    --shadow-elevated: 0 1px 2px rgba(0, 0, 0, 0.12), 0 12px 32px rgba(0, 0, 0, 0.32);
-    --shadow-modal: 0 4px 8px rgba(0, 0, 0, 0.16), 0 32px 64px rgba(0, 0, 0, 0.48);
+    color-scheme: light;
   }
 
   html { scroll-behavior: smooth; }
@@ -268,7 +164,6 @@
     background: var(--surface-bg);
     color: var(--content-primary);
     font-family: var(--font-body);
-    font-feature-settings: 'cv11', 'ss01';
     line-height: 1.55;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -289,44 +184,36 @@
 }
 
 /* =============================================================================
- * Type atoms — naming contract from designer's landing.css.
- * Use these classes; do not redefine type per-section.
+ * Type atoms — use these classes; do not redefine type per-section.
  * =========================================================================== */
 @layer components {
   .h-hero {
     font-family: var(--font-display);
-    font-size: clamp(46px, 6.0vw, 72px);
+    font-size: clamp(46px, 6.0vw, 74px);
     line-height: 1.02;
     font-weight: 700;
-    letter-spacing: -0.045em;
-  }
-  .h-hero-mobile {
-    font-family: var(--font-display);
-    font-size: 44px;
-    line-height: 1.05;
-    font-weight: 700;
-    letter-spacing: -0.04em;
+    letter-spacing: -0.035em;
   }
   .h1 {
     font-family: var(--font-display);
-    font-size: clamp(36px, 4.4vw, 44px);
+    font-size: clamp(34px, 4.4vw, 46px);
     line-height: 1.1;
-    font-weight: 700;
-    letter-spacing: -0.03em;
+    font-weight: 650;
+    letter-spacing: -0.025em;
   }
   .h2 {
     font-family: var(--font-display);
-    font-size: clamp(28px, 3.2vw, 32px);
+    font-size: clamp(27px, 3.2vw, 32px);
     line-height: 1.2;
     font-weight: 600;
-    letter-spacing: -0.02em;
+    letter-spacing: -0.015em;
   }
   .h3 {
     font-family: var(--font-display);
-    font-size: 22px;
+    font-size: 21px;
     line-height: 1.3;
     font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.008em;
   }
   .body-lg {
     font-family: var(--font-body);
@@ -388,6 +275,14 @@
     letter-spacing: 0.04em;
   }
 
+  /* Headline emphasis — the one decorative flourish: a blue sweep. */
+  .text-brand-gradient {
+    background: linear-gradient(100deg, var(--accent), var(--brand));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
   .hairline { height: 1px; background: var(--border-subtle); }
   .container-page { width: min(100%, var(--maxw)); margin-inline: auto; padding-inline: 20px; }
   @media (min-width: 768px) { .container-page { padding-inline: 32px; } }
@@ -395,20 +290,55 @@
   .app-shell { position: relative; min-height: 100vh; color: var(--content-primary); }
   .app-main { width: 100%; }
 
-  /* Dev-only outline for placeholder-flagged values. Removed in production builds via CSS guard. */
-  [data-placeholder='true'] {
-    outline: 1px dashed color-mix(in oklab, var(--accent) 50%, transparent);
-    outline-offset: 2px;
-    border-radius: 4px;
+  /* TradeCard corridor — animated dashes drifting asset → fiat. */
+  .corridor-line {
+    height: 2px;
+    background-image: repeating-linear-gradient(
+      90deg,
+      currentColor 0 6px,
+      transparent 6px 16px
+    );
+    animation: corridor-flow 0.9s linear infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .corridor-line { animation: none; }
+  }
+
+  /* ---------------------------------------------------------------------------
+   * SwipeDeck — a physical card flick. The front card is thrown up and off
+   * (fast start, slight spin, fades late); the stack settles forward on a
+   * springy curve, each follower a beat behind the one before it.
+   * ------------------------------------------------------------------------- */
+  .deck-card {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    transition:
+      transform 640ms cubic-bezier(0.34, 1.3, 0.5, 1),
+      opacity 520ms cubic-bezier(0.2, 0, 0, 1);
+    will-change: transform, opacity;
+  }
+  .deck-pos-0 { z-index: 30; transform: translateY(0) scale(1); opacity: 1; transition-delay: 70ms; }
+  .deck-pos-1 { z-index: 20; transform: translateY(20px) scale(0.95); opacity: 0.72; transition-delay: 120ms; }
+  .deck-pos-2 { z-index: 10; transform: translateY(40px) scale(0.9); opacity: 0.4; transition-delay: 170ms; }
+  .deck-hidden { z-index: 0; transform: translateY(58px) scale(0.86); opacity: 0; }
+  .deck-exit {
+    z-index: 40;
+    transform: translateY(0);
+    animation: deck-flick 700ms cubic-bezier(0.3, 0.1, 0.25, 1) forwards;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .deck-card { transition: none; animation: none; }
+    .deck-exit { animation: none; opacity: 0; }
   }
 
   /* Section entrance — children fade-up with a 60ms stagger when the parent
      enters the viewport. Honour reduced-motion. */
   .reveal-on-scroll > * {
     opacity: 0;
-    transform: translateY(8px);
-    transition: opacity 480ms cubic-bezier(0.2, 0, 0, 1),
-                transform 480ms cubic-bezier(0.2, 0, 0, 1);
+    transform: translateY(10px);
+    transition: opacity 520ms cubic-bezier(0.2, 0, 0, 1),
+                transform 520ms cubic-bezier(0.2, 0, 0, 1);
     transition-delay: calc(var(--reveal-i, 0) * 60ms);
   }
   .reveal-on-scroll[data-visible='true'] > * {
@@ -450,18 +380,25 @@
   to   { transform: translateX(0); }
 }
 
-@keyframes section-reveal {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+@keyframes marquee-y {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-50%); }
 }
 
-@keyframes escrow-drift {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-7px); }
+@keyframes marquee-y-reverse {
+  from { transform: translateY(-50%); }
+  to   { transform: translateY(0); }
 }
 
-@keyframes featured-glow {
-  /* Featured wall card represents the "Escrow locked" state — green vocabulary, not brand-blue. */
-  0%, 100% { box-shadow: 0 0 0 1px color-mix(in oklab, var(--success) 10%, transparent), 0 24px 60px color-mix(in oklab, var(--success) 14%, transparent), 0 8px 24px rgba(0,0,0,0.45); }
-  50%      { box-shadow: 0 0 0 1px color-mix(in oklab, var(--success) 16%, transparent), 0 28px 70px color-mix(in oklab, var(--success) 22%, transparent), 0 8px 24px rgba(0,0,0,0.45); }
+/* TradeCard corridor — dashes drift from the asset side to the fiat side. */
+@keyframes corridor-flow {
+  from { background-position-x: 0; }
+  to   { background-position-x: 16px; }
+}
+
+/* SwipeDeck front-card exit — thrown upward with a slight spin. */
+@keyframes deck-flick {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+  55%  { opacity: 0.85; }
+  100% { transform: translateY(-135%) rotate(-6deg) scale(0.98); opacity: 0; }
 }

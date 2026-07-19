@@ -2,11 +2,13 @@ import type { ReactNode } from 'react'
 import { useIntersect } from '@/hooks/useIntersect'
 import { cn } from '@/lib/cn'
 
-export type SectionTone = 'dark' | 'light'
+/** Background treatment within the CURRENT theme — never a theme override. */
+export type SectionSurface = 'base' | 'alt'
 
 interface Props {
   id?: string
-  tone: SectionTone
+  /** Alternate surfaces give the page rhythm without flipping themes. */
+  surface?: SectionSurface
   /** Constrain inner max-width. Defaults to var(--maxw) = 1280. */
   maxWidth?: 'page' | 'narrow' | 'full'
   /** Vertical padding scale. */
@@ -30,18 +32,19 @@ const WIDTH: Record<NonNullable<Props['maxWidth']>, string> = {
   full:   'max-w-none',
 }
 
+const SURFACE: Record<SectionSurface, string> = {
+  base: 'bg-[var(--surface-bg)]',
+  alt:  'bg-[var(--surface-bg-alt)]',
+}
+
 /**
- * Wraps a landing section. The `tone` flag pins the section to dark or light
- * regardless of the user's theme — required because the page has a deliberate
- * dark spine (hero/trust/products/escrow/ticker/coverage/faq/cta/footer) with
- * light interludes (why-tenda, three-audiences). See IMPLEMENTATION.md §3.4.
- *
- * Implementation: each section sets `data-theme` locally on its own root, which
- * cascades the token values to children.
+ * Wraps a landing section. The whole page renders in ONE theme (the user's,
+ * via the <html> data-theme attribute); sections vary only in surface tint,
+ * so light mode is light everywhere and dark mode dark everywhere.
  */
 export function SectionShell({
   id,
-  tone,
+  surface = 'base',
   maxWidth = 'page',
   padY = 'md',
   noReveal = false,
@@ -55,10 +58,9 @@ export function SectionShell({
   return (
     <section
       id={id}
-      data-theme={tone}
       className={cn(
-        'relative isolate w-full',
-        'bg-[var(--surface-bg)] text-[var(--content-primary)]',
+        'relative isolate w-full text-[var(--content-primary)]',
+        SURFACE[surface],
         PAD_Y[padY],
         className,
       )}

@@ -1,13 +1,13 @@
 import { useHealth, formatUptime } from '@/hooks/useHealth'
 import { LiveDot } from '@/components/ui/LiveDot'
-import { APP_INFO } from '@/app-info'
+import { APP_INFO } from '@/content'
 
 /**
  * Operational status row. Polls /v1/health on mount and renders three cells:
  *
  *   ● STATUS         (Operational / Unavailable based on /v1/health response)
  *   UPTIME           (formatted from `uptime` seconds)
- *   NETWORK          (Solana · devnet · v0.2.1, from APP_INFO)
+ *   NETWORKS         (Solana · Base · Celo · version, from APP_INFO)
  *
  * Real data, no placeholders. If the API is unreachable the status flips to
  * "Unavailable" with a danger-tinted dot — the user can see at a glance
@@ -45,9 +45,9 @@ export function FooterStatus() {
         </span>
       </Cell>
 
-      <Cell label="Network">
+      <Cell label="Networks">
         <span className="mono-sm font-semibold text-[var(--content-primary)]">
-          {APP_INFO.chain.network} · {APP_INFO.version}
+          {APP_INFO.chains.networksLine} · {APP_INFO.version}
         </span>
       </Cell>
     </div>

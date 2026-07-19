@@ -18,7 +18,7 @@ export interface SitemapLink {
 export const FOOTER_NAV_LINKS: readonly SitemapLink[] = [
   { label: 'Products',     href: '/#products'     },
   { label: 'How it works', href: '/#how-it-works' },
-  { label: 'For who',      href: '/#for-who'      },
+  { label: 'Onboarding',   href: '/#onboarding'   },
+  { label: 'Ecosystems',   href: '/#ecosystems'   },
   { label: 'FAQ',          href: '/#faq'          },
-  { label: 'Coverage',     href: '/#coverage'     },
 ] as const

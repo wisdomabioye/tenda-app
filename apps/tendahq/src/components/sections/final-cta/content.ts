@@ -12,7 +12,7 @@
  *      triple. Replaced with three pre-launch facts only.
  */
 
-import { APP_INFO } from '@/app-info'
+import { APP_INFO } from '@/content'
 
 export const FINAL_CTA_HEADER = {
   eyebrow: { num: '§ 10', label: 'Ship it' },
@@ -26,7 +26,7 @@ export const FINAL_CTA_HEADER = {
 export const DOWNLOAD_BUTTONS = {
   primary: {
     label: 'Download APK',
-    sub: 'Android · v0.2.1-devnet',
+    sub: `Android · ${APP_INFO.version}`,
     href: APP_INFO.apkUrl,
   },
   stores: [
@@ -59,10 +59,10 @@ export interface Receipt {
 
 export const RECEIPTS: readonly Receipt[] = [
   {
-    k: 'Settlement',
-    v: '~400',
-    unit: 'ms',
-    b: 'Solana block finality · contract-bound',
+    k: 'Chains',
+    v: '3',
+    unit: ' live',
+    b: `${APP_INFO.chains.networksLine} · more coming`,
   },
   {
     k: 'Worker keeps',
@@ -73,6 +73,6 @@ export const RECEIPTS: readonly Receipt[] = [
   {
     k: 'Custody',
     v: 'Yours',
-    b: 'Program-only escrow · no admin override',
+    b: 'Contract-only escrow · no admin override',
   },
 ]

@@ -21,7 +21,7 @@ const SURFACE: Record<PillTone, string> = {
   success: 'bg-[var(--success-surface)] text-[var(--success)] border-transparent',
   warning: 'bg-[var(--warning-surface)] text-[var(--warning)] border-transparent',
   danger:  'bg-[var(--danger-surface)] text-[var(--danger)] border-transparent',
-  live:    'bg-[var(--success-surface)] text-[var(--live-bright)] border-transparent',
+  live:    'bg-[var(--brand-surface)] text-[var(--live-bright)] border-transparent',
 }
 
 const DOT: Record<PillTone, string> = {

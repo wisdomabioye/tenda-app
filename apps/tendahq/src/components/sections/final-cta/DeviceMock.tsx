@@ -44,7 +44,7 @@ function BalanceHero() {
       className="relative shrink-0 overflow-hidden rounded-2xl border border-[var(--border-default)] p-4"
       style={{
         background:
-          'linear-gradient(135deg, color-mix(in oklab, var(--brand) 14%, transparent), color-mix(in oklab, var(--money) 6%, transparent))',
+          'linear-gradient(135deg, color-mix(in oklab, var(--brand) 14%, transparent), color-mix(in oklab, var(--accent) 8%, transparent))',
       }}
     >
       <span

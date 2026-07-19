@@ -1,4 +1,4 @@
-import { APP_INFO } from '../../app-info'
+import { APP_INFO } from '@/content'
 
 const EFFECTIVE_DATE = 'March 1, 2026'
 
@@ -48,7 +48,8 @@ export function Privacy() {
           <p>
             {APP_INFO.name} is designed to be as minimal as possible with your personal data.
             Because gig transactions happen on-chain, most activity is public by nature of the
-            Solana blockchain. This policy explains what we collect, why, and how.
+            supported blockchains ({APP_INFO.chains.networksLine}). This policy explains what we
+            collect, why, and how.
           </p>
         </LegalSection>
 
@@ -110,7 +111,7 @@ export function Privacy() {
 
         <LegalSection title="6. On-Chain Data">
           <p>
-            Gig escrow transactions are recorded permanently on the Solana blockchain and are
+            Gig escrow transactions are recorded permanently on the underlying blockchain and are
             publicly visible. Tenda has no ability to remove or alter on-chain data.
           </p>
         </LegalSection>
@@ -150,12 +151,12 @@ export function Privacy() {
             </a>{' '}
             or{' '}
             <a
-              href={APP_INFO.whatsappUrl}
+              href={APP_INFO.telegramUrl}
               className="font-medium text-[var(--primary)] no-underline hover:text-[var(--heading)]"
               target="_blank"
               rel="noreferrer"
             >
-              WhatsApp
+              Telegram
             </a>.
           </p>
         </LegalSection>

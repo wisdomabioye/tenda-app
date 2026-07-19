@@ -36,7 +36,7 @@ export function HeroStatRow() {
               style={{
                 width: 1,
                 background:
-                  'linear-gradient(180deg, transparent, color-mix(in oklab, var(--accent) 56%, transparent), transparent)',
+                  'linear-gradient(180deg, transparent, color-mix(in oklab, var(--brand) 50%, transparent), transparent)',
               }}
             />
           )}

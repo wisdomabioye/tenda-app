@@ -2,30 +2,30 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Navbar } from './components/layout/Navbar'
 import { Footer } from './components/sections/footer/Footer'
 import { Hero } from './components/sections/hero/Hero'
-import { TrustStrip } from './components/sections/trust-strip/TrustStrip'
+import { TaskWall } from './components/sections/task-wall/TaskWall'
 import { TwoProducts } from './components/sections/two-products/TwoProducts'
+import { CurrencyMarquee } from './components/sections/two-products/CurrencyMarquee'
 import { HowEscrowWorks } from './components/sections/how-escrow-works/HowEscrowWorks'
-import { LiveTicker } from './components/sections/live-ticker/LiveTicker'
-import { WhyTenda } from './components/sections/why-tenda/WhyTenda'
-import { Coverage } from './components/sections/coverage-map/Coverage'
-import { ThreeAudiences } from './components/sections/three-audiences/ThreeAudiences'
+import { Onboarding } from './components/sections/onboarding/Onboarding'
+import { Ecosystems } from './components/sections/ecosystems/Ecosystems'
 import { FAQ } from './components/sections/faq/FAQ'
 import { FinalCTA } from './components/sections/final-cta/FinalCTA'
 import { Terms } from './components/sections/Terms'
 import { Privacy } from './components/sections/Privacy'
 
 function LandingPage() {
-  // Sections built section-by-section in Phase 3 (see LANDING_TODO.md).
+  // Spine: dark hero → light task wall → dark products (+ full-bleed currency
+  // marquee) → dark escrow explainer → light onboarding rails → dark
+  // ecosystems → FAQ → final CTA.
   return (
     <>
       <Hero />
-      <TrustStrip />
+      <TaskWall />
       <TwoProducts />
+      <CurrencyMarquee />
       <HowEscrowWorks />
-      <LiveTicker />
-      <WhyTenda />
-      <Coverage />
-      <ThreeAudiences />
+      <Onboarding />
+      <Ecosystems />
       <FAQ />
       <FinalCTA />
     </>

@@ -1,5 +1,5 @@
-import { Wordmark } from '@/components/ui/Wordmark'
-import { APP_INFO } from '@/app-info'
+import { BrandLogo } from '@/components/ui/BrandLogo'
+import { APP_INFO } from '@/content'
 import { FooterSocial } from './FooterSocial'
 
 /**
@@ -11,7 +11,7 @@ import { FooterSocial } from './FooterSocial'
 export function FooterWordmark() {
   return (
     <div className="flex flex-col gap-5">
-      <Wordmark size="lg" />
+      <BrandLogo height={28} />
 
       <p className="body-sm max-w-[44ch] text-[var(--content-secondary)]">
         {APP_INFO.about}

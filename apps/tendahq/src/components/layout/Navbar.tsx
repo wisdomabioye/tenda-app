@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { ChevronRight, Menu, Moon, Sun, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { Wordmark } from '@/components/ui/Wordmark'
-import { useTheme } from '@/theme/ThemeProvider'
+import { BrandLogo } from '@/components/ui/BrandLogo'
+import { useTheme } from '@/theme/theme-context'
 import { NAV_LABELS, NAV_LINKS } from './nav-content'
 import { cn } from '@/lib/cn'
 
@@ -20,7 +20,13 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  useEffect(() => setMenuOpen(false), [pathname])
+  // Close the mobile sheet on route change — state adjusted during render
+  // (the React-docs pattern) instead of an effect.
+  const [lastPath, setLastPath] = useState(pathname)
+  if (lastPath !== pathname) {
+    setLastPath(pathname)
+    setMenuOpen(false)
+  }
 
   const elevated = scrolled || !isHome || menuOpen
 
@@ -36,7 +42,7 @@ export function Navbar() {
       >
         <div className="container-page flex h-16 items-center justify-between">
           <a href="/" className="flex items-center gap-2 no-underline" aria-label={NAV_LABELS.brandAlt}>
-            <Wordmark size="md" />
+            <BrandLogo height={22} />
           </a>
 
           <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">

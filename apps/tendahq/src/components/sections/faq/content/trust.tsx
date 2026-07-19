@@ -1,4 +1,4 @@
-import { APP_INFO } from '@/app-info'
+import { APP_INFO } from '@/content'
 import type { FaqCategory } from '../types'
 
 export const TRUST_CATEGORY: FaqCategory = {
@@ -13,15 +13,15 @@ export const TRUST_CATEGORY: FaqCategory = {
       answer: (
         <>
           <p>
-            In the escrow program on Solana —{' '}
+            In the on-chain escrow contract —{' '}
             <strong>not in a Tenda bank account, not in the worker&apos;s wallet.</strong>{' '}
-            When you fund a gig, SOL moves directly from your wallet into a program-derived
+            When you fund a gig, the money moves directly from your wallet into an escrow
             account that only the contract can release. Tenda has no admin key, no pause button,
-            no sweep function.
+            no sweep function. The same contract logic runs on {APP_INFO.chains.networksLine}.
           </p>
           <p>
-            You can read the source and inspect any settlement on Solana Explorer. Program ID is
-            published in the trust strip at the top of this page.
+            You can read the source and inspect any settlement in the block explorer of the
+            chain it settled on.
           </p>
         </>
       ),
@@ -54,7 +54,7 @@ export const TRUST_CATEGORY: FaqCategory = {
           <p>
             Two safeguards. <strong>Auto-approve:</strong> if the poster doesn&apos;t approve or
             dispute within the review window (planned: 48 hours after proof submission), the
-            program auto-releases SOL to the worker.{' '}
+            contract auto-releases the funds to the worker.{' '}
             <em>(See &quot;Planned&quot; on §04 fallback route B.)</em>
           </p>
           <p>
@@ -71,13 +71,14 @@ export const TRUST_CATEGORY: FaqCategory = {
       answer: (
         <>
           <p>
-            <strong>Not yet.</strong> Tenda is currently on Solana devnet ({APP_INFO.version}). A
-            third-party audit will land before public mainnet launch — once the report is
+            <strong>Not yet.</strong> Tenda is currently a testnet release ({APP_INFO.version}).
+            A third-party audit will land before public mainnet launch — once the report is
             published the firm and date will appear in the §04 chain-meta strip and here.
           </p>
           <p>
-            In the meantime, the source is open. Anyone with Rust + Anchor familiarity can read
-            the program and the test suite end-to-end before depositing.
+            In the meantime, the source is open. The Solana program (Rust/Anchor) and the EVM
+            contracts (Solidity/Foundry) ship with their full test suites — read them end-to-end
+            before depositing.
           </p>
         </>
       ),
@@ -88,7 +89,7 @@ export const TRUST_CATEGORY: FaqCategory = {
       answer: (
         <>
           <p>
-            The escrow program lives on Solana — independent of any Tenda server. Existing
+            The escrow contracts live on their chains — independent of any Tenda server. Existing
             escrows continue to settle on the same logic: proof → release, deadline → refund,
             dispute → mediation. The mobile app is open-source; anyone can fork and rehost the
             UI.

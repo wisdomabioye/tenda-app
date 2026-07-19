@@ -31,8 +31,8 @@ const VARIANTS: Record<ButtonVariant, string> = {
     'hover:bg-[var(--brand-pressed)]',
   ),
   accent: cn(
-    'border-transparent bg-[var(--accent)] text-[var(--brand-on)]',
-    'shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_rgba(224,138,60,0.22)]',
+    'border-transparent bg-[var(--accent)] text-[var(--content-inverse)]',
+    'shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_10px_24px_var(--brand-focus)]',
     'hover:brightness-105',
   ),
   outline: cn(
@@ -67,7 +67,8 @@ export function Button({
   const cls = cn(BASE, VARIANTS[variant], SIZES[size], fullWidth && 'w-full', className)
 
   if ('href' in rest && rest.href !== undefined) {
-    const { className: _omit, ...anchorProps } = rest as AsAnchor
+    const anchorProps = { ...(rest as AsAnchor) }
+    delete anchorProps.className
     return (
       <a {...anchorProps} className={cls}>
         {children}
@@ -75,7 +76,8 @@ export function Button({
     )
   }
 
-  const { className: _omit, ...btnProps } = rest as AsButton
+  const btnProps = { ...(rest as AsButton) }
+  delete btnProps.className
   return (
     <button {...btnProps} className={cls}>
       {children}

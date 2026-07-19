@@ -37,10 +37,10 @@ export const ESCROW_HEADER = {
     dim: 'Proof releases them.',
     accent: 'Nothing in between.',
   },
-  sub: 'Every gig and every trade follows the same four-stage on-chain contract. No platform-held balance. No "pending" you can\'t see. Every state change is a Solana transaction you can verify.',
+  sub: 'Every gig and every trade follows the same four-stage on-chain contract — on whichever chain you choose. No platform-held balance. No "pending" you can\'t see. Every state change is a transaction you can verify in a block explorer.',
   meta: [
-    { k: 'Program', v: 'fromAppInfo:programIdShort' },
-    { k: 'Chain',   v: 'fromAppInfo:network · ~400ms blocks' },
+    { k: 'Chains',  v: 'fromAppInfo:networksLine' },
+    { k: 'Release', v: 'fromAppInfo:stage' },
     { k: 'Audit',   v: 'Pre-mainnet · audit pending' },
   ],
 } as const
@@ -51,11 +51,11 @@ export const STAGES: readonly Stage[] = [
     accent: 'brand',
     tag: 'Poster · Seller',
     name: 'Lock',
-    body: "SOL leaves the poster's (or seller's) wallet and enters the on-chain escrow program. It is no longer in either party's control.",
+    body: "The funds — USDC, SOL or ETH — leave the poster's (or seller's) wallet and enter the on-chain escrow contract. They are no longer in either party's control.",
     event: {
       rows: [
         { label: 'Event',  value: 'Locked',     kind: 'status', statusTone: 'locked' },
-        { label: 'Amount', value: '0.50 SOL',   kind: 'amt' },
+        { label: 'Amount', value: '12 USDC',    kind: 'amt' },
         { label: 'Tx',     value: '5Qf…aL2',    kind: 'hash' },
       ],
     },
@@ -76,7 +76,7 @@ export const STAGES: readonly Stage[] = [
   },
   {
     num: '03',
-    accent: 'success',
+    accent: 'brand',
     tag: 'Poster · Seller',
     name: 'Approve',
     body: 'The poster (or seller) reviews proof and signs an approval. One tap. No back-office. No phone calls.',
@@ -93,12 +93,12 @@ export const STAGES: readonly Stage[] = [
     accent: 'content',
     tag: 'Program · Atomic',
     name: 'Release',
-    body: 'In the same block, the program splits the locked SOL — payout to the worker (or buyer), fee to Tenda. Settlement under 2 seconds.',
+    body: 'In the same transaction, the contract splits the locked funds — payout to the worker (or buyer), fee to Tenda. Settlement in seconds on every chain.',
     event: {
       rows: [
         { label: 'Event',   value: 'Settled',         kind: 'status', statusTone: 'final' },
-        { label: 'Payout',  value: '0.4875 SOL',      kind: 'amt' },
-        { label: 'Fee',     value: '0.0125 SOL · 2.5%', kind: 'plain' },
+        { label: 'Payout',  value: '11.70 USDC',      kind: 'amt' },
+        { label: 'Fee',     value: '0.30 USDC · 2.5%', kind: 'plain' },
       ],
     },
   },
@@ -119,8 +119,8 @@ export const FALLBACK = {
   h3: "If proof is missing or contested, escrow resolves — it doesn't disappear.",
   body: 'Funds are never stuck on Tenda. Every gig has a deterministic exit — initiated by a party, by a deadline, or by Tenda mediation. Whichever path triggers, both sides see the same on-chain receipt.',
   routes: [
-    { letter: 'A', prefix: 'Cancel.',        body: 'Poster (or seller) cancels before a worker (or buyer) accepts → SOL returns to the locker.',        time: 'pre-accept' },
-    { letter: 'B', prefix: 'Auto-approve.',  body: "If the poster (or seller) doesn't approve or dispute within the review window, SOL auto-releases to the worker (or buyer).",
+    { letter: 'A', prefix: 'Cancel.',        body: 'Poster (or seller) cancels before a worker (or buyer) accepts → the funds return to the locker.',        time: 'pre-accept' },
+    { letter: 'B', prefix: 'Auto-approve.',  body: "If the poster (or seller) doesn't approve or dispute within the review window, the funds auto-release to the worker (or buyer).",
       time: '48h', aspirational: true },
     { letter: 'C', prefix: 'Reclaim.',       body: 'Worker (or buyer) misses the proof-submission deadline → poster (or seller) can claim the refund.', time: 'post-deadline' },
     { letter: 'D', prefix: 'Dispute.',       body: 'Either side opens a dispute after proof is submitted → Tenda mediation reviews evidence and instructs the program to release or refund.', time: '≤ 24h' },

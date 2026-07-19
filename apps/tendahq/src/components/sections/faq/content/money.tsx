@@ -31,15 +31,16 @@ export const MONEY_CATEGORY: FaqCategory = {
       answer: (
         <>
           <p>
-            Workers are paid in <strong>SOL</strong> on settlement — the on-chain unit. To convert
-            into local fiat, use the in-app Exchange to find a buyer for your SOL in any of the{' '}
+            Workers are paid in <strong>USDC</strong> on settlement — a dollar-pegged stablecoin,
+            so the amount you earn is the amount you keep. To convert into local fiat, use the
+            in-app Exchange to find a buyer for your USDC (or SOL, or ETH) in any of the{' '}
             {SUPPORTED_CURRENCIES.length} supported corridors:{' '}
             <code className="font-mono">{SUPPORTED_CURRENCIES.join(' · ')}</code>.
           </p>
           <p>
             Settlement happens off-chain via bank transfer or mobile money (M-Pesa, MoMo, OPay,
-            etc.) — Tenda&apos;s contract holds the SOL until both sides confirm the fiat
-            transfer.
+            GCash, etc.) — Tenda&apos;s contract holds the crypto until both sides confirm the
+            fiat transfer.
           </p>
         </>
       ),
@@ -49,9 +50,9 @@ export const MONEY_CATEGORY: FaqCategory = {
       question: 'How fast does a payout actually settle?',
       answer: (
         <p>
-          Solana finalizes blocks in roughly <strong>~400 ms</strong>. From the moment the poster
-          taps approve, the SOL is in the worker&apos;s wallet within one or two blocks — usually
-          well under 2 seconds. There is no &quot;pending&quot; state we control.
+          From the moment the poster taps approve, the funds are in the worker&apos;s wallet
+          within a block or two of the chain the gig runs on — sub-second on Solana, a few
+          seconds on Base and Celo. There is no &quot;pending&quot; state we control.
         </p>
       ),
     },
@@ -60,9 +61,9 @@ export const MONEY_CATEGORY: FaqCategory = {
       question: 'Are there minimum or maximum gig amounts?',
       answer: (
         <p>
-          The contract enforces a small minimum (a few thousand lamports — much less than a cent
-          equivalent) so the platform fee math doesn&apos;t round to zero. There&apos;s no upper
-          ceiling on-chain — the practical ceiling is whatever you&apos;re comfortable escrowing.
+          The contract enforces a tiny minimum (well under a cent) so the platform fee math
+          doesn&apos;t round to zero. There&apos;s no upper ceiling on-chain — the practical
+          ceiling is whatever you&apos;re comfortable escrowing.
         </p>
       ),
     },

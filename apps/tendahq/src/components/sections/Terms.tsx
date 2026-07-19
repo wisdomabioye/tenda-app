@@ -1,4 +1,4 @@
-import { APP_INFO } from '../../app-info'
+import { APP_INFO } from '@/content'
 
 const EFFECTIVE_DATE = 'March 1, 2026'
 
@@ -53,7 +53,8 @@ export function Terms() {
 
         <LegalSection title="2. What Tenda Is">
           <p>
-            {APP_INFO.name} is a peer-to-peer gig marketplace built on the Solana blockchain.
+            {APP_INFO.name} is a peer-to-peer gig marketplace built on public blockchains
+            ({APP_INFO.chains.networksLine}).
             We provide the platform and smart contracts that facilitate agreements between posters
             and workers. We are not a party to any gig, nor do we employ or guarantee any user.
           </p>
@@ -68,7 +69,7 @@ export function Terms() {
 
         <LegalSection title="4. Wallets & Funds">
           <p>
-            Tenda is non-custodial. Your Solana wallet and private keys are your sole responsibility.
+            Tenda is non-custodial. Your wallets and private keys are your sole responsibility.
             Funds held in escrow are governed entirely by on-chain smart contracts. Tenda cannot
             reverse, pause, or recover any blockchain transaction.
           </p>
@@ -140,12 +141,12 @@ export function Terms() {
             </a>{' '}
             or{' '}
             <a
-              href={APP_INFO.whatsappUrl}
+              href={APP_INFO.telegramUrl}
               className="font-medium text-[var(--primary)] no-underline hover:text-[var(--heading)]"
               target="_blank"
               rel="noreferrer"
             >
-              WhatsApp
+              Telegram
             </a>.
           </p>
         </LegalSection>

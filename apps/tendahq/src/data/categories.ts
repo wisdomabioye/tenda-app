@@ -1,6 +1,7 @@
 /**
- * Gig categories. Mirrors @tenda/shared/constants/categories. Each entry maps to a
- * CSS variable token defined in index.css (--cat-{id}, --cat-{id}-surface, --cat-{id}-text).
+ * Gig categories. Mirrors @tenda/shared/constants/categories. Chips render in
+ * the neutral inset treatment (see TaskCard / GigListRow) — no per-category
+ * colour tokens.
  */
 
 export const GIG_CATEGORIES = ['delivery', 'photo', 'errand', 'service', 'digital'] as const

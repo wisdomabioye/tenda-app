@@ -14,7 +14,7 @@ export function FinalCtaHeader() {
       <h2 className="h-hero text-[var(--content-primary)]">
         {FINAL_CTA_HEADER.h2.line1}
         <br />
-        <span className="text-[var(--accent)]">{FINAL_CTA_HEADER.h2.accent}</span>{' '}
+        <span className="text-brand-gradient">{FINAL_CTA_HEADER.h2.accent}</span>{' '}
         <span className="text-[var(--content-tertiary)]">{FINAL_CTA_HEADER.h2.dim}</span>
       </h2>
 

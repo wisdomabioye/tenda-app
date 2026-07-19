@@ -1,5 +1,27 @@
 # Tenda Landing v2 — Implementation Tracker
 
+> **⚠ 2026-07-19 multichain rework supersedes parts of this tracker.** The
+> Solana-only story was replaced with the multichain (Solana · Base · Celo)
+> landing. What changed:
+>
+> - **Removed sections:** §02 trust strip, §05 live ticker, §06 why-tenda,
+>   §07 coverage map, §08 three audiences (all ran on `placeholder: true`
+>   mock numbers — M75–M78 no longer block launch).
+> - **New sections:** task wall (`sections/task-wall/`, vertical marquees of
+>   example gigs), onboarding rails (`sections/onboarding/`, gas story per
+>   chain), ecosystems + grants (`sections/ecosystems/`).
+> - **New hero:** TaskDeck swipe-up stack replaces the escrow wall; chain
+>   badges under the CTAs. Exchange panel gained the TradeDeck (crypto → fiat
+>   corridors). Headline unchanged.
+> - **Content centralised in `src/content/`** (app-info, tasks, trades,
+>   features, ecosystems, chains). Chain facts derive from
+>   `@tenda/shared` CHAIN_MANIFEST. See README.
+> - **Theme fix:** `data-theme` token blocks now match on any element, so
+>   `SectionShell` tone pinning actually works.
+>
+> The phase tables below are kept for history; treat file paths that no
+> longer exist as removed by the rework.
+
 > Single source of truth for the landing-page rebuild. Update statuses inline as tasks complete.
 > **Use checkboxes:** `[ ]` open · `[~]` in progress · `[x]` done · `[!]` blocked / needs decision · `[-]` skipped (with reason).
 

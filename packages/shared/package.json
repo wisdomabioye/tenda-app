@@ -29,6 +29,11 @@
       "types": "./dist/db/schema/*.d.ts",
       "require": "./dist/db/schema/*.js",
       "default": "./dist/db/schema/*.js"
+    },
+    "./chains": {
+      "types": "./dist/chains/index.d.ts",
+      "require": "./dist/chains/index.js",
+      "default": "./dist/chains/index.js"
     }
   },
   "scripts": {

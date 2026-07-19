@@ -1,23 +1,20 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-
-export type ThemeMode = 'light' | 'dark' | 'system'
-export type ResolvedTheme = 'light' | 'dark'
-
-interface ThemeContextValue {
-  mode: ThemeMode
-  resolved: ResolvedTheme
-  setMode: (mode: ThemeMode) => void
-  toggle: () => void
-}
+import {
+  ThemeContext,
+  type ResolvedTheme,
+  type ThemeContextValue,
+  type ThemeMode,
+} from './theme-context'
 
 const STORAGE_KEY = 'tenda:theme'
-const ThemeContext = createContext<ThemeContextValue | null>(null)
 
 function readStoredMode(): ThemeMode {
-  if (typeof window === 'undefined') return 'system'
+  // Brand default is DARK (the CSS :root tokens are the dark set) — 'system'
+  // only applies when a user explicitly stored it.
+  if (typeof window === 'undefined') return 'dark'
   const v = window.localStorage.getItem(STORAGE_KEY)
-  return v === 'light' || v === 'dark' || v === 'system' ? v : 'system'
+  return v === 'light' || v === 'dark' || v === 'system' ? v : 'dark'
 }
 
 function systemTheme(): ResolvedTheme {
@@ -71,10 +68,4 @@ export function ThemeProvider({ children }: Props) {
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
-}
-
-export function useTheme(): ThemeContextValue {
-  const ctx = useContext(ThemeContext)
-  if (!ctx) throw new Error('useTheme must be used inside <ThemeProvider>')
-  return ctx
 }

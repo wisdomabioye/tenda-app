@@ -1,16 +1,16 @@
 import { SectionShell } from '@/components/ui/SectionShell'
-import { APP_INFO } from '@/app-info'
+import { APP_INFO } from '@/content'
 import { ESCROW_HEADER, STAGES } from './content'
 import { StageCard } from './StageCard'
 import { Fallback } from './Fallback'
 
 /**
- * §04 How escrow works — single unified four-stage flow on the dark spine,
+ * §04 How escrow works — single unified four-stage flow,
  * followed by a Fallback subsection covering the four exit routes.
  */
 export function HowEscrowWorks() {
   return (
-    <SectionShell id="how-it-works" tone="dark" padY="lg">
+    <SectionShell id="how-it-works" surface="alt" padY="lg">
       <Header />
 
       <div className="mt-14 grid gap-10 md:grid-cols-2 lg:grid-cols-4 lg:gap-6">
@@ -54,12 +54,12 @@ function Header() {
 /**
  * Meta rows — single source of truth for values is `ESCROW_HEADER.meta` in
  * content.ts. Sentinel strings starting with `fromAppInfo:` are resolved here
- * against `APP_INFO.chain` so chain identity stays in one place.
+ * against `APP_INFO.chains` so chain identity stays in one place.
  */
 function MetaRows() {
   const resolve = (raw: string): string => {
-    if (raw === 'fromAppInfo:programIdShort') return APP_INFO.chain.programIdShort
-    if (raw === 'fromAppInfo:network · ~400ms blocks') return `${APP_INFO.chain.network} · ~400ms blocks`
+    if (raw === 'fromAppInfo:networksLine') return APP_INFO.chains.networksLine
+    if (raw === 'fromAppInfo:stage') return `${APP_INFO.version} · ${APP_INFO.chains.stage}`
     return raw
   }
 

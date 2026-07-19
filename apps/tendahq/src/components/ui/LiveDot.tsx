@@ -8,8 +8,9 @@ interface Props {
 }
 
 /**
- * Green pulsing live dot. Used in nav, footer status strip, ticker, hero eyebrow.
- * Uses inline keyframes via CSS custom property so we don't need a global @keyframes.
+ * Pulsing live dot in the brand's live-blue (like the logo period). Used in
+ * the hero pill, footer status strip and feature cards. Uses inline keyframes
+ * via CSS custom property so we don't need a global @keyframes.
  */
 export function LiveDot({ size = 8, pulseMs = 1600, className }: Props) {
   return (

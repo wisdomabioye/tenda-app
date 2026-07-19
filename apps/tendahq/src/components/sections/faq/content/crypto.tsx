@@ -13,12 +13,14 @@ export const CRYPTO_CATEGORY: FaqCategory = {
         <>
           <p>
             No more than you&apos;d need to use any mobile app. You install the app, connect a
-            Solana wallet (Tenda guides you through this on first launch), and that&apos;s it.
-            The wallet is yours — Tenda never holds your keys.
+            wallet — Phantom or Solflare on Solana, or any Reown AppKit wallet on Base and Celo
+            (Tenda guides you through this on first launch) — and that&apos;s it. The wallet is
+            yours — Tenda never holds your keys. You don&apos;t even need gas money to start:
+            Tenda seeds new Solana wallets with SOL, and on Celo your USDC pays its own fees.
           </p>
           <p>
-            For posters: the app handles converting your fiat estimate into a SOL amount at the
-            current rate when you publish. For workers: payouts arrive as SOL; you can keep them,
+            For posters: gigs are priced in USDC, a dollar-pegged stablecoin — no volatile
+            conversions to think about. For workers: payouts arrive as USDC; keep them,
             self-custody, or convert via Exchange to local fiat.
           </p>
         </>
