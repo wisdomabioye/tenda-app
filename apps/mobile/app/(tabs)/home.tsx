@@ -14,7 +14,9 @@ import {
 import { LoadingScreen, ErrorState, ServerStatus } from '@/components/feedback'
 import { GigCardCompact } from '@/components/gig'
 import { FeaturedRail } from '@/components/gig/FeaturedRail'
+import { NotificationNudgeBanner } from '@/components/notifications'
 import { Drawer, DrawerHeader } from '@/components/navigation'
+import { spacing } from '@/theme/tokens'
 import { CATEGORY_META } from '@/lib/categories'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
@@ -146,6 +148,8 @@ export default function HomeScreen() {
             }
             ListHeaderComponent={
               <>
+                {/* Cancels the list gutter so the strip runs edge to edge. */}
+                <NotificationNudgeBanner style={s.bannerBleed} />
                 <FeaturedRail refreshKey={railRefreshKey} />
                 <View style={s.feedRow}>
                   <Text style={[s.feedTitle, { color: theme.colors.content.primary }]}>
@@ -228,7 +232,12 @@ export default function HomeScreen() {
 
 const s = StyleSheet.create({
   list: {
-    paddingHorizontal: 20,
+    paddingHorizontal: spacing.lg,
+  },
+  // Paired with `list` above: the banner is full bleed, so it has to undo the
+  // gutter its own container applies.
+  bannerBleed: {
+    marginHorizontal: -spacing.lg,
   },
   feedRow: {
     flexDirection: 'row',

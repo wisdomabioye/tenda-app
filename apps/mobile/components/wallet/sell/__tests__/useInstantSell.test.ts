@@ -13,9 +13,14 @@ let mockQuoteState: QuoteState = { quote: null, expiresIn: 0, loading: false, er
 const mockOfframp = jest.fn()
 const mockReplace = jest.fn()
 const mockToast = jest.fn()
+const mockRefetch = jest.fn()
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace }) }))
-jest.mock('@/hooks/useFiatQuote', () => ({ useFiatQuote: () => mockQuoteState }))
+// Mirrors the real hook, which returns `{ ...state, refetch }`. Omitting
+// refetch here made the stale-quote branch throw instead of nudging.
+jest.mock('@/hooks/useFiatQuote', () => ({
+  useFiatQuote: () => ({ ...mockQuoteState, refetch: mockRefetch }),
+}))
 jest.mock('@/api/client', () => ({
   api: { fiat: { offramp: (b: unknown) => mockOfframp(b) } },
   ApiClientError: class ApiClientError extends Error {},
@@ -32,6 +37,7 @@ beforeEach(() => {
   mockOfframp.mockReset().mockResolvedValue({ instruction: { kind: 'p2p', offer_id: 'off-1' }, intent_id: 'i1' })
   mockReplace.mockReset()
   mockToast.mockReset()
+  mockRefetch.mockReset()
 })
 
 test('blocks submit and nudges when there is no fresh quote', async () => {
@@ -39,6 +45,8 @@ test('blocks submit and nudges when there is no fresh quote', async () => {
   await act(async () => { await result.current.confirm() })
   expect(mockOfframp).not.toHaveBeenCalled()
   expect(mockToast).toHaveBeenCalledWith('info', expect.stringMatching(/latest price/i))
+  // The nudge is only honest if a fresh quote is actually on the way.
+  expect(mockRefetch).toHaveBeenCalledTimes(1)
 })
 
 test('a fresh P2P quote initiates the offramp and routes to the new offer', async () => {

@@ -18,6 +18,8 @@ import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useOnboardingStore } from '@/stores/onboarding.store'
+import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
+import { useNotificationPermissionStore } from '@/stores/notification-permission.store'
 
 /**
  * Loads fonts and bootstraps app data in parallel.
@@ -48,6 +50,8 @@ export function useAppReady(): boolean {
       ),
       useSettingsStore.getState().loadSettings(),
       useOnboardingStore.getState().load(),
+      useNotificationPromptStore.getState().load(),
+      useNotificationPermissionStore.getState().refresh(),
     ])
       .then(() => usePendingSyncStore.getState().replayAll())
       .finally(() => setSessionLoaded(true))

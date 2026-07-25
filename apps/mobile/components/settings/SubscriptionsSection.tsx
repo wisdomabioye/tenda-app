@@ -1,8 +1,7 @@
 import { useCallback, useState } from 'react'
-import { View, Pressable, StyleSheet, ActivityIndicator, Linking } from 'react-native'
+import { View, Pressable, StyleSheet, ActivityIndicator } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { useFocusEffect } from 'expo-router'
-import * as Notifications from 'expo-notifications'
 import { Bell, Trash2, Plus } from 'lucide-react-native'
 import { Text, showToast } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
@@ -10,6 +9,7 @@ import { ErrorState } from '@/components/feedback'
 import { SettingsGroup } from './SettingsRow'
 import { AddSubscriptionSheet } from './AddSubscriptionSheet'
 import { ALL_CITIES_KEY, subscriptionBody } from '@/lib/subscriptionCities'
+import { useNotificationPermission } from '@/hooks/useNotificationPermission'
 import { api } from '@/api/client'
 import type { GigSubscription } from '@tenda/shared'
 
@@ -30,8 +30,12 @@ export function SubscriptionsSection() {
   const [subscriptions, setSubscriptions] = useState<GigSubscription[]>([])
   const [loadingSubs, setLoadingSubs] = useState(false)
   const [subsError, setSubsError] = useState(false)
-  const [notifDenied, setNotifDenied] = useState(false)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const { permission, ask } = useNotificationPermission()
+
+  // Permission can only change from outside the app, which the hook picks up on
+  // foreground, so this only has to wait for the first read to land.
+  const notifDenied = permission !== null && !permission.enabled
 
   const loadSubscriptions = useCallback(() => {
     setLoadingSubs(true)
@@ -46,9 +50,6 @@ export function SubscriptionsSection() {
   useFocusEffect(
     useCallback(() => {
       loadSubscriptions()
-      Notifications.getPermissionsAsync().then(({ status }) => {
-        setNotifDenied(status === 'denied')
-      })
     }, [loadSubscriptions]),
   )
 
@@ -79,7 +80,9 @@ export function SubscriptionsSection() {
       <SectionLabel>Notifications</SectionLabel>
       {notifDenied && (
         <Pressable
-          onPress={() => Linking.openSettings()}
+          onPress={() => {
+            void ask()
+          }}
           style={({ pressed }) => [
             s.banner,
             { backgroundColor: theme.colors.feedback.warning.surface },
@@ -88,7 +91,7 @@ export function SubscriptionsSection() {
         >
           <View style={[s.bannerDot, { backgroundColor: theme.colors.feedback.warning.base }]} />
           <Text style={[s.bannerText, { color: theme.colors.content.primary }]}>
-            <Text style={{ fontWeight: '600' }}>Notifications are off.</Text> Enable in iOS Settings to get alerts.
+            <Text style={{ fontWeight: '600' }}>Notifications are off.</Text> Turn them on to get alerts.
           </Text>
           <Text style={[s.bannerAction, { color: theme.colors.brand.primary }]}>Enable</Text>
         </Pressable>
@@ -171,7 +174,7 @@ export function SubscriptionsSection() {
       </SettingsGroup>
       {notifDenied && (
         <Text style={[s.notifHint, { color: theme.colors.content.tertiary }]}>
-          Re-enable notifications to add subscriptions.
+          Turn on notifications to add subscriptions.
         </Text>
       )}
 

@@ -3,16 +3,12 @@ import { View, StyleSheet, Pressable } from 'react-native'
 import Animated, { FadeInRight, FadeOutLeft } from 'react-native-reanimated'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
-import * as Notifications from 'expo-notifications'
 import { Briefcase, ShieldCheck, Smartphone, Wallet } from 'lucide-react-native'
 import { spacing } from '@/theme/tokens'
 import { ScreenContainer, Text, Button, Spacer } from '@/components/ui'
 import { OnboardingSlide } from '@/components/onboarding/OnboardingSlide'
 import { OnboardingDots } from '@/components/onboarding/OnboardingDots'
-import { NotificationPermissionStep } from '@/components/onboarding/NotificationPermissionStep'
 import { useOnboardingStore } from '@/stores/onboarding.store'
-
-type Phase = 'slides' | 'permission'
 
 const SLIDES = [
   {
@@ -41,9 +37,7 @@ export default function OnboardingScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
   const { completeOnboarding } = useOnboardingStore()
-  const [phase, setPhase] = useState<Phase>('slides')
   const [slideIndex, setSlideIndex] = useState(0)
-  const [isRequesting, setIsRequesting] = useState(false)
 
   const isLastSlide = slideIndex === SLIDES.length - 1
 
@@ -55,30 +49,12 @@ export default function OnboardingScreen() {
   }
 
   function handleNext() {
-    if (isLastSlide) setPhase('permission')
+    // Notification permission is deliberately NOT asked here. This screen runs
+    // pre-account, so the system dialog would be spent before the user has
+    // anything to be notified about, and on iOS it can never be shown again.
+    // The ask now lives in NotificationPrimerHost, after signup.
+    if (isLastSlide) void handleFinish()
     else setSlideIndex((i) => i + 1)
-  }
-
-  async function handleAllowNotifications() {
-    setIsRequesting(true)
-    try {
-      await Notifications.requestPermissionsAsync()
-    } finally {
-      // Do NOT reset isRequesting before navigating, resetting state while
-      // simultaneously navigating after returning from an Android system dialog
-      // causes a view reconciliation race in Fabric (ReactClippingViewManager crash).
-      await handleFinish()
-    }
-  }
-
-  if (phase === 'permission') {
-    return (
-      <NotificationPermissionStep
-        isRequesting={isRequesting}
-        onAllow={handleAllowNotifications}
-        onSkip={handleFinish}
-      />
-    )
   }
 
   const currentSlide = SLIDES[slideIndex]

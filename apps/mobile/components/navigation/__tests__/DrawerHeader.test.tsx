@@ -4,6 +4,9 @@
  * chrome (unistyles, safe-area, icons) is mocked.
  */
 import { render, screen } from '@testing-library/react-native'
+// Resolves to the stub below at runtime, but keeps the real LucideIcon type, so
+// the rightIcon prop is exercised against the type the app actually passes.
+import { Bell } from 'lucide-react-native'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -20,7 +23,7 @@ jest.mock('react-native-unistyles', () => ({
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }))
-jest.mock('lucide-react-native', () => ({ Menu: () => null }))
+jest.mock('lucide-react-native', () => ({ Menu: () => null, Bell: () => null }))
 jest.mock('@/components/ui', () => {
   const { Text } = require('react-native')
   return {
@@ -30,8 +33,6 @@ jest.mock('@/components/ui', () => {
 })
 
 import { DrawerHeader } from '@/components/navigation/DrawerHeader'
-
-const Bell = () => null
 
 test('no badge when the count is zero', () => {
   render(<DrawerHeader onMenuPress={jest.fn()} rightIcon={Bell} badgeCount={0} showAvatar={false} />)

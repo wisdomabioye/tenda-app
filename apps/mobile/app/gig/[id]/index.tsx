@@ -24,6 +24,7 @@ import { TransactionMonitor, LoadingScreen, ErrorState } from '@/components/feed
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
+import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
 import { useAuthStore, useGigsStore } from '@/stores'
 import { apiConfig, formatAssetAmount } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
@@ -115,6 +116,11 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     actions.clearPending()
     if (action !== null) {
       showToast('success', SUCCESS_BY_ACTION[action] ?? 'Transaction confirmed')
+    }
+    if (action === 'accept') {
+      // Accepting is a commitment: it earns the just-in-time notification
+      // re-ask for a worker who declined the prompt earlier.
+      void useNotificationPromptStore.getState().recordCommitment()
     }
     if (action === 'cancel') {
       router.back()

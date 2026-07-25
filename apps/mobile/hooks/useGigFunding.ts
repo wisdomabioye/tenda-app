@@ -16,6 +16,7 @@ import { api, ApiClientError } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
 import { WalletError } from '@/wallet/errors'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 import type { TxPhase } from '@/hooks/useEscrowActions'
@@ -186,7 +187,12 @@ export function useGigFunding({ draftId, clearDraftPrefill }: UseGigFundingArgs)
     dismissBlocked: () => setBlockedMessage(null),
     runFunding,
     /** Escrow confirmed on-chain → the gig is live. */
-    handleFunded: () => leaveAfterFunding('success', 'Gig funded and live!'),
+    handleFunded: () => {
+      // First real commitment, this is what earns the just-in-time notification
+      // re-ask for a user who declined earlier.
+      void useNotificationPromptStore.getState().recordCommitment()
+      leaveAfterFunding('success', 'Gig funded and live!')
+    },
     /**
      * Timed out / soft failure: the escrow will sync when it confirms; land on
      * the gig page (draft or live) rather than trapping the user in the modal.

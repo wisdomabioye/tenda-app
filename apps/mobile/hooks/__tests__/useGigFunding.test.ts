@@ -5,7 +5,7 @@
  * leaving a draft to retry. Also covers fail-open and the pre-existing paths
  * (moderation block, 9D gate) surviving the extraction from the screen.
  */
-import { renderHook, act } from '@testing-library/react-native'
+import { renderHook, act, waitFor } from '@testing-library/react-native'
 import type { GigFormValues } from '@/components/gig/GigForm'
 
 const mockPush = jest.fn()
@@ -61,6 +61,7 @@ jest.mock('@/lib/transaction-gate', () => ({
 }))
 
 import { useGigFunding } from '@/hooks/useGigFunding'
+import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
 
 const SIGNERS = ['SoLSigner', 'SoLSecond']
 const VALUES: GigFormValues = {
@@ -226,6 +227,19 @@ test('a confirmed escrow clears the draft prefill and lands on the gig', async (
   expect(mockToast).toHaveBeenCalledWith('success', 'Gig funded and live!')
   expect(mockPush).toHaveBeenCalledWith('/gig/e1')
   expect(result.current.phase).toBe('idle')
+})
+
+test('funding a gig records the commitment that earns the notification re-ask', async () => {
+  // Without this the tier-2 trigger could be deleted and no test would fail.
+  useNotificationPromptStore.setState({ commitmentCount: 0 })
+  const { result } = renderHook(() => useGigFunding(ARGS))
+  await fund(result)
+
+  await act(async () => { result.current.handleFunded() })
+
+  await waitFor(() => {
+    expect(useNotificationPromptStore.getState().commitmentCount).toBe(1)
+  })
 })
 
 test('a timeout still lands the user on the gig rather than trapping the modal', async () => {

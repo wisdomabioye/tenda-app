@@ -6,6 +6,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import * as SplashScreen from 'expo-splash-screen'
 import { SafeAreaProvider, initialWindowMetrics } from 'react-native-safe-area-context'
 import { ToastProvider } from '@/components/ui/Toast'
+import { NotificationPrimerHost } from '@/components/notifications'
 import { ReownProvider } from '@/wallet/reown/bridge'
 import { configureNotifications } from '@/lib/notifications'
 import { initReporter, wrapApp } from '@/lib/reporter'
@@ -59,6 +60,9 @@ export default wrapApp(function RootLayout() {
           <Stack.Screen name="wc-return" options={{ animation: 'none' }} />
           <Stack.Screen name="+not-found" />
         </Stack>
+        {/* Sits above the stack so the permission primer can follow the user
+            across the tab and modal stacks from a single mount. */}
+        <NotificationPrimerHost />
       </ToastProvider>
       <StatusBar style="auto" />
       </ReownProvider>

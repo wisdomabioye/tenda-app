@@ -6,6 +6,8 @@
 import { render, fireEvent, screen } from '@testing-library/react-native'
 import type { NotificationWire } from '@tenda/shared'
 
+import { NotificationRow } from '@/components/notifications/NotificationRow'
+
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
     theme: {
@@ -22,8 +24,6 @@ jest.mock('@/components/ui', () => {
   const { Text } = require('react-native')
   return { Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
 })
-
-import { NotificationRow } from '@/components/notifications/NotificationRow'
 
 function notif(over: Partial<NotificationWire> = {}): NotificationWire {
   return {

@@ -54,5 +54,17 @@ module.exports = {
     'hooks/useAttachmentUpload.ts',
     'components/shared/AttachSheet.tsx',
     'components/shared/media/AttachmentPreview.tsx',
+    // Notification permission flow (primer tiers + throttled nudge).
+    'lib/notifications/*.ts',
+    // Pure re-export barrel, nothing to exercise.
+    '!lib/notifications/index.ts',
+    'stores/notification-prompt.store.ts',
+    'stores/notification-permission.store.ts',
+    'hooks/useNotificationPermission.ts',
+    'hooks/usePushToken.ts',
+    'components/notifications/NotificationPrimer.tsx',
+    'components/notifications/NotificationPrimerHost.tsx',
+    'components/notifications/NotificationNudgeBanner.tsx',
+    'components/notifications/primerCopy.ts',
   ],
 }

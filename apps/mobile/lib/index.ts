@@ -7,7 +7,7 @@ export { getEnv } from './env'
 export { deadlineLabel, formatDate, formatDuration, formatDeadline } from './gig-display'
 export { uploadToCloudinary } from './upload'
 export type { ProofFile } from './upload'
-export { configureNotifications, registerPushToken } from './notifications'
+export { configureNotifications } from './notifications'
 export { initReporter, captureError, captureMessage, setUser, wrapApp } from './reporter'
 export {
   getJwtToken, setJwtToken, deleteJwtToken,
