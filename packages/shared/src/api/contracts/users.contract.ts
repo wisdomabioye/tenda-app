@@ -4,6 +4,7 @@ import type {
   PublicUser,
   UpdateUserInput,
   UserTransactionsQuery,
+  UserTransactionsSummary,
   PaginatedResponse,
   EscrowListRow,
   UserEscrowTransaction,
@@ -102,4 +103,5 @@ export interface UsersContract {
   escrows:        Endpoint<'GET', { id: string }, undefined,        UserEscrowsQuery,           PaginatedResponse<EscrowListRow>>
   reviews:        Endpoint<'GET', { id: string }, undefined,        GetUserReviewsQuery,        PaginatedResponse<Review>>
   transactions:   Endpoint<'GET', { id: string }, undefined,        UserTransactionsQuery,      PaginatedResponse<UserEscrowTransaction>>
+  transactionsSummary: Endpoint<'GET', { id: string }, undefined,   undefined,                  UserTransactionsSummary>
 }

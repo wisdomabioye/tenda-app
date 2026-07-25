@@ -183,3 +183,105 @@ test('removeTokens: prunes provider-dead tokens, leaves the rest', { skip }, asy
     ['tok-alive'],
   )
 })
+
+// ---------- status filter on own listings (MB2) --------------------------------
+
+test('GET /v1/gigs?mine= : status filter buckets own listings, and total is the count', { skip }, async () => {
+  const app = getApp()
+  const owner = await createUser(app)
+  const statuses = ['open', 'accepted', 'submitted', 'completed', 'completed'] as const
+  for (const status of statuses) {
+    const escrow = await createEscrow(app, { creator_id: owner.row.id, status })
+    await attachGigDetails(app, escrow.id, { title: `${status} gig` })
+  }
+
+  // limit=1 makes this a COUNT read: one row back, `total` carries the answer.
+  const active = await app.inject({
+    method: 'GET',
+    url: '/v1/gigs?mine=created&status=open,accepted,submitted&limit=1',
+    headers: authHeader(owner.token),
+  })
+  assert.strictEqual(active.statusCode, 200)
+  assert.strictEqual(active.json().total, 3, 'total counts every match, not just the page')
+  assert.strictEqual(active.json().data.length, 1, 'the page itself stays limited')
+
+  const completed = await app.inject({
+    method: 'GET',
+    url: '/v1/gigs?mine=created&status=completed&limit=1',
+    headers: authHeader(owner.token),
+  })
+  assert.strictEqual(completed.json().total, 2)
+})
+
+test('GET /v1/gigs?mine=working : status filter applies to the worker side', { skip }, async () => {
+  const app = getApp()
+  const owner = await createUser(app)
+  const worker = await createUser(app)
+  for (const status of ['completed', 'completed', 'accepted'] as const) {
+    const escrow = await createEscrow(app, {
+      creator_id: owner.row.id,
+      counterparty_id: worker.row.id,
+      status,
+    })
+    await attachGigDetails(app, escrow.id, { title: `${status} gig` })
+  }
+
+  const res = await app.inject({
+    method: 'GET',
+    url: '/v1/gigs?mine=working&status=completed&limit=1',
+    headers: authHeader(worker.token),
+  })
+  assert.strictEqual(res.json().total, 2)
+})
+
+test('GET /v1/gigs: status on the PUBLIC feed is rejected, not silently emptied', { skip }, async () => {
+  const app = getApp()
+  await openGig(app)
+  // Silently ANDing with status='open' would return an empty page and read as
+  // "no such gigs" — for a filter that is really a probe for non-public rows.
+  const res = await app.inject({ method: 'GET', url: '/v1/gigs?status=draft' })
+  assert.strictEqual(res.statusCode, 400)
+  assert.match(res.json().message, /status filter requires mine=/)
+})
+
+test('GET /v1/gigs?mine= : an unknown status is a 400, not a 500 from the enum', { skip }, async () => {
+  const app = getApp()
+  const owner = await createUser(app)
+  const res = await app.inject({
+    method: 'GET',
+    url: '/v1/gigs?mine=created&status=open,banana',
+    headers: authHeader(owner.token),
+  })
+  assert.strictEqual(res.statusCode, 400)
+  assert.match(res.json().message, /status must be one of/)
+})
+
+test('GET /v1/gigs?mine= : an empty status param means no filter', { skip }, async () => {
+  const app = getApp()
+  const owner = await createUser(app)
+  const draft = await createEscrow(app, { creator_id: owner.row.id })
+  await attachGigDetails(app, draft.id, { title: 'Draft gig' })
+
+  const res = await app.inject({
+    method: 'GET',
+    url: '/v1/gigs?mine=created&status=',
+    headers: authHeader(owner.token),
+  })
+  assert.strictEqual(res.statusCode, 200)
+  assert.strictEqual(res.json().total, 1, 'drafts still included — no filter applied')
+})
+
+test('GET /v1/gigs?mine= : status cannot reach another user rows', { skip }, async () => {
+  const app = getApp()
+  const owner = await createUser(app)
+  const stranger = await createUser(app)
+  const escrow = await createEscrow(app, { creator_id: owner.row.id, status: 'completed' })
+  await attachGigDetails(app, escrow.id, { title: 'Owner gig' })
+
+  const res = await app.inject({
+    method: 'GET',
+    url: '/v1/gigs?mine=created&status=completed&limit=1',
+    headers: authHeader(stranger.token),
+  })
+  assert.strictEqual(res.json().total, 0, 'identity comes from the JWT, not the filter')
+})

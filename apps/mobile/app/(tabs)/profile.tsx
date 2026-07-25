@@ -20,29 +20,27 @@ import { SeekerWelcomeSheet } from '@/components/seeker/SeekerWelcomeSheet'
 import { ProfileHero, ProfileStats, ProfileMenu } from '@/components/profile'
 import type { MenuItem } from '@/components/profile'
 import { useAuthStore } from '@/stores/auth.store'
-import { useUserGigsStore } from '@/stores/user-gigs.store'
+import { useProfileStats } from '@/hooks/useProfileStats'
 import { truncateWallet } from '@tenda/shared'
 
 export default function ProfileScreen() {
   const router = useRouter()
   const { theme } = useUnistyles()
   const { user, logout, refreshUser } = useAuthStore()
-  const { postedGigs, workedGigs, fetchAll } = useUserGigsStore()
   const wallets = useAuthStore((s) => s.wallets)
   const sessionWallet = useAuthStore((s) => s.walletAddress)
 
+  // Counts come from server-side COUNTs, not from filtering a capped page
+  // of gig rows (open_issues MB2).
+  const stats = useProfileStats(user?.id)
+
+  // `useProfileStats` owns its own focus refetch — calling stats.reload() here
+  // as well would double every load.
   useFocusEffect(
     useCallback(() => {
-      if (user?.id) fetchAll()
       refreshUser()
-    }, [user?.id]), // eslint-disable-line react-hooks/exhaustive-deps
+    }, []), // eslint-disable-line react-hooks/exhaustive-deps
   )
-
-  const workerCompletedCount = workedGigs.filter((g) => g.status === 'completed').length
-  const posterPostedCount = postedGigs.length
-  const activePosterGigs = postedGigs.filter((g) =>
-    g.status === 'open' || g.status === 'accepted' || g.status === 'submitted'
-  ).length
 
   const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Anonymous'
 
@@ -65,7 +63,7 @@ export default function ProfileScreen() {
       Icon: ClipboardList,
       label: 'My gigs',
       tone: 'brand',
-      value: activePosterGigs > 0 ? `${activePosterGigs} active` : undefined,
+      value: stats.active > 0 ? `${stats.active} active` : undefined,
       onPress: () => router.push('/(tabs)/my-gigs'),
     },
     {
@@ -102,7 +100,7 @@ export default function ProfileScreen() {
         hasWallet={primaryWallet !== null}
       />
 
-      <ProfileStats completed={workerCompletedCount} posted={posterPostedCount} reputation={reputationDisplay} />
+      <ProfileStats completed={stats.completed} posted={stats.posted} reputation={reputationDisplay} />
 
       <SectionLabel>Account</SectionLabel>
       <ProfileMenu items={accountItems} />

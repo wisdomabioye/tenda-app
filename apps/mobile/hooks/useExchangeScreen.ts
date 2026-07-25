@@ -7,8 +7,13 @@
  * refreshing). Fetching is driven purely by the list controllers' query
  * effects — the old screen called its loaders from `scrollToPage` AND from a
  * `useFocusEffect` keyed on `pageIndex`, firing every tab switch twice.
+ *
+ * Both pages do re-read page 0 on every LATER focus, though. Trade is a tab, so
+ * it stays mounted for the session: without it, posting an offer or accepting
+ * one left the order book and My Trades showing pre-action state indefinitely.
  */
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
+import { useFocusEffect } from 'expo-router'
 import type { EscrowListRow, ExchangeListQuery, ExchangeSummary, UserEscrowsQuery } from '@tenda/shared'
 import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/usePaginatedList'
@@ -52,6 +57,29 @@ export function useExchangeScreen(): ExchangeScreenState {
     // escrows rather than simply not running.
     enabled: userId !== null,
   })
+
+  // Mirrored into refs so the focus callback's identity never changes when a
+  // list settles — that would re-fire the effect and turn the first load into
+  // two, which is exactly the double-fetch this screen was cleaned of.
+  const marketFetchedRef = useRef(false)
+  marketFetchedRef.current = market.hasFetched
+  const myTradesFetchedRef = useRef(false)
+  myTradesFetchedRef.current = myTrades.hasFetched
+
+  useFocusEffect(
+    useCallback(() => {
+      // Page 0 is owned by each controller's query effect (mount, gate opening,
+      // filter change), so only a LATER focus re-reads here. `reload` is the
+      // silent, preserve-loaded-pages variant: no spinner over a list the user
+      // is already looking at, and no yank back to page 0 if they scrolled.
+      if (marketFetchedRef.current) void market.reload()
+      if (myTradesFetchedRef.current) void myTrades.reload()
+      // Both `reload`s are stable (see usePaginatedList) and the flags are read
+      // through refs, so the callback deliberately has no deps — it must fire
+      // on focus, not on every settled load.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []),
+  )
 
   const clearFilters = useCallback(() => {
     setCurrency(null)

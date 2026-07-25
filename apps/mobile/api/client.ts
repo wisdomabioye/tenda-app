@@ -41,6 +41,7 @@ import {
   type MyDisputesQuery,
   type UserEscrowsQuery,
   type UserEscrowTransaction,
+  type UserTransactionsSummary,
   type UserTransactionsQuery,
   type AuthNonceResponse,
   type ChallengeBody,
@@ -258,6 +259,10 @@ export const api = {
         params,
         query: query as Record<string, unknown>,
       }),
+    // Lifetime USDC totals as a server-side aggregate — deliberately NOT
+    // derived from the paginated feed above (open_issues MB1).
+    transactionsSummary: (params: { id: string }) =>
+      request<UserTransactionsSummary>('GET', users.transactionsSummary, { params }),
   },
 
   upload: {

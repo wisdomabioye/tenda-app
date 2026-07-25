@@ -1,4 +1,4 @@
-import { FlatList, StyleSheet, RefreshControl } from 'react-native'
+import { ActivityIndicator, FlatList, StyleSheet, RefreshControl } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { ScreenContainer, Text, Spacer, Header } from '@/components/ui'
@@ -14,6 +14,7 @@ import {
   WalletLoadError,
 } from '@/components/wallet'
 import { useWalletScreen } from '@/hooks/useWalletScreen'
+import { END_REACHED_THRESHOLD } from '@/lib/pagination'
 
 export default function WalletScreen() {
   const { theme } = useUnistyles()
@@ -27,7 +28,10 @@ export default function WalletScreen() {
     earnedUsdc,
     spentUsdc,
     feed,
+    loadMoreTransactions,
+    isLoadingMoreTransactions,
     isLoading,
+    isLoadingTransactions,
     refreshing,
     handleRefresh,
   } = useWalletScreen()
@@ -82,13 +86,25 @@ export default function WalletScreen() {
           )
         }
         ListEmptyComponent={
-          !isLoading ? (
+          // Gated on the FEED's own load, not just `isLoading` (balances +
+          // totals): the summary is the cheaper request and routinely settles
+          // first, which used to flash "No transactions yet" over a feed that
+          // was still fetching.
+          !isLoading && !isLoadingTransactions ? (
             <Text size={13} color={theme.colors.content.tertiary} style={s.emptyText}>
               No transactions yet
             </Text>
           ) : null
         }
-        ListFooterComponent={<Spacer size={32} />}
+        onEndReached={loadMoreTransactions}
+        onEndReachedThreshold={END_REACHED_THRESHOLD}
+        ListFooterComponent={
+          isLoadingMoreTransactions ? (
+            <ActivityIndicator style={s.footer} color={theme.colors.brand.primary} />
+          ) : (
+            <Spacer size={32} />
+          )
+        }
       />
     </ScreenContainer>
   )
@@ -96,6 +112,7 @@ export default function WalletScreen() {
 
 const s = StyleSheet.create({
   content: { paddingTop: 4 },
+  footer: { paddingVertical: 16 },
   sectionTitle: {
     fontFamily: typography.fonts.mono,
     fontSize: 10,

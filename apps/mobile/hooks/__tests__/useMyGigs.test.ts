@@ -1,6 +1,7 @@
 /**
  * useMyGigs — both tabs load on mount so neither count chip reads 0 until its
- * tab is opened (open_issues MB2), and the chain filter applies to both.
+ * tab is opened (open_issues MB2), the chain filter applies to both, and both
+ * re-read on a later focus so a tab that never unmounts can't serve stale rows.
  */
 import { renderHook, act, waitFor } from '@testing-library/react-native'
 
@@ -13,7 +14,18 @@ jest.mock('@/stores/auth.store', () => ({
     selector({ user: mockUser() }),
 }))
 
+// Focus fires on mount and again on demand — My Gigs is a tab, so the SECOND
+// focus is the case that matters.
+jest.mock('expo-router', () => {
+  const React = require('react')
+  const { registerFocus } = require('@/hooks/__fixtures__/focus')
+  return { useFocusEffect: (cb: () => void) => React.useEffect(() => registerFocus(cb), [cb]) }
+})
+
 import { useMyGigs } from '@/hooks/useMyGigs'
+import { refocus, resetFocus } from '@/hooks/__fixtures__/focus'
+
+afterEach(() => resetFocus())
 
 const pageFor = (mine: string) =>
   mine === 'created'
@@ -82,6 +94,60 @@ test('each tab paginates independently', async () => {
   await waitFor(() => expect(result.current.posted.items).toHaveLength(2))
   // Paging Posted must not disturb Working.
   expect(result.current.working.items).toHaveLength(1)
+})
+
+test('a later focus re-reads BOTH tabs, so rows and count chips cannot go stale', async () => {
+  const { result } = renderHook(() => useMyGigs())
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2))
+
+  // Post a gig, then come back to the tab: the screen never unmounted, so
+  // without this the list and its `total` chip stayed on pre-post state.
+  mockList.mockImplementation((q: { mine: string }) =>
+    Promise.resolve(
+      q.mine === 'created'
+        ? { data: [{ escrow_id: 'p1' }, { escrow_id: 'p2' }], total: 13, limit: 20, offset: 0 }
+        : pageFor('working'),
+    ),
+  )
+  await act(async () => { refocus() })
+
+  await waitFor(() => expect(result.current.posted.total).toBe(13))
+  expect(mockList).toHaveBeenCalledTimes(4)
+  const refetched = mockList.mock.calls.slice(2).map(([q]: [{ mine: string; offset: number }]) => q)
+  expect(refetched.map((q) => q.mine).sort()).toEqual(['created', 'working'])
+  expect(refetched.every((q) => q.offset === 0)).toBe(true)
+})
+
+test('the focus re-read is silent — no skeleton over a list already on screen', async () => {
+  const { result } = renderHook(() => useMyGigs())
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2))
+
+  mockList.mockImplementation(() => new Promise(() => {})) // in flight, never settles
+  await act(async () => { refocus() })
+  // `reload`, not `refresh`/`initial`: rows and flags stay put while it runs.
+  expect(result.current.posted.isLoading).toBe(false)
+  expect(result.current.posted.isRefreshing).toBe(false)
+  expect(result.current.posted.items).toHaveLength(1)
+})
+
+test('the FIRST focus does not double-fetch either tab', async () => {
+  // Page 0 is owned by each controller's query effect. A focus effect that
+  // fetched unconditionally would make every cold open 4 requests, not 2 —
+  // the exact double-fetch this screen was cleaned of.
+  renderHook(() => useMyGigs())
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2))
+
+  await new Promise((r) => setTimeout(r, 20))
+  expect(mockList).toHaveBeenCalledTimes(2)
+})
+
+test('a focus before sign-in settles does not fetch', async () => {
+  mockUser.mockReturnValue(null)
+  renderHook(() => useMyGigs())
+  await act(async () => { refocus() })
+  // Nothing has been fetched, so there is nothing to re-read — and `mine=`
+  // would 401 before the JWT is in place.
+  expect(mockList).not.toHaveBeenCalled()
 })
 
 test('totals stay 0-but-unfetched until the first response, so chips can hide', async () => {

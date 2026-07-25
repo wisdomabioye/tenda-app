@@ -9,8 +9,8 @@
  */
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { eq, and, gt, gte, isNull, lte, or, asc, desc, sql, type SQL } from 'drizzle-orm'
-import { escrows, gig_details, users } from '@tenda/shared/db/schema'
+import { eq, and, gt, gte, inArray, isNull, lte, or, asc, desc, sql, type SQL } from 'drizzle-orm'
+import { escrows, escrowStatusEnum, gig_details, users } from '@tenda/shared/db/schema'
 import {
   isValidLatitude,
   isValidLongitude,
@@ -21,7 +21,7 @@ import {
   GIG_CATEGORIES,
   ErrorCode,
 } from '@tenda/shared'
-import type { GigsContract, ApiError, GigCategory } from '@tenda/shared'
+import type { GigsContract, ApiError, GigCategory, EscrowStatus } from '@tenda/shared'
 import { isAmountRaw } from '@server/chains/types'
 import { AppError } from '@server/lib/errors'
 import { validateGigDetails } from '@server/lib/gig-details'
@@ -34,6 +34,32 @@ import { buildModerationDeps } from '@server/features/moderation/store'
 
 type ListRoute = GigsContract['list']
 type CreateRoute = GigsContract['create']
+
+/**
+ * Parse the own-listings `status` filter. Typed as an array, but a
+ * querystring arrives as text — the client serialises the array to CSV — so
+ * both shapes are accepted. Values are checked against the DB enum, which
+ * makes the enum the single source of truth (a new status needs no edit
+ * here) and keeps an unknown value a clean 400 rather than a Postgres
+ * invalid-input-for-enum error surfacing as a 500.
+ */
+function parseStatusFilter(status: EscrowStatus[] | undefined): EscrowStatus[] | null {
+  if (status === undefined) return null
+  const raw = Array.isArray(status) ? status : String(status).split(',')
+  const values = raw.map((s) => String(s).trim()).filter((s) => s !== '')
+  if (values.length === 0) return null // `?status=` is "no filter", not an error
+  const allowed: readonly string[] = escrowStatusEnum.enumValues
+  for (const value of values) {
+    if (!allowed.includes(value)) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_ERROR,
+        `status must be one of: ${allowed.join(', ')}`,
+      )
+    }
+  }
+  return values as EscrowStatus[]
+}
 
 const gigsRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /v1/gigs, list open gigs with filters
@@ -50,6 +76,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       chain_id,
       q,
       mine,
+      status,
       min_amount_raw,
       max_amount_raw,
       sort,
@@ -93,7 +120,24 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
               eq(escrows.assigned_counterparty_id, userId),
             ) as SQL),
       )
+
+      // Status buckets over the caller's OWN rows. Paired with `limit=1` this
+      // is how a caller reads a status-scoped COUNT off `total` instead of
+      // pulling a capped page and counting it client-side (MB2).
+      const statuses = parseStatusFilter(status)
+      if (statuses !== null) conditions.push(inArray(escrows.status, statuses))
     } else {
+      // A status filter on the PUBLIC feed would be a probe for rows that are
+      // deliberately not public (drafts, cancelled, disputed), so it is
+      // rejected outright rather than silently ANDed with status='open' —
+      // which would return an empty page and read as "no such gigs".
+      if (status !== undefined) {
+        throw new AppError(
+          400,
+          ErrorCode.VALIDATION_ERROR,
+          'status filter requires mine=created or mine=working',
+        )
+      }
       // Public feed shows only open gigs whose accept window hasn't
       // passed, display-correct even between expire-escrows job ticks.
       // Taken-down listings (CO1) never surface here; the owner still sees

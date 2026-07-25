@@ -31,6 +31,31 @@ export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
 }
 
 /**
+ * Every asset id that IS USDC, across chains. Derived from ASSET_META rather
+ * than hardcoded, so adding `USDC_<CHAIN>` to the map above is enough.
+ *
+ * Exists because USDC is the settlement unit whose lifetime totals the wallet
+ * screen reports, and both the client (display) and the server (SQL aggregate)
+ * must agree on the membership test — two hand-rolled lists would drift.
+ */
+export const USDC_ASSET_IDS: readonly string[] = Object.keys(ASSET_META).filter(
+  (id) => ASSET_META[id].symbol === 'USDC',
+)
+
+/**
+ * Shared decimals for every USDC variant. Raw base units are only summable
+ * ACROSS assets when the decimals match, so this throws at module load if a
+ * future USDC entry disagrees rather than silently producing a wrong total.
+ */
+export const USDC_DECIMALS: number = (() => {
+  const all = new Set(USDC_ASSET_IDS.map((id) => ASSET_META[id].decimals))
+  if (all.size !== 1) {
+    throw new Error(`USDC assets must share decimals; found ${[...all].join(', ')}`)
+  }
+  return [...all][0]
+})()
+
+/**
  * Client-side gig budget bounds for stable assets (raw units, 6dp USDC):
  * 1–50,000 USDC. Advisory UX rails — the program only enforces > 0.
  */

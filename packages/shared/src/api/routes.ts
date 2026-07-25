@@ -51,6 +51,7 @@ export const apiRoutes: {
     escrows: '/v1/users/:id/escrows',
     reviews: '/v1/users/:id/reviews',
     transactions: '/v1/users/:id/transactions',
+    transactionsSummary: '/v1/users/:id/transactions/summary',
   },
   upload: {
     signature: '/v1/upload/signature',

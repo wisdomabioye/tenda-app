@@ -95,6 +95,16 @@ export interface GigListQuery {
    * the (assigned) counterparty. Returns ALL statuses incl. drafts.
    */
   mine?: 'created' | 'working'
+  /**
+   * Narrow own listings to these statuses. ONLY valid alongside `mine=` —
+   * the public feed is always 'open', so accepting it there would let a
+   * caller probe for non-public rows. Serialises as CSV.
+   *
+   * Pair with `limit: 1` to read a status-bucketed COUNT off `total`, which
+   * is how the profile screen gets its stats without pulling a capped page
+   * and counting it client-side (open_issues MB2).
+   */
+  status?: EscrowStatus[]
   min_amount_raw?: string
   max_amount_raw?: string
   sort?: 'created_at' | 'amount_asc' | 'amount_desc'

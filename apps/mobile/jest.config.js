@@ -79,5 +79,8 @@ module.exports = {
     'components/ui/PaginatedList.tsx',
     'components/filters/*.tsx',
     'components/navigation/PagerTabBar.tsx',
+    // MB1/MB2: server-backed wallet totals + profile counts.
+    'hooks/useWalletScreen.ts',
+    'hooks/useProfileStats.ts',
   ],
 }

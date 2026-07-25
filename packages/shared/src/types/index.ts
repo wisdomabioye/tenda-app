@@ -27,6 +27,7 @@ export type {
   UserEscrowTransaction,
   UserEscrowsQuery,
   UserTransactionsQuery,
+  UserTransactionsSummary,
 } from './escrow'
 export type { GigSummary, GigDetail, GigCategory, GigListQuery, CreateGigDetailsBody } from './gig'
 export { isGigAcceptable, computeCompletionDeadline } from './gig'
