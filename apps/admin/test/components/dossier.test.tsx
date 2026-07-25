@@ -84,8 +84,8 @@ test('StatusTimeline renders humanised tx types with formatted amounts', () => {
     <StatusTimeline
       asset="USDC_SOL"
       transactions={[
-        { id: 't1', type: 'create', tx_ref: 'r1', amount_raw: '5000000', platform_fee_raw: null, actor_id: 'p1', created_at: '2026-06-10T00:00:00.000Z' },
-        { id: 't2', type: 'claim_stalled', tx_ref: 'r2', amount_raw: null, platform_fee_raw: null, actor_id: null, created_at: '2026-06-11T00:00:00.000Z' },
+        { id: 't1', type: 'create', tx_ref: 'r1', amount_raw: '5000000', platform_fee_raw: null, creator_payout_raw: null, actor_id: 'p1', created_at: '2026-06-10T00:00:00.000Z' },
+        { id: 't2', type: 'claim_stalled', tx_ref: 'r2', amount_raw: null, platform_fee_raw: null, creator_payout_raw: null, actor_id: null, created_at: '2026-06-11T00:00:00.000Z' },
       ]}
     />,
   )

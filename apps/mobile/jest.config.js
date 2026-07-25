@@ -66,5 +66,18 @@ module.exports = {
     'components/notifications/NotificationPrimerHost.tsx',
     'components/notifications/NotificationNudgeBanner.tsx',
     'components/notifications/primerCopy.ts',
+    // Pagination + chain filter (feed / order book / my gigs / my trades).
+    'lib/pagination/*.ts',
+    '!lib/pagination/index.ts',
+    'hooks/usePaginatedList.ts',
+    'hooks/useDebouncedValue.ts',
+    'hooks/useGigsFeedPolling.ts',
+    'hooks/useHomeFeed.ts',
+    'hooks/useMyGigs.ts',
+    'hooks/useMyDisputes.ts',
+    'hooks/useExchangeScreen.ts',
+    'components/ui/PaginatedList.tsx',
+    'components/filters/*.tsx',
+    'components/navigation/PagerTabBar.tsx',
   ],
 }

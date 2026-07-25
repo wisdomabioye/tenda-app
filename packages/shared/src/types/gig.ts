@@ -82,6 +82,12 @@ export interface GigListQuery {
   cross_border?: boolean
   city?: string
   category?: GigCategory
+  /**
+   * CAIP-2 settlement chain (`escrows.chain_id`), e.g. `solana:devnet`.
+   * Validated against the RUNNING chain registry server-side — an unknown
+   * (or well-formed but unregistered) id is a 400, never a silent empty page.
+   */
+  chain_id?: string
   /** S5.3 full-text search over title + description. */
   q?: string
   /**

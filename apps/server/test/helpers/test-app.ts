@@ -57,6 +57,20 @@ export const TEST_CHAIN_ID = 'solana:devnet'
 export const TEST_ASSET = 'USDC_SOL'
 export const TEST_NATIVE_ASSET = 'SOL_DEVNET'
 
+/**
+ * A SECOND registered chain, so cross-chain behaviour (the `chain_id` list
+ * filter) can be proven to discriminate rather than just "not crash".
+ * Registered in the fake registry always — a registered-but-unseeded chain
+ * is exactly the state that must return an EMPTY page rather than a 400.
+ * Its DB rows are opt-in via `seedAltChain`, keeping the single-chain
+ * expectations of the DB-driven suites (e.g. platform-chains) untouched.
+ */
+export const TEST_CHAIN_ID_ALT = 'eip155:84532'
+export const TEST_ASSET_ALT = 'USDC_BASE'
+
+/** A well-formed CAIP-2 id that is NOT in the registry — the 400 path. */
+export const UNREGISTERED_CHAIN_ID = 'solana:mainnet'
+
 /** Stable dummy unsigned tx — routes only relay it, never decode it. */
 export const FAKE_UNSIGNED: UnsignedTx = {
   kind: 'solana-tx',
@@ -75,12 +89,12 @@ export const FAKE_BAD_SIGNATURE = 'sig:invalid'
 /** Fake chain's configured dispute-resolution authority (a valid base58). */
 export const FAKE_DISPUTE_AUTHORITY = '4Nd1mYvK4Pm1x2HCmzCx5GQDV9KbpMK128bxgL5dVDU1'
 
-function fakeAdapter(chain_id: string): ChainAdapter {
+function fakeAdapter(chain_id: string, namespace: 'solana' | 'eip155' = 'solana'): ChainAdapter {
   const unimplemented = (op: string) => () => {
     throw new Error(`fake adapter: ${op} not used by HTTP routes under test`)
   }
   return {
-    namespace: 'solana',
+    namespace,
     chain_id,
     // Stand-in dispute authority so resolve-tx builds under test (the real
     // value rides each chain's secret).
@@ -96,7 +110,13 @@ function fakeAdapter(chain_id: string): ChainAdapter {
 }
 
 function fakeRegistry(): ChainRegistry {
-  const adapters = new Map<string, ChainAdapter>([[TEST_CHAIN_ID, fakeAdapter(TEST_CHAIN_ID)]])
+  // Solana FIRST: `reconcile-escrows` falls back to `list()[0]` and the
+  // helius webhook / listeners plugin pick the first solana adapter, so
+  // insertion order is load-bearing — the alt chain must never displace it.
+  const adapters = new Map<string, ChainAdapter>([
+    [TEST_CHAIN_ID, fakeAdapter(TEST_CHAIN_ID)],
+    [TEST_CHAIN_ID_ALT, fakeAdapter(TEST_CHAIN_ID_ALT, 'eip155')],
+  ])
   return {
     get(chain_id) {
       const a = adapters.get(chain_id)
@@ -267,6 +287,32 @@ export async function resetDb(app: FastifyInstance): Promise<void> {
       is_stable: false,
     },
   ])
+}
+
+/**
+ * Opt-in second chain + asset, for tests that need escrows on TWO chains
+ * (the `chain_id` list filter). Deliberately NOT part of `resetDb`: the
+ * DB-driven chain surfaces (`GET /v1/platform/chains`) assert a single
+ * enabled chain, and silently doubling that would be a drive-by change to
+ * unrelated expectations. Call it explicitly, after `resetDb` has run.
+ */
+export async function seedAltChain(app: FastifyInstance): Promise<void> {
+  await app.db.insert(chains).values({
+    id: TEST_CHAIN_ID_ALT,
+    namespace: 'eip155',
+    display_name: 'Base Sepolia',
+    min_confirmations: 1,
+    treasury_address: '',
+    escrow_program: '',
+  })
+  await app.db.insert(assets).values({
+    id: TEST_ASSET_ALT,
+    chain_id: TEST_CHAIN_ID_ALT,
+    symbol: 'USDC',
+    decimals: 6,
+    token_address: '0x036CbD53842c5426634e7929541eC2318f3dCF7e', // Base Sepolia USDC
+    is_stable: true,
+  })
 }
 
 // ---------- fixtures (DB-backed; object shapes come from ./fixtures) -------

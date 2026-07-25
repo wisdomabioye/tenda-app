@@ -48,9 +48,6 @@ jest.mock('@/lib/secure-store', () => ({
 jest.mock('@/stores/pending-sync.store', () => ({
   usePendingSyncStore: { getState: () => ({ clear: jest.fn(async () => {}) }) },
 }))
-jest.mock('@/stores/exchange-market.store', () => ({
-  useExchangeMarketStore: { getState: () => ({ clear: jest.fn() }) },
-}))
 
 import { useAuthStore } from '@/stores/auth.store'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'

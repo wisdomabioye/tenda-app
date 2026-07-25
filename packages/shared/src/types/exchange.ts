@@ -94,6 +94,12 @@ export interface CreateExchangeDetailsBody {
 
 export interface ExchangeListQuery {
   currency?: string
+  /**
+   * CAIP-2 settlement chain (`escrows.chain_id`). Same contract as
+   * `GigListQuery.chain_id`: validated against the running chain registry,
+   * unknown ids 400 rather than returning an empty order book.
+   */
+  chain_id?: string
   min_amount_raw?: string
   max_amount_raw?: string
   limit?: number

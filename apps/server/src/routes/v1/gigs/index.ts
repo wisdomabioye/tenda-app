@@ -26,6 +26,7 @@ import { isAmountRaw } from '@server/chains/types'
 import { AppError } from '@server/lib/errors'
 import { validateGigDetails } from '@server/lib/gig-details'
 import { gigSearchCondition, gigSearchRank } from '@server/lib/gig-search'
+import { chainFilterCondition } from '@server/lib/chain-filter'
 import { GIG_SUMMARY_COLS, toGigSummary } from '@server/lib/gig-read'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { moderateGig } from '@server/features/moderation/service'
@@ -46,6 +47,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       cross_border,
       city,
       category,
+      chain_id,
       q,
       mine,
       min_amount_raw,
@@ -118,6 +120,9 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       }
       conditions.push(eq(gig_details.category, category))
     }
+
+    const chainCondition = chainFilterCondition(fastify.chains, chain_id)
+    if (chainCondition !== null) conditions.push(chainCondition)
 
     // S5.3 full-text search over title + description.
     if (q !== undefined && q.trim() !== '') conditions.push(gigSearchCondition(q))

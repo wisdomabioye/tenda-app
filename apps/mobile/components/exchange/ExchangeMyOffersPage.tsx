@@ -1,10 +1,11 @@
-import { View, FlatList, StyleSheet, RefreshControl } from 'react-native'
-import { useUnistyles } from 'react-native-unistyles'
+import { View, StyleSheet } from 'react-native'
 import { spacing } from '@/theme/tokens'
-import { EmptyState } from '@/components/ui'
+import { EmptyState, PaginatedList } from '@/components/ui'
+import { ChainFilterChips } from '@/components/filters'
 import { MyOfferRow } from './MyOfferRow'
 import { OfferListSkeleton } from './OfferListSkeleton'
 import type { EscrowListRow } from '@tenda/shared'
+import type { PaginatedListState } from '@/hooks/usePaginatedList'
 
 /**
  * "My Trades" page — the current user's exchange escrows on BOTH sides: offers
@@ -14,48 +15,43 @@ import type { EscrowListRow } from '@tenda/shared'
  */
 export function ExchangeMyOffersPage({
   width,
-  myOffers,
+  list,
+  chainId,
   currentUserId,
-  showSkeleton,
-  refreshing,
-  onRefresh,
+  onChainChange,
   onPostOffer,
 }: {
   width: number
-  myOffers: EscrowListRow[]
+  list: PaginatedListState<EscrowListRow>
+  chainId: string | null
   currentUserId: string | null
-  showSkeleton: boolean
-  refreshing: boolean
-  onRefresh: () => void
+  onChainChange: (chain_id: string | null) => void
   onPostOffer: () => void
 }) {
-  const { theme } = useUnistyles()
   return (
     <View style={{ width }}>
-      {showSkeleton ? (
-        <OfferListSkeleton />
-      ) : (
-        <FlatList
-          data={myOffers}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <MyOfferRow
-              offer={item}
-              side={item.creator_id === currentUserId ? 'selling' : 'buying'}
-            />
-          )}
-          contentContainerStyle={s.list}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.brand.primary} />}
-          ListEmptyComponent={
-            <EmptyState
-              title="No trades yet"
-              description="Post a sell offer or accept one from the market to see it here"
-              action={{ label: 'Post offer', onPress: onPostOffer }}
-            />
-          }
-        />
-      )}
+      <PaginatedList<EscrowListRow>
+        list={list}
+        keyOf={(row) => row.id}
+        renderItem={({ item }) => (
+          <MyOfferRow
+            offer={item}
+            side={item.creator_id === currentUserId ? 'selling' : 'buying'}
+          />
+        )}
+        contentContainerStyle={s.list}
+        separatorHeight={spacing.sm}
+        onRefresh={() => void list.refresh()}
+        skeleton={<OfferListSkeleton />}
+        header={<ChainFilterChips value={chainId} onChange={onChainChange} />}
+        empty={
+          <EmptyState
+            title="No trades yet"
+            description="Post a sell offer or accept one from the market to see it here"
+            action={{ label: 'Post offer', onPress: onPostOffer }}
+          />
+        }
+      />
     </View>
   )
 }

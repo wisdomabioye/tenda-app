@@ -86,13 +86,23 @@ export async function disputedEscrow(app: FastifyInstance): Promise<DisputedEscr
 /** A publicly-listed open gig (escrow + details satellite). */
 export async function openGig(
   app: FastifyInstance,
-  args: { title?: string; category?: string; country?: string; amount_raw?: string } = {},
+  args: {
+    title?: string
+    category?: string
+    country?: string
+    amount_raw?: string
+    /** Settle on a non-default chain — requires `seedAltChain` (FK). */
+    chain_id?: string
+    asset?: string
+  } = {},
 ): Promise<{ creator: TestUser; escrow: EscrowRow }> {
   const creator = await createUser(app)
   const escrow = await createEscrow(app, {
     creator_id: creator.row.id,
     status: 'open',
     amount_raw: args.amount_raw ?? '1000000',
+    ...(args.chain_id === undefined ? {} : { chain_id: args.chain_id }),
+    ...(args.asset === undefined ? {} : { asset: args.asset }),
   })
   await attachGigDetails(app, escrow.id, {
     title: args.title ?? 'Open gig',

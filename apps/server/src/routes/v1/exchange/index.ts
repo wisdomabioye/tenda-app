@@ -31,6 +31,7 @@ import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { assertExchangeAsset } from '@server/lib/escrow'
 import { drizzleBankAccountStore } from '@server/features/fiat-rails'
 import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/lib/exchange-read'
+import { chainFilterCondition } from '@server/lib/chain-filter'
 
 type ListRoute = ExchangeContract['list']
 type CreateRoute = ExchangeContract['create']
@@ -41,7 +42,7 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
   }>('/', { preHandler: [fastify.authenticate] }, async (request) => {
-    const { currency, min_amount_raw, max_amount_raw, limit = 20, offset = 0 } = request.query
+    const { currency, chain_id, min_amount_raw, max_amount_raw, limit = 20, offset = 0 } = request.query
 
     const safeLimit = clampLimit(Number(limit))
     const safeOffset = clampOffset(Number(offset))
@@ -58,6 +59,9 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     ]
 
     if (currency) conditions.push(eq(exchange_details.fiat_currency, currency.toUpperCase()))
+
+    const chainCondition = chainFilterCondition(fastify.chains, chain_id)
+    if (chainCondition !== null) conditions.push(chainCondition)
 
     if (min_amount_raw !== undefined && !isAmountRaw(min_amount_raw)) {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be a decimal integer string')

@@ -10,7 +10,6 @@ import {
 import { api, ApiClientError } from '@/api/client'
 import { withRetry } from '@/lib/with-retry'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
-import { useExchangeMarketStore } from '@/stores/exchange-market.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { reconcileWalletState, isRetriableMeError } from '@/stores/wallet-sync'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
@@ -141,7 +140,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    useExchangeMarketStore.getState().clear()
+    // The exchange order book is no longer a global store — it is screen-local
+    // paginated state that unmounts with the tab, so there is nothing to clear.
+    // Notifications stay global (the badge outlives its screen) and must be.
     useNotificationsStore.getState().reset()
     await usePendingSyncStore.getState().clear()
     // Drop any WalletConnect (EVM) session so the next login starts clean and

@@ -4,12 +4,12 @@
  * rows deep-link into the mediation thread (/dispute/:escrowId).
  */
 import { useState } from 'react'
-import { View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native'
+import { View, StyleSheet, Pressable } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { Scale } from 'lucide-react-native'
-import type { MyDisputeStatus } from '@tenda/shared'
-import { ScreenContainer, Text, Spacer, EmptyState, Header } from '@/components/ui'
+import type { MyDisputeRow as MyDisputeRowType, MyDisputeStatus } from '@tenda/shared'
+import { ScreenContainer, Text, EmptyState, Header, PaginatedList } from '@/components/ui'
 import { ErrorState } from '@/components/feedback'
 import { MyDisputeRow } from '@/components/dispute/MyDisputeRow'
 import { useMyDisputes } from '@/hooks/useMyDisputes'
@@ -29,15 +29,8 @@ export default function MyDisputesScreen() {
   const { theme } = useUnistyles()
   const router = useRouter()
   const [status, setStatus] = useState<MyDisputeStatus>('open')
-  const [refreshing, setRefreshing] = useState(false)
 
-  const { rows, loading, error, reload } = useMyDisputes(status)
-
-  async function handleRefresh() {
-    setRefreshing(true)
-    await reload()
-    setRefreshing(false)
-  }
+  const list = useMyDisputes(status)
 
   function openThread(escrowId: string) {
     router.push(`/dispute/${escrowId}` as Parameters<typeof router.push>[0])
@@ -72,37 +65,30 @@ export default function MyDisputesScreen() {
         })}
       </View>
 
-      {error !== null ? (
-        <ErrorState title={error} ctaLabel="Try again" onCtaPress={() => void reload()} />
-      ) : (
-        <FlatList
-          data={rows}
-          keyExtractor={(item) => item.dispute_id}
-          renderItem={({ item }) => <MyDisputeRow row={item} onPress={() => openThread(item.escrow_id)} />}
-          contentContainerStyle={s.list}
-          showsVerticalScrollIndicator={false}
-          ItemSeparatorComponent={() => <Spacer size={spacing.sm} />}
-          ListFooterComponent={<Spacer size={spacing.xl} />}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing || loading}
-              onRefresh={handleRefresh}
-              tintColor={theme.colors.brand.primary}
+      <PaginatedList<MyDisputeRowType>
+        list={list}
+        keyOf={(item) => item.dispute_id}
+        renderItem={({ item }) => <MyDisputeRow row={item} onPress={() => openThread(item.escrow_id)} />}
+        contentContainerStyle={s.list}
+        separatorHeight={spacing.sm}
+        onRefresh={() => void list.refresh()}
+        errorState={
+          <ErrorState
+            title={list.error ?? 'Could not load your disputes'}
+            ctaLabel="Try again"
+            onCtaPress={() => void list.refresh()}
+          />
+        }
+        empty={
+          <View style={s.empty}>
+            <EmptyState
+              icon={<Scale size={40} color={theme.colors.content.secondary} />}
+              title={EMPTY_COPY[status].title}
+              description={EMPTY_COPY[status].description}
             />
-          }
-          ListEmptyComponent={
-            !loading ? (
-              <View style={s.empty}>
-                <EmptyState
-                  icon={<Scale size={40} color={theme.colors.content.secondary} />}
-                  title={EMPTY_COPY[status].title}
-                  description={EMPTY_COPY[status].description}
-                />
-              </View>
-            ) : null
-          }
-        />
-      )}
+          </View>
+        }
+      />
     </ScreenContainer>
   )
 }

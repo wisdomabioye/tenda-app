@@ -1,15 +1,18 @@
 /**
  * ExchangeMyOffersPage — the "My Trades" list. Verifies the empty-state "Post
- * offer" action fires, and that each row's side is derived from whether the
- * current user created the escrow (selling) or accepted it (buying).
+ * offer" action fires, that each row's side is derived from whether the
+ * current user created the escrow (selling) or accepted it (buying), and that
+ * the paginated list's loading/empty states are wired correctly.
  */
 import { render, screen, fireEvent } from '@testing-library/react-native'
 import type { EscrowListRow } from '@tenda/shared'
+import { listState } from '@/hooks/__fixtures__/paginated-list'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({ theme: { colors: { brand: { primary: '#50f' } } } }),
 }))
 jest.mock('../OfferListSkeleton', () => ({ OfferListSkeleton: () => null }))
+jest.mock('@/components/filters', () => ({ ChainFilterChips: () => null }))
 // Capture the side each row is asked to render with.
 const rowSides: string[] = []
 jest.mock('../MyOfferRow', () => {
@@ -34,6 +37,7 @@ jest.mock('@/components/ui', () => {
         )}
       </>
     ),
+    PaginatedList: jest.requireActual('@/components/ui/PaginatedList').PaginatedList,
   }
 })
 
@@ -51,8 +55,12 @@ test('empty state renders the Post offer action and fires it', () => {
   const onPostOffer = jest.fn()
   render(
     <ExchangeMyOffersPage
-      width={375} myOffers={[]} currentUserId="me"
-      showSkeleton={false} refreshing={false} onRefresh={jest.fn()} onPostOffer={onPostOffer}
+      width={375}
+      list={listState<EscrowListRow>()}
+      chainId={null}
+      currentUserId="me"
+      onChainChange={jest.fn()}
+      onPostOffer={onPostOffer}
     />,
   )
   expect(screen.getByText('No trades yet')).toBeTruthy()
@@ -64,20 +72,40 @@ test('derives selling for offers I created, buying for offers I did not', () => 
   render(
     <ExchangeMyOffersPage
       width={375}
-      myOffers={[row('a', 'me'), row('b', 'other')]}
+      list={listState({ items: [row('a', 'me'), row('b', 'other')] })}
+      chainId={null}
       currentUserId="me"
-      showSkeleton={false} refreshing={false} onRefresh={jest.fn()} onPostOffer={jest.fn()}
+      onChainChange={jest.fn()}
+      onPostOffer={jest.fn()}
     />,
   )
   expect(rowSides).toContain('a:selling')
   expect(rowSides).toContain('b:buying')
 })
 
-test('shows the skeleton instead of the list while loading', () => {
+test('shows the skeleton instead of the list while the first page loads', () => {
   render(
     <ExchangeMyOffersPage
-      width={375} myOffers={[]} currentUserId="me"
-      showSkeleton={true} refreshing={false} onRefresh={jest.fn()} onPostOffer={jest.fn()}
+      width={375}
+      list={listState<EscrowListRow>({ isLoading: true, hasFetched: false })}
+      chainId={null}
+      currentUserId="me"
+      onChainChange={jest.fn()}
+      onPostOffer={jest.fn()}
+    />,
+  )
+  expect(screen.queryByText('No trades yet')).toBeNull()
+})
+
+test('does not claim "no trades" before the first load settles', () => {
+  render(
+    <ExchangeMyOffersPage
+      width={375}
+      list={listState<EscrowListRow>({ hasFetched: false })}
+      chainId={null}
+      currentUserId="me"
+      onChainChange={jest.fn()}
+      onPostOffer={jest.fn()}
     />,
   )
   expect(screen.queryByText('No trades yet')).toBeNull()

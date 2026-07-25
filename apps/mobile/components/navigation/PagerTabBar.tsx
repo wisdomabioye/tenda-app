@@ -1,0 +1,152 @@
+/**
+ * Underline tab row for a horizontally-paged screen (My Gigs, Trade). Both
+ * screens had hand-rolled the same animated underline with slightly different
+ * interpolation maths; this owns it once.
+ *
+ * The underline is driven by the pager's own scroll offset rather than the
+ * selected index, so it tracks a drag continuously instead of jumping at the
+ * end of a swipe.
+ */
+import { View, Pressable, Animated, StyleSheet } from 'react-native'
+import { useUnistyles } from 'react-native-unistyles'
+import { Text } from '@/components/ui/Text'
+import { typography } from '@/theme/tokens'
+
+export interface PagerTab {
+  key: string
+  label: string
+  /** Optional count chip — pass the SERVER total, not a loaded-rows length. */
+  count?: number
+}
+
+interface PagerTabBarProps {
+  tabs: readonly PagerTab[]
+  activeIndex: number
+  /** The pager's horizontal scroll offset. */
+  scrollX: Animated.Value
+  /** Page width — one full screen of horizontal scroll per tab. */
+  pageWidth: number
+  onTabPress: (index: number) => void
+  /** Horizontal inset the underline starts from (matches the row padding). */
+  insetX?: number
+}
+
+export function PagerTabBar({
+  tabs,
+  activeIndex,
+  scrollX,
+  pageWidth,
+  onTabPress,
+  insetX = 0,
+}: PagerTabBarProps) {
+  const { theme } = useUnistyles()
+  const tabWidth = (pageWidth - insetX * 2) / tabs.length
+
+  const underlineX = scrollX.interpolate({
+    inputRange: [0, pageWidth],
+    outputRange: [0, tabWidth],
+    extrapolate: 'clamp',
+  })
+
+  return (
+    <View
+      style={[s.row, { borderBottomColor: theme.colors.border.subtle, paddingHorizontal: insetX }]}
+      accessibilityRole="tablist"
+    >
+      {tabs.map((tab, i) => {
+        const active = activeIndex === i
+        return (
+          <Pressable
+            key={tab.key}
+            style={s.tab}
+            onPress={() => onTabPress(i)}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: active }}
+          >
+            <Text
+              style={[
+                s.label,
+                { color: active ? theme.colors.content.primary : theme.colors.content.tertiary },
+              ]}
+            >
+              {tab.label}
+            </Text>
+            {tab.count !== undefined && (
+              <View
+                style={[
+                  s.count,
+                  {
+                    backgroundColor: active
+                      ? theme.colors.brand.primarySurface
+                      : theme.colors.surface.inset,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    s.countText,
+                    { color: active ? theme.colors.brand.primary : theme.colors.content.tertiary },
+                  ]}
+                >
+                  {tab.count}
+                </Text>
+              </View>
+            )}
+          </Pressable>
+        )
+      })}
+      <Animated.View
+        style={[
+          s.underline,
+          {
+            width: tabWidth,
+            left: insetX,
+            backgroundColor: theme.colors.brand.primary,
+            transform: [{ translateX: underlineX }],
+          },
+        ]}
+      />
+    </View>
+  )
+}
+
+const s = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    height: 48,
+  },
+  tab: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  label: {
+    fontSize: 14.5,
+    fontWeight: '600',
+    letterSpacing: -0.145,
+  },
+  count: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  countText: {
+    fontFamily: typography.fonts.mono,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.11,
+  },
+  underline: {
+    position: 'absolute',
+    bottom: -1,
+    height: 3,
+    borderTopLeftRadius: 2,
+    borderTopRightRadius: 2,
+  },
+})

@@ -11,6 +11,7 @@ import { escrows, gig_details, exchange_details } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { UsersContract, ApiError, EscrowListRow } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { chainFilterCondition } from '@server/lib/chain-filter'
 
 type EscrowsRoute = UsersContract['escrows']
 
@@ -26,7 +27,7 @@ const userEscrows: FastifyPluginAsync = async (fastify) => {
       throw new AppError(403, ErrorCode.FORBIDDEN, 'Can only fetch your own escrows')
     }
 
-    const { role, kind, limit = 20, offset = 0 } = request.query
+    const { role, kind, chain_id, limit = 20, offset = 0 } = request.query
     const safeLimit = clampLimit(Number(limit))
     const safeOffset = clampOffset(Number(offset))
 
@@ -48,6 +49,9 @@ const userEscrows: FastifyPluginAsync = async (fastify) => {
       )
     }
     if (kind === 'gig' || kind === 'exchange') conditions.push(eq(escrows.kind, kind))
+
+    const chainCondition = chainFilterCondition(fastify.chains, chain_id)
+    if (chainCondition !== null) conditions.push(chainCondition)
 
     const where = and(...conditions)
 

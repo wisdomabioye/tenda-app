@@ -87,6 +87,11 @@ export interface EscrowListRow {
 export interface UserEscrowsQuery {
   role?: 'creator' | 'counterparty'
   kind?: EscrowKind
+  /**
+   * CAIP-2 settlement chain (`escrows.chain_id`). Same contract as
+   * `GigListQuery.chain_id` — validated against the running chain registry.
+   */
+  chain_id?: string
   limit?: number
   offset?: number
 }

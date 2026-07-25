@@ -1,45 +1,41 @@
-import { View, FlatList, ActivityIndicator, StyleSheet, RefreshControl, Pressable } from 'react-native'
+import { View, StyleSheet, Pressable } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { SlidersHorizontal, X } from 'lucide-react-native'
 import { spacing, radius } from '@/theme/tokens'
-import { Text, Spacer, EmptyState, Button } from '@/components/ui'
+import { Text, Spacer, EmptyState, Button, PaginatedList } from '@/components/ui'
+import { ChainFilterChips } from '@/components/filters'
 import { ExchangeOfferCard } from './ExchangeOfferCard'
 import { OfferListSkeleton } from './OfferListSkeleton'
 import type { ExchangeSummary } from '@tenda/shared'
+import type { PaginatedListState } from '@/hooks/usePaginatedList'
 
-/** Market page (open offers), currency filter pill + paginated offer list. */
+/** Market page (open offers): currency + chain filters over a paginated list. */
 export function ExchangeMarketPage({
   width,
   currency,
-  offers,
-  showSkeleton,
-  error,
-  refreshing,
-  isLoadingMore,
+  chainId,
+  list,
   onOpenFilter,
   onClearCurrency,
-  onRetry,
-  onRefresh,
-  onLoadMore,
+  onChainChange,
 }: {
   width: number
   currency: string | null
-  offers: ExchangeSummary[]
-  showSkeleton: boolean
-  error: string | null
-  refreshing: boolean
-  isLoadingMore: boolean
+  chainId: string | null
+  list: PaginatedListState<ExchangeSummary>
   onOpenFilter: () => void
   onClearCurrency: () => void
-  onRetry: () => void
-  onRefresh: () => void
-  onLoadMore: () => void
+  onChainChange: (chain_id: string | null) => void
 }) {
   const { theme } = useUnistyles()
+
   return (
     <View style={{ width }}>
       <View style={[s.filterRow, { borderBottomColor: theme.colors.border.subtle }]}>
-        <Pressable style={[s.filterBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]} onPress={onOpenFilter}>
+        <Pressable
+          style={[s.filterBtn, { backgroundColor: theme.colors.surface.backgroundAlt }]}
+          onPress={onOpenFilter}
+        >
           <SlidersHorizontal size={13} color={theme.colors.content.secondary} />
           <Text variant="caption" weight="medium" color={theme.colors.content.secondary}>
             {currency ?? 'All currencies'}
@@ -52,33 +48,35 @@ export function ExchangeMarketPage({
         )}
       </View>
 
-      {showSkeleton ? (
-        <OfferListSkeleton />
-      ) : error ? (
-        <View style={s.center}>
-          <Text color={theme.colors.feedback.danger.text}>{error}</Text>
-          <Spacer size={spacing.sm} />
-          <Button variant="outline" size="sm" onPress={onRetry}>Retry</Button>
-        </View>
-      ) : (
-        <FlatList
-          data={offers}
-          keyExtractor={(item) => item.escrow_id}
-          renderItem={({ item }) => <ExchangeOfferCard offer={item} showStatus={false} />}
-          contentContainerStyle={s.list}
-          ItemSeparatorComponent={() => <View style={{ height: spacing.sm }} />}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.colors.brand.primary} />}
-          onEndReached={onLoadMore}
-          onEndReachedThreshold={0.3}
-          ListFooterComponent={isLoadingMore ? <ActivityIndicator style={s.footer} color={theme.colors.brand.primary} /> : null}
-          ListEmptyComponent={
-            <EmptyState
-              title="No open offers"
-              description={currency ? `No open ${currency} offers right now` : 'Check back soon for new offers'}
-            />
-          }
-        />
-      )}
+      <PaginatedList<ExchangeSummary>
+        list={list}
+        keyOf={(offer) => offer.escrow_id}
+        renderItem={({ item }) => <ExchangeOfferCard offer={item} showStatus={false} />}
+        contentContainerStyle={s.list}
+        separatorHeight={spacing.sm}
+        onRefresh={() => void list.refresh()}
+        skeleton={<OfferListSkeleton />}
+        header={<ChainFilterChips value={chainId} onChange={onChainChange} />}
+        errorState={
+          <View style={s.center}>
+            <Text color={theme.colors.feedback.danger.text}>{list.error}</Text>
+            <Spacer size={spacing.sm} />
+            <Button variant="outline" size="sm" onPress={() => void list.refresh()}>
+              Retry
+            </Button>
+          </View>
+        }
+        empty={
+          <EmptyState
+            title="No open offers"
+            description={
+              currency
+                ? `No open ${currency} offers right now`
+                : 'Check back soon for new offers'
+            }
+          />
+        }
+      />
     </View>
   )
 }
@@ -102,5 +100,4 @@ const s = StyleSheet.create({
   },
   list: { padding: spacing.md, paddingBottom: spacing['2xl'] },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl },
-  footer: { paddingVertical: spacing.md },
 })
