@@ -14,13 +14,21 @@ jest.mock('expo-router', () => {
   return { useFocusEffect: (cb: () => void) => useEffect(cb, [cb]) }
 })
 
+import { POSTED_ESCROW_STATUSES } from '@tenda/shared'
 import { useProfileStats } from '@/hooks/useProfileStats'
+
+const ACTIVE = ['open', 'accepted', 'submitted']
+
+const sameSet = (a: string[] | undefined, b: readonly string[]) =>
+  a !== undefined && a.length === b.length && a.every((v) => b.includes(v))
 
 /** Answer each of the three count queries by its filter shape. */
 function respondWith({ posted, active, completed }: { posted: number; active: number; completed: number }) {
   mockList.mockImplementation((q: { mine: string; status?: string[] }) => {
     if (q.mine === 'working') return Promise.resolve({ data: [], total: completed, limit: 1, offset: 0 })
-    if (q.status !== undefined) return Promise.resolve({ data: [], total: active, limit: 1, offset: 0 })
+    // Both created-queries now carry a status filter, so they are told apart
+    // by WHICH bucket they ask for, not by whether one is present.
+    if (sameSet(q.status, ACTIVE)) return Promise.resolve({ data: [], total: active, limit: 1, offset: 0 })
     return Promise.resolve({ data: [], total: posted, limit: 1, offset: 0 })
   })
 }
@@ -48,13 +56,36 @@ test('asks the server for the status buckets rather than filtering client-side',
   renderHook(() => useProfileStats('u1'))
   await waitFor(() => expect(mockList).toHaveBeenCalledTimes(3))
 
-  expect(mockList).toHaveBeenCalledWith({ mine: 'created', status: undefined, limit: 1 })
+  expect(mockList).toHaveBeenCalledWith({
+    mine: 'created',
+    status: [...POSTED_ESCROW_STATUSES],
+    limit: 1,
+  })
   expect(mockList).toHaveBeenCalledWith({
     mine: 'created',
     status: ['open', 'accepted', 'submitted'],
     limit: 1,
   })
   expect(mockList).toHaveBeenCalledWith({ mine: 'working', status: ['completed'], limit: 1 })
+})
+
+test('the posted count asks for a status bucket that EXCLUDES drafts', async () => {
+  // The bug this guards: an unfiltered `mine=created` returns every status
+  // including `draft`, so starting a gig and abandoning it before funding
+  // bumped the profile's "Posted" figure.
+  respondWith({ posted: 1, active: 1, completed: 1 })
+  const { result } = renderHook(() => useProfileStats('u1'))
+  await waitFor(() => expect(result.current.loaded).toBe(true))
+
+  const created = mockList.mock.calls
+    .map(([q]: [{ mine: string; status?: string[] }]) => q)
+    .filter((q) => q.mine === 'created')
+
+  expect(created.length).toBeGreaterThan(0)
+  for (const q of created) {
+    expect(q.status).toBeDefined()
+    expect(q.status).not.toContain('draft')
+  }
 })
 
 test('does not query before the user id is known', async () => {

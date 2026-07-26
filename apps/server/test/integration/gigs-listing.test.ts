@@ -10,6 +10,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { device_tokens } from '@tenda/shared/db/schema'
+import { POSTED_ESCROW_STATUSES } from '@tenda/shared'
 import { removeTokens } from '@server/workers/processors'
 import {
   TEST_DB_CONFIGURED,
@@ -211,6 +212,46 @@ test('GET /v1/gigs?mine= : status filter buckets own listings, and total is the 
     headers: authHeader(owner.token),
   })
   assert.strictEqual(completed.json().total, 2)
+})
+
+test('GET /v1/gigs?mine=created : the posted bucket and the draft bucket partition the owner rows', { skip }, async () => {
+  // The split the My Gigs screen is built on: "Posted" must not count drafts
+  // (an unfunded staging row is not a posted gig), while "Drafts" is the only
+  // surface that lists them — so neither bucket may drop or double-count a row.
+  const app = getApp()
+  const owner = await createUser(app)
+  const statuses = ['draft', 'draft', 'open', 'accepted', 'completed', 'cancelled'] as const
+  for (const status of statuses) {
+    const escrow = await createEscrow(app, { creator_id: owner.row.id, status })
+    await attachGigDetails(app, escrow.id, { title: `${status} gig` })
+  }
+
+  const countOf = async (query: string) => {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/v1/gigs?mine=created&limit=50${query}`,
+      headers: authHeader(owner.token),
+    })
+    assert.strictEqual(res.statusCode, 200)
+    return res.json() as { total: number; data: { status: string }[] }
+  }
+
+  const posted = await countOf(`&status=${POSTED_ESCROW_STATUSES.join(',')}`)
+  assert.strictEqual(posted.total, 4, 'four on-chain rows, the two drafts excluded')
+  assert.ok(
+    posted.data.every((g) => g.status !== 'draft'),
+    'no draft may appear in the posted bucket',
+  )
+
+  const drafts = await countOf('&status=draft')
+  assert.strictEqual(drafts.total, 2)
+  assert.ok(drafts.data.every((g) => g.status === 'draft'))
+
+  // Unfiltered `mine=created` still returns everything — the buckets partition
+  // it rather than hiding rows from the owner.
+  const all = await countOf('')
+  assert.strictEqual(all.total, statuses.length)
+  assert.strictEqual(posted.total + drafts.total, all.total)
 })
 
 test('GET /v1/gigs?mine=working : status filter applies to the worker side', { skip }, async () => {

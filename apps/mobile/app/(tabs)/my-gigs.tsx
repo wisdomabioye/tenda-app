@@ -17,7 +17,7 @@ const TAB_INSET = 20
 export default function MyGigsScreen() {
   const { theme }     = useUnistyles()
   const { width: SW } = useWindowDimensions()
-  const { posted, working, chainId, setChainId } = useMyGigs()
+  const { posted, working, drafts, chainId, setChainId } = useMyGigs()
 
   const [pageIndex, setPageIndex] = useState(0)
 
@@ -34,8 +34,11 @@ export default function MyGigsScreen() {
     if (index !== pageIndex) setPageIndex(index)
   }
 
-  // Counts come from the server total for each list — both load on mount, so
-  // neither chip reads 0 just because its tab hasn't been opened yet.
+  // Counts come from the server total for each list — all load on mount, so
+  // no chip reads 0 just because its tab hasn't been opened yet. Drafts are a
+  // tab of their own precisely so "Posted" can mean posted: a draft is an
+  // unfunded staging row, and counting it here inflated the number the user
+  // reads as "gigs I put out there".
   const pages: {
     key: string
     label: string
@@ -53,6 +56,15 @@ export default function MyGigsScreen() {
       label: 'Working',
       list: working,
       empty: { title: 'Not working on any gigs', description: 'Browse the feed to find and accept gigs' },
+    },
+    {
+      key: 'drafts',
+      label: 'Drafts',
+      list: drafts,
+      empty: {
+        title: 'No drafts',
+        description: 'Gigs you start but do not fund are kept here',
+      },
     },
   ]
 

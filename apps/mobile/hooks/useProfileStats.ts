@@ -10,14 +10,21 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
-import type { EscrowStatus } from '@tenda/shared'
+import { POSTED_ESCROW_STATUSES, type EscrowStatus } from '@tenda/shared'
 import { api } from '@/api/client'
 
 /** Statuses that mean "this gig still needs the poster's attention". */
 const ACTIVE_STATUSES: EscrowStatus[] = ['open', 'accepted', 'submitted']
 
+/**
+ * "Posted" excludes drafts. A draft is a pre-signature staging row — nothing
+ * was funded and nobody can see it — so counting it here inflated the number
+ * the user reads as "gigs I posted". Drafts have their own My Gigs tab.
+ */
+const POSTED_STATUSES: EscrowStatus[] = [...POSTED_ESCROW_STATUSES]
+
 export interface ProfileStats {
-  /** Every gig the user has posted, any status. */
+  /** Gigs the user has posted on-chain — every status except `draft`. */
   posted: number
   /** Posted gigs still in flight — drives the "N active" affordance. */
   active: number
@@ -49,7 +56,7 @@ export function useProfileStats(userId: string | undefined): ProfileStats {
     void (async () => {
       try {
         const [posted, active, completed] = await Promise.all([
-          countOf('created'),
+          countOf('created', POSTED_STATUSES),
           countOf('created', ACTIVE_STATUSES),
           countOf('working', ['completed']),
         ])

@@ -1,7 +1,8 @@
 /**
- * useMyGigs — both tabs load on mount so neither count chip reads 0 until its
- * tab is opened (open_issues MB2), the chain filter applies to both, and both
- * re-read on a later focus so a tab that never unmounts can't serve stale rows.
+ * useMyGigs — all three tabs load on mount so no count chip reads 0 until its
+ * tab is opened (open_issues MB2), Posted excludes drafts while Drafts keeps
+ * them reachable, the chain filter applies to every tab, and all re-read on a
+ * later focus so a tab that never unmounts can't serve stale rows.
  */
 import { renderHook, act, waitFor } from '@testing-library/react-native'
 
@@ -27,25 +28,81 @@ import { refocus, resetFocus } from '@/hooks/__fixtures__/focus'
 
 afterEach(() => resetFocus())
 
-const pageFor = (mine: string) =>
-  mine === 'created'
-    ? { data: [{ escrow_id: 'p1' }], total: 12, limit: 20, offset: 0 }
-    : { data: [{ escrow_id: 'w1' }], total: 3, limit: 20, offset: 0 }
+/** Every list is one request, so a full round of the screen is three. */
+const ROUND = 3
+
+interface ListQuery {
+  mine: string
+  status?: string[]
+  chain_id?: string
+  offset: number
+}
+
+/** Which of the three lists a request belongs to, by its filter shape. */
+function bucketOf(q: ListQuery): 'posted' | 'working' | 'drafts' {
+  if (q.mine === 'working') return 'working'
+  return q.status?.includes('draft') === true ? 'drafts' : 'posted'
+}
+
+const pageFor = (q: ListQuery) => {
+  const bucket = bucketOf(q)
+  if (bucket === 'working') return { data: [{ escrow_id: 'w1' }], total: 3, limit: 20, offset: 0 }
+  if (bucket === 'drafts') return { data: [{ escrow_id: 'd1' }], total: 2, limit: 20, offset: 0 }
+  return { data: [{ escrow_id: 'p1' }], total: 12, limit: 20, offset: 0 }
+}
+
+const queriesFrom = (from: number): ListQuery[] =>
+  mockList.mock.calls.slice(from).map(([q]: [ListQuery]) => q)
 
 beforeEach(() => {
   mockList.mockReset()
   mockUser.mockReturnValue({ id: 'user-1' })
-  mockList.mockImplementation((q: { mine: string }) => Promise.resolve(pageFor(q.mine)))
+  mockList.mockImplementation((q: ListQuery) => Promise.resolve(pageFor(q)))
 })
 
-test('loads BOTH tabs on mount — the inactive count must not read 0', async () => {
+test('loads ALL tabs on mount — the inactive counts must not read 0', async () => {
   const { result } = renderHook(() => useMyGigs())
   await waitFor(() => expect(result.current.working.total).toBe(3))
 
-  // Posted was never "the active tab" here, yet both totals are populated.
+  // Neither Posted nor Drafts was ever "the active tab" here, yet both totals
+  // are populated.
   expect(result.current.posted.total).toBe(12)
-  expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ mine: 'created' }))
-  expect(mockList).toHaveBeenCalledWith(expect.objectContaining({ mine: 'working' }))
+  expect(result.current.drafts.total).toBe(2)
+  expect(queriesFrom(0).map(bucketOf).sort()).toEqual(['drafts', 'posted', 'working'])
+})
+
+test('Posted asks for every status EXCEPT draft', async () => {
+  // The bug: `mine=created` alone returns drafts too, so the Posted chip
+  // counted unfunded staging rows as gigs the user had put out there.
+  renderHook(() => useMyGigs())
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(ROUND))
+
+  const posted = queriesFrom(0).find((q) => bucketOf(q) === 'posted')
+  expect(posted?.status).toBeDefined()
+  expect(posted?.status).not.toContain('draft')
+  expect(posted?.status).toEqual(expect.arrayContaining(['open', 'accepted', 'completed']))
+})
+
+test('Drafts is its own list, scoped to draft only', async () => {
+  // Drafts must stay REACHABLE — this tab is the only surface that lists them.
+  const { result } = renderHook(() => useMyGigs())
+  await waitFor(() => expect(result.current.drafts.items).toHaveLength(1))
+
+  const drafts = queriesFrom(0).find((q) => bucketOf(q) === 'drafts')
+  expect(drafts?.mine).toBe('created')
+  expect(drafts?.status).toEqual(['draft'])
+  expect(result.current.drafts.items).toEqual([{ escrow_id: 'd1' }])
+})
+
+test('the Posted and Drafts counts are separate server totals, not one split', async () => {
+  const { result } = renderHook(() => useMyGigs())
+  await waitFor(() => expect(result.current.posted.hasFetched).toBe(true))
+  await waitFor(() => expect(result.current.drafts.hasFetched).toBe(true))
+
+  // Each chip is its own query's `total` — no arithmetic, so neither can
+  // disagree with the rows rendered beneath it.
+  expect(result.current.posted.total).toBe(12)
+  expect(result.current.drafts.total).toBe(2)
 })
 
 test('counts come from the server total, not the loaded row count', async () => {
@@ -55,17 +112,15 @@ test('counts come from the server total, not the loaded row count', async () => 
   expect(result.current.posted.items).toHaveLength(1)
 })
 
-test('the chain filter applies to both tabs and resets each to page 0', async () => {
+test('the chain filter applies to every tab and resets each to page 0', async () => {
   const { result } = renderHook(() => useMyGigs())
-  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(ROUND))
 
   act(() => result.current.setChainId('eip155:84532'))
-  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(4))
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(ROUND * 2))
 
-  const filtered = mockList.mock.calls
-    .slice(2)
-    .map(([q]: [{ mine: string; chain_id?: string; offset: number }]) => q)
-  expect(filtered.map((q) => q.mine).sort()).toEqual(['created', 'working'])
+  const filtered = queriesFrom(ROUND)
+  expect(filtered.map(bucketOf).sort()).toEqual(['drafts', 'posted', 'working'])
   expect(filtered.every((q) => q.chain_id === 'eip155:84532')).toBe(true)
   expect(filtered.every((q) => q.offset === 0)).toBe(true)
 })
@@ -76,15 +131,16 @@ test('does not fetch before the signed-in user is known', async () => {
   await waitFor(() => expect(result.current.posted.isLoading).toBe(false))
   expect(mockList).not.toHaveBeenCalled()
   expect(result.current.posted.hasFetched).toBe(false)
+  expect(result.current.drafts.hasFetched).toBe(false)
 })
 
 test('each tab paginates independently', async () => {
   mockList.mockReset()
-  mockList.mockImplementation((q: { mine: string; offset: number }) =>
+  mockList.mockImplementation((q: ListQuery) =>
     Promise.resolve(
       q.offset === 0
-        ? { data: [{ escrow_id: `${q.mine}-1` }], total: 2, limit: 20, offset: 0 }
-        : { data: [{ escrow_id: `${q.mine}-2` }], total: 2, limit: 20, offset: 1 },
+        ? { data: [{ escrow_id: `${bucketOf(q)}-1` }], total: 2, limit: 20, offset: 0 }
+        : { data: [{ escrow_id: `${bucketOf(q)}-2` }], total: 2, limit: 20, offset: 1 },
     ),
   )
   const { result } = renderHook(() => useMyGigs())
@@ -92,35 +148,38 @@ test('each tab paginates independently', async () => {
 
   act(() => result.current.posted.loadMore())
   await waitFor(() => expect(result.current.posted.items).toHaveLength(2))
-  // Paging Posted must not disturb Working.
+  // Paging Posted must not disturb the other tabs.
   expect(result.current.working.items).toHaveLength(1)
+  expect(result.current.drafts.items).toHaveLength(1)
 })
 
-test('a later focus re-reads BOTH tabs, so rows and count chips cannot go stale', async () => {
+test('a later focus re-reads EVERY tab, so rows and count chips cannot go stale', async () => {
   const { result } = renderHook(() => useMyGigs())
-  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(ROUND))
 
-  // Post a gig, then come back to the tab: the screen never unmounted, so
-  // without this the list and its `total` chip stayed on pre-post state.
-  mockList.mockImplementation((q: { mine: string }) =>
-    Promise.resolve(
-      q.mine === 'created'
-        ? { data: [{ escrow_id: 'p1' }, { escrow_id: 'p2' }], total: 13, limit: 20, offset: 0 }
-        : pageFor('working'),
-    ),
+  // Publish a draft, then come back to the tab: the row moves from Drafts to
+  // Posted, so refreshing only the visible list would leave a gig that is
+  // already live still sitting in Drafts.
+  mockList.mockImplementation((q: ListQuery) =>
+    bucketOf(q) === 'posted'
+      ? Promise.resolve({ data: [{ escrow_id: 'p1' }, { escrow_id: 'd1' }], total: 13, limit: 20, offset: 0 })
+      : bucketOf(q) === 'drafts'
+        ? Promise.resolve({ data: [], total: 1, limit: 20, offset: 0 })
+        : Promise.resolve(pageFor(q)),
   )
   await act(async () => { refocus() })
 
   await waitFor(() => expect(result.current.posted.total).toBe(13))
-  expect(mockList).toHaveBeenCalledTimes(4)
-  const refetched = mockList.mock.calls.slice(2).map(([q]: [{ mine: string; offset: number }]) => q)
-  expect(refetched.map((q) => q.mine).sort()).toEqual(['created', 'working'])
+  await waitFor(() => expect(result.current.drafts.total).toBe(1))
+  expect(mockList).toHaveBeenCalledTimes(ROUND * 2)
+  const refetched = queriesFrom(ROUND)
+  expect(refetched.map(bucketOf).sort()).toEqual(['drafts', 'posted', 'working'])
   expect(refetched.every((q) => q.offset === 0)).toBe(true)
 })
 
 test('the focus re-read is silent — no skeleton over a list already on screen', async () => {
   const { result } = renderHook(() => useMyGigs())
-  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(ROUND))
 
   mockList.mockImplementation(() => new Promise(() => {})) // in flight, never settles
   await act(async () => { refocus() })
@@ -128,17 +187,19 @@ test('the focus re-read is silent — no skeleton over a list already on screen'
   expect(result.current.posted.isLoading).toBe(false)
   expect(result.current.posted.isRefreshing).toBe(false)
   expect(result.current.posted.items).toHaveLength(1)
+  expect(result.current.drafts.isLoading).toBe(false)
+  expect(result.current.drafts.items).toHaveLength(1)
 })
 
-test('the FIRST focus does not double-fetch either tab', async () => {
+test('the FIRST focus does not double-fetch any tab', async () => {
   // Page 0 is owned by each controller's query effect. A focus effect that
-  // fetched unconditionally would make every cold open 4 requests, not 2 —
+  // fetched unconditionally would make every cold open 6 requests, not 3 —
   // the exact double-fetch this screen was cleaned of.
   renderHook(() => useMyGigs())
-  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(2))
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(ROUND))
 
   await new Promise((r) => setTimeout(r, 20))
-  expect(mockList).toHaveBeenCalledTimes(2)
+  expect(mockList).toHaveBeenCalledTimes(ROUND)
 })
 
 test('a focus before sign-in settles does not fetch', async () => {
@@ -156,8 +217,10 @@ test('totals stay 0-but-unfetched until the first response, so chips can hide', 
   const { result } = renderHook(() => useMyGigs())
   expect(result.current.posted.hasFetched).toBe(false)
   expect(result.current.working.hasFetched).toBe(false)
+  expect(result.current.drafts.hasFetched).toBe(false)
 
   await waitFor(() => expect(result.current.posted.hasFetched).toBe(true))
   await waitFor(() => expect(result.current.working.hasFetched).toBe(true))
+  await waitFor(() => expect(result.current.drafts.hasFetched).toBe(true))
   expect(result.current.posted.total).toBe(12)
 })

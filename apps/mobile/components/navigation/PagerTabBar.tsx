@@ -42,9 +42,15 @@ export function PagerTabBar({
   const { theme } = useUnistyles()
   const tabWidth = (pageWidth - insetX * 2) / tabs.length
 
+  // Mapped across the FULL scroll range, not just the first page. Clamping at
+  // one page width is invisible with two tabs but wrong with three: the
+  // underline froze under tab 2 and never travelled to tab 3. `lastPage` is
+  // floored at 1 so a single-tab bar can't produce a zero-width input range
+  // (an invalid interpolation, not just a wrong one).
+  const lastPage = Math.max(tabs.length - 1, 1)
   const underlineX = scrollX.interpolate({
-    inputRange: [0, pageWidth],
-    outputRange: [0, tabWidth],
+    inputRange: [0, pageWidth * lastPage],
+    outputRange: [0, tabWidth * lastPage],
     extrapolate: 'clamp',
   })
 
@@ -96,6 +102,7 @@ export function PagerTabBar({
         )
       })}
       <Animated.View
+        testID="pager-underline"
         style={[
           s.underline,
           {

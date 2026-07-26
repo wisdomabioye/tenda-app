@@ -1,34 +1,51 @@
 /**
- * My-Gigs controller: the caller's Posted and Working listings, each
+ * My-Gigs controller: the caller's Posted, Working and Drafts listings, each
  * independently paginated, plus the shared chain filter.
  *
- * BOTH lists load on mount rather than only the active tab. That is what
+ * Drafts are their OWN list rather than rows mixed into Posted. `mine=created`
+ * returns every status including `draft`, so a single list forced a choice
+ * between showing drafts (they are only reachable here) and counting them
+ * (a pre-signature staging row is not a posted gig). Splitting the query lets
+ * each tab's chip stay exactly its own server `total` — no derived arithmetic,
+ * no extra count request, and no chip that disagrees with the rows under it.
+ *
+ * ALL lists load on mount rather than only the active tab. That is what
  * fixes the inactive tab's count chip reading 0 until it was swiped to
  * (open_issues MB2) — the chips now read the server `total` for a list that
  * has actually been fetched, instead of the length of an array nobody
  * populated. `total` also stays correct once the list pages, where
  * `items.length` would mean "loaded so far".
  *
- * Both lists also re-read page 0 on every LATER focus. My Gigs is a tab, so it
+ * All lists also re-read page 0 on every LATER focus. My Gigs is a tab, so it
  * stays mounted for the rest of the session: without this, posting a gig,
  * accepting one, or deleting a draft left both the rows AND the count chips
  * (which read the server `total`) showing pre-action state indefinitely.
+ * Publishing a draft moves a row BETWEEN two of these lists, so the refresh
+ * has to cover every one of them, not just the visible tab.
  */
 import { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
-import type { GigListQuery, GigSummary } from '@tenda/shared'
+import { POSTED_ESCROW_STATUSES, type EscrowStatus, type GigListQuery, type GigSummary } from '@tenda/shared'
 import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/usePaginatedList'
 import { useAuthStore } from '@/stores/auth.store'
 
 export interface MyGigsState {
+  /** Gigs the caller posted on-chain — every status except `draft`. */
   posted: PaginatedListState<GigSummary>
   working: PaginatedListState<GigSummary>
+  /** Unfunded staging rows: the only surface they are reachable from. */
+  drafts: PaginatedListState<GigSummary>
   chainId: string | null
   setChainId: (chain_id: string | null) => void
 }
 
 const keyOf = (gig: GigSummary) => gig.escrow_id
+
+// Spread once at module scope: `query` identity is compared by JSON shape, so
+// a fresh array per render is fine, but there is no reason to build one.
+const POSTED_STATUSES: EscrowStatus[] = [...POSTED_ESCROW_STATUSES]
+const DRAFT_STATUSES: EscrowStatus[] = ['draft']
 
 export function useMyGigs(): MyGigsState {
   const user = useAuthStore((s) => s.user)
@@ -40,7 +57,7 @@ export function useMyGigs(): MyGigsState {
 
   const posted = usePaginatedList<GigSummary, GigListQuery>({
     fetchPage: (params) => api.gigs.list(params),
-    query: { mine: 'created', chain_id: chainId ?? undefined },
+    query: { mine: 'created', status: POSTED_STATUSES, chain_id: chainId ?? undefined },
     keyOf,
     enabled,
   })
@@ -52,6 +69,13 @@ export function useMyGigs(): MyGigsState {
     enabled,
   })
 
+  const drafts = usePaginatedList<GigSummary, GigListQuery>({
+    fetchPage: (params) => api.gigs.list(params),
+    query: { mine: 'created', status: DRAFT_STATUSES, chain_id: chainId ?? undefined },
+    keyOf,
+    enabled,
+  })
+
   // Mirrored into refs so the focus callback's identity never changes when a
   // list settles — that would re-fire the effect and turn the first load into
   // two, which is the double-fetch this screen was just cleaned of.
@@ -59,6 +83,8 @@ export function useMyGigs(): MyGigsState {
   postedFetchedRef.current = posted.hasFetched
   const workingFetchedRef = useRef(false)
   workingFetchedRef.current = working.hasFetched
+  const draftsFetchedRef = useRef(false)
+  draftsFetchedRef.current = drafts.hasFetched
 
   useFocusEffect(
     useCallback(() => {
@@ -68,7 +94,10 @@ export function useMyGigs(): MyGigsState {
       // user is already looking at, and no yank back to page 0 if they scrolled.
       if (postedFetchedRef.current) void posted.reload()
       if (workingFetchedRef.current) void working.reload()
-      // Both `reload`s are stable (see usePaginatedList) and the flags are read
+      // Drafts too: publishing one moves it out of this list and into Posted,
+      // so a stale Drafts tab would keep showing a gig that is already live.
+      if (draftsFetchedRef.current) void drafts.reload()
+      // Every `reload` is stable (see usePaginatedList) and the flags are read
       // through refs, so the callback deliberately has no deps — it must fire
       // on focus, not on every settled load.
       // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -77,5 +106,5 @@ export function useMyGigs(): MyGigsState {
 
   // `setChainId` is React's own setter — already stable, so it is returned
   // directly rather than re-wrapped (matching useExchangeScreen).
-  return { posted, working, chainId, setChainId }
+  return { posted, working, drafts, chainId, setChainId }
 }

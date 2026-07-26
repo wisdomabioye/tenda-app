@@ -61,6 +61,7 @@ jest.mock('@/hooks/useMyGigs', () => {
     useMyGigs: () => ({
       posted: listState(),
       working: listState(),
+      drafts: listState(),
       chainId: null,
       setChainId: jest.fn(),
     }),

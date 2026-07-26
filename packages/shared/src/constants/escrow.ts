@@ -79,6 +79,24 @@ export const ESCROW_STATUS_ORDER = [
 
 export type EscrowStatusName = (typeof ESCROW_STATUS_ORDER)[number]
 
+/**
+ * Statuses that count as POSTED — every status an escrow can hold once it
+ * exists on-chain. `draft` is the sole off-chain status (a pre-signature
+ * staging row that was never funded), so the posted set is exactly
+ * `ESCROW_STATUS_ORDER`: a gig is "posted" when its create tx confirmed, not
+ * when a draft row was written.
+ *
+ * Aliased rather than hand-listed so a new status can't be forgotten here.
+ * The premise "draft is the only off-chain status" is pinned by
+ * test/constants/escrow.ts against the DB enum, which fails if that ever
+ * stops holding.
+ *
+ * Used as the `?status=` filter behind the My Gigs "Posted" tab and the
+ * profile's posted count — both of which counted drafts before, so a
+ * half-finished create inflated the number the user reads as "gigs I posted".
+ */
+export const POSTED_ESCROW_STATUSES = ESCROW_STATUS_ORDER
+
 /** Escrow kind → on-chain `uint8` (EVM `KIND_*`, Anchor `EscrowKind`). */
 export const ESCROW_KIND_CODE = { gig: 0, exchange: 1 } as const
 
