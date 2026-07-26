@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {TendaEscrow} from "../../src/TendaEscrow.sol";
 import {MockUSDCPermitV2} from "../mocks/MockUSDCPermitV2.sol";
 import {TendaEscrowHandlerBase} from "./TendaEscrowHandlerBase.sol";
+import {EscrowParams} from "../helpers/EscrowParams.sol";
 
 /// @dev Invariant handler: every externally-reachable state transition —
 ///      including BOTH EIP-2612 permit entry points, front-run-consumed
@@ -29,6 +30,8 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
         bool isSeeker;
         address assigned;
         uint64 acceptDeadline;
+        bool requiresApproval;
+        uint64 unassignWindow;
     }
 
     function _boundCreate(
@@ -50,7 +53,27 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
         // A third of escrows are assigned to a specific actor.
         (, address assignee) = _actor(assignSeed);
         c.assigned = assignSeed % 3 == 1 ? assignee : address(0);
+        // Acceptance mode rides an INDEPENDENT bit of the seed, not the %3
+        // partition above. Folding it into that partition would have eaten the
+        // `== 2` slot — the plain non-seeker, non-assigned escrow, which is the
+        // commonest real shape — and would have silently flipped the fixed-seed
+        // callers below. The `assigned == 0` conjunct keeps the two modes
+        // mutually exclusive, as the contract requires.
+        c.requiresApproval = (assignSeed / 3) % 2 == 1 && c.assigned == address(0);
+        c.unassignWindow = uint64(bound(assignSeed, 0, escrowC.MAX_UNASSIGN_WINDOW_SECONDS()));
         c.acceptDeadline = uint64(block.timestamp) + c.acceptWindow;
+    }
+
+    /// @dev One place the fuzzed CreateArgs become contract CreateParams, so
+    ///      the four create entry points cannot drift in what they encode.
+    function _params(bytes16 id, CreateArgs memory c, address asset)
+        private
+        pure
+        returns (TendaEscrow.CreateParams memory p)
+    {
+        p = EscrowParams.base(id, c.kind, asset, c.amount, c.assigned, c.acceptDeadline, c.duration, c.bond, c.isSeeker);
+        p.requiresApproval = c.requiresApproval;
+        p.unassignWindowSeconds = c.unassignWindow;
     }
 
     function createERC20(
@@ -68,11 +91,10 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
         bytes16 id = _nextId();
         vm.startPrank(creator);
         token.approve(address(escrowC), c.amount);
-        escrowC.createEscrow(
-            id, c.kind, address(token), c.amount, c.assigned, c.acceptDeadline, c.duration, c.bond, c.isSeeker
-        );
+        escrowC.createEscrow(_params(id, c, address(token)));
         vm.stopPrank();
         _recordCreate(id, true, c.amount, c.bond, creator, c.assigned, c.isSeeker, c.acceptDeadline, c.duration);
+        _recordMode(id, c.requiresApproval, c.unassignWindow);
     }
 
     function createNative(
@@ -89,10 +111,9 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
         if (c.assigned == creator) c.assigned = address(0);
         bytes16 id = _nextId();
         vm.prank(creator);
-        escrowC.createEscrow{value: c.amount}(
-            id, c.kind, address(0), c.amount, c.assigned, c.acceptDeadline, c.duration, c.bond, c.isSeeker
-        );
+        escrowC.createEscrow{value: c.amount}(_params(id, c, address(0)));
         _recordCreate(id, false, c.amount, c.bond, creator, c.assigned, c.isSeeker, c.acceptDeadline, c.duration);
+        _recordMode(id, c.requiresApproval, c.unassignWindow);
     }
 
     /// @dev Happy permit — value may exceed the amount (over-permit) so the
@@ -114,10 +135,9 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
         TendaEscrow.Permit memory p = _signPermit(pk, creator, value, block.timestamp + 15 minutes);
         bytes16 id = _nextId();
         vm.prank(creator);
-        escrowC.createEscrowWithPermit(
-            id, c.kind, address(token), c.amount, c.assigned, c.acceptDeadline, c.duration, c.bond, c.isSeeker, p
-        );
+        escrowC.createEscrowWithPermit(_params(id, c, address(token)), p);
         _recordCreate(id, true, c.amount, c.bond, creator, c.assigned, c.isSeeker, c.acceptDeadline, c.duration);
+        _recordMode(id, c.requiresApproval, c.unassignWindow);
     }
 
     /// @dev The griefing scenario the try/catch exists for: a front-runner
@@ -139,10 +159,9 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
         token.permit(creator, address(escrowC), p.value, p.deadline, p.v, p.r, p.s); // front-runner, any sender
         bytes16 id = _nextId();
         vm.prank(creator);
-        escrowC.createEscrowWithPermit(
-            id, c.kind, address(token), c.amount, c.assigned, c.acceptDeadline, c.duration, 0, c.isSeeker, p
-        );
+        escrowC.createEscrowWithPermit(_params(id, c, address(token)), p);
         _recordCreate(id, true, c.amount, 0, creator, c.assigned, c.isSeeker, c.acceptDeadline, c.duration);
+        _recordMode(id, c.requiresApproval, c.unassignWindow);
     }
 
     /// @dev Garbage permit + no standing allowance: the swallowed permit
@@ -162,9 +181,7 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
         });
         bytes16 id = _nextId();
         vm.expectRevert();
-        escrowC.createEscrowWithPermit(
-            id, c.kind, address(token), c.amount, address(0), c.acceptDeadline, c.duration, 0, c.isSeeker, p
-        );
+        escrowC.createEscrowWithPermit(_params(id, c, address(token)), p);
         vm.stopPrank();
         // Deliberately NOT recorded: nothing was created.
     }
@@ -177,6 +194,7 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
         bytes16 id = _pick(seed, TendaEscrow.Status.Open);
         if (id == bytes16(0)) return;
         Ghost storage g = ghosts[id];
+        if (g.requiresApproval) return; // acceptEscrow is closed in that mode
         if (block.timestamp >= g.acceptDeadline) return; // organically expired
         (, address who) = _actor(actorSeed);
         if (g.assigned != address(0)) who = g.assigned;
@@ -319,6 +337,44 @@ contract TendaEscrowHandler is TendaEscrowHandlerBase {
         vm.prank(raiser);
         escrowC.disputeEscrowWithPermit(id, p); // swallowed permit + standing allowance → must land
         _recordDispute(g, raiser);
+    }
+
+    /// @dev Approval mode's accept: the CREATOR moves the escrow, and the
+    ///      worker signs nothing.
+    function assignAccept(uint256 seed, uint256 actorSeed) external {
+        bytes16 id = _pick(seed, TendaEscrow.Status.Open);
+        if (id == bytes16(0)) return;
+        Ghost storage g = ghosts[id];
+        if (!g.requiresApproval) return;
+        if (block.timestamp >= g.acceptDeadline) return;
+        (, address who) = _actor(actorSeed);
+        if (who == g.creator) who = actors[(actorSeed + 1) % ACTOR_COUNT];
+        if (who == g.creator) return;
+        vm.prank(g.creator);
+        escrowC.assignAccept(id, who);
+        g.status = TendaEscrow.Status.Accepted;
+        g.counterparty = who;
+        g.completionDeadline = uint64(block.timestamp) + g.duration;
+    }
+
+    /// @dev THE reason this pair is worth fuzzing: `unassign` is the only
+    ///      BACKWARD edge in the state machine (Accepted → Open). Every other
+    ///      transition moves forward, so an escrow that can re-enter Open —
+    ///      and be re-assigned, cancelled, or left to expire — is the one
+    ///      shape the solvency and no-stuck-escrow proofs had never seen.
+    function unassign(uint256 seed) external {
+        bytes16 id = _pick(seed, TendaEscrow.Status.Accepted);
+        if (id == bytes16(0)) return;
+        Ghost storage g = ghosts[id];
+        if (!g.requiresApproval) return;
+        // Mirror the contract's exclusive boundary, derived the same way.
+        uint64 acceptedAt = g.completionDeadline - g.duration;
+        if (block.timestamp >= uint256(acceptedAt) + uint256(g.unassignWindow)) return;
+        vm.prank(g.creator);
+        escrowC.unassign(id);
+        g.status = TendaEscrow.Status.Open;
+        g.counterparty = address(0);
+        g.completionDeadline = 0;
     }
 
     function resolveDispute(uint256 seed, uint8 winner) external {

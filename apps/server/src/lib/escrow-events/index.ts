@@ -28,6 +28,15 @@ export interface ApplyEscrowEventResult {
   applied: boolean
   escrow_id: string
   internal_event: InternalEscrowEvent
+  /**
+   * The counterparty this event installed or released, resolved to a user id
+   * (null when the event touches no counterparty, or the wallet is unknown).
+   *
+   * Carried out because a RELEASED counterparty is gone from the escrow row
+   * the moment the transition commits — anything downstream that needs to
+   * address them (the push fan-out) cannot re-read it.
+   */
+  counterparty_id: string | null
 }
 
 const WINNERS = ['creator', 'counterparty', 'split'] as const
@@ -57,17 +66,22 @@ export async function applyEscrowEvent(
 
   // Resolve all wallet→user reads BEFORE the atomic apply so the write
   // bundle (transition + audit row + dispute stamp) happens in one shot.
-  // EscrowCreated stamps the on-chain ref; EscrowAccepted resolves the
-  // accepting wallet to a user id. Both need data beyond the static table.
+  // EscrowCreated stamps the on-chain ref; the accept-family events resolve
+  // the incoming counterparty wallet to a user id. Both need data beyond the
+  // static table.
   if (event.name === 'EscrowCreated') {
     patch.escrow_ref = event.escrow_ref
   }
-  if (event.name === 'EscrowAccepted') {
-    const address = event.fields.counterparty
-    patch.counterparty_id =
+  let counterparty_id: string | null = null
+  if (app.counterparty !== undefined) {
+    const address = event.fields[app.counterparty.field]
+    counterparty_id =
       address !== undefined
         ? await deps.store.resolveUserByWallet(deps.chain_ns, address)
         : null
+    // Install writes the resolved user onto the row; release clears it. Either
+    // way `counterparty_id` above keeps the resolved value for the caller.
+    patch.counterparty_id = app.counterparty.effect === 'install' ? counterparty_id : null
   }
 
   const actorAddress = app.actor_field !== undefined ? event.fields[app.actor_field] : undefined
@@ -103,5 +117,10 @@ export async function applyEscrowEvent(
     ...(disputeResolution !== undefined ? { disputeResolution } : {}),
   })
 
-  return { applied, escrow_id, internal_event: INTERNAL_EVENT_BY_WIRE[event.name] }
+  return {
+    applied,
+    escrow_id,
+    internal_event: INTERNAL_EVENT_BY_WIRE[event.name],
+    counterparty_id,
+  }
 }

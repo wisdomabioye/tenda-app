@@ -71,6 +71,29 @@ pub struct EscrowDeclined {
     pub timestamp: i64,
 }
 
+/// Approval-mode counterpart of `EscrowAccepted`: the creator, not the worker,
+/// moved the escrow to Accepted. Kept a DISTINCT event (rather than reusing
+/// `EscrowAccepted`) because the actor differs — a wallet history must not
+/// label the poster's transaction "Gig accepted".
+#[event]
+pub struct CounterpartyAssigned {
+    pub escrow_id: [u8; 16],
+    pub counterparty: Pubkey,
+    pub assigned_by: Pubkey,
+    pub completion_deadline: i64,
+    pub timestamp: i64,
+}
+
+/// The creator withdrew an assignment inside the unassign window; the escrow
+/// returns to Open with its funds untouched.
+#[event]
+pub struct AssignmentReleased {
+    pub escrow_id: [u8; 16],
+    pub counterparty: Pubkey,
+    pub released_by: Pubkey,
+    pub timestamp: i64,
+}
+
 #[event]
 pub struct ProofSubmitted {
     pub escrow_id: [u8; 16],

@@ -38,6 +38,29 @@ pub struct Escrow {
     pub approval_deadline: i64,
     pub dispute_bond: u64,
     pub is_seeker: bool,
+    /// Acceptance mode, fixed at create.
+    ///   `false` ⇒ the worker moves the escrow to Accepted themselves via
+    ///     `accept_escrow` (open first-come, or restricted to
+    ///     `assigned_counterparty` when that is set).
+    ///   `true`  ⇒ `accept_escrow` is closed; only the creator can move it,
+    ///     via `assign_accept`.
+    ///
+    /// The two guards make the mode an EXACT witness of provenance:
+    /// `status == Accepted && requires_approval` holds if and only if the
+    /// creator assigned the worker, i.e. the worker never signed. `unassign`
+    /// relies on that equivalence, so a worker who accepted of their own
+    /// accord can never be unassigned.
+    pub requires_approval: bool,
+    /// How long after `assign_accept` the creator may still `unassign`.
+    /// Per-escrow (a term of THIS deal, fixed when it is posted) rather than
+    /// a mutable platform-wide value, so changing the default never
+    /// retroactively re-opens a settled assignment — and, unlike a
+    /// `PlatformState` field, it does not resize the singleton platform PDA.
+    /// Server-supplied from `platform_config`, bounded on-chain by
+    /// `MIN`/`MAX_UNASSIGN_WINDOW_SECONDS` exactly like
+    /// `completion_duration_seconds`. Only meaningful when
+    /// `requires_approval` is true.
+    pub unassign_window_seconds: i64,
     pub created_at: i64,
     /// Bump for the Escrow data PDA. Stored so settlement instructions can
     /// `signer = [ESCROW_SEED, escrow_id.as_ref(), &[bump]]` without re-deriving.
@@ -62,11 +85,23 @@ impl Escrow {
     /// `+ 8`  approval_deadline
     /// `+ 8`  dispute_bond
     /// `+ 1`  is_seeker
+    /// `+ 1`  requires_approval
+    /// `+ 8`  unassign_window_seconds
     /// `+ 8`  created_at
     /// `+ 1`  bump
     /// `+ 1`  vault_bump
     pub const LEN: usize =
-        8 + 16 + 1 + 32 + 8 + 32 + 33 + 33 + 1 + 8 + 8 + 8 + 8 + 8 + 1 + 8 + 1 + 1;
+        8 + 16 + 1 + 32 + 8 + 32 + 33 + 33 + 1 + 8 + 8 + 8 + 8 + 8 + 1 + 1 + 8 + 8 + 1 + 1;
+
+    /// When this escrow was accepted. Not stored: both accept paths set
+    /// `completion_deadline = accepted_at + completion_duration_seconds`, so
+    /// the timestamp is recoverable exactly, in either mode. Only meaningful
+    /// while the escrow is `Accepted` — before that `completion_deadline` is
+    /// 0 and this returns a negative value, which every caller excludes by
+    /// checking status first.
+    pub fn accepted_at(&self) -> i64 {
+        self.completion_deadline - self.completion_duration_seconds
+    }
 }
 
 /// Escrow asset class. Wider type than a bool because Stage 3+ will add EVM

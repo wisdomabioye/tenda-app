@@ -87,20 +87,39 @@ export function decodeEscrowLogs(
   return out
 }
 
+/**
+ * Which decoded field names the acting wallet for each event, `null` where no
+ * single party acts (DisputeResolved is admin-initiated).
+ *
+ * An exhaustive `Record`, matching the Solana decoder's `ACTOR_FIELD` exactly.
+ * This was a nested ternary chain that fell through to `null`, so a new event
+ * silently produced escrow_transactions rows with no actor; now the build
+ * breaks until the event is classified. Field names are the Solidity event arg
+ * names, which the ABI decoder returns verbatim.
+ */
+const ACTOR_FIELD: Record<EscrowEvent, string | null> = {
+  EscrowCreated: 'creator',
+  EscrowAccepted: 'counterparty',
+  EscrowDeclined: 'declined_by',
+  CounterpartyAssigned: 'assigned_by',
+  AssignmentReleased: 'released_by',
+  // No actor on EVM: the Solidity ProofSubmitted carries only the proof hash
+  // and deadlines, while the Anchor event also carries `counterparty`. A real
+  // cross-chain asymmetry, preserved here rather than invented — the submitter
+  // is always the escrow's counterparty, which the row already records.
+  ProofSubmitted: null,
+  EscrowApproved: 'creator',
+  PaymentClaimed: 'counterparty',
+  EscrowCancelled: 'creator',
+  EscrowExpired: 'creator',
+  EscrowAbandoned: 'creator',
+  DisputeRaised: 'raised_by',
+  DisputeResolved: null,
+}
+
 /** The event arg that identifies the acting wallet, when one exists. */
 function actorOf(name: EscrowEvent, args: Record<string, unknown>): string | null {
-  const key =
-    name === 'EscrowCreated' || name === 'EscrowApproved'
-      ? 'creator'
-      : name === 'EscrowAccepted' || name === 'PaymentClaimed'
-        ? 'counterparty'
-        : name === 'EscrowCancelled' || name === 'EscrowExpired' || name === 'EscrowAbandoned'
-          ? 'creator'
-          : name === 'EscrowDeclined'
-            ? 'declined_by'
-            : name === 'DisputeRaised'
-              ? 'raised_by'
-              : null
+  const key = ACTOR_FIELD[name]
   if (key === null) return null
   const v = args[key]
   return typeof v === 'string' ? v : null

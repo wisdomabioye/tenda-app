@@ -54,6 +54,8 @@ const ACTOR_FIELD: Record<EscrowEvent, string | null> = {
   EscrowCreated: 'creator',
   EscrowAccepted: 'counterparty',
   EscrowDeclined: 'declinedBy',
+  CounterpartyAssigned: 'assignedBy',
+  AssignmentReleased: 'releasedBy',
   ProofSubmitted: 'counterparty',
   EscrowApproved: 'creator',
   PaymentClaimed: 'counterparty',
@@ -237,6 +239,8 @@ function toEscrowState(escrow_ref: string, e: EscrowAccount): EscrowState {
     approval_deadline_unix: e.approvalDeadline.toNumber(),
     dispute_bond_raw: e.disputeBond.toString(10),
     is_seeker: e.isSeeker,
+    requires_approval: e.requiresApproval,
+    unassign_window_seconds: e.unassignWindowSeconds.toNumber(),
     created_at_unix: e.createdAt.toNumber(),
   }
 }

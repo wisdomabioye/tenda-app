@@ -4,6 +4,7 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {TendaEscrow} from "../src/TendaEscrow.sol";
 import {MockUSDCPermitV2} from "./mocks/MockUSDCPermitV2.sol";
+import {EscrowParams} from "./helpers/EscrowParams.sol";
 
 /// @title Cross-chain settlement-math parity (golden vectors)
 /// @dev `contracts/settlement-vectors.json` is the single source of expected
@@ -55,7 +56,9 @@ contract SettlementParityTest is Test {
         vm.startPrank(creator);
         token.approve(address(escrow), amount);
         escrow.createEscrow(
-            id, 0, address(token), amount, address(0), uint64(block.timestamp) + 1 days, 7_200, bond, false
+            EscrowParams.base(
+                id, 0, address(token), amount, address(0), uint64(block.timestamp) + 1 days, 7_200, bond, false
+            )
         );
         vm.stopPrank();
         vm.prank(worker);

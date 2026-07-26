@@ -19,6 +19,11 @@ export const TX_PROGRESS_LABEL: Record<EscrowTxType, string> = {
   create: 'Funding escrow',
   accept: 'Accepting',
   decline: 'Declining',
+  // Approval mode. The poster's wording, not the worker's — these two are the
+  // only transitions where the CREATOR moves an escrow that a worker will do
+  // the work on.
+  assign_accept: 'Assigning worker',
+  unassign: 'Releasing assignment',
   submit: 'Submitting',
   approve: 'Releasing payment',
   claim_stalled: 'Claiming payment',
@@ -42,6 +47,8 @@ const GATED_ACTIONS: readonly EscrowTxType[] = [
   'cancel',
   'refund_expired',
   'reclaim_abandoned',
+  'assign_accept',
+  'unassign',
 ]
 
 /** Appended to every gated body so the wallet popup is never a surprise. */
@@ -155,10 +162,75 @@ function buildCopy(action: EscrowTxType, ctx: TxConfirmContext): TxConfirmCopy |
         confirmLabel: 'Reclaim Escrow',
         destructive: false,
       }
+    case 'assign_accept':
+      return {
+        title: 'Assign this worker?',
+        body:
+          deliverWithin != null && deliverWithin !== ''
+            ? `They become the worker immediately and have ${deliverWithin} to deliver. They don't sign anything, so make sure you've picked the right person.`
+            : "They become the worker immediately and their delivery window starts now. They don't sign anything, so make sure you've picked the right person.",
+        confirmLabel: 'Assign Worker',
+        destructive: false,
+      }
+    case 'unassign':
+      return {
+        title: 'Release this assignment?',
+        body: `This removes the worker and puts the gig back to open. Your ${amount} stays in escrow, and you can assign someone else.`,
+        confirmLabel: 'Release Assignment',
+        // Someone may already have started work on the strength of the
+        // assignment — worth the extra pause.
+        destructive: true,
+      }
     default:
       // decline / submit / dispute / resolve are not gated here.
       return null
   }
+}
+
+/**
+ * Toast shown once a transition CONFIRMS on-chain — the other half of the same
+ * copy surface as the confirm gate above, and kind-aware for the same reason
+ * ("Gig accepted!" vs "Offer accepted!").
+ *
+ * This lived as a `SUCCESS_BY_ACTION` map inside each of the gig and exchange
+ * screens, which is precisely the drift this module exists to prevent: the two
+ * had already diverged (only one carried `create`, only one carried
+ * `reclaim_abandoned`), and every new action had to be remembered twice.
+ *
+ * Unmatched actions fall back to a neutral confirmation rather than throwing —
+ * a missing toast string must never break a settled transaction.
+ */
+const SUCCESS_FALLBACK = 'Transaction confirmed'
+
+const GIG_SUCCESS: Partial<Record<EscrowTxType, string>> = {
+  create: 'Gig posted, it goes live once the escrow confirms.',
+  accept: 'Gig accepted!',
+  assign_accept: 'Worker assigned, their delivery window has started.',
+  unassign: 'Assignment released, the gig is open again.',
+  submit: 'Proof submitted!',
+  approve: 'Payment released to worker!',
+  claim_stalled: 'Payment claimed!',
+  cancel: 'Gig cancelled, escrow refunded.',
+  refund_expired: 'Refund claimed successfully.',
+  reclaim_abandoned: 'Escrow reclaimed.',
+  dispute: 'Dispute raised. An admin will review shortly.',
+}
+
+const EXCHANGE_SUCCESS: Partial<Record<EscrowTxType, string>> = {
+  create: 'Offer published, it goes live once the escrow confirms.',
+  accept: 'Offer accepted!',
+  submit: 'Payment marked, waiting for the seller to confirm.',
+  approve: 'Payment confirmed, crypto released.',
+  claim_stalled: 'Payment claimed!',
+  cancel: 'Offer cancelled, escrow refunded.',
+  refund_expired: 'Refund claimed successfully.',
+  reclaim_abandoned: 'Escrow reclaimed.',
+  dispute: 'Dispute raised. An admin will review shortly.',
+}
+
+export function txSuccessCopy(action: EscrowTxType, kind: EscrowKind): string {
+  const table = kind === 'exchange' ? EXCHANGE_SUCCESS : GIG_SUCCESS
+  return table[action] ?? SUCCESS_FALLBACK
 }
 
 /**

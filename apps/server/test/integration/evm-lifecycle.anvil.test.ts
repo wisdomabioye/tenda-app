@@ -197,6 +197,8 @@ function createPayload(escrow_id: string, bond = '0') {
     completion_duration_seconds: 7_200,
     dispute_bond_raw: bond,
     is_seeker: false,
+    requires_approval: false,
+    unassign_window_seconds: 0,
   }
 }
 

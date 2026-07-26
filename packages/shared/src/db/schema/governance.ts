@@ -16,6 +16,7 @@ import {
 import { escrows } from './escrow'
 import { users } from './identity'
 import { PLATFORM_CONFIG_DEFAULTS, MAX_PENDING_GIGS_CEILING } from '../../constants/platform'
+import { ESCROW_LIMITS } from '../../constants/escrow'
 
 export const disputeWinnerEnum = pgEnum('dispute_winner', [
   'creator',
@@ -225,6 +226,10 @@ export const platform_config = pgTable(
     max_pending_gigs: integer('max_pending_gigs')
       .notNull()
       .default(PLATFORM_CONFIG_DEFAULTS.max_pending_gigs),
+    /** Unassign window stamped onto approval-mode escrows at create. */
+    unassign_window_seconds: integer('unassign_window_seconds')
+      .notNull()
+      .default(PLATFORM_CONFIG_DEFAULTS.unassign_window_seconds),
   },
   (t) => [
     check('platform_config_singleton_chk', sql`${t.id} = 1`),
@@ -238,6 +243,13 @@ export const platform_config = pgTable(
     check(
       'platform_config_max_pending_gigs_range_chk',
       sql`${t.max_pending_gigs} BETWEEN 1 AND ${sql.raw(String(MAX_PENDING_GIGS_CEILING))}`,
+    ),
+    // Mirrors the bound BOTH contracts enforce, so a value the chain would
+    // revert can never be stored — the column is the source the create route
+    // stamps onto the escrow.
+    check(
+      'platform_config_unassign_window_range_chk',
+      sql`${t.unassign_window_seconds} BETWEEN ${sql.raw(String(ESCROW_LIMITS.minUnassignWindowSeconds))} AND ${sql.raw(String(ESCROW_LIMITS.maxUnassignWindowSeconds))}`,
     ),
   ],
 )

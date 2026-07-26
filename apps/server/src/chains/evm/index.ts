@@ -285,7 +285,11 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
         build.payload.assigned_counterparty_user_id !== undefined
           ? await args.deps.resolveWalletAddress(build.payload.assigned_counterparty_user_id)
           : null
-      return { asset_address: token_address, assigned_counterparty_address: assigned }
+      return {
+        asset_address: token_address,
+        assigned_counterparty_address: assigned,
+        worker_address: null,
+      }
     }
     if (build.action === 'disputeEscrow') {
       // Bond denomination follows the escrow's asset, read it on-chain so
@@ -294,9 +298,17 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       return {
         asset_address: state?.asset_address ?? null,
         assigned_counterparty_address: null,
+        worker_address: null,
       }
     }
-    return { asset_address: null, assigned_counterparty_address: null }
+    if (build.action === 'assignAccept') {
+      return {
+        asset_address: null,
+        assigned_counterparty_address: null,
+        worker_address: await args.deps.resolveWalletAddress(build.payload.worker_user_id),
+      }
+    }
+    return { asset_address: null, assigned_counterparty_address: null, worker_address: null }
   }
 
   async function verifyTx(tx_ref: string, verify: VerifyTxArgs): Promise<VerifiedTx> {
@@ -358,6 +370,8 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       approval_deadline_unix: Number(tuple.approval_deadline),
       dispute_bond_raw: tuple.dispute_bond.toString(),
       is_seeker: tuple.is_seeker,
+      requires_approval: tuple.requires_approval,
+      unassign_window_seconds: Number(tuple.unassign_window_seconds),
       // The contract doesn't store creation time; reconciliation uses the
       // EscrowCreated event's block timestamp via the DB row instead.
       created_at_unix: 0,

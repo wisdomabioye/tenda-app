@@ -151,6 +151,13 @@ export interface VerifyTxDeps {
     wire_event: EscrowEvent
     /** On-chain signature/hash, clients correlate WS frames against it. */
     tx_ref: string
+    /**
+     * Counterparty the event installed or released, already resolved to a
+     * user id. Load-bearing for `unassign`: by the time the fan-out runs the
+     * escrow row no longer names the released worker, so this is the only way
+     * to tell them they were let go.
+     */
+    counterparty_id: string | null
   }): Promise<void>
   log: { warn(obj: Record<string, unknown>, msg: string): void }
 }
@@ -233,6 +240,27 @@ export async function verifyTxJobHandler(
   )
   await deps.store.markAttemptConfirmed(job.tx_ref)
 
+  // A tripped status guard here is NOT the ordinary duplicate path: step 1
+  // already short-circuited any tx_ref that was applied before, so this is a
+  // genuinely new transaction whose transition did not fit the current row.
+  // That means the events arrived out of order (verify-tx runs at concurrency
+  // 8 with no per-escrow serialisation, so two events landing in one polling
+  // tick can race) or the DB has drifted from the chain. Either way the event
+  // is now dropped for good — nothing retries it, and reconcile only revisits
+  // PENDING attempts. Log it so the divergence is at least observable; see the
+  // reconciliation note in stage-10 for the standing gap.
+  if (!result.applied) {
+    deps.log.warn(
+      {
+        tx_ref: job.tx_ref,
+        escrow_id: result.escrow_id,
+        event: verified.event.name,
+        source: job.source,
+      },
+      'verify-tx: transition skipped by the status guard on a new tx (out-of-order or drift)',
+    )
+  }
+
   // Step 5, republish for notifications + WS. Best-effort: the state is
   // already durable; a republish failure is logged, never thrown.
   if (result.applied) {
@@ -242,6 +270,7 @@ export async function verifyTxJobHandler(
         escrow_id: result.escrow_id,
         wire_event: verified.event.name,
         tx_ref: job.tx_ref,
+        counterparty_id: result.counterparty_id,
       })
     } catch (err) {
       deps.log.warn(

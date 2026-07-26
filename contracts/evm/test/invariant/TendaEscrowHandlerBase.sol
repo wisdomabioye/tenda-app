@@ -46,6 +46,10 @@ abstract contract TendaEscrowHandlerBase is Test {
         uint64 completionDeadline;
         uint64 approvalDeadline;
         address raisedBy;
+        /// @dev Approval mode: acceptEscrow is closed, the creator drives
+        ///      assignAccept/unassign instead.
+        bool requiresApproval;
+        uint64 unassignWindow;
         bool terminal;
     }
 
@@ -150,6 +154,14 @@ abstract contract TendaEscrowHandlerBase is Test {
     }
 
     /// @dev Ghost bookkeeping for a successful create.
+    /// @dev Mode fields, recorded separately so `_recordCreate`'s parameter
+    ///      list does not keep growing with every create-time field.
+    function _recordMode(bytes16 id, bool requiresApproval, uint64 unassignWindow) internal {
+        Ghost storage g = ghosts[id];
+        g.requiresApproval = requiresApproval;
+        g.unassignWindow = unassignWindow;
+    }
+
     function _recordCreate(
         bytes16 id,
         bool erc20,

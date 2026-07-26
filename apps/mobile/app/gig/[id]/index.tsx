@@ -19,7 +19,7 @@ import {
 } from '@/components/gig'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import type { MediaItem } from '@/components/shared/media/types'
-import { DetailChrome, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
+import { DetailChrome, TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
 import { TransactionMonitor, LoadingScreen, ErrorState } from '@/components/feedback'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
@@ -33,17 +33,6 @@ import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
 import type { EscrowTxType, GigDetail } from '@tenda/shared'
-
-const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
-  accept: 'Gig accepted!',
-  approve: 'Payment released to worker!',
-  claim_stalled: 'Payment claimed!',
-  cancel: 'Gig cancelled, escrow refunded.',
-  refund_expired: 'Refund claimed successfully.',
-  reclaim_abandoned: 'Escrow reclaimed.',
-  submit: 'Proof submitted!',
-  dispute: 'Dispute raised. An admin will review shortly.',
-}
 
 function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const router = useRouter()
@@ -115,7 +104,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     const action = actions.pendingAction
     actions.clearPending()
     if (action !== null) {
-      showToast('success', SUCCESS_BY_ACTION[action] ?? 'Transaction confirmed')
+      showToast('success', txSuccessCopy(action, 'gig'))
     }
     if (action === 'accept') {
       // Accepting is a commitment: it earns the just-in-time notification

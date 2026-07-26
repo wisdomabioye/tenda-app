@@ -60,6 +60,7 @@ test('a valid save PATCHes the config and toasts success', async () => {
       seeker_fee_bps: PLATFORM_CONFIG_DEFAULTS.seeker_fee_bps,
       grace_period_seconds: PLATFORM_CONFIG_DEFAULTS.grace_period_seconds,
       max_pending_gigs: PLATFORM_CONFIG_DEFAULTS.max_pending_gigs,
+      unassign_window_seconds: PLATFORM_CONFIG_DEFAULTS.unassign_window_seconds,
     }),
   )
   expect(ok).toHaveBeenCalledWith('Config saved — server cache busted')
@@ -106,4 +107,38 @@ test('input bounds come from the shared constants the server validates against',
   expect(screen.getByLabelText('Max concurrent gigs / worker')).toHaveAttribute(
     'max', String(MAX_PENDING_GIGS_CEILING),
   )
+})
+
+test('loads and edits the unassign window', async () => {
+  get.mockResolvedValue(CONFIG)
+  update.mockResolvedValueOnce({ ...CONFIG, unassign_window_seconds: 3_600 })
+  renderPage(<ConfigPage />)
+  const win = await screen.findByLabelText('Unassign window (seconds)')
+  expect(win).toHaveValue(PLATFORM_CONFIG_DEFAULTS.unassign_window_seconds)
+
+  await userEvent.clear(win)
+  await userEvent.type(win, '3600')
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() =>
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ unassign_window_seconds: 3_600 })),
+  )
+})
+
+test('a cleared unassign window blocks the save', async () => {
+  get.mockResolvedValue(CONFIG)
+  renderPage(<ConfigPage />)
+  await userEvent.clear(await screen.findByLabelText('Unassign window (seconds)'))
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(err).toHaveBeenCalledWith('Every field needs a whole number')
+  expect(update).not.toHaveBeenCalled()
+})
+
+test('the unassign window input is bounded by the limits both contracts enforce', async () => {
+  get.mockResolvedValue(CONFIG)
+  renderPage(<ConfigPage />)
+  const win = await screen.findByLabelText('Unassign window (seconds)')
+  // A value the chain would revert must be unenterable here, not discovered
+  // at create time.
+  expect(win).toHaveAttribute('min', String(ESCROW_LIMITS.minUnassignWindowSeconds))
+  expect(win).toHaveAttribute('max', String(ESCROW_LIMITS.maxUnassignWindowSeconds))
 })

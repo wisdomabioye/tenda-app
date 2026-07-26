@@ -122,6 +122,19 @@
     },
     {
       "type": "function",
+      "name": "MAX_UNASSIGN_WINDOW_SECONDS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint64",
+          "internalType": "uint64"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
       "name": "MIN_APPROVAL_WINDOW_SECONDS",
       "inputs": [],
       "outputs": [
@@ -136,6 +149,19 @@
     {
       "type": "function",
       "name": "MIN_COMPLETION_DURATION_SECONDS",
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "",
+          "type": "uint64",
+          "internalType": "uint64"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "MIN_UNASSIGN_WINDOW_SECONDS",
       "inputs": [],
       "outputs": [
         {
@@ -239,6 +265,24 @@
     },
     {
       "type": "function",
+      "name": "assignAccept",
+      "inputs": [
+        {
+          "name": "escrowId",
+          "type": "bytes16",
+          "internalType": "bytes16"
+        },
+        {
+          "name": "worker",
+          "type": "address",
+          "internalType": "address"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "function",
       "name": "cancelEscrow",
       "inputs": [
         {
@@ -268,49 +312,66 @@
       "name": "createEscrow",
       "inputs": [
         {
-          "name": "escrowId",
-          "type": "bytes16",
-          "internalType": "bytes16"
-        },
-        {
-          "name": "kind",
-          "type": "uint8",
-          "internalType": "uint8"
-        },
-        {
-          "name": "asset",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "amount",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "assignedCounterparty",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "acceptDeadline",
-          "type": "uint64",
-          "internalType": "uint64"
-        },
-        {
-          "name": "completionDuration",
-          "type": "uint64",
-          "internalType": "uint64"
-        },
-        {
-          "name": "disputeBond",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "isSeeker",
-          "type": "bool",
-          "internalType": "bool"
+          "name": "params",
+          "type": "tuple",
+          "internalType": "struct TendaEscrow.CreateParams",
+          "components": [
+            {
+              "name": "escrowId",
+              "type": "bytes16",
+              "internalType": "bytes16"
+            },
+            {
+              "name": "kind",
+              "type": "uint8",
+              "internalType": "uint8"
+            },
+            {
+              "name": "asset",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "amount",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "assignedCounterparty",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "acceptDeadline",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "completionDuration",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "disputeBond",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "isSeeker",
+              "type": "bool",
+              "internalType": "bool"
+            },
+            {
+              "name": "requiresApproval",
+              "type": "bool",
+              "internalType": "bool"
+            },
+            {
+              "name": "unassignWindowSeconds",
+              "type": "uint64",
+              "internalType": "uint64"
+            }
+          ]
         }
       ],
       "outputs": [],
@@ -321,49 +382,66 @@
       "name": "createEscrowWithPermit",
       "inputs": [
         {
-          "name": "escrowId",
-          "type": "bytes16",
-          "internalType": "bytes16"
-        },
-        {
-          "name": "kind",
-          "type": "uint8",
-          "internalType": "uint8"
-        },
-        {
-          "name": "asset",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "amount",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "assignedCounterparty",
-          "type": "address",
-          "internalType": "address"
-        },
-        {
-          "name": "acceptDeadline",
-          "type": "uint64",
-          "internalType": "uint64"
-        },
-        {
-          "name": "completionDuration",
-          "type": "uint64",
-          "internalType": "uint64"
-        },
-        {
-          "name": "disputeBond",
-          "type": "uint256",
-          "internalType": "uint256"
-        },
-        {
-          "name": "isSeeker",
-          "type": "bool",
-          "internalType": "bool"
+          "name": "params",
+          "type": "tuple",
+          "internalType": "struct TendaEscrow.CreateParams",
+          "components": [
+            {
+              "name": "escrowId",
+              "type": "bytes16",
+              "internalType": "bytes16"
+            },
+            {
+              "name": "kind",
+              "type": "uint8",
+              "internalType": "uint8"
+            },
+            {
+              "name": "asset",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "amount",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "assignedCounterparty",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "acceptDeadline",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "completionDuration",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "disputeBond",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "isSeeker",
+              "type": "bool",
+              "internalType": "bool"
+            },
+            {
+              "name": "requiresApproval",
+              "type": "bool",
+              "internalType": "bool"
+            },
+            {
+              "name": "unassignWindowSeconds",
+              "type": "uint64",
+              "internalType": "uint64"
+            }
+          ]
         },
         {
           "name": "permit_",
@@ -570,6 +648,16 @@
           "name": "raisedBy",
           "type": "address",
           "internalType": "address"
+        },
+        {
+          "name": "requiresApproval",
+          "type": "bool",
+          "internalType": "bool"
+        },
+        {
+          "name": "unassignWindowSeconds",
+          "type": "uint64",
+          "internalType": "uint64"
         }
       ],
       "stateMutability": "view"
@@ -583,6 +671,112 @@
           "name": "",
           "type": "uint16",
           "internalType": "uint16"
+        }
+      ],
+      "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "getEscrow",
+      "inputs": [
+        {
+          "name": "escrowId",
+          "type": "bytes16",
+          "internalType": "bytes16"
+        }
+      ],
+      "outputs": [
+        {
+          "name": "",
+          "type": "tuple",
+          "internalType": "struct TendaEscrow.Escrow",
+          "components": [
+            {
+              "name": "escrowId",
+              "type": "bytes16",
+              "internalType": "bytes16"
+            },
+            {
+              "name": "kind",
+              "type": "uint8",
+              "internalType": "uint8"
+            },
+            {
+              "name": "asset",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "amount",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "creator",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "counterparty",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "assignedCounterparty",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "status",
+              "type": "uint8",
+              "internalType": "enum TendaEscrow.Status"
+            },
+            {
+              "name": "acceptDeadline",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "completionDuration",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "completionDeadline",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "approvalDeadline",
+              "type": "uint64",
+              "internalType": "uint64"
+            },
+            {
+              "name": "disputeBond",
+              "type": "uint256",
+              "internalType": "uint256"
+            },
+            {
+              "name": "isSeeker",
+              "type": "bool",
+              "internalType": "bool"
+            },
+            {
+              "name": "raisedBy",
+              "type": "address",
+              "internalType": "address"
+            },
+            {
+              "name": "requiresApproval",
+              "type": "bool",
+              "internalType": "bool"
+            },
+            {
+              "name": "unassignWindowSeconds",
+              "type": "uint64",
+              "internalType": "uint64"
+            }
+          ]
         }
       ],
       "stateMutability": "view"
@@ -770,6 +964,75 @@
         }
       ],
       "stateMutability": "view"
+    },
+    {
+      "type": "function",
+      "name": "unassign",
+      "inputs": [
+        {
+          "name": "escrowId",
+          "type": "bytes16",
+          "internalType": "bytes16"
+        }
+      ],
+      "outputs": [],
+      "stateMutability": "nonpayable"
+    },
+    {
+      "type": "event",
+      "name": "AssignmentReleased",
+      "inputs": [
+        {
+          "name": "escrowId",
+          "type": "bytes16",
+          "indexed": true,
+          "internalType": "bytes16"
+        },
+        {
+          "name": "counterparty",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "released_by",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        }
+      ],
+      "anonymous": false
+    },
+    {
+      "type": "event",
+      "name": "CounterpartyAssigned",
+      "inputs": [
+        {
+          "name": "escrowId",
+          "type": "bytes16",
+          "indexed": true,
+          "internalType": "bytes16"
+        },
+        {
+          "name": "counterparty",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "assigned_by",
+          "type": "address",
+          "indexed": true,
+          "internalType": "address"
+        },
+        {
+          "name": "completion_deadline",
+          "type": "uint64",
+          "indexed": false,
+          "internalType": "uint64"
+        }
+      ],
+      "anonymous": false
     },
     {
       "type": "event",
@@ -1152,6 +1415,16 @@
     },
     {
       "type": "error",
+      "name": "ApprovalModeCannotPreassign",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ApprovalRequired",
+      "inputs": []
+    },
+    {
+      "type": "error",
       "name": "ApprovalWindowOutOfRange",
       "inputs": []
     },
@@ -1163,6 +1436,11 @@
     {
       "type": "error",
       "name": "CannotAcceptOwnEscrow",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "CannotAssignCreator",
       "inputs": []
     },
     {
@@ -1243,6 +1521,11 @@
     },
     {
       "type": "error",
+      "name": "NotApprovalMode",
+      "inputs": []
+    },
+    {
+      "type": "error",
       "name": "NotAssignedCounterparty",
       "inputs": []
     },
@@ -1299,7 +1582,22 @@
     },
     {
       "type": "error",
+      "name": "UnassignWindowClosed",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "UnassignWindowOutOfRange",
+      "inputs": []
+    },
+    {
+      "type": "error",
       "name": "ZeroAddress",
+      "inputs": []
+    },
+    {
+      "type": "error",
+      "name": "ZeroCounterparty",
       "inputs": []
     }
   ]

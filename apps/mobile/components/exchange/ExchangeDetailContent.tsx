@@ -8,7 +8,7 @@ import { ScreenContainer, Text, Divider, Spacer, showToast } from '@/components/
 import { GigActionSheets, type ActiveSheet } from '@/components/gig'
 import { ExchangeCTA } from '@/components/exchange'
 import { ExchangeOfferOverview } from '@/components/exchange/ExchangeOfferOverview'
-import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
+import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
 import { ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import { TransactionMonitor } from '@/components/feedback'
@@ -19,17 +19,6 @@ import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
 import { formatAssetAmount } from '@tenda/shared'
 import type { EscrowTxType, ExchangeDetail, SupportedCurrency } from '@tenda/shared'
-
-const SUCCESS_BY_ACTION: Partial<Record<EscrowTxType, string>> = {
-  create: 'Offer published, it goes live once the escrow confirms.',
-  accept: 'Offer accepted!',
-  submit: 'Payment marked, waiting for the seller to confirm.',
-  approve: 'Payment confirmed, crypto released.',
-  claim_stalled: 'Payment claimed!',
-  cancel: 'Offer cancelled, escrow refunded.',
-  refund_expired: 'Refund claimed successfully.',
-  dispute: 'Dispute raised. An admin will review shortly.',
-}
 
 /**
  * Exchange detail body, read surface over a kind='exchange' escrow. Every
@@ -100,7 +89,7 @@ export function ExchangeDetailContent({
     const action = actions.pendingAction
     actions.clearPending()
     if (action !== null) {
-      showToast('success', SUCCESS_BY_ACTION[action] ?? 'Transaction confirmed')
+      showToast('success', txSuccessCopy(action, 'exchange'))
     }
     if (action === 'cancel') {
       router.back()

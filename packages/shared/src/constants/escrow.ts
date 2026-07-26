@@ -8,6 +8,8 @@ export const ESCROW_TX_TYPES = [
   'create',
   'accept',
   'decline',
+  'assign_accept',
+  'unassign',
   'submit',
   'approve',
   'claim_stalled',
@@ -122,4 +124,6 @@ export const ESCROW_LIMITS = {
   maxGracePeriodSeconds: 14 * 24 * 60 * 60,
   minCompletionDurationSeconds: 3600,
   maxCompletionDurationSeconds: 180 * 24 * 60 * 60,
+  minUnassignWindowSeconds: 0,
+  maxUnassignWindowSeconds: 24 * 60 * 60,
 } as const

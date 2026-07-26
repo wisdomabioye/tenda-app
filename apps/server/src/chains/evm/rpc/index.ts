@@ -11,71 +11,18 @@ import { TENDA_ESCROW_EVM_ABI } from '@tenda/shared/abi'
  *  Anchor IDL's `as TendaEscrow`). */
 export const ESCROW_EVM_ABI = TENDA_ESCROW_EVM_ABI as Abi
 
-export interface EvmReceiptLog {
-  address: string
-  data: `0x${string}`
-  topics: `0x${string}`[]
-}
+// Re-exported so `@server/chains/evm/rpc` stays the single import surface for
+// the adapter's RPC vocabulary — callers never reach past the barrel.
+export type {
+  EvmReceiptLog,
+  EvmReceipt,
+  EvmEscrowTuple,
+  EvmPermitFacts,
+  EvmLogRef,
+  EvmRpc,
+} from './types'
 
-export interface EvmReceipt {
-  status: 'success' | 'reverted'
-  block_number: bigint
-  logs: EvmReceiptLog[]
-}
-
-/**
- * On-chain `escrows(bytes16)` tuple, field order matches the Solidity
- * struct exactly (the public mapping getter flattens it).
- */
-export interface EvmEscrowTuple {
-  escrow_id: `0x${string}`
-  kind: number
-  asset: `0x${string}`
-  amount: bigint
-  creator: `0x${string}`
-  counterparty: `0x${string}`
-  assigned_counterparty: `0x${string}`
-  status: number
-  accept_deadline: bigint
-  completion_duration: bigint
-  completion_deadline: bigint
-  approval_deadline: bigint
-  dispute_bond: bigint
-  is_seeker: boolean
-  raised_by: `0x${string}`
-}
-
-/** Live token facts an EIP-2612 permit payload needs (read per request). */
-export interface EvmPermitFacts {
-  name: string
-  nonce: bigint
-  domain_separator: `0x${string}`
-}
-
-/** A mined log's position, all the polling listener needs to enqueue it. */
-export interface EvmLogRef {
-  tx_hash: `0x${string}`
-  block_number: bigint
-}
-
-export interface EvmRpc {
-  /** Null = transaction unknown to the node (not yet mined / dropped). */
-  getTransactionReceipt(hash: `0x${string}`): Promise<EvmReceipt | null>
-  getBlockNumber(): Promise<bigint>
-  /**
-   * Every mined log the contract emitted in [from_block, to_block], ascending
-   * block order. Reverted txs emit no logs, so only real state changes appear.
-   */
-  getLogRefs(
-    contract: `0x${string}`,
-    from_block: bigint,
-    to_block: bigint,
-  ): Promise<EvmLogRef[]>
-  /** Null = escrow id never created (zero creator sentinel). */
-  readEscrow(escrow_contract: `0x${string}`, escrow_id: `0x${string}`): Promise<EvmEscrowTuple | null>
-  /** name() + nonces(owner) + DOMAIN_SEPARATOR() off an EIP-2612 token. */
-  readPermitFacts(token: `0x${string}`, owner: `0x${string}`): Promise<EvmPermitFacts>
-}
+import type { EvmEscrowStruct, EvmLogRef, EvmRpc } from './types'
 
 export const DEFAULT_EVM_RPC_TIMEOUT_MS = 15_000
 
@@ -202,45 +149,39 @@ export function evmRpcFromClient(client: EvmClientPort): EvmRpc {
     },
 
     async readEscrow(escrow_contract, escrow_id) {
-      const result = (await client.readContract({
+      // `getEscrow` returns the NAMED struct. The auto-generated `escrows`
+      // mapping getter flattens it into a positional tuple, which this used to
+      // index by number — a decode that silently shifted every field whenever
+      // one was added to the struct. Reading by name removes that whole class
+      // of bug. The cast is still needed (ESCROW_EVM_ABI is widened to `Abi`
+      // at this boundary, so viem cannot infer), but it now names its fields:
+      // a mismatch with the contract is a compile error at the mapping below,
+      // not a silent off-by-one.
+      const e = (await client.readContract({
         address: escrow_contract,
         abi: ESCROW_EVM_ABI,
-        functionName: 'escrows',
+        functionName: 'getEscrow',
         args: [escrow_id],
-      })) as readonly [
-        `0x${string}`, // escrowId
-        number, // kind
-        `0x${string}`, // asset
-        bigint, // amount
-        `0x${string}`, // creator
-        `0x${string}`, // counterparty
-        `0x${string}`, // assignedCounterparty
-        number, // status
-        bigint, // acceptDeadline
-        bigint, // completionDuration
-        bigint, // completionDeadline
-        bigint, // approvalDeadline
-        bigint, // disputeBond
-        boolean, // isSeeker
-        `0x${string}`, // raisedBy
-      ]
-      if (result[4] === ZERO_ADDRESS) return null // never created
+      })) as EvmEscrowStruct
+      if (e.creator === ZERO_ADDRESS) return null // never created
       return {
-        escrow_id: result[0],
-        kind: result[1],
-        asset: result[2],
-        amount: result[3],
-        creator: result[4],
-        counterparty: result[5],
-        assigned_counterparty: result[6],
-        status: result[7],
-        accept_deadline: result[8],
-        completion_duration: result[9],
-        completion_deadline: result[10],
-        approval_deadline: result[11],
-        dispute_bond: result[12],
-        is_seeker: result[13],
-        raised_by: result[14],
+        escrow_id: e.escrowId,
+        kind: e.kind,
+        asset: e.asset,
+        amount: e.amount,
+        creator: e.creator,
+        counterparty: e.counterparty,
+        assigned_counterparty: e.assignedCounterparty,
+        status: e.status,
+        accept_deadline: e.acceptDeadline,
+        completion_duration: e.completionDuration,
+        completion_deadline: e.completionDeadline,
+        approval_deadline: e.approvalDeadline,
+        dispute_bond: e.disputeBond,
+        is_seeker: e.isSeeker,
+        raised_by: e.raisedBy,
+        requires_approval: e.requiresApproval,
+        unassign_window_seconds: e.unassignWindowSeconds,
       }
     },
   }

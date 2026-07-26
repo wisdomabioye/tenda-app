@@ -65,8 +65,19 @@ beforeEach(() => {
 })
 
 /** Build a republish event from a wire name (internal derived, never hardcoded). */
-function evt(wire: EscrowEvent, escrow_id: string, tx_ref = 'sig-tx-1') {
-  return { internal_event: INTERNAL_EVENT_BY_WIRE[wire], wire_event: wire, escrow_id, tx_ref }
+function evt(
+  wire: EscrowEvent,
+  escrow_id: string,
+  tx_ref = 'sig-tx-1',
+  counterparty_id: string | null = null,
+) {
+  return {
+    internal_event: INTERNAL_EVENT_BY_WIRE[wire],
+    wire_event: wire,
+    escrow_id,
+    tx_ref,
+    counterparty_id,
+  }
 }
 
 /**
@@ -136,6 +147,50 @@ test('approved notifies the counterparty only', { skip }, async () => {
 
   await buildVerifyTxDeps(app).republish(evt('EscrowApproved', e.id))
   assert.deepStrictEqual(notifUserIds(), [worker.row.id])
+})
+
+// ---------- approval mode ------------------------------------------------------
+
+test('counterparty_assigned notifies the assigned WORKER, not the poster', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const worker = await createUser(app)
+  const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: worker.row.id })
+
+  await buildVerifyTxDeps(app).republish(evt('CounterpartyAssigned', e.id))
+  // The poster performed the transaction; the worker signed nothing, so this
+  // push is the only way they learn the gig is theirs.
+  assert.deepStrictEqual(notifUserIds(), [worker.row.id])
+  assert.strictEqual(cap.enqueued[0].payload.title, 'You got the gig')
+})
+
+// THE regression this pair exists for: `unassign` clears counterparty_id, and
+// the fan-out re-reads the escrow row AFTER the transition commits. Addressing
+// the released worker from the row therefore reaches nobody — the applier has
+// to carry them out. Delete the plumbing and this test fails while everything
+// else stays green.
+test('assignment_released reaches the worker the row no longer names', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const worker = await createUser(app)
+  // Post-unassign state exactly as the applier leaves it: back to open, no
+  // counterparty on the row.
+  const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: null })
+
+  await buildVerifyTxDeps(app).republish(
+    evt('AssignmentReleased', e.id, 'sig-tx-1', worker.row.id),
+  )
+  assert.deepStrictEqual(notifUserIds(), [worker.row.id])
+  assert.strictEqual(cap.enqueued[0].payload.title, 'Assignment withdrawn')
+})
+
+test('assignment_released with no carried worker notifies nobody (never a crash)', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: null })
+
+  await buildVerifyTxDeps(app).republish(evt('AssignmentReleased', e.id))
+  assert.deepStrictEqual(notifUserIds(), [])
 })
 
 test('dispute_raised notifies BOTH parties', { skip }, async () => {

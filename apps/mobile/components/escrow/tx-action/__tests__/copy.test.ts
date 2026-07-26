@@ -1,6 +1,7 @@
 import { ESCROW_TX_TYPES, type EscrowTxType } from '@tenda/shared'
 import {
   TX_PROGRESS_LABEL,
+  txSuccessCopy,
   WALLET_OPEN_NOTE,
   isGatedTxAction,
   txConfirmCopy,
@@ -130,5 +131,87 @@ describe('txConfirmCopy — net-of-fee honesty', () => {
 
   it('the seller-side create copy is untouched — the creator DOES lock the full amount', () => {
     expect(txConfirmCopy('create', { ...EXCHANGE, ...NET })?.body).toContain('locks 50 USDC')
+  })
+})
+
+describe('approval mode (assign / unassign)', () => {
+  it('every gated action has copy — a gate with no dialog is silently ungated', () => {
+    for (const type of ESCROW_TX_TYPES) {
+      if (!isGatedTxAction(type)) continue
+      const copy = txConfirmCopy(type, GIG)
+      expect(copy).not.toBeNull()
+      expect(copy?.title).toBeTruthy()
+      expect(copy?.confirmLabel).toBeTruthy()
+    }
+  })
+
+  it('assign_accept warns that the worker never signs, and names the window when known', () => {
+    const withWindow = txConfirmCopy('assign_accept', { ...GIG, deliverWithin: '48 hours' })
+    expect(withWindow?.body).toContain('48 hours')
+    expect(withWindow?.body).toContain("don't sign anything")
+    // Falls back cleanly when the window is unknown, never printing "undefined".
+    const without = txConfirmCopy('assign_accept', GIG)?.body
+    expect(without).toContain('delivery window starts now')
+    expect(without).not.toContain('undefined')
+  })
+
+  it('unassign is destructive and promises the escrow is untouched', () => {
+    const copy = txConfirmCopy('unassign', GIG)
+    expect(copy?.destructive).toBe(true)
+    expect(copy?.body).toContain('50 USDC stays in escrow')
+    expect(copy?.body).toContain('back to open')
+  })
+
+  it('both carry the shared wallet note', () => {
+    expect(txConfirmCopy('assign_accept', GIG)?.body).toContain(WALLET_OPEN_NOTE)
+    expect(txConfirmCopy('unassign', GIG)?.body).toContain(WALLET_OPEN_NOTE)
+  })
+})
+
+describe('txSuccessCopy', () => {
+  it('is kind-aware where the two surfaces read differently', () => {
+    expect(txSuccessCopy('accept', 'gig')).toBe('Gig accepted!')
+    expect(txSuccessCopy('accept', 'exchange')).toBe('Offer accepted!')
+    expect(txSuccessCopy('cancel', 'gig')).toContain('Gig cancelled')
+    expect(txSuccessCopy('cancel', 'exchange')).toContain('Offer cancelled')
+  })
+
+  it('exchange copy never leaks gig vocabulary', () => {
+    for (const type of ESCROW_TX_TYPES) {
+      expect(txSuccessCopy(type, 'exchange')).not.toMatch(/\b(gig|worker|poster)\b/i)
+    }
+  })
+
+  it('covers both kinds for every action a party can trigger', () => {
+    // The two per-screen maps this replaced had already diverged — one carried
+    // `create`, the other `reclaim_abandoned`. Neither may regress to the
+    // neutral fallback.
+    const triggerable: EscrowTxType[] = [
+      'create',
+      'accept',
+      'submit',
+      'approve',
+      'claim_stalled',
+      'cancel',
+      'refund_expired',
+      'reclaim_abandoned',
+      'dispute',
+    ]
+    for (const type of triggerable) {
+      expect(txSuccessCopy(type, 'gig')).not.toBe('Transaction confirmed')
+      expect(txSuccessCopy(type, 'exchange')).not.toBe('Transaction confirmed')
+    }
+  })
+
+  it('approval-mode actions read from the poster’s side, gig-only', () => {
+    expect(txSuccessCopy('assign_accept', 'gig')).toContain('Worker assigned')
+    expect(txSuccessCopy('unassign', 'gig')).toContain('open again')
+    // No exchange wording exists for them, so the neutral fallback stands
+    // rather than a gig string leaking onto a P2P screen.
+    expect(txSuccessCopy('assign_accept', 'exchange')).toBe('Transaction confirmed')
+  })
+
+  it('an unmapped action degrades to a neutral confirmation, never throws', () => {
+    expect(txSuccessCopy('resolve', 'gig')).toBe('Transaction confirmed')
   })
 })

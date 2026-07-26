@@ -34,6 +34,7 @@ export default function ConfigPage() {
   const [seekerFeeBps, setSeekerFeeBps] = useState('')
   const [graceSeconds, setGraceSeconds] = useState('')
   const [maxPendingGigs, setMaxPendingGigs] = useState('')
+  const [unassignWindow, setUnassignWindow] = useState('')
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -47,6 +48,7 @@ export default function ConfigPage() {
         setSeekerFeeBps(String(row.seeker_fee_bps))
         setGraceSeconds(String(row.grace_period_seconds))
         setMaxPendingGigs(String(row.max_pending_gigs))
+        setUnassignWindow(String(row.unassign_window_seconds))
       })
       .catch((err: unknown) => {
         if (alive) toast.error(err instanceof ApiError ? err.message : 'Failed to load config')
@@ -64,11 +66,13 @@ export default function ConfigPage() {
     const seeker_fee_bps = parseIntStrict(seekerFeeBps)
     const grace_period_seconds = parseIntStrict(graceSeconds)
     const max_pending_gigs = parseIntStrict(maxPendingGigs)
+    const unassign_window_seconds = parseIntStrict(unassignWindow)
     if (
       fee_bps === null ||
       seeker_fee_bps === null ||
       grace_period_seconds === null ||
-      max_pending_gigs === null
+      max_pending_gigs === null ||
+      unassign_window_seconds === null
     ) {
       toast.error('Every field needs a whole number')
       return
@@ -80,6 +84,7 @@ export default function ConfigPage() {
         seeker_fee_bps,
         grace_period_seconds,
         max_pending_gigs,
+        unassign_window_seconds,
       })
       setConfig(updated)
       toast.success('Config saved — server cache busted')
@@ -114,6 +119,11 @@ export default function ConfigPage() {
               <div className="space-y-1">
                 <Label htmlFor="maxgigs">Max concurrent gigs / worker</Label>
                 <Input id="maxgigs" type="number" min={1} max={MAX_PENDING_GIGS_CEILING} value={maxPendingGigs} onChange={(e) => setMaxPendingGigs(e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="unassign">Unassign window (seconds)</Label>
+                <Input id="unassign" type="number" min={ESCROW_LIMITS.minUnassignWindowSeconds} max={ESCROW_LIMITS.maxUnassignWindowSeconds} value={unassignWindow} onChange={(e) => setUnassignWindow(e.target.value)} />
+                <p className="text-xs text-muted-foreground">Applies to gigs posted from now on — it is fixed on-chain at create.</p>
               </div>
               <div className="md:col-span-3">
                 <Button type="submit" disabled={busy}>Save</Button>

@@ -82,6 +82,26 @@ contract TendaEscrow is ReentrancyGuard {
         bytes32 s;
     }
 
+    /// @dev Create-time inputs, grouped so the three entry points
+    ///      (createEscrow / createEscrowWithPermit / _create) declare the
+    ///      parameter list ONCE. Mirrors the Anchor `CreateEscrowArgs` struct
+    ///      field-for-field, so the two chains stay readable side by side.
+    struct CreateParams {
+        bytes16 escrowId;
+        uint8 kind;
+        address asset;
+        uint256 amount;
+        address assignedCounterparty;
+        uint64 acceptDeadline;
+        uint64 completionDuration;
+        uint256 disputeBond;
+        bool isSeeker;
+        /// @dev Acceptance mode. See `Escrow.requiresApproval`.
+        bool requiresApproval;
+        /// @dev See `Escrow.unassignWindowSeconds`.
+        uint64 unassignWindowSeconds;
+    }
+
     struct Escrow {
         bytes16 escrowId;
         uint8 kind;
@@ -100,6 +120,26 @@ contract TendaEscrow is ReentrancyGuard {
         /// @dev Set by disputeEscrow; consumed by resolveDispute (split
         ///      refunds the bond to the raiser).
         address raisedBy;
+        /// @dev Acceptance mode, fixed at create.
+        ///      false → the worker moves the escrow to Accepted themselves via
+        ///        acceptEscrow (open first-come, or restricted to
+        ///        assignedCounterparty when that is set).
+        ///      true  → acceptEscrow is closed; only the creator can move it,
+        ///        via assignAccept.
+        ///      The two guards make the mode an EXACT witness of provenance:
+        ///      `status == Accepted && requiresApproval` is true if and only if
+        ///      the creator assigned the worker, i.e. the worker never signed.
+        ///      unassign relies on that equivalence, so a worker who accepted
+        ///      of their own accord can never be unassigned.
+        bool requiresApproval;
+        /// @dev How long after assignAccept the creator may still unassign.
+        ///      Per-escrow (a term of THIS deal, fixed when it is posted)
+        ///      rather than a mutable platform-wide value, so changing the
+        ///      default never retroactively re-opens a settled assignment.
+        ///      Server-supplied from `platform_config`; bounded on-chain by
+        ///      MIN/MAX_UNASSIGN_WINDOW_SECONDS exactly like completionDuration.
+        ///      Only meaningful when requiresApproval is true.
+        uint64 unassignWindowSeconds;
     }
 
     // ---------------------------------------------------------------------
@@ -112,6 +152,13 @@ contract TendaEscrow is ReentrancyGuard {
     uint64 public constant MAX_GRACE_PERIOD_SECONDS = 14 days;
     uint64 public constant MIN_COMPLETION_DURATION_SECONDS = 3_600;
     uint64 public constant MAX_COMPLETION_DURATION_SECONDS = 180 days;
+    /// @dev A zero window is allowed: it means "assignment is final the moment
+    ///      it is made", which is a legitimate poster choice.
+    uint64 public constant MIN_UNASSIGN_WINDOW_SECONDS = 0;
+    /// @dev Capped well below the shortest completion duration so an unassign
+    ///      window can never span a whole gig — past this point the creator
+    ///      must use the normal reclaim path instead of yanking the worker.
+    uint64 public constant MAX_UNASSIGN_WINDOW_SECONDS = 1 days;
 
     /// @notice Safe 3-of-5 — protocol params, treasury, dispute-admin rotation.
     address public admin;
@@ -138,18 +185,40 @@ contract TendaEscrow is ReentrancyGuard {
     event EscrowCreated(bytes16 indexed escrowId, address indexed creator, uint8 kind, address asset, uint256 amount);
     event EscrowAccepted(bytes16 indexed escrowId, address indexed counterparty, uint64 completion_deadline);
     event EscrowDeclined(bytes16 indexed escrowId, address indexed declined_by);
+    /// @dev Approval-mode counterpart of EscrowAccepted: the creator, not the
+    ///      worker, moved the escrow to Accepted. Kept a DISTINCT event (rather
+    ///      than reusing EscrowAccepted) because the actor differs — a wallet
+    ///      history must not label the poster's transaction "Gig accepted".
+    event CounterpartyAssigned(
+        bytes16 indexed escrowId, address indexed counterparty, address indexed assigned_by, uint64 completion_deadline
+    );
+    /// @dev The creator withdrew an assignment inside the unassign window; the
+    ///      escrow returns to Open with its funds untouched.
+    event AssignmentReleased(bytes16 indexed escrowId, address indexed counterparty, address indexed released_by);
     event ProofSubmitted(bytes16 indexed escrowId, bytes32 proof_hash, uint64 timestamp, uint64 approval_deadline);
-    event EscrowApproved(bytes16 indexed escrowId, address indexed creator, address counterparty, uint256 amount, uint256 platform_fee);
+    event EscrowApproved(
+        bytes16 indexed escrowId, address indexed creator, address counterparty, uint256 amount, uint256 platform_fee
+    );
     event PaymentClaimed(bytes16 indexed escrowId, address indexed counterparty, uint256 amount, uint256 platform_fee);
     event EscrowCancelled(bytes16 indexed escrowId, address indexed creator, uint256 refund_amount);
     event EscrowExpired(bytes16 indexed escrowId, address indexed creator, uint256 refund_amount);
-    event EscrowAbandoned(bytes16 indexed escrowId, address indexed creator, address counterparty, uint256 refund_amount);
+    event EscrowAbandoned(
+        bytes16 indexed escrowId, address indexed creator, address counterparty, uint256 refund_amount
+    );
     event DisputeRaised(bytes16 indexed escrowId, address indexed raised_by, uint256 bond_amount);
     /// @dev Payouts are the PRINCIPAL shares only (mirror of Anchor's
     ///      compute_distribution); the bond flow is reported separately —
     ///      bond_refund_to is address(0) when the bond forfeits to the
     ///      winning party rather than returning to its raiser.
-    event DisputeResolved(bytes16 indexed escrowId, uint8 winner, uint256 creator_payout, uint256 counterparty_payout, uint256 platform_fee, address bond_refund_to, uint256 bond_amount);
+    event DisputeResolved(
+        bytes16 indexed escrowId,
+        uint8 winner,
+        uint256 creator_payout,
+        uint256 counterparty_payout,
+        uint256 platform_fee,
+        address bond_refund_to,
+        uint256 bond_amount
+    );
     event PlatformConfigChanged(string parameter, address indexed changedBy);
 
     // ---------------------------------------------------------------------
@@ -184,6 +253,13 @@ contract TendaEscrow is ReentrancyGuard {
     error ApprovalWindowOutOfRange();
     error GracePeriodOutOfRange();
     error ZeroAddress();
+    error ApprovalRequired();
+    error NotApprovalMode();
+    error CannotAssignCreator();
+    error ZeroCounterparty();
+    error UnassignWindowClosed();
+    error UnassignWindowOutOfRange();
+    error ApprovalModeCannotPreassign();
 
     // ---------------------------------------------------------------------
     // Constructor / admin
@@ -264,105 +340,79 @@ contract TendaEscrow is ReentrancyGuard {
     ///         from whoever raises a dispute — exactly like the Anchor
     ///         program (the stage-doc's "amount + disputeBond" at create is
     ///         stale; the payable disputeEscrow below is the live design).
-    function createEscrow(
-        bytes16 escrowId,
-        uint8 kind,
-        address asset,
-        uint256 amount,
-        address assignedCounterparty,
-        uint64 acceptDeadline,
-        uint64 completionDuration,
-        uint256 disputeBond,
-        bool isSeeker
-    ) external payable nonReentrant {
-        _create(
-            escrowId,
-            kind,
-            asset,
-            amount,
-            assignedCounterparty,
-            acceptDeadline,
-            completionDuration,
-            disputeBond,
-            isSeeker
-        );
+    function createEscrow(CreateParams calldata params) external payable nonReentrant {
+        _create(params);
     }
 
     /// @notice createEscrow with an EIP-2612 permit riding the same tx — no
     ///         separate approve. ERC-20 assets only (native funds via
     ///         msg.value and needs no allowance).
-    function createEscrowWithPermit(
-        bytes16 escrowId,
-        uint8 kind,
-        address asset,
-        uint256 amount,
-        address assignedCounterparty,
-        uint64 acceptDeadline,
-        uint64 completionDuration,
-        uint256 disputeBond,
-        bool isSeeker,
-        Permit calldata permit_
-    ) external nonReentrant {
-        if (asset == address(0)) revert NativeAssetPermit();
-        _applyPermit(asset, permit_);
-        _create(
-            escrowId,
-            kind,
-            asset,
-            amount,
-            assignedCounterparty,
-            acceptDeadline,
-            completionDuration,
-            disputeBond,
-            isSeeker
-        );
+    function createEscrowWithPermit(CreateParams calldata params, Permit calldata permit_) external nonReentrant {
+        if (params.asset == address(0)) revert NativeAssetPermit();
+        _applyPermit(params.asset, permit_);
+        _create(params);
     }
 
-    function _create(
-        bytes16 escrowId,
-        uint8 kind,
-        address asset,
-        uint256 amount,
-        address assignedCounterparty,
-        uint64 acceptDeadline,
-        uint64 completionDuration,
-        uint256 disputeBond,
-        bool isSeeker
-    ) private {
-        if (kind > KIND_EXCHANGE) revert InvalidKind();
-        if (amount == 0) revert AmountTooLow();
-        if (acceptDeadline <= block.timestamp) revert AcceptDeadlineInPast();
+    function _create(CreateParams calldata p) private {
+        if (p.kind > KIND_EXCHANGE) revert InvalidKind();
+        if (p.amount == 0) revert AmountTooLow();
+        if (p.acceptDeadline <= block.timestamp) revert AcceptDeadlineInPast();
         if (
-            completionDuration < MIN_COMPLETION_DURATION_SECONDS || completionDuration > MAX_COMPLETION_DURATION_SECONDS
+            p.completionDuration < MIN_COMPLETION_DURATION_SECONDS
+                || p.completionDuration > MAX_COMPLETION_DURATION_SECONDS
         ) revert CompletionDurationOutOfRange();
-        if (escrows[escrowId].creator != address(0)) revert EscrowAlreadyExists();
+        if (
+            p.unassignWindowSeconds < MIN_UNASSIGN_WINDOW_SECONDS
+                || p.unassignWindowSeconds > MAX_UNASSIGN_WINDOW_SECONDS
+        ) revert UnassignWindowOutOfRange();
+        // The three acceptance modes are mutually exclusive. Pre-assigning a
+        // worker AND demanding approval is contradictory (assignAccept could
+        // name someone other than the invitee, leaving assignedCounterparty as
+        // dead, misleading state) — reject rather than pick a winner.
+        if (p.requiresApproval && p.assignedCounterparty != address(0)) revert ApprovalModeCannotPreassign();
+        if (escrows[p.escrowId].creator != address(0)) revert EscrowAlreadyExists();
 
-        _collect(asset, amount);
+        _collect(p.asset, p.amount);
 
-        escrows[escrowId] = Escrow({
-            escrowId: escrowId,
-            kind: kind,
-            asset: asset,
-            amount: amount,
+        escrows[p.escrowId] = Escrow({
+            escrowId: p.escrowId,
+            kind: p.kind,
+            asset: p.asset,
+            amount: p.amount,
             creator: msg.sender,
             counterparty: address(0),
-            assignedCounterparty: assignedCounterparty,
+            assignedCounterparty: p.assignedCounterparty,
             status: Status.Open,
-            acceptDeadline: acceptDeadline,
-            completionDuration: completionDuration,
+            acceptDeadline: p.acceptDeadline,
+            completionDuration: p.completionDuration,
             completionDeadline: 0,
             approvalDeadline: 0,
-            disputeBond: disputeBond,
-            isSeeker: isSeeker,
-            raisedBy: address(0)
+            disputeBond: p.disputeBond,
+            isSeeker: p.isSeeker,
+            raisedBy: address(0),
+            requiresApproval: p.requiresApproval,
+            unassignWindowSeconds: p.unassignWindowSeconds
         });
 
-        emit EscrowCreated(escrowId, msg.sender, kind, asset, amount);
+        emit EscrowCreated(p.escrowId, msg.sender, p.kind, p.asset, p.amount);
+    }
+
+    /// @notice The whole escrow record as a named struct.
+    /// @dev    The auto-generated `escrows` getter FLATTENS the struct into a
+    ///         positional tuple, so every off-chain and in-test read had to
+    ///         count commas and silently mis-decoded whenever a field was
+    ///         added. This returns the struct itself: readers address fields
+    ///         by name and are unaffected by future additions. Returns a
+    ///         zero-valued struct for an unknown id (`creator == address(0)`
+    ///         is the existence test, same as `_mustExist` uses).
+    function getEscrow(bytes16 escrowId) external view returns (Escrow memory) {
+        return escrows[escrowId];
     }
 
     function acceptEscrow(bytes16 escrowId) external nonReentrant {
         Escrow storage e = _mustExist(escrowId);
         if (e.status != Status.Open) revert InvalidEscrowStatus();
+        if (e.requiresApproval) revert ApprovalRequired();
         if (msg.sender == e.creator) revert CannotAcceptOwnEscrow();
         if (block.timestamp >= e.acceptDeadline) revert AcceptDeadlinePassed();
         if (e.assignedCounterparty != address(0) && msg.sender != e.assignedCounterparty) {
@@ -374,6 +424,57 @@ contract TendaEscrow is ReentrancyGuard {
         e.completionDeadline = uint64(block.timestamp) + e.completionDuration;
 
         emit EscrowAccepted(escrowId, msg.sender, e.completionDeadline);
+    }
+
+    /// @notice Approval mode: the creator picks a worker and moves the escrow
+    ///         to Accepted in one transaction, so the worker signs nothing to
+    ///         start (their only tx is submitProof). Deliberately the exact
+    ///         state change acceptEscrow makes, minus the worker's signature.
+    function assignAccept(bytes16 escrowId, address worker) external nonReentrant {
+        Escrow storage e = _mustExist(escrowId);
+        if (e.status != Status.Open) revert InvalidEscrowStatus();
+        if (!e.requiresApproval) revert NotApprovalMode();
+        if (msg.sender != e.creator) revert NotCreator();
+        if (worker == address(0)) revert ZeroCounterparty();
+        if (worker == e.creator) revert CannotAssignCreator();
+        if (block.timestamp >= e.acceptDeadline) revert AcceptDeadlinePassed();
+
+        e.counterparty = worker;
+        e.status = Status.Accepted;
+        e.completionDeadline = uint64(block.timestamp) + e.completionDuration;
+
+        emit CounterpartyAssigned(escrowId, worker, msg.sender, e.completionDeadline);
+    }
+
+    /// @notice Withdraw an assignment made by assignAccept, returning the
+    ///         escrow to Open with funds untouched so it can be re-assigned.
+    /// @dev    `requiresApproval` gates this: it is the on-chain witness that
+    ///         the worker was PLACED rather than that they accepted. A worker
+    ///         who signed acceptEscrow themselves is therefore unreachable
+    ///         here, at any time. Submitted work is excluded too, since that
+    ///         is a distinct status.
+    function unassign(bytes16 escrowId) external nonReentrant {
+        Escrow storage e = _mustExist(escrowId);
+        if (e.status != Status.Accepted) revert InvalidEscrowStatus();
+        if (!e.requiresApproval) revert NotApprovalMode();
+        if (msg.sender != e.creator) revert NotCreator();
+        if (block.timestamp >= _acceptedAt(e) + e.unassignWindowSeconds) revert UnassignWindowClosed();
+
+        address released = e.counterparty;
+        e.counterparty = address(0);
+        e.status = Status.Open;
+        e.completionDeadline = 0;
+
+        emit AssignmentReleased(escrowId, released, msg.sender);
+    }
+
+    /// @dev When an escrow was accepted is not stored: both accept paths set
+    ///      `completionDeadline = acceptedAt + completionDuration`, so the
+    ///      timestamp is recoverable exactly. Only valid while the escrow is
+    ///      Accepted — before that `completionDeadline` is 0 and this
+    ///      underflows, which every caller here excludes by status first.
+    function _acceptedAt(Escrow storage e) private view returns (uint64) {
+        return e.completionDeadline - e.completionDuration;
     }
 
     function declineAssignedEscrow(bytes16 escrowId) external nonReentrant {

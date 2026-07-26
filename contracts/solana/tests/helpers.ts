@@ -67,6 +67,8 @@ export const LIMITS = {
   maxGracePeriodSeconds: 14 * 24 * 3_600,
   minCompletionDurationSeconds: 3_600,
   maxCompletionDurationSeconds: 180 * 24 * 3_600,
+  minUnassignWindowSeconds: 0,
+  maxUnassignWindowSeconds: 24 * 3_600,
 } as const;
 
 /** Platform defaults used by initPlatform unless a test overrides them. */
@@ -335,6 +337,8 @@ export interface CreateArgs {
   completionDurationSeconds: BN;
   disputeBond: BN;
   isSeeker: boolean;
+  requiresApproval: boolean;
+  unassignWindowSeconds: BN;
 }
 
 export interface SolEscrow {
@@ -348,6 +352,7 @@ export const DEFAULT_AMOUNT = new BN(LAMPORTS_PER_SOL); // 1 SOL
 export const DEFAULT_BOND = new BN(LAMPORTS_PER_SOL / 10); // 0.1 SOL
 export const DEFAULT_ACCEPT_WINDOW = 24 * 3_600; // 1 day from now
 export const DEFAULT_COMPLETION_DURATION = 7_200; // 2h (≥ on-chain min)
+export const DEFAULT_UNASSIGN_WINDOW = 6 * 3_600; // 6h (≤ on-chain max)
 
 export function createArgs(
   ctx: TestCtx,
@@ -362,7 +367,25 @@ export function createArgs(
     completionDurationSeconds: new BN(DEFAULT_COMPLETION_DURATION),
     disputeBond: DEFAULT_BOND,
     isSeeker: false,
+    // Instant mode by default — every pre-existing suite assumes it. The
+    // approval-mode suite opts in through `approvalArgs` below.
+    requiresApproval: false,
+    unassignWindowSeconds: new BN(0),
     ...overrides,
+  };
+}
+
+/**
+ * Overrides that put an escrow in APPROVAL mode: `accept_escrow` is closed,
+ * only the creator can move it via `assign_accept`, and the assignment can be
+ * withdrawn for `unassignWindowSeconds` afterwards.
+ */
+export function approvalArgs(
+  unassignWindowSeconds = DEFAULT_UNASSIGN_WINDOW,
+): Partial<CreateArgs> {
+  return {
+    requiresApproval: true,
+    unassignWindowSeconds: new BN(unassignWindowSeconds),
   };
 }
 
@@ -403,6 +426,31 @@ export async function acceptedSolEscrow(
       signer: ctx.counterparty.publicKey,
     })
     .signers([ctx.counterparty])
+    .rpc();
+  return e;
+}
+
+/**
+ * Drive an APPROVAL-mode SOL escrow to Accepted via the creator's
+ * `assign_accept` (counterparty = ctx.counterparty, who signs nothing).
+ */
+export async function assignedSolEscrow(
+  ctx: TestCtx,
+  overrides: Partial<CreateArgs> = {},
+  worker: PublicKey = ctx.counterparty.publicKey,
+): Promise<SolEscrow> {
+  const e = await createSolEscrow(ctx, {
+    ...approvalArgs(),
+    ...overrides,
+  });
+  await ctx.program.methods
+    .assignAccept(worker)
+    .accountsPartial({
+      escrow: e.escrow,
+      platformState: ctx.platformPda,
+      signer: ctx.creator.publicKey,
+    })
+    .signers([ctx.creator])
     .rpc();
   return e;
 }

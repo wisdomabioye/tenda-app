@@ -23,6 +23,14 @@ export const PLATFORM_CONFIG_DEFAULTS = {
    * `features/capacity` for exactly which escrows consume a slot.
    */
   max_pending_gigs: 2,
+  /**
+   * Seconds after an approval-mode assignment during which the poster may
+   * still `unassign`. Stamped onto each escrow AT CREATE and enforced
+   * on-chain, so changing it here only affects gigs posted afterwards —
+   * never a live assignment. Bounded by ESCROW_LIMITS.maxUnassignWindowSeconds
+   * (the bound both contracts enforce).
+   */
+  unassign_window_seconds: 6 * 60 * 60,
 } as const
 
 /**

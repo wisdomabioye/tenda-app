@@ -91,6 +91,8 @@ const CREATE_ARGS = {
     completion_duration_seconds: 7_200,
     dispute_bond_raw: '50000',
     is_seeker: false,
+    requires_approval: false,
+    unassign_window_seconds: 0,
   },
 }
 
@@ -100,35 +102,89 @@ test('builders: createEscrow round-trips through the ABI; ERC-20 carries no valu
   const call = buildEvmCall(CREATE_ARGS, {
     asset_address: USDC,
     assigned_counterparty_address: null,
+      worker_address: null,
   })
   assert.strictEqual(call.value_raw, '0')
   const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: call.data })
   assert.strictEqual(decoded.functionName, 'createEscrow')
+  // Single `CreateParams` struct — assert by NAME, so a field added to the
+  // struct can never silently shift what this test believes it is checking.
+  const [params] = decoded.args as readonly [Record<string, unknown>]
+  assert.strictEqual(String(params.escrowId).toLowerCase(), UUID_HEX.toLowerCase())
+  assert.strictEqual(params.kind, 0) // gig
+  assert.strictEqual(String(params.asset).toLowerCase(), USDC.toLowerCase())
+  assert.strictEqual(params.amount, 1_000_000n)
+  assert.strictEqual(String(params.assignedCounterparty), ZERO_ADDRESS)
+  assert.strictEqual(params.isSeeker, false)
+  assert.strictEqual(params.requiresApproval, false)
+  assert.strictEqual(params.unassignWindowSeconds, 0n)
+})
+
+test('builders: approval-mode create encodes the mode fields onto CreateParams', () => {
+  const call = buildEvmCall(
+    {
+      ...CREATE_ARGS,
+      payload: { ...CREATE_ARGS.payload, requires_approval: true, unassign_window_seconds: 21_600 },
+    },
+    { asset_address: USDC, assigned_counterparty_address: null, worker_address: null },
+  )
+  const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: call.data })
+  const [params] = decoded.args as readonly [Record<string, unknown>]
+  assert.strictEqual(params.requiresApproval, true)
+  assert.strictEqual(params.unassignWindowSeconds, 21_600n)
+})
+
+test('builders: assignAccept encodes the resolved worker address', () => {
+  const call = buildEvmCall(
+    { action: 'assignAccept', user_id: 'u1', payload: { escrow_id: UUID, worker_user_id: 'w1' } },
+    { asset_address: null, assigned_counterparty_address: null, worker_address: WORKER },
+  )
+  assert.strictEqual(call.value_raw, '0')
+  const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: call.data })
+  assert.strictEqual(decoded.functionName, 'assignAccept')
   const args = decoded.args as readonly unknown[]
   assert.strictEqual(String(args[0]).toLowerCase(), UUID_HEX.toLowerCase())
-  assert.strictEqual(args[1], 0) // gig
-  assert.strictEqual(String(args[2]).toLowerCase(), USDC.toLowerCase())
-  assert.strictEqual(args[3], 1_000_000n)
-  assert.strictEqual(String(args[4]), ZERO_ADDRESS)
-  assert.strictEqual(args[8], false)
+  assert.strictEqual(String(args[1]).toLowerCase(), WORKER.toLowerCase())
+})
+
+test('builders: assignAccept without a resolved worker wallet throws, never encodes address(0)', () => {
+  assert.throws(
+    () =>
+      buildEvmCall(
+        { action: 'assignAccept', user_id: 'u1', payload: { escrow_id: UUID, worker_user_id: 'w1' } },
+        { asset_address: null, assigned_counterparty_address: null, worker_address: null },
+      ),
+    /worker wallet/,
+  )
+})
+
+test('builders: unassign encodes the single-arg escrow-id shape', () => {
+  const call = buildEvmCall(
+    { action: 'unassign', user_id: 'u1', payload: { escrow_id: UUID } },
+    { asset_address: null, assigned_counterparty_address: null, worker_address: null },
+  )
+  assert.strictEqual(call.value_raw, '0')
+  const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: call.data })
+  assert.strictEqual(decoded.functionName, 'unassign')
+  assert.strictEqual(String((decoded.args as readonly unknown[])[0]).toLowerCase(), UUID_HEX.toLowerCase())
 })
 
 test('builders: native create carries amount as value; native dispute carries bond', () => {
   const native = buildEvmCall(
     { ...CREATE_ARGS, payload: { ...CREATE_ARGS.payload, asset: 'ETH_BASE' } },
-    { asset_address: null, assigned_counterparty_address: null },
+    { asset_address: null, assigned_counterparty_address: null, worker_address: null },
   )
   assert.strictEqual(native.value_raw, '1000000')
 
   const dispute = buildEvmCall(
     { action: 'disputeEscrow', user_id: 'u1', payload: { escrow_id: UUID, bond_raw: '777' } },
-    { asset_address: null, assigned_counterparty_address: null },
+    { asset_address: null, assigned_counterparty_address: null, worker_address: null },
   )
   assert.strictEqual(dispute.value_raw, '777')
 
   const disputeErc20 = buildEvmCall(
     { action: 'disputeEscrow', user_id: 'u1', payload: { escrow_id: UUID, bond_raw: '777' } },
-    { asset_address: USDC, assigned_counterparty_address: null },
+    { asset_address: USDC, assigned_counterparty_address: null, worker_address: null },
   )
   assert.strictEqual(disputeErc20.value_raw, '0')
 })
@@ -141,14 +197,16 @@ const PERMIT_BODY = { value_raw: '1000000', deadline_unix: 1_900_000_000, signat
 test('builders: permit create encodes createEscrowWithPermit with the signed tuple, value 0', () => {
   const call = buildEvmCall(
     { ...CREATE_ARGS, payload: { ...CREATE_ARGS.payload, permit: PERMIT_BODY } },
-    { asset_address: USDC, assigned_counterparty_address: null },
+    { asset_address: USDC, assigned_counterparty_address: null, worker_address: null },
   )
   assert.strictEqual(call.value_raw, '0')
   const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: call.data })
   assert.strictEqual(decoded.functionName, 'createEscrowWithPermit')
-  const args = decoded.args as readonly unknown[]
-  assert.strictEqual(args[3], 1_000_000n) // create args unchanged
-  const tuple = args[9] as { value: bigint; deadline: bigint; v: number; r: string; s: string }
+  const [params, tuple] = decoded.args as readonly [
+    Record<string, unknown>,
+    { value: bigint; deadline: bigint; v: number; r: string; s: string },
+  ]
+  assert.strictEqual(params.amount, 1_000_000n) // create params unchanged
   assert.strictEqual(tuple.value, 1_000_000n)
   assert.strictEqual(tuple.deadline, 1_900_000_000n)
   assert.strictEqual(tuple.v, 27)
@@ -164,7 +222,7 @@ test('builders: permit on a native asset is rejected (last line of defense)', ()
           ...CREATE_ARGS,
           payload: { ...CREATE_ARGS.payload, asset: 'ETH_BASE', permit: PERMIT_BODY },
         },
-        { asset_address: null, assigned_counterparty_address: null },
+        { asset_address: null, assigned_counterparty_address: null, worker_address: null },
       ),
     /native asset/,
   )
@@ -176,7 +234,7 @@ test('builders: permit on a native asset is rejected (last line of defense)', ()
           user_id: 'u1',
           payload: { escrow_id: UUID, bond_raw: '777', permit: PERMIT_BODY },
         },
-        { asset_address: null, assigned_counterparty_address: null },
+        { asset_address: null, assigned_counterparty_address: null, worker_address: null },
       ),
     /native asset/,
   )
@@ -189,7 +247,7 @@ test('builders: permit dispute encodes disputeEscrowWithPermit, value 0', () => 
       user_id: 'u1',
       payload: { escrow_id: UUID, bond_raw: '777', permit: { ...PERMIT_BODY, value_raw: '777' } },
     },
-    { asset_address: USDC, assigned_counterparty_address: null },
+    { asset_address: USDC, assigned_counterparty_address: null, worker_address: null },
   )
   assert.strictEqual(call.value_raw, '0')
   const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: call.data })
@@ -210,7 +268,7 @@ test('builders: malformed permit signature rejects with 422', () => {
             permit: { ...PERMIT_BODY, signature: '0xdead' },
           },
         },
-        { asset_address: USDC, assigned_counterparty_address: null },
+        { asset_address: USDC, assigned_counterparty_address: null, worker_address: null },
       ),
     /65-byte/,
   )
@@ -228,7 +286,7 @@ test('builders: every escrow-id action encodes its own selector; resolveDispute 
   ] as const) {
     const call = buildEvmCall(
       { action, user_id: 'u1', payload: { escrow_id: UUID } },
-      { asset_address: null, assigned_counterparty_address: null },
+      { asset_address: null, assigned_counterparty_address: null, worker_address: null },
     )
     const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: call.data })
     assert.strictEqual(decoded.functionName, action)
@@ -242,7 +300,7 @@ test('builders: every escrow-id action encodes its own selector; resolveDispute 
       signer_address: '0x05A400000000000000000000000000000000dead',
       payload: { escrow_id: UUID, winner: 'split', raiser_user_id: 'u9' },
     },
-    { asset_address: null, assigned_counterparty_address: null },
+    { asset_address: null, assigned_counterparty_address: null, worker_address: null },
   )
   const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: resolve.data })
   assert.strictEqual(decoded.functionName, 'resolveDispute')
@@ -254,7 +312,7 @@ test('builders: every escrow-id action encodes its own selector; resolveDispute 
       user_id: 'u1',
       payload: { escrow_id: UUID, proof_hash: `0x${'11'.repeat(32)}` },
     },
-    { asset_address: null, assigned_counterparty_address: null },
+    { asset_address: null, assigned_counterparty_address: null, worker_address: null },
   )
   assert.strictEqual(
     decodeFunctionData({ abi: ESCROW_EVM_ABI, data: submit.data }).functionName,
@@ -484,6 +542,8 @@ test('fetchEscrowState maps the tuple, zero-address sentinels and status enum', 
         dispute_bond: 50n,
         is_seeker: true,
         raised_by: ZERO_ADDRESS as `0x${string}`,
+        requires_approval: false,
+        unassign_window_seconds: 0n,
       }),
     }),
   })
@@ -738,6 +798,8 @@ test('buildTx: ERC-20 dispute bond carries the approval hint; zero bond does not
     dispute_bond: 777n,
     is_seeker: false,
     raised_by: ZERO_ADDRESS as `0x${string}`,
+    requires_approval: false,
+    unassign_window_seconds: 0n,
   }
   const adapter = makeAdapter({ rpc: fakeRpc({ readEscrow: async () => erc20Escrow }) })
   const withBond = await adapter.buildTx({
@@ -899,4 +961,94 @@ test('fee_currency (CELO): plain txs carry it; a BASE adapter never does', async
   const base = makeAdapter()
   const baseTx = await base.buildTx({ action: 'acceptEscrow', user_id: 'u1', payload: { escrow_id: UUID } })
   if (baseTx.kind === 'evm-tx') assert.strictEqual('fee_currency' in baseTx, false)
+})
+
+// ---------- approval-mode events (stage 10) --------------------------------
+
+function assignedLog() {
+  // CounterpartyAssigned(bytes16 indexed, address indexed counterparty,
+  //                      address indexed assigned_by, uint64 completion_deadline)
+  const topics = encodeEventTopics({
+    abi: ESCROW_EVM_ABI,
+    eventName: 'CounterpartyAssigned',
+    args: { escrowId: UUID_HEX, counterparty: WORKER, assigned_by: CREATOR },
+  })
+  const data = encodeAbiParameters([{ type: 'uint64' }], [1_900_007_200n])
+  return { address: CONTRACT, topics: [...topics] as `0x${string}`[], data }
+}
+
+function releasedLog() {
+  // AssignmentReleased(bytes16 indexed, address indexed counterparty,
+  //                    address indexed released_by) — all args indexed, no data
+  const topics = encodeEventTopics({
+    abi: ESCROW_EVM_ABI,
+    eventName: 'AssignmentReleased',
+    args: { escrowId: UUID_HEX, counterparty: WORKER, released_by: CREATOR },
+  })
+  return { address: CONTRACT, topics: [...topics] as `0x${string}`[], data: '0x' as `0x${string}` }
+}
+
+test('decodeEscrowLogs: CounterpartyAssigned attributes the actor to the CREATOR, not the worker', () => {
+  const [e] = decodeEscrowLogs([assignedLog()], CONTRACT, CHAIN_ID)
+  assert.strictEqual(e.name, 'CounterpartyAssigned')
+  assert.strictEqual(e.fields.escrow_id, UUID)
+  assert.strictEqual(e.fields.counterparty, WORKER)
+  // The poster signed this transaction; labelling it with the worker would put
+  // "Gig accepted" in the wrong wallet history.
+  assert.strictEqual(e.actor, `${CHAIN_ID}:${CREATOR}`)
+  assert.strictEqual(e.fields.completion_deadline, '1900007200')
+})
+
+test('decodeEscrowLogs: AssignmentReleased decodes with the creator as actor', () => {
+  const [e] = decodeEscrowLogs([releasedLog()], CONTRACT, CHAIN_ID)
+  assert.strictEqual(e.name, 'AssignmentReleased')
+  assert.strictEqual(e.fields.counterparty, WORKER)
+  assert.strictEqual(e.actor, `${CHAIN_ID}:${CREATOR}`)
+})
+
+// The EVM actor table used to be a nested ternary that fell through to null,
+// so a newly added event silently produced escrow_transactions rows with no
+// actor. It is now an exhaustive Record; this pins that every event the
+// contract can emit resolves to a decision (an address, or a deliberate null).
+test('decodeEscrowLogs: every wire event with a party arg resolves an actor', () => {
+  const withParty: Array<[string, () => { address: string; topics: `0x${string}`[]; data: `0x${string}` }]> = [
+    ['EscrowCreated', createdLog],
+    ['EscrowAccepted', acceptedLog],
+    ['CounterpartyAssigned', assignedLog],
+    ['AssignmentReleased', releasedLog],
+  ]
+  for (const [name, build] of withParty) {
+    const [e] = decodeEscrowLogs([build()], CONTRACT, CHAIN_ID)
+    assert.strictEqual(e.name, name)
+    assert.ok(e.actor !== undefined, `${name} decoded without an actor`)
+  }
+})
+
+// THE claim behind "the listeners need no change for new events": neither
+// poller nor webhook filters by topic — they answer "which transactions
+// touched the contract?" and enqueue verify-tx with NO expected_event. Event
+// selection happens here, on the wide-net path, against ESCROW_EVENTS. So a
+// receipt whose only escrow log is a Stage-10 event must still decode. If it
+// did not, the DB would converge only when the client happened to ping.
+test('verifyTx (wide net, as polling/webhook enqueue it): a new event decodes with no hint', async () => {
+  const a = makeAdapter({
+    rpc: fakeRpc({
+      getTransactionReceipt: async () => receipt({ logs: [assignedLog()] }),
+    }),
+  })
+  const r = await a.verifyTx(TX, {}) // exactly what source:'polling' produces
+  assert.ok(r.confirmed === true && r.failed === false)
+  assert.strictEqual(r.event.name, 'CounterpartyAssigned')
+  assert.strictEqual(r.event.fields.escrow_id, UUID)
+})
+
+test('verifyTx (wide net): an unassign receipt decodes with no hint', async () => {
+  const a = makeAdapter({
+    rpc: fakeRpc({
+      getTransactionReceipt: async () => receipt({ logs: [releasedLog()] }),
+    }),
+  })
+  const r = await a.verifyTx(TX, {})
+  assert.ok(r.confirmed === true && r.failed === false)
+  assert.strictEqual(r.event.name, 'AssignmentReleased')
 })

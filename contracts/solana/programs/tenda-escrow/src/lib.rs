@@ -47,11 +47,13 @@ mod _anchor_reexports {
     pub use crate::instructions::escrow_create::shared::CreateEscrowArgs;
     pub use crate::instructions::escrow_state::accept::*;
     pub use crate::instructions::escrow_state::approve::*;
+    pub use crate::instructions::escrow_state::assign_accept::*;
     pub use crate::instructions::escrow_state::claim_stalled::*;
     pub use crate::instructions::escrow_state::decline::*;
     pub use crate::instructions::escrow_state::reclaim::*;
     pub use crate::instructions::escrow_state::settlement_accounts::*;
     pub use crate::instructions::escrow_state::submit::*;
+    pub use crate::instructions::escrow_state::unassign::*;
 }
 pub use _anchor_reexports::*;
 use state::DisputeWinner;
@@ -146,6 +148,18 @@ pub mod tenda_escrow {
 
     pub fn decline_assigned_escrow(ctx: Context<EscrowMutation>) -> Result<()> {
         instructions::escrow_state::decline::handler(ctx)
+    }
+
+    /// Approval mode: creator assigns a worker AND moves the escrow to
+    /// Accepted in one instruction (the worker signs nothing to start).
+    pub fn assign_accept(ctx: Context<EscrowMutation>, worker: Pubkey) -> Result<()> {
+        instructions::escrow_state::assign_accept::handler(ctx, worker)
+    }
+
+    /// Approval mode: creator withdraws an assignment inside the unassign
+    /// window, returning the escrow to Open with funds untouched.
+    pub fn unassign(ctx: Context<EscrowMutation>) -> Result<()> {
+        instructions::escrow_state::unassign::handler(ctx)
     }
 
     pub fn submit_proof(ctx: Context<EscrowMutation>, proof_hash: [u8; 32]) -> Result<()> {

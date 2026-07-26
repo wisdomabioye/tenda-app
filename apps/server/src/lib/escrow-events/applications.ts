@@ -16,6 +16,8 @@ export const INTERNAL_EVENT_BY_WIRE = {
   EscrowCreated: 'escrow.created',
   EscrowAccepted: 'escrow.accepted',
   EscrowDeclined: 'escrow.declined',
+  CounterpartyAssigned: 'escrow.counterparty_assigned',
+  AssignmentReleased: 'escrow.assignment_released',
   ProofSubmitted: 'escrow.proof_submitted',
   EscrowApproved: 'escrow.approved',
   PaymentClaimed: 'escrow.payment_claimed',
@@ -44,6 +46,17 @@ export interface EventApplication {
   creator_amount_field?: string
   /** Field naming the acting wallet (resolved to actor_id), if any. */
   actor_field?: string
+  /**
+   * How this event changes the escrow's counterparty, when it does.
+   *
+   * `field` names the decoded wallet; `effect` says whether that wallet is
+   * installed on the row or released from it. Declarative rather than an
+   * `if (event.name === …)` chain in the orchestrator, and deliberately ONE
+   * concept rather than two: the orchestrator must resolve the wallet in
+   * BOTH cases, because a released counterparty is no longer on the escrow
+   * row and the notification fan-out has no other way to address them.
+   */
+  counterparty?: { field: string; effect: 'install' | 'release' }
   /** Build the column patch from decoded fields. */
   patch(fields: Record<string, string>): EscrowPatch
 }
@@ -64,9 +77,42 @@ export const EVENT_APPLICATIONS: Record<EscrowEvent, EventApplication> = {
     tx_type: 'accept',
     from: ['open'],
     actor_field: 'counterparty',
+    counterparty: { field: 'counterparty', effect: 'install' },
     patch: (f) => ({
       status: 'accepted',
       completion_deadline: unixField(f, 'completion_deadline'),
+    }),
+  },
+  // Approval mode's counterpart of EscrowAccepted. Same status transition and
+  // same deadline stamp — only the actor differs (the creator placed the
+  // worker), which is exactly why it is a distinct event and tx_type.
+  CounterpartyAssigned: {
+    tx_type: 'assign_accept',
+    from: ['open'],
+    actor_field: 'assigned_by',
+    counterparty: { field: 'counterparty', effect: 'install' },
+    patch: (f) => ({
+      status: 'accepted',
+      completion_deadline: unixField(f, 'completion_deadline'),
+    }),
+  },
+  // The creator withdrew an assignment inside the unassign window. Mirrors
+  // EscrowDeclined (assignment undone, funds untouched) but this one also
+  // rewinds the status, because assign_accept had moved it to `accepted`.
+  AssignmentReleased: {
+    tx_type: 'unassign',
+    from: ['accepted'],
+    actor_field: 'released_by',
+    // `release` clears counterparty_id AND hands the orchestrator the user it
+    // resolved, so the fan-out can still reach the worker who was let go —
+    // by the time it runs, the row no longer names them.
+    counterparty: { field: 'counterparty', effect: 'release' },
+    patch: () => ({
+      status: 'open',
+      // completion_deadline must go with the status: an escrow rewound to
+      // `open` that still carried a deadline would be judged by the expiry
+      // sweep as if someone were working on it.
+      completion_deadline: null,
     }),
   },
   EscrowDeclined: {

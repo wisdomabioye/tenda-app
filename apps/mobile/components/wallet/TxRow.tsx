@@ -6,11 +6,23 @@ import { Text } from '@/components/ui/Text'
 import { ASSET_META, amountRawToDisplay } from '@tenda/shared'
 import type { EscrowTxType, UserEscrowTransaction } from '@tenda/shared'
 
-// Wallet-screen copy per escrow transaction type, flavoured by kind.
-const GIG_TYPE_LABEL: Partial<Record<EscrowTxType, string>> = {
+/**
+ * Wallet-screen copy per escrow transaction type, flavoured by kind.
+ *
+ * TOTAL over EscrowTxType on both maps, so a new transaction type breaks the
+ * build here instead of rendering its raw enum slug in someone's history.
+ * These were `Partial` with a `?? tx.type` fallback, and it had already bitten
+ * twice: `decline` had no exchange wording, and `assign_accept` — a type that
+ * exists PRECISELY so a poster's row does not read "Gig accepted" — would have
+ * shown the literal text `assign_accept`.
+ */
+const GIG_TYPE_LABEL: Record<EscrowTxType, string> = {
   create: 'Gig funded',
   accept: 'Gig accepted',
   decline: 'Assignment declined',
+  // The poster's own row: they assigned someone, they did not accept work.
+  assign_accept: 'Worker assigned',
+  unassign: 'Assignment withdrawn',
   submit: 'Proof submitted',
   approve: 'Gig payout',
   claim_stalled: 'Payment claimed',
@@ -21,9 +33,12 @@ const GIG_TYPE_LABEL: Partial<Record<EscrowTxType, string>> = {
   resolve: 'Dispute resolved',
 }
 
-const EXCHANGE_TYPE_LABEL: Partial<Record<EscrowTxType, string>> = {
+const EXCHANGE_TYPE_LABEL: Record<EscrowTxType, string> = {
   create: 'Exchange escrow',
   accept: 'Offer accepted',
+  decline: 'Match declined',
+  assign_accept: 'Buyer matched',
+  unassign: 'Match withdrawn',
   submit: 'Payment marked',
   approve: 'Crypto released',
   claim_stalled: 'Payment claimed',
@@ -104,8 +119,8 @@ export function TxRow({ tx, userId }: TxRowProps) {
   const symbol = ASSET_META[tx.escrow.asset]?.symbol ?? tx.escrow.asset
 
   const subtitle = isGig
-    ? (GIG_TYPE_LABEL[tx.type] ?? tx.type)
-    : (EXCHANGE_TYPE_LABEL[tx.type] ?? tx.type)
+    ? GIG_TYPE_LABEL[tx.type]
+    : EXCHANGE_TYPE_LABEL[tx.type]
   const title = tx.escrow.title ?? (isGig ? 'Gig' : 'Exchange')
 
   return (

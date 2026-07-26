@@ -91,6 +91,8 @@ export function parseSolidity(src) {
       maxGracePeriodSeconds: requireConst(c, 'MAX_GRACE_PERIOD_SECONDS', 'solidity'),
       minCompletionDurationSeconds: requireConst(c, 'MIN_COMPLETION_DURATION_SECONDS', 'solidity'),
       maxCompletionDurationSeconds: requireConst(c, 'MAX_COMPLETION_DURATION_SECONDS', 'solidity'),
+      minUnassignWindowSeconds: requireConst(c, 'MIN_UNASSIGN_WINDOW_SECONDS', 'solidity'),
+      maxUnassignWindowSeconds: requireConst(c, 'MAX_UNASSIGN_WINDOW_SECONDS', 'solidity'),
     },
   }
 }
@@ -112,6 +114,8 @@ export function parseSolana(escrowRs, constantsRs) {
       maxGracePeriodSeconds: requireConst(c, 'MAX_GRACE_PERIOD_SECONDS', 'solana'),
       minCompletionDurationSeconds: requireConst(c, 'MIN_COMPLETION_DURATION_SECONDS', 'solana'),
       maxCompletionDurationSeconds: requireConst(c, 'MAX_COMPLETION_DURATION_SECONDS', 'solana'),
+      minUnassignWindowSeconds: requireConst(c, 'MIN_UNASSIGN_WINDOW_SECONDS', 'solana'),
+      maxUnassignWindowSeconds: requireConst(c, 'MAX_UNASSIGN_WINDOW_SECONDS', 'solana'),
     },
   }
 }
@@ -140,6 +144,44 @@ export function parseSharedConstants(src) {
     kind: objectLiteral(src, 'ESCROW_KIND_CODE', 'shared'),
     winner: objectLiteral(src, 'DISPUTE_WINNER_CODE', 'shared'),
     limits: objectLiteral(src, 'ESCROW_LIMITS', 'shared'),
+  }
+}
+
+/**
+ * The litesvm suite's own `LIMITS` mirror (contracts/solana/tests/helpers.ts).
+ * It exists because the contracts package cannot import `@tenda/shared` — CI
+ * runs its tests without building that package — so the numbers are hand-copied
+ * and were covered by nothing. A stale mirror does not fail a test; it makes
+ * the BOUNDARY tests assert the wrong boundary and still pass, which is worse
+ * than a red build.
+ */
+export function parseTestLimits(src) {
+  return objectLiteral(src, 'LIMITS', 'solana-tests')
+}
+
+/**
+ * Assert a limits-only source carries every CANONICAL limit, at the same value.
+ * Separate from `assertSpecsEqual` because this source mirrors the limits alone
+ * — it has no enums to compare, and inventing empty ones to fit the full shape
+ * would make the guard lie about what it checked.
+ *
+ * Extra keys are allowed on purpose, and the first run proved why: the litesvm
+ * mirror carries `minGracePeriodSeconds`, which `ESCROW_LIMITS` deliberately
+ * omits. Solana's `grace_period_seconds` is `i64`, so a negative is
+ * representable and the program must reject it; the EVM field is `uint64`,
+ * where a min-of-0 check is vacuous. Demanding identical key SETS would force
+ * either a meaningless Solidity constant or dropping a real Anchor bound.
+ */
+export function assertLimitsEqual(canonical, limits, label) {
+  for (const [key, expected] of Object.entries(canonical)) {
+    if (!(key in limits)) {
+      throw new Error(`limits mismatch in "${label}": missing "${key}" (expected ${expected})`)
+    }
+    if (limits[key] !== expected) {
+      throw new Error(
+        `limits mismatch in "${label}": ${key}=${limits[key]}, canonical=${expected}`,
+      )
+    }
   }
 }
 

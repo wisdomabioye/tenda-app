@@ -325,6 +325,79 @@ export type TendaEscrow = {
       "args": []
     },
     {
+      "name": "assignAccept",
+      "docs": [
+        "Approval mode: creator assigns a worker AND moves the escrow to",
+        "Accepted in one instruction (the worker signs nothing to start)."
+      ],
+      "discriminator": [
+        114,
+        240,
+        144,
+        27,
+        147,
+        65,
+        189,
+        31
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platformState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "signer",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "worker",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "cancelEscrowSol",
       "discriminator": [
         124,
@@ -2321,6 +2394,74 @@ export type TendaEscrow = {
           }
         }
       ]
+    },
+    {
+      "name": "unassign",
+      "docs": [
+        "Approval mode: creator withdraws an assignment inside the unassign",
+        "window, returning the escrow to Open with funds untouched."
+      ],
+      "discriminator": [
+        68,
+        109,
+        101,
+        120,
+        18,
+        20,
+        57,
+        58
+      ],
+      "accounts": [
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  115,
+                  99,
+                  114,
+                  111,
+                  119
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "escrow.escrow_id",
+                "account": "escrow"
+              }
+            ]
+          }
+        },
+        {
+          "name": "platformState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  108,
+                  97,
+                  116,
+                  102,
+                  111,
+                  114,
+                  109
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "signer",
+          "signer": true
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -2352,6 +2493,32 @@ export type TendaEscrow = {
     }
   ],
   "events": [
+    {
+      "name": "assignmentReleased",
+      "discriminator": [
+        102,
+        122,
+        112,
+        10,
+        150,
+        89,
+        255,
+        214
+      ]
+    },
+    {
+      "name": "counterpartyAssigned",
+      "discriminator": [
+        154,
+        197,
+        2,
+        193,
+        49,
+        54,
+        77,
+        247
+      ]
+    },
     {
       "name": "disputeRaised",
       "discriminator": [
@@ -2687,9 +2854,116 @@ export type TendaEscrow = {
       "code": 6032,
       "name": "platformLayoutCurrent",
       "msg": "platform account already uses the current layout — nothing legacy to close"
+    },
+    {
+      "code": 6033,
+      "name": "approvalRequired",
+      "msg": "escrow requires creator approval; the worker cannot accept directly"
+    },
+    {
+      "code": 6034,
+      "name": "notApprovalMode",
+      "msg": "escrow is not in approval mode; assignAccept/unassign do not apply"
+    },
+    {
+      "code": 6035,
+      "name": "cannotAssignCreator",
+      "msg": "creator cannot assign the escrow to themselves"
+    },
+    {
+      "code": 6036,
+      "name": "zeroCounterparty",
+      "msg": "assigned counterparty must not be the default (all-zero) pubkey"
+    },
+    {
+      "code": 6037,
+      "name": "unassignWindowClosed",
+      "msg": "unassign window has closed (accepted_at + unassign_window_seconds elapsed)"
+    },
+    {
+      "code": 6038,
+      "name": "unassignWindowOutOfRange",
+      "msg": "unassign_window_seconds out of allowed range"
+    },
+    {
+      "code": 6039,
+      "name": "approvalModeCannotPreassign",
+      "msg": "approval mode cannot also pre-assign a counterparty; the modes are exclusive"
     }
   ],
   "types": [
+    {
+      "name": "assignmentReleased",
+      "docs": [
+        "The creator withdrew an assignment inside the unassign window; the escrow",
+        "returns to Open with its funds untouched."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "counterparty",
+            "type": "pubkey"
+          },
+          {
+            "name": "releasedBy",
+            "type": "pubkey"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "counterpartyAssigned",
+      "docs": [
+        "Approval-mode counterpart of `EscrowAccepted`: the creator, not the worker,",
+        "moved the escrow to Accepted. Kept a DISTINCT event (rather than reusing",
+        "`EscrowAccepted`) because the actor differs — a wallet history must not",
+        "label the poster's transaction \"Gig accepted\"."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "escrowId",
+            "type": {
+              "array": [
+                "u8",
+                16
+              ]
+            }
+          },
+          {
+            "name": "counterparty",
+            "type": "pubkey"
+          },
+          {
+            "name": "assignedBy",
+            "type": "pubkey"
+          },
+          {
+            "name": "completionDeadline",
+            "type": "i64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
     {
       "name": "createEscrowArgs",
       "docs": [
@@ -2747,6 +3021,20 @@ export type TendaEscrow = {
           {
             "name": "isSeeker",
             "type": "bool"
+          },
+          {
+            "name": "requiresApproval",
+            "docs": [
+              "Acceptance mode. See `Escrow::requires_approval`."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "unassignWindowSeconds",
+            "docs": [
+              "See `Escrow::unassign_window_seconds`."
+            ],
+            "type": "i64"
           }
         ]
       }
@@ -2977,6 +3265,39 @@ export type TendaEscrow = {
           {
             "name": "isSeeker",
             "type": "bool"
+          },
+          {
+            "name": "requiresApproval",
+            "docs": [
+              "Acceptance mode, fixed at create.",
+              "`false` ⇒ the worker moves the escrow to Accepted themselves via",
+              "`accept_escrow` (open first-come, or restricted to",
+              "`assigned_counterparty` when that is set).",
+              "`true`  ⇒ `accept_escrow` is closed; only the creator can move it,",
+              "via `assign_accept`.",
+              "",
+              "The two guards make the mode an EXACT witness of provenance:",
+              "`status == Accepted && requires_approval` holds if and only if the",
+              "creator assigned the worker, i.e. the worker never signed. `unassign`",
+              "relies on that equivalence, so a worker who accepted of their own",
+              "accord can never be unassigned."
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "unassignWindowSeconds",
+            "docs": [
+              "How long after `assign_accept` the creator may still `unassign`.",
+              "Per-escrow (a term of THIS deal, fixed when it is posted) rather than",
+              "a mutable platform-wide value, so changing the default never",
+              "retroactively re-opens a settled assignment — and, unlike a",
+              "`PlatformState` field, it does not resize the singleton platform PDA.",
+              "Server-supplied from `platform_config`, bounded on-chain by",
+              "`MIN`/`MAX_UNASSIGN_WINDOW_SECONDS` exactly like",
+              "`completion_duration_seconds`. Only meaningful when",
+              "`requires_approval` is true."
+            ],
+            "type": "i64"
           },
           {
             "name": "createdAt",

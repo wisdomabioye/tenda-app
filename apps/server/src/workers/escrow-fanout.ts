@@ -30,6 +30,8 @@ export interface EscrowFanoutEvent {
   escrow_id: string
   wire_event: EscrowEvent
   tx_ref: string
+  /** See VerifyTxDeps.republish — the released worker's only address. */
+  counterparty_id: string | null
 }
 
 interface NoticeCopy {
@@ -55,6 +57,21 @@ const NOTICE_BY_EVENT: Partial<Record<InternalEscrowEvent, EventNotice>> = {
     recipient: 'creator',
     gig: { title: 'Gig accepted', body: 'A worker accepted your gig, work is underway.' },
     exchange: { title: 'Offer accepted', body: 'A buyer accepted your offer. Waiting for their payment.' },
+  },
+  // Approval mode: the worker signs NOTHING to be assigned, so this push is
+  // the only moment they can learn the gig is theirs. Without it the mode is
+  // unusable — they would have to happen to reopen the app.
+  'escrow.counterparty_assigned': {
+    recipient: 'counterparty',
+    gig: { title: 'You got the gig', body: 'The poster assigned you. Open it to see what to deliver and by when.' },
+    exchange: { title: 'You were matched', body: 'The seller matched you to their offer. Open it to continue.' },
+  },
+  // Symmetrically: they were placed without acting, so they must be told when
+  // that is undone — otherwise they keep working on a gig they no longer hold.
+  'escrow.assignment_released': {
+    recipient: 'counterparty',
+    gig: { title: 'Assignment withdrawn', body: 'The poster released your assignment. The gig is open to others again.' },
+    exchange: { title: 'Match withdrawn', body: 'The seller released your match. The offer is open to others again.' },
   },
   'escrow.declined': {
     recipient: 'creator',
@@ -191,12 +208,17 @@ export async function fanOutEscrowEvent(
   const notice = escrowNoticeFor(event.internal_event, row.kind)
   if (notice === null) return
 
+  // Prefer the counterparty the applier resolved over the one on the row:
+  // a RELEASED counterparty has already been cleared from the row, so reading
+  // it back would address nobody. Falls back to the row for every event that
+  // does not carry one.
+  const counterparty_id = event.counterparty_id ?? row.counterparty_id
   const recipients =
     notice.recipient === 'both'
-      ? [row.creator_id, row.counterparty_id]
+      ? [row.creator_id, counterparty_id]
       : notice.recipient === 'creator'
         ? [row.creator_id]
-        : [row.counterparty_id]
+        : [counterparty_id]
 
   for (const user_id of recipients) {
     if (user_id === null) continue

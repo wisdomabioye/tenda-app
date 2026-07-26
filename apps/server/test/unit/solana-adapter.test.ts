@@ -152,6 +152,8 @@ const CREATE_PAYLOAD = {
   completion_duration_seconds: 7_200,
   dispute_bond_raw: '100000000',
   is_seeker: false,
+  requires_approval: false,
+  unassign_window_seconds: 0,
 }
 
 test('buildTx createEscrow (SOL): create_escrow_sol with escrow+vault PDAs, payer = creator wallet', async () => {
@@ -860,4 +862,93 @@ test('computeFee: delegates to lib/escrow (standard + seeker)', () => {
     a.computeFee({ amount_raw: '1000000', is_seeker: true, fee_bps: 250, seeker_fee_bps: 100 }),
     '10000',
   )
+})
+
+// ---------- approval mode (stage 10) ---------------------------------------
+// The EVM builder has these; the Solana one shipped without, so the worker
+// resolution and the shared mutation-account shape were untested on this chain.
+
+test('buildTx assignAccept: creator signs, worker rides as an ARGUMENT not an account', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { open: {} }, counterparty: null })
+  const resolved: string[] = []
+  const a = makeAdapter(rpc, resolved)
+  const unsigned = await a.buildTx({
+    action: 'assignAccept',
+    user_id: 'user-creator',
+    payload: { escrow_id: ESCROW_UUID, worker_user_id: 'user-counterparty' },
+  })
+  const d = decodeUnsigned(unsigned)
+  expectDiscriminator(d.discriminator, 'assignAccept')
+  assert.deepStrictEqual(d.keys.slice(0, 2), [
+    escrowPdaFromUuid(ESCROW_UUID).toBase58(),
+    platformPda().toBase58(),
+  ])
+  // The CREATOR pays and signs — the whole point of approval mode is that the
+  // worker signs nothing, so their key must NOT appear in the account list.
+  assert.strictEqual(d.payer, CREATOR.toBase58())
+  assert.ok(!d.keys.includes(COUNTERPARTY.toBase58()), 'worker must not be an account')
+  // …but their wallet must still have been resolved, to ride as an argument.
+  assert.ok(resolved.includes('user-counterparty'))
+})
+
+test('buildTx assignAccept: a worker with no wallet on this chain fails cleanly', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { open: {} }, counterparty: null })
+  const a = makeAdapter(rpc)
+  await expectAppError(
+    a.buildTx({
+      action: 'assignAccept',
+      user_id: 'user-creator',
+      payload: { escrow_id: ESCROW_UUID, worker_user_id: 'user-with-no-wallet' },
+    }),
+    404,
+    'USER_NOT_FOUND',
+  )
+})
+
+test('buildTx unassign: creator-signed mutation instruction', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { accepted: {} } })
+  const a = makeAdapter(rpc)
+  const unsigned = await a.buildTx({
+    action: 'unassign',
+    user_id: 'user-creator',
+    payload: { escrow_id: ESCROW_UUID },
+  })
+  const d = decodeUnsigned(unsigned)
+  expectDiscriminator(d.discriminator, 'unassign')
+  assert.deepStrictEqual(d.keys.slice(0, 2), [
+    escrowPdaFromUuid(ESCROW_UUID).toBase58(),
+    platformPda().toBase58(),
+  ])
+  assert.strictEqual(d.payer, CREATOR.toBase58())
+})
+
+// assignAccept and unassign are encoded in different branches of the action
+// switch (one carries an argument, one shares the single-arg shape), so the
+// discriminators are worth pinning against each other — a copy-paste between
+// the two branches would otherwise encode the wrong instruction silently.
+test('buildTx: assignAccept and unassign encode DISTINCT discriminators', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { open: {} }, counterparty: null })
+  const a = makeAdapter(rpc)
+  const assign = decodeUnsigned(
+    await a.buildTx({
+      action: 'assignAccept',
+      user_id: 'user-creator',
+      payload: { escrow_id: ESCROW_UUID, worker_user_id: 'user-counterparty' },
+    }),
+  )
+
+  const rpc2 = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc2, { status: { accepted: {} } })
+  const unassign = decodeUnsigned(
+    await makeAdapter(rpc2).buildTx({
+      action: 'unassign',
+      user_id: 'user-creator',
+      payload: { escrow_id: ESCROW_UUID },
+    }),
+  )
+  assert.notDeepStrictEqual(assign.discriminator, unassign.discriminator)
 })

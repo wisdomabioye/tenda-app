@@ -153,6 +153,7 @@ export interface UpdatePlatformConfigBody {
   seeker_fee_bps?: number
   grace_period_seconds?: number
   max_pending_gigs?: number
+  unassign_window_seconds?: number
 }
 
 // ─── Announcements ───────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ export { ReportContentLink } from './ReportContentLink'
 export {
   TxConfirmDialog,
   TX_PROGRESS_LABEL,
+  txSuccessCopy,
   isGatedTxAction,
   txConfirmCopy,
   type EscrowKind,

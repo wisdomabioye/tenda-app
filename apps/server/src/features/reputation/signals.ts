@@ -74,12 +74,23 @@ export function signalsFor(event: InternalEscrowEvent, ctx: SignalContext): Stan
             ],
       )
     }
+    // Reputation-neutral events:
+    //  - `expired` = nobody accepted, so no counterparty ever existed.
+    //  - `counterparty_assigned` is approval mode's accept, neutral for the
+    //    same reason `accepted` is: taking on work is not yet an outcome.
+    //  - `assignment_released` is the creator withdrawing an assignment inside
+    //    the unassign window. The worker did nothing, so nothing counts
+    //    against them; and whether the creator's withdrawal should cost
+    //    anything depends on whether the worker had APPLIED (D2's
+    //    `assigned_from_application`), which does not exist yet. Recording a
+    //    signal now would be guesswork.
+    case 'escrow.counterparty_assigned':
+    case 'escrow.assignment_released':
     case 'escrow.created':
     case 'escrow.accepted':
     case 'escrow.proof_submitted':
     case 'escrow.dispute_raised':
     case 'escrow.expired':
-      // Expired = nobody accepted; no counterparty existed → no signal.
       return []
   }
 }

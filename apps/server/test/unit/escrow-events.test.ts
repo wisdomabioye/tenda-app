@@ -14,7 +14,12 @@ import {
   type EscrowEventStore,
   type EscrowPatch,
 } from '@server/lib/escrow-events'
-import { ESCROW_EVENTS, type DecodedEvent, type EscrowEvent } from '@server/chains/types'
+import {
+  ESCROW_EVENTS,
+  EVENT_BY_TX_TYPE,
+  type DecodedEvent,
+  type EscrowEvent,
+} from '@server/chains/types'
 import type { EscrowStatus } from '@server/lib/escrow'
 
 const ESCROW_ID = '11111111-2222-4333-8444-555555555555'
@@ -80,6 +85,8 @@ test('EscrowCreated: draft→open, stamps escrow_ref, records create with amount
     applied: true,
     escrow_id: ESCROW_ID,
     internal_event: 'escrow.created',
+    // Create installs no counterparty.
+    counterparty_id: null,
   })
   assert.deepStrictEqual(rec.transitions[0].from, ['draft'])
   assert.strictEqual(rec.transitions[0].patch.status, 'open')
@@ -213,4 +220,138 @@ test('missing escrow_id in decoded fields throws (decoder bug, not data)', async
     ),
     /missing escrow_id/,
   )
+})
+
+// ---------- approval mode (stage 10) ---------------------------------------
+
+test('CounterpartyAssigned: open→accepted, installs the worker, actor is the CREATOR', async () => {
+  const { deps, rec } = makeDeps({
+    wallets: { Creator111: 'user-creator', Worker111: 'user-worker' },
+  })
+  const r = await applyEscrowEvent(
+    deps,
+    event('CounterpartyAssigned', {
+      counterparty: 'Worker111',
+      assigned_by: 'Creator111',
+      completion_deadline: '1900007200',
+    }),
+    TX_REF,
+  )
+  assert.strictEqual(r.applied, true)
+  assert.strictEqual(r.internal_event, 'escrow.counterparty_assigned')
+
+  const [t] = rec.transitions
+  assert.deepStrictEqual(t.from, ['open'])
+  assert.strictEqual(t.patch.status, 'accepted')
+  // The worker becomes the counterparty even though they signed nothing.
+  assert.strictEqual(t.patch.counterparty_id, 'user-worker')
+  assert.deepStrictEqual(t.patch.completion_deadline, new Date(1_900_007_200 * 1000))
+
+  // The poster's transaction must NOT be attributed to the worker — that is
+  // the whole reason this is a distinct event and tx type.
+  const [tx] = rec.transactions
+  assert.strictEqual(tx.type, 'assign_accept')
+  assert.strictEqual(tx.actor_id, 'user-creator')
+})
+
+test('CounterpartyAssigned: unknown worker wallet leaves counterparty_id null, still applies', async () => {
+  const { deps, rec } = makeDeps({ wallets: { Creator111: 'user-creator' } })
+  const r = await applyEscrowEvent(
+    deps,
+    event('CounterpartyAssigned', {
+      counterparty: 'Stranger111',
+      assigned_by: 'Creator111',
+      completion_deadline: '1900007200',
+    }),
+    TX_REF,
+  )
+  // The chain is the source of truth: the transition lands regardless of
+  // whether we can name the wallet's owner.
+  assert.strictEqual(r.applied, true)
+  assert.strictEqual(rec.transitions[0].patch.counterparty_id, null)
+})
+
+test('AssignmentReleased: accepted→open, CLEARS counterparty and completion_deadline', async () => {
+  const { deps, rec } = makeDeps({ wallets: { Creator111: 'user-creator' } })
+  const r = await applyEscrowEvent(
+    deps,
+    event('AssignmentReleased', { counterparty: 'Worker111', released_by: 'Creator111' }),
+    TX_REF,
+  )
+  assert.strictEqual(r.applied, true)
+  assert.strictEqual(r.internal_event, 'escrow.assignment_released')
+
+  const [t] = rec.transitions
+  assert.deepStrictEqual(t.from, ['accepted'])
+  assert.strictEqual(t.patch.status, 'open')
+  // Both must be nulled: a rewound escrow with a stale deadline would be
+  // judged by the expiry sweep as if someone were still working on it.
+  assert.strictEqual(t.patch.counterparty_id, null)
+  assert.strictEqual(t.patch.completion_deadline, null)
+  assert.strictEqual(rec.transactions[0].type, 'unassign')
+  assert.strictEqual(rec.transactions[0].actor_id, 'user-creator')
+})
+
+// The released worker is CLEARED from the escrow row by the transition above,
+// so the push fan-out (which re-reads that row afterwards) has no way to
+// address them. The applier therefore hands the resolved user back out. Drop
+// this and "your assignment was withdrawn" silently reaches nobody.
+test('AssignmentReleased returns the released worker even though the row no longer names them', async () => {
+  const { deps, rec } = makeDeps({
+    wallets: { Worker111: 'user-worker', Creator111: 'user-creator' },
+  })
+  const r = await applyEscrowEvent(
+    deps,
+    event('AssignmentReleased', { counterparty: 'Worker111', released_by: 'Creator111' }),
+    TX_REF,
+  )
+  assert.strictEqual(r.counterparty_id, 'user-worker')
+  // …and the row itself really is cleared, so the two are not the same read.
+  assert.strictEqual(rec.transitions[0].patch.counterparty_id, null)
+})
+
+test('CounterpartyAssigned returns the installed worker; unrelated events return null', async () => {
+  const { deps } = makeDeps({ wallets: { Worker111: 'user-worker', Creator111: 'user-creator' } })
+  const assigned = await applyEscrowEvent(
+    deps,
+    event('CounterpartyAssigned', {
+      counterparty: 'Worker111',
+      assigned_by: 'Creator111',
+      completion_deadline: '1900007200',
+    }),
+    TX_REF,
+  )
+  assert.strictEqual(assigned.counterparty_id, 'user-worker')
+
+  const { deps: deps2 } = makeDeps({ wallets: { Creator111: 'user-creator' } })
+  const created = await applyEscrowEvent(
+    deps2,
+    event('EscrowCreated', { amount: '1000', creator: 'Creator111' }),
+    'sig-2',
+  )
+  assert.strictEqual(created.counterparty_id, null)
+})
+
+test('AssignmentReleased: guard trips when the escrow is no longer accepted', async () => {
+  const { deps, rec } = makeDeps({ guardTrips: true })
+  const r = await applyEscrowEvent(
+    deps,
+    event('AssignmentReleased', { counterparty: 'Worker111', released_by: 'Creator111' }),
+    TX_REF,
+  )
+  assert.strictEqual(r.applied, false)
+  assert.strictEqual(rec.transactions.length, 0)
+})
+
+test('assign/unassign tx types round-trip through EVENT_BY_TX_TYPE', () => {
+  assert.strictEqual(EVENT_BY_TX_TYPE.assign_accept, 'CounterpartyAssigned')
+  assert.strictEqual(EVENT_BY_TX_TYPE.unassign, 'AssignmentReleased')
+  // Every tx type must name an event that actually exists on the wire.
+  for (const [tx_type, evt] of Object.entries(EVENT_BY_TX_TYPE)) {
+    assert.ok(
+      (ESCROW_EVENTS as readonly string[]).includes(evt),
+      `${tx_type} maps to unknown event ${evt}`,
+    )
+    assert.strictEqual(EVENT_APPLICATIONS[evt].tx_type, tx_type)
+  }
 })

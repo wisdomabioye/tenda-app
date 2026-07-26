@@ -16,13 +16,15 @@ import { TEST_DB_CONFIGURED, useTestApp, createUser, authHeader } from '../helpe
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
-const { maxPlatformFeeBps, maxGracePeriodSeconds } = ESCROW_LIMITS
+const { maxPlatformFeeBps, maxGracePeriodSeconds, minUnassignWindowSeconds, maxUnassignWindowSeconds } =
+  ESCROW_LIMITS
 
 type PatchBody = {
   fee_bps?: number
   seeker_fee_bps?: number
   grace_period_seconds?: number
   max_pending_gigs?: number
+  unassign_window_seconds?: number
 }
 
 async function patch(app: ReturnType<typeof getApp>, token: string, payload: PatchBody) {
@@ -163,4 +165,60 @@ test('GET returns the seeded row', { skip }, async () => {
   assert.strictEqual(res.statusCode, 200)
   assert.strictEqual(res.json().id, 1)
   assert.strictEqual(typeof res.json().max_pending_gigs, 'number')
+})
+
+// ---------- unassign_window_seconds (stage 10) -------------------------------
+// Stamped onto every escrow AT CREATE and enforced on-chain, so a value the
+// contract would revert must be unreachable through this route — otherwise the
+// failure surfaces as a mystery revert on a user's create transaction.
+
+test('rejects an unassign window above the on-chain maximum', { skip }, async () => {
+  const app = getApp()
+  const admin = await createUser(app, { role: 'super_admin' })
+  const res = await patch(app, admin.token, {
+    unassign_window_seconds: maxUnassignWindowSeconds + 1,
+  })
+  assert.strictEqual(res.statusCode, 400)
+  assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
+})
+
+test('rejects a negative unassign window', { skip }, async () => {
+  const app = getApp()
+  const admin = await createUser(app, { role: 'super_admin' })
+  const res = await patch(app, admin.token, { unassign_window_seconds: -1 })
+  assert.strictEqual(res.statusCode, 400)
+})
+
+test('rejects a non-integer unassign window', { skip }, async () => {
+  const app = getApp()
+  const admin = await createUser(app, { role: 'super_admin' })
+  const res = await patch(app, admin.token, { unassign_window_seconds: 3_600.5 })
+  assert.strictEqual(res.statusCode, 400)
+})
+
+test('accepts the unassign window at both bounds and persists it', { skip }, async () => {
+  const app = getApp()
+  await seedConfig(app)
+  const admin = await createUser(app, { role: 'super_admin' })
+  for (const value of [minUnassignWindowSeconds, maxUnassignWindowSeconds]) {
+    const res = await patch(app, admin.token, { unassign_window_seconds: value })
+    assert.strictEqual(res.statusCode, 200, `unassign_window_seconds=${value} → ${res.statusCode}`)
+    assert.strictEqual(res.json().unassign_window_seconds, value)
+  }
+})
+
+test('a freshly seeded config exposes the documented default', { skip }, async () => {
+  const app = getApp()
+  await seedConfig(app)
+  const admin = await createUser(app, { role: 'super_admin' })
+  const res = await app.inject({
+    method: 'GET',
+    url: '/v1/admin/platform-config',
+    headers: authHeader(admin.token),
+  })
+  assert.strictEqual(res.statusCode, 200)
+  assert.strictEqual(
+    res.json().unassign_window_seconds,
+    PLATFORM_CONFIG_DEFAULTS.unassign_window_seconds,
+  )
 })

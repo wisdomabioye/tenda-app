@@ -194,6 +194,28 @@ test('status-guard trip: attempt still confirmed, but no republish (no double fa
   assert.strictEqual(calls.republished.length, 0)
 })
 
+// Reaching the guard means step 1 already ruled out a replay of this tx_ref,
+// so the transition genuinely did not fit: the events raced (verify-tx runs at
+// concurrency 8, unserialised per escrow) or the row has drifted from chain.
+// Nothing retries it and reconcile only revisits PENDING attempts, so if this
+// is not logged the divergence is permanent AND invisible.
+test('status-guard trip on a NEW tx is logged — it is dropped for good', async () => {
+  const { deps, calls } = makeDeps({ guardTrips: true })
+  await verifyTxJobHandler(deps, job())
+  assert.strictEqual(calls.warned.length, 1)
+})
+
+// The counterweight: the ORDINARY duplicate (client-ping and the poller both
+// verifying one tx) must stay silent, or the warning above is just noise and
+// gets ignored. That path exits at step 1, well before the guard.
+test('an already-processed tx_ref exits at step 1 and logs nothing', async () => {
+  const { deps, calls } = makeDeps({ processed: true })
+  const r = await verifyTxJobHandler(deps, job())
+  assert.ok(r.skipped === true)
+  assert.strictEqual(calls.warned.length, 0)
+  assert.strictEqual(calls.republished.length, 0)
+})
+
 test('republish failure is logged, never thrown — state is already durable', async () => {
   const { deps, calls } = makeDeps({ republishFails: true })
   const r = await verifyTxJobHandler(deps, job())

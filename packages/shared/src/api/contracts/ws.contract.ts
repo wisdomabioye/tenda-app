@@ -30,9 +30,18 @@ export interface ChatMessageFrame {
 
 /**
  * Escrow state change — broadcast on `escrow:<escrow_id>` after the
- * verify-tx pipeline applies an event. `event` is the wire event name
- * (e.g. 'approved', 'accepted'); `tx_ref` is the on-chain signature/hash
- * the client correlates against its pending transaction.
+ * verify-tx pipeline applies an event.
+ *
+ * `event` is the CONTRACT event name, PascalCase exactly as the chain emits
+ * it — 'EscrowAccepted', 'CounterpartyAssigned', … (the examples here used to
+ * read 'accepted'/'approved', which no producer has ever sent; the shape is
+ * pinned by the worker-processors integration test). It stays `string` rather
+ * than a union because that vocabulary lives server-side in chains/types, and
+ * clients deliberately do not branch on it: `useEscrowLiveRefresh` refetches on
+ * ANY frame, so a new event needs no client change.
+ *
+ * `tx_ref` is the on-chain signature/hash the client correlates against its
+ * pending transaction.
  */
 export interface EscrowEventFrame {
   channel: string

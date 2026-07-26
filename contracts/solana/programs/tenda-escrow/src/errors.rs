@@ -115,4 +115,27 @@ pub enum TendaError {
 
     #[msg("platform account already uses the current layout — nothing legacy to close")]
     PlatformLayoutCurrent,
+
+    // ---- acceptance modes -----------------------------------------------
+
+    #[msg("escrow requires creator approval; the worker cannot accept directly")]
+    ApprovalRequired,
+
+    #[msg("escrow is not in approval mode; assignAccept/unassign do not apply")]
+    NotApprovalMode,
+
+    #[msg("creator cannot assign the escrow to themselves")]
+    CannotAssignCreator,
+
+    #[msg("assigned counterparty must not be the default (all-zero) pubkey")]
+    ZeroCounterparty,
+
+    #[msg("unassign window has closed (accepted_at + unassign_window_seconds elapsed)")]
+    UnassignWindowClosed,
+
+    #[msg("unassign_window_seconds out of allowed range")]
+    UnassignWindowOutOfRange,
+
+    #[msg("approval mode cannot also pre-assign a counterparty; the modes are exclusive")]
+    ApprovalModeCannotPreassign,
 }

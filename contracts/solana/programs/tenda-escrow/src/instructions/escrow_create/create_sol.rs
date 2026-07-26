@@ -5,7 +5,7 @@ use crate::constants::{ESCROW_SEED, ESCROW_VAULT_SEED};
 use crate::errors::TendaError;
 use crate::events::EscrowCreated;
 use crate::instructions::vault::fund_vault_from_signer;
-use crate::state::{Escrow, EscrowStatus};
+use crate::state::Escrow;
 
 use super::shared::CreateEscrowArgs;
 
@@ -52,23 +52,14 @@ pub fn handler(ctx: Context<CreateEscrowSol>, args: CreateEscrowArgs) -> Result<
     );
 
     let escrow = &mut ctx.accounts.escrow;
-    escrow.escrow_id = args.escrow_id;
-    escrow.kind = args.kind;
-    escrow.asset = system_program::ID;
-    escrow.amount = args.amount;
-    escrow.creator = ctx.accounts.creator.key();
-    escrow.counterparty = None;
-    escrow.assigned_counterparty = args.assigned_counterparty;
-    escrow.status = EscrowStatus::Open;
-    escrow.accept_deadline = args.accept_deadline;
-    escrow.completion_duration_seconds = args.completion_duration_seconds;
-    escrow.completion_deadline = 0;
-    escrow.approval_deadline = 0;
-    escrow.dispute_bond = args.dispute_bond;
-    escrow.is_seeker = args.is_seeker;
-    escrow.created_at = now;
-    escrow.bump = ctx.bumps.escrow;
-    escrow.vault_bump = ctx.bumps.vault;
+    args.init_escrow(
+        escrow,
+        system_program::ID,
+        ctx.accounts.creator.key(),
+        now,
+        ctx.bumps.escrow,
+        ctx.bumps.vault,
+    );
 
     // Move the escrow amount into the vault. Bond is NOT funded at create;
     // the disputing party funds it inside `dispute_escrow_sol`.

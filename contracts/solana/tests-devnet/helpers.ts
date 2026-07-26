@@ -271,6 +271,8 @@ export interface CreateArgs {
   completionDurationSeconds: BN;
   disputeBond: BN;
   isSeeker: boolean;
+  requiresApproval: boolean;
+  unassignWindowSeconds: BN;
 }
 
 export interface SolEscrow {
@@ -298,6 +300,8 @@ export async function createArgs(
     completionDurationSeconds: new BN(3_600), // on-chain minimum
     disputeBond: new BN(0),
     isSeeker: false,
+    requiresApproval: false,
+    unassignWindowSeconds: new BN(0),
     ...overrides,
   };
 }

@@ -23,7 +23,12 @@ export interface EscrowPatch {
   escrow_ref?: string
   counterparty_id?: string | null
   assigned_counterparty_id?: string | null
-  completion_deadline?: Date
+  /**
+   * `null` CLEARS the column — AssignmentReleased rewinds an escrow to `open`
+   * and its completion deadline must go with it, or the expiry sweep would
+   * keep judging an escrow nobody is working on against a dead deadline.
+   */
+  completion_deadline?: Date | null
   submitted_at?: Date
   approval_deadline?: Date
 }

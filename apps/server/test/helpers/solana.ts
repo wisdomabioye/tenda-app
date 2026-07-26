@@ -83,6 +83,8 @@ export function escrowAccountFixture(overrides: Partial<EscrowAccount> = {}): Es
     creator: CREATOR,
     counterparty: COUNTERPARTY,
     assignedCounterparty: null,
+    requiresApproval: false,
+    unassignWindowSeconds: new BN(0),
     status: { accepted: {} },
     acceptDeadline: new BN(1_900_000_000),
     completionDurationSeconds: new BN(7_200),

@@ -6,6 +6,7 @@ import {TendaEscrow} from "../src/TendaEscrow.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import {ERC20Permit} from "openzeppelin-contracts/contracts/token/ERC20/extensions/ERC20Permit.sol";
+import {EscrowParams} from "./helpers/EscrowParams.sol";
 
 /// @dev EIP-2612 like the real thing (Circle's FiatTokenV2 implements permit)
 ///      so the *WithPermit paths are exercised against a genuine
@@ -99,7 +100,9 @@ contract TendaEscrowTest is Test {
         // NB literal kind — calling escrow.KIND_GIG() here would consume
         // the prank (it's a contract call) and create as the test contract.
         escrow.createEscrow{value: AMOUNT}(
-            id, 0, address(0), AMOUNT, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            EscrowParams.base(
+                id, 0, address(0), AMOUNT, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            )
         );
     }
 
@@ -107,7 +110,9 @@ contract TendaEscrowTest is Test {
         vm.startPrank(creator);
         usdc.approve(address(escrow), amount);
         escrow.createEscrow(
-            id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, false
+            EscrowParams.base(
+                id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, false
+            )
         );
         vm.stopPrank();
     }
@@ -125,7 +130,7 @@ contract TendaEscrowTest is Test {
     }
 
     function status(bytes16 id) internal view returns (TendaEscrow.Status s) {
-        (,,,,,,, s,,,,,,,) = escrow.escrows(id);
+        s = escrow.getEscrow(id).status;
     }
 
     function fee(uint256 amount) internal pure returns (uint256) {
@@ -158,34 +163,46 @@ contract TendaEscrowTest is Test {
         vm.startPrank(creator);
         // kind out of range
         vm.expectRevert(TendaEscrow.InvalidKind.selector);
-        escrow.createEscrow{value: AMOUNT}(id, 2, address(0), AMOUNT, address(0), deadline, DURATION, BOND, false);
+        escrow.createEscrow{value: AMOUNT}(
+            EscrowParams.base(id, 2, address(0), AMOUNT, address(0), deadline, DURATION, BOND, false)
+        );
         // zero amount
         vm.expectRevert(TendaEscrow.AmountTooLow.selector);
-        escrow.createEscrow(id, 0, address(0), 0, address(0), deadline, DURATION, BOND, false);
+        escrow.createEscrow(EscrowParams.base(id, 0, address(0), 0, address(0), deadline, DURATION, BOND, false));
         // deadline in past
         vm.expectRevert(TendaEscrow.AcceptDeadlineInPast.selector);
         escrow.createEscrow{value: AMOUNT}(
-            id, 0, address(0), AMOUNT, address(0), uint64(block.timestamp), DURATION, BOND, false
+            EscrowParams.base(id, 0, address(0), AMOUNT, address(0), uint64(block.timestamp), DURATION, BOND, false)
         );
         // duration below 1h / above 180d
         vm.expectRevert(TendaEscrow.CompletionDurationOutOfRange.selector);
-        escrow.createEscrow{value: AMOUNT}(id, 0, address(0), AMOUNT, address(0), deadline, 3599, BOND, false);
+        escrow.createEscrow{value: AMOUNT}(
+            EscrowParams.base(id, 0, address(0), AMOUNT, address(0), deadline, 3599, BOND, false)
+        );
         vm.expectRevert(TendaEscrow.CompletionDurationOutOfRange.selector);
-        escrow.createEscrow{value: AMOUNT}(id, 0, address(0), AMOUNT, address(0), deadline, 180 days + 1, BOND, false);
+        escrow.createEscrow{value: AMOUNT}(
+            EscrowParams.base(id, 0, address(0), AMOUNT, address(0), deadline, 180 days + 1, BOND, false)
+        );
         // wrong msg.value
         vm.expectRevert(TendaEscrow.BadNativeValue.selector);
-        escrow.createEscrow{value: AMOUNT - 1}(id, 0, address(0), AMOUNT, address(0), deadline, DURATION, BOND, false);
+        escrow.createEscrow{value: AMOUNT - 1}(
+            EscrowParams.base(id, 0, address(0), AMOUNT, address(0), deadline, DURATION, BOND, false)
+        );
         // ERC20 path must not carry value
         usdc.approve(address(escrow), AMOUNT);
         vm.expectRevert(TendaEscrow.BadNativeValue.selector);
-        escrow.createEscrow{value: 1}(id, 0, address(usdc), AMOUNT, address(0), deadline, DURATION, BOND, false);
+        escrow.createEscrow{value: 1}(
+            EscrowParams.base(id, 0, address(usdc), AMOUNT, address(0), deadline, DURATION, BOND, false)
+        );
         vm.stopPrank();
 
         // duplicate id
         createNative(id);
         vm.prank(creator);
         vm.expectRevert(TendaEscrow.EscrowAlreadyExists.selector);
-        escrow.createEscrow{value: AMOUNT}(id, 0, address(0), AMOUNT, address(0), deadline, DURATION, BOND, false);
+        escrow.createEscrow{value: AMOUNT}(
+            EscrowParams.base(id, 0, address(0), AMOUNT, address(0), deadline, DURATION, BOND, false)
+        );
     }
 
     // ---------------------------------------------------------------------
@@ -200,9 +217,9 @@ contract TendaEscrowTest is Test {
         emit TendaEscrow.EscrowAccepted(id, worker, uint64(block.timestamp) + DURATION);
         escrow.acceptEscrow(id);
 
-        (,,,,, address cp,,, uint64 _ad, uint64 _dur, uint64 completion,,,,) = escrow.escrows(id);
-        _ad;
-        _dur;
+        TendaEscrow.Escrow memory e = escrow.getEscrow(id);
+        address cp = e.counterparty;
+        uint64 completion = e.completionDeadline;
         assertEq(cp, worker);
         assertEq(completion, uint64(block.timestamp) + DURATION);
         assertEq(uint8(status(id)), 1); // Accepted
@@ -230,7 +247,9 @@ contract TendaEscrowTest is Test {
         bytes16 id = newId();
         vm.prank(creator);
         escrow.createEscrow{value: AMOUNT}(
-            id, 0, address(0), AMOUNT, worker, uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            EscrowParams.base(
+                id, 0, address(0), AMOUNT, worker, uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            )
         );
 
         vm.prank(outsider);
@@ -261,7 +280,9 @@ contract TendaEscrowTest is Test {
         bytes16 id = newId();
         vm.prank(creator);
         escrow.createEscrow{value: AMOUNT}(
-            id, 0, address(0), AMOUNT, worker, uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            EscrowParams.base(
+                id, 0, address(0), AMOUNT, worker, uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            )
         );
         vm.prank(outsider);
         vm.expectRevert(TendaEscrow.NotAssignedCounterparty.selector);
@@ -279,7 +300,7 @@ contract TendaEscrowTest is Test {
         vm.expectEmit(true, false, false, true);
         emit TendaEscrow.ProofSubmitted(id, PROOF, uint64(block.timestamp), uint64(block.timestamp) + APPROVAL_WINDOW);
         escrow.submitProof(id, PROOF);
-        (,,,,,,,,,,, uint64 approval,,,) = escrow.escrows(id);
+        uint64 approval = escrow.getEscrow(id).approvalDeadline;
         assertEq(approval, uint64(block.timestamp) + APPROVAL_WINDOW);
     }
 
@@ -320,15 +341,17 @@ contract TendaEscrowTest is Test {
         vm.startPrank(creator);
         usdc.approve(address(escrow), amount);
         escrow.createEscrow(
-            id,
-            0,
-            address(usdc),
-            amount,
-            address(0),
-            uint64(block.timestamp) + ACCEPT_WINDOW,
-            DURATION,
-            0,
-            true // isSeeker
+            EscrowParams.base(
+                id,
+                0,
+                address(usdc),
+                amount,
+                address(0),
+                uint64(block.timestamp) + ACCEPT_WINDOW,
+                DURATION,
+                0,
+                true // isSeeker
+            )
         );
         vm.stopPrank();
         vm.prank(worker);
@@ -480,7 +503,7 @@ contract TendaEscrowTest is Test {
         escrow.disputeEscrow{value: BOND}(id);
 
         assertEq(address(escrow).balance, AMOUNT + BOND);
-        (,,,,,,,,,,,,,, address raisedBy) = escrow.escrows(id);
+        address raisedBy = escrow.getEscrow(id).raisedBy;
         assertEq(raisedBy, creator);
         assertEq(uint8(status(id)), 6); // Disputed
     }
@@ -511,7 +534,9 @@ contract TendaEscrowTest is Test {
         vm.startPrank(creator);
         usdc.approve(address(escrow), amount);
         escrow.createEscrow(
-            id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, bond, false
+            EscrowParams.base(
+                id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, bond, false
+            )
         );
         vm.stopPrank();
         vm.startPrank(worker);
@@ -577,7 +602,9 @@ contract TendaEscrowTest is Test {
         uint256 odd = 1 ether + 1;
         vm.prank(creator);
         escrow.createEscrow{value: odd}(
-            id, 0, address(0), odd, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            EscrowParams.base(
+                id, 0, address(0), odd, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            )
         );
         vm.prank(worker);
         escrow.acceptEscrow(id);
@@ -780,7 +807,9 @@ contract TendaEscrowTest is Test {
         bytes16 id = newId();
         vm.prank(creator);
         escrow.createEscrow{value: 1}(
-            id, 0, address(0), 1, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            EscrowParams.base(
+                id, 0, address(0), 1, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, BOND, false
+            )
         );
         vm.prank(worker);
         escrow.acceptEscrow(id);
@@ -874,7 +903,10 @@ contract TendaEscrowTest is Test {
     function createUsdcWithPermit(bytes16 id, address owner, uint256 amount, TendaEscrow.Permit memory p) internal {
         vm.prank(owner);
         escrow.createEscrowWithPermit(
-            id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, false, p
+            EscrowParams.base(
+                id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, false
+            ),
+            p
         );
     }
 
@@ -929,15 +961,17 @@ contract TendaEscrowTest is Test {
         vm.expectRevert();
         vm.prank(owner);
         escrow.createEscrowWithPermit(
-            newId(),
-            0,
-            address(usdc),
-            amount,
-            address(0),
-            uint64(block.timestamp) + ACCEPT_WINDOW,
-            DURATION,
-            0,
-            false,
+            EscrowParams.base(
+                newId(),
+                0,
+                address(usdc),
+                amount,
+                address(0),
+                uint64(block.timestamp) + ACCEPT_WINDOW,
+                DURATION,
+                0,
+                false
+            ),
             p
         );
     }
@@ -973,15 +1007,17 @@ contract TendaEscrowTest is Test {
         vm.expectRevert(TendaEscrow.NativeAssetPermit.selector);
         vm.prank(owner);
         escrow.createEscrowWithPermit(
-            newId(),
-            0,
-            address(0),
-            AMOUNT,
-            address(0),
-            uint64(block.timestamp) + ACCEPT_WINDOW,
-            DURATION,
-            BOND,
-            false,
+            EscrowParams.base(
+                newId(),
+                0,
+                address(0),
+                AMOUNT,
+                address(0),
+                uint64(block.timestamp) + ACCEPT_WINDOW,
+                DURATION,
+                BOND,
+                false
+            ),
             p
         );
     }
@@ -993,7 +1029,17 @@ contract TendaEscrowTest is Test {
         vm.prank(creator);
         vm.expectRevert(); // token-level: insufficient allowance
         escrow.createEscrow(
-            newId(), 0, address(usdc), 100e6, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, false
+            EscrowParams.base(
+                newId(),
+                0,
+                address(usdc),
+                100e6,
+                address(0),
+                uint64(block.timestamp) + ACCEPT_WINDOW,
+                DURATION,
+                0,
+                false
+            )
         );
     }
 
@@ -1004,7 +1050,9 @@ contract TendaEscrowTest is Test {
         vm.startPrank(creator);
         usdc.approve(address(escrow), amount);
         escrow.createEscrow(
-            id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, bond, false
+            EscrowParams.base(
+                id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, bond, false
+            )
         );
         vm.stopPrank();
         vm.prank(worker);
@@ -1023,7 +1071,9 @@ contract TendaEscrowTest is Test {
         vm.startPrank(creator);
         usdc.approve(address(escrow), amount);
         escrow.createEscrow(
-            id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, bond, false
+            EscrowParams.base(
+                id, 0, address(usdc), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, bond, false
+            )
         );
         vm.stopPrank();
         vm.prank(owner);
@@ -1058,7 +1108,9 @@ contract TendaEscrowTest is Test {
         vm.startPrank(creator);
         usdc.approve(address(escrow), 100e6);
         escrow.createEscrow(
-            id, 0, address(usdc), 100e6, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, false
+            EscrowParams.base(
+                id, 0, address(usdc), 100e6, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, false
+            )
         );
         vm.stopPrank();
         vm.prank(owner);
@@ -1080,7 +1132,9 @@ contract TendaEscrowTest is Test {
         vm.deal(creator, amount);
         vm.prank(creator);
         escrow.createEscrow{value: amount}(
-            id, 0, address(0), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, isSeeker
+            EscrowParams.base(
+                id, 0, address(0), amount, address(0), uint64(block.timestamp) + ACCEPT_WINDOW, DURATION, 0, isSeeker
+            )
         );
         vm.prank(worker);
         escrow.acceptEscrow(id);

@@ -22,6 +22,7 @@ import { ErrorCode } from '@tenda/shared'
 import { escrows } from '@tenda/shared/db/schema'
 import { users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
+import { getPlatformConfig } from '@server/lib/platform'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
@@ -84,6 +85,15 @@ const route: FastifyPluginAsync = async (fastify) => {
           completion_duration_seconds: input.completion_duration_seconds,
           dispute_bond_raw: input.dispute_bond_raw,
           is_seeker: user.is_seeker,
+          // Acceptance mode. Always instant at this stage: the gig form does
+          // not offer the choice until the mode picker ships, so every escrow
+          // behaves exactly as it did before. The chain surface is complete
+          // ahead of it so the contracts need no second deploy.
+          requires_approval: false,
+          // Inert while requires_approval is false, but stamped from live
+          // config rather than a literal — it is fixed on-chain at create and
+          // cannot be changed afterwards.
+          unassign_window_seconds: (await getPlatformConfig(fastify.db)).unassign_window_seconds,
           ...(input.permit !== null ? { permit: input.permit } : {}),
         },
       })

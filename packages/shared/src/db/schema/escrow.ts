@@ -19,6 +19,7 @@ import { assets, chains } from './chains'
 import { users } from './identity'
 import { bank_accounts } from './fiat'
 import { PROOF_TYPES } from '../../constants/proofs'
+import { ESCROW_TX_TYPES } from '../../constants/escrow'
 
 // S5.3 (closes open #25): Postgres tsvector for gig full-text search.
 // drizzle has no built-in tsvector — minimal customType; the column is
@@ -55,19 +56,15 @@ export const TERMINAL_ESCROW_STATUSES = [
   'resolved',
 ] as const satisfies ReadonlyArray<(typeof escrowStatusEnum.enumValues)[number]>
 
-export const escrowTxTypeEnum = pgEnum('escrow_tx_type', [
-  'create',
-  'accept',
-  'decline',
-  'submit',
-  'approve',
-  'claim_stalled',
-  'cancel',
-  'refund_expired',
-  'reclaim_abandoned',
-  'dispute',
-  'resolve',
-])
+/**
+ * Derived from the shared ESCROW_TX_TYPES tuple rather than re-listed here
+ * (same reasoning as proofTypeEnum below): the DB enum, the chain adapters'
+ * `EVENT_BY_TX_TYPE`, and the mobile client-ping bodies then have exactly one
+ * source. Re-listing is how `assign_accept`/`unassign` could reach an INSERT
+ * that the column rejects at runtime — the compiler cannot see a hand-copied
+ * literal drifting from the tuple, but it does see this.
+ */
+export const escrowTxTypeEnum = pgEnum('escrow_tx_type', ESCROW_TX_TYPES)
 
 /**
  * Derived from the shared PROOF_TYPES tuple rather than re-listed here, so

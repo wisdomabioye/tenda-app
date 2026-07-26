@@ -35,8 +35,13 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
   }>('/', {
     preHandler: [requirePermission('config.write')]
   }, async (request) => {
-    const { fee_bps, seeker_fee_bps, grace_period_seconds, max_pending_gigs } =
-      requireBody(request.body)
+    const {
+      fee_bps,
+      seeker_fee_bps,
+      grace_period_seconds,
+      max_pending_gigs,
+      unassign_window_seconds,
+    } = requireBody(request.body)
 
     // Fee/grace caps mirror the on-chain limits (ESCROW_LIMITS, guarded ==
     // both contracts) so an admin can't configure a value the contract would
@@ -45,24 +50,39 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
     // math must stay within the window the chain actually enforces.
     // max_pending_gigs is purely off-chain, bounded by the same constant as the
     // column's CHECK so the route rejects before Postgres does.
-    const { maxPlatformFeeBps, maxGracePeriodSeconds } = ESCROW_LIMITS
+    const {
+      maxPlatformFeeBps,
+      maxGracePeriodSeconds,
+      minUnassignWindowSeconds,
+      maxUnassignWindowSeconds,
+    } = ESCROW_LIMITS
 
     ensureIntInRange(fee_bps, 'fee_bps', 0, maxPlatformFeeBps)
     ensureIntInRange(seeker_fee_bps, 'seeker_fee_bps', 0, maxPlatformFeeBps)
     ensureIntInRange(grace_period_seconds, 'grace_period_seconds', 0, maxGracePeriodSeconds)
     ensureIntInRange(max_pending_gigs, 'max_pending_gigs', 1, MAX_PENDING_GIGS_CEILING)
+    // Same bound both contracts enforce: a window the chain would revert must
+    // never reach an escrow's create call.
+    ensureIntInRange(
+      unassign_window_seconds,
+      'unassign_window_seconds',
+      minUnassignWindowSeconds,
+      maxUnassignWindowSeconds,
+    )
 
     const fields = [
       'fee_bps',
       'seeker_fee_bps',
       'grace_period_seconds',
       'max_pending_gigs',
+      'unassign_window_seconds',
     ] as const satisfies readonly (keyof PatchBody)[]
     const changes: PatchBody = {
       ...(fee_bps !== undefined && { fee_bps }),
       ...(seeker_fee_bps !== undefined && { seeker_fee_bps }),
       ...(grace_period_seconds !== undefined && { grace_period_seconds }),
       ...(max_pending_gigs !== undefined && { max_pending_gigs }),
+      ...(unassign_window_seconds !== undefined && { unassign_window_seconds }),
     }
     if (Object.keys(changes).length === 0) {
       throw new AppError(

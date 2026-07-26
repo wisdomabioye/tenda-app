@@ -15,6 +15,7 @@ import { and, eq, isNull } from 'drizzle-orm'
 import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
 import { escrows, exchange_details, tx_attempts } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
+import { getPlatformConfig } from '@server/lib/platform'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
@@ -138,6 +139,15 @@ const route: FastifyPluginAsync = async (fastify) => {
           accept_deadline_unix: Math.floor(accept_deadline.getTime() / 1000),
           completion_duration_seconds,
           dispute_bond_raw: escrow.dispute_bond_raw,
+          // Acceptance mode. Always instant at this stage: the gig form does
+          // not offer the choice until the mode picker ships, so every escrow
+          // behaves exactly as it did before. The chain surface is complete
+          // ahead of it so the contracts need no second deploy.
+          requires_approval: false,
+          // Inert while requires_approval is false, but stamped from live
+          // config rather than a literal — it is fixed on-chain at create and
+          // cannot be changed afterwards.
+          unassign_window_seconds: (await getPlatformConfig(fastify.db)).unassign_window_seconds,
           is_seeker: escrow.is_seeker,
         },
       })

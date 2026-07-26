@@ -35,6 +35,13 @@ export interface BuildContext {
   asset_address: string | null
   /** Resolved wallet of assigned_counterparty_user_id, when present. */
   assigned_counterparty_address: string | null
+  /**
+   * Resolved wallet of `assignAccept`'s worker_user_id. Distinct from
+   * `assigned_counterparty_address` on purpose: that one is a CREATE-time
+   * invite the worker still has to accept, this one is the worker the creator
+   * is placing right now. Both contracts reject an escrow that carries both.
+   */
+  worker_address: string | null
 }
 
 
@@ -68,23 +75,27 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
     case 'createEscrow': {
       const p = args.payload
       const native = ctx.asset_address === null
-      const createArgs = [
-        escrowIdHex(p.escrow_id),
-        ESCROW_KIND_CODE[p.kind],
-        asAddress(ctx.asset_address),
-        BigInt(p.amount_raw),
-        asAddress(ctx.assigned_counterparty_address),
-        BigInt(p.accept_deadline_unix),
-        BigInt(p.completion_duration_seconds),
-        BigInt(p.dispute_bond_raw),
-        p.is_seeker,
-      ] as const
+      // One `CreateParams` struct, mirroring the contract — named fields, so
+      // adding a create-time field can never silently shift an argument.
+      const createParams = {
+        escrowId: escrowIdHex(p.escrow_id),
+        kind: ESCROW_KIND_CODE[p.kind],
+        asset: asAddress(ctx.asset_address),
+        amount: BigInt(p.amount_raw),
+        assignedCounterparty: asAddress(ctx.assigned_counterparty_address),
+        acceptDeadline: BigInt(p.accept_deadline_unix),
+        completionDuration: BigInt(p.completion_duration_seconds),
+        disputeBond: BigInt(p.dispute_bond_raw),
+        isSeeker: p.is_seeker,
+        requiresApproval: p.requires_approval,
+        unassignWindowSeconds: BigInt(p.unassign_window_seconds),
+      } as const
       if (p.permit !== undefined) {
         return {
           data: encodeFunctionData({
             abi: ESCROW_EVM_ABI,
             functionName: 'createEscrowWithPermit',
-            args: [...createArgs, permitTuple(p.permit, ctx.asset_address)],
+            args: [createParams, permitTuple(p.permit, ctx.asset_address)],
           }),
           value_raw: '0', // non-payable: the permit path is ERC-20 only
         }
@@ -93,7 +104,7 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
         data: encodeFunctionData({
           abi: ESCROW_EVM_ABI,
           functionName: 'createEscrow',
-          args: createArgs,
+          args: [createParams],
         }),
         value_raw: native ? p.amount_raw : '0',
       }
@@ -131,6 +142,27 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
         value_raw: native ? p.bond_raw : '0',
       }
     }
+    case 'assignAccept': {
+      const p = args.payload
+      if (ctx.worker_address === null) {
+        // The route resolves the worker's wallet; reaching the encoder
+        // without one would silently assign address(0), which the contract
+        // rejects — fail here with a typed error instead of a raw revert.
+        throw new AppError(
+          422,
+          ErrorCode.VALIDATION_ERROR,
+          'assignAccept requires a resolved worker wallet on this chain',
+        )
+      }
+      return {
+        data: encodeFunctionData({
+          abi: ESCROW_EVM_ABI,
+          functionName: 'assignAccept',
+          args: [escrowIdHex(p.escrow_id), ctx.worker_address as `0x${string}`],
+        }),
+        value_raw: '0',
+      }
+    }
     case 'resolveDispute': {
       const p = args.payload
       return {
@@ -152,6 +184,7 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
     case 'cancelEscrow':
     case 'refundExpired':
     case 'reclaimAbandoned':
+    case 'unassign':
       return {
         data: encodeFunctionData({
           abi: ESCROW_EVM_ABI,

@@ -4,7 +4,7 @@
  * fallback overstated every credit on chains whose events carried no amount.
  */
 import { render, screen } from '@testing-library/react-native'
-import type { UserEscrowTransaction, EscrowTxType } from '@tenda/shared'
+import { ESCROW_TX_TYPES, type UserEscrowTransaction, type EscrowTxType } from '@tenda/shared'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -111,4 +111,41 @@ test('funding shows the escrowed principal as a debit to the creator', () => {
     />,
   )
   expect(screen.getByText(/^−|^-/)).toBeTruthy()
+})
+
+describe('transaction labels', () => {
+  // The maps are total, so this can only fail if someone reintroduces a
+  // fallback — but a raw enum slug in a user's money history is bad enough to
+  // pin. `assign_accept` is the case that motivated it: the type exists so a
+  // poster's row does NOT read "Gig accepted", and a fallback would have made
+  // it read "assign_accept".
+  it('never renders a raw enum slug, on either kind', () => {
+    for (const type of ESCROW_TX_TYPES) {
+      for (const kind of ['gig', 'exchange'] as const) {
+        const { unmount } = render(
+          <TxRow tx={tx({ type, escrow: { ...tx({ type }).escrow, kind } })} userId={VIEWER} />,
+        )
+        expect(screen.queryByText(type)).toBeNull()
+        unmount()
+      }
+    }
+  })
+
+  it('labels the approval-mode rows from the actor’s side, per kind', () => {
+    const gigEscrow = { ...tx({ type: 'assign_accept' }).escrow, kind: 'gig' as const }
+    render(<TxRow tx={tx({ type: 'assign_accept', escrow: gigEscrow })} userId={VIEWER} />)
+    expect(screen.getByText('Worker assigned')).toBeTruthy()
+
+    // The default fixture is an exchange, which reads from the P2P side.
+    render(<TxRow tx={tx({ type: 'assign_accept' })} userId={VIEWER} />)
+    expect(screen.getByText('Buyer matched')).toBeTruthy()
+  })
+
+  it('carries no +/- sign for assign/unassign — neither moves value', () => {
+    for (const type of ['assign_accept', 'unassign'] as const) {
+      const { unmount } = render(<TxRow tx={tx({ type })} userId={VIEWER} />)
+      expect(screen.queryByText(/^[+-]/)).toBeNull()
+      unmount()
+    }
+  })
 })
