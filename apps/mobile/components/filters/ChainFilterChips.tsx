@@ -15,9 +15,22 @@ interface ChainFilterChipsProps {
   /** Active CAIP-2 chain id, or null for "All chains". */
   value: string | null
   onChange: (chain_id: string | null) => void
+  /**
+   * Horizontal gutter — pass it when the row stands on its own as screen
+   * furniture (the tabbed screens, where it sits outside the pager); omit it
+   * inside a list header, whose content container already supplies one.
+   *
+   * Applied INSIDE the scroll content rather than as a wrapper padding, so the
+   * chips still scroll edge to edge. Its presence also switches the row's
+   * VERTICAL insets to standalone values: a gap above (nothing else separates
+   * it from the tab bar) and none below, since the list underneath owns its own
+   * top padding — and must keep owning it, because this whole row renders null
+   * on a single-chain deployment.
+   */
+  gutterX?: number
 }
 
-export function ChainFilterChips({ value, onChange }: ChainFilterChipsProps) {
+export function ChainFilterChips({ value, onChange, gutterX }: ChainFilterChipsProps) {
   const chains = useChainRegistryStore((s) => s.chains)
 
   // Registry not loaded, or a single-chain deployment: a filter with one
@@ -32,7 +45,18 @@ export function ChainFilterChips({ value, onChange }: ChainFilterChipsProps) {
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerStyle={s.row}
+      // MUST cancel ScrollView's own `baseHorizontal` flex (flexGrow: 1,
+      // flexShrink: 1). Inside a list header that default is inert — the
+      // content container is auto-height, so there is nothing to grow into.
+      // As a direct child of a screen's flex column it makes this one-line row
+      // split the leftover height with the list below it, pushing the list to
+      // half-page. The row is content-height in both places.
+      style={s.scroll}
+      contentContainerStyle={[
+        s.row,
+        gutterX !== undefined && s.standalone,
+        gutterX !== undefined && { paddingHorizontal: gutterX },
+      ]}
     >
       <Chip label="All chains" selected={value === null} onPress={() => onChange(null)} />
       {chains.map((chain) => (
@@ -53,6 +77,9 @@ export function ChainFilterChips({ value, onChange }: ChainFilterChipsProps) {
 }
 
 const s = StyleSheet.create({
+  scroll: { flexGrow: 0, flexShrink: 0 },
+  /** Vertical insets for the standalone (screen-furniture) placement. */
+  standalone: { paddingTop: spacing.sm, paddingBottom: 0 },
   row: {
     flexDirection: 'row',
     gap: spacing.xs,

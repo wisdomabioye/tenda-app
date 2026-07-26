@@ -76,6 +76,15 @@ export default function MyGigsScreen() {
         insetX={TAB_INSET}
       />
 
+      {/*
+        Outside the pager, deliberately. Nested inside it — as a list header on
+        each page — this row is a horizontal ScrollView inside a horizontal
+        pagingEnabled ScrollView, so the pager claimed every pan and swiping the
+        chips switched tabs instead. Hoisting also collapses what were two
+        instances of one control: `chainId` is shared by both tabs.
+      */}
+      <ChainFilterChips value={chainId} onChange={setChainId} gutterX={spacing.md} />
+
       <ScrollView
         ref={scrollRef}
         horizontal
@@ -98,7 +107,6 @@ export default function MyGigsScreen() {
               contentContainerStyle={s.list}
               separatorHeight={spacing.sm}
               onRefresh={() => void page.list.refresh()}
-              header={<ChainFilterChips value={chainId} onChange={setChainId} />}
               // This screen had NO loading state at all: the first load and
               // every chain-chip tap showed a bare chip row (or the previous
               // chain's rows) with nothing signalling a fetch.

@@ -1,7 +1,6 @@
 import { View, StyleSheet } from 'react-native'
 import { spacing } from '@/theme/tokens'
 import { EmptyState, PaginatedList } from '@/components/ui'
-import { ChainFilterChips } from '@/components/filters'
 import { MyOfferRow } from './MyOfferRow'
 import { OfferListSkeleton } from './OfferListSkeleton'
 import type { EscrowListRow } from '@tenda/shared'
@@ -12,20 +11,19 @@ import type { PaginatedListState } from '@/hooks/usePaginatedList'
  * they posted (selling) and offers they accepted (buying). Without the buying
  * side a matched buyer loses the trade the moment they leave its detail screen,
  * as the market tab only lists still-open offers.
+ *
+ * The chain chip row lives in the screen shell, outside the pager — see
+ * ExchangeMarketPage for why.
  */
 export function ExchangeMyOffersPage({
   width,
   list,
-  chainId,
   currentUserId,
-  onChainChange,
   onPostOffer,
 }: {
   width: number
   list: PaginatedListState<EscrowListRow>
-  chainId: string | null
   currentUserId: string | null
-  onChainChange: (chain_id: string | null) => void
   onPostOffer: () => void
 }) {
   return (
@@ -43,7 +41,6 @@ export function ExchangeMyOffersPage({
         separatorHeight={spacing.sm}
         onRefresh={() => void list.refresh()}
         skeleton={<OfferListSkeleton />}
-        header={<ChainFilterChips value={chainId} onChange={onChainChange} />}
         empty={
           <EmptyState
             title="No trades yet"

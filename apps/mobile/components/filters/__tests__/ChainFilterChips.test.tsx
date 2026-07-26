@@ -4,6 +4,7 @@
  * choose between.
  */
 import { render, screen, fireEvent } from '@testing-library/react-native'
+import { ScrollView, StyleSheet } from 'react-native'
 import type { ChainRegistryEntry } from '@tenda/shared'
 
 const mockChains = jest.fn()
@@ -92,4 +93,50 @@ test('stays visible when the options collapse to one but a filter is ACTIVE', ()
   render(<ChainFilterChips value="eip155:84532" onChange={onChange} />)
   fireEvent.press(screen.getByText('All chains'))
   expect(onChange).toHaveBeenCalledWith(null)
+})
+
+describe('sizing (it renders as screen furniture, not just as list content)', () => {
+  test('cancels ScrollView\'s own flex so it cannot grow into the list below', () => {
+    // RN ScrollView's `baseHorizontal` is { flexGrow: 1, flexShrink: 1 }. Inert
+    // inside a FlatList header (auto-height content container), but as a direct
+    // child of a screen's flex column it made this one-line row split the
+    // leftover height with the list — the list started at half-page. Layout is
+    // not simulated in tests, so the style itself is what gets pinned.
+    mockChains.mockReturnValue(TWO_CHAINS)
+    const { UNSAFE_root } = render(<ChainFilterChips value={null} onChange={jest.fn()} />)
+    const scroll = UNSAFE_root.findByType(ScrollView)
+    expect(StyleSheet.flatten(scroll.props.style)).toMatchObject({
+      flexGrow: 0,
+      flexShrink: 0,
+    })
+  })
+
+  test('applies gutterX INSIDE the scroll content, so chips still scroll edge to edge', () => {
+    mockChains.mockReturnValue(TWO_CHAINS)
+    const { UNSAFE_root } = render(
+      <ChainFilterChips value={null} onChange={jest.fn()} gutterX={16} />,
+    )
+    const scroll = UNSAFE_root.findByType(ScrollView)
+    expect(StyleSheet.flatten(scroll.props.contentContainerStyle)).toMatchObject({
+      paddingHorizontal: 16,
+      // Standalone vertical rhythm: a gap above (nothing else separates it from
+      // the tab bar) and none below — the list underneath owns its top padding,
+      // and must, since this row renders null on a single-chain deployment.
+      paddingTop: 12,
+      paddingBottom: 0,
+    })
+    // Never as a wrapper padding — that would clip the row's scrollable width.
+    expect(StyleSheet.flatten(scroll.props.style)).not.toMatchObject({ paddingHorizontal: 16 })
+  })
+
+  test('as list content it takes no gutter and keeps its bottom gap', () => {
+    // In a header the list's content container supplies the horizontal gutter,
+    // and the row's own bottom padding is the gap to the first card.
+    mockChains.mockReturnValue(TWO_CHAINS)
+    const { UNSAFE_root } = render(<ChainFilterChips value={null} onChange={jest.fn()} />)
+    const flat = StyleSheet.flatten(UNSAFE_root.findByType(ScrollView).props.contentContainerStyle)
+    expect(flat.paddingHorizontal).toBeUndefined()
+    expect(flat.paddingTop).toBeUndefined()
+    expect(flat.paddingBottom).toBe(16)
+  })
 })

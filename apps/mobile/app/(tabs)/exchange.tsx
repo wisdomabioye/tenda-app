@@ -5,6 +5,8 @@ import { useRouter } from 'expo-router'
 import { Plus } from 'lucide-react-native'
 import { ScreenContainer, Header } from '@/components/ui'
 import { PagerTabBar } from '@/components/navigation'
+import { ChainFilterChips } from '@/components/filters'
+import { spacing } from '@/theme/tokens'
 import {
   ExchangeMarketPage,
   ExchangeMyOffersPage,
@@ -71,6 +73,15 @@ export default function ExchangeScreen() {
         onTabPress={scrollToPage}
       />
 
+      {/*
+        Outside the pager, deliberately. Nested inside it — as a list header on
+        each page — this row is a horizontal ScrollView inside a horizontal
+        pagingEnabled ScrollView, so the pager claimed every pan and swiping the
+        chips switched tabs instead. Hoisting also collapses what were two
+        instances of one control: `chainId` filters both tabs.
+      */}
+      <ChainFilterChips value={chainId} onChange={setChainId} gutterX={spacing.md} />
+
       {/* Swipeable pages */}
       <ScrollView
         ref={scrollRef}
@@ -85,18 +96,14 @@ export default function ExchangeScreen() {
         <ExchangeMarketPage
           width={SW}
           currency={currency}
-          chainId={chainId}
           list={market}
           onOpenFilter={() => setCurrencySheetOpen(true)}
           onClearCurrency={() => setCurrency(null)}
-          onChainChange={setChainId}
         />
         <ExchangeMyOffersPage
           width={SW}
           list={myTrades}
-          chainId={chainId}
           currentUserId={user?.id ?? null}
-          onChainChange={setChainId}
           onPostOffer={postOffer}
         />
       </ScrollView>

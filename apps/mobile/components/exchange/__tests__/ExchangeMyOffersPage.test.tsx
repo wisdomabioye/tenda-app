@@ -12,7 +12,6 @@ jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({ theme: { colors: { brand: { primary: '#50f' } } } }),
 }))
 jest.mock('../OfferListSkeleton', () => ({ OfferListSkeleton: () => null }))
-jest.mock('@/components/filters', () => ({ ChainFilterChips: () => null }))
 // Capture the side each row is asked to render with.
 const rowSides: string[] = []
 jest.mock('../MyOfferRow', () => {
@@ -57,9 +56,7 @@ test('empty state renders the Post offer action and fires it', () => {
     <ExchangeMyOffersPage
       width={375}
       list={listState<EscrowListRow>()}
-      chainId={null}
       currentUserId="me"
-      onChainChange={jest.fn()}
       onPostOffer={onPostOffer}
     />,
   )
@@ -73,9 +70,7 @@ test('derives selling for offers I created, buying for offers I did not', () => 
     <ExchangeMyOffersPage
       width={375}
       list={listState({ items: [row('a', 'me'), row('b', 'other')] })}
-      chainId={null}
       currentUserId="me"
-      onChainChange={jest.fn()}
       onPostOffer={jest.fn()}
     />,
   )
@@ -88,9 +83,7 @@ test('shows the skeleton instead of the list while the first page loads', () => 
     <ExchangeMyOffersPage
       width={375}
       list={listState<EscrowListRow>({ isLoading: true, hasFetched: false })}
-      chainId={null}
       currentUserId="me"
-      onChainChange={jest.fn()}
       onPostOffer={jest.fn()}
     />,
   )
@@ -102,9 +95,7 @@ test('does not claim "no trades" before the first load settles', () => {
     <ExchangeMyOffersPage
       width={375}
       list={listState<EscrowListRow>({ hasFetched: false })}
-      chainId={null}
       currentUserId="me"
-      onChainChange={jest.fn()}
       onPostOffer={jest.fn()}
     />,
   )

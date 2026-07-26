@@ -3,29 +3,31 @@ import { useUnistyles } from 'react-native-unistyles'
 import { SlidersHorizontal, X } from 'lucide-react-native'
 import { spacing, radius } from '@/theme/tokens'
 import { Text, Spacer, EmptyState, Button, PaginatedList } from '@/components/ui'
-import { ChainFilterChips } from '@/components/filters'
 import { ExchangeOfferCard } from './ExchangeOfferCard'
 import { OfferListSkeleton } from './OfferListSkeleton'
 import type { ExchangeSummary } from '@tenda/shared'
 import type { PaginatedListState } from '@/hooks/usePaginatedList'
 
-/** Market page (open offers): currency + chain filters over a paginated list. */
+/**
+ * Market page (open offers): the currency filter over a paginated list.
+ *
+ * The chain chip row is NOT here — it lives in the screen shell, outside the
+ * pager, because a horizontal ScrollView nested in the horizontal pager never
+ * received its own pans (swiping the chips switched tabs). It also applies to
+ * both tabs, so one instance is correct.
+ */
 export function ExchangeMarketPage({
   width,
   currency,
-  chainId,
   list,
   onOpenFilter,
   onClearCurrency,
-  onChainChange,
 }: {
   width: number
   currency: string | null
-  chainId: string | null
   list: PaginatedListState<ExchangeSummary>
   onOpenFilter: () => void
   onClearCurrency: () => void
-  onChainChange: (chain_id: string | null) => void
 }) {
   const { theme } = useUnistyles()
 
@@ -56,7 +58,6 @@ export function ExchangeMarketPage({
         separatorHeight={spacing.sm}
         onRefresh={() => void list.refresh()}
         skeleton={<OfferListSkeleton />}
-        header={<ChainFilterChips value={chainId} onChange={onChainChange} />}
         errorState={
           <View style={s.center}>
             <Text color={theme.colors.feedback.danger.text}>{list.error}</Text>
