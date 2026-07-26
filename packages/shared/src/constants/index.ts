@@ -44,6 +44,10 @@ export {
   formatProofTypeList,
   type ProofType,
 } from './proofs'
+export {
+  PLATFORM_CONFIG_DEFAULTS,
+  MAX_PENDING_GIGS_CEILING,
+} from './platform'
 export { PERMISSIONS, ROLE_PERMISSIONS, hasPermission, type Permission } from './permissions'
 export {
   NOTIFICATION_PAGE_SIZE,

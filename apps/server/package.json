@@ -7,7 +7,9 @@
     "test": "test"
   },
   "scripts": {
-    "test": "npm run build:ts && tsc -p test/tsconfig.json && c8 node --test -r ts-node/register \"test/**/*.ts\"",
+    "test": "npm run build:ts && tsc -p test/tsconfig.json && TS_NODE_TRANSPILE_ONLY=1 c8 node --test --test-concurrency=4 -r ts-node/register \"test/**/*.ts\"",
+    "test:unit": "TS_NODE_TRANSPILE_ONLY=1 node --test --test-concurrency=4 -r ts-node/register \"test/unit/*.test.ts\"",
+    "test:file": "TS_NODE_TRANSPILE_ONLY=1 node --test -r ts-node/register",
     "start": "node dist/server.js",
     "build": "tsc && tsc-alias && cp -r src/assets dist/assets",
     "build:ts": "tsc && tsc-alias && cp -r src/assets dist/assets",

@@ -97,6 +97,10 @@ test('coordinates validated when present', () => {
   expect400(body({ latitude: 91, longitude: 3.4 }), 'NG', /atitude|oordinate/)
 })
 
+test('an out-of-range longitude is rejected too (the latitude case alone left this branch untested)', () => {
+  expect400(body({ latitude: 6.45, longitude: 181 }), 'NG', /ongitude|oordinate/)
+})
+
 test('cross_border: true when non-remote gig country differs from creator country', () => {
   const v = validateGigDetails(body(), 'KE')
   assert.strictEqual(v.cross_border, true)

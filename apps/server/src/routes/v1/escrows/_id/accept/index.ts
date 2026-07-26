@@ -9,6 +9,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { getPlatformConfig } from '@server/lib/platform'
 import { requireGoodStanding } from '@server/features/reputation/guards'
+import { assertGigCapacity } from '@server/features/capacity/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact } from '@server/lib/auth/resolver'
 import { guardTransition } from '@server/lib/escrow-routes'
@@ -32,6 +33,9 @@ const route: FastifyPluginAsync = async (fastify) => {
       // First-transaction gate: the accepter needs a wallet on this chain + a
       // verified contact before they can enter the escrow.
       await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
+      // Concurrency cap: a worker may only hold so many live gigs at once.
+      // Gig-only — an exchange accept is a trade, not a work commitment.
+      await assertGigCapacity(fastify.db, request.user.id, escrow.kind)
       const unsigned = await adapter.buildTx({
         action: 'acceptEscrow',
         user_id: request.user.id,

@@ -39,6 +39,7 @@ import type { ProofType } from '@tenda/shared'
 import { registerErrorHandlers } from '@server/lib/http-errors'
 import { invalidateFeaturedCache } from '@server/lib/featured'
 import { invalidateExchangeRatesCache } from '@server/lib/exchange-rates'
+import { invalidatePlatformConfigCache } from '@server/lib/platform'
 import { PAYOUT_CURRENCIES } from '@tenda/shared'
 import dbPlugin from '@server/plugins/db'
 import authPlugin from '@server/plugins/auth'
@@ -261,6 +262,11 @@ export async function resetDb(app: FastifyInstance): Promise<void> {
   // (or a stubbed exchange rate) never leaks into the next test.
   invalidateFeaturedCache()
   invalidateExchangeRatesCache()
+  // platform_config is cached for 5 minutes, so a test that PATCHes it would
+  // otherwise keep serving its value to every later test in the file even
+  // though the row itself was just truncated. Load-bearing since the capacity
+  // cap reads max_pending_gigs and grace_period_seconds through this cache.
+  invalidatePlatformConfigCache()
   await app.db.insert(chains).values({
     id: TEST_CHAIN_ID,
     namespace: 'solana',

@@ -25,11 +25,17 @@ import type { AppDatabase } from '@server/plugins/db'
 
 // ---------- store abstraction --------------------------------------------
 
-export interface ExpiredOpenEscrow {
+/** Minimum shape a deadline-crossing notice needs. */
+export interface NotifiableEscrow {
   id: string
   kind: 'gig' | 'exchange'
   creator_id: string
 }
+
+export type ExpiredOpenEscrow = NotifiableEscrow
+
+/** An accepted escrow whose delivery window (+ grace) just ran out. */
+export type StalledAcceptedEscrow = NotifiableEscrow
 
 export interface ExpireEscrowsStore {
   /**
@@ -42,6 +48,23 @@ export interface ExpireEscrowsStore {
    * window; the deterministic job_id absorbs the overlap between ticks.
    */
   findNewlyExpiredOpen(since: Date, until: Date, limit: number): Promise<ExpiredOpenEscrow[]>
+  /**
+   * Accepted escrows whose `completion_deadline + grace` fell inside
+   * `[since, until)`. Same bounded-window idempotency as above.
+   *
+   * Past this point the worker can no longer submit, so the escrow is stuck
+   * until the CREATOR pulls `reclaim_abandoned` — which costs them gas and
+   * which nothing prompts them to do. Their funds sit locked, the worker's
+   * `abandoned` standing signal never fires, and (pre-capacity-cap) the row
+   * would have occupied one of the worker's slots indefinitely. This scan is
+   * the nudge; `features/capacity` independently stops counting the row.
+   */
+  findNewlyStalledAccepted(
+    since: Date,
+    until: Date,
+    limit: number,
+    grace_period_seconds: number,
+  ): Promise<StalledAcceptedEscrow[]>
 }
 
 export function drizzleExpireEscrowsStore(db: AppDatabase): ExpireEscrowsStore {
@@ -59,6 +82,28 @@ export function drizzleExpireEscrowsStore(db: AppDatabase): ExpireEscrowsStore {
           ),
         )
         .orderBy(escrows.accept_deadline)
+        .limit(limit)
+    },
+
+    async findNewlyStalledAccepted(since, until, limit, grace_period_seconds) {
+      // The submit window closes at completion_deadline + grace. Asking for
+      // that sum to land in [since, until) is exactly asking for
+      // completion_deadline to land in [since - grace, until - grace), so the
+      // grace is folded into the bounds in JS. Keeps the predicate a plain
+      // column range (index-usable, and postgres-js cannot bind a bare Date
+      // inside a raw `sql` fragment).
+      const graceMs = grace_period_seconds * 1_000
+      return db
+        .select({ id: escrows.id, kind: escrows.kind, creator_id: escrows.creator_id })
+        .from(escrows)
+        .where(
+          and(
+            eq(escrows.status, 'accepted'),
+            gte(escrows.completion_deadline, new Date(since.getTime() - graceMs)),
+            lt(escrows.completion_deadline, new Date(until.getTime() - graceMs)),
+          ),
+        )
+        .orderBy(escrows.completion_deadline)
         .limit(limit)
     },
   }
@@ -86,6 +131,15 @@ export function expireNoticeJobId(escrow_id: string): string {
   return `expire-notice:${escrow_id}`
 }
 
+/**
+ * Separate id space from the expiry notice: the same escrow can legitimately
+ * produce both notices over its life (it cannot cross both deadlines, but the
+ * ids must not collide if the state machine ever allows it).
+ */
+export function stalledNoticeJobId(escrow_id: string): string {
+  return `stalled-notice:${escrow_id}`
+}
+
 export interface ExpireEscrowsLogger {
   info(obj: Record<string, unknown>, msg: string): void
   warn(obj: Record<string, unknown>, msg: string): void
@@ -97,14 +151,39 @@ export interface ExpireEscrowsDeps {
   log: ExpireEscrowsLogger
   /** Injected clock so deadline-edge tests are deterministic. */
   now(): Date
+  /**
+   * `platform_config.grace_period_seconds`, resolved by the caller. The submit
+   * window is `completion_deadline + grace`, and grace is admin-tunable, so it
+   * is injected rather than read here — the handler stays I/O-free besides its
+   * store and queue.
+   */
+  grace_period_seconds: number
 }
 
 export interface ExpireEscrowsResult {
+  /** Rows seen across BOTH scans. */
   scanned: number
   enqueued: number
 }
 
-const NOTICE_COPY: Record<ExpiredOpenEscrow['kind'], { title: string; body: string }> = {
+/**
+ * The delivery window closed with no submission. The creator is the only party
+ * who can act (`reclaim_abandoned`), so they are the only recipient — the
+ * worker's slot is already freed by features/capacity without telling them
+ * they failed.
+ */
+const STALLED_COPY: Record<NotifiableEscrow['kind'], { title: string; body: string }> = {
+  gig: {
+    title: 'Your gig was not delivered',
+    body: 'The delivery window closed without a submission. Reclaim your escrowed funds from the gig page.',
+  },
+  exchange: {
+    title: 'Your trade was not completed',
+    body: 'The payment window closed without confirmation. Reclaim your escrowed crypto from the offer page.',
+  },
+}
+
+const NOTICE_COPY: Record<NotifiableEscrow['kind'], { title: string; body: string }> = {
   gig: {
     title: 'Your gig expired',
     body: 'Nobody accepted before the deadline. Reclaim your escrowed funds from the gig page.',
@@ -115,17 +194,19 @@ const NOTICE_COPY: Record<ExpiredOpenEscrow['kind'], { title: string; body: stri
   },
 }
 
-export async function handleExpireEscrows(
+/**
+ * Enqueue one deterministic notice per row. Shared by both scans so the
+ * copy lookup, push payload and job-id keying exist once.
+ */
+async function enqueueNotices(
   deps: ExpireEscrowsDeps,
-  payload: JobPayload['expire-escrows'],
-): Promise<ExpireEscrowsResult> {
-  const until = deps.now()
-  const since = new Date(until.getTime() - EXPIRE_LOOKBACK_MS)
-  const rows = await deps.store.findNewlyExpiredOpen(since, until, EXPIRE_BATCH_LIMIT)
-
+  rows: readonly NotifiableEscrow[],
+  copyByKind: Record<NotifiableEscrow['kind'], { title: string; body: string }>,
+  jobId: (escrow_id: string) => string,
+): Promise<number> {
   let enqueued = 0
   for (const row of rows) {
-    const copy = NOTICE_COPY[row.kind]
+    const copy = copyByKind[row.kind]
     await enqueueNotification(
       deps.queue,
       {
@@ -134,21 +215,61 @@ export async function handleExpireEscrows(
         body: copy.body,
         data: escrowPushData(row.id, row.kind),
       },
-      { job_id: expireNoticeJobId(row.id) },
+      { job_id: jobId(row.id) },
     )
     enqueued += 1
   }
+  return enqueued
+}
 
-  if (rows.length === EXPIRE_BATCH_LIMIT) {
-    // No silent caps: surface that this tick did not drain the backlog.
-    deps.log.warn(
-      { tick_id: payload.tick_id, limit: EXPIRE_BATCH_LIMIT },
-      'expire-escrows: batch limit hit, remainder picked up next tick',
-    )
+export async function handleExpireEscrows(
+  deps: ExpireEscrowsDeps,
+  payload: JobPayload['expire-escrows'],
+): Promise<ExpireEscrowsResult> {
+  const until = deps.now()
+  const since = new Date(until.getTime() - EXPIRE_LOOKBACK_MS)
+
+  // Two deadline crossings, one tick: nobody accepted before accept_deadline,
+  // and nobody delivered before completion_deadline + grace. Both leave the
+  // creator's funds locked pending a refund/reclaim only they can sign, so
+  // both are the same nudge with different copy.
+  const [expired, stalled] = await Promise.all([
+    deps.store.findNewlyExpiredOpen(since, until, EXPIRE_BATCH_LIMIT),
+    deps.store.findNewlyStalledAccepted(
+      since,
+      until,
+      EXPIRE_BATCH_LIMIT,
+      deps.grace_period_seconds,
+    ),
+  ])
+
+  const enqueued =
+    (await enqueueNotices(deps, expired, NOTICE_COPY, expireNoticeJobId)) +
+    (await enqueueNotices(deps, stalled, STALLED_COPY, stalledNoticeJobId))
+
+  for (const [scan, rows] of [
+    ['expired-open', expired],
+    ['stalled-accepted', stalled],
+  ] as const) {
+    if (rows.length === EXPIRE_BATCH_LIMIT) {
+      // No silent caps: surface that this tick did not drain the backlog.
+      deps.log.warn(
+        { tick_id: payload.tick_id, scan, limit: EXPIRE_BATCH_LIMIT },
+        'expire-escrows: batch limit hit, remainder picked up next tick',
+      )
+    }
   }
+
+  const scanned = expired.length + stalled.length
   deps.log.info(
-    { tick_id: payload.tick_id, scanned: rows.length, enqueued },
+    {
+      tick_id: payload.tick_id,
+      scanned,
+      enqueued,
+      expired: expired.length,
+      stalled: stalled.length,
+    },
     'expire-escrows tick complete',
   )
-  return { scanned: rows.length, enqueued }
+  return { scanned, enqueued }
 }

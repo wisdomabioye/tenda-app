@@ -97,6 +97,8 @@ export const ErrorCode = {
   PERMIT_UNAVAILABLE:            'PERMIT_UNAVAILABLE',
   /** Submit refused: the gig requires proof types the worker has not attached. */
   PROOF_REQUIREMENT_UNMET:       'PROOF_REQUIREMENT_UNMET',
+  /** Accept refused: the worker already holds the maximum concurrent gigs. */
+  GIG_CAPACITY_REACHED:          'GIG_CAPACITY_REACHED',
   // Generic
   SERVICE_UNAVAILABLE:           'SERVICE_UNAVAILABLE',
   NOT_FOUND:                     'NOT_FOUND',

@@ -15,6 +15,7 @@ import {
 } from 'drizzle-orm/pg-core'
 import { escrows } from './escrow'
 import { users } from './identity'
+import { PLATFORM_CONFIG_DEFAULTS, MAX_PENDING_GIGS_CEILING } from '../../constants/platform'
 
 export const disputeWinnerEnum = pgEnum('dispute_winner', [
   'creator',
@@ -206,12 +207,24 @@ export const platform_config = pgTable(
   'platform_config',
   {
     id: integer('id').primaryKey().default(1),
-    fee_bps: integer('fee_bps').notNull().default(250),
-    seeker_fee_bps: integer('seeker_fee_bps').notNull().default(100),
-    grace_period_seconds: integer('grace_period_seconds').notNull().default(3600),
-    approval_window_seconds: integer('approval_window_seconds').notNull().default(172800),
-    default_sponsored_tx_count: integer('default_sponsored_tx_count').notNull().default(3),
-    moderation_rules_version: integer('moderation_rules_version').notNull().default(1),
+    fee_bps: integer('fee_bps').notNull().default(PLATFORM_CONFIG_DEFAULTS.fee_bps),
+    seeker_fee_bps: integer('seeker_fee_bps').notNull().default(PLATFORM_CONFIG_DEFAULTS.seeker_fee_bps),
+    grace_period_seconds: integer('grace_period_seconds')
+      .notNull()
+      .default(PLATFORM_CONFIG_DEFAULTS.grace_period_seconds),
+    approval_window_seconds: integer('approval_window_seconds')
+      .notNull()
+      .default(PLATFORM_CONFIG_DEFAULTS.approval_window_seconds),
+    default_sponsored_tx_count: integer('default_sponsored_tx_count')
+      .notNull()
+      .default(PLATFORM_CONFIG_DEFAULTS.default_sponsored_tx_count),
+    moderation_rules_version: integer('moderation_rules_version')
+      .notNull()
+      .default(PLATFORM_CONFIG_DEFAULTS.moderation_rules_version),
+    /** Gigs one worker may hold at once (features/capacity). */
+    max_pending_gigs: integer('max_pending_gigs')
+      .notNull()
+      .default(PLATFORM_CONFIG_DEFAULTS.max_pending_gigs),
   },
   (t) => [
     check('platform_config_singleton_chk', sql`${t.id} = 1`),
@@ -219,6 +232,12 @@ export const platform_config = pgTable(
     check(
       'platform_config_fee_bps_range_chk',
       sql`${t.fee_bps} BETWEEN 0 AND 10000 AND ${t.seeker_fee_bps} BETWEEN 0 AND 10000`,
+    ),
+    // 0 would lock every worker out of accepting; the ceiling keeps a typo
+    // from silently disabling the cap.
+    check(
+      'platform_config_max_pending_gigs_range_chk',
+      sql`${t.max_pending_gigs} BETWEEN 1 AND ${sql.raw(String(MAX_PENDING_GIGS_CEILING))}`,
     ),
   ],
 )

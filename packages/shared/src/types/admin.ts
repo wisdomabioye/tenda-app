@@ -139,12 +139,20 @@ export interface UpdateFeaturedSlotBody {
 
 // ─── Platform config ─────────────────────────────────────────────────────────
 
+/**
+ * The editable subset of `platform_config` — the single source shared by the
+ * PATCH route, the admin client and the config form.
+ *
+ * It previously advertised `approval_window_seconds` and
+ * `default_sponsored_tx_count`, which the route has never accepted; both are
+ * read-only in the dashboard. Anything listed here must be handled by
+ * `routes/v1/admin/platform-config.ts`.
+ */
 export interface UpdatePlatformConfigBody {
   fee_bps?: number
   seeker_fee_bps?: number
   grace_period_seconds?: number
-  approval_window_seconds?: number
-  default_sponsored_tx_count?: number
+  max_pending_gigs?: number
 }
 
 // ─── Announcements ───────────────────────────────────────────────────────────

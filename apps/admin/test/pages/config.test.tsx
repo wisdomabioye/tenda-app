@@ -1,6 +1,7 @@
 import { test, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { ESCROW_LIMITS, MAX_PENDING_GIGS_CEILING, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
 import type { AdminPlatformConfig } from '@tenda/shared'
 import { renderPage } from '../test-utils'
 import ConfigPage from '@/app/(dashboard)/config/page'
@@ -15,10 +16,15 @@ const update = vi.mocked(adminApi.platformConfig.update)
 const ok = vi.mocked(toast.success)
 const err = vi.mocked(toast.error)
 
-const CONFIG = {
-  fee_bps: 250, seeker_fee_bps: 100, grace_period_seconds: 3600,
-  approval_window_seconds: 172800, default_sponsored_tx_count: 5, moderation_rules_version: 2,
-} as AdminPlatformConfig
+// No `as` cast: the fixture must satisfy the row type, so a new column fails
+// the build here instead of silently going untested (max_pending_gigs did).
+const CONFIG: AdminPlatformConfig = {
+  id: 1,
+  ...PLATFORM_CONFIG_DEFAULTS,
+  approval_window_seconds: 172_800,
+  default_sponsored_tx_count: 5,
+  moderation_rules_version: 2,
+}
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -36,7 +42,7 @@ test('a cleared field blocks the save instead of zeroing the fee', async () => {
   const fee = await screen.findByLabelText('Platform fee (bps)')
   await userEvent.clear(fee)
   await userEvent.click(screen.getByRole('button', { name: 'Save' }))
-  expect(err).toHaveBeenCalledWith('All three fields need a whole number')
+  expect(err).toHaveBeenCalledWith('Every field needs a whole number')
   expect(update).not.toHaveBeenCalled()
 })
 
@@ -49,7 +55,55 @@ test('a valid save PATCHes the config and toasts success', async () => {
   await userEvent.type(fee, '300')
   await userEvent.click(screen.getByRole('button', { name: 'Save' }))
   await waitFor(() =>
-    expect(update).toHaveBeenCalledWith({ fee_bps: 300, seeker_fee_bps: 100, grace_period_seconds: 3600 }),
+    expect(update).toHaveBeenCalledWith({
+      fee_bps: 300,
+      seeker_fee_bps: PLATFORM_CONFIG_DEFAULTS.seeker_fee_bps,
+      grace_period_seconds: PLATFORM_CONFIG_DEFAULTS.grace_period_seconds,
+      max_pending_gigs: PLATFORM_CONFIG_DEFAULTS.max_pending_gigs,
+    }),
   )
   expect(ok).toHaveBeenCalledWith('Config saved — server cache busted')
+})
+
+test('loads and edits the worker capacity cap', async () => {
+  get.mockResolvedValue(CONFIG)
+  update.mockResolvedValueOnce({ ...CONFIG, max_pending_gigs: 3 })
+  renderPage(<ConfigPage />)
+  const cap = await screen.findByLabelText('Max concurrent gigs / worker')
+  expect(cap).toHaveValue(PLATFORM_CONFIG_DEFAULTS.max_pending_gigs)
+
+  await userEvent.clear(cap)
+  await userEvent.type(cap, '3')
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+  await waitFor(() =>
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({ max_pending_gigs: 3 })),
+  )
+})
+
+test('a cleared capacity field blocks the save', async () => {
+  get.mockResolvedValue(CONFIG)
+  renderPage(<ConfigPage />)
+  const cap = await screen.findByLabelText('Max concurrent gigs / worker')
+  await userEvent.clear(cap)
+  await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+  expect(err).toHaveBeenCalledWith('Every field needs a whole number')
+  expect(update).not.toHaveBeenCalled()
+})
+
+test('input bounds come from the shared constants the server validates against', async () => {
+  get.mockResolvedValue(CONFIG)
+  renderPage(<ConfigPage />)
+  const fee = await screen.findByLabelText('Platform fee (bps)')
+  // Regression: this was hardcoded to 10000 while the API caps at 1000, so the
+  // form accepted values the server then rejected.
+  expect(fee).toHaveAttribute('max', String(ESCROW_LIMITS.maxPlatformFeeBps))
+  expect(screen.getByLabelText('Seeker fee (bps)')).toHaveAttribute(
+    'max', String(ESCROW_LIMITS.maxPlatformFeeBps),
+  )
+  expect(screen.getByLabelText('Grace period (seconds)')).toHaveAttribute(
+    'max', String(ESCROW_LIMITS.maxGracePeriodSeconds),
+  )
+  expect(screen.getByLabelText('Max concurrent gigs / worker')).toHaveAttribute(
+    'max', String(MAX_PENDING_GIGS_CEILING),
+  )
 })

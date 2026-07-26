@@ -10,6 +10,7 @@ import type {
   AdminEscrowDossier,
   AdminEscrowRow,
   AdminPlatformConfig,
+  UpdatePlatformConfigBody,
   Announcement,
   BroadcastPushBody,
   CreateAnnouncementBody,
@@ -256,7 +257,7 @@ export const adminApi = {
   },
   platformConfig: {
     get: () => api.get<AdminPlatformConfig>(adminRoutes.platformConfig),
-    update: (body: { fee_bps?: number; seeker_fee_bps?: number; grace_period_seconds?: number }) =>
+    update: (body: UpdatePlatformConfigBody) =>
       api.patch<AdminPlatformConfig>(adminRoutes.platformConfig, body),
   },
   announcements: {

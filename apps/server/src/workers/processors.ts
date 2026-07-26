@@ -33,6 +33,7 @@ import {
   type VerifyTxDeps,
 } from '@server/jobs/verify-tx'
 import { drizzleExpireEscrowsStore, handleExpireEscrows } from '@server/jobs/expire-escrows'
+import { getPlatformConfig } from '@server/lib/platform'
 import { handleNotificationRetention } from '@server/workers/notification-retention'
 import { drizzleReconcileStore, reconcileEscrowsHandler } from '@server/jobs/reconcile-escrows'
 import { reconcileFiatIntentsHandler } from '@server/jobs/reconcile-fiat-intents'
@@ -122,16 +123,21 @@ export function buildProcessors(
   return {
     'verify-tx': (payload) => verifyTxJobHandler(buildVerifyTxDeps(fastify), payload),
 
-    'expire-escrows': (payload) =>
-      handleExpireEscrows(
+    'expire-escrows': async (payload) => {
+      // Grace is admin-tunable, so it is resolved per tick (cached 5 min) and
+      // injected — the handler never reads config itself.
+      const cfg = await getPlatformConfig(fastify.db)
+      return handleExpireEscrows(
         {
           store: drizzleExpireEscrowsStore(fastify.db),
           queue: fastify.queue,
           log: fastify.log,
           now: () => new Date(),
+          grace_period_seconds: cfg.grace_period_seconds,
         },
         payload,
-      ),
+      )
+    },
 
     reconcile: (payload) =>
       reconcileEscrowsHandler(
