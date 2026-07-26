@@ -77,6 +77,7 @@ module.exports = {
     'hooks/useMyDisputes.ts',
     'hooks/useExchangeScreen.ts',
     'components/ui/PaginatedList.tsx',
+    'components/gig/GigListSkeleton.tsx',
     'components/filters/*.tsx',
     'components/navigation/PagerTabBar.tsx',
     // MB1/MB2: server-backed wallet totals + profile counts.

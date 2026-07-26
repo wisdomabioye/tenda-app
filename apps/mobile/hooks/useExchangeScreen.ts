@@ -44,6 +44,9 @@ export function useExchangeScreen(): ExchangeScreenState {
       chain_id: chainId ?? undefined,
     },
     keyOf: offerKey,
+    // Read-only order book behind currency + chain chips: same back-and-forth
+    // tapping as the home feed, so remember page 0 per filter combination.
+    cacheQueries: true,
   })
 
   const userId = user?.id ?? null

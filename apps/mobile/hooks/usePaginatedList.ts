@@ -17,7 +17,15 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PaginatedResponse } from '@tenda/shared'
-import { PAGE_SIZE, hasMore as deriveHasMore, mergeById, nextOffset } from '@/lib/pagination'
+import {
+  PAGE_SIZE,
+  hasMore as deriveHasMore,
+  mergeById,
+  nextOffset,
+  createQueryCache,
+  rememberPage,
+  readPage,
+} from '@/lib/pagination'
 
 /** The page request the controller issues; the caller's query is spread in. */
 export interface PageParams {
@@ -48,6 +56,17 @@ export interface UsePaginatedListOptions<TItem, TQuery extends object> {
    * so a skeleton can't hang forever on a screen that will never fetch.
    */
   enabled?: boolean
+  /**
+   * Remember page 0 per query shape, so returning to a filter the user has
+   * already seen paints from memory and revalidates SILENTLY — no skeleton, no
+   * blank body, no perceptible wait.
+   *
+   * Opt-in, because it trades one frame of possibly-stale rows for the
+   * round-trip. Right for a chip row tapped back and forth over read-only
+   * listings; wrong for a surface the user MUTATES (a deleted draft would
+   * reappear for a frame), so the my-gigs lists deliberately leave it off.
+   */
+  cacheQueries?: boolean
 }
 
 export interface PaginatedListState<TItem> {
@@ -84,6 +103,7 @@ export function usePaginatedList<TItem, TQuery extends object>({
   keyOf,
   pageSize = PAGE_SIZE,
   enabled = true,
+  cacheQueries = false,
 }: UsePaginatedListOptions<TItem, TQuery>): PaginatedListState<TItem> {
   const [items, setItems] = useState<TItem[]>([])
   const [total, setTotal] = useState(0)
@@ -119,6 +139,16 @@ export function usePaginatedList<TItem, TQuery extends object>({
   queryRef.current = query
 
   const queryKey = JSON.stringify(query)
+  // Read inside async flows to attribute a landed page to the query it was
+  // REQUESTED for, rather than whatever is selected when it arrives.
+  const queryKeyRef = useRef(queryKey)
+  queryKeyRef.current = queryKey
+
+  // Per-instance page-0 memo (see lib/pagination/query-cache.ts). Lives in a
+  // ref, not state: writing to it must never re-render.
+  const cacheRef = useRef(createQueryCache<TItem>())
+  const cacheQueriesRef = useRef(cacheQueries)
+  cacheQueriesRef.current = cacheQueries
 
   // Mirrors `total` for synchronous reads inside async flows: state and refs
   // that shadow it only update on the next render, one tick too late for a
@@ -144,6 +174,10 @@ export function usePaginatedList<TItem, TQuery extends object>({
   const loadFirstPage = useCallback(
     async (mode: 'initial' | 'refresh' | 'reload'): Promise<number> => {
       const gen = ++genRef.current
+      // Captured up front: by the time this resolves the user may have moved
+      // on, and caching page 0 under the NEW key would attribute one query's
+      // rows to another.
+      const requestedKey = queryKeyRef.current
       inFlightRef.current = true
       if (mode === 'initial') setIsLoading(true)
       if (mode === 'refresh') setIsRefreshing(true)
@@ -161,6 +195,14 @@ export function usePaginatedList<TItem, TQuery extends object>({
         if (gen !== genRef.current) return totalRef.current // superseded
         setTotal(page.total)
         totalRef.current = page.total
+        // Every mode requests offset 0, so this response IS page 0 for
+        // `requestedKey` regardless of which branch below renders it.
+        if (cacheQueriesRef.current) {
+          rememberPage(cacheRef.current, requestedKey, {
+            items: page.data,
+            total: page.total,
+          })
+        }
         if (mode === 'reload' && offsetRef.current > pageSize) {
           // Past page 0: prepend-merge so the pages the user scrolled through
           // survive the poll. The cost is that rows deleted server-side linger
@@ -224,15 +266,36 @@ export function usePaginatedList<TItem, TQuery extends object>({
   // active filter excludes.
   useEffect(() => {
     if (!enabled) return
-    // The cursor is NOT pre-rewound here. `loadFirstPage` always requests
-    // offset 0 and owns the cursor on both outcomes, so rewinding up front is
-    // redundant on success and actively wrong on failure — it would leave the
-    // preserved rows paired with a cursor pointing back at page 0.
-    void loadFirstPage('initial')
+
+    const cached = cacheQueries ? readPage(cacheRef.current, queryKey) : undefined
+    if (cached === undefined) {
+      // The cursor is NOT pre-rewound here. `loadFirstPage` always requests
+      // offset 0 and owns the cursor on both outcomes, so rewinding up front is
+      // redundant on success and actively wrong on failure — it would leave the
+      // preserved rows paired with a cursor pointing back at page 0.
+      void loadFirstPage('initial')
+      return
+    }
+
+    // Cache hit: paint the remembered page 0 synchronously, then revalidate in
+    // 'reload' mode, which raises NO spinner — so a filter the user has
+    // already visited never shows a skeleton at all.
+    setItems(cached.items)
+    setTotal(cached.total)
+    totalRef.current = cached.total
+    offsetRef.current = nextOffset(0, cached.items.length)
+    setError(null)
+    setHasFetched(true)
+    // An 'initial' load for the PREVIOUS query may still be in flight. The
+    // reload below bumps the generation, so that response is dropped — and
+    // dropped responses skip their own cleanup, which would strand the
+    // skeleton on over rows we can already show.
+    setIsLoading(false)
+    void loadFirstPage('reload')
     // `queryKey` (not `query`) is the dep on purpose: it is the serialised
     // shape, so a caller passing a fresh object literal each render doesn't
     // refetch. loadFirstPage reads the live query through a ref.
-  }, [queryKey, enabled, loadFirstPage])
+  }, [queryKey, enabled, loadFirstPage, cacheQueries])
 
   const loadMore = useCallback(() => {
     if (!enabled || inFlightRef.current) return

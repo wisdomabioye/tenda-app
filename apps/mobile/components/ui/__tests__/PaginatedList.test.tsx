@@ -132,3 +132,81 @@ test('renders separators between rows when a height is given', () => {
     .filter((v: { props: { style?: { height?: number } } }) => v.props.style?.height === 12)
   expect(separators).toHaveLength(2)
 })
+
+describe('header retention (the chain-filter reload bug)', () => {
+  const Header = () => <Text>CHIPS</Text>
+
+  function renderWithHeader(list: ReturnType<typeof listState<Row>>) {
+    return render(
+      <PaginatedList<Row>
+        list={list}
+        keyOf={keyOf}
+        renderItem={renderItem}
+        header={<Header />}
+        skeleton={<Skeleton />}
+        empty={<Empty />}
+        errorState={<Failed />}
+      />,
+    )
+  }
+
+  test('keeps the header mounted while the skeleton shows', () => {
+    // The bug: PaginatedList returned the skeleton INSTEAD of the list, so the
+    // header — the featured rail and the category/chain chip rows — unmounted
+    // with it. Every chain-chip tap taken from an empty result blanked the
+    // whole screen and reset the chip row's scroll offset.
+    renderWithHeader(listState<Row>({ isLoading: true, hasFetched: false }))
+    expect(screen.getByText('CHIPS')).toBeTruthy()
+    expect(screen.getByText('SKELETON')).toBeTruthy()
+  })
+
+  test('keeps the header mounted while the error state shows', () => {
+    renderWithHeader(listState<Row>({ error: 'network down' }))
+    expect(screen.getByText('CHIPS')).toBeTruthy()
+    expect(screen.getByText('ERROR')).toBeTruthy()
+  })
+
+  test('keeps the header mounted on an empty result', () => {
+    renderWithHeader(listState<Row>())
+    expect(screen.getByText('CHIPS')).toBeTruthy()
+    expect(screen.getByText('EMPTY')).toBeTruthy()
+  })
+
+  test('swaps the ROWS for the skeleton on a filter change, header intact', () => {
+    // isLoading with rows loaded means a page-0 load that changed the list's
+    // identity: those rows belong to the filter the user just left, so showing
+    // them under the newly-tapped chip is both a lie and (with no progress
+    // signal) indistinguishable from a frozen screen.
+    renderWithHeader(listState({ items: rows('stale'), isLoading: true }))
+    expect(screen.getByText('CHIPS')).toBeTruthy()
+    expect(screen.getByText('SKELETON')).toBeTruthy()
+    expect(screen.queryByText('stale')).toBeNull()
+  })
+
+  test('keeps rows during a background reload — only a filter change swaps them', () => {
+    // Polling calls reload(), which raises no flags at all.
+    renderWithHeader(listState({ items: rows('a') }))
+    expect(screen.getByText('a')).toBeTruthy()
+    expect(screen.queryByText('SKELETON')).toBeNull()
+  })
+
+  test('a caller with no skeleton keeps its rows while page 0 reloads', () => {
+    // Opt-in behaviour: blanking the body is only right when there is
+    // something to put there.
+    render(
+      <PaginatedList<Row>
+        list={listState({ items: rows('a'), isLoading: true })}
+        keyOf={keyOf}
+        renderItem={renderItem}
+        header={<Header />}
+      />,
+    )
+    expect(screen.getByText('a')).toBeTruthy()
+  })
+
+  test('does not show the empty state underneath the skeleton', () => {
+    renderWithHeader(listState<Row>({ isLoading: true }))
+    expect(screen.getByText('SKELETON')).toBeTruthy()
+    expect(screen.queryByText('EMPTY')).toBeNull()
+  })
+})

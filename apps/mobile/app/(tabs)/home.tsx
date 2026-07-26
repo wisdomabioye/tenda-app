@@ -9,8 +9,8 @@ import {
   EmptyState,
   PaginatedList,
 } from '@/components/ui'
-import { LoadingScreen, ErrorState } from '@/components/feedback'
-import { GigCardCompact } from '@/components/gig'
+import { ErrorState } from '@/components/feedback'
+import { GigCardCompact, GigListSkeleton } from '@/components/gig'
 import { FeedHeader } from '@/components/gig/feed/FeedHeader'
 import { Drawer, DrawerHeader } from '@/components/navigation'
 import { spacing } from '@/theme/tokens'
@@ -60,7 +60,9 @@ export default function HomeScreen() {
           contentContainerStyle={s.list}
           onRefresh={handleRefresh}
           separatorHeight={10}
-          skeleton={<LoadingScreen />}
+          // Body-only: the header (rail + category/chain chips) stays put, so
+          // a chain-chip tap swaps the rows, not the screen.
+          skeleton={<GigListSkeleton variant="rich" />}
           errorState={
             <ErrorState
               title="Failed to load gigs"

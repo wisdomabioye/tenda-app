@@ -52,12 +52,16 @@ test('emits the CAIP-2 id the server filter expects', () => {
   expect(onChange).toHaveBeenCalledWith('eip155:84532')
 })
 
-test('re-tapping the active chain clears the filter', () => {
+test('re-tapping the active chain does NOT clear the filter', () => {
+  // The row is single-select with an explicit "All chains" option, so a second
+  // tap must be a no-op. Toggling to null here meant a user who tapped again
+  // (thinking the first tap hadn't registered) landed silently on all chains.
   mockChains.mockReturnValue(TWO_CHAINS)
   const onChange = jest.fn()
   render(<ChainFilterChips value="eip155:84532" onChange={onChange} />)
   fireEvent.press(screen.getByText('Base Sepolia *'))
-  expect(onChange).toHaveBeenCalledWith(null)
+  expect(onChange).not.toHaveBeenCalledWith(null)
+  expect(onChange).toHaveBeenCalledWith('eip155:84532')
 })
 
 test('"All chains" clears the filter', () => {

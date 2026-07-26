@@ -75,7 +75,9 @@ export function FeedHeader({
             label={cat.label}
             selected={category === cat.key}
             category={cat.key}
-            onPress={() => onCategoryChange(category === cat.key ? null : cat.key)}
+            // Single-select like the chain row: "All" clears, a re-tap on the
+            // active chip does nothing.
+            onPress={() => onCategoryChange(cat.key)}
           />
         ))}
       </ScrollView>

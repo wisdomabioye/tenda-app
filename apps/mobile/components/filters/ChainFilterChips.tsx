@@ -40,9 +40,12 @@ export function ChainFilterChips({ value, onChange }: ChainFilterChipsProps) {
           key={chain.id}
           label={chain.display_name}
           selected={value === chain.id}
-          // Re-tapping the active chip clears the filter — same affordance
-          // as the category chips on the feed.
-          onPress={() => onChange(value === chain.id ? null : chain.id)}
+          // Single-select, and "All chains" is right there as the clear
+          // affordance — so re-tapping the ACTIVE chip is a no-op, not a
+          // reset. Toggle-to-clear made a second tap silently jump back to
+          // all chains, which is exactly what someone does when they think
+          // the first tap didn't register.
+          onPress={() => onChange(chain.id)}
         />
       ))}
     </ScrollView>

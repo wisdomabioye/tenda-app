@@ -20,11 +20,22 @@ import { spacing } from '@/theme/tokens'
 import { END_REACHED_THRESHOLD } from '@/lib/pagination'
 import type { PaginatedListState } from '@/hooks/usePaginatedList'
 
+/**
+ * Stable empty data for the "page 0 in flight" render (see `data` below).
+ * `readonly never[]` is assignable to `readonly TItem[]`, so no cast.
+ */
+const NO_ROWS: readonly never[] = []
+
 interface PaginatedListProps<TItem> {
   list: PaginatedListState<TItem>
   keyOf: (item: TItem) => string
   renderItem: ListRenderItem<TItem>
-  /** Shown while the FIRST page loads (nothing on screen yet). */
+  /**
+   * Shown in the BODY while page 0 loads — on mount and on every filter
+   * change. Give it intrinsic height (placeholder cards, not a `flex: 1`
+   * spinner): it renders inside the list's content container, below the
+   * header, so a flex-filling child collapses.
+   */
   skeleton?: ReactElement
   /** Shown when a settled load produced no rows. */
   empty?: ReactElement
@@ -71,18 +82,52 @@ export function PaginatedList<TItem>({
     [separatorHeight],
   )
 
-  // First-load skeleton only while there is genuinely nothing to show —
-  // a refresh over existing rows keeps the rows visible.
-  if (skeleton !== undefined && list.isLoading && list.items.length === 0) return skeleton
-  // A first-page failure with no rows is an error screen, not an empty list;
+  // `isLoading` is true only for a page-0 load that changes the list's
+  // IDENTITY — mount, a filter change, or the gate opening. Pull-to-refresh
+  // (`isRefreshing`) and polling (`reload`) deliberately leave it false, so
+  // neither can pull rows out from under the user.
+  const showSkeleton = skeleton !== undefined && list.isLoading
+  // A first-page failure with no rows is an error body, not an empty list;
   // once rows exist a later failure must not blank them out.
-  if (errorState !== undefined && list.error !== null && list.items.length === 0) return errorState
+  const showError =
+    errorState !== undefined && list.error !== null && list.items.length === 0
+
+  /**
+   * The body slot: skeleton → error → empty, arbitrated here and handed to
+   * `ListEmptyComponent` so the FlatList — and with it the caller's HEADER —
+   * always stays mounted.
+   *
+   * This used to `return skeleton` / `return errorState` in place of the whole
+   * list, which unmounted the header too. On the home feed that header holds
+   * the featured rail and the category + chain chip rows, so any chain-chip
+   * tap made while the list was empty blanked the entire screen, reset the
+   * chip row's scroll offset, and refetched the rail on remount.
+   */
+  const body = showSkeleton
+    ? skeleton
+    : showError
+      ? errorState
+      : // Never claim "nothing here" before the first load settles — that
+        // reads as an empty account rather than a pending fetch.
+        list.hasFetched && !list.isLoading
+        ? empty
+        : undefined
+
+  /**
+   * While page 0 is in flight the loaded rows belong to the query the user
+   * just LEFT: rendering them under a freshly-tapped chip both contradicts
+   * that chip and, with no progress signal anywhere, is indistinguishable
+   * from a frozen screen. Blanking the data hands the body to the skeleton
+   * instead. Only when a skeleton exists — a caller without one keeps the
+   * previous stale-rows behaviour rather than flashing an empty body.
+   */
+  const data = showSkeleton ? NO_ROWS : list.items
 
   return (
     <FlatList
       testID={testID}
       style={style}
-      data={list.items}
+      data={data}
       keyExtractor={keyOf}
       renderItem={renderItem}
       contentContainerStyle={contentContainerStyle}
@@ -107,9 +152,7 @@ export function PaginatedList<TItem>({
           <View style={s.footerSpacer} />
         )
       }
-      // Never show "nothing here" before the first load settles — that reads
-      // as an empty account rather than a pending fetch.
-      ListEmptyComponent={list.hasFetched && !list.isLoading ? empty : undefined}
+      ListEmptyComponent={body}
     />
   )
 }

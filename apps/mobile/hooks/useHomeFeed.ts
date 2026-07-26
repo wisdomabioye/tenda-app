@@ -67,6 +67,10 @@ export function useHomeFeed(): HomeFeed {
     fetchPage: (params) => api.gigs.list(params),
     query,
     keyOf,
+    // The chip rows (category + settlement chain) are tapped back and forth,
+    // and this feed is read-only — so a remembered page 0 makes a revisited
+    // filter instant, with a silent revalidate right behind it.
+    cacheQueries: true,
   })
 
   useGigsFeedPolling({ reload: list.reload })

@@ -8,7 +8,7 @@ import { spacing } from '@/theme/tokens'
 import { ScreenContainer, EmptyState, Header, PaginatedList } from '@/components/ui'
 import { PagerTabBar } from '@/components/navigation'
 import { ChainFilterChips } from '@/components/filters'
-import { GigCardCompact } from '@/components/gig'
+import { GigCardCompact, GigListSkeleton } from '@/components/gig'
 import { useMyGigs } from '@/hooks/useMyGigs'
 import type { PaginatedListState } from '@/hooks/usePaginatedList'
 
@@ -99,6 +99,10 @@ export default function MyGigsScreen() {
               separatorHeight={spacing.sm}
               onRefresh={() => void page.list.refresh()}
               header={<ChainFilterChips value={chainId} onChange={setChainId} />}
+              // This screen had NO loading state at all: the first load and
+              // every chain-chip tap showed a bare chip row (or the previous
+              // chain's rows) with nothing signalling a fetch.
+              skeleton={<GigListSkeleton variant="priceLeading" count={3} />}
               empty={
                 <View style={s.empty}>
                   <EmptyState
