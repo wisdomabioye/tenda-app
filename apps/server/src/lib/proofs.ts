@@ -1,8 +1,13 @@
-import { isCloudinaryUrl, ErrorCode } from '@tenda/shared'
+import {
+  isCloudinaryUrl,
+  isProofType,
+  missingProofTypes,
+  formatProofTypeList,
+  ErrorCode,
+  PROOF_TYPES,
+  type ProofType,
+} from '@tenda/shared'
 import { AppError } from './errors'
-
-const VALID_PROOF_TYPES = ['image', 'video', 'document'] as const
-type ProofType = typeof VALID_PROOF_TYPES[number]
 
 export interface ProofInput {
   url:  string
@@ -39,11 +44,11 @@ export function validateProofs(
   const expectedFolder = `/tenda/proofs/${userId}/`
 
   for (const proof of proofs) {
-    if (!VALID_PROOF_TYPES.includes(proof.type as ProofType)) {
+    if (!isProofType(proof.type)) {
       throw new AppError(
         400,
         ErrorCode.VALIDATION_ERROR,
-        'Proof type must be "image", "video", or "document"',
+        `Proof type must be one of: ${PROOF_TYPES.join(', ')}`,
       )
     }
     if (!isCloudinaryUrl(proof.url)) {
@@ -61,4 +66,32 @@ export function validateProofs(
       )
     }
   }
+}
+
+/**
+ * Gate the on-chain submit on the poster's declared proof requirements
+ * (`gig_details.proof_requirements`). Refuses BEFORE the unsigned tx is
+ * built, so a worker never signs a submit that the listing's own terms
+ * reject.
+ *
+ * 409, not 400: the request is well-formed, the escrow is simply not in a
+ * submittable state yet — the same reading as ESCROW_WRONG_STATUS.
+ *
+ * An empty `required` is satisfied by anything, which is how every gig
+ * created before the column existed continues to behave. This is an
+ * app-level gate: `submitProof` carries only a digest on-chain and enforces
+ * none of it.
+ */
+export function assertRequirementsMet(
+  required: readonly ProofType[],
+  attached: readonly { type: ProofType }[],
+): void {
+  const missing = missingProofTypes(required, attached)
+  if (missing.length === 0) return
+  throw new AppError(
+    409,
+    ErrorCode.PROOF_REQUIREMENT_UNMET,
+    `This gig requires ${formatProofTypeList(missing)} proof before you can submit`,
+    { missing },
+  )
 }

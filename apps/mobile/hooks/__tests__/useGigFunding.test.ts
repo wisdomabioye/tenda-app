@@ -76,6 +76,7 @@ const VALUES: GigFormValues = {
   country: 'NG',
   remote: true,
   city: null,
+  proofRequirements: [],
 }
 
 /** Drive the hook from confirm → funding, the screen's real sequence. */

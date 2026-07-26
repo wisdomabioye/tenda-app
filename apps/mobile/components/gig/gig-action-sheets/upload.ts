@@ -1,8 +1,9 @@
 import { showToast } from '@/components/ui/Toast'
 import { uploadToCloudinary } from '@/lib/upload'
 import type { PickedFile } from '@/components/form/FilePicker'
+import type { ProofType } from '@tenda/shared'
 
-export type Proof = { url: string; type: 'image' | 'video' | 'document' }
+export type Proof = { url: string; type: ProofType }
 
 /**
  * Upload picked proof files to Cloudinary in order. Returns the proof list on

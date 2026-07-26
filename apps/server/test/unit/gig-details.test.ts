@@ -101,3 +101,81 @@ test('cross_border: true when non-remote gig country differs from creator countr
   const v = validateGigDetails(body(), 'KE')
   assert.strictEqual(v.cross_border, true)
 })
+
+// ---------- proof_requirements ---------------------------------------------
+
+/**
+ * Feed a deliberately-invalid `proof_requirements` through the validator.
+ * The single cast in this suite: the field is typed, so malformed input can
+ * only be expressed by widening once, here, rather than at each call site.
+ */
+function withProofRequirements(value: unknown): Partial<CreateGigDetailsBody> {
+  return { ...body(), proof_requirements: value } as Partial<CreateGigDetailsBody>
+}
+
+test('proof_requirements defaults to empty when omitted', () => {
+  assert.deepEqual(validateGigDetails(body(), 'NG').proof_requirements, [])
+})
+
+test('proof_requirements accepts null as "no requirement"', () => {
+  assert.deepEqual(validateGigDetails(withProofRequirements(null), 'NG').proof_requirements, [])
+})
+
+test('proof_requirements accepts an explicit empty array', () => {
+  assert.deepEqual(
+    validateGigDetails(body({ proof_requirements: [] }), 'NG').proof_requirements,
+    [],
+  )
+})
+
+test('proof_requirements normalises into declaration order', () => {
+  assert.deepEqual(
+    validateGigDetails(body({ proof_requirements: ['video', 'image'] }), 'NG').proof_requirements,
+    ['image', 'video'],
+  )
+})
+
+test('proof_requirements deduplicates repeats', () => {
+  assert.deepEqual(
+    validateGigDetails(body({ proof_requirements: ['image', 'image'] }), 'NG').proof_requirements,
+    ['image'],
+  )
+})
+
+test('proof_requirements accepts the full set', () => {
+  assert.deepEqual(
+    validateGigDetails(
+      body({ proof_requirements: ['document', 'video', 'image'] }),
+      'NG',
+    ).proof_requirements,
+    ['image', 'video', 'document'],
+  )
+})
+
+test('proof_requirements rejects an unknown type', () => {
+  expect400(withProofRequirements(['location']), 'NG', /proof_requirements entries must be one of/)
+})
+
+test('proof_requirements rejects a non-array', () => {
+  expect400(withProofRequirements('image'), 'NG', /must be an array/)
+})
+
+test('proof_requirements rejects a non-string entry', () => {
+  expect400(withProofRequirements([3]), 'NG', /proof_requirements entries must be one of/)
+})
+
+test('proof_requirements rejects an over-long array before inspecting entries', () => {
+  expect400(
+    withProofRequirements(['image', 'video', 'document', 'image']),
+    'NG',
+    /at most 3 entries/,
+  )
+})
+
+test('proof_requirements rejects a nested array entry', () => {
+  expect400(withProofRequirements([['image']]), 'NG', /must be one of/)
+})
+
+test('proof_requirements rejects a null entry', () => {
+  expect400(withProofRequirements([null]), 'NG', /must be one of/)
+})

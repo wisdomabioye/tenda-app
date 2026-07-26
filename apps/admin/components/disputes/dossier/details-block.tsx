@@ -1,3 +1,4 @@
+import { formatProofTypeList } from '@tenda/shared'
 import type { AdminEscrowDossier } from '@tenda/shared'
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -24,6 +25,9 @@ export function DetailsBlock({ dossier }: { dossier: AdminEscrowDossier }) {
         <Row label="Title" value={g.title} />
         <Row label="Category" value={g.category} />
         <Row label="Location" value={location} />
+        {/* The bar the poster set. Without it a mediator cannot rule on
+            "they never sent what I asked for" — only on what was sent. */}
+        <Row label="Required proof" value={dash(formatProofTypeList(g.proof_requirements) || null)} />
         {g.description !== null && g.description.trim() !== '' && (
           <div className="pt-2">
             <dt className="mb-1 text-muted-foreground">Description</dt>

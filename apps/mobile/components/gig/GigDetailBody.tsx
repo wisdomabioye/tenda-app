@@ -4,6 +4,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
 import { Text, Badge, Divider, Spacer } from '@/components/ui'
 import { GigMetaInfo } from './GigMetaInfo'
+import { ProofRequirementsNote } from './ProofRequirementsNote'
 import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel } from '@/lib/gig-display'
 import { PersonCard, ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
 import { DisputeReasonBlock, ReportContentLink, ChainBadge } from '@/components/escrow'
@@ -107,6 +108,13 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
             currentUserId={userId}
             title={`Reviews for @${gig.creator.first_name?.toLowerCase() ?? 'poster'}`}
           />
+        </>
+      )}
+
+      {gig.proof_requirements.length > 0 && (
+        <>
+          <Divider />
+          <ProofRequirementsNote required={gig.proof_requirements} />
         </>
       )}
 

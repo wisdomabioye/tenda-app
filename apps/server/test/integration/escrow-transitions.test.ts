@@ -12,11 +12,13 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
+import { ErrorCode, type ProofType } from '@tenda/shared'
+import { escrow_proofs } from '@tenda/shared/db/schema'
 import {
   TEST_DB_CONFIGURED, useTestApp, createUser, createEscrow, makeTransactable, authHeader,
-  attachExchangeDetails,
+  attachExchangeDetails, attachGigDetails,
 } from '../helpers/test-app'
-import { partiedEscrow } from '../helpers/escrow-states'
+import { partiedEscrow, proofUrl } from '../helpers/escrow-states'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -224,4 +226,115 @@ test('POST <transition>: 404 for an unknown escrow id', { skip }, async () => {
     headers: authHeader(u.token),
   })
   assert.strictEqual(res.statusCode, 404)
+})
+
+// ---------- submit: poster-declared proof requirements ---------------------------
+//
+// The gate lives in the submit route (not /proofs) so incremental uploads stay
+// unrestricted and the worker is stopped before they sign, not after.
+
+/** Accepted gig + listing satellite carrying the poster's requirement. */
+async function gigRequiring(app: ReturnType<typeof getApp>, required: ProofType[]) {
+  const parties = await acceptedEscrow(app)
+  await attachGigDetails(app, parties.escrow.id, { proof_requirements: required })
+  return parties
+}
+
+async function attachProof(
+  app: ReturnType<typeof getApp>,
+  escrow_id: string,
+  userId: string,
+  type: ProofType,
+) {
+  await app.db.insert(escrow_proofs).values({ escrow_id, url: proofUrl(userId, 1), type })
+}
+
+function submitAs(app: ReturnType<typeof getApp>, escrow_id: string, token: string) {
+  return app.inject({
+    method: 'POST', url: `/v1/escrows/${escrow_id}/submit`, headers: authHeader(token),
+    payload: { proof_hash: `0x${'a'.repeat(64)}` },
+  })
+}
+
+test('POST submit: refused when a required proof type is missing', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await gigRequiring(app, ['image'])
+  const res = await submitAs(app, escrow.id, worker.token)
+  assert.strictEqual(res.statusCode, 409)
+  assert.strictEqual(res.json().code, ErrorCode.PROOF_REQUIREMENT_UNMET)
+})
+
+test('POST submit: allowed once the required type is attached', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await gigRequiring(app, ['image'])
+  await attachProof(app, escrow.id, worker.row.id, 'image')
+  const res = await submitAs(app, escrow.id, worker.token)
+  assert.strictEqual(res.statusCode, 200)
+  assert.ok(res.json().unsigned)
+})
+
+test('POST submit: a proof of the wrong type does not satisfy the requirement', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await gigRequiring(app, ['video'])
+  await attachProof(app, escrow.id, worker.row.id, 'image')
+  const res = await submitAs(app, escrow.id, worker.token)
+  assert.strictEqual(res.statusCode, 409)
+  assert.match(res.json().message, /video/)
+})
+
+test('POST submit: partial coverage names only the missing type', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await gigRequiring(app, ['image', 'video'])
+  await attachProof(app, escrow.id, worker.row.id, 'image')
+  const res = await submitAs(app, escrow.id, worker.token)
+  assert.strictEqual(res.statusCode, 409)
+  const { message } = res.json()
+  assert.match(message, /video/)
+  assert.ok(!/photo/i.test(message), 'satisfied type should not be listed as missing')
+})
+
+test('POST submit: an empty requirement list keeps the pre-existing behaviour', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await gigRequiring(app, [])
+  const res = await submitAs(app, escrow.id, worker.token)
+  assert.strictEqual(res.statusCode, 200)
+})
+
+test('POST submit: a gig with no listing satellite is ungated', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await acceptedEscrow(app)
+  const res = await submitAs(app, escrow.id, worker.token)
+  assert.strictEqual(res.statusCode, 200)
+})
+
+test('POST submit: exchange escrows are never proof-gated', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const worker = await createUser(app)
+  const escrow = await createEscrow(app, {
+    creator_id: creator.row.id, counterparty_id: worker.row.id, status: 'accepted',
+    kind: 'exchange', completion_deadline: new Date(Date.now() + 86_400_000),
+  })
+  const res = await submitAs(app, escrow.id, worker.token)
+  assert.strictEqual(res.statusCode, 200)
+})
+
+test('POST submit: the requirement gate does not override the caller check', { skip }, async () => {
+  const app = getApp()
+  const { creator, escrow } = await gigRequiring(app, ['image'])
+  const res = await submitAs(app, escrow.id, creator.token)
+  assert.strictEqual(res.statusCode, 403)
+})
+
+test('POST submit: rejects a missing or empty proof_hash before any gating', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await gigRequiring(app, ['image'])
+  for (const payload of [{}, { proof_hash: '' }]) {
+    const res = await app.inject({
+      method: 'POST', url: `/v1/escrows/${escrow.id}/submit`,
+      headers: authHeader(worker.token), payload,
+    })
+    assert.strictEqual(res.statusCode, 400, `payload ${JSON.stringify(payload)}`)
+    assert.strictEqual(res.json().code, ErrorCode.VALIDATION_ERROR)
+  }
 })

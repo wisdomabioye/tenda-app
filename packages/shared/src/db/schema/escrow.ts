@@ -18,6 +18,7 @@ import {
 import { assets, chains } from './chains'
 import { users } from './identity'
 import { bank_accounts } from './fiat'
+import { PROOF_TYPES } from '../../constants/proofs'
 
 // S5.3 (closes open #25): Postgres tsvector for gig full-text search.
 // drizzle has no built-in tsvector — minimal customType; the column is
@@ -68,7 +69,12 @@ export const escrowTxTypeEnum = pgEnum('escrow_tx_type', [
   'resolve',
 ])
 
-export const proofTypeEnum = pgEnum('proof_type', ['image', 'video', 'document'])
+/**
+ * Derived from the shared PROOF_TYPES tuple rather than re-listed here, so
+ * the DB enum, the upload validator and the mobile picker have exactly one
+ * source. Adding a type is a one-line change in constants/proofs.ts.
+ */
+export const proofTypeEnum = pgEnum('proof_type', PROOF_TYPES)
 
 export const escrows = pgTable(
   'escrows',
@@ -157,6 +163,16 @@ export const gig_details = pgTable(
     longitude: doublePrecision('longitude'),
     remote: boolean('remote').notNull().default(false),
     cross_border: boolean('cross_border').notNull().default(false),
+    /**
+     * Proof types the worker MUST attach before `submit` is built. Empty =
+     * no requirement, which is the pre-existing behaviour every gig created
+     * before this column keeps. Deduplicated and stored in PROOF_TYPES order
+     * by the route, so equivalent requests compare equal.
+     */
+    proof_requirements: proofTypeEnum('proof_requirements')
+      .array()
+      .notNull()
+      .default(sql`ARRAY[]::proof_type[]`),
     // Weighted: title (A) outranks description (B) in ts_rank ordering.
     search_vector: tsvector('search_vector').generatedAlwaysAs(
       (): SQL =>

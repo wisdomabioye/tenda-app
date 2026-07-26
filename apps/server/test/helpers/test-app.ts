@@ -35,6 +35,7 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
 import { users, user_wallets, user_identities, escrows, gig_details, exchange_details, chains, assets } from '@tenda/shared/db/schema'
 import { fiat_providers, bank_accounts } from '@tenda/shared/db/schema/fiat'
+import type { ProofType } from '@tenda/shared'
 import { registerErrorHandlers } from '@server/lib/http-errors'
 import { invalidateFeaturedCache } from '@server/lib/featured'
 import { invalidateExchangeRatesCache } from '@server/lib/exchange-rates'
@@ -381,6 +382,8 @@ export interface GigDetailsOverrides {
   city?: string | null
   remote?: boolean
   cross_border?: boolean
+  /** Poster-declared evidence gate; empty (the default) accepts anything. */
+  proof_requirements?: ProofType[]
 }
 
 export async function attachGigDetails(

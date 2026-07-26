@@ -16,7 +16,7 @@ import { useRouter } from 'expo-router'
 import { sha256 } from '@noble/hashes/sha256'
 import { Buffer } from 'buffer'
 import bs58 from 'bs58'
-import type { EscrowTxType, UnsignedTx } from '@tenda/shared'
+import type { EscrowTxType, ProofType, UnsignedTx } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
 import { WalletError } from '@/wallet/errors'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
@@ -32,7 +32,7 @@ import {
 
 export interface ProofFile {
   url: string
-  type: 'image' | 'video' | 'document'
+  type: ProofType
 }
 
 /**

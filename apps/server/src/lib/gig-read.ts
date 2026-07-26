@@ -25,6 +25,7 @@ export const GIG_SUMMARY_COLS = {
   longitude: gig_details.longitude,
   remote: gig_details.remote,
   cross_border: gig_details.cross_border,
+  proof_requirements: gig_details.proof_requirements,
   creator: USER_COLS,
 }
 

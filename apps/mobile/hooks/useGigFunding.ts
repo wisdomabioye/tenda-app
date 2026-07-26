@@ -104,6 +104,9 @@ export function useGigFunding({ draftId, clearDraftPrefill }: UseGigFundingArgs)
           country: values.country ?? undefined,
           remote: values.remote,
           city: safeCity || undefined,
+          ...(values.proofRequirements.length > 0
+            ? { proof_requirements: values.proofRequirements }
+            : {}),
         })
       } catch (e) {
         // Stage-6 block (or validation failure): the chain-agnostic draft would

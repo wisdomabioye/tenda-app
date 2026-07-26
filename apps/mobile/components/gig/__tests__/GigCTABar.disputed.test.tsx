@@ -65,6 +65,7 @@ function gig(overrides: Partial<GigDetail> = {}): GigDetail {
     longitude: null,
     remote: false,
     cross_border: false,
+    proof_requirements: [],
     creator: user(CREATOR),
     completion_duration_seconds: 3600,
     completion_deadline: null,

@@ -7,6 +7,7 @@
 
 import type { Endpoint } from '../endpoint'
 import type { EscrowTxType } from '../../constants/escrow'
+import type { ProofType } from '../../constants/proofs'
 import type { EscrowProof } from '../../types/escrow'
 import type { Review, ReviewInput } from '../../types/review'
 import type { DisputeMessage, DisputeThreadResponse, SendDisputeMessageBody } from '../../types/dispute'
@@ -108,7 +109,7 @@ export interface SubmitEscrowProofBody {
 
 /** Off-chain evidence files (Cloudinary URLs under the uploader's folder). */
 export interface AddEscrowProofsBody {
-  proofs: Array<{ url: string; type: 'image' | 'video' | 'document' }>
+  proofs: Array<{ url: string; type: ProofType }>
 }
 
 export interface DisputeEscrowApiBody {

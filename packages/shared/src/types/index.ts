@@ -108,5 +108,4 @@ export type {
   DossierTransaction,
   DossierGigDetails,
   DossierExchangeDetails,
-  ProofType,
 } from './dossier'

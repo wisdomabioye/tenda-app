@@ -41,6 +41,7 @@ function gigRow(overrides: Partial<GigSummaryRow> = {}): GigSummaryRow {
     longitude: 3.39,
     remote: false,
     cross_border: false,
+    proof_requirements: [],
     creator,
     ...overrides,
   }

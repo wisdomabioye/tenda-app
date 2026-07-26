@@ -34,6 +34,16 @@ export {
   type EscrowKindName,
   type DisputeWinnerName,
 } from './escrow'
+export {
+  PROOF_TYPES,
+  PROOF_TYPE_LABEL,
+  MAX_PROOF_REQUIREMENTS,
+  isProofType,
+  normaliseProofRequirements,
+  missingProofTypes,
+  formatProofTypeList,
+  type ProofType,
+} from './proofs'
 export { PERMISSIONS, ROLE_PERMISSIONS, hasPermission, type Permission } from './permissions'
 export {
   NOTIFICATION_PAGE_SIZE,

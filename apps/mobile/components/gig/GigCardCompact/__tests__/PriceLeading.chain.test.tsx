@@ -66,6 +66,7 @@ function gig(overrides: Partial<GigSummary> = {}): GigSummary {
     longitude: null,
     remote: false,
     cross_border: false,
+    proof_requirements: [],
     creator: {
       id: 'u1',
       first_name: 'Ada',

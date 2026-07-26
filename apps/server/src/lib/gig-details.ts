@@ -7,13 +7,22 @@
 import {
   isCityInCountry,
   isCrossBorder,
+  isProofType,
+  normaliseProofRequirements,
   MAX_GIG_TITLE_LENGTH,
   MAX_GIG_DESCRIPTION_LENGTH,
   LOCATIONS,
   GIG_CATEGORIES,
+  PROOF_TYPES,
+  MAX_PROOF_REQUIREMENTS,
   ErrorCode,
 } from '@tenda/shared'
-import type { CreateGigDetailsBody, GigCategory, CountryCode } from '@tenda/shared'
+import type {
+  CreateGigDetailsBody,
+  GigCategory,
+  CountryCode,
+  ProofType,
+} from '@tenda/shared'
 import { AppError } from './errors'
 import { ensureValidCoordinates } from './validation'
 
@@ -27,10 +36,36 @@ export interface ValidatedGigDetails {
   longitude: number | null
   remote: boolean
   cross_border: boolean
+  proof_requirements: ProofType[]
 }
 
 function fail(message: string): never {
   throw new AppError(400, ErrorCode.VALIDATION_ERROR, message)
+}
+
+/**
+ * Normalise the poster's declared proof requirements. Absent/empty means
+ * "any evidence", the pre-existing behaviour. Deduplicated into PROOF_TYPES
+ * order so photo-then-video and video-then-photo store identically.
+ */
+function validateProofRequirements(value: unknown): ProofType[] {
+  if (value === undefined || value === null) return []
+  if (!Array.isArray(value)) fail('proof_requirements must be an array')
+  // `Array.isArray` narrows `unknown` to `any[]`, which would silently pass an
+  // untyped element into normalise. Re-widen to `unknown[]` so each entry has
+  // to survive `isProofType` before it is treated as one.
+  const entries: readonly unknown[] = value
+  if (entries.length > MAX_PROOF_REQUIREMENTS) {
+    fail(`proof_requirements accepts at most ${MAX_PROOF_REQUIREMENTS} entries`)
+  }
+  const typed: ProofType[] = []
+  for (const entry of entries) {
+    if (!isProofType(entry)) {
+      fail(`proof_requirements entries must be one of: ${PROOF_TYPES.join(', ')}`)
+    }
+    typed.push(entry)
+  }
+  return normaliseProofRequirements(typed)
 }
 
 /**
@@ -43,7 +78,17 @@ export function validateGigDetails(
   body: Partial<CreateGigDetailsBody>,
   creatorCountry: string | null,
 ): ValidatedGigDetails {
-  const { title, description, category, country, remote = false, city, latitude, longitude } = body
+  const {
+    title,
+    description,
+    category,
+    country,
+    remote = false,
+    city,
+    latitude,
+    longitude,
+    proof_requirements,
+  } = body
 
   if (typeof title !== 'string' || title.trim() === '') fail('title is required')
   if (title.length > MAX_GIG_TITLE_LENGTH) {
@@ -84,5 +129,6 @@ export function validateGigDetails(
     longitude: longitude ?? null,
     remote,
     cross_border: isCrossBorder(remote, resolvedCountry, creatorCountry),
+    proof_requirements: validateProofRequirements(proof_requirements),
   }
 }

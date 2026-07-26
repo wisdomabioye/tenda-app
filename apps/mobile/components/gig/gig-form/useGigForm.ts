@@ -6,7 +6,7 @@ import {
   gigAssetByChain,
   solanaChainId,
 } from '@tenda/shared'
-import type { GigCategory, ChainRegistryEntry } from '@tenda/shared'
+import type { GigCategory, ChainRegistryEntry, ProofType } from '@tenda/shared'
 import { getDeviceCountry } from '@/lib/device'
 import { api } from '@/api/client'
 import { SOLANA_NETWORK } from '@/wallet/config'
@@ -50,6 +50,7 @@ export function useGigForm(
   const [isRemote, setIsRemote]                   = useState(initialValues?.remote ?? false)
   const [selectedCity, setSelectedCity]           = useState<string | null>(initialValues?.city ?? null)
   const [acceptDeadlineHours, setAcceptDeadlineHours] = useState<number>(initialValues?.acceptDeadlineHours ?? 168)
+  const [proofRequirements, setProofRequirements]  = useState<ProofType[]>(initialValues?.proofRequirements ?? [])
   const [warnSheetOpen, setWarnSheetOpen] = useState(false)
 
   // CO5: chain options come from the server registry; a chain is gig-
@@ -119,6 +120,7 @@ export function useGigForm(
       remote: isRemote,
       city: isRemote ? null : selectedCity,
       acceptDeadlineHours,
+      proofRequirements,
     })
   }
 
@@ -148,6 +150,7 @@ export function useGigForm(
     isRemote, setIsRemote,
     selectedCity, setSelectedCity,
     acceptDeadlineHours, setAcceptDeadlineHours,
+    proofRequirements, setProofRequirements,
     warnSheetOpen, setWarnSheetOpen,
     homeCountry,
     chainOptions,

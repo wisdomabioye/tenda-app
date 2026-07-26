@@ -21,7 +21,7 @@ function dossier(over: Partial<AdminEscrowDossier> = {}): AdminEscrowDossier {
       { role: 'creator', user_id: 'p1', first_name: 'Ada', last_name: 'Lovelace', raised_dispute: false },
       { role: 'counterparty', user_id: 'p2', first_name: 'Tunde', last_name: 'Bello', raised_dispute: true },
     ],
-    gig: { title: 'Fix my sink', description: 'Leaky pipe', category: 'home', country: 'NG', city: 'Lagos', remote: false },
+    gig: { title: 'Fix my sink', description: 'Leaky pipe', category: 'home', country: 'NG', city: 'Lagos', remote: false, proof_requirements: [] },
     exchange: null,
     proofs: [],
     transactions: [],
@@ -102,7 +102,7 @@ test('StatusTimeline shows an empty state with no transactions', () => {
 // ─── DetailsBlock ─────────────────────────────────────────────────────────────
 
 test('DetailsBlock renders gig details and remote location', () => {
-  render(<DetailsBlock dossier={dossier({ gig: { title: 'Design a logo', description: null, category: 'design', country: null, city: null, remote: true } })} />)
+  render(<DetailsBlock dossier={dossier({ gig: { title: 'Design a logo', description: null, category: 'design', country: null, city: null, remote: true, proof_requirements: [] } })} />)
   expect(screen.getByText('Design a logo')).toBeInTheDocument()
   expect(screen.getByText('Remote')).toBeInTheDocument()
 })
@@ -142,4 +142,26 @@ test('DossierPanel composes headline, parties, details, proofs, and timeline', (
 test('DossierPanel hides the bond line when the bond is zero', () => {
   render(<DossierPanel dossier={dossier({ dispute_bond_raw: '0' })} />)
   expect(screen.queryByText(/Bond/)).toBeNull()
+})
+
+test('DetailsBlock shows the proof the poster required', () => {
+  render(
+    <DetailsBlock
+      dossier={dossier({
+        gig: {
+          title: 'Fix my sink', description: null, category: 'home',
+          country: 'NG', city: 'Lagos', remote: false,
+          proof_requirements: ['image', 'video'],
+        },
+      })}
+    />,
+  )
+  expect(screen.getByText('Required proof')).toBeInTheDocument()
+  expect(screen.getByText('photo and video')).toBeInTheDocument()
+})
+
+test('DetailsBlock dashes the requirement row when the gig required nothing', () => {
+  render(<DetailsBlock dossier={dossier()} />)
+  expect(screen.getByText('Required proof')).toBeInTheDocument()
+  expect(screen.getByText('—')).toBeInTheDocument()
 })

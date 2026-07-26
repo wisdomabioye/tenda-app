@@ -1,4 +1,4 @@
-import type { GigCategory } from '@tenda/shared'
+import type { GigCategory, ProofType } from '@tenda/shared'
 
 export const TITLE_MAX = 80
 export const DESC_MAX = 1500
@@ -37,4 +37,6 @@ export interface GigFormValues {
   remote: boolean
   city: string | null
   acceptDeadlineHours: number
+  /** Empty = any evidence accepted (the pre-existing behaviour). */
+  proofRequirements: ProofType[]
 }

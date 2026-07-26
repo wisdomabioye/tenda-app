@@ -10,10 +10,13 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
+import { eq } from 'drizzle-orm'
+import { escrow_proofs, gig_details } from '@tenda/shared/db/schema'
 import { AppError, requireBody } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/lib/escrow-routes'
+import { assertRequirementsMet } from '@server/lib/proofs'
 
 interface Body { proof_hash: string }
 
@@ -36,6 +39,26 @@ const route: FastifyPluginAsync = async (fastify) => {
         grace_period_seconds: cfg.grace_period_seconds,
         transition: 'submit',
       })
+      // Poster-declared evidence gate. Gigs only — an exchange escrow has no
+      // gig_details row, and its "proof" is the fiat payment receipt.
+      // Checked BEFORE buildTx so the worker never signs a submit the
+      // listing's own terms would reject.
+      if (escrow.kind === 'gig') {
+        const [details] = await fastify.db
+          .select({ proof_requirements: gig_details.proof_requirements })
+          .from(gig_details)
+          .where(eq(gig_details.escrow_id, escrow.id))
+          .limit(1)
+        const required = details?.proof_requirements ?? []
+        if (required.length > 0) {
+          const attached = await fastify.db
+            .select({ type: escrow_proofs.type })
+            .from(escrow_proofs)
+            .where(eq(escrow_proofs.escrow_id, escrow.id))
+          assertRequirementsMet(required, attached)
+        }
+      }
+
       const adapter = fastify.chains.get(escrow.chain_id)
       const unsigned = await adapter.buildTx({
         action: 'submitProof',

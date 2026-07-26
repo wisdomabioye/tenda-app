@@ -5,6 +5,7 @@
  * /v1/gigs/:id (detail), both served from escrows ⨝ gig_details.
  */
 import type { GigCategory } from '../constants/categories'
+import type { ProofType } from '../constants/proofs'
 import type { Dispute, EscrowProof, EscrowStatus } from './escrow'
 import type { Review } from './review'
 import type { UserRef } from './user'
@@ -32,6 +33,12 @@ export interface GigSummary {
   longitude: number | null
   remote: boolean
   cross_border: boolean
+  /**
+   * Proof types the worker must attach before submitting. Carried on the
+   * SUMMARY, not just the detail: a worker has to see the requirement before
+   * they accept, or discovering it afterwards is a bait-and-switch.
+   */
+  proof_requirements: ProofType[]
   creator: UserRef
 }
 
@@ -71,6 +78,11 @@ export interface CreateGigDetailsBody {
   city?: string
   latitude?: number
   longitude?: number
+  /**
+   * Optional. Omitted or empty means the gig accepts any evidence, which is
+   * how every gig behaved before this field existed.
+   */
+  proof_requirements?: ProofType[]
 }
 
 // ── Query types ───────────────────────────────────────────────────────

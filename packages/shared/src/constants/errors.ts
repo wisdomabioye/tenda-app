@@ -95,6 +95,8 @@ export const ErrorCode = {
   // (asset/chain has no permit support, or the token's live domain no longer
   // matches config).
   PERMIT_UNAVAILABLE:            'PERMIT_UNAVAILABLE',
+  /** Submit refused: the gig requires proof types the worker has not attached. */
+  PROOF_REQUIREMENT_UNMET:       'PROOF_REQUIREMENT_UNMET',
   // Generic
   SERVICE_UNAVAILABLE:           'SERVICE_UNAVAILABLE',
   NOT_FOUND:                     'NOT_FOUND',

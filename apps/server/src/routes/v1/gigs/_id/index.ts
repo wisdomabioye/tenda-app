@@ -100,6 +100,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       longitude: details.longitude,
       remote: details.remote,
       cross_border: details.cross_border,
+      proof_requirements: details.proof_requirements,
       creator,
       completion_duration_seconds: escrow.completion_duration_seconds,
       completion_deadline: iso(escrow.completion_deadline),

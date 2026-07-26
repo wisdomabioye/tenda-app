@@ -1,7 +1,7 @@
 import { useRouter } from 'expo-router'
 import { showToast } from '@/components/ui/Toast'
 import { api } from '@/api/client'
-import { formatAssetAmount } from '@tenda/shared'
+import { formatAssetAmount, type ProofType } from '@tenda/shared'
 import type { ActiveSheet } from './GigCTABar'
 import { ProofUploadSheet } from './gig-action-sheets/ProofUploadSheet'
 import { DisputeSheet } from './gig-action-sheets/DisputeSheet'
@@ -19,6 +19,10 @@ interface EscrowActionTarget {
   /** Base-units bond ('0' when none) — feeds the dispute sheet's bond note. */
   dispute_bond_raw: string
   asset: string
+  /** Gig-only: exchange offers declare no proof requirements. */
+  proof_requirements?: readonly ProofType[]
+  /** Proofs already stored on the escrow — counted by the server's submit gate. */
+  proofs?: readonly { type: ProofType }[]
 }
 
 interface GigActionSheetsProps {
@@ -74,6 +78,8 @@ export function GigActionSheets({
         // upload, so it (not the sheet) owns the wallet + confirm phases.
         closeMode="before-submit"
         hint={PROOF_ONCHAIN_HINT}
+        requirements={gig.proof_requirements ?? []}
+        alreadyAttached={gig.proofs ?? []}
         onSubmit={onProofsReady}
       />
 

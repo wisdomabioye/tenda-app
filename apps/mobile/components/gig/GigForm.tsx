@@ -17,6 +17,7 @@ import { CrossBorderBanner } from './gig-form/CrossBorderBanner'
 import { NetworkPicker } from './gig-form/NetworkPicker'
 import { AddFundsNudge } from './gig-form/AddFundsNudge'
 import { AcceptDeadlinePicker } from './gig-form/AcceptDeadlinePicker'
+import { ProofRequirementPicker } from './gig-form/ProofRequirementPicker'
 import { ModerationHint } from './gig-form/ModerationHint'
 import type { GigFormValues } from './gig-form/constants'
 
@@ -120,6 +121,9 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
 
         {/* Accept deadline */}
         <AcceptDeadlinePicker value={f.acceptDeadlineHours} onChange={f.setAcceptDeadlineHours} />
+
+        {/* Evidence the worker must attach — shown on the listing before they accept */}
+        <ProofRequirementPicker value={f.proofRequirements} onChange={f.setProofRequirements} />
 
         {/* Summary, fee breakdown */}
         {f.paymentRaw > 0 && (

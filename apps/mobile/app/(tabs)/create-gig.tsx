@@ -53,6 +53,7 @@ export default function PostGigScreen() {
           country: draft.country,
           remote: draft.remote,
           city: draft.city,
+          proofRequirements: draft.proof_requirements,
         })
       } catch {
         if (!cancelled) showToast('info', 'Could not load the draft, starting fresh')

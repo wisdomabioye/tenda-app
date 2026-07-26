@@ -79,6 +79,7 @@ export async function buildEscrowDossier(
           country: gigRow[0].country,
           city: gigRow[0].city,
           remote: gigRow[0].remote,
+          proof_requirements: gigRow[0].proof_requirements,
         }
 
   const exchange: DossierExchangeDetails | null =
