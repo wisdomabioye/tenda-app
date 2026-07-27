@@ -33,7 +33,20 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
   })
 
   // GET /v1/platform/chains, enabled chains + their enabled assets (CO5
-  // chain/asset picker source). Public; the seed owns the data.
+  // chain/asset picker source). Public.
+  //
+  // The escrow address comes from the ADAPTER REGISTRY, not from
+  // `chains.escrow_program`.
+  // Mobile signs its own transactions, so this response is the only way it
+  // learns which contract to call — and the DB column is written solely by
+  // `db:seed`, while env is re-read every boot. That gap let the column drift
+  // two contract generations behind on both EVM testnets with nothing failing
+  // server-side (2026-07-27). Serving the value the server itself uses removes
+  // the class of bug; `assertChainRegistryInSync` keeps the stored copy honest.
+  //
+  // A chain enabled in the DB but with no adapter is therefore omitted rather
+  // than advertised: the server cannot build or verify a transaction on it, so
+  // offering it to a client is offering a dead end.
   fastify.get<{
     Reply: ChainsRoute['response']
   }>('/chains', { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } }, async () => {
@@ -43,7 +56,6 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
           id: chains.id,
           namespace: chains.namespace,
           display_name: chains.display_name,
-          escrow_address: chains.escrow_program,
         })
         .from(chains)
         .where(eq(chains.is_enabled, true))
@@ -62,15 +74,21 @@ const platformRoutes: FastifyPluginAsync = async (fastify) => {
         .orderBy(asc(assets.id)),
     ])
 
-    const data: ChainRegistryEntry[] = chainRows.map((c) => ({
-      ...c,
-      assets: assetRows
-        .filter((a) => a.chain_id === c.id)
-        .map(({ chain_id: _chain_id, ...asset }) => ({
-          ...asset,
-          supports_permit: supportsPermit(c.id, asset.id),
-        })),
-    }))
+    const data: ChainRegistryEntry[] = chainRows.flatMap((c) => {
+      if (!fastify.chains.has(c.id)) return []
+      return [
+        {
+          ...c,
+          escrow_address: fastify.chains.get(c.id).escrowAddress,
+          assets: assetRows
+            .filter((a) => a.chain_id === c.id)
+            .map(({ chain_id: _chain_id, ...asset }) => ({
+              ...asset,
+              supports_permit: supportsPermit(c.id, asset.id),
+            })),
+        },
+      ]
+    })
     return { data }
   })
 }

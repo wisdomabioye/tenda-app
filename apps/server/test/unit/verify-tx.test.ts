@@ -83,6 +83,7 @@ function makeDeps(opts: {
   const adapter: ChainAdapter = {
     namespace: 'solana',
     chain_id: 'solana:devnet',
+    escrowAddress: 'FakeProgram1111111111111111111111111111111',
     async buildTx() {
       throw new Error('not used')
     },

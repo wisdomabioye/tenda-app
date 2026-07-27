@@ -382,6 +382,8 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     namespace: 'eip155',
     chain_id: args.chain_id,
     disputeAuthority: args.dispute_authority,
+    // The contract every tx in this adapter targets — see ChainAdapter.
+    escrowAddress: args.escrow_contract,
     buildTx,
     buildPermitPayload,
     verifyTx,

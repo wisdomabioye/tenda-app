@@ -35,6 +35,25 @@ export default tseslint.config(
     rules: { '@typescript-eslint/no-require-imports': 'off' },
   },
   {
+    // Operator scripts run by `node` directly against a live devnet + server
+    // (tests-devnet/), never bundled and never imported by src. Linted anyway
+    // — it is what caught a dead import here — but the flat config's default
+    // env has no Node globals, so they are declared as for instrument.js
+    // above. Extend this list when a script legitimately needs another one.
+    files: ['tests-devnet/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        Buffer: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        URL: 'readonly',
+      },
+    },
+  },
+  {
     // fastify-cli ships no type declarations; its helper is consumed via
     // require() by upstream convention.
     files: ['test/helper.ts'],

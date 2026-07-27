@@ -23,6 +23,20 @@ export interface ChainAdapter {
    */
   readonly disputeAuthority?: string
 
+  /**
+   * The escrow program/contract this adapter transacts with — EVM's deployed
+   * address, Solana's program id.
+   *
+   * On the adapter, and not read from the DB, because mobile signs its own
+   * transactions: `/v1/platform/chains` has to TELL the client which contract
+   * to call, and the only address that can be right is the one the server
+   * itself uses. `chains.escrow_program` is written solely by `db:seed`, so it
+   * sat two contract generations stale on both EVM testnets after a redeploy
+   * (2026-07-27) — served to clients as fact, with nothing failing server-side
+   * because the server never read it.
+   */
+  readonly escrowAddress: string
+
   /** Build an unsigned transaction the client will sign. */
   buildTx(args: BuildTxArgs): Promise<UnsignedTx>
 

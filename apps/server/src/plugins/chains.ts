@@ -17,6 +17,7 @@ import { ErrorCode } from '@tenda/shared'
 import { buildAdapters, buildChainRegistry, type AdapterDepsFactory } from '@server/chains'
 import type { EvmAdapterDeps } from '@server/chains/evm'
 import { fetchPaymasterHttp } from '@server/chains/evm/paymaster'
+import { assertChainRegistryInSync } from '@server/chains/registry-sync'
 import { getChainSecrets } from '@server/chains/secrets'
 import { AppError } from '@server/lib/errors'
 import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/sponsor'
@@ -130,12 +131,20 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
     },
   }
 
-  const adapters = buildAdapters(getChainSecrets(), depsFactory)
+  const secrets = getChainSecrets()
+  const adapters = buildAdapters(secrets, depsFactory)
   if (adapters.length === 0) {
     throw new Error(
       'no chains configured, set CHAIN_<ID>_* env for at least one manifest chain (e.g. CHAIN_SOLANA_DEVNET_RPC_URL)',
     )
   }
+
+  // Refuse to serve a registry that disagrees with the chains we actually
+  // transact on. The stored copy is what a stale `db:seed` leaves behind, and
+  // it used to be handed to mobile as fact — see chains/registry-sync.ts.
+  await assertChainRegistryInSync(fastify.db, secrets, {
+    warn: (msg) => fastify.log.warn(msg),
+  })
 
   fastify.decorate('chains', buildChainRegistry(adapters))
 }

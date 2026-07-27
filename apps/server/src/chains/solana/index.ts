@@ -20,6 +20,7 @@ import { ESCROW_IDL, type TendaEscrow } from '@tenda/shared/idl'
 import { computePlatformFee } from '@server/lib/escrow'
 import { verifyWalletSignature } from '@server/lib/wallet-signature'
 import { createSolanaBuilders } from '@server/chains/solana/builders'
+import { PROGRAM_ID } from '@server/chains/solana/pdas'
 import { createSolanaRpc, commitmentFor, type SolanaRpc } from '@server/chains/solana/rpc'
 import { createSolanaVerifier } from '@server/chains/solana/verify'
 import type {
@@ -71,6 +72,9 @@ export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
     namespace: 'solana',
     chain_id: args.chain_id,
     disputeAuthority: args.dispute_authority,
+    // The program this adapter talks to. Same source the PDAs derive from, so
+    // the address served to clients cannot disagree with the one we transact on.
+    escrowAddress: PROGRAM_ID.toBase58(),
     buildTx: builders.buildTx,
     verifyTx: verifier.verifyTx,
     fetchEscrowState: verifier.fetchEscrowState,

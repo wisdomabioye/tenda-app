@@ -90,6 +90,9 @@ export const FAKE_BAD_SIGNATURE = 'sig:invalid'
 
 /** Fake chain's configured dispute-resolution authority (a valid base58). */
 export const FAKE_DISPUTE_AUTHORITY = '4Nd1mYvK4Pm1x2HCmzCx5GQDV9KbpMK128bxgL5dVDU1'
+/** What the fake adapters report as their escrow program/contract. */
+export const FAKE_SOLANA_PROGRAM = process.env.SOLANA_PROGRAM_ID ?? ''
+export const FAKE_EVM_ESCROW = `0x${'f1'.repeat(20)}`
 
 function fakeAdapter(chain_id: string, namespace: 'solana' | 'eip155' = 'solana'): ChainAdapter {
   const unimplemented = (op: string) => () => {
@@ -101,6 +104,10 @@ function fakeAdapter(chain_id: string, namespace: 'solana' | 'eip155' = 'solana'
     // Stand-in dispute authority so resolve-tx builds under test (the real
     // value rides each chain's secret).
     disputeAuthority: FAKE_DISPUTE_AUTHORITY,
+    // What /v1/platform/chains serves as `escrow_address`. On the adapter
+    // because that is the contract the server actually transacts with — the
+    // seeded `chains.escrow_program` column is no longer the source.
+    escrowAddress: namespace === 'solana' ? FAKE_SOLANA_PROGRAM : FAKE_EVM_ESCROW,
     buildTx: async () => FAKE_UNSIGNED,
     verifyTx: unimplemented('verifyTx'),
     // Offline stand-in for tweetnacl/viem sig verify: any signature passes

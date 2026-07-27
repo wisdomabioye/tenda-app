@@ -22,12 +22,12 @@ import 'dotenv/config'
 import postgres from 'postgres'
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import { inArray, notInArray, sql } from 'drizzle-orm'
-import { ESCROW_IDL } from '@tenda/shared/idl'
 import { assets, chains } from '@tenda/shared/db/schema/chains'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { ASSET_META, chainById, type ChainAsset } from '@tenda/shared'
 import { platform_config } from '@tenda/shared/db/schema/governance'
 import { loadConfig } from '@server/config'
+import { escrowAddressOf } from '@server/chains/registry-sync'
 import { getChainSecrets, type ResolvedChainSecret } from '@server/chains/secrets'
 import { gasSeedAddressFromSecret } from '@server/chains/solana/gas-seed-sender'
 import {
@@ -119,7 +119,7 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
       display_name: entry.displayName,
       min_confirmations: entry.minConfirmations,
       treasury_address: secret.treasury,
-      escrow_program: secret.namespace === 'solana' ? ESCROW_IDL.address : secret.escrow,
+      escrow_program: escrowAddressOf(secret),
       gas_seed_amount_raw: gasSeed.amount_raw,
       gas_seed_wallet_address: gasSeed.wallet_address,
     })
