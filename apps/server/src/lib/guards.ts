@@ -10,6 +10,23 @@ import { users } from '@tenda/shared/db/schema/identity'
 export { hasPermission }
 
 /**
+ * The caller's id on a route guarded by `optionalAuthenticate` or
+ * `identifyViewer`, or null when they are anonymous.
+ *
+ * Keyed on the decoration, NOT on the Authorization header. Under
+ * `identifyViewer` an unreadable bearer leaves the header present and the
+ * caller anonymous, so a header check would report a user that does not exist
+ * and read `.id` off undefined.
+ */
+export function optionalUserId(request: FastifyRequest): string | null {
+  // `request.user` is typed non-optional by the @fastify/jwt augmentation, but
+  // it is only ASSIGNED by a successful jwtVerify — hence the widened read
+  // rather than a cast.
+  const user: FastifyRequest['user'] | undefined = request.user
+  return user?.id ?? null
+}
+
+/**
  * Fastify preHandler that enforces one of the given roles.
  * Always use after fastify.authenticate in the preHandler chain:
  *   { preHandler: [fastify.authenticate, requireRole('super_admin', 'dispute_admin')] }

@@ -51,6 +51,9 @@ export function useGigForm(
   const [selectedCity, setSelectedCity]           = useState<string | null>(initialValues?.city ?? null)
   const [acceptDeadlineHours, setAcceptDeadlineHours] = useState<number>(initialValues?.acceptDeadlineHours ?? 168)
   const [proofRequirements, setProofRequirements]  = useState<ProofType[]>(initialValues?.proofRequirements ?? [])
+  // Instant by default: it is how every gig behaved before the mode existed,
+  // and it is the cheaper of the two for the poster.
+  const [requiresApproval, setRequiresApproval]    = useState(initialValues?.requiresApproval ?? false)
   const [warnSheetOpen, setWarnSheetOpen] = useState(false)
 
   // CO5: chain options come from the server registry; a chain is gig-
@@ -121,6 +124,7 @@ export function useGigForm(
       city: isRemote ? null : selectedCity,
       acceptDeadlineHours,
       proofRequirements,
+      requiresApproval,
     })
   }
 
@@ -151,6 +155,7 @@ export function useGigForm(
     selectedCity, setSelectedCity,
     acceptDeadlineHours, setAcceptDeadlineHours,
     proofRequirements, setProofRequirements,
+    requiresApproval, setRequiresApproval,
     warnSheetOpen, setWarnSheetOpen,
     homeCountry,
     chainOptions,

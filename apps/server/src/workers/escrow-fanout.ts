@@ -20,19 +20,16 @@ import { gig_subscriptions } from '@tenda/shared/db/schema'
 import { escrows, gig_details } from '@tenda/shared/db/schema/escrow'
 import { channelName } from '@server/lib/ws'
 import { enqueueNotification, escrowPushData } from '@server/lib/notify'
-import type { InternalEscrowEvent } from '@server/lib/escrow-events'
-import type { EscrowEvent } from '@server/chains/types'
+import type { EscrowRepublishEvent, InternalEscrowEvent } from '@server/lib/escrow-events'
 import type { EscrowKind } from '@tenda/shared'
 
-/** The republish event shape (mirrors VerifyTxDeps.republish in verify-tx). */
-export interface EscrowFanoutEvent {
-  internal_event: InternalEscrowEvent
-  escrow_id: string
-  wire_event: EscrowEvent
-  tx_ref: string
-  /** See VerifyTxDeps.republish — the released worker's only address. */
-  counterparty_id: string | null
-}
+/**
+ * The republish payload. Owned by lib/escrow-events so this consumer and
+ * verify-tx (the producer) share one declaration instead of two hand-kept
+ * copies — re-exported here because every caller of this module already
+ * imports the name from it.
+ */
+export type EscrowFanoutEvent = EscrowRepublishEvent
 
 interface NoticeCopy {
   title: string
@@ -172,6 +169,31 @@ async function fanOutNewGigToSubscribers(
   }
 }
 
+/**
+ * Tell the applicants who lost that the decision is made (D4).
+ *
+ * The ids come from the applier rather than a fresh query on purpose: once the
+ * commit lands, rows this transition settled look identical to rows an earlier
+ * assign/unassign cycle settled, so re-reading would notify the same people
+ * again every time the poster cycles a worker.
+ *
+ * Gig-only by construction — the apply route refuses a non-gig escrow, so a
+ * non-empty list can only have come from one.
+ */
+async function fanOutPassedApplicants(
+  fastify: FastifyInstance,
+  event: EscrowFanoutEvent,
+): Promise<void> {
+  for (const user_id of event.passed_applicant_ids) {
+    await enqueueNotification(fastify.queue, {
+      user_id,
+      title: 'Gig assigned to someone else',
+      body: 'A gig you applied for went to another worker. Your application is closed.',
+      data: escrowPushData(event.escrow_id, 'gig'),
+    })
+  }
+}
+
 export async function fanOutEscrowEvent(
   fastify: FastifyInstance,
   event: EscrowFanoutEvent,
@@ -191,7 +213,14 @@ export async function fanOutEscrowEvent(
     return
   }
 
-  // 3. Push fan-out for high-signal events — kind decides both copy + routing.
+  // 3. D4: applicants the assignment resolved automatically. They took no
+  //    action and get no other signal — their application simply stops being
+  //    open — so this is the only place the decision reaches them. Runs before
+  //    the notice lookup because it is independent of whether the event has
+  //    party copy at all.
+  await fanOutPassedApplicants(fastify, event)
+
+  // 4. Push fan-out for high-signal events — kind decides both copy + routing.
   if (NOTICE_BY_EVENT[event.internal_event] === undefined) return
 
   const [row] = await fastify.db

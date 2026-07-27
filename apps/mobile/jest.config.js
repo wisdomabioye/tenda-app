@@ -83,5 +83,21 @@ module.exports = {
     // MB1/MB2: server-backed wallet totals + profile counts.
     'hooks/useWalletScreen.ts',
     'hooks/useProfileStats.ts',
+    // Stage 10: gig acceptance modes. The CTA branch resolution is the part
+    // that matters — it is where the mode-blind "Accept Gig" bug lived, and it
+    // is pure, so it is covered directly rather than through eight renders.
+    'components/gig/gig-cta/*.{ts,tsx}',
+    '!components/gig/gig-cta/index.ts',
+    '!components/gig/gig-cta/types.ts',
+    'components/gig/GigCTABar.tsx',
+    // The whole approval surface, not a hand-picked list of it: naming files
+    // individually is how ApplicantList, ApplicantRow, ApplySheet and
+    // MyApplicationCard sat at 0% while the folder reported healthy numbers.
+    'components/gig/gig-applications/*.{ts,tsx}',
+    '!components/gig/gig-applications/index.ts',
+    'components/gig/gig-form/AcceptanceModePicker.tsx',
+    'components/gig/GigDetailGate.tsx',
+    'components/shared/ReviewScore.tsx',
+    'stores/gigs.store.ts',
   ],
 }

@@ -18,6 +18,7 @@ import { NetworkPicker } from './gig-form/NetworkPicker'
 import { AddFundsNudge } from './gig-form/AddFundsNudge'
 import { AcceptDeadlinePicker } from './gig-form/AcceptDeadlinePicker'
 import { ProofRequirementPicker } from './gig-form/ProofRequirementPicker'
+import { AcceptanceModePicker } from './gig-form/AcceptanceModePicker'
 import { ModerationHint } from './gig-form/ModerationHint'
 import type { GigFormValues } from './gig-form/constants'
 
@@ -121,6 +122,13 @@ export function GigForm({ initialValues, onSubmit, submitLabel, isLoading }: Gig
 
         {/* Accept deadline */}
         <AcceptDeadlinePicker value={f.acceptDeadlineHours} onChange={f.setAcceptDeadlineHours} />
+
+        {/* Who can take it: first-come, or the poster approves. Immutable
+            after create (it is baked on-chain), so it is asked here or never. */}
+        <AcceptanceModePicker
+          requiresApproval={f.requiresApproval}
+          onChange={f.setRequiresApproval}
+        />
 
         {/* Evidence the worker must attach — shown on the listing before they accept */}
         <ProofRequirementPicker value={f.proofRequirements} onChange={f.setProofRequirements} />

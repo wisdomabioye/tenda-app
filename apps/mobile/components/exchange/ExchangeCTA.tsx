@@ -1,7 +1,16 @@
 import { View, StyleSheet } from 'react-native'
 import { spacing } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
-import { canAccept, canSubmit, canCancel, canClaim, canDispute, canReview, canAddProof } from '@tenda/shared'
+import {
+  canAccept,
+  canSubmit,
+  canCancel,
+  canClaim,
+  canDispute,
+  canReview,
+  canAddProof,
+  UNRESTRICTED_ACCEPTANCE,
+} from '@tenda/shared'
 import type { EscrowTxType, ExchangeDetail } from '@tenda/shared'
 import type { ActiveSheet } from '@/components/gig'
 
@@ -25,6 +34,11 @@ export function ExchangeCTA({ offer, userId, busy, onTxAction, onSheet }: Props)
     status: offer.status,
     creator_id: offer.creator.id,
     counterparty_id: offer.counterparty?.id ?? null,
+    // P2P offers have no acceptance mode: the server rejects
+    // `requires_approval` for kind='exchange', and the exchange wire carries no
+    // assignee. Stated rather than defaulted — `canAccept` requires the mode
+    // precisely so a screen cannot silently inherit the wrong one.
+    ...UNRESTRICTED_ACCEPTANCE,
   }
   const isCreator = userId === offer.creator.id
 

@@ -91,6 +91,10 @@ export function useGigFunding({ draftId, clearDraftPrefill }: UseGigFundingArgs)
         amount_raw,
         accept_deadline_unix,
         completion_duration_seconds: values.completionDuration,
+        // Only sent when true: the server treats an absent flag as instant
+        // mode, so an omitted `false` and an explicit one mean the same thing
+        // and the smaller body is the honest one.
+        ...(values.requiresApproval ? { requires_approval: true } : {}),
         ...(permit !== undefined ? { permit } : {}),
       })
       escrow_id = created.escrow_id

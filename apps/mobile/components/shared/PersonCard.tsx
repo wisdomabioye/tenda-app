@@ -5,6 +5,7 @@ import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { StandingBadge } from '@/components/reputation'
+import { ReviewScore } from './ReviewScore'
 
 interface PersonCardUser {
   id: string
@@ -67,14 +68,9 @@ export function PersonCard({
             {isSelf ? 'You' : displayName}
           </Text>
           <View style={s.meta}>
-            {user.review_score != null && (
-              <>
-                <Text style={[s.star, { color: theme.colors.accent.primary }]}>★</Text>
-                <Text style={[s.metaText, { color: theme.colors.content.tertiary }]}>
-                  {Number(user.review_score).toFixed(1)}
-                </Text>
-              </>
-            )}
+            {/* Shared with the applicant shortlist — one place owns the
+                null case and the numeric(3,2)-as-string coercion. */}
+            <ReviewScore score={user.review_score} />
             {user.is_seeker && (
               <>
                 {user.review_score != null && (
@@ -137,10 +133,6 @@ const s = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
     marginTop: 2,
-  },
-  star: {
-    fontSize: 12,
-    lineHeight: 16,
   },
   metaText: {
     fontSize: 12.5,

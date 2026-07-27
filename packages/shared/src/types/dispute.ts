@@ -147,7 +147,7 @@ export interface SendDisputeMessageBody extends AttachmentInput {
 export type MyDisputeStatus = 'open' | 'resolved'
 
 /** GET /v1/disputes query. Omit `status` for the caller's full history. */
-export interface MyDisputesQuery {
+export type MyDisputesQuery = {
   status?: MyDisputeStatus
   limit?: number
   offset?: number

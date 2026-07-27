@@ -9,13 +9,14 @@
  * accepted we fall back to assigned_counterparty_id so the dossier still
  * names the intended party. A party is omitted only when neither id exists.
  */
-import { and, asc, eq, inArray } from 'drizzle-orm'
+import { and, asc, count, eq, inArray } from 'drizzle-orm'
 import {
   escrows,
   gig_details,
   exchange_details,
   escrow_proofs,
   escrow_transactions,
+  gig_applications,
   disputes,
   users,
 } from '@tenda/shared/db/schema'
@@ -38,33 +39,41 @@ export async function buildEscrowDossier(
 
   const partyIds = partyIdsOf(escrow)
 
-  const [dispute, partyUsers, gigRow, exchangeRow, proofRows, txRows] = await Promise.all([
-    db
-      .select({ raised_by: disputes.raised_by })
-      .from(disputes)
-      .where(eq(disputes.escrow_id, escrow.id))
-      .limit(1),
-    db
-      .select({
-        id: users.id,
-        first_name: users.first_name,
-        last_name: users.last_name,
-      })
-      .from(users)
-      .where(inArray(users.id, partyIds)),
-    db.select().from(gig_details).where(eq(gig_details.escrow_id, escrow.id)).limit(1),
-    db.select().from(exchange_details).where(eq(exchange_details.escrow_id, escrow.id)).limit(1),
-    db
-      .select()
-      .from(escrow_proofs)
-      .where(eq(escrow_proofs.escrow_id, escrow.id))
-      .orderBy(asc(escrow_proofs.uploaded_at)),
-    db
-      .select()
-      .from(escrow_transactions)
-      .where(and(eq(escrow_transactions.escrow_id, escrow.id)))
-      .orderBy(asc(escrow_transactions.created_at)),
-  ])
+  const [dispute, partyUsers, gigRow, exchangeRow, proofRows, txRows, applicantRows] =
+    await Promise.all([
+      db
+        .select({ raised_by: disputes.raised_by })
+        .from(disputes)
+        .where(eq(disputes.escrow_id, escrow.id))
+        .limit(1),
+      db
+        .select({
+          id: users.id,
+          first_name: users.first_name,
+          last_name: users.last_name,
+        })
+        .from(users)
+        .where(inArray(users.id, partyIds)),
+      db.select().from(gig_details).where(eq(gig_details.escrow_id, escrow.id)).limit(1),
+      db.select().from(exchange_details).where(eq(exchange_details.escrow_id, escrow.id)).limit(1),
+      db
+        .select()
+        .from(escrow_proofs)
+        .where(eq(escrow_proofs.escrow_id, escrow.id))
+        .orderBy(asc(escrow_proofs.uploaded_at)),
+      db
+        .select()
+        .from(escrow_transactions)
+        .where(and(eq(escrow_transactions.escrow_id, escrow.id)))
+        .orderBy(asc(escrow_transactions.created_at)),
+      // Every application, not just the live ones: a mediator is reading history,
+      // and "eleven people applied" is the context that "one is still open"
+      // would hide.
+      db
+        .select({ n: count() })
+        .from(gig_applications)
+        .where(eq(gig_applications.escrow_id, escrow.id)),
+    ])
 
   const raisedBy = dispute[0]?.raised_by ?? null
   const parties = deriveDisputeParties(escrow, raisedBy, partyUsers)
@@ -80,6 +89,9 @@ export async function buildEscrowDossier(
           city: gigRow[0].city,
           remote: gigRow[0].remote,
           proof_requirements: gigRow[0].proof_requirements,
+          requires_approval: escrow.requires_approval,
+          assigned_from_application: escrow.assigned_from_application,
+          applicant_count: applicantRows[0]?.n ?? 0,
         }
 
   const exchange: DossierExchangeDetails | null =

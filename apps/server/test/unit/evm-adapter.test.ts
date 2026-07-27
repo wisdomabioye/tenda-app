@@ -380,7 +380,7 @@ test('decoded EVM EscrowCreated applies through applyEscrowEvent end-to-end', as
     async applyEvent({ from, patch, transaction }) {
       rec.transitions.push({ from, patch })
       rec.txs.push(transaction)
-      return true
+      return { applied: true, passed_applicant_ids: [] }
     },
     async resolveUserByWallet(_ns, address) {
       return address === CREATOR ? 'user-creator' : null
@@ -461,7 +461,7 @@ test('decoded EVM EscrowApproved applies with net amount + fee + actor', async (
   const store: EscrowEventStore = {
     async applyEvent({ transaction }) {
       txs.push(transaction)
-      return true
+      return { applied: true, passed_applicant_ids: [] }
     },
     async resolveUserByWallet(_ns, address) {
       return address === CREATOR ? 'user-creator' : null

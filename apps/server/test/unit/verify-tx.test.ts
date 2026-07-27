@@ -74,7 +74,7 @@ function makeDeps(opts: {
   const eventStore: EscrowEventStore = {
     async applyEvent({ from, patch }) {
       calls.transitions.push({ from, patch })
-      return !(opts.guardTrips ?? false)
+      return { applied: !(opts.guardTrips ?? false), passed_applicant_ids: [] }
     },
     async resolveUserByWallet() {
       return 'user-1'

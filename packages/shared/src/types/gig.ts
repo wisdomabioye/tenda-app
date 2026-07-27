@@ -6,6 +6,9 @@
  */
 import type { GigCategory } from '../constants/categories'
 import type { ProofType } from '../constants/proofs'
+// Type-only, so nothing is emitted and the gig ↔ application pairing stays a
+// compile-time relationship rather than a runtime import cycle.
+import type { GigViewerContext } from './application'
 import type { Dispute, EscrowProof, EscrowStatus } from './escrow'
 import type { Review } from './review'
 import type { UserRef } from './user'
@@ -78,6 +81,12 @@ export interface GigDetail extends GigSummary {
    * seeker_fee_bps vs fee_bps off this flag.
    */
   is_seeker: boolean
+  /**
+   * Caller-scoped facts (approval mode). `null` for anonymous readers — the
+   * detail is a PUBLIC route, so the bearer is optional and its absence has to
+   * be representable rather than guessed at.
+   */
+  viewer: GigViewerContext | null
 }
 
 // ── Input types ───────────────────────────────────────────────────────
@@ -106,7 +115,7 @@ export interface CreateGigDetailsBody {
 
 // ── Query types ───────────────────────────────────────────────────────
 
-export interface GigListQuery {
+export type GigListQuery = {
   // status intentionally omitted — public feed is always 'open'
   country?: string
   remote?: boolean
@@ -146,25 +155,18 @@ export interface GigListQuery {
   offset?: number
 }
 
-// ── Helpers (safe for frontend + backend) ─────────────────────────────
-
-/** Whether a worker can still accept this gig. */
-export function isGigAcceptable(
-  gig: Pick<GigSummary, 'status' | 'accept_deadline'>,
-  now: Date = new Date(),
-): boolean {
-  if (gig.status !== 'open') return false
-  if (gig.accept_deadline !== null && now > new Date(gig.accept_deadline)) return false
-  return true
-}
-
-/**
- * Compute the completion deadline from accepted_at + duration.
- * Mirrors the server's lib/escrow.ts math for display purposes.
- */
-export function computeCompletionDeadline(
-  accepted_at: Date,
-  completion_duration_seconds: number,
-): Date {
-  return new Date(accepted_at.getTime() + completion_duration_seconds * 1_000)
-}
+// ── Helpers ───────────────────────────────────────────────────────────
+//
+// `isGigAcceptable` and `computeCompletionDeadline` lived here and are gone.
+// Neither had a caller anywhere in the workspace — only their own tests — and
+// both had become actively misleading:
+//
+//   - `isGigAcceptable(gig)` answered "can a worker take this?" from status and
+//     `accept_deadline` alone, i.e. the PRE-Stage-10 rule. It would say yes on
+//     an approval-mode gig, which is the exact mistake `canAccept` was made
+//     mode-aware to stop, sitting one autocomplete away under a more inviting
+//     name. Use `canAccept` (utils/gig-utils), which takes the acceptance mode
+//     as a required field, with `acceptWindowState` for the deadline half.
+//   - `computeCompletionDeadline` duplicated the server's helper of the same
+//     name (lib/escrow/deadlines.ts) with a different signature, under a
+//     docblock claiming to mirror it — a claim nothing checked.

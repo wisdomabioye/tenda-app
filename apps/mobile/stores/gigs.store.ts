@@ -18,6 +18,15 @@ interface GigsState {
   selectedGig: GigDetail | null
   isLoading: boolean
   error: string | null
+  /**
+   * The gig id `error` describes.
+   *
+   * `error` alone cannot say WHICH gig failed, and this store holds one slot
+   * for all of them — so after any failure, opening a different gig would show
+   * "Failed to load gig" for the frame before its own fetch starts. Readers
+   * compare this against the id they are displaying.
+   */
+  errorId: string | null
 
   fetchGigDetail: (id: string) => Promise<void>
   reviewEscrow: (id: string, input: ReviewInput) => Promise<void>
@@ -27,14 +36,23 @@ export const useGigsStore = create<GigsState>((set) => ({
   selectedGig: null,
   isLoading: false,
   error: null,
+  errorId: null,
 
   fetchGigDetail: async (id) => {
-    set({ isLoading: true, error: null })
+    set((state) => ({
+      isLoading: true,
+      error: null,
+      errorId: null,
+      // Drop a gig that is not the one being loaded. Holding it while a
+      // different id is in flight is what let a screen render the previous
+      // gig — and, since approval mode, the previous VIEWER's actions.
+      selectedGig: state.selectedGig?.escrow_id === id ? state.selectedGig : null,
+    }))
     try {
       const gig = await api.gigs.get({ id })
       set({ selectedGig: gig, isLoading: false })
     } catch (e) {
-      set({ error: (e as Error).message, isLoading: false })
+      set({ error: (e as Error).message, errorId: id, isLoading: false })
     }
   },
 

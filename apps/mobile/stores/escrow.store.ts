@@ -39,6 +39,14 @@ interface EscrowState {
   requestBuildCreate: (id: string) => Promise<UnsignedTx>
   requestAccept: (id: string) => Promise<UnsignedTx>
   requestDecline: (id: string) => Promise<UnsignedTx>
+  /**
+   * Approval mode: the POSTER signs, naming the applicant they picked. The
+   * worker's address is resolved server-side from their user id — the client
+   * never handles someone else's wallet.
+   */
+  requestAssign: (id: string, worker_user_id: string) => Promise<UnsignedTx>
+  /** Approval mode: the poster withdraws an assignment inside the window. */
+  requestUnassign: (id: string) => Promise<UnsignedTx>
   requestSubmit: (id: string, proof_hash: string) => Promise<UnsignedTx>
   requestApprove: (id: string) => Promise<UnsignedTx>
   requestClaim: (id: string) => Promise<UnsignedTx>
@@ -89,6 +97,9 @@ export const useEscrowStore = create<EscrowState>((set) => {
     requestBuildCreate: (id) => run(async () => (await api.escrows.buildCreate({ id })).unsigned),
     requestAccept: (id) => run(async () => (await api.escrows.accept({ id })).unsigned),
     requestDecline: (id) => run(async () => (await api.escrows.decline({ id })).unsigned),
+    requestAssign: (id, worker_user_id) =>
+      run(async () => (await api.escrows.assign({ id }, { worker_user_id })).unsigned),
+    requestUnassign: (id) => run(async () => (await api.escrows.unassign({ id })).unsigned),
     requestSubmit: (id, proof_hash) =>
       run(async () => (await api.escrows.submit({ id }, { proof_hash })).unsigned),
     requestApprove: (id) => run(async () => (await api.escrows.approve({ id })).unsigned),

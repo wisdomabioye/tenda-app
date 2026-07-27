@@ -39,6 +39,14 @@ declare module 'fastify' {
      */
     optionalAuthenticate: (request: FastifyRequest, reply: FastifyReply) => Promise<void>
 
+    /**
+     * Lenient identification for PUBLIC reads that are merely richer when the
+     * caller is known (gig detail's `viewer` block). An absent OR unusable
+     * bearer proceeds anonymously instead of 401-ing. Registered by
+     * `plugins/auth.ts`.
+     */
+    identifyViewer: (request: FastifyRequest) => Promise<void>
+
     /** Bust the moderation blocklist cache, registered by `plugins/moderation.ts`. */
     invalidateBlocklistCache(): void
 

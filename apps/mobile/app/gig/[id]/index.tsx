@@ -10,23 +10,26 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Share2 } from 'lucide-react-native'
 import { spacing } from '@/theme/tokens'
-import { ScreenContainer, EmptyState, showToast } from '@/components/ui'
+import { ScreenContainer, showToast, ConfirmDialog } from '@/components/ui'
 import {
   GigDetailBody,
   GigCTABar,
   GigActionSheets,
+  GigDetailGate,
   type ActiveSheet,
 } from '@/components/gig'
+import { ApplySheet, useApprovalFlow } from '@/components/gig/gig-applications'
+import { partiesOf } from '@/components/gig/gig-cta'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import type { MediaItem } from '@/components/shared/media/types'
 import { DetailChrome, TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
-import { TransactionMonitor, LoadingScreen, ErrorState } from '@/components/feedback'
+import { TransactionMonitor } from '@/components/feedback'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
-import { useAuthStore, useGigsStore } from '@/stores'
-import { apiConfig, formatAssetAmount } from '@tenda/shared'
+import { useGigsStore } from '@/stores'
+import { apiConfig, canAccept, formatAssetAmount } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
 import { formatDuration } from '@/lib/gig-display'
 import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
@@ -58,6 +61,15 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   // is actually credited — the escrow's fee tier, live platform bps).
   const { netRaw, feePct } = useEscrowFee(gig.is_seeker, gig.amount_raw)
 
+  // Approval mode. The flow owns which action opens a sheet, which asks first,
+  // and which comes back here for the wallet; each refetches the detail,
+  // because its `viewer` block decides the CTA the user sees next.
+  const approval = useApprovalFlow({
+    escrowId: gig.escrow_id,
+    onChanged: () => void fetchGigDetail(gig.escrow_id),
+    onRequestUnassign: () => setConfirmAction('unassign'),
+  })
+
   // Live-update when the counterparty acts (accept / submit / approve), not
   // just on focus — the escrow WS channel drives the refetch.
   useEscrowLiveRefresh(gig.escrow_id, () => fetchGigDetail(gig.escrow_id))
@@ -73,10 +85,17 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       case 'cancel': return void actions.cancel()
       case 'refund_expired': return void actions.refund('refund_expired')
       case 'reclaim_abandoned': return void actions.refund('reclaim_abandoned')
+      case 'unassign': return void actions.unassign()
     }
   }
 
-  const isWorkerOpportunity = gig.status === 'open' && userId !== gig.creator.id
+  // The nudge explains ACCEPTING ("once you accept, the payment is already
+  // locked…") and links to the accept guide, so it is gated on the gig
+  // actually being acceptable by this user. On an approval-mode gig — or
+  // someone else's direct invite — the worker applies instead, and teaching
+  // them a flow this gig does not offer is the same mode-blindness that made
+  // `canAccept` mode-aware in the first place.
+  const isWorkerOpportunity = canAccept(partiesOf(gig), userId)
 
   useFocusEffect(
     useCallback(() => {
@@ -175,6 +194,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           txInProgress={actions.pendingTxRef !== null}
           onAction={setActiveSheet}
           onTxAction={setConfirmAction}
+          onApprovalAction={approval.handleAction}
           onRetryDraft={() =>
             router.push(`/(tabs)/create-gig?draftId=${gig.escrow_id}` as Parameters<typeof router.push>[0])
           }
@@ -217,6 +237,20 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           }}
         />
 
+        <ApplySheet
+          visible={approval.applyOpen}
+          busy={approval.busy}
+          onClose={approval.closeApply}
+          onSubmit={approval.apply}
+        />
+
+        {/*
+          Off-chain confirms use the styled ConfirmDialog, never Alert.alert
+          (project convention) and never TxConfirmDialog — no wallet opens, so
+          promising one would be a lie.
+        */}
+        <ConfirmDialog {...approval.confirmDialog} />
+
         <MediaViewerModal item={selectedProof} onClose={() => setSelectedProof(null)} />
 
         <ReportSheet
@@ -234,44 +268,11 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
 export default function GigDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
-  const router = useRouter()
-  const user = useAuthStore((s) => s.user)
-  const { selectedGig, isLoading, error, fetchGigDetail } = useGigsStore()
-
-  useFocusEffect(
-    useCallback(() => {
-      if (id) fetchGigDetail(id)
-    }, [id]), // eslint-disable-line react-hooks/exhaustive-deps
+  return (
+    <GigDetailGate id={id}>
+      {(gig, userId) => <GigDetailContent gig={gig} userId={userId} />}
+    </GigDetailGate>
   )
-
-  if (isLoading && (!selectedGig || selectedGig.escrow_id !== id)) return <LoadingScreen />
-
-  if (error && !selectedGig) {
-    return (
-      <ScreenContainer>
-        <ErrorState
-          title="Failed to load gig"
-          description={error}
-          ctaLabel="Retry"
-          onCtaPress={() => id && fetchGigDetail(id)}
-        />
-      </ScreenContainer>
-    )
-  }
-
-  if (!selectedGig) {
-    return (
-      <ScreenContainer>
-        <EmptyState
-          title="Gig not found"
-          description="This gig may have been removed"
-          action={{ label: 'Go back', onPress: () => router.back() }}
-        />
-      </ScreenContainer>
-    )
-  }
-
-  return <GigDetailContent gig={selectedGig} userId={user?.id ?? ''} />
 }
 
 const s = StyleSheet.create({

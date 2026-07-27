@@ -39,4 +39,10 @@ export interface GigFormValues {
   acceptDeadlineHours: number
   /** Empty = any evidence accepted (the pre-existing behaviour). */
   proofRequirements: ProofType[]
+  /**
+   * Approval mode: the poster assigns from applications instead of the gig
+   * being first-come. Baked on-chain at create and never editable afterwards,
+   * which is why it belongs on the create form and nowhere else.
+   */
+  requiresApproval: boolean
 }

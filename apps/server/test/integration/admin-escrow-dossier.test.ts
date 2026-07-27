@@ -9,7 +9,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
-import { escrow_proofs, escrow_transactions, exchange_details } from '@tenda/shared/db/schema'
+import {
+  escrow_proofs,
+  escrow_transactions,
+  exchange_details,
+  gig_applications,
+} from '@tenda/shared/db/schema'
 import {
   TEST_ASSET,
   TEST_CHAIN_ID,
@@ -156,4 +161,61 @@ test('dossier: 403 for a caller without escrows.read', { skip }, async () => {
   const normal = await createUser(app) // default role 'user'
   const res = await app.inject({ method: 'GET', url: dossierUrl(escrow.id), headers: authHeader(normal.token) })
   assert.strictEqual(res.statusCode, 403)
+})
+
+// ── Acceptance mode (Stage 10) ────────────────────────────────────────────────
+
+/**
+ * A mediator judging abandonment has to know whether the worker CHOSE this gig
+ * or was placed in it: only a worker who raised their hand is held to it, and
+ * `assigned_from_application` is the very flag that rule reads. Without it on
+ * the dossier the rule is invisible to the person applying its consequences.
+ */
+test('dossier: reports the acceptance mode, applicant count and provenance', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await disputedEscrow(app, {
+    requires_approval: true,
+    assigned_from_application: true,
+  })
+  await attachGigDetails(app, escrow.id, { title: 'Fix my sink', category: 'service', remote: false })
+
+  const rival = await createUser(app)
+  const expires_at = new Date(Date.now() + 86_400_000)
+  await app.db.insert(gig_applications).values([
+    { escrow_id: escrow.id, applicant_id: worker.row.id, status: 'assigned', expires_at },
+    { escrow_id: escrow.id, applicant_id: rival.row.id, status: 'passed', expires_at },
+  ])
+
+  const admin = await createUser(app, { role: 'dispute_admin' })
+  const res = await app.inject({
+    method: 'GET',
+    url: dossierUrl(escrow.id),
+    headers: authHeader(admin.token),
+  })
+  assert.strictEqual(res.statusCode, 200)
+  const { gig } = res.json()
+  assert.strictEqual(gig.requires_approval, true)
+  assert.strictEqual(gig.assigned_from_application, true)
+  // EVERY application, settled or not: "two people applied" is context that a
+  // count of only the live ones would hide from a mediator reading history.
+  assert.strictEqual(gig.applicant_count, 2)
+})
+
+test('dossier: an instant-mode gig reports no approval and no applicants', { skip }, async () => {
+  const app = getApp()
+  const { escrow } = await disputedEscrow(app)
+  await attachGigDetails(app, escrow.id, { title: 'Fix my sink', category: 'service', remote: false })
+
+  const admin = await createUser(app, { role: 'dispute_admin' })
+  const res = await app.inject({
+    method: 'GET',
+    url: dossierUrl(escrow.id),
+    headers: authHeader(admin.token),
+  })
+  const { gig } = res.json()
+  assert.strictEqual(gig.requires_approval, false)
+  // The worker accepted for themselves, so there is no application behind it —
+  // and that is exactly what suppresses the strike rule.
+  assert.strictEqual(gig.assigned_from_application, false)
+  assert.strictEqual(gig.applicant_count, 0)
 })

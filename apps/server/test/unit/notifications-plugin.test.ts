@@ -145,6 +145,29 @@ test('fiat.failed persists the failure reason for the intent', async () => {
   assert.deepStrictEqual(jobs[0].data, { screen: 'fiat-intent', intentId: 'i2' })
 })
 
+// Approval mode has no other poster-facing signal: an application writes a row
+// and sends no transaction, so an unwired listener leaves the shortlist a
+// screen the poster never learns to open.
+test('gig.application_received: notifies the poster and names the gig', async () => {
+  appEvents.emit('gig.application_received', {
+    escrow_id: 'escrow-9',
+    creator_id: 'creator-9',
+    applicant_id: 'worker-9',
+    title: 'Deliver a parcel',
+  })
+  await flush()
+
+  assert.strictEqual(jobs.length, 1, 'exactly one notice')
+  const [job] = jobs
+  assert.strictEqual(job.user_id, 'creator-9', 'the poster, never the applicant who acted')
+  assert.match(job.title, /applicant/i)
+  // A poster can have several gigs taking applications at once, so the notice
+  // has to say WHICH one.
+  assert.match(job.body, /Deliver a parcel/)
+  assert.deepStrictEqual(job.data, { screen: 'escrow', escrowId: 'escrow-9', kind: 'gig' })
+  assert.strictEqual(job.persist, true, 'it belongs in the notification centre')
+})
+
 // The whole point of the off-chain `/release` is that the POSTER finds out —
 // the escrow does not move, so nothing else tells them the gig needs their
 // attention. An unwired listener would make the feature silently do nothing.

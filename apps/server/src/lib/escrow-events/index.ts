@@ -37,6 +37,34 @@ export interface ApplyEscrowEventResult {
    * address them (the push fan-out) cannot re-read it.
    */
   counterparty_id: string | null
+  /**
+   * Applicants this transition auto-resolved to `passed` (D4). Carried out for
+   * the same reason: after the commit these rows are indistinguishable from
+   * ones an earlier assign/unassign cycle settled, so re-reading would notify
+   * the wrong people — or the same people twice.
+   */
+  passed_applicant_ids: string[]
+}
+
+/**
+ * What verify-tx hands the fan-out once a transition is durable.
+ *
+ * Declared HERE, beside the result it is built from, and imported by both the
+ * job that emits it and the worker that consumes it. It used to exist as two
+ * hand-kept copies whose only link was a comment saying they mirrored each
+ * other — precisely the drift a new field on one side introduces.
+ */
+export interface EscrowRepublishEvent {
+  internal_event: InternalEscrowEvent
+  escrow_id: string
+  /** The on-chain event name, as decoded. */
+  wire_event: DecodedEvent['name']
+  /** On-chain signature/hash; clients correlate WS frames against it. */
+  tx_ref: string
+  /** See ApplyEscrowEventResult.counterparty_id — the released worker's only address. */
+  counterparty_id: string | null
+  /** See ApplyEscrowEventResult.passed_applicant_ids. */
+  passed_applicant_ids: string[]
 }
 
 const WINNERS = ['creator', 'counterparty', 'split'] as const
@@ -99,7 +127,7 @@ export async function applyEscrowEvent(
   // One atomic apply: the status guard + audit row + dispute stamp commit
   // together (or not at all). The store skips the audit/stamp writes when
   // the guard trips, so a replay stays an idempotent no-op.
-  const applied = await deps.store.applyEvent({
+  const outcome = await deps.store.applyEvent({
     escrow_id,
     from: app.from,
     patch,
@@ -124,9 +152,10 @@ export async function applyEscrowEvent(
   })
 
   return {
-    applied,
+    applied: outcome.applied,
     escrow_id,
     internal_event: INTERNAL_EVENT_BY_WIRE[event.name],
     counterparty_id,
+    passed_applicant_ids: outcome.passed_applicant_ids,
   }
 }

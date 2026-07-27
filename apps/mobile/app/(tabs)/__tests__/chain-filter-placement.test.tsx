@@ -38,6 +38,12 @@ jest.mock('@/components/gig', () => ({
   GigCardCompact: () => null,
   GigListSkeleton: () => null,
 }))
+jest.mock('@/components/gig/gig-applications', () => ({
+  MyApplicationCard: () => null,
+  useApplications: () => ({ busy: false, apply: jest.fn(), withdraw: jest.fn(), release: jest.fn() }),
+  MY_APPLICATIONS_EMPTY: { title: 'No applications', description: '' },
+  WITHDRAW_CONFIRM: { title: '', message: '', confirmLabel: '', destructive: true },
+}))
 jest.mock('@/components/exchange', () => ({
   ExchangeMarketPage: () => null,
   ExchangeMyOffersPage: () => null,
@@ -49,6 +55,7 @@ jest.mock('@/components/ui', () => {
     ScreenContainer: ({ children }: { children: React.ReactNode }) => <View>{children}</View>,
     Header: () => null,
     EmptyState: () => null,
+    ConfirmDialog: () => null,
     // Real, so the pages are genuine FlatLists — a header rendered through one
     // is exactly what this test has to be able to see.
     PaginatedList: jest.requireActual('@/components/ui/PaginatedList').PaginatedList,
@@ -62,6 +69,10 @@ jest.mock('@/hooks/useMyGigs', () => {
       posted: listState(),
       working: listState(),
       drafts: listState(),
+      // The 4th tab (approval-mode applications) is caller-scoped and takes no
+      // chain parameter, so the filter deliberately does not reach it — but the
+      // pager still renders it and reads its count chip.
+      applications: listState(),
       chainId: null,
       setChainId: jest.fn(),
     }),

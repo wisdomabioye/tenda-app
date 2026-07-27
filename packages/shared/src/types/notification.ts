@@ -31,7 +31,7 @@ export interface NotificationFeed {
 }
 
 /** Cursor pagination for the personal feed (mirrors chat's MessagesQuery). */
-export interface NotificationsQuery {
+export type NotificationsQuery = {
   before_id?: string
   limit?: number
 }

@@ -56,6 +56,7 @@ export {
   MAX_OPEN_APPLICATIONS_CEILING,
   MIN_APPLICATION_TTL_SECONDS,
   MAX_APPLICATION_TTL_SECONDS,
+  APPLICATION_UNASSIGN_TIGHT_WINDOW_SECONDS,
   isApplicationStatus,
   type ApplicationStatus,
 } from './applications'

@@ -73,6 +73,24 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  // ── Applicant raised their hand → tell the poster ───────────────────────
+  // Nothing else tells them: an application writes a row and sends no
+  // transaction, so with no notice the shortlist is a screen the poster has
+  // no reason to open. Title included because a poster can have several gigs
+  // taking applications at the same time.
+  appEvents.on('gig.application_received', async (data) => {
+    try {
+      await notify(
+        data.creator_id,
+        'New applicant',
+        `Someone applied to "${data.title}". Review the applicants and pick your worker.`,
+        { screen: 'escrow', escrowId: data.escrow_id, kind: 'gig' },
+      )
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] gig.application_received listener failed')
+    }
+  })
+
   // ── Stage 8: fiat intent settled / failed → notify the user ─────────────
   appEvents.on('fiat.settled', async (data) => {
     try {

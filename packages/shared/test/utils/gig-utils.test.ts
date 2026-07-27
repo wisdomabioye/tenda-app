@@ -11,6 +11,7 @@ import {
   canReview,
   canCancel,
   canClaim,
+  UNRESTRICTED_ACCEPTANCE,
 } from '../../src/utils/gig-utils'
 import type { EscrowStatus } from '../../src/types/escrow'
 
@@ -19,7 +20,15 @@ const COUNTERPARTY = 'user-counterparty'
 const STRANGER = 'user-stranger'
 
 function escrow(status: EscrowStatus, counterparty: string | null = COUNTERPARTY) {
-  return { status, creator_id: CREATOR, counterparty_id: counterparty }
+  // Instant mode, stated rather than defaulted: the acceptance mode is a
+  // REQUIRED field on the shape precisely so no caller can inherit the wrong
+  // one silently, and a fixture is a caller.
+  return {
+    status,
+    creator_id: CREATOR,
+    counterparty_id: counterparty,
+    ...UNRESTRICTED_ACCEPTANCE,
+  }
 }
 
 const DEADLINES = {

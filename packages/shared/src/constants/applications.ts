@@ -79,3 +79,15 @@ export const MIN_APPLICATION_TTL_SECONDS = 60 * 60
 
 /** 30 days — beyond this "unexpired" stops meaning the applicant is still interested. */
 export const MAX_APPLICATION_TTL_SECONDS = 30 * 24 * 60 * 60
+
+/**
+ * Below this much time left on `accept_deadline`, unassigning is warned about
+ * rather than offered silently.
+ *
+ * The deadline does not extend across assign/unassign cycles, so a poster
+ * cycling workers can run it out and lose the gig to the refund path. 24h is
+ * the point past which finding, vetting and assigning a replacement stops
+ * being realistic — the same order as the shortest `ACCEPT_DEADLINE_OPTIONS`
+ * entry a poster can choose in the first place.
+ */
+export const APPLICATION_UNASSIGN_TIGHT_WINDOW_SECONDS = 24 * 60 * 60

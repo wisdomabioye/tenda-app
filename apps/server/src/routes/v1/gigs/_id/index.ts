@@ -7,6 +7,12 @@
  * must see them (my-gigs lists drafts; the Delete Draft CTA lives here),
  * so a draft hit runs the full authenticate (suspended accounts rejected
  * like everywhere else) and compares the caller.
+ *
+ * The route is OPTIONALLY authenticated. It stays public — an anonymous read
+ * returns the same gig it always did — but a bearer buys the `viewer` block:
+ * the caller's own application and, for the poster, how many are waiting. That
+ * question cannot be answered client-side (see GigViewerContext), and asking
+ * it here costs one extra query only on approval-mode gigs.
  */
 import { FastifyPluginAsync } from 'fastify'
 import { eq, inArray } from 'drizzle-orm'
@@ -15,6 +21,8 @@ import { ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError, UserRef } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { canViewHidden } from '@server/lib/escrow-routes'
+import { optionalUserId } from '@server/lib/guards'
+import { loadGigViewerContext } from '@server/features/applications/viewer'
 import { USER_COLS } from '@server/lib/users'
 
 type GetRoute = GigsContract['get']
@@ -25,7 +33,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
   fastify.get<{
     Params: GetRoute['params']
     Reply: GetRoute['response'] | ApiError
-  }>('/', async (request, reply) => {
+  }>('/', { preHandler: [fastify.identifyViewer] }, async (request, reply) => {
     const { id } = request.params
 
     const [row] = await fastify.db
@@ -67,11 +75,21 @@ const gigById: FastifyPluginAsync = async (fastify) => {
         ? [escrow.creator_id]
         : [escrow.creator_id, escrow.counterparty_id]
 
-    const [userRows, proofs, disputeRows, gigReviews] = await Promise.all([
+    // Read AFTER the private-row branch above: a draft hit runs the full
+    // `authenticate`, which is what decorates the request in that path.
+    const viewer_id = optionalUserId(request)
+
+    const [userRows, proofs, disputeRows, gigReviews, viewer] = await Promise.all([
       fastify.db.select(USER_COLS).from(users).where(inArray(users.id, userIds)),
       fastify.db.select().from(escrow_proofs).where(eq(escrow_proofs.escrow_id, id)),
       fastify.db.select().from(disputes).where(eq(disputes.escrow_id, id)).limit(1),
       fastify.db.select().from(reviews).where(eq(reviews.escrow_id, id)),
+      loadGigViewerContext(fastify.db, {
+        escrow_id: id,
+        creator_id: escrow.creator_id,
+        viewer_id,
+        requires_approval: escrow.requires_approval,
+      }),
     ])
 
     const userMap = new Map<string, UserRef>(userRows.map((u) => [u.id, u]))
@@ -115,6 +133,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       proofs,
       dispute: disputeRows[0] ?? null,
       reviews: gigReviews,
+      viewer,
     })
   })
 }

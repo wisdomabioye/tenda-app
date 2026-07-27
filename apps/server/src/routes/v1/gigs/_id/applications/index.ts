@@ -29,9 +29,14 @@ import {
   normaliseApplicationMessage,
 } from '@server/features/applications/service'
 import { assertApplicationCapacity } from '@server/features/applications/guards'
-import { drizzleApplicationStore, findApplicationEscrow } from '@server/features/applications/store'
+import {
+  drizzleApplicationStore,
+  findApplicationEscrow,
+  type ApplicationEscrowRow,
+} from '@server/features/applications/store'
 import { toApplicantWire, toApplicationWire } from '@server/features/applications/wire'
 import { isUuidLike } from '@server/lib/escrow-routes'
+import { appEvents } from '@server/lib/events'
 import type { AppDatabase } from '@server/plugins/db'
 
 /**
@@ -41,9 +46,17 @@ import type { AppDatabase } from '@server/plugins/db'
  * the poster there has no way to assign from applications, so an accepted
  * application would be a promise nothing can keep.
  */
-async function loadOpenForApplications(db: AppDatabase, escrow_id: string) {
+async function loadOpenForApplications(
+  db: AppDatabase,
+  escrow_id: string,
+): Promise<ApplicationEscrowRow & { title: string }> {
   const escrow = await findApplicationEscrow(db, escrow_id)
-  if (escrow === null || escrow.kind !== 'gig') {
+  // `title` comes from a LEFT join, so it is nullable on the row type. A gig
+  // with no listing satellite is not something a worker can be shown, let
+  // alone apply to, so it reads as "no such gig" — and narrowing it here means
+  // the notice below can NAME the gig without a fallback string that would
+  // otherwise render as `applied to ""`.
+  if (escrow === null || escrow.kind !== 'gig' || escrow.title === null) {
     throw new AppError(404, ErrorCode.GIG_NOT_FOUND, 'Gig not found')
   }
   if (!escrow.requires_approval) {
@@ -53,7 +66,7 @@ async function loadOpenForApplications(db: AppDatabase, escrow_id: string) {
       'This gig is first-come, first-served — accept it directly instead of applying.',
     )
   }
-  return escrow
+  return { ...escrow, title: escrow.title }
 }
 
 const route: FastifyPluginAsync = async (fastify) => {
@@ -119,15 +132,32 @@ const route: FastifyPluginAsync = async (fastify) => {
         )
       }
 
-      await assertApplicationCapacity(fastify.db, request.user.id, escrow.id)
+      // Read once and pass it down: the capacity guard needs it, and so does
+      // the notice below, which must fire for a hand newly raised but not for
+      // someone editing the pitch on an application the poster already has.
+      const store = drizzleApplicationStore(fastify.db)
+      const existing = await store.find(escrow.id, request.user.id)
+      await assertApplicationCapacity(fastify.db, request.user.id, existing)
 
       const cfg = await getPlatformConfig(fastify.db)
-      const row = await drizzleApplicationStore(fastify.db).upsert({
+      const row = await store.upsert({
         escrow_id: escrow.id,
         applicant_id: request.user.id,
         message,
         expires_at: applicationExpiry(now, cfg.application_ttl_seconds),
       })
+
+      // Fires for a hand NEWLY raised, never for someone editing the pitch on
+      // an application the poster already has — a second buzz would train them
+      // to ignore the notice that matters.
+      if (existing === null || existing.status !== 'open') {
+        appEvents.emit('gig.application_received', {
+          escrow_id: escrow.id,
+          creator_id: escrow.creator_id,
+          applicant_id: request.user.id,
+          title: escrow.title,
+        })
+      }
       return reply.code(201).send(toApplicationWire(row))
     },
   )

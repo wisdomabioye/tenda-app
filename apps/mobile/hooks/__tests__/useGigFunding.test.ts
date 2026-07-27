@@ -77,11 +77,16 @@ const VALUES: GigFormValues = {
   remote: true,
   city: null,
   proofRequirements: [],
+  // Instant mode: the approval-mode create body is asserted separately.
+  requiresApproval: false,
 }
 
 /** Drive the hook from confirm → funding, the screen's real sequence. */
-async function fund(result: { current: ReturnType<typeof useGigFunding> }) {
-  await act(async () => { result.current.setPendingValues(VALUES) })
+async function fund(
+  result: { current: ReturnType<typeof useGigFunding> },
+  values: GigFormValues = VALUES,
+) {
+  await act(async () => { result.current.setPendingValues(values) })
   await act(async () => { await result.current.runFunding() })
 }
 
@@ -260,4 +265,33 @@ test('runFunding without confirmed values is a no-op', async () => {
 
   expect(mockEnsure).not.toHaveBeenCalled()
   expect(mockEscrowCreate).not.toHaveBeenCalled()
+})
+
+// ── Acceptance mode ───────────────────────────────────────────────────────────
+
+/**
+ * The mode picker's ENTIRE purpose is to reach the escrow row: it is baked
+ * on-chain at create and can never be changed afterwards. If it stopped being
+ * forwarded, every gig would silently post as first-come and the applications
+ * surface would be unreachable — with nothing failing anywhere.
+ */
+test('approval mode is forwarded to the create body', async () => {
+  const { result } = renderHook(() => useGigFunding(ARGS))
+
+  await fund(result, { ...VALUES, requiresApproval: true })
+
+  expect(mockEscrowCreate).toHaveBeenCalledWith(
+    expect.objectContaining({ requires_approval: true }),
+  )
+})
+
+test('instant mode sends no flag at all, rather than an explicit false', async () => {
+  const { result } = renderHook(() => useGigFunding(ARGS))
+
+  await fund(result, { ...VALUES, requiresApproval: false })
+
+  const [body] = mockEscrowCreate.mock.calls[0]
+  // The server treats an absent flag as instant, so omitting it and sending
+  // `false` mean the same thing — and the smaller body is the honest one.
+  expect(body).not.toHaveProperty('requires_approval')
 })

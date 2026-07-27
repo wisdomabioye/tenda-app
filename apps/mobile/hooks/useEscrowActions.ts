@@ -163,6 +163,14 @@ export function useEscrowActions({
     publish: () => dispatch('create', () => store.requestBuildCreate(escrowId), amountRaw),
     accept: () => dispatch('accept', () => store.requestAccept(escrowId)),
     decline: () => dispatch('decline', () => store.requestDecline(escrowId)),
+    /**
+     * Approval mode, poster-signed. No `debitRaw`: the escrow is already
+     * funded, so assigning moves nothing from the poster's wallet — the same
+     * reasoning that keeps accept/approve/cancel off the balance pre-check.
+     */
+    assign: (workerUserId: string) =>
+      dispatch('assign_accept', () => store.requestAssign(escrowId, workerUserId)),
+    unassign: () => dispatch('unassign', () => store.requestUnassign(escrowId)),
     approve: () => dispatch('approve', () => store.requestApprove(escrowId)),
     claim: () => dispatch('claim_stalled', () => store.requestClaim(escrowId)),
     cancel: () => dispatch('cancel', () => store.requestCancel(escrowId)),

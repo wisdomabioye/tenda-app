@@ -65,13 +65,13 @@ test('applyEvent: the happy path transitions and writes the audit row together',
   const store = drizzleEscrowEventStore(app.db)
   const tx_ref = `ok-${escrow.id}`
 
-  const applied = await store.applyEvent({
+  const outcome = await store.applyEvent({
     escrow_id: escrow.id,
     from: ['accepted'],
     patch: { status: 'submitted' },
     transaction: { type: 'submit', tx_ref, amount_raw: null, platform_fee_raw: null, creator_payout_raw: null, actor_id: worker.row.id },
   })
-  assert.strictEqual(applied, true)
+  assert.strictEqual(outcome.applied, true)
 
   const [row] = await app.db.select({ status: escrows.status }).from(escrows).where(eq(escrows.id, escrow.id))
   assert.strictEqual(row?.status, 'submitted')
@@ -88,13 +88,13 @@ test('applyEvent: a tripped status guard writes nothing (idempotent no-op)', { s
   const store = drizzleEscrowEventStore(app.db)
   const tx_ref = `noop-${escrow.id}`
 
-  const applied = await store.applyEvent({
+  const outcome = await store.applyEvent({
     escrow_id: escrow.id,
     from: ['accepted'],
     patch: { status: 'submitted' },
     transaction: { type: 'submit', tx_ref, amount_raw: null, platform_fee_raw: null, creator_payout_raw: null, actor_id: worker.row.id },
   })
-  assert.strictEqual(applied, false)
+  assert.strictEqual(outcome.applied, false)
   const audit = await app.db.select().from(escrow_transactions).where(eq(escrow_transactions.tx_ref, tx_ref))
   assert.strictEqual(audit.length, 0, 'no audit row when the guard trips')
 })

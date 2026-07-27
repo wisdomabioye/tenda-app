@@ -30,11 +30,13 @@ export type {
   UserTransactionsSummary,
 } from './escrow'
 export type { GigSummary, GigDetail, GigCategory, GigListQuery, CreateGigDetailsBody } from './gig'
-export { isGigAcceptable, computeCompletionDeadline } from './gig'
 export type {
   GigApplication,
   GigApplicant,
+  GigViewerContext,
+  GigApplicantsQuery,
   MyApplication,
+  MyApplicationsQuery,
   ApplyToGigBody,
   AssignWorkerBody,
   ReleaseAssignmentResponse,
@@ -45,7 +47,8 @@ export type { NotificationWire, AnnouncementWire, NotificationFeed, Notification
 export type { CloudinarySignature, UploadType, ScopedUploadType } from './upload'
 export { SCOPED_UPLOAD_TYPES, isScopedUploadType } from './upload'
 export type { MessageAttachmentType, AttachmentFields, AttachmentInput } from './attachment'
-export type { PaginatedResponse, ApiError } from './api'
+export type { PaginatedResponse, ApiError, QueryParams, QueryValue } from './api'
+export { assertQueryShape } from './api'
 export type {
   Conversation,
   ConversationParticipant,

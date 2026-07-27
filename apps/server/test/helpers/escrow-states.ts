@@ -68,13 +68,18 @@ export interface DisputedEscrow extends PartiedEscrow {
 }
 
 /** Parties + a live dispute row (escrow status 'disputed'). */
-export async function disputedEscrow(app: FastifyInstance): Promise<DisputedEscrow> {
+export async function disputedEscrow(
+  app: FastifyInstance,
+  /** Escrow columns to override — e.g. the acceptance mode a dossier reports. */
+  overrides: Partial<EscrowRow> = {},
+): Promise<DisputedEscrow> {
   const creator = await createUser(app)
   const worker = await createUser(app)
   const escrow = await createEscrow(app, {
     creator_id: creator.row.id,
     counterparty_id: worker.row.id,
     status: 'disputed',
+    ...overrides,
   })
   const [row] = await app.db
     .insert(disputes)

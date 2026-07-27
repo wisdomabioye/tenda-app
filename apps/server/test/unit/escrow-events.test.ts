@@ -49,12 +49,12 @@ function makeDeps(opts: { guardTrips?: boolean; wallets?: Record<string, string>
     // written only when the status guard passes, all in one applyEvent call.
     async applyEvent({ escrow_id, from, patch, transaction, disputeResolution }) {
       rec.transitions.push({ escrow_id, from, patch })
-      if (opts.guardTrips ?? false) return false
+      if (opts.guardTrips ?? false) return { applied: false, passed_applicant_ids: [] }
       rec.transactions.push({ escrow_id, ...transaction })
       if (disputeResolution !== undefined) {
         rec.resolutions.push({ escrow_id, winner: disputeResolution.winner })
       }
-      return true
+      return { applied: true, passed_applicant_ids: [] }
     },
     async resolveUserByWallet(_ns, address) {
       return opts.wallets?.[address] ?? null
@@ -87,6 +87,8 @@ test('EscrowCreated: draft→open, stamps escrow_ref, records create with amount
     internal_event: 'escrow.created',
     // Create installs no counterparty.
     counterparty_id: null,
+    // Nothing to auto-resolve: applications belong to the assign path.
+    passed_applicant_ids: [],
   })
   assert.deepStrictEqual(rec.transitions[0].from, ['draft'])
   assert.strictEqual(rec.transitions[0].patch.status, 'open')

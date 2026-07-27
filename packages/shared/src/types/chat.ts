@@ -65,7 +65,7 @@ export interface RegisterDeviceTokenInput {
   platform?: 'expo' | 'fcm' | 'apns'
 }
 
-export interface MessagesQuery {
+export type MessagesQuery = {
   before_id?: string
   limit?: number
 }

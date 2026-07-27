@@ -31,6 +31,22 @@ export interface AppEvents {
     creator_id: string
     worker_id: string
   }
+  /**
+   * A worker raised their hand on an approval-mode gig.
+   *
+   * Approval mode has no other poster-facing signal: applications land in a
+   * table nobody is told about, so without this the poster would have to open
+   * each of their gigs on the off-chance. The applicant, unlike an accepting
+   * worker, sends no transaction — there is no chain event to fan out from,
+   * which is why it rides this emitter and not verify-tx republish.
+   */
+  'gig.application_received': {
+    escrow_id: string
+    creator_id: string
+    applicant_id: string
+    /** gig_details.title — the poster may have several gigs open at once. */
+    title: string
+  }
   'review.submitted': {
     escrowId: string
     reviewerId: string

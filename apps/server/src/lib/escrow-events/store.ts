@@ -44,13 +44,25 @@ export interface EscrowEventTransaction {
   actor_id: string | null
 }
 
-export interface EscrowEventStore {
+/** What one atomic apply did, beyond moving the row. */
+export interface ApplyEventOutcome {
   /**
-   * Apply one event atomically (see file header). Returns false when the
-   * status guard trips (another worker already applied), the caller treats
-   * that as an idempotent no-op, and neither the audit row nor the dispute
-   * stamp is written.
+   * False when the status guard tripped (another worker already applied); the
+   * caller treats that as an idempotent no-op, and neither the audit row nor
+   * the dispute stamp was written.
    */
+  applied: boolean
+  /**
+   * Applicants this transition auto-resolved to `passed` (D4). Carried out for
+   * the same reason `counterparty_id` is: once committed, nothing downstream
+   * can tell WHICH rows this commit settled apart from ones an earlier
+   * assign/unassign cycle settled — re-reading would notify people twice.
+   */
+  passed_applicant_ids: string[]
+}
+
+export interface EscrowEventStore {
+  /** Apply one event atomically; see file header and ApplyEventOutcome. */
   applyEvent(args: {
     escrow_id: string
     from: EscrowStatus[]
@@ -59,7 +71,7 @@ export interface EscrowEventStore {
     disputeResolution?: { winner: 'creator' | 'counterparty' | 'split' }
     /** Settle this applicant's gig application alongside the transition. */
     application?: { applicant_id: string }
-  }): Promise<boolean>
+  }): Promise<ApplyEventOutcome>
   /** Wallet address → user id on the namespace; null if unknown. */
   resolveUserByWallet(chain_ns: ChainNamespace, address: string): Promise<string | null>
 }
@@ -70,12 +82,14 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
       // All writes in ONE transaction so the audit row (which isProcessed
       // keys on) can never be lost relative to the status transition.
       return db.transaction(async (tx) => {
+        const passed_applicant_ids: string[] = []
         const updated = await tx
           .update(escrows)
           .set(patch)
           .where(and(eq(escrows.id, escrow_id), inArray(escrows.status, from)))
           .returning({ id: escrows.id })
-        if (updated.length === 0) return false // status guard tripped, idempotent no-op
+        // Status guard tripped → idempotent no-op, and nothing was settled.
+        if (updated.length === 0) return { applied: false, passed_applicant_ids }
 
         // tx_ref UNIQUE, a replayed insert is a no-op (defence in depth on
         // top of the caller's isProcessed dedup).
@@ -107,8 +121,9 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
               .where(eq(escrows.id, escrow_id))
             // D4: everyone else on this gig is resolved automatically, in the
             // same commit, so no applicant is left waiting on a decision that
-            // has already been made.
-            await tx
+            // has already been made. The applicant ids come back so the
+            // fan-out can tell exactly these people, and nobody else.
+            const passed = await tx
               .update(gig_applications)
               .set({ status: 'passed' })
               .where(
@@ -118,6 +133,8 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
                   ne(gig_applications.id, won.id),
                 ),
               )
+              .returning({ applicant_id: gig_applications.applicant_id })
+            passed_applicant_ids.push(...passed.map((p) => p.applicant_id))
           }
         }
 
@@ -142,7 +159,7 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
               )
           }
         }
-        return true
+        return { applied: true, passed_applicant_ids }
       })
     },
     async resolveUserByWallet(chain_ns, address) {

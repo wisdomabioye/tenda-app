@@ -12,7 +12,12 @@ import type {
   GigListQuery,
   PaginatedResponse,
 } from '../../types'
-import type { ApplyToGigBody, GigApplicant, GigApplication } from '../../types/application'
+import type {
+  ApplyToGigBody,
+  GigApplicant,
+  GigApplicantsQuery,
+  GigApplication,
+} from '../../types/application'
 
 export interface GigsContract {
   list: Endpoint<'GET', undefined, undefined, GigListQuery, PaginatedResponse<GigSummary>>
@@ -22,7 +27,7 @@ export interface GigsContract {
   create: Endpoint<'POST', undefined, CreateGigDetailsBody, undefined, GigDetailsRow>
   get: Endpoint<'GET', { id: string }, undefined, undefined, GigDetail>
   /** Poster's shortlist for one gig. Creator-only. */
-  applicants: Endpoint<'GET', { id: string }, undefined, undefined, { data: GigApplicant[] }>
+  applicants: Endpoint<'GET', { id: string }, undefined, GigApplicantsQuery, { data: GigApplicant[] }>
   /** Worker raises their hand. Re-applying upserts the same row. */
   apply: Endpoint<'POST', { id: string }, ApplyToGigBody, undefined, GigApplication>
   /**

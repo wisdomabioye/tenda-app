@@ -4,9 +4,9 @@
  * JWT, never a parameter.
  */
 import type { Endpoint } from '../endpoint'
-import type { MyApplication } from '../../types/application'
+import type { MyApplication, MyApplicationsQuery } from '../../types/application'
 import type { PaginatedResponse } from '../../types'
 
 export interface ApplicationsContract {
-  mine: Endpoint<'GET', undefined, undefined, { limit?: number; offset?: number }, PaginatedResponse<MyApplication>>
+  mine: Endpoint<'GET', undefined, undefined, MyApplicationsQuery, PaginatedResponse<MyApplication>>
 }

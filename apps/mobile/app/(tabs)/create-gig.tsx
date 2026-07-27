@@ -54,6 +54,7 @@ export default function PostGigScreen() {
           remote: draft.remote,
           city: draft.city,
           proofRequirements: draft.proof_requirements,
+          requiresApproval: draft.requires_approval,
         })
       } catch {
         if (!cancelled) showToast('info', 'Could not load the draft, starting fresh')

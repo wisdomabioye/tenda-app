@@ -28,6 +28,23 @@ export function DetailsBlock({ dossier }: { dossier: AdminEscrowDossier }) {
         {/* The bar the poster set. Without it a mediator cannot rule on
             "they never sent what I asked for" — only on what was sent. */}
         <Row label="Required proof" value={dash(formatProofTypeList(g.proof_requirements) || null)} />
+        {/*
+          How the worker got here. A mediator judging abandonment needs to know
+          whether they CHOSE this gig or were placed in it: only a worker who
+          raised their hand is held to it, and `assigned_from_application` is
+          the same flag that rule reads. Shown for approval-mode gigs only,
+          where the distinction exists.
+        */}
+        <Row label="Acceptance" value={g.requires_approval ? 'Poster approval' : 'First come, first served'} />
+        {g.requires_approval && (
+          <>
+            <Row label="Applicants" value={String(g.applicant_count)} />
+            <Row
+              label="Worker applied"
+              value={g.assigned_from_application ? 'Yes — they applied first' : 'No — assigned directly'}
+            />
+          </>
+        )}
         {g.description !== null && g.description.trim() !== '' && (
           <div className="pt-2">
             <dt className="mb-1 text-muted-foreground">Description</dt>

@@ -17,7 +17,7 @@ import {
   canReview,
   canSubmit,
   computeRelevantDeadline,
-  isGigAcceptable,
+  UNRESTRICTED_ACCEPTANCE,
 } from '@tenda/shared'
 import type { EscrowStatus } from '@tenda/shared'
 
@@ -26,7 +26,14 @@ const COUNTERPARTY = 'user-counterparty'
 const STRANGER = 'user-stranger'
 
 function escrow(status: EscrowStatus, counterparty: string | null = COUNTERPARTY) {
-  return { status, creator_id: CREATOR, counterparty_id: counterparty }
+  // Instant mode by default — the acceptance mode is REQUIRED on the shape, so
+  // these lifecycle tests state it rather than inheriting a silent default.
+  return {
+    status,
+    creator_id: CREATOR,
+    counterparty_id: counterparty,
+    ...UNRESTRICTED_ACCEPTANCE,
+  }
 }
 
 test('canPublish: only the creator, only on drafts', () => {
@@ -137,16 +144,8 @@ test('computeRelevantDeadline: picks per status, null otherwise', () => {
   )
 })
 
-test('isGigAcceptable: open + unexpired accept window', () => {
-  const now = new Date('2026-06-04T12:00:00Z')
-  assert.strictEqual(isGigAcceptable({ status: 'open', accept_deadline: null }, now), true)
-  assert.strictEqual(
-    isGigAcceptable({ status: 'open', accept_deadline: '2026-06-05T00:00:00Z' }, now),
-    true,
-  )
-  assert.strictEqual(
-    isGigAcceptable({ status: 'open', accept_deadline: '2026-06-03T00:00:00Z' }, now),
-    false,
-  )
-  assert.strictEqual(isGigAcceptable({ status: 'accepted', accept_deadline: null }, now), false)
-})
+// `isGigAcceptable` was deleted with these tests: no caller anywhere in the
+// workspace, and it answered the PRE-Stage-10 acceptance question — yes on an
+// approval-mode gig — under a more inviting name than `canAccept`. Both halves
+// of what it did are covered above (`canAccept`) and in
+// approval-visibility.test.ts (`acceptWindowState`).

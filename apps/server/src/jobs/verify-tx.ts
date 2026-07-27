@@ -30,6 +30,7 @@ import type { AppDatabase } from '@server/plugins/db'
 import {
   applyEscrowEvent,
   type EscrowEventStore,
+  type EscrowRepublishEvent,
   type InternalEscrowEvent,
 } from '@server/lib/escrow-events'
 
@@ -144,21 +145,11 @@ export interface VerifyTxDeps {
    * Republish seam, the worker wiring (#33) hooks the notifications queue
    * and the WS broadcaster here. Best-effort: a republish failure must not
    * fail the (already-applied) state transition.
+   *
+   * The payload shape is owned by lib/escrow-events (see EscrowRepublishEvent)
+   * so this side and the fan-out cannot drift as fields are added.
    */
-  republish(event: {
-    internal_event: InternalEscrowEvent
-    escrow_id: string
-    wire_event: EscrowEvent
-    /** On-chain signature/hash, clients correlate WS frames against it. */
-    tx_ref: string
-    /**
-     * Counterparty the event installed or released, already resolved to a
-     * user id. Load-bearing for `unassign`: by the time the fan-out runs the
-     * escrow row no longer names the released worker, so this is the only way
-     * to tell them they were let go.
-     */
-    counterparty_id: string | null
-  }): Promise<void>
+  republish(event: EscrowRepublishEvent): Promise<void>
   log: { warn(obj: Record<string, unknown>, msg: string): void }
 }
 
@@ -271,6 +262,7 @@ export async function verifyTxJobHandler(
         wire_event: verified.event.name,
         tx_ref: job.tx_ref,
         counterparty_id: result.counterparty_id,
+        passed_applicant_ids: result.passed_applicant_ids,
       })
     } catch (err) {
       deps.log.warn(

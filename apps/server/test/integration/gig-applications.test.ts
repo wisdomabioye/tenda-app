@@ -11,6 +11,7 @@ import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import {
   APPLICATION_MESSAGE_MAX_LENGTH,
+  ErrorCode,
   PLATFORM_CONFIG_DEFAULTS,
 } from '@tenda/shared'
 import { escrows, gig_applications } from '@tenda/shared/db/schema'
@@ -426,4 +427,24 @@ test('the detail reports a worker step-back once it happens', { skip }, async ()
 
   const res = await app.inject({ method: 'GET', url: `/v1/gigs/${gig.id}` })
   assert.ok(res.json().assignment_released_at, 'the poster can see they stepped back')
+})
+
+test('apply: a gig escrow with no listing satellite reads as 404, not a nameless gig', { skip }, async () => {
+  const app = getApp()
+  const poster = await createUser(app)
+  const worker = await createUser(app)
+  // No `attachGigDetails`: the escrow exists but nothing describes it.
+  const escrow = await createEscrow(app, {
+    creator_id: poster.row.id,
+    status: 'open',
+    requires_approval: true,
+    escrow_ref: `ref-${Math.random().toString(36).slice(2)}`,
+  })
+
+  const res = await apply(app, worker.token, escrow.id)
+  // It is not something a worker could have been shown, so "no such gig" is
+  // the honest answer — and it keeps the poster's notice from ever having to
+  // name a gig with no title.
+  assert.strictEqual(res.statusCode, 404)
+  assert.strictEqual(res.json().code, ErrorCode.GIG_NOT_FOUND)
 })

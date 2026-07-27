@@ -99,4 +99,27 @@ export default fp(async (fastify) => {
     if (request.headers.authorization === undefined) return
     return fastify.authenticate(request, reply)
   })
+
+  /**
+   * LENIENT identification for PUBLIC read routes whose response is merely
+   * richer when it knows who is asking (the gig detail's `viewer` block).
+   *
+   * Deliberately not `optionalAuthenticate`. That one hard-401s an unusable
+   * bearer, which is right on /auth/{challenge,verify} — a stale token there
+   * must never be mistaken for a fresh sign-up. On a public page it would turn
+   * an expired session into "Failed to load gig" for anyone opening a shared
+   * link or a push deep-link, breaking a route that has always been readable
+   * by anybody.
+   *
+   * No suspension check, and none is needed: nothing reachable through this
+   * decorator is an action. Every write re-runs the full `authenticate`.
+   */
+  fastify.decorate('identifyViewer', async (request: FastifyRequest) => {
+    if (request.headers.authorization === undefined) return
+    try {
+      await request.jwtVerify()
+    } catch {
+      // Unreadable bearer → anonymous, exactly as if none had been sent.
+    }
+  })
 })

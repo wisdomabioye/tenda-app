@@ -3,7 +3,12 @@
  * timeout via AbortController, and the ApiError envelope → ApiClientError
  * mapping. Endpoint groups live in ./client.
  */
-import { apiConfig, type ApiError } from '@tenda/shared'
+// `QueryParams` is SHARED, not redeclared here: it is the constraint every
+// `*Query` type in @tenda/shared is compile-checked against (see
+// assertQueryShape), and a second local copy could drift from the one the
+// server's types actually satisfy — which is how the `as Record<string,
+// unknown>` casts got in.
+import { apiConfig, type ApiError, type QueryParams } from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
 
@@ -24,7 +29,7 @@ function buildUrl(
   base: string,
   path: string,
   params?: Record<string, string>,
-  query?: Record<string, unknown>,
+  query?: QueryParams,
 ): string {
   let url = `${base}${path}`
 
@@ -54,7 +59,7 @@ export async function request<TResponse>(
   options?: {
     params?: Record<string, string>
     body?: unknown
-    query?: Record<string, unknown>
+    query?: QueryParams
     /**
      * false → force an anonymous call: no Authorization header even when a JWT
      * is stored. Sign-in surfaces need this, the server treats a present

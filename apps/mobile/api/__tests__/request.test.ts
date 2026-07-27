@@ -123,3 +123,46 @@ describe('request, error envelope', () => {
     })
   })
 })
+
+describe('request, query serialisation', () => {
+  function sentUrl(fetchMock: jest.Mock): string {
+    return fetchMock.mock.calls[0][0] as string
+  }
+
+  it('serialises an array as ONE comma-separated value, not repeated keys', async () => {
+    // Load-bearing on both sides: the server parses `?status=a,b` with
+    // `raw.split(',')`. Repeated keys would arrive as an array there and throw
+    // inside the parser — a 500 on a list route, from a change that looks like
+    // a tidy-up here.
+    const fetchMock = mockFetch()
+    await request('GET', '/v1/gigs/:id/applications', {
+      params: { id: 'escrow-1' },
+      query: { status: ['open', 'passed'] },
+    })
+
+    expect(sentUrl(fetchMock)).toContain('?status=open%2Cpassed')
+    expect(sentUrl(fetchMock)).toContain('/v1/gigs/escrow-1/applications')
+  })
+
+  it('omits null and undefined rather than sending them as words', async () => {
+    // `status=undefined` is a 400 from the shared status guard, and
+    // `chain_id=null` would filter on a chain that does not exist.
+    const fetchMock = mockFetch()
+    await request('GET', '/v1/gigs', {
+      query: { limit: 20, chain_id: null, status: undefined, remote: false },
+    })
+
+    const url = sentUrl(fetchMock)
+    expect(url).toContain('limit=20')
+    // `false` is a real value and must survive; only null/undefined drop.
+    expect(url).toContain('remote=false')
+    expect(url).not.toMatch(/chain_id/)
+    expect(url).not.toMatch(/status/)
+  })
+
+  it('adds no query string at all when every value was dropped', async () => {
+    const fetchMock = mockFetch()
+    await request('GET', '/v1/gigs', { query: { chain_id: null } })
+    expect(sentUrl(fetchMock)).not.toContain('?')
+  })
+})

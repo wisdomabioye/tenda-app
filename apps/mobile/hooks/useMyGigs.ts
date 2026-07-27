@@ -25,7 +25,13 @@
  */
 import { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
-import { POSTED_ESCROW_STATUSES, type EscrowStatus, type GigListQuery, type GigSummary } from '@tenda/shared'
+import {
+  POSTED_ESCROW_STATUSES,
+  type EscrowStatus,
+  type GigListQuery,
+  type GigSummary,
+  type MyApplication,
+} from '@tenda/shared'
 import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/usePaginatedList'
 import { useAuthStore } from '@/stores/auth.store'
@@ -36,11 +42,30 @@ export interface MyGigsState {
   working: PaginatedListState<GigSummary>
   /** Unfunded staging rows: the only surface they are reachable from. */
   drafts: PaginatedListState<GigSummary>
+  /**
+   * Approval-mode applications the caller has sent. Their own list because an
+   * application is not a gig the caller holds — the poster may still pick
+   * someone else — and because D5 makes the live countdown to `expires_at` the
+   * applicant's responsibility to watch.
+   *
+   * Deliberately NOT chain-filtered: the filter chips scope gigs by settlement
+   * chain, and `/v1/applications` is caller-scoped with no chain parameter.
+   * Silently ignoring the active chip would be worse than not applying it.
+   */
+  applications: PaginatedListState<MyApplication>
   chainId: string | null
   setChainId: (chain_id: string | null) => void
 }
 
 const keyOf = (gig: GigSummary) => gig.escrow_id
+// The APPLICATION id, not the gig's: an applicant can hold at most one row per
+// gig, but keying on the gig would collide the moment the same list carries a
+// withdrawn row and its re-application.
+const applicationKeyOf = (row: MyApplication) => row.application.id
+
+// Module scope so the query object's identity is stable; usePaginatedList
+// compares by JSON shape, and an empty literal per render would be pure churn.
+const EMPTY_QUERY: Record<string, never> = {}
 
 // Spread once at module scope: `query` identity is compared by JSON shape, so
 // a fresh array per render is fine, but there is no reason to build one.
@@ -76,6 +101,13 @@ export function useMyGigs(): MyGigsState {
     enabled,
   })
 
+  const applications = usePaginatedList<MyApplication, Record<string, never>>({
+    fetchPage: (params) => api.applications.mine(params),
+    query: EMPTY_QUERY,
+    keyOf: applicationKeyOf,
+    enabled,
+  })
+
   // Mirrored into refs so the focus callback's identity never changes when a
   // list settles — that would re-fire the effect and turn the first load into
   // two, which is the double-fetch this screen was just cleaned of.
@@ -85,6 +117,8 @@ export function useMyGigs(): MyGigsState {
   workingFetchedRef.current = working.hasFetched
   const draftsFetchedRef = useRef(false)
   draftsFetchedRef.current = drafts.hasFetched
+  const applicationsFetchedRef = useRef(false)
+  applicationsFetchedRef.current = applications.hasFetched
 
   useFocusEffect(
     useCallback(() => {
@@ -97,6 +131,10 @@ export function useMyGigs(): MyGigsState {
       // Drafts too: publishing one moves it out of this list and into Posted,
       // so a stale Drafts tab would keep showing a gig that is already live.
       if (draftsFetchedRef.current) void drafts.reload()
+      // Applications too: being assigned flips a row to `assigned` and puts
+      // the gig in Working, so a stale tab would show the applicant still
+      // waiting on a decision that has already been made.
+      if (applicationsFetchedRef.current) void applications.reload()
       // Every `reload` is stable (see usePaginatedList) and the flags are read
       // through refs, so the callback deliberately has no deps — it must fire
       // on focus, not on every settled load.
@@ -106,5 +144,5 @@ export function useMyGigs(): MyGigsState {
 
   // `setChainId` is React's own setter — already stable, so it is returned
   // directly rather than re-wrapped (matching useExchangeScreen).
-  return { posted, working, drafts, chainId, setChainId }
+  return { posted, working, drafts, applications, chainId, setChainId }
 }

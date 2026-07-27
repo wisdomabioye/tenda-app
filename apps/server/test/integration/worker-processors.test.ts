@@ -23,7 +23,7 @@ import { buildVerifyTxDeps, buildProcessors, removeTokens } from '@server/worker
 import type { DevicePlatform } from '@server/lib/push-services'
 import type { PushService } from '@server/chains/types'
 import { channelName } from '@server/lib/ws'
-import { INTERNAL_EVENT_BY_WIRE } from '@server/lib/escrow-events'
+import { INTERNAL_EVENT_BY_WIRE, type EscrowRepublishEvent } from '@server/lib/escrow-events'
 import type { EscrowEvent } from '@server/chains/types'
 import type { JobName, JobPayload } from '@server/plugins/queue'
 import {
@@ -65,18 +65,22 @@ beforeEach(() => {
 })
 
 /** Build a republish event from a wire name (internal derived, never hardcoded). */
+// Return type pinned to the shared republish shape: a new field on it must
+// break here rather than let these fixtures quietly stop exercising it.
 function evt(
   wire: EscrowEvent,
   escrow_id: string,
   tx_ref = 'sig-tx-1',
   counterparty_id: string | null = null,
-) {
+  passed_applicant_ids: string[] = [],
+): EscrowRepublishEvent {
   return {
     internal_event: INTERNAL_EVENT_BY_WIRE[wire],
     wire_event: wire,
     escrow_id,
     tx_ref,
     counterparty_id,
+    passed_applicant_ids,
   }
 }
 

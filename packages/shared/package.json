@@ -47,7 +47,7 @@
     "build:watch": "tsc -w",
     "type-check": "tsc --noEmit",
     "type-check:test": "tsc -p test/tsconfig.json",
-    "test": "node --test -r ts-node/register \"test/**/*.test.ts\"",
+    "test": "tsc -p test/tsconfig.json && node --test -r ts-node/register \"test/**/*.test.ts\"",
     "test:coverage": "c8 node --test -r ts-node/register \"test/**/*.test.ts\"",
     "clean": "rm -rf dist coverage"
   },

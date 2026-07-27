@@ -38,7 +38,11 @@ export interface DossierTransaction {
   created_at: string
 }
 
-/** gig_details projection; deadlines live on the escrow, not here. */
+/**
+ * The gig as a mediator reads it: the `gig_details` listing PLUS the escrow's
+ * acceptance mode, which is meaningless for an exchange and belongs with the
+ * gig's terms. Deadlines are not here — those live on the escrow proper.
+ */
 export interface DossierGigDetails {
   title: string
   description: string | null
@@ -53,6 +57,22 @@ export interface DossierGigDetails {
    * need the bar that was set, and it is immutable once the gig leaves draft.
    */
   proof_requirements: ProofType[]
+  /**
+   * Approval mode: the poster assigned this worker rather than the worker
+   * accepting. Sourced from the ESCROW, not gig_details — it is carried here
+   * because it is meaningless for an exchange and a mediator reads it as part
+   * of the gig's terms.
+   */
+  requires_approval: boolean
+  /**
+   * Whether the assigned worker had a live application when the assignment
+   * landed. THE question behind "did they choose this gig, or were they put in
+   * it" — and the same flag that decides whether an abandonment strike is
+   * fair, so a mediator must be able to see what the rule saw.
+   */
+  assigned_from_application: boolean
+  /** How many workers applied, in any state. Context for how contested it was. */
+  applicant_count: number
 }
 
 /** exchange_details projection; payment_proof_url is the fiat evidence. */

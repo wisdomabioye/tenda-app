@@ -1,11 +1,32 @@
 import { test, expect } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
-import type { AdminEscrowDossier, DossierParty, DossierProof } from '@tenda/shared'
+import type { AdminEscrowDossier, DossierGigDetails, DossierParty, DossierProof } from '@tenda/shared'
 import { DossierPanel } from '@/components/disputes/dossier'
 import { PartyCard } from '@/components/disputes/dossier/party-card'
 import { ProofsGallery } from '@/components/disputes/dossier/proofs-gallery'
 import { StatusTimeline } from '@/components/disputes/dossier/status-timeline'
 import { DetailsBlock } from '@/components/disputes/dossier/details-block'
+
+/**
+ * The gig half of a dossier. One builder so a new field on
+ * `DossierGigDetails` lands in ONE place rather than in every test that
+ * happened to spell the shape out.
+ */
+function gigDetails(over: Partial<DossierGigDetails> = {}): DossierGigDetails {
+  return {
+    title: 'Fix my sink',
+    description: 'Leaky pipe',
+    category: 'home',
+    country: 'NG',
+    city: 'Lagos',
+    remote: false,
+    proof_requirements: [],
+    requires_approval: false,
+    assigned_from_application: false,
+    applicant_count: 0,
+    ...over,
+  }
+}
 
 function dossier(over: Partial<AdminEscrowDossier> = {}): AdminEscrowDossier {
   return {
@@ -21,7 +42,7 @@ function dossier(over: Partial<AdminEscrowDossier> = {}): AdminEscrowDossier {
       { role: 'creator', user_id: 'p1', first_name: 'Ada', last_name: 'Lovelace', raised_dispute: false },
       { role: 'counterparty', user_id: 'p2', first_name: 'Tunde', last_name: 'Bello', raised_dispute: true },
     ],
-    gig: { title: 'Fix my sink', description: 'Leaky pipe', category: 'home', country: 'NG', city: 'Lagos', remote: false, proof_requirements: [] },
+    gig: gigDetails(),
     exchange: null,
     proofs: [],
     transactions: [],
@@ -102,7 +123,7 @@ test('StatusTimeline shows an empty state with no transactions', () => {
 // ─── DetailsBlock ─────────────────────────────────────────────────────────────
 
 test('DetailsBlock renders gig details and remote location', () => {
-  render(<DetailsBlock dossier={dossier({ gig: { title: 'Design a logo', description: null, category: 'design', country: null, city: null, remote: true, proof_requirements: [] } })} />)
+  render(<DetailsBlock dossier={dossier({ gig: gigDetails({ title: 'Design a logo', description: null, category: 'design', country: null, city: null, remote: true }) })} />)
   expect(screen.getByText('Design a logo')).toBeInTheDocument()
   expect(screen.getByText('Remote')).toBeInTheDocument()
 })
@@ -148,11 +169,7 @@ test('DetailsBlock shows the proof the poster required', () => {
   render(
     <DetailsBlock
       dossier={dossier({
-        gig: {
-          title: 'Fix my sink', description: null, category: 'home',
-          country: 'NG', city: 'Lagos', remote: false,
-          proof_requirements: ['image', 'video'],
-        },
+        gig: gigDetails({ description: null, proof_requirements: ['image', 'video'] }),
       })}
     />,
   )
@@ -164,4 +181,41 @@ test('DetailsBlock dashes the requirement row when the gig required nothing', ()
   render(<DetailsBlock dossier={dossier()} />)
   expect(screen.getByText('Required proof')).toBeInTheDocument()
   expect(screen.getByText('—')).toBeInTheDocument()
+})
+
+// ─── Acceptance mode (Stage 10) ───────────────────────────────────────────────
+
+/**
+ * A mediator judging abandonment has to know whether the worker CHOSE this gig
+ * or was placed in it: only a worker who raised their hand is held to it, and
+ * `assigned_from_application` is the very flag that rule reads.
+ */
+function approvalGig(over: Partial<DossierGigDetails> = {}): DossierGigDetails {
+  return gigDetails({
+    requires_approval: true,
+    assigned_from_application: true,
+    applicant_count: 7,
+    ...over,
+  })
+}
+
+test('DetailsBlock reports an approval-mode gig, its applicants, and how the worker got there', () => {
+  render(<DetailsBlock dossier={dossier({ gig: approvalGig() })} />)
+  expect(screen.getByText('Poster approval')).toBeInTheDocument()
+  expect(screen.getByText('7')).toBeInTheDocument()
+  expect(screen.getByText('Yes — they applied first')).toBeInTheDocument()
+})
+
+test('DetailsBlock distinguishes a directly-assigned worker from one who applied', () => {
+  render(<DetailsBlock dossier={dossier({ gig: approvalGig({ assigned_from_application: false }) })} />)
+  // The distinction is the whole point: a back-door assignment earns no strike.
+  expect(screen.getByText('No — assigned directly')).toBeInTheDocument()
+})
+
+test('DetailsBlock names first-come gigs and omits the approval-only rows', () => {
+  render(<DetailsBlock dossier={dossier({ gig: approvalGig({ requires_approval: false }) })} />)
+  expect(screen.getByText('First come, first served')).toBeInTheDocument()
+  // Applicants and provenance are meaningless without the mode, so they go.
+  expect(screen.queryByText('Applicants')).toBeNull()
+  expect(screen.queryByText('Worker applied')).toBeNull()
 })

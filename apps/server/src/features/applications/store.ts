@@ -5,7 +5,7 @@
  */
 
 import { and, count, desc, eq, inArray, lt } from 'drizzle-orm'
-import { gig_applications, escrows, users } from '@tenda/shared/db/schema'
+import { gig_applications, escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { ACTIVE_APPLICATION_STATUSES, type ApplicationStatus } from '@tenda/shared'
 import type { EscrowStatus } from '@server/lib/escrow'
 import { isUuidLike } from '@server/lib/escrow-routes'
@@ -32,6 +32,8 @@ export interface ApplicantRow extends ApplicationRow {
 export interface ApplicationStore {
   /** Open applications this worker holds, across all gigs. */
   countOpen(applicant_id: string): Promise<number>
+  /** Open applications on ONE gig — the poster's "waiting on you" number. */
+  countOpenForEscrow(escrow_id: string): Promise<number>
   /** The applicant's row on one gig, whatever its status (the unique pair). */
   find(escrow_id: string, applicant_id: string): Promise<ApplicationRow | null>
   /**
@@ -74,6 +76,19 @@ export function drizzleApplicationStore(db: AppDatabase): ApplicationStore {
         .where(
           and(
             eq(gig_applications.applicant_id, applicant_id),
+            inArray(gig_applications.status, [...ACTIVE_APPLICATION_STATUSES]),
+          ),
+        )
+      return row?.n ?? 0
+    },
+
+    async countOpenForEscrow(escrow_id) {
+      const [row] = await db
+        .select({ n: count() })
+        .from(gig_applications)
+        .where(
+          and(
+            eq(gig_applications.escrow_id, escrow_id),
             inArray(gig_applications.status, [...ACTIVE_APPLICATION_STATUSES]),
           ),
         )
@@ -183,6 +198,12 @@ export interface ApplicationEscrowRow {
   creator_id: string
   requires_approval: boolean
   accept_deadline: Date | null
+  /**
+   * gig_details.title — null only for an exchange escrow, which every caller
+   * 404s on anyway. Read here so the "new applicant" notice can name the gig
+   * without a second round-trip; a poster may have several taking applications.
+   */
+  title: string | null
 }
 
 export async function findApplicationEscrow(
@@ -201,8 +222,13 @@ export async function findApplicationEscrow(
       creator_id: escrows.creator_id,
       requires_approval: escrows.requires_approval,
       accept_deadline: escrows.accept_deadline,
+      title: gig_details.title,
     })
     .from(escrows)
+    // LEFT, not inner: an exchange escrow has no gig_details row and must
+    // still come back so the callers can answer it with their own 404 rather
+    // than an indistinguishable "no such escrow".
+    .leftJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
     .where(eq(escrows.id, escrow_id))
     .limit(1)
   return row ?? null

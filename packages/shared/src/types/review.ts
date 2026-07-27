@@ -9,7 +9,7 @@ export interface ReviewInput {
   comment?: string
 }
 
-export interface GetUserReviewsQuery {
+export type GetUserReviewsQuery = {
   limit?:  number
   offset?: number
 }

@@ -28,16 +28,20 @@ import type { AppDatabase } from '@server/plugins/db'
  * Skipped when the applicant already has an open row on THIS gig, because
  * re-applying upserts that row and therefore consumes no additional slot —
  * counting it would make editing your own pitch impossible at the cap.
+ *
+ * `existing` is passed in rather than looked up: the caller has to read the
+ * row anyway (a first application and a re-application are different events),
+ * and querying it twice invites the two reads to disagree under a concurrent
+ * withdraw.
  */
 export async function assertApplicationCapacity(
   db: AppDatabase,
   applicant_id: string,
-  escrow_id: string,
+  existing: ApplicationSnapshot | null,
 ): Promise<void> {
-  const store = drizzleApplicationStore(db)
-  const existing = await store.find(escrow_id, applicant_id)
   if (existing !== null && existing.status === 'open') return
 
+  const store = drizzleApplicationStore(db)
   const cfg = await getPlatformConfig(db)
   const open = await store.countOpen(applicant_id)
   const check = checkApplicationCapacity(open, cfg.max_open_applications)

@@ -396,14 +396,14 @@ test('confirm hook: DisputeResolved marks the active proposal confirmed', { skip
 
   // Simulate the verify-tx apply path landing the on-chain resolution.
   const store = drizzleEscrowEventStore(app.db)
-  const applied = await store.applyEvent({
+  const outcome = await store.applyEvent({
     escrow_id,
     from: ['disputed'],
     patch: { status: 'resolved' },
     transaction: { type: 'resolve', tx_ref: `resolve-${escrow_id}`, amount_raw: null, platform_fee_raw: null, creator_payout_raw: null, actor_id: null },
     disputeResolution: { winner: 'split' },
   })
-  assert.strictEqual(applied, true)
+  assert.strictEqual(outcome.applied, true)
 
   const [row] = await app.db.select().from(dispute_resolutions).where(eq(dispute_resolutions.id, proposal.id))
   assert.strictEqual(row.status, 'confirmed')

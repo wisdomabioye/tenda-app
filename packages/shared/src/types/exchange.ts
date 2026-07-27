@@ -92,7 +92,7 @@ export interface CreateExchangeDetailsBody {
 
 // ── Query types ───────────────────────────────────────────────────────
 
-export interface ExchangeListQuery {
+export type ExchangeListQuery = {
   currency?: string
   /**
    * CAIP-2 settlement chain (`escrows.chain_id`). Same contract as

@@ -84,7 +84,7 @@ export interface EscrowListRow {
 
 // ── Query types ───────────────────────────────────────────────────────
 
-export interface UserEscrowsQuery {
+export type UserEscrowsQuery = {
   role?: 'creator' | 'counterparty'
   kind?: EscrowKind
   /**
@@ -96,7 +96,7 @@ export interface UserEscrowsQuery {
   offset?: number
 }
 
-export interface UserTransactionsQuery {
+export type UserTransactionsQuery = {
   limit?: number
   offset?: number
 }
