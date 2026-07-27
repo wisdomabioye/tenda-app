@@ -6,6 +6,8 @@
   "license": "ISC",
   "scripts": {
     "compile": "anchor build",
+    "//ts-node": "Shim for `anchor migrate`: Anchor.toml sets package_manager=pnpm, so Anchor shells out to `pnpm ts-node <migration>` — and pnpm resolves a bare name as a SCRIPT, not a binary, so migrate died with ERR_PNPM_NO_SCRIPT. This forwards it to the real binary.",
+    "ts-node": "ts-node",
     "test": "ts-mocha -p ./tsconfig.json -t 120000 \"tests/**/*.test.ts\"",
     "sync": "node ../../scripts/sync-idl.mjs",
     "type-check": "tsc --noEmit -p tsconfig.json",

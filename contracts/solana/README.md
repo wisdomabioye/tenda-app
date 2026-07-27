@@ -5,7 +5,7 @@ escrows), rewritten at Stage 0 to mirror the Solidity `TendaEscrow` surface
 1:1. The legacy concepts (UserAccount, gas-subsidy airdrop, withdraw_earnings)
 are gone.
 
-Program id: `7H6AAoghUCPAVA1WTEwpSmkiRfPHWrgFidZQPzbXzkes` — pinned identically
+Program id: `cU6Z67oRepxKfiaCUKTqHiXMWVifFdYpVG1QC4SR6Eb` — pinned identically
 in `declare_id!`, `Anchor.toml`, and the shared IDL, and CI-enforced by
 `scripts/check-program-id.mjs`.
 
@@ -16,14 +16,39 @@ anchor build                       # rust-toolchain.toml pins the compiler
 pnpm test                          # litesvm in-process suite (tests/)
 pnpm type-check                    # tsc over tests + tests-devnet + migrations
 pnpm --dir ../.. sync:idl          # regenerate packages/shared/src/idl after src changes
-anchor deploy --provider.cluster devnet
+anchor deploy --provider.cluster devnet    # FIRST deploy to a cluster only
 anchor migrate                     # one-time platform init (migrations/deploy.ts)
 ```
 
+To ship a change to a cluster that **already has** the program — devnet, and
+eventually mainnet — use `anchor upgrade`, not `anchor deploy`. The upgrade is
+signed by the upgrade authority; `anchor deploy` would instead create a second
+program at whatever `target/deploy/tenda_escrow-keypair.json` holds, and since
+`declare_id!` names the real one, every instruction on that copy reverts. The
+verified sequence (IDL parity → `solana program extend` if the binary grew →
+upgrade → byte-compare the chain → republish the on-chain IDL) is in
+`docs/stage-10-gig-approval-mode.md` § The deploy.
+
 `anchor migrate` runs `migrations/deploy.ts`: it calls `initialize_platform`
-with `TENDA_ADMIN` / `TENDA_DISPUTE_ADMIN` / `TENDA_TREASURY` from the env
-(provider wallet fallback — devnet only) and is idempotent (skips when the
-PlatformState PDA exists).
+with `TENDA_ADMIN` / `TENDA_DISPUTE_ADMIN` / `TENDA_TREASURY`, and is idempotent
+(skips when the PlatformState PDA exists).
+
+All three are **required on every cluster** — the migration throws when any is
+unset, mirroring `vm.envAddress` in `contracts/evm/script/Deploy.s.sol`. They are
+deliberately not read from a `.env`: initialization runs once per cluster and
+cannot be undone from here, so the authorities are stated at the point of use.
+To keep the deploy wallet on devnet, pass it explicitly:
+
+```bash
+TENDA_ADMIN=$(solana address) \
+TENDA_DISPUTE_ADMIN=<pubkey> \
+TENDA_TREASURY=<pubkey> \
+anchor migrate --provider.cluster devnet
+```
+
+Fees and windows keep their defaults (`TENDA_FEE_BPS` 250, `TENDA_SEEKER_FEE_BPS`
+100, `TENDA_APPROVAL_WINDOW_S` 172800, `TENDA_GRACE_PERIOD_S` 3600) — the same
+split the EVM script uses: authorities required, tunables defaulted.
 
 ## Instructions
 

@@ -6,10 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-tenda_escrow = "996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv"
+tenda_escrow = "cU6Z67oRepxKfiaCUKTqHiXMWVifFdYpVG1QC4SR6Eb"
 
 [programs.localnet]
-tenda_escrow = "996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv"
+tenda_escrow = "cU6Z67oRepxKfiaCUKTqHiXMWVifFdYpVG1QC4SR6Eb"
 
 [registry]
 url = "https://api.apr.dev"

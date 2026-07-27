@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/tenda_escrow.json`.
  */
 export type TendaEscrow = {
-  "address": "996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv",
+  "address": "cU6Z67oRepxKfiaCUKTqHiXMWVifFdYpVG1QC4SR6Eb",
   "metadata": {
     "name": "tendaEscrow",
     "version": "0.1.0",
