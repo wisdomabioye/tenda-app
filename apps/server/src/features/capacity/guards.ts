@@ -19,14 +19,19 @@
 import { ErrorCode, type EscrowKind } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { getPlatformConfig } from '@server/lib/platform'
-import { checkGigCapacity, capacityMessage } from '@server/features/capacity/service'
+import {
+  checkGigCapacity,
+  capacityMessage,
+  workerCapacityMessage,
+} from '@server/features/capacity/service'
 import { drizzleCapacityStore } from '@server/features/capacity/store'
 import type { AppDatabase } from '@server/plugins/db'
 
-export async function assertGigCapacity(
+async function assertCapacity(
   db: AppDatabase,
   user_id: string,
   kind: EscrowKind,
+  message: (check: ReturnType<typeof checkGigCapacity>) => string,
 ): Promise<void> {
   if (kind !== 'gig') return
 
@@ -39,9 +44,31 @@ export async function assertGigCapacity(
   const check = checkGigCapacity(active, cfg.max_pending_gigs)
   if (check.allowed) return
 
-  throw new AppError(403, ErrorCode.GIG_CAPACITY_REACHED, capacityMessage(check), {
+  throw new AppError(403, ErrorCode.GIG_CAPACITY_REACHED, message(check), {
     active: check.active,
     limit: check.limit,
     remaining: check.remaining,
   })
+}
+
+/** The caller is the worker accepting — second-person copy. */
+export async function assertGigCapacity(
+  db: AppDatabase,
+  user_id: string,
+  kind: EscrowKind,
+): Promise<void> {
+  return assertCapacity(db, user_id, kind, capacityMessage)
+}
+
+/**
+ * The caller is the POSTER assigning someone else, so the same rule is
+ * enforced against the worker's id with third-person copy. One predicate, two
+ * entry points — the numbers cannot disagree between accept and assign.
+ */
+export async function assertWorkerGigCapacity(
+  db: AppDatabase,
+  worker_user_id: string,
+  kind: EscrowKind,
+): Promise<void> {
+  return assertCapacity(db, worker_user_id, kind, workerCapacityMessage)
 }

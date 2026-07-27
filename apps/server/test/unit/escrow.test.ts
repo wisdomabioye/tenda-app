@@ -6,6 +6,7 @@ import {
   type EscrowStatus,
   type EscrowTransition,
   type TransitionContext,
+  acceptedAt,
   assertCanTransition,
   assertGigAsset,
   assertExchangeAsset,
@@ -34,6 +35,10 @@ function ctx(overrides: Partial<TransitionContext> = {}): TransitionContext {
     approval_deadline: T_FUTURE,
     grace_period_seconds: 3600,
     is_assigned: false,
+    // Instant mode by default — every pre-existing case assumes it.
+    requires_approval: false,
+    completion_duration_seconds: 7200,
+    unassign_window_seconds: 6 * 3600,
     ...overrides,
   }
 }
@@ -59,6 +64,9 @@ const LEGAL_TRANSITIONS: ReadonlyArray<[EscrowTransition, EscrowStatus, EscrowSt
   ['accept', 'open', 'accepted', 'counterparty'],
   ['accept', 'open', 'accepted', 'assigned_counterparty', { is_assigned: true }],
   ['decline', 'open', 'open', 'assigned_counterparty', { is_assigned: true }],
+  ['assign_accept', 'open', 'accepted', 'creator', { requires_approval: true }],
+  // The one BACKWARD edge in the machine.
+  ['unassign', 'accepted', 'open', 'creator', { requires_approval: true, completion_deadline: T0 }],
   ['cancel', 'open', 'cancelled', 'creator'],
   ['refund_expired', 'open', 'refunded', 'creator', { accept_deadline: T_PAST }],
   ['submit', 'accepted', 'submitted', 'counterparty'],
@@ -457,4 +465,96 @@ test('assertExchangeAsset: cross-chain native rejected (SOL on Base)', () => {
 test('assertExchangeAsset: empty strings rejected', () => {
   expectError(() => assertExchangeAsset('', 'solana:mainnet'), 'ESCROW_INVALID_ASSET')
   expectError(() => assertExchangeAsset('SOL', ''), 'ESCROW_INVALID_ASSET')
+})
+
+// ---------- approval mode (stage 10) ---------------------------------------
+
+const APPROVAL = { requires_approval: true } as const
+
+test('accept is CLOSED on an approval-mode gig — applying is the only way in', () => {
+  const e = expectError(() => assertCanTransition(ctx({ ...APPROVAL, caller: 'counterparty' }), 'accept'), 'ESCROW_WRONG_STATUS')
+  assert.match(e.message, /approval-only/)
+})
+
+test('assign_accept / unassign are refused on an instant-mode gig', () => {
+  // requires_approval is the witness that the worker was PLACED. Without it,
+  // a worker accepted for themselves and the poster may not undo that.
+  expectError(() => assertCanTransition(ctx({ caller: 'creator' }), 'assign_accept'), 'ESCROW_WRONG_STATUS')
+  expectError(
+    () => assertCanTransition(ctx({ status: 'accepted', caller: 'creator' }), 'unassign'),
+    'ESCROW_WRONG_STATUS',
+  )
+})
+
+test('assign_accept: only the creator, only from open, only before the accept deadline', () => {
+  for (const caller of ['counterparty', 'assigned_counterparty', 'dispute_admin'] as const) {
+    expectError(() => assertCanTransition(ctx({ ...APPROVAL, caller }), 'assign_accept'), 'ESCROW_WRONG_CALLER')
+  }
+  expectError(
+    () => assertCanTransition(ctx({ ...APPROVAL, status: 'accepted', caller: 'creator' }), 'assign_accept'),
+    'ESCROW_WRONG_STATUS',
+  )
+  expectError(
+    () => assertCanTransition(ctx({ ...APPROVAL, caller: 'creator', accept_deadline: T_PAST }), 'assign_accept'),
+    'ESCROW_DEADLINE_PASSED',
+  )
+})
+
+test('unassign: only the creator, and only from accepted', () => {
+  const base = { ...APPROVAL, status: 'accepted' as const, completion_deadline: T0 }
+  for (const caller of ['counterparty', 'assigned_counterparty', 'dispute_admin'] as const) {
+    expectError(() => assertCanTransition(ctx({ ...base, caller }), 'unassign'), 'ESCROW_WRONG_CALLER')
+  }
+  for (const status of ['open', 'submitted', 'disputed'] as const) {
+    expectError(
+      () => assertCanTransition(ctx({ ...APPROVAL, status, caller: 'creator' }), 'unassign'),
+      'ESCROW_WRONG_STATUS',
+    )
+  }
+})
+
+// The window runs from when the escrow was ACCEPTED, which nothing stores —
+// it is derived as completion_deadline − completion_duration, exactly as both
+// contracts derive it. These pin the derivation, not just the comparison.
+test('unassign: the window is measured from the DERIVED accept time', () => {
+  const accepted = new Date('2026-06-01T00:00:00Z') // == T0
+  const duration = 7200
+  const window = 3600
+  const base = {
+    ...APPROVAL,
+    status: 'accepted' as const,
+    caller: 'creator' as const,
+    completion_duration_seconds: duration,
+    unassign_window_seconds: window,
+    completion_deadline: new Date(accepted.getTime() + duration * 1000),
+  }
+  // Just inside.
+  assertCanTransition(ctx({ ...base, now: new Date(accepted.getTime() + (window - 1) * 1000) }), 'unassign')
+  // Exactly at the boundary is CLOSED, matching the contracts' `>=`.
+  expectError(
+    () => assertCanTransition(ctx({ ...base, now: new Date(accepted.getTime() + window * 1000) }), 'unassign'),
+    'ESCROW_DEADLINE_PASSED',
+  )
+})
+
+test('unassign: a zero window is shut immediately', () => {
+  const base = {
+    ...APPROVAL,
+    status: 'accepted' as const,
+    caller: 'creator' as const,
+    completion_deadline: T0,
+    unassign_window_seconds: 0,
+  }
+  expectError(() => assertCanTransition(ctx(base), 'unassign'), 'ESCROW_DEADLINE_PASSED')
+})
+
+test('acceptedAt: derives, and is null before the escrow is accepted', () => {
+  const duration = 7200
+  const deadline = new Date(T0.getTime() + duration * 1000)
+  assert.deepStrictEqual(
+    acceptedAt(ctx({ completion_deadline: deadline, completion_duration_seconds: duration })),
+    T0,
+  )
+  assert.strictEqual(acceptedAt(ctx({ completion_deadline: null })), null)
+  assert.strictEqual(acceptedAt(ctx({ completion_duration_seconds: null })), null)
 })

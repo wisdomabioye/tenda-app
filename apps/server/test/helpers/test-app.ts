@@ -33,7 +33,7 @@ import postgres from 'postgres'
 import { sql } from 'drizzle-orm'
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { migrate } from 'drizzle-orm/postgres-js/migrator'
-import { users, user_wallets, user_identities, escrows, gig_details, exchange_details, chains, assets } from '@tenda/shared/db/schema'
+import { users, user_wallets, user_identities, escrows, gig_details, exchange_details, chains, assets, platform_config } from '@tenda/shared/db/schema'
 import { fiat_providers, bank_accounts } from '@tenda/shared/db/schema/fiat'
 import type { ProofType } from '@tenda/shared'
 import { registerErrorHandlers } from '@server/lib/http-errors'
@@ -344,10 +344,19 @@ export async function createUser(
  * (`assertCanTransact`). The wallet address is derived from the user id so it
  * stays unique under the (chain_ns, address) constraint across many users.
  */
+/**
+ * The Solana address `makeTransactable` links for a user. Exported so tests
+ * that need to speak as that wallet (decoded on-chain events name wallets, not
+ * user ids) derive it from ONE place rather than re-deriving the format.
+ */
+export function testWalletAddress(userId: string): string {
+  return `SoTx${userId.replace(/-/g, '')}`
+}
+
 export async function makeTransactable(app: FastifyInstance, userId: string): Promise<void> {
   await app.db.insert(user_wallets).values({
     chain_ns: 'solana',
-    address: `SoTx${userId.replace(/-/g, '')}`,
+    address: testWalletAddress(userId),
     user_id: userId,
     is_primary: true,
     verified_at: new Date(),
@@ -366,6 +375,26 @@ export async function makeTransactable(app: FastifyInstance, userId: string): Pr
  * now+24h (the fixture's fixed date is fine for pure object tests but HTTP
  * listing filters compare against the real clock).
  */
+/**
+ * Set platform tunables mid-test AND drop the config cache.
+ *
+ * `getPlatformConfig` caches for five minutes, so writing the row directly is
+ * only picked up while nothing has read config yet in this process. That holds
+ * today but silently depends on test ORDERING — one added step that reads
+ * config and the retune becomes invisible. Going through here makes the
+ * dependency explicit instead of accidental.
+ */
+export async function setPlatformConfig(
+  app: FastifyInstance,
+  patch: Partial<typeof platform_config.$inferInsert>,
+): Promise<void> {
+  await app.db.insert(platform_config).values({ id: 1, ...patch }).onConflictDoUpdate({
+    target: platform_config.id,
+    set: patch,
+  })
+  invalidatePlatformConfigCache()
+}
+
 export async function createEscrow(
   app: FastifyInstance,
   overrides: Partial<EscrowRow> & { creator_id: string },

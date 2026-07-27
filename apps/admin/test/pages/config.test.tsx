@@ -1,7 +1,14 @@
 import { test, expect, vi, beforeEach } from 'vitest'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { ESCROW_LIMITS, MAX_PENDING_GIGS_CEILING, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
+import {
+  ESCROW_LIMITS,
+  MAX_PENDING_GIGS_CEILING,
+  MAX_OPEN_APPLICATIONS_CEILING,
+  MIN_APPLICATION_TTL_SECONDS,
+  MAX_APPLICATION_TTL_SECONDS,
+  PLATFORM_CONFIG_DEFAULTS,
+} from '@tenda/shared'
 import type { AdminPlatformConfig } from '@tenda/shared'
 import { renderPage } from '../test-utils'
 import ConfigPage from '@/app/(dashboard)/config/page'
@@ -61,6 +68,8 @@ test('a valid save PATCHes the config and toasts success', async () => {
       grace_period_seconds: PLATFORM_CONFIG_DEFAULTS.grace_period_seconds,
       max_pending_gigs: PLATFORM_CONFIG_DEFAULTS.max_pending_gigs,
       unassign_window_seconds: PLATFORM_CONFIG_DEFAULTS.unassign_window_seconds,
+      max_open_applications: PLATFORM_CONFIG_DEFAULTS.max_open_applications,
+      application_ttl_seconds: PLATFORM_CONFIG_DEFAULTS.application_ttl_seconds,
     }),
   )
   expect(ok).toHaveBeenCalledWith('Config saved — server cache busted')
@@ -141,4 +150,40 @@ test('the unassign window input is bounded by the limits both contracts enforce'
   // at create time.
   expect(win).toHaveAttribute('min', String(ESCROW_LIMITS.minUnassignWindowSeconds))
   expect(win).toHaveAttribute('max', String(ESCROW_LIMITS.maxUnassignWindowSeconds))
+})
+
+describe('application tunables', () => {
+  // Same failure this file already caught once for max_pending_gigs: a column
+  // added with no way to reach it is a config nobody can change without SQL.
+  it('loads and edits both, and blocks the save when either is cleared', async () => {
+    get.mockResolvedValue(CONFIG)
+    update.mockResolvedValueOnce({ ...CONFIG, max_open_applications: 3 })
+    renderPage(<ConfigPage />)
+
+    const cap = await screen.findByLabelText('Max open applications / worker')
+    const ttl = await screen.findByLabelText('Application lifetime (seconds)')
+    expect(cap).toHaveValue(PLATFORM_CONFIG_DEFAULTS.max_open_applications)
+    expect(ttl).toHaveValue(PLATFORM_CONFIG_DEFAULTS.application_ttl_seconds)
+
+    await userEvent.clear(cap)
+    await userEvent.type(cap, '3')
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await waitFor(() =>
+      expect(update).toHaveBeenCalledWith(expect.objectContaining({ max_open_applications: 3 })),
+    )
+
+    await userEvent.clear(ttl)
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+    expect(err).toHaveBeenCalledWith('Every field needs a whole number')
+  })
+
+  it('bounds both inputs by the shared constants the server validates against', async () => {
+    get.mockResolvedValue(CONFIG)
+    renderPage(<ConfigPage />)
+    const cap = await screen.findByLabelText('Max open applications / worker')
+    const ttl = await screen.findByLabelText('Application lifetime (seconds)')
+    expect(cap).toHaveAttribute('max', String(MAX_OPEN_APPLICATIONS_CEILING))
+    expect(ttl).toHaveAttribute('min', String(MIN_APPLICATION_TTL_SECONDS))
+    expect(ttl).toHaveAttribute('max', String(MAX_APPLICATION_TTL_SECONDS))
+  })
 })

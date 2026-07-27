@@ -134,6 +134,20 @@
       "when": 1785082126100,
       "tag": "0018_icy_absorbing_man",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1785097061615,
+      "tag": "0019_early_liz_osborn",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1785098606314,
+      "tag": "0020_nasty_vanisher",
+      "breakpoints": true
     }
   ]
 }

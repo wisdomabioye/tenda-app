@@ -10,7 +10,14 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { ESCROW_LIMITS, MAX_PENDING_GIGS_CEILING, PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
+import {
+  ESCROW_LIMITS,
+  MAX_PENDING_GIGS_CEILING,
+  MAX_OPEN_APPLICATIONS_CEILING,
+  MIN_APPLICATION_TTL_SECONDS,
+  MAX_APPLICATION_TTL_SECONDS,
+  PLATFORM_CONFIG_DEFAULTS,
+} from '@tenda/shared'
 import { platform_config } from '@tenda/shared/db/schema'
 import { TEST_DB_CONFIGURED, useTestApp, createUser, authHeader } from '../helpers/test-app'
 
@@ -25,6 +32,8 @@ type PatchBody = {
   grace_period_seconds?: number
   max_pending_gigs?: number
   unassign_window_seconds?: number
+  max_open_applications?: number
+  application_ttl_seconds?: number
 }
 
 async function patch(app: ReturnType<typeof getApp>, token: string, payload: PatchBody) {
@@ -220,5 +229,64 @@ test('a freshly seeded config exposes the documented default', { skip }, async (
   assert.strictEqual(
     res.json().unassign_window_seconds,
     PLATFORM_CONFIG_DEFAULTS.unassign_window_seconds,
+  )
+})
+
+// ---------- application tunables (stage 10 / stage 4) ------------------------
+// Both back a live cap, so a value the column's CHECK would reject must fail
+// here first — otherwise the operator sees a raw constraint violation.
+
+test('rejects max_open_applications outside its range', { skip }, async () => {
+  const app = getApp()
+  const admin = await createUser(app, { role: 'super_admin' })
+  for (const value of [0, MAX_OPEN_APPLICATIONS_CEILING + 1, 2.5]) {
+    const res = await patch(app, admin.token, { max_open_applications: value })
+    assert.strictEqual(res.statusCode, 400, `max_open_applications=${value}`)
+  }
+})
+
+test('rejects an application TTL outside its range', { skip }, async () => {
+  const app = getApp()
+  const admin = await createUser(app, { role: 'super_admin' })
+  for (const value of [
+    MIN_APPLICATION_TTL_SECONDS - 1,
+    MAX_APPLICATION_TTL_SECONDS + 1,
+    3_600.5,
+  ]) {
+    const res = await patch(app, admin.token, { application_ttl_seconds: value })
+    assert.strictEqual(res.statusCode, 400, `application_ttl_seconds=${value}`)
+  }
+})
+
+test('accepts both at their bounds and persists them', { skip }, async () => {
+  const app = getApp()
+  await seedConfig(app)
+  const admin = await createUser(app, { role: 'super_admin' })
+
+  for (const value of [1, MAX_OPEN_APPLICATIONS_CEILING]) {
+    const res = await patch(app, admin.token, { max_open_applications: value })
+    assert.strictEqual(res.statusCode, 200)
+    assert.strictEqual(res.json().max_open_applications, value)
+  }
+  for (const value of [MIN_APPLICATION_TTL_SECONDS, MAX_APPLICATION_TTL_SECONDS]) {
+    const res = await patch(app, admin.token, { application_ttl_seconds: value })
+    assert.strictEqual(res.statusCode, 200)
+    assert.strictEqual(res.json().application_ttl_seconds, value)
+  }
+})
+
+test('a freshly seeded config exposes the documented application defaults', { skip }, async () => {
+  const app = getApp()
+  await seedConfig(app)
+  const admin = await createUser(app, { role: 'super_admin' })
+  const res = await app.inject({
+    method: 'GET',
+    url: '/v1/admin/platform-config',
+    headers: authHeader(admin.token),
+  })
+  assert.strictEqual(res.json().max_open_applications, PLATFORM_CONFIG_DEFAULTS.max_open_applications)
+  assert.strictEqual(
+    res.json().application_ttl_seconds,
+    PLATFORM_CONFIG_DEFAULTS.application_ttl_seconds,
   )
 })

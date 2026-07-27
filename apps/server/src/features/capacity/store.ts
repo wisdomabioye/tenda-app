@@ -58,6 +58,12 @@ function activeGigCondition(
     or(
       and(
         eq(escrows.status, 'accepted'),
+        // A worker who has told us they are not available (approval mode's
+        // off-chain "release") owes nothing further on this gig — only the
+        // poster can move it, by unassigning on-chain. Holding their slot
+        // until the poster gets round to it would punish the honest signal
+        // this feature exists to encourage.
+        isNull(escrows.assignment_released_at),
         or(isNull(escrows.completion_deadline), gt(escrows.completion_deadline, submitCutoff)),
       ),
       and(

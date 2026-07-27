@@ -70,6 +70,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       if (input.assigned_counterparty_id !== null) {
         await assertAssigneeHasWallet(fastify.db, input.assigned_counterparty_id, adapter.namespace)
       }
+      const { unassign_window_seconds } = await getPlatformConfig(fastify.db)
       const unsigned = await adapter.buildTx({
         action: 'createEscrow',
         user_id: request.user.id,
@@ -85,15 +86,11 @@ const route: FastifyPluginAsync = async (fastify) => {
           completion_duration_seconds: input.completion_duration_seconds,
           dispute_bond_raw: input.dispute_bond_raw,
           is_seeker: user.is_seeker,
-          // Acceptance mode. Always instant at this stage: the gig form does
-          // not offer the choice until the mode picker ships, so every escrow
-          // behaves exactly as it did before. The chain surface is complete
-          // ahead of it so the contracts need no second deploy.
-          requires_approval: false,
-          // Inert while requires_approval is false, but stamped from live
-          // config rather than a literal — it is fixed on-chain at create and
-          // cannot be changed afterwards.
-          unassign_window_seconds: (await getPlatformConfig(fastify.db)).unassign_window_seconds,
+          requires_approval: input.requires_approval,
+          // Fixed on-chain at create and immutable after, so the row must
+          // record the SAME number the transaction encodes — see the escrows
+          // column comment for why today's config is not a substitute.
+          unassign_window_seconds,
           ...(input.permit !== null ? { permit: input.permit } : {}),
         },
       })
@@ -106,6 +103,8 @@ const route: FastifyPluginAsync = async (fastify) => {
         amount_raw: input.amount_raw,
         creator_id: request.user.id,
         assigned_counterparty_id: input.assigned_counterparty_id,
+        requires_approval: input.requires_approval,
+        unassign_window_seconds,
         status: 'draft',
         accept_deadline: new Date(input.accept_deadline_unix * 1000),
         completion_duration_seconds: input.completion_duration_seconds,

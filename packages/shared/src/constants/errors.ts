@@ -99,6 +99,12 @@ export const ErrorCode = {
   PROOF_REQUIREMENT_UNMET:       'PROOF_REQUIREMENT_UNMET',
   /** Accept refused: the worker already holds the maximum concurrent gigs. */
   GIG_CAPACITY_REACHED:          'GIG_CAPACITY_REACHED',
+  /** Apply refused: the worker already holds the maximum open applications. */
+  APPLICATION_LIMIT_REACHED:     'APPLICATION_LIMIT_REACHED',
+  /** Assign/withdraw refused: the application is withdrawn, expired or settled. */
+  APPLICATION_NOT_OPEN:          'APPLICATION_NOT_OPEN',
+  /** Apply refused: this gig does not take applications (not approval mode). */
+  APPLICATIONS_NOT_OPEN:         'APPLICATIONS_NOT_OPEN',
   // Generic
   SERVICE_UNAVAILABLE:           'SERVICE_UNAVAILABLE',
   NOT_FOUND:                     'NOT_FOUND',

@@ -7,10 +7,10 @@
  * never split across commits.
  */
 
-import { and, eq, inArray } from 'drizzle-orm'
+import { and, eq, inArray, ne } from 'drizzle-orm'
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import type { EscrowTxType } from '@tenda/shared'
-import { escrows, escrow_transactions } from '@tenda/shared/db/schema/escrow'
+import { escrows, escrow_transactions, gig_applications } from '@tenda/shared/db/schema/escrow'
 import { disputes, dispute_resolutions } from '@tenda/shared/db/schema/governance'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { walletAddressEquals } from '@server/lib/auth/wallet-address'
@@ -57,6 +57,8 @@ export interface EscrowEventStore {
     patch: EscrowPatch
     transaction: EscrowEventTransaction
     disputeResolution?: { winner: 'creator' | 'counterparty' | 'split' }
+    /** Settle this applicant's gig application alongside the transition. */
+    application?: { applicant_id: string }
   }): Promise<boolean>
   /** Wallet address → user id on the namespace; null if unknown. */
   resolveUserByWallet(chain_ns: ChainNamespace, address: string): Promise<string | null>
@@ -64,7 +66,7 @@ export interface EscrowEventStore {
 
 export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
   return {
-    async applyEvent({ escrow_id, from, patch, transaction, disputeResolution }) {
+    async applyEvent({ escrow_id, from, patch, transaction, disputeResolution, application }) {
       // All writes in ONE transaction so the audit row (which isProcessed
       // keys on) can never be lost relative to the status transition.
       return db.transaction(async (tx) => {
@@ -80,6 +82,44 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
         await tx.insert(escrow_transactions).values({ escrow_id, ...transaction }).onConflictDoNothing({
           target: escrow_transactions.tx_ref,
         })
+
+        if (application !== undefined) {
+          // Only a LIVE application counts. An assign from a stale or absent
+          // one leaves `assigned_from_application` false, so no abandonment
+          // strike can follow — the rule is self-correcting rather than
+          // trusting the route to have checked.
+          const [won] = await tx
+            .update(gig_applications)
+            .set({ status: 'assigned' })
+            .where(
+              and(
+                eq(gig_applications.escrow_id, escrow_id),
+                eq(gig_applications.applicant_id, application.applicant_id),
+                eq(gig_applications.status, 'open'),
+              ),
+            )
+            .returning({ id: gig_applications.id })
+
+          if (won !== undefined) {
+            await tx
+              .update(escrows)
+              .set({ assigned_from_application: true })
+              .where(eq(escrows.id, escrow_id))
+            // D4: everyone else on this gig is resolved automatically, in the
+            // same commit, so no applicant is left waiting on a decision that
+            // has already been made.
+            await tx
+              .update(gig_applications)
+              .set({ status: 'passed' })
+              .where(
+                and(
+                  eq(gig_applications.escrow_id, escrow_id),
+                  eq(gig_applications.status, 'open'),
+                  ne(gig_applications.id, won.id),
+                ),
+              )
+          }
+        }
 
         if (disputeResolution !== undefined) {
           const [stamped] = await tx

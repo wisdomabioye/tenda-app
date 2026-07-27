@@ -31,6 +31,14 @@ export const PLATFORM_CONFIG_DEFAULTS = {
    * (the bound both contracts enforce).
    */
   unassign_window_seconds: 6 * 60 * 60,
+  /** Open applications one worker may hold at once (spam control). */
+  max_open_applications: 5,
+  /**
+   * How long an application stays assignable. Long enough to be practical,
+   * short enough that "unexpired" still means the applicant is likely free —
+   * the D5 copy leans on that, since a stale application can still be assigned.
+   */
+  application_ttl_seconds: 24 * 60 * 60,
 } as const
 
 /**

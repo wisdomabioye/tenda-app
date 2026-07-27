@@ -11,7 +11,11 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { PLATFORM_CONFIG_DEFAULTS } from '@tenda/shared'
-import { checkGigCapacity, capacityMessage } from '@server/features/capacity/service'
+import {
+  checkGigCapacity,
+  capacityMessage,
+  workerCapacityMessage,
+} from '@server/features/capacity/service'
 
 // ---------- boundaries ------------------------------------------------------
 
@@ -76,4 +80,35 @@ test('the message singularises a limit of one', () => {
 
 test('the message reports the real load when it exceeds the limit', () => {
   assert.match(capacityMessage(checkGigCapacity(4, 2)), /4 active gigs/)
+})
+
+// ---------- poster-facing wording (the assign path) --------------------------
+// `assign` enforces the cap against the WORKER while the POSTER is the caller,
+// so it needs its own copy. Reusing the second-person message there would tell
+// a poster *they* were at capacity.
+
+test('workerCapacityMessage: third person, and never addresses the reader', () => {
+  const msg = workerCapacityMessage(checkGigCapacity(2, 2))
+  assert.match(msg, /this worker/i)
+  // The give-away that the wrong message leaked through.
+  assert.doesNotMatch(msg, /\byou\b/i)
+})
+
+test('workerCapacityMessage: reports the same numbers as the check', () => {
+  const check = checkGigCapacity(3, 2)
+  const msg = workerCapacityMessage(check)
+  assert.match(msg, /3 active gigs/)
+  assert.match(msg, /limit is 2 gigs/)
+})
+
+test('workerCapacityMessage: singular reads correctly on both counts', () => {
+  const msg = workerCapacityMessage(checkGigCapacity(1, 1))
+  assert.match(msg, /1 active gig\b/)
+  assert.match(msg, /limit is 1 gig\b/)
+  assert.doesNotMatch(msg, /gigs/)
+})
+
+test('the two messages differ — one predicate must not yield one wording', () => {
+  const check = checkGigCapacity(2, 2)
+  assert.notStrictEqual(capacityMessage(check), workerCapacityMessage(check))
 })

@@ -13,12 +13,14 @@ import type { ExchangeContract } from './exchange.contract'
 import type { ModerationContract } from './moderation.contract'
 import type { FiatContract } from './fiat.contract'
 import type { DisputesContract } from './disputes.contract'
+import type { ApplicationsContract } from './applications.contract'
 
 export interface ApiContract {
   auth: AuthContract
   escrows: EscrowsContract
   disputes: DisputesContract
   gigs: GigsContract
+  applications: ApplicationsContract
   users: UsersContract
   upload: UploadContract
   blockchain: BlockchainContract

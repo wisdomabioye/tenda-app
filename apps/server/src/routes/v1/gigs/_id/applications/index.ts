@@ -1,0 +1,191 @@
+/**
+ * Gig applications — the "raise your hand" surface for approval-mode gigs.
+ *
+ *   GET    poster: the shortlist for their own gig
+ *   POST   worker: apply (re-applying upserts the same row)
+ *   DELETE worker: withdraw their own
+ *
+ * None of these touch the chain. Assignment does, and it lives on the escrow
+ * transition surface (`POST /v1/escrows/:id/assign`) with the other
+ * transaction-building routes.
+ */
+
+import type { FastifyPluginAsync } from 'fastify'
+import {
+  ACTIVE_APPLICATION_STATUSES,
+  APPLICATION_MESSAGE_MAX_LENGTH,
+  ErrorCode,
+  isApplicationStatus,
+  type ApplicationStatus,
+  type ApplyToGigBody,
+} from '@tenda/shared'
+import { AppError } from '@server/lib/errors'
+import { requireProfileComplete } from '@server/lib/guards'
+import { requireGoodStanding } from '@server/features/reputation/guards'
+import { getPlatformConfig } from '@server/lib/platform'
+import {
+  applicationExpiry,
+  isApplicationMessageTooLong,
+  normaliseApplicationMessage,
+} from '@server/features/applications/service'
+import { assertApplicationCapacity } from '@server/features/applications/guards'
+import { drizzleApplicationStore, findApplicationEscrow } from '@server/features/applications/store'
+import { toApplicantWire, toApplicationWire } from '@server/features/applications/wire'
+import { isUuidLike } from '@server/lib/escrow-routes'
+import type { AppDatabase } from '@server/plugins/db'
+
+/**
+ * The gig must exist, be a gig, and be taking applications.
+ *
+ * Applying to an instant-mode gig is refused rather than silently accepted:
+ * the poster there has no way to assign from applications, so an accepted
+ * application would be a promise nothing can keep.
+ */
+async function loadOpenForApplications(db: AppDatabase, escrow_id: string) {
+  const escrow = await findApplicationEscrow(db, escrow_id)
+  if (escrow === null || escrow.kind !== 'gig') {
+    throw new AppError(404, ErrorCode.GIG_NOT_FOUND, 'Gig not found')
+  }
+  if (!escrow.requires_approval) {
+    throw new AppError(
+      409,
+      ErrorCode.APPLICATIONS_NOT_OPEN,
+      'This gig is first-come, first-served — accept it directly instead of applying.',
+    )
+  }
+  return escrow
+}
+
+const route: FastifyPluginAsync = async (fastify) => {
+  // GET — the poster's shortlist.
+  fastify.get<{ Params: { id: string }; Querystring: { status?: string } }>(
+    '/',
+    { preHandler: [fastify.authenticate] },
+    async (request) => {
+      const escrow = await findApplicationEscrow(fastify.db, request.params.id)
+      if (escrow === null || escrow.kind !== 'gig') {
+        throw new AppError(404, ErrorCode.GIG_NOT_FOUND, 'Gig not found')
+      }
+      // Applicants are only the poster's business: the shortlist reveals who
+      // else is competing, which no rival applicant may see.
+      if (escrow.creator_id !== request.user.id) {
+        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the poster can see applicants')
+      }
+      const statuses = parseStatusFilter(request.query.status)
+      const rows = await drizzleApplicationStore(fastify.db).listForEscrow(escrow.id, statuses)
+      return { data: rows.map(toApplicantWire) }
+    },
+  )
+
+  // POST — apply.
+  fastify.post<{ Params: { id: string }; Body: ApplyToGigBody | undefined }>(
+    '/',
+    {
+      preHandler: [fastify.authenticate, requireProfileComplete, requireGoodStanding('accept')],
+    },
+    async (request, reply) => {
+      const escrow = await loadOpenForApplications(fastify.db, request.params.id)
+      if (escrow.creator_id === request.user.id) {
+        throw new AppError(
+          403,
+          ErrorCode.CANNOT_ACCEPT_OWN_GIG,
+          'You cannot apply to your own gig',
+        )
+      }
+      if (escrow.status !== 'open') {
+        throw new AppError(
+          409,
+          ErrorCode.ESCROW_WRONG_STATUS,
+          'This gig is no longer taking applications',
+        )
+      }
+      const now = new Date()
+      // An expired gig cannot be assigned from, so an application on it would
+      // be dead on arrival — refuse it while we can still say why.
+      if (escrow.accept_deadline !== null && escrow.accept_deadline <= now) {
+        throw new AppError(
+          409,
+          ErrorCode.ACCEPT_DEADLINE_PASSED,
+          'This gig has closed to new workers',
+        )
+      }
+
+      const message = normaliseApplicationMessage(request.body?.message)
+      if (isApplicationMessageTooLong(message)) {
+        throw new AppError(
+          422,
+          ErrorCode.VALIDATION_ERROR,
+          `message must be ${APPLICATION_MESSAGE_MAX_LENGTH} characters or fewer`,
+        )
+      }
+
+      await assertApplicationCapacity(fastify.db, request.user.id, escrow.id)
+
+      const cfg = await getPlatformConfig(fastify.db)
+      const row = await drizzleApplicationStore(fastify.db).upsert({
+        escrow_id: escrow.id,
+        applicant_id: request.user.id,
+        message,
+        expires_at: applicationExpiry(now, cfg.application_ttl_seconds),
+      })
+      return reply.code(201).send(toApplicationWire(row))
+    },
+  )
+
+  // DELETE — withdraw the caller's own application.
+  fastify.delete<{ Params: { id: string } }>(
+    '/',
+    { preHandler: [fastify.authenticate] },
+    async (request) => {
+      // This handler never loads the escrow, so it needs the id guard of its
+      // own — without it a malformed id reaches the driver as a 500.
+      if (!isUuidLike(request.params.id)) {
+        throw new AppError(404, ErrorCode.NOT_FOUND, 'You have not applied to this gig')
+      }
+      const store = drizzleApplicationStore(fastify.db)
+      const existing = await store.find(request.params.id, request.user.id)
+      if (existing === null) {
+        throw new AppError(404, ErrorCode.NOT_FOUND, 'You have not applied to this gig')
+      }
+      // `settle` is guarded on `open`, so withdrawing an already-settled row
+      // is a clean 409 rather than a silent no-op that reads as success.
+      const withdrawn = await store.settle(existing.id, 'withdrawn')
+      if (!withdrawn) {
+        throw new AppError(
+          409,
+          ErrorCode.APPLICATION_NOT_OPEN,
+          `This application is already ${existing.status}`,
+        )
+      }
+      return { withdrawn: true as const }
+    },
+  )
+}
+
+/**
+ * `?status=open,passed` — defaults to the live set the poster acts on.
+ *
+ * Narrows through the shared `isApplicationStatus` guard rather than a
+ * membership check plus a cast: the guard already exists for exactly this, and
+ * using it means the return type is proved rather than asserted.
+ */
+function parseStatusFilter(raw: string | undefined): readonly ApplicationStatus[] {
+  if (raw === undefined || raw === '') return ACTIVE_APPLICATION_STATUSES
+  const wanted: ApplicationStatus[] = []
+  const invalid: string[] = []
+  for (const part of raw.split(',')) {
+    const value = part.trim()
+    if (isApplicationStatus(value)) wanted.push(value)
+    else invalid.push(value)
+  }
+  if (invalid.length > 0) {
+    throw new AppError(
+      400,
+      ErrorCode.VALIDATION_ERROR,
+      `unknown application status: ${invalid.join(', ')}`,
+    )
+  }
+  return wanted
+}
+
+export default route

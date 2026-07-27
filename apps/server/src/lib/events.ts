@@ -21,6 +21,16 @@ export interface AppEvents {
     recipientId: string
     preview: string
   }
+  /**
+   * The assigned worker stepped back off-chain. The escrow has NOT moved —
+   * only the poster's `unassign` does that — so this exists to tell them the
+   * gig needs their attention.
+   */
+  'escrow.assignment_released_offchain': {
+    escrow_id: string
+    creator_id: string
+    worker_id: string
+  }
   'review.submitted': {
     escrowId: string
     reviewerId: string

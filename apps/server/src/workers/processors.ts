@@ -14,6 +14,8 @@ import { eq, inArray } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { device_tokens } from '@tenda/shared/db/schema'
 import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
+import { expireApplicationsHandler } from '@server/jobs/expire-applications'
+import { drizzleApplicationStore } from '@server/features/applications/store'
 import { persistNotification } from '@server/lib/notify'
 import { fanOutEscrowEvent } from './escrow-fanout'
 import {
@@ -123,6 +125,13 @@ export function buildProcessors(
   return {
     'verify-tx': (payload) => verifyTxJobHandler(buildVerifyTxDeps(fastify), payload),
 
+    'expire-applications': async () => {
+      return expireApplicationsHandler({
+        store: drizzleApplicationStore(fastify.db),
+        now: () => new Date(),
+        log: fastify.log,
+      })
+    },
     'expire-escrows': async (payload) => {
       // Grace is admin-tunable, so it is resolved per tick (cached 5 min) and
       // injected — the handler never reads config itself.

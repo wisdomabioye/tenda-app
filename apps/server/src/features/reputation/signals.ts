@@ -26,6 +26,20 @@ export interface SignalContext {
   parties: EscrowParties
   /** DisputeResolved only: who won + who raised. */
   dispute?: { winner: 'creator' | 'counterparty' | 'split'; raised_by: string }
+  /**
+   * Was the worker assigned from a live application of their own (D2)? False
+   * for an instant accept — where it is irrelevant, because the worker signed
+   * — and for a back-door assign, where nobody put their hand up.
+   */
+  assigned_from_application?: boolean
+  /**
+   * Approval mode. Needed to tell a BACK-DOOR assign apart from an ordinary
+   * instant accept: both have `assigned_from_application: false`, but only in
+   * approval mode did the worker sign nothing.
+   */
+  requires_approval?: boolean
+  /** The worker told us they were unavailable before the deadline ran out. */
+  assignment_released?: boolean
 }
 
 /**
@@ -48,6 +62,20 @@ export function signalsFor(event: InternalEscrowEvent, ctx: SignalContext): Stan
         { user_id: creator_id, kind: 'ghosted_approval', role: 'creator' },
       ])
     case 'escrow.abandoned':
+      // D2: abandonment is only a fault if the worker CHOSE the gig and then
+      // went quiet. Two cases are not that, and both would otherwise punish
+      // someone for the poster's decision:
+      //
+      //  - the poster placed them without an application behind it, so they
+      //    never opted in at all;
+      //  - they said "not available" in time, which is the honest move this
+      //    feature exists to make cheap.
+      //
+      // An ordinary instant-mode accept is unaffected: those escrows are not
+      // assigned from applications, so the flag is only consulted when the
+      // escrow was in approval mode to begin with.
+      if (ctx.assignment_released === true) return []
+      if (ctx.requires_approval === true && ctx.assigned_from_application !== true) return []
       return withCounterparty(counterparty_id, (cp) => [
         { user_id: cp, kind: 'abandoned', role: 'counterparty' },
       ])

@@ -154,6 +154,8 @@ export interface UpdatePlatformConfigBody {
   grace_period_seconds?: number
   max_pending_gigs?: number
   unassign_window_seconds?: number
+  max_open_applications?: number
+  application_ttl_seconds?: number
 }
 
 // ─── Announcements ───────────────────────────────────────────────────────────

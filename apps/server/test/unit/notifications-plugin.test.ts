@@ -144,3 +144,24 @@ test('fiat.failed persists the failure reason for the intent', async () => {
   assert.strictEqual(jobs[0].body, 'Card declined')
   assert.deepStrictEqual(jobs[0].data, { screen: 'fiat-intent', intentId: 'i2' })
 })
+
+// The whole point of the off-chain `/release` is that the POSTER finds out —
+// the escrow does not move, so nothing else tells them the gig needs their
+// attention. An unwired listener would make the feature silently do nothing.
+test('assignment_released_offchain: notifies the poster, deep-linked to the gig', async () => {
+  appEvents.emit('escrow.assignment_released_offchain', {
+    escrow_id: 'escrow-1',
+    creator_id: 'creator-1',
+    worker_id: 'worker-1',
+  })
+  await flush()
+
+  assert.strictEqual(jobs.length, 1, 'exactly one notice')
+  const [job] = jobs
+  assert.strictEqual(job.user_id, 'creator-1', 'the poster, not the worker who acted')
+  assert.match(job.title, /stepped back/i)
+  // It must tell them what to DO — the escrow is still theirs to unassign.
+  assert.match(job.body, /release the assignment/i)
+  assert.deepStrictEqual(job.data, { screen: 'escrow', escrowId: 'escrow-1', kind: 'gig' })
+  assert.strictEqual(job.persist, true, 'it belongs in the notification centre')
+})

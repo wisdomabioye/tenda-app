@@ -56,6 +56,23 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
     }
   })
 
+  // ── Worker released an assignment → tell the poster it needs them ───────
+  // The escrow is still `accepted` on-chain with that worker on it; only the
+  // poster's `unassign` frees it. Without this the honest signal reaches
+  // nobody and the gig silently stalls until the deadline.
+  appEvents.on('escrow.assignment_released_offchain', async (data) => {
+    try {
+      await notify(
+        data.creator_id,
+        'Worker stepped back',
+        'The worker you assigned is no longer available. Release the assignment to open the gig again.',
+        { screen: 'escrow', escrowId: data.escrow_id, kind: 'gig' },
+      )
+    } catch (err) {
+      fastify.log.error({ err }, '[notifications] assignment_released listener failed')
+    }
+  })
+
   // ── Stage 8: fiat intent settled / failed → notify the user ─────────────
   appEvents.on('fiat.settled', async (data) => {
     try {

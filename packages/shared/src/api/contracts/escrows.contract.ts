@@ -6,6 +6,7 @@
  */
 
 import type { Endpoint } from '../endpoint'
+import type { AssignWorkerBody, ReleaseAssignmentResponse } from '../../types/application'
 import type { EscrowTxType } from '../../constants/escrow'
 import type { ProofType } from '../../constants/proofs'
 import type { EscrowProof } from '../../types/escrow'
@@ -87,6 +88,13 @@ export interface CreateEscrowApiBody {
   completion_duration_seconds: number
   dispute_bond_raw?: string
   assigned_counterparty_id?: string
+  /**
+   * Approval mode: the poster assigns from applications instead of the gig
+   * being first-come, first-served. Gigs only, and mutually exclusive with
+   * `assigned_counterparty_id` — both contracts reject the pair, so the server
+   * refuses it before the transaction is built.
+   */
+  requires_approval?: boolean
   /** EIP-2612 path: sign first, then create — the server returns the
    *  createEscrowWithPermit call instead of createEscrow + approval hint. */
   permit?: PermitSignatureBody
@@ -164,4 +172,15 @@ export interface EscrowsContract {
   proofs: Endpoint<'GET', IdParam, undefined, undefined, EscrowProof[]>
   addProofs: Endpoint<'POST', IdParam, AddEscrowProofsBody, undefined, EscrowProof[]>
   review: Endpoint<'POST', IdParam, ReviewInput, undefined, Review>
+  /** Approval mode: the creator picks an applicant and signs for both sides. */
+  assign: Endpoint<'POST', IdParam, AssignWorkerBody, undefined, EscrowActionResponse>
+  /** Approval mode: the creator withdraws an assignment inside the window. */
+  unassign: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
+  /**
+   * The assigned worker says they are not available. OFF-CHAIN: they signed
+   * nothing to be assigned, so they sign nothing to step back — this records
+   * the signal, suppresses the abandonment strike and prompts the poster to
+   * unassign. It does not move the escrow, which only the creator can do.
+   */
+  release: Endpoint<'POST', IdParam, undefined, undefined, ReleaseAssignmentResponse>
 }

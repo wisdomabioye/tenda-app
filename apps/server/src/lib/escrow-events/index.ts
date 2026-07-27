@@ -115,6 +115,12 @@ export async function applyEscrowEvent(
       actor_id,
     },
     ...(disputeResolution !== undefined ? { disputeResolution } : {}),
+    // Only when the event installs a counterparty we could actually resolve —
+    // a back-door assign (raw tx, unknown wallet) settles nothing, which is
+    // exactly what leaves `assigned_from_application` false and the strike off.
+    ...(app.settles_application === true && counterparty_id !== null
+      ? { application: { applicant_id: counterparty_id } }
+      : {}),
   })
 
   return {

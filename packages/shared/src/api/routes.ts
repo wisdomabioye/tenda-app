@@ -31,6 +31,9 @@ export const apiRoutes: {
     proofs: '/v1/escrows/:id/proofs',
     addProofs: '/v1/escrows/:id/proofs',
     review: '/v1/escrows/:id/review',
+    assign: '/v1/escrows/:id/assign',
+    unassign: '/v1/escrows/:id/unassign',
+    release: '/v1/escrows/:id/release',
   },
   disputes: {
     mine: '/v1/disputes',
@@ -40,6 +43,18 @@ export const apiRoutes: {
     featured: '/v1/gigs/featured',
     create: '/v1/gigs',
     get: '/v1/gigs/:id',
+    applicants: '/v1/gigs/:id/applications',
+    apply: '/v1/gigs/:id/applications',
+    withdrawApplication: '/v1/gigs/:id/applications',
+  },
+  /**
+   * Always the CALLER's own applications — same shape as /v1/conversations and
+   * /v1/subscriptions. Deliberately not `/v1/gigs?mine=applied`: that surface
+   * returns gigs, and the thing an applicant needs to know is whether they won,
+   * which lives on the application, not the gig.
+   */
+  applications: {
+    mine: '/v1/applications',
   },
   users: {
     me: '/v1/users/me',

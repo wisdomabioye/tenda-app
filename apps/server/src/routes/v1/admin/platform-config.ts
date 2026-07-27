@@ -1,7 +1,14 @@
 import { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { platform_config } from '@tenda/shared/db/schema'
-import { ErrorCode, ESCROW_LIMITS, MAX_PENDING_GIGS_CEILING } from '@tenda/shared'
+import {
+  ErrorCode,
+  ESCROW_LIMITS,
+  MAX_PENDING_GIGS_CEILING,
+  MAX_OPEN_APPLICATIONS_CEILING,
+  MIN_APPLICATION_TTL_SECONDS,
+  MAX_APPLICATION_TTL_SECONDS,
+} from '@tenda/shared'
 import { requirePermission } from '@server/lib/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { ensureIntInRange } from '@server/lib/validation'
@@ -41,6 +48,8 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
       grace_period_seconds,
       max_pending_gigs,
       unassign_window_seconds,
+      max_open_applications,
+      application_ttl_seconds,
     } = requireBody(request.body)
 
     // Fee/grace caps mirror the on-chain limits (ESCROW_LIMITS, guarded ==
@@ -69,6 +78,15 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
       minUnassignWindowSeconds,
       maxUnassignWindowSeconds,
     )
+    // Bounded by the SAME constants as the columns' CHECKs, so the route
+    // rejects before Postgres does and the operator gets a typed error.
+    ensureIntInRange(max_open_applications, 'max_open_applications', 1, MAX_OPEN_APPLICATIONS_CEILING)
+    ensureIntInRange(
+      application_ttl_seconds,
+      'application_ttl_seconds',
+      MIN_APPLICATION_TTL_SECONDS,
+      MAX_APPLICATION_TTL_SECONDS,
+    )
 
     const fields = [
       'fee_bps',
@@ -76,6 +94,8 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
       'grace_period_seconds',
       'max_pending_gigs',
       'unassign_window_seconds',
+      'max_open_applications',
+      'application_ttl_seconds',
     ] as const satisfies readonly (keyof PatchBody)[]
     const changes: PatchBody = {
       ...(fee_bps !== undefined && { fee_bps }),
@@ -83,6 +103,8 @@ const adminPlatformConfig: FastifyPluginAsync = async (fastify) => {
       ...(grace_period_seconds !== undefined && { grace_period_seconds }),
       ...(max_pending_gigs !== undefined && { max_pending_gigs }),
       ...(unassign_window_seconds !== undefined && { unassign_window_seconds }),
+      ...(max_open_applications !== undefined && { max_open_applications }),
+      ...(application_ttl_seconds !== undefined && { application_ttl_seconds }),
     }
     if (Object.keys(changes).length === 0) {
       throw new AppError(

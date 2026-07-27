@@ -17,6 +17,11 @@ import { escrows } from './escrow'
 import { users } from './identity'
 import { PLATFORM_CONFIG_DEFAULTS, MAX_PENDING_GIGS_CEILING } from '../../constants/platform'
 import { ESCROW_LIMITS } from '../../constants/escrow'
+import {
+  MAX_OPEN_APPLICATIONS_CEILING,
+  MIN_APPLICATION_TTL_SECONDS,
+  MAX_APPLICATION_TTL_SECONDS,
+} from '../../constants/applications'
 
 export const disputeWinnerEnum = pgEnum('dispute_winner', [
   'creator',
@@ -230,6 +235,14 @@ export const platform_config = pgTable(
     unassign_window_seconds: integer('unassign_window_seconds')
       .notNull()
       .default(PLATFORM_CONFIG_DEFAULTS.unassign_window_seconds),
+    /** Open applications one worker may hold at once (features/applications). */
+    max_open_applications: integer('max_open_applications')
+      .notNull()
+      .default(PLATFORM_CONFIG_DEFAULTS.max_open_applications),
+    /** How long a new application stays assignable. */
+    application_ttl_seconds: integer('application_ttl_seconds')
+      .notNull()
+      .default(PLATFORM_CONFIG_DEFAULTS.application_ttl_seconds),
   },
   (t) => [
     check('platform_config_singleton_chk', sql`${t.id} = 1`),
@@ -247,6 +260,16 @@ export const platform_config = pgTable(
     // Mirrors the bound BOTH contracts enforce, so a value the chain would
     // revert can never be stored — the column is the source the create route
     // stamps onto the escrow.
+    // Same reasoning as max_pending_gigs: 0 would lock every worker out of
+    // applying, and the ceiling keeps a typo from disabling the cap.
+    check(
+      'platform_config_max_open_applications_range_chk',
+      sql`${t.max_open_applications} BETWEEN 1 AND ${sql.raw(String(MAX_OPEN_APPLICATIONS_CEILING))}`,
+    ),
+    check(
+      'platform_config_application_ttl_range_chk',
+      sql`${t.application_ttl_seconds} BETWEEN ${sql.raw(String(MIN_APPLICATION_TTL_SECONDS))} AND ${sql.raw(String(MAX_APPLICATION_TTL_SECONDS))}`,
+    ),
     check(
       'platform_config_unassign_window_range_chk',
       sql`${t.unassign_window_seconds} BETWEEN ${sql.raw(String(ESCROW_LIMITS.minUnassignWindowSeconds))} AND ${sql.raw(String(ESCROW_LIMITS.maxUnassignWindowSeconds))}`,

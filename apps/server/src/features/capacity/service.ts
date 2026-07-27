@@ -42,6 +42,17 @@ export function checkGigCapacity(active: number, limit: number): CapacityCheck {
  * Refusal copy. States the rule and the way out, because the worker's next
  * question is always "so what do I do now?".
  */
+/**
+ * Third-person wording for the ASSIGN path, where the caller is the poster and
+ * the person at capacity is someone else. Reusing the second-person message
+ * there would tell a poster *they* were at capacity, which is both wrong and
+ * confusing — the numbers are shared so the two can never disagree.
+ */
+export function workerCapacityMessage(check: CapacityCheck): string {
+  const gigs = check.limit === 1 ? 'gig' : 'gigs'
+  return `This worker already has ${check.active} active ${check.active === 1 ? 'gig' : 'gigs'} and the limit is ${check.limit} ${gigs}. Pick someone else, or wait until they finish one.`
+}
+
 export function capacityMessage(check: CapacityCheck): string {
   const gigs = check.limit === 1 ? 'gig' : 'gigs'
   return `You can work on ${check.limit} ${gigs} at a time. Finish or submit one of your ${check.active} active gigs before accepting another.`

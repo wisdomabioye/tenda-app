@@ -29,6 +29,7 @@ import type { OtpMessage } from '@server/lib/otp'
 export type JobName =
   | 'notifications'
   | 'expire-escrows'
+  | 'expire-applications'
   | 'verify-tx'
   | 'reconcile'
   | 'reconcile-fiat'
@@ -67,6 +68,9 @@ export interface JobPayload {
   }
   'expire-escrows': {
     /** Tick id for log correlation. Cron writer sets `Date.now().toString()`. */
+    tick_id: string
+  }
+  'expire-applications': {
     tick_id: string
   }
   /** Imported from `jobs/verify-tx.ts` so producer + handler share one shape. */

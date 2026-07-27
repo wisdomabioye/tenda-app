@@ -13,6 +13,7 @@ const byName = new Map(REPEATABLES.map((r) => [r.name as string, r]))
 
 test('the schedule contains exactly the known periodic jobs, each once', () => {
   const expected = [
+    'expire-applications',
     'expire-escrows',
     'expire-fiat-quotes',
     'prune-notifications',
@@ -26,6 +27,7 @@ test('the schedule contains exactly the known periodic jobs, each once', () => {
 
 test('cadences: expiries every 60s, reconciles every 5min, price stats nightly', () => {
   assert.strictEqual(byName.get('expire-escrows')?.every_ms, 60_000)
+  assert.strictEqual(byName.get('expire-applications')?.every_ms, 60_000)
   assert.strictEqual(byName.get('expire-fiat-quotes')?.every_ms, 60_000)
   assert.strictEqual(byName.get('reconcile')?.every_ms, 5 * 60_000)
   assert.strictEqual(byName.get('reconcile-fiat')?.every_ms, 5 * 60_000)

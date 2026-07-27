@@ -31,6 +31,14 @@ export type {
 } from './escrow'
 export type { GigSummary, GigDetail, GigCategory, GigListQuery, CreateGigDetailsBody } from './gig'
 export { isGigAcceptable, computeCompletionDeadline } from './gig'
+export type {
+  GigApplication,
+  GigApplicant,
+  MyApplication,
+  ApplyToGigBody,
+  AssignWorkerBody,
+  ReleaseAssignmentResponse,
+} from './application'
 export type { ExchangeSummary, ExchangeDetail, ExchangePayoutAccount, ExchangeListQuery, CreateExchangeDetailsBody } from './exchange'
 export type { Review, NewReview, ReviewInput, GetUserReviewsQuery } from './review'
 export type { NotificationWire, AnnouncementWire, NotificationFeed, NotificationsQuery } from './notification'

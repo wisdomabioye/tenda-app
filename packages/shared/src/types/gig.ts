@@ -39,6 +39,15 @@ export interface GigSummary {
    * they accept, or discovering it afterwards is a bait-and-switch.
    */
   proof_requirements: ProofType[]
+  /**
+   * Approval mode: this gig is assigned by the poster from applications, so a
+   * worker APPLIES rather than accepting.
+   *
+   * On the SUMMARY for the same reason `proof_requirements` is: which action a
+   * gig offers has to be visible while browsing. Finding out only on the detail
+   * screen — after tapping "Accept" — is the same bait-and-switch.
+   */
+  requires_approval: boolean
   creator: UserRef
 }
 
@@ -49,6 +58,16 @@ export interface GigDetail extends GigSummary {
   approval_deadline: string | null
   dispute_bond_raw: string
   assigned_counterparty_id: string | null
+  /**
+   * The escrow's OWN unassign window (mirrored from chain at create, not
+   * today's config). With `completion_deadline` and
+   * `completion_duration_seconds` above, the client derives when the
+   * assignment was made and therefore how long the poster has left to release
+   * it — no extra endpoint, and the same derivation both contracts use.
+   */
+  unassign_window_seconds: number
+  /** Set when the assigned worker said they were unavailable (off-chain). */
+  assignment_released_at: string | null
   counterparty: UserRef | null
   proofs: EscrowProof[]
   dispute: Dispute | null

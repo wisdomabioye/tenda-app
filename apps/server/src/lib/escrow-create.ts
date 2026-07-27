@@ -22,6 +22,8 @@ export interface CreateEscrowBody {
   completion_duration_seconds?: unknown
   dispute_bond_raw?: unknown
   assigned_counterparty_id?: unknown
+  /** Approval mode: only the creator can move the escrow, via assign. */
+  requires_approval?: unknown
   /** EIP-2612 signature riding the create (EVM ERC-20 assets only). */
   permit?: unknown
   /** Forbidden, server generates ids (stage-0 exit criterion). */
@@ -37,6 +39,7 @@ export interface ValidatedCreateEscrow {
   completion_duration_seconds: number
   dispute_bond_raw: AmountRaw
   assigned_counterparty_id: string | null
+  requires_approval: boolean
   permit: PermitSignatureBody | null
 }
 
@@ -127,6 +130,27 @@ export function validateCreateEscrow(
     assigned_counterparty_id = body.assigned_counterparty_id
   }
 
+  let requires_approval = false
+  if (body.requires_approval !== undefined && body.requires_approval !== null) {
+    if (typeof body.requires_approval !== 'boolean') {
+      fail('requires_approval must be a boolean')
+    }
+    requires_approval = body.requires_approval
+  }
+  if (requires_approval) {
+    // Approval mode is a hiring flow: a P2P trade has nobody to approve, and
+    // the exchange screens have no applicant surface to assign from.
+    if (kind !== 'gig') {
+      fail('requires_approval applies to gigs only')
+    }
+    // Mirrors the contracts, which reject the pair outright — the three modes
+    // are mutually exclusive, and assign could otherwise name someone other
+    // than the invitee, leaving assigned_counterparty as dead state.
+    if (assigned_counterparty_id !== null) {
+      fail('requires_approval cannot be combined with a directly assigned worker')
+    }
+  }
+
   // Field-level permit checks are pure and live here; the route enforces
   // the namespace (eip155 only) and the builder rejects native assets.
   const permit =
@@ -143,6 +167,7 @@ export function validateCreateEscrow(
     completion_duration_seconds,
     dispute_bond_raw,
     assigned_counterparty_id,
+    requires_approval,
     permit,
   }
 }

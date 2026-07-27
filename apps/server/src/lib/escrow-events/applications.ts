@@ -57,6 +57,18 @@ export interface EventApplication {
    * row and the notification fan-out has no other way to address them.
    */
   counterparty?: { field: string; effect: 'install' | 'release' }
+  /**
+   * Settle the assigned worker's gig application in the SAME transaction as
+   * the transition: flip theirs to `assigned`, every sibling to `passed`, and
+   * stamp `escrows.assigned_from_application`.
+   *
+   * Declared here rather than done in the route, because the route only builds
+   * an unsigned transaction — settling there would burn an application on a
+   * signature the user abandoned. And it must be atomic with the transition,
+   * or a crash between the two would leave a worker assigned with no record of
+   * why, silently costing them the strike D2 depends on.
+   */
+  settles_application?: true
   /** Build the column patch from decoded fields. */
   patch(fields: Record<string, string>): EscrowPatch
 }
@@ -91,6 +103,7 @@ export const EVENT_APPLICATIONS: Record<EscrowEvent, EventApplication> = {
     from: ['open'],
     actor_field: 'assigned_by',
     counterparty: { field: 'counterparty', effect: 'install' },
+    settles_application: true,
     patch: (f) => ({
       status: 'accepted',
       completion_deadline: unixField(f, 'completion_deadline'),

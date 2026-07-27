@@ -151,6 +151,9 @@ export function buildContext(args: ContextArgs): TransitionContext {
     approval_deadline: args.escrow.approval_deadline,
     grace_period_seconds: args.grace_period_seconds,
     is_assigned: args.escrow.assigned_counterparty_id !== null,
+    requires_approval: args.escrow.requires_approval,
+    completion_duration_seconds: args.escrow.completion_duration_seconds,
+    unassign_window_seconds: args.escrow.unassign_window_seconds,
   }
 }
 

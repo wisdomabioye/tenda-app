@@ -69,6 +69,79 @@ test('signalsFor dispute_resolved: winner/loser; split assigns no fault', () => 
   )
 })
 
+// ---------- D2: who is actually accountable for an abandonment ----------------
+// The strike exists to punish a worker who CHOSE a gig and then went quiet.
+// Approval mode breaks the old assumption that being the counterparty implies
+// having chosen it, so the rule needs both new facts to stay fair.
+
+test('abandoned: the ordinary instant accept still earns the strike', () => {
+  // requires_approval false — the worker signed acceptEscrow themselves, so
+  // `assigned_from_application: false` here means nothing and must not excuse.
+  assert.deepStrictEqual(
+    signalsFor('escrow.abandoned', {
+      parties: PARTIES,
+      requires_approval: false,
+      assigned_from_application: false,
+    }),
+    [{ user_id: 'cp-1', kind: 'abandoned', role: 'counterparty' }],
+  )
+})
+
+test('abandoned: a worker assigned FROM THEIR OWN application still earns it', () => {
+  assert.deepStrictEqual(
+    signalsFor('escrow.abandoned', {
+      parties: PARTIES,
+      requires_approval: true,
+      assigned_from_application: true,
+    }),
+    [{ user_id: 'cp-1', kind: 'abandoned', role: 'counterparty' }],
+  )
+})
+
+test('abandoned: a BACK-DOOR assign earns nothing — they never opted in', () => {
+  assert.deepStrictEqual(
+    signalsFor('escrow.abandoned', {
+      parties: PARTIES,
+      requires_approval: true,
+      assigned_from_application: false,
+    }),
+    [],
+  )
+})
+
+test('abandoned: releasing in time suppresses the strike, however they were assigned', () => {
+  for (const from of [true, false]) {
+    assert.deepStrictEqual(
+      signalsFor('escrow.abandoned', {
+        parties: PARTIES,
+        requires_approval: true,
+        assigned_from_application: from,
+        assignment_released: true,
+      }),
+      [],
+      `assigned_from_application=${from}`,
+    )
+  }
+  // …and it suppresses an instant-mode strike too: a worker who said they
+  // could not do it is not a worker who ghosted.
+  assert.deepStrictEqual(
+    signalsFor('escrow.abandoned', {
+      parties: PARTIES,
+      requires_approval: false,
+      assignment_released: true,
+    }),
+    [],
+  )
+})
+
+// Absent context must behave exactly as before this feature existed, or every
+// pre-approval-mode escrow silently stops earning strikes.
+test('abandoned: with no mode context at all, the strike is unchanged', () => {
+  assert.deepStrictEqual(signalsFor('escrow.abandoned', { parties: PARTIES }), [
+    { user_id: 'cp-1', kind: 'abandoned', role: 'counterparty' },
+  ])
+})
+
 test('signalsFor: events needing a counterparty are silent when none exists', () => {
   const noCp = { creator_id: 'creator-1', counterparty_id: null }
   assert.deepStrictEqual(signalsFor('escrow.approved', { parties: noCp }), [])

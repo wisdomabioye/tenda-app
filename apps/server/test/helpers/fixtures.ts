@@ -13,6 +13,7 @@
  */
 
 import { randomUUID } from 'node:crypto'
+import { escrows } from '@tenda/shared/db/schema/escrow'
 
 export interface UserRow {
   id: string
@@ -79,40 +80,24 @@ export function walletFixture(overrides: Partial<UserWalletRow> = {}): UserWalle
   }
 }
 
-export type EscrowStatus =
-  | 'draft'
-  | 'open'
-  | 'accepted'
-  | 'submitted'
-  | 'completed'
-  | 'cancelled'
-  | 'refunded'
-  | 'disputed'
-  | 'resolved'
+/**
+ * DERIVED from the schema, not re-declared.
+ *
+ * This was a hand-written interface listing every column, which meant each new
+ * escrow column had to be mirrored here by hand — and a fixture that silently
+ * lagged the table is a drift vector that only shows up as a confusing type
+ * error in unrelated suites. Inferring it means a new column is a compile error
+ * in `escrowFixture` (where a default belongs) and nowhere else.
+ */
+export type EscrowRow = typeof escrows.$inferSelect
 
-export interface EscrowRow {
-  id: string
-  kind: 'gig' | 'exchange'
-  chain_id: string
-  asset: string
-  amount_raw: string
-  creator_id: string
-  counterparty_id: string | null
-  assigned_counterparty_id: string | null
-  status: EscrowStatus
-  hidden: boolean
-  escrow_ref: string | null
-  accept_deadline: Date | null
-  completion_duration_seconds: number | null
-  completion_deadline: Date | null
-  submitted_at: Date | null
-  approval_deadline: Date | null
-  dispute_bond_raw: string
-  is_seeker: boolean
-  sponsored_tx_used: number
-  created_at: Date
-  updated_at: Date
-}
+/**
+ * Derived alongside `EscrowRow` for the same reason: a hand-listed copy of the
+ * status enum is one more thing to remember when the DB one changes.
+ */
+export type EscrowStatus = EscrowRow['status']
+
+
 
 export function escrowFixture(overrides: Partial<EscrowRow> = {}): EscrowRow {
   const now = new Date('2026-01-01T00:00:00Z')
@@ -141,6 +126,10 @@ export function escrowFixture(overrides: Partial<EscrowRow> = {}): EscrowRow {
     approval_deadline: null,
     dispute_bond_raw: '0',
     is_seeker: false,
+    requires_approval: false,
+    assigned_from_application: false,
+    assignment_released_at: null,
+    unassign_window_seconds: 0,
     sponsored_tx_used: 0,
     created_at: now,
     updated_at: now,

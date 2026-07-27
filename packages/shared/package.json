@@ -15,6 +15,11 @@
       "require": "./dist/db/schema/index.js",
       "default": "./dist/db/schema/index.js"
     },
+    "./db/schema/escrow": {
+      "types": "./dist/db/schema/escrow/index.d.ts",
+      "require": "./dist/db/schema/escrow/index.js",
+      "default": "./dist/db/schema/escrow/index.js"
+    },
     "./idl": {
       "types": "./dist/idl/index.d.ts",
       "require": "./dist/idl/index.js",
@@ -37,8 +42,8 @@
     }
   },
   "scripts": {
-    "build": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/abi/tenda_escrow_evm.json dist/abi/",
-    "prepare": "tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/abi/tenda_escrow_evm.json dist/abi/",
+    "build": "pnpm run clean && tsc && cp src/idl/tenda_escrow.json dist/idl/ && cp src/abi/tenda_escrow_evm.json dist/abi/",
+    "prepare": "pnpm run build",
     "build:watch": "tsc -w",
     "type-check": "tsc --noEmit",
     "type-check:test": "tsc -p test/tsconfig.json",

@@ -60,6 +60,7 @@ test('valid exchange body normalizes (bond defaults to 0, no assignment)', () =>
     completion_duration_seconds: 7_200,
     dispute_bond_raw: '0',
     assigned_counterparty_id: null,
+    requires_approval: false,
     permit: null,
   })
 })
@@ -151,4 +152,44 @@ test('amount_raw at the numeric(78,0) precision boundary: 78 digits ok, 79 rejec
 
 test('dispute_bond_raw is bounded by the same precision', () => {
   expectRejects(body({ dispute_bond_raw: '9'.repeat(79) }), 422, /dispute_bond_raw exceeds the maximum precision/)
+})
+
+// ---------- approval mode ----------------------------------------------------
+
+// Gigs are pinned to the chain's stablecoin (assertGigAsset), so the exchange
+// default in `body` cannot be reused unchanged.
+const gigBody = (over: Partial<CreateEscrowBody> = {}) =>
+  body({ kind: 'gig', asset: 'USDC_SOL', ...over })
+
+test('requires_approval: accepted on a gig, and defaults to false', () => {
+  assert.strictEqual(validateCreateEscrow(deps(), gigBody()).requires_approval, false)
+  assert.strictEqual(
+    validateCreateEscrow(deps(), gigBody({ requires_approval: true })).requires_approval,
+    true,
+  )
+  // Explicit null is the same as absent — clients that send it get the default.
+  assert.strictEqual(
+    validateCreateEscrow(deps(), gigBody({ requires_approval: null })).requires_approval,
+    false,
+  )
+})
+
+test('requires_approval: rejected for an exchange — nobody to approve in a trade', () => {
+  expectRejects(body({ requires_approval: true }), 422, /gigs only/)
+})
+
+// The contracts reject the pair outright; refusing it here means the poster
+// finds out before paying gas rather than after a revert.
+test('requires_approval: cannot be combined with a directly assigned worker', () => {
+  expectRejects(
+    gigBody({ requires_approval: true, assigned_counterparty_id: 'user-worker' }),
+    422,
+    /cannot be combined/,
+  )
+})
+
+test('requires_approval: a non-boolean is a validation error', () => {
+  for (const bad of ['true', 1, {}, []]) {
+    expectRejects(gigBody({ requires_approval: bad }), 422, /must be a boolean/)
+  }
 })
