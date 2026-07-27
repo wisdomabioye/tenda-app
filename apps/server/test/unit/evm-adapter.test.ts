@@ -22,6 +22,7 @@ import { decodeEscrowLogs, escrowIdHexToUuid } from '@server/chains/evm/verify'
 import { ESCROW_EVM_ABI, ZERO_ADDRESS, type EvmReceipt, type EvmRpc } from '@server/chains/evm/rpc'
 import type { PaymasterHttp } from '@server/chains/evm/paymaster'
 import { uuidToBytes } from '@server/chains/ids'
+import { AppError } from '@server/lib/errors'
 import { extractTxHashes } from '@server/routes/v1/webhooks/alchemy'
 import {
   applyEscrowEvent,
@@ -817,6 +818,71 @@ test('buildTx: ERC-20 dispute bond carries the approval hint; zero bond does not
     payload: { escrow_id: UUID, bond_raw: '0' },
   })
   if (zeroBond.kind === 'evm-tx') assert.strictEqual('approval' in zeroBond, false)
+})
+
+test('buildTx disputeEscrow: a NATIVE escrow still prices the bond in the gas token', async () => {
+  // The distinction the absent-escrow guard turns on, and the way to get that
+  // guard wrong: `state === null` (contract has no such escrow → refuse) is
+  // NOT the same as `state.asset_address === null` (a real escrow denominated
+  // in the native token → build, with no ERC-20 approval). A guard that
+  // conflated them would break every native dispute.
+  const nativeEscrow = {
+    escrow_id: UUID_HEX as `0x${string}`,
+    kind: 0,
+    asset: ZERO_ADDRESS as `0x${string}`, // native
+    amount: 1_000_000n,
+    creator: CREATOR as `0x${string}`,
+    counterparty: WORKER as `0x${string}`,
+    assigned_counterparty: ZERO_ADDRESS as `0x${string}`,
+    status: 1,
+    accept_deadline: 1_900_000_000n,
+    completion_duration: 7_200n,
+    completion_deadline: 0n,
+    approval_deadline: 0n,
+    dispute_bond: 777n,
+    is_seeker: false,
+    raised_by: ZERO_ADDRESS as `0x${string}`,
+    requires_approval: false,
+    unassign_window_seconds: 0n,
+  }
+  const adapter = makeAdapter({ rpc: fakeRpc({ readEscrow: async () => nativeEscrow }) })
+  const tx = await adapter.buildTx({
+    action: 'disputeEscrow',
+    user_id: 'u1',
+    payload: { escrow_id: UUID, bond_raw: '777' },
+  })
+  assert.strictEqual(tx.kind, 'evm-tx')
+  if (tx.kind === 'evm-tx') {
+    // Native bond rides as tx value, so there is nothing to approve.
+    assert.strictEqual('approval' in tx, false)
+    assert.strictEqual(tx.value, '777')
+  }
+})
+
+test('buildTx disputeEscrow: an escrow absent from THIS contract is refused, not priced as native', async () => {
+  // readEscrow → null means the configured contract has no such escrow. The
+  // old code did `state?.asset_address ?? null`, and null means NATIVE — so a
+  // stranded escrow (open_issues #89) silently denominated the dispute bond in
+  // the gas token instead of its ERC-20, and the approval step vanished with
+  // it. Absence must refuse.
+  const adapter = makeAdapter({ rpc: fakeRpc({ readEscrow: async () => null }) })
+  await adapter
+    .buildTx({
+      action: 'disputeEscrow',
+      user_id: 'u1',
+      payload: { escrow_id: UUID, bond_raw: '777' },
+    })
+    .then(
+      () => assert.fail('expected the build to be refused'),
+      (err) => {
+        assert.ok(err instanceof AppError)
+        assert.strictEqual(err.statusCode, 422)
+        assert.strictEqual(err.code, 'ESCROW_NOT_FUNDED')
+        // Name the contract actually consulted, or the operator cannot tell
+        // a genuinely-missing escrow from a stranded one.
+        assert.match(err.message, new RegExp(CONTRACT, 'i'))
+      },
+    )
 })
 
 // ---------- buildPermitPayload ------------------------------------------------

@@ -15,6 +15,7 @@ import {
   PROGRAM_ID,
   decodeEscrowAccount,
   escrowPda,
+  isProgramOwned,
   type EscrowAccount,
 } from '@server/chains/solana/pdas'
 import type { SolanaRpc } from '@server/chains/solana/rpc'
@@ -157,9 +158,11 @@ export function createSolanaVerifier(deps: SolanaVerifierDeps) {
   }
 
   async function fetchEscrowState(escrow_ref: string): Promise<EscrowState | null> {
-    const data = await deps.rpc.getAccountData(escrow_ref)
-    if (data === null) return null
-    return toEscrowState(escrow_ref, decodeEscrowAccount(deps.program.coder, data))
+    const account = await deps.rpc.getAccount(escrow_ref)
+    // Foreign-owned reads as absent: this is a probe, and "no escrow of ours
+    // here" is exactly what `null` means to every caller. See isProgramOwned.
+    if (account === null || !isProgramOwned(account)) return null
+    return toEscrowState(escrow_ref, decodeEscrowAccount(deps.program.coder, account.data))
   }
 
   return { verifyTx, fetchEscrowState }

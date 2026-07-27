@@ -241,6 +241,54 @@ test('buildTx acceptEscrow: escrow + platform PDAs, signer wallet', async () => 
   assert.strictEqual(d.payer, COUNTERPARTY.toBase58())
 })
 
+test('buildTx: a transition on a SUPERSEDED program\'s escrow is refused, not built', async () => {
+  // The build path must be louder than the read path: this escrow decodes
+  // fine, but the configured program cannot sign for an account it does not
+  // own, so a built tx would revert on chain and burn the user's fee. 409 +
+  // ESCROW_MISMATCH names the owning program instead. See open_issues #89.
+  const rpc = fakeSolanaRpc()
+  rpc.stageAccount(
+    escrowPdaFromUuid(ESCROW_UUID),
+    await encodeEscrowAccount(escrowAccountFixture({ status: { open: {} }, counterparty: null })),
+    '996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv', // a real predecessor
+  )
+  rpc.stageAccount(platformPda(), await encodePlatformState(platformStateFixture()))
+  await expectAppError(
+    makeAdapter(rpc).buildTx({
+      action: 'acceptEscrow',
+      user_id: 'user-counterparty',
+      payload: { escrow_id: ESCROW_UUID },
+    }),
+    409,
+    'ESCROW_MISMATCH',
+  )
+})
+
+test('buildTx: a superseded PLATFORM state is refused — fees would come from another deployment', async () => {
+  // Settlement is the path that reads platform state (it prices the fee), so
+  // it is the one where another deployment's fee_bps could be applied to a
+  // real payout. `acceptEscrow` never reads it.
+  const rpc = fakeSolanaRpc()
+  rpc.stageAccount(
+    escrowPdaFromUuid(ESCROW_UUID),
+    await encodeEscrowAccount(escrowAccountFixture({ status: { submitted: {} } })),
+  )
+  rpc.stageAccount(
+    platformPda(),
+    await encodePlatformState(platformStateFixture()),
+    '996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv',
+  )
+  await expectAppError(
+    makeAdapter(rpc).buildTx({
+      action: 'approveCompletion',
+      user_id: 'user-creator',
+      payload: { escrow_id: ESCROW_UUID },
+    }),
+    500,
+    'INTERNAL_ERROR',
+  )
+})
+
 test('buildTx declineAssignedEscrow: decline instruction with mutation accounts', async () => {
   const rpc = fakeSolanaRpc()
   await stageAcceptedEscrow(rpc, {
@@ -774,6 +822,26 @@ test('fetchEscrowState: decodes a full snapshot', async () => {
   assert.strictEqual(s.completion_duration_seconds, 7_200)
   assert.strictEqual(s.dispute_bond_raw, '100000000')
   assert.strictEqual(s.is_seeker, false)
+})
+
+test('fetchEscrowState: an account owned by a SUPERSEDED program reads as absent', async () => {
+  // The trap this closes: Anchor's discriminator is derived from the account
+  // NAME, so a superseded deployment's escrow decodes into a perfectly
+  // well-formed snapshot. Byte-identical data — only the owner differs. Left
+  // unchecked, a stranded escrow (open_issues #89) would report as live state
+  // for a program that cannot sign for it.
+  const rpc = fakeSolanaRpc()
+  const addr = escrowPdaFromUuid(ESCROW_UUID)
+  const encoded = await encodeEscrowAccount(escrowAccountFixture())
+  const SUPERSEDED = '996SiTqTBhydHAsTqt1vDn9sP5uW6Q9RUrc4ZdNcHyyv' // a real predecessor
+  rpc.stageAccount(addr, encoded, SUPERSEDED)
+  assert.strictEqual(await makeAdapter(rpc).fetchEscrowState(addr.toBase58()), null)
+
+  // Same bytes under the right owner DO decode — proves the rejection is the
+  // owner check and not a broken fixture.
+  const ours = fakeSolanaRpc()
+  ours.stageAccount(addr, encoded)
+  assert.notStrictEqual(await makeAdapter(ours).fetchEscrowState(addr.toBase58()), null)
 })
 
 test('fetchEscrowState: SPL escrow exposes the mint address', async () => {

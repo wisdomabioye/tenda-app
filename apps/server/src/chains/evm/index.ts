@@ -295,8 +295,22 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       // Bond denomination follows the escrow's asset, read it on-chain so
       // the value rule can't drift from contract state.
       const state = await fetchEscrowState(escrowRefOf(build.payload.escrow_id))
+      // A null read means THIS contract has no such escrow. Absence must not
+      // fall through to `asset_address: null`, which means NATIVE — that would
+      // quietly denominate the bond in the gas token instead of the escrow's
+      // ERC-20. The realistic cause is an escrow held by a superseded contract
+      // (the adapter resolves the contract per chain, not per escrow — see
+      // open_issues #89), and the honest answer there is to refuse.
+      if (state === null) {
+        throw new AppError(
+          422,
+          ErrorCode.ESCROW_NOT_FUNDED,
+          `escrow ${build.payload.escrow_id} does not exist in the escrow contract ` +
+            `configured for ${args.chain_id} (${args.escrow_contract})`,
+        )
+      }
       return {
-        asset_address: state?.asset_address ?? null,
+        asset_address: state.asset_address,
         assigned_counterparty_address: null,
         worker_address: null,
       }

@@ -215,15 +215,20 @@ test('solanaRpcFromConnection.getTransaction: success with no logs, and null met
   assert.deepStrictEqual(r2, { failed: false, failure_reason: null, log_messages: [] })
 })
 
-test('solanaRpcFromConnection.getAccountData: null → null; present → Buffer copy', async () => {
+test('solanaRpcFromConnection.getAccount: null → null; present → Buffer copy + owner', async () => {
   const empty = solanaRpcFromConnection(solPort({ getAccountInfo: async () => null }))
-  assert.strictEqual(await empty.getAccountData('addr'), null)
+  assert.strictEqual(await empty.getAccount('addr'), null)
 
   const data = Buffer.from('hello')
-  const present = solanaRpcFromConnection(solPort({ getAccountInfo: async () => ({ data }) }))
-  const buf = await present.getAccountData('addr')
-  assert.ok(buf !== null)
-  assert.strictEqual(buf.toString(), 'hello')
+  const present = solanaRpcFromConnection(
+    solPort({ getAccountInfo: async () => ({ data, owner: 'OwnerProgram111' }) }),
+  )
+  const account = await present.getAccount('addr')
+  assert.ok(account !== null)
+  assert.strictEqual(account.data.toString(), 'hello')
+  // The owner must survive the seam — it is the only thing distinguishing a
+  // current account from a superseded program's identically-encoded one.
+  assert.strictEqual(account.owner, 'OwnerProgram111')
 })
 
 test('solanaRpcFromConnection.getSignaturesForAddress: maps signature + slot, forwards limit', async () => {

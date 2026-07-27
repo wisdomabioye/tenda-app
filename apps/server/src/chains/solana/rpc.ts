@@ -24,8 +24,15 @@ export interface SolanaRpc {
   getLatestBlockhash(): Promise<{ blockhash: string; last_valid_block_height: number }>
   /** Null = signature unknown / not yet confirmed at the required commitment. */
   getTransaction(tx_ref: string): Promise<SolanaTxResult | null>
-  /** Raw account data. Null = account does not exist. */
-  getAccountData(address: string): Promise<Buffer | null>
+  /**
+   * Raw account data plus its OWNING program. Null = account does not exist.
+   *
+   * The owner rides along because Anchor's account discriminator is derived
+   * from the account NAME, so it is identical across program generations: an
+   * account left behind by a superseded program deserialises perfectly as
+   * current state. Data alone cannot tell the two apart; only the owner can.
+   */
+  getAccount(address: string): Promise<{ data: Buffer; owner: string } | null>
   /**
    * Recent signatures touching an address (newest first), the polling
    * listener's feed. Failed txs are included; verify-tx classifies them.
@@ -58,7 +65,7 @@ export interface SolanaConnectionPort {
   getTransaction(
     tx_ref: string,
   ): Promise<{ meta: { err: unknown; logMessages?: string[] | null } | null } | null>
-  getAccountInfo(address: string): Promise<{ data: Buffer } | null>
+  getAccountInfo(address: string): Promise<{ data: Buffer; owner: string } | null>
   getSignaturesForAddress(
     address: string,
     opts: { limit: number },
@@ -109,9 +116,9 @@ export function solanaRpcFromConnection(
       }
     },
 
-    async getAccountData(address) {
+    async getAccount(address) {
       const info = await withTimeout(`getAccountInfo(${address})`, conn.getAccountInfo(address))
-      return info === null ? null : Buffer.from(info.data)
+      return info === null ? null : { data: Buffer.from(info.data), owner: info.owner }
     },
 
     async getSignaturesForAddress(address, opts) {
@@ -138,7 +145,12 @@ export function createSolanaRpc(args: {
         maxSupportedTransactionVersion: 0,
         commitment: commitment === 'confirmed' ? 'confirmed' : 'finalized',
       }),
-    getAccountInfo: (address) => connection.getAccountInfo(new PublicKey(address), commitment),
+    // web3.js hands back `owner` as a PublicKey; the port speaks base58 so the
+    // seam stays comparable to IDL/config addresses without importing web3.
+    getAccountInfo: async (address) => {
+      const info = await connection.getAccountInfo(new PublicKey(address), commitment)
+      return info === null ? null : { data: info.data, owner: info.owner.toBase58() }
+    },
     getSignaturesForAddress: (address, opts) =>
       connection.getSignaturesForAddress(new PublicKey(address), { limit: opts.limit }),
   }
