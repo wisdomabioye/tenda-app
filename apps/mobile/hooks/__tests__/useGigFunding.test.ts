@@ -103,7 +103,7 @@ beforeEach(() => {
   mockGate = null
 })
 
-const ARGS = { clearDraftPrefill: jest.fn() }
+const ARGS = { resetForm: jest.fn() }
 
 test('checks the budget against every candidate wallet before anything else', async () => {
   const { result } = renderHook(() => useGigFunding(ARGS))
@@ -211,9 +211,63 @@ test('signing declined after the draft is saved keeps the draft', async () => {
   expect(mockPush).toHaveBeenCalledWith('/gig/e1')
 })
 
+// ── Composer reset ────────────────────────────────────────────────────────────
+//
+// Post-a-Gig is a tab screen: it never unmounts, so anything the hook does not
+// explicitly blank is still sitting in the form the next time the user opens
+// the tab. Both paths below leave the composed values on the SERVER, so the
+// screen must not keep a second copy of them.
+
+test('a saved draft blanks the composer, the retry lives on the draft', async () => {
+  mockSign.mockRejectedValue(new Error('user declined'))
+  const resetForm = jest.fn()
+  const { result } = renderHook(() => useGigFunding({ resetForm }))
+
+  await fund(result)
+
+  expect(resetForm).toHaveBeenCalled()
+})
+
+test('a funded gig blanks the composer even when it was not a draft repost', async () => {
+  const resetForm = jest.fn()
+  const { result } = renderHook(() => useGigFunding({ resetForm }))
+  await fund(result)
+
+  await act(async () => { result.current.handleFunded() })
+
+  expect(resetForm).toHaveBeenCalled()
+  // No draftId to clear — clearing it anyway would remount the form a second
+  // time for nothing.
+  expect(mockSetParams).not.toHaveBeenCalled()
+})
+
+test('a moderation block leaves the composer intact so the user can edit', async () => {
+  const { ApiClientError } = jest.requireMock<{
+    ApiClientError: new (m: string, c?: string) => Error
+  }>('@/api/client')
+  mockGigCreate.mockRejectedValue(new ApiClientError('This gig breaks our rules', 'CONTENT_MODERATED'))
+  const resetForm = jest.fn()
+  const { result } = renderHook(() => useGigFunding({ resetForm }))
+
+  await fund(result)
+
+  // Nothing was committed — the dialog's "Edit" is worthless against a blank form.
+  expect(resetForm).not.toHaveBeenCalled()
+})
+
+test('a failed pre-flight leaves the composer intact', async () => {
+  mockEnsure.mockRejectedValue(new Error('You need 10 USDC but your wallet holds 2.5 USDC.'))
+  const resetForm = jest.fn()
+  const { result } = renderHook(() => useGigFunding({ resetForm }))
+
+  await fund(result)
+
+  expect(resetForm).not.toHaveBeenCalled()
+})
+
 test('reposting a draft discards the abandoned one once the new draft exists', async () => {
   const { result } = renderHook(() =>
-    useGigFunding({ draftId: 'old-draft', clearDraftPrefill: jest.fn() }),
+    useGigFunding({ draftId: 'old-draft', resetForm: jest.fn() }),
   )
 
   await fund(result)
@@ -222,13 +276,13 @@ test('reposting a draft discards the abandoned one once the new draft exists', a
 })
 
 test('a confirmed escrow clears the draft prefill and lands on the gig', async () => {
-  const clearDraftPrefill = jest.fn()
-  const { result } = renderHook(() => useGigFunding({ draftId: 'old-draft', clearDraftPrefill }))
+  const resetForm = jest.fn()
+  const { result } = renderHook(() => useGigFunding({ draftId: 'old-draft', resetForm }))
   await fund(result)
 
   await act(async () => { result.current.handleFunded() })
 
-  expect(clearDraftPrefill).toHaveBeenCalled()
+  expect(resetForm).toHaveBeenCalled()
   expect(mockSetParams).toHaveBeenCalledWith({ draftId: '' })
   expect(mockToast).toHaveBeenCalledWith('success', 'Gig funded and live!')
   expect(mockPush).toHaveBeenCalledWith('/gig/e1')

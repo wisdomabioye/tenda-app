@@ -27,9 +27,19 @@ export default function PostGigScreen() {
   // old escrow id, so in-place editing is impossible by design).
   const [draftValues, setDraftValues] = useState<Partial<GigFormValues> | null>(null)
   const [draftLoading, setDraftLoading] = useState(draftId !== undefined)
+  // Bumped when a composed gig has been committed to the server. This is a tab
+  // screen, so it never unmounts and GigForm would otherwise keep the posted
+  // gig's values forever; the bump forces a fresh, blank form.
+  const [composerGeneration, setComposerGeneration] = useState(0)
   const { dismissedNudges } = useOnboardingStore()
 
-  const funding = useGigFunding({ draftId, clearDraftPrefill: () => setDraftValues(null) })
+  const funding = useGigFunding({
+    draftId,
+    resetForm: () => {
+      setDraftValues(null)
+      setComposerGeneration((n) => n + 1)
+    },
+  })
 
   useEffect(() => {
     if (!dismissedNudges.post) setShowNudge(true)
@@ -96,8 +106,9 @@ export default function PostGigScreen() {
           <LoadingScreen />
         ) : (
           <GigForm
-            // Remount when the prefill arrives, GigForm seeds its state once.
-            key={draftValues !== null ? draftId : 'blank'}
+            // Remount when the prefill arrives (GigForm seeds its state once)
+            // and when a posted gig retires the previous composer.
+            key={`${draftValues !== null ? draftId : 'blank'}:${composerGeneration}`}
             initialValues={draftValues ?? undefined}
             submitLabel={draftId !== undefined ? 'Repost Gig' : 'Post Gig'}
             onSubmit={handleFormSubmit}

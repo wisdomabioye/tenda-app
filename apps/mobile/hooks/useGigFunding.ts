@@ -38,11 +38,16 @@ interface FundingMonitor {
 interface UseGigFundingArgs {
   /** Present when reposting an abandoned draft (CO6 retry-from-draft). */
   draftId?: string
-  /** Drop the draft prefill once funding has left the screen. */
-  clearDraftPrefill: () => void
+  /**
+   * Blank the composer (fields + any draft prefill). Called once the composed
+   * values have been committed to the server — either funded, or persisted as a
+   * draft — because Post-a-Gig is a tab screen that never unmounts, so without
+   * this the next visit still shows the gig the user already posted.
+   */
+  resetForm: () => void
 }
 
-export function useGigFunding({ draftId, clearDraftPrefill }: UseGigFundingArgs) {
+export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
   const router = useRouter()
   // pendingValues drives the confirm dialog; once confirmed, phase + signature
   // drive the shared progress modal, which holds until the escrow confirms
@@ -157,6 +162,7 @@ export function useGigFunding({ draftId, clearDraftPrefill }: UseGigFundingArgs)
         // broadcast a timed-out create, the server's chain listener confirms
         // it and the draft flips to open on its own.
         showToast('info', e instanceof Error ? e.message : 'Signing incomplete, draft saved')
+        resetComposer()
         router.push(`/gig/${escrow_id}`)
       } else if (e instanceof WalletError && (e.code === 'declined' || e.code === 'timeout')) {
         // Guard exit before the draft existed (e.g. the permit signature was
@@ -169,6 +175,15 @@ export function useGigFunding({ draftId, clearDraftPrefill }: UseGigFundingArgs)
     }
   }
 
+  // The composer's contents now live on the server (as a live gig or as a
+  // draft), so the screen must go back to blank — it stays mounted behind the
+  // tab bar, and a retry belongs to the draft's own "Edit & repost" entry, not
+  // to leftover state here.
+  function resetComposer() {
+    resetForm()
+    if (draftId !== undefined) router.setParams({ draftId: '' })
+  }
+
   // Tear down the progress modal, clear the retry-draft param, and land on the
   // gig's page. Shared by the confirmed and timed-out exits (they differ only
   // in the toast).
@@ -177,10 +192,7 @@ export function useGigFunding({ draftId, clearDraftPrefill }: UseGigFundingArgs)
     setMonitor(null)
     setPhase('idle')
     showToast(type, message)
-    if (draftId !== undefined) {
-      clearDraftPrefill()
-      router.setParams({ draftId: '' })
-    }
+    resetComposer()
     router.navigate('/(tabs)/home')
     if (escrowId !== undefined) router.push(`/gig/${escrowId}`)
   }
