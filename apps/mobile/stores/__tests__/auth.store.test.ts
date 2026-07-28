@@ -49,7 +49,8 @@ jest.mock('@/stores/pending-sync.store', () => ({
   usePendingSyncStore: { getState: () => ({ clear: jest.fn(async () => {}) }) },
 }))
 
-import { useAuthStore } from '@/stores/auth.store'
+import { renderHook } from '@testing-library/react-native'
+import { useAuthStore, useIsSeeker } from '@/stores/auth.store'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { api, ApiClientError } from '@/api/client'
 import {
@@ -407,6 +408,14 @@ describe('logout', () => {
 })
 
 describe('loadSession', () => {
+  /**
+   * loadSession fires refreshMe WITHOUT awaiting it (navigation only needs
+   * profile_complete), so its effects land a tick later. One macrotask is
+   * enough: the assertions below use paths that never reach withRetry's
+   * backoff sleeps (success, or a terminal 401).
+   */
+  const waitForWalletsSettled = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
+
   it('settles unauthenticated when no jwt is stored', async () => {
     getJwt.mockResolvedValue(null)
     getAddr.mockResolvedValue(null)
@@ -443,16 +452,41 @@ describe('loadSession', () => {
     expect(s.jwt).toBeNull()
   })
 
-  it('keeps credentials on a transient network error', async () => {
+  it('clears storage on a 403 as well', async () => {
+    // The other half of the terminal branch: a banned/aged-out token is not a
+    // transient blip, so the credential goes and nothing is retried with it.
+    getJwt.mockResolvedValue('revoked')
+    getAddr.mockResolvedValue('SoLaNaAddr')
+    meMock.mockRejectedValueOnce(new ApiClientError(403, 'Forbidden', 'forbidden'))
+
+    await useAuthStore.getState().loadSession()
+    await waitForWalletsSettled()
+
+    const s = useAuthStore.getState()
+    expect(s.isAuthenticated).toBe(false)
+    expect(s.jwt).toBeNull()
+    expect(clearAuth).toHaveBeenCalled()
+    expect(usersMeMock).not.toHaveBeenCalled()
+  })
+
+  it('keeps credentials on a transient network error, without a wallets load', async () => {
     getJwt.mockResolvedValue('jwt-123')
     getAddr.mockResolvedValue('SoLaNaAddr')
     meMock.mockRejectedValueOnce(new Error('network down'))
+
     await useAuthStore.getState().loadSession()
+    await waitForWalletsSettled()
+
     const s = useAuthStore.getState()
     expect(s.jwt).toBe('jwt-123')
     expect(s.walletAddress).toBe('SoLaNaAddr')
     expect(s.isLoading).toBe(false)
+    // This branch leaves the session unauthenticated (app/index routes to
+    // welcome), so wallets[] is the next sign-in's job, not this one's.
+    expect(s.isAuthenticated).toBe(false)
+    expect(usersMeMock).not.toHaveBeenCalled()
   })
+
 })
 
 describe('linkIdentity', () => {
@@ -550,5 +584,32 @@ describe('refreshMe / walletsStatus lifecycle (D1)', () => {
     const s = useAuthStore.getState()
     expect(s.walletsStatus).toBe('ready') // stays ready, not error
     expect(s.wallets).toHaveLength(1) // last-good list intact
+  })
+})
+
+// ─── small surfaces that were never pinned ────────────────────────────────────
+
+describe('updateUser', () => {
+  it('replaces the cached user (the profile screens write back through it)', () => {
+    useAuthStore.setState({ user: null })
+
+    useAuthStore.getState().updateUser(USER)
+
+    expect(useAuthStore.getState().user).toEqual(USER)
+  })
+})
+
+describe('useIsSeeker', () => {
+  it('reads the flag off the user, and answers false when there is none', () => {
+    // Fee selection (seeker_fee_bps vs fee_bps) hangs off this, so "no user"
+    // must resolve to the non-seeker rate rather than undefined.
+    useAuthStore.setState({ user: null })
+    expect(renderHook(() => useIsSeeker()).result.current).toBe(false)
+
+    useAuthStore.setState({ user: { ...USER, is_seeker: true } })
+    expect(renderHook(() => useIsSeeker()).result.current).toBe(true)
+
+    useAuthStore.setState({ user: { ...USER, is_seeker: false } })
+    expect(renderHook(() => useIsSeeker()).result.current).toBe(false)
   })
 })

@@ -196,8 +196,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           isLoading: false,
         })
       } else {
-        // Transient network error, commit the credentials we already read from SecureStore
-        // into Zustand state so the UI shows a "reconnecting" state rather than the login screen.
+        // Transient network error: keep the credentials we already read from
+        // SecureStore rather than clearing them, so the next attempt can still
+        // use them. `isAuthenticated`/`user` stay unset — `app/index` gates on
+        // all three, so this routes to welcome and the user signs in again.
+        //
+        // refreshMe is deliberately NOT fired here for that reason: a wallets[]
+        // load for a session the UI treats as signed out buys nothing, and every
+        // sign-in path already fires it (as does each wallet-screen focus).
         set({ jwt, walletAddress, isLoading: false })
       }
     }

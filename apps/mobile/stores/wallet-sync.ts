@@ -18,15 +18,27 @@ import { isLinkedWallet } from '@/wallet/wallet-address'
  */
 export type WalletsStatus = 'idle' | 'loading' | 'ready' | 'error'
 
-/** The session-address slice the reconcile reads and rewrites. */
+/** The wallet slice the reconcile reads and rewrites. */
 export interface WalletSlice {
+  wallets: LinkedWallet[]
   walletAddress: string | null
   evmAddress: string | null
 }
 
 export interface ReconciledWalletState extends WalletSlice {
-  wallets: LinkedWallet[]
   profileComplete: boolean
+}
+
+/**
+ * Order-independent identity of a wallet list. The server's `SELECT ... FROM
+ * user_wallets` carries no ORDER BY, so row order is not a promise and must not
+ * be read as a change.
+ */
+function walletsFingerprint(wallets: readonly LinkedWallet[]): string {
+  return wallets
+    .map((w) => `${w.chain_ns}:${w.address}:${String(w.is_primary)}:${String(w.verified_at)}`)
+    .sort()
+    .join('|')
 }
 
 /**
@@ -34,10 +46,18 @@ export interface ReconciledWalletState extends WalletSlice {
  * address slot (solana `walletAddress`, evm `evmAddress`) is kept ONLY while it
  * is still a verified linked wallet, else dropped — so the store never
  * advertises a wallet the user has unlinked.
+ *
+ * An UNCHANGED list keeps its previous array identity. Every consumer keys
+ * effects and memos off `wallets`, and a fresh array from each response is a
+ * change signal none of them can act on: since refreshMe now runs on every
+ * wallet-screen focus, handing back a new array would re-read every balance
+ * over RPC (and recompute every wallets-derived memo) on a list that did not
+ * move. Identity is the signal; content is the truth.
  */
 export function reconcileWalletState(current: WalletSlice, me: MeResponse): ReconciledWalletState {
+  const unchanged = walletsFingerprint(current.wallets) === walletsFingerprint(me.wallets)
   return {
-    wallets: me.wallets,
+    wallets: unchanged ? current.wallets : me.wallets,
     profileComplete: me.profile_complete,
     walletAddress:
       current.walletAddress !== null && isLinkedWallet('solana', current.walletAddress, me.wallets)

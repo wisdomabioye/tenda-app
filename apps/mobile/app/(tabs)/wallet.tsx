@@ -20,9 +20,9 @@ export default function WalletScreen() {
   const { theme } = useUnistyles()
   const {
     user,
-    hasWallet,
-    walletsStatus,
+    section,
     retryWallets,
+    retryChains,
     balances,
     totalUsdc,
     earnedUsdc,
@@ -36,23 +36,37 @@ export default function WalletScreen() {
     handleRefresh,
   } = useWalletScreen()
 
-  // A failed load must NOT read as "no wallet linked" (that was the bug). Only
-  // a settled `ready` load with an empty list is genuinely wallet-less; while
-  // loading, the hero skeleton stands in.
-  const walletSection = hasWallet ? (
-    <>
-      <WalletHeroCard totalUsdc={totalUsdc} isLoading={isLoading} />
-      <WalletBalanceRows balances={balances} />
-      <WalletActions />
-      <EarningsSummary earnedUsdc={earnedUsdc} spentUsdc={spentUsdc} />
-    </>
-  ) : walletsStatus === 'error' ? (
-    <WalletLoadError onRetry={retryWallets} />
-  ) : walletsStatus === 'ready' ? (
-    <WalletEmptyState />
-  ) : (
-    <WalletHeroCard totalUsdc={totalUsdc} isLoading />
-  )
+  // One branch per settled fact, resolved in the hook (resolveWalletSection).
+  // A failed load must NOT read as "no wallet linked", and an unreadable chain
+  // registry must NOT read as a zero balance — those were the two bugs. While
+  // either load is in flight the hero skeleton stands in.
+  const walletSection =
+    section === 'ready' ? (
+      <>
+        <WalletHeroCard totalUsdc={totalUsdc} isLoading={isLoading} />
+        <WalletBalanceRows balances={balances} />
+        <WalletActions />
+        <EarningsSummary earnedUsdc={earnedUsdc} spentUsdc={spentUsdc} />
+      </>
+    ) : section === 'wallets-error' ? (
+      <WalletLoadError variant="wallets" onRetry={retryWallets} />
+    ) : section === 'balances-unavailable' ? (
+      // Lifetime totals stay: they are server-computed and owe nothing to the
+      // chain registry. Sell / cash-out does NOT — it derives its sellable
+      // (chain, asset) options from that same registry, so offering it here
+      // would land the user on an empty picker.
+      <>
+        <WalletLoadError variant="balances" onRetry={retryChains} />
+        <EarningsSummary earnedUsdc={earnedUsdc} spentUsdc={spentUsdc} />
+      </>
+    ) : section === 'no-wallet' ? (
+      <WalletEmptyState />
+    ) : (
+      // 'loading', and the fail-safe for any state added later: a skeleton
+      // claims nothing, which is the only safe thing to render about money we
+      // have not read yet.
+      <WalletHeroCard totalUsdc={totalUsdc} isLoading />
+    )
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>
