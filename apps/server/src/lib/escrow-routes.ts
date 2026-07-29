@@ -21,6 +21,7 @@
 import { eq } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
+import { isUuidLike } from '@server/lib/uuid'
 import { ADMIN_ROLES, ErrorCode } from '@tenda/shared'
 import {
   type Caller,
@@ -35,20 +36,9 @@ import type { AppDatabase } from '@server/plugins/db'
 
 export type EscrowRow = typeof escrows.$inferSelect
 
-/**
- * Standard 8-4-4-4-12 UUID shape (case-insensitive). Used to short-circuit
- * `loadEscrowOr404` before the Drizzle query, postgres's `uuid` column
- * rejects non-UUID input with `invalid input syntax for type uuid`, which
- * would surface as a 500 instead of a clean 404. Exported for direct unit
- * testing so the guard doesn't need a fake `AppDatabase` to exercise.
- */
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
-export function isUuidLike(id: string): boolean {
-  return UUID_RE.test(id)
-}
-
 export async function loadEscrowOr404(db: AppDatabase, id: string): Promise<EscrowRow> {
+  // Short-circuit before the query: postgres's `uuid` column rejects non-UUID
+  // input with an error that would surface as a 500 instead of a clean 404.
   if (!isUuidLike(id)) {
     throw new AppError(404, ErrorCode.NOT_FOUND, `escrow ${id} not found`)
   }

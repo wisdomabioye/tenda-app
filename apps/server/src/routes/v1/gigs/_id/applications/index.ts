@@ -35,7 +35,7 @@ import {
   type ApplicationEscrowRow,
 } from '@server/features/applications/store'
 import { toApplicantWire, toApplicationWire } from '@server/features/applications/wire'
-import { isUuidLike } from '@server/lib/escrow-routes'
+import { isUuidLike } from '@server/lib/uuid'
 import { appEvents } from '@server/lib/events'
 import type { AppDatabase } from '@server/plugins/db'
 

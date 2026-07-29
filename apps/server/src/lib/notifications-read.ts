@@ -14,7 +14,7 @@ import { notifications, announcements, users } from '@tenda/shared/db/schema'
 import { NOTIFICATION_PAGE_SIZE } from '@tenda/shared'
 import type { NotificationFeed, AnnouncementWire, NotificationsQuery } from '@tenda/shared'
 import { clampLimit } from '@server/lib/pagination'
-import { isUuidLike } from '@server/lib/escrow-routes'
+import { isUuidLike } from '@server/lib/uuid'
 import { toNotificationWire } from '@server/lib/notify'
 import type { AppDatabase } from '@server/plugins/db'
 

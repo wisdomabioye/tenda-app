@@ -11,7 +11,6 @@ import {
   type EscrowRow,
   buildContext,
   deriveCaller,
-  isUuidLike,
   requireCaller,
 } from '@server/lib/escrow-routes'
 
@@ -51,48 +50,6 @@ function row(over: Partial<EscrowRow> = {}): EscrowRow {
     ...over,
   }
 }
-
-// ---------- isUuidLike --------------------------------------------------
-
-test('isUuidLike: canonical lowercase UUID accepted', () => {
-  assert.strictEqual(
-    isUuidLike('550e8400-e29b-41d4-a716-446655440000'),
-    true,
-  )
-})
-
-test('isUuidLike: uppercase hex accepted (case-insensitive)', () => {
-  assert.strictEqual(
-    isUuidLike('AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE'),
-    true,
-  )
-})
-
-test('isUuidLike: rejects garbage', () => {
-  assert.strictEqual(isUuidLike('garbage'), false)
-})
-
-test('isUuidLike: rejects empty string', () => {
-  assert.strictEqual(isUuidLike(''), false)
-})
-
-test('isUuidLike: rejects UUID missing a section', () => {
-  assert.strictEqual(isUuidLike('550e8400-e29b-41d4-a716'), false)
-})
-
-test('isUuidLike: rejects UUID with non-hex char', () => {
-  assert.strictEqual(
-    isUuidLike('550e8400-e29b-41d4-a716-44665544000z'),
-    false,
-  )
-})
-
-test('isUuidLike: rejects UUID with extra trailing chars', () => {
-  assert.strictEqual(
-    isUuidLike('550e8400-e29b-41d4-a716-446655440000-extra'),
-    false,
-  )
-})
 
 // ---------- deriveCaller ------------------------------------------------
 

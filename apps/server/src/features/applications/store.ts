@@ -8,7 +8,7 @@ import { and, count, desc, eq, inArray, lt } from 'drizzle-orm'
 import { gig_applications, escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { ACTIVE_APPLICATION_STATUSES, type ApplicationStatus } from '@tenda/shared'
 import type { EscrowStatus } from '@server/lib/escrow'
-import { isUuidLike } from '@server/lib/escrow-routes'
+import { isUuidLike } from '@server/lib/uuid'
 import type { AppDatabase } from '@server/plugins/db'
 
 export interface ApplicationRow {
