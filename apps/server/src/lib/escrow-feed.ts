@@ -12,18 +12,13 @@
 import { and, eq, inArray, isNull, or, type SQL } from 'drizzle-orm'
 import { escrows, escrow_transactions } from '@tenda/shared/db/schema'
 import { ACTOR_SCOPED_FEED_TX_TYPES, feedTxTypesFor } from '@tenda/shared'
+import { isEscrowParty } from '@server/lib/escrow-party'
 
 // Derived once at module load, not per request: the matrix is static, and
 // re-deriving it inside the handler reads as if it could vary by caller.
 const CREATOR_TYPES = feedTxTypesFor('creator')
 const COUNTERPARTY_TYPES = feedTxTypesFor('counterparty')
 const ACTOR_TYPES = [...ACTOR_SCOPED_FEED_TX_TYPES]
-
-/** Party membership on the escrow — the outer bound on anything visible. */
-function isParty(userId: string): SQL {
-  // `or` is only `undefined` for an empty argument list; two conditions here.
-  return or(eq(escrows.creator_id, userId), eq(escrows.counterparty_id, userId)) as SQL
-}
 
 /**
  * Rows that belong in `userId`'s feed:
@@ -54,7 +49,7 @@ export function userFeedPredicate(userId: string): SQL {
     clauses.push(
       and(
         inArray(escrow_transactions.type, ACTOR_TYPES),
-        isParty(userId),
+        isEscrowParty(userId),
         or(eq(escrow_transactions.actor_id, userId), isNull(escrow_transactions.actor_id)),
       ) as SQL,
     )

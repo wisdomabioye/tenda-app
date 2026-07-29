@@ -18,6 +18,7 @@ import { WS_AUTH_SUBPROTOCOL, wsChannelName } from '@tenda/shared'
 import { conversations } from '@tenda/shared/db/schema'
 import { escrows } from '@tenda/shared/db/schema/escrow'
 import type { AppDatabase } from '@server/plugins/db'
+import { isEscrowPartyOrAssigned } from '@server/lib/escrow-party'
 
 // ---------- subprotocol auth -------------------------------------------------
 
@@ -61,28 +62,24 @@ export function channelName(c: WsChannel): string {
 // ---------- authorization --------------------------------------------------------
 
 export interface WsAuthStore {
-  /** True iff the user is creator / counterparty / assignee of the escrow. */
-  isEscrowParty(escrow_id: string, user_id: string): Promise<boolean>
+  /**
+   * True iff the user is creator / counterparty / pending assignee. Named for
+   * the WIDER notion on purpose: a direct-offer invitee subscribes to the
+   * escrow before accepting it, so this is `isEscrowPartyOrAssigned`, not the
+   * settled-parties-only `isEscrowParty` (see lib/escrow-party.ts).
+   */
+  isEscrowPartyOrAssigned(escrow_id: string, user_id: string): Promise<boolean>
   /** True iff the user is a member of the conversation. */
   isConversationMember(conversation_id: string, user_id: string): Promise<boolean>
 }
 
 export function drizzleWsAuthStore(db: AppDatabase): WsAuthStore {
   return {
-    async isEscrowParty(escrow_id, user_id) {
+    async isEscrowPartyOrAssigned(escrow_id, user_id) {
       const rows = await db
         .select({ id: escrows.id })
         .from(escrows)
-        .where(
-          and(
-            eq(escrows.id, escrow_id),
-            or(
-              eq(escrows.creator_id, user_id),
-              eq(escrows.counterparty_id, user_id),
-              eq(escrows.assigned_counterparty_id, user_id),
-            ),
-          ),
-        )
+        .where(and(eq(escrows.id, escrow_id), isEscrowPartyOrAssigned(user_id)))
         .limit(1)
       return rows.length > 0
     },
@@ -111,7 +108,7 @@ export async function authorizeChannel(
     case 'user':
       return channel.id === user_id
     case 'escrow':
-      return store.isEscrowParty(channel.id, user_id)
+      return store.isEscrowPartyOrAssigned(channel.id, user_id)
     case 'chat':
       return store.isConversationMember(channel.id, user_id)
   }

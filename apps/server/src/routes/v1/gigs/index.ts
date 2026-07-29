@@ -9,6 +9,7 @@
  */
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { isEscrowCounterpartySide } from '@server/lib/escrow-party'
 import { eq, and, gt, gte, inArray, isNull, lte, or, asc, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, escrowStatusEnum, gig_details, users } from '@tenda/shared/db/schema'
 import {
@@ -115,10 +116,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       conditions.push(
         mine === 'created'
           ? eq(escrows.creator_id, userId)
-          : (or(
-              eq(escrows.counterparty_id, userId),
-              eq(escrows.assigned_counterparty_id, userId),
-            ) as SQL),
+          : isEscrowCounterpartySide(userId),
       )
 
       // Status buckets over the caller's OWN rows. Paired with `limit=1` this

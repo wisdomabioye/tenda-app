@@ -17,11 +17,12 @@
  *            back to the escrow's own amount when the tx row carries none.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { eq, or, inArray, and, sql } from 'drizzle-orm'
+import { eq, inArray, and, sql } from 'drizzle-orm'
 import { escrows, escrow_transactions } from '@tenda/shared/db/schema'
 import { ErrorCode, USDC_ASSET_IDS } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { isEscrowParty } from '@server/lib/escrow-party'
 
 type SummaryRoute = UsersContract['transactionsSummary']
 
@@ -70,7 +71,7 @@ const userTransactionsSummary: FastifyPluginAsync = async (fastify) => {
       .innerJoin(escrows, eq(escrow_transactions.escrow_id, escrows.id))
       .where(
         and(
-          or(eq(escrows.creator_id, id), eq(escrows.counterparty_id, id)),
+          isEscrowParty(id),
           // USDC only, from the shared registry — the same membership test the
           // client uses, so the two can't drift into disagreeing totals.
           inArray(escrows.asset, [...USDC_ASSET_IDS]),

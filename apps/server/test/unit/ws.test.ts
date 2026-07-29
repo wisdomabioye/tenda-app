@@ -52,7 +52,7 @@ test('parseChannel rejects unknown kinds and malformed names', () => {
 
 function store(opts: { party?: boolean; member?: boolean }): WsAuthStore {
   return {
-    async isEscrowParty() {
+    async isEscrowPartyOrAssigned() {
       return opts.party ?? false
     },
     async isConversationMember() {
