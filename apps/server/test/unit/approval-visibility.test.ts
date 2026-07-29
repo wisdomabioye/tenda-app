@@ -209,10 +209,12 @@ test('canUnassign: refused once work is submitted (status is past accepted)', ()
 
 // ── canReleaseAssignment ────────────────────────────────────────────────────
 
+const GRACE = 3600
+
 test('canReleaseAssignment: the assigned worker, once, on an approval gig', () => {
   const e = escrow({ status: 'accepted', counterparty_id: WORKER })
-  assert.strictEqual(canReleaseAssignment(e, WORKER), true)
-  assert.strictEqual(canReleaseAssignment(e, CREATOR), false)
+  assert.strictEqual(canReleaseAssignment(e, WORKER, GRACE, NOW), true)
+  assert.strictEqual(canReleaseAssignment(e, CREATOR, GRACE, NOW), false)
 })
 
 test('canReleaseAssignment: does not re-arm once stamped', () => {
@@ -221,12 +223,36 @@ test('canReleaseAssignment: does not re-arm once stamped', () => {
     counterparty_id: WORKER,
     assignment_released_at: inPast(60),
   })
-  assert.strictEqual(canReleaseAssignment(e, WORKER), false)
+  assert.strictEqual(canReleaseAssignment(e, WORKER, GRACE, NOW), false)
 })
 
 test('canReleaseAssignment: refused on an instant-mode gig they accepted themselves', () => {
   const e = escrow({ status: 'accepted', counterparty_id: WORKER, requires_approval: false })
-  assert.strictEqual(canReleaseAssignment(e, WORKER), false)
+  assert.strictEqual(canReleaseAssignment(e, WORKER, GRACE, NOW), false)
+})
+
+/**
+ * The release suppresses the abandonment strike, so an UNBOUNDED one makes
+ * ghosting strictly better than the honest early exit: run the delivery window
+ * out, then step back for free just before the poster reclaims. The prompt has
+ * always promised this bound; nothing enforced it.
+ */
+test('canReleaseAssignment: closes with the delivery window, grace included', () => {
+  // Assigned long enough ago that completion_deadline is already behind us.
+  const late = escrow({
+    status: 'accepted',
+    counterparty_id: WORKER,
+    assignedSecondsAgo: DURATION_SECONDS + GRACE + 60,
+  })
+  assert.strictEqual(canReleaseAssignment(late, WORKER, GRACE, NOW), false)
+
+  // Inside the grace period it is still open — the same instant `submit` is.
+  const inGrace = escrow({
+    status: 'accepted',
+    counterparty_id: WORKER,
+    assignedSecondsAgo: DURATION_SECONDS + 60,
+  })
+  assert.strictEqual(canReleaseAssignment(inGrace, WORKER, GRACE, NOW), true)
 })
 
 // ── the tight-window warning (critical assessment #3) ───────────────────────

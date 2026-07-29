@@ -31,12 +31,16 @@ describe('isGatedTxAction', () => {
       'cancel',
       'refund_expired',
       'reclaim_abandoned',
+      // Gated from the moment the gig CTA started offering it: a direct-invite
+      // worker had no Decline button before, so nothing ever reached the gate.
+      'decline',
     ]
     for (const a of gated) expect(isGatedTxAction(a)).toBe(true)
   })
 
   it('does not gate input-sheet or admin actions', () => {
-    const ungated: EscrowTxType[] = ['submit', 'dispute', 'decline', 'resolve']
+    // These three are gated by their own input sheets instead.
+    const ungated: EscrowTxType[] = ['submit', 'dispute', 'resolve']
     for (const a of ungated) expect(isGatedTxAction(a)).toBe(false)
   })
 })
@@ -45,8 +49,21 @@ describe('txConfirmCopy — gated actions', () => {
   it('returns null for ungated actions', () => {
     expect(txConfirmCopy('submit', GIG)).toBeNull()
     expect(txConfirmCopy('dispute', GIG)).toBeNull()
-    expect(txConfirmCopy('decline', GIG)).toBeNull()
     expect(txConfirmCopy('resolve', GIG)).toBeNull()
+  })
+
+  /**
+   * `isGatedTxAction` (a list) and `txConfirmCopy` (a switch) answer the same
+   * question from two places, and the dialog trusts the second: `visible` is
+   * `copy !== null`. A list entry with no copy renders an invisible dialog
+   * whose confirm never fires — a button that silently does nothing, which is
+   * exactly what an ungated `decline` was.
+   */
+  it('agrees with isGatedTxAction in BOTH directions, for every tx type', () => {
+    for (const action of ESCROW_TX_TYPES) {
+      expect(txConfirmCopy(action, GIG) !== null).toBe(isGatedTxAction(action))
+      expect(txConfirmCopy(action, EXCHANGE) !== null).toBe(isGatedTxAction(action))
+    }
   })
 
   it('every gated action gets a non-empty title, label and the wallet note', () => {
@@ -58,6 +75,9 @@ describe('txConfirmCopy — gated actions', () => {
       'cancel',
       'refund_expired',
       'reclaim_abandoned',
+      // Gated from the moment the gig CTA started offering it: a direct-invite
+      // worker had no Decline button before, so nothing ever reached the gate.
+      'decline',
     ]
     for (const a of gated) {
       const copy = txConfirmCopy(a, GIG)

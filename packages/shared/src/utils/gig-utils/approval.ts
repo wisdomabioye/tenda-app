@@ -12,6 +12,7 @@ import { APPLICATION_UNASSIGN_TIGHT_WINDOW_SECONDS } from '../../constants/appli
 import type { ApplicationStatus } from '../../constants/applications'
 import type { EscrowAcceptanceMode, EscrowLike } from './types'
 import { toDate } from './types'
+import { isDeliveryWindowOpen, type DeliveryWindow } from './lifecycle'
 
 const MS_PER_SECOND = 1_000
 
@@ -116,13 +117,29 @@ export function canUnassign(
  * gas for the honest exit would make ghosting the cheaper option. Once stamped
  * it does not re-arm, so the CTA disappears rather than lying about a second
  * release doing anything.
+ *
+ * BOUNDED BY THE DELIVERY WINDOW, and that bound is load-bearing rather than
+ * tidy. Releasing suppresses the abandonment strike (features/reputation
+ * `signalsFor`, `escrow.abandoned`). Unbounded, a worker could ghost the whole
+ * window and then release just before the poster reclaims — taking no penalty
+ * at all, which makes ghosting-then-releasing strictly better than the honest
+ * early exit this feature exists to reward. The release prompt has always
+ * PROMISED this bound ("do it before the delivery window runs out"); nothing
+ * enforced it.
+ *
+ * Same window as `submit` on purpose: deliver or say you cannot are the
+ * worker's two mutually-exclusive moves, so closing them together leaves no
+ * gap in either direction.
  */
 export function canReleaseAssignment(
-  e: ApprovalEscrow & { assignment_released_at: string | Date | null },
+  e: ApprovalEscrow & DeliveryWindow & { assignment_released_at: string | Date | null },
   userId: string,
+  grace_period_seconds: number,
+  now: Date = new Date(),
 ): boolean {
   if (!e.requires_approval || e.status !== 'accepted') return false
-  return e.counterparty_id === userId && e.assignment_released_at === null
+  if (e.counterparty_id !== userId || e.assignment_released_at !== null) return false
+  return isDeliveryWindowOpen(e, grace_period_seconds, now)
 }
 
 /**

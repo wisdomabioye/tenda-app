@@ -1,6 +1,6 @@
 /**
- * Renders one approval-mode branch. Which branch is decided by the pure
- * `approvalBranch` in ./branches — this file only draws it.
+ * Draws ONE approval-mode branch. Which branch applies is decided by the pure
+ * `approvalBranch`; where it sits is decided by `assignSlots`.
  */
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
@@ -17,6 +17,7 @@ import {
 } from '@/components/gig/gig-applications/copy'
 import { approvalContextOf } from './parties'
 import type { ApprovalBranch } from './branches'
+import { widthProps, type CtaWidth } from './slots'
 
 /**
  * What this CTA can raise. `unassign` is the only one that ends in a wallet —
@@ -29,23 +30,31 @@ interface Props {
   branch: ApprovalBranch
   gig: GigDetail
   busy: boolean
+  width: CtaWidth
   onAction: (action: ApprovalAction) => void
 }
 
-export function ApprovalCTA({ branch, gig, busy, onAction }: Props) {
+export function ApprovalCTA({ branch, gig, busy, width, onAction }: Props) {
   const { theme } = useUnistyles()
   const application = gig.viewer?.application ?? null
-  const acceptWindow = acceptWindowState(gig)
+  // Only the single-button branches take `width`. `unassign`, `withdraw` and
+  // `apply` are stacks of notices, a button and a countdown — they cannot
+  // share a row and are slotted `primary`, where nothing else can sit.
+  const shared = widthProps(width)
 
   switch (branch) {
     case 'assign':
       return (
-        <Button variant="primary" size="xl" fullWidth onPress={() => onAction('viewApplicants')}>
+        <Button {...shared} variant="primary" onPress={() => onAction('viewApplicants')}>
           {applicantsCtaLabel(gig.viewer?.open_application_count ?? null)}
         </Button>
       )
 
-    case 'unassign':
+    case 'unassign': {
+      // Held in a const so the `!== 'open'` guard below narrows it — the
+      // warning map has no `open` key, and rightly so: there is nothing to
+      // warn about while there is still room to assign someone else.
+      const acceptWindow = acceptWindowState(gig)
       return (
         <View style={s.stack}>
           {gig.assignment_released_at !== null && (
@@ -81,10 +90,11 @@ export function ApprovalCTA({ branch, gig, busy, onAction }: Props) {
           />
         </View>
       )
+    }
 
     case 'release':
       return (
-        <Button variant="outline" size="xl" fullWidth loading={busy} onPress={() => onAction('release')}>
+        <Button {...shared} variant="outline" loading={busy} onPress={() => onAction('release')}>
           I&apos;m not available
         </Button>
       )
@@ -119,10 +129,14 @@ export function ApprovalCTA({ branch, gig, busy, onAction }: Props) {
       )
 
     case 'lost':
+      // `approvalBranch` only produces this with an application in hand, but
+      // the type cannot say so. Rendering nothing beats rendering the empty
+      // grey box an unguarded `''` would leave behind.
+      if (application === null) return null
       return (
         <View style={[s.notice, { backgroundColor: theme.colors.surface.inset }]}>
           <Text variant="caption" color={theme.colors.content.secondary} align="center">
-            {applicationStatusLine(application?.status ?? '', null)}
+            {applicationStatusLine(application.status, null)}
           </Text>
         </View>
       )

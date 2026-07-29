@@ -1,6 +1,12 @@
 /**
- * Renders one ordinary-lifecycle branch. Which branch is decided by the pure
- * `lifecycleBranch` in ./branches — this file only draws it.
+ * Draws ONE lifecycle branch. Which branches apply is decided by the pure
+ * `lifecycleBranches`; where they sit is decided by `assignSlots`. This file
+ * knows neither.
+ *
+ * One branch is one control, deliberately. The composites this replaced each
+ * carried their own "+ Dispute" — five hand-kept copies of the same button,
+ * which is how the sixth state that needed it (a worker past the approval
+ * deadline) silently went without.
  */
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
@@ -10,10 +16,13 @@ import { Button } from '@/components/ui/Button'
 import { Text } from '@/components/ui/Text'
 import type { LifecycleBranch } from './branches'
 import type { ActiveSheet } from './types'
+import { widthProps, type CtaWidth } from './slots'
 
 interface Props {
   branch: LifecycleBranch
   isTxBuilding: boolean
+  /** Decided by the arrangement — see CtaWidth. */
+  width: CtaWidth
   onAction: (action: ActiveSheet) => void
   onTxAction: (action: EscrowTxType) => void
   onRetryDraft: () => void
@@ -22,150 +31,84 @@ interface Props {
 export function LifecycleCTA({
   branch,
   isTxBuilding,
+  width,
   onAction,
   onTxAction,
   onRetryDraft,
 }: Props) {
   const { theme } = useUnistyles()
-
-  const disputedNotice = (
-    <View style={[s.infoNotice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
-      <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
-        Under review by admin
-      </Text>
-    </View>
-  )
+  const shared = widthProps(width)
 
   switch (branch) {
-    // v2 drafts are pre-sign staging rows: signing happens in the create flow.
-    // CO6 "retry from draft" prefills a fresh create instead of editing in
-    // place (the unsigned tx is already bound to the old escrow id).
-    case 'draft':
-      return (
-        <View style={s.ctaRow}>
-          <View style={s.ctaFlex}>
-            <Button variant="outline" size="xl" fullWidth onPress={() => onAction('delete')}>
-              Delete Draft
-            </Button>
-          </View>
-          <View style={s.ctaFlex}>
-            <Button variant="primary" size="xl" fullWidth onPress={onRetryDraft}>
-              Edit & repost
-            </Button>
-          </View>
-        </View>
-      )
+    case 'retryDraft':
+      return <Button {...shared} variant="primary" onPress={onRetryDraft}>Edit &amp; repost</Button>
+
+    case 'deleteDraft':
+      return <Button {...shared} variant="outline" onPress={() => onAction('delete')}>Delete Draft</Button>
 
     case 'refundExpired':
       return (
-        <Button variant="primary" size="xl" fullWidth loading={isTxBuilding} onPress={() => onTxAction('refund_expired')}>
+        <Button {...shared} variant="primary" loading={isTxBuilding} onPress={() => onTxAction('refund_expired')}>
           Claim Refund
         </Button>
       )
 
     case 'accept':
-      return (
-        <Button variant="primary" size="xl" fullWidth onPress={() => onTxAction('accept')}>
-          Accept Gig
-        </Button>
-      )
+      return <Button {...shared} variant="primary" onPress={() => onTxAction('accept')}>Accept Gig</Button>
+
+    case 'decline':
+      return <Button {...shared} variant="outline" onPress={() => onTxAction('decline')}>Decline</Button>
 
     case 'cancel':
-      return (
-        <Button variant="danger" size="xl" fullWidth onPress={() => onTxAction('cancel')}>
-          Cancel Gig
-        </Button>
-      )
+      return <Button {...shared} variant="danger" onPress={() => onTxAction('cancel')}>Cancel Gig</Button>
 
     case 'submit':
+      return <Button {...shared} variant="primary" onPress={() => onAction('proof')}>Submit Proof</Button>
+
+    case 'approve':
       return (
-        <Button variant="primary" size="xl" fullWidth onPress={() => onAction('proof')}>
-          Submit Proof
+        <Button {...shared} variant="primary" loading={isTxBuilding} onPress={() => onTxAction('approve')}>
+          Approve &amp; Pay
         </Button>
       )
 
-    // Approve is the happy path and owns a full-width row so its label never
-    // wraps on narrow devices; Dispute stays prominent beneath it.
-    case 'approve':
+    case 'claimStalled':
       return (
-        <View style={s.ctaStack}>
-          <Button variant="primary" size="xl" fullWidth loading={isTxBuilding} onPress={() => onTxAction('approve')}>
-            Approve &amp; Pay
-          </Button>
-          <Button variant="danger" size="xl" fullWidth onPress={() => onAction('dispute')}>
-            Dispute delivery
-          </Button>
-        </View>
-      )
-
-    case 'claimAndProof':
-      return (
-        <View style={s.ctaRow}>
-          <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={() => onTxAction('claim_stalled')}>
-            Claim Payment
-          </Button>
-          <Button variant="outline" size="xl" onPress={() => onAction('addProof')}>
-            Add Proof
-          </Button>
-        </View>
+        <Button {...shared} variant="primary" loading={isTxBuilding} onPress={() => onTxAction('claim_stalled')}>
+          Claim Payment
+        </Button>
       )
 
     case 'addProof':
-      return (
-        <View style={s.ctaRow}>
-          <Button variant="outline" size="xl" style={s.ctaFlex} onPress={() => onAction('addProof')}>
-            Add More Proof
-          </Button>
-          <Button variant="danger" size="xl" onPress={() => onAction('dispute')}>
-            Dispute
-          </Button>
-        </View>
-      )
+      return <Button {...shared} variant="outline" onPress={() => onAction('addProof')}>Add More Proof</Button>
+
+    case 'addEvidence':
+      return <Button {...shared} variant="outline" onPress={() => onAction('addProof')}>Add Evidence</Button>
 
     case 'reclaim':
       return (
-        <View style={s.ctaRow}>
-          <Button variant="primary" size="xl" style={s.ctaFlex} loading={isTxBuilding} onPress={() => onTxAction('reclaim_abandoned')}>
-            Reclaim Escrow
-          </Button>
-          <Button variant="danger" size="xl" onPress={() => onAction('dispute')}>
-            Dispute
-          </Button>
-        </View>
-      )
-
-    case 'disputeOnly':
-      return (
-        <Button variant="danger" size="xl" fullWidth onPress={() => onAction('dispute')}>
-          Dispute
+        <Button {...shared} variant="primary" loading={isTxBuilding} onPress={() => onTxAction('reclaim_abandoned')}>
+          Reclaim Escrow
         </Button>
       )
+
+    case 'dispute':
+      return <Button {...shared} variant="danger" onPress={() => onAction('dispute')}>Dispute</Button>
 
     case 'review':
-      return (
-        <Button variant="outline" size="xl" fullWidth onPress={() => onAction('review')}>
-          Leave Review
-        </Button>
-      )
-
-    case 'disputedWithEvidence':
-      return (
-        <View style={s.ctaStack}>
-          <Button variant="outline" size="xl" fullWidth onPress={() => onAction('addProof')}>
-            Add Evidence
-          </Button>
-          {disputedNotice}
-        </View>
-      )
+      return <Button {...shared} variant="outline" onPress={() => onAction('review')}>Leave Review</Button>
 
     case 'disputedNotice':
-      return disputedNotice
+      return (
+        <View style={[s.notice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
+          <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
+            Under review by admin
+          </Text>
+        </View>
+      )
   }
 }
 
 const s = StyleSheet.create({
-  ctaRow: { flexDirection: 'row', gap: spacing.sm },
-  ctaStack: { gap: spacing.xs },
-  ctaFlex: { flex: 1 },
-  infoNotice: { padding: spacing.md, borderRadius: radius.md },
+  notice: { padding: spacing.md, borderRadius: radius.md },
 })

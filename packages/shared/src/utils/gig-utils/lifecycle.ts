@@ -58,6 +58,55 @@ export function canSubmit(e: EscrowLike, userId: string): boolean {
   return e.status === 'accepted' && e.counterparty_id === userId
 }
 
+/** Just the delivery clock, so both windows below read from one shape. */
+export interface DeliveryWindow {
+  completion_deadline: string | Date | null
+}
+
+/**
+ * The last moment the worker may still act on their assignment — deliver it,
+ * or say they cannot. `completion_deadline + grace_period_seconds`, exactly
+ * what the server's `submit` and `reclaim_abandoned` guards compute.
+ *
+ * Null when there is no deadline: absence of a clock is not evidence one has
+ * run out, and the server treats it the same way.
+ *
+ * Module-private, unlike `unassignWindowEndsAt` next door: nothing outside
+ * needs the instant itself yet. Export it the day a countdown wants it, not
+ * before.
+ */
+function deliveryWindowEndsAt(
+  e: DeliveryWindow,
+  grace_period_seconds: number,
+): Date | null {
+  const deadline = toDate(e.completion_deadline)
+  return deadline === null ? null : new Date(deadline.getTime() + grace_period_seconds * 1_000)
+}
+
+/**
+ * Whether that window is still open.
+ *
+ * Exists because the CLIENT used to ignore it entirely: `canSubmit` gates on
+ * status and identity alone, so a worker past the deadline was offered Submit
+ * Proof and got a 409, and the poster was offered Reclaim Escrow a full
+ * `grace_period_seconds` before the server would allow it. The grace is on the
+ * wire (`PlatformConfig`), so there is no reason for the two to disagree.
+ *
+ * Additive on purpose — `canSubmit`'s signature is unchanged because the P2P
+ * exchange surface shares it and its payment window is a different clock.
+ */
+export function isDeliveryWindowOpen(
+  e: DeliveryWindow,
+  grace_period_seconds: number,
+  now: Date = new Date(),
+): boolean {
+  const endsAt = deliveryWindowEndsAt(e, grace_period_seconds)
+  // Strictly before, matching the server's `requireBefore` (`now >= deadline`
+  // rejects). Exactly ON the boundary must not be a case where the button says
+  // yes and the route says no.
+  return endsAt === null || now.getTime() < endsAt.getTime()
+}
+
 /**
  * The counterparty (worker) may attach evidence while the poster reviews
  * (`submitted`) AND while the escrow is under dispute (`disputed`) — a

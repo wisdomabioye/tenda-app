@@ -7,15 +7,16 @@
  * never split across commits.
  */
 
-import { and, eq, inArray, ne } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import type { EscrowTxType } from '@tenda/shared'
-import { escrows, escrow_transactions, gig_applications } from '@tenda/shared/db/schema/escrow'
+import { escrows, escrow_transactions } from '@tenda/shared/db/schema/escrow'
 import { disputes, dispute_resolutions } from '@tenda/shared/db/schema/governance'
 import { user_wallets } from '@tenda/shared/db/schema/identity'
 import { walletAddressEquals } from '@server/lib/auth/wallet-address'
 import type { AppDatabase } from '@server/plugins/db'
 import type { EscrowStatus } from '@server/lib/escrow'
+import { revertAssignmentCycle, settleAssignedApplication } from './application-cycle'
 
 /** Column patch applied alongside the status guard. */
 export interface EscrowPatch {
@@ -31,6 +32,17 @@ export interface EscrowPatch {
   completion_deadline?: Date | null
   submitted_at?: Date
   approval_deadline?: Date
+  /**
+   * Cleared by AssignmentReleased. Cycle-scoped, not escrow-scoped: left
+   * behind it made the NEXT worker's assignment read as already-released —
+   * the poster kept seeing "your worker said they are not available", the new
+   * worker never got the release exit at all, the gig stopped counting
+   * against their active-gig cap, and their abandonment strike was suppressed
+   * for good.
+   */
+  assignment_released_at?: Date | null
+  /** Cleared with it, for the same reason: it describes one cycle's assign. */
+  assigned_from_application?: boolean
 }
 
 /** Audit row recorded alongside every applied transition. */
@@ -59,6 +71,12 @@ export interface ApplyEventOutcome {
    * assign/unassign cycle settled — re-reading would notify people twice.
    */
   passed_applicant_ids: string[]
+  /**
+   * Applicants an `unassign` put back in the running. Carried out for exactly
+   * the same reason as `passed_applicant_ids`: after the commit they are
+   * indistinguishable from applicants who never lost in the first place.
+   */
+  revived_applicant_ids: string[]
 }
 
 export interface EscrowEventStore {
@@ -71,6 +89,8 @@ export interface EscrowEventStore {
     disputeResolution?: { winner: 'creator' | 'counterparty' | 'split' }
     /** Settle this applicant's gig application alongside the transition. */
     application?: { applicant_id: string }
+    /** Undo the assignment cycle alongside the transition (unassign). */
+    revertApplications?: { now: Date }
   }): Promise<ApplyEventOutcome>
   /** Wallet address → user id on the namespace; null if unknown. */
   resolveUserByWallet(chain_ns: ChainNamespace, address: string): Promise<string | null>
@@ -78,18 +98,33 @@ export interface EscrowEventStore {
 
 export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
   return {
-    async applyEvent({ escrow_id, from, patch, transaction, disputeResolution, application }) {
+    async applyEvent({
+      escrow_id,
+      from,
+      patch,
+      transaction,
+      disputeResolution,
+      application,
+      revertApplications,
+    }) {
       // All writes in ONE transaction so the audit row (which isProcessed
       // keys on) can never be lost relative to the status transition.
       return db.transaction(async (tx) => {
-        const passed_applicant_ids: string[] = []
+        let passed_applicant_ids: string[] = []
+        let revived_applicant_ids: string[] = []
         const updated = await tx
           .update(escrows)
           .set(patch)
           .where(and(eq(escrows.id, escrow_id), inArray(escrows.status, from)))
-          .returning({ id: escrows.id })
+          // `accept_deadline` rides along because the revert needs it and the
+          // row is already being written — a second read could disagree with
+          // this one under a concurrent write.
+          .returning({ id: escrows.id, accept_deadline: escrows.accept_deadline })
+        const row = updated[0]
         // Status guard tripped → idempotent no-op, and nothing was settled.
-        if (updated.length === 0) return { applied: false, passed_applicant_ids }
+        if (row === undefined) {
+          return { applied: false, passed_applicant_ids, revived_applicant_ids }
+        }
 
         // tx_ref UNIQUE, a replayed insert is a no-op (defence in depth on
         // top of the caller's isProcessed dedup).
@@ -98,44 +133,16 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
         })
 
         if (application !== undefined) {
-          // Only a LIVE application counts. An assign from a stale or absent
-          // one leaves `assigned_from_application` false, so no abandonment
-          // strike can follow — the rule is self-correcting rather than
-          // trusting the route to have checked.
-          const [won] = await tx
-            .update(gig_applications)
-            .set({ status: 'assigned' })
-            .where(
-              and(
-                eq(gig_applications.escrow_id, escrow_id),
-                eq(gig_applications.applicant_id, application.applicant_id),
-                eq(gig_applications.status, 'open'),
-              ),
-            )
-            .returning({ id: gig_applications.id })
+          const settled = await settleAssignedApplication(tx, escrow_id, application.applicant_id)
+          passed_applicant_ids = settled.passed_applicant_ids
+        }
 
-          if (won !== undefined) {
-            await tx
-              .update(escrows)
-              .set({ assigned_from_application: true })
-              .where(eq(escrows.id, escrow_id))
-            // D4: everyone else on this gig is resolved automatically, in the
-            // same commit, so no applicant is left waiting on a decision that
-            // has already been made. The applicant ids come back so the
-            // fan-out can tell exactly these people, and nobody else.
-            const passed = await tx
-              .update(gig_applications)
-              .set({ status: 'passed' })
-              .where(
-                and(
-                  eq(gig_applications.escrow_id, escrow_id),
-                  eq(gig_applications.status, 'open'),
-                  ne(gig_applications.id, won.id),
-                ),
-              )
-              .returning({ applicant_id: gig_applications.applicant_id })
-            passed_applicant_ids.push(...passed.map((p) => p.applicant_id))
-          }
+        if (revertApplications !== undefined) {
+          const reverted = await revertAssignmentCycle(tx, escrow_id, {
+            accept_deadline: row.accept_deadline,
+            now: revertApplications.now,
+          })
+          revived_applicant_ids = reverted.revived_applicant_ids
         }
 
         if (disputeResolution !== undefined) {
@@ -159,7 +166,7 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
               )
           }
         }
-        return { applied: true, passed_applicant_ids }
+        return { applied: true, passed_applicant_ids, revived_applicant_ids }
       })
     },
     async resolveUserByWallet(chain_ns, address) {

@@ -69,6 +69,13 @@ export interface EventApplication {
    * why, silently costing them the strike D2 depends on.
    */
   settles_application?: true
+  /**
+   * The exact inverse: undo the assignment cycle in the SAME transaction as
+   * the transition. Declared here rather than inferred from the event name so
+   * `settles_application` and its reverse sit in one table and a reader can
+   * see the pair is complete.
+   */
+  reverts_application_cycle?: true
   /** Build the column patch from decoded fields. */
   patch(fields: Record<string, string>): EscrowPatch
 }
@@ -120,12 +127,19 @@ export const EVENT_APPLICATIONS: Record<EscrowEvent, EventApplication> = {
     // resolved, so the fan-out can still reach the worker who was let go —
     // by the time it runs, the row no longer names them.
     counterparty: { field: 'counterparty', effect: 'release' },
+    reverts_application_cycle: true,
     patch: () => ({
       status: 'open',
       // completion_deadline must go with the status: an escrow rewound to
       // `open` that still carried a deadline would be judged by the expiry
       // sweep as if someone were working on it.
       completion_deadline: null,
+      // And so must the rest of the cycle. These two describe ONE assignment,
+      // not the escrow: leaving them behind made a re-assigned worker inherit
+      // the previous one's release, which suppressed their abandonment strike
+      // and dropped the gig out of their active-gig cap. See EscrowPatch.
+      assignment_released_at: null,
+      assigned_from_application: false,
     }),
   },
   EscrowDeclined: {

@@ -8,7 +8,7 @@
  * Lives in __fixtures__, not __tests__: jest-expo's testMatch treats every
  * file under __tests__ as a suite and fails one that declares no tests.
  */
-import type { GigApplication, GigDetail, UserRef } from '@tenda/shared'
+import type { GigApplication, GigDetail, Review, UserRef } from '@tenda/shared'
 
 export const CREATOR_ID = 'user-creator'
 export const WORKER_ID = 'user-worker'
@@ -37,6 +37,24 @@ export function application(overrides: Partial<GigApplication> = {}): GigApplica
     // never trips over it.
     expires_at: new Date(Date.now() + 86_400_000).toISOString(),
     created_at: '2026-07-01T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+/**
+ * A review left on a gig. Here for the same reason the others are: the CTA
+ * only cares WHO reviewed, but the wire type carries six more fields that
+ * every call site would otherwise have to invent.
+ */
+export function review(reviewer_id: string, overrides: Partial<Review> = {}): Review {
+  return {
+    id: `review-${reviewer_id}`,
+    escrow_id: 'escrow-1',
+    reviewer_id,
+    reviewee_id: reviewer_id === CREATOR_ID ? WORKER_ID : CREATOR_ID,
+    score: 5,
+    comment: null,
+    created_at: new Date('2026-07-01T00:00:00.000Z'),
     ...overrides,
   }
 }

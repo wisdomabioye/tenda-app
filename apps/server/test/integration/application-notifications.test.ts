@@ -216,6 +216,7 @@ test('assigning settles the rivals and the fan-out tells exactly them', { skip }
     tx_ref: 'sig-fanout',
     counterparty_id: winner.row.id,
     passed_applicant_ids: outcome.passed_applicant_ids,
+    revived_applicant_ids: outcome.revived_applicant_ids,
   } satisfies EscrowFanoutEvent)
 
   const recipients = notifiedUserIds()
@@ -226,6 +227,76 @@ test('assigning settles the rivals and the fan-out tells exactly them', { skip }
   assert.ok(recipients.includes(winner.row.id))
   const loserNotice = enqueued.find((e) => e.payload.user_id === loserA.row.id)
   assert.strictEqual(loserNotice?.payload.title, 'Gig assigned to someone else')
+})
+
+/**
+ * The mirror image: an unassign puts the rivals back in the running, and that
+ * is the ONLY signal they get — their row simply changes status again. Without
+ * it they would have been told "the gig went to someone else" and never told
+ * that it hadn't.
+ */
+test('unassigning revives the rivals and the fan-out tells exactly them', { skip }, async () => {
+  const app = getApp()
+  const poster = await createUser(app)
+  const winner = await createUser(app)
+  const rival = await createUser(app)
+  const escrow = await approvalGig(app, poster.row.id)
+
+  for (const u of [winner, rival]) await applyTo(app, u.token, escrow.id)
+
+  const store = drizzleEscrowEventStore(app.db)
+  await store.applyEvent({
+    escrow_id: escrow.id,
+    from: ['open'],
+    patch: { status: 'accepted', counterparty_id: winner.row.id },
+    transaction: {
+      type: 'assign_accept',
+      tx_ref: `sig-${Math.random().toString(36).slice(2)}`,
+      amount_raw: null,
+      platform_fee_raw: null,
+      creator_payout_raw: null,
+      actor_id: poster.row.id,
+    },
+    application: { applicant_id: winner.row.id },
+  })
+
+  const outcome = await store.applyEvent({
+    escrow_id: escrow.id,
+    from: ['accepted'],
+    patch: { status: 'open', counterparty_id: null, assignment_released_at: null },
+    transaction: {
+      type: 'unassign',
+      tx_ref: `sig-${Math.random().toString(36).slice(2)}`,
+      amount_raw: null,
+      platform_fee_raw: null,
+      creator_payout_raw: null,
+      actor_id: poster.row.id,
+    },
+    revertApplications: { now: new Date() },
+  })
+
+  assert.deepStrictEqual(outcome.revived_applicant_ids, [rival.row.id])
+  // The released worker is NOT revived: the poster let them go on purpose.
+  assert.deepStrictEqual(outcome.passed_applicant_ids, [])
+
+  installCapture(app)
+  await fanOutEscrowEvent(app, {
+    internal_event: 'escrow.assignment_released',
+    escrow_id: escrow.id,
+    wire_event: 'AssignmentReleased',
+    tx_ref: 'sig-fanout-revive',
+    counterparty_id: winner.row.id,
+    passed_applicant_ids: outcome.passed_applicant_ids,
+    revived_applicant_ids: outcome.revived_applicant_ids,
+  } satisfies EscrowFanoutEvent)
+
+  const revivedNotice = enqueued.find((e) => e.payload.user_id === rival.row.id)
+  assert.strictEqual(revivedNotice?.payload.title, "You're back in the running")
+  // The released worker still gets their own "Assignment withdrawn" notice,
+  // and nobody is told both things about one transition.
+  const workerNotices = enqueued.filter((e) => e.payload.user_id === winner.row.id)
+  assert.strictEqual(workerNotices.length, 1)
+  assert.strictEqual(workerNotices[0]?.payload.title, 'Assignment withdrawn')
 })
 
 test('a SECOND assign cycle notifies only the newly passed, not the old ones', { skip }, async () => {

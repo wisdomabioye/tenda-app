@@ -44,6 +44,8 @@ export interface ApplyEscrowEventResult {
    * the wrong people — or the same people twice.
    */
   passed_applicant_ids: string[]
+  /** See ApplyEventOutcome.revived_applicant_ids — an unassign's counterpart. */
+  revived_applicant_ids: string[]
 }
 
 /**
@@ -65,6 +67,8 @@ export interface EscrowRepublishEvent {
   counterparty_id: string | null
   /** See ApplyEscrowEventResult.passed_applicant_ids. */
   passed_applicant_ids: string[]
+  /** See ApplyEscrowEventResult.revived_applicant_ids. */
+  revived_applicant_ids: string[]
 }
 
 const WINNERS = ['creator', 'counterparty', 'split'] as const
@@ -83,6 +87,8 @@ export async function applyEscrowEvent(
   deps: ApplyEscrowEventDeps,
   event: DecodedEvent,
   tx_ref: string,
+  /** Injectable so the expiry-sensitive revert is testable without waiting. */
+  now: Date = new Date(),
 ): Promise<ApplyEscrowEventResult> {
   const app = EVENT_APPLICATIONS[event.name]
   const escrow_id = event.fields.escrow_id
@@ -149,6 +155,11 @@ export async function applyEscrowEvent(
     ...(app.settles_application === true && counterparty_id !== null
       ? { application: { applicant_id: counterparty_id } }
       : {}),
+    // Unconditional where declared, unlike the settle above: the revert must
+    // not depend on resolving a wallet. A release whose counterparty wallet is
+    // unknown still reopened the escrow, and leaving the applications settled
+    // because of an unrelated lookup miss is how the stale state got there.
+    ...(app.reverts_application_cycle === true ? { revertApplications: { now } } : {}),
   })
 
   return {
@@ -157,5 +168,6 @@ export async function applyEscrowEvent(
     internal_event: INTERNAL_EVENT_BY_WIRE[event.name],
     counterparty_id,
     passed_applicant_ids: outcome.passed_applicant_ids,
+    revived_applicant_ids: outcome.revived_applicant_ids,
   }
 }

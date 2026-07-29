@@ -14,7 +14,7 @@
  * exists: wording that states an obligation must be reviewable in one place.
  */
 
-import { acceptWindowState, type EscrowStatus } from '@tenda/shared'
+import { acceptWindowState, type ApplicationStatus, type EscrowStatus } from '@tenda/shared'
 import { formatDuration } from '@/lib/gig-display'
 
 /**
@@ -107,7 +107,10 @@ export function applicantsCtaLabel(count: number | null): string {
  * Second person throughout, so it must never be shown on the poster's
  * shortlist — see `applicantStatusLine` for that side.
  */
-export function applicationStatusLine(status: string, expiresInSeconds: number | null): string {
+export function applicationStatusLine(
+  status: ApplicationStatus,
+  expiresInSeconds: number | null,
+): string {
   switch (status) {
     case 'open':
       return expiresInSeconds !== null && expiresInSeconds > 0
@@ -121,8 +124,8 @@ export function applicationStatusLine(status: string, expiresInSeconds: number |
       return 'Expired before the poster decided'
     case 'withdrawn':
       return 'You withdrew this application'
-    default:
-      return ''
+    case 'released':
+      return 'The poster released your assignment'
   }
 }
 
@@ -158,7 +161,7 @@ export function openApplicationLine(gig: OpenApplicationGig): string {
  * application" shown to the poster is simply false, and "The poster picked
  * someone else" is nonsense addressed to the poster who did the picking.
  */
-export function applicantStatusLine(status: string): string {
+export function applicantStatusLine(status: ApplicationStatus): string {
   switch (status) {
     case 'open':
       return 'Waiting on you'
@@ -170,8 +173,8 @@ export function applicantStatusLine(status: string): string {
       return 'Expired before you decided'
     case 'withdrawn':
       return 'They withdrew'
-    default:
-      return ''
+    case 'released':
+      return 'You released this assignment'
   }
 }
 

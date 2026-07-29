@@ -49,6 +49,9 @@ const GATED_ACTIONS: readonly EscrowTxType[] = [
   'reclaim_abandoned',
   'assign_accept',
   'unassign',
+  // Added when the gig CTA started OFFERING it: a direct-invite worker had no
+  // Decline button, so nothing ever reached the gate.
+  'decline',
 ]
 
 /** Appended to every gated body so the wallet popup is never a surprise. */
@@ -181,8 +184,26 @@ function buildCopy(action: EscrowTxType, ctx: TxConfirmContext): TxConfirmCopy |
         // assignment — worth the extra pause.
         destructive: true,
       }
+    case 'decline':
+      // Gated since the gig CTA started OFFERING it (it was a real transition
+      // with no button before). On-chain, so it goes through the same gate as
+      // every other wallet-opening move; the escrow itself is untouched, which
+      // is the one thing the invitee needs to know before signing.
+      return kind === 'gig'
+        ? {
+            title: 'Decline this gig?',
+            body: `The poster's ${amount} stays in escrow and the gig opens up to other workers. You can't take it back, but they can invite you again.`,
+            confirmLabel: 'Decline Gig',
+            destructive: true,
+          }
+        : {
+            title: 'Decline this offer?',
+            body: `The seller's ${amount} stays in escrow and the offer opens up to other buyers. You can't take it back.`,
+            confirmLabel: 'Decline Offer',
+            destructive: true,
+          }
     default:
-      // decline / submit / dispute / resolve are not gated here.
+      // submit / dispute / resolve are gated by their own sheets instead.
       return null
   }
 }

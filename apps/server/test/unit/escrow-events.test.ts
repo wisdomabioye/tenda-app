@@ -26,7 +26,13 @@ const ESCROW_ID = '11111111-2222-4333-8444-555555555555'
 const TX_REF = 'sig-1'
 
 interface Recorded {
-  transitions: Array<{ escrow_id: string; from: EscrowStatus[]; patch: EscrowPatch }>
+  transitions: Array<{
+    escrow_id: string
+    from: EscrowStatus[]
+    patch: EscrowPatch
+    /** Present only when the event declared `reverts_application_cycle`. */
+    revertApplications: { now: Date } | undefined
+  }>
   transactions: Array<{
     escrow_id: string
     type: string
@@ -47,14 +53,14 @@ function makeDeps(opts: { guardTrips?: boolean; wallets?: Record<string, string>
   const store: EscrowEventStore = {
     // Mirrors the real store's atomicity: the audit row + dispute stamp are
     // written only when the status guard passes, all in one applyEvent call.
-    async applyEvent({ escrow_id, from, patch, transaction, disputeResolution }) {
-      rec.transitions.push({ escrow_id, from, patch })
-      if (opts.guardTrips ?? false) return { applied: false, passed_applicant_ids: [] }
+    async applyEvent({ escrow_id, from, patch, transaction, disputeResolution, revertApplications }) {
+      rec.transitions.push({ escrow_id, from, patch, revertApplications })
+      if (opts.guardTrips ?? false) return { applied: false, passed_applicant_ids: [], revived_applicant_ids: [] }
       rec.transactions.push({ escrow_id, ...transaction })
       if (disputeResolution !== undefined) {
         rec.resolutions.push({ escrow_id, winner: disputeResolution.winner })
       }
-      return { applied: true, passed_applicant_ids: [] }
+      return { applied: true, passed_applicant_ids: [], revived_applicant_ids: [] }
     },
     async resolveUserByWallet(_ns, address) {
       return opts.wallets?.[address] ?? null
@@ -89,6 +95,8 @@ test('EscrowCreated: draft→open, stamps escrow_ref, records create with amount
     counterparty_id: null,
     // Nothing to auto-resolve: applications belong to the assign path.
     passed_applicant_ids: [],
+    // Nothing to revive either: only an unassign reverses a cycle.
+    revived_applicant_ids: [],
   })
   assert.deepStrictEqual(rec.transitions[0].from, ['draft'])
   assert.strictEqual(rec.transitions[0].patch.status, 'open')
@@ -290,8 +298,53 @@ test('AssignmentReleased: accepted→open, CLEARS counterparty and completion_de
   // judged by the expiry sweep as if someone were still working on it.
   assert.strictEqual(t.patch.counterparty_id, null)
   assert.strictEqual(t.patch.completion_deadline, null)
+  // And the rest of the assignment CYCLE, which the status rewind alone left
+  // behind: a stale release stamp made the next worker's assignment read as
+  // already-released, dropped the gig out of their active-gig cap and
+  // suppressed their abandonment strike for good.
+  assert.strictEqual(t.patch.assignment_released_at, null)
+  assert.strictEqual(t.patch.assigned_from_application, false)
+  // The declarative `reverts_application_cycle` reached the store, so the
+  // applications are undone in the SAME commit as the transition.
+  assert.notStrictEqual(t.revertApplications, undefined)
   assert.strictEqual(rec.transactions[0].type, 'unassign')
   assert.strictEqual(rec.transactions[0].actor_id, 'user-creator')
+})
+
+// The inverse, and the reason the flag is declared per-event rather than
+// inferred: no other transition may quietly undo a settled application.
+/**
+ * The declarative pair, asserted against the WHOLE table rather than a sample:
+ * one event settles an application cycle, exactly one undoes it. Adding an
+ * event that quietly declares either flag fails here, which is the point of
+ * declaring them in a table instead of branching on the event name.
+ */
+test('exactly one event settles a cycle, and exactly one reverts it', () => {
+  const declaring = (flag: 'settles_application' | 'reverts_application_cycle') =>
+    Object.entries(EVENT_APPLICATIONS)
+      .filter(([, app]) => app[flag] === true)
+      .map(([name]) => name)
+
+  assert.deepStrictEqual(declaring('settles_application'), ['CounterpartyAssigned'])
+  assert.deepStrictEqual(declaring('reverts_application_cycle'), ['AssignmentReleased'])
+})
+
+test('the revert reaches the store for AssignmentReleased and NO other event', async () => {
+  // Every wire event, not a sample: the whole point of a declarative flag is
+  // that adding an event cannot quietly opt into undoing someone's
+  // application. Only `escrow_id` is supplied — the stubbed store never
+  // touches a database, and no `patch` in the table throws on absent fields.
+  for (const name of ESCROW_EVENTS) {
+    const { deps, rec } = makeDeps({ wallets: { Creator111: 'user-creator' } })
+    await applyEscrowEvent(deps, event(name, {}), `${TX_REF}-${name}`)
+
+    const asked = rec.transitions[0]?.revertApplications !== undefined
+    assert.strictEqual(
+      asked,
+      name === 'AssignmentReleased',
+      `${name}: revertApplications should be ${name === 'AssignmentReleased'}`,
+    )
+  }
 })
 
 // The released worker is CLEARED from the escrow row by the transition above,

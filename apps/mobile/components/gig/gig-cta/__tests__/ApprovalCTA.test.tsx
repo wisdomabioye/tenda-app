@@ -6,7 +6,9 @@
  * only one that reaches the wallet, and that apply/withdraw/release do not.
  */
 import { render, fireEvent, screen } from '@testing-library/react-native'
+import type { StyleProp, ViewStyle } from 'react-native'
 import { GigCTABar } from '@/components/gig/GigCTABar'
+import { ApprovalCTA } from '../ApprovalCTA'
 import {
   CREATOR_ID,
   STRANGER_ID,
@@ -33,11 +35,24 @@ jest.mock('react-native-unistyles', () => ({
     },
   }),
 }))
+// Forwards `style` so the row-sizing assertion below can see it: the real
+// Button spreads it onto its Pressable, and a mock that swallowed it would
+// make a layout regression invisible here.
 jest.mock('@/components/ui/Button', () => {
   const { Text } = require('react-native')
   return {
-    Button: ({ children, onPress }: { children: React.ReactNode; onPress?: () => void }) => (
-      <Text onPress={onPress}>{children}</Text>
+    Button: ({
+      children,
+      onPress,
+      style,
+    }: {
+      children: React.ReactNode
+      onPress?: () => void
+      style?: StyleProp<ViewStyle>
+    }) => (
+      <Text onPress={onPress} style={style}>
+        {children}
+      </Text>
     ),
   }
 })
@@ -243,4 +258,54 @@ test('a transaction in flight replaces every approval action', () => {
   )
   expect(screen.getByText(/transaction in progress/i)).toBeTruthy()
   expect(screen.queryByText('Withdraw application')).toBeNull()
+})
+
+/**
+ * Paths the state matrix cannot reach, because they are properties of the
+ * COMPONENT rather than of any gig.
+ *
+ * `width: 'grow'` is one: no approval branch currently shares the secondary
+ * row with another, so only a direct render exercises it. It is kept — and
+ * pinned here — because the day one does, a button that ignored the row would
+ * blow the layout out sideways rather than fail a test.
+ */
+test('grows to fill the row when it shares one with a narrower button', () => {
+  const { toJSON } = render(
+    <ApprovalCTA
+      branch="release"
+      gig={assignedApprovalGig()}
+      busy={false}
+      width="grow"
+      onAction={jest.fn()}
+    />,
+  )
+  expect(JSON.stringify(toJSON())).toContain('"flex":1')
+})
+
+test('offers Apply with no status line to someone who never applied', () => {
+  render(
+    <ApprovalCTA
+      branch="apply"
+      gig={approvalGig({ viewer: null })}
+      busy={false}
+      width="full"
+      onAction={jest.fn()}
+    />,
+  )
+  expect(screen.getByText('Apply for this gig')).toBeTruthy()
+  // No application means nothing has become of one, so no sentence about it.
+  expect(screen.queryByText(/waiting on the poster/i)).toBeNull()
+})
+
+test('a lost branch with no application renders nothing, not an empty box', () => {
+  const { toJSON } = render(
+    <ApprovalCTA
+      branch="lost"
+      gig={approvalGig({ viewer: null })}
+      busy={false}
+      width="full"
+      onAction={jest.fn()}
+    />,
+  )
+  expect(toJSON()).toBeNull()
 })

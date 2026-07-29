@@ -65,9 +65,20 @@ describe('applicationStatusLine', () => {
     expect(applicationStatusLine('withdrawn', null)).toMatch(/withdrew/i)
   })
 
-  it('returns empty for an unknown status rather than inventing one', () => {
-    expect(applicationStatusLine('not-a-status', null)).toBe('')
+  /**
+   * The bug: after the poster released them, the worker's row still said
+   * `assigned`, so the gig detail greeted them with "You got this gig — it's
+   * yours to deliver" above an Apply button.
+   */
+  it('tells a released worker what actually happened, not that the gig is theirs', () => {
+    expect(applicationStatusLine('released', null)).toMatch(/released your assignment/i)
+    expect(applicationStatusLine('released', null)).not.toMatch(/you got this gig/i)
   })
+
+  // An unknown status is no longer representable: both functions take
+  // `ApplicationStatus` and switch exhaustively, so a new status is a compile
+  // error rather than a silently blank line. That is the guarantee the old
+  // `default: return ''` gave away.
 })
 
 describe('applicantStatusLine (the poster reads this one)', () => {
@@ -89,8 +100,8 @@ describe('applicantStatusLine (the poster reads this one)', () => {
     expect(applicantStatusLine('open')).toBe('Waiting on you')
   })
 
-  it('returns empty for an unknown status rather than inventing one', () => {
-    expect(applicantStatusLine('not-a-status')).toBe('')
+  it('frames a release as the poster\'s own act, since it was', () => {
+    expect(applicantStatusLine('released')).toMatch(/you released/i)
   })
 })
 

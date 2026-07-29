@@ -1,28 +1,32 @@
 /**
  * The gig detail's bottom action bar.
  *
- * Two families of branches live under gig-cta/: the ordinary lifecycle, and
- * the approval-mode surface (apply / assign / release). Approval is asked
- * FIRST because on an approval-mode gig it is the more specific answer; when
- * it has nothing to say — an instant-mode gig, or an approval-mode one past
- * the point where the mode matters — the lifecycle buttons take over.
+ * Two families of branches feed it — the ordinary lifecycle, and the
+ * approval-mode surface (apply / assign / release) — and they are asked
+ * INDEPENDENTLY. They used to be mutually exclusive, approval first, which is
+ * how an assigned worker saw "I'm not available" and no Submit Proof, and how
+ * an approval-mode poster ended up with no way to cancel their own gig.
  *
- * WHICH branch applies is decided by pure functions before anything renders,
- * so the bar knows whether it has content without calling a component as a
- * function (which would run that component's hooks in this one's slots).
+ * What each answer displaces is now a property of the branch (its slot), not
+ * of the order the questions happen to be asked in. `assignSlots` turns the
+ * list into an arrangement: one notice, one primary, up to two secondary.
  */
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import type { EscrowTxType, GigDetail } from '@tenda/shared'
+import { PLATFORM_CONFIG_DEFAULTS, type EscrowTxType, type GigDetail } from '@tenda/shared'
 import { spacing, radius } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
+import { usePlatformConfigStore } from '@/stores/platform-config.store'
 import {
   ApprovalCTA,
   LifecycleCTA,
-  approvalBranch,
-  lifecycleBranch,
+  assignSlots,
+  gigCtaBranches,
+  isEmptyArrangement,
   type ActiveSheet,
   type ApprovalAction,
+  type CtaBranch,
+  type CtaWidth,
 } from './gig-cta'
 
 export type { ActiveSheet, ApprovalAction }
@@ -43,6 +47,15 @@ interface GigCTABarProps {
   onRetryDraft: () => void
 }
 
+/**
+ * A lone secondary fills its row; a pair keeps the weighting the bar has always
+ * had — the constructive action takes the space, the danger one is only as wide
+ * as its label. Module scope: it closes over nothing.
+ */
+function secondaryWidth(index: number, count: number): CtaWidth {
+  return count === 1 ? 'full' : index === 0 ? 'grow' : 'auto'
+}
+
 export function GigCTABar({
   gig,
   userId,
@@ -54,10 +67,42 @@ export function GigCTABar({
   onRetryDraft,
 }: GigCTABarProps) {
   const { theme } = useUnistyles()
+  // The submit/reclaim/release windows are all `completion_deadline + grace`,
+  // and the grace is on the wire precisely so the client stops guessing at it.
+  // The shared default covers the first render before config lands; it is the
+  // same number the server seeds the column with.
+  const grace =
+    usePlatformConfigStore((s) => s.config?.grace_period_seconds) ??
+    PLATFORM_CONFIG_DEFAULTS.grace_period_seconds
 
-  const approval = txInProgress ? null : approvalBranch(gig, userId)
-  const lifecycle = txInProgress || approval !== null ? null : lifecycleBranch(gig, userId)
-  if (!txInProgress && approval === null && lifecycle === null) return null
+  // An in-flight transaction hides every branch: the escrow is mid-move, so
+  // any button would be offering a transition against a state that is already
+  // changing. Deliberately a guard rather than a branch — it is transient UI
+  // state, not something the escrow says about itself.
+  const arrangement = txInProgress ? null : assignSlots(gigCtaBranches(gig, userId, grace))
+  if (arrangement !== null && isEmptyArrangement(arrangement)) return null
+
+  const render = (branch: CtaBranch, width: CtaWidth) =>
+    branch.family === 'approval' ? (
+      <ApprovalCTA
+        key={branch.id}
+        branch={branch.id}
+        gig={gig}
+        busy={isTxBuilding}
+        width={width}
+        onAction={onApprovalAction}
+      />
+    ) : (
+      <LifecycleCTA
+        key={branch.id}
+        branch={branch.id}
+        isTxBuilding={isTxBuilding}
+        width={width}
+        onAction={onAction}
+        onTxAction={onTxAction}
+        onRetryDraft={onRetryDraft}
+      />
+    )
 
   return (
     <View
@@ -73,22 +118,18 @@ export function GigCTABar({
           </Text>
         </View>
       )}
-      {approval !== null && (
-        <ApprovalCTA
-          branch={approval}
-          gig={gig}
-          busy={isTxBuilding}
-          onAction={onApprovalAction}
-        />
-      )}
-      {lifecycle !== null && (
-        <LifecycleCTA
-          branch={lifecycle}
-          isTxBuilding={isTxBuilding}
-          onAction={onAction}
-          onTxAction={onTxAction}
-          onRetryDraft={onRetryDraft}
-        />
+      {arrangement !== null && (
+        <View style={s.stack}>
+          {arrangement.notice !== null && render(arrangement.notice, 'full')}
+          {arrangement.primary !== null && render(arrangement.primary, 'full')}
+          {arrangement.secondary.length > 0 && (
+            <View style={s.row}>
+              {arrangement.secondary.map((b, i) =>
+                render(b, secondaryWidth(i, arrangement.secondary.length)),
+              )}
+            </View>
+          )}
+        </View>
       )}
     </View>
   )
@@ -101,6 +142,8 @@ const s = StyleSheet.create({
     paddingBottom: spacing.xl,
     borderTopWidth: 1,
   },
+  stack: { gap: spacing.xs },
+  row: { flexDirection: 'row', gap: spacing.sm },
   infoNotice: {
     padding: spacing.md,
     borderRadius: radius.md,

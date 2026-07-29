@@ -50,7 +50,7 @@ test('isAssignable: an expired row is dead even though the sweep has not touched
 
 test('isAssignable: no settled status is assignable', () => {
   const settled: ApplicationStatus[] = APPLICATION_STATUSES.filter((s) => s !== 'open')
-  assert.strictEqual(settled.length, 4, 'guard against a new status slipping in untested')
+  assert.strictEqual(settled.length, 5, 'guard against a new status slipping in untested')
   for (const status of settled) {
     assert.strictEqual(
       isAssignable({ status, expires_at: later(3600) }, NOW),

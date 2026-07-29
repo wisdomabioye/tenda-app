@@ -263,6 +263,7 @@ export async function verifyTxJobHandler(
         tx_ref: job.tx_ref,
         counterparty_id: result.counterparty_id,
         passed_applicant_ids: result.passed_applicant_ids,
+        revived_applicant_ids: result.revived_applicant_ids,
       })
     } catch (err) {
       deps.log.warn(

@@ -87,6 +87,9 @@ module.exports = {
     // that matters — it is where the mode-blind "Accept Gig" bug lived, and it
     // is pure, so it is covered directly rather than through eight renders.
     'components/gig/gig-cta/*.{ts,tsx}',
+    // branches/index.ts is NOT excluded: unlike the barrel above it, it holds
+    // gigCtaBranches — the composition that used to be the bug.
+    'components/gig/gig-cta/branches/*.ts',
     '!components/gig/gig-cta/index.ts',
     '!components/gig/gig-cta/types.ts',
     'components/gig/GigCTABar.tsx',

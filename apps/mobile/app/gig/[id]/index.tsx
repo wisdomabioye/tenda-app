@@ -86,6 +86,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
       case 'refund_expired': return void actions.refund('refund_expired')
       case 'reclaim_abandoned': return void actions.refund('reclaim_abandoned')
       case 'unassign': return void actions.unassign()
+      case 'decline': return void actions.decline()
     }
   }
 

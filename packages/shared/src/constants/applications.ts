@@ -17,6 +17,15 @@
  *  - `assigned`  — the poster picked this applicant; the escrow moved on-chain.
  *  - `passed`    — someone else was assigned, so this one lost. Set in the same
  *                  transaction as the winner, never by a poster action.
+ *  - `released`  — this applicant WAS assigned, and the assignment was later
+ *                  undone on-chain (`unassign`). A sixth value rather than
+ *                  reusing one of the above, because none of them is true of
+ *                  it: `withdrawn` would tell the poster "they withdrew" when
+ *                  the poster is who let them go, and `passed` would tell the
+ *                  worker "the poster picked someone else" when nobody was
+ *                  picked. The status is read straight out as user-facing
+ *                  copy on both sides (see mobile gig-applications/copy.ts),
+ *                  so an inaccurate one is not a tidiness problem.
  */
 export const APPLICATION_STATUSES = [
   'open',
@@ -24,6 +33,7 @@ export const APPLICATION_STATUSES = [
   'expired',
   'assigned',
   'passed',
+  'released',
 ] as const
 
 export type ApplicationStatus = (typeof APPLICATION_STATUSES)[number]

@@ -170,7 +170,23 @@ async function fanOutNewGigToSubscribers(
 }
 
 /**
- * Tell the applicants who lost that the decision is made (D4).
+ * What an applicant is told when a transition settles or revives their
+ * application without them doing anything. Both are the ONLY signal they get —
+ * their row simply changes status — so neither can be dropped.
+ */
+const APPLICANT_NOTICE: Record<'passed' | 'revived', NoticeCopy> = {
+  passed: {
+    title: 'Gig assigned to someone else',
+    body: 'A gig you applied for went to another worker. Your application is closed.',
+  },
+  revived: {
+    title: "You're back in the running",
+    body: 'The worker on a gig you applied for fell through, so your application is live again.',
+  },
+}
+
+/**
+ * Tell a set of applicants what a transition did to their application.
  *
  * The ids come from the applier rather than a fresh query on purpose: once the
  * commit lands, rows this transition settled look identical to rows an earlier
@@ -180,16 +196,17 @@ async function fanOutNewGigToSubscribers(
  * Gig-only by construction — the apply route refuses a non-gig escrow, so a
  * non-empty list can only have come from one.
  */
-async function fanOutPassedApplicants(
+async function fanOutToApplicants(
   fastify: FastifyInstance,
-  event: EscrowFanoutEvent,
+  escrow_id: string,
+  user_ids: string[],
+  notice: NoticeCopy,
 ): Promise<void> {
-  for (const user_id of event.passed_applicant_ids) {
+  for (const user_id of user_ids) {
     await enqueueNotification(fastify.queue, {
       user_id,
-      title: 'Gig assigned to someone else',
-      body: 'A gig you applied for went to another worker. Your application is closed.',
-      data: escrowPushData(event.escrow_id, 'gig'),
+      ...notice,
+      data: escrowPushData(escrow_id, 'gig'),
     })
   }
 }
@@ -213,12 +230,16 @@ export async function fanOutEscrowEvent(
     return
   }
 
-  // 3. D4: applicants the assignment resolved automatically. They took no
-  //    action and get no other signal — their application simply stops being
-  //    open — so this is the only place the decision reaches them. Runs before
-  //    the notice lookup because it is independent of whether the event has
-  //    party copy at all.
-  await fanOutPassedApplicants(fastify, event)
+  // 3. Applicants the transition moved without them acting: D4's losers on an
+  //    assign, and the rivals an unassign puts back in the running. They get
+  //    no other signal — their row simply changes status — so this is the only
+  //    place either decision reaches them. Runs before the notice lookup
+  //    because it is independent of whether the event has party copy at all.
+  //    The two lists are disjoint by construction (one event settles, the
+  //    other revives), so nobody receives both for one transition.
+  const { escrow_id } = event
+  await fanOutToApplicants(fastify, escrow_id, event.passed_applicant_ids, APPLICANT_NOTICE.passed)
+  await fanOutToApplicants(fastify, escrow_id, event.revived_applicant_ids, APPLICANT_NOTICE.revived)
 
   // 4. Push fan-out for high-signal events — kind decides both copy + routing.
   if (NOTICE_BY_EVENT[event.internal_event] === undefined) return

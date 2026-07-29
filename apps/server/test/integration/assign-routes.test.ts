@@ -12,7 +12,8 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { escrows, gig_applications } from '@tenda/shared/db/schema'
-import { APPLICATION_ASSIGN_HOLD_SECONDS } from '@tenda/shared'
+import { APPLICATION_ASSIGN_HOLD_SECONDS, ErrorCode } from '@tenda/shared'
+import { getPlatformConfig } from '@server/lib/platform'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
@@ -242,6 +243,64 @@ test('release: only the assigned worker, and only from accepted', { skip }, asyn
     .where(eq(escrows.id, escrow.id))
   // The poster is not the worker.
   assert.strictEqual((await release(app, poster.token, escrow.id)).statusCode, 403)
+
+  // Past `accepted` there is nothing to step back FROM — the work is in the
+  // poster's hands (or a mediator's), and the exit is dispute, not release.
+  for (const status of ['submitted', 'disputed', 'completed'] as const) {
+    await app.db.update(escrows).set({ status }).where(eq(escrows.id, escrow.id))
+    const res = await release(app, worker.token, escrow.id)
+    assert.strictEqual(res.statusCode, 409, `release from ${status}`)
+    assert.strictEqual(res.json().code, ErrorCode.ESCROW_WRONG_STATUS)
+  }
+})
+
+/**
+ * The bound the release prompt has always PROMISED ("do it before the delivery
+ * window runs out") and nothing enforced.
+ *
+ * Releasing suppresses the abandonment strike, so an unbounded one makes
+ * ghosting strictly better than the honest early exit: run the window out,
+ * then step back for free just before the poster reclaims. Checked on the
+ * route and not only in the client, because the strike is exactly what a
+ * direct call would be evading.
+ */
+test('release: refused once the delivery window has passed', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await scenario(app)
+  const { grace_period_seconds } = await getPlatformConfig(app.db)
+  await app.db
+    .update(escrows)
+    .set({
+      status: 'accepted',
+      counterparty_id: worker.row.id,
+      completion_deadline: new Date(Date.now() - (grace_period_seconds + 60) * 1_000),
+    })
+    .where(eq(escrows.id, escrow.id))
+
+  const res = await release(app, worker.token, escrow.id)
+  assert.strictEqual(res.statusCode, 409)
+  assert.strictEqual(res.json().code, ErrorCode.ESCROW_DEADLINE_PASSED)
+})
+
+test('release: still allowed inside the grace period, like submit', { skip }, async () => {
+  const app = getApp()
+  const { worker, escrow } = await scenario(app)
+  const { grace_period_seconds } = await getPlatformConfig(app.db)
+  // Without room inside the grace the offset below lands in the FUTURE and the
+  // test passes for the wrong reason — it would stop testing the grace at all.
+  assert.ok(grace_period_seconds > 60, 'grace period too short to test inside it')
+  await app.db
+    .update(escrows)
+    .set({
+      status: 'accepted',
+      counterparty_id: worker.row.id,
+      // Deadline passed, but not by the whole grace — the same instant the
+      // worker could still submit, so the same instant they can still decline.
+      completion_deadline: new Date(Date.now() - (grace_period_seconds - 60) * 1_000),
+    })
+    .where(eq(escrows.id, escrow.id))
+
+  assert.strictEqual((await release(app, worker.token, escrow.id)).statusCode, 200)
 })
 
 // A worker who accepted for themselves committed on-chain; stepping back from

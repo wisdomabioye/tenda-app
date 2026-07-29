@@ -73,6 +73,7 @@ function evt(
   tx_ref = 'sig-tx-1',
   counterparty_id: string | null = null,
   passed_applicant_ids: string[] = [],
+  revived_applicant_ids: string[] = [],
 ): EscrowRepublishEvent {
   return {
     internal_event: INTERNAL_EVENT_BY_WIRE[wire],
@@ -81,6 +82,7 @@ function evt(
     tx_ref,
     counterparty_id,
     passed_applicant_ids,
+    revived_applicant_ids,
   }
 }
 
