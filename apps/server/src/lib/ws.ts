@@ -19,6 +19,7 @@ import { conversations } from '@tenda/shared/db/schema'
 import { escrows } from '@tenda/shared/db/schema/escrow'
 import type { AppDatabase } from '@server/plugins/db'
 import { isEscrowPartyOrAssigned } from '@server/lib/escrow-party'
+import { isUuidLike } from '@server/lib/escrow-routes'
 
 // ---------- subprotocol auth -------------------------------------------------
 
@@ -76,6 +77,12 @@ export interface WsAuthStore {
 export function drizzleWsAuthStore(db: AppDatabase): WsAuthStore {
   return {
     async isEscrowPartyOrAssigned(escrow_id, user_id) {
+      // `parseChannel` accepts any non-empty string after `escrow:`, and both
+      // id columns are postgres `uuid` — an unparseable id reaches the driver
+      // as `invalid input syntax for type uuid`, i.e. a thrown query and a
+      // logged warning per frame where the honest answer is simply "no". Same
+      // short-circuit `loadEscrowOr404` applies on the HTTP routes.
+      if (!isUuidLike(escrow_id)) return false
       const rows = await db
         .select({ id: escrows.id })
         .from(escrows)
@@ -84,6 +91,7 @@ export function drizzleWsAuthStore(db: AppDatabase): WsAuthStore {
       return rows.length > 0
     },
     async isConversationMember(conversation_id, user_id) {
+      if (!isUuidLike(conversation_id)) return false
       const rows = await db
         .select({ id: conversations.id })
         .from(conversations)
