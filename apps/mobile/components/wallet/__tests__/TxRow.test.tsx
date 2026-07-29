@@ -4,7 +4,14 @@
  * fallback overstated every credit on chains whose events carried no amount.
  */
 import { render, screen } from '@testing-library/react-native'
-import { ESCROW_TX_TYPES, type UserEscrowTransaction, type EscrowTxType } from '@tenda/shared'
+import {
+  ESCROW_TX_TYPES,
+  TX_FEED_VISIBILITY,
+  type UserEscrowTransaction,
+  type EscrowTxType,
+} from '@tenda/shared'
+// Pure data/derivation — no mocked deps, so it needs no deferred import.
+import { TX_LABEL_BY_ROLE, txLabel } from '../tx-copy'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -47,7 +54,8 @@ test('a credited settlement shows the NET event amount, not the 2 USDC principal
 test('a settlement credit with NO attested amount shows no number (never the principal)', () => {
   render(<TxRow tx={tx({ type: 'approve', amount_raw: null })} userId={VIEWER} />)
   expect(screen.queryByText(/2/)).toBeNull()
-  expect(screen.getByText('Crypto released')).toBeTruthy() // the row itself still renders
+  // The row itself still renders — worded from the viewer's (taker's) side.
+  expect(screen.getByText('Crypto received')).toBeTruthy()
 })
 
 test('claim_stalled behaves like approve: attested net or nothing', () => {
@@ -113,32 +121,115 @@ test('funding shows the escrowed principal as a debit to the creator', () => {
   expect(screen.getByText(/^−|^-/)).toBeTruthy()
 })
 
-describe('transaction labels', () => {
-  // The maps are total, so this can only fail if someone reintroduces a
-  // fallback — but a raw enum slug in a user's money history is bad enough to
-  // pin. `assign_accept` is the case that motivated it: the type exists so a
-  // poster's row does NOT read "Gig accepted", and a fallback would have made
-  // it read "assign_accept".
-  it('never renders a raw enum slug, on either kind', () => {
-    for (const type of ESCROW_TX_TYPES) {
-      for (const kind of ['gig', 'exchange'] as const) {
-        const { unmount } = render(
-          <TxRow tx={tx({ type, escrow: { ...tx({ type }).escrow, kind } })} userId={VIEWER} />,
-        )
-        expect(screen.queryByText(type)).toBeNull()
-        unmount()
+const CREATOR = 'seller-1'
+const KINDS = ['gig', 'exchange'] as const
+
+/**
+ * The copy map and the server's visibility matrix have to move together. A
+ * type visible to only ONE role can be worded once; a type both roles receive
+ * needs a per-side decision, or one of them reads the other's action back at
+ * them — exactly the bug this feed had.
+ *
+ * So: if a matrix cell ever flips and a NEW type becomes visible to both
+ * sides, this fails and forces that copy decision. `resolve` is listed as
+ * intentionally identical — "Dispute resolved" is true from either seat.
+ */
+describe('copy tracks the shared visibility matrix', () => {
+  const bothVisible = ESCROW_TX_TYPES.filter(
+    (t) =>
+      TX_FEED_VISIBILITY[t].creator === 'always' &&
+      TX_FEED_VISIBILITY[t].counterparty === 'always',
+  )
+
+  it('every type both parties see has been worded per side, or waived', () => {
+    const WAIVED: EscrowTxType[] = ['resolve']
+    for (const type of bothVisible) {
+      if (WAIVED.includes(type)) continue
+      for (const kind of KINDS) {
+        expect(TX_LABEL_BY_ROLE[kind][type]).toBeDefined()
       }
     }
   })
 
-  it('labels the approval-mode rows from the actor’s side, per kind', () => {
-    const gigEscrow = { ...tx({ type: 'assign_accept' }).escrow, kind: 'gig' as const }
-    render(<TxRow tx={tx({ type: 'assign_accept', escrow: gigEscrow })} userId={VIEWER} />)
+  it('carries no override for a type only one side ever sees', () => {
+    for (const kind of KINDS) {
+      for (const type of Object.keys(TX_LABEL_BY_ROLE[kind]) as EscrowTxType[]) {
+        expect(bothVisible).toContain(type)
+      }
+    }
+  })
+
+  it('a per-side override actually changes what each side reads', () => {
+    for (const kind of KINDS) {
+      for (const type of Object.keys(TX_LABEL_BY_ROLE[kind]) as EscrowTxType[]) {
+        expect(txLabel(kind, type, 'creator')).not.toBe(txLabel(kind, type, 'counterparty'))
+      }
+    }
+  })
+})
+
+/** The same row, re-pointed at a kind, rendered from one viewer's side. */
+function rowOf(type: EscrowTxType, kind: (typeof KINDS)[number]) {
+  const base = tx({ type })
+  return tx({ type, escrow: { ...base.escrow, kind } })
+}
+
+describe('transaction labels', () => {
+  // The base map is total, so this can only fail if someone reintroduces a
+  // fallback — but a raw enum slug in a user's money history is bad enough to
+  // pin. Widened to both VIEWERS as well as both kinds, because the per-role
+  // override map is deliberately Partial: a role that falls through must land
+  // on the total base map, never on the slug.
+  it('never renders a raw enum slug, for either kind or either party', () => {
+    for (const type of ESCROW_TX_TYPES) {
+      for (const kind of KINDS) {
+        for (const viewer of [VIEWER, CREATOR]) {
+          const { unmount } = render(<TxRow tx={rowOf(type, kind)} userId={viewer} />)
+          expect(screen.queryByText(type)).toBeNull()
+          unmount()
+        }
+      }
+    }
+  })
+
+  // The bug: the feed was worded per KIND only, so a poster's wallet read the
+  // worker's actions back at them. Rows both parties receive must read from
+  // the side that is looking.
+  it('words a gig payout from each side', () => {
+    render(<TxRow tx={rowOf('approve', 'gig')} userId={CREATOR} />)
+    expect(screen.getByText('Payout released')).toBeTruthy()
+
+    render(<TxRow tx={rowOf('approve', 'gig')} userId={VIEWER} />)
+    expect(screen.getByText('Gig payout')).toBeTruthy()
+  })
+
+  it('words an exchange release from each side', () => {
+    render(<TxRow tx={rowOf('approve', 'exchange')} userId={CREATOR} />)
+    expect(screen.getByText('Crypto released')).toBeTruthy()
+
+    render(<TxRow tx={rowOf('approve', 'exchange')} userId={VIEWER} />)
+    expect(screen.getByText('Crypto received')).toBeTruthy()
+  })
+
+  it('words an assignment from each side, per kind', () => {
+    render(<TxRow tx={rowOf('assign_accept', 'gig')} userId={CREATOR} />)
     expect(screen.getByText('Worker assigned')).toBeTruthy()
 
-    // The default fixture is an exchange, which reads from the P2P side.
-    render(<TxRow tx={tx({ type: 'assign_accept' })} userId={VIEWER} />)
+    render(<TxRow tx={rowOf('assign_accept', 'gig')} userId={VIEWER} />)
+    expect(screen.getByText('Assigned to you')).toBeTruthy()
+
+    render(<TxRow tx={rowOf('assign_accept', 'exchange')} userId={CREATOR} />)
     expect(screen.getByText('Buyer matched')).toBeTruthy()
+
+    render(<TxRow tx={rowOf('assign_accept', 'exchange')} userId={VIEWER} />)
+    expect(screen.getByText('Matched to you')).toBeTruthy()
+  })
+
+  // A released worker no longer matches either party column, so `role` is
+  // null. The row must still word itself rather than blow up or fall through.
+  it('falls back to base wording for a viewer who is no longer a party', () => {
+    render(<TxRow tx={rowOf('approve', 'gig')} userId="stranger" />)
+    expect(screen.getByText('Gig payout')).toBeTruthy()
   })
 
   it('carries no +/- sign for assign/unassign — neither moves value', () => {
@@ -148,4 +239,65 @@ describe('transaction labels', () => {
       unmount()
     }
   })
+})
+
+describe('signs are the viewer’s, not the escrow’s', () => {
+  it('an approval is a credit to the worker and neutral to the poster', () => {
+    const paid = { type: 'approve' as const, amount_raw: '1980000' }
+    render(<TxRow tx={tx(paid)} userId={VIEWER} />)
+    expect(screen.getByText(/^\+/)).toBeTruthy()
+
+    render(<TxRow tx={tx(paid)} userId={CREATOR} />)
+    // The poster's debit was recorded at funding; approving moves nothing to
+    // them, so the row carries a figure but no direction.
+    expect(screen.queryByText(/^[+−-]/)).toBeNull()
+  })
+
+  it('a claim credits the worker only', () => {
+    const claimed = { type: 'claim_stalled' as const, amount_raw: '1980000' }
+    render(<TxRow tx={tx(claimed)} userId={VIEWER} />)
+    expect(screen.getByText(/^\+/)).toBeTruthy()
+
+    render(<TxRow tx={tx(claimed)} userId={CREATOR} />)
+    expect(screen.queryByText(/^\+/)).toBeNull()
+  })
+
+  // A resolve pays per side, so with no side there is no share to show — a
+  // released worker must not inherit the counterparty's payout figure.
+  it('a resolve shows no share to a viewer who is neither party', () => {
+    const split = tx({
+      type: 'resolve', winner: 'split', amount_raw: '1200000', creator_payout_raw: '800000',
+    })
+    render(<TxRow tx={split} userId="stranger" />)
+    expect(screen.queryByText(/1\.2|0\.8/)).toBeNull()
+    expect(screen.getByText('Dispute resolved')).toBeTruthy()
+  })
+
+  it('a losing side of a resolve gets no credit', () => {
+    const won = tx({ type: 'resolve', winner: 'creator', amount_raw: '0', creator_payout_raw: '2000000' })
+    render(<TxRow tx={won} userId={VIEWER} />) // counterparty lost
+    expect(screen.queryByText(/^\+/)).toBeNull()
+  })
+})
+
+// An asset the registry doesn't know yet (a chain added ahead of ASSET_META)
+// still renders a unit rather than dropping the symbol.
+test('an unregistered asset falls back to its raw id as the unit', () => {
+  const exotic = tx({ type: 'create', amount_raw: '2000000' })
+  render(<TxRow tx={{ ...exotic, escrow: { ...exotic.escrow, asset: 'WEIRD_TOKEN' } }} userId={VIEWER} />)
+  expect(screen.getByText('WEIRD_TOKEN')).toBeTruthy()
+})
+
+// A dispute row's amount is the BOND, not the escrow principal. Both chains
+// emit bond_amount, so the fallback was latent — but printing the whole gig
+// value on "Dispute opened" is wrong by orders of magnitude.
+test('a dispute with no attested bond shows no number, never the principal', () => {
+  render(<TxRow tx={tx({ type: 'dispute', amount_raw: null })} userId={VIEWER} />)
+  expect(screen.getByText('Dispute opened')).toBeTruthy()
+  expect(screen.queryByText(/2/)).toBeNull()
+})
+
+test('a dispute WITH an attested bond shows the bond', () => {
+  render(<TxRow tx={tx({ type: 'dispute', amount_raw: '100000' })} userId={VIEWER} />)
+  expect(screen.getByText(/0\.1/)).toBeTruthy()
 })

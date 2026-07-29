@@ -1,18 +1,24 @@
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { or, eq, desc, and, sql } from 'drizzle-orm'
+import { eq, desc, and, sql } from 'drizzle-orm'
 import { escrows, escrow_transactions, disputes, gig_details } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { userFeedPredicate } from '@server/lib/escrow-feed'
 
 type TransactionsRoute = UsersContract['transactions']
 
 const userTransactions: FastifyPluginAsync = async (fastify) => {
-  // GET /v1/users/:id/transactions, escrow transactions where the user is
-  // a party (creator or counterparty), gigs and exchanges alike, in one
-  // descending-chronological list for the wallet screen (cutover §2: the
-  // legacy gig/exchange merge collapses into one escrow_transactions query).
+  // GET /v1/users/:id/transactions — the caller's PERSONAL feed: the rows
+  // they performed or that moved value to/from them, gigs and exchanges alike,
+  // in one descending-chronological list for the wallet screen.
+  //
+  // Not the escrow's audit trail. Being a party to an escrow used to be the
+  // whole filter, which put the counterparty's actions in your wallet ("Gig
+  // accepted", "Proof submitted" on the POSTER's feed). The per-escrow trail
+  // is still complete at GET /v1/escrows/:id/transactions; see lib/escrow-feed
+  // for why the split is keyed by role and not by `actor_id`.
   fastify.get<{
     Params: TransactionsRoute['params']
     Querystring: TransactionsRoute['query']
@@ -28,7 +34,10 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
     const safeLimit = clampLimit(Number(limit))
     const safeOffset = clampOffset(Number(offset))
 
-    const isParty = or(eq(escrows.creator_id, id), eq(escrows.counterparty_id, id))
+    // Not "every row on every escrow I touch" — only the rows I acted on or
+    // that moved value to/from me. Same predicate on the count query, or
+    // `total` would advertise pages the feed can no longer fill.
+    const visible = userFeedPredicate(id)
 
     const [rows, countResult] = await Promise.all([
       fastify.db
@@ -64,7 +73,7 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
             eq(escrow_transactions.type, 'resolve'),
           ),
         )
-        .where(isParty)
+        .where(visible)
         .orderBy(desc(escrow_transactions.created_at))
         .limit(safeLimit)
         .offset(safeOffset),
@@ -72,7 +81,7 @@ const userTransactions: FastifyPluginAsync = async (fastify) => {
         .select({ count: sql<number>`count(*)::int` })
         .from(escrow_transactions)
         .innerJoin(escrows, eq(escrow_transactions.escrow_id, escrows.id))
-        .where(isParty),
+        .where(visible),
     ])
 
     const data = rows.map((row) => ({

@@ -35,6 +35,12 @@ export {
   type DisputeWinnerName,
 } from './escrow'
 export {
+  TX_FEED_VISIBILITY,
+  ACTOR_SCOPED_FEED_TX_TYPES,
+  feedTxTypesFor,
+  type FeedVisibility,
+} from './escrow-feed'
+export {
   PROOF_TYPES,
   PROOF_TYPE_LABEL,
   MAX_PROOF_REQUIREMENTS,

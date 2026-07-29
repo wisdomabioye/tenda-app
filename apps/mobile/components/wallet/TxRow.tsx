@@ -3,81 +3,14 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Briefcase, ArrowLeftRight } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { ASSET_META, amountRawToDisplay } from '@tenda/shared'
-import type { EscrowTxType, UserEscrowTransaction } from '@tenda/shared'
+import type { UserEscrowTransaction } from '@tenda/shared'
+import { txDisplayAmount, txLabel, txSign, viewerRole } from './tx-copy'
 
 /**
- * Wallet-screen copy per escrow transaction type, flavoured by kind.
- *
- * TOTAL over EscrowTxType on both maps, so a new transaction type breaks the
- * build here instead of rendering its raw enum slug in someone's history.
- * These were `Partial` with a `?? tx.type` fallback, and it had already bitten
- * twice: `decline` had no exchange wording, and `assign_accept` — a type that
- * exists PRECISELY so a poster's row does not read "Gig accepted" — would have
- * shown the literal text `assign_accept`.
+ * One row of the wallet feed, worded and signed from the VIEWER's side — the
+ * same on-chain transaction reads differently to each party. All of that lives
+ * in tx-copy.ts; this component only renders.
  */
-const GIG_TYPE_LABEL: Record<EscrowTxType, string> = {
-  create: 'Gig funded',
-  accept: 'Gig accepted',
-  decline: 'Assignment declined',
-  // The poster's own row: they assigned someone, they did not accept work.
-  assign_accept: 'Worker assigned',
-  unassign: 'Assignment withdrawn',
-  submit: 'Proof submitted',
-  approve: 'Gig payout',
-  claim_stalled: 'Payment claimed',
-  cancel: 'Refund received',
-  refund_expired: 'Refund (expired)',
-  reclaim_abandoned: 'Escrow reclaimed',
-  dispute: 'Dispute opened',
-  resolve: 'Dispute resolved',
-}
-
-const EXCHANGE_TYPE_LABEL: Record<EscrowTxType, string> = {
-  create: 'Exchange escrow',
-  accept: 'Offer accepted',
-  decline: 'Match declined',
-  assign_accept: 'Buyer matched',
-  unassign: 'Match withdrawn',
-  submit: 'Payment marked',
-  approve: 'Crypto released',
-  claim_stalled: 'Payment claimed',
-  cancel: 'Offer refunded',
-  refund_expired: 'Refund (expired)',
-  reclaim_abandoned: 'Escrow reclaimed',
-  dispute: 'Dispute opened',
-  resolve: 'Dispute resolved',
-}
-
-/**
- * Direction of value FROM THE VIEWER'S PERSPECTIVE, null for neutral
- * lifecycle rows (accept/submit/dispute carry no transfer to the viewer).
- */
-function getTxSign(tx: UserEscrowTransaction, userId: string): '+' | '-' | null {
-  const isCreator = tx.escrow.creator_id === userId
-  const isCounterparty = tx.escrow.counterparty_id === userId
-  switch (tx.type) {
-    case 'create':
-      return isCreator ? '-' : null
-    case 'approve':
-    case 'claim_stalled':
-      return isCounterparty ? '+' : null
-    case 'cancel':
-    case 'refund_expired':
-    case 'reclaim_abandoned':
-      return isCreator ? '+' : null
-    case 'resolve': {
-      if (!tx.winner) return null
-      if (tx.winner === 'split') return '+'
-      if (tx.winner === 'counterparty' && isCounterparty) return '+'
-      if (tx.winner === 'creator' && isCreator) return '+'
-      return null
-    }
-    default:
-      return null
-  }
-}
-
 interface TxRowProps {
   tx: UserEscrowTransaction
   userId: string
@@ -91,7 +24,9 @@ export function TxRow({ tx, userId }: TxRowProps) {
   const iconBg = isGig ? theme.colors.brand.primarySurface : theme.colors.accent.primarySurface
   const iconColor = isGig ? theme.colors.brand.primary : theme.colors.accent.primary
 
-  const sign = getTxSign(tx, userId)
+  // Derived once and threaded through: label, sign and amount all key off it.
+  const role = viewerRole(tx, userId)
+  const sign = txSign(tx, role)
   const amountColor =
     sign === '+'
       ? theme.colors.numeric.positive
@@ -99,28 +34,8 @@ export function TxRow({ tx, userId }: TxRowProps) {
         ? theme.colors.numeric.negative
         : theme.colors.content.secondary
 
-  // Row amount. Settlement credits (approve/claim/resolve) are NET of the
-  // platform fee, and only the chain-attested event amount is trustworthy —
-  // falling back to the escrow principal would overstate what was credited,
-  // so rows without a recorded amount show no number at all. Non-credit rows
-  // (funding, refunds, lifecycle context) still fall back to the principal,
-  // which IS the exact figure for those transitions. Resolve rows pay per
-  // side (a split credits both parties), so each viewer sees THEIR share.
-  const isSettlementCredit = tx.type === 'approve' || tx.type === 'claim_stalled' || tx.type === 'resolve'
-  const amountRaw =
-    tx.type === 'resolve'
-      ? tx.escrow.creator_id === userId
-        ? tx.creator_payout_raw
-        : tx.escrow.counterparty_id === userId
-          ? tx.amount_raw
-          : null
-      : (tx.amount_raw ?? (isSettlementCredit ? null : tx.escrow.amount_raw))
-  const amount = amountRaw !== null ? amountRawToDisplay(amountRaw, tx.escrow.asset) : null
-  const symbol = ASSET_META[tx.escrow.asset]?.symbol ?? tx.escrow.asset
-
-  const subtitle = isGig
-    ? GIG_TYPE_LABEL[tx.type]
-    : EXCHANGE_TYPE_LABEL[tx.type]
+  const money = txDisplayAmount(tx, role)
+  const subtitle = txLabel(tx.escrow.kind, tx.type, role)
   const title = tx.escrow.title ?? (isGig ? 'Gig' : 'Exchange')
 
   return (
@@ -138,13 +53,13 @@ export function TxRow({ tx, userId }: TxRowProps) {
         </Text>
       </View>
 
-      {amount !== null && amount > 0 && (
+      {money !== null && (
         <View style={s.amt}>
           <Text style={[s.amtMain, { color: amountColor }]} numberOfLines={1}>
             {sign ? `${sign} ` : ''}
-            {amount.toLocaleString('en-US', { maximumFractionDigits: 4 })}
+            {money.amount.toLocaleString('en-US', { maximumFractionDigits: 4 })}
           </Text>
-          <Text style={[s.amtUnit, { color: theme.colors.content.tertiary }]}>{symbol}</Text>
+          <Text style={[s.amtUnit, { color: theme.colors.content.tertiary }]}>{money.symbol}</Text>
         </View>
       )}
     </View>
