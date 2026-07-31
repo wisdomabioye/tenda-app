@@ -19,7 +19,8 @@ const ACTIVE_STATUSES: EscrowStatus[] = ['open', 'accepted', 'submitted']
 /**
  * "Posted" excludes drafts. A draft is a pre-signature staging row — nothing
  * was funded and nobody can see it — so counting it here inflated the number
- * the user reads as "gigs I posted". Drafts have their own My Gigs tab.
+ * the user reads as "gigs I posted". Drafts are reached from the banner at the
+ * top of My Gigs → Posted, which opens /my-gigs/drafts.
  */
 const POSTED_STATUSES: EscrowStatus[] = [...POSTED_ESCROW_STATUSES]
 

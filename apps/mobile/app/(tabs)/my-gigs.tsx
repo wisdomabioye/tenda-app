@@ -1,5 +1,6 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type ReactElement } from 'react'
 import { View, StyleSheet, ScrollView, Animated, useWindowDimensions } from 'react-native'
+import { useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { ClipboardList } from 'lucide-react-native'
 import type { NativeSyntheticEvent, NativeScrollEvent } from 'react-native'
@@ -8,7 +9,7 @@ import { spacing } from '@/theme/tokens'
 import { ScreenContainer, EmptyState, Header, PaginatedList, ConfirmDialog } from '@/components/ui'
 import { PagerTabBar } from '@/components/navigation'
 import { ChainFilterChips } from '@/components/filters'
-import { GigCardCompact, GigListSkeleton } from '@/components/gig'
+import { GigCardCompact, GigListSkeleton, DraftsBanner } from '@/components/gig'
 import {
   MyApplicationCard,
   useApplications,
@@ -18,7 +19,10 @@ import {
 import { useMyGigs } from '@/hooks/useMyGigs'
 import type { PaginatedListState } from '@/hooks/usePaginatedList'
 
-const TAB_INSET = 20
+// Matches the list gutter below it. The old 20pt value aligned with nothing —
+// it just cost 40pt of a ~375pt row, which is what squeezed "Working" and
+// "Applied" against their count chips back when Drafts was a fourth tab.
+const TAB_INSET = spacing.md
 
 interface EmptyCopy {
   title: string
@@ -31,7 +35,15 @@ interface EmptyCopy {
  * assuming a single item type.
  */
 type PagerPage =
-  | { key: string; label: string; kind: 'gigs'; list: PaginatedListState<GigSummary>; empty: EmptyCopy }
+  | {
+      key: string
+      label: string
+      kind: 'gigs'
+      list: PaginatedListState<GigSummary>
+      empty: EmptyCopy
+      /** Rendered above the rows, and kept mounted when the list is empty. */
+      header?: ReactElement
+    }
   | {
       key: string
       label: string
@@ -43,6 +55,7 @@ type PagerPage =
 export default function MyGigsScreen() {
   const { theme }     = useUnistyles()
   const { width: SW } = useWindowDimensions()
+  const router        = useRouter()
   const { posted, working, drafts, applications, chainId, setChainId } = useMyGigs()
 
   const [pageIndex, setPageIndex] = useState(0)
@@ -64,8 +77,8 @@ export default function MyGigsScreen() {
   }
 
   // Counts come from the server total for each list — all load on mount, so
-  // no chip reads 0 just because its tab hasn't been opened yet. Drafts are a
-  // tab of their own precisely so "Posted" can mean posted: a draft is an
+  // no chip reads 0 just because its tab hasn't been opened yet. Drafts stay a
+  // separate query precisely so "Posted" can mean posted: a draft is an
   // unfunded staging row, and counting it here inflated the number the user
   // reads as "gigs I put out there".
   const pages: PagerPage[] = [
@@ -75,6 +88,17 @@ export default function MyGigsScreen() {
       kind: 'gigs',
       list: posted,
       empty: { title: 'No gigs posted yet', description: 'Post your first gig to get started' },
+      // In the header rather than above the pager, so it scrolls away instead
+      // of permanently stacking a fourth row of furniture under the chips. The
+      // header stays mounted when the list is empty, which is the case that
+      // matters most: a user whose only gigs ARE drafts sees the empty Posted
+      // state and the route to them together.
+      header: (
+        <DraftsBanner
+          count={drafts.hasFetched ? drafts.total : 0}
+          onPress={() => router.push('/my-gigs/drafts')}
+        />
+      ),
     },
     {
       key: 'working',
@@ -89,16 +113,6 @@ export default function MyGigsScreen() {
       kind: 'applications',
       list: applications,
       empty: MY_APPLICATIONS_EMPTY,
-    },
-    {
-      key: 'drafts',
-      label: 'Drafts',
-      kind: 'gigs',
-      list: drafts,
-      empty: {
-        title: 'No drafts',
-        description: 'Gigs you start but do not fund are kept here',
-      },
     },
   ]
 
@@ -167,6 +181,7 @@ export default function MyGigsScreen() {
                 list={page.list}
                 keyOf={(gig) => gig.escrow_id}
                 renderItem={({ item }) => <GigCardCompact gig={item} showStatus />}
+                header={page.header}
                 contentContainerStyle={s.list}
                 separatorHeight={spacing.sm}
                 onRefresh={() => void page.list.refresh()}

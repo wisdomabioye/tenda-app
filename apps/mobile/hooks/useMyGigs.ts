@@ -1,13 +1,19 @@
 /**
- * My-Gigs controller: the caller's Posted, Working and Drafts listings, each
- * independently paginated, plus the shared chain filter.
+ * My-Gigs controller: the caller's Posted, Working and Applied listings, each
+ * independently paginated, plus the shared chain filter and the drafts count.
  *
  * Drafts are their OWN list rather than rows mixed into Posted. `mine=created`
  * returns every status including `draft`, so a single list forced a choice
- * between showing drafts (they are only reachable here) and counting them
- * (a pre-signature staging row is not a posted gig). Splitting the query lets
- * each tab's chip stay exactly its own server `total` — no derived arithmetic,
- * no extra count request, and no chip that disagrees with the rows under it.
+ * between showing drafts and counting them (a pre-signature staging row is not
+ * a posted gig). Splitting the query lets each tab's chip stay exactly its own
+ * server `total` — no derived arithmetic, no extra count request, and no chip
+ * that disagrees with the rows under it.
+ *
+ * Drafts no longer occupy a TAB, only a banner above Posted that links to
+ * /my-gigs/drafts. Four tabs could not fit a label plus a multi-digit count
+ * chip on a narrow screen, and drafts were the right tab to give up: a staging
+ * state users pass through, not a listing they browse. The split query above is
+ * unchanged — it now feeds a count and a separate screen instead of a tab.
  *
  * ALL lists load on mount rather than only the active tab. That is what
  * fixes the inactive tab's count chip reading 0 until it was swiped to
@@ -34,13 +40,18 @@ import {
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/usePaginatedList'
+import { useDraftGigs } from '@/hooks/useDraftGigs'
 import { useAuthStore } from '@/stores/auth.store'
 
 export interface MyGigsState {
   /** Gigs the caller posted on-chain — every status except `draft`. */
   posted: PaginatedListState<GigSummary>
   working: PaginatedListState<GigSummary>
-  /** Unfunded staging rows: the only surface they are reachable from. */
+  /**
+   * Unfunded staging rows. Consumed here for its `total` (the banner) — the
+   * rows themselves are rendered by /my-gigs/drafts, which builds its own
+   * chain-filtered list from the same `useDraftGigs` definition.
+   */
   drafts: PaginatedListState<GigSummary>
   /**
    * Approval-mode applications the caller has sent. Their own list because an
@@ -70,7 +81,6 @@ const EMPTY_QUERY: Record<string, never> = {}
 // Spread once at module scope: `query` identity is compared by JSON shape, so
 // a fresh array per render is fine, but there is no reason to build one.
 const POSTED_STATUSES: EscrowStatus[] = [...POSTED_ESCROW_STATUSES]
-const DRAFT_STATUSES: EscrowStatus[] = ['draft']
 
 export function useMyGigs(): MyGigsState {
   const user = useAuthStore((s) => s.user)
@@ -94,12 +104,13 @@ export function useMyGigs(): MyGigsState {
     enabled,
   })
 
-  const drafts = usePaginatedList<GigSummary, GigListQuery>({
-    fetchPage: (params) => api.gigs.list(params),
-    query: { mine: 'created', status: DRAFT_STATUSES, chain_id: chainId ?? undefined },
-    keyOf,
-    enabled,
-  })
+  // Deliberately NOT chain-filtered, unlike posted/working. This list no longer
+  // backs a tab — it backs a banner whose only job is "you have unfunded work
+  // sitting here". A chain-scoped count would make that banner vanish when the
+  // user flips a chip, which reads as "my drafts are gone" rather than "the
+  // filter excluded them". The drafts SCREEN carries its own chip row for
+  // narrowing.
+  const drafts = useDraftGigs()
 
   const applications = usePaginatedList<MyApplication, Record<string, never>>({
     fetchPage: (params) => api.applications.mine(params),
@@ -129,7 +140,8 @@ export function useMyGigs(): MyGigsState {
       if (postedFetchedRef.current) void posted.reload()
       if (workingFetchedRef.current) void working.reload()
       // Drafts too: publishing one moves it out of this list and into Posted,
-      // so a stale Drafts tab would keep showing a gig that is already live.
+      // so a stale count would keep the banner advertising a gig already live —
+      // or keep the banner up at all once the last draft is published.
       if (draftsFetchedRef.current) void drafts.reload()
       // Applications too: being assigned flips a row to `assigned` and puts
       // the gig in Working, so a stale tab would show the applicant still

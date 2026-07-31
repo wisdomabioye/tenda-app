@@ -117,12 +117,30 @@ test('the chain filter applies to every tab and resets each to page 0', async ()
   await waitFor(() => expect(mockList).toHaveBeenCalledTimes(ROUND))
 
   act(() => result.current.setChainId('eip155:84532'))
-  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(ROUND * 2))
+  // Two of the three lists refetch — Drafts is deliberately not one of them.
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(ROUND + 2))
 
   const filtered = queriesFrom(ROUND)
-  expect(filtered.map(bucketOf).sort()).toEqual(['drafts', 'posted', 'working'])
+  expect(filtered.map(bucketOf).sort()).toEqual(['posted', 'working'])
   expect(filtered.every((q) => q.chain_id === 'eip155:84532')).toBe(true)
   expect(filtered.every((q) => q.offset === 0)).toBe(true)
+})
+
+test('the chain filter does NOT scope Drafts — the banner count must not vanish', async () => {
+  // Drafts no longer backs a tab, it backs a banner meaning "you have unfunded
+  // work sitting here". Scoping that count to the active chip would make the
+  // banner disappear on a chip tap, which reads as "my drafts are gone" rather
+  // than "the filter excluded them". The drafts SCREEN filters; this count does
+  // not.
+  const { result } = renderHook(() => useMyGigs())
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(ROUND))
+
+  act(() => result.current.setChainId('eip155:84532'))
+  await waitFor(() => expect(mockList).toHaveBeenCalledTimes(ROUND + 2))
+
+  expect(queriesFrom(ROUND).map(bucketOf)).not.toContain('drafts')
+  // And the count it already reported still stands.
+  expect(result.current.drafts.total).toBe(2)
 })
 
 test('does not fetch before the signed-in user is known', async () => {

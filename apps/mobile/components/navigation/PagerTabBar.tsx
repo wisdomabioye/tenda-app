@@ -70,6 +70,7 @@ export function PagerTabBar({
             accessibilityState={{ selected: active }}
           >
             <Text
+              numberOfLines={1}
               style={[
                 s.label,
                 { color: active ? theme.colors.content.primary : theme.colors.content.tertiary },
@@ -128,18 +129,23 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: 4,
   },
   label: {
+    // Shrinks ahead of the count chip: a clipped number is unreadable, a
+    // truncated word still reads. Paired with `numberOfLines={1}` above — a
+    // label with neither wraps into a second line that this row's fixed height
+    // then clips, which is how four tabs used to fail on a narrow screen.
+    flexShrink: 1,
     fontSize: 14.5,
     fontWeight: '600',
     letterSpacing: -0.145,
   },
   count: {
-    minWidth: 20,
-    height: 20,
-    paddingHorizontal: 6,
-    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: 9,
     alignItems: 'center',
     justifyContent: 'center',
   },

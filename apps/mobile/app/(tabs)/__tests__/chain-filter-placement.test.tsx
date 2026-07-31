@@ -37,6 +37,7 @@ jest.mock('@/components/filters', () => {
 jest.mock('@/components/gig', () => ({
   GigCardCompact: () => null,
   GigListSkeleton: () => null,
+  DraftsBanner: () => null,
 }))
 jest.mock('@/components/gig/gig-applications', () => ({
   MyApplicationCard: () => null,
