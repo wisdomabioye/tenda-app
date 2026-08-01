@@ -1,6 +1,14 @@
 /**
- * Who may see the PRIVATE half of an escrow detail, and the projection that
- * withholds it.
+ * Who may see the PRIVATE half of an escrow detail, and the two projections
+ * that decide what each reader gets.
+ *
+ * They are opposites, and both are needed. `scopeEscrowPrivateFields` WITHHOLDS
+ * — counterparty, proofs, dispute go to the parties or to nobody.
+ * `scopeEscrowAcceptanceMode` PUBLISHES a derived fact (someone is invited)
+ * while withholding the identity behind it, because an outsider told nothing at
+ * all would conclude the escrow is open to anyone and offer an Accept the chain
+ * reverts. Withholding a field is not always the safe default; withholding it
+ * without saying it exists is how the client ends up guessing.
  *
  * `/v1/gigs/:id` is public (optionally authenticated) and `/v1/exchange/:id`
  * is readable by any signed-in user — both by design, a listing has to survive
@@ -18,7 +26,7 @@
  *
  * The first two live in `escrow-party.ts`, which owns the column set for every
  * sense of "party" in both SQL and row form. This module adds only the admin
- * rung and the projection, because only those are specific to the detail
+ * rung and the two projections, because only those are specific to the detail
  * routes.
  *
  * The admin rung is separated from the other two ON PURPOSE. It reads
@@ -46,7 +54,8 @@
  * "admins lose nothing here" true for the role that actually mediates.
  */
 
-import { ADMIN_ROLES } from '@tenda/shared'
+import { ADMIN_ROLES, type EscrowAcceptanceMode } from '@tenda/shared'
+import type { escrows } from '@tenda/shared/db/schema'
 import { isEscrowPartyOrAssignedRow, type EscrowPartyColumns } from '@server/lib/escrow-party'
 
 /**
@@ -82,6 +91,47 @@ export function canViewHiddenEscrow(
   // cast is the only way through. A cast on a ROLE CHECK is the wrong thing to
   // normalise — it asserts exactly what the line is supposed to be testing.
   return ADMIN_ROLES.some((admin) => admin === viewer.role)
+}
+
+/** The two columns that describe how an escrow may be taken up. */
+export type EscrowAcceptanceColumns = Pick<
+  typeof escrows.$inferSelect,
+  'assigned_counterparty_id' | 'requires_approval'
+>
+
+/**
+ * Publish the acceptance mode, splitting WHETHER someone is invited from WHO.
+ *
+ * The split is the whole point. The assignee's user id IS the worker's identity
+ * by another name, and it survives the lifecycle (only `decline` clears it), so
+ * publishing it would undo the `counterparty` scoping next door. But withholding
+ * it ALONE is worse than useless: `canAccept` would read the absent id as "open
+ * to anyone" and offer a stranger an Accept button the chain reverts. So the
+ * flag goes to everyone and the id goes to the parties — and because the
+ * invitee is a party (`isEscrowPartyOrAssignedRow`), the one person who needs
+ * the id to match themselves against it gets it.
+ *
+ * `is_assigned` is narrower than "taken": an approval-mode escrow is assigned by
+ * installing `counterparty_id` and never touches this column, so it reads false
+ * at every status. Correct for the one question `canAccept` asks — it returns on
+ * `requires_approval` first — and wrong for any other; `status` is what says
+ * whether work is under way.
+ *
+ * Returns `EscrowAcceptanceMode`, the exact shape the client's `canAccept`
+ * consumes, so the server's projection and the client's input cannot drift.
+ * Shared by both detail routes: the pairing above is subtle enough that a
+ * second copy is a second chance to get it wrong, which is precisely how the
+ * exchange surface went without it.
+ */
+export function scopeEscrowAcceptanceMode(
+  escrow: EscrowAcceptanceColumns,
+  isParty: boolean,
+): EscrowAcceptanceMode {
+  return {
+    requires_approval: escrow.requires_approval,
+    is_assigned: escrow.assigned_counterparty_id !== null,
+    assigned_counterparty_id: isParty ? escrow.assigned_counterparty_id : null,
+  }
 }
 
 /**

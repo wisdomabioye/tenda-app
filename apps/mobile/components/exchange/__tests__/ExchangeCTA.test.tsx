@@ -5,7 +5,14 @@
  * same branch also covers add-more-proof while the seller reviews.
  */
 import { render, fireEvent, screen } from '@testing-library/react-native'
-import type { ExchangeDetail, EscrowStatus, UserRef } from '@tenda/shared'
+import type { ExchangeDetail } from '@tenda/shared'
+import {
+  BUYER_ID,
+  SELLER_ID,
+  STRANGER_ID,
+  exchangeDetail,
+  matchedOffer,
+} from '../__fixtures__/exchange-detail'
 
 jest.mock('@/components/ui/Button', () => {
   const { Text } = require('react-native')
@@ -18,29 +25,12 @@ jest.mock('@/components/ui/Button', () => {
 
 import { ExchangeCTA } from '../ExchangeCTA'
 
-const SELLER = 'seller-id'
-const BUYER = 'buyer-id'
-
-function user(id: string): UserRef {
-  return { id, first_name: 'A', last_name: 'B', avatar_url: null, review_score: '0', is_seeker: false, country: 'NG' }
-}
-
-function offer(status: EscrowStatus, withCounterparty = true): ExchangeDetail {
-  return {
-    escrow_id: 'e1', chain_id: 'solana:devnet', asset: 'USDC_SOL', amount_raw: '100000000',
-    status, fiat_amount: '160000', fiat_currency: 'NGN', rate: '1600', payment_window_seconds: 43_200,
-    accept_deadline: null, created_at: '2026-07-01T00:00:00.000Z', creator: user(SELLER), is_seeker: false, payment_proof_url: null,
-    dispute_bond_raw: '0', completion_deadline: null, submitted_at: null, approval_deadline: null,
-    counterparty: withCounterparty ? user(BUYER) : null, proofs: [], dispute: null, reviews: [], payout_account: null,
-  }
-}
-
 const noop = () => {}
 const baseProps = { busy: false, onTxAction: noop }
 
 test('disputed buyer gets an "Add Evidence" button that opens the add-proof sheet', () => {
   const onSheet = jest.fn()
-  render(<ExchangeCTA offer={offer('disputed')} userId={BUYER} onSheet={onSheet} {...baseProps} />)
+  render(<ExchangeCTA offer={matchedOffer('disputed')} userId={BUYER_ID} onSheet={onSheet} {...baseProps} />)
 
   const btn = screen.getByText('Add Evidence')
   fireEvent.press(btn)
@@ -49,7 +39,7 @@ test('disputed buyer gets an "Add Evidence" button that opens the add-proof shee
 
 test('submitted buyer gets "Add More Proof" (same branch, non-dispute wording)', () => {
   const onSheet = jest.fn()
-  render(<ExchangeCTA offer={offer('submitted')} userId={BUYER} onSheet={onSheet} {...baseProps} />)
+  render(<ExchangeCTA offer={matchedOffer('submitted')} userId={BUYER_ID} onSheet={onSheet} {...baseProps} />)
 
   fireEvent.press(screen.getByText('Add More Proof'))
   expect(onSheet).toHaveBeenCalledWith('addProof')
@@ -57,7 +47,7 @@ test('submitted buyer gets "Add More Proof" (same branch, non-dispute wording)',
 
 test('submitted buyer ALSO gets a Dispute button (symmetry with the gig worker)', () => {
   const onSheet = jest.fn()
-  render(<ExchangeCTA offer={offer('submitted')} userId={BUYER} onSheet={onSheet} {...baseProps} />)
+  render(<ExchangeCTA offer={matchedOffer('submitted')} userId={BUYER_ID} onSheet={onSheet} {...baseProps} />)
 
   // Both affordances: add more evidence AND escalate a stalling seller.
   expect(screen.getByText('Add More Proof')).toBeTruthy()
@@ -66,19 +56,19 @@ test('submitted buyer ALSO gets a Dispute button (symmetry with the gig worker)'
 })
 
 test('disputed buyer sees Add Evidence but NOT a redundant Dispute button', () => {
-  render(<ExchangeCTA offer={offer('disputed')} userId={BUYER} onSheet={noop} {...baseProps} />)
+  render(<ExchangeCTA offer={matchedOffer('disputed')} userId={BUYER_ID} onSheet={noop} {...baseProps} />)
   expect(screen.getByText('Add Evidence')).toBeTruthy()
   expect(screen.queryByText('Dispute')).toBeNull()
 })
 
 test('disputed seller (creator) sees no evidence button — evidence is the counterparty’s', () => {
-  render(<ExchangeCTA offer={offer('disputed')} userId={SELLER} onSheet={noop} {...baseProps} />)
+  render(<ExchangeCTA offer={matchedOffer('disputed')} userId={SELLER_ID} onSheet={noop} {...baseProps} />)
   expect(screen.queryByText('Add Evidence')).toBeNull()
   expect(screen.queryByText('Add More Proof')).toBeNull()
 })
 
 test('submitted seller still gets Confirm & Release (branch not shadowed by canAddProof)', () => {
-  render(<ExchangeCTA offer={offer('submitted')} userId={SELLER} onSheet={noop} {...baseProps} />)
+  render(<ExchangeCTA offer={matchedOffer('submitted')} userId={SELLER_ID} onSheet={noop} {...baseProps} />)
   expect(screen.getByText('Confirm & Release')).toBeTruthy()
 })
 
@@ -86,10 +76,49 @@ test('submitted buyer past the approval deadline gets Claim Crypto, NOT the proo
   // Regression: canAddProof and canClaim are BOTH true here; claiming must win
   // so the buyer can still recover their crypto when the seller stalls.
   const stalled: ExchangeDetail = {
-    ...offer('submitted'),
+    ...matchedOffer('submitted'),
     approval_deadline: new Date(Date.now() - 60_000).toISOString(),
   }
-  render(<ExchangeCTA offer={stalled} userId={BUYER} onSheet={noop} {...baseProps} />)
+  render(<ExchangeCTA offer={stalled} userId={BUYER_ID} onSheet={noop} {...baseProps} />)
   expect(screen.getByText('Claim Crypto')).toBeTruthy()
   expect(screen.queryByText('Add More Proof')).toBeNull()
+})
+
+// ── acceptance mode: read from the offer, never assumed ──────────────────
+//
+// The CTA used to spread UNRESTRICTED_ACCEPTANCE, so every one of these
+// rendered Accept Offer. `assigned_counterparty_id` carries no kind restriction
+// at create, so an invite-only offer is a state the server really produces.
+
+test('an unrestricted open offer still offers Accept to any non-creator', () => {
+  const open = exchangeDetail({ status: 'open' })
+  render(<ExchangeCTA offer={open} userId={BUYER_ID} onSheet={noop} {...baseProps} />)
+  expect(screen.getByText('Accept Offer')).toBeTruthy()
+})
+
+test('invite-only offer: a stranger gets NO Accept button (the server would 403)', () => {
+  // What an outsider actually receives: the flag set, the id withheld. Judging
+  // off the id alone would read this as unassigned and offer the button.
+  const invited = exchangeDetail({
+    status: 'open',
+    is_assigned: true,
+    assigned_counterparty_id: null,
+  })
+  render(<ExchangeCTA offer={invited} userId={STRANGER_ID} onSheet={noop} {...baseProps} />)
+  expect(screen.queryByText('Accept Offer')).toBeNull()
+})
+
+test('invite-only offer: the INVITEE gets Accept (they are a party, so they get the id)', () => {
+  const invited = exchangeDetail({ status: 'open', assigned_counterparty_id: BUYER_ID })
+  render(<ExchangeCTA offer={invited} userId={BUYER_ID} onSheet={noop} {...baseProps} />)
+  expect(screen.getByText('Accept Offer')).toBeTruthy()
+})
+
+test('approval-mode offer closes Accept — the field is live, not a hardcoded false', () => {
+  // Exchange create rejects `requires_approval` TODAY. The CTA reads the column
+  // rather than assuming it, so opening approval mode to exchanges needs no
+  // client edit — this test is what holds that open.
+  const approval = exchangeDetail({ status: 'open', requires_approval: true })
+  render(<ExchangeCTA offer={approval} userId={BUYER_ID} onSheet={noop} {...baseProps} />)
+  expect(screen.queryByText('Accept Offer')).toBeNull()
 })

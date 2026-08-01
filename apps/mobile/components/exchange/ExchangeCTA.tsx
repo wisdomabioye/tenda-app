@@ -9,7 +9,7 @@ import {
   canDispute,
   canReview,
   canAddProof,
-  UNRESTRICTED_ACCEPTANCE,
+  escrowPartiesOf,
 } from '@tenda/shared'
 import type { EscrowTxType, ExchangeDetail } from '@tenda/shared'
 import type { ActiveSheet } from '@/components/gig'
@@ -30,16 +30,13 @@ interface Props {
  * releases the crypto. Wallet-opening moves route through the confirm gate.
  */
 export function ExchangeCTA({ offer, userId, busy, onTxAction, onSheet }: Props) {
-  const parties = {
-    status: offer.status,
-    creator_id: offer.creator.id,
-    counterparty_id: offer.counterparty?.id ?? null,
-    // P2P offers have no acceptance mode: the server rejects
-    // `requires_approval` for kind='exchange', and the exchange wire carries no
-    // assignee. Stated rather than defaulted — `canAccept` requires the mode
-    // precisely so a screen cannot silently inherit the wrong one.
-    ...UNRESTRICTED_ACCEPTANCE,
-  }
+  // Read from the offer, never assumed. This used to spread
+  // UNRESTRICTED_ACCEPTANCE on the grounds that a P2P offer has no acceptance
+  // mode — true of `requires_approval` (server-rejected for kind='exchange'),
+  // false of the assignee, which create accepts on either kind. A direct-invite
+  // offer therefore showed every stranger an Accept button the server answers
+  // with 403. Same builder as the gig CTA, so neither can drift again.
+  const parties = escrowPartiesOf(offer)
   const isCreator = userId === offer.creator.id
 
   // Drafts: publish (build-create rebuilds the unsigned tx, covers

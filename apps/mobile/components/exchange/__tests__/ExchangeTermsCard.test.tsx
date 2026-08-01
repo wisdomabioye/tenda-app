@@ -6,6 +6,7 @@
  */
 import { render, screen } from '@testing-library/react-native'
 import type { ExchangeDetail, EscrowStatus, UserRef } from '@tenda/shared'
+import { exchangeDetail } from '../__fixtures__/exchange-detail'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -59,15 +60,7 @@ function makeOffer(
   deadlines: Partial<Pick<ExchangeDetail, 'accept_deadline' | 'completion_deadline' | 'approval_deadline'>>,
   overrides: Partial<ExchangeDetail> = {},
 ): ExchangeDetail {
-  return {
-    escrow_id: 'e1', chain_id: 'solana:devnet', asset: 'USDC_SOL', amount_raw: '100000000',
-    status, fiat_amount: '160000', fiat_currency: 'NGN', rate: '1600', payment_window_seconds: 43_200,
-    accept_deadline: null, created_at: iso(-1), creator: user, is_seeker: false, payment_proof_url: null,
-    dispute_bond_raw: '0', completion_deadline: null, submitted_at: null, approval_deadline: null,
-    counterparty: null, proofs: [], dispute: null, reviews: [], payout_account: null,
-    ...deadlines,
-    ...overrides,
-  }
+  return exchangeDetail({ status, created_at: iso(-1), creator: user, ...deadlines, ...overrides })
 }
 
 afterEach(() => {

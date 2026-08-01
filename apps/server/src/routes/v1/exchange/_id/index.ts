@@ -12,7 +12,11 @@ import { escrows, exchange_details, users, reviews, bank_accounts } from '@tenda
 import { ErrorCode } from '@tenda/shared'
 import type { ExchangeContract, ApiError, UserRef, ExchangePayoutAccount } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { canViewHiddenEscrow, scopeEscrowPrivateFields } from '@server/lib/escrow-detail-scope'
+import {
+  canViewHiddenEscrow,
+  scopeEscrowAcceptanceMode,
+  scopeEscrowPrivateFields,
+} from '@server/lib/escrow-detail-scope'
 import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
 import { isEscrowPartyOrAssignedRow, isEscrowPartyRow } from '@server/lib/escrow-party'
 import { USER_COLS } from '@server/lib/users'
@@ -117,6 +121,14 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       // The buyer's fiat receipt — evidence, not terms. Scoped with `proofs`
       // below rather than shipped beside the price.
       payment_proof_url: isParty ? details.payment_proof_url : null,
+      // A P2P offer normally has no acceptance mode at all, but "normally" is
+      // not "always": `assigned_counterparty_id` carries no kind restriction at
+      // create, so a direct-invite offer is reachable and only the assignee may
+      // accept it. Reporting the real mode rather than assuming the unrestricted
+      // one is what stops the CTA offering a stranger an Accept the server 403s.
+      // `requires_approval` is gig-only TODAY and rides along as the column
+      // value, so relaxing that stays a server-side change.
+      ...scopeEscrowAcceptanceMode(escrow, isParty),
       dispute_bond_raw: escrow.dispute_bond_raw,
       completion_deadline: iso(escrow.completion_deadline),
       submitted_at: iso(escrow.submitted_at),

@@ -446,6 +446,51 @@ test('exchange detail: a pending assignee is a party for the trade, NOT for the 
   assert.strictEqual(sellerView.payout_account.account_number, '1122334455')
 })
 
+test('exchange detail: the assignee id is withheld but `is_assigned` still tells the truth', { skip }, async () => {
+  const app = getApp()
+  const seller = await createUser(app)
+  const invitee = await createUser(app)
+  const stranger = await createUser(app)
+  const escrow = await createEscrow(app, {
+    creator_id: seller.row.id,
+    kind: 'exchange',
+    status: 'open',
+    assigned_counterparty_id: invitee.row.id,
+  })
+  await attachExchangeDetails(app, escrow.id)
+
+  // The exact pairing the gig detail publishes, now on the offer wire. Before
+  // it, an outsider could not tell an invite-only offer from an open one, so
+  // the CTA showed them an Accept the transition endpoint answers with 403.
+  const outsider = (await offerDetail(app, escrow.id, stranger.token)).json()
+  assert.strictEqual(outsider.assigned_counterparty_id, null)
+  assert.strictEqual(outsider.is_assigned, true)
+
+  // The invitee IS a party, so they get the id — which is what lets `canAccept`
+  // match them against it and keep the button they alone are entitled to.
+  const invited = (await offerDetail(app, escrow.id, invitee.token)).json()
+  assert.strictEqual(invited.assigned_counterparty_id, invitee.row.id)
+  assert.strictEqual(invited.is_assigned, true)
+})
+
+test('exchange detail: an ordinary offer reports the unrestricted mode to everyone', { skip }, async () => {
+  const app = getApp()
+  const seller = await createUser(app)
+  const stranger = await createUser(app)
+  const escrow = await createEscrow(app, { creator_id: seller.row.id, kind: 'exchange', status: 'open' })
+  await attachExchangeDetails(app, escrow.id)
+
+  for (const token of [seller.token, stranger.token]) {
+    const body = (await offerDetail(app, escrow.id, token)).json()
+    assert.strictEqual(body.is_assigned, false)
+    assert.strictEqual(body.assigned_counterparty_id, null)
+    // Reported from the column, not hardcoded: exchange create rejects
+    // `requires_approval` today, and this is the assertion that keeps the field
+    // honest if that ever opens up.
+    assert.strictEqual(body.requires_approval, false)
+  }
+})
+
 test('exchange detail: an admin gets the terms, and neither evidence nor bank details', { skip }, async () => {
   const app = getApp()
   const { escrow } = await disputedOffer(app)

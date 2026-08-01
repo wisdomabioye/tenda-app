@@ -43,18 +43,62 @@ export interface EscrowAcceptanceMode {
 }
 
 /**
- * The acceptance mode of an escrow that has none — P2P exchanges, which reject
- * `requires_approval` server-side and carry no assignee on the wire. Named so
- * the exchange call sites read as a deliberate statement rather than two
- * hardcoded literals nobody can explain later.
+ * An escrow open to anyone: no approval gate, nobody invited. A FIXTURE, for
+ * tests that need "the unrestricted case" named rather than spelled out.
+ *
+ * NOT a stand-in for data a caller has not got. It used to be spread into the
+ * exchange CTA on the reasoning that the exchange wire carried no assignee —
+ * true of the wire, never true of the ESCROW: `assigned_counterparty_id` has no
+ * kind restriction at create, so a direct-invite offer was reachable and every
+ * reader was told it was open to anyone. Both detail wires now carry the real
+ * mode (see `escrowPartiesOf`), which is the only correct source. If you are
+ * reaching for this constant because a field is missing from a wire type, add
+ * the field.
  */
 // Readonly because it is a shared singleton every caller spreads: without it,
 // one `UNRESTRICTED_ACCEPTANCE.requires_approval = true` anywhere would change
-// the mode every exchange screen reports.
+// the mode every screen that spreads it reports.
 export const UNRESTRICTED_ACCEPTANCE: Readonly<EscrowAcceptanceMode> = {
   requires_approval: false,
   is_assigned: false,
   assigned_counterparty_id: null,
+}
+
+/**
+ * A detail wire carrying its acceptance mode and its two user refs — the shape
+ * both `GigDetail` and `ExchangeDetail` satisfy structurally. Structural on
+ * purpose: the two kinds are one primitive with different vocabulary, and
+ * naming either here would make this module depend on the wire types that
+ * depend on it.
+ */
+export interface EscrowDetailLike extends EscrowAcceptanceMode {
+  status: EscrowStatus
+  creator: { id: string }
+  counterparty: { id: string } | null
+}
+
+/**
+ * Project a detail wire onto the shape the `can*` helpers take.
+ *
+ * ONE projection for both kinds, because two of them is how the exchange copy
+ * drifted: it hardcoded the acceptance mode while the gig copy read it, so the
+ * same `canAccept` was answering a real question on one screen and a fixed
+ * `false` on the other. A single builder cannot disagree with itself, and a
+ * mode field added later reaches every screen at once.
+ *
+ * Both halves of the assignment are carried, never just the id — an outsider
+ * is served `is_assigned` with `assigned_counterparty_id` withheld, and judging
+ * off the id alone reads that as "open to anyone".
+ */
+export function escrowPartiesOf(e: EscrowDetailLike): EscrowLike & EscrowAcceptanceMode {
+  return {
+    status: e.status,
+    creator_id: e.creator.id,
+    counterparty_id: e.counterparty?.id ?? null,
+    requires_approval: e.requires_approval,
+    is_assigned: e.is_assigned,
+    assigned_counterparty_id: e.assigned_counterparty_id,
+  }
 }
 
 export function isParty(e: EscrowParties, userId: string): boolean {

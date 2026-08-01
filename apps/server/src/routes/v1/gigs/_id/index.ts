@@ -23,7 +23,11 @@ import { escrows, gig_details, users, reviews } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError, UserRef } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { canViewHiddenEscrow, scopeEscrowPrivateFields } from '@server/lib/escrow-detail-scope'
+import {
+  canViewHiddenEscrow,
+  scopeEscrowAcceptanceMode,
+  scopeEscrowPrivateFields,
+} from '@server/lib/escrow-detail-scope'
 import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
 import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow-party'
 import { optionalUserId } from '@server/lib/guards'
@@ -137,21 +141,10 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       submitted_at: iso(escrow.submitted_at),
       approval_deadline: iso(escrow.approval_deadline),
       dispute_bond_raw: escrow.dispute_bond_raw,
-      // The assignee's user id IS the worker's identity by another name — and
-      // it survives the whole lifecycle (only `decline` clears it), so leaving
-      // it public would hand an outsider the counterparty the block below
-      // withholds. `is_assigned` publishes only the part an outsider needs:
-      // that a DIRECT INVITE names someone, so `canAccept` still refuses them
-      // the Accept button on a gig they cannot take.
-      //
-      // Not "the gig is taken" — an approval-mode gig is assigned by installing
-      // `counterparty_id` and never touches this column, so it reports false at
-      // every status. That is correct for the one question the flag answers
-      // (`canAccept` returns at `requires_approval` first) and wrong for any
-      // other; `status` is what tells you whether work is under way.
-      assigned_counterparty_id: isParty ? escrow.assigned_counterparty_id : null,
-      is_assigned: escrow.assigned_counterparty_id !== null,
-      requires_approval: escrow.requires_approval,
+      // Flag public, assignee id party-only — the same projection the exchange
+      // detail uses, so the two surfaces cannot mean different things by
+      // "assigned". Rationale lives with the helper.
+      ...scopeEscrowAcceptanceMode(escrow, isParty),
       unassign_window_seconds: escrow.unassign_window_seconds,
       assignment_released_at: iso(escrow.assignment_released_at),
       ...scopeEscrowPrivateFields({ counterparty, ...evidence }, isParty),

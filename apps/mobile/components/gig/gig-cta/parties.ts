@@ -4,21 +4,18 @@
  * One place builds it, so no branch of the CTA can forget the acceptance mode
  * and fall back to the mode-blind behaviour that offered "Accept Gig" on an
  * approval-mode gig — a button whose transaction both contracts revert.
+ *
+ * The projection itself now lives in shared as `escrowPartiesOf`, because the
+ * exchange CTA needs the identical one and its private copy is exactly what
+ * drifted. Kept as a named wrapper rather than a bare re-export: `escrowPartiesOf`
+ * accepts either kind by design, and this export is gig-namespaced, so pinning
+ * the parameter to `GigDetail` keeps a stray exchange offer from compiling at a
+ * gig call site. Delegation, not duplication — the body still lives in one place.
  */
-import type { GigDetail } from '@tenda/shared'
+import { escrowPartiesOf, type GigDetail } from '@tenda/shared'
 
 export function partiesOf(gig: GigDetail) {
-  return {
-    status: gig.status,
-    creator_id: gig.creator.id,
-    counterparty_id: gig.counterparty?.id ?? null,
-    requires_approval: gig.requires_approval,
-    // Both halves of the assignment, because an outsider is served the flag
-    // without the id — see EscrowAcceptanceMode. Dropping either here is how a
-    // stranger gets offered the Accept button on a gig that is spoken for.
-    is_assigned: gig.is_assigned,
-    assigned_counterparty_id: gig.assigned_counterparty_id,
-  }
+  return escrowPartiesOf(gig)
 }
 
 /** Adds the timing fields the approval-mode window helpers derive from. */

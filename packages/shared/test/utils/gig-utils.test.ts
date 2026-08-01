@@ -12,6 +12,7 @@ import {
   canCancel,
   canClaim,
   UNRESTRICTED_ACCEPTANCE,
+  escrowPartiesOf,
 } from '../../src/utils/gig-utils'
 import type { EscrowStatus } from '../../src/types/escrow'
 
@@ -141,4 +142,61 @@ test('canClaim: false when status is not submitted or approval_deadline is null'
   assert.equal(canClaim(noDeadline, COUNTERPARTY, new Date('2030-01-01T00:00:00.000Z')), false)
   const wrongStatus = { ...escrow('accepted'), approval_deadline: '2026-06-12T00:00:00.000Z' }
   assert.equal(canClaim(wrongStatus, COUNTERPARTY, new Date('2030-01-01T00:00:00.000Z')), false)
+})
+
+// ── escrowPartiesOf ────────────────────────────────────────────────────────
+//
+// The ONE projection both detail CTAs feed `canAccept` from. It replaced two
+// private copies, and the exchange copy had hardcoded the acceptance mode —
+// so the tests that matter are the ones proving each field is READ, not
+// assumed. A mutation that drops any of the three must fail here.
+
+const detail = {
+  status: 'open' as EscrowStatus,
+  creator: { id: CREATOR },
+  counterparty: null,
+  ...UNRESTRICTED_ACCEPTANCE,
+}
+
+test('escrowPartiesOf: flattens the user refs and carries the unrestricted mode', () => {
+  assert.deepEqual(escrowPartiesOf({ ...detail, counterparty: { id: COUNTERPARTY } }), {
+    status: 'open',
+    creator_id: CREATOR,
+    counterparty_id: COUNTERPARTY,
+    requires_approval: false,
+    is_assigned: false,
+    assigned_counterparty_id: null,
+  })
+})
+
+test('escrowPartiesOf: a null counterparty becomes a null id, not undefined', () => {
+  // `canAccept` compares against `counterparty_id`; `undefined` from an
+  // optional-chain slip would still be falsy and silently pass every check.
+  const parties = escrowPartiesOf(detail)
+  assert.equal(parties.counterparty_id, null)
+  assert.ok('counterparty_id' in parties)
+})
+
+test('escrowPartiesOf: carries BOTH halves of the assignment', () => {
+  // What an outsider receives: flag set, id withheld. Carrying only the id
+  // would read as unassigned — the exact bug that offered strangers Accept.
+  const outsider = escrowPartiesOf({ ...detail, is_assigned: true, assigned_counterparty_id: null })
+  assert.equal(outsider.is_assigned, true)
+  assert.equal(outsider.assigned_counterparty_id, null)
+  assert.equal(canAccept(outsider, STRANGER), false)
+
+  // What the invitee receives, on the same escrow.
+  const invitee = escrowPartiesOf({
+    ...detail,
+    is_assigned: true,
+    assigned_counterparty_id: COUNTERPARTY,
+  })
+  assert.equal(canAccept(invitee, COUNTERPARTY), true)
+  assert.equal(canAccept(invitee, STRANGER), false)
+})
+
+test('escrowPartiesOf: carries requires_approval rather than assuming it false', () => {
+  const approval = escrowPartiesOf({ ...detail, requires_approval: true })
+  assert.equal(approval.requires_approval, true)
+  assert.equal(canAccept(approval, STRANGER), false)
 })

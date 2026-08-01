@@ -59,6 +59,28 @@ export interface ExchangeDetail extends ExchangeSummary {
   submitted_at: string | null
   approval_deadline: string | null
   /**
+   * How this offer may be taken up — the three fields of `EscrowAcceptanceMode`,
+   * with the same meanings and the same scoping as the gig detail.
+   *
+   * Carried even though every value is currently the unrestricted one, because
+   * only two of the three are guaranteed to be. `assigned_counterparty_id` has
+   * NO kind restriction at create (unlike `requires_approval`, which is
+   * gig-only and rejected here), so a direct-invite exchange offer is a
+   * reachable state the wire previously could not describe — leaving the client
+   * to assume "open to anyone" and offer a stranger an Accept the server
+   * answers with 403. `requires_approval` rides along as the actual column
+   * value rather than a literal, so opening approval mode to exchanges stays a
+   * server change with no client edit.
+   *
+   * `escrowPartiesOf` is what projects these three onto the shape `canAccept`
+   * reads, for this wire and the gig one alike.
+   */
+  requires_approval: boolean
+  /** Whether a DIRECT INVITE names someone. Public, like the gig detail's. */
+  is_assigned: boolean
+  /** WHO is invited — PARTIES ONLY (the invitee is a party), else `null`. */
+  assigned_counterparty_id: string | null
+  /**
    * The private half of the trade — PARTIES ONLY, withheld as `null` / `[]` /
    * `null` for anyone else, admins included. Same rule as the gig detail; an
    * offer being readable is not a licence to read the trade on it. Mediation
