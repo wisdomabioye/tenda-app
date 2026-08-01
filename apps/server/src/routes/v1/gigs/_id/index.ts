@@ -19,11 +19,12 @@
  */
 import { FastifyPluginAsync } from 'fastify'
 import { eq, inArray } from 'drizzle-orm'
-import { escrows, gig_details, users, escrow_proofs, disputes, reviews } from '@tenda/shared/db/schema'
+import { escrows, gig_details, users, reviews } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError, UserRef } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { canViewHiddenEscrow, scopeEscrowPrivateFields } from '@server/lib/escrow-detail-scope'
+import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
 import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow-party'
 import { optionalUserId } from '@server/lib/guards'
 import { loadGigViewerContext } from '@server/features/applications/viewer'
@@ -90,10 +91,10 @@ const gigById: FastifyPluginAsync = async (fastify) => {
     const viewer_id = optionalUserId(request)
     const isParty = isEscrowPartyOrAssignedRow(escrow, viewer_id)
 
-    const [userRows, proofs, disputeRows, gigReviews, viewer] = await Promise.all([
+    const [userRows, evidence, gigReviews, viewer] = await Promise.all([
       fastify.db.select(USER_COLS).from(users).where(inArray(users.id, userIds)),
-      fastify.db.select().from(escrow_proofs).where(eq(escrow_proofs.escrow_id, id)),
-      fastify.db.select().from(disputes).where(eq(disputes.escrow_id, id)).limit(1),
+      // Skips both reads entirely for an outsider; still projected below.
+      loadEscrowEvidence(fastify.db, id, isParty),
       fastify.db.select().from(reviews).where(eq(reviews.escrow_id, id)),
       loadGigViewerContext(fastify.db, {
         escrow_id: id,
@@ -139,19 +140,21 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       // The assignee's user id IS the worker's identity by another name — and
       // it survives the whole lifecycle (only `decline` clears it), so leaving
       // it public would hand an outsider the counterparty the block below
-      // withholds. `is_assigned` carries the part that is genuinely about the
-      // listing: whether the gig is still up for grabs. `canAccept` reads that
-      // flag, so a stranger is still refused the Accept button on a direct
-      // invite they cannot take.
+      // withholds. `is_assigned` publishes only the part an outsider needs:
+      // that a DIRECT INVITE names someone, so `canAccept` still refuses them
+      // the Accept button on a gig they cannot take.
+      //
+      // Not "the gig is taken" — an approval-mode gig is assigned by installing
+      // `counterparty_id` and never touches this column, so it reports false at
+      // every status. That is correct for the one question the flag answers
+      // (`canAccept` returns at `requires_approval` first) and wrong for any
+      // other; `status` is what tells you whether work is under way.
       assigned_counterparty_id: isParty ? escrow.assigned_counterparty_id : null,
       is_assigned: escrow.assigned_counterparty_id !== null,
       requires_approval: escrow.requires_approval,
       unassign_window_seconds: escrow.unassign_window_seconds,
       assignment_released_at: iso(escrow.assignment_released_at),
-      ...scopeEscrowPrivateFields(
-        { counterparty, proofs, dispute: disputeRows[0] ?? null },
-        isParty,
-      ),
+      ...scopeEscrowPrivateFields({ counterparty, ...evidence }, isParty),
       // Reviews stay public: they are the same rows `/v1/users/:id/reviews`
       // serves on a profile, and public reputation is the point of them.
       reviews: gigReviews,

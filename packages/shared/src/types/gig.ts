@@ -61,15 +61,24 @@ export interface GigDetail extends GigSummary {
   approval_deadline: string | null
   dispute_bond_raw: string
   /**
-   * The named assignee — PARTIES AND ADMINS ONLY. `null` for an outsider even
-   * when the gig is assigned, because a worker's user id is their identity:
-   * publishing it would undo the `counterparty` scoping below. Pair with
-   * `is_assigned` for the acceptability question.
+   * The named assignee — PARTIES ONLY (an admin who is not a party gets `null`
+   * here too, and reads the escrow through /v1/admin/escrows/:id/dossier).
+   * `null` for an outsider even when the gig is assigned, because a worker's
+   * user id is their identity: publishing it would undo the `counterparty`
+   * scoping below. Pair with `is_assigned` for the acceptability question.
    */
   assigned_counterparty_id: string | null
   /**
-   * Whether the gig is spoken for, for everyone. Part of the listing (it
-   * decides whether Accept is offered at all), unlike the id above.
+   * Whether a DIRECT INVITE names someone — i.e. `assigned_counterparty_id` is
+   * set on the row — reported to everyone. This is narrower than "the gig is
+   * taken": an APPROVAL-MODE gig is assigned by installing the counterparty,
+   * never this column, so it reports `false` at every status including
+   * `accepted`. Read `status` for whether work is under way; read this only for
+   * whether Accept is on offer, which is the one question `canAccept` asks
+   * (and it short-circuits on `requires_approval` before reaching it).
+   *
+   * Same definition as the server's `TransitionContext.is_assigned`, so the
+   * wire and the state machine cannot mean different things by the word.
    */
   is_assigned: boolean
   /**
@@ -83,10 +92,15 @@ export interface GigDetail extends GigSummary {
   /** Set when the assigned worker said they were unavailable (off-chain). */
   assignment_released_at: string | null
   /**
-   * The private half of the escrow — PARTIES AND ADMINS ONLY. An outsider gets
-   * the withheld-but-valid forms (`null`, `[]`, `null`), which are the same
-   * states an unaccepted / unsubmitted / undisputed gig already has, so no
-   * client needs a second code path for "not allowed" vs "not yet".
+   * The private half of the escrow — PARTIES ONLY. Everyone else, INCLUDING
+   * admins, gets the withheld-but-valid forms (`null`, `[]`, `null`), which
+   * are the same states an unaccepted / unsubmitted / undisputed gig already
+   * has, so no client needs a second code path for "not allowed" vs "not yet".
+   *
+   * Admins are not an exception here on purpose: this route is reached through
+   * a lenient viewer identification whose role claim can be a token lifetime
+   * stale, so it reads no role at all. Mediation reads the same evidence
+   * through the admin surfaces — see `lib/escrow-detail-scope.ts`.
    */
   counterparty: UserRef | null
   proofs: EscrowProof[]

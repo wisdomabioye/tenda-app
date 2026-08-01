@@ -8,19 +8,12 @@
  */
 import { FastifyPluginAsync } from 'fastify'
 import { eq, inArray } from 'drizzle-orm'
-import {
-  escrows,
-  exchange_details,
-  users,
-  escrow_proofs,
-  disputes,
-  reviews,
-  bank_accounts,
-} from '@tenda/shared/db/schema'
+import { escrows, exchange_details, users, reviews, bank_accounts } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type { ExchangeContract, ApiError, UserRef, ExchangePayoutAccount } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { canViewHiddenEscrow, scopeEscrowPrivateFields } from '@server/lib/escrow-detail-scope'
+import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
 import { isEscrowPartyOrAssignedRow, isEscrowPartyRow } from '@server/lib/escrow-party'
 import { USER_COLS } from '@server/lib/users'
 
@@ -66,10 +59,15 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
         ? [escrow.creator_id]
         : [escrow.creator_id, escrow.counterparty_id]
 
-    const [userRows, proofs, disputeRows, offerReviews] = await Promise.all([
+    // Party membership decides the private half — the same rule and the same
+    // helper as the gig detail, so the two surfaces cannot drift. Admins are
+    // NOT included (they read the dossier); see escrow-detail-scope. Derived
+    // before the reads because it decides whether the evidence is read at all.
+    const isParty = isEscrowPartyOrAssignedRow(escrow, request.user.id)
+
+    const [userRows, evidence, offerReviews] = await Promise.all([
       fastify.db.select(USER_COLS).from(users).where(inArray(users.id, userIds)),
-      fastify.db.select().from(escrow_proofs).where(eq(escrow_proofs.escrow_id, id)),
-      fastify.db.select().from(disputes).where(eq(disputes.escrow_id, id)).limit(1),
+      loadEscrowEvidence(fastify.db, id, isParty),
       fastify.db.select().from(reviews).where(eq(reviews.escrow_id, id)),
     ])
 
@@ -80,11 +78,6 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     }
     const counterparty =
       escrow.counterparty_id === null ? null : (userMap.get(escrow.counterparty_id) ?? null)
-
-    // Party membership decides the private half — the same rule and the same
-    // helper as the gig detail, so the two surfaces cannot drift. Admins are
-    // NOT included (they read the dossier); see escrow-detail-scope.
-    const isParty = isEscrowPartyOrAssignedRow(escrow, request.user.id)
 
     // Payout account is PII: reveal the full details only to the offer's
     // SETTLED parties (creator + accepted counterparty), so a matched buyer
@@ -131,10 +124,7 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       // Who is trading with whom, the payment evidence and the dispute reason
       // are the parties' business — an offer being readable is not a licence
       // to read the trade. Same rule and same helper as the gig detail.
-      ...scopeEscrowPrivateFields(
-        { counterparty, proofs, dispute: disputeRows[0] ?? null },
-        isParty,
-      ),
+      ...scopeEscrowPrivateFields({ counterparty, ...evidence }, isParty),
       // Reviews stay public for the same reason they do on a gig: they are the
       // rows `/v1/users/:id/reviews` already serves on a profile.
       reviews: offerReviews,

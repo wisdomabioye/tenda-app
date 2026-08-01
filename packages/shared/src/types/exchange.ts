@@ -52,16 +52,17 @@ export interface ExchangeDetail extends ExchangeSummary {
    * the same mirror-of-contract math the gig surface uses.
    */
   is_seeker: boolean
-  /** Buyer's fiat receipt — PARTIES AND ADMINS ONLY, `null` to everyone else. */
+  /** Buyer's fiat receipt — PARTIES ONLY, `null` to everyone else incl. admins. */
   payment_proof_url: string | null
   dispute_bond_raw: string
   completion_deadline: string | null
   submitted_at: string | null
   approval_deadline: string | null
   /**
-   * The private half of the trade — PARTIES AND ADMINS ONLY, withheld as
-   * `null` / `[]` / `null` for anyone else. Same rule as the gig detail; an
-   * offer being readable is not a licence to read the trade on it.
+   * The private half of the trade — PARTIES ONLY, withheld as `null` / `[]` /
+   * `null` for anyone else, admins included. Same rule as the gig detail; an
+   * offer being readable is not a licence to read the trade on it. Mediation
+   * reads it through the admin surfaces — see `lib/escrow-detail-scope.ts`.
    */
   counterparty: UserRef | null
   proofs: EscrowProof[]

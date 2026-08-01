@@ -409,6 +409,43 @@ test('exchange detail: the two parties see the trade in full', { skip }, async (
   assert.strictEqual(buyerView.payout_account.account_number, '9988776655')
 })
 
+test('exchange detail: a pending assignee is a party for the trade, NOT for the bank details', { skip }, async () => {
+  const app = getApp()
+  const seller = await createUser(app)
+  const invitee = await createUser(app)
+  const account = await createBankAccount(app, seller.row.id, { account_number: '1122334455' })
+  // A direct-invite OFFER: `assigned_counterparty_id` carries no `kind`
+  // restriction (only `requires_approval` is gig-only — see escrow-create),
+  // so this is a reachable state and the two predicates genuinely differ on
+  // it. Pre-accept is the ONLY window where they do: an accept installs the
+  // invitee as `counterparty_id`, which makes them settled.
+  const escrow = await createEscrow(app, {
+    creator_id: seller.row.id,
+    kind: 'exchange',
+    status: 'open',
+    assigned_counterparty_id: invitee.row.id,
+  })
+  await attachExchangeDetails(app, escrow.id, {
+    payout_account_id: account.id,
+    payment_proof_url: 'https://res.cloudinary.com/test-cloud/image/upload/invited.jpg',
+  })
+
+  const body = (await offerDetail(app, escrow.id, invitee.token)).json()
+  // The WIDER gate (isEscrowPartyOrAssignedRow) admits them to the trade…
+  assert.ok(body.payment_proof_url !== null)
+  // …and the NARROWER one (isEscrowPartyRow) still refuses the seller's
+  // account number. They have not accepted, so there is nothing for them to
+  // pay into yet — and until they do, an invite is not consent to hand over
+  // someone's bank details. Collapsing the two predicates into one is the
+  // mutation this test exists to fail on.
+  assert.strictEqual(body.payout_account, null)
+
+  // The seller, who IS settled, sees their own account on the same offer —
+  // so the null above is the gate, not an unlinked account.
+  const sellerView = (await offerDetail(app, escrow.id, seller.token)).json()
+  assert.strictEqual(sellerView.payout_account.account_number, '1122334455')
+})
+
 test('exchange detail: an admin gets the terms, and neither evidence nor bank details', { skip }, async () => {
   const app = getApp()
   const { escrow } = await disputedOffer(app)

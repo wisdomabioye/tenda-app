@@ -34,9 +34,16 @@
  * So: disclosure is party-based (id only, no role), and the hidden-row gate —
  * which both routes reach only after a full `authenticate` — may consult the
  * role. Admins read escrows through the admin surfaces, which carry the same
- * evidence: GET /v1/admin/escrows/:id/dossier (proofs, parties, transactions,
- * exchange payment_proof_url) and GET /v1/admin/disputes (the reason), both
- * behind `requirePermission('escrows.read')`.
+ * evidence behind their own permissions:
+ *
+ *   GET /v1/admin/escrows/:id/dossier  `escrows.read`   proofs, parties,
+ *                                                       transactions, exchange
+ *                                                       payment_proof_url
+ *   GET /v1/admin/disputes             `disputes.read`  the dispute reason
+ *
+ * Two different permissions, not one — `dispute_admin` holds both
+ * (ROLE_PERMISSIONS in shared/constants/permissions), which is what makes
+ * "admins lose nothing here" true for the role that actually mediates.
  */
 
 import { ADMIN_ROLES } from '@tenda/shared'
@@ -70,7 +77,11 @@ export function canViewHiddenEscrow(
 ): boolean {
   if (viewer === null) return false
   if (isEscrowPartyOrAssignedRow(escrow, viewer.id)) return true
-  return ADMIN_ROLES.includes(viewer.role as (typeof ADMIN_ROLES)[number])
+  // `some` rather than `ADMIN_ROLES.includes(role as AdminRole)`: the array is
+  // typed `readonly AdminRole[]`, so `includes` refuses a plain string and the
+  // cast is the only way through. A cast on a ROLE CHECK is the wrong thing to
+  // normalise — it asserts exactly what the line is supposed to be testing.
+  return ADMIN_ROLES.some((admin) => admin === viewer.role)
 }
 
 /**
