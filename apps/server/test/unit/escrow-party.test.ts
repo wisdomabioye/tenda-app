@@ -13,9 +13,13 @@ import {
   isEscrowParty,
   isEscrowPartyOrAssigned,
   isEscrowCounterpartySide,
+  isEscrowPartyRow,
+  isEscrowPartyOrAssignedRow,
+  type EscrowPartyColumns,
 } from '@server/lib/escrow-party'
 
 const USER = '11111111-1111-4111-8111-111111111111'
+const OTHER = '33333333-3333-4333-8333-333333333333'
 
 /** Column names referenced by a built Drizzle condition, in order. */
 function columnsOf(sql: { queryChunks: unknown[] }): string[] {
@@ -99,4 +103,74 @@ test('predicates bind the id given, not a captured one', () => {
   const other = '22222222-2222-4222-8222-222222222222'
   assert.ok(paramsOf(isEscrowParty(other)).includes(other))
   assert.ok(!paramsOf(isEscrowParty(other)).includes(USER))
+})
+
+// ── row-level twins ─────────────────────────────────────────────────────────
+//
+// Same column sets, evaluated against a loaded row instead of compiled to SQL.
+// They back the escrow detail routes' disclosure gate, where getting the set
+// wrong leaks a counterparty's profile and a worker's proof files rather than
+// merely returning the wrong rows.
+
+/** An escrow where exactly ONE membership column names USER. */
+function escrowWith(column: keyof EscrowPartyColumns): EscrowPartyColumns {
+  return {
+    creator_id: column === 'creator_id' ? USER : OTHER,
+    counterparty_id: column === 'counterparty_id' ? USER : null,
+    assigned_counterparty_id: column === 'assigned_counterparty_id' ? USER : null,
+  }
+}
+
+const ALL_COLUMNS: (keyof EscrowPartyColumns)[] = [
+  'creator_id',
+  'counterparty_id',
+  'assigned_counterparty_id',
+]
+
+test('each row predicate reads EXACTLY the columns its SQL twin does', () => {
+  // THE anti-drift assertion, and the reason both representations now live in
+  // one module over one column list: a query-level and a row-level answer that
+  // disagree about who is a party is a leak on one side or a lockout on the
+  // other, and nothing else in the suite would notice.
+  const twins = [
+    { sql: isEscrowParty, row: isEscrowPartyRow, name: 'isEscrowParty' },
+    { sql: isEscrowPartyOrAssigned, row: isEscrowPartyOrAssignedRow, name: 'isEscrowPartyOrAssigned' },
+  ]
+  for (const { sql, row, name } of twins) {
+    const sqlColumns = columnsOf(sql(USER))
+    for (const column of ALL_COLUMNS) {
+      assert.equal(
+        row(escrowWith(column), USER),
+        sqlColumns.includes(column),
+        `${name}: row and SQL disagree about ${column}`,
+      )
+    }
+  }
+})
+
+test('row predicates: a stranger matches nothing', () => {
+  for (const column of ALL_COLUMNS) {
+    assert.equal(isEscrowPartyRow(escrowWith(column), OTHER + 'x'), false)
+    assert.equal(isEscrowPartyOrAssignedRow(escrowWith(column), OTHER + 'x'), false)
+  }
+})
+
+test('row predicates: an anonymous (null) caller never matches a null column', () => {
+  // Both nullable columns are null here. Without the explicit null guard,
+  // `escrow.counterparty_id === user_id` would be `null === null` — every
+  // anonymous reader on the internet a party to every unclaimed escrow.
+  const unclaimed: EscrowPartyColumns = {
+    creator_id: OTHER,
+    counterparty_id: null,
+    assigned_counterparty_id: null,
+  }
+  assert.equal(isEscrowPartyRow(unclaimed, null), false)
+  assert.equal(isEscrowPartyOrAssignedRow(unclaimed, null), false)
+})
+
+test('row predicates take an id and no role, so no stale role can widen them', () => {
+  // The public gig detail reaches these through `identifyViewer`, whose role
+  // claim can be a token lifetime out of date. Two parameters is the pin.
+  assert.equal(isEscrowPartyRow.length, 2)
+  assert.equal(isEscrowPartyOrAssignedRow.length, 2)
 })

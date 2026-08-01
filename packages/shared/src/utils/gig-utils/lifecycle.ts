@@ -50,7 +50,10 @@ export function canAccept(e: EscrowLike & EscrowAcceptanceMode, userId: string):
   // Approval mode: the POSTER assigns. A worker applies instead (canApply).
   if (e.requires_approval) return false
   // Direct invite: the escrow names its worker, nobody else can take it.
-  if (e.assigned_counterparty_id !== null) return e.assigned_counterparty_id === userId
+  // Gated on `is_assigned`, not on the id being present: an outsider is served
+  // the flag without the id, and judging by the id would read that as "open to
+  // anyone" — the exact false Accept button this helper exists to prevent.
+  if (e.is_assigned) return e.assigned_counterparty_id === userId
   return true
 }
 

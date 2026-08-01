@@ -9,10 +9,13 @@
  * like everywhere else) and compares the caller.
  *
  * The route is OPTIONALLY authenticated. It stays public — an anonymous read
- * returns the same gig it always did — but a bearer buys the `viewer` block:
- * the caller's own application and, for the poster, how many are waiting. That
- * question cannot be answered client-side (see GigViewerContext), and asking
- * it here costs one extra query only on approval-mode gigs.
+ * returns the same LISTING it always did — but a bearer buys two things: the
+ * `viewer` block (the caller's own application and, for the poster, how many
+ * are waiting — a question that cannot be answered client-side, see
+ * GigViewerContext), and, for a PARTY, the private half of the escrow: who is
+ * working on it, the proof files, the dispute reason. See
+ * `escrow-detail-scope.ts` for why those are not part of "the listing", and
+ * why party membership rather than role decides it on this route.
  */
 import { FastifyPluginAsync } from 'fastify'
 import { eq, inArray } from 'drizzle-orm'
@@ -20,7 +23,8 @@ import { escrows, gig_details, users, escrow_proofs, disputes, reviews } from '@
 import { ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError, UserRef } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { canViewHidden } from '@server/lib/escrow-routes'
+import { canViewHiddenEscrow, scopeEscrowPrivateFields } from '@server/lib/escrow-detail-scope'
+import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow-party'
 import { optionalUserId } from '@server/lib/guards'
 import { loadGigViewerContext } from '@server/features/applications/viewer'
 import { USER_COLS } from '@server/lib/users'
@@ -64,7 +68,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       const allowed =
         escrow.status === 'draft'
           ? request.user.id === escrow.creator_id
-          : canViewHidden(escrow, request.user.id, request.user.role)
+          : canViewHiddenEscrow(escrow, { id: request.user.id, role: request.user.role })
       if (!allowed) {
         throw new AppError(404, ErrorCode.NOT_FOUND, 'Gig not found')
       }
@@ -77,7 +81,14 @@ const gigById: FastifyPluginAsync = async (fastify) => {
 
     // Read AFTER the private-row branch above: a draft hit runs the full
     // `authenticate`, which is what decorates the request in that path.
+    //
+    // Party membership only — no role. This route is reached through
+    // `identifyViewer`, which does a bare `jwtVerify` and therefore carries a
+    // role claim up to a token lifetime (7d) out of date; `authenticate`
+    // refreshes it, this path cannot. Admins read escrows through the admin
+    // dossier, so nothing is lost by not consulting it here.
     const viewer_id = optionalUserId(request)
+    const isParty = isEscrowPartyOrAssignedRow(escrow, viewer_id)
 
     const [userRows, proofs, disputeRows, gigReviews, viewer] = await Promise.all([
       fastify.db.select(USER_COLS).from(users).where(inArray(users.id, userIds)),
@@ -125,13 +136,24 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       submitted_at: iso(escrow.submitted_at),
       approval_deadline: iso(escrow.approval_deadline),
       dispute_bond_raw: escrow.dispute_bond_raw,
-      assigned_counterparty_id: escrow.assigned_counterparty_id,
+      // The assignee's user id IS the worker's identity by another name — and
+      // it survives the whole lifecycle (only `decline` clears it), so leaving
+      // it public would hand an outsider the counterparty the block below
+      // withholds. `is_assigned` carries the part that is genuinely about the
+      // listing: whether the gig is still up for grabs. `canAccept` reads that
+      // flag, so a stranger is still refused the Accept button on a direct
+      // invite they cannot take.
+      assigned_counterparty_id: isParty ? escrow.assigned_counterparty_id : null,
+      is_assigned: escrow.assigned_counterparty_id !== null,
       requires_approval: escrow.requires_approval,
       unassign_window_seconds: escrow.unassign_window_seconds,
       assignment_released_at: iso(escrow.assignment_released_at),
-      counterparty,
-      proofs,
-      dispute: disputeRows[0] ?? null,
+      ...scopeEscrowPrivateFields(
+        { counterparty, proofs, dispute: disputeRows[0] ?? null },
+        isParty,
+      ),
+      // Reviews stay public: they are the same rows `/v1/users/:id/reviews`
+      // serves on a profile, and public reputation is the point of them.
       reviews: gigReviews,
       viewer,
     })

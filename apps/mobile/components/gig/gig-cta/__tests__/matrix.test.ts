@@ -137,6 +137,18 @@ describe('open', () => {
     expect(arrange(invited, STRANGER_ID)).toEqual(EMPTY)
   })
 
+  /**
+   * The shape a stranger actually receives: /v1/gigs/:id withholds the
+   * assignee's user id from anyone who is not a party, so the invite arrives
+   * as `is_assigned: true` with no id. Judged on the id alone that reads as
+   * "open to anyone" and hands them an Accept button the chain reverts — the
+   * privacy fix reintroducing the mode-blindness bug this file guards.
+   */
+  it('keeps a stranger off an invited gig even when the assignee is withheld', () => {
+    const withheld = gigDetail({ assigned_counterparty_id: null, is_assigned: true })
+    expect(arrange(withheld, STRANGER_ID)).toEqual(EMPTY)
+  })
+
   it('offers Withdraw on a live application, Apply once it is settled', () => {
     const approval = (v: ApplicationStatus) =>
       gigDetail({ requires_approval: true, viewer: viewerWith(v) })

@@ -52,14 +52,21 @@ export interface ExchangeDetail extends ExchangeSummary {
    * the same mirror-of-contract math the gig surface uses.
    */
   is_seeker: boolean
+  /** Buyer's fiat receipt — PARTIES AND ADMINS ONLY, `null` to everyone else. */
   payment_proof_url: string | null
   dispute_bond_raw: string
   completion_deadline: string | null
   submitted_at: string | null
   approval_deadline: string | null
+  /**
+   * The private half of the trade — PARTIES AND ADMINS ONLY, withheld as
+   * `null` / `[]` / `null` for anyone else. Same rule as the gig detail; an
+   * offer being readable is not a licence to read the trade on it.
+   */
   counterparty: UserRef | null
   proofs: EscrowProof[]
   dispute: Dispute | null
+  /** Public: the same rows a profile serves. Reputation is public by design. */
   reviews: Review[]
   /** Seller's payout account — present only for the offer's parties. */
   payout_account: ExchangePayoutAccount | null

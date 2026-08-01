@@ -13,6 +13,10 @@ export function partiesOf(gig: GigDetail) {
     creator_id: gig.creator.id,
     counterparty_id: gig.counterparty?.id ?? null,
     requires_approval: gig.requires_approval,
+    // Both halves of the assignment, because an outsider is served the flag
+    // without the id — see EscrowAcceptanceMode. Dropping either here is how a
+    // stranger gets offered the Accept button on a gig that is spoken for.
+    is_assigned: gig.is_assigned,
     assigned_counterparty_id: gig.assigned_counterparty_id,
   }
 }

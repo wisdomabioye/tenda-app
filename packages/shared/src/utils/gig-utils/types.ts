@@ -25,7 +25,20 @@ export type EscrowLike = EscrowParties & { status: EscrowStatus }
 export interface EscrowAcceptanceMode {
   /** Approval mode: only the poster moves it forward, via `assign_accept`. */
   requires_approval: boolean
-  /** Direct invite: only this user may accept. `null` = open to anyone. */
+  /**
+   * Whether SOMEONE is named as the assignee — spoken separately from WHO,
+   * because the two have different audiences. "This gig is spoken for" is part
+   * of the listing; the assignee's identity belongs to the parties, so the
+   * detail route withholds the id from outsiders (see `escrow-detail-scope.ts`)
+   * while keeping this flag accurate. Reading acceptability off the id alone
+   * would make a withheld assignee look like an unassigned gig and offer a
+   * stranger an Accept button the chain reverts.
+   */
+  is_assigned: boolean
+  /**
+   * Direct invite: only this user may accept. `null` when nobody is assigned —
+   * OR when the reader is not entitled to know, hence `is_assigned` above.
+   */
   assigned_counterparty_id: string | null
 }
 
@@ -40,6 +53,7 @@ export interface EscrowAcceptanceMode {
 // the mode every exchange screen reports.
 export const UNRESTRICTED_ACCEPTANCE: Readonly<EscrowAcceptanceMode> = {
   requires_approval: false,
+  is_assigned: false,
   assigned_counterparty_id: null,
 }
 

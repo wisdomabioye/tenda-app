@@ -20,7 +20,8 @@ import {
 import { ErrorCode } from '@tenda/shared'
 import type { ExchangeContract, ApiError, UserRef, ExchangePayoutAccount } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
-import { canViewHidden } from '@server/lib/escrow-routes'
+import { canViewHiddenEscrow, scopeEscrowPrivateFields } from '@server/lib/escrow-detail-scope'
+import { isEscrowPartyOrAssignedRow, isEscrowPartyRow } from '@server/lib/escrow-party'
 import { USER_COLS } from '@server/lib/users'
 
 type GetRoute = ExchangeContract['get']
@@ -53,7 +54,10 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
 
     // Taken-down offers (CO1) 404 to the public but stay visible to the
     // parties (the escrow may be mid-flight on-chain) and to admins.
-    if (escrow.hidden && !canViewHidden(escrow, request.user.id, request.user.role)) {
+    if (
+      escrow.hidden &&
+      !canViewHiddenEscrow(escrow, { id: request.user.id, role: request.user.role })
+    ) {
       throw new AppError(404, ErrorCode.NOT_FOUND, 'Exchange offer not found')
     }
 
@@ -77,13 +81,18 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
     const counterparty =
       escrow.counterparty_id === null ? null : (userMap.get(escrow.counterparty_id) ?? null)
 
+    // Party membership decides the private half — the same rule and the same
+    // helper as the gig detail, so the two surfaces cannot drift. Admins are
+    // NOT included (they read the dossier); see escrow-detail-scope.
+    const isParty = isEscrowPartyOrAssignedRow(escrow, request.user.id)
+
     // Payout account is PII: reveal the full details only to the offer's
-    // parties (creator + accepted counterparty), so a matched buyer knows
-    // where to pay. Absent to everyone else, and before an account is linked.
-    const isParty =
-      request.user.id === escrow.creator_id || request.user.id === escrow.counterparty_id
+    // SETTLED parties (creator + accepted counterparty), so a matched buyer
+    // knows where to pay. Absent to everyone else, and before an account is
+    // linked. Narrower than `isParty` above on purpose: a pending assignee has
+    // not accepted, so the seller's bank details are not theirs to read yet.
     let payout_account: ExchangePayoutAccount | null = null
-    if (isParty && details.payout_account_id !== null) {
+    if (isEscrowPartyRow(escrow, request.user.id) && details.payout_account_id !== null) {
       const [acct] = await fastify.db
         .select({
           kind: bank_accounts.kind,
@@ -112,14 +121,22 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       created_at: escrow.created_at.toISOString(),
       creator,
       is_seeker: escrow.is_seeker,
-      payment_proof_url: details.payment_proof_url,
+      // The buyer's fiat receipt — evidence, not terms. Scoped with `proofs`
+      // below rather than shipped beside the price.
+      payment_proof_url: isParty ? details.payment_proof_url : null,
       dispute_bond_raw: escrow.dispute_bond_raw,
       completion_deadline: iso(escrow.completion_deadline),
       submitted_at: iso(escrow.submitted_at),
       approval_deadline: iso(escrow.approval_deadline),
-      counterparty,
-      proofs,
-      dispute: disputeRows[0] ?? null,
+      // Who is trading with whom, the payment evidence and the dispute reason
+      // are the parties' business — an offer being readable is not a licence
+      // to read the trade. Same rule and same helper as the gig detail.
+      ...scopeEscrowPrivateFields(
+        { counterparty, proofs, dispute: disputeRows[0] ?? null },
+        isParty,
+      ),
+      // Reviews stay public for the same reason they do on a gig: they are the
+      // rows `/v1/users/:id/reviews` already serves on a profile.
       reviews: offerReviews,
       payout_account,
     })

@@ -64,7 +64,7 @@ export function review(reviewer_id: string, overrides: Partial<Review> = {}): Re
  * keeps the mode visible at every call site rather than buried in a default.
  */
 export function gigDetail(overrides: Partial<GigDetail> = {}): GigDetail {
-  return {
+  const gig: GigDetail = {
     escrow_id: 'escrow-1',
     chain_id: 'solana:devnet',
     asset: 'USDC_SOL',
@@ -90,6 +90,7 @@ export function gigDetail(overrides: Partial<GigDetail> = {}): GigDetail {
     approval_deadline: null,
     dispute_bond_raw: '0',
     assigned_counterparty_id: null,
+    is_assigned: false,
     unassign_window_seconds: 3600,
     assignment_released_at: null,
     counterparty: null,
@@ -99,6 +100,14 @@ export function gigDetail(overrides: Partial<GigDetail> = {}): GigDetail {
     is_seeker: false,
     viewer: null,
     ...overrides,
+  }
+  // Derived, not defaulted: setting `assigned_counterparty_id` alone must not
+  // produce a gig the server could never send (an assignee with the gig still
+  // reading as open to anyone). An explicit `is_assigned` override still wins —
+  // that combination IS what an outsider receives, id withheld, flag set.
+  return {
+    ...gig,
+    is_assigned: overrides.is_assigned ?? gig.assigned_counterparty_id !== null,
   }
 }
 

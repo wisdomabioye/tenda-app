@@ -15,6 +15,7 @@ import { ScreenContainer, Header, showToast } from '@/components/ui'
 import { TransactionMonitor } from '@/components/feedback'
 import { TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
 import { GigDetailGate } from '@/components/gig'
+import { approvalContextOf } from '@/components/gig/gig-cta'
 import { ApplicantList, useApplicantList, type ApplicantFilter } from '@/components/gig/gig-applications'
 import { useEscrowActions } from '@/hooks/useEscrowActions'
 import { useGigsStore } from '@/stores'
@@ -45,18 +46,10 @@ function ApplicantsContent({ gig, userId }: { gig: GigDetail; userId: string }) 
 
   // One shared rule for the whole screen, from the shared helper — so the
   // rows, the gate and the server cannot disagree about whether this gig can
-  // still be assigned.
-  const assignable = canAssign(
-    {
-      status: gig.status,
-      creator_id: gig.creator.id,
-      counterparty_id: gig.counterparty?.id ?? null,
-      requires_approval: gig.requires_approval,
-      assigned_counterparty_id: gig.assigned_counterparty_id,
-      accept_deadline: gig.accept_deadline,
-    },
-    userId,
-  )
+  // still be assigned. The party shape comes from `approvalContextOf` rather
+  // than being rebuilt here: a hand-built copy is what silently misses a new
+  // acceptance-mode field.
+  const assignable = canAssign(approvalContextOf(gig), userId)
 
   function handleConfirmed() {
     const action = actions.pendingAction

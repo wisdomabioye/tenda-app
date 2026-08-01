@@ -454,6 +454,8 @@ export async function attachExchangeDetails(
     fiat_currency?: string
     rate?: string
     payout_account_id?: string
+    /** The buyer's fiat receipt — party-scoped evidence, like escrow_proofs. */
+    payment_proof_url?: string
   } = {},
 ): Promise<void> {
   await app.db.insert(exchange_details).values({

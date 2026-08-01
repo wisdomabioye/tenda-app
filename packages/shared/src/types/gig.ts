@@ -60,7 +60,18 @@ export interface GigDetail extends GigSummary {
   submitted_at: string | null
   approval_deadline: string | null
   dispute_bond_raw: string
+  /**
+   * The named assignee — PARTIES AND ADMINS ONLY. `null` for an outsider even
+   * when the gig is assigned, because a worker's user id is their identity:
+   * publishing it would undo the `counterparty` scoping below. Pair with
+   * `is_assigned` for the acceptability question.
+   */
   assigned_counterparty_id: string | null
+  /**
+   * Whether the gig is spoken for, for everyone. Part of the listing (it
+   * decides whether Accept is offered at all), unlike the id above.
+   */
+  is_assigned: boolean
   /**
    * The escrow's OWN unassign window (mirrored from chain at create, not
    * today's config). With `completion_deadline` and
@@ -71,9 +82,16 @@ export interface GigDetail extends GigSummary {
   unassign_window_seconds: number
   /** Set when the assigned worker said they were unavailable (off-chain). */
   assignment_released_at: string | null
+  /**
+   * The private half of the escrow — PARTIES AND ADMINS ONLY. An outsider gets
+   * the withheld-but-valid forms (`null`, `[]`, `null`), which are the same
+   * states an unaccepted / unsubmitted / undisputed gig already has, so no
+   * client needs a second code path for "not allowed" vs "not yet".
+   */
   counterparty: UserRef | null
   proofs: EscrowProof[]
   dispute: Dispute | null
+  /** Public: the same rows a profile serves. Reputation is public by design. */
   reviews: Review[]
   /**
    * Fee tier baked into the escrow at create (from the poster's seeker status).

@@ -5,7 +5,9 @@
  * the check lives here once instead of being duplicated per route.
  *
  * Access = a party to the escrow (creator, counterparty, or assigned
- * counterparty) OR an admin holding the `disputes.mediate` permission.
+ * counterparty — `isEscrowPartyOrAssignedRow`, the same predicate the detail
+ * routes scope their private fields with) OR an admin holding the
+ * `disputes.mediate` permission.
  */
 import { eq } from 'drizzle-orm'
 import { disputes } from '@tenda/shared/db/schema'
@@ -13,6 +15,7 @@ import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { hasPermission } from '@server/lib/guards'
 import { loadEscrowOr404, type EscrowRow } from '@server/lib/escrow-routes'
+import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow-party'
 import type { AppDatabase } from '@server/plugins/db'
 
 export type DisputeRow = typeof disputes.$inferSelect
@@ -45,10 +48,7 @@ export async function assertDisputeThreadAccess(
     throw new AppError(404, ErrorCode.NOT_FOUND, 'No dispute on this escrow')
   }
 
-  const isParty =
-    escrow.creator_id === user.id ||
-    escrow.counterparty_id === user.id ||
-    escrow.assigned_counterparty_id === user.id
+  const isParty = isEscrowPartyOrAssignedRow(escrow, user.id)
   if (!isParty && !hasPermission(user.role, 'disputes.mediate')) {
     throw new AppError(403, ErrorCode.FORBIDDEN, 'No access to this dispute thread')
   }

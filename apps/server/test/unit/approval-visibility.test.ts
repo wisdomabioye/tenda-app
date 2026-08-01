@@ -45,6 +45,12 @@ interface EscrowOverrides {
   counterparty_id?: string | null
   requires_approval?: boolean
   assigned_counterparty_id?: string | null
+  /**
+   * Only for the redacted-outsider shape (assigned, id withheld). Left alone,
+   * it is derived from the id so no test can build a gig the server could
+   * never send.
+   */
+  is_assigned?: boolean
   accept_deadline?: string | null
   /** Seconds ago the assignment landed; drives the derived accepted_at. */
   assignedSecondsAgo?: number
@@ -56,12 +62,14 @@ const DURATION_SECONDS = 3600
 
 function escrow(o: EscrowOverrides = {}) {
   const assignedSecondsAgo = o.assignedSecondsAgo ?? 60
+  const assigned_counterparty_id = o.assigned_counterparty_id ?? null
   return {
     status: o.status ?? 'open',
     creator_id: CREATOR,
     counterparty_id: o.counterparty_id ?? null,
     requires_approval: o.requires_approval ?? true,
-    assigned_counterparty_id: o.assigned_counterparty_id ?? null,
+    is_assigned: o.is_assigned ?? assigned_counterparty_id !== null,
+    assigned_counterparty_id,
     accept_deadline: o.accept_deadline ?? null,
     completion_duration_seconds: DURATION_SECONDS,
     // Both contracts derive accepted_at as completion_deadline - duration, so
@@ -90,6 +98,23 @@ test('canAccept: a direct invite is acceptable ONLY by the named worker', () => 
   assert.strictEqual(canAccept(invited, STRANGER), false)
 })
 
+test('canAccept: a direct invite whose assignee is WITHHELD is still nobody elses', () => {
+  // Exactly what /v1/gigs/:id sends an outsider: the gig is spoken for, but
+  // the assignee's user id is party-only, so it arrives null. Judged on the id
+  // alone this reads as "open to anyone" and offers a stranger an Accept
+  // button whose transaction both contracts revert — the leak fix reintroducing
+  // the mode-blindness bug this helper exists to prevent.
+  const redacted = escrow({
+    requires_approval: false,
+    assigned_counterparty_id: null,
+    is_assigned: true,
+  })
+  assert.strictEqual(canAccept(redacted, STRANGER), false)
+  // And nobody is let through by it — not even the real assignee, who would
+  // only ever receive this shape if the server had mis-scoped their own gig.
+  assert.strictEqual(canAccept(redacted, WORKER), false)
+})
+
 test('canAccept: never the creator, never off `open`', () => {
   assert.strictEqual(canAccept(escrow({ requires_approval: false }), CREATOR), false)
   assert.strictEqual(
@@ -101,6 +126,7 @@ test('canAccept: never the creator, never off `open`', () => {
 test('UNRESTRICTED_ACCEPTANCE describes an escrow with no mode at all', () => {
   assert.deepStrictEqual(UNRESTRICTED_ACCEPTANCE, {
     requires_approval: false,
+    is_assigned: false,
     assigned_counterparty_id: null,
   })
 })
