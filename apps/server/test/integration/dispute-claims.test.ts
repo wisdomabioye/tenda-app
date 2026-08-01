@@ -77,6 +77,114 @@ test('claim: 404 unknown, 409 resolved, 403 plain user', { skip }, async () => {
   assert.strictEqual(plain.statusCode, 403)
 })
 
+// ── conflict of interest: a disputant may not mediate their own case ────────
+// `deriveCaller` already ranks party identity above the dispute_admin role, so
+// a party-admin cannot RESOLVE their own escrow. Claiming was the gap: the
+// claim gates proposing a resolution and used to make the mediation thread
+// present the claim holder as the neutral mediator.
+
+test('claim: an admin who is the escrow CREATOR is refused', { skip }, async () => {
+  const app = getApp()
+  const { dispute_id, creator } = await disputedEscrow(app, {}, { creatorRole: 'dispute_admin' })
+
+  const claim = await app.inject({
+    method: 'POST',
+    url: `/v1/admin/disputes/${dispute_id}/claim`,
+    headers: authHeader(creator.token),
+  })
+  assert.strictEqual(claim.statusCode, 403)
+  assert.strictEqual(claim.json().code, 'FORBIDDEN')
+
+  // The dispute stays in the open pool for an impartial mediator.
+  const [row] = await app.db.select().from(disputes).where(eq(disputes.id, dispute_id))
+  assert.strictEqual(row.assigned_to, null)
+})
+
+test('claim: an admin who is the COUNTERPARTY is refused', { skip }, async () => {
+  const app = getApp()
+  const { dispute_id, worker } = await disputedEscrow(app, {}, { workerRole: 'super_admin' })
+
+  const claim = await app.inject({
+    method: 'POST',
+    url: `/v1/admin/disputes/${dispute_id}/claim`,
+    headers: authHeader(worker.token),
+  })
+  assert.strictEqual(claim.statusCode, 403)
+  assert.strictEqual(claim.json().code, 'FORBIDDEN')
+})
+
+test('claim: the refusal is scoped to the case, not the admin', { skip }, async () => {
+  // The same admin still mediates every dispute they are NOT a party to.
+  const app = getApp()
+  const own = await disputedEscrow(app, {}, { creatorRole: 'dispute_admin' })
+  const other = await disputedEscrow(app)
+
+  const mine = await app.inject({
+    method: 'POST',
+    url: `/v1/admin/disputes/${own.dispute_id}/claim`,
+    headers: authHeader(own.creator.token),
+  })
+  assert.strictEqual(mine.statusCode, 403)
+
+  const theirs = await app.inject({
+    method: 'POST',
+    url: `/v1/admin/disputes/${other.dispute_id}/claim`,
+    headers: authHeader(own.creator.token),
+  })
+  assert.strictEqual(theirs.statusCode, 200)
+  assert.strictEqual(theirs.json().assigned_to_id, own.creator.row.id)
+})
+
+test('claim: a party-admin keeps full access to their own dispute thread', { skip }, async () => {
+  // The guard must refuse the MEDIATOR seat without locking a disputant out of
+  // their own case — they are still a party, and parties read and post freely.
+  const app = getApp()
+  const { escrow, creator } = await disputedEscrow(app, {}, { creatorRole: 'dispute_admin' })
+
+  const read = await app.inject({
+    method: 'GET',
+    url: `/v1/escrows/${escrow.id}/dispute/messages`,
+    headers: authHeader(creator.token),
+  })
+  assert.strictEqual(read.statusCode, 200)
+
+  const post = await app.inject({
+    method: 'POST',
+    url: `/v1/escrows/${escrow.id}/dispute/messages`,
+    headers: authHeader(creator.token),
+    payload: { body: 'Here is my side of it.' },
+  })
+  assert.strictEqual(post.statusCode, 201)
+})
+
+test('claim: a party-admin cannot propose a resolution on their own dispute', { skip }, async () => {
+  // Downstream of the guard: proposing requires holding the claim.
+  const app = getApp()
+  const { dispute_id, creator } = await disputedEscrow(app, {}, { creatorRole: 'dispute_admin' })
+
+  const propose = await app.inject({
+    method: 'POST',
+    url: `/v1/admin/disputes/${dispute_id}/resolution`,
+    headers: authHeader(creator.token),
+    payload: { winner: 'creator' },
+  })
+  assert.strictEqual(propose.statusCode, 403)
+  assert.strictEqual(propose.json().code, 'DISPUTE_NOT_CLAIMED')
+})
+
+test('release: an unknown dispute is a 404, not a silent success', { skip }, async () => {
+  const app = getApp()
+  const mediator = await createUser(app, { role: 'dispute_admin' })
+
+  const missing = await app.inject({
+    method: 'POST',
+    url: '/v1/admin/disputes/f0e36d8a-0000-0000-0000-000000000000/release',
+    headers: authHeader(mediator.token),
+  })
+  assert.strictEqual(missing.statusCode, 404)
+  assert.strictEqual(missing.json().code, 'NOT_FOUND')
+})
+
 test('release: claimer releases; rival 403; super_admin force-releases; idempotent', { skip }, async () => {
   const app = getApp()
   const { dispute_id } = await disputedEscrow(app)

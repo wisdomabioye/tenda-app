@@ -13,7 +13,7 @@ import {
   attachGigDetails,
   type TestUser,
 } from './test-app'
-import type { EscrowRow } from './fixtures'
+import type { EscrowRow, UserRow } from './fixtures'
 
 // ---------- request bodies --------------------------------------------------
 
@@ -67,14 +67,25 @@ export interface DisputedEscrow extends PartiedEscrow {
   dispute_id: string
 }
 
+/**
+ * Roles to give the two parties. Only needed for the conflict-of-interest
+ * cases (a disputant who ALSO holds an admin role); overriding `creator_id`
+ * instead would desync `raised_by` and build a party list that cannot occur.
+ */
+export interface DisputePartyRoles {
+  creatorRole?: UserRow['role']
+  workerRole?: UserRow['role']
+}
+
 /** Parties + a live dispute row (escrow status 'disputed'). */
 export async function disputedEscrow(
   app: FastifyInstance,
   /** Escrow columns to override — e.g. the acceptance mode a dossier reports. */
   overrides: Partial<EscrowRow> = {},
+  roles: DisputePartyRoles = {},
 ): Promise<DisputedEscrow> {
-  const creator = await createUser(app)
-  const worker = await createUser(app)
+  const creator = await createUser(app, roles.creatorRole === undefined ? {} : { role: roles.creatorRole })
+  const worker = await createUser(app, roles.workerRole === undefined ? {} : { role: roles.workerRole })
   const escrow = await createEscrow(app, {
     creator_id: creator.row.id,
     counterparty_id: worker.row.id,

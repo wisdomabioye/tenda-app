@@ -7,6 +7,9 @@
  * call sites.
  */
 import type { EscrowKind } from '../types/escrow'
+// Type-only, and deliberately so: `types/dossier` imports `PartyRole` from
+// here, so a value import would close a runtime cycle. `import type` is erased.
+import type { DossierParty } from '../types/dossier'
 
 /** Structural party identity; mirrors the escrow columns and winner enum. */
 export type PartyRole = 'creator' | 'counterparty'
@@ -45,4 +48,74 @@ export function displayName(
   if (full !== '') return full
   if (fallbackId !== undefined && fallbackId !== '') return `User ${fallbackId.slice(0, 8)}`
   return 'Unknown'
+}
+
+// ---------- dispute-thread sender identity -----------------------------------
+
+/**
+ * Who a dispute message came from, from ONE viewer's seat. `unknown` is not a
+ * failure mode — it is the honest answer when the caller has no party list yet
+ * (a `?after=` tail poll before the full load, or the admin dossier still in
+ * flight), and it is why this cannot silently fall through to `mediator`.
+ */
+export type DisputeSenderKind = 'me' | 'party' | 'mediator' | 'unknown'
+
+export interface DisputeSender {
+  kind: DisputeSenderKind
+  /** Structural role when the sender is a known party; null otherwise. */
+  role: PartyRole | null
+  /** Bubble label: 'You' | '<Role> · <Name>' | 'Mediator' | 'Participant'. */
+  label: string
+}
+
+const SELF_LABEL = 'You'
+const MEDIATOR_LABEL = 'Mediator'
+/** A sender we cannot place, because the party list has not arrived. */
+const UNPLACED_LABEL = 'Participant'
+const ROLE_NAME_SEPARATOR = ' · '
+
+export interface DisputeSenderArgs {
+  senderId: string
+  /** The reader. Empty string (signed-out / not yet hydrated) matches nobody. */
+  viewerId: string
+  /** Drives Poster/Worker vs Maker/Taker. Null ⇒ label falls back to the name. */
+  kind: EscrowKind | null
+  /** The escrow's parties. Empty ⇒ nothing can be placed but the viewer. */
+  parties: readonly DossierParty[]
+}
+
+/**
+ * Resolve one dispute-thread message to a labelled sender.
+ *
+ * Deliberately knows NOTHING about who currently holds the claim. Membership
+ * of `parties` is what makes someone a disputant, and only parties or a
+ * claim-holding admin can post (see the thread POST guard), so "not a party"
+ * IS "mediator" — for the admin who wrote it as well as for one who has since
+ * handed the claim on. Keying off the current assignee instead produced three
+ * distinct mislabellings: a mediator saw both disputants under the first
+ * party's name, a party who held the claim was dressed up as the neutral
+ * mediator, and a previous mediator's messages were attributed to the reader's
+ * opponent.
+ */
+export function resolveDisputeSender(args: DisputeSenderArgs): DisputeSender {
+  const { senderId, viewerId, kind, parties } = args
+  const party = parties.find((p) => p.user_id === senderId) ?? null
+
+  // Self first: the viewer's own bubble is identifiable even with no context.
+  if (viewerId !== '' && senderId === viewerId) {
+    return { kind: 'me', role: party?.role ?? null, label: SELF_LABEL }
+  }
+  if (party !== null) {
+    const name = displayName(party.first_name, party.last_name, party.user_id)
+    return {
+      kind: 'party',
+      role: party.role,
+      label: kind === null ? name : `${partyRoleLabel(kind, party.role)}${ROLE_NAME_SEPARATOR}${name}`,
+    }
+  }
+  // No party list ⇒ we genuinely cannot tell a mediator from a disputant.
+  if (parties.length === 0) {
+    return { kind: 'unknown', role: null, label: UNPLACED_LABEL }
+  }
+  return { kind: 'mediator', role: null, label: MEDIATOR_LABEL }
 }

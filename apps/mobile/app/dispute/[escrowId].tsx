@@ -9,7 +9,7 @@ import { FlatList, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
-import { displayName, type DisputeMessage } from '@tenda/shared'
+import { resolveDisputeSender, type DisputeMessage, type DisputeSender } from '@tenda/shared'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
@@ -20,7 +20,7 @@ import { ChatTimestampGroup } from '@/components/chat/ChatTimestampGroup'
 import { ErrorState } from '@/components/feedback'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { showToast } from '@/components/ui/Toast'
-import { DisputeMessageBubble, type DisputeSenderKind } from '@/components/dispute/DisputeMessageBubble'
+import { DisputeMessageBubble } from '@/components/dispute/DisputeMessageBubble'
 import { DisputeContextHeader } from '@/components/dispute/DisputeContextHeader'
 import { useDisputeThread } from '@/hooks/useDisputeThread'
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'
@@ -55,16 +55,20 @@ export default function DisputeThreadScreen() {
   // Day headers + consecutive-sender grouping, reversed for the inverted list.
   const feed = useMemo(() => buildDisputeFeed(messages), [messages])
 
-  // The single other disputant's name, for the counterparty bubble label.
-  const otherPartyName = useMemo(() => {
-    const other = thread?.context?.parties.find((p) => p.user_id !== myId)
-    return other ? displayName(other.first_name, other.last_name, other.user_id) : undefined
-  }, [thread?.context, myId])
-
-  function senderKind(message: DisputeMessage): DisputeSenderKind {
-    if (message.sender_id === myId) return 'me'
-    if (thread !== null && message.sender_id === thread.assigned_to_id) return 'mediator'
-    return 'party'
+  /**
+   * Per-message sender identity. Derived from the escrow's party list, NOT
+   * from "whoever isn't me" — that shortcut is only true from a disputant's
+   * seat, and it silently labelled every bubble with the first party's name
+   * for the mediator, who is the one person who must tell them apart.
+   */
+  function senderOf(message: DisputeMessage): DisputeSender {
+    const context = thread?.context ?? null
+    return resolveDisputeSender({
+      senderId: message.sender_id,
+      viewerId: myId,
+      kind: context?.kind ?? null,
+      parties: context?.parties ?? [],
+    })
   }
 
   async function handleSend(text: string) {
@@ -119,8 +123,7 @@ export default function DisputeThreadScreen() {
             ) : (
               <DisputeMessageBubble
                 message={item.message}
-                sender={senderKind(item.message)}
-                senderName={otherPartyName}
+                sender={senderOf(item.message)}
                 showSender={item.showSender}
                 showTime={item.showTime}
                 onAttachmentPress={(a) => setViewing(attachmentToMediaItem(a.id, a.url, a.type))}

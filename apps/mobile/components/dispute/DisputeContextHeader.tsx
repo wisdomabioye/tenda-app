@@ -8,6 +8,7 @@ import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { GigStatusBadge } from '@/components/gig/GigStatusBadge'
 import { ExchangeStatusBadge } from '@/components/exchange/ExchangeStatusBadge'
+import { partyAccent } from '@/components/dispute/party-visual'
 import { spacing } from '@/theme/tokens'
 
 interface Props {
@@ -93,7 +94,9 @@ function PartyChip({
 
   return (
     <View style={s.chip}>
-      <Avatar size="sm" name={name} gradient={party.role === 'creator' ? 'accent' : 'brand'} />
+      {/* `tone`, not `gradient`: Avatar only honours `gradient` at lg/xl, so
+          the role colour these chips were meant to carry never rendered. */}
+      <Avatar size="sm" name={name} tone={partyAccent(party.role)} />
       <View style={s.chipBody}>
         <Text variant="caption" color={theme.colors.content.tertiary}>
           {partyRoleLabel(kind, party.role)}

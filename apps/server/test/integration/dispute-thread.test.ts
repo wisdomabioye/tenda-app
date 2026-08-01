@@ -131,6 +131,34 @@ test('thread: full load carries escrow + party context, creator-first', { skip }
   )
 })
 
+test('thread: a mediating admin gets the SAME named party list as a party', { skip }, async () => {
+  // The client labels each bubble by looking the sender up in this list, so a
+  // mediator who received a thinner list than the disputants (or one missing
+  // names) is exactly how the two counterparties collapsed into one identity.
+  const app = getApp()
+  const { creator, worker, escrow } = await disputedEscrow(app)
+  const mediator = await createUser(app, { role: 'dispute_admin' })
+
+  const [asParty, asMediator] = await Promise.all([
+    app.inject({ method: 'GET', url: threadUrl(escrow.id), headers: authHeader(worker.token) }),
+    app.inject({ method: 'GET', url: threadUrl(escrow.id), headers: authHeader(mediator.token) }),
+  ])
+  assert.strictEqual(asMediator.statusCode, 200)
+  assert.deepStrictEqual(asMediator.json().context.parties, asParty.json().context.parties)
+
+  // Every party is nameable and distinctly identified.
+  const parties: Array<{ user_id: string; first_name: string | null; last_name: string | null }> =
+    asMediator.json().context.parties
+  assert.strictEqual(parties.length, 2)
+  assert.deepStrictEqual(
+    parties.map((p) => p.user_id),
+    [creator.row.id, worker.row.id],
+  )
+  for (const party of parties) {
+    assert.ok(party.first_name !== null && party.first_name !== '')
+  }
+})
+
 test('thread: exchange context has a null subject_title (no gig details)', { skip }, async () => {
   const app = getApp()
   const creator = await createUser(app)

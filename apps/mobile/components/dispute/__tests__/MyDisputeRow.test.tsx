@@ -85,3 +85,43 @@ test('press invokes onPress (deep-link)', () => {
   fireEvent.press(screen.getByLabelText('Open dispute: Paint the fence'))
   expect(onPress).toHaveBeenCalledTimes(1)
 })
+
+/** Every rendered string, so assertions can reason about absence. */
+function textsOf(node: unknown): string[] {
+  const out: string[] = []
+  const walk = (n: unknown): void => {
+    if (typeof n === 'string') return void out.push(n)
+    if (Array.isArray(n)) return n.forEach(walk)
+    if (n === null || typeof n !== 'object') return
+    walk((n as { children?: unknown }).children)
+  }
+  walk(node)
+  return out
+}
+
+test('gig with no title falls back to the generic subject', () => {
+  render(<MyDisputeRow row={open({ kind: 'gig', subject_title: null })} onPress={jest.fn()} />)
+  expect(screen.getByText('Gig')).toBeTruthy()
+})
+
+test('an unnamed counterparty is described generically', () => {
+  render(<MyDisputeRow row={open({ counterparty_name: null })} onPress={jest.fn()} />)
+  expect(screen.getByText('the other party · You raised this')).toBeTruthy()
+})
+
+test('a dispute with no raised_at renders NO relative time, not a 1970 date', () => {
+  // `new Date(null)` is the epoch, not an invalid date, so a missing guard
+  // renders a confident "1 Jan" rather than anything obviously broken —
+  // asserting the slot is merely "different" would not notice.
+  // 'now' | '5m' | '3h' | '2d' | '1w' | a short date in either locale order.
+  const RELATIVE_TIME = /^(now|\d+[mhdw]|\d{1,2} [A-Za-z]{3}|[A-Za-z]{3} \d{1,2})$/
+
+  const { rerender, toJSON } = render(
+    <MyDisputeRow row={open({ raised_at: '2026-07-01T10:00:00.000Z' })} onPress={jest.fn()} />,
+  )
+  expect(textsOf(toJSON()).filter((t) => RELATIVE_TIME.test(t))).toHaveLength(1)
+
+  rerender(<MyDisputeRow row={open({ raised_at: null })} onPress={jest.fn()} />)
+  expect(textsOf(toJSON()).filter((t) => RELATIVE_TIME.test(t))).toHaveLength(0)
+  expect(screen.getByText('Paint the fence')).toBeTruthy()
+})

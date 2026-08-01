@@ -28,6 +28,7 @@ import {
   narrowWinner,
   toResolutionWire,
 } from '@server/lib/disputes/resolution-store'
+import { claimDispute, releaseDispute } from '@server/lib/disputes/claim-store'
 
 
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString())
@@ -137,45 +138,23 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     return toSummary(row)
   })
 
-  // POST /v1/admin/disputes/:id/claim, take the dispute from the open
-  // pool (CO7). Atomic: the WHERE clause loses the race instead of
-  // double-assigning; re-claiming your own dispute is a no-op 200.
+  // POST /v1/admin/disputes/:id/claim, take the dispute from the open pool
+  // (CO7). Semantics — atomic race, party refusal, failure shapes — live in
+  // lib/disputes/claim-store.
   fastify.post<{
     Params: { id: string }
     Reply: { id: string; assigned_to_id: string } | ApiError
   }>('/:id/claim', { preHandler: [requirePermission('disputes.mediate')] }, async (request) => {
-    const me = request.user.id
-    const [claimed] = await fastify.db
-      .update(disputes)
-      .set({ assigned_to: me, assigned_at: new Date() })
-      .where(
-        and(
-          eq(disputes.id, request.params.id),
-          isNull(disputes.resolved_at),
-          or(isNull(disputes.assigned_to), eq(disputes.assigned_to, me)),
-        ),
-      )
-      .returning({ id: disputes.id })
-    if (claimed !== undefined) {
-      appEvents.emit('admin.claim_dispute', {
-        adminId: me,
-        adminRole: request.user.role,
-        disputeId: claimed.id,
-      })
-      return { id: claimed.id, assigned_to_id: me }
-    }
-
-    // Distinguish the three failure shapes for a useful client error.
-    const [row] = await fastify.db
-      .select({ assigned_to: disputes.assigned_to, resolved_at: disputes.resolved_at })
-      .from(disputes)
-      .where(eq(disputes.id, request.params.id))
-      .limit(1)
-    if (row === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Dispute not found')
-    if (row.resolved_at !== null) {
-      throw new AppError(409, ErrorCode.DISPUTE_RESOLVED, 'Dispute already resolved')
-    }
-    throw new AppError(409, ErrorCode.DISPUTE_ALREADY_CLAIMED, 'Dispute already claimed by another mediator')
+    const claimed = await claimDispute(fastify.db, {
+      disputeId: request.params.id,
+      userId: request.user.id,
+    })
+    appEvents.emit('admin.claim_dispute', {
+      adminId: request.user.id,
+      adminRole: request.user.role,
+      disputeId: claimed.id,
+    })
+    return claimed
   })
 
   // POST /v1/admin/disputes/:id/release, return the dispute to the open
@@ -184,29 +163,21 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     Params: { id: string }
     Reply: { id: string; assigned_to_id: null } | ApiError
   }>('/:id/release', { preHandler: [requirePermission('disputes.mediate')] }, async (request) => {
-    const me = request.user.id
-    const [row] = await fastify.db
-      .select({ id: disputes.id, assigned_to: disputes.assigned_to })
-      .from(disputes)
-      .where(eq(disputes.id, request.params.id))
-      .limit(1)
-    if (row === undefined) throw new AppError(404, ErrorCode.NOT_FOUND, 'Dispute not found')
-    if (row.assigned_to === null) return { id: row.id, assigned_to_id: null } // idempotent
-    if (row.assigned_to !== me && request.user.role !== 'super_admin') {
-      throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the claiming mediator (or a super_admin) can release')
-    }
-
-    await fastify.db
-      .update(disputes)
-      .set({ assigned_to: null, assigned_at: null })
-      .where(eq(disputes.id, row.id))
-    appEvents.emit('admin.release_dispute', {
-      adminId: me,
-      adminRole: request.user.role,
-      disputeId: row.id,
-      previousAssignee: row.assigned_to,
+    const { id, previousAssignee } = await releaseDispute(fastify.db, {
+      disputeId: request.params.id,
+      userId: request.user.id,
+      role: request.user.role,
     })
-    return { id: row.id, assigned_to_id: null }
+    // An already-unclaimed dispute is a no-op, so it emits nothing to audit.
+    if (previousAssignee !== null) {
+      appEvents.emit('admin.release_dispute', {
+        adminId: request.user.id,
+        adminRole: request.user.role,
+        disputeId: id,
+        previousAssignee,
+      })
+    }
+    return { id, assigned_to_id: null }
   })
 
   // GET /v1/admin/disputes/:id/resolution, the dispute's latest proposal (any

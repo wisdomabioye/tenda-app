@@ -26,7 +26,12 @@ jest.mock('@/components/ui/Text', () => {
   const { Text } = require('react-native')
   return { Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
 })
-jest.mock('@/components/ui/Avatar', () => ({ Avatar: () => null }))
+jest.mock('@/components/ui/Avatar', () => {
+  const { Text } = require('react-native')
+  // Surfaces the tone so the role colour-coding is assertable — it is only
+  // honoured at this size through `tone`, never `gradient`.
+  return { Avatar: ({ tone }: { tone?: string }) => <Text>{`avatar-tone:${tone ?? 'default'}`}</Text> }
+})
 jest.mock('@/components/gig/GigStatusBadge', () => {
   const { Text } = require('react-native')
   return { GigStatusBadge: ({ status }: { status: string }) => <Text>{`badge:${status}`}</Text> }
@@ -99,4 +104,22 @@ test('reason is shown and the toggle expands/collapses it', () => {
   // Collapsed by default; the toggle is a labelled button.
   fireEvent.press(screen.getByLabelText('Expand dispute reason'))
   expect(screen.getByLabelText('Collapse dispute reason')).toBeTruthy()
+})
+
+test('gig: falls back to a generic subject when the gig has no title', () => {
+  render(
+    <DisputeContextHeader
+      context={gigContext({ kind: 'gig', subject_title: null })}
+      currentUserId={CREATOR}
+    />,
+  )
+  expect(screen.getByText('Gig')).toBeTruthy()
+})
+
+test('the two party chips are colour-coded by role, not identically tinted', () => {
+  // Reinforces the label: a reader who is neither party has two chips to tell
+  // apart, so the roles must differ visually as well as in text.
+  render(<DisputeContextHeader context={gigContext()} currentUserId="outsider" />)
+  expect(screen.getByText('avatar-tone:accent')).toBeTruthy()
+  expect(screen.getByText('avatar-tone:brand')).toBeTruthy()
 })

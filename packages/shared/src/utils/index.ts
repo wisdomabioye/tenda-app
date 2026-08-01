@@ -4,7 +4,15 @@ export { isCrossBorder } from './cross-border'
 export { LAMPORTS_PER_SOL } from './constants'
 export { parseUnits, formatUnits } from './units'
 export { truncateWallet } from './wallet'
-export { partyRoleLabel, winnerLabel, displayName, type PartyRole } from './parties'
+export {
+  partyRoleLabel,
+  winnerLabel,
+  displayName,
+  resolveDisputeSender,
+  type PartyRole,
+  type DisputeSender,
+  type DisputeSenderArgs,
+} from './parties'
 export { normalizeChainAddress, sameChainAddress, chainNamespaceOf } from './address'
 
 export {

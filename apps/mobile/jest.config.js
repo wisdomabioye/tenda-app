@@ -102,5 +102,11 @@ module.exports = {
     'components/gig/GigDetailGate.tsx',
     'components/shared/ReviewScore.tsx',
     'stores/gigs.store.ts',
+    // Dispute mediation. Named as WHOLE folders, not a hand-picked list: the
+    // thread screen sat at 0% while its neighbours reported healthy numbers,
+    // which is how a mediator seeing both disputants under one name shipped.
+    'app/dispute/*.tsx',
+    'components/dispute/*.{ts,tsx}',
+    'lib/dispute-thread.ts',
   ],
 }

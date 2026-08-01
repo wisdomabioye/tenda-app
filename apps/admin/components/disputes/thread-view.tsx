@@ -14,12 +14,12 @@
  * duplicating a signing surface it has no wallet for.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
-  partyRoleLabel,
-  displayName,
+  resolveDisputeSender,
   type DisputeMessage,
+  type DisputeSender,
   type DossierParty,
   type EscrowKind,
 } from '@tenda/shared'
@@ -110,22 +110,15 @@ export function ThreadView({ escrowId, onAssignee, kind, parties }: ThreadViewPr
 
   const canPost = !readOnly && assignedToId === meId
 
-  const partyById = useMemo(
-    () => new Map(parties.map((p) => [p.user_id, p])),
-    [parties],
-  )
-
-  // Who sent a message: me → "You"; the claiming mediator → "Mediator";
-  // otherwise the party's kind-aware role + name so a mediator can always
-  // tell the poster/worker (or maker/taker) apart in the thread.
-  function senderLabel(senderId: string): string {
-    if (senderId === meId) return 'You'
-    if (senderId === assignedToId) return 'Mediator'
-    const party = partyById.get(senderId)
-    if (party !== undefined) {
-      return `${partyRoleLabel(kind, party.role)} · ${displayName(party.first_name, party.last_name, party.user_id)}`
-    }
-    return 'Participant'
+  /**
+   * Sender identity comes from the shared resolver, which keys off party
+   * MEMBERSHIP rather than the current assignee. That matters twice here: an
+   * admin who is themselves a disputant is no longer dressed up as the
+   * neutral mediator, and a mediator who has since handed the claim on still
+   * reads as "Mediator" instead of falling through to "Participant".
+   */
+  function senderOf(senderId: string): DisputeSender {
+    return resolveDisputeSender({ senderId, viewerId: meId, kind, parties })
   }
 
   return (
@@ -135,11 +128,14 @@ export function ThreadView({ escrowId, onAssignee, kind, parties }: ThreadViewPr
           <p className="text-sm text-muted-foreground">No messages yet.</p>
         )}
         {messages.map((m) => {
-          const mine = m.sender_id === meId
+          // One resolution per message: alignment and label must never
+          // disagree about whose bubble this is.
+          const sender = senderOf(m.sender_id)
+          const mine = sender.kind === 'me'
           return (
             <div key={m.id} className={`flex flex-col ${mine ? 'items-end' : 'items-start'}`}>
               <span className="mb-0.5 px-1 text-[10px] font-medium text-muted-foreground">
-                {senderLabel(m.sender_id)}
+                {sender.label}
               </span>
               <div
                 className={`max-w-[70%] rounded-lg px-3 py-2 text-sm ${
