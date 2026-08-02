@@ -20,6 +20,7 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import type { DisputeMessage, DisputeSender, DisputeThreadResponse } from '@tenda/shared'
+import type { DisputeSendResult } from '@/lib/dispute-send-error'
 
 const CREATOR = 'user-creator-1111'
 const COUNTERPARTY = 'user-counterparty-2222'
@@ -314,7 +315,8 @@ const mockThread: {
   loading: boolean
   error: string | null
   readOnly: boolean
-  sendSucceeds: boolean
+  /** What the hook reports back from send(); 'sent' is success. */
+  sendResult: DisputeSendResult
   /** Thread missing with no error string — the other half of the load guard. */
   threadMissing: boolean
   /** Drive the ListEmptyComponent without mutating the shared message fixture. */
@@ -325,7 +327,7 @@ const mockThread: {
   loading: false,
   error: null,
   readOnly: false,
-  sendSucceeds: true,
+  sendResult: 'sent',
   threadMissing: false,
   empty: false,
   sent: [],
@@ -350,7 +352,7 @@ jest.mock('@/hooks/useDisputeThread', () => ({
     messages: mockThread.empty ? [] : messages,
     send: (body: string, attachment?: unknown) => {
       mockThread.sent.push({ body, hasAttachment: attachment !== undefined })
-      return Promise.resolve(mockThread.sendSucceeds)
+      return Promise.resolve(mockThread.sendResult)
     },
     reload: () => {
       mockThread.reloads += 1
@@ -411,7 +413,7 @@ beforeEach(() => {
   mockThread.loading = false
   mockThread.error = null
   mockThread.readOnly = false
-  mockThread.sendSucceeds = true
+  mockThread.sendResult = 'sent'
   mockThread.threadMissing = false
   mockThread.empty = false
   mockThread.sent.length = 0
@@ -543,7 +545,7 @@ test('sending posts the composed text', async () => {
 })
 
 test('a failed send tells the user rather than dropping the message silently', async () => {
-  mockThread.sendSucceeds = false
+  mockThread.sendResult = 'failed'
   renderAsParty()
   fireEvent.press(screen.getByTestId('send'))
   await Promise.resolve()
@@ -583,7 +585,7 @@ test('an uploaded attachment is posted as an attachment-only message', async () 
 })
 
 test('a failed attachment send is reported', async () => {
-  mockThread.sendSucceeds = false
+  mockThread.sendResult = 'failed'
   renderAsParty()
   const onUploaded = mockUpload.onUploaded
   if (onUploaded === null) throw new Error('the screen never registered an upload handler')
@@ -745,4 +747,57 @@ test('a resolved thread shows no mediator banner even without the claim', () => 
 
   expect(screen.queryByText(MEDIATOR_BANNER)).toBeNull()
   expect(screen.getByText(/resolved, the conversation is read-only/i)).toBeTruthy()
+})
+
+// ── send refusals reach the user with their real reason ─────────────────────
+// Every failure used to collapse to "Message not sent, try again", which told
+// an admin without the claim, and anyone posting to a resolved thread, to keep
+// retrying something that could never succeed.
+
+test('each refusal reason produces its OWN message, and only one says try again', async () => {
+  const seen = new Map<DisputeSendResult, string>()
+  for (const result of ['resolved', 'not_claimed', 'invalid', 'rate_limited', 'failed'] as const) {
+    mockToasts.length = 0
+    mockThread.sendResult = result
+    const view = render(<DisputeThreadScreen />)
+    fireEvent.press(screen.getByTestId('send'))
+    await Promise.resolve()
+    expect(mockToasts).toHaveLength(1)
+    seen.set(result, mockToasts[0].message)
+    view.unmount()
+  }
+
+  // Distinct copy per reason — a shared string is the bug this replaces.
+  expect(new Set(seen.values()).size).toBe(seen.size)
+  expect(seen.get('failed')).toMatch(/try again/i)
+  for (const result of ['resolved', 'not_claimed', 'invalid', 'rate_limited'] as const) {
+    expect(seen.get(result)).not.toMatch(/try again/i)
+  }
+})
+
+test('a refused attachment names the ATTACHMENT, not the message', async () => {
+  mockThread.sendResult = 'failed'
+  renderAsParty()
+  await mockUpload.onUploaded?.({ url: 'https://cdn/x.jpg', type: 'image', size: 10 })
+
+  expect(mockToasts).toEqual([{ tone: 'error', message: 'Attachment not sent, try again' }])
+})
+
+test('an attachment refused for a NON-retryable reason drops the retry invitation', async () => {
+  mockThread.sendResult = 'resolved'
+  renderAsParty()
+  await mockUpload.onUploaded?.({ url: 'https://cdn/x.jpg', type: 'image', size: 10 })
+
+  expect(mockToasts[0].message).not.toMatch(/try again/i)
+  expect(mockToasts[0].message).toMatch(/read-only/i)
+})
+
+test('a successful send still says nothing at all', async () => {
+  // The toast plumbing must stay quiet on the happy path.
+  mockThread.sendResult = 'sent'
+  renderAsParty()
+  fireEvent.press(screen.getByTestId('send'))
+  await Promise.resolve()
+
+  expect(mockToasts).toHaveLength(0)
 })

@@ -108,5 +108,7 @@ module.exports = {
     'app/dispute/*.tsx',
     'components/dispute/*.{ts,tsx}',
     'lib/dispute-thread.ts',
+    'lib/dispute-send-error.ts',
+    'hooks/useDisputeThread.ts',
   ],
 }

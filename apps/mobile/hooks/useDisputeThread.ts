@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { DisputeMessage, DisputeThreadResponse } from '@tenda/shared'
 import { api } from '@/api/client'
 import type { UploadedAttachment } from '@/lib/attachments'
+import { classifyDisputeSendError, type DisputeSendResult } from '@/lib/dispute-send-error'
 
 const POLL_INTERVAL_MS = 4_000
 const POLL_IDLE_MS = 10_000
@@ -12,8 +13,12 @@ export interface DisputeThreadState {
   error: string | null
   thread: Omit<DisputeThreadResponse, 'messages'> | null
   messages: DisputeMessage[]
-  /** Append a message (optionally with an attachment); false when the send failed. */
-  send: (body: string, attachment?: UploadedAttachment) => Promise<boolean>
+  /**
+   * Append a message (optionally with an attachment). Reports WHY a send was
+   * refused: only `failed` is worth retrying, and the caller needs to tell
+   * those apart to avoid inviting a retry that can never succeed.
+   */
+  send: (body: string, attachment?: UploadedAttachment) => Promise<DisputeSendResult>
   /** Manual refresh (pull-to-refresh / retry). */
   reload: () => Promise<void>
 }
@@ -113,8 +118,8 @@ export function useDisputeThread(escrowId: string | null): DisputeThreadState {
   }, [load])
 
   const send = useCallback(
-    async (body: string, attachment?: UploadedAttachment): Promise<boolean> => {
-      if (escrowId === null) return false
+    async (body: string, attachment?: UploadedAttachment): Promise<DisputeSendResult> => {
+      if (escrowId === null) return 'failed'
       try {
         const message = await api.escrows.sendDisputeMessage(
           { id: escrowId },
@@ -128,9 +133,15 @@ export function useDisputeThread(escrowId: string | null): DisputeThreadState {
             : { body },
         )
         applyBatch([message], false)
-        return true
-      } catch {
-        return false
+        return 'sent'
+      } catch (err) {
+        const failure = classifyDisputeSendError(err)
+        // The server has already frozen this thread; freeze ours too rather
+        // than waiting for a poll, so the composer goes away with the toast.
+        if (failure === 'resolved') {
+          setThread((prev) => (prev === null ? prev : { ...prev, read_only: true }))
+        }
+        return failure
       }
     },
     [escrowId, applyBatch],

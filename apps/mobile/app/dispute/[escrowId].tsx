@@ -37,6 +37,7 @@ import { useDisputeThread } from '@/hooks/useDisputeThread'
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'
 import { useAttachmentUpload } from '@/hooks/useAttachmentUpload'
 import { buildDisputeFeed, isDisputeDay } from '@/lib/dispute-thread'
+import { disputeSendMessage } from '@/lib/dispute-send-error'
 import { attachmentToMediaItem } from '@/lib/attachments'
 import { useAuthStore } from '@/stores/auth.store'
 import { spacing } from '@/theme/tokens'
@@ -58,8 +59,8 @@ export default function DisputeThreadScreen() {
     type: 'dispute',
     scopeId: escrowId ?? null,
     onUploaded: async (attachment) => {
-      const ok = await send('', attachment)
-      if (!ok) showToast('error', 'Attachment not sent, try again')
+      const result = await send('', attachment)
+      if (result !== 'sent') showToast('error', disputeSendMessage(result, 'Attachment'))
     },
   })
 
@@ -83,8 +84,11 @@ export default function DisputeThreadScreen() {
   }
 
   async function handleSend(text: string) {
-    const ok = await send(text)
-    if (!ok) showToast('error', 'Message not sent, try again')
+    const result = await send(text)
+    // A refusal the user cannot retry away (resolved thread, no claim) must not
+    // be dressed up as "try again"; the hook has already frozen a resolved
+    // thread, so the composer disappears alongside this toast.
+    if (result !== 'sent') showToast('error', disputeSendMessage(result, 'Message'))
   }
 
   /**
