@@ -13,6 +13,7 @@ import type {
 import type { UserRole, UserStatus } from './user'
 import type { EscrowKind, EscrowStatus, EscrowListRow } from './escrow'
 import type { GigCategory } from '../constants/categories'
+import type { DisputeListAssigned, DisputeListStatus } from '../constants/disputes'
 import type { ReportStatus } from '../constants/moderation'
 import type { PaginatedResponse } from './api'
 
@@ -88,6 +89,24 @@ export type { ReportStatus, PaginatedResponse }
 
 // ─── Disputes ────────────────────────────────────────────────────────────────
 
+/**
+ * Query accepted by GET /admin/disputes. Every enum-ish member is narrowed
+ * server-side and a value outside its vocabulary is a 400, so this MUST stay
+ * the single definition — a dashboard-local copy could offer a filter the API
+ * refuses. Declared as a `type`, not an `interface`: only a type alias carries
+ * the implicit index signature that the caller's `Record`-shaped query
+ * serialiser requires.
+ */
+export type DisputeListQuery = {
+  status?: DisputeListStatus
+  kind?: EscrowKind
+  assigned?: DisputeListAssigned
+  /** Filter to disputes where this user is a party (user-detail cross-link). */
+  party?: string
+  limit?: number
+  offset?: number
+}
+
 /** Normalised row returned by GET /admin/disputes (v2 single dispute table). */
 export interface DisputeSummary {
   dispute_id: string
@@ -107,12 +126,18 @@ export interface DisputeSummary {
   assigned_at: string | null
   winner: 'creator' | 'counterparty' | 'split' | null
   /**
-   * Set aside for the resolving admin, but NOTHING writes disputes.resolved_by
-   * — the on-chain settlement path stamps winner + resolved_at only. Treat it
-   * as always null until that is fixed; the real record of who drove a
-   * resolution is dispute_resolutions.proposed_by on the confirmed row.
+   * Author of the VERDICT — the mediator whose proposal confirmed on chain,
+   * copied from dispute_resolutions.proposed_by by the settlement path. Not
+   * the signer: signing is a separate permission (disputes.execute) using the
+   * chain's shared dispute-authority key, and that admin is recorded on the
+   * tx_attempts row instead. Null when the resolution bypassed the propose
+   * flow (CLI/direct-resolve) and on disputes resolved before this was
+   * stamped — historic rows are not backfilled.
    */
   resolved_by_id: string | null
+  /** Resolver's name; null whenever resolved_by_id is, for the reasons above. */
+  resolved_by_first_name: string | null
+  resolved_by_last_name: string | null
   resolved_at: string | null
   raised_at: string | null
 }

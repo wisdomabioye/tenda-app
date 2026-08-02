@@ -12,6 +12,7 @@ import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
 import { disputes, dispute_resolutions, escrows } from '@tenda/shared/db/schema'
+import type { DisputeSummary, ResolutionWinner } from '@tenda/shared'
 import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
 import {
   TEST_DB_CONFIGURED,
@@ -32,13 +33,17 @@ const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
 
 /** A disputed escrow whose dispute is already claimed by a fresh mediator. */
-async function claimedDispute(app: FastifyInstance): Promise<{
+async function claimedDispute(
+  app: FastifyInstance,
+  /** Name the mediator when the assertion is about how they are RENDERED. */
+  mediatorOverrides: { first_name?: string; last_name?: string } = {},
+): Promise<{
   escrow_id: string
   dispute_id: string
   mediator: TestUser
 }> {
   const { escrow, dispute_id } = await disputedEscrow(app)
-  const mediator = await createUser(app, { role: 'dispute_admin' })
+  const mediator = await createUser(app, { role: 'dispute_admin', ...mediatorOverrides })
   const claim = await app.inject({
     method: 'POST',
     url: `/v1/admin/disputes/${dispute_id}/claim`,
@@ -55,6 +60,58 @@ function propose(app: FastifyInstance, disputeId: string, token: string, winner 
     headers: authHeader(token),
     payload: { winner },
   })
+}
+
+/** Simulate the verify-tx apply path landing an on-chain DisputeResolved. */
+function landResolution(app: FastifyInstance, escrow_id: string, winner: ResolutionWinner) {
+  return drizzleEscrowEventStore(app.db).applyEvent({
+    escrow_id,
+    from: ['disputed'],
+    patch: { status: 'resolved' },
+    transaction: {
+      type: 'resolve',
+      tx_ref: `resolve-${escrow_id}`,
+      amount_raw: null,
+      platform_fee_raw: null,
+      creator_payout_raw: null,
+      actor_id: null,
+    },
+    disputeResolution: { winner },
+  })
+}
+
+/** GET the triage queue, asserting the 200 so callers read a body, not a code. */
+async function listDisputes(
+  app: FastifyInstance,
+  token: string,
+  query = '',
+): Promise<{ total: number; rows: DisputeSummary[] }> {
+  const res = await app.inject({
+    method: 'GET',
+    url: `/v1/admin/disputes${query}`,
+    headers: authHeader(token),
+  })
+  assert.strictEqual(res.statusCode, 200)
+  const body = res.json()
+  return { total: body.total, rows: body.data }
+}
+
+const idsOf = (rows: DisputeSummary[]): string[] => rows.map((d) => d.dispute_id)
+
+/** Locate a row, failing by NAME rather than reading fields off undefined. */
+function mustFind(rows: DisputeSummary[], dispute_id: string): DisputeSummary {
+  const row = rows.find((d) => d.dispute_id === dispute_id)
+  assert.ok(row !== undefined, `dispute ${dispute_id} is missing from the queue page`)
+  return row
+}
+
+/** The settlement stamp: what the apply path wrote onto the dispute row. */
+async function readStamp(app: FastifyInstance, dispute_id: string) {
+  const [row] = await app.db
+    .select({ winner: disputes.winner, resolved_at: disputes.resolved_at, resolved_by: disputes.resolved_by })
+    .from(disputes)
+    .where(eq(disputes.id, dispute_id))
+  return row
 }
 
 test('propose: a mediator not holding the claim is refused', { skip }, async () => {
@@ -376,14 +433,7 @@ test('execute-build → confirm hook: an executing proposal confirms on DisputeR
   const signer = await createUser(app, { role: 'super_admin' })
   assert.strictEqual((await executeBuild(app, proposal.id, signer.token)).statusCode, 200)
 
-  const store = drizzleEscrowEventStore(app.db)
-  await store.applyEvent({
-    escrow_id,
-    from: ['disputed'],
-    patch: { status: 'resolved' },
-    transaction: { type: 'resolve', tx_ref: `resolve-${escrow_id}`, amount_raw: null, platform_fee_raw: null, creator_payout_raw: null, actor_id: null },
-    disputeResolution: { winner: 'counterparty' },
-  })
+  await landResolution(app, escrow_id, 'counterparty')
   const [row] = await app.db.select().from(dispute_resolutions).where(eq(dispute_resolutions.id, proposal.id))
   assert.strictEqual(row.status, 'confirmed')
   assert.strictEqual(row.resolved_tx_ref, `resolve-${escrow_id}`)
@@ -394,15 +444,7 @@ test('confirm hook: DisputeResolved marks the active proposal confirmed', { skip
   const { escrow_id, dispute_id, mediator } = await claimedDispute(app)
   const proposal = (await propose(app, dispute_id, mediator.token, 'split')).json()
 
-  // Simulate the verify-tx apply path landing the on-chain resolution.
-  const store = drizzleEscrowEventStore(app.db)
-  const outcome = await store.applyEvent({
-    escrow_id,
-    from: ['disputed'],
-    patch: { status: 'resolved' },
-    transaction: { type: 'resolve', tx_ref: `resolve-${escrow_id}`, amount_raw: null, platform_fee_raw: null, creator_payout_raw: null, actor_id: null },
-    disputeResolution: { winner: 'split' },
-  })
+  const outcome = await landResolution(app, escrow_id, 'split')
   assert.strictEqual(outcome.applied, true)
 
   const [row] = await app.db.select().from(dispute_resolutions).where(eq(dispute_resolutions.id, proposal.id))
@@ -410,7 +452,298 @@ test('confirm hook: DisputeResolved marks the active proposal confirmed', { skip
   assert.strictEqual(row.resolved_tx_ref, `resolve-${escrow_id}`)
 
   // And the dispute is now resolved (thread freezes) — set by the apply path.
-  const [d] = await app.db.select({ resolved_at: disputes.resolved_at, winner: disputes.winner }).from(disputes).where(eq(disputes.id, dispute_id))
-  assert.notStrictEqual(d.resolved_at, null)
-  assert.strictEqual(d.winner, 'split')
+  const stamp = await readStamp(app, dispute_id)
+  assert.notStrictEqual(stamp.resolved_at, null)
+  assert.strictEqual(stamp.winner, 'split')
+})
+
+test('confirm hook: resolved_by names the PROPOSING mediator, not the signer', { skip }, async () => {
+  // The design question this pins: the resolve tx is signed with the chain's
+  // shared dispute-authority key by a `disputes.execute` holder, who is a
+  // different person from the `disputes.mediate` mediator whose verdict it is
+  // (dispute_admin cannot sign; only super_admin holds both). Copying the
+  // signer here would credit the wrong admin for the decision — and would
+  // still look "populated", which is why the not-signer assertion matters.
+  const app = getApp()
+  const { escrow_id, dispute_id, mediator } = await claimedDispute(app)
+  const proposal = (await propose(app, dispute_id, mediator.token, 'counterparty')).json()
+  const signer = await createUser(app, { role: 'super_admin' })
+  assert.strictEqual((await executeBuild(app, proposal.id, signer.token)).statusCode, 200)
+
+  await landResolution(app, escrow_id, 'counterparty')
+
+  const stamp = await readStamp(app, dispute_id)
+  assert.strictEqual(stamp.resolved_by, mediator.row.id)
+  assert.notStrictEqual(stamp.resolved_by, signer.row.id)
+})
+
+test('confirm hook: no proposal → the dispute still resolves, resolved_by stays null', { skip }, async () => {
+  // Direct-resolve/CLI bypasses the propose flow, so nobody authored a
+  // verdict. Null is the honest answer; the stamp must NOT become
+  // conditional on a proposal existing, or that path would leave the thread
+  // live and the escrow settled.
+  const app = getApp()
+  const { escrow_id, dispute_id } = await claimedDispute(app)
+
+  const outcome = await landResolution(app, escrow_id, 'creator')
+  assert.strictEqual(outcome.applied, true)
+
+  const stamp = await readStamp(app, dispute_id)
+  assert.notStrictEqual(stamp.resolved_at, null)
+  assert.strictEqual(stamp.winner, 'creator')
+  assert.strictEqual(stamp.resolved_by, null)
+})
+
+test('confirm hook: a REJECTED proposal does not get credited as the resolver', { skip }, async () => {
+  // A rejected proposal still carries a proposed_by, so reading the latest
+  // proposal instead of the one this commit CONFIRMED would name a mediator
+  // whose verdict was explicitly thrown out.
+  const app = getApp()
+  const { escrow_id, dispute_id, mediator } = await claimedDispute(app)
+  const proposal = (await propose(app, dispute_id, mediator.token)).json()
+  const signer = await createUser(app, { role: 'super_admin' })
+  const rejected = await app.inject({
+    method: 'POST',
+    url: `/v1/admin/resolutions/${proposal.id}/reject`,
+    headers: authHeader(signer.token),
+    payload: { reason: 'Proofs do not support this outcome' },
+  })
+  assert.strictEqual(rejected.statusCode, 200)
+
+  await landResolution(app, escrow_id, 'split')
+
+  const stamp = await readStamp(app, dispute_id)
+  assert.strictEqual(stamp.resolved_by, null)
+  // The rejected proposal is left rejected, not swept into 'confirmed'.
+  const [row] = await app.db.select().from(dispute_resolutions).where(eq(dispute_resolutions.id, proposal.id))
+  assert.strictEqual(row.status, 'rejected')
+})
+
+test('queue: the wire NAMES the resolver, and the join stays LEFT', { skip }, async () => {
+  // Same failure mode as the mediator join: an inner join on resolved_by would
+  // drop every UNRESOLVED dispute, and since the count query joins no users at
+  // all it surfaces as total disagreeing with data.length, not as an error.
+  const app = getApp()
+  const resolvedCase = await claimedDispute(app, { first_name: 'Rita', last_name: 'Resolver' })
+  const openCase = await claimedDispute(app)
+  await propose(app, resolvedCase.dispute_id, resolvedCase.mediator.token, 'creator')
+  await landResolution(app, resolvedCase.escrow_id, 'creator')
+
+  const { total, rows } = await listDisputes(app, resolvedCase.mediator.token)
+  assert.strictEqual(total, rows.length)
+
+  const resolved = mustFind(rows, resolvedCase.dispute_id)
+  assert.strictEqual(resolved.resolved_by_id, resolvedCase.mediator.row.id)
+  assert.strictEqual(resolved.resolved_by_first_name, 'Rita')
+  assert.strictEqual(resolved.resolved_by_last_name, 'Resolver')
+
+  // A live dispute is present AND carries explicit nulls — not the resolved
+  // row's name bleeding across from a mis-keyed join.
+  const open = mustFind(rows, openCase.dispute_id)
+  assert.strictEqual(open.resolved_by_id, null)
+  assert.strictEqual(open.resolved_by_first_name, null)
+  assert.strictEqual(open.resolved_by_last_name, null)
+})
+
+test('queue: status partitions the triage list, and open means ON-CHAIN live', { skip }, async () => {
+  // Two conditions hide behind `status=open`, and the second one is the
+  // subtle one: the triage row is upserted when a dispute is REQUESTED, so an
+  // attempt whose on-chain dispute never confirmed leaves a row pointing at an
+  // escrow that is not disputed. Filtering on resolved_at alone would park
+  // that phantom at the top of the actionable queue forever.
+  const app = getApp()
+  const live = await claimedDispute(app)
+  const settled = await claimedDispute(app)
+  const abandoned = await claimedDispute(app)
+  const viewer = live.mediator.token
+
+  await propose(app, settled.dispute_id, settled.mediator.token, 'creator')
+  await landResolution(app, settled.escrow_id, 'creator')
+  await app.db.update(escrows).set({ status: 'accepted' }).where(eq(escrows.id, abandoned.escrow_id))
+
+  // Unfiltered first: all three rows exist, so the filters below are proven to
+  // EXCLUDE rather than merely to miss rows that were never created.
+  const all = await listDisputes(app, viewer)
+  assert.strictEqual(all.total, 3)
+  for (const id of [live.dispute_id, settled.dispute_id, abandoned.dispute_id]) {
+    assert.ok(idsOf(all.rows).includes(id), `unfiltered queue is missing ${id}`)
+  }
+
+  const open = await listDisputes(app, viewer, '?status=open')
+  assert.deepStrictEqual(idsOf(open.rows), [live.dispute_id])
+  // total comes from a SEPARATE count query — assert it, or a filter applied to
+  // only one of the two would page the queue against the wrong denominator.
+  assert.strictEqual(open.total, 1)
+
+  const resolved = await listDisputes(app, viewer, '?status=resolved')
+  assert.deepStrictEqual(idsOf(resolved.rows), [settled.dispute_id])
+  assert.strictEqual(resolved.total, 1)
+})
+
+test('queue: EVERY enum filter is refused when unrecognised, not silently unfiltered', { skip }, async () => {
+  // Failing open here is worse than failing loudly: a typo'd filter returned
+  // the whole queue — resolved disputes included — while the UI still showed
+  // the filter as applied, so it read as "nothing to triage" instead of as an
+  // error. Mirrors GET /v1/admin/resolutions. Narrowing semantics are unit
+  // tested; this pins that the route actually WIRES all three narrowers, which
+  // is where two of them were missing.
+  const app = getApp()
+  const { dispute_id, mediator } = await claimedDispute(app)
+
+  for (const field of ['status', 'kind', 'assigned']) {
+    const res = await app.inject({
+      method: 'GET',
+      url: `/v1/admin/disputes?${field}=banana`,
+      headers: authHeader(mediator.token),
+    })
+    assert.strictEqual(res.statusCode, 400, `${field}=banana should be refused`)
+    assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
+    // Names the offending field, so a caller sending several filters at once
+    // learns WHICH one to fix.
+    assert.ok(res.json().message.startsWith(`${field} must be one of:`), res.json().message)
+  }
+
+  // Legal values on the newly-guarded filters still pass through and FILTER,
+  // rather than being rejected along with the typos.
+  const gigs = await listDisputes(app, mediator.token, '?kind=gig&assigned=me')
+  assert.deepStrictEqual(idsOf(gigs.rows), [dispute_id])
+  const exchanges = await listDisputes(app, mediator.token, '?kind=exchange')
+  assert.deepStrictEqual(idsOf(exchanges.rows), [])
+
+  // An EMPTY value is a cleared filter, not a typo — same rule the `party`
+  // filter follows — so the queue still comes back.
+  const cleared = await listDisputes(app, mediator.token, '?status=&kind=&assigned=&party=')
+  assert.deepStrictEqual(idsOf(cleared.rows), [dispute_id])
+})
+
+test('queue: a malformed party is a 400, not the 500 the uuid cast used to throw', { skip }, async () => {
+  // `party` carries no vocabulary, so it slipped past the enum narrowers and
+  // reached postgres as a uuid comparison: `invalid input syntax for type
+  // uuid` → 500. An admin following a stale user cross-link was told the
+  // server had fallen over.
+  const app = getApp()
+  const { dispute_id, mediator } = await claimedDispute(app)
+
+  const bad = await app.inject({
+    method: 'GET',
+    url: '/v1/admin/disputes?party=banana',
+    headers: authHeader(mediator.token),
+  })
+  assert.strictEqual(bad.statusCode, 400)
+  assert.strictEqual(bad.json().code, 'VALIDATION_ERROR')
+  assert.ok(bad.json().message.startsWith('party must be'), bad.json().message)
+
+  // A well-formed id that matches nobody still runs the query and pages empty
+  // — shape is all that is checked, so this must NOT become a 400 too.
+  const nobody = await listDisputes(app, mediator.token, '?party=00000000-0000-0000-0000-000000000000')
+  assert.deepStrictEqual(idsOf(nobody.rows), [])
+  assert.strictEqual(nobody.total, 0)
+
+  // And a real party id still filters to their disputes.
+  const creatorId = (await app.db.select({ id: escrows.creator_id }).from(escrows).limit(1))[0].id
+  const mine = await listDisputes(app, mediator.token, `?party=${creatorId}`)
+  assert.deepStrictEqual(idsOf(mine.rows), [dispute_id])
+})
+
+test('a malformed :id is a 404 on EVERY dispute route, never a 500', { skip }, async () => {
+  // Each of these reached the driver as a uuid comparison and threw, so the
+  // caller was told the server had fallen over. They are covered as a SET
+  // because the defect was five handlers each independently forgetting the
+  // guard — asserting one would leave the next one free to regress.
+  const app = getApp()
+  const admin = await createUser(app, { role: 'super_admin' })
+  const routes: { method: 'GET' | 'POST'; url: string; payload?: object }[] = [
+    { method: 'GET', url: '/v1/admin/disputes/banana' },
+    { method: 'POST', url: '/v1/admin/disputes/banana/claim' },
+    { method: 'POST', url: '/v1/admin/disputes/banana/release' },
+    { method: 'GET', url: '/v1/admin/disputes/banana/resolution' },
+    { method: 'POST', url: '/v1/admin/disputes/banana/resolution', payload: { winner: 'creator' } },
+  ]
+  for (const { method, url, payload } of routes) {
+    const res = await app.inject({ method, url, headers: authHeader(admin.token), payload })
+    assert.strictEqual(res.statusCode, 404, `${method} ${url} should 404`)
+    assert.strictEqual(res.json().code, 'NOT_FOUND')
+  }
+
+  // A WELL-FORMED id that matches nothing must still reach the handler and
+  // answer on its own terms — the guard is about shape, not existence. The
+  // propose route answers 404 too here, but only after loading the dispute.
+  const wellFormed = await app.inject({
+    method: 'GET',
+    url: '/v1/admin/disputes/00000000-0000-0000-0000-000000000000',
+    headers: authHeader(admin.token),
+  })
+  assert.strictEqual(wellFormed.statusCode, 404)
+})
+
+test('a malformed :id is a 404 on EVERY resolution route too', { skip }, async () => {
+  // Same defect, second plugin: these three reached the driver as a uuid
+  // comparison and threw 500. Guarded at the plugin, so the message names the
+  // RESOLUTION rather than borrowing the dispute wording.
+  const app = getApp()
+  const signer = await createUser(app, { role: 'super_admin' })
+  const routes: { method: 'GET' | 'POST'; url: string; payload?: object }[] = [
+    { method: 'POST', url: '/v1/admin/resolutions/banana/reject', payload: { reason: 'no' } },
+    { method: 'POST', url: '/v1/admin/resolutions/banana/execute-build' },
+    { method: 'POST', url: '/v1/admin/resolutions/banana/broadcast', payload: { tx_ref: 'sig-x' } },
+  ]
+  for (const { method, url, payload } of routes) {
+    const res = await app.inject({ method, url, headers: authHeader(signer.token), payload })
+    assert.strictEqual(res.statusCode, 404, `${method} ${url} should 404`)
+    assert.strictEqual(res.json().code, 'NOT_FOUND')
+    assert.strictEqual(res.json().message, 'Resolution not found')
+  }
+
+  // The collection route has no :id and must stay reachable — a guard that
+  // fired on every request in the plugin would 404 the signing queue itself.
+  const queue = await app.inject({
+    method: 'GET',
+    url: '/v1/admin/resolutions',
+    headers: authHeader(signer.token),
+  })
+  assert.strictEqual(queue.statusCode, 200)
+})
+
+test('the :id guard runs AFTER auth — no token still means 401, not 404', { skip }, async () => {
+  // A plugin-level preHandler that outran the admin router's authenticate hook
+  // would answer strangers before checking them. Parent-scope hooks run first;
+  // this pins that they still do.
+  const app = getApp()
+  const res = await app.inject({ method: 'GET', url: '/v1/admin/disputes/banana' })
+  assert.strictEqual(res.statusCode, 401)
+})
+
+test('detail: the single-dispute route carries the resolver too, unknown id → 404', { skip }, async () => {
+  // The detail route is where the resolver badge is actually READ (the header
+  // of the page an admin works a dispute from). It shares summaryQuery with
+  // the list, but "shares a function" is an inference, not a guarantee — this
+  // route's whole body was uncovered until now.
+  const app = getApp()
+  const { escrow_id, dispute_id, mediator } = await claimedDispute(app, {
+    first_name: 'Rita',
+    last_name: 'Resolver',
+  })
+  await propose(app, dispute_id, mediator.token, 'split')
+  await landResolution(app, escrow_id, 'split')
+
+  const res = await app.inject({
+    method: 'GET',
+    url: `/v1/admin/disputes/${dispute_id}`,
+    headers: authHeader(mediator.token),
+  })
+  assert.strictEqual(res.statusCode, 200)
+  const body = res.json()
+  assert.strictEqual(body.dispute_id, dispute_id)
+  assert.strictEqual(body.winner, 'split')
+  assert.strictEqual(body.resolved_by_id, mediator.row.id)
+  assert.strictEqual(body.resolved_by_first_name, 'Rita')
+  assert.strictEqual(body.resolved_by_last_name, 'Resolver')
+
+  const missing = await app.inject({
+    method: 'GET',
+    url: '/v1/admin/disputes/00000000-0000-0000-0000-000000000000',
+    headers: authHeader(mediator.token),
+  })
+  assert.strictEqual(missing.statusCode, 404)
+  assert.strictEqual(missing.json().code, 'NOT_FOUND')
 })

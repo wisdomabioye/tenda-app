@@ -19,7 +19,7 @@ import type {
   PaginatedResponse,
   ProposeResolutionBody,
 } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import {
@@ -30,16 +30,29 @@ import {
   toResolutionWire,
 } from '@server/lib/disputes/resolution-store'
 import { claimDispute, releaseDispute } from '@server/lib/disputes/claim-store'
+import {
+  narrowDisputeAssigned,
+  narrowDisputeKind,
+  narrowDisputeParty,
+  narrowDisputeStatus,
+} from '@server/lib/disputes/list-query'
 
 
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString())
 
+
 const adminDisputes: FastifyPluginAsync = async (fastify) => {
-  // Aliased so one row names both the raiser and the mediator. The raiser is
-  // inner-joined (disputes.raised_by is NOT NULL); the mediator MUST stay LEFT
-  // — assigned_to is nullable, and an inner join would drop every unclaimed
-  // dispute out of the triage queue.
+  // One registration guards every `:id` in this plugin — the defect was five
+  // handlers each forgetting it, so a sixth route inherits the guard.
+  fastify.addHook('preHandler', uuidParamGuard('Dispute not found'))
+
+  // Aliased so one row names the raiser, the mediator and the resolver. The
+  // raiser is inner-joined (disputes.raised_by is NOT NULL); the other two MUST
+  // stay LEFT — assigned_to is nullable and an inner join would drop every
+  // unclaimed dispute out of the triage queue, and resolved_by is null on both
+  // live disputes and any resolution that bypassed the propose flow.
   const assigneeU = alias(users, 'assignee_u')
+  const resolverU = alias(users, 'resolver_u')
 
   const summaryCols = {
     dispute_id: disputes.id,
@@ -56,6 +69,8 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     assigned_at: disputes.assigned_at,
     winner: disputes.winner,
     resolved_by_id: disputes.resolved_by,
+    resolved_by_first_name: resolverU.first_name,
+    resolved_by_last_name: resolverU.last_name,
     resolved_at: disputes.resolved_at,
     raised_at: disputes.created_at,
   }
@@ -68,6 +83,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
       .leftJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
       .innerJoin(users, eq(users.id, disputes.raised_by))
       .leftJoin(assigneeU, eq(assigneeU.id, disputes.assigned_to))
+      .leftJoin(resolverU, eq(resolverU.id, disputes.resolved_by))
       .$dynamic()
   }
 
@@ -82,10 +98,16 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
 
   // GET /v1/admin/disputes, triage queue, newest first.
   fastify.get<{
+    /**
+     * The enum-ish members are `string` on purpose — they are untrusted input
+     * until the narrowers run, and declaring them as their unions is the lie
+     * that let bad values through unchecked. The narrowed result is what the
+     * handler uses; `DisputeListQuery` is the CALLER-facing contract.
+     */
     Querystring: {
-      status?: 'open' | 'resolved'
-      kind?: 'gig' | 'exchange'
-      assigned?: 'me' | 'none'
+      status?: string
+      kind?: string
+      assigned?: string
       /** Filter to disputes where this user is a party (user-detail cross-link). */
       party?: string
       limit?: number
@@ -93,7 +115,11 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     }
     Reply: PaginatedResponse<DisputeSummary> | ApiError
   }>('/', { preHandler: [requirePermission('disputes.read')] }, async (request) => {
-    const { status, kind, assigned, party, limit = 20, offset = 0 } = request.query
+    const { limit = 20, offset = 0 } = request.query
+    const status = narrowDisputeStatus(request.query.status)
+    const kind = narrowDisputeKind(request.query.kind)
+    const assigned = narrowDisputeAssigned(request.query.assigned)
+    const party = narrowDisputeParty(request.query.party)
     const safeLimit = clampLimit(Number(limit))
     const safeOffset = clampOffset(Number(offset))
 
@@ -105,12 +131,15 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
       conditions.push(isNull(disputes.resolved_at), eq(escrows.status, 'disputed'))
     }
     if (status === 'resolved') conditions.push(isNotNull(disputes.resolved_at))
-    if (kind === 'gig' || kind === 'exchange') conditions.push(eq(escrows.kind, kind))
+    // Already narrowed — the vocabulary lives in lib/disputes/list-query.ts,
+    // never re-spelled here.
+    if (kind !== undefined) conditions.push(eq(escrows.kind, kind))
     // Claim-pool views (CO7): my caseload vs the unclaimed pool.
     if (assigned === 'me') conditions.push(eq(disputes.assigned_to, request.user.id))
     if (assigned === 'none') conditions.push(isNull(disputes.assigned_to))
-    // Party cross-link: every dispute a given user is involved in.
-    if (party !== undefined && party !== '') {
+    // Party cross-link: every dispute a given user is involved in. Empty is
+    // already folded into undefined by the narrower.
+    if (party !== undefined) {
       conditions.push(
         or(
           eq(escrows.creator_id, party),

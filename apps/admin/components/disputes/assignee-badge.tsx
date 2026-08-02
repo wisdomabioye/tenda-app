@@ -25,12 +25,20 @@ interface AssigneeBadgeProps {
  */
 export function AssigneeBadge({ dispute, meId }: AssigneeBadgeProps) {
   if (dispute.resolved_at !== null) {
+    // Built up segment-wise: outcome and resolver are independently nullable,
+    // and a resolution that bypassed the propose flow has no author at all.
+    const segments = [RESOLVED_LABEL]
     // Outcome copy is kind-aware and derived, never the raw structural enum.
-    // No resolver name: nothing populates disputes.resolved_by (see the note
-    // on DisputeSummary), so rendering it would only ever print a fallback.
-    const outcome = dispute.winner === null ? null : winnerLabel(dispute.kind, dispute.winner)
-    const label = outcome === null ? RESOLVED_LABEL : `${RESOLVED_LABEL}${SEGMENT}${outcome}`
-    return <Badge variant="default">{label}</Badge>
+    if (dispute.winner !== null) segments.push(winnerLabel(dispute.kind, dispute.winner))
+    // Gated on the ID, NOT on the name: displayName falls back to a truncated
+    // id, so keying off the name would invent a resolver for every dispute
+    // settled without a proposal.
+    if (dispute.resolved_by_id !== null) {
+      segments.push(
+        displayName(dispute.resolved_by_first_name, dispute.resolved_by_last_name, dispute.resolved_by_id),
+      )
+    }
+    return <Badge variant="default">{segments.join(SEGMENT)}</Badge>
   }
 
   if (dispute.assigned_to_id === null) return <Badge variant="outline">{UNCLAIMED_LABEL}</Badge>

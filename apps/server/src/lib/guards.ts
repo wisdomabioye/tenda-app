@@ -3,6 +3,8 @@ import { eq } from 'drizzle-orm'
 import type { Permission, UserRole } from '@tenda/shared'
 import { ErrorCode, hasPermission } from '@tenda/shared'
 import { users } from '@tenda/shared/db/schema/identity'
+import { AppError } from '@server/lib/errors'
+import { isUuidLike } from '@server/lib/uuid'
 
 // hasPermission moved to @tenda/shared (#90) so the admin dashboard's nav
 // filter and the server guards share one implementation. Re-exported here,
@@ -91,5 +93,29 @@ export async function requireProfileComplete(
       message: 'Complete your profile before posting or accepting work',
       code: ErrorCode.PROFILE_INCOMPLETE,
     })
+  }
+}
+
+/**
+ * Fastify preHandler that 404s a malformed `:id` before it reaches the driver.
+ *
+ * Every id column in the schema is postgres `uuid`, which rejects malformed
+ * input with `invalid input syntax for type uuid`. Unguarded that surfaces as
+ * a 500 — the caller is told the server fell over when their id was simply not
+ * an id. 404 rather than 400 matches the unknown-id answer these routes
+ * already give, and the precedent in gigs/_id/applications.
+ *
+ * Registered as a plugin-level hook rather than per route, because the failure
+ * mode is a handler FORGETTING the guard: one registration covers every `:id`
+ * route in the scope, including ones added later. Register it inside the
+ * plugin, never on the parent router, so the authenticate hook still runs
+ * first and a stranger gets 401 rather than a 404.
+ */
+export function uuidParamGuard(notFoundMessage: string) {
+  return async function guard(request: FastifyRequest<{ Params: { id?: string } }>): Promise<void> {
+    const { id } = request.params
+    if (id !== undefined && !isUuidLike(id)) {
+      throw new AppError(404, ErrorCode.NOT_FOUND, notFoundMessage)
+    }
   }
 }

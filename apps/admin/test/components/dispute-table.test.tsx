@@ -13,7 +13,8 @@ function dispute(over: Partial<DisputeSummary> = {}): DisputeSummary {
     dispute_id: 'd1', escrow_id: 'e1', kind: 'gig', subject_title: 'Fix my sink',
     reason: 'work not done', raised_by_id: 'r1', raised_by_first_name: 'Ray', raised_by_last_name: 'X',
     raised_at: '2026-06-10T00:00:00.000Z', assigned_to_id: null, assigned_to_first_name: null,
-    assigned_to_last_name: null, assigned_at: null, winner: null, resolved_by_id: null, resolved_at: null,
+    assigned_to_last_name: null, assigned_at: null, winner: null, resolved_by_id: null,
+    resolved_by_first_name: null, resolved_by_last_name: null, resolved_at: null,
     ...over,
   }
 }
@@ -41,8 +42,10 @@ test('status badge reflects claim ownership and resolution, and NAMES the holder
   // A colleague's claim is useless without a name — that was the whole gap.
   rerender(<DisputeTable disputes={[dispute({ assigned_to_id: 'other', assigned_to_first_name: 'Bola', assigned_to_last_name: 'Bello' })]} meId="me" onChanged={() => {}} />)
   expect(screen.getByText('claimed · Bola Bello')).toBeInTheDocument()
-  rerender(<DisputeTable disputes={[dispute({ resolved_at: '2026-06-11T00:00:00.000Z', winner: 'creator', resolved_by_id: 'other' })]} meId="me" onChanged={() => {}} />)
-  expect(screen.getByText('resolved · Poster')).toBeInTheDocument()
+  // Resolved rows name the RESOLVER, and the name has to survive the trip
+  // through the table — this row's id previously arrived unnamed and unread.
+  rerender(<DisputeTable disputes={[dispute({ resolved_at: '2026-06-11T00:00:00.000Z', winner: 'creator', resolved_by_id: 'other', resolved_by_first_name: 'Rita', resolved_by_last_name: 'Resolver' })]} meId="me" onChanged={() => {}} />)
+  expect(screen.getByText('resolved · Poster · Rita Resolver')).toBeInTheDocument()
 })
 
 test('two rows held by different mediators are told apart', () => {

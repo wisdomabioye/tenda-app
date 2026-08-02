@@ -39,7 +39,8 @@ function summary(over: Partial<DisputeSummary> = {}): DisputeSummary {
     dispute_id: 'p1', escrow_id: 'e1', kind: 'gig', subject_title: 'Broken delivery',
     reason: 'item never arrived', raised_by_id: 'r1', raised_by_first_name: 'R', raised_by_last_name: 'X',
     raised_at: '2026-06-10T00:00:00.000Z', assigned_to_id: null, assigned_to_first_name: null,
-    assigned_to_last_name: null, assigned_at: null, winner: null, resolved_by_id: null, resolved_at: null,
+    assigned_to_last_name: null, assigned_at: null, winner: null, resolved_by_id: null,
+    resolved_by_first_name: null, resolved_by_last_name: null, resolved_at: null,
     ...over,
   }
 }

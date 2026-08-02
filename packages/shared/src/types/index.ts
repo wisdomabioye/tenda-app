@@ -75,6 +75,7 @@ export type {
   AdminUserRow,
   DisputeRateMetric,
   ActionReportBody,
+  DisputeListQuery,
   DisputeSummary,
   UpdatePlatformConfigBody,
   CreateAnnouncementBody,

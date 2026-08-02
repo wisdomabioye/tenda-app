@@ -31,6 +31,8 @@ function dispute(over: Partial<DisputeSummary> = {}): DisputeSummary {
     assigned_at: null,
     winner: null,
     resolved_by_id: null,
+    resolved_by_first_name: null,
+    resolved_by_last_name: null,
     resolved_at: null,
     ...over,
   }
@@ -41,6 +43,14 @@ const claimedByOther = {
   assigned_to_first_name: 'Bola',
   assigned_to_last_name: 'Bello',
   assigned_at: '2026-06-11T00:00:00.000Z',
+}
+
+const RESOLVER = 'admin-resolver'
+const resolvedByRita = {
+  resolved_at: '2026-06-12T00:00:00.000Z',
+  resolved_by_id: RESOLVER,
+  resolved_by_first_name: 'Rita',
+  resolved_by_last_name: 'Resolver',
 }
 
 test('an unclaimed dispute reads as the open pool', () => {
@@ -101,4 +111,50 @@ test('resolution wins over assignment: a resolved dispute never reads as claimed
 test('a resolved dispute with no recorded winner degrades to bare copy', () => {
   render(<AssigneeBadge dispute={dispute({ resolved_at: '2026-06-12T00:00:00.000Z' })} meId={ME} />)
   expect(screen.getByText('resolved')).toBeInTheDocument()
+})
+
+test('a resolved dispute NAMES the resolver alongside the outcome', () => {
+  render(<AssigneeBadge dispute={dispute({ ...resolvedByRita, winner: 'creator' })} meId={ME} />)
+  expect(screen.getByText('resolved · Poster · Rita Resolver')).toBeInTheDocument()
+})
+
+test('the resolver is named even when no winner was recorded', () => {
+  // The two segments are independently nullable; a missing outcome must not
+  // swallow the resolver, or the one case where you most want to ask someone
+  // what happened is the case that hides who to ask.
+  render(<AssigneeBadge dispute={dispute(resolvedByRita)} meId={ME} />)
+  expect(screen.getByText('resolved · Rita Resolver')).toBeInTheDocument()
+})
+
+test('the RESOLVER is named, not the mediator who happened to hold the claim', () => {
+  // Claiming and resolving are different acts by different people: a mediator
+  // can hold a case that a super_admin's proposal ultimately settled. Sourcing
+  // this from assigned_to would credit the wrong admin while still looking
+  // populated.
+  render(
+    <AssigneeBadge dispute={dispute({ ...claimedByOther, ...resolvedByRita, winner: 'split' })} meId={ME} />,
+  )
+  expect(screen.getByText('resolved · Split evenly · Rita Resolver')).toBeInTheDocument()
+  expect(screen.queryByText(/Bola Bello/)).not.toBeInTheDocument()
+})
+
+test('a resolution with NO recorded resolver invents nobody', () => {
+  // displayName falls back to "User <id-prefix>", so gating on the name rather
+  // than the id would fabricate a resolver for every CLI/direct-resolve
+  // settlement — which is the majority of historic rows.
+  render(<AssigneeBadge dispute={dispute({ resolved_at: '2026-06-12T00:00:00.000Z', winner: 'creator' })} meId={ME} />)
+  expect(screen.getByText('resolved · Poster')).toBeInTheDocument()
+  expect(screen.queryByText(/User /)).not.toBeInTheDocument()
+  expect(screen.queryByText(/Unknown/)).not.toBeInTheDocument()
+})
+
+test('a nameless resolver falls back to the shortened id, never blank or "null"', () => {
+  const anonymous = dispute({
+    resolved_at: '2026-06-12T00:00:00.000Z',
+    resolved_by_id: 'fedcba98-7654-3210',
+    winner: 'creator',
+  })
+  render(<AssigneeBadge dispute={anonymous} meId={ME} />)
+  expect(screen.getByText('resolved · Poster · User fedcba98')).toBeInTheDocument()
+  expect(screen.queryByText(/null/)).not.toBeInTheDocument()
 })

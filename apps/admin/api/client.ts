@@ -16,6 +16,7 @@ import type {
   CreateAnnouncementBody,
   AdminResolutionView,
   CreateFeaturedSlotBody,
+  DisputeListQuery,
   DisputeMessage,
   DisputeRateMetric,
   DisputeResolution,
@@ -48,16 +49,6 @@ export interface VerifyEmailOtpResponse {
 }
 
 // types (not interfaces): keeps the implicit index signature Record needs.
-export type DisputeListQuery = {
-  status?: 'open' | 'resolved'
-  kind?: 'gig' | 'exchange'
-  assigned?: 'me' | 'none'
-  /** Filter to disputes where this user is a party (user-detail cross-link). */
-  party?: string
-  limit?: number
-  offset?: number
-}
-
 export type ReportListQuery = {
   status?: ReportStatus
   content_type?: string

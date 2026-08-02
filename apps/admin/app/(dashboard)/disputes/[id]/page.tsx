@@ -68,7 +68,8 @@ export default function DisputeDetailPage() {
   // The thread poll is the freshest assignee source — mirror it locally so
   // the claim button flips without a manual refresh. When the thread
   // reports a resolution we don't know about yet, refetch the summary
-  // (it carries winner + resolved_at; never synthesize them).
+  // (it carries winner, resolved_at AND the resolver's name, none of which
+  // the thread knows — never synthesize them).
   const onAssignee = useCallback(
     (assignedToId: string | null, readOnly: boolean) => {
       const known = knownRef.current

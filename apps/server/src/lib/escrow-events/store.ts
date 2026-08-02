@@ -146,24 +146,46 @@ export function drizzleEscrowEventStore(db: AppDatabase): EscrowEventStore {
         }
 
         if (disputeResolution !== undefined) {
-          const [stamped] = await tx
-            .update(disputes)
-            .set({ winner: disputeResolution.winner, resolved_at: new Date() })
+          // FOR UPDATE, because the proposal is confirmed BEFORE the stamp
+          // below and the two must not interleave with a concurrent apply.
+          const [target] = await tx
+            .select({ id: disputes.id })
+            .from(disputes)
             .where(eq(disputes.escrow_id, escrow_id))
-            .returning({ id: disputes.id })
-          // On-chain finality is the ONLY thing that confirms a proposal
-          // (Issue-3): flip the active proposal, if any, in the same commit.
-          // A no-op when resolution went through CLI/direct-resolve instead.
-          if (stamped !== undefined) {
-            await tx
+            .for('update')
+            .limit(1)
+          // No dispute row → nothing to stamp, and no proposal to confirm.
+          if (target !== undefined) {
+            // On-chain finality is the ONLY thing that confirms a proposal
+            // (Issue-3): flip the active proposal, if any, in the same commit.
+            // A no-op when resolution went through CLI/direct-resolve instead.
+            const [confirmed] = await tx
               .update(dispute_resolutions)
               .set({ status: 'confirmed', resolved_tx_ref: transaction.tx_ref })
               .where(
                 and(
-                  eq(dispute_resolutions.dispute_id, stamped.id),
+                  eq(dispute_resolutions.dispute_id, target.id),
                   inArray(dispute_resolutions.status, ['pending', 'executing']),
                 ),
               )
+              .returning({ proposed_by: dispute_resolutions.proposed_by })
+            // `resolved_by` is the author of the verdict, NOT whoever signed
+            // it: the resolve tx is signed with the chain's shared dispute
+            // authority key, and `disputes.execute` is a different permission
+            // from `disputes.mediate`. The signer is on record separately, as
+            // the tx_attempts row for this tx_ref. Reading proposed_by from
+            // the very UPDATE that confirmed the proposal is what makes the
+            // pair honest — the dispute can never name a resolver whose
+            // proposal did not confirm, since both writes share this commit.
+            // Null when nobody proposed (CLI/direct-resolve).
+            await tx
+              .update(disputes)
+              .set({
+                winner: disputeResolution.winner,
+                resolved_at: new Date(),
+                resolved_by: confirmed?.proposed_by ?? null,
+              })
+              .where(eq(disputes.id, target.id))
           }
         }
         return { applied: true, passed_applicant_ids, revived_applicant_ids }
