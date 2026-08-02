@@ -172,6 +172,39 @@ test('claim: a party-admin cannot propose a resolution on their own dispute', { 
   assert.strictEqual(propose.json().code, 'DISPUTE_NOT_CLAIMED')
 })
 
+test('claim: the party guard runs BEFORE the resolved check — 403, not 409', { skip }, async () => {
+  // Ordering is deliberate and nothing else pins it. Eligibility is a property
+  // of the CALLER, not of the dispute's state: a party can never mediate this
+  // case, so answering DISPUTE_RESOLVED would imply "if it were still open you
+  // could claim it", which is false. (It is NOT about withholding state — the
+  // refused caller is a party and already knows their own dispute is resolved.)
+  const app = getApp()
+  const { dispute_id, creator } = await disputedEscrow(app, {}, { creatorRole: 'dispute_admin' })
+  const outsider = await createUser(app, { role: 'dispute_admin' })
+  await app.db
+    .update(disputes)
+    .set({ resolved_at: new Date(), winner: 'creator' })
+    .where(eq(disputes.id, dispute_id))
+
+  const party = await app.inject({
+    method: 'POST',
+    url: `/v1/admin/disputes/${dispute_id}/claim`,
+    headers: authHeader(creator.token),
+  })
+  assert.strictEqual(party.statusCode, 403)
+  assert.strictEqual(party.json().code, 'FORBIDDEN')
+
+  // Same dispute, same resolved state, an impartial admin: the resolved check
+  // IS reached. Swapping the two checks would make both callers answer 409.
+  const impartial = await app.inject({
+    method: 'POST',
+    url: `/v1/admin/disputes/${dispute_id}/claim`,
+    headers: authHeader(outsider.token),
+  })
+  assert.strictEqual(impartial.statusCode, 409)
+  assert.strictEqual(impartial.json().code, 'DISPUTE_RESOLVED')
+})
+
 test('release: an unknown dispute is a 404, not a silent success', { skip }, async () => {
   const app = getApp()
   const mediator = await createUser(app, { role: 'dispute_admin' })
