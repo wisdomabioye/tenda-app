@@ -109,6 +109,17 @@ test('escrows: a row with no dispute renders the status without a link', async (
   expect(screen.queryByRole('link', { name: /Open/i })).toBeNull()
 })
 
+test('escrows: a creator with no profile name falls back to the shortened id', async () => {
+  // The creator column formats through the shared displayName helper;
+  // hand-formatting the two columns rendered a bare space for a nameless user.
+  vi.mocked(adminApi.escrows.list).mockResolvedValue({
+    data: [escrowRow({ creator_id: 'abcdef12-3456-7890', creator_first_name: null, creator_last_name: null })],
+    total: 1, limit: 20, offset: 0,
+  })
+  renderPage(<EscrowsPage />)
+  expect(await screen.findByText('User abcdef12')).toBeInTheDocument()
+})
+
 test('fiat: the status select filters intents', async () => {
   vi.mocked(adminApi.fiat.intents).mockResolvedValue({ intents: [] })
   vi.mocked(adminApi.fiat.providers).mockResolvedValue({ providers: [] })

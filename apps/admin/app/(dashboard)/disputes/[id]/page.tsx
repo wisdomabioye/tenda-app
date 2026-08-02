@@ -13,6 +13,7 @@ import type { DisputeSummary } from '@tenda/shared'
 import { AppHeader } from '@/components/layout/header'
 import { Badge } from '@/components/ui/badge'
 import { ClaimActions } from '@/components/disputes/claim-actions'
+import { AssigneeBadge } from '@/components/disputes/assignee-badge'
 import { ThreadView } from '@/components/disputes/thread-view'
 import { DossierPanel } from '@/components/disputes/dossier'
 import { ResolutionPanel } from '@/components/disputes/resolution'
@@ -77,8 +78,13 @@ export default function DisputeDetailPage() {
         return // the refetch carries the assignee too
       }
       if (assignedToId !== known.assignedToId) {
+        // Refetch rather than patch: the thread carries the assignee's ID but
+        // not their NAME, so patching in place would pair the new mediator's
+        // id with the previous mediator's name and confidently name the wrong
+        // person. Updating knownRef first stops the poll re-triggering the
+        // refetch while it is still in flight.
         knownRef.current = { ...known, assignedToId }
-        setDispute((prev) => (prev === null ? prev : { ...prev, assigned_to_id: assignedToId }))
+        refresh()
       }
     },
     [refresh],
@@ -110,15 +116,7 @@ export default function DisputeDetailPage() {
       <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
         <div className="flex flex-wrap items-center gap-3 rounded-md border p-3">
           <Badge variant="outline" className="capitalize">{dispute.kind}</Badge>
-          {resolved ? (
-            <Badge>resolved · {dispute.winner}</Badge>
-          ) : dispute.assigned_to_id === null ? (
-            <Badge variant="outline">unclaimed</Badge>
-          ) : dispute.assigned_to_id === meId ? (
-            <Badge>my caseload</Badge>
-          ) : (
-            <Badge variant="secondary">claimed by another mediator</Badge>
-          )}
+          <AssigneeBadge dispute={dispute} meId={meId} />
           <p className="flex-1 truncate text-sm text-muted-foreground">{dispute.reason}</p>
           <ClaimActions
             disputeId={dispute.dispute_id}

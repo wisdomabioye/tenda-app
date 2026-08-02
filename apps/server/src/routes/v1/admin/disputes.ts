@@ -8,6 +8,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, and, or, desc, isNull, isNotNull, sql, type SQL } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 import { disputes, dispute_resolutions, escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import type {
@@ -34,6 +35,12 @@ import { claimDispute, releaseDispute } from '@server/lib/disputes/claim-store'
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString())
 
 const adminDisputes: FastifyPluginAsync = async (fastify) => {
+  // Aliased so one row names both the raiser and the mediator. The raiser is
+  // inner-joined (disputes.raised_by is NOT NULL); the mediator MUST stay LEFT
+  // — assigned_to is nullable, and an inner join would drop every unclaimed
+  // dispute out of the triage queue.
+  const assigneeU = alias(users, 'assignee_u')
+
   const summaryCols = {
     dispute_id: disputes.id,
     escrow_id: disputes.escrow_id,
@@ -44,6 +51,8 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
     raised_by_last_name: users.last_name,
     reason: disputes.reason,
     assigned_to_id: disputes.assigned_to,
+    assigned_to_first_name: assigneeU.first_name,
+    assigned_to_last_name: assigneeU.last_name,
     assigned_at: disputes.assigned_at,
     winner: disputes.winner,
     resolved_by_id: disputes.resolved_by,
@@ -58,6 +67,7 @@ const adminDisputes: FastifyPluginAsync = async (fastify) => {
       .innerJoin(escrows, eq(disputes.escrow_id, escrows.id))
       .leftJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
       .innerJoin(users, eq(users.id, disputes.raised_by))
+      .leftJoin(assigneeU, eq(assigneeU.id, disputes.assigned_to))
       .$dynamic()
   }
 

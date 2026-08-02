@@ -242,6 +242,48 @@ test('list: assigned=me and assigned=none partition the queue', { skip }, async 
   assert.notStrictEqual(pool.json().data[0].dispute_id, a.dispute_id)
 })
 
+test('list: names the mediator holding a case without dropping unclaimed rows', { skip }, async () => {
+  const app = getApp()
+  const held = await disputedEscrow(app)
+  await disputedEscrow(app) // stays in the open pool
+  const mediator = await createUser(app, {
+    role: 'dispute_admin',
+    first_name: 'Mo',
+    last_name: 'Mediator',
+  })
+  await app.inject({
+    method: 'POST',
+    url: `/v1/admin/disputes/${held.dispute_id}/claim`,
+    headers: authHeader(mediator.token),
+  })
+
+  const res = await app.inject({
+    method: 'GET',
+    url: '/v1/admin/disputes',
+    headers: authHeader(mediator.token),
+  })
+  assert.strictEqual(res.statusCode, 200)
+  const body = res.json()
+
+  // The mediator join MUST be a LEFT join. An inner join silently drops every
+  // unclaimed dispute, and because the count query does not join `users` at
+  // all, the failure shows up as total=2 alongside an empty/short data array
+  // rather than as an error — so assert the two agree.
+  assert.strictEqual(body.total, 2)
+  assert.strictEqual(body.data.length, 2)
+
+  const claimed = body.data.find((d: { dispute_id: string }) => d.dispute_id === held.dispute_id)
+  assert.strictEqual(claimed.assigned_to_id, mediator.row.id)
+  assert.strictEqual(claimed.assigned_to_first_name, 'Mo')
+  assert.strictEqual(claimed.assigned_to_last_name, 'Mediator')
+
+  // An unclaimed row carries explicit nulls, not a neighbour's name.
+  const unclaimed = body.data.find((d: { dispute_id: string }) => d.dispute_id !== held.dispute_id)
+  assert.strictEqual(unclaimed.assigned_to_id, null)
+  assert.strictEqual(unclaimed.assigned_to_first_name, null)
+  assert.strictEqual(unclaimed.assigned_to_last_name, null)
+})
+
 test('list: party filters to every dispute a given user is involved in', { skip }, async () => {
   const app = getApp()
   const mine = await disputedEscrow(app)

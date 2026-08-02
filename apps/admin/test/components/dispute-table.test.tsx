@@ -6,13 +6,16 @@ import { DisputeTable } from '@/components/disputes/dispute-table'
 vi.mock('@/api/client', () => ({ adminApi: { disputes: { claim: vi.fn(), release: vi.fn() } } }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }))
 
+// Complete, uncast: the badge reads the mediator name pair, and an `as` cast
+// would let a missing field arrive as `undefined` with every assertion green.
 function dispute(over: Partial<DisputeSummary> = {}): DisputeSummary {
   return {
     dispute_id: 'd1', escrow_id: 'e1', kind: 'gig', subject_title: 'Fix my sink',
     reason: 'work not done', raised_by_id: 'r1', raised_by_first_name: 'Ray', raised_by_last_name: 'X',
-    raised_at: '2026-06-10T00:00:00.000Z', assigned_to_id: null, resolved_at: null, winner: null,
+    raised_at: '2026-06-10T00:00:00.000Z', assigned_to_id: null, assigned_to_first_name: null,
+    assigned_to_last_name: null, assigned_at: null, winner: null, resolved_by_id: null, resolved_at: null,
     ...over,
-  } as DisputeSummary
+  }
 }
 
 beforeEach(() => {
@@ -32,13 +35,37 @@ test('renders a row with subject, kind, raiser and an unclaimed badge', () => {
   expect(screen.getByText('unclaimed')).toBeInTheDocument()
 })
 
-test('status badge reflects claim ownership and resolution', () => {
+test('status badge reflects claim ownership and resolution, and NAMES the holder', () => {
   const { rerender } = render(<DisputeTable disputes={[dispute({ assigned_to_id: 'me' })]} meId="me" onChanged={() => {}} />)
   expect(screen.getByText('mine')).toBeInTheDocument()
-  rerender(<DisputeTable disputes={[dispute({ assigned_to_id: 'other' })]} meId="me" onChanged={() => {}} />)
-  expect(screen.getByText('claimed')).toBeInTheDocument()
-  rerender(<DisputeTable disputes={[dispute({ resolved_at: '2026-06-11T00:00:00.000Z', winner: 'creator' })]} meId="me" onChanged={() => {}} />)
-  expect(screen.getByText(/resolved · creator/)).toBeInTheDocument()
+  // A colleague's claim is useless without a name — that was the whole gap.
+  rerender(<DisputeTable disputes={[dispute({ assigned_to_id: 'other', assigned_to_first_name: 'Bola', assigned_to_last_name: 'Bello' })]} meId="me" onChanged={() => {}} />)
+  expect(screen.getByText('claimed · Bola Bello')).toBeInTheDocument()
+  rerender(<DisputeTable disputes={[dispute({ resolved_at: '2026-06-11T00:00:00.000Z', winner: 'creator', resolved_by_id: 'other' })]} meId="me" onChanged={() => {}} />)
+  expect(screen.getByText('resolved · Poster')).toBeInTheDocument()
+})
+
+test('two rows held by different mediators are told apart', () => {
+  // A single-row assertion cannot catch a badge that renders one name for all.
+  const rows = [
+    dispute({ dispute_id: 'd1', assigned_to_id: 'a1', assigned_to_first_name: 'Ada', assigned_to_last_name: 'Admin' }),
+    dispute({ dispute_id: 'd2', assigned_to_id: 'a2', assigned_to_first_name: 'Bola', assigned_to_last_name: 'Bello' }),
+  ]
+  render(<DisputeTable disputes={rows} meId="me" onChanged={() => {}} />)
+  expect(screen.getByText('claimed · Ada Admin')).toBeInTheDocument()
+  expect(screen.getByText('claimed · Bola Bello')).toBeInTheDocument()
+})
+
+test('a raiser with no profile name falls back to the shortened id, not a blank cell', () => {
+  // The raiser column formats through the shared helper, same as the badge —
+  // hand-formatting rendered a bare space for a nameless user.
+  const nameless = dispute({
+    raised_by_id: 'abcdef12-3456-7890',
+    raised_by_first_name: null,
+    raised_by_last_name: null,
+  })
+  render(<DisputeTable disputes={[nameless]} meId="me" onChanged={() => {}} />)
+  expect(screen.getByText('User abcdef12')).toBeInTheDocument()
 })
 
 test('falls back to "Exchange offer" when there is no subject title', () => {

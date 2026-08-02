@@ -101,8 +101,17 @@ export interface DisputeSummary {
   reason: string
   /** Mediating admin (CO7 claim-based assignment); null while unclaimed. */
   assigned_to_id: string | null
+  /** Mediator's name, so the queue says WHICH colleague holds a case. */
+  assigned_to_first_name: string | null
+  assigned_to_last_name: string | null
   assigned_at: string | null
   winner: 'creator' | 'counterparty' | 'split' | null
+  /**
+   * Set aside for the resolving admin, but NOTHING writes disputes.resolved_by
+   * — the on-chain settlement path stamps winner + resolved_at only. Treat it
+   * as always null until that is fixed; the real record of who drove a
+   * resolution is dispute_resolutions.proposed_by on the confirmed row.
+   */
   resolved_by_id: string | null
   resolved_at: string | null
   raised_at: string | null

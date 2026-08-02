@@ -41,7 +41,6 @@ function DisputesQueue() {
   const [page, setPage] = useState(1) // ListPagination is 1-based
   const [rows, setRows] = useState<DisputeSummary[]>([])
   const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(true)
   const meId = useSessionUser()?.id ?? ''
 
   // setState lives in the .then callbacks (react-hooks/set-state-in-effect);
@@ -49,26 +48,33 @@ function DisputesQueue() {
   const [refreshKey, setRefreshKey] = useState(0)
   const refresh = () => setRefreshKey((k) => k + 1)
 
+  // Loading is DERIVED, not stored. Writing it synchronously inside the effect
+  // trips the same set-state-in-effect rule (cascading renders); the key
+  // changes during the render that queues the next fetch, so the spinner
+  // appears without an extra state write and clears when that fetch settles.
+  const requestKey = JSON.stringify([tab, page, refreshKey, party])
+  const [loadedKey, setLoadedKey] = useState<string | null>(null)
+  const loading = loadedKey !== requestKey
+
   useEffect(() => {
     let alive = true
-    setLoading(true)
     adminApi.disputes
       .list({ ...TAB_QUERY[tab], party, limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE })
       .then((res) => {
         if (!alive) return
         setRows(res.data)
         setTotal(res.total)
-        setLoading(false)
+        setLoadedKey(requestKey)
       })
       .catch((err: unknown) => {
         if (!alive) return
-        setLoading(false)
+        setLoadedKey(requestKey)
         toast.error(err instanceof ApiError ? err.message : 'Failed to load disputes')
       })
     return () => {
       alive = false
     }
-  }, [tab, page, refreshKey, party])
+  }, [tab, page, refreshKey, party, requestKey])
 
   return (
     <>

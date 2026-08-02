@@ -31,7 +31,8 @@ import { ApiError } from '@/lib/api'
 import { useSessionUser } from '@/lib/use-session'
 import { mergeMessages, nextCursor } from '@/lib/dispute-thread'
 
-const POLL_INTERVAL_MS = 5_000
+/** Exported so tests advance timers by the real interval, never a magic number. */
+export const POLL_INTERVAL_MS = 5_000
 
 interface ThreadViewProps {
   escrowId: string
