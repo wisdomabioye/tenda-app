@@ -317,6 +317,8 @@ const mockThread: {
   sendSucceeds: boolean
   /** Thread missing with no error string — the other half of the load guard. */
   threadMissing: boolean
+  /** Drive the ListEmptyComponent without mutating the shared message fixture. */
+  empty: boolean
   sent: Array<{ body: string; hasAttachment: boolean }>
   reloads: number
 } = {
@@ -325,6 +327,7 @@ const mockThread: {
   readOnly: false,
   sendSucceeds: true,
   threadMissing: false,
+  empty: false,
   sent: [],
   reloads: 0,
 }
@@ -344,7 +347,7 @@ jest.mock('@/hooks/useDisputeThread', () => ({
             reads: [],
             context: mockState.withContext ? context : null,
           },
-    messages,
+    messages: mockThread.empty ? [] : messages,
     send: (body: string, attachment?: unknown) => {
       mockThread.sent.push({ body, hasAttachment: attachment !== undefined })
       return Promise.resolve(mockThread.sendSucceeds)
@@ -410,6 +413,7 @@ beforeEach(() => {
   mockThread.readOnly = false
   mockThread.sendSucceeds = true
   mockThread.threadMissing = false
+  mockThread.empty = false
   mockThread.sent.length = 0
   mockThread.reloads = 0
   mockUpload.uploading = false
@@ -640,4 +644,105 @@ test('back navigates away from both the thread and the error state', () => {
   renderAsParty()
   fireEvent.press(screen.getByTestId('back'))
   expect(mockState.backs).toBe(2)
+})
+
+// ── seat-aware copy + composer ──────────────────────────────────────────────
+// Every string on this screen used to address a disputant, including for the
+// mediating admin who arrives via the push deep-link. The seat is derived from
+// party MEMBERSHIP (shared `disputeViewerSeat`) — the app has no admin role of
+// its own — and the composer follows the server's rule that read access alone
+// grants no voice.
+
+const MEDIATOR_BANNER = /viewing this as a mediator/i
+const PARTY_BANNER = /An admin will join this conversation shortly/i
+
+test('a mediator WITHOUT the claim is told to claim it, and gets no composer', () => {
+  // The dead end this fixes: read access without a voice, and copy promising
+  // that an admin is on the way — to the admin.
+  mockState.myId = MEDIATOR
+  mockState.assigned = null
+  render(<DisputeThreadScreen />)
+
+  expect(screen.getByText(MEDIATOR_BANNER)).toBeTruthy()
+  expect(screen.queryByText(PARTY_BANNER)).toBeNull()
+  expect(screen.queryByTestId('chat-input')).toBeNull()
+})
+
+test('a mediator reading a COLLEAGUE’s case is equally voiceless', () => {
+  // Gated on "do I hold the claim", not "is it unclaimed" — the second admin
+  // could post just as little, and used to see no banner at all.
+  mockState.myId = MEDIATOR
+  mockState.assigned = SECOND_MEDIATOR
+  render(<DisputeThreadScreen />)
+
+  expect(screen.getByText(MEDIATOR_BANNER)).toBeTruthy()
+  expect(screen.queryByTestId('chat-input')).toBeNull()
+})
+
+test('a mediator HOLDING the claim gets the composer and no banner', () => {
+  mockState.myId = MEDIATOR
+  mockState.assigned = MEDIATOR
+  render(<DisputeThreadScreen />)
+
+  expect(screen.queryByText(MEDIATOR_BANNER)).toBeNull()
+  expect(screen.getByTestId('chat-input')).toBeTruthy()
+})
+
+test('a disputant keeps the original copy and their composer', () => {
+  mockState.myId = CREATOR
+  mockState.assigned = null
+  render(<DisputeThreadScreen />)
+
+  expect(screen.getByText(PARTY_BANNER)).toBeTruthy()
+  expect(screen.queryByText(MEDIATOR_BANNER)).toBeNull()
+  expect(screen.getByTestId('chat-input')).toBeTruthy()
+})
+
+test('a disputant on a CLAIMED dispute sees neither banner but can still post', () => {
+  mockState.myId = CREATOR
+  mockState.assigned = MEDIATOR
+  render(<DisputeThreadScreen />)
+
+  expect(screen.queryByText(PARTY_BANNER)).toBeNull()
+  expect(screen.queryByText(MEDIATOR_BANNER)).toBeNull()
+  expect(screen.getByTestId('chat-input')).toBeTruthy()
+})
+
+test('with no party list yet, a disputant is NOT silenced', () => {
+  // Fail-open: a tail poll before the context lands leaves the seat unknown.
+  // Guessing "mediator" there would strip a real disputant's composer
+  // mid-conversation, which is far worse than showing them stale copy.
+  mockState.myId = CREATOR
+  mockState.assigned = null
+  mockState.withContext = false
+  render(<DisputeThreadScreen />)
+
+  expect(screen.getByTestId('chat-input')).toBeTruthy()
+  expect(screen.queryByText(MEDIATOR_BANNER)).toBeNull()
+})
+
+test('the empty state prompts a disputant to speak but not the mediator', () => {
+  mockThread.empty = true
+  mockState.myId = CREATOR
+  mockState.assigned = MEDIATOR
+  const party = render(<DisputeThreadScreen />)
+  expect(party.getByText(/Explain your side/i)).toBeTruthy()
+  party.unmount()
+
+  mockState.myId = MEDIATOR
+  render(<DisputeThreadScreen />)
+  expect(screen.getByText('No messages yet.')).toBeTruthy()
+  expect(screen.queryByText(/Explain your side/i)).toBeNull()
+})
+
+test('a resolved thread shows no mediator banner even without the claim', () => {
+  // read_only already drops the composer; a "claim it to reply" nudge on a
+  // closed case would be a dead end of its own.
+  mockThread.readOnly = true
+  mockState.myId = MEDIATOR
+  mockState.assigned = null
+  render(<DisputeThreadScreen />)
+
+  expect(screen.queryByText(MEDIATOR_BANNER)).toBeNull()
+  expect(screen.getByText(/resolved, the conversation is read-only/i)).toBeTruthy()
 })

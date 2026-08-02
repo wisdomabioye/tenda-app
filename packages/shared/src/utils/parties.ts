@@ -119,3 +119,23 @@ export function resolveDisputeSender(args: DisputeSenderArgs): DisputeSender {
   }
   return { kind: 'mediator', role: null, label: MEDIATOR_LABEL }
 }
+
+/** Which seat the READER occupies on a dispute thread. */
+export type DisputeViewerSeat = 'party' | 'mediator' | 'unknown'
+
+/**
+ * Place the reader on a dispute thread, by the same membership rule
+ * `resolveDisputeSender` places message authors with — so a screen's copy and
+ * its bubbles can never disagree about who someone is.
+ *
+ * `unknown` matters: callers use this to decide whether to WITHHOLD something
+ * (a composer, disputant-shaped copy), and guessing `mediator` with no party
+ * list would silence an actual disputant. Fail open on `unknown`.
+ */
+export function disputeViewerSeat(
+  parties: readonly DossierParty[],
+  viewerId: string,
+): DisputeViewerSeat {
+  if (viewerId === '' || parties.length === 0) return 'unknown'
+  return parties.some((p) => p.user_id === viewerId) ? 'party' : 'mediator'
+}

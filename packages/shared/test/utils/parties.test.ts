@@ -5,6 +5,7 @@ import {
   winnerLabel,
   displayName,
   resolveDisputeSender,
+  disputeViewerSeat,
   type DisputeSenderArgs,
 } from '../../src/utils/parties'
 import type { DossierParty } from '../../src/types/dossier'
@@ -157,4 +158,35 @@ test('resolveDisputeSender: an empty viewer id matches nobody', () => {
 test('resolveDisputeSender: a one-party escrow still places the mediator', () => {
   const soloParty: readonly DossierParty[] = [PARTIES[0]]
   assert.equal(senderFor(MEDIATOR, POSTER, { parties: soloParty }).kind, 'mediator')
+})
+
+// ── disputeViewerSeat ───────────────────────────────────────────────────────
+// Callers WITHHOLD things on this answer (the composer, disputant-shaped
+// copy), so the failure that matters is silencing a real disputant.
+
+test('disputeViewerSeat: a disputant is a party', () => {
+  assert.equal(disputeViewerSeat(PARTIES, POSTER), 'party')
+  assert.equal(disputeViewerSeat(PARTIES, WORKER), 'party')
+})
+
+test('disputeViewerSeat: someone outside the party list is the mediator', () => {
+  assert.equal(disputeViewerSeat(PARTIES, MEDIATOR), 'mediator')
+})
+
+test('disputeViewerSeat: no party list is unknown, never a guessed mediator', () => {
+  // A tail poll before the full load. Guessing "mediator" here would strip a
+  // disputant's composer mid-conversation.
+  assert.equal(disputeViewerSeat([], POSTER), 'unknown')
+})
+
+test('disputeViewerSeat: an unhydrated viewer id is unknown, not a mediator', () => {
+  assert.equal(disputeViewerSeat(PARTIES, ''), 'unknown')
+})
+
+test('disputeViewerSeat: agrees with resolveDisputeSender on the same reader', () => {
+  // The two must never disagree — that split is what produced the original
+  // mislabelling. A party reads as their own message; an outsider as mediator.
+  assert.equal(resolveDisputeSender({ senderId: MEDIATOR, viewerId: POSTER, kind: 'gig', parties: PARTIES }).kind, 'mediator')
+  assert.equal(disputeViewerSeat(PARTIES, MEDIATOR), 'mediator')
+  assert.equal(disputeViewerSeat(PARTIES, POSTER), 'party')
 })

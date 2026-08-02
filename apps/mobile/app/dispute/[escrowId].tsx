@@ -1,15 +1,26 @@
 /**
- * CO7 dispute-mediation thread (party view), ONE shared conversation per
- * dispute: both parties and the mediating admin read/write the same
- * messages. Polls the tail (recursive setTimeout, chat cadence); freezes
- * read-only once the dispute resolves.
+ * CO7 dispute-mediation thread, ONE shared conversation per dispute: both
+ * parties and the mediating admin read the same messages. Polls the tail
+ * (recursive setTimeout, chat cadence); freezes read-only once the dispute
+ * resolves.
+ *
+ * Serves TWO seats. An admin reaches this screen through the "new dispute
+ * message" push deep-link, so nothing here may assume a disputant is reading —
+ * the seat comes from party membership (`disputeViewerSeat`), because the app
+ * has no admin role of its own. Read access grants no voice: a mediator must
+ * hold the claim to post, which the server enforces and `canPost` mirrors.
  */
 import { useMemo, useState } from 'react'
 import { FlatList, StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useUnistyles } from 'react-native-unistyles'
-import { resolveDisputeSender, type DisputeMessage, type DisputeSender } from '@tenda/shared'
+import {
+  resolveDisputeSender,
+  disputeViewerSeat,
+  type DisputeMessage,
+  type DisputeSender,
+} from '@tenda/shared'
 import { ScreenContainer } from '@/components/ui/ScreenContainer'
 import { Header } from '@/components/ui/Header'
 import { Text } from '@/components/ui/Text'
@@ -76,6 +87,20 @@ export default function DisputeThreadScreen() {
     if (!ok) showToast('error', 'Message not sent, try again')
   }
 
+  /**
+   * Which seat is READING this screen. A mediating admin arrives here through
+   * the "new dispute message" push deep-link, so every disputant-shaped string
+   * below has to be gated — the app has no admin role of its own to check.
+   * `unknown` (no party list yet) is treated as a disputant on purpose: the
+   * cost of guessing wrong that way is stale copy, the other way it is a
+   * disputant silently losing their composer.
+   */
+  const seat = disputeViewerSeat(thread?.context?.parties ?? [], myId)
+  const isMediator = seat === 'mediator'
+  /** Read access never implies a voice: a mediator must hold the claim to post. */
+  const canPost =
+    thread !== null && !thread.read_only && (!isMediator || thread.assigned_to_id === myId)
+
   if (loading) return <LoadingScreen />
   if (error !== null || thread === null) {
     return (
@@ -100,7 +125,15 @@ export default function DisputeThreadScreen() {
         {thread.context !== null && (
           <DisputeContextHeader context={thread.context} currentUserId={myId} />
         )}
-        {thread.assigned_to_id === null && !thread.read_only && (
+        {!thread.read_only && isMediator && !canPost && (
+          <View style={[s.banner, { backgroundColor: theme.colors.surface.inset }]}>
+            <Text variant="caption" color={theme.colors.content.secondary}>
+              You are viewing this as a mediator. Claim this dispute in the admin dashboard to
+              reply.
+            </Text>
+          </View>
+        )}
+        {!thread.read_only && !isMediator && thread.assigned_to_id === null && (
           <View style={[s.banner, { backgroundColor: theme.colors.surface.inset }]}>
             <Text variant="caption" color={theme.colors.content.secondary}>
               An admin will join this conversation shortly. You can already talk to the other party.
@@ -135,7 +168,9 @@ export default function DisputeThreadScreen() {
           ListEmptyComponent={
             <View style={s.empty}>
               <Text variant="caption" color={theme.colors.content.tertiary} style={s.emptyText}>
-                No messages yet. Explain your side, the other party and the mediator see the same thread.
+                {isMediator
+                  ? 'No messages yet.'
+                  : 'No messages yet. Explain your side, the other party and the mediator see the same thread.'}
               </Text>
             </View>
           }
@@ -145,16 +180,18 @@ export default function DisputeThreadScreen() {
             Uploading attachment…
           </Text>
         )}
-        {!thread.read_only ? (
+        {canPost ? (
           <ChatInput
             onSend={(text) => void handleSend(text)}
             onAttach={() => setAttachOpen(true)}
             disabled={uploading}
           />
         ) : (
-          // Resolved threads drop the ChatInput, which was the only element
-          // reserving the bottom safe-area. Without this spacer the inverted
-          // list's newest message renders behind the Android nav bar.
+          // No composer for a resolved thread, or for a mediator who does not
+          // hold the claim — the server refuses those posts, and an input that
+          // always fails is worse than none. The ChatInput was also the only
+          // element reserving the bottom safe-area, so without this spacer the
+          // inverted list's newest message renders behind the Android nav bar.
           <View style={{ height: insets.bottom }} />
         )}
       </View>

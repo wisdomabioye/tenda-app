@@ -9,6 +9,7 @@ export {
   winnerLabel,
   displayName,
   resolveDisputeSender,
+  disputeViewerSeat,
   type PartyRole,
   type DisputeSender,
   type DisputeSenderArgs,
