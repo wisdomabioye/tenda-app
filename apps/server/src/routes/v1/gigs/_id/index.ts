@@ -30,7 +30,7 @@ import {
 } from '@server/lib/escrow-detail-scope'
 import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
 import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow-party'
-import { optionalUserId } from '@server/lib/guards'
+import { optionalUserId, uuidParamGuard } from '@server/lib/guards'
 import { loadGigViewerContext } from '@server/features/applications/viewer'
 import { USER_COLS } from '@server/lib/users'
 
@@ -39,6 +39,10 @@ type GetRoute = GigsContract['get']
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString())
 
 const gigById: FastifyPluginAsync = async (fastify) => {
+  // Malformed `:id` reaches postgres as a uuid comparison and throws;
+  // answer it the way an unknown id is already answered.
+  fastify.addHook('preHandler', uuidParamGuard('Gig not found'))
+
   fastify.get<{
     Params: GetRoute['params']
     Reply: GetRoute['response'] | ApiError

@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import { uuidParamGuard } from '@server/lib/guards'
 import { eq } from 'drizzle-orm'
 import { conversations } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
@@ -8,6 +9,10 @@ import { AppError } from '@server/lib/errors'
 type CloseRoute = ConversationsContract['close']
 
 const closeConversation: FastifyPluginAsync = async (fastify) => {
+  // Malformed `:id` reaches postgres as a uuid comparison and throws;
+  // answer it the way an unknown id is already answered.
+  fastify.addHook('preHandler', uuidParamGuard('Conversation not found'))
+
   // POST /v1/conversations/:id/close, close a conversation (hide it from inbox)
   fastify.post<{
     Params: CloseRoute['params']

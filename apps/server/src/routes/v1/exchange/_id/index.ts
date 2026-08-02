@@ -7,6 +7,7 @@
  * them), visible to their CREATOR only, 404 to everyone else.
  */
 import { FastifyPluginAsync } from 'fastify'
+import { uuidParamGuard } from '@server/lib/guards'
 import { eq, inArray } from 'drizzle-orm'
 import { escrows, exchange_details, users, reviews, bank_accounts } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
@@ -26,6 +27,10 @@ type GetRoute = ExchangeContract['get']
 const iso = (d: Date | null): string | null => (d === null ? null : d.toISOString())
 
 const exchangeById: FastifyPluginAsync = async (fastify) => {
+  // Malformed `:id` reaches postgres as a uuid comparison and throws;
+  // answer it the way an unknown id is already answered.
+  fastify.addHook('preHandler', uuidParamGuard('Exchange offer not found'))
+
   fastify.get<{
     Params: GetRoute['params']
     Reply: GetRoute['response'] | ApiError

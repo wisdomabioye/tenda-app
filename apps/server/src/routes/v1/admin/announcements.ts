@@ -3,7 +3,7 @@ import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { eq, desc, sql } from 'drizzle-orm'
 import { announcements } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError, requireBody } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { createAnnouncement, normalizeTarget } from '@server/lib/announcements'
@@ -11,6 +11,10 @@ import type { ApiError } from '@tenda/shared'
 
 
 const adminAnnouncements: FastifyPluginAsync = async (fastify) => {
+  // Malformed id reaches postgres as a uuid comparison and throws; answer
+  // it the way an unknown id already is.
+  fastify.addHook('preHandler', uuidParamGuard('Announcement not found'))
+
   // GET /v1/admin/announcements, all announcements (active and inactive)
   fastify.get<{
     Querystring: { limit?: number; offset?: number; active?: string }

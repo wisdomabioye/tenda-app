@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import { uuidParamGuard } from '@server/lib/guards'
 import { clampLimit } from '@server/lib/pagination'
 import { and, eq, lt, lte, or, desc, isNull, ne, sql, type SQL } from 'drizzle-orm'
 import { conversations, messages, escrows, gig_details, exchange_details } from '@tenda/shared/db/schema'
@@ -27,6 +28,10 @@ const escrowTitleSql: SQL<string | null> = sql<string | null>`CASE
 END`
 
 const messagesRoute: FastifyPluginAsync = async (fastify) => {
+  // Malformed `:id` reaches postgres as a uuid comparison and throws;
+  // answer it the way an unknown id is already answered.
+  fastify.addHook('preHandler', uuidParamGuard('Conversation not found'))
+
   /** Resolve the context-divider title + kind for one escrow id (post-insert path). */
   async function escrowContextFor(
     escrow_id: string,

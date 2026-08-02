@@ -19,13 +19,17 @@ import type {
   PaginatedResponse,
 } from '@tenda/shared'
 import { escrowStatusEnum } from '@tenda/shared/db/schema/escrow'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { buildEscrowDossier } from '@server/lib/escrow/dossier'
 
 
 const adminEscrows: FastifyPluginAsync = async (fastify) => {
+  // Malformed id reaches postgres as a uuid comparison and throws; answer
+  // it the way an unknown id already is.
+  fastify.addHook('preHandler', uuidParamGuard('Escrow not found'))
+
   const rowCols = {
     id: escrows.id,
     kind: escrows.kind,

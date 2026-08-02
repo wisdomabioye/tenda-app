@@ -1,4 +1,5 @@
 import { FastifyPluginAsync } from 'fastify'
+import { uuidParamGuard } from '@server/lib/guards'
 import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
 import { ErrorCode, isCloudinaryUrl, LOCATIONS, isCityInCountry } from '@tenda/shared'
@@ -11,6 +12,10 @@ type GetRoute    = UsersContract['get']
 type UpdateRoute = UsersContract['update']
 
 const userById: FastifyPluginAsync = async (fastify) => {
+  // Malformed `:id` reaches postgres as a uuid comparison and throws;
+  // answer it the way an unknown id is already answered.
+  fastify.addHook('preHandler', uuidParamGuard('User not found', { code: ErrorCode.USER_NOT_FOUND }))
+
   // GET /v1/users/:id, public profile (no wallet_address)
   fastify.get<{
     Params: GetRoute['params']

@@ -4,12 +4,17 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
+import { uuidParamGuard } from '@server/lib/guards'
 import { ErrorCode } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { buildFiatDeps } from '@server/features/fiat-rails'
 import { requireFiatRails } from '@server/lib/fiat-routes'
 
 const route: FastifyPluginAsync = async (fastify) => {
+  // Malformed `:id` reaches postgres as a uuid comparison and throws;
+  // answer it the way an unknown id is already answered.
+  fastify.addHook('preHandler', uuidParamGuard('intent not found'))
+
   fastify.get<{ Params: { id: string } }>(
     '/',
     { preHandler: [fastify.authenticate, requireFiatRails] },

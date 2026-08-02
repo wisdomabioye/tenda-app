@@ -5,7 +5,7 @@ import { users, user_wallets, disputes, admin_users } from '@tenda/shared/db/sch
 import {
   ADMIN_ROLES, ASSIGNABLE_ROLES, ErrorCode,
 } from '@tenda/shared'
-import { hasPermission, requirePermission } from '@server/lib/guards'
+import { hasPermission, requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { computeDisputeRate } from '@server/features/reputation/fraud-flag'
 import { AppError, requireBody } from '@server/lib/errors'
 import { ensureTxUpdated } from '@server/lib/db'
@@ -14,6 +14,10 @@ import type { ApiError, UserRole, UserStatus } from '@tenda/shared'
 
 
 const adminUsers: FastifyPluginAsync = async (fastify) => {
+  // Malformed id reaches postgres as a uuid comparison and throws; answer
+  // it the way an unknown id already is.
+  fastify.addHook('preHandler', uuidParamGuard('User not found', { code: ErrorCode.USER_NOT_FOUND }))
+
   // GET /v1/admin/users, list users (super_admin only post-#34: the
   // legacy role zoo collapsed to dispute_admin + super_admin)
   fastify.get<{

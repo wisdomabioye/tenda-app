@@ -11,7 +11,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { ErrorCode } from '@tenda/shared'
 import { standing_overrides } from '@tenda/shared/db/schema/reputation'
 import { AppError } from '@server/lib/errors'
-import { requirePermission } from '@server/lib/guards'
+import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { applyFraudConfirmed } from '@server/features/reputation/service'
 import { computeDisputeRate } from '@server/features/reputation/fraud-flag'
 import { drizzleReputationStore } from '@server/features/reputation/store'
@@ -41,6 +41,10 @@ function narrowAction(v: unknown): OverrideAction {
 }
 
 const route: FastifyPluginAsync = async (fastify) => {
+  // Malformed id reaches postgres as a uuid comparison and throws; answer
+  // it the way an unknown id already is.
+  fastify.addHook('preHandler', uuidParamGuard('User not found', { code: ErrorCode.USER_NOT_FOUND, param: 'user_id' }))
+
   fastify.get<{ Params: { user_id: string } }>(
     '/:user_id',
     { preHandler: [fastify.authenticate, requirePermission('standing.read')] },

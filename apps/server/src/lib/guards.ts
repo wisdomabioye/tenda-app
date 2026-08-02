@@ -109,13 +109,27 @@ export async function requireProfileComplete(
  * mode is a handler FORGETTING the guard: one registration covers every `:id`
  * route in the scope, including ones added later. Register it inside the
  * plugin, never on the parent router, so the authenticate hook still runs
- * first and a stranger gets 401 rather than a 404.
+ * first and a stranger gets 401 rather than a 404. *
+ * `code` defaults to NOT_FOUND but takes the route's own vocabulary where it
+ * has one (USER_NOT_FOUND), so a malformed id answers exactly as an unknown
+ * one does rather than inventing a second shape for the same outcome.
+ *
+ * `param` defaults to 'id'. It exists because /v1/admin/standing/:user_id
+ * names its param differently, and a guard hard-coded to `id` would sit on
+ * that route doing nothing at all — worse than being absent, because the
+ * registration reads as if it were covered.
  */
-export function uuidParamGuard(notFoundMessage: string) {
-  return async function guard(request: FastifyRequest<{ Params: { id?: string } }>): Promise<void> {
-    const { id } = request.params
-    if (id !== undefined && !isUuidLike(id)) {
-      throw new AppError(404, ErrorCode.NOT_FOUND, notFoundMessage)
+export function uuidParamGuard(
+  notFoundMessage: string,
+  options: { code?: ErrorCode | string; param?: string } = {},
+) {
+  const { code = ErrorCode.NOT_FOUND, param = 'id' } = options
+  return async function guard(
+    request: FastifyRequest<{ Params: Record<string, string | undefined> }>,
+  ): Promise<void> {
+    const value = request.params[param]
+    if (value !== undefined && !isUuidLike(value)) {
+      throw new AppError(404, code, notFoundMessage)
     }
   }
 }
