@@ -17,6 +17,26 @@ export const NOTIFICATION_PAGE_SIZE = 20
 export const NOTIFICATION_TITLE_MAX = 200
 export const NOTIFICATION_BODY_MAX = 500
 
+/**
+ * Deep-link vocabulary for a notification's `data.screen` field — the single
+ * source shared by the server-side push-data builders (lib/notify), the mobile
+ * route resolver, and the admin dashboard's resolver. Previously each producer
+ * hand-wrote the literal, so the server could emit a screen no client routed
+ * and nothing failed.
+ *
+ * Only the VOCABULARY is shared, never the routing table: the same screen
+ * resolves to different destinations per surface (mobile opens a dispute by
+ * escrow id, the dashboard by dispute id), so each client keeps its own map.
+ */
+export const NOTIFICATION_SCREEN = {
+  escrow: 'escrow',
+  dispute: 'dispute',
+  chat: 'chat',
+  fiatIntent: 'fiat-intent',
+} as const
+
+export type NotificationScreen = (typeof NOTIFICATION_SCREEN)[keyof typeof NOTIFICATION_SCREEN]
+
 /** Retention sweep: read notifications older than this are pruned. */
 export const NOTIFICATION_RETENTION_READ_DAYS = 60
 
