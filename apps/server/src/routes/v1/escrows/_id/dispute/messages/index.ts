@@ -22,7 +22,7 @@ import type {
 import { AppError } from '@server/lib/errors'
 import { assertDisputeThreadAccess } from '@server/lib/disputes/thread-access'
 import { validateMessageAttachment } from '@server/lib/uploads/validate-attachment'
-import { enqueueNotification } from '@server/lib/notify'
+import { enqueueNotification, disputePushData } from '@server/lib/notify'
 import { buildDisputeThreadContext } from '@server/lib/disputes/thread-context'
 
 const MESSAGES_PAGE_LIMIT = 100
@@ -183,7 +183,7 @@ const route: FastifyPluginAsync = async (fastify) => {
             user_id,
             title: 'New dispute message',
             body: isParty ? 'The other party replied in your dispute.' : 'The mediator replied in your dispute.',
-            data: { screen: 'dispute', escrowId: escrow.id },
+            data: disputePushData(escrow.id, dispute.id),
             persist: false,
           })
         } catch (err) {

@@ -299,7 +299,13 @@ test('POST proofs while submitted: notifies the creator exactly once', { skip },
   assert.strictEqual(notifs.length, 1, 'additional evidence during review notifies once')
   assert.strictEqual(notifs[0].payload.user_id, creator.row.id, 'the poster is the recipient')
   assert.strictEqual(notifs[0].payload.title, 'Additional proof submitted')
-  assert.deepStrictEqual(notifs[0].payload.data, { screen: 'escrow', escrowId: escrow.id })
+  // `kind` is now always present: an exchange escrow's proof notice must
+  // deep-link /exchange/:id, and omitting kind silently routed it to /gig/:id.
+  assert.deepStrictEqual(notifs[0].payload.data, {
+    screen: 'escrow',
+    escrowId: escrow.id,
+    kind: 'gig',
+  })
 })
 
 // ---------- proofs during a dispute -----------------------------------------
@@ -357,7 +363,13 @@ test('POST proofs while disputed: notifies the other party AND the assigned medi
   )
   for (const n of notifs) {
     assert.strictEqual(n.payload.title, 'New dispute evidence')
-    assert.deepStrictEqual(n.payload.data, { screen: 'dispute', escrowId: escrow.id })
+    // Both ids: mobile opens /dispute/:escrowId, the admin dashboard keys the
+    // mediation queue by disputes.id.
+    assert.deepStrictEqual(n.payload.data, {
+      screen: 'dispute',
+      escrowId: escrow.id,
+      disputeId: dispute_id,
+    })
   }
 })
 
@@ -375,6 +387,7 @@ test('POST proofs while disputed with no mediator claimed: only the other party 
   const notifs = notifications(calls)
   assert.strictEqual(notifs.length, 1, 'no mediator → single recipient')
   assert.strictEqual(notifs[0].payload.user_id, creator.row.id)
+  assert.strictEqual(notifs[0].payload.data?.screen, 'dispute')
 })
 
 test('POST proofs: 409 once completed (only accepted/submitted/disputed are proofable)', { skip }, async () => {

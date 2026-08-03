@@ -449,6 +449,21 @@ test('persist=false pushes but writes NO row and no notification frame', { skip 
   assert.strictEqual(userFrames(u.row.id).length, 0)
 })
 
+// Negative counterpart to 'delivering the SAME id twice is idempotent' below:
+// same recipient, same copy, DIFFERENT id. Without this, a dedup that keyed on
+// CONTENT instead of the id would pass that test while silently swallowing
+// genuine repeat notices (two disputes on the same escrow, say).
+test('two distinct ids for the same recipient both persist', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  await buildProcessors(app).notifications(notifJob({ user_id: u.row.id, persist: true }))
+  await buildProcessors(app).notifications(notifJob({ user_id: u.row.id, persist: true }))
+
+  const rows = await app.db.select().from(notifications).where(eq(notifications.user_id, u.row.id))
+  assert.strictEqual(rows.length, 2)
+  assert.strictEqual(userFrames(u.row.id).length, 2)
+})
+
 test('a persisted notification is written even when the user has NO device token', { skip }, async () => {
   const app = getApp()
   const u = await createUser(app)

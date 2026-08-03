@@ -13,7 +13,7 @@ import { ErrorCode } from '@tenda/shared'
 import type { ApiError, EscrowProof } from '@tenda/shared'
 import { loadEscrowOr404, deriveCaller } from '@server/lib/escrow-routes'
 import { AppError } from '@server/lib/errors'
-import { enqueueNotification } from '@server/lib/notify'
+import { enqueueNotification, escrowPushData, disputePushData } from '@server/lib/notify'
 import { validateProofs, type ProofInput } from '@server/lib/proofs'
 
 const MAX_TOTAL_PROOFS = 20
@@ -94,7 +94,7 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
             user_id: escrow.creator_id,
             title: 'Additional proof submitted',
             body: 'The worker added more evidence, review and approve.',
-            data: { screen: 'escrow', escrowId: id },
+            data: escrowPushData(id, escrow.kind),
           })
         } catch (err) {
           request.log.warn({ err }, 'proofs: notification enqueue failed (queue unavailable)')
@@ -106,7 +106,7 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
         // is always the creator.
         try {
           const [dispute] = await fastify.db
-            .select({ assigned_to: disputes.assigned_to })
+            .select({ id: disputes.id, assigned_to: disputes.assigned_to })
             .from(disputes)
             .where(eq(disputes.escrow_id, id))
           const recipients = new Set<string>([escrow.creator_id])
@@ -117,7 +117,7 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
               user_id,
               title: 'New dispute evidence',
               body: 'The worker added evidence to the dispute.',
-              data: { screen: 'dispute', escrowId: id },
+              data: disputePushData(id, dispute?.id ?? null),
               persist: false,
             })
           }

@@ -8,14 +8,20 @@
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
 import { appEvents } from '@server/lib/events'
-import { enqueueNotification } from '@server/lib/notify'
+import {
+  enqueueNotification,
+  escrowPushData,
+  chatPushData,
+  fiatIntentPushData,
+  type PushData,
+} from '@server/lib/notify'
 
 const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
   async function notify(
     user_id: string,
     title: string,
     body: string,
-    data: Record<string, string>,
+    data: PushData,
     persist = true,
   ): Promise<void> {
     await enqueueNotification(fastify.queue, { user_id, title, body, data, persist })
@@ -30,7 +36,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         data.recipientId,
         'New Message',
         data.preview,
-        { screen: 'chat', conversationId: data.conversationId, userId: data.senderId },
+        chatPushData(data.conversationId, data.senderId),
         false,
       )
     } catch (err) {
@@ -49,7 +55,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         data.revieweeId,
         'New Review',
         `You received a ${data.score}-star review for ${subject}.`,
-        { screen: 'escrow', escrowId: data.escrowId, kind: isExchange ? 'exchange' : 'gig' },
+        escrowPushData(data.escrowId, isExchange ? 'exchange' : 'gig'),
       )
     } catch (err) {
       fastify.log.error({ err }, '[notifications] review.submitted listener failed')
@@ -66,7 +72,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         data.creator_id,
         'Worker stepped back',
         'The worker you assigned is no longer available. Release the assignment to open the gig again.',
-        { screen: 'escrow', escrowId: data.escrow_id, kind: 'gig' },
+        escrowPushData(data.escrow_id, 'gig'),
       )
     } catch (err) {
       fastify.log.error({ err }, '[notifications] assignment_released listener failed')
@@ -84,7 +90,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         data.creator_id,
         'New applicant',
         `Someone applied to "${data.title}". Review the applicants and pick your worker.`,
-        { screen: 'escrow', escrowId: data.escrow_id, kind: 'gig' },
+        escrowPushData(data.escrow_id, 'gig'),
       )
     } catch (err) {
       fastify.log.error({ err }, '[notifications] gig.application_received listener failed')
@@ -100,7 +106,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         data.direction === 'onramp'
           ? 'Your purchase settled, the funds are in your wallet.'
           : `Your ${data.fiat_currency} payout was sent to your bank.`,
-        { screen: 'fiat-intent', intentId: data.intent_id },
+        fiatIntentPushData(data.intent_id),
       )
     } catch (err) {
       fastify.log.error({ err }, '[notifications] fiat.settled listener failed')
@@ -113,7 +119,7 @@ const notificationsPlugin: FastifyPluginAsync = async (fastify) => {
         data.user_id,
         data.direction === 'onramp' ? 'Purchase Failed' : 'Cash-out Failed',
         data.reason,
-        { screen: 'fiat-intent', intentId: data.intent_id },
+        fiatIntentPushData(data.intent_id),
       )
     } catch (err) {
       fastify.log.error({ err }, '[notifications] fiat.failed listener failed')
