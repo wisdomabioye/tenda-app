@@ -18,12 +18,11 @@
 import { test, beforeEach, after } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
-import type { FastifyInstance } from 'fastify'
 import { gig_applications } from '@tenda/shared/db/schema'
 import { appEvents, type AppEvents } from '@server/lib/events'
 import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
 import { fanOutEscrowEvent, type EscrowFanoutEvent } from '@server/workers/escrow-fanout'
-import type { JobName, JobPayload } from '@server/plugins/queue'
+import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
@@ -38,20 +37,7 @@ const getApp = useTestApp()
 
 type App = ReturnType<typeof getApp>
 
-interface Enqueued {
-  name: JobName
-  payload: JobPayload['notifications']
-}
-
-let enqueued: Enqueued[]
-
-function installCapture(app: FastifyInstance) {
-  enqueued = []
-  app.queue.enqueue = async (name, payload) => {
-    enqueued.push({ name, payload: payload as JobPayload['notifications'] })
-    return { job_id: 'test-job' }
-  }
-}
+let capture: SideEffectCapture
 
 /**
  * The apply route's contract is the EVENT, not the push.
@@ -79,7 +65,7 @@ let stopCapture: (() => void) | null = null
 
 beforeEach(() => {
   if (skip) return
-  installCapture(getApp())
+  capture = installCapture(getApp())
   stopCapture?.()
   stopCapture = captureApplicationEvents()
 })
@@ -106,9 +92,6 @@ const applyTo = (app: App, token: string, id: string, body: Record<string, unkno
     headers: authHeader(token),
     payload: body,
   })
-
-const notifiedUserIds = () =>
-  enqueued.filter((e) => e.name === 'notifications').map((e) => e.payload.user_id)
 
 // ── the poster learns an application arrived ───────────────────────────────
 
@@ -208,7 +191,7 @@ test('assigning settles the rivals and the fan-out tells exactly them', { skip }
     [loserA.row.id, loserB.row.id].sort(),
   )
 
-  installCapture(app)
+  capture = installCapture(app)
   await fanOutEscrowEvent(app, {
     internal_event: 'escrow.counterparty_assigned',
     escrow_id: escrow.id,
@@ -219,13 +202,13 @@ test('assigning settles the rivals and the fan-out tells exactly them', { skip }
     revived_applicant_ids: outcome.revived_applicant_ids,
   } satisfies EscrowFanoutEvent)
 
-  const recipients = notifiedUserIds()
+  const recipients = capture.notifiedUserIds()
   // The winner gets the "You got the gig" notice; the two losers get theirs.
   assert.strictEqual(recipients.length, 3)
   assert.ok(recipients.includes(loserA.row.id))
   assert.ok(recipients.includes(loserB.row.id))
   assert.ok(recipients.includes(winner.row.id))
-  const loserNotice = enqueued.find((e) => e.payload.user_id === loserA.row.id)
+  const loserNotice = capture.enqueued.find((e) => e.payload.user_id === loserA.row.id)
   assert.strictEqual(loserNotice?.payload.title, 'Gig assigned to someone else')
 })
 
@@ -279,7 +262,7 @@ test('unassigning revives the rivals and the fan-out tells exactly them', { skip
   // The released worker is NOT revived: the poster let them go on purpose.
   assert.deepStrictEqual(outcome.passed_applicant_ids, [])
 
-  installCapture(app)
+  capture = installCapture(app)
   await fanOutEscrowEvent(app, {
     internal_event: 'escrow.assignment_released',
     escrow_id: escrow.id,
@@ -290,11 +273,11 @@ test('unassigning revives the rivals and the fan-out tells exactly them', { skip
     revived_applicant_ids: outcome.revived_applicant_ids,
   } satisfies EscrowFanoutEvent)
 
-  const revivedNotice = enqueued.find((e) => e.payload.user_id === rival.row.id)
+  const revivedNotice = capture.enqueued.find((e) => e.payload.user_id === rival.row.id)
   assert.strictEqual(revivedNotice?.payload.title, "You're back in the running")
   // The released worker still gets their own "Assignment withdrawn" notice,
   // and nobody is told both things about one transition.
-  const workerNotices = enqueued.filter((e) => e.payload.user_id === winner.row.id)
+  const workerNotices = capture.enqueued.filter((e) => e.payload.user_id === winner.row.id)
   assert.strictEqual(workerNotices.length, 1)
   assert.strictEqual(workerNotices[0]?.payload.title, 'Assignment withdrawn')
 })

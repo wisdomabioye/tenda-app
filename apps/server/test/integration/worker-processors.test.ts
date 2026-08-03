@@ -15,7 +15,6 @@ import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
-import type { FastifyInstance } from 'fastify'
 import { device_tokens, gig_subscriptions, notifications } from '@tenda/shared/db/schema'
 import { category_price_stats } from '@tenda/shared/db/schema/moderation'
 import { NOTIFICATION_BODY_MAX } from '@tenda/shared'
@@ -26,6 +25,7 @@ import { channelName } from '@server/lib/ws'
 import { INTERNAL_EVENT_BY_WIRE, type EscrowRepublishEvent } from '@server/lib/escrow-events'
 import type { EscrowEvent } from '@server/chains/types'
 import type { JobName, JobPayload } from '@server/plugins/queue'
+import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
@@ -38,27 +38,10 @@ const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
 
 // ---------- side-effect capture -------------------------------------------------
+// The queue + WS seam lives in helpers/side-effects, shared with the other
+// fan-out suites so "what counts as notifying someone" is defined once.
 
-interface Capture {
-  enqueued: Array<{ name: JobName; payload: JobPayload['notifications'] }>
-  broadcasts: Array<{ channel: string; payload: Record<string, unknown> }>
-}
-
-function installCapture(app: FastifyInstance): Capture {
-  const cap: Capture = { enqueued: [], broadcasts: [] }
-  app.queue.enqueue = async (name, payload) => {
-    // Every worker fan-out enqueues a 'notifications' job (the only producer here).
-    cap.enqueued.push({ name, payload: payload as JobPayload['notifications'] })
-    return { job_id: 'test-job' }
-  }
-  app.wsBroadcast.broadcast = (channel, payload) => {
-    cap.broadcasts.push({ channel, payload })
-    return 0
-  }
-  return cap
-}
-
-let cap: Capture
+let cap: SideEffectCapture
 beforeEach(() => {
   if (skip) return
   cap = installCapture(getApp())
