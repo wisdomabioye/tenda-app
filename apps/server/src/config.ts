@@ -1,3 +1,6 @@
+import { slackConfigProblems } from '@server/lib/slack'
+import { optionalEnv, stripTrailingSlash, urlEnvProblems } from '@server/lib/env'
+
 // Chain endpoints/keys (RPC, program id, treasury, escrow, webhooks…) are NOT
 // here, they are per-chain flat env vars loaded + validated by
 // `chains/secrets.ts` (CHAIN_<ID>_*), keyed off the shared CHAIN_MANIFEST.
@@ -87,6 +90,14 @@ export interface Config {
   /** Admin-dashboard JWT lifetime (#86), own knob; mobile JWT_EXPIRES_IN stays 7d. */
   ADMIN_JWT_EXPIRES_IN: string
   /**
+   * Public base URL of the admin dashboard (no trailing slash), e.g.
+   * https://admin.tenda.app. Out-of-app alerts (dispute email/Slack) link
+   * straight to the record with it; null = the alert still sends, without a
+   * link. There is no default: a guessed host produces a dead link in an
+   * operator's inbox, which is worse than none.
+   */
+  ADMIN_DASHBOARD_URL: string | null
+  /**
    * Stage 9B, OAuth (Google/Apple) accepted audiences. Comma-separated client
    * IDs: Google issues id_tokens whose `aud` is the iOS/web/android client ID
    * depending on the SDK config, so this is a LIST. Apple's `aud` is the app
@@ -104,28 +115,74 @@ function csvEnv(raw: string | undefined): string[] | null {
   return items.length > 0 ? items : null
 }
 
+/** Schemes accepted for dashboard/base URLs — http so local dev works. */
+const BASE_URL_PROTOCOLS = ['https', 'http'] as const
+
+/** Named once: the validator and the reader below must not drift apart. */
+const ADMIN_DASHBOARD_URL_ENV = 'ADMIN_DASHBOARD_URL'
+
+/**
+ * Optional env vars that must be a well-formed absolute URL WHEN SET. Being
+ * unset is fine (the feature degrades); being set to a typo is an operator
+ * error that would otherwise surface as a dead link long after deploy.
+ */
+const OPTIONAL_URL_ENV_VARS = [ADMIN_DASHBOARD_URL_ENV] as const
+
+/**
+ * A base URL from env: trimmed, trailing slash dropped, null when unset. Both
+ * base URLs this config carries go through it, so they cannot normalise
+ * differently — API_BASE_URL is string-compared against the URI line of a
+ * signed auth message, where a stray space fails every login.
+ */
+function baseUrlEnv(key: string): string | null {
+  const value = optionalEnv(key)
+  return value === null ? null : stripTrailingSlash(value)
+}
+
 let _config: Config | undefined
 
+/**
+ * Read and validate the environment. Every problem is collected and thrown
+ * ONCE, the way chains/secrets.ts does, so a misconfigured deployment sees the
+ * whole list instead of fixing one var per restart.
+ *
+ * Malformed-but-set optional vars are fatal here rather than warnings: a
+ * warning is only visible in logs (Sentry captures exceptions, not log lines),
+ * and a Slack webhook that never fires is indistinguishable from a quiet week.
+ * Failing at boot lands the error in the deploy, where the operator who typed
+ * the value is still watching, and a health-checked rollout keeps the previous
+ * container serving.
+ */
 export function loadConfig(): Config {
-  const missing: string[] = []
+  // Blank counts as missing, the same rule every other reader applies — a
+  // whitespace-only required var is a misconfiguration, not a value.
+  const missing = REQUIRED_ENV_VARS.filter((key) => optionalEnv(key) === null)
 
-  for (const key of REQUIRED_ENV_VARS) {
-    if (!process.env[key]) {
-      missing.push(key)
-    }
+  const problems = [
+    ...(missing.length > 0
+      ? [`missing required environment variables: ${missing.join(', ')}`]
+      : []),
+    ...urlEnvProblems(OPTIONAL_URL_ENV_VARS, BASE_URL_PROTOCOLS),
+    ...slackConfigProblems(),
+  ]
+
+  if (problems.length > 0) {
+    throw new Error(`Invalid environment configuration:\n  - ${problems.join('\n  - ')}`)
   }
 
-  if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`)
-  }
-
+  // Required values are stored VERBATIM. The blank check above trims to decide
+  // "is it set?", but trimming what gets stored would change a secret whose
+  // value legitimately ends in whitespace (a JWT_SECRET read from a file mount
+  // signs differently after a trim, invalidating every live session). The two
+  // base URLs are the exception, see `baseUrlEnv`.
   _config = {
     DATABASE_URL:          process.env.DATABASE_URL!,
     JWT_SECRET:            process.env.JWT_SECRET!,
     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME!,
     CLOUDINARY_API_KEY:    process.env.CLOUDINARY_API_KEY!,
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET!,
-    API_BASE_URL:            stripTrailingSlash(process.env.API_BASE_URL!),
+    // Non-null: required, so the blank check above already threw.
+    API_BASE_URL:          baseUrlEnv('API_BASE_URL')!,
     PLATFORM_FEE_BPS:      Number(process.env.PLATFORM_FEE_BPS ?? 250),
     JWT_EXPIRES_IN:        process.env.JWT_EXPIRES_IN ?? '7d',
     TERMII_API_KEY:        process.env.TERMII_API_KEY ?? null,
@@ -158,6 +215,7 @@ export function loadConfig(): Config {
     RESEND_API_KEY:        process.env.RESEND_API_KEY ?? null,
     EMAIL_FROM:            process.env.EMAIL_FROM ?? null,
     ADMIN_JWT_EXPIRES_IN:  process.env.ADMIN_JWT_EXPIRES_IN ?? '12h',
+    ADMIN_DASHBOARD_URL:   baseUrlEnv(ADMIN_DASHBOARD_URL_ENV),
     GOOGLE_OAUTH_CLIENT_IDS: csvEnv(process.env.GOOGLE_OAUTH_CLIENT_IDS),
     APPLE_OAUTH_CLIENT_IDS:  csvEnv(process.env.APPLE_OAUTH_CLIENT_IDS),
   }
@@ -172,9 +230,4 @@ export function loadConfig(): Config {
 export function getConfig(): Config {
   if (!_config) return loadConfig()
   return _config
-}
-
-/** Drop a trailing slash so URL comparisons match the auth-message convention. */
-function stripTrailingSlash(s: string): string {
-  return s.endsWith('/') ? s.slice(0, -1) : s
 }

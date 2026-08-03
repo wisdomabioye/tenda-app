@@ -19,6 +19,7 @@
  */
 
 import { CHAIN_MANIFEST, chainById, type ChainManifestEntry } from '@tenda/shared'
+import { optionalEnv } from '@server/lib/env'
 
 /** Validation classes for a secret value. */
 type SecretKind = 'url' | 'evmAddr' | 'base58' | 'uint' | 'str'
@@ -208,7 +209,7 @@ export function loadChainSecrets(
   // Typo guard: any CHAIN_-prefixed var that no manifest chain would read.
   const valid = knownKeys(manifest)
   const unknown = Object.keys(env).filter(
-    (k) => k.startsWith('CHAIN_') && !valid.has(k) && (env[k] ?? '').trim().length > 0,
+    (k) => k.startsWith('CHAIN_') && !valid.has(k) && optionalEnv(k, env) !== null,
   )
   if (unknown.length > 0) {
     errors.push(`unrecognised chain env var(s): ${unknown.sort().join(', ')}, check spelling against the manifest`)
@@ -219,11 +220,11 @@ export function loadChainSecrets(
     const schema = schemaFor(entry)
     const present = new Map<string, string>()
     for (const spec of schema) {
-      const raw = env[`${prefix}_${spec.envSuffix}`]
-      const value = raw?.trim() ?? ''
       // Empty / whitespace-only is treated as ABSENT, not malformed, so a
-      // commented-out or blank `VAR=` line leaves the chain inactive.
-      if (value.length > 0) present.set(spec.key, value)
+      // commented-out or blank `VAR=` line leaves the chain inactive —
+      // `optionalEnv` (lib/env.ts) is where that rule lives for every reader.
+      const value = optionalEnv(`${prefix}_${spec.envSuffix}`, env)
+      if (value !== null) present.set(spec.key, value)
     }
 
     if (present.size === 0) continue // inactive, chain not configured here

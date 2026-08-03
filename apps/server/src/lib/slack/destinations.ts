@@ -20,6 +20,7 @@
  *     failure mode an alerting channel must never have.
  */
 
+import { isAbsoluteUrl, optionalEnv, urlEnvProblems } from '@server/lib/env'
 import type { SlackWebhookConfig } from './transport'
 
 interface SlackDestinationSpec {
@@ -62,40 +63,15 @@ export function slackDestinationKeys(): SlackDestinationKey[] {
 }
 
 /**
- * Trimmed env value for a destination, or null when unset/blank. Both readers
- * below go through this so "configured?" is decided in exactly one place.
- */
-function rawWebhook(key: SlackDestinationKey, env: NodeJS.ProcessEnv): string | null {
-  const value = env[slackEnvKey(key)]
-  if (value === undefined) return null
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : null
-}
-
-/**
- * A webhook URL must be absolute and https.
- *
- * The literal `https://` prefix is checked as well as the parsed protocol,
- * because WHATWG parsing is more forgiving than an operator expects:
- * `new URL('https:hooks.slack.com/x')` succeeds with protocol `https:` and
- * host `hooks.slack.com` — a missing-slashes typo that would pass a
- * protocol-only check and then fail at send time, which is precisely the
- * silent-mute case this validation exists to prevent.
+ * A webhook URL must be absolute and https — no http fallback, the payload
+ * carries dispute context. `isAbsoluteUrl` (lib/env.ts) is what rejects the
+ * missing-slashes typo that plain URL parsing accepts.
  *
  * The host is deliberately NOT pinned to hooks.slack.com: staging deployments
  * legitimately point these at an egress proxy or a Slack-compatible sink, and
  * this value comes from the operator's own env, never from user input.
  */
-const HTTPS_PREFIX = /^https:\/\//i
-
-function isValidWebhookUrl(value: string): boolean {
-  if (!HTTPS_PREFIX.test(value)) return false
-  try {
-    return new URL(value).protocol === 'https:'
-  } catch {
-    return false
-  }
-}
+const WEBHOOK_PROTOCOLS = ['https'] as const
 
 /**
  * Config for a destination, or null when it is not usable. Never throws —
@@ -106,8 +82,8 @@ export function resolveSlackDestination(
   key: SlackDestinationKey,
   env: NodeJS.ProcessEnv = process.env,
 ): SlackWebhookConfig | null {
-  const webhook_url = rawWebhook(key, env)
-  if (webhook_url === null || !isValidWebhookUrl(webhook_url)) return null
+  const webhook_url = optionalEnv(slackEnvKey(key), env)
+  if (webhook_url === null || !isAbsoluteUrl(webhook_url, WEBHOOK_PROTOCOLS)) return null
   return { webhook_url }
 }
 
@@ -115,14 +91,10 @@ export function resolveSlackDestination(
  * Boot-time validation: every destination that is SET must be well-formed.
  * Returns one human-readable problem per bad var (empty = healthy), naming the
  * exact env key the way chains/secrets.ts does. Absent vars are not problems.
+ *
+ * Shares `urlEnvProblems` with config.ts's own URL settings, so an operator
+ * reading the boot error sees the same sentence whichever var they fat-fingered.
  */
 export function slackConfigProblems(env: NodeJS.ProcessEnv = process.env): string[] {
-  const problems: string[] = []
-  for (const key of slackDestinationKeys()) {
-    const value = rawWebhook(key, env)
-    if (value !== null && !isValidWebhookUrl(value)) {
-      problems.push(`${slackEnvKey(key)} is set but is not an absolute https URL`)
-    }
-  }
-  return problems
+  return urlEnvProblems(knownSlackEnvKeys(), WEBHOOK_PROTOCOLS, env)
 }
