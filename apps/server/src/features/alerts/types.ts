@@ -118,8 +118,20 @@ type AlertFields = PerKind<{
     escrow_kind: EscrowKind
     escrow_title: string | null
     reason: string | null
-    /** `disputes.raised_by` — null when the triage row is missing. */
+    /**
+     * Who raised it. Null only when the triage row is missing AND the on-chain
+     * actor's wallet resolves to no user — see the resolver, which prefers the
+     * chain-attested actor over the row.
+     */
     raised_by_id: string | null
+    /**
+     * The two parties. Carried so the in-app channel can drop an admin who is
+     * themselves a party to the disputed escrow — they are conflicted, and
+     * they already know. Without these the channel would re-query the escrow
+     * it is being told about, once per alert.
+     */
+    creator_id: string
+    counterparty_id: string | null
   }
 }>
 
