@@ -43,5 +43,14 @@ export { resolveAlert } from './resolve-alert'
 
 export { mediatorUserIds } from './recipients'
 
+export {
+  ALERT_JOB_ATTEMPTS,
+  ALERT_REF_BY_EVENT,
+  alertJobId,
+  alertRefForEscrowEvent,
+  enqueueAlert,
+} from './enqueue-alert'
+export type { ChannelSelector } from './enqueue-alert'
+
 export { deliverAlert } from './deliver-alert'
 export type { ChannelLookup } from './deliver-alert'

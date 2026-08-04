@@ -137,8 +137,15 @@ export interface QueueService {
 
 // ---------- plugin -------------------------------------------------------
 
-/** Default retry posture, verify-tx overrides per its confirmation cadence. */
-const DEFAULT_JOB_OPTIONS = {
+/**
+ * Default retry posture, verify-tx overrides per its confirmation cadence.
+ *
+ * Exported because a per-queue override is only meaningful RELATIVE to this —
+ * `ALERT_JOB_ATTEMPTS` exists to be lower than `attempts` here, and a test that
+ * pinned the literal 5 would keep passing after someone changed this to 3 and
+ * made the override a no-op. Same reasoning as exporting WORKER_CONCURRENCY.
+ */
+export const DEFAULT_JOB_OPTIONS = {
   attempts: 5,
   backoff: { type: 'exponential' as const, delay: 2_000 },
   removeOnComplete: { age: 24 * 3_600, count: 5_000 },

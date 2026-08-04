@@ -30,11 +30,44 @@ export function notificationsOf(
   return calls.flatMap((c) => (c.name === 'notifications' ? [c.payload] : []))
 }
 
+/**
+ * One captured alert job. Named once rather than spelled inline at the function
+ * and again on the interface — two copies of a shape are two things to keep in
+ * step, which is the whole reason `CapturedJob` is derived rather than listed.
+ */
+export interface CapturedAlert {
+  payload: JobPayload['alerts']
+  opts?: EnqueueOptions
+}
+
+/**
+ * The alert jobs out of a captured list, with their enqueue options.
+ *
+ * Keeps `opts` unlike `notificationsOf`, because for this queue the options ARE
+ * the subject: `job_id` is the dedup key and `attempts` the retry budget, and a
+ * producer that got either wrong is indistinguishable from one that got them
+ * right if only the payload is returned.
+ *
+ * A sibling of `notificationsOf` rather than a generic `jobsOf(calls, name)`:
+ * comparing `c.name === name` does not narrow `c` while `name` is a type
+ * parameter, so the generic version needs the very cast this helper's own note
+ * explains how to avoid. Two four-line functions beat one that lies.
+ */
+export function alertsOf(calls: readonly CapturedJob[]): CapturedAlert[] {
+  return calls.flatMap((c) =>
+    c.name === 'alerts'
+      ? [{ payload: c.payload, ...(c.opts !== undefined ? { opts: c.opts } : {}) }]
+      : [],
+  )
+}
+
 export interface QueueDouble extends Pick<QueueService, 'enqueue'> {
   /** Everything enqueued since construction, in order. */
   calls: CapturedJob[]
   /** The notification payloads only, narrowed. */
   notifications(): JobPayload['notifications'][]
+  /** The alert jobs only, narrowed, with their enqueue options. */
+  alerts(): CapturedAlert[]
 }
 
 export function queueDouble(): QueueDouble {
@@ -42,6 +75,7 @@ export function queueDouble(): QueueDouble {
   return {
     calls,
     notifications: () => notificationsOf(calls),
+    alerts: () => alertsOf(calls),
     async enqueue(name, payload, opts) {
       // The one assertion in the helper, and it is a limitation rather than a
       // shortcut: TypeScript cannot prove `{ name: N, payload: JobPayload[N] }`

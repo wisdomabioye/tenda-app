@@ -13,7 +13,7 @@
  */
 import type { FastifyInstance } from 'fastify'
 import type { JobPayload } from '@server/plugins/queue'
-import { queueDouble, type CapturedJob } from './queue-double'
+import { queueDouble, type CapturedAlert, type CapturedJob } from './queue-double'
 
 export interface Broadcast {
   channel: string
@@ -34,6 +34,17 @@ export interface SideEffectCapture {
   notifications(): JobPayload['notifications'][]
   /** Recipients of the notification jobs — the assertion most tests make. */
   notifiedUserIds(): string[]
+  /**
+   * The alert jobs only, narrowed, with their enqueue options.
+   *
+   * Forwarded for the same reason `notifications()` is: without it, the fan-out
+   * and end-to-end alert tests would each hand-roll the `name === 'alerts'`
+   * flatMap, which is both the DRY violation this helper exists to prevent and
+   * the one place a cast creeps back in (narrowing a distributed union by
+   * `filter` does not narrow). Keeps `opts` because for alerts the dedup id and
+   * the retry budget ARE the subject — see alertsOf.
+   */
+  alerts(): CapturedAlert[]
 }
 
 /**
@@ -59,5 +70,6 @@ export function installCapture(app: FastifyInstance): SideEffectCapture {
     broadcasts,
     notifications: queue.notifications,
     notifiedUserIds: () => queue.notifications().map((n) => n.user_id),
+    alerts: queue.alerts,
   }
 }
