@@ -89,21 +89,30 @@ export function stableNotificationId(...parts: string[]): string {
  * A caller-supplied `id` extends that idempotency across PRODUCER re-runs, not
  * just BullMQ's own retry of one job.
  */
-export async function enqueueNotification(
-  queue: Pick<QueueService, 'enqueue'>,
-  input: NotificationInput,
-  opts?: EnqueueOptions,
-): Promise<void> {
-  // Fail here, at the producer, rather than in the delivery worker: a
-  // malformed id only breaks at INSERT time, where the failure is a retry
-  // loop on a job nobody is watching.
-  if (input.id !== undefined && !isUuidLike(input.id)) {
+/**
+ * Reject a malformed caller-supplied id.
+ *
+ * Fail here, at the producer, rather than in the delivery worker: a malformed
+ * id only breaks at INSERT time, where the failure is a retry loop on a job
+ * nobody is watching. Shared by the single- and many-recipient producers so
+ * both refuse the same values with the same sentence.
+ */
+function assertNotificationId(id: string): void {
+  if (!isUuidLike(id)) {
     throw new AppError(
       500,
       ErrorCode.INTERNAL_ERROR,
       'notification id must be a UUID (build it with stableNotificationId)',
     )
   }
+}
+
+export async function enqueueNotification(
+  queue: Pick<QueueService, 'enqueue'>,
+  input: NotificationInput,
+  opts?: EnqueueOptions,
+): Promise<void> {
+  if (input.id !== undefined) assertNotificationId(input.id)
   await queue.enqueue(
     'notifications',
     {
@@ -116,6 +125,74 @@ export async function enqueueNotification(
     },
     opts,
   )
+}
+
+/**
+ * One notice, many recipients. Extends `NotificationInput` rather than
+ * re-listing its fields so the two cannot drift — a field added there is
+ * available here for free.
+ */
+export interface ManyNotificationInput extends Omit<NotificationInput, 'user_id' | 'id'> {
+  /**
+   * Per-recipient stable id, for producers that can be re-run for the same
+   * logical notice. A FUNCTION of the recipient, never a plain string: the
+   * notification id is the primary key, so one id shared across recipients
+   * would let `persistNotification`'s onConflictDoNothing drop every row after
+   * the first — the fan-out would silently notify one person. Build it with
+   * `stableNotificationId`.
+   */
+  idFor?: (user_id: string) => string
+}
+
+/**
+ * Enqueue the same notice to a list of recipients.
+ *
+ * The one loop by which a notice reaches more than one user. Every fan-out
+ * (escrow parties, applicants, new-gig subscribers, dispute alerts) routes
+ * through it, so the null-skip and the shared `data` bag are decided once —
+ * this module's docstring claims to be the single producer of 'notifications'
+ * jobs, and a second copy of this loop elsewhere would make that false.
+ *
+ * Nullable ids are accepted so callers can pass a party that may be absent
+ * (an unassigned counterparty) without filtering at every call site.
+ *
+ * ALL-OR-NOTHING on a bad id. Every `idFor` result is resolved and validated
+ * before the first enqueue, because the guard throws: validating inside the
+ * loop would leave a PARTIAL fan-out — the recipients before the bad id
+ * notified, the ones after it silently not. Half a fan-out is worse than none,
+ * since nothing downstream can tell it happened.
+ *
+ * Not transactional beyond that: a Redis failure mid-loop still enqueues a
+ * prefix. That one is the queue's to own (jobs are retried), whereas a
+ * malformed id is a caller bug that can be caught for free before any side
+ * effect.
+ */
+export async function enqueueNotificationToMany(
+  queue: Pick<QueueService, 'enqueue'>,
+  user_ids: readonly (string | null)[],
+  notice: ManyNotificationInput,
+): Promise<void> {
+  const jobs = user_ids
+    .filter((user_id): user_id is string => user_id !== null)
+    .map((user_id) => {
+      const id = notice.idFor?.(user_id)
+      if (id !== undefined) assertNotificationId(id)
+      return { user_id, id }
+    })
+
+  for (const { user_id, id } of jobs) {
+    // Fields named rather than spread: `notice` may be a wider object than
+    // ManyNotificationInput (excess-property checks only apply to literals),
+    // and a spread would carry those extras into the job input.
+    await enqueueNotification(queue, {
+      user_id,
+      title: notice.title,
+      body: notice.body,
+      ...(notice.data !== undefined ? { data: notice.data } : {}),
+      ...(notice.persist !== undefined ? { persist: notice.persist } : {}),
+      ...(id !== undefined ? { id } : {}),
+    })
+  }
 }
 
 /**

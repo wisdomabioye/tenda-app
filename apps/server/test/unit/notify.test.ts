@@ -22,6 +22,7 @@ import { isUuidLike } from '@server/lib/uuid'
 import {
   stableNotificationId,
   enqueueNotification,
+  enqueueNotificationToMany,
   escrowPushData,
   disputePushData,
   chatPushData,
@@ -159,6 +160,135 @@ test('enqueueNotification: forwards queue options (job_id dedup, delay)', async 
   const q = captureQueue()
   await enqueueNotification(q, { user_id: 'u1', title: 'T', body: 'B' }, { job_id: 'k', delay_ms: 5 })
   assert.deepStrictEqual(q.calls[0].opts, { job_id: 'k', delay_ms: 5 })
+})
+
+// ---------- enqueueNotificationToMany -----------------------------------------
+
+test('enqueueNotificationToMany: one job per recipient, in the order given', async () => {
+  const q = captureQueue()
+  await enqueueNotificationToMany(q, ['u1', 'u2', 'u3'], { title: 'T', body: 'B' })
+  assert.deepStrictEqual(
+    q.calls.map((c) => c.payload.user_id),
+    ['u1', 'u2', 'u3'],
+  )
+})
+
+test('enqueueNotificationToMany: skips null recipients without enqueuing for them', async () => {
+  const q = captureQueue()
+  // An unassigned counterparty reaches this as null; callers must not have to
+  // filter at every site.
+  await enqueueNotificationToMany(q, ['u1', null, 'u2'], { title: 'T', body: 'B' })
+  assert.strictEqual(q.calls.length, 2)
+  assert.deepStrictEqual(
+    q.calls.map((c) => c.payload.user_id),
+    ['u1', 'u2'],
+  )
+})
+
+test('enqueueNotificationToMany: an all-null list enqueues nothing', async () => {
+  const q = captureQueue()
+  await enqueueNotificationToMany(q, [null, null], { title: 'T', body: 'B' })
+  assert.strictEqual(q.calls.length, 0)
+})
+
+test('enqueueNotificationToMany: every recipient gets the same data bag', async () => {
+  const q = captureQueue()
+  const data = escrowPushData('e1', 'gig')
+  await enqueueNotificationToMany(q, ['u1', 'u2'], { title: 'T', body: 'B', data })
+  assert.deepStrictEqual(q.calls[0].payload.data, data)
+  assert.deepStrictEqual(q.calls[1].payload.data, data)
+})
+
+test('enqueueNotificationToMany: omits `data` entirely when the caller gives none', async () => {
+  const q = captureQueue()
+  await enqueueNotificationToMany(q, ['u1'], { title: 'T', body: 'B' })
+  assert.ok(!('data' in q.calls[0].payload), 'absent, not an empty object')
+})
+
+test('enqueueNotificationToMany: defaults persist to true, and honours an explicit false', async () => {
+  const on = captureQueue()
+  await enqueueNotificationToMany(on, ['u1'], { title: 'T', body: 'B' })
+  assert.strictEqual(on.calls[0].payload.persist, true)
+
+  const off = captureQueue()
+  await enqueueNotificationToMany(off, ['u1'], { title: 'T', body: 'B', persist: false })
+  assert.strictEqual(off.calls[0].payload.persist, false)
+})
+
+test('enqueueNotificationToMany: idFor stamps a DISTINCT id per recipient', async () => {
+  const q = captureQueue()
+  await enqueueNotificationToMany(q, ['u1', 'u2'], {
+    title: 'T',
+    body: 'B',
+    idFor: (uid) => stableNotificationId('alert', UUID_A, uid),
+  })
+  const [a, b] = q.calls.map((c) => c.payload.id)
+  assert.strictEqual(a, stableNotificationId('alert', UUID_A, 'u1'))
+  // The reason idFor is a function and not a string: one shared id would let
+  // persistNotification's onConflictDoNothing drop everyone after the first.
+  assert.notStrictEqual(a, b, 'a shared id would silently notify only one recipient')
+})
+
+test('enqueueNotificationToMany: idFor is re-run per fan-out, so a retry re-uses the same ids', async () => {
+  const idFor = (uid: string): string => stableNotificationId('alert', UUID_A, uid)
+  const first = captureQueue()
+  const second = captureQueue()
+  await enqueueNotificationToMany(first, ['u1', 'u2'], { title: 'T', body: 'B', idFor })
+  await enqueueNotificationToMany(second, ['u1', 'u2'], { title: 'T', body: 'B', idFor })
+  assert.deepStrictEqual(
+    first.calls.map((c) => c.payload.id),
+    second.calls.map((c) => c.payload.id),
+  )
+})
+
+test('enqueueNotificationToMany: without idFor, ids are unique per recipient', async () => {
+  const q = captureQueue()
+  await enqueueNotificationToMany(q, ['u1', 'u2'], { title: 'T', body: 'B' })
+  const [a, b] = q.calls.map((c) => c.payload.id)
+  assert.notStrictEqual(a, b, 'random ids must not collide across recipients')
+})
+
+test('enqueueNotificationToMany: a malformed idFor result is rejected at the producer', async () => {
+  const q = captureQueue()
+  // Same guard enqueueNotification applies: a non-UUID id only fails at INSERT,
+  // inside a worker nobody is watching, on every retry forever.
+  await assert.rejects(
+    () => enqueueNotificationToMany(q, ['u1'], { title: 'T', body: 'B', idFor: () => 'not-a-uuid' }),
+    /must be a UUID/,
+  )
+  assert.strictEqual(q.calls.length, 0, 'nothing should be enqueued once the id is rejected')
+})
+
+test('enqueueNotificationToMany: a bad id on a LATER recipient enqueues NOTHING', async () => {
+  const q = captureQueue()
+  // The real guarantee. Validating inside the loop would have already enqueued
+  // u1 and u2 by the time u3 throws, leaving a partial fan-out that nothing
+  // downstream can detect — half the recipients notified, silently.
+  await assert.rejects(
+    () =>
+      enqueueNotificationToMany(q, ['u1', 'u2', 'u3'], {
+        title: 'T',
+        body: 'B',
+        idFor: (uid) => (uid === 'u3' ? 'not-a-uuid' : stableNotificationId('alert', UUID_A, uid)),
+      }),
+    /must be a UUID/,
+  )
+  assert.strictEqual(q.calls.length, 0, 'a partial fan-out is worse than none')
+})
+
+test('enqueueNotificationToMany: idFor runs once per recipient, before any enqueue', async () => {
+  const q = captureQueue()
+  const seen: string[] = []
+  await enqueueNotificationToMany(q, ['u1', null, 'u2'], {
+    title: 'T',
+    body: 'B',
+    idFor: (uid) => {
+      seen.push(uid)
+      return stableNotificationId('alert', UUID_A, uid)
+    },
+  })
+  // Nulls never reach idFor, and no id is computed twice.
+  assert.deepStrictEqual(seen, ['u1', 'u2'])
 })
 
 // ---------- push-data builders ------------------------------------------------
