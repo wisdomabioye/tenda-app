@@ -27,7 +27,14 @@ export type {
   AlertDeps,
   AlertKind,
   AlertLogger,
+  AlertOf,
   AlertRef,
+  AlertRefOf,
+  AlertResolver,
 } from './types'
 
 export { ALERT_CHANNELS, alertChannelNames, channelByName, channelsFor } from './registry'
+
+export { resolveAlert } from './resolve-alert'
+
+export { mediatorUserIds } from './recipients'

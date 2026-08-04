@@ -16,7 +16,7 @@ import { randomUUID } from 'node:crypto'
 import { disputes } from '@tenda/shared/db/schema'
 import { escrow_transactions } from '@tenda/shared/db/schema/escrow'
 import { resolveDisputeRaised } from '@server/features/alerts/kinds/dispute-raised'
-import type { AlertRef } from '@server/features/alerts'
+import { resolveAlert, ALERT_KINDS, type AlertRef } from '@server/features/alerts'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
@@ -255,4 +255,42 @@ test('each tx_ref resolves to ITS OWN actor, not the escrow\'s first transaction
   assert.strictEqual(second?.tx_ref, creatorRef)
   assert.strictEqual(first?.raised_by_id, worker.row.id)
   assert.strictEqual(second?.raised_by_id, creator.row.id)
+})
+
+// ---------- resolveAlert: the dispatch ------------------------------------------
+// The tests above call the dispute resolver DIRECTLY. These call it the way the
+// consumer will — through the kind→resolver map — which is a separate failure
+// mode: a map wired to the wrong function, or one that swallows the result,
+// leaves every test above green while no alert ever resolves.
+
+test('resolveAlert routes a dispute.raised ref to the dispute resolver', { skip }, async () => {
+  const { escrow, tx_ref } = await disputedGig()
+  await raiseTriageRow(escrow.id, worker.row.id)
+  const ref = refFor(escrow.id, tx_ref)
+
+  const viaMap = await resolveAlert(getApp().db, ref)
+  const direct = await resolveDisputeRaised(getApp().db, ref)
+
+  // Identical, field for field: the map must add nothing and drop nothing.
+  assert.deepStrictEqual(viaMap, direct)
+  assert.ok(viaMap !== null)
+  assert.strictEqual(viaMap.escrow_id, escrow.id)
+})
+
+test('resolveAlert returns the kind it was ASKED for', { skip }, async () => {
+  // Guards cross-wiring: a resolver registered under the wrong key would
+  // answer a dispute ref with some other kind's shape. The compiler rejects
+  // that today; this keeps it rejected if the map ever gains a cast.
+  const { escrow, tx_ref } = await disputedGig()
+  const alert = await resolveAlert(getApp().db, refFor(escrow.id, tx_ref))
+  assert.strictEqual(alert?.kind, 'dispute.raised')
+  assert.ok(ALERT_KINDS.includes(alert!.kind), 'resolved a kind outside the declared vocabulary')
+})
+
+test('resolveAlert passes a null result through, it does not invent one', { skip }, async () => {
+  // The subject is gone. The consumer relies on null to DROP the job rather
+  // than retry; a map that coerced null into an object would burn 5 attempts
+  // delivering an empty alert.
+  const alert = await resolveAlert(getApp().db, refFor(randomUUID(), `sig-${randomUUID()}`))
+  assert.strictEqual(alert, null)
 })

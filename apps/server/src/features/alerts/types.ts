@@ -86,12 +86,21 @@ type AlertRefFields = PerKind<{
 }>
 
 /**
- * What gets queued. A discriminated union built from the map above, so
+ * The queued ref for ONE kind.
+ *
+ * Spelled structurally rather than as `Extract<AlertRef, { kind: K }>`, and
+ * that is load-bearing, not style: `Extract` does not reduce while `K` is still
+ * a type parameter, so a resolver map keyed by kind cannot prove that
+ * `RESOLVERS[ref.kind]` accepts `ref` and the dispatch in ./resolve-alert only
+ * type-checks with a cast. Written this way it needs none. Verified both.
+ */
+export type AlertRefOf<K extends AlertKind> = { kind: K } & AlertRefFields[K]
+
+/**
+ * What gets queued. A discriminated union over every kind, so
  * `ref.kind === 'dispute.raised'` narrows the payload with no cast.
  */
-export type AlertRef = {
-  [K in AlertKind]: { kind: K } & AlertRefFields[K]
-}[AlertKind]
+export type AlertRef = { [K in AlertKind]: AlertRefOf<K> }[AlertKind]
 
 // ---------- the resolved alert -------------------------------------------
 
@@ -136,14 +145,38 @@ type AlertFields = PerKind<{
 }>
 
 /**
- * A resolved, channel-ready alert: everything the ref carried, plus what the
+ * The resolved alert for ONE kind: everything the ref carried, plus what the
  * resolver read. Stating it as an intersection is the type-level version of
  * what the resolver actually does — `{ ...ref, ...facts }` — so the two cannot
  * disagree about which identifiers survive resolution.
+ *
+ * Structural for the same reason as `AlertRefOf` above.
  */
-export type Alert = {
-  [K in AlertKind]: { kind: K } & AlertRefFields[K] & AlertFields[K]
-}[AlertKind]
+export type AlertOf<K extends AlertKind> = { kind: K } & AlertRefFields[K] & AlertFields[K]
+
+/** A resolved, channel-ready alert. Same discriminant as `AlertRef`. */
+export type Alert = { [K in AlertKind]: AlertOf<K> }[AlertKind]
+
+/**
+ * Turns one kind's queued ref into its resolved alert. Implemented per kind
+ * under ./kinds and wired into the exhaustive map in ./resolve-alert.
+ *
+ * Takes the database rather than `AlertDeps`: nothing here enqueues or
+ * delivers, and handing a read step the queue would let a future resolver
+ * quietly acquire side effects. The consumer holds `AlertDeps` and passes
+ * `deps.db`.
+ *
+ * Returning null means the subject is gone — a normal no-op, not an error, so
+ * the consumer drops the job instead of retrying something no retry can fix.
+ *
+ * Declared HERE with the other contracts, beside `AlertChannel`, rather than in
+ * ./resolve-alert which imports every kind: a kind file annotating itself with
+ * a type from its own registrar would point back at the module that imports it.
+ */
+export type AlertResolver<K extends AlertKind> = (
+  db: AppDatabase,
+  ref: AlertRefOf<K>,
+) => Promise<AlertOf<K> | null>
 
 // ---------- channels -----------------------------------------------------
 

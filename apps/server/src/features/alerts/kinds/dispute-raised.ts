@@ -22,10 +22,10 @@ import { and, eq } from 'drizzle-orm'
 import { disputes } from '@tenda/shared/db/schema'
 import { escrows, gig_details, escrow_transactions } from '@tenda/shared/db/schema/escrow'
 import type { AppDatabase } from '@server/plugins/db'
-import type { Alert, AlertRef } from '../types'
+import type { AlertOf, AlertRefOf } from '../types'
 
-type DisputeRaisedRef = Extract<AlertRef, { kind: 'dispute.raised' }>
-type DisputeRaisedAlert = Extract<Alert, { kind: 'dispute.raised' }>
+type DisputeRaisedRef = AlertRefOf<'dispute.raised'>
+type DisputeRaisedAlert = AlertOf<'dispute.raised'>
 
 export async function resolveDisputeRaised(
   db: AppDatabase,
