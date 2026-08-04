@@ -9,10 +9,13 @@
  * Listed by name rather than `export *`, which the older barrels in this repo
  * use, because this module is mostly TYPES. The split below is the useful part:
  * `export type` says "erased at compile time", `export` says "a real value at
- * runtime", so the two lines state exactly which of these nine names survive
- * into the emitted JavaScript — two of them. `export *` states the opposite of
- * nothing, and emits an `__exportStar` loop that walks the module's properties
- * at import time to move those same two values.
+ * runtime", so the surface states which of these names reach the emitted
+ * JavaScript at all. `export *` says nothing, and emits an `__exportStar` loop
+ * that walks each module's properties at import time to relocate the handful
+ * that are real.
+ *
+ * (Deliberately no counts here — an earlier version of this comment named
+ * them, and was wrong within three commits.)
  *
  * The cost is that a contract added to ./types must be added here too. That
  * drift is loud, not silent: a consumer importing a name the barrel does not
@@ -25,6 +28,7 @@ export type {
   AlertChannel,
   AlertChannelName,
   AlertDeps,
+  AlertJob,
   AlertKind,
   AlertLogger,
   AlertOf,
@@ -38,3 +42,6 @@ export { ALERT_CHANNELS, alertChannelNames, channelByName, channelsFor } from '.
 export { resolveAlert } from './resolve-alert'
 
 export { mediatorUserIds } from './recipients'
+
+export { deliverAlert } from './deliver-alert'
+export type { ChannelLookup } from './deliver-alert'

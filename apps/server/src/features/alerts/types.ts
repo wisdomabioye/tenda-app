@@ -188,6 +188,37 @@ export const ALERT_CHANNEL_NAMES = ['slack', 'in_app'] as const
 
 export type AlertChannelName = (typeof ALERT_CHANNEL_NAMES)[number]
 
+/**
+ * One queued unit of work: deliver THIS alert to THIS channel.
+ *
+ * One job per channel, never one job that loops them. BullMQ retries whole
+ * jobs, so a combined job whose Slack post succeeded and whose in-app write
+ * threw would re-post to Slack on every retry. The alternative — catching and
+ * never rethrowing — loses the alert permanently on a transient 503, which is
+ * the one thing an alert path may not do. Per-channel jobs let each fail, retry
+ * and succeed on its own.
+ *
+ * Carries the thin `ref`, not a resolved `Alert`: the facts are read at
+ * delivery time so a retry sees the world as it is then, not as it was at
+ * enqueue (see the pipeline note at the top of this file).
+ */
+export interface AlertJob {
+  ref: AlertRef
+  /**
+   * Typed as a channel this build knows, which is true of every job this build
+   * WRITES — and not necessarily of one it READS. Payloads are JSON in Redis
+   * and types are erased, so a job enqueued by an earlier deploy can carry a
+   * name that has since been removed from `ALERT_CHANNEL_NAMES`; the value
+   * arrives as a plain string that no longer inhabits this type.
+   *
+   * That is why the consumer's lookup takes `string` rather than
+   * `AlertChannelName` (see ChannelLookup in ./deliver-alert). Narrow on the
+   * write side so a producer cannot invent a channel; wide on the read side so
+   * an in-flight job from the previous deploy is skipped instead of crashing.
+   */
+  channel: AlertChannelName
+}
+
 /** What a channel needs to do its work. */
 export interface AlertDeps {
   db: AppDatabase
