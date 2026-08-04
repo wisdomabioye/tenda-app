@@ -168,11 +168,11 @@ test('the notice names the gig and its city, and deep-links to the gig', { skip 
   await fanOutEscrowEvent(app, createdEvent(escrow.id))
 
   assert.strictEqual(capture.enqueued.length, 1)
-  const { payload } = capture.enqueued[0]
-  assert.strictEqual(payload.title, 'New Gig Posted')
-  assert.strictEqual(payload.body, '"Paint the fence" in Lagos')
+  const [notice] = capture.notifications()
+  assert.strictEqual(notice.title, 'New Gig Posted')
+  assert.strictEqual(notice.body, '"Paint the fence" in Lagos')
   // kind rides along so the deep link resolves /gig/:id, not /exchange/:id.
-  assert.deepStrictEqual(payload.data, {
+  assert.deepStrictEqual(notice.data, {
     screen: 'escrow',
     escrowId: escrow.id,
     kind: 'gig',
@@ -188,7 +188,7 @@ test('a remote gig reads as "Remote" rather than an empty place', { skip }, asyn
   const escrow = await createdGig(app, poster.row.id, { title: 'Write copy', city: null, remote: true })
   await fanOutEscrowEvent(app, createdEvent(escrow.id))
 
-  assert.strictEqual(capture.enqueued[0].payload.body, '"Write copy" in Remote')
+  assert.strictEqual(capture.notifications()[0].body, '"Write copy" in Remote')
 })
 
 // ── what must stay silent ──────────────────────────────────────────────────

@@ -29,29 +29,9 @@ import {
   fiatIntentPushData,
   toNotificationWire,
 } from '@server/lib/notify'
-import type { JobName, JobPayload, EnqueueOptions, QueueService } from '@server/plugins/queue'
+import { queueDouble } from '../helpers/queue-double'
 
 // ---------- helpers ----------------------------------------------------------
-
-type NotifJob = JobPayload['notifications']
-
-interface Captured {
-  name: JobName
-  payload: NotifJob
-  opts?: EnqueueOptions
-}
-
-/** Minimal queue double — `enqueueNotification` only needs `enqueue`. */
-function captureQueue(): Pick<QueueService, 'enqueue'> & { calls: Captured[] } {
-  const calls: Captured[] = []
-  return {
-    calls,
-    async enqueue(name, payload, opts) {
-      calls.push({ name, payload: payload as NotifJob, opts })
-      return { job_id: 'test-job' }
-    },
-  }
-}
 
 const UUID_A = '550e8400-e29b-41d4-a716-446655440000'
 
@@ -101,36 +81,39 @@ test('stableNotificationId: accepts a single part and an empty part list', () =>
 // ---------- enqueueNotification ----------------------------------------------
 
 test('enqueueNotification: defaults to a random id and persists', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   await enqueueNotification(q, { user_id: 'u1', title: 'T', body: 'B' })
 
   assert.strictEqual(q.calls.length, 1)
-  const { name, payload } = q.calls[0]
-  assert.strictEqual(name, 'notifications')
+  // The queue name is read off `calls`, not `notifications()`: that accessor
+  // filters ON the name, so asserting through it would assume the very thing
+  // this line checks — a job sent to the wrong queue would read as no job.
+  assert.strictEqual(q.calls[0].name, 'notifications')
+  const [payload] = q.notifications()
   assert.strictEqual(payload.user_id, 'u1')
   assert.strictEqual(payload.persist, true, 'persist defaults to true')
   assert.ok(isUuidLike(payload.id))
 })
 
 test('enqueueNotification: two default enqueues get DIFFERENT ids', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   await enqueueNotification(q, { user_id: 'u1', title: 'T', body: 'B' })
   await enqueueNotification(q, { user_id: 'u1', title: 'T', body: 'B' })
-  assert.notStrictEqual(q.calls[0].payload.id, q.calls[1].payload.id)
+  assert.notStrictEqual(q.notifications()[0].id, q.notifications()[1].id)
 })
 
 // The whole point of the new field: a producer that can be re-run for the same
 // logical notice pins the id, so the delivery worker's onConflictDoNothing
 // collapses the re-run instead of writing a second row + second badge.
 test('enqueueNotification: a supplied id is used verbatim', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   const id = stableNotificationId('dispute-alert', UUID_A, 'admin-inbox')
   await enqueueNotification(q, { user_id: 'u1', title: 'T', body: 'B', id })
-  assert.strictEqual(q.calls[0].payload.id, id)
+  assert.strictEqual(q.notifications()[0].id, id)
 })
 
 test('enqueueNotification: rejects a non-UUID id at the producer', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   await assert.rejects(
     () =>
       enqueueNotification(q, {
@@ -145,19 +128,19 @@ test('enqueueNotification: rejects a non-UUID id at the producer', async () => {
 })
 
 test('enqueueNotification: persist:false is preserved (chat stays out of the centre)', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   await enqueueNotification(q, { user_id: 'u1', title: 'T', body: 'B', persist: false })
-  assert.strictEqual(q.calls[0].payload.persist, false)
+  assert.strictEqual(q.notifications()[0].persist, false)
 })
 
 test('enqueueNotification: omits `data` entirely when the caller gives none', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   await enqueueNotification(q, { user_id: 'u1', title: 'T', body: 'B' })
-  assert.ok(!('data' in q.calls[0].payload), 'absent, not an empty object')
+  assert.ok(!('data' in q.notifications()[0]), 'absent, not an empty object')
 })
 
 test('enqueueNotification: forwards queue options (job_id dedup, delay)', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   await enqueueNotification(q, { user_id: 'u1', title: 'T', body: 'B' }, { job_id: 'k', delay_ms: 5 })
   assert.deepStrictEqual(q.calls[0].opts, { job_id: 'k', delay_ms: 5 })
 })
@@ -165,64 +148,64 @@ test('enqueueNotification: forwards queue options (job_id dedup, delay)', async 
 // ---------- enqueueNotificationToMany -----------------------------------------
 
 test('enqueueNotificationToMany: one job per recipient, in the order given', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   await enqueueNotificationToMany(q, ['u1', 'u2', 'u3'], { title: 'T', body: 'B' })
   assert.deepStrictEqual(
-    q.calls.map((c) => c.payload.user_id),
+    q.notifications().map((n) => n.user_id),
     ['u1', 'u2', 'u3'],
   )
 })
 
 test('enqueueNotificationToMany: skips null recipients without enqueuing for them', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   // An unassigned counterparty reaches this as null; callers must not have to
   // filter at every site.
   await enqueueNotificationToMany(q, ['u1', null, 'u2'], { title: 'T', body: 'B' })
   assert.strictEqual(q.calls.length, 2)
   assert.deepStrictEqual(
-    q.calls.map((c) => c.payload.user_id),
+    q.notifications().map((n) => n.user_id),
     ['u1', 'u2'],
   )
 })
 
 test('enqueueNotificationToMany: an all-null list enqueues nothing', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   await enqueueNotificationToMany(q, [null, null], { title: 'T', body: 'B' })
   assert.strictEqual(q.calls.length, 0)
 })
 
 test('enqueueNotificationToMany: every recipient gets the same data bag', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   const data = escrowPushData('e1', 'gig')
   await enqueueNotificationToMany(q, ['u1', 'u2'], { title: 'T', body: 'B', data })
-  assert.deepStrictEqual(q.calls[0].payload.data, data)
-  assert.deepStrictEqual(q.calls[1].payload.data, data)
+  assert.deepStrictEqual(q.notifications()[0].data, data)
+  assert.deepStrictEqual(q.notifications()[1].data, data)
 })
 
 test('enqueueNotificationToMany: omits `data` entirely when the caller gives none', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   await enqueueNotificationToMany(q, ['u1'], { title: 'T', body: 'B' })
-  assert.ok(!('data' in q.calls[0].payload), 'absent, not an empty object')
+  assert.ok(!('data' in q.notifications()[0]), 'absent, not an empty object')
 })
 
 test('enqueueNotificationToMany: defaults persist to true, and honours an explicit false', async () => {
-  const on = captureQueue()
+  const on = queueDouble()
   await enqueueNotificationToMany(on, ['u1'], { title: 'T', body: 'B' })
-  assert.strictEqual(on.calls[0].payload.persist, true)
+  assert.strictEqual(on.notifications()[0].persist, true)
 
-  const off = captureQueue()
+  const off = queueDouble()
   await enqueueNotificationToMany(off, ['u1'], { title: 'T', body: 'B', persist: false })
-  assert.strictEqual(off.calls[0].payload.persist, false)
+  assert.strictEqual(off.notifications()[0].persist, false)
 })
 
 test('enqueueNotificationToMany: idFor stamps a DISTINCT id per recipient', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   await enqueueNotificationToMany(q, ['u1', 'u2'], {
     title: 'T',
     body: 'B',
     idFor: (uid) => stableNotificationId('alert', UUID_A, uid),
   })
-  const [a, b] = q.calls.map((c) => c.payload.id)
+  const [a, b] = q.notifications().map((n) => n.id)
   assert.strictEqual(a, stableNotificationId('alert', UUID_A, 'u1'))
   // The reason idFor is a function and not a string: one shared id would let
   // persistNotification's onConflictDoNothing drop everyone after the first.
@@ -231,25 +214,25 @@ test('enqueueNotificationToMany: idFor stamps a DISTINCT id per recipient', asyn
 
 test('enqueueNotificationToMany: idFor is re-run per fan-out, so a retry re-uses the same ids', async () => {
   const idFor = (uid: string): string => stableNotificationId('alert', UUID_A, uid)
-  const first = captureQueue()
-  const second = captureQueue()
+  const first = queueDouble()
+  const second = queueDouble()
   await enqueueNotificationToMany(first, ['u1', 'u2'], { title: 'T', body: 'B', idFor })
   await enqueueNotificationToMany(second, ['u1', 'u2'], { title: 'T', body: 'B', idFor })
   assert.deepStrictEqual(
-    first.calls.map((c) => c.payload.id),
-    second.calls.map((c) => c.payload.id),
+    first.notifications().map((n) => n.id),
+    second.notifications().map((n) => n.id),
   )
 })
 
 test('enqueueNotificationToMany: without idFor, ids are unique per recipient', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   await enqueueNotificationToMany(q, ['u1', 'u2'], { title: 'T', body: 'B' })
-  const [a, b] = q.calls.map((c) => c.payload.id)
+  const [a, b] = q.notifications().map((n) => n.id)
   assert.notStrictEqual(a, b, 'random ids must not collide across recipients')
 })
 
 test('enqueueNotificationToMany: a malformed idFor result is rejected at the producer', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   // Same guard enqueueNotification applies: a non-UUID id only fails at INSERT,
   // inside a worker nobody is watching, on every retry forever.
   await assert.rejects(
@@ -260,7 +243,7 @@ test('enqueueNotificationToMany: a malformed idFor result is rejected at the pro
 })
 
 test('enqueueNotificationToMany: a bad id on a LATER recipient enqueues NOTHING', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   // The real guarantee. Validating inside the loop would have already enqueued
   // u1 and u2 by the time u3 throws, leaving a partial fan-out that nothing
   // downstream can detect — half the recipients notified, silently.
@@ -277,7 +260,7 @@ test('enqueueNotificationToMany: a bad id on a LATER recipient enqueues NOTHING'
 })
 
 test('enqueueNotificationToMany: idFor runs once per recipient, before any enqueue', async () => {
-  const q = captureQueue()
+  const q = queueDouble()
   const seen: string[] = []
   await enqueueNotificationToMany(q, ['u1', null, 'u2'], {
     title: 'T',

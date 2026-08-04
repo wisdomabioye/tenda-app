@@ -1,20 +1,19 @@
 /**
  * Side-effect capture for fan-out tests: the two seams by which anything
- * reaches a user leave this process — a 'notifications' job on the queue, and
- * a WS frame.
+ * reaches a user leave this process — a job on the queue, and a WS frame.
  *
  * Tests that assert "who was told what" swap both for arrays instead of
  * running a real worker. Three suites had grown their own copy of that swap,
  * which is two too many for a decision as load-bearing as what counts as
  * having notified someone.
+ *
+ * The queue half is helpers/queue-double.ts, unchanged — this module only adds
+ * the WS seam and the install onto a live fastify instance, so a unit test and
+ * an integration test read the same captured shape.
  */
 import type { FastifyInstance } from 'fastify'
-import type { JobName, JobPayload } from '@server/plugins/queue'
-
-export interface EnqueuedJob {
-  name: JobName
-  payload: JobPayload['notifications']
-}
+import type { JobPayload } from '@server/plugins/queue'
+import { queueDouble, type CapturedJob } from './queue-double'
 
 export interface Broadcast {
   channel: string
@@ -22,10 +21,17 @@ export interface Broadcast {
 }
 
 export interface SideEffectCapture {
-  /** Jobs enqueued since install, in order. */
-  enqueued: EnqueuedJob[]
+  /**
+   * Jobs enqueued since install, in order. A distributed union over `JobName`:
+   * narrow with `e.name === '<queue>'` before reaching into `e.payload`, or use
+   * `notifications()` below. It used to be typed as if every job were a
+   * notification, which was true only until a second queue shared this seam.
+   */
+  enqueued: CapturedJob[]
   /** WS frames broadcast since install, in order. */
   broadcasts: Broadcast[]
+  /** The notification payloads only, narrowed — the common case. */
+  notifications(): JobPayload['notifications'][]
   /** Recipients of the notification jobs — the assertion most tests make. */
   notifiedUserIds(): string[]
 }
@@ -36,25 +42,22 @@ export interface SideEffectCapture {
  * whatever it had, so a test can snapshot one phase then re-arm for the next).
  */
 export function installCapture(app: FastifyInstance): SideEffectCapture {
-  const capture: SideEffectCapture = {
-    enqueued: [],
-    broadcasts: [],
-    notifiedUserIds: () =>
-      capture.enqueued.filter((e) => e.name === 'notifications').map((e) => e.payload.user_id),
-  }
+  const queue = queueDouble()
+  const broadcasts: Broadcast[] = []
 
-  app.queue.enqueue = async (name, payload) => {
-    // Cast, not a guard: every fan-out under test enqueues 'notifications',
-    // and a payload that isn't one should fail the assertion, not vanish.
-    capture.enqueued.push({ name, payload: payload as JobPayload['notifications'] })
-    return { job_id: 'test-job' }
-  }
+  app.queue.enqueue = queue.enqueue
   app.wsBroadcast.broadcast = (channel, payload) => {
-    capture.broadcasts.push({ channel, payload })
+    broadcasts.push({ channel, payload })
     // The real broadcast answers how many sockets received the frame; no test
     // asserts on it, but the signature is part of the seam being replaced.
     return 0
   }
 
-  return capture
+  return {
+    // Shares the double's array by reference, so it fills as jobs arrive.
+    enqueued: queue.calls,
+    broadcasts,
+    notifications: queue.notifications,
+    notifiedUserIds: () => queue.notifications().map((n) => n.user_id),
+  }
 }

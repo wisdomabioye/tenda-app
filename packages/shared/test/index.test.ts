@@ -7,6 +7,7 @@ import * as shared from '../src/index'
 test('root barrel re-exports the key runtime helpers', () => {
   assert.equal(typeof shared.computePlatformFee, 'function')
   assert.equal(typeof shared.hasPermission, 'function')
+  assert.equal(typeof shared.rolesWithPermission, 'function')
   assert.equal(typeof shared.truncateWallet, 'function')
   assert.equal(typeof shared.buildAuthMessage, 'function')
   assert.equal(typeof shared.isEscrowTxType, 'function')

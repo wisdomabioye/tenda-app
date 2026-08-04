@@ -1,12 +1,17 @@
 /**
- * workers/escrow-fanout — kind-aware push copy matrix. The fan-out itself
- * (DB + queue) is covered by the worker integration tests; here we pin the
- * per-kind wording + recipient so an exchange never gets gig copy again.
+ * workers/escrow-fanout — kind-aware push copy matrix, and the deep-link bag
+ * the notices carry. The DB half of the fan-out is covered by the worker
+ * integration tests; here we pin the per-kind wording + recipient so an
+ * exchange never gets gig copy again, and the per-kind deep link so an
+ * exchange notice never opens the gig route.
  */
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { escrowNoticeFor } from '@server/workers/escrow-fanout'
+import { enqueueEscrowNotice } from '@server/workers/escrow-fanout/enqueue-notice'
+import { escrowPushData } from '@server/lib/notify'
+import { queueDouble } from '../helpers/queue-double'
 import { INTERNAL_EVENT_BY_WIRE, type InternalEscrowEvent } from '@server/lib/escrow-events'
 
 /**
@@ -101,4 +106,44 @@ test('approval-mode events address the WORKER, who never acted', () => {
       'counterparty',
     )
   }
+})
+
+// ---------- enqueueEscrowNotice: the deep-link bag -----------------------------
+// The copy tests above pin WHAT each party is told. These pin WHERE tapping it
+// takes them — a separate failure mode, and previously an untested one: a
+// caller that hardcoded the kind would route every exchange notice to
+// /gig/:id and the whole suite stayed green (found by mutation testing).
+
+test('enqueueEscrowNotice: the deep link carries the kind it was given', async () => {
+  for (const kind of ['gig', 'exchange'] as const) {
+    const q = queueDouble()
+    await enqueueEscrowNotice(q, 'escrow-1', kind, ['u1'], { title: 'T', body: 'B' })
+    assert.deepStrictEqual(q.notifications()[0].data, escrowPushData('escrow-1', kind))
+  }
+})
+
+test('enqueueEscrowNotice: gig and exchange produce DIFFERENT deep links', async () => {
+  const gigQ = queueDouble()
+  const exchangeQ = queueDouble()
+  await enqueueEscrowNotice(gigQ, 'e1', 'gig', ['u1'], { title: 'T', body: 'B' })
+  await enqueueEscrowNotice(exchangeQ, 'e1', 'exchange', ['u1'], { title: 'T', body: 'B' })
+  assert.notDeepStrictEqual(
+    gigQ.notifications()[0].data,
+    exchangeQ.notifications()[0].data,
+    'one hardcoded kind would send every exchange notice to the gig route',
+  )
+})
+
+test('enqueueEscrowNotice: every recipient gets the same bag, nulls skipped', async () => {
+  const q = queueDouble()
+  await enqueueEscrowNotice(q, 'e1', 'exchange', ['u1', null, 'u2'], { title: 'T', body: 'B' })
+  const sent = q.notifications()
+  assert.deepStrictEqual(sent.map((n) => n.user_id), ['u1', 'u2'])
+  assert.deepStrictEqual(sent[0].data, sent[1].data)
+})
+
+test('enqueueEscrowNotice: enqueues onto the notifications queue only', async () => {
+  const q = queueDouble()
+  await enqueueEscrowNotice(q, 'e1', 'gig', ['u1'], { title: 'T', body: 'B' })
+  assert.deepStrictEqual([...new Set(q.calls.map((c) => c.name))], ['notifications'])
 })

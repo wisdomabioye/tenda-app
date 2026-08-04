@@ -66,7 +66,13 @@ export {
   isApplicationStatus,
   type ApplicationStatus,
 } from './applications'
-export { PERMISSIONS, ROLE_PERMISSIONS, hasPermission, type Permission } from './permissions'
+export {
+  PERMISSIONS,
+  ROLE_PERMISSIONS,
+  hasPermission,
+  rolesWithPermission,
+  type Permission,
+} from './permissions'
 export {
   DISPUTE_LIST_STATUSES,
   DISPUTE_LIST_ASSIGNED,

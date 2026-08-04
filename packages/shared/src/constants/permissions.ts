@@ -83,3 +83,35 @@ const PERMISSION_SETS: ReadonlyMap<string, ReadonlySet<Permission>> = new Map(
 export function hasPermission(role: string, permission: Permission): boolean {
   return PERMISSION_SETS.get(role)?.has(permission) ?? false
 }
+
+/**
+ * The roles that hold `permission` — the inverse of `hasPermission`, for
+ * callers that must FIND the holders rather than check one.
+ *
+ * Exists so "who should hear about this?" is answered by the permission that
+ * makes someone able to act on it, never by a hand-written role list. A
+ * literal like `['dispute_admin', 'super_admin']` is correct only until the
+ * next role is added, and then it is silently wrong in the quiet direction:
+ * a new role that cannot mediate would start receiving dispute alerts, or a
+ * new mediating role would never hear about one.
+ *
+ * Derived from ROLE_PERMISSIONS on every call rather than precomputed: the map
+ * is two entries and the callers are fan-outs, not hot paths, so an
+ * inverted-index cache would be a second structure to keep honest for no
+ * measurable gain. Returns a fresh array, so a caller sorting or splicing the
+ * result cannot corrupt the registry.
+ *
+ * The keys are asserted rather than read from `ADMIN_ROLES`, and that is
+ * deliberate: `ADMIN_ROLES` is a VALUE in types/user.ts, which imports
+ * `userRoleEnum` from the drizzle schema at runtime. This module is imported by
+ * the admin dashboard (lib/nav.ts, app/page.tsx) and currently has ZERO runtime
+ * imports — only `import type` — so reaching for `ADMIN_ROLES` would pull the
+ * whole DB schema into a browser bundle to enumerate two strings. The assertion
+ * is safe because `ROLE_PERMISSIONS` is typed `Record<AdminRole, …>`, so its
+ * keys cannot be anything else, and a test pins the pair against every role.
+ */
+export function rolesWithPermission(permission: Permission): AdminRole[] {
+  return (Object.keys(ROLE_PERMISSIONS) as AdminRole[]).filter((role) =>
+    hasPermission(role, permission),
+  )
+}

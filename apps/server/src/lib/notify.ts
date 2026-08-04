@@ -81,15 +81,6 @@ export function stableNotificationId(...parts: string[]): string {
 }
 
 /**
- * Enqueue a notification. Stamps a stable id so the delivery worker can insert
- * with onConflictDoNothing — a retried job re-uses the same id and never
- * writes a duplicate row or double-fires the badge. `opts` passes through to
- * the queue (e.g. expire-escrows' `job_id` for cross-tick dedup).
- *
- * A caller-supplied `id` extends that idempotency across PRODUCER re-runs, not
- * just BullMQ's own retry of one job.
- */
-/**
  * Reject a malformed caller-supplied id.
  *
  * Fail here, at the producer, rather than in the delivery worker: a malformed
@@ -107,6 +98,15 @@ function assertNotificationId(id: string): void {
   }
 }
 
+/**
+ * Enqueue a notification. Stamps a stable id so the delivery worker can insert
+ * with onConflictDoNothing — a retried job re-uses the same id and never
+ * writes a duplicate row or double-fires the badge. `opts` passes through to
+ * the queue (e.g. expire-escrows' `job_id` for cross-tick dedup).
+ *
+ * A caller-supplied `id` extends that idempotency across PRODUCER re-runs, not
+ * just BullMQ's own retry of one job.
+ */
 export async function enqueueNotification(
   queue: Pick<QueueService, 'enqueue'>,
   input: NotificationInput,

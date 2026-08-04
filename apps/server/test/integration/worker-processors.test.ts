@@ -85,10 +85,6 @@ function userFrames(userId: string): Array<{ channel: string; payload: Record<st
   return cap.broadcasts.filter((b) => b.channel === channelName({ kind: 'user', id: userId }))
 }
 
-function notifUserIds(): string[] {
-  return cap.enqueued.filter((e) => e.name === 'notifications').map((e) => e.payload.user_id)
-}
-
 // ---------- fanOutEscrowEvent: WS frame ----------------------------------------
 
 test('republish broadcasts the exact escrow_event WS frame on the escrow channel', { skip }, async () => {
@@ -117,15 +113,15 @@ test('accepted notifies the creator only', { skip }, async () => {
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: worker.row.id })
 
   await buildVerifyTxDeps(app).republish(evt('EscrowAccepted', e.id))
-  assert.deepStrictEqual(notifUserIds(), [creator.row.id])
-  assert.strictEqual(cap.enqueued[0].payload.title, 'Gig accepted')
+  assert.deepStrictEqual(cap.notifiedUserIds(), [creator.row.id])
+  assert.strictEqual(cap.notifications()[0].title, 'Gig accepted')
   // `kind` is part of the deep-link contract (useNotificationDeepLink routes
   // gig vs exchange on it), so the push data carries it — here a default gig.
-  assert.deepStrictEqual(cap.enqueued[0].payload.data, { screen: 'escrow', escrowId: e.id, kind: 'gig' })
+  assert.deepStrictEqual(cap.notifications()[0].data, { screen: 'escrow', escrowId: e.id, kind: 'gig' })
   // enqueueNotification stamps a stable id and defaults persist=true, so the
   // notice both persists into the centre and dedupes across retries.
-  assert.strictEqual(typeof cap.enqueued[0].payload.id, 'string')
-  assert.strictEqual(cap.enqueued[0].payload.persist, true)
+  assert.strictEqual(typeof cap.notifications()[0].id, 'string')
+  assert.strictEqual(cap.notifications()[0].persist, true)
 })
 
 test('approved notifies the counterparty only', { skip }, async () => {
@@ -135,7 +131,7 @@ test('approved notifies the counterparty only', { skip }, async () => {
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: worker.row.id })
 
   await buildVerifyTxDeps(app).republish(evt('EscrowApproved', e.id))
-  assert.deepStrictEqual(notifUserIds(), [worker.row.id])
+  assert.deepStrictEqual(cap.notifiedUserIds(), [worker.row.id])
 })
 
 // ---------- approval mode ------------------------------------------------------
@@ -149,8 +145,8 @@ test('counterparty_assigned notifies the assigned WORKER, not the poster', { ski
   await buildVerifyTxDeps(app).republish(evt('CounterpartyAssigned', e.id))
   // The poster performed the transaction; the worker signed nothing, so this
   // push is the only way they learn the gig is theirs.
-  assert.deepStrictEqual(notifUserIds(), [worker.row.id])
-  assert.strictEqual(cap.enqueued[0].payload.title, 'You got the gig')
+  assert.deepStrictEqual(cap.notifiedUserIds(), [worker.row.id])
+  assert.strictEqual(cap.notifications()[0].title, 'You got the gig')
 })
 
 // THE regression this pair exists for: `unassign` clears counterparty_id, and
@@ -169,8 +165,8 @@ test('assignment_released reaches the worker the row no longer names', { skip },
   await buildVerifyTxDeps(app).republish(
     evt('AssignmentReleased', e.id, 'sig-tx-1', worker.row.id),
   )
-  assert.deepStrictEqual(notifUserIds(), [worker.row.id])
-  assert.strictEqual(cap.enqueued[0].payload.title, 'Assignment withdrawn')
+  assert.deepStrictEqual(cap.notifiedUserIds(), [worker.row.id])
+  assert.strictEqual(cap.notifications()[0].title, 'Assignment withdrawn')
 })
 
 test('assignment_released with no carried worker notifies nobody (never a crash)', { skip }, async () => {
@@ -179,7 +175,7 @@ test('assignment_released with no carried worker notifies nobody (never a crash)
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: null })
 
   await buildVerifyTxDeps(app).republish(evt('AssignmentReleased', e.id))
-  assert.deepStrictEqual(notifUserIds(), [])
+  assert.deepStrictEqual(cap.notifiedUserIds(), [])
 })
 
 test('dispute_raised notifies BOTH parties', { skip }, async () => {
@@ -189,7 +185,7 @@ test('dispute_raised notifies BOTH parties', { skip }, async () => {
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: worker.row.id })
 
   await buildVerifyTxDeps(app).republish(evt('DisputeRaised', e.id))
-  assert.deepStrictEqual(new Set(notifUserIds()), new Set([creator.row.id, worker.row.id]))
+  assert.deepStrictEqual(new Set(cap.notifiedUserIds()), new Set([creator.row.id, worker.row.id]))
 })
 
 test('a BOTH-recipient event with a null counterparty notifies only the creator (null skipped)', { skip }, async () => {
@@ -198,7 +194,7 @@ test('a BOTH-recipient event with a null counterparty notifies only the creator 
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: null })
 
   await buildVerifyTxDeps(app).republish(evt('DisputeResolved', e.id))
-  assert.deepStrictEqual(notifUserIds(), [creator.row.id])
+  assert.deepStrictEqual(cap.notifiedUserIds(), [creator.row.id])
 })
 
 test('an event with no notice (cancelled) broadcasts but enqueues nothing', { skip }, async () => {
@@ -239,8 +235,8 @@ test('created fans out to matching city/wildcard subscribers, excluding the crea
 
   await buildVerifyTxDeps(app).republish(evt('EscrowCreated', e.id))
 
-  assert.deepStrictEqual(new Set(notifUserIds()), new Set([subCity.row.id, subWild.row.id]))
-  assert.ok(cap.enqueued.every((x) => x.payload.title === 'New Gig Posted'))
+  assert.deepStrictEqual(new Set(cap.notifiedUserIds()), new Set([subCity.row.id, subWild.row.id]))
+  assert.ok(cap.notifications().every((n) => n.title === 'New Gig Posted'))
 })
 
 test('a remote gig (null city) matches wildcard-city subscribers only', { skip }, async () => {
@@ -257,8 +253,8 @@ test('a remote gig (null city) matches wildcard-city subscribers only', { skip }
   ])
 
   await buildVerifyTxDeps(app).republish(evt('EscrowCreated', e.id))
-  assert.deepStrictEqual(notifUserIds(), [subWild.row.id])
-  assert.match(String(cap.enqueued[0].payload.body), /Remote/)
+  assert.deepStrictEqual(cap.notifiedUserIds(), [subWild.row.id])
+  assert.match(String(cap.notifications()[0].body), /Remote/)
 })
 
 test('one subscriber with two matching sub rows is notified exactly once (dedup)', { skip }, async () => {
@@ -274,7 +270,7 @@ test('one subscriber with two matching sub rows is notified exactly once (dedup)
   ])
 
   await buildVerifyTxDeps(app).republish(evt('EscrowCreated', e.id))
-  assert.deepStrictEqual(notifUserIds(), [sub.row.id]) // once, not twice
+  assert.deepStrictEqual(cap.notifiedUserIds(), [sub.row.id]) // once, not twice
 })
 
 test('created on an exchange escrow (no gig_details) fans out nothing', { skip }, async () => {

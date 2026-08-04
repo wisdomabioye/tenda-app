@@ -208,8 +208,8 @@ test('assigning settles the rivals and the fan-out tells exactly them', { skip }
   assert.ok(recipients.includes(loserA.row.id))
   assert.ok(recipients.includes(loserB.row.id))
   assert.ok(recipients.includes(winner.row.id))
-  const loserNotice = capture.enqueued.find((e) => e.payload.user_id === loserA.row.id)
-  assert.strictEqual(loserNotice?.payload.title, 'Gig assigned to someone else')
+  const loserNotice = capture.notifications().find((n) => n.user_id === loserA.row.id)
+  assert.strictEqual(loserNotice?.title, 'Gig assigned to someone else')
 })
 
 /**
@@ -273,13 +273,13 @@ test('unassigning revives the rivals and the fan-out tells exactly them', { skip
     revived_applicant_ids: outcome.revived_applicant_ids,
   } satisfies EscrowFanoutEvent)
 
-  const revivedNotice = capture.enqueued.find((e) => e.payload.user_id === rival.row.id)
-  assert.strictEqual(revivedNotice?.payload.title, "You're back in the running")
+  const revivedNotice = capture.notifications().find((n) => n.user_id === rival.row.id)
+  assert.strictEqual(revivedNotice?.title, "You're back in the running")
   // The released worker still gets their own "Assignment withdrawn" notice,
   // and nobody is told both things about one transition.
-  const workerNotices = capture.enqueued.filter((e) => e.payload.user_id === winner.row.id)
+  const workerNotices = capture.notifications().filter((n) => n.user_id === winner.row.id)
   assert.strictEqual(workerNotices.length, 1)
-  assert.strictEqual(workerNotices[0]?.payload.title, 'Assignment withdrawn')
+  assert.strictEqual(workerNotices[0]?.title, 'Assignment withdrawn')
 })
 
 test('a SECOND assign cycle notifies only the newly passed, not the old ones', { skip }, async () => {

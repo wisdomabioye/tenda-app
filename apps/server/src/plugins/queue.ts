@@ -1,14 +1,12 @@
 /**
- * BullMQ + Redis queue plugin. Stage 0 ships a **typed surface only**,
- * the BullMQ + ioredis dependency add and connection wiring land alongside
- * #33 (Redis provisioning). Until then, `fastify.queue.enqueue(...)` throws
- * `INTERNAL_ERROR` so call sites fail loud instead of silently dropping jobs.
+ * BullMQ + Redis queue plugin — the typed producer surface. Workers and their
+ * concurrency live in plugins/workers.ts, processors in workers/processors.ts;
+ * both key off `JobName` from here, so this module decides what queues exist.
  *
- * Spec (stage-0-foundation.md § Infrastructure):
- *   - `notifications` , push fan-out
- *   - `expire-escrows`, repeatable job (every 60s)
- *   - `verify-tx`     , Stage 2 producer (class exists; no producers yet)
- *   - `reconcile`     , Stage 2 placeholder
+ * Without `REDIS_URL` the plugin degrades to a stub whose `enqueue` throws
+ * `INTERNAL_ERROR` (501), so call sites fail loud instead of silently dropping
+ * jobs. Callers that treat enqueueing as best-effort (webhooks log + continue,
+ * reconcile covers the gap) already handle that.
  *
  * Adding a new queue: add ONE entry to `JobPayload`. `JobName` derives from
  * it, so the name, the worker concurrency map and the processor map all fail
