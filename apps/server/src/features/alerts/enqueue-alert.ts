@@ -21,15 +21,9 @@
  * hook point is only protected by this one.
  */
 
+import { alertJobId } from './identity'
 import { channelsFor } from './registry'
-import type {
-  AlertChannel,
-  AlertChannelName,
-  AlertKind,
-  AlertLogger,
-  AlertRef,
-  AlertRefOf,
-} from './types'
+import type { AlertChannel, AlertKind, AlertLogger, AlertRef } from './types'
 import type { QueueService } from '@server/plugins/queue'
 import type { EscrowRepublishEvent, InternalEscrowEvent } from '@server/lib/escrow-events'
 
@@ -70,53 +64,6 @@ export const ALERT_REF_BY_EVENT: Readonly<
 /** The alert this event raises, or null when it raises none. */
 export function alertRefForEscrowEvent(event: EscrowRepublishEvent): AlertRef | null {
   return ALERT_REF_BY_EVENT[event.internal_event]?.(event) ?? null
-}
-
-// ---------- job identity -------------------------------------------------
-
-/**
- * What identifies each kind's subject, keyed by kind so a new kind cannot ship
- * without saying what makes two of its alerts the same alert.
- *
- * MUST NOT contain ':' — see `alertJobId` for what BullMQ does with one.
- */
-const REF_KEYS: { [K in AlertKind]: (ref: AlertRefOf<K>) => string } = {
-  'dispute.raised': (ref) => ref.tx_ref,
-}
-
-/**
- * The generic indirection ./resolve-alert uses for the same reason: indexing
- * the map with a generic `K` is what lets TypeScript prove the entry accepts
- * the ref, so no cast is needed. Spelling `ref.kind` against a union-typed
- * `AlertRef` directly does not correlate the two.
- */
-function refKey<K extends AlertKind>(ref: AlertRefOf<K>): string {
-  return REF_KEYS[ref.kind](ref)
-}
-
-const ID_SEPARATOR = ':'
-
-/**
- * The BullMQ job id, and therefore the dedup key: re-enqueueing the same alert
- * for the same channel is a no-op while the first job is still in Redis.
- *
- * Per channel, not per alert — one job per channel is the whole point (see
- * `AlertJob` in ./types), so a channel-less id would let the first enqueue
- * swallow the second.
- *
- * EXACTLY THREE ':'-separated parts, which is a hard BullMQ constraint, not a
- * style choice: it rejects a custom id containing ':' unless it splits into
- * three (bullmq 5.78, classes/job.js — `'Custom Id cannot contain :'`). The
- * three-part shape is also what core/queue/idempotency.ts already emits, so
- * this reads the same in Redis as every other keyed job. `kind` and
- * `AlertChannelName` are colon-free by construction; `REF_KEYS` says the ref
- * key must be too.
- *
- * Exported so the constraint is pinned directly rather than only through a
- * queue double, where a violation surfaces as an unrelated enqueue failure.
- */
-export function alertJobId(ref: AlertRef, channel: AlertChannelName): string {
-  return [ref.kind, refKey(ref), channel].join(ID_SEPARATOR)
 }
 
 /**

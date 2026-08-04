@@ -26,7 +26,6 @@ import assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
 import { partyRoleLabel, displayName } from '@tenda/shared'
 import type { EscrowKind } from '@tenda/shared'
-import { ALERT_KINDS, alertChannelNames, channelByName, channelsFor } from '@server/features/alerts'
 import type { AlertKind, AlertOf, AlertPartyNames } from '@server/features/alerts'
 import {
   SLACK_ALERT_KINDS,
@@ -39,6 +38,7 @@ import { SLACK_TEXT_MAX, slackEnvKey } from '@server/lib/slack'
 import type { SlackMessage } from '@server/lib/slack'
 import { ADMIN_DASHBOARD_URL_ENV } from '@server/config'
 import { disputeRaisedAlert } from '../helpers/alert-fixtures'
+import { testChannelContract } from '../helpers/alert-channel-contract'
 
 // ---------- fixtures -----------------------------------------------------
 
@@ -133,44 +133,25 @@ function render(
 // feature exists to prevent, so a new kind must be an explicit decision.
 const DELIBERATELY_NOT_ON_SLACK: Partial<Record<AlertKind, string>> = {}
 
-test('every alert kind either has Slack copy or is deliberately excluded', () => {
-  for (const kind of ALERT_KINDS) {
-    const accepted = SLACK_ALERT_KINDS.includes(kind)
-    const excluded = DELIBERATELY_NOT_ON_SLACK[kind] !== undefined
-    assert.ok(
-      accepted !== excluded,
-      `'${kind}' must either be in SLACK_ALERT_KINDS or listed in DELIBERATELY_NOT_ON_SLACK (never both, never neither)`,
-    )
-  }
+// The per-channel properties from the shared contract — kind coverage, the
+// derived-kinds agreement, and reachability through the registry. Registry-WIDE
+// facts live in test/unit/alerts-registry.test.ts.
+testChannelContract({
+  channel: slackAlertChannel,
+  derivedKinds: SLACK_ALERT_KINDS,
+  deliberatelyExcluded: DELIBERATELY_NOT_ON_SLACK,
+  fixtures: ALERT_FIXTURES,
+  renders: (alert) => slackAlertMessage(alert, NAMES, ENV_WITH_DASHBOARD) !== null,
 })
 
-test('the channel advertises exactly the kinds it has copy for', () => {
-  assert.deepStrictEqual([...slackAlertChannel.kinds], [...SLACK_ALERT_KINDS])
-})
-
-// The failure this catches: a kind advertised in `kinds` passes deliverAlert's
-// opt-in check, reaches deliver(), and produces nothing.
-test('every advertised kind actually renders a message', () => {
+// Beyond the contract: Slack renders blocks but uses `text` for the push
+// preview, so a message that "renders" with no fallback arrives blank.
+test('every advertised kind carries a non-empty fallback text', () => {
   for (const kind of slackAlertChannel.kinds) {
     const msg = slackAlertMessage(ALERT_FIXTURES[kind], NAMES, ENV_WITH_DASHBOARD)
-    assert.ok(msg !== null, `'${kind}' is advertised but has no copy`)
-    assert.ok(msg.text.length > 0, `'${kind}' produced an empty fallback text`)
+    assert.ok(msg !== null)
+    assert.ok(msg.text.trim().length > 0, `'${kind}' produced an empty fallback text`)
   }
-})
-
-test('the advertised kinds are a subset of the declared vocabulary', () => {
-  for (const kind of SLACK_ALERT_KINDS) assert.ok(ALERT_KINDS.includes(kind), kind)
-})
-
-// ---------- registration ---------------------------------------------------
-
-test('the channel is registered and reachable by name', () => {
-  assert.ok(alertChannelNames().includes(slackAlertChannel.name))
-  assert.strictEqual(channelByName(slackAlertChannel.name), slackAlertChannel)
-})
-
-test('a dispute alert selects the slack channel', () => {
-  assert.ok(channelsFor('dispute.raised').includes(slackAlertChannel))
 })
 
 // ---------- configured() ---------------------------------------------------

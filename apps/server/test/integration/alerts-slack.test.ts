@@ -86,12 +86,19 @@ test('loadAlertPartyNames: resolves ids to their display names', { skip }, async
   assert.strictEqual(names.get(grace.row.id), 'Grace Hopper')
 })
 
-// The raiser is almost always one of the two parties, so the un-deduplicated
-// list asks for three ids to get two rows.
-test('loadAlertPartyNames: collapses duplicate ids', { skip }, async () => {
+// The raiser is almost always one of the two parties, so the list arrives with
+// duplicates — every alert takes this path.
+//
+// Asserts the RESULT, and cannot assert the mechanism: postgres returns one row
+// for `id in (x, x, x)` whether or not the caller de-duplicated first, so this
+// passes with the `new Set(...)` removed (measured, not assumed). The dedupe is
+// a query-size optimisation that is invisible through this API — naming this
+// test "collapses duplicate ids" claimed something it never checked.
+test('loadAlertPartyNames: repeated ids yield one entry, not one per mention', { skip }, async () => {
   const ada = await createUser(getApp(), { first_name: 'Ada', last_name: 'Lovelace' })
   const names = await loadAlertPartyNames(getApp().db, [ada.row.id, ada.row.id, ada.row.id])
   assert.strictEqual(names.size, 1)
+  assert.strictEqual(names.get(ada.row.id), 'Ada Lovelace')
 })
 
 // An alert whose ids are ALL null is a real case: no triage row, an on-chain

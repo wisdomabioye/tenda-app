@@ -101,11 +101,31 @@ function jobFor(ref: AlertRef, channel: AlertJob['channel'] = 'slack'): AlertJob
   return { ref, channel }
 }
 
-/** A disputed gig whose alert will resolve to a real Alert. */
-async function disputedGig(): Promise<AlertRef> {
+interface DisputedGig {
+  ref: AlertRef
+  creator: TestUser
+  worker: TestUser
+}
+
+/**
+ * A disputed gig whose alert will resolve to a real Alert.
+ *
+ * `chainActor` and `rowRaiser` default to the worker — the normal case, where
+ * the transaction's attested actor and the triage row agree. They are separate
+ * knobs because the resolver PREFERS the chain and falls back to the row, and
+ * with both set to one person no test can tell those two apart. `null` for
+ * either omits that side entirely.
+ */
+async function disputedGig(
+  opts: {
+    chainActor?: (g: { creator: TestUser; worker: TestUser }) => string | null
+    rowRaiser?: (g: { creator: TestUser; worker: TestUser }) => string | null
+  } = {},
+): Promise<DisputedGig> {
   const app = getApp()
   const creator: TestUser = await createUser(app)
   const worker: TestUser = await createUser(app)
+  const parties = { creator, worker }
   const escrow = await createEscrow(app, {
     creator_id: creator.row.id,
     counterparty_id: worker.row.id,
@@ -113,19 +133,27 @@ async function disputedGig(): Promise<AlertRef> {
   })
   await attachGigDetails(app, escrow.id, { title: 'Fix the roof' })
   const tx_ref = `sig-${randomUUID()}`
-  await app.db
-    .insert(escrow_transactions)
-    .values({ escrow_id: escrow.id, type: 'dispute', tx_ref, actor_id: worker.row.id })
-  await app.db
-    .insert(disputes)
-    .values({ escrow_id: escrow.id, raised_by: worker.row.id, reason: 'No show' })
-  return { kind: 'dispute.raised', escrow_id: escrow.id, tx_ref }
+  const actor_id = (opts.chainActor ?? ((g) => g.worker.row.id))(parties)
+  const raised_by = (opts.rowRaiser ?? ((g) => g.worker.row.id))(parties)
+
+  await app.db.insert(escrow_transactions).values({
+    escrow_id: escrow.id,
+    type: 'dispute',
+    tx_ref,
+    ...(actor_id !== null ? { actor_id } : {}),
+  })
+  if (raised_by !== null) {
+    await app.db
+      .insert(disputes)
+      .values({ escrow_id: escrow.id, raised_by, reason: 'No show' })
+  }
+  return { ref: { kind: 'dispute.raised', escrow_id: escrow.id, tx_ref }, creator, worker }
 }
 
 // ---------- the one path that DELIVERS ---------------------------------------------
 
 test('a configured channel that accepts the kind receives the RESOLVED alert', { skip }, async () => {
-  const ref = await disputedGig()
+  const { ref } = await disputedGig()
   const channel = fakeChannel()
 
   await deliverAlert(deps(), jobFor(ref), () => channel)
@@ -140,6 +168,54 @@ test('a configured channel that accepts the kind receives the RESOLVED alert', {
   assert.deepStrictEqual(log.warns, [])
 })
 
+// ---------- who the alert says raised it ----------------------------------------------
+// The resolver's subtlest decision, and one no other test could see while the
+// fixture set the chain actor and the triage row to the same person.
+
+// They CAN disagree: party A posts the dispute (writing `raised_by`), their
+// broadcast fails, party B raises it with a raw transaction. The row still names
+// A while the contract attested B. Naming the wrong party in a dispute alert is
+// worse than naming none, so the CHAIN wins.
+test('the chain-attested actor wins over the disputes row', { skip }, async () => {
+  const { ref, creator, worker } = await disputedGig({
+    chainActor: (g) => g.worker.row.id,
+    rowRaiser: (g) => g.creator.row.id,
+  })
+  const channel = fakeChannel()
+
+  await deliverAlert(deps(), jobFor(ref), () => channel)
+
+  const alert = channel.delivered[0]
+  assert.strictEqual(alert.kind, 'dispute.raised')
+  assert.strictEqual(alert.raised_by_id, worker.row.id, 'the contract named the worker')
+  assert.notStrictEqual(alert.raised_by_id, creator.row.id, 'the stale triage row must not win')
+})
+
+// The fallback direction: the on-chain wallet maps to no known user, so the row
+// is all there is. Dropping to null here would name nobody when we do know.
+test('the disputes row is the fallback when the chain names no known user', { skip }, async () => {
+  const { ref, creator } = await disputedGig({
+    chainActor: () => null,
+    rowRaiser: (g) => g.creator.row.id,
+  })
+  const channel = fakeChannel()
+
+  await deliverAlert(deps(), jobFor(ref), () => channel)
+
+  assert.strictEqual(channel.delivered[0].raised_by_id, creator.row.id)
+})
+
+// Neither source knows: an on-chain dispute with no triage row and an
+// unrecognised wallet. Null is the honest answer, and the channels render it.
+test('an unknown raiser resolves to null rather than to a guess', { skip }, async () => {
+  const { ref } = await disputedGig({ chainActor: () => null, rowRaiser: () => null })
+  const channel = fakeChannel()
+
+  await deliverAlert(deps(), jobFor(ref), () => channel)
+
+  assert.strictEqual(channel.delivered[0].raised_by_id, null)
+})
+
 // ---------- branches that must SKIP, never throw --------------------------------------
 
 test('an unknown channel is skipped and warned, NOT thrown', { skip }, async () => {
@@ -150,7 +226,7 @@ test('an unknown channel is skipped and warned, NOT thrown', { skip }, async () 
   // the job: `AlertJob.channel` is typed as a CURRENT channel name, so an
   // unknown one is unconstructible here — which is the very asymmetry the
   // string-typed lookup exists for (see AlertJob in types.ts).
-  const ref = await disputedGig()
+  const { ref } = await disputedGig()
 
   await deliverAlert(deps(), jobFor(ref), () => null)
 
@@ -162,7 +238,7 @@ test('an unknown channel is skipped and warned, NOT thrown', { skip }, async () 
 test('a channel that no longer accepts the kind is skipped', { skip }, async () => {
   // `kinds` is an explicit opt-in, so it is honoured at delivery too — the
   // producer's filter can be stale by the time the job runs.
-  const ref = await disputedGig()
+  const { ref } = await disputedGig()
   const channel = fakeChannel({ kinds: [] })
 
   await deliverAlert(deps(), jobFor(ref), () => channel)
@@ -174,7 +250,7 @@ test('a channel that no longer accepts the kind is skipped', { skip }, async () 
 test('an unconfigured channel is skipped as INFO — unconfigured is normal', { skip }, async () => {
   // Slack is optional. An operator who never set it up must not get a warning
   // per dispute, or the warnings stop meaning anything.
-  const ref = await disputedGig()
+  const { ref } = await disputedGig()
   const channel = fakeChannel({ configured: false })
 
   await deliverAlert(deps(), jobFor(ref), () => channel)
@@ -207,7 +283,7 @@ test('a delivery failure PROPAGATES so BullMQ retries it', { skip }, async () =>
   // The inverse of every test above. A configured channel that fails is a
   // transient outage; swallowing it here would turn one Slack 503 into
   // permanent silence about a dispute.
-  const ref = await disputedGig()
+  const { ref } = await disputedGig()
   const boom = new Error('slack 503')
   const channel = fakeChannel({ throws: boom })
 
@@ -244,7 +320,7 @@ test('configured() and deliver() are handed the SAME env instance', { skip }, as
   // thing that threads it, so identity — not equality — is what to assert:
   // a `{ ...deps.env }` copy would pass a deepEqual and still break a channel
   // that keyed a cache on the object.
-  const ref = await disputedGig()
+  const { ref } = await disputedGig()
   const env: NodeJS.ProcessEnv = { SLACK_WEBHOOK_DISPUTES: 'https://example.invalid/hook' }
   const channel = fakeChannel()
 
@@ -259,7 +335,7 @@ test('configured() and deliver() are handed the SAME env instance', { skip }, as
 test('deliver() receives the deps it can actually work with', { skip }, async () => {
   // The in-app channel enqueues notification jobs and reads the DB, so a
   // hollowed-out deps object would fail only at runtime, in a worker.
-  const ref = await disputedGig()
+  const { ref } = await disputedGig()
   const channel = fakeChannel()
   const passed = deps()
 

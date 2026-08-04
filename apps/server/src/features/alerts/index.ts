@@ -46,10 +46,11 @@ export { mediatorUserIds } from './recipients'
 export { alertPartyName, loadAlertPartyNames } from './identities'
 export type { AlertPartyNames } from './identities'
 
+export { alertIdentity, alertJobId } from './identity'
+
 export {
   ALERT_JOB_ATTEMPTS,
   ALERT_REF_BY_EVENT,
-  alertJobId,
   alertRefForEscrowEvent,
   enqueueAlert,
 } from './enqueue-alert'

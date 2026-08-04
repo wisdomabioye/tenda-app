@@ -20,6 +20,7 @@
  * reads as the question it actually is: "is there a channel nobody registered?"
  */
 
+import { inAppAlertChannel } from './channels/in-app'
 import { slackAlertChannel } from './channels/slack'
 import type { AlertChannel, AlertChannelName, AlertKind } from './types'
 
@@ -31,10 +32,13 @@ import type { AlertChannel, AlertChannelName, AlertKind } from './types'
  * configured should do. Registration is not configuration: a channel listed
  * here still reports itself unconfigured until its env is set.
  *
- * Slack leads because it reaches a mediator who is not in the product — the
- * in-app bell (#13) only helps someone who already opened the dashboard.
+ * Slack leads because it reaches a mediator who is not in the product, and it
+ * is the one that can be unconfigured — putting it first means the common
+ * "nothing is set up" case is decided before any work is done. Order is
+ * otherwise not significant: the producer enqueues one INDEPENDENT job per
+ * channel, so neither waits on nor can fail the other.
  */
-export const ALERT_CHANNELS: readonly AlertChannel[] = [slackAlertChannel]
+export const ALERT_CHANNELS: readonly AlertChannel[] = [slackAlertChannel, inAppAlertChannel]
 
 /** Names of the live channels — what is registered, not what is declarable. */
 export function alertChannelNames(): AlertChannelName[] {
