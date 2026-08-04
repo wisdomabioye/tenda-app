@@ -16,34 +16,18 @@ import assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
 import { hasPermission, ROLE_PERMISSIONS, type AdminRole } from '@tenda/shared'
 import { mediatorUserIds } from '@server/features/alerts'
-import type { AlertLogger } from '@server/features/alerts'
 import { TEST_DB_CONFIGURED, useTestApp, createUser } from '../helpers/test-app'
+import { alertLogSpy, type AlertLogSpy } from '../helpers/alert-log'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
 
-interface CapturedWarn {
-  obj: Record<string, unknown>
-  msg: string
-}
 
-/** Records warnings so "logged, did not throw" is assertable. */
-function logSpy(): AlertLogger & { warns: CapturedWarn[] } {
-  const warns: CapturedWarn[] = []
-  return {
-    warns,
-    info: () => {},
-    warn: (obj, msg) => {
-      warns.push({ obj, msg })
-    },
-  }
-}
-
-let log: ReturnType<typeof logSpy>
+let log: AlertLogSpy
 
 beforeEach(() => {
   if (skip) return
-  log = logSpy()
+  log = alertLogSpy()
 })
 
 /**

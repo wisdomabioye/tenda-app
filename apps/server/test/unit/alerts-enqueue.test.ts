@@ -27,35 +27,18 @@ import {
   channelsFor,
   enqueueAlert,
 } from '@server/features/alerts'
-import type { AlertChannel, AlertKind, AlertLogger, AlertRefOf } from '@server/features/alerts'
+import type { AlertChannel, AlertKind, AlertRefOf } from '@server/features/alerts'
 import { DEFAULT_JOB_OPTIONS } from '@server/plugins/queue'
 import { INTERNAL_EVENT_BY_WIRE } from '@server/lib/escrow-events'
 import type { EscrowRepublishEvent, InternalEscrowEvent } from '@server/lib/escrow-events'
 import { ESCROW_EVENTS } from '@server/chains/types'
 import type { EscrowEvent } from '@server/chains/types'
+import { slackEnvKey } from '@server/lib/slack'
 import { queueDouble } from '../helpers/queue-double'
+import { alertLogSpy } from '../helpers/alert-log'
 
 // ---------- doubles ----------------------------------------------------------------
 
-interface Logged {
-  obj: Record<string, unknown>
-  msg: string
-}
-
-function logSpy(): AlertLogger & { infos: Logged[]; warns: Logged[] } {
-  const infos: Logged[] = []
-  const warns: Logged[] = []
-  return {
-    infos,
-    warns,
-    info: (obj, msg) => {
-      infos.push({ obj, msg })
-    },
-    warn: (obj, msg) => {
-      warns.push({ obj, msg })
-    },
-  }
-}
 
 /**
  * A channel under the test's control, handed in through the selector seam.
@@ -270,7 +253,7 @@ test('the id varies with the subject', () => {
 
 test('one job per configured channel, with the dedup id and the retry budget', async () => {
   const queue = queueDouble()
-  const log = logSpy()
+  const log = alertLogSpy()
   const channels = [
     fakeChannel({ name: 'slack' }),
     fakeChannel({ name: 'in_app' }),
@@ -310,7 +293,7 @@ test('the retry budget is lower than the queue-wide default', () => {
 
 test('an unconfigured channel is skipped without a job or a Redis round-trip', async () => {
   const queue = queueDouble()
-  const log = logSpy()
+  const log = alertLogSpy()
   const channels = [
     fakeChannel({ name: 'slack', configured: false }),
     fakeChannel({ name: 'in_app' }),
@@ -329,7 +312,7 @@ test('an alert that reaches NO channel is warned — that is the incident', asyn
   // The empty registry is today's real state (channels land later), and the
   // whole feature exists to prevent silence, so this may not pass quietly.
   const queue = queueDouble()
-  const log = logSpy()
+  const log = alertLogSpy()
 
   await enqueueAlert(queue, disputeRef, log, () => [])
 
@@ -344,7 +327,7 @@ test('registered channels that are all unconfigured still warn, and say so', asy
   // Same outcome, different cause. `registered` is what separates "nothing is
   // wired up" from "everything is wired up and switched off".
   const queue = queueDouble()
-  const log = logSpy()
+  const log = alertLogSpy()
   const channels = [fakeChannel({ name: 'slack', configured: false })]
 
   await enqueueAlert(queue, disputeRef, log, () => channels)
@@ -360,7 +343,7 @@ test('a channel whose configured() throws does not cost the other channel its jo
   // runtime guarantee. The throwing channel is FIRST so a guard placed around
   // the whole loop instead of each channel would fail this.
   const queue = queueDouble()
-  const log = logSpy()
+  const log = alertLogSpy()
   const channels = [
     fakeChannel({ name: 'slack', configuredThrows: new Error('bad env parse') }),
     fakeChannel({ name: 'in_app' }),
@@ -376,7 +359,7 @@ test('a channel whose configured() throws does not cost the other channel its jo
 })
 
 test('a failing enqueue does not cost the other channel its job', async () => {
-  const log = logSpy()
+  const log = alertLogSpy()
   const inner = queueDouble()
   let first = true
   const queue = {
@@ -405,7 +388,7 @@ test('a queue that always throws is survived, not propagated (G5)', async () => 
   // The no-Redis case: the queue stub 501s by design. The escrow fan-out
   // continues to the PARTIES' notices after this returns, so throwing would
   // cost them their notification because an operator alert failed.
-  const log = logSpy()
+  const log = alertLogSpy()
   const queue = {
     enqueue: () => {
       throw new Error('REDIS_URL not configured')
@@ -422,7 +405,7 @@ test('a channel selector that throws is survived, not propagated (G5)', async ()
   // The one thing the per-channel guards cannot cover, and the reason the outer
   // guard exists at all.
   const queue = queueDouble()
-  const log = logSpy()
+  const log = alertLogSpy()
 
   await assert.doesNotReject(() =>
     enqueueAlert(queue, disputeRef, log, () => {
@@ -440,25 +423,38 @@ test('the DEFAULT selector is the real registry', async () => {
   // production binding at all. This one calls `enqueueAlert` with three
   // arguments, exactly as workers/escrow-fanout will.
   //
-  // WHAT IT CATCHES TODAY, precisely — measured, not assumed. A default swapped
-  // for one that yields the WRONG channels fails here. A default swapped for
-  // `() => []` does NOT, and cannot: ALERT_CHANNELS is empty until #12/#13, so
-  // "the registry is empty" and "the default was silenced" produce identical
-  // output. No assertion can separate them while the registry has no members.
+  // A CONFIGURED channel is what makes this load-bearing, and it took two goes
+  // to get right. The producer skips unconfigured channels before enqueueing,
+  // so with none configured "the registry is empty", "nothing is set up" and
+  // "the default was silenced to `() => []`" all produce an empty queue and no
+  // assertion can separate them. Registering Slack (#12) was not enough on its
+  // own — its webhook still has to be set here for it to reach the queue.
   //
-  // The expectation is DERIVED from the registry rather than written down
-  // precisely so that limitation expires on its own — the moment a channel is
-  // registered this becomes load-bearing in both directions, with no edit here.
-  const queue = queueDouble()
-  const log = logSpy()
-  const expected = channelsFor(disputeRef.kind).filter((channel) => channel.configured())
+  // The expectation stays DERIVED from the registry rather than written down,
+  // so this keeps holding as channels are added.
+  const key = slackEnvKey('disputes')
+  const before = process.env[key]
+  process.env[key] = 'https://hooks.slack.test/services/T/B/x'
+  try {
+    const queue = queueDouble()
+    const log = alertLogSpy()
+    const expected = channelsFor(disputeRef.kind).filter((channel) => channel.configured())
 
-  await enqueueAlert(queue, disputeRef, log)
+    // If this ever trips, the registry changed under the line above: point it at
+    // whatever env makes a currently-registered channel configured, or this test
+    // silently stops testing anything.
+    assert.ok(expected.length > 0, 'no configured channel — the assertion below would be vacuous')
 
-  assert.deepStrictEqual(
-    queue.alerts().map((job) => job.payload.channel),
-    expected.map((channel) => channel.name),
-  )
+    await enqueueAlert(queue, disputeRef, log)
+
+    assert.deepStrictEqual(
+      queue.alerts().map((job) => job.payload.channel),
+      expected.map((channel) => channel.name),
+    )
+  } finally {
+    if (before === undefined) delete process.env[key]
+    else process.env[key] = before
+  }
 })
 
 test('the producer never delivers inline — it only enqueues', async () => {
@@ -466,7 +462,7 @@ test('the producer never delivers inline — it only enqueues', async () => {
   // failure can be retried; doing it here would run it on the verify-tx slot
   // and make a Slack timeout the escrow pipeline's problem.
   const queue = queueDouble()
-  const log = logSpy()
+  const log = alertLogSpy()
 
   await enqueueAlert(queue, disputeRef, log, () => [fakeChannel({ name: 'slack' })])
 

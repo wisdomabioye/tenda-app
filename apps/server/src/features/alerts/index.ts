@@ -43,6 +43,9 @@ export { resolveAlert } from './resolve-alert'
 
 export { mediatorUserIds } from './recipients'
 
+export { alertPartyName, loadAlertPartyNames } from './identities'
+export type { AlertPartyNames } from './identities'
+
 export {
   ALERT_JOB_ATTEMPTS,
   ALERT_REF_BY_EVENT,

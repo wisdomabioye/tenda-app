@@ -23,7 +23,6 @@ import type {
   AlertChannel,
   AlertDeps,
   AlertJob,
-  AlertLogger,
   AlertRef,
 } from '@server/features/alerts'
 import { queueDouble } from '../helpers/queue-double'
@@ -35,31 +34,13 @@ import {
   attachGigDetails,
   type TestUser,
 } from '../helpers/test-app'
+import { alertLogSpy, type AlertLogSpy } from '../helpers/alert-log'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
 
 // ---------- doubles --------------------------------------------------------------
 
-interface Logged {
-  obj: Record<string, unknown>
-  msg: string
-}
-
-function logSpy(): AlertLogger & { infos: Logged[]; warns: Logged[] } {
-  const infos: Logged[] = []
-  const warns: Logged[] = []
-  return {
-    infos,
-    warns,
-    info: (obj, msg) => {
-      infos.push({ obj, msg })
-    },
-    warn: (obj, msg) => {
-      warns.push({ obj, msg })
-    },
-  }
-}
 
 interface FakeChannel extends AlertChannel {
   delivered: Alert[]
@@ -105,11 +86,11 @@ function fakeChannel(opts: {
   }
 }
 
-let log: ReturnType<typeof logSpy>
+let log: AlertLogSpy
 
 beforeEach(() => {
   if (skip) return
-  log = logSpy()
+  log = alertLogSpy()
 })
 
 function deps(): AlertDeps {

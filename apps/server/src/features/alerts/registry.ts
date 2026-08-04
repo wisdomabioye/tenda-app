@@ -20,16 +20,21 @@
  * reads as the question it actually is: "is there a channel nobody registered?"
  */
 
+import { slackAlertChannel } from './channels/slack'
 import type { AlertChannel, AlertChannelName, AlertKind } from './types'
 
 /**
  * Every live channel, in delivery order.
  *
- * Empty until the channels land (#12 Slack, #13 in-app). An empty registry is a
- * legitimate state, not a broken one — it means alerts resolve and reach
- * nobody, which is what a deployment with no channels configured should do.
+ * An empty registry would be a legitimate state, not a broken one — it means
+ * alerts resolve and reach nobody, which is what a deployment with no channels
+ * configured should do. Registration is not configuration: a channel listed
+ * here still reports itself unconfigured until its env is set.
+ *
+ * Slack leads because it reaches a mediator who is not in the product — the
+ * in-app bell (#13) only helps someone who already opened the dashboard.
  */
-export const ALERT_CHANNELS: readonly AlertChannel[] = []
+export const ALERT_CHANNELS: readonly AlertChannel[] = [slackAlertChannel]
 
 /** Names of the live channels — what is registered, not what is declarable. */
 export function alertChannelNames(): AlertChannelName[] {

@@ -115,11 +115,23 @@ function csvEnv(raw: string | undefined): string[] | null {
   return items.length > 0 ? items : null
 }
 
-/** Schemes accepted for dashboard/base URLs — http so local dev works. */
-const BASE_URL_PROTOCOLS = ['https', 'http'] as const
+/**
+ * Schemes accepted for dashboard/base URLs — http so local dev works.
+ *
+ * Exported because lib/admin-links.ts re-reads `ADMIN_DASHBOARD_URL` from a
+ * THREADED env (an alert channel is handed `deps.env`, never `process.env`), and
+ * a second `['https', 'http']` written there would be a second spelling of the
+ * same policy. One of them tightening later is a difference nothing would catch.
+ */
+export const BASE_URL_PROTOCOLS = ['https', 'http'] as const
 
-/** Named once: the validator and the reader below must not drift apart. */
-const ADMIN_DASHBOARD_URL_ENV = 'ADMIN_DASHBOARD_URL'
+/**
+ * Named once: the validator and the reader below must not drift apart — and,
+ * since lib/admin-links.ts reads the same var, neither may they drift from IT.
+ * A var name that only agrees with its boot validator by coincidence is exactly
+ * the silent-mute failure the optional-URL check exists to prevent.
+ */
+export const ADMIN_DASHBOARD_URL_ENV = 'ADMIN_DASHBOARD_URL'
 
 /**
  * Optional env vars that must be a well-formed absolute URL WHEN SET. Being

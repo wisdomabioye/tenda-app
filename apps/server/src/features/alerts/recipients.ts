@@ -40,15 +40,21 @@ export async function mediatorUserIds(
 ): Promise<string[]> {
   const roles = rolesWithPermission(MEDIATOR_PERMISSION)
 
-  // Guard, not an optimisation: `inArray(col, [])` is not a well-formed
-  // predicate, and an empty roster is the honest answer anyway — no role holds
-  // the permission, so nobody does.
+  // An empty roster is the honest answer — no role holds the permission, so
+  // nobody does — and the query could only come back empty anyway.
   //
-  // UNREACHABLE while the registry grants `disputes.mediate` to anyone, and the
-  // recipients test asserts exactly that, so this branch is defence-in-depth
-  // against a future registry edit rather than a live path. Do not delete it as
-  // dead code: the day it becomes reachable is the day the query would
-  // otherwise be malformed.
+  // The WARNING is why this branch exists, not the early return. An earlier
+  // version of this comment claimed `inArray(col, [])` is not a well-formed
+  // predicate; that is FALSE for the drizzle we run (0.44.7 compiles it to
+  // `sql`false``, checked in node_modules), so skipping the query is a saved
+  // round trip and nothing more. What cannot be recovered any other way is the
+  // ops signal: a permission registry that grants `disputes.mediate` to nobody
+  // silently routes every dispute to no one, and without this line the only
+  // symptom is an empty list that looks exactly like a healthy quiet day.
+  //
+  // UNREACHABLE while the registry grants the permission to anyone, and the
+  // recipients test asserts exactly that, so this is defence against a future
+  // registry edit rather than a live path.
   if (roles.length === 0) {
     deps.log.warn({ permission: MEDIATOR_PERMISSION }, 'no role holds the mediator permission')
     return []

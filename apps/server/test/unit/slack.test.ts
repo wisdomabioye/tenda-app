@@ -29,44 +29,14 @@ import {
   type SlackMessage,
 } from '@server/lib/slack'
 import { AppError } from '@server/lib/errors'
+import { restoreFetch, stubFetch, type CapturedRequest } from '../helpers/fetch-stub'
 
 // ---------- fetch stubbing ---------------------------------------------------
+// helpers/fetch-stub.ts answers with a REAL Response, so `ok` derives from
+// `status` rather than being set beside it, and no cast stands a partial object
+// in for the platform type.
 
-const realFetch = globalThis.fetch
-
-interface CapturedRequest {
-  url: string
-  init: RequestInit
-}
-
-interface StubResponse {
-  ok: boolean
-  status: number
-  body?: string
-  /** Make reading the body fail, e.g. a connection dropped mid-response. */
-  bodyUnreadable?: boolean
-}
-
-/** Replace fetch with one that records the call and returns `res`. */
-function stubFetch(res: StubResponse): CapturedRequest[] {
-  const calls: CapturedRequest[] = []
-  globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
-    calls.push({ url: String(input), init: init ?? {} })
-    return {
-      ok: res.ok,
-      status: res.status,
-      text: async () => {
-        if (res.bodyUnreadable === true) throw new Error('stream closed')
-        return res.body ?? ''
-      },
-    } as Response
-  }) as typeof fetch
-  return calls
-}
-
-afterEach(() => {
-  globalThis.fetch = realFetch
-})
+afterEach(restoreFetch)
 
 const CFG = { webhook_url: 'https://hooks.slack.com/services/T/B/x' }
 
@@ -78,7 +48,7 @@ function sentBody(call: CapturedRequest): Record<string, unknown> {
 // ---------- transport --------------------------------------------------------
 
 test('postToSlackWebhook: POSTs JSON to the configured webhook', async () => {
-  const calls = stubFetch({ ok: true, status: 200 })
+  const calls = stubFetch({ status: 200 })
   await postToSlackWebhook(CFG, { text: 'hello' })
 
   assert.strictEqual(calls.length, 1)
@@ -91,7 +61,7 @@ test('postToSlackWebhook: POSTs JSON to the configured webhook', async () => {
 // Slack renders blocks but uses `text` for the push/screen-reader fallback, so
 // a blocks message that dropped its text would arrive blank in the preview.
 test('postToSlackWebhook: sends blocks ALONGSIDE the fallback text', async () => {
-  const calls = stubFetch({ ok: true, status: 200 })
+  const calls = stubFetch({ status: 200 })
   const msg: SlackMessage = {
     text: 'fallback',
     blocks: [{ type: 'section', text: { type: 'mrkdwn', text: '*bold*' } }],
@@ -105,20 +75,20 @@ test('postToSlackWebhook: sends blocks ALONGSIDE the fallback text', async () =>
 })
 
 test('postToSlackWebhook: omits `blocks` entirely when there are none', async () => {
-  const calls = stubFetch({ ok: true, status: 200 })
+  const calls = stubFetch({ status: 200 })
   await postToSlackWebhook(CFG, { text: 'plain' })
   assert.ok(!('blocks' in sentBody(calls[0])), 'absent, not null or []')
 })
 
 test('postToSlackWebhook: applies the abort timeout', async () => {
-  const calls = stubFetch({ ok: true, status: 200 })
+  const calls = stubFetch({ status: 200 })
   await postToSlackWebhook(CFG, { text: 'x' })
   assert.ok(calls[0].init.signal instanceof AbortSignal, 'a timeout signal is attached')
   assert.strictEqual(SLACK_TIMEOUT_MS, 10_000)
 })
 
 test('postToSlackWebhook: throws 502 on a non-2xx and quotes Slack’s reason', async () => {
-  stubFetch({ ok: false, status: 400, body: 'invalid_payload' })
+  stubFetch({ status: 400, body: 'invalid_payload' })
   await assert.rejects(
     () => postToSlackWebhook(CFG, { text: 'x' }),
     (err: unknown) => {
@@ -136,7 +106,7 @@ test('postToSlackWebhook: throws 502 on a non-2xx and quotes Slack’s reason', 
 // The endpoint is operator-configured: a misrouted webhook can answer with a
 // whole HTML error page, and that would land in the logs verbatim.
 test('postToSlackWebhook: bounds the error body it quotes', async () => {
-  stubFetch({ ok: false, status: 502, body: 'E'.repeat(5_000) })
+  stubFetch({ status: 502, body: 'E'.repeat(5_000) })
   await assert.rejects(
     () => postToSlackWebhook(CFG, { text: 'x' }),
     (err: unknown) => {
@@ -151,7 +121,7 @@ test('postToSlackWebhook: bounds the error body it quotes', async () => {
 })
 
 test('postToSlackWebhook: an unreadable error body still throws a clean 502', async () => {
-  stubFetch({ ok: false, status: 500, bodyUnreadable: true })
+  stubFetch({ status: 500, bodyUnreadable: true })
   await assert.rejects(
     () => postToSlackWebhook(CFG, { text: 'x' }),
     (err: unknown) => {
@@ -164,7 +134,7 @@ test('postToSlackWebhook: an unreadable error body still throws a clean 502', as
 })
 
 test('postToSlackWebhook: a whitespace-only body adds no dangling separator', async () => {
-  stubFetch({ ok: false, status: 500, body: '   \n ' })
+  stubFetch({ status: 500, body: '   \n ' })
   await assert.rejects(
     () => postToSlackWebhook(CFG, { text: 'x' }),
     (err: unknown) => {
@@ -176,7 +146,7 @@ test('postToSlackWebhook: a whitespace-only body adds no dangling separator', as
 })
 
 test('postToSlackWebhook: never puts the webhook URL in the error (it is a credential)', async () => {
-  stubFetch({ ok: false, status: 403, body: 'no_service' })
+  stubFetch({ status: 403, body: 'no_service' })
   await assert.rejects(
     () => postToSlackWebhook(CFG, { text: 'x' }),
     (err: unknown) => {
