@@ -10,9 +10,10 @@
  *   - `verify-tx`     , Stage 2 producer (class exists; no producers yet)
  *   - `reconcile`     , Stage 2 placeholder
  *
- * Adding a new queue: add the variant to `JobName` + matching payload to
- * `JobPayload`. TypeScript exhaustiveness ensures callers can't enqueue an
- * unknown queue.
+ * Adding a new queue: add ONE entry to `JobPayload`. `JobName` derives from
+ * it, so the name, the worker concurrency map and the processor map all fail
+ * to compile until they account for it. TypeScript exhaustiveness ensures
+ * callers can't enqueue an unknown queue.
  */
 
 import fp from 'fastify-plugin'
@@ -26,17 +27,17 @@ import type { OtpMessage } from '@server/lib/otp'
 
 // ---------- public surface ----------------------------------------------
 
-export type JobName =
-  | 'notifications'
-  | 'expire-escrows'
-  | 'expire-applications'
-  | 'verify-tx'
-  | 'reconcile'
-  | 'reconcile-fiat'
-  | 'expire-fiat-quotes'
-  | 'send-otp'
-  | 'update-price-stats'
-  | 'prune-notifications'
+/**
+ * Every queue this app runs — DERIVED from `JobPayload`, never hand-listed.
+ *
+ * These were two independent declarations, so a queue added to one and not the
+ * other still compiled: a payload with no name is unreachable, and a name with
+ * no payload gets a `WORKER_CONCURRENCY` entry and a processor but no way to
+ * describe what it carries. Deriving makes the payload map the single source
+ * and turns "add a queue" into one edit. Type aliases are hoisted, so the
+ * forward reference to the interface below is fine.
+ */
+export type JobName = keyof JobPayload
 
 /**
  * Per-queue payload shapes. Stage 0 freezes the surface; #33 implementer
