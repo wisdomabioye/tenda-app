@@ -27,6 +27,7 @@ import {
 import type { PushService } from '@server/chains/types'
 import { getConfig } from '@server/config'
 import { buildFiatDeps } from '@server/features/fiat-rails'
+import { deliverAlert } from '@server/features/alerts'
 import { buildOtpSenders } from '@server/lib/onboarding-deps'
 import { deliverOtp } from '@server/lib/otp'
 import {
@@ -175,5 +176,18 @@ export function buildProcessors(
     // Decoupled OTP delivery, a throw here propagates so BullMQ retries on the
     // queue's exponential backoff (well within the 10-min code TTL).
     'send-otp': (payload) => deliverOtp(otpSenders, payload),
+
+    // One alert, one channel. `deliverAlert` decides which failures are skips
+    // and which throw, so this stays a thin binding — a try/catch here would
+    // silently override that decision for every channel at once.
+    //
+    // `env` is threaded from process.env rather than read inside the channels:
+    // it is the one environment both `configured()` and `deliver()` see, so a
+    // channel cannot report itself set up against one and post against another.
+    alerts: (payload) =>
+      deliverAlert(
+        { db: fastify.db, queue: fastify.queue, log: fastify.log, env: process.env },
+        payload,
+      ),
   }
 }

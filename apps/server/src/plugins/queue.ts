@@ -22,6 +22,13 @@ import { ErrorCode } from '@tenda/shared'
 import { getConfig } from '@server/config'
 import type { VerifyTxJobPayload } from '@server/jobs/verify-tx'
 import type { OtpMessage } from '@server/lib/otp'
+// TYPE-ONLY, and it must stay that way: features/alerts/types.ts imports
+// `QueueService` back from this module, so the two reference each other. Both
+// directions are erased today (verified in the emitted JS — neither file
+// requires the other), but a value import on either side would close a real
+// runtime cycle, and this plugin loads early enough that the alerts feature
+// would be half-initialised when it did.
+import type { AlertJob } from '@server/features/alerts'
 
 // ---------- public surface ----------------------------------------------
 
@@ -96,6 +103,13 @@ export interface JobPayload {
   'update-price-stats': { tick_id: string }
   /** Daily retention sweep of stale personal notifications, tick id for correlation. */
   'prune-notifications': { tick_id: string }
+  /**
+   * One operational alert, for ONE channel. Imported rather than re-declared so
+   * the producer, this queue and `deliverAlert` cannot describe the job three
+   * slightly different ways — see features/alerts/types.ts for why the fan-out
+   * is per channel rather than one job that loops them.
+   */
+  alerts: AlertJob
 }
 
 export interface EnqueueOptions {

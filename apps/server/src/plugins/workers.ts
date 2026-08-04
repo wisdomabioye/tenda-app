@@ -27,7 +27,15 @@ import {
 } from '@server/plugins/queue'
 import { buildProcessors } from '@server/workers/processors'
 
-const WORKER_CONCURRENCY: Record<JobName, number> = {
+/**
+ * Per-queue worker parallelism. `Record<JobName, number>` so a new queue cannot
+ * ship without one.
+ *
+ * Exported for the processor-coverage test: it is the one runtime value that
+ * enumerates every JobName, so the test derives its list from here instead of
+ * hand-writing one. The hand-written version had already drifted twice.
+ */
+export const WORKER_CONCURRENCY: Record<JobName, number> = {
   'verify-tx': 8,
   notifications: 8,
   'send-otp': 8, // user-facing latency-sensitive; parallelise like notifications
@@ -38,6 +46,10 @@ const WORKER_CONCURRENCY: Record<JobName, number> = {
   'expire-fiat-quotes': 1,
   'update-price-stats': 1,
   'prune-notifications': 1,
+  // Outbound HTTP (a Slack webhook) plus one small read — I/O-bound, not CPU,
+  // so it parallelises. Lower than notifications because the volume is orders
+  // of magnitude smaller: one dispute, not one per subscriber.
+  alerts: 4,
 }
 
 interface RepeatableSpec<N extends JobName> {

@@ -25,6 +25,7 @@ import { channelName } from '@server/lib/ws'
 import { INTERNAL_EVENT_BY_WIRE, type EscrowRepublishEvent } from '@server/lib/escrow-events'
 import type { EscrowEvent } from '@server/chains/types'
 import type { JobName, JobPayload } from '@server/plugins/queue'
+import { WORKER_CONCURRENCY } from '@server/plugins/workers'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import {
   TEST_DB_CONFIGURED,
@@ -492,21 +493,23 @@ test('buildVerifyTxDeps wires the live chains registry + a republish fn', { skip
 test('buildProcessors exposes a handler fn for every job name', { skip }, async () => {
   const app = getApp()
   const procs = buildProcessors(app)
-  // NB: this list once drifted (send-otp and update-price-stats were missing
-  // while they existed as JobNames) — keep it the FULL JobName set; the
-  // compiler enforces buildProcessors covers JobName, this asserts the
-  // handlers are real functions at runtime.
-  const names: JobName[] = [
-    'verify-tx',
-    'expire-escrows',
-    'reconcile',
-    'reconcile-fiat',
-    'expire-fiat-quotes',
-    'notifications',
-    'send-otp',
-    'update-price-stats',
-  ]
+  // DERIVED, never hand-listed. The previous version was a literal, and its own
+  // comment said "keep it the FULL JobName set" — by the time it was read it
+  // was missing three (expire-applications, prune-notifications, alerts). A
+  // list that must be edited to stay correct will not stay correct.
+  //
+  // WORKER_CONCURRENCY is the one runtime value that enumerates JobName, so
+  // this also cross-checks the two maps: a queue with a concurrency entry but
+  // no processor now fails here rather than at 3am when a job is dequeued.
+  const names = Object.keys(WORKER_CONCURRENCY) as JobName[]
+  assert.ok(names.length > 0)
   for (const n of names) assert.strictEqual(typeof procs[n], 'function', `${n} must be a function`)
+  // And the inverse — a processor for a queue no worker runs would never fire.
+  assert.deepStrictEqual(
+    Object.keys(procs).sort(),
+    [...names].sort(),
+    'buildProcessors and WORKER_CONCURRENCY must cover exactly the same queues',
+  )
 })
 
 test('the expire-escrows + reconcile processors run their handlers (no-op on an empty DB)', { skip }, async () => {
