@@ -25,8 +25,24 @@ import type { OtpStore } from './store'
 
 export type { OtpChannel }
 export { isE164 }
-export * from './senders'
-export * from './store'
+// Named rather than `export *`: `export type` marks what is erased and
+// `export` what survives to runtime, and no __exportStar loop is emitted.
+export {
+  otpSmsText,
+  TERMII_SMS_URL,
+  SMS_SEND_TIMEOUT_MS,
+  termiiSender,
+  TWILIO_API_BASE,
+  twilioSmsSender,
+  routedSmsSender,
+  composePhoneSender,
+  emailOtpSender,
+  consoleSender,
+} from './senders'
+export type { OtpSender, SmsRoute } from './senders'
+
+export { drizzleOtpStore } from './store'
+export type { OtpStore } from './store'
 
 // ---------- policy constants ------------------------------------------------
 

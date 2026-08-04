@@ -15,8 +15,18 @@ import {
 } from './applications'
 import type { EscrowEventStore } from './store'
 
-export * from './applications'
-export * from './store'
+// Named rather than `export *`: `export type` marks what is erased and
+// `export` what survives to runtime, and no __exportStar loop is emitted.
+export { INTERNAL_EVENT_BY_WIRE, EVENT_APPLICATIONS } from './applications'
+export type { InternalEscrowEvent, EventApplication } from './applications'
+
+export { drizzleEscrowEventStore } from './store'
+export type {
+  EscrowPatch,
+  EscrowEventTransaction,
+  ApplyEventOutcome,
+  EscrowEventStore,
+} from './store'
 
 export interface ApplyEscrowEventDeps {
   store: EscrowEventStore

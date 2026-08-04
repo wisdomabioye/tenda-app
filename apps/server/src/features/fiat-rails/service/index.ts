@@ -14,7 +14,16 @@
  *      expire (awaiting_user TTL) ──► failed
  */
 
-export * from './deps'
-export * from './quote'
-export * from './intents'
-export * from './settlement'
+// Named rather than `export *`: `export type` marks what is erased and
+// `export` what survives to runtime, and no __exportStar loop is emitted.
+export { toEvent } from './deps'
+export type { FiatEvent, FiatEventSink, FiatDeps } from './deps'
+
+export { requestQuote } from './quote'
+export type { QuoteInput, QuoteResult } from './quote'
+
+export { initiateIntent, cancelIntent } from './intents'
+export type { InitiateOutput, InitiateOpts } from './intents'
+
+export { settleFromProvider, reconcileIntent } from './settlement'
+export type { ProviderOutcome } from './settlement'

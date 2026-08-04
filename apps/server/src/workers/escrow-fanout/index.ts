@@ -22,7 +22,16 @@ import { APPLICANT_NOTICE, noticeCopyFor, partyNoticeFor } from './copy'
 import { enqueueEscrowNotice } from './enqueue-notice'
 import { fanOutNewGigToSubscribers } from './subscribers'
 
-export * from './copy'
+// Named rather than `export *`: `export type` marks what is erased and
+// `export` what survives to runtime, and no __exportStar loop is emitted.
+export {
+  partyNoticeFor,
+  noticeCopyFor,
+  escrowNoticeFor,
+  newGigNotice,
+  APPLICANT_NOTICE,
+} from './copy'
+export type { NoticeCopy, EventNotice, ResolvedNotice } from './copy'
 
 /**
  * The republish payload. Owned by lib/escrow-events so this consumer and

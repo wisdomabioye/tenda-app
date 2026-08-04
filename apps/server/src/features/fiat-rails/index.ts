@@ -13,7 +13,26 @@ export { redisQuoteCache, inMemoryQuoteCache, quoteKey } from './quote-cache'
 export type { QuoteCache, StoredQuote } from './quote-cache'
 export { pickCandidates, supportsRequest } from './routing'
 export type { ProviderRegistryRow } from './routing'
-export * from './types'
+// Named rather than `export *`: `export type` marks what is erased and
+// `export` what survives to runtime, and no __exportStar loop is emitted.
+export type {
+  QuoteRequest,
+  ProviderQuote,
+  PaymentInstruction,
+  DepositInstruction,
+  InitiateResult,
+  IntentQuoteSnapshot,
+  ProviderIntentStatus,
+  ProviderCapabilities,
+  ProviderStatusContext,
+  FiatProvider,
+  BankAccountRef,
+  FiatIntentRow,
+  // Re-exported BY ./types from the shared schema, so the barrel has to name
+  // them too — `export *` used to carry them along invisibly.
+  FiatDirection,
+  FiatIntentStatus,
+} from './types'
 export { QUOTE_TTL_MS, P2P_INTERNAL_ID } from './config'
 export { P2P_INTERNAL_CAPABILITIES, EXCHANGE_ASSET_IDS } from './capabilities'
 export { YELLOWCARD_SPEC, ONRAMPMONEY_SPEC } from './providers/specs'
