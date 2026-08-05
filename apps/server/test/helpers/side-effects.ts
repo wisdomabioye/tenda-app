@@ -7,12 +7,13 @@
  * which is two too many for a decision as load-bearing as what counts as
  * having notified someone.
  *
- * The queue half is helpers/queue-double.ts, unchanged — this module only adds
- * the WS seam and the install onto a live fastify instance, so a unit test and
- * an integration test read the same captured shape.
+ * The queue half is helpers/queue-double.ts, unchanged. This module adds what
+ * only makes sense against a LIVE fastify instance: the WS seam, the install,
+ * and `interceptQueue` for making one queue fail or resolve late. A unit test
+ * and an integration test still read the same captured shape.
  */
 import type { FastifyInstance } from 'fastify'
-import type { JobPayload } from '@server/plugins/queue'
+import type { JobName, JobPayload } from '@server/plugins/queue'
 import { queueDouble, type CapturedAlert, type CapturedJob } from './queue-double'
 
 export interface Broadcast {
@@ -72,4 +73,36 @@ export function installCapture(app: FastifyInstance): SideEffectCapture {
     notifiedUserIds: () => queue.notifications().map((n) => n.user_id),
     alerts: queue.alerts,
   }
+}
+
+/**
+ * `installCapture`, plus a hook that runs before jobs land on ONE named queue.
+ *
+ * Two questions a plain capture cannot answer, both about a single fan-out step
+ * in isolation:
+ *
+ *   - REJECT from `onJob` to fail that queue and no other, which is what
+ *     separates "this step failed and was contained" from "nothing got through
+ *     at all". Replacing `enqueue` wholesale cannot tell those apart.
+ *   - DELAY in `onJob` to make the round trip observable. The double records
+ *     synchronously, which is convenient and slightly untrue — a real enqueue
+ *     is a trip to Redis — so an unawaited producer is invisible without this.
+ *
+ * `Parameters<typeof inner>` rather than a re-spelled signature: `enqueue` is
+ * generic over `JobName` and correlates `payload` to it, which a hand-written
+ * parameter list cannot express — forwarding the tuple keeps the wrapper honest
+ * without the payload cast that spelling it out would need.
+ */
+export function interceptQueue(
+  app: FastifyInstance,
+  name: JobName,
+  onJob: () => Promise<void>,
+): SideEffectCapture {
+  const capture = installCapture(app)
+  const inner = app.queue.enqueue
+  app.queue.enqueue = async (...args: Parameters<typeof inner>) => {
+    if (args[0] === name) await onJob()
+    return inner(...args)
+  }
+  return capture
 }

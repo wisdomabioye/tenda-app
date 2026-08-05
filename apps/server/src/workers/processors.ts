@@ -3,11 +3,11 @@
  * the Stage-0/2/8 handlers, every handler already exists and is
  * unit-tested; this layer only assembles their live deps from fastify.
  *
- * verify-tx republish (stage-2 § listener step 5) does both fan-outs:
- *   1. WS: `escrow:<id>` frame `{type:'escrow_event', event, tx_ref}`,
- *      the exact contract TransactionMonitor subscribes to (#42).
- *   2. Push: a 'notifications' job addressed to the party who needs to
- *      LEARN about the event (the non-actor), resolved from the escrow row.
+ * The verify-tx republish binding below hands off to `fanOutEscrowEvent`
+ * (workers/escrow-fanout), which OWNS the description of what that fan-out
+ * does. This header used to restate its steps, and the restatement went stale
+ * the first time a step was added — it still said "both fan-outs" and listed
+ * two after there were five. One module documents it; this one points at it.
  */
 
 import { eq, inArray } from 'drizzle-orm'

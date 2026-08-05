@@ -1,11 +1,20 @@
 /**
- * Escrow-event push/WS fan-out (extracted from workers/processors.ts to keep
- * it under the file-size budget and to unit-test the copy in isolation).
+ * Escrow-event push/WS fan-out. MOVED here out of workers/processors.ts — not
+ * copied — to keep that file under the size budget and to unit-test the copy in
+ * isolation. Nothing of it remains there: processors.ts builds the deps and
+ * calls `fanOutEscrowEvent`, and this module owns the description of what it
+ * does, so there is one place to update when a step is added.
  *
  * verify-tx republish (stage-2 § listener step 5) calls fanOutEscrowEvent:
  *   1. WS: an `escrow:<id>` frame the TransactionMonitor subscribes to (#42).
- *   2. Push: a 'notifications' job to the party who must LEARN of the event
+ *   2. Alerts: an operational alert for the events an OPERATOR must act on.
+ *   3. Push: a 'notifications' job to the party who must LEARN of the event
  *      (the non-actor), resolved from the escrow row.
+ *
+ * Steps 2 and 3 have different audiences and are deliberately independent:
+ * features/alerts reaches whoever holds a permission (a mediator), this
+ * module's own copy reaches the parties to the escrow. Neither is the other's
+ * fallback, and neither may cost the other its delivery.
  *
  * Split into ./copy (the kind-aware wording matrix), ./subscribers (the
  * new-gig SQL fan-out) and ./enqueue-notice (the single delivery loop), with
@@ -17,6 +26,7 @@ import { eq } from 'drizzle-orm'
 import type { FastifyInstance } from 'fastify'
 import { escrows } from '@tenda/shared/db/schema/escrow'
 import { channelName } from '@server/lib/ws'
+import { alertRefForEscrowEvent, enqueueAlert } from '@server/features/alerts'
 import type { EscrowRepublishEvent } from '@server/lib/escrow-events'
 import { APPLICANT_NOTICE, noticeCopyFor, partyNoticeFor } from './copy'
 import { enqueueEscrowNotice } from './enqueue-notice'
@@ -53,14 +63,39 @@ export async function fanOutEscrowEvent(
     tx_ref: event.tx_ref,
   })
 
-  // 2. New-gig subscriber fan-out (created = went live; the actor needs no
+  // 2. Operational alerts, for the events a MEDIATOR must act on.
+  //
+  //    Placed here, above every early return below, because which events raise
+  //    an alert is `ALERT_REF_BY_EVENT`'s decision and not this function's
+  //    routing. Hooked further down, `escrow.created` would be unalertable (it
+  //    returns at step 3) and so would every event with no party copy (step 5
+  //    returns when `partyNoticeFor` is null) — a future alert kind would land
+  //    on one of those and go silently undelivered.
+  //
+  //    Deliberately NOT wrapped in try/catch: `enqueueAlert` never throws (G5,
+  //    documented at features/alerts/enqueue-alert.ts), so a catch here would
+  //    be dead code that reads as a live guarantee. The direction that matters
+  //    is the other one — the party notices below must not be lost because an
+  //    operator's alert failed — and that is what G5 buys.
+  //
+  //    Awaited rather than fired and forgotten, and NOT because of an unhandled
+  //    rejection — G5 means there is none. Because this runs inside a BullMQ
+  //    job: a floating promise lets the job be reported complete while the
+  //    alert is still in flight to Redis, so a deploy or a crash in that window
+  //    loses it with nothing left to retry. `no-floating-promises` needs
+  //    type-aware linting, which this package does not enable yet, so the guard
+  //    is a test (test/integration/alerts-fanout.test.ts).
+  const alert = alertRefForEscrowEvent(event)
+  if (alert !== null) await enqueueAlert(fastify.queue, alert, fastify.log)
+
+  // 3. New-gig subscriber fan-out (created = went live; the actor needs no
   //    notice, subscribers do).
   if (event.internal_event === 'escrow.created') {
     await fanOutNewGigToSubscribers(fastify, event.escrow_id)
     return
   }
 
-  // 3. Applicants the transition moved without them acting: D4's losers on an
+  // 4. Applicants the transition moved without them acting: D4's losers on an
   //    assign, and the rivals an unassign puts back in the running. They get
   //    no other signal — their row simply changes status — so this is the only
   //    place either decision reaches them. Runs before the notice lookup
@@ -77,7 +112,7 @@ export async function fanOutEscrowEvent(
   await enqueueEscrowNotice(fastify.queue, escrow_id, 'gig', event.passed_applicant_ids, APPLICANT_NOTICE.passed)
   await enqueueEscrowNotice(fastify.queue, escrow_id, 'gig', event.revived_applicant_ids, APPLICANT_NOTICE.revived)
 
-  // 4. Push fan-out for high-signal events — kind decides both copy + routing.
+  // 5. Push fan-out for high-signal events — kind decides both copy + routing.
   //    Looked up before the read so a non-notifying event costs no query.
   const notice = partyNoticeFor(event.internal_event)
   if (notice === null) return

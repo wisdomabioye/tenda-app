@@ -11,8 +11,8 @@ interface AdminEventBase {
 
 // ── Typed event map ────────────────────────────────────────────────────────
 // Escrow lifecycle fan-out does NOT ride this emitter: verify-tx republish
-// (workers/processors.ts) owns WS frames + party push. This map carries
-// only the in-process events that have no on-chain trigger.
+// (workers/escrow-fanout) owns WS frames, operator alerts and party push.
+// This map carries only the in-process events that have no on-chain trigger.
 
 export interface AppEvents {
   'message.sent': {

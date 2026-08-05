@@ -10,6 +10,12 @@
  * for the test. `queue.enqueue` and `wsBroadcast.broadcast` are captured by
  * typed fakes; the one Expo-prune case stubs `fetch` (otherwise fully
  * offline). Gated on TEST_DATABASE_URL.
+ *
+ * NOT here: the fan-out's alert hook, which lives in
+ * test/integration/alerts-fanout.test.ts. Same seam, different subject — this
+ * file owns which PARTIES an event reaches, that one owns whether an OPERATOR
+ * is told at all. Assertions about the party set belong here, and that file
+ * deliberately checks only that the party fan-out still ran.
  */
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
@@ -22,11 +28,10 @@ import { buildVerifyTxDeps, buildProcessors, removeTokens } from '@server/worker
 import type { DevicePlatform } from '@server/lib/push-services'
 import type { PushService } from '@server/chains/types'
 import { channelName } from '@server/lib/ws'
-import { INTERNAL_EVENT_BY_WIRE, type EscrowRepublishEvent } from '@server/lib/escrow-events'
-import type { EscrowEvent } from '@server/chains/types'
 import type { JobName, JobPayload } from '@server/plugins/queue'
 import { WORKER_CONCURRENCY } from '@server/plugins/workers'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
+import { republishEvent } from '../helpers/republish-event'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
@@ -47,28 +52,6 @@ beforeEach(() => {
   if (skip) return
   cap = installCapture(getApp())
 })
-
-/** Build a republish event from a wire name (internal derived, never hardcoded). */
-// Return type pinned to the shared republish shape: a new field on it must
-// break here rather than let these fixtures quietly stop exercising it.
-function evt(
-  wire: EscrowEvent,
-  escrow_id: string,
-  tx_ref = 'sig-tx-1',
-  counterparty_id: string | null = null,
-  passed_applicant_ids: string[] = [],
-  revived_applicant_ids: string[] = [],
-): EscrowRepublishEvent {
-  return {
-    internal_event: INTERNAL_EVENT_BY_WIRE[wire],
-    wire_event: wire,
-    escrow_id,
-    tx_ref,
-    counterparty_id,
-    passed_applicant_ids,
-    revived_applicant_ids,
-  }
-}
 
 /**
  * A delivery-job payload with a stamped id (as `enqueueNotification` would).
@@ -93,7 +76,9 @@ test('republish broadcasts the exact escrow_event WS frame on the escrow channel
   const creator = await createUser(app)
   const e = await createEscrow(app, { creator_id: creator.row.id })
 
-  await buildVerifyTxDeps(app).republish(evt('EscrowAccepted', e.id, 'sig-abc'))
+  await buildVerifyTxDeps(app).republish(
+    republishEvent('EscrowAccepted', { escrow_id: e.id, tx_ref: 'sig-abc' }),
+  )
 
   assert.strictEqual(cap.broadcasts.length, 1)
   assert.strictEqual(cap.broadcasts[0].channel, channelName({ kind: 'escrow', id: e.id }))
@@ -113,7 +98,7 @@ test('accepted notifies the creator only', { skip }, async () => {
   const worker = await createUser(app)
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: worker.row.id })
 
-  await buildVerifyTxDeps(app).republish(evt('EscrowAccepted', e.id))
+  await buildVerifyTxDeps(app).republish(republishEvent('EscrowAccepted', { escrow_id: e.id }))
   assert.deepStrictEqual(cap.notifiedUserIds(), [creator.row.id])
   assert.strictEqual(cap.notifications()[0].title, 'Gig accepted')
   // `kind` is part of the deep-link contract (useNotificationDeepLink routes
@@ -131,7 +116,7 @@ test('approved notifies the counterparty only', { skip }, async () => {
   const worker = await createUser(app)
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: worker.row.id })
 
-  await buildVerifyTxDeps(app).republish(evt('EscrowApproved', e.id))
+  await buildVerifyTxDeps(app).republish(republishEvent('EscrowApproved', { escrow_id: e.id }))
   assert.deepStrictEqual(cap.notifiedUserIds(), [worker.row.id])
 })
 
@@ -143,7 +128,7 @@ test('counterparty_assigned notifies the assigned WORKER, not the poster', { ski
   const worker = await createUser(app)
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: worker.row.id })
 
-  await buildVerifyTxDeps(app).republish(evt('CounterpartyAssigned', e.id))
+  await buildVerifyTxDeps(app).republish(republishEvent('CounterpartyAssigned', { escrow_id: e.id }))
   // The poster performed the transaction; the worker signed nothing, so this
   // push is the only way they learn the gig is theirs.
   assert.deepStrictEqual(cap.notifiedUserIds(), [worker.row.id])
@@ -164,7 +149,7 @@ test('assignment_released reaches the worker the row no longer names', { skip },
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: null })
 
   await buildVerifyTxDeps(app).republish(
-    evt('AssignmentReleased', e.id, 'sig-tx-1', worker.row.id),
+    republishEvent('AssignmentReleased', { escrow_id: e.id, counterparty_id: worker.row.id }),
   )
   assert.deepStrictEqual(cap.notifiedUserIds(), [worker.row.id])
   assert.strictEqual(cap.notifications()[0].title, 'Assignment withdrawn')
@@ -175,7 +160,7 @@ test('assignment_released with no carried worker notifies nobody (never a crash)
   const creator = await createUser(app)
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: null })
 
-  await buildVerifyTxDeps(app).republish(evt('AssignmentReleased', e.id))
+  await buildVerifyTxDeps(app).republish(republishEvent('AssignmentReleased', { escrow_id: e.id }))
   assert.deepStrictEqual(cap.notifiedUserIds(), [])
 })
 
@@ -185,7 +170,7 @@ test('dispute_raised notifies BOTH parties', { skip }, async () => {
   const worker = await createUser(app)
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: worker.row.id })
 
-  await buildVerifyTxDeps(app).republish(evt('DisputeRaised', e.id))
+  await buildVerifyTxDeps(app).republish(republishEvent('DisputeRaised', { escrow_id: e.id }))
   assert.deepStrictEqual(new Set(cap.notifiedUserIds()), new Set([creator.row.id, worker.row.id]))
 })
 
@@ -194,7 +179,7 @@ test('a BOTH-recipient event with a null counterparty notifies only the creator 
   const creator = await createUser(app)
   const e = await createEscrow(app, { creator_id: creator.row.id, counterparty_id: null })
 
-  await buildVerifyTxDeps(app).republish(evt('DisputeResolved', e.id))
+  await buildVerifyTxDeps(app).republish(republishEvent('DisputeResolved', { escrow_id: e.id }))
   assert.deepStrictEqual(cap.notifiedUserIds(), [creator.row.id])
 })
 
@@ -203,7 +188,7 @@ test('an event with no notice (cancelled) broadcasts but enqueues nothing', { sk
   const creator = await createUser(app)
   const e = await createEscrow(app, { creator_id: creator.row.id })
 
-  await buildVerifyTxDeps(app).republish(evt('EscrowCancelled', e.id))
+  await buildVerifyTxDeps(app).republish(republishEvent('EscrowCancelled', { escrow_id: e.id }))
   assert.strictEqual(cap.broadcasts.length, 1) // WS still fires
   assert.strictEqual(cap.enqueued.length, 0)
 })
@@ -211,7 +196,7 @@ test('an event with no notice (cancelled) broadcasts but enqueues nothing', { sk
 test('a notice event whose escrow row is missing broadcasts but does not throw or enqueue', { skip }, async () => {
   const app = getApp()
   const missing = '00000000-0000-4000-8000-000000000000'
-  await buildVerifyTxDeps(app).republish(evt('EscrowAccepted', missing))
+  await buildVerifyTxDeps(app).republish(republishEvent('EscrowAccepted', { escrow_id: missing }))
   assert.strictEqual(cap.broadcasts.length, 1)
   assert.strictEqual(cap.enqueued.length, 0)
 })
@@ -234,7 +219,7 @@ test('created fans out to matching city/wildcard subscribers, excluding the crea
     { user_id: creator.row.id, city: '*', category: '*' }, // self — excluded
   ])
 
-  await buildVerifyTxDeps(app).republish(evt('EscrowCreated', e.id))
+  await buildVerifyTxDeps(app).republish(republishEvent('EscrowCreated', { escrow_id: e.id }))
 
   assert.deepStrictEqual(new Set(cap.notifiedUserIds()), new Set([subCity.row.id, subWild.row.id]))
   assert.ok(cap.notifications().every((n) => n.title === 'New Gig Posted'))
@@ -253,7 +238,7 @@ test('a remote gig (null city) matches wildcard-city subscribers only', { skip }
     { user_id: subCity.row.id, city: 'Lagos', category: 'service' }, // city sub must NOT match a remote gig
   ])
 
-  await buildVerifyTxDeps(app).republish(evt('EscrowCreated', e.id))
+  await buildVerifyTxDeps(app).republish(republishEvent('EscrowCreated', { escrow_id: e.id }))
   assert.deepStrictEqual(cap.notifiedUserIds(), [subWild.row.id])
   assert.match(String(cap.notifications()[0].body), /Remote/)
 })
@@ -270,7 +255,7 @@ test('one subscriber with two matching sub rows is notified exactly once (dedup)
     { user_id: sub.row.id, city: '*', category: '*' }, // same user, both match
   ])
 
-  await buildVerifyTxDeps(app).republish(evt('EscrowCreated', e.id))
+  await buildVerifyTxDeps(app).republish(republishEvent('EscrowCreated', { escrow_id: e.id }))
   assert.deepStrictEqual(cap.notifiedUserIds(), [sub.row.id]) // once, not twice
 })
 
@@ -280,7 +265,7 @@ test('created on an exchange escrow (no gig_details) fans out nothing', { skip }
   const e = await createEscrow(app, { creator_id: creator.row.id, kind: 'exchange' })
   await app.db.insert(gig_subscriptions).values({ user_id: (await createUser(app)).row.id, city: '*', category: '*' })
 
-  await buildVerifyTxDeps(app).republish(evt('EscrowCreated', e.id))
+  await buildVerifyTxDeps(app).republish(republishEvent('EscrowCreated', { escrow_id: e.id }))
   assert.strictEqual(cap.broadcasts.length, 1) // WS still fires
   assert.strictEqual(cap.enqueued.length, 0)
 })

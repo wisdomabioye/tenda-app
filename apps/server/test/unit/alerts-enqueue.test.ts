@@ -30,12 +30,12 @@ import {
 import type { AlertChannel, AlertKind, AlertRefOf } from '@server/features/alerts'
 import { DEFAULT_JOB_OPTIONS } from '@server/plugins/queue'
 import { INTERNAL_EVENT_BY_WIRE } from '@server/lib/escrow-events'
-import type { EscrowRepublishEvent, InternalEscrowEvent } from '@server/lib/escrow-events'
+import type { InternalEscrowEvent } from '@server/lib/escrow-events'
 import { ESCROW_EVENTS } from '@server/chains/types'
-import type { EscrowEvent } from '@server/chains/types'
 import { slackEnvKey } from '@server/lib/slack'
 import { queueDouble } from '../helpers/queue-double'
 import { alertLogSpy } from '../helpers/alert-log'
+import { republishEvent } from '../helpers/republish-event'
 
 // ---------- doubles ----------------------------------------------------------------
 
@@ -64,29 +64,6 @@ function fakeChannel(opts: {
     deliver: () => {
       throw new Error('the producer must not deliver')
     },
-  }
-}
-
-/**
- * Built from the WIRE event and translated the way verify-tx builds the real
- * one, so `wire_event` and `internal_event` cannot disagree. Taking the
- * internal name and hardcoding a wire name would let a fixture claim
- * `escrow.approved` arrived as `DisputeRaised` — harmless while nothing reads
- * the field, and a false premise the moment a kind does.
- */
-function republishEvent(
-  wire_event: EscrowEvent,
-  over: Partial<EscrowRepublishEvent> = {},
-): EscrowRepublishEvent {
-  return {
-    internal_event: INTERNAL_EVENT_BY_WIRE[wire_event],
-    escrow_id: randomUUID(),
-    wire_event,
-    tx_ref: `sig-${randomUUID()}`,
-    counterparty_id: null,
-    passed_applicant_ids: [],
-    revived_applicant_ids: [],
-    ...over,
   }
 }
 

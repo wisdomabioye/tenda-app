@@ -4,7 +4,7 @@
 // resolves device tokens at delivery time and routes per platform.
 //
 // Escrow lifecycle pushes do not ride this plugin: verify-tx republish
-// (workers/processors.ts § fanOutEscrowEvent) owns those.
+// (workers/escrow-fanout § fanOutEscrowEvent) owns those.
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
 import { appEvents } from '@server/lib/events'

@@ -142,9 +142,11 @@ export interface VerifyTxDeps {
   chains: ChainRegistry
   eventStore: EscrowEventStore
   /**
-   * Republish seam, the worker wiring (#33) hooks the notifications queue
-   * and the WS broadcaster here. Best-effort: a republish failure must not
-   * fail the (already-applied) state transition.
+   * Republish seam. The worker wiring (#33) hooks `fanOutEscrowEvent`
+   * (workers/escrow-fanout) here, and that module owns WHICH surfaces the
+   * event reaches — naming them here was a list that went stale the first
+   * time one was added. Best-effort: a republish failure must not fail the
+   * (already-applied) state transition.
    *
    * The payload shape is owned by lib/escrow-events (see EscrowRepublishEvent)
    * so this side and the fan-out cannot drift as fields are added.
@@ -252,8 +254,8 @@ export async function verifyTxJobHandler(
     )
   }
 
-  // Step 5, republish for notifications + WS. Best-effort: the state is
-  // already durable; a republish failure is logged, never thrown.
+  // Step 5, hand the durable transition to the fan-out. Best-effort: the state
+  // is already durable; a republish failure is logged, never thrown.
   if (result.applied) {
     try {
       await deps.republish({
