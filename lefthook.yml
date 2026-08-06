@@ -33,3 +33,14 @@ pre-commit:
         - "apps/mobile/package.json"
         - "apps/tendahq/src/content/app-info.ts"
       run: node scripts/check-app-version.mjs
+    # Solana CLI pin: contracts.yml's SOLANA_PIN is the source of truth and the
+    # contracts/solana README mirrors it, because CI and a developer's machine
+    # have to build the program with the same cargo-build-sbf. Same shape as
+    # app-version — nothing generated, the check just refuses a desync. It also
+    # asserts the pin cannot go inert again (versioned installer URL, checked
+    # download, assertion on the version actually installed).
+    solana-pin:
+      glob:
+        - ".github/workflows/contracts.yml"
+        - "contracts/solana/README.md"
+      run: node --test scripts/solana-pin.test.mjs

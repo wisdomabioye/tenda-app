@@ -98,7 +98,21 @@ required only for deploys under the same program id. Keep it in a vault.
 
 - Anchor 0.32.1 (avm)
 - Rust per `rust-toolchain.toml`
-- Solana CLI ≥ 2.x / Agave
+- Solana CLI **v3.0.14** (Agave), installed from the versioned URL:
+
+  ```sh
+  sh -c "$(curl -sSfL https://release.anza.xyz/v3.0.14/install)"
+  ```
+
+  Pinned, not a floor. This CLI supplies `cargo-build-sbf`, which decides what
+  the `.so` litesvm loads actually is, and the test suite holds litesvm at
+  0.3.3. Installing from `/stable/install` currently yields Agave v4.x and
+  builds a program this suite is not known to run — the same drift that broke
+  CI. `.github/workflows/contracts.yml` pins and asserts the identical version;
+  keep the two in step when bumping, and expect to bump litesvm alongside.
+
+  Note the installer bakes the version into the script it serves, so setting
+  `SOLANA_RELEASE` in your environment does nothing — the URL is the only knob.
 
 ## License
 

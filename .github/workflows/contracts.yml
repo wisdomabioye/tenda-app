@@ -96,22 +96,80 @@ jobs:
       # toolchain `anchor build` shells out to — so it decides what the .so
       # litesvm loads actually is. Everything else here is pinned (rust via
       # rust-toolchain.toml, anchor via avm, litesvm/anchor-litesvm exactly in
-      # package.json); leaving this on `stable` meant Agave moving 3.x → 4.x
-      # silently rebuilt the program with a v4 SBF toolchain and handed it to
-      # litesvm 0.3.3, which aborted with `std::bad_alloc` mid-suite.
+      # package.json), which left this as the one floating input.
       #
-      # `release.anza.xyz/<version>/install` is NOT served — only stable/edge —
-      # so the version is pinned through SOLANA_RELEASE, which the installer
-      # reads in place of querying GitHub for the latest tag.
+      # What is established: `stable` moved to Agave v4.x while litesvm is held
+      # at 0.3.3, and the job aborted with `std::bad_alloc` mid-suite.
+      # What is INFERRED, not reproduced: that a v4-built .so handed to litesvm
+      # 0.3.3 is what aborted. Nobody has run a v4 build against 0.3.3 to prove
+      # it. Treat the pin as removing a known-floating variable, not as a
+      # confirmed root cause — if the abort outlives this pin, that hypothesis
+      # is wrong and the next place to look is litesvm itself.
+      #
+      # The version MUST come from the installer URL, not from the environment.
+      # release.anza.xyz serves a per-version script whose first two lines are
+      # literal assignments:
+      #
+      #     SOLANA_RELEASE=v3.0.14
+      #     SOLANA_INSTALL_INIT_ARGS=v3.0.14
+      #
+      # /stable/install carries `stable` in those same two lines, and because
+      # they are unconditional assignments (no `${VAR:-default}`) they CLOBBER
+      # any inherited value. An `env: SOLANA_RELEASE:` on this step is
+      # therefore silently ignored — which is exactly how a step labelled
+      # "pinned" kept installing whatever stable happened to be.
+      #
+      # v3.0.14 is the newest published 3.0.x: /v3.0.15/install and its
+      # agave-install-init both 404, and anza-xyz/agave has no v3.0.15 tag.
+      #
+      # The version assertion below is the point. A pin that is not verified is
+      # not a pin, so if the URL ever stops delivering this exact version the
+      # job fails here rather than 20 minutes later inside litesvm.
       #
       # Bump deliberately, and expect to bump litesvm with it.
       - name: Install Solana CLI (pinned)
         env:
-          SOLANA_RELEASE: v3.0.14
+          SOLANA_PIN: v3.0.14
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          set -euo pipefail
+          # Fetch first, THEN run. `sh -c "$(curl ...)"` reports the status of
+          # the shell, not of curl, so a 404 would slip past `set -e` with an
+          # empty script and surface much later as `solana: command not found`.
+          # The likely trigger is a bump to a version that was never published
+          # (v3.0.15, say) — so name that possibility in the message.
+          if ! installer="$(curl -sSfL "https://release.anza.xyz/${SOLANA_PIN}/install")"; then
+            echo "::error::No installer at release.anza.xyz/${SOLANA_PIN}/install — that version is not published. Confirm the tag exists (git ls-remote --tags https://github.com/anza-xyz/agave) before bumping SOLANA_PIN."
+            exit 1
+          fi
+          sh -c "$installer"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-          solana --version
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          installed="$(solana --version)"
+          echo "$installed"
+          # `solana --version` prints e.g. "solana-cli 3.0.14 (src:…)" — match the
+          # bare semver, with boundaries so 3.0.14 never satisfies a 3.0.140 pin.
+          case " $installed " in
+            *" ${SOLANA_PIN#v} "*) ;;
+            *)
+              echo "::error::Solana CLI pin did not take: wanted ${SOLANA_PIN}, got '$installed'"
+              exit 1
+              ;;
+          esac
+          # cargo-build-sbf is the binary that actually matters here; assert it
+          # came from the same release rather than a stray earlier install on PATH.
+          # It prints several lines (cli / platform-tools / rustc); take the first
+          # by expansion rather than `| head -1`, which under `pipefail` can
+          # SIGPIPE the producer and fail the step on a successful check.
+          sbf_all="$(cargo-build-sbf --version)"
+          sbf="${sbf_all%%$'\n'*}"
+          echo "$sbf"
+          case " $sbf " in
+            *" ${SOLANA_PIN#v} "*) ;;
+            *)
+              echo "::error::cargo-build-sbf is not from ${SOLANA_PIN}: '$sbf'"
+              exit 1
+              ;;
+          esac
       - name: Install Anchor 0.32.1 (avm)
         run: |
           cargo install --git https://github.com/coral-xyz/anchor avm --force
