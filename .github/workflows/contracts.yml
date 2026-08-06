@@ -15,7 +15,9 @@ name: contracts
 
 on:
   push:
-    branches: [main, master]
+    # Includes `dev`: it is the trunk releases are cut from, so a direct push
+    # there must run the contract drift guards too.
+    branches: [dev, main, master]
   pull_request:
     paths:
       - 'contracts/**'

@@ -23,7 +23,10 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [main, master]
+    # `dev` is the trunk releases are cut from, so a direct push to it has to be
+    # gated like any other. Without it here, only PRs ran CI and anything pushed
+    # straight to dev reached a release unchecked.
+    branches: [dev, main, master]
 
 jobs:
   server:
