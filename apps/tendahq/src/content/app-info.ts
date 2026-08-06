@@ -21,13 +21,13 @@ export const APP_INFO = {
     `Tenda is the escrow-secured marketplace for gig work and P2P cash trades. The escrow contracts run on ${CHAIN_NAMES_LINE} — funds lock when work is posted and release the moment proof clears. Built for emerging markets first.`,
 
   /** Distribution. */
-  apkUrl: 'https://github.com/wisdomabioye/tenda-app/releases/download/v0.4.1-devnet/0.4.1-devnet.apk',
+  apkUrl: 'https://github.com/wisdomabioye/tenda-app/releases/download/v0.4.2-testnet/0.4.2-testnet.apk',
   appStoreUrl: '#',
   playStoreUrl: '#',
   qrTarget: 'tenda.so/get',
 
   /** Build / release. */
-  version: 'v0.4.1-devnet',
+  version: 'v0.4.2-testnet',
   buildLocation: 'Lagos',
 
   /** Chain identity surfaced in section metas + footer status. */
