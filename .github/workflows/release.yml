@@ -145,7 +145,17 @@ jobs:
       # 5 — The long pole. --wait blocks until the build settles. Note the CLI
       # exits non-zero for ERRORED but NOT for CANCELED, which the next step is
       # what actually catches.
+      #
+      # working-directory is REQUIRED, not tidiness. eas-cli resolves the project
+      # from its cwd, and at the repo root it finds no eas.json — so instead of
+      # failing it GENERATES a default one (development/preview/production) and
+      # then reports `Missing build profile: "testnet"`. The error names the
+      # profile, which sends you to eas.json, when the actual fault is the
+      # directory. Every other step here is genuinely root-relative: the scripts
+      # resolve ROOT from their own location, and the APK is written to the root
+      # where the publish step later reads it.
       - name: Build the APK on EAS
+        working-directory: apps/mobile
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
         run: |

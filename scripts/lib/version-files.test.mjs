@@ -39,7 +39,10 @@ test('ROOT resolves to the monorepo root', () => {
 })
 
 test('every declared version file exists', () => {
-  for (const rel of Object.values(VERSION_FILES)) {
+  const declared = Object.values(VERSION_FILES)
+  // Guard the guard: an emptied VERSION_FILES would make the loop assert nothing.
+  assert.ok(declared.length >= 3, `expected the three version files, got ${declared.length}`)
+  for (const rel of declared) {
     assert.ok(existsSync(resolve(ROOT, rel)), `missing version file: ${rel}`)
   }
 })

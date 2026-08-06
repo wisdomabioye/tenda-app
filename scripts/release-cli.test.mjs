@@ -113,7 +113,9 @@ test('release-outputs emits exactly the four key=value lines', (t) => {
 
 test('release-outputs stdout is valid GITHUB_OUTPUT syntax', (t) => {
   const { stdout } = run('release-outputs.mjs', [fixture(t, 'bump.json', BUMP)])
-  for (const line of stdout.trimEnd().split('\n')) {
+  const lines = stdout.trimEnd().split('\n')
+  assert.equal(lines.length, 4, 'expected exactly the four outputs the workflow reads')
+  for (const line of lines) {
     // No spaces around `=`, no newlines inside values — GitHub would otherwise
     // silently drop the output or need heredoc delimiters.
     assert.match(line, /^[a-zA-Z][a-zA-Z0-9_]*=[^\s]+$/, `bad output line: ${line}`)

@@ -144,3 +144,43 @@ test('every rail rejects a fully-empty input', () => {
     }
   }
 })
+
+// --- account-number masking ------------------------------------------------
+
+/**
+ * The mask is what a payout account shows once saved, so the tail length is a
+ * per-rail decision rather than a constant: revealing four digits of a 10-digit
+ * MoMo number is a different disclosure from four of a 16-digit bank account.
+ */
+test('every payout rail masks its account number, keeping only the declared tail', () => {
+  for (const spec of Object.values(PAYOUT_COUNTRY_SPECS)) {
+    for (const rail of spec.rails) {
+      const masked = rail.maskAccountNumber('0123456789')
+      assert.match(
+        masked,
+        /^•+ \d+$/,
+        `${spec.country}/${rail.kind} mask has an unexpected shape: ${masked}`,
+      )
+      const tail = masked.split(' ')[1]
+      assert.ok(
+        '0123456789'.endsWith(tail),
+        `${spec.country}/${rail.kind} revealed digits that are not the tail`,
+      )
+      assert.ok(tail.length < 10, `${spec.country}/${rail.kind} revealed the whole number`)
+    }
+  }
+})
+
+test('the Kenyan bank rail masks all but the last four', () => {
+  const rail = getPayoutRail('KE', 'bank')
+  assert.ok(rail)
+  assert.equal(rail.maskAccountNumber('0123456789'), '•••••• 6789')
+})
+
+test('the Ghanaian bank rail masks all but the last four', () => {
+  // GH momo keeps 3 (covered above); the bank rail keeps 4 — different rails,
+  // different disclosure, so both are pinned.
+  const rail = getPayoutRail('GH', 'bank')
+  assert.ok(rail)
+  assert.equal(rail.maskAccountNumber('1234567890123'), '••••••••• 0123')
+})

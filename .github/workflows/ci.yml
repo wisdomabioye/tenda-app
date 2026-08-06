@@ -9,7 +9,7 @@
 #        - shared → c8 (apps-free); thresholds in packages/shared/.c8rc.json (100)
 #        - admin  → vitest+jsdom v8; thresholds in apps/admin/vitest.config.ts (90/85)
 #   2. contract tests   → live in the tenda-escrow repo's own CI
-#   3. tsc --noEmit     → server + shared + admin + mobile
+#   3. tsc --noEmit     → server + shared (both src AND test) + admin + mobile
 #   4. lint             → server + admin (eslint) + mobile (expo lint)
 #   5. mobile tests     → jest-expo coverage WIRED once the harness lands (#101)
 #   6. docker image     → build-only assembly check of apps/server/Dockerfile
@@ -86,7 +86,14 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm --filter @tenda/shared type-check
+      # src AND test, the same split the server job runs. `type-check` alone
+      # covers src only, and `test:coverage` executes the suite via ts-node
+      # without typechecking it — so a type error in a test file (a duplicated
+      # import, a fixture that stopped matching its type) passed both while
+      # only the local `pnpm test` caught it.
+      - name: Typecheck (src + test)
+        working-directory: packages/shared
+        run: npx tsc --noEmit && npx tsc -p test/tsconfig.json
       - run: pnpm --filter @tenda/shared build
       - name: Tests + coverage gate
         run: pnpm --filter @tenda/shared test:coverage

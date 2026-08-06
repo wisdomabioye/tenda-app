@@ -154,6 +154,40 @@ test('no ${{ }} interpolation appears inside any run: body, block or single-line
   }
 })
 
+/**
+ * eas-cli resolves the project from its CWD. Run at the repo root it finds no
+ * eas.json, GENERATES a default one, and then fails with
+ * `Missing build profile: "testnet"` — an error that points at eas.json when
+ * the fault is the directory. It cost a real release run to learn that, so the
+ * directory is asserted rather than remembered.
+ */
+test('every eas-cli step runs in the directory that owns eas.json', () => {
+  const easSteps = [...yaml.matchAll(/^ {6}- name: ([^\n]+)\n((?: {8}[^\n]*\n|\n)*)/gm)].filter(
+    ([, , body]) => body.includes('eas-cli'),
+  )
+  assert.ok(easSteps.length > 0, 'expected at least one eas-cli step')
+
+  for (const [, name, body] of easSteps) {
+    const wd = body.match(/^ {8}working-directory: (\S+)$/m)
+    assert.ok(wd, `step "${name.trim()}" runs eas-cli without a working-directory`)
+    assert.ok(
+      existsSync(resolve(ROOT, wd[1], 'eas.json')),
+      `step "${name.trim()}" runs eas-cli in ${wd[1]}, which has no eas.json`,
+    )
+  }
+})
+
+test('the profile the workflow builds is declared in eas.json', () => {
+  const profile = yaml.match(/--profile (\S+)/)
+  assert.ok(profile, 'expected the build step to name a profile')
+  const eas = JSON.parse(readFileSync(resolve(ROOT, 'apps/mobile/eas.json'), 'utf8'))
+  assert.ok(
+    Object.keys(eas.build ?? {}).includes(profile[1]),
+    `workflow builds --profile ${profile[1]}, which eas.json does not declare ` +
+      `(declared: ${Object.keys(eas.build ?? {}).join(', ')})`,
+  )
+})
+
 test('the workflow is dispatch-only — releases are never triggered by a push', () => {
   // A `push:` or `release:` trigger here would spend an EAS build and mutate the
   // tag list on every merge.

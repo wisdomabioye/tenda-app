@@ -12,6 +12,8 @@ import {
   findChain,
   gigAssetByChain,
   exchangeAssetsByChain,
+  evmPublicRpcUrl,
+  requireEvmPublicRpcUrl,
   evmChainNumericId,
   nativeAssetOf,
   nativeCurrencyOf,
@@ -438,4 +440,59 @@ test('firstEvmChainIdByKind picks Base per env kind; undefined when none', () =>
   // prod→Base (manifest order defines the canonical pick).
   assert.equal(firstEvmChainIdByKind('testnet'), 'eip155:84532')
   assert.equal(firstEvmChainIdByKind('mainnet'), 'eip155:8453')
+})
+
+// --- public RPC URL (client-side balance reads) ----------------------------
+
+/**
+ * The single source for client-side RPC endpoints — the comment on
+ * `evmPublicRpcUrl` says callers must not hardcode them. The pair exists
+ * because the two call sites want opposite failure modes: a screen that renders
+ * with no balances, or a caller that cannot proceed without the URL.
+ */
+test('evmPublicRpcUrl returns the manifest URL for every EVM chain', () => {
+  const evm = CHAIN_MANIFEST.filter((c) => c.id.startsWith('eip155:'))
+  assert.ok(evm.length > 0, 'expected EVM chains in the manifest')
+  for (const chain of evm) {
+    assert.equal(evmPublicRpcUrl(chain.id), chain.publicRpcUrl ?? null, chain.id)
+    // Not a hardcoded literal: it must track the manifest entry itself.
+    assert.match(String(evmPublicRpcUrl(chain.id)), /^https:\/\//, chain.id)
+  }
+})
+
+test('evmPublicRpcUrl is non-throwing for unknown and non-EVM chains', () => {
+  // A registry chain with no manifest match yields no reads rather than
+  // crashing the screen.
+  assert.equal(evmPublicRpcUrl('eip155:999999'), null)
+  assert.equal(evmPublicRpcUrl('not-a-chain'), null)
+  const solana = CHAIN_MANIFEST.find((c) => c.id.startsWith('solana:'))
+  assert.ok(solana)
+  assert.equal(evmPublicRpcUrl(solana.id), null, 'non-EVM chains have no public RPC URL')
+})
+
+test('requireEvmPublicRpcUrl returns the same URL for a known chain', () => {
+  const evm = CHAIN_MANIFEST.find((c) => c.id.startsWith('eip155:'))
+  assert.ok(evm)
+  assert.equal(requireEvmPublicRpcUrl(evm.id), evmPublicRpcUrl(evm.id))
+})
+
+test('requireEvmPublicRpcUrl throws — it is the variant for callers that cannot proceed', () => {
+  assert.throws(() => requireEvmPublicRpcUrl('eip155:999999'), /no publicRpcUrl for EVM chain/)
+  assert.throws(() => requireEvmPublicRpcUrl('not-a-chain'), /not in CHAIN_MANIFEST/)
+})
+
+// --- nativeAssetOf: the manifest invariant it enforces ---------------------
+
+test('nativeAssetOf returns the native asset of every manifest chain', () => {
+  for (const chain of CHAIN_MANIFEST) {
+    assert.equal(isNativeAsset(nativeAssetOf(chain)), true, chain.id)
+  }
+})
+
+test('nativeAssetOf throws rather than returning undefined — an absent native asset is a manifest bug', () => {
+  const broken: ChainManifestEntry = {
+    ...CHAIN_MANIFEST[0],
+    assets: CHAIN_MANIFEST[0].assets.filter((a) => !isNativeAsset(a)),
+  }
+  assert.throws(() => nativeAssetOf(broken), /violates the manifest invariant/)
 })

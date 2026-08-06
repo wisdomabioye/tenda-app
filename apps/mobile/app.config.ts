@@ -12,10 +12,14 @@ const apiHost = process.env.EXPO_PUBLIC_API_URL
  *
  * The `...config.android` / `...config.ios` spreads below are load-bearing for
  * the same reason. @expo/config passes the STATIC config in as `config` and
- * then REPLACES it with whatever this function returns (Config.js:274-289); it
- * does not deep-merge. A bare `android: { … }` therefore silently discards
- * app.json's versionCode, and nothing else in the repo can see that happen —
- * `npx expo config --type public` is the only check that catches it.
+ * then REPLACES it with whatever this function returns — `fillAndReturnConfig`
+ * uses the dynamic result alone, it does not deep-merge. A bare
+ * `android: { … }` therefore silently discards app.json's versionCode while
+ * leaving the semver correct, so the app reports the right version and a
+ * versionCode of 1 forever, and Play Store rejects the upload with no clue why.
+ *
+ * `scripts/check-app-version.mjs` is what catches that now; before it existed,
+ * reading `npx expo config --type public` by eye was the only way.
  */
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,

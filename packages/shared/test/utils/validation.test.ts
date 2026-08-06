@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import {
   E164_RE,
   isE164,
+  normalizeEmail,
+  EMAIL_MAX_LENGTH,
   isValidLatitude,
   isValidLongitude,
   MIN_PAYMENT_LAMPORTS,
@@ -141,4 +143,32 @@ test('validateGigDeadlines: rejects a past accept_deadline', () => {
 test('validateGigDeadlines: accepts a future accept_deadline', () => {
   const future = new Date(Date.now() + 3_600_000).toISOString()
   assert.deepEqual(validateGigDeadlines(MIN_COMPLETION_DURATION_SECONDS, future), { valid: true })
+})
+
+// --- normalizeEmail --------------------------------------------------------
+
+/**
+ * "Write sites MUST use this" — so a stored address is always the canonical
+ * form, and two users cannot register the same mailbox in different cases.
+ */
+test('normalizeEmail lowercases and trims', () => {
+  assert.equal(normalizeEmail('  User@Example.COM  '), 'user@example.com')
+  // Idempotent: normalising an already-normal address must not change it.
+  assert.equal(normalizeEmail('user@example.com'), 'user@example.com')
+})
+
+test('normalizeEmail rejects malformed shapes rather than storing them', () => {
+  for (const bad of ['', '   ', 'no-at-sign', 'a@b', 'a@b.', '@example.com', 'a b@example.com']) {
+    assert.equal(normalizeEmail(bad), null, `expected null for ${JSON.stringify(bad)}`)
+  }
+})
+
+test('normalizeEmail enforces the length cap on the TRIMMED value', () => {
+  const local = 'a'.repeat(EMAIL_MAX_LENGTH - '@example.com'.length)
+  const atCap = `${local}@example.com`
+  assert.equal(atCap.length, EMAIL_MAX_LENGTH)
+  assert.equal(normalizeEmail(atCap), atCap, 'exactly at the cap is valid')
+  assert.equal(normalizeEmail(`a${atCap}`), null, 'one over the cap is not')
+  // Whitespace must not count toward the cap — it is trimmed first.
+  assert.equal(normalizeEmail(`  ${atCap}  `), atCap)
 })
