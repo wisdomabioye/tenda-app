@@ -99,6 +99,47 @@ export type EscrowStatusName = (typeof ESCROW_STATUS_ORDER)[number]
  */
 export const POSTED_ESCROW_STATUSES = ESCROW_STATUS_ORDER
 
+/**
+ * Whether an escrow still has value held by the contract.
+ *
+ * `unsettled` means the on-chain balance has not been paid out or returned, so
+ * the parties still need the chain to act on it. `settled` means the contract
+ * has released everything and the row is history.
+ *
+ * A `Record` over every status rather than a hand-listed subset, and that is
+ * the point: a ninth status added to `ESCROW_STATUS_ORDER` will not compile
+ * until somebody classifies it here. The same reasoning as
+ * `POSTED_ESCROW_STATUSES` being an alias — a subset that can be silently
+ * out of date is worse than no subset, because the reader assumes it is total.
+ *
+ * Getting this wrong is not cosmetic. `boot-seed` counts unsettled escrows to
+ * decide whether disabling a chain would strand people; a status wrongly
+ * marked `settled` under-counts them and the guard waves the disable through.
+ */
+export const ESCROW_STATUS_SETTLEMENT: Record<EscrowStatusName, 'settled' | 'unsettled'> = {
+  // Funded and awaiting an outcome — the contract still holds the amount.
+  open: 'unsettled',
+  accepted: 'unsettled',
+  submitted: 'unsettled',
+  disputed: 'unsettled',
+  // Terminal: the contract has paid out or refunded, nothing left to release.
+  completed: 'settled',
+  cancelled: 'settled',
+  refunded: 'settled',
+  resolved: 'settled',
+}
+
+/**
+ * Statuses where the contract still holds value. Derived from
+ * `ESCROW_STATUS_SETTLEMENT` so the two can never disagree.
+ *
+ * `draft` is absent by construction: it is the sole off-chain status, never
+ * funded, so it cannot strand anybody.
+ */
+export const UNSETTLED_ESCROW_STATUSES = ESCROW_STATUS_ORDER.filter(
+  (s) => ESCROW_STATUS_SETTLEMENT[s] === 'unsettled',
+)
+
 /** Escrow kind → on-chain `uint8` (EVM `KIND_*`, Anchor `EscrowKind`). */
 export const ESCROW_KIND_CODE = { gig: 0, exchange: 1 } as const
 

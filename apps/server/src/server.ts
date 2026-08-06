@@ -4,6 +4,7 @@ import Fastify from 'fastify'
 import {app, options} from './app'
 import { loadConfig } from './config'
 import { migrateOnBoot } from './lib/boot-migrate'
+import { seedOnBoot } from './lib/boot-seed'
 import * as Sentry from "@sentry/node";
 
 const isDev = process.env.NODE_ENV !== 'production'
@@ -22,6 +23,12 @@ const startServer = async () => {
 
     // Opt-in boot-time migration, no-op unless MIGRATE_ON_BOOT=true.
     await migrateOnBoot(server.log)
+
+    // Opt-in boot-time registry seed, no-op unless SEED_ON_BOOT=true. Must run
+    // AFTER migrations (it writes tables they create) and BEFORE the app is
+    // registered, because the chains plugin's assertChainRegistryInSync is the
+    // check this exists to satisfy.
+    await seedOnBoot(server.log)
 
     // Register Sentry error handler before app routes so it captures all errors
     Sentry.setupFastifyErrorHandler(server)

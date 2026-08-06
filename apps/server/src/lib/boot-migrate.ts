@@ -13,7 +13,31 @@ type BootLogger = Pick<FastifyBaseLogger, 'info'>
 // replicas serialize here: the first applies pending migrations, the rest
 // acquire the lock after it, find the journal current, and no-op. A string
 // (cast to bigint in SQL) because postgres.js's types reject bigint params.
-const MIGRATE_LOCK_KEY = '499917939809'
+// Exported so boot-seed takes the SAME lock. A separate key would let one
+// replica seed while another is mid-migration, writing rows into tables the
+// migration is still altering. They run back to back on one boot, and
+// migrations are no-ops after the first, so sharing costs nothing.
+export const BOOT_LOCK_KEY = '499917939809'
+
+/**
+ * How long to wait for the boot lock before giving up.
+ *
+ * `pg_advisory_lock` waits FOREVER by default, so a replica stuck mid-migration
+ * would hang every other replica's boot with no signal — a container that never
+ * reports ready and never reports why. `lock_timeout` does apply to it
+ * (verified: "canceling statement due to lock timeout"), so a bounded wait is
+ * one statement.
+ *
+ * Generous, because a legitimate first migration on a large table can take
+ * minutes and timing that out would be worse than waiting. Failing the boot
+ * hands control back to the orchestrator, which restarts and retries — a loud
+ * retry beats a silent hang.
+ *
+ * A crashed holder is NOT the case this protects against: advisory locks are
+ * session-scoped and postgres releases them when the connection dies (verified
+ * with kill -9). This is for a live-but-wedged holder.
+ */
+export const BOOT_LOCK_TIMEOUT = '5min'
 
 /**
  * Image layout (/app/migrations, see the runtime stage COPY in the
@@ -46,7 +70,10 @@ export async function migrateOnBoot(log: BootLogger, databaseUrl?: string): Prom
   const sql = postgres(databaseUrl ?? getConfig().DATABASE_URL, { max: 1 })
   try {
     log.info({ folder }, 'MIGRATE_ON_BOOT: waiting for advisory lock')
-    await sql`select pg_advisory_lock(${MIGRATE_LOCK_KEY}::bigint)`
+    // `set_config`, not `SET`: postgres.js turns `${}` into a bind parameter and
+    // SET takes no parameters, so `set lock_timeout = $1` is a syntax error.
+    await sql`select set_config('lock_timeout', ${BOOT_LOCK_TIMEOUT}, false)`
+    await sql`select pg_advisory_lock(${BOOT_LOCK_KEY}::bigint)`
     await migrate(drizzle(sql), { migrationsFolder: folder })
     log.info('MIGRATE_ON_BOOT: migrations current')
   } finally {

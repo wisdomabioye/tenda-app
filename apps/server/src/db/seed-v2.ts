@@ -21,7 +21,7 @@
 import 'dotenv/config'
 import postgres from 'postgres'
 import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
-import { inArray, notInArray, sql } from 'drizzle-orm'
+import { inArray, sql } from 'drizzle-orm'
 import { assets, chains } from '@tenda/shared/db/schema/chains'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { ASSET_META, chainById, type ChainAsset } from '@tenda/shared'
@@ -167,11 +167,58 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
 
 // ---------- I/O wrapper ------------------------------------------------------
 
+/** Rows whose `is_enabled` disagrees with the active config, in both directions. */
+export interface EnablementDelta {
+  toEnable: string[]
+  toDisable: string[]
+}
+
+/**
+ * Which stored rows actually need their `is_enabled` flipped.
+ *
+ * Pure, so the "no diff → no write" property is testable without a database —
+ * that property is the whole point, and a blanket UPDATE would satisfy every
+ * end-state assertion while quietly reintroducing the churn.
+ *
+ * Ids in `activeIds` with no stored row are absent from both lists on purpose:
+ * the upsert has already inserted them, enabled by default.
+ */
+export function enablementDelta(
+  stored: ReadonlyArray<{ id: string; is_enabled: boolean }>,
+  activeIds: readonly string[],
+): EnablementDelta {
+  const active = new Set(activeIds)
+  const toEnable: string[] = []
+  const toDisable: string[] = []
+  for (const row of stored) {
+    const shouldBeEnabled = active.has(row.id)
+    if (shouldBeEnabled && !row.is_enabled) toEnable.push(row.id)
+    else if (!shouldBeEnabled && row.is_enabled) toDisable.push(row.id)
+  }
+  return { toEnable, toDisable }
+}
+
 /**
  * Apply seed rows to a database (exported for the DB-backed upsert test).
  * Registry facts follow config; operator-tunable rows are ensure-only.
+ *
+ * All of it in ONE transaction, which matters more than it looks. `chains` is
+ * written before `assets`, so a partial apply leaves chains matching config
+ * while assets are still stale — and that is precisely the state
+ * `assertChainRegistryInSync` cannot see. Its whole premise is "chains agree
+ * with config, therefore the seed ran, therefore assets are current"; a
+ * half-applied seed makes that inference false and lets a stale
+ * `assets.token_address` be served as though it were verified. Under
+ * SEED_ON_BOOT this runs on every container start, so "it fails midway" stops
+ * being hypothetical.
  */
 export async function applySeed(db: PostgresJsDatabase, rows: SeedRows): Promise<void> {
+  await db.transaction(async (tx) => {
+    await applySeedRows(tx, rows)
+  })
+}
+
+async function applySeedRows(db: PostgresJsDatabase, rows: SeedRows): Promise<void> {
   // Registry facts follow config: a contract redeploy or manifest change must
   // land on re-seed (a DO NOTHING here once stranded a stale escrow address
   // after the Base Sepolia redeploy). `is_enabled` is deliberately NOT in the
@@ -211,12 +258,41 @@ export async function applySeed(db: PostgresJsDatabase, rows: SeedRows): Promise
   // prior env (e.g. a switched-out Solana cluster) would otherwise linger
   // enabled and get served by /v1/platform/chains, surfacing as a duplicate
   // row on the wallet screen. Enable the active set, disable everything else.
-  const activeChainIds = rows.chains.map((c) => c.id)
-  const activeAssetIds = rows.assets.map((a) => a.id)
-  await db.update(chains).set({ is_enabled: true }).where(inArray(chains.id, activeChainIds))
-  await db.update(chains).set({ is_enabled: false }).where(notInArray(chains.id, activeChainIds))
-  await db.update(assets).set({ is_enabled: true }).where(inArray(assets.id, activeAssetIds))
-  await db.update(assets).set({ is_enabled: false }).where(notInArray(assets.id, activeAssetIds))
+  //
+  // Only the rows that actually need flipping are written. Same end state as
+  // four blanket UPDATEs, and that mattered little while this was a hand-run
+  // command — but SEED_ON_BOOT calls it on every container start, where
+  // rewriting `is_enabled = true` over an already-true row costs a dead tuple
+  // per row per boot, and, worse, lets a rolling deploy flap: old and new
+  // replicas hold different envs, disagree on the active set, and take turns
+  // flipping the same rows while clients poll /v1/platform/chains. No diff, no
+  // write, no flap.
+  //
+  // Read AFTER the upserts above, so rows just inserted (is_enabled defaults
+  // true, and the conflict target deliberately excludes it) are already
+  // reflected here and produce no delta.
+  const storedChains = await db
+    .select({ id: chains.id, is_enabled: chains.is_enabled })
+    .from(chains)
+  const storedAssets = await db
+    .select({ id: assets.id, is_enabled: assets.is_enabled })
+    .from(assets)
+
+  const chainDelta = enablementDelta(storedChains, rows.chains.map((c) => c.id))
+  const assetDelta = enablementDelta(storedAssets, rows.assets.map((a) => a.id))
+
+  if (chainDelta.toEnable.length > 0) {
+    await db.update(chains).set({ is_enabled: true }).where(inArray(chains.id, chainDelta.toEnable))
+  }
+  if (chainDelta.toDisable.length > 0) {
+    await db.update(chains).set({ is_enabled: false }).where(inArray(chains.id, chainDelta.toDisable))
+  }
+  if (assetDelta.toEnable.length > 0) {
+    await db.update(assets).set({ is_enabled: true }).where(inArray(assets.id, assetDelta.toEnable))
+  }
+  if (assetDelta.toDisable.length > 0) {
+    await db.update(assets).set({ is_enabled: false }).where(inArray(assets.id, assetDelta.toDisable))
+  }
 }
 
 async function seed(): Promise<void> {

@@ -11,7 +11,7 @@ import * as assert from 'node:assert'
 import { Keypair } from '@solana/web3.js'
 import bs58 from 'bs58'
 import { ESCROW_IDL } from '@tenda/shared/idl'
-import { buildSeedRows } from '@server/db/seed-v2'
+import { buildSeedRows, enablementDelta } from '@server/db/seed-v2'
 import { gasSeedAddressFromSecret } from '@server/chains/solana/gas-seed-sender'
 import { loadChainSecrets } from '@server/chains/secrets'
 
@@ -136,4 +136,52 @@ test('different-family chains seed together', () => {
 
 test('fiat providers are always seeded', () => {
   assert.ok(buildSeedRows(solDevnet()).fiat_providers.length >= 1)
+})
+
+// ---------------------------------------------------------------------------
+// enablementDelta — the "no diff, no write" property behind SEED_ON_BOOT
+// ---------------------------------------------------------------------------
+
+test('enablementDelta: an already-correct registry produces no writes at all', () => {
+  // The property that matters. applySeed runs on every container start under
+  // SEED_ON_BOOT; blanket UPDATEs would burn a dead tuple per row per boot and,
+  // during a rolling deploy, let replicas with different envs flip the same
+  // rows back and forth while clients poll /v1/platform/chains.
+  const delta = enablementDelta(
+    [
+      { id: 'solana:devnet', is_enabled: true },
+      { id: 'eip155:84532', is_enabled: true },
+      { id: 'eip155:1', is_enabled: false },
+    ],
+    ['solana:devnet', 'eip155:84532'],
+  )
+  assert.deepStrictEqual(delta, { toEnable: [], toDisable: [] })
+})
+
+test('enablementDelta: only the rows actually out of step are listed', () => {
+  const delta = enablementDelta(
+    [
+      { id: 'a', is_enabled: false }, // active but off -> enable
+      { id: 'b', is_enabled: true }, // active and on  -> untouched
+      { id: 'c', is_enabled: true }, // inactive but on -> disable
+      { id: 'd', is_enabled: false }, // inactive and off -> untouched
+    ],
+    ['a', 'b'],
+  )
+  assert.deepStrictEqual(delta, { toEnable: ['a'], toDisable: ['c'] })
+})
+
+test('enablementDelta: an active id with no stored row is neither enabled nor disabled', () => {
+  // The upsert has already inserted it, enabled by default; listing it here
+  // would issue a redundant UPDATE on every boot for every new chain.
+  assert.deepStrictEqual(enablementDelta([], ['brand-new']), { toEnable: [], toDisable: [] })
+})
+
+test('enablementDelta: an empty active set disables everything still on', () => {
+  // The shape of a deploy that lost its CHAIN_* vars — which is exactly what
+  // boot-seed's live-escrow guard refuses to let through silently.
+  assert.deepStrictEqual(
+    enablementDelta([{ id: 'a', is_enabled: true }, { id: 'b', is_enabled: false }], []),
+    { toEnable: [], toDisable: ['a'] },
+  )
 })
