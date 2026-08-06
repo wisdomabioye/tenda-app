@@ -10,6 +10,11 @@
 # contracts/evm/foundry.toml) and the IDL is anchor output (anchor 0.32.1
 # pinned via avm) — both deterministic from source, so the diff gate reflects
 # real drift, not toolchain version noise.
+#
+# That claim used to have a hole: the Anza/Solana CLI was installed from
+# `stable` and so floated. It supplies cargo-build-sbf, which compiles the
+# program litesvm executes — so the solana job was only as deterministic as
+# whatever Agave shipped that morning. It is pinned below via SOLANA_RELEASE.
 
 name: contracts
 
@@ -87,10 +92,26 @@ jobs:
         # pinned toolchain via contracts/solana/rust-toolchain.toml.
         with:
           toolchain: stable
-      - name: Install Solana CLI
+      # PINNED, and it has to be. This CLI provides `cargo-build-sbf`, the SBF
+      # toolchain `anchor build` shells out to — so it decides what the .so
+      # litesvm loads actually is. Everything else here is pinned (rust via
+      # rust-toolchain.toml, anchor via avm, litesvm/anchor-litesvm exactly in
+      # package.json); leaving this on `stable` meant Agave moving 3.x → 4.x
+      # silently rebuilt the program with a v4 SBF toolchain and handed it to
+      # litesvm 0.3.3, which aborted with `std::bad_alloc` mid-suite.
+      #
+      # `release.anza.xyz/<version>/install` is NOT served — only stable/edge —
+      # so the version is pinned through SOLANA_RELEASE, which the installer
+      # reads in place of querying GitHub for the latest tag.
+      #
+      # Bump deliberately, and expect to bump litesvm with it.
+      - name: Install Solana CLI (pinned)
+        env:
+          SOLANA_RELEASE: v3.0.14
         run: |
           sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+          solana --version
       - name: Install Anchor 0.32.1 (avm)
         run: |
           cargo install --git https://github.com/coral-xyz/anchor avm --force
