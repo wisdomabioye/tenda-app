@@ -115,3 +115,86 @@ test('applySeed: redeployed escrow address propagates on re-seed; reconcile owns
     await client.end()
   }
 })
+
+test('applySeed is ATOMIC — a failing asset write rolls the chains write back', { skip }, async () => {
+  // Without the transaction, `chains` commits and `assets` does not. That state
+  // is invisible to assertChainRegistryInSync, whose whole premise is "chains
+  // agree with config, therefore the seed ran, therefore assets are current" —
+  // so a stale token_address gets served as though it were verified. Under
+  // SEED_ON_BOOT this runs on every container start, so "fails midway" is
+  // routine rather than hypothetical.
+  const client = postgres(process.env.DATABASE_URL as string, { max: 1 })
+  const db = drizzle(client)
+  try {
+    const chainsBefore = await db.select().from(chains)
+    const assetsBefore = await db.select().from(assets)
+    try {
+      await applySeed(db, buildSeedRows(sepoliaSecrets(ESCROW_V1)))
+      // A sentinel that only survives if the chains write is undone.
+      await db.update(chains).set({ escrow_program: 'SENTINEL' }).where(eq(chains.id, CHAIN_ID))
+
+      // Poison AFTER the chains upsert: an asset pointing at a chain that does
+      // not exist violates the FK, so the apply fails partway through.
+      const poisoned = buildSeedRows(sepoliaSecrets(ESCROW_V2))
+      poisoned.assets[0] = { ...poisoned.assets[0], chain_id: 'eip155:000000' }
+      await assert.rejects(() => applySeed(db, poisoned), 'the poisoned seed must fail')
+
+      const [row] = await db
+        .select({ escrow: chains.escrow_program })
+        .from(chains)
+        .where(eq(chains.id, CHAIN_ID))
+      assert.equal(
+        row?.escrow,
+        'SENTINEL',
+        'chains was committed while assets failed — the apply is not atomic',
+      )
+    } finally {
+      await restoreRegistry(db, chainsBefore, assetsBefore)
+    }
+  } finally {
+    await client.end()
+  }
+})
+
+test('applySeed writes NOTHING when enablement already matches', { skip }, async () => {
+  // The "no diff, no write" property. Blanket UPDATEs would reach the same end
+  // state and satisfy every value assertion, while burning a dead tuple per row
+  // per boot and letting a rolling deploy flap: replicas with different envs
+  // take turns flipping the same rows while clients poll /v1/platform/chains.
+  //
+  // Observed via xmin (the writing transaction id), because a re-write of the
+  // SAME value is invisible by value. The probe row is inactive AND already
+  // disabled, so the upsert never touches it — any xmin change is the
+  // enablement UPDATE and nothing else.
+  const client = postgres(process.env.DATABASE_URL as string, { max: 1 })
+  const db = drizzle(client)
+  const PROBE = 'eip155:999994'
+  try {
+    const chainsBefore = await db.select().from(chains)
+    const assetsBefore = await db.select().from(assets)
+    try {
+      await client`
+        insert into chains (id, namespace, display_name, treasury_address, escrow_program, is_enabled)
+        values (${PROBE}, 'eip155', 'no-write probe', '0xbeef', '0xdead', false)
+        on conflict (id) do update set is_enabled = false`
+      const xminOf = async (): Promise<string> => {
+        const [r] = await client`select xmin::text as x from chains where id = ${PROBE}`
+        return r.x as string
+      }
+      const before = await xminOf()
+
+      await applySeed(db, buildSeedRows(sepoliaSecrets(ESCROW_V1)))
+
+      assert.equal(
+        await xminOf(),
+        before,
+        'an already-correct row was rewritten — the enablement delta is being ignored',
+      )
+    } finally {
+      await client`delete from chains where id = ${PROBE}`
+      await restoreRegistry(db, chainsBefore, assetsBefore)
+    }
+  } finally {
+    await client.end()
+  }
+})
