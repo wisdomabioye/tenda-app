@@ -19,7 +19,12 @@ import { drizzle } from 'drizzle-orm/postgres-js'
 import { eq } from 'drizzle-orm'
 import { chains } from '@tenda/shared/db/schema'
 import { TEST_DB_CONFIGURED, useSuiteLock } from '../helpers/test-app'
-import { seedOnBoot } from '@server/lib/boot-seed'
+import {
+  seedOnBoot,
+  lockChainsForRetirement,
+  NO_CHAINS_CONFIGURED,
+} from '@server/lib/boot-seed'
+import { resetChainSecretsCache } from '@server/chains/secrets'
 
 const skip = !TEST_DB_CONFIGURED
 
@@ -147,6 +152,118 @@ test('ALLOW_CHAIN_DISABLE=true lets a deliberate retirement through', { skip }, 
     await sql.end()
   }
 })
+
+test('a deploy with no chains configured is named, not left to drizzle', async () => {
+  // loadChainSecrets returns an EMPTY map rather than throwing when no CHAIN_*
+  // vars are set, so without this guard the next thing the operator sees is
+  // "values() must be called with at least one value" — a message that names
+  // neither chains nor env. The dead URL doubles as proof it fails BEFORE
+  // opening a connection.
+  const removed = new Map<string, string>()
+  for (const k of Object.keys(process.env)) {
+    if (k.startsWith('CHAIN_')) {
+      removed.set(k, process.env[k]!)
+      delete process.env[k]
+    }
+  }
+  resetChainSecretsCache()
+  try {
+    await withEnv({ SEED_ON_BOOT: 'true' }, async () => {
+      await assert.rejects(() => seedOnBoot(log, DEAD_DB_URL), (e: Error) => {
+        assert.strictEqual(e.message, NO_CHAINS_CONFIGURED)
+        assert.match(e.message, /CHAIN_\* secret/)
+        return true
+      })
+    })
+  } finally {
+    for (const [k, v] of removed) process.env[k] = v
+    resetChainSecretsCache()
+  }
+})
+
+test(
+  'locking a retiring chain blocks escrow creation on it — the count cannot go stale',
+  { skip },
+  async () => {
+    // The guard counts unsettled escrows, then disables. Without a lock an
+    // escrow funded between those two steps is stranded by a guard that already
+    // reported all-clear. escrows.chain_id FKs chains.id, so an escrow INSERT
+    // takes FOR KEY SHARE on the chain row and FOR UPDATE conflicts with it.
+    const url = process.env.TEST_DATABASE_URL!
+    const holder = postgres(url, { max: 1 })
+    const writer = postgres(url, { max: 1 })
+    const setup = postgres(url, { max: 1 })
+    const CHAIN = 'eip155:999996'
+    const ASSET = `PROBE_${CHAIN}`
+    try {
+      await seedProbeChain(setup, CHAIN, { withUnsettledEscrow: false })
+      await setup`
+        insert into assets (id, chain_id, symbol, decimals)
+        values (${ASSET}, ${CHAIN}, 'PROBE', 6) on conflict (id) do nothing`
+      const [user] = await setup`insert into users default values returning id`
+
+      const insertEscrow = async (sql: postgres.Sql): Promise<'ok' | 'blocked'> => {
+        try {
+          await sql`select set_config('lock_timeout', '1s', false)`
+          await sql`
+            insert into escrows (kind, chain_id, asset, amount_raw, creator_id, status)
+            values ('gig', ${CHAIN}, ${ASSET}, '1', ${user.id}, 'accepted')`
+          return 'ok'
+        } catch (e) {
+          // 55P03 = lock_not_available, what lock_timeout raises. Narrowed
+          // without a cast, the way dispute-resolution.test.ts does it.
+          if (e instanceof Error && 'code' in e && e.code === '55P03') return 'blocked'
+          throw e // anything else is a broken test, not a blocked write
+        }
+      }
+
+      // Control first: unlocked, the very same insert must succeed. Without it a
+      // typo in the INSERT would look exactly like a working lock.
+      assert.strictEqual(await insertEscrow(writer), 'ok', 'control insert should succeed')
+
+      let release = (): void => {}
+      const held = new Promise<void>((r) => (release = r))
+      let locked = (): void => {}
+      let lockFailed = (_e: unknown): void => {}
+      const isLocked = new Promise<void>((res, rej) => {
+        locked = res
+        lockFailed = rej
+      })
+
+      // If the lock query itself fails, reject `isLocked` rather than leaving
+      // the await below hanging forever on a signal that will never come.
+      const tx = drizzle(holder)
+        .transaction(async (t) => {
+          await lockChainsForRetirement(t, [CHAIN])
+          locked()
+          await held
+        })
+        .catch((e) => lockFailed(e))
+
+      await isLocked
+      // The transaction MUST be released before asserting: an assertion throw
+      // between here and `release()` leaves it open, and `holder.end()` in the
+      // finally then waits on it forever — turning a failing test into a hung
+      // suite. (Observed: the first version of this test hung a mutation run.)
+      let outcome: 'ok' | 'blocked'
+      try {
+        outcome = await insertEscrow(writer)
+      } finally {
+        release()
+        await tx
+      }
+      assert.strictEqual(
+        outcome,
+        'blocked',
+        'escrow creation on a retiring chain must wait for the seed transaction',
+      )
+    } finally {
+      await dropProbeChain(setup, CHAIN)
+      await setup`delete from assets where id = ${ASSET}`
+      await Promise.all([holder.end(), writer.end(), setup.end()])
+    }
+  },
+)
 
 test('a chain with no unsettled escrows retires without an override', { skip }, async () => {
   const url = process.env.TEST_DATABASE_URL!

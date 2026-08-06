@@ -1,306 +1,36 @@
 /**
- * Cutover seeds: chains, assets, platform_config. Idempotent by construction,
- * registry FACTS (chain/asset rows) upsert so a redeploy or manifest change
- * propagates on re-run; operator-tunable rows (platform_config,
- * fiat_providers) stay `ON CONFLICT DO NOTHING` so re-seeding never clobbers
- * admin edits. Boot-time invocation is safe.
+ * Cutover seed CLI: chains, assets, platform_config. Idempotent by
+ * construction, so boot-time invocation (lib/boot-seed.ts) is safe.
  *
  * Run: `pnpm --filter tenda-server db:seed` (requires DATABASE_URL +
- * `CHAIN_<ID>_*` env). Fully manifest + secrets driven, nothing chain-shaped
- * is hardcoded here:
- *   - which chains  ← the ACTIVE chain secrets (chains/secrets.ts)
- *   - display/confirmations/token addresses ← the shared CHAIN_MANIFEST
- *   - solana escrow program id ← @tenda/shared/idl (the deployed artifact)
- *   - EVM escrow + treasury    ← the chain's secrets
- *   - solana USDC mint         ← the chain's secret (`fromSecret`); skipped + warned if unset
- *   - gas-seed columns ← manifest `gasSeedAmountRaw` + the funder address DERIVED
- *     from the chain's hot-wallet secret; both stay NULL until BOTH exist (#40),
- *     the paired CHECK constraint requires both-or-neither.
+ * `CHAIN_<ID>_*` env).
+ *
+ * The work itself lives in ./seed:
+ *   - ./seed/rows  — the pure, manifest + secrets driven row builder
+ *   - ./seed/apply — the transactional applier and enablement reconcile
+ *
+ * Re-exported here so `@server/db/seed-v2` stays the import path.
  */
 
 import 'dotenv/config'
 import postgres from 'postgres'
-import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
-import { inArray, sql } from 'drizzle-orm'
-import { assets, chains } from '@tenda/shared/db/schema/chains'
-import { fiat_providers } from '@tenda/shared/db/schema/fiat'
-import { ASSET_META, chainById, type ChainAsset } from '@tenda/shared'
-import { platform_config } from '@tenda/shared/db/schema/governance'
+import { drizzle } from 'drizzle-orm/postgres-js'
 import { loadConfig } from '@server/config'
-import { escrowAddressOf } from '@server/chains/registry-sync'
-import { getChainSecrets, type ResolvedChainSecret } from '@server/chains/secrets'
-import { gasSeedAddressFromSecret } from '@server/chains/solana/gas-seed-sender'
-import {
-  P2P_INTERNAL_ID,
-  P2P_INTERNAL_CAPABILITIES,
-  YELLOWCARD_SPEC,
-  ONRAMPMONEY_SPEC,
-} from '@server/features/fiat-rails'
+import { getChainSecrets } from '@server/chains/secrets'
+import { buildSeedRows } from './seed/rows'
+import { applySeed } from './seed/apply'
 
-// ---------- pure row builder (unit-tested) ---------------------------------
-
-type ChainRow = typeof chains.$inferInsert
-type AssetRow = typeof assets.$inferInsert
-
-export interface FiatProviderRow {
-  id: string
-  display_name: string
-  capabilities: { onramp: boolean; offramp: boolean; currencies: string[]; assets: string[] }
-  priority: number
-  is_enabled: boolean
-}
-
-export interface SeedRows {
-  chains: ChainRow[]
-  assets: AssetRow[]
-  fiat_providers: FiatProviderRow[]
-  /** Assets skipped because their config inputs are missing. */
-  skipped: string[]
-}
-
-/**
- * Resolve an asset's seedable token address. A `fromSecret` asset (Solana USDC
- *, the mint differs per cluster and is not canonical) is supplied by the
- * chain's secret and skipped when absent; otherwise the manifest token (canonical
- * EVM contract) or `null` (native) is used.
- */
-function resolveAssetToken(
-  asset: ChainAsset,
-  secret: ResolvedChainSecret,
-): { token: string | null; skip: boolean } {
-  if (asset.fromSecret === undefined) return { token: asset.token, skip: false }
-  if (secret.namespace === 'solana' && asset.fromSecret === 'usdcMint') {
-    return secret.usdcMint !== undefined
-      ? { token: secret.usdcMint, skip: false }
-      : { token: null, skip: true }
-  }
-  return { token: null, skip: true }
-}
-
-/**
- * The paired gas-seed columns for a chain. Both are set only when the manifest
- * declares a seed amount AND the deployment configured the hot-wallet secret
- * that funds it — otherwise both stay NULL, keeping the chain's seed dormant and
- * satisfying the `chains_gas_seed_paired_chk` (both-or-neither) constraint. The
- * funder address is DERIVED from the same secret the sender signs with (no drift).
- */
-function resolveGasSeed(
-  amount_raw: string | undefined,
-  secret: ResolvedChainSecret,
-): { amount_raw: string | null; wallet_address: string | null } {
-  const key = secret.namespace === 'solana' ? secret.gasSeedKey : undefined
-  if (amount_raw === undefined || key === undefined) {
-    return { amount_raw: null, wallet_address: null }
-  }
-  return { amount_raw, wallet_address: gasSeedAddressFromSecret(key) }
-}
-
-export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>): SeedRows {
-  const chainRows: ChainRow[] = []
-  const assetRows: AssetRow[] = []
-  const skipped: string[] = []
-
-  // symbol/decimals/is_stable come from the shared ASSET_META registry,
-  // the seed only contributes the deployment-specific chain/token wiring.
-  function assetRow(id: string, chain_id: string, token_address: string | null): AssetRow {
-    const meta = ASSET_META[id]
-    if (meta === undefined) throw new Error(`asset '${id}' missing from shared ASSET_META`)
-    return { id, chain_id, symbol: meta.symbol, decimals: meta.decimals, token_address, is_stable: meta.is_stable }
-  }
-
-  // One row set per ACTIVE chain. Solana's escrow program id is the deployed
-  // IDL artifact (single source); EVM's is the deployed contract from secrets.
-  for (const secret of secrets.values()) {
-    const entry = chainById(secret.chainId)
-    const gasSeed = resolveGasSeed(entry.gasSeedAmountRaw, secret)
-    chainRows.push({
-      id: entry.id,
-      namespace: entry.namespace,
-      display_name: entry.displayName,
-      min_confirmations: entry.minConfirmations,
-      treasury_address: secret.treasury,
-      escrow_program: escrowAddressOf(secret),
-      gas_seed_amount_raw: gasSeed.amount_raw,
-      gas_seed_wallet_address: gasSeed.wallet_address,
-    })
-    for (const asset of entry.assets) {
-      const resolved = resolveAssetToken(asset, secret)
-      if (resolved.skip) {
-        skipped.push(`${asset.id} on ${entry.id} (${asset.fromSecret} not configured)`)
-        continue
-      }
-      assetRows.push(assetRow(asset.id, entry.id, resolved.token))
-    }
-  }
-
-  // Stage 8: routing registry (enable/priority only, credentials live in
-  // env; a provider without keys is simply never constructed).
-  // Capabilities are single-sourced from the provider definitions (licensed
-  // specs + the derived p2p surface) so this admin-visible row can't drift from
-  // the live routing. Only priority/enablement are seed-tunable defaults.
-  const fiatProviderRows: FiatProviderRow[] = [
-    {
-      id: YELLOWCARD_SPEC.id,
-      display_name: 'Yellow Card',
-      capabilities: YELLOWCARD_SPEC.capabilities,
-      priority: 10,
-      is_enabled: true,
-    },
-    {
-      id: ONRAMPMONEY_SPEC.id,
-      display_name: 'Onramp.money',
-      capabilities: ONRAMPMONEY_SPEC.capabilities,
-      priority: 20,
-      is_enabled: true,
-    },
-    {
-      id: P2P_INTERNAL_ID,
-      display_name: 'Tenda P2P',
-      capabilities: P2P_INTERNAL_CAPABILITIES,
-      priority: 100,
-      is_enabled: true,
-    },
-  ]
-
-  return { chains: chainRows, assets: assetRows, fiat_providers: fiatProviderRows, skipped }
-}
-
-// ---------- I/O wrapper ------------------------------------------------------
-
-/** Rows whose `is_enabled` disagrees with the active config, in both directions. */
-export interface EnablementDelta {
-  toEnable: string[]
-  toDisable: string[]
-}
-
-/**
- * Which stored rows actually need their `is_enabled` flipped.
- *
- * Pure, so the "no diff → no write" property is testable without a database —
- * that property is the whole point, and a blanket UPDATE would satisfy every
- * end-state assertion while quietly reintroducing the churn.
- *
- * Ids in `activeIds` with no stored row are absent from both lists on purpose:
- * the upsert has already inserted them, enabled by default.
- */
-export function enablementDelta(
-  stored: ReadonlyArray<{ id: string; is_enabled: boolean }>,
-  activeIds: readonly string[],
-): EnablementDelta {
-  const active = new Set(activeIds)
-  const toEnable: string[] = []
-  const toDisable: string[] = []
-  for (const row of stored) {
-    const shouldBeEnabled = active.has(row.id)
-    if (shouldBeEnabled && !row.is_enabled) toEnable.push(row.id)
-    else if (!shouldBeEnabled && row.is_enabled) toDisable.push(row.id)
-  }
-  return { toEnable, toDisable }
-}
-
-/**
- * Apply seed rows to a database (exported for the DB-backed upsert test).
- * Registry facts follow config; operator-tunable rows are ensure-only.
- *
- * All of it in ONE transaction, which matters more than it looks. `chains` is
- * written before `assets`, so a partial apply leaves chains matching config
- * while assets are still stale — and that is precisely the state
- * `assertChainRegistryInSync` cannot see. Its whole premise is "chains agree
- * with config, therefore the seed ran, therefore assets are current"; a
- * half-applied seed makes that inference false and lets a stale
- * `assets.token_address` be served as though it were verified. Under
- * SEED_ON_BOOT this runs on every container start, so "it fails midway" stops
- * being hypothetical.
- */
-export async function applySeed(db: PostgresJsDatabase, rows: SeedRows): Promise<void> {
-  await db.transaction(async (tx) => {
-    await applySeedRows(tx, rows)
-  })
-}
-
-async function applySeedRows(db: PostgresJsDatabase, rows: SeedRows): Promise<void> {
-  // Registry facts follow config: a contract redeploy or manifest change must
-  // land on re-seed (a DO NOTHING here once stranded a stale escrow address
-  // after the Base Sepolia redeploy). `is_enabled` is deliberately NOT in the
-  // update set, the reconcile below owns it.
-  await db.insert(chains).values(rows.chains).onConflictDoUpdate({
-    target: chains.id,
-    set: {
-      namespace: sql`excluded.namespace`,
-      display_name: sql`excluded.display_name`,
-      min_confirmations: sql`excluded.min_confirmations`,
-      treasury_address: sql`excluded.treasury_address`,
-      escrow_program: sql`excluded.escrow_program`,
-      gas_seed_amount_raw: sql`excluded.gas_seed_amount_raw`,
-      gas_seed_wallet_address: sql`excluded.gas_seed_wallet_address`,
-    },
-  })
-  await db.insert(assets).values(rows.assets).onConflictDoUpdate({
-    target: assets.id,
-    set: {
-      chain_id: sql`excluded.chain_id`,
-      symbol: sql`excluded.symbol`,
-      decimals: sql`excluded.decimals`,
-      token_address: sql`excluded.token_address`,
-      is_stable: sql`excluded.is_stable`,
-    },
-  })
-  await db.insert(platform_config).values({ id: 1 }).onConflictDoNothing({
-    target: platform_config.id,
-  })
-  await db
-    .insert(fiat_providers)
-    .values(rows.fiat_providers)
-    .onConflictDoNothing({ target: fiat_providers.id })
-
-  // Reconcile enablement so the registry reflects EXACTLY the active config
-  // (one chain per family). The seed never deletes, so a chain/asset from a
-  // prior env (e.g. a switched-out Solana cluster) would otherwise linger
-  // enabled and get served by /v1/platform/chains, surfacing as a duplicate
-  // row on the wallet screen. Enable the active set, disable everything else.
-  //
-  // Only the rows that actually need flipping are written. Same end state as
-  // four blanket UPDATEs, and that mattered little while this was a hand-run
-  // command — but SEED_ON_BOOT calls it on every container start, where
-  // rewriting `is_enabled = true` over an already-true row costs a dead tuple
-  // per row per boot, and, worse, lets a rolling deploy flap: old and new
-  // replicas hold different envs, disagree on the active set, and take turns
-  // flipping the same rows while clients poll /v1/platform/chains. No diff, no
-  // write, no flap.
-  //
-  // Read AFTER the upserts above, so rows just inserted (is_enabled defaults
-  // true, and the conflict target deliberately excludes it) are already
-  // reflected here and produce no delta.
-  const storedChains = await db
-    .select({ id: chains.id, is_enabled: chains.is_enabled })
-    .from(chains)
-  const storedAssets = await db
-    .select({ id: assets.id, is_enabled: assets.is_enabled })
-    .from(assets)
-
-  const chainDelta = enablementDelta(storedChains, rows.chains.map((c) => c.id))
-  const assetDelta = enablementDelta(storedAssets, rows.assets.map((a) => a.id))
-
-  if (chainDelta.toEnable.length > 0) {
-    await db.update(chains).set({ is_enabled: true }).where(inArray(chains.id, chainDelta.toEnable))
-  }
-  if (chainDelta.toDisable.length > 0) {
-    await db.update(chains).set({ is_enabled: false }).where(inArray(chains.id, chainDelta.toDisable))
-  }
-  if (assetDelta.toEnable.length > 0) {
-    await db.update(assets).set({ is_enabled: true }).where(inArray(assets.id, assetDelta.toEnable))
-  }
-  if (assetDelta.toDisable.length > 0) {
-    await db.update(assets).set({ is_enabled: false }).where(inArray(assets.id, assetDelta.toDisable))
-  }
-}
+export { buildSeedRows } from './seed/rows'
+export type { SeedRows, FiatProviderRow } from './seed/rows'
+export { applySeed, applySeedRows, enablementDelta } from './seed/apply'
+export type { EnablementDelta } from './seed/apply'
 
 async function seed(): Promise<void> {
   const config = loadConfig()
   const rows = buildSeedRows(getChainSecrets())
 
   // NB: the client is not named `sql`, that would shadow drizzle's sql``
-  // template used in applySeed's upsert sets (a shadowed call executes a
+  // template used in the applier's upsert sets (a shadowed call executes a
   // query and stringifies the Promise into the parameter).
   const client = postgres(config.DATABASE_URL, { max: 1 })
   try {

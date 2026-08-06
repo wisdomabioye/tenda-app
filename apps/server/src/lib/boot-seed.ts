@@ -31,7 +31,7 @@ import { drizzle, type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import { chains, escrows } from '@tenda/shared/db/schema'
 import { UNSETTLED_ESCROW_STATUSES } from '@tenda/shared'
 import { getChainSecrets } from '@server/chains/secrets'
-import { buildSeedRows, applySeed } from '@server/db/seed-v2'
+import { buildSeedRows, applySeedRows } from '@server/db/seed-v2'
 import { getConfig } from '@server/config'
 import { BOOT_LOCK_KEY, BOOT_LOCK_TIMEOUT } from '@server/lib/boot-migrate'
 import type { FastifyBaseLogger } from 'fastify'
@@ -95,6 +95,49 @@ export function describeBlockedDisable(blocked: readonly PendingDisable[]): stri
   )
 }
 
+/**
+ * The message for a deploy that reached the seed with no chains configured.
+ *
+ * Without this the next statement is drizzle's `values() must be called with at
+ * least one value` — technically a safe failure (nothing is written, the
+ * transaction never opens, and a health-gated rollout keeps the old replicas
+ * serving) but it names neither chains nor env, and an unreadable boot error is
+ * exactly what turned a stale-artifact seed into an afternoon of guessing.
+ *
+ * `loadChainSecrets` returns an EMPTY map rather than throwing when no `CHAIN_*`
+ * vars are set — every manifest entry is simply skipped as inactive — so this is
+ * the only place the condition can be named.
+ */
+export const NO_CHAINS_CONFIGURED =
+  'SEED_ON_BOOT: no chains are configured — every CHAIN_* secret is missing from ' +
+  'this environment, so the seed has nothing to write. Restore the chain env ' +
+  'vars for this deployment (see .env.example) and redeploy.'
+
+/**
+ * Take the strongest row lock on the chains about to be switched off.
+ *
+ * This is what makes the count below trustworthy. `escrows.chain_id` has a
+ * foreign key to `chains.id`, so every escrow INSERT takes a FOR KEY SHARE lock
+ * on its chain's row — and FOR UPDATE conflicts with that. Holding it for the
+ * rest of the transaction means no escrow can be committed on a doomed chain
+ * between counting them and disabling them. (Verified: with the lock held, an
+ * escrow INSERT on that chain blocks until timeout; unlocked, it succeeds.)
+ *
+ * Only the chains being RETIRED are locked, so escrow creation on the chains
+ * that survive is untouched.
+ */
+export async function lockChainsForRetirement(
+  db: PostgresJsDatabase,
+  chainIds: readonly string[],
+): Promise<void> {
+  if (chainIds.length === 0) return
+  await db
+    .select({ id: chains.id })
+    .from(chains)
+    .where(inArray(chains.id, [...chainIds]))
+    .for('update')
+}
+
 async function countUnsettledByChain(
   db: PostgresJsDatabase,
   chainIds: readonly string[],
@@ -124,6 +167,7 @@ export async function seedOnBoot(log: BootLogger, databaseUrl?: string): Promise
   if (process.env.SEED_ON_BOOT !== 'true') return
 
   const rows = buildSeedRows(getChainSecrets())
+  if (rows.chains.length === 0) throw new Error(NO_CHAINS_CONFIGURED)
   const activeChainIds = rows.chains.map((c) => c.id)
 
   const sql = postgres(databaseUrl ?? getConfig().DATABASE_URL, { max: 1 })
@@ -137,31 +181,37 @@ export async function seedOnBoot(log: BootLogger, databaseUrl?: string): Promise
     await sql`select pg_advisory_lock(${BOOT_LOCK_KEY}::bigint)`
     const db = drizzle(sql)
 
-    // The safety check runs BEFORE applySeed, which does the disabling itself —
-    // checking afterwards would mean the damage is already committed.
-    const enabled = await db
-      .select({ id: chains.id })
-      .from(chains)
-      .where(eq(chains.is_enabled, true))
-    const candidates = chainsToDisable(
-      enabled.map((r) => r.id),
-      activeChainIds,
-    )
-    const blocked = pendingDisables(candidates, await countUnsettledByChain(db, candidates))
+    // Guard and seed share ONE transaction, so a refusal cannot leave a partial
+    // write behind and the count cannot go stale before it is acted on.
+    await db.transaction(async (tx) => {
+      const enabled = await tx
+        .select({ id: chains.id })
+        .from(chains)
+        .where(eq(chains.is_enabled, true))
+      const candidates = chainsToDisable(
+        enabled.map((r) => r.id),
+        activeChainIds,
+      )
+      // Lock BEFORE counting: an escrow funded between the count and the
+      // disable would otherwise be stranded by a guard that had already
+      // reported all-clear.
+      await lockChainsForRetirement(tx, candidates)
+      const blocked = pendingDisables(candidates, await countUnsettledByChain(tx, candidates))
 
-    if (blocked.length > 0) {
-      if (process.env.ALLOW_CHAIN_DISABLE !== 'true') {
-        throw new Error(`SEED_ON_BOOT: ${describeBlockedDisable(blocked)}`)
+      if (blocked.length > 0) {
+        if (process.env.ALLOW_CHAIN_DISABLE !== 'true') {
+          throw new Error(`SEED_ON_BOOT: ${describeBlockedDisable(blocked)}`)
+        }
+        for (const b of blocked) {
+          log.warn(
+            `SEED_ON_BOOT: disabling ${b.chain_id} with ${b.unsettled} unsettled escrow(s) — ` +
+              'acknowledged via ALLOW_CHAIN_DISABLE',
+          )
+        }
       }
-      for (const b of blocked) {
-        log.warn(
-          `SEED_ON_BOOT: disabling ${b.chain_id} with ${b.unsettled} unsettled escrow(s) — ` +
-            'acknowledged via ALLOW_CHAIN_DISABLE',
-        )
-      }
-    }
 
-    await applySeed(db, rows)
+      await applySeedRows(tx, rows)
+    })
 
     // Reported every boot: this is the value that was wrong, so it is the value
     // worth being able to grep for in a deploy log.
