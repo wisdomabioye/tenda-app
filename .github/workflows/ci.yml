@@ -13,6 +13,7 @@
 #   4. lint             → server + admin (eslint) + mobile (expo lint)
 #   5. mobile tests     → jest-expo coverage WIRED once the harness lands (#101)
 #   6. docker image     → build-only assembly check of apps/server/Dockerfile
+#   7. scripts          → unit tests for scripts/ + the app-version drift gate
 #
 # Redis is NOT a test dependency: the harness deletes REDIS_URL and the queue
 # stays a 501 stub. devnet/E2E (Maestro/Playwright) remain nightly/pre-release.
@@ -128,6 +129,23 @@ jobs:
         working-directory: apps/mobile
         run: npx expo lint
       # Mobile jest-expo coverage gate is wired here once the harness lands (#101).
+
+  # Repo tooling under scripts/ — pure Node, no workspace install needed, so
+  # this is the cheapest job in the pipeline. Unfiltered on purpose: the app
+  # version gate has to see EVERY PR, since the files it guards
+  # (apps/mobile/app.json, apps/mobile/package.json, the landing page's
+  # app-info.ts) sit outside any path filter that would make sense here.
+  scripts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Unit tests for the repo tooling
+        run: node --test "scripts/**/*.test.mjs"
+      - name: App version consistency (app.json == package.json == app-info.ts)
+        run: node scripts/check-app-version.mjs
 
   audit:
     runs-on: ubuntu-latest

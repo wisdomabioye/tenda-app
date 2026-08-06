@@ -25,7 +25,13 @@ on:
       - '.github/workflows/contracts.yml'
 
 jobs:
-  # Unit tests for the drift machinery itself (pure, no contract toolchain).
+  # Semantic parity (enum order + protocol limits) across both contracts and the
+  # shared TS constants — catches the drift the ABI/IDL guard can't see. Pure
+  # parse, no contract toolchain.
+  #
+  # The unit tests for scripts/ itself used to run here too; they moved to
+  # ci.yml's `scripts` job, which is unfiltered and so covers every PR rather
+  # than only the contract-touching ones.
   scripts:
     runs-on: ubuntu-latest
     steps:
@@ -33,9 +39,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node --test "scripts/**/*.test.mjs"
-      # Semantic parity (enum order + protocol limits) across both contracts and
-      # the shared TS constants — catches the drift the ABI/IDL guard can't see.
       - run: node scripts/check-contract-parity.mjs
 
   evm:

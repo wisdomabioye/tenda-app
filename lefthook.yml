@@ -20,3 +20,14 @@ pre-commit:
         - "contracts/solana/programs/**/*.rs"
         - "packages/shared/src/constants/escrow.ts"
       run: node scripts/check-contract-parity.mjs
+    # App version: apps/mobile/app.json is the source of truth, and two other
+    # files mirror it (Expo's package.json fallback, the landing page's release
+    # string + APK URL). Nothing is generated here, so there is nothing to
+    # `git add` — the check just refuses a hand-edit that desyncs them. Bump via
+    # `pnpm bump:version <patch|minor|major>`.
+    app-version:
+      glob:
+        - "apps/mobile/app.json"
+        - "apps/mobile/package.json"
+        - "apps/tendahq/src/content/app-info.ts"
+      run: node scripts/check-app-version.mjs
