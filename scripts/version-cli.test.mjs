@@ -19,7 +19,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync } f
 import { resolve, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
-import { ROOT, VERSION_FILES } from './lib/version-files.mjs'
+import { ROOT, VERSION_FILES, APP_CONFIG_FILE, EAS_JSON_FILE } from './lib/version-files.mjs'
 
 const SCRIPTS = dirname(fileURLToPath(import.meta.url))
 const BASE = 'https://github.com/wisdomabioye/tenda-app'
@@ -40,8 +40,28 @@ const FIXTURE = {
   ].join('\n'),
 }
 
+/**
+ * Both are checked by the gate but never rewritten by the bump, so they are
+ * seeded separately from FIXTURE — which is what `repo.read()` diffs.
+ */
+const EAS_JSON = `${JSON.stringify(
+  { cli: { appVersionSource: 'local' }, build: { testnet: { extends: 'preview' } } },
+  null,
+  2,
+)}\n`
+
+const APP_CONFIG = [
+  'export default ({ config }: ConfigContext): ExpoConfig => ({',
+  '  ...config,',
+  "  name: 'Tenda',",
+  '  ios: { ...config.ios, supportsTablet: true },',
+  "  android: { ...config.android, package: 'com.tendahq.mobile' },",
+  '})',
+  '',
+].join('\n')
+
 /** A throwaway monorepo carrying the real scripts and the fixture files. */
-function scratchRepo(t, files = FIXTURE) {
+function scratchRepo(t, files = FIXTURE, appConfig = APP_CONFIG, easJson = EAS_JSON) {
   const root = mkdtempSync(resolve(tmpdir(), 'tenda-cli-'))
   t.after(() => rmSync(root, { recursive: true, force: true }))
   cpSync(SCRIPTS, resolve(root, 'scripts'), { recursive: true })
@@ -49,6 +69,10 @@ function scratchRepo(t, files = FIXTURE) {
     mkdirSync(dirname(resolve(root, rel)), { recursive: true })
     writeFileSync(resolve(root, rel), files[key])
   }
+  mkdirSync(dirname(resolve(root, APP_CONFIG_FILE)), { recursive: true })
+  writeFileSync(resolve(root, APP_CONFIG_FILE), appConfig)
+  mkdirSync(dirname(resolve(root, EAS_JSON_FILE)), { recursive: true })
+  writeFileSync(resolve(root, EAS_JSON_FILE), easJson)
   return {
     root,
     run: (script, args = []) => {
@@ -85,6 +109,53 @@ test('check-app-version exits 1 and names the offending file on drift', (t) => {
   const { status, stderr } = repo.run('check-app-version.mjs')
   assert.equal(status, 1, 'a drifted repo must fail the gate')
   assert.match(stderr, /package\.json version "9\.9\.9"/)
+})
+
+/**
+ * Three files can agree perfectly while the build ignores all of them. These
+ * two edits are invisible to a diff review, a type-check and every render test
+ * — before this check the only way to catch them was reading
+ * `npx expo config --type public` by eye.
+ */
+test('check-app-version exits 1 when app.config.ts re-declares version', (t) => {
+  const repo = scratchRepo(t, FIXTURE, APP_CONFIG.replace("  name: 'Tenda',", "  version: '0.0.1',"))
+  const { status, stderr } = repo.run('check-app-version.mjs')
+  assert.equal(status, 1)
+  assert.match(stderr, /declares a `version:` key/)
+})
+
+test('check-app-version exits 1 when app.config.ts drops the android spread', (t) => {
+  const repo = scratchRepo(t, FIXTURE, APP_CONFIG.replace('...config.android, ', ''))
+  const { status, stderr } = repo.run('check-app-version.mjs')
+  assert.equal(status, 1)
+  assert.match(stderr, /missing `\.\.\.config\.android`/)
+  assert.match(stderr, /versionCode/)
+})
+
+/**
+ * The trap the single-sourcing work itself sprang: eas-cli refuses
+ * `autoIncrement` on a project with only a dynamic config, so before app.json
+ * existed the option was self-blocking. Creating app.json satisfied that guard,
+ * so re-adding it now WORKS — EAS bumps versionCode on the build machine, the
+ * runner discards the edit, and the uploaded binary permanently disagrees with
+ * the committed repo.
+ */
+test('check-app-version exits 1 when eas.json re-enables autoIncrement', (t) => {
+  const eas = JSON.parse(EAS_JSON)
+  eas.build.production = { autoIncrement: true }
+  const repo = scratchRepo(t, FIXTURE, APP_CONFIG, JSON.stringify(eas, null, 2))
+  const { status, stderr } = repo.run('check-app-version.mjs')
+  assert.equal(status, 1)
+  assert.match(stderr, /profile "production" sets autoIncrement/)
+})
+
+test('check-app-version exits 1 when eas.json moves versioning to EAS', (t) => {
+  const eas = JSON.parse(EAS_JSON)
+  eas.cli.appVersionSource = 'remote'
+  const repo = scratchRepo(t, FIXTURE, APP_CONFIG, JSON.stringify(eas, null, 2))
+  const { status, stderr } = repo.run('check-app-version.mjs')
+  assert.equal(status, 1)
+  assert.match(stderr, /appVersionSource must be "local"/)
 })
 
 test('check-app-version exits 1 when a version file is missing entirely', (t) => {

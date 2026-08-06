@@ -28,6 +28,8 @@ pre-commit:
     app-version:
       glob:
         - "apps/mobile/app.json"
+        - "apps/mobile/app.config.ts"
+        - "apps/mobile/eas.json"
         - "apps/mobile/package.json"
         - "apps/tendahq/src/content/app-info.ts"
       run: node scripts/check-app-version.mjs

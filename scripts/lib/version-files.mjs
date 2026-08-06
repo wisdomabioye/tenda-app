@@ -28,6 +28,29 @@ export const VERSION_FILES = /** @type {const} */ ({
 })
 
 /**
+ * Checked but never rewritten, so it is not part of VERSION_FILES: the bump
+ * has nothing to change here. It only has to keep DELEGATING to app.json —
+ * see assertConfigDelegatesVersion.
+ */
+export const APP_CONFIG_FILE = 'apps/mobile/app.config.ts'
+
+/**
+ * Also checked but never rewritten: eas.json must keep DEFERRING versioning to
+ * this repo rather than bumping on the build machine.
+ */
+export const EAS_JSON_FILE = 'apps/mobile/eas.json'
+
+/** @param {string} [root] */
+export function readAppConfig(root = ROOT) {
+  return readFileSync(resolve(root, APP_CONFIG_FILE), 'utf8')
+}
+
+/** @param {string} [root] */
+export function readEasJson(root = ROOT) {
+  return readFileSync(resolve(root, EAS_JSON_FILE), 'utf8')
+}
+
+/**
  * `root` is a parameter rather than a constant so the read/rewrite/write cycle
  * can be exercised against a scratch directory — the alternative is either
  * mocking fs (which tests the mock) or writing to the working tree from a test.

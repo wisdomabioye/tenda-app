@@ -110,5 +110,9 @@ module.exports = {
     'lib/dispute-thread.ts',
     'lib/dispute-send-error.ts',
     'hooks/useDisputeThread.ts',
+    // Build identity. Small, but it is the surface that spent months telling
+    // users the app was v1.0.0 when it had never been.
+    'lib/app-version.ts',
+    'components/ui/AppVersion.tsx',
   ],
 }

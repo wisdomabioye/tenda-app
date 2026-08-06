@@ -19,7 +19,20 @@ import {
   rewriteAppInfo,
 } from './version.mjs'
 import { parseVersionSources } from './version-plan.mjs'
-import { ROOT, VERSION_FILES, readVersionSources, writeVersionSources } from './version-files.mjs'
+import {
+  assertConfigDelegatesVersion,
+  assertEasDefersVersioning,
+} from './version-delegation.mjs'
+import {
+  ROOT,
+  VERSION_FILES,
+  APP_CONFIG_FILE,
+  EAS_JSON_FILE,
+  readVersionSources,
+  readAppConfig,
+  readEasJson,
+  writeVersionSources,
+} from './version-files.mjs'
 
 test('ROOT resolves to the monorepo root', () => {
   assert.ok(existsSync(resolve(ROOT, 'pnpm-workspace.yaml')), `not a workspace root: ${ROOT}`)
@@ -43,6 +56,19 @@ test('the real repo parses and is internally consistent', () => {
 test('parseVersionSources reads the same shape the gate consumes', () => {
   const { texts, sources } = readVersionSources()
   assert.deepEqual(parseVersionSources(texts), sources)
+})
+
+test('the real app.config.ts exists and still delegates the version to app.json', () => {
+  // The fixtures in version.test.mjs prove the checker; this proves the file it
+  // is aimed at. Without it, app.config.ts could be renamed or moved and only
+  // the subprocess CLI tests — which build their own scratch copy — would care.
+  assert.ok(existsSync(resolve(ROOT, APP_CONFIG_FILE)), `missing ${APP_CONFIG_FILE}`)
+  assert.equal(assertConfigDelegatesVersion(readAppConfig()), true)
+})
+
+test('the real eas.json exists and still leaves versioning to this repo', () => {
+  assert.ok(existsSync(resolve(ROOT, EAS_JSON_FILE)), `missing ${EAS_JSON_FILE}`)
+  assert.equal(assertEasDefersVersioning(readEasJson()), true)
 })
 
 /**

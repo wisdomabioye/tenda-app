@@ -4,9 +4,6 @@
     "appVersionSource": "local"
   },
   "build": {
-    "base": {
-      "prebuildCommand": "pnpm --filter @tenda/shared build"
-    },
     "development": {
       "distribution": "internal",
       "environment": "development",
@@ -23,8 +20,10 @@
         "buildType": "apk"
       }
     },
+    "testnet": {
+      "extends": "preview"
+    },
     "production": {
-      "autoIncrement": true,
       "environment": "production",
       "env": { "APP_ENV": "production" },
       "android": {

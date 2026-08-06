@@ -11,8 +11,7 @@ import {
   CircleDollarSign,
   Scale,
 } from 'lucide-react-native'
-import { typography } from '@/theme/tokens'
-import { ScreenContainer, Text, Spacer } from '@/components/ui'
+import { ScreenContainer, Text, Spacer, AppVersion } from '@/components/ui'
 import { Header } from '@/components/ui/Header'
 import { RestrictionBanner } from '@/components/reputation'
 import { SectionLabel } from '@/components/ui/SectionLabel'
@@ -125,7 +124,7 @@ export default function ProfileScreen() {
         <Text style={[s.disconnectText, { color: theme.colors.feedback.danger.base }]}>Disconnect</Text>
       </Pressable>
 
-      <Text style={[s.version, { color: theme.colors.content.tertiary }]}>Tenda v1.0.0</Text>
+      <AppVersion marginTop={18} />
       <Spacer size={20} />
 
       {user?.is_seeker && <SeekerWelcomeSheet onDismiss={() => {}} />}
@@ -146,11 +145,4 @@ const s = StyleSheet.create({
     borderRadius: 14,
   },
   disconnectText: { fontSize: 15, fontWeight: '600', letterSpacing: -0.15 },
-  version: {
-    textAlign: 'center',
-    fontFamily: typography.fonts.mono,
-    fontSize: 11,
-    letterSpacing: 0.44,
-    marginTop: 18,
-  },
 })

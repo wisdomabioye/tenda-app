@@ -53,7 +53,10 @@ test('QuoteLoading renders the fetching copy', () => {
 test('QuoteError renders the failure copy and fires the retry action', () => {
   const onRetry = jest.fn()
   render(<QuoteError onRetry={onRetry} />)
-  expect(screen.getByText(/couldn't fetch a quote/i)).toBeTruthy()
+  // Typographic apostrophe, matching the copy — the straight `'` is an eslint
+  // error in JSX text (react/no-unescaped-entities) and the sibling
+  // QuoteLoading assertion pins its `…` the same exact way.
+  expect(screen.getByText(/couldn’t fetch a quote/i)).toBeTruthy()
   fireEvent.press(screen.getByText('Retry'))
   expect(onRetry).toHaveBeenCalled()
 })

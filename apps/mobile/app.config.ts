@@ -4,17 +4,31 @@ const apiHost = process.env.EXPO_PUBLIC_API_URL
   ? new URL(process.env.EXPO_PUBLIC_API_URL).host
   : ''
 
+/**
+ * Version fields are deliberately ABSENT from this file. `version`,
+ * `android.versionCode` and `ios.buildNumber` live in app.json — the single
+ * source of truth that `scripts/bump-version.mjs` writes and
+ * `scripts/check-app-version.mjs` guards — and reach here through `...config`.
+ *
+ * The `...config.android` / `...config.ios` spreads below are load-bearing for
+ * the same reason. @expo/config passes the STATIC config in as `config` and
+ * then REPLACES it with whatever this function returns (Config.js:274-289); it
+ * does not deep-merge. A bare `android: { … }` therefore silently discards
+ * app.json's versionCode, and nothing else in the repo can see that happen —
+ * `npx expo config --type public` is the only check that catches it.
+ */
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: 'Tenda',
   slug: 'tenda-app',
-  version: '0.0.1',
   scheme: ['tenda'],
   orientation: 'portrait',
   icon: './assets/images/icon.png',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
   ios: {
+    // Carries app.json's `buildNumber` through — see the note above.
+    ...config.ios,
     supportsTablet: true,
     bundleIdentifier: 'com.tendahq.mobile',
     // Stage 9C, Sign in with Apple entitlement (App Store 4.8: required
@@ -27,6 +41,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     },
   },
   android: {
+    // Carries app.json's `versionCode` through — see the note above.
+    ...config.android,
     // 'resize' pairs with the app-wide KeyboardAvoidingView idiom
     // (behavior={undefined} on Android): the window resizes so bottom-anchored
     // inputs (ChatInput on the chat + dispute threads) fully clear the keyboard.

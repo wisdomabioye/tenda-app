@@ -74,7 +74,7 @@ export function QuoteError({ onRetry }: { onRetry: () => void }) {
   return (
     <View style={[s.quoteCard, { backgroundColor: tone.surface, borderColor: tone.border }]}>
       <Text size={13} color={tone.text} style={s.errorText}>
-        We couldn't fetch a quote. Check your connection and try again.
+        We couldn’t fetch a quote. Check your connection and try again.
       </Text>
       <Button variant="outline" size="sm" onPress={onRetry}>
         Retry
