@@ -22,7 +22,7 @@ import { ErrorCode } from '@tenda/shared'
 import { getConfig } from '@server/config'
 import type { VerifyTxJobPayload } from '@server/jobs/verify-tx'
 import type { OtpMessage } from '@server/lib/otp'
-// TYPE-ONLY, and it must stay that way: features/alerts/types.ts imports
+// TYPE-ONLY, and it must stay that way: features/alerts/types/channel.ts imports
 // `QueueService` back from this module, so the two reference each other. Both
 // directions are erased today (verified in the emitted JS — neither file
 // requires the other), but a value import on either side would close a real
@@ -119,8 +119,8 @@ export interface JobPayload {
   /**
    * One operational alert, for ONE channel. Imported rather than re-declared so
    * the producer, this queue and `deliverAlert` cannot describe the job three
-   * slightly different ways — see features/alerts/types.ts for why the fan-out
-   * is per channel rather than one job that loops them.
+   * slightly different ways — see features/alerts/types/channel.ts for why the
+   * fan-out is per channel rather than one job that loops them.
    */
   alerts: AlertJob
 }

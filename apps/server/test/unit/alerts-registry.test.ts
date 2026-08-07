@@ -20,9 +20,15 @@
  * and the live implementations agree in both directions. Each reads like a
  * triviality; each failure mode is a channel an operator can configure and
  * never hear from.
+ *
+ * The last test is a different kind of fact — the LAYERING inside ./types — and
+ * it lives here because it shares the property that makes this file worth
+ * having: nothing a behavioural test can observe would ever notice it break.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import {
   ALERT_CHANNELS,
   ALERT_CHANNEL_NAMES,
@@ -84,4 +90,44 @@ test('every alert kind is accepted by at least one channel', () => {
     const accepting = ALERT_CHANNELS.filter((channel) => channel.kinds.includes(kind))
     assert.ok(accepting.length > 0, `'${kind}' would reach nobody — no channel accepts it`)
   }
+})
+
+// ---------- types layering --------------------------------------------------
+
+// `types/channel.ts` imports from `types/alert.ts`; the reverse must never
+// happen. Today both directions are `import type` and therefore erased, so a
+// cycle would be invisible: it would compile, emit no require, and pass every
+// suite. It stops being invisible the moment either side needs a VALUE — and
+// `ALERT_KINDS` and `ALERT_CHANNEL_NAMES` are both values, so that is one
+// plausible edit away ("this kind only goes to Slack" is the obvious one).
+//
+// A source scan rather than a runtime probe, for the reason this file's own
+// header records about the in-app cycle: a runtime check passes or fails on
+// import ORDER, so it proves much less than it appears to.
+test('types/alert.ts imports nothing from its own directory (the leaf of ./types)', () => {
+  const dir = join(__dirname, '..', '..', 'src', 'features', 'alerts', 'types')
+  const alert = readFileSync(join(dir, 'alert.ts'), 'utf8')
+
+  // ANY sibling, not just './channel'. The first version of this checked for
+  // `from './channel'` alone and was measured to pass on two real cycles: one
+  // routed through `./index` (which re-exports ./channel, so it is the same
+  // cycle wearing a hat) and one written with double quotes. `alert.ts` depends
+  // on nothing local, so "no relative import at all" is both the simpler rule
+  // and the true one.
+  const relative = [...alert.matchAll(/from\s+['"](\.[^'"]*)['"]/g)].map((m) => m[1])
+  assert.deepStrictEqual(
+    relative,
+    [],
+    `types/alert.ts imports ${relative.join(', ')} from its own directory — it is the ` +
+      'leaf of ./types, and anything it reaches for there closes a cycle with channel.ts',
+  )
+
+  // The guard is only meaningful while the other direction actually exists; if
+  // channel.ts stopped importing ./alert there would be no cycle to prevent and
+  // this test would be passing for the wrong reason.
+  assert.match(
+    readFileSync(join(dir, 'channel.ts'), 'utf8'),
+    /from\s+['"]\.\/alert['"]/,
+    'channel.ts no longer imports ./alert — re-check whether this guard still guards anything',
+  )
 })
