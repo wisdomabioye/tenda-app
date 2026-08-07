@@ -77,3 +77,46 @@ export function stubFetchRejecting(error: Error): void {
 export function restoreFetch(): void {
   globalThis.fetch = realFetch
 }
+
+// ---------- Expo push -------------------------------------------------------
+
+/** What the Expo transport was asked to deliver, across every batch. */
+export interface ExpoPushCapture {
+  /** Every token, in order. `tokens.length` is "how many pushes went out". */
+  tokens: string[]
+}
+
+/**
+ * Stub the Expo push endpoint and record the tokens it is asked to deliver to.
+ *
+ * Four suites had hand-rolled this: three counting sends (the retry-idempotency
+ * tests) and one reporting DeviceNotRegistered for a dead token. All four built
+ * the ticket array by hand and returned an object literal `as Response`, which
+ * is the exact cast this module's header explains away — so the copies had also
+ * inherited the flaw the shared helper exists to remove.
+ *
+ * `statusFor` covers both uses: default every token to 'ok' to just count, or
+ * return 'DeviceNotRegistered' for a token to exercise the pruning path. Expo
+ * correlates tickets to tokens BY INDEX, which is why the response is built by
+ * mapping the request's own `to` array rather than from a fixture.
+ */
+export function stubExpoPush(
+  statusFor: (token: string) => 'ok' | 'DeviceNotRegistered' = () => 'ok',
+): ExpoPushCapture {
+  const capture: ExpoPushCapture = { tokens: [] }
+  globalThis.fetch = async (_input: string | URL | Request, init?: RequestInit) => {
+    const { to } = JSON.parse(String(init?.body)) as { to: string[] }
+    capture.tokens.push(...to)
+    const data = to.map((token) => {
+      const status = statusFor(token)
+      return status === 'ok'
+        ? { status: 'ok' }
+        : { status: 'error', details: { error: status } }
+    })
+    return new Response(JSON.stringify({ data }), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+  return capture
+}

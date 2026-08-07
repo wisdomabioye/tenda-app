@@ -276,16 +276,27 @@ export interface PersistDeps {
 }
 
 /**
+ * Outcome of a persist attempt. `'duplicate'` is not a failure: it is what a
+ * retried job looks like, and the caller uses it to skip the work that was
+ * already done rather than repeat it.
+ */
+export type PersistOutcome = 'inserted' | 'duplicate'
+
+/**
  * Persist a notification and, only when a NEW row is written, broadcast a live
  * NotificationFrame on the recipient's `user:<id>` channel. onConflictDoNothing
  * returns [] on a retry duplicate → no second row, no second badge. Title/body
  * are clamped to the column caps so a composed body can never overflow the
  * column and 5xx the insert.
+ *
+ * REPORTS which happened, because the row is the only durable record that this
+ * notification was already delivered once, and the PUSH needs that answer too —
+ * see the note at the deliverNotification call site.
  */
 export async function persistNotification(
   deps: PersistDeps,
   payload: JobPayload['notifications'],
-): Promise<void> {
+): Promise<PersistOutcome> {
   const [row] = await deps.db
     .insert(notifications)
     .values({
@@ -297,10 +308,11 @@ export async function persistNotification(
     })
     .onConflictDoNothing({ target: notifications.id })
     .returning()
-  if (row === undefined) return // retry duplicate — already delivered
+  if (row === undefined) return 'duplicate' // retry — already delivered
 
   deps.wsBroadcast.broadcast(channelName({ kind: 'user', id: payload.user_id }), {
     type: 'notification',
     notification: toNotificationWire(row),
   })
+  return 'inserted'
 }

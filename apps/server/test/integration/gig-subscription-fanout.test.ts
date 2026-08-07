@@ -10,7 +10,9 @@
  */
 import { test, beforeEach } from 'node:test'
 import assert from 'node:assert'
-import { gig_subscriptions, users } from '@tenda/shared/db/schema'
+import { eq } from 'drizzle-orm'
+import { device_tokens, gig_subscriptions, notifications, users } from '@tenda/shared/db/schema'
+import { buildProcessors } from '@server/workers/processors'
 import {
   fanOutEscrowEvent,
   SUBSCRIBER_PAGE_SIZE,
@@ -18,6 +20,7 @@ import {
 } from '@server/workers/escrow-fanout'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import { drainSubscriberFanout } from '../helpers/fanout'
+import { restoreFetch, stubExpoPush } from '../helpers/fetch-stub'
 import { userFixture } from '../helpers/fixtures'
 import {
   TEST_DB_CONFIGURED,
@@ -313,6 +316,39 @@ test('re-running the expansion reuses the notification id (a retry writes no sec
   const ids = capture.notifications().map((n) => n.id)
   assert.strictEqual(ids.length, 2, 'both runs enqueued — the dedup is at the id, not the enqueue')
   assert.strictEqual(ids[0], ids[1], 'same (gig, recipient) must mean the same notification id')
+
+  // The id is only half of it. Both jobs reach the DELIVERY worker, and until
+  // #45 that worker pushed on every attempt regardless of whether the insert
+  // conflicted — so the replay this test describes buzzed the subscriber twice
+  // while writing one row.
+  //
+  // COUNT THE PUSHES. Asserting on rows and badges here would be decoration:
+  // both were already idempotent before #45, and measured — with the fix
+  // reverted, a version of this test that checked only those two passed clean.
+  // The wire is the only thing that saw the bug.
+  await app.db
+    .insert(device_tokens)
+    .values({ user_id: watcher.row.id, token: 'ExponentPushToken[live]', platform: 'expo' })
+
+  const pushed = stubExpoPush()
+  const deliver = buildProcessors(app).notifications
+  try {
+    for (const job of capture.notifications()) await deliver(job)
+  } finally {
+    restoreFetch()
+  }
+
+  assert.strictEqual(
+    pushed.tokens.length,
+    1,
+    'the replayed page re-pushed — every subscriber buzzed twice',
+  )
+
+  const rows = await app.db
+    .select()
+    .from(notifications)
+    .where(eq(notifications.user_id, watcher.row.id))
+  assert.strictEqual(rows.length, 1, 'and still exactly one row')
 })
 
 test('one subscriber, two gigs: DIFFERENT ids (or they only ever hear about the first)', { skip }, async () => {

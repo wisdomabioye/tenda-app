@@ -32,6 +32,7 @@ import type { JobName, JobPayload } from '@server/plugins/queue'
 import { WORKER_CONCURRENCY } from '@server/plugins/workers'
 import { installCapture, type SideEffectCapture } from '../helpers/side-effects'
 import { republishEvent } from '../helpers/republish-event'
+import { restoreFetch, stubExpoPush } from '../helpers/fetch-stub'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
@@ -282,22 +283,12 @@ test('notifications: an Expo DeviceNotRegistered token is pruned, the live one k
     { user_id: u.row.id, token: 'ExponentPushToken[gone]', platform: 'expo' },
   ])
 
-  const realFetch = globalThis.fetch
-  globalThis.fetch = (async (_url: string, init?: { body?: string }) => {
-    // Expo preserves token order; report DeviceNotRegistered for the dead one.
-    const body = JSON.parse(String(init?.body)) as { to: string[] }
-    const data = body.to.map((t) =>
-      t.includes('gone')
-        ? { status: 'error', details: { error: 'DeviceNotRegistered' } }
-        : { status: 'ok' },
-    )
-    return { ok: true, status: 200, json: async () => ({ data }) } as Response
-  }) as typeof fetch
+  stubExpoPush((token) => (token.includes('gone') ? 'DeviceNotRegistered' : 'ok'))
 
   try {
     await buildProcessors(app).notifications(notifJob({ user_id: u.row.id, data: { k: 'v' } }))
   } finally {
-    globalThis.fetch = realFetch
+    restoreFetch()
   }
 
   const rows = await app.db.select().from(device_tokens).where(eq(device_tokens.user_id, u.row.id))
@@ -434,6 +425,60 @@ test('delivering the SAME id twice is idempotent — one row, no double badge', 
   )
   // The retry must NOT re-broadcast, else the unread badge double-counts.
   assert.strictEqual(userFrames(u.row.id).length, 1)
+})
+
+test('delivering the SAME id twice sends ONE push — the retry is not re-delivered', { skip }, async () => {
+  // The row and the badge were already idempotent; the PUSH was not, and that
+  // is the half a user actually feels. It matters because the gig fan-out is
+  // one retried job over many pages: a failure on a later page replays the
+  // earlier ones, so every subscriber already reached gets a second buzz.
+  //
+  // Counts SENDS, not rows — the two existing idempotency tests above both
+  // assert on `notifications` and `userFrames`, and both passed throughout the
+  // window where every retry re-pushed. Nothing observed the wire.
+  const app = getApp()
+  const u = await createUser(app)
+  await app.db
+    .insert(device_tokens)
+    .values({ user_id: u.row.id, token: 'ExponentPushToken[live]', platform: 'expo' })
+
+  const pushed = stubExpoPush()
+
+  const job = notifJob({ user_id: u.row.id, persist: true })
+  try {
+    await buildProcessors(app).notifications(job)
+    assert.strictEqual(pushed.tokens.length, 1, 'the first delivery must actually push')
+    await buildProcessors(app).notifications(job) // BullMQ retry — identical job.data
+  } finally {
+    restoreFetch()
+  }
+
+  assert.strictEqual(pushed.tokens.length, 1, 'the retry re-pushed — the recipient was buzzed twice')
+})
+
+test('persist=false still pushes on every attempt — the dedup keys on the ROW', { skip }, async () => {
+  // The limit of this fix, pinned so it is not mistaken for something broader.
+  // A chat notice writes no row, so there is nothing to conflict on and a retry
+  // re-pushes. Fixing that needs a queue-level dedup key, not this one — see
+  // #45's option (b). Asserting it here means the gap is documented by a test
+  // rather than only by prose, and a future fix will have to update this.
+  const app = getApp()
+  const u = await createUser(app)
+  await app.db
+    .insert(device_tokens)
+    .values({ user_id: u.row.id, token: 'ExponentPushToken[live]', platform: 'expo' })
+
+  const pushed = stubExpoPush()
+
+  const job = notifJob({ user_id: u.row.id, persist: false })
+  try {
+    await buildProcessors(app).notifications(job)
+    await buildProcessors(app).notifications(job)
+  } finally {
+    restoreFetch()
+  }
+
+  assert.strictEqual(pushed.tokens.length, 2, 'persist=false has no row to dedup on — both attempts push')
 })
 
 test('an over-long body is clamped to the column cap (no numeric/length overflow 5xx)', { skip }, async () => {

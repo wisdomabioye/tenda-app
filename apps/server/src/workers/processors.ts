@@ -57,11 +57,32 @@ async function deliverNotification(
   // Persist + live WS FIRST, before the no-token early-return: a user with the
   // in-app centre but no push device must still get the row + badge. Push is
   // best-effort on top. Idempotent (onConflictDoNothing) so a retry is safe.
+  //
+  // A 'duplicate' STOPS THE PUSH TOO. The row is the only durable record that
+  // this notification already went out, and without consulting it a retried job
+  // re-pushes: the gig fan-out replays whole pages of subscribers when it fails
+  // part-way (the expansion is one job over many pages), so page 1 gets its
+  // "New Gig Posted" push again for every later page that fails. The persisted
+  // half was already idempotent; this is the transient half catching up.
+  //
+  // Honest limit: 'duplicate' means "a row exists", not "a push was sent". If a
+  // previous attempt inserted and then died BEFORE pushing, this skips a push
+  // that never happened. The user still has the row and the live WS frame from
+  // that attempt, so it is a lost buzz, not a lost notice — and that beats
+  // re-pushing every subscriber in the common case.
+  //
+  // The window is one DB read wide (the device_tokens SELECT below), but that
+  // rests on an invariant worth naming because it is NOT routePush's doing:
+  // routePush awaits `service.send` UNWRAPPED, and each service swallows its own
+  // provider failures — fcm.ts and apns.ts catch per token, expo delegates to
+  // sendPush which wraps the whole batch. A future channel that let a send
+  // reject would widen this window from one query to the whole delivery.
   if (payload.persist) {
-    await persistNotification(
+    const outcome = await persistNotification(
       { db: fastify.db, wsBroadcast: fastify.wsBroadcast },
       payload,
     )
+    if (outcome === 'duplicate') return
   }
 
   // Tokens resolve at DELIVERY time (queue.ts doc: tokens churn between
