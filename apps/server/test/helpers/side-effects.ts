@@ -29,6 +29,16 @@ export interface SideEffectCapture {
    * notification, which was true only until a second queue shared this seam.
    */
   enqueued: CapturedJob[]
+  /**
+   * Batch sizes passed to `enqueueMany`, in order — the ONE thing `enqueued`
+   * cannot show, because it flattens bulk jobs in with single ones.
+   *
+   * Forwarded from the double because a producer that pages its recipients is
+   * indistinguishable from one that sends them all at once by any other
+   * measurement: same recipients, same notices, same order. The page boundary
+   * only exists here.
+   */
+  bulkBatchSizes: number[]
   /** WS frames broadcast since install, in order. */
   broadcasts: Broadcast[]
   /** The notification payloads only, narrowed — the common case. */
@@ -71,8 +81,9 @@ export function installCapture(app: FastifyInstance): SideEffectCapture {
   }
 
   return {
-    // Shares the double's array by reference, so it fills as jobs arrive.
+    // Shares the double's arrays by reference, so they fill as jobs arrive.
     enqueued: queue.calls,
+    bulkBatchSizes: queue.bulkBatchSizes,
     broadcasts,
     notifications: queue.notifications,
     notifiedUserIds: () => queue.notifications().map((n) => n.user_id),

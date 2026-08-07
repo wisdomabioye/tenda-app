@@ -5,21 +5,29 @@
  * calls `fanOutEscrowEvent`, and this module owns the description of what it
  * does, so there is one place to update when a step is added.
  *
- * verify-tx republish (stage-2 § listener step 5) calls fanOutEscrowEvent:
+ * verify-tx republish (stage-2 § listener step 5) calls fanOutEscrowEvent. Its
+ * steps, numbered as they are in the body — this list had drifted to three
+ * entries while the body had five, which is the failure the paragraph above
+ * promises not to have:
  *   1. WS: an `escrow:<id>` frame the TransactionMonitor subscribes to (#42).
  *   2. Alerts: an operational alert for the events an OPERATOR must act on.
- *   3. Push: a 'notifications' job to the party who must LEARN of the event
+ *   3. On `escrow.created`, hand the new-gig subscriber expansion to the
+ *      'fanout-subscribers' queue and return. Enqueued, never expanded here —
+ *      the expansion is unbounded and this runs on a scarce verify-tx slot.
+ *   4. Applicants the transition moved without them acting (assign settles
+ *      rivals, unassign revives them), from ids the applier returned.
+ *   5. Push: a 'notifications' job to the party who must LEARN of the event
  *      (the non-actor), resolved from the escrow row.
  *
- * Steps 2 and 3 have different audiences and are deliberately independent:
+ * Steps 2 and 5 have different audiences and are deliberately independent:
  * features/alerts reaches whoever holds a permission (a mediator), this
  * module's own copy reaches the parties to the escrow. Neither is the other's
  * fallback, and neither may cost the other its delivery.
  *
  * Split into ./copy (the kind-aware wording matrix), ./subscribers (the
- * new-gig SQL fan-out) and ./enqueue-notice (the single delivery loop), with
- * the orchestrator here. Barrel keeps the `@server/workers/escrow-fanout`
- * import surface stable.
+ * new-gig SQL fan-out, now driven by its own queue rather than by step 3) and
+ * ./enqueue-notice (the single delivery loop), with the orchestrator here.
+ * Barrel keeps the `@server/workers/escrow-fanout` import surface stable.
  */
 
 import { eq } from 'drizzle-orm'
@@ -30,10 +38,15 @@ import { alertRefForEscrowEvent, enqueueAlert } from '@server/features/alerts'
 import type { EscrowRepublishEvent } from '@server/lib/escrow-events'
 import { APPLICANT_NOTICE, noticeCopyFor, partyNoticeFor } from './copy'
 import { enqueueEscrowNotice } from './enqueue-notice'
-import { fanOutNewGigToSubscribers } from './subscribers'
 
 // Named rather than `export *`: `export type` marks what is erased and
 // `export` what survives to runtime, and no __exportStar loop is emitted.
+//
+// The subscriber expansion is re-exported but NOT called from this file any
+// more: step 3 below enqueues it, and workers/processors.ts binds it to the
+// 'fanout-subscribers' queue. The barrel stays its one import surface so that
+// move did not change how anything reaches it.
+export { fanOutNewGigToSubscribers, SUBSCRIBER_PAGE_SIZE } from './subscribers'
 export {
   partyNoticeFor,
   noticeCopyFor,
@@ -90,8 +103,22 @@ export async function fanOutEscrowEvent(
 
   // 3. New-gig subscriber fan-out (created = went live; the actor needs no
   //    notice, subscribers do).
+  //
+  //    HANDED OFF rather than done here. This function runs inside the verify-tx
+  //    job, which has 8 worker slots for the whole app; the expansion is
+  //    unbounded in the subscriber count, so doing it here held one of those
+  //    slots for its full duration and queued transaction verification behind a
+  //    popular gig. Enqueueing is one round trip regardless of how many
+  //    subscribers there turn out to be.
+  //
+  //    No `job_id`: a dedup key would be pointless and harmful here. Pointless
+  //    because the caller already dedups — verify-tx republishes only when the
+  //    transition APPLIED, and its step-1 `isProcessed` check means a retried
+  //    job returns before republishing. Harmful because BullMQ keeps a failed
+  //    job under its id (removeOnFail: 7 days), so a keyed expansion that
+  //    exhausted its retries would silently swallow a later re-enqueue.
   if (event.internal_event === 'escrow.created') {
-    await fanOutNewGigToSubscribers(fastify, event.escrow_id)
+    await fastify.queue.enqueue('fanout-subscribers', { escrow_id: event.escrow_id })
     return
   }
 

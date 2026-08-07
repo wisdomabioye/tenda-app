@@ -104,6 +104,19 @@ export interface JobPayload {
   /** Daily retention sweep of stale personal notifications, tick id for correlation. */
   'prune-notifications': { tick_id: string }
   /**
+   * Expand a new gig into one notification per matching subscriber.
+   *
+   * A queue of its own rather than work done inline in the verify-tx republish:
+   * the expansion is unbounded in the subscriber count, and doing it inline held
+   * one of only 8 verify-tx slots for its whole duration — so a popular gig
+   * delayed the transaction verification that users are watching a
+   * TransactionMonitor for. Carries the escrow id and nothing else; the worker
+   * re-reads the gig, because the row is the source of truth for city/category
+   * and copying them into the payload would let a job enqueued before an edit
+   * fan out against stale matching criteria.
+   */
+  'fanout-subscribers': { escrow_id: string }
+  /**
    * One operational alert, for ONE channel. Imported rather than re-declared so
    * the producer, this queue and `deliverAlert` cannot describe the job three
    * slightly different ways — see features/alerts/types.ts for why the fan-out

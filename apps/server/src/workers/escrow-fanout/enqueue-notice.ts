@@ -26,6 +26,13 @@ export async function enqueueEscrowNotice(
   // (an unassigned counterparty) without filtering at every call site.
   user_ids: readonly (string | null)[],
   notice: NoticeCopy,
+  // Per-recipient stable id, for the ONE caller that can be re-run for the same
+  // notice: the subscriber expansion is a retried BullMQ job, so a failure on
+  // page 40 replays pages 1-39. Without this the replay writes a second
+  // notification-centre row and a second badge for everyone already reached.
+  // The party and applicant notices need no such key — they are produced inside
+  // the verify-tx republish, whose errors are swallowed rather than retried.
+  idFor?: (user_id: string) => string,
 ): Promise<void> {
   // Built once: every recipient of one notice gets the same bag, and a gig
   // with a thousand subscribers should not allocate a thousand copies.
@@ -37,5 +44,6 @@ export async function enqueueEscrowNotice(
     title: notice.title,
     body: notice.body,
     data,
+    ...(idFor !== undefined ? { idFor } : {}),
   })
 }

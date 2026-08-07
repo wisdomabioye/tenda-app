@@ -201,72 +201,53 @@ test('a notice event whose escrow row is missing broadcasts but does not throw o
   assert.strictEqual(cap.enqueued.length, 0)
 })
 
-// ---------- fanOutNewGigToSubscribers (escrow.created) --------------------------
+// ---------- escrow.created → the expansion queue --------------------------------
+//
+// WHICH subscribers match a gig is not asserted here any more, and the four
+// tests that did assert it are gone rather than moved: every one had a literal
+// counterpart in test/integration/gig-subscription-fanout.test.ts, which owns
+// that question (exact + wildcard matching, the excluded poster, the remote-gig
+// rule, the multi-subscription dedup, and the exchange escrow that matches
+// nothing). Two copies of the matching rules meant two places to update and one
+// of them staying green while describing the old behaviour.
+//
+// What is this file's subject is the ROUTING, which is what the tests below
+// pin: republish still broadcasts, and hands the expansion off to its own queue
+// rather than doing it on a verify-tx worker slot.
 
-test('created fans out to matching city/wildcard subscribers, excluding the creator', { skip }, async () => {
-  const app = getApp()
-  const creator = await createUser(app)
-  const subCity = await createUser(app)
-  const subWild = await createUser(app)
-  const subOtherCity = await createUser(app)
-  const e = await createEscrow(app, { creator_id: creator.row.id, kind: 'gig' })
-  await attachGigDetails(app, e.id, { city: 'Lagos', category: 'service' })
-
-  await app.db.insert(gig_subscriptions).values([
-    { user_id: subCity.row.id, city: 'Lagos', category: 'service' },
-    { user_id: subWild.row.id, city: '*', category: '*' },
-    { user_id: subOtherCity.row.id, city: 'Abuja', category: 'service' }, // no match
-    { user_id: creator.row.id, city: '*', category: '*' }, // self — excluded
-  ])
-
-  await buildVerifyTxDeps(app).republish(republishEvent('EscrowCreated', { escrow_id: e.id }))
-
-  assert.deepStrictEqual(new Set(cap.notifiedUserIds()), new Set([subCity.row.id, subWild.row.id]))
-  assert.ok(cap.notifications().every((n) => n.title === 'New Gig Posted'))
-})
-
-test('a remote gig (null city) matches wildcard-city subscribers only', { skip }, async () => {
-  const app = getApp()
-  const creator = await createUser(app)
-  const subWild = await createUser(app)
-  const subCity = await createUser(app)
-  const e = await createEscrow(app, { creator_id: creator.row.id, kind: 'gig' })
-  await attachGigDetails(app, e.id, { city: null, category: 'service' })
-
-  await app.db.insert(gig_subscriptions).values([
-    { user_id: subWild.row.id, city: '*', category: 'service' },
-    { user_id: subCity.row.id, city: 'Lagos', category: 'service' }, // city sub must NOT match a remote gig
-  ])
-
-  await buildVerifyTxDeps(app).republish(republishEvent('EscrowCreated', { escrow_id: e.id }))
-  assert.deepStrictEqual(cap.notifiedUserIds(), [subWild.row.id])
-  assert.match(String(cap.notifications()[0].body), /Remote/)
-})
-
-test('one subscriber with two matching sub rows is notified exactly once (dedup)', { skip }, async () => {
+test('created broadcasts, then hands the expansion to its own queue', { skip }, async () => {
   const app = getApp()
   const creator = await createUser(app)
   const sub = await createUser(app)
   const e = await createEscrow(app, { creator_id: creator.row.id, kind: 'gig' })
   await attachGigDetails(app, e.id, { city: 'Lagos', category: 'service' })
-
-  await app.db.insert(gig_subscriptions).values([
-    { user_id: sub.row.id, city: 'Lagos', category: 'service' },
-    { user_id: sub.row.id, city: '*', category: '*' }, // same user, both match
-  ])
+  // A live matching subscriber, so "no notifications" is a statement about
+  // where the work happens rather than about there being no work to do.
+  await app.db
+    .insert(gig_subscriptions)
+    .values({ user_id: sub.row.id, city: 'Lagos', category: 'service' })
 
   await buildVerifyTxDeps(app).republish(republishEvent('EscrowCreated', { escrow_id: e.id }))
-  assert.deepStrictEqual(cap.notifiedUserIds(), [sub.row.id]) // once, not twice
+
+  assert.strictEqual(cap.broadcasts.length, 1)
+  assert.deepStrictEqual(cap.enqueued.map((j) => j.name), ['fanout-subscribers'])
+  assert.deepStrictEqual(cap.notifiedUserIds(), [])
 })
 
-test('created on an exchange escrow (no gig_details) fans out nothing', { skip }, async () => {
-  const app = getApp()
-  const creator = await createUser(app)
-  const e = await createEscrow(app, { creator_id: creator.row.id, kind: 'exchange' })
-  await app.db.insert(gig_subscriptions).values({ user_id: (await createUser(app)).row.id, city: '*', category: '*' })
+// NOT here: a test that the 'fanout-subscribers' processor reaches the
+// expansion. helpers/fanout.ts drives every gig-subscription-fanout test
+// through `buildProcessors(app)['fanout-subscribers']` precisely so the binding
+// is covered, so a test here would assert the same call every test in that file
+// already makes — the duplication this section's header objects to.
 
-  await buildVerifyTxDeps(app).republish(republishEvent('EscrowCreated', { escrow_id: e.id }))
-  assert.strictEqual(cap.broadcasts.length, 1) // WS still fires
+test('an expansion job for an escrow that no longer exists is a no-op', { skip }, async () => {
+  // The gap the hop opened: the escrow is read when the job RUNS, not when it
+  // is enqueued, so a gig deleted in between must not throw — a throw here is a
+  // BullMQ retry storm for a row that will never come back.
+  const app = getApp()
+  await buildProcessors(app)['fanout-subscribers']({
+    escrow_id: '00000000-0000-4000-8000-000000000000',
+  })
   assert.strictEqual(cap.enqueued.length, 0)
 })
 

@@ -23,9 +23,14 @@ const byName = new Map(REPEATABLES.map((r) => [r.name as string, r]))
  */
 const EVENT_DRIVEN: Partial<Record<JobName, string>> = {
   'verify-tx': 'enqueued per tx attempt by the client ping and the chain listeners',
-  notifications: 'enqueued by every fan-out, one job per recipient',
+  // "one job per recipient" until #26 — every fan-out now sends the whole
+  // recipient list as ONE batched enqueue, and the job-per-recipient split
+  // happens inside that call.
+  notifications: 'enqueued by every fan-out, one batched job set per notice',
   'send-otp': 'enqueued by the auth challenge so the response never blocks on a provider',
   alerts: 'enqueued by the escrow fan-out when a dispute is raised on-chain',
+  'fanout-subscribers':
+    'enqueued by the escrow fan-out on escrow.created, one job per new gig',
 }
 
 test('the schedule contains exactly the known periodic jobs, each once', () => {

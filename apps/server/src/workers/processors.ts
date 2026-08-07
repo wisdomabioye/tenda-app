@@ -17,7 +17,7 @@ import { drizzleEscrowEventStore } from '@server/lib/escrow-events'
 import { expireApplicationsHandler } from '@server/jobs/expire-applications'
 import { drizzleApplicationStore } from '@server/features/applications/store'
 import { persistNotification } from '@server/lib/notify'
-import { fanOutEscrowEvent } from './escrow-fanout'
+import { fanOutEscrowEvent, fanOutNewGigToSubscribers } from './escrow-fanout'
 import {
   buildPushServices,
   routePush,
@@ -170,6 +170,12 @@ export function buildProcessors(
 
     'prune-notifications': () =>
       handleNotificationRetention({ db: fastify.db, log: fastify.log, now: () => new Date() }),
+
+    // The new-gig expansion, enqueued by step 3 of `fanOutEscrowEvent` instead
+    // of being run inside it. A thin binding on purpose: everything about which
+    // subscribers match and how the read is paged belongs to the fan-out module,
+    // so this layer only says which queue drives it.
+    'fanout-subscribers': (payload) => fanOutNewGigToSubscribers(fastify, payload.escrow_id),
 
     notifications: (payload) => deliverNotification(fastify, pushServices, payload),
 

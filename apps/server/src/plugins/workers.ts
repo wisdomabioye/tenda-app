@@ -46,6 +46,13 @@ export const WORKER_CONCURRENCY: Record<JobName, number> = {
   'expire-fiat-quotes': 1,
   'update-price-stats': 1,
   'prune-notifications': 1,
+  // Two, not eight: the point of moving expansion off the verify-tx worker was
+  // to stop one popular gig blocking a scarce slot, and a queue of its own does
+  // that at concurrency 1. The second slot is so a 50,000-subscriber gig does
+  // not head-of-line block the three-subscriber one posted a second later.
+  // Higher would only widen the burst this job pushes onto `notifications`,
+  // which is the pressure the split was meant to bound rather than relocate.
+  'fanout-subscribers': 2,
   // Outbound HTTP (a Slack webhook) plus one small read — I/O-bound, not CPU,
   // so it parallelises. Lower than notifications because the volume is orders
   // of magnitude smaller: one dispute, not one per subscriber.
