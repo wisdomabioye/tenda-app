@@ -155,6 +155,13 @@
       "when": 1785268310795,
       "tag": "0021_milky_tombstone",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1786090412904,
+      "tag": "0022_nappy_serpent_society",
+      "breakpoints": true
     }
   ]
 }

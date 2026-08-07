@@ -45,26 +45,67 @@ export const resolutionStatusEnum = pgEnum('resolution_status', [
   'rejected',
 ])
 
-export const disputes = pgTable('disputes', {
-  id: uuid('id').primaryKey().defaultRandom(),
-  escrow_id: uuid('escrow_id')
-    .notNull()
-    .unique('disputes_escrow_id_uq')
-    .references(() => escrows.id, { onDelete: 'cascade' }),
-  raised_by: uuid('raised_by')
-    .notNull()
-    .references(() => users.id, { onDelete: 'restrict' }),
-  reason: text('reason').notNull(),
-  // CO7 claim-based mediation: an admin claims a dispute from the open
-  // pool (POST /admin/disputes/:id/claim) before mediating in its thread.
-  // Null = unclaimed. Cleared by release; survives resolution for audit.
-  assigned_to: uuid('assigned_to').references(() => users.id, { onDelete: 'restrict' }),
-  assigned_at: timestamp('assigned_at'),
-  winner: disputeWinnerEnum('winner'),
-  resolved_by: uuid('resolved_by').references(() => users.id, { onDelete: 'restrict' }),
-  resolved_at: timestamp('resolved_at'),
-  created_at: timestamp('created_at').notNull().defaultNow(),
-})
+export const disputes = pgTable(
+  'disputes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    escrow_id: uuid('escrow_id')
+      .notNull()
+      .unique('disputes_escrow_id_uq')
+      .references(() => escrows.id, { onDelete: 'cascade' }),
+    raised_by: uuid('raised_by')
+      .notNull()
+      .references(() => users.id, { onDelete: 'restrict' }),
+    reason: text('reason').notNull(),
+    // CO7 claim-based mediation: an admin claims a dispute from the open
+    // pool (POST /admin/disputes/:id/claim) before mediating in its thread.
+    // Null = unclaimed. Cleared by release; survives resolution for audit.
+    assigned_to: uuid('assigned_to').references(() => users.id, { onDelete: 'restrict' }),
+    assigned_at: timestamp('assigned_at'),
+    winner: disputeWinnerEnum('winner'),
+    resolved_by: uuid('resolved_by').references(() => users.id, { onDelete: 'restrict' }),
+    resolved_at: timestamp('resolved_at'),
+    created_at: timestamp('created_at').notNull().defaultNow(),
+  },
+  (t) => [
+    // The unclaimed pool — the admin nav badge polls it every 30s per open tab
+    // (?status=open&assigned=none), and the route runs a row query and a count
+    // over the same filter in parallel, so `limit: 1` avoids neither.
+    //
+    // BOTH nulls belong in the predicate, and that is the measured part
+    // (docs/query_plan_measurements.md). The obvious `WHERE resolved_at IS NULL`
+    // is worse than having no index at all once the open queue is large: it
+    // matches every unresolved dispute, heap-fetches all of them and then
+    // discards the claimed ones on `assigned_to` — 0.678 ms against 0.534 ms
+    // unindexed, on the same pages the seq scan already read. With `assigned_to`
+    // in the predicate it is 0.047 ms and 14 buffers, in 16 kB.
+    //
+    // `created_at DESC` is here because the LIMIT 1 is not a limit without it.
+    // With no ordered path Postgres has to join every match through five joins
+    // and top-N sort them to return one row: on a backlogged queue that measured
+    // 7,324 buffers and 8.0 ms warm (24.5 ms cold) against 15 buffers and
+    // 0.058 ms indexed.
+    //
+    // `.nullsFirst()` is NOT decoration. Drizzle's bare `.desc()` emits
+    // `DESC NULLS LAST`, while SQL's bare `ORDER BY x DESC` — what the route
+    // writes — means DESC NULLS FIRST. Different pathkeys, so the index serves
+    // the FILTER but not the ORDERING, and a top-N Sort node reappears above the
+    // join: measured at 51 buffers / 0.208 ms against 14 / 0.062 ms, i.e. the
+    // early-stop this index exists for is silently lost. `created_at` is NOT
+    // NULL, so the two orderings can never actually differ in output — which is
+    // exactly why this would have gone unnoticed.
+    //
+    // The cost, named rather than glossed: a partial index's PREDICATE columns
+    // block HOT updates just as its key columns do (measured — 500/500 HOT
+    // before, 0/500 after, on a table with room to spare). So claim, release
+    // and resolve each write a new index entry and a non-HOT tuple where they
+    // used to be in-page. On a table this size, and for actions a human takes
+    // by hand, that is worth the 30s poll it buys.
+    index('disputes_unclaimed_idx')
+      .on(t.created_at.desc().nullsFirst())
+      .where(sql`${t.resolved_at} IS NULL AND ${t.assigned_to} IS NULL`),
+  ],
+)
 
 /**
  * Dispute-resolution proposals (Issue-3): decouples the mediator's verdict

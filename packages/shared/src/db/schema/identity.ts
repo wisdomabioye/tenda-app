@@ -71,7 +71,25 @@ export const users = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (t) => [index('users_country_idx').on(t.country)],
+  (t) => [
+    index('users_country_idx').on(t.country),
+    // The admin roster, for anything that asks "who holds this role?" —
+    // the mediator lookup behind dispute alerts (features/alerts/recipients.ts),
+    // role-targeted announcements (lib/announcements.ts), and the admin user
+    // list's role filter.
+    //
+    // PARTIAL on purpose, and measured (docs/query_plan_measurements.md): at
+    // 1M users the unindexed query is a PARALLEL seq scan reading 14,291
+    // buffers (~112 MB) for 55.9 ms to return 13 rows — the wall time is the
+    // smaller half, since that much churn evicts the cache out from under
+    // whatever else is running. Indexed it is 3 buffers and 0.020 ms.
+    //
+    // The predicate is what makes it nearly free: almost every row is a plain
+    // 'user' and never becomes an entry, so this is 16 kB where a full index
+    // on the same column is 6,792 kB for identical timings, and an ordinary
+    // signup or profile edit never touches it.
+    index('users_role_idx').on(t.role).where(sql`${t.role} <> 'user'`),
+  ],
 )
 
 export const user_wallets = pgTable(
