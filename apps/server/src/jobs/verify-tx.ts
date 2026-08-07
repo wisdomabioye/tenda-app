@@ -162,12 +162,14 @@ export interface VerifyTxDeps {
  * Stage 0 inlines the format so the queue.ts plugin's `EnqueueOptions.job_id`
  * can be populated consistently.
  *
- * Format: `verify-tx.{chain_id}.{tx_ref}.{event}` with ':' stripped, BullMQ
- * rejects a jobId containing ':' (its Redis key separator) and CAIP-2 chain
- * ids carry one. `tx_ref` is the high-entropy component (base58 sig or
- * 0x-hex hash) so collisions across (chain, event) tuples are vanishingly
- * unlikely. Event is included because the same tx can emit multiple
- * EscrowEvent types in principle (though current contract emits one).
+ * Format: `verify-tx.{chain_id}.{tx_ref}.{event}` with ':' stripped. `tx_ref`
+ * is the high-entropy component (base58 sig or 0x-hex hash) so collisions
+ * across (chain, event) tuples are vanishingly unlikely. Event is included
+ * because the same tx can emit multiple EscrowEvent types in principle (though
+ * the current contract emits one).
+ *
+ * The ':' is stripped because this id has FOUR parts, not because BullMQ bans
+ * the character — see the note on the strip below for the real rule.
  */
 export function verifyTxDedupKey(args: {
   chain_id: string
@@ -175,11 +177,23 @@ export function verifyTxDedupKey(args: {
   /** Producers without an expectation (webhook/polling) pass 'Any'. */
   event: EscrowEvent | 'Any'
 }): string {
-  // BullMQ uses ':' as its Redis key separator and rejects any custom jobId
-  // containing it; CAIP-2 chain ids (e.g. 'solana:devnet') carry one. Join
-  // with '.' and strip ':' from every part so the id stays BullMQ-safe and
-  // deterministic. ':' is the ONLY reserved char in the inputs, so swapping
-  // it for '.' can't collide (no part otherwise contains '.').
+  // BullMQ does NOT ban ':' outright — an earlier version of this comment said
+  // it did, and that was wrong in a way that would mislead the next person to
+  // need a keyed id (core/queue/idempotency.ts emits colons on purpose).
+  //
+  // The real rule, from `Job.validateOptions` (bullmq 5.78,
+  // classes/job.js:1041-1050) and confirmed against a live queue: a custom
+  // jobId may contain EITHER no ':' at all OR exactly two of them — the check
+  // is `includes(':') && split(':').length !== 3` → throw. One colon is
+  // rejected as surely as three. Separately, an id that round-trips through
+  // parseInt unchanged ('12345') is rejected as an integer, which this format
+  // cannot produce because it always starts with 'verify-tx'.
+  //
+  // This id has four parts, so a raw ':' join would land on the wrong side of
+  // that rule, and CAIP-2 chain ids (e.g. 'solana:devnet') carry one of their
+  // own. Joining with '.' and stripping ':' sidesteps the count entirely.
+  // ':' is the ONLY reserved char in the inputs, so swapping it for '.' can't
+  // collide (no part otherwise contains '.').
   return ['verify-tx', args.chain_id, args.tx_ref, args.event]
     .join('.')
     .replaceAll(':', '.')
