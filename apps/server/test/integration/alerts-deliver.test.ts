@@ -93,8 +93,16 @@ beforeEach(() => {
   log = alertLogSpy()
 })
 
-function deps(): AlertDeps {
-  return { db: getApp().db, queue: queueDouble(), log, env: {} }
+/**
+ * The deps a worker would hand `deliverAlert`, with any part swappable.
+ *
+ * The override exists because the default `queueDouble()` is unreachable to the
+ * caller — a test that needs to ASSERT on the queue has to own it. Without the
+ * parameter, three call sites had each spelled the whole object out by hand,
+ * which is three places for `env` to quietly stop being `{}`.
+ */
+function deps(over: Partial<AlertDeps> = {}): AlertDeps {
+  return { db: getApp().db, queue: queueDouble(), log, env: {}, ...over }
 }
 
 function jobFor(ref: AlertRef, channel: AlertJob['channel'] = 'slack'): AlertJob {
@@ -324,7 +332,7 @@ test('configured() and deliver() are handed the SAME env instance', { skip }, as
   const env: NodeJS.ProcessEnv = { SLACK_WEBHOOK_DISPUTES: 'https://example.invalid/hook' }
   const channel = fakeChannel()
 
-  await deliverAlert({ ...deps(), env }, jobFor(ref), () => channel)
+  await deliverAlert(deps({ env }), jobFor(ref), () => channel)
 
   assert.strictEqual(channel.configuredWith.length, 1)
   assert.strictEqual(channel.configuredWith[0], env, 'configured() must receive deps.env')
@@ -345,4 +353,65 @@ test('deliver() receives the deps it can actually work with', { skip }, async ()
   assert.strictEqual(received.db, passed.db)
   assert.strictEqual(received.queue, passed.queue)
   assert.strictEqual(received.log, passed.log)
+})
+
+// ---------- the DEFAULT lookup ---------------------------------------------
+//
+// Every test above injects a lookup, so not one of them touches the production
+// binding — `lookup = channelByName` could be deleted and they would all still
+// pass, while the worker resolved nothing and every alert went quiet.
+//
+// These two call `deliverAlert` with TWO arguments, exactly as the worker does,
+// and they name DIFFERENT channels. That pairing is what makes them worth
+// having: each one alone is satisfied by a default pinned to a single channel,
+// and only together do they pin dispatch BY NAME. The outcomes are deliberately
+// opposite — in_app delivers, slack skips — so no one wrong default can satisfy
+// both.
+//
+// The remaining skip branches (unknown channel, kind no longer accepted) are
+// NOT re-tested here against the real registry, and deliberately: `AlertJob`
+// types `channel` as a currently-registered name and `AlertKind` has one member
+// that both live channels accept, so each is unconstructible without lying
+// about a value's type. They are covered above through the lookup seam, which
+// is the asymmetry that seam exists for.
+
+test('the DEFAULT lookup resolves in_app against the real registry', { skip }, async () => {
+  // The positive direction, and it runs the whole way through: the in-app
+  // channel is always configured, so a mediator ends up with a real job. A
+  // default that resolved to null would warn 'does not register' and enqueue
+  // nothing; one pinned to Slack would skip as unconfigured against `env: {}`.
+  const { ref } = await disputedGig()
+  const mediator = await createUser(getApp(), { role: 'dispute_admin' })
+  const queue = queueDouble()
+
+  await deliverAlert(deps({ queue }), jobFor(ref, 'in_app'))
+
+  assert.deepStrictEqual(
+    queue.notifications().map((job) => job.user_id),
+    [mediator.row.id],
+    'the default lookup did not reach the real in-app channel',
+  )
+  assert.deepStrictEqual(log.warns, [])
+})
+
+test('the DEFAULT lookup resolves slack against the real registry', { skip }, async () => {
+  // Same job, different name, different outcome — which is the part a constant
+  // default cannot fake. Slack is unconfigured against `env: {}`, so this must
+  // end as INFO: a default returning null would WARN instead, and one returning
+  // the in-app channel would enqueue the notification asserted absent below.
+  const { ref } = await disputedGig()
+  // A CONTROL, not spare scenery: with no mediator in the database an in-app
+  // delivery would also produce zero notifications, so the assertion below
+  // could not tell "slack skipped" from "the wrong channel ran and found
+  // nobody". The roster has to be non-empty for the zero to mean something.
+  await createUser(getApp(), { role: 'dispute_admin' })
+  const queue = queueDouble()
+
+  await deliverAlert(deps({ queue }), jobFor(ref, 'slack'))
+
+  assert.deepStrictEqual(queue.notifications(), [], 'slack must not deliver in-app')
+  assert.deepStrictEqual(log.warns, [], 'unconfigured is not a warning, and not a lookup failure')
+  assert.strictEqual(log.infos.length, 1)
+  assert.match(log.infos[0].msg, /not configured/)
+  assert.strictEqual(log.infos[0].obj.channel, 'slack')
 })
