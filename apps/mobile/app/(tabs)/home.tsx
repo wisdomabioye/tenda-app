@@ -17,6 +17,7 @@ import { spacing } from '@/theme/tokens'
 import { useAuthStore } from '@/stores/auth.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { useHomeFeed } from '@/hooks/useHomeFeed'
+import { formatFullName } from '@tenda/shared'
 import type { GigSummary, GigCategory } from '@tenda/shared'
 
 export default function HomeScreen() {
@@ -49,7 +50,7 @@ export default function HomeScreen() {
         onRightPress={() => router.push('/notifications' as Parameters<typeof router.push>[0])}
         onAvatarPress={() => router.push('/(tabs)/profile')}
         userImage={user?.avatar_url}
-        userName={[user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Anonymous'}
+        userName={formatFullName(user?.first_name ?? null, user?.last_name ?? null) || 'Anonymous'}
         showAvatar
       />
       <ScreenContainer scroll={false} padding={false} edges={['left', 'right']}>

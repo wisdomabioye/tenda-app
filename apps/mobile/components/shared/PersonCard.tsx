@@ -6,6 +6,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { StandingBadge } from '@/components/reputation'
 import { ReviewScore } from './ReviewScore'
+import { formatFullName } from '@tenda/shared'
 
 interface PersonCardUser {
   id: string
@@ -45,7 +46,7 @@ export function PersonCard({
   const { theme } = useUnistyles()
   const router = useRouter()
 
-  const displayName = [user.first_name, user.last_name].filter(Boolean).join(' ') || 'Anonymous'
+  const displayName = formatFullName(user.first_name, user.last_name) || 'Anonymous'
   const isSelf = currentUserId === user.id
 
   function handleMessage() {

@@ -150,6 +150,17 @@ test('a nameless applicant is Anonymous rather than an empty row', () => {
   expect(screen.getByText('avatar:Anonymous')).toBeTruthy()
 })
 
+test('a WHITESPACE-only name is Anonymous too, not an invisible row', () => {
+  // The bug the shared `formatFullName` fixes. The inline
+  // `[first, last].filter(Boolean).join(' ')` this replaced kept '  ', which is
+  // truthy, so `|| 'Anonymous'` never fired: the name rendered as blank text
+  // and the avatar showed no initial. Indistinguishable from a broken row.
+  renderRow(applicant({ first_name: '   ', last_name: '  ' }))
+
+  expect(screen.getByText('Anonymous')).toBeTruthy()
+  expect(screen.getByText('avatar:Anonymous')).toBeTruthy()
+})
+
 test('a missing pitch renders nothing rather than an empty block', () => {
   renderRow(applicant({ message: null }))
   expect(screen.queryByText('I have painted forty fences')).toBeNull()

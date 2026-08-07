@@ -9,7 +9,7 @@ import { ExchangeStatusBadge } from './ExchangeStatusBadge'
 import { formatFiat } from '@/lib/currency'
 import { chainLabel } from '@/lib/chains'
 import { formatDurationShort } from '@/lib/countdown'
-import { formatAssetAmount, ASSET_META } from '@tenda/shared'
+import { formatAssetAmount, ASSET_META, formatFullName } from '@tenda/shared'
 import type { ExchangeSummary, SupportedCurrency } from '@tenda/shared'
 
 interface Props {
@@ -25,9 +25,16 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
   const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
   const rate = formatFiat(Number(offer.rate), offer.fiat_currency as SupportedCurrency)
   const symbol = ASSET_META[offer.asset]?.symbol ?? offer.asset
+  // 'Seller' kept verbatim: it is user-visible copy, and whether this surface
+  // should say Seller / Maker / Anonymous is a product call, not a refactor.
   const sellerName =
-    `${offer.creator.first_name ?? ''} ${offer.creator.last_name ?? ''}`.trim() || 'Seller'
-  const handle = offer.creator.first_name ? `@${offer.creator.first_name.toLowerCase()}` : null
+    formatFullName(offer.creator.first_name, offer.creator.last_name) || 'Seller'
+  // `.trim()` before the truthiness test, for the same reason sellerName uses
+  // formatFullName: a first_name of '  ' is truthy, so this rendered the string
+  // '@  ' — a visible at-sign with nothing after it, and a separator dot after
+  // that. Not covered by formatFullName because this is one name, not a join.
+  const first = offer.creator.first_name?.trim()
+  const handle = first ? `@${first.toLowerCase()}` : null
   // numeric(3,2), string on the wire, null when unrated.
   const score = offer.creator.review_score === null ? null : Number(offer.creator.review_score)
 

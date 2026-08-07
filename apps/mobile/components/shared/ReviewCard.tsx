@@ -5,6 +5,7 @@ import { typography } from '@/theme/tokens'
 import { Avatar } from '@/components/ui/Avatar'
 import { Text } from '@/components/ui/Text'
 import { formatRelativeShort } from '@/lib/date'
+import { formatFullName } from '@tenda/shared'
 import type { Review } from '@tenda/shared'
 
 interface ReviewCardProps {
@@ -20,7 +21,7 @@ interface ReviewCardProps {
 export function ReviewCard({ review, reviewer, label }: ReviewCardProps) {
   const { theme } = useUnistyles()
 
-  const name = [reviewer.first_name, reviewer.last_name].filter(Boolean).join(' ') || 'Anonymous'
+  const name = formatFullName(reviewer.first_name, reviewer.last_name) || 'Anonymous'
   const time = review.created_at ? formatRelativeShort(review.created_at) : null
 
   return (

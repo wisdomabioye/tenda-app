@@ -4,6 +4,7 @@ import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { formatConvoTime } from '@/lib/date'
+import { formatFullName } from '@tenda/shared'
 import type { Conversation } from '@tenda/shared'
 
 interface ConversationItemProps {
@@ -16,7 +17,7 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
 
   const { other_user, last_message, last_message_at, unread_count } = conversation
   const displayName =
-    [other_user.first_name, other_user.last_name].filter(Boolean).join(' ') || 'Anonymous'
+    formatFullName(other_user.first_name, other_user.last_name) || 'Anonymous'
 
   const isUnread = unread_count > 0
   const time = last_message_at ? formatConvoTime(last_message_at) : ''

@@ -36,15 +36,45 @@ export function winnerLabel(kind: EscrowKind, winner: PartyRole | 'split'): stri
 }
 
 /**
+ * The two nullable name columns joined, or `''` when there is no name.
+ *
+ * Returns the empty string ON PURPOSE rather than taking a fallback: what to
+ * show for a nameless person is a per-surface decision, and the surfaces
+ * genuinely disagree. Staff surfaces (admin, Slack, the bell feed) want the
+ * shortened id, because a referenceable handle is the point — that is
+ * `displayName` below. Consumer surfaces want a word, because a uuid prefix in
+ * a chat list is noise to the person reading it. Both share THIS, which is the
+ * part that was actually being duplicated.
+ *
+ * Whitespace-only is empty, which is the bug this exists to kill. Mobile had
+ * inline copies of `[first, last].filter(Boolean).join(' ')` across its
+ * person-rendering screens; `filter(Boolean)` KEEPS `'  '`, so the name
+ * rendered as blank text and the `|| 'Anonymous'` after it never fired.
+ *
+ * Combine with `||`, never `??`: the no-name answer is `''`, which is falsy but
+ * not nullish, so `?? 'Anonymous'` would reintroduce exactly that bug.
+ */
+export function formatFullName(first_name: string | null, last_name: string | null): string {
+  return [first_name, last_name].filter((p) => p !== null && p.trim() !== '').join(' ').trim()
+}
+
+/**
  * Best-effort display name from the two nullable name columns. Falls back
  * to the shortened id so a party with no profile name is still referenceable.
+ *
+ * The id fallback suits STAFF surfaces, where a referenceable handle is the
+ * point; consumer surfaces generally want a word instead and should call
+ * `formatFullName` — see its note. Generally, not always: mobile's
+ * DisputeContextHeader calls this WITH the id on purpose, because a dispute
+ * thread is shared with a mediator and "User 3f2a1b8c" is something a party can
+ * quote to support. Pick per surface; do not read this as a layer rule.
  */
 export function displayName(
   first_name: string | null,
   last_name: string | null,
   fallbackId?: string,
 ): string {
-  const full = [first_name, last_name].filter((p) => p !== null && p.trim() !== '').join(' ').trim()
+  const full = formatFullName(first_name, last_name)
   if (full !== '') return full
   if (fallbackId !== undefined && fallbackId !== '') return `User ${fallbackId.slice(0, 8)}`
   return 'Unknown'

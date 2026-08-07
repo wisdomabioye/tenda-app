@@ -11,7 +11,7 @@ import { CountryCityPicker } from '@/components/form/CountryCityPicker'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/api/client'
 import { uploadToCloudinary } from '@/lib/upload'
-import { findCountryForCity, coerceCityForCountry } from '@tenda/shared'
+import { findCountryForCity, coerceCityForCountry, formatFullName } from '@tenda/shared'
 import { pickAvatar, type PickedFile } from '@/components/form/FilePicker'
 
 const BIO_MAX = 1200
@@ -72,7 +72,9 @@ export default function UpdateProfileScreen() {
     }
   }
 
-  const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'You'
+  // Live preview of what is being typed. The whitespace fix matters MORE here
+  // than anywhere: a lone space used to render an invisible name.
+  const fullName = formatFullName(firstName, lastName) || 'You'
   const bioCharColor = bio.length > BIO_MAX
     ? theme.colors.feedback.danger.base
     : theme.colors.content.tertiary

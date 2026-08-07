@@ -20,7 +20,7 @@ import { ProfileHero, ProfileStats, ProfileMenu } from '@/components/profile'
 import type { MenuItem } from '@/components/profile'
 import { useAuthStore } from '@/stores/auth.store'
 import { useProfileStats } from '@/hooks/useProfileStats'
-import { truncateWallet } from '@tenda/shared'
+import { truncateWallet, formatFullName } from '@tenda/shared'
 
 export default function ProfileScreen() {
   const router = useRouter()
@@ -41,7 +41,7 @@ export default function ProfileScreen() {
     }, []), // eslint-disable-line react-hooks/exhaustive-deps
   )
 
-  const fullName = [user?.first_name, user?.last_name].filter(Boolean).join(' ') || 'Anonymous'
+  const fullName = formatFullName(user?.first_name ?? null, user?.last_name ?? null) || 'Anonymous'
 
   // v2 identity is multi-wallet: show the primary linked wallet, falling
   // back to the connected session address.

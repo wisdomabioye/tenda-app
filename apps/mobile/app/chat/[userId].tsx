@@ -18,6 +18,7 @@ import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatContextDivider } from '@/components/chat/ChatContextDivider'
 import { ChatTimestampGroup } from '@/components/chat/ChatTimestampGroup'
+import { formatFullName } from '@tenda/shared'
 import { ChatHeader } from '@/components/chat/ChatHeader'
 import { ChatInput } from '@/components/ui/ChatInput'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
@@ -119,7 +120,7 @@ export default function ChatScreen() {
   }
 
   const displayName = otherUser
-    ? [otherUser.first_name, otherUser.last_name].filter(Boolean).join(' ') || 'Anonymous'
+    ? formatFullName(otherUser.first_name, otherUser.last_name) || 'Anonymous'
     : 'User'
 
   return (

@@ -9,6 +9,7 @@
  */
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
+import { formatFullName } from '@tenda/shared'
 import type { GigApplicant } from '@tenda/shared'
 import { spacing, radius } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
@@ -33,7 +34,7 @@ interface Props {
 
 export function ApplicantRow({ applicant, assignable, busy, onAssign }: Props) {
   const { theme } = useUnistyles()
-  const name = [applicant.first_name, applicant.last_name].filter(Boolean).join(' ') || 'Anonymous'
+  const name = formatFullName(applicant.first_name, applicant.last_name) || 'Anonymous'
   const isOpen = applicant.status === 'open'
 
   return (

@@ -13,6 +13,7 @@ import { uploadToCloudinary } from '@/lib/upload'
 import { usePostAuthReset } from '@/lib/post-auth-nav'
 import { getDeviceCountry } from '@/lib/device'
 import { pickAvatar, type PickedFile } from '@/components/form/FilePicker'
+import { formatFullName } from '@tenda/shared'
 
 
 export default function ProfileSetupScreen() {
@@ -82,7 +83,9 @@ export default function ProfileSetupScreen() {
     }
   }
 
-  const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Your profile'
+  // Live preview of what is being typed: a lone space must not render an
+  // invisible name, which is what the old filter(Boolean) join did.
+  const fullName = formatFullName(firstName, lastName) || 'Your profile'
 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>

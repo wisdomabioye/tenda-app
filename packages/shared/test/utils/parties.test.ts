@@ -4,6 +4,7 @@ import {
   partyRoleLabel,
   winnerLabel,
   displayName,
+  formatFullName,
   resolveDisputeSender,
   disputeViewerSeat,
   type DisputeSenderArgs,
@@ -44,6 +45,45 @@ test('displayName: falls back to a shortened id when both names are absent', () 
 test('displayName: falls back to Unknown with no usable name or id', () => {
   assert.equal(displayName(null, null), 'Unknown')
   assert.equal(displayName('  ', '  ', ''), 'Unknown')
+})
+
+// ── formatFullName ──────────────────────────────────────────────────────────
+// The half `displayName` shares with consumer surfaces, which supply their own
+// word instead of the id fallback. Its whole reason for existing is the
+// whitespace handling: mobile's inline `[first, last].filter(Boolean).join(' ')`
+// KEEPS a whitespace-only name and renders a blank-looking row.
+
+test('formatFullName: joins, and tolerates one missing name', () => {
+  assert.equal(formatFullName('Ada', 'Lovelace'), 'Ada Lovelace')
+  assert.equal(formatFullName('Ada', null), 'Ada')
+  assert.equal(formatFullName(null, 'Lovelace'), 'Lovelace')
+})
+
+test('formatFullName: whitespace-only is EMPTY, not blank text', () => {
+  // The bug being fixed. `filter(Boolean)` keeps these and returns '  ', which
+  // is truthy — so `|| 'Anonymous'` never fired and the name rendered blank.
+  assert.equal(formatFullName('  ', null), '')
+  assert.equal(formatFullName('', '  '), '')
+  assert.equal(formatFullName('  ', '  '), '')
+  // Empty rather than a WORD, which is the whole point of the split: the caller
+  // picks between 'Anonymous', 'Seller', 'You' and the staff id. Returning any
+  // word here would put one surface's copy in every other surface's mouth.
+  assert.equal(formatFullName(null, null), '')
+})
+
+test('displayName is formatFullName plus the staff id fallback', () => {
+  // Pins the relationship, so the two cannot drift into formatting names
+  // differently for the same input.
+  // ' Ada ' is not padding: without an input carrying inner/outer whitespace,
+  // a `displayName` that normalised it while `formatFullName` did not passed
+  // this test clean (measured). Every other case here is already covered by the
+  // displayName tests above, so this input is what makes the test load-bearing.
+  const cases = [['Ada', 'Lovelace'], ['Ada', null], [null, 'Lovelace'], ['  ', 'Ada'], [' Ada ', 'Lovelace']] as const
+  for (const [f, l] of cases) {
+    assert.equal(displayName(f, l, 'abcdef12-3456'), formatFullName(f, l))
+  }
+  assert.equal(displayName(null, null, 'abcdef12-3456'), 'User abcdef12')
+  assert.equal(formatFullName(null, null), '')
 })
 
 // ── resolveDisputeSender ────────────────────────────────────────────────────

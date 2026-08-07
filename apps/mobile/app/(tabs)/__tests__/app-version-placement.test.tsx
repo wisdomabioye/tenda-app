@@ -102,7 +102,13 @@ jest.mock('@/hooks/useProfileStats', () => ({
   useProfileStats: () => ({ active: 0, completed: 0, posted: 0 }),
 }))
 jest.mock('@/api/client', () => ({ api: { users: { updateMe: jest.fn() } } }))
+// Spread the real module, then override only what this test wants stubbed.
+// It used to be an allowlist of two exports, which meant any screen under test
+// importing a THIRD thing from @tenda/shared died with "x is not a function" —
+// a failure about this mock, reported as a bug in the screen. Profile adding
+// `formatFullName` is exactly that, and the next one would be too.
 jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual<typeof import('@tenda/shared')>('@tenda/shared'),
   CURRENCY_META: { NGN: { flag: '🇳🇬', symbol: '₦' } },
   truncateWallet: (a: string) => a,
 }))

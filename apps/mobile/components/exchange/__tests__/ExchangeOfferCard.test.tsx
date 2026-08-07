@@ -79,6 +79,30 @@ test('falls back to "Seller" when the creator has no name', () => {
   expect(screen.getByText('Seller')).toBeTruthy()
 })
 
+test('a WHITESPACE-only name falls back too, and shows no bare "@" handle', () => {
+  // ONE bug here, not two — established by mutation, not assumed. The name line
+  // was already correct: it used `\`${f ?? ''} ${l ?? ''}\`.trim()`, which
+  // collapses whitespace to '' and fires the fallback. (Reverting it to that
+  // form still passes this test; the switch to formatFullName is a consistency
+  // change, behaviour-identical on every input.) The HANDLE beside it was the
+  // bug: it tested `first_name` for truthiness, so '  ' rendered the string
+  // '@  ' — an at-sign with nothing after it, plus a separator dot.
+  //
+  // The name assertion stays as a regression guard for the half that worked.
+  const blank: ExchangeSummary = {
+    ...offer,
+    creator: { ...creator, first_name: '  ', last_name: '   ' },
+  }
+  render(<ExchangeOfferCard offer={blank} />)
+
+  expect(screen.getByText('Seller')).toBeTruthy()
+  // The regex, not `queryByText('@  ')`. Measured: either one alone kills the
+  // mutant, so keeping both was decoration — and this one is the stronger of
+  // the two, catching '@', '@ ' and any other empty-handle variant rather than
+  // the single literal this bug happened to produce.
+  expect(screen.queryByText(/^@/)).toBeNull()
+})
+
 test('omits the rating when the seller is unrated', () => {
   const unrated: ExchangeSummary = { ...offer, creator: { ...creator, review_score: null } }
   render(<ExchangeOfferCard offer={unrated} />)

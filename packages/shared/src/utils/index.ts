@@ -8,6 +8,7 @@ export {
   partyRoleLabel,
   winnerLabel,
   displayName,
+  formatFullName,
   resolveDisputeSender,
   disputeViewerSeat,
   type PartyRole,
