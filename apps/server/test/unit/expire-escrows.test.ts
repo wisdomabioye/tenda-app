@@ -19,13 +19,44 @@ import {
   type StalledAcceptedEscrow,
 } from '@server/jobs/expire-escrows'
 import type { JobPayload } from '@server/plugins/queue'
+import { queueDouble, type CapturedJob, type QueueDouble } from '../helpers/queue-double'
 
 const NOW = new Date('2026-06-04T12:00:00Z')
 
-interface EnqueueCall {
-  name: string
+/**
+ * The notification jobs, each with the dedup key it was enqueued under.
+ *
+ * Replaces a hand-rolled stub that pushed `payload as JobPayload['notifications']`.
+ * That cast asserted the very thing this suite is checking — that the handler
+ * enqueues onto the notifications queue — so a handler that started enqueuing
+ * somewhere else would have had its payload recorded here as a notification and
+ * every assertion below would have kept passing.
+ *
+ * Payload and job_id are projected TOGETHER rather than read from two lists,
+ * because the ids are asserted positionally: pairing them here means the index
+ * cannot drift if the handler ever enqueues onto a second queue.
+ *
+ * Named for what it adds over the helper's own `notificationsOf`, which returns
+ * bare payloads: this is the `alertsOf` shape — the job, not just its contents.
+ * Takes a call list rather than the double, so it matches the signature of both
+ * helpers a reader already knows.
+ *
+ * Local rather than lifted into helpers/queue-double.ts: the generic
+ * `jobsOf(calls, name)` that would let one function serve every queue does not
+ * compile, because `c.name === name` does not narrow while `name` is a type
+ * parameter (re-checked against the current tsc — `JobPayload[N]` resolves to
+ * `never`). It can be made to compile with a type predicate, but a predicate
+ * TypeScript cannot verify is exactly as unsound as the cast this task removes,
+ * and it would put that unsoundness in the shared helper. Comparing against a
+ * LITERAL here narrows for real, so these stay small, duplicated and sound.
+ */
+function notificationJobsOf(calls: readonly CapturedJob[]): {
   payload: JobPayload['notifications']
   job_id?: string
+}[] {
+  return calls.flatMap((c) =>
+    c.name === 'notifications' ? [{ payload: c.payload, job_id: c.opts?.job_id }] : [],
+  )
 }
 
 const GRACE_SECONDS = 3_600
@@ -42,12 +73,12 @@ function makeDeps(
   stalledRows: StalledAcceptedEscrow[] = [],
 ): {
   deps: ExpireEscrowsDeps
-  calls: EnqueueCall[]
+  queue: QueueDouble
   warns: string[]
   queried: Query[]
   stalledQueried: Query[]
 } {
-  const calls: EnqueueCall[] = []
+  const queue = queueDouble()
   const warns: string[] = []
   const queried: Query[] = []
   const stalledQueried: Query[] = []
@@ -62,17 +93,7 @@ function makeDeps(
         return stalledRows
       },
     },
-    queue: {
-      async enqueue(name, payload, opts) {
-        // Handler only ever enqueues notifications; narrow for assertions.
-        calls.push({
-          name,
-          payload: payload as JobPayload['notifications'],
-          job_id: opts?.job_id,
-        })
-        return { job_id: opts?.job_id ?? 'generated' }
-      },
-    },
+    queue,
     log: {
       info() {},
       warn(_obj, msg) {
@@ -82,7 +103,7 @@ function makeDeps(
     now: () => NOW,
     grace_period_seconds: GRACE_SECONDS,
   }
-  return { deps, calls, warns, queried, stalledQueried }
+  return { deps, queue, warns, queried, stalledQueried }
 }
 
 function row(over: Partial<ExpiredOpenEscrow> = {}): ExpiredOpenEscrow {
@@ -102,12 +123,16 @@ test('queries the bounded lookback window ending at now', async () => {
 
 test('enqueues one creator nudge per expired escrow with deterministic job_id', async () => {
   const rows = [row(), row({ id: 'e-2', kind: 'exchange', creator_id: 'u-2' })]
-  const { deps, calls } = makeDeps(rows)
+  const { deps, queue } = makeDeps(rows)
   const result = await handleExpireEscrows(deps, TICK)
+  const calls = notificationJobsOf(queue.calls)
 
   assert.deepStrictEqual(result, { scanned: 2, enqueued: 2 })
   assert.strictEqual(calls.length, 2)
-  assert.strictEqual(calls[0].name, 'notifications')
+  // Both counts, not just the projected one: `notificationJobsOf` FILTERS, so on
+  // its own it reports 2 whether the handler enqueued two notifications or two
+  // notifications plus something onto a queue nobody here reads.
+  assert.strictEqual(queue.calls.length, 2)
   assert.strictEqual(calls[0].payload.user_id, 'u-1')
   assert.strictEqual(calls[0].job_id, expireNoticeJobId('e-1'))
   // Canonical deep-link data (shared escrowPushData) so the persisted expiry
@@ -124,10 +149,12 @@ test('enqueues one creator nudge per expired escrow with deterministic job_id', 
 })
 
 test('empty window → no enqueues, no warning', async () => {
-  const { deps, calls, warns } = makeDeps([])
+  const { deps, queue, warns } = makeDeps([])
   const result = await handleExpireEscrows(deps, TICK)
   assert.deepStrictEqual(result, { scanned: 0, enqueued: 0 })
-  assert.strictEqual(calls.length, 0)
+  // The TOTAL, so "enqueued nothing" cannot be satisfied by enqueueing
+  // something this suite does not project.
+  assert.strictEqual(queue.calls.length, 0)
   assert.strictEqual(warns.length, 0)
 })
 
@@ -167,11 +194,13 @@ test('stalled scan shares the tick window and passes the injected grace period',
 })
 
 test('nudges the creator of a stalled escrow with its own deterministic job_id', async () => {
-  const { deps, calls } = makeDeps([], [stalled()])
+  const { deps, queue } = makeDeps([], [stalled()])
   const result = await handleExpireEscrows(deps, TICK)
+  const calls = notificationJobsOf(queue.calls)
 
   assert.deepStrictEqual(result, { scanned: 1, enqueued: 1 })
   assert.strictEqual(calls.length, 1)
+  assert.strictEqual(queue.calls.length, 1)
   assert.strictEqual(calls[0].payload.user_id, 'c-1')
   assert.strictEqual(calls[0].job_id, stalledNoticeJobId('s-1'))
   assert.strictEqual(calls[0].payload.data?.escrowId, 's-1')
@@ -179,8 +208,9 @@ test('nudges the creator of a stalled escrow with its own deterministic job_id',
 })
 
 test('stalled copy is kind-specific and distinct from the expiry copy', async () => {
-  const { deps, calls } = makeDeps([], [stalled(), stalled({ id: 's-2', kind: 'exchange' })])
+  const { deps, queue } = makeDeps([], [stalled(), stalled({ id: 's-2', kind: 'exchange' })])
   await handleExpireEscrows(deps, TICK)
+  const calls = notificationJobsOf(queue.calls)
   assert.match(calls[0].payload.title, /gig/i)
   assert.match(calls[1].payload.title, /trade/i)
   // "not delivered" / "not completed", never the "expired" wording — a poster
@@ -194,8 +224,9 @@ test('the two notice id spaces never collide for the same escrow', () => {
 })
 
 test('both scans report in one tick result', async () => {
-  const { deps, calls } = makeDeps([row(), row({ id: 'e-2' })], [stalled()])
+  const { deps, queue } = makeDeps([row(), row({ id: 'e-2' })], [stalled()])
   const result = await handleExpireEscrows(deps, TICK)
+  const calls = notificationJobsOf(queue.calls)
   assert.deepStrictEqual(result, { scanned: 3, enqueued: 3 })
   assert.deepStrictEqual(
     calls.map((c) => c.job_id),
