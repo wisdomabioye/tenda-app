@@ -15,9 +15,11 @@ import type { EscrowKind } from '@tenda/shared'
 import type { NoticeCopy } from './copy'
 
 export async function enqueueEscrowNotice(
-  // The queue rather than the whole app, matching enqueueNotification's own
-  // signature: this function touches nothing else on fastify.
-  queue: Pick<QueueService, 'enqueue'>,
+  // The queue rather than the whole app: this function touches nothing else on
+  // fastify. Narrowed to the ONE method it reaches — the fan-out below sends a
+  // batch, never a single job — so a caller can hand it a double with nothing
+  // else on it.
+  queue: Pick<QueueService, 'enqueueMany'>,
   escrow_id: string,
   kind: EscrowKind,
   // Nullable ids are accepted so callers can pass a party that may be absent

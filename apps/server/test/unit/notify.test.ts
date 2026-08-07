@@ -174,6 +174,49 @@ test('enqueueNotificationToMany: an all-null list enqueues nothing', async () =>
   assert.strictEqual(q.calls.length, 0)
 })
 
+// ---------- one round trip, not N -------------------------------------------
+
+test('enqueueNotificationToMany: sends ONE batch, not one call per recipient', async () => {
+  const q = queueDouble()
+  await enqueueNotificationToMany(q, ['u1', 'u2', 'u3', 'u4'], { title: 'T', body: 'B' })
+
+  // The point of the change, and the only assertion that can see it: `calls`
+  // flattens bulk jobs, so a producer that looped `enqueue` four times looks
+  // identical there. One batch of four is what "the Redis round trip is paid
+  // once" means.
+  assert.deepStrictEqual(q.bulkBatchSizes, [4])
+  assert.strictEqual(q.calls.length, 4, 'and every recipient is still in it')
+})
+
+test('enqueueNotificationToMany: an empty batch never reaches the queue at all', async () => {
+  const q = queueDouble()
+  await enqueueNotificationToMany(q, [null, null], { title: 'T', body: 'B' })
+
+  // Not the same claim as "enqueues nothing" above. On a box with no REDIS_URL
+  // the plugin's stub THROWS on any call, so a fan-out whose recipients were
+  // all null would start failing a case that used to succeed by doing nothing —
+  // the old loop simply never iterated. This pins the early return that keeps
+  // that true.
+  assert.deepStrictEqual(q.bulkBatchSizes, [], 'the queue was not called')
+})
+
+test('enqueueNotificationToMany: a rejected id means NO batch is sent', async () => {
+  const q = queueDouble()
+  await assert.rejects(
+    () =>
+      enqueueNotificationToMany(q, ['u1', 'u2', 'u3'], {
+        title: 'T',
+        body: 'B',
+        idFor: (uid) => (uid === 'u3' ? 'not-a-uuid' : stableNotificationId('alert', UUID_A, uid)),
+      }),
+    /must be a UUID/,
+  )
+  // The all-or-nothing guarantee, stated against the seam that now carries it:
+  // `calls` being empty would also hold if the batch were sent and the double
+  // recorded nothing, so assert the call itself never happened.
+  assert.deepStrictEqual(q.bulkBatchSizes, [])
+})
+
 test('enqueueNotificationToMany: every recipient gets the same data bag', async () => {
   const q = queueDouble()
   const data = escrowPushData('e1', 'gig')

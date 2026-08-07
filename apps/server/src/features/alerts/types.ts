@@ -222,8 +222,11 @@ export interface AlertJob {
 /** What a channel needs to do its work. */
 export interface AlertDeps {
   db: AppDatabase
-  /** Narrowed to `enqueue`: the in-app channel produces notification jobs. */
-  queue: Pick<QueueService, 'enqueue'>
+  /**
+   * Narrowed to `enqueueMany`: the in-app channel produces notification jobs,
+   * and it produces them for the whole mediator roster at once.
+   */
+  queue: Pick<QueueService, 'enqueueMany'>
   log: AlertLogger
   /**
    * The environment both `configured()` and `deliver()` read — threaded rather

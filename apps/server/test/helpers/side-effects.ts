@@ -58,6 +58,11 @@ export function installCapture(app: FastifyInstance): SideEffectCapture {
   const broadcasts: Broadcast[] = []
 
   app.queue.enqueue = queue.enqueue
+  // BOTH producer seams, or the capture is silently partial: every multi-
+  // recipient fan-out goes through `enqueueMany`, so swapping only `enqueue`
+  // would let those jobs reach the real (stubbed, 501-throwing) queue while the
+  // test asserted an empty list and passed.
+  app.queue.enqueueMany = queue.enqueueMany
   app.wsBroadcast.broadcast = (channel, payload) => {
     broadcasts.push({ channel, payload })
     // The real broadcast answers how many sockets received the frame; no test
@@ -99,10 +104,24 @@ export function interceptQueue(
   onJob: () => Promise<void>,
 ): SideEffectCapture {
   const capture = installCapture(app)
+
   const inner = app.queue.enqueue
   app.queue.enqueue = async (...args: Parameters<typeof inner>) => {
     if (args[0] === name) await onJob()
     return inner(...args)
   }
+
+  // BOTH seams, for the same reason `installCapture` swaps both — and here the
+  // failure would be quieter. Wrapping only `enqueue` leaves every multi-
+  // recipient fan-out unintercepted, so a test asserting "this queue failed and
+  // was contained" would be asserting it against a queue that never failed, and
+  // would pass. `onJob` fires ONCE per batch, not once per job: the batch is the
+  // round trip, so it is the thing that succeeds or fails.
+  const innerMany = app.queue.enqueueMany
+  app.queue.enqueueMany = async (...args: Parameters<typeof innerMany>) => {
+    if (args[0] === name) await onJob()
+    return innerMany(...args)
+  }
+
   return capture
 }

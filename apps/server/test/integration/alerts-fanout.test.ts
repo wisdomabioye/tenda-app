@@ -282,3 +282,37 @@ test('an alerts-queue failure costs the parties nothing', { skip }, async () => 
   // so a truncated fan-out shows up as zero, never as one of two.
   assert.ok(cap.notifiedUserIds().length > 0, 'the parties were notified anyway')
 })
+
+/** The mirror: fail the notifications queue instead, leaving alerts working. */
+const failNotificationsQueue = (): SideEffectCapture =>
+  interceptQueue(getApp(), 'notifications', () => Promise.reject(new Error('redis gone')))
+
+// The other direction of the ordering the step-2 comment claims, and the only
+// test that exercises it: the alert is hooked BEFORE the party notices, so a
+// notification-queue failure must not be able to take the alert with it. The
+// test above holds even if the two swapped places — the alert failing first
+// leaves the notices untouched either way — so it cannot see the order at all.
+//
+// It is also the only test that drives `interceptQueue` through `enqueueMany`.
+// Party notices go out as a batch, so wrapping only `enqueue` would leave this
+// hook unreached: the fan-out would succeed, `assert.rejects` would fail, and
+// the gap would announce itself rather than hide.
+test('a notifications-queue failure does not lose the alert — it is queued first', { skip }, async () => {
+  const escrow_id = await escrowWithParties()
+  cap = failNotificationsQueue()
+
+  // Unlike the alerts queue (G5: `enqueueAlert` swallows), a party-notice
+  // failure propagates — the fan-out has no catch around it and BullMQ retrying
+  // the whole job is the intended recovery.
+  await assert.rejects(
+    () => buildVerifyTxDeps(getApp()).republish(republishEvent('DisputeRaised', { escrow_id })),
+    /redis gone/,
+  )
+
+  assert.strictEqual(
+    cap.alerts().length,
+    expectedChannels().length,
+    'the alert was lost to a failure on a different queue',
+  )
+  assert.deepStrictEqual(cap.notifiedUserIds(), [], 'the notices were the half that failed')
+})

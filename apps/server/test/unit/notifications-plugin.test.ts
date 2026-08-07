@@ -16,12 +16,21 @@ import fp from 'fastify-plugin'
 import notificationsPlugin from '@server/plugins/notifications'
 import { appEvents } from '@server/lib/events'
 import type { AppDatabase } from '@server/plugins/db'
-import type { JobName, JobPayload } from '@server/plugins/queue'
-
-type NotifJob = JobPayload['notifications']
+import type { JobPayload } from '@server/plugins/queue'
+import { queueDouble, type QueueDouble } from '../helpers/queue-double'
 
 let app: FastifyInstance
-let jobs: NotifJob[] = []
+let queue: QueueDouble
+
+/**
+ * The notification jobs this test's listeners produced.
+ *
+ * Read through the shared double rather than a hand-rolled stub that pushed
+ * `payload as NotifJob`: that cast asserted the very correlation between queue
+ * name and payload shape the double derives, so a listener enqueuing onto the
+ * wrong queue would have been recorded here as a notification.
+ */
+const notifs = (): JobPayload['notifications'][] => queue.notifications()
 
 before(async () => {
   app = Fastify({ logger: false })
@@ -38,12 +47,8 @@ before(async () => {
   await app.register(
     fp(
       async (f) => {
-        f.decorate('queue', {
-          async enqueue(name: JobName, payload: JobPayload[JobName]) {
-            if (name === 'notifications') jobs.push(payload as NotifJob)
-            return { job_id: 'test' }
-          },
-        })
+        queue = queueDouble()
+        f.decorate('queue', queue)
       },
       { name: 'queue' },
     ),
@@ -57,7 +62,9 @@ after(async () => {
 })
 
 beforeEach(() => {
-  jobs = []
+  // Both recorders, via the double's own reset — clearing `calls` by hand here
+  // would leave `bulkBatchSizes` accumulating across every test in the file.
+  queue.reset()
 })
 
 /** Listeners are async; emit is sync — let the microtasks settle. */
@@ -72,10 +79,10 @@ test('message.sent pushes but does NOT persist (chat stays out of the centre)', 
   })
   await flush()
 
-  assert.strictEqual(jobs.length, 1)
-  assert.strictEqual(jobs[0].user_id, 'u-recipient')
-  assert.strictEqual(jobs[0].persist, false)
-  assert.deepStrictEqual(jobs[0].data, { screen: 'chat', conversationId: 'c1', userId: 'u-sender' })
+  assert.strictEqual(notifs().length, 1)
+  assert.strictEqual(notifs()[0].user_id, 'u-recipient')
+  assert.strictEqual(notifs()[0].persist, false)
+  assert.deepStrictEqual(notifs()[0].data, { screen: 'chat', conversationId: 'c1', userId: 'u-sender' })
 })
 
 test('review.submitted persists and deep-links a gig (title set → kind gig)', async () => {
@@ -88,10 +95,10 @@ test('review.submitted persists and deep-links a gig (title set → kind gig)', 
   })
   await flush()
 
-  assert.strictEqual(jobs.length, 1)
-  assert.strictEqual(jobs[0].user_id, 'u-reviewee')
-  assert.strictEqual(jobs[0].persist, true)
-  assert.deepStrictEqual(jobs[0].data, { screen: 'escrow', escrowId: 'e1', kind: 'gig' })
+  assert.strictEqual(notifs().length, 1)
+  assert.strictEqual(notifs()[0].user_id, 'u-reviewee')
+  assert.strictEqual(notifs()[0].persist, true)
+  assert.deepStrictEqual(notifs()[0].data, { screen: 'escrow', escrowId: 'e1', kind: 'gig' })
 })
 
 test('review.submitted on an exchange (null title) deep-links kind exchange', async () => {
@@ -104,8 +111,8 @@ test('review.submitted on an exchange (null title) deep-links kind exchange', as
   })
   await flush()
 
-  assert.strictEqual(jobs.length, 1)
-  assert.strictEqual(jobs[0].data?.kind, 'exchange')
+  assert.strictEqual(notifs().length, 1)
+  assert.strictEqual(notifs()[0].data?.kind, 'exchange')
 })
 
 test('fiat.settled persists and deep-links the intent', async () => {
@@ -120,10 +127,10 @@ test('fiat.settled persists and deep-links the intent', async () => {
   })
   await flush()
 
-  assert.strictEqual(jobs.length, 1)
-  assert.strictEqual(jobs[0].user_id, 'u-fiat')
-  assert.strictEqual(jobs[0].persist, true)
-  assert.deepStrictEqual(jobs[0].data, { screen: 'fiat-intent', intentId: 'i1' })
+  assert.strictEqual(notifs().length, 1)
+  assert.strictEqual(notifs()[0].user_id, 'u-fiat')
+  assert.strictEqual(notifs()[0].persist, true)
+  assert.deepStrictEqual(notifs()[0].data, { screen: 'fiat-intent', intentId: 'i1' })
 })
 
 test('fiat.failed persists the failure reason for the intent', async () => {
@@ -139,10 +146,10 @@ test('fiat.failed persists the failure reason for the intent', async () => {
   })
   await flush()
 
-  assert.strictEqual(jobs.length, 1)
-  assert.strictEqual(jobs[0].persist, true)
-  assert.strictEqual(jobs[0].body, 'Card declined')
-  assert.deepStrictEqual(jobs[0].data, { screen: 'fiat-intent', intentId: 'i2' })
+  assert.strictEqual(notifs().length, 1)
+  assert.strictEqual(notifs()[0].persist, true)
+  assert.strictEqual(notifs()[0].body, 'Card declined')
+  assert.deepStrictEqual(notifs()[0].data, { screen: 'fiat-intent', intentId: 'i2' })
 })
 
 // Approval mode has no other poster-facing signal: an application writes a row
@@ -157,8 +164,8 @@ test('gig.application_received: notifies the poster and names the gig', async ()
   })
   await flush()
 
-  assert.strictEqual(jobs.length, 1, 'exactly one notice')
-  const [job] = jobs
+  assert.strictEqual(notifs().length, 1, 'exactly one notice')
+  const [job] = notifs()
   assert.strictEqual(job.user_id, 'creator-9', 'the poster, never the applicant who acted')
   assert.match(job.title, /applicant/i)
   // A poster can have several gigs taking applications at once, so the notice
@@ -179,8 +186,8 @@ test('assignment_released_offchain: notifies the poster, deep-linked to the gig'
   })
   await flush()
 
-  assert.strictEqual(jobs.length, 1, 'exactly one notice')
-  const [job] = jobs
+  assert.strictEqual(notifs().length, 1, 'exactly one notice')
+  const [job] = notifs()
   assert.strictEqual(job.user_id, 'creator-1', 'the poster, not the worker who acted')
   assert.match(job.title, /stepped back/i)
   // It must tell them what to DO — the escrow is still theirs to unassign.

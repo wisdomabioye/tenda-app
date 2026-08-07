@@ -22,6 +22,8 @@ import * as assert from 'node:assert'
 import fastify from 'fastify'
 import { AppError } from '@server/lib/errors'
 import queuePlugin, {
+  toJobOptions,
+  type BulkJob,
   type JobName,
   type JobPayload,
   type QueueService,
@@ -119,4 +121,78 @@ test('JobPayload shapes are statically distinct (compile-time check)', () => {
 test('QueueService.enqueue: signature is generic over JobName (compile-time check)', () => {
   const fn: QueueService['enqueue'] = async () => ({ job_id: 'x' })
   assert.strictEqual(typeof fn, 'function')
+})
+
+// ---------- the bulk surface ----------------------------------------------
+
+test('queue plugin: decorates enqueueMany alongside enqueue', async () => {
+  const app = await build()
+  assert.strictEqual(typeof app.queue.enqueueMany, 'function')
+  await app.close()
+})
+
+test('queue.enqueueMany: stub throws 501 and names the method, not just the queue', async () => {
+  const app = await build()
+  const err = await expectStubThrows(
+    () =>
+      app.queue.enqueueMany('notifications', [
+        { payload: { id: 'n-1', user_id: 'u-1', title: 't', body: 'b', persist: true } },
+      ]),
+    /enqueueMany\('notifications'\).*REDIS_URL not configured/,
+  )
+  // Naming the method matters for the same reason naming the queue does: the
+  // two producer paths fail for the same reason but from different call sites,
+  // and an operator reading the log should not have to guess which one ran.
+  assert.strictEqual(err.code, 'INTERNAL_ERROR')
+  await app.close()
+})
+
+// ---------- EnqueueOptions → BullMQ JobsOptions -----------------------------
+//
+// The mapping both producer paths share. It is on the live (Redis-backed) path
+// and therefore unreachable from CI's suite, so it is tested directly: a field
+// silently dropped here is honoured by whichever path was checked by hand and
+// lost by the other, and `remove_on_complete` losing that coin-toss leaves a
+// `send-otp` plaintext code sitting in completed-job history.
+
+test('toJobOptions: renames every field to its BullMQ spelling', () => {
+  assert.deepStrictEqual(
+    toJobOptions({ job_id: 'k', delay_ms: 1500, attempts: 3, remove_on_complete: true }),
+    { jobId: 'k', delay: 1500, attempts: 3, removeOnComplete: true },
+  )
+})
+
+test('toJobOptions: an absent field is OMITTED, not set to undefined', () => {
+  // Not cosmetic: BullMQ merges these over the queue's defaultJobOptions, so an
+  // explicit `attempts: undefined` would erase DEFAULT_JOB_OPTIONS.attempts and
+  // silently drop the retry budget to BullMQ's own default of 1.
+  assert.deepStrictEqual(toJobOptions(undefined), {})
+  assert.deepStrictEqual(toJobOptions({}), {})
+  const only = toJobOptions({ job_id: 'k' })
+  assert.deepStrictEqual(only, { jobId: 'k' })
+  assert.deepStrictEqual(Object.keys(only), ['jobId'], 'no undefined-valued keys')
+})
+
+test('toJobOptions: falsy-but-present values survive', () => {
+  // `delay_ms: 0` and `remove_on_complete: false` are meaningful, and a
+  // truthiness check instead of an `!== undefined` one would drop both.
+  assert.deepStrictEqual(toJobOptions({ delay_ms: 0, attempts: 0, remove_on_complete: false }), {
+    delay: 0,
+    attempts: 0,
+    removeOnComplete: false,
+  })
+})
+
+test('queue.enqueueMany: a per-job jobId is expressible (compile-time check)', () => {
+  // BullMQ's addBulk takes per-job opts, which is what lets the dedup key stay
+  // per job. One set shared across the batch would collapse it to a single job.
+  const jobs: BulkJob<'notifications'>[] = [
+    {
+      payload: { id: 'n-1', user_id: 'u-1', title: 't', body: 'b', persist: true },
+      opts: { job_id: 'k1', attempts: 2 },
+    },
+    { payload: { id: 'n-2', user_id: 'u-2', title: 't', body: 'b', persist: true } },
+  ]
+  assert.strictEqual(jobs[0].opts?.job_id, 'k1')
+  assert.strictEqual(jobs[1].opts, undefined)
 })

@@ -99,6 +99,28 @@ function assertNotificationId(id: string): void {
 }
 
 /**
+ * `NotificationInput` → the job payload, VALIDATING as it goes.
+ *
+ * Shared by the single- and many-recipient producers so the two cannot drift on
+ * what a notification job looks like — the id default, the `persist` default
+ * and the absent-vs-empty `data` rule are each decided once. It also puts the
+ * id guard on the only path that builds a payload, which is what lets the
+ * fan-out below validate the whole batch before enqueuing any of it: building
+ * is separate from sending.
+ */
+function notificationJob(input: NotificationInput): JobPayload['notifications'] {
+  if (input.id !== undefined) assertNotificationId(input.id)
+  return {
+    id: input.id ?? randomUUID(),
+    user_id: input.user_id,
+    title: input.title,
+    body: input.body,
+    ...(input.data !== undefined ? { data: input.data } : {}),
+    persist: input.persist ?? true,
+  }
+}
+
+/**
  * Enqueue a notification. Stamps a stable id so the delivery worker can insert
  * with onConflictDoNothing — a retried job re-uses the same id and never
  * writes a duplicate row or double-fires the badge. `opts` passes through to
@@ -112,19 +134,7 @@ export async function enqueueNotification(
   input: NotificationInput,
   opts?: EnqueueOptions,
 ): Promise<void> {
-  if (input.id !== undefined) assertNotificationId(input.id)
-  await queue.enqueue(
-    'notifications',
-    {
-      id: input.id ?? randomUUID(),
-      user_id: input.user_id,
-      title: input.title,
-      body: input.body,
-      ...(input.data !== undefined ? { data: input.data } : {}),
-      persist: input.persist ?? true,
-    },
-    opts,
-  )
+  await queue.enqueue('notifications', notificationJob(input), opts)
 }
 
 /**
@@ -156,19 +166,26 @@ export interface ManyNotificationInput extends Omit<NotificationInput, 'user_id'
  * Nullable ids are accepted so callers can pass a party that may be absent
  * (an unassigned counterparty) without filtering at every call site.
  *
- * ALL-OR-NOTHING on a bad id. Every `idFor` result is resolved and validated
- * before the first enqueue, because the guard throws: validating inside the
- * loop would leave a PARTIAL fan-out — the recipients before the bad id
- * notified, the ones after it silently not. Half a fan-out is worse than none,
- * since nothing downstream can tell it happened.
+ * ONE ROUND TRIP, not one per recipient. The whole batch goes through
+ * `enqueueMany`, which pipelines it — a subscriber fan-out to a thousand users
+ * used to pay the Redis round trip a thousand times, and that cost is paid
+ * inside the verify-tx worker slot that produced it.
  *
- * Not transactional beyond that: a Redis failure mid-loop still enqueues a
- * prefix. That one is the queue's to own (jobs are retried), whereas a
- * malformed id is a caller bug that can be caught for free before any side
- * effect.
+ * ALL-OR-NOTHING on a bad id. Every job is BUILT — which is where `idFor` is
+ * resolved and validated — before anything is sent, because the guard throws.
+ * Validating as we sent would leave a PARTIAL fan-out: the recipients before
+ * the bad id notified, the ones after it silently not. Half a fan-out is worse
+ * than none, since nothing downstream can tell it happened. Batching makes that
+ * structural rather than merely careful — there is now a single send, so there
+ * is no point between two sends for the guard to fire.
+ *
+ * Not transactional beyond that: `enqueueMany` pipelines rather than
+ * transacts, so a Redis failure part-way still leaves some jobs enqueued. That
+ * one is the queue's to own (jobs are retried), whereas a malformed id is a
+ * caller bug that can be caught for free before any side effect.
  */
 export async function enqueueNotificationToMany(
-  queue: Pick<QueueService, 'enqueue'>,
+  queue: Pick<QueueService, 'enqueueMany'>,
   user_ids: readonly (string | null)[],
   notice: ManyNotificationInput,
 ): Promise<void> {
@@ -176,23 +193,28 @@ export async function enqueueNotificationToMany(
     .filter((user_id): user_id is string => user_id !== null)
     .map((user_id) => {
       const id = notice.idFor?.(user_id)
-      if (id !== undefined) assertNotificationId(id)
-      return { user_id, id }
+      // Fields named rather than spread: `notice` may be a wider object than
+      // ManyNotificationInput (excess-property checks only apply to literals),
+      // and a spread would carry those extras into the job input.
+      return {
+        payload: notificationJob({
+          user_id,
+          title: notice.title,
+          body: notice.body,
+          ...(notice.data !== undefined ? { data: notice.data } : {}),
+          ...(notice.persist !== undefined ? { persist: notice.persist } : {}),
+          ...(id !== undefined ? { id } : {}),
+        }),
+      }
     })
 
-  for (const { user_id, id } of jobs) {
-    // Fields named rather than spread: `notice` may be a wider object than
-    // ManyNotificationInput (excess-property checks only apply to literals),
-    // and a spread would carry those extras into the job input.
-    await enqueueNotification(queue, {
-      user_id,
-      title: notice.title,
-      body: notice.body,
-      ...(notice.data !== undefined ? { data: notice.data } : {}),
-      ...(notice.persist !== undefined ? { persist: notice.persist } : {}),
-      ...(id !== undefined ? { id } : {}),
-    })
-  }
+  // Nothing to send is not a queue operation. Without this, a fan-out whose
+  // recipients were all null would reach the queue and — on a box with no
+  // REDIS_URL, where the stub throws — start failing a case that previously
+  // succeeded by doing nothing. The old loop simply never iterated.
+  if (jobs.length === 0) return
+
+  await queue.enqueueMany('notifications', jobs)
 }
 
 /**
