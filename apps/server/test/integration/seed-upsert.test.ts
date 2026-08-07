@@ -41,8 +41,30 @@ function sepoliaSecrets(escrow: string): Map<string, ResolvedChainSecret> {
   ])
 }
 
+/** The manifest assets that belong to the active chain. */
+const BASE_ASSET_IDS = ['USDC_BASE', 'ETH_BASE']
+
 type ChainSnapshot = typeof chains.$inferSelect
 type AssetSnapshot = typeof assets.$inferSelect
+
+/**
+ * `is_enabled` for the active chain and its assets, keyed by id.
+ *
+ * A Record rather than an array so deepStrictEqual is order-independent AND a
+ * missing row fails (the key is simply absent) instead of silently reading as
+ * disabled.
+ */
+async function enablementOf(db: PostgresJsDatabase): Promise<Record<string, boolean>> {
+  const chainRows = await db
+    .select({ id: chains.id, enabled: chains.is_enabled })
+    .from(chains)
+    .where(eq(chains.id, CHAIN_ID))
+  const assetRows = await db
+    .select({ id: assets.id, enabled: assets.is_enabled })
+    .from(assets)
+    .where(inArray(assets.id, BASE_ASSET_IDS))
+  return Object.fromEntries([...chainRows, ...assetRows].map((r) => [r.id, r.enabled]))
+}
 
 /** Put the registry back exactly as snapshotted: created rows deleted, pre-existing rows restored field-for-field. */
 async function restoreRegistry(
@@ -192,6 +214,59 @@ test('applySeed writes NOTHING when enablement already matches', { skip }, async
       )
     } finally {
       await client`delete from chains where id = ${PROBE}`
+      await restoreRegistry(db, chainsBefore, assetsBefore)
+    }
+  } finally {
+    await client.end()
+  }
+})
+
+test('applySeed RE-ENABLES a chain and its assets when the config comes back', { skip }, async () => {
+  // The recovery direction, and the one an operator leans on immediately after
+  // an incident: the CHAIN_* vars went missing, the boot disabled the chain and
+  // its assets, the vars are restored — the next boot must bring them back.
+  //
+  // Nothing else can do it. `is_enabled` is deliberately absent from BOTH
+  // conflict sets in applySeedRows, so the upserts re-write every other column
+  // and leave enablement dark; only the toEnable half of the delta flips it.
+  // Delete either of those two UPDATEs and the registry stays unreachable while
+  // every other assertion in this file still passes.
+  const client = postgres(process.env.DATABASE_URL as string, { max: 1 })
+  const db = drizzle(client)
+  try {
+    const chainsBefore = await db.select().from(chains)
+    const assetsBefore = await db.select().from(assets)
+    try {
+      // A healthy deploy, as the first test leaves it.
+      await applySeed(db, buildSeedRows(sepoliaSecrets(ESCROW_V1)))
+      assert.deepStrictEqual(
+        await enablementOf(db),
+        { [CHAIN_ID]: true, USDC_BASE: true, ETH_BASE: true },
+        'the seed did not bring the active chain up in the first place',
+      )
+
+      // The state a boot with the vars missing leaves behind: rows still there,
+      // everything dark.
+      await db.update(chains).set({ is_enabled: false }).where(eq(chains.id, CHAIN_ID))
+      await db.update(assets).set({ is_enabled: false }).where(inArray(assets.id, BASE_ASSET_IDS))
+
+      // Control. Without it, a setup that quietly stopped matching rows would
+      // leave the registry already enabled and the assertion below would pass
+      // for entirely the wrong reason.
+      assert.deepStrictEqual(
+        await enablementOf(db),
+        { [CHAIN_ID]: false, USDC_BASE: false, ETH_BASE: false },
+        'setup failed to darken the registry — the re-enable assertion would be vacuous',
+      )
+
+      // Vars restored, redeploy.
+      await applySeed(db, buildSeedRows(sepoliaSecrets(ESCROW_V1)))
+      assert.deepStrictEqual(
+        await enablementOf(db),
+        { [CHAIN_ID]: true, USDC_BASE: true, ETH_BASE: true },
+        'restoring the config did not bring the chain back — the re-enable path is broken',
+      )
+    } finally {
       await restoreRegistry(db, chainsBefore, assetsBefore)
     }
   } finally {
