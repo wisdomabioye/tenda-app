@@ -194,7 +194,35 @@ export const DEFAULT_JOB_OPTIONS = {
   attempts: 5,
   backoff: { type: 'exponential' as const, delay: 2_000 },
   removeOnComplete: { age: 24 * 3_600, count: 5_000 },
-  removeOnFail: { age: 7 * 24 * 3_600 },
+  // Both bounds, deliberately — age alone is not a bound.
+  //
+  // `age` only evicts as fast as failures ARRIVE (BullMQ evaluates retention
+  // inside moveToFinished, it runs no background timer), so during the one
+  // situation this retention exists for — a sustained outage: a push provider
+  // down, a dead Slack webhook, an RPC rejecting everything — a week's worth
+  // accumulates with no ceiling. `notifications` is where that bites: one
+  // popular gig fans out to one job per subscriber, so a 50,000-subscriber gig
+  // that exhausts its attempts leaves 50,000 failed job hashes in Redis from a
+  // SINGLE post. Precisely when memory pressure is least welcome.
+  //
+  // 5,000, matching removeOnComplete because the two want the same thing (a
+  // bounded finished set) and one number needs one justification: the failures
+  // that pile up in an outage are all the same failure, so the 5,000th adds
+  // nothing to the 50th. What is retained is for inspecting payloads and
+  // re-driving, not for noticing — BullMQ emits `failed` on every attempt (the
+  // worker awaits moveToFailed, which itself decides retry-or-terminal via
+  // shouldRetryJob), so the handler in plugins/workers.ts has already logged
+  // every one of them: `worker: job failed` at warn, or the info line for a
+  // RetryableError the reconcile repeatable takes over.
+  //
+  // Per queue, not app-wide: BullMQ trims the queue's own `failed` zset, so the
+  // real ceiling is 5,000 × the number of JobNames.
+  //
+  // Honest cost: count evicts OLDEST first (ZREVRANGE keeps the newest —
+  // measured: 10 failures under a cap of 3 retained jobs 8, 9, 10), so an
+  // outage past 5,000 loses its onset, usually the most diagnostic failure.
+  // BullMQ offers no keep-oldest mode; the log lines above are what survive it.
+  removeOnFail: { age: 7 * 24 * 3_600, count: 5_000 },
 }
 
 /** Queue name prefix so several apps can share one Redis safely.
@@ -225,6 +253,39 @@ export function queueConnectionOptions(redis_url: string): QueueConnectionOption
     ...(u.pathname.length > 1 ? { db: Number(u.pathname.slice(1)) } : {}),
     maxRetriesPerRequest: null,
   }
+}
+
+/**
+ * The options EVERY `new Queue(...)` in this app is constructed with.
+ *
+ * A function rather than two call sites spelling out the same object literal,
+ * because the two had already diverged and the divergence put the retention
+ * above out of reach of the queues that tick forever. plugins/workers.ts
+ * builds a Queue per repeatable to register its scheduler and passed
+ * `{ connection }` alone — so every tick those schedulers produce carried NO
+ * retention at all (BullMQ merges the registering queue's `defaultJobOptions`
+ * into the scheduler template, and undefined there means keep forever).
+ * Measured against real Redis: with a bare `{ connection }`, nothing was ever
+ * trimmed — waiting on 8 scheduler-produced completions left 11 completed
+ * hashes behind (the scheduler kept firing while the probe settled) and every
+ * job carried `opts.removeOnComplete: undefined`. The same probe with these
+ * options held at the cap. REPEATABLES runs three schedulers every 60s and two
+ * every 5min, so that is ~4,900 completed job hashes a day, accumulating for
+ * the life of the deployment. Not a bigger number than the uncapped
+ * `removeOnFail` this task set out to close — an outage can out-produce it in
+ * minutes — but a worse shape: that one needed something to go wrong and
+ * stopped when it was fixed, this one ran on a healthy system and never
+ * stopped. Sitting one file away from the constant meant to bound it.
+ *
+ * Guarded by a source scan in test/unit/queue.test.ts rather than by review: a
+ * bare `new Queue(name, { connection })` compiles, runs, and passes every
+ * behavioural test, because nothing about it is wrong except what Redis keeps.
+ */
+export function queueOptions(connection: QueueConnectionOptions): {
+  connection: QueueConnectionOptions
+  defaultJobOptions: typeof DEFAULT_JOB_OPTIONS
+} {
+  return { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS }
 }
 
 /**
@@ -313,7 +374,7 @@ const queuePlugin: FastifyPluginAsync = async (fastify) => {
   function queueFor(name: JobName): Queue {
     let q = queues.get(name)
     if (q === undefined) {
-      q = new Queue(queueName(name), { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS })
+      q = new Queue(queueName(name), queueOptions(connection))
       queues.set(name, q)
     }
     return q

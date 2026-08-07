@@ -19,15 +19,138 @@ delete process.env.REDIS_URL // pin the 501 stub path regardless of dev env
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
+import { readdirSync, readFileSync } from 'node:fs'
+import { join, relative } from 'node:path'
 import fastify from 'fastify'
 import { AppError } from '@server/lib/errors'
 import queuePlugin, {
+  DEFAULT_JOB_OPTIONS,
+  queueOptions,
   toJobOptions,
   type BulkJob,
   type JobName,
   type JobPayload,
   type QueueService,
 } from '@server/plugins/queue'
+
+/**
+ * Blank out comment bodies, preserving line numbers so a failure can still name
+ * the line. Without this the scan below matches the prose ABOUT `new Queue(...)`
+ * in queue.ts's own docstring, which is a false positive it cannot act on.
+ *
+ * Not a tokenizer: a `//` inside a string literal truncates that line, and a
+ * paren inside a string is counted by the depth scan below. A stray `)` ends
+ * the scan early and fails loudly; a stray `(` is the dangerous direction —
+ * it runs the scan PAST the real closing paren into later code, which is how a
+ * bad call could inherit a good one's arguments and pass. `queueConstructionSites`
+ * rejects that overrun explicitly rather than trusting it not to happen.
+ */
+function stripComments(source: string): string {
+  const blankKeepingNewlines = (m: string): string => m.replace(/[^\n]/g, ' ')
+  return source.replace(/\/\*[\s\S]*?\*\//g, blankKeepingNewlines).replace(/\/\/[^\n]*/g, '')
+}
+
+/** Every .ts under `dir`, recursively — the source-scan guard's input. */
+function tsFilesUnder(dir: string): string[] {
+  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) return tsFilesUnder(full)
+    return entry.name.endsWith('.ts') ? [full] : []
+  })
+}
+
+interface QueueSite {
+  line: number
+  /** Everything between the call's own parentheses, comments already removed. */
+  args: string
+}
+
+/**
+ * `new Queue`, as a name rather than a substring: the negative lookahead is what
+ * stops `new QueueEvents(...)` counting as a Queue construction.
+ */
+const CONSTRUCTION = /new\s+Queue(?![A-Za-z0-9_$])/g
+
+/**
+ * Index of the call's opening paren, stepping over TYPE ARGUMENTS.
+ *
+ * BullMQ's `Queue` is generic, so `new Queue<JobPayload['x']>(name, opts)` is
+ * ordinary code — and a scan looking for the literal `new Queue(` does not see
+ * it at all. That is not hypothetical: the guard below missed exactly this and
+ * only failed because the vanished site dropped the site COUNT below its floor.
+ * With one more compliant construction in the tree it would have passed.
+ */
+function callParenAfter(text: string, from: number): number {
+  let i = from
+  while (/\s/.test(text[i])) i++
+
+  if (text[i] === '<') {
+    let depth = 0
+    for (; i < text.length; i++) {
+      if (text[i] === '<') depth++
+      else if (text[i] === '>' && --depth === 0) break
+    }
+    if (depth !== 0) throw new Error(`unbalanced type arguments on \`new Queue\` at ${from}`)
+    i++
+    while (/\s/.test(text[i])) i++
+  }
+
+  if (text[i] !== '(') throw new Error(`\`new Queue\` at offset ${from} is not a call`)
+  return i
+}
+
+/**
+ * Every `new Queue(...)` in `source`, with its ARGUMENTS, found by matching the
+ * call's closing paren.
+ *
+ * The first version of this read a fixed three-line window instead, and that
+ * window is not the call: two constructions on adjacent lines share it, so an
+ * unretained `new Queue(name, { connection })` sitting one line above a correct
+ * one read as correct and the guard passed. Measured, not theorised — and a
+ * refactor splitting one construction into two is the likeliest way the bug
+ * comes back, so the window failed in the one shape that matters.
+ *
+ * Throws rather than returning a site it is not sure of. Two ways the depth
+ * scan can be wrong, both from a paren inside a string literal (stripComments
+ * is not a tokenizer): it never balances, or it balances too late and the
+ * arguments swallow following code. The second is the one that matters — the
+ * rest of the file always contains a compliant call somewhere, so an overrun
+ * would let a bad construction inherit a good one's arguments and turn this
+ * guard back into decoration. Neither is reachable today; both are cheap to
+ * reject, and a guard nobody can trust is worse than no guard.
+ */
+function queueConstructionSites(source: string): QueueSite[] {
+  const text = stripComments(source)
+  const sites: QueueSite[] = []
+
+  for (const match of text.matchAll(CONSTRUCTION)) {
+    const at = match.index
+    const open = callParenAfter(text, at + match[0].length)
+
+    let depth = 0
+    let end = open
+    for (; end < text.length; end++) {
+      if (text[end] === '(') depth++
+      else if (text[end] === ')' && --depth === 0) break
+    }
+    if (depth !== 0) throw new Error(`unbalanced parens after \`new Queue(\` at offset ${at}`)
+
+    const args = text.slice(open + 1, end)
+    // A second construction inside what is supposedly ONE call's arguments means
+    // the scan ran past its closing paren and is now reading the next one —
+    // exactly the overrun that would make a bad call look good.
+    //
+    // A fresh non-global copy, NOT `CONSTRUCTION.test(args)`: `/g` regexes carry
+    // `lastIndex` between calls, so testing with the shared one would answer
+    // differently on alternate invocations and this check would work half the
+    // time. The same reason `matchAll` above is safe — it clones internally.
+    if (new RegExp(CONSTRUCTION.source).test(args)) {
+      throw new Error(`\`new Queue\` at offset ${at} overran into a later construction`)
+    }
+    sites.push({ line: text.slice(0, at).split('\n').length, args })
+  }
+  return sites
+}
 
 async function build(): Promise<ReturnType<typeof fastify>> {
   const app = fastify()
@@ -181,6 +304,81 @@ test('toJobOptions: falsy-but-present values survive', () => {
     attempts: 0,
     removeOnComplete: false,
   })
+})
+
+// ---------- finished-job retention ------------------------------------------
+
+test('every finished-job retention policy is bounded by BOTH age and count', () => {
+  // DERIVED from DEFAULT_JOB_OPTIONS, not a hand-written list of the two
+  // policies that exist today. The hand-written version claimed a third policy
+  // could not be added unbounded, and that was simply false — nothing would
+  // have made anyone add it to the list. Reading the constant makes the claim
+  // true: a `removeOnX` it grows is checked whether or not anyone remembers
+  // this file, which is the exact failure being guarded (`removeOnFail` shipped
+  // with an age and no ceiling, and nothing anywhere noticed).
+  let checked = 0
+
+  for (const [name, value] of Object.entries(DEFAULT_JOB_OPTIONS)) {
+    if (!name.startsWith('removeOn')) continue
+    checked++
+
+    if (typeof value !== 'object' || !('age' in value) || !('count' in value)) {
+      assert.fail(`${name}: a retention policy must set BOTH age and count, got ${JSON.stringify(value)}`)
+    }
+
+    // Age alone is not a bound. BullMQ evaluates retention inside
+    // moveToFinished and runs no background timer, so an age cap evicts only as
+    // fast as new jobs of the same kind arrive — during a sustained outage the
+    // set grows for the full age window with no ceiling at all.
+    assert.ok(value.age > 0, `${name}: age must be positive (0 evicts everything immediately)`)
+    // > 0, not merely present: BullMQ reads `count: 0` as "do not keep this job
+    // at all" (moveToFinished takes the removeJobKeys branch when maxCount is
+    // 0), so a zero here silently deletes every finished job instead of capping
+    // how many are kept — the opposite of retention, and it would read as a cap.
+    assert.ok(value.count > 0, `${name}: count must cap the set, and 0 means "keep none"`)
+  }
+
+  // A scan that matches nothing passes. If the keys are ever renamed, this is
+  // what says so instead of the suite going quietly green.
+  assert.ok(checked >= 2, `expected removeOnComplete and removeOnFail, matched ${checked}`)
+})
+
+test('queueOptions carries the retention policy to whoever constructs a Queue', () => {
+  const opts = queueOptions({ host: 'h', port: 6379, maxRetriesPerRequest: null })
+  assert.strictEqual(opts.connection.host, 'h')
+  // Identity, not a structural copy: a clone would let one construction site
+  // drift from the constant while still looking correct here.
+  assert.strictEqual(opts.defaultJobOptions, DEFAULT_JOB_OPTIONS)
+})
+
+test('every `new Queue` in src/ is constructed through queueOptions', () => {
+  // A source scan, because the alternative needs Redis and CI has none — and
+  // the bug it guards was invisible without one. plugins/workers.ts built its
+  // scheduler queues with a bare `{ connection }`, and BullMQ merges the
+  // registering queue's defaultJobOptions into the scheduler TEMPLATE, so every
+  // tick those schedulers produced was stored with no retention at all and its
+  // completed set grew for the life of the deployment. Nothing failed: the
+  // queue worked, the jobs ran, Redis just never gave the memory back.
+  const src = join(__dirname, '..', '..', 'src')
+  let found = 0
+
+  for (const file of tsFilesUnder(src)) {
+    for (const site of queueConstructionSites(readFileSync(file, 'utf8'))) {
+      found++
+      assert.ok(
+        site.args.includes('queueOptions('),
+        // Path relative to src/, not basename: two files can share a basename,
+        // and the whole value of this message is being able to open the line.
+        `${relative(src, file)}:${site.line}: \`new Queue(...)\` without ` +
+          `queueOptions(connection) — its jobs get no retention policy and ` +
+          `accumulate in Redis forever`,
+      )
+    }
+  }
+
+  // Anything less means the scan stopped seeing source it used to see — a guard
+  // that finds nothing passes, which is the failure mode to be afraid of here.
+  assert.ok(found >= 2, `expected the plugin and the scheduler loop, found ${found}`)
 })
 
 test('queue.enqueueMany: a per-job jobId is expressible (compile-time check)', () => {

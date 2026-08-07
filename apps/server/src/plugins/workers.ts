@@ -22,6 +22,7 @@ import { getConfig } from '@server/config'
 import {
   queueConnectionOptions,
   queueName,
+  queueOptions,
   type JobName,
   type JobPayload,
 } from '@server/plugins/queue'
@@ -129,9 +130,14 @@ const workersPlugin: FastifyPluginAsync = async (fastify) => {
 
   // Repeatable schedules, deterministic scheduler ids make boot
   // re-registration an upsert, never a duplicate.
+  //
+  // `queueOptions`, not a bare `{ connection }`: BullMQ merges THIS queue's
+  // defaultJobOptions into the scheduler template, and the template is what
+  // every tick this scheduler ever produces is built from. Without it the
+  // repeatables kept every completed job forever — see queueOptions' note.
   const schedulerQueues: Queue[] = []
   for (const r of REPEATABLES) {
-    const q = new Queue(queueName(r.name), { connection })
+    const q = new Queue(queueName(r.name), queueOptions(connection))
     await q.upsertJobScheduler(
       `sched:${r.name}`,
       { every: r.every_ms },

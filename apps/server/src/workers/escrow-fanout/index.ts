@@ -115,8 +115,9 @@ export async function fanOutEscrowEvent(
   //    because the caller already dedups — verify-tx republishes only when the
   //    transition APPLIED, and its step-1 `isProcessed` check means a retried
   //    job returns before republishing. Harmful because BullMQ keeps a failed
-  //    job under its id (removeOnFail: 7 days), so a keyed expansion that
-  //    exhausted its retries would silently swallow a later re-enqueue.
+  //    job under its id (removeOnFail retains up to 7 days or 5,000 failures,
+  //    whichever binds first), so a keyed expansion that exhausted its retries
+  //    would silently swallow a later re-enqueue for as long as it is retained.
   if (event.internal_event === 'escrow.created') {
     await fastify.queue.enqueue('fanout-subscribers', { escrow_id: event.escrow_id })
     return
