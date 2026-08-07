@@ -137,8 +137,15 @@ export const ADMIN_DASHBOARD_URL_ENV = 'ADMIN_DASHBOARD_URL'
  * Optional env vars that must be a well-formed absolute URL WHEN SET. Being
  * unset is fine (the feature degrades); being set to a typo is an operator
  * error that would otherwise surface as a dead link long after deploy.
+ *
+ * Exported so test/unit/env-example-parity.test.ts can require each one to be
+ * documented. Optional vars need that MORE than required ones, not less: a
+ * missing required var stops the boot and names itself, while a missing
+ * optional var degrades silently — unset `ADMIN_DASHBOARD_URL` ships every
+ * Slack dispute alert without a link, and an operator who was never told the
+ * var exists has no reason to look.
  */
-const OPTIONAL_URL_ENV_VARS = [ADMIN_DASHBOARD_URL_ENV] as const
+export const OPTIONAL_URL_ENV_VARS = [ADMIN_DASHBOARD_URL_ENV] as const
 
 /**
  * A base URL from env: trimmed, trailing slash dropped, null when unset. Both
