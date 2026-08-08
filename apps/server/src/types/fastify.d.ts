@@ -50,7 +50,7 @@ declare module 'fastify' {
     /** Bust the moderation blocklist cache, registered by `plugins/moderation.ts`. */
     invalidateBlocklistCache(): void
 
-    /** BullMQ queue service, registered by `plugins/queue.ts`. */
+    /** BullMQ queue service, registered by `plugins/queue`. */
     queue: QueueService
 
     /** Fiat pre-commit quote cache (Redis), registered by `plugins/quote-cache.ts`. */

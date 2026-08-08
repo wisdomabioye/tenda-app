@@ -159,7 +159,7 @@ export interface VerifyTxDeps {
 
 /**
  * BullMQ jobId factory. Spec lives in core/queue/idempotency.ts (Stage 2);
- * Stage 0 inlines the format so the queue.ts plugin's `EnqueueOptions.job_id`
+ * Stage 0 inlines the format so the queue plugin's `EnqueueOptions.job_id`
  * can be populated consistently.
  *
  * Format: `verify-tx.{chain_id}.{tx_ref}.{event}` with ':' stripped. `tx_ref`

@@ -1,7 +1,7 @@
 /**
  * Test-Redis lifecycle. Used by BullMQ worker tests. See README in this folder.
  *
- * Status: types-only scaffold. Concrete impl arrives with `plugins/queue.ts`
+ * Status: types-only scaffold. Concrete impl arrives with `plugins/queue`
  * during Stage 0 work-pass.
  */
 

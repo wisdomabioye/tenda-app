@@ -21,34 +21,19 @@ import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { readdirSync, readFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import fastify from 'fastify'
+import fastify, { type FastifyInstance } from 'fastify'
+import { stripComments } from '../helpers/source-scan'
 import { AppError } from '@server/lib/errors'
 import queuePlugin, {
   DEFAULT_JOB_OPTIONS,
   queueOptions,
+  resolveJobId,
   toJobOptions,
   type BulkJob,
   type JobName,
   type JobPayload,
   type QueueService,
 } from '@server/plugins/queue'
-
-/**
- * Blank out comment bodies, preserving line numbers so a failure can still name
- * the line. Without this the scan below matches the prose ABOUT `new Queue(...)`
- * in queue.ts's own docstring, which is a false positive it cannot act on.
- *
- * Not a tokenizer: a `//` inside a string literal truncates that line, and a
- * paren inside a string is counted by the depth scan below. A stray `)` ends
- * the scan early and fails loudly; a stray `(` is the dangerous direction —
- * it runs the scan PAST the real closing paren into later code, which is how a
- * bad call could inherit a good one's arguments and pass. `queueConstructionSites`
- * rejects that overrun explicitly rather than trusting it not to happen.
- */
-function stripComments(source: string): string {
-  const blankKeepingNewlines = (m: string): string => m.replace(/[^\n]/g, ' ')
-  return source.replace(/\/\*[\s\S]*?\*\//g, blankKeepingNewlines).replace(/\/\/[^\n]*/g, '')
-}
 
 /** Every .ts under `dir`, recursively — the source-scan guard's input. */
 function tsFilesUnder(dir: string): string[] {
@@ -152,7 +137,18 @@ function queueConstructionSites(source: string): QueueSite[] {
   return sites
 }
 
-async function build(): Promise<ReturnType<typeof fastify>> {
+/**
+ * `FastifyInstance`, NOT `ReturnType<typeof fastify>`.
+ *
+ * That was the annotation here until this was measured: it resolves to `any`,
+ * which made `app.queue` `any` and silently switched off type checking for
+ * every `app.queue.enqueue(...)` call below. Proof it was not theoretical — the
+ * notifications call in the 501 test was missing BOTH required `id` and
+ * `persist` and compiled anyway, and `{ tick_id: 999 }` where a string is
+ * required compiled too. The runtime assertions still did their job, so nothing
+ * ever failed; the file just quietly stopped being a type-surface test.
+ */
+async function build(): Promise<FastifyInstance> {
   const app = fastify()
   await app.register(queuePlugin)
   return app
@@ -183,7 +179,14 @@ test('queue plugin: decorates fastify.queue with QueueService shape', async () =
 test('queue.enqueue: stub throws 501 INTERNAL_ERROR (notifications)', async () => {
   const app = await build()
   const err = await expectStubThrows(
-    () => app.queue.enqueue('notifications', { user_id: 'u-1', title: 't', body: 'b' }),
+    () =>
+      app.queue.enqueue('notifications', {
+        id: 'n-1',
+        user_id: 'u-1',
+        title: 't',
+        body: 'b',
+        persist: true,
+      }),
     /notifications.*REDIS_URL not configured/,
   )
   assert.strictEqual(err.code, 'INTERNAL_ERROR')
@@ -306,6 +309,41 @@ test('toJobOptions: falsy-but-present values survive', () => {
   })
 })
 
+// ---------- the id a producer reports back ----------------------------------
+//
+// `resolveJobId` was private until plugins/queue.ts was split, and being private
+// meant nothing could reach it: its only callers are the two producer paths,
+// which need Redis. So a wrong three-step fallback would have shown up as a log
+// line naming the wrong id, in production, and nowhere else.
+
+test('resolveJobId: the id BullMQ assigned wins over the one asked for', () => {
+  // Be straight about this one: the two arguments cannot disagree today.
+  // `Job.create` does `job.id = await job.addJob(...)`, and when `opts.jobId` is
+  // supplied the script hands that same id straight back — including on a de-dup
+  // against an existing job. So whenever `job_id` is set, `job.id` echoes it.
+  //
+  // What this pins is therefore the CONTRACT, not a reachable branch: the
+  // function is documented as "the id BullMQ assigned, or the one the caller
+  // asked for", and swapping the first two steps would silently invert that the
+  // day BullMQ stops echoing. The two tests below are the reachable cases.
+  assert.strictEqual(resolveJobId('bull-assigned', { job_id: 'asked-for' }), 'bull-assigned')
+})
+
+test('resolveJobId: falls back to the requested id when BullMQ returns none', () => {
+  // `Job.id` is optional on BullMQ's type, which is the whole reason for a
+  // fallback. Dropping this middle step is silent: 'unknown' is still a string
+  // and every caller still compiles.
+  assert.strictEqual(resolveJobId(undefined, { job_id: 'asked-for' }), 'asked-for')
+})
+
+test('resolveJobId: admits ignorance rather than returning undefined', () => {
+  // Both absent is the un-keyed enqueue with a BullMQ that named nothing. The
+  // return type is `string`, so this has to be a value — and callers put it
+  // straight into `{ job_id }` on the producer's result.
+  assert.strictEqual(resolveJobId(undefined, undefined), 'unknown')
+  assert.strictEqual(resolveJobId(undefined, {}), 'unknown')
+})
+
 // ---------- finished-job retention ------------------------------------------
 
 test('every finished-job retention policy is bounded by BOTH age and count', () => {
@@ -379,6 +417,59 @@ test('every `new Queue` in src/ is constructed through queueOptions', () => {
   // Anything less means the scan stopped seeing source it used to see — a guard
   // that finds nothing passes, which is the failure mode to be afraid of here.
   assert.ok(found >= 2, `expected the plugin and the scheduler loop, found ${found}`)
+})
+
+test('a directory under src/plugins is exactly one plugin', () => {
+  // app.ts points @fastify/autoload at src/plugins with no `maxDepth`, so every
+  // directory under it becomes something autoload registers. TWO rules, and
+  // they are not the same rule — both measured against autoload 6.3.1 rather
+  // than reasoned about, because the second contradicts the obvious guess.
+  //
+  // 1. A directory needs an index.ts. With `index.js` present a sibling module
+  //    in the same directory was not loaded at all; with the index renamed
+  //    away, that sibling was registered as a plugin of its own. So the barrel
+  //    is not merely an import-path convenience — it is what stops autoload
+  //    treating ./options and ./connection as plugins, which they are not.
+  //
+  // 2. An index does NOT stop autoload descending. Measured: adding
+  //    queue/helpers/thing.js while queue/index.js was present loaded BOTH the
+  //    index and `thing.js`. lib/find-plugins.js takes the directory branch
+  //    before the index branch and says so — "we ignore the others modules (but
+  //    not the subdirectories)". A helper subdirectory therefore becomes an
+  //    extra plugin whether or not it has an index of its own, which is why
+  //    depth is capped here instead of just recursing and checking rule 1.
+  //    Helpers belong in flat files beside the index, where rule 1 hides them.
+  //
+  // Nothing else would catch either: test/helpers/test-app.ts registers
+  // `queuePlugin` by hand rather than autoloading src/plugins, so the whole
+  // integration suite can pass while the real server boots differently.
+  const pluginsDir = join(__dirname, '..', '..', 'src', 'plugins')
+  const dirs = readdirSync(pluginsDir, { withFileTypes: true }).filter((e) => e.isDirectory())
+
+  for (const dir of dirs) {
+    const entries = readdirSync(join(pluginsDir, dir.name), { withFileTypes: true })
+
+    assert.ok(
+      entries.some((e) => e.isFile() && e.name === 'index.ts'),
+      `src/plugins/${dir.name}/ has no index.ts — autoload will register each ` +
+        `plugin-shaped file inside it as its own plugin instead of the directory ` +
+        `as one`,
+    )
+
+    const nested = entries.filter((e) => e.isDirectory()).map((e) => e.name)
+    assert.deepStrictEqual(
+      nested,
+      [],
+      `src/plugins/${dir.name}/ contains subdirector${nested.length === 1 ? 'y' : 'ies'} ` +
+        `${nested.join(', ')} — autoload descends into those even though ` +
+        `${dir.name}/index.ts exists, and registers what it finds as EXTRA ` +
+        `plugins. Keep helpers as flat files beside index.ts`,
+    )
+  }
+
+  // A scan over nothing passes. src/plugins/queue is the directory this exists
+  // for, so its disappearance should fail here rather than go quiet.
+  assert.ok(dirs.length >= 1, `expected at least src/plugins/queue, found ${dirs.length}`)
 })
 
 test('queue.enqueueMany: a per-job jobId is expressible (compile-time check)', () => {

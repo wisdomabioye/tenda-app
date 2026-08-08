@@ -3,12 +3,13 @@
  * the gig_subscriptions whose city/category match.
  *
  * Runs on its OWN queue ('fanout-subscribers'), not inline in the verify-tx
- * republish — see the payload note in plugins/queue.ts for why. What that buys
- * beyond the freed slot: this work now gets BullMQ's retry posture. Inline, a
- * failure part-way through was swallowed by verify-tx's best-effort republish
- * catch — whoever had already been enqueued kept their notice and everyone
- * after the failure point silently never heard about the gig, with nothing left
- * to retry. As a job it is retried, which is what the stable ids below are for.
+ * republish — see the 'fanout-subscribers' note in plugins/queue/payloads.ts
+ * for why. What that buys beyond the freed slot: this work now gets BullMQ's
+ * retry posture. Inline, a failure part-way through was swallowed by verify-tx's
+ * best-effort republish catch — whoever had already been enqueued kept their
+ * notice and everyone after the failure point silently never heard about the
+ * gig, with nothing left to retry. As a job it is retried, which is what the
+ * stable ids below are for.
  *
  * The matching is SQL, not application code, which is why it is covered by an
  * integration test rather than a fake store — a stub would assert the query we

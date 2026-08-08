@@ -85,10 +85,10 @@ async function deliverNotification(
     if (outcome === 'duplicate') return
   }
 
-  // Tokens resolve at DELIVERY time (queue.ts doc: tokens churn between
-  // enqueue and delivery; resolving early pushes to stale devices). The push
-  // `services` are built ONCE in buildProcessors and reused, see the note
-  // there on why they must not be rebuilt per delivery.
+  // Tokens resolve at DELIVERY time (see plugins/queue/payloads.ts: tokens
+  // churn between enqueue and delivery; resolving early pushes to stale
+  // devices). The push `services` are built ONCE in buildProcessors and
+  // reused, see the note there on why they must not be rebuilt per delivery.
   const rows = await fastify.db
     .select({ token: device_tokens.token, platform: device_tokens.platform })
     .from(device_tokens)
