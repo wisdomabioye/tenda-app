@@ -9,6 +9,7 @@ export {
   winnerLabel,
   displayName,
   formatFullName,
+  hasCompleteName,
   resolveDisputeSender,
   disputeViewerSeat,
   type PartyRole,

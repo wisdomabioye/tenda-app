@@ -5,6 +5,7 @@ import {
   winnerLabel,
   displayName,
   formatFullName,
+  hasCompleteName,
   resolveDisputeSender,
   disputeViewerSeat,
   type DisputeSenderArgs,
@@ -229,4 +230,40 @@ test('disputeViewerSeat: agrees with resolveDisputeSender on the same reader', (
   assert.equal(resolveDisputeSender({ senderId: MEDIATOR, viewerId: POSTER, kind: 'gig', parties: PARTIES }).kind, 'mediator')
   assert.equal(disputeViewerSeat(PARTIES, MEDIATOR), 'mediator')
   assert.equal(disputeViewerSeat(PARTIES, POSTER), 'party')
+})
+
+// ── hasCompleteName ─────────────────────────────────────────────────────────
+// The "profile complete" predicate, shared by the server's create/accept guard,
+// `profile_complete` on the wire, and mobile's setup-vs-home redirect.
+
+test('hasCompleteName: whitespace-only is NOT a name', () => {
+  // The bug. Every site this replaced asked `x !== ''` or `Boolean(x)`, and two
+  // spaces pass both — so the row cleared the create/accept guard and skipped
+  // profile setup while every display surface showed "Anonymous".
+  assert.equal(hasCompleteName('  ', '  '), false)
+  assert.equal(hasCompleteName('\t', '\n'), false)
+})
+
+test('hasCompleteName: BOTH parts are required', () => {
+  // This is where `formatFullName(...) !== ''` — the obvious reduction — gets it
+  // wrong: it returns 'John' for a blank surname and so calls it complete. The
+  // server's requireProfileComplete demands both, so a client using the join
+  // would send someone to the home screen and then have the API refuse their
+  // first gig with "Complete your profile", a loop with no visible cause.
+  assert.equal(hasCompleteName('John', '  '), false)
+  assert.equal(hasCompleteName('  ', 'Doe'), false)
+  assert.equal(hasCompleteName('John', null), false)
+  assert.equal(formatFullName('John', '  ') !== '', true) // the wrong answer, pinned
+})
+
+test('hasCompleteName: a real name passes, padding and all', () => {
+  assert.equal(hasCompleteName('John', 'Doe'), true)
+  // Padding is trimmed for the TEST but not required to be trimmed in storage —
+  // rows written before the write-side trim landed still have to read true.
+  assert.equal(hasCompleteName(' John ', ' Doe '), true)
+})
+
+test('hasCompleteName: empty and null are not names', () => {
+  assert.equal(hasCompleteName('', ''), false)
+  assert.equal(hasCompleteName(null, null), false)
 })

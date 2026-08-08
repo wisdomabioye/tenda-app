@@ -183,6 +183,24 @@ describe('signInWithWallet', () => {
     expect(useAuthStore.getState().profileComplete).toBe(false)
   })
 
+  it('marks profileComplete false when the names are whitespace-only', async () => {
+    // #47. The old predicate was `Boolean(first && last)`, and two spaces pass
+    // it — so this session went straight to the home tabs, showed "Anonymous"
+    // everywhere, and was then refused by the server's create/accept guard.
+    // Distinct from the case above: those names are ABSENT, these are present
+    // and blank, which is the half that used to slip through.
+    walletSignInMock.mockResolvedValue({
+      auth: {
+        token: 't',
+        user: { id: 'u3', first_name: '  ', last_name: '  ' } as AuthResponse['user'],
+      },
+      account: account('solana'),
+    })
+    usersMeMock.mockRejectedValue(new ApiClientError(401, 'Unauthorized', 'me down', 'UNAUTHORIZED'))
+    await useAuthStore.getState().signInWithWallet(stubAdapter())
+    expect(useAuthStore.getState().profileComplete).toBe(false)
+  })
+
   it('returns false on decline and leaves the session untouched', async () => {
     walletSignInMock.mockResolvedValue(null)
     const ok = await useAuthStore.getState().signInWithWallet(stubAdapter())

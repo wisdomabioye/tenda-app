@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
 import { ErrorCode, isCloudinaryUrl, LOCATIONS, isCityInCountry } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
-import { ensureValidCoordinates } from '@server/lib/validation'
+import { ensureValidCoordinates, optionalName } from '@server/lib/validation'
 import { AppError, requireBody } from '@server/lib/errors'
 import { phoneVerifiedAt } from '@server/lib/auth/resolver'
 
@@ -75,9 +75,18 @@ const userById: FastifyPluginAsync = async (fastify) => {
       throw new AppError(400, ErrorCode.VALIDATION_ERROR, `country must be one of: ${Object.keys(LOCATIONS).join(', ')}`)
     }
 
+    // The SAME validator PATCH /v1/users/me uses — this is the other
+    // self-service write path for the same two columns, and a name stored
+    // through one has to mean the same thing as a name stored through the
+    // other. This route had no name validation at all: an over-long value went
+    // straight to the column, and a null came back a 500 from the NOT NULL
+    // constraint. See lib/validation's `optionalName`.
+    const trimmed_first = optionalName('first_name', first_name, 100)
+    const trimmed_last = optionalName('last_name', last_name, 100)
+
     const updates: Record<string, unknown> = { updated_at: new Date() }
-    if (first_name !== undefined) updates.first_name = first_name
-    if (last_name !== undefined)  updates.last_name  = last_name
+    if (trimmed_first !== undefined) updates.first_name = trimmed_first
+    if (trimmed_last !== undefined)  updates.last_name  = trimmed_last
     if (avatar_url !== undefined) updates.avatar_url = avatar_url
     if (bio !== undefined)        updates.bio        = bio
     if (country !== undefined)    updates.country    = country

@@ -1,7 +1,7 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { eq } from 'drizzle-orm'
 import type { Permission, UserRole } from '@tenda/shared'
-import { ErrorCode, hasPermission } from '@tenda/shared'
+import { ErrorCode, hasCompleteName, hasPermission } from '@tenda/shared'
 import { users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 import { isUuidLike } from '@server/lib/uuid'
@@ -86,7 +86,11 @@ export async function requireProfileComplete(
     .where(eq(users.id, request.user.id))
     .limit(1)
   const row = rows[0]
-  if (row === undefined || row.first_name === '' || row.last_name === '') {
+  // `hasCompleteName`, not `=== ''`: two spaces are not a name, and this guard
+  // is the one that matters most of the three that used to test it that way —
+  // it clears a user to POST and ACCEPT work, so a whitespace row could trade
+  // while every surface showed the counterparty "Anonymous".
+  if (row === undefined || !hasCompleteName(row.first_name, row.last_name)) {
     return reply.code(403).send({
       statusCode: 403,
       error: 'Forbidden',

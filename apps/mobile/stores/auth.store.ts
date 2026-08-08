@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, hasCompleteName } from '@tenda/shared'
 import {
   getJwtToken,
   setJwtToken,
@@ -69,8 +69,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           ? { walletAddress: account.address }
           : { evmAddress: account.address }),
         isAuthenticated: true,
-        // The auth response is the v2 row, same predicate the server uses.
-        profileComplete: Boolean(auth.user.first_name && auth.user.last_name),
+        // The auth response is the v2 row, same predicate the server uses —
+        // literally the same function now, so it cannot drift.
+        profileComplete: hasCompleteName(auth.user.first_name, auth.user.last_name),
       })
 
       // Settle the legacy /v1/auth/me user shape (wallet_address etc.) and
@@ -111,7 +112,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       jwt: res.token,
       isAuthenticated: true,
       // Same profile-complete predicate the server uses.
-      profileComplete: Boolean(res.user.first_name && res.user.last_name),
+      profileComplete: hasCompleteName(res.user.first_name, res.user.last_name),
     })
     // Settle wallets[] + phone state in the background; navigation only needs
     // profileComplete, already set above.

@@ -1,6 +1,7 @@
 import { ActivityIndicator, View } from 'react-native'
 import { Redirect } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
+import { hasCompleteName } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 
 export default function Index() {
@@ -36,7 +37,7 @@ export default function Index() {
     // null = /v1/users/me hasn't answered yet, don't block on it; the
     // legacy user row carries the same fields for the common case.
     const complete =
-      profileComplete ?? Boolean(user.first_name && user.last_name)
+      profileComplete ?? hasCompleteName(user.first_name, user.last_name)
     return <Redirect href={complete ? '/(tabs)/home' : '/(auth)/profile-setup'} />
   }
 

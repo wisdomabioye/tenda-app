@@ -5,16 +5,21 @@
  *           avatar_url, is_seeker). Phone changes go through the OTP
  *           routes, never here; wallet changes through link/unlink.
  *
- * profile_complete = first_name AND last_name set, the same predicate
- * `requireProfileComplete` enforces on the create/accept surface.
+ * profile_complete = first_name AND last_name set, via the shared
+ * `hasCompleteName` — the same predicate `requireProfileComplete` enforces on
+ * the create/accept surface and mobile routes on, so the three cannot drift.
+ * Names are trimmed on write (lib/validation's `optionalName`, shared with the
+ * other write path) so the stored value and the
+ * predicate agree about what "set" means.
  */
 
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, hasCompleteName } from '@tenda/shared'
 import { user_wallets, users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 import { phoneVerifiedAt } from '@server/lib/auth/resolver'
+import { optionalName, optionalString } from '@server/lib/validation'
 
 interface PatchBody {
   first_name?: unknown
@@ -41,14 +46,6 @@ const PUBLIC_COLUMNS = {
   created_at: users.created_at,
 } as const
 
-function optionalString(field: string, value: unknown, max: number): string | undefined {
-  if (value === undefined) return undefined
-  if (typeof value !== 'string' || value.length > max) {
-    throw new AppError(422, ErrorCode.VALIDATION_ERROR, `${field} must be a string ≤ ${max} chars`)
-  }
-  return value
-}
-
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.get('/', { preHandler: [fastify.authenticate] }, async (request) => {
     const [user] = await fastify.db
@@ -72,7 +69,7 @@ const route: FastifyPluginAsync = async (fastify) => {
     return {
       user: { ...user, phone_verified_at: await phoneVerifiedAt(fastify.db, request.user.id) },
       wallets,
-      profile_complete: user.first_name !== '' && user.last_name !== '',
+      profile_complete: hasCompleteName(user.first_name, user.last_name),
     }
   })
 
@@ -83,9 +80,9 @@ const route: FastifyPluginAsync = async (fastify) => {
       const b = request.body ?? {}
       const patch: Partial<typeof users.$inferInsert> = {}
 
-      const first_name = optionalString('first_name', b.first_name, 100)
+      const first_name = optionalName('first_name', b.first_name, 100)
       if (first_name !== undefined) patch.first_name = first_name
-      const last_name = optionalString('last_name', b.last_name, 100)
+      const last_name = optionalName('last_name', b.last_name, 100)
       if (last_name !== undefined) patch.last_name = last_name
       const country = optionalString('country', b.country, 100)
       if (country !== undefined) patch.country = country
@@ -123,7 +120,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       }
       return {
         user: { ...updated, phone_verified_at: await phoneVerifiedAt(fastify.db, request.user.id) },
-        profile_complete: updated.first_name !== '' && updated.last_name !== '',
+        profile_complete: hasCompleteName(updated.first_name, updated.last_name),
       }
     },
   )

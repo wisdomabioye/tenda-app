@@ -59,6 +59,29 @@ export function formatFullName(first_name: string | null, last_name: string | nu
 }
 
 /**
+ * Does this person have a usable name — BOTH parts, each non-blank once
+ * trimmed? The single predicate behind "profile complete", app-wide.
+ *
+ * Deliberately NOT `formatFullName(...) !== ''`, which is the obvious-looking
+ * reduction and is wrong: `formatFullName('John', '   ')` is `'John'`, so that
+ * test calls a blank surname complete. The server's `requireProfileComplete`
+ * demands both, so a client using the join would route someone to the home
+ * screen and then have the API refuse their first gig with "Complete your
+ * profile" — a loop with no visible cause. Completeness and display are
+ * genuinely different questions; they only look alike in the both-blank case.
+ *
+ * `.trim()` is the whole point. Every site this replaced tested presence with
+ * `x !== ''` or `Boolean(x)`, and `'  '` passes both — so a row holding two
+ * spaces read as a named user to the routing check, to the create/accept guard
+ * and to `profile_complete` on the wire, while every display surface fell back
+ * to "Anonymous". Trimming on write is not enough on its own: rows written
+ * before that landed, or by any client that skips it, still have to read false.
+ */
+export function hasCompleteName(first_name: string | null, last_name: string | null): boolean {
+  return (first_name ?? '').trim() !== '' && (last_name ?? '').trim() !== ''
+}
+
+/**
  * Best-effort display name from the two nullable name columns. Falls back
  * to the shortened id so a party with no profile name is still referenceable.
  *
