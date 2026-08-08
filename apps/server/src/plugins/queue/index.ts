@@ -125,7 +125,7 @@ const queuePlugin: FastifyPluginAsync = async (fastify) => {
     },
     async enqueueMany(name, jobs) {
       // Today's only caller returns before it gets here with nothing to send
-      // (lib/notify.ts), so this is defence rather than a live path — but it is
+      // (lib/notify/), so this is defence rather than a live path — but it is
       // the cheap kind: `addBulk([])` is a Redis round trip whose only possible
       // answer is [], and skipping it also avoids constructing the Queue (and
       // its connection) for a call that enqueues nothing.

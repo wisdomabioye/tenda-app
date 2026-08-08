@@ -16,8 +16,8 @@
  *
  * SCOPE, measured rather than assumed: `git check-ignore` does not report files
  * that are already TRACKED — ignore rules only govern untracked paths. Adding
- * `notify*` to .gitignore and asking about the tracked src/lib/notify.ts got
- * "not ignored" (exit 1); the same pattern against an untracked sibling
+ * `pagination*` to .gitignore and asking about the tracked src/lib/pagination.ts
+ * got "not ignored" (exit 1); the same pattern against an untracked sibling
  * reported the match. That is the right scope rather than a gap: a pattern
  * covering a tracked file is harmless, because git goes on tracking it. The
  * damage is only ever to files not yet added — which is exactly the case that

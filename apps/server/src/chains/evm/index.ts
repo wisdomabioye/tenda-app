@@ -11,20 +11,14 @@
  * pattern).
  */
 
-import { isAddress, toHex } from 'viem'
-import { chainById, ErrorCode, ESCROW_STATUS_ORDER, type PermitPayloadResponse } from '@tenda/shared'
-import { AppError } from '@server/lib/errors'
 import { computePlatformFee } from '@server/lib/escrow'
 import { verifyWalletSignature } from '@server/lib/wallet-signature'
-import { bytesToUuid, uuidToBytes } from '@server/chains/ids'
 import {
-  isAmountRaw,
   type AmountRaw,
   type AssetId,
   type BuildTxArgs,
   type ChainAdapter,
   type ChainId,
-  type EscrowState,
   type UnsignedTx,
   type VerifiedTx,
   type VerifyAuthSigArgs,
@@ -32,13 +26,9 @@ import {
 } from '@server/chains/types'
 import { buildEvmCall } from './builders'
 import { decodeEscrowLogs } from './verify'
-import { createEvmRpc, ZERO_ADDRESS, type EvmRpc } from './rpc'
-import {
-  buildPermitTypedData,
-  evmNumericChainId,
-  PERMIT_DEADLINE_SECONDS,
-  permitDomainMatches,
-} from './permit'
+import { createEvmRpc, type EvmRpc } from './rpc'
+import { buildContext, fetchEscrowState, type EvmAdapterContext } from './state'
+import { buildPermitPayload } from './permit-payload'
 import { ENTRY_POINT_V06, type PaymasterHttp } from './paymaster'
 
 export interface EvmAdapterDeps {
@@ -93,11 +83,6 @@ export interface EvmAdapterArgs {
   deps: EvmAdapterDeps
 }
 
-// On-chain status enum → wire status, indexed by the contract's uint8. Sourced
-// from the single shared order (guarded against both contracts by
-// check-contract-parity) so a contract enum reorder can't silently mis-decode.
-const EVM_STATUS: ReadonlyArray<EscrowState['status']> = ESCROW_STATUS_ORDER
-
 export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
   const rpc =
     args.deps.rpc ??
@@ -106,8 +91,12 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       ...(args.rpc_url_fallback !== undefined ? { rpc_url_fallback: args.rpc_url_fallback } : {}),
     })
 
+  // The dependencies the extracted reads used to CLOSE OVER, now named. Built
+  // once per adapter, same lifetime as the closure it replaces.
+  const context: EvmAdapterContext = { args, rpc }
+
   async function buildTx(build: BuildTxArgs): Promise<UnsignedTx> {
-    const ctx = await buildContext(build)
+    const ctx = await buildContext(context, build)
     const call = buildEvmCall(build, ctx)
 
     const sponsorable =
@@ -207,124 +196,6 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     return {}
   }
 
-  async function buildPermitPayload(payload_args: {
-    user_id: string
-    owner: string
-    asset: AssetId
-    value_raw: AmountRaw
-  }): Promise<PermitPayloadResponse> {
-    const { user_id, owner, asset, value_raw } = payload_args
-    if (!isAddress(owner)) {
-      throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'owner must be a 0x-hex EVM address')
-    }
-    if (!isAmountRaw(value_raw) || value_raw === '0') {
-      throw new AppError(
-        422,
-        ErrorCode.VALIDATION_ERROR,
-        'value_raw must be a positive canonical integer string',
-      )
-    }
-    // The permit owner must be an account the caller controls AND will send
-    // from, client-supplied, server-verified against verified linked wallets.
-    const owned = (await args.deps.verifyWalletOwnership?.(user_id, owner)) ?? false
-    if (!owned) {
-      throw new AppError(
-        422,
-        ErrorCode.VALIDATION_ERROR,
-        'owner is not one of your verified linked wallets on this chain',
-      )
-    }
-    // Capability is config: no manifest permit entry → approve flow.
-    const permit_config = chainById(args.chain_id).assets.find((a) => a.id === asset)?.permit
-    if (permit_config === undefined) {
-      throw new AppError(
-        422,
-        ErrorCode.PERMIT_UNAVAILABLE,
-        `asset '${asset}' has no EIP-2612 permit support on ${args.chain_id}, use the approve flow`,
-      )
-    }
-    const { token_address } = await args.deps.resolveAsset(asset)
-    if (token_address === null) {
-      throw new AppError(
-        422,
-        ErrorCode.PERMIT_UNAVAILABLE,
-        `asset '${asset}' is native on ${args.chain_id}, no allowance needed`,
-      )
-    }
-
-    const facts = await rpc.readPermitFacts(token_address as `0x${string}`, owner)
-    const deadline_unix = Math.floor(Date.now() / 1000) + PERMIT_DEADLINE_SECONDS
-    const typed_data = buildPermitTypedData({
-      token_name: facts.name,
-      permit_version: permit_config.version,
-      chain_numeric_id: evmNumericChainId(args.chain_id),
-      token: token_address,
-      owner,
-      spender: args.escrow_contract,
-      value_raw,
-      nonce: facts.nonce,
-      deadline_unix,
-    })
-    // Runtime guard: the reconstructed domain must hash to the token's LIVE
-    // DOMAIN_SEPARATOR, a token rename/upgrade degrades to the approve flow
-    // instead of producing signatures the token would reject.
-    if (!permitDomainMatches(typed_data, facts.domain_separator)) {
-      throw new AppError(
-        422,
-        ErrorCode.PERMIT_UNAVAILABLE,
-        `token domain mismatch for '${asset}' on ${args.chain_id}, use the approve flow`,
-      )
-    }
-    return { typed_data, value_raw, deadline_unix }
-  }
-
-  async function buildContext(build: BuildTxArgs) {
-    if (build.action === 'createEscrow') {
-      const { token_address } = await args.deps.resolveAsset(build.payload.asset)
-      const assigned =
-        build.payload.assigned_counterparty_user_id !== undefined
-          ? await args.deps.resolveWalletAddress(build.payload.assigned_counterparty_user_id)
-          : null
-      return {
-        asset_address: token_address,
-        assigned_counterparty_address: assigned,
-        worker_address: null,
-      }
-    }
-    if (build.action === 'disputeEscrow') {
-      // Bond denomination follows the escrow's asset, read it on-chain so
-      // the value rule can't drift from contract state.
-      const state = await fetchEscrowState(escrowRefOf(build.payload.escrow_id))
-      // A null read means THIS contract has no such escrow. Absence must not
-      // fall through to `asset_address: null`, which means NATIVE — that would
-      // quietly denominate the bond in the gas token instead of the escrow's
-      // ERC-20. The realistic cause is an escrow held by a superseded contract
-      // (the adapter resolves the contract per chain, not per escrow — see
-      // open_issues #89), and the honest answer there is to refuse.
-      if (state === null) {
-        throw new AppError(
-          422,
-          ErrorCode.ESCROW_NOT_FUNDED,
-          `escrow ${build.payload.escrow_id} does not exist in the escrow contract ` +
-            `configured for ${args.chain_id} (${args.escrow_contract})`,
-        )
-      }
-      return {
-        asset_address: state.asset_address,
-        assigned_counterparty_address: null,
-        worker_address: null,
-      }
-    }
-    if (build.action === 'assignAccept') {
-      return {
-        asset_address: null,
-        assigned_counterparty_address: null,
-        worker_address: await args.deps.resolveWalletAddress(build.payload.worker_user_id),
-      }
-    }
-    return { asset_address: null, assigned_counterparty_address: null, worker_address: null }
-  }
-
   async function verifyTx(tx_ref: string, verify: VerifyTxArgs): Promise<VerifiedTx> {
     const receipt = await rpc.getTransactionReceipt(tx_ref as `0x${string}`)
     if (receipt === null) return { confirmed: false, reason: 'receipt not found' }
@@ -358,40 +229,6 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     return { confirmed: true, failed: false, event: match }
   }
 
-  function escrowRefOf(escrow_id_uuid: string): string {
-    return toHex(uuidToBytes(escrow_id_uuid))
-  }
-
-  async function fetchEscrowState(escrow_ref: string): Promise<EscrowState | null> {
-    const tuple = await rpc.readEscrow(args.escrow_contract, escrow_ref as `0x${string}`)
-    if (tuple === null) return null
-    const status = EVM_STATUS[tuple.status]
-    if (status === undefined) return null // unknown enum value, treat as absent
-    return {
-      escrow_ref,
-      escrow_id: bytesToUuid(Buffer.from(tuple.escrow_id.slice(2), 'hex')),
-      kind: tuple.kind === 0 ? 'gig' : 'exchange',
-      asset_address: tuple.asset === ZERO_ADDRESS ? null : tuple.asset,
-      amount_raw: tuple.amount.toString(),
-      creator_address: tuple.creator,
-      counterparty_address: tuple.counterparty === ZERO_ADDRESS ? null : tuple.counterparty,
-      assigned_counterparty_address:
-        tuple.assigned_counterparty === ZERO_ADDRESS ? null : tuple.assigned_counterparty,
-      status,
-      accept_deadline_unix: Number(tuple.accept_deadline),
-      completion_duration_seconds: Number(tuple.completion_duration),
-      completion_deadline_unix: Number(tuple.completion_deadline),
-      approval_deadline_unix: Number(tuple.approval_deadline),
-      dispute_bond_raw: tuple.dispute_bond.toString(),
-      is_seeker: tuple.is_seeker,
-      requires_approval: tuple.requires_approval,
-      unassign_window_seconds: Number(tuple.unassign_window_seconds),
-      // The contract doesn't store creation time; reconciliation uses the
-      // EscrowCreated event's block timestamp via the DB row instead.
-      created_at_unix: 0,
-    }
-  }
-
   return {
     namespace: 'eip155',
     chain_id: args.chain_id,
@@ -399,12 +236,12 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     // The contract every tx in this adapter targets — see ChainAdapter.
     escrowAddress: args.escrow_contract,
     buildTx,
-    buildPermitPayload,
+    buildPermitPayload: (payload_args) => buildPermitPayload(context, payload_args),
     verifyTx,
     // Namespace-level crypto (EIP-191 ecrecover), single source in
     // lib/wallet-signature; the registry's verifyAuthSig delegates to the same.
     verifyAuthSig: (a: VerifyAuthSigArgs) => verifyWalletSignature('eip155', a),
-    fetchEscrowState,
+    fetchEscrowState: (escrow_ref) => fetchEscrowState(context, escrow_ref),
     computeFee: (fee_args) => computePlatformFee(fee_args),
   }
 }

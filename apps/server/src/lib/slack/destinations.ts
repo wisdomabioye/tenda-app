@@ -4,7 +4,7 @@
  * A caller asks for a destination BY NAME ('disputes'), never for a URL, so
  * routing a new kind of notice to Slack is one registry entry plus one env
  * var, with no change here or in the transport. This mirrors the flat-env
- * convention chains/secrets.ts already uses (`CHAIN_<ID>_<FIELD>`): the env
+ * convention chains/secrets/ already uses (`CHAIN_<ID>_<FIELD>`): the env
  * name is DERIVED from the registry key and never parsed back, so the key and
  * its variable cannot drift apart.
  *
@@ -90,7 +90,7 @@ export function resolveSlackDestination(
 /**
  * Boot-time validation: every destination that is SET must be well-formed.
  * Returns one human-readable problem per bad var (empty = healthy), naming the
- * exact env key the way chains/secrets.ts does. Absent vars are not problems.
+ * exact env key the way chains/secrets/ does. Absent vars are not problems.
  *
  * Shares `urlEnvProblems` with config.ts's own URL settings, so an operator
  * reading the boot error sees the same sentence whichever var they fat-fingered.

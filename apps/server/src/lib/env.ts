@@ -8,7 +8,7 @@
  *      configured", never "configured with an empty value".
  *   2. a URL from env must be genuinely absolute, see `isAbsoluteUrl`.
  *
- * config.ts, chains/secrets.ts and lib/slack/destinations.ts all read env, and
+ * config.ts, chains/secrets/ and lib/slack/destinations.ts all read env, and
  * before this file existed they disagreed: the Slack and chain readers treated
  * a whitespace-only var as absent, config.ts treated it as a value. One rule,
  * one home.

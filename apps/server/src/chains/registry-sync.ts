@@ -3,7 +3,7 @@
  * DB copy of it from going stale.
  *
  * There are two consumers of that address with different reach: the server's
- * own adapters read it from env (`chains/secrets.ts`), while mobile has to be
+ * own adapters read it from env (`chains/secrets/`), while mobile has to be
  * TOLD it — it builds and signs transactions locally and cannot see `.env`, so
  * the value travels over `/v1/platform/chains`.
  *

@@ -4,7 +4,7 @@
  *
  * The escrow-flavoured face of `enqueueNotificationToMany` — all this adds is
  * the `data` bag, the bag whose `kind` decides whether the deep link opens
- * /gig/:id or /exchange/:id. The loop itself lives in lib/notify.ts because the
+ * /gig/:id or /exchange/:id. The loop itself lives in lib/notify/ because the
  * dispute-alert fan-out needs the identical one with a different bag, and two
  * copies of "how one notice reaches N users" is one too many.
  */

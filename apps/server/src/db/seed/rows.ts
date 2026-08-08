@@ -1,7 +1,7 @@
 /**
  * Seed row BUILDER — pure, no database. Fully manifest + secrets driven,
  * nothing chain-shaped is hardcoded:
- *   - which chains  ← the ACTIVE chain secrets (chains/secrets.ts)
+ *   - which chains  ← the ACTIVE chain secrets (chains/secrets/)
  *   - display/confirmations/token addresses ← the shared CHAIN_MANIFEST
  *   - solana escrow program id ← @tenda/shared/idl (the deployed artifact)
  *   - EVM escrow + treasury    ← the chain's secrets

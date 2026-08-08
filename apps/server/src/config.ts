@@ -3,7 +3,7 @@ import { optionalEnv, stripTrailingSlash, urlEnvProblems } from '@server/lib/env
 
 // Chain endpoints/keys (RPC, program id, treasury, escrow, webhooks…) are NOT
 // here, they are per-chain flat env vars loaded + validated by
-// `chains/secrets.ts` (CHAIN_<ID>_*), keyed off the shared CHAIN_MANIFEST.
+// `chains/secrets/` (CHAIN_<ID>_*), keyed off the shared CHAIN_MANIFEST.
 // Exported for the .env.example parity test, every boot-required var must
 // stay documented in the example file.
 export const REQUIRED_ENV_VARS = [
@@ -162,7 +162,7 @@ let _config: Config | undefined
 
 /**
  * Read and validate the environment. Every problem is collected and thrown
- * ONCE, the way chains/secrets.ts does, so a misconfigured deployment sees the
+ * ONCE, the way chains/secrets/ does, so a misconfigured deployment sees the
  * whole list instead of fixing one var per restart.
  *
  * Malformed-but-set optional vars are fatal here rather than warnings: a

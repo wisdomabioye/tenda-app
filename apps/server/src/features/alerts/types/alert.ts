@@ -64,7 +64,7 @@ type AlertRefFields = PerKind<{
      *
      * Not `dispute_id`: the triage row is written by the POST route while the
      * status flip comes from the chain, so an escrow can legitimately be
-     * `disputed` on-chain with no `disputes` row yet (lib/notify.ts documents
+     * `disputed` on-chain with no `disputes` row yet (lib/notify/ documents
      * the same asymmetry for deep links). `escrow_transactions.tx_ref` is
      * UNIQUE and is always present on `EscrowRepublishEvent`, so it identifies
      * the event even when the off-chain row does not exist.

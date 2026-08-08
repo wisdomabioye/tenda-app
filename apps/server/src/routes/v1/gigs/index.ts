@@ -10,57 +10,25 @@
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { isEscrowCounterpartySide } from '@server/lib/escrow-party'
-import { eq, and, gt, gte, inArray, isNull, lte, or, asc, desc, sql, type SQL } from 'drizzle-orm'
-import { escrows, escrowStatusEnum, gig_details, users } from '@tenda/shared/db/schema'
-import {
-  isValidLatitude,
-  isValidLongitude,
-  MAX_GIG_DESCRIPTION_LENGTH,
-  
-  ASSET_META,
-  LOCATIONS,
-  GIG_CATEGORIES,
-  ErrorCode,
-} from '@tenda/shared'
-import type { GigsContract, ApiError, GigCategory, EscrowStatus } from '@tenda/shared'
-import { isAmountRaw } from '@server/chains/types'
+import { eq, and, gt, inArray, isNull, or, sql, type SQL } from 'drizzle-orm'
+import { escrows, gig_details, users } from '@tenda/shared/db/schema'
+import { MAX_GIG_DESCRIPTION_LENGTH, ASSET_META, ErrorCode } from '@tenda/shared'
+import type { GigsContract, ApiError } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { validateGigDetails } from '@server/lib/gig-details'
-import { gigSearchCondition, gigSearchRank } from '@server/lib/gig-search'
-import { chainFilterCondition } from '@server/lib/chain-filter'
 import { GIG_SUMMARY_COLS, toGigSummary } from '@server/lib/gig-read'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { moderateGig } from '@server/features/moderation/service'
 import { buildModerationDeps } from '@server/features/moderation/store'
+import {
+  assertKnownCountry,
+  listOrderBy,
+  parseStatusFilter,
+  queryConditions,
+} from './list-filters'
 
 type ListRoute = GigsContract['list']
 type CreateRoute = GigsContract['create']
-
-/**
- * Parse the own-listings `status` filter. Typed as an array, but a
- * querystring arrives as text — the client serialises the array to CSV — so
- * both shapes are accepted. Values are checked against the DB enum, which
- * makes the enum the single source of truth (a new status needs no edit
- * here) and keeps an unknown value a clean 400 rather than a Postgres
- * invalid-input-for-enum error surfacing as a 500.
- */
-function parseStatusFilter(status: EscrowStatus[] | undefined): EscrowStatus[] | null {
-  if (status === undefined) return null
-  const raw = Array.isArray(status) ? status : String(status).split(',')
-  const values = raw.map((s) => String(s).trim()).filter((s) => s !== '')
-  if (values.length === 0) return null // `?status=` is "no filter", not an error
-  const allowed: readonly string[] = escrowStatusEnum.enumValues
-  for (const value of values) {
-    if (!allowed.includes(value)) {
-      throw new AppError(
-        400,
-        ErrorCode.VALIDATION_ERROR,
-        `status must be one of: ${allowed.join(', ')}`,
-      )
-    }
-  }
-  return values as EscrowStatus[]
-}
 
 const gigsRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /v1/gigs, list open gigs with filters
@@ -68,33 +36,15 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
   }>('/', async (request, reply) => {
-    const {
-      country,
-      remote,
-      cross_border,
-      city,
-      category,
-      chain_id,
-      q,
-      mine,
-      status,
-      min_amount_raw,
-      max_amount_raw,
-      sort,
-      lat,
-      lng,
-      radius_km,
-      limit = 20,
-      offset = 0,
-    } = request.query
+    const { mine, status, limit = 20, offset = 0 } = request.query
 
-    if (country && !(country in LOCATIONS)) {
-      throw new AppError(
-        400,
-        ErrorCode.VALIDATION_ERROR,
-        `country must be one of: ${Object.keys(LOCATIONS).join(', ')}`,
-      )
-    }
+    // BEFORE the `mine` branch below, which authenticates. Position is
+    // behaviour, not style: `?mine=created&country=BOGUS` with no token
+    // answers 400 (the country) and not 401, because that is what this route
+    // has always answered. Moving the check inside `queryConditions` — where
+    // it reads more naturally — silently flipped it to 401, and every existing
+    // gigs test still passed. Pinned by gigs-listing.test.ts.
+    assertKnownCountry(request.query.country)
 
     const safeLimit = clampLimit(Number(limit))
     const safeOffset = clampOffset(Number(offset))
@@ -147,81 +97,16 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       )
     }
 
-    if (country) conditions.push(eq(gig_details.country, country))
-    if (String(remote) === 'true') conditions.push(eq(gig_details.remote, true))
-    if (String(remote) === 'false') conditions.push(eq(gig_details.remote, false))
-    if (String(cross_border) === 'true') conditions.push(eq(gig_details.cross_border, true))
-    if (city) conditions.push(eq(gig_details.city, city))
-    if (category) {
-      if (!GIG_CATEGORIES.includes(category as GigCategory)) {
-        throw new AppError(
-          400,
-          ErrorCode.VALIDATION_ERROR,
-          `category must be one of: ${GIG_CATEGORIES.join(', ')}`,
-        )
-      }
-      conditions.push(eq(gig_details.category, category))
-    }
-
-    const chainCondition = chainFilterCondition(fastify.chains, chain_id)
-    if (chainCondition !== null) conditions.push(chainCondition)
-
-    // S5.3 full-text search over title + description.
-    if (q !== undefined && q.trim() !== '') conditions.push(gigSearchCondition(q))
-
-    if (min_amount_raw !== undefined && !isAmountRaw(min_amount_raw)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be a decimal integer string')
-    }
-    if (max_amount_raw !== undefined && !isAmountRaw(max_amount_raw)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'max_amount_raw must be a decimal integer string')
-    }
-    if (min_amount_raw !== undefined && max_amount_raw !== undefined && BigInt(min_amount_raw) > BigInt(max_amount_raw)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be ≤ max_amount_raw')
-    }
-    if (min_amount_raw !== undefined) conditions.push(gte(escrows.amount_raw, min_amount_raw))
-    if (max_amount_raw !== undefined) conditions.push(lte(escrows.amount_raw, max_amount_raw))
-
-    // Validate and apply geographic proximity filter (haversine).
-    // All three params must be provided together and within valid ranges.
-    if (lat !== undefined || lng !== undefined || radius_km !== undefined) {
-      const latN = Number(lat)
-      const lngN = Number(lng)
-      const rN = Number(radius_km)
-      if (
-        lat === undefined ||
-        lng === undefined ||
-        radius_km === undefined ||
-        !isValidLatitude(latN) ||
-        !isValidLongitude(lngN) ||
-        isNaN(rN) ||
-        rN <= 0 ||
-        rN > 20_000
-      ) {
-        throw new AppError(
-          400,
-          ErrorCode.VALIDATION_ERROR,
-          'lat (−90–90), lng (−180–180), and radius_km (0–20000) must all be provided and valid',
-        )
-      }
-      // @todo Migrate to PostGIS ST_DWithin when query volume grows
-      conditions.push(
-        sql`${gig_details.latitude} IS NOT NULL AND ${gig_details.longitude} IS NOT NULL AND
-          (6371 * acos(
-            cos(radians(${latN})) * cos(radians(${gig_details.latitude})) *
-            cos(radians(${gig_details.longitude}) - radians(${lngN})) +
-            sin(radians(${latN})) * sin(radians(${gig_details.latitude}))
-          )) <= ${rN}`,
-      )
-    }
+    // Every filter that reads only the querystring — attributes, chain,
+    // search, amount window, proximity — plus their 400s, IN THE ORDER THEY
+    // REFUSE IN. That order is behaviour: these all answer 400
+    // VALIDATION_ERROR and differ only in the message, so it decides what the
+    // user is told. It is owned by ./list-filters and pinned there.
+    conditions.push(...queryConditions(request.query, fastify.chains))
 
     const where = and(...conditions)
 
-    // Relevance ordering when searching (unless the caller picked a sort).
-    let orderBy
-    if (sort === 'amount_asc') orderBy = asc(escrows.amount_raw)
-    else if (sort === 'amount_desc') orderBy = desc(escrows.amount_raw)
-    else if (q !== undefined && q.trim() !== '') orderBy = desc(gigSearchRank(q))
-    else orderBy = desc(escrows.created_at)
+    const orderBy = listOrderBy(request.query)
 
     const [data, countResult] = await Promise.all([
       fastify.db

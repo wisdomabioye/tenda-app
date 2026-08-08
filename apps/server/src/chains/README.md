@@ -13,7 +13,7 @@ come from the manifest. **Adding a chain is one manifest entry plus its
 
 | Concern | Source |
 |---|---|
-| Which chains are active | `chains/secrets.ts` (`CHAIN_<ID>_*` env) |
+| Which chains are active | `chains/secrets/` (`CHAIN_<ID>_*` env) |
 | Public facts (ids, confirmations, token addresses, gasPolicy) | `@tenda/shared` `CHAIN_MANIFEST` |
 | Adapter impls | `solana/*`, `evm/*` (one EVM adapter serves BASE + CELO + any L2) |
 

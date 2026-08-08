@@ -1,5 +1,5 @@
 /**
- * lib/notify.ts — the notification WRITE contract. Three things are pinned
+ * lib/notify/ — the notification WRITE contract. Three things are pinned
  * here because nothing else pins them:
  *
  *  1. `stableNotificationId` must return a WELL-FORMED UUID. `notifications.id`

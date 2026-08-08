@@ -45,7 +45,15 @@ export interface BuildContext {
 }
 
 
-function escrowIdHex(escrow_id: string): `0x${string}` {
+/**
+ * A uuid escrow id as the contract's `bytes16` ref.
+ *
+ * Exported because ./state needs the same encoding to look an escrow up, and
+ * kept HERE rather than in chains/ids.ts: that module is deliberately
+ * chain-agnostic and viem-free, while `toHex` is viem. One EVM-side encoder,
+ * two callers.
+ */
+export function escrowIdHex(escrow_id: string): `0x${string}` {
   return toHex(uuidToBytes(escrow_id))
 }
 

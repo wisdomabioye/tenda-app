@@ -326,3 +326,104 @@ test('GET /v1/gigs?mine= : status cannot reach another user rows', { skip }, asy
   })
   assert.strictEqual(res.json().total, 0, 'identity comes from the JWT, not the filter')
 })
+
+// ---------- filter validation ORDER (#48 refactor guard) -------------------
+//
+// The list handler's querystring→SQL half moved to ./list-filters during the
+// #48 split. These pin the parts of that move which are behaviour rather than
+// arrangement — every one of them passed both before and after the extraction
+// except the first, which is exactly why it is here.
+
+test('GET /v1/gigs: an unknown country is rejected BEFORE authentication', { skip }, async () => {
+  // Position, not style. The country check has always run ahead of the `mine`
+  // branch's authenticate, so this answers 400 about the country rather than
+  // 401 about the token. MEASURED: folding the check into `queryConditions`,
+  // where it reads more naturally, silently flipped it to 401 — and the whole
+  // existing gigs suite still passed. A caller fixing their token would then
+  // hit the country error second, having been told nothing about it.
+  const app = getApp()
+  const res = await app.inject({ method: 'GET', url: '/v1/gigs?mine=created&country=BOGUS' })
+  assert.strictEqual(res.statusCode, 400)
+  assert.match(res.json().message, /country must be one of/)
+})
+
+test('GET /v1/gigs: an unknown category is a 400 that names the vocabulary', { skip }, async () => {
+  const app = getApp()
+  const res = await app.inject({ method: 'GET', url: '/v1/gigs?category=teleportation' })
+  assert.strictEqual(res.statusCode, 400)
+  assert.match(res.json().message, /category must be one of/)
+})
+
+test('GET /v1/gigs: the filter guards refuse in a FIXED order', { skip }, async () => {
+  // Every one of these answers 400 VALIDATION_ERROR and differs only in the
+  // MESSAGE, so which guard runs first decides what the user is told while
+  // being completely invisible to a status-code assertion. Two re-orderings
+  // reached this branch before this test existed: the #48 split hoisted
+  // chain_id above category, and the fix for THAT pushed chain_id below amount
+  // and proximity as well. Both were measured, not theorised.
+  //
+  // Pairs, not a single case: pinning only chain_id-vs-category is what let
+  // the second regression through. Each pair below is adjacent in the sequence
+  //   attributes (category) → chain_id → search → amount → proximity
+  // so together they pin the whole chain rather than one link of it.
+  const app = getApp()
+  const BOGUS_CHAIN = 'eip155:999999'
+  const cases: [string, RegExp][] = [
+    // category before chain_id
+    [`/v1/gigs?chain_id=${BOGUS_CHAIN}&category=teleportation`, /category must be one of/],
+    // chain_id before the amount window
+    [`/v1/gigs?chain_id=${BOGUS_CHAIN}&min_amount_raw=1.5`, /chain_id must be one of/],
+    // chain_id before proximity
+    [`/v1/gigs?chain_id=${BOGUS_CHAIN}&lat=6.5&lng=3.3`, /chain_id must be one of/],
+    // amount before proximity
+    ['/v1/gigs?min_amount_raw=1.5&lat=6.5&lng=3.3', /min_amount_raw must be a decimal integer/],
+  ]
+  for (const [url, expected] of cases) {
+    const res = await app.inject({ method: 'GET', url })
+    assert.strictEqual(res.statusCode, 400, url)
+    assert.match(res.json().message, expected, url)
+  }
+})
+
+test('GET /v1/gigs: the amount window is compared numerically, not as text', { skip }, async () => {
+  // '9' > '10' lexicographically, so a string compare would call this window
+  // inverted and 400 a legitimate request. amount_raw is numeric(78,0) on the
+  // wire as a decimal string, which is why the check parses BigInts.
+  const app = getApp()
+  const ok = await app.inject({ method: 'GET', url: '/v1/gigs?min_amount_raw=9&max_amount_raw=10' })
+  assert.strictEqual(ok.statusCode, 200)
+
+  const inverted = await app.inject({
+    method: 'GET',
+    url: '/v1/gigs?min_amount_raw=10&max_amount_raw=9',
+  })
+  assert.strictEqual(inverted.statusCode, 400)
+  assert.match(inverted.json().message, /min_amount_raw must be ≤ max_amount_raw/)
+})
+
+test('GET /v1/gigs: a PARTIAL proximity triple is refused, not ignored', { skip }, async () => {
+  // Silently dropping an incomplete triple would return the unfiltered feed as
+  // though the radius had applied — the caller sees results and believes they
+  // are nearby.
+  const app = getApp()
+  const res = await app.inject({ method: 'GET', url: '/v1/gigs?lat=6.5&lng=3.3' })
+  assert.strictEqual(res.statusCode, 400)
+  assert.match(res.json().message, /radius_km/)
+})
+
+test('GET /v1/gigs: remote=false selects ONSITE gigs, not remote ones', { skip }, async () => {
+  // A querystring arrives as TEXT, so `remote` is the string 'false' — truthy.
+  // The handler therefore tests `String(remote) === 'false'` explicitly.
+  //
+  // Query `remote=false`, NOT `remote=true`: a plain `if (remote)` behaves
+  // IDENTICALLY for remote=true, so a test asking only that is decorative.
+  // MEASURED — it passed against the truthiness bug. Under that bug this
+  // request pushes `remote = true` and returns the wrong half of the feed.
+  const app = getApp()
+  await openGig(app, { title: 'Onsite job' }) // attachGigDetails defaults remote:false
+
+  const res = await app.inject({ method: 'GET', url: '/v1/gigs?remote=false' })
+  assert.strictEqual(res.statusCode, 200)
+  assert.strictEqual(res.json().total, 1, 'the onsite gig must match remote=false')
+  assert.strictEqual(res.json().data[0].title, 'Onsite job')
+})
