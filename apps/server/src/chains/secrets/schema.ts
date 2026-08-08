@@ -8,6 +8,7 @@
  */
 
 import { CHAIN_MANIFEST, type ChainManifestEntry } from '@tenda/shared'
+import { isAbsoluteUrl } from '@server/lib/env'
 
 /** Validation classes for a secret value. */
 export type SecretKind = 'url' | 'evmAddr' | 'base58' | 'uint' | 'str'
@@ -57,6 +58,22 @@ export const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
   ],
 }
 
+/**
+ * Schemes a chain endpoint may use. NAMED rather than an inline
+ * `['https', 'http']` at the call site: config.ts's BASE_URL_PROTOCOLS carries
+ * a comment warning that a second spelling of a protocol policy is "a
+ * difference nothing would catch" when one of them tightens later, and this
+ * would have been a third.
+ *
+ * Deliberately its OWN constant rather than reusing BASE_URL_PROTOCOLS, on the
+ * same reasoning lib/slack keeps WEBHOOK_PROTOCOLS separate: these are
+ * different domains that happen to agree today. A deployment could sensibly
+ * force the admin dashboard URL to https-only without also banning
+ * `http://localhost:8545` for a dev RPC node — and sharing one constant would
+ * make that tightening break local development silently.
+ */
+const CHAIN_ENDPOINT_PROTOCOLS = ['https', 'http'] as const
+
 /** `CHAIN_` + the chain id upper-cased with every non-alphanumeric run → `_`. */
 export function chainEnvPrefix(id: string): string {
   return `CHAIN_${id.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}`
@@ -73,11 +90,20 @@ export function schemaFor(entry: ChainManifestEntry): readonly SecretFieldSpec[]
 export function isValid(kind: SecretKind, value: string): boolean {
   switch (kind) {
     case 'url':
-      try {
-        return new URL(value).protocol.length > 0 // construction is the validation
-      } catch {
-        return false
-      }
+      // Shared with config.ts and lib/slack — lib/env.ts's rule 2, which this
+      // reader had adopted rule 1 (`optionalEnv`) of but not this one. A
+      // protocol-only check is NOT enough: `new URL('https:rpc.example.com')`
+      // parses happily, protocol `https:`, host `rpc.example.com`, so the
+      // missing-slashes typo used to pass boot and fail later at the point of
+      // use. `ftp://x.com` used to pass too.
+      //
+      // http/https only, because that is what every consumer of these three
+      // fields can actually speak: EVM rpc_url goes to viem's `http()`
+      // transport, Solana's to `new Connection()`, and paymaster_url to
+      // `fetch(url, { method: 'POST' })`. A ws:// endpoint would need viem's
+      // separate webSocket() transport, so accepting one here would only move
+      // the failure to runtime.
+      return isAbsoluteUrl(value, CHAIN_ENDPOINT_PROTOCOLS)
     case 'evmAddr':
       return /^0x[0-9a-fA-F]{40}$/.test(value)
     case 'base58':
