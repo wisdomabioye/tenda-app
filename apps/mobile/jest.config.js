@@ -27,6 +27,42 @@ const WHITELIST = [
 /** @type {import('jest').Config} */
 module.exports = {
   preset: 'jest-expo',
+  /**
+   * Jest defaults to one worker per core minus one — 11 on a 12-core box — and
+   * at that width the workers starve each other badly enough to fail tests.
+   *
+   * The failures did NOT look like contention, which is why they read as
+   * flakiness for so long. RTL's `waitFor` deadline is 1000ms
+   * (asyncUtilTimeout, five times tighter than jest's 5000ms testTimeout), and
+   * on expiry it rethrows its LAST ASSERTION rather than a timeout message. A
+   * starved worker therefore reports
+   *     expect(received).toBe(expected)  Expected: false  Received: true
+   * from a `waitFor(() => expect(result.current.loading).toBe(false))` — an
+   * assertion that looks like a logic race, in whichever test happened to be
+   * running. Reproduced exactly by setting asyncUtilTimeout to 1ms.
+   *
+   * MEASURED on a 12-core box, full suite (180 suites / 1548 tests):
+   *   workers   wall time        runs failed
+   *   11 (dflt) 20.9 – 34.7 s    1 / 5
+   *    8        13.3 – 22.3 s    0 / 3
+   *    6 (50%)  11.0 – 12.2 s    0 / 3
+   *    4        10.8 – 12.6 s    0 / 5
+   *    3        12.3 – 12.8 s    0 / 3
+   *    2        14.6 – 15.0 s    0 / 3
+   * Fewer workers is both FASTER and stable; the knee is 4–6. `'50%'` rather
+   * than a fixed count because jest floors a percentage to at least 1 worker
+   * (jest-config/getMaxWorkers), so a 2-core CI runner gets 1 instead of the
+   * 4 a fixed count would over-subscribe it with.
+   *
+   * CONFIRMED with this config, no flags: 10/10 green in 9.8 – 12.0 s idle.
+   * Then a controlled A/B under 8 CPU hogs (load avg ~23–30), same load both
+   * ways: 11 workers failed 2 of 3 runs, '50%' passed 10 of 10.
+   *
+   * The timeouts are deliberately NOT raised. The four suites that failed run
+   * in 2.3s TOTAL when not starved, so the 1000ms deadline already carries
+   * ~100x headroom — raising it would only hide a test that genuinely got slow.
+   */
+  maxWorkers: '50%',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
