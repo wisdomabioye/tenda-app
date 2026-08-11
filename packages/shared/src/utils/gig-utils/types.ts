@@ -43,6 +43,22 @@ export interface EscrowAcceptanceMode {
 }
 
 /**
+ * Moderation visibility (CO1 `escrows.hidden`).
+ *
+ * REQUIRED on every ENTRY helper's input, for exactly the reason the acceptance
+ * mode above is: an optional flag is one a new caller forgets, and the caller
+ * who forgets it is the one offering an Accept button on a listing moderation
+ * has pulled. Only the ways IN read it — `canAccept`, `canApply`, `canAssign`.
+ * The ways OUT (submit, approve, cancel, refund, dispute, decline, review…)
+ * deliberately do not, because a takedown must never strand funds that are
+ * already locked on-chain.
+ */
+export interface EscrowVisibility {
+  /** Taken down by an admin: off the public surfaces, closed to new entrants. */
+  hidden: boolean
+}
+
+/**
  * An escrow open to anyone: no approval gate, nobody invited. A FIXTURE, for
  * tests that need "the unrestricted case" named rather than spelled out.
  *
@@ -71,7 +87,7 @@ export const UNRESTRICTED_ACCEPTANCE: Readonly<EscrowAcceptanceMode> = {
  * naming either here would make this module depend on the wire types that
  * depend on it.
  */
-export interface EscrowDetailLike extends EscrowAcceptanceMode {
+export interface EscrowDetailLike extends EscrowAcceptanceMode, EscrowVisibility {
   status: EscrowStatus
   creator: { id: string }
   counterparty: { id: string } | null
@@ -89,8 +105,14 @@ export interface EscrowDetailLike extends EscrowAcceptanceMode {
  * Both halves of the assignment are carried, never just the id — an outsider
  * is served `is_assigned` with `assigned_counterparty_id` withheld, and judging
  * off the id alone reads that as "open to anyone".
+ *
+ * `hidden` rides along for the same reason: this is the ONE place every surface
+ * builds its `can*` input, so a takedown reaches the gig bar, the exchange bar
+ * and the applicants screen at once rather than through three remembered edits.
  */
-export function escrowPartiesOf(e: EscrowDetailLike): EscrowLike & EscrowAcceptanceMode {
+export function escrowPartiesOf(
+  e: EscrowDetailLike,
+): EscrowLike & EscrowAcceptanceMode & EscrowVisibility {
   return {
     status: e.status,
     creator_id: e.creator.id,
@@ -98,6 +120,7 @@ export function escrowPartiesOf(e: EscrowDetailLike): EscrowLike & EscrowAccepta
     requires_approval: e.requires_approval,
     is_assigned: e.is_assigned,
     assigned_counterparty_id: e.assigned_counterparty_id,
+    hidden: e.hidden,
   }
 }
 

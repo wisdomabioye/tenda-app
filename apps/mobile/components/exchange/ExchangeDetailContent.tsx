@@ -8,7 +8,7 @@ import { ScreenContainer, Text, Divider, Spacer, showToast } from '@/components/
 import { GigActionSheets, type ActiveSheet } from '@/components/gig'
 import { ExchangeCTA } from '@/components/exchange'
 import { ExchangeOfferOverview } from '@/components/exchange/ExchangeOfferOverview'
-import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
+import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TakedownNotice, TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
 import { ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import { TransactionMonitor } from '@/components/feedback'
@@ -49,6 +49,10 @@ export function ExchangeDetailContent({
     chainId: offer.chain_id,
     asset: offer.asset,
     amountRaw: offer.amount_raw,
+    // Same as the gig screen: a takedown refusal re-reads rather than leaving
+    // the declined button on screen. `refresh` drops the offer on a 404, so a
+    // non-party lands on "Offer not available" instead of a dead Accept.
+    onStale: () => void refresh(),
   })
   const isCreator = userId === offer.creator.id
 
@@ -71,6 +75,11 @@ export function ExchangeDetailContent({
       case 'cancel': return void actions.cancel()
       case 'approve': return void actions.approve()
       case 'claim_stalled': return void actions.claim()
+      // A direct offer names its buyer, and declining is the only way out of
+      // one they do not want — the gig screen has had this since the invite
+      // flow shipped; the exchange screen had the branch missing, so an invited
+      // buyer whose offer was then taken down had no button at all.
+      case 'decline': return void actions.decline()
     }
   }
   const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
@@ -121,6 +130,9 @@ export function ExchangeDetailContent({
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
+        {/* Renders nothing on a visible offer — see TakedownNotice. */}
+        <TakedownNotice escrow={offer} subject="offer" viewerId={userId} />
+
         <ExchangeOfferOverview offer={offer} userId={userId} fiat={fiat} contextTitle={contextTitle} />
 
         {offer.proofs.length > 0 && (

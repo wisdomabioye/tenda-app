@@ -16,6 +16,7 @@ import { useRouter } from 'expo-router'
 import { sha256 } from '@noble/hashes/sha256'
 import { Buffer } from 'buffer'
 import bs58 from 'bs58'
+import { TAKEDOWN_REFUSED_MESSAGE } from '@tenda/shared'
 import type { EscrowTxType, ProofType, UnsignedTx } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
 import { WalletError } from '@/wallet/errors'
@@ -29,6 +30,7 @@ import {
   TRANSACTION_GATE_MESSAGE,
   transactionGateRoute,
 } from '@/lib/transaction-gate'
+import { isTakedownRefusal } from '@/lib/takedown-refusal'
 
 export interface ProofFile {
   url: string
@@ -64,6 +66,15 @@ interface UseEscrowActionsArgs {
   amountRaw: string
   /** Called after a tx is broadcast + reported (screen refreshes on WS confirm). */
   onBroadcast?: (txRef: string, action: EscrowTxType) => void
+  /**
+   * Called when the server refuses because THIS SCREEN is out of date — today
+   * only a CO1 takedown. The screen re-reads the detail; nothing else about the
+   * failure path changes, and the toast still fires.
+   *
+   * Optional so a caller that cannot refetch (none today) degrades to the toast
+   * rather than being forced to pass a no-op.
+   */
+  onStale?: () => void
 }
 
 export function useEscrowActions({
@@ -72,6 +83,7 @@ export function useEscrowActions({
   asset,
   amountRaw,
   onBroadcast,
+  onStale,
 }: UseEscrowActionsArgs) {
   const store = useEscrowStore()
   const router = useRouter()
@@ -138,6 +150,20 @@ export function useEscrowActions({
       // not failures — the message already says whether the tx may still sync.
       if (e instanceof WalletError && (e.code === 'declined' || e.code === 'timeout')) {
         showToast('info', e.message)
+        return false
+      }
+      // Taken down (CO1) while this screen was open: the refusal is the FIRST
+      // the client hears of it, so a toast alone would leave the same button
+      // sitting there to be pressed again. Re-read instead — the party lands on
+      // the takedown notice with the entry actions gone, everyone else on "not
+      // available". The server's message is preferred — it is written for a
+      // stranger whose screen simply went stale — but it falls back to the
+      // SHARED constant the server itself sends, not to the generic "please try
+      // again" below: a blank envelope must not turn "this listing is gone"
+      // into advice to retry something that will be refused every time.
+      if (isTakedownRefusal(e)) {
+        showToast('error', (e as Error).message || TAKEDOWN_REFUSED_MESSAGE)
+        onStale?.()
         return false
       }
       showToast('error', (e as Error).message || 'Transaction failed, please try again')

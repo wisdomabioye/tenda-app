@@ -13,20 +13,25 @@
 import { create } from 'zustand'
 import type { GigDetail, ReviewInput } from '@tenda/shared'
 import { api } from '@/api/client'
+import { classifyDetailLoadError, type DetailLoadError } from '@/lib/detail-load-error'
+
+/**
+ * A failed load, and WHICH gig it was for.
+ *
+ * The id is carried inside the error rather than beside it: this store holds
+ * one slot for every gig, so a bare message cannot say what failed, and after
+ * any failure opening a different gig would show the previous one's error for
+ * the frame before its own fetch starts. One object instead of three
+ * independently-nullable fields that must be read together to mean anything.
+ */
+export interface GigLoadError extends DetailLoadError {
+  id: string
+}
 
 interface GigsState {
   selectedGig: GigDetail | null
   isLoading: boolean
-  error: string | null
-  /**
-   * The gig id `error` describes.
-   *
-   * `error` alone cannot say WHICH gig failed, and this store holds one slot
-   * for all of them — so after any failure, opening a different gig would show
-   * "Failed to load gig" for the frame before its own fetch starts. Readers
-   * compare this against the id they are displaying.
-   */
-  errorId: string | null
+  error: GigLoadError | null
 
   fetchGigDetail: (id: string) => Promise<void>
   reviewEscrow: (id: string, input: ReviewInput) => Promise<void>
@@ -36,13 +41,11 @@ export const useGigsStore = create<GigsState>((set) => ({
   selectedGig: null,
   isLoading: false,
   error: null,
-  errorId: null,
 
   fetchGigDetail: async (id) => {
     set((state) => ({
       isLoading: true,
       error: null,
-      errorId: null,
       // Drop a gig that is not the one being loaded. Holding it while a
       // different id is in flight is what let a screen render the previous
       // gig — and, since approval mode, the previous VIEWER's actions.
@@ -52,7 +55,19 @@ export const useGigsStore = create<GigsState>((set) => ({
       const gig = await api.gigs.get({ id })
       set({ selectedGig: gig, isLoading: false })
     } catch (e) {
-      set({ error: (e as Error).message, errorId: id, isLoading: false })
+      const failure = classifyDetailLoadError(e)
+      // A `gone` refetch DROPS the gig it was refreshing. Without this, a gig
+      // deleted or taken down mid-session kept rendering from the previous
+      // response — pull-to-refresh 404ing quietly while every action button
+      // stayed live — because the screen only shows an error when the slot is
+      // empty. A transient failure deliberately does NOT drop it: blanking a
+      // good screen on one lost packet is the opposite mistake.
+      set((state) => ({
+        error: { id, ...failure },
+        isLoading: false,
+        selectedGig:
+          failure.gone && state.selectedGig?.escrow_id === id ? null : state.selectedGig,
+      }))
     }
   },
 

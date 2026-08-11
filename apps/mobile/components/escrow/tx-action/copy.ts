@@ -228,6 +228,7 @@ const GIG_SUCCESS: Partial<Record<EscrowTxType, string>> = {
   accept: 'Gig accepted!',
   assign_accept: 'Worker assigned, their delivery window has started.',
   unassign: 'Assignment released, the gig is open again.',
+  decline: 'Invitation declined, the gig is open to other workers.',
   submit: 'Proof submitted!',
   approve: 'Payment released to worker!',
   claim_stalled: 'Payment claimed!',
@@ -240,6 +241,7 @@ const GIG_SUCCESS: Partial<Record<EscrowTxType, string>> = {
 const EXCHANGE_SUCCESS: Partial<Record<EscrowTxType, string>> = {
   create: 'Offer published, it goes live once the escrow confirms.',
   accept: 'Offer accepted!',
+  decline: 'Invitation declined, the offer is open to other buyers.',
   submit: 'Payment marked, waiting for the seller to confirm.',
   approve: 'Payment confirmed, crypto released.',
   claim_stalled: 'Payment claimed!',

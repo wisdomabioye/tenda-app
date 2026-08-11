@@ -138,6 +138,21 @@ module.exports = {
     'components/gig/GigDetailGate.tsx',
     'components/shared/ReviewScore.tsx',
     'stores/gigs.store.ts',
+    // CO1 takedown enforcement. The detail loaders are here because the bug was
+    // in their FAILURE path — a 404 that left the previous response on screen —
+    // which no happy-path test would have reached.
+    'lib/detail-load-error.ts',
+    // The refusal predicate and the two hooks that act on it: the live half of
+    // the same problem, where the server is the first to know the listing was
+    // pulled and the screen has to be told by its own failure.
+    'lib/takedown-refusal.ts',
+    'components/gig/gig-applications/useApplications.ts',
+    'hooks/useExchangeDetail.ts',
+    'components/ui/NoticeBanner.tsx',
+    'components/reputation/RestrictionBanner.tsx',
+    'components/escrow/takedown/*.{ts,tsx}',
+    '!components/escrow/takedown/index.ts',
+    'components/exchange/ExchangeCTA.tsx',
     // Dispute mediation. Named as WHOLE folders, not a hand-picked list: the
     // thread screen sat at 0% while its neighbours reported healthy numbers,
     // which is how a mediator seeing both disputants under one name shipped.

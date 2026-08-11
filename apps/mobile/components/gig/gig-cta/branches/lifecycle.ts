@@ -17,6 +17,7 @@ import {
   canAccept,
   canAddProof,
   canClaim,
+  canDecline,
   canDispute,
   canReview,
   canSubmit,
@@ -98,12 +99,18 @@ export function lifecycleBranches(
       // only one of the two the server will still accept. Offering both would
       // be two buttons for one outcome, one of which 409s.
       out.push(acceptExpired ? 'refundExpired' : 'cancel')
-    } else if (canAccept(parties, userId)) {
-      out.push('accept')
+    } else {
+      if (canAccept(parties, userId)) out.push('accept')
       // A direct invite names its worker, and declining is a real transition
       // the state machine has always allowed — it simply had no button, so the
       // only way out of an invitation was to ignore it.
-      if (gig.assigned_counterparty_id === userId) out.push('decline')
+      //
+      // A SIBLING of accept, not nested inside it, and that is load-bearing
+      // now: `canAccept` refuses a taken-down listing, and declining is a way
+      // OUT — an invitee whose gig was pulled from under them must still be
+      // able to say no. Same output as the nested form in every other state,
+      // which the arrangement matrix asserts.
+      if (canDecline(parties, userId)) out.push('decline')
     }
     // Nothing below applies to an open escrow.
     return out

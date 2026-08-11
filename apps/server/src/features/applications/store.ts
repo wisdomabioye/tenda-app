@@ -198,6 +198,8 @@ export interface ApplicationEscrowRow {
   creator_id: string
   requires_approval: boolean
   accept_deadline: Date | null
+  /** CO1 takedown — a hidden gig takes no new applications (`assertNotTakenDown`). */
+  hidden: boolean
   /**
    * gig_details.title — null only for an exchange escrow, which every caller
    * 404s on anyway. Read here so the "new applicant" notice can name the gig
@@ -222,6 +224,7 @@ export async function findApplicationEscrow(
       creator_id: escrows.creator_id,
       requires_approval: escrows.requires_approval,
       accept_deadline: escrows.accept_deadline,
+      hidden: escrows.hidden,
       title: gig_details.title,
     })
     .from(escrows)

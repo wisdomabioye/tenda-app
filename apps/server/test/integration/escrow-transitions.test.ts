@@ -338,3 +338,28 @@ test('POST submit: rejects a missing or empty proof_hash before any gating', { s
     assert.strictEqual(res.json().code, ErrorCode.VALIDATION_ERROR)
   }
 })
+
+test('POST decline: an assigned buyer declines an EXCHANGE offer', { skip }, async () => {
+  // The gig case is covered above; this is the kind that had never been run.
+  // The exchange CTA offers Decline (a direct offer names its buyer, and an
+  // invitation with no way to say no just hangs on their screen), so this route
+  // is now reachable with kind='exchange' — and `buildEscrowTx` loads the
+  // kind-specific satellite, which is where a gig-only assumption would surface
+  // as a 500 on a button the user can actually press.
+  const app = getApp()
+  const seller = await createUser(app)
+  const buyer = await createUser(app)
+  const e = await createEscrow(app, {
+    creator_id: seller.row.id,
+    kind: 'exchange',
+    status: 'open',
+    assigned_counterparty_id: buyer.row.id,
+  })
+  await attachExchangeDetails(app, e.id)
+
+  const res = await app.inject({
+    method: 'POST', url: `/v1/escrows/${e.id}/decline`, headers: authHeader(buyer.token),
+  })
+  assert.strictEqual(res.statusCode, 200, JSON.stringify(res.json()))
+  assert.ok(res.json().unsigned)
+})

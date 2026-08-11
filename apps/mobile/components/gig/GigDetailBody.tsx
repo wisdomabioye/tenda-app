@@ -7,7 +7,7 @@ import { GigMetaInfo } from './GigMetaInfo'
 import { ProofRequirementsNote } from './ProofRequirementsNote'
 import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel } from '@/lib/gig-display'
 import { PersonCard, ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
-import { DisputeReasonBlock, ReportContentLink, ChainBadge } from '@/components/escrow'
+import { DisputeReasonBlock, ReportContentLink, ChainBadge, TakedownNotice } from '@/components/escrow'
 import { CATEGORY_META } from '@/lib/categories'
 import { computeRelevantDeadline } from '@tenda/shared'
 import type { GigDetail } from '@tenda/shared'
@@ -34,6 +34,11 @@ export function GigDetailBody({ gig, userId, onProofPress, onReport, onOpenDispu
 
   return (
     <>
+      {/* Above the status pills: a takedown is the first thing about this gig
+          that anyone still able to read it needs to know. Renders nothing when
+          the gig is visible, which is why there is no condition here. */}
+      <TakedownNotice escrow={gig} subject="gig" viewerId={userId} />
+
       {/* Status + category dot-label pills */}
       <View style={s.badgeRow}>
         <Badge variant={STATUS_BADGE_VARIANT[gig.status]} label={STATUS_LABEL[gig.status]} />

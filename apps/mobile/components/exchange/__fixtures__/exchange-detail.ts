@@ -48,6 +48,8 @@ export function exchangeDetail(overrides: Partial<ExchangeDetail> = {}): Exchang
     creator: userRef(SELLER_ID),
     is_seeker: false,
     payment_proof_url: null,
+    /** Visible by default; takedown tests opt in explicitly. */
+    hidden: false,
     requires_approval: false,
     is_assigned: false,
     assigned_counterparty_id: null,

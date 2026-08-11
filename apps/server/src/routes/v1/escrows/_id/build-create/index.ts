@@ -16,6 +16,7 @@ import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
 import { escrows, exchange_details, tx_attempts } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
+import { assertNotTakenDown } from '@server/lib/escrow'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
@@ -42,6 +43,11 @@ const route: FastifyPluginAsync = async (fastify) => {
           'Only drafts can be published, this escrow already left the draft state',
         )
       }
+      // Publishing IS an entry action — it funds the listing — and this route
+      // does not go through `guardTransition`, so the takedown gate is applied
+      // by hand. A hidden draft that published would lock the creator's money
+      // into an escrow nobody is allowed to accept; deleting it still works.
+      assertNotTakenDown(escrow, 'create')
 
       // A signed-and-broadcast create may still be verifying, building a
       // second create tx now would just fail on-chain (the PDA exists) and

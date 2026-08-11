@@ -28,10 +28,12 @@ const STRANGER = 'user-stranger'
 function escrow(status: EscrowStatus, counterparty: string | null = COUNTERPARTY) {
   // Instant mode by default — the acceptance mode is REQUIRED on the shape, so
   // these lifecycle tests state it rather than inheriting a silent default.
+  // Same for `hidden`: visible unless a test says otherwise.
   return {
     status,
     creator_id: CREATOR,
     counterparty_id: counterparty,
+    hidden: false,
     ...UNRESTRICTED_ACCEPTANCE,
   }
 }

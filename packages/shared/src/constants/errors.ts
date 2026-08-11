@@ -39,6 +39,10 @@ export const ErrorCode = {
   // Moderation
   CONTENT_MODERATED:             'CONTENT_MODERATED',
   CANNOT_REPORT_SELF:            'CANNOT_REPORT_SELF',
+  /** CO1 takedown: the listing is hidden, so no new participant may enter it.
+   *  Distinct from ESCROW_WRONG_STATUS — the state machine is fine, the
+   *  PLATFORM is refusing — and the parties' exits are unaffected. */
+  ESCROW_TAKEN_DOWN:             'ESCROW_TAKEN_DOWN',
   // Escrow state machine (v2 — used by lib/escrow.ts state-transition guards)
   ESCROW_WRONG_STATUS:           'ESCROW_WRONG_STATUS',
   ESCROW_WRONG_CALLER:           'ESCROW_WRONG_CALLER',

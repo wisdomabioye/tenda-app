@@ -12,6 +12,7 @@ import { escrows, gig_details, exchange_details, users, disputes } from '@tenda/
 import { ErrorCode, GIG_CATEGORIES } from '@tenda/shared'
 import type {
   AdminEscrowDossier,
+  EscrowEventFrame,
   AdminEscrowListQuery,
   AdminEscrowRow,
   ApiError,
@@ -22,6 +23,7 @@ import { escrowStatusEnum } from '@tenda/shared/db/schema/escrow'
 import { requirePermission, uuidParamGuard } from '@server/lib/guards'
 import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
+import { channelName } from '@server/lib/ws'
 import { buildEscrowDossier } from '@server/lib/escrow/dossier'
 
 
@@ -173,6 +175,28 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
       escrowId: updated.id,
       hidden: updated.hidden,
     })
+
+    // Live-invalidate the screens already open. `useEscrowLiveRefresh` is
+    // subscribed here and refetches on ANY frame, so no client release is
+    // needed: the poster's banner appears without a refocus, and a pending
+    // invitee loses Accept before spending gas on a refusal. Fired on unhide
+    // too — a restored listing left dead on screen is the same bug reversed.
+    //
+    // It reaches PARTIES ONLY and cannot do more: `authorizeChannel` admits
+    // only parties and assignees to `escrow:<id>` (lib/ws.ts). A stranger's
+    // stale screen is re-synced by the 409 refusal instead, never by this.
+    //
+    // Empty `tx_ref` — nothing was signed, and TransactionMonitor early-returns
+    // on a falsy signature, so it can never read as a confirmation. `satisfies`
+    // because `broadcast` takes `Record<string, unknown>`, where a typo'd key
+    // would compile and then be dropped in silence by the client's guard.
+    const frame = {
+      type: 'escrow_event',
+      escrow_id: updated.id,
+      event: 'escrow.visibility_changed',
+      tx_ref: '',
+    } satisfies Omit<EscrowEventFrame, 'channel'>
+    fastify.wsBroadcast.broadcast(channelName({ kind: 'escrow', id: updated.id }), frame)
 
     return updated
   })

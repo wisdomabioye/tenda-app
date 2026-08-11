@@ -395,3 +395,124 @@ describe('disputed and terminal states', () => {
     }
   })
 })
+
+// ── taken down (CO1) ────────────────────────────────────────────────────────
+//
+// A hidden gig is still readable by its PARTIES — the detail route serves it to
+// them precisely because the escrow stays operable — so the bar keeps working;
+// it just stops offering the ways IN. These rows are the whole-arrangement
+// proof of that, which is the only way to catch a takedown that took an EXIT
+// with it. Decline is the one that nearly did: it used to be nested inside the
+// `canAccept` branch.
+
+describe('taken down', () => {
+  const down = (over: Partial<GigDetail> = {}) => gigDetail({ hidden: true, ...over })
+
+  it('offers a would-be worker nothing at all', () => {
+    // Same gig, one flag apart — so this cannot pass by the viewer being wrong.
+    expect(arrange(gigDetail(), STRANGER_ID)).toEqual({
+      notice: null,
+      primary: 'accept',
+      secondary: [],
+    })
+    expect(arrange(down(), STRANGER_ID)).toEqual(EMPTY)
+  })
+
+  it('leaves an INVITED worker Decline, having taken Accept', () => {
+    // The regression this guards: gating `canAccept` used to remove the whole
+    // branch, and Decline lived inside it. Being pulled out from under someone
+    // is not a reason to trap them in the invitation.
+    const invited = down({ assigned_counterparty_id: WORKER_ID })
+    expect(arrange(invited, WORKER_ID)).toEqual({
+      notice: null,
+      primary: null,
+      secondary: ['decline'],
+    })
+  })
+
+  it('keeps the poster their way out — Cancel, or Claim Refund once expired', () => {
+    expect(arrange(down(), CREATOR_ID)).toEqual({
+      notice: null,
+      primary: null,
+      secondary: ['cancel'],
+    })
+    expect(arrange(down({ accept_deadline: iso(-HOUR) }), CREATOR_ID)).toEqual({
+      notice: null,
+      primary: 'refundExpired',
+      secondary: [],
+    })
+  })
+
+  it('takes Apply from the worker and Assign from the poster in approval mode', () => {
+    const approval = down({ requires_approval: true })
+    expect(arrange(approval, STRANGER_ID)).toEqual(EMPTY)
+    // The poster loses the primary but keeps Cancel — they still own the money.
+    expect(arrange(approval, CREATOR_ID)).toEqual({
+      notice: null,
+      primary: null,
+      secondary: ['cancel'],
+    })
+  })
+
+  it('lets an applicant still withdraw', () => {
+    // Their application is live on a gig that has been pulled; the server keeps
+    // the withdraw route open for exactly this, so the button must stay too.
+    const applied = down({ requires_approval: true, viewer: viewerWith('open') })
+    expect(arrange(applied, WORKER_ID)).toEqual({
+      notice: null,
+      primary: 'withdraw',
+      secondary: [],
+    })
+  })
+
+  it('changes NOTHING once work is under way', () => {
+    // Past `open` there is no way in left to block, so a takedown must be
+    // completely invisible to the bar. Asserted against the visible gig rather
+    // than a literal, so it stays true as those states evolve.
+    const states: Partial<GigDetail>[] = [
+      { status: 'accepted', counterparty: userRef(WORKER_ID) },
+      { status: 'submitted', counterparty: userRef(WORKER_ID), approval_deadline: iso(-HOUR) },
+      { status: 'disputed', counterparty: userRef(WORKER_ID) },
+      { status: 'completed', counterparty: userRef(WORKER_ID) },
+    ]
+    for (const state of states) {
+      for (const viewer of [CREATOR_ID, WORKER_ID, STRANGER_ID]) {
+        expect(arrange(down(state), viewer)).toEqual(arrange(gigDetail(state), viewer))
+      }
+    }
+  })
+
+  it('still lets the worker submit and the poster approve', () => {
+    // The equality above would be satisfied by two empty bars; these pin the
+    // actual buttons, because this is where money is at stake.
+    const accepted = down({ status: 'accepted', counterparty: userRef(WORKER_ID) })
+    expect(arrange(accepted, WORKER_ID).primary).toBe('submit')
+    const submitted = down({ status: 'submitted', counterparty: userRef(WORKER_ID) })
+    expect(arrange(submitted, CREATOR_ID).primary).toBe('approve')
+  })
+
+  it('leaves a draft ENTIRELY alone — repost included, deliberately', () => {
+    // A DECISION, written down as the whole arrangement rather than as the one
+    // half that felt safe. Asserting only `.secondary` here (the first version
+    // of this test) passed identically whether the takedown was honoured or
+    // ignored, which made it look like a guard while guarding nothing.
+    //
+    // Why repost survives: it is not a way into THIS escrow. `build-create` on
+    // the hidden draft is refused server-side, and tapping repost opens a fresh
+    // create — new escrow, re-screened by the Stage-6 moderation gate, old
+    // draft deleted. Blocking it would prevent nothing either (the same text
+    // can be retyped from "Post a gig" in a minute) while reading to a
+    // moderator as enforcement that is not there. A takedown removes a listing;
+    // suspending an account is the tool for a person.
+    const draft = down({ status: 'draft' })
+    expect(arrange(draft, CREATOR_ID)).toEqual({
+      notice: null,
+      primary: 'retryDraft',
+      secondary: ['deleteDraft'],
+    })
+    // Stated as an equality with the visible draft too, so this reads as "the
+    // takedown changes nothing here" rather than as a list someone must keep
+    // in step with the draft branch.
+    expect(arrange(draft, CREATOR_ID)).toEqual(arrange(gigDetail({ status: 'draft' }), CREATOR_ID))
+  })
+})

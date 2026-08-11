@@ -4,7 +4,8 @@
  * each suite reading as "what's being asserted", per the helpers convention.
  */
 import type { FastifyInstance } from 'fastify'
-import { disputes } from '@tenda/shared/db/schema'
+import { eq } from 'drizzle-orm'
+import { disputes, escrows } from '@tenda/shared/db/schema'
 import {
   TEST_CHAIN_ID,
   TEST_ASSET,
@@ -110,6 +111,13 @@ export async function openGig(
     /** Settle on a non-default chain — requires `seedAltChain` (FK). */
     chain_id?: string
     asset?: string
+    /**
+     * Escrow COLUMNS to override — `hidden`, `requires_approval`, `status`,
+     * whichever the suite is actually about. A passthrough rather than one
+     * named arg per column: the alternative grew a parameter every time a
+     * suite needed a different corner of the same row.
+     */
+    escrow?: Partial<EscrowRow>
   } = {},
 ): Promise<{ creator: TestUser; escrow: EscrowRow }> {
   const creator = await createUser(app)
@@ -119,6 +127,7 @@ export async function openGig(
     amount_raw: args.amount_raw ?? '1000000',
     ...(args.chain_id === undefined ? {} : { chain_id: args.chain_id }),
     ...(args.asset === undefined ? {} : { asset: args.asset }),
+    ...args.escrow,
   })
   await attachGigDetails(app, escrow.id, {
     title: args.title ?? 'Open gig',
@@ -126,4 +135,30 @@ export async function openGig(
     country: args.country ?? 'NG',
   })
   return { creator, escrow }
+}
+
+/**
+ * Take an escrow down / put it back, the way an admin's PATCH leaves it.
+ *
+ * Writes the column directly rather than going through
+ * `PATCH /v1/admin/escrows/:id/hidden`: that route's own behaviour (permission,
+ * validation, audit event) is covered by admin-takedown.test.ts, and every
+ * suite that just needs a hidden ROW would otherwise pay for a super_admin
+ * user it never uses again.
+ */
+async function setEscrowHidden(
+  app: FastifyInstance,
+  escrow_id: string,
+  hidden: boolean,
+): Promise<void> {
+  await app.db.update(escrows).set({ hidden }).where(eq(escrows.id, escrow_id))
+}
+
+export async function hideEscrow(app: FastifyInstance, escrow_id: string): Promise<void> {
+  await setEscrowHidden(app, escrow_id, true)
+}
+
+/** Restores visibility — for asserting that the gate is what changed. */
+export async function unhideEscrow(app: FastifyInstance, escrow_id: string): Promise<void> {
+  await setEscrowHidden(app, escrow_id, false)
 }

@@ -70,6 +70,12 @@ function escrow(o: EscrowOverrides = {}) {
     requires_approval: o.requires_approval ?? true,
     is_assigned: o.is_assigned ?? assigned_counterparty_id !== null,
     assigned_counterparty_id,
+    // Always visible here, with no override to vary it: this suite mirrors the
+    // shared helpers' APPROVAL rules, and the takedown half of the same helpers
+    // is asserted in packages/shared/test/utils/gig-approval.test.ts. An
+    // override nothing sets is dead API whose comment promises coverage this
+    // file does not have.
+    hidden: false,
     accept_deadline: o.accept_deadline ?? null,
     completion_duration_seconds: DURATION_SECONDS,
     // Both contracts derive accepted_at as completion_deadline - duration, so

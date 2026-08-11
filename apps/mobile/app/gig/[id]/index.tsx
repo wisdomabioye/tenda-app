@@ -55,6 +55,10 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
     chainId: gig.chain_id,
     asset: gig.asset,
     amountRaw: gig.amount_raw,
+    // Refused as taken down: re-read so the bar stops offering what the server
+    // has just declined. The gate drops the gig entirely on the 404 a
+    // non-party now gets, so this is also how a stranger leaves the screen.
+    onStale: () => void fetchGigDetail(gig.escrow_id),
   })
 
   // Worker-net projection for the confirm dialogs (approve/claim quote what

@@ -10,7 +10,7 @@
 
 import { APPLICATION_UNASSIGN_TIGHT_WINDOW_SECONDS } from '../../constants/applications'
 import type { ApplicationStatus } from '../../constants/applications'
-import type { EscrowAcceptanceMode, EscrowLike } from './types'
+import type { EscrowAcceptanceMode, EscrowLike, EscrowVisibility } from './types'
 import { toDate } from './types'
 import { isDeliveryWindowOpen, type DeliveryWindow } from './lifecycle'
 
@@ -23,8 +23,17 @@ export interface ApplicationLike {
 
 type ApprovalEscrow = EscrowLike & EscrowAcceptanceMode
 
-/** Approval mode AND still taking workers. */
-function isOpenForApplications(e: ApprovalEscrow): boolean {
+/**
+ * Approval mode AND still taking workers.
+ *
+ * The single gate both ENTRY helpers below share, which is why the takedown
+ * check lives here rather than in each: a listing an admin has pulled is taking
+ * nobody, whether they would apply or be assigned. `canUnassign` and
+ * `canReleaseAssignment` deliberately do NOT come through here — they are ways
+ * out of an assignment that already exists.
+ */
+function isOpenForApplications(e: ApprovalEscrow & EscrowVisibility): boolean {
+  if (e.hidden) return false
   return e.requires_approval && e.status === 'open'
 }
 
@@ -38,7 +47,7 @@ function isOpenForApplications(e: ApprovalEscrow): boolean {
  * point of the upsert.
  */
 export function canApply(
-  e: ApprovalEscrow,
+  e: ApprovalEscrow & EscrowVisibility,
   userId: string,
   application: ApplicationLike | null,
 ): boolean {
@@ -61,7 +70,7 @@ export function canWithdrawApplication(application: ApplicationLike | null): boo
  * goes with it — same shape as `canClaim` reading `approval_deadline`.
  */
 export function canAssign(
-  e: ApprovalEscrow & { accept_deadline: string | Date | null },
+  e: ApprovalEscrow & EscrowVisibility & { accept_deadline: string | Date | null },
   userId: string,
   now: Date = new Date(),
 ): boolean {

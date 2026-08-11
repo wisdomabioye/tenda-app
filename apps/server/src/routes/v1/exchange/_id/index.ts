@@ -115,6 +115,9 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       asset: escrow.asset,
       amount_raw: escrow.amount_raw,
       status: escrow.status,
+      // Only parties and admins get past the hidden branch above, so this is
+      // never disclosed to anyone it is being hidden from. Same as the gig.
+      hidden: escrow.hidden,
       fiat_amount: details.fiat_amount,
       fiat_currency: details.fiat_currency,
       rate: details.rate,

@@ -11,6 +11,7 @@ import {
   canReview,
   canCancel,
   canClaim,
+  canDecline,
   UNRESTRICTED_ACCEPTANCE,
   escrowPartiesOf,
 } from '../../src/utils/gig-utils'
@@ -23,13 +24,19 @@ const STRANGER = 'user-stranger'
 function escrow(status: EscrowStatus, counterparty: string | null = COUNTERPARTY) {
   // Instant mode, stated rather than defaulted: the acceptance mode is a
   // REQUIRED field on the shape precisely so no caller can inherit the wrong
-  // one silently, and a fixture is a caller.
+  // one silently, and a fixture is a caller. Same for `hidden`.
   return {
     status,
     creator_id: CREATOR,
     counterparty_id: counterparty,
+    hidden: false,
     ...UNRESTRICTED_ACCEPTANCE,
   }
+}
+
+/** The same escrow, taken down by an admin. */
+function hidden(status: EscrowStatus, counterparty: string | null = COUNTERPARTY) {
+  return { ...escrow(status, counterparty), hidden: true }
 }
 
 const DEADLINES = {
@@ -155,6 +162,7 @@ const detail = {
   status: 'open' as EscrowStatus,
   creator: { id: CREATOR },
   counterparty: null,
+  hidden: false,
   ...UNRESTRICTED_ACCEPTANCE,
 }
 
@@ -166,6 +174,7 @@ test('escrowPartiesOf: flattens the user refs and carries the unrestricted mode'
     requires_approval: false,
     is_assigned: false,
     assigned_counterparty_id: null,
+    hidden: false,
   })
 })
 
@@ -199,4 +208,96 @@ test('escrowPartiesOf: carries requires_approval rather than assuming it false',
   const approval = escrowPartiesOf({ ...detail, requires_approval: true })
   assert.equal(approval.requires_approval, true)
   assert.equal(canAccept(approval, STRANGER), false)
+})
+
+// --- CO1 takedown ----------------------------------------------------------
+//
+// The rule in one sentence: a hidden escrow takes no new participants and
+// gives up none of its existing ones' exits. Both halves are asserted, and the
+// second half is the one that matters most — blocking an exit on an escrow
+// holding locked funds would strand real money.
+
+test('canAccept: a taken-down listing is closed to everyone', () => {
+  // Open, instant mode, nobody assigned — acceptable in every other respect.
+  assert.equal(canAccept(escrow('open', null), COUNTERPARTY), true)
+  assert.equal(canAccept(hidden('open', null), COUNTERPARTY), false)
+  assert.equal(canAccept(hidden('open', null), STRANGER), false)
+})
+
+test('canAccept: hidden beats the direct invite — even the named worker', () => {
+  // The invitee is the ONE person a direct offer is acceptable by, so if the
+  // takedown check were ordered after the assignment check they would slip
+  // through. They can still decline (below).
+  const invited = escrowPartiesOf({
+    ...detail,
+    hidden: true,
+    is_assigned: true,
+    assigned_counterparty_id: COUNTERPARTY,
+  })
+  assert.equal(canAccept(invited, COUNTERPARTY), false)
+})
+
+test('canPublish: a taken-down draft cannot be funded', () => {
+  // Publishing a hidden draft would lock the creator's money into an escrow
+  // nobody is allowed to accept. Deleting it is a way out and stays available
+  // — nothing here gates that.
+  assert.equal(canPublish(escrow('draft', null), CREATOR), true)
+  assert.equal(canPublish(hidden('draft', null), CREATOR), false)
+})
+
+test('canDecline: the invitee may still say no to a taken-down offer', () => {
+  const invited = escrowPartiesOf({
+    ...detail,
+    is_assigned: true,
+    assigned_counterparty_id: COUNTERPARTY,
+  })
+  assert.equal(canDecline(invited, COUNTERPARTY), true)
+  // Taken down: accept is gone, decline is NOT. Being pulled out from under
+  // someone is not a reason to trap them in the invitation.
+  const takenDown = { ...invited, hidden: true }
+  assert.equal(canAccept(takenDown, COUNTERPARTY), false)
+  assert.equal(canDecline(takenDown, COUNTERPARTY), true)
+})
+
+test('canDecline: only the named invitee, only while open', () => {
+  const invited = escrowPartiesOf({
+    ...detail,
+    is_assigned: true,
+    assigned_counterparty_id: COUNTERPARTY,
+  })
+  assert.equal(canDecline(invited, CREATOR), false)
+  assert.equal(canDecline(invited, STRANGER), false)
+  // Nothing to decline once the escrow has moved on.
+  assert.equal(canDecline({ ...invited, status: 'accepted' }, COUNTERPARTY), false)
+  // An outsider is served the flag with the id withheld; that must not read as
+  // "you are the invitee".
+  const withheld = escrowPartiesOf({ ...detail, is_assigned: true, assigned_counterparty_id: null })
+  assert.equal(canDecline(withheld, STRANGER), false)
+  // No invite at all: nothing to decline.
+  assert.equal(canDecline(escrow('open', null), COUNTERPARTY), false)
+})
+
+test('every EXIT helper ignores the takedown', () => {
+  // Explicit and exhaustive, because "we did not think to gate that one" and
+  // "we deliberately left it open" look identical in the source.
+  assert.equal(canSubmit(hidden('accepted'), COUNTERPARTY), canSubmit(escrow('accepted'), COUNTERPARTY))
+  assert.equal(canApprove(hidden('submitted'), CREATOR), canApprove(escrow('submitted'), CREATOR))
+  assert.equal(canCancel(hidden('open'), CREATOR), canCancel(escrow('open'), CREATOR))
+  assert.equal(canDispute(hidden('accepted'), CREATOR), canDispute(escrow('accepted'), CREATOR))
+  assert.equal(canAddProof(hidden('submitted'), COUNTERPARTY), canAddProof(escrow('submitted'), COUNTERPARTY))
+  assert.equal(canReview(hidden('completed'), CREATOR), canReview(escrow('completed'), CREATOR))
+  // All of them TRUE in these states, so the equality above is not two falses
+  // agreeing with each other.
+  assert.equal(canSubmit(hidden('accepted'), COUNTERPARTY), true)
+  assert.equal(canApprove(hidden('submitted'), CREATOR), true)
+  assert.equal(canCancel(hidden('open'), CREATOR), true)
+  assert.equal(canDispute(hidden('accepted'), CREATOR), true)
+  assert.equal(canAddProof(hidden('submitted'), COUNTERPARTY), true)
+  assert.equal(canReview(hidden('completed'), CREATOR), true)
+})
+
+test('canClaim: a stalled worker still gets paid out of a taken-down escrow', () => {
+  const past = new Date(Date.now() - 60_000).toISOString()
+  const ctx = { ...hidden('submitted'), approval_deadline: past }
+  assert.equal(canClaim(ctx, COUNTERPARTY), true)
 })

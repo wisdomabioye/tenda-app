@@ -209,6 +209,10 @@ describe('txSuccessCopy', () => {
     const triggerable: EscrowTxType[] = [
       'create',
       'accept',
+      // Was missing from this list while BOTH bars offered the button, so a
+      // declining invitee got the neutral fallback on either surface — the one
+      // action with confirm copy for both kinds and success copy for neither.
+      'decline',
       'submit',
       'approve',
       'claim_stalled',

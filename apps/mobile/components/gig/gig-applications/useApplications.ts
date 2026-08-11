@@ -11,6 +11,7 @@
 import { useCallback, useState } from 'react'
 import { APPLICATION_STATUSES, type GigApplicant } from '@tenda/shared'
 import { api, ApiClientError } from '@/api/client'
+import { isTakedownRefusal } from '@/lib/takedown-refusal'
 import { showToast } from '@/components/ui'
 import { APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from './copy'
 
@@ -54,6 +55,12 @@ export function useApplications({ onChanged }: UseApplicationsArgs = {}) {
         return true
       } catch (e) {
         showToast('error', messageOf(e, fallback))
+        // A takedown refusal is the one FAILURE that still changes what the
+        // caller should be displaying: the gig was pulled while this screen was
+        // open, so Apply must stop being offered. Re-read for it exactly as a
+        // success does — every other failure leaves the screen alone, because
+        // nothing about the gig changed.
+        if (isTakedownRefusal(e)) onChanged?.()
         return false
       } finally {
         setBusy(false)

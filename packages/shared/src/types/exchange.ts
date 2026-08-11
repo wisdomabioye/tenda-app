@@ -46,6 +46,8 @@ export interface ExchangePayoutAccount {
 }
 
 export interface ExchangeDetail extends ExchangeSummary {
+  /** CO1 takedown, same meaning and same (absent) scoping as the gig detail's. */
+  hidden: boolean
   /**
    * Fee tier baked into the escrow at creation (escrows.is_seeker). Pairs
    * with the live platform-config bps to project the buyer's net payout —

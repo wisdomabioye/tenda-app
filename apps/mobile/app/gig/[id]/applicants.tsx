@@ -9,17 +9,19 @@
  * never assigned by a single ambiguous tap.
  */
 import { useCallback, useState } from 'react'
+import { StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
 import { formatAssetAmount, canAssign, type GigApplicant, type GigDetail } from '@tenda/shared'
 import { ScreenContainer, Header, showToast } from '@/components/ui'
 import { TransactionMonitor } from '@/components/feedback'
-import { TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
+import { TakedownNotice, TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
 import { GigDetailGate } from '@/components/gig'
 import { approvalContextOf } from '@/components/gig/gig-cta'
 import { ApplicantList, useApplicantList, type ApplicantFilter } from '@/components/gig/gig-applications'
 import { useEscrowActions } from '@/hooks/useEscrowActions'
 import { useGigsStore } from '@/stores'
 import { formatDuration } from '@/lib/gig-display'
+import { spacing } from '@/theme/tokens'
 
 function ApplicantsContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const router = useRouter()
@@ -33,6 +35,11 @@ function ApplicantsContent({ gig, userId }: { gig: GigDetail; userId: string }) 
     chainId: gig.chain_id,
     asset: gig.asset,
     amountRaw: gig.amount_raw,
+    // The THIRD screen that dispatches an entry action (`assign_accept`), and
+    // the one easiest to forget — it is not a detail screen, but a takedown
+    // stops it dead just the same. Re-reading the gig is what clears
+    // `assignable`, so the rows stop offering a button the server refuses.
+    onStale: () => void fetchGigDetail(gig.escrow_id),
   })
 
   // Reload on focus AND whenever the filter changes: coming back from a
@@ -64,6 +71,22 @@ function ApplicantsContent({ gig, userId }: { gig: GigDetail; userId: string }) 
   return (
     <ScreenContainer scroll={false} padding={false} edges={['left', 'right', 'bottom']}>
       <Header title="Applicants" showBack />
+
+      {/* Otherwise a takedown reads as a bug here: `assignable` goes false, the
+          Assign buttons quietly vanish, and the poster is left looking at a
+          shortlist they cannot act on with nothing saying why.
+
+          The `hidden` check is on the WRAPPER, not left to the component's own
+          empty render, because the wrapper carries padding — this screen is
+          `padding={false}` and the notice would otherwise touch both edges. An
+          unconditional wrapper reserves that padding as blank space above the
+          list on every visible gig, which is a layout regression paid by the
+          99% case to serve the 1%. */}
+      {gig.hidden && (
+        <View style={s.notice}>
+          <TakedownNotice escrow={gig} subject="gig" viewerId={userId} />
+        </View>
+      )}
 
       <ApplicantList
         applicants={applicants}
@@ -122,3 +145,7 @@ export default function ApplicantsScreen() {
     </GigDetailGate>
   )
 }
+
+const s = StyleSheet.create({
+  notice: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
+})

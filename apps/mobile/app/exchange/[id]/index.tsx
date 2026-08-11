@@ -18,10 +18,12 @@ export default function ExchangeDetailScreen() {
 
   if (isLoading && !offer) return <LoadingScreen />
 
-  if (error && !offer) {
+  // `gone` skips the retry state: the offer was deleted, or taken down and no
+  // longer readable by this viewer, so Retry would fail every time.
+  if (error && !error.gone && !offer) {
     return (
       <ScreenContainer>
-        <ErrorState title="Failed to load offer" description={error} ctaLabel="Retry" onCtaPress={() => void refresh()} />
+        <ErrorState title="Failed to load offer" description={error.message} ctaLabel="Retry" onCtaPress={() => void refresh()} />
       </ScreenContainer>
     )
   }
@@ -30,8 +32,8 @@ export default function ExchangeDetailScreen() {
     return (
       <ScreenContainer>
         <EmptyState
-          title="Offer not found"
-          description="This offer may have been removed"
+          title="Offer not available"
+          description="This offer may have been removed, or is no longer public."
           action={{ label: 'Go back', onPress: () => router.back() }}
         />
       </ScreenContainer>

@@ -47,6 +47,7 @@ function approvalEscrow(status: EscrowStatus, counterparty: string | null = null
     requires_approval: true,
     is_assigned: counterparty !== null,
     assigned_counterparty_id: counterparty,
+    hidden: false,
   }
 }
 
@@ -100,6 +101,14 @@ test('canApply: every settled application status allows re-applying', () => {
 })
 
 // --- canWithdrawApplication ------------------------------------------------
+//
+// Judged on the application ALONE, deliberately blind to the escrow — which is
+// also what makes it survive a CO1 takedown: an applicant on a gig that was
+// pulled must still be able to pull out, and the server agrees (DELETE reads
+// the application, and /v1/applications keeps listing hidden gigs so the exit
+// never dead-ends). That is a property of the SIGNATURE, not of a value any
+// test can vary, so it is recorded here rather than as a test that would assert
+// the same `true` as the one below and could never fail.
 
 test('canWithdrawApplication: only an open application can be withdrawn', () => {
   assert.equal(canWithdrawApplication(application('open')), true)
@@ -352,4 +361,48 @@ test('acceptWindowState never reports closed while canAssign still allows it', (
   // Without this the sweep is vacuous: a canAssign that always said no would
   // run zero assertions and pass, which is the exact break it exists to catch.
   assert.ok(assignable > 0, 'no offset was assignable — the sweep asserted nothing')
+})
+
+// --- CO1 takedown ----------------------------------------------------------
+//
+// Approval mode has two ways IN — a worker applies, a poster assigns — and both
+// go through `isOpenForApplications`, so both are gated in one place. The ways
+// OUT of an assignment that already exists are NOT, because a takedown must
+// never trap a party in an escrow holding their money.
+
+const takenDown = <T extends { hidden: boolean }>(e: T): T => ({ ...e, hidden: true })
+
+test('canApply: nobody may apply to a taken-down gig', () => {
+  // Same gig, same worker, same absent application — only `hidden` differs.
+  assert.equal(canApply(approvalEscrow('open'), WORKER, null), true)
+  assert.equal(canApply(takenDown(approvalEscrow('open')), WORKER, null), false)
+  assert.equal(canApply(takenDown(approvalEscrow('open')), STRANGER, null), false)
+})
+
+test('canAssign: the poster cannot assign from a taken-down gig', () => {
+  // The server refuses `assign_accept` on it, so offering the button would
+  // walk the poster into a 409 with a worker's name already picked.
+  assert.equal(canAssign(assignable(at(HOUR)), CREATOR, NOW), true)
+  assert.equal(canAssign(takenDown(assignable(at(HOUR))), CREATOR, NOW), false)
+})
+
+test('canUnassign: the poster may still release a worker on a taken-down gig', () => {
+  const assigned = {
+    ...approvalEscrow('accepted', WORKER),
+    completion_deadline: at(HOUR),
+    completion_duration_seconds: 3600,
+    unassign_window_seconds: 7200,
+  }
+  assert.equal(canUnassign(assigned, CREATOR, NOW), true)
+  assert.equal(canUnassign(takenDown(assigned), CREATOR, NOW), true)
+})
+
+test('canReleaseAssignment: the worker may still step back from a taken-down gig', () => {
+  const assigned = {
+    ...approvalEscrow('accepted', WORKER),
+    completion_deadline: at(HOUR),
+    assignment_released_at: null,
+  }
+  assert.equal(canReleaseAssignment(assigned, WORKER, 0, NOW), true)
+  assert.equal(canReleaseAssignment(takenDown(assigned), WORKER, 0, NOW), true)
 })

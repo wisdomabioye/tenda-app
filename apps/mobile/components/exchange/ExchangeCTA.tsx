@@ -3,10 +3,12 @@ import { spacing } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
 import {
   canAccept,
+  canDecline,
   canSubmit,
   canCancel,
   canClaim,
   canDispute,
+  canPublish,
   canReview,
   canAddProof,
   escrowPartiesOf,
@@ -42,7 +44,14 @@ export function ExchangeCTA({ offer, userId, busy, onTxAction, onSheet }: Props)
   // Drafts: publish (build-create rebuilds the unsigned tx, covers
   // fiat-offramp drafts that never had one and signing-declined retries)
   // or discard.
+  //
+  // The two halves are asked separately because a TAKEN-DOWN draft keeps only
+  // one of them: publishing would fund an escrow nobody may accept (and the
+  // server refuses it), while discarding is a way out and always stays. The
+  // publish half goes through the shared `canPublish` rather than repeating
+  // `status === 'draft' && isCreator` — same rule, one owner.
   if (offer.status === 'draft' && isCreator) {
+    const publishable = canPublish(parties, userId)
     return (
       <View style={s.row}>
         <View style={s.flex}>
@@ -50,19 +59,42 @@ export function ExchangeCTA({ offer, userId, busy, onTxAction, onSheet }: Props)
             Delete Draft
           </Button>
         </View>
-        <View style={s.flex}>
-          <Button variant="primary" size="xl" fullWidth loading={busy} onPress={() => onTxAction('create')}>
-            Publish Offer
-          </Button>
-        </View>
+        {publishable && (
+          <View style={s.flex}>
+            <Button variant="primary" size="xl" fullWidth loading={busy} onPress={() => onTxAction('create')}>
+              Publish Offer
+            </Button>
+          </View>
+        )}
       </View>
     )
   }
-  if (canAccept(parties, userId)) {
+  // Accept and Decline are asked SEPARATELY, never nested, for the reason the
+  // gig bar was restructured: `canAccept` refuses a taken-down listing and
+  // declining is a way OUT, so an invitee whose offer was pulled from under
+  // them must still be able to say no. Nested, their only button would vanish
+  // with the takedown and the invitation would hang there unanswerable.
+  const acceptable = canAccept(parties, userId)
+  const declinable = canDecline(parties, userId)
+  if (acceptable || declinable) {
+    // Same weighting this bar already gives its other pair (Confirm & Release
+    // beside Dispute): the constructive action takes the space, the other is
+    // only as wide as its label. Alone, Decline fills the row — `fullWidth` and
+    // `flex: 1` fight each other, so it is one or the other, never both.
+    const declineWidth = acceptable ? {} : { fullWidth: true as const }
     return (
-      <Button variant="primary" size="xl" fullWidth loading={busy} onPress={() => onTxAction('accept')}>
-        Accept Offer
-      </Button>
+      <View style={s.row}>
+        {acceptable && (
+          <Button variant="primary" size="xl" style={s.flex} loading={busy} onPress={() => onTxAction('accept')}>
+            Accept Offer
+          </Button>
+        )}
+        {declinable && (
+          <Button variant="outline" size="xl" {...declineWidth} loading={busy} onPress={() => onTxAction('decline')}>
+            Decline
+          </Button>
+        )}
+      </View>
     )
   }
   if (canCancel(parties, userId) && offer.status === 'open') {

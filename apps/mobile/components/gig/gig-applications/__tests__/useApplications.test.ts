@@ -157,3 +157,53 @@ describe('useApplicantList', () => {
     expect(result.current.applicants).toEqual([])
   })
 })
+
+// ── taken down while the screen was open (CO1) ──────────────────────────────
+
+test('a takedown refusal re-reads the gig, though the action FAILED', () => {
+  // The one failure that still changes what the caller is displaying: the gig
+  // was pulled, so Apply must stop being offered. Every other failure leaves
+  // the screen exactly as it was — see the next test.
+  const onChanged = jest.fn()
+  const { result } = renderHook(() => useApplications({ onChanged }))
+
+  return act(async () => {
+    mockApply.mockRejectedValueOnce(
+      new ApiClientError(
+        409,
+        'Conflict',
+        'This listing has been removed and is no longer open to new participants.',
+        'ESCROW_TAKEN_DOWN',
+      ),
+    )
+    const ok = await result.current.apply(ESCROW, null)
+
+    expect(ok).toBe(false)
+    expect(onChanged).toHaveBeenCalledTimes(1)
+    expect(mockShowToast).toHaveBeenCalledWith(
+      'error',
+      'This listing has been removed and is no longer open to new participants.',
+    )
+  })
+})
+
+test('any OTHER failure leaves the screen alone', () => {
+  // Refetching here would reload the gig under someone who simply hit their
+  // application cap — nothing about the gig changed, so nothing should move.
+  const onChanged = jest.fn()
+  const { result } = renderHook(() => useApplications({ onChanged }))
+
+  return act(async () => {
+    mockApply.mockRejectedValueOnce(
+      new ApiClientError(
+        409,
+        'Conflict',
+        'You have too many open applications',
+        'APPLICATION_LIMIT_REACHED',
+      ),
+    )
+    await result.current.apply(ESCROW, null)
+
+    expect(onChanged).not.toHaveBeenCalled()
+  })
+})

@@ -55,6 +55,17 @@ export interface GigSummary {
 }
 
 export interface GigDetail extends GigSummary {
+  /**
+   * CO1 takedown: an admin has pulled this listing.
+   *
+   * On the DETAIL and not the summary, because the browse surfaces filter
+   * hidden rows out entirely — a listing item can only ever be `false`. Needs
+   * no scoping either: the only readers this route serves a 200 to on a hidden
+   * escrow are its PARTIES and admins, so `true` never reaches anyone it is
+   * being hidden from. They are also precisely the people who must be told,
+   * since the escrow stays fully operable for them.
+   */
+  hidden: boolean
   completion_duration_seconds: number | null
   completion_deadline: string | null
   submitted_at: string | null

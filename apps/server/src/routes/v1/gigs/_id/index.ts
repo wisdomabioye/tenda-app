@@ -127,6 +127,11 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       amount_raw: escrow.amount_raw,
       is_seeker: escrow.is_seeker,
       status: escrow.status,
+      // Unscoped on purpose: the branch above means only PARTIES and admins
+      // ever reach this line with `hidden` true, and they are exactly who has
+      // to be told — the escrow stays operable for them, so a silent takedown
+      // would leave the poster wondering why nobody applies.
+      hidden: escrow.hidden,
       accept_deadline: iso(escrow.accept_deadline),
       created_at: escrow.created_at.toISOString(),
       title: details.title,

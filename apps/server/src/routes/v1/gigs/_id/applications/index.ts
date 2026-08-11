@@ -20,6 +20,7 @@ import {
   type ApplyToGigBody,
 } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
+import { assertNotTakenDown } from '@server/lib/escrow'
 import { requireProfileComplete } from '@server/lib/guards'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { getPlatformConfig } from '@server/lib/platform'
@@ -40,11 +41,17 @@ import { appEvents } from '@server/lib/events'
 import type { AppDatabase } from '@server/plugins/db'
 
 /**
- * The gig must exist, be a gig, and be taking applications.
+ * The gig must exist, be a gig, be visible, and be taking applications.
  *
  * Applying to an instant-mode gig is refused rather than silently accepted:
  * the poster there has no way to assign from applications, so an accepted
  * application would be a promise nothing can keep.
+ *
+ * A TAKEN-DOWN gig is refused for the neighbouring reason: the poster cannot
+ * assign from it either (`assign_accept` is blocked), so the application would
+ * be dead on arrival. Withdrawing an application already on it stays open —
+ * that route reads the application, not the gig, and `/v1/applications` keeps
+ * listing hidden gigs precisely so the exit never dead-ends.
  */
 async function loadOpenForApplications(
   db: AppDatabase,
@@ -59,6 +66,7 @@ async function loadOpenForApplications(
   if (escrow === null || escrow.kind !== 'gig' || escrow.title === null) {
     throw new AppError(404, ErrorCode.GIG_NOT_FOUND, 'Gig not found')
   }
+  assertNotTakenDown(escrow, 'apply')
   if (!escrow.requires_approval) {
     throw new AppError(
       409,

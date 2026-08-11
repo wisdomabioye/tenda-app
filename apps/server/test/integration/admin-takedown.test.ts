@@ -17,6 +17,8 @@ import {
   authHeader,
 } from '../helpers/test-app'
 import { openGig } from '../helpers/escrow-states'
+import { installCapture } from '../helpers/side-effects'
+import { wsChannelName } from '@tenda/shared'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -203,4 +205,98 @@ test('takedown: admin escrow browser surfaces the hidden flag', { skip }, async 
   })
   assert.strictEqual(res.statusCode, 200)
   assert.strictEqual(res.json().hidden, true)
+})
+
+// ── live invalidation ───────────────────────────────────────────────────────
+//
+// `hidden` began life as a READ filter, which reaches a screen only when that
+// screen asks again. The frame below is what reaches the screens already OPEN:
+// `useEscrowLiveRefresh` is subscribed to this channel and refetches on any
+// frame, so the party re-reads with the takedown notice and everyone else gets
+// the 404 the detail route now serves them.
+//
+// Asserted in BOTH directions. A hide-only fix leaves a restored listing dead
+// on screen — the same bug, pointing the other way, and the one nobody would
+// think to check by hand.
+
+test('takedown: hiding and unhiding each publish an escrow-channel frame', { skip }, async () => {
+  const app = getApp()
+  const { escrow } = await openGig(app)
+  const admin = await createUser(app, { role: 'super_admin' })
+  const capture = installCapture(app)
+
+  async function toggle(hidden: boolean): Promise<void> {
+    const res = await app.inject({
+      method: 'PATCH',
+      url: hideUrl(escrow.id),
+      headers: authHeader(admin.token),
+      payload: { hidden },
+    })
+    assert.strictEqual(res.statusCode, 200, `PATCH hidden=${hidden}`)
+  }
+
+  await toggle(true)
+  await toggle(false)
+
+  const frames = capture.broadcasts.filter((b) => b.channel === wsChannelName('escrow', escrow.id))
+  assert.strictEqual(frames.length, 2, 'expected one frame per toggle, hide AND unhide')
+  for (const frame of frames) {
+    // The shape the client's guard requires (realtime.store `isEscrowEventFrame`):
+    // anything else is dropped silently, which would look exactly like no fix.
+    assert.strictEqual(frame.payload.type, 'escrow_event')
+    assert.strictEqual(frame.payload.escrow_id, escrow.id)
+    assert.strictEqual(typeof frame.payload.event, 'string')
+    assert.strictEqual(typeof frame.payload.tx_ref, 'string')
+  }
+})
+
+test('takedown: the frame cannot be mistaken for a transaction confirming', { skip }, async () => {
+  // TransactionMonitor settles a pending tx when a frame's `tx_ref` matches its
+  // signature. A takedown signs nothing, so it must carry an EMPTY ref — a
+  // borrowed or invented one would dismiss the progress modal of whatever the
+  // user happened to have in flight, reporting a failure as a success.
+  const app = getApp()
+  const { escrow } = await openGig(app)
+  const admin = await createUser(app, { role: 'super_admin' })
+  const capture = installCapture(app)
+
+  await app.inject({
+    method: 'PATCH',
+    url: hideUrl(escrow.id),
+    headers: authHeader(admin.token),
+    payload: { hidden: true },
+  })
+
+  const [frame] = capture.broadcasts.filter(
+    (b) => b.channel === wsChannelName('escrow', escrow.id),
+  )
+  assert.notStrictEqual(frame, undefined, 'no frame was published')
+  assert.strictEqual(frame.payload.tx_ref, '')
+})
+
+test('takedown: a failed toggle publishes nothing', { skip }, async () => {
+  // The frame follows the write, never precedes it: a 404 or a rejected body
+  // must not tell every open screen to re-read for a change that did not happen.
+  const app = getApp()
+  const admin = await createUser(app, { role: 'super_admin' })
+  const { escrow } = await openGig(app)
+  const capture = installCapture(app)
+
+  const badBody = await app.inject({
+    method: 'PATCH',
+    url: hideUrl(escrow.id),
+    headers: authHeader(admin.token),
+    payload: { hidden: 'yes' },
+  })
+  assert.strictEqual(badBody.statusCode, 400)
+
+  const missing = await app.inject({
+    method: 'PATCH',
+    url: hideUrl('f0e36d8a-0000-0000-0000-000000000000'),
+    headers: authHeader(admin.token),
+    payload: { hidden: true },
+  })
+  assert.strictEqual(missing.statusCode, 404)
+
+  assert.deepStrictEqual(capture.broadcasts, [])
 })

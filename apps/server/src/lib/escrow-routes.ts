@@ -29,6 +29,8 @@ import {
   type EscrowTransition,
   type TransitionContext,
   assertCanTransition,
+  assertNotTakenDown,
+  takedownActionFor,
 } from '@server/lib/escrow'
 import type { AppDatabase } from '@server/plugins/db'
 
@@ -200,7 +202,9 @@ function resolveTransitionCaller(
  * Routes that need to special-case the transition (e.g. /refund picks
  * between `refund_expired` and `reclaim_abandoned` based on status) call
  * `loadEscrowOr404` + `requireCaller` + `buildContext` + `assertCanTransition`
- * directly instead.
+ * directly instead. Both of those are EXIT transitions, which a takedown never
+ * blocks, so the gate below is not something they are missing — the one entry
+ * route outside this function is `build-create`, which calls it itself.
  */
 export async function guardTransition(args: {
   db: AppDatabase
@@ -212,6 +216,11 @@ export async function guardTransition(args: {
   transition: EscrowTransition
 }): Promise<{ escrow: EscrowRow; ctx: TransitionContext }> {
   const escrow = await loadEscrowOr404(args.db, args.escrow_id)
+  // Before the caller derivation, not after: on a taken-down listing the
+  // honest answer is "this is closed", not "you are the wrong person" — and a
+  // public accept resolves to `counterparty` for ANY stranger, so the caller
+  // check would never have refused them anyway.
+  assertNotTakenDown(escrow, takedownActionFor(args.transition))
   const caller = resolveTransitionCaller(args, escrow)
   const ctx = buildContext({
     escrow,

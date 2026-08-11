@@ -5,7 +5,7 @@
  * the server re-checks every transition.
  */
 
-import type { EscrowAcceptanceMode, EscrowLike } from './types'
+import type { EscrowAcceptanceMode, EscrowLike, EscrowVisibility } from './types'
 import { isParty, toDate } from './types'
 
 /**
@@ -33,7 +33,15 @@ export function computeRelevantDeadline(
   return toDate(pick)
 }
 
-export function canPublish(e: EscrowLike, userId: string): boolean {
+/**
+ * Whether this user may sign the `createEscrow` that puts their draft live.
+ *
+ * Refused on a taken-down draft: publishing would fund an escrow nobody is
+ * allowed to accept (see `canAccept`), so the creator would pay gas for a dead
+ * listing. Discarding it is still offered — that is a way out, not a way in.
+ */
+export function canPublish(e: EscrowLike & EscrowVisibility, userId: string): boolean {
+  if (e.hidden) return false
   return e.status === 'draft' && userId === e.creator_id
 }
 
@@ -45,7 +53,14 @@ export function canPublish(e: EscrowLike, userId: string): boolean {
  * direct invite. Offering the button anyway costs the worker gas to discover a
  * revert, so the mode lives here rather than inline in each CTA.
  */
-export function canAccept(e: EscrowLike & EscrowAcceptanceMode, userId: string): boolean {
+export function canAccept(
+  e: EscrowLike & EscrowAcceptanceMode & EscrowVisibility,
+  userId: string,
+): boolean {
+  // Taken down: closed to new entrants, whatever the mode says. First, because
+  // every clause below is about WHO may enter and this one is about whether
+  // anyone may.
+  if (e.hidden) return false
   if (e.status !== 'open' || userId === e.creator_id) return false
   // Approval mode: the POSTER assigns. A worker applies instead (canApply).
   if (e.requires_approval) return false
@@ -55,6 +70,27 @@ export function canAccept(e: EscrowLike & EscrowAcceptanceMode, userId: string):
   // anyone" — the exact false Accept button this helper exists to prevent.
   if (e.is_assigned) return e.assigned_counterparty_id === userId
   return true
+}
+
+/**
+ * Whether the named invitee may decline a direct offer.
+ *
+ * Mirrors the server's `decline` guard exactly (state-machine.ts): status
+ * `open`, somebody is assigned, and the caller IS them. Notably NOT gated on
+ * `requires_approval` — the state machine is not either — and NOT gated on
+ * `hidden`, because declining is a way OUT: a worker invited to a listing that
+ * was then taken down must still be able to say no.
+ *
+ * Extracted from the CTA, where it sat nested inside the `canAccept` branch and
+ * so would have vanished the moment `canAccept` started refusing taken-down
+ * listings. Two different questions; two helpers.
+ */
+export function canDecline(
+  e: EscrowLike & EscrowAcceptanceMode,
+  userId: string,
+): boolean {
+  if (e.status !== 'open' || !e.is_assigned) return false
+  return e.assigned_counterparty_id === userId
 }
 
 export function canSubmit(e: EscrowLike, userId: string): boolean {

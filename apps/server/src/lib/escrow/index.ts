@@ -31,5 +31,7 @@ export type {
 
 export { assertGigAsset, assertExchangeAsset } from './validation'
 
+export { assertNotTakenDown, takedownActionFor } from './takedown'
+
 export { buildEscrowTx } from './build-tx'
 export type { BuildEscrowTxDeps } from './build-tx'

@@ -24,7 +24,7 @@ interface Props {
 export function GigDetailGate({ id, requireCreator = false, children }: Props) {
   const router = useRouter()
   const user = useAuthStore((s) => s.user)
-  const { selectedGig, error, errorId, fetchGigDetail } = useGigsStore()
+  const { selectedGig, error, fetchGigDetail } = useGigsStore()
 
   useFocusEffect(
     useCallback(() => {
@@ -38,14 +38,32 @@ export function GigDetailGate({ id, requireCreator = false, children }: Props) {
   // showing another gig's `viewer` block, e.g. "Withdraw application" on a gig
   // this user never applied to.
   const gig = selectedGig?.escrow_id === id ? selectedGig : null
-
   // Only an error raised for THIS id; the store's slot is shared by every gig.
-  if (gig === null && error !== null && errorId === id) {
+  const failure = error !== null && error.id === id ? error : null
+
+  // A function, not a value: the happy path returns `children` and would
+  // otherwise build this element on every render only to discard it.
+  const notAvailable = () => (
+    <ScreenContainer>
+      <EmptyState
+        title="Gig not available"
+        description="This gig may have been removed, or is no longer public."
+        action={{ label: 'Go back', onPress: () => router.back() }}
+      />
+    </ScreenContainer>
+  )
+
+  // Unreadable for good — deleted, or a draft/takedown this viewer may not see.
+  // Gets the not-available state rather than "Failed to load", because Retry
+  // here would fail every time it was tapped.
+  if (gig === null && failure?.gone === true) return notAvailable()
+
+  if (gig === null && failure !== null) {
     return (
       <ScreenContainer>
         <ErrorState
           title="Failed to load gig"
-          description={error}
+          description={failure.message}
           ctaLabel="Retry"
           onCtaPress={() => id && void fetchGigDetail(id)}
         />
@@ -57,15 +75,7 @@ export function GigDetailGate({ id, requireCreator = false, children }: Props) {
   // still in flight (the fetch runs from an effect, i.e. after this render).
   if (gig === null) {
     if (id !== undefined) return <LoadingScreen />
-    return (
-      <ScreenContainer>
-        <EmptyState
-          title="Gig not found"
-          description="This gig may have been removed"
-          action={{ label: 'Go back', onPress: () => router.back() }}
-        />
-      </ScreenContainer>
-    )
+    return notAvailable()
   }
 
   if (requireCreator && gig.creator.id !== user?.id) {

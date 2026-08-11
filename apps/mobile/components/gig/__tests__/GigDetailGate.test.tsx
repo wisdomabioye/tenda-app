@@ -10,15 +10,15 @@
 import { render, screen, fireEvent } from '@testing-library/react-native'
 import type { GigDetail } from '@tenda/shared'
 import { GigDetailGate } from '../GigDetailGate'
+import type { GigLoadError } from '@/stores/gigs.store'
 import { CREATOR_ID, STRANGER_ID, gigDetail } from '../__fixtures__/gig-detail'
 
 const mockFetch = jest.fn()
 // `mock`-prefixed so jest's hoisted factories may reference them.
 let mockStoreState: {
   selectedGig: GigDetail | null
-  error: string | null
-  errorId: string | null
-} = { selectedGig: null, error: null, errorId: null }
+  error: GigLoadError | null
+} = { selectedGig: null, error: null }
 let mockAuthUser: { id: string } | null = { id: CREATOR_ID }
 
 let mockBack = jest.fn()
@@ -76,7 +76,7 @@ function renderGate(id: string | undefined, requireCreator = false) {
 }
 
 beforeEach(() => {
-  mockStoreState = { selectedGig: null, error: null, errorId: null }
+  mockStoreState = { selectedGig: null, error: null }
   mockAuthUser = { id: CREATOR_ID }
   mockBack = jest.fn()
 })
@@ -104,8 +104,7 @@ test('a gig from a PREVIOUS screen is never rendered — it loads instead', () =
 })
 
 test('an error from another gig does not surface on this one', () => {
-  mockStoreState.error = 'Network request failed'
-  mockStoreState.errorId = 'gig-1'
+  mockStoreState.error = { id: 'gig-1', message: 'Network request failed', gone: false }
   renderGate('gig-2')
 
   // Its own fetch is in flight; claiming failure here would be a lie.
@@ -114,17 +113,61 @@ test('an error from another gig does not surface on this one', () => {
 })
 
 test('an error for THIS gig does surface', () => {
-  mockStoreState.error = 'Network request failed'
-  mockStoreState.errorId = 'gig-1'
+  mockStoreState.error = { id: 'gig-1', message: 'Network request failed', gone: false }
   renderGate('gig-1')
 
   expect(screen.getByText('Failed to load gig')).toBeTruthy()
 })
 
-test('no id at all is the only not-found state', () => {
+test('no id at all shows the not-available state', () => {
   renderGate(undefined)
-  expect(screen.getByText('Gig not found')).toBeTruthy()
+  expect(screen.getByText('Gig not available')).toBeTruthy()
   expect(mockFetch).not.toHaveBeenCalled()
+})
+
+// ── gone vs retryable ───────────────────────────────────────────────────────
+//
+// The store empties `selectedGig` on a 404, which lands the gate here. What it
+// must NOT do is offer Retry: the gig was deleted or taken down, so every tap
+// would fail identically and the user would be left pressing a dead button
+// instead of going back.
+
+test('a GONE gig gets the not-available state, with no Retry', () => {
+  mockStoreState.error = { id: 'gig-1', message: 'Gig not found', gone: true }
+  renderGate('gig-1')
+
+  expect(screen.getByText('Gig not available')).toBeTruthy()
+  expect(screen.queryByText('Failed to load gig')).toBeNull()
+  expect(screen.queryByText('Retry')).toBeNull()
+})
+
+test('a gone error from ANOTHER gig still does not surface here', () => {
+  // The id guard applies to both branches, not just the retryable one.
+  mockStoreState.error = { id: 'gig-1', message: 'Gig not found', gone: true }
+  renderGate('gig-2')
+
+  expect(screen.getByText('loading')).toBeTruthy()
+  expect(screen.queryByText('Gig not available')).toBeNull()
+})
+
+test('a gone error does not hide a gig that is still loaded', () => {
+  // Belt and braces with the store: if a gig IS in the slot it renders, so a
+  // stale `gone` flag can never blank a screen the store decided to keep.
+  mockStoreState.selectedGig = gigDetail({ escrow_id: 'gig-1' })
+  mockStoreState.error = { id: 'gig-1', message: 'Gig not found', gone: true }
+  renderGate('gig-1')
+
+  expect(screen.getByText('loaded:gig-1')).toBeTruthy()
+})
+
+test('the gone state offers a way back', () => {
+  const back = jest.fn()
+  mockBack = back
+  mockStoreState.error = { id: 'gig-1', message: 'Gig not found', gone: true }
+
+  renderGate('gig-1')
+  fireEvent.press(screen.getByText('Go back'))
+  expect(back).toHaveBeenCalled()
 })
 
 test('requireCreator renders for the poster', () => {
@@ -150,8 +193,7 @@ test('requireCreator blocks a signed-out reader too', () => {
 })
 
 test('Retry re-requests the SAME id that failed', () => {
-  mockStoreState.error = 'Network request failed'
-  mockStoreState.errorId = 'gig-1'
+  mockStoreState.error = { id: 'gig-1', message: 'Network request failed', gone: false }
   renderGate('gig-1')
   mockFetch.mockClear()
 
