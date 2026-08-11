@@ -169,6 +169,19 @@ test('a LATE 404 never clears a different gig that has since loaded', async () =
   expect(useGigsStore.getState().error?.id).toBe('gig-1')
 })
 
+test('reviewEscrow clears the loading flag when it SUCCEEDS', async () => {
+  // The failure path below was pinned; the success path was not, which left the
+  // one line that turns the sheet's spinner off unasserted. A regression there
+  // is a spinner that never stops on a review the user already submitted.
+  mockReview.mockResolvedValue(undefined)
+  useGigsStore.setState({ isLoading: true })
+
+  await useGigsStore.getState().reviewEscrow('gig-1', { score: 5 })
+
+  expect(mockReview).toHaveBeenCalledWith({ id: 'gig-1' }, { score: 5 })
+  expect(useGigsStore.getState().isLoading).toBe(false)
+})
+
 test('reviewEscrow rethrows so the sheet can keep the input', async () => {
   mockReview.mockRejectedValue(new Error('already reviewed'))
   await expect(
