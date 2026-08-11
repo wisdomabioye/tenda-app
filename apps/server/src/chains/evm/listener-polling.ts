@@ -70,7 +70,16 @@ export const EVM_BACKFILL_BLOCKS = 200_000n
 export interface EvmPollTickDeps {
   rpc: Pick<EvmRpc, 'getBlockNumber' | 'getLogRefs'>
   chain_id: ChainId
-  escrow_contract: `0x${string}`
+  /**
+   * Every escrow contract this chain has run, current included.
+   *
+   * Watching only the current one is what made a redeploy silently drop the
+   * safety net under every escrow still funded by its predecessor: their events
+   * stopped being seen at all, so a lost client-ping had nothing to recover it
+   * (open_issues #89). Over-inclusion is the safe direction here — an extra
+   * address costs nothing, a missing one diverges quietly.
+   */
+  escrow_contracts: readonly `0x${string}`[]
   /**
    * Block the escrow contract was deployed at (chain secret). When present,
    * a first run (cursor 0) starts EXACTLY here — full event history, no
@@ -113,7 +122,7 @@ export async function evmPollTick(deps: EvmPollTickDeps): Promise<EvmPollTickRes
   const result: EvmPollTickResult = { ranges: 0, logs: 0, enqueued: 0, cursor: Number(cursor) }
   while (from <= safeHead && result.ranges < EVM_MAX_RANGES_PER_TICK) {
     const to = min(from + EVM_GETLOGS_MAX_RANGE - 1n, safeHead)
-    const refs = await deps.rpc.getLogRefs(deps.escrow_contract, from, to)
+    const refs = await deps.rpc.getLogRefs(deps.escrow_contracts, from, to)
     result.ranges += 1
     result.logs += refs.length
 

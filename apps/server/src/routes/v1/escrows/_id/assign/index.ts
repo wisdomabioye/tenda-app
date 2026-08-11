@@ -21,6 +21,7 @@ import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
 import { guardTransition } from '@server/lib/escrow-routes'
+import { buildEscrowTx } from '@server/lib/escrow'
 import { assertWorkerGigCapacity } from '@server/features/capacity/guards'
 import { assertAssignable } from '@server/features/applications/guards'
 import { heldExpiry } from '@server/features/applications/service'
@@ -73,7 +74,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       const application = await store.find(escrow.id, worker_user_id)
       assertAssignable(application, now)
 
-      const unsigned = await adapter.buildTx({
+      const unsigned = await buildEscrowTx(fastify, escrow, {
         action: 'assignAccept',
         user_id: request.user.id,
         payload: { escrow_id: escrow.id, worker_user_id },

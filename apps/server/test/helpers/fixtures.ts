@@ -15,6 +15,18 @@
 import { randomUUID } from 'node:crypto'
 import { escrows } from '@tenda/shared/db/schema/escrow'
 
+/**
+ * Stand-in escrow program for `DecodedEvent.contract` in tests whose subject is
+ * NOT contract pinning (assignment cycles, application settlement, …). Those
+ * events still have to name an emitter — every real one does — and one shared
+ * constant keeps a dozen literals from drifting apart.
+ *
+ * Tests that DO exercise pinning use real, registry-known addresses instead;
+ * a value that no registry knows is exactly what `resolveEscrowContract`
+ * refuses, so this must never be used as an escrow's stamp.
+ */
+export const TEST_ESCROW_PROGRAM = 'TendaProgram1111111111111111111111111111111'
+
 export interface UserRow {
   id: string
   first_name: string
@@ -119,6 +131,13 @@ export function escrowFixture(overrides: Partial<EscrowRow> = {}): EscrowRow {
     status,
     hidden: false,
     escrow_ref: status === 'draft' ? null : `escrow-ref-${id}`,
+    // Null = "unknown", which is what every row created before the column
+    // existed carries and what `resolveEscrowContract` handles by falling back
+    // to the chain's sole contract. Deliberately NOT a placeholder address: a
+    // fabricated one would be a contract no registry knows, which is exactly
+    // what the boot probe is built to reject. Tests that exercise pinning set
+    // it explicitly.
+    escrow_contract: null,
     accept_deadline: new Date('2026-01-08T00:00:00Z'),
     completion_duration_seconds: 86_400,
     completion_deadline: null,

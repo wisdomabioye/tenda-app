@@ -77,9 +77,15 @@ export interface EvmClientPort {
   /** Throws when the hash is unknown, the wrapper maps that to `null`. */
   getTransactionReceipt(hash: `0x${string}`): Promise<EvmClientReceipt>
   getBlockNumber(): Promise<bigint>
-  /** viem getLogs shape; transactionHash is null only for pending logs. */
+  /**
+   * viem getLogs shape; transactionHash is null only for pending logs.
+   *
+   * `address` is an ARRAY to mirror viem's own `Address | Address[]`: the escrow
+   * listener watches every contract a chain has run, and collapsing that to one
+   * address here would push the multiplexing up into the caller as N requests.
+   */
   getLogs(args: {
-    address: `0x${string}`
+    address: readonly `0x${string}`[]
     fromBlock: bigint
     toBlock: bigint
   }): Promise<ReadonlyArray<{ transactionHash: `0x${string}` | null; blockNumber: bigint | null }>>
@@ -118,8 +124,14 @@ export function evmRpcFromClient(client: EvmClientPort): EvmRpc {
       return client.getBlockNumber()
     },
 
-    async getLogRefs(contract, from_block, to_block) {
-      const logs = await client.getLogs({ address: contract, fromBlock: from_block, toBlock: to_block })
+    async getLogRefs(contracts, from_block, to_block) {
+      // `address` accepts `Address | Address[]` (viem 2.52), so several watched
+      // contracts remain ONE request over ONE range — see the interface note.
+      const logs = await client.getLogs({
+        address: [...contracts],
+        fromBlock: from_block,
+        toBlock: to_block,
+      })
       const refs: EvmLogRef[] = []
       for (const log of logs) {
         // Pending logs carry null position fields; a bounded mined-range query
@@ -223,7 +235,8 @@ export function createEvmRpc(args: {
   const client: EvmClientPort = {
     getTransactionReceipt: (hash) => vc.getTransactionReceipt({ hash }),
     getBlockNumber: () => vc.getBlockNumber(),
-    getLogs: (a) => vc.getLogs({ address: a.address, fromBlock: a.fromBlock, toBlock: a.toBlock }),
+    // Spread: viem's `address` is a mutable `Address[]`, the port's is readonly.
+    getLogs: (a) => vc.getLogs({ address: [...a.address], fromBlock: a.fromBlock, toBlock: a.toBlock }),
     // viem's readContract param is ABI-generic; the loose port shape needs a
     // boundary cast (the result is already cast to the tuple downstream).
     readContract: (a) => vc.readContract(a as Parameters<typeof vc.readContract>[0]),

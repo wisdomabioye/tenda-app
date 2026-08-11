@@ -19,6 +19,7 @@ import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
+import { normalizeContractAddress } from '@server/chains/contracts'
 
 /** Deadlines closer than this get refreshed, the program rejects a create
  *  whose accept window is already (about to be) over. */
@@ -114,13 +115,22 @@ const route: FastifyPluginAsync = async (fastify) => {
 
       // Persist what the unsigned tx will encode, so the DB row and the
       // on-chain account can never disagree after confirmation.
+      //
+      // The contract is RE-stamped, not preserved. A draft holds no funds, so
+      // there is nothing to strand: it publishes into whichever contract is
+      // current at the moment it is actually created. Preserving an older stamp
+      // here would be the real bug — the draft would encode a create for a
+      // contract it is no longer being built against, and the pending-create
+      // guard above is what stops this racing a create already in flight.
+      const escrow_contract = normalizeContractAddress(adapter.namespace, adapter.escrowAddress)
       if (
         accept_deadline !== escrow.accept_deadline ||
-        completion_duration_seconds !== escrow.completion_duration_seconds
+        completion_duration_seconds !== escrow.completion_duration_seconds ||
+        escrow_contract !== escrow.escrow_contract
       ) {
         await fastify.db
           .update(escrows)
-          .set({ accept_deadline, completion_duration_seconds })
+          .set({ accept_deadline, completion_duration_seconds, escrow_contract })
           .where(and(eq(escrows.id, escrow.id), eq(escrows.status, 'draft')))
       }
 

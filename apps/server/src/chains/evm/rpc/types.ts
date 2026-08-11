@@ -90,8 +90,19 @@ export interface EvmRpc {
    * Every mined log the contract emitted in [from_block, to_block], ascending
    * block order. Reverted txs emit no logs, so only real state changes appear.
    */
+  /**
+   * Log references from ANY of `contracts` in the block range.
+   *
+   * Plural because a chain that has redeployed still has live escrows funded by
+   * the superseded contract, and a listener watching only the current address
+   * stops seeing their events entirely (open_issues #89). viem takes an address
+   * ARRAY natively, so this is the same single `eth_getLogs` over the same range
+   * — the provider's block cap bounds the RANGE, not the number of addresses, so
+   * watching one contract too many costs nothing while watching one too few
+   * diverges silently.
+   */
   getLogRefs(
-    contract: `0x${string}`,
+    contracts: readonly `0x${string}`[],
     from_block: bigint,
     to_block: bigint,
   ): Promise<EvmLogRef[]>

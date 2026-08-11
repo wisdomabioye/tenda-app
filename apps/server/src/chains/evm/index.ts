@@ -25,7 +25,7 @@ import {
   type VerifyTxArgs,
 } from '@server/chains/types'
 import { buildEvmCall } from './builders'
-import { decodeEscrowLogs } from './verify'
+import { verifyEvmReceipt } from './verify-receipt'
 import { createEvmRpc, type EvmRpc } from './rpc'
 import { buildContext, fetchEscrowState, type EvmAdapterContext } from './state'
 import { buildPermitPayload } from './permit-payload'
@@ -68,8 +68,19 @@ export interface EvmAdapterArgs {
   rpc_url: string
   /** Secondary RPC endpoint, failover on primary errors/timeouts. */
   rpc_url_fallback?: string
-  /** Deployed TendaEscrow address on this chain. */
+  /** Deployed TendaEscrow address on this chain — the CURRENT one. */
   escrow_contract: `0x${string}`
+  /**
+   * Every TendaEscrow this chain has run, current included, from
+   * `chain_contracts`. Receipts are decoded against all of them so a transaction
+   * against a superseded contract still verifies instead of being recorded as a
+   * failure (open_issues #89).
+   *
+   * Optional, defaulting to `[escrow_contract]`: absent means "only the current
+   * contract is known", which is exactly the behaviour before this existed, so a
+   * caller that has no registry (unit tests, one-off scripts) is unchanged.
+   */
+  escrow_contracts?: readonly string[]
   /** Reorg safety margin before a receipt counts as confirmed. */
   min_confirmations: number
   /**
@@ -96,7 +107,12 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
   const context: EvmAdapterContext = { args, rpc }
 
   async function buildTx(build: BuildTxArgs): Promise<UnsignedTx> {
-    const ctx = await buildContext(context, build)
+    // The contract THIS escrow's funds sit in, defaulting to the current one.
+    // Everything downstream — the call target, the ERC-20 spender, the on-chain
+    // reads that decide bond denomination — must agree on this single value, or
+    // the transaction is built for one contract and paid to another.
+    const target = (build.contract ?? args.escrow_contract) as `0x${string}`
+    const ctx = await buildContext(context, build, target)
     const call = buildEvmCall(build, ctx)
 
     const sponsorable =
@@ -153,11 +169,11 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
 
     return {
       kind: 'evm-tx',
-      to: args.escrow_contract,
+      to: target,
       data: call.data,
       value: call.value_raw,
       ...(args.fee_currency !== undefined ? { fee_currency: args.fee_currency } : {}),
-      ...approvalHint(build, ctx.asset_address),
+      ...approvalHint(build, ctx, target),
     }
   }
 
@@ -168,65 +184,75 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
    */
   function approvalHint(
     build: BuildTxArgs,
-    asset_address: string | null,
+    ctx: { asset_address: string | null; permit_encodable: boolean },
+    spender: `0x${string}`,
   ): { approval?: { token: string; spender: string; amount_raw: AmountRaw } } {
-    if (asset_address === null) return {}
-    if (build.action === 'createEscrow' && build.payload.permit === undefined) {
-      return {
-        approval: {
-          token: asset_address,
-          spender: args.escrow_contract,
-          amount_raw: build.payload.amount_raw,
-        },
-      }
+    if (ctx.asset_address === null) return {}
+    const token = ctx.asset_address
+
+    // Driven by what the call ACTUALLY encodes, never by what the caller
+    // supplied. A permit that `buildEvmCall` declines to encode (its spender
+    // cannot match a superseded contract) still leaves the pull needing an
+    // allowance, so the hint has to take over — and both branches must agree on
+    // that, or one of them emits neither a permit nor a hint and the
+    // transaction reverts on a zero allowance.
+    //
+    // The spender is the contract that will actually pull the tokens: the
+    // escrow's own, not the chain's current one.
+    if (build.action === 'createEscrow' && !encodesPermit(build, ctx.permit_encodable)) {
+      return { approval: { token, spender, amount_raw: build.payload.amount_raw } }
     }
     if (
       build.action === 'disputeEscrow' &&
-      build.payload.permit === undefined &&
+      !encodesPermit(build, ctx.permit_encodable) &&
       build.payload.bond_raw !== '0'
     ) {
-      return {
-        approval: {
-          token: asset_address,
-          spender: args.escrow_contract,
-          amount_raw: build.payload.bond_raw,
-        },
-      }
+      return { approval: { token, spender, amount_raw: build.payload.bond_raw } }
     }
     return {}
   }
 
-  async function verifyTx(tx_ref: string, verify: VerifyTxArgs): Promise<VerifiedTx> {
-    const receipt = await rpc.getTransactionReceipt(tx_ref as `0x${string}`)
-    if (receipt === null) return { confirmed: false, reason: 'receipt not found' }
+  /**
+   * Will this build encode a `*WithPermit` entry point?
+   *
+   * Mirrors `buildEvmCall`'s condition exactly — the two must not be able to
+   * disagree, since one decides whether the allowance rides the transaction and
+   * the other whether the wallet is told to grant it separately.
+   *
+   * `permit_encodable` is decided once, in `buildContext`: a permit's spender is
+   * fixed when the payload is signed, and `/v1/blockchain/permit-payload` mints
+   * it for the chain's CURRENT contract (it takes no escrow and cannot know
+   * about a superseded one), so against any other contract the signature is
+   * unusable by construction.
+   */
+  function encodesPermit(build: BuildTxArgs, permit_encodable: boolean): boolean {
+    if (build.action !== 'createEscrow' && build.action !== 'disputeEscrow') return false
+    return build.payload.permit !== undefined && permit_encodable
+  }
 
-    const head = await rpc.getBlockNumber()
-    if (head - receipt.block_number < BigInt(args.min_confirmations)) {
-      return { confirmed: false, pending: true, reason: 'awaiting confirmations' }
-    }
-    if (receipt.status !== 'success') {
-      return { confirmed: true, failed: true, reason: 'transaction reverted' }
-    }
+  // Current first, so a receipt carrying logs from two generations decodes the
+  // live one. Lower-cased before deduping because the two inputs reach here from
+  // different places — `escrow_contract` straight from the chain secret, which is
+  // usually checksummed deploy output, and `escrow_contracts` from the registry,
+  // which normalises — so comparing raw would keep one contract twice under two
+  // spellings.
+  const knownContracts: readonly string[] = [
+    ...new Set(
+      [args.escrow_contract, ...(args.escrow_contracts ?? [])].map((c) => c.toLowerCase()),
+    ),
+  ]
 
-    const events = decodeEscrowLogs(receipt.logs, args.escrow_contract, args.chain_id)
-    const match =
-      verify.expected_event !== undefined
-        ? events.find((e) => e.name === verify.expected_event)
-        : events[0]
-    if (match === undefined) {
-      return {
-        confirmed: true,
-        failed: true,
-        reason:
-          verify.expected_event !== undefined
-            ? `expected event ${verify.expected_event} not found`
-            : 'no escrow event in transaction',
-      }
-    }
-    if (verify.escrow_id !== undefined && match.fields.escrow_id !== verify.escrow_id) {
-      return { confirmed: true, failed: true, reason: 'escrow_id mismatch' }
-    }
-    return { confirmed: true, failed: false, event: match }
+  function verifyTx(tx_ref: string, verify: VerifyTxArgs): Promise<VerifiedTx> {
+    return verifyEvmReceipt(
+      {
+        rpc,
+        chain_id: args.chain_id,
+        escrow_contracts: knownContracts,
+        min_confirmations: args.min_confirmations,
+      },
+      tx_ref,
+      verify,
+    )
   }
 
   return {

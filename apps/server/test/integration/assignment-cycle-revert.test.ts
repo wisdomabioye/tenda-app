@@ -23,6 +23,7 @@ import { applyEscrowEvent, drizzleEscrowEventStore } from '@server/lib/escrow-ev
 import { drizzleCapacityStore } from '@server/features/capacity/store'
 import { signalsFor } from '@server/features/reputation/signals'
 import type { DecodedEvent } from '@server/chains/types'
+import { TEST_ESCROW_PROGRAM } from '../helpers/fixtures'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
@@ -43,6 +44,7 @@ function assignedEvent(escrow_id: string, worker: string, creator: string): Deco
   return {
     name: 'CounterpartyAssigned',
     escrow_ref: 'ref-cycle',
+    contract: TEST_ESCROW_PROGRAM,
     fields: {
       escrow_id,
       counterparty: worker,
@@ -56,6 +58,7 @@ function releasedEvent(escrow_id: string, worker: string, creator: string): Deco
   return {
     name: 'AssignmentReleased',
     escrow_ref: 'ref-cycle',
+    contract: TEST_ESCROW_PROGRAM,
     fields: { escrow_id, counterparty: worker, released_by: creator },
   }
 }

@@ -13,9 +13,13 @@
  * The I/O half lives in ./apply.
  */
 
-import { assets, chains } from '@tenda/shared/db/schema/chains'
+import { assets, chain_contracts, chains } from '@tenda/shared/db/schema/chains'
 import { ASSET_META, chainById, type ChainAsset } from '@tenda/shared'
 import { escrowAddressOf } from '@server/chains/registry-sync'
+// Leaf import, not the barrel: this module documents itself as pure (no
+// database), and the barrel pulls in the registry + boot probe, which import
+// drizzle and the db type.
+import { normalizeContractAddress } from '@server/chains/contracts/normalize'
 import { type ResolvedChainSecret } from '@server/chains/secrets'
 import { gasSeedAddressFromSecret } from '@server/chains/solana/gas-seed-sender'
 import {
@@ -27,6 +31,7 @@ import {
 
 type ChainRow = typeof chains.$inferInsert
 type AssetRow = typeof assets.$inferInsert
+type ChainContractRow = typeof chain_contracts.$inferInsert
 
 export interface FiatProviderRow {
   id: string
@@ -39,6 +44,11 @@ export interface FiatProviderRow {
 export interface SeedRows {
   chains: ChainRow[]
   assets: AssetRow[]
+  /**
+   * The CURRENT contract per chain, to be appended to the escrow-contract
+   * history (insert-if-absent, never an update — see ./apply).
+   */
+  chain_contracts: ChainContractRow[]
   fiat_providers: FiatProviderRow[]
   /** Assets skipped because their config inputs are missing. */
   skipped: string[]
@@ -84,6 +94,7 @@ function resolveGasSeed(
 export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>): SeedRows {
   const chainRows: ChainRow[] = []
   const assetRows: AssetRow[] = []
+  const chainContractRows: ChainContractRow[] = []
   const skipped: string[] = []
 
   // symbol/decimals/is_stable come from the shared ASSET_META registry,
@@ -108,6 +119,19 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
       escrow_program: escrowAddressOf(secret),
       gas_seed_amount_raw: gasSeed.amount_raw,
       gas_seed_wallet_address: gasSeed.wallet_address,
+    })
+    // The same address again, but as HISTORY rather than as current state. A
+    // redeploy changes `chains.escrow_program` in place and appends here, so the
+    // superseded contract stays known and escrows still funded by it keep
+    // transacting (open_issues #89). Normalised at the point of writing so the
+    // stored spelling and every later comparison agree.
+    chainContractRows.push({
+      chain_id: entry.id,
+      address: normalizeContractAddress(entry.namespace, escrowAddressOf(secret)),
+      deploy_block:
+        secret.namespace === 'eip155' && secret.escrowDeployBlock !== undefined
+          ? secret.escrowDeployBlock
+          : null,
     })
     for (const asset of entry.assets) {
       const resolved = resolveAssetToken(asset, secret)
@@ -148,5 +172,11 @@ export function buildSeedRows(secrets: ReadonlyMap<string, ResolvedChainSecret>)
     },
   ]
 
-  return { chains: chainRows, assets: assetRows, fiat_providers: fiatProviderRows, skipped }
+  return {
+    chains: chainRows,
+    assets: assetRows,
+    chain_contracts: chainContractRows,
+    fiat_providers: fiatProviderRows,
+    skipped,
+  }
 }

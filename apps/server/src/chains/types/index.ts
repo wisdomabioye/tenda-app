@@ -29,6 +29,7 @@ export type {
   SubmitProofPayload,
   DisputeEscrowPayload,
   ResolveDisputePayload,
+  BuildTxAction,
   BuildTxArgs,
   UserOperation,
   UnsignedTx,

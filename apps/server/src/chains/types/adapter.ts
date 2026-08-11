@@ -46,7 +46,16 @@ export interface ChainAdapter {
   /** Verify the user's wallet-sig over the auth message. */
   verifyAuthSig(args: VerifyAuthSigArgs): Promise<boolean>
 
-  /** Latest on-chain escrow state for reconciliation. Null = no account. */
+  /**
+   * Latest on-chain escrow state for reconciliation. Null = no account.
+   *
+   * Reads the chain's CURRENT contract — it takes no escrow, so it cannot know
+   * about a superseded one, and for an escrow funded before a redeploy it will
+   * answer `null` rather than the truth. That is safe for the probe semantics it
+   * has today (no production callers; the adapters' own internal reads take the
+   * per-escrow contract explicitly), but a future caller acting on this must
+   * resolve the contract first — see `chains/contracts` and open_issues #89.
+   */
   fetchEscrowState(escrow_ref: string): Promise<EscrowState | null>
 
   /**

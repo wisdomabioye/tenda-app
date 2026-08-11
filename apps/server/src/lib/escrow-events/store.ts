@@ -22,6 +22,12 @@ import { revertAssignmentCycle, settleAssignedApplication } from './application-
 export interface EscrowPatch {
   status?: EscrowStatus
   escrow_ref?: string
+  /**
+   * Stamped by `EscrowCreated` from the contract that emitted it. Write-once in
+   * practice — the create event lands once per escrow — and the value the whole
+   * build path later routes by (open_issues #89).
+   */
+  escrow_contract?: string
   counterparty_id?: string | null
   assigned_counterparty_id?: string | null
   /**

@@ -33,15 +33,24 @@ function makeDeps(opts: {
   logs?: EvmLogRef[]
   /** Optional per-call responses, consumed in order (chunking tests). */
   perRange?: EvmLogRef[][]
+  /** Watch set; defaults to the single current contract. */
+  escrow_contracts?: readonly `0x${string}`[]
   enqueueFailsAt?: string
 }): {
   deps: EvmPollTickDeps
-  calls: { enqueued: string[]; cursors: number[]; ranges: Array<[bigint, bigint]> }
+  calls: {
+    enqueued: string[]
+    cursors: number[]
+    ranges: Array<[bigint, bigint]>
+    watched: Array<readonly string[]>
+  }
 } {
   const calls = {
     enqueued: [] as string[],
     cursors: [] as number[],
     ranges: [] as Array<[bigint, bigint]>,
+    /** Address set passed to each getLogRefs call, to prove it is ONE call. */
+    watched: [] as Array<readonly string[]>,
   }
   let cursor = opts.cursor ?? 0
   let rangeIndex = 0
@@ -50,15 +59,16 @@ function makeDeps(opts: {
       async getBlockNumber() {
         return opts.head
       },
-      async getLogRefs(_contract, from, to) {
+      async getLogRefs(contracts, from, to) {
         calls.ranges.push([from, to])
+        calls.watched.push([...contracts])
         if (opts.perRange !== undefined) return opts.perRange[rangeIndex++] ?? []
         // Serve only the staged logs inside the queried window.
         return (opts.logs ?? []).filter((l) => l.block_number >= from && l.block_number <= to)
       },
     },
     chain_id: CHAIN_ID,
-    escrow_contract: CONTRACT,
+    escrow_contracts: opts.escrow_contracts ?? [CONTRACT],
     ...(opts.deploy_block !== undefined ? { deploy_block: opts.deploy_block } : {}),
     min_confirmations: opts.min_confirmations ?? 5,
     cursors: {
@@ -275,7 +285,8 @@ test('listener start/stop: ticks on the interval, never overlaps, stops cleanly'
   deps.rpc = {
     async getBlockNumber() {
       ticks += 1
-      // First tick blocks until released, later intervals must skip it.
+      // First tick blocks until released; no further tick may begin until it
+      // settles, because the next one is only SCHEDULED after it resolves.
       if (ticks === 1) await new Promise<void>((resolve) => (gate.release = resolve))
       return 205n
     },
@@ -287,7 +298,7 @@ test('listener start/stop: ticks on the interval, never overlaps, stops cleanly'
   const listener = createEvmPollingListener({ ...deps, interval_ms: 5 })
   await listener.start()
   await new Promise((resolve) => setTimeout(resolve, 30))
-  assert.equal(ticks, 1) // overlapping intervals skipped while tick 1 hangs
+  assert.equal(ticks, 1) // non-overlap is structural: nothing is scheduled yet
   gate.release?.()
   await new Promise((resolve) => setTimeout(resolve, 30))
   assert.ok(ticks >= 2) // resumed ticking once free
@@ -295,4 +306,99 @@ test('listener start/stop: ticks on the interval, never overlaps, stops cleanly'
   const at = ticks
   await new Promise((resolve) => setTimeout(resolve, 20))
   assert.equal(ticks, at) // no ticks after stop
+})
+
+// ---------- multi-contract watch set (open_issues #89) -----------------------
+
+const PREVIOUS_CONTRACT = '0x9d0193f7000000000000000000000000000000aa' as const
+
+test('watches every known contract in ONE getLogs call, not one call per address', async () => {
+  // After a redeploy the previous contract still holds live escrows, so its
+  // events must keep arriving — but watching it must not multiply RPC cost.
+  // viem takes an address ARRAY, so the whole set rides a single request over a
+  // single range; the provider's block cap bounds the RANGE, not the address
+  // count. A regression to per-address calls would show up here as 2 calls.
+  const logA = ref('aa', 150n)
+  const { deps, calls } = makeDeps({
+    cursor: 195,
+    head: 205n,
+    logs: [logA],
+    escrow_contracts: [CONTRACT, PREVIOUS_CONTRACT],
+  })
+
+  await evmPollTick(deps)
+
+  assert.equal(calls.ranges.length, 1, 'one range')
+  assert.equal(calls.watched.length, 1, 'one getLogs call for the whole watch set')
+  assert.deepEqual(calls.watched[0], [CONTRACT, PREVIOUS_CONTRACT])
+})
+
+test('a previous contract dropped from the watch set stops being scanned', async () => {
+  // The negative: forget to record the previous contract and its escrows lose
+  // the listener backstop silently. Pinning the set proves the tick asks for
+  // exactly what it was given, never a hardcoded current-only address.
+  const { deps, calls } = makeDeps({ cursor: 195, head: 205n, escrow_contracts: [CONTRACT] })
+
+  await evmPollTick(deps)
+
+  assert.deepEqual(calls.watched[0], [CONTRACT])
+})
+
+test('listener: a THROWING tick is logged and the loop survives it', async () => {
+  // The property the recursive-setTimeout rewrite must not lose. This listener
+  // is the backstop under lost client pings, so retiring it on one RPC blip
+  // would silently remove the safety net for the rest of the process's life —
+  // and nothing would report that it had stopped.
+  let ticks = 0
+  const warnings: string[] = []
+  const { deps } = makeDeps({ cursor: 100, head: 205n })
+  deps.log = { info() {}, warn: (_obj, msg) => warnings.push(msg) }
+  deps.rpc = {
+    async getBlockNumber() {
+      ticks += 1
+      if (ticks <= 2) throw new Error('rpc down')
+      return 205n
+    },
+    async getLogRefs() {
+      return []
+    },
+  }
+
+  const listener = createEvmPollingListener({ ...deps, interval_ms: 5 })
+  await listener.start()
+  await new Promise((resolve) => setTimeout(resolve, 80))
+  await listener.stop()
+
+  assert.ok(ticks >= 3, `the loop must keep ticking through failures (saw ${ticks})`)
+  assert.ok(warnings.length >= 2, 'each failure is logged, never swallowed')
+})
+
+test('listener: stop() during an in-flight tick does not resurrect the loop', async () => {
+  // With recursion the reschedule happens INSIDE the tick's completion, so a
+  // tick that was already running when stop() landed could otherwise queue the
+  // next one after shutdown — a timer outliving the listener that created it.
+  let ticks = 0
+  const gate: { release?: () => void } = {}
+  const { deps } = makeDeps({ cursor: 100, head: 205n })
+  deps.rpc = {
+    async getBlockNumber() {
+      ticks += 1
+      if (ticks === 1) await new Promise<void>((resolve) => (gate.release = resolve))
+      return 205n
+    },
+    async getLogRefs() {
+      return []
+    },
+  }
+
+  const listener = createEvmPollingListener({ ...deps, interval_ms: 5 })
+  await listener.start()
+  await new Promise((resolve) => setTimeout(resolve, 20))
+  assert.equal(ticks, 1, 'tick 1 is in flight')
+
+  await listener.stop() // stop WHILE tick 1 is still running
+  gate.release?.() // now let it finish
+  await new Promise((resolve) => setTimeout(resolve, 40))
+
+  assert.equal(ticks, 1, 'the completing tick must not schedule another')
 })

@@ -81,7 +81,7 @@ test('evmRpcFromClient.getLogRefs: forwards the window, drops pending logs, sort
     { transactionHash: null, blockNumber: null }, // pending log, must be dropped
     { transactionHash: `0x${'ef'.repeat(32)}` as const, blockNumber: 10n },
   ]
-  let seen: { address: string; fromBlock: bigint; toBlock: bigint } | null = null
+  let seen: { address: readonly `0x${string}`[]; fromBlock: bigint; toBlock: bigint } | null = null
   const rpc = evmRpcFromClient(
     evmPort({
       async getLogs(args) {
@@ -91,8 +91,8 @@ test('evmRpcFromClient.getLogRefs: forwards the window, drops pending logs, sort
     }),
   )
 
-  const refs = await rpc.getLogRefs(CREATOR, 5n, 25n)
-  assert.deepStrictEqual(seen, { address: CREATOR, fromBlock: 5n, toBlock: 25n })
+  const refs = await rpc.getLogRefs([CREATOR], 5n, 25n)
+  assert.deepStrictEqual(seen, { address: [CREATOR], fromBlock: 5n, toBlock: 25n })
   assert.deepStrictEqual(refs, [
     { tx_hash: `0x${'ef'.repeat(32)}`, block_number: 10n },
     { tx_hash: TX, block_number: 20n },

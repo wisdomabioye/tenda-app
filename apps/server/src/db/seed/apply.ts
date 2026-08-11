@@ -9,7 +9,7 @@
 
 import { inArray, sql } from 'drizzle-orm'
 import { type PostgresJsDatabase } from 'drizzle-orm/postgres-js'
-import { assets, chains } from '@tenda/shared/db/schema/chains'
+import { assets, chain_contracts, chains } from '@tenda/shared/db/schema/chains'
 import { fiat_providers } from '@tenda/shared/db/schema/fiat'
 import { platform_config } from '@tenda/shared/db/schema/governance'
 import { type SeedRows } from './rows'
@@ -62,15 +62,27 @@ export function enablementDelta(
  * Callers that need extra work in the SAME transaction (boot-seed runs its
  * live-escrow guard there) open the transaction themselves and call
  * `applySeedRows` directly.
+ *
+ * Generic over the schema typing so a caller holding a schema-aware handle
+ * (`AppDatabase`) can seed as readily as the seeder's own bare connection. This
+ * function only touches tables it imports itself, so the caller's schema
+ * parameter is irrelevant to it — pinning it merely made the seed un-callable
+ * from one of the two, for no reason.
  */
-export async function applySeed(db: PostgresJsDatabase, rows: SeedRows): Promise<void> {
+export async function applySeed<S extends Record<string, unknown>>(
+  db: PostgresJsDatabase<S>,
+  rows: SeedRows,
+): Promise<void> {
   await db.transaction(async (tx) => {
     await applySeedRows(tx, rows)
   })
 }
 
 /** The statements themselves. MUST be called inside a transaction. */
-export async function applySeedRows(db: PostgresJsDatabase, rows: SeedRows): Promise<void> {
+export async function applySeedRows<S extends Record<string, unknown>>(
+  db: PostgresJsDatabase<S>,
+  rows: SeedRows,
+): Promise<void> {
   // Registry facts follow config: a contract redeploy or manifest change must
   // land on re-seed (a DO NOTHING here once stranded a stale escrow address
   // after the Base Sepolia redeploy). `is_enabled` is deliberately NOT in the
@@ -87,6 +99,19 @@ export async function applySeedRows(db: PostgresJsDatabase, rows: SeedRows): Pro
       gas_seed_wallet_address: sql`excluded.gas_seed_wallet_address`,
     },
   })
+  // Escrow-contract HISTORY. `DO NOTHING` here is the exact inverse of the
+  // `chains` upsert above and deliberately so: that row is current state and
+  // must follow config, these rows are a ledger of every contract the chain has
+  // ever run and must never be rewritten. A redeploy therefore appends — the new
+  // address arrives, the superseded one stays — which is what keeps escrows
+  // still funded by the old contract transactable (open_issues #89).
+  //
+  // Runs AFTER the `chains` upsert because of the FK, and inside the same
+  // transaction, so a chain and its contract history can never half-commit.
+  await db
+    .insert(chain_contracts)
+    .values(rows.chain_contracts)
+    .onConflictDoNothing({ target: [chain_contracts.chain_id, chain_contracts.address] })
   await db.insert(assets).values(rows.assets).onConflictDoUpdate({
     target: assets.id,
     set: {

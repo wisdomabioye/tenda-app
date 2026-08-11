@@ -27,6 +27,7 @@ import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
 import { validateCreateEscrow, type CreateEscrowBody } from '@server/lib/escrow-create'
+import { normalizeContractAddress } from '@server/chains/contracts'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: CreateEscrowBody }>(
@@ -106,6 +107,14 @@ const route: FastifyPluginAsync = async (fastify) => {
         requires_approval: input.requires_approval,
         unassign_window_seconds,
         status: 'draft',
+        // The contract this create targets. A new escrow always joins the
+        // CURRENT deployment, so `adapter.escrowAddress` is right by definition
+        // — but it must be recorded, because by the time a transition is built
+        // "current" may mean a different contract and the funds will not have
+        // moved with it. Re-attested from the EscrowCreated log when the tx
+        // lands (lib/escrow-events), which is what makes a create built just
+        // before a redeploy and mined just after still record the truth.
+        escrow_contract: normalizeContractAddress(adapter.namespace, adapter.escrowAddress),
         accept_deadline: new Date(input.accept_deadline_unix * 1000),
         completion_duration_seconds: input.completion_duration_seconds,
         dispute_bond_raw: input.dispute_bond_raw,

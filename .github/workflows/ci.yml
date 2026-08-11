@@ -75,6 +75,13 @@ jobs:
       - name: Tests + coverage gate (full c8 suite, DB-backed)
         working-directory: apps/server
         run: pnpm test
+      # Per-escrow contract pinning (open_issues #89) guards where user funds
+      # live, so it is held to a higher bar than the repo-wide gate. Scoped
+      # rather than raising that gate globally, which would fail on unrelated
+      # files for reasons unrelated to this code.
+      - name: Coverage gate >90 (escrow contract pinning)
+        working-directory: apps/server
+        run: pnpm test:coverage:contracts
 
   shared:
     runs-on: ubuntu-latest

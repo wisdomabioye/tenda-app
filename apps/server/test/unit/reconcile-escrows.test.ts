@@ -16,6 +16,10 @@ import {
 } from '@server/jobs/reconcile-escrows'
 import { verifyTxDedupKey } from '@server/jobs/verify-tx'
 import type { ChainAdapter, ChainRegistry } from '@server/chains/types'
+import { encodeAbiParameters, encodeEventTopics } from 'viem'
+import { evmAdapter } from '@server/chains/evm'
+import { ESCROW_EVM_ABI } from '@server/chains/evm/rpc'
+import { TEST_ESCROW_PROGRAM } from '../helpers/fixtures'
 
 const NOW = new Date('2026-06-04T12:00:00Z')
 const WINDOW = { from_iso: '2026-06-04T11:00:00Z', to_iso: '2026-06-04T12:00:00Z' }
@@ -55,7 +59,16 @@ function makeDeps(opts: {
     async verifyTx() {
       if (opts.probeThrows ?? false) throw new Error('rpc down')
       return (opts.confirmed ?? true)
-        ? { confirmed: true, failed: false, event: { name: 'EscrowAccepted', escrow_ref: 'x', fields: {} } }
+        ? {
+            confirmed: true,
+            failed: false,
+            event: {
+              name: 'EscrowAccepted',
+              escrow_ref: 'x',
+              contract: TEST_ESCROW_PROGRAM,
+              fields: {},
+            },
+          }
         : { confirmed: false }
     },
     async verifyAuthSig() {
@@ -159,4 +172,145 @@ test('full batch logs the overflow (no silent cap)', async () => {
   const { deps } = makeDeps({ pending, confirmed: true })
   const r = await reconcileEscrowsHandler(deps, WINDOW)
   assert.strictEqual(r.scanned, RECONCILE_BATCH_LIMIT)
+})
+
+// ---------- contract generations (open_issues #89, correction C1) ------------
+
+/**
+ * #89 recorded that reconcile "works from `tx_ref` via `getTransactionStatus`,
+ * which is contract-agnostic", and therefore was unaffected by a redeploy.
+ * Both halves were wrong: `getTransactionStatus` is declared on `RpcProvider`
+ * and has NO implementation and NO caller, while `reconcileEscrowsHandler`
+ * probes through `adapter.verifyTx`, which IS contract-scoped.
+ *
+ * So reconcile is not neutral — it is the path that repeatedly re-probes an
+ * old-contract attempt. These run the REAL EVM adapter under it (stubbed RPC,
+ * real decoder) so the seam is exercised rather than asserted about a stub.
+ */
+
+const OLD_CONTRACT = '0x00000000000000000000000000000000000000aa' as const
+const NEW_CONTRACT = '0x00000000000000000000000000000000000000bb' as const
+const RECONCILE_UUID = '11111111-2222-4333-8444-555555555555'
+
+function acceptedReceiptLog(address: `0x${string}`) {
+  const topics = encodeEventTopics({
+    abi: ESCROW_EVM_ABI,
+    eventName: 'EscrowAccepted',
+    args: {
+      escrowId: `0x${RECONCILE_UUID.replace(/-/g, '')}` as `0x${string}`,
+      counterparty: '0x1111111111111111111111111111111111111111',
+    },
+  })
+  return {
+    address,
+    topics: [...topics] as `0x${string}`[],
+    data: encodeAbiParameters([{ type: 'uint64' }], [1_900_007_200n]),
+  }
+}
+
+/** Reconcile wired to a REAL evm adapter whose node returns an OLD-contract tx. */
+function evmReconcile(known: readonly string[]) {
+  const failed: Array<{ tx_ref: string; code: string }> = []
+  const enqueued: string[] = []
+  const adapter = evmAdapter({
+    chain_id: 'eip155:84532',
+    rpc_url: 'http://unused.invalid',
+    escrow_contract: NEW_CONTRACT,
+    escrow_contracts: known,
+    min_confirmations: 0,
+    deps: {
+      resolveWalletAddress: async () => '0x0000000000000000000000000000000000000001',
+      resolveAsset: async () => ({ token_address: null }),
+      rpc: {
+        async getTransactionReceipt() {
+          return { block_number: 10n, status: 'success' as const, logs: [acceptedReceiptLog(OLD_CONTRACT)] }
+        },
+        async getBlockNumber() {
+          return 20n
+        },
+        async getLogRefs() {
+          return []
+        },
+        async readEscrow() {
+          return null
+        },
+        async readPermitFacts() {
+          throw new Error('not used')
+        },
+      },
+    },
+  })
+  const chains: ChainRegistry = {
+    get: () => adapter,
+    has: () => true,
+    list: () => [adapter],
+    verifyAuthSig: async () => true,
+  }
+  const deps: ReconcileDeps = {
+    store: {
+      async findPendingAttempts() {
+        return [
+          {
+            tx_ref: `0x${'ab'.repeat(32)}`,
+            action: 'accept' as const,
+            escrow_id: RECONCILE_UUID,
+            chain_id: 'eip155:84532',
+            submitted_at: new Date(NOW.getTime() - RECONCILE_MIN_AGE_MS - 1),
+          },
+        ]
+      },
+      async markAttemptFailed(tx_ref, code) {
+        failed.push({ tx_ref, code })
+      },
+    },
+    chains,
+    queue: {
+      async enqueue(_name, payload) {
+        enqueued.push((payload as { tx_ref: string }).tx_ref)
+        return { job_id: 'x' }
+      },
+    },
+    log: { info() {}, warn() {} },
+    now: () => NOW,
+  }
+  return { deps, failed, enqueued }
+}
+
+test('reconcile: an OLD-contract attempt probes as a SUCCESS, so verify-tx applies it', async () => {
+  const { deps, failed, enqueued } = evmReconcile([NEW_CONTRACT, OLD_CONTRACT])
+  const result = await reconcileEscrowsHandler(deps, WINDOW)
+
+  assert.strictEqual(result.enqueued, 1, 'the settled transition must reach verify-tx')
+  assert.strictEqual(result.timed_out, 0)
+  assert.strictEqual(enqueued.length, 1)
+  assert.deepStrictEqual(failed, [], 'reconcile itself marks nothing failed')
+
+  // The assertion that actually pins C1. Reconcile enqueues on "confirmed" in
+  // EITHER direction, so its own counters look identical before and after the
+  // fix — the damage lands one step later, where verify-tx turns a `failed`
+  // verdict into TX_FAILED. What must hold is that the probe verdict is a
+  // SUCCESS, which is only true once the decoder knows the old contract.
+  const verdict = await deps.chains.get('eip155:84532').verifyTx(`0x${'ab'.repeat(32)}`, {
+    expected_event: 'EscrowAccepted',
+  })
+  assert.strictEqual(
+    'failed' in verdict ? verdict.failed : undefined,
+    false,
+    'a settled old-contract tx must not probe as failed — that is what writes TX_FAILED',
+  )
+})
+
+test('reconcile: forget the old contract and the same attempt reads as a failure', async () => {
+  // The pre-fix state, reproduced. The probe still says "confirmed" — so
+  // reconcile enqueues — but the adapter reports the transaction as FAILED, and
+  // verify-tx then writes TX_FAILED against a transaction that succeeded on
+  // chain. This is the divergence #89 assessed as unreachable from here.
+  const { deps } = evmReconcile([NEW_CONTRACT])
+  const result = await reconcileEscrowsHandler(deps, WINDOW)
+
+  assert.strictEqual(result.enqueued, 1)
+  const adapterVerdict = await deps.chains.get('eip155:84532').verifyTx(`0x${'ab'.repeat(32)}`, {
+    expected_event: 'EscrowAccepted',
+  })
+  assert.strictEqual('failed' in adapterVerdict ? adapterVerdict.failed : undefined, true)
 })

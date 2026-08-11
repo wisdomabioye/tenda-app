@@ -21,6 +21,7 @@ import type { AppDatabase } from '../plugins/db'
 // happens at #34.
 import type { QueueService } from '../plugins/queue'
 import type { ChainRegistry } from '../chains/types'
+import type { ContractRegistry } from '../chains/contracts'
 import type { WsBroadcaster } from '../lib/ws'
 import type { QuoteCache } from '../features/fiat-rails/quote-cache'
 
@@ -61,6 +62,14 @@ declare module 'fastify' {
 
     /** Chain adapter registry, registered by `plugins/chains.ts`. */
     chains: ChainRegistry
+
+    /**
+     * Which escrow contracts each chain may transact with — current and
+     * superseded. Registered by `plugins/chains.ts` beside `chains`, because a
+     * transition has to be built against the contract holding THAT escrow's
+     * funds, not whichever one is current (open_issues #89).
+     */
+    contracts: ContractRegistry
   }
 }
 

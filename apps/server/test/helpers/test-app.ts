@@ -47,6 +47,7 @@ import queuePlugin from '@server/plugins/queue'
 import websocketPlugin from '@server/plugins/websocket'
 import { inMemoryQuoteCache } from '@server/features/fiat-rails/quote-cache'
 import type { ChainAdapter, ChainRegistry, UnsignedTx } from '@server/chains/types'
+import { buildContractRegistry } from '@server/chains/contracts'
 import { userFixture, escrowFixture, type UserRow, type EscrowRow } from './fixtures'
 
 export const TEST_DB_CONFIGURED = process.env.TEST_DATABASE_URL !== undefined
@@ -164,7 +165,14 @@ export async function buildTestApp(): Promise<FastifyInstance> {
   await app.register(authPlugin)
   await app.register(queuePlugin)
   await app.register(websocketPlugin)
-  app.decorate('chains', fakeRegistry())
+  const chains = fakeRegistry()
+  app.decorate('chains', chains)
+  // Built from the SAME adapters, through the production builder, so the
+  // contract each escrow resolves to cannot disagree with the one the fake
+  // adapter would transact with. No stored history rows: one contract per
+  // chain, which is what makes an unstamped escrow resolve to it rather than
+  // being refused as ambiguous (chains/contracts/resolve.ts).
+  app.decorate('contracts', buildContractRegistry(chains.list(), []))
   // The plugins dir isn't autoloaded here, so the quote-cache plugin never
   // runs — decorate the behaviourally-identical in-memory cache so fiat quote
   // + initiate exercise the real path (no Redis dependency in tests).

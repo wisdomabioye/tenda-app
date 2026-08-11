@@ -22,6 +22,7 @@ import type {
 } from '@server/chains/types'
 import type { EscrowEventStore, EscrowPatch } from '@server/lib/escrow-events'
 import type { EscrowStatus } from '@server/lib/escrow'
+import { TEST_ESCROW_PROGRAM } from '../helpers/fixtures'
 
 const ESCROW_ID = '11111111-2222-4333-8444-555555555555'
 
@@ -29,6 +30,7 @@ function acceptedEvent(): DecodedEvent {
   return {
     name: 'EscrowAccepted',
     escrow_ref: 'Pda111',
+    contract: TEST_ESCROW_PROGRAM,
     fields: {
       escrow_id: ESCROW_ID,
       counterparty: 'Cp111',

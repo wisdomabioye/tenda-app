@@ -16,6 +16,7 @@ import { AppError, requireBody } from '@server/lib/errors'
 import { ErrorCode } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/lib/escrow-routes'
+import { buildEscrowTx } from '@server/lib/escrow'
 import { assertRequirementsMet } from '@server/lib/proofs'
 
 interface Body { proof_hash: string }
@@ -59,8 +60,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      const adapter = fastify.chains.get(escrow.chain_id)
-      const unsigned = await adapter.buildTx({
+      const unsigned = await buildEscrowTx(fastify, escrow, {
         action: 'submitProof',
         user_id: request.user.id,
         payload: { escrow_id: escrow.id, proof_hash },

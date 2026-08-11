@@ -21,6 +21,7 @@ import { requireGoodStanding } from '@server/features/reputation/guards'
 import { ErrorCode, EXCHANGE_DISPUTE_REASON_MIN_LENGTH, EXCHANGE_DISPUTE_REASON_MAX_LENGTH } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/lib/escrow-routes'
+import { buildEscrowTx } from '@server/lib/escrow'
 import { validateWirePermit } from '@server/chains/evm/permit'
 import { isAmountRaw } from '@server/chains/types'
 
@@ -96,7 +97,7 @@ const route: FastifyPluginAsync = async (fastify) => {
           target: disputes.escrow_id,
           set: { raised_by: request.user.id, reason: trimmedReason },
         })
-      const unsigned = await adapter.buildTx({
+      const unsigned = await buildEscrowTx(fastify, escrow, {
         action: 'disputeEscrow',
         user_id: request.user.id,
         payload: { escrow_id: escrow.id, bond_raw, ...(permit !== null ? { permit } : {}) },

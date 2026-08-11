@@ -150,6 +150,14 @@ export function createSolanaVerifier(deps: SolanaVerifierDeps) {
     return {
       name,
       escrow_ref,
+      // Always the compiled-in program id: `EventParser` is constructed with
+      // PROGRAM_ID, so only that program's logs reach here. Solana cannot have a
+      // second live address the way EVM can — the id is `declare_id!`, the PDAs
+      // derive from it, and `anchor upgrade` keeps it — so this is a constant
+      // rather than a variable, and stamping it is what lets a future program
+      // replacement be DETECTED (chains/contracts/resolve.ts refuses a stamp that
+      // is not the current program) instead of silently mis-signed.
+      contract: PROGRAM_ID.toBase58(),
       ...(actorValue instanceof PublicKey
         ? { actor: `${deps.chain_id}:${actorValue.toBase58()}` }
         : {}),

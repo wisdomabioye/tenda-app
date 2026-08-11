@@ -34,8 +34,8 @@ const route: FastifyPluginAsync = async (fastify) => {
         transition: 'resolve',
       })
       const unsigned = await buildResolveTx(
-        { db: fastify.db, chains: fastify.chains },
-        { escrow_id: escrow.id, chain_id: escrow.chain_id, winner, signer_user_id: request.user.id },
+        { db: fastify.db, chains: fastify.chains, contracts: fastify.contracts },
+        { escrow, winner, signer_user_id: request.user.id },
       )
       return { unsigned }
     },

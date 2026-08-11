@@ -8,14 +8,33 @@
  */
 
 import { PublicKey, TransactionMessage, VersionedTransaction } from '@solana/web3.js'
+import { ErrorCode } from '@tenda/shared'
+import { AppError } from '@server/lib/errors'
 import type { BuildTxArgs, UnsignedTx } from '@server/chains/types'
 import { buildInstruction } from '@server/chains/solana/instructions'
+import { PROGRAM_ID } from '@server/chains/solana/pdas'
 import type { SolanaBuilderDeps } from '@server/chains/solana/builder-internals'
 
 export type { SolanaBuilderDeps }
 
 export function createSolanaBuilders(deps: SolanaBuilderDeps) {
   async function buildTx(args: BuildTxArgs): Promise<UnsignedTx> {
+    // Every instruction and PDA below derives from the compiled-in PROGRAM_ID,
+    // so a caller asking for a DIFFERENT program cannot be served — and must not
+    // be served silently, which is what ignoring the field would do. Unreachable
+    // while the policy holds (Solana upgrades in place, keeping its id, so a
+    // chain's known set is the single IDL address), and that is exactly why it
+    // is worth failing loudly if the policy is ever broken.
+    if (args.contract !== undefined && args.contract !== PROGRAM_ID.toBase58()) {
+      throw new AppError(
+        409,
+        ErrorCode.ESCROW_MISMATCH,
+        `escrow is held by program ${args.contract}, but this deployment runs ` +
+          `${PROGRAM_ID.toBase58()} — a Solana program replacement needs a rebuilt IDL, ` +
+          'not a runtime switch',
+      )
+    }
+
     // resolveDispute is signed by the chain's configured dispute authority
     // (fee-payer + `disputeAdmin` account), passed in explicitly. Every other
     // action is signed by the acting user, resolved from their linked wallet.

@@ -19,6 +19,7 @@ import {
 import { solanaAdapter, type SolanaAdapterDeps } from '@server/chains/solana'
 import { evmAdapter, type EvmAdapterDeps } from '@server/chains/evm'
 import type { ResolvedChainSecret, EvmChainSecret } from '@server/chains/secrets'
+import type { ContractRegistry } from '@server/chains/contracts'
 import type { ChainAdapter, ChainId, ChainRegistry } from '@server/chains/types'
 import { deriveChainNamespace, verifyWalletSignature } from '@server/lib/wallet-signature'
 
@@ -64,10 +65,21 @@ function requireFeeCurrency(entry: ChainManifestEntry): `0x${string}` {
 export function buildAdapters(
   secrets: ReadonlyMap<string, ResolvedChainSecret>,
   deps: AdapterDepsFactory,
+  /**
+   * Every escrow contract each chain has run (`chains/contracts`). The EVM
+   * adapter decodes receipts against the whole set, so an escrow funded by a
+   * superseded contract still verifies instead of being recorded as a failed
+   * transaction (open_issues #89).
+   *
+   * Optional so callers with no database — unit tests, one-off scripts — build
+   * adapters exactly as before: absent means "only the current contract".
+   */
+  contracts?: ContractRegistry,
 ): ChainAdapter[] {
   const adapters: ChainAdapter[] = []
   for (const secret of secrets.values()) {
     const entry = chainById(secret.chainId)
+    const known = contracts?.get(secret.chainId)?.known
     if (secret.namespace === 'solana') {
       adapters.push(
         solanaAdapter({
@@ -85,6 +97,7 @@ export function buildAdapters(
           rpc_url: secret.rpcUrl,
           ...(rpc_url_fallback !== undefined ? { rpc_url_fallback } : {}),
           escrow_contract: secret.escrow as `0x${string}`,
+          ...(known !== undefined ? { escrow_contracts: [...known] } : {}),
           min_confirmations: entry.minConfirmations,
           dispute_authority: secret.disputeAdmin,
           ...(entry.gasPolicy === 'feeCurrency' ? { fee_currency: requireFeeCurrency(entry) } : {}),

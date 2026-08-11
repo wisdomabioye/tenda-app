@@ -18,6 +18,11 @@ import { buildAdapters, buildChainRegistry, type AdapterDepsFactory } from '@ser
 import type { EvmAdapterDeps } from '@server/chains/evm'
 import { fetchPaymasterHttp } from '@server/chains/evm/paymaster'
 import { assertChainRegistryInSync } from '@server/chains/registry-sync'
+import {
+  assertEscrowContractsKnown,
+  contractSourcesFromSecrets,
+  loadContractRegistry,
+} from '@server/chains/contracts'
 import { getChainSecrets } from '@server/chains/secrets'
 import { AppError } from '@server/lib/errors'
 import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/sponsor'
@@ -132,7 +137,22 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
   }
 
   const secrets = getChainSecrets()
-  const adapters = buildAdapters(secrets, depsFactory)
+
+  // Which contracts each chain may transact with, current AND superseded.
+  //
+  // Built BEFORE the adapters, and from the secrets rather than from the
+  // adapters, because the EVM adapter needs the set in order to decode receipts
+  // from a superseded contract — deriving it from the adapters instead would
+  // leave every one of them holding only its current address, which is the
+  // behaviour open_issues #89 exists to remove.
+  //
+  // Built once at boot, not per request: `seedOnBoot` has already recorded the
+  // current contract by this point (server.ts calls it before the app is
+  // registered, documented there as load-bearing), and a per-request read would
+  // let a DB blip silently narrow the set mid-flight.
+  const contracts = await loadContractRegistry(fastify.db, contractSourcesFromSecrets(secrets))
+
+  const adapters = buildAdapters(secrets, depsFactory, contracts)
   if (adapters.length === 0) {
     throw new Error(
       'no chains configured, set CHAIN_<ID>_* env for at least one manifest chain (e.g. CHAIN_SOLANA_DEVNET_RPC_URL)',
@@ -146,7 +166,14 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
     warn: (msg) => fastify.log.warn(msg),
   })
 
+  // A live escrow naming a contract the registry has forgotten means its funds
+  // are somewhere we would refuse to transact — fail loud now rather than serve
+  // 409s on every one of its transitions. Terminal escrows are exempt (their
+  // money already moved), so old history cannot crash-loop a deploy.
+  await assertEscrowContractsKnown(fastify.db, contracts)
+
   fastify.decorate('chains', buildChainRegistry(adapters))
+  fastify.decorate('contracts', contracts)
 }
 
 export default fp(chainsPlugin, { name: 'chains', dependencies: ['db'] })

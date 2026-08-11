@@ -23,8 +23,10 @@ import {
   FAKE_UNSIGNED,
   FAKE_DISPUTE_AUTHORITY,
   TEST_CHAIN_ID,
+  FAKE_SOLANA_PROGRAM,
   type TestUser,
 } from '../helpers/test-app'
+import { buildContractRegistry } from '@server/chains/contracts'
 import { disputedEscrow } from '../helpers/escrow-states'
 import { buildResolveTx } from '@server/lib/escrow/resolve-tx'
 import type { FastifyInstance } from 'fastify'
@@ -290,8 +292,12 @@ test('buildResolveTx: an escrow with no dispute record is a 409 (defensive)', { 
   const escrow = await createEscrow(app, { creator_id: creator.row.id, status: 'disputed' })
   await assert.rejects(
     buildResolveTx(
-      { db: app.db, chains: app.chains },
-      { escrow_id: escrow.id, chain_id: escrow.chain_id, winner: 'creator', signer_user_id: creator.row.id },
+      { db: app.db, chains: app.chains, contracts: app.contracts },
+      {
+        escrow: { id: escrow.id, chain_id: escrow.chain_id, escrow_contract: null },
+        winner: 'creator',
+        signer_user_id: creator.row.id,
+      },
     ),
     (e: unknown) => e instanceof Error && 'statusCode' in e && e.statusCode === 409,
   )
@@ -306,8 +312,12 @@ test('buildResolveTx: chain with no configured dispute authority → 409 CHAIN_N
   const chains = { ...app.chains, get: () => ({ ...base, disputeAuthority: undefined }) }
   await assert.rejects(
     buildResolveTx(
-      { db: app.db, chains },
-      { escrow_id, chain_id: TEST_CHAIN_ID, winner: 'creator', signer_user_id: 'irrelevant' },
+      { db: app.db, chains, contracts: app.contracts },
+      {
+        escrow: { id: escrow_id, chain_id: TEST_CHAIN_ID, escrow_contract: null },
+        winner: 'creator',
+        signer_user_id: 'irrelevant',
+      },
     ),
     (e: unknown) => e instanceof Error && 'code' in e && e.code === 'CHAIN_NOT_CONFIGURED',
   )
@@ -746,4 +756,78 @@ test('detail: the single-dispute route carries the resolver too, unknown id → 
   })
   assert.strictEqual(missing.statusCode, 404)
   assert.strictEqual(missing.json().code, 'NOT_FOUND')
+})
+
+// ---------- resolve routes by the escrow's contract (open_issues #89) --------
+
+test('buildResolveTx targets the contract holding the escrow, not the current one', { skip }, async () => {
+  // A dispute is the longest an escrow stays non-terminal, so it is the most
+  // likely to outlive a redeploy — and the resolve transaction moves BOTH the
+  // principal and the bond. Sent to the wrong contract it reverts, and the
+  // dispute becomes unresolvable.
+  const app = getApp()
+  const { escrow } = await disputedEscrow(app)
+
+  const PREVIOUS = 'PreviousProgram1111111111111111111111111'
+  await app.db
+    .update(escrows)
+    .set({ escrow_contract: PREVIOUS })
+    .where(eq(escrows.id, escrow.id))
+
+  // Spy on what the adapter is asked to build against.
+  const seen: Array<string | undefined> = []
+  const base = app.chains.get(TEST_CHAIN_ID)
+  const chains = {
+    ...app.chains,
+    get: () => ({
+      ...base,
+      buildTx: async (args: { contract?: string }) => {
+        seen.push(args.contract)
+        return FAKE_UNSIGNED
+      },
+    }),
+  }
+  // The registry must know the previous contract, or resolution is refused
+  // outright — which is the OTHER half of the guarantee.
+  const contracts = buildContractRegistry(
+    [{ chain_id: TEST_CHAIN_ID, namespace: 'solana', escrowAddress: FAKE_SOLANA_PROGRAM }],
+    [{ chain_id: TEST_CHAIN_ID, address: PREVIOUS }],
+  )
+
+  const [row] = await app.db
+    .select({ escrow_contract: escrows.escrow_contract })
+    .from(escrows)
+    .where(eq(escrows.id, escrow.id))
+
+  await buildResolveTx(
+    { db: app.db, chains, contracts },
+    {
+      escrow: { id: escrow.id, chain_id: TEST_CHAIN_ID, escrow_contract: row.escrow_contract },
+      winner: 'creator',
+      signer_user_id: 'irrelevant',
+    },
+  )
+
+  assert.deepStrictEqual(seen, [PREVIOUS])
+})
+
+test('buildResolveTx REFUSES when the escrow names a contract the registry lost', { skip }, async () => {
+  const app = getApp()
+  const { escrow } = await disputedEscrow(app)
+
+  await assert.rejects(
+    buildResolveTx(
+      { db: app.db, chains: app.chains, contracts: app.contracts },
+      {
+        escrow: {
+          id: escrow.id,
+          chain_id: TEST_CHAIN_ID,
+          escrow_contract: 'ForgottenProgram11111111111111111111111',
+        },
+        winner: 'creator',
+        signer_user_id: 'irrelevant',
+      },
+    ),
+    (e: unknown) => e instanceof Error && 'code' in e && e.code === 'ESCROW_MISMATCH',
+  )
 })

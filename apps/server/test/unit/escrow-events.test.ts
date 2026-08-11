@@ -21,6 +21,7 @@ import {
   type EscrowEvent,
 } from '@server/chains/types'
 import type { EscrowStatus } from '@server/lib/escrow'
+import { TEST_ESCROW_PROGRAM } from '../helpers/fixtures'
 
 const ESCROW_ID = '11111111-2222-4333-8444-555555555555'
 const TX_REF = 'sig-1'
@@ -70,7 +71,12 @@ function makeDeps(opts: { guardTrips?: boolean; wallets?: Record<string, string>
 }
 
 function event(name: EscrowEvent, fields: Record<string, string>): DecodedEvent {
-  return { name, escrow_ref: 'EscrowPda111', fields: { escrow_id: ESCROW_ID, ...fields } }
+  return {
+    name,
+    escrow_ref: 'EscrowPda111',
+    contract: TEST_ESCROW_PROGRAM,
+    fields: { escrow_id: ESCROW_ID, ...fields },
+  }
 }
 
 test('table covers every wire event with an internal name', () => {
@@ -225,7 +231,7 @@ test('missing escrow_id in decoded fields throws (decoder bug, not data)', async
   await assert.rejects(
     applyEscrowEvent(
       deps,
-      { name: 'EscrowCreated', escrow_ref: 'X', fields: {} },
+      { name: 'EscrowCreated', escrow_ref: 'X', contract: TEST_ESCROW_PROGRAM, fields: {} },
       TX_REF,
     ),
     /missing escrow_id/,

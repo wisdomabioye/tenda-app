@@ -185,3 +185,59 @@ test('enablementDelta: an empty active set disables everything still on', () => 
     { toEnable: [], toDisable: ['a'] },
   )
 })
+
+// ---------- escrow-contract history (open_issues #89) ------------------------
+
+test('the seed emits a chain_contracts row per chain, carrying the deploy block', () => {
+  // This row set is what makes a redeploy self-recording: the operator changes
+  // ESCROW_ADDR and the next boot appends. If the builder ever stops emitting
+  // it, nothing fails loudly — the history simply stops growing and the next
+  // superseded contract strands its escrows.
+  const rows = buildSeedRows(
+    loadChainSecrets({
+      CHAIN_EIP155_8453_RPC_URL: RPC,
+      CHAIN_EIP155_8453_ESCROW_ADDR: EVM_ESCROW,
+      CHAIN_EIP155_8453_TREASURY_ADDR: EVM_TREASURY,
+      CHAIN_EIP155_8453_ESCROW_DEPLOY_BLOCK: '44318123',
+    }),
+  )
+  assert.deepStrictEqual(rows.chain_contracts, [
+    { chain_id: 'eip155:8453', address: EVM_ESCROW.toLowerCase(), deploy_block: 44_318_123 },
+  ])
+})
+
+test('the seed NORMALISES the recorded address, whatever casing env carries', () => {
+  // Deploy output is usually checksummed. Stored unnormalised, the same contract
+  // would occupy two rows and read as two generations — which would then make
+  // every unstamped escrow on that chain "ambiguous" and refuse to build.
+  const checksummed = '0x954FC8a4908f49B7499504190ab11d925dEE490b'
+  const rows = buildSeedRows(
+    loadChainSecrets({
+      CHAIN_EIP155_8453_RPC_URL: RPC,
+      CHAIN_EIP155_8453_ESCROW_ADDR: checksummed,
+      CHAIN_EIP155_8453_TREASURY_ADDR: EVM_TREASURY,
+    }),
+  )
+  assert.strictEqual(rows.chain_contracts[0].address, checksummed.toLowerCase())
+})
+
+test('a Solana chain records the IDL program id verbatim, with no deploy block', () => {
+  // base58 casing is identity, so normalising must NOT touch it; and Solana has
+  // no deploy-block secret to carry.
+  const rows = buildSeedRows(solDevnet())
+  assert.deepStrictEqual(rows.chain_contracts, [
+    { chain_id: 'solana:devnet', address: rows.chains[0].escrow_program, deploy_block: null },
+  ])
+})
+
+test('the recorded address always matches the chain row it accompanies', () => {
+  // One source (`escrowAddressOf`) feeds both, and they must not be able to
+  // drift: `chains.escrow_program` says CURRENT, `chain_contracts` says LEGITIMATE,
+  // and the current contract must always be legitimate.
+  const rows = buildSeedRows(baseMainnet())
+  for (const chain of rows.chains) {
+    const recorded = rows.chain_contracts.filter((r) => r.chain_id === chain.id)
+    assert.strictEqual(recorded.length, 1)
+    assert.strictEqual(recorded[0].address, chain.escrow_program.toLowerCase())
+  }
+})

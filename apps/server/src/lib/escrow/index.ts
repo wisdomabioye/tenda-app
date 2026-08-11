@@ -30,3 +30,6 @@ export type {
 } from './deadlines'
 
 export { assertGigAsset, assertExchangeAsset } from './validation'
+
+export { buildEscrowTx } from './build-tx'
+export type { BuildEscrowTxDeps } from './build-tx'

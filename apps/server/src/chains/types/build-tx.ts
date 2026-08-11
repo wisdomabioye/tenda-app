@@ -95,7 +95,11 @@ export interface ResolveDisputePayload {
   raiser_user_id: string
 }
 
-export type BuildTxArgs =
+/**
+ * The action being built, discriminated by `action` so adapter branches narrow
+ * the payload statically. `BuildTxArgs` below adds the cross-action fields.
+ */
+export type BuildTxAction =
   | { action: 'createEscrow'; user_id: string; payload: CreateEscrowPayload }
   | { action: 'acceptEscrow'; user_id: string; payload: EscrowIdPayload }
   | { action: 'declineAssignedEscrow'; user_id: string; payload: EscrowIdPayload }
@@ -115,6 +119,27 @@ export type BuildTxArgs =
   // connected authority wallet (this is the pre-flighted address). `user_id`
   // stays for tx-attempt attribution only.
   | { action: 'resolveDispute'; user_id: string; signer_address: string; payload: ResolveDisputePayload }
+
+/**
+ * A build request: the action, plus the contract it must be built against.
+ *
+ * Intersected rather than added to each variant so every existing `action`
+ * narrowing keeps working unchanged.
+ */
+export type BuildTxArgs = BuildTxAction & {
+  /**
+   * The escrow contract/program this transaction must target — resolved from
+   * the ESCROW (`chains/contracts/resolve.ts`), not from the chain.
+   *
+   * Omitted means "the chain's current contract", which is correct for
+   * `createEscrow` (a new escrow always joins the current deployment) and for
+   * any caller with no escrow in hand. For a transition it must be supplied:
+   * an escrow funded before a redeploy still holds its money in the previous
+   * contract, and building against the current one produces a transaction that
+   * reverts, leaving the funds unreachable (open_issues #89).
+   */
+  contract?: string
+}
 
 /**
  * ERC-4337 UserOperation shape. Per the spec; bundlers expect every field

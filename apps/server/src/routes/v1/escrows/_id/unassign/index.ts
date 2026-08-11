@@ -16,6 +16,7 @@ import { getPlatformConfig } from '@server/lib/platform'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact } from '@server/lib/auth/resolver'
 import { guardTransition } from '@server/lib/escrow-routes'
+import { buildEscrowTx } from '@server/lib/escrow'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string } }>(
@@ -34,7 +35,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       })
       const adapter = fastify.chains.get(escrow.chain_id)
       await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
-      const unsigned = await adapter.buildTx({
+      const unsigned = await buildEscrowTx(fastify, escrow, {
         action: 'unassign',
         user_id: request.user.id,
         payload: { escrow_id: escrow.id },

@@ -53,6 +53,28 @@ export const escrows = pgTable(
     // PATCH /v1/admin/escrows/:id/hidden (escrows.takedown permission).
     hidden: boolean('hidden').notNull().default(false),
     escrow_ref: text('escrow_ref').unique('escrows_escrow_ref_uq'),
+    /**
+     * The escrow contract/program holding THIS escrow's funds — an address from
+     * `chain_contracts`, normalised.
+     *
+     * Without it the contract was resolved per CHAIN, so replacing a contract
+     * pointed every existing escrow's transitions at the new one while its money
+     * sat in the old: `escrow_ref` on EVM is `toHex(uuidToBytes(id))` and carries
+     * no contract information at all, so nothing on the row could say otherwise
+     * (open_issues #89).
+     *
+     * Stamped with the current contract when the create tx is built, then
+     * OVERWRITTEN from the event that actually created the escrow — the emitting
+     * `log.address` on EVM, the owning program on Solana. Chain-attested rather
+     * than intended, for the same reason `amount_raw` is.
+     *
+     * Nullable, and null means UNKNOWN, never "current" — a draft has no contract
+     * until its create is built. `resolveEscrowContract` only falls back to the
+     * chain's sole contract when that chain has had exactly one; the moment a
+     * second exists the fallback stops guessing and refuses. See
+     * chains/contracts/resolve.ts.
+     */
+    escrow_contract: text('escrow_contract'),
     accept_deadline: timestamp('accept_deadline'),
     completion_duration_seconds: integer('completion_duration_seconds'),
     completion_deadline: timestamp('completion_deadline'),
@@ -114,6 +136,14 @@ export const escrows = pgTable(
     index('escrows_assigned_idx')
       .on(t.assigned_counterparty_id)
       .where(sql`${t.assigned_counterparty_id} IS NOT NULL`),
+    // Serves the boot consistency probe (chains/contracts/boot-check.ts), which
+    // asks whether any live escrow is stamped with a contract the registry does
+    // not know. Partial because only stamped rows can ever answer it, and no
+    // request path reads this — it exists so that probe is an index lookup and
+    // not a scan of every escrow ever created.
+    index('escrows_chain_contract_idx')
+      .on(t.chain_id, t.escrow_contract)
+      .where(sql`${t.escrow_contract} IS NOT NULL`),
     index('escrows_accept_deadline_idx').on(t.accept_deadline),
     index('escrows_approval_deadline_idx').on(t.approval_deadline),
     check('escrows_creator_not_counterparty_chk', sql`${t.creator_id} <> ${t.counterparty_id}`),

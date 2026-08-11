@@ -124,10 +124,13 @@ const adminResolutions: FastifyPluginAsync = async (fastify) => {
     }
 
     const unsigned = await buildResolveTx(
-      { db: fastify.db, chains: fastify.chains },
+      { db: fastify.db, chains: fastify.chains, contracts: fastify.contracts },
       {
-        escrow_id: row.escrow_id,
-        chain_id: row.chain_id,
+        escrow: {
+          id: row.escrow_id,
+          chain_id: row.chain_id,
+          escrow_contract: row.escrow_contract,
+        },
         winner: resolution.proposed_winner,
         signer_user_id: request.user.id,
       },

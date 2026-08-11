@@ -42,6 +42,16 @@ export interface BuildContext {
    * is placing right now. Both contracts reject an escrow that carries both.
    */
   worker_address: string | null
+  /**
+   * May this call encode a `*WithPermit` entry point?
+   *
+   * False when the escrow is held by a superseded contract: the permit was
+   * signed with the CURRENT contract as spender (the permit-payload endpoint is
+   * chain-scoped and takes no escrow), so it cannot authorise a pull by a
+   * different one. The builder then encodes the plain entry point and the
+   * adapter emits an approval hint instead — see `encodesPermit` in ./index.
+   */
+  permit_encodable: boolean
 }
 
 
@@ -98,7 +108,7 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
         requiresApproval: p.requires_approval,
         unassignWindowSeconds: BigInt(p.unassign_window_seconds),
       } as const
-      if (p.permit !== undefined) {
+      if (p.permit !== undefined && ctx.permit_encodable) {
         return {
           data: encodeFunctionData({
             abi: ESCROW_EVM_ABI,
@@ -131,7 +141,7 @@ export function buildEvmCall(args: BuildTxArgs, ctx: BuildContext): BuiltCall {
     case 'disputeEscrow': {
       const p = args.payload
       const native = ctx.asset_address === null
-      if (p.permit !== undefined) {
+      if (p.permit !== undefined && ctx.permit_encodable) {
         return {
           data: encodeFunctionData({
             abi: ESCROW_EVM_ABI,

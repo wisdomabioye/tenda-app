@@ -162,6 +162,27 @@
       "when": 1786090412904,
       "tag": "0022_nappy_serpent_society",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1786395785928,
+      "tag": "0023_chief_vector",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786398159032,
+      "tag": "0024_cultured_smasher",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1786405466355,
+      "tag": "0025_tired_serpent_society",
+      "breakpoints": true
     }
   ]
 }

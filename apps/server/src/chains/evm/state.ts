@@ -37,8 +37,10 @@ const EVM_STATUS: ReadonlyArray<EscrowState['status']> = ESCROW_STATUS_ORDER
 export async function fetchEscrowState(
   ctx: EvmAdapterContext,
   escrow_ref: string,
+  /** Contract to read from; defaults to the chain's current one. */
+  contract: `0x${string}` = ctx.args.escrow_contract,
 ): Promise<EscrowState | null> {
-  const tuple = await ctx.rpc.readEscrow(ctx.args.escrow_contract, escrow_ref as `0x${string}`)
+  const tuple = await ctx.rpc.readEscrow(contract, escrow_ref as `0x${string}`)
   if (tuple === null) return null
   const status = EVM_STATUS[tuple.status]
   if (status === undefined) return null // unknown enum value, treat as absent
@@ -67,7 +69,21 @@ export async function fetchEscrowState(
   }
 }
 
-export async function buildContext(ctx: EvmAdapterContext, build: BuildTxArgs) {
+export async function buildContext(
+  ctx: EvmAdapterContext,
+  build: BuildTxArgs,
+  /**
+   * The contract this build targets — the escrow's own, which after a redeploy
+   * is not necessarily the chain's current one. Every on-chain read below must
+   * use it: reading state from the current contract for an escrow held by a
+   * previous one answers about a different escrow, or about none at all.
+   */
+  contract: `0x${string}` = ctx.args.escrow_contract,
+) {
+  // A permit can only be encoded against the contract its signature names as
+  // spender, which is always the current one (see `encodesPermit` in ./index).
+  const permit_encodable = contract.toLowerCase() === ctx.args.escrow_contract.toLowerCase()
+
   if (build.action === 'createEscrow') {
     const { token_address } = await ctx.args.deps.resolveAsset(build.payload.asset)
     const assigned =
@@ -78,30 +94,37 @@ export async function buildContext(ctx: EvmAdapterContext, build: BuildTxArgs) {
       asset_address: token_address,
       assigned_counterparty_address: assigned,
       worker_address: null,
+      permit_encodable,
     }
   }
   if (build.action === 'disputeEscrow') {
     // Bond denomination follows the escrow's asset, read it on-chain so
     // the value rule can't drift from contract state.
-    const state = await fetchEscrowState(ctx, escrowIdHex(build.payload.escrow_id))
-    // A null read means THIS contract has no such escrow. Absence must not
-    // fall through to `asset_address: null`, which means NATIVE — that would
-    // quietly denominate the bond in the gas token instead of the escrow's
-    // ERC-20. The realistic cause is an escrow held by a superseded contract
-    // (the adapter resolves the contract per chain, not per escrow — see
-    // open_issues #89), and the honest answer there is to refuse.
+    const state = await fetchEscrowState(ctx, escrowIdHex(build.payload.escrow_id), contract)
+    // A null read means the contract we are building against has no such
+    // escrow. Absence must not fall through to `asset_address: null`, which
+    // means NATIVE — that would quietly denominate the bond in the gas token
+    // instead of the escrow's ERC-20.
+    //
+    // Since #89 the contract is resolved per ESCROW, so a superseded deployment
+    // is no longer the likely cause — the row's stamp routed us here. What
+    // remains is a genuine disagreement between the DB and the chain (an escrow
+    // whose create never actually landed), and refusing is still the honest
+    // answer. The message names the contract consulted so the two can be
+    // compared.
     if (state === null) {
       throw new AppError(
         422,
         ErrorCode.ESCROW_NOT_FUNDED,
-        `escrow ${build.payload.escrow_id} does not exist in the escrow contract ` +
-          `configured for ${ctx.args.chain_id} (${ctx.args.escrow_contract})`,
+        `escrow ${build.payload.escrow_id} does not exist in escrow contract ` +
+          `${contract} on ${ctx.args.chain_id}`,
       )
     }
     return {
       asset_address: state.asset_address,
       assigned_counterparty_address: null,
       worker_address: null,
+      permit_encodable,
     }
   }
   if (build.action === 'assignAccept') {
@@ -109,7 +132,13 @@ export async function buildContext(ctx: EvmAdapterContext, build: BuildTxArgs) {
       asset_address: null,
       assigned_counterparty_address: null,
       worker_address: await ctx.args.deps.resolveWalletAddress(build.payload.worker_user_id),
+      permit_encodable,
     }
   }
-  return { asset_address: null, assigned_counterparty_address: null, worker_address: null }
+  return {
+    asset_address: null,
+    assigned_counterparty_address: null,
+    worker_address: null,
+    permit_encodable,
+  }
 }

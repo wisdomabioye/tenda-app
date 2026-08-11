@@ -8,6 +8,7 @@
 
 import type { ChainNamespace } from '@tenda/shared/db/schema/chains'
 import type { DecodedEvent } from '@server/chains/types'
+import { normalizeContractAddress } from '@server/chains/contracts'
 import {
   EVENT_APPLICATIONS,
   INTERNAL_EVENT_BY_WIRE,
@@ -115,6 +116,19 @@ export async function applyEscrowEvent(
   // static table.
   if (event.name === 'EscrowCreated') {
     patch.escrow_ref = event.escrow_ref
+    // Which contract actually took custody, per the chain rather than per the
+    // server's intention. The create route stamps its best guess (the contract
+    // current when the transaction was built); this overwrites it with the
+    // emitting contract, so a create that was built just before a redeploy and
+    // mined just after records where the money really went. Same principle as
+    // reading settlement amounts off the event instead of projecting them.
+    //
+    // Normalised like every other write to this column. Both decoders already
+    // emit a canonical address today, so this changes nothing now — it is here
+    // because the stored form is compared in SQL (`chains/contracts/boot-check`),
+    // where a checksummed value would read as an UNKNOWN contract and hold up a
+    // boot for a contract the registry actually knows.
+    patch.escrow_contract = normalizeContractAddress(deps.chain_ns, event.contract)
   }
   let counterparty_id: string | null = null
   if (app.counterparty !== undefined) {

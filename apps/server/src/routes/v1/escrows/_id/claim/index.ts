@@ -6,6 +6,7 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/lib/escrow-routes'
+import { buildEscrowTx } from '@server/lib/escrow'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string } }>(
@@ -22,8 +23,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         grace_period_seconds: cfg.grace_period_seconds,
         transition: 'claim_stalled',
       })
-      const adapter = fastify.chains.get(escrow.chain_id)
-      const unsigned = await adapter.buildTx({
+      const unsigned = await buildEscrowTx(fastify, escrow, {
         action: 'claimStalledPayment',
         user_id: request.user.id,
         payload: { escrow_id: escrow.id },

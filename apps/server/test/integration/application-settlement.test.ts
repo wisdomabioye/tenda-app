@@ -17,6 +17,7 @@ import { eq } from 'drizzle-orm'
 import { escrows, gig_applications } from '@tenda/shared/db/schema'
 import { applyEscrowEvent, drizzleEscrowEventStore } from '@server/lib/escrow-events'
 import type { DecodedEvent } from '@server/chains/types'
+import { TEST_ESCROW_PROGRAM } from '../helpers/fixtures'
 import {
   TEST_DB_CONFIGURED,
   useTestApp,
@@ -35,6 +36,7 @@ function assignedEvent(escrow_id: string, workerWallet: string, creatorWallet: s
   return {
     name: 'CounterpartyAssigned',
     escrow_ref: 'ref-1',
+    contract: TEST_ESCROW_PROGRAM,
     fields: {
       escrow_id,
       counterparty: workerWallet,

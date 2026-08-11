@@ -22,6 +22,18 @@ export interface VerifyTxArgs {
 export interface DecodedEvent {
   name: EscrowEvent
   escrow_ref: string
+  /**
+   * The escrow contract/program that actually EMITTED this event — the log's
+   * `address` on EVM, the owning program on Solana.
+   *
+   * Carried so `EscrowCreated` can stamp `escrows.escrow_contract` from what the
+   * chain attests rather than from what the server intended to call, the same
+   * reason settlement amounts are read off the event instead of projected. Once
+   * a chain has run more than one contract, "which contract holds this escrow's
+   * funds" has no other trustworthy source: `escrow_ref` on EVM is derived from
+   * the row id and carries no contract information at all (open_issues #89).
+   */
+  contract: string
   actor?: CaipAccountId
   /**
    * Action-specific fields decoded from the on-chain payload. All values are
