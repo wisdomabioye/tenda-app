@@ -1,7 +1,7 @@
 /**
  * #98 gap-fill — escrow state-transition routes (build-unsigned-tx happy
  * paths + caller/status guards), exercising lib/escrow-routes + lib/escrow:
- *   accept / decline / submit / approve / cancel
+ *   accept / decline / submit / approve / cancel / refund
  *
  * `accept` is kind-agnostic (gig vs exchange/p2p-order share the same
  * transition code), so the public-accept coverage includes one exchange
@@ -216,6 +216,36 @@ test('POST cancel: a stranger cannot cancel', { skip }, async () => {
     method: 'POST', url: `/v1/escrows/${e.id}/cancel`, headers: authHeader(stranger.token),
   })
   assert.strictEqual(res.statusCode, 403)
+})
+
+test('POST refund: creator gets an unsigned refund for an expired open escrow', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const e = await createEscrow(app, {
+    creator_id: creator.row.id,
+    status: 'open',
+    accept_deadline: new Date(Date.now() - 60_000),
+  })
+  const res = await app.inject({
+    method: 'POST', url: `/v1/escrows/${e.id}/refund`, headers: authHeader(creator.token),
+  })
+  assert.strictEqual(res.statusCode, 200)
+  assert.ok(res.json().unsigned)
+})
+
+test('POST refund: refuses an open escrow before its accept deadline', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  const e = await createEscrow(app, {
+    creator_id: creator.row.id,
+    status: 'open',
+    accept_deadline: new Date(Date.now() + 60_000),
+  })
+  const res = await app.inject({
+    method: 'POST', url: `/v1/escrows/${e.id}/refund`, headers: authHeader(creator.token),
+  })
+  assert.strictEqual(res.statusCode, 409)
+  assert.strictEqual(res.json().code, ErrorCode.ESCROW_DEADLINE_NOT_REACHED)
 })
 
 test('POST <transition>: 404 for an unknown escrow id', { skip }, async () => {

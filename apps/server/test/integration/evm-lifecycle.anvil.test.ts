@@ -25,6 +25,7 @@ import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import {
   createPublicClient,
+  createTestClient,
   createWalletClient,
   http,
   parseAbi,
@@ -76,6 +77,7 @@ const anvilChain = {
 } as const
 
 const pub = createPublicClient({ chain: anvilChain, transport: http(RPC_URL) })
+const node = createTestClient({ chain: anvilChain, mode: 'anvil', transport: http(RPC_URL) })
 const creatorWallet = createWalletClient({ account: creator, chain: anvilChain, transport: http(RPC_URL) })
 const workerWallet = createWalletClient({ account: worker, chain: anvilChain, transport: http(RPC_URL) })
 
@@ -301,6 +303,57 @@ test('permit path: payload → signTypedData → createEscrowWithPermit lands wi
   })
   const expectedFee = (BigInt(AMOUNT) * 250n) / 10_000n
   assert.strictEqual(treasuryAfter - treasuryBefore, expectedFee)
+})
+
+test('Base refund: server calldata rejects early, then refunds after accept expiry', { skip }, async () => {
+  const snapshot = await node.snapshot()
+  try {
+    const escrow_id = randomUUID()
+    assert.ok(adapter.buildPermitPayload)
+    const permit = await adapter.buildPermitPayload({
+      user_id: 'creator', owner: creator.address, asset: 'USDC_BASE', value_raw: AMOUNT,
+    })
+    const signature = await signPermit(creator, permit.typed_data)
+    const create = await adapter.buildTx({
+      action: 'createEscrow', user_id: 'creator',
+      payload: {
+        ...createPayload(escrow_id),
+        permit: { value_raw: permit.value_raw, deadline_unix: permit.deadline_unix, signature },
+      },
+    })
+    await sendUnsigned(creatorWallet, create)
+
+    const refund = await adapter.buildTx({
+      action: 'refundExpired', user_id: 'creator', payload: { escrow_id },
+    })
+    assert.strictEqual(refund.kind, 'evm-tx')
+    if (refund.kind !== 'evm-tx') return
+    // Exercise the exact server-built call the wallet receives. Contract
+    // bytecode, not only the UI/server clock, must reject an early refund.
+    await assert.rejects(creatorWallet.sendTransaction({
+      to: refund.to as `0x${string}`, data: refund.data as Hex, value: BigInt(refund.value),
+    }))
+
+    const balanceBefore = await pub.readContract({
+      address: tokenAddr, abi: ERC20_ABI, functionName: 'balanceOf', args: [creator.address],
+    })
+    await node.increaseTime({ seconds: 3_601 })
+    await node.mine({ blocks: 1 })
+    const txHash = await sendUnsigned(creatorWallet, refund)
+    const balanceAfter = await pub.readContract({
+      address: tokenAddr, abi: ERC20_ABI, functionName: 'balanceOf', args: [creator.address],
+    })
+    assert.strictEqual(balanceAfter - balanceBefore, BigInt(AMOUNT))
+
+    const verified = await adapter.verifyTx(txHash, { expected_event: 'EscrowExpired', escrow_id })
+    assert.strictEqual(verified.confirmed, true)
+    assert.strictEqual(verified.failed, false)
+    const state = await adapter.fetchEscrowState(`0x${escrow_id.replace(/-/g, '')}`)
+    assert.strictEqual(state?.status, 'refunded')
+  } finally {
+    // Do not let time travel expire EIP-2612 permits in neighboring tests.
+    await node.revert({ id: snapshot })
+  }
 })
 
 test('dispute bond via permit: disputeEscrowWithPermit collects the ERC-20 bond in one tx', { skip }, async () => {
