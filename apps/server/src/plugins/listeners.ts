@@ -113,7 +113,11 @@ const listenersPlugin: FastifyPluginAsync = async (fastify) => {
     } else {
       listeners.push(
         createSolanaPollingListener({
-          rpc: createSolanaRpc({ rpc_url: solana.rpcUrl, chain_id: adapter.chain_id }),
+          rpc: createSolanaRpc({
+            rpc_url: solana.rpcUrl,
+            ...(solana.rpcUrlFallback !== undefined ? { rpc_url_fallback: solana.rpcUrlFallback } : {}),
+            chain_id: adapter.chain_id,
+          }),
           chain_id: adapter.chain_id,
           cursors: drizzleCursorStore(fastify.db),
           queue: fastify.queue,

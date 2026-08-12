@@ -2,17 +2,18 @@ import { Platform } from 'react-native'
 import { Buffer } from 'buffer'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import {
-  Connection,
   PublicKey,
   VersionedTransaction,
-  clusterApiUrl,
   type Transaction,
 } from '@solana/web3.js'
+import { TRANSACTION_COPY } from '@tenda/shared'
+import bs58 from 'bs58'
 import { authorizeSession, withMwaRetry } from './mwa-shared'
 import { WalletError } from '@/wallet/errors'
-import { SOLANA_NETWORK, WALLET_CHAINS } from '../config'
+import { WALLET_CHAINS } from '../config'
 import type { SignMessageResult, SpikeAccount } from '../types'
 import type { AuthenticateResult, WalletAdapter } from './types'
+import { isRetryableSolanaRpcError, solanaRpcTransport } from '@/wallet/solana-rpc'
 
 /**
  * Generic Android-Solana adapter via Solana Mobile Wallet Adapter (MWA).
@@ -119,8 +120,6 @@ async function signMessage(
   return { signature: Buffer.from(signedBytes).toString('base64'), message }
 }
 
-const connection = new Connection(clusterApiUrl(SOLANA_NETWORK), 'confirmed')
-
 /**
  * Sign a server-built transaction in the wallet, then broadcast from the
  * app's own RPC connection. Signing-only inside the wallet avoids the
@@ -132,6 +131,7 @@ async function signAndSendTransaction(
   transaction: Transaction | VersionedTransaction,
   authToken: string | null,
   onNewAuthToken?: (token: string) => void,
+  onSigned?: () => void,
 ): Promise<string> {
   const signed = await withMwaRetry(async (wallet) => {
     const session = await authorizeSession(wallet, authToken)
@@ -146,7 +146,22 @@ async function signAndSendTransaction(
     signed instanceof VersionedTransaction
       ? signed.serialize()
       : (signed as Transaction).serialize()
-  return connection.sendRawTransaction(rawTx, { preflightCommitment: 'confirmed' })
+  const signatureBytes = signed instanceof VersionedTransaction
+    ? signed.signatures[0]
+    : (signed as Transaction).signature
+  if (signatureBytes === undefined || signatureBytes === null) {
+    throw new WalletError('unknown', 'Wallet returned a transaction without a signature')
+  }
+  const signature = bs58.encode(signatureBytes)
+  onSigned?.()
+  try {
+    return await solanaRpcTransport.broadcast(rawTx, signature)
+  } catch (error) {
+    if (isRetryableSolanaRpcError(error)) {
+      throw new WalletError('network', TRANSACTION_COPY.solanaBroadcastUncertain, error)
+    }
+    throw error
+  }
 }
 
 /**
@@ -165,11 +180,15 @@ async function signAndSendTransaction(
  */
 export async function signAndSendStored(
   transaction: Transaction | VersionedTransaction,
+  onSigned?: () => void,
 ): Promise<string> {
   const token = await AsyncStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
-  return signAndSendTransaction(transaction, token, (rotated) => {
-    void AsyncStorage.setItem(STORAGE_KEY_AUTH_TOKEN, rotated)
-  })
+  return signAndSendTransaction(
+    transaction,
+    token,
+    (rotated) => { void AsyncStorage.setItem(STORAGE_KEY_AUTH_TOKEN, rotated) },
+    onSigned,
+  )
 }
 
 async function disconnect(): Promise<void> {

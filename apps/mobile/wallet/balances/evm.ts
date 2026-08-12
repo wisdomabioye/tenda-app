@@ -1,8 +1,7 @@
-import type { ChainRegistryEntry } from '@tenda/shared'
-import { evmPublicRpcUrl } from '@tenda/shared'
+import { evmPublicRpcUrl, withTimeout, type ChainRegistryEntry } from '@tenda/shared'
 import type { AssetBalance, BalanceReader } from './types'
 import { selectAssets } from './select-assets'
-import { withTimeout } from './withTimeout'
+import { BALANCE_RPC_TIMEOUT_MS } from './constants'
 import { addressWord, evmRpcString, hexToDecimalString } from '../evm-rpc'
 
 /** ERC-20 `balanceOf(address)` selector. */
@@ -26,7 +25,10 @@ export const evmBalanceReader: BalanceReader = {
         const amountRaw =
           asset.token_address === null
             ? hexToDecimalString(
-                await withTimeout(evmRpcString(rpcUrl, 'eth_getBalance', [address, 'latest'])),
+                await withTimeout(
+                  evmRpcString(rpcUrl, 'eth_getBalance', [address, 'latest']),
+                  BALANCE_RPC_TIMEOUT_MS,
+                ),
               )
             : hexToDecimalString(
                 await withTimeout(
@@ -37,6 +39,7 @@ export const evmBalanceReader: BalanceReader = {
                     },
                     'latest',
                   ]),
+                  BALANCE_RPC_TIMEOUT_MS,
                 ),
               )
         return {

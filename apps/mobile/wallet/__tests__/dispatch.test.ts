@@ -86,7 +86,16 @@ describe('signAndSendUnsignedTx, solana-tx', () => {
     const ref = await signAndSendUnsignedTx(SOLANA_TX, 'solana:devnet')
     expect(ref).toBe('sol-sig')
     expect(mockDeserialize).toHaveBeenCalledTimes(1)
-    expect(storedMock).toHaveBeenCalledWith({ __tx: true })
+    expect(storedMock).toHaveBeenCalledWith({ __tx: true }, undefined)
+  })
+
+  it('forwards the signed callback to the Solana adapter', async () => {
+    storedMock.mockResolvedValue('sol-sig')
+    const onSigned = jest.fn()
+
+    await signAndSendUnsignedTx(SOLANA_TX, 'solana:devnet', onSigned)
+
+    expect(storedMock).toHaveBeenCalledWith({ __tx: true }, onSigned)
   })
 })
 

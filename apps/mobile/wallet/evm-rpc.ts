@@ -4,17 +4,17 @@
  * chain facts come from the shared manifest / chain registry; the server's
  * keyed RPC never leaks here.
  */
-import { RPC_TIMEOUT_MS } from './balances/withTimeout'
+import { BALANCE_RPC_TIMEOUT_MS } from './balances/constants'
 
 /**
  * One JSON-RPC call returning the `result`, or null on any error/miss.
  * Bounded by an AbortController timeout so a hung endpoint can't strand a
- * screen's loading state (see balances/withTimeout for why allSettled
+ * screen's loading state (see balances/constants for the shared read budget
  * callers need this).
  */
 export async function evmRpc(rpcUrl: string, method: string, params: unknown[]): Promise<unknown> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), RPC_TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), BALANCE_RPC_TIMEOUT_MS)
   try {
     const res = await fetch(rpcUrl, {
       method: 'POST',

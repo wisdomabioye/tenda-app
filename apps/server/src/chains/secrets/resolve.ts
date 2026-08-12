@@ -17,6 +17,7 @@ export type ResolvedChainSecret =
       namespace: 'solana'
       chainId: string
       rpcUrl: string
+      rpcUrlFallback?: string
       treasury: string
       disputeAdmin?: string
       usdcMint?: string
@@ -61,6 +62,7 @@ export function assemble(
       namespace: 'solana',
       chainId: entry.id,
       rpcUrl: must(present, 'rpcUrl', entry.id),
+      rpcUrlFallback: present.get('rpcUrlFallback'),
       treasury: must(present, 'treasury', entry.id),
       disputeAdmin: present.get('disputeAdmin'),
       usdcMint: present.get('usdcMint'),

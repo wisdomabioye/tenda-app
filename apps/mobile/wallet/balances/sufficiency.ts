@@ -18,15 +18,14 @@
  * let the chain decide. The check can only ever stop a transaction it
  * positively read as short.
  */
-import { formatAssetAmount } from '@tenda/shared'
+import { formatAssetAmount, withTimeout } from '@tenda/shared'
 import { WalletError } from '@/wallet/errors'
 import { selectChainById, useChainRegistryStore } from '@/stores/chain-registry.store'
 import { readSpendableBalance } from './spendable'
 import { toBigIntOrNull } from './raw-amount'
-import { withTimeout } from './withTimeout'
 
 /**
- * Budget for the whole pre-flight. Tighter than the readers' own RPC_TIMEOUT_MS
+ * Budget for the whole pre-flight. Tighter than `BALANCE_RPC_TIMEOUT_MS`
  * (10s) because this one blocks a flow that is otherwise instant: it sits in
  * front of the wallet opening, so a degraded RPC must surrender fast and fall
  * open rather than leave the user staring at a spinner.

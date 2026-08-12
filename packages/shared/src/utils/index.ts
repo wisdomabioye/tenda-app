@@ -46,3 +46,9 @@ export {
 } from './validation'
 export type { ValidationResult } from './validation'
 export { buildAuthMessage, type AuthMessageInput } from './auth-message'
+export {
+  resolveSolanaTransactionStatus,
+  type SolanaSignatureStatusValue,
+} from './solana-transaction-status'
+export { resolveHttpRpcEndpoints, type HttpRpcEndpointOptions } from './rpc-endpoints'
+export { withTimeout } from './async'

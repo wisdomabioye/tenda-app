@@ -9,6 +9,11 @@
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react-native'
 import { ESCROW_RPC_POLL_MS, ESCROW_SYNC_TIMEOUT_MS } from '@/hooks/escrow-sync/constants'
 
+let mockNetwork = { isConnected: true, isInternetReachable: true }
+jest.mock('@react-native-community/netinfo', () => ({
+  useNetInfo: () => mockNetwork,
+}))
+
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
     theme: {
@@ -85,6 +90,7 @@ beforeEach(() => {
   mockHasPending = false
   mockPendingSubscribers.clear()
   mockAbortPending.mockReset()
+  mockNetwork = { isConnected: true, isInternetReachable: true }
 })
 
 test('idle phase with no signature renders nothing', () => {

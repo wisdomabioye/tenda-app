@@ -1,6 +1,6 @@
 /**
  * useEscrowActions phase machine — drives the progress modal. Verifies the
- * lifecycle a transition steps through (preparing → signing → confirming), that
+ * lifecycle steps through preparing → signing → broadcasting → confirming, that
  * activeAction/pendingTxRef land, that clearPending resets, and that failures
  * (build reject, proof-upload reject) fall back to idle without a stuck spinner.
  * Native/UI deps are stubbed, same strategy as the gate test.
@@ -109,6 +109,27 @@ test('sits in the signing phase while the wallet is open (before broadcast)', as
     resolveSign('sig-1')
     await pending
   })
+  expect(result.current.phase).toBe('confirming')
+})
+
+test('moves to broadcasting after Solana signing and before an RPC result exists', async () => {
+  mockRequestApprove.mockResolvedValue(UNSIGNED)
+  let resolveBroadcast: (value: string) => void = () => {}
+  mockSignSendAndReport.mockImplementation((args: { onSigned?: () => void }) => {
+    args.onSigned?.()
+    return new Promise<string>((resolve) => { resolveBroadcast = resolve })
+  })
+  const { result } = renderHook(() => useEscrowActions(ARGS))
+
+  let pending: Promise<boolean> = Promise.resolve(false)
+  await act(async () => {
+    pending = result.current.approve()
+    await Promise.resolve()
+    await Promise.resolve()
+  })
+  expect(result.current.phase).toBe('broadcasting')
+
+  await act(async () => { resolveBroadcast('sig-1'); await pending })
   expect(result.current.phase).toBe('confirming')
 })
 

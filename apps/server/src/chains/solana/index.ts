@@ -45,6 +45,7 @@ export interface SolanaAdapterArgs {
   chain_id: ChainId
   /** RPC endpoint URL from `SOLANA_RPC_URL`. */
   rpc_url: string
+  rpc_url_fallback?: string
   /** Configured dispute-resolution authority (base58), if any. */
   dispute_authority?: string
   deps: SolanaAdapterDeps
@@ -52,7 +53,11 @@ export interface SolanaAdapterArgs {
 
 export function solanaAdapter(args: SolanaAdapterArgs): ChainAdapter {
   const rpc =
-    args.deps.rpc ?? createSolanaRpc({ rpc_url: args.rpc_url, chain_id: args.chain_id })
+    args.deps.rpc ?? createSolanaRpc({
+      rpc_url: args.rpc_url,
+      ...(args.rpc_url_fallback !== undefined ? { rpc_url_fallback: args.rpc_url_fallback } : {}),
+      chain_id: args.chain_id,
+    })
 
   // The Program instance encodes instructions only; its Connection is never
   // used for fetches (all reads go through `rpc`), so construction is free.

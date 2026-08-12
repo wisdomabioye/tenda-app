@@ -8,6 +8,7 @@
  */
 
 import { Connection, PublicKey, type Commitment } from '@solana/web3.js'
+import { withTimeout } from '@tenda/shared'
 import type { ChainId } from '@server/chains/types'
 
 /** Minimal decoded view of a fetched transaction. */
@@ -80,33 +81,22 @@ export function solanaRpcFromConnection(
   conn: SolanaConnectionPort,
   timeoutMs = DEFAULT_RPC_TIMEOUT_MS,
 ): SolanaRpc {
-  function withTimeout<T>(label: string, p: Promise<T>): Promise<T> {
-    return new Promise<T>((resolve, reject) => {
-      const timer = setTimeout(
-        () => reject(new Error(`solana rpc timeout after ${timeoutMs}ms: ${label}`)),
-        timeoutMs,
-      )
-      p.then(
-        (v) => {
-          clearTimeout(timer)
-          resolve(v)
-        },
-        (e) => {
-          clearTimeout(timer)
-          reject(e)
-        },
-      )
-    })
+  function withRpcTimeout<T>(label: string, operation: Promise<T>): Promise<T> {
+    return withTimeout(
+      operation,
+      timeoutMs,
+      `solana rpc timeout after ${timeoutMs}ms: ${label}`,
+    )
   }
 
   return {
     async getLatestBlockhash() {
-      const r = await withTimeout('getLatestBlockhash', conn.getLatestBlockhash())
+      const r = await withRpcTimeout('getLatestBlockhash', conn.getLatestBlockhash())
       return { blockhash: r.blockhash, last_valid_block_height: r.lastValidBlockHeight }
     },
 
     async getTransaction(tx_ref) {
-      const tx = await withTimeout(`getTransaction(${tx_ref})`, conn.getTransaction(tx_ref))
+      const tx = await withRpcTimeout(`getTransaction(${tx_ref})`, conn.getTransaction(tx_ref))
       if (tx === null) return null
       const err = tx.meta?.err ?? null
       return {
@@ -117,12 +107,12 @@ export function solanaRpcFromConnection(
     },
 
     async getAccount(address) {
-      const info = await withTimeout(`getAccountInfo(${address})`, conn.getAccountInfo(address))
+      const info = await withRpcTimeout(`getAccountInfo(${address})`, conn.getAccountInfo(address))
       return info === null ? null : { data: Buffer.from(info.data), owner: info.owner }
     },
 
     async getSignaturesForAddress(address, opts) {
-      const infos = await withTimeout(
+      const infos = await withRpcTimeout(
         `getSignaturesForAddress(${address})`,
         conn.getSignaturesForAddress(address, { limit: opts.limit }),
       )
@@ -133,26 +123,58 @@ export function solanaRpcFromConnection(
 
 export function createSolanaRpc(args: {
   rpc_url: string
+  rpc_url_fallback?: string
   chain_id: ChainId
   timeout_ms?: number
 }): SolanaRpc {
   const commitment = commitmentFor(args.chain_id)
-  const connection = new Connection(args.rpc_url, commitment)
-  const port: SolanaConnectionPort = {
-    getLatestBlockhash: () => connection.getLatestBlockhash(commitment),
-    getTransaction: (tx_ref) =>
-      connection.getTransaction(tx_ref, {
-        maxSupportedTransactionVersion: 0,
-        commitment: commitment === 'confirmed' ? 'confirmed' : 'finalized',
-      }),
-    // web3.js hands back `owner` as a PublicKey; the port speaks base58 so the
-    // seam stays comparable to IDL/config addresses without importing web3.
-    getAccountInfo: async (address) => {
-      const info = await connection.getAccountInfo(new PublicKey(address), commitment)
-      return info === null ? null : { data: info.data, owner: info.owner.toBase58() }
-    },
-    getSignaturesForAddress: (address, opts) =>
-      connection.getSignaturesForAddress(new PublicKey(address), { limit: opts.limit }),
+  const buildPort = (rpcUrl: string): SolanaConnectionPort => {
+    const connection = new Connection(rpcUrl, commitment)
+    return {
+      getLatestBlockhash: () => connection.getLatestBlockhash(commitment),
+      getTransaction: (tx_ref) =>
+        connection.getTransaction(tx_ref, {
+          maxSupportedTransactionVersion: 0,
+          commitment: commitment === 'confirmed' ? 'confirmed' : 'finalized',
+        }),
+      // web3.js hands back `owner` as a PublicKey; the port speaks base58 so the
+      // seam stays comparable to IDL/config addresses without importing web3.
+      getAccountInfo: async (address) => {
+        const info = await connection.getAccountInfo(new PublicKey(address), commitment)
+        return info === null ? null : { data: info.data, owner: info.owner.toBase58() }
+      },
+      getSignaturesForAddress: (address, opts) =>
+        connection.getSignaturesForAddress(new PublicKey(address), { limit: opts.limit }),
+    }
   }
-  return solanaRpcFromConnection(port, args.timeout_ms ?? DEFAULT_RPC_TIMEOUT_MS)
+  const primary = solanaRpcFromConnection(
+    buildPort(args.rpc_url),
+    args.timeout_ms ?? DEFAULT_RPC_TIMEOUT_MS,
+  )
+  if (args.rpc_url_fallback === undefined || args.rpc_url_fallback === args.rpc_url) return primary
+  const secondary = solanaRpcFromConnection(
+    buildPort(args.rpc_url_fallback),
+    args.timeout_ms ?? DEFAULT_RPC_TIMEOUT_MS,
+  )
+  return failoverSolanaRpc(primary, secondary)
+}
+
+/** Fail over each independent read; callers retain the same protocol-specific interface. */
+export function failoverSolanaRpc(primary: SolanaRpc, secondary: SolanaRpc): SolanaRpc {
+  const attempt = async <T>(first: () => Promise<T>, fallback: () => Promise<T>): Promise<T> => {
+    try {
+      return await first()
+    } catch {
+      return fallback()
+    }
+  }
+  return {
+    getLatestBlockhash: () => attempt(primary.getLatestBlockhash, secondary.getLatestBlockhash),
+    getTransaction: (ref) => attempt(() => primary.getTransaction(ref), () => secondary.getTransaction(ref)),
+    getAccount: (address) => attempt(() => primary.getAccount(address), () => secondary.getAccount(address)),
+    getSignaturesForAddress: (address, opts) => attempt(
+      () => primary.getSignaturesForAddress(address, opts),
+      () => secondary.getSignaturesForAddress(address, opts),
+    ),
+  }
 }

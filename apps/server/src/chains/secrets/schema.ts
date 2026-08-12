@@ -33,6 +33,7 @@ export const SECRET_SCHEMA: Record<string, readonly SecretFieldSpec[]> = {
   // pdas, and the seeder. Treasury + RPC are the genuine per-deployment values.
   solana: [
     { key: 'rpcUrl', envSuffix: 'RPC_URL', required: true, kind: 'url' },
+    { key: 'rpcUrlFallback', envSuffix: 'RPC_URL_FALLBACK', required: false, kind: 'url' },
     { key: 'treasury', envSuffix: 'TREASURY_ADDR', required: true, kind: 'base58' },
     // On-chain dispute-resolution authority (rotatable via the multisig).
     // Optional: enables the admin sign pre-flight check when set.

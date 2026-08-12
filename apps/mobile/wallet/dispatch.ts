@@ -75,13 +75,17 @@ export function resolveEvmFrom(): string | null {
 }
 
 /** Sign + broadcast a server-built unsigned tx. Returns the tx_ref. */
-export async function signAndSendUnsignedTx(unsigned: UnsignedTx, chain_id?: string): Promise<string> {
+export async function signAndSendUnsignedTx(
+  unsigned: UnsignedTx,
+  chain_id?: string,
+  onSigned?: () => void,
+): Promise<string> {
   switch (unsigned.kind) {
     case 'solana-tx': {
       // The MWA adapter owns its session token (AsyncStorage), single source
       // of truth, no auth-store round-trip.
       const tx = VersionedTransaction.deserialize(Buffer.from(unsigned.tx_base64, 'base64'))
-      return signAndSendStored(tx)
+      return signAndSendStored(tx, onSigned)
     }
     case 'evm-tx': {
       // Guarantee a live, linked session first (connect-on-demand) AND sync the
@@ -140,8 +144,9 @@ export async function signSendAndReport(args: {
   action: EscrowTxType
   chain_id: string
   escrow_id?: string
+  onSigned?: () => void
 }): Promise<string> {
-  const tx_ref = await signAndSendUnsignedTx(args.unsigned, args.chain_id)
+  const tx_ref = await signAndSendUnsignedTx(args.unsigned, args.chain_id, args.onSigned)
   await useEscrowStore.getState().reportTx({
     tx_ref,
     action: args.action,

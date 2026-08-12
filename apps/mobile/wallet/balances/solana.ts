@@ -1,9 +1,9 @@
 import { PublicKey } from '@solana/web3.js'
-import type { ChainRegistryEntry } from '@tenda/shared'
+import { withTimeout, type ChainRegistryEntry } from '@tenda/shared'
 import { getBalance, getSplTokenBalance } from '@/wallet'
 import type { AssetBalance, BalanceReader } from './types'
 import { selectAssets } from './select-assets'
-import { withTimeout } from './withTimeout'
+import { BALANCE_RPC_TIMEOUT_MS } from './constants'
 
 export const solanaBalanceReader: BalanceReader = {
   async read(
@@ -23,8 +23,11 @@ export const solanaBalanceReader: BalanceReader = {
         // Bound each RPC so a hung endpoint can't strand the wallet screen.
         const amountRaw =
           asset.token_address === null
-            ? String(await withTimeout(getBalance(owner))) // native SOL, in lamports
-            : await withTimeout(getSplTokenBalance(owner, new PublicKey(asset.token_address)))
+            ? String(await withTimeout(getBalance(owner), BALANCE_RPC_TIMEOUT_MS)) // native SOL, in lamports
+            : await withTimeout(
+                getSplTokenBalance(owner, new PublicKey(asset.token_address)),
+                BALANCE_RPC_TIMEOUT_MS,
+              )
         return {
           assetId: asset.id,
           symbol: asset.symbol,

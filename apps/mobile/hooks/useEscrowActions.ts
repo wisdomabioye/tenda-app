@@ -17,7 +17,12 @@ import { sha256 } from '@noble/hashes/sha256'
 import { Buffer } from 'buffer'
 import bs58 from 'bs58'
 import { TAKEDOWN_REFUSED_MESSAGE } from '@tenda/shared'
-import type { EscrowTxType, ProofType, UnsignedTx } from '@tenda/shared'
+import type {
+  EscrowTxType,
+  ProofType,
+  TransactionProgressPhase,
+  UnsignedTx,
+} from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
 import { WalletError } from '@/wallet/errors'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
@@ -40,10 +45,11 @@ export interface ProofFile {
 /**
  * Lifecycle of a single transition, drives the progress modal:
  *  - preparing  → building the unsigned tx (server round-trip)
- *  - signing    → wallet is open, awaiting the user's signature + broadcast
+ *  - signing    → wallet is open, awaiting the user's signature
+ *  - broadcasting → signed transaction is being submitted to the chain
  *  - confirming → broadcast, waiting on-chain confirmation (pendingTxRef set)
  */
-export type TxPhase = 'idle' | 'preparing' | 'signing' | 'confirming'
+export type TxPhase = TransactionProgressPhase
 
 export function proofHashFor(chainId: string, urls: string[]): string {
   const digest = sha256(new TextEncoder().encode(urls.join('\n')))
@@ -129,6 +135,7 @@ export function useEscrowActions({
         action,
         chain_id: chainId,
         escrow_id: escrowId,
+        onSigned: () => setPhase('broadcasting'),
       })
       setPendingTxRef(tx_ref)
       setPendingAction(action)
@@ -177,7 +184,7 @@ export function useEscrowActions({
     busyAction,
     pendingTxRef,
     pendingAction,
-    /** Lifecycle for the progress modal (preparing → signing → confirming). */
+    /** Lifecycle for the progress modal (preparing → signing → broadcasting → confirming). */
     phase,
     /** Action currently in flight across all phases (build → confirm). */
     activeAction: busyAction ?? pendingAction,

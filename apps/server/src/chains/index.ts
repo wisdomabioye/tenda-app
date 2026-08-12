@@ -85,6 +85,7 @@ export function buildAdapters(
         solanaAdapter({
           chain_id: secret.chainId,
           rpc_url: secret.rpcUrl,
+          ...(secret.rpcUrlFallback !== undefined ? { rpc_url_fallback: secret.rpcUrlFallback } : {}),
           dispute_authority: secret.disputeAdmin,
           deps: deps.solana(secret.chainId),
         }),

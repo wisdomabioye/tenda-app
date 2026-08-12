@@ -148,10 +148,10 @@ test('falls open when the read hangs past the pre-flight budget', async () => {
 
 test('the pre-flight budget is tighter than a reader RPC timeout', async () => {
   // It blocks a flow that is otherwise instant, so it must surrender first.
-  const { RPC_TIMEOUT_MS } = jest.requireActual<{ RPC_TIMEOUT_MS: number }>(
-    '@/wallet/balances/withTimeout',
+  const { BALANCE_RPC_TIMEOUT_MS } = jest.requireActual<{ BALANCE_RPC_TIMEOUT_MS: number }>(
+    '@/wallet/balances/constants',
   )
-  expect(SUFFICIENCY_TIMEOUT_MS).toBeLessThan(RPC_TIMEOUT_MS)
+  expect(SUFFICIENCY_TIMEOUT_MS).toBeLessThan(BALANCE_RPC_TIMEOUT_MS)
 })
 
 test('falls open when there is no linked wallet (the 9D gate owns that case)', async () => {

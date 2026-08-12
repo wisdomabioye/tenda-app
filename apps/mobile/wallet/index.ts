@@ -12,7 +12,9 @@
  * dispatch.signSendAndReport.
  */
 import { Connection, PublicKey, clusterApiUrl } from '@solana/web3.js'
+import type { OnChainTransactionStatus } from '@tenda/shared'
 import { SOLANA_NETWORK } from './config'
+import { solanaRpcTransport } from './solana-rpc'
 
 // Re-export the single-source chain config (wallet/config.ts) and the wallet
 // error type (wallet/errors.ts) so barrel consumers keep importing from
@@ -56,14 +58,8 @@ export {
   subscribePendingWalletRequest,
 } from './reown/request-guard'
 
-export type OnChainTxStatus = 'confirmed' | 'finalized' | 'failed' | 'not_found'
+export type OnChainTxStatus = OnChainTransactionStatus
 
 export async function getTransactionStatus(signature: string): Promise<OnChainTxStatus> {
-  const result = await connection.getSignatureStatus(signature, { searchTransactionHistory: true })
-  const value = result.value
-  if (!value) return 'not_found'
-  if (value.err) return 'failed'
-  if (value.confirmationStatus === 'finalized') return 'finalized'
-  if (value.confirmationStatus === 'confirmed') return 'confirmed'
-  return 'not_found'
+  return solanaRpcTransport.getTransactionStatus(signature)
 }

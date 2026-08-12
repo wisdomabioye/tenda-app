@@ -2,6 +2,8 @@ import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { View, Modal, StyleSheet, ActivityIndicator } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { CheckCircle, XCircle, Wallet } from 'lucide-react-native'
+import { useNetInfo } from '@react-native-community/netinfo'
+import { TRANSACTION_COPY, TRANSACTION_RESILIENCE } from '@tenda/shared'
 import { radius, spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
@@ -12,6 +14,7 @@ import {
 } from '@/wallet'
 import type { TxPhase } from '@/hooks/useEscrowActions'
 import { ESCROW_CONFIRM_DISMISS_MS, useEscrowTransactionSync } from '@/hooks/escrow-sync'
+import { useSlowOperation } from '@/hooks/useSlowOperation'
 
 interface TransactionMonitorProps {
   signature: string | null
@@ -52,10 +55,14 @@ interface TransactionMonitorProps {
 }
 
 /** Visual state = internal poll result once broadcast, else the pre-sign phase. */
-type Display = 'preparing' | 'signing' | 'confirming' | 'confirmed' | 'deferred' | 'failed'
+type Display = 'preparing' | 'signing' | 'broadcasting' | 'confirming' | 'confirmed' | 'deferred' | 'failed'
 
 export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false, escrowId, chainId, phase, actionLabel, preparingCaption, checkApplied }: TransactionMonitorProps) {
   const { theme } = useUnistyles()
+  const network = useNetInfo()
+  const broadcasting = phase === 'broadcasting'
+  const slowBroadcast = useSlowOperation(broadcasting, TRANSACTION_RESILIENCE.slowOperationNoticeMs)
+  const offline = network.isConnected === false || network.isInternetReachable === false
   const confirmation = useEscrowTransactionSync({ signature, escrowId, chainId, checkApplied })
   const confirmedRef = useRef(onConfirmed)
   confirmedRef.current = onConfirmed
@@ -94,13 +101,15 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
           ? 'preparing'
           : phase === 'signing'
             ? 'signing'
-            : 'confirming'
+            : phase === 'broadcasting'
+              ? 'broadcasting'
+              : 'confirming'
 
   const confirmingTitle = actionLabel
     ? `${actionLabel}…`
     : setupPhase
       ? 'Setting up worker account…'
-      : 'Confirming transaction…'
+      : TRANSACTION_COPY.confirmingTitle
 
   return (
     <Modal transparent animationType="fade" visible={open}>
@@ -110,10 +119,10 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
             <>
               <ActivityIndicator size="large" color={theme.colors.brand.primary} />
               <Text variant="subheading" align="center" style={s.title}>
-                Preparing transaction…
+                {TRANSACTION_COPY.preparingTitle}
               </Text>
               <Text variant="caption" color={theme.colors.content.secondary} align="center">
-                {preparingCaption ?? 'Getting your request ready, one moment.'}
+                {preparingCaption ?? TRANSACTION_COPY.preparingCaption}
               </Text>
             </>
           )}
@@ -122,10 +131,10 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
             <>
               <Wallet size={48} color={theme.colors.brand.primary} />
               <Text variant="subheading" align="center" style={s.title}>
-                Approve in your wallet
+                {TRANSACTION_COPY.signingTitle}
               </Text>
               <Text variant="caption" color={theme.colors.content.secondary} align="center">
-                Your wallet is opening — approve the transaction there to continue.
+                {TRANSACTION_COPY.signingCaption}
               </Text>
               {canCancelSigning && (
                 <Button variant="outline" size="md" onPress={abortPendingWalletRequest}>
@@ -135,18 +144,34 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
             </>
           )}
 
+          {display === 'broadcasting' && (
+            <>
+              <ActivityIndicator size="large" color={theme.colors.brand.primary} />
+              <Text variant="subheading" align="center" style={s.title}>
+                {TRANSACTION_COPY.broadcastingTitle}
+              </Text>
+              <Text variant="caption" color={theme.colors.content.secondary} align="center">
+                {offline
+                  ? TRANSACTION_COPY.offlineBroadcastCaption
+                  : slowBroadcast
+                    ? TRANSACTION_COPY.slowBroadcastCaption
+                    : TRANSACTION_COPY.broadcastingCaption}
+              </Text>
+            </>
+          )}
+
           {display === 'confirming' && (
             <>
               <ActivityIndicator size="large" color={theme.colors.brand.primary} />
               <Text variant="subheading" align="center" style={s.title}>
-                {confirmation.state === 'syncing' ? 'Syncing with Tenda…' : confirmingTitle}
+                {confirmation.state === 'syncing' ? TRANSACTION_COPY.syncingTitle : confirmingTitle}
               </Text>
               <Text variant="caption" color={theme.colors.content.secondary} align="center">
                 {confirmation.state === 'syncing'
-                  ? 'Confirmed on-chain. Updating your gig now.'
+                  ? TRANSACTION_COPY.syncingCaption
                   : setupPhase
                   ? 'One-time setup required to accept gigs. Please wait.'
-                  : 'Confirming on-chain. This may take a few seconds.'}
+                  : TRANSACTION_COPY.confirmingCaption}
               </Text>
             </>
           )}
@@ -179,7 +204,7 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
             <>
               <ActivityIndicator size="large" color={theme.colors.brand.primary} />
               <Text variant="subheading" align="center" style={s.title}>
-                Sync is taking longer
+                {TRANSACTION_COPY.deferredTitle}
               </Text>
               <Text variant="caption" color={theme.colors.content.secondary} align="center">
                 {confirmation.failure}

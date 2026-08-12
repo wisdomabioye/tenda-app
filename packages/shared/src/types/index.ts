@@ -12,6 +12,7 @@ export type {
 export { ADMIN_ROLES, ASSIGNABLE_ROLES } from './user'
 export { GIG_CATEGORIES } from '../constants/categories'
 export type { ChainNamespace } from '../db/schema/chains'
+export type { OnChainTransactionStatus, TransactionProgressPhase } from './transaction'
 export type {
   Escrow,
   NewEscrow,
