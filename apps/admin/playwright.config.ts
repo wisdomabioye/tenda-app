@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const port = 3100
+// Keep E2E isolated from the developer's port 3100 process. Reusing a dev
+// server can test stale/in-progress output instead of this production build.
+const port = 3110
 const baseURL = `http://127.0.0.1:${port}`
 
 export default defineConfig({
@@ -22,9 +24,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm build && pnpm start',
+    command: `pnpm build && pnpm exec next start -p ${port}`,
     url: baseURL,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 180_000,
     env: {
       ...process.env,
