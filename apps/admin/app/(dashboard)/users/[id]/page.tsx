@@ -16,6 +16,7 @@ import { UserStatusBadge } from '@/components/common/status-badge'
 import { UserActions } from '@/components/users/user-actions'
 import { adminApi, type AdminUserDetail } from '@/api/client'
 import { ApiError } from '@/lib/api'
+import { formatAdminDate, formatAdminDateTime } from '@/lib/date-format'
 
 function rate(bps: number | null): string {
   return bps === null ? 'no closed engagements' : `${(bps / 100).toFixed(1)}%`
@@ -80,10 +81,10 @@ export default function UserDetailPage() {
             <Badge variant="destructive">⚑ fraud flag — review manually</Badge>
           )}
           <div className="ml-auto text-right text-xs text-muted-foreground">
-            <p>Joined {new Date(user.created_at).toLocaleDateString()}</p>
+            <p>Joined {formatAdminDate(user.created_at)}</p>
             <p>
               Last active{' '}
-              {user.last_active_at === null ? 'never' : new Date(user.last_active_at).toLocaleString()}
+              {user.last_active_at === null ? 'never' : formatAdminDateTime(user.last_active_at)}
             </p>
           </div>
         </div>

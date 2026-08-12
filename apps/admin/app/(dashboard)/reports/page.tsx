@@ -22,6 +22,7 @@ import { ListPagination } from '@/components/common/list-pagination'
 import { ReportActionDialog } from '@/components/reports/action-dialog'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
+import { formatAdminDateTime } from '@/lib/date-format'
 
 const PAGE_SIZE = 20
 type Tab = ReportStatus | 'all'
@@ -112,7 +113,7 @@ export default function ReportsPage() {
                       {r.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>{new Date(r.created_at).toLocaleString()}</TableCell>
+                  <TableCell>{formatAdminDateTime(r.created_at)}</TableCell>
                   <TableCell className="text-right">
                     <Button size="sm" variant="outline" onClick={() => setSelected(r)}>
                       Action

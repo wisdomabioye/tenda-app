@@ -2,6 +2,11 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
+// Vitest otherwise preserves an inherited NODE_ENV=production and loads
+// React's production build, whose test renderer has no act(). Keep direct
+// `vitest` invocations as safe as the package scripts.
+Object.assign(process.env, { NODE_ENV: 'test' })
+
 // jsdom renders React 19 *client* components only. App Router server
 // components / async pages are out of scope here (Playwright in Phase 2);
 // see TEST_PLAN.md "Admin RSC limit".

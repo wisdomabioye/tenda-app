@@ -26,6 +26,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { ProofTile } from '@/components/disputes/dossier/proofs-gallery'
+import { formatAdminDateTime } from '@/lib/date-format'
 import { adminApi } from '@/api/client'
 import { ApiError } from '@/lib/api'
 import { useSessionUser } from '@/lib/use-session'
@@ -156,7 +157,7 @@ export function ThreadView({ escrowId, onAssignee, kind, parties }: ThreadViewPr
                   <p className="whitespace-pre-wrap break-words">{m.body}</p>
                 )}
                 <p className="mt-1 text-[10px] opacity-70">
-                  {new Date(m.created_at).toLocaleString()}
+                  {formatAdminDateTime(m.created_at)}
                 </p>
               </div>
             </div>

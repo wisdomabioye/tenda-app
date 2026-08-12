@@ -1,4 +1,5 @@
 import { formatAssetAmount, type DossierTransaction } from '@tenda/shared'
+import { formatAdminDateTime } from '@/lib/date-format'
 
 /**
  * On-chain transaction history as a vertical timeline (oldest first). Each
@@ -22,7 +23,7 @@ export function StatusTimeline({
           <span className="font-medium capitalize">{t.type.replace(/_/g, ' ')}</span>
           <span className="text-muted-foreground">
             {t.amount_raw !== null && `${formatAssetAmount(t.amount_raw, asset)} · `}
-            {new Date(t.created_at).toLocaleString()}
+            {formatAdminDateTime(t.created_at)}
           </span>
         </li>
       ))}

@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/table'
 import { ClaimActions } from './claim-actions'
 import { AssigneeBadge } from './assignee-badge'
+import { formatAdminDateTime } from '@/lib/date-format'
 
 interface DisputeTableProps {
   disputes: DisputeSummary[]
@@ -20,7 +21,7 @@ interface DisputeTableProps {
 }
 
 function when(iso: string | null): string {
-  return iso === null ? '—' : new Date(iso).toLocaleString()
+  return iso === null ? '—' : formatAdminDateTime(iso)
 }
 
 export function DisputeTable({ disputes, meId, onChanged }: DisputeTableProps) {

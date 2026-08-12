@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/table'
 import { adminApi, type FiatIntentRow, type FiatProviderRow } from '@/api/client'
 import { ApiError } from '@/lib/api'
+import { formatAdminDateTime } from '@/lib/date-format'
 
 type Override = { intent: FiatIntentRow; action: 'force-settle' | 'refund' }
 
@@ -136,7 +137,7 @@ export default function FiatPage() {
                     </TableCell>
                     <TableCell>{i.provider}</TableCell>
                     <TableCell><Badge variant={terminal ? 'outline' : 'secondary'}>{i.status}</Badge></TableCell>
-                    <TableCell>{new Date(i.created_at).toLocaleString()}</TableCell>
+                    <TableCell>{formatAdminDateTime(i.created_at)}</TableCell>
                     <TableCell className="space-x-2 text-right">
                       <Button size="sm" variant="outline" disabled={terminal} onClick={() => setOverride({ intent: i, action: 'force-settle' })}>
                         Settle
