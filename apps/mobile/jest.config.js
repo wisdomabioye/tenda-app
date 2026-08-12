@@ -10,6 +10,12 @@
  * so the whitelist matches on the `.pnpm/<pkg>@` segment, not a bare
  * `node_modules/<pkg>` prefix.
  */
+// Jest only supplies "test" when NODE_ENV is absent. Release shells export
+// "production", which makes Babel transform the suite as production code
+// before setupFiles run (no Jest mock hoisting) and selects React's renderer
+// without `act`. Set it while the config itself is loading, before transforms.
+process.env.NODE_ENV = 'test'
+
 const WHITELIST = [
   '(jest-)?react-native',
   '@react-native',
