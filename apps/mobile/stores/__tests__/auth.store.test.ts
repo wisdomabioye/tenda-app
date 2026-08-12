@@ -49,7 +49,7 @@ jest.mock('@/stores/pending-sync.store', () => ({
   usePendingSyncStore: { getState: () => ({ clear: jest.fn(async () => {}) }) },
 }))
 
-import { renderHook } from '@testing-library/react-native'
+import { act, renderHook } from '@testing-library/react-native'
 import { useAuthStore, useIsSeeker } from '@/stores/auth.store'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { api, ApiClientError } from '@/api/client'
@@ -622,12 +622,13 @@ describe('useIsSeeker', () => {
     // Fee selection (seeker_fee_bps vs fee_bps) hangs off this, so "no user"
     // must resolve to the non-seeker rate rather than undefined.
     useAuthStore.setState({ user: null })
-    expect(renderHook(() => useIsSeeker()).result.current).toBe(false)
+    const { result } = renderHook(() => useIsSeeker())
+    expect(result.current).toBe(false)
 
-    useAuthStore.setState({ user: { ...USER, is_seeker: true } })
-    expect(renderHook(() => useIsSeeker()).result.current).toBe(true)
+    act(() => useAuthStore.setState({ user: { ...USER, is_seeker: true } }))
+    expect(result.current).toBe(true)
 
-    useAuthStore.setState({ user: { ...USER, is_seeker: false } })
-    expect(renderHook(() => useIsSeeker()).result.current).toBe(false)
+    act(() => useAuthStore.setState({ user: { ...USER, is_seeker: false } }))
+    expect(result.current).toBe(false)
   })
 })

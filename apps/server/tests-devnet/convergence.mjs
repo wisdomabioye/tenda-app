@@ -20,8 +20,8 @@
  * default http://localhost:3000), and a keypair holding devnet SOL
  * (SOLANA_KEYPAIR, default ~/.config/solana/id.json).
  *
- * On success it removes the rows it created; on failure it leaves them for
- * inspection and prints the ids.
+ * On success it cancels the on-chain escrow before removing the rows it
+ * created; on failure it leaves them for inspection and prints the ids.
  *
  * KNOWN GAP: this exercises EscrowCreated only. The events Stage 3 actually
  * added — CounterpartyAssigned / AssignmentReleased — need an approval-mode
@@ -160,12 +160,35 @@ log('')
 const converged = status === 'open'
 log(converged ? '✅ CONVERGED from the listener alone' : '❌ DID NOT CONVERGE')
 
-// ── 5. put the dev DB back ─────────────────────────────────────────────────
-// Only on success: a failed run is something you want to go and look at, and
-// the rows are the evidence. `escrows.creator_id` is ON DELETE RESTRICT (an
-// escrow must outlive account closure), so the escrow goes first — its
-// satellites and the user's wallet/identity rows both cascade.
+// ── 5. settle the chain escrow, then put the dev DB back ────────────────────
+// Deleting an OPEN row would discard the only local pointer to locked funds.
+// Cancel first and require the listener to observe that cancellation too.
+let settled = false
 if (converged) {
+  const cancelled = await api(`/v1/escrows/${escrowId}/cancel`, { method: 'POST', token })
+  const cancelTx = VersionedTransaction.deserialize(
+    Buffer.from(cancelled.unsigned.tx_base64, 'base64'),
+  )
+  cancelTx.sign([kp])
+  const cancelSig = await conn.sendRawTransaction(cancelTx.serialize(), { skipPreflight: false })
+  await conn.confirmTransaction(cancelSig, 'confirmed')
+  log(`✓ cancellation confirmed ${cancelSig}`)
+
+  const cancelDeadline = Date.now() + 180_000
+  while (Date.now() < cancelDeadline) {
+    const rows = await sql`SELECT status FROM escrows WHERE id = ${escrowId}`
+    if (rows[0]?.status === 'cancelled') {
+      settled = true
+      break
+    }
+    await new Promise((r) => setTimeout(r, 3000))
+  }
+  log(settled ? '✅ CANCELLED and funds released' : '❌ cancellation did not converge')
+}
+
+// Only after both transitions converge: a failed run is evidence worth
+// retaining. `escrows.creator_id` is ON DELETE RESTRICT, so escrow goes first.
+if (settled) {
   await sql`DELETE FROM escrows WHERE id = ${escrowId}`
   await sql`DELETE FROM users WHERE id = ${user.id}`
   log('  cleaned up: escrow + user')
@@ -173,4 +196,4 @@ if (converged) {
   log(`  left for inspection: escrow ${escrowId}, user ${user.id}`)
 }
 await sql.end()
-process.exit(converged ? 0 : 1)
+process.exit(settled ? 0 : 1)

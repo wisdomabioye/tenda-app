@@ -81,6 +81,28 @@ test('renders both secondary buttons when the row holds two', () => {
   expect(screen.getByText('Dispute')).toBeTruthy()
 })
 
+test.each(['solana:devnet', 'eip155:11155111'])(
+  'a submitted poster can approve or dispute on %s',
+  (chainId) => {
+    const { onAction, onTxAction } = renderBar(
+      gigDetail({
+        chain_id: chainId,
+        status: 'submitted',
+        counterparty: userRef(WORKER_ID),
+      }),
+      CREATOR_ID,
+    )
+
+    fireEvent.press(screen.getByText('Approve & Pay'))
+    fireEvent.press(screen.getByText('Dispute'))
+
+    expect(onTxAction).toHaveBeenCalledTimes(1)
+    expect(onTxAction).toHaveBeenCalledWith('approve')
+    expect(onAction).toHaveBeenCalledTimes(1)
+    expect(onAction).toHaveBeenCalledWith('dispute')
+  },
+)
+
 /**
  * Every button the bar can show must reach a handler. Decline shipped DEAD in
  * review: the bar raised `onTxAction('decline')`, but the screen's confirm

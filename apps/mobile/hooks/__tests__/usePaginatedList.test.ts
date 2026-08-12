@@ -351,7 +351,12 @@ describe('first-frame state', () => {
   it('reports isLoading on the FIRST render, before the effect fires', () => {
     // The fetch is kicked off by an effect (post-render). Starting at false
     // renders one frame of "settled, no rows" — a flash of the empty state.
-    const fetchPage = jest.fn().mockResolvedValue(page([], 0))
+    // Keep the request pending: this assertion is specifically about the
+    // pre-response frame. A resolved promise would update state after the
+    // assertion (and potentially after test cleanup), producing an act warning
+    // while testing a different moment from the one this case names.
+    const pending = deferred<PaginatedResponse<Row>>()
+    const fetchPage = jest.fn().mockReturnValue(pending.promise)
     const { result } = renderHook(() => usePaginatedList({ fetchPage, query: {}, keyOf }))
     expect(result.current.isLoading).toBe(true)
     expect(result.current.hasFetched).toBe(false)
@@ -596,7 +601,7 @@ describe('cacheQueries', () => {
       .mockResolvedValueOnce(page(rows('old'), 1))
       .mockResolvedValueOnce(page(rows('fresh'), 1)) // refresh
       .mockResolvedValueOnce(page(rows('z'), 1)) // other chain
-      .mockResolvedValueOnce(page(rows('fresh'), 1)) // revalidate on return
+      .mockResolvedValueOnce(page(rows('newest'), 1)) // revalidate on return
     const { result, rerender } = renderHook(
       ({ chain }: { chain?: string }) =>
         usePaginatedList({ fetchPage, query: { chain_id: chain }, keyOf, cacheQueries: true }),
@@ -611,5 +616,9 @@ describe('cacheQueries', () => {
     rerender({})
     // The refreshed rows, not the stale first page, are what gets painted.
     expect(result.current.items.map(keyOf)).toEqual(['fresh'])
+    // Then the background revalidation must really settle. Waiting for a
+    // distinct response both prevents an update leaking beyond this test and
+    // proves the cache hit did not suppress its network freshness check.
+    await waitFor(() => expect(result.current.items.map(keyOf)).toEqual(['newest']))
   })
 })
