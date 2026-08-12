@@ -16,7 +16,11 @@ import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import { DeadlineCountdown } from '@/components/shared/DeadlineCountdown'
 import { GigCardCompact } from '@/components/gig/GigCardCompact'
-import { applicationStatusLine, openApplicationLine } from './copy'
+import {
+  APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL,
+  applicationStatusLine,
+  openApplicationLine,
+} from './copy'
 
 interface Props {
   row: MyApplication
@@ -42,7 +46,13 @@ export function MyApplicationCard({ row, busy, onWithdraw }: Props) {
           </Text>
           {/* D5: the applicant is responsible for their own availability, so
               the time left on their application is theirs to watch. */}
-          {isOpen && <DeadlineCountdown deadline={row.application.expires_at} label="Expires" />}
+          {isOpen && (
+            <DeadlineCountdown
+              deadline={row.application.expires_at}
+              label={APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL}
+              expiredLabel="Application expired"
+            />
+          )}
         </View>
         {isOpen && (
           <Button variant="outline" size="sm" loading={busy} onPress={() => onWithdraw(row)}>

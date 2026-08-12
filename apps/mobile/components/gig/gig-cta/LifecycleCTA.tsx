@@ -93,7 +93,10 @@ export function LifecycleCTA({
       )
 
     case 'dispute':
-      return <Button {...shared} variant="danger" onPress={() => onAction('dispute')}>Dispute</Button>
+      // Opening the explanation sheet is not itself destructive. Keep this
+      // entry action restrained; the final "Raise Dispute" confirmation is
+      // where the danger treatment belongs.
+      return <Button {...shared} variant="outline" onPress={() => onAction('dispute')}>Dispute</Button>
 
     case 'review':
       return <Button {...shared} variant="outline" onPress={() => onAction('review')}>Leave Review</Button>

@@ -41,6 +41,14 @@ export const WITHDRAW_SUCCESS = 'Application withdrawn.'
 export const RELEASE_SUCCESS =
   "Thanks for saying so — the poster has been told you're no longer available."
 
+/** Explains the shortlist timer before the poster compares individual rows. */
+export const APPLICANT_REVIEW_GUIDANCE =
+  'Each timer shows how long that application remains available. Assigning a worker starts their delivery window.'
+
+/** Applicant-voiced purpose for the application expiry countdown. */
+export const APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL =
+  'Time left for the poster to assign you'
+
 /**
  * Prompts for the two off-chain actions that ask before acting, shaped to
  * spread straight onto `ConfirmDialog`.

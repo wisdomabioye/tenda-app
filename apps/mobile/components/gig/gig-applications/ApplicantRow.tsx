@@ -16,7 +16,8 @@ import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
 import { ReviewScore } from '@/components/shared/ReviewScore'
-import { DeadlineCountdown } from '@/components/shared/DeadlineCountdown'
+import { DeadlineCountdownDisplay } from '@/components/shared/DeadlineCountdown'
+import { useCountdown } from '@/hooks/useCountdown'
 import { applicantStatusLine } from './copy'
 
 interface Props {
@@ -36,6 +37,8 @@ export function ApplicantRow({ applicant, assignable, busy, onAssign }: Props) {
   const { theme } = useUnistyles()
   const name = formatFullName(applicant.first_name, applicant.last_name) || 'Anonymous'
   const isOpen = applicant.status === 'open'
+  const applicationTimeRemaining = useCountdown(isOpen ? applicant.expires_at : null)
+  const isApplicationAssignable = isOpen && applicationTimeRemaining !== null && applicationTimeRemaining > 0
 
   return (
     <View
@@ -62,14 +65,18 @@ export function ApplicantRow({ applicant, assignable, busy, onAssign }: Props) {
 
       <View style={s.footer}>
         {isOpen ? (
-          <DeadlineCountdown deadline={applicant.expires_at} label="Expires" />
+          <DeadlineCountdownDisplay
+            remaining={applicationTimeRemaining}
+            label="Time left to assign this applicant"
+            expiredLabel="Application expired"
+          />
         ) : (
           <Text variant="caption" color={theme.colors.content.tertiary}>
             {/* POSTER-voiced: this is their shortlist, not the applicant's list. */}
             {applicantStatusLine(applicant.status)}
           </Text>
         )}
-        {assignable && isOpen && (
+        {assignable && isApplicationAssignable && (
           <Button variant="primary" size="sm" loading={busy} onPress={() => onAssign(applicant)}>
             Assign
           </Button>

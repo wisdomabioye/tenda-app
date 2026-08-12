@@ -39,9 +39,16 @@ test('null deadline renders nothing', () => {
   expect(toJSON()).toBeNull()
 })
 
-test('inline variant renders just the clock', () => {
+test('inline variant renders just the clock when no purpose label is supplied', () => {
   render(<DeadlineCountdown deadline={inMs(5 * 3_600_000)} size="inline" />)
   expect(screen.getByText(CLOCK)).toBeTruthy()
+})
+
+test('inline variant visibly names what the countdown controls', () => {
+  render(<DeadlineCountdown deadline={inMs(5 * 3_600_000)} label="Time left to assign" />)
+  expect(screen.getByText('Time left to assign')).toBeTruthy()
+  expect(screen.getByText(CLOCK)).toBeTruthy()
+  expect(screen.getByLabelText(/^Time left to assign \d+:\d{2}:\d{2}$/)).toBeTruthy()
 })
 
 test('prominent variant renders the label above the clock', () => {

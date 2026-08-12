@@ -24,8 +24,8 @@ jest.mock('react-native-unistyles', () => ({
 jest.mock('@/components/ui/Button', () => {
   const { Text } = require('react-native')
   return {
-    Button: ({ children, onPress }: { children: React.ReactNode; onPress?: () => void }) => (
-      <Text onPress={onPress}>{children}</Text>
+    Button: ({ children, onPress, variant }: { children: React.ReactNode; onPress?: () => void; variant?: string }) => (
+      <Text onPress={onPress} accessibilityLabel={variant}>{children}</Text>
     ),
   }
 })
@@ -86,6 +86,11 @@ test.each(SHEET_BUTTONS)('%s renders "%s" and opens the %s sheet', (branch, labe
   fireEvent.press(screen.getByText(label))
   expect(onAction).toHaveBeenCalledWith(sheet)
   expect(onTxAction).not.toHaveBeenCalled()
+})
+
+test('Dispute is visually restrained until the destructive confirmation sheet', () => {
+  renderBranch('dispute')
+  expect(screen.getByText('Dispute').props.accessibilityLabel).toBe('outline')
 })
 
 test('reposting a draft is not a transaction', () => {

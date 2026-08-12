@@ -9,12 +9,13 @@
 import { render, screen, fireEvent } from '@testing-library/react-native'
 import type { GigApplicant } from '@tenda/shared'
 import { ApplicantList } from '../ApplicantList'
-import { APPLICANTS_EMPTY } from '../copy'
+import { APPLICANTS_EMPTY, APPLICANT_REVIEW_GUIDANCE } from '../copy'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
     theme: {
       colors: {
+        surface: { inset: '#f4f4f4' },
         content: { primary: '#111', secondary: '#666', tertiary: '#999' },
         feedback: { danger: { base: '#c00' } },
       },
@@ -105,12 +106,18 @@ function renderList(props: Partial<React.ComponentProps<typeof ApplicantList>> =
   return { onAssign, onFilterChange }
 }
 
+test('explains what each applicant countdown controls', () => {
+  renderList({ applicants: [applicant()] })
+  expect(screen.getByText(APPLICANT_REVIEW_GUIDANCE)).toBeTruthy()
+})
+
 test('an unsettled first load shows the skeleton, never an empty state', () => {
   // A blank shortlist reads as "nobody applied", which is the one thing it
   // must not say by accident while the request is still in flight.
   renderList({ applicants: null })
 
   expect(screen.getByText('skeleton')).toBeTruthy()
+  expect(screen.queryByText(APPLICANT_REVIEW_GUIDANCE)).toBeNull()
   expect(screen.queryByText(APPLICANTS_EMPTY.open.title)).toBeNull()
   expect(screen.queryByText(APPLICANTS_EMPTY.all.title)).toBeNull()
 })
@@ -121,6 +128,7 @@ test('an empty Waiting tab says none are LIVE, not that nobody applied', () => {
   renderList({ applicants: [], filter: 'open' })
 
   expect(screen.getByText(APPLICANTS_EMPTY.open.title)).toBeTruthy()
+  expect(screen.queryByText(APPLICANT_REVIEW_GUIDANCE)).toBeNull()
   expect(screen.getByText(/switch to all/i)).toBeTruthy()
   expect(screen.queryByText(APPLICANTS_EMPTY.all.title)).toBeNull()
 })

@@ -9,7 +9,11 @@
 import { render, screen, fireEvent } from '@testing-library/react-native'
 import type { ApplicationStatus, EscrowStatus, MyApplication } from '@tenda/shared'
 import { MyApplicationCard } from '../MyApplicationCard'
-import { applicationStatusLine, openApplicationLine } from '../copy'
+import {
+  APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL,
+  applicationStatusLine,
+  openApplicationLine,
+} from '../copy'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -112,7 +116,7 @@ test('a live application shows the gig, the wait, the clock and a Withdraw', () 
   expect(screen.getByText('gig:Paint the fence:status=true')).toBeTruthy()
   expect(screen.getByText(applicationStatusLine('open', null))).toBeTruthy()
   // D5: the applicant watches their own expiry, so the clock is theirs.
-  expect(screen.getByText('Expires:set')).toBeTruthy()
+  expect(screen.getByText(`${APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL}:set`)).toBeTruthy()
 
   fireEvent.press(screen.getByText('Withdraw'))
   expect(onWithdraw).toHaveBeenCalledWith(item)
@@ -137,7 +141,7 @@ test('a settled application offers no Withdraw and no countdown', () => {
 
   expect(screen.getByText(applicationStatusLine('passed', null))).toBeTruthy()
   expect(screen.queryByText('Withdraw')).toBeNull()
-  expect(screen.queryByText('Expires:set')).toBeNull()
+  expect(screen.queryByText(`${APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL}:set`)).toBeNull()
 })
 
 test('the winner is told they won, in their own voice', () => {

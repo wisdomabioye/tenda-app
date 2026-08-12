@@ -5,7 +5,7 @@
  * row the server will refuse (the poster pays gas to find out), and the
  * applicant-voiced status line leaking onto the poster's screen.
  */
-import { render, screen, fireEvent } from '@testing-library/react-native'
+import { render, screen, fireEvent, act } from '@testing-library/react-native'
 import type { ApplicationStatus, GigApplicant } from '@tenda/shared'
 import { ApplicantRow } from '../ApplicantRow'
 import { applicantStatusLine } from '../copy'
@@ -52,7 +52,9 @@ jest.mock('@/components/shared/ReviewScore', () => {
 jest.mock('@/components/shared/DeadlineCountdown', () => {
   const { Text } = require('react-native')
   return {
-    DeadlineCountdown: ({ label }: { label?: string }) => <Text>{`${label ?? 'clock'}:set`}</Text>,
+    DeadlineCountdownDisplay: ({ label, remaining }: { label?: string; remaining: number | null }) => (
+      <Text>{`${label ?? 'clock'}:${remaining === 0 ? 'expired' : 'set'}`}</Text>
+    ),
   }
 })
 
@@ -88,7 +90,7 @@ test('a live application shows who, their score, the clock and an Assign', () =>
   expect(screen.getByText('I have painted forty fences')).toBeTruthy()
   // The clock is the decision-relevant fact: a lapsed application is refused
   // server-side, and without it the poster pays gas to discover that.
-  expect(screen.getByText('Expires:set')).toBeTruthy()
+  expect(screen.getByText('Time left to assign this applicant:set')).toBeTruthy()
 
   fireEvent.press(screen.getByText('Assign'))
   expect(onAssign).toHaveBeenCalledWith(row)
@@ -100,7 +102,7 @@ test('a gig that can no longer be assigned offers no Assign button', () => {
   renderRow(applicant(), { assignable: false })
 
   expect(screen.queryByText('Assign')).toBeNull()
-  expect(screen.getByText('Expires:set')).toBeTruthy()
+  expect(screen.getByText('Time left to assign this applicant:set')).toBeTruthy()
 })
 
 test('a settled applicant is never assignable, even while the gig is', () => {
@@ -110,6 +112,28 @@ test('a settled applicant is never assignable, even while the gig is', () => {
   expect(screen.queryByText('Assign')).toBeNull()
 })
 
+test('an expired-but-unswept open application is visible but cannot be assigned', () => {
+  renderRow(applicant({ expires_at: new Date(Date.now() - 1_000).toISOString() }))
+
+  expect(screen.getByText('Time left to assign this applicant:expired')).toBeTruthy()
+  expect(screen.queryByText('Assign')).toBeNull()
+})
+
+test('Assign disappears when an open application expires while the screen stays open', () => {
+  jest.useFakeTimers()
+  try {
+    renderRow(applicant({ expires_at: new Date(Date.now() + 1_000).toISOString() }))
+    expect(screen.getByText('Assign')).toBeTruthy()
+
+    act(() => jest.advanceTimersByTime(1_000))
+
+    expect(screen.getByText('Time left to assign this applicant:expired')).toBeTruthy()
+    expect(screen.queryByText('Assign')).toBeNull()
+  } finally {
+    jest.useRealTimers()
+  }
+})
+
 test('a settled row swaps the countdown for the POSTER-voiced status', () => {
   renderRow(applicant({ status: 'withdrawn' }))
 
@@ -117,7 +141,7 @@ test('a settled row swaps the countdown for the POSTER-voiced status', () => {
   // "You withdrew this application" — the applicant's own line — would be
   // simply false here.
   expect(screen.queryByText(/you withdrew/i)).toBeNull()
-  expect(screen.queryByText('Expires:set')).toBeNull()
+  expect(screen.queryByText('Time left to assign this applicant:set')).toBeNull()
 })
 
 test('every settled status reads as a sentence, not a blank footer', () => {
@@ -132,7 +156,7 @@ test('every settled status reads as a sentence, not a blank footer', () => {
       />,
     )
     expect(screen.getByText(applicantStatusLine(status))).toBeTruthy()
-    expect(screen.queryByText('Expires:set')).toBeNull()
+    expect(screen.queryByText('Time left to assign this applicant:set')).toBeNull()
     unmount()
   }
 })

@@ -8,9 +8,14 @@ import { acceptWindowState, unassignWindowEndsAt, type GigDetail } from '@tenda/
 import { spacing, radius } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
 import { Text } from '@/components/ui/Text'
-import { DeadlineCountdown } from '@/components/shared/DeadlineCountdown'
+import {
+  DeadlineCountdown,
+  DeadlineCountdownDisplay,
+} from '@/components/shared/DeadlineCountdown'
+import { useCountdown } from '@/hooks/useCountdown'
 import {
   applicantsCtaLabel,
+  APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL,
   applicationStatusLine,
   openApplicationLine,
   UNASSIGN_WINDOW_WARNING,
@@ -37,6 +42,10 @@ interface Props {
 export function ApprovalCTA({ branch, gig, busy, width, onAction }: Props) {
   const { theme } = useUnistyles()
   const application = gig.viewer?.application ?? null
+  const releaseWindowEndsAt = branch === 'unassign'
+    ? unassignWindowEndsAt(approvalContextOf(gig))
+    : null
+  const releaseTimeRemaining = useCountdown(releaseWindowEndsAt)
   // Only the single-button branches take `width`. `unassign`, `withdraw` and
   // `apply` are stacks of notices, a button and a countdown — they cannot
   // share a row and are slotted `primary`, where nothing else can sit.
@@ -51,6 +60,9 @@ export function ApprovalCTA({ branch, gig, busy, width, onAction }: Props) {
       )
 
     case 'unassign': {
+      // The branch is selected when the parent renders. Keep the action honest
+      // if its window closes while this screen remains mounted.
+      if (releaseTimeRemaining === null || releaseTimeRemaining <= 0) return null
       // Held in a const so the `!== 'open'` guard below narrows it — the
       // warning map has no `open` key, and rightly so: there is nothing to
       // warn about while there is still room to assign someone else.
@@ -60,7 +72,7 @@ export function ApprovalCTA({ branch, gig, busy, width, onAction }: Props) {
           {gig.assignment_released_at !== null && (
             <View style={[s.notice, { backgroundColor: theme.colors.feedback.warning.surface }]}>
               <Text variant="caption" color={theme.colors.feedback.warning.base} weight="semibold" align="center">
-                Your worker said they are not available. Release the assignment to reopen the gig.
+                Your worker said they are not available.
               </Text>
             </View>
           )}
@@ -79,15 +91,22 @@ export function ApprovalCTA({ branch, gig, busy, width, onAction }: Props) {
               </Text>
             </View>
           )}
-          <Button variant="danger" size="xl" fullWidth loading={busy} onPress={() => onAction('unassign')}>
-            Release assignment
-          </Button>
-          {/* The window is the only reason this button exists, so it is shown
-              rather than left to be discovered when the button disappears. */}
-          <DeadlineCountdown
-            deadline={unassignWindowEndsAt(approvalContextOf(gig))}
-            label="Release window"
-          />
+          <View style={[s.assignmentControl, { backgroundColor: theme.colors.surface.inset }]}>
+            <Text weight="semibold">Change worker</Text>
+            <Text variant="caption" color={theme.colors.content.secondary}>
+              Release this assignment to reopen the gig for another worker.
+            </Text>
+            {/* This deadline belongs to the release action, so it stays in the
+                same card and names that action explicitly. */}
+            <DeadlineCountdownDisplay
+              remaining={releaseTimeRemaining}
+              label="Time left to release assignment"
+              expiredLabel="Release window closed"
+            />
+            <Button variant="outline" size="xl" fullWidth loading={busy} onPress={() => onAction('unassign')}>
+              Release assignment
+            </Button>
+          </View>
         </View>
       )
     }
@@ -106,7 +125,11 @@ export function ApprovalCTA({ branch, gig, busy, width, onAction }: Props) {
             <Text variant="caption" color={theme.colors.content.secondary} align="center">
               {openApplicationLine(gig)}
             </Text>
-            <DeadlineCountdown deadline={application?.expires_at ?? null} label="Expires" />
+            <DeadlineCountdown
+              deadline={application?.expires_at ?? null}
+              label={APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL}
+              expiredLabel="Application expired"
+            />
           </View>
           <Button variant="outline" size="xl" fullWidth loading={busy} onPress={() => onAction('withdraw')}>
             Withdraw application
@@ -146,4 +169,5 @@ export function ApprovalCTA({ branch, gig, busy, width, onAction }: Props) {
 const s = StyleSheet.create({
   stack: { gap: spacing.xs },
   notice: { padding: spacing.md, borderRadius: radius.md, gap: spacing.xs },
+  assignmentControl: { padding: spacing.md, borderRadius: radius.md, gap: spacing.sm },
 })

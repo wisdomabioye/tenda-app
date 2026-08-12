@@ -1,23 +1,23 @@
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import type { AppTheme } from '@/theme/themes'
-import { typography } from '@/theme/tokens'
+import { spacing, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { useCountdown } from '@/hooks/useCountdown'
 import { formatHMS, countdownTone, type CountdownTone } from '@/lib/countdown'
 
-interface DeadlineCountdownProps {
-  deadline: Date | string | null
+interface DeadlineCountdownDisplayProps {
+  remaining: number | null
   /** Leading label, e.g. "Pay within" / "Seller confirms in". Omit for a bare clock. */
   label?: string
-  /**
-   * inline    → a tone-coloured mono clock, drops into a terms-card row value.
-   * prominent → a tinted banner (label + big ticking clock), for the buyer's
-   *             pay-now context.
-   */
+  /** Inline row or prominent deadline banner. */
   size?: 'inline' | 'prominent'
   /** Text shown once the deadline passes. Default "Expired". */
   expiredLabel?: string
+}
+
+interface DeadlineCountdownProps extends Omit<DeadlineCountdownDisplayProps, 'remaining'> {
+  deadline: Date | string | null
 }
 
 /** Foreground colour for the clock digits at each tone. */
@@ -57,8 +57,25 @@ export function DeadlineCountdown({
   size = 'inline',
   expiredLabel = 'Expired',
 }: DeadlineCountdownProps) {
-  const { theme } = useUnistyles()
   const remaining = useCountdown(deadline)
+  return (
+    <DeadlineCountdownDisplay
+      remaining={remaining}
+      label={label}
+      size={size}
+      expiredLabel={expiredLabel}
+    />
+  )
+}
+
+/** Stateless rendering half for callers that also use remaining time as a permission gate. */
+export function DeadlineCountdownDisplay({
+  remaining,
+  label,
+  size = 'inline',
+  expiredLabel = 'Expired',
+}: DeadlineCountdownDisplayProps) {
+  const { theme } = useUnistyles()
   if (remaining === null) return null
 
   const tone = countdownTone(remaining)
@@ -68,9 +85,18 @@ export function DeadlineCountdown({
 
   if (!prominent) {
     return (
-      <Text style={[s.inlineClock, { color: fg }]} accessibilityLabel={label ? `${label} ${clock}` : clock}>
-        {clock}
-      </Text>
+      <View
+        accessible
+        style={s.inline}
+        accessibilityLabel={label ? `${label} ${clock}` : clock}
+      >
+        {label !== undefined && (
+          <Text variant="caption" color={theme.colors.content.secondary}>
+            {label}
+          </Text>
+        )}
+        <Text style={[s.inlineClock, { color: fg }]}>{clock}</Text>
+      </View>
     )
   }
 
@@ -88,6 +114,13 @@ export function DeadlineCountdown({
 }
 
 const s = StyleSheet.create({
+  inline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    flexShrink: 1,
+    gap: spacing['2xs'],
+  },
   inlineClock: {
     fontFamily: typography.fonts.mono,
     fontSize: 13.5,
