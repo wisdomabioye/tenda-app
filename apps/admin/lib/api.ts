@@ -10,8 +10,9 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
+    options?: ErrorOptions,
   ) {
-    super(message)
+    super(message, options)
     this.name = 'ApiError'
   }
 }
@@ -27,7 +28,17 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (init.headers) Object.assign(headers, init.headers)
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers })
+  let res: Response
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { ...init, headers })
+  } catch (error) {
+    throw new ApiError(
+      0,
+      'NETWORK_ERROR',
+      `Cannot reach the Tenda API at ${BASE_URL}. Check that the server is running.`,
+      { cause: error },
+    )
+  }
 
   if (res.status === 401 && !path.startsWith('/v1/auth/')) {
     // Expired/revoked session — the server is the verifier (no middleware).
