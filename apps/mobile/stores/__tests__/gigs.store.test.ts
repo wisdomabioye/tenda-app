@@ -140,15 +140,21 @@ test.each([
   expect(useGigsStore.getState().error?.gone).toBe(false)
 })
 
-test('a LATE 404 never clears a different gig that has since loaded', async () => {
-  // The race the id guard in the catch exists for, and the only way to reach
-  // it: the pre-fetch reset cannot help here because the slot is filled AFTER
-  // the failing request was already in flight.
-  //
+// ── superseded responses ────────────────────────────────────────────────────
+//
+// One slot serves every gig, so a response that lands after a NEWER request
+// started is not just stale — it is about a different subject. Both directions
+// used to end on the same dead screen: the gate renders a gig only when the id
+// matches and surfaces an error only when the id matches, so a mismatch in
+// either slot leaves a spinner with nothing loading and no way out but leaving.
+//
+// The pre-fetch reset cannot help here: the slot is filled AFTER the first
+// request is already in flight. Only a request token can.
+
+test('a LATE 404 for a superseded gig is discarded entirely', async () => {
   // Screen A opens gig-1; the user navigates before it answers; screen B loads
-  // gig-2 successfully; then gig-1's request comes back 404 (it was taken down).
-  // Without the guard, that late failure blanks gig-2 — a screen the user is
-  // looking at, for a gig that is perfectly fine.
+  // gig-2; then gig-1 finally 404s. Nobody is looking at gig-1, so its failure
+  // is not news — recording it would evict gig-2's slot and strand screen B.
   let rejectFirst: (e: unknown) => void = () => {}
   mockGet.mockReturnValueOnce(
     new Promise((_resolve, reject) => {
@@ -166,7 +172,55 @@ test('a LATE 404 never clears a different gig that has since loaded', async () =
   await first
 
   expect(useGigsStore.getState().selectedGig).toEqual(second)
-  expect(useGigsStore.getState().error?.id).toBe('gig-1')
+  // No error recorded at all — not gig-1's, and emphatically not one that the
+  // gate would then refuse to show while also having no gig to render.
+  expect(useGigsStore.getState().error).toBeNull()
+  expect(useGigsStore.getState().isLoading).toBe(false)
+})
+
+test('a LATE SUCCESS for a superseded gig never replaces the current one', async () => {
+  // The variant that is worse, because it looks like everything worked: gig-1
+  // resolves fine, overwrites gig-2 in the shared slot, and screen B — still
+  // asking for gig-2 — renders a spinner over a gig that had already loaded.
+  let resolveFirst: (v: unknown) => void = () => {}
+  mockGet.mockReturnValueOnce(
+    new Promise((resolve) => {
+      resolveFirst = resolve
+    }),
+  )
+  const first = useGigsStore.getState().fetchGigDetail('gig-1')
+
+  const second = gigDetail({ escrow_id: 'gig-2' })
+  mockGet.mockResolvedValueOnce(second)
+  await useGigsStore.getState().fetchGigDetail('gig-2')
+
+  resolveFirst(gigDetail({ escrow_id: 'gig-1' }))
+  await first
+
+  expect(useGigsStore.getState().selectedGig).toEqual(second)
+  expect(useGigsStore.getState().error).toBeNull()
+})
+
+test('a superseded response writes NOTHING, isLoading included', async () => {
+  // Scoped honestly: no screen reads this store's `isLoading` today — the gate
+  // decides on selectedGig/error/id — so this pins internal consistency, not a
+  // spinner anyone can see. (The exchange hook's equivalent flag IS rendered,
+  // and its guard is tested there for the user-visible consequence.) It earns
+  // its place by failing if a superseded response starts writing again.
+  let resolveFirst: (v: unknown) => void = () => {}
+  mockGet.mockReturnValueOnce(new Promise((resolve) => { resolveFirst = resolve }))
+  const first = useGigsStore.getState().fetchGigDetail('gig-1')
+
+  // gig-2 is requested and left IN FLIGHT (never resolved).
+  mockGet.mockReturnValueOnce(new Promise(() => {}))
+  void useGigsStore.getState().fetchGigDetail('gig-2')
+  expect(useGigsStore.getState().isLoading).toBe(true)
+
+  resolveFirst(gigDetail({ escrow_id: 'gig-1' }))
+  await first
+
+  expect(useGigsStore.getState().isLoading).toBe(true)
+  expect(useGigsStore.getState().selectedGig).toBeNull()
 })
 
 test('reviewEscrow clears the loading flag when it SUCCEEDS', async () => {

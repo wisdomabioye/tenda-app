@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
 import { api } from '@/api/client'
 import { classifyDetailLoadError, type DetailLoadError } from '@/lib/detail-load-error'
@@ -19,17 +19,34 @@ export function useExchangeDetail(id: string | undefined) {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<DetailLoadError | null>(null)
 
+  /**
+   * Which fetch may write, mirroring `gigs.store`. Today nothing can reach this
+   * screen with a second id — every route in is a push (new instance) or a
+   * replace from elsewhere — so the protection currently comes from the
+   * NAVIGATION layer rather than from here. That is a fragile place for it to
+   * live: one `router.replace` between two offer ids, added innocently, and a
+   * slow response starts painting the wrong offer with nothing local to stop
+   * it. Cheaper to own the invariant here than to rely on nobody doing that.
+   */
+  const requestRef = useRef(0)
+
   const refresh = useCallback(async () => {
     if (!id) return
+    const request = ++requestRef.current
     setError(null)
     try {
-      setOffer(await api.exchange.get({ id }))
+      const next = await api.exchange.get({ id })
+      if (request !== requestRef.current) return
+      setOffer(next)
     } catch (e) {
+      if (request !== requestRef.current) return
       const failure = classifyDetailLoadError(e)
       setError(failure)
       if (failure.gone) setOffer(null)
     } finally {
-      setIsLoading(false)
+      // Superseded responses leave the spinner alone: it belongs to the newer
+      // request, which is still running.
+      if (request === requestRef.current) setIsLoading(false)
     }
   }, [id])
 

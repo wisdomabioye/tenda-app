@@ -37,12 +37,30 @@ interface GigsState {
   reviewEscrow: (id: string, input: ReviewInput) => Promise<void>
 }
 
+/**
+ * Which fetch is allowed to write. Bumped on every call; a response whose token
+ * is no longer the latest is DISCARDED, success or failure alike.
+ *
+ * One slot serves every gig, so a response that arrives after a newer request
+ * started is not merely stale, it is about a different subject. Both directions
+ * ended in the same dead screen: a late SUCCESS for gig-1 replaced gig-2 (the
+ * gate renders only when the id matches, so it showed a spinner), and a late
+ * FAILURE overwrote gig-2's error slot (the gate ignores another gig's error,
+ * so it showed a spinner). Either way: no data, no error, nothing in flight,
+ * and no way out but leaving the screen.
+ *
+ * Module scope rather than store state: it is bookkeeping about requests, not
+ * something any screen should be able to read or render.
+ */
+let latestRequest = 0
+
 export const useGigsStore = create<GigsState>((set) => ({
   selectedGig: null,
   isLoading: false,
   error: null,
 
   fetchGigDetail: async (id) => {
+    const request = ++latestRequest
     set((state) => ({
       isLoading: true,
       error: null,
@@ -53,8 +71,15 @@ export const useGigsStore = create<GigsState>((set) => ({
     }))
     try {
       const gig = await api.gigs.get({ id })
+      // Superseded: a newer fetch owns the slot, so this response writes
+      // nothing at all. `isLoading` is included in that for consistency rather
+      // than for effect — NOTHING reads it today (`GigDetailGate` decides on
+      // selectedGig/error/id alone, and it is the store's only detail reader),
+      // so the load-bearing half of this guard is the two slots below it.
+      if (request !== latestRequest) return
       set({ selectedGig: gig, isLoading: false })
     } catch (e) {
+      if (request !== latestRequest) return
       const failure = classifyDetailLoadError(e)
       // A `gone` refetch DROPS the gig it was refreshing. Without this, a gig
       // deleted or taken down mid-session kept rendering from the previous

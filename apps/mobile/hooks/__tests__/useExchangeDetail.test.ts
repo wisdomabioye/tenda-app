@@ -118,3 +118,77 @@ test('a successful refetch clears a previous failure', async () => {
   // And the takedown flag rides in on the ordinary refetch — no extra plumbing.
   expect(result.current.offer?.hidden).toBe(true)
 })
+
+test('a SUPERSEDED response never paints over a newer one', async () => {
+  // Mirrors the gigs.store guard. Unreachable through today's navigation (every
+  // route into this screen mounts a fresh instance), so this pins the invariant
+  // at the hook instead of leaving it to depend on that staying true.
+  const { result } = await mountLoaded()
+
+  // A SYNCHRONOUS `act`, not an async one: leaving an async act scope open
+  // while a second runs makes React swallow the inner update (the test then
+  // fails for a reason unrelated to the guard), but calling refresh with no act
+  // at all leaves its first `setError(null)` outside act and warns.
+  let resolveSlow: (v: unknown) => void = () => {}
+  mockGet.mockReturnValueOnce(new Promise((resolve) => { resolveSlow = resolve }))
+  let slow: Promise<void> = Promise.resolve()
+  act(() => {
+    slow = result.current.refresh()
+  })
+
+  const newer: ExchangeDetail = { ...OFFER, fiat_amount: '999999' }
+  mockGet.mockResolvedValueOnce(newer)
+  await act(async () => {
+    await result.current.refresh()
+  })
+  expect(result.current.offer).toEqual(newer)
+
+  // The slow one lands LAST and must be thrown away.
+  await act(async () => {
+    resolveSlow({ ...OFFER, fiat_amount: '1' })
+    await slow
+  })
+
+  expect(result.current.offer).toEqual(newer)
+})
+
+test('a superseded response leaves the FIRST-LOAD spinner alone', async () => {
+  // `isLoading` is only ever set false in this hook, so the spinner exists only
+  // during the first load — which is precisely when two focus fires can overlap.
+  // If the older response cleared it, the screen would show its empty state
+  // ("Offer not available", since `offer` is still null) for as long as the
+  // newer request takes, then flash the offer in.
+  //
+  // The "still true" assertion below would pass vacuously on its own, because
+  // `isLoading` starts true — its teeth come from the mutation check: remove
+  // the `finally` guard and this test fails.
+  let resolveOld: (v: unknown) => void = () => {}
+  let resolveNew: (v: unknown) => void = () => {}
+  mockGet.mockReturnValueOnce(new Promise((resolve) => { resolveOld = resolve }))
+  const { result } = renderHook(() => useExchangeDetail('offer-1'))
+
+  act(() => {
+    focusCb?.() // request 1, slow
+  })
+  mockGet.mockReturnValueOnce(new Promise((resolve) => { resolveNew = resolve }))
+  let newer: Promise<void> = Promise.resolve()
+  act(() => {
+    newer = result.current.refresh() // request 2, also in flight
+  })
+
+  // Request 1 lands while 2 is still running: superseded, so it must touch
+  // nothing — not the offer, and not the spinner that belongs to request 2.
+  await act(async () => {
+    resolveOld(OFFER)
+    await Promise.resolve()
+  })
+  expect(result.current.isLoading).toBe(true)
+  expect(result.current.offer).toBeNull()
+
+  await act(async () => {
+    resolveNew({ ...OFFER, fiat_amount: '999999' })
+    await newer
+  })
+  expect(result.current.isLoading).toBe(false)
+  expect(result.current.offer?.fiat_amount).toBe('999999')
+})

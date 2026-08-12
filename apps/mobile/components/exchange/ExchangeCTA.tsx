@@ -156,6 +156,16 @@ export function ExchangeCTA({ offer, userId, busy, onTxAction, onSheet }: Props)
       )
     }
     return (
+      // The 'Add More Proof' arm is UNREACHABLE today and is kept on purpose,
+      // so please do not "clean it up" to a bare 'Add Evidence'. Reaching this
+      // line needs canAddProof true and canDispute false; canAddProof is
+      // (submitted|disputed)+counterparty and canDispute is party+(accepted|
+      // submitted), so a counterparty on `submitted` always takes the paired
+      // branch above and only `disputed` arrives here. Narrow canDispute — a
+      // cooldown, a bond requirement, dropping `submitted` — and a non-disputed
+      // escrow lands here, where "Add Evidence" would be the wrong word. The
+      // ternary costs one uncovered branch and buys correctness under a change
+      // nobody would think to re-check this file for.
       <Button variant="outline" size="xl" fullWidth onPress={() => onSheet('addProof')}>
         {offer.status === 'disputed' ? 'Add Evidence' : 'Add More Proof'}
       </Button>

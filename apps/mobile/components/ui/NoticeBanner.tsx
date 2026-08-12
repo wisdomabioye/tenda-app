@@ -15,7 +15,7 @@
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import type { LucideIcon } from 'lucide-react-native'
-import { spacing, radius } from '@/theme/tokens'
+import { spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 
 export type NoticeTone = 'success' | 'warning' | 'danger' | 'info'
@@ -69,7 +69,14 @@ const s = StyleSheet.create({
     alignItems: 'flex-start',
     gap: 10,
     borderWidth: 1,
-    borderRadius: radius.md,
+    // 14, not `radius.md` (16). This was `radius.md` briefly and that was a
+    // silent visual change: the banner it was extracted from used 14, and so do
+    // ~8 sibling card surfaces (wallet rows, proofs grid, payment input,
+    // deadline countdown). The token scale has no 14, so those are all raw —
+    // whether the scale should grow a 14 or those surfaces should move to 16 is
+    // a design-system decision, and a refactor is the wrong place to make it by
+    // accident.
+    borderRadius: 14,
     padding: spacing.sm,
   },
   body: { flex: 1, gap: 2 },
