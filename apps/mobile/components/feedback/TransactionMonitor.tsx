@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef, useSyncExternalStore } from 'react'
 import { View, Modal, StyleSheet, ActivityIndicator } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { CheckCircle, XCircle, Wallet } from 'lucide-react-native'
@@ -6,21 +6,12 @@ import { radius, spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Button } from '@/components/ui/Button'
 import {
-  getTransactionStatus,
-  getEvmTransactionStatus,
   abortPendingWalletRequest,
   hasPendingWalletRequest,
   subscribePendingWalletRequest,
 } from '@/wallet'
-import { useRealtimeStore, subscribeEscrowChannel } from '@/stores/realtime.store'
 import type { TxPhase } from '@/hooks/useEscrowActions'
-
-const POLL_INTERVAL_MS = 2_000
-const POLL_FALLBACK_MS = 30_000  // RPC cadence while the WS channel is live
-const TIMEOUT_MS = 60_000
-const CONFIRM_DISMISS_MS = 800
-
-type TxState = 'waiting' | 'confirmed' | 'failed'
+import { ESCROW_CONFIRM_DISMISS_MS, useEscrowTransactionSync } from '@/hooks/escrow-sync'
 
 interface TransactionMonitorProps {
   signature: string | null
@@ -29,15 +20,14 @@ interface TransactionMonitorProps {
   /** When true, shows one-time setup messaging instead of the generic confirming text. */
   setupPhase?: boolean
   /**
-   * v2 escrow flows: subscribe `escrow:<id>` so confirmation arrives over
-   * WS (verify-tx republish); the RPC poll stretches to a slow fallback
-   * while the socket is healthy. Legacy flows omit it and keep the fast poll.
+   * Subscribe to `escrow:<id>` for the server-applied confirmation frame.
+   * RPC polling remains active as an independent missed-frame fallback.
    */
   escrowId?: string
   /**
    * CAIP-2 chain of the tx (CO3). Selects the RPC fallback: solana
-   * signature-status (also the default for legacy callers), EVM receipt
-   * poll via the connected provider for eip155, WS-only for anything else.
+   * signature-status (also the default for legacy callers), or EVM receipt
+   * polling through the connected provider for eip155 chains.
    */
   chainId?: string
   /**
@@ -57,15 +47,18 @@ interface TransactionMonitorProps {
    * the user staring at a generic spinner.
    */
   preparingCaption?: string
+  /** Authoritative API projection check after an RPC receipt confirms. */
+  checkApplied: () => Promise<boolean>
 }
 
 /** Visual state = internal poll result once broadcast, else the pre-sign phase. */
-type Display = 'preparing' | 'signing' | 'confirming' | 'confirmed' | 'failed'
+type Display = 'preparing' | 'signing' | 'confirming' | 'confirmed' | 'deferred' | 'failed'
 
-export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false, escrowId, chainId, phase, actionLabel, preparingCaption }: TransactionMonitorProps) {
+export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhase = false, escrowId, chainId, phase, actionLabel, preparingCaption, checkApplied }: TransactionMonitorProps) {
   const { theme } = useUnistyles()
-  const [txState, setTxState] = useState<TxState>('waiting')
-  const [failMsg, setFailMsg] = useState('')
+  const confirmation = useEscrowTransactionSync({ signature, escrowId, chainId, checkApplied })
+  const confirmedRef = useRef(onConfirmed)
+  confirmedRef.current = onConfirmed
   // True only while a guarded WalletConnect request is awaiting the wallet —
   // the one moment a Cancel can actually abort something. Solana/MWA signing
   // never registers here, so its signing view stays button-free.
@@ -75,73 +68,13 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
   )
 
   useEffect(() => {
-    setTxState('waiting')
-    setFailMsg('')
-    if (!signature) return
-
-    let settled = false
-    let timer: ReturnType<typeof setTimeout> | null = null
-    const deadline = Date.now() + TIMEOUT_MS
-
-    function settle(state: Exclude<TxState, 'waiting'>, msg = '') {
-      if (settled) return
-      settled = true
-      if (timer) clearTimeout(timer)
-      setTxState(state)
-      if (state === 'confirmed') setTimeout(() => onConfirmed(), CONFIRM_DISMISS_MS)
-      else setFailMsg(msg)
-    }
-
-    // Live path, escrow events pushed by the verify-tx pipeline.
-    const unsubscribe = escrowId
-      ? subscribeEscrowChannel(escrowId, (frame) => {
-          if (frame.tx_ref === signature) settle('confirmed')
-        })
-      : null
-
-    async function poll() {
-      if (settled || !signature) return
-      if (Date.now() > deadline) {
-        settle('failed', 'Transaction timed out. It will sync when confirmed.')
-        return
-      }
-      try {
-        // CO3: pick the RPC fallback by chain. Unknown namespaces get no
-        // poll at all, confirmation rides the WS channel alone.
-        const namespace = chainId?.split(':')[0] ?? 'solana'
-        if (namespace === 'solana') {
-          const status = await getTransactionStatus(signature)
-          if (status === 'confirmed' || status === 'finalized') return settle('confirmed')
-          if (status === 'failed') return settle('failed', 'Transaction failed on chain.')
-        } else if (namespace === 'eip155' && chainId !== undefined) {
-          const status = await getEvmTransactionStatus(signature, chainId)
-          if (status === 'confirmed') return settle('confirmed')
-          if (status === 'failed') return settle('failed', 'Transaction failed on chain.')
-        }
-        // 'not_found' / WS-only namespace → keep polling
-      } catch {
-        // RPC error, keep polling
-      }
-      schedule()
-    }
-
-    function schedule() {
-      if (settled) return
-      const slow = escrowId !== undefined && useRealtimeStore.getState().connected
-      timer = setTimeout(() => { void poll() }, slow ? POLL_FALLBACK_MS : POLL_INTERVAL_MS)
-    }
-
-    void poll()
-
-    return () => {
-      settled = true
-      if (timer) clearTimeout(timer)
-      unsubscribe?.()
-    }
-  }, [signature, escrowId, chainId]) // eslint-disable-line react-hooks/exhaustive-deps
+    if (confirmation.state !== 'applied') return
+    const timer = setTimeout(() => confirmedRef.current(), ESCROW_CONFIRM_DISMISS_MS)
+    return () => clearTimeout(timer)
+  }, [confirmation.state])
 
   function handleDismiss() {
-    onFailed(failMsg || 'Transaction failed')
+    onFailed(confirmation.failure || 'Transaction failed')
   }
 
   // The confirming spinner covers everything from broadcast onward; the phase
@@ -151,9 +84,11 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
   if (!open) return null
 
   const display: Display =
-    txState === 'confirmed'
+    confirmation.state === 'applied'
       ? 'confirmed'
-      : txState === 'failed'
+      : confirmation.state === 'deferred'
+        ? 'deferred'
+        : confirmation.state === 'failed'
         ? 'failed'
         : phase === 'preparing'
           ? 'preparing'
@@ -204,10 +139,12 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
             <>
               <ActivityIndicator size="large" color={theme.colors.brand.primary} />
               <Text variant="subheading" align="center" style={s.title}>
-                {confirmingTitle}
+                {confirmation.state === 'syncing' ? 'Syncing with Tenda…' : confirmingTitle}
               </Text>
               <Text variant="caption" color={theme.colors.content.secondary} align="center">
-                {setupPhase
+                {confirmation.state === 'syncing'
+                  ? 'Confirmed on-chain. Updating your gig now.'
+                  : setupPhase
                   ? 'One-time setup required to accept gigs. Please wait.'
                   : 'Confirming on-chain. This may take a few seconds.'}
               </Text>
@@ -230,10 +167,25 @@ export function TransactionMonitor({ signature, onConfirmed, onFailed, setupPhas
                 Transaction issue
               </Text>
               <Text variant="caption" color={theme.colors.content.secondary} align="center">
-                {failMsg}
+                {confirmation.failure}
               </Text>
               <Button variant="outline" size="md" onPress={handleDismiss}>
                 Dismiss
+              </Button>
+            </>
+          )}
+
+          {display === 'deferred' && (
+            <>
+              <ActivityIndicator size="large" color={theme.colors.brand.primary} />
+              <Text variant="subheading" align="center" style={s.title}>
+                Sync is taking longer
+              </Text>
+              <Text variant="caption" color={theme.colors.content.secondary} align="center">
+                {confirmation.failure}
+              </Text>
+              <Button variant="outline" size="md" onPress={handleDismiss}>
+                Continue
               </Button>
             </>
           )}

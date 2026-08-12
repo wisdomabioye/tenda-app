@@ -19,6 +19,8 @@ import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
 import { formatAssetAmount } from '@tenda/shared'
 import type { EscrowTxType, ExchangeDetail, SupportedCurrency } from '@tenda/shared'
+import { checkEscrowTransitionApplied } from '@/lib/escrow-sync'
+import { api } from '@/api/client'
 
 /**
  * Exchange detail body, read surface over a kind='exchange' escrow. Every
@@ -62,7 +64,7 @@ export function ExchangeDetailContent({
 
   // Live-update when the counterparty acts (accept / mark-paid / confirm), not
   // just on focus — the escrow WS channel drives the refetch.
-  useEscrowLiveRefresh(offer.escrow_id, refresh)
+  useEscrowLiveRefresh(offer.escrow_id, refresh, offer.status)
 
   // Fire the gated transition the confirm dialog was showing ('create' here is
   // the draft publish — rebuild + sign the create tx), then close it.
@@ -227,6 +229,9 @@ export function ExchangeDetailContent({
         actionLabel={actions.activeAction !== null ? TX_PROGRESS_LABEL[actions.activeAction] : undefined}
         escrowId={offer.escrow_id}
         chainId={offer.chain_id}
+        checkApplied={() =>
+          checkEscrowTransitionApplied(actions.pendingAction, () => api.exchange.get({ id: offer.escrow_id }))
+        }
         onConfirmed={handleTransactionConfirmed}
         onFailed={(msg) => {
           actions.clearPending()

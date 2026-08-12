@@ -26,6 +26,7 @@ import {
   transactionGateRoute,
 } from '@/lib/transaction-gate'
 import type { GigFormValues } from '@/components/gig/GigForm'
+import { checkEscrowTransitionApplied } from '@/lib/escrow-sync'
 
 const MS_PER_HOUR = 3_600_000
 
@@ -205,6 +206,11 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
     blockedMessage,
     dismissBlocked: () => setBlockedMessage(null),
     runFunding,
+    checkApplied: () => {
+      const escrowId = monitor?.escrowId
+      if (escrowId === undefined) return Promise.resolve(false)
+      return checkEscrowTransitionApplied('create', () => api.gigs.get({ id: escrowId }))
+    },
     /** Escrow confirmed on-chain → the gig is live. */
     handleFunded: () => {
       // First real commitment, this is what earns the just-in-time notification

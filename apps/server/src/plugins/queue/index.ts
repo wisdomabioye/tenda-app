@@ -39,7 +39,13 @@ import type { JobName, JobPayload } from './payloads'
 export { QUEUE_PREFIX, queueConnectionOptions, queueName } from './connection'
 export type { QueueConnectionOptions } from './connection'
 
-export { DEFAULT_JOB_OPTIONS, queueOptions, resolveJobId, toJobOptions } from './options'
+export {
+  DEFAULT_JOB_OPTIONS,
+  VERIFY_TX_JOB_OPTIONS,
+  queueOptions,
+  resolveJobId,
+  toJobOptions,
+} from './options'
 export type { BulkJob, BullJobOptions, EnqueueOptions } from './options'
 
 export type { JobName, JobPayload } from './payloads'
@@ -112,7 +118,7 @@ const queuePlugin: FastifyPluginAsync = async (fastify) => {
   function queueFor(name: JobName): Queue {
     let q = queues.get(name)
     if (q === undefined) {
-      q = new Queue(queueName(name), queueOptions(connection))
+      q = new Queue(queueName(name), queueOptions(connection, name))
       queues.set(name, q)
     }
     return q

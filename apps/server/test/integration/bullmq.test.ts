@@ -14,7 +14,7 @@ import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { randomUUID } from 'node:crypto'
 import { Queue, Worker } from 'bullmq'
-import { queueConnectionOptions } from '@server/plugins/queue'
+import { queueConnectionOptions, queueOptions } from '@server/plugins/queue'
 
 const REDIS_URL = process.env.REDIS_URL
 const gated = REDIS_URL === undefined ? test.skip : test
@@ -81,6 +81,41 @@ gated('RetryableError-style failures retry on backoff until attempts exhaust', a
     assert.strictEqual(calls, 3)
     const failed = await queue.getFailedCount()
     assert.strictEqual(failed, 1)
+  } finally {
+    await worker.close()
+    await queue.obliterate({ force: true })
+    await queue.close()
+  }
+})
+
+gated('verify-tx reconciliation can execute the same id after attempts exhaust', async () => {
+  const name = `tenda-test-${randomUUID()}`
+  const queue = new Queue(name, queueOptions(conn(), 'verify-tx'))
+  let calls = 0
+  let shouldFail = true
+  const worker = new Worker(
+    name,
+    async () => {
+      calls += 1
+      if (shouldFail) throw new Error('not_yet_confirmed')
+    },
+    { connection: conn() },
+  )
+
+  try {
+    await queue.add('verify-tx', {}, { jobId: 'same-tx', attempts: 1 })
+    const failureDeadline = Date.now() + 10_000
+    while (calls < 1 && Date.now() < failureDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    assert.strictEqual(calls, 1)
+    shouldFail = false
+    await queue.add('verify-tx', {}, { jobId: 'same-tx', attempts: 1 })
+    const retryDeadline = Date.now() + 10_000
+    while (calls < 2 && Date.now() < retryDeadline) {
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    assert.strictEqual(calls, 2)
   } finally {
     await worker.close()
     await queue.obliterate({ force: true })

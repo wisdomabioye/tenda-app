@@ -49,6 +49,13 @@ export {
   type DisputeWinnerName,
 } from './escrow'
 export {
+  ESCROW_TRANSITION_SYNC,
+  hasAppliedEscrowTransition,
+  type EscrowSyncEvidence,
+  type EscrowTransitionSyncRule,
+  type EscrowSyncProjection,
+} from './escrow-transitions'
+export {
   TX_FEED_VISIBILITY,
   ACTOR_SCOPED_FEED_TX_TYPES,
   feedTxTypesFor,

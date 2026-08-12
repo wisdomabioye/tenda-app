@@ -8,7 +8,7 @@
  */
 
 import type { EscrowEvent } from '@server/chains/types'
-import type { EscrowTxType } from '@tenda/shared'
+import { ESCROW_TRANSITION_SYNC, type EscrowTxType } from '@tenda/shared'
 import type { EscrowStatus } from '@server/lib/escrow'
 import type { EscrowPatch } from './store'
 
@@ -84,21 +84,29 @@ function unixField(fields: Record<string, string>, name: string): Date {
   return new Date(Number(fields[name]) * 1000)
 }
 
+function transitionFrom(type: EscrowTxType): EscrowStatus[] {
+  return [...ESCROW_TRANSITION_SYNC[type].from]
+}
+
+function transitionStatus(type: EscrowTxType): EscrowStatus {
+  return ESCROW_TRANSITION_SYNC[type].to
+}
+
 export const EVENT_APPLICATIONS: Record<EscrowEvent, EventApplication> = {
   EscrowCreated: {
     tx_type: 'create',
-    from: ['draft'],
+    from: transitionFrom('create'),
     amount_field: 'amount',
     actor_field: 'creator',
-    patch: () => ({ status: 'open' }),
+    patch: () => ({ status: transitionStatus('create') }),
   },
   EscrowAccepted: {
     tx_type: 'accept',
-    from: ['open'],
+    from: transitionFrom('accept'),
     actor_field: 'counterparty',
     counterparty: { field: 'counterparty', effect: 'install' },
     patch: (f) => ({
-      status: 'accepted',
+      status: transitionStatus('accept'),
       completion_deadline: unixField(f, 'completion_deadline'),
     }),
   },
@@ -107,12 +115,12 @@ export const EVENT_APPLICATIONS: Record<EscrowEvent, EventApplication> = {
   // worker), which is exactly why it is a distinct event and tx_type.
   CounterpartyAssigned: {
     tx_type: 'assign_accept',
-    from: ['open'],
+    from: transitionFrom('assign_accept'),
     actor_field: 'assigned_by',
     counterparty: { field: 'counterparty', effect: 'install' },
     settles_application: true,
     patch: (f) => ({
-      status: 'accepted',
+      status: transitionStatus('assign_accept'),
       completion_deadline: unixField(f, 'completion_deadline'),
     }),
   },
@@ -121,7 +129,7 @@ export const EVENT_APPLICATIONS: Record<EscrowEvent, EventApplication> = {
   // rewinds the status, because assign_accept had moved it to `accepted`.
   AssignmentReleased: {
     tx_type: 'unassign',
-    from: ['accepted'],
+    from: transitionFrom('unassign'),
     actor_field: 'released_by',
     // `release` clears counterparty_id AND hands the orchestrator the user it
     // resolved, so the fan-out can still reach the worker who was let go —
@@ -129,7 +137,7 @@ export const EVENT_APPLICATIONS: Record<EscrowEvent, EventApplication> = {
     counterparty: { field: 'counterparty', effect: 'release' },
     reverts_application_cycle: true,
     patch: () => ({
-      status: 'open',
+      status: transitionStatus('unassign'),
       // completion_deadline must go with the status: an escrow rewound to
       // `open` that still carried a deadline would be judged by the expiry
       // sweep as if someone were working on it.
@@ -144,74 +152,74 @@ export const EVENT_APPLICATIONS: Record<EscrowEvent, EventApplication> = {
   },
   EscrowDeclined: {
     tx_type: 'decline',
-    from: ['open'],
+    from: transitionFrom('decline'),
     actor_field: 'declined_by',
     // Status stays open, the decline clears the assignment only.
     patch: () => ({ assigned_counterparty_id: null }),
   },
   ProofSubmitted: {
     tx_type: 'submit',
-    from: ['accepted'],
+    from: transitionFrom('submit'),
     actor_field: 'counterparty',
     patch: (f) => ({
-      status: 'submitted',
+      status: transitionStatus('submit'),
       submitted_at: unixField(f, 'timestamp'),
       approval_deadline: unixField(f, 'approval_deadline'),
     }),
   },
   EscrowApproved: {
     tx_type: 'approve',
-    from: ['submitted'],
+    from: transitionFrom('approve'),
     amount_field: 'amount',
     fee_field: 'platform_fee',
     actor_field: 'creator',
-    patch: () => ({ status: 'completed' }),
+    patch: () => ({ status: transitionStatus('approve') }),
   },
   PaymentClaimed: {
     tx_type: 'claim_stalled',
-    from: ['submitted'],
+    from: transitionFrom('claim_stalled'),
     amount_field: 'amount',
     fee_field: 'platform_fee',
     actor_field: 'counterparty',
-    patch: () => ({ status: 'completed' }),
+    patch: () => ({ status: transitionStatus('claim_stalled') }),
   },
   EscrowCancelled: {
     tx_type: 'cancel',
-    from: ['open'],
+    from: transitionFrom('cancel'),
     amount_field: 'refund_amount',
     actor_field: 'creator',
-    patch: () => ({ status: 'cancelled' }),
+    patch: () => ({ status: transitionStatus('cancel') }),
   },
   EscrowExpired: {
     tx_type: 'refund_expired',
-    from: ['open'],
+    from: transitionFrom('refund_expired'),
     amount_field: 'refund_amount',
     actor_field: 'creator',
-    patch: () => ({ status: 'refunded' }),
+    patch: () => ({ status: transitionStatus('refund_expired') }),
   },
   EscrowAbandoned: {
     tx_type: 'reclaim_abandoned',
-    from: ['accepted'],
+    from: transitionFrom('reclaim_abandoned'),
     amount_field: 'refund_amount',
     actor_field: 'creator',
-    patch: () => ({ status: 'refunded' }),
+    patch: () => ({ status: transitionStatus('reclaim_abandoned') }),
   },
   DisputeRaised: {
     tx_type: 'dispute',
-    from: ['accepted', 'submitted'],
+    from: transitionFrom('dispute'),
     amount_field: 'bond_amount',
     actor_field: 'raised_by',
-    patch: () => ({ status: 'disputed' }),
+    patch: () => ({ status: transitionStatus('dispute') }),
   },
   DisputeResolved: {
     tx_type: 'resolve',
-    from: ['disputed'],
+    from: transitionFrom('resolve'),
     // Both contracts emit the distribution: the counterparty's principal
     // share rides amount_raw (consistent with approve/claim = "what the
     // counterparty side got"), the creator's share its own column.
     amount_field: 'counterparty_payout',
     creator_amount_field: 'creator_payout',
     fee_field: 'platform_fee',
-    patch: () => ({ status: 'resolved' }),
+    patch: () => ({ status: transitionStatus('resolve') }),
   },
 }

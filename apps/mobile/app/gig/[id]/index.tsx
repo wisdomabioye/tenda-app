@@ -32,6 +32,8 @@ import { useGigsStore } from '@/stores'
 import { apiConfig, canAccept, formatAssetAmount } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
 import { formatDuration } from '@/lib/gig-display'
+import { checkEscrowTransitionApplied } from '@/lib/escrow-sync'
+import { api } from '@/api/client'
 import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
@@ -76,7 +78,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   // Live-update when the counterparty acts (accept / submit / approve), not
   // just on focus — the escrow WS channel drives the refetch.
-  useEscrowLiveRefresh(gig.escrow_id, () => fetchGigDetail(gig.escrow_id))
+  useEscrowLiveRefresh(gig.escrow_id, () => fetchGigDetail(gig.escrow_id), gig.status)
 
   // Fire the gated transition the confirm dialog was showing, then close it.
   function runConfirmedAction() {
@@ -235,6 +237,9 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           actionLabel={actions.activeAction !== null ? TX_PROGRESS_LABEL[actions.activeAction] : undefined}
           escrowId={gig.escrow_id}
           chainId={gig.chain_id}
+          checkApplied={() =>
+            checkEscrowTransitionApplied(actions.pendingAction, () => api.gigs.get({ id: gig.escrow_id }))
+          }
           onConfirmed={handleTransactionConfirmed}
           onFailed={(msg) => {
             actions.clearPending()

@@ -137,7 +137,7 @@ const workersPlugin: FastifyPluginAsync = async (fastify) => {
   // repeatables kept every completed job forever — see queueOptions' note.
   const schedulerQueues: Queue[] = []
   for (const r of REPEATABLES) {
-    const q = new Queue(queueName(r.name), queueOptions(connection))
+    const q = new Queue(queueName(r.name), queueOptions(connection, r.name))
     await q.upsertJobScheduler(
       `sched:${r.name}`,
       { every: r.every_ms },

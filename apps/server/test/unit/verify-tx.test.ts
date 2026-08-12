@@ -43,7 +43,7 @@ function acceptedEvent(): DecodedEvent {
 function makeDeps(opts: {
   processed?: boolean
   verdict?: VerifiedTx
-  guardTrips?: boolean
+  guardTrips?: boolean | number
   republishFails?: boolean
 }): {
   deps: VerifyTxDeps
@@ -73,10 +73,17 @@ function makeDeps(opts: {
       calls.failed.push({ tx_ref, code })
     },
   }
+  let guardTripsRemaining = typeof opts.guardTrips === 'number'
+    ? opts.guardTrips
+    : opts.guardTrips === true
+      ? Number.POSITIVE_INFINITY
+      : 0
   const eventStore: EscrowEventStore = {
     async applyEvent({ from, patch }) {
       calls.transitions.push({ from, patch })
-      return { applied: !(opts.guardTrips ?? false), passed_applicant_ids: [], revived_applicant_ids: [] }
+      const applied = guardTripsRemaining === 0
+      guardTripsRemaining = Math.max(0, guardTripsRemaining - 1)
+      return { applied, passed_applicant_ids: [], revived_applicant_ids: [] }
     },
     async resolveUserByWallet() {
       return 'user-1'
@@ -143,6 +150,7 @@ test('already-processed tx_ref skips before touching the adapter', async () => {
   const r = await verifyTxJobHandler(deps, job())
   assert.deepStrictEqual(r, { skipped: true, reason: 'already_processed' })
   assert.strictEqual(calls.transitions.length, 0)
+  assert.deepStrictEqual(calls.confirmed, ['sig-abc'])
 })
 
 test('unconfirmed tx throws RetryableError (BullMQ backoff)', async () => {
@@ -188,24 +196,35 @@ test('happy path: applies the event, confirms the attempt, republishes snake_cas
   assert.deepStrictEqual(calls.transitions[0].from, ['open'])
 })
 
-test('status-guard trip: attempt still confirmed, but no republish (no double fan-out)', async () => {
+test('status-guard trip stays pending and retries instead of dropping an out-of-order event', async () => {
   const { deps, calls } = makeDeps({ guardTrips: true })
-  const r = await verifyTxJobHandler(deps, job())
-  assert.ok(r.skipped === false && r.failed === false)
-  assert.strictEqual(r.applied, false)
-  assert.deepStrictEqual(calls.confirmed, ['sig-abc'])
+  await assert.rejects(verifyTxJobHandler(deps, job()), (error: Error) => {
+    assert.ok(error instanceof RetryableError)
+    assert.strictEqual(error.message, 'status_guard_waiting_for_predecessor')
+    return true
+  })
+  assert.deepStrictEqual(calls.confirmed, [])
   assert.strictEqual(calls.republished.length, 0)
 })
 
-// Reaching the guard means step 1 already ruled out a replay of this tx_ref,
-// so the transition genuinely did not fit: the events raced (verify-tx runs at
-// concurrency 8, unserialised per escrow) or the row has drifted from chain.
-// Nothing retries it and reconcile only revisits PENDING attempts, so if this
-// is not logged the divergence is permanent AND invisible.
-test('status-guard trip on a NEW tx is logged — it is dropped for good', async () => {
+test('status-guard retry is logged for operational visibility', async () => {
   const { deps, calls } = makeDeps({ guardTrips: true })
-  await verifyTxJobHandler(deps, job())
+  await assert.rejects(verifyTxJobHandler(deps, job()), RetryableError)
   assert.strictEqual(calls.warned.length, 1)
+})
+
+test('an out-of-order event applies and republishes when its retry follows the predecessor', async () => {
+  const { deps, calls } = makeDeps({ guardTrips: 1 })
+  await assert.rejects(verifyTxJobHandler(deps, job()), RetryableError)
+
+  const result = await verifyTxJobHandler(deps, job())
+
+  assert.ok(result.skipped === false && result.failed === false)
+  assert.strictEqual(result.applied, true)
+  assert.deepStrictEqual(calls.confirmed, ['sig-abc'])
+  assert.deepStrictEqual(calls.republished, [
+    { internal_event: 'escrow.accepted', escrow_id: ESCROW_ID, tx_ref: 'sig-abc' },
+  ])
 })
 
 // The counterweight: the ORDINARY duplicate (client-ping and the poller both
@@ -215,6 +234,7 @@ test('an already-processed tx_ref exits at step 1 and logs nothing', async () =>
   const { deps, calls } = makeDeps({ processed: true })
   const r = await verifyTxJobHandler(deps, job())
   assert.ok(r.skipped === true)
+  assert.deepStrictEqual(calls.confirmed, ['sig-abc'])
   assert.strictEqual(calls.warned.length, 0)
   assert.strictEqual(calls.republished.length, 0)
 })

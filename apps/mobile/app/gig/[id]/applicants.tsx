@@ -19,9 +19,12 @@ import { GigDetailGate } from '@/components/gig'
 import { approvalContextOf } from '@/components/gig/gig-cta'
 import { ApplicantList, useApplicantList, type ApplicantFilter } from '@/components/gig/gig-applications'
 import { useEscrowActions } from '@/hooks/useEscrowActions'
+import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useGigsStore } from '@/stores'
 import { formatDuration } from '@/lib/gig-display'
 import { spacing } from '@/theme/tokens'
+import { checkEscrowTransitionApplied } from '@/lib/escrow-sync'
+import { api } from '@/api/client'
 
 function ApplicantsContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   const router = useRouter()
@@ -30,6 +33,14 @@ function ApplicantsContent({ gig, userId }: { gig: GigDetail; userId: string }) 
   const [pending, setPending] = useState<GigApplicant | null>(null)
 
   const { applicants, error, load } = useApplicantList(gig.escrow_id, filter)
+  const refresh = useCallback(async () => {
+    await Promise.all([fetchGigDetail(gig.escrow_id), load()])
+  }, [fetchGigDetail, gig.escrow_id, load])
+
+  // Assignments can confirm after the wallet monitor has timed out. Keep both
+  // halves of this screen converged: the gig controls whether Assign is legal,
+  // while the applicant list controls which rows are still pending.
+  useEscrowLiveRefresh(gig.escrow_id, refresh, gig.status)
   const actions = useEscrowActions({
     escrowId: gig.escrow_id,
     chainId: gig.chain_id,
@@ -124,6 +135,9 @@ function ApplicantsContent({ gig, userId }: { gig: GigDetail; userId: string }) 
         }
         escrowId={gig.escrow_id}
         chainId={gig.chain_id}
+        checkApplied={() =>
+          checkEscrowTransitionApplied(actions.pendingAction, () => api.gigs.get({ id: gig.escrow_id }))
+        }
         onConfirmed={handleConfirmed}
         onFailed={(msg) => {
           actions.clearPending()

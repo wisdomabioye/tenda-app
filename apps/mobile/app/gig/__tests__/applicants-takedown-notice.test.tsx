@@ -49,6 +49,9 @@ jest.mock('react-native-unistyles', () => ({
 let mockGig: GigDetail = gigDetail()
 /** `mock`-prefixed so the hoisted gate factory may reference it (jest rule). */
 const mockViewerId = CREATOR_ID
+const mockFetchGigDetail = jest.fn()
+const mockLoadApplicants = jest.fn()
+const mockUseEscrowLiveRefresh = jest.fn()
 
 // The ui BARREL only. Safe for what is under test: NoticeBanner and
 // TakedownNotice import `Text` and each other by direct path, never through
@@ -78,7 +81,7 @@ jest.mock('@/components/gig/gig-applications', () => {
   const { View } = require('react-native')
   return {
     ApplicantList: () => <View testID="applicant-list" />,
-    useApplicantList: () => ({ applicants: [], error: null, load: jest.fn() }),
+    useApplicantList: () => ({ applicants: [], error: null, load: mockLoadApplicants }),
   }
 })
 jest.mock('@/components/feedback', () => ({ TransactionMonitor: () => null }))
@@ -93,7 +96,16 @@ jest.mock('@/hooks/useEscrowActions', () => ({
     clearPending: jest.fn(),
   }),
 }))
-jest.mock('@/stores', () => ({ useGigsStore: () => ({ fetchGigDetail: jest.fn() }) }))
+jest.mock('@/hooks/useEscrowLiveRefresh', () => ({
+  useEscrowLiveRefresh: (
+    escrowId: string | undefined,
+    refresh: () => void | Promise<void>,
+    status: GigDetail['status'],
+  ) => mockUseEscrowLiveRefresh(escrowId, refresh, status),
+}))
+jest.mock('@/stores', () => ({
+  useGigsStore: () => ({ fetchGigDetail: mockFetchGigDetail }),
+}))
 
 import ApplicantsScreen from '../[id]/applicants'
 
@@ -120,4 +132,21 @@ test('a visible gig renders NO banner and no space where one would go', () => {
   // every assertion that only asks about text.
   const tree = JSON.stringify(toJSON())
   expect(tree).not.toContain('paddingTop')
+})
+
+test('live convergence refreshes both gig permissions and applicant rows', async () => {
+  mockGig = gigDetail({ requires_approval: true, status: 'open' })
+  render(<ApplicantsScreen />)
+
+  expect(mockUseEscrowLiveRefresh).toHaveBeenCalledWith(
+    mockGig.escrow_id,
+    expect.any(Function),
+    'open',
+  )
+  const refresh = mockUseEscrowLiveRefresh.mock.calls.at(-1)?.[1] as (() => Promise<void>) | undefined
+  expect(refresh).toBeDefined()
+  await refresh?.()
+
+  expect(mockFetchGigDetail).toHaveBeenCalledWith(mockGig.escrow_id)
+  expect(mockLoadApplicants).toHaveBeenCalledTimes(1)
 })

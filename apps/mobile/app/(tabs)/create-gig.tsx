@@ -137,6 +137,7 @@ export default function PostGigScreen() {
         preparingCaption="Reviewing your gig against our guidelines — this takes a few seconds before your wallet opens."
         escrowId={funding.monitor?.escrowId}
         chainId={funding.monitor?.chainId}
+        checkApplied={() => funding.checkApplied()}
         onConfirmed={funding.handleFunded}
         onFailed={funding.handleFundTimeout}
       />

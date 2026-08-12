@@ -1,0 +1,4 @@
+export const ESCROW_RPC_POLL_MS = 2_000
+export const ESCROW_SYNC_POLL_MS = 1_000
+export const ESCROW_SYNC_TIMEOUT_MS = 60_000
+export const ESCROW_CONFIRM_DISMISS_MS = 800

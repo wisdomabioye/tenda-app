@@ -1,6 +1,7 @@
 /**
- * verify-tx BullMQ worker. Stage 0 ships the **handler skeleton + dedup
- * key**; producers (Helius webhook, polling, reconcile) land in Stage 2.
+ * verify-tx BullMQ worker. Webhooks, polling, client hints and reconciliation
+ * all converge here so chain verification and projection application have one
+ * idempotent path.
  *
  * Lifecycle the worker must implement (per stage-2-listeners.md L154):
  *   1. Dedup: `SELECT … FROM escrow_transactions WHERE tx_ref = $1` → skip.
@@ -10,11 +11,6 @@
  *   4. Apply state transition inside a single `db.transaction`, status-guarded
  *      so a concurrent reconcile-driven retry can't double-apply.
  *   5. Republish event onto the internal bus (notifications, WS broadcast).
- *
- * Stage 0 implements step 1 + the surrounding skeleton; steps 2–5 land with
- * #29 (Anchor IDL decode) + Stage 2 (event bus + WS). The skeleton throws
- * `INTERNAL_ERROR(501)` past step 1 so it fails loud rather than silently
- * marking a tx confirmed without applying state.
  *
  * Idempotency:
  *   - BullMQ jobId = `dedupKey({chain_id, tx_ref, event})`, duplicate
@@ -110,15 +106,14 @@ export type VerifyTxResult =
   | { skipped: true; reason: 'already_processed' | 'not_an_escrow_tx' }
   /** Tx confirmed but execution failed / event mismatched, terminal. */
   | { skipped: false; failed: true; reason: string }
-  /** State applied (or guard-absorbed) and internal event republished. */
+  /** State applied and internal event republished. */
   | {
       skipped: false
       failed: false
       event: EscrowEvent
       internal_event: InternalEscrowEvent
       escrow_id: string
-      /** False when the status guard tripped (another worker won the race). */
-      applied: boolean
+      applied: true
     }
 
 // ---------- retryable signal --------------------------------------------
@@ -213,6 +208,10 @@ export async function verifyTxJobHandler(
 ): Promise<VerifyTxResult> {
   // Step 1, idempotency check.
   if (await deps.store.isProcessed(job.tx_ref)) {
+    // The prior worker may have committed the atomic escrow transition and
+    // then crashed before stamping the separate attempt row. Repair that
+    // bookkeeping on every replay; this is a no-op for listener-only txs.
+    await deps.store.markAttemptConfirmed(job.tx_ref)
     return { skipped: true, reason: 'already_processed' }
   }
 
@@ -245,17 +244,8 @@ export async function verifyTxJobHandler(
     verified.event,
     job.tx_ref,
   )
-  await deps.store.markAttemptConfirmed(job.tx_ref)
 
-  // A tripped status guard here is NOT the ordinary duplicate path: step 1
-  // already short-circuited any tx_ref that was applied before, so this is a
-  // genuinely new transaction whose transition did not fit the current row.
-  // That means the events arrived out of order (verify-tx runs at concurrency
-  // 8 with no per-escrow serialisation, so two events landing in one polling
-  // tick can race) or the DB has drifted from the chain. Either way the event
-  // is now dropped for good — nothing retries it, and reconcile only revisits
-  // PENDING attempts. Log it so the divergence is at least observable; see the
-  // reconciliation note in stage-10 for the standing gap.
+  // A new tx that misses the status guard may be behind its predecessor.
   if (!result.applied) {
     deps.log.warn(
       {
@@ -266,27 +256,31 @@ export async function verifyTxJobHandler(
       },
       'verify-tx: transition skipped by the status guard on a new tx (out-of-order or drift)',
     )
+    // A different event for this escrow may still be ahead of us in another
+    // worker. Do not stamp this attempt confirmed or drop it permanently;
+    // BullMQ retries after the predecessor has had a chance to apply.
+    throw new RetryableError('status_guard_waiting_for_predecessor')
   }
+
+  await deps.store.markAttemptConfirmed(job.tx_ref)
 
   // Step 5, hand the durable transition to the fan-out. Best-effort: the state
   // is already durable; a republish failure is logged, never thrown.
-  if (result.applied) {
-    try {
-      await deps.republish({
-        internal_event: result.internal_event,
-        escrow_id: result.escrow_id,
-        wire_event: verified.event.name,
-        tx_ref: job.tx_ref,
-        counterparty_id: result.counterparty_id,
-        passed_applicant_ids: result.passed_applicant_ids,
-        revived_applicant_ids: result.revived_applicant_ids,
-      })
-    } catch (err) {
-      deps.log.warn(
-        { err, tx_ref: job.tx_ref, escrow_id: result.escrow_id },
-        'verify-tx: republish failed (state already applied)',
-      )
-    }
+  try {
+    await deps.republish({
+      internal_event: result.internal_event,
+      escrow_id: result.escrow_id,
+      wire_event: verified.event.name,
+      tx_ref: job.tx_ref,
+      counterparty_id: result.counterparty_id,
+      passed_applicant_ids: result.passed_applicant_ids,
+      revived_applicant_ids: result.revived_applicant_ids,
+    })
+  } catch (err) {
+    deps.log.warn(
+      { err, tx_ref: job.tx_ref, escrow_id: result.escrow_id },
+      'verify-tx: republish failed (state already applied)',
+    )
   }
 
   return {
@@ -295,6 +289,6 @@ export async function verifyTxJobHandler(
     event: verified.event.name,
     internal_event: result.internal_event,
     escrow_id: result.escrow_id,
-    applied: result.applied,
+    applied: true,
   }
 }

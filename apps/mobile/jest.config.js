@@ -171,5 +171,22 @@ module.exports = {
     // users the app was v1.0.0 when it had never been.
     'lib/app-version.ts',
     'components/ui/AppVersion.tsx',
+    // Escrow convergence. Include the orchestration itself so tests cannot
+    // pass by merely asserting mocked callbacks around the former race.
+    'hooks/escrow-sync/*.ts',
+    '!hooks/escrow-sync/index.ts',
+    '!hooks/escrow-sync/types.ts',
+    'hooks/escrow-live/*.ts',
+    '!hooks/escrow-live/index.ts',
+    'lib/escrow-sync.ts',
+    'components/feedback/TransactionMonitor.tsx',
   ],
+  coverageThreshold: {
+    global: {
+      branches: 90,
+      functions: 90,
+      lines: 90,
+      statements: 90,
+    },
+  },
 }

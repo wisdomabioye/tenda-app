@@ -90,6 +90,17 @@ export const DEFAULT_JOB_OPTIONS = {
 }
 
 /**
+ * Reconciliation deliberately reuses a verify transaction's deterministic
+ * job id. A terminally failed BullMQ record would deduplicate that enqueue, so
+ * this queue removes failures atomically once its attempts are exhausted. The
+ * durable tx_attempt row and worker logs retain the operational evidence.
+ */
+export const VERIFY_TX_JOB_OPTIONS = {
+  ...DEFAULT_JOB_OPTIONS,
+  removeOnFail: true,
+} as const
+
+/**
  * The options EVERY `new Queue(...)` in this app is constructed with.
  *
  * A function rather than two call sites spelling out the same object literal,
@@ -115,11 +126,11 @@ export const DEFAULT_JOB_OPTIONS = {
  * bare `new Queue(name, { connection })` compiles, runs, and passes every
  * behavioural test, because nothing about it is wrong except what Redis keeps.
  */
-export function queueOptions(connection: QueueConnectionOptions): {
-  connection: QueueConnectionOptions
-  defaultJobOptions: typeof DEFAULT_JOB_OPTIONS
-} {
-  return { connection, defaultJobOptions: DEFAULT_JOB_OPTIONS }
+export function queueOptions(connection: QueueConnectionOptions, name?: JobName) {
+  return {
+    connection,
+    defaultJobOptions: name === 'verify-tx' ? VERIFY_TX_JOB_OPTIONS : DEFAULT_JOB_OPTIONS,
+  }
 }
 
 // ---------- crossing the BullMQ boundary ----------------------------------

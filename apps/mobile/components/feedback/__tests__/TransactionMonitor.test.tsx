@@ -7,6 +7,7 @@
  * transports are stubbed so nothing polls.
  */
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react-native'
+import { ESCROW_RPC_POLL_MS, ESCROW_SYNC_TIMEOUT_MS } from '@/hooks/escrow-sync/constants'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -42,13 +43,14 @@ jest.mock('@/components/ui/Button', () => {
 
 // Controllable RPC status: default idle; individual tests override.
 const mockGetTransactionStatus = jest.fn().mockResolvedValue('not_found')
+const mockGetEvmTransactionStatus = jest.fn().mockResolvedValue('not_found')
 // Controllable guarded-request registry: drives the signing-phase Cancel.
 let mockHasPending = false
 const mockPendingSubscribers = new Set<() => void>()
 const mockAbortPending = jest.fn()
 jest.mock('@/wallet', () => ({
   getTransactionStatus: (...a: unknown[]) => mockGetTransactionStatus(...a),
-  getEvmTransactionStatus: jest.fn().mockResolvedValue('not_found'),
+  getEvmTransactionStatus: (...a: unknown[]) => mockGetEvmTransactionStatus(...a),
   abortPendingWalletRequest: () => mockAbortPending(),
   hasPendingWalletRequest: () => mockHasPending,
   subscribePendingWalletRequest: (listener: () => void) => {
@@ -74,23 +76,25 @@ jest.mock('@/stores/realtime.store', () => ({
 import { TransactionMonitor } from '@/components/feedback/TransactionMonitor'
 
 const noop = () => {}
+const notApplied = async () => false
 
 beforeEach(() => {
   wsCallback = null
   mockGetTransactionStatus.mockReset().mockResolvedValue('not_found')
+  mockGetEvmTransactionStatus.mockReset().mockResolvedValue('not_found')
   mockHasPending = false
   mockPendingSubscribers.clear()
   mockAbortPending.mockReset()
 })
 
 test('idle phase with no signature renders nothing', () => {
-  render(<TransactionMonitor signature={null} phase="idle" onConfirmed={noop} onFailed={noop} />)
+  render(<TransactionMonitor checkApplied={notApplied} signature={null} phase="idle" onConfirmed={noop} onFailed={noop} />)
   expect(screen.queryByText('Preparing transaction…')).toBeNull()
   expect(screen.queryByText('Approve in your wallet')).toBeNull()
 })
 
 test('preparing phase shows the build-in-progress copy before any wallet prompt', () => {
-  render(<TransactionMonitor signature={null} phase="preparing" onConfirmed={noop} onFailed={noop} />)
+  render(<TransactionMonitor checkApplied={notApplied} signature={null} phase="preparing" onConfirmed={noop} onFailed={noop} />)
   expect(screen.getByText('Preparing transaction…')).toBeTruthy()
   expect(screen.getByText('Getting your request ready, one moment.')).toBeTruthy()
 })
@@ -99,6 +103,7 @@ test('preparingCaption overrides the default caption (gig moderation-review wait
   const caption = 'Reviewing your gig against our guidelines — this takes a few seconds before your wallet opens.'
   render(
     <TransactionMonitor
+      checkApplied={notApplied}
       signature={null}
       phase="preparing"
       preparingCaption={caption}
@@ -111,25 +116,25 @@ test('preparingCaption overrides the default caption (gig moderation-review wait
 })
 
 test('signing phase tells the user their wallet is opening (the key newcomer cue)', () => {
-  render(<TransactionMonitor signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
+  render(<TransactionMonitor checkApplied={notApplied} signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
   expect(screen.getByText('Approve in your wallet')).toBeTruthy()
   expect(screen.getByText(/approve the transaction there/i)).toBeTruthy()
 })
 
 test('signing phase shows NO Cancel when nothing is abortable (Solana/MWA path)', () => {
-  render(<TransactionMonitor signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
+  render(<TransactionMonitor checkApplied={notApplied} signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
   expect(screen.queryByText('Cancel')).toBeNull()
 })
 
 test('signing phase offers Cancel while a WC request is in flight, and it aborts', () => {
   mockHasPending = true
-  render(<TransactionMonitor signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
+  render(<TransactionMonitor checkApplied={notApplied} signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
   fireEvent.press(screen.getByText('Cancel'))
   expect(mockAbortPending).toHaveBeenCalledTimes(1)
 })
 
 test('Cancel appears live when a guarded request starts mid-signing', () => {
-  render(<TransactionMonitor signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
+  render(<TransactionMonitor checkApplied={notApplied} signature={null} phase="signing" onConfirmed={noop} onFailed={noop} />)
   expect(screen.queryByText('Cancel')).toBeNull()
   // The guard registers its request and notifies (useSyncExternalStore).
   act(() => {
@@ -142,6 +147,7 @@ test('Cancel appears live when a guarded request starts mid-signing', () => {
 test('confirming phase names the action via actionLabel', () => {
   render(
     <TransactionMonitor
+      checkApplied={notApplied}
       signature="sig123"
       phase="confirming"
       actionLabel="Releasing payment"
@@ -156,9 +162,26 @@ test('confirming phase names the action via actionLabel', () => {
 
 test('legacy caller (no phase) still opens on a broadcast signature', () => {
   render(
-    <TransactionMonitor signature="sig123" escrowId="e1" chainId="solana:devnet" onConfirmed={noop} onFailed={noop} />,
+    <TransactionMonitor checkApplied={notApplied} signature="sig123" escrowId="e1" chainId="solana:devnet" onConfirmed={noop} onFailed={noop} />,
   )
   expect(screen.getByText('Confirming transaction…')).toBeTruthy()
+})
+
+test('an EVM receipt shows server synchronization and does not claim success early', async () => {
+  mockGetEvmTransactionStatus.mockResolvedValue('confirmed')
+  render(
+    <TransactionMonitor
+      checkApplied={notApplied}
+      signature="0xreceipt"
+      escrowId="e1"
+      chainId="eip155:8453"
+      onConfirmed={noop}
+      onFailed={noop}
+    />,
+  )
+  await waitFor(() => expect(screen.getByText('Syncing with Tenda…')).toBeTruthy())
+  expect(screen.getByText('Confirmed on-chain. Updating your gig now.')).toBeTruthy()
+  expect(screen.queryByText('Transaction confirmed!')).toBeNull()
 })
 
 test('a WS confirmation frame settles confirmed and calls onConfirmed', async () => {
@@ -166,6 +189,7 @@ test('a WS confirmation frame settles confirmed and calls onConfirmed', async ()
   const onConfirmed = jest.fn()
   render(
     <TransactionMonitor
+      checkApplied={notApplied}
       signature="sig-ws"
       phase="confirming"
       escrowId="e1"
@@ -187,11 +211,32 @@ test('a WS confirmation frame settles confirmed and calls onConfirmed', async ()
   jest.useRealTimers()
 })
 
+test('setup transactions keep their specific copy through confirmation', () => {
+  jest.useFakeTimers()
+  render(
+    <TransactionMonitor
+      checkApplied={notApplied}
+      signature="sig-setup"
+      setupPhase
+      escrowId="e1"
+      chainId="solana:devnet"
+      onConfirmed={noop}
+      onFailed={noop}
+    />,
+  )
+  expect(screen.getByText('Setting up worker account…')).toBeTruthy()
+  expect(screen.getByText(/One-time setup required/)).toBeTruthy()
+  act(() => wsCallback?.({ tx_ref: 'sig-setup' }))
+  expect(screen.getByText('Worker account created!')).toBeTruthy()
+  jest.useRealTimers()
+})
+
 test('a failed on-chain status shows the issue state and Dismiss routes to onFailed', async () => {
   mockGetTransactionStatus.mockResolvedValue('failed')
   const onFailed = jest.fn()
   render(
     <TransactionMonitor
+      checkApplied={notApplied}
       signature="sig-fail"
       phase="confirming"
       chainId="solana:devnet"
@@ -202,4 +247,30 @@ test('a failed on-chain status shows the issue state and Dismiss routes to onFai
   await waitFor(() => expect(screen.getByText('Transaction issue')).toBeTruthy())
   fireEvent.press(screen.getByText('Dismiss'))
   expect(onFailed).toHaveBeenCalledWith('Transaction failed on chain.')
+})
+
+test('a chain timeout is presented as deferred, not as a failed transaction', async () => {
+  jest.useFakeTimers()
+  jest.setSystemTime(0)
+  const onFailed = jest.fn()
+  render(
+    <TransactionMonitor
+      checkApplied={notApplied}
+      signature="sig-slow"
+      chainId="solana:devnet"
+      onConfirmed={noop}
+      onFailed={onFailed}
+    />,
+  )
+  await act(async () => { await Promise.resolve() })
+  jest.setSystemTime(ESCROW_SYNC_TIMEOUT_MS + 1)
+  await act(async () => {
+    jest.advanceTimersByTime(ESCROW_RPC_POLL_MS)
+    await Promise.resolve()
+  })
+  expect(screen.getByText('Sync is taking longer')).toBeTruthy()
+  expect(screen.queryByText('Transaction issue')).toBeNull()
+  fireEvent.press(screen.getByText('Continue'))
+  expect(onFailed).toHaveBeenCalledWith('Transaction is pending and will continue syncing.')
+  jest.useRealTimers()
 })
