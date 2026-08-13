@@ -1,10 +1,4 @@
-/**
- * Tier selection and bookkeeping for the primer.
- *
- * The gating matters more than the rendering: showing this sheet to the wrong
- * user either interrupts a signed-out visitor or wastes the one re-ask we get.
- */
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native'
+import { act, render, screen, fireEvent, waitFor } from '@testing-library/react-native'
 import { useNotificationPermission } from '@/hooks/useNotificationPermission'
 import { useAuthStore } from '@/stores/auth.store'
 import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
@@ -32,10 +26,6 @@ jest.mock('react-native-unistyles', () => ({
 
 jest.mock('lucide-react-native', () => ({ Bell: () => null }))
 
-// Lightweight stand-ins: the sheet's own chrome (Modal, safe-area insets) is
-// not what this suite is testing, the tier + bookkeeping logic is.
-// Built with createElement rather than JSX — JSX inside a jest.mock factory
-// compiles to a module-scope runtime helper, which the factory may not close over.
 jest.mock('@/components/ui', () => {
   const { createElement } = require('react')
   const { Text, Pressable, View } = require('react-native')
@@ -45,11 +35,19 @@ jest.mock('@/components/ui', () => {
       visible,
       title,
       children,
+      onClose,
     }: {
       visible: boolean
       title: string
       children: React.ReactNode
-    }) => (visible ? createElement(View, null, createElement(Text, null, title), children) : null),
+      onClose: () => void
+    }) => (visible ? createElement(
+      View,
+      null,
+      createElement(Text, null, title),
+      children,
+      createElement(Pressable, { accessibilityLabel: 'Close sheet', onPress: onClose }),
+    ) : null),
     Text: ({ children }: { children: React.ReactNode }) => createElement(Text, null, children),
     Button: ({
       children,
@@ -164,7 +162,6 @@ describe('outcomes', () => {
     await waitFor(() => {
       expect(useNotificationPromptStore.getState().softDeclinedAt).not.toBeNull()
     })
-    // "Not now" must never spend the one-shot OS prompt.
     expect(ask).not.toHaveBeenCalled()
     expect(useNotificationPromptStore.getState().hasPrimedAtSignup).toBe(true)
   })
@@ -233,7 +230,6 @@ describe('NotificationPrimer contract', () => {
       />,
     )
 
-    // Offering "Allow" here would be a button that opens nothing.
     expect(screen.getByText(SETTINGS_CONFIRM_LABEL)).toBeTruthy()
     expect(screen.queryByText(PRIMER_COPY.nudge.confirmLabel)).toBeNull()
   })
@@ -254,6 +250,34 @@ describe('NotificationPrimer contract', () => {
 
     expect(onDismiss).toHaveBeenCalledTimes(1)
     expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('blocks every dismissal path and duplicate confirms while permission is pending', async () => {
+    const onDismiss = jest.fn()
+    let finishRequest: ((enabled: boolean) => void) | undefined
+    const pendingConfirm = jest.fn(() => new Promise<boolean>((resolve) => { finishRequest = resolve }))
+    render(
+      <NotificationPrimer
+        visible
+        reason="signup"
+        canAskAgain
+        onConfirm={pendingConfirm}
+        onDismiss={onDismiss}
+      />,
+    )
+
+    fireEvent.press(screen.getByText(PRIMER_COPY.signup.confirmLabel))
+    fireEvent.press(screen.getByText(PRIMER_COPY.signup.confirmLabel))
+    fireEvent.press(screen.getByLabelText('Close sheet'))
+    expect(pendingConfirm).toHaveBeenCalledTimes(1)
+    expect(onDismiss).not.toHaveBeenCalled()
+
+    await act(async () => {
+      finishRequest?.(true)
+      await Promise.resolve()
+    })
+    fireEvent.press(screen.getByLabelText('Close sheet'))
+    expect(onDismiss).toHaveBeenCalledTimes(1)
   })
 
   it('renders nothing while hidden', () => {

@@ -9,8 +9,9 @@ jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
     theme: {
       colors: {
-        surface: { card: '#fff', pressed: '#eee', inset: '#eee' },
-        border: { subtle: '#ddd' },
+        surface: { card: '#fff', sheet: '#fff', pressed: '#eee', inset: '#eee' },
+        utility: { scrim: 'rgba(0,0,0,0.4)' },
+        border: { subtle: '#ddd', strong: '#bbb' },
         control: { inputBackground: '#f0f0f0' },
         content: { primary: '#000', secondary: '#333', tertiary: '#666' },
         brand: { primary: '#05f', primarySurface: '#e0e7ff' },
@@ -18,7 +19,10 @@ jest.mock('react-native-unistyles', () => ({
     },
   }),
 }))
-jest.mock('lucide-react-native', () => ({ Search: () => null, Check: () => null }))
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
+}))
+jest.mock('lucide-react-native', () => ({ Search: () => null, Check: () => null, X: () => null }))
 jest.mock('@/components/ui/Text', () => {
   const { Text } = require('react-native')
   return { Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }

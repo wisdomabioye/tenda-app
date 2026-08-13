@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Paperclip, ArrowUp } from 'lucide-react-native'
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'
 import { typography, shadows } from '@/theme/tokens'
+import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
 
 interface ChatInputProps {
   onSend: (text: string) => void
@@ -63,7 +64,7 @@ export function ChatInput({ onSend, onAttach, disabled }: ChatInputProps) {
         <TextInput
           value={text}
           onChangeText={setText}
-          maxFontSizeMultiplier={1}
+          maxFontSizeMultiplier={MAXIMUM_FONT_SIZE_MULTIPLIER}
           placeholder="Message…"
           placeholderTextColor={theme.colors.content.tertiary}
           multiline

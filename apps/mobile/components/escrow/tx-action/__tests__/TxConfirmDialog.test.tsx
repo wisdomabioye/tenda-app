@@ -7,7 +7,12 @@ import { render, fireEvent, screen } from '@testing-library/react-native'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
-    theme: { colors: { surface: { overlay: 'rgba(0,0,0,0.4)', card: '#fff' }, content: { secondary: '#555' } } },
+    theme: { colors: {
+      surface: { modal: '#fff' },
+      utility: { scrim: 'rgba(0,0,0,0.4)' },
+      border: { strong: '#ddd' },
+      content: { secondary: '#555' },
+    } },
   }),
 }))
 jest.mock('@/components/ui/Button', () => {

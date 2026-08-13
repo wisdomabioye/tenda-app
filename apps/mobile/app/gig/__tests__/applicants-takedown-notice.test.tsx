@@ -31,8 +31,9 @@ jest.mock('react-native-unistyles', () => ({
     theme: {
       colors: {
         content: { primary: '#000', secondary: '#666', tertiary: '#999' },
-        surface: { background: '#fff', backgroundAlt: '#eee', inset: '#eee' },
-        border: { subtle: '#ddd', default: '#ccc' },
+        surface: { background: '#fff', backgroundAlt: '#eee', inset: '#eee', sheet: '#fff' },
+        utility: { scrim: 'rgba(0,0,0,0.4)' },
+        border: { subtle: '#ddd', default: '#ccc', strong: '#bbb' },
         brand: { primary: '#50f' },
         feedback: {
           success: { base: '#1F9D6B', surface: '#E6F4ED' },

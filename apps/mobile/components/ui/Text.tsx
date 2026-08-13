@@ -1,6 +1,7 @@
 import { Text as RNText, type TextProps as RNTextProps, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
+import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
 
 type Variant = 'heading' | 'subheading' | 'body' | 'caption' | 'label'
 type Weight = 'regular' | 'medium' | 'semibold' | 'bold'
@@ -63,7 +64,7 @@ export function Text({
 
   return (
     <RNText
-      maxFontSizeMultiplier={1}
+      maxFontSizeMultiplier={MAXIMUM_FONT_SIZE_MULTIPLIER}
       style={[
         { color: variant === 'caption' ? theme.colors.content.secondary : theme.colors.content.primary, fontFamily: typography.fonts.body.regular },
         variantStyles[variant],

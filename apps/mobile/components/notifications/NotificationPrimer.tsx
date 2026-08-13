@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { Bell } from 'lucide-react-native'
@@ -33,19 +33,33 @@ export function NotificationPrimer({
 }: NotificationPrimerProps) {
   const { theme } = useUnistyles()
   const [isAsking, setIsAsking] = useState(false)
+  const requestInFlight = useRef(false)
+  const mounted = useRef(true)
   const copy = PRIMER_COPY[reason]
 
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
+
   async function handleConfirm() {
+    if (requestInFlight.current) return
+    requestInFlight.current = true
     setIsAsking(true)
     try {
       await onConfirm()
     } finally {
-      setIsAsking(false)
+      requestInFlight.current = false
+      if (mounted.current) setIsAsking(false)
     }
   }
 
+  function handleDismiss() {
+    if (!requestInFlight.current) onDismiss()
+  }
+
   return (
-    <BottomSheet visible={visible} onClose={onDismiss} title={copy.title}>
+    <BottomSheet visible={visible} onClose={handleDismiss} title={copy.title}>
       <View style={s.iconRow}>
         <View style={[s.icon, { backgroundColor: theme.colors.brand.primarySurface }]}>
           <Bell size={28} color={theme.colors.brand.primary} />
@@ -67,7 +81,7 @@ export function NotificationPrimer({
         {canAskAgain ? copy.confirmLabel : SETTINGS_CONFIRM_LABEL}
       </Button>
       <Spacer size={spacing.sm} />
-      <Button variant="ghost" size="lg" fullWidth disabled={isAsking} onPress={onDismiss}>
+      <Button variant="ghost" size="lg" fullWidth disabled={isAsking} onPress={handleDismiss}>
         {copy.dismissLabel}
       </Button>
     </BottomSheet>

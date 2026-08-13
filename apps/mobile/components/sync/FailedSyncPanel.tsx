@@ -83,7 +83,7 @@ export function FailedSyncPanel() {
   }
 
   const noun = failed.length === 1 ? 'transaction needs' : `${failed.length} transactions need`
-  const warningTextColor = '#8D5209'
+  const warningTextColor = theme.colors.feedback.warning.text
 
   return (
     <>

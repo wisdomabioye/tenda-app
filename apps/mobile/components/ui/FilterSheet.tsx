@@ -1,24 +1,17 @@
-import { useEffect, useRef } from 'react'
 import {
   View,
-  Modal,
   Pressable,
-  Animated,
   StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { X, Search as SearchIcon } from 'lucide-react-native'
-import { spacing, radius } from '@/theme/tokens'
+import { Search as SearchIcon } from 'lucide-react-native'
+import { spacing } from '@/theme/tokens'
 import { Text } from './Text'
 import { Input } from './Input'
 import { Chip } from './Chip'
-import { IconButton } from './IconButton'
+import { BottomSheet } from './BottomSheet'
 import { LocationPicker } from '@/components/form/LocationPicker'
 import { CATEGORY_META } from '@/lib/categories'
-
-const SHEET_HEIGHT = 580
 
 interface FilterSheetProps {
   visible: boolean
@@ -54,29 +47,6 @@ export function FilterSheet({
   onClearAll,
 }: FilterSheetProps) {
   const { theme } = useUnistyles()
-  const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current
-
-  useEffect(() => {
-    if (visible) {
-      Animated.spring(translateY, {
-        toValue: 0,
-        useNativeDriver: true,
-        damping: 20,
-        stiffness: 200,
-      }).start()
-    } else {
-      translateY.setValue(SHEET_HEIGHT)
-    }
-  }, [visible, translateY])
-
-  const handleClose = () => {
-    Animated.timing(translateY, {
-      toValue: SHEET_HEIGHT,
-      duration: 200,
-      useNativeDriver: true,
-    }).start(() => onClose())
-  }
-
   const handleCategoryPress = (key: string) => {
     onCategoryChange(selectedCategory === key ? null : key)
   }
@@ -84,150 +54,84 @@ export function FilterSheet({
   const hasFilters = query.trim().length > 0 || selectedCategory !== null || country !== null || city !== null || remote !== null || crossBorder !== null
 
   return (
-    <Modal
+    <BottomSheet
       visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={handleClose}
-      statusBarTranslucent
+      onClose={onClose}
+      title="Filter gigs"
     >
-      <KeyboardAvoidingView
-        style={s.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        {/* Backdrop */}
-        <Pressable style={s.backdrop} onPress={handleClose} />
+      <View style={s.section}>
+        <Input
+          placeholder="Search by title, city..."
+          value={query}
+          onChangeText={onQueryChange}
+          icon={<SearchIcon size={18} color={theme.colors.content.tertiary} />}
+          autoFocus={false}
+        />
+      </View>
 
-        {/* Sheet */}
-        <Animated.View
-          style={[
-            s.sheet,
-            {
-              backgroundColor: theme.colors.surface.background,
-              transform: [{ translateY }],
-            },
-          ]}
-        >
-          {/* Handle */}
-          <View style={s.handleRow}>
-            <View style={[s.handle, { backgroundColor: theme.colors.border.subtle }]} />
-          </View>
-
-          {/* Header */}
-          <View style={s.header}>
-            <Text variant="subheading">Filter gigs</Text>
-            <IconButton
-              icon={<X size={20} color={theme.colors.content.primary} />}
-              onPress={handleClose}
-              variant="ghost"
+      <View style={s.section}>
+        <Text variant="caption" color={theme.colors.content.secondary} style={s.chipLabel}>
+          Category
+        </Text>
+        <View style={s.chips}>
+          {CATEGORY_META.map((category) => (
+            <Chip
+              key={category.key}
+              label={category.label}
+              selected={selectedCategory === category.key}
+              category={category.key}
+              onPress={() => handleCategoryPress(category.key)}
             />
-          </View>
+          ))}
+        </View>
+      </View>
 
-          {/* Search input */}
-          <View style={s.section}>
-            <Input
-              placeholder="Search by title, city..."
-              value={query}
-              onChangeText={onQueryChange}
-              icon={<SearchIcon size={18} color={theme.colors.content.tertiary} />}
-              autoFocus={false}
+      <View style={s.section}>
+        <Text variant="caption" color={theme.colors.content.secondary} style={s.chipLabel}>
+          Gig type
+        </Text>
+        <View style={s.chips}>
+          {([null, false, true] as const).map((value) => (
+            <Chip
+              key={String(value)}
+              label={value === null ? 'All' : value ? 'Remote' : 'Local'}
+              selected={remote === value && crossBorder === null}
+              onPress={() => { onRemoteChange(value); onCrossBorderChange(null) }}
             />
-          </View>
+          ))}
+          <Chip
+            label="Cross-border"
+            selected={crossBorder === true}
+            onPress={() => {
+              onCrossBorderChange(crossBorder === true ? null : true)
+              onRemoteChange(null)
+            }}
+          />
+        </View>
+      </View>
 
-          {/* Category chips */}
-          <View style={s.section}>
-            <Text variant="caption" color={theme.colors.content.secondary} style={s.chipLabel}>
-              Category
-            </Text>
-            <View style={s.chips}>
-              {CATEGORY_META.map((cat) => (
-                <Chip
-                  key={cat.key}
-                  label={cat.label}
-                  selected={selectedCategory === cat.key}
-                  category={cat.key}
-                  onPress={() => handleCategoryPress(cat.key)}
-                />
-              ))}
-            </View>
-          </View>
+      <View style={s.section}>
+        <LocationPicker
+          country={country}
+          city={city}
+          onChange={onLocationChange}
+          label="Location"
+        />
+      </View>
 
-          {/* Remote / Local / Cross-border filter */}
-          <View style={s.section}>
-            <Text variant="caption" color={theme.colors.content.secondary} style={s.chipLabel}>
-              Gig type
-            </Text>
-            <View style={s.chips}>
-              {([null, false, true] as const).map((val) => (
-                <Chip
-                  key={String(val)}
-                  label={val === null ? 'All' : val ? 'Remote' : 'Local'}
-                  selected={remote === val && crossBorder === null}
-                  onPress={() => { onRemoteChange(val); onCrossBorderChange(null) }}
-                />
-              ))}
-              <Chip
-                label="Cross-border"
-                selected={crossBorder === true}
-                onPress={() => { onCrossBorderChange(crossBorder === true ? null : true); onRemoteChange(null) }}
-              />
-            </View>
-          </View>
-
-          {/* Location picker */}
-          <View style={s.section}>
-            <LocationPicker
-              country={country}
-              city={city}
-              onChange={onLocationChange}
-              label="Location"
-            />
-          </View>
-
-          {/* Clear filters */}
-          {hasFilters && (
-            <Pressable style={s.clearRow} onPress={onClearAll}>
-              <Text variant="caption" color={theme.colors.content.tertiary}>
-                Clear all filters
-              </Text>
-            </Pressable>
-          )}
-        </Animated.View>
-      </KeyboardAvoidingView>
-    </Modal>
+      {hasFilters && (
+        <Pressable style={s.clearRow} onPress={onClearAll}>
+          <Text variant="caption" color={theme.colors.content.tertiary}>
+            Clear all filters
+          </Text>
+        </Pressable>
+      )}
+    </BottomSheet>
   )
 }
 
 const s = StyleSheet.create({
-  flex: { flex: 1 },
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
-  sheet: {
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    paddingBottom: spacing['2xl'],
-  },
-  handleRow: {
-    alignItems: 'center',
-    paddingTop: spacing.sm,
-    paddingBottom: spacing.xs,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
-  },
   section: {
-    paddingHorizontal: spacing.md,
     paddingBottom: spacing.md,
   },
   chipLabel: {

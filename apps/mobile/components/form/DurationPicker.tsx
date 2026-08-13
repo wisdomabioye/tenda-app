@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View, TextInput, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
+import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
 import { Text } from '@/components/ui/Text'
 import { Chip } from '@/components/ui/Chip'
 
@@ -99,7 +100,7 @@ export function DurationPicker({
                 color: theme.colors.content.primary,
               },
             ]}
-            maxFontSizeMultiplier={1}
+            maxFontSizeMultiplier={MAXIMUM_FONT_SIZE_MULTIPLIER}
           />
           <Pressable
             onPress={toggleUnit}

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { TextInput, View, type TextInputProps, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
+import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
 import { Text } from './Text'
 
 type Variant = 'inset' | 'compact'
@@ -184,7 +185,7 @@ export function Input({
           {icon}
           {/* Inline TextInput style override for compact anatomy */}
           <TextInput
-            maxFontSizeMultiplier={1}
+            maxFontSizeMultiplier={MAXIMUM_FONT_SIZE_MULTIPLIER}
             placeholderTextColor={theme.colors.content.placeholder}
             multiline={multiline}
             style={[
@@ -221,7 +222,7 @@ export function Input({
             </Text>
           )}
           <TextInput
-            maxFontSizeMultiplier={1}
+            maxFontSizeMultiplier={MAXIMUM_FONT_SIZE_MULTIPLIER}
             placeholderTextColor={theme.colors.content.placeholder}
             multiline={multiline}
             style={[

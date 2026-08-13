@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View, TextInput, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
+import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
 import { Text } from '@/components/ui/Text'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
@@ -124,7 +125,7 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
               s.amount,
               { color: text ? theme.colors.content.primary : theme.colors.content.tertiary },
             ]}
-            maxFontSizeMultiplier={1}
+            maxFontSizeMultiplier={MAXIMUM_FONT_SIZE_MULTIPLIER}
           />
           <Text style={[s.suffix, { color: theme.colors.content.tertiary }]}>{unitLabel}</Text>
         </View>
