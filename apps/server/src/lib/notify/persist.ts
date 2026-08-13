@@ -10,7 +10,8 @@ import type { InferSelectModel } from 'drizzle-orm'
 import { notifications } from '@tenda/shared/db/schema'
 import { NOTIFICATION_TITLE_MAX, NOTIFICATION_BODY_MAX } from '@tenda/shared'
 import type { NotificationWire } from '@tenda/shared'
-import { channelName, type WsBroadcaster } from '@server/lib/ws'
+import { channelName } from '@server/lib/ws'
+import type { RealtimePublisher } from '@server/realtime'
 import type { JobPayload } from '@server/plugins/queue'
 import type { AppDatabase } from '@server/plugins/db'
 
@@ -30,7 +31,7 @@ export function toNotificationWire(row: NotificationRow): NotificationWire {
 
 export interface PersistDeps {
   db: AppDatabase
-  wsBroadcast: WsBroadcaster
+  realtime: RealtimePublisher
 }
 
 /**
@@ -68,7 +69,8 @@ export async function persistNotification(
     .returning()
   if (row === undefined) return 'duplicate' // retry — already delivered
 
-  deps.wsBroadcast.broadcast(channelName({ kind: 'user', id: payload.user_id }), {
+  deps.realtime.publish({
+    channel: channelName({ kind: 'user', id: payload.user_id }),
     type: 'notification',
     notification: toNotificationWire(row),
   })

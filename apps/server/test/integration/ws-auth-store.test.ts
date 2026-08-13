@@ -32,6 +32,17 @@ const getApp = useTestApp()
 
 const storeFor = (app: FastifyInstance) => drizzleWsAuthStore(app.db)
 
+test('only existing active users pass WebSocket account authentication', { skip }, async () => {
+  const app = getApp()
+  const active = await createUser(app)
+  const suspended = await createUser(app, { status: 'suspended' })
+
+  assert.equal(await storeFor(app).isActiveUser(active.row.id), true)
+  assert.equal(await storeFor(app).isActiveUser(suspended.row.id), false)
+  assert.equal(await storeFor(app).isActiveUser('550e8400-e29b-41d4-a716-446655440000'), false)
+  assert.equal(await storeFor(app).isActiveUser('not-a-uuid'), false)
+})
+
 /** Canonical (user_a_id < user_b_id) conversation between two users. */
 async function conversationBetween(
   app: FastifyInstance,

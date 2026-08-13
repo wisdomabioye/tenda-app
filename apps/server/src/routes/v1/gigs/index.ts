@@ -10,7 +10,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { isEscrowCounterpartySide } from '@server/lib/escrow-party'
-import { eq, and, gt, inArray, isNull, or, sql, type SQL } from 'drizzle-orm'
+import { eq, and, gt, inArray, isNull, or, sql, lt, desc, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { MAX_GIG_DESCRIPTION_LENGTH, ASSET_META, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
@@ -26,6 +26,7 @@ import {
   parseStatusFilter,
   queryConditions,
 } from './list-filters'
+import { decodeGigFeedCursor, encodeGigFeedCursor } from './gig-feed-cursor'
 
 type ListRoute = GigsContract['list']
 type CreateRoute = GigsContract['create']
@@ -36,7 +37,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     Querystring: ListRoute['query']
     Reply: ListRoute['response'] | ApiError
   }>('/', async (request, reply) => {
-    const { mine, status, limit = 20, offset = 0 } = request.query
+    const { mine, status, limit = 20, offset = 0, cursor } = request.query
 
     // BEFORE the `mine` branch below, which authenticates. Position is
     // behaviour, not style: `?mine=created&country=BOGUS` with no token
@@ -51,8 +52,12 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
 
     const now = new Date()
     const conditions: SQL[] = [eq(escrows.kind, 'gig')]
+    let cursorCondition: SQL | null = null
 
     if (mine !== undefined) {
+      if (cursor !== undefined) {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'cursor is only supported by the public feed')
+      }
       // Own listings (my-gigs surface): every status incl. drafts, auth
       // required; identity comes from the JWT, never a param.
       if (mine !== 'created' && mine !== 'working') {
@@ -93,6 +98,7 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
       conditions.push(
         eq(escrows.status, 'open'),
         eq(escrows.hidden, false),
+        isNull(escrows.assigned_counterparty_id),
         or(isNull(escrows.accept_deadline), gt(escrows.accept_deadline, now)) as SQL,
       )
     }
@@ -104,9 +110,30 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     // user is told. It is owned by ./list-filters and pinned there.
     conditions.push(...queryConditions(request.query, fastify.chains))
 
-    const where = and(...conditions)
+    // Decode only after the ordinary filters above have validated. Their
+    // refusal order is part of this endpoint's established error contract.
+    if (cursor !== undefined) {
+      if (request.query.sort !== undefined || (request.query.q?.trim() ?? '') !== '') {
+        throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'cursor requires recency ordering')
+      }
+      const decoded = decodeGigFeedCursor(cursor)
+      cursorCondition = or(
+        lt(escrows.created_at, decoded.created_at),
+        and(eq(escrows.created_at, decoded.created_at), lt(escrows.id, decoded.escrow_id)),
+      ) as SQL
+    }
 
-    const orderBy = listOrderBy(request.query)
+    const countWhere = and(...conditions)
+    const where = cursorCondition === null ? countWhere : and(countWhere, cursorCondition)
+
+    const hasSearch = (request.query.q?.trim() ?? '') !== ''
+    const usesRecencyCursor = mine === undefined && request.query.sort === undefined && !hasSearch
+    const usesRecencyOrdering = !hasSearch && (
+      request.query.sort === undefined || request.query.sort === 'created_at'
+    )
+    const orderBy = cursor !== undefined || usesRecencyOrdering
+      ? [desc(escrows.created_at), desc(escrows.id)]
+      : [listOrderBy(request.query)]
 
     const [data, countResult] = await Promise.all([
       fastify.db
@@ -116,20 +143,31 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
         .innerJoin(users, eq(users.id, escrows.creator_id))
         .where(where)
         .limit(safeLimit)
-        .offset(safeOffset)
-        .orderBy(orderBy),
+        .offset(cursor === undefined ? safeOffset : 0)
+        .orderBy(...orderBy),
       fastify.db
         .select({ count: sql<number>`count(*)::int` })
         .from(escrows)
         .innerJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
-        .where(where),
+        .where(countWhere),
     ])
 
     return {
       data: data.map(toGigSummary),
       total: countResult[0].count,
       limit: safeLimit,
-      offset: safeOffset,
+      offset: cursor === undefined ? safeOffset : 0,
+      ...(usesRecencyCursor
+        ? {
+            next_cursor:
+              data.length === safeLimit && data[data.length - 1] !== undefined
+                ? encodeGigFeedCursor({
+                    created_at: data[data.length - 1].created_at,
+                    escrow_id: data[data.length - 1].escrow_id,
+                  })
+                : null,
+          }
+        : {}),
     }
   })
 

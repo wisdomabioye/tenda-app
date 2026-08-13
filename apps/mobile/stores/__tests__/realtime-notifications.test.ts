@@ -15,11 +15,10 @@ jest.mock('@/api/client', () => ({
 }))
 
 import { isNotificationFrame } from '@/stores/realtime.store'
-import type { WsFrame } from '@/lib/ws'
 
 const wire = { id: 'n1', title: 't', body: 'b', data: null, read_at: null, created_at: null }
 
-function frame(over: Record<string, unknown>): WsFrame {
+function frame(over: Record<string, unknown>): object {
   return { channel: 'user:u1', ...over }
 }
 

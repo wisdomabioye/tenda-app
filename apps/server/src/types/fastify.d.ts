@@ -24,6 +24,7 @@ import type { ChainRegistry } from '../chains/types'
 import type { ContractRegistry } from '../chains/contracts'
 import type { WsBroadcaster } from '../lib/ws'
 import type { QuoteCache } from '../features/fiat-rails/quote-cache'
+import type { RealtimePublisher } from '../realtime'
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -59,6 +60,9 @@ declare module 'fastify' {
 
     /** In-process WS pub/sub, registered by `plugins/websocket.ts`. */
     wsBroadcast: WsBroadcaster
+
+    /** Local + optional Redis cross-replica realtime publication. */
+    realtime: RealtimePublisher
 
     /** Chain adapter registry, registered by `plugins/chains.ts`. */
     chains: ChainRegistry

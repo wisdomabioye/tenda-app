@@ -51,6 +51,7 @@ import { GigCardCompactPriceLeading } from '@/components/gig/GigCardCompact/Pric
 function gig(overrides: Partial<GigSummary> = {}): GigSummary {
   return {
     escrow_id: 'e1',
+    public_feed_revision: '0',
     chain_id: 'eip155:84532',
     asset: 'USDC',
     amount_raw: '50000000',
@@ -67,7 +68,7 @@ function gig(overrides: Partial<GigSummary> = {}): GigSummary {
     remote: false,
     cross_border: false,
     proof_requirements: [],
-  requires_approval: false,
+    requires_approval: false,
     creator: {
       id: 'u1',
       first_name: 'Ada',

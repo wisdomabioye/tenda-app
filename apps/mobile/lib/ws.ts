@@ -8,15 +8,16 @@
  * the fallback layer (poll only while disconnected).
  */
 
-import { apiConfig, WS_PATH, WS_AUTH_SUBPROTOCOL } from '@tenda/shared'
+import { apiConfig, parseWsServerFrame, WS_PATH, WS_AUTH_SUBPROTOCOL, type WsServerFrame } from '@tenda/shared'
 import { getJwtToken } from '@/lib/secure-store'
 import { getEnv } from '@/lib/env'
+import { notifyListeners } from '@/lib/realtime/notify-listeners'
 
 const RECONNECT_BASE_MS = 1_000
 const RECONNECT_MAX_MS = 30_000
 
-export type WsFrame = { channel: string } & Record<string, unknown>
-export type WsListener = (frame: WsFrame) => void
+export type WsFrame = WsServerFrame
+export type WsListener = (frame: WsServerFrame) => void
 export type ConnectionListener = (connected: boolean) => void
 
 interface WsState {
@@ -61,7 +62,7 @@ function safeSend(socket: WebSocket, payload: Record<string, unknown>): void {
 function setConnected(connected: boolean): void {
   if (state.connected === connected) return
   state.connected = connected
-  for (const l of state.connectionListeners) l(connected)
+  notifyListeners(state.connectionListeners, connected)
 }
 
 function scheduleReconnect(): void {
@@ -81,6 +82,11 @@ async function open(): Promise<void> {
   let token: string | null
   try {
     token = await getJwtToken()
+  } catch {
+    // Secure storage can be temporarily unavailable during device unlock or
+    // app resume. Treat that like any other disconnected state and retry.
+    scheduleReconnect()
+    return
   } finally {
     state.opening = false
   }
@@ -111,16 +117,17 @@ async function open(): Promise<void> {
   }
   socket.onmessage = (event) => {
     if (state.socket !== socket) return
-    let frame: WsFrame
+    let parsed: unknown
     try {
-      frame = JSON.parse(String(event.data)) as WsFrame
+      parsed = JSON.parse(String(event.data))
     } catch {
       return
     }
-    if (typeof frame.channel !== 'string') return
+    const frame = parseWsServerFrame(parsed)
+    if (frame === null) return
     const set = state.listeners.get(frame.channel)
     if (set === undefined) return
-    for (const l of set) l(frame)
+    notifyListeners(set, frame)
   }
   socket.onclose = () => {
     if (state.socket !== socket) return
@@ -144,6 +151,7 @@ export const ws = {
   /** Tear down (sign-out). Listeners are kept for the next connect. */
   disconnect(): void {
     state.enabled = false
+    state.attempts = 0
     if (state.reconnectTimer !== null) {
       clearTimeout(state.reconnectTimer)
       state.reconnectTimer = null

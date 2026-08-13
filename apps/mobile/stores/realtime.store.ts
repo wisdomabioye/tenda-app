@@ -14,6 +14,8 @@ import {
   type ChatMessageFrame,
   type EscrowEventFrame,
   type NotificationWire,
+  GIG_FEED_CHANNEL,
+  type GigFeedServerFrame,
 } from '@tenda/shared'
 import { ws, type WsFrame } from '@/lib/ws'
 import { useChatStore } from '@/stores/chat.store'
@@ -67,9 +69,9 @@ function isNotificationWire(v: unknown): v is NotificationWire {
 
 type NotificationFrame = WsFrame & { type: 'notification'; notification: NotificationWire }
 
-export function isNotificationFrame(f: WsFrame): f is NotificationFrame {
+export function isNotificationFrame(f: object): f is NotificationFrame {
   // `f.notification` is `unknown` via WsFrame's index signature — narrowed, not cast.
-  return f.type === 'notification' && isNotificationWire(f.notification)
+  return 'type' in f && f.type === 'notification' && 'notification' in f && isNotificationWire(f.notification)
 }
 
 // ---------- channel subscriptions ----------------------------------------------
@@ -117,5 +119,13 @@ export function subscribeEscrowChannel(
 ): () => void {
   return ws.subscribe(wsChannelName('escrow', escrowId), (frame) => {
     if (isEscrowEventFrame(frame)) onEvent(frame)
+  })
+}
+
+export function subscribeGigFeedChannel(
+  onEvent: (frame: GigFeedServerFrame) => void,
+): () => void {
+  return ws.subscribe(GIG_FEED_CHANNEL, (frame) => {
+    if (frame.type === 'gig_available' || frame.type === 'gig_unavailable') onEvent(frame)
   })
 }

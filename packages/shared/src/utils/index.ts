@@ -52,3 +52,4 @@ export {
 } from './solana-transaction-status'
 export { resolveHttpRpcEndpoints, type HttpRpcEndpointOptions } from './rpc-endpoints'
 export { withTimeout } from './async'
+export { isAmountRaw } from './amount-raw'

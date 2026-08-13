@@ -21,6 +21,8 @@ export type { GigCategory }
 export interface GigSummary {
   /** The escrow id — also the path param for /v1/escrows/:id/* actions. */
   escrow_id: string
+  /** Current per-gig realtime revision; decimal bigint string. */
+  public_feed_revision: string
   chain_id: string
   asset: string
   amount_raw: string
@@ -196,6 +198,8 @@ export type GigListQuery = {
   radius_km?: number
   limit?: number
   offset?: number
+  /** Opaque keyset cursor used by the live public feed. */
+  cursor?: string
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────

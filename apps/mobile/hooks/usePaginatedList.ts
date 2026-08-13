@@ -1,22 +1,4 @@
-/**
- * Offset-pagination controller for every `PaginatedResponse` list surface
- * (gigs feed, my gigs, exchange order book, my trades, disputes).
- *
- * It exists because the same four mistakes were being made per-screen:
- *   1. deriving the next offset from `items.length`, which drifts the moment
- *      a duplicate is dropped and then silently SKIPS rows;
- *   2. appending without de-duplication, which produces duplicate React keys
- *      on a newest-first list that shifts under insertions;
- *   3. no generation guard, so a slow page-1 response lands after a filter
- *      change and shows rows that contradict the active filter;
- *   4. counts read off `items.length`, which post-pagination means "loaded
- *      so far", not the real total.
- *
- * The cursor-paginated notification feed keeps its own store — merging the
- * two shapes into one abstraction would buy nothing but indirection.
- */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { PaginatedResponse } from '@tenda/shared'
 import {
   PAGE_SIZE,
   hasMore as deriveHasMore,
@@ -25,75 +7,11 @@ import {
   createQueryCache,
   rememberPage,
   readPage,
+  createQueryKey,
 } from '@/lib/pagination'
+import type { FirstPageResult, PaginatedListState, UsePaginatedListOptions } from './pagination/paginated-list.types'
 
-/** The page request the controller issues; the caller's query is spread in. */
-export interface PageParams {
-  limit: number
-  offset: number
-}
-
-export interface UsePaginatedListOptions<TItem, TQuery extends object> {
-  /**
-   * Fetches one page. Receives the caller's query merged with limit/offset.
-   * Must reject (not resolve empty) on failure so the error surfaces.
-   */
-  fetchPage: (params: TQuery & PageParams) => Promise<PaginatedResponse<TItem>>
-  /**
-   * Filter/scope params. A CHANGE resets the list to page 0 — identity is
-   * compared by JSON shape, so callers may pass a fresh object literal each
-   * render without memoising (the object is built by the same code path every
-   * time, so key order is stable).
-   */
-  query: TQuery
-  /** Stable identity for a row — the React key and the de-dupe key. */
-  keyOf: (item: TItem) => string
-  /** Rows per page (defaults to the shared PAGE_SIZE). */
-  pageSize?: number
-  /**
-   * Gate the first load — e.g. until the user id is known. Flipping false→true
-   * triggers the initial fetch; while false the list stays idle, NOT loading,
-   * so a skeleton can't hang forever on a screen that will never fetch.
-   */
-  enabled?: boolean
-  /**
-   * Remember page 0 per query shape, so returning to a filter the user has
-   * already seen paints from memory and revalidates SILENTLY — no skeleton, no
-   * blank body, no perceptible wait.
-   *
-   * Opt-in, because it trades one frame of possibly-stale rows for the
-   * round-trip. Right for a chip row tapped back and forth over read-only
-   * listings; wrong for a surface the user MUTATES (a deleted draft would
-   * reappear for a frame), so the my-gigs lists deliberately leave it off.
-   */
-  cacheQueries?: boolean
-}
-
-export interface PaginatedListState<TItem> {
-  items: TItem[]
-  /** Server-authoritative row count for the ACTIVE query — use this for
-   *  counts/badges, never `items.length`. */
-  total: number
-  hasMore: boolean
-  /** First page in flight with nothing on screen yet (drives the skeleton). */
-  isLoading: boolean
-  isLoadingMore: boolean
-  isRefreshing: boolean
-  /** True once a load has settled, so an empty state isn't shown pre-fetch. */
-  hasFetched: boolean
-  error: string | null
-  loadMore: () => void
-  /** Pull-to-refresh: re-reads page 0 and DISCARDS later pages. */
-  refresh: () => Promise<void>
-  /**
-   * Silent page-0 re-read that PRESERVES loaded pages (polling / focus).
-   * RESOLVES WITH the fresh server total — a poller can't read it off `total`
-   * or a ref instead, because those only update on the next render, one tick
-   * after this promise settles. Returns the last known total if the read failed.
-   */
-  reload: () => Promise<number>
-}
-
+export type { PageParams, PaginatedListState, UsePaginatedListOptions } from './pagination/paginated-list.types'
 const errorMessage = (e: unknown): string =>
   e instanceof Error ? e.message : 'Something went wrong'
 
@@ -104,33 +22,25 @@ export function usePaginatedList<TItem, TQuery extends object>({
   pageSize = PAGE_SIZE,
   enabled = true,
   cacheQueries = false,
+  cursorPagination = false,
 }: UsePaginatedListOptions<TItem, TQuery>): PaginatedListState<TItem> {
   const [items, setItems] = useState<TItem[]>([])
   const [total, setTotal] = useState(0)
-  // Seeded from `enabled`, NOT false: the first fetch is kicked off by an
-  // effect, which runs AFTER the first render. Starting at false renders one
-  // frame of "loaded, no rows" — a flash of an empty list (or an empty state)
-  // before the skeleton appears. A gated list stays false so a screen that
-  // will never fetch can't hang on a skeleton.
+  // Seed from `enabled` so the pre-effect first render does not flash empty.
   const [isLoading, setIsLoading] = useState(enabled)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [hasFetched, setHasFetched] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Offset cursor, tracked explicitly rather than derived from items.length
-  // (see lib/pagination/page.ts — de-dupe makes those diverge).
   const offsetRef = useRef(0)
-  // Monotonic request generation: any response from an older generation is
-  // dropped, which is what makes a filter change immune to a slow in-flight
-  // page landing afterwards.
+  const nextCursorRef = useRef<string | null | undefined>(undefined)
   const genRef = useRef(0)
   // Collapses concurrent loadMore calls — FlatList fires onEndReached more
   // than once per end-reach.
   const inFlightRef = useRef(false)
 
-  // Latest values without re-creating callbacks (and thus re-triggering the
-  // effect) on every render.
+  // Latest values without re-creating callbacks on every render.
   const fetchPageRef = useRef(fetchPage)
   fetchPageRef.current = fetchPage
   const keyOfRef = useRef(keyOf)
@@ -138,41 +48,27 @@ export function usePaginatedList<TItem, TQuery extends object>({
   const queryRef = useRef(query)
   queryRef.current = query
 
-  const queryKey = JSON.stringify(query)
-  // Read inside async flows to attribute a landed page to the query it was
-  // REQUESTED for, rather than whatever is selected when it arrives.
+  const queryKey = createQueryKey(query)
+  // Attribute a landed page to the query requested, not the current query.
   const queryKeyRef = useRef(queryKey)
   queryKeyRef.current = queryKey
-
-  // Per-instance page-0 memo (see lib/pagination/query-cache.ts). Lives in a
-  // ref, not state: writing to it must never re-render.
   const cacheRef = useRef(createQueryCache<TItem>())
   const cacheQueriesRef = useRef(cacheQueries)
   cacheQueriesRef.current = cacheQueries
 
-  // Mirrors `total` for synchronous reads inside async flows: state and refs
-  // that shadow it only update on the next render, one tick too late for a
-  // caller awaiting `reload()` (see its doc comment).
+  // Mirrors state for synchronous reads inside async flows.
   const totalRef = useRef(0)
 
   /**
-   * Load page 0. `mode` decides which spinner runs, what survives on success,
-   * and what survives on failure:
+   * Load page 0. `mode` controls the spinner and failure preservation:
    *   - 'initial' → skeleton; list replaced. The list IDENTITY changed (mount
    *                 or filter change), so on failure the old rows are cleared —
    *                 they belong to a query that is no longer active.
-   *   - 'refresh' → pull-to-refresh spinner; list replaced on success. On
-   *                 failure the loaded rows are KEPT: they are still valid,
-   *                 just not newer, and blanking a scrolled list over a
-   *                 transient blip is the worse failure.
-   *   - 'reload'  → no spinner. Replaces while the user is still on page 0 (so
-   *                 rows deleted server-side actually disappear) and merges
-   *                 once later pages are loaded (so a poll can't collapse
-   *                 them). Keeps rows on failure, like 'refresh'.
-   * Resolves with the fresh server total in every mode.
+   *   - 'refresh' → pull-to-refresh; replace on success, preserve on failure.
+   *   - 'reload'  → no spinner; merge after page 0 so polling keeps scroll state.
    */
   const loadFirstPage = useCallback(
-    async (mode: 'initial' | 'refresh' | 'reload'): Promise<number> => {
+    async (mode: 'initial' | 'refresh' | 'reload'): Promise<FirstPageResult> => {
       const gen = ++genRef.current
       // Captured up front: by the time this resolves the user may have moved
       // on, and caching page 0 under the NEW key would attribute one query's
@@ -192,7 +88,7 @@ export function usePaginatedList<TItem, TQuery extends object>({
           limit: pageSize,
           offset: 0,
         })
-        if (gen !== genRef.current) return totalRef.current // superseded
+        if (gen !== genRef.current) return { total: totalRef.current, succeeded: false }
         setTotal(page.total)
         totalRef.current = page.total
         // Every mode requests offset 0, so this response IS page 0 for
@@ -204,15 +100,8 @@ export function usePaginatedList<TItem, TQuery extends object>({
           })
         }
         if (mode === 'reload' && offsetRef.current > pageSize) {
-          // Past page 0: prepend-merge so the pages the user scrolled through
-          // survive the poll. The cost is that rows deleted server-side linger
-          // until an explicit refresh — accepted, because the alternative
-          // (replacing) yanks the list out from under a scrolled user.
-          // Consequence worth knowing: with rows deleted underneath a scrolled
-          // user, `total` (server truth) can read LOWER than items.length
-          // (which still holds the stale rows). Pull-to-refresh reconciles.
-          // Not worth machinery to fix — closing the gap properly would mean
-          // re-fetching every loaded page on every poll.
+          // Preserve later pages during heartbeat polling. Deleted later-page
+          // rows reconcile on an authoritative refresh or their realtime event.
           setItems((current) => mergeById(page.data, current, keyOfRef.current))
           // Never rewind the cursor — later pages are still loaded, and a
           // rewind would re-walk them. Deliberately NOT advanced by the
@@ -228,9 +117,13 @@ export function usePaginatedList<TItem, TQuery extends object>({
           setItems(page.data)
           offsetRef.current = nextOffset(0, page.data.length)
         }
-        return page.total
+        // Page 0's cursor would replay pages the user already has.
+        if (!(mode === 'reload' && offsetRef.current > pageSize)) {
+          nextCursorRef.current = page.next_cursor
+        }
+        return { total: page.total, succeeded: true }
       } catch (e) {
-        if (gen !== genRef.current) return totalRef.current
+        if (gen !== genRef.current) return { total: totalRef.current, succeeded: false }
         setError(errorMessage(e))
         if (mode === 'initial') {
           // The list identity changed (mount, or a filter change), so whatever
@@ -247,7 +140,7 @@ export function usePaginatedList<TItem, TQuery extends object>({
         // the rows are still valid, just not newer. `error` is set either way,
         // and PaginatedList only swaps in the error state when the list is
         // empty — so a failed refresh leaves the user's data intact.
-        return totalRef.current
+        return { total: totalRef.current, succeeded: false }
       } finally {
         if (gen === genRef.current) {
           inFlightRef.current = false
@@ -260,8 +153,7 @@ export function usePaginatedList<TItem, TQuery extends object>({
     [pageSize],
   )
 
-  // Reset + reload whenever the query changes (or the gate opens). Bumping the
-  // generation here is what invalidates any page still in flight for the OLD
+  // Bumping the generation invalidates any page still in flight for the OLD
   // query — without it a slow response repopulates the list with rows the
   // active filter excludes.
   useEffect(() => {
@@ -304,7 +196,12 @@ export function usePaginatedList<TItem, TQuery extends object>({
     // using the previous total. Reading the ref also keeps this callback
     // stable, so FlatList's onEndReached prop stops changing every time the
     // total does.
-    if (!deriveHasMore(offsetRef.current, totalRef.current)) return
+    if (
+      cursorPagination
+        ? nextCursorRef.current === null ||
+          (nextCursorRef.current === undefined && !deriveHasMore(offsetRef.current, totalRef.current))
+        : !deriveHasMore(offsetRef.current, totalRef.current)
+    ) return
     const gen = genRef.current
     inFlightRef.current = true
     setIsLoadingMore(true)
@@ -313,7 +210,10 @@ export function usePaginatedList<TItem, TQuery extends object>({
         const page = await fetchPageRef.current({
           ...queryRef.current,
           limit: pageSize,
-          offset: offsetRef.current,
+          offset: cursorPagination && nextCursorRef.current !== undefined ? 0 : offsetRef.current,
+          ...(cursorPagination && typeof nextCursorRef.current === 'string'
+            ? { cursor: nextCursorRef.current }
+            : {}),
         })
         // A filter change (or refresh) mid-flight invalidates this page —
         // appending it would mix two different queries in one list.
@@ -322,6 +222,7 @@ export function usePaginatedList<TItem, TQuery extends object>({
         totalRef.current = page.total
         setItems((current) => mergeById(current, page.data, keyOfRef.current))
         offsetRef.current = nextOffset(offsetRef.current, page.data.length)
+        nextCursorRef.current = page.next_cursor
       } catch {
         // Non-fatal and deliberately not surfaced as a page-level error: the
         // list still holds valid rows. The next end-reach retries.
@@ -332,20 +233,59 @@ export function usePaginatedList<TItem, TQuery extends object>({
         }
       }
     })()
-  }, [enabled, pageSize])
+  }, [cursorPagination, enabled, pageSize])
 
   const refresh = useCallback(async () => {
     // Same reason as the query effect: let loadFirstPage own the cursor, so a
     // failed refresh keeps items AND offset consistent with each other.
     await loadFirstPage('refresh')
   }, [loadFirstPage])
-
-  const reload = useCallback(() => loadFirstPage('reload'), [loadFirstPage])
+  const reload = useCallback(async () => {
+    const result = await loadFirstPage('reload')
+    return result.total
+  }, [loadFirstPage])
+  const reconcile = useCallback(async () => {
+    const result = await loadFirstPage('refresh')
+    return result.succeeded
+  }, [loadFirstPage])
+  const applyRealtimeItems = useCallback((nextItems: TItem[]) => {
+    const supersededRequest = inFlightRef.current
+    if (supersededRequest) {
+      ++genRef.current
+      inFlightRef.current = false
+      setIsLoadingMore(false)
+    }
+    setItems((current) => {
+      const delta = nextItems.length - current.length
+      const nextTotal = Math.max(0, totalRef.current + delta)
+      if (delta !== 0) {
+        totalRef.current = nextTotal
+        setTotal(nextTotal)
+      }
+      // Keep the active page-0 cache coherent with what is on screen. Without
+      // this, switching filters and returning can briefly resurrect a gig a
+      // realtime event removed (or hide one it inserted) until revalidation.
+      if (cacheQueriesRef.current) {
+        rememberPage(cacheRef.current, queryKeyRef.current, {
+          items: nextItems,
+          total: nextTotal,
+        })
+      }
+      return nextItems
+    })
+    // A request started before this event can carry an older DB snapshot.
+    // Invalidate only that overlap, then reread after the committed event.
+    if (supersededRequest) void loadFirstPage('reload')
+  }, [loadFirstPage])
 
   return {
     items,
     total,
-    hasMore: deriveHasMore(offsetRef.current, total),
+    hasMore: cursorPagination
+      ? nextCursorRef.current === undefined
+        ? deriveHasMore(offsetRef.current, total)
+        : nextCursorRef.current !== null
+      : deriveHasMore(offsetRef.current, total),
     isLoading,
     isLoadingMore,
     isRefreshing,
@@ -354,5 +294,7 @@ export function usePaginatedList<TItem, TQuery extends object>({
     loadMore,
     refresh,
     reload,
+    reconcile,
+    applyRealtimeItems,
   }
 }

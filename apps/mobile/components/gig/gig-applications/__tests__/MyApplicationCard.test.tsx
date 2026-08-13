@@ -69,6 +69,7 @@ function row(
     },
     gig: {
       escrow_id: 'escrow-1',
+      public_feed_revision: '0',
       chain_id: 'solana:devnet',
       asset: 'USDC_SOL',
       amount_raw: '1000000',

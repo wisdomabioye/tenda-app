@@ -150,6 +150,7 @@ export function escrowFixture(overrides: Partial<EscrowRow> = {}): EscrowRow {
     assignment_released_at: null,
     unassign_window_seconds: 0,
     sponsored_tx_used: 0,
+    public_feed_revision: '0',
     created_at: now,
     updated_at: now,
     ...overrides,

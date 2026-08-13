@@ -122,6 +122,10 @@ export const escrows = pgTable(
      */
     unassign_window_seconds: integer('unassign_window_seconds').notNull().default(0),
     sponsored_tx_used: integer('sponsored_tx_used').notNull().default(0),
+    /** Monotonic ordering for public feed events concerning this escrow. */
+    public_feed_revision: numeric('public_feed_revision', { precision: 78, scale: 0 })
+      .notNull()
+      .default('0'),
     created_at: timestamp('created_at').notNull().defaultNow(),
     updated_at: timestamp('updated_at')
       .notNull()

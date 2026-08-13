@@ -259,16 +259,18 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
 
       // Live fan-out to open chat screens. Reaches the sender's own socket
       // too, the client dedupes by message id against its optimistic copy.
-      fastify.wsBroadcast.broadcast(
-        channelName({ kind: 'chat', id }),
-        { type: 'message', message: serialized },
-      )
+      fastify.realtime.publish({
+        channel: channelName({ kind: 'chat', id }),
+        type: 'message',
+        message: serialized,
+      })
       // Mirror onto the recipient's user channel so the inbox / unread
       // badge updates without the conversation screen being open.
-      fastify.wsBroadcast.broadcast(
-        channelName({ kind: 'user', id: recipientId }),
-        { type: 'message', message: serialized },
-      )
+      fastify.realtime.publish({
+        channel: channelName({ kind: 'user', id: recipientId }),
+        type: 'message',
+        message: serialized,
+      })
 
       return reply.code(201).send(serialized)
     },

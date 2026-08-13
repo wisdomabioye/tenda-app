@@ -122,6 +122,7 @@ const gigById: FastifyPluginAsync = async (fastify) => {
 
     return reply.send({
       escrow_id: escrow.id,
+      public_feed_revision: escrow.public_feed_revision,
       chain_id: escrow.chain_id,
       asset: escrow.asset,
       amount_raw: escrow.amount_raw,

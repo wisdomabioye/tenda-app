@@ -79,7 +79,7 @@ async function deliverNotification(
   // reject would widen this window from one query to the whole delivery.
   if (payload.persist) {
     const outcome = await persistNotification(
-      { db: fastify.db, wsBroadcast: fastify.wsBroadcast },
+      { db: fastify.db, realtime: fastify.realtime },
       payload,
     )
     if (outcome === 'duplicate') return

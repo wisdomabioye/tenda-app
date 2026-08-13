@@ -23,6 +23,8 @@ export function listState<T>(
     loadMore: jest.fn(),
     refresh: jest.fn(async () => {}),
     reload: jest.fn(async () => items.length),
+    reconcile: jest.fn(async () => true),
+    applyRealtimeItems: jest.fn(),
     ...overrides,
   }
 }

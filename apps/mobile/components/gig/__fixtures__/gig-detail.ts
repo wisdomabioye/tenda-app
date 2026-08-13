@@ -66,6 +66,7 @@ export function review(reviewer_id: string, overrides: Partial<Review> = {}): Re
 export function gigDetail(overrides: Partial<GigDetail> = {}): GigDetail {
   const gig: GigDetail = {
     escrow_id: 'escrow-1',
+    public_feed_revision: '0',
     chain_id: 'solana:devnet',
     asset: 'USDC_SOL',
     amount_raw: '1000000',

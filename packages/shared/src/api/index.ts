@@ -1,6 +1,7 @@
 export type { Endpoint } from './endpoint'
 export { apiConfig, type AppEnv, type ApiConfig } from './config'
 export { apiRoutes } from './routes'
+export { parseWsServerFrame } from './contracts'
 export type {
   ApiContract,
   AuthContract,
@@ -83,5 +84,10 @@ export {
   type ChatMessageFrame,
   type EscrowEventFrame,
   type NotificationFrame,
+  GIG_FEED_CHANNEL,
+  type GigAvailableFrame,
+  type GigUnavailableFrame,
+  type GigUnavailableCause,
+  type GigFeedServerFrame,
   type WsServerFrame,
 } from './contracts'

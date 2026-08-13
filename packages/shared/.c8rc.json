@@ -4,6 +4,7 @@
   "include": ["src/**/*.ts"],
   "exclude": [
     "src/types/**",
+    "src/**/*.types.ts",
     "src/db/schema/**",
     "src/idl/**",
     "src/abi/**",

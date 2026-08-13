@@ -3,13 +3,16 @@
  * map + one serializer so /v1/gigs, /v1/gigs/:id and any admin search
  * return byte-identical summary shapes.
  */
-import { escrows, gig_details } from '@tenda/shared/db/schema'
+import { eq } from 'drizzle-orm'
+import { escrows, gig_details, users } from '@tenda/shared/db/schema'
 import type { GigCategory, GigSummary, UserRef } from '@tenda/shared'
 import { USER_COLS } from '@server/lib/users'
+import type { AppDatabase, AppTransaction } from '@server/plugins/db'
 
 /** escrows ⨝ gig_details ⨝ users, matches the shared GigSummary wire type. */
 export const GIG_SUMMARY_COLS = {
   escrow_id: escrows.id,
+  public_feed_revision: escrows.public_feed_revision,
   chain_id: escrows.chain_id,
   asset: escrows.asset,
   amount_raw: escrows.amount_raw,
@@ -50,4 +53,19 @@ export function toGigSummary(row: GigSummaryRow): GigSummary {
     accept_deadline: row.accept_deadline === null ? null : row.accept_deadline.toISOString(),
     created_at: row.created_at.toISOString(),
   }
+}
+
+/** Same public projection for HTTP and realtime; null means not a complete gig. */
+export async function loadPublicGigSummary(
+  db: AppDatabase | AppTransaction,
+  escrowId: string,
+): Promise<GigSummary | null> {
+  const [row] = await db
+    .select(GIG_SUMMARY_COLS)
+    .from(escrows)
+    .innerJoin(gig_details, eq(gig_details.escrow_id, escrows.id))
+    .innerJoin(users, eq(users.id, escrows.creator_id))
+    .where(eq(escrows.id, escrowId))
+    .limit(1)
+  return row === undefined ? null : toGigSummary(row)
 }

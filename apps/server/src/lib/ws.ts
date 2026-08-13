@@ -15,7 +15,7 @@
 
 import { and, eq, or } from 'drizzle-orm'
 import { WS_AUTH_SUBPROTOCOL, wsChannelName } from '@tenda/shared'
-import { conversations } from '@tenda/shared/db/schema'
+import { conversations, users } from '@tenda/shared/db/schema'
 import { escrows } from '@tenda/shared/db/schema/escrow'
 import type { AppDatabase } from '@server/plugins/db'
 import { isEscrowPartyOrAssigned } from '@server/lib/escrow-party'
@@ -45,6 +45,7 @@ export type WsChannel =
   | { kind: 'escrow'; id: string }
   | { kind: 'chat'; id: string }
   | { kind: 'user'; id: string }
+  | { kind: 'feed'; id: 'gigs' }
 
 export function parseChannel(name: unknown): WsChannel | null {
   if (typeof name !== 'string') return null
@@ -52,6 +53,7 @@ export function parseChannel(name: unknown): WsChannel | null {
   if (sep <= 0 || sep === name.length - 1) return null
   const kind = name.slice(0, sep)
   const id = name.slice(sep + 1)
+  if (kind === 'feed') return id === 'gigs' ? { kind, id } : null
   if (kind === 'escrow' || kind === 'chat' || kind === 'user') return { kind, id }
   return null
 }
@@ -63,6 +65,8 @@ export function channelName(c: WsChannel): string {
 // ---------- authorization --------------------------------------------------------
 
 export interface WsAuthStore {
+  /** True iff the JWT subject still names an active account. */
+  isActiveUser(user_id: string): Promise<boolean>
   /**
    * True iff the user is creator / counterparty / pending assignee. Named for
    * the WIDER notion on purpose: a direct-offer invitee subscribes to the
@@ -76,6 +80,15 @@ export interface WsAuthStore {
 
 export function drizzleWsAuthStore(db: AppDatabase): WsAuthStore {
   return {
+    async isActiveUser(user_id) {
+      if (!isUuidLike(user_id)) return false
+      const rows = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.id, user_id), eq(users.status, 'active')))
+        .limit(1)
+      return rows.length > 0
+    },
     async isEscrowPartyOrAssigned(escrow_id, user_id) {
       // `parseChannel` accepts any non-empty string after `escrow:`, and both
       // id columns are postgres `uuid` — an unparseable id reaches the driver
@@ -107,12 +120,36 @@ export function drizzleWsAuthStore(db: AppDatabase): WsAuthStore {
   }
 }
 
+export interface WsSubscriptionIntent {
+  request(channel: string): void
+  cancel(channel: string): void
+  close(): void
+  wants(channel: string): boolean
+}
+
+/** Tracks client intent while channel authorization is awaiting the database. */
+export function createWsSubscriptionIntent(): WsSubscriptionIntent {
+  const requested = new Set<string>()
+  let closed = false
+  return {
+    request(channel) { if (!closed) requested.add(channel) },
+    cancel(channel) { requested.delete(channel) },
+    close() { closed = true; requested.clear() },
+    wants(channel) { return !closed && requested.has(channel) },
+  }
+}
+
 export async function authorizeChannel(
   store: WsAuthStore,
   channel: WsChannel,
   user_id: string,
 ): Promise<boolean> {
+  if (!await store.isActiveUser(user_id)) return false
   switch (channel.kind) {
+    case 'feed':
+      // The socket handshake is already authenticated. Feed frames contain
+      // only the same public projection served by GET /v1/gigs.
+      return channel.id === 'gigs'
     case 'user':
       return channel.id === user_id
     case 'escrow':

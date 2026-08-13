@@ -18,6 +18,7 @@ import type WebSocket from 'ws'
 import {
   authorizeChannel,
   channelName,
+  createWsSubscriptionIntent,
   drizzleWsAuthStore,
   parseChannel,
   parseSubprotocolAuth,
@@ -43,18 +44,32 @@ const route: FastifyPluginAsync = async (fastify) => {
 
   fastify.get('/', { websocket: true }, (socket: WebSocket, request) => {
     const headerToken = parseSubprotocolAuth(request.headers['sec-websocket-protocol'])
-    let user_id = headerToken !== null ? verifyToken(headerToken) : null
+    const headerUserId = headerToken !== null ? verifyToken(headerToken) : null
+    let user_id: string | null = null
+    const intent = createWsSubscriptionIntent()
+    const headerAuthentication = headerUserId === null
+      ? null
+      : authStore.isActiveUser(headerUserId).then((active) => active ? headerUserId : null)
 
-    if (headerToken !== null && user_id === null) {
+    if (headerToken !== null && headerUserId === null) {
       // A token was presented and it's bad, reject immediately.
       socket.close(4001, 'unauthorized')
       return
+    }
+    if (headerAuthentication !== null) {
+      void headerAuthentication.then((authenticatedUserId) => {
+        user_id = authenticatedUserId
+        if (authenticatedUserId === null) socket.close(4001, 'unauthorized')
+      }).catch((err: Error) => {
+        request.log.warn({ err }, 'ws account authentication failed')
+        socket.close(1011, 'authentication unavailable')
+      })
     }
 
     // Fallback path: no subprotocol auth, allow a short window for an
     // auth frame before disconnecting.
     const authTimer =
-      user_id === null
+      headerToken === null
         ? setTimeout(() => {
             if (user_id === null) socket.close(4001, 'auth timeout')
           }, WS_AUTH_GRACE_MS)
@@ -69,47 +84,67 @@ const route: FastifyPluginAsync = async (fastify) => {
         return
       }
 
-      if (user_id === null) {
-        const token = frame.auth
-        if (typeof token === 'string') {
-          user_id = verifyToken(token)
-          if (user_id !== null) {
-            if (authTimer !== null) clearTimeout(authTimer)
-            socket.send(JSON.stringify({ ok: 'authenticated' }))
+      const handleFrame = async (): Promise<void> => {
+        if (headerAuthentication !== null && user_id === null) {
+          user_id = await headerAuthentication
+          if (user_id === null) {
+            socket.close(4001, 'unauthorized')
             return
           }
         }
-        socket.close(4001, 'unauthorized')
-        return
-      }
-      const uid = user_id
 
-      const handleSub = async (): Promise<void> => {
+        if (user_id === null) {
+          const token = frame.auth
+          if (typeof token === 'string') {
+            const verifiedUserId = verifyToken(token)
+            user_id = verifiedUserId !== null && await authStore.isActiveUser(verifiedUserId)
+              ? verifiedUserId
+              : null
+            if (user_id !== null) {
+              if (authTimer !== null) clearTimeout(authTimer)
+              socket.send(JSON.stringify({ ok: 'authenticated' }))
+              return
+            }
+          }
+          socket.close(4001, 'unauthorized')
+          return
+        }
+        const uid = user_id
+
         if ('sub' in frame) {
           const channel = parseChannel(frame.sub)
           if (channel === null) {
             socket.send(JSON.stringify({ error: 'unknown channel' }))
             return
           }
+          const name = channelName(channel)
+          intent.request(name)
           const allowed = await authorizeChannel(authStore, channel, uid)
           if (!allowed) {
-            socket.send(JSON.stringify({ error: 'forbidden', channel: channelName(channel) }))
+            intent.cancel(name)
+            socket.send(JSON.stringify({ error: 'forbidden', channel: name }))
             return
           }
-          fastify.wsBroadcast.subscribe(channelName(channel), socket)
-          socket.send(JSON.stringify({ ok: 'subscribed', channel: channelName(channel) }))
+          if (!intent.wants(name)) return
+          fastify.wsBroadcast.subscribe(name, socket)
+          socket.send(JSON.stringify({ ok: 'subscribed', channel: name }))
         } else if ('unsub' in frame) {
           const channel = parseChannel(frame.unsub)
-          if (channel !== null) fastify.wsBroadcast.unsubscribe(channelName(channel), socket)
+          if (channel !== null) {
+            const name = channelName(channel)
+            intent.cancel(name)
+            fastify.wsBroadcast.unsubscribe(name, socket)
+          }
         }
       }
-      handleSub().catch((err) => {
+      void handleFrame().catch((err) => {
         request.log.warn({ err }, 'ws frame handling failed')
         socket.send(JSON.stringify({ error: 'internal' }))
       })
     })
 
     socket.on('close', () => {
+      intent.close()
       if (authTimer !== null) clearTimeout(authTimer)
       fastify.wsBroadcast.removeSink(socket)
     })

@@ -12,6 +12,8 @@ import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/usePaginatedList'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { useGigsFeedPolling } from '@/hooks/useGigsFeedPolling'
+import { useGigFeedRealtimeSubscription } from '@/features/gig-feed/useGigFeedRealtimeSubscription'
+import { useGigDeadlineReconciliation } from '@/features/gig-feed/useGigDeadlineReconciliation'
 
 export interface HomeFeedFilters {
   query: string
@@ -71,9 +73,12 @@ export function useHomeFeed(): HomeFeed {
     // and this feed is read-only — so a remembered page 0 makes a revisited
     // filter instant, with a silent revalidate right behind it.
     cacheQueries: true,
+    cursorPagination: true,
   })
 
   useGigsFeedPolling({ reload: list.reload })
+  useGigFeedRealtimeSubscription(list, query)
+  useGigDeadlineReconciliation(list.items, list.reconcile)
 
   const setFilter = useCallback(
     <K extends keyof HomeFeedFilters>(key: K, value: HomeFeedFilters[K]) => {

@@ -12,6 +12,7 @@ import {
   createUser,
   createEscrow,
   attachGigDetails,
+  type GigDetailsOverrides,
   type TestUser,
 } from './test-app'
 import type { EscrowRow, UserRow } from './fixtures'
@@ -111,6 +112,7 @@ export async function openGig(
     /** Settle on a non-default chain — requires `seedAltChain` (FK). */
     chain_id?: string
     asset?: string
+    details?: GigDetailsOverrides
     /**
      * Escrow COLUMNS to override — `hidden`, `requires_approval`, `status`,
      * whichever the suite is actually about. A passthrough rather than one
@@ -133,6 +135,7 @@ export async function openGig(
     title: args.title ?? 'Open gig',
     category: args.category ?? 'service',
     country: args.country ?? 'NG',
+    ...args.details,
   })
   return { creator, escrow }
 }

@@ -10,12 +10,15 @@
  */
 
 import type { Message } from '../../types/chat'
+import type { GigSummary } from '../../types/gig'
 import type { NotificationWire } from '../../types/notification'
 
 export const WS_PATH = '/v1/ws'
 export const WS_AUTH_SUBPROTOCOL = 'tenda.v1.auth'
 
-export type WsChannelKind = 'escrow' | 'chat' | 'user'
+export const GIG_FEED_CHANNEL = 'feed:gigs' as const
+
+export type WsChannelKind = 'escrow' | 'chat' | 'user' | 'feed'
 
 export function wsChannelName(kind: WsChannelKind, id: string): string {
   return `${kind}:${id}`
@@ -61,4 +64,39 @@ export interface NotificationFrame {
   notification: NotificationWire
 }
 
-export type WsServerFrame = ChatMessageFrame | EscrowEventFrame | NotificationFrame
+export type GigUnavailableCause =
+  | 'accepted'
+  | 'assigned'
+  | 'cancelled'
+  | 'expired'
+  | 'hidden'
+  | 'not_public'
+
+interface GigFeedFrameBase {
+  channel: typeof GIG_FEED_CHANNEL
+  event_id: string
+  escrow_id: string
+  /** Decimal bigint string; never convert to a JavaScript number. */
+  gig_revision: string
+  occurred_at: string
+}
+
+/** A committed public projection that clients may insert or replace directly. */
+export interface GigAvailableFrame extends GigFeedFrameBase {
+  type: 'gig_available'
+  gig: GigSummary
+}
+
+/** A committed transition that removed a listing from the public feed. */
+export interface GigUnavailableFrame extends GigFeedFrameBase {
+  type: 'gig_unavailable'
+  cause: GigUnavailableCause
+}
+
+export type GigFeedServerFrame = GigAvailableFrame | GigUnavailableFrame
+
+export type WsServerFrame =
+  | ChatMessageFrame
+  | EscrowEventFrame
+  | NotificationFrame
+  | GigFeedServerFrame

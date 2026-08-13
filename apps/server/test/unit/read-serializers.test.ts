@@ -26,6 +26,7 @@ const DEADLINE = new Date('2026-06-10T10:00:00.000Z')
 function gigRow(overrides: Partial<GigSummaryRow> = {}): GigSummaryRow {
   return {
     escrow_id: 'e-1',
+    public_feed_revision: '0',
     chain_id: 'solana:devnet',
     asset: 'USDC_SOL',
     amount_raw: '5000000',

@@ -115,6 +115,8 @@ module.exports = {
     'hooks/useDebouncedValue.ts',
     'hooks/useGigsFeedPolling.ts',
     'hooks/useHomeFeed.ts',
+    'features/gig-feed/*.ts',
+    '!features/gig-feed/index.ts',
     'hooks/useMyGigs.ts',
     'hooks/useMyDisputes.ts',
     'hooks/useExchangeScreen.ts',

@@ -25,6 +25,7 @@ import { AppError } from '@server/lib/errors'
 import { appEvents } from '@server/lib/events'
 import { channelName } from '@server/lib/ws'
 import { buildEscrowDossier } from '@server/lib/escrow/dossier'
+import { publishGigFeedChange } from '@server/features/gig-feed-realtime'
 
 
 const adminEscrows: FastifyPluginAsync = async (fastify) => {
@@ -196,7 +197,11 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
       event: 'escrow.visibility_changed',
       tx_ref: '',
     } satisfies Omit<EscrowEventFrame, 'channel'>
-    fastify.wsBroadcast.broadcast(channelName({ kind: 'escrow', id: updated.id }), frame)
+    fastify.realtime.publish({
+      channel: channelName({ kind: 'escrow', id: updated.id }),
+      ...frame,
+    })
+    await publishGigFeedChange(fastify, updated.id, updated.hidden ? 'hidden' : 'available')
 
     return updated
   })

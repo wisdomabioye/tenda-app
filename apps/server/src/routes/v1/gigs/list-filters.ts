@@ -88,6 +88,7 @@ export function attributeConditions(query: ListQuery): SQL[] {
   if (String(remote) === 'true') conditions.push(eq(gig_details.remote, true))
   if (String(remote) === 'false') conditions.push(eq(gig_details.remote, false))
   if (String(cross_border) === 'true') conditions.push(eq(gig_details.cross_border, true))
+  if (String(cross_border) === 'false') conditions.push(eq(gig_details.cross_border, false))
   if (city) conditions.push(eq(gig_details.city, city))
   if (category) {
     if (!GIG_CATEGORIES.includes(category as GigCategory)) {

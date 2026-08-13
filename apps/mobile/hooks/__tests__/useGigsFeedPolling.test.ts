@@ -19,9 +19,13 @@ jest.mock('expo-router', () => ({
 }))
 
 import { useGigsFeedPolling } from '@/hooks/useGigsFeedPolling'
+import {
+  GIG_FEED_ACTIVE_RECOVERY_INTERVAL_MS,
+  GIG_FEED_IDLE_RECOVERY_INTERVAL_MS,
+} from '@/features/gig-feed/gig-feed.configuration'
 
-const ACTIVE_MS = 30_000
-const IDLE_MS = 90_000
+const ACTIVE_MS = GIG_FEED_ACTIVE_RECOVERY_INTERVAL_MS
+const IDLE_MS = GIG_FEED_IDLE_RECOVERY_INTERVAL_MS
 
 let appStateListener: ((s: string) => void) | undefined
 
@@ -178,6 +182,31 @@ test('a foreground resume during an in-flight poll re-arms instead of stacking',
   expect(reload).toHaveBeenCalledTimes(1) // skipped, not stacked
 
   await act(async () => { release?.() })
+  await act(async () => { jest.advanceTimersByTime(ACTIVE_MS) })
+  expect(reload).toHaveBeenCalledTimes(2)
+})
+
+test('an in-flight poll settling in the background does not re-arm', async () => {
+  let release: (() => void) | undefined
+  const reload = jest.fn(() => new Promise<number>((resolve) => { release = () => resolve(1) }))
+  renderHook(() => useGigsFeedPolling({ reload }))
+
+  await act(async () => { jest.advanceTimersByTime(ACTIVE_MS) })
+  expect(reload).toHaveBeenCalledTimes(1)
+  act(() => appStateListener?.('background'))
+  await act(async () => { release?.() })
+  await act(async () => { jest.advanceTimersByTime(IDLE_MS * 2) })
+
+  expect(reload).toHaveBeenCalledTimes(1)
+})
+
+test('a rejected poll is retried on the next interval', async () => {
+  const reload = jest.fn()
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockResolvedValue(1)
+  renderHook(() => useGigsFeedPolling({ reload }))
+
+  await act(async () => { jest.advanceTimersByTime(ACTIVE_MS) })
   await act(async () => { jest.advanceTimersByTime(ACTIVE_MS) })
   expect(reload).toHaveBeenCalledTimes(2)
 })

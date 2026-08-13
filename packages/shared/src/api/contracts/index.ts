@@ -34,6 +34,8 @@ export interface ApiContract {
   fiat: FiatContract
 }
 
+export { parseWsServerFrame } from './parse-ws-server-frame'
+
 export type {
   AuthContract,
   AuthNonceResponse,
@@ -112,5 +114,10 @@ export {
   type ChatMessageFrame,
   type EscrowEventFrame,
   type NotificationFrame,
+  GIG_FEED_CHANNEL,
+  type GigAvailableFrame,
+  type GigUnavailableFrame,
+  type GigUnavailableCause,
+  type GigFeedServerFrame,
   type WsServerFrame,
 } from './ws.contract'

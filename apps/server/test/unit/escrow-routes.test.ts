@@ -46,6 +46,7 @@ function row(over: Partial<EscrowRow> = {}): EscrowRow {
     assignment_released_at: null,
     unassign_window_seconds: 0,
     sponsored_tx_used: 0,
+    public_feed_revision: '0',
     created_at: T0,
     updated_at: T0,
     ...over,

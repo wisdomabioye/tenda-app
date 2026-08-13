@@ -38,6 +38,7 @@ import { alertRefForEscrowEvent, enqueueAlert } from '@server/features/alerts'
 import type { EscrowRepublishEvent } from '@server/lib/escrow-events'
 import { APPLICANT_NOTICE, noticeCopyFor, partyNoticeFor } from './copy'
 import { enqueueEscrowNotice } from './enqueue-notice'
+import { publishGigFeedChange, type GigFeedChange } from '@server/features/gig-feed-realtime'
 
 // Named rather than `export *`: `export type` marks what is erased and
 // `export` what survives to runtime, and no __exportStar loop is emitted.
@@ -64,17 +65,36 @@ export type { NoticeCopy, EventNotice, ResolvedNotice } from './copy'
  */
 export type EscrowFanoutEvent = EscrowRepublishEvent
 
+const GIG_FEED_CHANGE_BY_EVENT: Record<EscrowFanoutEvent['internal_event'], GigFeedChange | null> = {
+  'escrow.created': 'available',
+  'escrow.accepted': 'accepted',
+  'escrow.declined': 'available',
+  'escrow.counterparty_assigned': 'assigned',
+  'escrow.assignment_released': 'available',
+  'escrow.proof_submitted': null,
+  'escrow.approved': null,
+  'escrow.payment_claimed': null,
+  'escrow.cancelled': 'cancelled',
+  'escrow.expired': 'expired',
+  'escrow.abandoned': null,
+  'escrow.dispute_raised': null,
+  'escrow.dispute_resolved': null,
+}
+
 export async function fanOutEscrowEvent(
   fastify: FastifyInstance,
   event: EscrowFanoutEvent,
 ): Promise<void> {
   // 1. Live WS frame, matches shared EscrowEventFrame exactly.
-  fastify.wsBroadcast.broadcast(channelName({ kind: 'escrow', id: event.escrow_id }), {
+  fastify.realtime.publish({
+    channel: channelName({ kind: 'escrow', id: event.escrow_id }),
     type: 'escrow_event',
     escrow_id: event.escrow_id,
     event: event.wire_event,
     tx_ref: event.tx_ref,
   })
+  const feedChange = GIG_FEED_CHANGE_BY_EVENT[event.internal_event]
+  if (feedChange !== null) await publishGigFeedChange(fastify, event.escrow_id, feedChange)
 
   // 2. Operational alerts, for the events a MEDIATOR must act on.
   //

@@ -3,6 +3,8 @@
  * the base-unit amount convention. No behaviour beyond the `AmountRaw` guard.
  */
 
+import { isAmountRaw as isSharedAmountRaw } from '@tenda/shared'
+
 // ---------- shared value types --------------------------------------------
 
 /** CAIP-2 chain id, e.g. `'solana:mainnet'`, `'eip155:8453'`. */
@@ -25,8 +27,6 @@ export type AmountRaw = string
  * canonical form to avoid `BigInt('  42 ')` and other parser surprises. See
  * open_issues.md S0-6.
  */
-const AMOUNT_RAW_RE = /^(0|[1-9][0-9]*)$/
-
 export function isAmountRaw(value: unknown): value is AmountRaw {
-  return typeof value === 'string' && AMOUNT_RAW_RE.test(value)
+  return isSharedAmountRaw(value)
 }

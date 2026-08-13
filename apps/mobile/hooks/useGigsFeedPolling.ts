@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { AppState, type AppStateStatus } from 'react-native'
 import { useFocusEffect } from 'expo-router'
-
-const POLL_ACTIVE_MS   = 30_000  // 30s while new gigs are appearing
-const POLL_IDLE_MS     = 90_000  // 90s after 3 consecutive empty polls
-const EMPTY_POLL_LIMIT = 3
+import {
+  GIG_FEED_ACTIVE_RECOVERY_INTERVAL_MS,
+  GIG_FEED_EMPTY_RECOVERY_LIMIT,
+  GIG_FEED_IDLE_RECOVERY_INTERVAL_MS,
+} from '@/features/gig-feed/gig-feed.configuration'
 
 export interface GigsFeedPollingSource {
   /**
@@ -21,8 +22,8 @@ export interface GigsFeedPollingSource {
  * Intelligent polling for the gigs feed.
  *
  * - Fetches immediately on tab focus
- * - Polls every 30s while new gigs are arriving; backs off to 90s after
- *   3 consecutive polls with no change
+ * - Runs a slow recovery heartbeat while WebSocket provides normal freshness;
+ *   backs off further after consecutive polls with no count change
  * - Pauses when the app backgrounds; resets and resumes on foreground
  * - Stops on blur, restarts fresh on re-focus
  *
@@ -38,6 +39,9 @@ export function useGigsFeedPolling({ reload }: GigsFeedPollingSource) {
   const emptyPollCount = useRef(0)
   const isFetching     = useRef(false)
   const isFocused      = useRef(false)
+  const isAppActive    = useRef(
+    AppState.currentState !== 'background' && AppState.currentState !== 'inactive',
+  )
   /** Total observed at the last poll; null until the first one completes. */
   const lastTotal      = useRef<number | null>(null)
 
@@ -54,11 +58,13 @@ export function useGigsFeedPolling({ reload }: GigsFeedPollingSource) {
 
   const scheduleNextPoll = useCallback(() => {
     clearTimer()
-    if (!isFocused.current) return
-    const delay = emptyPollCount.current >= EMPTY_POLL_LIMIT ? POLL_IDLE_MS : POLL_ACTIVE_MS
+    if (!isFocused.current || !isAppActive.current) return
+    const delay = emptyPollCount.current >= GIG_FEED_EMPTY_RECOVERY_LIMIT
+      ? GIG_FEED_IDLE_RECOVERY_INTERVAL_MS
+      : GIG_FEED_ACTIVE_RECOVERY_INTERVAL_MS
 
     pollTimer.current = setTimeout(async () => {
-      if (isFetching.current || !isFocused.current) {
+      if (isFetching.current || !isFocused.current || !isAppActive.current) {
         scheduleNextPoll()
         return
       }
@@ -72,6 +78,9 @@ export function useGigsFeedPolling({ reload }: GigsFeedPollingSource) {
             ? emptyPollCount.current + 1
             : 0
         lastTotal.current = total
+      } catch {
+        // The list owns its visible error state. Keep the recovery loop alive
+        // so a transient network failure cannot permanently stop polling.
       } finally {
         isFetching.current = false
         scheduleNextPoll()
@@ -82,6 +91,7 @@ export function useGigsFeedPolling({ reload }: GigsFeedPollingSource) {
   // Pause polling when the app goes to background; reset + resume on foreground
   useEffect(() => {
     const handleAppState = (state: AppStateStatus) => {
+      isAppActive.current = state === 'active'
       if (state === 'active') {
         emptyPollCount.current = 0
         lastTotal.current = null

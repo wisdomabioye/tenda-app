@@ -40,6 +40,8 @@ export interface PaginatedResponse<T> {
   offset:    number
   /** Present on endpoints that use capped queries — true means more rows exist beyond this page. */
   has_more?: boolean
+  /** Opaque continuation token on keyset-paginated endpoints. */
+  next_cursor?: string | null
 }
 
 export interface ApiError {
