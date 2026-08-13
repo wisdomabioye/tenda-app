@@ -7,6 +7,9 @@
  * viewer's actions, e.g. "Withdraw application" on a gig this user never
  * applied to. The error slot has the same problem in reverse.
  */
+/* eslint-disable @typescript-eslint/no-require-imports, react-hooks/exhaustive-deps --
+ * Jest hoists these factories; requiring dependencies inside them avoids
+ * pre-initialization access, and the focus-effect stub intentionally runs once. */
 import { render, screen, fireEvent } from '@testing-library/react-native'
 import type { GigDetail } from '@tenda/shared'
 import { GigDetailGate } from '../GigDetailGate'
@@ -40,7 +43,19 @@ jest.mock('@/stores', () => ({
 jest.mock('@/components/ui', () => {
   const { Text, View } = require('react-native')
   return {
-    ScreenContainer: ({ children }: { children: React.ReactNode }) => <View>{children}</View>,
+    ScreenContainer: ({
+      children,
+      scroll,
+      padding,
+    }: {
+      children: React.ReactNode
+      scroll?: boolean
+      padding?: boolean
+    }) => (
+      <View accessibilityLabel={`screen-state:${String(scroll)}:${String(padding)}`}>
+        {children}
+      </View>
+    ),
     EmptyState: ({ title, action }: { title: string; action?: { label: string; onPress: () => void } }) => (
       <View>
         <Text>{title}</Text>
@@ -117,6 +132,7 @@ test('an error for THIS gig does surface', () => {
   renderGate('gig-1')
 
   expect(screen.getByText('Failed to load gig')).toBeTruthy()
+  expect(screen.getByLabelText('screen-state:false:false')).toBeTruthy()
 })
 
 test('no id at all shows the not-available state', () => {

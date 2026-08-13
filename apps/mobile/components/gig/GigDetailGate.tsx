@@ -21,6 +21,14 @@ interface Props {
   children: (gig: GigDetail, userId: string) => ReactNode
 }
 
+function FullScreenState({ children }: { children: ReactNode }) {
+  return (
+    <ScreenContainer scroll={false} padding={false}>
+      {children}
+    </ScreenContainer>
+  )
+}
+
 export function GigDetailGate({ id, requireCreator = false, children }: Props) {
   const router = useRouter()
   const user = useAuthStore((s) => s.user)
@@ -44,13 +52,13 @@ export function GigDetailGate({ id, requireCreator = false, children }: Props) {
   // A function, not a value: the happy path returns `children` and would
   // otherwise build this element on every render only to discard it.
   const notAvailable = () => (
-    <ScreenContainer>
+    <FullScreenState>
       <EmptyState
         title="Gig not available"
         description="This gig may have been removed, or is no longer public."
         action={{ label: 'Go back', onPress: () => router.back() }}
       />
-    </ScreenContainer>
+    </FullScreenState>
   )
 
   // Unreadable for good — deleted, or a draft/takedown this viewer may not see.
@@ -60,14 +68,14 @@ export function GigDetailGate({ id, requireCreator = false, children }: Props) {
 
   if (gig === null && failure !== null) {
     return (
-      <ScreenContainer>
+      <FullScreenState>
         <ErrorState
           title="Failed to load gig"
           description={failure.message}
           ctaLabel="Retry"
           onCtaPress={() => id && void fetchGigDetail(id)}
         />
-      </ScreenContainer>
+      </FullScreenState>
     )
   }
 
@@ -80,13 +88,13 @@ export function GigDetailGate({ id, requireCreator = false, children }: Props) {
 
   if (requireCreator && gig.creator.id !== user?.id) {
     return (
-      <ScreenContainer>
+      <FullScreenState>
         <EmptyState
           title="Not available"
           description="Only the poster can see who applied to a gig."
           action={{ label: 'Go back', onPress: () => router.back() }}
         />
-      </ScreenContainer>
+      </FullScreenState>
     )
   }
 
