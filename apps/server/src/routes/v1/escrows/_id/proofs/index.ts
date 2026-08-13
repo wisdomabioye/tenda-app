@@ -7,21 +7,19 @@
  *   GET , either party lists them.
  */
 import { FastifyPluginAsync } from 'fastify'
-import { count, eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { escrow_proofs, disputes } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, MAX_ESCROW_PROOFS, proofIdentity } from '@tenda/shared'
 import type { ApiError, EscrowProof } from '@tenda/shared'
 import { loadEscrowOr404, deriveCaller } from '@server/lib/escrow-routes'
 import { AppError } from '@server/lib/errors'
 import { enqueueNotification, escrowPushData, disputePushData } from '@server/lib/notify'
-import { validateProofs, type ProofInput } from '@server/lib/proofs'
-
-const MAX_TOTAL_PROOFS = 20
+import { validateEscrowProofUploads, type EscrowProofUploadInput } from '@server/features/escrows/proofs/validateEscrowProofUploads'
 
 const escrowProofs: FastifyPluginAsync = async (fastify) => {
   fastify.post<{
     Params: { id: string }
-    Body: { proofs: ProofInput[] }
+    Body: { proofs: EscrowProofUploadInput[] }
     Reply: EscrowProof[] | ApiError
   }>(
     '/',
@@ -33,52 +31,54 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
       const { id } = request.params
       const { proofs } = request.body ?? {}
 
-      const escrow = await loadEscrowOr404(fastify.db, id)
-      // accepted/submitted = the normal delivery flow; disputed = the worker
-      // adds evidence for the mediator while the dispute is open (off-chain,
-      // no status change either way).
-      const PROOFABLE = ['accepted', 'submitted', 'disputed']
-      if (!PROOFABLE.includes(escrow.status)) {
-        throw new AppError(
-          409,
-          ErrorCode.ESCROW_WRONG_STATUS,
-          'Proofs can only be added while the escrow is accepted, submitted, or under dispute',
-        )
-      }
-      if (escrow.counterparty_id !== request.user.id) {
-        throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the counterparty can add proofs')
-      }
-
       if (!proofs || proofs.length === 0) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'At least one proof is required')
       }
+      validateEscrowProofUploads(proofs, request.user.id)
+      const uniqueProofs = [...new Map(proofs.map((proof) => [proofIdentity(proof), proof])).values()]
 
-      // Enforce total proof cap across all submissions.
-      const [{ existingCount }] = await fastify.db
-        .select({ existingCount: count() })
-        .from(escrow_proofs)
-        .where(eq(escrow_proofs.escrow_id, id))
+      const { escrow, inserted, requested } = await fastify.db.transaction(async (tx) => {
+        // Serialises count + insert for one escrow, so concurrent batches cannot
+        // both observe room below the cap and collectively exceed it.
+        await tx.execute(sql`select id from escrows where id = ${id} for update`)
+        const lockedEscrow = await loadEscrowOr404(tx, id)
+        const proofableStatuses = ['accepted', 'submitted', 'disputed']
+        if (!proofableStatuses.includes(lockedEscrow.status)) {
+          throw new AppError(
+            409,
+            ErrorCode.ESCROW_WRONG_STATUS,
+            'Proofs can only be added while the escrow is accepted, submitted, or under dispute',
+          )
+        }
+        if (lockedEscrow.counterparty_id !== request.user.id) {
+          throw new AppError(403, ErrorCode.FORBIDDEN, 'Only the counterparty can add proofs')
+        }
 
-      if (existingCount + proofs.length > MAX_TOTAL_PROOFS) {
-        throw new AppError(
-          400,
-          ErrorCode.VALIDATION_ERROR,
-          `Cannot exceed ${MAX_TOTAL_PROOFS} total proofs per escrow (currently have ${existingCount})`,
-        )
-      }
-
-      validateProofs(proofs, request.user.id)
-
-      const inserted = await fastify.db
-        .insert(escrow_proofs)
-        .values(
-          proofs.map(({ url, type }) => ({
-            escrow_id: id,
-            url,
-            type: type as EscrowProof['type'],
-          })),
-        )
-        .returning()
+        const existing = await tx.select().from(escrow_proofs).where(eq(escrow_proofs.escrow_id, id))
+        const identities = new Set(existing.map(proofIdentity))
+        const missing = uniqueProofs.filter((proof) => !identities.has(proofIdentity(proof)))
+        if (existing.length + missing.length > MAX_ESCROW_PROOFS) {
+          throw new AppError(
+            400,
+            ErrorCode.VALIDATION_ERROR,
+            `Cannot exceed ${MAX_ESCROW_PROOFS} total proofs per escrow (currently have ${existing.length})`,
+          )
+        }
+        const newRows = missing.length === 0
+          ? []
+          : await tx.insert(escrow_proofs).values(missing.map(({ url, type }) => ({
+              escrow_id: id,
+              url,
+              type: type as EscrowProof['type'],
+            }))).onConflictDoNothing().returning()
+        const allRows = [...existing, ...newRows]
+        const wanted = new Set(uniqueProofs.map(proofIdentity))
+        return {
+          escrow: lockedEscrow,
+          inserted: newRows,
+          requested: allRows.filter((proof) => wanted.has(proofIdentity(proof))),
+        }
+      })
 
       // Only notify when the escrow is ALREADY submitted, i.e. the on-chain
       // submit confirmed and the poster is reviewing, and the worker is now
@@ -88,7 +88,7 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
       // approve" for a completion that never happened on-chain. The genuine
       // "Work submitted" push rides verify-tx republish (escrow.proof_submitted)
       // once the submit tx confirms, so this path stays silent when accepted.
-      if (escrow.status === 'submitted') {
+      if (inserted.length > 0 && escrow.status === 'submitted') {
         try {
           await enqueueNotification(fastify.queue, {
             user_id: escrow.creator_id,
@@ -99,7 +99,7 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
         } catch (err) {
           request.log.warn({ err }, 'proofs: notification enqueue failed (queue unavailable)')
         }
-      } else if (escrow.status === 'disputed') {
+      } else if (inserted.length > 0 && escrow.status === 'disputed') {
         // Mid-dispute evidence: alert the other party and the assigned mediator
         // (if any), deep-linking to the shared mediation thread where the proof
         // now shows. Only the counterparty can reach here, so the "other party"
@@ -126,7 +126,7 @@ const escrowProofs: FastifyPluginAsync = async (fastify) => {
         }
       }
 
-      return reply.code(201).send(inserted)
+      return reply.code(201).send(requested)
     },
   )
 

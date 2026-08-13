@@ -61,7 +61,10 @@ jest.mock('@/lib/transaction-gate', () => ({
   transactionGateRoute: () => '/settings/linked-wallets',
 }))
 
+// Imports stay below mock declarations so their modules observe the test doubles.
+// eslint-disable-next-line import/first
 import { useOfferSell } from '../useOfferSell'
+// eslint-disable-next-line import/first
 import { ApiClientError } from '@/api/client'
 
 const OPTION = {
@@ -93,6 +96,7 @@ test('threads the chosen windows into escrow + offer creation and signs', async 
   await act(async () => { await result.current.submit(ARGS) })
 
   expect(mockCreate).toHaveBeenCalledWith({
+    creation_operation_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
     kind: 'exchange', chain_id: 'eip155:84532', asset: 'USDC_BASE', amount_raw: '2500000',
     accept_deadline_unix: NOW_S + 24 * 3600,
     completion_duration_seconds: 21600,
@@ -131,6 +135,22 @@ test('surfaces the API error message when create fails ungated', async () => {
   await act(async () => { await result.current.submit(ARGS) })
   expect(mockToast).toHaveBeenCalledWith('error', 'offer limit reached')
   expect(mockReplace).not.toHaveBeenCalled()
+})
+
+test('an ambiguous create failure retries with the same operation and deadline', async () => {
+  mockCreate
+    .mockRejectedValueOnce(new Error('request timed out'))
+    .mockResolvedValueOnce({ escrow_id: 'e1', unsigned: { kind: 'evm-tx' } })
+  const { result } = renderHook(() => useOfferSell())
+
+  await act(async () => { await result.current.submit(ARGS) })
+  await act(async () => { await result.current.submit(ARGS) })
+
+  const first = mockCreate.mock.calls[0][0]
+  const retry = mockCreate.mock.calls[1][0]
+  expect(retry.creation_operation_id).toBe(first.creation_operation_id)
+  expect(retry.accept_deadline_unix).toBe(first.accept_deadline_unix)
+  expect(mockExchangeCreate).toHaveBeenCalledTimes(1)
 })
 
 test('keeps the draft when signing is declined after terms are saved', async () => {

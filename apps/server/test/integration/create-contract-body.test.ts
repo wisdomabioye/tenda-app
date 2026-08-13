@@ -16,6 +16,7 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
+import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import type { CreateEscrowApiBody } from '@tenda/shared'
 import { escrows } from '@tenda/shared/db/schema'
@@ -34,6 +35,7 @@ const getApp = useTestApp()
 
 function contractBody(over: Partial<CreateEscrowApiBody> = {}): CreateEscrowApiBody {
   return {
+    creation_operation_id: randomUUID(),
     kind: 'gig',
     chain_id: TEST_CHAIN_ID,
     asset: TEST_ASSET,
@@ -69,6 +71,92 @@ test('a contract body with requires_approval is accepted and persisted', { skip 
   // Stamped from config at create so the row records what the transaction
   // encodes — a zero here would mean the window was never carried through.
   assert.ok(row.unassign_window_seconds > 0)
+})
+
+test('repeating one creation operation returns the same draft', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  await makeTransactable(app, creator.row.id)
+  const body = contractBody()
+  const first = await app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token), payload: body,
+  })
+  const retry = await app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token), payload: body,
+  })
+  assert.strictEqual(first.statusCode, 201)
+  assert.strictEqual(retry.statusCode, 200)
+  assert.strictEqual(retry.json().escrow_id, first.json().escrow_id)
+})
+
+test('reusing a creation operation for different terms is rejected', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  await makeTransactable(app, creator.row.id)
+  const body = contractBody()
+  const first = await app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token), payload: body,
+  })
+  const conflict = await app.inject({
+    method: 'POST',
+    url: '/v1/escrows',
+    headers: authHeader(creator.token),
+    payload: { ...body, amount_raw: '2000000' },
+  })
+  assert.strictEqual(first.statusCode, 201)
+  assert.strictEqual(conflict.statusCode, 409)
+})
+
+test('concurrent creation retries converge on one draft', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  await makeTransactable(app, creator.row.id)
+  const body = contractBody()
+  const send = () => app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token), payload: body,
+  })
+  const responses = await Promise.all([send(), send()])
+  assert.deepStrictEqual(responses.map((res) => res.statusCode).sort(), [200, 201])
+  assert.strictEqual(responses[0].json().escrow_id, responses[1].json().escrow_id)
+  const rows = await app.db.select({ id: escrows.id }).from(escrows)
+    .where(eq(escrows.creation_operation_id, body.creation_operation_id))
+  assert.strictEqual(rows.length, 1)
+})
+
+test('a creation operation is scoped to its creator', { skip }, async () => {
+  const app = getApp()
+  const firstCreator = await createUser(app)
+  const secondCreator = await createUser(app)
+  await makeTransactable(app, firstCreator.row.id)
+  await makeTransactable(app, secondCreator.row.id)
+  const body = contractBody()
+  const first = await app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(firstCreator.token), payload: body,
+  })
+  const second = await app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(secondCreator.token), payload: body,
+  })
+  assert.strictEqual(first.statusCode, 201)
+  assert.strictEqual(second.statusCode, 201)
+  assert.notStrictEqual(first.json().escrow_id, second.json().escrow_id)
+})
+
+test('replaying a creation operation after publication is rejected', { skip }, async () => {
+  const app = getApp()
+  const creator = await createUser(app)
+  await makeTransactable(app, creator.row.id)
+  const body = contractBody()
+  const first = await app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token), payload: body,
+  })
+  assert.strictEqual(first.statusCode, 201)
+  await app.db.update(escrows).set({ status: 'open', escrow_ref: 'published-ref' })
+    .where(eq(escrows.id, first.json().escrow_id))
+  const replay = await app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(creator.token), payload: body,
+  })
+  assert.strictEqual(replay.statusCode, 409)
+  assert.strictEqual(replay.json().code, 'ESCROW_WRONG_STATUS')
 })
 
 test('omitting requires_approval keeps the pre-existing instant behaviour', { skip }, async () => {

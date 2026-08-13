@@ -1,5 +1,5 @@
 /**
- * lib/escrow-create — POST /v1/escrows validation layer.
+ * Escrow creation validation layer.
  * Positive path + every rejection branch, including the
  * server-generated-id exit criterion.
  */
@@ -11,7 +11,7 @@ import {
   validateCreateEscrow,
   type CreateEscrowBody,
   type ValidateCreateDeps,
-} from '@server/lib/escrow-create'
+} from '@server/features/escrows/creation/validateCreateEscrow'
 
 const NOW = new Date('2026-06-04T12:00:00Z')
 const NOW_UNIX = Math.floor(NOW.getTime() / 1000)
@@ -52,6 +52,7 @@ function expectRejects(b: CreateEscrowBody, status: number, pattern: RegExp): vo
 test('valid exchange body normalizes (bond defaults to 0, no assignment)', () => {
   const v = validateCreateEscrow(deps(), body())
   assert.deepStrictEqual(v, {
+    creation_operation_id: null,
     kind: 'exchange',
     chain_id: 'solana:devnet',
     asset: 'SOL_DEVNET',

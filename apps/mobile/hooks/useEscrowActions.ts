@@ -36,6 +36,7 @@ import {
   transactionGateRoute,
 } from '@/lib/transaction-gate'
 import { isTakedownRefusal } from '@/lib/takedown-refusal'
+import { persistEscrowProofs } from '@/features/escrow-proofs/persistEscrowProofs'
 
 export interface ProofFile {
   url: string
@@ -221,7 +222,7 @@ export function useEscrowActions({
       setBusyAction('submit')
       setPhase('preparing')
       try {
-        await api.escrows.addProofs({ id: escrowId }, { proofs })
+        await persistEscrowProofs(escrowId, proofs)
       } catch (e) {
         setBusyAction(null)
         setPhase('idle')
@@ -235,7 +236,7 @@ export function useEscrowActions({
     /** Supplementary evidence while submitted, off-chain only. */
     addProofs: async (proofs: ProofFile[]): Promise<boolean> => {
       try {
-        await api.escrows.addProofs({ id: escrowId }, { proofs })
+        await persistEscrowProofs(escrowId, proofs)
         showToast('success', 'Proof added!')
         return true
       } catch (e) {

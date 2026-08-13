@@ -14,6 +14,11 @@ export const PROOF_TYPES = ['image', 'video', 'document'] as const
 
 export type ProofType = (typeof PROOF_TYPES)[number]
 
+/** Stable retry identity for an already-uploaded proof asset. */
+export function proofIdentity(proof: { url: string; type: ProofType }): string {
+  return `${proof.type}\0${proof.url}`
+}
+
 export function isProofType(value: unknown): value is ProofType {
   return typeof value === 'string' && (PROOF_TYPES as readonly string[]).includes(value)
 }
@@ -34,6 +39,9 @@ export const PROOF_TYPE_LABEL: Record<ProofType, string> = {
  * a deduplicated subset of PROOF_TYPES, so it can never usefully be longer.
  */
 export const MAX_PROOF_REQUIREMENTS = PROOF_TYPES.length
+
+/** Total uploaded evidence items retained for one escrow. */
+export const MAX_ESCROW_PROOFS = 20
 
 /**
  * Normalise a caller-supplied requirement list: drop duplicates and return

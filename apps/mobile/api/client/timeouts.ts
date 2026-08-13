@@ -24,3 +24,9 @@ export const MODERATION_TIMEOUT_MS = 20_000
  * RPC. Keep above the server RPC timeout.
  */
 export const TX_BUILD_TIMEOUT_MS = 20_000
+
+/** Draft creation also builds a chain transaction before responding. */
+export const ESCROW_CREATE_TIMEOUT_MS = 20_000
+
+/** Proof persistence can wait behind the escrow-scoped concurrency lock. */
+export const PROOF_PERSISTENCE_TIMEOUT_MS = 20_000

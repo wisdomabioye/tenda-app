@@ -4,6 +4,7 @@
  * each suite reading as "what's being asserted", per the helpers convention.
  */
 import type { FastifyInstance } from 'fastify'
+import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { disputes, escrows } from '@tenda/shared/db/schema'
 import {
@@ -22,6 +23,7 @@ import type { EscrowRow, UserRow } from './fixtures'
 /** Valid POST /v1/escrows body on the harness chain/asset. */
 export function createEscrowBody(overrides: Record<string, unknown> = {}) {
   return {
+    creation_operation_id: randomUUID(),
     kind: 'gig',
     chain_id: TEST_CHAIN_ID,
     asset: TEST_ASSET,

@@ -87,7 +87,11 @@ export function buildModerationDeps(fastify: FastifyInstance): ModerationDeps {
     cache: processCache,
     llm:
       config.OPENROUTER_API_KEY !== null
-        ? openRouterProvider(openRouterTransport(config.OPENROUTER_API_KEY))
+        ? openRouterProvider(openRouterTransport(config.OPENROUTER_API_KEY), {
+            model: config.OPENROUTER_MODERATION_MODEL,
+            timeoutMs: config.OPENROUTER_MODERATION_TIMEOUT_MS,
+            maxOutputTokens: config.OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS,
+          })
         : null,
     log: fastify.log,
     now: () => Date.now(),

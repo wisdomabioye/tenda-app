@@ -58,24 +58,22 @@ test('contentSafety: markdown-fenced JSON is stripped and parsed', async () => {
   assert.strictEqual(v?.decision, 'approve')
 })
 
-test('contentSafety: low-confidence primary escalates and adopts the stronger model', async () => {
-  const p = openRouterProvider(transport(
-    '{"classification":"suspicious","confidence":0.4}', // below 0.7 → escalate
-    '{"classification":"blocked","confidence":0.95,"reason":"on review, blocked"}',
-  ))
-  const v = await p.contentSafety!(INPUT)
-  assert.strictEqual(v?.decision, 'block')
-  assert.strictEqual(v?.model, 'anthropic/claude-sonnet-4.5')
-})
-
-test('contentSafety: a low-confidence escalation that fails to parse keeps the primary verdict', async () => {
-  const p = openRouterProvider(transport(
-    '{"classification":"suspicious","confidence":0.4}',
-    'garbage-not-json',
-  ))
+test('contentSafety: low confidence remains on the configured Haiku model', async () => {
+  const p = openRouterProvider(transport('{"classification":"suspicious","confidence":0.4}'))
   const v = await p.contentSafety!(INPUT)
   assert.strictEqual(v?.decision, 'warn')
-  assert.strictEqual(v?.model, 'anthropic/claude-haiku-4.5') // unchanged
+  assert.strictEqual(v?.model, 'anthropic/claude-haiku-4.5')
+})
+
+test('contentSafety: invalid confidence and an oversized reason are inconclusive', async () => {
+  const invalid = await openRouterProvider(transport(
+    '{"classification":"safe","confidence":2}',
+  )).contentSafety!(INPUT)
+  assert.strictEqual(invalid, null)
+  const oversized = await openRouterProvider(transport(JSON.stringify({
+    classification: 'safe', confidence: 0.9, reason: 'x'.repeat(241),
+  }))).contentSafety!(INPUT)
+  assert.strictEqual(oversized, null)
 })
 
 // ---------- priceSanity ----------------------------------------------------------
@@ -106,16 +104,32 @@ const realFetch = globalThis.fetch
 afterEach(() => { globalThis.fetch = realFetch })
 
 test('openRouterTransport: returns the assistant content on a 200', async () => {
-  globalThis.fetch = (() =>
-    Promise.resolve(jsonResponse(200, { choices: [{ message: { content: 'hello' } }] }))) as typeof fetch
-  const out = await openRouterTransport('key').complete({ model: 'm', system: 's', user: 'u', timeout_ms: 5000 })
+  let requestBody = ''
+  globalThis.fetch = ((_url, init) => {
+    requestBody = String(init?.body)
+    return Promise.resolve(jsonResponse(200, { choices: [{ message: { content: 'hello' } }] }))
+  }) as typeof fetch
+  const out = await openRouterTransport('key').complete({ model: 'm', system: 's', user: 'u', timeout_ms: 5000, max_output_tokens: 160 })
   assert.strictEqual(out, 'hello')
+  assert.deepStrictEqual(JSON.parse(requestBody).response_format, { type: 'json_object' })
+  assert.strictEqual(JSON.parse(requestBody).max_tokens, 160)
+})
+
+test('openRouterTransport: normalizes its deadline abort to a gateway timeout', async () => {
+  globalThis.fetch = ((_url, init) => new Promise((_resolve, reject) => {
+    init?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+  })) as typeof fetch
+  await assert.rejects(
+    openRouterTransport('key').complete({ model: 'm', system: 's', user: 'u', timeout_ms: 1, max_output_tokens: 160 }),
+    (error: { statusCode?: number; message?: string }) =>
+      error.statusCode === 504 && error.message === 'OpenRouter moderation timed out',
+  )
 })
 
 test('openRouterTransport: a non-OK response throws 502', async () => {
   globalThis.fetch = (() => Promise.resolve(jsonResponse(500, 'err'))) as typeof fetch
   await assert.rejects(
-    openRouterTransport('key').complete({ model: 'm', system: 's', user: 'u', timeout_ms: 5000 }),
+    openRouterTransport('key').complete({ model: 'm', system: 's', user: 'u', timeout_ms: 5000, max_output_tokens: 160 }),
     (e: { statusCode?: number }) => e.statusCode === 502,
   )
 })
@@ -123,7 +137,7 @@ test('openRouterTransport: a non-OK response throws 502', async () => {
 test('openRouterTransport: a 200 with no content throws 502', async () => {
   globalThis.fetch = (() => Promise.resolve(jsonResponse(200, { choices: [] }))) as typeof fetch
   await assert.rejects(
-    openRouterTransport('key').complete({ model: 'm', system: 's', user: 'u', timeout_ms: 5000 }),
+    openRouterTransport('key').complete({ model: 'm', system: 's', user: 'u', timeout_ms: 5000, max_output_tokens: 160 }),
     (e: { statusCode?: number }) => e.statusCode === 502,
   )
 })

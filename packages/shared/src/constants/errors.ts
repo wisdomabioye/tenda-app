@@ -114,6 +114,8 @@ export const ErrorCode = {
   NOT_FOUND:                     'NOT_FOUND',
   VALIDATION_ERROR:              'VALIDATION_ERROR',
   INTERNAL_ERROR:                'INTERNAL_ERROR',
+  /** The client stopped waiting before an authoritative response arrived. */
+  REQUEST_TIMEOUT:               'REQUEST_TIMEOUT',
 } as const
 
 export type ErrorCode = keyof typeof ErrorCode

@@ -1,6 +1,10 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'expo-router'
-import type { BankAccountSummary } from '@tenda/shared'
+import {
+  reuseOrCreateEscrowCreationAttempt,
+  type BankAccountSummary,
+  type EscrowCreationAttempt,
+} from '@tenda/shared'
 import { api, ApiClientError } from '@/api/client'
 import { showToast } from '@/components/ui'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
@@ -11,6 +15,7 @@ import {
   transactionGateRoute,
 } from '@/lib/transaction-gate'
 import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
+import { randomUuid } from '@/lib/random-uuid'
 
 const SECONDS_PER_HOUR = 60 * 60
 
@@ -36,10 +41,18 @@ export interface OfferSubmitArgs {
 export function useOfferSell() {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
+  const creationAttempt = useRef<EscrowCreationAttempt | null>(null)
 
   async function submit(a: OfferSubmitArgs): Promise<void> {
     if (submitting) return
-    const accept_deadline_unix = Math.floor(Date.now() / 1000) + a.acceptHours * SECONDS_PER_HOUR
+    creationAttempt.current = reuseOrCreateEscrowCreationAttempt(
+      creationAttempt.current,
+      [a.option.chainId, a.option.assetId, a.amountRaw, a.acceptHours,
+        a.paymentWindowSeconds, a.account.id, a.fiatTotal, a.currency, a.rate],
+      () => Math.floor(Date.now() / 1000) + a.acceptHours * SECONDS_PER_HOUR,
+      randomUuid,
+    )
+    const { operationId, acceptDeadlineUnix } = creationAttempt.current
 
     setSubmitting(true)
     let escrow_id: string | null = null
@@ -54,14 +67,16 @@ export function useOfferSell() {
       })
 
       const created = await api.escrows.create({
+        creation_operation_id: operationId,
         kind: 'exchange',
         chain_id: a.option.chainId,
         asset: a.option.assetId,
         amount_raw: a.amountRaw,
-        accept_deadline_unix,
+        accept_deadline_unix: acceptDeadlineUnix,
         completion_duration_seconds: a.paymentWindowSeconds,
       })
       escrow_id = created.escrow_id
+      creationAttempt.current = null
 
       try {
         await api.exchange.create({

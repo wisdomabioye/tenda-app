@@ -1,5 +1,5 @@
 /**
- * Validation + normalization for POST /v1/escrows (the create entry).
+ * Validation and normalization for POST /v1/escrows.
  *
  * Pure module, no DB, no chain I/O, so every rule is unit-testable. The
  * route supplies caller identity and persistence; the on-chain program
@@ -12,8 +12,10 @@ import { AppError } from '@server/lib/errors'
 import { assertGigAsset, assertExchangeAsset } from '@server/lib/escrow'
 import { validateWirePermit } from '@server/chains/evm/permit'
 import { isAmountRaw, type AmountRaw, type AssetId, type ChainId } from '@server/chains/types'
+import { isUuidLike } from '@server/lib/uuid'
 
 export interface CreateEscrowBody {
+  creation_operation_id?: unknown
   kind?: unknown
   chain_id?: unknown
   asset?: unknown
@@ -31,6 +33,7 @@ export interface CreateEscrowBody {
 }
 
 export interface ValidatedCreateEscrow {
+  creation_operation_id: string | null
   kind: 'gig' | 'exchange'
   chain_id: ChainId
   asset: AssetId
@@ -69,6 +72,12 @@ export function validateCreateEscrow(
       'id is server-generated; do not supply one',
     )
   }
+
+  const creation_operation_id = body.creation_operation_id === undefined
+    ? null
+    : typeof body.creation_operation_id === 'string' && isUuidLike(body.creation_operation_id)
+      ? body.creation_operation_id
+      : fail('creation_operation_id must be a UUID')
 
   const kind = body.kind
   if (kind !== 'gig' && kind !== 'exchange') fail("kind must be 'gig' or 'exchange'")
@@ -159,6 +168,7 @@ export function validateCreateEscrow(
       : null
 
   return {
+    creation_operation_id,
     kind,
     chain_id,
     asset,

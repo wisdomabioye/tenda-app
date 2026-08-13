@@ -11,9 +11,9 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
-import { escrows, exchange_details, tx_attempts } from '@tenda/shared/db/schema'
+import { escrows, exchange_details } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { assertNotTakenDown } from '@server/lib/escrow'
@@ -21,6 +21,7 @@ import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
 import { normalizeContractAddress } from '@server/chains/contracts'
+import { hasPendingEscrowCreateTransaction } from '@server/features/escrows/creation/hasPendingEscrowCreateTransaction'
 
 /** Deadlines closer than this get refreshed, the program rejects a create
  *  whose accept window is already (about to be) over. */
@@ -52,19 +53,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       // A signed-and-broadcast create may still be verifying, building a
       // second create tx now would just fail on-chain (the PDA exists) and
       // confuse the client. Same guard as DELETE /v1/escrows/:id.
-      const [pendingCreate] = await fastify.db
-        .select({ id: tx_attempts.id })
-        .from(tx_attempts)
-        .where(
-          and(
-            eq(tx_attempts.escrow_id, escrow.id),
-            eq(tx_attempts.action, 'create'),
-            isNull(tx_attempts.confirmed_at),
-            isNull(tx_attempts.failed_at),
-          ),
-        )
-        .limit(1)
-      if (pendingCreate !== undefined) {
+      if (await hasPendingEscrowCreateTransaction(fastify.db, escrow.id)) {
         throw new AppError(
           409,
           ErrorCode.ESCROW_WRONG_STATUS,

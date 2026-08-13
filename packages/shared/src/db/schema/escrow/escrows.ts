@@ -15,6 +15,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core'
 import { assets, chains } from '../chains'
@@ -25,6 +26,7 @@ export const escrows = pgTable(
   'escrows',
   {
     id: uuid('id').primaryKey().defaultRandom(),
+    creation_operation_id: uuid('creation_operation_id'),
     kind: escrowKindEnum('kind').notNull(),
     chain_id: text('chain_id')
       .notNull()
@@ -136,6 +138,9 @@ export const escrows = pgTable(
     index('escrows_status_idx').on(t.status),
     index('escrows_chain_idx').on(t.chain_id),
     index('escrows_creator_idx').on(t.creator_id),
+    uniqueIndex('escrows_creator_creation_operation_uq')
+      .on(t.creator_id, t.creation_operation_id)
+      .where(sql`${t.creation_operation_id} IS NOT NULL`),
     index('escrows_counterparty_idx').on(t.counterparty_id),
     index('escrows_assigned_idx')
       .on(t.assigned_counterparty_id)

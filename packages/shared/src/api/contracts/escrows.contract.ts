@@ -78,6 +78,8 @@ export interface PermitSignatureBody {
 }
 
 export interface CreateEscrowApiBody {
+  /** Stable across retries so an uncertain response cannot create a second draft. */
+  creation_operation_id: string
   kind: 'gig' | 'exchange'
   /** CAIP-2 chain id, e.g. 'solana:devnet'. */
   chain_id: string

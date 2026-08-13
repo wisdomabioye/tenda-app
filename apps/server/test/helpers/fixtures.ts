@@ -121,6 +121,7 @@ export function escrowFixture(overrides: Partial<EscrowRow> = {}): EscrowRow {
   const status: EscrowStatus = overrides.status ?? 'draft'
   return {
     id,
+    creation_operation_id: null,
     kind: 'gig',
     chain_id: 'solana:mainnet',
     asset: 'USDC_SOL',

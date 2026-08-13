@@ -17,7 +17,7 @@ import { ErrorCode } from '@tenda/shared'
 import { getPlatformConfig } from '@server/lib/platform'
 import { guardTransition } from '@server/lib/escrow-routes'
 import { buildEscrowTx } from '@server/lib/escrow'
-import { assertRequirementsMet } from '@server/lib/proofs'
+import { assertEscrowProofRequirementsMet } from '@server/features/escrows/proofs/assertEscrowProofRequirementsMet'
 
 interface Body { proof_hash: string }
 
@@ -56,7 +56,7 @@ const route: FastifyPluginAsync = async (fastify) => {
             .select({ type: escrow_proofs.type })
             .from(escrow_proofs)
             .where(eq(escrow_proofs.escrow_id, escrow.id))
-          assertRequirementsMet(required, attached)
+          assertEscrowProofRequirementsMet(required, attached)
         }
       }
 

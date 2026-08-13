@@ -9,9 +9,14 @@
  * (draft → open) when the verify pipeline confirms the tx; the progress modal
  * holds until then.
  */
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'expo-router'
-import { coerceCityForCountry, ErrorCode } from '@tenda/shared'
+import {
+  coerceCityForCountry,
+  ErrorCode,
+  reuseOrCreateEscrowCreationAttempt,
+  type EscrowCreationAttempt,
+} from '@tenda/shared'
 import { api, ApiClientError } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
 import { WalletError } from '@/wallet/errors'
@@ -27,6 +32,7 @@ import {
 } from '@/lib/transaction-gate'
 import type { GigFormValues } from '@/components/gig/GigForm'
 import { checkEscrowTransitionApplied } from '@/lib/escrow-sync'
+import { randomUuid } from '@/lib/random-uuid'
 
 const MS_PER_HOUR = 3_600_000
 
@@ -57,6 +63,7 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
   const [phase, setPhase] = useState<TxPhase>('idle')
   const [monitor, setMonitor] = useState<FundingMonitor | null>(null)
   const [blockedMessage, setBlockedMessage] = useState<string | null>(null)
+  const creationAttempt = useRef<EscrowCreationAttempt | null>(null)
 
   async function runFunding() {
     if (pendingValues === null || !pendingValues.category) return
@@ -70,9 +77,14 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
     const chain_id = values.chainId
     const asset = values.asset
     const amount_raw = String(values.paymentRaw)
-    const accept_deadline_unix = Math.floor(
-      (Date.now() + values.acceptDeadlineHours * MS_PER_HOUR) / 1000,
+    creationAttempt.current = reuseOrCreateEscrowCreationAttempt(
+      creationAttempt.current,
+      [chain_id, asset, amount_raw, values.acceptDeadlineHours, values.completionDuration,
+        values.requiresApproval],
+      () => Math.floor((Date.now() + values.acceptDeadlineHours * MS_PER_HOUR) / 1000),
+      randomUuid,
     )
+    const { operationId, acceptDeadlineUnix } = creationAttempt.current
 
     setPhase('preparing')
     let escrow_id: string | null = null
@@ -91,11 +103,12 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
       // (undefined = approve fallback via the unsigned tx's approval hint).
       const permit = await buildPermitFor({ chain_id, asset, value_raw: amount_raw })
       const created = await api.escrows.create({
+        creation_operation_id: operationId,
         kind: 'gig',
         chain_id,
         asset,
         amount_raw,
-        accept_deadline_unix,
+        accept_deadline_unix: acceptDeadlineUnix,
         completion_duration_seconds: values.completionDuration,
         // Only sent when true: the server treats an absent flag as instant
         // mode, so an omitted `false` and an explicit one mean the same thing
@@ -104,6 +117,7 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
         ...(permit !== undefined ? { permit } : {}),
       })
       escrow_id = created.escrow_id
+      creationAttempt.current = null
 
       try {
         await api.gigs.create({

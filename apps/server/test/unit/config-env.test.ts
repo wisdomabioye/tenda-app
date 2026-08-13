@@ -26,6 +26,9 @@ const OPTIONAL = [
   slackEnvKey('disputes'),
   'CORS_ORIGIN',
   'GOOGLE_OAUTH_CLIENT_IDS',
+  'OPENROUTER_MODERATION_MODEL',
+  'OPENROUTER_MODERATION_TIMEOUT_MS',
+  'OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS',
 ]
 
 beforeEach(() => {
@@ -57,6 +60,35 @@ test('loads a valid environment', () => {
   const config = loadConfig()
   assert.strictEqual(config.API_BASE_URL, 'https://api.tenda.test')
   assert.strictEqual(config.ADMIN_DASHBOARD_URL, null)
+})
+
+test('OpenRouter moderation defaults are bounded and independently configurable', () => {
+  const defaults = loadConfig()
+  assert.strictEqual(defaults.OPENROUTER_MODERATION_MODEL, 'anthropic/claude-haiku-4.5')
+  assert.strictEqual(defaults.OPENROUTER_MODERATION_TIMEOUT_MS, 6_000)
+  assert.strictEqual(defaults.OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS, 160)
+  process.env.OPENROUTER_MODERATION_MODEL = 'anthropic/claude-3.5-haiku'
+  process.env.OPENROUTER_MODERATION_TIMEOUT_MS = '4500'
+  process.env.OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS = '120'
+  const custom = loadConfig()
+  assert.strictEqual(custom.OPENROUTER_MODERATION_MODEL, 'anthropic/claude-3.5-haiku')
+  assert.strictEqual(custom.OPENROUTER_MODERATION_TIMEOUT_MS, 4_500)
+  assert.strictEqual(custom.OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS, 120)
+})
+
+test('invalid OpenRouter numeric settings fail boot together', () => {
+  process.env.OPENROUTER_MODERATION_TIMEOUT_MS = '0'
+  process.env.OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS = 'lots'
+  const message = loadError().message
+  assert.match(message, /OPENROUTER_MODERATION_TIMEOUT_MS/)
+  assert.match(message, /OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS/)
+})
+
+test('OpenRouter moderation remains configurable within the Haiku family only', () => {
+  process.env.OPENROUTER_MODERATION_MODEL = 'anthropic/claude-sonnet-4'
+  assert.match(loadError().message, /OPENROUTER_MODERATION_MODEL.*Haiku/)
+  process.env.OPENROUTER_MODERATION_MODEL = '   '
+  assert.strictEqual(loadConfig().OPENROUTER_MODERATION_MODEL, 'anthropic/claude-haiku-4.5')
 })
 
 test('names every missing required var in one error', () => {

@@ -23,6 +23,7 @@ function row(over: Partial<EscrowRow> = {}): EscrowRow {
   // check happens at each accessor site.
   return {
     id: 'escrow-1',
+    creation_operation_id: null,
     kind: 'gig',
     chain_id: 'solana:devnet',
     asset: 'USDC_SOL',

@@ -1,5 +1,6 @@
 import { slackConfigProblems } from '@server/lib/slack'
 import { optionalEnv, stripTrailingSlash, urlEnvProblems } from '@server/lib/env'
+import { moderationConfig } from '@server/features/moderation/config'
 
 // Chain endpoints/keys (RPC, program id, treasury, escrow, webhooks…) are NOT
 // here, they are per-chain flat env vars loaded + validated by
@@ -56,6 +57,9 @@ export interface Config {
    * (project decision). Null = moderation runs keyword-only.
    */
   OPENROUTER_API_KEY: string | null
+  OPENROUTER_MODERATION_MODEL: string
+  OPENROUTER_MODERATION_TIMEOUT_MS: number
+  OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS: number
   /** Stage 8, fiat rails. Feature gate + provider credentials (#61). */
   FIAT_RAILS_ENABLED: boolean
   YELLOWCARD_API_KEY: string | null
@@ -113,6 +117,27 @@ function csvEnv(raw: string | undefined): string[] | null {
   if (raw === undefined) return null
   const items = raw.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
   return items.length > 0 ? items : null
+}
+
+function positiveIntegerEnv(key: string, fallback: number): number {
+  const raw = optionalEnv(key)
+  if (raw === null) return fallback
+  const value = Number(raw)
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback
+}
+
+function positiveIntegerProblem(key: string): string[] {
+  const raw = optionalEnv(key)
+  return raw !== null && (!Number.isSafeInteger(Number(raw)) || Number(raw) <= 0)
+    ? [`${key} must be a positive integer`]
+    : []
+}
+
+function moderationModelProblem(): string[] {
+  const model = optionalEnv('OPENROUTER_MODERATION_MODEL')
+  return model !== null && !model.toLowerCase().includes('haiku')
+    ? ['OPENROUTER_MODERATION_MODEL must identify a Haiku model']
+    : []
 }
 
 /**
@@ -183,6 +208,9 @@ export function loadConfig(): Config {
       : []),
     ...urlEnvProblems(OPTIONAL_URL_ENV_VARS, BASE_URL_PROTOCOLS),
     ...slackConfigProblems(),
+    ...positiveIntegerProblem('OPENROUTER_MODERATION_TIMEOUT_MS'),
+    ...positiveIntegerProblem('OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS'),
+    ...moderationModelProblem(),
   ]
 
   if (problems.length > 0) {
@@ -211,6 +239,12 @@ export function loadConfig(): Config {
     TWILIO_AUTH_TOKEN:     process.env.TWILIO_AUTH_TOKEN ?? null,
     TWILIO_SMS_FROM:       process.env.TWILIO_SMS_FROM ?? null,
     OPENROUTER_API_KEY:    process.env.OPENROUTER_API_KEY ?? null,
+    OPENROUTER_MODERATION_MODEL:
+      optionalEnv('OPENROUTER_MODERATION_MODEL') ?? moderationConfig.model,
+    OPENROUTER_MODERATION_TIMEOUT_MS:
+      positiveIntegerEnv('OPENROUTER_MODERATION_TIMEOUT_MS', moderationConfig.timeoutMs),
+    OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS:
+      positiveIntegerEnv('OPENROUTER_MODERATION_MAX_OUTPUT_TOKENS', moderationConfig.maxOutputTokens),
     FIAT_RAILS_ENABLED:    process.env.FIAT_RAILS_ENABLED !== 'false',
     YELLOWCARD_API_KEY:        process.env.YELLOWCARD_API_KEY ?? null,
     YELLOWCARD_API_SECRET:     process.env.YELLOWCARD_API_SECRET ?? null,

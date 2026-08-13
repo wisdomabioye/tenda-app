@@ -25,6 +25,14 @@ export class ApiClientError extends Error {
   }
 }
 
+const REQUEST_TIMEOUT_MESSAGE =
+  'The server is taking longer than expected. Please check whether the action completed before retrying.'
+
+function isAbortError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null &&
+    'name' in error && error.name === 'AbortError'
+}
+
 function buildUrl(
   base: string,
   path: string,
@@ -92,7 +100,11 @@ export async function request<TResponse>(
   }
 
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), options?.timeout ?? config.timeout)
+  let deadlineExpired = false
+  const timeoutId = setTimeout(() => {
+    deadlineExpired = true
+    controller.abort()
+  }, options?.timeout ?? config.timeout)
 
   try {
     const response = await fetch(url, {
@@ -108,6 +120,11 @@ export async function request<TResponse>(
     }
 
     return (await response.json()) as TResponse
+  } catch (error) {
+    if (deadlineExpired && isAbortError(error)) {
+      throw new ApiClientError(408, 'Request Timeout', REQUEST_TIMEOUT_MESSAGE, 'REQUEST_TIMEOUT')
+    }
+    throw error
   } finally {
     clearTimeout(timeoutId)
   }

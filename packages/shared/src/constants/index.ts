@@ -65,10 +65,12 @@ export {
   PROOF_TYPES,
   PROOF_TYPE_LABEL,
   MAX_PROOF_REQUIREMENTS,
+  MAX_ESCROW_PROOFS,
   isProofType,
   normaliseProofRequirements,
   missingProofTypes,
   formatProofTypeList,
+  proofIdentity,
   type ProofType,
 } from './proofs'
 export {

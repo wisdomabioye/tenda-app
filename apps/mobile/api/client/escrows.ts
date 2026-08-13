@@ -22,13 +22,20 @@ import {
   type SubmitEscrowProofBody,
 } from '@tenda/shared'
 import { request } from '../request'
-import { TX_BUILD_TIMEOUT_MS } from './timeouts'
+import {
+  ESCROW_CREATE_TIMEOUT_MS,
+  PROOF_PERSISTENCE_TIMEOUT_MS,
+  TX_BUILD_TIMEOUT_MS,
+} from './timeouts'
 
 const { escrows } = apiRoutes
 
 export const escrowsApi = {
   create: (body: CreateEscrowApiBody) =>
-    request<CreateEscrowApiResponse>('POST', escrows.create, { body }),
+    request<CreateEscrowApiResponse>('POST', escrows.create, {
+      body,
+      timeout: ESCROW_CREATE_TIMEOUT_MS,
+    }),
   // Publish path for drafts that never got (or lost) their unsigned tx.
   buildCreate: (params: { id: string }) =>
     request<CreateEscrowApiResponse>('POST', escrows.buildCreate, { params }),
@@ -50,7 +57,11 @@ export const escrowsApi = {
   release: (params: { id: string }) =>
     request<ReleaseAssignmentResponse>('POST', escrows.release, { params }),
   submit: (params: { id: string }, body: SubmitEscrowProofBody) =>
-    request<EscrowActionResponse>('POST', escrows.submit, { params, body }),
+    request<EscrowActionResponse>('POST', escrows.submit, {
+      params,
+      body,
+      timeout: TX_BUILD_TIMEOUT_MS,
+    }),
   approve: (params: { id: string }) =>
     request<EscrowActionResponse>('POST', escrows.approve, { params }),
   claim: (params: { id: string }) =>
@@ -78,7 +89,11 @@ export const escrowsApi = {
     request<{ deleted: true }>('DELETE', escrows.delete, { params }),
   proofs: (params: { id: string }) => request<EscrowProof[]>('GET', escrows.proofs, { params }),
   addProofs: (params: { id: string }, body: AddEscrowProofsBody) =>
-    request<EscrowProof[]>('POST', escrows.addProofs, { params, body }),
+    request<EscrowProof[]>('POST', escrows.addProofs, {
+      params,
+      body,
+      timeout: PROOF_PERSISTENCE_TIMEOUT_MS,
+    }),
   review: (params: { id: string }, body: ReviewInput) =>
     request<Review>('POST', escrows.review, { params, body }),
 }

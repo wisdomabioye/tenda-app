@@ -1,9 +1,9 @@
 /**
- * lib/proofs — upload validation (type, Cloudinary host, folder ownership)
+ * Escrow proof upload validation and submit requirement enforcement.
  * and the poster-declared requirement gate used by POST
  * /v1/escrows/:id/submit.
  *
- * validateProofs had no unit coverage before this suite; it is the only
+ * Upload validation is the only
  * thing standing between a request body and a stored proof URL, so its
  * negative cases are asserted individually rather than as a group.
  */
@@ -11,7 +11,11 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
 import { ErrorCode, type ProofType } from '@tenda/shared'
-import { validateProofs, assertRequirementsMet, type ProofInput } from '@server/lib/proofs'
+import {
+  validateEscrowProofUploads,
+  type EscrowProofUploadInput,
+} from '@server/features/escrows/proofs/validateEscrowProofUploads'
+import { assertEscrowProofRequirementsMet } from '@server/features/escrows/proofs/assertEscrowProofRequirementsMet'
 import { AppError } from '@server/lib/errors'
 
 const USER = 'user-1'
@@ -21,7 +25,7 @@ function url(userId: string, name = 'p1.jpg'): string {
   return `https://res.cloudinary.com/test-cloud/image/upload/tenda/proofs/${userId}/${name}`
 }
 
-function proofs(...items: ProofInput[]): ProofInput[] {
+function proofs(...items: EscrowProofUploadInput[]): EscrowProofUploadInput[] {
   return items
 }
 
@@ -36,11 +40,11 @@ function expectAppError(fn: () => void, status: number, code: string, match: Reg
   )
 }
 
-// ---------- validateProofs: positive ---------------------------------------
+// ---------- validateEscrowProofUploads: positive --------------------------
 
-test('validateProofs accepts every declared type in the uploader own folder', () => {
+test('validateEscrowProofUploads accepts every declared type in the uploader own folder', () => {
   assert.doesNotThrow(() =>
-    validateProofs(
+    validateEscrowProofUploads(
       proofs(
         { url: url(USER, 'a.jpg'), type: 'image' },
         { url: url(USER, 'b.mp4'), type: 'video' },
@@ -51,46 +55,46 @@ test('validateProofs accepts every declared type in the uploader own folder', ()
   )
 })
 
-test('validateProofs accepts an empty list', () => {
-  assert.doesNotThrow(() => validateProofs([], USER))
+test('validateEscrowProofUploads accepts an empty list', () => {
+  assert.doesNotThrow(() => validateEscrowProofUploads([], USER))
 })
 
-test('validateProofs allows exactly maxCount items', () => {
+test('validateEscrowProofUploads allows exactly maxCount items', () => {
   const items = proofs(
     { url: url(USER, 'a.jpg'), type: 'image' },
     { url: url(USER, 'b.jpg'), type: 'image' },
   )
-  assert.doesNotThrow(() => validateProofs(items, USER, 2))
+  assert.doesNotThrow(() => validateEscrowProofUploads(items, USER, 2))
 })
 
-// ---------- validateProofs: negative ---------------------------------------
+// ---------- validateEscrowProofUploads: negative --------------------------
 
-test('validateProofs rejects more than maxCount items', () => {
+test('validateEscrowProofUploads rejects more than maxCount items', () => {
   const items = proofs(
     { url: url(USER, 'a.jpg'), type: 'image' },
     { url: url(USER, 'b.jpg'), type: 'image' },
   )
   expectAppError(
-    () => validateProofs(items, USER, 1),
+    () => validateEscrowProofUploads(items, USER, 1),
     400,
     ErrorCode.VALIDATION_ERROR,
     /maximum 1/,
   )
 })
 
-test('validateProofs rejects an unknown proof type', () => {
+test('validateEscrowProofUploads rejects an unknown proof type', () => {
   expectAppError(
-    () => validateProofs(proofs({ url: url(USER), type: 'location' }), USER),
+    () => validateEscrowProofUploads(proofs({ url: url(USER), type: 'location' }), USER),
     400,
     ErrorCode.VALIDATION_ERROR,
     /Proof type must be one of/,
   )
 })
 
-test('validateProofs rejects a non-Cloudinary host', () => {
+test('validateEscrowProofUploads rejects a non-Cloudinary host', () => {
   expectAppError(
     () =>
-      validateProofs(
+      validateEscrowProofUploads(
         proofs({ url: `https://evil.example.com/tenda/proofs/${USER}/a.jpg`, type: 'image' }),
         USER,
       ),
@@ -100,56 +104,56 @@ test('validateProofs rejects a non-Cloudinary host', () => {
   )
 })
 
-test("validateProofs rejects a URL in another user's folder", () => {
+test("validateEscrowProofUploads rejects a URL in another user's folder", () => {
   expectAppError(
-    () => validateProofs(proofs({ url: url(OTHER), type: 'image' }), USER),
+    () => validateEscrowProofUploads(proofs({ url: url(OTHER), type: 'image' }), USER),
     400,
     ErrorCode.VALIDATION_ERROR,
     /not uploaded by the submitting user/,
   )
 })
 
-test('validateProofs reports the first violation when several are present', () => {
+test('validateEscrowProofUploads reports the first violation when several are present', () => {
   // Bad type comes before the host check in the same iteration.
   expectAppError(
-    () => validateProofs(proofs({ url: 'https://evil.example.com/x.jpg', type: 'nope' }), USER),
+    () => validateEscrowProofUploads(proofs({ url: 'https://evil.example.com/x.jpg', type: 'nope' }), USER),
     400,
     ErrorCode.VALIDATION_ERROR,
     /Proof type must be one of/,
   )
 })
 
-// ---------- assertRequirementsMet: positive --------------------------------
+// ---------- assertEscrowProofRequirementsMet: positive --------------------
 
 const attached = (...types: ProofType[]) => types.map((type) => ({ type }))
 
 test('no requirements passes with nothing attached', () => {
-  assert.doesNotThrow(() => assertRequirementsMet([], []))
+  assert.doesNotThrow(() => assertEscrowProofRequirementsMet([], []))
 })
 
 test('no requirements passes with proofs attached', () => {
-  assert.doesNotThrow(() => assertRequirementsMet([], attached('image')))
+  assert.doesNotThrow(() => assertEscrowProofRequirementsMet([], attached('image')))
 })
 
 test('exact coverage passes', () => {
-  assert.doesNotThrow(() => assertRequirementsMet(['image', 'video'], attached('image', 'video')))
+  assert.doesNotThrow(() => assertEscrowProofRequirementsMet(['image', 'video'], attached('image', 'video')))
 })
 
 test('surplus proofs beyond the requirement pass', () => {
   assert.doesNotThrow(() =>
-    assertRequirementsMet(['image'], attached('image', 'video', 'document')),
+    assertEscrowProofRequirementsMet(['image'], attached('image', 'video', 'document')),
   )
 })
 
 test('duplicates of the required type pass', () => {
-  assert.doesNotThrow(() => assertRequirementsMet(['image'], attached('image', 'image')))
+  assert.doesNotThrow(() => assertEscrowProofRequirementsMet(['image'], attached('image', 'image')))
 })
 
-// ---------- assertRequirementsMet: negative --------------------------------
+// ---------- assertEscrowProofRequirementsMet: negative --------------------
 
 test('nothing attached against one requirement is refused as 409', () => {
   expectAppError(
-    () => assertRequirementsMet(['video'], []),
+    () => assertEscrowProofRequirementsMet(['video'], []),
     409,
     ErrorCode.PROOF_REQUIREMENT_UNMET,
     /video/,
@@ -158,7 +162,7 @@ test('nothing attached against one requirement is refused as 409', () => {
 
 test('partial coverage names only the missing type', () => {
   expectAppError(
-    () => assertRequirementsMet(['image', 'video'], attached('image')),
+    () => assertEscrowProofRequirementsMet(['image', 'video'], attached('image')),
     409,
     ErrorCode.PROOF_REQUIREMENT_UNMET,
     /video/,
@@ -167,7 +171,7 @@ test('partial coverage names only the missing type', () => {
 
 test('a wrong-type proof does not satisfy the requirement', () => {
   expectAppError(
-    () => assertRequirementsMet(['document'], attached('image')),
+    () => assertEscrowProofRequirementsMet(['document'], attached('image')),
     409,
     ErrorCode.PROOF_REQUIREMENT_UNMET,
     /document/,
@@ -176,7 +180,7 @@ test('a wrong-type proof does not satisfy the requirement', () => {
 
 test('the error carries the missing types as structured details', () => {
   assert.throws(
-    () => assertRequirementsMet(['image', 'document'], attached('image')),
+    () => assertEscrowProofRequirementsMet(['image', 'document'], attached('image')),
     (err: unknown) =>
       err instanceof AppError &&
       JSON.stringify(err.details ?? {}).includes('document'),

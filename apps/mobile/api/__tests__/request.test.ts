@@ -76,6 +76,36 @@ describe('request, Authorization header', () => {
 })
 
 describe('request, timeout budget', () => {
+  it('maps an expired request deadline to a typed API timeout', async () => {
+    jest.useFakeTimers()
+    getJwt.mockResolvedValue(null)
+    global.fetch = jest.fn((_url, init) => new Promise((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => {
+        reject(new DOMException('This operation was aborted', 'AbortError'))
+      })
+    })) as typeof fetch
+
+    const assertion = expect(request('GET', '/v1/gigs', { timeout: 25 })).rejects.toMatchObject({
+      name: 'ApiClientError',
+      statusCode: 408,
+      code: 'REQUEST_TIMEOUT',
+    })
+    await jest.advanceTimersByTimeAsync(25)
+    await assertion
+    jest.useRealTimers()
+  })
+
+  it('does not relabel an abort that was not caused by its deadline', async () => {
+    getJwt.mockResolvedValue(null)
+    global.fetch = jest.fn(async () => {
+      throw new DOMException('cancelled elsewhere', 'AbortError')
+    }) as typeof fetch
+
+    await expect(request('GET', '/v1/gigs', { timeout: 20_000 })).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+  })
+
   it('honours a per-request timeout override (moderation-bearing calls)', async () => {
     getJwt.mockResolvedValue(null)
     mockFetch()
