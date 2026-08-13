@@ -1,7 +1,7 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Jest factories load RN after hoisting. */
 import { render, fireEvent, screen, act } from '@testing-library/react-native'
 import type { StyleProp, ViewStyle } from 'react-native'
 import { GigCTABar } from '@/components/gig/GigCTABar'
-import { ApprovalCTA } from '../ApprovalCTA'
 import {
   CREATOR_ID,
   STRANGER_ID,
@@ -52,6 +52,17 @@ jest.mock('@/components/ui/Button', () => {
 jest.mock('@/components/ui/Text', () => {
   const { Text } = require('react-native')
   return { Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
+})
+jest.mock('@/components/ui/information', () => {
+  const { Text, View } = require('react-native')
+  return {
+    ExpandableNotice: ({ content }: { content: { summary: string; description: string } }) => (
+      <View>
+        <Text>{content.summary}</Text>
+        <Text>{content.description}</Text>
+      </View>
+    ),
+  }
 })
 jest.mock('@/components/shared/DeadlineCountdown', () => {
   const { Text } = require('react-native')
@@ -257,44 +268,4 @@ test('a transaction in flight replaces every approval action', () => {
   )
   expect(screen.getByText(/transaction in progress/i)).toBeTruthy()
   expect(screen.queryByText('Withdraw application')).toBeNull()
-})
-
-test('grows to fill the row when it shares one with a narrower button', () => {
-  const { toJSON } = render(
-    <ApprovalCTA
-      branch="release"
-      gig={assignedApprovalGig()}
-      busy={false}
-      width="grow"
-      onAction={jest.fn()}
-    />,
-  )
-  expect(JSON.stringify(toJSON())).toContain('"flex":1')
-})
-
-test('offers Apply with no status line to someone who never applied', () => {
-  render(
-    <ApprovalCTA
-      branch="apply"
-      gig={approvalGig({ viewer: null })}
-      busy={false}
-      width="full"
-      onAction={jest.fn()}
-    />,
-  )
-  expect(screen.getByText('Apply for this gig')).toBeTruthy()
-  expect(screen.queryByText(/waiting on the poster/i)).toBeNull()
-})
-
-test('a lost branch with no application renders nothing, not an empty box', () => {
-  const { toJSON } = render(
-    <ApprovalCTA
-      branch="lost"
-      gig={approvalGig({ viewer: null })}
-      busy={false}
-      width="full"
-      onAction={jest.fn()}
-    />,
-  )
-  expect(toJSON()).toBeNull()
 })

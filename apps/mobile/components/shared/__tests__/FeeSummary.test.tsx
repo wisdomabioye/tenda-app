@@ -4,6 +4,7 @@
  * exchange variant is the #7 fix: the P2P sell/create flow must disclose the
  * platform fee instead of reading as "free". Fee math is the real shared util.
  */
+/* eslint-disable @typescript-eslint/no-require-imports, import/first -- Jest factories load RN after hoisting. */
 import { render, screen } from '@testing-library/react-native'
 
 let mockSeeker = false
@@ -28,6 +29,17 @@ jest.mock('@/components/ui/Eyebrow', () => {
   const { Text } = require('react-native')
   return { Eyebrow: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
 })
+jest.mock('@/components/ui/information', () => {
+  const { Text, View } = require('react-native')
+  return {
+    ExpandableNotice: ({ content }: { content: { summary: string; description: string } }) => (
+      <View>
+        <Text>{content.summary}</Text>
+        <Text>{content.description}</Text>
+      </View>
+    ),
+  }
+})
 
 import { FeeSummary } from '../FeeSummary'
 
@@ -41,6 +53,7 @@ test('exchange variant discloses the platform fee and the buyer net', () => {
   expect(screen.getByText('Platform fee (2.50%)')).toBeTruthy()
   expect(screen.getByText('− 2.5 USDC')).toBeTruthy()
   expect(screen.getByText('97.5 USDC')).toBeTruthy()
+  expect(screen.getByText('How platform fees are paid.')).toBeTruthy()
   // Note frames the fee as the buyer's, not a "free" trade.
   expect(screen.getByText(/platform fee is taken from the buyer's crypto/i)).toBeTruthy()
 })

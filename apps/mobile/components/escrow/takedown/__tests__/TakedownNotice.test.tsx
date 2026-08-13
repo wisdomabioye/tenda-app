@@ -8,6 +8,7 @@
  * job changed. Getting those two backwards would tell a worker their gig was
  * pulled and leave them thinking they will not be paid.
  */
+/* eslint-disable @typescript-eslint/no-require-imports -- Jest factories load RN after hoisting. */
 import { render, screen } from '@testing-library/react-native'
 
 import { TakedownNotice, takedownAudience, type TakedownEscrow } from '../TakedownNotice'
@@ -32,6 +33,17 @@ jest.mock('react-native-unistyles', () => ({
     },
   }),
 }))
+jest.mock('@/components/ui/information', () => {
+  const { Text, View } = require('react-native')
+  return {
+    ExpandableNotice: ({ content }: { content: { summary: string; description: string } }) => (
+      <View>
+        <Text>{content.summary}</Text>
+        <Text>{content.description}</Text>
+      </View>
+    ),
+  }
+})
 
 const CREATOR = 'user-creator'
 const WORKER = 'user-worker'

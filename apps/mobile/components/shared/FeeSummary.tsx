@@ -4,6 +4,7 @@ import { formatAssetAmount } from '@tenda/shared'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Eyebrow } from '@/components/ui/Eyebrow'
+import { ExpandableNotice } from '@/components/ui/information'
 import { useIsSeeker } from '@/stores/auth.store'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
 
@@ -106,9 +107,16 @@ export function FeeSummary({
           {netRaw != null ? formatAssetAmount(netRaw.toString(), asset) : '—'}
         </Text>
       </View>
-      <Text size={11.5} color={theme.colors.content.tertiary} style={s.note}>
-        {copy.note(feePct)}
-      </Text>
+      <View style={s.note}>
+        <ExpandableNotice
+          content={{
+            summary: 'How platform fees are paid.',
+            title: 'How platform fees work',
+            description: copy.note(feePct),
+            tone: 'info',
+          }}
+        />
+      </View>
     </View>
   )
 }

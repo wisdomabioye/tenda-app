@@ -17,7 +17,7 @@ import {
   applicantsCtaLabel,
   applicationStatusLine,
   openApplicationLine,
-  UNASSIGN_WINDOW_WARNING,
+  UNASSIGN_WINDOW_INFORMATION,
 } from '../copy'
 
 describe('APPLY_OBLIGATION', () => {
@@ -152,17 +152,18 @@ describe('the unassign warnings', () => {
   })
 
   it('says "soon" only while there is still time', () => {
-    expect(UNASSIGN_WINDOW_WARNING.closing).toMatch(/closes to new workers soon/i)
+    expect(UNASSIGN_WINDOW_INFORMATION.closing.description).toMatch(/closes to new workers soon/i)
     // Past the deadline nobody can be assigned, so urgency is the wrong note:
     // the poster is choosing between this worker and a refund.
-    expect(UNASSIGN_WINDOW_WARNING.closed).toMatch(/already closed/i)
-    expect(UNASSIGN_WINDOW_WARNING.closed).not.toMatch(/soon/i)
+    expect(UNASSIGN_WINDOW_INFORMATION.closed.description).toMatch(/already closed/i)
+    expect(UNASSIGN_WINDOW_INFORMATION.closed.description).not.toMatch(/soon/i)
   })
 
   it('names the consequence in both, since that is what the poster is deciding on', () => {
-    for (const warning of Object.values(UNASSIGN_WINDOW_WARNING)) {
-      expect(warning).toMatch(/refund/i)
-      expect(warning).toMatch(/repost|post the gig again/i)
+    for (const information of Object.values(UNASSIGN_WINDOW_INFORMATION)) {
+      expect(information.description).toMatch(/refund/i)
+      expect(information.description).toMatch(/repost|post the gig again/i)
+      expect(information.summary.length).toBeLessThan(information.description.length)
     }
   })
 })

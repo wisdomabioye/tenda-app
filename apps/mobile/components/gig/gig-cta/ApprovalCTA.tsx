@@ -8,6 +8,7 @@ import { acceptWindowState, unassignWindowEndsAt, type GigDetail } from '@tenda/
 import { spacing, radius } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
 import { Text } from '@/components/ui/Text'
+import { ExpandableNotice } from '@/components/ui/information'
 import {
   DeadlineCountdown,
   DeadlineCountdownDisplay,
@@ -18,7 +19,7 @@ import {
   APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL,
   applicationStatusLine,
   openApplicationLine,
-  UNASSIGN_WINDOW_WARNING,
+  UNASSIGN_WINDOW_INFORMATION,
 } from '@/components/gig/gig-applications/copy'
 import { approvalContextOf } from './parties'
 import type { ApprovalBranch } from './branches'
@@ -85,11 +86,7 @@ export function ApprovalCTA({ branch, gig, busy, width, onAction }: Props) {
             merely short or already gone decides which warning is true.
           */}
           {acceptWindow !== 'open' && (
-            <View style={[s.notice, { backgroundColor: theme.colors.feedback.danger.surface }]}>
-              <Text variant="caption" color={theme.colors.feedback.danger.base} align="center">
-                {UNASSIGN_WINDOW_WARNING[acceptWindow]}
-              </Text>
-            </View>
+            <ExpandableNotice content={UNASSIGN_WINDOW_INFORMATION[acceptWindow]} />
           )}
           <View style={[s.assignmentControl, { backgroundColor: theme.colors.surface.inset }]}>
             <Text weight="semibold">Change worker</Text>

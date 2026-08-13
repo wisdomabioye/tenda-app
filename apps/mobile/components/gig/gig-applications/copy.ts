@@ -16,6 +16,7 @@
 
 import { acceptWindowState, type ApplicationStatus, type EscrowStatus } from '@tenda/shared'
 import { formatDuration } from '@/lib/gig-display'
+import type { ExpandableNoticeContent } from '@/components/ui/information'
 
 /**
  * Just enough of a gig to say whether it can still take a worker. Both the
@@ -44,6 +45,13 @@ export const RELEASE_SUCCESS =
 /** Explains the shortlist timer before the poster compares individual rows. */
 export const APPLICANT_REVIEW_GUIDANCE =
   'Each timer shows how long that application remains available. Assigning a worker starts their delivery window.'
+
+export const APPLICANT_REVIEW_INFORMATION: ExpandableNoticeContent = {
+  summary: 'Application timers show how long each worker remains available.',
+  title: 'Understanding application timers',
+  description: APPLICANT_REVIEW_GUIDANCE,
+  tone: 'info',
+}
 
 /** Applicant-voiced purpose for the application expiry countdown. */
 export const APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL =
@@ -197,9 +205,22 @@ export function applicantStatusLine(status: ApplicationStatus): string {
  * poster there is not being asked to hurry, they are being told the gig cannot
  * be re-assigned at all.
  */
-export const UNASSIGN_WINDOW_WARNING: Record<'closing' | 'closed', string> = {
-  closing:
-    'Heads up: this gig closes to new workers soon, and releasing does not extend that. If nobody else is assigned in time you will have to claim a refund and repost.',
-  closed:
-    'This gig has already closed to new workers, so releasing means you cannot assign anyone else. You would have to claim your refund and post the gig again.',
+export const UNASSIGN_WINDOW_INFORMATION: Record<
+  'closing' | 'closed',
+  ExpandableNoticeContent
+> = {
+  closing: {
+    summary: 'Gig reassignment may be limited by its closing time.',
+    title: 'Limited time to reassign',
+    description:
+      'This gig closes to new workers soon. Releasing the current worker does not extend that deadline. If nobody else is assigned in time, you will need to claim a refund and repost the gig.',
+    tone: 'warning',
+  },
+  closed: {
+    summary: 'This gig can no longer be assigned to another worker.',
+    title: 'Reassignment is closed',
+    description:
+      'This gig has already closed to new workers. Releasing this assignment means you cannot choose another worker and will need to claim a refund and post the gig again.',
+    tone: 'danger',
+  },
 }

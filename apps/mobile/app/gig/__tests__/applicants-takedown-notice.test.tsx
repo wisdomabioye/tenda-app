@@ -17,7 +17,8 @@
  * blank space above the list on every gig that was perfectly fine — a
  * regression paid by the common case to serve the rare one.
  */
-import { render, screen } from '@testing-library/react-native'
+/* eslint-disable @typescript-eslint/no-require-imports, import/first -- Jest factories load dependencies after hoisting. */
+import { fireEvent, render, screen } from '@testing-library/react-native'
 import type { GigDetail } from '@tenda/shared'
 import { gigDetail, CREATOR_ID } from '@/components/gig/__fixtures__/gig-detail'
 
@@ -53,9 +54,9 @@ const mockFetchGigDetail = jest.fn()
 const mockLoadApplicants = jest.fn()
 const mockUseEscrowLiveRefresh = jest.fn()
 
-// The ui BARREL only. Safe for what is under test: NoticeBanner and
-// TakedownNotice import `Text` and each other by direct path, never through
-// this barrel, so the banner still renders for real — only the screen chrome
+// The ui BARREL only. Safe for what is under test: ExpandableNotice and
+// TakedownNotice use direct imports rather than this barrel, so the compact
+// notice and its sheet still render for real — only the screen chrome
 // (ScreenContainer's SafeAreaView, Header's insets) is stubbed away.
 jest.mock('@/components/ui', () => {
   const { View } = require('react-native')
@@ -69,6 +70,9 @@ jest.mock('expo-router', () => ({
   useRouter: () => ({ push: jest.fn(), back: jest.fn() }),
   useLocalSearchParams: () => ({ id: 'gig-1' }),
   useFocusEffect: () => {},
+}))
+jest.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }))
 
 // The gate is what supplies (gig, userId); bypassing it keeps this test about
@@ -114,7 +118,9 @@ test('a taken-down gig explains itself to the poster', () => {
   render(<ApplicantsScreen />)
 
   // The OWNER wording — this screen only ever has the poster on it.
-  expect(screen.getByText('Removed by moderation')).toBeTruthy()
+  const notice = screen.getByRole('button', { name: /removed by moderation/i })
+  expect(screen.queryByText(/funds in escrow are unaffected/i)).toBeNull()
+  fireEvent.press(notice)
   expect(screen.getByText(/funds in escrow are unaffected/i)).toBeTruthy()
   // And the shortlist is still there: a takedown hides the listing, it does not
   // take the poster's screen away.
@@ -126,7 +132,7 @@ test('a visible gig renders NO banner and no space where one would go', () => {
   const { toJSON } = render(<ApplicantsScreen />)
 
   expect(screen.queryByText('Removed by moderation')).toBeNull()
-  expect(screen.queryByRole('alert')).toBeNull()
+  expect(screen.queryByRole('button', { name: /removed by moderation/i })).toBeNull()
   // The stronger half: no empty padded wrapper left behind either. Serialised
   // once and searched, because a View reserving 12px of nothing is invisible to
   // every assertion that only asks about text.

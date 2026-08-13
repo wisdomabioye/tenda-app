@@ -8,11 +8,11 @@ import { View, StyleSheet, ScrollView } from 'react-native'
 import type { GigApplicant } from '@tenda/shared'
 import { Users } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { spacing, radius } from '@/theme/tokens'
-import { EmptyState, SegmentedTabs, Text } from '@/components/ui'
+import { spacing } from '@/theme/tokens'
+import { EmptyState, ExpandableNotice, SegmentedTabs, Text } from '@/components/ui'
 import { GigListSkeleton } from '@/components/gig/GigListSkeleton'
 import { ApplicantRow } from './ApplicantRow'
-import { APPLICANTS_EMPTY, APPLICANT_REVIEW_GUIDANCE } from './copy'
+import { APPLICANTS_EMPTY, APPLICANT_REVIEW_INFORMATION } from './copy'
 import type { ApplicantFilter } from './useApplications'
 
 interface Props {
@@ -54,11 +54,7 @@ export function ApplicantList({
       </View>
       <ScrollView contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
         {applicants !== null && applicants.length > 0 && (
-          <View style={[s.guidance, { backgroundColor: theme.colors.surface.inset }]}>
-            <Text variant="caption" color={theme.colors.content.secondary}>
-              {APPLICANT_REVIEW_GUIDANCE}
-            </Text>
-          </View>
+          <ExpandableNotice content={APPLICANT_REVIEW_INFORMATION} />
         )}
         {error !== null && (
           <Text variant="caption" color={theme.colors.feedback.danger.base} align="center">
@@ -107,6 +103,5 @@ const s = StyleSheet.create({
   flex: { flex: 1 },
   tabs: { marginHorizontal: spacing.md, marginBottom: spacing.sm },
   content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl, gap: spacing.sm },
-  guidance: { padding: spacing.md, borderRadius: radius.md },
   empty: { paddingTop: spacing['2xl'] },
 })

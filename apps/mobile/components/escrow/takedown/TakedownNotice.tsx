@@ -11,8 +11,7 @@
  * those routes let through on a role check: a moderator.
  */
 import { View, StyleSheet } from 'react-native'
-import { EyeOff } from 'lucide-react-native'
-import { NoticeBanner } from '@/components/ui/NoticeBanner'
+import { ExpandableNotice } from '@/components/ui/information'
 import { spacing } from '@/theme/tokens'
 import { takedownCopy, type TakedownAudience, type TakedownSubject } from './copy'
 
@@ -56,7 +55,9 @@ export function TakedownNotice({ escrow, subject, viewerId }: Props) {
 
   return (
     <View style={s.wrap}>
-      <NoticeBanner tone="warning" icon={EyeOff} title={title} description={detail} />
+      <ExpandableNotice
+        content={{ summary: title, title, description: detail, tone: 'warning' }}
+      />
     </View>
   )
 }

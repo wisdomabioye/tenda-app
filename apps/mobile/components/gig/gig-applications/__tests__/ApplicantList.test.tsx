@@ -6,10 +6,11 @@
  * screen is where a poster decides whether their gig is getting interest, and
  * each of those three states is a different decision.
  */
+/* eslint-disable @typescript-eslint/no-require-imports -- Jest factories load RN after hoisting. */
 import { render, screen, fireEvent } from '@testing-library/react-native'
 import type { GigApplicant } from '@tenda/shared'
 import { ApplicantList } from '../ApplicantList'
-import { APPLICANTS_EMPTY, APPLICANT_REVIEW_GUIDANCE } from '../copy'
+import { APPLICANTS_EMPTY, APPLICANT_REVIEW_INFORMATION } from '../copy'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({
@@ -46,6 +47,12 @@ jest.mock('@/components/ui', () => {
             {t.label}
           </Text>
         ))}
+      </View>
+    ),
+    ExpandableNotice: ({ content }: { content: { summary: string; description: string } }) => (
+      <View>
+        <Text>{content.summary}</Text>
+        <Text>{content.description}</Text>
       </View>
     ),
   }
@@ -108,7 +115,8 @@ function renderList(props: Partial<React.ComponentProps<typeof ApplicantList>> =
 
 test('explains what each applicant countdown controls', () => {
   renderList({ applicants: [applicant()] })
-  expect(screen.getByText(APPLICANT_REVIEW_GUIDANCE)).toBeTruthy()
+  expect(screen.getByText(APPLICANT_REVIEW_INFORMATION.summary)).toBeTruthy()
+  expect(screen.getByText(APPLICANT_REVIEW_INFORMATION.description)).toBeTruthy()
 })
 
 test('an unsettled first load shows the skeleton, never an empty state', () => {
@@ -117,7 +125,7 @@ test('an unsettled first load shows the skeleton, never an empty state', () => {
   renderList({ applicants: null })
 
   expect(screen.getByText('skeleton')).toBeTruthy()
-  expect(screen.queryByText(APPLICANT_REVIEW_GUIDANCE)).toBeNull()
+  expect(screen.queryByText(APPLICANT_REVIEW_INFORMATION.summary)).toBeNull()
   expect(screen.queryByText(APPLICANTS_EMPTY.open.title)).toBeNull()
   expect(screen.queryByText(APPLICANTS_EMPTY.all.title)).toBeNull()
 })
@@ -128,7 +136,7 @@ test('an empty Waiting tab says none are LIVE, not that nobody applied', () => {
   renderList({ applicants: [], filter: 'open' })
 
   expect(screen.getByText(APPLICANTS_EMPTY.open.title)).toBeTruthy()
-  expect(screen.queryByText(APPLICANT_REVIEW_GUIDANCE)).toBeNull()
+  expect(screen.queryByText(APPLICANT_REVIEW_INFORMATION.summary)).toBeNull()
   expect(screen.getByText(/switch to all/i)).toBeTruthy()
   expect(screen.queryByText(APPLICANTS_EMPTY.all.title)).toBeNull()
 })
