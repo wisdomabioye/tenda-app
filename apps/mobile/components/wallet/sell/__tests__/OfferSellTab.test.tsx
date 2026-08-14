@@ -9,10 +9,21 @@ import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
 
 const OPTION = { chainId: 'solana:devnet', assetId: 'USDC_SOL', symbol: 'USDC', decimals: 6, chainName: 'Solana', walletAddress: 'sol1' } as ExchangeAssetOption
 let mockSelection = { options: [OPTION] as ExchangeAssetOption[], option: OPTION as ExchangeAssetOption | null, selectedKey: 'k', select: jest.fn() }
-const mockAccount = { id: 'acc1', country: 'NG' }
+const mockAccount = {
+  id: 'acc1',
+  country: 'NG',
+  bank_code: '058',
+  account_number_masked: '******4821',
+  account_name: 'Ada',
+}
 const mockSubmit = jest.fn()
 
-jest.mock('react-native-unistyles', () => ({ useUnistyles: () => ({ theme: { colors: { surface: { inset: '#eee' }, content: { secondary: '#555' } } } }) }))
+jest.mock('react-native-unistyles', () => ({ useUnistyles: () => ({ theme: { colors: {
+  surface: { inset: '#eee', background: '#fff' },
+  content: { secondary: '#555' },
+  border: { subtle: '#ddd' },
+  feedback: { warning: { base: '#a60' } },
+} } }) }))
 jest.mock('../useAssetSelection', () => ({ useAssetSelection: () => mockSelection }))
 jest.mock('@/hooks/usePayoutAccounts', () => ({ usePayoutAccounts: () => ({ accounts: [mockAccount], selectedId: 'acc1', selected: mockAccount, setSelectedId: jest.fn(), reload: jest.fn() }) }))
 jest.mock('../useOfferSell', () => ({ useOfferSell: () => ({ submitting: false, submit: mockSubmit }) }))
@@ -23,6 +34,7 @@ jest.mock('../SellAssetAmount', () => {
 jest.mock('../OfferDeadlines', () => ({ OfferDeadlines: () => null }))
 jest.mock('../SellPayoutSection', () => ({ SellPayoutSection: () => null }))
 jest.mock('@/components/shared/FeeSummary', () => ({ FeeSummary: () => null }))
+jest.mock('../OfferReviewCard', () => ({ OfferReviewCard: () => null }))
 jest.mock('@/components/ui/Input', () => {
   const { TextInput } = require('react-native')
   return { Input: ({ onChangeText }: { onChangeText: (t: string) => void }) => <TextInput accessibilityLabel="rate" onChangeText={onChangeText} /> }
@@ -53,8 +65,37 @@ beforeEach(() => {
 
 test('Post is disabled until amount + rate are valid', () => {
   render(<OfferSellTab />)
+  expect(screen.getByText('Enter an amount to post your offer')).toBeTruthy()
   const post = screen.getByText('Post offer')
   fireEvent.press(post) // no amount/rate yet
+  expect(mockSubmit).not.toHaveBeenCalled()
+})
+
+test('shows the wallet guidance without a dead submit action when no asset is available', () => {
+  mockSelection = { options: [], option: null, selectedKey: '', select: jest.fn() }
+  render(<OfferSellTab />)
+
+  expect(screen.queryByText('Post offer')).toBeNull()
+  expect(screen.queryByText('Your rate')).toBeNull()
+})
+
+test('rejects an amount whose fiat calculation overflows', () => {
+  render(<OfferSellTab />)
+  fireEvent.changeText(screen.getByLabelText('amount'), '9'.repeat(309))
+  fireEvent.changeText(screen.getByLabelText('rate'), '1600')
+
+  expect(screen.getByText('Enter a smaller amount to post your offer')).toBeTruthy()
+  fireEvent.press(screen.getByText('Post offer'))
+  expect(mockSubmit).not.toHaveBeenCalled()
+})
+
+test('rejects a positive amount that rounds down to zero fiat', () => {
+  render(<OfferSellTab />)
+  fireEvent.changeText(screen.getByLabelText('amount'), '0.000001')
+  fireEvent.changeText(screen.getByLabelText('rate'), '1')
+
+  expect(screen.getByText('Enter a smaller amount to post your offer')).toBeTruthy()
+  fireEvent.press(screen.getByText('Post offer'))
   expect(mockSubmit).not.toHaveBeenCalled()
 })
 

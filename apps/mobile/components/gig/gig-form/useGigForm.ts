@@ -1,7 +1,5 @@
 import { useEffect, useState } from 'react'
 import {
-  isValidGigAmountRaw,
-  MIN_COMPLETION_DURATION_SECONDS,
   ASSET_META,
   gigAssetByChain,
   solanaChainId,
@@ -14,6 +12,11 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useModerationPreview } from '@/hooks/useModerationPreview'
 import { CATEGORY_HINTS, DEFAULT_COMPLETION_SECONDS, PROOF_NOTE } from './constants'
 import type { GigFormValues } from './constants'
+import {
+  getGigMissingRequirement,
+  getGigStepMissingRequirement,
+  type GigComposerStep,
+} from './gig-composer.steps'
 
 export interface ChainOption {
   id: string
@@ -34,9 +37,13 @@ export function useGigForm(
   const wallets = useAuthStore((s) => s.wallets)
 
   const defaultChainId = solanaChainId(SOLANA_NETWORK)
+  const requestedChainId = initialValues?.chainId
+  const initialChainId = requestedChainId !== undefined && gigAssetByChain(requestedChainId) !== null
+    ? requestedChainId
+    : defaultChainId
   const [title, setTitle]                         = useState(initialValues?.title ?? '')
   const [description, setDescription]             = useState(initialValues?.description ?? '')
-  const [chainId, setChainId]                     = useState(initialValues?.chainId ?? defaultChainId)
+  const [chainId, setChainId]                     = useState(initialChainId)
   const [paymentRaw, setPaymentRaw]               = useState(initialValues?.paymentRaw ?? 0)
   const [registry, setRegistry]                   = useState<ChainRegistryEntry[]>([])
   const [completionDuration, setCompletionDuration] = useState(
@@ -94,18 +101,18 @@ export function useGigForm(
     paymentRaw,
   })
 
-  // First unmet requirement, in the order the fields appear on the form. Drives
-  // both the submit button's disabled state and the hint shown above it, so the
-  // user always sees *why* they can't post yet — never a silently dead button.
-  const missingRequirement: string | null =
-    title.trim().length === 0          ? 'Add a title'
-    : description.trim().length === 0   ? 'Add a description'
-    : selectedCategory === null         ? 'Pick a category'
-    : !isRemote && selectedCountry === null ? 'Select a country'
-    : !isRemote && selectedCity === null    ? 'Select a city'
-    : !isValidGigAmountRaw(asset, paymentRaw) ? 'Set a budget'
-    : completionDuration < MIN_COMPLETION_DURATION_SECONDS ? 'Set a delivery time'
-    : null
+  const validationValues = {
+    title,
+    description,
+    category: selectedCategory,
+    remote: isRemote,
+    country: selectedCountry,
+    city: selectedCity,
+    asset,
+    paymentRaw,
+    completionDuration,
+  }
+  const missingRequirement = getGigMissingRequirement(validationValues)
 
   const isValid = missingRequirement === null
 
@@ -164,6 +171,9 @@ export function useGigForm(
     moderation,
     isValid,
     missingRequirement,
+    getStepMissingRequirement: (step: GigComposerStep) => (
+      getGigStepMissingRequirement(step, validationValues)
+    ),
     descriptionHint,
     handleSubmit,
     submitValues,

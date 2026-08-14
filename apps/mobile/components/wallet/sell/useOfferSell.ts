@@ -41,22 +41,24 @@ export interface OfferSubmitArgs {
 export function useOfferSell() {
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
+  const submissionInFlight = useRef(false)
   const creationAttempt = useRef<EscrowCreationAttempt | null>(null)
 
   async function submit(a: OfferSubmitArgs): Promise<void> {
-    if (submitting) return
-    creationAttempt.current = reuseOrCreateEscrowCreationAttempt(
-      creationAttempt.current,
-      [a.option.chainId, a.option.assetId, a.amountRaw, a.acceptHours,
-        a.paymentWindowSeconds, a.account.id, a.fiatTotal, a.currency, a.rate],
-      () => Math.floor(Date.now() / 1000) + a.acceptHours * SECONDS_PER_HOUR,
-      randomUuid,
-    )
-    const { operationId, acceptDeadlineUnix } = creationAttempt.current
-
+    if (submissionInFlight.current) return
+    submissionInFlight.current = true
     setSubmitting(true)
     let escrow_id: string | null = null
     try {
+      creationAttempt.current = reuseOrCreateEscrowCreationAttempt(
+        creationAttempt.current,
+        [a.option.chainId, a.option.assetId, a.amountRaw, a.acceptHours,
+          a.paymentWindowSeconds, a.account.id, a.fiatTotal, a.currency, a.rate],
+        () => Math.floor(Date.now() / 1000) + a.acceptHours * SECONDS_PER_HOUR,
+        randomUuid,
+      )
+      const { operationId, acceptDeadlineUnix } = creationAttempt.current
+
       // Before the draft exists: an underfunded seller gets a clear message
       // instead of a wallet prompt, a revert, and an orphan draft to clean up.
       await ensureSufficientBalance({
@@ -121,6 +123,7 @@ export function useOfferSell() {
         showToast('error', e instanceof ApiClientError ? e.message : 'Failed to create the offer')
       }
     } finally {
+      submissionInFlight.current = false
       setSubmitting(false)
     }
   }

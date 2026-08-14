@@ -26,7 +26,7 @@ export function NetworkPicker({
 
   return (
     <>
-      <SectionLabel>Network</SectionLabel>
+      <SectionLabel tight>Network</SectionLabel>
       <Text style={[s.hint, { color: theme.colors.content.tertiary }]}>
         Where the escrow lives. Workers are paid in {assetSymbol} on this network.
       </Text>

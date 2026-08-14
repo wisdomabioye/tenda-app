@@ -109,6 +109,27 @@ test('threads the chosen windows into escrow + offer creation and signs', async 
   expect(mockReplace).toHaveBeenCalledWith('/exchange/e1')
 })
 
+test('deduplicates same-frame submissions before React state updates', async () => {
+  let finishBalanceCheck: (() => void) | undefined
+  mockEnsureSufficientBalance.mockReturnValue(new Promise<void>((resolve) => { finishBalanceCheck = resolve }))
+  const { result } = renderHook(() => useOfferSell())
+
+  let firstSubmission: Promise<void> | undefined
+  await act(async () => {
+    firstSubmission = result.current.submit(ARGS)
+    void result.current.submit(ARGS)
+    await Promise.resolve()
+  })
+  expect(mockEnsureSufficientBalance).toHaveBeenCalledTimes(1)
+  expect(mockCreate).not.toHaveBeenCalled()
+
+  await act(async () => {
+    finishBalanceCheck?.()
+    await firstSubmission
+  })
+  expect(mockCreate).toHaveBeenCalledTimes(1)
+})
+
 test('discards the draft when attaching offer terms fails', async () => {
   mockExchangeCreate.mockRejectedValue(new Error('bad rate'))
   const { result } = renderHook(() => useOfferSell())
