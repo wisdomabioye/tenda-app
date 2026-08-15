@@ -5,6 +5,7 @@
  * reputation surface (reviews, standing, avatar editor) is Stage 6.
  */
 import { useEffect } from 'react'
+import Link from 'next/link'
 import { displayName } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -49,7 +50,11 @@ export default function ProfilePage() {
           </ul>
         )}
         <p className="text-xs text-content-tertiary">
-          Wallet linking and full sign-in management arrive with Stages 3 and 6.
+          Wallets are managed on their own page:{' '}
+          <Link href="/settings/linked-wallets" className="font-semibold text-brand-primary hover:underline">
+            Linked wallets
+          </Link>
+          . Full sign-in management arrives with Stage 6.
         </p>
       </section>
     </div>

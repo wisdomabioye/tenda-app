@@ -4,17 +4,23 @@ import {
   ErrorCode,
   hasCompleteName,
   type IdentityMethodWire,
+  type LinkedWallet,
   type User,
   type VerifyBody,
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { clearAuthStorage, getJwtToken, JWT_TOKEN_KEY, setJwtToken } from '@/lib/storage'
+import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
+import { reownAdapter } from '@/wallet/adapters/reown'
+import type { WalletAdapter } from '@/wallet/adapters/types'
 
 /**
- * Web port of the SESSION CORE of apps/mobile/stores/auth.store.ts — same
- * semantics (stale-bearer purge, 401/403-clears vs transient-keeps bootstrap,
- * the server's own profile-complete predicate). The wallet half of the mobile
- * store (adapters, wallets[], reconciliation) is Stage 3.
+ * Web port of apps/mobile/stores/auth.store.ts — same semantics (stale-bearer
+ * purge, 401/403-clears vs transient-keeps bootstrap, the server's own
+ * profile-complete predicate). Stage 3 adds the wallet half: sign-in/link via
+ * the adapter seam and the LINKED wallets list (wallet-reliability doctrine:
+ * linked(wallets[]) ≠ connected — the live connection belongs to AppKit, this
+ * store only mirrors the server's registry).
  */
 export interface AuthState {
   user: User | null
@@ -25,8 +31,16 @@ export interface AuthState {
   /** null until known; false routes to /onboarding/profile. */
   profileComplete: boolean | null
   identities: IdentityMethodWire[]
+  /** Server-verified linked wallets (never the live connection). */
+  wallets: LinkedWallet[]
+  walletsStatus: 'idle' | 'loading' | 'ready' | 'error'
 
   signInWithVerify: (body: VerifyBody) => Promise<{ isNew: boolean }>
+  /** True = signed in; false = user declined in the wallet. WALLET_NOT_LINKED throws. */
+  signInWithWallet: (adapter: WalletAdapter) => Promise<boolean>
+  /** True = linked; false = user declined. Collision/errors throw. */
+  linkWallet: (adapter: WalletAdapter) => Promise<boolean>
+  refreshWallets: () => Promise<void>
   linkIdentity: (body: VerifyBody) => Promise<void>
   loadMethods: () => Promise<void>
   logout: () => Promise<void>
@@ -54,6 +68,8 @@ const SIGNED_OUT = {
   isAuthenticated: false,
   profileComplete: null,
   identities: [] as IdentityMethodWire[],
+  wallets: [] as LinkedWallet[],
+  walletsStatus: 'idle' as const,
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -77,6 +93,46 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     return { isNew: res.is_new }
   },
 
+  signInWithWallet: async (adapter) => {
+    const result = await walletSignIn(adapter).catch(async (e: unknown) => {
+      await purgeIfStaleSession(e)
+      throw e
+    })
+    if (result === null) return false // declined in the wallet
+
+    const { auth } = result
+    await setJwtToken(auth.token)
+    set({
+      user: auth.user,
+      jwt: auth.token,
+      isAuthenticated: true,
+      isLoading: false,
+      profileComplete: hasCompleteName(auth.user.first_name, auth.user.last_name),
+    })
+    void get().refreshWallets()
+    return true
+  },
+
+  linkWallet: async (adapter) => {
+    const account = await linkWalletWith(adapter)
+    if (account === null) return false
+    // Reflect the freshly-linked wallet in the cached wallets[] list.
+    await get().refreshWallets()
+    return true
+  },
+
+  refreshWallets: async () => {
+    set({ walletsStatus: 'loading' })
+    try {
+      const res = await api.users.me()
+      set({ wallets: res.wallets, walletsStatus: 'ready' })
+    } catch {
+      // Keep the last-good list (never blank a rendered list to an error);
+      // the status tells the screen to offer a retry.
+      set({ walletsStatus: 'error' })
+    }
+  },
+
   linkIdentity: async (body) => {
     // link: true attaches the bearer → server LINKS instead of logging in.
     // The returned token is discarded: the current session stays untouched.
@@ -96,6 +152,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     await clearAuthStorage()
+    // Best-effort: drop the wallet session too, so the next sign-in shows the
+    // picker instead of silently reusing a stale session across accounts
+    // (mobile doctrine). peek-only — never boots the wallet stack to log out.
+    await reownAdapter.disconnect().catch(() => {})
     set({ ...SIGNED_OUT, isLoading: false })
   },
 
