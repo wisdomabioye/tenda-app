@@ -1,11 +1,11 @@
-import { ComingSoon } from '@/components/app/ComingSoon'
+import type { Metadata } from 'next'
+import { WalletScreen } from '@/components/wallet/WalletScreen'
 
-export default function WalletPlaceholderPage() {
-  return (
-    <ComingSoon
-      title="Wallet"
-      stage={3}
-      blurb="Connect a browser wallet, link it to your account, and see balances across chains."
-    />
-  )
+export const metadata: Metadata = {
+  title: 'Wallet',
+  robots: { index: false },
+}
+
+export default function WalletPage() {
+  return <WalletScreen />
 }

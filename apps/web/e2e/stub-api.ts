@@ -10,8 +10,11 @@ import type {
   ChainRegistryEntry,
   ChallengeBody,
   GigSummary,
+  MeResponse,
   PaginatedResponse,
   UpdateMeInput,
+  UserEscrowTransaction,
+  UserTransactionsSummary,
   VerifyBody,
 } from '@tenda/shared'
 import { hasCompleteName } from '@tenda/shared'
@@ -112,6 +115,67 @@ function handleAuth(url: URL, method: string, authorization: string | undefined,
     const user = userForBearer(world, authorization)
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
     return json({ identities: [{ kind: 'email', identifier: 'ada@tenda.test', email: 'ada@tenda.test', verified: true }] })
+  }
+  if (url.pathname === '/v1/users/me' && method === 'GET') {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    const me: MeResponse = {
+      user: toMeUser(user),
+      wallets: [
+        { chain_ns: 'solana', address: 'SoLPrimaryAddr1111111111111111111111111111', is_primary: true, verified_at: '2026-08-01T00:00:00Z' },
+        { chain_ns: 'eip155', address: '0xAbCdEf0123456789aBcDeF0123456789AbCdEf01', is_primary: false, verified_at: '2026-08-02T00:00:00Z' },
+      ],
+      profile_complete: hasCompleteName(user.first_name, user.last_name),
+    }
+    return json(me)
+  }
+  // Wallet screen (S3.5): lifetime totals are a server aggregate; the feed is
+  // one page with a payout row credited to the signed-in worker.
+  if (/^\/v1\/users\/[^/]+\/transactions\/summary$/.test(url.pathname) && method === 'GET') {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    // Typed against the wire so the stub cannot drift from the contract.
+    const summary: UserTransactionsSummary = {
+      earned_raw: '80000000',
+      spent_raw: '30000000',
+      asset: 'USDC_SOL',
+    }
+    return json(summary)
+  }
+  if (/^\/v1\/users\/[^/]+\/transactions$/.test(url.pathname) && method === 'GET') {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    const page: PaginatedResponse<UserEscrowTransaction> = {
+      data: [
+        {
+          id: 'tx-1',
+          escrow_id: 'esc-1',
+          type: 'approve',
+          tx_ref: 'sig-1',
+          amount_raw: '48500000',
+          platform_fee_raw: '1500000',
+          creator_payout_raw: null,
+          actor_id: 'someone-else',
+          winner: null,
+          created_at: '2026-08-14T10:00:00Z',
+          escrow: {
+            id: 'esc-1',
+            kind: 'gig',
+            title: 'Deliver documents downtown',
+            amount_raw: '50000000',
+            asset: 'USDC_SOL',
+            chain_id: 'solana:devnet',
+            status: 'completed',
+            creator_id: 'someone-else',
+            counterparty_id: user.id,
+          },
+        },
+      ],
+      total: 1,
+      limit: 20,
+      offset: 0,
+    }
+    return json(page)
   }
   if (url.pathname === '/v1/users/me' && method === 'PATCH') {
     const user = userForBearer(world, authorization)
