@@ -28,6 +28,19 @@ export function solanaChainId(network: string): string {
 }
 
 /**
+ * Public Solana cluster JSON-RPC endpoint for a canonical CAIP-2 id, or null
+ * when the id is not a registered Solana chain. The same URLs
+ * @solana/web3.js's `clusterApiUrl` produces, recorded here so fetch-based
+ * readers (shared wallet balances) need no web3.js dependency. Client-safe
+ * public endpoints only — the server's keyed RPC is a secret.
+ */
+export function solanaPublicRpcUrl(chainId: string): string | null {
+  if (chainId === 'solana:devnet') return 'https://api.devnet.solana.com'
+  if (chainId === 'solana:mainnet') return 'https://api.mainnet-beta.solana.com'
+  return null
+}
+
+/**
  * Native-SOL asset-registry id per network (mirrors seed-v2). Drives the
  * moderation price-sanity lookup for legacy lamports-denominated gigs.
  */

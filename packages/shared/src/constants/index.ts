@@ -3,7 +3,7 @@ export { SUPPORTED_CURRENCIES, CURRENCY_META, type SupportedCurrency } from './c
 export { LOCATIONS, ALL_CITIES, findCountryForCity, isCityInCountry, coerceCityForCountry, type CountryCode, type LocationEntry } from './locations'
 export { ErrorCode } from './errors'
 export type { ErrorCode as ErrorCodeType } from './errors'
-export { SOLANA_TX_FEE_LAMPORTS, solanaChainId, SOLANA_CAIP_BY_NETWORK, SOLANA_NATIVE_ASSET_BY_NETWORK, solanaNativeAssetId } from './solana'
+export { SOLANA_TX_FEE_LAMPORTS, solanaChainId, solanaPublicRpcUrl, SOLANA_CAIP_BY_NETWORK, SOLANA_NATIVE_ASSET_BY_NETWORK, solanaNativeAssetId } from './solana'
 export {
   EXCHANGE_DISPUTE_REASON_MIN_LENGTH,
   EXCHANGE_DISPUTE_REASON_MAX_LENGTH,

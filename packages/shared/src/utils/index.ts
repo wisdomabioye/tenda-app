@@ -61,6 +61,7 @@ export {
   formatRelativeDayWithTime,
   groupByDay,
 } from './date'
+export type { DayGroupHeader, DayGroupItem } from './date'
 export {
   toAssetPaymentDisplay,
   formatSolDisplay,

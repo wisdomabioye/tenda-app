@@ -95,8 +95,8 @@ export function formatRelativeDayWithTime(iso: string | Date): string {
 
 /* ─── Day-grouping reducer ──────────────────────────────────────────────── */
 
-interface DayGroupHeader<TKey extends string> { type: 'day'; key: string; label: string; tag: TKey }
-interface DayGroupItem<T, TKey extends string> { type: 'item'; key: string; item: T; tag: TKey }
+export interface DayGroupHeader<TKey extends string> { type: 'day'; key: string; label: string; tag: TKey }
+export interface DayGroupItem<T, TKey extends string> { type: 'item'; key: string; item: T; tag: TKey }
 
 /**
  * Walk an ordered list of items and yield `{ type: 'day' }` headers between
