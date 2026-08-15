@@ -173,7 +173,9 @@ jobs:
       - name: Lint
         working-directory: apps/mobile
         run: npx expo lint
-      # Mobile jest-expo coverage gate is wired here once the harness lands (#101).
+      - name: Tests (jest-expo suite)
+        working-directory: apps/mobile
+        run: npx jest --ci
 
   # Repo tooling under scripts/ — pure Node, no workspace install needed, so
   # this is the cheapest job in the pipeline. Unfiltered on purpose: the app
