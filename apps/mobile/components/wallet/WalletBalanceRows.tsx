@@ -3,7 +3,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui'
 import { formatAssetAmount, truncateWallet } from '@tenda/shared'
-import type { WalletChainBalance } from '@/wallet/balances'
+import type { WalletChainBalance } from '@tenda/shared'
 
 /**
  * Per-(wallet, chain) balance breakdown beneath the USDC hero. Each row: chain

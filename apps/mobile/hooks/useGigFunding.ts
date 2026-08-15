@@ -20,7 +20,7 @@ import {
 import { api } from '@/api/client'
 import { ApiClientError, checkEscrowTransitionApplied, randomUuid } from '@tenda/shared'
 import { showToast } from '@/components/ui/Toast'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
 import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
 import { ensureSufficientBalance } from '@/wallet/balances'

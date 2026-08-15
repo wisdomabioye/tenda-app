@@ -6,7 +6,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet'
 import { Text } from '@/components/ui/Text'
 import { adapters } from './adapters/registry'
 import type { WalletAdapter } from './adapters/types'
-import type { Namespace } from './types'
+import type { ChainNamespace } from '@tenda/shared'
 import { WalletIcon } from './wallet-icon'
 
 interface WalletPickerProps {
@@ -20,7 +20,7 @@ interface PickerEntry {
   installed: boolean
 }
 
-function formatNamespaces(ns: readonly Namespace[]): string {
+function formatNamespaces(ns: readonly ChainNamespace[]): string {
   return ns.map((n) => (n === 'eip155' ? 'EVM' : 'Solana')).join(' + ')
 }
 

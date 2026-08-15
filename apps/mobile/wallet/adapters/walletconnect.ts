@@ -17,14 +17,15 @@
 import { Buffer } from 'buffer'
 import { Linking } from 'react-native'
 import { requireEvmPublicRpcUrl } from '@tenda/shared'
-import { WalletError } from '@/wallet/errors'
-import { connectThenSign, isUserRejection } from './connect-then-sign'
+import { WalletError } from '@tenda/shared'
+import { connectThenSign, isUserRejection } from '@tenda/shared'
 import { connectionSignal, type EvmRequestProvider } from '../reown/connection-signal'
 import { guardWcRequest } from '../reown/request-guard'
 import { reownConfigured } from '../reown/config'
 import { WALLET_CHAINS } from '../config'
-import type { SignMessageResult, SpikeAccount } from '../types'
-import type { AuthenticateResult, WalletAdapter } from './types'
+import type { SignMessageResult, WalletAccount } from '@tenda/shared'
+import type { AuthenticateResult } from '@tenda/shared'
+import type { WalletAdapter } from './types'
 
 /** A CAIP-2 EVM scope ('eip155:8453'), defaulting to our configured primary chain. */
 function asScope(chainId: string | undefined): string {
@@ -127,11 +128,11 @@ async function requestStringOverSession(
   return result
 }
 
-async function connect(opts?: { fresh?: boolean }): Promise<SpikeAccount> {
+async function connect(opts?: { fresh?: boolean }): Promise<WalletAccount> {
   return connectionSignal.connect(opts)
 }
 
-async function signMessage(account: SpikeAccount, message: string): Promise<SignMessageResult> {
+async function signMessage(account: WalletAccount, message: string): Promise<SignMessageResult> {
   const signature = await requestStringOverSession(
     { method: 'personal_sign', params: [hexMessage(message), account.address] },
     undefined,
@@ -145,7 +146,7 @@ async function disconnect(): Promise<void> {
 }
 
 function authenticate(
-  buildMessage: (account: SpikeAccount) => string,
+  buildMessage: (account: WalletAccount) => string,
   opts?: { forceFresh?: boolean },
 ): Promise<AuthenticateResult | null> {
   // Login reuses a restored session if AppKit auto-reconnected one (fast path,
@@ -156,7 +157,7 @@ function authenticate(
   return connectThenSign({ connect, signMessage, disconnect }, buildMessage, opts)
 }
 
-async function getRestoredAccount(): Promise<SpikeAccount | null> {
+async function getRestoredAccount(): Promise<WalletAccount | null> {
   return connectionSignal.getAccount()
 }
 

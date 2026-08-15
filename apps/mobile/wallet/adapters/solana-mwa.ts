@@ -9,10 +9,11 @@ import {
 import { TRANSACTION_COPY } from '@tenda/shared'
 import bs58 from 'bs58'
 import { authorizeSession, withMwaRetry } from './mwa-shared'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { WALLET_CHAINS } from '../config'
-import type { SignMessageResult, SpikeAccount } from '../types'
-import type { AuthenticateResult, WalletAdapter } from './types'
+import type { SignMessageResult, WalletAccount } from '@tenda/shared'
+import type { AuthenticateResult } from '@tenda/shared'
+import type { WalletAdapter } from './types'
 import { isRetryableSolanaRpcError, solanaRpcTransport } from '@/wallet/solana-rpc'
 
 /**
@@ -39,11 +40,11 @@ function addressToBase64(address: string): string {
   return Buffer.from(new PublicKey(address).toBytes()).toString('base64')
 }
 
-function accountFor(address: string): SpikeAccount {
+function accountFor(address: string): WalletAccount {
   return { namespace: 'solana', chainId: WALLET_CHAINS.solana, address, walletId: ADAPTER_ID }
 }
 
-async function connect(): Promise<SpikeAccount> {
+async function connect(): Promise<WalletAccount> {
   const stored = await AsyncStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
   const result = await withMwaRetry((wallet) => authorizeSession(wallet, stored))
   const address = base64ToAddress(result.addressBase64)
@@ -74,7 +75,7 @@ async function connect(): Promise<SpikeAccount> {
  * Exported for unit testing; the picker/consumers reach it via `adapter.authenticate`.
  */
 export async function authenticate(
-  buildMessage: (account: SpikeAccount) => string,
+  buildMessage: (account: WalletAccount) => string,
 ): Promise<AuthenticateResult | null> {
   await AsyncStorage.multiRemove([STORAGE_KEY_AUTH_TOKEN, STORAGE_KEY_ADDRESS])
   try {
@@ -101,7 +102,7 @@ export async function authenticate(
 }
 
 async function signMessage(
-  account: SpikeAccount,
+  account: WalletAccount,
   message: string,
 ): Promise<SignMessageResult> {
   const stored = await AsyncStorage.getItem(STORAGE_KEY_AUTH_TOKEN)
@@ -199,7 +200,7 @@ async function disconnect(): Promise<void> {
   await AsyncStorage.multiRemove([STORAGE_KEY_AUTH_TOKEN, STORAGE_KEY_ADDRESS])
 }
 
-async function getRestoredAccount(): Promise<SpikeAccount | null> {
+async function getRestoredAccount(): Promise<WalletAccount | null> {
   const [token, address] = await Promise.all([
     AsyncStorage.getItem(STORAGE_KEY_AUTH_TOKEN),
     AsyncStorage.getItem(STORAGE_KEY_ADDRESS),

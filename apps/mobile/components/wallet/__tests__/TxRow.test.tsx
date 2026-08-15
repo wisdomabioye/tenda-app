@@ -11,7 +11,7 @@ import {
   type EscrowTxType,
 } from '@tenda/shared'
 // Pure data/derivation — no mocked deps, so it needs no deferred import.
-import { TX_LABEL_BY_ROLE, txLabel } from '../tx-copy'
+import { TX_LABEL_BY_ROLE, txLabel } from '@tenda/shared'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({

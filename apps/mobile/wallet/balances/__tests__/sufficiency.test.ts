@@ -149,7 +149,7 @@ test('falls open when the read hangs past the pre-flight budget', async () => {
 test('the pre-flight budget is tighter than a reader RPC timeout', async () => {
   // It blocks a flow that is otherwise instant, so it must surrender first.
   const { BALANCE_RPC_TIMEOUT_MS } = jest.requireActual<{ BALANCE_RPC_TIMEOUT_MS: number }>(
-    '@/wallet/balances/constants',
+    '@tenda/shared',
   )
   expect(SUFFICIENCY_TIMEOUT_MS).toBeLessThan(BALANCE_RPC_TIMEOUT_MS)
 })

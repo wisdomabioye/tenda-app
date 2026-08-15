@@ -9,9 +9,9 @@
  * wallet session (sendEvmTransaction), so keys never leave the wallet.
  */
 import { evmPublicRpcUrl, parseUnits } from '@tenda/shared'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
-import { addressWord, amountWord, evmRpc, evmRpcString } from '../evm-rpc'
+import { addressWord, amountWord, evmRpc, evmRpcString } from '@tenda/shared'
 
 /** ERC-20 `allowance(address,address)` selector. */
 const ALLOWANCE_SELECTOR = '0xdd62ed3e'

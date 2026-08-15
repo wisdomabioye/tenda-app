@@ -8,7 +8,7 @@
 import type { ImageRequireSource } from 'react-native'
 import type { AuthResponse } from '@tenda/shared'
 import type { WalletAdapter } from '@/wallet/adapters/types'
-import type { Namespace, SpikeAccount } from '@/wallet/types'
+import type { ChainNamespace, WalletAccount } from '@tenda/shared'
 
 jest.mock('@/wallet/auth', () => ({
   signInWithWallet: jest.fn(),
@@ -85,7 +85,7 @@ const USER: AuthResponse['user'] = {
 
 const AUTH: AuthResponse = { token: 'jwt-123', user: USER }
 
-function account(namespace: Namespace): SpikeAccount {
+function account(namespace: ChainNamespace): WalletAccount {
   return namespace === 'solana'
     ? { namespace, chainId: 'solana:devnet', address: 'SoLaNaAddr', walletId: 'solana-mwa' }
     : { namespace, chainId: 'eip155:84532', address: '0xEvmAddr', walletId: 'metamask' }

@@ -4,7 +4,7 @@ import { Briefcase, ArrowLeftRight } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import type { UserEscrowTransaction } from '@tenda/shared'
-import { txDisplayAmount, txLabel, txSign, viewerRole } from './tx-copy'
+import { txDisplayAmount, txLabel, txSign, viewerRole } from '@tenda/shared'
 
 /**
  * One row of the wallet feed, worded and signed from the VIEWER's side — the

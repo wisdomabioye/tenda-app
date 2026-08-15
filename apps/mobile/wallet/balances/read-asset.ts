@@ -1,6 +1,5 @@
-import type { ChainRegistryEntry } from '@tenda/shared'
-import { READERS } from './readers'
-import type { AssetBalance } from './types'
+import { DEFAULT_READERS } from '@tenda/shared'
+import type { AssetBalance, ChainRegistryEntry } from '@tenda/shared'
 
 /**
  * ONE asset's balance on ONE chain — the targeted counterpart to
@@ -18,6 +17,6 @@ export async function readAssetBalance(
   chain: ChainRegistryEntry,
   assetId: string,
 ): Promise<AssetBalance | null> {
-  const balances = await READERS[chain.namespace].read(address, chain, [assetId])
+  const balances = await DEFAULT_READERS[chain.namespace].read(address, chain, [assetId])
   return balances.find((b) => b.assetId === assetId) ?? null
 }

@@ -8,7 +8,7 @@ import { ScreenContainer, Text, Header, Button, BottomSheet, ConfirmDialog, show
 import { WalletCard } from '@/components/onboarding/WalletCard'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/api/client'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { WalletPicker } from '@/wallet/picker'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 import { useReturnToLinkedWallets } from '@/lib/post-auth-nav'

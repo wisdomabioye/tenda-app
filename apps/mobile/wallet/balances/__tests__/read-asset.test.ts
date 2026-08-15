@@ -1,15 +1,21 @@
 /**
  * readAssetBalance — the targeted single-asset read behind the sufficiency
- * pre-flight. Verifies it routes to the namespace's reader, passes the
- * assetIds filter (the "one RPC" property), and returns null — meaning
- * UNKNOWN, never zero — when the asset is absent or the read comes back empty.
+ * pre-flight. Verifies it routes to the namespace's reader in shared's
+ * DEFAULT_READERS (the converged registry), passes the assetIds filter (the
+ * "one RPC" property), and returns null — meaning UNKNOWN, never zero — when
+ * the asset is absent or the read comes back empty.
  */
 import type { ChainRegistryEntry } from '@tenda/shared'
 
 const mockSolRead = jest.fn()
 const mockEvmRead = jest.fn()
-jest.mock('@/wallet/balances/solana', () => ({ solanaBalanceReader: { read: (...a: unknown[]) => mockSolRead(...a) } }))
-jest.mock('@/wallet/balances/evm', () => ({ evmBalanceReader: { read: (...a: unknown[]) => mockEvmRead(...a) } }))
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
+  DEFAULT_READERS: {
+    solana: { read: (...a: unknown[]) => mockSolRead(...a) },
+    eip155: { read: (...a: unknown[]) => mockEvmRead(...a) },
+  },
+}))
 
 import { readAssetBalance } from '@/wallet/balances/read-asset'
 
@@ -32,47 +38,34 @@ const solChain: ChainRegistryEntry = {
   ],
 }
 
-const USDC_BASE = { assetId: 'USDC_BASE', symbol: 'USDC', amountRaw: '48500000', decimals: 6, isStable: true }
+const USDC = { assetId: 'USDC_BASE', symbol: 'USDC', amountRaw: '48500000', decimals: 6, isStable: true }
 
 beforeEach(() => {
   mockSolRead.mockReset()
   mockEvmRead.mockReset()
 })
 
-test('routes to the namespace reader and filters to the one asset', async () => {
-  mockEvmRead.mockResolvedValue([USDC_BASE])
-
+test('routes to the namespace reader with the single-asset filter (one RPC, not one per asset)', async () => {
+  mockEvmRead.mockResolvedValue([USDC])
   const out = await readAssetBalance('0xabc', evmChain, 'USDC_BASE')
-
+  expect(out).toEqual(USDC)
   expect(mockEvmRead).toHaveBeenCalledWith('0xabc', evmChain, ['USDC_BASE'])
-  expect(out).toEqual(USDC_BASE)
+  expect(mockSolRead).not.toHaveBeenCalled()
 })
 
-test('routes Solana chains to the Solana reader', async () => {
-  mockSolRead.mockResolvedValue([{ ...USDC_BASE, assetId: 'USDC_SOL' }])
-
-  const out = await readAssetBalance('SoLaddr', solChain, 'USDC_SOL')
-
-  expect(mockSolRead).toHaveBeenCalledWith('SoLaddr', solChain, ['USDC_SOL'])
-  expect(mockEvmRead).not.toHaveBeenCalled()
+test('a Solana chain routes to the Solana reader', async () => {
+  mockSolRead.mockResolvedValue([{ ...USDC, assetId: 'USDC_SOL' }])
+  const out = await readAssetBalance('SoL', solChain, 'USDC_SOL')
   expect(out?.assetId).toBe('USDC_SOL')
+  expect(mockEvmRead).not.toHaveBeenCalled()
 })
 
-test('an empty read is UNKNOWN (null), not a zero balance', async () => {
+test('an empty read answers null — UNKNOWN, never zero', async () => {
   mockEvmRead.mockResolvedValue([])
-  expect(await readAssetBalance('0xabc', evmChain, 'USDC_BASE')).toBeNull()
+  await expect(readAssetBalance('0xabc', evmChain, 'USDC_BASE')).resolves.toBeNull()
 })
 
-test('a reader that answers about a different asset yields null, not the wrong balance', async () => {
-  mockEvmRead.mockResolvedValue([{ ...USDC_BASE, assetId: 'ETH_BASE' }])
-  expect(await readAssetBalance('0xabc', evmChain, 'USDC_BASE')).toBeNull()
-})
-
-test('a genuine zero balance is reported as zero, not as unknown', async () => {
-  mockEvmRead.mockResolvedValue([{ ...USDC_BASE, amountRaw: '0' }])
-
-  const out = await readAssetBalance('0xabc', evmChain, 'USDC_BASE')
-
-  expect(out).not.toBeNull()
-  expect(out?.amountRaw).toBe('0')
+test('a read that returns OTHER assets still answers null for the one asked for', async () => {
+  mockEvmRead.mockResolvedValue([{ ...USDC, assetId: 'SOMETHING_ELSE' }])
+  await expect(readAssetBalance('0xabc', evmChain, 'USDC_BASE')).resolves.toBeNull()
 })

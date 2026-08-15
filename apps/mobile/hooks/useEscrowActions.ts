@@ -24,7 +24,7 @@ import type {
   UnsignedTx,
 } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'

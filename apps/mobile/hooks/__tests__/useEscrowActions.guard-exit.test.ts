@@ -34,7 +34,7 @@ jest.mock('@/api/client', () => ({
 }))
 
 import { useEscrowActions } from '@/hooks/useEscrowActions'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 
 const ARGS = { escrowId: 'e1', chainId: 'eip155:84532', asset: 'USDC_BASE', amountRaw: '10000000' }
 const UNSIGNED = { kind: 'evm-tx' as const, to: '0x1', data: '0x', value: '0' }

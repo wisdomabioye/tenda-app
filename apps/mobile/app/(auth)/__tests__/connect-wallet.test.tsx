@@ -119,8 +119,7 @@ jest.mock('@/stores/auth.store', () => {
 
 import ConnectWalletScreen from '@/app/(auth)/connect-wallet'
 import { useAuthStore } from '@/stores/auth.store'
-import { WalletError } from '@/wallet/errors'
-import { ApiClientError } from '@tenda/shared'
+import { ApiClientError, WalletError } from '@tenda/shared'
 
 const authState = useAuthStore.getState()
 const signInMock = authState.signInWithWallet as jest.Mock

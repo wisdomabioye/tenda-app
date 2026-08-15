@@ -46,9 +46,6 @@ jest.mock('@/stores/chain-registry.store', () => {
     // The REAL predicate, not a re-implementation: "usable" is the rule that
     // decides whether balances can be read at all, and a copy of it here could
     // drift from the store's without any test noticing.
-    isRegistryUsable: jest.requireActual<typeof import('@/stores/chain-registry.store')>(
-      '@/stores/chain-registry.store',
-    ).isRegistryUsable,
     useChainRegistryStore: Object.assign((sel: (s: unknown) => unknown) => sel(registryState()), {
       getState: registryState,
     }),
@@ -56,10 +53,12 @@ jest.mock('@/stores/chain-registry.store', () => {
 })
 
 const mockRead = jest.fn((_wallets?: unknown, _chains?: unknown) => Promise.resolve([] as unknown[]))
-const mockSum = jest.fn((_balances?: unknown) => '0')
-jest.mock('@/wallet/balances', () => ({
+// Partial mock of shared: ONLY the RPC fan-out is faked — sumUsdcRaw,
+// resolveWalletSection and isRegistryUsable stay the REAL implementations so
+// the hook's arithmetic and section resolution are actually under test.
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   readWalletBalances: (wallets: unknown, chains: unknown) => mockRead(wallets, chains),
-  sumUsdcRaw: (balances: unknown) => mockSum(balances),
 }))
 /** One page of the transaction feed, as the wire delivers it. */
 type TxPage = { data: unknown[]; total: number; limit: number; offset: number }
@@ -103,7 +102,6 @@ beforeEach(() => {
   mockRefreshMe.mockClear()
   mockEnsureChains.mockClear()
   mockRead.mockReset().mockResolvedValue([])
-  mockSum.mockReset().mockReturnValue('0')
   mockTxns.mockReset().mockResolvedValue({ data: [], total: 0, limit: 20, offset: 0 })
   mockSummary.mockReset().mockResolvedValue({ earned_raw: '0', spent_raw: '0', asset: 'USDC_SOL' })
 })
@@ -123,7 +121,7 @@ test('with a wallet → reads balances and derives the USDC headline total', asy
     { chainId: 'solana:devnet', namespace: 'solana', displayName: 'Solana', address: 'SoL',
       usdc: { assetId: 'USDC_SOL', symbol: 'USDC', amountRaw: '50000000', decimals: 6, isStable: true }, native: null },
   ])
-  mockSum.mockReturnValue('50000000') // 50 USDC (6dp)
+  // The REAL sumUsdcRaw runs over the mocked read result → 50 USDC (6dp).
 
   const { result } = renderHook(() => useWalletScreen())
   expect(result.current.section).toBe('ready')

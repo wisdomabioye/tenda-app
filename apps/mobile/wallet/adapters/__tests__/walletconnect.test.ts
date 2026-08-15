@@ -33,8 +33,8 @@ import {
 } from '../walletconnect'
 import { connectionSignal } from '../../reown/connection-signal'
 import { WC_REQUEST_TIMEOUT_MS } from '../../reown/request-guard'
-import { WalletError } from '@/wallet/errors'
-import type { SpikeAccount } from '../../types'
+import { WalletError } from '@tenda/shared'
+import type { WalletAccount } from '@tenda/shared'
 
 const mockConnect = connectionSignal.connect as jest.Mock
 const mockDisconnect = connectionSignal.disconnect as jest.Mock
@@ -48,7 +48,7 @@ beforeEach(() => {
   mockGetPeerRedirect.mockReturnValue('trust://')
 })
 
-const account: SpikeAccount = {
+const account: WalletAccount = {
   namespace: 'eip155',
   chainId: 'eip155:8453',
   address: '0xABC',

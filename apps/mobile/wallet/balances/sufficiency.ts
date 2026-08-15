@@ -19,10 +19,10 @@
  * positively read as short.
  */
 import { formatAssetAmount, withTimeout } from '@tenda/shared'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { selectChainById, useChainRegistryStore } from '@/stores/chain-registry.store'
 import { readSpendableBalance } from './spendable'
-import { toBigIntOrNull } from './raw-amount'
+import { toBigIntOrNull } from '@tenda/shared'
 
 /**
  * Budget for the whole pre-flight. Tighter than `BALANCE_RPC_TIMEOUT_MS`

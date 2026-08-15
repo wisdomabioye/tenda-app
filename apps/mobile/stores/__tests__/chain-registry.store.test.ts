@@ -18,11 +18,8 @@ jest.mock('@/api/client', () => ({
   api: { platform: { chains: () => mockChainsRequest() } },
 }))
 
-import {
-  isRegistryUsable,
-  selectChainById,
-  useChainRegistryStore,
-} from '@/stores/chain-registry.store'
+import { isRegistryUsable } from '@tenda/shared'
+import { selectChainById, useChainRegistryStore } from '@/stores/chain-registry.store'
 
 const STORAGE_KEY = 'chain_registry_v2'
 const getItem = SecureStore.getItemAsync as jest.Mock

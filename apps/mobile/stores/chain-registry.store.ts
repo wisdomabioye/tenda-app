@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import { api } from '@/api/client'
+import { isRegistryUsable } from '@tenda/shared'
 import type { ChainRegistryEntry } from '@tenda/shared'
 
 // Versioned: bump when ChainRegistryEntry gains REQUIRED fields, so a stale
@@ -45,18 +46,7 @@ interface ChainRegistryState {
 
 let inflight: Promise<void> | null = null
 
-/**
- * Whether the registry holds something a balance read can actually use. An
- * EMPTY array is not usable and must not be mistaken for a loaded registry:
- * `readWalletBalances` pairs each wallet against the chains sharing its
- * namespace, so zero chains yields zero pairs — downstream, indistinguishable
- * from a wallet holding nothing. It is also a reachable state (a persisted `[]`,
- * or a deployment with no enabled chains) that a `!== null` guard would treat
- * as loaded forever, defeating the retry.
- */
-export function isRegistryUsable(chains: ChainRegistryEntry[] | null): boolean {
-  return chains !== null && chains.length > 0
-}
+
 
 export const useChainRegistryStore = create<ChainRegistryState>((set, get) => ({
   chains: null,

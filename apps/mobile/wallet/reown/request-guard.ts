@@ -19,7 +19,7 @@
  * UI can offer Cancel exactly while an abortable request exists — never a
  * dead button on the Solana/MWA path, which doesn't route through here.
  */
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 import { connectionSignal } from './connection-signal'
 
 /**

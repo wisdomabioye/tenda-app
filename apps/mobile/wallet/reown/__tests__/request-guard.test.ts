@@ -20,7 +20,7 @@ import {
   WC_CANCELLED_MESSAGE,
   WC_TIMEOUT_MESSAGE,
 } from '@/wallet/reown/request-guard'
-import { WalletError } from '@/wallet/errors'
+import { WalletError } from '@tenda/shared'
 
 beforeEach(() => {
   jest.useFakeTimers()

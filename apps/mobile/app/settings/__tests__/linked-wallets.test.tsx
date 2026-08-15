@@ -138,9 +138,7 @@ jest.mock('@/stores/auth.store', () => {
 import LinkedWalletsScreen from '@/app/settings/linked-wallets'
 import { useAuthStore } from '@/stores/auth.store'
 import { api } from '@/api/client'
-import { ApiClientError } from '@tenda/shared'
-import { WalletError } from '@/wallet/errors'
-import { ErrorCode, type LinkedWallet } from '@tenda/shared'
+import { ApiClientError, ErrorCode, WalletError, type LinkedWallet } from '@tenda/shared'
 import { showToast } from '@/components/ui'
 
 const mockShowToast = showToast as jest.Mock

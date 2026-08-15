@@ -1,7 +1,7 @@
 import type { ChainRegistryEntry } from '@tenda/shared'
 import { readAssetBalance } from './read-asset'
-import { toBigIntOrNull } from './raw-amount'
-import type { AssetBalance } from './types'
+import { toBigIntOrNull } from '@tenda/shared'
+import type { AssetBalance } from '@tenda/shared'
 
 /**
  * The most of `assetId` the user could put behind ONE transaction on `chain`:
