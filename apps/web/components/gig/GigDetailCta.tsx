@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { GigDetail } from '@tenda/shared'
+import { buttonVariants } from '@/components/ui'
 
 /**
  * Anonymous-reader CTA. The action itself is Stage 4; here the honest offer
@@ -30,7 +31,7 @@ export function GigDetailCta({ gig }: { gig: GigDetail }) {
       </p>
       <Link
         href="/signin"
-        className="whitespace-nowrap rounded-control bg-brand-solid px-6 py-3 text-sm font-semibold text-brand-on-primary hover:bg-brand-primary-pressed"
+        className={`whitespace-nowrap ${buttonVariants({ size: 'md' })}`}
       >
         {gig.requires_approval ? 'Sign in to apply' : 'Sign in to accept'}
       </Link>

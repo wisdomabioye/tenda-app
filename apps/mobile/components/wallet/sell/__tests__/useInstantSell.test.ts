@@ -23,7 +23,7 @@ jest.mock('@/hooks/useFiatQuote', () => ({
 }))
 jest.mock('@/api/client', () => ({
   api: { fiat: { offramp: (b: unknown) => mockOfframp(b) } },
-  ApiClientError: class ApiClientError extends Error {},
+  ApiClientError: jest.requireActual('@tenda/shared').ApiClientError,
 }))
 jest.mock('@/components/ui', () => ({ showToast: (...a: unknown[]) => mockToast(...a) }))
 

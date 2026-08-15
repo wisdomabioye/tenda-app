@@ -8,7 +8,7 @@
  * call sites do the toast + navigation, mirroring lib/auth-flow.
  */
 
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 
 export type TransactionGateReason = 'wallet_required' | 'contact_required'
 

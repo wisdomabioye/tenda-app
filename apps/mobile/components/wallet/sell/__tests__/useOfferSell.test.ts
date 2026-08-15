@@ -65,7 +65,7 @@ jest.mock('@/lib/transaction-gate', () => ({
 // eslint-disable-next-line import/first
 import { useOfferSell } from '../useOfferSell'
 // eslint-disable-next-line import/first
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 
 const OPTION = {
   chainId: 'eip155:84532', assetId: 'USDC_BASE', symbol: 'USDC', decimals: 6, chainName: 'Base', walletAddress: '0xEvm',

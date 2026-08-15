@@ -5,15 +5,8 @@
 
 jest.mock('@/api/client', () => {
   // Mock class so the lib's `instanceof ApiClientError` resolves here too.
-  class ApiClientError extends Error {
-    statusCode: number
-    code?: string
-    constructor(statusCode: number, error: string, message: string, code?: string) {
-      super(message)
-      this.statusCode = statusCode
-      this.code = code
-    }
-  }
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  const { ApiClientError } = jest.requireActual('@tenda/shared')
   return { ApiClientError }
 })
 
@@ -22,7 +15,7 @@ import {
   TRANSACTION_GATE_MESSAGE,
   transactionGateRoute,
 } from '@/lib/transaction-gate'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 
 describe('classifyTransactionGateError', () => {
   it('maps WALLET_REQUIRED + CONTACT_REQUIRED to gate reasons', () => {

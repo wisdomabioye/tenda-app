@@ -7,7 +7,7 @@
  * reload a screen the user is mid-way through. So the code is the test subject,
  * not the status.
  */
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { isTakedownRefusal } from '../takedown-refusal'
 
 test('the takedown code is a refusal, whatever status carries it', () => {

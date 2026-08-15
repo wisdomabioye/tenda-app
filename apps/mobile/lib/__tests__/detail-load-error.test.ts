@@ -7,7 +7,7 @@
  * taken-down gig keep rendering with every action button live while
  * pull-to-refresh quietly failed behind it.
  */
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { classifyDetailLoadError } from '../detail-load-error'
 
 test('404 is gone — the server will not serve this row to this caller', () => {

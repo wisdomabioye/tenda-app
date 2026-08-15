@@ -6,17 +6,8 @@
 jest.mock('@/api/client', () => {
   // No TS parameter properties here, Babel would hoist them as out-of-scope
   // references inside the mock factory.
-  class ApiClientError extends Error {
-    statusCode: number
-    error: string
-    code?: string
-    constructor(statusCode: number, error: string, message: string, code?: string) {
-      super(message)
-      this.statusCode = statusCode
-      this.error = error
-      this.code = code
-    }
-  }
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  const { ApiClientError } = jest.requireActual('@tenda/shared')
   return {
     ApiClientError,
     api: { blockchain: { permitPayload: jest.fn() } },
@@ -35,7 +26,8 @@ jest.mock('@/stores/chain-registry.store', () => ({
   useChainRegistryStore: { getState: jest.fn() },
 }))
 
-import { api, ApiClientError } from '@/api/client'
+import { api } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { signEvmTypedData } from '@/wallet/adapters/walletconnect'
 import { resolveEvmFrom } from '@/wallet/dispatch'
 import { ensureEvmSession } from '@/wallet/ensure-session'

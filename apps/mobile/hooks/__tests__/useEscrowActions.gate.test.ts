@@ -33,20 +33,13 @@ jest.mock('@/stores/escrow.store', () => ({
 }))
 
 jest.mock('@/api/client', () => {
-  class ApiClientError extends Error {
-    statusCode: number
-    code?: string
-    constructor(statusCode: number, error: string, message: string, code?: string) {
-      super(message)
-      this.statusCode = statusCode
-      this.code = code
-    }
-  }
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  const { ApiClientError } = jest.requireActual('@tenda/shared')
   return { api: {}, ApiClientError }
 })
 
 import { useEscrowActions } from '@/hooks/useEscrowActions'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { TRANSACTION_GATE_MESSAGE } from '@/lib/transaction-gate'
 
 const ARGS = { escrowId: 'e1', chainId: 'solana:devnet', asset: 'USDC_SOL', amountRaw: '1000000' }

@@ -17,7 +17,7 @@ import { ErrorCode } from '@tenda/shared'
 // Through the barrel, like detail-load-error.ts: a test that stubs
 // `@/api/client` must see this predicate compare against the SAME class it
 // throws, or the instanceof silently answers false and the branch never runs.
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 
 /**
  * Matched on the CODE, never the 409 status: the same status carries

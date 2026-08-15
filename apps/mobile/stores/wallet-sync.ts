@@ -7,7 +7,7 @@
  */
 
 import type { LinkedWallet, MeResponse } from '@tenda/shared'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { isLinkedWallet } from '@/wallet/wallet-address'
 
 /**

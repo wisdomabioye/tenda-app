@@ -3,6 +3,7 @@ import { APP_INFO } from '@tenda/shared'
 import Link from 'next/link'
 import { GigCard } from '@/components/gig/GigCard'
 import { GigFilters } from '@/components/gig/GigFilters'
+import { buttonVariants } from '@/components/ui'
 import { listEnabledChains, listGigs } from '@/lib/gigs/data'
 import {
   gigsHref,
@@ -59,7 +60,7 @@ export default async function GigsPage({ searchParams }: { searchParams: Promise
       {typeof page.next_cursor === 'string' && page.next_cursor !== '' && (
         <Link
           href={gigsHref(filters, { cursor: page.next_cursor })}
-          className="self-center rounded-control border border-border-default bg-surface-card px-6 py-3 text-sm font-semibold text-content-secondary hover:border-border-strong hover:text-content-primary"
+          className={`self-center ${buttonVariants({ variant: 'outline', size: 'md' })}`}
         >
           More gigs
         </Link>

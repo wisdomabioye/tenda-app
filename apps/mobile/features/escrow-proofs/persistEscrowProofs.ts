@@ -1,5 +1,5 @@
-import { ErrorCode, proofIdentity, type ProofType } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { ErrorCode, proofIdentity, type ProofType, ApiClientError } from '@tenda/shared'
+import { api } from '@/api/client'
 
 export interface PersistableProof {
   url: string

@@ -1,14 +1,11 @@
 import { vi } from 'vitest'
 
-vi.mock('@/api/client', async () => {
-  const actual = await vi.importActual<typeof import('@/api/client')>('@/api/client')
-  return {
-    ApiClientError: actual.ApiClientError,
-    api: { gigs: { list: vi.fn(), get: vi.fn() }, platform: { chains: vi.fn() } },
-  }
-})
+vi.mock('@/api/client', () => ({
+  api: { gigs: { list: vi.fn(), get: vi.fn() }, platform: { chains: vi.fn() } },
+}))
 
-import { api, ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
+import { api } from '@/api/client'
 import { getGig, listEnabledChains, listGigs } from '@/lib/gigs/data'
 
 const gigsApi = vi.mocked(api.gigs)

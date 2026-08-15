@@ -8,25 +8,13 @@
 // assertQueryShape), and a second local copy could drift from the one the
 // server's types actually satisfy — which is how the `as Record<string,
 // unknown>` casts got in.
-import { type ApiError, type QueryParams } from '@tenda/shared'
+import { ApiClientError, type ApiError, type QueryParams } from '@tenda/shared'
 // Web deviation from the mobile original (see lib/api-config.ts): the base
 // URL must be resolved in app code for Next's env inlining to reach it.
 import { apiConfig } from '@/lib/api-config'
 import { getJwtToken } from '@/lib/storage'
 import { getEnv } from '@/lib/env'
 
-export class ApiClientError extends Error {
-  constructor(
-    public statusCode: number,
-    public error: string,
-    message: string,
-    /** Machine-readable ErrorCode from the API envelope. */
-    public code?: string,
-  ) {
-    super(message)
-    this.name = 'ApiClientError'
-  }
-}
 
 const REQUEST_TIMEOUT_MESSAGE =
   'The server is taking longer than expected. Please check whether the action completed before retrying.'

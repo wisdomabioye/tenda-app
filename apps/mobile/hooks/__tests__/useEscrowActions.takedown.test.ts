@@ -42,7 +42,7 @@ jest.mock('@/stores/escrow.store', () => ({
 jest.mock('@/api/client', () => ({ ...jest.requireActual('@/api/client'), api: {} }))
 
 import { TAKEDOWN_REFUSED_MESSAGE } from '@tenda/shared'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { useEscrowActions } from '@/hooks/useEscrowActions'
 
 const ARGS = { escrowId: 'e1', chainId: 'eip155:84532', asset: 'USDC_BASE', amountRaw: '10000000' }

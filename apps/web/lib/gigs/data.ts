@@ -1,6 +1,6 @@
 import { cache } from 'react'
-import type { GigDetail, GigListQuery, GigSummary, PaginatedResponse } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { ApiClientError, type GigDetail, type GigListQuery, type GigSummary, type PaginatedResponse } from '@tenda/shared'
+import { api } from '@/api/client'
 
 /**
  * Server-side data seam for the public gig surfaces. Both calls are ANONYMOUS

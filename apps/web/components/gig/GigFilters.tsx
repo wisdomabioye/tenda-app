@@ -1,6 +1,8 @@
 import Link from 'next/link'
 import { CATEGORY_LABELS, GIG_CATEGORIES } from '@tenda/shared'
 import type { GigChainOption } from '@/lib/gigs/data'
+import { Button, controlClassName } from '@/components/ui'
+import { cn } from '@/lib/cn'
 import { gigsHref, type GigFeedFilters } from '@/lib/gigs/search-params'
 
 /**
@@ -38,21 +40,21 @@ export function GigFilters({ filters, chains }: { filters: GigFeedFilters; chain
           name="q"
           defaultValue={filters.q ?? ''}
           placeholder="Search gigs"
-          className="min-w-40 flex-1 rounded-control border border-border-input bg-control-input-background px-4 py-2 text-sm text-control-input-text placeholder:text-control-input-placeholder focus:border-border-input-active focus:outline-none"
+          className={cn(controlClassName, 'min-w-40 w-auto flex-1 py-2')}
         />
         <input
           type="text"
           name="city"
           defaultValue={filters.city ?? ''}
           placeholder="City"
-          className="w-32 rounded-control border border-border-input bg-control-input-background px-4 py-2 text-sm text-control-input-text placeholder:text-control-input-placeholder focus:border-border-input-active focus:outline-none"
+          className={cn(controlClassName, 'w-32 py-2')}
         />
         {chains.length > 0 && (
           <select
             name="chain_id"
             defaultValue={filters.chain_id ?? ''}
             aria-label="Chain"
-            className="rounded-control border border-border-input bg-control-input-background px-3 py-2 text-sm text-control-input-text focus:border-border-input-active focus:outline-none"
+            className={cn(controlClassName, 'w-auto px-3 py-2')}
           >
             <option value="">All chains</option>
             {chains.map((chain) => (
@@ -62,12 +64,9 @@ export function GigFilters({ filters, chains }: { filters: GigFeedFilters; chain
             ))}
           </select>
         )}
-        <button
-          type="submit"
-          className="rounded-control bg-brand-solid px-5 py-2 text-sm font-semibold text-brand-on-primary hover:bg-brand-primary-pressed"
-        >
+        <Button type="submit" size="md">
           Filter
-        </button>
+        </Button>
       </form>
     </div>
   )

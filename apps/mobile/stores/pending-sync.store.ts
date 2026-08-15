@@ -7,8 +7,8 @@
  */
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
-import { api, ApiClientError } from '@/api/client'
-import { ErrorCode } from '@tenda/shared'
+import { api } from '@/api/client'
+import { ApiClientError, ErrorCode } from '@tenda/shared'
 import type { EscrowTxType } from '@tenda/shared'
 
 const STORAGE_KEY        = 'tenda_pending_sync'

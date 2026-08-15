@@ -116,13 +116,8 @@ jest.mock('@/wallet/picker', () => {
 })
 
 jest.mock('@/api/client', () => {
-  class ApiClientError extends Error {
-    code?: string
-    constructor(statusCode: number, error: string, message: string, code?: string) {
-      super(message)
-      this.code = code
-    }
-  }
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  const { ApiClientError } = jest.requireActual('@tenda/shared')
   return {
     api: { auth: { setPrimaryWallet: jest.fn(), unlinkWallet: jest.fn() } },
     ApiClientError,
@@ -142,7 +137,8 @@ jest.mock('@/stores/auth.store', () => {
 
 import LinkedWalletsScreen from '@/app/settings/linked-wallets'
 import { useAuthStore } from '@/stores/auth.store'
-import { api, ApiClientError } from '@/api/client'
+import { api } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { WalletError } from '@/wallet/errors'
 import { ErrorCode, type LinkedWallet } from '@tenda/shared'
 import { showToast } from '@/components/ui'

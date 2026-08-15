@@ -1,6 +1,6 @@
 import { Linking } from 'react-native'
 import { WalletError } from '@/wallet/errors'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import { APP_INFO } from '@tenda/shared'
 
 export type ConnectError = {

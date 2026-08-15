@@ -13,7 +13,7 @@ import { TermsNotice } from '@/components/auth/TermsNotice'
 import { useAuthStore } from '@/stores/auth.store'
 import { WalletPicker } from '@/wallet/picker'
 import type { WalletAdapter } from '@/wallet/adapters/types'
-import { classifyVerifyError, TIER0_MESSAGE } from '@/lib/auth-flow'
+import { classifyVerifyError, TIER0_MESSAGE } from '@tenda/shared'
 import { usePostAuthReset } from '@/lib/post-auth-nav'
 import { classifyConnectError, type ConnectError } from '@/lib/connect-wallet-error'
 

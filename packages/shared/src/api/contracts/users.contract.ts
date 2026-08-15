@@ -75,7 +75,11 @@ export interface MeResponse {
   profile_complete: boolean
 }
 
-/** PATCH /v1/users/me — phone changes ride the OTP routes, never here. */
+/**
+ * PATCH /v1/users/me — phone changes ride the OTP routes, never here.
+ * is_seeker is deliberately absent: the Seeker DEVICE fee-tier flag is
+ * written once by the signup bootstrap (auth verify), never by PATCH.
+ */
 export interface UpdateMeInput {
   first_name?: string
   last_name?: string
@@ -83,7 +87,6 @@ export interface UpdateMeInput {
   city?: string
   bio?: string
   avatar_url?: string
-  is_seeker?: boolean
   /** CO4: unlocks the P2P exchange surface (order book + offer creation). */
   advanced_mode_enabled?: boolean
 }

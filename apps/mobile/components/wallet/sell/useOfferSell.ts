@@ -5,7 +5,8 @@ import {
   type BankAccountSummary,
   type EscrowCreationAttempt,
 } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { api } from '@/api/client'
+import { ApiClientError, randomUuid } from '@tenda/shared'
 import { showToast } from '@/components/ui'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
 import { ensureSufficientBalance, InsufficientBalanceError } from '@/wallet/balances'
@@ -15,7 +16,6 @@ import {
   transactionGateRoute,
 } from '@/lib/transaction-gate'
 import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
-import { randomUuid } from '@tenda/shared'
 
 const SECONDS_PER_HOUR = 60 * 60
 

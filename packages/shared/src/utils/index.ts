@@ -90,6 +90,12 @@ export {
 } from './dispute-thread'
 export { randomUuid } from './random-uuid'
 export {
+  classifyVerifyError,
+  verifyErrorMessage,
+  TIER0_MESSAGE,
+  type Tier0Reason,
+} from './auth-flow'
+export {
   URGENT_HOURS,
   STATUS_LABEL,
   STATUS_BADGE_VARIANT,

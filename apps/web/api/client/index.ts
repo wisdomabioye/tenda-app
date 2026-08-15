@@ -24,7 +24,6 @@ import {
   uploadApi,
 } from './platform'
 
-export { ApiClientError } from '../request'
 export { MODERATION_TIMEOUT_MS, TX_BUILD_TIMEOUT_MS } from './timeouts'
 
 export const api = {

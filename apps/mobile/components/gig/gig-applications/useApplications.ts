@@ -9,8 +9,8 @@
  */
 
 import { useCallback, useState } from 'react'
-import { APPLICATION_STATUSES, type GigApplicant } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { APPLICATION_STATUSES, type GigApplicant, ApiClientError } from '@tenda/shared'
+import { api } from '@/api/client'
 import { isTakedownRefusal } from '@/lib/takedown-refusal'
 import { showToast } from '@/components/ui'
 import { APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from './copy'

@@ -17,7 +17,7 @@
  * Mirrors lib/dispute-send-error.ts: classification lives beside the codes it
  * compares, once, rather than as an `instanceof` in each screen.
  */
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 
 /** The server's "you cannot read this" answer, whatever the reason behind it. */
 const GONE_STATUS = 404

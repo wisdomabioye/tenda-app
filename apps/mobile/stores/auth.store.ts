@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { ErrorCode, hasCompleteName } from '@tenda/shared'
+import { ErrorCode, hasCompleteName, ApiClientError, withRetry } from '@tenda/shared'
 import {
   getJwtToken,
   setJwtToken,
@@ -7,12 +7,12 @@ import {
   setWalletAddress,
   clearAuthStorage,
 } from '@/lib/secure-store'
-import { api, ApiClientError } from '@/api/client'
-import { withRetry } from '@tenda/shared'
+import { api } from '@/api/client'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { reconcileWalletState, isRetriableMeError } from '@/stores/wallet-sync'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
+import { isSeekerDevice } from '@/lib/device'
 import { connectionSignal } from '@/wallet/reown/connection-signal'
 import type { AuthState } from '@/stores/auth.types'
 
@@ -102,7 +102,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signInWithVerify: async (body) => {
-    const res = await api.auth.verify(body).catch(async (e: unknown) => {
+    // Account-creating methods carry the device-derived Seeker bootstrap:
+    // is_seeker is the Solana Seeker DEVICE fee-tier flag (seeker_fee_bps),
+    // read by the server only when INSERTing a new user — it is never a user
+    // preference. The wallet method is find-or-reject (decision #3, never
+    // creates), so it sends no bootstrap.
+    const payload = body.method === 'wallet' ? body : { ...body, is_seeker: isSeekerDevice() }
+    const res = await api.auth.verify(payload).catch(async (e: unknown) => {
       await purgeIfStaleSession(e)
       throw e
     })

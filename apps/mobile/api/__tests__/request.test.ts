@@ -10,7 +10,8 @@ jest.mock('@/lib/secure-store', () => ({
   getJwtToken: jest.fn(),
 }))
 
-import { request, ApiClientError } from '@/api/request'
+import { ApiClientError } from '@tenda/shared'
+import { request } from '@/api/request'
 import { getJwtToken } from '@/lib/secure-store'
 
 const getJwt = getJwtToken as jest.Mock

@@ -14,7 +14,8 @@ vi.mock('@/lib/storage', () => ({
   getJwtToken: vi.fn(),
 }))
 
-import { request, ApiClientError } from '@/api/request'
+import { ApiClientError } from '@tenda/shared'
+import { request } from '@/api/request'
 import { getJwtToken } from '@/lib/storage'
 
 const getJwt = vi.mocked(getJwtToken)

@@ -1,6 +1,9 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { APP_INFO } from '@tenda/shared'
+import { Mail, Wallet } from 'lucide-react'
+import { AuthPanel } from '@/components/auth/AuthPanel'
+import { TermsNotice } from '@/components/auth/TermsNotice'
+import { buttonVariants } from '@/components/ui'
 
 export const metadata: Metadata = {
   title: 'Sign in',
@@ -8,34 +11,32 @@ export const metadata: Metadata = {
 }
 
 /**
- * Stage-2 builds the real method chooser here (email OTP first, wallet after
- * linking — decision #3). Until then this placeholder keeps header/detail CTAs
- * honest instead of dead.
+ * Method chooser — the web analogue of mobile's get-started. Email creates
+ * accounts; wallet only signs in (decision #3, server-enforced), so the
+ * wallet entry is visible from day one but explains link-first until
+ * Stage 3 wires the real connect flow. Phone/Google are provisioned
+ * server-side and deliberately deferred (stage-2 doc).
  */
-export default function SignInPlaceholderPage() {
+export default function SignInPage() {
   return (
-    <section className="mx-auto flex max-w-md flex-col items-center gap-4 py-16 text-center">
-      <h1 className="font-display text-3xl font-bold text-content-primary">
-        Sign in is coming to web
-      </h1>
-      <p className="text-content-secondary">
-        Accounts, posting, and applying arrive here shortly. Until then, everything works in the{' '}
-        {APP_INFO.name} mobile app — browsing stays open right here.
-      </p>
-      <div className="flex flex-wrap items-center justify-center gap-3">
-        <a
-          href={APP_INFO.external.tendaPlayStore}
-          className="rounded-control bg-brand-solid px-6 py-3 font-semibold text-brand-on-primary hover:bg-brand-primary-pressed"
-        >
-          Get the app
-        </a>
+    <AuthPanel title="Get started" lede="Sign in or create an account — no password, ever.">
+      <div className="flex flex-col gap-3">
         <Link
-          href="/gigs"
-          className="rounded-control border border-border-default px-6 py-3 font-semibold text-content-secondary hover:border-border-strong hover:text-content-primary"
+          href="/signin/email"
+          className={buttonVariants({ variant: 'primary' })}
         >
-          Browse gigs
+          <Mail size={16} aria-hidden />
+          Continue with email
+        </Link>
+        <Link
+          href="/signin/wallet"
+          className={buttonVariants({ variant: 'outline' })}
+        >
+          <Wallet size={16} aria-hidden />
+          Sign in with a wallet
         </Link>
       </div>
-    </section>
+      <TermsNotice verb="continuing" />
+    </AuthPanel>
   )
 }

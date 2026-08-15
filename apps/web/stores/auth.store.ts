@@ -1,0 +1,163 @@
+import { create } from 'zustand'
+import {
+  ApiClientError,
+  ErrorCode,
+  hasCompleteName,
+  type IdentityMethodWire,
+  type User,
+  type VerifyBody,
+} from '@tenda/shared'
+import { api } from '@/api/client'
+import { clearAuthStorage, getJwtToken, JWT_TOKEN_KEY, setJwtToken } from '@/lib/storage'
+
+/**
+ * Web port of the SESSION CORE of apps/mobile/stores/auth.store.ts — same
+ * semantics (stale-bearer purge, 401/403-clears vs transient-keeps bootstrap,
+ * the server's own profile-complete predicate). The wallet half of the mobile
+ * store (adapters, wallets[], reconciliation) is Stage 3.
+ */
+export interface AuthState {
+  user: User | null
+  jwt: string | null
+  isAuthenticated: boolean
+  /** True until the first loadSession resolves — gates render vs redirect. */
+  isLoading: boolean
+  /** null until known; false routes to /onboarding/profile. */
+  profileComplete: boolean | null
+  identities: IdentityMethodWire[]
+
+  signInWithVerify: (body: VerifyBody) => Promise<{ isNew: boolean }>
+  linkIdentity: (body: VerifyBody) => Promise<void>
+  loadMethods: () => Promise<void>
+  logout: () => Promise<void>
+  loadSession: () => Promise<void>
+  refreshUser: () => Promise<void>
+  updateUser: (user: User) => void
+  setProfileComplete: (complete: boolean) => void
+}
+
+/**
+ * A SIGN-IN call answered 401 UNAUTHORIZED — only the server's JWT guard
+ * mints that code, so a dead stored token leaked onto the request. Purge it
+ * so the very next attempt starts clean (mobile's purgeIfStaleSession).
+ */
+async function purgeIfStaleSession(e: unknown): Promise<void> {
+  if (e instanceof ApiClientError && e.statusCode === 401 && e.code === ErrorCode.UNAUTHORIZED) {
+    await clearAuthStorage()
+    useAuthStore.setState({ jwt: null, isAuthenticated: false })
+  }
+}
+
+const SIGNED_OUT = {
+  user: null,
+  jwt: null,
+  isAuthenticated: false,
+  profileComplete: null,
+  identities: [] as IdentityMethodWire[],
+}
+
+export const useAuthStore = create<AuthState>((set, get) => ({
+  ...SIGNED_OUT,
+  isLoading: true,
+
+  signInWithVerify: async (body) => {
+    const res = await api.auth.verify(body).catch(async (e: unknown) => {
+      await purgeIfStaleSession(e)
+      throw e
+    })
+    await setJwtToken(res.token)
+    set({
+      user: res.user,
+      jwt: res.token,
+      isAuthenticated: true,
+      isLoading: false,
+      // Same profile-complete predicate the server uses — cannot drift.
+      profileComplete: hasCompleteName(res.user.first_name, res.user.last_name),
+    })
+    return { isNew: res.is_new }
+  },
+
+  linkIdentity: async (body) => {
+    // link: true attaches the bearer → server LINKS instead of logging in.
+    // The returned token is discarded: the current session stays untouched.
+    await api.auth.verify(body, { link: true })
+    await get().loadMethods()
+    void get().refreshUser()
+  },
+
+  loadMethods: async () => {
+    try {
+      const res = await api.auth.methods()
+      set({ identities: res.identities })
+    } catch {
+      // Non-fatal; the security surface offers a retry.
+    }
+  },
+
+  logout: async () => {
+    await clearAuthStorage()
+    set({ ...SIGNED_OUT, isLoading: false })
+  },
+
+  loadSession: async () => {
+    let jwt: string | null = null
+    try {
+      jwt = await getJwtToken()
+      if (jwt === null || jwt === '') {
+        set({ ...SIGNED_OUT, isLoading: false })
+        return
+      }
+      const user = await api.auth.me()
+      set({
+        user,
+        jwt,
+        isAuthenticated: true,
+        isLoading: false,
+        profileComplete: hasCompleteName(user.first_name, user.last_name),
+      })
+    } catch (e) {
+      if (e instanceof ApiClientError && (e.statusCode === 401 || e.statusCode === 403)) {
+        await clearAuthStorage()
+        set({ ...SIGNED_OUT, isLoading: false })
+      } else {
+        // Transient failure: keep the stored credential for the next attempt
+        // but treat the session as signed out for routing (mobile behavior).
+        set({ jwt, isLoading: false })
+      }
+    }
+  },
+
+  refreshUser: async () => {
+    try {
+      const user = await api.auth.me()
+      set({
+        user,
+        profileComplete: hasCompleteName(user.first_name, user.last_name),
+      })
+    } catch {
+      // Stale data beats a crash on focus.
+    }
+  },
+
+  updateUser: (user) => set({ user }),
+  setProfileComplete: (complete) => set({ profileComplete: complete }),
+}))
+
+/**
+ * Cross-tab session sync (stage-2 DoD: logout in tab A signs out tab B).
+ * The `storage` event only fires in OTHER tabs, which is exactly the seam:
+ * token removed elsewhere → drop local state; token appeared/changed
+ * elsewhere → adopt it by re-running the bootstrap.
+ */
+export function initCrossTabAuthSync(): () => void {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== JWT_TOKEN_KEY) return
+    if (event.newValue === null) {
+      useAuthStore.setState({ ...SIGNED_OUT, isLoading: false })
+    } else {
+      void useAuthStore.getState().loadSession()
+    }
+  }
+  window.addEventListener('storage', onStorage)
+  return () => window.removeEventListener('storage', onStorage)
+}

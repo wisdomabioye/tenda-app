@@ -40,13 +40,8 @@ jest.mock('@/stores/escrow.store', () => ({
 
 const mockAddProofs = jest.fn()
 jest.mock('@/api/client', () => {
-  class ApiClientError extends Error {
-    code?: string
-    constructor(message: string, code?: string) {
-      super(message)
-      this.code = code
-    }
-  }
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  const { ApiClientError } = jest.requireActual('@tenda/shared')
   return { api: { escrows: { addProofs: (...a: unknown[]) => mockAddProofs(...a) } }, ApiClientError }
 })
 

@@ -38,13 +38,8 @@ jest.mock('@/api/client', () => ({
     },
     gigs: { create: (b: unknown) => mockGigCreate(b) },
   },
-  ApiClientError: class ApiClientError extends Error {
-    code?: string
-    constructor(message: string, code?: string) {
-      super(message)
-      this.code = code
-    }
-  },
+  // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
+  ApiClientError: jest.requireActual('@tenda/shared').ApiClientError,
 }))
 let mockGate: string | null = null
 jest.mock('@/lib/transaction-gate', () => ({
@@ -162,10 +157,10 @@ test('the permit is signed only once the balance clears, for the full budget', a
 })
 // --- paths that must survive the extraction from the screen -----------------
 test('a moderation block surfaces the dialog and discards the orphan draft', async () => {
-  const { ApiClientError } = jest.requireMock<{
-    ApiClientError: new (m: string, c?: string) => Error
-  }>('@/api/client')
-  mockGigCreate.mockRejectedValue(new ApiClientError('This gig breaks our rules', 'CONTENT_MODERATED'))
+  const { ApiClientError } = jest.requireActual<typeof import('@tenda/shared')>('@tenda/shared')
+  mockGigCreate.mockRejectedValue(
+    new ApiClientError(422, 'Unprocessable Entity', 'This gig breaks our rules', 'CONTENT_MODERATED'),
+  )
   const { result } = renderHook(() => useGigFunding(ARGS))
   await fund(result)
   expect(mockEscrowDelete).toHaveBeenCalledWith({ id: 'e1' })
@@ -213,10 +208,10 @@ test('a funded gig blanks the composer even when it was not a draft repost', asy
   expect(mockSetParams).not.toHaveBeenCalled()
 })
 test('a moderation block leaves the composer intact so the user can edit', async () => {
-  const { ApiClientError } = jest.requireMock<{
-    ApiClientError: new (m: string, c?: string) => Error
-  }>('@/api/client')
-  mockGigCreate.mockRejectedValue(new ApiClientError('This gig breaks our rules', 'CONTENT_MODERATED'))
+  const { ApiClientError } = jest.requireActual<typeof import('@tenda/shared')>('@tenda/shared')
+  mockGigCreate.mockRejectedValue(
+    new ApiClientError(422, 'Unprocessable Entity', 'This gig breaks our rules', 'CONTENT_MODERATED'),
+  )
   const resetForm = jest.fn()
   const { result } = renderHook(() => useGigFunding({ resetForm }))
   await fund(result)

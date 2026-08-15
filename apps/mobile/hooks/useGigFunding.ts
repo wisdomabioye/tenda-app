@@ -17,7 +17,8 @@ import {
   reuseOrCreateEscrowCreationAttempt,
   type EscrowCreationAttempt,
 } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { api } from '@/api/client'
+import { ApiClientError, checkEscrowTransitionApplied, randomUuid } from '@tenda/shared'
 import { showToast } from '@/components/ui/Toast'
 import { WalletError } from '@/wallet/errors'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
@@ -31,8 +32,6 @@ import {
   transactionGateRoute,
 } from '@/lib/transaction-gate'
 import type { GigFormValues } from '@/components/gig/GigForm'
-import { checkEscrowTransitionApplied } from '@tenda/shared'
-import { randomUuid } from '@tenda/shared'
 
 const MS_PER_HOUR = 3_600_000
 

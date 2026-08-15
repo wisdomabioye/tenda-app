@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { APP_INFO } from '@tenda/shared'
+import { HeaderSessionAction } from './HeaderSessionAction'
 
 /**
  * Tier-1 public chrome. Deliberately minimal (user direction 2026-08-15):
@@ -24,12 +25,7 @@ export function SiteHeader() {
           >
             Gigs
           </Link>
-          <Link
-            href="/signin"
-            className="rounded-control bg-brand-solid px-5 py-2 text-sm font-semibold text-brand-on-primary hover:bg-brand-primary-pressed"
-          >
-            Sign in
-          </Link>
+          <HeaderSessionAction />
         </nav>
       </div>
     </header>

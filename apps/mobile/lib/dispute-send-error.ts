@@ -9,7 +9,7 @@
  * (mirrors lib/connect-wallet-error.ts).
  */
 import { ErrorCode } from '@tenda/shared'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 
 /** Refusal reasons. `failed` is the only transient one. */
 export type DisputeSendFailure = 'resolved' | 'not_claimed' | 'invalid' | 'rate_limited' | 'failed'

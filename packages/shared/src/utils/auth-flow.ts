@@ -5,8 +5,8 @@
  * the user to "get started / sign into the existing account" instead.
  */
 
-import { ErrorCode } from '@tenda/shared'
-import { ApiClientError } from '@/api/client'
+import { ErrorCode } from '../constants/errors'
+import { ApiClientError } from '../api/client-error'
 
 export type Tier0Reason = 'wallet_not_linked' | 'identity_already_linked'
 

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { buttonVariants } from '@/components/ui'
 
 /**
  * Global 404 — also what a hidden (taken-down) gig resolves to for anonymous
@@ -17,7 +18,7 @@ export default function NotFound() {
       </p>
       <Link
         href="/gigs"
-        className="mt-3 rounded-control bg-brand-solid px-6 py-3 font-semibold text-brand-on-primary hover:bg-brand-primary-pressed"
+        className={`mt-3 ${buttonVariants({ variant: 'primary' })}`}
       >
         Browse gigs
       </Link>

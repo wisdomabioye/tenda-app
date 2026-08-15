@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { JetBrains_Mono, Manrope, Space_Grotesk } from 'next/font/google'
 import { APP_INFO } from '@tenda/shared'
 import { siteUrl } from '@/lib/site-url'
+import { THEME_INIT_SCRIPT } from '@/lib/theme'
 import './globals.css'
 
 const spaceGrotesk = Space_Grotesk({
@@ -35,6 +36,10 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       className={`${spaceGrotesk.variable} ${manrope.variable} ${jetbrainsMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
+      <head>
+        {/* Paints an explicit theme choice before hydration — no light flash. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   )

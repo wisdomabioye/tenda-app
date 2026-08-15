@@ -8,7 +8,7 @@
  * (b) only `failed` says "try again".
  */
 import { ErrorCode } from '@tenda/shared'
-import { ApiClientError } from '@/api/client'
+import { ApiClientError } from '@tenda/shared'
 import {
   classifyDisputeSendError,
   disputeSendMessage,

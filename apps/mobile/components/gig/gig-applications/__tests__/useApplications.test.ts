@@ -8,7 +8,7 @@
  * knowing they are at their cap and thinking the app is broken.
  */
 import { renderHook, act, waitFor } from '@testing-library/react-native'
-import { ApiClientError } from '@/api/request'
+import { ApiClientError } from '@tenda/shared'
 import { useApplicantList, useApplications } from '../useApplications'
 import { APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from '../copy'
 

@@ -2,8 +2,13 @@
  * /v1/users/me (stage-1-onboarding.md):
  *   GET   → user + wallets[] + profile_complete
  *   PATCH → profile fields (first_name, last_name, country, city, bio,
- *           avatar_url, is_seeker). Phone changes go through the OTP
- *           routes, never here; wallet changes through link/unlink.
+ *           avatar_url). Phone changes go through the OTP routes, never
+ *           here; wallet changes through link/unlink. is_seeker is NOT
+ *           patchable: it is the Solana Seeker DEVICE fee-tier flag
+ *           (seeker_fee_bps), written once by the signup bootstrap
+ *           (auth verify → orchestrator INSERT) — accepting it here let
+ *           any JWT self-assign the discount. Old clients that still
+ *           send it are ignored, not rejected.
  *
  * profile_complete = first_name AND last_name set, via the shared
  * `hasCompleteName` — the same predicate `requireProfileComplete` enforces on
@@ -28,7 +33,6 @@ interface PatchBody {
   city?: unknown
   bio?: unknown
   avatar_url?: unknown
-  is_seeker?: unknown
   advanced_mode_enabled?: unknown
 }
 
@@ -92,13 +96,6 @@ const route: FastifyPluginAsync = async (fastify) => {
       if (bio !== undefined) patch.bio = bio
       const avatar_url = optionalString('avatar_url', b.avatar_url, 500)
       if (avatar_url !== undefined) patch.avatar_url = avatar_url
-      if (b.is_seeker !== undefined) {
-        if (typeof b.is_seeker !== 'boolean') {
-          throw new AppError(422, ErrorCode.VALIDATION_ERROR, 'is_seeker must be a boolean')
-        }
-        patch.is_seeker = b.is_seeker
-      }
-
       // CO4: unlocks the P2P exchange surface (order book + offer creation).
       if (b.advanced_mode_enabled !== undefined) {
         if (typeof b.advanced_mode_enabled !== 'boolean') {

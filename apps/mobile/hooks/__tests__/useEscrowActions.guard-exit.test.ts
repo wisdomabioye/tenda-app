@@ -30,7 +30,7 @@ jest.mock('@/stores/escrow.store', () => ({
 
 jest.mock('@/api/client', () => ({
   api: {},
-  ApiClientError: class ApiClientError extends Error {},
+  ApiClientError: jest.requireActual('@tenda/shared').ApiClientError,
 }))
 
 import { useEscrowActions } from '@/hooks/useEscrowActions'

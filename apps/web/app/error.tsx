@@ -1,5 +1,7 @@
 'use client'
 
+import { Button } from '@/components/ui'
+
 /** Global recoverable-failure boundary (mirrors mobile's app/error.tsx role). */
 export default function GlobalError({ reset }: { error: Error; reset: () => void }) {
   return (
@@ -8,13 +10,9 @@ export default function GlobalError({ reset }: { error: Error; reset: () => void
       <p className="max-w-md text-content-secondary">
         That wasn&apos;t supposed to happen. It may be temporary — try again.
       </p>
-      <button
-        type="button"
-        onClick={reset}
-        className="mt-3 rounded-control bg-brand-solid px-6 py-3 font-semibold text-brand-on-primary hover:bg-brand-primary-pressed"
-      >
+      <Button onClick={reset} className="mt-3">
         Try again
-      </button>
+      </Button>
     </div>
   )
 }

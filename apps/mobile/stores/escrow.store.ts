@@ -22,8 +22,8 @@ import type {
   PermitSignatureBody,
   UnsignedTx,
 } from '@tenda/shared'
-import { ErrorCode } from '@tenda/shared'
-import { api, ApiClientError } from '@/api/client'
+import { ErrorCode, ApiClientError } from '@tenda/shared'
+import { api } from '@/api/client'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 
 interface EscrowState {

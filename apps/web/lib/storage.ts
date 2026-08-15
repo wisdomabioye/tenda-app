@@ -8,7 +8,8 @@
  * server (return null) rather than throw. The async signatures are kept so
  * ported mobile code (api/request.ts, stores/auth.store.ts) works unchanged.
  */
-const JWT_TOKEN_KEY = 'jwt_token'
+/** Exported for the cross-tab `storage`-event listener (auth store). */
+export const JWT_TOKEN_KEY = 'jwt_token'
 const WALLET_ADDRESS_KEY = 'wallet_address'
 
 function readItem(key: string): string | null {
