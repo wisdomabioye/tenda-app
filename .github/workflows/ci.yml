@@ -127,6 +127,34 @@ jobs:
         working-directory: apps/admin
         run: pnpm test:coverage
 
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build shared package
+        run: pnpm --filter @tenda/shared build
+      # Anti-drift: styles/tokens.css is generated from apps/mobile/theme/
+      # tokens.ts (master-plan decision #9). Same shape as the ABI/IDL gate —
+      # a hand-edit or a mobile token change without regeneration is unmergeable.
+      - name: Design-token drift gate
+        working-directory: apps/web
+        run: pnpm gen:tokens:check
+      - name: Typecheck
+        working-directory: apps/web
+        run: pnpm type-check
+      - name: Lint
+        working-directory: apps/web
+        run: pnpm lint
+      - name: Tests + coverage gate (vitest + jsdom)
+        working-directory: apps/web
+        run: pnpm test:coverage
+
   mobile:
     runs-on: ubuntu-latest
     steps:

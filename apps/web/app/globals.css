@@ -1,0 +1,26 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+
+/* Fonts arrive as next/font CSS variables from app/layout.tsx. Every figure
+ * (amounts, rates, dates, hashes) is set in mono with tabular numerals — the
+ * design brief's one non-inherited rule. */
+@theme inline {
+  --font-display: var(--font-space-grotesk);
+  --font-body: var(--font-manrope);
+  --font-mono: var(--font-jetbrains-mono);
+}
+
+/* No `dark:` variant on purpose: components theme through the semantic tokens
+ * (which already resolve per theme, system-dark included). A data-theme-keyed
+ * variant would silently miss system-dark and disagree with the tokens. */
+
+body {
+  background: var(--surface-background);
+  color: var(--content-primary);
+  font-family: var(--font-body);
+}
+
+.font-numeric {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
