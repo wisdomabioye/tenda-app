@@ -40,7 +40,7 @@ export function CurrencySheet({
               <Text style={[s.ccyName, { color: theme.colors.content.tertiary }]}>{meta.name}</Text>
             </View>
             {selected && (
-              <View style={[s.checkPill, { backgroundColor: theme.colors.brand.primary }]}>
+              <View style={[s.checkPill, { backgroundColor: theme.colors.brand.solid }]}>
                 <Check size={13} color={theme.colors.brand.onPrimary} strokeWidth={3} />
               </View>
             )}

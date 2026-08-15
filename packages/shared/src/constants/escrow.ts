@@ -60,13 +60,22 @@ export const ACCEPT_DEADLINE_OPTIONS: readonly { label: string; hours: number }[
 export const AMOUNT_RAW_PRECISION = 78
 
 /**
- * Canonical escrow lifecycle status order. The INDEX is the on-chain `uint8`
- * wire value on every chain — the EVM `Status` enum and the Anchor
- * `EscrowStatus` enum both number their variants in exactly this order. This
- * is the single app-side source the server decodes EVM receipts against; the
+ * Canonical escrow status WIRE ORDER. The INDEX is the on-chain `uint8`
+ * value on every chain — the EVM `Status` enum and the Anchor `EscrowStatus`
+ * enum both number their variants in exactly this order. This is the single
+ * app-side source the server decodes EVM receipts against; the
  * `check-contract-parity` guard asserts it equals both contracts' enums, so a
  * contract reorder (invisible to the ABI, which renders enums as bare `uint8`)
  * fails CI instead of silently mis-decoding.
+ *
+ * NOT a lifecycle sequence, and not a UI timeline. The array interleaves one
+ * progressive path (open → accepted → submitted → completed) with four
+ * TERMINAL states (cancelled, refunded, disputed, resolved) that branch off
+ * wherever the escrow happens to be. Rendering this array in order implies
+ * disputes follow completion, which is wrong. A timeline should draw the
+ * progressive path as its spine and terminals as a branch from the current
+ * node — the same reason there is no `expired`: expiry resolves to `refunded`,
+ * which only makes sense as a branch.
  */
 export const ESCROW_STATUS_ORDER = [
   'open',

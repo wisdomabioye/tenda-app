@@ -85,7 +85,7 @@ export default function ConnectWalletScreen() {
 
             {isConnecting && (
               <View style={[s.infoBanner, { backgroundColor: theme.colors.brand.primarySurface }]}>
-                <View style={[s.tipIcon, { backgroundColor: theme.colors.brand.primary }]}>
+                <View style={[s.tipIcon, { backgroundColor: theme.colors.brand.solid }]}>
                   <Text style={s.tipGlyph}>i</Text>
                 </View>
                 <Text style={[s.infoText, { color: theme.colors.brand.primary }]}>

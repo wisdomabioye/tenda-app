@@ -45,7 +45,7 @@ export function NotificationRow({ notification, onPress }: NotificationRowProps)
         )}
       </View>
 
-      {unread && <View style={[s.dot, { backgroundColor: theme.colors.brand.primary }]} />}
+      {unread && <View style={[s.dot, { backgroundColor: theme.colors.brand.solid }]} />}
     </Pressable>
   )
 }

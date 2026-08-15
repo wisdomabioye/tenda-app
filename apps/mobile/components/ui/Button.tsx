@@ -76,18 +76,18 @@ export function Button({
     }
     switch (variant) {
       case 'primary':
-        return { backgroundColor: theme.colors.brand.primary, ...shadows.fab }
+        return { backgroundColor: theme.colors.brand.solid, ...shadows.fab }
       case 'success':
         return {
-          backgroundColor: theme.colors.feedback.success.base,
+          backgroundColor: theme.colors.feedback.success.solid,
           ...shadows.fab,
-          shadowColor: theme.colors.feedback.success.base,
+          shadowColor: theme.colors.feedback.success.solid,
         }
       case 'danger':
         return {
-          backgroundColor: theme.colors.feedback.danger.base,
+          backgroundColor: theme.colors.feedback.danger.solid,
           ...shadows.fab,
-          shadowColor: theme.colors.feedback.danger.base,
+          shadowColor: theme.colors.feedback.danger.solid,
         }
       case 'secondary':
         return { backgroundColor: theme.colors.surface.inset }

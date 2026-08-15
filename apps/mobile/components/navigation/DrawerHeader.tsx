@@ -72,7 +72,7 @@ export function DrawerHeader({
           >
             <RightIcon size={18} color={theme.colors.content.secondary} />
             {badgeCount > 0 && (
-              <View style={[s.badge, { backgroundColor: theme.colors.brand.primary, borderColor: theme.colors.surface.background }]}>
+              <View style={[s.badge, { backgroundColor: theme.colors.brand.solid, borderColor: theme.colors.surface.background }]}>
                 <Text style={[s.badgeText, { color: theme.colors.brand.onPrimary }]} numberOfLines={1}>
                   {badgeCount > 99 ? '99+' : badgeCount}
                 </Text>

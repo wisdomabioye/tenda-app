@@ -68,7 +68,7 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
           {time}
         </Text>
         {isUnread && (
-          <View style={[s.unreadCount, { backgroundColor: theme.colors.brand.primary }]}>
+          <View style={[s.unreadCount, { backgroundColor: theme.colors.brand.solid }]}>
             <Text style={[s.unreadCountText, { color: theme.colors.brand.onPrimary }]}>
               {unread_count > 9 ? '9+' : String(unread_count)}
             </Text>

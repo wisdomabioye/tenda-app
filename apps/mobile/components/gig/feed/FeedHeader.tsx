@@ -58,7 +58,7 @@ export function FeedHeader({
         >
           <ListFilter size={16} color={theme.colors.content.secondary} />
           {hasFilters && (
-            <View style={[s.filterDot, { backgroundColor: theme.colors.brand.primary }]} />
+            <View style={[s.filterDot, { backgroundColor: theme.colors.brand.solid }]} />
           )}
         </Pressable>
       </View>

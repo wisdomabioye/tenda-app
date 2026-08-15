@@ -109,7 +109,7 @@ export function PagerTabBar({
           {
             width: tabWidth,
             left: insetX,
-            backgroundColor: theme.colors.brand.primary,
+            backgroundColor: theme.colors.brand.solid,
             transform: [{ translateX: underlineX }],
           },
         ]}

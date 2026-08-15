@@ -80,7 +80,7 @@ export function ChatInput({ onSend, onAttach, disabled }: ChatInputProps) {
           style={[
             s.sendBtn,
             canSend
-              ? [{ backgroundColor: theme.colors.brand.primary }, shadows.fab]
+              ? [{ backgroundColor: theme.colors.brand.solid }, shadows.fab]
               : { backgroundColor: theme.colors.surface.inset },
           ]}
           accessibilityLabel="Send message"

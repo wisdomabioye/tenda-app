@@ -78,7 +78,7 @@ export function WalletPicker({ visible, onClose, onSelect }: WalletPickerProps) 
                 <CircleCheck
                   size={20}
                   color="#ffffff"
-                  fill={theme.colors.feedback.success.base}
+                  fill={theme.colors.feedback.success.solid}
                 />
               </View>
             )}

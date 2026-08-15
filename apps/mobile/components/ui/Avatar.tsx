@@ -139,7 +139,7 @@ export function Avatar({
               width: 10,
               height: 10,
               borderRadius: 5,
-              backgroundColor: theme.colors.brand.primary,
+              backgroundColor: theme.colors.brand.solid,
             }}
           />
         </View>
