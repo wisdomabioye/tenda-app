@@ -1,22 +1,13 @@
 import { View, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
-import { Bike, Camera, ShoppingBag, Wrench, Laptop } from 'lucide-react-native'
-import type { LucideIcon } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { CATEGORY_LABELS, type GigCategory } from '@tenda/shared'
+import { CATEGORY_ICONS } from './category-icons'
 
 interface CategoryGridProps {
   selected: GigCategory | null
   onChange: (cat: GigCategory) => void
-}
-
-const ICONS: Record<GigCategory, LucideIcon> = {
-  delivery: Bike,
-  photo:    Camera,
-  errand:   ShoppingBag,
-  service:  Wrench,
-  digital:  Laptop,
 }
 
 const ORDER: GigCategory[] = ['delivery', 'photo', 'errand', 'service', 'digital']
@@ -32,7 +23,7 @@ export function CategoryGrid({ selected, onChange }: CategoryGridProps) {
   return (
     <View style={s.grid}>
       {ORDER.map((key) => {
-        const Icon = ICONS[key]
+        const Icon = CATEGORY_ICONS[key]
         const isSelected = selected === key
         const cat = theme.colors.category[key]
 

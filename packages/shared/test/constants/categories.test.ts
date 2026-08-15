@@ -24,3 +24,12 @@ test('CATEGORY_META: one entry per category, labels sourced from CATEGORY_LABELS
     assert.match(meta.colorToken, /^category[A-Z]/)
   }
 })
+
+test('CATEGORY_META: pins the micro-task-weight icon decision (Bike not Truck, Laptop not Monitor)', () => {
+  const iconOf = (key: string) => CATEGORY_META.find((meta) => meta.key === key)?.icon
+  assert.equal(iconOf('delivery'), 'Bike')
+  assert.equal(iconOf('digital'), 'Laptop')
+  assert.equal(iconOf('photo'), 'Camera')
+  assert.equal(iconOf('errand'), 'ShoppingBag')
+  assert.equal(iconOf('service'), 'Wrench')
+})
