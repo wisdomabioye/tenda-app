@@ -31,8 +31,8 @@ import {
   transactionGateRoute,
 } from '@/lib/transaction-gate'
 import type { GigFormValues } from '@/components/gig/GigForm'
-import { checkEscrowTransitionApplied } from '@/lib/escrow-sync'
-import { randomUuid } from '@/lib/random-uuid'
+import { checkEscrowTransitionApplied } from '@tenda/shared'
+import { randomUuid } from '@tenda/shared'
 
 const MS_PER_HOUR = 3_600_000
 

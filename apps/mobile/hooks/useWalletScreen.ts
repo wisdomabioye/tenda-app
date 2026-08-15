@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { isRegistryUsable, useChainRegistryStore } from '@/stores/chain-registry.store'
 import { resolveWalletSection } from '@/lib/wallet-section-state'
 import { readWalletBalances, sumUsdcRaw, type WalletChainBalance } from '@/wallet/balances'
-import { groupByDay } from '@/lib/date'
+import { groupByDay } from '@tenda/shared'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
 import { amountRawToDisplay } from '@tenda/shared'
 import type {

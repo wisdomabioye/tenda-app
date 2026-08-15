@@ -15,7 +15,7 @@
  */
 
 import { acceptWindowState, type ApplicationStatus, type EscrowStatus } from '@tenda/shared'
-import { formatDuration } from '@/lib/gig-display'
+import { formatDuration } from '@tenda/shared'
 import type { ExpandableNoticeContent } from '@/components/ui/information'
 
 /**

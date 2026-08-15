@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native'
-import { formatAssetAmount } from '@tenda/shared'
-import { formatDuration } from '@/lib/gig-display'
+import { formatAssetAmount, formatDuration } from '@tenda/shared'
 import { PriceWarningSheet } from '@/components/moderation/PriceWarningSheet'
 import { ModerationHint } from './gig-form/ModerationHint'
 import { GigComposerNavigation } from './gig-form/GigComposerNavigation'

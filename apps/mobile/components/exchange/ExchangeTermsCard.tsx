@@ -4,11 +4,8 @@ import { useUnistyles } from 'react-native-unistyles'
 import { radius, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { DeadlineCountdown } from '@/components/shared'
-import { formatFiat, formatPaymentWindow } from '@/lib/currency'
-import { chainLabel } from '@/lib/chains'
-import { formatDate } from '@/lib/gig-display'
+import { chainLabel, formatDate, ASSET_META, computeRelevantDeadline, formatAssetAmount, formatFiat, formatPaymentWindow } from '@tenda/shared'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
-import { ASSET_META, computeRelevantDeadline, formatAssetAmount } from '@tenda/shared'
 import type { ExchangeDetail, SupportedCurrency, EscrowStatus } from '@tenda/shared'
 
 /**

@@ -5,11 +5,9 @@ import { spacing } from '@/theme/tokens'
 import { Text, Badge, Divider, Spacer } from '@/components/ui'
 import { GigMetaInfo } from './GigMetaInfo'
 import { ProofRequirementsNote } from './ProofRequirementsNote'
-import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel } from '@/lib/gig-display'
+import { STATUS_LABEL, STATUS_BADGE_VARIANT, deadlineLabel, CATEGORY_META, computeRelevantDeadline } from '@tenda/shared'
 import { PersonCard, ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
 import { DisputeReasonBlock, ReportContentLink, ChainBadge, TakedownNotice } from '@/components/escrow'
-import { CATEGORY_META } from '@/lib/categories'
-import { computeRelevantDeadline } from '@tenda/shared'
 import type { GigDetail } from '@tenda/shared'
 
 interface Props {

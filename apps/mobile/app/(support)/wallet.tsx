@@ -5,7 +5,7 @@ import { typography } from '@/theme/tokens'
 import { ScreenContainer, Header, Text, AccordionItem } from '@/components/ui'
 import { SectionLabel } from '@/components/ui/SectionLabel'
 import { InfoCard, GuideStep } from '@/components/support'
-import { APP_INFO } from '@/lib/app-info'
+import { APP_INFO } from '@tenda/shared'
 
 export default function WalletGuideScreen() {
   const { theme } = useUnistyles()

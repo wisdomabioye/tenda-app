@@ -25,7 +25,10 @@ jest.mock('lucide-react-native', () => ({
   Bell: () => null, CheckCheck: () => null, Handshake: () => null,
   ArrowLeftRight: () => null, Scale: () => null, Megaphone: () => null,
 }))
-jest.mock('@/lib/date', () => ({ formatRelativeShort: () => '2h ago' }))
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
+  formatRelativeShort: () => '2h ago',
+}))
 jest.mock('@/components/ui', () => {
   const { View, Pressable, Text } = require('react-native')
   return {

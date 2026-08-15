@@ -4,8 +4,7 @@ import { Star } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Avatar } from '@/components/ui/Avatar'
 import { Text } from '@/components/ui/Text'
-import { formatRelativeShort } from '@/lib/date'
-import { formatFullName } from '@tenda/shared'
+import { formatRelativeShort, formatFullName } from '@tenda/shared'
 import type { Review } from '@tenda/shared'
 
 interface ReviewCardProps {

@@ -3,6 +3,7 @@
 export * from './types'
 export * from './constants'
 export * from './utils'
+export * from './pagination'
 export * from './api'
 export * from './chains'
 export * from './fiat'

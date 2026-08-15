@@ -8,7 +8,7 @@ import {
   clearAuthStorage,
 } from '@/lib/secure-store'
 import { api, ApiClientError } from '@/api/client'
-import { withRetry } from '@/lib/with-retry'
+import { withRetry } from '@tenda/shared'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { reconcileWalletState, isRetriableMeError } from '@/stores/wallet-sync'

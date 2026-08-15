@@ -1,16 +1,19 @@
 /**
- * Cross-section facts only — name, taglines, distribution URLs, social links,
- * version, chain identity. Per-section copy lives in the other files in
- * src/content/. Example gigs live in tasks.ts, trade corridors in trades.ts.
+ * Landing-page app facts. Brand identity (name, tagline, description, social
+ * links) comes from @tenda/shared's APP_INFO — the monorepo's single source of
+ * brand truth — via the same source-alias mechanism as chains. ONLY facts that
+ * are release- or landing-specific live here: version + APK url (gated against
+ * app.json by scripts/check-app-version.mjs — they must stay literal in this
+ * file), the long-form about copy, and distribution placeholders.
  */
 
+import { APP_INFO as BRAND } from '@tenda/shared/app-info'
 import { CHAIN_NAMES_LINE } from './chains'
 
 export const APP_INFO = {
-  name: 'Tenda',
-  tagline: 'Get paid. No middlemen.',
-  description:
-    'Post or accept gigs with instant on-chain escrow. Proof required. Payment guaranteed.',
+  name: BRAND.name,
+  tagline: BRAND.tagline,
+  description: BRAND.description,
 
   /**
    * Long-form "about" paragraph used in the footer wordmark column. Reads as
@@ -40,12 +43,12 @@ export const APP_INFO = {
     contractsUrl: 'https://github.com/wisdomabioye/tenda-app',
   },
 
-  /** Social. */
-  twitterUrl: 'https://x.com/tendahq',
-  whatsappUrl: 'https://chat.whatsapp.com/EeB5OMalNy0EbMlU4QPZMr?mode=hq2tcli',
+  /** Social — brand truth, one source. */
+  twitterUrl: BRAND.social.twitter,
+  whatsappUrl: BRAND.support.whatsapp,
   discordUrl: '#',
   githubUrl: '#',
-  telegramUrl: 'https://t.me/tendahq',
+  telegramUrl: BRAND.social.telegram,
 } as const
 
 export type AppInfo = typeof APP_INFO

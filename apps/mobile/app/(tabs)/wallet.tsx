@@ -14,7 +14,7 @@ import {
   WalletLoadError,
 } from '@/components/wallet'
 import { useWalletScreen } from '@/hooks/useWalletScreen'
-import { END_REACHED_THRESHOLD } from '@/lib/pagination'
+import { END_REACHED_THRESHOLD } from '@tenda/shared'
 
 export default function WalletScreen() {
   const { theme } = useUnistyles()

@@ -40,6 +40,14 @@ Consequences:
 - **Chains**: a new chain is a `CHAIN_MANIFEST` entry (+ server env secrets). Zero web code.
 - **Balances**: per-chain readers plug into `wallet/balances/`.
 - **Payout rails**: `@tenda/shared/fiat/payout/*` registry — never re-encode rail validation.
+- **Display helpers**: a formatter used by 2+ clients (or encoding a product-wide display
+  rule) lives in `@tenda/shared` — date/relative-time, money-display, countdown, chain-label,
+  gig-display and fiat-display helpers moved there 2026-08-15; never copy one into `apps/web`
+  (that copy is exactly how drift starts).
+- **Brand facts**: every product string and outbound link (name, tagline, description,
+  support/legal/social/store URLs, static fee copy) comes from shared `APP_INFO` — never
+  typed inline. tendahq composes the same object; only release facts (version, apkUrl) stay
+  in tendahq's file because scripts/check-app-version.mjs gates them there.
 - **Auth methods**: driven by `GET /v1/auth/methods` + the challenge/verify orchestrator;
   adding a method is UI + config, never a bespoke flow.
 

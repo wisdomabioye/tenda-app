@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react-native'
+import { CATEGORY_LABELS } from '@tenda/shared'
 import { colors } from '@/theme/tokens'
 import { FilterSheet } from '../FilterSheet'
 
@@ -69,7 +70,7 @@ it('toggles the selected category off and selects a different category', () => {
   expect(baseProps.onCategoryChange).toHaveBeenCalledWith(null)
 
   rerender(<FilterSheet {...baseProps} selectedCategory={null} />)
-  fireEvent.press(screen.getByText('Photo'))
+  fireEvent.press(screen.getByText(CATEGORY_LABELS.photo))
   expect(baseProps.onCategoryChange).toHaveBeenLastCalledWith('photo')
 })
 

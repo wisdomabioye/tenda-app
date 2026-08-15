@@ -5,9 +5,8 @@ import { ScreenContainer, Header, Text, AccordionItem } from '@/components/ui'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { InfoCard } from '@/components/support'
 import { typography } from '@/theme/tokens'
-import { formatFiat } from '@/lib/currency'
+import { formatFiat, APP_INFO } from '@tenda/shared'
 import { useSettingsStore } from '@/stores/settings.store'
-import { APP_INFO } from '@/lib/app-info'
 
 const FLOW = [
   { num: 1, title: 'You fund the escrow',     desc: 'SOL is locked on Solana when you publish your gig.' },

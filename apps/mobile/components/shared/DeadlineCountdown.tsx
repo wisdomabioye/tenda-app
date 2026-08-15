@@ -4,7 +4,7 @@ import type { AppTheme } from '@/theme/themes'
 import { spacing, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { useCountdown } from '@/hooks/useCountdown'
-import { formatHMS, countdownTone, type CountdownTone } from '@/lib/countdown'
+import { formatHMS, countdownTone, type CountdownTone } from '@tenda/shared'
 
 interface DeadlineCountdownDisplayProps {
   remaining: number | null

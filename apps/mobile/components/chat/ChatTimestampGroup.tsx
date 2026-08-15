@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { formatRelativeDay } from '@/lib/date'
+import { formatRelativeDay } from '@tenda/shared'
 
 interface Props {
   iso: string

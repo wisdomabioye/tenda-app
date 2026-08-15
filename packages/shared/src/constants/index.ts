@@ -1,4 +1,4 @@
-export { GIG_CATEGORIES, type GigCategory } from './categories'
+export { GIG_CATEGORIES, CATEGORY_LABELS, CATEGORY_META, type GigCategory, type CategoryMeta, type CategoryColorToken } from './categories'
 export { SUPPORTED_CURRENCIES, CURRENCY_META, type SupportedCurrency } from './currencies'
 export { LOCATIONS, ALL_CITIES, findCountryForCity, isCityInCountry, coerceCityForCountry, type CountryCode, type LocationEntry } from './locations'
 export { ErrorCode } from './errors'
@@ -117,3 +117,4 @@ export {
 export * from './assets'
 export { TRANSACTION_RESILIENCE } from './transaction-resilience'
 export { TRANSACTION_COPY } from './transaction-copy'
+export { APP_INFO, type AppInfo } from './app-info'

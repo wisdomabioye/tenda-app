@@ -19,7 +19,10 @@ jest.mock('react-native-unistyles', () => ({
     },
   }),
 }))
-jest.mock('@/lib/date', () => ({ formatRelativeShort: () => '2h ago' }))
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
+  formatRelativeShort: () => '2h ago',
+}))
 jest.mock('@/components/ui', () => {
   const { Text } = require('react-native')
   return { Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }

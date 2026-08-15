@@ -2,7 +2,7 @@ import { View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from './Text'
-import { formatFiat } from '@/lib/currency'
+import { formatFiat } from '@tenda/shared'
 import type { SupportedCurrency } from '@tenda/shared'
 
 interface MoneyTextProps {

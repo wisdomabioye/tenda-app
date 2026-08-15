@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { JetBrains_Mono, Manrope, Space_Grotesk } from 'next/font/google'
+import { APP_INFO } from '@tenda/shared'
+import { siteUrl } from '@/lib/site-url'
 import './globals.css'
 
 const spaceGrotesk = Space_Grotesk({
@@ -21,8 +23,9 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Tenda',
-  description: 'Escrow-secured gigs and P2P exchange',
+  metadataBase: siteUrl(),
+  title: { default: APP_INFO.name, template: `%s — ${APP_INFO.name}` },
+  description: APP_INFO.description,
 }
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

@@ -7,7 +7,7 @@ import type { FiatIntentDetail } from '@tenda/shared'
 import { ScreenContainer, Text, Header, Button, ConfirmDialog, showToast } from '@/components/ui'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { api, ApiClientError } from '@/api/client'
-import { instructionCopy, INTENT_STATUS_COPY, isCancellable, isTerminal } from '@/lib/fiat'
+import { instructionCopy, INTENT_STATUS_COPY, isCancellable, isTerminal } from '@tenda/shared'
 import { spacing } from '@/theme/tokens'
 
 const POLL_MS = 10_000

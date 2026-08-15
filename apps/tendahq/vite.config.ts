@@ -15,6 +15,10 @@ export default defineConfig({
       '@tenda/shared/chains': fileURLToPath(
         new URL('../../packages/shared/src/chains/index.ts', import.meta.url),
       ),
+      // Same source-not-dist rule for the shared brand facts.
+      '@tenda/shared/app-info': fileURLToPath(
+        new URL('../../packages/shared/src/constants/app-info.ts', import.meta.url),
+      ),
     },
     dedupe: ['react', 'react-dom'],
   },

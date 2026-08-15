@@ -84,9 +84,12 @@ function themeMapBlock(): string {
   for (const key of Object.keys(radius)) {
     lines.push(`  --radius-${kebab(key)}:var(--radius-${kebab(key)});`)
   }
-  for (const key of Object.keys(spacing)) {
-    lines.push(`  --spacing-${kebab(key)}:var(--space-${kebab(key)});`)
-  }
+  // Spacing is deliberately NOT mapped into Tailwind's --spacing-* namespace:
+  // sizing utilities (max-w-*, w-*, size-*) resolve named keys through the
+  // spacing scale first, so `--spacing-5xl:64px` silently turns `max-w-5xl`
+  // into 64 PIXELS. Mobile's spacing is Tailwind's default 4px rhythm, so
+  // components use numeric utilities (p-4 = --space-md = 16px); the raw
+  // --space-* custom properties above stay available for plain CSS.
   for (const key of Object.keys(shadows)) {
     lines.push(`  --shadow-${kebab(key)}:var(--shadow-${kebab(key)});`)
   }

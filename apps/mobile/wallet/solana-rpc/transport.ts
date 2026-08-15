@@ -4,7 +4,7 @@ import {
   TRANSACTION_RESILIENCE,
   withTimeout,
 } from '@tenda/shared'
-import { withRetry } from '@/lib/with-retry'
+import { withRetry } from '@tenda/shared'
 import { classifySolanaRpcError, isRetryableSolanaRpcError } from './errors'
 import type { SolanaRpcTransport } from './types'
 

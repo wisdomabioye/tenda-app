@@ -3,6 +3,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Menu } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
+import { APP_INFO } from '@tenda/shared'
 import { Text, Avatar } from '@/components/ui'
 
 interface DrawerHeaderProps {
@@ -19,7 +20,7 @@ interface DrawerHeaderProps {
 }
 
 export function DrawerHeader({
-  title = 'Tenda',
+  title = APP_INFO.name,
   onMenuPress,
   rightIcon: RightIcon,
   onRightPress,

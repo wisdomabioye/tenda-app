@@ -7,12 +7,9 @@ import { Text } from '@/components/ui/Text'
 import { MoneyText } from '@/components/ui/MoneyText'
 import { GigStatusBadge } from '../GigStatusBadge'
 import { ChainBadge } from '@/components/escrow/ChainBadge'
-import { CATEGORY_META } from '@/lib/categories'
-import { toAssetPaymentDisplay } from '@/lib/currency'
+import { CATEGORY_META, toAssetPaymentDisplay, LOCATIONS, type CountryCode, GigSummary, gigDeadlineMeta } from '@tenda/shared'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { LOCATIONS, type CountryCode , GigSummary } from '@tenda/shared'
-import { gigDeadlineMeta } from '@/lib/gig-display'
 
 interface Props {
   gig: GigSummary

@@ -41,7 +41,8 @@ jest.mock('@/stores/exchange-rate.store', () => ({
 jest.mock('@/stores/settings.store', () => ({
   useSettingsStore: (sel: (s: { currency: string }) => unknown) => sel({ currency: 'NGN' }),
 }))
-jest.mock('@/lib/currency', () => ({
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   toAssetPaymentDisplay: () => ({ amount: 50, symbol: 'USDC', fiat: null }),
   formatFiat: () => '',
 }))

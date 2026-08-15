@@ -15,7 +15,7 @@ import {
   transactionGateRoute,
 } from '@/lib/transaction-gate'
 import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
-import { randomUuid } from '@/lib/random-uuid'
+import { randomUuid } from '@tenda/shared'
 
 const SECONDS_PER_HOUR = 60 * 60
 

@@ -8,7 +8,7 @@ import {
   rememberPage,
   readPage,
   createQueryKey,
-} from '@/lib/pagination'
+} from '@tenda/shared'
 import type { FirstPageResult, PaginatedListState, UsePaginatedListOptions } from './pagination/paginated-list.types'
 
 export type { PageParams, PaginatedListState, UsePaginatedListOptions } from './pagination/paginated-list.types'

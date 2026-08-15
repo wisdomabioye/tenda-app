@@ -11,7 +11,7 @@
 import { useCallback, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router'
-import { formatAssetAmount, canAssign, type GigApplicant, type GigDetail } from '@tenda/shared'
+import { formatAssetAmount, canAssign, type GigApplicant, type GigDetail, formatDuration, checkEscrowTransitionApplied } from '@tenda/shared'
 import { ScreenContainer, Header, showToast } from '@/components/ui'
 import { TransactionMonitor } from '@/components/feedback'
 import { TakedownNotice, TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
@@ -21,9 +21,7 @@ import { ApplicantList, useApplicantList, type ApplicantFilter } from '@/compone
 import { useEscrowActions } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useGigsStore } from '@/stores'
-import { formatDuration } from '@/lib/gig-display'
 import { spacing } from '@/theme/tokens'
-import { checkEscrowTransitionApplied } from '@/lib/escrow-sync'
 import { api } from '@/api/client'
 
 function ApplicantsContent({ gig, userId }: { gig: GigDetail; userId: string }) {

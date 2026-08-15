@@ -4,7 +4,7 @@ import { Bike, Camera, ShoppingBag, Wrench, Laptop } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import type { GigCategory } from '@tenda/shared'
+import { CATEGORY_LABELS, type GigCategory } from '@tenda/shared'
 
 interface CategoryGridProps {
   selected: GigCategory | null
@@ -17,14 +17,6 @@ const ICONS: Record<GigCategory, LucideIcon> = {
   errand:   ShoppingBag,
   service:  Wrench,
   digital:  Laptop,
-}
-
-const LABELS: Record<GigCategory, string> = {
-  delivery: 'Delivery',
-  photo:    'Creative',
-  errand:   'Errand',
-  service:  'Service',
-  digital:  'Digital',
 }
 
 const ORDER: GigCategory[] = ['delivery', 'photo', 'errand', 'service', 'digital']
@@ -57,7 +49,7 @@ export function CategoryGrid({ selected, onChange }: CategoryGridProps) {
               pressed && { opacity: 0.85 },
             ]}
             accessibilityRole="button"
-            accessibilityLabel={LABELS[key]}
+            accessibilityLabel={CATEGORY_LABELS[key]}
             accessibilityState={{ selected: isSelected }}
           >
             <View style={[s.iconTile, { backgroundColor: cat.surface }]}>
@@ -73,7 +65,7 @@ export function CategoryGrid({ selected, onChange }: CategoryGridProps) {
               ]}
               numberOfLines={1}
             >
-              {LABELS[key]}
+              {CATEGORY_LABELS[key]}
             </Text>
           </Pressable>
         )

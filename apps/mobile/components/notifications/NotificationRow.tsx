@@ -2,7 +2,7 @@ import { View, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import type { NotificationWire } from '@tenda/shared'
 import { Text } from '@/components/ui'
-import { formatRelativeShort } from '@/lib/date'
+import { formatRelativeShort } from '@tenda/shared'
 import { notificationIcon } from '@/lib/notificationRoute'
 import { spacing } from '@/theme/tokens'
 

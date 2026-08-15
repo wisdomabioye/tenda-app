@@ -3,8 +3,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
-import { formatConvoTime } from '@/lib/date'
-import { formatFullName } from '@tenda/shared'
+import { formatConvoTime, formatFullName } from '@tenda/shared'
 import type { Conversation } from '@tenda/shared'
 
 interface ConversationItemProps {

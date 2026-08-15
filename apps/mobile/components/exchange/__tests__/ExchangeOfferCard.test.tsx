@@ -22,7 +22,10 @@ jest.mock('@/components/ui/Text', () => {
   return { Text: ({ children }: { children: React.ReactNode }) => <Text>{children}</Text> }
 })
 jest.mock('@/components/ui/Avatar', () => ({ Avatar: () => null }))
-jest.mock('@/lib/chains', () => ({ chainLabel: () => 'Solana' }))
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
+  chainLabel: () => 'Solana',
+}))
 jest.mock('../ExchangeStatusBadge', () => {
   const { Text } = require('react-native')
   return { ExchangeStatusBadge: ({ status }: { status: string }) => <Text>{`status:${status}`}</Text> }

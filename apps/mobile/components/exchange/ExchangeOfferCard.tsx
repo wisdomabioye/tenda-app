@@ -6,10 +6,7 @@ import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
-import { formatFiat } from '@/lib/currency'
-import { chainLabel } from '@/lib/chains'
-import { formatDurationShort } from '@/lib/countdown'
-import { formatAssetAmount, ASSET_META, formatFullName } from '@tenda/shared'
+import { chainLabel, formatDurationShort, formatAssetAmount, ASSET_META, formatFullName, formatFiat } from '@tenda/shared'
 import type { ExchangeSummary, SupportedCurrency } from '@tenda/shared'
 
 interface Props {

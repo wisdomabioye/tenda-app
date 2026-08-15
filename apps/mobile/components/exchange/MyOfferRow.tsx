@@ -6,8 +6,7 @@ import { spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Spacer } from '@/components/ui/Spacer'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
-import { chainLabel } from '@/lib/chains'
-import { formatAssetAmount } from '@tenda/shared'
+import { chainLabel, formatAssetAmount } from '@tenda/shared'
 import type { EscrowListRow } from '@tenda/shared'
 
 /**
