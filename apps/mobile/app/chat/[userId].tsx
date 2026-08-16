@@ -30,7 +30,7 @@ import { useConversation } from '@/hooks/useConversation'
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight'
 import { useChatRealtime } from '@/hooks/useChatRealtime'
 import { useAttachmentUpload } from '@/hooks/useAttachmentUpload'
-import { buildMessageFeed, isDivider, isTimestamp } from '@/lib/chat'
+import { buildMessageFeed, isDivider, isTimestamp } from '@tenda/shared'
 import { attachmentToMediaItem } from '@/lib/attachments'
 import { spacing } from '@/theme/tokens'
 import type { MediaItem } from '@/components/shared/media/types'
@@ -60,7 +60,8 @@ export default function ChatScreen() {
 
   const feed = useMemo(() => {
     const msgs = conversationId ? (messages[conversationId] ?? []) : []
-    return buildMessageFeed(msgs)
+    // Shared builder is chronological; the inverted FlatList wants newest first.
+    return buildMessageFeed(msgs).reverse()
   }, [conversationId, messages])
 
   const escrowContext = escrowId ? { escrowId, kind: kind ?? null } : undefined

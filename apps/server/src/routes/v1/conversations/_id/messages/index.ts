@@ -3,7 +3,7 @@ import { uuidParamGuard } from '@server/lib/guards'
 import { clampLimit } from '@server/lib/pagination'
 import { and, eq, lt, lte, or, desc, isNull, ne, sql, type SQL } from 'drizzle-orm'
 import { conversations, messages, escrows, gig_details, exchange_details } from '@tenda/shared/db/schema'
-import { ErrorCode } from '@tenda/shared'
+import { ErrorCode, MESSAGE_MAX_LENGTH } from '@tenda/shared'
 import { appEvents } from '@server/lib/events'
 import { AppError, requireBody } from '@server/lib/errors'
 import { validateMessageAttachment } from '@server/lib/uploads/validate-attachment'
@@ -170,7 +170,7 @@ const messagesRoute: FastifyPluginAsync = async (fastify) => {
       const trimmed = (content ?? '').trim()
       // Attachment-only messages carry empty content.
       if (trimmed.length === 0 && attachment === null) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'content is required')
-      if (trimmed.length > 2000) throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'Message content must be at most 2000 characters')
+      if (trimmed.length > MESSAGE_MAX_LENGTH) throw new AppError(400, ErrorCode.VALIDATION_ERROR, `Message content must be at most ${MESSAGE_MAX_LENGTH} characters`)
 
       // Context references must resolve, a bad id would otherwise surface
       // as an FK violation (500) instead of a client error.

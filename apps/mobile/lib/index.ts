@@ -1,5 +1,3 @@
-export { buildMessageFeed, isDivider } from './chat'
-export type { FeedItem, ContextDividerItem } from './chat'
 export { isSeekerDevice, getDeviceCountry } from './device'
 export { getEnv } from './env'
 export { getAppVersion, formatVersionLabel } from './app-version'
