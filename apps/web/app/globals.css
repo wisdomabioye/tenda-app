@@ -33,6 +33,94 @@
   --chat-bubble-mine: #3f5ba8;
 }
 
+/* ── Motion ─────────────────────────────────────────────────────────────
+ * Web-only ON PURPOSE, and deliberately NOT routed through gen-web-tokens.
+ * apps/mobile/theme/tokens.ts does export a `motion` scale, but it is
+ * Reanimated's vocabulary — 90/150/220/320/480ms plus spring damping /
+ * stiffness / mass, which CSS cannot express and whose steps land nowhere
+ * near the comps' 100/120/160ms. Emitting it here would invite components
+ * to resolve a CSS duration from an RN spring scale. These values are the
+ * comps', which own visuals.
+ *
+ * `spin` is absent by design: Tailwind ships `animate-spin` and Spinner.tsx
+ * already uses it — redefining the keyframe would shadow the framework's.
+ */
+:root {
+  --motion-fast: 100ms; /* hover / background transitions */
+  --motion-base: 120ms; /* entrances, small transforms */
+  --motion-slow: 160ms; /* row arrival */
+  --motion-shimmer: 1400ms;
+  --ease-standard: ease;
+  --ease-out: ease-out;
+  --ease-in-out: ease-in-out;
+  /* fadein's travel. A surface needing the comps' 6px variant overrides this
+   * rather than adding a second near-identical keyframe. */
+  --motion-rise: 4px;
+}
+
+@keyframes fadein {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-rise));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes popin {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes shimmer {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+/* background-color, not the `background` shorthand the comps use: the
+ * shorthand also resets background-image/size/position for the duration of
+ * the animation, which would blank any row that carries one. */
+@keyframes arrive {
+  from {
+    background-color: var(--brand-primary-surface);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@theme inline {
+  --animate-fadein: fadein var(--motion-base) var(--ease-out);
+  --animate-popin: popin var(--motion-base) var(--ease-out);
+  --animate-shimmer: shimmer var(--motion-shimmer) var(--ease-in-out) infinite;
+  --animate-arrive: arrive var(--motion-slow) var(--ease-out);
+}
+
+/* The comps' blanket guard, with one deliberate improvement: they write
+ * `animation:none!important`, which cancels the animationend/transitionend
+ * events any JS awaiting them would never receive. Collapsing to ~0 instead
+ * removes the motion just as completely while keeping those events firing. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 body {
   background: var(--surface-background);
   color: var(--content-primary);
