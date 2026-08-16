@@ -1,6 +1,6 @@
 export { GIG_CATEGORIES, CATEGORY_LABELS, CATEGORY_META, type GigCategory, type CategoryMeta, type CategoryColorToken } from './categories'
 export { SUPPORTED_CURRENCIES, CURRENCY_META, type SupportedCurrency } from './currencies'
-export { LOCATIONS, ALL_CITIES, findCountryForCity, isCityInCountry, coerceCityForCountry, type CountryCode, type LocationEntry } from './locations'
+export { LOCATIONS, ALL_CITIES, findCountryForCity, isCityInCountry, isCountryCode, localeCountryOrNull, coerceCityForCountry, type CountryCode, type LocationEntry } from './locations'
 export { ErrorCode } from './errors'
 export type { ErrorCode as ErrorCodeType } from './errors'
 export { SOLANA_TX_FEE_LAMPORTS, solanaChainId, solanaPublicRpcUrl, SOLANA_CAIP_BY_NETWORK, SOLANA_NATIVE_ASSET_BY_NETWORK, solanaNativeAssetId } from './solana'

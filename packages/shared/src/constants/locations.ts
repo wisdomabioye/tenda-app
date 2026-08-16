@@ -72,6 +72,33 @@ export type LocationEntry = (typeof LOCATIONS)[CountryCode]
 /** All city strings across every supported country. */
 export const ALL_CITIES: string[] = Object.values(LOCATIONS).flatMap((l) => [...l.cities])
 
+/** Narrowing guard: is this string one of the supported market countries? */
+export function isCountryCode(code: string): code is CountryCode {
+  return code in LOCATIONS
+}
+
+/**
+ * The supported-market country a BCP-47 locale suggests, or null. The ONE
+ * derivation both clients' locale fallbacks use (web browser locale, mobile
+ * device locale), clamped to LOCATIONS because its only job is seeding
+ * pickers whose options ARE the supported markets — an unclamped region
+ * ('FR') or a script subtag mistaken for one ('zh-Hans-CN' → 'HANS' under
+ * the old naive split) reads as "country selected" to validation while the
+ * picker shows nothing, soft-locking the city step.
+ *
+ * Pure subtag parsing rather than Intl.Locale (Hermes ships partial Intl):
+ * per BCP 47 the region is the first 2-alpha or 3-digit subtag after the
+ * language, so scripts ('Hans', 'Latn') can never masquerade as regions.
+ */
+export function localeCountryOrNull(locale: string): CountryCode | null {
+  const region = locale
+    .split('-')
+    .slice(1)
+    .find((tag) => /^[A-Za-z]{2}$/.test(tag) || /^\d{3}$/.test(tag))
+    ?.toUpperCase()
+  return region !== undefined && isCountryCode(region) ? region : null
+}
+
 /** Look up which country a city belongs to. Returns undefined if not found. */
 export function findCountryForCity(city: string): CountryCode | undefined {
   for (const [code, entry] of Object.entries(LOCATIONS)) {

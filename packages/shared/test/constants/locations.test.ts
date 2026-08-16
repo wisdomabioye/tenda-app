@@ -5,6 +5,8 @@ import {
   ALL_CITIES,
   findCountryForCity,
   isCityInCountry,
+  isCountryCode,
+  localeCountryOrNull,
   coerceCityForCountry,
 } from '../../src/constants/locations'
 import { SUPPORTED_CURRENCIES } from '../../src/constants/currencies'
@@ -44,4 +46,34 @@ test('coerceCityForCountry: keeps a consistent city, nulls an inconsistent or mi
   assert.equal(coerceCityForCountry('KE', 'Lagos'), null) // country=KE + city=Lagos -> null
   assert.equal(coerceCityForCountry('NG', null), null)
   assert.equal(coerceCityForCountry(null, 'Lagos'), null) // city given but no valid country
+})
+
+test('isCountryCode: narrows supported markets and rejects everything else', () => {
+  assert.equal(isCountryCode('NG'), true)
+  assert.equal(isCountryCode('US'), true)
+  assert.equal(isCountryCode('FR'), false)
+  assert.equal(isCountryCode('HANS'), false)
+  assert.equal(isCountryCode(''), false)
+})
+
+test('localeCountryOrNull: supported regions come through, case-insensitively', () => {
+  assert.equal(localeCountryOrNull('en-NG'), 'NG')
+  assert.equal(localeCountryOrNull('en-ng'), 'NG')
+  assert.equal(localeCountryOrNull('en-US'), 'US')
+  assert.equal(localeCountryOrNull('en-US-POSIX'), 'US')
+})
+
+test('localeCountryOrNull: a script subtag never masquerades as a country', () => {
+  // The old naive split('-')[1] answered 'HANS' here — a "selected" country
+  // the picker cannot display, soft-locking the composer's city step.
+  assert.equal(localeCountryOrNull('zh-Hans-CN'), null) // CN unsupported → null, not HANS
+  assert.equal(localeCountryOrNull('uz-Latn-UZ'), null)
+  assert.equal(localeCountryOrNull('sr-Cyrl-RS'), null)
+})
+
+test('localeCountryOrNull: unsupported regions, bare languages and junk yield null', () => {
+  assert.equal(localeCountryOrNull('fr-FR'), null)
+  assert.equal(localeCountryOrNull('es-419'), null) // 3-digit UN region
+  assert.equal(localeCountryOrNull('en'), null)
+  assert.equal(localeCountryOrNull(''), null)
 })
