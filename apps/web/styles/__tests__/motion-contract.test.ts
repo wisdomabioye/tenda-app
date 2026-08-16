@@ -39,19 +39,30 @@ beforeAll(async () => {
 
 const utility = (name: string) => new RegExp(`\\.animate-${name}\\s*\\{([^}]*)\\}`)
 
+/** `\b` is not enough: /@keyframes popin\b/ happily matches `popin-renamed`. */
+const keyframe = (name: string) => new RegExp(`@keyframes ${name}\\s*\\{`)
+
 describe('motion keyframes', () => {
   it.each(ANIMATIONS)('defines @keyframes %s', (name) => {
-    expect(css).toMatch(new RegExp(`@keyframes ${name}\\b`))
+    expect(css).toMatch(keyframe(name))
   })
 
   it('does not define spin — Tailwind ships it and Spinner.tsx uses the built-in', () => {
     // Two definitions would mean we shadowed the framework's keyframe; zero
     // would mean animate-spin resolves to nothing.
-    expect(css.match(/@keyframes spin\b/g)).toHaveLength(1)
+    expect(css.match(/@keyframes spin\s*\{/g)).toHaveLength(1)
   })
 
   it('does not reintroduce `phase`, the comps\' duplicate of fadein', () => {
-    expect(css).not.toMatch(/@keyframes phase\b/)
+    expect(css).not.toMatch(keyframe('phase'))
+  })
+
+  it('animates arrive through background-color, not the background shorthand', () => {
+    // The shorthand also resets background-image/size/position for the
+    // duration, blanking any row that carries one.
+    const block = css.match(/@keyframes arrive\s*\{[\s\S]*?\n\}/)?.[0] ?? ''
+    expect(block).toMatch(/background-color:/)
+    expect(block).not.toMatch(/(^|[^-])background:/m)
   })
 
   it('drives fadein travel from --motion-rise, not a hardcoded distance', () => {
@@ -80,6 +91,40 @@ describe('animation utilities', () => {
   it('still emits Tailwind\'s own animate-spin', () => {
     expect(css).toMatch(utility('spin'))
   })
+
+  it('every animation an .animate-* utility names has a real @keyframes', () => {
+    // The invariant that actually matters, and the one a per-name assertion
+    // misses: a utility pointing at a renamed or deleted keyframe compiles
+    // fine and silently does nothing at runtime.
+    const referenced = new Set<string>()
+    for (const [, body] of css.matchAll(/\.animate-[a-z-]+\s*\{([^}]*)\}/g)) {
+      // `animation: <name> ...` or `animation: var(--animate-<name>)`
+      const direct = body.match(/animation:\s*([a-z][a-z0-9-]*)/i)?.[1]
+      if (direct !== undefined && direct !== 'var') referenced.add(direct)
+    }
+    expect(referenced.size).toBeGreaterThan(0)
+    for (const name of referenced) {
+      expect(css, `.animate-* references "${name}" but no @keyframes defines it`).toMatch(
+        keyframe(name),
+      )
+    }
+  })
+})
+
+describe('namespace safety', () => {
+  it('does not override Tailwind\'s --ease-* theme tokens', () => {
+    // Declaring --ease-out ourselves silently re-curves every `ease-out`
+    // utility app-wide. Tailwind's value must survive intact.
+    expect(css).toMatch(/--ease-out:\s*cubic-bezier\(0,\s*0,\s*0\.2,\s*1\)/)
+    expect(css).not.toMatch(/--ease-out:\s*ease-out/)
+    expect(css).not.toMatch(/--ease-in-out:\s*ease-in-out/)
+  })
+
+  it('keeps its own easings under the --motion-ease-* namespace', () => {
+    for (const token of ['--motion-ease-standard', '--motion-ease-out', '--motion-ease-in-out']) {
+      expect(css).toMatch(new RegExp(`${token}:`))
+    }
+  })
 })
 
 describe('motion tokens', () => {
@@ -93,9 +138,6 @@ describe('motion tokens', () => {
     expect(css).toMatch(new RegExp(`${token}:\\s*${value}`))
   })
 
-  it.each(['--ease-standard', '--ease-out', '--ease-in-out'])('declares %s', (token) => {
-    expect(css).toMatch(new RegExp(`${token}:`))
-  })
 })
 
 describe('reduced-motion guard', () => {
@@ -111,5 +153,13 @@ describe('reduced-motion guard', () => {
     expect(block).toMatch(/animation-duration:\s*0\.01ms\s*!important/)
     expect(block).toMatch(/transition-duration:\s*0\.01ms\s*!important/)
     expect(block).not.toMatch(/animation:\s*none/)
+  })
+
+  it('stops infinite animations rather than looping them at 0.01ms', () => {
+    // Without this, `shimmer ... infinite` keeps cycling forever under
+    // reduced motion — just imperceptibly fast, which is not the point.
+    const block =
+      css.match(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[\s\S]*?\n\}/)?.[0] ?? ''
+    expect(block).toMatch(/animation-iteration-count:\s*1\s*!important/)
   })
 })

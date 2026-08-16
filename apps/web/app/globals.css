@@ -50,9 +50,14 @@
   --motion-base: 120ms; /* entrances, small transforms */
   --motion-slow: 160ms; /* row arrival */
   --motion-shimmer: 1400ms;
-  --ease-standard: ease;
-  --ease-out: ease-out;
-  --ease-in-out: ease-in-out;
+  /* NOT --ease-*: that is Tailwind's own theme namespace (--ease-out is
+   * cubic-bezier(0,0,0.2,1) there). Declaring it here would override the
+   * framework's and silently re-curve every `ease-out` utility in the app.
+   * The comps use the plain CSS keywords, which are different curves again,
+   * so they live under --motion-ease-* where nothing collides. */
+  --motion-ease-standard: ease;
+  --motion-ease-out: ease-out;
+  --motion-ease-in-out: ease-in-out;
   /* fadein's travel. A surface needing the comps' 6px variant overrides this
    * rather than adding a second near-identical keyframe. */
   --motion-rise: 4px;
@@ -100,10 +105,10 @@
 }
 
 @theme inline {
-  --animate-fadein: fadein var(--motion-base) var(--ease-out);
-  --animate-popin: popin var(--motion-base) var(--ease-out);
-  --animate-shimmer: shimmer var(--motion-shimmer) var(--ease-in-out) infinite;
-  --animate-arrive: arrive var(--motion-slow) var(--ease-out);
+  --animate-fadein: fadein var(--motion-base) var(--motion-ease-out);
+  --animate-popin: popin var(--motion-base) var(--motion-ease-out);
+  --animate-shimmer: shimmer var(--motion-shimmer) var(--motion-ease-in-out) infinite;
+  --animate-arrive: arrive var(--motion-slow) var(--motion-ease-out);
 }
 
 /* The comps' blanket guard, with one deliberate improvement: they write
