@@ -21,11 +21,13 @@ import { hasCompleteName } from '@tenda/shared'
 import { deliveryGig, deliveryGigDetail, photoGig } from './fixtures/gigs'
 import { createAuthWorld, E2E_OTP_CODE, signIn, toMeUser, userForBearer } from './fixtures/auth'
 import { createChatWorld, handleChat, resetChatWorld } from './fixtures/chat'
+import { createNotificationsWorld, handleNotifications, resetNotificationsWorld } from './fixtures/notifications'
 
 const PORT = Number(process.env.STUB_API_PORT ?? 3210)
 const GIGS: GigSummary[] = [deliveryGig, photoGig]
 const world = createAuthWorld()
 const chatWorld = createChatWorld()
+const notificationsWorld = createNotificationsWorld()
 
 /** The RUNNING registry: dev chains only — the filter must offer exactly these. */
 const ENABLED_CHAINS: ChainRegistryEntry[] = [
@@ -272,6 +274,17 @@ function handleAuth(url: URL, method: string, authorization: string | undefined,
   if (url.pathname === '/__e2e/reset-chat' && method === 'POST') {
     resetChatWorld(chatWorld)
     return json({ ok: true })
+  }
+  if (url.pathname === '/__e2e/reset-notifications' && method === 'POST') {
+    resetNotificationsWorld(notificationsWorld)
+    return json({ ok: true })
+  }
+  // Notification centre (S5.3), auth-gated like the real routes.
+  if (url.pathname.startsWith('/v1/notifications')) {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    const handled = handleNotifications(notificationsWorld, url, method)
+    if (handled !== null) return json(handled.payload, handled.statusCode)
   }
   // Chat (S5.2): conversations + messages, auth-gated like the real routes.
   if (url.pathname.startsWith('/v1/conversations') || /^\/v1\/users\/[^/]+$/.test(url.pathname)) {

@@ -20,6 +20,7 @@ import { api } from '@/api/client'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { reownAdapter } from '@/wallet/adapters/reown'
 import { initCrossTabAuthSync, useAuthStore } from '@/stores/auth.store'
+import { useNotificationsStore } from '@/stores/notifications.store'
 import { JWT_TOKEN_KEY } from '@/lib/storage'
 import { makeUser } from '../../test/factories/user'
 
@@ -150,6 +151,18 @@ describe('logout', () => {
     const state = useAuthStore.getState()
     expect(state.user).toBeNull()
     expect(state.isAuthenticated).toBe(false)
+  })
+
+  it('drops notification state so the next account never sees these notices', async () => {
+    useNotificationsStore.setState({
+      unread: 3,
+      notifications: [
+        { id: 'n1', title: 'T', body: 'B', data: null, read_at: null, created_at: null },
+      ],
+    })
+    await useAuthStore.getState().logout()
+    expect(useNotificationsStore.getState().unread).toBe(0)
+    expect(useNotificationsStore.getState().notifications).toEqual([])
   })
 })
 

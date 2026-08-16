@@ -2,15 +2,11 @@
  * Realtime store — web port of apps/mobile/stores/realtime.store.ts,
  * bridging the singleton WS client into Zustand + the feature stores.
  *
- * `connected` mirrors the ws client's state into React. Today nothing
- * consumes it yet: it becomes the polling hooks' suppression signal when
- * chat polling lands (S5.2 — poll only while the socket is down) and the
- * reconnect-reconciliation trigger for escrow-live (S5.4). The escrow-sync
- * RPC/projection polls deliberately do NOT consult it, exactly like
- * mobile's: a confirmation wait must converge even if frames never come.
- *
- * S5.3 adds the notification fan-in on the `user:<id>` channel; until
- * then notification frames pass through subscribeUserChannel unhandled.
+ * `connected` is the chat hooks' suppression signal (fallback polls run
+ * ONLY while the socket is down) and, from S5.4, escrow-live's
+ * reconnect-reconciliation trigger. The escrow-sync RPC/projection polls
+ * deliberately do NOT consult it, exactly like mobile's: a confirmation
+ * wait must converge even if frames never come.
  */
 
 import { create } from 'zustand'
@@ -19,11 +15,13 @@ import {
   type Message,
   type ChatMessageFrame,
   type EscrowEventFrame,
+  type NotificationWire,
   GIG_FEED_CHANNEL,
   type GigFeedServerFrame,
 } from '@tenda/shared'
 import { ws, type WsFrame } from '@/lib/ws'
 import { useChatStore } from '@/stores/chat.store'
+import { useNotificationsStore } from '@/stores/notifications.store'
 
 interface RealtimeState {
   connected: boolean
@@ -62,6 +60,21 @@ export function isEscrowEventFrame(f: WsFrame): f is EscrowEventFrame & WsFrame 
   )
 }
 
+function isNotificationWire(v: unknown): v is NotificationWire {
+  return (
+    typeof v === 'object' && v !== null &&
+    'id' in v && typeof v.id === 'string' &&
+    'title' in v && typeof v.title === 'string' &&
+    'body' in v && typeof v.body === 'string'
+  )
+}
+
+type NotificationFrame = WsFrame & { type: 'notification'; notification: NotificationWire }
+
+function isNotificationFrame(f: WsFrame): f is NotificationFrame {
+  return f.type === 'notification' && isNotificationWire(f.notification)
+}
+
 // ---------- channel subscriptions --------------------------------------------
 
 /**
@@ -82,15 +95,20 @@ export function subscribeChatChannel(
 /**
  * Inbox-level updates, the server mirrors each chat message onto the
  * recipient's `user:<id>` channel so the conversations list / unread badge
- * stays current without polling. Notification frames on the same channel
- * are S5.3's; they fall through unhandled here until then.
+ * stays current without polling.
  */
 export function subscribeUserChannel(userId: string): () => void {
   return ws.subscribe(wsChannelName('user', userId), (frame) => {
+    // One subscription, two consumers: chat-message mirrors refresh the inbox
+    // badge; notification frames feed the notification centre + its bell badge.
     if (isChatMessageFrame(frame)) {
       useChatStore.getState().fetchConversations().catch(() => {
         // Network hiccup, the next frame or the fallback poll catches up.
       })
+      return
+    }
+    if (isNotificationFrame(frame)) {
+      useNotificationsStore.getState().receive(frame.notification)
     }
   })
 }

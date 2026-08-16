@@ -59,6 +59,7 @@ export default defineConfig({
         'components/gig/gig-form/**/*.{ts,tsx}',
         'components/gig/gig-applications/**/*.{ts,tsx}',
         'components/chat/**/*.{ts,tsx}',
+        'components/notifications/**/*.{ts,tsx}',
         'components/auth/OtpCodeField.tsx',
         'components/auth/WalletSignInPanel.tsx',
         'components/settings/**/*.tsx',

@@ -12,6 +12,7 @@ import { api } from '@/api/client'
 import { clearAuthStorage, getJwtToken, JWT_TOKEN_KEY, setJwtToken } from '@/lib/storage'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { reownAdapter } from '@/wallet/adapters/reown'
+import { useNotificationsStore } from '@/stores/notifications.store'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 
 /**
@@ -151,6 +152,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    // Notifications stay global (the badge outlives its screen) and must be
+    // dropped here so the next account never sees this account's notices
+    // (mobile doctrine, stores/auth.store.ts).
+    useNotificationsStore.getState().reset()
     await clearAuthStorage()
     // Best-effort: drop the wallet session too, so the next sign-in shows the
     // picker instead of silently reusing a stale session across accounts

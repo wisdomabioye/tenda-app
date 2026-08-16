@@ -20,6 +20,7 @@ import { AppShell } from '@/components/app/AppShell'
 import { ws } from '@/lib/ws'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChatStore } from '@/stores/chat.store'
+import { useNotificationsStore } from '@/stores/notifications.store'
 import { JWT_TOKEN_KEY } from '@/lib/storage'
 import { makeUser } from '../../../test/factories/user'
 
@@ -28,6 +29,7 @@ const router = vi.mocked(routerMockAccessor())
 beforeEach(() => {
   vi.clearAllMocks()
   window.localStorage.clear()
+  useNotificationsStore.setState({ unread: 0 })
   useAuthStore.setState({
     user: makeUser(),
     jwt: 'jwt-1',
@@ -67,6 +69,27 @@ describe('AppShell', () => {
       </AppShell>,
     )
     expect(screen.queryByLabelText(/unread messages/)).toBeNull()
+  })
+
+  it('bell badge reflects notification unread with 9+ clamp and aria count', () => {
+    useNotificationsStore.setState({ unread: 12 })
+    const { unmount } = render(
+      <AppShell>
+        <p>content</p>
+      </AppShell>,
+    )
+    const bell = screen.getByRole('link', { name: 'Notifications, 12 unread' })
+    expect(bell).toHaveAttribute('href', '/notifications')
+    expect(bell).toHaveTextContent('9+')
+    unmount()
+
+    useNotificationsStore.setState({ unread: 0 })
+    render(
+      <AppShell>
+        <p>content</p>
+      </AppShell>,
+    )
+    expect(screen.getByRole('link', { name: 'Notifications' })).toBeInTheDocument()
   })
 
   it('renders the primary nav and the signed-in user', () => {

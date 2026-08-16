@@ -7,13 +7,16 @@
  * need it). Top bar: brand, primary nav, theme toggle, sign out.
  */
 import Link from 'next/link'
+import { Bell as BellIcon } from 'lucide-react'
 import { usePathname, useRouter } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { APP_INFO, displayName } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChatStore } from '@/stores/chat.store'
+import { useNotificationsStore } from '@/stores/notifications.store'
 import { useRealtimeConnection } from '@/hooks/connectivity/useRealtimeConnection'
 import { useInboxRealtime } from '@/components/chat/useInboxRealtime'
+import { useNotificationsRealtime } from '@/components/notifications/useNotificationsRealtime'
 import { ThemeToggle } from './ThemeToggle'
 
 const NAV = [
@@ -32,9 +35,11 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Socket lifecycle rides the authed shell: mobile mounts this in the root
   // _layout, but web's root layout also serves the anonymous public pages.
   useRealtimeConnection()
-  // Inbox mirror + unread badge (mobile mounts this in (tabs)/_layout).
+  // Inbox mirror + bell badge (mobile mounts both in (tabs)/_layout).
   useInboxRealtime()
+  useNotificationsRealtime()
   const unread = useChatStore((s) => s.unread)
+  const notificationUnread = useNotificationsStore((s) => s.unread)
 
   async function handleLogout() {
     await logout()
@@ -79,6 +84,22 @@ export function AppShell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <Link
+              href="/notifications"
+              aria-label={
+                notificationUnread > 0
+                  ? `Notifications, ${notificationUnread} unread`
+                  : 'Notifications'
+              }
+              className="relative flex h-9 w-9 items-center justify-center rounded-control text-content-secondary hover:bg-surface-inset hover:text-content-primary"
+            >
+              <BellIcon size={18} />
+              {notificationUnread > 0 && (
+                <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-brand-solid px-0.5 font-numeric text-[10px] font-bold text-brand-on-primary">
+                  {notificationUnread > 9 ? '9+' : notificationUnread}
+                </span>
+              )}
+            </Link>
             <ThemeToggle />
             <Link
               href="/profile"
