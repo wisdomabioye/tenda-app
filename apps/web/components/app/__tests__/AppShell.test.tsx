@@ -8,7 +8,15 @@ vi.mock('@/api/client', () => ({
   api: { auth: { verify: vi.fn(), me: vi.fn(), methods: vi.fn() }, users: {} },
 }))
 
+// The shell mounts useRealtimeConnection; unmocked, the REAL client would
+// read the seeded JWT and jsdom's WebSocket would dial the network from a
+// unit test. Mocked at the ws seam, the lifecycle wiring stays observable.
+vi.mock('@/lib/ws', () => ({
+  ws: { connect: vi.fn(), disconnect: vi.fn() },
+}))
+
 import { AppShell } from '@/components/app/AppShell'
+import { ws } from '@/lib/ws'
 import { useAuthStore } from '@/stores/auth.store'
 import { JWT_TOKEN_KEY } from '@/lib/storage'
 import { makeUser } from '../../../test/factories/user'
@@ -16,6 +24,7 @@ import { makeUser } from '../../../test/factories/user'
 const router = vi.mocked(routerMockAccessor())
 
 beforeEach(() => {
+  vi.clearAllMocks()
   window.localStorage.clear()
   useAuthStore.setState({
     user: makeUser(),
@@ -28,6 +37,17 @@ beforeEach(() => {
 })
 
 describe('AppShell', () => {
+  it('mounts the realtime lifecycle: connect on authed render, teardown on unmount', () => {
+    const { unmount } = render(
+      <AppShell>
+        <p>content</p>
+      </AppShell>,
+    )
+    expect(ws.connect).toHaveBeenCalled()
+    unmount()
+    expect(ws.disconnect).toHaveBeenCalled()
+  })
+
   it('renders the primary nav and the signed-in user', () => {
     render(
       <AppShell>

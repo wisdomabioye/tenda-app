@@ -161,6 +161,34 @@ describe('WebSocket connection recovery', () => {
     unsubscribe()
   })
 
+  test('reconnect backoff doubles between consecutive failures and resets on success', async () => {
+    // Jitter is pinned to 0 (Math.random → 0), so the delays are exact.
+    const first = await connect()
+    first.open()
+    first.closeFromServer() // retry #1 scheduled at the 1s base
+
+    mockGetJwtToken.mockResolvedValueOnce('jwt-token')
+    await vi.advanceTimersByTimeAsync(999)
+    expect(FakeWebSocket.instances).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(FakeWebSocket.instances).toHaveLength(2)
+
+    // The second socket dies before opening: the next delay must DOUBLE.
+    FakeWebSocket.instances.at(-1)?.closeFromServer()
+    mockGetJwtToken.mockResolvedValueOnce('jwt-token')
+    await vi.advanceTimersByTimeAsync(1_999)
+    expect(FakeWebSocket.instances).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(FakeWebSocket.instances).toHaveLength(3)
+
+    // A successful open resets the ladder back to the base delay.
+    FakeWebSocket.instances.at(-1)?.open()
+    FakeWebSocket.instances.at(-1)?.closeFromServer()
+    mockGetJwtToken.mockResolvedValueOnce('jwt-token')
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(FakeWebSocket.instances).toHaveLength(4)
+  })
+
   test('an error closes the socket and close schedules recovery', async () => {
     const socket = await connect()
     socket.open()

@@ -4,7 +4,9 @@
  * frame/read proves UI convergence). Transports differ: the Solana status
  * poll rides web's shared-transport wrapper and the EVM receipt poll the
  * shared fetch helper; the WS channel comes from the realtime store
- * (S5.1), with the RPC poll as the missed-frame fallback, like mobile.
+ * (S5.1). The poll chain (RPC receipt → server projection read) is the
+ * INDEPENDENT convergence path and completes with zero frames delivered;
+ * a matching escrow frame merely short-circuits it. Like mobile.
  */
 import { useEffect, useRef, useState } from 'react'
 import { TRANSACTION_RESILIENCE, getEvmTransactionStatus } from '@tenda/shared'

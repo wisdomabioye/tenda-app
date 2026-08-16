@@ -2,9 +2,12 @@
  * Realtime store — web port of apps/mobile/stores/realtime.store.ts,
  * bridging the singleton WS client into Zustand + the feature stores.
  *
- * `connected` is the polling hooks' suppression signal: while true, chat
- * polling parks on a slow heartbeat and TransactionMonitor stretches its
- * RPC poll; on disconnect both resume their fast cadence automatically.
+ * `connected` mirrors the ws client's state into React. Today nothing
+ * consumes it yet: it becomes the polling hooks' suppression signal when
+ * chat polling lands (S5.2 — poll only while the socket is down) and the
+ * reconnect-reconciliation trigger for escrow-live (S5.4). The escrow-sync
+ * RPC/projection polls deliberately do NOT consult it, exactly like
+ * mobile's: a confirmation wait must converge even if frames never come.
  *
  * S5.1 slice: mobile's subscribeChatChannel / subscribeUserChannel land
  * with the chat and notifications stores they fan into (S5.2 / S5.3) —
