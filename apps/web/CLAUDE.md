@@ -4,15 +4,28 @@
 
 ## Source of truth
 
-`apps/mobile` + `@tenda/shared` define every flow, data shape, permission rule and copy.
-The UI/UX spec (`docs/web-app-stages/tenda-web-app-design/`, `ui-ux-brief.md`) is **visual
-direction only** and contains confirmed errors (e.g. it designs a Buy side; Buy/onramp was
-retired in #61). Before building any screen, read its mobile counterpart. Where spec and
-mobile disagree, mobile wins — log the divergence in `docs/web-app-stages/spec-corrections.md`.
+The comps (`docs/web-app-stages/tenda-web-app-design/` + `ui-ux-brief.md`) win on
+**visuals** — layout, spacing, tokens, states, empty/error copy.
+`apps/mobile` + `@tenda/shared` win on **behaviour** — every flow, data shape, permission
+rule, copy, and *which surfaces exist at all*. Before building any screen, read its mobile
+counterpart. Where the two disagree, behaviour wins — log the divergence in
+`docs/web-app-stages/spec-corrections.md`.
 
-Design direction (user, 2026-08-15): navbars and chrome do **not** strictly follow the design
-comps — keep them clean, simple and modern. `apps/tendahq` is the marketing/landing surface;
-this app is purely app functionality.
+The spec contains confirmed errors: it still designs a wallet **Buy** side, but Buy/onramp
+was retired in #61 (correction #1). Never port a surface the product has retired.
+
+**Shell architecture (user, 2026-08-16 — supersedes the 2026-08-15 "chrome need not follow
+the comps" direction; see correction #6).** The comps specify three shells, and they are
+binding:
+
+| Shell | Used by | Shape |
+|---|---|---|
+| **Workspace** | Tier 2, Tier 3, Settings & Profile | 64px icon rail \| 380px list column \| detail pane, `height:100vh` with per-pane scrolling |
+| **Centered public** | Tier 1 | no rail, max-width 1240px |
+| **Focused** | Auth, Post Wizard | no rail, max-width 640–1000px |
+
+Workspace collapses at ≤1100px (list → 320px) and ≤900px (single pane). `apps/tendahq`
+remains the marketing/landing surface; this app is purely app functionality.
 
 ## Where API calls come from — the policy
 
