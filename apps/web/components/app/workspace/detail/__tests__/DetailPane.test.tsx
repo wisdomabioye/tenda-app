@@ -1,0 +1,123 @@
+import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { DetailEmpty, DetailPane } from '@/components/app/workspace/detail'
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
+
+describe('DetailPane — structure', () => {
+  it('exposes the pane as a named region carrying the CSS hook', () => {
+    render(
+      <DetailPane label="Escrow detail">
+        <p>body</p>
+      </DetailPane>,
+    )
+    const pane = screen.getByRole('region', { name: 'Escrow detail' })
+    expect(pane).toHaveAttribute('data-detail')
+    expect(pane).toHaveTextContent('body')
+  })
+
+  it('is programmatically focusable but stays out of the tab order', () => {
+    render(<DetailPane label="Detail">x</DetailPane>)
+    expect(screen.getByRole('region', { name: 'Detail' })).toHaveAttribute('tabindex', '-1')
+  })
+
+  it('renders no back affordance unless a target is given', () => {
+    render(<DetailPane label="Detail">x</DetailPane>)
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
+  })
+
+  it('renders the back affordance with the CSS hook that hides it on wide viewports', () => {
+    render(
+      <DetailPane label="Detail" backHref="/messages" backLabel="Back to messages">
+        x
+      </DetailPane>,
+    )
+    const back = screen.getByRole('link', { name: /Back to messages/ })
+    expect(back).toHaveAttribute('href', '/messages')
+    expect(back).toHaveAttribute('data-pane-back')
+  })
+})
+
+describe('DetailPane — focus hand-off', () => {
+  it('does NOT steal focus on first mount', () => {
+    render(
+      <DetailPane label="Detail" selectionKey="a">
+        x
+      </DetailPane>,
+    )
+    expect(screen.getByRole('region', { name: 'Detail' })).not.toHaveFocus()
+  })
+
+  it('takes focus when the selection changes', () => {
+    const { rerender } = render(
+      <DetailPane label="Detail" selectionKey="a">
+        x
+      </DetailPane>,
+    )
+    rerender(
+      <DetailPane label="Detail" selectionKey="b">
+        y
+      </DetailPane>,
+    )
+    expect(screen.getByRole('region', { name: 'Detail' })).toHaveFocus()
+  })
+
+  it('does not re-take focus when the same row re-renders', () => {
+    const { rerender } = render(
+      <DetailPane label="Detail" selectionKey="a">
+        x
+      </DetailPane>,
+    )
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    rerender(
+      <DetailPane label="Detail" selectionKey="a">
+        x updated
+      </DetailPane>,
+    )
+    expect(screen.getByRole('region', { name: 'Detail' })).not.toHaveFocus()
+  })
+
+  it('does not take focus when the selection clears', () => {
+    const { rerender } = render(
+      <DetailPane label="Detail" selectionKey="a">
+        x
+      </DetailPane>,
+    )
+    rerender(
+      <DetailPane label="Detail" selectionKey={null}>
+        nothing
+      </DetailPane>,
+    )
+    expect(screen.getByRole('region', { name: 'Detail' })).not.toHaveFocus()
+  })
+
+  it('takes focus again on the next real selection after a clear', () => {
+    const { rerender } = render(
+      <DetailPane label="Detail" selectionKey="a">
+        x
+      </DetailPane>,
+    )
+    rerender(
+      <DetailPane label="Detail" selectionKey={null}>
+        nothing
+      </DetailPane>,
+    )
+    rerender(
+      <DetailPane label="Detail" selectionKey="c">
+        z
+      </DetailPane>,
+    )
+    expect(screen.getByRole('region', { name: 'Detail' })).toHaveFocus()
+  })
+})
+
+describe('DetailEmpty', () => {
+  it('renders the surface-specific copy', () => {
+    render(<DetailEmpty title="Pick a conversation" body="Choose someone on the left." />)
+    expect(screen.getByText('Pick a conversation')).toBeInTheDocument()
+    expect(screen.getByText('Choose someone on the left.')).toBeInTheDocument()
+  })
+})

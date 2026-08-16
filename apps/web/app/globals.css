@@ -126,6 +126,71 @@
   }
 }
 
+/* ── Workspace panes ────────────────────────────────────────────────────
+ * The rail | list | detail grid (Tier 2 comp, lines 357-362). Kept as plain
+ * CSS rather than utility classes because the ≤900px behaviour is a
+ * PARENT-STATE DESCENDANT rule — which pane collapses depends on whether the
+ * grid has a detail selected — and because media queries keep the server and
+ * client render identical. A JS-measured breakpoint would reintroduce exactly
+ * the hydration class of bug we just spent a session ruling out.
+ *
+ * 100dvh, not the comps' 100vh: on mobile browsers vh ignores the retracting
+ * URL bar and leaves the last rows of a pane unreachable.
+ */
+:root {
+  --pane-rail: 64px;
+  --pane-list: 380px;
+  --pane-list-compact: 320px;
+}
+
+[data-panes] {
+  display: grid;
+  grid-template-columns: var(--pane-rail) var(--pane-list) minmax(0, 1fr);
+  grid-template-rows: minmax(0, 100dvh);
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* A surface with no list column is rail + content, at every width — without
+ * this the detail would sit in the list's slot and leave a dead third column. */
+[data-panes][data-nolist] {
+  grid-template-columns: var(--pane-rail) minmax(0, 1fr);
+}
+
+/* The list narrows before it disappears. */
+@media (max-width: 1100px) {
+  [data-panes] {
+    grid-template-columns: var(--pane-rail) var(--pane-list-compact) minmax(0, 1fr);
+  }
+}
+
+/* One pane at a time: the detail wins when a row is selected, the list wins
+ * when nothing is (`data-nodetail`). */
+@media (max-width: 900px) {
+  [data-panes] {
+    grid-template-columns: var(--pane-rail) minmax(0, 1fr);
+  }
+  [data-panes] [data-list] {
+    display: none;
+  }
+  [data-panes][data-nodetail] [data-list] {
+    display: flex;
+  }
+  [data-panes][data-nodetail] [data-detail] {
+    display: none;
+  }
+  /* The back affordance only exists while the list is off-screen. */
+  [data-pane-back] {
+    display: inline-flex;
+  }
+}
+
+/* Hidden by default — at ≥901px the list is always visible, so "back" would
+ * point at something already on screen. */
+[data-pane-back] {
+  display: none;
+}
+
 body {
   background: var(--surface-background);
   color: var(--content-primary);

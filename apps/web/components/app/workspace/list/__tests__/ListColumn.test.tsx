@@ -86,6 +86,13 @@ describe('ListColumn — header', () => {
     expect(screen.getByRole('region', { name: COPY.title })).toBeInTheDocument()
   })
 
+  it('carries the data-list hook the ≤900px pane collapse keys off', () => {
+    // Without this attribute the single-pane breakpoint cannot hide the list,
+    // and both panes stack on a narrow viewport.
+    renderList()
+    expect(screen.getByRole('region', { name: COPY.title })).toHaveAttribute('data-list')
+  })
+
   it('renders tabs with counts and marks the current one', () => {
     renderList({
       tabs: [

@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation'
 import { LIST_KEYBOARD_HINT } from './copy'
 import { ListEmpty, ListError, ListSkeleton } from './ListStates'
 import { ListHeader } from './ListHeader'
-import { useListKeyboard } from './useListKeyboard'
+import { useListKeyboard } from '@/hooks/workspace/useListKeyboard'
 import type { ListColumnProps } from './list.types'
 
 export function ListColumn<TRow>({
@@ -60,6 +60,7 @@ export function ListColumn<TRow>({
 
   return (
     <section
+      data-list
       aria-labelledby={titleId}
       className="flex min-h-0 min-w-0 flex-col border-r border-border-subtle bg-surface-background"
     >
