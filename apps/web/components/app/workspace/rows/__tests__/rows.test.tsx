@@ -167,3 +167,15 @@ describe('optional slots across the family', () => {
     expect(screen.queryByText('only a subtitle')).not.toBeInTheDocument()
   })
 })
+
+describe('off-contract timestamps', () => {
+  it.each([
+    ['conversation', <ConversationRow key="c" href="/a" party={party} preview="p" at="" />],
+    ['escrow', <EscrowRow key="e" href="/a" title="t" status="open" at="" />],
+    ['notification', <NotificationRow key="n" href="/a" title="t" at="" />],
+    ['applicant', <ApplicantRow key="p" href="/a" party={party} at="" />],
+  ])('%s renders no timestamp rather than "Invalid Date"', (_n, element) => {
+    render(element)
+    expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument()
+  })
+})

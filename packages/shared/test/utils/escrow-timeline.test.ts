@@ -94,3 +94,19 @@ test('every canonical status produces a full four-node spine', () => {
     assert.equal(buildEscrowTimeline({ status }).spine.length, ESCROW_SPINE.length)
   }
 })
+
+test('an empty timestamp is treated as absent, never as evidence of progress', () => {
+  // Off-contract input, but the failure mode is claiming an escrow reached a
+  // step it never did — on a display about someone's money.
+  assert.deepEqual(states('disputed', { submitted_at: '' }), [
+    'done',
+    'upcoming',
+    'upcoming',
+    'upcoming',
+  ])
+})
+
+test('an empty timestamp renders no stamp rather than an empty line', () => {
+  const timeline = buildEscrowTimeline({ status: 'submitted', created_at: '', submitted_at: '' })
+  for (const node of timeline.spine) assert.equal(node.stamp, null)
+})

@@ -55,10 +55,12 @@ describe('MoneyBlock — one figure, one projection', () => {
 
   it('shows no second money figure — the dossier must not re-project a fee', () => {
     render(<MoneyBlock amountRaw="1000000" asset="USDC" />)
-    // Exactly one amount is rendered: a projected net beside an attested one
-    // is two numbers for the same money.
-    const monies = document.querySelectorAll('.text-utility-money')
-    expect(monies).toHaveLength(1)
+    // A projected net beside an attested one is two numbers for the same
+    // money. Asserted on the rendered VALUE rather than a CSS class, so the
+    // test tracks behaviour and not styling.
+    const formatted = formatAssetAmount('1000000', 'USDC')
+    const value = formatted.slice(0, formatted.lastIndexOf(' '))
+    expect(screen.getAllByText(value)).toHaveLength(1)
   })
 
   it('renders facts when given them, and no empty grid when not', () => {

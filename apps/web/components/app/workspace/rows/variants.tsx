@@ -54,7 +54,7 @@ export function ConversationRow({
       label={`${name}${unread ? ', unread' : ''}: ${preview}`}
       lead={<Avatar size="sm" name={name} src={party.avatar_url} />}
       eyebrow={name}
-      time={at == null ? undefined : formatRelativeShort(at)}
+      time={at ? formatRelativeShort(at) : undefined}
       title={preview}
     />
   )
@@ -89,7 +89,7 @@ export function EscrowRow({
       selected={selected}
       arriving={arriving}
       label={`${title}, ${STATUS_LABEL[status]}${amount === undefined ? '' : `, ${amount}`}`}
-      time={at == null ? undefined : formatRelativeShort(at)}
+      time={at ? formatRelativeShort(at) : undefined}
       title={title}
       // Tone comes from the shared vocabulary, so a row's badge matches the
       // same status everywhere else it appears.
@@ -124,7 +124,7 @@ export function NotificationRow({
       unread={unread}
       arriving={arriving}
       label={`${title}${unread ? ', unread' : ''}`}
-      time={at == null ? undefined : formatRelativeShort(at)}
+      time={at ? formatRelativeShort(at) : undefined}
       title={title}
       subtitle={body}
     />
@@ -155,7 +155,7 @@ export function ApplicantRow({
       label={`Applicant ${name}`}
       lead={<Avatar size="sm" name={name} src={party.avatar_url} />}
       eyebrow={name}
-      time={at == null ? undefined : formatRelativeShort(at)}
+      time={at ? formatRelativeShort(at) : undefined}
       title={note ?? name}
     />
   )

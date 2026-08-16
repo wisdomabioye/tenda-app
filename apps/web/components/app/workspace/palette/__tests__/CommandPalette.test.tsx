@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 // Aliased: this is the SETUP MOCK's accessor, not a hook call.
 import { useRouter as routerMockAccessor } from 'next/navigation'
@@ -182,5 +182,30 @@ describe('CommandPalette — pointer', () => {
     expect(options()[2]).toHaveAttribute('aria-selected', 'true')
     await userEvent.keyboard('{Enter}')
     expect(router.push).toHaveBeenCalledWith('/wallet')
+  })
+})
+
+describe('CommandPalette — IME composition', () => {
+  it('does not navigate on the Enter that commits a composition', () => {
+    // A CJK reader's first Enter commits the candidate. Treating it as
+    // "open the result" navigates them away mid-word.
+    open()
+    fireEvent.keyDown(input(), { key: 'Enter', isComposing: true })
+    expect(router.push).not.toHaveBeenCalled()
+  })
+
+  it('leaves the arrows to the candidate list while composing', () => {
+    open()
+    fireEvent.keyDown(input(), { key: 'ArrowDown', isComposing: true })
+    expect(options()[0]).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('still works normally once the composition has ended', async () => {
+    open()
+    fireEvent.keyDown(input(), { key: 'ArrowDown', isComposing: true })
+    await userEvent.keyboard('{ArrowDown}')
+    expect(options()[1]).toHaveAttribute('aria-selected', 'true')
+    await userEvent.keyboard('{Enter}')
+    expect(router.push).toHaveBeenCalledWith('/messages')
   })
 })

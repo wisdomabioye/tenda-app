@@ -48,6 +48,11 @@ export function CommandPalette({
   }
 
   function onKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    // While an IME composition is open the arrows move the CANDIDATE list and
+    // Enter COMMITS the candidate — both belong to the input method, not the
+    // palette. Without this, a CJK reader's first Enter navigates them away
+    // mid-word. Same guard ChatInput already applies to sending a message.
+    if (event.nativeEvent.isComposing) return
     if (event.key === 'ArrowDown') {
       event.preventDefault()
       setCursor(Math.min(activeIndex + 1, results.length - 1))

@@ -59,9 +59,16 @@ export interface EscrowTimelineInput {
   submitted_at?: string | null
 }
 
+/**
+ * Truthy, not `!= null`: an empty string is off-contract but cheap to survive,
+ * and the alternative is claiming an escrow reached a step it never did.
+ */
+const present = (value: string | null | undefined): value is string =>
+  typeof value === 'string' && value !== ''
+
 function stampFor(status: EscrowSpineStatus, input: EscrowTimelineInput): string | null {
-  if (status === 'open') return input.created_at ?? null
-  if (status === 'submitted') return input.submitted_at ?? null
+  if (status === 'open') return present(input.created_at) ? input.created_at : null
+  if (status === 'submitted') return present(input.submitted_at) ? input.submitted_at : null
   // accepted/completed have no timestamp on the wire — say nothing rather
   // than invent one.
   return null
@@ -85,7 +92,7 @@ export function buildEscrowTimeline(input: EscrowTimelineInput): EscrowTimeline 
    * evidenced: it existed on-chain (open), and if it was submitted then it
    * must also have been accepted.
    */
-  const provenReach = input.submitted_at != null ? ESCROW_SPINE.indexOf('submitted') : 0
+  const provenReach = present(input.submitted_at) ? ESCROW_SPINE.indexOf('submitted') : 0
 
   const spine = ESCROW_SPINE.map((status, index): EscrowTimelineNode => {
     let state: EscrowTimelineNodeState
