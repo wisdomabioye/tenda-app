@@ -11,6 +11,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { APP_INFO, displayName } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
+import { useRealtimeConnection } from '@/hooks/connectivity/useRealtimeConnection'
 import { ThemeToggle } from './ThemeToggle'
 
 const NAV = [
@@ -26,6 +27,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter()
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
+  // Socket lifecycle rides the authed shell: mobile mounts this in the root
+  // _layout, but web's root layout also serves the anonymous public pages.
+  useRealtimeConnection()
 
   async function handleLogout() {
     await logout()

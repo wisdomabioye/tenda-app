@@ -3,13 +3,13 @@
  * verbatim state machine (chain receipt is progress; only a server
  * frame/read proves UI convergence). Transports differ: the Solana status
  * poll rides web's shared-transport wrapper and the EVM receipt poll the
- * shared fetch helper; the WS channel rides the stage-5 seam (a no-op stub
- * until S5.1, leaving the RPC poll as the confirmation path).
+ * shared fetch helper; the WS channel comes from the realtime store
+ * (S5.1), with the RPC poll as the missed-frame fallback, like mobile.
  */
 import { useEffect, useRef, useState } from 'react'
 import { TRANSACTION_RESILIENCE, getEvmTransactionStatus } from '@tenda/shared'
 import { getSolanaTransactionStatus } from '@/wallet/send'
-import { subscribeEscrowChannel } from '@/realtime/escrow-channel'
+import { subscribeEscrowChannel } from '@/stores/realtime.store'
 
 export const ESCROW_RPC_POLL_MS = TRANSACTION_RESILIENCE.confirmationPollMs
 export const ESCROW_SYNC_POLL_MS = TRANSACTION_RESILIENCE.projectionPollMs

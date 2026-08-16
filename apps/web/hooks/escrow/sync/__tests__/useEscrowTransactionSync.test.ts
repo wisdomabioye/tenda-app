@@ -2,8 +2,8 @@
  * Web port of mobile's useEscrowTransactionSync suite — same state machine
  * (chain receipt is progress; only a server frame/read proves convergence),
  * web transports mocked at their seams. The WS frame path is exercised
- * through the stage-5 escrow-channel seam so wiring the real socket later
- * cannot silently change these semantics.
+ * with the realtime store's subscribeEscrowChannel mocked, so the socket
+ * implementation cannot silently change these semantics.
  */
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
@@ -19,7 +19,7 @@ vi.mock('@tenda/shared', async () => ({
   ...(await vi.importActual<Record<string, unknown>>('@tenda/shared')),
   getEvmTransactionStatus: (...args: string[]) => mockGetEvmStatus(...args),
 }))
-vi.mock('@/realtime/escrow-channel', () => ({
+vi.mock('@/stores/realtime.store', () => ({
   subscribeEscrowChannel: (_id: string, callback: (frame: { tx_ref: string }) => void) => {
     mockEscrowFrame = callback
     return () => {
