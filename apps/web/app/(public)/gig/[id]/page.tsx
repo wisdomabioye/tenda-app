@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation'
 import { APP_INFO, formatAssetAmount } from '@tenda/shared'
 import { CategoryBadge } from '@/components/gig/CategoryBadge'
 import { GigCreatorLine } from '@/components/gig/GigCreatorLine'
-import { GigDetailCta } from '@/components/gig/GigDetailCta'
+import { GigDetailApp } from '@/components/gig/detail/GigDetailApp'
 import { GigDetailFacts } from '@/components/gig/GigDetailFacts'
 import { getGig } from '@/lib/gigs/data'
 
@@ -76,7 +76,19 @@ export default async function GigDetailPage({ params }: Params) {
         </section>
       )}
 
-      <GigDetailCta gig={gig} />
+      {/* Anonymous: the sign-in CTA (SSR). Authed: the bearer refetch swaps
+          in the party-scoped surface (CTA bar, tx gate, proofs, takedown).
+          Client-component props are SERIALIZED into the anonymous HTML, so
+          only this explicit public allowlist may cross — never the full gig
+          (the stage-1 hostile-server e2e is the tripwire). */}
+      <GigDetailApp
+        initial={{
+          escrow_id: gig.escrow_id,
+          status: gig.status,
+          is_assigned: gig.is_assigned,
+          requires_approval: gig.requires_approval,
+        }}
+      />
 
       <p className="text-xs text-content-tertiary">
         Payment is locked in an on-chain escrow before work starts and released on completion.
