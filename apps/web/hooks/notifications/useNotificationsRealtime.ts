@@ -4,7 +4,7 @@
  * the already-subscribed `user:<id>` WS channel (realtime.store routes them
  * into the store); this hook covers what WS can't: the initial count on
  * mount, and a resync after a reconnect (which also catches broadcast
- * announcements, since those aren't WS-pushed). Mounted once in AppShell,
+ * announcements, since those aren't WS-pushed). Mounted once in AppWorkspace,
  * beside useInboxRealtime.
  */
 import { useEffect, useRef } from 'react'

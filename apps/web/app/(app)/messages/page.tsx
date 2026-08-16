@@ -3,7 +3,7 @@
 /**
  * Conversation inbox — web port of mobile's (tabs)/messages: Unread and
  * Earlier sections, refreshed on mount (the live badge and inbox mirror
- * ride useInboxRealtime, mounted once in AppShell).
+ * ride useInboxRealtime, mounted once in AppWorkspace).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { MessageCircle } from 'lucide-react'

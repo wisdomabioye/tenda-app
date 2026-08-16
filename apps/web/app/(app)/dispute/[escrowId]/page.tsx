@@ -106,8 +106,11 @@ export default function DisputeThreadPage() {
   }
 
   return (
-    // Same viewport lock as the chat thread (h-14 shell header + 1px border).
-    <div className="-my-5 mx-auto flex h-[calc(100dvh-57px)] w-full max-w-2xl flex-col">
+    // Fills its pane, like the chat thread. The old lock subtracted 57px for
+    // AppShell's pinned header + border and cancelled its py-5; under the
+    // workspace shell there is no header to subtract and the detail pane is
+    // already height-locked by the [data-panes] grid.
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col">
       <h1 className="px-4 pt-4 font-display text-xl font-bold text-content-primary">
         Dispute mediation
       </h1>

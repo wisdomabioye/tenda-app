@@ -2,7 +2,7 @@
 
 /**
  * Thread header — web twin of mobile's ChatHeader: back arrow, avatar,
- * name, trailing menu trigger. Sits under the AppShell top bar, so it is a
+ * name, trailing menu trigger. Sits at the top of the detail pane, so it is a
  * content-level header rather than window chrome.
  */
 import { ChevronLeft, MoreVertical } from 'lucide-react'

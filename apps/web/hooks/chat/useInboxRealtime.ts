@@ -2,7 +2,7 @@
  * Web port of apps/mobile/hooks/useInboxRealtime.ts, verbatim: keeps the
  * conversations list / unread badge current (E4) — the server mirrors each
  * chat message onto the recipient's `user:<id>` channel; the legacy 15s
- * poll runs only while the socket is down. Mounted once in AppShell (the
+ * poll runs only while the socket is down. Mounted once in AppWorkspace (the
  * authed analogue of mobile's (tabs)/_layout).
  */
 import { useEffect, useRef } from 'react'
