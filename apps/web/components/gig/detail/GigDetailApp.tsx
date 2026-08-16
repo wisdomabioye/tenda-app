@@ -24,6 +24,7 @@ import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
 import { useEscrowActions, type ProofFile } from '@/hooks/escrow/useEscrowActions'
+import { useEscrowLiveRefresh } from '@/hooks/escrow/live'
 import { useEscrowFee } from '@/hooks/escrow/useEscrowFee'
 import { useGigApprovalFlow } from '@/components/gig/gig-applications'
 import { showToast } from '@/components/ui/Toast'
@@ -218,6 +219,11 @@ export function GigDetailApp({ initial }: { initial: PublicGigInitial }) {
   }, [isAuthenticated, refetch])
 
   const gig = selectedGig?.escrow_id === initial.escrow_id ? selectedGig : null
+
+  // Live-update when the counterparty acts (accept / submit / approve), not
+  // just on load — the escrow WS channel drives the refetch (mobile parity).
+  // Inert until the bearer detail lands (escrowId undefined-gated inside).
+  useEscrowLiveRefresh(gig?.escrow_id, refetch, gig?.status ?? 'draft')
 
   if (!isAuthenticated || userId === null) return <GigDetailCta gig={initial} />
   // Authed but the bearer refetch hasn't landed: render nothing rather than

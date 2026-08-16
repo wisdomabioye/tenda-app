@@ -24,6 +24,7 @@ import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
 import { useEscrowActions } from '@/hooks/escrow/useEscrowActions'
+import { useEscrowLiveRefresh } from '@/hooks/escrow/live'
 import { useApplicantList, type ApplicantFilter } from '@/components/gig/gig-applications'
 import { showToast } from '@/components/ui/Toast'
 import { TxConfirmDialog } from '@/components/escrow/TxConfirmDialog'
@@ -57,6 +58,10 @@ export default function ApplicantsPage({ params }: { params: Promise<{ id: strin
     void fetchGigDetail(id)
     void load()
   }, [fetchGigDetail, id, load])
+
+  // Applicants change under the poster (apply/withdraw/expiry) — the escrow
+  // WS channel drives the refetch, mirroring mobile's applicants screen.
+  useEscrowLiveRefresh(gig?.escrow_id, refreshAll, gig?.status ?? 'draft')
 
   const actions = useEscrowActions({
     escrowId: id,
