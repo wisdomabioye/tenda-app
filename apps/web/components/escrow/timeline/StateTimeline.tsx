@@ -1,0 +1,101 @@
+/**
+ * The dossier's Record section (Tier 2 comp, lines 543-566): a linear spine
+ * with a terminal branch.
+ *
+ * The SHAPE comes from shared `buildEscrowTimeline` — which statuses are
+ * progress and which are a branch is domain truth, not layout. This component
+ * only draws it.
+ *
+ * Rendered as an <ol>: the steps are ordered and a screen reader should say
+ * so. Each step's state is in its text, not only its colour, so the timeline
+ * survives being read aloud or seen without colour.
+ */
+import { buildEscrowTimeline, STATUS_LABEL, type EscrowTimelineInput } from '@tenda/shared'
+import { cn } from '@/lib/cn'
+import { STATE_TIMELINE_COPY, timelineBranchCopy } from './copy'
+
+const DOT_BY_STATE = {
+  done: 'bg-feedback-success-base',
+  current: 'bg-brand-primary ring-4 ring-brand-focus-ring',
+  upcoming: 'border-2 border-border-default bg-transparent',
+} as const
+
+export function StateTimeline({
+  escrow,
+  formatStamp,
+}: {
+  escrow: EscrowTimelineInput
+  /** Renders an ISO stamp for display; omit to show the raw value. */
+  formatStamp?: (iso: string) => string
+}) {
+  const { spine, branch } = buildEscrowTimeline(escrow)
+
+  return (
+    <section className="mt-9">
+      <h3 className="mb-5 font-numeric text-xs font-medium uppercase leading-4 tracking-[0.13em] text-content-tertiary">
+        {STATE_TIMELINE_COPY.heading}
+      </h3>
+
+      <ol className="list-none p-0">
+        {spine.map((node, index) => {
+          const reached = node.state !== 'upcoming'
+          const nextReached = spine[index + 1]?.state !== 'upcoming'
+          return (
+            <li key={node.status} className="relative grid grid-cols-[24px_minmax(0,1fr)] gap-4 pb-5">
+              <div className="flex flex-col items-center">
+                <span
+                  aria-hidden
+                  className={cn('mt-1.5 h-3 w-3 shrink-0 rounded-full', DOT_BY_STATE[node.state])}
+                />
+                {index < spine.length - 1 && (
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'mt-1 min-h-[22px] w-0.5 flex-1',
+                      nextReached ? 'bg-feedback-success-base' : 'bg-border-default',
+                    )}
+                  />
+                )}
+              </div>
+              <div className="pt-px">
+                <p
+                  className={cn(
+                    'font-display text-[17px] font-semibold leading-6',
+                    reached ? 'text-content-primary' : 'text-content-tertiary',
+                  )}
+                >
+                  {STATUS_LABEL[node.status]}
+                  {/* State in TEXT, not only colour — a dot colour says
+                      nothing when read aloud. */}
+                  <span className="sr-only">{` — ${STATE_TIMELINE_COPY.state[node.state]}`}</span>
+                </p>
+                <p className="mt-0.5 max-w-[56ch] text-[13px] leading-[18px] text-content-secondary">
+                  {STATE_TIMELINE_COPY.body[node.status]}
+                </p>
+                {node.stamp !== null && (
+                  <p className="mt-1 font-numeric text-xs leading-4 text-content-tertiary">
+                    {formatStamp === undefined ? node.stamp : formatStamp(node.stamp)}
+                  </p>
+                )}
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+
+      {branch !== null && (
+        <div
+          role="note"
+          className="ml-10 mt-1 rounded-card border border-feedback-warning-border border-l-[3px] border-l-feedback-warning-base bg-feedback-warning-surface px-4.5 py-4"
+        >
+          <p className="font-numeric text-[11px] font-bold uppercase leading-4 tracking-[0.13em] text-feedback-warning-text">
+            {STATUS_LABEL[branch]}
+          </p>
+          <p className="mt-1.5 max-w-[56ch] text-[13px] leading-[18px] text-feedback-warning-text">
+            {timelineBranchCopy(branch)}
+          </p>
+        </div>
+      )}
+    </section>
+  )
+}
