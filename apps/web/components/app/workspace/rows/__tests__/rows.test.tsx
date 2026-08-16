@@ -136,3 +136,34 @@ describe('the family shares one chassis', () => {
     expect(screen.getByRole('link')).toHaveAttribute('aria-current', 'true')
   })
 })
+
+describe('optional slots across the family', () => {
+  it.each([
+    ['escrow', <EscrowRow key="e" href="/a" title="t" status="open" at={null} />],
+    ['notification', <NotificationRow key="n" href="/a" title="t" at={null} />],
+    ['applicant', <ApplicantRow key="p" href="/a" party={party} at={null} />],
+  ])('%s renders no timestamp when the wire carries none', (_n, element) => {
+    const { container } = render(element)
+    expect(container.querySelector('.font-numeric')).toBeNull()
+  })
+
+  it.each([
+    ['escrow', <EscrowRow key="e" href="/a" title="t" status="open" at="2026-01-01T00:00:00Z" />],
+    ['notification', <NotificationRow key="n" href="/a" title="t" at="2026-01-01T00:00:00Z" />],
+    ['applicant', <ApplicantRow key="p" href="/a" party={party} at="2026-01-01T00:00:00Z" />],
+  ])('%s renders a timestamp when the wire carries one', (_n, element) => {
+    const { container } = render(element)
+    expect(container.querySelector('.font-numeric')).not.toBeNull()
+  })
+
+  it('renders the bottom row when any of badge, subtitle or amount is present', () => {
+    const { container } = render(<RowChassis href="/x" title="t" subtitle="only a subtitle" />)
+    expect(screen.getByText('only a subtitle')).toBeInTheDocument()
+    expect(container.querySelectorAll('div')).not.toHaveLength(1)
+  })
+
+  it('renders no bottom row when none of them is', () => {
+    render(<RowChassis href="/x" title="t" eyebrow="who" />)
+    expect(screen.queryByText('only a subtitle')).not.toBeInTheDocument()
+  })
+})
