@@ -564,6 +564,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@noble/hashes':
+        specifier: ^1.8.0
+        version: 1.8.0
       '@reown/appkit':
         specifier: ^1.8.21
         version: 1.8.21(@types/react@19.2.14)(bufferutil@4.1.0)(fastestsmallesttextencoderdecoder@1.0.22)(immer@11.1.4)(react@19.2.4)(typescript@5.9.3)(use-sync-external-store@1.4.0(react@19.2.4))(utf-8-validate@6.0.6)(zod@3.25.76)
@@ -582,6 +585,9 @@ importers:
       '@tenda/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      bs58:
+        specifier: ^6.0.0
+        version: 6.0.0
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

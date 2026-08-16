@@ -11,9 +11,9 @@
 import { ApiClientError, type ApiError, type QueryParams } from '@tenda/shared'
 // Web deviation from the mobile original (see lib/api-config.ts): the base
 // URL must be resolved in app code for Next's env inlining to reach it.
-import { apiConfig } from '@/lib/api-config'
+import { apiConfig } from '@/lib/config/api-config'
 import { getJwtToken } from '@/lib/storage'
-import { getEnv } from '@/lib/env'
+import { getEnv } from '@/lib/config/env'
 
 
 const REQUEST_TIMEOUT_MESSAGE =

@@ -5,7 +5,7 @@
  */
 import { vi } from 'vitest'
 import { apiConfig as sharedApiConfig } from '@tenda/shared'
-import { apiConfig } from '@/lib/api-config'
+import { apiConfig } from '@/lib/config/api-config'
 
 describe('apiConfig for web', () => {
   it('targets the NEXT_PUBLIC_API_URL host in every env', () => {
@@ -30,7 +30,7 @@ describe('apiConfig for web', () => {
     vi.stubEnv('NEXT_PUBLIC_API_URL', '')
     const error = vi.spyOn(console, 'error').mockImplementation(() => {})
     try {
-      const fresh = await import('@/lib/api-config')
+      const fresh = await import('@/lib/config/api-config')
       expect(fresh.apiConfig.development.baseUrl).toBe('')
       expect(error).toHaveBeenCalledWith(expect.stringContaining('NEXT_PUBLIC_API_URL'))
     } finally {

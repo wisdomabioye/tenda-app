@@ -7,7 +7,7 @@
  */
 import { firstEvmChainIdByKind, solanaChainId } from '@tenda/shared'
 import type { ChainNamespace } from '@tenda/shared'
-import { getEnv } from '@/lib/env'
+import { getEnv } from '@/lib/config/env'
 
 const env = getEnv()
 

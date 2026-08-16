@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import { JetBrains_Mono, Manrope, Space_Grotesk } from 'next/font/google'
 import { APP_INFO } from '@tenda/shared'
-import { siteUrl } from '@/lib/site-url'
+import { siteUrl } from '@/lib/config/site-url'
 import { THEME_INIT_SCRIPT } from '@/lib/theme'
+import { ToastHost } from '@/components/ui/Toast'
 import './globals.css'
 
 const spaceGrotesk = Space_Grotesk({
@@ -40,7 +41,12 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         {/* Paints an explicit theme choice before hydration — no light flash. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        {/* Global: toasts must survive route changes AND fire from the public
+            group (the gig detail island toasts there). */}
+        <ToastHost />
+      </body>
     </html>
   )
 }

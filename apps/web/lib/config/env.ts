@@ -2,7 +2,7 @@ import type { AppEnv } from '@tenda/shared'
 
 /**
  * Web replacement for apps/mobile/lib/env.ts (expo-constants → NEXT_PUBLIC_*).
- * Same module path on purpose: api/request.ts imports '@/lib/env' unchanged.
+ * Same module path on purpose: api/request.ts imports '@/lib/config/env' unchanged.
  *
  * NEXT_PUBLIC_APP_ENV is inlined at build time, so it is identical on the
  * server and in the browser — a server component and the hydrated client

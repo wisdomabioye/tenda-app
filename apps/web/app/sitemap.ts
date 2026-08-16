@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next'
 import { listGigs } from '@/lib/gigs/data'
-import { siteUrl } from '@/lib/site-url'
+import { siteUrl } from '@/lib/config/site-url'
 
 // Without this the build prerenders the sitemap ONCE (with whatever the feed
 // returned at build time — possibly the outage fallback) and never refreshes.

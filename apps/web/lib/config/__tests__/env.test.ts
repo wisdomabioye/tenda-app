@@ -4,7 +4,7 @@
  * that falls back to 'development' but must complain loudly.
  */
 import { afterEach, vi } from 'vitest'
-import { getEnv } from '@/lib/env'
+import { getEnv } from '@/lib/config/env'
 
 afterEach(() => {
   vi.unstubAllEnvs()

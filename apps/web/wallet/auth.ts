@@ -15,8 +15,8 @@ import type { VerifyResponse, WalletAccount } from '@tenda/shared'
 import { api } from '@/api/client'
 // lib/api-config, NOT shared apiConfig: the base URL only resolves in app
 // code where Next inlines NEXT_PUBLIC_API_URL (the CJS-dep landmine).
-import { apiConfig } from '@/lib/api-config'
-import { getEnv } from '@/lib/env'
+import { apiConfig } from '@/lib/config/api-config'
+import { getEnv } from '@/lib/config/env'
 import { WALLET_CHAINS } from '@/wallet/config'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 

@@ -20,7 +20,7 @@ import {
 import { useAuthStore } from '@/stores/auth.store'
 import { reownAdapter } from '@/wallet/adapters/reown'
 import { WEB_NO_WALLET_COPY } from '@/wallet/connect-copy'
-import { getEnv } from '@/lib/env'
+import { getEnv } from '@/lib/config/env'
 import { Button, buttonVariants } from '@/components/ui'
 import { AuthPanel } from './AuthPanel'
 import { TermsNotice } from './TermsNotice'

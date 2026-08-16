@@ -4,7 +4,7 @@
  * cursor drift, duplicate keys, stale-response overwrite, and counts read
  * off the loaded array instead of the server total.
  */
-import { describe, expect, it, test, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import type { PaginatedResponse } from '@tenda/shared'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
