@@ -1,0 +1,162 @@
+/**
+ * The four row fills. Each maps a domain object onto RowChassis slots and
+ * owns nothing else — no selection logic, no truncation, no aria contract.
+ *
+ * Every display value comes from a shared helper (names, relative time, money)
+ * rather than being re-derived here, so a row can never disagree with the
+ * detail pane it opens.
+ */
+import {
+  STATUS_BADGE_VARIANT,
+  STATUS_LABEL,
+  displayName,
+  formatAssetAmount,
+  formatRelativeShort,
+  type EscrowStatus,
+} from '@tenda/shared'
+import { Avatar } from '@/components/ui/Avatar'
+import { Badge } from '@/components/ui/Badge'
+import { RowChassis } from './RowChassis'
+
+interface Party {
+  id: string
+  first_name: string | null
+  last_name: string | null
+  avatar_url?: string | null
+}
+
+const nameOf = (party: Party) => displayName(party.first_name, party.last_name, party.id)
+
+export function ConversationRow({
+  href,
+  party,
+  preview,
+  at,
+  unread = false,
+  selected = false,
+  arriving = false,
+}: {
+  href: string
+  party: Party
+  preview: string
+  at?: string | null
+  unread?: boolean
+  selected?: boolean
+  arriving?: boolean
+}) {
+  const name = nameOf(party)
+  return (
+    <RowChassis
+      href={href}
+      selected={selected}
+      unread={unread}
+      arriving={arriving}
+      label={`${name}${unread ? ', unread' : ''}: ${preview}`}
+      lead={<Avatar size="sm" name={name} src={party.avatar_url} />}
+      eyebrow={name}
+      time={at == null ? undefined : formatRelativeShort(at)}
+      title={preview}
+    />
+  )
+}
+
+export function EscrowRow({
+  href,
+  title,
+  status,
+  amountRaw,
+  asset,
+  subtitle,
+  at,
+  selected = false,
+  arriving = false,
+}: {
+  href: string
+  title: string
+  status: EscrowStatus
+  amountRaw?: string | null
+  asset?: string | null
+  subtitle?: string
+  at?: string | null
+  selected?: boolean
+  arriving?: boolean
+}) {
+  const amount =
+    amountRaw != null && asset != null ? formatAssetAmount(amountRaw, asset) : undefined
+  return (
+    <RowChassis
+      href={href}
+      selected={selected}
+      arriving={arriving}
+      label={`${title}, ${STATUS_LABEL[status]}${amount === undefined ? '' : `, ${amount}`}`}
+      time={at == null ? undefined : formatRelativeShort(at)}
+      title={title}
+      // Tone comes from the shared vocabulary, so a row's badge matches the
+      // same status everywhere else it appears.
+      badge={<Badge variant={STATUS_BADGE_VARIANT[status]} label={STATUS_LABEL[status]} />}
+      subtitle={subtitle}
+      amount={amount}
+    />
+  )
+}
+
+export function NotificationRow({
+  href,
+  title,
+  body,
+  at,
+  unread = false,
+  selected = false,
+  arriving = false,
+}: {
+  href: string
+  title: string
+  body?: string
+  at?: string | null
+  unread?: boolean
+  selected?: boolean
+  arriving?: boolean
+}) {
+  return (
+    <RowChassis
+      href={href}
+      selected={selected}
+      unread={unread}
+      arriving={arriving}
+      label={`${title}${unread ? ', unread' : ''}`}
+      time={at == null ? undefined : formatRelativeShort(at)}
+      title={title}
+      subtitle={body}
+    />
+  )
+}
+
+export function ApplicantRow({
+  href,
+  party,
+  note,
+  at,
+  selected = false,
+  arriving = false,
+}: {
+  href: string
+  party: Party
+  note?: string
+  at?: string | null
+  selected?: boolean
+  arriving?: boolean
+}) {
+  const name = nameOf(party)
+  return (
+    <RowChassis
+      href={href}
+      selected={selected}
+      arriving={arriving}
+      label={`Applicant ${name}`}
+      lead={<Avatar size="sm" name={name} src={party.avatar_url} />}
+      eyebrow={name}
+      time={at == null ? undefined : formatRelativeShort(at)}
+      title={note ?? name}
+    />
+  )
+}
