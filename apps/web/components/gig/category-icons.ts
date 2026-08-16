@@ -33,3 +33,31 @@ function resolveCategoryIcons(): Record<GigCategory, LucideIcon> {
 }
 
 export const CATEGORY_ICONS: Record<GigCategory, LucideIcon> = resolveCategoryIcons()
+
+/**
+ * Icon tint for a bare category glyph — the comps' `row.tone` on a list row's
+ * leading icon. The `-base` family, not the badge's surface/text/border trio
+ * (see CategoryBadge): a standalone glyph is drawn IN the tone rather than
+ * placed on it.
+ *
+ * Hand-keyed because Tailwind needs whole class names at build time, and
+ * guarded below so a new category fails at module load like a missing icon
+ * does, rather than rendering an untinted glyph nobody notices.
+ */
+const ICON_TONE_CLASSES: Record<GigCategory, string> = {
+  delivery: 'text-category-delivery-base',
+  photo: 'text-category-photo-base',
+  errand: 'text-category-errand-base',
+  service: 'text-category-service-base',
+  digital: 'text-category-digital-base',
+}
+
+for (const meta of CATEGORY_META) {
+  if (ICON_TONE_CLASSES[meta.key] === undefined) {
+    throw new Error(
+      `category-icons: no icon tone for category "${meta.key}" — add it to ICON_TONE_CLASSES`,
+    )
+  }
+}
+
+export const CATEGORY_ICON_TONE: Record<GigCategory, string> = ICON_TONE_CLASSES

@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { STATUS_LABEL } from '@tenda/shared'
+import { CATEGORY_META, STATUS_LABEL } from '@tenda/shared'
 
+import { CATEGORY_ICON_TONE, CATEGORY_ICONS } from '@/components/gig/category-icons'
 import {
   ApplicantRow,
   ConversationRow,
@@ -177,5 +178,54 @@ describe('off-contract timestamps', () => {
   ])('%s renders no timestamp rather than "Invalid Date"', (_n, element) => {
     render(element)
     expect(screen.queryByText(/Invalid Date/)).not.toBeInTheDocument()
+  })
+})
+
+describe('EscrowRow — the comps\' category glyph', () => {
+  it('leads with a category icon when the escrow has a category', () => {
+    const { container } = render(
+      <EscrowRow href="/gig/g1" title="t" status="open" category="digital" />,
+    )
+    expect(container.querySelector('svg')).not.toBeNull()
+  })
+
+  it('tints the glyph with that category, not a generic colour', () => {
+    const { container } = render(
+      <EscrowRow href="/gig/g1" title="t" status="open" category="digital" />,
+    )
+    expect(container.querySelector('svg')?.getAttribute('class')).toContain(
+      CATEGORY_ICON_TONE.digital,
+    )
+  })
+
+  it('gives different categories different glyphs', () => {
+    const { container: a } = render(
+      <EscrowRow href="/a" title="t" status="open" category="delivery" />,
+    )
+    const { container: b } = render(
+      <EscrowRow href="/b" title="t" status="open" category="photo" />,
+    )
+    expect(a.querySelector('svg')?.innerHTML).not.toBe(b.querySelector('svg')?.innerHTML)
+  })
+
+  it('renders no glyph when there is no category', () => {
+    const { container } = render(<EscrowRow href="/gig/g1" title="t" status="open" />)
+    expect(container.querySelector('svg')).toBeNull()
+  })
+
+  it('keeps the glyph decorative — it must not join the accessible name', () => {
+    render(<EscrowRow href="/gig/g1" title="Design a flyer" status="open" category="digital" />)
+    expect(
+      screen.getByRole('link', { name: `Design a flyer, ${STATUS_LABEL.open}` }),
+    ).toBeInTheDocument()
+  })
+
+  it('has a tone for every category shared knows about', () => {
+    // The registry throws at module load on a gap; this asserts the mapping
+    // is complete rather than merely importable.
+    for (const meta of CATEGORY_META) {
+      expect(CATEGORY_ICON_TONE[meta.key]).toBeTruthy()
+      expect(CATEGORY_ICONS[meta.key]).toBeTruthy()
+    }
   })
 })

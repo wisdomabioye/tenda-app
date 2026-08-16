@@ -13,9 +13,12 @@ import {
   formatAssetAmount,
   formatRelativeShort,
   type EscrowStatus,
+  type GigCategory,
 } from '@tenda/shared'
+import { CATEGORY_ICON_TONE, CATEGORY_ICONS } from '@/components/gig/category-icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
+import type { ReactNode } from 'react'
 import { RowChassis } from './RowChassis'
 
 interface Party {
@@ -64,6 +67,7 @@ export function EscrowRow({
   href,
   title,
   status,
+  category,
   amountRaw,
   asset,
   subtitle,
@@ -74,6 +78,8 @@ export function EscrowRow({
   href: string
   title: string
   status: EscrowStatus
+  /** Drives the comps' tinted leading glyph. Omit where there is no category. */
+  category?: GigCategory | null
   amountRaw?: string | null
   asset?: string | null
   subtitle?: string
@@ -83,12 +89,25 @@ export function EscrowRow({
 }) {
   const amount =
     amountRaw != null && asset != null ? formatAssetAmount(amountRaw, asset) : undefined
+  // Resolved through the existing CATEGORY_ICONS registry, which is built
+  // from shared CATEGORY_META and throws on an unmapped category — the row
+  // must not become a second place category visuals can drift.
+  // Built inside a narrowing branch rather than with a cast: `category` is
+  // GigCategory here by control flow, not by assertion.
+  let lead: ReactNode
+  if (category != null) {
+    const CategoryIcon = CATEGORY_ICONS[category]
+    lead = (
+      <CategoryIcon size={16} aria-hidden className={`shrink-0 ${CATEGORY_ICON_TONE[category]}`} />
+    )
+  }
   return (
     <RowChassis
       href={href}
       selected={selected}
       arriving={arriving}
       label={`${title}, ${STATUS_LABEL[status]}${amount === undefined ? '' : `, ${amount}`}`}
+      lead={lead}
       time={at ? formatRelativeShort(at) : undefined}
       title={title}
       // Tone comes from the shared vocabulary, so a row's badge matches the
