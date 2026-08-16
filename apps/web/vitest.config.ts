@@ -48,6 +48,17 @@ export default defineConfig({
         'stores/**/*.ts',
         'wallet/**/*.ts',
         'components/wallet/**/*.tsx',
+        'components/escrow/**/*.tsx',
+        'components/form/**/*.tsx',
+        'components/moderation/**/*.tsx',
+        'components/shared/**/*.tsx',
+        'components/gig/category-icons.ts',
+        'components/gig/CategoryGrid.tsx',
+        'components/gig/GigForm.tsx',
+        'components/gig/detail/**/*.{ts,tsx}',
+        'components/gig/gig-form/**/*.{ts,tsx}',
+        'components/gig/gig-applications/**/*.{ts,tsx}',
+        'realtime/**/*.ts',
         'components/auth/OtpCodeField.tsx',
         'components/auth/WalletSignInPanel.tsx',
         'components/settings/**/*.tsx',
@@ -58,7 +69,9 @@ export default defineConfig({
       ],
       // *.types.ts are interface-only modules (no executable statements);
       // v8 still counts them and would dilute the gate with structural zeros.
-      exclude: ['**/*.d.ts', '**/__tests__/**', '**/*.types.ts'],
+      // wallet/adapters/types.ts is the same kind under its mobile-parity
+      // name (the WalletAdapter interface, zero executable code).
+      exclude: ['**/*.d.ts', '**/__tests__/**', '**/*.types.ts', 'wallet/adapters/types.ts'],
       thresholds: { lines: 90, branches: 85, functions: 85, statements: 90 },
     },
   },

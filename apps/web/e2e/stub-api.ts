@@ -177,6 +177,94 @@ function handleAuth(url: URL, method: string, authorization: string | undefined,
     }
     return json(page)
   }
+  // Detail flow (S4.4): the bearer read of the SAME endpoint the public page
+  // SSRs anonymously — a signed-in reader gets the party-scoped half. The
+  // signed-in e2e user is cast as the CREATOR, so the CTA bar offers the
+  // poster's moves.
+  {
+    const detail = url.pathname.match(/^\/v1\/gigs\/([^/]+)$/)
+    if (detail !== null && method === 'GET' && authorization !== undefined) {
+      const user = userForBearer(world, authorization)
+      if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+      const id = detail[1]
+      if (id === deliveryGigDetail.escrow_id) {
+        return json({
+          ...deliveryGigDetail,
+          creator: { ...deliveryGigDetail.creator, id: user.id },
+          // The party-scoped detail carries no stranger's identity here.
+          assigned_counterparty_id: null,
+          counterparty: null,
+          is_assigned: false,
+        })
+      }
+      if (id === 'new-gig-1') {
+        // The draft the creation e2e leaves behind after a failed signature.
+        return json({
+          ...deliveryGigDetail,
+          escrow_id: 'new-gig-1',
+          title: 'Deliver a package to Victoria Island',
+          status: 'draft',
+          creator: { ...deliveryGigDetail.creator, id: user.id },
+          assigned_counterparty_id: null,
+          counterparty: null,
+          is_assigned: false,
+        })
+      }
+      if (id === 'hidden-party-gig') {
+        return json({
+          ...deliveryGigDetail,
+          escrow_id: 'hidden-party-gig',
+          hidden: true,
+          creator: { ...deliveryGigDetail.creator, id: user.id },
+          assigned_counterparty_id: null,
+          counterparty: null,
+          is_assigned: false,
+        })
+      }
+      // Fall through to the public handler's 404 for anything else.
+    }
+  }
+  // Transition builders (S4.4): every /v1/escrows/:id/<action> answers with
+  // an unsigned tx; the e2e build has no wallet runtime, so flows stop at
+  // the typed no-wallet error AFTER the server leg — which is the ordering
+  // under test.
+  {
+    const transition = url.pathname.match(
+      /^\/v1\/escrows\/([^/]+)\/(accept|decline|cancel|approve|claim|refund|submit|unassign|assign|build-create)$/,
+    )
+    if (transition !== null && method === 'POST') {
+      const user = userForBearer(world, authorization)
+      if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+      return json({
+        unsigned: { kind: 'solana-tx', tx_base64: 'AQID', recent_blockhash: 'hash', last_valid_block_height: 1 },
+      })
+    }
+  }
+  // Creation flow (S4.1): the wizard's server legs. The e2e build has NO
+  // wallet runtime, so the flow ends at the signing step — the draft
+  // survives and the screen lands on the gig page, which is exactly the
+  // declined-signing contract under test.
+  if (url.pathname === '/v1/moderation/preview' && method === 'POST') {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    return json({ decision: 'approve', reasons: [] })
+  }
+  if (url.pathname === '/v1/escrows' && method === 'POST') {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    const create = JSON.parse(body) as { kind: string; chain_id: string; amount_raw: string }
+    if (create.kind !== 'gig') return errorEnvelope(400, 'Bad Request', 'unsupported kind', 'VALIDATION_ERROR')
+    return json({
+      escrow_id: 'new-gig-1',
+      unsigned: { kind: 'solana-tx', tx_base64: 'AQID', recent_blockhash: 'hash', last_valid_block_height: 1 },
+    })
+  }
+  if (url.pathname === '/v1/gigs' && method === 'POST') {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    const details = JSON.parse(body) as { escrow_id: string; title: string }
+    return json({ escrow_id: details.escrow_id, title: details.title, status: 'draft' })
+  }
   if (url.pathname === '/v1/users/me' && method === 'PATCH') {
     const user = userForBearer(world, authorization)
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
