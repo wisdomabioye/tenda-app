@@ -8,16 +8,18 @@ vi.mock('@/api/client', () => ({
   api: { auth: { verify: vi.fn(), me: vi.fn(), methods: vi.fn() }, users: {} },
 }))
 
-// The shell mounts useRealtimeConnection; unmocked, the REAL client would
-// read the seeded JWT and jsdom's WebSocket would dial the network from a
-// unit test. Mocked at the ws seam, the lifecycle wiring stays observable.
+// The shell mounts useRealtimeConnection + useInboxRealtime; unmocked, the
+// REAL client would read the seeded JWT and jsdom's WebSocket would dial
+// the network from a unit test. Mocked at the ws seam, the lifecycle
+// wiring stays observable (subscribe serves the inbox `user:<id>` mirror).
 vi.mock('@/lib/ws', () => ({
-  ws: { connect: vi.fn(), disconnect: vi.fn() },
+  ws: { connect: vi.fn(), disconnect: vi.fn(), subscribe: vi.fn(() => () => {}), onConnectionChange: vi.fn(() => () => {}) },
 }))
 
 import { AppShell } from '@/components/app/AppShell'
 import { ws } from '@/lib/ws'
 import { useAuthStore } from '@/stores/auth.store'
+import { useChatStore } from '@/stores/chat.store'
 import { JWT_TOKEN_KEY } from '@/lib/storage'
 import { makeUser } from '../../../test/factories/user'
 
@@ -46,6 +48,25 @@ describe('AppShell', () => {
     expect(ws.connect).toHaveBeenCalled()
     unmount()
     expect(ws.disconnect).toHaveBeenCalled()
+  })
+
+  it('shows the unread badge on Messages only when unread > 0, clamped at 9+', () => {
+    useChatStore.setState({ unread: 12 })
+    const { unmount } = render(
+      <AppShell>
+        <p>content</p>
+      </AppShell>,
+    )
+    expect(screen.getByLabelText('12 unread messages')).toHaveTextContent('9+')
+    unmount()
+
+    useChatStore.setState({ unread: 0 })
+    render(
+      <AppShell>
+        <p>content</p>
+      </AppShell>,
+    )
+    expect(screen.queryByLabelText(/unread messages/)).toBeNull()
   })
 
   it('renders the primary nav and the signed-in user', () => {

@@ -11,7 +11,9 @@ import { usePathname, useRouter } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { APP_INFO, displayName } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
+import { useChatStore } from '@/stores/chat.store'
 import { useRealtimeConnection } from '@/hooks/connectivity/useRealtimeConnection'
+import { useInboxRealtime } from '@/components/chat/useInboxRealtime'
 import { ThemeToggle } from './ThemeToggle'
 
 const NAV = [
@@ -30,6 +32,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Socket lifecycle rides the authed shell: mobile mounts this in the root
   // _layout, but web's root layout also serves the anonymous public pages.
   useRealtimeConnection()
+  // Inbox mirror + unread badge (mobile mounts this in (tabs)/_layout).
+  useInboxRealtime()
+  const unread = useChatStore((s) => s.unread)
 
   async function handleLogout() {
     await logout()
@@ -58,6 +63,14 @@ export function AppShell({ children }: { children: ReactNode }) {
                   }
                 >
                   {item.label}
+                  {item.href === '/messages' && unread > 0 && (
+                    <span
+                      aria-label={`${unread} unread messages`}
+                      className="ml-1.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-brand-solid px-1 font-numeric text-[10.5px] font-bold text-brand-on-primary"
+                    >
+                      {unread > 9 ? '9+' : unread}
+                    </span>
+                  )}
                 </Link>
               )
             })}

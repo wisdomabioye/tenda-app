@@ -7,6 +7,8 @@
  * the S6.7 sweep; this panel carries what the transitions REQUIRE a party
  * to see.)
  */
+import Link from 'next/link'
+import { MessageCircle } from 'lucide-react'
 import {
   displayName,
   formatDeadline,
@@ -59,14 +61,23 @@ export function PartyPanel({ gig, userId }: { gig: GigDetail; userId: string }) 
       </h2>
       <Fact label="Status" value={gig.status} />
       {gig.counterparty !== null && (
-        <Fact
-          label={userId === gig.creator.id ? 'Worker' : 'Posted by'}
-          value={
-            userId === gig.creator.id
-              ? displayName(gig.counterparty.first_name, gig.counterparty.last_name)
-              : displayName(gig.creator.first_name, gig.creator.last_name)
-          }
-        />
+        <>
+          <Fact
+            label={userId === gig.creator.id ? 'Worker' : 'Posted by'}
+            value={
+              userId === gig.creator.id
+                ? displayName(gig.counterparty.first_name, gig.counterparty.last_name)
+                : displayName(gig.creator.first_name, gig.creator.last_name)
+            }
+          />
+          {/* Contextual thread — same query contract as mobile's PersonCard link. */}
+          <Link
+            href={`/chat/${userId === gig.creator.id ? gig.counterparty.id : gig.creator.id}?escrowId=${gig.escrow_id}&escrowTitle=${encodeURIComponent(gig.title)}&kind=gig`}
+            className="flex items-center gap-1.5 text-sm font-semibold text-brand-primary underline-offset-2 hover:underline"
+          >
+            <MessageCircle size={15} /> Message {userId === gig.creator.id ? 'worker' : 'poster'}
+          </Link>
+        </>
       )}
       {gig.completion_deadline !== null && (
         <Fact label="Delivery deadline" value={formatDeadline(gig.completion_deadline)} />

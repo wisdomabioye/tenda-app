@@ -20,10 +20,12 @@ import type {
 import { hasCompleteName } from '@tenda/shared'
 import { deliveryGig, deliveryGigDetail, photoGig } from './fixtures/gigs'
 import { createAuthWorld, E2E_OTP_CODE, signIn, toMeUser, userForBearer } from './fixtures/auth'
+import { createChatWorld, handleChat } from './fixtures/chat'
 
 const PORT = Number(process.env.STUB_API_PORT ?? 3210)
 const GIGS: GigSummary[] = [deliveryGig, photoGig]
 const world = createAuthWorld()
+const chatWorld = createChatWorld()
 
 /** The RUNNING registry: dev chains only — the filter must offer exactly these. */
 const ENABLED_CHAINS: ChainRegistryEntry[] = [
@@ -264,6 +266,13 @@ function handleAuth(url: URL, method: string, authorization: string | undefined,
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
     const details = JSON.parse(body) as { escrow_id: string; title: string }
     return json({ escrow_id: details.escrow_id, title: details.title, status: 'draft' })
+  }
+  // Chat (S5.2): conversations + messages, auth-gated like the real routes.
+  if (url.pathname.startsWith('/v1/conversations') || /^\/v1\/users\/[^/]+$/.test(url.pathname)) {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    const chat = handleChat(chatWorld, url, method, user.id, body)
+    if (chat !== null) return json(chat.payload, chat.statusCode)
   }
   if (url.pathname === '/v1/users/me' && method === 'PATCH') {
     const user = userForBearer(world, authorization)

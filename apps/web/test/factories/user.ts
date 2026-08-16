@@ -1,4 +1,4 @@
-import type { User } from '@tenda/shared'
+import type { PublicUser, User } from '@tenda/shared'
 
 /**
  * Fully-typed User row for tests and the e2e stub — typed against the REAL
@@ -27,6 +27,26 @@ export function makeUser(overrides: Partial<User> = {}): User {
     last_active_at: null,
     created_at: new Date('2026-08-01T10:00:00.000Z'),
     updated_at: new Date('2026-08-01T10:00:00.000Z'),
+    ...overrides,
+  }
+}
+
+export function makePublicUser(overrides: Partial<PublicUser> = {}): PublicUser {
+  return {
+    id: 'them',
+    first_name: 'Ada',
+    last_name: 'Okafor',
+    bio: null,
+    avatar_url: null,
+    country: 'NG',
+    city: 'Lagos',
+    latitude: null,
+    longitude: null,
+    role: 'user',
+    is_seeker: false,
+    review_score: null,
+    phone_verified_at: null,
+    created_at: new Date('2026-08-01T10:00:00.000Z'),
     ...overrides,
   }
 }

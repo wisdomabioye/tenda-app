@@ -1,0 +1,50 @@
+'use client'
+
+/**
+ * Thread header — web twin of mobile's ChatHeader: back arrow, avatar,
+ * name, trailing menu trigger. Sits under the AppShell top bar, so it is a
+ * content-level header rather than window chrome.
+ */
+import { ChevronLeft, MoreVertical } from 'lucide-react'
+import { Avatar } from '@/components/ui/Avatar'
+
+export function ChatHeader({
+  name,
+  avatarUrl,
+  onBack,
+  onMenu,
+}: {
+  name: string
+  avatarUrl?: string | null
+  onBack: () => void
+  onMenu?: () => void
+}) {
+  return (
+    <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-border-subtle pl-2 pr-3">
+      <button
+        type="button"
+        onClick={onBack}
+        aria-label="Back"
+        className="flex h-10 w-10 items-center justify-center rounded-xl text-content-primary transition-opacity hover:opacity-60"
+      >
+        <ChevronLeft size={22} strokeWidth={2.25} />
+      </button>
+
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        <Avatar size="sm" name={name} src={avatarUrl ?? null} />
+        <span className="truncate text-base font-semibold text-content-primary">{name}</span>
+      </div>
+
+      {onMenu && (
+        <button
+          type="button"
+          onClick={onMenu}
+          aria-label="More options"
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-content-primary transition-opacity hover:opacity-60"
+        >
+          <MoreVertical size={20} strokeWidth={2.25} />
+        </button>
+      )}
+    </div>
+  )
+}
