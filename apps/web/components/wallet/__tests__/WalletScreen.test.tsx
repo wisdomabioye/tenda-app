@@ -26,7 +26,7 @@ const hookState = {
   refreshing: false,
   handleRefresh: vi.fn(async () => {}),
 }
-vi.mock('@/hooks/useWalletScreen', () => ({ useWalletScreen: () => hookState }))
+vi.mock('@/hooks/wallet/useWalletScreen', () => ({ useWalletScreen: () => hookState }))
 
 import { WalletScreen } from '@/components/wallet/WalletScreen'
 

@@ -11,7 +11,7 @@ vi.mock('@/api/client', () => ({
   api: { moderation: { preview: (...a: unknown[]) => previewMock(...a) } },
 }))
 
-import { useModerationPreview, type ModerationPreviewInput } from '@/hooks/useModerationPreview'
+import { useModerationPreview, type ModerationPreviewInput } from '@/hooks/gig/useModerationPreview'
 
 const READY: ModerationPreviewInput = {
   title: 'Deliver a package',

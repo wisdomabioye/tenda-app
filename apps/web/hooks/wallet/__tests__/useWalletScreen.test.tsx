@@ -58,7 +58,7 @@ vi.mock('@/stores/chain-registry.store', () => ({
   }),
 }))
 
-import { useWalletScreen } from '@/hooks/useWalletScreen'
+import { useWalletScreen } from '@/hooks/wallet/useWalletScreen'
 
 function balance(chainId: string, usdcRaw: string): WalletChainBalance {
   return {

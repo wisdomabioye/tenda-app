@@ -19,7 +19,7 @@ import {
   type GigDetail,
 } from '@tenda/shared'
 import { Button } from '@/components/ui/Button'
-import { useNow } from '@/hooks/useNow'
+import { useNow } from '@/hooks/timing/useNow'
 import { widthClass } from './width'
 
 /**

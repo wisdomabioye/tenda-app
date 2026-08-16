@@ -30,7 +30,7 @@ import {
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
-import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { usePaginatedList } from '@/hooks/pagination/usePaginatedList'
 
 const EMPTY_SUMMARY: UserTransactionsSummary = {
   earned_raw: '0',

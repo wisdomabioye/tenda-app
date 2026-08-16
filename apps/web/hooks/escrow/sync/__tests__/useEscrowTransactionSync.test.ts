@@ -33,7 +33,7 @@ import {
   ESCROW_SYNC_POLL_MS,
   ESCROW_SYNC_TIMEOUT_MS,
   useEscrowTransactionSync,
-} from '@/hooks/escrow-sync/useEscrowTransactionSync'
+} from '@/hooks/escrow/sync/useEscrowTransactionSync'
 
 beforeEach(() => {
   vi.useFakeTimers()

@@ -7,7 +7,7 @@
  * screen bugs, pinned by the shared resolver's tests).
  */
 import Link from 'next/link'
-import { useWalletScreen } from '@/hooks/useWalletScreen'
+import { useWalletScreen } from '@/hooks/wallet/useWalletScreen'
 import { WalletHeroCard } from './WalletHeroCard'
 import { WalletBalanceRows } from './WalletBalanceRows'
 import { TxFeed } from './TxFeed'

@@ -23,7 +23,7 @@ import {
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
-import { useEscrowActions } from '@/hooks/useEscrowActions'
+import { useEscrowActions } from '@/hooks/escrow/useEscrowActions'
 import { useApplicantList, type ApplicantFilter } from '@/components/gig/gig-applications'
 import { showToast } from '@/components/ui/Toast'
 import { TxConfirmDialog } from '@/components/escrow/TxConfirmDialog'

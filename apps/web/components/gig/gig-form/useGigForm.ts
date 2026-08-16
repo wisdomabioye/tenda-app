@@ -27,7 +27,7 @@ import { api } from '@/api/client'
 import { SOLANA_NETWORK } from '@/wallet/config'
 import { getBrowserCountry } from '@/lib/browser-country'
 import { useAuthStore } from '@/stores/auth.store'
-import { useModerationPreview } from '@/hooks/useModerationPreview'
+import { useModerationPreview } from '@/hooks/gig/useModerationPreview'
 import type { ChainOption } from './NetworkPicker'
 
 export function useGigForm(

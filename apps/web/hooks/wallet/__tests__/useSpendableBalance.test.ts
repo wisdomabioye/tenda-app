@@ -27,7 +27,7 @@ vi.mock('@/stores/chain-registry.store', () => ({
     chains?.find((c) => c.id === id) ?? null,
 }))
 
-import { useSpendableBalance } from '@/hooks/useSpendableBalance'
+import { useSpendableBalance } from '@/hooks/wallet/useSpendableBalance'
 
 const CHAIN: ChainRegistryEntry = {
   id: 'eip155:84532',

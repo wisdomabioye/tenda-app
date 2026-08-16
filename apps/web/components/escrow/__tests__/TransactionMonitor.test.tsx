@@ -14,8 +14,8 @@ import {
 
 // Escrow-sync is unit-tested on its own; here it's a controllable stub.
 const syncState = { current: { state: 'waiting', failure: '' } }
-vi.mock('@/hooks/escrow-sync/useEscrowTransactionSync', async () => ({
-  ...(await vi.importActual<Record<string, unknown>>('@/hooks/escrow-sync/useEscrowTransactionSync')),
+vi.mock('@/hooks/escrow/sync/useEscrowTransactionSync', async () => ({
+  ...(await vi.importActual<Record<string, unknown>>('@/hooks/escrow/sync/useEscrowTransactionSync')),
   useEscrowTransactionSync: () => syncState.current,
 }))
 

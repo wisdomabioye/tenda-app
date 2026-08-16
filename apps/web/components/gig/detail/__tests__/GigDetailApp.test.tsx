@@ -73,13 +73,13 @@ vi.mock('@/stores/platform-config.store', () => ({
 // The transaction plumbing is unit-tested on its own; here it is a
 // controllable fake so the HUB's routing (action → hook call, confirm/fail
 // exits, stale re-read) can be driven and asserted.
-vi.mock('@/hooks/useEscrowActions', () => ({
+vi.mock('@/hooks/escrow/useEscrowActions', () => ({
   useEscrowActions: (args: { onStale?: () => void }) => {
     capturedActionsArgs.current = args
     return actionsState
   },
 }))
-vi.mock('@/hooks/useEscrowFee', () => ({
+vi.mock('@/hooks/escrow/useEscrowFee', () => ({
   useEscrowFee: () => ({ feeBps: 250, feePct: '2.50', feeRaw: null, netRaw: null }),
 }))
 

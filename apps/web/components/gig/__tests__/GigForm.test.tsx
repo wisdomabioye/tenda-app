@@ -21,10 +21,10 @@ vi.mock('@/api/client', () => ({
     },
   },
 }))
-vi.mock('@/hooks/useModerationPreview', () => ({
+vi.mock('@/hooks/gig/useModerationPreview', () => ({
   useModerationPreview: () => previewState.current,
 }))
-vi.mock('@/hooks/useSpendableBalance', () => ({
+vi.mock('@/hooks/wallet/useSpendableBalance', () => ({
   useSpendableBalance: () => ({ balance: null, status: 'ready', refresh: vi.fn() }),
 }))
 vi.mock('@/stores/auth.store', () => ({

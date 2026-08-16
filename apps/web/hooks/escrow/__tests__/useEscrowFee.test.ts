@@ -11,7 +11,7 @@ vi.mock('@/api/client', () => ({
   api: { platform: { config: (...a: unknown[]) => configMock(...a) } },
 }))
 
-import { useEscrowFee } from '@/hooks/useEscrowFee'
+import { useEscrowFee } from '@/hooks/escrow/useEscrowFee'
 import { usePlatformConfigStore } from '@/stores/platform-config.store'
 
 beforeEach(() => {

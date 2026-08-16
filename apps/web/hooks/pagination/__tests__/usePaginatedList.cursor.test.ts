@@ -1,7 +1,7 @@
 import { expect, test, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { PaginatedResponse } from '@tenda/shared'
-import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { usePaginatedList } from '@/hooks/pagination/usePaginatedList'
 
 interface Row { id: string }
 const rows = (...ids: string[]): Row[] => ids.map((id) => ({ id }))

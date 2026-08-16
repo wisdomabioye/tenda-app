@@ -7,7 +7,7 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiClientError, TRANSACTION_GATE_MESSAGE, WalletError } from '@tenda/shared'
-import { proofHashFor, useEscrowActions } from '@/hooks/useEscrowActions'
+import { proofHashFor, useEscrowActions } from '@/hooks/escrow/useEscrowActions'
 
 const { mockPush, mockToast, mockSign, mockResolveSigners, mockEnsure, mockBuildPermitFor, storeMocks, persistMock } = vi.hoisted(() => ({
   mockPush: vi.fn(),

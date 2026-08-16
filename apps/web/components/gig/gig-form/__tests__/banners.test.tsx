@@ -10,7 +10,7 @@ import type { ModerationPreviewResponse } from '@tenda/shared'
 const { balanceState } = vi.hoisted(() => ({
   balanceState: { current: null as { amountRaw: string } | null },
 }))
-vi.mock('@/hooks/useSpendableBalance', () => ({
+vi.mock('@/hooks/wallet/useSpendableBalance', () => ({
   useSpendableBalance: () => ({ balance: balanceState.current, status: 'ready', refresh: vi.fn() }),
 }))
 

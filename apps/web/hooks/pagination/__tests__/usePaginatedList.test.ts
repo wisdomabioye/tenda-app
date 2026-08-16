@@ -7,7 +7,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import type { PaginatedResponse } from '@tenda/shared'
-import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { usePaginatedList } from '@/hooks/pagination/usePaginatedList'
 
 interface Row { id: string }
 const keyOf = (r: Row) => r.id

@@ -12,7 +12,7 @@
  */
 import Link from 'next/link'
 import { toBigIntOrNull } from '@tenda/shared'
-import { useSpendableBalance } from '@/hooks/useSpendableBalance'
+import { useSpendableBalance } from '@/hooks/wallet/useSpendableBalance'
 
 export function AddFundsNudge({
   chainId,

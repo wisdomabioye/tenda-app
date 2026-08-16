@@ -15,7 +15,7 @@ import {
 } from '@tenda/shared'
 import { Button } from '@/components/ui/Button'
 import { Chip } from '@/components/ui/Chip'
-import { useNow } from '@/hooks/useNow'
+import { useNow } from '@/hooks/timing/useNow'
 import type { ApplicantFilter } from './useApplications'
 
 function ApplicantRow({

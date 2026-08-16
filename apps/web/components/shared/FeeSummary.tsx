@@ -9,7 +9,7 @@
  */
 import { formatAssetAmount } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
-import { useEscrowFee } from '@/hooks/useEscrowFee'
+import { useEscrowFee } from '@/hooks/escrow/useEscrowFee'
 
 type FeeVariant = 'gig' | 'exchange'
 

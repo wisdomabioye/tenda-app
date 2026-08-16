@@ -22,12 +22,12 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
 import { ModalBackdrop } from '@/components/ui/overlay/ModalBackdrop'
-import { useOnlineStatus } from '@/hooks/useOnlineStatus'
-import { useSlowOperation } from '@/hooks/useSlowOperation'
+import { useOnlineStatus } from '@/hooks/connectivity/useOnlineStatus'
+import { useSlowOperation } from '@/hooks/timing/useSlowOperation'
 import {
   ESCROW_CONFIRM_DISMISS_MS,
   useEscrowTransactionSync,
-} from '@/hooks/escrow-sync/useEscrowTransactionSync'
+} from '@/hooks/escrow/sync/useEscrowTransactionSync'
 
 export type TxPhase = TransactionProgressPhase
 

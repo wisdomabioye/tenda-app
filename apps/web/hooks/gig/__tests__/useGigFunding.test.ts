@@ -45,7 +45,7 @@ vi.mock('@/api/client', () => ({
   },
 }))
 
-import { useGigFunding } from '@/hooks/useGigFunding'
+import { useGigFunding } from '@/hooks/gig/useGigFunding'
 
 const SIGNERS = ['SoLSigner', 'SoLSecond']
 const VALUES: GigFormValues = {

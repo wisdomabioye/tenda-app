@@ -24,7 +24,7 @@ import { GigForm } from '@/components/gig/GigForm'
 import { ModerationBlockedDialog } from '@/components/moderation/ModerationBlockedDialog'
 import { TxConfirmDialog } from '@/components/escrow/TxConfirmDialog'
 import { TransactionMonitor } from '@/components/escrow/TransactionMonitor'
-import { useGigFunding } from '@/hooks/useGigFunding'
+import { useGigFunding } from '@/hooks/gig/useGigFunding'
 
 function PostGigScreen() {
   const params = useSearchParams()

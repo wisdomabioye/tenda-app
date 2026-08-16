@@ -9,9 +9,9 @@ import {
   readPage,
   createQueryKey,
 } from '@tenda/shared'
-import type { FirstPageResult, PaginatedListState, UsePaginatedListOptions } from './pagination/paginated-list.types'
+import type { FirstPageResult, PaginatedListState, UsePaginatedListOptions } from './paginated-list.types'
 
-export type { PageParams, PaginatedListState, UsePaginatedListOptions } from './pagination/paginated-list.types'
+export type { PageParams, PaginatedListState, UsePaginatedListOptions } from './paginated-list.types'
 const errorMessage = (e: unknown): string =>
   e instanceof Error ? e.message : 'Something went wrong'
 
