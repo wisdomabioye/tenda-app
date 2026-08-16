@@ -12,8 +12,14 @@
  * the fallback layer (poll only while disconnected).
  */
 
-import { apiConfig, parseWsServerFrame, WS_PATH, WS_AUTH_SUBPROTOCOL, type WsServerFrame } from '@tenda/shared'
+import { parseWsServerFrame, WS_PATH, WS_AUTH_SUBPROTOCOL, type WsServerFrame } from '@tenda/shared'
 import { getJwtToken } from '@/lib/storage'
+// lib/config/api-config, NOT shared apiConfig: shared reads
+// process.env.EXPO_PUBLIC_API_URL, which Next never inlines (only NEXT_PUBLIC_*,
+// and never inside a prebuilt CJS dependency) — so shared's baseUrl is
+// `undefined` here and wsUrl() would throw on .replace(). Same seam as
+// api/request.ts and wallet/auth.ts.
+import { apiConfig } from '@/lib/config/api-config'
 import { getEnv } from '@/lib/config/env'
 import { notifyListeners } from '@tenda/shared'
 

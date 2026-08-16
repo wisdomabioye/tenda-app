@@ -11,13 +11,12 @@ const mockGetJwtToken = vi.fn<() => Promise<string | null>>()
 
 vi.mock('@/lib/storage', () => ({ getJwtToken: () => mockGetJwtToken() }))
 vi.mock('@/lib/config/env', () => ({ getEnv: () => 'development' }))
-vi.mock('@tenda/shared', async () => {
-  const actual = await vi.importActual<typeof import('@tenda/shared')>('@tenda/shared')
-  return {
-    ...actual,
-    apiConfig: { development: { baseUrl: 'http://localhost:3000' } },
-  }
-})
+// apiConfig is deliberately NOT mocked: the real @/lib/config/api-config
+// resolves baseUrl from NEXT_PUBLIC_API_URL (set in vitest.config.ts), so the
+// URL assertions below exercise the actual web seam. A mock here previously
+// hid ws.ts importing shared's apiConfig, whose baseUrl is undefined under
+// Next — wsUrl() threw on every connect in the browser and the suite stayed
+// green. Any regression to the wrong import now fails this file.
 
 interface ServerEvent {
   data: string
@@ -98,7 +97,9 @@ describe('WebSocket connection recovery', () => {
     const listener = vi.fn()
     const unsubscribe = ws.subscribe('escrow:escrow-1', listener)
     const socket = await connect()
-    expect(socket.url).toMatch(/^ws/)
+    // Exact URL, not /^ws/: a broken baseUrl yields "wsundefined/v1/ws", which
+    // a prefix match would happily accept.
+    expect(socket.url).toBe('ws://localhost:3000/v1/ws')
     expect(socket.protocols).toEqual(['tenda.v1.auth', 'jwt-token'])
 
     socket.open()
