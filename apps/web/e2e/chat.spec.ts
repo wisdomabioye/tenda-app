@@ -9,6 +9,11 @@
 import { test, expect, type Page } from '@playwright/test'
 import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
 
+// SERIAL, deliberately: these three tests share ONE mutable stub chat world
+// (read-marking, a growing message log, close). Under fullyParallel they
+// would race each other across workers and flake on ordering.
+test.describe.configure({ mode: 'serial' })
+
 async function signIn(page: Page) {
   await page.goto('/signin/email')
   await page.getByLabel('Email').fill(EXISTING_EMAIL)
@@ -43,6 +48,14 @@ test('thread: context pill links the gig, sending confirms the optimistic bubble
     page.getByRole('link', { name: 'Open gig: Deliver documents downtown' }),
   ).toBeVisible()
 
+  // Viewport lock: the composer is on-screen with NO document scroll — the
+  // message list is the only scroller (the -my-5/h-14 arithmetic).
+  await expect(page.getByPlaceholder('Message…')).toBeInViewport()
+  const hasDocumentScroll = await page.evaluate(
+    () => document.documentElement.scrollHeight > window.innerHeight,
+  )
+  expect(hasDocumentScroll).toBe(false)
+
   await page.getByPlaceholder('Message…').fill('Yes — see you at noon')
   await page.keyboard.press('Enter')
   // The bubble appears (optimistic) and STAYS after the server swap.
@@ -60,4 +73,6 @@ test('close conversation: confirm dialog → thread leaves the inbox', async ({ 
   await page.getByRole('button', { name: /Close conversation/ }).click()
   await page.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(page).toHaveURL(/\/messages/)
+  // The closed thread has left the inbox (server lists active only).
+  await expect(page.getByText('No conversations yet')).toBeVisible()
 })

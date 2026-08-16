@@ -44,7 +44,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 border-b border-border-subtle bg-surface-navbar backdrop-blur">
-        <div className="mx-auto flex w-full max-w-5xl items-center gap-5 px-4 py-3">
+        {/* h-14 is PINNED: ChatThread's viewport lock subtracts exactly
+            56px + the 1px border — a padding-derived height would silently
+            break that arithmetic. */}
+        <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-5 px-4">
           <Link href="/home" className="font-display text-xl font-bold tracking-tight text-content-primary">
             {APP_INFO.name}
           </Link>

@@ -43,6 +43,17 @@ test('disabled blocks sending even with content', async () => {
   expect(onSend).not.toHaveBeenCalled()
 })
 
+test('Enter during IME composition commits the composition, never sends', () => {
+  const onSend = vi.fn()
+  render(<ChatInput onSend={onSend} />)
+  const field = screen.getByPlaceholderText('Message…')
+  fireEvent.change(field, { target: { value: '你好' } })
+  fireEvent.keyDown(field, { key: 'Enter', isComposing: true })
+  expect(onSend).not.toHaveBeenCalled()
+  fireEvent.keyDown(field, { key: 'Enter', isComposing: false })
+  expect(onSend).toHaveBeenCalledWith('你好')
+})
+
 test('the length cap is the server cap', () => {
   render(<ChatInput onSend={vi.fn()} />)
   expect(screen.getByPlaceholderText('Message…')).toHaveAttribute(

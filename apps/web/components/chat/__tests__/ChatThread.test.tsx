@@ -86,6 +86,19 @@ test('sending routes through the store with the escrow context from the URL', as
   expect(sendMessage).toHaveBeenCalledWith('c1', 'hello', { escrowId: 'e9', kind: 'gig' })
 })
 
+test('the header menu closes on Escape and on clicking elsewhere', async () => {
+  render(<ChatThread userId="them" />)
+  await userEvent.click(screen.getByRole('button', { name: 'More options' }))
+  expect(screen.getByRole('button', { name: /Close conversation/ })).toBeInTheDocument()
+
+  await userEvent.keyboard('{Escape}')
+  expect(screen.queryByRole('button', { name: /Close conversation/ })).toBeNull()
+
+  await userEvent.click(screen.getByRole('button', { name: 'More options' }))
+  await userEvent.click(screen.getByText('first')) // anywhere outside the menu
+  expect(screen.queryByRole('button', { name: /Close conversation/ })).toBeNull()
+})
+
 test('close conversation: menu → confirm → store call → back to the inbox', async () => {
   render(<ChatThread userId="them" />)
   await userEvent.click(screen.getByRole('button', { name: 'More options' }))

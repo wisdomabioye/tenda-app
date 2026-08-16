@@ -54,8 +54,11 @@ export function buildMessageFeed<M extends Message>(msgs: M[]): ChatFeedItem<M>[
     const currContext = curr.escrow_id
     const prevContext = prev ? prev.escrow_id : null
 
-    const contextChanged = currContext !== prevContext
-    const shouldDivide = contextChanged && (currContext !== null || prev !== null)
+    // A change is sufficient: if curr's context is null, the change implies
+    // prev existed with one (dropping to DM divides); if curr's is set, the
+    // first disjunct of mobile's old guard held anyway. The historical
+    // `&& (currContext !== null || prev !== null)` was a tautology.
+    const shouldDivide = currContext !== prevContext
 
     if (shouldDivide) {
       feed.push({

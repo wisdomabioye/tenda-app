@@ -8,6 +8,7 @@
  */
 import { useCallback, useEffect, useRef } from 'react'
 import { useChatStore } from '@/stores/chat.store'
+import { isDocumentVisible } from '@/hooks/connectivity/useDocumentVisibility'
 
 const POLL_INTERVAL_MS = 4_000
 const POLL_IDLE_MS = 10_000
@@ -25,6 +26,12 @@ export function useMessagePolling(conversationId: string | null) {
     const delay = emptyPollCount.current >= EMPTY_POLL_LIMIT ? POLL_IDLE_MS : POLL_INTERVAL_MS
 
     pollTimer.current = setTimeout(async () => {
+      // Hidden tab: skip the fetch but keep the loop armed — web addition,
+      // mobile's equivalent pause comes free from background JS suspension.
+      if (!isDocumentVisible()) {
+        scheduleNextPoll(convId)
+        return
+      }
       if (isFetching.current) {
         scheduleNextPoll(convId)
         return

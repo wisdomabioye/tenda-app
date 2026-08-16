@@ -81,7 +81,12 @@ export function handleChat(
   body: string,
 ): { statusCode: number; payload: unknown } | null {
   if (url.pathname === '/v1/conversations' && method === 'GET') {
-    return { statusCode: 200, payload: [chat.conversation] }
+    // Server fidelity: the list serves ACTIVE conversations only — a closed
+    // thread leaves the inbox until findOrCreate reopens it.
+    return {
+      statusCode: 200,
+      payload: chat.conversation.status === 'active' ? [chat.conversation] : [],
+    }
   }
   if (url.pathname === '/v1/conversations' && method === 'POST') {
     // findOrCreate is also the reopen path.

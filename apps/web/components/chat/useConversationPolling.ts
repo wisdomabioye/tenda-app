@@ -28,6 +28,14 @@ export function useConversationPolling(enabled = true) {
     let cancelled = false
 
     function schedule() {
+      // A run that was in flight when the tab hid must NOT re-arm the loop
+      // (web addition: mobile gets this pause free from background JS
+      // suspension). resume() restarts it when the tab returns.
+      if (!isDocumentVisible()) return
+      // Clear before arming: when resume()'s run overlaps a fetch that was
+      // in flight across a hide/show, BOTH completions schedule — without
+      // this clear the second one would start a permanent parallel chain.
+      if (timer) clearTimeout(timer)
       timer = setTimeout(run, POLL_INTERVAL_MS)
     }
 

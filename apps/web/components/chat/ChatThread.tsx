@@ -46,6 +46,24 @@ export function ChatThread({ userId, context }: { userId: string; context?: Chat
   const { conversationId, otherUser, loading, initError, retry } = useConversation(userId)
   useChatRealtime(conversationId)
 
+  // Popover dismissal without an overlay layer (ModalBackdrop is for
+  // dialogs): any document click or Escape closes the header menu. The
+  // listener attaches AFTER the opening click's dispatch completes, so
+  // opening never instantly self-closes.
+  useEffect(() => {
+    if (!menuOpen) return
+    const close = () => setMenuOpen(false)
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close()
+    }
+    document.addEventListener('click', close)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('click', close)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [menuOpen])
+
   const feed = useMemo(() => {
     const msgs = conversationId ? (messages[conversationId] ?? []) : []
     return buildMessageFeed(msgs)
@@ -112,7 +130,11 @@ export function ChatThread({ userId, context }: { userId: string; context?: Chat
     : 'User'
 
   return (
-    <div className="flex h-[calc(100dvh-57px)] flex-col">
+    // Viewport lock: -my-5 cancels AppShell <main>'s py-5, and 57px is the
+    // shell header's PINNED h-14 (56px) + its 1px border — together the
+    // column is exactly the viewport, so the composer never sits below the
+    // fold and the only scroller is the message list.
+    <div className="-my-5 flex h-[calc(100dvh-57px)] flex-col">
       <div className="relative">
         <ChatHeader
           name={displayName}

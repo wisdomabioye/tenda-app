@@ -67,7 +67,9 @@ export function ChatInput({
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
+            // isComposing: Enter during IME composition (CJK input) commits
+            // the composition — it must never send the message.
+            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault()
               handleSend()
             }

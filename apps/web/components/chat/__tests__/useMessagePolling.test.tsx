@@ -12,8 +12,15 @@ import type { Message } from '@tenda/shared'
 
 const fetchMessages = vi.fn<(conversationId: string, beforeId?: string) => Promise<Message[]>>()
 
+let visibilityState: DocumentVisibilityState = 'visible'
+Object.defineProperty(document, 'visibilityState', {
+  configurable: true,
+  get: () => visibilityState,
+})
+
 beforeEach(() => {
   vi.useFakeTimers()
+  visibilityState = 'visible'
   fetchMessages.mockReset().mockResolvedValue([])
   useChatStore.setState({ messages: {}, fetchMessages })
 })
@@ -60,6 +67,17 @@ test('a poll that lands new rows resets the back-off to the fast cadence', async
   expect(fetchMessages).toHaveBeenCalledTimes(4)
   await act(() => vi.advanceTimersByTimeAsync(4_000))
   expect(fetchMessages).toHaveBeenCalledTimes(5)
+})
+
+test('a hidden tab skips fetches but keeps the loop armed for the return', async () => {
+  visibilityState = 'hidden'
+  renderHook(() => useMessagePolling('c1'))
+  await act(() => vi.advanceTimersByTimeAsync(12_000))
+  expect(fetchMessages).not.toHaveBeenCalled() // three ticks, all skipped
+
+  visibilityState = 'visible'
+  await act(() => vi.advanceTimersByTimeAsync(4_000))
+  expect(fetchMessages).toHaveBeenCalledTimes(1)
 })
 
 test('poll errors are silent and the loop keeps going', async () => {

@@ -43,8 +43,10 @@ test('a failing bootstrap reports initError and retry() recovers', async () => {
   await waitFor(() => expect(result.current.initError).toBe(true))
 
   act(() => result.current.retry())
-  await waitFor(() => expect(result.current.initError).toBe(false))
-  expect(result.current.conversationId).toBe('c1')
+  // Wait on the OUTCOME, not initError — init clears the error flag
+  // synchronously before the refetch resolves.
+  await waitFor(() => expect(result.current.conversationId).toBe('c1'))
+  expect(result.current.initError).toBe(false)
 })
 
 test('undefined userId stays loading and calls nothing', () => {

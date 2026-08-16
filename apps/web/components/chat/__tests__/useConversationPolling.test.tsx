@@ -66,6 +66,45 @@ test('hiding the tab pauses the loop; returning resumes with an immediate run', 
   expect(fetchConversations).toHaveBeenCalledTimes(3) // cadence continues
 })
 
+test('a fetch in flight when the tab hides must NOT re-arm the loop', async () => {
+  let resolveFetch: (() => void) | undefined
+  fetchConversations.mockReturnValueOnce(new Promise((r) => { resolveFetch = r }))
+  renderHook(() => useConversationPolling(true))
+  await act(() => vi.advanceTimersByTimeAsync(0)) // immediate run now pending
+
+  act(() => setVisibility('hidden'))
+  await act(async () => {
+    resolveFetch?.()
+  })
+  await act(() => vi.advanceTimersByTimeAsync(60_000))
+  expect(fetchConversations).toHaveBeenCalledTimes(1) // completion did not reschedule
+
+  act(() => setVisibility('visible'))
+  await act(() => vi.advanceTimersByTimeAsync(0))
+  expect(fetchConversations).toHaveBeenCalledTimes(2) // resume restarts the loop
+})
+
+test('a fetch resolving after a hide/show resume never doubles the cadence', async () => {
+  let resolveOld: (() => void) | undefined
+  fetchConversations.mockReturnValueOnce(new Promise((r) => { resolveOld = r }))
+  renderHook(() => useConversationPolling(true))
+  await act(() => vi.advanceTimersByTimeAsync(0)) // old fetch pending
+
+  act(() => setVisibility('hidden'))
+  act(() => setVisibility('visible')) // resume runs a SECOND fetch
+  await act(() => vi.advanceTimersByTimeAsync(0))
+  expect(fetchConversations).toHaveBeenCalledTimes(2)
+
+  await act(async () => {
+    resolveOld?.() // old fetch completes AFTER the resume chain scheduled
+  })
+  // One interval → exactly one poll; a doubled chain would fire two.
+  await act(() => vi.advanceTimersByTimeAsync(15_000))
+  expect(fetchConversations).toHaveBeenCalledTimes(3)
+  await act(() => vi.advanceTimersByTimeAsync(15_000))
+  expect(fetchConversations).toHaveBeenCalledTimes(4)
+})
+
 test('a failing fetch keeps the loop alive', async () => {
   fetchConversations.mockRejectedValue(new Error('down'))
   renderHook(() => useConversationPolling(true))
