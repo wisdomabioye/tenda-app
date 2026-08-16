@@ -6,12 +6,21 @@
  * The grid geometry and the ≤1100/≤900px collapse live in app/globals.css
  * under [data-panes] — they are parent-state descendant rules, and keeping
  * them in CSS means the server and client agree without measuring anything.
- * This component's whole job is to render the panes and say whether a detail
- * is selected.
  *
- * It does NOT own the socket or the realtime mirrors: those belong to the
- * layout that owns the authed session (#6), so they survive a pane swapping
- * its contents.
+ * Two signals drive the collapse, and they come from different places on
+ * purpose:
+ *   - whether a LIST exists is a DOM fact, read by CSS `:has([data-list])`.
+ *     It cannot be a prop: the list arrives via the @list parallel-route slot,
+ *     and Next wraps slot output in boundary elements, so the prop is an
+ *     element even when the slot renders nothing.
+ *   - whether a ROW is SELECTED is a URL fact that only the router knows, so
+ *     it arrives as `hasSelection`. It is NOT "is there a detail pane" — the
+ *     pane is always mounted; what decides which single pane survives at
+ *     ≤900px is whether the reader has opened something.
+ *
+ * This component does NOT own the socket or the realtime mirrors: those belong
+ * to the layout that owns the authed session (AppWorkspace), so they survive a
+ * pane swapping its contents.
  */
 import type { ReactNode } from 'react'
 import type { User } from '@tenda/shared'
@@ -21,32 +30,22 @@ export interface WorkspaceShellProps {
   user: User | null
   /** The 380px column. Omit on surfaces the comps render without a list. */
   list?: ReactNode
-  /** The flexible pane. When absent, the shell collapses to the list at ≤900px. */
+  /** The flexible pane. */
   detail?: ReactNode
+  /**
+   * True when a row is open. At ≤900px the detail wins when something is
+   * selected and the list wins when nothing is.
+   */
+  hasSelection?: boolean
 }
 
-/**
- * React renders nothing for null, undefined and booleans — so a pane holding
- * one is not a pane. This matters because `detail={selected && <Detail />}` is
- * the idiomatic way to write a conditional pane, and it yields `false`, not
- * `undefined`: treating that as "a detail exists" hides the list at ≤900px and
- * leaves the reader staring at a blank column.
- */
-function hasPane(node: ReactNode): boolean {
-  return node !== undefined && node !== null && typeof node !== 'boolean'
-}
-
-export function WorkspaceShell({ user, list, detail }: WorkspaceShellProps) {
-  const hasDetail = hasPane(detail)
-  const hasList = hasPane(list)
-
+export function WorkspaceShell({ user, list, detail, hasSelection = false }: WorkspaceShellProps) {
   return (
     <div
       data-panes
       // Presence, not a value: React drops the attribute when undefined, and
-      // the CSS keys off these existing at all.
-      data-nodetail={hasDetail ? undefined : ''}
-      data-nolist={hasList ? undefined : ''}
+      // the CSS keys off [data-nodetail] existing at all.
+      data-nodetail={hasSelection ? undefined : ''}
       className="bg-surface-background"
     >
       <Rail user={user} />

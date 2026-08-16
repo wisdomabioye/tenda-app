@@ -152,8 +152,15 @@
 }
 
 /* A surface with no list column is rail + content, at every width — without
- * this the detail would sit in the list's slot and leave a dead third column. */
-[data-panes][data-nolist] {
+ * this the detail sits in the list's slot and leaves a dead third column.
+ *
+ * Keyed on :has() rather than a JS flag ON PURPOSE. The list arrives through
+ * the @list parallel-route slot, and Next wraps slot output in its own
+ * boundary elements — so the `list` prop is an element even when the slot
+ * renders nothing, and no prop inspection can tell "empty slot" from "real
+ * list". Whether a [data-list] element exists in the DOM is the only honest
+ * signal, and CSS can read it directly. */
+[data-panes]:not(:has([data-list])) {
   grid-template-columns: var(--pane-rail) minmax(0, 1fr);
 }
 
@@ -176,7 +183,10 @@
   [data-panes][data-nodetail] [data-list] {
     display: flex;
   }
-  [data-panes][data-nodetail] [data-detail] {
+  /* :has([data-list]) is load-bearing — the detail may only be hidden when
+   * there is a list to take its place. A surface with no list column (most of
+   * them) would otherwise render an empty pane and a blank screen. */
+  [data-panes][data-nodetail]:has([data-list]) [data-detail] {
     display: none;
   }
   /* The back affordance only exists while the list is off-screen. */

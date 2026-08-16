@@ -11,7 +11,7 @@ import { ClipboardList, Scale, Settings, UserPen, Wallet } from 'lucide-react'
 import { displayName, formatFullName } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 import { Avatar } from '@/components/ui/Avatar'
-import { RestrictionBanner } from '@/components/profile'
+import { RestrictionBanner, SignOutButton } from '@/components/profile'
 import { useProfileStats } from '@/hooks/profile/useProfileStats'
 
 const LINK_CLASS =
@@ -108,6 +108,10 @@ export default function ProfilePage() {
           .
         </p>
       </section>
+
+      {/* The workspace rail has no sign-out (the comps' rail carries none), so
+          this is the app's only one — mirroring mobile's profile screen. */}
+      <SignOutButton />
     </div>
   )
 }

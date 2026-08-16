@@ -135,11 +135,14 @@ export function ChatThread({ userId, context }: { userId: string; context?: Chat
     : 'User'
 
   return (
-    // Viewport lock: -my-5 cancels AppShell <main>'s py-5, and 57px is the
-    // shell header's PINNED h-14 (56px) + its 1px border — together the
-    // column is exactly the viewport, so the composer never sits below the
-    // fold and the only scroller is the message list.
-    <div className="-my-5 flex h-[calc(100dvh-57px)] flex-col">
+    // Fills its pane rather than measuring the viewport. The old lock
+    // subtracted 57px for AppShell's pinned header + border and cancelled its
+    // py-5; under the workspace shell there is no header to subtract, and the
+    // detail pane is already height-locked by the [data-panes] grid — so
+    // h-full is both simpler and correct at every breakpoint. The composer
+    // still never falls below the fold and the message list is still the only
+    // scroller.
+    <div className="flex h-full min-h-0 flex-col">
       <div className="relative">
         <ChatHeader
           name={displayName}

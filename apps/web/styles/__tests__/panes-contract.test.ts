@@ -84,8 +84,16 @@ describe('≤900px — one pane at a time', () => {
 
   it('hides the detail when nothing is selected, so the two never stack', () => {
     expect(mediaBlock(900)).toMatch(
-      /\[data-panes\]\[data-nodetail\]\s*\[data-detail\]\s*\{\s*display:\s*none/,
+      /\[data-panes\]\[data-nodetail\]:has\(\[data-list\]\)\s*\[data-detail\]\s*\{\s*display:\s*none/,
     )
+  })
+
+  it('only hides the detail when a list exists to replace it', () => {
+    // Without the :has() guard, a list-less surface renders an empty pane —
+    // a blank screen on every narrow viewport.
+    const block = mediaBlock(900)
+    const detailHide = block.match(/\[data-panes\]\[data-nodetail\][^{]*\[data-detail\]\s*\{[^}]*\}/)
+    expect(detailHide?.[0]).toContain(':has([data-list])')
   })
 
   it('reveals the back affordance only here', () => {
@@ -96,8 +104,14 @@ describe('≤900px — one pane at a time', () => {
 describe('list-less surfaces', () => {
   it('collapse to rail + content at every width', () => {
     expect(css).toMatch(
-      /\[data-panes\]\[data-nolist\]\s*\{\s*grid-template-columns:\s*var\(--pane-rail\)\s+minmax\(0,\s*1fr\)/,
+      /\[data-panes\]:not\(:has\(\[data-list\]\)\)\s*\{\s*grid-template-columns:\s*var\(--pane-rail\)\s+minmax\(0,\s*1fr\)/,
     )
+  })
+
+  it('reads the DOM rather than a flag, because the @list slot is never empty as a prop', () => {
+    // Next wraps parallel-slot output in boundary elements, so a JS check
+    // cannot distinguish an empty slot from a real list.
+    expect(css).not.toMatch(/\[data-nolist\]/)
   })
 })
 

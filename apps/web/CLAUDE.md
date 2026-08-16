@@ -27,6 +27,28 @@ binding:
 Workspace collapses at ≤1100px (list → 320px) and ≤900px (single pane). `apps/tendahq`
 remains the marketing/landing surface; this app is purely app functionality.
 
+Route groups map to shells (groups do not change URLs):
+
+| Group | Shell | Guard |
+|---|---|---|
+| `app/(app)` | workspace | `AuthGate` in the layout |
+| `app/(public)` | centered public | none |
+| `app/(focused)` | focused | none — `/signin`, `/onboarding/profile` |
+| `app/(focused)/(authed)` | focused | `AuthGate` — `/post` |
+
+**Surface / selection contract** (`components/app/workspace/surfaces.ts`). The first
+segment inside `(app)` is the *surface*; anything deeper is the *selection*. The detail
+pane takes its accessible name from the surface and hands off focus when the selection
+changes. **To give a surface a list column, add `app/(app)/@list/<surface>/page.tsx` —
+nothing else.** `@list/default.tsx` renders nothing for the rest.
+
+Two signals drive the collapse and they come from different places, deliberately:
+whether a **list exists** is a DOM fact read by CSS `:has([data-list])` — it cannot be a
+prop, because Next wraps parallel-slot output in boundary elements, so the `list` prop is
+an element even when the slot renders nothing; whether a **row is selected** is a URL fact
+passed as `hasSelection`. It is not "is a detail pane mounted" — the pane is always
+mounted.
+
 ## Where API calls come from — the policy
 
 **The Next.js server calls Fastify ONLY for the anonymous public GET surface**; everything

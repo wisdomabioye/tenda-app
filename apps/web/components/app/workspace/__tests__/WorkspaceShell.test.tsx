@@ -20,64 +20,48 @@ describe('WorkspaceShell', () => {
   })
 
   it('renders both panes when given them', () => {
-    render(
-      <WorkspaceShell user={makeUser()} list={<p>the list</p>} detail={<p>the detail</p>} />,
-    )
+    render(<WorkspaceShell user={makeUser()} list={<p>the list</p>} detail={<p>the detail</p>} />)
     expect(screen.getByText('the list')).toBeInTheDocument()
     expect(screen.getByText('the detail')).toBeInTheDocument()
   })
+})
 
-  describe('pane-collapse flags (the ≤900px CSS keys off these)', () => {
-    it('marks nodetail when nothing is selected, so the list wins the single pane', () => {
-      render(<WorkspaceShell user={makeUser()} list={<p>list</p>} />)
-      expect(panes()).toHaveAttribute('data-nodetail')
-    })
+describe('WorkspaceShell — selection flag (the ≤900px CSS keys off this)', () => {
+  it('marks nodetail when no row is open, so the list wins the single pane', () => {
+    render(<WorkspaceShell user={makeUser()} list={<p>list</p>} detail={<p>d</p>} />)
+    expect(panes()).toHaveAttribute('data-nodetail')
+  })
 
-    it('drops nodetail once a detail is present, so the detail wins', () => {
-      render(<WorkspaceShell user={makeUser()} list={<p>list</p>} detail={<p>detail</p>} />)
-      expect(panes()).not.toHaveAttribute('data-nodetail')
-    })
+  it('drops nodetail once a row is open, so the detail wins', () => {
+    render(
+      <WorkspaceShell user={makeUser()} list={<p>list</p>} detail={<p>d</p>} hasSelection />,
+    )
+    expect(panes()).not.toHaveAttribute('data-nodetail')
+  })
 
-    it('treats an explicitly null detail as no detail', () => {
-      render(<WorkspaceShell user={makeUser()} list={<p>list</p>} detail={null} />)
-      expect(panes()).toHaveAttribute('data-nodetail')
-    })
+  it('keys off the selection, NOT off whether a detail pane was passed', () => {
+    // The layout always mounts a detail pane, so inferring from `detail`
+    // would mean nodetail was never set and the list always lost at ≤900px.
+    render(<WorkspaceShell user={makeUser()} detail={<p>always mounted</p>} />)
+    expect(panes()).toHaveAttribute('data-nodetail')
+  })
 
-    it('treats detail={false} as no detail, the idiomatic conditional pane', () => {
-      // `detail={selected && <Detail />}` yields false, not undefined. Reading
-      // that as "a detail exists" hides the list at ≤900px and leaves a blank
-      // column.
-      const selected = false
-      render(
-        <WorkspaceShell user={makeUser()} list={<p>list</p>} detail={selected && <p>d</p>} />,
-      )
-      expect(panes()).toHaveAttribute('data-nodetail')
-    })
+  it('defaults to no selection when the flag is omitted', () => {
+    render(<WorkspaceShell user={makeUser()} />)
+    expect(panes()).toHaveAttribute('data-nodetail')
+  })
+})
 
-    it('treats list={false} as no list', () => {
-      const showList = false
-      render(
-        <WorkspaceShell user={makeUser()} list={showList && <p>l</p>} detail={<p>detail</p>} />,
-      )
-      expect(panes()).toHaveAttribute('data-nolist')
-    })
+describe('WorkspaceShell — list presence', () => {
+  it('does not flag list presence itself — CSS :has([data-list]) reads the DOM', () => {
+    // A JS flag cannot tell an empty @list slot from a real list: Next wraps
+    // slot output in boundary elements, so the prop is an element either way.
+    render(<WorkspaceShell user={makeUser()} detail={<p>d</p>} />)
+    expect(panes()).not.toHaveAttribute('data-nolist')
+  })
 
-    it('still counts a real node as present', () => {
-      const selected = true
-      render(
-        <WorkspaceShell user={makeUser()} list={<p>list</p>} detail={selected && <p>d</p>} />,
-      )
-      expect(panes()).not.toHaveAttribute('data-nodetail')
-    })
-
-    it('marks nolist when the surface has no list column', () => {
-      render(<WorkspaceShell user={makeUser()} detail={<p>detail</p>} />)
-      expect(panes()).toHaveAttribute('data-nolist')
-    })
-
-    it('drops nolist once a list is present', () => {
-      render(<WorkspaceShell user={makeUser()} list={<p>list</p>} />)
-      expect(panes()).not.toHaveAttribute('data-nolist')
-    })
+  it('renders whatever the slot supplies, empty or not', () => {
+    render(<WorkspaceShell user={makeUser()} list={<div data-list>real list</div>} />)
+    expect(document.querySelector('[data-list]')).toBeInTheDocument()
   })
 })
