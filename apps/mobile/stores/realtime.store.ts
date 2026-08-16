@@ -2,9 +2,12 @@
  * Realtime store (stage-2-listeners.md § Mobile), bridges the singleton
  * WS client into Zustand + the feature stores.
  *
- * `connected` is the polling hooks' suppression signal: while true, chat
- * polling parks on a slow heartbeat and TransactionMonitor stretches its
- * RPC poll; on disconnect both resume their fast cadence automatically.
+ * `connected` is the chat hooks' suppression signal: useInboxRealtime and
+ * useChatRealtime run their fallback polls ONLY while the socket is down,
+ * and fire one catch-up fetch on reconnect. The escrow-sync confirmation
+ * polls deliberately never consult it — a confirmation wait must converge
+ * even if frames never arrive. (TransactionMonitor reacts to NetInfo
+ * device-offline state, not to this flag.)
  */
 
 import { create } from 'zustand'
