@@ -1,4 +1,12 @@
-import type { LocalMessage } from '@/stores/chat.store'
+/**
+ * Chat feed construction — moved from apps/mobile/lib/chat.ts (S5.2
+ * anti-drift: both clients render the same divider/day-header structure).
+ *
+ * Returns CHRONOLOGICAL order (oldest first). Mobile reverses the result
+ * at its call site for the inverted FlatList; web renders it as-is with
+ * newest at the bottom.
+ */
+import type { Message } from '../types/chat'
 
 export type ContextDividerItem = {
   _type: 'divider'
@@ -15,18 +23,19 @@ export type TimestampGroupItem = {
   iso: string
 }
 
-export type FeedItem = LocalMessage | ContextDividerItem | TimestampGroupItem
+/** Generic over the client's message type (e.g. an optimistic LocalMessage). */
+export type ChatFeedItem<M extends Message = Message> = M | ContextDividerItem | TimestampGroupItem
 
-export function isDivider(item: FeedItem): item is ContextDividerItem {
+export function isDivider<M extends Message>(item: ChatFeedItem<M>): item is ContextDividerItem {
   return '_type' in item && item._type === 'divider'
 }
 
-export function isTimestamp(item: FeedItem): item is TimestampGroupItem {
+export function isTimestamp<M extends Message>(item: ChatFeedItem<M>): item is TimestampGroupItem {
   return '_type' in item && item._type === 'timestamp'
 }
 
 /**
- * Build the chat feed:
+ * Build the chat feed, oldest first:
  *
  * 1. Insert a TimestampGroupItem before the first message and whenever the
  *    calendar date changes between adjacent messages (one header per day, like
@@ -34,10 +43,9 @@ export function isTimestamp(item: FeedItem): item is TimestampGroupItem {
  *    header on nearly every message during active back-and-forth.
  * 2. Insert a ContextDividerItem whenever the escrow context changes between
  *    adjacent messages.
- * 3. Reverse the feed so newest is at index 0, as required by an inverted FlatList.
  */
-export function buildMessageFeed(msgs: LocalMessage[]): FeedItem[] {
-  const feed: FeedItem[] = []
+export function buildMessageFeed<M extends Message>(msgs: M[]): ChatFeedItem<M>[] {
+  const feed: ChatFeedItem<M>[] = []
 
   for (let i = 0; i < msgs.length; i++) {
     const curr = msgs[i]
@@ -66,13 +74,13 @@ export function buildMessageFeed(msgs: LocalMessage[]): FeedItem[] {
     if (newDay && curr.created_at) {
       feed.push({
         _type: 'timestamp',
-        _key:  `ts_${curr.id}`,
-        iso:   curr.created_at,
+        _key: `ts_${curr.id}`,
+        iso: curr.created_at,
       })
     }
 
     feed.push(curr)
   }
 
-  return feed.reverse()
+  return feed
 }
