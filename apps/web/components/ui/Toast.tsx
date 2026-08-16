@@ -53,10 +53,17 @@ export function clearToastsForTests(): void {
   emit()
 }
 
+/**
+ * The comps draw ONE neutral inverse pill for every toast. Kept that surface,
+ * but not the flattening: a success and a failure that look identical make
+ * the reader parse the sentence to learn which happened. The type shows as a
+ * coloured leading edge on the comps' inverse card — their look, without
+ * discarding the signal.
+ */
 const TONE: Record<ToastType, string> = {
-  success: 'border-feedback-success-base/40 bg-feedback-success-surface text-feedback-success-base',
-  error: 'border-feedback-danger-base/40 bg-feedback-danger-surface text-feedback-danger-base',
-  info: 'border-border-subtle bg-surface-card text-content-primary',
+  success: 'border-l-4 border-l-feedback-success-base',
+  error: 'border-l-4 border-l-feedback-danger-base',
+  info: '',
 }
 
 function ToastItem({ toast }: { toast: ToastEntry }) {
@@ -71,7 +78,7 @@ function ToastItem({ toast }: { toast: ToastEntry }) {
       role="status"
       onClick={() => dismiss(toast.id)}
       className={cn(
-        'pointer-events-auto w-full max-w-sm rounded-control border px-4 py-3 text-left text-sm shadow-lg',
+        'animate-popin pointer-events-auto w-full max-w-sm rounded-control bg-surface-inverse px-5 py-3 text-left text-sm font-semibold text-content-inverse shadow-elevated',
         TONE[toast.type],
       )}
     >

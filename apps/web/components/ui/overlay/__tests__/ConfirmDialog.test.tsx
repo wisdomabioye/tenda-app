@@ -62,3 +62,66 @@ describe('ConfirmDialog', () => {
     expect(onCancel).not.toHaveBeenCalled()
   })
 })
+
+describe('ConfirmDialog — comps additions', () => {
+  it('renders the money figure when given one', () => {
+    render(
+      <ConfirmDialog
+        open
+        title="Fund this gig"
+        message="Locks the amount in escrow."
+        figure="120.00 USDC"
+        confirmLabel="Sign"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.getByText('120.00 USDC')).toBeInTheDocument()
+  })
+
+  it('omits the figure line entirely when there is no amount', () => {
+    render(
+      <ConfirmDialog open title="Cancel gig" confirmLabel="Yes" onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    )
+    expect(screen.queryByText(/USDC/)).not.toBeInTheDocument()
+  })
+
+  it('focuses Cancel on a destructive gate, so a stray Enter cannot fire it', () => {
+    render(
+      <ConfirmDialog
+        open
+        destructive
+        title="Delete draft"
+        confirmLabel="Delete"
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+  })
+
+  it('focuses Confirm on a benign gate', () => {
+    render(
+      <ConfirmDialog open title="Apply" confirmLabel="Apply" onConfirm={vi.fn()} onCancel={vi.fn()} />,
+    )
+    expect(screen.getByRole('button', { name: 'Apply' })).toHaveFocus()
+  })
+
+  it('a destructive Enter cancels rather than confirms', async () => {
+    const onConfirm = vi.fn()
+    const onCancel = vi.fn()
+    render(
+      <ConfirmDialog
+        open
+        destructive
+        title="Delete draft"
+        confirmLabel="Delete"
+        onConfirm={onConfirm}
+        onCancel={onCancel}
+      />,
+    )
+    await userEvent.keyboard('{Enter}')
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(onCancel).toHaveBeenCalled()
+  })
+})
