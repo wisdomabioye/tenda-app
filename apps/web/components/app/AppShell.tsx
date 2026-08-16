@@ -15,6 +15,7 @@ import { ThemeToggle } from './ThemeToggle'
 
 const NAV = [
   { href: '/home', label: 'Home' },
+  { href: '/post', label: 'Post a Gig' },
   { href: '/my-gigs', label: 'My Gigs' },
   { href: '/messages', label: 'Messages' },
   { href: '/wallet', label: 'Wallet' },
