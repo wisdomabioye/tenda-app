@@ -18,11 +18,12 @@ import {
   GigDetailGate,
   type ActiveSheet,
 } from '@/components/gig'
-import { ApplySheet, useApprovalFlow } from '@/components/gig/gig-applications'
-import { partiesOf } from '@/components/gig/gig-cta'
+import { ApplySheet, useGigApprovalFlow } from '@/components/gig/gig-applications'
+import { partiesOf } from '@tenda/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import type { MediaItem } from '@/components/shared/media/types'
-import { DetailChrome, TxConfirmDialog, TX_PROGRESS_LABEL, txSuccessCopy } from '@/components/escrow'
+import { DetailChrome, TxConfirmDialog } from '@/components/escrow'
+import { TX_PROGRESS_LABEL, txSuccessCopy } from '@tenda/shared'
 import { TransactionMonitor } from '@/components/feedback'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
@@ -68,7 +69,7 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
   // Approval mode. The flow owns which action opens a sheet, which asks first,
   // and which comes back here for the wallet; each refetches the detail,
   // because its `viewer` block decides the CTA the user sees next.
-  const approval = useApprovalFlow({
+  const approval = useGigApprovalFlow({
     escrowId: gig.escrow_id,
     onChanged: () => void fetchGigDetail(gig.escrow_id),
     onRequestUnassign: () => setConfirmAction('unassign'),

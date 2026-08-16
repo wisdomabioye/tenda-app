@@ -20,7 +20,7 @@
  */
 import { fireEvent, render, screen } from '@testing-library/react-native'
 import type { DisputeMessage, DisputeSender, DisputeThreadResponse } from '@tenda/shared'
-import type { DisputeSendResult } from '@/lib/dispute-send-error'
+import type { DisputeSendResult } from '@tenda/shared'
 
 const CREATOR = 'user-creator-1111'
 const COUNTERPARTY = 'user-counterparty-2222'

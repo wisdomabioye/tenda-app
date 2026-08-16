@@ -11,7 +11,7 @@ import {
   gigDetail,
 } from '../../__fixtures__/gig-detail'
 import type { ApplicationStatus, GigDetail } from '@tenda/shared'
-import { APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL } from '../../gig-applications/copy'
+import { APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL } from '@tenda/shared'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({

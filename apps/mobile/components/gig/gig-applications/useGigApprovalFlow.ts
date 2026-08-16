@@ -13,7 +13,7 @@
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
 import { useApplications } from './useApplications'
-import { RELEASE_CONFIRM, WITHDRAW_CONFIRM } from './copy'
+import { RELEASE_CONFIRM, WITHDRAW_CONFIRM } from '@tenda/shared'
 // From the DECLARING module, not the `@/components/gig` barrel: that barrel
 // re-exports GigCTABar, which imports gig-cta, which imports this folder's
 // copy. Type-only so nothing is emitted either way, but pointing at the source
@@ -23,7 +23,7 @@ import type { ApprovalAction } from '@/components/gig/gig-cta/ApprovalCTA'
 /** The two off-chain actions that ask before acting. */
 type OffchainAction = 'withdraw' | 'release'
 
-interface UseApprovalFlowArgs {
+interface UseGigApprovalFlowArgs {
   escrowId: string
   /** Refetch the detail — its `viewer` block decides the next CTA. */
   onChanged: () => void
@@ -31,11 +31,11 @@ interface UseApprovalFlowArgs {
   onRequestUnassign: () => void
 }
 
-export function useApprovalFlow({
+export function useGigApprovalFlow({
   escrowId,
   onChanged,
   onRequestUnassign,
-}: UseApprovalFlowArgs) {
+}: UseGigApprovalFlowArgs) {
   const router = useRouter()
   const [applyOpen, setApplyOpen] = useState(false)
   const [pending, setPending] = useState<OffchainAction | null>(null)

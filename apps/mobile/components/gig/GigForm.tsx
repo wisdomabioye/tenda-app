@@ -5,15 +5,11 @@ import { PriceWarningSheet } from '@/components/moderation/PriceWarningSheet'
 import { ModerationHint } from './gig-form/ModerationHint'
 import { GigComposerNavigation } from './gig-form/GigComposerNavigation'
 import { GigComposerProgress } from './gig-form/GigComposerProgress'
-import { GIG_COMPOSER_STEPS, type GigComposerStep } from './gig-form/gig-composer.steps'
+import { GIG_COMPOSER_STEPS, type GigComposerStep, type GigFormValues } from '@tenda/shared'
 import { GigDeliveryStep } from './gig-form/steps/GigDeliveryStep'
 import { GigDetailsStep } from './gig-form/steps/GigDetailsStep'
 import { GigPaymentStep } from './gig-form/steps/GigPaymentStep'
 import { useGigForm } from './gig-form/useGigForm'
-import type { GigFormValues } from './gig-form/constants'
-
-export type { GigFormValues } from './gig-form/constants'
-export { ACCEPT_DEADLINE_OPTIONS } from './gig-form/constants'
 
 interface GigFormProps {
   initialValues?: Partial<GigFormValues>

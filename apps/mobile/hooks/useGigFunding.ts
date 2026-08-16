@@ -30,8 +30,8 @@ import {
   classifyTransactionGateError,
   TRANSACTION_GATE_MESSAGE,
   transactionGateRoute,
-} from '@/lib/transaction-gate'
-import type { GigFormValues } from '@/components/gig/GigForm'
+} from '@tenda/shared'
+import type { GigFormValues } from '@tenda/shared'
 
 const MS_PER_HOUR = 3_600_000
 

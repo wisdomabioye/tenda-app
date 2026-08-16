@@ -8,14 +8,14 @@ import { GigForm } from '@/components/gig/GigForm'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { TransactionMonitor } from '@/components/feedback'
-import { TxConfirmDialog, TX_PROGRESS_LABEL } from '@/components/escrow'
+import { TxConfirmDialog } from '@/components/escrow'
+import { TX_PROGRESS_LABEL } from '@tenda/shared'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { api } from '@/api/client'
-import { coerceCityForCountry, formatAssetAmount } from '@tenda/shared'
+import { coerceCityForCountry, DEFAULT_COMPLETION_SECONDS, formatAssetAmount, type GigFormValues } from '@tenda/shared'
 import { useGigFunding } from '@/hooks/useGigFunding'
 import { ModerationBlockedDialog } from '@/components/moderation/ModerationBlockedDialog'
-import { DEFAULT_COMPLETION_SECONDS } from '@/components/gig/gig-form/constants'
-import type { GigFormValues } from '@/components/gig/GigForm'
+
 
 export default function PostGigScreen() {
   const params = useLocalSearchParams<{ draftId?: string }>()

@@ -10,13 +10,15 @@ import { api } from '@/api/client'
 import { SOLANA_NETWORK } from '@/wallet/config'
 import { useAuthStore } from '@/stores/auth.store'
 import { useModerationPreview } from '@/hooks/useModerationPreview'
-import { CATEGORY_HINTS, DEFAULT_COMPLETION_SECONDS, PROOF_NOTE } from './constants'
-import type { GigFormValues } from './constants'
 import {
+  CATEGORY_HINTS,
+  DEFAULT_COMPLETION_SECONDS,
+  PROOF_NOTE,
   getGigMissingRequirement,
   getGigStepMissingRequirement,
   type GigComposerStep,
-} from './gig-composer.steps'
+  type GigFormValues,
+} from '@tenda/shared'
 
 export interface ChainOption {
   id: string

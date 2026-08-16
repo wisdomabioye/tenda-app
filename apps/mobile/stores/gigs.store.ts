@@ -13,7 +13,7 @@
 import { create } from 'zustand'
 import type { GigDetail, ReviewInput } from '@tenda/shared'
 import { api } from '@/api/client'
-import { classifyDetailLoadError, type DetailLoadError } from '@/lib/detail-load-error'
+import { classifyDetailLoadError, type DetailLoadError } from '@tenda/shared'
 
 /**
  * A failed load, and WHICH gig it was for.

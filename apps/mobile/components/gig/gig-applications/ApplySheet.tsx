@@ -19,7 +19,7 @@ import {
   APPLY_OBLIGATION,
   APPLY_SUBMIT_LABEL,
   APPLY_TITLE,
-} from './copy'
+} from '@tenda/shared'
 
 interface Props {
   visible: boolean

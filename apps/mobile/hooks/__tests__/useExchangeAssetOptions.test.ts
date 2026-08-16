@@ -25,7 +25,10 @@ jest.mock('@/stores/auth.store', () => ({
   useAuthStore: (sel: (s: { walletAddress: string | null; evmAddress: string | null; wallets: LinkedWallet[] }) => unknown) =>
     sel({ walletAddress: mockSol, evmAddress: mockEvm, wallets: mockWallets }),
 }))
+// Partial: the hook also runs the REAL pickWalletAddress (moved to shared,
+// 2026-08-15) — its trust rules are part of what these tests exercise.
 jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   exchangeAssetsByChain: (id: string) =>
     id === 'solana:devnet' ? ['USDC_SOL'] : id === 'eip155:84532' ? ['USDC_BASE'] : [],
 }))

@@ -13,7 +13,7 @@ import {
   APPLICATION_ASSIGNMENT_COUNTDOWN_LABEL,
   applicationStatusLine,
   openApplicationLine,
-} from '../copy'
+} from '@tenda/shared'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({

@@ -18,7 +18,6 @@ const mockSign = jest.fn().mockResolvedValue('tx-ref')
 const mockReplace = jest.fn()
 const mockPush = jest.fn()
 const mockToast = jest.fn()
-let mockGate: string | null = null
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace, push: mockPush }) }))
 jest.mock('@/api/client', () => ({
@@ -41,31 +40,16 @@ jest.mock('@/wallet/dispatch', () => ({
 // real here because useOfferSell branches on `instanceof`.
 const mockEnsureSufficientBalance = jest.fn()
 let mockSigners: string[] = ['0xEvm']
-jest.mock('@/wallet/balances', () => {
-  // Plain shape: TS parameter properties trip babel-plugin-jest-hoist inside a
-  // mock factory. Only `instanceof` + `message` matter to the code under test.
-  class InsufficientBalanceError extends Error {
-    constructor(message: string) {
-      super(message)
-      this.name = 'InsufficientBalanceError'
-    }
-  }
-  return {
-    ensureSufficientBalance: (...a: unknown[]) => mockEnsureSufficientBalance(...a),
-    InsufficientBalanceError,
-  }
-})
-jest.mock('@/lib/transaction-gate', () => ({
-  classifyTransactionGateError: () => mockGate,
-  TRANSACTION_GATE_MESSAGE: { link_wallet: 'link a wallet' },
-  transactionGateRoute: () => '/settings/linked-wallets',
+// The binding module only exports the pre-flight now; the error class is
+// shared and stays REAL — useOfferSell narrows `instanceof` against it.
+jest.mock('@/wallet/balances', () => ({
+  ensureSufficientBalance: (...a: unknown[]) => mockEnsureSufficientBalance(...a),
 }))
-
 // Imports stay below mock declarations so their modules observe the test doubles.
 // eslint-disable-next-line import/first
 import { useOfferSell } from '../useOfferSell'
 // eslint-disable-next-line import/first
-import { ApiClientError } from '@tenda/shared'
+import { ApiClientError, InsufficientBalanceError } from '@tenda/shared'
 
 const OPTION = {
   chainId: 'eip155:84532', assetId: 'USDC_BASE', symbol: 'USDC', decimals: 6, chainName: 'Base', walletAddress: '0xEvm',
@@ -87,7 +71,6 @@ beforeEach(() => {
   mockReplace.mockReset()
   mockPush.mockReset()
   mockToast.mockReset()
-  mockGate = null
 })
 afterEach(() => jest.restoreAllMocks())
 
@@ -141,8 +124,11 @@ test('discards the draft when attaching offer terms fails', async () => {
 })
 
 test('routes to the transaction gate when create is gated (9D)', async () => {
-  mockCreate.mockRejectedValue(new Error('gated'))
-  mockGate = 'link_wallet'
+  // The real shared classifier runs (no gate mock since the move to
+  // @tenda/shared): only the genuine envelope code triggers the route.
+  mockCreate.mockRejectedValue(
+    new ApiClientError(403, 'Forbidden', 'no wallet on this chain', 'WALLET_REQUIRED'),
+  )
   const { result } = renderHook(() => useOfferSell())
   await act(async () => { await result.current.submit(ARGS) })
 
@@ -199,11 +185,10 @@ test('checks the sell amount against every candidate wallet before creating', as
 })
 
 test('a short balance leaves NO draft behind and never opens the wallet', async () => {
-  const { InsufficientBalanceError } = jest.requireMock<{
-    InsufficientBalanceError: new (m: string) => Error
-  }>('@/wallet/balances')
+  // The REAL shared error, built the way the pre-flight builds it — the
+  // asserted toast below is its formatted message.
   mockEnsureSufficientBalance.mockRejectedValue(
-    new InsufficientBalanceError('You need 2.5 USDC but your wallet holds 0 USDC.'),
+    new InsufficientBalanceError('USDC_BASE', '2500000', '0'),
   )
   const { result } = renderHook(() => useOfferSell())
 
@@ -220,10 +205,7 @@ test('a short balance leaves NO draft behind and never opens the wallet', async 
 })
 
 test('releases the submitting flag after a short balance (retryable)', async () => {
-  const { InsufficientBalanceError } = jest.requireMock<{
-    InsufficientBalanceError: new (m: string) => Error
-  }>('@/wallet/balances')
-  mockEnsureSufficientBalance.mockRejectedValue(new InsufficientBalanceError('short'))
+  mockEnsureSufficientBalance.mockRejectedValue(new InsufficientBalanceError('USDC_BASE', '1', '0'))
   const { result } = renderHook(() => useOfferSell())
 
   await act(async () => { await result.current.submit(ARGS) })

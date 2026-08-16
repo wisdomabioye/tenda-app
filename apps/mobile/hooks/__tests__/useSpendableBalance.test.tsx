@@ -19,7 +19,9 @@ jest.mock('expo-router', () => ({
 }))
 
 const mockReadSpendable = jest.fn()
-jest.mock('@/wallet/balances', () => ({
+// readSpendableBalance moved to @tenda/shared (2026-08-15); partial mock.
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   readSpendableBalance: (...a: unknown[]) => mockReadSpendable(...a),
 }))
 

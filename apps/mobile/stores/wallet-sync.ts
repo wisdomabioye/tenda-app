@@ -8,7 +8,7 @@
 
 import type { LinkedWallet, MeResponse } from '@tenda/shared'
 import { ApiClientError } from '@tenda/shared'
-import { isLinkedWallet } from '@/wallet/wallet-address'
+import { isLinkedWallet } from '@tenda/shared'
 
 /**
  * Lifecycle of the wallets[] load. Distinguishes the three states the old

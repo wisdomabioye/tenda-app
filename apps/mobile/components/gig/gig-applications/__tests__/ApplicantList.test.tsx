@@ -10,7 +10,7 @@
 import { render, screen, fireEvent } from '@testing-library/react-native'
 import type { GigApplicant } from '@tenda/shared'
 import { ApplicantList } from '../ApplicantList'
-import { APPLICANTS_EMPTY, APPLICANT_REVIEW_INFORMATION } from '../copy'
+import { APPLICANTS_EMPTY, APPLICANT_REVIEW_INFORMATION } from '@tenda/shared'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({

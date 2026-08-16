@@ -7,8 +7,8 @@
  * gas for the honest exit, are both failures of this routing.
  */
 import { renderHook, act } from '@testing-library/react-native'
-import { useApprovalFlow } from '../useApprovalFlow'
-import { RELEASE_CONFIRM, WITHDRAW_CONFIRM } from '../copy'
+import { useGigApprovalFlow } from '../useGigApprovalFlow'
+import { RELEASE_CONFIRM, WITHDRAW_CONFIRM } from '@tenda/shared'
 
 const mockPush = jest.fn()
 jest.mock('expo-router', () => ({ useRouter: () => ({ push: mockPush }) }))
@@ -31,7 +31,7 @@ function setup() {
   const onChanged = jest.fn()
   const onRequestUnassign = jest.fn()
   const hook = renderHook(() =>
-    useApprovalFlow({ escrowId: ESCROW, onChanged, onRequestUnassign }),
+    useGigApprovalFlow({ escrowId: ESCROW, onChanged, onRequestUnassign }),
   )
   return { ...hook, onRequestUnassign }
 }

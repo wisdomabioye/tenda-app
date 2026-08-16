@@ -18,7 +18,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { ReviewScore } from '@/components/shared/ReviewScore'
 import { DeadlineCountdownDisplay } from '@/components/shared/DeadlineCountdown'
 import { useCountdown } from '@/hooks/useCountdown'
-import { applicantStatusLine } from './copy'
+import { applicantStatusLine } from '@tenda/shared'
 
 interface Props {
   applicant: GigApplicant

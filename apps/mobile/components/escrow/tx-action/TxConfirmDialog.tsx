@@ -1,6 +1,5 @@
-import type { EscrowTxType } from '@tenda/shared'
+import { txConfirmCopy, type EscrowTxType, type TxConfirmContext } from '@tenda/shared'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
-import { txConfirmCopy, type TxConfirmContext } from './copy'
 
 /**
  * Pre-sign confirm gate for a wallet-opening transition. Thin wrapper over the

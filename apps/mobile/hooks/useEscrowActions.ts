@@ -13,7 +13,7 @@
  */
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
-import { sha256 } from '@noble/hashes/sha256'
+import { sha256 } from '@noble/hashes/sha2'
 import { Buffer } from 'buffer'
 import bs58 from 'bs58'
 import { TAKEDOWN_REFUSED_MESSAGE } from '@tenda/shared'
@@ -34,8 +34,8 @@ import {
   classifyTransactionGateError,
   TRANSACTION_GATE_MESSAGE,
   transactionGateRoute,
-} from '@/lib/transaction-gate'
-import { isTakedownRefusal } from '@/lib/takedown-refusal'
+} from '@tenda/shared'
+import { isTakedownRefusal } from '@tenda/shared'
 import { persistEscrowProofs } from '@/features/escrow-proofs/persistEscrowProofs'
 
 export interface ProofFile {

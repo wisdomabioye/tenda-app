@@ -14,7 +14,7 @@
  */
 
 import { connectionSignal } from '@/wallet/reown/connection-signal'
-import { isLinkedWallet } from '@/wallet/wallet-address'
+import { isLinkedWallet } from '@tenda/shared'
 import { WalletError } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 

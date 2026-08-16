@@ -13,8 +13,9 @@ jest.mock('../mwa-shared', () => ({
 
 const mockBroadcast = jest.fn(async (_raw: Uint8Array, signature: string) => signature)
 jest.mock('@/wallet/solana-rpc', () => ({
+  // The classifier is NOT mocked since its move to @tenda/shared: the real
+  // one runs, and the test's TypeError is a genuine transport failure to it.
   solanaRpcTransport: { broadcast: (...args: [Uint8Array, string]) => mockBroadcast(...args) },
-  isRetryableSolanaRpcError: (error: unknown) => error instanceof TypeError,
 }))
 
 jest.mock('@solana/web3.js', () => {

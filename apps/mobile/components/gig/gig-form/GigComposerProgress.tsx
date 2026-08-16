@@ -3,7 +3,7 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { radius, spacing } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { GIG_COMPOSER_STEPS, type GigComposerStep } from './gig-composer.steps'
+import { GIG_COMPOSER_STEPS, type GigComposerStep } from '@tenda/shared'
 
 interface Props {
   step: GigComposerStep

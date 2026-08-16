@@ -26,7 +26,10 @@ jest.mock('@/stores/auth.store', () => ({
 jest.mock('@/stores/escrow.store', () => ({
   useEscrowStore: { getState: jest.fn() },
 }))
-jest.mock('@/wallet/allowance', () => ({
+// ensureAllowance moved to @tenda/shared (2026-08-15). Partial mock: real
+// module for everything else, a spy ONLY for the allowance leg under test.
+jest.mock('@tenda/shared', () => ({
+  ...jest.requireActual('@tenda/shared'),
   ensureAllowance: jest.fn(),
 }))
 jest.mock('@/wallet/ensure-session', () => ({
@@ -40,7 +43,7 @@ import {
 } from '@/wallet/dispatch'
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
-import { ensureAllowance } from '@/wallet/allowance'
+import { ensureAllowance } from '@tenda/shared'
 import { ensureEvmSession } from '@/wallet/ensure-session'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
@@ -216,6 +219,9 @@ describe('signAndSendUnsignedTx, evm-tx approval hint', () => {
       spender: '0xEscrow',
       amountRaw: '1000000',
       owner: '0xLive',
+      // The transport seam: dispatch binds ITS wallet sender into the shared
+      // allowance module — the tx must ride the connected session, not RPC.
+      sendTx: sendEvmTransaction,
     })
     expect(order).toEqual(['allowance', 'send'])
   })

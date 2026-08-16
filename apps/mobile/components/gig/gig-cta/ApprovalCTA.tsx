@@ -20,10 +20,9 @@ import {
   applicationStatusLine,
   openApplicationLine,
   UNASSIGN_WINDOW_INFORMATION,
-} from '@/components/gig/gig-applications/copy'
-import { approvalContextOf } from './parties'
-import type { ApprovalBranch } from './branches'
-import { widthProps, type CtaWidth } from './slots'
+} from '@tenda/shared'
+import { approvalContextOf, type ApprovalBranch, type CtaWidth } from '@tenda/shared'
+import { widthProps } from './slots'
 
 /**
  * What this CTA can raise. `unassign` is the only one that ends in a wallet —

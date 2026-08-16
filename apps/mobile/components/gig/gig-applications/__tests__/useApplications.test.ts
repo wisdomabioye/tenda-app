@@ -10,7 +10,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native'
 import { ApiClientError } from '@tenda/shared'
 import { useApplicantList, useApplications } from '../useApplications'
-import { APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from '../copy'
+import { APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from '@tenda/shared'
 
 // jest hoists jest.mock() above the file, so factory-referenced fakes must
 // carry the `mock` prefix the transform whitelists.

@@ -10,7 +10,7 @@
 import { render, screen, fireEvent, act } from '@testing-library/react-native'
 import { APPLICATION_MESSAGE_MAX_LENGTH } from '@tenda/shared'
 import { ApplySheet } from '../ApplySheet'
-import { APPLY_OBLIGATION, APPLY_SUBMIT_LABEL } from '../copy'
+import { APPLY_OBLIGATION, APPLY_SUBMIT_LABEL } from '@tenda/shared'
 
 jest.mock('react-native-unistyles', () => ({
   useUnistyles: () => ({

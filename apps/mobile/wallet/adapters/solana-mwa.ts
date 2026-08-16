@@ -14,7 +14,8 @@ import { WALLET_CHAINS } from '../config'
 import type { SignMessageResult, WalletAccount } from '@tenda/shared'
 import type { AuthenticateResult } from '@tenda/shared'
 import type { WalletAdapter } from './types'
-import { isRetryableSolanaRpcError, solanaRpcTransport } from '@/wallet/solana-rpc'
+import { isRetryableSolanaRpcError } from '@tenda/shared'
+import { solanaRpcTransport } from '@/wallet/solana-rpc'
 
 /**
  * Generic Android-Solana adapter via Solana Mobile Wallet Adapter (MWA).

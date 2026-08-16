@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { exchangeAssetsByChain } from '@tenda/shared'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { useAuthStore } from '@/stores/auth.store'
-import { pickWalletAddress } from '@/wallet/wallet-address'
+import { pickWalletAddress } from '@tenda/shared'
 
 /** One sellable (chain, asset) pair the user has a wallet for. */
 export interface ExchangeAssetOption {

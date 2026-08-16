@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { useFocusEffect } from 'expo-router'
 import { api } from '@/api/client'
-import { classifyDetailLoadError, type DetailLoadError } from '@/lib/detail-load-error'
+import { classifyDetailLoadError, type DetailLoadError } from '@tenda/shared'
 import type { ExchangeDetail } from '@tenda/shared'
 
 /**

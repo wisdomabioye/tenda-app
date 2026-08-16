@@ -11,8 +11,8 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Jest factories load RN after hoisting. */
 import { render, screen } from '@testing-library/react-native'
 
-import { TakedownNotice, takedownAudience, type TakedownEscrow } from '../TakedownNotice'
-import { takedownCopy } from '../copy'
+import { takedownAudience, takedownCopy, type TakedownEscrow } from '@tenda/shared'
+import { TakedownNotice } from '../TakedownNotice'
 
 /**
  * The palette the banner reads. Full `feedback` map, because the tone lookup is

@@ -11,9 +11,9 @@
 import { useCallback, useState } from 'react'
 import { APPLICATION_STATUSES, type GigApplicant, ApiClientError } from '@tenda/shared'
 import { api } from '@/api/client'
-import { isTakedownRefusal } from '@/lib/takedown-refusal'
+import { isTakedownRefusal } from '@tenda/shared'
 import { showToast } from '@/components/ui'
-import { APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from './copy'
+import { APPLY_SUCCESS, RELEASE_SUCCESS, WITHDRAW_SUCCESS } from '@tenda/shared'
 
 /** Which shortlist rows the poster is looking at. */
 export type ApplicantFilter = 'open' | 'all'

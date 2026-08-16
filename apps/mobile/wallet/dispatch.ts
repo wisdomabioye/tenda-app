@@ -17,11 +17,11 @@ import { VersionedTransaction } from '@solana/web3.js'
 import { Buffer } from 'buffer'
 import type { ChainNamespace, EscrowTxType, UnsignedTx } from '@tenda/shared'
 import { findChain } from '@tenda/shared'
+import { ensureAllowance } from '@tenda/shared'
 import { signAndSendStored } from '@/wallet/adapters/solana-mwa'
 import { sendEvmTransaction } from '@/wallet/adapters/walletconnect'
-import { ensureAllowance } from '@/wallet/allowance'
 import { ensureEvmSession } from '@/wallet/ensure-session'
-import { orderedSignerAddresses, pickWalletAddress } from '@/wallet/wallet-address'
+import { orderedSignerAddresses, pickWalletAddress } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 
@@ -114,6 +114,7 @@ export async function signAndSendUnsignedTx(
           spender: unsigned.approval.spender,
           amountRaw: unsigned.approval.amount_raw,
           owner: from,
+          sendTx: sendEvmTransaction,
         })
       }
       return sendEvmTransaction({

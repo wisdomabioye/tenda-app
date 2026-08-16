@@ -6,7 +6,7 @@
  * (moderation block, 9D gate) surviving the extraction from the screen.
  */
 import { renderHook, act, waitFor } from '@testing-library/react-native'
-import type { GigFormValues } from '@/components/gig/GigForm'
+import type { GigFormValues } from '@tenda/shared'
 const mockPush = jest.fn()
 const mockNavigate = jest.fn()
 const mockSetParams = jest.fn()
@@ -41,13 +41,11 @@ jest.mock('@/api/client', () => ({
   // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
   ApiClientError: jest.requireActual('@tenda/shared').ApiClientError,
 }))
-let mockGate: string | null = null
-jest.mock('@/lib/transaction-gate', () => ({
-  classifyTransactionGateError: () => mockGate,
-  TRANSACTION_GATE_MESSAGE: { link_wallet: 'link a wallet' },
-  transactionGateRoute: () => '/settings/linked-wallets',
-}))
 // Imports stay below mock declarations so their modules observe the test doubles.
+// The 9D gate is NOT mocked since its move to @tenda/shared: the tests throw
+// the real ApiClientError codes and the hook runs the real classifier.
+// eslint-disable-next-line import/first
+import { ApiClientError, TRANSACTION_GATE_MESSAGE } from '@tenda/shared'
 // eslint-disable-next-line import/first
 import { useGigFunding } from '@/hooks/useGigFunding'
 // eslint-disable-next-line import/first
@@ -87,7 +85,6 @@ beforeEach(() => {
   mockEscrowCreate.mockReset().mockResolvedValue({ escrow_id: 'e1', unsigned: { kind: 'solana-tx' } })
   mockEscrowDelete.mockReset().mockResolvedValue(undefined)
   mockGigCreate.mockReset().mockResolvedValue({})
-  mockGate = null
 })
 const ARGS = { resetForm: jest.fn() }
 test('checks the budget against every candidate wallet before anything else', async () => {
@@ -170,11 +167,23 @@ test('a moderation block surfaces the dialog and discards the orphan draft', asy
   expect(result.current.blockedMessage).toBeNull()
 })
 test('the 9D gate routes instead of dead-ending', async () => {
-  mockEscrowCreate.mockRejectedValue(new Error('gated'))
-  mockGate = 'link_wallet'
+  mockEscrowCreate.mockRejectedValue(
+    new ApiClientError(403, 'Forbidden', 'no wallet on this chain', 'WALLET_REQUIRED'),
+  )
   const { result } = renderHook(() => useGigFunding(ARGS))
   await fund(result)
+  expect(mockToast).toHaveBeenCalledWith('error', TRANSACTION_GATE_MESSAGE.wallet_required)
   expect(mockPush).toHaveBeenCalledWith('/settings/linked-wallets')
+})
+
+test('the contact gate routes to Sign-in & security', async () => {
+  mockEscrowCreate.mockRejectedValue(
+    new ApiClientError(403, 'Forbidden', 'no verified contact', 'CONTACT_REQUIRED'),
+  )
+  const { result } = renderHook(() => useGigFunding(ARGS))
+  await fund(result)
+  expect(mockToast).toHaveBeenCalledWith('error', TRANSACTION_GATE_MESSAGE.contact_required)
+  expect(mockPush).toHaveBeenCalledWith('/settings/security')
 })
 test('signing declined after the draft is saved keeps the draft', async () => {
   mockSign.mockRejectedValue(new Error('user declined'))

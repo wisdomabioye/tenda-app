@@ -21,15 +21,7 @@ import { solanaRpcTransport } from './solana-rpc'
 // @tenda/shared (2026-08-15) — import it from there.
 export { SOLANA_NETWORK, WALLET_CHAINS } from './config'
 
-export { getEvmTransactionStatus } from '@/wallet/adapters/walletconnect'
 
-// Guarded-request surface: lets UI (TransactionMonitor's Cancel) observe and
-// abort an in-flight WalletConnect request without touching the reown stack.
-export {
-  abortPendingWalletRequest,
-  hasPendingWalletRequest,
-  subscribePendingWalletRequest,
-} from './reown/request-guard'
 
 export type OnChainTxStatus = OnChainTransactionStatus
 

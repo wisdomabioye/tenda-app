@@ -9,12 +9,13 @@ import { api } from '@/api/client'
 import { ApiClientError, randomUuid } from '@tenda/shared'
 import { showToast } from '@/components/ui'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
-import { ensureSufficientBalance, InsufficientBalanceError } from '@/wallet/balances'
+import { InsufficientBalanceError } from '@tenda/shared'
+import { ensureSufficientBalance } from '@/wallet/balances'
 import {
   classifyTransactionGateError,
   TRANSACTION_GATE_MESSAGE,
   transactionGateRoute,
-} from '@/lib/transaction-gate'
+} from '@tenda/shared'
 import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
 
 const SECONDS_PER_HOUR = 60 * 60
