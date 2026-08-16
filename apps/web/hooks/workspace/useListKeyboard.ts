@@ -17,6 +17,30 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
 }
 
+/** Controls whose own activation key is Enter. */
+const ENTER_ACTIVATED_TAGS = new Set(['A', 'BUTTON', 'SUMMARY'])
+const ENTER_ACTIVATED_ROLES = new Set(['button', 'link', 'menuitem', 'option', 'tab'])
+
+/**
+ * True when the focused element already handles Enter itself.
+ *
+ * The list's Enter handler calls preventDefault(), which CANCELS that
+ * element's native activation — so without this guard, focusing the ⌘K button
+ * and pressing Enter neither opens the palette nor leaves the list alone: the
+ * palette stays shut and the list navigates to the cursor's row instead.
+ * Same for a focused row link, which would navigate to the CURSOR's row
+ * rather than the one the reader actually tabbed to.
+ *
+ * Only Enter is affected — j/k are not activation keys, so the cursor may
+ * still move while a control has focus.
+ */
+function ownsEnter(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  if (ENTER_ACTIVATED_TAGS.has(target.tagName)) return true
+  const role = target.getAttribute('role')
+  return role !== null && ENTER_ACTIVATED_ROLES.has(role)
+}
+
 export interface ListKeyboard {
   activeIndex: number
   setActiveIndex: (index: number) => void
@@ -78,17 +102,20 @@ export function useListKeyboard({
       if (total === 0) return
       const current = indexRef.current
 
+      // No `current < 0 ? 0 : …` special case is needed for the first press:
+      // from -1 the clamps already land on 0 (min(0, total-1) and
+      // max(-2, 0)). Both directions are covered by tests.
       if (NEXT_KEYS.has(event.key)) {
         event.preventDefault()
-        setActiveIndex(current < 0 ? 0 : Math.min(current + 1, total - 1))
+        setActiveIndex(Math.min(current + 1, total - 1))
         return
       }
       if (PREVIOUS_KEYS.has(event.key)) {
         event.preventDefault()
-        setActiveIndex(current < 0 ? 0 : Math.max(current - 1, 0))
+        setActiveIndex(Math.max(current - 1, 0))
         return
       }
-      if (event.key === 'Enter' && current >= 0) {
+      if (event.key === 'Enter' && current >= 0 && !ownsEnter(event.target)) {
         event.preventDefault()
         openRef.current(current)
       }

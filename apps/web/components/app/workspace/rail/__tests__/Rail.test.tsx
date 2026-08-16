@@ -56,6 +56,41 @@ describe('Rail — navigation', () => {
     render(<Rail user={makeUser()} />)
     expect(screen.getByRole('link', { name: 'My Gigs' })).not.toHaveAttribute('aria-current')
   })
+
+  it('marks the Post action current on the posting flow', () => {
+    at('/post')
+    render(<Rail user={makeUser()} />)
+    expect(screen.getByRole('link', { name: 'Post a gig' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+
+  it('marks the profile avatar current on the profile surface', () => {
+    at('/profile/edit')
+    render(<Rail user={makeUser()} />)
+    expect(screen.getByRole('link', { name: /Your profile/ })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+  })
+
+  it('leaves the Post action and avatar unmarked elsewhere', () => {
+    at('/wallet')
+    render(<Rail user={makeUser()} />)
+    expect(screen.getByRole('link', { name: 'Post a gig' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: /Your profile/ })).not.toHaveAttribute('aria-current')
+  })
+
+  it('names the avatar link with the signed-in user', () => {
+    render(<Rail user={makeUser({ first_name: 'Faridah', last_name: 'Ab' })} />)
+    expect(screen.getByRole('link', { name: /Your profile, Faridah/ })).toBeInTheDocument()
+  })
+
+  it('falls back to a bare profile label when there is no user', () => {
+    render(<Rail user={null} />)
+    expect(screen.getByRole('link', { name: 'Your profile' })).toBeInTheDocument()
+  })
 })
 
 describe('Rail — advanced-mode gating', () => {

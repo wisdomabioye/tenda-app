@@ -25,9 +25,20 @@ export interface WorkspaceShellProps {
   detail?: ReactNode
 }
 
+/**
+ * React renders nothing for null, undefined and booleans — so a pane holding
+ * one is not a pane. This matters because `detail={selected && <Detail />}` is
+ * the idiomatic way to write a conditional pane, and it yields `false`, not
+ * `undefined`: treating that as "a detail exists" hides the list at ≤900px and
+ * leaves the reader staring at a blank column.
+ */
+function hasPane(node: ReactNode): boolean {
+  return node !== undefined && node !== null && typeof node !== 'boolean'
+}
+
 export function WorkspaceShell({ user, list, detail }: WorkspaceShellProps) {
-  const hasDetail = detail !== undefined && detail !== null
-  const hasList = list !== undefined && list !== null
+  const hasDetail = hasPane(detail)
+  const hasList = hasPane(list)
 
   return (
     <div

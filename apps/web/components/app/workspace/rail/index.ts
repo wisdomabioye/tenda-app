@@ -1,6 +1,6 @@
 export { Rail } from './Rail'
 export { RailLink, RAIL_SLOT } from './RailLink'
-export { RailBadge, railBadgeLabel } from './RailBadge'
+export { RailBadge } from './RailBadge'
 export {
   RAIL_ACTION,
   RAIL_ITEMS,

@@ -79,6 +79,7 @@ export {
   type CountdownTone,
 } from './countdown'
 export { chainLabel } from './chain-label'
+export { unreadBadgeLabel, UNREAD_BADGE_CAP } from './unread-badge'
 export { instructionCopy, INTENT_STATUS_COPY, isCancellable, isTerminal } from './fiat-display'
 export { withRetry, type RetryOptions } from './with-retry'
 export * from './escrow'

@@ -67,7 +67,7 @@ export default defineConfig({
         'components/auth/WalletSignInPanel.tsx',
         'components/settings/**/*.tsx',
         'components/ui/**/*.{ts,tsx}',
-        'components/app/**/*.tsx',
+        'components/app/**/*.{ts,tsx}',
         'components/public/HeaderSessionAction.tsx',
         'scripts/gen-web-tokens/core.ts',
       ],

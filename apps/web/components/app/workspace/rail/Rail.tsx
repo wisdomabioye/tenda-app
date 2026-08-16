@@ -44,7 +44,9 @@ export function Rail({ user }: { user: User | null }) {
   return (
     <nav
       aria-label="Workspace"
-      className="flex h-full min-h-0 w-16 flex-col items-center gap-1.5 overflow-y-auto border-r border-border-subtle bg-surface-background-alt py-3.5"
+      // w-full, not w-16: the grid column already IS --pane-rail. Repeating
+      // 64px here would silently desync the moment that token changes.
+      className="flex h-full min-h-0 w-full flex-col items-center gap-1.5 overflow-y-auto border-r border-border-subtle bg-surface-background-alt py-3.5"
     >
       <Link
         href="/home"

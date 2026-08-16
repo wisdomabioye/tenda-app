@@ -37,17 +37,19 @@ export function DetailPane({
   backLabel = 'Back to list',
 }: DetailPaneProps) {
   const paneRef = useRef<HTMLElement>(null)
-  const mounted = useRef(false)
+  // Seeded with the FIRST selection, which is what makes the mount case
+  // idempotent: React StrictMode double-invokes mount effects in development
+  // (and the app router enables StrictMode by default), so a "have I mounted
+  // yet" flag flips on the first invocation and lets the second one steal
+  // focus. Comparing keys instead is stable however many times it runs.
+  const previousKey = useRef<string | null>(selectionKey)
 
-  // Keyed on selectionKey, so this only runs when the selection actually
-  // changed — no previous-value bookkeeping needed on top of that.
   useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true
-      return
-    }
-    // Nothing selected: leave focus where the reader put it.
-    if (selectionKey === null) return
+    const previous = previousKey.current
+    previousKey.current = selectionKey
+    // Nothing selected: leave focus where the reader put it. Same key: this
+    // is a re-render of the row already shown, not a new selection.
+    if (selectionKey === null || selectionKey === previous) return
     paneRef.current?.focus()
   }, [selectionKey])
 

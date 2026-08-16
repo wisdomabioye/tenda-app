@@ -43,6 +43,33 @@ describe('WorkspaceShell', () => {
       expect(panes()).toHaveAttribute('data-nodetail')
     })
 
+    it('treats detail={false} as no detail, the idiomatic conditional pane', () => {
+      // `detail={selected && <Detail />}` yields false, not undefined. Reading
+      // that as "a detail exists" hides the list at ≤900px and leaves a blank
+      // column.
+      const selected = false
+      render(
+        <WorkspaceShell user={makeUser()} list={<p>list</p>} detail={selected && <p>d</p>} />,
+      )
+      expect(panes()).toHaveAttribute('data-nodetail')
+    })
+
+    it('treats list={false} as no list', () => {
+      const showList = false
+      render(
+        <WorkspaceShell user={makeUser()} list={showList && <p>l</p>} detail={<p>detail</p>} />,
+      )
+      expect(panes()).toHaveAttribute('data-nolist')
+    })
+
+    it('still counts a real node as present', () => {
+      const selected = true
+      render(
+        <WorkspaceShell user={makeUser()} list={<p>list</p>} detail={selected && <p>d</p>} />,
+      )
+      expect(panes()).not.toHaveAttribute('data-nodetail')
+    })
+
     it('marks nolist when the surface has no list column', () => {
       render(<WorkspaceShell user={makeUser()} detail={<p>detail</p>} />)
       expect(panes()).toHaveAttribute('data-nolist')

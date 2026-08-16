@@ -1,3 +1,4 @@
+import { StrictMode } from 'react'
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -49,6 +50,59 @@ describe('DetailPane — focus hand-off', () => {
       </DetailPane>,
     )
     expect(screen.getByRole('region', { name: 'Detail' })).not.toHaveFocus()
+  })
+
+  it('does NOT steal focus on first mount under StrictMode', () => {
+    // The app router enables StrictMode by default, which double-invokes
+    // mount effects: a "have I mounted" flag flips on the first invocation
+    // and lets the second one focus. This is a dev-only path that no
+    // non-Strict test can reach.
+    render(
+      <StrictMode>
+        <DetailPane label="Detail" selectionKey="a">
+          x
+        </DetailPane>
+      </StrictMode>,
+    )
+    expect(screen.getByRole('region', { name: 'Detail' })).not.toHaveFocus()
+  })
+
+  it('still hands off focus on a real selection change under StrictMode', () => {
+    const { rerender } = render(
+      <StrictMode>
+        <DetailPane label="Detail" selectionKey="a">
+          x
+        </DetailPane>
+      </StrictMode>,
+    )
+    rerender(
+      <StrictMode>
+        <DetailPane label="Detail" selectionKey="b">
+          y
+        </DetailPane>
+      </StrictMode>,
+    )
+    expect(screen.getByRole('region', { name: 'Detail' })).toHaveFocus()
+  })
+
+  it('re-focuses when the reader picks the same row again after clearing', () => {
+    const { rerender } = render(
+      <DetailPane label="Detail" selectionKey="a">
+        x
+      </DetailPane>,
+    )
+    rerender(
+      <DetailPane label="Detail" selectionKey={null}>
+        nothing
+      </DetailPane>,
+    )
+    ;(document.activeElement as HTMLElement | null)?.blur()
+    rerender(
+      <DetailPane label="Detail" selectionKey="a">
+        x again
+      </DetailPane>,
+    )
+    expect(screen.getByRole('region', { name: 'Detail' })).toHaveFocus()
   })
 
   it('takes focus when the selection changes', () => {
