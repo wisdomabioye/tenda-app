@@ -141,6 +141,36 @@ test('image attachments open the lightbox; PDFs open a new tab', async () => {
   openSpy.mockRestore()
 })
 
+test('incoming messages pin to the bottom only while the reader is near it', () => {
+  const scrollSpy = vi.spyOn(Element.prototype, 'scrollIntoView')
+  const { rerender } = render(<ChatThread userId="them" />)
+  expect(scrollSpy).toHaveBeenCalledTimes(1) // initial load lands on newest
+
+  // Reader scrolls deep into history (far from the bottom):
+  const list = screen.getByTestId('chat-message-list')
+  Object.defineProperties(list, {
+    scrollHeight: { configurable: true, value: 2000 },
+    clientHeight: { configurable: true, value: 400 },
+    scrollTop: { configurable: true, value: 100, writable: true },
+  })
+  fireEvent.scroll(list)
+  useChatStore.setState((s) => ({
+    messages: { c1: [...(s.messages.c1 ?? []), makeMessage({ id: 'new-1', content: 'while reading' })] },
+  }))
+  rerender(<ChatThread userId="them" />)
+  expect(scrollSpy).toHaveBeenCalledTimes(1) // NOT yanked
+
+  // Back near the bottom: the next message pins again.
+  list.scrollTop = 1590
+  fireEvent.scroll(list)
+  useChatStore.setState((s) => ({
+    messages: { c1: [...(s.messages.c1 ?? []), makeMessage({ id: 'new-2', content: 'at bottom' })] },
+  }))
+  rerender(<ChatThread userId="them" />)
+  expect(scrollSpy).toHaveBeenCalledTimes(2)
+  scrollSpy.mockRestore()
+})
+
 test('a failed bubble retries through the store with the message intact', async () => {
   const retryMessage = vi.fn()
   useChatStore.setState({

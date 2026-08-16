@@ -69,10 +69,15 @@ export function ChatThread({ userId, context }: { userId: string; context?: Chat
     return buildMessageFeed(msgs)
   }, [conversationId, messages])
 
-  // Pin the view to the newest message whenever the feed grows.
+  // Pin the view to the newest message when the feed grows — but ONLY while
+  // the reader is already near the bottom. Mobile's inverted FlatList keeps
+  // the reading position when messages arrive mid-scrollback; yanking the
+  // web reader down on every incoming frame would break that parity.
+  const listRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const pinnedRef = useRef(true) // initial load always lands on the newest
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ block: 'end' })
+    if (pinnedRef.current) bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [feed.length])
 
   const escrowContext = context ? { escrowId: context.escrowId, kind: context.kind } : undefined
@@ -162,7 +167,16 @@ export function ChatThread({ userId, context }: { userId: string; context?: Chat
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto py-2">
+      <div
+        ref={listRef}
+        data-testid="chat-message-list"
+        onScroll={() => {
+          const el = listRef.current
+          if (el === null) return
+          pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+        }}
+        className="flex-1 overflow-y-auto py-2"
+      >
         {feed.length === 0 && (
           <p className="flex h-full items-center justify-center text-content-tertiary">
             No messages yet. Say hi!
