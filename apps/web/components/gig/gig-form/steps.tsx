@@ -19,7 +19,7 @@ import { AcceptDeadlinePicker } from './AcceptDeadlinePicker'
 import { AcceptanceModePicker } from './AcceptanceModePicker'
 import { NetworkPicker } from './NetworkPicker'
 import { ProofRequirementPicker } from './ProofRequirementPicker'
-import type { GigFormController } from './useGigForm'
+import type { GigFormController } from '@/hooks/gig/useGigForm'
 
 function SectionLabel({ children }: { children: string }) {
   return <p className="mt-2 text-sm font-semibold text-content-primary">{children}</p>

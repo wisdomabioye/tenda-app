@@ -19,7 +19,6 @@ interface Props {
   onRetryDraft: () => void
 }
 
-const DANGER = 'border-feedback-danger-base/50 text-feedback-danger-base hover:border-feedback-danger-base hover:text-feedback-danger-base'
 
 export function LifecycleCTA({ branch, isTxBuilding, width, onAction, onTxAction, onRetryDraft }: Props) {
   const w = widthClass(width)
@@ -47,7 +46,7 @@ export function LifecycleCTA({ branch, isTxBuilding, width, onAction, onTxAction
 
     case 'cancel':
       return (
-        <Button variant="outline" size="lg" className={`${w} ${DANGER}`} onClick={() => onTxAction('cancel')}>
+        <Button variant="danger-outline" size="lg" className={w} onClick={() => onTxAction('cancel')}>
           Cancel Gig
         </Button>
       )

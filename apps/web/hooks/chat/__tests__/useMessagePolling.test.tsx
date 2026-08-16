@@ -5,7 +5,7 @@
  */
 import { renderHook, act } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { useMessagePolling } from '@/components/chat/useMessagePolling'
+import { useMessagePolling } from '@/hooks/chat/useMessagePolling'
 import { useChatStore } from '@/stores/chat.store'
 import type { LocalMessage } from '@/stores/chat.store'
 import type { Message } from '@tenda/shared'

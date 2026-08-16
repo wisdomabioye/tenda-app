@@ -10,7 +10,7 @@ import type { Conversation, Message, PublicUser } from '@tenda/shared'
 const usersApi = vi.hoisted(() => ({ get: vi.fn<(p: { id: string }) => Promise<PublicUser>>() }))
 vi.mock('@/api/client', () => ({ api: { users: usersApi } }))
 
-import { useConversation } from '@/components/chat/useConversation'
+import { useConversation } from '@/hooks/chat/useConversation'
 import { useChatStore } from '@/stores/chat.store'
 import { makeConversation } from '../../../test/factories/chat'
 import { makePublicUser } from '../../../test/factories/user'

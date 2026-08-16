@@ -1,0 +1,160 @@
+/**
+ * ExchangeDetailApp — the exchange hub over the gig-proven machinery:
+ * the CTA rides the TxConfirmDialog gate before any hook action fires,
+ * the monitor's confirm/fail exits route correctly (cancel leaves the
+ * dead page), a takedown refusal re-reads, and the payout surfaces obey
+ * the role gates (buyer instructions vs seller payout — never both).
+ */
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { beforeEach, expect, test, vi } from 'vitest'
+import type { ExchangePayoutAccount } from '@tenda/shared'
+
+const { actionsState, capturedActionsArgs, toastMock, routerPush, liveRefreshMock } = vi.hoisted(() => ({
+  actionsState: {
+    busyAction: null as string | null,
+    pendingTxRef: null as string | null,
+    pendingAction: null as 'cancel' | 'accept' | null,
+    phase: 'idle',
+    activeAction: null,
+    clearPending: vi.fn(),
+    accept: vi.fn(),
+    decline: vi.fn(),
+    approve: vi.fn(),
+    claim: vi.fn(),
+    cancel: vi.fn(),
+    publish: vi.fn(),
+    submit: vi.fn(),
+    addProofs: vi.fn(),
+    dispute: vi.fn(),
+  },
+  capturedActionsArgs: { current: null as null | { onStale?: () => void } },
+  toastMock: vi.fn(),
+  routerPush: vi.fn(),
+  liveRefreshMock: vi.fn(),
+}))
+
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: routerPush }) }))
+vi.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => toastMock(...a) }))
+vi.mock('@/components/escrow/TransactionMonitor', () => ({
+  TransactionMonitor: ({ onConfirmed, onFailed }: { onConfirmed: () => void; onFailed: (m: string) => void }) => (
+    <div>
+      <button onClick={onConfirmed}>monitor-confirm</button>
+      <button onClick={() => onFailed('rpc gave up')}>monitor-fail</button>
+    </div>
+  ),
+}))
+vi.mock('@/hooks/escrow/useEscrowActions', () => ({
+  useEscrowActions: (args: { onStale?: () => void }) => {
+    capturedActionsArgs.current = args
+    return actionsState
+  },
+}))
+vi.mock('@/hooks/escrow/useEscrowFee', () => ({
+  useEscrowFee: () => ({ feeBps: 250, feePct: '2.50', feeRaw: BigInt(1250000), netRaw: BigInt(48750000) }),
+}))
+vi.mock('@/hooks/escrow/live', () => ({
+  useEscrowLiveRefresh: (...a: unknown[]) => liveRefreshMock(...a),
+}))
+// The dialogs' internals are unit-tested with the gig hub; here they would
+// only drag in upload plumbing.
+vi.mock('@/components/gig/detail/action-dialogs', () => ({ GigActionDialogs: () => null }))
+vi.mock('@/api/client', () => ({
+  api: {
+    exchange: { get: vi.fn() },
+    users: { standing: vi.fn(() => new Promise(() => {})) },
+  },
+}))
+
+import { ExchangeDetailApp, sellerNameOf } from '@/components/exchange/ExchangeDetailApp'
+import { makeExchangeDetail, makeUserRef } from '../../../test/factories/exchange'
+
+const ACCOUNT: ExchangePayoutAccount = {
+  kind: 'bank',
+  bank_code: '058',
+  account_number: '0123456789',
+  account_name: 'Ada Okafor',
+  country: 'NG',
+}
+
+const refresh = vi.fn(async () => {})
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  actionsState.pendingTxRef = null
+  actionsState.pendingAction = null
+})
+
+test('a stranger on an open offer: Accept gates behind the confirm dialog', async () => {
+  render(<ExchangeDetailApp offer={makeExchangeDetail()} userId="stranger" refresh={refresh} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Accept Offer' }))
+  const dialog = await screen.findByRole('alertdialog', { name: 'Accept this offer?' })
+  expect(actionsState.accept).not.toHaveBeenCalled() // the gate really gates
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Accept Offer' }))
+  expect(actionsState.accept).toHaveBeenCalledTimes(1)
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument())
+})
+
+test('a confirmed non-cancel tx toasts and re-reads; a confirmed CANCEL leaves for /exchange', () => {
+  actionsState.pendingTxRef = 'sig-1'
+  actionsState.pendingAction = 'accept'
+  const { unmount } = render(
+    <ExchangeDetailApp offer={makeExchangeDetail()} userId="stranger" refresh={refresh} />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'monitor-confirm' }))
+  expect(actionsState.clearPending).toHaveBeenCalled()
+  expect(toastMock).toHaveBeenCalledWith('success', expect.stringMatching(/./))
+  expect(refresh).toHaveBeenCalled()
+  expect(routerPush).not.toHaveBeenCalled()
+  unmount()
+
+  refresh.mockClear()
+  actionsState.pendingAction = 'cancel'
+  render(<ExchangeDetailApp offer={makeExchangeDetail()} userId="seller-1" refresh={refresh} />)
+  fireEvent.click(screen.getByRole('button', { name: 'monitor-confirm' }))
+  expect(routerPush).toHaveBeenCalledWith('/exchange')
+  expect(refresh).not.toHaveBeenCalled()
+})
+
+test('a monitor failure clears the pending tx and reports still-syncing info', () => {
+  actionsState.pendingTxRef = 'sig-1'
+  actionsState.pendingAction = 'accept'
+  render(<ExchangeDetailApp offer={makeExchangeDetail()} userId="stranger" refresh={refresh} />)
+  fireEvent.click(screen.getByRole('button', { name: 'monitor-fail' }))
+  expect(actionsState.clearPending).toHaveBeenCalled()
+  expect(toastMock).toHaveBeenCalledWith('info', 'rpc gave up')
+})
+
+test('a takedown refusal (onStale) re-reads so dead buttons disappear', () => {
+  render(<ExchangeDetailApp offer={makeExchangeDetail()} userId="stranger" refresh={refresh} />)
+  refresh.mockClear()
+  capturedActionsArgs.current?.onStale?.()
+  expect(refresh).toHaveBeenCalled()
+})
+
+test('payout surfaces: the accepted BUYER sees instructions, the SELLER sees the bound account — never both', () => {
+  const accepted = makeExchangeDetail({
+    status: 'accepted',
+    payout_account: ACCOUNT,
+    counterparty: makeUserRef({ id: 'buyer-1', first_name: 'Bola', last_name: 'Ade' }),
+  })
+  const asBuyer = render(<ExchangeDetailApp offer={accepted} userId="buyer-1" refresh={refresh} />)
+  expect(screen.getByText('Pay the seller')).toBeInTheDocument()
+  expect(screen.queryByText('Buyer pays into')).toBeNull()
+  asBuyer.unmount()
+
+  render(<ExchangeDetailApp offer={accepted} userId="seller-1" refresh={refresh} />)
+  expect(screen.getByText('Buyer pays into')).toBeInTheDocument()
+  expect(screen.queryByText('Pay the seller')).toBeNull()
+})
+
+test('the live-refresh subscription rides the offer identity', () => {
+  render(<ExchangeDetailApp offer={makeExchangeDetail()} userId="stranger" refresh={refresh} />)
+  expect(liveRefreshMock).toHaveBeenCalledWith('exch-1', refresh, 'open')
+})
+
+test('sellerNameOf falls back when the creator has no printable name', () => {
+  expect(sellerNameOf(makeExchangeDetail())).toBe('Ada Okafor')
+  expect(
+    sellerNameOf(makeExchangeDetail({ creator: makeUserRef({ id: 's', first_name: '', last_name: '' }) })),
+  ).toBe('Seller')
+})

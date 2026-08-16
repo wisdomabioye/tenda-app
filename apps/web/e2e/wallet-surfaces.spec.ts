@@ -46,10 +46,13 @@ test('settings/linked-wallets: renders the server wallets with primary badge and
   await expect(page.getByRole('alertdialog')).toHaveCount(0)
 })
 
-test('profile links to the linked-wallets page', async ({ page }) => {
+test('profile reaches the linked-wallets page via Settings', async ({ page }) => {
   await signInWith(page, EXISTING_EMAIL)
   await expect(page).toHaveURL(/\/home/)
+  // S6.2: the profile mirrors mobile's nav — wallets live under Settings.
   await page.goto('/profile')
+  await page.getByRole('link', { name: 'Settings', exact: true }).click()
+  await expect(page).toHaveURL(/\/settings$/)
   await page.getByRole('link', { name: 'Linked wallets' }).click()
   await expect(page).toHaveURL(/\/settings\/linked-wallets/)
   await expect(page.getByRole('heading', { name: 'Linked wallets' })).toBeVisible()

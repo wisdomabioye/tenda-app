@@ -60,6 +60,9 @@ export default defineConfig({
         'components/gig/gig-applications/**/*.{ts,tsx}',
         'components/chat/**/*.{ts,tsx}',
         'components/notifications/**/*.{ts,tsx}',
+        'components/dispute/**/*.{ts,tsx}',
+        'components/exchange/**/*.{ts,tsx}',
+        'components/profile/**/*.{ts,tsx}',
         'components/auth/OtpCodeField.tsx',
         'components/auth/WalletSignInPanel.tsx',
         'components/settings/**/*.tsx',
@@ -72,7 +75,17 @@ export default defineConfig({
       // v8 still counts them and would dilute the gate with structural zeros.
       // wallet/adapters/types.ts is the same kind under its mobile-parity
       // name (the WalletAdapter interface, zero executable code).
-      exclude: ['**/*.d.ts', '**/__tests__/**', '**/*.types.ts', 'wallet/adapters/types.ts'],
+      // lib/uploads/avatar.ts is excluded with reason: a browser canvas
+      // pipeline (createImageBitmap → canvas.getContext('2d') → toBlob) that
+      // jsdom does not implement — mocking all three would only test the
+      // mocks. It is exercised by the avatar-upload flow on a real browser.
+      exclude: [
+        '**/*.d.ts',
+        '**/__tests__/**',
+        '**/*.types.ts',
+        'wallet/adapters/types.ts',
+        'lib/uploads/avatar.ts',
+      ],
       thresholds: { lines: 90, branches: 85, functions: 85, statements: 90 },
     },
   },

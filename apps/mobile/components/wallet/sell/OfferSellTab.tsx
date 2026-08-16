@@ -7,6 +7,7 @@ import {
   CURRENCY_META,
   DEFAULT_ACCEPT_WINDOW_SECONDS,
   EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS,
+  getOfferMissingRequirement,
 } from '@tenda/shared'
 import { Text, Button, Spacer } from '@/components/ui'
 import { Input } from '@/components/ui/Input'
@@ -21,7 +22,6 @@ import { SellAssetAmount } from './SellAssetAmount'
 import { SellPayoutSection } from './SellPayoutSection'
 import { OfferDeadlines } from './OfferDeadlines'
 import { OfferReviewCard } from './OfferReviewCard'
-import { getOfferMissingRequirement } from './offer-form.validation'
 import { tabBodyStyle } from './shared'
 
 const SECONDS_PER_HOUR = 60 * 60

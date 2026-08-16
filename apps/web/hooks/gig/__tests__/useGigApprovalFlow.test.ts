@@ -34,8 +34,8 @@ vi.mock('@/api/client', () => ({
   },
 }))
 
-import { useApplications, useApplicantList } from '@/components/gig/gig-applications'
-import { useGigApprovalFlow } from '@/components/gig/gig-applications'
+import { useApplications, useApplicantList } from '@/hooks/gig/useApplications'
+import { useGigApprovalFlow } from '@/hooks/gig/useGigApprovalFlow'
 
 beforeEach(() => {
   applyMock.mockResolvedValue({})

@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next'
+import { SUPPORT_TOPICS } from '@tenda/shared'
 import { listGigs } from '@/lib/gigs/data'
 import { siteUrl } from '@/lib/config/site-url'
 
@@ -15,6 +16,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl()
   const staticEntries: MetadataRoute.Sitemap = [
     { url: new URL('/gigs', base).toString(), changeFrequency: 'hourly', priority: 1 },
+    // The public support centre (S6.6): index + one page per shared topic —
+    // the same slug table the pages themselves are generated from.
+    { url: new URL('/support', base).toString(), changeFrequency: 'monthly', priority: 0.5 },
+    ...SUPPORT_TOPICS.map((topic) => ({
+      url: new URL(`/support/${topic.slug}`, base).toString(),
+      changeFrequency: 'monthly' as const,
+      priority: 0.5,
+    })),
   ]
   try {
     const page = await listGigs({ limit: 100, sort: 'created_at' })

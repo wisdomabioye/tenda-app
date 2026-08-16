@@ -15,8 +15,8 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useChatStore } from '@/stores/chat.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { useRealtimeConnection } from '@/hooks/connectivity/useRealtimeConnection'
-import { useInboxRealtime } from '@/components/chat/useInboxRealtime'
-import { useNotificationsRealtime } from '@/components/notifications/useNotificationsRealtime'
+import { useInboxRealtime } from '@/hooks/chat/useInboxRealtime'
+import { useNotificationsRealtime } from '@/hooks/notifications/useNotificationsRealtime'
 import { ThemeToggle } from './ThemeToggle'
 
 const NAV = [
@@ -26,6 +26,9 @@ const NAV = [
   { href: '/messages', label: 'Messages' },
   { href: '/wallet', label: 'Wallet' },
 ] as const
+
+/** Shown only once the CO4 advanced-mode toggle unlocks the P2P surface. */
+const EXCHANGE_NAV = { href: '/exchange', label: 'Trade' } as const
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -40,6 +43,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useNotificationsRealtime()
   const unread = useChatStore((s) => s.unread)
   const notificationUnread = useNotificationsStore((s) => s.unread)
+  const navItems = user?.advanced_mode_enabled ? [...NAV, EXCHANGE_NAV] : [...NAV]
 
   async function handleLogout() {
     await logout()
@@ -57,7 +61,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             {APP_INFO.name}
           </Link>
           <nav className="flex items-center gap-1 overflow-x-auto" aria-label="Primary">
-            {NAV.map((item) => {
+            {navItems.map((item) => {
               const active = pathname.startsWith(item.href)
               return (
                 <Link

@@ -101,6 +101,12 @@ export function PartyPanel({ gig, userId }: { gig: GigDetail; userId: string }) 
         <div className="flex flex-col gap-1 border-t border-border-subtle pt-3">
           <p className="text-sm font-semibold text-feedback-warning-base">Dispute raised</p>
           <p className="text-sm text-content-secondary">{dispute.reason}</p>
+          <Link
+            href={`/dispute/${gig.escrow_id}`}
+            className="text-sm font-semibold text-brand-primary underline-offset-2 hover:underline"
+          >
+            Open the mediation thread
+          </Link>
         </div>
       )}
     </section>

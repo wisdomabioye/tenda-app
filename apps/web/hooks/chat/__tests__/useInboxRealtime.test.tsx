@@ -24,13 +24,13 @@ vi.mock('@/stores/realtime.store', async () => {
   }
 })
 
-vi.mock('@/components/chat/useConversationPolling', () => ({
+vi.mock('@/hooks/chat/useConversationPolling', () => ({
   useConversationPolling: (enabled: boolean) => {
     pollEnabled.current.push(enabled)
   },
 }))
 
-import { useInboxRealtime } from '@/components/chat/useInboxRealtime'
+import { useInboxRealtime } from '@/hooks/chat/useInboxRealtime'
 import { useRealtimeStore } from '@/stores/realtime.store'
 import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'

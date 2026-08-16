@@ -117,4 +117,14 @@ describe('AppShell', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
     expect(router.replace).toHaveBeenCalledWith('/gigs')
   })
+
+  it('shows the Trade link ONLY once the CO4 advanced-mode toggle unlocks it', () => {
+    const { unmount } = render(<AppShell>child</AppShell>)
+    expect(screen.queryByRole('link', { name: 'Trade' })).toBeNull()
+    unmount()
+
+    useAuthStore.setState({ user: makeUser({ advanced_mode_enabled: true }) })
+    render(<AppShell>child</AppShell>)
+    expect(screen.getByRole('link', { name: 'Trade' })).toHaveAttribute('href', '/exchange')
+  })
 })

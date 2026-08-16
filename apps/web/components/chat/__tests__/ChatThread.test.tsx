@@ -23,10 +23,10 @@ const conversationState = vi.hoisted(() => ({
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: routerPush, back: vi.fn(), replace: vi.fn() }),
 }))
-vi.mock('@/components/chat/useConversation', () => ({
+vi.mock('@/hooks/chat/useConversation', () => ({
   useConversation: () => conversationState.current,
 }))
-vi.mock('@/components/chat/useChatRealtime', () => ({ useChatRealtime: () => {} }))
+vi.mock('@/hooks/chat/useChatRealtime', () => ({ useChatRealtime: () => {} }))
 
 // Captures the thread's REAL options so tests can drive the onUploaded
 // closure and the uploading flag.

@@ -16,7 +16,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Chip } from '@/components/ui/Chip'
 import { useNow } from '@/hooks/timing/useNow'
-import type { ApplicantFilter } from './useApplications'
+import type { ApplicantFilter } from '@/hooks/gig/useApplications'
 
 function ApplicantRow({
   applicant,

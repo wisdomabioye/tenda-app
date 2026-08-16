@@ -6,11 +6,12 @@
  * card, and the aria contract (`role` + `aria-modal` + label), so no dialog
  * hand-rolls `fixed inset-0` again.
  *
- * Backdrop dismissal is opt-in: pass `onBackdropClick` to get it (clicks on
- * the CARD never bubble out). Dialogs that must not be dismissed mid-flight
- * (transaction progress, busy confirms) simply omit it.
+ * Dismissal is ONE opt-in concept: pass `onBackdropClick` and both the dim
+ * layer's click AND Escape dismiss (clicks on the CARD never bubble out).
+ * Dialogs that must not be dismissed mid-flight (transaction progress, busy
+ * confirms) simply omit it and lock every way out at once.
  */
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
 export function ModalBackdrop({
@@ -32,6 +33,15 @@ export function ModalBackdrop({
   cardClassName?: string
   children: ReactNode
 }) {
+  useEffect(() => {
+    if (onBackdropClick === undefined) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onBackdropClick()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onBackdropClick])
+
   return (
     <div
       className={cn(

@@ -11,7 +11,7 @@ import { GigComposerNavigation, GigComposerProgress } from './gig-form/GigCompos
 import { GigDeliveryStep, GigDetailsStep, GigPaymentStep } from './gig-form/steps'
 import { ModerationHint } from './gig-form/ModerationHint'
 import { PriceWarningDialog } from '@/components/moderation/PriceWarningDialog'
-import { useGigForm } from './gig-form/useGigForm'
+import { useGigForm } from '@/hooks/gig/useGigForm'
 
 interface GigFormProps {
   initialValues?: Partial<GigFormValues>

@@ -5,7 +5,7 @@
  */
 import { renderHook, act } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { useConversationPolling } from '@/components/chat/useConversationPolling'
+import { useConversationPolling } from '@/hooks/chat/useConversationPolling'
 import { useChatStore } from '@/stores/chat.store'
 
 let visibilityState: DocumentVisibilityState = 'visible'

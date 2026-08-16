@@ -16,6 +16,10 @@ export const buttonVariants = cva(
           'bg-brand-solid text-brand-on-primary hover:bg-brand-primary-pressed disabled:bg-control-disabled-background disabled:text-control-disabled-text',
         outline:
           'border border-border-default text-content-secondary hover:border-border-strong hover:text-content-primary disabled:border-control-disabled-border disabled:text-control-disabled-text',
+        // Destructive-action outline (mobile's `danger` variant): cancel-class
+        // CTAs on the gig and exchange surfaces share this one definition.
+        'danger-outline':
+          'border border-feedback-danger-base/50 text-feedback-danger-base hover:border-feedback-danger-base disabled:border-control-disabled-border disabled:text-control-disabled-text',
         ghost: 'text-content-secondary hover:text-content-primary disabled:text-control-disabled-text',
       },
       size: {

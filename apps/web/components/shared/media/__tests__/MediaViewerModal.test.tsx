@@ -15,6 +15,13 @@ test('renders the image with a working close button', async () => {
   expect(onClose).toHaveBeenCalled()
 })
 
+test('Escape closes the lightbox (DoD: Escape closes overlays)', async () => {
+  const onClose = vi.fn()
+  render(<MediaViewerModal item={{ id: 'a1', url: 'https://cdn/x.png', kind: 'image' }} onClose={onClose} />)
+  await userEvent.keyboard('{Escape}')
+  expect(onClose).toHaveBeenCalledTimes(1)
+})
+
 test('null and document items render nothing', () => {
   const { rerender, container } = render(<MediaViewerModal item={null} onClose={vi.fn()} />)
   expect(container).toBeEmptyDOMElement()

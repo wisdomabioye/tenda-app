@@ -107,9 +107,11 @@ test.describe('SEO surfaces', () => {
     expect(body).toContain('/sitemap.xml')
   })
 
-  test('sitemap.xml lists the feed and live gig urls', async ({ request }) => {
+  test('sitemap.xml lists the feed, live gig urls and the support centre', async ({ request }) => {
     const body = await (await request.get('/sitemap.xml')).text()
     expect(body).toContain('/gigs')
     expect(body).toContain(`/gig/${deliveryGig.escrow_id}`)
+    expect(body).toContain('/support')
+    expect(body).toContain('/support/escrow')
   })
 })

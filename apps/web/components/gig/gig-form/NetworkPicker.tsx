@@ -7,12 +7,7 @@
  * eligible chain (no choice to make).
  */
 import { Chip } from '@/components/ui/Chip'
-
-export interface ChainOption {
-  id: string
-  label: string
-  enabled: boolean
-}
+import type { ChainOption } from '@/hooks/gig/useGigForm'
 
 export function NetworkPicker({
   options,

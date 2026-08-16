@@ -28,7 +28,13 @@ import { SOLANA_NETWORK } from '@/wallet/config'
 import { getBrowserCountry } from '@/lib/browser-country'
 import { useAuthStore } from '@/stores/auth.store'
 import { useModerationPreview } from '@/hooks/gig/useModerationPreview'
-import type { ChainOption } from './NetworkPicker'
+
+/** One selectable settlement chain, produced here, rendered by NetworkPicker. */
+export interface ChainOption {
+  id: string
+  label: string
+  enabled: boolean
+}
 
 export function useGigForm(
   initialValues: Partial<GigFormValues> | undefined,

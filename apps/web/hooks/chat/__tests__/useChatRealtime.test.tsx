@@ -32,13 +32,13 @@ vi.mock('@/stores/realtime.store', async () => {
   }
 })
 
-vi.mock('@/components/chat/useMessagePolling', () => ({
+vi.mock('@/hooks/chat/useMessagePolling', () => ({
   useMessagePolling: (id: string | null) => {
     polledWith.current.push(id)
   },
 }))
 
-import { useChatRealtime } from '@/components/chat/useChatRealtime'
+import { useChatRealtime } from '@/hooks/chat/useChatRealtime'
 import { useRealtimeStore } from '@/stores/realtime.store'
 import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'

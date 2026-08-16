@@ -11,7 +11,7 @@ vi.mock('@/stores/realtime.store', async () => {
   return { useRealtimeStore: create<{ connected: boolean }>(() => ({ connected: false })) }
 })
 
-import { useNotificationsRealtime } from '@/components/notifications/useNotificationsRealtime'
+import { useNotificationsRealtime } from '@/hooks/notifications/useNotificationsRealtime'
 import { useRealtimeStore } from '@/stores/realtime.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 

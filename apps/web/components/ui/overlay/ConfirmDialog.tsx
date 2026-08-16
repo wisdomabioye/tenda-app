@@ -5,9 +5,9 @@
  * a ModalBackdrop-composed alert with an explicit destructive variant and a
  * busy-disabled confirm. Backdrop click and Escape both cancel — except
  * while busy, when EVERY way out is locked (the request keeps running, so a
- * dialog that vanished mid-operation would be lying about it).
+ * dialog that vanished mid-operation would be lying about it). Both
+ * dismissals ride ModalBackdrop's one `onBackdropClick` seam.
  */
-import { useEffect } from 'react'
 import { Button } from '../Button'
 import { ModalBackdrop } from './ModalBackdrop'
 
@@ -32,15 +32,6 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  useEffect(() => {
-    if (!open) return
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !busy) onCancel()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, busy, onCancel])
-
   if (!open) return null
 
   return (
