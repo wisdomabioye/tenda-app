@@ -20,7 +20,7 @@ import type {
 import { hasCompleteName } from '@tenda/shared'
 import { deliveryGig, deliveryGigDetail, photoGig } from './fixtures/gigs'
 import { createAuthWorld, E2E_OTP_CODE, signIn, toMeUser, userForBearer } from './fixtures/auth'
-import { createChatWorld, handleChat } from './fixtures/chat'
+import { createChatWorld, handleChat, resetChatWorld } from './fixtures/chat'
 
 const PORT = Number(process.env.STUB_API_PORT ?? 3210)
 const GIGS: GigSummary[] = [deliveryGig, photoGig]
@@ -266,6 +266,12 @@ function handleAuth(url: URL, method: string, authorization: string | undefined,
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
     const details = JSON.parse(body) as { escrow_id: string; title: string }
     return json({ escrow_id: details.escrow_id, title: details.title, status: 'draft' })
+  }
+  // Test-control route (no auth, stub-only): restores the chat world so CI
+  // retries and repeat runs start from the seeded state.
+  if (url.pathname === '/__e2e/reset-chat' && method === 'POST') {
+    resetChatWorld(chatWorld)
+    return json({ ok: true })
   }
   // Chat (S5.2): conversations + messages, auth-gated like the real routes.
   if (url.pathname.startsWith('/v1/conversations') || /^\/v1\/users\/[^/]+$/.test(url.pathname)) {

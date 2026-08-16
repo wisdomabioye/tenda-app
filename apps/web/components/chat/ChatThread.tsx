@@ -141,6 +141,7 @@ export function ChatThread({ userId, context }: { userId: string; context?: Chat
           avatarUrl={otherUser?.avatar_url}
           onBack={() => router.back()}
           onMenu={() => setMenuOpen((v) => !v)}
+          menuOpen={menuOpen}
         />
         {menuOpen && (
           <div className="absolute right-3 top-14 z-10 w-64 rounded-card border border-border-subtle bg-surface-card p-1 shadow-lg">

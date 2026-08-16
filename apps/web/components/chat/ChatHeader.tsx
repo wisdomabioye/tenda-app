@@ -13,11 +13,14 @@ export function ChatHeader({
   avatarUrl,
   onBack,
   onMenu,
+  menuOpen = false,
 }: {
   name: string
   avatarUrl?: string | null
   onBack: () => void
   onMenu?: () => void
+  /** Popover state, surfaced as aria-expanded on the trigger. */
+  menuOpen?: boolean
 }) {
   return (
     <div className="flex h-16 shrink-0 items-center gap-2.5 border-b border-border-subtle pl-2 pr-3">
@@ -40,6 +43,8 @@ export function ChatHeader({
           type="button"
           onClick={onMenu}
           aria-label="More options"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
           className="flex h-10 w-10 items-center justify-center rounded-xl text-content-primary transition-opacity hover:opacity-60"
         >
           <MoreVertical size={20} strokeWidth={2.25} />

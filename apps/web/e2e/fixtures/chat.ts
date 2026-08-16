@@ -14,6 +14,16 @@ interface ChatWorld {
   nextId: number
 }
 
+/**
+ * Restore the seeded state in place. Called by the stub's /__e2e/reset-chat
+ * before every chat test: CI retries (retries: 2) re-run a test against a
+ * world its first attempt already mutated — without a reset, every retry
+ * fails on state it inherited rather than the regression it retried for.
+ */
+export function resetChatWorld(world: ChatWorld): void {
+  Object.assign(world, createChatWorld())
+}
+
 export function createChatWorld(): ChatWorld {
   const conversation: Conversation = {
     id: 'conv-1',

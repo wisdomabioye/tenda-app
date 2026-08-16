@@ -14,6 +14,13 @@ import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
 // would race each other across workers and flake on ordering.
 test.describe.configure({ mode: 'serial' })
 
+// Every test (and every CI RETRY of one) starts from the seeded world —
+// without this, a retry inherits the state its first attempt mutated.
+const STUB_URL = `http://127.0.0.1:${process.env.STUB_API_PORT ?? 3210}`
+test.beforeEach(async ({ request }) => {
+  await request.post(`${STUB_URL}/__e2e/reset-chat`)
+})
+
 async function signIn(page: Page) {
   await page.goto('/signin/email')
   await page.getByLabel('Email').fill(EXISTING_EMAIL)

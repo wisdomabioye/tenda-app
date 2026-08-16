@@ -27,8 +27,18 @@ vi.mock('@/components/chat/useConversation', () => ({
   useConversation: () => conversationState.current,
 }))
 vi.mock('@/components/chat/useChatRealtime', () => ({ useChatRealtime: () => {} }))
+
+// Captures the thread's REAL options so tests can drive the onUploaded
+// closure and the uploading flag.
+const uploadState = vi.hoisted(() => ({
+  uploading: false,
+  lastOptions: null as { onUploaded: (a: { url: string; type: 'image' | 'file'; size: number }) => void | Promise<void> } | null,
+}))
 vi.mock('@/hooks/uploads/useAttachmentUpload', () => ({
-  useAttachmentUpload: () => ({ uploading: false, upload: vi.fn() }),
+  useAttachmentUpload: (options: { onUploaded: (a: { url: string; type: 'image' | 'file'; size: number }) => void | Promise<void> }) => {
+    uploadState.lastOptions = options
+    return { uploading: uploadState.uploading, upload: vi.fn() }
+  },
 }))
 
 import { ChatThread } from '@/components/chat/ChatThread'
@@ -88,7 +98,10 @@ test('sending routes through the store with the escrow context from the URL', as
 
 test('the header menu closes on Escape and on clicking elsewhere', async () => {
   render(<ChatThread userId="them" />)
-  await userEvent.click(screen.getByRole('button', { name: 'More options' }))
+  const trigger = screen.getByRole('button', { name: 'More options' })
+  expect(trigger).toHaveAttribute('aria-expanded', 'false')
+  await userEvent.click(trigger)
+  expect(trigger).toHaveAttribute('aria-expanded', 'true')
   expect(screen.getByRole('button', { name: /Close conversation/ })).toBeInTheDocument()
 
   await userEvent.keyboard('{Escape}')
@@ -126,6 +139,59 @@ test('image attachments open the lightbox; PDFs open a new tab', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Open document attachment' }))
   expect(openSpy).toHaveBeenCalledWith('https://cdn/d.pdf', '_blank', 'noopener')
   openSpy.mockRestore()
+})
+
+test('a failed bubble retries through the store with the message intact', async () => {
+  const retryMessage = vi.fn()
+  useChatStore.setState({
+    retryMessage,
+    messages: { c1: [{ ...makeMessage({ id: 'f1', content: 'lost', sender_id: 'me' }), _status: 'failed' as const }] },
+  })
+  render(<ChatThread userId="them" />)
+  await userEvent.click(screen.getByRole('button', { name: /Didn't send/ }))
+  expect(retryMessage).toHaveBeenCalledWith('c1', expect.objectContaining({ id: 'f1' }))
+})
+
+test('an uploaded attachment sends an attachment-only message into the context', async () => {
+  render(
+    <ChatThread userId="them" context={{ escrowId: 'e9', escrowTitle: null, kind: 'gig' }} />,
+  )
+  await uploadState.lastOptions?.onUploaded({ url: 'https://cdn/a.png', type: 'image', size: 7 })
+  expect(sendMessage).toHaveBeenCalledWith(
+    'c1',
+    '',
+    { escrowId: 'e9', kind: 'gig' },
+    { url: 'https://cdn/a.png', type: 'image', size: 7 },
+  )
+})
+
+test('while uploading, the hint shows and the composer is disabled', () => {
+  uploadState.uploading = true
+  render(<ChatThread userId="them" />)
+  expect(screen.getByText('Uploading attachment…')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Send message' })).toBeDisabled()
+  uploadState.uploading = false
+})
+
+test('an empty thread shows the say-hi empty state', () => {
+  useChatStore.setState({ messages: { c1: [] } })
+  render(<ChatThread userId="them" />)
+  expect(screen.getByText('No messages yet. Say hi!')).toBeInTheDocument()
+})
+
+test('cancelling the close dialog keeps the thread; a failing close stays put', async () => {
+  render(<ChatThread userId="them" />)
+  await userEvent.click(screen.getByRole('button', { name: 'More options' }))
+  await userEvent.click(screen.getByRole('button', { name: /Close conversation/ }))
+  await userEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+  expect(closeConversation).not.toHaveBeenCalled()
+
+  closeConversation.mockRejectedValueOnce(new Error('down'))
+  await userEvent.click(screen.getByRole('button', { name: 'More options' }))
+  await userEvent.click(screen.getByRole('button', { name: /Close conversation/ }))
+  await userEvent.click(screen.getByRole('button', { name: 'Close' }))
+  await vi.waitFor(() => expect(closeConversation).toHaveBeenCalled())
+  expect(routerPush).not.toHaveBeenCalled() // failure never navigates away
 })
 
 test('bootstrap error shows the retry surface and loading shows neither', () => {
