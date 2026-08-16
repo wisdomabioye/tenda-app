@@ -17,6 +17,8 @@ import { useInboxRealtime } from '@/hooks/chat/useInboxRealtime'
 import { useNotificationsRealtime } from '@/hooks/notifications/useNotificationsRealtime'
 import { DetailPane, WorkspaceShell } from '@/components/app/workspace'
 import { selectionKey, surfaceTitle } from '@/components/app/workspace/surfaces'
+import { CommandPalette, surfaceCommands } from '@/components/app/workspace/palette'
+import { useCommandPalette } from '@/hooks/workspace/useCommandPalette'
 
 export function AppWorkspace({ list, children }: { list?: ReactNode; children: ReactNode }) {
   const user = useAuthStore((s) => s.user)
@@ -31,18 +33,30 @@ export function AppWorkspace({ list, children }: { list?: ReactNode; children: R
   const segments = useSelectedLayoutSegments()
   const selection = selectionKey(segments)
 
+  // Hosted here so ⌘K works on every authed surface, not only ones with a
+  // list column to put the button in.
+  const { open: paletteOpen, closePalette } = useCommandPalette()
+
   return (
-    <WorkspaceShell
-      user={user}
-      list={list}
-      // The URL, not the presence of a pane, decides which column survives
-      // the ≤900px collapse — the detail pane is always mounted.
-      hasSelection={selection !== null}
-      detail={
-        <DetailPane label={surfaceTitle(surface)} selectionKey={selection}>
-          {children}
-        </DetailPane>
-      }
-    />
+    <>
+      {paletteOpen && (
+        <CommandPalette
+          commands={surfaceCommands(user?.advanced_mode_enabled === true)}
+          onClose={closePalette}
+        />
+      )}
+      <WorkspaceShell
+        user={user}
+        list={list}
+        // The URL, not the presence of a pane, decides which column survives
+        // the ≤900px collapse — the detail pane is always mounted.
+        hasSelection={selection !== null}
+        detail={
+          <DetailPane label={surfaceTitle(surface)} selectionKey={selection}>
+            {children}
+          </DetailPane>
+        }
+      />
+    </>
   )
 }
