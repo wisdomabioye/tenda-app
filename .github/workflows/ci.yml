@@ -154,6 +154,16 @@ jobs:
       - name: Tests + coverage gate (vitest + jsdom)
         working-directory: apps/web
         run: pnpm test:coverage
+      # The e2e layer is the only executable proof of the SSR/hydration and
+      # stub-API flows (playwright.config's CI branches — workers:1,
+      # retries:2 — were written for this job). The webServer entries boot
+      # the stub API and a production next build/start themselves.
+      - name: Install Playwright browsers
+        working-directory: apps/web
+        run: pnpm exec playwright install --with-deps chromium
+      - name: E2E (Playwright vs stub API)
+        working-directory: apps/web
+        run: pnpm test:e2e
 
   mobile:
     runs-on: ubuntu-latest
