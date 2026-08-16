@@ -2,6 +2,7 @@
 
 import { useSyncExternalStore } from 'react'
 import { Moon, Sun } from 'lucide-react'
+import { cn } from '@/lib/cn'
 import { applyTheme, themeStore } from '@/lib/theme'
 
 /**
@@ -10,7 +11,7 @@ import { applyTheme, themeStore } from '@/lib/theme'
  * is 'system', the client one is the stored choice, and React reconciles
  * them at hydration without a mismatch or a setState-in-effect.
  */
-export function ThemeToggle() {
+export function ThemeToggle({ className }: { className?: string } = {}) {
   const preference = useSyncExternalStore(
     themeStore.subscribe,
     themeStore.getSnapshot,
@@ -29,7 +30,12 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label="Toggle theme"
-      className="rounded-control p-2 text-content-secondary hover:bg-surface-inset hover:text-content-primary"
+      // Default keeps the previous top-nav geometry; the rail passes its own
+      // 40px slot so every rail control sits on one grid.
+      className={cn(
+        'rounded-control text-content-secondary hover:bg-surface-inset hover:text-content-primary',
+        className ?? 'p-2',
+      )}
     >
       {preference === 'dark' ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
     </button>
