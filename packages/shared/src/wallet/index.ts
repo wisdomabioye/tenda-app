@@ -21,3 +21,35 @@ export {
   txAmountRaw,
   txDisplayAmount,
 } from './tx-copy'
+export {
+  encodeApprove,
+  displayToAmountRaw,
+  readAllowance,
+  sendApprove,
+  waitForReceipt,
+  ensureAllowance,
+  RECEIPT_POLL_INTERVAL_MS,
+  RECEIPT_POLL_TIMEOUT_MS,
+  type SendEvmTx,
+} from './allowance'
+export {
+  guardWalletRequest,
+  subscribePendingWalletRequest,
+  hasPendingWalletRequest,
+  abortPendingWalletRequest,
+  WC_REQUEST_TIMEOUT_MS,
+  WC_DISCONNECT_CAP_MS,
+  WC_TIMEOUT_MESSAGE,
+  WC_CANCELLED_MESSAGE,
+} from './request-guard'
+export { isLinkedWallet, pickWalletAddress, orderedSignerAddresses } from './wallet-address'
+export {
+  createSolanaRpcTransport,
+  classifySolanaRpcError,
+  isRetryableSolanaRpcError,
+  type SolanaRpcTransport,
+  type SolanaRpcErrorKind,
+  type SolanaConnectionPort,
+  type SolanaConnectionFactory,
+} from './solana-rpc'
+export { getEvmTransactionStatus } from './evm-tx-status'

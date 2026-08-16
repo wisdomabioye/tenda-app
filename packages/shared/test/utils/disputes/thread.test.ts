@@ -9,8 +9,8 @@ import {
   isDisputeDay,
   type DisputeFeedItem,
   type DisputeRowItem,
-} from '../../src/utils/dispute-thread'
-import type { DisputeMessage } from '../../src/types/dispute'
+} from '../../../src/utils/disputes/thread'
+import type { DisputeMessage } from '../../../src/types/dispute'
 
 function msg(id: string, sender_id: string, created_at: string): DisputeMessage {
   return {

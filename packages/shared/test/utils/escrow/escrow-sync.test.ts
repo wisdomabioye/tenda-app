@@ -1,8 +1,8 @@
 /** Read-through convergence check (ported from mobile when the module moved here). */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { checkEscrowTransitionApplied } from '../../src/utils/escrow-sync'
-import type { EscrowSyncProjection } from '../../src/constants/escrow-transitions'
+import { checkEscrowTransitionApplied } from '../../../src/utils/escrow/escrow-sync'
+import type { EscrowSyncProjection } from '../../../src/constants/escrow-transitions'
 
 function reader(projection: EscrowSyncProjection) {
   let calls = 0

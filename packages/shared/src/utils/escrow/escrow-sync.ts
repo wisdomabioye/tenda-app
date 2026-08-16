@@ -1,5 +1,5 @@
-import { hasAppliedEscrowTransition, type EscrowSyncProjection } from '../constants/escrow-transitions'
-import type { EscrowTxType } from '../constants/escrow'
+import { hasAppliedEscrowTransition, type EscrowSyncProjection } from '../../constants/escrow-transitions'
+import type { EscrowTxType } from '../../constants/escrow'
 
 /** Read-through convergence check shared by gig, exchange and create flows. */
 export async function checkEscrowTransitionApplied(

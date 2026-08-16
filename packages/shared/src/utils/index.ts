@@ -81,14 +81,8 @@ export {
 export { chainLabel } from './chain-label'
 export { instructionCopy, INTENT_STATUS_COPY, isCancellable, isTerminal } from './fiat-display'
 export { withRetry, type RetryOptions } from './with-retry'
-export { checkEscrowTransitionApplied } from './escrow-sync'
-export {
-  buildDisputeFeed,
-  isDisputeDay,
-  type DisputeDayItem,
-  type DisputeRowItem,
-  type DisputeFeedItem,
-} from './dispute-thread'
+export * from './escrow'
+export * from './disputes'
 export { randomUuid } from './random-uuid'
 export {
   classifyVerifyError,

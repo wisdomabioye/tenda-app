@@ -1,4 +1,4 @@
-import type { DisputeMessage } from '../types/dispute'
+import type { DisputeMessage } from '../../types/dispute'
 
 /** Day-header row (one per calendar date), reusing the chat day label. */
 export type DisputeDayItem = { _type: 'day'; _key: string; iso: string }
