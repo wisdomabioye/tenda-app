@@ -128,13 +128,17 @@ export const useEscrowStore = create<EscrowState>((set) => {
           ...(input.escrow_id !== undefined ? { escrow_id: input.escrow_id } : {}),
         })
       } catch (e) {
-        // 409 DUPLICATE_SIGNATURE = this tx_ref is already recorded, the
-        // ping's job is done. Same semantics as the pending-sync replay
-        // path; surfacing it as an error would hide a successful action.
+        // DEFENSIVE: the current v2 client-ping never 409s a duplicate --
+        // tx_attempts inserts with onConflictDoNothing and replays answer 202
+        // {recorded:false} (server routes/v1/blockchain/transaction.ts). The
+        // branch stays because DUPLICATE_SIGNATURE is still in the contract
+        // enum: if a server reintroduces it, "already recorded" must read as
+        // success. Matched on `code` -- `error` is the HTTP label
+        // ('Conflict') and can never equal an ErrorCode.
         if (
           e instanceof ApiClientError &&
           e.statusCode === 409 &&
-          e.error === ErrorCode.DUPLICATE_SIGNATURE
+          e.code === ErrorCode.DUPLICATE_SIGNATURE
         ) {
           return { status: 'queued', recorded: false, enqueued: false }
         }
