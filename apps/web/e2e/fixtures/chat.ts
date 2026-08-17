@@ -5,6 +5,7 @@
  * real wire types — drift breaks the build here.
  */
 import type { Conversation, Message } from '@tenda/shared'
+import { EXISTING_USER_ID } from './auth'
 
 export const OTHER_USER_ID = 'user-bola-1'
 
@@ -27,7 +28,7 @@ export function resetChatWorld(world: ChatWorld): void {
 export function createChatWorld(): ChatWorld {
   const conversation: Conversation = {
     id: 'conv-1',
-    user_a_id: 'user-test-1',
+    user_a_id: EXISTING_USER_ID,
     user_b_id: OTHER_USER_ID,
     status: 'active',
     closed_by: null,
@@ -91,11 +92,17 @@ export function handleChat(
   body: string,
 ): { statusCode: number; payload: unknown } | null {
   if (url.pathname === '/v1/conversations' && method === 'GET') {
-    // Server fidelity: the list serves ACTIVE conversations only — a closed
-    // thread leaves the inbox until findOrCreate reopens it.
+    // Server fidelity, twice over. The list serves ACTIVE conversations only —
+    // a closed thread leaves the inbox until findOrCreate reopens it — and it
+    // serves only the CALLER's, which the real route enforces by participant
+    // pair. Without the second rule this stub hands the seeded thread to any
+    // bearer, and a test asking "does account B see account A's inbox?" gets a
+    // yes from the fixture rather than from the app.
+    const mine =
+      chat.conversation.user_a_id === senderId || chat.conversation.user_b_id === senderId
     return {
       statusCode: 200,
-      payload: chat.conversation.status === 'active' ? [chat.conversation] : [],
+      payload: mine && chat.conversation.status === 'active' ? [chat.conversation] : [],
     }
   }
   if (url.pathname === '/v1/conversations' && method === 'POST') {

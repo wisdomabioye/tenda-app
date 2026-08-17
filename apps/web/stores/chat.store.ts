@@ -50,13 +50,28 @@ interface ChatState {
   closeConversation: (conversationId: string) => Promise<void>
   appendMessage: (conversationId: string, message: LocalMessage) => void
   receiveMessage: (conversationId: string, message: Message) => void
+  /** Drop everything this account read. Called from `logout`. */
+  reset: () => void
+}
+
+/**
+ * Everything here belongs to ONE account.
+ *
+ * Sign-out is a soft navigation (`router.replace('/gigs')`), so the JS context
+ * — and every store in it — survives an account switch made in the same tab.
+ * Measured before this existed: signing in as someone else showed the previous
+ * account's threads in the inbox column. Same doctrine as the notifications
+ * store, which `logout` has always reset for exactly this reason.
+ */
+const INITIAL = {
+  conversations: [] as Conversation[],
+  conversationsStatus: 'idle' as InboxStatus,
+  messages: {} as Record<string, LocalMessage[]>,
+  unread: 0,
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
-  conversations: [],
-  conversationsStatus: 'idle',
-  messages: {},
-  unread: 0,
+  ...INITIAL,
 
   fetchConversations: async () => {
     set({ conversationsStatus: 'loading' })
@@ -205,6 +220,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   // WS delivery, dedupes by id (the broadcast echoes the sender's own
   // message back, and a reconnect-era fetchMessages may already have it).
+  reset: () => set({ ...INITIAL }),
+
   receiveMessage: (conversationId, message) => {
     set((s) => {
       const existing = s.messages[conversationId] ?? []

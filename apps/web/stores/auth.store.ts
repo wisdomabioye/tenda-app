@@ -13,6 +13,8 @@ import { clearAuthStorage, getJwtToken, JWT_TOKEN_KEY, setJwtToken } from '@/lib
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { reownAdapter } from '@/wallet/adapters/reown'
 import { useNotificationsStore } from '@/stores/notifications.store'
+import { useChatStore } from '@/stores/chat.store'
+import { clearAccountCaches } from '@/lib/account-caches'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 
 /**
@@ -156,6 +158,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // dropped here so the next account never sees this account's notices
     // (mobile doctrine, stores/auth.store.ts).
     useNotificationsStore.getState().reset()
+    // Same reason, same doctrine: sign-out is a soft navigation, so every
+    // store and module-scoped cache in this tab outlives the session unless
+    // it is emptied here. The inbox and the disputes column both hold rows
+    // the next account must never see.
+    useChatStore.getState().reset()
+    clearAccountCaches()
     await clearAuthStorage()
     // Best-effort: drop the wallet session too, so the next sign-in shows the
     // picker instead of silently reusing a stale session across accounts

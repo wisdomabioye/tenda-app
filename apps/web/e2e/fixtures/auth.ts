@@ -9,6 +9,12 @@ import { makeUser } from '../../test/factories/user'
  */
 export const E2E_OTP_CODE = '123456'
 export const EXISTING_EMAIL = 'ada@tenda.test'
+/**
+ * The id the stub mints for that account. Exported because the chat and
+ * dispute fixtures scope their rows to the CALLER, and a second copy of this
+ * string is how a fixture silently serves nobody (or everybody).
+ */
+export const EXISTING_USER_ID = 'user-existing'
 
 interface AuthWorld {
   usersByToken: Map<string, User>
@@ -22,7 +28,7 @@ export function createAuthWorld(): AuthWorld {
 export function signIn(world: AuthWorld, identifier: string): { token: string; user: User; is_new: boolean } {
   const existing = identifier === EXISTING_EMAIL
   const user = existing
-    ? makeUser({ id: 'user-existing', first_name: 'Ada', last_name: 'Okafor' })
+    ? makeUser({ id: EXISTING_USER_ID, first_name: 'Ada', last_name: 'Okafor' })
     : makeUser({ id: `user-fresh-${world.nextId++}`, first_name: '', last_name: '' })
   const token = `e2e-jwt-${user.id}`
   world.usersByToken.set(token, user)

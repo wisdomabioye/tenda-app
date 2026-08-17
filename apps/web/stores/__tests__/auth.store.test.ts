@@ -23,6 +23,10 @@ import { initCrossTabAuthSync, useAuthStore } from '@/stores/auth.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { JWT_TOKEN_KEY } from '@/lib/storage'
 import { makeUser } from '../../test/factories/user'
+import { rememberPage, readPage } from '@tenda/shared'
+import { useChatStore } from '@/stores/chat.store'
+import { disputesPageCache } from '@/lib/account-caches'
+import { makeConversation } from '../../test/factories/chat'
 
 const authApi = vi.mocked(api.auth)
 const usersApi = vi.mocked(api.users)
@@ -151,6 +155,31 @@ describe('logout', () => {
     const state = useAuthStore.getState()
     expect(state.user).toBeNull()
     expect(state.isAuthenticated).toBe(false)
+  })
+
+  it('drops the INBOX and the list caches for the same reason', async () => {
+    // Sign-out is a soft navigation, so the JS context survives an account
+    // switch made in the same tab — every store and every module-scoped cache
+    // with it. Measured before this: the next account's inbox column listed
+    // the previous account's threads.
+    useChatStore.setState({
+      conversations: [makeConversation({ id: 'c1' })],
+      conversationsStatus: 'ready',
+      unread: 4,
+      messages: { c1: [] },
+    })
+    rememberPage(disputesPageCache, 'status=open', { items: [], total: 3 })
+
+    await useAuthStore.getState().logout()
+
+    const chat = useChatStore.getState()
+    expect(chat.conversations).toEqual([])
+    expect(chat.unread).toBe(0)
+    expect(chat.messages).toEqual({})
+    // Back to 'idle', not 'ready': the next account has not loaded anything,
+    // and 'ready' with no rows is the empty state — a claim about THEIR inbox.
+    expect(chat.conversationsStatus).toBe('idle')
+    expect(readPage(disputesPageCache, 'status=open')).toBeUndefined()
   })
 
   it('drops notification state so the next account never sees these notices', async () => {

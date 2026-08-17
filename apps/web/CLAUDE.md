@@ -173,6 +173,20 @@ data shape:
 Assert it as `['rows:N']` across the navigation, not "the list is still visible": a
 skeleton is visible too.
 
+**And whatever outlives the component also outlives the SESSION.** Sign-out is a soft
+navigation (`router.replace('/gigs')`), so one tab can switch accounts without ever
+dropping the JS context — every store and every module-scoped cache carries straight into
+the next session. Measured: the second account's inbox column listed the first account's
+threads, and its disputes column listed their disputes. So `logout` empties them, beside
+the notifications store it has always reset. **Register a module-scoped cache in
+`lib/account-caches.ts`** rather than declaring one beside its hook; a cache nobody can
+clear is a leak with a comment on it.
+
+Testing that needs a stub that scopes rows to the CALLER. Ours did not — `handleChat`
+served the seeded conversation to any bearer — so the first version of this test "passed"
+on the fixture's behaviour and would have passed with the leak wide open. If a test asks
+"can B see A's data?", check what the fixture answers B before believing the result.
+
 Where a surface's list lives is also `surfaces.ts`'s job (`SURFACE_LIST_HOME`): a thread is
 `/chat/<id>` but its list is `/messages`, so `/${surface}` would send the ≤900px back link
 to a route that does not exist. That link is `[data-pane-back]`, and it is **CSS-gated, not

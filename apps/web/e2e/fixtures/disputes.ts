@@ -7,6 +7,7 @@
  * the server cannot produce is a test that proves nothing.
  */
 import type { MyDisputeRow, MyDisputeStatus, PaginatedResponse } from '@tenda/shared'
+import { EXISTING_USER_ID } from './auth'
 
 export const OPEN_DISPUTE: MyDisputeRow = {
   dispute_id: 'dsp-open-1',
@@ -47,8 +48,15 @@ const BUCKETS: Record<MyDisputeStatus, MyDisputeRow[]> = {
 export function handleDisputes(
   url: URL,
   method: string,
+  callerId: string,
 ): { payload: PaginatedResponse<MyDisputeRow>; statusCode: number } | null {
   if (method !== 'GET' || url.pathname !== '/v1/disputes') return null
+  // Only the seeded account has disputes. The real route scopes by party, and
+  // a stub that answers the same rows to every bearer would let a test asking
+  // "does the next account see these?" pass on the fixture's behaviour.
+  if (callerId !== EXISTING_USER_ID) {
+    return { payload: { data: [], total: 0, limit: 20, offset: 0 }, statusCode: 200 }
+  }
   const status: MyDisputeStatus = url.searchParams.get('status') === 'resolved' ? 'resolved' : 'open'
   const rows = BUCKETS[status]
   const limit = Number(url.searchParams.get('limit') ?? 20)

@@ -8,7 +8,8 @@
  * workspace column that the router remounts on every row it opens, so that
  * reload is now SILENT — see `PAGE_ZERO` below.
  */
-import { createQueryCache, type MyDisputeRow, type MyDisputeStatus, type MyDisputesQuery } from '@tenda/shared'
+import type { MyDisputeRow, MyDisputeStatus, MyDisputesQuery } from '@tenda/shared'
+import { disputesPageCache } from '@/lib/account-caches'
 import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/pagination/usePaginatedList'
 
@@ -17,22 +18,23 @@ export type MyDisputesState = PaginatedListState<MyDisputeRow>
 const keyOf = (row: MyDisputeRow) => row.dispute_id
 
 /**
- * Module-scoped so page zero of each bucket outlives the hook.
- *
- * The disputes list is a workspace COLUMN now, and Next remounts the @list
- * slot whenever the route moves between /disputes and /dispute/<id> — i.e. on
- * every row the reader opens. A per-instance cache cannot help there, and the
+ * Page zero outlives the hook, because the @list slot is remounted on every
+ * row the reader opens and a per-instance cache cannot survive that — the
  * column blinked through a skeleton each time. Page zero only, keyed by the
- * bucket, and silently revalidated on every mount, so what it can serve is at
- * most one navigation stale — and only for the moment before the refetch lands.
+ * bucket, silently revalidated on every mount, so what it can serve is at most
+ * one navigation stale.
+ *
+ * It lives in `lib/account-caches` and NOT beside this hook: module scope
+ * outlives the session as well as the component, and sign-out is a soft
+ * navigation. A cache that no `logout` can empty is how the next account gets
+ * shown the previous one's disputes.
  */
-const PAGE_ZERO = createQueryCache<MyDisputeRow>()
 
 export function useMyDisputes(status: MyDisputeStatus): MyDisputesState {
   return usePaginatedList<MyDisputeRow, MyDisputesQuery>({
     fetchPage: (params) => api.disputes.mine(params),
     query: { status },
     keyOf,
-    cache: PAGE_ZERO,
+    cache: disputesPageCache,
   })
 }

@@ -354,7 +354,7 @@ function handleAuth(url: URL, method: string, authorization: string | undefined,
   if (url.pathname === '/v1/disputes') {
     const user = userForBearer(world, authorization)
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
-    const disputes = handleDisputes(url, method)
+    const disputes = handleDisputes(url, method, user.id)
     if (disputes !== null) return json(disputes.payload, disputes.statusCode)
   }
   // Chat (S5.2): conversations + messages, auth-gated like the real routes.
