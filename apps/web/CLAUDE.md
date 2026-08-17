@@ -64,6 +64,38 @@ Two more rules this shell learned the hard way, both measured in a real browser:
   `gigsHref` normalisation the rail links use, so position keys and the default
   sort cannot mint a duplicate of a page that already exists.
 
+### Text a poster wrote
+
+`title`, `description` and `city` are free text typed by a user and rendered on
+an anonymous public page. A poster pasting a link into a title is ordinary, and
+before this was handled it overflowed `/gigs` by **474px at 360px** — and still
+30px at 1100px, because the card grid's track count changes what fits.
+
+Containing it takes **two** things, and each is inert without the other:
+
+1. `break-words` on the text, and
+2. a `min-w-0` on the flex/grid **item** that contains it.
+
+The second is the one that gets forgotten. `overflow-wrap: break-word` does not
+reduce an element's *min-content* width, and a flex/grid item defaults to
+`min-width: auto` — "never shrink below min-content" — so the item still sizes
+to the longest unbreakable token and drags its track out. Adding `break-words`
+alone was measured to change nothing at all.
+
+Put `min-w-0` only where it is load-bearing and **verify by removing it**: on
+this surface exactly one was (the feed card). The same class on the `<li>`, on
+`/home`'s `<li>` and on the detail `<article>` was measured to make no
+difference and is not shipped — a class that does nothing beside a comment
+saying it matters is worse than no class.
+
+Choose per surface between breaking and truncating: a feed card truncates its
+place line (one line, scannable), the detail page breaks it (the reader is
+deciding on that fact, and half a location is worse than two lines).
+
+`e2e/public-discovery.spec.ts` asserts `scrollWidth === clientWidth` at
+320/360/390 and at 768/900/1100/1280, against `unbreakableGig` — a fixture that
+rides in the normal feed so every test sees it.
+
 **Surface / selection contract** (`components/app/workspace/surfaces.ts`). The first
 segment inside `(app)` is the *surface*; anything deeper is the *selection*. The detail
 pane takes its accessible name from the surface and hands off focus when the selection

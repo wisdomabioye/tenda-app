@@ -31,8 +31,12 @@ export function GigDetailCta({ gig }: { gig: PublicGigCta }) {
     )
   }
   return (
-    <div className="flex items-center justify-between gap-4 rounded-card border border-brand-primary-border bg-brand-primary-surface px-5 py-4">
-      <p className="text-sm text-content-secondary">
+    // `flex-wrap`: the sentence and a `whitespace-nowrap` button cannot both
+    // fit one row in the 344px aside on a phone — measured 5px of document
+    // overflow on an approval-mode gig, which is the longer of the two
+    // wordings. The button keeps its no-wrap; the row gives instead.
+    <div className="flex flex-wrap items-center justify-between gap-4 rounded-card border border-brand-primary-border bg-brand-primary-surface px-5 py-4">
+      <p className="min-w-0 text-sm text-content-secondary">
         {gig.requires_approval
           ? 'The poster picks a worker from applications.'
           : 'First to accept gets the gig.'}

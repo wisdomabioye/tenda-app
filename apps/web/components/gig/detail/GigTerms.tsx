@@ -87,8 +87,14 @@ export function GigTerms({ gig }: { gig: GigDetail }) {
       {gigTerms(gig).map((term) => (
         <div key={term.label}>
           <dt className="mb-1 text-[13px] leading-[18px] text-content-tertiary">{term.label}</dt>
+          {/* `break-words`: Location carries `city`, which is free text a
+              poster typed. A 57-character place name painted 176px outside
+              this 190px-minimum grid track and scrolled the whole document
+              sideways — measured. The numeric terms are all bounded, but the
+              rule is per-<dd> rather than per-term so a future term cannot
+              opt out of it by accident. */}
           <dd
-            className={`font-semibold text-content-primary ${term.numeric ? 'font-numeric' : ''}`}
+            className={`break-words font-semibold text-content-primary ${term.numeric ? 'font-numeric' : ''}`}
           >
             {term.value}
           </dd>

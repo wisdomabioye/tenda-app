@@ -98,6 +98,28 @@ describe('GigCard', () => {
     expect(screen.getByRole('link').textContent).not.toContain('·')
   })
 
+  it('can shrink below its content, and lets a poster-written title break', () => {
+    // Both halves are needed and jsdom cannot lay out, so this asserts the
+    // pair rather than the pixels — the e2e measures the actual overflow.
+    // `overflow-wrap: break-word` does NOT reduce an element's min-content
+    // width, so on its own it changed nothing: the card, a flex/grid item with
+    // the default `min-width:auto`, still sized to the longest unbreakable
+    // token and dragged the grid track out with it (+474px at 360px).
+    render(<GigCard gig={deliveryGig} />)
+    const card = screen.getByRole('link')
+    expect(card.className).toContain('min-w-0')
+    expect(screen.getByRole('heading', { level: 3 }).className).toContain('break-words')
+  })
+
+  it('lets the place line shrink so its truncation can actually happen', () => {
+    // `truncate` is inert on a flex item that is not allowed to shrink, and
+    // `city` is free text a poster typed.
+    render(<GigCard gig={deliveryGig} />)
+    const place = screen.getByText('Lagos, Nigeria')
+    expect(place.className).toContain('truncate')
+    expect(place.className).toContain('min-w-0')
+  })
+
   it('marks itself walkable so the keyboard layer can find it', () => {
     render(<GigCard gig={deliveryGig} index={2} />)
     expect(screen.getByRole('link')).toHaveAttribute('data-gig-card', '2')

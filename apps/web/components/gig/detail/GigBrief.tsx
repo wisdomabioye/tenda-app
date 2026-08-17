@@ -34,7 +34,11 @@ export function GigBrief({ description }: { description: string | null }) {
       {paragraphs.map((paragraph, index) => (
         <p
           key={index}
-          className="max-w-[66ch] whitespace-pre-line text-pretty text-[17px] leading-7 text-content-primary"
+          // `break-words`: the brief is poster-written and posters paste
+          // links into it. `max-w-[66ch]` caps the measure but does nothing
+          // for a single token longer than the column.
+          // See CLAUDE.md, "text a poster wrote".
+          className="max-w-[66ch] whitespace-pre-line text-pretty break-words text-[17px] leading-7 text-content-primary"
         >
           {paragraph}
         </p>

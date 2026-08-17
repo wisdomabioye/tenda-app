@@ -45,7 +45,14 @@ export function GigCard({ gig, index }: { gig: GigSummary; index?: number }) {
       // The feed's keyboard layer walks these; the index makes "the third
       // card" addressable without the enhancement owning a list of ids.
       data-gig-card={index}
-      className="flex h-full flex-col rounded-card border border-border-subtle bg-surface-card p-5 shadow-card transition-shadow hover:border-border-strong hover:shadow-elevated"
+      // `min-w-0` is load-bearing, not tidiness. A flex/grid item defaults to
+      // `min-width:auto`, i.e. "never shrink below your min-content width" —
+      // and `overflow-wrap: break-word` on the title does NOT reduce
+      // min-content. So with the default the card sizes to the longest
+      // unbreakable token a poster wrote and drags the grid track out with it.
+      // Both halves are required: the constraint here, the break opportunity
+      // on the text. Measured — `break-words` alone changed nothing.
+      className="flex h-full min-w-0 flex-col rounded-card border border-border-subtle bg-surface-card p-5 shadow-card transition-shadow hover:border-border-strong hover:shadow-elevated"
     >
       <div className="flex items-center gap-2">
         <CategoryIcon size={16} aria-hidden className={`shrink-0 ${tone.text}`} />
@@ -62,7 +69,13 @@ export function GigCard({ gig, index }: { gig: GigSummary; index?: number }) {
         </span>
       </div>
 
-      <h3 className="mt-3.5 text-pretty font-display text-[17px] font-semibold leading-6 text-content-primary">
+      {/* `break-words`: the title is POSTER-WRITTEN and routinely contains a
+          pasted link. Without a break opportunity the card grows to fit the
+          longest token and blows the grid track out with it — measured at
+          +474px on a 360px viewport, and still +30px at 1100px. It only acts
+          on words that would otherwise overflow, so ordinary titles are
+          untouched. See CLAUDE.md, "text a poster wrote". */}
+      <h3 className="mt-3.5 text-pretty break-words font-display text-[17px] font-semibold leading-6 text-content-primary">
         {gig.title}
       </h3>
 
@@ -83,7 +96,10 @@ export function GigCard({ gig, index }: { gig: GigSummary; index?: number }) {
 
       <div className="mt-1.5 flex items-center gap-1.5 text-[13px] leading-[18px] text-content-tertiary">
         <MapPin size={14} aria-hidden className="shrink-0" />
-        <span className="truncate">{gigPlaceLabel(gig)}</span>
+        {/* `min-w-0` for the same reason as the card: `truncate` cannot act on
+            a flex item that is not allowed to shrink, and `city` is free text
+            a poster typed. */}
+        <span className="min-w-0 truncate">{gigPlaceLabel(gig)}</span>
         {gig.created_at !== null && (
           <>
             <span aria-hidden>·</span>

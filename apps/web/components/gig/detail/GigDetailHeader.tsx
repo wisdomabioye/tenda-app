@@ -59,14 +59,21 @@ export function GigDetailHeader({ gig }: { gig: GigDetail }) {
         </Eyebrow>
       </div>
 
-      <h1 className="mt-5 text-balance font-display text-[32px] font-bold leading-[38px] tracking-[-1.2px] text-content-primary sm:text-[44px] sm:leading-[50px]">
+      {/* Poster-written, and set at 44px — the width a single unbroken token
+          needs here is enormous. `break-words` only acts when it would
+          otherwise overflow. See CLAUDE.md, "text a poster wrote". */}
+      <h1 className="mt-5 text-balance break-words font-display text-[32px] font-bold leading-[38px] tracking-[-1.2px] text-content-primary sm:text-[44px] sm:leading-[50px]">
         {gig.title}
       </h1>
 
       <div className="mt-5 flex flex-wrap items-center gap-5 text-content-secondary">
-        <span className="flex items-center gap-2">
-          <MapPin size={16} aria-hidden className="text-content-tertiary" />
-          {gigPlaceLabel(gig)}
+        {/* `city` is free text a poster typed, so this chip has to survive a
+            57-character place name. It BREAKS rather than truncates: on the
+            detail page the location is a fact the reader is deciding on, and
+            half of it is worse than a taller line. */}
+        <span className="flex min-w-0 items-center gap-2">
+          <MapPin size={16} aria-hidden className="shrink-0 text-content-tertiary" />
+          <span className="min-w-0 break-words">{gigPlaceLabel(gig)}</span>
         </span>
         {gig.created_at !== null && (
           <span className="flex items-center gap-2">

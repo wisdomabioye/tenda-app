@@ -18,13 +18,22 @@ import type {
   VerifyBody,
 } from '@tenda/shared'
 import { hasCompleteName } from '@tenda/shared'
-import { deliveryGig, deliveryGigDetail, photoGig } from './fixtures/gigs'
+import {
+  deliveryGig,
+  deliveryGigDetail,
+  photoGig,
+  unbreakableGig,
+  unbreakableGigDetail,
+} from './fixtures/gigs'
 import { createAuthWorld, E2E_OTP_CODE, signIn, toMeUser, userForBearer } from './fixtures/auth'
 import { createChatWorld, handleChat, resetChatWorld } from './fixtures/chat'
 import { createNotificationsWorld, handleNotifications, resetNotificationsWorld } from './fixtures/notifications'
 
 const PORT = Number(process.env.STUB_API_PORT ?? 3210)
-const GIGS: GigSummary[] = [deliveryGig, photoGig]
+// `unbreakableGig` carries poster-written text at its nastiest (a pasted
+// link in the title, the longest real place name). It rides in the FEED so
+// the layout checks see it without a special route — see fixtures/gigs.ts.
+const GIGS: GigSummary[] = [deliveryGig, photoGig, unbreakableGig]
 const world = createAuthWorld()
 const chatWorld = createChatWorld()
 const notificationsWorld = createNotificationsWorld()
@@ -126,6 +135,7 @@ function handlePublic(url: URL): StubResponse | null {
     // The takedown contract: a hidden gig is a 404 for anonymous readers.
     if (id === 'hidden-gig') return notFoundEnvelope('gig is not available')
     if (id === deliveryGigDetail.escrow_id) return json(deliveryGigDetail)
+    if (id === unbreakableGigDetail.escrow_id) return json(unbreakableGigDetail)
     return notFoundEnvelope('no such gig')
   }
   if (url.pathname === '/v1/platform/config') {

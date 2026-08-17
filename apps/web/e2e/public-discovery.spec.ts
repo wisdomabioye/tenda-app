@@ -7,6 +7,7 @@ import {
   LEAKED_COUNTERPARTY_ID,
   LEAKED_COUNTERPARTY_NAME,
   photoGig,
+  unbreakableGigDetail,
 } from './fixtures/gigs'
 
 function captureRuntimeFailures(page: Page) {
@@ -150,10 +151,18 @@ test.describe('feed — /gigs', () => {
     // is the floor. The public feed is the anonymous front door and most of
     // that traffic is mobile, so a page that scrolls sideways here is not a
     // detail — it is the first thing a new visitor sees.
+    // The feed carries `unbreakableGig` — a pasted link in the title and the
+    // longest real place name — so these widths are measured against
+    // poster-written text at its nastiest, not against tidy fixtures.
+    const PATHS = [
+      '/gigs',
+      `/gig/${deliveryGigDetail.escrow_id}`,
+      `/gig/${unbreakableGigDetail.escrow_id}`,
+    ]
     for (const width of [320, 360, 390]) {
-      test(`neither public page scrolls sideways at ${width}px`, async ({ page }) => {
+      test(`no public page scrolls sideways at ${width}px`, async ({ page }) => {
         await page.setViewportSize({ width, height: 780 })
-        for (const path of ['/gigs', `/gig/${deliveryGigDetail.escrow_id}`]) {
+        for (const path of PATHS) {
           await page.goto(path)
           const overflow = await page.evaluate(
             () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
@@ -162,6 +171,21 @@ test.describe('feed — /gigs', () => {
         }
       })
     }
+
+    test('the desktop widths hold too — the grid track count changes the failure', async ({ page }) => {
+      // 768 and 1100 overflowed while 900 did not: the card grid switches
+      // between one, two and three columns, and only some track widths are
+      // narrower than the longest token. Checking one width would have missed
+      // it, so this checks the ones where the column count changes.
+      for (const width of [768, 900, 1100, 1280]) {
+        await page.setViewportSize({ width, height: 900 })
+        await page.goto('/gigs')
+        const overflow = await page.evaluate(
+          () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        )
+        expect(overflow, `/gigs overflowed by ${overflow}px at ${width}px`).toBe(0)
+      }
+    })
 
     test('keeps the way in and Support reachable, dropping only the duplicate link', async ({ page }) => {
       await page.setViewportSize({ width: 360, height: 780 })

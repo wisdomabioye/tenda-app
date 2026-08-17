@@ -25,14 +25,19 @@ export function MyGigCard({ gig }: { gig: GigSummary }) {
     <article className="rounded-card border border-border-subtle bg-surface-card p-5 shadow-card transition-shadow hover:shadow-elevated">
       <Link href={`/gig/${gig.escrow_id}`} className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-4">
-          <h2 className="font-display text-lg font-semibold text-content-primary">{gig.title}</h2>
+          {/* Poster-written; see CLAUDE.md, "text a poster wrote". */}
+          <h2 className="min-w-0 break-words font-display text-lg font-semibold text-content-primary">
+            {gig.title}
+          </h2>
           <span className="font-numeric whitespace-nowrap text-lg font-semibold text-utility-money">
             {formatAssetAmount(gig.amount_raw, gig.asset)}
           </span>
         </div>
 
         {gig.description !== null && gig.description !== '' && (
-          <p className="line-clamp-2 text-sm text-content-secondary">{gig.description}</p>
+          <p className="line-clamp-2 break-words text-sm text-content-secondary">
+            {gig.description}
+          </p>
         )}
 
         <div className="flex flex-wrap items-center gap-3 text-sm text-content-tertiary">

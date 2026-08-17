@@ -58,6 +58,30 @@ export const photoGig: GigSummary = {
   requires_approval: true,
 }
 
+/**
+ * The same hostile-server stance, applied to CONTENT rather than to
+ * party-scoped fields: title, description and city are all poster-written, and
+ * a poster pasting a link into a title is ordinary, not exotic.
+ *
+ * Every one of these values broke the public layout before the fix — the feed
+ * card grew to its longest unbreakable token and dragged the grid track out
+ * with it (+474px of document overflow at 360px, still +30px at 1100px), and
+ * the detail page's Location term painted 176px outside its column. The city is
+ * a real place name; the URL is the shape of a maps link.
+ */
+const PASTED_URL =
+  'https://example.com/some/extremely/long/path/that/a/poster/pasted/into/the/title/field?utm_source=whatsapp&utm_campaign=deliver-now'
+export const LONGEST_PLACE = 'Llanfairpwllgwyngyllgogerychwyrndrobwllllantysiliogogogoch'
+
+export const unbreakableGig: GigSummary = {
+  ...deliveryGig,
+  escrow_id: 'gig-unbreakable-1',
+  title: `Deliver to ${PASTED_URL}`,
+  description: `${PASTED_URL}\n\nCall me on arrival.`,
+  city: LONGEST_PLACE,
+  requires_approval: true,
+}
+
 export const deliveryGigDetail: GigDetail = {
   ...deliveryGig,
   hidden: false,
@@ -85,4 +109,12 @@ export const deliveryGigDetail: GigDetail = {
   reviews: [],
   is_seeker: false,
   viewer: null,
+}
+
+/** The unbreakable-content gig as a DETAIL, for the /gig/[id] layout check. */
+export const unbreakableGigDetail: GigDetail = {
+  ...deliveryGigDetail,
+  ...unbreakableGig,
+  assigned_counterparty_id: null,
+  counterparty: null,
 }

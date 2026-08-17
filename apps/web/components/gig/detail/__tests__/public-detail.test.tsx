@@ -55,6 +55,19 @@ describe('GigDetailHeader', () => {
     expect(screen.getByText(GIG_DETAIL_COPY.crossBorder)).toBeInTheDocument()
   })
 
+  it('lets the poster-written title and the place break rather than overflow', () => {
+    const { container } = render(<GigDetailHeader gig={gig} />)
+    expect(screen.getByRole('heading', { level: 1 }).className).toContain('break-words')
+    // The place is a BREAK, not a truncate: on the detail page the location is
+    // a fact the reader is deciding on, and half of it is worse than two lines.
+    const place = screen.getByText('Lagos, Nigeria')
+    expect(place.className).toContain('break-words')
+    expect(place.className).not.toContain('truncate')
+    // The chip is a flex row, so the text child must be allowed to shrink
+    // before it is allowed to break.
+    expect(container.querySelector('.min-w-0')).not.toBeNull()
+  })
+
   it('omits the posted line when the wire carries no timestamp', () => {
     render(<GigDetailHeader gig={{ ...gig, created_at: null }} />)
     expect(screen.queryByText(GIG_DETAIL_COPY.postedPrefix)).not.toBeInTheDocument()
@@ -149,6 +162,16 @@ describe('GigTerms', () => {
     const { container } = render(<GigTerms gig={gig} />)
     expect(container.querySelectorAll('dt')).toHaveLength(gigTerms(gig).length)
     expect(screen.getByText('25 USDC')).toBeInTheDocument()
+  })
+
+  it('lets EVERY value break — Location carries free text a poster typed', () => {
+    // A 57-character place name painted 176px outside this column and scrolled
+    // the whole document sideways. The rule is per-<dd>, not per-term, so a
+    // future term cannot opt out of it by accident.
+    const { container } = render(<GigTerms gig={gig} />)
+    const values = Array.from(container.querySelectorAll('dd'))
+    expect(values.length).toBeGreaterThan(0)
+    for (const dd of values) expect(dd.className).toContain('break-words')
   })
 })
 
