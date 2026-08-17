@@ -1,5 +1,5 @@
+import { signInToHome } from './fixtures/sign-in'
 import { expect, test, type Page } from '@playwright/test'
-import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
 
 /**
  * S4.1 creation wizard against the stub API: step gating, the composed
@@ -10,13 +10,6 @@ import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
  * a declined signature takes).
  */
 
-async function signIn(page: Page) {
-  await page.goto('/signin/email')
-  await page.getByLabel('Email').fill(EXISTING_EMAIL)
-  await page.getByRole('button', { name: 'Send code' }).click()
-  await page.getByLabel('Verification code').fill(E2E_OTP_CODE)
-  await expect(page).toHaveURL(/\/home/)
-}
 
 async function fillDetailsStep(page: Page) {
   await page.getByRole('radio', { name: 'Delivery' }).click()
@@ -27,7 +20,7 @@ async function fillDetailsStep(page: Page) {
 }
 
 test('the wizard gates each step on the first actionable requirement', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   await page.getByRole('link', { name: 'Post a Gig' }).click()
   await expect(page).toHaveURL(/\/post/)
 
@@ -53,7 +46,7 @@ test('the wizard gates each step on the first actionable requirement', async ({ 
 })
 
 test('posting walks the full chain and survives a missing wallet as a saved draft', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   await page.goto('/post')
   await fillDetailsStep(page)
   await page.getByRole('button', { name: 'Continue' }).click()
@@ -78,7 +71,7 @@ test('posting walks the full chain and survives a missing wallet as a saved draf
 })
 
 test('cancelling the confirm gate leaves the composer untouched', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   await page.goto('/post')
   await fillDetailsStep(page)
   await page.getByRole('button', { name: 'Continue' }).click()

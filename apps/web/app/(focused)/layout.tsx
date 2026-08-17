@@ -1,19 +1,42 @@
 import type { ReactNode } from 'react'
+import { BrandMark } from '@/components/public/BrandMark'
+import { ThemeToggle } from '@/components/app/ThemeToggle'
 
 /**
- * Focused shell — no rail, no site chrome (spec-correction #6).
+ * Focused shell — no rail, no site nav (spec-correction #6).
  *
- * The comps give Auth and the Post Wizard their own surface at 640–1000px:
- * both are single-task flows where the rail's other destinations are a way to
- * lose your place mid-flow. Verified by the comps themselves — `Tenda Auth`
- * and `Tenda Post Wizard` are the two files with no 64px rail.
+ * The comps give Auth and the Post Wizard their own surface: both are
+ * single-task flows where the rail's other destinations are a way to lose your
+ * place mid-flow. Verified by the comps themselves — `Tenda Auth` and
+ * `Tenda Post Wizard` are the two files with no 64px rail.
+ *
+ * The header carries exactly two things, and the omissions are the point. The
+ * comp's header also holds a "screens" list and a `?state=` switcher; those are
+ * affordances for whoever is reviewing the mock, like the Tier-1 comp's "404
+ * example" link that #12 declined. What stays is the wordmark — an anchor and a
+ * way out of a flow you did not mean to start — and the theme toggle, which
+ * belongs anywhere the reader might be for more than a moment.
+ *
+ * The wordmark points at /gigs rather than the comp's /welcome: /welcome does
+ * not exist until #15, and a nav that waits beats a nav that 404s.
  *
  * Route groups do not affect URLs, so /signin and /post are unchanged.
  */
 export default function FocusedLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-surface-background">
-      <main className="mx-auto w-full max-w-[1000px] flex-1 px-4 py-6">{children}</main>
+      <header className="border-b border-border-subtle">
+        <div className="mx-auto flex w-full max-w-[1080px] items-center gap-3 px-5 py-3">
+          <BrandMark />
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
+        </div>
+      </header>
+
+      {/* Centred BOTH ways, as the comp has it — every auth step is one short
+          card and top-aligning it on a tall screen leaves it stranded. */}
+      <main className="flex flex-1 items-center justify-center px-5 py-14">{children}</main>
     </div>
   )
 }

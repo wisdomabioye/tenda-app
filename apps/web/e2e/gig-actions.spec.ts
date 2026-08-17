@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
-import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
+import { signInToHome } from './fixtures/sign-in'
+import { expect, test } from '@playwright/test'
 
 /**
  * S4.4/S4.6 detail surface against the stub API: the bearer refetch swaps
@@ -8,19 +8,12 @@ import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
  * and the takedown banner reaches the party while strangers keep the 404.
  */
 
-async function signIn(page: Page) {
-  await page.goto('/signin/email')
-  await page.getByLabel('Email').fill(EXISTING_EMAIL)
-  await page.getByRole('button', { name: 'Send code' }).click()
-  await page.getByLabel('Verification code').fill(E2E_OTP_CODE)
-  await expect(page).toHaveURL(/\/home/)
-}
 
 test('anonymous readers see the sign-in CTA; the poster sees their actions instead', async ({ page }) => {
   await page.goto('/gig/gig-delivery-1')
   await expect(page.getByRole('link', { name: /Sign in to/ })).toBeVisible()
 
-  await signIn(page)
+  await signInToHome(page)
   await page.goto('/gig/gig-delivery-1')
   // The stub casts the signed-in user as the creator of an open gig.
   await expect(page.getByRole('button', { name: 'Cancel Gig' })).toBeVisible()
@@ -30,7 +23,7 @@ test('anonymous readers see the sign-in CTA; the poster sees their actions inste
 })
 
 test('a wallet-opening transition rides the confirm gate; cancelling backs out clean', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   await page.goto('/gig/gig-delivery-1')
   await page.getByRole('button', { name: 'Cancel Gig' }).click()
   const dialog = page.getByRole('alertdialog', { name: 'Cancel this gig?' })
@@ -43,7 +36,7 @@ test('a wallet-opening transition rides the confirm gate; cancelling backs out c
 })
 
 test('confirming without a wallet runtime surfaces the typed error, not a hang', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   await page.goto('/gig/gig-delivery-1')
   await page.getByRole('button', { name: 'Cancel Gig' }).click()
   await page
@@ -58,7 +51,7 @@ test("the party rescue serves a DRAFT through the anonymous 404", async ({ page 
   const anon = await page.request.get('/gig/new-gig-1')
   expect(anon.status()).toBe(404)
 
-  await signIn(page)
+  await signInToHome(page)
   await page.goto('/gig/new-gig-1')
   await expect(page.getByText('Draft — not published yet')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Edit & repost' })).toBeVisible()
@@ -66,7 +59,7 @@ test("the party rescue serves a DRAFT through the anonymous 404", async ({ page 
 })
 
 test('a taken-down gig shows its party the banner and keeps the way out', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   await page.goto('/gig/hidden-party-gig')
   await expect(page.getByText('Removed by moderation')).toBeVisible()
   // The way OUT stays; the ways IN are gone.
@@ -75,7 +68,7 @@ test('a taken-down gig shows its party the banner and keeps the way out', async 
 })
 
 test('a signed-in stranger to a truly missing gig keeps the not-available copy', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   await page.goto('/gig/no-such-gig')
   // The 404 panel's own heading (#13 gave it the comp's shape); the rescue
   // island has already run and found nothing, which is what this asserts.

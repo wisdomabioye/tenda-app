@@ -5,12 +5,19 @@
  * clears the field on failure, 60s resend cooldown carried in the flow store
  * so navigation does not reset it. Success routes by the server's own
  * profile-complete predicate: /home or /onboarding/profile.
+ *
+ * The expiry the comp asks for is the SERVER's `expires_in`, carried through
+ * the flow store — not a constant this app would have to keep in step with the
+ * OTP service by hand. When it runs out the page says so and stops offering to
+ * verify, because a code the server has already dropped cannot be typed
+ * correctly and letting someone try is a worse answer than telling them.
  */
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { verifyErrorMessage } from '@tenda/shared'
 import { api } from '@/api/client'
 import { AuthPanel } from '@/components/auth/AuthPanel'
+import { AUTH_COPY } from '@/components/auth/copy'
 import { Button, FormError } from '@/components/ui'
 import { OtpCodeField } from '@/components/auth/OtpCodeField'
 import { useAuthStore } from '@/stores/auth.store'
@@ -19,8 +26,16 @@ import { useSigninFlowStore } from '@/stores/signin-flow.store'
 const CODE_LENGTH = 6
 const RESEND_COOLDOWN_S = 60
 
-function cooldownLeft(sentAt: number): number {
-  return Math.max(0, RESEND_COOLDOWN_S - Math.floor((Date.now() - sentAt) / 1_000))
+/** Whole seconds left of a window that started at `from`. Never negative. */
+export function secondsLeft(from: number, windowSeconds: number, now: number): number {
+  return Math.max(0, windowSeconds - Math.floor((now - from) / 1_000))
+}
+
+/** m:ss, so a two-minute remainder does not read as "119". */
+export function formatClock(seconds: number): string {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
 }
 
 export default function SignInVerifyPage() {
@@ -33,7 +48,8 @@ export default function SignInVerifyPage() {
   const [code, setCode] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [cooldown, setCooldown] = useState(() => (pending !== null ? cooldownLeft(pending.sentAt) : 0))
+  // One ticking clock drives both countdowns; two intervals would drift apart.
+  const [now, setNow] = useState(() => Date.now())
   // A successful verify clears the flow store, which would otherwise trip the
   // no-pending bounce below and race the post-sign-in navigation.
   const succeeded = useRef(false)
@@ -44,13 +60,21 @@ export default function SignInVerifyPage() {
   }, [pending, router])
 
   useEffect(() => {
-    if (cooldown <= 0) return
-    const t = setTimeout(() => setCooldown((s) => s - 1), 1_000)
-    return () => clearTimeout(t)
-  }, [cooldown])
+    const t = setInterval(() => setNow(Date.now()), 1_000)
+    return () => clearInterval(t)
+  }, [])
+
+  const cooldown = pending === null ? 0 : secondsLeft(pending.sentAt, RESEND_COOLDOWN_S, now)
+  // Null window ⇒ no countdown and no expiry claim. The comp shows one because
+  // its mock always has a number; the wire makes it optional.
+  const validFor =
+    pending === null || pending.expiresIn === null
+      ? null
+      : secondsLeft(pending.sentAt, pending.expiresIn, now)
+  const expired = validFor === 0
 
   async function handleVerify(value: string) {
-    if (pending === null || value.length !== CODE_LENGTH || verifying) return
+    if (pending === null || value.length !== CODE_LENGTH || verifying || expired) return
     setVerifying(true)
     setError(null)
     try {
@@ -61,7 +85,7 @@ export default function SignInVerifyPage() {
       clearFlow()
     } catch (e) {
       setCode('')
-      setError(verifyErrorMessage(e, 'Verification failed, please try again'))
+      setError(verifyErrorMessage(e, AUTH_COPY.verify.failed))
     } finally {
       setVerifying(false)
     }
@@ -71,11 +95,14 @@ export default function SignInVerifyPage() {
     if (pending === null || cooldown > 0) return
     setError(null)
     try {
-      await api.auth.challenge({ method: pending.channel, identifier: pending.identifier })
-      markResent()
-      setCooldown(RESEND_COOLDOWN_S)
+      const { expires_in } = await api.auth.challenge({
+        method: pending.channel,
+        identifier: pending.identifier,
+      })
+      markResent(expires_in ?? null)
+      setCode('')
     } catch (e) {
-      setError(verifyErrorMessage(e, 'Could not resend the code'))
+      setError(verifyErrorMessage(e, AUTH_COPY.verify.resendFailed))
     }
   }
 
@@ -83,10 +110,12 @@ export default function SignInVerifyPage() {
 
   return (
     <AuthPanel
-      title="Enter your code"
-      lede={`We sent a 6-digit code to your ${pending.channel}. Enter it below to continue.`}
+      width="code"
+      title={AUTH_COPY.verify.title}
+      lede={AUTH_COPY.verify.lede(pending.identifier)}
+      back={{ href: '/signin/email', label: AUTH_COPY.verify.back }}
     >
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         <OtpCodeField
           value={code}
           onChange={(digits) => {
@@ -95,19 +124,42 @@ export default function SignInVerifyPage() {
           }}
           length={CODE_LENGTH}
           autoFocus
-          disabled={verifying}
+          disabled={verifying || expired}
         />
+
+        {/* An expired code is a different situation from a wrong one, and the
+            only useful next step is a new code — so it is said plainly rather
+            than left for the server to answer with "invalid". */}
+        {expired && (
+          <p role="alert" className="text-[13px] font-semibold text-feedback-danger-text">
+            {AUTH_COPY.verify.expired}
+          </p>
+        )}
         <FormError message={error} />
+
         <Button
-          disabled={code.length !== CODE_LENGTH || verifying}
+          disabled={code.length !== CODE_LENGTH || verifying || expired}
           onClick={() => void handleVerify(code)}
           fullWidth
         >
-          {verifying ? 'Verifying…' : 'Verify'}
+          {verifying ? AUTH_COPY.verify.verifying : AUTH_COPY.verify.cta}
         </Button>
-        <Button variant="ghost" disabled={cooldown > 0} onClick={() => void handleResend()} fullWidth>
-          {cooldown > 0 ? `Resend code in ${cooldown}s` : 'Resend code'}
-        </Button>
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="md"
+            disabled={cooldown > 0}
+            onClick={() => void handleResend()}
+          >
+            {cooldown > 0 ? AUTH_COPY.verify.resendIn(cooldown) : AUTH_COPY.verify.resend}
+          </Button>
+          {validFor !== null && (
+            <span className="ml-auto font-numeric text-xs leading-4 text-content-tertiary">
+              {expired ? AUTH_COPY.verify.expired : AUTH_COPY.verify.expiresIn(formatClock(validFor))}
+            </span>
+          )}
+        </div>
       </div>
     </AuthPanel>
   )

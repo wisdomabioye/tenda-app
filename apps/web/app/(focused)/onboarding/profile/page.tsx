@@ -11,6 +11,8 @@ import { useRouter } from 'next/navigation'
 import { ApiClientError } from '@tenda/shared'
 import { api } from '@/api/client'
 import { AuthPanel } from '@/components/auth/AuthPanel'
+import { NamePreview } from '@/components/auth/NamePreview'
+import { AUTH_COPY } from '@/components/auth/copy'
 import { Button, FormError, TextField } from '@/components/ui'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -59,7 +61,7 @@ export default function OnboardingProfilePage() {
       void useAuthStore.getState().refreshUser()
       router.replace('/home')
     } catch (e) {
-      setError(e instanceof ApiClientError ? e.message : 'Could not save your profile, please try again')
+      setError(e instanceof ApiClientError ? e.message : AUTH_COPY.profile.failed)
     } finally {
       setSaving(false)
     }
@@ -69,34 +71,53 @@ export default function OnboardingProfilePage() {
 
   return (
     <AuthPanel
-      title="Set up your profile"
-      lede="A name is all you need to start. Everything else is optional — add a photo and location later from Settings."
+      width="wide"
+      eyebrow={AUTH_COPY.profile.eyebrow}
+      title={AUTH_COPY.profile.title}
+      lede={AUTH_COPY.profile.lede}
     >
       <form
-        className="flex flex-col gap-4"
+        className="flex flex-col gap-5"
         onSubmit={(event) => {
           event.preventDefault()
           void handleSubmit()
         }}
       >
-        <TextField
-          label="First name"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-          placeholder="e.g. Akin"
-          autoFocus
-        />
-        <TextField
-          label="Last name"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-          placeholder="e.g. Beela"
-        />
+        {/* Side by side above 420px, stacked below — two half-width fields on
+            a phone are two fields nobody can type into. */}
+        <div className="flex flex-wrap gap-3">
+          <div className="min-w-[150px] flex-1">
+            <TextField
+              label={AUTH_COPY.profile.first}
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              placeholder={AUTH_COPY.profile.firstPlaceholder}
+              autoComplete="given-name"
+              autoFocus
+            />
+          </div>
+          <div className="min-w-[150px] flex-1">
+            <TextField
+              label={AUTH_COPY.profile.last}
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              placeholder={AUTH_COPY.profile.lastPlaceholder}
+              autoComplete="family-name"
+            />
+          </div>
+        </div>
+
+        <NamePreview firstName={firstName} lastName={lastName} />
+
         <FormError message={error} />
         <Button type="submit" disabled={!canSubmit} fullWidth>
-          {saving ? 'Saving…' : 'Finish'}
+          {saving ? AUTH_COPY.profile.saving : AUTH_COPY.profile.cta}
         </Button>
       </form>
+
+      <p className="mt-4 text-[13px] leading-5 text-content-tertiary">
+        {AUTH_COPY.profile.photoNote}
+      </p>
     </AuthPanel>
   )
 }

@@ -6,8 +6,8 @@
  * no /v1/ws), so everything here rides the FALLBACK polling path — which
  * doubles as proof the app works with the socket down.
  */
-import { test, expect, type Page } from '@playwright/test'
-import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
+import { test, expect } from '@playwright/test'
+import { signInToHome } from './fixtures/sign-in'
 
 // SERIAL, deliberately: these three tests share ONE mutable stub chat world
 // (read-marking, a growing message log, close). Under fullyParallel they
@@ -21,16 +21,9 @@ test.beforeEach(async ({ request }) => {
   await request.post(`${STUB_URL}/__e2e/reset-chat`)
 })
 
-async function signIn(page: Page) {
-  await page.goto('/signin/email')
-  await page.getByLabel('Email').fill(EXISTING_EMAIL)
-  await page.getByRole('button', { name: 'Send code' }).click()
-  await page.getByLabel('Verification code').fill(E2E_OTP_CODE)
-  await expect(page).toHaveURL(/\/home/)
-}
 
 test('inbox: unread badge in the nav, sections, and read-marking on open', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   // Badge reflects the seeded 2-unread conversation. The pip itself is
   // aria-hidden — the count belongs to the rail LINK's accessible name, so a
   // screen-reader user hears it as part of the destination rather than as a
@@ -50,7 +43,7 @@ test('inbox: unread badge in the nav, sections, and read-marking on open', async
 })
 
 test('thread: context pill links the gig, sending confirms the optimistic bubble', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   await page.goto(`/chat/user-bola-1`)
 
   // The escrow-context divider from msg-1 links to the public gig page.
@@ -75,7 +68,7 @@ test('thread: context pill links the gig, sending confirms the optimistic bubble
 })
 
 test('close conversation: confirm dialog → thread leaves the inbox', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   await page.goto(`/chat/user-bola-1`)
   await expect(page.getByText('Hi! I saw your gig posting.')).toBeVisible()
 

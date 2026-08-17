@@ -1,14 +1,76 @@
+/**
+ * The card every auth step renders inside — one look for the whole flow
+ * (Auth comp: the same eyebrow / headline / lede stack on signin, email,
+ * verify, profile and wallet).
+ *
+ * `width` exists because the comp genuinely varies it and the reason is
+ * legible: 420px for a single field or a list of two, 460px where six OTP
+ * cells have to sit on one line, 440px where two name fields sit side by side.
+ * A named size rather than a raw class so the three are a decision recorded in
+ * one place instead of three magic numbers in three files.
+ */
 import type { ReactNode } from 'react'
+import Link from 'next/link'
+import { ArrowLeft } from 'lucide-react'
+import { Eyebrow } from '@/components/ui'
+import { cn } from '@/lib/cn'
 
-/** Centered card every auth step renders inside — one look for the whole flow. */
-export function AuthPanel({ title, lede, children }: { title: string; lede?: string; children: ReactNode }) {
+const WIDTHS = {
+  /** One field, or a short list. */
+  narrow: 'max-w-[420px]',
+  /** Two fields side by side, or a details list. */
+  wide: 'max-w-[440px]',
+  /** Six OTP cells on one line. */
+  code: 'max-w-[460px]',
+} as const
+
+export function AuthPanel({
+  title,
+  lede,
+  eyebrow,
+  back,
+  width = 'narrow',
+  children,
+}: {
+  title: string
+  lede?: string
+  /** The comp's mono kicker, e.g. "Last step" on the profile step. */
+  eyebrow?: string
+  /** Where this step came from. Every step past the chooser has one. */
+  back?: { href: string; label: string }
+  width?: keyof typeof WIDTHS
+  children: ReactNode
+}) {
   return (
-    <section className="mx-auto flex w-full max-w-sm flex-col gap-6 py-12">
-      <header className="flex flex-col gap-2">
-        <h1 className="font-display text-3xl font-bold tracking-tight text-content-primary">{title}</h1>
-        {lede !== undefined && <p className="text-sm leading-5 text-content-secondary">{lede}</p>}
-      </header>
-      {children}
+    <section className={cn('w-full', WIDTHS[width])}>
+      {back !== undefined && (
+        <Link
+          href={back.href}
+          className="mb-6 inline-flex items-center gap-2 text-[13px] font-semibold text-content-tertiary hover:text-content-primary"
+        >
+          <ArrowLeft size={16} aria-hidden />
+          {back.label}
+        </Link>
+      )}
+
+      {eyebrow !== undefined && (
+        <Eyebrow strong as="p" className="mb-3">
+          {eyebrow}
+        </Eyebrow>
+      )}
+
+      {/* `break-words`: an email address echoed into a heading has no break
+          opportunity of its own. See CLAUDE.md, "text a poster wrote" — the
+          rule is about untrusted length, and a user's own address qualifies. */}
+      <h1 className="break-words font-display text-[26px] font-bold leading-8 tracking-[-0.6px] text-content-primary sm:text-[30px] sm:leading-9">
+        {title}
+      </h1>
+
+      {lede !== undefined && (
+        <p className="mt-3 text-[15px] leading-[22px] text-content-secondary">{lede}</p>
+      )}
+
+      <div className="mt-7">{children}</div>
     </section>
   )
 }

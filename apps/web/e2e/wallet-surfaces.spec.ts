@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
-import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
+import { signInToHome } from './fixtures/sign-in'
+import { expect, test } from '@playwright/test'
 
 /**
  * Stage-3 surfaces against the stub API. The e2e build carries NO
@@ -9,14 +9,6 @@ import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
  * The live modal round-trip is untestable without a wallet extension — that
  * behavior is unit-tested against the adapter seam instead.
  */
-
-async function signInWith(page: Page, email: string) {
-  await page.goto('/signin')
-  await page.getByRole('link', { name: 'Continue with email' }).click()
-  await page.getByLabel('Email').fill(email)
-  await page.getByRole('button', { name: 'Send code' }).click()
-  await page.getByLabel('Verification code').fill(E2E_OTP_CODE)
-}
 
 test('signin/wallet: unconfigured build shows the honest fallback, not a dead button', async ({ page }) => {
   await page.goto('/signin/wallet')
@@ -28,7 +20,7 @@ test('signin/wallet: unconfigured build shows the honest fallback, not a dead bu
 })
 
 test('settings/linked-wallets: renders the server wallets with primary badge and guards', async ({ page }) => {
-  await signInWith(page, EXISTING_EMAIL)
+  await signInToHome(page)
   await expect(page).toHaveURL(/\/home/)
 
   await page.goto('/settings/linked-wallets')
@@ -47,7 +39,7 @@ test('settings/linked-wallets: renders the server wallets with primary badge and
 })
 
 test('profile reaches the linked-wallets page via Settings', async ({ page }) => {
-  await signInWith(page, EXISTING_EMAIL)
+  await signInToHome(page)
   await expect(page).toHaveURL(/\/home/)
   // S6.2: the profile mirrors mobile's nav — wallets live under Settings.
   await page.goto('/profile')
@@ -82,7 +74,7 @@ test('wallet screen: summed USDC hero, per-chain rows, role-worded feed', async 
     await route.fulfill({ json: { jsonrpc: '2.0', id: 1, result: '0x16e360' } }) // 1.5 USDC
   })
 
-  await signInWith(page, EXISTING_EMAIL)
+  await signInToHome(page)
   await expect(page).toHaveURL(/\/home/)
   await page.goto('/wallet')
 

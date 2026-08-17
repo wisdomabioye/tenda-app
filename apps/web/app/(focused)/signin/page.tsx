@@ -1,9 +1,11 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Mail, Wallet } from 'lucide-react'
+import { APP_INFO } from '@tenda/shared'
+import { AuthMethodCard } from '@/components/auth/AuthMethodCard'
 import { AuthPanel } from '@/components/auth/AuthPanel'
 import { TermsNotice } from '@/components/auth/TermsNotice'
-import { buttonVariants } from '@/components/ui'
+import { AUTH_COPY } from '@/components/auth/copy'
 
 export const metadata: Metadata = {
   title: 'Sign in',
@@ -11,32 +13,69 @@ export const metadata: Metadata = {
 }
 
 /**
- * Method chooser — the web analogue of mobile's get-started. Email creates
- * accounts; wallet only signs in (decision #3, server-enforced), so the
- * wallet entry is visible from day one but explains link-first until
- * Stage 3 wires the real connect flow. Phone/Google are provisioned
- * server-side and deliberately deferred (stage-2 doc).
+ * Method chooser — the web analogue of mobile's get-started.
+ *
+ * Email creates accounts; a wallet only signs an existing one in (decision #3,
+ * server-enforced), and each card says so rather than presenting two
+ * interchangeable buttons. Phone and Google are provisioned server-side and
+ * deliberately deferred (stage-2 doc), so they are absent rather than shown
+ * disabled — a greyed-out method reads as broken, not as unfinished.
+ *
+ * Server-rendered: nothing here needs a session or the bundle, and it is the
+ * page a reader most often reaches on a cold connection.
  */
 export default function SignInPage() {
   return (
-    <AuthPanel title="Get started" lede="Sign in or create an account — no password, ever.">
-      <div className="flex flex-col gap-3">
-        <Link
+    <AuthPanel title={AUTH_COPY.chooser.title} lede={AUTH_COPY.chooser.lede}>
+      <div className="flex flex-col gap-2.5">
+        <AuthMethodCard
           href="/signin/email"
-          className={buttonVariants({ variant: 'primary' })}
-        >
-          <Mail size={16} aria-hidden />
-          Continue with email
-        </Link>
-        <Link
+          icon={Mail}
+          label={AUTH_COPY.chooser.email.label}
+          hint={AUTH_COPY.chooser.email.hint}
+        />
+        <AuthMethodCard
           href="/signin/wallet"
-          className={buttonVariants({ variant: 'outline' })}
-        >
-          <Wallet size={16} aria-hidden />
-          Sign in with a wallet
-        </Link>
+          icon={Wallet}
+          label={AUTH_COPY.chooser.wallet.label}
+          hint={AUTH_COPY.chooser.wallet.hint}
+        />
       </div>
-      <TermsNotice verb="continuing" />
+
+      {/* The comp's "or" rule. Decorative, so the text is hidden from the
+          accessibility tree — a screen reader reading "or" between two links
+          and a third gains nothing from it. */}
+      <div className="my-6 flex items-center gap-3" aria-hidden>
+        <span className="h-px flex-1 bg-border-default" />
+        <span className="font-numeric text-[11px] uppercase tracking-[0.13em] text-content-tertiary">
+          or
+        </span>
+        <span className="h-px flex-1 bg-border-default" />
+      </div>
+
+      {/* The whole feed is public, so this is a real third option and not a
+          consolation prize — it is the one path that needs no account at all. */}
+      <Link
+        href="/gigs"
+        className="flex min-h-12 items-center justify-center rounded-control border border-border-default px-4 text-[15px] font-semibold text-content-secondary hover:bg-surface-inset hover:text-content-primary"
+      >
+        {AUTH_COPY.chooser.browse}
+      </Link>
+
+      <div className="mt-5">
+        <TermsNotice verb="continuing" />
+      </div>
+
+      {/* Named so a reader can tell where "we" is, without leaving the flow. */}
+      <p className="mt-4 text-center text-xs leading-4 text-content-tertiary">
+        {AUTH_COPY.chooser.help}{' '}
+        <a
+          href={`mailto:${APP_INFO.support.email}`}
+          className="font-semibold text-content-secondary hover:underline"
+        >
+          {APP_INFO.support.email}
+        </a>
+      </p>
     </AuthPanel>
   )
 }

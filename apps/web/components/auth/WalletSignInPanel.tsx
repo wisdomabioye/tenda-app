@@ -23,7 +23,11 @@ import { WEB_NO_WALLET_COPY } from '@/wallet/connect-copy'
 import { getEnv } from '@/lib/config/env'
 import { Button, buttonVariants } from '@/components/ui'
 import { AuthPanel } from './AuthPanel'
+import { AUTH_COPY } from './copy'
 import { TermsNotice } from './TermsNotice'
+
+/** Every wallet state is a step past the chooser, so every one offers the way back. */
+const BACK = { href: '/signin', label: AUTH_COPY.wallet.back } as const
 
 type PanelState =
   | { kind: 'idle' }
@@ -79,6 +83,7 @@ export function WalletSignInPanel() {
   if (state.kind === 'not_linked') {
     return (
       <AuthPanel
+        back={BACK}
         title="This wallet isn’t linked yet"
         lede="A wallet can only sign in to an account it is already linked to — it never creates one. Create your account with email, link this wallet from Settings, and it signs you in from then on."
       >
@@ -94,7 +99,7 @@ export function WalletSignInPanel() {
 
   if (state.kind === 'error') {
     return (
-      <AuthPanel title={state.copy.title} lede={state.copy.description}>
+      <AuthPanel back={BACK} title={state.copy.title} lede={state.copy.description}>
         <div className="flex flex-col gap-3">
           <Button variant="primary" fullWidth onClick={() => void handleConnect()}>
             Try again
@@ -110,6 +115,7 @@ export function WalletSignInPanel() {
   const connecting = state.kind === 'connecting'
   return (
     <AuthPanel
+      back={BACK}
       title="Sign in with a wallet"
       lede="Connect any Solana or EVM wallet you have linked to your account. New here? Wallets never create accounts — start with email."
     >

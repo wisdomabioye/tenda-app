@@ -71,8 +71,12 @@ export default defineConfig({
         'components/dispute/**/*.{ts,tsx}',
         'components/exchange/**/*.{ts,tsx}',
         'components/profile/**/*.{ts,tsx}',
-        'components/auth/OtpCodeField.tsx',
-        'components/auth/WalletSignInPanel.tsx',
+        // #14 ported the focused shell; the whole auth folder joins the
+        // ratchet with it rather than three files of it.
+        'components/auth/**/*.{ts,tsx}',
+        // The OTP step's two clocks are real logic on a page nobody can
+        // reach twice by accident, so they are gated like any other.
+        'app/(focused)/signin/verify/page.tsx',
         'components/settings/**/*.tsx',
         'components/ui/**/*.{ts,tsx}',
         'components/app/**/*.{ts,tsx}',

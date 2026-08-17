@@ -4,8 +4,8 @@
  * badge, and a routable row deep-linking to its gig. Serial + per-test
  * reset — the world is mutable and CI retries must start seeded.
  */
-import { test, expect, type Page } from '@playwright/test'
-import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
+import { test, expect } from '@playwright/test'
+import { signInToHome } from './fixtures/sign-in'
 
 test.describe.configure({ mode: 'serial' })
 
@@ -14,16 +14,9 @@ test.beforeEach(async ({ request }) => {
   await request.post(`${STUB_URL}/__e2e/reset-notifications`)
 })
 
-async function signIn(page: Page) {
-  await page.goto('/signin/email')
-  await page.getByLabel('Email').fill(EXISTING_EMAIL)
-  await page.getByRole('button', { name: 'Send code' }).click()
-  await page.getByLabel('Verification code').fill(E2E_OTP_CODE)
-  await expect(page).toHaveURL(/\/home/)
-}
 
 test('bell badge counts unread; the centre pins the announcement over the feed', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   const bell = page.getByRole('link', { name: 'Notifications, 1 unread' })
   await expect(bell).toHaveText('1')
 
@@ -35,7 +28,7 @@ test('bell badge counts unread; the centre pins the announcement over the feed',
 })
 
 test('mark all read clears the rows and the bell badge', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   await page.goto('/notifications')
   await page.getByRole('button', { name: 'Mark all read' }).click()
   await expect(page.getByRole('button', { name: 'Gig accepted' })).toBeVisible() // aria drops ', unread'
@@ -44,7 +37,7 @@ test('mark all read clears the rows and the bell badge', async ({ page }) => {
 })
 
 test('a routable notice marks read and lands on its gig', async ({ page }) => {
-  await signIn(page)
+  await signInToHome(page)
   await page.goto('/notifications')
   await page.getByRole('button', { name: /Gig accepted, unread/ }).click()
   await expect(page).toHaveURL(/\/gig\/gig-delivery-1/)
