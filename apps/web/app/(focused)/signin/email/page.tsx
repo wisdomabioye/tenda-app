@@ -18,7 +18,12 @@ import { useSigninFlowStore } from '@/stores/signin-flow.store'
 export default function SignInEmailPage() {
   const router = useRouter()
   const begin = useSigninFlowStore((s) => s.begin)
-  const [email, setEmail] = useState('')
+  const pending = useSigninFlowStore((s) => s.pending)
+  // Seeded from the pending challenge, so arriving here through the verify
+  // step's "Change email" shows the address you are changing instead of an
+  // empty box you have to retype. Initial state only — typing over it must not
+  // be undone by a later render.
+  const [email, setEmail] = useState(() => pending?.identifier ?? '')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 

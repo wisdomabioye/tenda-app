@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ApiClientError } from '@tenda/shared'
+import { ApiClientError, hasCompleteName } from '@tenda/shared'
 import { api } from '@/api/client'
 import { AuthPanel } from '@/components/auth/AuthPanel'
 import { NamePreview } from '@/components/auth/NamePreview'
@@ -43,7 +43,14 @@ export default function OnboardingProfilePage() {
     }
   }, [user])
 
-  const canSubmit = firstName.trim() !== '' && lastName.trim() !== '' && !saving
+  // Shared `hasCompleteName`, not a hand-rolled `trim() !== ''` pair: it is the
+  // SAME predicate the server's `requireProfileComplete` and the
+  // `profile_complete` it answers with are built on. Its own docblock exists
+  // because surfaces kept getting this subtly wrong, and a form whose gate
+  // disagrees with the server's either blocks a name the server would take or
+  // submits one it will refuse — with "Complete your profile" and no visible
+  // cause.
+  const canSubmit = hasCompleteName(firstName, lastName) && !saving
 
   async function handleSubmit() {
     if (!canSubmit) return

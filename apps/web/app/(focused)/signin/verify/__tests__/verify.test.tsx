@@ -220,6 +220,28 @@ describe('SignInVerifyPage — verifying and resending', () => {
     expect(screen.getByText(AUTH_COPY.verify.expiresIn('2:00'))).toBeInTheDocument()
   })
 
+  it('will not send a new code while a verify is in flight', async () => {
+    // A new code invalidates the one being checked, so an unguarded resend
+    // lets the reader's own click fail their own submission.
+    let release: (v: unknown) => void = () => {}
+    useAuthStore.setState({
+      signInWithVerify: vi.fn().mockReturnValue(new Promise((r) => { release = r })),
+    })
+    useSigninFlowStore.setState({
+      pending: { channel: 'email', identifier: 'ada@x.io', sentAt: 1_000_000 - 60_000, expiresIn: 600 },
+    })
+    render(<SignInVerifyPage />)
+    // Cooldown is up, so the only thing that can disable it is the in-flight verify.
+    expect(screen.getByRole('button', { name: AUTH_COPY.verify.resend })).toBeEnabled()
+    await act(async () => {
+      fireEvent.change(screen.getAllByRole('textbox')[0], { target: { value: '123456' } })
+    })
+    expect(screen.getByRole('button', { name: AUTH_COPY.verify.resend })).toBeDisabled()
+    await act(async () => {
+      release({ isNew: false })
+    })
+  })
+
   it('says so when the resend itself fails', async () => {
     vi.mocked(api.auth.challenge).mockRejectedValue(new Error('down'))
     useSigninFlowStore.setState({

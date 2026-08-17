@@ -74,9 +74,12 @@ export default defineConfig({
         // #14 ported the focused shell; the whole auth folder joins the
         // ratchet with it rather than three files of it.
         'components/auth/**/*.{ts,tsx}',
-        // The OTP step's two clocks are real logic on a page nobody can
-        // reach twice by accident, so they are gated like any other.
+        // The auth STEPS carry real logic — two clocks, a completeness gate
+        // that must match the server's, and the one place PII must not reach
+        // the URL — so they are gated like any other (#14 review).
+        'app/(focused)/signin/email/page.tsx',
         'app/(focused)/signin/verify/page.tsx',
+        'app/(focused)/onboarding/profile/page.tsx',
         'components/settings/**/*.tsx',
         'components/ui/**/*.{ts,tsx}',
         'components/app/**/*.{ts,tsx}',

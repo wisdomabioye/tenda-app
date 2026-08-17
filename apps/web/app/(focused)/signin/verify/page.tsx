@@ -92,7 +92,9 @@ export default function SignInVerifyPage() {
   }
 
   async function handleResend() {
-    if (pending === null || cooldown > 0) return
+    // Not while a verify is in flight: a new code invalidates the one being
+    // checked, so the reader's own click would fail their own submission.
+    if (pending === null || cooldown > 0 || verifying) return
     setError(null)
     try {
       const { expires_in } = await api.auth.challenge({
@@ -149,7 +151,7 @@ export default function SignInVerifyPage() {
           <Button
             variant="ghost"
             size="md"
-            disabled={cooldown > 0}
+            disabled={cooldown > 0 || verifying}
             onClick={() => void handleResend()}
           >
             {cooldown > 0 ? AUTH_COPY.verify.resendIn(cooldown) : AUTH_COPY.verify.resend}

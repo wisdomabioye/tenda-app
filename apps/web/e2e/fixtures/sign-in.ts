@@ -14,6 +14,13 @@ import { E2E_OTP_CODE, EXISTING_EMAIL } from './auth'
  * This deliberately drives the UI rather than seeding a token: these helpers
  * run before tests that assume a session, and a session obtained by a route
  * the product does not have would let a broken sign-in ship green.
+ *
+ * WHICH ONE TO REACH FOR. A spec that is not about signing in wants
+ * `signInToHome` — the shortest real path, straight to /signin/email, so it
+ * couples to nothing it does not test. `signInFromChooser` exists for specs
+ * that mean to exercise the chooser, and `auth-session.spec.ts` is the one that
+ * does. (Before this fixture, `wallet-surfaces` walked the chooser only because
+ * its local copy happened to; the choice is explicit now rather than inherited.)
  */
 export async function signInAs(
   page: Page,
