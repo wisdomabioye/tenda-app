@@ -180,6 +180,19 @@
   }
 }
 
+/* Hidden by default — at ≥901px the list is always visible, so "back" would
+ * point at something already on screen.
+ *
+ * BEFORE the media query, and that ordering is load-bearing: both selectors
+ * are `[data-pane-back]`, so they carry identical specificity and the LATER
+ * one wins. Written after, this rule beat the ≤900px override at every width
+ * and the affordance was never visible on any phone — which nothing caught
+ * until #16 gave a surface the list column that makes "back" mean something.
+ */
+[data-pane-back] {
+  display: none;
+}
+
 /* One pane at a time: the detail wins when a row is selected, the list wins
  * when nothing is (`data-nodetail`). */
 @media (max-width: 900px) {
@@ -202,12 +215,6 @@
   [data-pane-back] {
     display: inline-flex;
   }
-}
-
-/* Hidden by default — at ≥901px the list is always visible, so "back" would
- * point at something already on screen. */
-[data-pane-back] {
-  display: none;
 }
 
 body {

@@ -8,6 +8,7 @@
  */
 import { test, expect } from '@playwright/test'
 import { signInToHome } from './fixtures/sign-in'
+import { MESSAGES_LIST_COPY } from '../components/chat/copy'
 
 // SERIAL, deliberately: these three tests share ONE mutable stub chat world
 // (read-marking, a growing message log, close). Under fullyParallel they
@@ -31,15 +32,48 @@ test('inbox: unread badge in the nav, sections, and read-marking on open', async
   await expect(page.getByRole('link', { name: 'Messages, 2 unread' })).toBeVisible()
 
   await page.getByRole('link', { name: /Messages/ }).click()
-  await expect(page.getByText('Unread', { exact: true })).toBeVisible()
+  const unread = page.getByRole('list', { name: MESSAGES_LIST_COPY.unread })
+  await expect(unread).toBeVisible()
   await expect(page.getByText('Are you still available tomorrow?')).toBeVisible()
 
-  // Opening the thread marks it read; back at the inbox it files under Earlier.
-  await page.getByRole('link', { name: 'Open chat with Bola Ade' }).click()
+  // Opening the thread marks it read — and the list does NOT go anywhere to
+  // show it. That is the whole promise of the column: the row re-files from
+  // Unread to Earlier beside a detail pane that is now showing the thread.
+  await page.getByRole('link', { name: /^Bola Ade/ }).click()
   await expect(page.getByText('Hi! I saw your gig posting.')).toBeVisible()
-  await page.getByRole('button', { name: 'Back' }).click()
-  await expect(page.getByText('Earlier')).toBeVisible()
-  await expect(page.getByText('Unread', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('list', { name: MESSAGES_LIST_COPY.earlier })).toBeVisible()
+  await expect(unread).toHaveCount(0)
+  // …and the row the pane is showing says so.
+  await expect(page.getByRole('link', { name: /^Bola Ade/ })).toHaveAttribute(
+    'aria-current',
+    'true',
+  )
+})
+
+test('the list column survives the navigation into a thread', async ({ page }) => {
+  // A thread lives at /chat/<id>, a different SURFACE from /messages — without
+  // its own @list slot the column Next had just rendered would disappear and
+  // the workspace would collapse to two panes mid-navigation.
+  await signInToHome(page)
+  await page.goto('/messages')
+  await expect(page.locator('[data-list]')).toBeVisible()
+  await page.getByRole('link', { name: /^Bola Ade/ }).click()
+  await expect(page).toHaveURL(/\/chat\//)
+  await expect(page.locator('[data-list]')).toBeVisible()
+})
+
+test('a thread opened COLD still has the inbox beside it', async ({ page }) => {
+  // A slot matches the whole path, not a prefix. Soft navigation hides this
+  // entirely — Next carries a slot's active subpage across one — so only a
+  // hard load shows that /chat/<id> needs its own @list entry.
+  await signInToHome(page)
+  await page.goto('/chat/user-bola-1')
+  await expect(page.getByText('Hi! I saw your gig posting.')).toBeVisible()
+  await expect(page.locator('[data-list]')).toBeVisible()
+  await expect(page.getByRole('link', { name: /^Bola Ade/ })).toHaveAttribute(
+    'aria-current',
+    'true',
+  )
 })
 
 test('thread: context pill links the gig, sending confirms the optimistic bubble', async ({ page }) => {
@@ -77,5 +111,40 @@ test('close conversation: confirm dialog → thread leaves the inbox', async ({ 
   await page.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(page).toHaveURL(/\/messages/)
   // The closed thread has left the inbox (server lists active only).
-  await expect(page.getByText('No conversations yet')).toBeVisible()
+  await expect(page.getByText(MESSAGES_LIST_COPY.surface.emptyTitle)).toBeVisible()
+})
+
+test('the phone collapse: one pane, and a way back to the list', async ({ page }) => {
+  // The back affordance is CSS-gated to ≤900px, and the rule was written AFTER
+  // the media query with identical specificity — so it beat the override at
+  // every width and no phone ever saw it. Nothing caught that until a surface
+  // had a list column for "back" to mean something.
+  await signInToHome(page)
+  await page.setViewportSize({ width: 390, height: 800 })
+  await page.goto('/messages')
+  await expect(page.locator('[data-list]')).toBeVisible()
+  await expect(page.locator('[data-detail]')).toBeHidden()
+
+  await page.getByRole('link', { name: /^Bola Ade/ }).click()
+  await expect(page.locator('[data-detail]')).toBeVisible()
+  await expect(page.locator('[data-list]')).toBeHidden()
+
+  const back = page.locator('[data-pane-back]')
+  await expect(back).toBeVisible()
+  await back.click()
+  await expect(page).toHaveURL(/\/messages/)
+
+  // …and above the breakpoint it is gone, because the list is beside the pane.
+  await page.setViewportSize({ width: 1280, height: 800 })
+  await page.goto('/chat/user-bola-1')
+  await expect(page.locator('[data-list]')).toBeVisible()
+  await expect(page.locator('[data-pane-back]')).toBeHidden()
+})
+
+test('/chat with no thread is not a destination', async ({ page }) => {
+  // The @list slot answers this URL, so without a children page Next served a
+  // real screen for an address that is not one.
+  await signInToHome(page)
+  await page.goto('/chat')
+  await expect(page).toHaveURL(/\/messages/)
 })

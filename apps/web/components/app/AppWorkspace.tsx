@@ -16,7 +16,7 @@ import { useRealtimeConnection } from '@/hooks/connectivity/useRealtimeConnectio
 import { useInboxRealtime } from '@/hooks/chat/useInboxRealtime'
 import { useNotificationsRealtime } from '@/hooks/notifications/useNotificationsRealtime'
 import { DetailPane, WorkspaceShell } from '@/components/app/workspace'
-import { selectionKey, surfaceTitle } from '@/components/app/workspace/surfaces'
+import { listHomeFor, selectionKey, surfaceTitle } from '@/components/app/workspace/surfaces'
 import { CommandPalette, surfaceCommands } from '@/components/app/workspace/palette'
 import { useCommandPalette } from '@/hooks/workspace/useCommandPalette'
 
@@ -32,6 +32,7 @@ export function AppWorkspace({ list, children }: { list?: ReactNode; children: R
   const surface = useSelectedLayoutSegment()
   const segments = useSelectedLayoutSegments()
   const selection = selectionKey(segments)
+  const listHome = listHomeFor(surface)
 
   // Hosted here so ⌘K works on every authed surface, not only ones with a
   // list column to put the button in.
@@ -52,7 +53,16 @@ export function AppWorkspace({ list, children }: { list?: ReactNode; children: R
         // the ≤900px collapse — the detail pane is always mounted.
         hasSelection={selection !== null}
         detail={
-          <DetailPane label={surfaceTitle(surface)} selectionKey={selection}>
+          <DetailPane
+            label={surfaceTitle(surface)}
+            selectionKey={selection}
+            // Only when a row is open AND the surface has a list to go back
+            // to. The affordance is CSS-gated to ≤900px, where the list is
+            // off-screen; above that it would point at a column already
+            // beside it.
+            backHref={selection === null ? undefined : listHome?.href}
+            backLabel={listHome?.label}
+          >
             {children}
           </DetailPane>
         }

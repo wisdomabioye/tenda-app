@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { BrandMark } from '@/components/public/BrandMark'
 import { ThemeToggle } from '@/components/app/ThemeToggle'
+import { OfflineNotice } from '@/components/app/status/OfflineNotice'
 
 /**
  * Focused shell — no rail, no site nav (spec-correction #6).
@@ -17,17 +18,20 @@ import { ThemeToggle } from '@/components/app/ThemeToggle'
  * way out of a flow you did not mean to start — and the theme toggle, which
  * belongs anywhere the reader might be for more than a moment.
  *
- * The wordmark points at /gigs rather than the comp's /welcome: /welcome does
- * not exist until #15, and a nav that waits beats a nav that 404s.
+ * The wordmark points at /welcome, as the comp has it — built in #15. The
+ * screen it lands on offers both ways in AND a link into the public feed, so
+ * the escape from a flow you did not mean to start is still one hop from
+ * anywhere in it.
  *
  * Route groups do not affect URLs, so /signin and /post are unchanged.
  */
 export default function FocusedLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-dvh flex-col bg-surface-background">
+      <OfflineNotice />
       <header className="border-b border-border-subtle">
         <div className="mx-auto flex w-full max-w-[1080px] items-center gap-3 px-5 py-3">
-          <BrandMark />
+          <BrandMark href="/welcome" />
           <div className="ml-auto">
             <ThemeToggle />
           </div>

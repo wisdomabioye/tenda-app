@@ -11,6 +11,7 @@ export const LIST_ERROR_COPY = {
    * looks like lost money to the person reading it. Say what is unaffected.
    */
   body: 'Your escrows are unaffected. This is a read failure on the list index only.',
+  retry: 'Try again',
 } as const
 
 export const LIST_KEYBOARD_HINT = {

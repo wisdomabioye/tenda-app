@@ -35,6 +35,12 @@ export interface ListColumnProps<TRow> {
   keyOf: (row: TRow) => string
   /** Where Enter (and a click) takes this row. */
   hrefOf: (row: TRow) => string
+  /**
+   * `keyOf` of the row whose detail is open, when the surface has one. It
+   * wears the cursor's mark until the reader moves the cursor, so a list
+   * beside a detail pane says which row the pane is showing.
+   */
+  selectedKey?: string
   renderRow: (row: TRow, state: { active: boolean }) => ReactNode
   isLoading?: boolean
   error?: string | null
@@ -43,5 +49,7 @@ export interface ListColumnProps<TRow> {
   tabs?: readonly ListTab[]
   /** Opens the command palette; the ⌘K button is hidden when absent. */
   onOpenPalette?: () => void
+  /** Re-runs the fetch from the error state. Omit only for a list that cannot fail. */
+  onRetry?: () => void
   skeletonRows?: number
 }

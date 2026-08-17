@@ -74,6 +74,11 @@ export default defineConfig({
         // #14 ported the focused shell; the whole auth folder joins the
         // ratchet with it rather than three files of it.
         'components/auth/**/*.{ts,tsx}',
+        // #15's pre-account surfaces and the two whole-page states.
+        'components/onboarding/**/*.{ts,tsx}',
+        'components/app/status/**/*.{ts,tsx}',
+        // #16: the inbox column, which is the first surface to have one.
+        'components/chat/**/*.{ts,tsx}',
         // The auth STEPS carry real logic — two clocks, a completeness gate
         // that must match the server's, and the one place PII must not reach
         // the URL — so they are gated like any other (#14 review).

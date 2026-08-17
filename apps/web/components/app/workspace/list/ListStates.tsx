@@ -4,6 +4,7 @@
  * ./copy.ts).
  */
 import { Inbox } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 import { LIST_ERROR_COPY, LIST_SKELETON_ROWS } from './copy'
 
 export function ListSkeleton({ rows = LIST_SKELETON_ROWS }: { rows?: number }) {
@@ -20,7 +21,12 @@ export function ListSkeleton({ rows = LIST_SKELETON_ROWS }: { rows?: number }) {
   )
 }
 
-export function ListError({ code }: { code?: string | null }) {
+/**
+ * `onRetry` is optional but a list that fetches should pass it: without one the
+ * only way out of a failed index is a full page reload, which on the workspace
+ * also throws away the detail pane the reader still had open.
+ */
+export function ListError({ code, onRetry }: { code?: string | null; onRetry?: () => void }) {
   return (
     <div
       role="alert"
@@ -34,6 +40,11 @@ export function ListError({ code }: { code?: string | null }) {
       </p>
       {code !== undefined && code !== null && code !== '' && (
         <p className="mt-1.5 font-numeric text-xs text-feedback-danger-text opacity-70">{code}</p>
+      )}
+      {onRetry !== undefined && (
+        <Button variant="outline" size="md" className="mt-3.5" onClick={onRetry}>
+          {LIST_ERROR_COPY.retry}
+        </Button>
       )}
     </div>
   )

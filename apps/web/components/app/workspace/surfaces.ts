@@ -34,6 +34,31 @@ const SURFACE_TITLES: Record<string, string> = {
   settings: 'Settings',
 }
 
+/**
+ * Where the ≤900px "back" affordance goes, per surface that HAS a list column.
+ *
+ * Not derivable from the URL: a chat thread lives at /chat/<userId> but its
+ * list is the inbox at /messages, so `/${surface}` would send the reader to a
+ * route that does not exist. A surface absent from this map has no list, and
+ * the detail pane renders no back link at all — there is nothing behind it.
+ */
+export interface ListHome {
+  href: string
+  /** Names the list, not the direction — "Back" alone says nothing on arrival. */
+  label: string
+}
+
+const SURFACE_LIST_HOME: Record<string, ListHome> = {
+  messages: { href: '/messages', label: 'All messages' },
+  chat: { href: '/messages', label: 'All messages' },
+}
+
+/** The list behind this surface's detail pane, or null when it has none. */
+export function listHomeFor(segment: string | null): ListHome | null {
+  if (segment === null) return null
+  return SURFACE_LIST_HOME[segment] ?? null
+}
+
 /** Fallback so an unregistered surface still gets a usable region name. */
 export const DEFAULT_SURFACE_TITLE = 'Workspace'
 

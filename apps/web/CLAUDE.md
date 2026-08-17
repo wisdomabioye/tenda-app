@@ -147,6 +147,22 @@ pane takes its accessible name from the surface and hands off focus when the sel
 changes. **To give a surface a list column, add `app/(app)/@list/<surface>/page.tsx` —
 nothing else.** `@list/default.tsx` renders nothing for the rest.
 
+**A slot matches the WHOLE path, not a prefix.** `@list/chat/page.tsx` answers `/chat` and
+nothing deeper, so `/chat/[userId]` needs `@list/chat/[userId]/page.tsx` of its own. Soft
+navigation hides the omission completely — Next carries a slot's active subpage across one
+— so the list looks fine until someone deep-links, reloads, or opens a shared URL and gets
+the detail with no column beside it. Add the slot entry at **every depth the surface has**,
+and assert the cold load, not the click.
+
+Where a surface's list lives is also `surfaces.ts`'s job (`SURFACE_LIST_HOME`): a thread is
+`/chat/<id>` but its list is `/messages`, so `/${surface}` would send the ≤900px back link
+to a route that does not exist. That link is `[data-pane-back]`, and it is **CSS-gated, not
+conditionally rendered** — which is a trap worth knowing: the default `display:none` and
+the `@media (max-width:900px)` override have identical specificity, so whichever is written
+LAST wins at every width. The default has to come first. It was written last, and the
+affordance was invisible on every phone until #16 gave a surface a list column for "back"
+to mean anything.
+
 Two signals drive the collapse and they come from different places, deliberately:
 whether a **list exists** is a DOM fact read by CSS `:has([data-list])` — it cannot be a
 prop, because Next wraps parallel-slot output in boundary elements, so the `list` prop is

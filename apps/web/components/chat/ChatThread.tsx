@@ -120,7 +120,7 @@ export function ChatThread({ userId, context }: { userId: string; context?: Chat
   if (initError) {
     return (
       <div className="flex flex-1 flex-col">
-        <ChatHeader name="Chat" onBack={() => router.back()} />
+        <ChatHeader name="Chat" />
         <div className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
           <p className="font-semibold text-content-primary">Couldn&apos;t open chat</p>
           <p className="text-sm text-content-secondary">There was a problem starting this conversation.</p>
@@ -144,10 +144,13 @@ export function ChatThread({ userId, context }: { userId: string; context?: Chat
     // scroller.
     <div className="flex h-full min-h-0 flex-col">
       <div className="relative">
+        {/* No back control of its own: the DETAIL PANE renders one, gated by
+            CSS to ≤900px where the inbox is off-screen. Two stacked back
+            affordances at the top of one pane is the kind of thing a list
+            column quietly introduces. */}
         <ChatHeader
           name={displayName}
           avatarUrl={otherUser?.avatar_url}
-          onBack={() => router.back()}
           onMenu={() => setMenuOpen((v) => !v)}
           menuOpen={menuOpen}
         />

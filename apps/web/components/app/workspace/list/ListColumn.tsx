@@ -19,12 +19,14 @@ export function ListColumn<TRow>({
   groups,
   keyOf,
   hrefOf,
+  selectedKey,
   renderRow,
   isLoading = false,
   error = null,
   countLabel,
   tabs,
   onOpenPalette,
+  onRetry,
   skeletonRows,
 }: ListColumnProps<TRow>) {
   const router = useRouter()
@@ -33,6 +35,12 @@ export function ListColumn<TRow>({
   // Flattened once per change so the keyboard cursor indexes rows, not
   // groups — the cursor must cross group boundaries as one run.
   const flat = useMemo(() => groups.flatMap((group) => group.rows), [groups])
+
+  // Where the OPEN row sits, when the surface tells us which one is open.
+  const selectedIndex = useMemo(
+    () => (selectedKey === undefined ? -1 : flat.findIndex((row) => keyOf(row) === selectedKey)),
+    [flat, keyOf, selectedKey],
+  )
 
   const { activeIndex, setActiveIndex, activeRowRef } = useListKeyboard({
     count: flat.length,
@@ -55,6 +63,16 @@ export function ListColumn<TRow>({
     [groups],
   )
 
+  /**
+   * The row wearing the mark. The keyboard cursor when the reader has moved
+   * it, and the OPEN row until then — a list beside a detail pane has to say
+   * which conversation the pane is showing, and the cursor's own -1 start
+   * would leave nothing marked on arrival. The two cannot disagree for long:
+   * opening a row by pointer sets the cursor through `onMouseEnter`, and
+   * opening by keyboard is the cursor by definition.
+   */
+  const markedIndex = activeIndex >= 0 ? activeIndex : selectedIndex
+
   const showList = !isLoading && error === null && flat.length > 0
   const showEmpty = !isLoading && error === null && flat.length === 0
 
@@ -74,22 +92,34 @@ export function ListColumn<TRow>({
 
       <div className="flex-1 overflow-y-auto p-2">
         {isLoading && <ListSkeleton rows={skeletonRows} />}
-        {!isLoading && error !== null && <ListError code={error} />}
+        {!isLoading && error !== null && <ListError code={error} onRetry={onRetry} />}
         {showEmpty && <ListEmpty title={copy.emptyTitle} body={copy.emptyBody} />}
 
         {showList && (
           <div>
-            {groups.map((group, groupIndex) => (
+            {groups.map((group, groupIndex) => {
+              const labelled = group.label !== undefined && group.label !== ''
+              // The heading NAMES its run of rows rather than floating above
+              // it as a paragraph — visual grouping alone reaches assistive
+              // tech as nothing (spec-correction #16, same call).
+              const groupLabelId = `${titleId}-${group.key}`
+              return (
               <div key={group.key} className="mb-2">
-                {group.label !== undefined && group.label !== '' && (
-                  <p className="mx-3 mb-1.5 mt-3 font-numeric text-[11px] font-bold uppercase leading-4 tracking-[0.13em] text-content-tertiary">
+                {labelled && (
+                  <p
+                    id={groupLabelId}
+                    className="mx-3 mb-1.5 mt-3 font-numeric text-[11px] font-bold uppercase leading-4 tracking-[0.13em] text-content-tertiary"
+                  >
                     {group.label}
                   </p>
                 )}
-                <ul className="flex flex-col gap-1">
+                <ul
+                  aria-labelledby={labelled ? groupLabelId : undefined}
+                  className="flex flex-col gap-1"
+                >
                   {group.rows.map((row, rowIndex) => {
                     const index = groupOffsets[groupIndex] + rowIndex
-                    const active = index === activeIndex
+                    const active = index === markedIndex
                     return (
                       <li
                         key={keyOf(row)}
@@ -104,7 +134,8 @@ export function ListColumn<TRow>({
                   })}
                 </ul>
               </div>
-            ))}
+              )
+            })}
             <p className="m-3 text-xs leading-[18px] text-content-tertiary">
               {LIST_KEYBOARD_HINT.move.map((key) => (
                 <Key key={key} label={key} />

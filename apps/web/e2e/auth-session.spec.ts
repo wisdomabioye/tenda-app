@@ -2,6 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
 import { AUTH_COPY } from '../components/auth/copy'
 import { signInAs, signInFromChooser } from './fixtures/sign-in'
+import { ONBOARDING_COPY, ONBOARDING_SLIDES, WELCOME_COPY } from '../components/onboarding/copy'
+import { OFFLINE_COPY } from '../components/app/status/copy'
 
 /**
  * The workspace rail's profile link, by its accessible name: the rail's own
@@ -262,8 +264,59 @@ test.describe('the focused shell (#14)', () => {
   })
 
   test('the shell keeps a way out of a flow you did not mean to start', async ({ page }) => {
+    // The wordmark lands on the hero, as the comp has it — and the hero keeps
+    // the escape ALIVE: the whole point of #15's link is that "you can browse
+    // without an account" is something you can act on from where it is said.
+    // Two hops, both real; before /welcome existed this went straight to /gigs.
     await page.goto('/signin/email')
     await page.getByRole('link', { name: /Tenda/ }).click()
+    await expect(page).toHaveURL(/\/welcome/)
+    await page.getByRole('link', { name: WELCOME_COPY.browse.link }).click()
     await expect(page).toHaveURL(/\/gigs/)
+  })
+})
+
+test.describe('the pre-account surfaces (#15)', () => {
+  test('the welcome hero offers both ways in and the one that needs no account', async ({
+    page,
+  }) => {
+    await page.goto('/welcome')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(WELCOME_COPY.title)
+    await expect(page.getByRole('link', { name: WELCOME_COPY.primary })).toHaveAttribute(
+      'href',
+      '/signin/email',
+    )
+    await expect(page.getByRole('link', { name: WELCOME_COPY.browse.link })).toHaveAttribute(
+      'href',
+      '/gigs',
+    )
+  })
+
+  test('the hero is readable with no JavaScript at all', async ({ browser }) => {
+    // It is the front door for someone arriving cold, and the one focused
+    // route that is indexable — so it is server-rendered, not a client shell.
+    const context = await browser.newContext({ javaScriptEnabled: false })
+    const page = await context.newPage()
+    await page.goto('/welcome')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(WELCOME_COPY.title)
+    await expect(page.getByRole('link', { name: WELCOME_COPY.primary })).toBeVisible()
+    await context.close()
+  })
+
+  test('the carousel advances, and every slide has a door', async ({ page }) => {
+    await page.goto('/onboarding')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(ONBOARDING_SLIDES[0].title)
+    await page.getByRole('button', { name: ONBOARDING_COPY.next }).click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(ONBOARDING_SLIDES[1].title)
+    await page.getByRole('button', { name: ONBOARDING_COPY.skip }).click()
+    await expect(page).toHaveURL(/\/welcome/)
+  })
+
+  test('the offline screen says what still works', async ({ page }) => {
+    await page.goto('/offline')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(OFFLINE_COPY.title)
+    for (const line of OFFLINE_COPY.available) {
+      await expect(page.getByText(line)).toBeVisible()
+    }
   })
 })
