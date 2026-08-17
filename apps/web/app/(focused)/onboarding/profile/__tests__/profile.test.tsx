@@ -6,7 +6,13 @@
  */
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { ApiClientError, ErrorCode, hasCompleteName, verifyErrorMessage } from '@tenda/shared'
+import {
+  ApiClientError,
+  ErrorCode,
+  NAME_MAX_LENGTH,
+  hasCompleteName,
+  verifyErrorMessage,
+} from '@tenda/shared'
 import OnboardingProfilePage from '@/app/(focused)/onboarding/profile/page'
 import { AUTH_COPY } from '@/components/auth/copy'
 import { api } from '@/api/client'
@@ -52,6 +58,23 @@ describe('OnboardingProfilePage', () => {
 
     type('Segun', 'Oyelaran')
     expect(cta).toBeEnabled()
+  })
+
+  it('caps both fields at the length the SERVER refuses past', () => {
+    // `optionalName` answers 422 "first_name must be a string ≤ 100 chars",
+    // and this form asks for nothing else — learning the limit from a raw
+    // validation string after pressing the button is the worst version of it.
+    // The shared constant, not a literal: a form that guesses the bound is a
+    // second definition of it.
+    render(<OnboardingProfilePage />)
+    expect(screen.getByLabelText(AUTH_COPY.profile.first)).toHaveAttribute(
+      'maxlength',
+      String(NAME_MAX_LENGTH),
+    )
+    expect(screen.getByLabelText(AUTH_COPY.profile.last)).toHaveAttribute(
+      'maxlength',
+      String(NAME_MAX_LENGTH),
+    )
   })
 
   it('previews the name as the gig card will render it', () => {

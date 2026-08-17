@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { hasCompleteName, verifyErrorMessage } from '@tenda/shared'
+import { NAME_MAX_LENGTH, hasCompleteName, verifyErrorMessage } from '@tenda/shared'
 import { api } from '@/api/client'
 import { AuthPanel } from '@/components/auth/AuthPanel'
 import { NamePreview } from '@/components/auth/NamePreview'
@@ -105,6 +105,7 @@ export default function OnboardingProfilePage() {
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               placeholder={AUTH_COPY.profile.firstPlaceholder}
+              maxLength={NAME_MAX_LENGTH}
               autoComplete="given-name"
               autoFocus
             />
@@ -115,6 +116,7 @@ export default function OnboardingProfilePage() {
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               placeholder={AUTH_COPY.profile.lastPlaceholder}
+              maxLength={NAME_MAX_LENGTH}
               autoComplete="family-name"
             />
           </div>

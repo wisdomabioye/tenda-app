@@ -2,7 +2,7 @@ import { FastifyPluginAsync } from 'fastify'
 import { uuidParamGuard } from '@server/lib/guards'
 import { eq } from 'drizzle-orm'
 import { users } from '@tenda/shared/db/schema'
-import { ErrorCode, isCloudinaryUrl, LOCATIONS, isCityInCountry } from '@tenda/shared'
+import { ErrorCode, NAME_MAX_LENGTH, isCloudinaryUrl, LOCATIONS, isCityInCountry } from '@tenda/shared'
 import type { UsersContract, ApiError } from '@tenda/shared'
 import { ensureValidCoordinates, optionalName } from '@server/lib/validation'
 import { AppError, requireBody } from '@server/lib/errors'
@@ -81,8 +81,8 @@ const userById: FastifyPluginAsync = async (fastify) => {
     // other. This route had no name validation at all: an over-long value went
     // straight to the column, and a null came back a 500 from the NOT NULL
     // constraint. See lib/validation's `optionalName`.
-    const trimmed_first = optionalName('first_name', first_name, 100)
-    const trimmed_last = optionalName('last_name', last_name, 100)
+    const trimmed_first = optionalName('first_name', first_name, NAME_MAX_LENGTH)
+    const trimmed_last = optionalName('last_name', last_name, NAME_MAX_LENGTH)
 
     const updates: Record<string, unknown> = { updated_at: new Date() }
     if (trimmed_first !== undefined) updates.first_name = trimmed_first

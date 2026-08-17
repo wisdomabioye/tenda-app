@@ -20,7 +20,7 @@
 
 import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
-import { ErrorCode, hasCompleteName } from '@tenda/shared'
+import { ErrorCode, NAME_MAX_LENGTH, hasCompleteName } from '@tenda/shared'
 import { user_wallets, users } from '@tenda/shared/db/schema/identity'
 import { AppError } from '@server/lib/errors'
 import { phoneVerifiedAt } from '@server/lib/auth/resolver'
@@ -84,9 +84,9 @@ const route: FastifyPluginAsync = async (fastify) => {
       const b = request.body ?? {}
       const patch: Partial<typeof users.$inferInsert> = {}
 
-      const first_name = optionalName('first_name', b.first_name, 100)
+      const first_name = optionalName('first_name', b.first_name, NAME_MAX_LENGTH)
       if (first_name !== undefined) patch.first_name = first_name
-      const last_name = optionalName('last_name', b.last_name, 100)
+      const last_name = optionalName('last_name', b.last_name, NAME_MAX_LENGTH)
       if (last_name !== undefined) patch.last_name = last_name
       const country = optionalString('country', b.country, 100)
       if (country !== undefined) patch.country = country
