@@ -7,7 +7,7 @@
  */
 import { useState } from 'react'
 import { APP_INFO, SUPPORT_FEE_NOTE } from '@tenda/shared'
-import { InfoCard } from '@/components/public/SupportArticle'
+import { InfoCard } from '@/components/public/support'
 
 export function EscrowFeeCalculator() {
   const [amount, setAmount] = useState('')

@@ -38,7 +38,8 @@ Route groups map to shells (groups do not change URLs):
 
 **Tier-1 public shell.** `app/(public)/layout.tsx` applies NO measure — its pages are
 full-bleed sections that each centre their own content at `max-w-content` (1240px, a
-`--container-content` theme token). `/support` has its own narrower layout. **Do not add a
+`--container-content` theme token) — `/support` included, since #13 gave it the comp's
+two-column shell and it now owns the same measure as the feed. **Do not add a
 `loading.tsx` to a public route**: it wraps the segment in a Suspense boundary, and React
 streams the real content behind an inline script that swaps it in — so with JavaScript
 disabled the page renders an empty `<main>`. The feed is the anonymous, indexable front
@@ -74,6 +75,20 @@ Two more rules this shell learned the hard way, both measured in a real browser:
 - **Every crawlable view declares `alternates.canonical`**, built from the same
   `gigsHref` normalisation the rail links use, so position keys and the default
   sort cannot mint a duplicate of a page that already exists.
+
+### /foundations
+
+`/foundations` is the visual companion to the token drift gate: the palette, the
+type scale and every primitive in its real states. It is `noindex` and
+deliberately **not** in the public nav (spec-correction #21) — go to the URL.
+
+Nothing on it is hand-listed, and that is the rule to keep. Swatches come from
+`flattenScheme(colors.light)`, the same transform `scripts/gen-web-tokens` runs
+to WRITE `styles/tokens.css`, so the page cannot show a colour the app does not
+ship. The controls are the shipped components, not restyled copies, so a variant
+that regresses regresses here and one that is added and never wired up is
+visibly missing. A hardcoded list on this page would be the single bug it exists
+to prevent.
 
 ### Text a poster wrote
 

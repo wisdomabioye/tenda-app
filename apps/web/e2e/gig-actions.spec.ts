@@ -77,5 +77,7 @@ test('a taken-down gig shows its party the banner and keeps the way out', async 
 test('a signed-in stranger to a truly missing gig keeps the not-available copy', async ({ page }) => {
   await signIn(page)
   await page.goto('/gig/no-such-gig')
-  await expect(page.getByText('Gig not available')).toBeVisible()
+  // The 404 panel's own heading (#13 gave it the comp's shape); the rescue
+  // island has already run and found nothing, which is what this asserts.
+  await expect(page.getByRole('heading', { name: 'This gig is not available' })).toBeVisible()
 })

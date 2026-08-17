@@ -5,21 +5,24 @@
  */
 import type { Metadata } from 'next'
 import {
-  APP_INFO,
   SUPPORT_WALLET_GUIDE,
   SUPPORT_WALLET_INTRO,
   SUPPORT_WALLET_TROUBLESHOOTING,
 } from '@tenda/shared'
-import { SupportShell, SupportAccordion, GuideSteps, InfoCard } from '@/components/public/SupportArticle'
+import {
+  GuideSteps,
+  InfoCard,
+  SupportAccordion,
+  SupportTopicPage,
+  supportTopicMetadata,
+} from '@/components/public/support'
 
-export const metadata: Metadata = {
-  title: `Wallet Setup · ${APP_INFO.name}`,
-  description: 'Connect a Solana or EVM wallet to receive escrow payouts.',
-}
+export const metadata: Metadata = supportTopicMetadata('wallet')
 
 export default function WalletGuidePage() {
   return (
-    <SupportShell title="Wallet Setup">
+    <SupportTopicPage slug="wallet">
+      <div className="flex max-w-[72ch] flex-col gap-3">
       <InfoCard label={SUPPORT_WALLET_INTRO.label} body={SUPPORT_WALLET_INTRO.body} />
       {SUPPORT_WALLET_GUIDE.map((wallet, i) => (
         <SupportAccordion key={wallet.id} title={wallet.name} defaultOpen={i === 0}>
@@ -36,6 +39,7 @@ export default function WalletGuidePage() {
           <p className="whitespace-pre-line text-sm leading-6 text-content-secondary">{qa.answer}</p>
         </SupportAccordion>
       ))}
-    </SupportShell>
+    </div>
+    </SupportTopicPage>
   )
 }

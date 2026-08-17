@@ -3,18 +3,16 @@
  * interactive island (client component below the static content).
  */
 import type { Metadata } from 'next'
-import { SUPPORT_ESCROW_FLOW, SUPPORT_ESCROW_INTRO, APP_INFO } from '@tenda/shared'
-import { SupportShell, InfoCard } from '@/components/public/SupportArticle'
+import { SUPPORT_ESCROW_FLOW, SUPPORT_ESCROW_INTRO } from '@tenda/shared'
+import { InfoCard, SupportTopicPage, supportTopicMetadata } from '@/components/public/support'
 import { EscrowFeeCalculator } from './FeeCalculator'
 
-export const metadata: Metadata = {
-  title: `Payments & Escrow · ${APP_INFO.name}`,
-  description: 'How Tenda holds funds on-chain and pays workers.',
-}
+export const metadata: Metadata = supportTopicMetadata('escrow')
 
 export default function EscrowGuidePage() {
   return (
-    <SupportShell title="Payments & Escrow">
+    <SupportTopicPage slug="escrow">
+      <div className="flex max-w-[72ch] flex-col gap-4">
       <InfoCard label={SUPPORT_ESCROW_INTRO.label} body={SUPPORT_ESCROW_INTRO.body} />
       <InfoCard label="How the money moves">
         <ol className="flex flex-col gap-3">
@@ -32,6 +30,7 @@ export default function EscrowGuidePage() {
         </ol>
       </InfoCard>
       <EscrowFeeCalculator />
-    </SupportShell>
+    </div>
+    </SupportTopicPage>
   )
 }

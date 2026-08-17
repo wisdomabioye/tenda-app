@@ -1,24 +1,28 @@
 /**
- * Working guide — public SSR over the SHARED guide copy (one wording,
- * every surface; the mobile screen renders the same sections).
+ * Public SSR over the SHARED guide copy — one wording, every surface; the
+ * mobile screen renders the same sections.
  */
 import type { Metadata } from 'next'
-import { APP_INFO, SUPPORT_GUIDE_WORKING } from '@tenda/shared'
-import { SupportShell, SupportAccordion, GuideSteps } from '@/components/public/SupportArticle'
+import { SUPPORT_GUIDE_WORKING } from '@tenda/shared'
+import {
+  GuideSteps,
+  SupportAccordion,
+  SupportTopicPage,
+  supportTopicMetadata,
+} from '@/components/public/support'
 
-export const metadata: Metadata = {
-  title: `Working on a Gig · ${APP_INFO.name}`,
-  description: 'Accept gigs, submit proof, and get paid on Tenda.',
-}
+export const metadata: Metadata = supportTopicMetadata('working')
 
-export default function WorkingGuidePage() {
+export default function Guide() {
   return (
-    <SupportShell title="Working on a Gig">
-      {SUPPORT_GUIDE_WORKING.map((section, i) => (
-        <SupportAccordion key={section.title} title={section.title} defaultOpen={i === 0}>
-          <GuideSteps steps={section.steps} />
-        </SupportAccordion>
-      ))}
-    </SupportShell>
+    <SupportTopicPage slug="working">
+      <div className="flex max-w-[72ch] flex-col gap-3">
+        {SUPPORT_GUIDE_WORKING.map((section, index) => (
+          <SupportAccordion key={section.title} title={section.title} defaultOpen={index === 0}>
+            <GuideSteps steps={section.steps} />
+          </SupportAccordion>
+        ))}
+      </div>
+    </SupportTopicPage>
   )
 }

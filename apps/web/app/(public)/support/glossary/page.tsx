@@ -1,23 +1,26 @@
 import type { Metadata } from 'next'
-import { SUPPORT_GLOSSARY, APP_INFO } from '@tenda/shared'
-import { SupportShell } from '@/components/public/SupportArticle'
+import { SUPPORT_GLOSSARY } from '@tenda/shared'
+import { SupportTopicPage, supportTopicMetadata } from '@/components/public/support'
 
-export const metadata: Metadata = {
-  title: `Glossary · ${APP_INFO.name}`,
-  description: 'Plain-English definitions of blockchain and escrow terms.',
-}
+export const metadata: Metadata = supportTopicMetadata('glossary')
 
 export default function GlossaryPage() {
   return (
-    <SupportShell title="Glossary">
-      <dl className="flex flex-col gap-4">
+    <SupportTopicPage slug="glossary">
+      {/* A definition list, because that is what this is — the terms are the
+          navigable thing here, so they are <dt> rather than card headings. */}
+      <dl className="max-w-[66ch] border-t border-border-default">
         {SUPPORT_GLOSSARY.map((entry) => (
-          <div key={entry.term} className="rounded-card border border-border-subtle bg-surface-card p-4">
-            <dt className="text-sm font-semibold text-content-primary">{entry.term}</dt>
-            <dd className="mt-1 text-sm leading-6 text-content-secondary">{entry.definition}</dd>
+          <div key={entry.term} className="border-b border-border-default py-5">
+            <dt className="break-words font-display text-[17px] font-semibold leading-6 text-content-primary">
+              {entry.term}
+            </dt>
+            <dd className="mt-1.5 break-words text-[15px] leading-6 text-content-secondary">
+              {entry.definition}
+            </dd>
           </div>
         ))}
       </dl>
-    </SupportShell>
+    </SupportTopicPage>
   )
 }
