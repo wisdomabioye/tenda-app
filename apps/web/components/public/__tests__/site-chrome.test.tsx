@@ -65,6 +65,24 @@ describe('SiteHeader', () => {
     render(<SiteHeader />)
     expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/signin')
   })
+
+  it('drops only the link that duplicates the wordmark on a narrow row', () => {
+    // The row cannot wrap and nothing in it shrinks, so at 360px it pushed the
+    // sign-in button off-screen and scrolled the whole document sideways
+    // (measured). The link to lose is the one whose destination is already on
+    // screen — never Support, and never the way in. The e2e suite measures the
+    // overflow itself; this pins WHICH link the rule picks.
+    render(<SiteHeader />)
+    const brandHref = screen.getByRole('link', { name: /Tenda/ }).getAttribute('href')
+    const browse = screen.getByRole('link', { name: 'Browse gigs' })
+    expect(browse).toHaveAttribute('href', brandHref)
+    expect(browse.className).toContain('hidden')
+    expect(browse.className).toContain('sm:block')
+
+    for (const name of ['Support', 'Sign in']) {
+      expect(screen.getByRole('link', { name }).className).not.toContain('hidden')
+    }
+  })
 })
 
 describe('SiteFooter', () => {

@@ -101,6 +101,23 @@ test.describe('feed — /gigs', () => {
     expect(html).toContain('href="/gigs?q=parcel"')
   })
 
+  test('every view declares a canonical, and the position keys never reach it', async ({ request }) => {
+    // The rail links a combinatorial URL space and robots.txt allows all of
+    // it, so without this the same page competes with itself: /gigs,
+    // /gigs?offset=0 and /gigs?q= serve identical rendered content.
+    const canonicalOf = async (url: string) => {
+      const html = await (await request.get(url)).text()
+      return html.match(/<link rel="canonical" href="([^"]+)"/)?.[1] ?? null
+    }
+    expect(await canonicalOf('/gigs')).toMatch(/\/gigs$/)
+    expect(await canonicalOf('/gigs?offset=40&cursor=spent')).toMatch(/\/gigs$/)
+    expect(await canonicalOf('/gigs?sort=created_at')).toMatch(/\/gigs$/)
+    // A genuine slice keeps its own address — a canonical is not a noindex.
+    expect(await canonicalOf('/gigs?category=photo&offset=20')).toMatch(
+      /\/gigs\?category=photo$/,
+    )
+  })
+
   test('category filter is a URL, and it filters', async ({ request }) => {
     const html = await (await request.get('/gigs?category=delivery')).text()
     expect(html).toContain(deliveryGig.title)
@@ -128,6 +145,36 @@ test.describe('feed — /gigs', () => {
     expect(html).not.toContain('Celo Sepolia')
   })
 
+  test.describe('on a phone', () => {
+    // 360 and 390 are the two commonest widths in this product's markets; 320
+    // is the floor. The public feed is the anonymous front door and most of
+    // that traffic is mobile, so a page that scrolls sideways here is not a
+    // detail — it is the first thing a new visitor sees.
+    for (const width of [320, 360, 390]) {
+      test(`neither public page scrolls sideways at ${width}px`, async ({ page }) => {
+        await page.setViewportSize({ width, height: 780 })
+        for (const path of ['/gigs', `/gig/${deliveryGigDetail.escrow_id}`]) {
+          await page.goto(path)
+          const overflow = await page.evaluate(
+            () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+          )
+          expect(overflow, `${path} overflowed by ${overflow}px at ${width}px`).toBe(0)
+        }
+      })
+    }
+
+    test('keeps the way in and Support reachable, dropping only the duplicate link', async ({ page }) => {
+      await page.setViewportSize({ width: 360, height: 780 })
+      await page.goto('/gigs')
+      await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
+      await expect(page.getByRole('link', { name: 'Support' })).toBeVisible()
+      // "Browse gigs" points where the wordmark already points, so it is the
+      // one the row can afford to lose — the destination stays reachable.
+      await expect(page.getByRole('link', { name: 'Browse gigs' })).toBeHidden()
+      await expect(page.getByRole('link', { name: 'Tenda' })).toHaveAttribute('href', '/gigs')
+    })
+  })
+
   test('hydrates cleanly and navigates card → detail', async ({ page }) => {
     const failures = captureRuntimeFailures(page)
     await page.goto('/gigs')
@@ -142,6 +189,9 @@ test.describe('detail — /gig/[id]', () => {
     const html = await (await request.get(`/gig/${deliveryGigDetail.escrow_id}`)).text()
     expect(html).toContain(deliveryGigDetail.title)
     expect(html).toContain('25 USDC')
+    expect(html).toContain(
+      `<link rel="canonical" href="http://127.0.0.1:3211/gig/${deliveryGigDetail.escrow_id}"`,
+    )
     expect(html).toContain(`<meta property="og:title" content="${deliveryGigDetail.title}"`)
     expect(html).toContain('<meta name="twitter:card" content="summary_large_image"')
     expect(html).toContain('opengraph-image')

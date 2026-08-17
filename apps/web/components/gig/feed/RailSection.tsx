@@ -2,14 +2,37 @@
  * One labelled block in the filter rail. Five of them in the comp, all the
  * same shape: an eyebrow label, then the control.
  *
- * `htmlFor` turns the eyebrow into a real <label> for the two blocks that
- * wrap a single form control (search, sort) and leaves it a plain heading for
- * the three that wrap a GROUP of controls — a label pointing at a group of
- * links is invalid, and screen readers announce it as belonging to whichever
- * control it happens to reach first.
+ * Two kinds of block, and they need different wiring:
+ *
+ *   ONE CONTROL (search, sort) — `htmlFor` makes the eyebrow a real `<label>`.
+ *   That is the strongest association there is, and nothing further is needed.
+ *
+ *   A GROUP OF LINKS (category, market, arrangement, chain) — a `<label>` is
+ *   invalid here (it may only point at a form control), which is why this
+ *   branch renders a plain heading. But leaving it at that associates the name
+ *   with NOTHING: the rail then reaches assistive tech as one flat run of
+ *   twenty-five links — "All categories, Delivery, … Anywhere, Nigeria, …,
+ *   Any chain, Solana Devnet" — with no way to tell that Nigeria is a market
+ *   and Digital is a category, and with three different links all named
+ *   "All …" pointing at `/gigs`. Verified in a real browser's accessibility
+ *   tree, where the group names appeared as bare paragraphs. So the wrapper
+ *   carries `role="group"` named by the eyebrow it already renders, matching
+ *   what SiteFooter does for its three link groups and what ChainFilterChips
+ *   and ListColumn already do elsewhere in this app.
+ *
+ * The id is DERIVED from the label rather than taken from `useId`, because
+ * FeedRail is a server component and hooks are unavailable there. Two blocks
+ * with the same label in one rail would collide — that would already be a bug,
+ * since they would also read identically.
  */
 import type { ReactNode } from 'react'
 import { Eyebrow } from '@/components/ui'
+
+/** Stable, SSR-safe id for a rail label. Private: the id is plumbing, the
+ *  accessible NAME is the contract, and the tests assert the name. */
+function railLabelId(label: string): string {
+  return `rail-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`
+}
 
 export function RailSection({
   label,
@@ -20,15 +43,23 @@ export function RailSection({
   htmlFor?: string
   children: ReactNode
 }) {
-  return (
-    <div>
-      {htmlFor === undefined ? (
-        <Eyebrow className="mb-2.5">{label}</Eyebrow>
-      ) : (
+  if (htmlFor !== undefined) {
+    return (
+      <div>
         <Eyebrow as="label" htmlFor={htmlFor} className="mb-2.5 block">
           {label}
         </Eyebrow>
-      )}
+        {children}
+      </div>
+    )
+  }
+
+  const labelId = railLabelId(label)
+  return (
+    <div role="group" aria-labelledby={labelId}>
+      <Eyebrow id={labelId} className="mb-2.5">
+        {label}
+      </Eyebrow>
       {children}
     </div>
   )

@@ -1,5 +1,11 @@
 import Link from 'next/link'
-import { chainLabel, formatAssetAmount, formatRelativeShort, type GigSummary } from '@tenda/shared'
+import {
+  chainLabel,
+  formatAssetAmount,
+  formatRelativeShort,
+  gigPlaceLabel,
+  type GigSummary,
+} from '@tenda/shared'
 import { CategoryBadge } from './CategoryBadge'
 import { GigCreatorLine } from './GigCreatorLine'
 
@@ -31,7 +37,13 @@ export function MyGigCard({ gig }: { gig: GigSummary }) {
 
         <div className="flex flex-wrap items-center gap-3 text-sm text-content-tertiary">
           <CategoryBadge category={gig.category} />
-          <span>{gig.remote ? 'Remote' : gig.city ?? gig.country ?? 'Anywhere'}</span>
+          {/* Shared `gigPlaceLabel`. This line used to read
+              `city ?? country ?? 'Anywhere'`, which is both of the bugs that
+              helper exists to kill: it printed the bare "NG", and it called a
+              gig with no location "Anywhere" — a claim, when the truth is that
+              nobody said. The poster reads their OWN listing here, so it is
+              the one place the wrong answer is most obviously wrong. */}
+          <span>{gigPlaceLabel(gig)}</span>
           <span aria-hidden>·</span>
           <span>{chainLabel(gig.chain_id)}</span>
           {gig.created_at !== null && (

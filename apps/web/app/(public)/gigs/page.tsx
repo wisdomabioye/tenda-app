@@ -16,9 +16,32 @@ import {
   type RawSearchParams,
 } from '@/lib/gigs/search-params'
 
-export const metadata: Metadata = {
-  title: 'Browse gigs',
-  description: APP_INFO.description,
+/**
+ * A canonical per view, because the rail links a combinatorial URL space and
+ * `robots.txt` allows all of it.
+ *
+ * `gigsHref` is the normalisation, reused rather than re-derived: it drops the
+ * two POSITION keys and the redundant default sort, and keeps genuine filters.
+ * So `/gigs`, `/gigs?offset=0` and `/gigs?q=` — which serve byte-identical
+ * rendered content today, verified — collapse to one address, while
+ * `/gigs?category=photo` stays its own page, which it is.
+ *
+ * Deliberately NOT a blanket `noindex` on filtered views: whether a category
+ * or market slice deserves to rank is a product call, and a canonical makes no
+ * claim either way. It only stops the same page from competing with itself.
+ */
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<RawSearchParams>
+}): Promise<Metadata> {
+  const [params, chains] = await Promise.all([searchParams, listEnabledChains()])
+  const filters = parseGigFeedFilters(params, new Set(chains.map((chain) => chain.id)))
+  return {
+    title: 'Browse gigs',
+    description: APP_INFO.description,
+    alternates: { canonical: gigsHref(filters) },
+  }
 }
 
 /**

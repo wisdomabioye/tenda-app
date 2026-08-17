@@ -31,6 +31,7 @@ export function Eyebrow({
   tone = 'tertiary',
   strong = false,
   htmlFor,
+  id,
   className,
   children,
 }: {
@@ -40,12 +41,15 @@ export function Eyebrow({
   strong?: boolean
   /** Only meaningful with `as="label"`; declared so it need not be spread in. */
   htmlFor?: string
+  /** Target for an `aria-labelledby` when this eyebrow names a group. */
+  id?: string
   className?: string
   children: ReactNode
 }) {
   return (
     <Tag
       htmlFor={htmlFor}
+      id={id}
       className={cn(
         'font-numeric uppercase leading-4 tracking-[0.13em]',
         strong ? 'text-[11px] font-bold' : 'text-xs font-medium',

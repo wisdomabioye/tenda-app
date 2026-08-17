@@ -190,6 +190,43 @@ describe('FeedRail', () => {
     expect(screen.getByRole('link', { name: FEED_COPY.rail.clear })).toHaveAttribute('href', '/gigs')
   })
 
+  it('NAMES each group of filter links, so the rail is not one flat run of them', () => {
+    // Without this the rail reaches a screen reader as twenty-five links in a
+    // row — "All categories, Delivery, … Anywhere, Nigeria, …, Any chain,
+    // Solana Devnet" — with no way to tell a market from a category, and with
+    // three links all named "All …" pointing at /gigs. Verified against a real
+    // browser's accessibility tree before this was added.
+    renderRail()
+    for (const name of [
+      FEED_COPY.rail.category,
+      FEED_COPY.rail.market,
+      FEED_COPY.rail.arrangement,
+      FEED_COPY.rail.chain,
+    ]) {
+      expect(screen.getByRole('group', { name })).toBeInTheDocument()
+    }
+  })
+
+  it('puts each filter link INSIDE the group that names it', () => {
+    renderRail()
+    const market = screen.getByRole('group', { name: FEED_COPY.rail.market })
+    expect(within(market).getByRole('link', { name: LOCATIONS.NG.name })).toBeInTheDocument()
+    // …and not in a neighbouring one, which an id collision would produce.
+    const category = screen.getByRole('group', { name: FEED_COPY.rail.category })
+    expect(within(category).queryByRole('link', { name: LOCATIONS.NG.name })).toBeNull()
+    expect(within(category).getByRole('link', { name: CATEGORY_LABELS.digital })).toBeInTheDocument()
+  })
+
+  it('leaves the single-control blocks as LABELS, which is the stronger tie', () => {
+    // A <label> already associates the name with its control; wrapping those
+    // in a group as well would announce the name twice.
+    renderRail()
+    expect(screen.queryByRole('group', { name: FEED_COPY.rail.search })).toBeNull()
+    expect(screen.queryByRole('group', { name: FEED_COPY.rail.sort })).toBeNull()
+    expect(screen.getByLabelText(FEED_COPY.rail.search)).toBeInTheDocument()
+    expect(screen.getByLabelText(FEED_COPY.rail.sort)).toBeInTheDocument()
+  })
+
   it('states the keyboard walk it enables', () => {
     renderRail()
     expect(screen.getByText('j')).toBeInTheDocument()

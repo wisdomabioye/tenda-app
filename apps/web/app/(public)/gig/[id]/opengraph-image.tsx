@@ -1,5 +1,5 @@
 import { ImageResponse } from 'next/og'
-import { APP_INFO, formatAssetAmount } from '@tenda/shared'
+import { APP_INFO, PLACE_UNKNOWN, formatAssetAmount, gigPlaceLabel } from '@tenda/shared'
 import { getGig } from '@/lib/gigs/data'
 
 export const size = { width: 1200, height: 630 }
@@ -16,7 +16,14 @@ export default async function OpenGraphImage({ params }: { params: Promise<{ id:
   const gig = await getGig(id)
   const title = gig?.title ?? `Gig on ${APP_INFO.name}`
   const amount = gig !== null ? formatAssetAmount(gig.amount_raw, gig.asset) : ''
-  const where = gig === null ? '' : gig.remote ? 'Remote' : gig.city ?? gig.country ?? ''
+  // Shared `gigPlaceLabel`, the same helper `generateMetadata` uses one file
+  // over — these two render into the SAME unfurl card, so a second rule here
+  // meant the description could read "Lagos, Nigeria" while the image beside
+  // it said "Lagos", and a country-only gig read "Nigeria" against a bare
+  // "NG". The unknown placeholder is a dash meant for a table cell, so this
+  // surface drops the slot instead of drawing one.
+  const place = gig === null ? PLACE_UNKNOWN : gigPlaceLabel(gig)
+  const where = place === PLACE_UNKNOWN ? '' : place
 
   return new ImageResponse(
     (

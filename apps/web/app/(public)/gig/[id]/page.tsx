@@ -28,13 +28,19 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     gig.description !== null && gig.description !== ''
       ? gig.description.slice(0, 160)
       : `${amount} escrow-secured gig on ${APP_INFO.name} · ${where}`
+  const url = `/gig/${gig.escrow_id}`
   return {
     title: gig.title,
     description,
+    // The id in the path is the gig's whole identity, so this is always
+    // self-referencing — its job is to absorb the tracking params these links
+    // pick up in transit (they get pasted into WhatsApp, which appends its
+    // own) rather than to point somewhere else.
+    alternates: { canonical: url },
     openGraph: {
       title: gig.title,
       description,
-      url: `/gig/${gig.escrow_id}`,
+      url,
       siteName: APP_INFO.name,
       type: 'article',
     },

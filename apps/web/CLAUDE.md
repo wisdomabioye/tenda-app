@@ -46,6 +46,24 @@ door; `e2e/public-discovery.spec.ts` runs it with `javaScriptEnabled: false` as 
 tripwire. A client-fetched surface (`/home`) may show `FeedSkeleton` freely — no Suspense
 is involved there.
 
+Two more rules this shell learned the hard way, both measured in a real browser:
+
+- **The public header row must fit 320px.** It cannot wrap and nothing in it
+  shrinks, so anything that does not fit pushes the sign-in button past the
+  viewport and scrolls the whole *document* sideways — on the anonymous front
+  door, where most traffic is mobile. `px-6` is the measure (it aligns the
+  wordmark with the hero) and is not reduced; the gap and the link that
+  duplicates the wordmark's destination are what give. `e2e/public-discovery`
+  asserts `scrollWidth === clientWidth` at 320/360/390.
+- **A group of filter links needs `role="group"` + `aria-labelledby`.** The
+  comps group them visually; a bare eyebrow above them conveys nothing to
+  assistive tech, and the rail then reads as one flat run of 25 links with
+  three different "All …" entries pointing at `/gigs`. `RailSection` owns this;
+  `SiteFooter`, `ChainFilterChips` and `ListColumn` are the same pattern.
+- **Every crawlable view declares `alternates.canonical`**, built from the same
+  `gigsHref` normalisation the rail links use, so position keys and the default
+  sort cannot mint a duplicate of a page that already exists.
+
 **Surface / selection contract** (`components/app/workspace/surfaces.ts`). The first
 segment inside `(app)` is the *surface*; anything deeper is the *selection*. The detail
 pane takes its accessible name from the surface and hands off focus when the selection
