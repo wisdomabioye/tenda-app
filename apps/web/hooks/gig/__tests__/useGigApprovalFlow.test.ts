@@ -134,7 +134,9 @@ describe('useGigApprovalFlow', () => {
     act(() => result.current.handleAction('apply'))
     expect(result.current.applyOpen).toBe(true)
     act(() => result.current.handleAction('viewApplicants'))
-    expect(pushMock).toHaveBeenCalledWith('/gig/e1/applicants')
+    // Under /my-gigs since #17: the applicants list is a WORKSPACE surface
+    // beside the my-gigs column, and /gig/<id> is the public listing.
+    expect(pushMock).toHaveBeenCalledWith('/my-gigs/e1/applicants')
     act(() => result.current.handleAction('unassign'))
     expect(onRequestUnassign).toHaveBeenCalled()
   })

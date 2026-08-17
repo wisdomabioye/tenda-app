@@ -53,6 +53,8 @@ const SURFACE_LIST_HOME: Record<string, ListHome> = {
   chat: { href: '/messages', label: 'All messages' },
   disputes: { href: '/disputes', label: 'All disputes' },
   dispute: { href: '/disputes', label: 'All disputes' },
+  'my-gigs': { href: '/my-gigs', label: 'All my gigs' },
+  notifications: { href: '/notifications', label: 'All notifications' },
 }
 
 /** The list behind this surface's detail pane, or null when it has none. */
@@ -81,7 +83,7 @@ export function selectionKey(segments: readonly string[]): string | null {
     (segment) => !segment.startsWith('(') && !segment.startsWith('@'),
   )
   // [0] is the surface; anything after it identifies the selection. Joined so
-  // /gig/<id>/applicants and /gig/<id> are distinct selections.
+  // /my-gigs/<id>/applicants and /my-gigs/<id> are distinct selections.
   if (real.length < 2) return null
   return real.slice(1).join('/')
 }

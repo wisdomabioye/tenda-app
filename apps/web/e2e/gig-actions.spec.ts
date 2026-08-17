@@ -1,5 +1,6 @@
 import { signInToHome } from './fixtures/sign-in'
 import { expect, test } from '@playwright/test'
+import { deliveryGig, photoGig } from './fixtures/gigs'
 
 /**
  * S4.4/S4.6 detail surface against the stub API: the bearer refetch swaps
@@ -73,4 +74,62 @@ test('a signed-in stranger to a truly missing gig keeps the not-available copy',
   // The 404 panel's own heading (#13 gave it the comp's shape); the rescue
   // island has already run and found nothing, which is what this asserts.
   await expect(page.getByRole('heading', { name: 'This gig is not available' })).toBeVisible()
+})
+
+/**
+ * The stub scopes `?mine=` to one gig per bucket, so the two tabs are provably
+ * different lists rather than the same feed twice.
+ */
+const POSTED_GIG_TITLE = deliveryGig.title
+const WORKING_GIG_TITLE = photoGig.title
+
+test.describe('My Gigs as a list column (#17)', () => {
+  test('the tab and the chain filter survive opening a gig', async ({ page }) => {
+    // The @list slot remounts on every row opened, so both live in the URL —
+    // and the row hrefs carry them, or the gig just clicked leaves the list.
+    await signInToHome(page)
+    await page.goto('/my-gigs')
+    await expect(page.getByRole('link', { name: /^Posted/ })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+
+    await page.getByRole('link', { name: /^Working/ }).click()
+    await expect(page).toHaveURL(/mine=working/)
+
+    const row = page.getByRole('link', { name: new RegExp(WORKING_GIG_TITLE) })
+    await expect(row).toBeVisible()
+    await row.click()
+
+    await expect(page).toHaveURL(/\/my-gigs\/[^/?]+\?mine=working/)
+    await expect(page.locator('[data-list]')).toBeVisible()
+    await expect(page.getByRole('link', { name: /^Working/ })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    await expect(page.getByRole('link', { name: new RegExp(WORKING_GIG_TITLE) })).toHaveAttribute(
+      'aria-current',
+      'true',
+    )
+  })
+
+  test('the authed dossier renders the escrow; a signed-out visitor is gated', async ({
+    page,
+    browser,
+  }) => {
+    await signInToHome(page)
+    await page.goto('/my-gigs')
+    await page.getByRole('link', { name: new RegExp(POSTED_GIG_TITLE) }).click()
+    await expect(page.getByRole('heading', { level: 1, name: POSTED_GIG_TITLE })).toBeVisible()
+
+    // The app address is authed-only: `AuthGate` sends a signed-out visitor to
+    // /signin before this page renders, which is what every other (app) route
+    // does. The address to SHARE is the public /gig/<id>.
+    const url = page.url()
+    const anon = await browser.newContext()
+    const anonPage = await anon.newPage()
+    await anonPage.goto(url)
+    await expect(anonPage).toHaveURL(/\/signin/)
+    await anon.close()
+  })
 })

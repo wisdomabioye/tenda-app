@@ -1,4 +1,11 @@
-import { createQueryCache, type MyDisputeRow, type QueryCache } from '@tenda/shared'
+import {
+  createQueryCache,
+  type GigSummary,
+  type MyApplication,
+  type MyDisputeRow,
+  type NotificationWire,
+  type QueryCache,
+} from '@tenda/shared'
 
 /**
  * Module-scoped list caches, and the one place that empties them.
@@ -36,6 +43,19 @@ function register<TItem>(): QueryCache<TItem> {
 
 /** Page zero of "My Disputes", per bucket. */
 export const disputesPageCache = register<MyDisputeRow>()
+
+/**
+ * My Gigs keeps FOUR lists so every tab's count is a real server total rather
+ * than a zero for a list nobody fetched — which means four rebuilds per row
+ * opened without these.
+ */
+export const postedGigsCache = register<GigSummary>()
+export const workingGigsCache = register<GigSummary>()
+export const draftGigsCache = register<GigSummary>()
+export const myApplicationsCache = register<MyApplication>()
+
+/** Page zero of the notification feed. */
+export const notificationsCache = register<NotificationWire>()
 
 /**
  * Empties every registered cache. Clears the SAME Map instances the mounted

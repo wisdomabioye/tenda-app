@@ -52,6 +52,12 @@ export interface ListColumnProps<TRow> {
   /** Re-runs the fetch from the error state. Omit only for a list that cannot fail. */
   onRetry?: () => void
   /**
+   * Rendered ABOVE the rows and outside the async states — the notification
+   * centre's pinned announcements. They are not rows of this list, so an empty
+   * or failed list must not take them off the screen.
+   */
+  pinned?: ReactNode
+  /**
    * Rendered after the rows and before the keyboard hint — a "load more" for
    * the surfaces whose index is paginated. Only shown with rows on screen: a
    * pager under a skeleton or an error state is a control over nothing.

@@ -21,6 +21,13 @@ export interface EscrowDossierProps extends PartyScopedProps {
   facts?: readonly DossierFact[]
   /** Rendered above the money block — takedown notices, CTAs. */
   banner?: ReactNode
+  /**
+   * Rendered after the party-scoped half: what this escrow lets the viewer DO.
+   * A slot rather than props because the actions are a whole machine (gated
+   * transitions, tx monitors, dialogs) and the dossier's job is to order the
+   * page, not to know what a transition is.
+   */
+  children?: ReactNode
   formatStamp?: (iso: string) => string
 }
 
@@ -31,6 +38,7 @@ export function EscrowDossier({
   escrow,
   facts,
   banner,
+  children,
   formatStamp,
   ...partyScoped
 }: EscrowDossierProps) {
@@ -44,6 +52,7 @@ export function EscrowDossier({
       <MoneyBlock amountRaw={amountRaw} asset={asset} facts={facts} />
       <StateTimeline escrow={escrow} formatStamp={formatStamp} />
       <PartyScopedSection {...partyScoped} />
+      {children}
     </article>
   )
 }

@@ -39,7 +39,7 @@ export function useGigApprovalFlow({ escrowId, onChanged, onRequestUnassign }: U
       case 'release':
         return setPending('release')
       case 'viewApplicants':
-        return router.push(`/gig/${escrowId}/applicants`)
+        return router.push(`/my-gigs/${escrowId}/applicants`)
       case 'unassign':
         return onRequestUnassign()
     }

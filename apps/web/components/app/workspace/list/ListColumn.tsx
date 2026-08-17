@@ -27,6 +27,7 @@ export function ListColumn<TRow>({
   tabs,
   onOpenPalette,
   onRetry,
+  pinned,
   footer,
   skeletonRows,
 }: ListColumnProps<TRow>) {
@@ -92,6 +93,10 @@ export function ListColumn<TRow>({
       />
 
       <div className="flex-1 overflow-y-auto p-2">
+        {/* Above the rows AND outside every async state: a pinned broadcast is
+            not part of the list it sits over, so an empty or failed personal
+            feed must not take it off the screen. */}
+        {pinned}
         {isLoading && <ListSkeleton rows={skeletonRows} />}
         {!isLoading && error !== null && <ListError code={error} onRetry={onRetry} />}
         {showEmpty && <ListEmpty title={copy.emptyTitle} body={copy.emptyBody} />}

@@ -2,6 +2,11 @@
  * Web port of apps/mobile/hooks/useMyGigs.ts: the caller's Posted,
  * Working, Drafts and Applications lists, each independently paginated.
  *
+ * The chain filter arrives as an ARGUMENT rather than living here, because the
+ * list is a workspace column now and the router remounts it on every row it
+ * opens — local state would snap back to "all chains" each time. It rides the
+ * URL, where a remount can still read it.
+ *
  * Drafts are their OWN list (never rows mixed into Posted): "Posted" is
  * POSTED_ESCROW_STATUSES exactly, so its count chip can never be inflated
  * by pre-signature staging rows. Drafts feed a banner above Posted that
@@ -11,7 +16,6 @@
  * navigation). Applications are deliberately NOT chain-filtered:
  * /v1/applications is caller-scoped with no chain parameter.
  */
-import { useState } from 'react'
 import {
   POSTED_ESCROW_STATUSES,
   type EscrowStatus,
@@ -23,6 +27,7 @@ import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/pagination/usePaginatedList'
 import { useDraftGigs } from '@/hooks/gig/useDraftGigs'
 import { useAuthStore } from '@/stores/auth.store'
+import { myApplicationsCache, postedGigsCache, workingGigsCache } from '@/lib/account-caches'
 
 export interface MyGigsState {
   /** Gigs the caller posted on-chain — every status except `draft`. */
@@ -31,8 +36,6 @@ export interface MyGigsState {
   /** Unfunded staging rows — consumed here for the banner's `total`. */
   drafts: PaginatedListState<GigSummary>
   applications: PaginatedListState<MyApplication>
-  chainId: string | null
-  setChainId: (chain_id: string | null) => void
 }
 
 const keyOf = (gig: GigSummary) => gig.escrow_id
@@ -43,9 +46,8 @@ const applicationKeyOf = (row: MyApplication) => row.application.id
 const EMPTY_QUERY: Record<string, never> = {}
 const POSTED_STATUSES: EscrowStatus[] = [...POSTED_ESCROW_STATUSES]
 
-export function useMyGigs(): MyGigsState {
+export function useMyGigs(chainId: string | null = null): MyGigsState {
   const user = useAuthStore((s) => s.user)
-  const [chainId, setChainId] = useState<string | null>(null)
 
   const enabled = user?.id !== undefined
 
@@ -54,6 +56,7 @@ export function useMyGigs(): MyGigsState {
     query: { mine: 'created', status: POSTED_STATUSES, chain_id: chainId ?? undefined },
     keyOf,
     enabled,
+    cache: postedGigsCache,
   })
 
   const working = usePaginatedList<GigSummary, GigListQuery>({
@@ -61,6 +64,7 @@ export function useMyGigs(): MyGigsState {
     query: { mine: 'working', chain_id: chainId ?? undefined },
     keyOf,
     enabled,
+    cache: workingGigsCache,
   })
 
   // NOT chain-filtered: the banner's only job is "you have unfunded work
@@ -72,7 +76,8 @@ export function useMyGigs(): MyGigsState {
     query: EMPTY_QUERY,
     keyOf: applicationKeyOf,
     enabled,
+    cache: myApplicationsCache,
   })
 
-  return { posted, working, drafts, applications, chainId, setChainId }
+  return { posted, working, drafts, applications }
 }

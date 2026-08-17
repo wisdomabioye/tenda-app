@@ -2,7 +2,9 @@
 
 /**
  * The poster's applicant shortlist for one approval-mode gig, and the assign
- * transaction that ends it — web port of mobile's gig/[id]/applicants. The
+ * transaction that ends it — web port of mobile's gig/[id]/applicants. Lives
+ * under /my-gigs because the comp puts the applicants list in the WORKSPACE
+ * beside its column, and the authed escrow surface is /my-gigs/<id> (#17). The
  * transaction rides the same gate every other transition does:
  * TxConfirmDialog before the wallet, TransactionMonitor until it confirms.
  * Poster-only: the route is enforced server-side, so anyone else just gets a
@@ -32,8 +34,8 @@ import { TransactionMonitor } from '@/components/escrow/TransactionMonitor'
 import { TakedownNotice } from '@/components/gig/detail/TakedownNotice'
 import { ApplicantList } from '@/components/gig/gig-applications'
 
-export default function ApplicantsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default function ApplicantsPage({ params }: { params: Promise<{ escrowId: string }> }) {
+  const { escrowId: id } = use(params)
   const router = useRouter()
   const userId = useAuthStore((s) => s.user?.id ?? '')
   const selectedGig = useGigsStore((s) => s.selectedGig)

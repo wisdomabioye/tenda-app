@@ -20,10 +20,19 @@ import { GigCreatorLine } from './GigCreatorLine'
  * timestamp. The Tier-2 port replaces it with the workspace row family, which
  * carries a status badge; it is left as it was rather than half-fixed here.
  */
+/**
+ * A DRAFT has no public listing — it is not on the feed and `/gig/<id>` 404s
+ * for it — so it opens the authed view. Everything else keeps the public,
+ * shareable address.
+ */
+function hrefFor(gig: GigSummary): string {
+  return gig.status === 'draft' ? `/my-gigs/${gig.escrow_id}` : `/gig/${gig.escrow_id}`
+}
+
 export function MyGigCard({ gig }: { gig: GigSummary }) {
   return (
     <article className="rounded-card border border-border-subtle bg-surface-card p-5 shadow-card transition-shadow hover:shadow-elevated">
-      <Link href={`/gig/${gig.escrow_id}`} className="flex flex-col gap-3">
+      <Link href={hrefFor(gig)} className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-4">
           {/* Poster-written; see CLAUDE.md, "text a poster wrote". */}
           <h2 className="min-w-0 break-words font-display text-lg font-semibold text-content-primary">

@@ -108,6 +108,14 @@ function handlePublic(url: URL): StubResponse | null {
     }
 
     let data = GIGS
+    // `?mine=` is the My Gigs column's whole query. The real route scopes it by
+    // the caller; this stub has one seeded account, so it serves a fixed
+    // subset per bucket — enough for the column to prove that the two tabs are
+    // DIFFERENT lists and that a tab survives opening a row, which is what the
+    // tests here are about. It models no other ownership.
+    const mine = url.searchParams.get('mine')
+    if (mine === 'created') data = data.filter((gig) => gig.escrow_id === deliveryGig.escrow_id)
+    if (mine === 'working') data = data.filter((gig) => gig.escrow_id === photoGig.escrow_id)
     if (category !== null) data = data.filter((gig) => gig.category === category)
     if (country !== null) data = data.filter((gig) => gig.country === country)
     if (remote === 'true') data = data.filter((gig) => gig.remote)
