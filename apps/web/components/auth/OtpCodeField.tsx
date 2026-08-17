@@ -9,6 +9,7 @@
  */
 import type { Ref } from 'react'
 import { controlClassName } from '@/components/ui'
+import { AUTH_COPY } from './copy'
 import { cn } from '@/lib/cn'
 
 interface OtpCodeFieldProps {
@@ -33,7 +34,7 @@ export function OtpCodeField({
   disabled = false,
   autoFocus = false,
   ref,
-  'aria-label': ariaLabel = 'Verification code',
+  'aria-label': ariaLabel = AUTH_COPY.verify.codeLabel,
 }: OtpCodeFieldProps) {
   function handleChange(raw: string) {
     const digits = raw.replace(/\D/g, '').slice(0, length)

@@ -124,6 +124,51 @@ describe('SignInVerifyPage — verifying and resending', () => {
     })
   })
 
+  it('holds the pending challenge until it UNMOUNTS, not the moment it succeeds', async () => {
+    // Clearing in the success path empties this card before the next route
+    // paints — a blank shell mid-transition, measured at ~35ms locally and
+    // longer the slower the route. The identifier still must not outlive the
+    // flow, so the clear moves to unmount.
+    useAuthStore.setState({
+      signInWithVerify: vi.fn().mockResolvedValue({ isNew: false }),
+      profileComplete: true,
+    })
+    const { unmount } = render(<SignInVerifyPage />)
+    await typeCode('123456')
+    expect(replace).toHaveBeenCalledWith('/home')
+    // Still there: the card is still on screen, so it still has a lede to show.
+    expect(useSigninFlowStore.getState().pending).not.toBeNull()
+
+    unmount()
+    expect(useSigninFlowStore.getState().pending).toBeNull()
+  })
+
+  it('keeps the address when the reader LEAVES to change it', async () => {
+    // The other half: unmounting without a successful verify — "Change email"
+    // — must keep the pending challenge, or that step opens on an empty box.
+    render(<SignInVerifyPage />).unmount()
+    expect(useSigninFlowStore.getState().pending).not.toBeNull()
+  })
+
+  it('leaves the cursor on the resend button when the RESEND fails', async () => {
+    // The focus restore is for a rejected CODE. A failed resend sets an error
+    // too, and restoring on that yanks the cursor out of the button the reader
+    // just pressed and into a field whose new code has not arrived — which for
+    // a screen reader means the announcement lands somewhere they did not go.
+    vi.mocked(api.auth.challenge).mockRejectedValue(new Error('down'))
+    useSigninFlowStore.setState({
+      pending: { channel: 'email', identifier: 'ada@x.io', sentAt: 1_000_000 - 60_000, expiresIn: 600 },
+    })
+    render(<SignInVerifyPage />)
+    const resend = screen.getByRole('button', { name: AUTH_COPY.verify.resend })
+    resend.focus()
+    await act(async () => {
+      fireEvent.click(resend)
+    })
+    expect(screen.getByText(AUTH_COPY.verify.resendFailed)).toBeInTheDocument()
+    expect(resend).toHaveFocus()
+  })
+
   it('sends ONE code for two fast clicks on resend', async () => {
     // The cooldown only starts once the challenge RESOLVES, so it cannot guard
     // the request still in flight. Two codes means two emails or two SMS the

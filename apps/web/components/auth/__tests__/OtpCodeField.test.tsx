@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { OtpCodeField } from '@/components/auth/OtpCodeField'
+import { AUTH_COPY } from '@/components/auth/copy'
 
 function Harness({ onChange }: { onChange: (digits: string) => void }) {
   const [value, setValue] = useState('')
@@ -36,20 +37,20 @@ describe('OtpCodeField', () => {
   it('accepts digits up to the length', async () => {
     const onChange = vi.fn()
     render(<Harness onChange={onChange} />)
-    await userEvent.type(screen.getByLabelText('Verification code'), '123456')
+    await userEvent.type(screen.getByLabelText(AUTH_COPY.verify.codeLabel), '123456')
     expect(onChange).toHaveBeenLastCalledWith('123456')
   })
 
   it('filters non-digits instead of passing them through', async () => {
     const onChange = vi.fn()
     render(<Harness onChange={onChange} />)
-    await userEvent.type(screen.getByLabelText('Verification code'), '12ab34')
+    await userEvent.type(screen.getByLabelText(AUTH_COPY.verify.codeLabel), '12ab34')
     expect(onChange).toHaveBeenLastCalledWith('1234')
   })
 
   it('is announced and autofill-ready', () => {
     render(<Harness onChange={vi.fn()} />)
-    const input = screen.getByLabelText('Verification code')
+    const input = screen.getByLabelText(AUTH_COPY.verify.codeLabel)
     expect(input).toHaveAttribute('autocomplete', 'one-time-code')
     expect(input).toHaveAttribute('inputmode', 'numeric')
   })
@@ -61,7 +62,7 @@ describe('OtpCodeField', () => {
     // that paste and left an input that visibly did nothing.
     const onChange = vi.fn()
     render(<RejectingHarness onChange={onChange} />)
-    const input = screen.getByLabelText('Verification code')
+    const input = screen.getByLabelText(AUTH_COPY.verify.codeLabel)
     await userEvent.click(input)
     await userEvent.paste('123456')
     expect(onChange).toHaveBeenCalledWith('123456')
@@ -76,7 +77,7 @@ describe('OtpCodeField', () => {
     // re-fire the caller's auto-submit with the code already in flight.
     const onChange = vi.fn()
     render(<Harness onChange={onChange} />)
-    const input = screen.getByLabelText('Verification code')
+    const input = screen.getByLabelText(AUTH_COPY.verify.codeLabel)
     await userEvent.type(input, '1234')
     onChange.mockClear()
     await userEvent.type(input, 'x')
@@ -85,7 +86,7 @@ describe('OtpCodeField', () => {
 
   it('respects disabled', () => {
     render(<OtpCodeField value="" onChange={vi.fn()} disabled />)
-    expect(screen.getByLabelText('Verification code')).toBeDisabled()
+    expect(screen.getByLabelText(AUTH_COPY.verify.codeLabel)).toBeDisabled()
   })
 })
 

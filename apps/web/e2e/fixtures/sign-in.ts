@@ -31,7 +31,7 @@ export async function signInAs(
   await page.goto('/signin/email')
   await page.getByLabel(AUTH_COPY.email.label).fill(email)
   await page.getByRole('button', { name: AUTH_COPY.email.cta }).click()
-  await page.getByLabel('Verification code').fill(code)
+  await page.getByLabel(AUTH_COPY.verify.codeLabel).fill(code)
 }
 
 /** Sign in and wait for the workspace — the common case for authed specs. */
@@ -50,5 +50,5 @@ export async function signInFromChooser(page: Page, email: string): Promise<void
   await page.getByRole('link', { name: /^Continue with email/ }).click()
   await page.getByLabel(AUTH_COPY.email.label).fill(email)
   await page.getByRole('button', { name: AUTH_COPY.email.cta }).click()
-  await page.getByLabel('Verification code').fill(E2E_OTP_CODE)
+  await page.getByLabel(AUTH_COPY.verify.codeLabel).fill(E2E_OTP_CODE)
 }

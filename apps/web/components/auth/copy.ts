@@ -44,6 +44,11 @@ export const AUTH_COPY = {
   },
   verify: {
     back: 'Change email',
+    /**
+     * The OTP field's accessible name — it has no visible label, so this IS
+     * its name to a screen reader, and it is how every test addresses it.
+     */
+    codeLabel: 'Verification code',
     title: 'Enter the code',
     /** `to` is the identifier the code went to — shown, never guessed at. */
     lede: (to: string) => `Sent to ${to}.`,

@@ -68,6 +68,8 @@ export default function SignInVerifyPage() {
   // it that two clicks in a single batch cannot slip past.
   const [resending, setResending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Counts rejected CODES only — see the focus restore below.
+  const [rejections, setRejections] = useState(0)
   // One ticking clock drives both countdowns; two intervals would drift apart.
   const [now, setNow] = useState(() => Date.now())
   // A successful verify clears the flow store, which would otherwise trip the
@@ -86,6 +88,17 @@ export default function SignInVerifyPage() {
     return () => clearInterval(t)
   }, [])
 
+  // Dropping the identifier once it has been used is the point of `clear`, but
+  // calling it in the success path empties THIS card ~35ms before the next
+  // route paints (measured) — the reader watches a blank shell in the middle of
+  // their own sign-in. On unmount instead: the card stays until the page it
+  // navigated to replaces it, and the identifier still does not outlive the
+  // flow. Leaving by "Change email" unmounts too, and there `succeeded` is
+  // false — that step wants the address it is offering to change.
+  useEffect(() => () => {
+    if (succeeded.current) clearFlow()
+  }, [clearFlow])
+
 
   const cooldown = pending === null ? 0 : secondsLeft(pending.sentAt, RESEND_COOLDOWN_S, now)
   // Null window ⇒ no countdown and no expiry claim. The comp shows one because
@@ -96,19 +109,19 @@ export default function SignInVerifyPage() {
       : secondsLeft(pending.sentAt, pending.expiresIn, now)
   const expired = validFor === 0
 
-  // Put the cursor back after a rejection. The field is disabled while the
+  // Put the cursor back after a rejected CODE. The field is disabled while the
   // request is in flight and a browser blurs a disabled element, so focus lands
   // on <body> — measured in Chromium — leaving the reader to hunt for the box in
   // the one loop they are most likely to repeat.
   //
-  // Keyed on `verifying` falling rather than on the failure itself, because at
-  // the moment of the failure the field is still disabled. No `expired` guard:
-  // a disabled element cannot take focus, so an expired field declines this on
-  // its own and a condition saying so again would be a branch nothing can
-  // reach.
+  // Keyed on a counter this page bumps for that ONE case, not on `error`: a
+  // failed RESEND sets an error too, and restoring on that yanks the cursor out
+  // of the button the reader just pressed and into a field whose new code has
+  // not arrived. The counter is bumped in the catch, so by the time the effect
+  // runs the same batch has already re-enabled the field.
   useEffect(() => {
-    if (error !== null && !verifying) codeField.current?.focus()
-  }, [error, verifying])
+    if (rejections > 0) codeField.current?.focus()
+  }, [rejections])
 
   async function handleVerify(value: string) {
     if (pending === null || value.length !== CODE_LENGTH || verifying || expired) return
@@ -119,10 +132,10 @@ export default function SignInVerifyPage() {
       succeeded.current = true
       const { profileComplete } = useAuthStore.getState()
       router.replace(profileComplete === true ? '/home' : '/onboarding/profile')
-      clearFlow()
     } catch (e) {
       setCode('')
       setError(verifyErrorMessage(e, AUTH_COPY.verify.failed))
+      setRejections((n) => n + 1)
     } finally {
       setVerifying(false)
     }

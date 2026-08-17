@@ -35,9 +35,9 @@ test('sign-up: email → code → profile setup → home shell', async ({ page }
   await signInFromChooser(page, 'fresh@tenda.test')
   // Fresh account: empty names route to onboarding.
   await expect(page).toHaveURL(/\/onboarding\/profile/)
-  await page.getByLabel('First name').fill('Chidi')
-  await page.getByLabel('Last name').fill('Eze')
-  await page.getByRole('button', { name: 'Finish' }).click()
+  await page.getByLabel(AUTH_COPY.profile.first).fill('Chidi')
+  await page.getByLabel(AUTH_COPY.profile.last).fill('Eze')
+  await page.getByRole('button', { name: AUTH_COPY.profile.cta }).click()
   await expect(page).toHaveURL(/\/home/)
   await expect(page.getByRole('link', { name: 'My Gigs' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Your profile, Chidi Eze' })).toBeVisible()
@@ -52,7 +52,7 @@ test('sign-in: an existing complete profile lands straight on /home', async ({ p
 test('a wrong code surfaces the server message and clears the field', async ({ page }) => {
   await signInAs(page, EXISTING_EMAIL, '000000')
   await expect(page.getByText('Invalid or expired code')).toBeVisible()
-  await expect(page.getByLabel('Verification code')).toHaveValue('')
+  await expect(page.getByLabel(AUTH_COPY.verify.codeLabel)).toHaveValue('')
   await expect(page).toHaveURL(/\/signin\/verify/)
 })
 
@@ -156,10 +156,38 @@ test.describe('the focused shell (#14)', () => {
     // By text, not by role: Next ships its own always-present
     // `role="alert"` route announcer, so a bare role query is ambiguous here.
     await expect(page.getByText('Invalid or expired code')).toBeVisible()
-    await expect(page.getByLabel('Verification code')).toBeFocused()
+    await expect(page.getByLabel(AUTH_COPY.verify.codeLabel)).toBeFocused()
     // No click anywhere: type straight on and the sign-in completes.
     await page.keyboard.type(E2E_OTP_CODE)
     await expect(page).toHaveURL(/\/home/)
+  })
+
+  test('the card stays on screen until the next step replaces it', async ({ page }) => {
+    // Clearing the flow store in the success path unmounted this card while the
+    // route was still in flight — an empty focused shell in the middle of the
+    // reader's own sign-in, measured at ~35ms here and longer the slower the
+    // route. Only a browser shows it: the mutation record is the evidence.
+    await page.goto('/signin/email')
+    await page.getByLabel(AUTH_COPY.email.label).fill(EXISTING_EMAIL)
+    await page.getByRole('button', { name: AUTH_COPY.email.cta }).click()
+    await expect(page.getByText(/Expires in \d+:\d\d/)).toBeVisible()
+
+    await page.evaluate(() => {
+      const w = window as unknown as { __headings: (string | null)[] }
+      w.__headings = []
+      new MutationObserver(() => {
+        w.__headings.push(document.querySelector('h1')?.textContent ?? null)
+      }).observe(document.body, { childList: true, subtree: true })
+    })
+
+    await page.getByLabel(AUTH_COPY.verify.codeLabel).fill(E2E_OTP_CODE)
+    await expect(page).toHaveURL(/\/home/)
+
+    const headings = await page.evaluate(
+      () => (window as unknown as { __headings: (string | null)[] }).__headings,
+    )
+    expect(headings.length).toBeGreaterThan(0)
+    expect(headings).not.toContain(null)
   })
 
   test('a double click on the resend sends ONE code, not two', async ({ page }) => {
