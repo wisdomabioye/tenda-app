@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { EXISTING_EMAIL } from './fixtures/auth'
+import { E2E_OTP_CODE, EXISTING_EMAIL } from './fixtures/auth'
 import { AUTH_COPY } from '../components/auth/copy'
 import { signInAs, signInFromChooser } from './fixtures/sign-in'
 
@@ -145,6 +145,21 @@ test.describe('the focused shell (#14)', () => {
     await expect(page.getByText(/Expires in \d+:\d\d/)).toBeVisible()
     // …and it names where the code went, rather than saying "your email".
     await expect(page.getByText(EXISTING_EMAIL)).toBeVisible()
+  })
+
+  test('a rejected code can be retyped without touching the mouse', async ({ page }) => {
+    // The field is disabled while the request is in flight, and a browser blurs
+    // a disabled element — so focus fell to <body> and the reader had to hunt
+    // for the box in the loop they are most likely to repeat. Only a real
+    // browser shows this; jsdom does not blur on disable.
+    await signInAs(page, EXISTING_EMAIL, '000000')
+    // By text, not by role: Next ships its own always-present
+    // `role="alert"` route announcer, so a bare role query is ambiguous here.
+    await expect(page.getByText('Invalid or expired code')).toBeVisible()
+    await expect(page.getByLabel('Verification code')).toBeFocused()
+    // No click anywhere: type straight on and the sign-in completes.
+    await page.keyboard.type(E2E_OTP_CODE)
+    await expect(page).toHaveURL(/\/home/)
   })
 
   test('the shell keeps a way out of a flow you did not mean to start', async ({ page }) => {

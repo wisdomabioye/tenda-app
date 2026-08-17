@@ -1,3 +1,4 @@
+import { createRef } from 'react'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
@@ -42,5 +43,18 @@ describe('OtpCodeField', () => {
   it('respects disabled', () => {
     render(<OtpCodeField value="" onChange={vi.fn()} disabled />)
     expect(screen.getByLabelText('Verification code')).toBeDisabled()
+  })
+})
+
+describe('OtpCodeField — the ref', () => {
+  it('forwards a ref to the input, so a caller can put the cursor back', () => {
+    // The verify step disables this field while a code is in flight, and a
+    // browser blurs a disabled element — so after a rejection something has to
+    // refocus it. That refocus is asserted in a real browser
+    // (e2e/auth-session, "retyped without touching the mouse"); jsdom does not
+    // blur on disable, so only the wiring is decidable here.
+    const ref = createRef<HTMLInputElement>()
+    render(<OtpCodeField value="" onChange={() => {}} ref={ref} />)
+    expect(ref.current).toBe(screen.getByRole('textbox'))
   })
 })

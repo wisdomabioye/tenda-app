@@ -5,7 +5,7 @@
  * friendly, one focus target for screen readers) styled as spaced digits.
  * Filters to digits, clamps to `length`, and reports completion once per fill.
  */
-import { useRef } from 'react'
+import { useRef, type Ref } from 'react'
 import { controlClassName } from '@/components/ui'
 import { cn } from '@/lib/cn'
 
@@ -15,6 +15,12 @@ interface OtpCodeFieldProps {
   length?: number
   disabled?: boolean
   autoFocus?: boolean
+  /**
+   * So a caller can put the cursor back. A rejected code DISABLES this input
+   * while the request is in flight, and a browser blurs a disabled element —
+   * which drops focus to <body> exactly when the reader needs to retype.
+   */
+  ref?: Ref<HTMLInputElement>
   'aria-label'?: string
 }
 
@@ -24,6 +30,7 @@ export function OtpCodeField({
   length = 6,
   disabled = false,
   autoFocus = false,
+  ref,
   'aria-label': ariaLabel = 'Verification code',
 }: OtpCodeFieldProps) {
   const lastReported = useRef('')
@@ -37,6 +44,7 @@ export function OtpCodeField({
 
   return (
     <input
+      ref={ref}
       type="text"
       inputMode="numeric"
       autoComplete="one-time-code"

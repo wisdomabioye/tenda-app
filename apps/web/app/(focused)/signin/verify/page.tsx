@@ -53,6 +53,7 @@ export default function SignInVerifyPage() {
   // A successful verify clears the flow store, which would otherwise trip the
   // no-pending bounce below and race the post-sign-in navigation.
   const succeeded = useRef(false)
+  const codeField = useRef<HTMLInputElement>(null)
 
   // Reload or deep link: there is no pending challenge in memory — restart.
   useEffect(() => {
@@ -64,6 +65,7 @@ export default function SignInVerifyPage() {
     return () => clearInterval(t)
   }, [])
 
+
   const cooldown = pending === null ? 0 : secondsLeft(pending.sentAt, RESEND_COOLDOWN_S, now)
   // Null window ⇒ no countdown and no expiry claim. The comp shows one because
   // its mock always has a number; the wire makes it optional.
@@ -72,6 +74,20 @@ export default function SignInVerifyPage() {
       ? null
       : secondsLeft(pending.sentAt, pending.expiresIn, now)
   const expired = validFor === 0
+
+  // Put the cursor back after a rejection. The field is disabled while the
+  // request is in flight and a browser blurs a disabled element, so focus lands
+  // on <body> — measured in Chromium — leaving the reader to hunt for the box in
+  // the one loop they are most likely to repeat.
+  //
+  // Keyed on `verifying` falling rather than on the failure itself, because at
+  // the moment of the failure the field is still disabled. No `expired` guard:
+  // a disabled element cannot take focus, so an expired field declines this on
+  // its own and a condition saying so again would be a branch nothing can
+  // reach.
+  useEffect(() => {
+    if (error !== null && !verifying) codeField.current?.focus()
+  }, [error, verifying])
 
   async function handleVerify(value: string) {
     if (pending === null || value.length !== CODE_LENGTH || verifying || expired) return
@@ -126,6 +142,7 @@ export default function SignInVerifyPage() {
           }}
           length={CODE_LENGTH}
           autoFocus
+          ref={codeField}
           disabled={verifying || expired}
         />
 
