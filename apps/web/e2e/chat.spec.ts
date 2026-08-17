@@ -57,9 +57,33 @@ test('the list column survives the navigation into a thread', async ({ page }) =
   await signInToHome(page)
   await page.goto('/messages')
   await expect(page.locator('[data-list]')).toBeVisible()
+  // Not just "still visible": a SKELETON is visible too, and that is what the
+  // column did on every open while it owned its own loading state — recorded
+  // as ["rows:1", "SKELETON", "rows:1"]. The list must not change at all.
+  await page.evaluate(() => {
+    const w = window as unknown as { __states: string[] }
+    w.__states = []
+    const read = () => {
+      const list = document.querySelector('[data-list]')
+      if (list === null) return 'no-list'
+      if (list.querySelector('.animate-shimmer') !== null) return 'skeleton'
+      return `rows:${list.querySelectorAll('li').length}`
+    }
+    w.__states.push(read())
+    new MutationObserver(() => {
+      const state = read()
+      if (w.__states[w.__states.length - 1] !== state) w.__states.push(state)
+    }).observe(document.body, { childList: true, subtree: true })
+  })
+
   await page.getByRole('link', { name: /^Bola Ade/ }).click()
   await expect(page).toHaveURL(/\/chat\//)
   await expect(page.locator('[data-list]')).toBeVisible()
+
+  const states = await page.evaluate(
+    () => (window as unknown as { __states: string[] }).__states,
+  )
+  expect(states).toEqual(['rows:1'])
 })
 
 test('a thread opened COLD still has the inbox beside it', async ({ page }) => {

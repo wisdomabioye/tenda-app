@@ -8,7 +8,8 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { expect, test, vi } from 'vitest'
 import type { DisputeThreadContext, MyDisputeRow as MyDisputeRowData } from '@tenda/shared'
-import { MyDisputeRow, DisputeContextHeader, DisputeMessageBubble } from '@/components/dispute'
+import { DisputeContextHeader, DisputeMessageBubble } from '@/components/dispute'
+import { DISPUTES_LIST_COPY } from '@/components/dispute/copy'
 
 function rowOf(over: Partial<MyDisputeRowData> = {}): MyDisputeRowData {
   return {
@@ -45,15 +46,24 @@ const CONTEXT: DisputeThreadContext = {
   resolved_at: null,
 }
 
-test('the list row links the thread, names the raiser side, shows the outcome once resolved', () => {
-  render(<MyDisputeRow row={rowOf()} />)
-  const link = screen.getByRole('link', { name: 'Open dispute: Paint my fence' })
-  expect(link).toHaveAttribute('href', '/dispute/e1')
-  expect(screen.getByText(/You raised this/)).toBeInTheDocument()
-
-  render(<MyDisputeRow row={rowOf({ raised_by_me: false, resolved_at: '2026-08-16T00:00:00Z', winner: 'creator', status: 'resolved' })} />)
-  expect(screen.getByText(/Raised against you/)).toBeInTheDocument()
-  expect(screen.getByText(/Outcome:/)).toBeInTheDocument()
+test('the row line names the raiser side while open, and the OUTCOME once settled', () => {
+  // The row itself is now the shared `EscrowRow` (the chassis every workspace
+  // list uses); what stays dispute-specific is which fact earns the subtitle.
+  // Once a dispute is settled, the outcome is the only reason to look at the
+  // row at all — "you raised this" is history by then.
+  expect(DISPUTES_LIST_COPY.subtitle(rowOf())).toBe('Bola Ade · You raised this')
+  expect(DISPUTES_LIST_COPY.subtitle(rowOf({ raised_by_me: false }))).toBe(
+    'Bola Ade · Raised against you',
+  )
+  expect(
+    DISPUTES_LIST_COPY.subtitle(
+      rowOf({ raised_by_me: false, resolved_at: '2026-08-16T00:00:00Z', winner: 'creator', status: 'resolved' }),
+    ),
+  ).toContain('Outcome:')
+  // A party with no profile name is still referenceable.
+  expect(DISPUTES_LIST_COPY.subtitle(rowOf({ counterparty_name: null }))).toContain(
+    'the other party',
+  )
 })
 
 test('context header: self reads You, the raiser carries the flag, the reason expands', async () => {

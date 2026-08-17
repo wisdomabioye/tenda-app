@@ -51,6 +51,8 @@ export interface ListHome {
 const SURFACE_LIST_HOME: Record<string, ListHome> = {
   messages: { href: '/messages', label: 'All messages' },
   chat: { href: '/messages', label: 'All messages' },
+  disputes: { href: '/disputes', label: 'All disputes' },
+  dispute: { href: '/disputes', label: 'All disputes' },
 }
 
 /** The list behind this surface's detail pane, or null when it has none. */

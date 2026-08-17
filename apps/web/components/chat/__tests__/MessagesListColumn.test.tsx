@@ -32,7 +32,14 @@ beforeEach(() => {
   vi.clearAllMocks()
   pathname = '/messages'
   fetchConversations.mockResolvedValue()
-  useChatStore.setState({ conversations: [], unread: 0, fetchConversations })
+  // `ready` is the normal case: the layout's `useInboxRealtime` has already
+  // loaded the inbox by the time any list column mounts.
+  useChatStore.setState({
+    conversations: [],
+    conversationsStatus: 'ready',
+    unread: 0,
+    fetchConversations,
+  })
 })
 afterEach(cleanup)
 
@@ -97,28 +104,54 @@ describe('MessagesListColumn', () => {
     )
   })
 
-  it('shows the empty state and still fetches once', async () => {
+  it('does NOT fetch: the layout owns the inbox, badge and all', () => {
+    // `useInboxRealtime` is mounted once by the session layout and already
+    // loads, reconnect-refreshes and polls this data. A fetch here would
+    // duplicate every one of those requests.
     render(<MessagesListColumn />)
-    expect(await screen.findByText(MESSAGES_LIST_COPY.surface.emptyTitle)).toBeInTheDocument()
-    expect(fetchConversations).toHaveBeenCalledTimes(1)
+    expect(fetchConversations).not.toHaveBeenCalled()
+  })
+
+  it('shows the empty state once the load has actually finished', () => {
+    render(<MessagesListColumn />)
+    expect(screen.getByText(MESSAGES_LIST_COPY.surface.emptyTitle)).toBeInTheDocument()
   })
 
   it('says a failed index is a READ failure, and retries from there', async () => {
-    fetchConversations.mockRejectedValueOnce(new Error('down')).mockResolvedValue()
+    useChatStore.setState({ conversationsStatus: 'error' })
     render(<MessagesListColumn />)
-    expect(await screen.findByText(MESSAGES_LIST_COPY.error)).toBeInTheDocument()
+    expect(screen.getByText(MESSAGES_LIST_COPY.error)).toBeInTheDocument()
     // The sentence that stops a failed list reading as lost money.
     expect(screen.getByText(LIST_ERROR_COPY.body)).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: LIST_ERROR_COPY.retry }))
-    expect(fetchConversations).toHaveBeenCalledTimes(2)
+    expect(fetchConversations).toHaveBeenCalledTimes(1)
   })
 
   it('leaves the skeleton for a load that has not settled', () => {
     // Never the empty state first: "no conversations yet" is a claim, and a
     // pending request has not earned it.
-    fetchConversations.mockReturnValue(new Promise(() => {}))
+    useChatStore.setState({ conversationsStatus: 'loading' })
     render(<MessagesListColumn />)
     expect(screen.queryByText(MESSAGES_LIST_COPY.surface.emptyTitle)).toBeNull()
+  })
+
+  it('does not blank a populated list while it refreshes behind them', () => {
+    // The remount case, which is EVERY thread open: the slot moves from
+    // @list/messages to @list/chat and Next remounts the column. Measured as
+    // ["rows:1", "SKELETON", "rows:1"] before the status moved to the store.
+    twoThreads()
+    useChatStore.setState({ conversationsStatus: 'loading' })
+    render(<MessagesListColumn />)
+    expect(screen.getByRole('link', { name: /Bola Ade/ })).toBeInTheDocument()
+    expect(document.querySelector('.animate-shimmer')).toBeNull()
+  })
+
+  it('does not take a populated list away because a background poll failed', () => {
+    twoThreads()
+    useChatStore.setState({ conversationsStatus: 'error' })
+    render(<MessagesListColumn />)
+    expect(screen.getByRole('link', { name: /Bola Ade/ })).toBeInTheDocument()
+    expect(screen.queryByText(MESSAGES_LIST_COPY.error)).toBeNull()
   })
 })

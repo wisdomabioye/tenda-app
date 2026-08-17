@@ -154,6 +154,25 @@ navigation hides the omission completely — Next carries a slot's active subpag
 the detail with no column beside it. Add the slot entry at **every depth the surface has**,
 and assert the cold load, not the click.
 
+**A remount is the normal case, so list state cannot live in the column.** Moving between
+two slot entries tears the component down and builds it again — which happens on *every row
+the reader opens*. Anything the column owns is therefore rebuilt from nothing, and the
+column blinks: first through the skeleton, and (once the spinner is seeded away) through the
+EMPTY state, which is a worse lie. Both were measured as
+`["rows:1", "SKELETON", "rows:1"]` and `["rows:1", "rows:0", "rows:1"]`. Two fixes, by
+data shape:
+
+- data a **store** already owns (the inbox — the rail badge needs it whether or not a list
+  is on screen): read the status off the store, and let the layout's realtime hook own the
+  fetch. A column that fetches on mount also duplicates every request that hook makes.
+- data a **paginated hook** owns (disputes, and every list #17-#19 adds): pass
+  `usePaginatedList` a module-scoped `cache` so page zero outlives the hook. The whole
+  first render is seeded from it, spinner included — the cache-hit branch runs in an
+  effect, which is already a frame too late.
+
+Assert it as `['rows:N']` across the navigation, not "the list is still visible": a
+skeleton is visible too.
+
 Where a surface's list lives is also `surfaces.ts`'s job (`SURFACE_LIST_HOME`): a thread is
 `/chat/<id>` but its list is `/messages`, so `/${surface}` would send the ≤900px back link
 to a route that does not exist. That link is `[data-pane-back]`, and it is **CSS-gated, not

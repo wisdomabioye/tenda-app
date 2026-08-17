@@ -1,4 +1,4 @@
-import type { PaginatedResponse } from '@tenda/shared'
+import type { PaginatedResponse, QueryCache } from '@tenda/shared'
 
 export interface PageParams {
   limit: number
@@ -19,6 +19,12 @@ export interface UsePaginatedListOptions<TItem, TQuery extends object> {
   enabled?: boolean
   /** Cache page zero by serialized query and silently revalidate cache hits. */
   cacheQueries?: boolean
+  /**
+   * A cache the CALLER owns, so page zero survives this hook unmounting —
+   * the workspace's list columns are remounted by the router on every row
+   * they open. Implies `cacheQueries`.
+   */
+  cache?: QueryCache<TItem>
   /** Use server next_cursor for stable traversal of a live, shifting list. */
   cursorPagination?: boolean
 }

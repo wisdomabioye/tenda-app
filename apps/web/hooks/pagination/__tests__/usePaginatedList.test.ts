@@ -5,8 +5,9 @@
  * off the loaded array instead of the server total.
  */
 import { describe, expect, it, vi } from 'vitest'
-import { renderHook, act, waitFor } from '@testing-library/react'
-import type { PaginatedResponse } from '@tenda/shared'
+import { createElement } from 'react'
+import { render, renderHook, act, waitFor } from '@testing-library/react'
+import { createQueryCache, type PaginatedResponse } from '@tenda/shared'
 import { usePaginatedList } from '@/hooks/pagination/usePaginatedList'
 
 interface Row { id: string }
@@ -621,5 +622,101 @@ describe('cacheQueries', () => {
     // distinct response both prevents an update leaking beyond this test and
     // proves the cache hit did not suppress its network freshness check.
     await waitFor(() => expect(result.current.items.map(keyOf)).toEqual(['newest']))
+  })
+})
+
+describe('a cache the caller owns', () => {
+  /**
+   * Records what EVERY render saw, not just the last one.
+   *
+   * `renderHook` flushes effects before it returns, so reading `result.current`
+   * cannot tell a value seeded during render from one an effect set a moment
+   * later — and the whole point of the cache seeding is that the FIRST render
+   * already has the rows. Three mutations survived a version of these tests
+   * that read `result.current`.
+   */
+  function renderRecording<TQuery extends object>(
+    options: Parameters<typeof usePaginatedList<{ id: string }, TQuery>>[0],
+  ) {
+    const frames: { rows: number; isLoading: boolean; hasFetched: boolean }[] = []
+    function Probe() {
+      const list = usePaginatedList(options)
+      frames.push({
+        rows: list.items.length,
+        isLoading: list.isLoading,
+        hasFetched: list.hasFetched,
+      })
+      return null
+    }
+    const view = render(createElement(Probe))
+    return { frames, view }
+  }
+
+  it('paints page zero on the FIRST render of a second mount', async () => {
+    // The workspace's list columns are remounted by the router on every row
+    // they open — the @list slot moves between its entries and React tears the
+    // component down. With a per-instance cache the column rebuilt from
+    // scratch each time and blinked: a skeleton, and then the EMPTY state.
+    const cache = createQueryCache<{ id: string }>()
+    const fetchPage = vi.fn().mockResolvedValue(page(rows('a'), 1))
+
+    const first = renderHook(() => usePaginatedList({ fetchPage, query: {}, keyOf, cache }))
+    await waitFor(() => expect(first.result.current.items.map(keyOf)).toEqual(['a']))
+    first.unmount()
+
+    const { frames } = renderRecording({ fetchPage, query: {}, keyOf, cache })
+    // The very first frame, before any effect: rows on screen, no spinner.
+    expect(frames[0]).toEqual({ rows: 1, isLoading: false, hasFetched: true })
+    // …and no frame in the whole mount ever showed a spinner or an empty list.
+    expect(frames.some((frame) => frame.isLoading)).toBe(false)
+    expect(frames.some((frame) => frame.rows === 0)).toBe(false)
+  })
+
+  it('still revalidates behind the rows it painted', async () => {
+    const cache = createQueryCache<{ id: string }>()
+    const fetchPage = vi
+      .fn()
+      .mockResolvedValueOnce(page(rows('stale'), 1))
+      .mockResolvedValueOnce(page(rows('fresh'), 1))
+
+    const first = renderHook(() => usePaginatedList({ fetchPage, query: {}, keyOf, cache }))
+    await waitFor(() => expect(first.result.current.items.map(keyOf)).toEqual(['stale']))
+    first.unmount()
+
+    const second = renderHook(() => usePaginatedList({ fetchPage, query: {}, keyOf, cache }))
+    expect(second.result.current.items.map(keyOf)).toEqual(['stale'])
+    // The cache serves at most one navigation of staleness, and only until the
+    // silent reload lands.
+    await waitFor(() => expect(second.result.current.items.map(keyOf)).toEqual(['fresh']))
+    expect(fetchPage).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not serve one query's page zero to another", async () => {
+    const cache = createQueryCache<{ id: string }>()
+    const fetchPage = vi
+      .fn()
+      .mockResolvedValueOnce(page(rows('open-row'), 1))
+      .mockResolvedValueOnce(page(rows('resolved-row'), 1))
+
+    const first = renderHook(() =>
+      usePaginatedList({ fetchPage, query: { status: 'open' }, keyOf, cache }),
+    )
+    await waitFor(() => expect(first.result.current.items.map(keyOf)).toEqual(['open-row']))
+    first.unmount()
+
+    // A different bucket is a different key: nothing to seed, and a real load.
+    const { frames } = renderRecording({ fetchPage, query: { status: 'resolved' }, keyOf, cache })
+    expect(frames[0]).toEqual({ rows: 0, isLoading: true, hasFetched: false })
+    await waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2))
+  })
+
+  it('leaves an unshared list untouched — no cache, no seeding', async () => {
+    const fetchPage = vi.fn().mockResolvedValue(page(rows('a'), 1))
+    const first = renderHook(() => usePaginatedList({ fetchPage, query: {}, keyOf }))
+    await waitFor(() => expect(first.result.current.items.map(keyOf)).toEqual(['a']))
+    first.unmount()
+
+    const { frames } = renderRecording({ fetchPage, query: {}, keyOf })
+    expect(frames[0]).toEqual({ rows: 0, isLoading: true, hasFetched: false })
   })
 })

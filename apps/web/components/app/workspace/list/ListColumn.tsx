@@ -27,6 +27,7 @@ export function ListColumn<TRow>({
   tabs,
   onOpenPalette,
   onRetry,
+  footer,
   skeletonRows,
 }: ListColumnProps<TRow>) {
   const router = useRouter()
@@ -136,6 +137,7 @@ export function ListColumn<TRow>({
               </div>
               )
             })}
+            {footer}
             <p className="m-3 text-xs leading-[18px] text-content-tertiary">
               {LIST_KEYBOARD_HINT.move.map((key) => (
                 <Key key={key} label={key} />

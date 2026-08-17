@@ -23,8 +23,22 @@ export interface EscrowContext {
   kind: 'gig' | 'exchange' | null
 }
 
+/**
+ * Whether the inbox has ever been read from the server.
+ *
+ * In the STORE rather than in whatever renders the list, because the workspace
+ * mounts the list column from two different route slots (@list/messages and
+ * @list/chat) and Next remounts the component when the route moves between
+ * them. Component-local `loading` state therefore starts true again on every
+ * thread open, and the column blinked to a skeleton each time — measured:
+ * `["rows:1", "SKELETON", "rows:1"]` — which is exactly the "the list never
+ * leaves" promise the column exists to keep.
+ */
+export type InboxStatus = 'idle' | 'loading' | 'ready' | 'error'
+
 interface ChatState {
   conversations: Conversation[]
+  conversationsStatus: InboxStatus
   messages: Record<string, LocalMessage[]> // conversationId → messages (oldest first)
   unread: number // total unread across all conversations
 
@@ -40,13 +54,23 @@ interface ChatState {
 
 export const useChatStore = create<ChatState>((set, get) => ({
   conversations: [],
+  conversationsStatus: 'idle',
   messages: {},
   unread: 0,
 
   fetchConversations: async () => {
-    const convs = await api.conversations.list()
-    const unread = convs.reduce((sum, c) => sum + c.unread_count, 0)
-    set({ conversations: convs, unread })
+    set({ conversationsStatus: 'loading' })
+    try {
+      const convs = await api.conversations.list()
+      const unread = convs.reduce((sum, c) => sum + c.unread_count, 0)
+      set({ conversations: convs, unread, conversationsStatus: 'ready' })
+    } catch (e) {
+      set({ conversationsStatus: 'error' })
+      // Still thrown: the badge's own callers swallow it, and the list column
+      // reads the status — but a caller that awaits this must still be able to
+      // tell that it failed.
+      throw e
+    }
   },
 
   findOrCreate: async (userId) => {

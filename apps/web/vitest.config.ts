@@ -77,8 +77,9 @@ export default defineConfig({
         // #15's pre-account surfaces and the two whole-page states.
         'components/onboarding/**/*.{ts,tsx}',
         'components/app/status/**/*.{ts,tsx}',
-        // #16: the inbox column, which is the first surface to have one.
+        // #16: the inbox and disputes columns, the first surfaces to have one.
         'components/chat/**/*.{ts,tsx}',
+        'components/dispute/**/*.{ts,tsx}',
         // The auth STEPS carry real logic — two clocks, a completeness gate
         // that must match the server's, and the one place PII must not reach
         // the URL — so they are gated like any other (#14 review).

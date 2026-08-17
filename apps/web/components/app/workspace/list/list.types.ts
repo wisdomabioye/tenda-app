@@ -51,5 +51,11 @@ export interface ListColumnProps<TRow> {
   onOpenPalette?: () => void
   /** Re-runs the fetch from the error state. Omit only for a list that cannot fail. */
   onRetry?: () => void
+  /**
+   * Rendered after the rows and before the keyboard hint — a "load more" for
+   * the surfaces whose index is paginated. Only shown with rows on screen: a
+   * pager under a skeleton or an error state is a control over nothing.
+   */
+  footer?: ReactNode
   skeletonRows?: number
 }

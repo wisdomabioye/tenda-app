@@ -13,7 +13,7 @@
  * created by participant pair), so the id in the URL is the one the list has
  * to match against to say which row is open.
  */
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 import type { Conversation } from '@tenda/shared'
 import { ListColumn } from '@/components/app/workspace/list'
@@ -30,25 +30,23 @@ export function openThreadUserId(pathname: string): string | null {
 
 export function MessagesListColumn() {
   const conversations = useChatStore((s) => s.conversations)
+  const status = useChatStore((s) => s.conversationsStatus)
   const fetchConversations = useChatStore((s) => s.fetchConversations)
   const { openPalette } = useCommandPalette()
   const pathname = usePathname()
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
 
-  // Both settled in the async continuations — a synchronous reset inside the
-  // effect trips react-hooks/set-state-in-effect, and the mount render would
-  // show "loaded and empty" for a frame before the request even starts.
-  const load = useCallback(() => {
-    fetchConversations()
-      .then(() => setError(null))
-      .catch(() => setError(MESSAGES_LIST_COPY.error))
-      .finally(() => setLoading(false))
-  }, [fetchConversations])
-
-  useEffect(() => {
-    load()
-  }, [load])
+  // The fetch lifecycle is NOT this component's: `useInboxRealtime` is mounted
+  // once by the layout that owns the session — it loads the inbox, refreshes it
+  // after a reconnect and polls while the socket is down, because the rail's
+  // unread badge needs the same data whether or not a list is on screen. A
+  // second mount-fetch here would duplicate every one of those requests, and
+  // its component-local state is what made the column blink on remount.
+  //
+  // A skeleton only before there is anything to show: a background refresh must
+  // never blank a list the reader is already using. Same rule for the error —
+  // a failed poll behind a populated list is not worth taking the list away.
+  const loading = status === 'loading' && conversations.length === 0
+  const error = status === 'error' && conversations.length === 0 ? MESSAGES_LIST_COPY.error : null
 
   const groups = useMemo(() => {
     const unread = conversations.filter((c) => c.unread_count > 0)
@@ -77,7 +75,7 @@ export function MessagesListColumn() {
       error={error}
       countLabel={unreadCount > 0 ? MESSAGES_LIST_COPY.count(unreadCount) : undefined}
       onOpenPalette={openPalette}
-      onRetry={load}
+      onRetry={() => void fetchConversations().catch(() => {})}
       renderRow={(c, { active }) => (
         <ConversationRow
           href={`/chat/${c.other_user.id}`}
