@@ -28,7 +28,7 @@ import { useParams } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
 import { EscrowDossier } from '@/components/escrow/dossier'
-import { GigDetailAuthed } from '@/components/gig/detail/GigDetailApp'
+import { GigEscrowActions } from '@/components/gig/detail/GigEscrowActions'
 import { Spinner } from '@/components/ui/Spinner'
 import { TakedownNotice } from '@/components/gig/detail/TakedownNotice'
 import { dossierFactsFor, dossierProofsFor } from '@/components/gig/my-gigs/dossier-facts'
@@ -73,7 +73,11 @@ export default function MyGigDetailPage() {
         <TakedownNotice escrow={current} subject="gig" viewerId={userId} />
       )}
     >
-      {userId !== null && <GigDetailAuthed gig={current} userId={userId} />}
+      {/* The ACTIONS only. This pane already renders the party content above
+          — the money block, the timeline, the counterparty, the proofs — and
+          composing the whole authed island printed the takedown banner twice
+          (measured) and would have doubled every proof. */}
+      {userId !== null && <GigEscrowActions gig={current} userId={userId} />}
     </EscrowDossier>
   )
 }

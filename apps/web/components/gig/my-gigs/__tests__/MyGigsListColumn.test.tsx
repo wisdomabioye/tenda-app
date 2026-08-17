@@ -6,21 +6,23 @@
  * held in component state would reset at the worst possible moment — the row
  * they just clicked leaving the list beside them.
  */
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GigSummary, MyApplication } from '@tenda/shared'
 import { MyGigsListColumn } from '@/components/gig/my-gigs/MyGigsListColumn'
 import { MY_GIGS_COPY, myGigHref, myGigsHref, myGigsTab } from '@/components/gig/my-gigs/copy'
 import { gigRowSubtitle } from '@/components/gig/my-gigs/row-subtitle'
 import { useMyGigs } from '@/hooks/gig/useMyGigs'
+import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { deliveryGig, photoGig } from '@/e2e/fixtures/gigs'
 
 let searchParams = new URLSearchParams()
 let routeParams: { escrowId?: string } = {}
+const replace = vi.fn()
 vi.mock('next/navigation', () => ({
   useSearchParams: () => searchParams,
   useParams: () => routeParams,
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  useRouter: () => ({ push: vi.fn(), replace }),
   usePathname: () => '/my-gigs',
 }))
 vi.mock('@/hooks/gig/useMyGigs', () => ({ useMyGigs: vi.fn() }))
@@ -177,6 +179,38 @@ describe('MyGigsListColumn', () => {
     state()
     render(<MyGigsListColumn />)
     expect(screen.queryByText(/waiting to be funded/)).toBeNull()
+  })
+
+  it('filters by chain through the URL, and REPLACES rather than pushes', () => {
+    // A filter is not a place: ten chips tapped would otherwise be ten Back
+    // presses to leave the surface. And it has to be the URL, because the
+    // column is remounted on every row it opens.
+    useChainRegistryStore.setState({
+      chains: [
+        { id: 'eip155:42220', display_name: 'Celo' },
+        { id: 'solana:devnet', display_name: 'Solana' },
+      ] as never,
+    })
+    searchParams = new URLSearchParams('mine=working')
+    state()
+    render(<MyGigsListColumn />)
+    fireEvent.click(screen.getByRole('button', { name: 'Celo' }))
+    expect(replace).toHaveBeenCalledWith(myGigsHref('working', 'eip155:42220'))
+  })
+
+  it('offers no chain filter on Applied, which the wire cannot filter', () => {
+    // /v1/applications is caller-scoped with no chain parameter; a chip that
+    // changed nothing would be a control that lies.
+    useChainRegistryStore.setState({
+      chains: [
+        { id: 'eip155:42220', display_name: 'Celo' },
+        { id: 'solana:devnet', display_name: 'Solana' },
+      ] as never,
+    })
+    searchParams = new URLSearchParams('mine=applications')
+    state()
+    render(<MyGigsListColumn />)
+    expect(screen.queryByRole('group', { name: 'Chain filter' })).toBeNull()
   })
 })
 

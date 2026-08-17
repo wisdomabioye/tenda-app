@@ -113,6 +113,30 @@ test.describe('My Gigs as a list column (#17)', () => {
     )
   })
 
+  test('drafts keep the column, and a draft opens the authed view', async ({ page }) => {
+    // A STATIC segment needs its own slot entry — `[escrowId]` does not catch
+    // `drafts` — so without one the column vanished the moment the reader
+    // followed the drafts link out of its own footer. And a draft has no
+    // public listing: /gig/<id> 404s for it.
+    await signInToHome(page)
+    await page.goto('/my-gigs/drafts')
+    await expect(page.locator('[data-list]')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Drafts' })).toBeVisible()
+  })
+
+  test('the dossier says each thing ONCE', async ({ page }) => {
+    // The pane renders the party content itself — money, timeline,
+    // counterparty, proofs — so composing the whole authed island beside it
+    // printed the takedown banner twice, and would have doubled every proof
+    // the moment an escrow had one. Measured as `takedown: 2` before the
+    // action machine was split out of it.
+    await signInToHome(page)
+    await page.goto('/my-gigs/hidden-party-gig')
+    await expect(page.getByText('Removed by moderation')).toHaveCount(1)
+    // The actions are still there — the split moved them, it did not drop them.
+    await expect(page.getByRole('button', { name: 'Cancel Gig' })).toBeVisible()
+  })
+
   test('the authed dossier renders the escrow; a signed-out visitor is gated', async ({
     page,
     browser,

@@ -15,12 +15,14 @@
  */
 import { useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { FileClock } from 'lucide-react'
 import { applicationStatusLine, type GigSummary, type MyApplication } from '@tenda/shared'
 import { ListColumn } from '@/components/app/workspace/list'
 import type { ListGroup } from '@/components/app/workspace/list'
 import { EscrowRow } from '@/components/app/workspace/rows'
 import { Button } from '@/components/ui/Button'
+import { ChainFilterChips } from '@/components/shared/ChainFilterChips'
 import { useMyGigs } from '@/hooks/gig/useMyGigs'
 import { useNow } from '@/hooks/timing/useNow'
 import { useCommandPalette } from '@/hooks/workspace/useCommandPalette'
@@ -29,6 +31,7 @@ import { MY_GIGS_COPY, MY_GIGS_TABS, myGigHref, myGigsHref } from './copy'
 import { gigRowSubtitle } from './row-subtitle'
 
 export function MyGigsListColumn() {
+  const router = useRouter()
   const { tab, chainId, openEscrowId } = useMyGigsRoute()
   const { posted, working, drafts, applications } = useMyGigs(chainId)
   const { openPalette } = useCommandPalette()
@@ -51,6 +54,22 @@ export function MyGigsListColumn() {
     onRetry: () => void list.reload(),
     countLabel: list.hasFetched ? MY_GIGS_COPY.count(list.total, tab) : undefined,
     onOpenPalette: openPalette,
+    // ONE control for the gig tabs, as mobile has it. Applications are
+    // caller-scoped with no chain parameter on the wire, so it steers Posted
+    // and Working only — and it writes to the URL rather than to state,
+    // because this column is remounted on every row it opens.
+    //
+    // `replace`, not `push`: a filter is not a place. Ten chips tapped would
+    // otherwise be ten Back presses to leave the surface.
+    pinned:
+      tab === 'applications' ? undefined : (
+        <div className="px-1">
+          <ChainFilterChips
+            value={chainId}
+            onChange={(next) => router.replace(myGigsHref(tab, next))}
+          />
+        </div>
+      ),
     tabs: MY_GIGS_TABS.map((entry) => ({
       href: myGigsHref(entry.key, chainId),
       label: entry.label,
