@@ -59,15 +59,18 @@ export function AuthPanel({
         </Eyebrow>
       )}
 
-      {/* `break-words`: an email address echoed into a heading has no break
+      {/* `break-words` on BOTH: an email address echoed back has no break
           opportunity of its own. See CLAUDE.md, "text a poster wrote" — the
-          rule is about untrusted length, and a user's own address qualifies. */}
+          rule is about untrusted length, and a user's own address qualifies.
+          The lede is where the address actually lands (the verify step's
+          "Sent to …"), and without this the whole page scrolled to 595px on a
+          320px screen — measured, with a 70-character address. */}
       <h1 className="break-words font-display text-[26px] font-bold leading-8 tracking-[-0.6px] text-content-primary sm:text-[30px] sm:leading-9">
         {title}
       </h1>
 
       {lede !== undefined && (
-        <p className="mt-3 text-[15px] leading-[22px] text-content-secondary">{lede}</p>
+        <p className="mt-3 break-words text-[15px] leading-[22px] text-content-secondary">{lede}</p>
       )}
 
       <div className="mt-7">{children}</div>

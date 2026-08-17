@@ -131,6 +131,16 @@ deciding on that fact, and half a location is worse than two lines).
 320/360/390 and at 768/900/1100/1280, against `unbreakableGig` — a fixture that
 rides in the normal feed so every test sees it.
 
+**It is not only a poster's text.** An email address the reader typed is echoed
+back on the verify step, and it is just as unbreakable. `AuthPanel` had
+`break-words` on its heading and not on its lede — and the lede is the slot the
+address lands in, so the page scrolled to **595px at 320px** until the third
+#14 review measured it. When a component takes free text in more than one slot,
+the rule applies to every slot that can receive it, and the assertion belongs in
+e2e (`auth-session.spec.ts`, "a long address does not drag the card off a 320px
+screen") because a class-presence unit check cannot tell an effective
+`break-words` from an inert one.
+
 **Surface / selection contract** (`components/app/workspace/surfaces.ts`). The first
 segment inside `(app)` is the *surface*; anything deeper is the *selection*. The detail
 pane takes its accessible name from the surface and hands off focus when the selection

@@ -73,15 +73,20 @@ describe('AuthPanel', () => {
     expect(code.container.firstElementChild?.className).toContain('max-w-[460px]')
   })
 
-  it('lets a long identifier in the heading break rather than overflow', () => {
-    // The verify step echoes the address the reader typed; an unbroken one has
-    // no break opportunity of its own.
+  it('lets a long identifier break rather than overflow — in BOTH slots', () => {
+    // The verify step echoes the address the reader typed, and it lands in the
+    // LEDE ("Sent to …"), not the heading — which is where this was missing:
+    // 595px of layout on a 320px screen, measured. Class presence only; the
+    // load-bearing assertion is e2e ("a long address does not drag the card
+    // off a 320px screen"), because `break-words` can be inert on its own.
+    const address = 'averyveryverylongaddress@subdomain.example.com'
     render(
-      <AuthPanel title="averyveryverylongaddress@subdomain.example.com">
+      <AuthPanel title={address} lede={`Sent to ${address}.`}>
         <p>b</p>
       </AuthPanel>,
     )
     expect(screen.getByRole('heading', { level: 1 }).className).toContain('break-words')
+    expect(screen.getByText(`Sent to ${address}.`).className).toContain('break-words')
   })
 })
 

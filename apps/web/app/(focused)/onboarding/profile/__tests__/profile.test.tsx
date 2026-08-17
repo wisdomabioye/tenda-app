@@ -6,7 +6,7 @@
  */
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { hasCompleteName } from '@tenda/shared'
+import { ApiClientError, ErrorCode, hasCompleteName, verifyErrorMessage } from '@tenda/shared'
 import OnboardingProfilePage from '@/app/(focused)/onboarding/profile/page'
 import { AUTH_COPY } from '@/components/auth/copy'
 import { api } from '@/api/client'
@@ -116,6 +116,40 @@ describe('OnboardingProfilePage', () => {
     })
     expect(screen.getByRole('alert')).toHaveTextContent(AUTH_COPY.profile.failed)
     expect(replace).not.toHaveBeenCalled()
+  })
+
+  it('never shows the JWT guard’s own envelope to the reader', async () => {
+    // Leaving this tab open long enough for the token to lapse makes the PATCH
+    // answer 401 with "Invalid or missing token" — the guard's raw wording,
+    // which shared `verifyErrorMessage` exists to keep off a screen. Hand
+    // rolling the mapping here reproduced everything about it EXCEPT that.
+    vi.mocked(api.users.updateMe).mockRejectedValue(
+      new ApiClientError(401, 'Unauthorized', 'Invalid or missing token', ErrorCode.UNAUTHORIZED),
+    )
+    render(<OnboardingProfilePage />)
+    type('Segun', 'Oyelaran')
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: AUTH_COPY.profile.cta }))
+    })
+    expect(screen.queryByText(/Invalid or missing token/)).not.toBeInTheDocument()
+    expect(screen.getByText(verifyErrorMessage(
+      new ApiClientError(401, 'Unauthorized', 'Invalid or missing token', ErrorCode.UNAUTHORIZED),
+      AUTH_COPY.profile.failed,
+    ))).toBeInTheDocument()
+  })
+
+  it('still shows the server’s OWN message when it wrote one for the reader', async () => {
+    // The other half of the mapper: a 400 the server phrased deliberately
+    // ("Last name is required") must survive, not be flattened to a fallback.
+    vi.mocked(api.users.updateMe).mockRejectedValue(
+      new ApiClientError(400, 'Bad Request', 'Last name is required', ErrorCode.VALIDATION_ERROR),
+    )
+    render(<OnboardingProfilePage />)
+    type('Segun', 'Oyelaran')
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: AUTH_COPY.profile.cta }))
+    })
+    expect(screen.getByText('Last name is required')).toBeInTheDocument()
   })
 
   it('bootstraps the session on a hard reload rather than assuming one', () => {

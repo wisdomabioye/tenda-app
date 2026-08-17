@@ -18,6 +18,20 @@ function Harness({ onChange }: { onChange: (digits: string) => void }) {
   )
 }
 
+/** A caller that CLEARS the field when a full code arrives — the reject path. */
+function RejectingHarness({ onChange }: { onChange: (digits: string) => void }) {
+  const [value, setValue] = useState('')
+  return (
+    <OtpCodeField
+      value={value}
+      onChange={(digits) => {
+        onChange(digits)
+        setValue(digits.length === 6 ? '' : digits)
+      }}
+    />
+  )
+}
+
 describe('OtpCodeField', () => {
   it('accepts digits up to the length', async () => {
     const onChange = vi.fn()
@@ -38,6 +52,35 @@ describe('OtpCodeField', () => {
     const input = screen.getByLabelText('Verification code')
     expect(input).toHaveAttribute('autocomplete', 'one-time-code')
     expect(input).toHaveAttribute('inputmode', 'numeric')
+  })
+
+  it('takes the SAME code again after the caller clears the field', async () => {
+    // The retry loop: the server rejects a code, the page clears the field,
+    // and the reader pastes the same six digits again — a network failure is
+    // the obvious reason to. Deduping against a REMEMBERED value swallowed
+    // that paste and left an input that visibly did nothing.
+    const onChange = vi.fn()
+    render(<RejectingHarness onChange={onChange} />)
+    const input = screen.getByLabelText('Verification code')
+    await userEvent.click(input)
+    await userEvent.paste('123456')
+    expect(onChange).toHaveBeenCalledWith('123456')
+
+    onChange.mockClear()
+    await userEvent.paste('123456')
+    expect(onChange).toHaveBeenCalledWith('123456')
+  })
+
+  it('still swallows a keystroke that does not change the digits', async () => {
+    // The dedupe earns its place: a letter typed into a full field must not
+    // re-fire the caller's auto-submit with the code already in flight.
+    const onChange = vi.fn()
+    render(<Harness onChange={onChange} />)
+    const input = screen.getByLabelText('Verification code')
+    await userEvent.type(input, '1234')
+    onChange.mockClear()
+    await userEvent.type(input, 'x')
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('respects disabled', () => {

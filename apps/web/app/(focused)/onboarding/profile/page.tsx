@@ -8,7 +8,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ApiClientError, hasCompleteName } from '@tenda/shared'
+import { hasCompleteName, verifyErrorMessage } from '@tenda/shared'
 import { api } from '@/api/client'
 import { AuthPanel } from '@/components/auth/AuthPanel'
 import { NamePreview } from '@/components/auth/NamePreview'
@@ -68,7 +68,13 @@ export default function OnboardingProfilePage() {
       void useAuthStore.getState().refreshUser()
       router.replace('/home')
     } catch (e) {
-      setError(e instanceof ApiClientError ? e.message : AUTH_COPY.profile.failed)
+      // Shared `verifyErrorMessage`, the same mapper the other two steps and
+      // mobile's three auth screens use. Hand-rolling it here reproduced all
+      // of it EXCEPT the clause it exists for: a stale token makes this PATCH
+      // answer 401 with the JWT guard's own envelope, and "Invalid or missing
+      // token" was rendered verbatim to someone whose only mistake was leaving
+      // the tab open.
+      setError(verifyErrorMessage(e, AUTH_COPY.profile.failed))
     } finally {
       setSaving(false)
     }

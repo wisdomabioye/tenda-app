@@ -1,5 +1,6 @@
 import { signInToHome } from './fixtures/sign-in'
 import { expect, test } from '@playwright/test'
+import { AUTH_COPY } from '../components/auth/copy'
 
 /**
  * Stage-3 surfaces against the stub API. The e2e build carries NO
@@ -12,10 +13,10 @@ import { expect, test } from '@playwright/test'
 
 test('signin/wallet: unconfigured build shows the honest fallback, not a dead button', async ({ page }) => {
   await page.goto('/signin/wallet')
-  await expect(page.getByRole('heading', { name: 'Sign in with a wallet' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: AUTH_COPY.wallet.title })).toBeVisible()
   await expect(page.getByText('not configured for this build')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Connect wallet' })).toHaveCount(0)
-  await page.getByRole('link', { name: 'Continue with email' }).click()
+  await expect(page.getByRole('button', { name: AUTH_COPY.wallet.connect })).toHaveCount(0)
+  await page.getByRole('link', { name: AUTH_COPY.wallet.email }).click()
   await expect(page).toHaveURL(/\/signin\/email/)
 })
 

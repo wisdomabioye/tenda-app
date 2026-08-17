@@ -162,6 +162,54 @@ test.describe('the focused shell (#14)', () => {
     await expect(page).toHaveURL(/\/home/)
   })
 
+  test('a double click on the resend sends ONE code, not two', async ({ page }) => {
+    // The 60s cooldown only starts when the challenge RESOLVES, so it cannot
+    // guard the request in flight — two clicks meant two emails or two SMS the
+    // platform pays for, and the first to arrive was already dead.
+    //
+    // `page.clock` rather than a 60-second wait: both countdowns are DERIVED
+    // from Date.now(), which is exactly what makes them fast-forwardable.
+    await page.clock.install()
+    await page.goto('/signin/email')
+    await page.getByLabel(AUTH_COPY.email.label).fill(EXISTING_EMAIL)
+    await page.getByRole('button', { name: AUTH_COPY.email.cta }).click()
+    await expect(page.getByText(/Expires in \d+:\d\d/)).toBeVisible()
+
+    const challenges: string[] = []
+    page.on('request', (r) => {
+      if (r.url().includes('/v1/auth/challenge')) challenges.push(r.url())
+    })
+
+    await page.clock.fastForward('01:05')
+    const resend = page.getByRole('button', { name: AUTH_COPY.verify.resend })
+    await expect(resend).toBeEnabled()
+    await resend.dblclick()
+
+    // The cooldown is running again, so the resend did happen — once.
+    await expect(
+      page.getByRole('button', { name: AUTH_COPY.verify.resendIn(60) }),
+    ).toBeDisabled()
+    expect(challenges).toHaveLength(1)
+  })
+
+  test('a long address does not drag the card off a 320px screen', async ({ page }) => {
+    // The panel gave `break-words` to the heading, but the address is echoed
+    // into the LEDE — measured at 595px of layout on a 320px viewport before
+    // this. See CLAUDE.md, "text a poster wrote".
+    const long = 'oluwaseunadebayoakinwandeoyelaranolusegun@mail.subdomain.example.co.uk'
+    await page.setViewportSize({ width: 320, height: 720 })
+    await page.goto('/signin/email')
+    await page.getByLabel(AUTH_COPY.email.label).fill(long)
+    await page.getByRole('button', { name: AUTH_COPY.email.cta }).click()
+    await expect(page.getByText(long)).toBeVisible()
+
+    const doc = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      client: document.documentElement.clientWidth,
+    }))
+    expect(doc.scroll).toBe(doc.client)
+  })
+
   test('the shell keeps a way out of a flow you did not mean to start', async ({ page }) => {
     await page.goto('/signin/email')
     await page.getByRole('link', { name: /Tenda/ }).click()

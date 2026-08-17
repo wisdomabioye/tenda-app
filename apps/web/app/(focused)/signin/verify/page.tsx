@@ -11,6 +11,14 @@
  * OTP service by hand. When it runs out the page says so and stops offering to
  * verify, because a code the server has already dropped cannot be typed
  * correctly and letting someone try is a worse answer than telling them.
+ *
+ * The "Verify" CTA is never clickable, and that is the design rather than an
+ * oversight: reaching six digits submits, so the button is disabled below six
+ * and disabled again the instant it would not be. What it does is REPORT —
+ * "Verifying…" is the only feedback that the auto-submit started. Mobile's
+ * verify-code screen has the identical pair, so this is the product's pattern
+ * and not a web artefact. Coverage will show its onClick unreached; a test
+ * that reached it would have to fake a state the page cannot enter.
  */
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -47,12 +55,25 @@ export default function SignInVerifyPage() {
 
   const [code, setCode] = useState('')
   const [verifying, setVerifying] = useState(false)
+  // The cooldown only starts once the challenge RESOLVES, so it cannot guard
+  // the request that is still in flight. With no guard at all a double click
+  // sent two codes — two emails or two SMS the platform pays for, and the
+  // first to arrive already dead, which reads as "the code they sent me does
+  // not work". Measured in Chromium (e2e, "sends ONE code, not two").
+  //
+  // The state drives the label, and it is what disables the button. The LOCK
+  // is the ref below: React does flush between two real clicks, so the state
+  // flag alone happened to hold in Chromium, but "send this at most once" is
+  // not a claim that should rest on scheduling — and a ref is the only form of
+  // it that two clicks in a single batch cannot slip past.
+  const [resending, setResending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // One ticking clock drives both countdowns; two intervals would drift apart.
   const [now, setNow] = useState(() => Date.now())
   // A successful verify clears the flow store, which would otherwise trip the
   // no-pending bounce below and race the post-sign-in navigation.
   const succeeded = useRef(false)
+  const resendLock = useRef(false)
   const codeField = useRef<HTMLInputElement>(null)
 
   // Reload or deep link: there is no pending challenge in memory — restart.
@@ -110,7 +131,9 @@ export default function SignInVerifyPage() {
   async function handleResend() {
     // Not while a verify is in flight: a new code invalidates the one being
     // checked, so the reader's own click would fail their own submission.
-    if (pending === null || cooldown > 0 || verifying) return
+    if (pending === null || cooldown > 0 || verifying || resendLock.current) return
+    resendLock.current = true
+    setResending(true)
     setError(null)
     try {
       const { expires_in } = await api.auth.challenge({
@@ -121,6 +144,9 @@ export default function SignInVerifyPage() {
       setCode('')
     } catch (e) {
       setError(verifyErrorMessage(e, AUTH_COPY.verify.resendFailed))
+    } finally {
+      resendLock.current = false
+      setResending(false)
     }
   }
 
@@ -168,14 +194,21 @@ export default function SignInVerifyPage() {
           <Button
             variant="ghost"
             size="md"
-            disabled={cooldown > 0 || verifying}
+            disabled={cooldown > 0 || verifying || resending}
             onClick={() => void handleResend()}
           >
-            {cooldown > 0 ? AUTH_COPY.verify.resendIn(cooldown) : AUTH_COPY.verify.resend}
+            {resending
+              ? AUTH_COPY.verify.resending
+              : cooldown > 0
+                ? AUTH_COPY.verify.resendIn(cooldown)
+                : AUTH_COPY.verify.resend}
           </Button>
-          {validFor !== null && (
+          {/* Only while the code is alive. Once it expires the line above says
+              so as an alert, and repeating the same sentence 40px lower reads
+              as a rendering fault rather than emphasis. */}
+          {validFor !== null && !expired && (
             <span className="ml-auto font-numeric text-xs leading-4 text-content-tertiary">
-              {expired ? AUTH_COPY.verify.expired : AUTH_COPY.verify.expiresIn(formatClock(validFor))}
+              {AUTH_COPY.verify.expiresIn(formatClock(validFor))}
             </span>
           )}
         </div>

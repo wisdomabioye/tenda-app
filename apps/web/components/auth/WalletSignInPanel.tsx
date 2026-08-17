@@ -38,7 +38,7 @@ type PanelState =
 function EmailLink({ variant }: { variant: 'primary' | 'outline' }) {
   return (
     <Link href="/signin/email" className={buttonVariants({ variant })}>
-      Continue with email
+      {AUTH_COPY.wallet.email}
     </Link>
   )
 }
@@ -84,13 +84,13 @@ export function WalletSignInPanel() {
     return (
       <AuthPanel
         back={BACK}
-        title="This wallet isn’t linked yet"
-        lede="A wallet can only sign in to an account it is already linked to — it never creates one. Create your account with email, link this wallet from Settings, and it signs you in from then on."
+        title={AUTH_COPY.wallet.notLinkedTitle}
+        lede={AUTH_COPY.wallet.notLinkedLede}
       >
         <div className="flex flex-col gap-3">
           <EmailLink variant="primary" />
           <Button variant="outline" fullWidth onClick={() => void handleConnect({ fresh: true })}>
-            Try another wallet
+            {AUTH_COPY.wallet.tryAnother}
           </Button>
         </div>
       </AuthPanel>
@@ -102,7 +102,7 @@ export function WalletSignInPanel() {
       <AuthPanel back={BACK} title={state.copy.title} lede={state.copy.description}>
         <div className="flex flex-col gap-3">
           <Button variant="primary" fullWidth onClick={() => void handleConnect()}>
-            Try again
+            {AUTH_COPY.wallet.retry}
           </Button>
           {/* No secondary-URL action here: web's no_wallet override carries no
               link, and every other web-reachable copy is link-free. */}
@@ -116,8 +116,8 @@ export function WalletSignInPanel() {
   return (
     <AuthPanel
       back={BACK}
-      title="Sign in with a wallet"
-      lede="Connect any Solana or EVM wallet you have linked to your account. New here? Wallets never create accounts — start with email."
+      title={AUTH_COPY.wallet.title}
+      lede={AUTH_COPY.wallet.lede}
     >
       <div className="flex flex-col gap-3">
         {available === false ? (
@@ -129,7 +129,7 @@ export function WalletSignInPanel() {
             disabled={connecting || available === null}
             onClick={() => void handleConnect()}
           >
-            {connecting ? 'Waiting for wallet…' : 'Connect wallet'}
+            {connecting ? AUTH_COPY.wallet.connecting : AUTH_COPY.wallet.connect}
           </Button>
         )}
         <EmailLink variant="outline" />

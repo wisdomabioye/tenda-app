@@ -3,9 +3,11 @@
 /**
  * Web analogue of mobile's OtpCodeField: ONE input (autofill/one-time-code
  * friendly, one focus target for screen readers) styled as spaced digits.
- * Filters to digits, clamps to `length`, and reports completion once per fill.
+ * Filters to digits, clamps to `length`, and swallows a keystroke that does
+ * not change the digits — typing a letter into a full field must not re-fire
+ * the caller's auto-submit.
  */
-import { useRef, type Ref } from 'react'
+import type { Ref } from 'react'
 import { controlClassName } from '@/components/ui'
 import { cn } from '@/lib/cn'
 
@@ -33,12 +35,15 @@ export function OtpCodeField({
   ref,
   'aria-label': ariaLabel = 'Verification code',
 }: OtpCodeFieldProps) {
-  const lastReported = useRef('')
-
   function handleChange(raw: string) {
     const digits = raw.replace(/\D/g, '').slice(0, length)
-    if (digits === lastReported.current) return
-    lastReported.current = digits
+    // Against the CONTROLLED value, never a ref of what was last reported:
+    // the caller CLEARS this field when the server rejects a code, and a ref
+    // would still hold those six digits — so re-pasting the same code (the
+    // obvious move after a network failure) matched, returned early, and left
+    // an input that visibly did nothing. Compared with `value` the same
+    // keystroke-level dedupe holds and the cleared field accepts the retry.
+    if (digits === value) return
     onChange(digits)
   }
 

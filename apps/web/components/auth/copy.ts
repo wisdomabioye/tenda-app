@@ -51,6 +51,7 @@ export const AUTH_COPY = {
     verifying: 'Verifying…',
     resend: 'Send a new code',
     resendIn: (seconds: number) => `Send a new code in ${seconds}s`,
+    resending: 'Sending…',
     failed: 'Verification failed, please try again',
     resendFailed: 'Could not resend the code',
     /** Counts the SERVER's own validity window down; see the page. */
@@ -75,5 +76,20 @@ export const AUTH_COPY = {
   },
   wallet: {
     back: 'All sign-in methods',
+    title: 'Sign in with a wallet',
+    lede: 'Connect any Solana or EVM wallet you have linked to your account. New here? Wallets never create accounts — start with email.',
+    connect: 'Connect wallet',
+    connecting: 'Waiting for wallet…',
+    /** The way on for someone a wallet cannot help — every state offers it. */
+    email: 'Continue with email',
+    retry: 'Try again',
+    /**
+     * Decision #3, server-enforced (404 WALLET_NOT_LINKED): a first-class
+     * state, never a toast, because the next step is a different flow.
+     */
+    notLinkedTitle: 'This wallet isn’t linked yet',
+    notLinkedLede:
+      'A wallet can only sign in to an account it is already linked to — it never creates one. Create your account with email, link this wallet from Settings, and it signs you in from then on.',
+    tryAnother: 'Try another wallet',
   },
 } as const

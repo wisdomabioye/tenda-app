@@ -1,8 +1,11 @@
 import type { Metadata } from 'next'
 import { WalletSignInPanel } from '@/components/auth/WalletSignInPanel'
+import { AUTH_COPY } from '@/components/auth/copy'
 
 export const metadata: Metadata = {
-  title: 'Sign in with a wallet',
+  // The panel's own heading — one string, so the tab and the page cannot
+  // disagree about what this step is called.
+  title: AUTH_COPY.wallet.title,
   robots: { index: false },
 }
 
