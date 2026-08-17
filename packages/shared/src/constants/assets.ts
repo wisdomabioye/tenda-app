@@ -69,10 +69,42 @@ export function amountRawToDisplay(amount_raw: string, asset: string): number {
   return Number(amount_raw) / 10 ** meta.decimals
 }
 
-/** "5 USDC" / "0.05 SOL" — display-rounded, never for math. */
-export function formatAssetAmount(amount_raw: string, asset: string): string {
+/** A formatted amount kept in two pieces, for callers that style them apart. */
+export interface SplitAssetAmount {
+  /** Display value with grouping, e.g. '1,250.5'. Never for math. */
+  amount: string
+  /** Ticker as shown, e.g. 'USDC'. Falls back to the asset id. */
+  symbol: string
+}
+
+/**
+ * The value and its ticker, separately — every surface that sets the figure
+ * and the symbol at different sizes (feed card, escrow aside, dossier money
+ * block) needs them apart.
+ *
+ * This is the PRODUCER; `formatAssetAmount` joins its output. The alternative
+ * — formatting the joined string and splitting it back on a space — is what
+ * the dossier did, and it makes the layout depend on a punctuation detail of
+ * a function it does not own.
+ *
+ * DISPLAY ONLY, and float-based via `amountRawToDisplay` on purpose. Base
+ * units are 78-digit strings and `Number` carries ~16 significant digits, but
+ * this rounds to 4 decimal places: the first digit a double gets wrong sits
+ * far below that for any amount under ~1e12 tokens. Anything that FEEDS A
+ * CHAIN or is compared against another amount must use `formatUnits` /
+ * `parseUnits` (utils/units), which are BigInt-exact — never this.
+ */
+export function splitAssetAmount(amount_raw: string, asset: string): SplitAssetAmount {
   const meta = ASSET_META[asset]
   const value = amountRawToDisplay(amount_raw, asset)
-  const symbol = meta?.symbol ?? asset
-  return `${value.toLocaleString('en-US', { maximumFractionDigits: 4 })} ${symbol}`
+  return {
+    amount: value.toLocaleString('en-US', { maximumFractionDigits: 4 }),
+    symbol: meta?.symbol ?? asset,
+  }
+}
+
+/** "5 USDC" / "0.05 SOL" — display-rounded, never for math. */
+export function formatAssetAmount(amount_raw: string, asset: string): string {
+  const { amount, symbol } = splitAssetAmount(amount_raw, asset)
+  return `${amount} ${symbol}`
 }

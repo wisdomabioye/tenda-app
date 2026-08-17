@@ -12,7 +12,7 @@ import { ClipboardList, FileClock } from 'lucide-react'
 import { applicationStatusLine, type MyApplication } from '@tenda/shared'
 import { useMyGigs } from '@/hooks/gig/useMyGigs'
 import { useNow } from '@/hooks/timing/useNow'
-import { GigCard } from '@/components/gig/GigCard'
+import { MyGigCard } from '@/components/gig/MyGigCard'
 import { GigStatusBadge } from '@/components/escrow/StatusBadge'
 import { ChainFilterChips } from '@/components/shared/ChainFilterChips'
 import { PaginatedList } from '@/components/shared/PaginatedList'
@@ -127,7 +127,7 @@ export default function MyGigsPage() {
           <PaginatedList
             list={posted}
             keyOf={(gig) => gig.escrow_id}
-            renderItem={(gig) => <GigCard gig={gig} />}
+            renderItem={(gig) => <MyGigCard gig={gig} />}
             errorTitle="Could not load your posted gigs"
             empty={<EmptyState title="Nothing posted yet" description="Gigs you post appear here once funded." />}
           />
@@ -136,7 +136,7 @@ export default function MyGigsPage() {
           <PaginatedList
             list={working}
             keyOf={(gig) => gig.escrow_id}
-            renderItem={(gig) => <GigCard gig={gig} />}
+            renderItem={(gig) => <MyGigCard gig={gig} />}
             errorTitle="Could not load your working gigs"
             empty={<EmptyState title="Nothing in progress" description="Gigs you accept or win appear here." />}
           />

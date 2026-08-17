@@ -18,6 +18,7 @@
  */
 import type { EscrowStatus } from '../types/escrow'
 import { formatRelativeShort } from './date'
+import { LOCATIONS, isCountryCode } from '../constants/locations'
 
 /** Threshold below which a deadline chip switches to the urgent (warn) tone. */
 export const URGENT_HOURS = 2
@@ -225,4 +226,37 @@ export function formatDeadline(date: Date | string | null | undefined): string {
     month: 'short',
     year: 'numeric',
   })
+}
+
+/** The location fields every gig surface reads to say WHERE the work is. */
+export interface GigPlace {
+  remote: boolean
+  city: string | null
+  country: string | null
+}
+
+/** Shown when a physical gig carries no location at all — unknown, not "anywhere". */
+export const PLACE_UNKNOWN = '—'
+
+/**
+ * Where the work happens, as one line: 'Remote', or 'Lagos, Nigeria'.
+ *
+ * The country arrives as an ISO code and is resolved to its NAME here. Four
+ * surfaces wrote four rules for this — one printed the bare 'NG', one fell
+ * back to the word "Anywhere" (a claim: a gig with no location is unknown,
+ * not open to everyone), one to an empty string — so the same gig described
+ * its own location differently on the card, the detail page and the link
+ * preview that got pasted into a chat.
+ *
+ * Remote gigs persist no country or city at all, which is why remote is
+ * answered first rather than joined with them.
+ */
+export function gigPlaceLabel(gig: GigPlace): string {
+  if (gig.remote) return 'Remote'
+  const code = gig.country
+  // isCountryCode rather than a cast: an unknown code is shown as-is, which is
+  // still more use to a reader than dropping the country entirely.
+  const country = code === null || code === '' ? null : isCountryCode(code) ? LOCATIONS[code].name : code
+  const parts = [gig.city, country].filter((part): part is string => part !== null && part !== '')
+  return parts.length === 0 ? PLACE_UNKNOWN : parts.join(', ')
 }

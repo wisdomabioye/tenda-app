@@ -7,7 +7,7 @@
  */
 import { FileClock } from 'lucide-react'
 import { useDraftGigs } from '@/hooks/gig/useDraftGigs'
-import { GigCard } from '@/components/gig/GigCard'
+import { MyGigCard } from '@/components/gig/MyGigCard'
 import { PaginatedList } from '@/components/shared/PaginatedList'
 
 export default function DraftsPage() {
@@ -19,7 +19,7 @@ export default function DraftsPage() {
       <PaginatedList
         list={list}
         keyOf={(gig) => gig.escrow_id}
-        renderItem={(gig) => <GigCard gig={gig} />}
+        renderItem={(gig) => <MyGigCard gig={gig} />}
         errorTitle="Could not load your drafts"
         empty={
           <div className="flex flex-col items-center gap-3 px-8 py-16 text-center">

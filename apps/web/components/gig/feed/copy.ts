@@ -1,0 +1,67 @@
+/**
+ * Every string the public feed shows, in one place — the comps write real
+ * copy rather than lorem, and it is the part most likely to be reworded by
+ * someone who is not editing JSX.
+ *
+ * Product facts (name, markets, fees) are NOT written here: the name is
+ * interpolated from shared `APP_INFO`, so a rename reaches this sentence.
+ */
+import { APP_INFO } from '@tenda/shared'
+
+export const FEED_COPY = {
+  hero: {
+    title: 'Work that pays, because the money is already locked.',
+    lede: `Every gig on ${APP_INFO.name} is funded into escrow before anyone starts. You can see the amount, the city and the proof required before you apply — no account needed to look.`,
+    /** Prefixes the market list so the eyebrow states WHICH claim it is making. */
+    marketsPrefix: 'Cash out in',
+  },
+  rail: {
+    search: 'Search',
+    // The comp promises "Title, city, trader". `q` is a tsvector over title +
+    // description ONLY (server lib/gig-search.ts) — a placeholder naming the
+    // city and the poster would send people looking for a match the index
+    // cannot make. Spec-correction #12.
+    searchPlaceholder: 'Title or brief',
+    category: 'Category',
+    market: 'Market',
+    arrangement: 'Arrangement',
+    chain: 'Settles on',
+    sort: 'Sort',
+    clear: 'Clear all filters',
+    apply: 'Apply filters',
+    allCategories: 'All categories',
+    allMarkets: 'Anywhere',
+    allChains: 'Any chain',
+    remote: 'Remote only',
+    crossBorder: 'Cross-border',
+  },
+  feed: {
+    heading: 'Open gigs',
+    searchHeading: 'Search results',
+    /** The whole filtered set, not this page — see the call site. */
+    count: (total: number) => (total === 1 ? '1 gig' : `${total} gigs`),
+    /** The rail's keyboard hint, split so the keys can be rendered as <kbd>. */
+    keyboardHint: { walk: 'to walk the feed', open: 'to open' },
+    amountNote:
+      'Amounts are the escrowed net — the fee is already taken out. Cards labelled Apply need the poster’s approval; Accept gigs start the moment you take them.',
+  },
+  empty: {
+    title: 'No gigs match these filters',
+    body: 'Nothing is open in this slice right now. Widen the market or clear the category to see the full feed.',
+    action: 'Clear filters',
+    /** No filters at all and still nothing — a different situation, different words. */
+    bareTitle: 'No gigs are open right now',
+    bareBody:
+      'Every gig here is funded before it is listed, so the feed fills up as posters lock their escrows. Check back shortly.',
+  },
+  error: {
+    title: 'We could not load the feed',
+    body: 'The gig index did not respond. Nothing is wrong with your escrow or your balance — this is a read failure only.',
+    action: 'Try again',
+  },
+  pager: {
+    next: 'More gigs',
+    previous: 'Previous',
+    position: (page: number, pages: number) => `Page ${page} of ${pages}`,
+  },
+} as const

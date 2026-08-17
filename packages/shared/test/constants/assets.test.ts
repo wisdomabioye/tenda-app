@@ -6,6 +6,7 @@ import {
   GIG_STABLE_MAX_RAW,
   amountRawToDisplay,
   formatAssetAmount,
+  splitAssetAmount,
 } from '../../src/constants/assets'
 
 test('ASSET_META: every entry has a symbol, non-negative decimals, boolean is_stable, coingeckoId', () => {
@@ -53,4 +54,42 @@ test('formatAssetAmount: renders value + symbol, rounding display to 4 dp', () =
 
 test('formatAssetAmount: unknown asset uses the asset id as the symbol', () => {
   assert.equal(formatAssetAmount('1000', 'MYSTERY'), '1,000 MYSTERY')
+})
+
+test('splitAssetAmount: returns the value and the ticker apart', () => {
+  assert.deepEqual(splitAssetAmount('5000000', 'USDC_SOL'), { amount: '5', symbol: 'USDC' })
+  assert.deepEqual(splitAssetAmount('50000000', 'SOL'), { amount: '0.05', symbol: 'SOL' })
+})
+
+test('splitAssetAmount: unknown asset uses the asset id as the symbol', () => {
+  assert.deepEqual(splitAssetAmount('1000', 'MYSTERY'), { amount: '1,000', symbol: 'MYSTERY' })
+})
+
+test('splitAssetAmount: keeps grouping separators inside the VALUE half', () => {
+  // The reason this function exists: splitting the joined string on a space
+  // is fine, but splitting on the FIRST space is not, and neither survives a
+  // future locale that groups with one. The halves are never re-parsed here.
+  const { amount, symbol } = splitAssetAmount('1250500000', 'USDC_SOL')
+  assert.equal(amount, '1,250.5')
+  assert.equal(symbol, 'USDC')
+})
+
+test('splitAssetAmount: joined by a single space IS formatAssetAmount', () => {
+  // Pins the delegation. If the two ever diverge, a card would show a
+  // different figure from the detail page it opens.
+  for (const [raw, asset] of [
+    ['5000000', 'USDC_SOL'],
+    ['1250500000', 'USDC_SOL'],
+    ['50000000', 'SOL'],
+    ['0', 'USDC_BASE'],
+    ['1000', 'MYSTERY'],
+    ['1000000000000000000', 'ETH_BASE'],
+  ] as const) {
+    const { amount, symbol } = splitAssetAmount(raw, asset)
+    assert.equal(`${amount} ${symbol}`, formatAssetAmount(raw, asset), `${raw} ${asset}`)
+  }
+})
+
+test('splitAssetAmount: zero is a value, never an empty half', () => {
+  assert.deepEqual(splitAssetAmount('0', 'USDC_BASE'), { amount: '0', symbol: 'USDC' })
 })

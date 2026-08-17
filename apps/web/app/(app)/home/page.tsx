@@ -9,8 +9,8 @@
 import { useEffect, useState } from 'react'
 import type { GigSummary } from '@tenda/shared'
 import { api } from '@/api/client'
-import { GigCard } from '@/components/gig/GigCard'
-import { Button } from '@/components/ui'
+import { GigCard } from '@/components/gig/feed/GigCard'
+import { FEED_GRID_CLASS, FeedError, FeedSkeleton } from '@/components/gig/feed/FeedStates'
 import { GIGS_PAGE_SIZE } from '@/lib/gigs/search-params'
 
 type FeedState =
@@ -50,22 +50,16 @@ export default function HomePage() {
         <p className="text-sm text-content-secondary">Open gigs you can take right now.</p>
       </header>
 
+      {/* The same async states as the public feed. /home fetches in the
+          browser, so a skeleton here needs no Suspense boundary — unlike
+          /gigs, where one would have made the content JavaScript-dependent. */}
       {state.phase === 'loading' && (
-        <div className="flex flex-col gap-4" aria-busy="true">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="h-36 animate-pulse rounded-card bg-surface-inset" />
-          ))}
+        <div aria-busy="true">
+          <FeedSkeleton count={3} />
         </div>
       )}
 
-      {state.phase === 'error' && (
-        <div className="flex flex-col items-center gap-3 rounded-card border border-border-subtle bg-surface-card px-5 py-10 text-center">
-          <p className="text-content-secondary">Couldn&apos;t load the feed.</p>
-          <Button size="md" onClick={retry}>
-            Try again
-          </Button>
-        </div>
-      )}
+      {state.phase === 'error' && <FeedError retry={retry} />}
 
       {state.phase === 'ready' &&
         (state.gigs.length === 0 ? (
@@ -74,10 +68,10 @@ export default function HomePage() {
             <p className="mt-2 text-sm text-content-secondary">New gigs are posted all the time — check back soon.</p>
           </div>
         ) : (
-          <ul className="flex flex-col gap-4">
-            {state.gigs.map((gig) => (
-              <li key={gig.escrow_id}>
-                <GigCard gig={gig} />
+          <ul className={FEED_GRID_CLASS}>
+            {state.gigs.map((gig, index) => (
+              <li key={gig.escrow_id} className="flex">
+                <GigCard gig={gig} index={index} />
               </li>
             ))}
           </ul>

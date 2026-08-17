@@ -31,8 +31,11 @@ async function signIn(page: Page) {
 
 test('inbox: unread badge in the nav, sections, and read-marking on open', async ({ page }) => {
   await signIn(page)
-  // Badge reflects the seeded 2-unread conversation.
-  await expect(page.getByLabel('2 unread messages')).toHaveText('2')
+  // Badge reflects the seeded 2-unread conversation. The pip itself is
+  // aria-hidden — the count belongs to the rail LINK's accessible name, so a
+  // screen-reader user hears it as part of the destination rather than as a
+  // stray number floating beside it.
+  await expect(page.getByRole('link', { name: 'Messages, 2 unread' })).toBeVisible()
 
   await page.getByRole('link', { name: /Messages/ }).click()
   await expect(page.getByText('Unread', { exact: true })).toBeVisible()

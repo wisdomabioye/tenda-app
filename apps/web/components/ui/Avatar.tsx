@@ -8,6 +8,8 @@ import { cn } from '@/lib/cn'
 const SIZES = {
   sm: 'h-8 w-8 text-xs',
   md: 'h-11 w-11 text-sm',
+  /** The comps' 52px poster/profile avatar. */
+  lg: 'h-13 w-13 text-lg',
 } as const
 
 function initialsOf(name: string): string {

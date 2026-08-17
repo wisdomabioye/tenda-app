@@ -36,6 +36,16 @@ Route groups map to shells (groups do not change URLs):
 | `app/(focused)` | focused | none — `/signin`, `/onboarding/profile` |
 | `app/(focused)/(authed)` | focused | `AuthGate` — `/post` |
 
+**Tier-1 public shell.** `app/(public)/layout.tsx` applies NO measure — its pages are
+full-bleed sections that each centre their own content at `max-w-content` (1240px, a
+`--container-content` theme token). `/support` has its own narrower layout. **Do not add a
+`loading.tsx` to a public route**: it wraps the segment in a Suspense boundary, and React
+streams the real content behind an inline script that swaps it in — so with JavaScript
+disabled the page renders an empty `<main>`. The feed is the anonymous, indexable front
+door; `e2e/public-discovery.spec.ts` runs it with `javaScriptEnabled: false` as the
+tripwire. A client-fetched surface (`/home`) may show `FeedSkeleton` freely — no Suspense
+is involved there.
+
 **Surface / selection contract** (`components/app/workspace/surfaces.ts`). The first
 segment inside `(app)` is the *surface*; anything deeper is the *selection*. The detail
 pane takes its accessible name from the surface and hands off focus when the selection

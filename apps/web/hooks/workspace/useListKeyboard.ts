@@ -1,21 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-
-/** Keys that move the cursor, per the comps' "j k move · Enter open". */
-const NEXT_KEYS = new Set(['j', 'ArrowDown'])
-const PREVIOUS_KEYS = new Set(['k', 'ArrowUp'])
-
-/**
- * True when the key belongs to whatever the user is typing into rather than
- * to the list. Without this, typing "join" in a search field walks the list.
- */
-function isTypingTarget(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false
-  if (target.isContentEditable) return true
-  const tag = target.tagName
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
-}
+// Shared with the public feed's keyboard layer, which walks the same keys by
+// moving DOM focus instead of an index (lib/keyboard).
+import { NEXT_KEYS, PREVIOUS_KEYS, isTypingTarget } from '@/lib/keyboard'
 
 /** Controls whose own activation key is Enter. */
 const ENTER_ACTIVATED_TAGS = new Set(['A', 'BUTTON', 'SUMMARY'])

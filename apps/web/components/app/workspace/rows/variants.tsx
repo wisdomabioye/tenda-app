@@ -15,7 +15,7 @@ import {
   type EscrowStatus,
   type GigCategory,
 } from '@tenda/shared'
-import { CATEGORY_ICON_TONE, CATEGORY_ICONS } from '@/components/gig/category-icons'
+import { CATEGORY_ICONS, CATEGORY_TONE } from '@/components/gig/category-icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import type { ReactNode } from 'react'
@@ -98,7 +98,7 @@ export function EscrowRow({
   if (category != null) {
     const CategoryIcon = CATEGORY_ICONS[category]
     lead = (
-      <CategoryIcon size={16} aria-hidden className={`shrink-0 ${CATEGORY_ICON_TONE[category]}`} />
+      <CategoryIcon size={16} aria-hidden className={`shrink-0 ${CATEGORY_TONE[category].text}`} />
     )
   }
   return (

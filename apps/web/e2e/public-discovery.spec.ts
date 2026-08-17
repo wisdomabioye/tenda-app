@@ -1,4 +1,5 @@
 import { expect, test, type ConsoleMessage, type Page } from '@playwright/test'
+import { CATEGORY_LABELS } from '@tenda/shared'
 import {
   deliveryGig,
   deliveryGigDetail,
@@ -16,6 +17,7 @@ function captureRuntimeFailures(page: Page) {
   return failures
 }
 
+
 test.describe('feed — /gigs', () => {
   test('is server-rendered: raw HTML carries titles and amounts, no JS needed', async ({ request }) => {
     const response = await request.get('/gigs')
@@ -24,9 +26,65 @@ test.describe('feed — /gigs', () => {
     expect(html).toContain(deliveryGig.title)
     expect(html).toContain(photoGig.title)
     expect(html).toContain(`/gig/${deliveryGig.escrow_id}`)
-    // 25000000 raw USDC (6 decimals) must render as display units, never raw.
-    expect(html).toContain('25 USDC')
+    // 25000000 raw USDC (6 decimals) must never reach the page as base units.
+    // The DISPLAY figure is asserted in the no-JavaScript test below, against
+    // real rendered text: the card sets the value and its ticker at different
+    // sizes, so they are separate elements, and searching this string for
+    // "25 USDC" would only ever match the RSC flight payload.
     expect(html).not.toContain('25000000')
+  })
+
+  test.describe('with JavaScript disabled', () => {
+    test.use({ javaScriptEnabled: false })
+
+    test('the feed renders, reads correctly, and every filter still works', async ({ page }) => {
+      await page.goto('/gigs')
+      const card = page.getByRole('link', { name: new RegExp(deliveryGig.title) })
+      // Rendered text, not markup: this is what a reader actually sees, and
+      // it proves the split figure still reads as one amount.
+      await expect(card).toContainText('25 USDC')
+      await expect(card).toContainText('Lagos, Nigeria')
+
+      // A filter that only works once the bundle runs is a filter this page
+      // does not have — the feed is the surface an anonymous visitor reaches
+      // first, often on a slow connection.
+      // The label comes from the shared vocabulary: `photo` reads "Creative",
+      // and a hardcoded "Photo" here would test a string this product does
+      // not use. `exact` separates the rail link from the card that contains
+      // the same word.
+      await page.getByRole('link', { name: CATEGORY_LABELS.photo, exact: true }).click()
+      await expect(page).toHaveURL(/category=photo/)
+      await expect(page.getByRole('link', { name: new RegExp(photoGig.title) })).toBeVisible()
+      await expect(page.getByRole('link', { name: new RegExp(deliveryGig.title) })).toHaveCount(0)
+    })
+  })
+
+  test('the filter rail is links and form fields — it works with no JavaScript', async ({ request }) => {
+    const html = await (await request.get('/gigs')).text()
+    // A rail of buttons would be a set of filters that only exist once the
+    // bundle runs, on the one page an anonymous visitor may reach first.
+    expect(html).toContain('href="/gigs?category=delivery"')
+    expect(html).toContain('href="/gigs?country=NG"')
+    expect(html).toContain('<form')
+    expect(html).toContain('<noscript>')
+  })
+
+  test('sort reorders the feed, and never sends the cursor the server would 400', async ({ request }) => {
+    // The stub refuses cursor+sort exactly like production; a 400 would
+    // surface here as an error page, not a quietly empty feed.
+    const cheapFirst = await (await request.get('/gigs?sort=amount_asc')).text()
+    const dearFirst = await (await request.get('/gigs?sort=amount_desc')).text()
+    expect(cheapFirst).toContain(deliveryGig.title)
+    expect(dearFirst).toContain(deliveryGig.title)
+    expect(cheapFirst.indexOf(deliveryGig.title)).toBeLessThan(cheapFirst.indexOf(photoGig.title))
+    expect(dearFirst.indexOf(photoGig.title)).toBeLessThan(dearFirst.indexOf(deliveryGig.title))
+  })
+
+  test('a stale cursor carried into a searched view is dropped, not forwarded', async ({ request }) => {
+    // Forwarding it is a 400 from the real server. The page must still render.
+    const response = await request.get('/gigs?q=parcel&cursor=stale-cursor')
+    expect(response.status()).toBe(200)
+    expect(await response.text()).toContain(deliveryGig.title)
   })
 
   test('category filter is a URL, and it filters', async ({ request }) => {

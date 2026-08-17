@@ -10,6 +10,15 @@
   --font-mono: var(--font-jetbrains-mono);
 }
 
+/* The centred public shell's measure (Tier 1 comp: max-width 1240px, repeated
+ * on the header, the hero and every section below it). A theme token rather
+ * than max-w-[1240px] scattered through six files — the shells' widths are the
+ * one geometry the comps state as a rule, and Tailwind's own scale has no
+ * 1240px step. `--container-*` is Tailwind v4's max-width namespace. */
+@theme inline {
+  --container-content: 1240px;
+}
+
 /* No `dark:` variant on purpose: components theme through the semantic tokens
  * (which already resolve per theme, system-dark included). A data-theme-keyed
  * variant would silently miss system-dark and disagree with the tokens. */

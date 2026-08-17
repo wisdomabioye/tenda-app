@@ -1,0 +1,199 @@
+import { fireEvent, render, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { CATEGORY_LABELS, GIG_CATEGORIES, LOCATIONS } from '@tenda/shared'
+import { FeedRail } from '@/components/gig/feed/FeedRail'
+import { FEED_COPY } from '@/components/gig/feed/copy'
+import { CATEGORY_TONE } from '@/components/gig/category-icons'
+import {
+  GIG_SORT_LABELS,
+  parseGigFeedFilters,
+  type RawSearchParams,
+} from '@/lib/gigs/search-params'
+
+const CHAINS = [
+  { id: 'solana:devnet', label: 'Solana Devnet' },
+  { id: 'eip155:84532', label: 'Base Sepolia' },
+]
+const ENABLED = new Set(CHAINS.map((c) => c.id))
+const filtersFrom = (params: RawSearchParams = {}) => parseGigFeedFilters(params, ENABLED)
+
+const renderRail = (params: RawSearchParams = {}, chains = CHAINS) =>
+  render(<FeedRail filters={filtersFrom(params)} chains={chains} />)
+
+describe('FeedRail', () => {
+  it('offers every category in the shared vocabulary, plus an "all" escape', () => {
+    renderRail()
+    for (const category of GIG_CATEGORIES) {
+      expect(screen.getByRole('link', { name: CATEGORY_LABELS[category] })).toBeInTheDocument()
+    }
+    expect(
+      screen.getByRole('link', { name: FEED_COPY.rail.allCategories }),
+    ).toHaveAttribute('href', '/gigs')
+  })
+
+  it('every control is a LINK or a form field — the rail works with no JavaScript', () => {
+    renderRail()
+    // A button here would be a filter that only exists once the bundle runs.
+    for (const label of [CATEGORY_LABELS.photo, LOCATIONS.NG.name, FEED_COPY.rail.remote]) {
+      expect(screen.getByText(label).closest('a')).not.toBeNull()
+    }
+  })
+
+  it('marks the active filter as CURRENT, the attribute for a link', () => {
+    renderRail({ category: 'photo' })
+    const active = screen.getByRole('link', { name: CATEGORY_LABELS.photo })
+    expect(active).toHaveAttribute('aria-current', 'true')
+    // aria-pressed would describe a toggle button, which this is not.
+    expect(active).not.toHaveAttribute('aria-pressed')
+    expect(screen.getByRole('link', { name: CATEGORY_LABELS.errand })).not.toHaveAttribute(
+      'aria-current',
+    )
+  })
+
+  it('carries the other filters through a category change, so one click narrows once', () => {
+    renderRail({ country: 'NG', remote: 'true' })
+    const href = screen.getByRole('link', { name: CATEGORY_LABELS.photo }).getAttribute('href')
+    expect(href).toContain('category=photo')
+    expect(href).toContain('country=NG')
+    expect(href).toContain('remote=true')
+  })
+
+  it('arrangement links TOGGLE — a second click clears the filter', () => {
+    const { unmount } = renderRail()
+    expect(screen.getByRole('link', { name: FEED_COPY.rail.remote }).getAttribute('href')).toContain(
+      'remote=true',
+    )
+    unmount()
+
+    renderRail({ remote: 'true' })
+    expect(screen.getByRole('link', { name: FEED_COPY.rail.remote }).getAttribute('href')).toBe(
+      '/gigs',
+    )
+  })
+
+  it('tints each category dot with its own tone', () => {
+    const { container } = renderRail()
+    const dot = container.querySelector(`.${CSS.escape(CATEGORY_TONE.digital.dot)}`)
+    expect(dot).not.toBeNull()
+  })
+
+  it('offers only the chains this deployment serves', () => {
+    renderRail()
+    expect(screen.getByRole('link', { name: 'Base Sepolia' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /mainnet/i })).not.toBeInTheDocument()
+  })
+
+  it('hides the chain section entirely when the registry is empty', () => {
+    // An unserved chain_id is a 400, so offering one would turn a click into
+    // an error page.
+    renderRail({}, [])
+    expect(screen.queryByText(FEED_COPY.rail.chain)).not.toBeInTheDocument()
+  })
+
+  it('offers every sort the URL contract accepts, and nothing it does not', () => {
+    renderRail()
+    const select = screen.getByLabelText(FEED_COPY.rail.sort)
+    const options = within(select).getAllByRole('option').map((o) => o.textContent)
+    expect(options).toEqual(Object.values(GIG_SORT_LABELS))
+    // The comp offers a fourth, "Accept deadline", that no sort value backs.
+    expect(options).not.toContain('Accept deadline')
+  })
+
+  it('submits the DEFAULT ordering as an empty value, keeping the canonical URL', () => {
+    renderRail()
+    const select = screen.getByLabelText(FEED_COPY.rail.sort)
+    const recency = within(select).getByRole('option', { name: GIG_SORT_LABELS.created_at })
+    expect(recency).toHaveValue('')
+  })
+
+  it('preselects the active sort', () => {
+    renderRail({ sort: 'amount_desc' })
+    expect(screen.getByLabelText(FEED_COPY.rail.sort)).toHaveValue('amount_desc')
+  })
+
+  it('carries filters with no form control of their own as hidden fields', () => {
+    // Without these a search would silently clear the category set one
+    // control above it.
+    const { container } = renderRail({ category: 'photo', country: 'KE', remote: 'true' })
+    const hidden = Array.from(container.querySelectorAll('input[type="hidden"]')).map((el) => [
+      el.getAttribute('name'),
+      el.getAttribute('value'),
+    ])
+    expect(hidden).toEqual(
+      expect.arrayContaining([
+        ['category', 'photo'],
+        ['country', 'KE'],
+        ['remote', 'true'],
+      ]),
+    )
+  })
+
+  it('carries the city and cross-border filters as hidden fields too', () => {
+    const { container } = renderRail({
+      city: 'Accra',
+      cross_border: 'true',
+      chain_id: 'eip155:84532',
+    })
+    const hidden = Array.from(container.querySelectorAll('input[type="hidden"]')).map((el) => [
+      el.getAttribute('name'),
+      el.getAttribute('value'),
+    ])
+    expect(hidden).toEqual(
+      expect.arrayContaining([
+        ['city', 'Accra'],
+        ['cross_border', 'true'],
+        ['chain_id', 'eip155:84532'],
+      ]),
+    )
+  })
+
+  it('cross-border toggles off as well as on', () => {
+    renderRail({ cross_border: 'true' })
+    expect(
+      screen.getByRole('link', { name: FEED_COPY.rail.crossBorder }).getAttribute('href'),
+    ).toBe('/gigs')
+  })
+
+  it('submits the form when the sort changes — the comp fires on change', () => {
+    // Enhancement only: the <noscript> button applies the same change with
+    // no JavaScript, which is why the control is a form field and not a
+    // router.push.
+    const { container } = renderRail()
+    const form = container.querySelector('form')
+    expect(form).not.toBeNull()
+    const submit = vi.fn()
+    // jsdom implements requestSubmit as a no-op stub in some versions; spy on
+    // the real method so the assertion is about OUR call, not jsdom's.
+    Object.defineProperty(form, 'requestSubmit', { value: submit, configurable: true })
+    fireEvent.change(screen.getByLabelText(FEED_COPY.rail.sort), {
+      target: { value: 'amount_asc' },
+    })
+    expect(submit).toHaveBeenCalledOnce()
+  })
+
+  it('offers a submit for readers with no JavaScript', () => {
+    const { container } = renderRail()
+    expect(container.querySelector('noscript')).not.toBeNull()
+  })
+
+  it('keeps the search box seeded with the active query', () => {
+    renderRail({ q: 'tiler' })
+    expect(screen.getByLabelText(FEED_COPY.rail.search)).toHaveValue('tiler')
+  })
+
+  it('shows "clear all" only once something is actually filtered', () => {
+    const { unmount } = renderRail()
+    expect(screen.queryByText(FEED_COPY.rail.clear)).not.toBeInTheDocument()
+    unmount()
+
+    renderRail({ city: 'Lagos' })
+    expect(screen.getByRole('link', { name: FEED_COPY.rail.clear })).toHaveAttribute('href', '/gigs')
+  })
+
+  it('states the keyboard walk it enables', () => {
+    renderRail()
+    expect(screen.getByText('j')).toBeInTheDocument()
+    expect(screen.getByText('k')).toBeInTheDocument()
+    expect(screen.getByText('Enter')).toBeInTheDocument()
+  })
+})

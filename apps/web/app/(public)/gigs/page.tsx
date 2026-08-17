@@ -1,12 +1,15 @@
 import type { Metadata } from 'next'
 import { APP_INFO } from '@tenda/shared'
-import Link from 'next/link'
-import { GigCard } from '@/components/gig/GigCard'
-import { GigFilters } from '@/components/gig/GigFilters'
-import { buttonVariants } from '@/components/ui'
+import { FeedHero } from '@/components/gig/feed/FeedHero'
+import { FeedKeyboard } from '@/components/gig/feed/FeedKeyboard'
+import { FeedPager } from '@/components/gig/feed/FeedPager'
+import { FeedRail } from '@/components/gig/feed/FeedRail'
+import { FEED_GRID_CLASS, FeedEmpty } from '@/components/gig/feed/FeedStates'
+import { GigCard } from '@/components/gig/feed/GigCard'
+import { FEED_COPY } from '@/components/gig/feed/copy'
 import { listEnabledChains, listGigs } from '@/lib/gigs/data'
 import {
-  gigsHref,
+  hasActiveFilters,
   parseGigFeedFilters,
   toGigListQuery,
   type RawSearchParams,
@@ -18,53 +21,64 @@ export const metadata: Metadata = {
 }
 
 /**
- * Tier-1 public feed — server-rendered, anonymous, indexable. All filtering
- * is URL search params; content requires no client JS (stage-1 DoD).
+ * Tier-1 public feed — server-rendered, anonymous, indexable. Every filter is
+ * a URL search param, so the page needs no client JS to work and each
+ * narrowed view has its own address. The one client component is the keyboard
+ * walk, which renders nothing.
  */
 export default async function GigsPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const [params, chains] = await Promise.all([searchParams, listEnabledChains()])
   const filters = parseGigFeedFilters(params, new Set(chains.map((chain) => chain.id)))
   const page = await listGigs(toGigListQuery(filters))
 
+  const heading = filters.q === null ? FEED_COPY.feed.heading : FEED_COPY.feed.searchHeading
+
   return (
-    <div className="flex flex-col gap-5">
-      <header className="flex flex-col gap-2">
-        <h1 className="font-display text-3xl font-bold text-content-primary">Browse gigs</h1>
-        <p className="text-content-secondary">
-          Every gig is escrow-secured — funds are locked on-chain before work starts.
-        </p>
-      </header>
+    <>
+      <FeedHero />
+      <div className="mx-auto w-full max-w-content px-6 pb-20 pt-8">
+        <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[248px_minmax(0,1fr)] lg:gap-12">
+          <FeedRail filters={filters} chains={chains} />
 
-      <GigFilters filters={filters} chains={chains} />
+          <section>
+            <div className="mb-5 flex items-baseline justify-between gap-4 border-b border-border-subtle pb-4">
+              <h2 className="font-display text-[22px] font-semibold leading-7 tracking-[-0.4px] text-content-primary">
+                {heading}
+              </h2>
+              {/* `total` is the whole filtered set, not this page — the count
+                  a reader wants is "how much is there", not "how much did we
+                  send you". */}
+              <p className="font-numeric text-[13px] leading-[18px] text-content-tertiary">
+                {FEED_COPY.feed.count(page.total)}
+              </p>
+            </div>
 
-      {page.data.length === 0 ? (
-        <div className="rounded-card border border-border-subtle bg-surface-card px-5 py-10 text-center">
-          <p className="font-display text-lg font-semibold text-content-primary">No gigs match</p>
-          <p className="mt-2 text-sm text-content-secondary">
-            Try clearing a filter — new gigs are posted all the time.
-          </p>
-          <Link href="/gigs" className="mt-4 inline-block text-sm font-semibold text-content-link">
-            Clear all filters
-          </Link>
+            {page.data.length === 0 ? (
+              <FeedEmpty filtered={hasActiveFilters(filters)} />
+            ) : (
+              <>
+                <ul className={FEED_GRID_CLASS}>
+                  {page.data.map((gig, index) => (
+                    <li key={gig.escrow_id} className="flex">
+                      <GigCard gig={gig} index={index} />
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-6 text-[13px] leading-[18px] text-content-tertiary">
+                  {FEED_COPY.feed.amountNote}
+                </p>
+                <FeedPager
+                  filters={filters}
+                  nextCursor={page.next_cursor}
+                  total={page.total}
+                  shown={page.data.length}
+                />
+                <FeedKeyboard />
+              </>
+            )}
+          </section>
         </div>
-      ) : (
-        <ul className="flex flex-col gap-4">
-          {page.data.map((gig) => (
-            <li key={gig.escrow_id}>
-              <GigCard gig={gig} />
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {typeof page.next_cursor === 'string' && page.next_cursor !== '' && (
-        <Link
-          href={gigsHref(filters, { cursor: page.next_cursor })}
-          className={`self-center ${buttonVariants({ variant: 'outline', size: 'md' })}`}
-        >
-          More gigs
-        </Link>
-      )}
-    </div>
+      </div>
+    </>
   )
 }

@@ -1,30 +1,73 @@
 import Link from 'next/link'
 import { APP_INFO } from '@tenda/shared'
+import { payoutMarketNames } from '@/lib/markets'
 
-/** Brand strings and outbound links come from the shared APP_INFO, never inline. */
+/**
+ * Tier-1 footer (comp lines 822-839): the product in a sentence, then the
+ * support pages a browsing visitor is most likely to need before signing up.
+ *
+ * Brand strings and outbound links come from the shared APP_INFO, never
+ * inline; the markets come from the payout registry, so the sentence cannot
+ * outlive the countries it names. The comp's "404 example" link is a
+ * prototype affordance and is not shipped.
+ */
+const HELP_LINKS = [
+  { href: '/support/escrow', label: 'How escrow works' },
+  { href: '/support/posting', label: 'Posting a gig' },
+  { href: '/support/working', label: 'Working a gig' },
+] as const
+
+const REFERENCE_LINKS = [
+  { href: '/support/faq', label: 'FAQ' },
+  { href: '/support/glossary', label: 'Glossary' },
+] as const
+
 export function SiteFooter() {
   return (
-    <footer className="mt-auto border-t border-border-subtle">
-      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-4 px-4 py-6 text-sm text-content-tertiary">
-        <p>
-          <span className="font-display font-bold text-content-secondary">{APP_INFO.name}</span> —{' '}
-          {APP_INFO.tagline}
-        </p>
-        <nav className="flex gap-5">
-          <Link href="/gigs" className="hover:text-content-primary">
-            Browse gigs
-          </Link>
-          <a href={APP_INFO.external.website} className="hover:text-content-primary">
+    <footer className="mt-auto border-t border-border-subtle bg-surface-background-alt">
+      <div className="mx-auto flex w-full max-w-content flex-wrap items-start gap-8 px-6 py-10">
+        <div className="min-w-[220px] flex-1">
+          <p className="font-display text-[17px] font-bold leading-6 text-content-primary">
+            {APP_INFO.name}
+          </p>
+          <p className="mt-2 max-w-[40ch] text-[13px] leading-[18px] text-content-tertiary">
+            {APP_INFO.tagline} Paying out in {payoutMarketNames().join(', ')}.
+          </p>
+        </div>
+        <FooterNav label="Guides" links={HELP_LINKS} />
+        <FooterNav label="Reference" links={REFERENCE_LINKS} />
+        <nav aria-label="Legal" className="flex flex-col gap-2">
+          <a href={APP_INFO.external.website} className={FOOTER_LINK_CLASS}>
             About
           </a>
-          <a href={APP_INFO.legal.terms} className="hover:text-content-primary">
+          <a href={APP_INFO.legal.terms} className={FOOTER_LINK_CLASS}>
             Terms
           </a>
-          <a href={APP_INFO.legal.privacy} className="hover:text-content-primary">
+          <a href={APP_INFO.legal.privacy} className={FOOTER_LINK_CLASS}>
             Privacy
           </a>
         </nav>
       </div>
     </footer>
+  )
+}
+
+const FOOTER_LINK_CLASS = 'text-[13px] font-semibold text-content-secondary hover:text-content-primary'
+
+function FooterNav({
+  label,
+  links,
+}: {
+  label: string
+  links: readonly { href: string; label: string }[]
+}) {
+  return (
+    <nav aria-label={label} className="flex flex-col gap-2">
+      {links.map((link) => (
+        <Link key={link.href} href={link.href} className={FOOTER_LINK_CLASS}>
+          {link.label}
+        </Link>
+      ))}
+    </nav>
   )
 }

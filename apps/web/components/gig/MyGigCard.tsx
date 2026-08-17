@@ -4,11 +4,17 @@ import { CategoryBadge } from './CategoryBadge'
 import { GigCreatorLine } from './GigCreatorLine'
 
 /**
- * Feed card, listing fields only. `requires_approval` decides whether the
- * action reads Apply or Accept — visible while browsing on purpose (shared
- * GigSummary doc: anything else is a bait-and-switch).
+ * A card for the caller's OWN listings (/my-gigs and its drafts), which
+ * appear at every status.
+ *
+ * Distinct from the public feed's card (components/gig/feed/GigCard), which
+ * may state "Open" because the feed admits no other status — here that would
+ * be wrong on four listings out of five. This card shows no status at all,
+ * which is its own gap: a draft and a completed gig differ only by their
+ * timestamp. The Tier-2 port replaces it with the workspace row family, which
+ * carries a status badge; it is left as it was rather than half-fixed here.
  */
-export function GigCard({ gig }: { gig: GigSummary }) {
+export function MyGigCard({ gig }: { gig: GigSummary }) {
   return (
     <article className="rounded-card border border-border-subtle bg-surface-card p-5 shadow-card transition-shadow hover:shadow-elevated">
       <Link href={`/gig/${gig.escrow_id}`} className="flex flex-col gap-3">

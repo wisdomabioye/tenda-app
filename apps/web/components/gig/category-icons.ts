@@ -35,29 +35,37 @@ function resolveCategoryIcons(): Record<GigCategory, LucideIcon> {
 export const CATEGORY_ICONS: Record<GigCategory, LucideIcon> = resolveCategoryIcons()
 
 /**
- * Icon tint for a bare category glyph — the comps' `row.tone` on a list row's
- * leading icon. The `-base` family, not the badge's surface/text/border trio
- * (see CategoryBadge): a standalone glyph is drawn IN the tone rather than
- * placed on it.
+ * The comps' `row.tone` drawn directly — a list row's leading glyph, a filter
+ * rail's dot. The `-base` family, not the badge's surface/text/border trio
+ * (see CategoryBadge): these are drawn IN the tone rather than placed on it.
  *
- * Hand-keyed because Tailwind needs whole class names at build time, and
- * guarded below so a new category fails at module load like a missing icon
- * does, rather than rendering an untinted glyph nobody notices.
+ * Both class names for one category live in one entry so a new category needs
+ * one edit and cannot be half-added. Hand-keyed because Tailwind needs whole
+ * class names at build time, and guarded below so a missing entry fails at
+ * module load like a missing icon does, rather than rendering an untinted
+ * glyph nobody notices.
  */
-const ICON_TONE_CLASSES: Record<GigCategory, string> = {
-  delivery: 'text-category-delivery-base',
-  photo: 'text-category-photo-base',
-  errand: 'text-category-errand-base',
-  service: 'text-category-service-base',
-  digital: 'text-category-digital-base',
+export interface CategoryTone {
+  /** Foreground for a glyph. */
+  text: string
+  /** Fill for a dot or swatch. */
+  dot: string
+}
+
+const TONE_CLASSES: Record<GigCategory, CategoryTone> = {
+  delivery: { text: 'text-category-delivery-base', dot: 'bg-category-delivery-base' },
+  photo: { text: 'text-category-photo-base', dot: 'bg-category-photo-base' },
+  errand: { text: 'text-category-errand-base', dot: 'bg-category-errand-base' },
+  service: { text: 'text-category-service-base', dot: 'bg-category-service-base' },
+  digital: { text: 'text-category-digital-base', dot: 'bg-category-digital-base' },
 }
 
 for (const meta of CATEGORY_META) {
-  if (ICON_TONE_CLASSES[meta.key] === undefined) {
+  if (TONE_CLASSES[meta.key] === undefined) {
     throw new Error(
-      `category-icons: no icon tone for category "${meta.key}" — add it to ICON_TONE_CLASSES`,
+      `category-icons: no tone for category "${meta.key}" — add it to TONE_CLASSES`,
     )
   }
 }
 
-export const CATEGORY_ICON_TONE: Record<GigCategory, string> = ICON_TONE_CLASSES
+export const CATEGORY_TONE: Record<GigCategory, CategoryTone> = TONE_CLASSES

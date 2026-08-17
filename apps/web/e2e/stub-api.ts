@@ -71,13 +71,53 @@ function notFoundEnvelope(message: string): StubResponse {
 function handlePublic(url: URL): StubResponse | null {
   if (url.pathname === '/v1/gigs') {
     const category = url.searchParams.get('category')
+    const country = url.searchParams.get('country')
     const remote = url.searchParams.get('remote')
+    const crossBorder = url.searchParams.get('cross_border')
     const q = url.searchParams.get('q')?.toLowerCase()
+    const sort = url.searchParams.get('sort')
+    const cursor = url.searchParams.get('cursor')
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+
+    // The real route's refusal, mirrored: a keyset cursor is only meaningful
+    // under recency ordering, so pairing it with `sort` or `q` is a 400 and
+    // NOT an empty page. Without this the stub happily serves a request the
+    // production server rejects, which is how the searched feed shipped with
+    // no way past its first page and nothing caught it.
+    if (cursor !== null && (sort !== null || (q ?? '') !== '')) {
+      return errorEnvelope(400, 'Bad Request', 'cursor requires recency ordering', 'VALIDATION_ERROR')
+    }
+
     let data = GIGS
     if (category !== null) data = data.filter((gig) => gig.category === category)
+    if (country !== null) data = data.filter((gig) => gig.country === country)
     if (remote === 'true') data = data.filter((gig) => gig.remote)
+    if (crossBorder === 'true') data = data.filter((gig) => gig.cross_border)
     if (q !== undefined) data = data.filter((gig) => gig.title.toLowerCase().includes(q))
-    const page: PaginatedResponse<GigSummary> = { data, total: data.length, limit: 20, offset: 0, next_cursor: null }
+    if (sort === 'amount_asc' || sort === 'amount_desc') {
+      // BigInt COMPARISON, not subtraction-to-Number: base units routinely
+      // exceed Number.MAX_SAFE_INTEGER, and this file's tsconfig target has
+      // no BigInt literals to write the multiplier with anyway.
+      const ascending = sort === 'amount_asc'
+      data = [...data].sort((a, b) => {
+        const left = BigInt(a.amount_raw)
+        const right = BigInt(b.amount_raw)
+        if (left === right) return 0
+        const lower = left < right
+        return (lower ? -1 : 1) * (ascending ? 1 : -1)
+      })
+    }
+
+    const total = data.length
+    const page: PaginatedResponse<GigSummary> = {
+      data: data.slice(offset, offset + 20),
+      total,
+      limit: 20,
+      offset,
+      // Minted only for the plain recency feed, exactly like the real route:
+      // a sorted or searched response omits the field entirely.
+      ...(sort === null && (q ?? '') === '' ? { next_cursor: null } : {}),
+    }
     return json(page)
   }
   const detailMatch = url.pathname.match(/^\/v1\/gigs\/([^/]+)$/)

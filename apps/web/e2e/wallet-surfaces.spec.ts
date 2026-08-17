@@ -51,7 +51,13 @@ test('profile reaches the linked-wallets page via Settings', async ({ page }) =>
   await expect(page).toHaveURL(/\/home/)
   // S6.2: the profile mirrors mobile's nav — wallets live under Settings.
   await page.goto('/profile')
-  await page.getByRole('link', { name: 'Settings', exact: true }).click()
+  // Scoped to the profile pane: the workspace rail carries its own Settings
+  // link, so an unscoped match is ambiguous and would pass by accident if the
+  // profile's own link ever disappeared.
+  await page
+    .getByRole('region', { name: 'Profile' })
+    .getByRole('link', { name: 'Settings', exact: true })
+    .click()
   await expect(page).toHaveURL(/\/settings$/)
   await page.getByRole('link', { name: 'Linked wallets' }).click()
   await expect(page).toHaveURL(/\/settings\/linked-wallets/)

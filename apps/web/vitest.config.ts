@@ -56,6 +56,7 @@ export default defineConfig({
         'components/gig/CategoryGrid.tsx',
         'components/gig/GigForm.tsx',
         'components/gig/detail/**/*.{ts,tsx}',
+        'components/gig/feed/**/*.{ts,tsx}',
         'components/gig/gig-form/**/*.{ts,tsx}',
         'components/gig/gig-applications/**/*.{ts,tsx}',
         'components/chat/**/*.{ts,tsx}',
@@ -68,7 +69,10 @@ export default defineConfig({
         'components/settings/**/*.tsx',
         'components/ui/**/*.{ts,tsx}',
         'components/app/**/*.{ts,tsx}',
+        'components/public/BrandMark.tsx',
         'components/public/HeaderSessionAction.tsx',
+        'components/public/SiteFooter.tsx',
+        'components/public/SiteHeader.tsx',
         'scripts/gen-web-tokens/core.ts',
       ],
       // *.types.ts are interface-only modules (no executable statements);

@@ -2,9 +2,10 @@
  * The dossier's money block (Tier 2 comp, lines 500-517): one figure, one
  * projection.
  *
- * The figure is `amount_raw` rendered through shared `formatAssetAmount`,
- * which is BigInt-based — base units are 78-digit decimal STRINGS and
- * Number() would silently lose precision on anything large.
+ * The figure is `amount_raw` rendered through shared `splitAssetAmount`,
+ * which returns the value and the ticker already apart — the comp sets them
+ * at different sizes, and re-splitting the joined string on a space made this
+ * layout depend on punctuation inside a function it does not own.
  *
  * It deliberately does NOT run useEscrowFee. That hook is the single source
  * for PROJECTING a fee before signing; on an escrow that already exists,
@@ -12,8 +13,9 @@
  * Re-deriving it here would show a second, disagreeing number for the same
  * money — the exact drift settlement-amount honesty exists to prevent.
  */
-import { formatAssetAmount } from '@tenda/shared'
+import { splitAssetAmount } from '@tenda/shared'
 import type { ReactNode } from 'react'
+import { Eyebrow } from '@/components/ui'
 import { DOSSIER_COPY } from './copy'
 
 export interface DossierFact {
@@ -31,25 +33,17 @@ export function MoneyBlock({
   asset: string
   facts?: readonly DossierFact[]
 }) {
-  // The comp sets the amount and its symbol at different sizes, so they are
-  // split apart rather than re-derived — one formatter, one source of truth.
-  // formatAssetAmount always emits "<value> <symbol>", and the split takes the
-  // LAST space so a value carrying thousands separators stays intact. That
-  // contract is pinned by a test, not assumed.
-  const formatted = formatAssetAmount(amountRaw, asset)
-  const lastSpace = formatted.lastIndexOf(' ')
-  const amount = formatted.slice(0, lastSpace)
-  const symbol = formatted.slice(lastSpace + 1)
+  const { amount, symbol } = splitAssetAmount(amountRaw, asset)
 
   return (
     <div className="mt-7 rounded-card border border-border-default bg-surface-card p-6 shadow-card">
-      <p className="font-numeric text-xs font-medium uppercase leading-4 tracking-[0.13em] text-content-tertiary">
-        {DOSSIER_COPY.amountLabel}
-      </p>
+      <Eyebrow>{DOSSIER_COPY.amountLabel}</Eyebrow>
       <div className="mt-2 flex items-end gap-2">
         <span className="font-numeric text-[40px] font-bold leading-[44px] tracking-[-1px] text-utility-money">
           {amount}
         </span>
+        {/* See GigCard: the space is for textContent, not for layout. */}
+        {' '}
         <span className="pb-1 font-numeric text-[15px] leading-[22px] text-content-tertiary">
           {symbol}
         </span>

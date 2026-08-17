@@ -6,8 +6,10 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { ESCROW_STATUS_ORDER } from '../../src/constants/escrow'
 import {
+  PLACE_UNKNOWN,
   deadlineLabel,
   formatDate,
+  gigPlaceLabel,
   formatDeadline,
   formatDuration,
   gigDeadlineMeta,
@@ -156,4 +158,28 @@ test('formatDate / formatDeadline: empty for null, formatted otherwise', (t) => 
   // Under 24h away includes a time component; far out does not.
   assert.match(formatDeadline(at(3 * HOUR)), /\d{1,2}:\d{2}/)
   assert.doesNotMatch(formatDeadline(at(72 * HOUR)), /\d{1,2}:\d{2}/)
+})
+
+test('gigPlaceLabel: remote wins — a remote gig persists no city or country', () => {
+  assert.equal(gigPlaceLabel({ remote: true, city: null, country: null }), 'Remote')
+  // Even if stale fields survive on the row, the arrangement is the answer.
+  assert.equal(gigPlaceLabel({ remote: true, city: 'Lagos', country: 'NG' }), 'Remote')
+})
+
+test('gigPlaceLabel: resolves the country CODE to its name', () => {
+  assert.equal(gigPlaceLabel({ remote: false, city: 'Lagos', country: 'NG' }), 'Lagos, Nigeria')
+  assert.equal(gigPlaceLabel({ remote: false, city: null, country: 'KE' }), 'Kenya')
+})
+
+test('gigPlaceLabel: an unknown code is shown as-is rather than dropped', () => {
+  assert.equal(gigPlaceLabel({ remote: false, city: 'Springfield', country: 'ZZ' }), 'Springfield, ZZ')
+})
+
+test('gigPlaceLabel: no location at all is unknown, never "Anywhere"', () => {
+  assert.equal(gigPlaceLabel({ remote: false, city: null, country: null }), PLACE_UNKNOWN)
+  assert.equal(gigPlaceLabel({ remote: false, city: '', country: '' }), PLACE_UNKNOWN)
+})
+
+test('gigPlaceLabel: city alone is enough', () => {
+  assert.equal(gigPlaceLabel({ remote: false, city: 'Accra', country: null }), 'Accra')
 })

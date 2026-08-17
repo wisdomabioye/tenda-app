@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { CATEGORY_META, STATUS_LABEL } from '@tenda/shared'
 
-import { CATEGORY_ICON_TONE, CATEGORY_ICONS } from '@/components/gig/category-icons'
+import { CATEGORY_ICONS, CATEGORY_TONE } from '@/components/gig/category-icons'
 import {
   ApplicantRow,
   ConversationRow,
@@ -194,7 +194,7 @@ describe('EscrowRow — the comps\' category glyph', () => {
       <EscrowRow href="/gig/g1" title="t" status="open" category="digital" />,
     )
     expect(container.querySelector('svg')?.getAttribute('class')).toContain(
-      CATEGORY_ICON_TONE.digital,
+      CATEGORY_TONE.digital.text,
     )
   })
 
@@ -224,7 +224,7 @@ describe('EscrowRow — the comps\' category glyph', () => {
     // The registry throws at module load on a gap; this asserts the mapping
     // is complete rather than merely importable.
     for (const meta of CATEGORY_META) {
-      expect(CATEGORY_ICON_TONE[meta.key]).toBeTruthy()
+      expect(CATEGORY_TONE[meta.key].text).toBeTruthy()
       expect(CATEGORY_ICONS[meta.key]).toBeTruthy()
     }
   })

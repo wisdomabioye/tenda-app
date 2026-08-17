@@ -192,3 +192,25 @@ export function disputeViewerSeat(
   if (viewerId === '' || parties.length === 0) return 'unknown'
   return parties.some((p) => p.user_id === viewerId) ? 'party' : 'mediator'
 }
+
+/**
+ * A person's reputation as a display string ('4.8'), or null when they have
+ * none yet.
+ *
+ * `users.review_score` is `numeric(3,2)` and NULLABLE with no default: NULL is
+ * "nobody has reviewed them", and a stored `0.00` is a real average that must
+ * be shown, not hidden. Four surfaces had four rules for that distinction —
+ * one dropped a genuine zero, one rendered the raw '4.80', one printed an em
+ * dash — so the same person's standing read differently depending on which
+ * screen you were looking at.
+ *
+ * One decimal because the underlying value is an average of a handful of
+ * scores; the second decimal is noise the column happens to store.
+ */
+export function formatReviewScore(review_score: string | null | undefined): string | null {
+  if (review_score === null || review_score === undefined) return null
+  const score = Number.parseFloat(review_score)
+  // Guards the empty string and any non-numeric text: unknown, not zero.
+  if (!Number.isFinite(score)) return null
+  return score.toFixed(1)
+}
