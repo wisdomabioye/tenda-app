@@ -1,13 +1,16 @@
 /**
- * The feed's three non-list states (Tier 1 comp, lines 468-513).
+ * Every non-list state the feed can be in: loading, nothing matched, past the
+ * last page, and the read failed — twice, because the server-rendered twin
+ * exists (see FeedErrorStatic).
  *
  * They share a file because they are alternatives to one another: whoever
  * changes the wording of "nothing here" should see "nothing loaded" on the
- * same screen, since the difference between them is the whole point. Nothing
- * here is reachable from outside the feed.
+ * same screen, since the difference between them is the whole point — and two
+ * of these were added precisely because an earlier state was answering for a
+ * situation that was not its own. Nothing here is reachable from outside the
+ * feed.
  */
 import Link from 'next/link'
-import type { ReactNode } from 'react'
 import { RotateCw, SearchX, Undo2 } from 'lucide-react'
 import { ALERT_ACTION_CLASS, AlertPanel } from '@/components/ui/AlertPanel'
 import { GIGS_PAGE_SIZE } from '@/lib/gigs/search-params'
