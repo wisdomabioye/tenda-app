@@ -54,6 +54,7 @@ beforeEach(() => {
     notifications: [notice()],
     announcements: [],
     unread: 1,
+    feedStatus: 'ready',
     loading: false,
     loadingMore: false,
     hasMore: false,
@@ -114,6 +115,23 @@ describe('NotificationsListColumn', () => {
     render(<NotificationsListColumn />)
     expect(screen.getByText(announcement.title)).toBeInTheDocument()
     expect(screen.getByText(NOTIFICATIONS_LIST_COPY.surface.emptyTitle)).toBeInTheDocument()
+  })
+
+  it('says a failed feed FAILED, rather than calling the account empty', () => {
+    // The store swallows the error (every caller is a badge refresh that must
+    // not reject), so without a status the centre said "Nothing new" to
+    // someone whose server was simply unreachable.
+    useNotificationsStore.setState({ notifications: [], feedStatus: 'error', loading: false })
+    render(<NotificationsListColumn />)
+    expect(screen.getByText(NOTIFICATIONS_LIST_COPY.error)).toBeInTheDocument()
+    expect(screen.queryByText(NOTIFICATIONS_LIST_COPY.surface.emptyTitle)).toBeNull()
+  })
+
+  it('does not take rows away because a background refresh failed', () => {
+    useNotificationsStore.setState({ feedStatus: 'error' })
+    render(<NotificationsListColumn />)
+    expect(screen.getByRole('link', { name: /Gig accepted/ })).toBeInTheDocument()
+    expect(screen.queryByText(NOTIFICATIONS_LIST_COPY.error)).toBeNull()
   })
 
   it('counts unread against the total, as the comp writes it', () => {

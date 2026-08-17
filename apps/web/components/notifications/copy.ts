@@ -16,6 +16,7 @@ export const NOTIFICATIONS_LIST_COPY = {
   loadMore: 'Load more',
   loadingMore: 'Loading…',
   markAllRead: 'Mark all read',
+  error: 'Could not load your notifications',
   emptyDetailTitle: 'Pick a notification',
   emptyDetailBody:
     'Opening one marks it read and takes you to what it is about — the escrow, the thread, the dispute.',

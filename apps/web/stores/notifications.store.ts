@@ -14,6 +14,7 @@ import { create } from 'zustand'
 import { NOTIFICATION_PAGE_SIZE } from '@tenda/shared'
 import type { NotificationWire, AnnouncementWire } from '@tenda/shared'
 import { api } from '@/api/client'
+import type { InboxStatus } from '@/stores/chat.store'
 
 interface NotificationsState {
   notifications: NotificationWire[]
@@ -24,6 +25,14 @@ interface NotificationsState {
   hasMore: boolean
 
   /** Load (or reload) the first page + announcements + unread count. */
+  /**
+   * Whether the feed has ever been read from the server.
+   *
+   * Without it a failed load is indistinguishable from an empty account: the
+   * catch below swallowed the error, and the centre told the reader "Nothing
+   * new" when the server simply could not be reached (#17 review).
+   */
+  feedStatus: InboxStatus
   fetchFeed: () => Promise<void>
   /** Append the next older page of personal notices (cursor = oldest loaded). */
   fetchMore: () => Promise<void>
@@ -43,6 +52,7 @@ const INITIAL = {
   notifications: [] as NotificationWire[],
   announcements: [] as AnnouncementWire[],
   unread: 0,
+  feedStatus: 'idle' as InboxStatus,
   loading: false,
   loadingMore: false,
   hasMore: false,
@@ -57,7 +67,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   ...INITIAL,
 
   fetchFeed: async () => {
-    set({ loading: true })
+    set({ loading: true, feedStatus: 'loading' })
     try {
       const feed = await api.notifications.feed()
       set({
@@ -66,9 +76,12 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         unread: feed.unread_count,
         hasMore: feed.notifications.length >= NOTIFICATION_PAGE_SIZE,
         loading: false,
+        feedStatus: 'ready',
       })
     } catch {
-      set({ loading: false })
+      // Still swallowed — every caller here is a badge refresh that must not
+      // reject — but recorded, so the surface can say which it was.
+      set({ loading: false, feedStatus: 'error' })
     }
   },
 

@@ -27,6 +27,7 @@ export function NotificationsListColumn() {
   const announcements = useNotificationsStore((s) => s.announcements)
   const unread = useNotificationsStore((s) => s.unread)
   const loading = useNotificationsStore((s) => s.loading)
+  const feedStatus = useNotificationsStore((s) => s.feedStatus)
   const loadingMore = useNotificationsStore((s) => s.loadingMore)
   const hasMore = useNotificationsStore((s) => s.hasMore)
   const { openPalette } = useCommandPalette()
@@ -77,6 +78,15 @@ export function NotificationsListColumn() {
       hrefOf={(n) => `/notifications/${n.id}`}
       selectedKey={params.notificationId}
       isLoading={loading && notifications.length === 0}
+      // A failed feed is not an empty account. Only when there is nothing to
+      // show — a failed background refresh behind rows is not worth taking the
+      // rows away for.
+      error={
+        feedStatus === 'error' && notifications.length === 0
+          ? NOTIFICATIONS_LIST_COPY.error
+          : null
+      }
+      onRetry={() => void useNotificationsStore.getState().fetchFeed()}
       countLabel={
         notifications.length > 0
           ? NOTIFICATIONS_LIST_COPY.count(unread, notifications.length)

@@ -57,10 +57,20 @@ describe('fetchFeed', () => {
     notificationsApi.feed.mockResolvedValue({ notifications: page(2), announcements: [], unread_count: 0 })
     await useNotificationsStore.getState().fetchFeed()
     expect(useNotificationsStore.getState().hasMore).toBe(false)
+    expect(useNotificationsStore.getState().feedStatus).toBe('ready')
 
     notificationsApi.feed.mockRejectedValue(new Error('down'))
     await useNotificationsStore.getState().fetchFeed()
     expect(useNotificationsStore.getState().loading).toBe(false)
+  })
+
+  it('RECORDS a failure rather than only swallowing it', async () => {
+    // The rejection is still swallowed — every caller is a badge refresh that
+    // must not reject — but a surface reading only `loading` cannot tell a
+    // failed load from an empty account, and told the reader "Nothing new".
+    notificationsApi.feed.mockRejectedValue(new Error('down'))
+    await expect(useNotificationsStore.getState().fetchFeed()).resolves.toBeUndefined()
+    expect(useNotificationsStore.getState().feedStatus).toBe('error')
   })
 })
 
