@@ -11,7 +11,7 @@
  * which is the more specific and more useful announcement.
  */
 import Link from 'next/link'
-import { SUPPORT_TOPICS } from '@tenda/shared'
+import { APP_INFO, SUPPORT_TOPICS } from '@tenda/shared'
 import { Eyebrow } from '@/components/ui'
 import { cn } from '@/lib/cn'
 import { SUPPORT_COPY } from './copy'
@@ -50,12 +50,28 @@ export function SupportNav({ current }: { current: string | null }) {
           )
         })}
       </div>
-      <p className="mt-6 border-t border-border-subtle pt-5 text-[13px] leading-[18px] text-content-tertiary">
-        {SUPPORT_COPY.stuckNote}{' '}
-        <Link href="/settings" className="font-semibold text-content-link">
-          {SUPPORT_COPY.stuckLink}
-        </Link>
-      </p>
+      {/* Plain <a>, not <Link>: `mailto:` and the WhatsApp invite leave the
+          app, and routing them through the client router would do nothing but
+          add a hydration cost to a link that never navigates in-app. */}
+      <div className="mt-6 border-t border-border-subtle pt-5 text-[13px] leading-[18px] text-content-tertiary">
+        <p>{SUPPORT_COPY.stuckNote}</p>
+        <p className="mt-2 flex flex-col gap-1">
+          <a
+            href={`mailto:${APP_INFO.support.email}`}
+            className="font-semibold text-content-link break-words"
+          >
+            {APP_INFO.support.email}
+          </a>
+          <a
+            href={APP_INFO.support.whatsapp}
+            className="font-semibold text-content-link"
+            rel="noreferrer"
+            target="_blank"
+          >
+            WhatsApp group
+          </a>
+        </p>
+      </div>
     </nav>
   )
 }

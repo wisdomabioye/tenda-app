@@ -40,6 +40,9 @@ export default defineConfig({
       // (fs + argv + process.exit) whose full pipeline the CI drift gate runs
       // for real; the transforms it calls live in core.ts, which IS gated.
       include: [
+        // Money math on a public page: it answers what the chain will charge,
+        // so it is gated like any other fee path (joined during the #13 review).
+        'app/(public)/support/escrow/FeeCalculator.tsx',
         'api/request.ts',
         'api/client/escrows.ts',
         'api/client/timeouts.ts',

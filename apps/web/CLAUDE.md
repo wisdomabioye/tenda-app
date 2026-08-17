@@ -58,6 +58,15 @@ render `noindex` because it necessarily answers HTTP 200. `error.tsx` stays for
 anything thrown elsewhere in the tree. The rule for both forms: *if it only
 appears after hydration, an anonymous visitor may never see it.*
 
+**A third form is open and NOT solved: `notFound()`.** Next defers the whole
+not-found boundary into the flight payload when `notFound()` is thrown from a
+dynamic page, so `/gig/[id]` 404s are blank without JavaScript — measured, and
+not a property of the boundary file (removing it blanks the root boundary the
+same way, while an unmatched route like `/nowhere-at-all` renders fine). The
+fix costs the 404 status the takedown contract depends on, so it is a decision
+rather than a repair: task #24. Do not "fix" it by dropping `notFound()`
+without taking that decision.
+
 Two more rules this shell learned the hard way, both measured in a real browser:
 
 - **The public header row must fit 320px.** It cannot wrap and nothing in it

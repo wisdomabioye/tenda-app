@@ -8,7 +8,7 @@
  */
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { SUPPORT_FAQS, SUPPORT_TOPICS } from '@tenda/shared'
+import { APP_INFO, SUPPORT_FAQS, SUPPORT_TOPICS } from '@tenda/shared'
 import {
   GuideSteps,
   InfoCard,
@@ -59,12 +59,27 @@ describe('SupportNav', () => {
     )
   })
 
-  it('sends a stuck reader somewhere specific, not just "contact us"', () => {
+  it('sends a stuck reader to a channel that EXISTS', () => {
+    // The comp says "open a support thread from Settings". There is no such
+    // thread — Settings' only support affordance links back to /support, so
+    // following it walks the reader in a circle. These two are real.
     render(<SupportNav current={null} />)
-    expect(screen.getByRole('link', { name: SUPPORT_COPY.stuckLink })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: APP_INFO.support.email })).toHaveAttribute(
       'href',
-      '/settings',
+      `mailto:${APP_INFO.support.email}`,
     )
+    expect(screen.getByRole('link', { name: 'WhatsApp group' })).toHaveAttribute(
+      'href',
+      APP_INFO.support.whatsapp,
+    )
+  })
+
+  it('never points a stuck reader back at /support or at Settings', () => {
+    render(<SupportNav current="faq" />)
+    const contact = screen.getByText(SUPPORT_COPY.stuckNote).parentElement
+    const hrefs = Array.from(contact?.querySelectorAll('a') ?? []).map((a) => a.getAttribute('href'))
+    expect(hrefs).not.toContain('/settings')
+    expect(hrefs).not.toContain('/support')
   })
 })
 
@@ -116,6 +131,21 @@ describe('supportTopicMetadata', () => {
     for (const topic of SUPPORT_TOPICS) {
       expect(supportTopicMetadata(topic.slug).title).not.toMatch(/·/)
     }
+  })
+})
+
+describe('SUPPORT_COPY', () => {
+  it('counts the guides rather than stating a number that can rot', () => {
+    // The comp writes "Six short guides". Adding a seventh topic to shared
+    // must not leave this page quietly lying about how many there are.
+    expect(SUPPORT_COPY.indexIntro).toContain(`${SUPPORT_TOPICS.length} short guides`)
+    // …and the number it states is the number of cards actually rendered.
+    render(<SupportGuideGrid />)
+    expect(screen.getAllByRole('listitem')).toHaveLength(SUPPORT_TOPICS.length)
+  })
+
+  it('takes the index heading from the comp, which is its only source', () => {
+    expect(SUPPORT_COPY.indexHeading).toBe('Answers about escrow, gigs and payouts')
   })
 })
 
