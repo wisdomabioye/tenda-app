@@ -1,8 +1,10 @@
 import { expect, test, type ConsoleMessage, type Page } from '@playwright/test'
 import { CATEGORY_LABELS } from '@tenda/shared'
 import { FEED_COPY } from '../components/gig/feed/copy'
+import { GIG_DETAIL_COPY } from '../components/gig/detail/copy'
 import {
   deliveryGig,
+  E2E_FAIL_GIG_ID,
   E2E_FAIL_QUERY,
   deliveryGigDetail,
   LEAKED_COUNTERPARTY_ID,
@@ -267,6 +269,34 @@ test.describe('detail — /gig/[id]', () => {
     expect(html).not.toContain(LEAKED_COUNTERPARTY_NAME)
     expect(html).not.toContain(LEAKED_COUNTERPARTY_ID)
     expect(html).not.toContain('payment_proof')
+  })
+
+  test.describe('when the gig cannot be READ', () => {
+    test.describe('with JavaScript disabled', () => {
+      test.use({ javaScriptEnabled: false })
+
+      test('says so, and never implies the gig or the escrow is gone', async ({ page }) => {
+        // Same client-boundary trap as the feed: before the page handled this
+        // itself, a reader with no JavaScript got a blank 500.
+        await page.goto(`/gig/${E2E_FAIL_GIG_ID}`)
+        await expect(page.getByRole('alert')).toContainText(GIG_DETAIL_COPY.unavailableTitle)
+        await expect(page.getByRole('alert')).toContainText('read failure only')
+        // Both ways forward are links, so neither needs the bundle. Scoped to
+        // the ALERT: the page chrome has its own button (the theme toggle),
+        // and asserting over the whole document would be asserting about that.
+        await expect(page.getByRole('link', { name: GIG_DETAIL_COPY.unavailableBrowse })).toHaveAttribute('href', '/gigs')
+        await expect(page.getByRole('alert').getByRole('button')).toHaveCount(0)
+        await expect(page.getByRole('alert').getByRole('link')).toHaveCount(2)
+      })
+    })
+
+    test('is NOT a 404 — a gig that exists but did not load is a different thing', async ({ request }) => {
+      const response = await request.get(`/gig/${E2E_FAIL_GIG_ID}`)
+      expect(response.status()).toBe(200)
+      const html = await response.text()
+      expect(html).toContain('name="robots" content="noindex')
+      expect(html).not.toContain(GIG_DETAIL_COPY.breadcrumbRoot)
+    })
   })
 
   test('a hidden gig is a 404 with noindex', async ({ request }) => {

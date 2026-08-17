@@ -21,6 +21,7 @@ import { hasCompleteName } from '@tenda/shared'
 import {
   deliveryGig,
   deliveryGigDetail,
+  E2E_FAIL_GIG_ID,
   E2E_FAIL_QUERY,
   photoGig,
   unbreakableGig,
@@ -142,6 +143,10 @@ function handlePublic(url: URL): StubResponse | null {
     const id = detailMatch[1]
     // The takedown contract: a hidden gig is a 404 for anonymous readers.
     if (id === 'hidden-gig') return notFoundEnvelope('gig is not available')
+    // Outage, distinct from a 404: the page must say so rather than 404.
+    if (id === E2E_FAIL_GIG_ID) {
+      return errorEnvelope(500, 'Internal Server Error', 'gig index down', 'INTERNAL')
+    }
     if (id === deliveryGigDetail.escrow_id) return json(deliveryGigDetail)
     if (id === unbreakableGigDetail.escrow_id) return json(unbreakableGigDetail)
     return notFoundEnvelope('no such gig')

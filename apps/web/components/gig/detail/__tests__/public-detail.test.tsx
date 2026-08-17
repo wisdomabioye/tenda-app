@@ -13,6 +13,7 @@ import { GigPosterCard } from '@/components/gig/detail/GigPosterCard'
 import { GigProofList } from '@/components/gig/detail/GigProofList'
 import { GigSettlementSteps } from '@/components/gig/detail/GigSettlementSteps'
 import { GigTerms, gigTerms } from '@/components/gig/detail/GigTerms'
+import { GigUnavailable } from '@/components/gig/detail/GigUnavailable'
 import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import {
   LEAKED_COUNTERPARTY_NAME,
@@ -252,5 +253,34 @@ describe('GigDetailSection', () => {
       </GigDetailSection>,
     )
     expect(screen.getByRole('heading', { level: 2, name: 'Terms' })).toBeInTheDocument()
+  })
+})
+
+describe('GigUnavailable', () => {
+  it('says the read failed WITHOUT implying the gig or the escrow is gone', () => {
+    // A read failure is not a missing gig (that is notFound) and not a lost
+    // agreement. Rendered by the page, not an error boundary, because the
+    // boundary is a client component and a reader with no JavaScript saw a
+    // blank page.
+    render(<GigUnavailable href="/gig/gig-1" />)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText(GIG_DETAIL_COPY.unavailableBody)).toBeInTheDocument()
+    expect(screen.getByText(/read failure only/)).toBeInTheDocument()
+  })
+
+  it('offers a retry of THIS gig and a way out to the feed', () => {
+    // Either may be the one that works: the feed is a different read.
+    render(<GigUnavailable href="/gig/gig-1" />)
+    expect(
+      screen.getByRole('link', { name: new RegExp(GIG_DETAIL_COPY.unavailableAction) }),
+    ).toHaveAttribute('href', '/gig/gig-1')
+    expect(
+      screen.getByRole('link', { name: GIG_DETAIL_COPY.unavailableBrowse }),
+    ).toHaveAttribute('href', '/gigs')
+  })
+
+  it('needs no JavaScript — both ways forward are plain links', () => {
+    render(<GigUnavailable href="/gig/gig-1" />)
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 })

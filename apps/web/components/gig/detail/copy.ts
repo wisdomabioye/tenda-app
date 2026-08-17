@@ -36,6 +36,12 @@ export const GIG_DETAIL_COPY = {
       'Escrow releases the net amount to your wallet.',
     ],
   },
+  /** The gig exists as far as we know — we just could not read it. */
+  unavailableTitle: 'We could not load this gig',
+  unavailableBody:
+    'The gig index did not respond. This is a read failure only — no escrow, no balance and no agreement is affected by it.',
+  unavailableAction: 'Try again',
+  unavailableBrowse: 'Browse open gigs',
   crossBorder: 'Cross-border',
   postedPrefix: 'Posted',
   terminology: {

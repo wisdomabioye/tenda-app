@@ -8,6 +8,7 @@ import { GigEscrowAside } from '@/components/gig/detail/GigEscrowAside'
 import { GigPosterCard } from '@/components/gig/detail/GigPosterCard'
 import { GigProofList } from '@/components/gig/detail/GigProofList'
 import { GigTerms } from '@/components/gig/detail/GigTerms'
+import { GigUnavailable } from '@/components/gig/detail/GigUnavailable'
 import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { getGig } from '@/lib/gigs/data'
 
@@ -20,7 +21,13 @@ type Params = { params: Promise<{ id: string }> }
  */
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { id } = await params
-  const gig = await getGig(id)
+  // A read FAILURE must not throw out of here: `generateMetadata` runs
+  // before the page, and a throw errors the whole route into the client
+  // boundary — which is the blank page the page below exists to avoid.
+  const gig = await getGig(id).catch(() => 'unavailable' as const)
+  if (gig === 'unavailable') {
+    return { title: 'Gig unavailable', robots: { index: false, follow: true } }
+  }
   if (gig === null) return { title: 'Gig not found' }
   const amount = formatAssetAmount(gig.amount_raw, gig.asset)
   const where = gigPlaceLabel(gig)
@@ -55,7 +62,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
  */
 export default async function GigDetailPage({ params }: Params) {
   const { id } = await params
-  const gig = await getGig(id)
+  // `notFound()` throws, so it stays OUTSIDE the catch: a missing gig is a
+  // real 404 that Next renders server-side, and only an outage lands here.
+  const gig = await getGig(id).catch(() => 'unavailable' as const)
+  if (gig === 'unavailable') return <GigUnavailable href={`/gig/${id}`} />
   if (gig === null) notFound()
 
   return (

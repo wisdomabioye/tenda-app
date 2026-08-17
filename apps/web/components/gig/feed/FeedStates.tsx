@@ -8,7 +8,8 @@
  */
 import Link from 'next/link'
 import type { ReactNode } from 'react'
-import { AlertTriangle, RotateCw, SearchX, Undo2 } from 'lucide-react'
+import { RotateCw, SearchX, Undo2 } from 'lucide-react'
+import { ALERT_ACTION_CLASS, AlertPanel } from '@/components/ui/AlertPanel'
 import { GIGS_PAGE_SIZE } from '@/lib/gigs/search-params'
 import { FEED_COPY } from './copy'
 
@@ -108,35 +109,14 @@ export function FeedPastEnd({ href, total }: { href: string; total: number }) {
  * is a real retry, not the no-op the comp's "back to /gigs" link would be
  * inside the boundary.
  */
-const ACTION_CLASS =
-  'mt-5 inline-flex items-center gap-2 rounded-control bg-feedback-danger-base px-4 py-2.5 text-sm font-bold text-content-inverse hover:brightness-95'
-
-function FeedErrorShell({ action }: { action: ReactNode }) {
-  return (
-    <div
-      role="alert"
-      className="flex items-start gap-4 rounded-card border border-feedback-danger-border bg-feedback-danger-surface p-8"
-    >
-      <AlertTriangle size={22} aria-hidden className="shrink-0 text-feedback-danger-text" />
-      <div>
-        <h3 className="font-display text-xl font-semibold leading-[26px] text-feedback-danger-text">
-          {FEED_COPY.error.title}
-        </h3>
-        <p className="mt-2 max-w-[52ch] text-feedback-danger-text opacity-85">
-          {FEED_COPY.error.body}
-        </p>
-        {action}
-      </div>
-    </div>
-  )
-}
-
 /** Inside the client error boundary, where `reset` re-runs the segment. */
 export function FeedError({ retry }: { retry: () => void }) {
   return (
-    <FeedErrorShell
+    <AlertPanel
+      title={FEED_COPY.error.title}
+      body={FEED_COPY.error.body}
       action={
-        <button type="button" onClick={retry} className={ACTION_CLASS}>
+        <button type="button" onClick={retry} className={ALERT_ACTION_CLASS}>
           <RotateCw size={16} aria-hidden />
           {FEED_COPY.error.action}
         </button>
@@ -159,9 +139,11 @@ export function FeedError({ retry }: { retry: () => void }) {
  */
 export function FeedErrorStatic({ href }: { href: string }) {
   return (
-    <FeedErrorShell
+    <AlertPanel
+      title={FEED_COPY.error.title}
+      body={FEED_COPY.error.body}
       action={
-        <Link href={href} className={ACTION_CLASS}>
+        <Link href={href} className={ALERT_ACTION_CLASS}>
           <RotateCw size={16} aria-hidden />
           {FEED_COPY.error.action}
         </Link>

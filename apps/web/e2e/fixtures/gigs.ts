@@ -19,6 +19,9 @@ import type { GigDetail, GigSummary, UserRef } from '@tenda/shared'
  */
 export const E2E_FAIL_QUERY = '__e2e_feed_down__'
 
+/** Gig id the stub answers with a 500, for the detail route's outage path. */
+export const E2E_FAIL_GIG_ID = '__e2e_gig_down__'
+
 export const LEAKED_COUNTERPARTY_NAME = 'LEAKED-COUNTERPARTY-NAME'
 export const LEAKED_COUNTERPARTY_ID = 'leaked-counterparty-id-000'
 
