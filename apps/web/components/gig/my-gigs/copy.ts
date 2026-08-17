@@ -39,24 +39,37 @@ export const MY_GIGS_COPY = {
       : tab === 'working'
         ? `${total} you are working`
         : `${total} applied to`,
-  /** The column's `ListSurfaceCopy`, per tab — the title never changes. */
-  surface: (tab: MyGigsTab) => ({
+  /**
+   * The column's `ListSurfaceCopy`, per tab — the title never changes.
+   *
+   * `filtered` is not a nicety. "You have not posted a gig yet" is FALSE for
+   * someone with three gigs on another chain, and this is the reader's OWN
+   * list, so the wrong answer is obviously wrong. Same rule as
+   * spec-correction #14, where the feed's empty copy denied results its own
+   * query had matched.
+   */
+  surface: (tab: MyGigsTab, filtered = false) => ({
     title: 'My gigs',
-    ...(tab === 'posted'
+    ...(filtered
       ? {
-          emptyTitle: 'You have not posted a gig yet',
-          emptyBody:
-            'Posting funds escrow first, then publishes. Drafts stay off-chain until you sign.',
+          emptyTitle: 'Nothing on this chain',
+          emptyBody: 'Pick "All chains" to see the rest of this list.',
         }
-      : tab === 'working'
+      : tab === 'posted'
         ? {
-            emptyTitle: 'You are not working anything yet',
-            emptyBody: 'Accept a gig from Home and it appears here with its clock running.',
+            emptyTitle: 'You have not posted a gig yet',
+            emptyBody:
+              'Posting funds escrow first, then publishes. Drafts stay off-chain until you sign.',
           }
-        : {
-            emptyTitle: 'No applications',
-            emptyBody: 'Gigs you apply to appear here while the poster decides.',
-          }),
+        : tab === 'working'
+          ? {
+              emptyTitle: 'You are not working anything yet',
+              emptyBody: 'Accept a gig from Home and it appears here with its clock running.',
+            }
+          : {
+              emptyTitle: 'No applications',
+              emptyBody: 'Gigs you apply to appear here while the poster decides.',
+            }),
   }),
   /** Drafts are a separate list, never rows mixed into Posted. */
   drafts: (total: number) => `${total} draft${total === 1 ? '' : 's'} waiting to be funded`,

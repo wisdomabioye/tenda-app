@@ -91,6 +91,22 @@ describe('NotificationsListColumn', () => {
     expect(screen.getAllByRole('list').length).toBeGreaterThanOrEqual(2)
   })
 
+  it('does not file an UNDATED notice under somebody else\'s day', () => {
+    // The walker emits no day header for a notice with no timestamp, so the
+    // open group is the previous notice's date — appending there would stamp
+    // an undated notice "Today".
+    useNotificationsStore.setState({
+      notifications: [
+        notice({ id: 'dated', created_at: '2026-08-15T12:00:00.000Z' }),
+        notice({ id: 'undated', title: 'No stamp', created_at: null }),
+      ],
+    })
+    render(<NotificationsListColumn />)
+    const dayRun = screen.getAllByRole('list').find((list) => list.hasAttribute('aria-labelledby'))
+    expect(dayRun).toBeDefined()
+    expect(dayRun?.textContent).not.toContain('No stamp')
+  })
+
   it('keeps a pinned announcement on screen when there are no notices at all', () => {
     // It is not a row of this list: an empty personal feed is not a reason to
     // hide a broadcast.

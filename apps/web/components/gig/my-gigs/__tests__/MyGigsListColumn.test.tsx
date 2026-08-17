@@ -165,6 +165,17 @@ describe('MyGigsListColumn', () => {
     expect(screen.getByText(MY_GIGS_COPY.surface('working').emptyTitle)).toBeInTheDocument()
   })
 
+  it('does not deny gigs that exist on ANOTHER chain', () => {
+    // "You have not posted a gig yet" is false for someone with three on a
+    // chain the filter is hiding — and this is the reader's own list, so the
+    // wrong answer is obviously wrong. Same rule as spec-correction #14.
+    searchParams = new URLSearchParams('chain=solana:devnet')
+    state({ posted: listOf<GigSummary>([]) })
+    render(<MyGigsListColumn />)
+    expect(screen.getByText(MY_GIGS_COPY.surface('posted', true).emptyTitle)).toBeInTheDocument()
+    expect(screen.queryByText(MY_GIGS_COPY.surface('posted').emptyTitle)).toBeNull()
+  })
+
   it('surfaces drafts as their own list, never as rows in Posted', () => {
     // "Posted" is POSTED_ESCROW_STATUSES exactly — a draft counted there would
     // inflate the chip with work that is not on-chain yet.

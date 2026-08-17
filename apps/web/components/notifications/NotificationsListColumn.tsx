@@ -1,4 +1,4 @@
-"use client";
+'use client'
 
 /**
  * The notification centre as the workspace's list column (Tier 2 comp, lines
@@ -10,37 +10,37 @@
  * mount-fetch here would re-run on every notice the reader opens, because the
  * router remounts the @list slot each time.
  */
-import { useEffect, useMemo } from "react";
-import { useParams } from "next/navigation";
-import { groupByDay, type NotificationWire } from "@tenda/shared";
-import { ListColumn } from "@/components/app/workspace/list";
-import type { ListGroup } from "@/components/app/workspace/list";
-import { NotificationRow } from "@/components/app/workspace/rows";
-import { AnnouncementCard } from "@/components/notifications";
-import { Button } from "@/components/ui/Button";
-import { useNotificationsStore } from "@/stores/notifications.store";
-import { useCommandPalette } from "@/hooks/workspace/useCommandPalette";
-import { NOTIFICATIONS_LIST_COPY } from "./copy";
+import { useEffect, useMemo } from 'react'
+import { useParams } from 'next/navigation'
+import { groupByDay, type NotificationWire } from '@tenda/shared'
+import { ListColumn } from '@/components/app/workspace/list'
+import type { ListGroup } from '@/components/app/workspace/list'
+import { NotificationRow } from '@/components/app/workspace/rows'
+import { AnnouncementCard } from '@/components/notifications'
+import { Button } from '@/components/ui/Button'
+import { useNotificationsStore } from '@/stores/notifications.store'
+import { useCommandPalette } from '@/hooks/workspace/useCommandPalette'
+import { NOTIFICATIONS_LIST_COPY } from './copy'
 
 export function NotificationsListColumn() {
-  const notifications = useNotificationsStore((s) => s.notifications);
-  const announcements = useNotificationsStore((s) => s.announcements);
-  const unread = useNotificationsStore((s) => s.unread);
-  const loading = useNotificationsStore((s) => s.loading);
-  const loadingMore = useNotificationsStore((s) => s.loadingMore);
-  const hasMore = useNotificationsStore((s) => s.hasMore);
-  const { openPalette } = useCommandPalette();
-  const params = useParams<{ notificationId?: string }>();
+  const notifications = useNotificationsStore((s) => s.notifications)
+  const announcements = useNotificationsStore((s) => s.announcements)
+  const unread = useNotificationsStore((s) => s.unread)
+  const loading = useNotificationsStore((s) => s.loading)
+  const loadingMore = useNotificationsStore((s) => s.loadingMore)
+  const hasMore = useNotificationsStore((s) => s.hasMore)
+  const { openPalette } = useCommandPalette()
+  const params = useParams<{ notificationId?: string }>()
 
   // Only when nothing has ever landed. The store is shared with the badge, so
   // a second reader of it must not re-drive the fetch on every remount.
   useEffect(() => {
     if (notifications.length === 0 && !loading)
-      void useNotificationsStore.getState().fetchFeed();
+      void useNotificationsStore.getState().fetchFeed()
     // Deliberately mount-only: `notifications.length` in the deps would refire
     // this the moment a feed legitimately empties (mark-all on an empty page).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [])
 
   /**
    * The comp groups by day, and the shared walker is what chat and the wallet
@@ -51,19 +51,23 @@ export function NotificationsListColumn() {
       notifications,
       (n) => n.created_at,
       (n) => n.id,
-    );
-    const out: ListGroup<NotificationWire>[] = [];
+    )
+    const out: ListGroup<NotificationWire>[] = []
     for (const entry of walked) {
-      if (entry.type === "day")
-        out.push({ key: entry.key, label: entry.label, rows: [] });
-      else if (out.length > 0)
-        out[out.length - 1].rows = [...out[out.length - 1].rows, entry.item];
-      // A notice with no timestamp cannot be filed under a day; it opens its
-      // own unlabelled run rather than being dropped.
-      else out.push({ key: entry.key, rows: [entry.item] });
+      if (entry.type === 'day') {
+        out.push({ key: entry.key, label: entry.label, rows: [] })
+        continue
+      }
+      // A notice with NO timestamp gets no day header from the walker, so the
+      // open group is somebody else's date — appending it there would file an
+      // undated notice under "Today". It opens its own unlabelled run instead.
+      const open = out[out.length - 1]
+      const wouldMisfile = entry.item.created_at === null && open?.label !== undefined
+      if (open === undefined || wouldMisfile) out.push({ key: entry.key, rows: [entry.item] })
+      else open.rows = [...open.rows, entry.item]
     }
-    return out.filter((group) => group.rows.length > 0);
-  }, [notifications]);
+    return out.filter((group) => group.rows.length > 0)
+  }, [notifications])
 
   return (
     <ListColumn<NotificationWire>
@@ -138,5 +142,5 @@ export function NotificationsListColumn() {
         />
       )}
     />
-  );
+  )
 }

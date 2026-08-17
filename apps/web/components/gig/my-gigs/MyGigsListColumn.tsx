@@ -137,7 +137,8 @@ export function MyGigsListColumn() {
   return (
     <ListColumn<GigSummary>
       {...shared}
-      copy={MY_GIGS_COPY.surface(tab)}
+      // A chain filter narrowing a real list to nothing is not an empty list.
+      copy={MY_GIGS_COPY.surface(tab, chainId !== null)}
       groups={gigGroups}
       keyOf={(gig) => gig.escrow_id}
       hrefOf={(gig) => myGigHref(gig.escrow_id, tab, chainId)}
