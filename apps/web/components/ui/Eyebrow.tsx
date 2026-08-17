@@ -17,13 +17,20 @@
 import type { ElementType, ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
-export type EyebrowTone = 'tertiary' | 'secondary' | 'warning' | 'brand'
+export type EyebrowTone = 'tertiary' | 'secondary' | 'warning' | 'brand' | 'input'
 
 const TONE_CLASSES: Record<EyebrowTone, string> = {
   tertiary: 'text-content-tertiary',
   secondary: 'text-content-secondary',
   warning: 'text-feedback-warning-text',
   brand: 'text-brand-primary',
+  /**
+   * Form-field labels. The comps set these in `content-tertiary` like every
+   * other eyebrow; the generated `control-input-label` is the same hue two
+   * steps darker (7.19:1 against the page, against tertiary's 5.12:1), and a
+   * label you are about to type under is worth the darker one.
+   */
+  input: 'text-control-input-label',
 }
 
 export function Eyebrow({

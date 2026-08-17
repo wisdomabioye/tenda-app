@@ -93,8 +93,13 @@ export const AUTH_COPY = {
      * state, never a toast, because the next step is a different flow.
      */
     notLinkedTitle: 'This wallet isn’t linked yet',
+    /**
+     * Opens by saying the WALLET worked, as the comp's version does. That is
+     * the first thing the reader is afraid of, and answering it before the
+     * rule turns "something went wrong" into "one more step".
+     */
     notLinkedLede:
-      'A wallet can only sign in to an account it is already linked to — it never creates one. Create your account with email, link this wallet from Settings, and it signs you in from then on.',
+      'The signature was valid, so the wallet is yours — it is simply not attached to a Tenda account yet. A wallet can only sign in to an account it is already linked to, never create one: start with email, link this wallet from Settings, and it signs you in from then on.',
     tryAnother: 'Try another wallet',
   },
 } as const
