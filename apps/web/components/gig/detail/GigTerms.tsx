@@ -24,9 +24,19 @@ interface Term {
 }
 
 /**
- * `Intl` with an explicit locale and time zone: a deadline rendered by the
- * SERVER in one zone and re-rendered by the client in another is a hydration
- * mismatch, and on this field it would also be a different moment.
+ * `Intl` with an explicit locale AND time zone, because this renders on the
+ * server: with neither pinned, the deadline a reader sees is whatever locale
+ * and `TZ` the node process happens to hold — so the same gig reads "8 Jan,
+ * 14:00" in one deployment and "8 Jan, 15:00" in the next, with nothing on the
+ * page to say which. Pinning them makes the rendered instant a property of the
+ * data instead of the container.
+ *
+ * UTC and not a market zone: this page is one anonymous, cached-by-crawlers
+ * document served to Lagos, Nairobi and Accra alike, and the render happens
+ * before any reader's zone is known. `timeZoneName` is therefore NOT optional
+ * — an unlabelled wall-clock time is the one version of this that can mislead.
+ * Localising it to the reader would take a client enhancement over a
+ * `<time dateTime>` element; until then, labelled UTC is the honest answer.
  */
 const DEADLINE_FORMAT = new Intl.DateTimeFormat('en-GB', {
   day: 'numeric',

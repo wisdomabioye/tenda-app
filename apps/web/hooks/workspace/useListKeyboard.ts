@@ -93,14 +93,24 @@ export function useListKeyboard({
       // No `current < 0 ? 0 : …` special case is needed for the first press:
       // from -1 the clamps already land on 0 (min(0, total-1) and
       // max(-2, 0)). Both directions are covered by tests.
-      if (NEXT_KEYS.has(event.key)) {
+      //
+      // `moveTo` consumes the key ONLY when the cursor actually moves. The
+      // clamps mean the ends of the list produce no movement, and ArrowDown /
+      // ArrowUp are how a great many readers scroll — swallowing them at the
+      // last row would leave someone unable to scroll the column any further,
+      // with the cursor refusing to advance and the browser no longer allowed
+      // to. Same rule as the public feed's walk (components/gig/feed).
+      const moveTo = (index: number) => {
+        if (index === current) return
         event.preventDefault()
-        setActiveIndex(Math.min(current + 1, total - 1))
+        setActiveIndex(index)
+      }
+      if (NEXT_KEYS.has(event.key)) {
+        moveTo(Math.min(current + 1, total - 1))
         return
       }
       if (PREVIOUS_KEYS.has(event.key)) {
-        event.preventDefault()
-        setActiveIndex(Math.max(current - 1, 0))
+        moveTo(Math.max(current - 1, 0))
         return
       }
       if (event.key === 'Enter' && current >= 0 && !ownsEnter(event.target)) {

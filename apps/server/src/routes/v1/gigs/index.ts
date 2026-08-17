@@ -131,9 +131,12 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     const usesRecencyOrdering = !hasSearch && (
       request.query.sort === undefined || request.query.sort === 'created_at'
     )
+    // Both arms are TOTAL orderings ending in the primary key — the keyset
+    // cursor compares (created_at, id) and offset paging is only stable over
+    // a total order. `listOrderBy` owns the tiebreaker for the rest.
     const orderBy = cursor !== undefined || usesRecencyOrdering
       ? [desc(escrows.created_at), desc(escrows.id)]
-      : [listOrderBy(request.query)]
+      : listOrderBy(request.query)
 
     const [data, countResult] = await Promise.all([
       fastify.db

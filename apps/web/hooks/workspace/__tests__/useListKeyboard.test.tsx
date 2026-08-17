@@ -75,6 +75,41 @@ describe('useListKeyboard — first press in each direction', () => {
   })
 })
 
+describe('useListKeyboard — the ends of the list', () => {
+  /** Dispatch a cancelable keydown and report whether the hook consumed it. */
+  const press = (key: string) => {
+    let consumed = false
+    act(() => {
+      const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })
+      document.dispatchEvent(event)
+      consumed = event.defaultPrevented
+    })
+    return consumed
+  }
+
+  it('hands the key back to the browser once the cursor cannot move', () => {
+    // ArrowDown/ArrowUp are how a great many readers scroll. The cursor clamps
+    // at both ends, so at the last row the key produces no movement — and
+    // consuming it there would leave the reader unable to scroll the column
+    // any further, with neither the cursor nor the browser willing to act.
+    render(<Harness count={2} onOpen={vi.fn()} />)
+    expect(press('ArrowDown')).toBe(true) // -1 → 0, a real move
+    expect(press('ArrowDown')).toBe(true) //  0 → 1, a real move
+    expect(cursor()).toBe('1')
+    expect(press('ArrowDown')).toBe(false) // clamped: not ours to swallow
+
+    expect(press('ArrowUp')).toBe(true) // 1 → 0
+    expect(press('ArrowUp')).toBe(false) // clamped at the top
+    expect(cursor()).toBe('0')
+  })
+
+  it('never consumes a movement key on an empty list', () => {
+    render(<Harness count={0} onOpen={vi.fn()} />)
+    expect(press('ArrowDown')).toBe(false)
+    expect(press('ArrowUp')).toBe(false)
+  })
+})
+
 describe('useListKeyboard — event targets that are not elements', () => {
   it('still moves when the keydown target is the document itself', () => {
     render(<Harness count={3} onOpen={vi.fn()} />)

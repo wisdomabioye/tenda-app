@@ -37,7 +37,7 @@ export function GigCard({ gig, index }: { gig: GigSummary; index?: number }) {
   const { amount, symbol } = splitAssetAmount(gig.amount_raw, gig.asset)
   const creatorName = displayName(gig.creator.first_name, gig.creator.last_name, gig.creator.id)
   const rating = formatReviewScore(gig.creator.review_score)
-  const window = acceptWindowState(gig)
+  const acceptWindow = acceptWindowState(gig)
 
   return (
     <Link
@@ -54,7 +54,7 @@ export function GigCard({ gig, index }: { gig: GigSummary; index?: number }) {
           {CATEGORY_LABELS[gig.category]}
         </Eyebrow>
         <span className="ml-auto">
-          {window === 'closing' ? (
+          {acceptWindow === 'closing' ? (
             <Badge variant="warning" label={GIG_CARD_COPY.closingSoon} />
           ) : (
             <Badge variant="success" label={GIG_CARD_COPY.open} />

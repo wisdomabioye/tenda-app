@@ -1,5 +1,6 @@
 import { expect, test, type ConsoleMessage, type Page } from '@playwright/test'
 import { CATEGORY_LABELS } from '@tenda/shared'
+import { FEED_COPY } from '../components/gig/feed/copy'
 import {
   deliveryGig,
   deliveryGigDetail,
@@ -85,6 +86,19 @@ test.describe('feed — /gigs', () => {
     const response = await request.get('/gigs?q=parcel&cursor=stale-cursor')
     expect(response.status()).toBe(200)
     expect(await response.text()).toContain(deliveryGig.title)
+  })
+
+  test('a page past the end says so, and keeps the search instead of clearing it', async ({ request }) => {
+    // A stale page-three link, after the results it pointed at were taken.
+    // The wrong answer here is "no gigs match these filters" — the query still
+    // matches, the reader is just past the last of them — followed by a button
+    // that throws their search away.
+    const response = await request.get('/gigs?q=parcel&offset=40')
+    expect(response.status()).toBe(200)
+    const html = await response.text()
+    expect(html).toContain(FEED_COPY.pastEnd.title)
+    expect(html).not.toContain(FEED_COPY.empty.title)
+    expect(html).toContain('href="/gigs?q=parcel"')
   })
 
   test('category filter is a URL, and it filters', async ({ request }) => {

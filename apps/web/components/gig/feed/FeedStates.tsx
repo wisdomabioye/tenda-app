@@ -7,7 +7,7 @@
  * here is reachable from outside the feed.
  */
 import Link from 'next/link'
-import { AlertTriangle, RotateCw, SearchX } from 'lucide-react'
+import { AlertTriangle, RotateCw, SearchX, Undo2 } from 'lucide-react'
 import { GIGS_PAGE_SIZE } from '@/lib/gigs/search-params'
 import { FEED_COPY } from './copy'
 
@@ -61,6 +61,37 @@ export function FeedEmpty({ filtered }: { filtered: boolean }) {
           {FEED_COPY.empty.action}
         </Link>
       )}
+    </div>
+  )
+}
+
+/**
+ * The query matched rows, but this PAGE is past the end of them.
+ *
+ * A distinct state because the alternative is a lie. A stale link — page three
+ * of a search whose results have since been taken, or a cursor whose anchor row
+ * is gone — lands on an empty page while `total` still reports matches, and
+ * FeedEmpty would tell the reader "no gigs match these filters" about a query
+ * that matched twenty. It also drops them back to the unfiltered feed, throwing
+ * away the search they typed; this keeps every filter and only rewinds the
+ * position.
+ */
+export function FeedPastEnd({ href, total }: { href: string; total: number }) {
+  return (
+    <div className="rounded-card border border-dashed border-border-strong px-8 py-14 text-center">
+      <Undo2 size={28} aria-hidden className="mx-auto text-content-tertiary" />
+      <h3 className="mt-4 font-display text-xl font-semibold leading-[26px] text-content-primary">
+        {FEED_COPY.pastEnd.title}
+      </h3>
+      <p className="mx-auto mt-2 max-w-[44ch] text-content-secondary">
+        {FEED_COPY.pastEnd.body(total)}
+      </p>
+      <Link
+        href={href}
+        className="mt-5 inline-block rounded-control bg-brand-solid px-[18px] py-2.5 text-sm font-bold text-brand-on-primary hover:brightness-95"
+      >
+        {FEED_COPY.pastEnd.action}
+      </Link>
     </div>
   )
 }

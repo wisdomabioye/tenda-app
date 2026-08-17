@@ -4,11 +4,12 @@ import { FeedHero } from '@/components/gig/feed/FeedHero'
 import { FeedKeyboard } from '@/components/gig/feed/FeedKeyboard'
 import { FeedPager } from '@/components/gig/feed/FeedPager'
 import { FeedRail } from '@/components/gig/feed/FeedRail'
-import { FEED_GRID_CLASS, FeedEmpty } from '@/components/gig/feed/FeedStates'
+import { FEED_GRID_CLASS, FeedEmpty, FeedPastEnd } from '@/components/gig/feed/FeedStates'
 import { GigCard } from '@/components/gig/feed/GigCard'
 import { FEED_COPY } from '@/components/gig/feed/copy'
 import { listEnabledChains, listGigs } from '@/lib/gigs/data'
 import {
+  gigsHref,
   hasActiveFilters,
   parseGigFeedFilters,
   toGigListQuery,
@@ -54,7 +55,17 @@ export default async function GigsPage({ searchParams }: { searchParams: Promise
             </div>
 
             {page.data.length === 0 ? (
-              <FeedEmpty filtered={hasActiveFilters(filters)} />
+              // An empty page with matches behind it is a POSITION problem,
+              // not a filter one — a stale page-three link, or a cursor whose
+              // anchor row has since been taken. Saying "nothing matches" there
+              // would be false, and clearing the filters would throw away the
+              // search that did match. `gigsHref` with no changes rewinds both
+              // position keys and keeps every filter.
+              page.total > 0 ? (
+                <FeedPastEnd href={gigsHref(filters)} total={page.total} />
+              ) : (
+                <FeedEmpty filtered={hasActiveFilters(filters)} />
+              )
             ) : (
               <>
                 <ul className={FEED_GRID_CLASS}>

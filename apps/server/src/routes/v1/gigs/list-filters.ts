@@ -168,16 +168,31 @@ export function proximityCondition(query: ListQuery): SQL | null {
 }
 
 /**
- * Ordering. An explicit `sort` wins; otherwise a search orders by RELEVANCE
- * and everything else by recency. Relevance is only meaningful when there is
- * a query to rank against, which is why it is not a `sort` value.
+ * Ordering, always TOTAL. An explicit `sort` wins; otherwise a search orders
+ * by RELEVANCE and everything else by recency. Relevance is only meaningful
+ * when there is a query to rank against, which is why it is not a `sort` value.
+ *
+ * Every ordering ends in the primary key, and that is correctness rather than
+ * tidiness: each leading expression ties heavily — 25 USDC is the commonest
+ * gig amount there is, `ts_rank` quantises, and `created_at` collides on bulk
+ * inserts — so on its own none of them is a total order. Postgres may then
+ * return tied rows in a different sequence per query (the planner resizes its
+ * top-N heap as the LIMIT+OFFSET window grows), and LIMIT/OFFSET across that
+ * shows one gig on two pages while never showing another. Measured on 200 tied
+ * rows read as three pages of twenty: 60 rows returned, 58 distinct. Pinned by
+ * test/integration/gig-feed-sort-ordering.test.ts.
+ *
+ * `desc(escrows.id)` matches the tiebreaker the keyset cursor already orders
+ * and compares by (see the feed handler and gig-feed-cursor), so the two paging
+ * modes agree on what "next" means.
  */
-export function listOrderBy(query: ListQuery): SQL {
+export function listOrderBy(query: ListQuery): SQL[] {
   const { sort, q } = query
-  if (sort === 'amount_asc') return asc(escrows.amount_raw)
-  if (sort === 'amount_desc') return desc(escrows.amount_raw)
-  if (q !== undefined && q.trim() !== '') return desc(gigSearchRank(q))
-  return desc(escrows.created_at)
+  const tiebreak = desc(escrows.id)
+  if (sort === 'amount_asc') return [asc(escrows.amount_raw), tiebreak]
+  if (sort === 'amount_desc') return [desc(escrows.amount_raw), tiebreak]
+  if (q !== undefined && q.trim() !== '') return [desc(gigSearchRank(q)), tiebreak]
+  return [desc(escrows.created_at), tiebreak]
 }
 
 /**

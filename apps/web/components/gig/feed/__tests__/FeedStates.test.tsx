@@ -1,9 +1,14 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { FeedEmpty, FeedError, FeedSkeleton } from '@/components/gig/feed/FeedStates'
+import { FeedEmpty, FeedError, FeedPastEnd, FeedSkeleton } from '@/components/gig/feed/FeedStates'
 import { FeedPager } from '@/components/gig/feed/FeedPager'
 import { FEED_COPY } from '@/components/gig/feed/copy'
-import { GIGS_PAGE_SIZE, parseGigFeedFilters, type RawSearchParams } from '@/lib/gigs/search-params'
+import {
+  GIGS_PAGE_SIZE,
+  gigsHref,
+  parseGigFeedFilters,
+  type RawSearchParams,
+} from '@/lib/gigs/search-params'
 
 const filters = (params: RawSearchParams = {}) => parseGigFeedFilters(params, new Set())
 
@@ -35,6 +40,49 @@ describe('FeedEmpty', () => {
     render(<FeedEmpty filtered={false} />)
     expect(screen.getByText(FEED_COPY.empty.bareTitle)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: FEED_COPY.empty.action })).not.toBeInTheDocument()
+  })
+})
+
+describe('FeedPastEnd', () => {
+  it('does NOT claim the filters matched nothing when they matched something', () => {
+    // The state this replaces: a stale page-three link lands on an empty page
+    // while `total` still reports twenty matches, and FeedEmpty told the
+    // reader "no gigs match these filters" about a query that plainly did.
+    render(<FeedPastEnd href="/gigs?q=tiler" total={20} />)
+    expect(screen.queryByText(FEED_COPY.empty.title)).not.toBeInTheDocument()
+    expect(screen.getByText(FEED_COPY.pastEnd.title)).toBeInTheDocument()
+    expect(screen.getByText(FEED_COPY.pastEnd.body(20))).toBeInTheDocument()
+  })
+
+  it('rewinds the POSITION and keeps the search, rather than clearing everything', () => {
+    render(<FeedPastEnd href="/gigs?q=tiler" total={20} />)
+    expect(screen.getByRole('link', { name: FEED_COPY.pastEnd.action })).toHaveAttribute(
+      'href',
+      '/gigs?q=tiler',
+    )
+  })
+
+  it('counts one match as one gig', () => {
+    render(<FeedPastEnd href="/gigs?q=tiler" total={1} />)
+    expect(screen.getByText(/\b1 gig\b/)).toBeInTheDocument()
+  })
+
+  it('does not claim a search the reader never made', () => {
+    // The bare recency feed reaches this too, via a spent cursor — so the copy
+    // has to be true with no filters set at all.
+    render(<FeedPastEnd href="/gigs" total={20} />)
+    const body = screen.getByText(FEED_COPY.pastEnd.body(20))
+    expect(body.textContent).not.toMatch(/\bthis search\b/i)
+    expect(body.textContent).not.toMatch(/your filters are\b/i)
+  })
+})
+
+describe('the page rewinds to the same query, both paging modes', () => {
+  it('drops a spent cursor AND a stale offset while keeping every filter', () => {
+    // This is the href the page hands FeedPastEnd. It has to work for the
+    // cursor feed (anchor row taken) and the offset feed (page past the end).
+    const stale = filters({ q: 'tiler', category: 'photo', cursor: 'spent', offset: '80' })
+    expect(gigsHref(stale)).toBe('/gigs?category=photo&q=tiler')
   })
 })
 

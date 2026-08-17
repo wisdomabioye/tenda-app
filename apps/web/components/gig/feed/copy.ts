@@ -54,6 +54,20 @@ export const FEED_COPY = {
     bareBody:
       'Every gig here is funded before it is listed, so the feed fills up as posters lock their escrows. Check back shortly.',
   },
+  /**
+   * Matched rows exist — this page just sits past the last of them.
+   *
+   * Worded for BOTH ways in, because both are reachable: a stale offset on a
+   * searched feed and a spent cursor on the bare one. So it says "this view"
+   * rather than "this search", and promises only that nothing was cleared —
+   * which is true whether or not anything was set.
+   */
+  pastEnd: {
+    title: 'You are past the last page',
+    body: (total: number) =>
+      `This view still has ${total === 1 ? '1 gig' : `${total} gigs`} in it, but they all sit on earlier pages — gigs get taken while you browse. Nothing you searched for or filtered has been cleared.`,
+    action: 'Back to the first page',
+  },
   error: {
     title: 'We could not load the feed',
     body: 'The gig index did not respond. Nothing is wrong with your escrow or your balance — this is a read failure only.',

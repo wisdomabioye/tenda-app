@@ -123,10 +123,19 @@ describe('gigTerms', () => {
     expect(labels).toEqual(['Payment', 'Chain', 'Location'])
   })
 
-  it('states the deadline in a FIXED zone, so server and client agree', () => {
-    // Without an explicit timeZone the server renders one moment and the
-    // hydrating client renders another — on a deadline, a different moment.
-    expect(labelOf('Accepting until')?.value).toContain('UTC')
+  it('states the deadline in a FIXED zone, and NAMES it', () => {
+    // This renders on the server, so an unpinned zone makes the deadline a
+    // property of the container's TZ rather than of the gig. And an
+    // unlabelled wall-clock time is worse than a labelled one a reader has to
+    // convert: on a deadline, "14:00" with no zone is a guess.
+    const value = labelOf('Accepting until')?.value
+    expect(value).toContain('UTC')
+    // The instant itself, not just the suffix. The fixture deadline is
+    // 2030-01-01T12:00:00Z, so a formatter that fell back to the machine's TZ
+    // prints a different wall clock anywhere but UTC — which is what a
+    // container in Lagos or a developer's laptop would do.
+    expect(value).toContain('12:00')
+    expect(value).toContain('1 Jan')
   })
 
   it('reads NO party-scoped field — a hostile server cannot leak through it', () => {

@@ -51,6 +51,15 @@ export function FeedKeyboard() {
         ? Math.min(current + 1, cards.length - 1)
         : Math.max(current - 1, 0)
 
+      // The key is only ours when the walk actually moves. ArrowDown/ArrowUp
+      // are how a great many readers scroll, and the clamps mean the ends of
+      // the list produce no movement — so consuming the key there would leave
+      // someone stuck at the last card, unable to scroll on to the pager or
+      // the footer. The enhancement would have taken the page's scrolling away
+      // and given nothing back. j/k fall through harmlessly for the same
+      // reason: they scroll nothing, so nothing is lost by not claiming them.
+      if (next === current) return
+
       event.preventDefault()
       cards[next].focus()
       // `nearest` only scrolls when the card is actually out of view, so a

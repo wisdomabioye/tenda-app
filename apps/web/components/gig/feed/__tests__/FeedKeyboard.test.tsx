@@ -59,6 +59,38 @@ describe('FeedKeyboard', () => {
     expect(document.activeElement).toBe(screen.getByText('first'))
   })
 
+  it('hands the key back to the browser when the walk cannot move', () => {
+    // ArrowDown is how a great many readers scroll a page. The walk binds it,
+    // so at the LAST card — where the walk has nowhere to go — swallowing it
+    // would leave them unable to scroll down to the pager, the amount note or
+    // the footer: the enhancement would have taken the page's scrolling away
+    // and given nothing back. Same at the top with ArrowUp.
+    // `fireEvent` returns false when a handler called preventDefault.
+    render(<Feed />)
+    screen.getByText('third').focus()
+    expect(fireEvent.keyDown(document, { key: 'ArrowDown' })).toBe(true)
+
+    screen.getByText('first').focus()
+    expect(fireEvent.keyDown(document, { key: 'ArrowUp' })).toBe(true)
+  })
+
+  it('DOES consume the key when it moves, so the page does not scroll as well', () => {
+    render(<Feed />)
+    screen.getByText('first').focus()
+    expect(fireEvent.keyDown(document, { key: 'ArrowDown' })).toBe(false)
+    expect(document.activeElement).toBe(screen.getByText('second'))
+  })
+
+  it('consumes the first press from nowhere, in both directions', () => {
+    // -1 → 0 is a real move, so it is the walk's key to take.
+    const { unmount } = render(<Feed />)
+    expect(fireEvent.keyDown(document, { key: 'ArrowDown' })).toBe(false)
+    unmount()
+
+    render(<Feed />)
+    expect(fireEvent.keyDown(document, { key: 'ArrowUp' })).toBe(false)
+  })
+
   it('clamps at both ends rather than wrapping', () => {
     render(<Feed />)
     for (let i = 0; i < 9; i += 1) press('j')
