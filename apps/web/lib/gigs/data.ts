@@ -18,6 +18,51 @@ export function listGigs(query: GigListQuery): Promise<PaginatedResponse<GigSumm
 }
 
 /**
+ * The feed read as the PAGE needs it: one fetch per request, shared with
+ * `generateMetadata`, and `null` rather than a throw when the index is down.
+ *
+ * Null, not an exception, because the alternative is the route error boundary
+ * — and that is a CLIENT component, so with JavaScript off a failed read
+ * rendered a blank page (see FeedErrorStatic). Answering the same `null` to
+ * both callers lets the page render an honest state server-side and lets
+ * `generateMetadata` mark that render `noindex`, which a 200 carrying an error
+ * message otherwise would not be.
+ *
+ * `cache()` keys on argument identity, and the two callers each build their own
+ * query object — so the KEY is the serialised query and the object is rebuilt
+ * inside. `toGigListQuery` writes its fields in a fixed literal order, which is
+ * what makes the serialisation stable; it is the single producer of this shape.
+ *
+ * The dedupe is a NEXT-RUNTIME property — React `cache()` needs a request
+ * scope, which the unit harness does not provide, so it is not asserted there.
+ * Measured against a running production build instead: one `/gigs` render, one
+ * `/v1/gigs` hit, with `generateMetadata` and the page both calling this.
+ */
+const listGigsByKey = cache(
+  async (key: string): Promise<PaginatedResponse<GigSummary> | null> => {
+    try {
+      const page = await api.gigs.list(JSON.parse(key) as GigListQuery)
+      // The ONE assumption the page then dereferences. Deliberately not schema
+      // validation of the whole envelope — the wire contract is held by types
+      // and by a stub typed against them (e2e/fixtures/gigs.ts), and runtime
+      // validation everywhere would be a different architecture. But a 200
+      // carrying valid JSON of the WRONG shape — a proxy's own response, a
+      // stale NEXT_PUBLIC_API_URL — reaches `page.data.map` and throws inside
+      // the render, which lands on the client error boundary and so shows a
+      // reader with no JavaScript a blank page. Measured. One guard converts
+      // that into the honest error state the other failures already get.
+      return Array.isArray(page?.data) ? page : null
+    } catch {
+      return null
+    }
+  },
+)
+
+export function listGigsOnce(query: GigListQuery): Promise<PaginatedResponse<GigSummary> | null> {
+  return listGigsByKey(JSON.stringify(query))
+}
+
+/**
  * Wrapped in React cache() so generateMetadata and the page body share ONE
  * fetch per request (the OG tags must come from the same read that renders
  * the body). Plain fetch memoization is not relied on: api/request attaches a

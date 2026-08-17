@@ -4,10 +4,15 @@ import { FeedHero } from '@/components/gig/feed/FeedHero'
 import { FeedKeyboard } from '@/components/gig/feed/FeedKeyboard'
 import { FeedPager } from '@/components/gig/feed/FeedPager'
 import { FeedRail } from '@/components/gig/feed/FeedRail'
-import { FEED_GRID_CLASS, FeedEmpty, FeedPastEnd } from '@/components/gig/feed/FeedStates'
+import {
+  FEED_GRID_CLASS,
+  FeedEmpty,
+  FeedErrorStatic,
+  FeedPastEnd,
+} from '@/components/gig/feed/FeedStates'
 import { GigCard } from '@/components/gig/feed/GigCard'
 import { FEED_COPY } from '@/components/gig/feed/copy'
-import { listEnabledChains, listGigs } from '@/lib/gigs/data'
+import { listEnabledChains, listGigsOnce } from '@/lib/gigs/data'
 import {
   gigsHref,
   hasActiveFilters,
@@ -37,10 +42,15 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const [params, chains] = await Promise.all([searchParams, listEnabledChains()])
   const filters = parseGigFeedFilters(params, new Set(chains.map((chain) => chain.id)))
+  const page = await listGigsOnce(toGigListQuery(filters))
   return {
     title: 'Browse gigs',
     description: APP_INFO.description,
     alternates: { canonical: gigsHref(filters) },
+    // An outage renders an honest error state at HTTP 200 (see the page), and
+    // a 200 is indexable. This is the only thing standing between a crawler
+    // and "We could not load the feed" as the front door's cached content.
+    ...(page === null ? { robots: { index: false, follow: true } } : {}),
   }
 }
 
@@ -53,7 +63,21 @@ export async function generateMetadata({
 export default async function GigsPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const [params, chains] = await Promise.all([searchParams, listEnabledChains()])
   const filters = parseGigFeedFilters(params, new Set(chains.map((chain) => chain.id)))
-  const page = await listGigs(toGigListQuery(filters))
+  const page = await listGigsOnce(toGigListQuery(filters))
+
+  // Handled HERE rather than by `error.tsx`, which is a client component: its
+  // fallback arrives with the hydration script, so a failed read rendered a
+  // blank page for a reader with no JavaScript — measured, on the one surface
+  // whose premise is that it works without the bundle. `error.tsx` stays for
+  // anything thrown elsewhere in the tree. `generateMetadata` marks this
+  // render noindex, since it answers 200.
+  if (page === null) {
+    return (
+      <div className="mx-auto w-full max-w-content px-6 pb-20 pt-10">
+        <FeedErrorStatic href={gigsHref(filters)} />
+      </div>
+    )
+  }
 
   const heading = filters.q === null ? FEED_COPY.feed.heading : FEED_COPY.feed.searchHeading
 

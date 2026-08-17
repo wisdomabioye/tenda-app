@@ -6,7 +6,19 @@ import type { GigDetail, GigSummary, UserRef } from '@tenda/shared'
  * serves them ON PURPOSE (a hostile-server stance) and the e2e asserts the
  * anonymous pages never render them, proving the page treats party fields as
  * absent rather than trusting the server to withhold them.
+ *
+ * Everything shared between the stub and the specs lives here, and not in
+ * stub-api.ts, because that module opens a listener at import time — importing
+ * even a constant from it boots a second stub and the run dies on EADDRINUSE.
  */
+
+/**
+ * Search term the stub answers with a 500, so a spec can exercise the
+ * feed-is-down path. Keyed off the QUERY rather than a server flag to keep the
+ * suite parallel-safe: only the request that asks for it fails.
+ */
+export const E2E_FAIL_QUERY = '__e2e_feed_down__'
+
 export const LEAKED_COUNTERPARTY_NAME = 'LEAKED-COUNTERPARTY-NAME'
 export const LEAKED_COUNTERPARTY_ID = 'leaked-counterparty-id-000'
 

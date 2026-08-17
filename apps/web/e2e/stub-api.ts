@@ -21,6 +21,7 @@ import { hasCompleteName } from '@tenda/shared'
 import {
   deliveryGig,
   deliveryGigDetail,
+  E2E_FAIL_QUERY,
   photoGig,
   unbreakableGig,
   unbreakableGigDetail,
@@ -95,6 +96,13 @@ function handlePublic(url: URL): StubResponse | null {
     // no way past its first page and nothing caught it.
     if (cursor !== null && (sort !== null || (q ?? '') !== '')) {
       return errorEnvelope(400, 'Bad Request', 'cursor requires recency ordering', 'VALIDATION_ERROR')
+    }
+
+    // Failure injection, keyed off the QUERY rather than a module flag so the
+    // e2e suite stays parallel-safe: `?q=<E2E_FAIL_QUERY>` is the one request
+    // that fails, and only for the test that asks for it.
+    if (q === E2E_FAIL_QUERY) {
+      return errorEnvelope(500, 'Internal Server Error', 'gig index down', 'INTERNAL')
     }
 
     let data = GIGS

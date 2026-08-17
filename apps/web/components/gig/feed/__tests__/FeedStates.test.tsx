@@ -1,6 +1,12 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { FeedEmpty, FeedError, FeedPastEnd, FeedSkeleton } from '@/components/gig/feed/FeedStates'
+import {
+  FeedEmpty,
+  FeedError,
+  FeedErrorStatic,
+  FeedPastEnd,
+  FeedSkeleton,
+} from '@/components/gig/feed/FeedStates'
 import { FeedPager } from '@/components/gig/feed/FeedPager'
 import { FEED_COPY } from '@/components/gig/feed/copy'
 import {
@@ -98,6 +104,34 @@ describe('FeedError', () => {
     render(<FeedError retry={retry} />)
     fireEvent.click(screen.getByRole('button', { name: FEED_COPY.error.action }))
     expect(retry).toHaveBeenCalledOnce()
+  })
+})
+
+describe('FeedErrorStatic — the server-rendered twin', () => {
+  it('says the same thing, with no JavaScript needed to say it', () => {
+    // `error.tsx` is a client component, so its fallback arrives with the
+    // hydration script: a failed read rendered a completely BLANK page with
+    // JavaScript off — measured — on the surface whose whole premise is that
+    // it works without the bundle, at the moment a reader most needs telling
+    // that their escrow is untouched.
+    render(<FeedErrorStatic href="/gigs?q=tiler" />)
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByText(FEED_COPY.error.body)).toBeInTheDocument()
+  })
+
+  it('retries through a plain LINK, keeping the reader on their own view', () => {
+    // A fresh GET is a real retry server-side, and it carries the filters —
+    // which a bare link to /gigs would drop.
+    render(<FeedErrorStatic href="/gigs?q=tiler" />)
+    const action = screen.getByRole('link', { name: new RegExp(FEED_COPY.error.action) })
+    expect(action).toHaveAttribute('href', '/gigs?q=tiler')
+    expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('and the boundary twin still uses a callback, not a link', () => {
+    render(<FeedError retry={vi.fn()} />)
+    expect(screen.getByRole('button', { name: FEED_COPY.error.action })).toBeInTheDocument()
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 })
 

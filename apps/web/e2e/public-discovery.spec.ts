@@ -3,6 +3,7 @@ import { CATEGORY_LABELS } from '@tenda/shared'
 import { FEED_COPY } from '../components/gig/feed/copy'
 import {
   deliveryGig,
+  E2E_FAIL_QUERY,
   deliveryGigDetail,
   LEAKED_COUNTERPARTY_ID,
   LEAKED_COUNTERPARTY_NAME,
@@ -117,6 +118,45 @@ test.describe('feed — /gigs', () => {
     expect(await canonicalOf('/gigs?category=photo&offset=20')).toMatch(
       /\/gigs\?category=photo$/,
     )
+  })
+
+  test.describe('when the gig index is down', () => {
+    const DOWN = `/gigs?q=${E2E_FAIL_QUERY}`
+
+    test.describe('with JavaScript disabled', () => {
+      test.use({ javaScriptEnabled: false })
+
+      test('says so, instead of rendering nothing at all', async ({ page }) => {
+        // `error.tsx` is a client component: its fallback is swapped in by the
+        // hydration script, so before the page handled this itself a failed
+        // read rendered a BLANK page with JavaScript off — on the surface whose
+        // premise is that it works without the bundle, at the moment a reader
+        // most needs to be told their escrow is untouched.
+        await page.goto(DOWN)
+        await expect(page.getByRole('alert')).toContainText(FEED_COPY.error.title)
+        await expect(page.getByRole('alert')).toContainText('read failure only')
+        // The retry keeps the reader on their own view rather than dropping
+        // them at the bare feed.
+        await expect(page.getByRole('link', { name: new RegExp(FEED_COPY.error.action) })).toHaveAttribute(
+          'href',
+          DOWN,
+        )
+      })
+    })
+
+    test('answers 200 but forbids indexing — the front door must not cache as an error', async ({ request }) => {
+      const response = await request.get(DOWN)
+      expect(response.status()).toBe(200)
+      expect(await response.text()).toContain('name="robots" content="noindex')
+    })
+
+    test('a healthy view alongside it is unaffected', async ({ request }) => {
+      // Failure is keyed off the query, not a server flag, so the suite stays
+      // parallel-safe and this proves it.
+      const html = await (await request.get('/gigs')).text()
+      expect(html).toContain(deliveryGig.title)
+      expect(html).not.toContain(FEED_COPY.error.title)
+    })
   })
 
   test('category filter is a URL, and it filters', async ({ request }) => {

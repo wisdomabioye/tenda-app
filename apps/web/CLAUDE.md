@@ -46,6 +46,17 @@ door; `e2e/public-discovery.spec.ts` runs it with `javaScriptEnabled: false` as 
 tripwire. A client-fetched surface (`/home`) may show `FeedSkeleton` freely — no Suspense
 is involved there.
 
+**The same trap has a second form: `error.tsx` is a client component too.** Its
+fallback is swapped in by the hydration script, so a server-side read failure
+rendered a completely blank page with JavaScript off — measured — on the one
+surface whose premise is that it works without the bundle, at the moment a
+reader most needs telling their escrow is untouched. So a public page **handles
+its own read failure**: `listGigsOnce` answers `null` instead of throwing, the
+page renders `FeedErrorStatic` server-side, and `generateMetadata` marks that
+render `noindex` because it necessarily answers HTTP 200. `error.tsx` stays for
+anything thrown elsewhere in the tree. The rule for both forms: *if it only
+appears after hydration, an anonymous visitor may never see it.*
+
 Two more rules this shell learned the hard way, both measured in a real browser:
 
 - **The public header row must fit 320px.** It cannot wrap and nothing in it

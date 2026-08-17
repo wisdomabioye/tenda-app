@@ -7,6 +7,7 @@
  * here is reachable from outside the feed.
  */
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 import { AlertTriangle, RotateCw, SearchX, Undo2 } from 'lucide-react'
 import { GIGS_PAGE_SIZE } from '@/lib/gigs/search-params'
 import { FEED_COPY } from './copy'
@@ -101,10 +102,16 @@ export function FeedPastEnd({ href, total }: { href: string; total: number }) {
  * and it is the right copy: someone whose money is in escrow needs to know an
  * error on this screen has nothing to do with their funds.
  *
- * `retry` comes from the error boundary; the comp links back to /gigs, which
- * would not re-run a failed render.
+ * Two shapes, because the two places this appears differ in ONE way: whether a
+ * retry callback exists. Inside a client error boundary it does (`reset`).
+ * Server-side it does not, and there the retry is simply a fresh GET — which
+ * is a real retry, not the no-op the comp's "back to /gigs" link would be
+ * inside the boundary.
  */
-export function FeedError({ retry }: { retry: () => void }) {
+const ACTION_CLASS =
+  'mt-5 inline-flex items-center gap-2 rounded-control bg-feedback-danger-base px-4 py-2.5 text-sm font-bold text-content-inverse hover:brightness-95'
+
+function FeedErrorShell({ action }: { action: ReactNode }) {
   return (
     <div
       role="alert"
@@ -118,15 +125,47 @@ export function FeedError({ retry }: { retry: () => void }) {
         <p className="mt-2 max-w-[52ch] text-feedback-danger-text opacity-85">
           {FEED_COPY.error.body}
         </p>
-        <button
-          type="button"
-          onClick={retry}
-          className="mt-5 inline-flex items-center gap-2 rounded-control bg-feedback-danger-base px-4 py-2.5 text-sm font-bold text-content-inverse hover:brightness-95"
-        >
+        {action}
+      </div>
+    </div>
+  )
+}
+
+/** Inside the client error boundary, where `reset` re-runs the segment. */
+export function FeedError({ retry }: { retry: () => void }) {
+  return (
+    <FeedErrorShell
+      action={
+        <button type="button" onClick={retry} className={ACTION_CLASS}>
           <RotateCw size={16} aria-hidden />
           {FEED_COPY.error.action}
         </button>
-      </div>
-    </div>
+      }
+    />
+  )
+}
+
+/**
+ * The SERVER-rendered twin, and the reason it exists: `error.tsx` is a client
+ * component, so its fallback is swapped in by the hydration script. With
+ * JavaScript off, a failed feed read rendered a completely BLANK page —
+ * measured — on the one surface whose whole premise is that it works without
+ * the bundle, at the exact moment a reader needs to be told their escrow is
+ * untouched. Same failure shape as the `loading.tsx` Suspense trap this app
+ * already documents.
+ *
+ * `href` is the view the reader was on, so a retry keeps their filters — which
+ * `reset()` also does, and a bare link to /gigs would not.
+ */
+export function FeedErrorStatic({ href }: { href: string }) {
+  return (
+    <FeedErrorShell
+      action={
+        <Link href={href} className={ACTION_CLASS}>
+          <RotateCw size={16} aria-hidden />
+          {FEED_COPY.error.action}
+        </Link>
+      }
+    />
   )
 }
