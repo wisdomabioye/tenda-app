@@ -12,7 +12,7 @@
  * Reviews are deliberately NOT here. They are public on purpose.
  */
 import type { ReactNode } from 'react'
-import { displayName } from '@tenda/shared'
+import { displayName, formatRelativeDayWithTime } from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
 import { DOSSIER_COPY } from './copy'
 
@@ -26,7 +26,14 @@ export interface DossierParty {
 export interface DossierProof {
   id: string
   label: string
+  /** ISO; formatted for display by the section, never printed raw. */
   uploadedAt?: string | null
+  /**
+   * Where the file itself is. A party approving or disputing has to be able to
+   * OPEN the evidence — a list that only says one exists is the half of the
+   * information that cannot settle anything.
+   */
+  href?: string | null
 }
 
 export interface PartyScopedProps {
@@ -39,6 +46,8 @@ export interface PartyScopedProps {
    * outsider gets `false` and sees nothing.
    */
   isAssigned?: boolean
+  /** Shared with the timeline, so one escrow stamps its events one way. */
+  formatStamp?: (iso: string) => string
 }
 
 function Heading({ children }: { children: ReactNode }) {
@@ -54,6 +63,7 @@ export function PartyScopedSection({
   proofs = null,
   dispute = null,
   isAssigned = false,
+  formatStamp = formatRelativeDayWithTime,
 }: PartyScopedProps) {
   const hasCounterparty = counterparty !== null && counterparty !== undefined
   const hasProofs = proofs !== null && proofs !== undefined
@@ -103,10 +113,23 @@ export function PartyScopedSection({
                   key={proof.id}
                   className="rounded-control border border-border-subtle bg-surface-card px-4 py-2.5 text-[13px] text-content-primary"
                 >
-                  {proof.label}
+                  {proof.href == null || proof.href === '' ? (
+                    proof.label
+                  ) : (
+                    // New tab: the file is hosted media, and losing the
+                    // escrow you are mid-decision on to open it is worse.
+                    <a
+                      href={proof.href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-brand-primary underline-offset-2 hover:underline"
+                    >
+                      {proof.label}
+                    </a>
+                  )}
                   {proof.uploadedAt != null && (
                     <span className="ml-2 font-numeric text-[11px] text-content-tertiary">
-                      {proof.uploadedAt}
+                      {formatStamp(proof.uploadedAt)}
                     </span>
                   )}
                 </li>

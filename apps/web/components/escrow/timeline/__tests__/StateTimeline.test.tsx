@@ -1,6 +1,6 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { ESCROW_BRANCH_STATUSES, STATUS_LABEL } from '@tenda/shared'
+import { ESCROW_BRANCH_STATUSES, STATUS_LABEL, formatRelativeDayWithTime } from '@tenda/shared'
 
 import { STATE_TIMELINE_COPY, StateTimeline } from '@/components/escrow/timeline'
 
@@ -35,7 +35,10 @@ describe('StateTimeline — the spine', () => {
 })
 
 describe('StateTimeline — stamps', () => {
-  it('shows a stamp only where the wire carries one', () => {
+  it('shows a stamp only where the wire carries one, and never the RAW iso', () => {
+    // The default used to be the raw value, so every caller had to remember to
+    // pass a formatter — and the first one that forgot printed
+    // "2026-01-01T00:00:00Z" at a reader (the workspace dossier, #17 review).
     render(
       <StateTimeline
         escrow={{
@@ -45,8 +48,9 @@ describe('StateTimeline — stamps', () => {
         }}
       />,
     )
-    expect(screen.getByText('2026-01-01T00:00:00Z')).toBeInTheDocument()
-    expect(screen.getByText('2026-01-02T00:00:00Z')).toBeInTheDocument()
+    expect(screen.queryByText('2026-01-01T00:00:00Z')).toBeNull()
+    expect(screen.getByText(formatRelativeDayWithTime('2026-01-01T00:00:00Z'))).toBeInTheDocument()
+    expect(screen.getByText(formatRelativeDayWithTime('2026-01-02T00:00:00Z'))).toBeInTheDocument()
   })
 
   it('renders no stamps at all when the wire carries none', () => {

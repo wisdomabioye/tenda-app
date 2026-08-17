@@ -1,6 +1,8 @@
 import { signInToHome } from './fixtures/sign-in'
 import { expect, test } from '@playwright/test'
 import { deliveryGig, photoGig } from './fixtures/gigs'
+import { GIG_DETAIL_COPY } from '../components/gig/detail/copy'
+import { MY_GIGS_COPY } from '../components/gig/my-gigs/copy'
 
 /**
  * S4.4/S4.6 detail surface against the stub API: the bearer refetch swaps
@@ -122,6 +124,20 @@ test.describe('My Gigs as a list column (#17)', () => {
     await page.goto('/my-gigs/drafts')
     await expect(page.locator('[data-list]')).toBeVisible()
     await expect(page.getByRole('heading', { name: 'Drafts' })).toBeVisible()
+  })
+
+  test('a gig that cannot be READ says so instead of spinning', async ({ page }) => {
+    // Found by opening a gig the stub has no detail for: the pane rendered a
+    // spinner for ever. A failed read is a state — a 404, a takedown, a
+    // dropped connection — and the reader needs a way out of it.
+    await signInToHome(page)
+    await page.goto('/my-gigs/no-such-escrow-at-all')
+    await expect(page.getByText(GIG_DETAIL_COPY.unavailableTitle)).toBeVisible()
+    await expect(
+      page.getByRole('button', { name: new RegExp(GIG_DETAIL_COPY.unavailableAction) }),
+    ).toBeVisible()
+    await page.getByRole('link', { name: MY_GIGS_COPY.backToList }).click()
+    await expect(page).toHaveURL(/\/my-gigs$/)
   })
 
   test('the dossier says each thing ONCE', async ({ page }) => {

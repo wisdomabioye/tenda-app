@@ -64,9 +64,18 @@ describe('dossierProofsFor', () => {
   it('labels each proof with the SHARED vocabulary', () => {
     expect(
       dossierProofsFor([
-        { id: 'p1', type: 'image', uploaded_at: '2026-08-16T10:00:00.000Z' },
+        { id: 'p1', type: 'image', uploaded_at: '2026-08-16T10:00:00.000Z', url: 'https://media/1' },
       ]),
-    ).toEqual([{ id: 'p1', label: PROOF_TYPE_LABEL.image, uploadedAt: '2026-08-16T10:00:00.000Z' }])
+    ).toEqual([
+      {
+        id: 'p1',
+        label: PROOF_TYPE_LABEL.image,
+        uploadedAt: '2026-08-16T10:00:00.000Z',
+        // The file itself: a party approving or disputing has to be able to
+        // OPEN the evidence, not just be told one exists.
+        href: 'https://media/1',
+      },
+    ])
   })
 
   it('takes the stamp in EITHER form the type and the wire disagree about', () => {
@@ -74,11 +83,11 @@ describe('dossierProofsFor', () => {
     // Date; JSON has already made it a string by the time a browser sees it.
     // Handling only one of them silently drops every stamp.
     const asDate = dossierProofsFor([
-      { id: 'p1', type: 'document', uploaded_at: new Date('2026-08-16T10:00:00.000Z') },
+      { id: 'p1', type: 'document', uploaded_at: new Date('2026-08-16T10:00:00.000Z'), url: 'https://media/1' },
     ])
     expect(asDate?.[0].uploadedAt).toBe('2026-08-16T10:00:00.000Z')
 
-    const missing = dossierProofsFor([{ id: 'p2', type: 'document', uploaded_at: null }])
+    const missing = dossierProofsFor([{ id: 'p2', type: 'document', uploaded_at: null, url: 'https://media/2' }])
     expect(missing?.[0].uploadedAt).toBeNull()
   })
 })

@@ -10,7 +10,7 @@
  * so. Each step's state is in its text, not only its colour, so the timeline
  * survives being read aloud or seen without colour.
  */
-import { buildEscrowTimeline, STATUS_LABEL, type EscrowTimelineInput } from '@tenda/shared'
+import { formatRelativeDayWithTime, buildEscrowTimeline, STATUS_LABEL, type EscrowTimelineInput } from '@tenda/shared'
 import { cn } from '@/lib/cn'
 import { STATE_TIMELINE_COPY, timelineBranchCopy } from './copy'
 
@@ -22,10 +22,15 @@ const DOT_BY_STATE = {
 
 export function StateTimeline({
   escrow,
-  formatStamp,
+  formatStamp = formatRelativeDayWithTime,
 }: {
   escrow: EscrowTimelineInput
-  /** Renders an ISO stamp for display; omit to show the raw value. */
+  /**
+   * Renders an ISO stamp. Defaults to the shared formatter rather than to the
+   * RAW value: a default that prints `2026-08-16T10:00:00.000Z` at a reader is
+   * one every caller has to remember to override, and the first one that
+   * forgot shipped it (the workspace dossier, #17 review).
+   */
   formatStamp?: (iso: string) => string
 }) {
   const { spine, branch } = buildEscrowTimeline(escrow)
@@ -74,7 +79,7 @@ export function StateTimeline({
                 </p>
                 {node.stamp !== null && (
                   <p className="mt-1 font-numeric text-xs leading-4 text-content-tertiary">
-                    {formatStamp === undefined ? node.stamp : formatStamp(node.stamp)}
+                    {formatStamp(node.stamp)}
                   </p>
                 )}
               </div>

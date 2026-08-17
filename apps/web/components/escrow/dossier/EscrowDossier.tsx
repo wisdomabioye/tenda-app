@@ -39,6 +39,8 @@ export function EscrowDossier({
   facts,
   banner,
   children,
+  // Undefined is fine: both halves default to the SAME shared formatter, so an
+  // escrow cannot stamp its timeline one way and its proofs another.
   formatStamp,
   ...partyScoped
 }: EscrowDossierProps) {
@@ -51,7 +53,7 @@ export function EscrowDossier({
 
       <MoneyBlock amountRaw={amountRaw} asset={asset} facts={facts} />
       <StateTimeline escrow={escrow} formatStamp={formatStamp} />
-      <PartyScopedSection {...partyScoped} />
+      <PartyScopedSection {...partyScoped} formatStamp={formatStamp} />
       {children}
     </article>
   )

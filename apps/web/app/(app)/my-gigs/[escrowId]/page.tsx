@@ -23,13 +23,19 @@
  *     and — until the gate remembers where they were going (task #27) — not
  *     on the gig afterwards.
  */
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
+import { useEscrowLiveRefresh } from '@/hooks/escrow/live'
 import { EscrowDossier } from '@/components/escrow/dossier'
 import { GigEscrowActions } from '@/components/gig/detail/GigEscrowActions'
+import Link from 'next/link'
+import { RotateCw } from 'lucide-react'
 import { Spinner } from '@/components/ui/Spinner'
+import { ALERT_ACTION_CLASS, AlertPanel } from '@/components/ui/AlertPanel'
+import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
+import { MY_GIGS_COPY } from '@/components/gig/my-gigs/copy'
 import { TakedownNotice } from '@/components/gig/detail/TakedownNotice'
 import { dossierFactsFor, dossierProofsFor } from '@/components/gig/my-gigs/dossier-facts'
 
@@ -38,17 +44,64 @@ export default function MyGigDetailPage() {
   const userId = useAuthStore((s) => s.user?.id ?? null)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const gig = useGigsStore((s) => s.selectedGig)
+  const loadError = useGigsStore((s) => s.error)
   const fetchGigDetail = useGigsStore((s) => s.fetchGigDetail)
 
+  const refetch = useCallback(() => {
+    void fetchGigDetail(escrowId)
+  }, [fetchGigDetail, escrowId])
+
   useEffect(() => {
-    if (isAuthenticated) void fetchGigDetail(escrowId)
-  }, [isAuthenticated, escrowId, fetchGigDetail])
+    if (isAuthenticated) refetch()
+  }, [isAuthenticated, refetch])
+
+  // The public page follows the escrow's WS channel so the CTA bar stops
+  // offering what the counterparty has already done. This pane needs it for
+  // the same reason and had it for none — composing the ACTIONS alone left the
+  // live refresh behind in the wrapper that owns the public page's fetch.
+  // Inert until the detail lands (the hook is id-gated inside).
+  useEscrowLiveRefresh(
+    gig?.escrow_id === escrowId ? gig.escrow_id : undefined,
+    refetch,
+    gig?.escrow_id === escrowId ? gig.status : 'draft',
+  )
 
   if (!isAuthenticated) return null
 
   // The store holds ONE selected gig; while a different one is still in it the
   // pane must not render the previous escrow's money under this one's URL.
   const current = gig?.escrow_id === escrowId ? gig : null
+
+  // A failed read is a STATE, not an absence. Without this the pane spun for
+  // ever on a 404, a takedown or a dropped connection — found by opening a gig
+  // the stub has no detail for (#17 review). `gone` and transient say the same
+  // thing to the reader here: this one cannot be read, try again or go back to
+  // the list. Which of the two it was is the server's business.
+  if (current === null && loadError?.id === escrowId) {
+    return (
+      <div className="px-9 py-10">
+        <AlertPanel
+          title={GIG_DETAIL_COPY.unavailableTitle}
+          body={GIG_DETAIL_COPY.unavailableBody}
+          action={
+            <div className="flex flex-wrap items-center gap-4">
+              <button type="button" onClick={refetch} className={ALERT_ACTION_CLASS}>
+                <RotateCw size={16} aria-hidden />
+                {GIG_DETAIL_COPY.unavailableAction}
+              </button>
+              <Link
+                href="/my-gigs"
+                className="mt-5 text-sm font-semibold text-feedback-danger-text underline"
+              >
+                {MY_GIGS_COPY.backToList}
+              </Link>
+            </div>
+          }
+        />
+      </div>
+    )
+  }
+
   if (current === null) {
     return (
       <div className="flex h-full items-center justify-center py-24">

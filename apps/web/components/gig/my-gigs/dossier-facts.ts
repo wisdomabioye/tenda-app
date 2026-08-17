@@ -40,6 +40,7 @@ export interface DossierProofInput {
   id: string
   type: ProofType
   uploaded_at: Date | string | null
+  url: string
 }
 
 /**
@@ -57,6 +58,7 @@ export function dossierProofsFor(
   return proofs.map((proof) => ({
     id: proof.id,
     label: PROOF_TYPE_LABEL[proof.type],
+    href: proof.url,
     // Both forms, because the declared type and the runtime value disagree.
     uploadedAt: proof.uploaded_at instanceof Date
       ? proof.uploaded_at.toISOString()

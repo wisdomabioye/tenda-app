@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { formatAssetAmount } from '@tenda/shared'
 
 import { DOSSIER_COPY, EscrowDossier, MoneyBlock, PartyScopedSection } from '@/components/escrow/dossier'
+import { formatRelativeDayWithTime } from '@tenda/shared'
 
 const PARTY = { id: 'u2', first_name: 'Akin', last_name: 'Beela', avatar_url: null }
 
@@ -120,6 +121,51 @@ describe('PartyScopedSection — the half outsiders never receive', () => {
   it('lists evidence for a party', () => {
     render(<PartyScopedSection proofs={[{ id: 'p1', label: 'receipt.pdf' }]} />)
     expect(screen.getByText('receipt.pdf')).toBeInTheDocument()
+  })
+
+  it('lets a party OPEN the evidence, not just be told it exists', () => {
+    // Approving or disputing turns on what the proof shows. A list that only
+    // names it is the half of the information that cannot settle anything.
+    render(
+      <PartyScopedSection
+        proofs={[{ id: 'p1', label: 'receipt.pdf', href: 'https://media/receipt.pdf' }]}
+      />,
+    )
+    const link = screen.getByRole('link', { name: 'receipt.pdf' })
+    expect(link).toHaveAttribute('href', 'https://media/receipt.pdf')
+    // A new tab: losing the escrow you are mid-decision on is worse.
+    expect(link).toHaveAttribute('target', '_blank')
+  })
+
+  it('still renders a proof the wire gave no URL for', () => {
+    render(<PartyScopedSection proofs={[{ id: 'p1', label: 'receipt.pdf', href: null }]} />)
+    expect(screen.getByText('receipt.pdf')).toBeInTheDocument()
+    expect(screen.queryByRole('link')).toBeNull()
+  })
+
+  it('formats the upload stamp rather than printing the ISO at a reader', () => {
+    render(
+      <PartyScopedSection
+        proofs={[{ id: 'p1', label: 'receipt.pdf', uploadedAt: '2026-01-01T00:00:00Z' }]}
+      />,
+    )
+    expect(screen.queryByText('2026-01-01T00:00:00Z')).toBeNull()
+    expect(
+      screen.getByText(formatRelativeDayWithTime('2026-01-01T00:00:00Z')),
+    ).toBeInTheDocument()
+  })
+
+  it('stamps a proof the same way the timeline stamps its steps', () => {
+    // One escrow, one way of saying when something happened.
+    render(
+      <EscrowDossier
+        {...base}
+        escrow={{ status: 'submitted', submitted_at: '2026-01-01T00:00:00Z' }}
+        proofs={[{ id: 'p1', label: 'receipt.pdf', uploadedAt: '2026-01-01T00:00:00Z' }]}
+        formatStamp={() => 'ONE WAY'}
+      />,
+    )
+    expect(screen.getAllByText('ONE WAY')).toHaveLength(2)
   })
 })
 

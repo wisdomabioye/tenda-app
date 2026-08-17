@@ -63,6 +63,8 @@ export const MY_GIGS_COPY = {
   draftsHref: '/my-gigs/drafts',
   loadMore: 'Load more',
   loadingMore: 'Loading…',
+  /** The way back from a gig that cannot be read. */
+  backToList: 'Back to my gigs',
   emptyDetailTitle: 'Pick a gig',
   emptyDetailBody:
     'The escrow, its timeline and everything only the two of you can see — proofs, the counterparty, the dispute if there is one.',
