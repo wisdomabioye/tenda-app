@@ -140,6 +140,19 @@ test.describe('My Gigs as a list column (#17)', () => {
     await expect(page).toHaveURL(/\/my-gigs$/)
   })
 
+  test('applicants goes back to the GIG, not past it to the list', async ({ page }) => {
+    // Below 900px the column is off-screen, so the pane's own back link is the
+    // only way out — and sending it to the list skips the escrow the poster
+    // was looking at.
+    await signInToHome(page)
+    await page.setViewportSize({ width: 390, height: 800 })
+    await page.goto(`/my-gigs/${deliveryGig.escrow_id}/applicants`)
+    const back = page.locator('[data-pane-back]')
+    await expect(back).toBeVisible()
+    await back.click()
+    await expect(page).toHaveURL(new RegExp(`/my-gigs/${deliveryGig.escrow_id}$`))
+  })
+
   test('the dossier says each thing ONCE', async ({ page }) => {
     // The pane renders the party content itself — money, timeline,
     // counterparty, proofs — so composing the whole authed island beside it

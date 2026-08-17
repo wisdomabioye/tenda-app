@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_SURFACE_TITLE,
+  paneBackFor,
   selectionKey,
   surfaceTitle,
 } from '@/components/app/workspace/surfaces'
@@ -56,5 +57,33 @@ describe('selectionKey', () => {
 
   it('treats two different rows as different selections', () => {
     expect(selectionKey(['messages', 'a'])).not.toBe(selectionKey(['messages', 'b']))
+  })
+})
+
+describe('paneBackFor', () => {
+  it('offers nothing where the surface has no list to go back to', () => {
+    // Most surfaces are rail + content; a back link there points at nothing.
+    expect(paneBackFor('wallet', 'anything')).toBeNull()
+    expect(paneBackFor(null, null)).toBeNull()
+  })
+
+  it('offers nothing while the surface itself is open', () => {
+    // Nothing is selected, so the list is already what is on screen.
+    expect(paneBackFor('messages', null)).toBeNull()
+  })
+
+  it('sends a top-level selection back to its LIST, named', () => {
+    expect(paneBackFor('chat', 'user-1')).toEqual({ href: '/messages', label: 'All messages' })
+    expect(paneBackFor('my-gigs', 'esc-1')).toEqual({ href: '/my-gigs', label: 'All my gigs' })
+  })
+
+  it('sends a NESTED selection back one step, not all the way to the list', () => {
+    // /my-gigs/<id>/applicants is a step past the gig. Going back to the list
+    // skips the escrow the reader was looking at — and below 900px the column
+    // that would have offered it is off-screen.
+    expect(paneBackFor('my-gigs', 'esc-1/applicants')).toEqual({
+      href: '/my-gigs/esc-1',
+      label: 'Back',
+    })
   })
 })

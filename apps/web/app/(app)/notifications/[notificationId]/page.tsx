@@ -27,6 +27,7 @@ export default function NotificationDetailPage() {
   const notification = useNotificationsStore((s) =>
     s.notifications.find((n) => n.id === notificationId),
   )
+  const loading = useNotificationsStore((s) => s.loading)
   const isUnread = notification !== undefined && notification.read_at === null
 
   useEffect(() => {
@@ -34,9 +35,11 @@ export default function NotificationDetailPage() {
   }, [isUnread, notificationId])
 
   if (notification === undefined) {
-    // The feed has not landed, or this id is not in the pages loaded. Either
-    // way the honest answer is the pane's empty state, not a spinner that
-    // never resolves.
+    // "Pick a notification" is a claim about what the reader has done, and on
+    // a DEEP LINK they have already picked one — the feed simply has not
+    // landed yet. Say nothing until it has; the empty state is the answer only
+    // once the id is genuinely not among the notices this account holds.
+    if (loading) return null
     return (
       <DetailEmpty
         title={NOTIFICATIONS_LIST_COPY.emptyDetailTitle}

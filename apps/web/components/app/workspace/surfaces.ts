@@ -63,6 +63,26 @@ export function listHomeFor(segment: string | null): ListHome | null {
   return SURFACE_LIST_HOME[segment] ?? null
 }
 
+/**
+ * Where the pane's ≤900px back link goes: the PARENT of a nested selection,
+ * and the list for a top-level one.
+ *
+ * `/my-gigs/<id>/applicants` is a step past `/my-gigs/<id>`, so sending it
+ * back to the list skips the escrow the reader was looking at — and below
+ * 900px the column that would have offered it is off-screen. One rule, no
+ * per-surface entry: anything deeper than one segment goes back one segment.
+ */
+export function paneBackFor(segment: string | null, selection: string | null): ListHome | null {
+  const home = listHomeFor(segment)
+  if (home === null || selection === null) return null
+  const cut = selection.lastIndexOf('/')
+  if (cut === -1) return home
+  return { href: `/${segment}/${selection.slice(0, cut)}`, label: PARENT_BACK_LABEL }
+}
+
+/** Names the step, not the direction — "Back" alone says nothing on arrival. */
+const PARENT_BACK_LABEL = 'Back'
+
 /** Fallback so an unregistered surface still gets a usable region name. */
 export const DEFAULT_SURFACE_TITLE = 'Workspace'
 

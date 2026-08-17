@@ -16,7 +16,7 @@ import { useRealtimeConnection } from '@/hooks/connectivity/useRealtimeConnectio
 import { useInboxRealtime } from '@/hooks/chat/useInboxRealtime'
 import { useNotificationsRealtime } from '@/hooks/notifications/useNotificationsRealtime'
 import { DetailPane, WorkspaceShell } from '@/components/app/workspace'
-import { listHomeFor, selectionKey, surfaceTitle } from '@/components/app/workspace/surfaces'
+import { paneBackFor, selectionKey, surfaceTitle } from '@/components/app/workspace/surfaces'
 import { CommandPalette, surfaceCommands } from '@/components/app/workspace/palette'
 import { useCommandPalette } from '@/hooks/workspace/useCommandPalette'
 
@@ -32,7 +32,7 @@ export function AppWorkspace({ list, children }: { list?: ReactNode; children: R
   const surface = useSelectedLayoutSegment()
   const segments = useSelectedLayoutSegments()
   const selection = selectionKey(segments)
-  const listHome = listHomeFor(surface)
+  const paneBack = paneBackFor(surface, selection)
 
   // Hosted here so ⌘K works on every authed surface, not only ones with a
   // list column to put the button in.
@@ -60,8 +60,8 @@ export function AppWorkspace({ list, children }: { list?: ReactNode; children: R
             // to. The affordance is CSS-gated to ≤900px, where the list is
             // off-screen; above that it would point at a column already
             // beside it.
-            backHref={selection === null ? undefined : listHome?.href}
-            backLabel={listHome?.label}
+            backHref={paneBack?.href}
+            backLabel={paneBack?.label}
           >
             {children}
           </DetailPane>
