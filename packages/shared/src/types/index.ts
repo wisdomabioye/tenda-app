@@ -30,7 +30,15 @@ export type {
   UserTransactionsQuery,
   UserTransactionsSummary,
 } from './escrow'
-export type { GigSummary, GigDetail, GigCategory, GigListQuery, CreateGigDetailsBody } from './gig'
+export type {
+  GigSummary,
+  GigDetail,
+  GigCategory,
+  GigListQuery,
+  GigFacets,
+  GigFacetsQuery,
+  CreateGigDetailsBody,
+} from './gig'
 export type {
   GigApplication,
   GigApplicant,

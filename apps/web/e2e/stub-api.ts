@@ -6,7 +6,8 @@
  * milliseconds under Playwright's webServer.
  */
 import { createServer, type IncomingMessage } from 'node:http'
-import type { GigSummary, PaginatedResponse } from '@tenda/shared'
+import { GIG_CATEGORIES, LOCATIONS, isCountryCode } from '@tenda/shared'
+import type { GigFacets, GigSummary, PaginatedResponse } from '@tenda/shared'
 import {
   deliveryGig,
   deliveryGigDetail,
@@ -26,6 +27,29 @@ const PORT = Number(process.env.STUB_API_PORT ?? 3210)
 // the layout checks see it without a special route — see fixtures/gigs.ts.
 const GIGS: GigSummary[] = [deliveryGig, photoGig, unbreakableGig]
 
+/** Which facet's own filter is lifted — see the facets route's drilldown rule. */
+type FacetKey = 'category' | 'country' | 'remote' | 'cross_border'
+
+/**
+ * The feed's filters with ONE key lifted, which is what a rail cell's count
+ * has to answer: how many gigs CLICKING it would return. Modelled here rather
+ * than hard-coded so the e2e proves the page renders the server's arithmetic
+ * instead of a fixture someone kept in sync by hand.
+ */
+function facetMatches(url: URL, lift: FacetKey): GigSummary[] {
+  const param = (key: string): string | null =>
+    key === lift ? null : url.searchParams.get(key)
+  let data = GIGS
+  const category = param('category')
+  if (category !== null) data = data.filter((gig) => gig.category === category)
+  const country = param('country')
+  if (country !== null) data = data.filter((gig) => gig.country === country)
+  if (param('remote') === 'true') data = data.filter((gig) => gig.remote)
+  if (param('cross_border') === 'true') data = data.filter((gig) => gig.cross_border)
+  const q = url.searchParams.get('q')?.toLowerCase()
+  if (q !== undefined && q !== '') data = data.filter((gig) => gig.title.toLowerCase().includes(q))
+  return data
+}
 
 function handlePublic(url: URL): StubResponse | null {
   if (url.pathname === '/v1/gigs') {
@@ -93,6 +117,28 @@ function handlePublic(url: URL): StubResponse | null {
       ...(sort === null && (q ?? '') === '' ? { next_cursor: null } : {}),
     }
     return json(page)
+  }
+  // BEFORE the /v1/gigs/:id match below, which would otherwise swallow it:
+  // the real router prefers a static segment over a parametric one, and a stub
+  // that got this backwards would 404 the counts while production served them.
+  if (url.pathname === '/v1/gigs/facets') {
+    const countBy = <TKey extends string>(
+      vocabulary: readonly TKey[],
+      lift: FacetKey,
+      of: (gig: GigSummary) => string | null,
+    ): Record<TKey, number> => {
+      const rows = facetMatches(url, lift)
+      return Object.fromEntries(
+        vocabulary.map((key) => [key, rows.filter((gig) => of(gig) === key).length]),
+      ) as Record<TKey, number>
+    }
+    const facets: GigFacets = {
+      category: countBy(GIG_CATEGORIES, 'category', (gig) => gig.category),
+      country: countBy(Object.keys(LOCATIONS).filter(isCountryCode), 'country', (gig) => gig.country),
+      remote: facetMatches(url, 'remote').filter((gig) => gig.remote).length,
+      cross_border: facetMatches(url, 'cross_border').filter((gig) => gig.cross_border).length,
+    }
+    return json(facets)
   }
   const detailMatch = url.pathname.match(/^\/v1\/gigs\/([^/]+)$/)
   if (detailMatch !== null) {

@@ -5,13 +5,17 @@
  * Every control is a link or a form field, so the whole rail works with no
  * client JavaScript and each narrowed view has its own address.
  *
- * The comp puts a COUNT beside each category and toggle. Nothing on the wire
- * carries facet counts, and reading them through the feed endpoint would mean
- * ten extra requests per render of an anonymous, crawlable page — so they are
- * deferred to a grouped-count endpoint rather than faked or bought at that
- * price. Spec-correction #10.
+ * The comp puts a COUNT beside each category and toggle. They come from
+ * GET /v1/gigs/facets — one request answering every cell, sharing the feed's
+ * own base conditions server-side so a number can never disagree with the list
+ * beside it. `facets` is null when that read failed, and every cell then draws
+ * without a number rather than claiming zero.
+ *
+ * The MARKET chips carry no count: the comp draws none there, and the chip has
+ * no room for one. The endpoint answers per-country all the same, so wiring
+ * them is a comp decision rather than another round trip.
  */
-import { CATEGORY_LABELS, GIG_CATEGORIES } from '@tenda/shared'
+import { CATEGORY_LABELS, GIG_CATEGORIES, type GigFacets } from '@tenda/shared'
 import type { GigChainOption } from '@/lib/gigs/data'
 import { CATEGORY_TONE } from '@/components/gig/category-icons'
 import { marketNames } from '@/lib/markets'
@@ -28,9 +32,12 @@ const MARKET_NAMES = marketNames(GIG_MARKETS)
 export function FeedRail({
   filters,
   chains,
+  facets = null,
 }: {
   filters: GigFeedFilters
   chains: readonly GigChainOption[]
+  /** Null when the counts could not be read; the rail simply omits them. */
+  facets?: GigFacets | null
 }) {
   return (
     <aside
@@ -50,6 +57,7 @@ export function FeedRail({
               href={gigsHref(filters, { category })}
               active={filters.category === category}
               dotClassName={CATEGORY_TONE[category].dot}
+              count={facets?.category[category]}
             >
               {CATEGORY_LABELS[category]}
             </FilterRow>
@@ -81,12 +89,14 @@ export function FeedRail({
           <FilterRow
             href={gigsHref(filters, { remote: filters.remote ? null : 'true' })}
             active={filters.remote}
+            count={facets?.remote}
           >
             {FEED_COPY.rail.remote}
           </FilterRow>
           <FilterRow
             href={gigsHref(filters, { cross_border: filters.cross_border ? null : 'true' })}
             active={filters.cross_border}
+            count={facets?.cross_border}
           >
             {FEED_COPY.rail.crossBorder}
           </FilterRow>

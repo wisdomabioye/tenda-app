@@ -12,6 +12,7 @@ import {
   gigsHref,
   hasActiveFilters,
   parseGigFeedFilters as parse,
+  toGigFacetsQuery,
   toGigListQuery,
   usesCursorPaging,
   type RawSearchParams,
@@ -227,5 +228,43 @@ describe('gigsHref', () => {
     expect(gigsHref(positioned, { category: 'photo' })).not.toContain('offset')
     expect(gigsHref(positioned, { cursor: 'page3' })).toContain('cursor=page3')
     expect(gigsHref(positioned, { offset: '60' })).toContain('offset=60')
+  })
+})
+
+describe('toGigFacetsQuery', () => {
+  it('carries every NARROWING filter', () => {
+    const filters = parse(
+      { category: 'photo', country: 'NG', city: 'Lagos', remote: 'true', cross_border: 'true', q: 'tiler' },
+      new Set<string>(),
+    )
+    expect(toGigFacetsQuery(filters)).toEqual({
+      category: 'photo',
+      country: 'NG',
+      city: 'Lagos',
+      chain_id: undefined,
+      remote: true,
+      cross_border: true,
+      q: 'tiler',
+    })
+  })
+
+  it('carries NOTHING about position or ordering', () => {
+    // Paging picks which page of the same set comes back and `sort` picks its
+    // order; neither can change a count. Sending them would also make two
+    // identical rails cache-miss each other.
+    const filters = parse({ offset: '40', sort: 'amount_desc', cursor: 'abc' }, new Set<string>())
+    const keys = Object.keys(toGigFacetsQuery(filters))
+    for (const key of ['sort', 'limit', 'offset', 'cursor']) {
+      expect(keys).not.toContain(key)
+    }
+  })
+
+  it('is the HEAD of the list query, key for key', () => {
+    // The list query spreads this first, and that shared order is what keeps
+    // the two reads describing the same view (and keeps data.ts's cache key
+    // stable). Asserted rather than assumed, because a reordering is invisible.
+    const filters = parse({ category: 'photo', country: 'NG' }, new Set<string>())
+    const facetKeys = Object.keys(toGigFacetsQuery(filters))
+    expect(Object.keys(toGigListQuery(filters)).slice(0, facetKeys.length)).toEqual(facetKeys)
   })
 })

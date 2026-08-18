@@ -2,6 +2,7 @@ import {
   GIG_CATEGORIES,
   LOCATIONS,
   type GigCategory,
+  type GigFacetsQuery,
   type GigListQuery,
 } from '@tenda/shared'
 
@@ -121,9 +122,16 @@ export function usesCursorPaging(filters: GigFeedFilters): boolean {
   return filters.q === null && filters.sort === 'created_at'
 }
 
-/** The validated filters as the API's query shape. */
-export function toGigListQuery(filters: GigFeedFilters): GigListQuery {
-  const cursorPaged = usesCursorPaging(filters)
+/**
+ * The NARROWING half of the filters — everything that changes which gigs
+ * match, and nothing about which page of them or in what order. This is the
+ * whole facets query, and the head of the list query, so the two surfaces
+ * cannot disagree about what the reader is looking at.
+ *
+ * Key order is load-bearing: `toGigListQuery` spreads this first, and the
+ * serialisation of that object is the React `cache()` key (see lib/gigs/data).
+ */
+export function toGigFacetsQuery(filters: GigFeedFilters): GigFacetsQuery {
   return {
     category: filters.category ?? undefined,
     country: filters.country ?? undefined,
@@ -132,6 +140,14 @@ export function toGigListQuery(filters: GigFeedFilters): GigListQuery {
     remote: filters.remote ? true : undefined,
     cross_border: filters.cross_border ? true : undefined,
     q: filters.q ?? undefined,
+  }
+}
+
+/** The validated filters as the API's query shape. */
+export function toGigListQuery(filters: GigFeedFilters): GigListQuery {
+  const cursorPaged = usesCursorPaging(filters)
+  return {
+    ...toGigFacetsQuery(filters),
     // Recency is the server's default ordering; sending it explicitly would
     // opt this view OUT of cursor paging for no gain.
     sort: filters.sort === 'created_at' ? undefined : filters.sort,

@@ -12,11 +12,12 @@ import {
 } from '@/components/gig/feed/FeedStates'
 import { GigCard } from '@/components/gig/feed/GigCard'
 import { FEED_COPY } from '@/components/gig/feed/copy'
-import { listEnabledChains, listGigsOnce } from '@/lib/gigs/data'
+import { listEnabledChains, listGigFacetsOnce, listGigsOnce } from '@/lib/gigs/data'
 import {
   gigsHref,
   hasActiveFilters,
   parseGigFeedFilters,
+  toGigFacetsQuery,
   toGigListQuery,
   type RawSearchParams,
 } from '@/lib/gigs/search-params'
@@ -63,7 +64,12 @@ export async function generateMetadata({
 export default async function GigsPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const [params, chains] = await Promise.all([searchParams, listEnabledChains()])
   const filters = parseGigFeedFilters(params, new Set(chains.map((chain) => chain.id)))
-  const page = await listGigsOnce(toGigListQuery(filters))
+  // Concurrent: the rail's counts are a SECOND read, and awaiting them after
+  // the feed would add their latency to a page that already has its content.
+  const [page, facets] = await Promise.all([
+    listGigsOnce(toGigListQuery(filters)),
+    listGigFacetsOnce(toGigFacetsQuery(filters)),
+  ])
 
   // Handled HERE rather than by `error.tsx`, which is a client component: its
   // fallback arrives with the hydration script, so a failed read rendered a
@@ -86,7 +92,7 @@ export default async function GigsPage({ searchParams }: { searchParams: Promise
       <FeedHero />
       <div className="mx-auto w-full max-w-content px-6 pb-20 pt-8">
         <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[248px_minmax(0,1fr)] lg:gap-12">
-          <FeedRail filters={filters} chains={chains} />
+          <FeedRail filters={filters} chains={chains} facets={facets} />
 
           <section>
             <div className="mb-5 flex items-baseline justify-between gap-4 border-b border-border-subtle pb-4">

@@ -1,12 +1,20 @@
 import { cache } from 'react'
-import { ApiClientError, type GigDetail, type GigListQuery, type GigSummary, type PaginatedResponse } from '@tenda/shared'
+import {
+  ApiClientError,
+  type GigDetail,
+  type GigFacets,
+  type GigFacetsQuery,
+  type GigListQuery,
+  type GigSummary,
+  type PaginatedResponse,
+} from '@tenda/shared'
 import { api } from '@/api/client'
 
 /**
- * Server-side data seam for the public gig surfaces. Both calls are ANONYMOUS
- * by construction — they run inside server components, where the storage shim
- * returns null and no bearer is ever attached, so party-scoped fields arrive
- * withheld and nothing private can reach crawler-visible HTML.
+ * Server-side data seam for the public gig surfaces. EVERY call here is
+ * ANONYMOUS by construction — they run inside server components, where the
+ * storage shim returns null and no bearer is ever attached, so party-scoped
+ * fields arrive withheld and nothing private can reach crawler-visible HTML.
  *
  * Caching decision (stage-1 doc asks for it to be stated): none. Every request
  * re-fetches — gig state moves and a takedown must 404 immediately, never be
@@ -60,6 +68,33 @@ const listGigsByKey = cache(
 
 export function listGigsOnce(query: GigListQuery): Promise<PaginatedResponse<GigSummary> | null> {
   return listGigsByKey(JSON.stringify(query))
+}
+
+/**
+ * The rail's counts. `null` on ANY failure, and the rail then draws its cells
+ * with no numbers.
+ *
+ * That is the whole error policy, and it is deliberate: the counts are an
+ * enhancement on a page whose premise is that it works without JavaScript and
+ * without much luck. A feed that 500s because a secondary aggregate timed out
+ * would trade the primary content for a decoration. Same `cache()` treatment
+ * as the feed read so a re-render inside one request cannot fetch twice.
+ */
+const facetsByKey = cache(async (key: string): Promise<GigFacets | null> => {
+  try {
+    const facets = await api.gigs.facets(JSON.parse(key) as GigFacetsQuery)
+    // Same one-assumption guard as the feed above: a 200 of the WRONG shape
+    // (a proxy's own body, a stale API URL) would otherwise reach
+    // `facets.category[key]` inside the render and blank the page for a
+    // reader with no JavaScript.
+    return typeof facets?.category === 'object' && facets.category !== null ? facets : null
+  } catch {
+    return null
+  }
+})
+
+export function listGigFacetsOnce(query: GigFacetsQuery): Promise<GigFacets | null> {
+  return facetsByKey(JSON.stringify(query))
 }
 
 /**

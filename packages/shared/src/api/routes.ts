@@ -40,6 +40,7 @@ export const apiRoutes: {
   },
   gigs: {
     list: '/v1/gigs',
+    facets: '/v1/gigs/facets',
     featured: '/v1/gigs/featured',
     create: '/v1/gigs',
     get: '/v1/gigs/:id',

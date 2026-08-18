@@ -10,7 +10,7 @@
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
 import { isEscrowCounterpartySide } from '@server/lib/escrow-party'
-import { eq, and, gt, inArray, isNull, or, sql, lt, desc, type SQL } from 'drizzle-orm'
+import { eq, and, inArray, or, sql, lt, desc, type SQL } from 'drizzle-orm'
 import { escrows, gig_details, users } from '@tenda/shared/db/schema'
 import { MAX_GIG_DESCRIPTION_LENGTH, ASSET_META, ErrorCode } from '@tenda/shared'
 import type { GigsContract, ApiError } from '@tenda/shared'
@@ -27,6 +27,7 @@ import {
   queryConditions,
 } from './list-filters'
 import { decodeGigFeedCursor, encodeGigFeedCursor } from './gig-feed-cursor'
+import { publicGigConditions } from './public-feed'
 
 type ListRoute = GigsContract['list']
 type CreateRoute = GigsContract['create']
@@ -51,10 +52,14 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
     const safeOffset = clampOffset(Number(offset))
 
     const now = new Date()
-    const conditions: SQL[] = [eq(escrows.kind, 'gig')]
+    // Each branch states its own full condition set — `kind` included — so the
+    // public one can be the SHARED builder rather than a partial list this
+    // handler completes. /v1/gigs/facets pushes the identical array.
+    const conditions: SQL[] = []
     let cursorCondition: SQL | null = null
 
     if (mine !== undefined) {
+      conditions.push(eq(escrows.kind, 'gig'))
       if (cursor !== undefined) {
         throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'cursor is only supported by the public feed')
       }
@@ -91,16 +96,10 @@ const gigsRoutes: FastifyPluginAsync = async (fastify) => {
           'status filter requires mine=created or mine=working',
         )
       }
-      // Public feed shows only open gigs whose accept window hasn't
-      // passed, display-correct even between expire-escrows job ticks.
-      // Taken-down listings (CO1) never surface here; the owner still sees
-      // them through mine= above.
-      conditions.push(
-        eq(escrows.status, 'open'),
-        eq(escrows.hidden, false),
-        isNull(escrows.assigned_counterparty_id),
-        or(isNull(escrows.accept_deadline), gt(escrows.accept_deadline, now)) as SQL,
-      )
+      // What "public" means lives in ./public-feed, shared verbatim with the
+      // facets route so the rail's counts and this list can never disagree
+      // about which gigs exist.
+      conditions.push(...publicGigConditions(now))
     }
 
     // Every filter that reads only the querystring — attributes, chain,

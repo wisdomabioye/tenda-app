@@ -428,7 +428,8 @@ export interface GigDetailsOverrides {
   title?: string
   description?: string
   category?: string
-  country?: string
+  /** Nullable like the column: a REMOTE gig persists no country. */
+  country?: string | null
   city?: string | null
   remote?: boolean
   cross_border?: boolean

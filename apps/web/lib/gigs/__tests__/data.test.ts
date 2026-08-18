@@ -1,12 +1,12 @@
 import { vi } from 'vitest'
 
 vi.mock('@/api/client', () => ({
-  api: { gigs: { list: vi.fn(), get: vi.fn() }, platform: { chains: vi.fn() } },
+  api: { gigs: { list: vi.fn(), get: vi.fn(), facets: vi.fn() }, platform: { chains: vi.fn() } },
 }))
 
-import { ApiClientError } from '@tenda/shared'
+import { ApiClientError, LOCATIONS, type GigFacets } from '@tenda/shared'
 import { api } from '@/api/client'
-import { getGig, listEnabledChains, listGigs, listGigsOnce } from '@/lib/gigs/data'
+import { getGig, listEnabledChains, listGigFacetsOnce, listGigs, listGigsOnce } from '@/lib/gigs/data'
 
 const gigsApi = vi.mocked(api.gigs)
 const platformApi = vi.mocked(api.platform)
@@ -110,5 +110,51 @@ describe('listEnabledChains', () => {
   it('degrades to no options when the registry read fails — never a 400-able filter', async () => {
     platformApi.chains.mockRejectedValue(new ApiClientError(500, 'Internal', 'down'))
     expect(await listEnabledChains()).toEqual([])
+  })
+})
+
+describe('listGigFacetsOnce — the rail counts', () => {
+  const facets: GigFacets = {
+    category: { delivery: 1, photo: 0, errand: 0, service: 0, digital: 0 },
+    // Complete over the shared vocabulary, as the wire type requires.
+    country: {
+      ...(Object.fromEntries(Object.keys(LOCATIONS).map((c) => [c, 0])) as GigFacets['country']),
+      NG: 1,
+    },
+    remote: 0,
+    cross_border: 0,
+  }
+
+  it('returns the counts on success, query intact', async () => {
+    gigsApi.facets.mockResolvedValue(facets)
+    expect(await listGigFacetsOnce({ category: 'delivery' })).toBe(facets)
+    expect(gigsApi.facets).toHaveBeenCalledWith({ category: 'delivery' })
+  })
+
+  it('answers NULL when the aggregate fails, so the feed still renders', async () => {
+    // The counts are an enhancement. Letting this throw would trade the page's
+    // primary content for a decoration that could not be drawn.
+    gigsApi.facets.mockRejectedValue(new ApiClientError(500, 'Internal', 'boom'))
+    expect(await listGigFacetsOnce({})).toBeNull()
+  })
+
+  it('answers null for a 200 carrying the WRONG SHAPE', async () => {
+    // Same trap as the feed read: `facets.category[key]` inside the render
+    // would throw and blank the page for a reader with no JavaScript.
+    // The cast is the POINT: this test exists for a server that answers with
+    // a shape the type says is impossible, which is the only way that bug
+    // reaches production. It cannot be written without escaping the type.
+    gigsApi.facets.mockResolvedValue({ ok: true } as unknown as GigFacets)
+    expect(await listGigFacetsOnce({ q: 'wrong-shape' })).toBeNull()
+  })
+
+  it('answers null when category is present but NOT an object', async () => {
+    gigsApi.facets.mockResolvedValue({
+      category: null,
+      country: {},
+      remote: 0,
+      cross_border: 0,
+    } as unknown as GigFacets)
+    expect(await listGigFacetsOnce({ q: 'null-category' })).toBeNull()
   })
 })

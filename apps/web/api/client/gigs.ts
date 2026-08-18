@@ -12,6 +12,8 @@ import {
   type GigApplication,
   type GigDetail,
   type GigDetailsRow,
+  type GigFacets,
+  type GigFacetsQuery,
   type GigListQuery,
   type GigSummary,
   type MyApplication,
@@ -27,6 +29,11 @@ export const gigsApi = {
   featured: () => request<{ data: GigSummary[] }>('GET', gigs.featured),
   list: (query?: GigListQuery) =>
     request<PaginatedResponse<GigSummary>>('GET', gigs.list, { query }),
+  /**
+   * Counts for the feed rail's cells. Web-only: mobile's filter sheet draws no
+   * counts, and shipping an unused endpoint there would be dead weight.
+   */
+  facets: (query?: GigFacetsQuery) => request<GigFacets>('GET', gigs.facets, { query }),
   create: (body: CreateGigDetailsBody) =>
     request<GigDetailsRow>('POST', gigs.create, { body, timeout: MODERATION_TIMEOUT_MS }),
   get: (params: { id: string }) => request<GigDetail>('GET', gigs.get, { params }),

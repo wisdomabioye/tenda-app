@@ -12,23 +12,42 @@
 import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
+import { FEED_COPY } from './copy'
 
 export function FilterRow({
   href,
   active,
   dotClassName,
+  count,
   children,
 }: {
   href: string
   active: boolean
   /** Category tone dot. Omitted where the row has no taxonomy colour. */
   dotClassName?: string
-  children: ReactNode
+  /**
+   * How many gigs this row leads to. `undefined` when the counts could not be
+   * read — the row then renders without one, which is why this is optional
+   * rather than defaulted to 0: an outage must not claim there is nothing
+   * there.
+   */
+  count?: number
+  /**
+   * A plain string, not a node: with a count present the row states its
+   * accessible name EXPLICITLY (below), and that name has to be buildable.
+   */
+  children: string
 }) {
   return (
     <Link
       href={href}
       aria-current={active ? 'true' : undefined}
+      // Name-from-content would concatenate the label and the numeral with no
+      // separator — "Delivery7 gigs" — because each child's contribution is
+      // trimmed before joining. Stating the name outright also says what the
+      // number COUNTS, which a bare "Delivery 7" never does. The pluralisation
+      // is the feed's existing one rather than a second copy of the rule.
+      aria-label={count === undefined ? undefined : `${children} ${FEED_COPY.feed.count(count)}`}
       className={cn(
         'flex items-center gap-2.5 rounded-control px-2.5 py-1.5 text-sm font-medium transition-colors',
         active
@@ -40,6 +59,9 @@ export function FilterRow({
         <span aria-hidden className={cn('h-2 w-2 shrink-0 rounded-full', dotClassName)} />
       )}
       <span className="flex-1 text-left">{children}</span>
+      {count !== undefined && (
+        <span className="font-numeric text-xs tabular-nums text-content-tertiary">{count}</span>
+      )}
     </Link>
   )
 }

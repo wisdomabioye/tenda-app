@@ -56,9 +56,15 @@ test.describe('feed — /gigs', () => {
       // first, often on a slow connection.
       // The label comes from the shared vocabulary: `photo` reads "Creative",
       // and a hardcoded "Photo" here would test a string this product does
-      // not use. `exact` separates the rail link from the card that contains
-      // the same word.
-      await page.getByRole('link', { name: CATEGORY_LABELS.photo, exact: true }).click()
+      // not use. Scoped to the rail's category GROUP to separate it from the
+      // card carrying the same word — `exact` used to do that job, but the
+      // rail link now also states its count ("Creative 1 gig"), and pinning
+      // the exact name here would make this test fail whenever a fixture
+      // changes how many gigs are in the category.
+      await page
+        .getByRole('group', { name: FEED_COPY.rail.category })
+        .getByRole('link', { name: CATEGORY_LABELS.photo })
+        .click()
       await expect(page).toHaveURL(/category=photo/)
       await expect(page.getByRole('link', { name: new RegExp(photoGig.title) })).toBeVisible()
       await expect(page.getByRole('link', { name: new RegExp(deliveryGig.title) })).toHaveCount(0)
