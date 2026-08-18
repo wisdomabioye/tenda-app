@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { groupByDay, type UserEscrowTransaction } from '@tenda/shared'
+import { WALLET_COPY } from '@/components/wallet/copy'
 
 const hookState = {
   user: { id: 'worker-1' } as { id: string } | null,
@@ -15,6 +16,7 @@ const hookState = {
   retryChains: vi.fn(),
   balances: [] as unknown[],
   totalUsdc: 50,
+  totalTransactions: 0,
   earnedUsdc: 80,
   spentUsdc: 30,
   feed: [] as unknown[],
@@ -64,6 +66,41 @@ beforeEach(() => {
   hookState.isLoading = false
 })
 
+describe('the activity feed’s states', () => {
+  it('a feed that is still LOADING never claims there is no activity', () => {
+    // The lie this app has now fixed on the gig feed and the notification
+    // centre: "nothing here" is not the same answer as "not read yet".
+    hookState.section = 'ready'
+    hookState.feed = []
+    hookState.isLoadingTransactions = true
+    const { container } = render(<WalletScreen />)
+    expect(screen.queryByText(WALLET_COPY.emptyTitle)).toBeNull()
+    expect(container.querySelector('.animate-shimmer')).not.toBeNull()
+  })
+
+  it('counts what the SERVER holds, and only once it has answered', () => {
+    hookState.section = 'ready'
+    hookState.feed = []
+    hookState.isLoadingTransactions = true
+    hookState.totalTransactions = 12
+    const loading = render(<WalletScreen />)
+    expect(screen.queryByText(WALLET_COPY.count(12))).toBeNull()
+    loading.unmount()
+
+    hookState.isLoadingTransactions = false
+    render(<WalletScreen />)
+    expect(screen.getByText(WALLET_COPY.count(12))).toBeInTheDocument()
+  })
+})
+
+describe('the header', () => {
+  it('says "Wallet" ONCE — an eyebrow above an identical h1 is noise', () => {
+    hookState.section = 'ready'
+    render(<WalletScreen />)
+    expect(screen.getAllByText(WALLET_COPY.title)).toHaveLength(1)
+  })
+})
+
 describe('section switch', () => {
   it('ready renders the USDC headline and lifetime totals', () => {
     render(<WalletScreen />)
@@ -85,13 +122,13 @@ describe('section switch', () => {
   it('wallets-error and balances-unavailable each get their OWN retry', async () => {
     hookState.section = 'wallets-error'
     const first = render(<WalletScreen />)
-    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await userEvent.click(screen.getByRole('button', { name: WALLET_COPY.retry }))
     expect(hookState.retryWallets).toHaveBeenCalled()
     first.unmount()
 
     hookState.section = 'balances-unavailable'
     render(<WalletScreen />)
-    await userEvent.click(screen.getByRole('button', { name: 'Retry' }))
+    await userEvent.click(screen.getByRole('button', { name: WALLET_COPY.retry }))
     expect(hookState.retryChains).toHaveBeenCalled()
   })
 
@@ -119,9 +156,10 @@ describe('feed (shared per-side copy)', () => {
     expect(screen.queryByText(/\+48\.5/)).toBeNull()
   })
 
-  it('empty + settled reads "No transactions yet."', () => {
+  it('an empty feed says so as a panel, not as a sentence where rows go', () => {
     render(<WalletScreen />)
-    expect(screen.getByText('No transactions yet.')).toBeInTheDocument()
+    expect(screen.getByText(WALLET_COPY.emptyTitle)).toBeInTheDocument()
+    expect(screen.getByText(WALLET_COPY.emptyBody)).toBeInTheDocument()
   })
 
   it('offers Load more only while more pages exist, disabled mid-load', async () => {

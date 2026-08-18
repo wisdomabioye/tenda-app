@@ -1,81 +1,113 @@
 'use client'
 
 /**
- * /wallet — the dumb switch over `section` (shared resolveWalletSection): a
- * load FAILURE is never rendered as "no wallet linked", and an unusable
- * chain registry is never rendered as a real `0.00` (mobile's two wallet-
- * screen bugs, pinned by the shared resolver's tests).
+ * /wallet (Tier-3 comp, lines 647-713): what you hold, what you can do with
+ * it, and everything that has moved.
+ *
+ * The section switch is shared's `resolveWalletSection` and it is the whole
+ * point of this component: a load FAILURE is never rendered as "no wallet
+ * linked", and an unusable chain registry is never rendered as a real `0.00`.
+ * Those were mobile's two wallet-screen bugs and they are pinned by the
+ * resolver's own tests — this file must keep asking it rather than deciding.
  */
 import Link from 'next/link'
+import { RotateCw, Wallet } from 'lucide-react'
 import { useWalletScreen } from '@/hooks/wallet/useWalletScreen'
+import { AlertPanel, ALERT_ACTION_CLASS } from '@/components/ui/AlertPanel'
+import { Button } from '@/components/ui'
+import { EmptyPanel, EMPTY_ACTION_CLASS } from '@/components/ui/EmptyPanel'
+import { WalletActions } from './WalletActions'
+import { WalletBalanceGrid } from './WalletBalanceGrid'
 import { WalletHeroCard } from './WalletHeroCard'
-import { WalletBalanceRows } from './WalletBalanceRows'
 import { TxFeed } from './TxFeed'
-import { Button, buttonVariants } from '@/components/ui'
-
-function Retryable({ message, actionLabel, onRetry }: { message: string; actionLabel: string; onRetry: () => void }) {
-  return (
-    <div className="flex flex-col items-center gap-3 rounded-card border border-border-subtle bg-surface-card px-6 py-8 text-center">
-      <p className="text-sm text-content-secondary">{message}</p>
-      <Button variant="outline" size="md" onClick={onRetry}>
-        {actionLabel}
-      </Button>
-    </div>
-  )
-}
+import { WALLET_COPY } from './copy'
 
 export function WalletScreen() {
   const screen = useWalletScreen()
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <header className="flex items-center justify-between">
-        <h1 className="font-display text-3xl font-bold text-content-primary">Wallet</h1>
-        <Button variant="ghost" size="md" disabled={screen.refreshing} onClick={() => void screen.handleRefresh()}>
-          {screen.refreshing ? 'Refreshing…' : 'Refresh'}
+    <div className="mx-auto w-full max-w-[1080px] px-8 pb-20 pt-8">
+      <div className="mb-7 flex flex-wrap items-center gap-4">
+        {/* No eyebrow: on the surfaces that have one it names the SECTION above
+            a different title. Here they would both read "Wallet". */}
+        <div className="min-w-[260px] flex-1">
+          <h1 className="font-display text-[30px] font-bold leading-9 tracking-[-0.6px] text-content-primary">
+            {WALLET_COPY.title}
+          </h1>
+        </div>
+        <Button
+          variant="outline"
+          disabled={screen.refreshing}
+          onClick={() => void screen.handleRefresh()}
+        >
+          <RotateCw size={15} aria-hidden />
+          {screen.refreshing ? WALLET_COPY.refreshing : WALLET_COPY.refresh}
         </Button>
-      </header>
+      </div>
 
       {screen.section === 'no-wallet' && (
-        <div className="flex flex-col items-center gap-3 rounded-card border border-border-subtle bg-surface-card px-6 py-8 text-center">
-          <p className="text-sm text-content-secondary">
-            No wallet linked yet. Link one to see balances and receive payments.
-          </p>
-          <Link href="/settings/linked-wallets" className={buttonVariants({ variant: 'primary', size: 'md' })}>
-            Link a wallet
-          </Link>
-        </div>
+        <EmptyPanel
+          icon={<Wallet size={28} />}
+          title={WALLET_COPY.noWalletTitle}
+          body={WALLET_COPY.noWalletBody}
+          action={
+            <Link href="/settings/linked-wallets" className={EMPTY_ACTION_CLASS}>
+              {WALLET_COPY.noWalletAction}
+            </Link>
+          }
+        />
       )}
+
       {screen.section === 'wallets-error' && (
-        <Retryable
-          message="Could not load your linked wallets."
-          actionLabel="Retry"
-          onRetry={() => void screen.retryWallets()}
+        <AlertPanel
+          title={WALLET_COPY.walletsErrorTitle}
+          body={WALLET_COPY.walletsErrorBody}
+          action={
+            <button
+              type="button"
+              onClick={() => void screen.retryWallets()}
+              className={ALERT_ACTION_CLASS}
+            >
+              {WALLET_COPY.retry}
+            </button>
+          }
         />
       )}
+
       {screen.section === 'balances-unavailable' && (
-        <Retryable
-          message="Balances are unavailable right now — the chain registry could not be loaded."
-          actionLabel="Retry"
-          onRetry={() => void screen.retryChains()}
+        <AlertPanel
+          title={WALLET_COPY.balancesErrorTitle}
+          body={WALLET_COPY.balancesErrorBody}
+          action={
+            <button
+              type="button"
+              onClick={() => void screen.retryChains()}
+              className={ALERT_ACTION_CLASS}
+            >
+              {WALLET_COPY.retry}
+            </button>
+          }
         />
       )}
+
       {(screen.section === 'ready' || screen.section === 'loading') && (
-        <>
+        <div className="flex flex-col gap-6">
           <WalletHeroCard
             totalUsdc={screen.totalUsdc}
             earnedUsdc={screen.earnedUsdc}
             spentUsdc={screen.spentUsdc}
             isLoading={screen.section === 'loading' || screen.isLoading}
           />
-          {screen.section === 'ready' && <WalletBalanceRows balances={screen.balances} />}
-        </>
+          {screen.section === 'ready' && <WalletBalanceGrid balances={screen.balances} />}
+          <WalletActions />
+        </div>
       )}
 
       {screen.user !== null && (
         <TxFeed
           feed={screen.feed}
           userId={screen.user.id}
+          total={screen.totalTransactions}
           isLoading={screen.isLoadingTransactions}
           hasMore={screen.hasMoreTransactions}
           isLoadingMore={screen.isLoadingMoreTransactions}

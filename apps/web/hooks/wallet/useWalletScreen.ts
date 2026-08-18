@@ -164,6 +164,9 @@ export function useWalletScreen() {
     isLoadingMoreTransactions: transactions.isLoadingMore,
     isLoading,
     isLoadingTransactions: transactions.isLoading,
+    // The SERVER total, so the Activity count says how many transactions
+    // exist rather than how many this page happens to be holding.
+    totalTransactions: transactions.total,
     refreshing: refreshing || transactions.isRefreshing,
     handleRefresh,
   }

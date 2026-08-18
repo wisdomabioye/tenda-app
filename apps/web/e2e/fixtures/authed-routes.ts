@@ -25,6 +25,7 @@ import { handleDisputes } from './disputes'
 import { handleExchange } from './exchange'
 import { createNotificationsWorld, handleNotifications, resetNotificationsWorld } from './notifications'
 import { ENABLED_CHAIN_IDS } from './chains'
+import { handleFiat, resetFiatWorld } from './fiat'
 import { errorEnvelope, json, type StubResponse } from './reply'
 
 const world = createAuthWorld()
@@ -203,6 +204,15 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
     const details = JSON.parse(body) as { escrow_id: string; title: string }
     return json({ escrow_id: details.escrow_id, title: details.title, status: 'draft' })
   }
+  // Cash-out: quotes, the offramp initiate, and one intent. Auth-gated like
+  // the real routes.
+  if (url.pathname.startsWith('/v1/fiat/') || url.pathname.startsWith('/v1/bank-accounts')) {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    const fiat = handleFiat(url, method)
+    if (fiat !== null) return fiat
+  }
+
   // Test-control route (no auth, stub-only): restores the chat world so CI
   // retries and repeat runs start from the seeded state.
   if (url.pathname === '/__e2e/reset-chat' && method === 'POST') {
@@ -211,6 +221,10 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
   }
   if (url.pathname === '/__e2e/reset-notifications' && method === 'POST') {
     resetNotificationsWorld(notificationsWorld)
+    return json({ ok: true })
+  }
+  if (url.pathname === '/__e2e/reset-fiat' && method === 'POST') {
+    resetFiatWorld()
     return json({ ok: true })
   }
   // Notification centre (S5.3), auth-gated like the real routes.

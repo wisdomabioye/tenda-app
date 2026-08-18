@@ -44,6 +44,8 @@ export interface AuthState {
   /** True = linked; false = user declined. Collision/errors throw. */
   linkWallet: (adapter: WalletAdapter) => Promise<boolean>
   refreshWallets: () => Promise<void>
+  /** Load the linked wallets once, for surfaces that read but do not own them. */
+  ensureWallets: () => Promise<void>
   linkIdentity: (body: VerifyBody) => Promise<void>
   loadMethods: () => Promise<void>
   logout: () => Promise<void>
@@ -122,6 +124,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Reflect the freshly-linked wallet in the cached wallets[] list.
     await get().refreshWallets()
     return true
+  },
+
+  /**
+   * Load the linked-wallet list ONCE, for surfaces that need it but do not
+   * own it. De-duped on status, exactly like the chain registry's
+   * `ensureLoaded`: a surface that merely READS wallets should not refetch
+   * them on every mount, and should not have to know whether a neighbour
+   * already did.
+   *
+   * Added because the sell surface asked `useExchangeAssetOptions` which
+   * assets it could sell, and nothing on that route had ever loaded the
+   * wallets — so the answer was always "none", and the page told a reader
+   * with a linked wallet to link one.
+   */
+  ensureWallets: async () => {
+    const { walletsStatus } = get()
+    if (walletsStatus === 'loading' || walletsStatus === 'ready') return
+    await get().refreshWallets()
   },
 
   refreshWallets: async () => {
