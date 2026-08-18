@@ -2,7 +2,16 @@ export * from './gig-utils'
 export { computePlatformFee, computePlatformFeeRaw } from './fees'
 export { isCrossBorder } from './cross-border'
 export { LAMPORTS_PER_SOL } from './constants'
-export { parseUnits, formatUnits } from './units'
+export { parseUnits, formatUnits, sanitizeDecimalText } from './units'
+export {
+  hasGigBudget,
+  gigBudgetFromUnits,
+  gigBudgetRangeLabel,
+  gigBudgetToRaw,
+  gigBudgetToText,
+  sanitizeGigBudgetText,
+  FIAT_ENTRY_DECIMALS,
+} from './gig-budget'
 export { truncateWallet } from './wallet'
 export {
   partyRoleLabel,
@@ -20,8 +29,6 @@ export {
 export { normalizeChainAddress, sameChainAddress, chainNamespaceOf } from './address'
 
 export {
-  MIN_PAYMENT_LAMPORTS,
-  MAX_PAYMENT_LAMPORTS,
   MAX_GIG_TITLE_LENGTH,
   MAX_GIG_DESCRIPTION_LENGTH,
   MAX_DISPUTE_REASON_LENGTH,
@@ -29,7 +36,6 @@ export {
   MAX_COMPLETION_DURATION_SECONDS,
   MAX_PAGINATION_LIMIT,
   MAX_REVIEW_COMMENT_LENGTH,
-  isValidPaymentLamports,
   gigAmountBounds,
   isValidGigAmountRaw,
   isValidCompletionDuration,

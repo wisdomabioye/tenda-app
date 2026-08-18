@@ -69,13 +69,13 @@ it('wires editable detail fields and hides location for remote work', () => {
 it('shows the fee breakdown only after a budget exists', () => {
   const props = {
     chainOptions: [], chainId: 'solana:devnet', onChainChange: jest.fn(),
-    asset: 'USDC_SOL', assetSymbol: 'USDC', paymentRaw: 0, onPaymentChange: jest.fn(),
+    asset: 'USDC_SOL', assetSymbol: 'USDC', paymentRaw: '', onPaymentChange: jest.fn(),
     completionDuration: 86_400, onCompletionChange: jest.fn(),
     acceptDeadlineHours: 168, onAcceptDeadlineChange: jest.fn(),
   }
   const { rerender } = render(<GigPaymentStep {...props} />)
   expect(screen.queryByText('Cost breakdown')).toBeNull()
-  rerender(<GigPaymentStep {...props} paymentRaw={1_000_000} />)
+  rerender(<GigPaymentStep {...props} paymentRaw="1000000" />)
   expect(screen.getByText('Cost breakdown')).toBeTruthy()
 })
 

@@ -6,14 +6,29 @@ import { MAXIMUM_FONT_SIZE_MULTIPLIER } from '@/theme/accessibility'
 import { Text } from '@/components/ui/Text'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
-import { ASSET_META, CURRENCY_META, gigAmountBounds } from '@tenda/shared'
+import {
+  ASSET_META,
+  CURRENCY_META,
+  gigBudgetFromUnits,
+  gigBudgetRangeLabel,
+  gigBudgetToRaw,
+  gigBudgetToText,
+  hasGigBudget,
+  sanitizeGigBudgetText,
+  sanitizeDecimalText,
+  FIAT_ENTRY_DECIMALS,
+} from '@tenda/shared'
 
 interface PaymentInputProps {
   /** Asset registry id (CO5), drives decimals, symbol and budget rails. */
   asset: string
-  /** Raw units of `asset` (lamports for SOL, 6dp for USDC). */
-  value: number
-  onChange: (raw: number) => void
+  /**
+   * Budget in raw units of `asset`, as a base-unit string; '' when unset.
+   * A string because an 18-decimal budget is past what a number can hold —
+   * see @tenda/shared's gig-budget helpers, which own the conversion.
+   */
+  value: string
+  onChange: (raw: string) => void
 }
 
 type Mode = 'FIAT' | 'ASSET'
@@ -32,8 +47,6 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
 
   const meta = ASSET_META[asset]
   const symbol = meta?.symbol ?? asset
-  const decimals = meta?.decimals ?? 9
-  const scale = 10 ** decimals
 
   // Fiat per display unit of `asset`: SOL rates come straight from the
   // platform cache; stables ≈ USD, so divide out the USD leg.
@@ -46,34 +59,47 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
         : null
       : solRate
 
-  const hasInitial = value > 0
+  const hasInitial = hasGigBudget(value)
   const [mode, setMode] = useState<Mode>(hasInitial ? 'ASSET' : 'FIAT')
-  const [text, setText] = useState(() => (hasInitial ? String(value / scale) : ''))
+  const [text, setText] = useState(() => gigBudgetToText(value, asset))
 
-  const currentUnits = value / scale
+  // Display magnitude only — safe as a number, and the fiat alt is an
+  // approximation by construction ('≈'). The RAW never goes through here.
+  const currentUnits = hasInitial ? Number(gigBudgetToText(value, asset)) : 0
   const currentFiat = rate != null ? currentUnits * rate : null
 
-  const { min_raw } = gigAmountBounds(asset)
-  const minDisplay = `${min_raw / scale} ${symbol}`
+  const rangeDisplay = gigBudgetRangeLabel(asset)
 
-  function handleChangeText(raw: string) {
-    setText(raw)
-    const num = parseFloat(raw)
-    if (isNaN(num) || num <= 0) return
+  function handleChangeText(typed: string) {
+    // In ASSET mode the field IS the amount, so it is precision-limited at
+    // entry. In FIAT mode it is a fiat amount that happens to share the
+    // widget — the asset's decimals say nothing about how many kobo a reader
+    // may type, so only the character filter applies.
+    const next =
+      mode === 'ASSET'
+        ? sanitizeGigBudgetText(typed, asset)
+        : sanitizeDecimalText(typed, FIAT_ENTRY_DECIMALS)
+    setText(next)
+
+    if (mode === 'ASSET') {
+      onChange(gigBudgetToRaw(next, asset))
+      return
+    }
 
     // No rate yet → a FIAT entry can't convert; emitting it as ASSET units
     // would misprice by orders of magnitude. Wait for the rate (the toggle
     // to the asset tab always works).
-    if (mode === 'FIAT' && rate == null) return
-
-    const units = mode === 'FIAT' && rate != null ? num / rate : num
-    const { max_raw } = gigAmountBounds(asset)
-    onChange(Math.min(Math.round(units * scale), max_raw))
+    if (rate == null || rate <= 0) return
+    const fiat = Number(next.replace(/\.$/, ''))
+    onChange(Number.isFinite(fiat) ? gigBudgetFromUnits(fiat / rate, asset) : '')
   }
 
   function toggleMode(next: Mode) {
     setMode(next)
     setText('')
+    // The cleared field is a cleared budget. Leaving the old raw behind let
+    // the step stay satisfied by a number that was no longer on screen.
+    onChange('')
   }
 
   const fiatAlt =
@@ -137,7 +163,7 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
       </View>
 
       <Text size={12} color={theme.colors.content.tertiary} style={s.helper}>
-        Minimum {minDisplay}
+        Budget {rangeDisplay}
       </Text>
     </View>
   )

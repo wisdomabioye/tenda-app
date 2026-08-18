@@ -7,11 +7,21 @@
  * DIVERGENCE from mobile, deliberate and temporary: mobile offers a FIAT
  * entry mode converted through the exchange-rate + settings stores, neither
  * of which exists on web yet (they land with the Exchange surface, S6.4).
- * The money math is unchanged — display units → raw via the asset's
- * decimals, clamped to the shared gig bounds.
+ *
+ * The money math is NOT this component's — it is `@tenda/shared`'s
+ * gig-budget helpers, which both clients now share. This file used to do
+ * `Math.round(parseFloat(text) * 10 ** decimals)`, float math that cannot
+ * represent an 18-decimal budget. What is left here is the field: text in,
+ * base-unit string out.
  */
 import { useState } from 'react'
-import { ASSET_META, gigAmountBounds } from '@tenda/shared'
+import {
+  ASSET_META,
+  gigBudgetRangeLabel,
+  gigBudgetToRaw,
+  gigBudgetToText,
+  sanitizeGigBudgetText,
+} from '@tenda/shared'
 
 export function PaymentInput({
   asset,
@@ -20,29 +30,24 @@ export function PaymentInput({
 }: {
   /** Asset registry id (CO5), drives decimals, symbol and budget rails. */
   asset: string
-  /** Raw units of `asset`. */
-  value: number
-  onChange: (raw: number) => void
+  /** Budget in raw units of `asset`; '' when it has not been set. */
+  value: string
+  onChange: (raw: string) => void
 }) {
-  const meta = ASSET_META[asset]
-  const symbol = meta?.symbol ?? asset
-  const decimals = meta?.decimals ?? 9
-  const scale = 10 ** decimals
+  const symbol = ASSET_META[asset]?.symbol ?? asset
 
-  const hasInitial = value > 0
-  const [text, setText] = useState(() => (hasInitial ? String(value / scale) : ''))
+  // Seeded once from the incoming raw (a resumed draft) and owned by the
+  // field thereafter — the text is what the reader typed, and re-deriving it
+  // from `value` on every render would rewrite it mid-entry.
+  const [text, setText] = useState(() => gigBudgetToText(value, asset))
 
-  const { min_raw, max_raw } = gigAmountBounds(asset)
-  const minDisplay = `${min_raw / scale} ${symbol}`
-
-  function handleChange(raw: string) {
-    setText(raw)
-    const num = parseFloat(raw)
-    if (isNaN(num) || num <= 0) {
-      onChange(0)
-      return
-    }
-    onChange(Math.min(Math.round(num * scale), max_raw))
+  function handleChange(typed: string) {
+    // Sanitize BEFORE it reaches state, so the field cannot hold a number the
+    // asset cannot represent — see sanitizeGigBudgetText for why refusing the
+    // digit beats rounding it.
+    const next = sanitizeGigBudgetText(typed, asset)
+    setText(next)
+    onChange(gigBudgetToRaw(next, asset))
   }
 
   return (
@@ -61,7 +66,7 @@ export function PaymentInput({
         />
         <span className="font-mono text-sm text-content-tertiary">{symbol}</span>
       </div>
-      <p className="text-xs text-content-tertiary">Minimum {minDisplay}</p>
+      <p className="text-xs text-content-tertiary">Budget {gigBudgetRangeLabel(asset)}</p>
     </div>
   )
 }

@@ -26,7 +26,7 @@ const NUDGE = /balance won.t cover/
 
 test('AddFundsNudge shows only when the balance is KNOWN and short, linking to /wallet', () => {
   balanceState.current = { amountRaw: '5000000' }
-  render(<AddFundsNudge chainId="solana:devnet" asset="USDC_SOL" paymentRaw={10_000_000} />)
+  render(<AddFundsNudge chainId="solana:devnet" asset="USDC_SOL" paymentRaw="10000000" />)
   const link = screen.getByRole('link', { name: NUDGE })
   expect(link).toHaveAttribute('href', '/wallet')
 })
@@ -34,7 +34,7 @@ test('AddFundsNudge shows only when the balance is KNOWN and short, linking to /
 test('a covered budget shows nothing', () => {
   balanceState.current = { amountRaw: '10000000' }
   const { container } = render(
-    <AddFundsNudge chainId="solana:devnet" asset="USDC_SOL" paymentRaw={10_000_000} />,
+    <AddFundsNudge chainId="solana:devnet" asset="USDC_SOL" paymentRaw="10000000" />,
   )
   expect(container).toBeEmptyDOMElement()
 })
@@ -42,15 +42,36 @@ test('a covered budget shows nothing', () => {
 test('an UNKNOWN balance stays silent — an RPC failure never accuses the user', () => {
   balanceState.current = null
   const { container } = render(
-    <AddFundsNudge chainId="solana:devnet" asset="USDC_SOL" paymentRaw={10_000_000} />,
+    <AddFundsNudge chainId="solana:devnet" asset="USDC_SOL" paymentRaw="10000000" />,
   )
   expect(container).toBeEmptyDOMElement()
 })
 
 test('an unparseable balance or budget also stays silent', () => {
+  // Both halves, because the name promises both and only the balance half was
+  // ever checked. The budget half became reachable when paymentRaw stopped
+  // being a number: a malformed amount_raw from a draft now arrives as a
+  // non-canonical string, and BigInt() throws on it — an advisory hint must
+  // never take the form down.
   balanceState.current = { amountRaw: 'not-a-number' }
   const { container } = render(
-    <AddFundsNudge chainId="solana:devnet" asset="USDC_SOL" paymentRaw={10_000_000} />,
+    <AddFundsNudge chainId="solana:devnet" asset="USDC_SOL" paymentRaw="10000000" />,
+  )
+  expect(container).toBeEmptyDOMElement()
+
+  balanceState.current = { amountRaw: '5000000' }
+  expect(() =>
+    render(<AddFundsNudge chainId="solana:devnet" asset="USDC_SOL" paymentRaw="not-a-number" />),
+  ).not.toThrow()
+  expect(screen.queryByRole('link', { name: NUDGE })).toBeNull()
+})
+
+test('an EMPTY budget shows nothing — nothing has been asked for yet', () => {
+  // '' is the new "not set". A short balance must not accuse someone who has
+  // not typed an amount.
+  balanceState.current = { amountRaw: '1' }
+  const { container } = render(
+    <AddFundsNudge chainId="solana:devnet" asset="USDC_SOL" paymentRaw="" />,
   )
   expect(container).toBeEmptyDOMElement()
 })

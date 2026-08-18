@@ -58,7 +58,10 @@ function PostGigScreen() {
           description: draft.description ?? '',
           chainId: draft.chain_id,
           asset: draft.asset,
-          paymentRaw: Number(draft.amount_raw),
+          // Straight through as the base-unit string it already is. It was
+          // Number()'d here, which is exactly the corruption #32 removes: a
+          // resumed 18-decimal draft came back as an approximation of itself.
+          paymentRaw: draft.amount_raw,
           completionDuration: draft.completion_duration_seconds ?? DEFAULT_COMPLETION_SECONDS,
           category: draft.category,
           country: draft.country,
@@ -120,7 +123,7 @@ function PostGigScreen() {
         ctx={{
           amount:
             pendingValues !== null
-              ? formatAssetAmount(String(pendingValues.paymentRaw), pendingValues.asset)
+              ? formatAssetAmount(pendingValues.paymentRaw, pendingValues.asset)
               : '',
           kind: 'gig',
         }}

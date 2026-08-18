@@ -8,8 +8,8 @@ import { toBigIntOrNull } from '@tenda/shared'
 interface AddFundsNudgeProps {
   chainId: string
   asset: string
-  /** Budget in base units. */
-  paymentRaw: number
+  /** Base-unit string; '' until a budget is set. */
+  paymentRaw: string
 }
 
 /**

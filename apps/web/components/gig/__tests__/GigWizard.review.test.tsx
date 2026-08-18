@@ -101,7 +101,7 @@ test('a prefilled gig walks all five steps and submits the composed values', asy
     title: 'Deliver a package',
     chainId: 'solana:devnet',
     asset: 'USDC_SOL',
-    paymentRaw: 10_000_000,
+    paymentRaw: '10000000',
     remote: true,
     country: null, // remote gigs carry no location
     city: null,
@@ -172,7 +172,7 @@ test('jumping the rail to the last step says which step is holding it up', async
 })
 
 test('the last step still phrases its OWN requirement as review and sign', async () => {
-  await renderForm({ ...VALID, paymentRaw: 0 })
+  await renderForm({ ...VALID, paymentRaw: '' })
   await advance(4)
   expect(screen.getByText('Set a budget to review and sign')).toBeInTheDocument()
 })
@@ -186,7 +186,7 @@ test('the final-step hint never names a requirement the step it points at does n
   // step from the wizard's 5-step order (duration on Where and when) — which
   // produced "Set a budget — go back to Where and when". Where and when has
   // no budget field.
-  await renderForm({ ...VALID, completionDuration: 91 * 86_400, paymentRaw: 0 })
+  await renderForm({ ...VALID, completionDuration: 91 * 86_400, paymentRaw: '' })
   fireEvent.click(screen.getByRole('button', { name: /Amount and signing/ }))
   expect(screen.getByText('Step 5 of 5')).toBeInTheDocument()
   expect(screen.getByText('Set a delivery time — go back to Where and when')).toBeInTheDocument()

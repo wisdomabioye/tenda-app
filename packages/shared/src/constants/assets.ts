@@ -56,11 +56,22 @@ export const USDC_DECIMALS: number = (() => {
 })()
 
 /**
- * Client-side gig budget bounds for stable assets (raw units, 6dp USDC):
- * 1–50,000 USDC. Advisory UX rails — the program only enforces > 0.
+ * Client-side gig budget rails, in DISPLAY units — 1–50,000 for a stable,
+ * 0.001–10,000 for a native token. Advisory UX rails; the program only
+ * enforces > 0.
+ *
+ * Display units, not raw, because raw bounds are only meaningful alongside a
+ * decimals count. These were `GIG_STABLE_MIN_RAW = 1_000_000` and its 6dp
+ * sibling — correct for USDC and wrong for every other precision. `cUSD` is
+ * already `is_stable: true` at EIGHTEEN decimals, so it would have inherited
+ * a maximum of 50_000_000_000 raw = 0.00000005 cUSD, rejecting every budget
+ * anyone would type. `gigAmountBounds` scales these by the asset's own
+ * decimals, so a new asset is a manifest entry and nothing else.
  */
-export const GIG_STABLE_MIN_RAW = 1_000_000
-export const GIG_STABLE_MAX_RAW = 50_000_000_000
+export const GIG_STABLE_MIN_DISPLAY = '1'
+export const GIG_STABLE_MAX_DISPLAY = '50000'
+export const GIG_NATIVE_MIN_DISPLAY = '0.001'
+export const GIG_NATIVE_MAX_DISPLAY = '10000'
 
 /** Display units for a raw integer amount ('5000000', 'USDC_SOL' → 5). */
 export function amountRawToDisplay(amount_raw: string, asset: string): number {

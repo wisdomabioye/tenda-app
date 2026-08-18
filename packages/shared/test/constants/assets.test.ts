@@ -2,12 +2,15 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   ASSET_META,
-  GIG_STABLE_MIN_RAW,
-  GIG_STABLE_MAX_RAW,
+  GIG_NATIVE_MAX_DISPLAY,
+  GIG_NATIVE_MIN_DISPLAY,
+  GIG_STABLE_MAX_DISPLAY,
+  GIG_STABLE_MIN_DISPLAY,
   amountRawToDisplay,
   formatAssetAmount,
   splitAssetAmount,
 } from '../../src/constants/assets'
+import { parseUnits } from '../../src/utils/units'
 
 test('ASSET_META: every entry has a symbol, non-negative decimals, boolean is_stable, coingeckoId', () => {
   for (const [id, meta] of Object.entries(ASSET_META)) {
@@ -32,9 +35,22 @@ test('ASSET_META: native gas tokens carry a long-form name for AppKit nativeCurr
   assert.equal(ASSET_META.SOL.name, 'Solana')
 })
 
-test('GIG_STABLE bounds are ordered and positive', () => {
-  assert.ok(GIG_STABLE_MIN_RAW > 0)
-  assert.ok(GIG_STABLE_MAX_RAW > GIG_STABLE_MIN_RAW)
+test('the gig rails are ordered, positive, and PARSEABLE as display amounts', () => {
+  // They are display strings now, and gigAmountBounds runs them through
+  // parseUnits — which answers null for anything malformed and would silently
+  // turn a typo here into a bound of '0'. So the parse is what is asserted,
+  // not just the ordering.
+  for (const [min, max] of [
+    [GIG_STABLE_MIN_DISPLAY, GIG_STABLE_MAX_DISPLAY],
+    [GIG_NATIVE_MIN_DISPLAY, GIG_NATIVE_MAX_DISPLAY],
+  ]) {
+    for (const value of [min, max]) {
+      const raw = parseUnits(value, 18)
+      assert.notEqual(raw, null, value)
+      assert.ok(BigInt(raw as string) > 0n, value)
+    }
+    assert.ok(BigInt(parseUnits(max, 18) as string) > BigInt(parseUnits(min, 18) as string))
+  }
 })
 
 test('amountRawToDisplay: divides by 10**decimals per asset', () => {

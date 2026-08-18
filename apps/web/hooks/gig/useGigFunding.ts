@@ -77,7 +77,9 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
     // the shared gigAssetByChain helper, the server re-asserts it).
     const chain_id = values.chainId
     const asset = values.asset
-    const amount_raw = String(values.paymentRaw)
+    // Already a canonical base-unit string — the composer never holds it as
+    // a number, so there is nothing left to stringify.
+    const amount_raw = values.paymentRaw
     creationAttempt.current = reuseOrCreateEscrowCreationAttempt(
       creationAttempt.current,
       [chain_id, asset, amount_raw, values.acceptDeadlineHours, values.completionDuration,

@@ -19,7 +19,7 @@ const VALID = {
   country: 'NG',
   city: 'Lagos',
   asset: 'USDC_SOL',
-  paymentRaw: 10_000_000,
+  paymentRaw: '10000000',
   completionDuration: 86_400,
 }
 
@@ -39,7 +39,7 @@ test('does not require a location for remote work', () => {
 })
 
 test('validates payment independently from details', () => {
-  assert.strictEqual(getGigStepMissingRequirement('payment', { ...VALID, paymentRaw: 0 }), 'Set a budget')
+  assert.strictEqual(getGigStepMissingRequirement('payment', { ...VALID, paymentRaw: '' }), 'Set a budget')
   assert.strictEqual(
     getGigStepMissingRequirement('payment', { ...VALID, completionDuration: 1 }),
     'Set a delivery time',
@@ -57,5 +57,5 @@ test('validates payment independently from details', () => {
 test('rechecks the complete form before final submission', () => {
   assert.strictEqual(getGigMissingRequirement(VALID), null)
   assert.strictEqual(getGigMissingRequirement({ ...VALID, title: '' }), 'Add a title')
-  assert.strictEqual(getGigMissingRequirement({ ...VALID, paymentRaw: 0 }), 'Set a budget')
+  assert.strictEqual(getGigMissingRequirement({ ...VALID, paymentRaw: '' }), 'Set a budget')
 })

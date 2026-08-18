@@ -8,6 +8,7 @@
 import type { GigCategory } from './categories'
 import type { ProofType } from './proofs'
 import { isValidCompletionDuration, isValidGigAmountRaw } from '../utils/validation'
+import { gigBudgetRangeLabel } from '../utils/gig-budget'
 
 export const TITLE_MAX = 80
 export const DESC_MAX = 1500
@@ -35,8 +36,15 @@ export interface GigFormValues {
   /** CAIP-2 chain + its gig asset (CO5), always a gigAssetByChain pair. */
   chainId: string
   asset: string
-  /** Budget in raw units of `asset`. */
-  paymentRaw: number
+  /**
+   * Budget in raw units of `asset`, as a canonical base-unit STRING.
+   *
+   * Not a number: one token of an 18-decimal asset is 1e18 base units, past
+   * the 2^53 where a JS number stops being exact, so `number` cannot hold the
+   * value it claims to. '' means "not set yet" — the composer starts empty and
+   * `budget` below is what refuses it.
+   */
+  paymentRaw: string
   completionDuration: number
   category: GigCategory | null
   country: string | null
@@ -69,7 +77,8 @@ export interface GigValidationValues {
   country: string | null
   city: string | null
   asset: string
-  paymentRaw: number
+  /** Base-unit string; see GigFormValues.paymentRaw. */
+  paymentRaw: string
   completionDuration: number
 }
 
@@ -99,7 +108,19 @@ export const GIG_REQUIREMENTS = {
     if (v.city === null) return 'Select a city'
     return null
   },
-  budget: (v) => (!isValidGigAmountRaw(v.asset, v.paymentRaw) ? 'Set a budget' : null),
+  /**
+   * Two different problems, because they need two different answers: an empty
+   * field is a step not finished, while a number outside the rail is a number
+   * the reader chose and needs telling about. Both used to say 'Set a budget',
+   * which is a lie in front of a field that visibly has a budget in it.
+   */
+  budget: (v) => {
+    if (v.paymentRaw === '') return 'Set a budget'
+    if (!isValidGigAmountRaw(v.asset, v.paymentRaw)) {
+      return `Budget must be ${gigBudgetRangeLabel(v.asset)}`
+    }
+    return null
+  },
   duration: (v) => (!isValidCompletionDuration(v.completionDuration) ? 'Set a delivery time' : null),
 } satisfies Record<string, GigRequirementCheck>
 

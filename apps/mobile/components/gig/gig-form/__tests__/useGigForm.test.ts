@@ -78,7 +78,7 @@ it('validates each stage and submits normalized remote values', async () => {
     result.current.setTitle('Design a logo')
     result.current.setDescription('Provide three polished concepts.')
     result.current.setIsRemote(true)
-    result.current.setPaymentRaw(10_000_000)
+    result.current.setPaymentRaw('10000000')
   })
   expect(result.current.missingRequirement).toBeNull()
 
@@ -99,7 +99,7 @@ it('opens the warning gate before submission and submits after it is acknowledge
     title: 'Deliver parcel',
     description: 'Deliver it safely.',
     remote: true,
-    paymentRaw: 10_000_000,
+    paymentRaw: '10000000',
   }, onSubmit))
 
   await act(async () => { await result.current.handleSubmit() })

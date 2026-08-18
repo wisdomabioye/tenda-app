@@ -140,7 +140,7 @@ function GigStep({ step, form }: { step: GigComposerStep; form: GigFormControlle
       onProofRequirementsChange={form.setProofRequirements}
       title={form.title}
       location={location}
-      budget={formatAssetAmount(String(form.paymentRaw), form.asset)}
+      budget={formatAssetAmount(form.paymentRaw, form.asset)}
       timing={`${formatDuration(form.completionDuration)} to complete`}
     />
   )

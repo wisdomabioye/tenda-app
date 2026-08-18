@@ -39,7 +39,7 @@ const BLANK_VALUES: GigValidationValues = {
   country: null,
   city: null,
   asset: 'USDC_SOL',
-  paymentRaw: 0,
+  paymentRaw: '',
   completionDuration: 86_400,
 }
 
@@ -48,7 +48,7 @@ const FILLED_VALUES: GigValidationValues = {
   title: 'Deliver a package',
   description: 'Collect and deliver safely.',
   category: 'delivery',
-  paymentRaw: 10_000_000,
+  paymentRaw: '10000000',
 }
 import { usePlatformConfigStore } from '@/stores/platform-config.store'
 

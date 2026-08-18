@@ -1,4 +1,12 @@
-import { ASSET_META, GIG_STABLE_MIN_RAW, GIG_STABLE_MAX_RAW } from '../constants/assets'
+import {
+  ASSET_META,
+  GIG_NATIVE_MAX_DISPLAY,
+  GIG_NATIVE_MIN_DISPLAY,
+  GIG_STABLE_MAX_DISPLAY,
+  GIG_STABLE_MIN_DISPLAY,
+} from '../constants/assets'
+import { parseUnits, sanitizeDecimalText } from './units'
+import { isAmountRaw } from './amount-raw'
 
 /** E.164 phone format, e.g. +2348012345678 (stage-1 OTP routes). */
 export const E164_RE = /^\+[1-9]\d{7,14}$/
@@ -31,11 +39,6 @@ export function isValidLongitude(lng: number): boolean {
   return Number.isFinite(lng) && lng >= -180 && lng <= 180
 }
 
-// Minimum payment: 1,000,000 lamports (0.001 SOL) — mirrors MIN_PAYMENT in smart contract
-export const MIN_PAYMENT_LAMPORTS = 1_000_000
-// Maximum payment: 10,000 SOL in lamports — practical upper bound
-export const MAX_PAYMENT_LAMPORTS = 10_000 * 1_000_000_000
-
 export const MAX_GIG_TITLE_LENGTH       = 200
 export const MAX_GIG_DESCRIPTION_LENGTH = 5000
 export const MAX_DISPUTE_REASON_LENGTH  = 2000
@@ -44,29 +47,67 @@ export const MAX_DISPUTE_REASON_LENGTH  = 2000
 export const MIN_COMPLETION_DURATION_SECONDS = 60 * 60        // 1 hour
 export const MAX_COMPLETION_DURATION_SECONDS = 60 * 60 * 24 * 90 // 90 days
 
-export function isValidPaymentLamports(amount: number): boolean {
-  return (
-    Number.isInteger(amount) &&
-    amount >= MIN_PAYMENT_LAMPORTS &&
-    amount <= MAX_PAYMENT_LAMPORTS
-  )
-}
-
 /**
  * Per-asset gig budget rails (CO5): stables get USDC bounds, native SOL
  * keeps the legacy lamport rails. Advisory UX limits — the program only
  * enforces amount > 0.
  */
-export function gigAmountBounds(asset: string): { min_raw: number; max_raw: number } {
-  if (ASSET_META[asset]?.is_stable === true) {
-    return { min_raw: GIG_STABLE_MIN_RAW, max_raw: GIG_STABLE_MAX_RAW }
-  }
-  return { min_raw: MIN_PAYMENT_LAMPORTS, max_raw: MAX_PAYMENT_LAMPORTS }
+/**
+ * The advisory budget rails for one asset, in ITS base units.
+ *
+ * Scaled from the display-unit constants by the asset's own decimals, so the
+ * same "1 to 50,000" rail means the same money whatever the precision. The
+ * previous version returned fixed 6dp numbers for every stable asset, which
+ * made cUSD (stable, 18 decimals) unusable — see the note on the constants.
+ *
+ * Strings, matching every other raw amount that crosses a boundary here.
+ * An unknown asset falls back to the NATIVE rails and 9 decimals, which is
+ * what the old code did by returning the lamport bounds.
+ */
+export function gigAmountBounds(asset: string): { min_raw: string; max_raw: string } {
+  const meta = ASSET_META[asset]
+  const decimals = meta?.decimals ?? 9
+  const [min, max] =
+    meta?.is_stable === true
+      ? [GIG_STABLE_MIN_DISPLAY, GIG_STABLE_MAX_DISPLAY]
+      : [GIG_NATIVE_MIN_DISPLAY, GIG_NATIVE_MAX_DISPLAY]
+  return { min_raw: railToRaw(min, decimals, true), max_raw: railToRaw(max, decimals, false) }
 }
 
-export function isValidGigAmountRaw(asset: string, amount: number): boolean {
-  const bounds = gigAmountBounds(asset)
-  return Number.isInteger(amount) && amount >= bounds.min_raw && amount <= bounds.max_raw
+/**
+ * One display-unit rail in an asset's base units.
+ *
+ * The rails are written at the precision a person reads ('0.001'), which can
+ * be FINER than the asset can express — parseUnits answers null for that, and
+ * a null minimum silently became '0', removing the floor entirely and
+ * accepting any budget above zero. No asset in the registry is below 6
+ * decimals today, so this is not currently reachable; it is handled because
+ * adding an asset is meant to be a manifest entry and nothing else, and a
+ * vanished minimum is not a failure anyone would notice.
+ *
+ * Truncating first (the same rule the input field uses) and flooring a
+ * minimum at one base unit keeps the rail meaningful at any precision: the
+ * smallest budget allowed, or the smallest the asset can express, whichever
+ * is larger.
+ */
+function railToRaw(display: string, decimals: number, isMinimum: boolean): string {
+  const raw = parseUnits(sanitizeDecimalText(display, decimals), decimals) ?? '0'
+  return isMinimum && raw === '0' ? '1' : raw
+}
+
+/**
+ * Whether a raw gig budget is inside the rails.
+ *
+ * `amount_raw` is a base-unit STRING compared with BigInt: 1 token of an
+ * 18-decimal asset is 1e18 base units, past the 2^53 where `number` starts
+ * rounding, so the old `Number.isInteger` version could not represent the
+ * value it was checking.
+ */
+export function isValidGigAmountRaw(asset: string, amount_raw: string): boolean {
+  if (!isAmountRaw(amount_raw)) return false
+  const { min_raw, max_raw } = gigAmountBounds(asset)
+  const value = BigInt(amount_raw)
+  return value >= BigInt(min_raw) && value <= BigInt(max_raw)
 }
 
 export function isValidCompletionDuration(seconds: number): boolean {

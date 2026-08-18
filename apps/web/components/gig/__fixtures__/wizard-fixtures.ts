@@ -27,5 +27,5 @@ export const VALID: Partial<GigFormValues> = {
   description: 'Collect and deliver safely.',
   category: 'delivery',
   remote: true,
-  paymentRaw: 10_000_000,
+  paymentRaw: '10000000',
 }

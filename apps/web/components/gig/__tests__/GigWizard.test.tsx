@@ -126,7 +126,7 @@ test('step 4 never blocks — an empty proof list is a real answer', async () =>
 })
 
 test('step 5 refuses without a budget, and asks to review and sign, not continue', async () => {
-  await renderForm({ ...VALID, paymentRaw: 0 })
+  await renderForm({ ...VALID, paymentRaw: '' })
   await advance(4)
   expect(screen.getByRole('heading', { name: 'Fund the escrow' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Review and sign' })).toBeDisabled()

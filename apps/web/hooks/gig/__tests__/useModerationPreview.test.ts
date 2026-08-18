@@ -19,7 +19,7 @@ const READY: ModerationPreviewInput = {
   category: 'delivery',
   country: 'NG',
   asset: 'USDC_SOL',
-  paymentRaw: 10_000_000,
+  paymentRaw: '10000000',
 }
 
 const VERDICT = { decision: 'warn', reasons: [{ code: 'price', message: 'Low budget' }] }
@@ -62,7 +62,7 @@ test('not ready (short title / no category / no budget) never calls the API and 
     { ...READY, title: 'abc' },
     { ...READY, category: null },
     { ...READY, country: null },
-    { ...READY, paymentRaw: 0 },
+    { ...READY, paymentRaw: '' },
   ]) {
     const { result } = renderHook(() => useModerationPreview(input))
     await debounce()
@@ -77,7 +77,7 @@ test('leaving the ready state clears the verdict immediately', async () => {
   })
   await debounce()
   expect(result.current).toEqual(VERDICT)
-  rerender({ ...READY, paymentRaw: 0 })
+  rerender({ ...READY, paymentRaw: '' })
   expect(result.current).toBeNull()
 })
 
@@ -120,4 +120,18 @@ test('API failure is silent — the hint simply does not show', async () => {
   const { result } = renderHook(() => useModerationPreview(READY))
   await debounce()
   expect(result.current).toBeNull()
+})
+
+test('a MALFORMED budget never reaches the API — the server answers 422 for it', () => {
+  // The gate is hasGigBudget, not `paymentRaw !== ''`, and this is the
+  // difference between them. The moderation route validates with isAmountRaw
+  // and rejects anything non-canonical, so sending one buys a guaranteed 422
+  // and an error banner over a budget the reader is still typing. A partially
+  // typed '12.' is already normalised to a raw by the field; these are the
+  // shapes a malformed draft or a half-migrated caller produces.
+  for (const paymentRaw of ['0', 'abc', '1.5', '-1', '1e6', ' 1000000', '01000000']) {
+    renderHook(() => useModerationPreview({ ...READY, paymentRaw }))
+    act(() => { vi.advanceTimersByTime(2000) })
+  }
+  expect(previewMock).not.toHaveBeenCalled()
 })

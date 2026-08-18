@@ -53,7 +53,7 @@ const VALUES: GigFormValues = {
   description: 'leaky',
   chainId: 'solana:devnet',
   asset: 'USDC_SOL',
-  paymentRaw: 10_000_000,
+  paymentRaw: '10000000',
   completionDuration: 86_400,
   acceptDeadlineHours: 24,
   category: 'service',

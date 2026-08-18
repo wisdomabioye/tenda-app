@@ -21,8 +21,8 @@ export function AddFundsNudge({
 }: {
   chainId: string
   asset: string
-  /** Budget in base units. */
-  paymentRaw: number
+  /** Base-unit string; '' until a budget is set. */
+  paymentRaw: string
 }) {
   const { balance } = useSpendableBalance(chainId, asset)
 

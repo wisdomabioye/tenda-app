@@ -46,7 +46,7 @@ export function useGigForm(
   const [title, setTitle]                         = useState(initialValues?.title ?? '')
   const [description, setDescription]             = useState(initialValues?.description ?? '')
   const [chainId, setChainId]                     = useState(initialChainId)
-  const [paymentRaw, setPaymentRaw]               = useState(initialValues?.paymentRaw ?? 0)
+  const [paymentRaw, setPaymentRaw]               = useState(initialValues?.paymentRaw ?? '')
   const [registry, setRegistry]                   = useState<ChainRegistryEntry[]>([])
   const [completionDuration, setCompletionDuration] = useState(
     initialValues?.completionDuration ?? DEFAULT_COMPLETION_SECONDS,

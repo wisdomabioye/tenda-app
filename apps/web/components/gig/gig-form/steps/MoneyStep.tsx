@@ -9,6 +9,7 @@
  * poster locks the budget and the platform fee is deducted from the WORKER's
  * payout at settlement — so the comp's figures are deliberately not copied.
  */
+import { hasGigBudget } from '@tenda/shared'
 import { NetworkPicker } from '../NetworkPicker'
 import { AddFundsNudge } from '../AddFundsNudge'
 import { PaymentInput } from '@/components/form/PaymentInput'
@@ -48,8 +49,8 @@ export function MoneyStep({ form }: { form: GigFormController }) {
         <SectionLabel>The budget</SectionLabel>
         <PaymentInput asset={form.asset} value={form.paymentRaw} onChange={form.setPaymentRaw} />
         <AddFundsNudge chainId={form.chainId} asset={form.asset} paymentRaw={form.paymentRaw} />
-        {form.paymentRaw > 0 && (
-          <FeeSummary asset={form.asset} principalRaw={String(form.paymentRaw)} />
+        {hasGigBudget(form.paymentRaw) && (
+          <FeeSummary asset={form.asset} principalRaw={form.paymentRaw} />
         )}
       </div>
 
