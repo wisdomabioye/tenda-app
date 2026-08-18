@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   PAGE_SIZE,
-  hasMore as deriveHasMore,
+  hasMorePages,
+  pageLoadErrorMessage,
   mergeById,
   nextOffset,
   createQueryCache,
@@ -12,9 +13,6 @@ import {
 import type { FirstPageResult, PaginatedListState, UsePaginatedListOptions } from './pagination/paginated-list.types'
 
 export type { PageParams, PaginatedListState, UsePaginatedListOptions } from './pagination/paginated-list.types'
-const errorMessage = (e: unknown): string =>
-  e instanceof Error ? e.message : 'Something went wrong'
-
 export function usePaginatedList<TItem, TQuery extends object>({
   fetchPage,
   query,
@@ -124,7 +122,7 @@ export function usePaginatedList<TItem, TQuery extends object>({
         return { total: page.total, succeeded: true }
       } catch (e) {
         if (gen !== genRef.current) return { total: totalRef.current, succeeded: false }
-        setError(errorMessage(e))
+        setError(pageLoadErrorMessage(e))
         if (mode === 'initial') {
           // The list identity changed (mount, or a filter change), so whatever
           // is on screen belongs to a query that is no longer active — clear
@@ -196,12 +194,13 @@ export function usePaginatedList<TItem, TQuery extends object>({
     // using the previous total. Reading the ref also keeps this callback
     // stable, so FlatList's onEndReached prop stops changing every time the
     // total does.
-    if (
-      cursorPagination
-        ? nextCursorRef.current === null ||
-          (nextCursorRef.current === undefined && !deriveHasMore(offsetRef.current, totalRef.current))
-        : !deriveHasMore(offsetRef.current, totalRef.current)
-    ) return
+    const more = hasMorePages({
+      cursorPagination,
+      nextCursor: nextCursorRef.current,
+      offset: offsetRef.current,
+      total: totalRef.current,
+    })
+    if (!more) return
     const gen = genRef.current
     inFlightRef.current = true
     setIsLoadingMore(true)
@@ -281,11 +280,12 @@ export function usePaginatedList<TItem, TQuery extends object>({
   return {
     items,
     total,
-    hasMore: cursorPagination
-      ? nextCursorRef.current === undefined
-        ? deriveHasMore(offsetRef.current, total)
-        : nextCursorRef.current !== null
-      : deriveHasMore(offsetRef.current, total),
+    hasMore: hasMorePages({
+      cursorPagination,
+      nextCursor: nextCursorRef.current,
+      offset: offsetRef.current,
+      total,
+    }),
     isLoading,
     isLoadingMore,
     isRefreshing,

@@ -153,3 +153,37 @@ test('a realtime event cannot be overwritten by an older in-flight HTTP snapshot
   await waitFor(() => expect(result.current.items).toEqual(rows('realtime', 'server-current')))
   expect(result.current.items).not.toContainEqual({ id: 'stale' })
 })
+
+test('falls back to offsets when the server sends no cursor at all', async () => {
+  // `next_cursor` ABSENT is a third state, distinct from null: this server
+  // does not do cursors, so the walk falls back to offset vs total. Nothing
+  // covered it here — a mutation removing the fallback (making hasMore
+  // permanently true, an endless end-reach) passed all 38 tests. The rule now
+  // lives in @tenda/shared; this pins THIS client's wiring to it.
+  const noCursor = (data: Row[], total: number): PaginatedResponse<Row> => ({
+    data,
+    total,
+    limit: 2,
+    offset: 0,
+  })
+  const fetchPage = jest
+    .fn()
+    .mockResolvedValueOnce(noCursor(rows('a', 'b'), 3))
+    .mockResolvedValueOnce(noCursor(rows('c'), 3))
+  const { result } = renderHook(() =>
+    usePaginatedList({
+      fetchPage,
+      query: {},
+      keyOf: (row: Row) => row.id,
+      pageSize: 2,
+      cursorPagination: true,
+    }),
+  )
+
+  await waitFor(() => expect(result.current.items).toHaveLength(2))
+  expect(result.current.hasMore).toBe(true)
+
+  act(() => result.current.loadMore())
+  await waitFor(() => expect(result.current.items).toHaveLength(3))
+  expect(result.current.hasMore).toBe(false)
+})

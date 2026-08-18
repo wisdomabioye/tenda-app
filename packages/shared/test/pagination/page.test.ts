@@ -1,7 +1,7 @@
 /** Ported from apps/mobile/lib/pagination/__tests__/page.test.ts at the move. */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { hasMore, mergeById, nextOffset } from '../../src/pagination'
+import { hasMore, hasMorePages, mergeById, nextOffset } from '../../src/pagination'
 
 interface Row {
   id: string
@@ -56,4 +56,51 @@ test('nextOffset: advances by what the server returned, including short and empt
   assert.equal(nextOffset(20, 20), 40)
   assert.equal(nextOffset(40, 5), 45)
   assert.equal(nextOffset(40, 0), 40)
+})
+
+// ── hasMorePages: the cursor-aware rule both clients ask ────────────────────
+
+test('hasMorePages: offset pagination ignores the cursor entirely', () => {
+  const args = { cursorPagination: false, nextCursor: null, offset: 2, total: 5 }
+  assert.equal(hasMorePages(args), true)
+  assert.equal(hasMorePages({ ...args, offset: 5 }), false)
+})
+
+test('hasMorePages: a null cursor is the server saying this is the end', () => {
+  // Even with rows still unloaded by the offset count — the cursor wins.
+  assert.equal(
+    hasMorePages({ cursorPagination: true, nextCursor: null, offset: 2, total: 99 }),
+    false,
+  )
+})
+
+test('hasMorePages: a cursor string means another page, whatever the offsets say', () => {
+  assert.equal(
+    hasMorePages({ cursorPagination: true, nextCursor: 'c-2', offset: 99, total: 2 }),
+    true,
+  )
+})
+
+test('hasMorePages: no cursor AT ALL falls back to offsets', () => {
+  // `undefined` is a third state, distinct from null: this server does not do
+  // cursors. Collapsing it into the cursor branch makes hasMore permanently
+  // true — an endless Load more.
+  assert.equal(
+    hasMorePages({ cursorPagination: true, nextCursor: undefined, offset: 2, total: 5 }),
+    true,
+  )
+  assert.equal(
+    hasMorePages({ cursorPagination: true, nextCursor: undefined, offset: 5, total: 5 }),
+    false,
+  )
+})
+
+test('hasMorePages: agrees with hasMore on every offset-shaped input', () => {
+  // The two must not drift: hasMorePages is the same rule with a cursor lane.
+  for (const [offset, total] of [[0, 0], [0, 1], [1, 1], [3, 10], [10, 10], [11, 10]]) {
+    assert.equal(
+      hasMorePages({ cursorPagination: false, nextCursor: undefined, offset, total }),
+      hasMore(offset, total),
+    )
+  }
 })

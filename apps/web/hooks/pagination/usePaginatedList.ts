@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   PAGE_SIZE,
+  hasMorePages,
+  pageLoadErrorMessage,
   mergeById,
   nextOffset,
   createQueryCache,
@@ -9,7 +11,6 @@ import {
   createQueryKey,
 } from '@tenda/shared'
 import type { FirstPageResult, PaginatedListState, UsePaginatedListOptions } from './paginated-list.types'
-import { errorMessage, hasMorePages } from './pagination-rules'
 
 export type { PageParams, PaginatedListState, UsePaginatedListOptions } from './paginated-list.types'
 
@@ -139,7 +140,7 @@ export function usePaginatedList<TItem, TQuery extends object>({
         return { total: page.total, succeeded: true }
       } catch (e) {
         if (gen !== genRef.current) return { total: totalRef.current, succeeded: false }
-        setError(errorMessage(e))
+        setError(pageLoadErrorMessage(e))
         if (mode === 'initial') {
           // The list identity changed (mount, or a filter change), so whatever
           // is on screen belongs to a query that is no longer active — clear
@@ -211,16 +212,13 @@ export function usePaginatedList<TItem, TQuery extends object>({
     // using the previous total. Reading the ref also keeps this callback
     // stable, so a consumer's load-more handler prop stops changing every
     // time the total does.
-    // The REF total, not state: state lags a render behind, so a call landing
-    // between a load settling and the re-render would decide on the old one.
-    if (
-      !hasMorePages({
-        cursorPagination,
-        nextCursor: nextCursorRef.current,
-        offset: offsetRef.current,
-        total: totalRef.current,
-      })
-    ) return
+    const more = hasMorePages({
+      cursorPagination,
+      nextCursor: nextCursorRef.current,
+      offset: offsetRef.current,
+      total: totalRef.current,
+    })
+    if (!more) return
     const gen = genRef.current
     inFlightRef.current = true
     setIsLoadingMore(true)

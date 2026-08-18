@@ -64,3 +64,42 @@ export function hasMore(nextOffset: number, total: number): boolean {
 export function nextOffset(currentOffset: number, returnedCount: number): number {
   return currentOffset + returnedCount
 }
+
+/** What `hasMorePages` needs to decide, from either pagination shape. */
+export interface HasMoreArgs {
+  /** Cursor traversal, for a live list whose offsets shift under the reader. */
+  cursorPagination: boolean
+  /**
+   * The server's cursor for the next page:
+   *   • `undefined` — this server does not send one, so fall back to offsets
+   *   • `null`      — the server says this is the end
+   *   • a string    — there is another page
+   */
+  nextCursor: string | null | undefined
+  offset: number
+  total: number
+}
+
+/**
+ * Whether another page exists under EITHER shape — the cursor-aware sibling of
+ * `hasMore`, and the one both clients' `usePaginatedList` ask.
+ *
+ * It lives here rather than in a client because the rule was written FOUR
+ * times: each client had it twice, once negated as the load-more guard and
+ * once positively as the returned `hasMore`, in two different shapes that
+ * happened to agree on every input. Nothing made them agree.
+ *
+ * The `total` argument is what the callers legitimately differ on: the guard
+ * passes a ref (state lags a render behind, so a call landing between a load
+ * settling and the re-render would decide on the old total), and the returned
+ * value passes state (so what is returned matches what was rendered).
+ */
+export function hasMorePages({
+  cursorPagination,
+  nextCursor,
+  offset,
+  total,
+}: HasMoreArgs): boolean {
+  if (!cursorPagination || nextCursor === undefined) return hasMore(offset, total)
+  return nextCursor !== null
+}
