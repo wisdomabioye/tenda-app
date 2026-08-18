@@ -58,14 +58,30 @@ render `noindex` because it necessarily answers HTTP 200. `error.tsx` stays for
 anything thrown elsewhere in the tree. The rule for both forms: *if it only
 appears after hydration, an anonymous visitor may never see it.*
 
-**A third form is open and NOT solved: `notFound()`.** Next defers the whole
+**A third form is DECIDED, not solved: `notFound()`.** Next defers the whole
 not-found boundary into the flight payload when `notFound()` is thrown from a
 dynamic page, so `/gig/[id]` 404s are blank without JavaScript — measured, and
 not a property of the boundary file (removing it blanks the root boundary the
-same way, while an unmatched route like `/nowhere-at-all` renders fine). The
-fix costs the 404 status the takedown contract depends on, so it is a decision
-rather than a repair: task #24. Do not "fix" it by dropping `notFound()`
-without taking that decision.
+same way, while an unmatched route like `/nowhere-at-all` renders fine).
+Next 16.2 adds `forbidden()` / `unauthorized()`, but they answer 403/401 for a
+different situation — neither renders a 404 body without JavaScript, so neither
+is a way out of this.
+
+**The decision (user, 2026-08-18, task #24): KEEP `notFound()` and accept the
+blank page.** The 404 + `noindex` is what keeps taken-down and draft gigs out
+of the index, and that contract is carried by the STATUS, not by a meta tag —
+serving the copy at HTTP 200 would trade it away. What the blank page costs is
+bounded: an anonymous visitor with JavaScript off, following a link to a gig
+that is gone, mistyped or taken down. The feed AND a live gig detail page both
+render without the bundle — that bound is the premise of this decision, so it is
+held by a test rather than assumed (`public-discovery.spec.ts`, "a LIVE gig
+detail page renders too"). Parties are unaffected in practice —
+`PrivateGigRescue` needs JavaScript either way.
+
+So: do not "fix" this by dropping `notFound()`, and do not add Edge middleware
+to serve the body (decision #5 keeps this app middleware-free). If you are here
+because the blank page bit someone, the thing that changed is the cost side of
+that trade — reopen the decision, do not quietly invert it.
 
 Two more rules this shell learned the hard way, both measured in a real browser:
 

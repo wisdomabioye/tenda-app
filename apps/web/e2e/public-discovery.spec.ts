@@ -62,6 +62,19 @@ test.describe('feed — /gigs', () => {
       await expect(page.getByRole('link', { name: new RegExp(photoGig.title) })).toBeVisible()
       await expect(page.getByRole('link', { name: new RegExp(deliveryGig.title) })).toHaveCount(0)
     })
+
+    test('a LIVE gig detail page renders too — the bound the #24 decision rests on', async ({
+      page,
+    }) => {
+      // #24 accepted a blank page for `notFound()` 404s on the argument that
+      // the cost is bounded to DEAD links. Nothing proved the bound: the
+      // JavaScript-off suite covered the feed and stopped there. If a live gig
+      // page were blank as well, that decision would have been made on a false
+      // premise — so this is the test that holds it to its own reasoning.
+      await page.goto(`/gig/${deliveryGig.escrow_id}`)
+      await expect(page.getByRole('heading', { level: 1 })).toContainText(deliveryGig.title)
+      await expect(page.getByText('25 USDC').first()).toBeVisible()
+    })
   })
 
   test('the filter rail is links and form fields — it works with no JavaScript', async ({ request }) => {
