@@ -50,6 +50,12 @@ async function clickConnect() {
   await userEvent.click(button)
 }
 
+// The URL is per-case state now, and this file had no reset — one test's
+// `?next=` was leaking into every case after it.
+beforeEach(() => {
+  visiting('')
+})
+
 describe('idle + success', () => {
   it('signs in and routes home when the profile is complete', async () => {
     mockSignInWithWallet.mockResolvedValue(true)
@@ -87,6 +93,27 @@ describe('idle + success', () => {
     await clickConnect()
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/home'))
     visiting('')
+  })
+
+  it('keeps the destination on BACK and on the switch to email (#27)', async () => {
+    // Correcting a wrong turn must not cost the deep link: a reader who backs
+    // out to the chooser, or switches to email, is still heading somewhere.
+    visiting('?next=%2Fmy-gigs%2Fesc-1')
+    mockSignInWithWallet.mockResolvedValue(false)
+    render(<WalletSignInPanel />)
+
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: AUTH_COPY.wallet.back })).toHaveAttribute(
+        'href',
+        '/signin?next=%2Fmy-gigs%2Fesc-1',
+      ),
+    )
+    // The other half this name promises — the LATERAL move to email, which is
+    // the likelier one here (a reader whose wallet is not linked).
+    expect(screen.getByRole('link', { name: AUTH_COPY.wallet.email })).toHaveAttribute(
+      'href',
+      '/signin/email?next=%2Fmy-gigs%2Fesc-1',
+    )
   })
 
   it('a decline quietly returns to idle — no error banner, no navigation', async () => {

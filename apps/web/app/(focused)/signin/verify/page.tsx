@@ -31,6 +31,7 @@ import { OtpCodeField } from '@/components/auth/OtpCodeField'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSigninFlowStore } from '@/stores/signin-flow.store'
 import { currentReturnPath, signedInDestination, withReturnPath } from '@/lib/auth/return-path'
+import { useReturnPath } from '@/hooks/auth/useReturnPath'
 
 const CODE_LENGTH = 6
 const RESEND_COOLDOWN_S = 60
@@ -49,6 +50,8 @@ export function formatClock(seconds: number): string {
 
 export default function SignInVerifyPage() {
   const router = useRouter()
+  // For the back link below; the navigations read the URL when they fire.
+  const backNext = useReturnPath()
   const pending = useSigninFlowStore((s) => s.pending)
   const markResent = useSigninFlowStore((s) => s.markResent)
   const clearFlow = useSigninFlowStore((s) => s.clear)
@@ -80,8 +83,13 @@ export default function SignInVerifyPage() {
   const codeField = useRef<HTMLInputElement>(null)
 
   // Reload or deep link: there is no pending challenge in memory — restart.
+  // Carrying the destination through that restart is the whole point: this is
+  // the arrival a shared link produces, and dropping it here would lose the
+  // deep link for the reader most likely to have one (#27).
   useEffect(() => {
-    if (pending === null && !succeeded.current) router.replace('/signin/email')
+    if (pending === null && !succeeded.current) {
+      router.replace(withReturnPath('/signin/email', currentReturnPath()))
+    }
   }, [pending, router])
 
   useEffect(() => {
@@ -179,7 +187,7 @@ export default function SignInVerifyPage() {
       width="code"
       title={AUTH_COPY.verify.title}
       lede={AUTH_COPY.verify.lede(pending.identifier)}
-      back={{ href: '/signin/email', label: AUTH_COPY.verify.back }}
+      back={{ href: withReturnPath('/signin/email', backNext), label: AUTH_COPY.verify.back }}
     >
       <div className="flex flex-col gap-4">
         <OtpCodeField

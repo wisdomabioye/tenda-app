@@ -114,6 +114,13 @@ describe('safeReturnPath — what it allows', () => {
       '/exchange?chain_id=solana:devnet',
     )
     expect(safeReturnPath('/gigs?q=tiler&offset=20')).toBe('/gigs?q=tiler&offset=20')
+    // The fragment half, which this name promised and did not check until the
+    // review: '#reviews' is where on the page the reader was, and '#' has to
+    // survive the encode/decode round trip through the param to get there.
+    expect(safeReturnPath('/gig/esc-1#reviews')).toBe('/gig/esc-1#reviews')
+    const href = withReturnPath('/signin', '/gig/esc-1#reviews')
+    const carried = new URL(href, 'https://tenda.test').searchParams.get(RETURN_PARAM)
+    expect(safeReturnPath(carried)).toBe('/gig/esc-1#reviews')
   })
 })
 

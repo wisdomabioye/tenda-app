@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { currentReturnPath, signedInDestination, withReturnPath } from '@/lib/auth/return-path'
+import { useReturnPath } from '@/hooks/auth/useReturnPath'
 import {
   ApiClientError,
   ErrorCode,
@@ -27,18 +28,15 @@ import { AuthPanel } from './AuthPanel'
 import { AUTH_COPY } from './copy'
 import { TermsNotice } from './TermsNotice'
 
-/** Every wallet state is a step past the chooser, so every one offers the way back. */
-const BACK = { href: '/signin', label: AUTH_COPY.wallet.back } as const
-
 type PanelState =
   | { kind: 'idle' }
   | { kind: 'connecting' }
   | { kind: 'not_linked' }
   | { kind: 'error'; copy: ConnectErrorCopy }
 
-function EmailLink({ variant }: { variant: 'primary' | 'outline' }) {
+function EmailLink({ variant, next }: { variant: 'primary' | 'outline'; next: string | null }) {
   return (
-    <Link href="/signin/email" className={buttonVariants({ variant })}>
+    <Link href={withReturnPath('/signin/email', next)} className={buttonVariants({ variant })}>
       {AUTH_COPY.wallet.email}
     </Link>
   )
@@ -46,6 +44,12 @@ function EmailLink({ variant }: { variant: 'primary' | 'outline' }) {
 
 export function WalletSignInPanel() {
   const router = useRouter()
+  // Every wallet state is a step past the chooser, so every one offers the way
+  // back — and back now carries the destination, as does the lateral switch to
+  // email. Both are RENDERED, so they take the late value; the sign-in
+  // navigation below reads the URL at the moment it fires (#27).
+  const next = useReturnPath()
+  const back = { href: withReturnPath('/signin', next), label: AUTH_COPY.wallet.back }
   const signInWithWallet = useAuthStore((s) => s.signInWithWallet)
   const [state, setState] = useState<PanelState>({ kind: 'idle' })
   const [available, setAvailable] = useState<boolean | null>(null)
@@ -91,12 +95,12 @@ export function WalletSignInPanel() {
   if (state.kind === 'not_linked') {
     return (
       <AuthPanel
-        back={BACK}
+        back={back}
         title={AUTH_COPY.wallet.notLinkedTitle}
         lede={AUTH_COPY.wallet.notLinkedLede}
       >
         <div className="flex flex-col gap-3">
-          <EmailLink variant="primary" />
+          <EmailLink next={next} variant="primary" />
           <Button variant="outline" fullWidth onClick={() => void handleConnect({ fresh: true })}>
             {AUTH_COPY.wallet.tryAnother}
           </Button>
@@ -107,14 +111,14 @@ export function WalletSignInPanel() {
 
   if (state.kind === 'error') {
     return (
-      <AuthPanel back={BACK} title={state.copy.title} lede={state.copy.description}>
+      <AuthPanel back={back} title={state.copy.title} lede={state.copy.description}>
         <div className="flex flex-col gap-3">
           <Button variant="primary" fullWidth onClick={() => void handleConnect()}>
             {AUTH_COPY.wallet.retry}
           </Button>
           {/* No secondary-URL action here: web's no_wallet override carries no
               link, and every other web-reachable copy is link-free. */}
-          <EmailLink variant="outline" />
+          <EmailLink next={next} variant="outline" />
         </div>
       </AuthPanel>
     )
@@ -123,7 +127,7 @@ export function WalletSignInPanel() {
   const connecting = state.kind === 'connecting'
   return (
     <AuthPanel
-      back={BACK}
+      back={back}
       title={AUTH_COPY.wallet.title}
       lede={AUTH_COPY.wallet.lede}
     >
@@ -140,7 +144,7 @@ export function WalletSignInPanel() {
             {connecting ? AUTH_COPY.wallet.connecting : AUTH_COPY.wallet.connect}
           </Button>
         )}
-        <EmailLink variant="outline" />
+        <EmailLink next={next} variant="outline" />
       </div>
       <TermsNotice verb="connecting" />
     </AuthPanel>

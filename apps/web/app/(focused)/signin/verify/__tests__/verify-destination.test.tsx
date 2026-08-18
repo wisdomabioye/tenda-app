@@ -10,6 +10,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import SignInVerifyPage from '@/app/(focused)/signin/verify/page'
+import { AUTH_COPY } from '@/components/auth/copy'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSigninFlowStore } from '@/stores/signin-flow.store'
 
@@ -89,5 +90,36 @@ describe('SignInVerifyPage — where it lands the reader (#27)', () => {
     render(<SignInVerifyPage />)
     await typeCode('123456')
     expect(replace).toHaveBeenCalledWith('/onboarding/profile?next=%2Fmy-gigs%2Fesc-1')
+  })
+
+  it('keeps the destination when a RELOAD bounces it back to the email step', async () => {
+    // The pending challenge is in-memory on purpose, so a reload lands here
+    // with nothing and restarts the flow. That is the deep-link case exactly —
+    // dropping the param here loses the destination for the reader most likely
+    // to have arrived by a shared link.
+    useSigninFlowStore.setState({ pending: null })
+    visiting('?next=%2Fmy-gigs%2Fesc-1')
+
+    render(<SignInVerifyPage />)
+
+    expect(replace).toHaveBeenCalledWith('/signin/email?next=%2Fmy-gigs%2Fesc-1')
+  })
+
+  it('restarts at a bare email step when there is no destination', async () => {
+    useSigninFlowStore.setState({ pending: null })
+    visiting('')
+
+    render(<SignInVerifyPage />)
+
+    expect(replace).toHaveBeenCalledWith('/signin/email')
+  })
+
+  it('keeps the destination on the CHANGE EMAIL link (#27)', async () => {
+    visiting('?next=%2Fmy-gigs%2Fesc-1')
+    render(<SignInVerifyPage />)
+    expect(screen.getByRole('link', { name: AUTH_COPY.verify.back })).toHaveAttribute(
+      'href',
+      '/signin/email?next=%2Fmy-gigs%2Fesc-1',
+    )
   })
 })

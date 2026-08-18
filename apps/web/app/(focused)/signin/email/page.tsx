@@ -6,7 +6,7 @@
  * hard-401 a stale one. The identifier rides the in-memory signin-flow store,
  * never the URL (PII in query strings ends up in history and logs).
  */
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { normalizeEmail, verifyErrorMessage } from '@tenda/shared'
 import { api } from '@/api/client'
@@ -15,18 +15,16 @@ import { AUTH_COPY } from '@/components/auth/copy'
 import { Button, FormError, TextField } from '@/components/ui'
 import { useSigninFlowStore } from '@/stores/signin-flow.store'
 import { currentReturnPath, withReturnPath } from '@/lib/auth/return-path'
+import { useReturnPath } from '@/hooks/auth/useReturnPath'
 
 export default function SignInEmailPage() {
   const router = useRouter()
   // Threaded, not stored: the flow store is in-memory by design, and a deep
   // link is exactly the case where the tab was opened fresh (#27).
   //
-  // The BACK link needs it during render, and it is the only thing here that
-  // does — so it is read after hydration rather than with `useSearchParams`,
-  // which would cost this page its static prerender (see currentReturnPath).
-  // First paint links to a bare /signin, which is where back goes anyway.
-  const [backNext, setBackNext] = useState<string | null>(null)
-  useEffect(() => setBackNext(currentReturnPath()), [])
+  // The BACK link needs it while rendering; `useReturnPath` explains why that
+  // arrives a beat late.
+  const backNext = useReturnPath()
   const begin = useSigninFlowStore((s) => s.begin)
   const pending = useSigninFlowStore((s) => s.pending)
   // Seeded from the pending challenge, so arriving here through the verify

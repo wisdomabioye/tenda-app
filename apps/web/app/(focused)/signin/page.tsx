@@ -24,6 +24,15 @@ export const metadata: Metadata = {
  *
  * Server-rendered: nothing here needs a session or the bundle, and it is the
  * page a reader most often reaches on a cold connection.
+ *
+ * DYNAMIC rather than statically prerendered, since #27 — reading
+ * `searchParams` for the return path opts the route out, and the build marks
+ * it `ƒ` where every sibling auth page is still `○`. Kept that way on
+ * purpose: the alternative is to stay static and upgrade the two hrefs on the
+ * client after hydration, which gets them WRONG for anyone who clicks before
+ * the bundle lands — longest on exactly the slow connections the paragraph
+ * above cares about. The page fetches nothing, so dynamic costs a render of
+ * static markup rather than a round trip to anything.
  */
 export default async function SignInPage({
   searchParams,
