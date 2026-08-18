@@ -1,36 +1,39 @@
 'use client'
 
 /**
- * Settings index — web port of mobile's settings tab. Groups: exchange
- * access (the CO4 advanced-mode toggle unlocking the P2P surface),
- * security & accounts, support, build info (web reports NEXT_PUBLIC_*
- * envs — lib/app-version is Expo-specific and has no web analogue).
+ * Settings index (comp: Settings & Profile). Cards for the surfaces money and
+ * identity move through, then the preferences that are actually persisted,
+ * then sign-out.
+ *
+ * The sub-pages the comp does not draw — bank-accounts, linked-wallets,
+ * security, token-approvals — all ship and all stay: mobile wins on which
+ * surfaces exist. Support and the build line are kept for the same reason.
  */
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ArrowLeftRight, Banknote, CircleHelp, KeyRound, ShieldCheck, Wallet } from 'lucide-react'
+import { CircleHelp } from 'lucide-react'
 import { APP_INFO } from '@tenda/shared'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { Toggle } from '@/components/ui/Toggle'
 import { showToast } from '@/components/ui/Toast'
+import { SignOutButton } from '@/components/profile'
+import { SettingsCardGrid } from '@/components/settings/SettingsCardGrid'
+import { SETTINGS_COPY, linkedWalletsBadge } from '@/components/settings/copy'
 import { getEnv } from '@/lib/config/env'
-
-const ROW_CLASS =
-  'flex items-center gap-3 rounded-card border border-border-subtle bg-surface-card px-4 py-3 text-sm font-semibold text-content-primary transition-colors hover:bg-surface-inset'
-
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="px-1 pb-1 pt-4 font-numeric text-[10px] font-semibold uppercase tracking-widest text-content-tertiary">
-      {children}
-    </p>
-  )
-}
 
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user)
+  const wallets = useAuthStore((s) => s.wallets)
+  const walletsStatus = useAuthStore((s) => s.walletsStatus)
+  const ensureWallets = useAuthStore((s) => s.ensureWallets)
   const refreshUser = useAuthStore((s) => s.refreshUser)
   const [savingAdvanced, setSavingAdvanced] = useState(false)
+
+  // The badge is only honest once the wallets have actually been read.
+  useEffect(() => {
+    void ensureWallets()
+  }, [ensureWallets])
 
   async function toggleAdvanced(next: boolean) {
     if (savingAdvanced) return
@@ -38,58 +41,63 @@ export default function SettingsPage() {
     try {
       await api.users.updateMe({ advanced_mode_enabled: next })
       await refreshUser()
-      showToast('success', next ? 'P2P exchange unlocked' : 'P2P exchange hidden')
+      showToast('success', next ? SETTINGS_COPY.advanced.on : SETTINGS_COPY.advanced.off)
     } catch {
-      showToast('error', 'Could not update the setting, please try again')
+      showToast('error', SETTINGS_COPY.advanced.failed)
     } finally {
       setSavingAdvanced(false)
     }
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col">
-      <h1 className="px-1 pb-2 pt-6 font-display text-2xl font-bold text-content-primary">Settings</h1>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 py-6">
+      <header>
+        <h1 className="font-display text-[30px] font-bold leading-9 tracking-[-0.6px] text-content-primary">
+          {SETTINGS_COPY.title}
+        </h1>
+        <p className="mt-2 max-w-[62ch] text-[15px] leading-[22px] text-content-secondary">
+          {SETTINGS_COPY.lead}
+        </p>
+      </header>
 
-      <SectionLabel>Trading</SectionLabel>
-      <div className="flex items-center gap-3 rounded-card border border-border-subtle bg-surface-card px-4 py-3">
-        <ArrowLeftRight size={16} className="shrink-0 text-content-secondary" />
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-content-primary">P2P Exchange</p>
-          <p className="text-xs text-content-secondary">
-            Unlocks the currency-exchange order book and offer creation.
-          </p>
+      <SettingsCardGrid
+        badges={{
+          '/settings/linked-wallets': linkedWalletsBadge(wallets.length, walletsStatus === 'ready'),
+        }}
+      />
+
+      <section>
+        <h2 className="mb-4 font-display text-[22px] font-semibold leading-7 tracking-[-0.4px] text-content-primary">
+          {SETTINGS_COPY.preferences}
+        </h2>
+        <div className="flex items-center gap-4 rounded-card border border-border-default bg-surface-card px-4 py-3.5">
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-content-primary">
+              {SETTINGS_COPY.advanced.label}
+            </p>
+            <p className="mt-0.5 text-xs text-content-secondary">{SETTINGS_COPY.advanced.hint}</p>
+          </div>
+          <Toggle
+            value={user?.advanced_mode_enabled ?? false}
+            onChange={(next) => void toggleAdvanced(next)}
+            disabled={savingAdvanced}
+            label={SETTINGS_COPY.advanced.label}
+          />
         </div>
-        <Toggle
-          value={user?.advanced_mode_enabled ?? false}
-          onChange={(next) => void toggleAdvanced(next)}
-          disabled={savingAdvanced}
-          label="P2P Exchange"
-        />
+      </section>
+
+      <div className="flex flex-col gap-3">
+        <Link
+          href="/support"
+          className="flex items-center gap-3 rounded-card border border-border-default bg-surface-card px-4 py-3 text-sm font-semibold text-content-primary transition-colors hover:bg-surface-inset"
+        >
+          <CircleHelp size={16} aria-hidden /> Help &amp; guide
+        </Link>
+        <SignOutButton />
       </div>
 
-      <SectionLabel>Security &amp; accounts</SectionLabel>
-      <nav className="flex flex-col gap-2" aria-label="Security and accounts">
-        <Link href="/settings/security" className={ROW_CLASS}>
-          <ShieldCheck size={16} /> Sign-in &amp; security
-        </Link>
-        <Link href="/settings/linked-wallets" className={ROW_CLASS}>
-          <Wallet size={16} /> Linked wallets
-        </Link>
-        <Link href="/settings/bank-accounts" className={ROW_CLASS}>
-          <Banknote size={16} /> Payout accounts
-        </Link>
-        <Link href="/settings/token-approvals" className={ROW_CLASS}>
-          <KeyRound size={16} /> Token approvals
-        </Link>
-      </nav>
-
-      <SectionLabel>Support</SectionLabel>
-      <Link href="/support" className={ROW_CLASS}>
-        <CircleHelp size={16} /> Help &amp; guide
-      </Link>
-
-      <p className="px-1 pt-6 text-center text-xs text-content-tertiary">
-        {APP_INFO.name} web · {getEnv()} build
+      <p className="text-center text-xs text-content-tertiary">
+        {APP_INFO.name} {SETTINGS_COPY.build(getEnv())}
       </p>
     </div>
   )

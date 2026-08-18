@@ -70,6 +70,26 @@ test('an oversized file is refused BEFORE any upload', async () => {
   expect(fetchMock).not.toHaveBeenCalled()
 })
 
+test('an oversized AVATAR is refused with a real error, at the cap the SERVER set', async () => {
+  // The cap is not a client constant: it rides the signature response per
+  // upload kind, so raising it server-side raises it here with no deploy.
+  signatureMock.mockResolvedValue({ ...SIGNED, folder: 'avatars', max_file_bytes: 10 * 1024 * 1024 })
+  await expect(
+    uploadToCloudinaryDetailed(file('huge.jpg', 10 * 1024 * 1024 + 1), 'avatar'),
+  ).rejects.toThrow('File is too large, max 10 MB')
+  expect(fetchMock).not.toHaveBeenCalled()
+})
+
+test('an avatar exactly at the cap is allowed through', async () => {
+  // The guard is `>`, not `>=` — a file on the boundary is legal, and an
+  // off-by-one here would reject a perfectly valid upload.
+  signatureMock.mockResolvedValue({ ...SIGNED, folder: 'avatars' })
+  await expect(
+    uploadToCloudinaryDetailed(file('exact.jpg', SIGNED.max_file_bytes), 'avatar'),
+  ).resolves.toBeDefined()
+  expect(fetchMock).toHaveBeenCalled()
+})
+
 test("Cloudinary's own error message surfaces on a non-OK response", async () => {
   fetchMock.mockResolvedValue({
     ok: false,

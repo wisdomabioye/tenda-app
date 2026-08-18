@@ -1,9 +1,12 @@
 'use client'
 
 /**
- * Ends the session. Lives on /profile because that is where mobile puts it
- * (apps/mobile/app/(tabs)/profile.tsx) — and because the comps' rail has no
- * sign-out, so the workspace shell would otherwise leave it unreachable.
+ * Ends the session. Rendered on /profile, where mobile puts it
+ * (apps/mobile/app/(tabs)/profile.tsx), and on /settings, where the Settings
+ * comp puts it. The comps' rail carries no sign-out, so without those two the
+ * workspace shell would leave it unreachable. One component, one label, two
+ * placements — the comp's longer "Sign out of this device" is not adopted,
+ * see spec-corrections.md.
  *
  * No confirm dialog: mobile signs out directly, and the action is cheap to
  * undo by signing back in. Copy stays web's shipped "Sign out" rather than

@@ -17,11 +17,17 @@ import { useAuthStore } from '@/stores/auth.store'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
 import { Button } from '@/components/ui/Button'
-import { ReviewCard, StandingBadge } from '@/components/profile'
+import { ProfileRating, ReviewCard, StandingBadge } from '@/components/profile'
 
 type ProfileState =
   | { phase: 'loading' }
-  | { phase: 'ready'; user: PublicUser; reviews: Review[] }
+  | {
+      phase: 'ready'
+      user: PublicUser
+      reviews: Review[]
+      /** Server total, not `reviews.length` — the page shows only a first page. */
+      reviewCount: number
+    }
   | { phase: 'error' }
 
 export default function UserProfilePage() {
@@ -43,7 +49,9 @@ export default function UserProfilePage() {
           api.users.get({ id }),
           api.users.reviews({ id }, { limit: 20 }),
         ])
-        if (!cancelled) setState({ phase: 'ready', user, reviews: reviews.data })
+        if (!cancelled) {
+          setState({ phase: 'ready', user, reviews: reviews.data, reviewCount: reviews.total })
+        }
       } catch {
         if (!cancelled) setState({ phase: 'error' })
       }
@@ -69,9 +77,8 @@ export default function UserProfilePage() {
     )
   }
 
-  const { user, reviews } = state
+  const { user, reviews, reviewCount } = state
   const fullName = formatFullName(user.first_name, user.last_name) || 'Anonymous'
-  const rating = user.review_score ? Number(user.review_score).toFixed(1) : null
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
@@ -81,8 +88,12 @@ export default function UserProfilePage() {
           <h1 className="truncate font-display text-2xl font-bold text-content-primary">{fullName}</h1>
           <p className="text-sm text-content-secondary">
             {[user.city, user.country].filter(Boolean).join(', ') || 'Location not set'}
-            {rating !== null && ` · ★ ${rating}`}
           </p>
+          {/* The average with its denominator, exactly as on your own profile.
+              It matters more here: this is the page where someone decides
+              whether to trade with a stranger, and "4.8" from one review reads
+              identically to "4.8" from forty. */}
+          <ProfileRating score={user.review_score} reviews={reviewCount} loaded />
           <div className="mt-1.5">
             <StandingBadge userId={user.id} />
           </div>
@@ -102,7 +113,15 @@ export default function UserProfilePage() {
       )}
 
       <section aria-label="Reviews">
-        <h2 className="pb-1 text-lg font-bold text-content-primary">Reviews</h2>
+        <h2 className="pb-1 text-lg font-bold text-content-primary">
+          Reviews
+          {/* Says how many exist, not how many fitted on the first page. */}
+          {reviewCount > reviews.length && (
+            <span className="ml-2 font-numeric text-xs font-medium text-content-tertiary">
+              showing {reviews.length} of {reviewCount}
+            </span>
+          )}
+        </h2>
         {reviews.length === 0 ? (
           <p className="py-6 text-sm text-content-tertiary">No reviews yet.</p>
         ) : (

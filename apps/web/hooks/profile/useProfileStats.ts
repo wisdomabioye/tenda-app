@@ -24,12 +24,35 @@ export interface ProfileStats {
   active: number
   /** Gigs the user worked through to completion. */
   completed: number
+  /**
+   * Reviews left ABOUT this user — the denominator behind review_score, so a
+   * 5.0 from one review cannot read like a 5.0 from forty.
+   */
+  reviews: number
   /** False until the first load settles, so zeroes aren't rendered as fact. */
   loaded: boolean
   reload: () => void
 }
 
-const EMPTY = { posted: 0, active: 0, completed: 0 }
+const EMPTY = { posted: 0, active: 0, completed: 0, reviews: 0 }
+
+/**
+ * Reviews about this user, same convention: smallest page, read the total.
+ *
+ * Swallows its own failure. It rides the same `Promise.all` as the gig
+ * counts, so a rejection here would reject the batch and blank Posted and
+ * Completed as well — losing three good numbers because a supplementary
+ * fourth was unavailable. A missing count reads as "no reviews yet", which is
+ * also what a genuine zero reads as; the gig counts stay true either way.
+ */
+async function reviewCountOf(userId: string): Promise<number> {
+  try {
+    const { total } = await api.users.reviews({ id: userId }, { limit: 1 })
+    return total
+  } catch {
+    return 0
+  }
+}
 
 /** One count: smallest legal page, answer read off `total`. */
 async function countOf(mine: 'created' | 'working', status?: EscrowStatus[]): Promise<number> {
@@ -55,13 +78,14 @@ export function useProfileStats(userId: string | undefined): ProfileStats {
       setStats(EMPTY)
       setLoaded(false)
       try {
-        const [posted, active, completed] = await Promise.all([
+        const [posted, active, completed, reviews] = await Promise.all([
           countOf('created', POSTED_STATUSES),
           countOf('created', ACTIVE_STATUSES),
           countOf('working', ['completed']),
+          reviewCountOf(userId),
         ])
         if (gen !== genRef.current) return
-        setStats({ posted, active, completed })
+        setStats({ posted, active, completed, reviews })
         setLoaded(true)
       } catch {
         // Non-fatal: the profile still renders, counts keep their last value.
