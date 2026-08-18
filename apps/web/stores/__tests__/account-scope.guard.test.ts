@@ -43,16 +43,51 @@ function storeFiles(): string[] {
     .sort()
 }
 
+/**
+ * Whether the file REGISTERS, as opposed to merely mentioning it.
+ *
+ * A plain substring test passes on `// registerAccountReset(...)`. Commenting
+ * the call out to debug something and not putting it back is a plausible way
+ * to reintroduce the very leak this guard exists to catch, and it sailed
+ * through the first version of this file — verified with a decoy store whose
+ * registration was commented out. So the call has to begin a statement.
+ */
+function registersReset(source: string): boolean {
+  return source.split('\n').some((line) => line.trim().startsWith('registerAccountReset('))
+}
+
+describe('registersReset', () => {
+  it('accepts a real call and rejects one that is only mentioned', () => {
+    expect(registersReset('registerAccountReset(() => x.reset())')).toBe(true)
+    expect(registersReset('  registerAccountReset(() => x.reset())')).toBe(true)
+    expect(registersReset('// registerAccountReset(() => x.reset())')).toBe(false)
+    expect(registersReset(' * registerAccountReset(() => x.reset())')).toBe(false)
+    expect(registersReset('// see registerAccountReset( for why')).toBe(false)
+  })
+})
+
 describe('account-scope classification', () => {
-  it('finds the stores at all — a bad path would make every case below vacuous', () => {
-    // Without this, a wrong STORES_DIR yields an empty list and the loop asserts
-    // nothing while reporting success.
-    expect(storeFiles().length).toBeGreaterThanOrEqual(8)
+  it('resolves the stores directory to somewhere that HAS stores', () => {
+    // A path that does not exist needs no help: readdirSync throws while the
+    // cases below are being collected, and vitest fails the file (verified —
+    // exit 1, "Test Files 1 failed", zero tests run).
+    //
+    // What that does NOT catch is a path that resolves to a directory holding
+    // no store files — stores moved, or a refactor that left this pointing at
+    // a parent. Then readdir succeeds, `it.each([])` registers nothing, and
+    // the remaining cases pass while the classification is checked against an
+    // empty set. This is the case that would report success having asserted
+    // nothing.
+    //
+    // Anchored on a store that must exist rather than on a COUNT: a count is a
+    // second thing to maintain, and it would fail the day two stores were
+    // legitimately merged.
+    expect(storeFiles()).toContain('auth.store.ts')
   })
 
   it.each(storeFiles())('%s is either account-scoped or documented as not', (name) => {
     const source = readFileSync(join(STORES_DIR, name), 'utf8')
-    const registers = source.includes('registerAccountReset(')
+    const registers = registersReset(source)
     const agnostic = name in ACCOUNT_AGNOSTIC
 
     // Both is a contradiction: a store cannot be public AND cleared per account.
