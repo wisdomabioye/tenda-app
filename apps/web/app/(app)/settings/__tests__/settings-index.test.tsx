@@ -22,6 +22,7 @@ vi.mock('@/api/client', () => ({
 vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: vi.fn(), push: vi.fn() }) }))
 
 import SettingsPage from '@/app/(app)/settings/page'
+import type { User } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 
 const WALLET = {
@@ -36,7 +37,7 @@ beforeEach(() => {
   refreshUserMock.mockReset().mockResolvedValue(undefined)
   ensureWalletsMock.mockReset().mockResolvedValue(undefined)
   useAuthStore.setState({
-    user: { advanced_mode_enabled: false } as never,
+    user: { advanced_mode_enabled: false } as User,
     wallets: [],
     walletsStatus: 'idle',
     ensureWallets: ensureWalletsMock,

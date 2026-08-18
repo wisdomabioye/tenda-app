@@ -8,7 +8,7 @@
  * render perfectly.
  */
 import { describe, expect, test } from 'vitest'
-import type { GigValidationValues } from '@tenda/shared'
+import { GIG_REQUIREMENTS, type GigValidationValues } from '@tenda/shared'
 import {
   WIZARD_STEPS,
   firstUnsatisfiedStep,
@@ -55,9 +55,13 @@ describe('the five-step contract', () => {
   })
 
   test('every field the composer collects is claimed by exactly one step', () => {
-    // A field on no step could never be filled; a field on two would be asked
-    // for twice and reported by whichever step came first.
+    // Two halves, and the first one used to be missing. A field on NO step can
+    // never be filled: the last step judges the whole form, so an unclaimed
+    // requirement would block signing while `firstUnsatisfiedStep` answered
+    // null and the hint named no step to go back to. A field on TWO steps
+    // would be asked for twice and reported by whichever came first.
     const all = WIZARD_STEPS.flatMap((s) => s.requirements)
+    expect(new Set(all)).toEqual(new Set(Object.values(GIG_REQUIREMENTS)))
     expect(new Set(all).size).toBe(all.length)
   })
 
@@ -149,6 +153,14 @@ describe('the review list', () => {
 
   test('says Not set rather than an empty string when a physical gig has neither', () => {
     expect(reviewPlace({ remote: false, country: null, city: null })).toBe('Not set')
+  })
+
+  test('carries the real place into the Where row, not just the remote case', () => {
+    // Every other fixture here is remote, so a row hardcoded to 'Remote'
+    // survived mutation: the wiring from the row to reviewPlace was unproven
+    // for a physical gig, which is the case a poster is most likely to check.
+    const rows = buildReviewRows({ ...INPUT, remote: false, country: 'NG', city: 'Lagos' })
+    expect(rows.find((r) => r.label === 'Where')?.value).toBe('Lagos, NG')
   })
 
   test('shows an unknown deadline as hours instead of the nearest label', () => {

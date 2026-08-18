@@ -1,15 +1,24 @@
 /**
- * The Post Wizard end to end (jsdom): each of the five steps gating on the
- * SHARED validation, rail navigation, the review list's honesty, submit
- * reaching onSubmit with the composed values, and the warn verdict.
+ * The Post Wizard's navigation contract (jsdom): each of the five steps
+ * gating on the SHARED validation, and the rail.
  *
  * The per-step negative tests are the point of this file. A wizard's failure
  * mode is not a crash — it is a Continue button that refuses without saying
  * why, or one that lets a reader past a step they have not answered.
+ *
+ * What it publishes and what it submits live in GigWizard.review.test.tsx.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import type { GigFormValues, ModerationPreviewResponse } from '@tenda/shared'
+
+// These two suites drive the whole five-step wizard: each `advance()` renders
+// a fresh step with its pickers, and the money step mounts FeeSummary. That is
+// 2–3s of real work uninstrumented and 6s+ under v8 coverage, which crosses
+// vitest's 5s default and made the run flaky — two tests timed out in one
+// coverage run and passed in the next three. Raised HERE rather than globally:
+// a global bump would hide a unit test that genuinely got slow.
+vi.setConfig({ testTimeout: 20_000 })
 
 const { chainsMock, previewState, walletsState } = vi.hoisted(() => ({
   chainsMock: vi.fn(),
@@ -38,21 +47,8 @@ vi.mock('@/stores/auth.store', () => ({
 
 import { GigWizard } from '@/components/gig/GigWizard'
 import { usePlatformConfigStore } from '@/stores/platform-config.store'
+import { EVM_CHAIN, SOL_CHAIN, VALID } from '../__fixtures__/wizard-fixtures'
 
-const SOL_CHAIN = {
-  id: 'solana:devnet',
-  namespace: 'solana',
-  display_name: 'Solana',
-  escrow_address: 'PROG',
-  assets: [{ id: 'USDC_SOL', symbol: 'USDC', decimals: 6, is_stable: true, token_address: 'MINT', supports_permit: false }],
-}
-const EVM_CHAIN = {
-  id: 'eip155:84532',
-  namespace: 'eip155',
-  display_name: 'Base Sepolia',
-  escrow_address: '0xE',
-  assets: [{ id: 'USDC_BASE', symbol: 'USDC', decimals: 6, is_stable: true, token_address: '0xT', supports_permit: true }],
-}
 
 beforeEach(() => {
   chainsMock.mockResolvedValue({ data: [SOL_CHAIN, EVM_CHAIN] })
@@ -61,44 +57,44 @@ beforeEach(() => {
   usePlatformConfigStore.setState({ config: null, loading: false, error: null })
 })
 
-const VALID: Partial<GigFormValues> = {
-  title: 'Deliver a package',
-  description: 'Collect and deliver safely.',
-  category: 'delivery',
-  remote: true,
-  paymentRaw: 10_000_000,
-}
 
-function renderForm(
+async function renderForm(
   initialValues?: Partial<GigFormValues>,
   onSubmit = vi.fn<(values: GigFormValues) => Promise<void>>(async () => {}),
 ) {
   render(<GigWizard initialValues={initialValues} onSubmit={onSubmit} isLoading={false} />)
+  // The controller fetches the chain registry on mount and sets state when it
+  // lands. Without flushing that here every assertion below races it, and the
+  // update arrives outside act() — 35 warnings a run, and any of them could
+  // settle during a LATER test.
+  await act(async () => {})
   return onSubmit
 }
 
 /** Advance `n` steps, asserting each one actually let us through. */
-function advance(n: number) {
+async function advance(n: number) {
   for (let i = 0; i < n; i += 1) {
     const next = screen.getByRole('button', { name: 'Continue' })
     expect(next).toBeEnabled()
     fireEvent.click(next)
   }
+  // The money step mounts FeeSummary, which asks the platform-config store for
+  // the fee tier — another mount-time async update to settle inside act().
+  await act(async () => {})
 }
-
 
 // ─────────────────────────── per-step gating ───────────────────────────
 
-test('step 1 refuses without a category, and names what is missing', () => {
-  renderForm()
+test('step 1 refuses without a category, and names what is missing', async () => {
+  await renderForm()
   expect(screen.getByText('Step 1 of 5')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
   expect(screen.getByText('Pick a category to continue')).toBeInTheDocument()
 })
 
-test('step 2 refuses without a title, then without a description', () => {
-  renderForm({ category: 'delivery' })
-  advance(1)
+test('step 2 refuses without a title, then without a description', async () => {
+  await renderForm({ category: 'delivery' })
+  await advance(1)
   expect(screen.getByText('Write the brief')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
   expect(screen.getByText('Add a title to continue')).toBeInTheDocument()
@@ -110,45 +106,57 @@ test('step 2 refuses without a title, then without a description', () => {
   expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
 })
 
-test('step 3 refuses a physical gig with no city', () => {
+test('step 3 refuses a physical gig with no city', async () => {
   // country falls back to the account's NG, so the city is what is missing.
-  renderForm({ ...VALID, remote: false, city: null })
-  advance(2)
+  await renderForm({ ...VALID, remote: false, city: null })
+  await advance(2)
   expect(screen.getByText('Where and by when?')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
   expect(screen.getByText('Select a city to continue')).toBeInTheDocument()
 })
 
-test('step 4 never blocks — an empty proof list is a real answer', () => {
+test('step 4 never blocks — an empty proof list is a real answer', async () => {
   // Deliberate: shared documents proofRequirements: [] as "any evidence
   // accepted". The comp wanted at least one; enforcing that on web alone
   // would reject gigs mobile accepts.
-  renderForm(VALID)
-  advance(3)
+  await renderForm(VALID)
+  await advance(3)
   expect(screen.getByText('What proof settles it?')).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
 })
 
-test('step 5 refuses without a budget, and asks to review and sign, not continue', () => {
-  renderForm({ ...VALID, paymentRaw: 0 })
-  advance(4)
+test('step 5 refuses without a budget, and asks to review and sign, not continue', async () => {
+  await renderForm({ ...VALID, paymentRaw: 0 })
+  await advance(4)
   expect(screen.getByRole('heading', { name: 'Fund the escrow' })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Review and sign' })).toBeDisabled()
   expect(screen.getByText('Set a budget to review and sign')).toBeInTheDocument()
 })
 
+test('a physical gig is answered by picking a country and city', async () => {
+  // The location path had NO test: every other case goes remote, so the
+  // picker's onChange — the majority path in a marketplace — was never run.
+  await renderForm({ ...VALID, remote: false, city: null })
+  await advance(2)
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeDisabled()
+
+  fireEvent.change(screen.getByLabelText('Country'), { target: { value: 'NG' } })
+  fireEvent.change(screen.getByLabelText('City'), { target: { value: 'Lagos' } })
+  expect(screen.getByRole('button', { name: 'Continue' })).toBeEnabled()
+})
+
 // ─────────────────────────── the rail ───────────────────────────
 
-test('the rail refuses to jump ahead of an unanswered step', () => {
-  renderForm()
+test('the rail refuses to jump ahead of an unanswered step', async () => {
+  await renderForm()
   expect(screen.getByRole('button', { name: /The brief/ })).toBeDisabled()
   fireEvent.click(screen.getByRole('button', { name: /The brief/ }))
   expect(screen.getByText('Step 1 of 5')).toBeInTheDocument() // went nowhere
 })
 
-test('the rail carries the reader back to a finished step, keeping later answers', () => {
-  renderForm(VALID)
-  advance(4)
+test('the rail carries the reader back to a finished step, keeping later answers', async () => {
+  await renderForm(VALID)
+  await advance(4)
   expect(screen.getByText('Step 5 of 5')).toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: /The brief/ }))
   expect(screen.getByText('Step 2 of 5')).toBeInTheDocument()
@@ -156,112 +164,14 @@ test('the rail carries the reader back to a finished step, keeping later answers
   expect(screen.getByDisplayValue('Deliver a package')).toBeInTheDocument()
 })
 
-test('emptying an earlier field disables the final signature button', () => {
+test('emptying an earlier field disables the final signature button', async () => {
   // The last step asks the WHOLE form, not just its own field: without that,
   // Review and sign would look enabled while submit silently refused.
-  renderForm(VALID)
-  advance(1)
+  await renderForm(VALID)
+  await advance(1)
   fireEvent.change(screen.getByDisplayValue('Deliver a package'), { target: { value: '' } })
   fireEvent.click(screen.getByRole('button', { name: /Amount and signing/ }))
   // The rail will not carry an unsatisfied step forward either.
   expect(screen.getByText('Step 2 of 5')).toBeInTheDocument()
   expect(screen.getByText('Add a title to continue')).toBeInTheDocument()
-})
-
-// ─────────────────────── review, submit, moderation ───────────────────────
-
-test('the review list states the composed facts before anything is signed', () => {
-  renderForm(VALID)
-  advance(4)
-  expect(screen.getByText('What you are publishing')).toBeInTheDocument()
-  expect(screen.getByText('Delivery')).toBeInTheDocument()
-  expect(screen.getByText('Remote')).toBeInTheDocument()
-  // An unset proof list reads as the choice it is, never as a blank.
-  expect(screen.getByText('Any evidence')).toBeInTheDocument()
-  expect(screen.getByText('First qualified worker')).toBeInTheDocument()
-})
-
-test('a prefilled gig walks all five steps and submits the composed values', async () => {
-  const onSubmit = renderForm(VALID)
-  advance(4)
-  fireEvent.click(screen.getByRole('button', { name: 'Review and sign' }))
-  await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
-  expect(onSubmit.mock.calls[0][0]).toMatchObject({
-    title: 'Deliver a package',
-    chainId: 'solana:devnet',
-    asset: 'USDC_SOL',
-    paymentRaw: 10_000_000,
-    remote: true,
-    country: null, // remote gigs carry no location
-    city: null,
-    requiresApproval: false,
-  })
-})
-
-test('a warn verdict intercepts the signature once; Publish anyway proceeds', async () => {
-  previewState.current = {
-    decision: 'warn',
-    reasons: [{ code: 'price', message: 'Budget looks low.', severity: 'warn' }],
-    cached: false,
-  }
-  const onSubmit = renderForm(VALID)
-  advance(4)
-  fireEvent.click(screen.getByRole('button', { name: 'Review and sign' }))
-  expect(onSubmit).not.toHaveBeenCalled()
-  expect(screen.getByText('Before you publish')).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('button', { name: 'Publish anyway' }))
-  await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1))
-})
-
-test('a warn verdict with Edit keeps the wizard and never submits', () => {
-  previewState.current = {
-    decision: 'warn',
-    reasons: [{ code: 'price', message: 'Budget looks low.', severity: 'warn' }],
-    cached: false,
-  }
-  const onSubmit = renderForm(VALID)
-  advance(4)
-  fireEvent.click(screen.getByRole('button', { name: 'Review and sign' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Edit gig' }))
-  expect(onSubmit).not.toHaveBeenCalled()
-  expect(screen.queryByText('Before you publish')).not.toBeInTheDocument()
-})
-
-// ─────────────────────────── the money step ───────────────────────────
-
-test('EVM chains render disabled in the network picker until an eip155 wallet is linked', async () => {
-  renderForm(VALID)
-  advance(4)
-  await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Base Sepolia (link a wallet)' })).toBeDisabled(),
-  )
-})
-
-test('a linked EVM wallet makes the chain selectable and swaps the policy asset', async () => {
-  walletsState.current = [{ chain_ns: 'eip155', verified_at: '2026-01-01' }]
-  const onSubmit = renderForm(VALID)
-  advance(4)
-  fireEvent.click(await screen.findByRole('button', { name: 'Base Sepolia' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Review and sign' }))
-  await waitFor(() => expect(onSubmit).toHaveBeenCalled())
-  expect(onSubmit.mock.calls[0][0]).toMatchObject({ chainId: 'eip155:84532', asset: 'USDC_BASE' })
-})
-
-test('jumping the rail to the last step says which step is holding it up', () => {
-  // Reachable, and the reason the last step names the owning step: the rail
-  // only locks against the CURRENT step, so a satisfied step 1 unlocks every
-  // later one and the reader can land on money with an empty brief.
-  renderForm({ category: 'delivery' })
-  fireEvent.click(screen.getByRole('button', { name: /Amount and signing/ }))
-  expect(screen.getByText('Step 5 of 5')).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: 'Review and sign' })).toBeDisabled()
-  // Not "Add a title to review and sign" — there is no title field on this
-  // step, so that would send the reader hunting.
-  expect(screen.getByText('Add a title — go back to The brief')).toBeInTheDocument()
-})
-
-test('the last step still phrases its OWN requirement as review and sign', () => {
-  renderForm({ ...VALID, paymentRaw: 0 })
-  advance(4)
-  expect(screen.getByText('Set a budget to review and sign')).toBeInTheDocument()
 })

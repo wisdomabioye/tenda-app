@@ -6,6 +6,7 @@
  * two numbers must not be confused, in either direction.
  */
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
 const { getMock, reviewsMock } = vi.hoisted(() => ({ getMock: vi.fn(), reviewsMock: vi.fn() }))
@@ -22,6 +23,7 @@ vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'u2' }) }))
 vi.mock('@/components/profile/StandingBadge', () => ({ StandingBadge: () => null }))
 
 import UserProfilePage from '@/app/(app)/profile/[id]/page'
+import type { User } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 
 const USER = {
@@ -47,7 +49,7 @@ const review = (id: string) => ({
 beforeEach(() => {
   getMock.mockReset().mockResolvedValue(USER)
   reviewsMock.mockReset()
-  useAuthStore.setState({ user: { id: 'u1' } as never })
+  useAuthStore.setState({ user: { id: 'u1' } as User })
 })
 
 test('states the rating with the number of reviews behind it', async () => {
@@ -81,4 +83,31 @@ test('an unrated stranger is said to be unrated, never scored', async () => {
   render(<UserProfilePage />)
   await waitFor(() => expect(screen.getByText('No reviews yet')).toBeInTheDocument())
   expect(screen.queryByRole('img', { name: /out of 5/ })).not.toBeInTheDocument()
+})
+
+test('offers a way to reach the reviews it says exist', async () => {
+  // Naming a total the page cannot show is a taunt: every other list surface
+  // on web pages with Load more, and the endpoint takes an offset.
+  reviewsMock.mockResolvedValue({
+    data: Array.from({ length: 20 }, (_, i) => review(`r${i}`)),
+    total: 41,
+  })
+  render(<UserProfilePage />)
+  const more = await screen.findByRole('button', { name: /Load more/ })
+
+  reviewsMock.mockResolvedValue({ data: [review('r20')], total: 41 })
+  await userEvent.click(more)
+
+  // Asks for the NEXT page, by offset — never re-fetches page one.
+  await waitFor(() =>
+    expect(reviewsMock).toHaveBeenLastCalledWith({ id: 'u2' }, { limit: 20, offset: 20 }),
+  )
+  await waitFor(() => expect(screen.getByText('showing 21 of 41')).toBeInTheDocument())
+})
+
+test('offers no Load more once every review is on the page', async () => {
+  reviewsMock.mockResolvedValue({ data: [review('r1')], total: 1 })
+  render(<UserProfilePage />)
+  await waitFor(() => expect(screen.getByText('from 1 review')).toBeInTheDocument())
+  expect(screen.queryByRole('button', { name: /Load more/ })).not.toBeInTheDocument()
 })

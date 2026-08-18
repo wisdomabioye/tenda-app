@@ -15,11 +15,9 @@ import {
   PROOF_NOTE,
   gigAssetByChain,
   getGigMissingRequirement,
-  getGigStepMissingRequirement,
   solanaChainId,
   type ChainRegistryEntry,
   type GigCategory,
-  type GigComposerStep,
   type GigFormValues,
   type ProofType,
 } from '@tenda/shared'
@@ -187,9 +185,6 @@ export function useGigForm(
      * a step the submit path still rejects.
      */
     validationValues,
-    getStepMissingRequirement: (step: GigComposerStep) => (
-      getGigStepMissingRequirement(step, validationValues)
-    ),
     descriptionHint,
     handleSubmit,
     submitValues,

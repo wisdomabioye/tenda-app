@@ -72,7 +72,7 @@ describe('ProfileRating', () => {
 describe('buildVerifiedRows', () => {
   test('lists a verified identity by its address', () => {
     expect(buildVerifiedRows([identity()], [])).toEqual([
-      { key: 'identity:email:me@example.com', label: 'Email', value: 'me@example.com' },
+      { key: 'identity:email:me@example.com', label: 'Email', value: 'me@example.com', icon: 'email' },
     ])
   })
 
@@ -87,9 +87,33 @@ describe('buildVerifiedRows', () => {
     expect(rows[0].value).toBe('Verified')
   })
 
+  test('carries the identity KIND, so the icon is not guessed from a label', () => {
+    // The icon used to be chosen by comparing the display label to 'Wallet',
+    // which gave phone, google and apple an envelope — three of the four
+    // kinds mis-stated, in the one block whose job is stating what is proved.
+    expect(buildVerifiedRows([identity({ kind: 'phone', identifier: '+2348012345678', email: null })], [])[0])
+      .toMatchObject({ icon: 'phone', label: 'phone' })
+    expect(buildVerifiedRows([identity({ kind: 'google', email: null })], [])[0].icon).toBe('google')
+    expect(buildVerifiedRows([identity()], [])[0].icon).toBe('email')
+    expect(buildVerifiedRows([], [wallet()])[0].icon).toBe('wallet')
+  })
+
+  test('shows a verified phone as the number, not as the word Verified', () => {
+    // Own-profile surface, and the number is the useful, human-readable half
+    // of that credential — unlike an OAuth subject id.
+    expect(
+      buildVerifiedRows([identity({ kind: 'phone', identifier: '+2348012345678', email: null })], [])[0].value,
+    ).toBe('+2348012345678')
+  })
+
   test('counts only wallets the server has verified', () => {
     const rows = buildVerifiedRows([], [wallet(), wallet({ address: 'SoL2', verified_at: null })])
-    expect(rows).toEqual([{ key: 'wallets', label: 'Wallet', value: '1 verified' }])
+    expect(rows).toEqual([{ key: 'wallets', label: 'Wallet', value: '1 verified', icon: 'wallet' }])
+  })
+
+  test('counts several verified wallets in the plural', () => {
+    const rows = buildVerifiedRows([], [wallet(), wallet({ address: 'SoL2' })])
+    expect(rows[0].value).toBe('2 verified')
   })
 
   test('omits the wallet row entirely when none are verified', () => {

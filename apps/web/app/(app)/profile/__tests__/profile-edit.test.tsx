@@ -29,6 +29,7 @@ vi.mock('@/lib/uploads/upload', () => ({ uploadToCloudinary: (...a: unknown[]) =
 vi.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => toastMock(...a) }))
 
 import EditProfilePage from '@/app/(app)/profile/edit/page'
+import type { User } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 
 beforeEach(() => {
@@ -46,7 +47,7 @@ beforeEach(() => {
       country: 'NG',
       city: 'Lagos',
       avatar_url: null,
-    } as never,
+    } as User,
     refreshUser: refreshUserMock,
   })
 })

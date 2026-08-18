@@ -6,28 +6,30 @@
  * PUBLIC ON PURPOSE (deliberate exemption from party scoping — do not
  * "fix"); the list endpoint serves bare rows, so reviewers render
  * anonymously here.
+ *
+ * The reviews list rides `useUserReviews` → `usePaginatedList`, like every
+ * other list on web: the heading states the SERVER total, and Load more is
+ * how the reader reaches it. A failed page of reviews no longer blanks the
+ * whole profile — it fails inside the list, where it happened.
  */
 import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { MessageCircle } from 'lucide-react'
 import Link from 'next/link'
-import { formatFullName, type PublicUser, type Review } from '@tenda/shared'
+import { formatFullName, type PublicUser } from '@tenda/shared'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
 import { Button } from '@/components/ui/Button'
+import { PaginatedList } from '@/components/shared/PaginatedList'
 import { ProfileRating, ReviewCard, StandingBadge } from '@/components/profile'
+import { useUserReviews } from '@/hooks/profile/useUserReviews'
 
+/** Only the USER is fetched here; the reviews own their own loading state. */
 type ProfileState =
   | { phase: 'loading' }
-  | {
-      phase: 'ready'
-      user: PublicUser
-      reviews: Review[]
-      /** Server total, not `reviews.length` — the page shows only a first page. */
-      reviewCount: number
-    }
+  | { phase: 'ready'; user: PublicUser }
   | { phase: 'error' }
 
 export default function UserProfilePage() {
@@ -35,6 +37,7 @@ export default function UserProfilePage() {
   const myId = useAuthStore((s) => s.user?.id ?? null)
   const [state, setState] = useState<ProfileState>({ phase: 'loading' })
   const [reloadKey, setReloadKey] = useState(0)
+  const reviews = useUserReviews(id)
 
   useEffect(() => {
     let cancelled = false
@@ -45,13 +48,8 @@ export default function UserProfilePage() {
       if (cancelled) return
       setState({ phase: 'loading' })
       try {
-        const [user, reviews] = await Promise.all([
-          api.users.get({ id }),
-          api.users.reviews({ id }, { limit: 20 }),
-        ])
-        if (!cancelled) {
-          setState({ phase: 'ready', user, reviews: reviews.data, reviewCount: reviews.total })
-        }
+        const user = await api.users.get({ id })
+        if (!cancelled) setState({ phase: 'ready', user })
       } catch {
         if (!cancelled) setState({ phase: 'error' })
       }
@@ -77,7 +75,7 @@ export default function UserProfilePage() {
     )
   }
 
-  const { user, reviews, reviewCount } = state
+  const { user } = state
   const fullName = formatFullName(user.first_name, user.last_name) || 'Anonymous'
 
   return (
@@ -93,7 +91,11 @@ export default function UserProfilePage() {
               It matters more here: this is the page where someone decides
               whether to trade with a stranger, and "4.8" from one review reads
               identically to "4.8" from forty. */}
-          <ProfileRating score={user.review_score} reviews={reviewCount} loaded />
+          <ProfileRating
+            score={user.review_score}
+            reviews={reviews.total}
+            loaded={reviews.hasFetched}
+          />
           <div className="mt-1.5">
             <StandingBadge userId={user.id} />
           </div>
@@ -116,17 +118,18 @@ export default function UserProfilePage() {
         <h2 className="pb-1 text-lg font-bold text-content-primary">
           Reviews
           {/* Says how many exist, not how many fitted on the first page. */}
-          {reviewCount > reviews.length && (
+          {reviews.total > reviews.items.length && (
             <span className="ml-2 font-numeric text-xs font-medium text-content-tertiary">
-              showing {reviews.length} of {reviewCount}
+              showing {reviews.items.length} of {reviews.total}
             </span>
           )}
         </h2>
-        {reviews.length === 0 ? (
-          <p className="py-6 text-sm text-content-tertiary">No reviews yet.</p>
-        ) : (
-          reviews.map((review) => <ReviewCard key={review.id} review={review} />)
-        )}
+        <PaginatedList
+          list={reviews}
+          keyOf={(review) => review.id}
+          renderItem={(review) => <ReviewCard review={review} />}
+          empty={<p className="py-6 text-sm text-content-tertiary">No reviews yet.</p>}
+        />
       </section>
     </div>
   )

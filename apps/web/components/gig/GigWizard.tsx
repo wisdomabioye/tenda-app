@@ -50,14 +50,29 @@ export function GigWizard({
    * On the last step the whole form is what matters, not just this step: the
    * rail lets the reader go back and empty a field they already filled, and a
    * button that checked only the money step would then be enabled while
-   * handleSubmit silently refused. Ask the same question submit will ask.
+   * handleSubmit silently refused.
+   *
+   * BOTH halves of the hint come from the wizard's own grouping. Taking the
+   * requirement from `form.missingRequirement` instead walks MOBILE's step
+   * order (budget before duration) while the step name walks the wizard's
+   * (duration on "Where and when"), and the two disagree the moment both are
+   * unmet — it rendered "Set a budget — go back to Where and when", naming a
+   * field that step does not carry. Asking the blocking step what IT is
+   * missing keeps the sentence true by construction.
+   *
+   * This is equivalent to what submit checks precisely because every shared
+   * requirement is claimed by some step — the invariant wizard-contract.test
+   * pins. If a requirement were ever unclaimed, `firstUnsatisfiedStep` would
+   * answer null while the form was still invalid.
    */
+  const blockingStep = finalStep ? firstUnsatisfiedStep(form.validationValues) : null
   const missingRequirement = finalStep
-    ? form.missingRequirement
+    ? blockingStep === null
+      ? null
+      : wizardStepMissingRequirement(blockingStep, form.validationValues)
     : wizardStepMissingRequirement(index, form.validationValues)
 
-  // Only meaningful on the last step, and only when the blocker is elsewhere.
-  const blockingStep = finalStep ? firstUnsatisfiedStep(form.validationValues) : null
+  // Only worth naming when the blocker is a step other than this one.
   const missingOnStep =
     blockingStep !== null && blockingStep !== index ? WIZARD_STEPS[blockingStep].label : undefined
 
@@ -67,6 +82,8 @@ export function GigWizard({
   }
 
   function handleNext() {
+    // Unreachable from the UI — the button is disabled on the same condition —
+    // and kept so a future caller cannot advance past an unmet requirement.
     if (missingRequirement !== null) return
     if (finalStep) {
       void form.handleSubmit()

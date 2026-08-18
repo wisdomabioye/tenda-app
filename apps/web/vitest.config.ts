@@ -94,7 +94,10 @@ export default defineConfig({
         'app/(focused)/signin/email/page.tsx',
         'app/(focused)/signin/verify/page.tsx',
         'app/(focused)/onboarding/profile/page.tsx',
-        'components/settings/**/*.tsx',
+        // {ts,tsx} like every sibling folder: the `.tsx`-only pattern left
+        // settings/copy.ts — which carries the badge rule and its branch —
+        // outside the gate, so a regression there could not move the number.
+        'components/settings/**/*.{ts,tsx}',
         'components/ui/**/*.{ts,tsx}',
         'components/app/**/*.{ts,tsx}',
         'components/public/BrandMark.tsx',

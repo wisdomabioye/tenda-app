@@ -220,6 +220,24 @@ test('the nav: names the missing requirement, gates Continue, hides Back on step
   expect(onNext).toHaveBeenCalled()
 })
 
+test('the nav says Working while a signature is in flight, and refuses a second click', () => {
+  const onNext = vi.fn()
+  render(
+    <WizardNav
+      showBack
+      finalStep
+      missingRequirement={null}
+      loading
+      onBack={vi.fn()}
+      onNext={onNext}
+    />,
+  )
+  const button = screen.getByRole('button', { name: 'Working…' })
+  expect(button).toBeDisabled()
+  fireEvent.click(button)
+  expect(onNext).not.toHaveBeenCalled()
+})
+
 test('the nav says the final step reviews and signs, not merely continues', () => {
   render(
     <WizardNav

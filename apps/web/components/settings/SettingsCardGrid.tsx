@@ -7,10 +7,10 @@
  * module, so the copy stays plain data and this file owns the presentation.
  */
 import Link from 'next/link'
-import { KeyRound, Landmark, ShieldCheck, User, Wallet } from 'lucide-react'
+import { KeyRound, Landmark, ShieldCheck, User, Wallet, type LucideIcon } from 'lucide-react'
 import { SETTINGS_CARDS, type SettingsCard } from './copy'
 
-const ICONS: Record<string, typeof Wallet> = {
+const ICONS: Record<string, LucideIcon> = {
   '/settings/security': KeyRound,
   '/settings/linked-wallets': Wallet,
   '/settings/bank-accounts': Landmark,
@@ -22,6 +22,9 @@ export function SettingsCardGrid({ badges }: { badges: Record<string, string | u
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {SETTINGS_CARDS.map((card) => {
+        // Fallback is unreachable while every card has an entry above, and
+        // stays as the answer for a card added without one — a generic glyph
+        // beats a crash.
         const Icon = ICONS[card.href] ?? User
         const badge = badges[card.href]
         return <Card key={card.href} card={{ ...card, badge }} Icon={Icon} />
@@ -30,7 +33,7 @@ export function SettingsCardGrid({ badges }: { badges: Record<string, string | u
   )
 }
 
-function Card({ card, Icon }: { card: SettingsCard; Icon: typeof Wallet }) {
+function Card({ card, Icon }: { card: SettingsCard; Icon: LucideIcon }) {
   return (
     <Link
       href={card.href}

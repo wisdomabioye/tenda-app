@@ -73,9 +73,12 @@ test('an oversized file is refused BEFORE any upload', async () => {
 test('an oversized AVATAR is refused with a real error, at the cap the SERVER set', async () => {
   // The cap is not a client constant: it rides the signature response per
   // upload kind, so raising it server-side raises it here with no deploy.
-  signatureMock.mockResolvedValue({ ...SIGNED, folder: 'avatars', max_file_bytes: 10 * 1024 * 1024 })
+  // Read from SIGNED, never restated: this test's whole point is that the
+  // cap comes from the server's response, so hardcoding it here would prove
+  // the opposite of what it claims.
+  signatureMock.mockResolvedValue({ ...SIGNED, folder: 'avatars' })
   await expect(
-    uploadToCloudinaryDetailed(file('huge.jpg', 10 * 1024 * 1024 + 1), 'avatar'),
+    uploadToCloudinaryDetailed(file('huge.jpg', SIGNED.max_file_bytes + 1), 'avatar'),
   ).rejects.toThrow('File is too large, max 10 MB')
   expect(fetchMock).not.toHaveBeenCalled()
 })
