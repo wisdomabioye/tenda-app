@@ -11,7 +11,7 @@
  */
 
 import { create } from 'zustand'
-import { registerAccountReset } from '@/lib/account-state'
+import { accountGeneration, isSameAccount, registerAccountReset } from '@/lib/account-state'
 import { NOTIFICATION_PAGE_SIZE } from '@tenda/shared'
 import type { NotificationWire, AnnouncementWire } from '@tenda/shared'
 import { api } from '@/api/client'
@@ -68,9 +68,12 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   ...INITIAL,
 
   fetchFeed: async () => {
+    // #45: this feed belongs to whoever is signed in NOW. See lib/account-state.
+    const gen = accountGeneration()
     set({ loading: true, feedStatus: 'loading' })
     try {
       const feed = await api.notifications.feed()
+      if (!isSameAccount(gen)) return
       set({
         notifications: feed.notifications,
         announcements: feed.announcements,
@@ -81,7 +84,9 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       })
     } catch {
       // Still swallowed — every caller here is a badge refresh that must not
-      // reject — but recorded, so the surface can say which it was.
+      // reject — but recorded, so the surface can say which it was. Not for a
+      // dead session, though: that error belongs to nobody on screen.
+      if (!isSameAccount(gen)) return
       set({ loading: false, feedStatus: 'error' })
     }
   },
@@ -90,9 +95,11 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     const { notifications, hasMore, loadingMore, loading } = get()
     const cursor = oldestId(notifications)
     if (cursor === null || !hasMore || loadingMore || loading) return
+    const gen = accountGeneration()
     set({ loadingMore: true })
     try {
       const feed = await api.notifications.feed({ before_id: cursor })
+      if (!isSameAccount(gen)) return
       set((s) => {
         // Dedupe on append: a concurrent refresh (or WS receive) can reshape the
         // list mid-flight, so drop any id already present rather than risk a
@@ -111,8 +118,12 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
 
   refreshUnread: async () => {
+    const gen = accountGeneration()
     try {
       const { count } = await api.notifications.unreadCount()
+      // The bell badge is the most visible of these: a stale count is the
+      // previous account's unread total sitting on the next account's chrome.
+      if (!isSameAccount(gen)) return
       set({ unread: count })
     } catch {
       // Badge keeps its last value; the next fetch/frame reconciles.

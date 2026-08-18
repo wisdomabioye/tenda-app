@@ -7,8 +7,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { render, renderHook, act, waitFor } from '@testing-library/react'
-import { createQueryCache, type PaginatedResponse } from '@tenda/shared'
+import { createQueryCache, createQueryKey, readPage, type PaginatedResponse } from '@tenda/shared'
 import { usePaginatedList } from '@/hooks/pagination/usePaginatedList'
+import { clearAccountState } from '@/lib/account-state'
 import { deferred, keyOf, page, rows, type Row } from '../__fixtures__/list-fixtures'
 
 describe('cacheQueries', () => {
@@ -247,3 +248,25 @@ describe('a cache the caller owns', () => {
   })
 })
 
+describe('a caller-owned cache across an ACCOUNT switch', () => {
+  it('does not write an in-flight page into a cache the switch just emptied', async () => {
+    // The cache outlives this hook by design — that is what stops the column
+    // blinking when the router remounts it. It therefore also outlives the
+    // SESSION, and `clearAccountState` empties it on sign-out. What that
+    // cannot stop is a page already on its way: the hook's own generation is
+    // unchanged (nothing superseded the load), so without an account guard it
+    // writes page zero straight back, and the next account's column seeds its
+    // first paint from it (#45).
+    const cache = createQueryCache<Row>()
+    const gate = deferred<PaginatedResponse<Row>>()
+    const fetchPage = vi.fn().mockReturnValue(gate.promise)
+    renderHook(() => usePaginatedList({ fetchPage, query: {}, keyOf, cache }))
+    await waitFor(() => expect(fetchPage).toHaveBeenCalled())
+
+    clearAccountState()
+    gate.resolve(page(rows('previous-account-row'), 1))
+    await act(async () => { await Promise.resolve() })
+
+    expect(readPage(cache, createQueryKey({}))).toBeUndefined()
+  })
+})

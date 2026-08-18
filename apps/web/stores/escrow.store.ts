@@ -25,7 +25,7 @@ import type {
 } from '@tenda/shared'
 import { ErrorCode, ApiClientError } from '@tenda/shared'
 import { api } from '@/api/client'
-import { registerAccountReset } from '@/lib/account-state'
+import { accountGeneration, isSameAccount, registerAccountReset } from '@/lib/account-state'
 
 interface EscrowState {
   /** True while a request/report round-trip is in flight. */
@@ -78,13 +78,19 @@ const EMPTY = { isBusy: false, error: null } as const
 
 export const useEscrowStore = create<EscrowState>((set) => {
   async function run<T>(fn: () => Promise<T>): Promise<T> {
+    // #45: the message this writes on failure is the SERVER's, naming what
+    // this account was refused. Landing after a sign-out it would sit on the
+    // next account's first transition screen. The isBusy half is harmless
+    // either way — false is what the reset leaves — but it rides the same
+    // guard rather than being reasoned about separately at each call site.
+    const gen = accountGeneration()
     set({ isBusy: true, error: null })
     try {
       const result = await fn()
-      set({ isBusy: false })
+      if (isSameAccount(gen)) set({ isBusy: false })
       return result
     } catch (e) {
-      set({ isBusy: false, error: (e as Error).message })
+      if (isSameAccount(gen)) set({ isBusy: false, error: (e as Error).message })
       throw e
     }
   }

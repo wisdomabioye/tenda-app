@@ -10,6 +10,7 @@ import {
   readPage,
   createQueryKey,
 } from '@tenda/shared'
+import { accountGeneration, isSameAccount } from '@/lib/account-state'
 import type { FirstPageResult, PaginatedListState, UsePaginatedListOptions } from './paginated-list.types'
 
 export type { PageParams, PaginatedListState, UsePaginatedListOptions } from './paginated-list.types'
@@ -99,6 +100,9 @@ export function usePaginatedList<TItem, TQuery extends object>({
       setIsLoadingMore(false)
       setError(null)
       try {
+        // `gen` supersedes within a session; the ACCOUNT can change under it
+        // too, and the cache below outlives this hook (#45).
+        const account = accountGeneration()
         const page = await fetchPageRef.current({
           ...queryRef.current,
           limit: pageSize,
@@ -109,7 +113,7 @@ export function usePaginatedList<TItem, TQuery extends object>({
         totalRef.current = page.total
         // Every mode requests offset 0, so this response IS page 0 for
         // `requestedKey` regardless of which branch below renders it.
-        if (cacheQueriesRef.current) {
+        if (cacheQueriesRef.current && isSameAccount(account)) {
           rememberPage(cacheRef.current, requestedKey, {
             items: page.data,
             total: page.total,

@@ -12,7 +12,7 @@ import { api } from '@/api/client'
 import { clearAuthStorage, getJwtToken, JWT_TOKEN_KEY, setJwtToken } from '@/lib/storage'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { reownAdapter } from '@/wallet/adapters/reown'
-import { clearAccountState } from '@/lib/account-state'
+import { beginAccountSession, clearAccountState } from '@/lib/account-state'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 
 /**
@@ -85,6 +85,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       throw e
     })
     await setJwtToken(res.token)
+    // Signing IN is an account change too. `logout` cleared, but the
+    // signed-out window is not inert — the conversation poll runs while the
+    // socket is down — so a request issued in it would otherwise land in this
+    // brand-new session. BUMP only, never clear: the sign-in flow store is
+    // mid-use right here (lib/account-state, #45).
+    beginAccountSession()
     set({
       user: res.user,
       jwt: res.token,
@@ -105,6 +111,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     const { auth } = result
     await setJwtToken(auth.token)
+    // Same reason as the verify path above.
+    beginAccountSession()
     set({
       user: auth.user,
       jwt: auth.token,

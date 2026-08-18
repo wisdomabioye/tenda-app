@@ -52,6 +52,52 @@ interface Clearable {
 const caches: Clearable[] = []
 const resets: Array<() => void> = []
 
+/**
+ * Which account the state in memory belongs to. Bumped by every account
+ * TRANSITION — sign-out, a cross-tab change, and sign-in — not only by clears.
+ *
+ * Emptying a store is a MOMENT; a request already on its way is not stopped by
+ * it, and writes its result whenever it lands. So the previous account's rows
+ * came back milliseconds after being dropped — the reset was real, and then it
+ * was undone (#45; proved on the inbox, where the threads and their unread
+ * badge returned).
+ *
+ * An async writer therefore takes a snapshot BEFORE its await and drops the
+ * write if the number has moved. That states the actual rule — "this response
+ * belongs to a previous account" — where a per-store request token can only
+ * say "a later request superseded it", which a sign-out is not.
+ */
+let generation = 0
+
+/** Snapshot before an await. Compare with `isSameAccount` after it. */
+export function accountGeneration(): number {
+  return generation
+}
+
+/** Whether the account is still the one `gen` was taken under. */
+export function isSameAccount(gen: number): boolean {
+  return gen === generation
+}
+
+/**
+ * A new account now owns the in-memory state — WITHOUT emptying anything.
+ *
+ * For sign-IN, where there is nothing to clear (logout already did) but the
+ * generation still has to move, so a request issued during the signed-out
+ * window cannot write into the session that follows.
+ *
+ * It must not clear: `signin-flow` is MID-USE at that exact moment. Clearing
+ * it empties `pending`, and /signin/verify renders nothing without it — the
+ * reader watches their own sign-in card blank out one step before the next
+ * page paints. That is the regression #14's review already fixed once, and
+ * calling `clearAccountState` here brought it straight back (caught by
+ * e2e/focused-shell, "the card stays on screen until the next step replaces
+ * it" — no unit test saw it).
+ */
+export function beginAccountSession(): void {
+  generation += 1
+}
+
 function register<TItem>(): QueryCache<TItem> {
   const cache = createQueryCache<TItem>()
   caches.push(cache)
@@ -104,11 +150,16 @@ export const myTradesCache = register<EscrowListRow>()
  * mounted hooks hold, so a column still on screen loses them too rather than
  * repainting from a cache the next reader was never meant to see.
  *
- * Called from BOTH ways an account can change in a live tab: `logout`, and the
- * cross-tab `storage` listener — a sign-out in another tab leaves this one
- * holding the same state a local sign-out would have cleared.
+ * Called from EVERY account transition in a live tab, not just sign-out:
+ * `logout`, the cross-tab `storage` listener (a sign-out or a different
+ * sign-in elsewhere leaves this tab holding what a local one would have
+ * cleared), and sign-IN itself — the signed-out window is not inert, so a
+ * request issued during it must not land in the session that follows.
  */
 export function clearAccountState(): void {
+  // FIRST, so a response that lands during the clearing is already stale to
+  // every guard that checks — the bump must not be observable as "after".
+  beginAccountSession()
   for (const cache of caches) cache.clear()
   for (const reset of resets) reset()
 }

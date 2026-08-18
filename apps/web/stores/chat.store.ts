@@ -7,7 +7,7 @@
  * is web's.
  */
 import { create } from 'zustand'
-import { registerAccountReset } from '@/lib/account-state'
+import { accountGeneration, isSameAccount, registerAccountReset } from '@/lib/account-state'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import type { UploadedAttachment } from '@/lib/uploads/attachments'
@@ -75,12 +75,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
   ...INITIAL,
 
   fetchConversations: async () => {
+    // #45: these rows belong to whoever is signed in NOW. See lib/account-state.
+    const gen = accountGeneration()
     set({ conversationsStatus: 'loading' })
     try {
       const convs = await api.conversations.list()
+      if (!isSameAccount(gen)) return
       const unread = convs.reduce((sum, c) => sum + c.unread_count, 0)
       set({ conversations: convs, unread, conversationsStatus: 'ready' })
     } catch (e) {
+      // Still rethrown for the caller that awaits it, but a dead session's
+      // failure must not put an error on the next account's inbox.
+      if (!isSameAccount(gen)) throw e
       set({ conversationsStatus: 'error' })
       // Still thrown: the badge's own callers swallow it, and the list column
       // reads the status — but a caller that awaits this must still be able to
@@ -90,7 +96,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   findOrCreate: async (userId) => {
+    const gen = accountGeneration()
     const conv = await api.conversations.findOrCreate({ user_id: userId })
+    // Adds a row when it is not already held, so an emptied store gains one.
+    if (!isSameAccount(gen)) return conv
     set((s) => {
       const exists = s.conversations.find((c) => c.id === conv.id)
       return {
@@ -103,7 +112,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   fetchMessages: async (conversationId, beforeId) => {
+    const gen = accountGeneration()
     const fetched = await api.conversations.messages({ id: conversationId }, beforeId ? { before_id: beforeId } : undefined)
+    if (!isSameAccount(gen)) return fetched
     // Server returns newest-first; reverse for display (oldest first)
     const ordered = [...fetched].reverse()
 
