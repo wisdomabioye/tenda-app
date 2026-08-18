@@ -9,11 +9,18 @@ vi.mock('@/api/client', () => ({
 
 import { AuthGate } from '@/components/app/AuthGate'
 import { useAuthStore } from '@/stores/auth.store'
+import { RETURN_PARAM } from '@/lib/auth/return-path'
+
+/** jsdom keeps a real History, so this is how a deep link is expressed. */
+function visiting(path: string) {
+  window.history.replaceState({}, '', path)
+}
 
 const router = vi.mocked(routerMockAccessor())
 
 beforeEach(() => {
   window.localStorage.clear()
+  visiting('/home')
   useAuthStore.setState({
     user: null,
     jwt: null,
@@ -41,8 +48,42 @@ describe('AuthGate', () => {
         <p>secret</p>
       </AuthGate>,
     )
+    // Heading for the default, so no param: the commonest redirect stays clean.
     await vi.waitFor(() => expect(router.replace).toHaveBeenCalledWith('/signin'))
     expect(screen.queryByText('secret')).not.toBeInTheDocument()
+  })
+
+  it('carries the DEEP LINK they were heading for through to sign-in', async () => {
+    // The whole point of #27: a shared /my-gigs/<escrowId> link must survive
+    // the sign-in it forces, query string and all.
+    visiting('/my-gigs/esc-1?tab=proofs')
+    useAuthStore.setState({ isLoading: false, isAuthenticated: false })
+    render(
+      <AuthGate>
+        <p>secret</p>
+      </AuthGate>,
+    )
+    await vi.waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith(
+        `/signin?${RETURN_PARAM}=%2Fmy-gigs%2Fesc-1%3Ftab%3Dproofs`,
+      ),
+    )
+  })
+
+  it('hands the destination on to the onboarding WAYPOINT', async () => {
+    // An incomplete profile is a step on the way, not the end of the journey.
+    visiting(`/my-gigs/esc-1?${RETURN_PARAM}=%2Fmy-gigs%2Fesc-1`)
+    useAuthStore.setState({ isLoading: false, isAuthenticated: true, profileComplete: false })
+    render(
+      <AuthGate>
+        <p>secret</p>
+      </AuthGate>,
+    )
+    await vi.waitFor(() =>
+      expect(router.replace).toHaveBeenCalledWith(
+        `/onboarding/profile?${RETURN_PARAM}=%2Fmy-gigs%2Fesc-1`,
+      ),
+    )
   })
 
   it('routes an incomplete profile to onboarding', async () => {

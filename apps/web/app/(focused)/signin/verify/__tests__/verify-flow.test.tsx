@@ -12,6 +12,15 @@ import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSigninFlowStore } from '@/stores/signin-flow.store'
 
+/**
+ * The code reads the destination from the URL at navigation time (not
+ * `useSearchParams` — see lib/auth/return-path), so a case drives it by
+ * putting it in jsdom's real History.
+ */
+function visiting(search: string) {
+  window.history.replaceState({}, '', `${window.location.pathname}${search}`)
+}
+
 const replace = vi.fn()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace, push: vi.fn() }),
@@ -22,6 +31,7 @@ vi.mock('@/api/client', () => ({
 
 describe('SignInVerifyPage — verifying and resending', () => {
   beforeEach(() => {
+    visiting('')
     vi.useFakeTimers()
     vi.setSystemTime(1_000_000)
     replace.mockClear()

@@ -9,7 +9,9 @@ import userEvent from '@testing-library/user-event'
 import { ApiClientError } from '@tenda/shared'
 
 const mockReplace = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace: mockReplace }) }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: mockReplace }),
+}))
 
 const mockSignInWithWallet = vi.fn()
 const mockGetState = vi.fn(() => ({ profileComplete: true }))
@@ -33,6 +35,15 @@ vi.mock('@/wallet/adapters/reown', () => ({
 import { AUTH_COPY } from '@/components/auth/copy'
 import { WalletSignInPanel } from '@/components/auth/WalletSignInPanel'
 
+/**
+ * The code reads the destination from the URL at navigation time (not
+ * `useSearchParams` — see lib/auth/return-path), so a case drives it by
+ * putting it in jsdom's real History.
+ */
+function visiting(search: string) {
+  window.history.replaceState({}, '', `${window.location.pathname}${search}`)
+}
+
 async function clickConnect() {
   const button = await screen.findByRole('button', { name: AUTH_COPY.wallet.connect })
   await waitFor(() => expect(button).toBeEnabled())
@@ -54,6 +65,28 @@ describe('idle + success', () => {
     render(<WalletSignInPanel />)
     await clickConnect()
     await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/onboarding/profile'))
+  })
+
+  it('lands on the destination the flow was carrying (#27)', async () => {
+    // The wallet way in must land exactly where the OTP one does — both call
+    // the same signedInDestination.
+    visiting('?next=%2Fmy-gigs%2Fesc-1')
+    mockSignInWithWallet.mockResolvedValue(true)
+    mockGetState.mockReturnValue({ profileComplete: true })
+    render(<WalletSignInPanel />)
+    await clickConnect()
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/my-gigs/esc-1'))
+    visiting('')
+  })
+
+  it('refuses a hostile destination here too (#27)', async () => {
+    visiting('?next=%2F%2Fevil.example')
+    mockSignInWithWallet.mockResolvedValue(true)
+    mockGetState.mockReturnValue({ profileComplete: true })
+    render(<WalletSignInPanel />)
+    await clickConnect()
+    await waitFor(() => expect(mockReplace).toHaveBeenCalledWith('/home'))
+    visiting('')
   })
 
   it('a decline quietly returns to idle — no error banner, no navigation', async () => {

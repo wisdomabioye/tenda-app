@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { currentReturnPath, signedInDestination, withReturnPath } from '@/lib/auth/return-path'
 import {
   ApiClientError,
   ErrorCode,
@@ -64,7 +65,14 @@ export function WalletSignInPanel() {
         setState({ kind: 'idle' }) // declined in the wallet — no error banner
         return
       }
-      router.replace(useAuthStore.getState().profileComplete === true ? '/home' : '/onboarding/profile')
+      // Same destination rule as the OTP path — one function, so the two ways
+      // in cannot land differently (#27).
+      const next = currentReturnPath()
+      router.replace(
+        useAuthStore.getState().profileComplete === true
+          ? signedInDestination(next)
+          : withReturnPath('/onboarding/profile', next),
+      )
     } catch (error) {
       if (error instanceof ApiClientError && error.code === ErrorCode.WALLET_NOT_LINKED) {
         setState({ kind: 'not_linked' })

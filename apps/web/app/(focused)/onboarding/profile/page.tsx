@@ -8,6 +8,7 @@
  */
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { currentReturnPath, signedInDestination, withReturnPath } from '@/lib/auth/return-path'
 import { NAME_MAX_LENGTH, hasCompleteName, verifyErrorMessage } from '@tenda/shared'
 import { api } from '@/api/client'
 import { AuthPanel } from '@/components/auth/AuthPanel'
@@ -34,7 +35,7 @@ export default function OnboardingProfilePage() {
     if (isLoading) void loadSession()
   }, [isLoading, loadSession])
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) router.replace('/signin')
+    if (!isLoading && !isAuthenticated) router.replace(withReturnPath('/signin', currentReturnPath()))
   }, [isLoading, isAuthenticated, router])
   useEffect(() => {
     if (user !== null) {
@@ -66,7 +67,8 @@ export default function OnboardingProfilePage() {
       })
       useAuthStore.getState().setProfileComplete(updated.profile_complete)
       void useAuthStore.getState().refreshUser()
-      router.replace('/home')
+      // The last leg: the destination this step was carrying (#27).
+      router.replace(signedInDestination(currentReturnPath()))
     } catch (e) {
       // Shared `verifyErrorMessage`, the same mapper the other two steps and
       // mobile's three auth screens use. Hand-rolling it here reproduced all

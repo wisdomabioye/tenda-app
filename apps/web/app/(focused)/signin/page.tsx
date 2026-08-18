@@ -6,6 +6,7 @@ import { AuthMethodCard } from '@/components/auth/AuthMethodCard'
 import { AuthPanel } from '@/components/auth/AuthPanel'
 import { TermsNotice } from '@/components/auth/TermsNotice'
 import { AUTH_COPY } from '@/components/auth/copy'
+import { readReturnParam, withReturnPath } from '@/lib/auth/return-path'
 
 export const metadata: Metadata = {
   title: 'Sign in',
@@ -24,18 +25,25 @@ export const metadata: Metadata = {
  * Server-rendered: nothing here needs a session or the bundle, and it is the
  * page a reader most often reaches on a cold connection.
  */
-export default function SignInPage() {
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>
+}) {
+  // Where AuthGate was sending them. Carried on to whichever method they pick
+  // so the destination survives the whole flow (#27).
+  const next = readReturnParam((await searchParams).next)
   return (
     <AuthPanel title={AUTH_COPY.chooser.title} lede={AUTH_COPY.chooser.lede}>
       <div className="flex flex-col gap-2.5">
         <AuthMethodCard
-          href="/signin/email"
+          href={withReturnPath('/signin/email', next)}
           icon={Mail}
           label={AUTH_COPY.chooser.email.label}
           hint={AUTH_COPY.chooser.email.hint}
         />
         <AuthMethodCard
-          href="/signin/wallet"
+          href={withReturnPath('/signin/wallet', next)}
           icon={Wallet}
           label={AUTH_COPY.chooser.wallet.label}
           hint={AUTH_COPY.chooser.wallet.hint}

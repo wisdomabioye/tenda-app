@@ -10,12 +10,24 @@ import { AUTH_COPY } from '@/components/auth/copy'
 import { api } from '@/api/client'
 import { useSigninFlowStore } from '@/stores/signin-flow.store'
 
+/**
+ * The code reads the destination from the URL at navigation time (not
+ * `useSearchParams` — see lib/auth/return-path), so a case drives it by
+ * putting it in jsdom's real History.
+ */
+function visiting(search: string) {
+  window.history.replaceState({}, '', `${window.location.pathname}${search}`)
+}
+
 const push = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace: vi.fn() }) }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push, replace: vi.fn() }),
+}))
 vi.mock('@/api/client', () => ({ api: { auth: { challenge: vi.fn() } } }))
 
 describe('SignInEmailPage', () => {
   beforeEach(() => {
+    visiting('')
     push.mockClear()
     useSigninFlowStore.setState({ pending: null })
   })
@@ -69,6 +81,21 @@ describe('SignInEmailPage', () => {
       expiresIn: 300,
     })
     expect(push).toHaveBeenCalledWith('/signin/verify')
+  })
+
+  it('carries the destination on to the verify step (#27)', async () => {
+    // The middle of the chain: AuthGate put it in the URL, and this step has
+    // to hand it to the next one or the deep link is lost here.
+    visiting('?next=%2Fmy-gigs%2Fesc-1')
+    vi.mocked(api.auth.challenge).mockResolvedValue({ expires_in: 600 } as never)
+    render(<SignInEmailPage />)
+    fireEvent.change(screen.getByLabelText(AUTH_COPY.email.label), {
+      target: { value: 'ada@tenda.test' },
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: AUTH_COPY.email.cta }))
+    })
+    expect(push).toHaveBeenCalledWith('/signin/verify?next=%2Fmy-gigs%2Fesc-1')
   })
 
   it('keeps a null window null rather than inventing one', async () => {

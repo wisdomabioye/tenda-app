@@ -30,6 +30,7 @@ import { Button, FormError } from '@/components/ui'
 import { OtpCodeField } from '@/components/auth/OtpCodeField'
 import { useAuthStore } from '@/stores/auth.store'
 import { useSigninFlowStore } from '@/stores/signin-flow.store'
+import { currentReturnPath, signedInDestination, withReturnPath } from '@/lib/auth/return-path'
 
 const CODE_LENGTH = 6
 const RESEND_COOLDOWN_S = 60
@@ -131,7 +132,15 @@ export default function SignInVerifyPage() {
       await signInWithVerify({ method: pending.channel, identifier: pending.identifier, code: value })
       succeeded.current = true
       const { profileComplete } = useAuthStore.getState()
-      router.replace(profileComplete === true ? '/home' : '/onboarding/profile')
+      // Back to where they were going, or the default. An incomplete profile
+      // is a waypoint, so it gets the destination handed on rather than
+      // consumed here (#27).
+      const next = currentReturnPath()
+      router.replace(
+        profileComplete === true
+          ? signedInDestination(next)
+          : withReturnPath('/onboarding/profile', next),
+      )
     } catch (e) {
       setCode('')
       setError(verifyErrorMessage(e, AUTH_COPY.verify.failed))

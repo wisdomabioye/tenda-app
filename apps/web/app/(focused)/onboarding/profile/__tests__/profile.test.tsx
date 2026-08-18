@@ -18,8 +18,20 @@ import { AUTH_COPY } from '@/components/auth/copy'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 
+/**
+ * The code reads the destination from the URL at navigation time (not
+ * `useSearchParams` — see lib/auth/return-path), so a case drives it by
+ * putting it in jsdom's real History.
+ */
+function visiting(search: string) {
+  window.history.replaceState({}, '', `${window.location.pathname}${search}`)
+}
+
 const replace = vi.fn()
-vi.mock('next/navigation', () => ({ useRouter: () => ({ replace, push: vi.fn() }) }))
+/** Mutable so a case can put a return path in the URL the page reads. */
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace, push: vi.fn() }),
+}))
 vi.mock('@/api/client', () => ({
   api: { users: { updateMe: vi.fn() } },
 }))
@@ -37,6 +49,7 @@ const authed = () =>
 describe('OnboardingProfilePage', () => {
   beforeEach(() => {
     replace.mockClear()
+    visiting('')
     authed()
   })
   afterEach(cleanup)
@@ -99,6 +112,32 @@ describe('OnboardingProfilePage', () => {
     })
     // Not a local guess — the server's own answer.
     expect(setProfileComplete).toHaveBeenCalledWith(true)
+    expect(replace).toHaveBeenCalledWith('/home')
+  })
+
+  it('lands on the destination the flow was carrying, not the default (#27)', async () => {
+    // The last leg: AuthGate captured a deep link, the sign-in step handed it
+    // to this waypoint, and this is where the reader finally arrives.
+    visiting('?next=%2Fmy-gigs%2Fesc-1%3Ftab%3Dproofs')
+    vi.mocked(api.users.updateMe).mockResolvedValue({ profile_complete: true } as never)
+    render(<OnboardingProfilePage />)
+    type('Segun', 'Oyelaran')
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: AUTH_COPY.profile.cta }))
+    })
+    expect(replace).toHaveBeenCalledWith('/my-gigs/esc-1?tab=proofs')
+  })
+
+  it('refuses a hostile destination and lands on the default instead', async () => {
+    // The open-redirect case, at the surface that performs the navigation
+    // rather than only in the validator's own unit test.
+    visiting('?next=%2F%2Fevil.example')
+    vi.mocked(api.users.updateMe).mockResolvedValue({ profile_complete: true } as never)
+    render(<OnboardingProfilePage />)
+    type('Segun', 'Oyelaran')
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: AUTH_COPY.profile.cta }))
+    })
     expect(replace).toHaveBeenCalledWith('/home')
   })
 
