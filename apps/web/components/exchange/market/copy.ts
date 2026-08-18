@@ -1,0 +1,110 @@
+/**
+ * The exchange surface's strings and its URL helpers.
+ *
+ * All three pieces of list state — tab, currency, chain — live in the URL, and
+ * these build every link that carries them. Two reasons, and the second is the
+ * one that bites: a filtered order book is worth sharing, and opening an offer
+ * UNMOUNTS this page, so a filter held in component state is gone by the time
+ * the reader comes back to the list they were reading.
+ */
+import {
+  ASSET_META,
+  CURRENCY_META,
+  PAYOUT_CURRENCIES,
+  type SupportedCurrency,
+} from '@tenda/shared'
+import { DEFAULT_EXCHANGE_TAB, type ExchangeTab } from './tabs'
+
+export { EXCHANGE_TABS, exchangeTab, DEFAULT_EXCHANGE_TAB, type ExchangeTab } from './tabs'
+
+export interface ExchangeRouteState {
+  tab: ExchangeTab
+  /**
+   * A payout currency, or null for "all currencies". Narrowed to the rails the
+   * product actually settles in rather than kept as free text: `?cur=` is
+   * reader-editable, and forwarding an unknown code would ask the server to
+   * filter by something no offer can carry.
+   */
+  currency: SupportedCurrency | null
+  /** CAIP-2 chain id, or null for "all chains". */
+  chainId: string | null
+}
+
+/**
+ * The surface's route carrying whichever keys are not default. The defaults
+ * stay off the URL so one view has one address — the same rule the my-gigs
+ * column follows, and what keeps `alternates.canonical` honest elsewhere.
+ */
+export function exchangeHref({ tab, currency, chainId }: ExchangeRouteState): string {
+  const params = new URLSearchParams()
+  if (tab !== DEFAULT_EXCHANGE_TAB) params.set('tab', tab)
+  if (currency !== null) params.set('cur', currency)
+  if (chainId !== null) params.set('chain', chainId)
+  const query = params.toString()
+  return query === '' ? '/exchange' : `/exchange?${query}`
+}
+
+/** The rate line under an offer's headline figure, e.g. "NGN / USDC". */
+export function rateUnitLabel(fiatCurrency: string, asset: string): string {
+  return `${fiatCurrency} / ${ASSET_META[asset]?.symbol ?? asset}`
+}
+
+/** A currency chip's label — the symbol and the code, as the comp writes it. */
+export function currencyChipLabel(currency: SupportedCurrency): string {
+  return `${CURRENCY_META[currency].symbol} ${currency}`
+}
+
+/** `?cur=` narrowed to a payout currency; anything else is "all currencies". */
+export function exchangeCurrency(raw: string | null): SupportedCurrency | null {
+  return PAYOUT_CURRENCIES.find((currency) => currency === raw) ?? null
+}
+
+export const EXCHANGE_COPY = {
+  eyebrow: 'Exchange',
+  /**
+   * The comp titles this per side ("Buy USDC from a trader"). There is one
+   * side (#32) and the asset is not always USDC (#37), so the market title
+   * names the act without naming a ticker the wire may contradict.
+   */
+  title: (tab: ExchangeTab) =>
+    tab === 'market' ? 'Buy crypto from a trader' : 'Trades you are in',
+  postOffer: 'Post offer',
+  /** The comp's count line, which says what the number counts. */
+  count: (total: number, currency: string | null) =>
+    `${total} ${total === 1 ? 'offer' : 'offers'}${currency === null ? '' : ` in ${currency}`}`,
+  myTradesCount: (total: number) => `${total} ${total === 1 ? 'trade' : 'trades'}`,
+  allCurrencies: 'All',
+  currencyGroupLabel: 'Filter by currency',
+  tabGroupLabel: 'Exchange lists',
+  /**
+   * The comp badges row one "Best" and numbers the rows 01, 02, 03 — both of
+   * which claim the book is ranked by rate. It is ordered by listing time and
+   * paginated (#35), so the ordering is stated instead of implied.
+   */
+  ordering: 'Newest offers first. Rates are the trader’s own — compare them straight down the column.',
+  market: {
+    emptyTitle: 'No offers in this pair yet',
+    emptyBody:
+      'Nobody is quoting this currency right now. Try another currency, or clear the chain filter.',
+    emptyUnfilteredBody: 'Nobody is quoting the market right now. Check back shortly.',
+    errorTitle: 'Offers could not be loaded',
+    errorBody:
+      'Your balance and any open trade are unaffected. This is a read failure on the offer index.',
+    label: 'Open offers',
+  },
+  mine: {
+    emptyTitle: 'No trades yet',
+    emptyBody: 'Offers you post, and offers you accept, both appear here.',
+    errorTitle: 'Your trades could not be loaded',
+    errorBody: 'Nothing has changed on-chain. This is a read failure on your own trade list.',
+    label: 'Your trades',
+  },
+  /** Which side of a trade the reader is on, derived from the escrow's creator. */
+  side: (selling: boolean) => (selling ? 'You are selling' : 'You are buying'),
+  window: (window: string) => `Pay within ${window}`,
+  locked: {
+    title: 'P2P Exchange is locked',
+    body: 'Turn on P2P Exchange in Settings to browse the order book and post sell offers.',
+    action: 'Open Settings',
+  },
+} as const

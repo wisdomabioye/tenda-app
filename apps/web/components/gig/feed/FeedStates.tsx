@@ -13,6 +13,7 @@
 import Link from 'next/link'
 import { RotateCw, SearchX, Undo2 } from 'lucide-react'
 import { ALERT_ACTION_CLASS, AlertPanel } from '@/components/ui/AlertPanel'
+import { EMPTY_ACTION_CLASS, EmptyPanel } from '@/components/ui/EmptyPanel'
 import { GIGS_PAGE_SIZE } from '@/lib/gigs/search-params'
 import { FEED_COPY } from './copy'
 
@@ -50,23 +51,18 @@ function SkeletonBar({ className }: { className: string }) {
  */
 export function FeedEmpty({ filtered }: { filtered: boolean }) {
   return (
-    <div className="rounded-card border border-dashed border-border-strong px-8 py-14 text-center">
-      <SearchX size={28} aria-hidden className="mx-auto text-content-tertiary" />
-      <h3 className="mt-4 font-display text-xl font-semibold leading-[26px] text-content-primary">
-        {filtered ? FEED_COPY.empty.title : FEED_COPY.empty.bareTitle}
-      </h3>
-      <p className="mx-auto mt-2 max-w-[44ch] text-content-secondary">
-        {filtered ? FEED_COPY.empty.body : FEED_COPY.empty.bareBody}
-      </p>
-      {filtered && (
-        <Link
-          href="/gigs"
-          className="mt-5 inline-block rounded-control bg-brand-solid px-[18px] py-2.5 text-sm font-bold text-brand-on-primary hover:brightness-95"
-        >
-          {FEED_COPY.empty.action}
-        </Link>
-      )}
-    </div>
+    <EmptyPanel
+      icon={<SearchX size={28} />}
+      title={filtered ? FEED_COPY.empty.title : FEED_COPY.empty.bareTitle}
+      body={filtered ? FEED_COPY.empty.body : FEED_COPY.empty.bareBody}
+      action={
+        filtered ? (
+          <Link href="/gigs" className={EMPTY_ACTION_CLASS}>
+            {FEED_COPY.empty.action}
+          </Link>
+        ) : undefined
+      }
+    />
   )
 }
 
@@ -83,21 +79,16 @@ export function FeedEmpty({ filtered }: { filtered: boolean }) {
  */
 export function FeedPastEnd({ href, total }: { href: string; total: number }) {
   return (
-    <div className="rounded-card border border-dashed border-border-strong px-8 py-14 text-center">
-      <Undo2 size={28} aria-hidden className="mx-auto text-content-tertiary" />
-      <h3 className="mt-4 font-display text-xl font-semibold leading-[26px] text-content-primary">
-        {FEED_COPY.pastEnd.title}
-      </h3>
-      <p className="mx-auto mt-2 max-w-[44ch] text-content-secondary">
-        {FEED_COPY.pastEnd.body(total)}
-      </p>
-      <Link
-        href={href}
-        className="mt-5 inline-block rounded-control bg-brand-solid px-[18px] py-2.5 text-sm font-bold text-brand-on-primary hover:brightness-95"
-      >
-        {FEED_COPY.pastEnd.action}
-      </Link>
-    </div>
+    <EmptyPanel
+      icon={<Undo2 size={28} />}
+      title={FEED_COPY.pastEnd.title}
+      body={FEED_COPY.pastEnd.body(total)}
+      action={
+        <Link href={href} className={EMPTY_ACTION_CLASS}>
+          {FEED_COPY.pastEnd.action}
+        </Link>
+      }
+    />
   )
 }
 

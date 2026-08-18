@@ -66,6 +66,7 @@ vi.mock('@/api/client', () => ({
 }))
 
 import { ExchangeDetailApp, sellerNameOf } from '@/components/exchange/ExchangeDetailApp'
+import { OFFER_ASIDE_COPY, OFFER_DETAIL_COPY } from '@/components/exchange/detail'
 import { makeExchangeDetail, makeUserRef } from '../../../test/factories/exchange'
 
 const ACCOUNT: ExchangePayoutAccount = {
@@ -145,6 +146,72 @@ test('payout surfaces: the accepted BUYER sees instructions, the SELLER sees the
   render(<ExchangeDetailApp offer={accepted} userId="seller-1" refresh={refresh} />)
   expect(screen.getByText('Buyer pays into')).toBeInTheDocument()
   expect(screen.queryByText('Pay the seller')).toBeNull()
+})
+
+test('the party half is rendered from what the SERVER sent, never synthesised', () => {
+  // An outsider's wire has counterparty null, proofs [], dispute null — the
+  // page must draw none of those blocks rather than empty shells that reveal
+  // the shape of what is being withheld.
+  const outsider = render(
+    <ExchangeDetailApp offer={makeExchangeDetail()} userId="stranger" refresh={refresh} />,
+  )
+  expect(screen.queryByText(OFFER_DETAIL_COPY.proofs)).toBeNull()
+  expect(screen.queryByText('Buyer')).toBeNull()
+  outsider.unmount()
+
+  render(
+    <ExchangeDetailApp
+      offer={makeExchangeDetail({
+        status: 'disputed',
+        counterparty: makeUserRef({ id: 'buyer-1', first_name: 'Bola', last_name: 'Ade' }),
+        proofs: [
+          {
+            id: 'proof-1',
+            escrow_id: 'exch-1',
+            uploader_id: 'buyer-1',
+            type: 'payment',
+            url: 'https://cdn.test/receipt.png',
+            uploaded_at: new Date('2026-08-16T10:00:00.000Z'),
+          },
+        ],
+        dispute: {
+          id: 'dsp-1',
+          escrow_id: 'exch-1',
+          raised_by: 'buyer-1',
+          reason: 'Payment sent, not released',
+          status: 'open',
+          resolution: null,
+          winner: null,
+          resolved_by: null,
+          resolved_at: null,
+          created_at: '2026-08-16T10:00:00.000Z',
+        },
+      })}
+      userId="buyer-1"
+      refresh={refresh}
+    />,
+  )
+  expect(screen.getByText(OFFER_DETAIL_COPY.proofs)).toBeInTheDocument()
+  // The proof is OPENABLE: a list that only says one exists settles nothing.
+  expect(screen.getByRole('link', { name: /payment proof/ })).toHaveAttribute(
+    'href',
+    'https://cdn.test/receipt.png',
+  )
+  expect(screen.getByText('Buyer')).toBeInTheDocument()
+  expect(screen.getByText('Payment sent, not released')).toBeInTheDocument()
+})
+
+test('the aside speaks to the reader’s OWN side of the trade', () => {
+  const asSeller = render(
+    <ExchangeDetailApp offer={makeExchangeDetail()} userId="seller-1" refresh={refresh} />,
+  )
+  expect(screen.getByText(OFFER_ASIDE_COPY.sellerPay)).toBeInTheDocument()
+  expect(screen.queryByText(OFFER_DETAIL_COPY.youPay)).toBeNull()
+  asSeller.unmount()
+
+  render(<ExchangeDetailApp offer={makeExchangeDetail()} userId="stranger" refresh={refresh} />)
+  expect(screen.getByText(OFFER_DETAIL_COPY.youPay)).toBeInTheDocument()
+  expect(screen.queryByText(OFFER_ASIDE_COPY.sellerPay)).toBeNull()
 })
 
 test('the live-refresh subscription rides the offer identity', () => {

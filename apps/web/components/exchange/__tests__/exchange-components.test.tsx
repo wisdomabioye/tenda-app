@@ -1,20 +1,15 @@
 /**
- * Exchange presentation: the order-book card's trade line + linkage, the
- * terms card's buyer-net honesty (fee subtracted, never the gross alone),
- * the payment-instructions card's status-aware copy, and the countdown's
- * live tick.
+ * Exchange presentation that is not the order book or the offer page: the
+ * payment-instructions card's status-aware copy, the seller's bound payout
+ * account, and the inline countdown's live tick.
+ *
+ * The order-book row and the offer page's parts have their own files under
+ * market/__tests__ and detail/__tests__.
  */
 import { render, screen, act } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import { ExchangeOfferCard } from '@/components/exchange/ExchangeOfferCard'
-import { ExchangeTermsCard } from '@/components/exchange/ExchangeTermsCard'
 import { PaymentInstructionsCard, SellerPayoutCard } from '@/components/exchange/PayoutCards'
 import { DeadlineCountdown } from '@/components/shared/DeadlineCountdown'
-import { makeExchangeDetail } from '../../../test/factories/exchange'
-
-vi.mock('@/hooks/escrow/useEscrowFee', () => ({
-  useEscrowFee: () => ({ feeRaw: BigInt(1500000), netRaw: BigInt(48500000), feePct: 3 }),
-}))
 
 const account = {
   kind: 'bank' as const,
@@ -30,36 +25,6 @@ beforeEach(() => {
 })
 afterEach(() => {
   vi.useRealTimers()
-})
-
-test('offer card: links the detail, shows the trade line, status only when asked', () => {
-  const offer = makeExchangeDetail()
-  const { rerender } = render(<ExchangeOfferCard offer={offer} />)
-  expect(screen.getByRole('link')).toHaveAttribute('href', '/exchange/exch-1')
-  expect(screen.getByText(/Pay within/)).toBeInTheDocument()
-  expect(screen.queryByText('Open')).toBeNull()
-
-  rerender(<ExchangeOfferCard offer={offer} showStatus />)
-  expect(screen.getByText('Open')).toBeInTheDocument()
-})
-
-test('terms card: buyer receives NET (gross − fee), fee row named with its pct', () => {
-  render(<ExchangeTermsCard offer={makeExchangeDetail()} />)
-  expect(screen.getByText('Platform fee (3%)')).toBeInTheDocument()
-  expect(screen.getByText('Buyer receives')).toBeInTheDocument()
-  expect(screen.getByText(/48\.5/)).toBeInTheDocument() // net, not the 50 gross
-})
-
-test('terms card: the live deadline row appears with status-aware wording', () => {
-  render(
-    <ExchangeTermsCard
-      offer={makeExchangeDetail({
-        status: 'accepted',
-        completion_deadline: '2026-08-16T11:00:00.000Z',
-      })}
-    />,
-  )
-  expect(screen.getByText('Pay in')).toBeInTheDocument()
 })
 
 test('payment instructions flip copy between pay and awaiting-confirmation', () => {

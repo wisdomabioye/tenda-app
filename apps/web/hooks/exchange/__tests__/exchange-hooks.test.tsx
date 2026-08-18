@@ -6,7 +6,13 @@
  */
 import { renderHook, act, waitFor } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
-import { ApiClientError, type ChainRegistryEntry, type ExchangeDetail, type LinkedWallet } from '@tenda/shared'
+import {
+  ApiClientError,
+  type ChainRegistryEntry,
+  type ExchangeDetail,
+  type LinkedWallet,
+  type SupportedCurrency,
+} from '@tenda/shared'
 
 const apiMock = vi.hoisted(() => ({
   exchange: {
@@ -24,27 +30,34 @@ import { useExchangeDetail } from '@/hooks/exchange/useExchangeDetail'
 import { useExchangeAssetOptions } from '@/hooks/exchange/useExchangeAssetOptions'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
+import { clearAccountCaches } from '@/lib/account-caches'
 import { makeExchangeDetail } from '../../../test/factories/exchange'
 import { makeUser } from '../../../test/factories/user'
 
 const page = <T,>(data: T[]) => ({ data, pagination: { total: data.length, limit: 20, offset: 0 } })
+
+const NO_FILTERS = { currency: null, chainId: null } as const
 
 beforeEach(() => {
   vi.clearAllMocks()
   apiMock.exchange.list.mockResolvedValue(page([makeExchangeDetail()]))
   apiMock.users.escrows.mockResolvedValue(page([]))
   useAuthStore.setState({ user: null, wallets: [] })
+  // The screen's page zero now lives in module-scoped caches so it survives
+  // navigating into an offer and back. That also means it survives a TEST —
+  // without this, the second run here is seeded and never calls the API.
+  clearAccountCaches()
 })
 
 test('signed out: the market loads but my-trades never fires without an id', async () => {
-  const { result } = renderHook(() => useExchangeScreen())
+  const { result } = renderHook(() => useExchangeScreen(NO_FILTERS))
   await waitFor(() => expect(result.current.market.items).toHaveLength(1))
   expect(apiMock.users.escrows).not.toHaveBeenCalled()
 })
 
 test('signed in: my-trades queries the caller, kind pinned to exchange', async () => {
   useAuthStore.setState({ user: makeUser({ id: 'me' }) })
-  const { result } = renderHook(() => useExchangeScreen())
+  const { result } = renderHook(() => useExchangeScreen(NO_FILTERS))
   await waitFor(() => expect(apiMock.users.escrows).toHaveBeenCalled())
   expect(apiMock.users.escrows).toHaveBeenCalledWith(
     { id: 'me' },
@@ -53,17 +66,30 @@ test('signed in: my-trades queries the caller, kind pinned to exchange', async (
   await waitFor(() => expect(result.current.myTrades.isLoading).toBe(false))
 })
 
-test('the currency chip refetches the market with the filter; clearFilters drops both', async () => {
-  const { result } = renderHook(() => useExchangeScreen())
-  await waitFor(() => expect(result.current.market.items).toHaveLength(1))
-
-  act(() => result.current.setCurrency('KES'))
-  await waitFor(() =>
-    expect(apiMock.exchange.list).toHaveBeenCalledWith(expect.objectContaining({ currency: 'KES' })),
+test('the filters arrive as ARGUMENTS and steer both lists', async () => {
+  // They live in the URL because opening an offer unmounts the surface; the
+  // hook's job is only to pass them through to the two queries.
+  const { rerender } = renderHook(
+    (filters: { currency: SupportedCurrency | null; chainId: string | null }) =>
+      useExchangeScreen(filters),
+    { initialProps: NO_FILTERS as { currency: SupportedCurrency | null; chainId: string | null } },
   )
-  act(() => result.current.clearFilters())
-  expect(result.current.currency).toBeNull()
-  expect(result.current.chainId).toBeNull()
+  await waitFor(() => expect(apiMock.exchange.list).toHaveBeenCalled())
+
+  rerender({ currency: 'KES', chainId: 'solana:devnet' })
+  await waitFor(() =>
+    expect(apiMock.exchange.list).toHaveBeenCalledWith(
+      expect.objectContaining({ currency: 'KES', chain_id: 'solana:devnet' }),
+    ),
+  )
+})
+
+test('a LOCKED surface fires nothing — both endpoints would refuse it anyway', async () => {
+  useAuthStore.setState({ user: makeUser({ id: 'me', advanced_mode_enabled: false }) })
+  renderHook(() => useExchangeScreen({ ...NO_FILTERS, enabled: false }))
+  await act(async () => {})
+  expect(apiMock.exchange.list).not.toHaveBeenCalled()
+  expect(apiMock.users.escrows).not.toHaveBeenCalled()
 })
 
 test('detail: loads, then a 404 refetch DROPS the offer (gone)', async () => {

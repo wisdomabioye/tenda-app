@@ -1,7 +1,12 @@
-export { ExchangeOfferCard } from './ExchangeOfferCard'
-export { ExchangeTermsCard } from './ExchangeTermsCard'
+/**
+ * The exchange surface's top-level pieces. The order book lives in `./market`
+ * and the offer page's parts in `./detail`, each behind its own barrel — this
+ * one deliberately does not re-export them, so an import says which half of
+ * the surface it belongs to.
+ */
 export { ExchangeCTA } from './ExchangeCTA'
-export { ExchangeDetailApp } from './ExchangeDetailApp'
+export { ExchangeDetailApp, sellerNameOf } from './ExchangeDetailApp'
+export { DisputeThreadLink } from './DisputeThreadLink'
 export {
   PaymentInstructionsCard,
   SellerPayoutCard,

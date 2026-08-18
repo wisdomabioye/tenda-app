@@ -8,6 +8,7 @@ import {
   DEFAULT_PAYOUT_CURRENCY,
   GH_MOMO_NETWORKS,
   getPayoutSpec,
+  countryDisplayName,
   getPayoutRail,
   isPayoutRailKind,
   payoutCurrencyForCountry,
@@ -183,4 +184,26 @@ test('the Ghanaian bank rail masks all but the last four', () => {
   const rail = getPayoutRail('GH', 'bank')
   assert.ok(rail)
   assert.equal(rail.maskAccountNumber('1234567890123'), '••••••••• 0123')
+})
+
+test('countryDisplayName names a payout market, and passes anything else through', () => {
+  assert.equal(countryDisplayName('NG'), 'Nigeria')
+  assert.equal(countryDisplayName('KE'), 'Kenya')
+  assert.equal(countryDisplayName('GH'), 'Ghana')
+  // Not a payout market, but still where the account says it is. A dash here
+  // would say less to the reader than the code does.
+  assert.equal(countryDisplayName('ZW'), 'ZW')
+})
+
+test('countryDisplayName answers null for an account with no country', () => {
+  // The column is nullable; the caller renders NOTHING rather than a
+  // placeholder that implies a country was withheld.
+  assert.equal(countryDisplayName(null), null)
+  assert.equal(countryDisplayName(''), null)
+})
+
+test('every payout market has a display name, so none can fall back to its code', () => {
+  for (const country of SUPPORTED_PAYOUT_COUNTRIES) {
+    assert.notEqual(countryDisplayName(country), country)
+  }
 })

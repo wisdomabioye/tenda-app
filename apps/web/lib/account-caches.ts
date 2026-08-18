@@ -1,5 +1,7 @@
 import {
   createQueryCache,
+  type EscrowListRow,
+  type ExchangeSummary,
   type GigSummary,
   type MyApplication,
   type MyDisputeRow,
@@ -56,6 +58,22 @@ export const myApplicationsCache = register<MyApplication>()
 
 /** Page zero of the notification feed. */
 export const notificationsCache = register<NotificationWire>()
+
+/**
+ * The exchange surface's two lists, per filter combination.
+ *
+ * This surface is not a list column, so it is not remounted per row — it is
+ * UNMOUNTED, because opening an offer replaces the whole pane. Same outcome:
+ * without these, coming back from an offer re-fetches the book the reader was
+ * already reading and shows them a skeleton over it.
+ *
+ * `myTradesCache` is account-scoped and would otherwise show the previous
+ * account its own trades after a same-tab switch; the order book is public to
+ * anyone with the surface unlocked, and is registered because a cache outside
+ * the registry is one nobody can empty.
+ */
+export const offerBookCache = register<ExchangeSummary>()
+export const myTradesCache = register<EscrowListRow>()
 
 /**
  * Empties every registered cache. Clears the SAME Map instances the mounted

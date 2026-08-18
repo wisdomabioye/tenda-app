@@ -1,14 +1,22 @@
 'use client'
 
 /**
- * Exchange detail body — web port of mobile's ExchangeDetailContent over
- * the SAME machinery the gig detail proved: useEscrowActions (sign →
- * broadcast → client-ping), the TxConfirmDialog gate, TransactionMonitor
- * convergence, GigActionDialogs (proof/dispute/review/delete — structural
- * target, kind-agnostic), and escrow-live refresh.
+ * The offer page (Tier-3 comp, lines 520-645): a two-column read — the offer
+ * and its trader on the left, the commitment on the right — over the SAME
+ * machinery the gig detail proved: useEscrowActions (sign → broadcast →
+ * client-ping), the TxConfirmDialog gate, TransactionMonitor convergence,
+ * GigActionDialogs (proof/dispute/review/delete — structural target,
+ * kind-agnostic), and escrow-live refresh.
+ *
+ * The columns collapse to one at 1000px, which is the comp's `[data-two]`
+ * breakpoint — and here it matters more than it does on a marketing page: the
+ * aside holds the only control that commits money, so it must never be the
+ * column that gets squeezed.
  */
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { ChevronLeft } from 'lucide-react'
 import {
   TX_PROGRESS_LABEL,
   checkEscrowTransitionApplied,
@@ -31,10 +39,17 @@ import { TxConfirmDialog } from '@/components/escrow/TxConfirmDialog'
 import { TransactionMonitor } from '@/components/escrow/TransactionMonitor'
 import { GigActionDialogs } from '@/components/gig/detail/action-dialogs'
 import { TakedownNotice } from '@/components/gig/detail/TakedownNotice'
-import { ExchangeStatusBadge } from '@/components/escrow/StatusBadge'
 import { PersonCard } from '@/components/shared/PersonCard'
-import { ExchangeTermsCard } from './ExchangeTermsCard'
 import { ExchangeCTA } from './ExchangeCTA'
+import {
+  OFFER_DETAIL_COPY,
+  OfferActionAside,
+  OfferCountdown,
+  OfferHeadline,
+  OfferTerms,
+  TraderCard,
+  offerClockFor,
+} from './detail'
 import {
   PaymentInstructionsCard,
   SellerPayoutCard,
@@ -89,6 +104,7 @@ export function ExchangeDetailApp({
 
   const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
   const contextTitle = `Trade: ${offer.fiat_amount} ${offer.fiat_currency}`
+  const clock = offerClockFor(offer)
 
   function handleTransactionConfirmed() {
     const action = actions.pendingAction
@@ -99,87 +115,106 @@ export function ExchangeDetailApp({
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+    <div className="mx-auto w-full max-w-[1080px] px-8 pb-20 pt-8">
+      <Link
+        href="/exchange"
+        className="inline-flex items-center gap-2 text-[13px] font-semibold text-content-tertiary hover:text-content-primary hover:no-underline"
+      >
+        <ChevronLeft size={16} aria-hidden />
+        {OFFER_DETAIL_COPY.back}
+      </Link>
+
       <TakedownNotice escrow={offer} subject="offer" viewerId={userId} />
 
-      <header className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <ExchangeStatusBadge status={offer.status} />
-          <span className="rounded-full bg-accent-primary-surface px-2 py-0.5 text-[11px] font-semibold text-accent-primary">
-            P2P Trade
-          </span>
+      {/* The comp collapses `[data-two]` when the CONTENT area drops below
+          1000px. Here the content area is the viewport minus the 64px rail —
+          this surface has no list column — so the breakpoint is 1064px, not a
+          stock `lg:` that would split at a pane 40px narrower than the comp
+          allows. */}
+      <div
+        data-two
+        className="mt-6 grid items-start gap-10 min-[1064px]:grid-cols-[minmax(0,1fr)_340px]"
+      >
+        <div className="min-w-0">
+          <OfferHeadline offer={offer} />
+          {clock !== null && <OfferCountdown clock={clock} />}
+
+          <TraderCard trader={offer.creator} offer={offer} currentUserId={userId} />
+
+          {/* The buyer is party-scoped: present only once someone has taken
+              the offer, and only for the two of them. */}
+          {offer.counterparty !== null && (
+            <div className="mt-4">
+              <PersonCard
+                user={offer.counterparty}
+                label="Buyer"
+                currentUserId={userId}
+                context={{ id: offer.escrow_id, title: contextTitle, kind: 'exchange' }}
+              />
+            </div>
+          )}
+
+          <OfferTerms offer={offer} />
+
+          {shouldShowPaymentInstructions(offer, userId) && offer.payout_account !== null && (
+            <div className="mt-6">
+              <PaymentInstructionsCard
+                account={offer.payout_account}
+                fiatDisplay={fiat}
+                reference={offer.escrow_id.slice(0, 8).toUpperCase()}
+                status={offer.status}
+                deadline={computeRelevantDeadline(offer)}
+              />
+            </div>
+          )}
+          {shouldShowSellerPayout(offer, userId) && offer.payout_account !== null && (
+            <div className="mt-6">
+              <SellerPayoutCard account={offer.payout_account} />
+            </div>
+          )}
+
+          {offer.proofs.length > 0 && (
+            <section className="mt-6 flex flex-col gap-1 rounded-card border border-border-subtle bg-surface-card p-4">
+              <h2 className="text-sm font-semibold text-content-primary">
+                {OFFER_DETAIL_COPY.proofs}
+              </h2>
+              <ul className="flex flex-col gap-1">
+                {offer.proofs.map((proof) => (
+                  <li key={proof.id}>
+                    <a
+                      href={proof.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-brand-primary underline-offset-2 hover:underline"
+                    >
+                      {proof.type} proof
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
+          {offer.dispute !== null && offer.status === 'disputed' && (
+            <div className="mt-6">
+              <DisputeThreadLink
+                reason={offer.dispute.reason}
+                escrowId={offer.escrow_id}
+                isParty={isCreator || userId === offer.counterparty?.id}
+              />
+            </div>
+          )}
         </div>
-        <h1 className="font-numeric font-display text-2xl font-bold text-content-primary">
-          {formatAssetAmount(offer.amount_raw, offer.asset)} → {fiat}
-        </h1>
-      </header>
 
-      <ExchangeTermsCard offer={offer} />
-
-      {shouldShowPaymentInstructions(offer, userId) && offer.payout_account !== null && (
-        <PaymentInstructionsCard
-          account={offer.payout_account}
-          fiatDisplay={fiat}
-          reference={offer.escrow_id.slice(0, 8).toUpperCase()}
-          status={offer.status}
-          deadline={computeRelevantDeadline(offer)}
-        />
-      )}
-      {shouldShowSellerPayout(offer, userId) && offer.payout_account !== null && (
-        <SellerPayoutCard account={offer.payout_account} />
-      )}
-
-      <PersonCard
-        user={offer.creator}
-        label="Seller"
-        currentUserId={userId}
-        context={{ id: offer.escrow_id, title: contextTitle, kind: 'exchange' }}
-      />
-      {offer.counterparty !== null && (
-        <PersonCard
-          user={offer.counterparty}
-          label="Buyer"
-          currentUserId={userId}
-          context={{ id: offer.escrow_id, title: contextTitle, kind: 'exchange' }}
-        />
-      )}
-
-      {offer.proofs.length > 0 && (
-        <section className="flex flex-col gap-1 rounded-card border border-border-subtle bg-surface-card p-4">
-          <h2 className="text-sm font-semibold text-content-primary">Payment proof</h2>
-          <ul className="flex flex-col gap-1">
-            {offer.proofs.map((proof) => (
-              <li key={proof.id}>
-                <a
-                  href={proof.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-sm text-brand-primary underline-offset-2 hover:underline"
-                >
-                  {proof.type} proof
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      {offer.dispute !== null && offer.status === 'disputed' && (
-        <DisputeThreadLink
-          reason={offer.dispute.reason}
-          escrowId={offer.escrow_id}
-          isParty={isCreator || userId === offer.counterparty?.id}
-        />
-      )}
-
-      <div className="sticky bottom-4">
-        <ExchangeCTA
-          offer={offer}
-          userId={userId}
-          busy={actions.busyAction !== null}
-          onTxAction={setConfirmAction}
-          onSheet={setActiveSheet}
-        />
+        <OfferActionAside offer={offer} perspective={isCreator ? 'seller' : 'buyer'}>
+          <ExchangeCTA
+            offer={offer}
+            userId={userId}
+            busy={actions.busyAction !== null}
+            onTxAction={setConfirmAction}
+            onSheet={setActiveSheet}
+          />
+        </OfferActionAside>
       </div>
 
       <TxConfirmDialog

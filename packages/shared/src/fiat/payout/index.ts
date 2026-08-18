@@ -46,6 +46,19 @@ export function payoutCurrencyForCountry(country: string | null): SupportedCurre
   return (country !== null ? getPayoutSpec(country)?.currency : undefined) ?? DEFAULT_PAYOUT_CURRENCY
 }
 
+/**
+ * How a country is NAMED to a reader: the spec's name where we have one, the
+ * raw ISO code otherwise, and null when the account carries no country at all.
+ *
+ * The code is deliberately not hidden behind a placeholder. A trader's country
+ * is part of deciding whether to trade with them, and "—" says less than "ZW"
+ * does to the person reading it.
+ */
+export function countryDisplayName(country: string | null): string | null {
+  if (country === null || country === '') return null
+  return getPayoutSpec(country)?.countryName ?? country
+}
+
 /** A specific rail (bank / mobile_money) for a country, or null if unsupported. */
 export function getPayoutRail(country: string, kind: PayoutRailKind): PayoutRailSpec | null {
   return getPayoutSpec(country)?.rails.find((r) => r.kind === kind) ?? null

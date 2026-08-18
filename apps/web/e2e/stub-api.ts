@@ -30,6 +30,7 @@ import {
 import { createAuthWorld, E2E_OTP_CODE, signIn, toMeUser, userForBearer } from './fixtures/auth'
 import { createChatWorld, handleChat, resetChatWorld } from './fixtures/chat'
 import { handleDisputes } from './fixtures/disputes'
+import { handleExchange } from './fixtures/exchange'
 import { createNotificationsWorld, handleNotifications, resetNotificationsWorld } from './fixtures/notifications'
 
 const PORT = Number(process.env.STUB_API_PORT ?? 3210)
@@ -364,6 +365,15 @@ function handleAuth(url: URL, method: string, authorization: string | undefined,
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
     const disputes = handleDisputes(url, method, user.id)
     if (disputes !== null) return json(disputes.payload, disputes.statusCode)
+  }
+  // Exchange (S5.4): the order book, one offer, and the caller's own trades.
+  // Auth-gated like the real routes — and the advanced-mode gate is enforced
+  // client-side off the account, so the trader persona is the one that sees it.
+  if (url.pathname.startsWith('/v1/exchange') || /^\/v1\/users\/[^/]+\/escrows$/.test(url.pathname)) {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    const exchange = handleExchange(url, method, user.id)
+    if (exchange !== null) return json(exchange.payload, exchange.statusCode)
   }
   // Chat (S5.2): conversations + messages, auth-gated like the real routes.
   if (url.pathname.startsWith('/v1/conversations') || /^\/v1\/users\/[^/]+$/.test(url.pathname)) {
