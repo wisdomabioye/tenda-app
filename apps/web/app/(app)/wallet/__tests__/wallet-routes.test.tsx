@@ -103,32 +103,4 @@ describe('/wallet/intents/[id]', () => {
     expect(screen.getByRole('button', { name: INTENT_COPY.done })).toBeInTheDocument()
   })
 
-  it('surfaces a KYC block the wire asked for, with the provider’s link', () => {
-    intentState.current = {
-      ...intentState.current,
-      intent: detail({ kyc_required: true, kyc_url: 'https://kyc.example' }),
-    }
-    render(<FiatIntentPage />)
-    expect(screen.getByText(INTENT_COPY.kycTitle)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: INTENT_COPY.kycAction })).toHaveAttribute(
-      'href',
-      'https://kyc.example',
-    )
-  })
-
-  it('says KYC is needed even when the provider has given no link', () => {
-    intentState.current = {
-      ...intentState.current,
-      intent: detail({ kyc_required: true, kyc_url: null }),
-    }
-    render(<FiatIntentPage />)
-    expect(screen.getByText(INTENT_COPY.kycNoLink)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: INTENT_COPY.kycAction })).toBeNull()
-  })
-
-  it('shows no KYC block when none is required', () => {
-    intentState.current = { ...intentState.current, intent: detail({ kyc_required: false }) }
-    render(<FiatIntentPage />)
-    expect(screen.queryByText(INTENT_COPY.kycTitle)).toBeNull()
-  })
 })

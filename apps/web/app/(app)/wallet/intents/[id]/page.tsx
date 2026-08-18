@@ -16,12 +16,7 @@ import { ChevronLeft } from 'lucide-react'
 import { isCancellable } from '@tenda/shared'
 import { useParams } from 'next/navigation'
 import { useFiatIntent } from '@/hooks/fiat/useFiatIntent'
-import {
-  INTENT_COPY,
-  IntentKycNotice,
-  IntentRows,
-  IntentStatusPanel,
-} from '@/components/wallet/intent'
+import { INTENT_COPY, IntentRows, IntentStatusPanel } from '@/components/wallet/intent'
 import { AlertPanel, ALERT_ACTION_CLASS } from '@/components/ui/AlertPanel'
 import { Button } from '@/components/ui/Button'
 import { Spinner } from '@/components/ui/Spinner'
@@ -73,26 +68,15 @@ export default function FiatIntentPage() {
 
       <IntentStatusPanel intent={intent} />
 
-      {/* The wire carries KYC state and mobile's screen ignores it, which
-          strands a reader whose intent cannot proceed until they verify. */}
-      {intent.kyc_required && (
-        <IntentKycNotice
-          title={INTENT_COPY.kycTitle}
-          body={intent.kyc_url === null ? INTENT_COPY.kycNoLink : INTENT_COPY.kycBody}
-          action={
-            intent.kyc_url === null ? undefined : (
-              <a
-                href={intent.kyc_url}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm font-semibold text-feedback-warning-text underline underline-offset-2"
-              >
-                {INTENT_COPY.kycAction}
-              </a>
-            )
-          }
-        />
-      )}
+      {/* No KYC block, deliberately. `kyc_required`/`kyc_url` are on the wire,
+          but the only provider that can set them is the licensed HTTP adapter
+          (Yellow Card / Onramp.money), which stays absent from the registry
+          until its merchant credentials exist — every key is commented out in
+          .env, so routing falls through to `p2p_internal`, which hardcodes
+          `kyc_required: false`. Building the panel now would mean testing
+          against a value no live producer emits, against a wire mapping
+          `licensed-http.ts` says is only "confirmed at onboarding". Whoever
+          onboards a provider should build it then, against the real contract. */}
 
       <IntentRows intent={intent} />
 

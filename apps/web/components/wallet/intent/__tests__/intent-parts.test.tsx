@@ -10,7 +10,6 @@ import { render, screen } from '@testing-library/react'
 import { INTENT_STATUS_COPY, type FiatIntentDetail, type FiatIntentStatus } from '@tenda/shared'
 import {
   INTENT_COPY,
-  IntentKycNotice,
   IntentRows,
   IntentStatusPanel,
   intentTone,
@@ -99,27 +98,5 @@ describe('IntentRows', () => {
   it('carries the reference a support conversation needs', () => {
     render(<IntentRows intent={detail()} />)
     expect(screen.getByText('int-1')).toBeInTheDocument()
-  })
-})
-
-describe('IntentKycNotice', () => {
-  it('links the provider when there is a link', () => {
-    render(
-      <IntentKycNotice
-        title={INTENT_COPY.kycTitle}
-        body={INTENT_COPY.kycBody}
-        action={<a href="https://kyc.example">{INTENT_COPY.kycAction}</a>}
-      />,
-    )
-    expect(screen.getByRole('link', { name: INTENT_COPY.kycAction })).toHaveAttribute(
-      'href',
-      'https://kyc.example',
-    )
-  })
-
-  it('is not an ALERT — needing to verify is not a failure', () => {
-    render(<IntentKycNotice title={INTENT_COPY.kycTitle} body={INTENT_COPY.kycNoLink} />)
-    expect(screen.queryByRole('alert')).toBeNull()
-    expect(screen.getByText(INTENT_COPY.kycNoLink)).toBeInTheDocument()
   })
 })

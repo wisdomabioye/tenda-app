@@ -51,14 +51,4 @@ export const INTENT_COPY = {
    */
   cancelConfirmLabel: 'Yes, cancel it',
   done: 'Back to wallet',
-  /**
-   * KYC is on the wire (`kyc_required` + `kyc_url`) and mobile's screen ignores
-   * it — which strands a reader whose intent cannot proceed until they verify,
-   * with no way to. If the rail says verification is needed, say so and link it.
-   */
-  kycTitle: 'The provider needs to verify you',
-  kycBody: 'This cash-out is paused until the provider confirms your identity.',
-  kycAction: 'Verify with the provider',
-  kycNoLink:
-    'The provider has not given us a link yet. It usually arrives by email — check there, and this page will update once they confirm.',
 } as const

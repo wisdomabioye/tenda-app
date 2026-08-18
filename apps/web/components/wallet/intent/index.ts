@@ -4,5 +4,4 @@
  */
 export { IntentStatusPanel } from './IntentStatusPanel'
 export { IntentRows } from './IntentRows'
-export { IntentKycNotice } from './IntentKycNotice'
 export { INTENT_COPY, intentTone } from './copy'
