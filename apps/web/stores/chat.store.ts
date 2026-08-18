@@ -7,6 +7,7 @@
  * is web's.
  */
 import { create } from 'zustand'
+import { registerAccountReset } from '@/lib/account-state'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import type { UploadedAttachment } from '@/lib/uploads/attachments'
@@ -247,3 +248,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     })
   },
 }))
+
+/**
+ * ACCOUNT-SCOPED: conversations and their messages. Registered here rather
+ * than called from `logout` so the declaration sits beside the state it
+ * protects — see lib/account-state.ts.
+ */
+registerAccountReset(() => useChatStore.getState().reset())

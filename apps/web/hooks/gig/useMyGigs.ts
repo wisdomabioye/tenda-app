@@ -27,7 +27,7 @@ import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/pagination/usePaginatedList'
 import { useDraftGigs } from '@/hooks/gig/useDraftGigs'
 import { useAuthStore } from '@/stores/auth.store'
-import { myApplicationsCache, postedGigsCache, workingGigsCache } from '@/lib/account-caches'
+import { myApplicationsCache, postedGigsCache, workingGigsCache } from '@/lib/account-state'
 
 export interface MyGigsState {
   /** Gigs the caller posted on-chain — every status except `draft`. */

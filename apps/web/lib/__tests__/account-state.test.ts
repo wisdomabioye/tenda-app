@@ -10,8 +10,8 @@
  * with `createQueryCache()` beside its hook and never registered.
  */
 import { describe, expect, it } from 'vitest'
-import { clearAccountCaches } from '@/lib/account-caches'
-import * as accountCaches from '@/lib/account-caches'
+import { clearAccountState } from '@/lib/account-state'
+import * as accountCaches from '@/lib/account-state'
 
 // Widened to read the module as a bag of exports: the caches are a
 // heterogeneous set of `QueryCache<T>`, and the only property under test is
@@ -21,7 +21,7 @@ const exported = Object.entries(moduleExports).filter(
   (entry): entry is [string, Map<string, unknown>] => entry[1] instanceof Map,
 )
 
-describe('clearAccountCaches', () => {
+describe('clearAccountState', () => {
   it('exports caches at all, so the sweep below cannot be vacuously true', () => {
     expect(exported.length).toBeGreaterThan(0)
   })
@@ -29,7 +29,7 @@ describe('clearAccountCaches', () => {
   it('empties EVERY cache this module exports, not a hand-listed few', () => {
     for (const [, cache] of exported) cache.set('status=open', 'planted by the test')
 
-    clearAccountCaches()
+    clearAccountState()
 
     for (const [name, cache] of exported) {
       expect(cache.size, `${name} is not in the registry`).toBe(0)

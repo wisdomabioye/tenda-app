@@ -25,6 +25,7 @@ import type {
 } from '@tenda/shared'
 import { ErrorCode, ApiClientError } from '@tenda/shared'
 import { api } from '@/api/client'
+import { registerAccountReset } from '@/lib/account-state'
 
 interface EscrowState {
   /** True while a request/report round-trip is in flight. */
@@ -69,7 +70,11 @@ interface EscrowState {
     chain_id: string
     escrow_id?: string
   }) => Promise<ClientPingResponse | { status: 'deferred' }>
+  /** Drop the in-flight flag and the last error — see the foot of this file. */
+  reset: () => void
 }
+
+const EMPTY = { isBusy: false, error: null } as const
 
 export const useEscrowStore = create<EscrowState>((set) => {
   async function run<T>(fn: () => Promise<T>): Promise<T> {
@@ -85,8 +90,9 @@ export const useEscrowStore = create<EscrowState>((set) => {
   }
 
   return {
-    isBusy: false,
-    error: null,
+    ...EMPTY,
+
+    reset: () => set(EMPTY),
 
     createEscrow: (body) => run(() => api.escrows.create(body)),
 
@@ -147,3 +153,12 @@ export const useEscrowStore = create<EscrowState>((set) => {
     },
   }
 })
+
+/**
+ * ACCOUNT-SCOPED, weakly but really. It holds no rows — only `isBusy` and the
+ * last transition `error`, and that error is the SERVER's message, which names
+ * what the previous account was refused ("Only the escrow creator can …").
+ * Left standing it can surface on the next account's first render of a
+ * transition screen, before any call of theirs has set or cleared it.
+ */
+registerAccountReset(() => useEscrowStore.getState().reset())

@@ -9,7 +9,7 @@
  * reload is now SILENT — see `PAGE_ZERO` below.
  */
 import type { MyDisputeRow, MyDisputeStatus, MyDisputesQuery } from '@tenda/shared'
-import { disputesPageCache } from '@/lib/account-caches'
+import { disputesPageCache } from '@/lib/account-state'
 import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/pagination/usePaginatedList'
 
@@ -24,7 +24,7 @@ const keyOf = (row: MyDisputeRow) => row.dispute_id
  * bucket, silently revalidated on every mount, so what it can serve is at most
  * one navigation stale.
  *
- * It lives in `lib/account-caches` and NOT beside this hook: module scope
+ * It lives in `lib/account-state` and NOT beside this hook: module scope
  * outlives the session as well as the component, and sign-out is a soft
  * navigation. A cache that no `logout` can empty is how the next account gets
  * shown the previous one's disputes.

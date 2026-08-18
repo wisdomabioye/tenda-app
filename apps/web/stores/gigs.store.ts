@@ -8,6 +8,7 @@ import { create } from 'zustand'
 import type { GigDetail, ReviewInput } from '@tenda/shared'
 import { api } from '@/api/client'
 import { classifyDetailLoadError, type DetailLoadError } from '@tenda/shared'
+import { registerAccountReset } from '@/lib/account-state'
 
 /**
  * A failed load, and WHICH gig it was for. The id is carried inside the
@@ -25,7 +26,11 @@ interface GigsState {
 
   fetchGigDetail: (id: string) => Promise<void>
   reviewEscrow: (id: string, input: ReviewInput) => Promise<void>
+  /** Drop the held gig — see the registration at the foot of this file. */
+  reset: () => void
 }
+
+const EMPTY = { selectedGig: null, isLoading: false, error: null } as const
 
 /**
  * Which fetch is allowed to write. Bumped on every call; a response whose
@@ -35,9 +40,7 @@ interface GigsState {
 let latestRequest = 0
 
 export const useGigsStore = create<GigsState>((set) => ({
-  selectedGig: null,
-  isLoading: false,
-  error: null,
+  ...EMPTY,
 
   fetchGigDetail: async (id) => {
     const request = ++latestRequest
@@ -68,6 +71,16 @@ export const useGigsStore = create<GigsState>((set) => ({
     }
   },
 
+  reset: () => {
+    // Bumping the token is the half that is easy to miss: emptying the slot
+    // does not stop a request that is already on its way, and `fetchGigDetail`
+    // discards a response only when a LATER call has superseded it. Signing
+    // out is not a later call, so without this the previous account's gig
+    // lands back in the store a moment after being dropped.
+    latestRequest += 1
+    set(EMPTY)
+  },
+
   reviewEscrow: async (id, input) => {
     set({ isLoading: true })
     try {
@@ -79,3 +92,25 @@ export const useGigsStore = create<GigsState>((set) => ({
     }
   },
 }))
+
+/**
+ * ACCOUNT-SCOPED, and not obviously so — which is why it was missed until #25.
+ * `selectedGig` is a `GigDetail`, and that type carries the PARTY-SCOPED half
+ * of the escrow: `counterparty`, `proofs`, `dispute` and `viewer`. Across a
+ * same-tab account switch that data stays in memory and is handed to whatever
+ * mounts next — and `fetchGigDetail` deliberately KEEPS the held gig when the
+ * next reader opens the same id, so it is what paints until the refetch lands.
+ *
+ * Be precise about the exposure, because overstating it is how a real fix gets
+ * argued down later: the components that render this half (`PartyPanel`,
+ * `GigEscrowActions`, `TakedownNotice`) each take the CURRENT viewer's id and
+ * show nothing when that viewer is not a party, so today the retained data is
+ * not on screen. That is a second line of defence in the consumers, not a
+ * property of this store, and it is one careless `gig.counterparty` away from
+ * being the only one. The store should not be holding another account's
+ * private view of a deal at all.
+ *
+ * `latestRequest` needs no reset: it only ever increases, and a token from the
+ * previous session can never equal a later one.
+ */
+registerAccountReset(() => useGigsStore.getState().reset())

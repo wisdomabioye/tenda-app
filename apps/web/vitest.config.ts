@@ -78,7 +78,7 @@ export default defineConfig({
         // #17: the my-gigs and notification columns and their detail panes.
         'components/gig/my-gigs/**/*.{ts,tsx}',
         'components/notifications/**/*.{ts,tsx}',
-        'lib/account-caches.ts',
+        'lib/account-state.ts',
         'components/exchange/**/*.{ts,tsx}',
         'components/profile/**/*.{ts,tsx}',
         // #14 ported the focused shell; the whole auth folder joins the
@@ -93,7 +93,6 @@ export default defineConfig({
         // #17: the my-gigs and notification columns and their detail panes.
         'components/gig/my-gigs/**/*.{ts,tsx}',
         'components/notifications/**/*.{ts,tsx}',
-        'lib/account-caches.ts',
         // The auth STEPS carry real logic — two clocks, a completeness gate
         // that must match the server's, and the one place PII must not reach
         // the URL — so they are gated like any other (#14 review).

@@ -20,7 +20,7 @@ import type {
 import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/pagination/usePaginatedList'
 import { useAuthStore } from '@/stores/auth.store'
-import { myTradesCache, offerBookCache } from '@/lib/account-caches'
+import { myTradesCache, offerBookCache } from '@/lib/account-state'
 
 export interface ExchangeScreenState {
   market: PaginatedListState<ExchangeSummary>

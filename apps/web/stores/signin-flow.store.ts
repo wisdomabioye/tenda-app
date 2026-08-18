@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { registerAccountReset } from '@/lib/account-state'
 
 /**
  * Ephemeral state between the contact step and the OTP step. Mobile passes
@@ -46,3 +47,16 @@ export const useSigninFlowStore = create<SigninFlowState>((set) => ({
     set((s) => (s.pending === null ? {} : { pending: { ...s.pending, sentAt: Date.now(), expiresIn } })),
   clear: () => set({ pending: null }),
 }))
+
+/**
+ * ACCOUNT-SCOPED: `pending.identifier` is the email address or phone number
+ * somebody typed, and this store exists precisely because web must not put
+ * that in the URL.
+ *
+ * The main path already clears it — /signin/verify calls `clear` on unmount
+ * once the code has been accepted — so this is the ABANDONED path: a challenge
+ * begun and walked away from leaves the address in memory, and the verify
+ * screen renders it ("we sent a code to …") to whoever reaches that route
+ * next in the same tab.
+ */
+registerAccountReset(() => useSigninFlowStore.getState().clear())

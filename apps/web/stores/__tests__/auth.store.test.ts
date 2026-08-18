@@ -23,7 +23,7 @@ import { JWT_TOKEN_KEY } from '@/lib/storage'
 import { makeUser } from '../../test/factories/user'
 import { rememberPage, readPage } from '@tenda/shared'
 import { useChatStore } from '@/stores/chat.store'
-import { disputesPageCache } from '@/lib/account-caches'
+import { disputesPageCache } from '@/lib/account-state'
 import { makeConversation } from '../../test/factories/chat'
 
 const authApi = vi.mocked(api.auth)

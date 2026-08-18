@@ -11,6 +11,7 @@
  */
 
 import { create } from 'zustand'
+import { registerAccountReset } from '@/lib/account-state'
 import { NOTIFICATION_PAGE_SIZE } from '@tenda/shared'
 import type { NotificationWire, AnnouncementWire } from '@tenda/shared'
 import { api } from '@/api/client'
@@ -160,3 +161,10 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   reset: () => set({ ...INITIAL }),
 }))
+
+/**
+ * ACCOUNT-SCOPED: the feed and the unread badge, which outlive their screen on
+ * purpose and so must be dropped explicitly. Registered beside the state
+ * rather than called from `logout` — see lib/account-state.ts.
+ */
+registerAccountReset(() => useNotificationsStore.getState().reset())

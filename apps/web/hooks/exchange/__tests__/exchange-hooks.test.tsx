@@ -30,7 +30,7 @@ import { useExchangeDetail } from '@/hooks/exchange/useExchangeDetail'
 import { useExchangeAssetOptions } from '@/hooks/exchange/useExchangeAssetOptions'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChainRegistryStore } from '@/stores/chain-registry.store'
-import { clearAccountCaches } from '@/lib/account-caches'
+import { clearAccountState } from '@/lib/account-state'
 import { makeExchangeDetail } from '../../../test/factories/exchange'
 import { makeUser } from '../../../test/factories/user'
 
@@ -46,7 +46,7 @@ beforeEach(() => {
   // The screen's page zero now lives in module-scoped caches so it survives
   // navigating into an offer and back. That also means it survives a TEST —
   // without this, the second run here is seeded and never calls the API.
-  clearAccountCaches()
+  clearAccountState()
 })
 
 test('signed out: the market loads but my-trades never fires without an id', async () => {

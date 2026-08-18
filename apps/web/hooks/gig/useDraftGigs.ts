@@ -5,7 +5,7 @@
  */
 import { type EscrowStatus, type GigListQuery, type GigSummary } from '@tenda/shared'
 import { api } from '@/api/client'
-import { draftGigsCache } from '@/lib/account-caches'
+import { draftGigsCache } from '@/lib/account-state'
 import { usePaginatedList } from '@/hooks/pagination/usePaginatedList'
 import type { PaginatedListState } from '@/hooks/pagination/usePaginatedList'
 import { useAuthStore } from '@/stores/auth.store'

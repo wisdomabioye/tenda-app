@@ -12,9 +12,7 @@ import { api } from '@/api/client'
 import { clearAuthStorage, getJwtToken, JWT_TOKEN_KEY, setJwtToken } from '@/lib/storage'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { reownAdapter } from '@/wallet/adapters/reown'
-import { useNotificationsStore } from '@/stores/notifications.store'
-import { useChatStore } from '@/stores/chat.store'
-import { clearAccountCaches } from '@/lib/account-caches'
+import { clearAccountState } from '@/lib/account-state'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 
 /**
@@ -174,16 +172,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    // Notifications stay global (the badge outlives its screen) and must be
-    // dropped here so the next account never sees this account's notices
-    // (mobile doctrine, stores/auth.store.ts).
-    useNotificationsStore.getState().reset()
-    // Same reason, same doctrine: sign-out is a soft navigation, so every
-    // store and module-scoped cache in this tab outlives the session unless
-    // it is emptied here. The inbox and the disputes column both hold rows
-    // the next account must never see.
-    useChatStore.getState().reset()
-    clearAccountCaches()
+    // Sign-out is a soft navigation, so every store and module-scoped cache in
+    // this tab outlives the session unless it is emptied here. Each of them
+    // declares itself account-scoped where it is defined; this empties the lot
+    // (lib/account-state.ts).
+    clearAccountState()
     await clearAuthStorage()
     // Best-effort: drop the wallet session too, so the next sign-in shows the
     // picker instead of silently reusing a stale session across accounts
@@ -245,6 +238,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 export function initCrossTabAuthSync(): () => void {
   const onStorage = (event: StorageEvent) => {
     if (event.key !== JWT_TOKEN_KEY) return
+    // The SECOND way an account changes under a live tab, and the one #25
+    // found unguarded: `logout` never runs here, so without this the tab keeps
+    // every row the local sign-out would have dropped. Cleared on both edges —
+    // a token removed elsewhere is a sign-out, and a token CHANGED elsewhere
+    // is a different account, which is the worse of the two.
+    clearAccountState()
     if (event.newValue === null) {
       useAuthStore.setState({ ...SIGNED_OUT, isLoading: false })
     } else {
