@@ -74,13 +74,13 @@ export function ExchangeSurface({
             empty={
               <EmptyPanel
                 icon={<ArrowLeftRight size={28} />}
-                title={EXCHANGE_COPY.market.emptyTitle}
+                title={EXCHANGE_COPY.market.emptyTitle(filtered)}
                 // A filter narrowing a real book to nothing is not an empty
                 // book, and telling the reader to "check back shortly" when
                 // clearing one chip would show them offers is simply wrong.
                 body={
                   filtered
-                    ? EXCHANGE_COPY.market.emptyBody
+                    ? EXCHANGE_COPY.market.emptyBody(route.currency, route.chainId)
                     : EXCHANGE_COPY.market.emptyUnfilteredBody
                 }
               />

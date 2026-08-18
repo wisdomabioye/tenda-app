@@ -83,9 +83,24 @@ export const EXCHANGE_COPY = {
    */
   ordering: 'Newest offers first. Rates are the trader’s own — compare them straight down the column.',
   market: {
-    emptyTitle: 'No offers in this pair yet',
-    emptyBody:
-      'Nobody is quoting this currency right now. Try another currency, or clear the chain filter.',
+    /**
+     * "No offers in this pair" was the title in every empty case, including
+     * the one where nothing is filtering and there is no pair to speak of.
+     */
+    emptyTitle: (filtered: boolean) =>
+      filtered ? 'No offers match these filters' : 'No offers on the market yet',
+    /**
+     * Why the book is empty, named by the filter that actually narrowed it.
+     * "Clear the chain filter" is useless advice to a reader who set only a
+     * currency — and on a single-chain deployment that row is not even
+     * rendered, so it points at a control that is not on the screen.
+     */
+    emptyBody: (currency: string | null, chainId: string | null) =>
+      currency !== null && chainId !== null
+        ? 'Nobody is quoting this currency on this chain right now. Try another currency, or clear the chain filter.'
+        : currency !== null
+          ? 'Nobody is quoting this currency right now. Try another one, or clear it to see the whole book.'
+          : 'Nobody is quoting on this chain right now. Clear the chain filter to see the whole book.',
     emptyUnfilteredBody: 'Nobody is quoting the market right now. Check back shortly.',
     errorTitle: 'Offers could not be loaded',
     errorBody:

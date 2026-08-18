@@ -5,7 +5,7 @@
  * the surface it belongs to.
  */
 export { ExchangeCTA } from './ExchangeCTA'
-export { ExchangeDetailApp, sellerNameOf } from './ExchangeDetailApp'
+export { ExchangeDetailApp } from './ExchangeDetailApp'
 export { DisputeThreadLink } from './DisputeThreadLink'
 export {
   PaymentInstructionsCard,

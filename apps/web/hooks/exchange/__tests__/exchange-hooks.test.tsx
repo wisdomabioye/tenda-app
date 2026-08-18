@@ -131,17 +131,25 @@ const VERIFIED_SOL: LinkedWallet = {
 }
 
 test('asset options: only chains with a VERIFIED wallet in that namespace', () => {
-  useChainRegistryStore.setState({ chains: [SOLANA_CHAIN], status: 'ready' })
-
-  useAuthStore.setState({ wallets: [] })
+  // Each `setState` re-renders every hook still mounted from the case before
+  // it, so the store writes go through `act` — otherwise React warns, and a
+  // warning that is always there is one nobody reads when it means something.
+  act(() => {
+    useChainRegistryStore.setState({ chains: [SOLANA_CHAIN], status: 'ready' })
+    useAuthStore.setState({ wallets: [] })
+  })
   const none = renderHook(() => useExchangeAssetOptions())
   expect(none.result.current).toEqual([])
 
-  useAuthStore.setState({ wallets: [{ ...VERIFIED_SOL, verified_at: null }] })
+  act(() => {
+    useAuthStore.setState({ wallets: [{ ...VERIFIED_SOL, verified_at: null }] })
+  })
   const unverified = renderHook(() => useExchangeAssetOptions())
   expect(unverified.result.current).toEqual([])
 
-  useAuthStore.setState({ wallets: [VERIFIED_SOL] })
+  act(() => {
+    useAuthStore.setState({ wallets: [VERIFIED_SOL] })
+  })
   const verified = renderHook(() => useExchangeAssetOptions())
   expect(verified.result.current).toEqual([
     expect.objectContaining({ chainId: 'solana:devnet', assetId: 'USDC_SOL', walletAddress: 'SoLAddr1' }),

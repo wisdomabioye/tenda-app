@@ -102,3 +102,92 @@ test('draft creator publishes or deletes; completed party reviews exactly once',
   render(<ExchangeCTA offer={completed} userId="seller-1" {...noop} />)
   expect(screen.getByRole('button', { name: 'Leave Review' })).toBeInTheDocument()
 })
+
+/**
+ * The matrix above asserts which buttons EXIST. This asserts what they do.
+ *
+ * Without it, "Confirm & Release" wired to `onTxAction('cancel')` — release
+ * the crypto vs refund it — passes every test in this file, because the label
+ * is right and the label is all that was checked.
+ */
+const CLICKS: {
+  label: string
+  offer: Parameters<typeof makeExchangeDetail>[0]
+  userId: string
+  raises: { tx?: string; sheet?: string }
+}[] = [
+  { label: 'Accept Offer', offer: {}, userId: 'stranger', raises: { tx: 'accept' } },
+  { label: 'Cancel Offer', offer: {}, userId: 'seller-1', raises: { tx: 'cancel' } },
+  {
+    label: 'Decline',
+    offer: { is_assigned: true, assigned_counterparty_id: 'buyer-1' },
+    userId: 'buyer-1',
+    raises: { tx: 'decline' },
+  },
+  { label: 'Publish Offer', offer: { status: 'draft' }, userId: 'seller-1', raises: { tx: 'create' } },
+  { label: 'Delete Draft', offer: { status: 'draft' }, userId: 'seller-1', raises: { sheet: 'delete' } },
+  {
+    label: 'Mark as Paid',
+    offer: { status: 'accepted', counterparty: makeUserRef({ id: 'buyer-1' }) },
+    userId: 'buyer-1',
+    raises: { sheet: 'proof' },
+  },
+  {
+    label: 'Confirm & Release',
+    offer: { status: 'submitted', counterparty: makeUserRef({ id: 'buyer-1' }) },
+    userId: 'seller-1',
+    raises: { tx: 'approve' },
+  },
+  {
+    label: 'Dispute',
+    offer: { status: 'submitted', counterparty: makeUserRef({ id: 'buyer-1' }) },
+    userId: 'seller-1',
+    raises: { sheet: 'dispute' },
+  },
+  {
+    label: 'Add More Proof',
+    offer: { status: 'submitted', counterparty: makeUserRef({ id: 'buyer-1' }) },
+    userId: 'buyer-1',
+    raises: { sheet: 'addProof' },
+  },
+  {
+    label: 'Claim Crypto',
+    offer: {
+      status: 'submitted',
+      counterparty: makeUserRef({ id: 'buyer-1' }),
+      approval_deadline: new Date('2020-01-01T00:00:00.000Z').toISOString(),
+    },
+    userId: 'buyer-1',
+    raises: { tx: 'claim_stalled' },
+  },
+  {
+    label: 'Leave Review',
+    offer: { status: 'completed', counterparty: makeUserRef({ id: 'buyer-1' }) },
+    userId: 'seller-1',
+    raises: { sheet: 'review' },
+  },
+]
+
+test.each(CLICKS)('$label raises exactly its own move', async ({ label, offer, userId, raises }) => {
+  const onTxAction = vi.fn()
+  const onSheet = vi.fn()
+  const view = render(
+    <ExchangeCTA
+      offer={makeExchangeDetail(offer)}
+      userId={userId}
+      busy={false}
+      onTxAction={onTxAction}
+      onSheet={onSheet}
+    />,
+  )
+  await userEvent.click(screen.getByRole('button', { name: label }))
+
+  if (raises.tx !== undefined) {
+    expect(onTxAction).toHaveBeenCalledWith(raises.tx)
+    expect(onSheet).not.toHaveBeenCalled()
+  } else {
+    expect(onSheet).toHaveBeenCalledWith(raises.sheet)
+    expect(onTxAction).not.toHaveBeenCalled()
+  }
+  view.unmount()
+})

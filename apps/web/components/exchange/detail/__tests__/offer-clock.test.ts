@@ -6,7 +6,7 @@
  * window would be counting the wrong thing on two of them.
  */
 import { describe, expect, it } from 'vitest'
-import { offerClockFor } from '@/components/exchange/detail'
+import { exchangeChatContext, offerClockFor } from '@/components/exchange/detail'
 import { makeExchangeDetail } from '../../../../test/factories/exchange'
 
 describe('offerClockFor', () => {
@@ -66,5 +66,17 @@ describe('offerClockFor', () => {
     const notes = kinds.map((clock) => clock?.note)
     expect(new Set(labels).size).toBe(3)
     expect(new Set(notes).size).toBe(3)
+  })
+})
+
+describe('exchangeChatContext', () => {
+  it('names the trade the way the SERVER names it on a message', () => {
+    // `'Trade: ' || fiat_amount || ' ' || fiat_currency` in the conversations
+    // route. Two spellings would put two different dividers on one thread.
+    expect(exchangeChatContext(makeExchangeDetail())).toEqual({
+      id: 'exch-1',
+      title: 'Trade: 75000.0000 NGN',
+      kind: 'exchange',
+    })
   })
 })

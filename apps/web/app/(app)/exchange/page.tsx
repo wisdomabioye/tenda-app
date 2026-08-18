@@ -18,12 +18,12 @@ import { EmptyPanel, EMPTY_ACTION_CLASS } from '@/components/ui/EmptyPanel'
 
 export default function ExchangePage() {
   const user = useAuthStore((s) => s.user)
-  const route = useExchangeRoute()
+  const { route, chainReady } = useExchangeRoute()
   const locked = user !== null && !user.advanced_mode_enabled
   const screen = useExchangeScreen({
     currency: route.currency,
     chainId: route.chainId,
-    enabled: !locked,
+    enabled: !locked && chainReady,
   })
 
   if (locked) {

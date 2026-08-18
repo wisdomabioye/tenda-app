@@ -4,6 +4,10 @@
  */
 import type { EscrowStatus, ExchangeDetail } from '@tenda/shared'
 import { ASSET_META, computeRelevantDeadline, formatDurationShort } from '@tenda/shared'
+import type { EscrowChatContext } from '@/lib/chat-href'
+
+/** Which seat the reader is in: 'seller' created this offer, 'buyer' is anyone else. */
+export type OfferPerspective = 'buyer' | 'seller'
 
 export const OFFER_DETAIL_COPY = {
   back: 'All offers',
@@ -22,13 +26,29 @@ export const OFFER_DETAIL_COPY = {
   trader: 'The person on the other side',
   terms: 'Terms',
   events: 'Order of events',
-  /** Every step is a real transition of this escrow, in the order it happens. */
-  steps: [
-    'You accept, and the crypto stays locked in escrow — the seller cannot move it.',
-    'The payment window opens and you pay the seller in fiat, off-platform.',
-    'You mark the payment sent, attaching your receipt as proof.',
-    'The seller confirms the money arrived, and escrow releases the crypto to you.',
-  ],
+  /**
+   * Every step is a real transition of this escrow, in the order it happens —
+   * told from the reader's own seat.
+   *
+   * One list would be wrong for one of them, and always for the same person:
+   * the seller posted this offer, so "you accept" and "you pay the seller"
+   * invert all four lines for the only reader who cannot take it. The figures
+   * above the list are already perspective-aware; this had to be too.
+   */
+  steps: {
+    buyer: [
+      'You accept, and the crypto stays locked in escrow — the seller cannot move it.',
+      'The payment window opens and you pay the seller in fiat, off-platform.',
+      'You mark the payment sent, attaching your receipt as proof.',
+      'The seller confirms the money arrived, and escrow releases the crypto to you.',
+    ],
+    seller: [
+      'A buyer accepts, and the crypto you locked stays in escrow — you cannot move it either.',
+      'Their payment window opens and they pay you in fiat, into the payout account on this offer.',
+      'They mark the payment sent, attaching their receipt as proof.',
+      'You confirm the money arrived, and escrow releases the crypto to them.',
+    ],
+  } satisfies Record<OfferPerspective, readonly string[]>,
   ctaNote: 'You will see exactly what you are signing, including the fee, before anything is committed.',
   youPay: 'You pay',
   youReceive: 'You receive',
@@ -110,4 +130,22 @@ export function offerClockFor(
   const kind: OfferClockKind =
     offer.status === 'open' ? 'accept' : offer.status === 'accepted' ? 'pay' : 'confirm'
   return { kind, ...CLOCK_COPY[kind], deadline, staticValue: null }
+}
+
+/**
+ * How a trade names itself in a chat thread.
+ *
+ * The wording matches what the SERVER stamps on a message's escrow context
+ * (`'Trade: ' || fiat_amount || ' ' || fiat_currency` in the conversations
+ * route), so a thread opened from this page and one opened from the inbox
+ * carry the same divider rather than two spellings of the same trade.
+ */
+export function exchangeChatContext(
+  offer: Pick<ExchangeDetail, 'escrow_id' | 'fiat_amount' | 'fiat_currency'>,
+): EscrowChatContext {
+  return {
+    id: offer.escrow_id,
+    title: `Trade: ${offer.fiat_amount} ${offer.fiat_currency}`,
+    kind: 'exchange',
+  }
 }

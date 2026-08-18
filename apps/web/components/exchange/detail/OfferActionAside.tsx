@@ -27,7 +27,7 @@ import {
 } from '@tenda/shared'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { useEscrowFee } from '@/hooks/escrow/useEscrowFee'
-import { OFFER_DETAIL_COPY } from './copy'
+import { OFFER_DETAIL_COPY, type OfferPerspective } from './copy'
 
 export const OFFER_ASIDE_COPY = {
   sellerPay: 'You locked',
@@ -43,7 +43,7 @@ export function OfferActionAside({
 }: {
   offer: ExchangeDetail
   /** 'seller' when the reader created this offer; 'buyer' for everyone else. */
-  perspective: 'buyer' | 'seller'
+  perspective: OfferPerspective
   /** The transition set for this reader and this status. */
   children: ReactNode
 }) {
@@ -88,7 +88,7 @@ export function OfferActionAside({
       <div className="rounded-card border border-border-subtle bg-surface-inset p-4.5">
         <Eyebrow as="h2">{OFFER_DETAIL_COPY.events}</Eyebrow>
         <ol className="mt-3 flex list-decimal flex-col gap-2 pl-5 text-[13px] leading-[18px] text-content-secondary">
-          {OFFER_DETAIL_COPY.steps.map((step) => (
+          {OFFER_DETAIL_COPY.steps[perspective].map((step) => (
             <li key={step}>{step}</li>
           ))}
         </ol>

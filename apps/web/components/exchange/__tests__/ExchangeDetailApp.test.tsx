@@ -9,7 +9,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, expect, test, vi } from 'vitest'
 import type { ExchangePayoutAccount } from '@tenda/shared'
 
-const { actionsState, capturedActionsArgs, toastMock, routerPush, liveRefreshMock } = vi.hoisted(() => ({
+const { actionsState, capturedActionsArgs, capturedDialogArgs, capturedCheckApplied, toastMock, routerPush, liveRefreshMock } = vi.hoisted(() => ({
   actionsState: {
     busyAction: null as string | null,
     pendingTxRef: null as string | null,
@@ -28,6 +28,11 @@ const { actionsState, capturedActionsArgs, toastMock, routerPush, liveRefreshMoc
     dispute: vi.fn(),
   },
   capturedActionsArgs: { current: null as null | { onStale?: () => void } },
+  // The dialogs and the monitor are mocked, so their callbacks are captured
+  // rather than clicked — they are still THIS page's wiring, and the two below
+  // are the only ways an added proof or a converged tx reaches the screen.
+  capturedDialogArgs: { current: null as null | { onAddProofsReady?: (p: unknown[]) => Promise<void> } },
+  capturedCheckApplied: { current: null as null | (() => Promise<boolean>) },
   toastMock: vi.fn(),
   routerPush: vi.fn(),
   liveRefreshMock: vi.fn(),
@@ -36,12 +41,23 @@ const { actionsState, capturedActionsArgs, toastMock, routerPush, liveRefreshMoc
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: routerPush }) }))
 vi.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => toastMock(...a) }))
 vi.mock('@/components/escrow/TransactionMonitor', () => ({
-  TransactionMonitor: ({ onConfirmed, onFailed }: { onConfirmed: () => void; onFailed: (m: string) => void }) => (
-    <div>
-      <button onClick={onConfirmed}>monitor-confirm</button>
-      <button onClick={() => onFailed('rpc gave up')}>monitor-fail</button>
-    </div>
-  ),
+  TransactionMonitor: ({
+    onConfirmed,
+    onFailed,
+    checkApplied,
+  }: {
+    onConfirmed: () => void
+    onFailed: (m: string) => void
+    checkApplied: () => Promise<boolean>
+  }) => {
+    capturedCheckApplied.current = checkApplied
+    return (
+      <div>
+        <button onClick={onConfirmed}>monitor-confirm</button>
+        <button onClick={() => onFailed('rpc gave up')}>monitor-fail</button>
+      </div>
+    )
+  },
 }))
 vi.mock('@/hooks/escrow/useEscrowActions', () => ({
   useEscrowActions: (args: { onStale?: () => void }) => {
@@ -57,7 +73,12 @@ vi.mock('@/hooks/escrow/live', () => ({
 }))
 // The dialogs' internals are unit-tested with the gig hub; here they would
 // only drag in upload plumbing.
-vi.mock('@/components/gig/detail/action-dialogs', () => ({ GigActionDialogs: () => null }))
+vi.mock('@/components/gig/detail/action-dialogs', () => ({
+  GigActionDialogs: (args: { onAddProofsReady?: (p: unknown[]) => Promise<void> }) => {
+    capturedDialogArgs.current = args
+    return null
+  },
+}))
 vi.mock('@/api/client', () => ({
   api: {
     exchange: { get: vi.fn() },
@@ -65,7 +86,8 @@ vi.mock('@/api/client', () => ({
   },
 }))
 
-import { ExchangeDetailApp, sellerNameOf } from '@/components/exchange/ExchangeDetailApp'
+import { api } from '@/api/client'
+import { ExchangeDetailApp } from '@/components/exchange/ExchangeDetailApp'
 import { OFFER_ASIDE_COPY, OFFER_DETAIL_COPY } from '@/components/exchange/detail'
 import { makeExchangeDetail, makeUserRef } from '../../../test/factories/exchange'
 
@@ -168,23 +190,28 @@ test('the party half is rendered from what the SERVER sent, never synthesised', 
           {
             id: 'proof-1',
             escrow_id: 'exch-1',
-            uploader_id: 'buyer-1',
-            type: 'payment',
+            // A REAL proof type: `PROOF_TYPES` is image | video | document,
+            // so the row this asserts on is one the server can actually send.
+            type: 'image',
             url: 'https://cdn.test/receipt.png',
             uploaded_at: new Date('2026-08-16T10:00:00.000Z'),
           },
         ],
+        // The REAL `Dispute` row: an open dispute is one with no winner and no
+        // `resolved_at`. There is no `status` column on it — the escrow's own
+        // status is what says the trade is in dispute, and that is exactly what
+        // the page gates the block on.
         dispute: {
           id: 'dsp-1',
           escrow_id: 'exch-1',
           raised_by: 'buyer-1',
           reason: 'Payment sent, not released',
-          status: 'open',
-          resolution: null,
+          assigned_to: null,
+          assigned_at: null,
           winner: null,
           resolved_by: null,
           resolved_at: null,
-          created_at: '2026-08-16T10:00:00.000Z',
+          created_at: new Date('2026-08-16T10:00:00.000Z'),
         },
       })}
       userId="buyer-1"
@@ -193,7 +220,7 @@ test('the party half is rendered from what the SERVER sent, never synthesised', 
   )
   expect(screen.getByText(OFFER_DETAIL_COPY.proofs)).toBeInTheDocument()
   // The proof is OPENABLE: a list that only says one exists settles nothing.
-  expect(screen.getByRole('link', { name: /payment proof/ })).toHaveAttribute(
+  expect(screen.getByRole('link', { name: 'image proof' })).toHaveAttribute(
     'href',
     'https://cdn.test/receipt.png',
   )
@@ -219,9 +246,29 @@ test('the live-refresh subscription rides the offer identity', () => {
   expect(liveRefreshMock).toHaveBeenCalledWith('exch-1', refresh, 'open')
 })
 
-test('sellerNameOf falls back when the creator has no printable name', () => {
-  expect(sellerNameOf(makeExchangeDetail())).toBe('Ada Okafor')
-  expect(
-    sellerNameOf(makeExchangeDetail({ creator: makeUserRef({ id: 's', first_name: '', last_name: '' }) })),
-  ).toBe('Seller')
+test('an added proof re-reads the offer only when the upload actually landed', async () => {
+  // `addProofs` answers false on a refusal. Re-reading then would repaint the
+  // page for nothing; NOT re-reading on success would leave the proof the
+  // reader just uploaded off the screen until they reloaded.
+  render(<ExchangeDetailApp offer={makeExchangeDetail()} userId="buyer-1" refresh={refresh} />)
+
+  actionsState.addProofs.mockResolvedValueOnce(false)
+  await capturedDialogArgs.current?.onAddProofsReady?.([])
+  expect(refresh).not.toHaveBeenCalled()
+
+  actionsState.addProofs.mockResolvedValueOnce(true)
+  await capturedDialogArgs.current?.onAddProofsReady?.([])
+  expect(refresh).toHaveBeenCalledTimes(1)
+})
+
+test('the monitor converges against THIS offer, not the escrow route', async () => {
+  // The exchange detail endpoint is what carries the exchange's status; asking
+  // the gig route would answer 404 and the monitor would never converge.
+  const exchangeGet = vi.mocked(api.exchange.get)
+  exchangeGet.mockResolvedValue(makeExchangeDetail({ status: 'accepted' }))
+  actionsState.pendingAction = 'accept'
+  render(<ExchangeDetailApp offer={makeExchangeDetail()} userId="stranger" refresh={refresh} />)
+
+  await expect(capturedCheckApplied.current?.()).resolves.toBe(true)
+  expect(exchangeGet).toHaveBeenCalledWith({ id: 'exch-1' })
 })

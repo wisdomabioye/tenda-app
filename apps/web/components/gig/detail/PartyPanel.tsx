@@ -16,6 +16,7 @@ import {
   type EscrowProof,
   type GigDetail,
 } from '@tenda/shared'
+import { escrowChatHref } from '@/lib/chat-href'
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
@@ -72,7 +73,11 @@ export function PartyPanel({ gig, userId }: { gig: GigDetail; userId: string }) 
           />
           {/* Contextual thread — same query contract as mobile's PersonCard link. */}
           <Link
-            href={`/chat/${userId === gig.creator.id ? gig.counterparty.id : gig.creator.id}?escrowId=${gig.escrow_id}&escrowTitle=${encodeURIComponent(gig.title)}&kind=gig`}
+            href={escrowChatHref(userId === gig.creator.id ? gig.counterparty.id : gig.creator.id, {
+              id: gig.escrow_id,
+              title: gig.title,
+              kind: 'gig',
+            })}
             className="flex items-center gap-1.5 text-sm font-semibold text-brand-primary underline-offset-2 hover:underline"
           >
             <MessageCircle size={15} /> Message {userId === gig.creator.id ? 'worker' : 'poster'}

@@ -109,3 +109,52 @@ test('an offer that is gone says so and points back at the book', async ({ page 
   await page.getByRole('link', { name: OFFER_DETAIL_COPY.back }).click()
   await expect(page).toHaveURL(/\/exchange$/)
 })
+
+test('a link carrying a chain this deployment no longer serves still shows the book', async ({
+  page,
+}) => {
+  // The filters are in the URL precisely so a filtered book can be shared, and
+  // a shared link outlives the chain it was made on. The server refuses an id
+  // it does not serve, so forwarding one would answer a stale bookmark with
+  // "Offers could not be loaded" over a Try-again that can never succeed.
+  await signInToHome(page, TRADER_EMAIL)
+  await page.goto('/exchange?chain=eip155:99999')
+
+  await expect(page.getByText(EXCHANGE_COPY.market.errorTitle)).toHaveCount(0)
+  const book = page.getByRole('list', { name: EXCHANGE_COPY.market.label })
+  await expect(book.getByRole('listitem')).toHaveCount(2)
+  // And the chip row agrees with the book it is describing.
+  await expect(page.getByRole('button', { name: 'All chains' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
+})
+
+test('a chain the deployment DOES serve still narrows the book', async ({ page }) => {
+  await signInToHome(page, TRADER_EMAIL)
+  await page.goto('/exchange?chain=eip155:84532')
+
+  const book = page.getByRole('list', { name: EXCHANGE_COPY.market.label })
+  await expect(book.getByRole('listitem')).toHaveCount(1)
+  await expect(page.getByText('Wanjiru Kamau')).toBeVisible()
+})
+
+test('neither surface scrolls sideways, from a 320px phone to a wide desktop', async ({ page }) => {
+  // The order-book row is a three-column grid and the offer page is a
+  // two-column read; both carry unbreakable figures and a chain label. The
+  // feed learned this the hard way (`break-words` is inert without a
+  // `min-w-0` on the grid item), and a class-presence check cannot tell an
+  // effective rule from a dead one — only a laid-out page can.
+  await signInToHome(page, TRADER_EMAIL)
+  for (const path of ['/exchange', '/exchange/exch-ngn-1']) {
+    for (const width of [320, 390, 900, 1280]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(path)
+      const box = await page.evaluate(() => ({
+        scroll: document.documentElement.scrollWidth,
+        client: document.documentElement.clientWidth,
+      }))
+      expect(box.scroll, `${path} @ ${width}px`).toBeLessThanOrEqual(box.client)
+    }
+  }
+})

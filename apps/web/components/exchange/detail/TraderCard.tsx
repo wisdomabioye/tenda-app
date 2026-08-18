@@ -23,7 +23,8 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { RatingStars } from '@/components/ui/RatingStars'
 import { StandingBadge } from '@/components/profile'
-import { OFFER_DETAIL_COPY } from './copy'
+import { escrowChatHref } from '@/lib/chat-href'
+import { OFFER_DETAIL_COPY, exchangeChatContext } from './copy'
 
 export const TRADER_CARD_COPY = {
   anonymous: 'Trader',
@@ -53,9 +54,7 @@ export function TraderCard({
   const country = countryDisplayName(trader.country)
   const reviewCount = offer.reviews.length
 
-  const chatHref = `/chat/${trader.id}?escrowId=${offer.escrow_id}&escrowTitle=${encodeURIComponent(
-    `Trade: ${offer.fiat_amount} ${offer.fiat_currency}`,
-  )}&kind=exchange`
+  const chatHref = escrowChatHref(trader.id, exchangeChatContext(offer))
 
   return (
     <section className="mt-8 border-t border-border-subtle pt-6">

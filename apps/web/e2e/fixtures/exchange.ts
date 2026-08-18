@@ -7,7 +7,7 @@ import type {
 import { TRADER_USER_ID } from './auth'
 
 /**
- * The order book, as three offers a reader can tell apart.
+ * The order book, as two offers a reader can tell apart.
  *
  * Two currencies and two chains, so the filters have something to DO — a
  * fixture where every row matches every filter proves a chip changed the URL
@@ -117,10 +117,37 @@ function page<T>(data: T[]): PaginatedResponse<T> {
  * `/v1/exchange`, `/v1/exchange/:id` and the caller's own exchange escrows.
  * Returns null for anything else so the caller falls through.
  */
-export function handleExchange(url: URL, method: string, userId: string): StubReply | null {
+export function handleExchange(
+  url: URL,
+  method: string,
+  userId: string,
+  enabledChainIds: readonly string[],
+): StubReply | null {
+  /**
+   * The real route refuses a chain the deployment does not serve
+   * (`lib/chain-filter.ts` — a 400, never a silently empty page). The stub
+   * mirrors it so the client's own narrowing is what the e2e measures: if the
+   * app ever forwards a stale `?chain=` again, this answers the way the server
+   * would and the test that expects a full book fails.
+   */
+  const refuseUnknownChain = (chain: string | null): StubReply | null =>
+    chain === null || enabledChainIds.includes(chain)
+      ? null
+      : {
+          statusCode: 400,
+          payload: {
+            statusCode: 400,
+            error: 'Bad Request',
+            message: `chain_id must be one of: ${enabledChainIds.join(', ')}`,
+            code: 'VALIDATION_ERROR',
+          },
+        }
+
   if (url.pathname === '/v1/exchange' && method === 'GET') {
     const currency = url.searchParams.get('currency')
     const chain = url.searchParams.get('chain_id')
+    const refused = refuseUnknownChain(chain)
+    if (refused !== null) return refused
     let data = OFFERS
     if (currency !== null) data = data.filter((offer) => offer.fiat_currency === currency)
     if (chain !== null) data = data.filter((offer) => offer.chain_id === chain)
@@ -159,6 +186,8 @@ export function handleExchange(url: URL, method: string, userId: string): StubRe
       }
     }
     const chain = url.searchParams.get('chain_id')
+    const refused = refuseUnknownChain(chain)
+    if (refused !== null) return refused
     const mine = userId === TRADER_USER_ID ? [traderEscrow] : []
     return {
       statusCode: 200,

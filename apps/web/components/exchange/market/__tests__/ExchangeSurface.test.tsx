@@ -138,7 +138,7 @@ describe('ExchangeSurface — states', () => {
   it('shows a shimmer of the rows to come, not a bare spinner', () => {
     const { container } = renderSurface({}, { hasFetched: false })
     expect(container.querySelector('.animate-shimmer')).not.toBeNull()
-    expect(screen.queryByText(EXCHANGE_COPY.market.emptyTitle)).toBeNull()
+    expect(screen.queryByText(EXCHANGE_COPY.market.emptyTitle(false))).toBeNull()
   })
 
   it('says a FAILED read failed, and that nothing of the reader’s moved', () => {
@@ -146,7 +146,7 @@ describe('ExchangeSurface — states', () => {
     const alert = screen.getByRole('alert')
     expect(within(alert).getByText(EXCHANGE_COPY.market.errorTitle)).toBeInTheDocument()
     expect(within(alert).getByText(EXCHANGE_COPY.market.errorBody)).toBeInTheDocument()
-    expect(screen.queryByText(EXCHANGE_COPY.market.emptyTitle)).toBeNull()
+    expect(screen.queryByText(EXCHANGE_COPY.market.emptyTitle(false))).toBeNull()
   })
 
   it('retries the read from the failure itself', async () => {
@@ -164,7 +164,8 @@ describe('ExchangeSurface — states', () => {
 
   it('blames the FILTER when one is set, and nobody when none is', () => {
     const { rerender } = renderSurface({ currency: 'GHS' })
-    expect(screen.getByText(EXCHANGE_COPY.market.emptyBody)).toBeInTheDocument()
+    expect(screen.getByText(EXCHANGE_COPY.market.emptyTitle(true))).toBeInTheDocument()
+    expect(screen.getByText(EXCHANGE_COPY.market.emptyBody('GHS', null))).toBeInTheDocument()
 
     rerender(
       <ExchangeSurface
@@ -173,7 +174,37 @@ describe('ExchangeSurface — states', () => {
         userId="me"
       />,
     )
+    expect(screen.getByText(EXCHANGE_COPY.market.emptyTitle(false))).toBeInTheDocument()
     expect(screen.getByText(EXCHANGE_COPY.market.emptyUnfilteredBody)).toBeInTheDocument()
+  })
+
+  it('names the filter that is actually set, and no other', () => {
+    // A reader who set only a currency was being told to "clear the chain
+    // filter" — and on a single-chain deployment that row is not rendered at
+    // all, so the advice pointed at a control that was not on the screen.
+    const { rerender } = renderSurface({ currency: 'GHS' })
+    expect(screen.getByText(/Try another one/)).toBeInTheDocument()
+    expect(screen.queryByText(/chain filter/)).toBeNull()
+
+    rerender(
+      <ExchangeSurface
+        route={{ ...ROUTE, chainId: 'solana:devnet' }}
+        screen={{ market: listState<ExchangeSummary>(), myTrades: listState<EscrowListRow>() }}
+        userId="me"
+      />,
+    )
+    expect(screen.getByText(EXCHANGE_COPY.market.emptyBody(null, 'solana:devnet'))).toBeInTheDocument()
+
+    rerender(
+      <ExchangeSurface
+        route={{ tab: 'market', currency: 'GHS', chainId: 'solana:devnet' }}
+        screen={{ market: listState<ExchangeSummary>(), myTrades: listState<EscrowListRow>() }}
+        userId="me"
+      />,
+    )
+    expect(
+      screen.getByText(EXCHANGE_COPY.market.emptyBody('GHS', 'solana:devnet')),
+    ).toBeInTheDocument()
   })
 
   it('explains the ordering only when there are rows to order', () => {

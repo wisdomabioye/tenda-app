@@ -10,6 +10,7 @@ import { MessageCircle } from 'lucide-react'
 import { formatFullName } from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
 import { StandingBadge } from '@/components/profile'
+import { escrowChatHref, type EscrowChatContext } from '@/lib/chat-href'
 
 export interface PersonCardUser {
   id: string
@@ -32,16 +33,13 @@ export function PersonCard({
   label: string
   currentUserId: string
   /** Escrow context for the message link (mobile PersonCard's contract). */
-  context?: { id: string; title: string; kind: 'gig' | 'exchange' }
+  context?: EscrowChatContext
 }) {
   const name = formatFullName(user.first_name, user.last_name) || 'Anonymous'
   const isSelf = user.id === currentUserId
   const score = user.review_score ? Number(user.review_score).toFixed(1) : null
 
-  const chatHref =
-    context !== undefined
-      ? `/chat/${user.id}?escrowId=${context.id}&escrowTitle=${encodeURIComponent(context.title)}&kind=${context.kind}`
-      : `/chat/${user.id}`
+  const chatHref = escrowChatHref(user.id, context)
 
   return (
     <div className="flex items-center gap-3 rounded-card border border-border-subtle bg-surface-card p-4">

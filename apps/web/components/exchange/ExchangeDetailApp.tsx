@@ -23,7 +23,6 @@ import {
   computeRelevantDeadline,
   formatAssetAmount,
   formatFiat,
-  formatFullName,
   txSuccessCopy,
   type ActiveSheet,
   type EscrowTxType,
@@ -48,6 +47,7 @@ import {
   OfferHeadline,
   OfferTerms,
   TraderCard,
+  exchangeChatContext,
   offerClockFor,
 } from './detail'
 import {
@@ -103,7 +103,6 @@ export function ExchangeDetailApp({
   }
 
   const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
-  const contextTitle = `Trade: ${offer.fiat_amount} ${offer.fiat_currency}`
   const clock = offerClockFor(offer)
 
   function handleTransactionConfirmed() {
@@ -149,7 +148,7 @@ export function ExchangeDetailApp({
                 user={offer.counterparty}
                 label="Buyer"
                 currentUserId={userId}
-                context={{ id: offer.escrow_id, title: contextTitle, kind: 'exchange' }}
+                context={exchangeChatContext(offer)}
               />
             </div>
           )}
@@ -258,9 +257,4 @@ export function ExchangeDetailApp({
       />
     </div>
   )
-}
-
-/** Seller name for headers elsewhere. */
-export function sellerNameOf(offer: ExchangeDetail): string {
-  return formatFullName(offer.creator.first_name, offer.creator.last_name) || 'Seller'
 }

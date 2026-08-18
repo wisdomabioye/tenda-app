@@ -17,9 +17,10 @@ import { useAuthStore } from '@/stores/auth.store'
 import { makeUser } from '../../../../test/factories/user'
 import { makeExchangeDetail } from '../../../../test/factories/exchange'
 
+const search = vi.hoisted(() => ({ current: new URLSearchParams() }))
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => search.current,
   usePathname: () => '/exchange',
   useParams: () => ({ id: 'exch-1' }),
 }))
@@ -59,13 +60,29 @@ vi.mock('@/hooks/exchange/useExchangeDetail', () => ({
 vi.mock('@/components/exchange', () => ({
   ExchangeDetailApp: () => <p>offer body</p>,
 }))
+const registry = vi.hoisted(() => ({
+  chains: null as { id: string; display_name: string }[] | null,
+  status: 'loading' as string,
+}))
 vi.mock('@/stores/chain-registry.store', () => ({
-  useChainRegistryStore: (select: (s: { chains: null; ensureLoaded: () => void }) => unknown) =>
-    select({ chains: null, ensureLoaded: () => undefined }),
+  useChainRegistryStore: (
+    select: (s: {
+      chains: { id: string; display_name: string }[] | null
+      status: string
+      ensureLoaded: () => void
+    }) => unknown,
+  ) => select({ ...registry, ensureLoaded: () => undefined }),
+  selectChainById: (
+    chains: { id: string }[] | null,
+    id: string,
+  ) => chains?.find((c) => c.id === id) ?? null,
 }))
 
 beforeEach(() => {
   vi.clearAllMocks()
+  search.current = new URLSearchParams()
+  registry.chains = null
+  registry.status = 'loading'
   screenState.calls = []
   detail.offer = null
   detail.isLoading = false
@@ -77,6 +94,25 @@ describe('/exchange', () => {
   it('shows the order book once the toggle is on', () => {
     render(<ExchangePage />)
     expect(screen.getByRole('heading', { level: 1, name: EXCHANGE_COPY.title('market') })).toBeInTheDocument()
+  })
+
+  it('holds the request until the registry can VERIFY the chain in the link', () => {
+    // `?chain=` arrives from a bookmark or a shared link, and the server 400s
+    // an id it does not serve. Firing before the registry answers would turn a
+    // stale link into "Offers could not be loaded" over a dead Try-again.
+    search.current = new URLSearchParams('chain=solana:devnet')
+    render(<ExchangePage />)
+    expect(screenState.calls).toEqual([expect.objectContaining({ enabled: false })])
+  })
+
+  it('drops a chain the deployment does not serve, and loads the whole book', () => {
+    search.current = new URLSearchParams('chain=eip155:99999')
+    registry.chains = [{ id: 'solana:devnet', display_name: 'Solana Devnet' }]
+    registry.status = 'ready'
+    render(<ExchangePage />)
+    expect(screenState.calls).toEqual([
+      expect.objectContaining({ enabled: true, chainId: null }),
+    ])
   })
 
   it('locks the surface — and fetches NOTHING — when advanced mode is off', () => {

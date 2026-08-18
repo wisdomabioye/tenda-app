@@ -1,10 +1,9 @@
 /**
- * The offer page's three read blocks — headline, trader, terms — and its
- * aside.
+ * The offer page's headline, its terms grid and its sticky aside. (The trader
+ * card is its own file beside this one.)
  *
- * The recurring assertion is what is NOT claimed: no invented reputation, no
- * minimum, no partial fill, and no party-scoped field on a page an outsider
- * can open.
+ * The recurring assertion is what is NOT claimed: no minimum, no partial fill,
+ * no re-quote, and no party-scoped field on a page an outsider can open.
  */
 import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -15,10 +14,8 @@ import {
   OfferActionAside,
   OfferHeadline,
   OfferTerms,
-  TRADER_CARD_COPY,
-  TraderCard,
 } from '@/components/exchange/detail'
-import { makeExchangeDetail, makeUserRef } from '../../../../test/factories/exchange'
+import { makeExchangeDetail } from '../../../../test/factories/exchange'
 
 const LOADED_FEE = {
   feeBps: 250,
@@ -68,114 +65,6 @@ describe('OfferHeadline', () => {
   })
 })
 
-describe('TraderCard', () => {
-  const offer = makeExchangeDetail()
-
-  it('shows the rating it has, as stars AND as the number', () => {
-    render(
-      <TraderCard
-        trader={makeUserRef({ id: 'seller-1', review_score: '4.70' })}
-        offer={offer}
-        currentUserId="me"
-      />,
-    )
-    expect(screen.getByRole('img', { name: '4.7 out of 5' })).toBeInTheDocument()
-    expect(screen.getByText('4.70')).toBeInTheDocument()
-  })
-
-  it('says a trader is UNRATED rather than scoring them zero', () => {
-    render(
-      <TraderCard
-        trader={makeUserRef({ id: 'seller-1', review_score: null })}
-        offer={offer}
-        currentUserId="me"
-      />,
-    )
-    expect(screen.getByText(TRADER_CARD_COPY.unrated)).toBeInTheDocument()
-    expect(screen.getByText(TRADER_CARD_COPY.unratedNote)).toBeInTheDocument()
-    expect(screen.queryByRole('img')).toBeNull()
-  })
-
-  it('invents no reputation statistic', () => {
-    const { container } = render(
-      <TraderCard trader={makeUserRef({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
-    )
-    const text = container.textContent ?? ''
-    for (const invented of ['trades settled', 'completion rate', 'replies within', 'trading since']) {
-      expect(text).not.toContain(invented)
-    }
-  })
-
-  it('offers the profile and a message in THIS escrow’s context', () => {
-    render(
-      <TraderCard trader={makeUserRef({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
-    )
-    expect(screen.getByRole('link', { name: /View .* profile/ })).toHaveAttribute(
-      'href',
-      '/profile/seller-1',
-    )
-    const message = screen.getByRole('link', { name: /^Message / })
-    expect(message.getAttribute('href')).toContain('/chat/seller-1?escrowId=exch-1')
-    expect(message.getAttribute('href')).toContain('kind=exchange')
-  })
-
-  it('counts the reviews left on THIS trade, worded for one and for many', () => {
-    const { rerender } = render(
-      <TraderCard trader={makeUserRef({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
-    )
-    expect(screen.getByText('reviews on this trade')).toBeInTheDocument()
-    expect(screen.getByText('0')).toBeInTheDocument()
-
-    rerender(
-      <TraderCard
-        trader={makeUserRef({ id: 'seller-1' })}
-        offer={makeExchangeDetail({
-          reviews: [
-            {
-              id: 'rev-1',
-              escrow_id: 'exch-1',
-              reviewer_id: 'buyer-1',
-              reviewee_id: 'seller-1',
-              score: 5,
-              comment: null,
-              created_at: '2026-08-15T10:00:00.000Z',
-            },
-          ],
-        })}
-        currentUserId="me"
-      />,
-    )
-    expect(screen.getByText('review on this trade')).toBeInTheDocument()
-  })
-
-  it('marks a Seeker trader, and nobody else', () => {
-    const { rerender } = render(
-      <TraderCard
-        trader={makeUserRef({ id: 'seller-1', is_seeker: true })}
-        offer={offer}
-        currentUserId="me"
-      />,
-    )
-    expect(screen.getByText(TRADER_CARD_COPY.seeker)).toBeInTheDocument()
-
-    rerender(
-      <TraderCard
-        trader={makeUserRef({ id: 'seller-1', is_seeker: false })}
-        offer={offer}
-        currentUserId="me"
-      />,
-    )
-    expect(screen.queryByText(TRADER_CARD_COPY.seeker)).toBeNull()
-  })
-
-  it('offers no way to message YOURSELF', () => {
-    render(
-      <TraderCard trader={makeUserRef({ id: 'me' })} offer={offer} currentUserId="me" />,
-    )
-    expect(screen.queryByRole('link', { name: /^Message / })).toBeNull()
-    expect(screen.getByText(TRADER_CARD_COPY.you)).toBeInTheDocument()
-  })
-})
 
 describe('OfferTerms', () => {
   it('lists the escrow’s own figures, fee included', () => {
@@ -283,8 +172,37 @@ describe('OfferActionAside', () => {
     )
     const steps = screen.getByRole('list')
     expect(within(steps).getAllByRole('listitem')).toHaveLength(
-      OFFER_DETAIL_COPY.steps.length,
+      OFFER_DETAIL_COPY.steps.buyer.length,
     )
     expect(steps.tagName).toBe('OL')
+  })
+})
+
+describe('OfferActionAside — order of events', () => {
+  it('walks a BUYER through the steps they will take', () => {
+    render(
+      <OfferActionAside offer={makeExchangeDetail()} perspective="buyer">
+        <span />
+      </OfferActionAside>,
+    )
+    const steps = screen.getByRole('list')
+    expect(within(steps).getByText(/You accept/)).toBeInTheDocument()
+    expect(within(steps).getByText(/you pay the seller/)).toBeInTheDocument()
+  })
+
+  it('never tells a SELLER they will pay fiat for their own crypto', () => {
+    // The figures above this list are already perspective-aware; a list that
+    // is not inverts all four lines for the one reader who cannot take the
+    // offer — they posted it. Cancel Offer sits directly above it.
+    render(
+      <OfferActionAside offer={makeExchangeDetail()} perspective="seller">
+        <span />
+      </OfferActionAside>,
+    )
+    const steps = screen.getByRole('list')
+    expect(within(steps).queryByText(/You accept/)).toBeNull()
+    expect(within(steps).queryByText(/you pay the seller/)).toBeNull()
+    expect(within(steps).queryByText(/You mark the payment sent/)).toBeNull()
+    expect(within(steps).getByText(/You confirm the money arrived/)).toBeInTheDocument()
   })
 })
