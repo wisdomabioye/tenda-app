@@ -4,7 +4,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { radius, typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { DeadlineCountdown } from '@/components/shared'
-import { chainLabel, formatDate, ASSET_META, computeRelevantDeadline, formatAssetAmount, formatFiat, formatPaymentWindow } from '@tenda/shared'
+import { chainLabel, formatDate, ASSET_META, computeRelevantDeadline, formatAssetAmount, formatFiat, formatPaymentWindow, formatRate } from '@tenda/shared'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
 import type { ExchangeDetail, SupportedCurrency, EscrowStatus } from '@tenda/shared'
 
@@ -37,7 +37,9 @@ interface TermRow {
  */
 export function ExchangeTermsCard({ offer }: { offer: ExchangeDetail }) {
   const { theme } = useUnistyles()
-  const rate = formatFiat(Number(offer.rate), offer.fiat_currency as SupportedCurrency)
+  // A rate keeps its decimals; the amount rows below it do not — whole units
+  // are right for a total and wrong for the figure offers are compared on.
+  const rate = formatRate(Number(offer.rate), offer.fiat_currency as SupportedCurrency)
   const symbol = ASSET_META[offer.asset]?.symbol ?? offer.asset
 
   // Projection of the contract's settlement math for THIS escrow's fee tier.

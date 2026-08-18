@@ -139,3 +139,36 @@ test('terminal/draft statuses show no live-deadline row', () => {
     unmount()
   }
 })
+
+describe('the Rate row shows a rate, not a rounded amount', () => {
+  // The test above asserts the LABEL exists. The value was never checked, and
+  // the fixture rate is 1600 — a whole number, so `formatFiat` (the AMOUNT
+  // formatter, maximumFractionDigits: 0) looked correct on it forever.
+  test('keeps the decimals a GHS rate is decided on', () => {
+    render(
+      <ExchangeTermsCard
+        offer={makeOffer('open', {}, { rate: '15.4900000000', fiat_currency: 'GHS' })}
+      />,
+    )
+    expect(screen.getByText(/15\.49 \//)).toBeTruthy()
+  })
+
+  test('leaves a whole NGN rate whole', () => {
+    render(<ExchangeTermsCard offer={makeOffer('open', {}, { rate: '1600.0000000000' })} />)
+    expect(screen.getByText(/₦1,600 \//)).toBeTruthy()
+  })
+})
+
+test('an asset the display metadata does not know renders as its raw id', () => {
+  // Same fallback the web audit found untested on its twin: `asset` is a plain
+  // string on the wire, so a chain enabled server-side before the client ships
+  // its ASSET_META entry lands here.
+  render(<ExchangeTermsCard offer={makeOffer('open', {}, { asset: 'USDC_NEWCHAIN' })} />)
+  expect(screen.getByText(/\/ USDC_NEWCHAIN$/)).toBeTruthy()
+})
+
+test('omits the Listed row when the offer carries no created_at', () => {
+  // The positive case is covered above; this is the nullable half of the wire.
+  render(<ExchangeTermsCard offer={makeOffer('open', {}, { created_at: null })} />)
+  expect(screen.queryByText('Listed')).toBeNull()
+})

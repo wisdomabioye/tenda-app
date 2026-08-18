@@ -6,7 +6,7 @@ import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import { Avatar } from '@/components/ui/Avatar'
 import { ExchangeStatusBadge } from './ExchangeStatusBadge'
-import { chainLabel, formatDurationShort, formatAssetAmount, ASSET_META, formatFullName, formatFiat } from '@tenda/shared'
+import { chainLabel, formatDurationShort, formatAssetAmount, ASSET_META, formatFullName, formatFiat, formatRate } from '@tenda/shared'
 import type { ExchangeSummary, SupportedCurrency } from '@tenda/shared'
 
 interface Props {
@@ -20,7 +20,11 @@ export function ExchangeOfferCard({ offer, showStatus = false }: Props) {
 
   // numeric(20,4)/(30,10) arrive as strings, display-only conversion.
   const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
-  const rate = formatFiat(Number(offer.rate), offer.fiat_currency as SupportedCurrency)
+  // A RATE, not an amount. `formatFiat` drops to whole units, which is right
+  // for the total above and wrong here: GHS 15.40 and 15.49 both rendered
+  // "GH₵15", so two traders quoting different rates were indistinguishable in
+  // the list a buyer scans to pick one.
+  const rate = formatRate(Number(offer.rate), offer.fiat_currency as SupportedCurrency)
   const symbol = ASSET_META[offer.asset]?.symbol ?? offer.asset
   // 'Seller' kept verbatim: it is user-visible copy, and whether this surface
   // should say Seller / Maker / Anonymous is a product call, not a refactor.
