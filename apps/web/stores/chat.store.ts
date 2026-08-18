@@ -77,7 +77,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   fetchConversations: async () => {
     // #45: these rows belong to whoever is signed in NOW. See lib/account-state.
     const gen = accountGeneration()
-    set({ conversationsStatus: 'loading' })
+    // Never flash a skeleton over an inbox that has already settled. The
+    // column raises one whenever the status is 'loading' AND it holds no rows
+    // — a guard that protects a populated list and fails an EMPTY one, which
+    // is the commonest new account. With the socket down the fallback poll
+    // runs every 15s, so "No messages yet" flickered to a skeleton and back,
+    // indefinitely (#26). Same rule, same shape as chain-registry.store.
+    set((s) => (s.conversationsStatus === 'ready' ? {} : { conversationsStatus: 'loading' }))
     try {
       const convs = await api.conversations.list()
       if (!isSameAccount(gen)) return
@@ -87,7 +93,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
       // Still rethrown for the caller that awaits it, but a dead session's
       // failure must not put an error on the next account's inbox.
       if (!isSameAccount(gen)) throw e
-      set({ conversationsStatus: 'error' })
+      // Only when nothing has settled yet. The column shows its error state
+      // whenever the status is 'error' and it holds no rows — which a
+      // genuinely EMPTY inbox always does — so without this a single failed
+      // poll replaced a true "No conversations yet" with "Could not load your
+      // messages". The same rule the column states for a populated list, and
+      // the same shape chain-registry.store uses: keep the last good answer,
+      // report an error only when there is none (#26).
+      set((s) => (s.conversationsStatus === 'ready' ? {} : { conversationsStatus: 'error' }))
       // Still thrown: the badge's own callers swallow it, and the list column
       // reads the status — but a caller that awaits this must still be able to
       // tell that it failed.
@@ -230,10 +243,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }))
   },
 
-  // WS delivery, dedupes by id (the broadcast echoes the sender's own
-  // message back, and a reconnect-era fetchMessages may already have it).
   reset: () => set({ ...INITIAL }),
 
+  // WS delivery, dedupes by id (the broadcast echoes the sender's own
+  // message back, and a reconnect-era fetchMessages may already have it).
   receiveMessage: (conversationId, message) => {
     set((s) => {
       const existing = s.messages[conversationId] ?? []
