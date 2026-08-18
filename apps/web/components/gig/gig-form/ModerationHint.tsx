@@ -17,7 +17,10 @@ export function ModerationHint({ moderation }: { moderation: ModerationPreviewRe
     <p
       role="status"
       className={cn(
-        'rounded-control px-3 py-2 text-xs',
+        // The hint owns its top margin because it renders conditionally: a
+        // wrapper carrying the spacing would leave a dead gap on every step
+        // that has nothing to say.
+        'mt-6 rounded-control px-3 py-2 text-xs',
         isBlock
           ? 'bg-feedback-danger-surface text-feedback-danger-base'
           : 'bg-feedback-warning-surface text-feedback-warning-base',

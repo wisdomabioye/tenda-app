@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Post a Gig — web port of mobile's (tabs)/create-gig screen. The form only
+ * Post a Gig — the five-step wizard (Post Wizard comp). The wizard only
  * validates + opens the confirm gate; the funding lifecycle (draft escrow →
  * gig details → sign → monitor) lives in useGigFunding. `?draftId=` prefills
  * from an abandoned draft (CO6 retry-from-draft: recreate fresh and discard
@@ -20,7 +20,7 @@ import {
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
 import { Spinner } from '@/components/ui/Spinner'
-import { GigForm } from '@/components/gig/GigForm'
+import { GigWizard } from '@/components/gig/GigWizard'
 import { ModerationBlockedDialog } from '@/components/moderation/ModerationBlockedDialog'
 import { TxConfirmDialog } from '@/components/escrow/TxConfirmDialog'
 import { TransactionMonitor } from '@/components/escrow/TransactionMonitor'
@@ -35,7 +35,7 @@ function PostGigScreen() {
   const [draftValues, setDraftValues] = useState<Partial<GigFormValues> | null>(null)
   const [draftLoading, setDraftLoading] = useState(draftId !== undefined)
   // Bumped when a composed gig has been committed to the server, forcing a
-  // fresh blank form (GigForm seeds its state once per mount key).
+  // fresh blank form (the wizard seeds its state once per mount key).
   const [composerGeneration, setComposerGeneration] = useState(0)
 
   const funding = useGigFunding({
@@ -90,21 +90,26 @@ function PostGigScreen() {
   const { pendingValues } = funding
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8">
-      <h1 className="mb-6 font-display text-2xl font-bold text-content-primary">
-        {draftId !== undefined ? 'Edit & repost' : 'Post a gig'}
-      </h1>
+    <main className="mx-auto w-full max-w-[1000px] px-4 py-8">
+      {/* The wizard's step title is this page's h1, so the repost context is a
+          notice rather than a second heading competing with it. */}
+      {draftId !== undefined && !draftLoading && (
+        <p className="mb-6 rounded-card border border-border-default bg-surface-inset px-4 py-3 text-sm text-content-secondary">
+          Reposting an abandoned draft. It is recreated fresh and the old one is discarded — the
+          unsigned transaction was bound to the draft&rsquo;s escrow, so it cannot be edited in
+          place.
+        </p>
+      )}
       {draftLoading ? (
         <div className="flex justify-center py-16">
           <Spinner />
         </div>
       ) : (
-        <GigForm
-          // Remount when the prefill arrives (GigForm seeds its state once)
+        <GigWizard
+          // Remount when the prefill arrives (the wizard seeds its state once)
           // and when a posted gig retires the previous composer.
           key={`${draftValues !== null ? draftId : 'blank'}:${composerGeneration}`}
           initialValues={draftValues ?? undefined}
-          submitLabel={draftId !== undefined ? 'Repost Gig' : 'Post Gig'}
           onSubmit={handleFormSubmit}
           isLoading={funding.phase !== 'idle'}
         />

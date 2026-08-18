@@ -136,10 +136,13 @@ export {
   CATEGORY_HINTS,
   PROOF_NOTE,
   GIG_COMPOSER_STEPS,
+  GIG_REQUIREMENTS,
+  firstMissingRequirement,
   getGigStepMissingRequirement,
   getGigMissingRequirement,
   type GigFormValues,
   type GigComposerStep,
+  type GigRequirementCheck,
   type GigValidationValues,
 } from './gig-composer'
 export {

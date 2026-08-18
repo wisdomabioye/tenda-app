@@ -73,25 +73,67 @@ export interface GigValidationValues {
   completionDuration: number
 }
 
+/** What one field still needs, phrased as the action the poster must take. */
+export type GigRequirementCheck = (values: GigValidationValues) => string | null
+
+/**
+ * The requirements, one per FIELD rather than per step.
+ *
+ * Clients group these differently — mobile collects them in three steps, the
+ * web wizard in five — but the rule for any single field is defined once,
+ * here. A client that restated a threshold locally would be redefining what a
+ * valid gig is, which this module exists to prevent.
+ */
+export const GIG_REQUIREMENTS = {
+  category: (v) => (v.category === null ? 'Pick a category' : null),
+  title: (v) => (v.title.trim().length === 0 ? 'Add a title' : null),
+  description: (v) => (v.description.trim().length === 0 ? 'Add a description' : null),
+  /**
+   * Remote gigs carry no location at all, so neither field is required; a
+   * physical gig needs both, and the country is asked for first because the
+   * city list depends on it.
+   */
+  place: (v) => {
+    if (v.remote) return null
+    if (v.country === null) return 'Select a country'
+    if (v.city === null) return 'Select a city'
+    return null
+  },
+  budget: (v) => (!isValidGigAmountRaw(v.asset, v.paymentRaw) ? 'Set a budget' : null),
+  duration: (v) => (!isValidCompletionDuration(v.completionDuration) ? 'Set a delivery time' : null),
+} satisfies Record<string, GigRequirementCheck>
+
+/** The first requirement not yet met, in the order the reader meets them. */
+export function firstMissingRequirement(
+  checks: readonly GigRequirementCheck[],
+  values: GigValidationValues,
+): string | null {
+  for (const check of checks) {
+    const missing = check(values)
+    if (missing !== null) return missing
+  }
+  return null
+}
+
+const STEP_REQUIREMENTS: Record<GigComposerStep, readonly GigRequirementCheck[]> = {
+  details: [
+    GIG_REQUIREMENTS.category,
+    GIG_REQUIREMENTS.title,
+    GIG_REQUIREMENTS.description,
+    GIG_REQUIREMENTS.place,
+  ],
+  payment: [GIG_REQUIREMENTS.budget, GIG_REQUIREMENTS.duration],
+  // Proof and acceptance mode both have valid "unset" values: an empty
+  // proofRequirements means any evidence is accepted, and instant acceptance
+  // is the default. Nothing here can be missing.
+  delivery: [],
+}
+
 export function getGigStepMissingRequirement(
   step: GigComposerStep,
   values: GigValidationValues,
 ): string | null {
-  if (step === 'details') {
-    if (values.category === null) return 'Pick a category'
-    if (values.title.trim().length === 0) return 'Add a title'
-    if (values.description.trim().length === 0) return 'Add a description'
-    if (!values.remote && values.country === null) return 'Select a country'
-    if (!values.remote && values.city === null) return 'Select a city'
-    return null
-  }
-
-  if (step === 'payment') {
-    if (!isValidGigAmountRaw(values.asset, values.paymentRaw)) return 'Set a budget'
-    if (!isValidCompletionDuration(values.completionDuration)) return 'Set a delivery time'
-  }
-
-  return null
+  return firstMissingRequirement(STEP_REQUIREMENTS[step], values)
 }
 
 export function getGigMissingRequirement(values: GigValidationValues): string | null {

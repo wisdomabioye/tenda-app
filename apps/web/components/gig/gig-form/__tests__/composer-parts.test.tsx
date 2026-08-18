@@ -26,7 +26,30 @@ import { DurationPicker } from '@/components/form/DurationPicker'
 import { FeeSummary } from '@/components/shared/FeeSummary'
 import { ModerationBlockedDialog } from '@/components/moderation/ModerationBlockedDialog'
 import { PriceWarningDialog } from '@/components/moderation/PriceWarningDialog'
-import { GigComposerNavigation, GigComposerProgress } from '@/components/gig/gig-form/GigComposerChrome'
+import { WizardRail } from '@/components/gig/gig-form/WizardRail'
+import { WizardNav } from '@/components/gig/gig-form/WizardNav'
+import type { GigValidationValues } from '@tenda/shared'
+
+/** Nothing answered — every step still wants something. */
+const BLANK_VALUES: GigValidationValues = {
+  title: '',
+  description: '',
+  category: null,
+  remote: true,
+  country: null,
+  city: null,
+  asset: 'USDC_SOL',
+  paymentRaw: 0,
+  completionDuration: 86_400,
+}
+
+const FILLED_VALUES: GigValidationValues = {
+  ...BLANK_VALUES,
+  title: 'Deliver a package',
+  description: 'Collect and deliver safely.',
+  category: 'delivery',
+  paymentRaw: 10_000_000,
+}
 import { usePlatformConfigStore } from '@/stores/platform-config.store'
 
 beforeEach(() => {
@@ -131,23 +154,51 @@ test('PriceWarningDialog lists every reason; ModerationBlockedDialog has only th
   expect(onBlockedEdit).toHaveBeenCalled()
 })
 
-test('the chrome: progress names the active step; navigation gates + hints', () => {
-  const onStepPress = vi.fn()
-  render(<GigComposerProgress step="payment" onStepPress={onStepPress} />)
-  expect(screen.getByText('Set payment and timing')).toBeInTheDocument()
-  fireEvent.click(screen.getByRole('tab', { name: '1. Details' }))
-  expect(onStepPress).toHaveBeenCalledWith(0)
+test('the rail: a satisfied earlier step is reachable, a step ahead is locked', () => {
+  const onSelect = vi.fn()
+  // Category answered, title still empty → step 2 is the current one and
+  // everything past it must stay shut.
+  render(
+    <WizardRail
+      currentIndex={1}
+      values={{ ...BLANK_VALUES, category: 'delivery' }}
+      onSelect={onSelect}
+    />,
+  )
+  fireEvent.click(screen.getByRole('button', { name: /Category/ }))
+  expect(onSelect).toHaveBeenCalledWith(0)
 
-  const onContinue = vi.fn()
+  expect(screen.getByRole('button', { name: /Where and when/ })).toBeDisabled()
+  fireEvent.click(screen.getByRole('button', { name: /Where and when/ }))
+  expect(onSelect).toHaveBeenCalledTimes(1) // the disabled click raised nothing
+})
+
+test('the rail un-ticks a step the reader walked back and emptied', () => {
   const { rerender } = render(
-    <GigComposerNavigation
-      firstStep
+    <WizardRail currentIndex={2} values={FILLED_VALUES} onSelect={vi.fn()} />,
+  )
+  // Step 1 is behind the reader and satisfied → done, so it carries a check
+  // rather than its number.
+  expect(screen.getByRole('button', { name: /Category/ })).not.toHaveTextContent('1')
+
+  rerender(
+    <WizardRail currentIndex={2} values={{ ...FILLED_VALUES, category: null }} onSelect={vi.fn()} />,
+  )
+  // Emptied from the rail — the tick must come off, not linger over a step
+  // that no longer passes.
+  expect(screen.getByRole('button', { name: /Category/ })).toHaveTextContent('1')
+})
+
+test('the nav: names the missing requirement, gates Continue, hides Back on step one', () => {
+  const onNext = vi.fn()
+  const { rerender } = render(
+    <WizardNav
+      showBack={false}
       finalStep={false}
       missingRequirement="Add a title"
-      submitLabel="Post Gig"
       loading={false}
       onBack={vi.fn()}
-      onContinue={onContinue}
+      onNext={onNext}
     />,
   )
   expect(screen.getByText('Add a title to continue')).toBeInTheDocument()
@@ -155,16 +206,30 @@ test('the chrome: progress names the active step; navigation gates + hints', () 
   expect(screen.queryByRole('button', { name: 'Back' })).not.toBeInTheDocument()
 
   rerender(
-    <GigComposerNavigation
-      firstStep={false}
+    <WizardNav
+      showBack
       finalStep
       missingRequirement={null}
-      submitLabel="Post Gig"
       loading={false}
       onBack={vi.fn()}
-      onContinue={onContinue}
+      onNext={onNext}
     />,
   )
-  fireEvent.click(screen.getByRole('button', { name: 'Post Gig' }))
-  expect(onContinue).toHaveBeenCalled()
+  // The last step signs rather than continues, and says so.
+  fireEvent.click(screen.getByRole('button', { name: 'Review and sign' }))
+  expect(onNext).toHaveBeenCalled()
+})
+
+test('the nav says the final step reviews and signs, not merely continues', () => {
+  render(
+    <WizardNav
+      showBack
+      finalStep
+      missingRequirement="Set a budget"
+      loading={false}
+      onBack={vi.fn()}
+      onNext={vi.fn()}
+    />,
+  )
+  expect(screen.getByText('Set a budget to review and sign')).toBeInTheDocument()
 })

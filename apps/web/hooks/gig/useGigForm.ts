@@ -180,6 +180,13 @@ export function useGigForm(
     moderation,
     isValid,
     missingRequirement,
+    /**
+     * The exact object the shared validators are run against. Exposed so a
+     * step rail can ask "is step N satisfied?" without rebuilding this shape
+     * from the individual fields — a copy that drifted would let the rail tick
+     * a step the submit path still rejects.
+     */
+    validationValues,
     getStepMissingRequirement: (step: GigComposerStep) => (
       getGigStepMissingRequirement(step, validationValues)
     ),

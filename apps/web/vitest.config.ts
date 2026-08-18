@@ -57,7 +57,7 @@ export default defineConfig({
         'components/shared/**/*.tsx',
         'components/gig/category-icons.ts',
         'components/gig/CategoryGrid.tsx',
-        'components/gig/GigForm.tsx',
+        'components/gig/GigWizard.tsx',
         // Joined the ratchet during the #12 review: it kept a private copy of
         // the location rule that commit consolidated, and being uncovered is
         // how the copy survived.
