@@ -18,7 +18,9 @@ import { useExchangeRoute } from '@/hooks/exchange/useExchangeRoute'
 const params = vi.hoisted(() => ({ current: new URLSearchParams() }))
 vi.mock('next/navigation', () => ({ useSearchParams: () => params.current }))
 
-const SOLANA = { id: 'solana:devnet', display_name: 'Solana Devnet' } as unknown as ChainRegistryEntry
+// Direct assertion, not `as unknown as`: this still type-checks the fields
+// the fixture DOES state, so a renamed or mistyped one fails to compile.
+const SOLANA = { id: 'solana:devnet', display_name: 'Solana Devnet' } as ChainRegistryEntry
 
 beforeEach(() => {
   params.current = new URLSearchParams()

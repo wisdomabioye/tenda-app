@@ -26,7 +26,9 @@ import { handleExchange } from './exchange'
 import { createNotificationsWorld, handleNotifications, resetNotificationsWorld } from './notifications'
 import { ENABLED_CHAIN_IDS } from './chains'
 import { handleFiat, resetFiatWorld } from './fiat'
+import { handleReviews } from './reviews'
 import { errorEnvelope, json, type StubResponse } from './reply'
+
 
 const world = createAuthWorld()
 const chatWorld = createChatWorld()
@@ -50,6 +52,8 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
     return json(user)
   }
+  const reviews = handleReviews(url, method, userForBearer(world, authorization) !== null)
+  if (reviews !== null) return reviews
   if (url.pathname === '/v1/auth/methods' && method === 'GET') {
     const user = userForBearer(world, authorization)
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
@@ -261,6 +265,15 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
     const user = userForBearer(world, authorization)
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
     const input = JSON.parse(body) as UpdateMeInput
+    // Only the NAMES are persisted, though UpdateMeInput also carries country,
+    // city, bio, avatar_url and advanced_mode_enabled. Not an oversight: spec
+    // FILES run in parallel against this one stub process and all sign in as
+    // the same account, so every additional persisted field becomes state
+    // shared between tests that never agreed to share it. Persisting the CO4
+    // flag here was tried and immediately broke `wallet-sell`, which asserts
+    // what the P2P surface shows. A test that needs a persisted preference
+    // wants a `__e2e/reset-auth` control route first, like chat and
+    // notifications have.
     if (input.first_name !== undefined) user.first_name = input.first_name
     if (input.last_name !== undefined) user.last_name = input.last_name
     // is_seeker is NOT patchable (Seeker device fee tier, signup-bootstrap

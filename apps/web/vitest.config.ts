@@ -50,13 +50,19 @@ export default defineConfig({
         'hooks/**/*.ts',
         'stores/**/*.ts',
         'wallet/**/*.ts',
-        'components/wallet/**/*.tsx',
-        'components/escrow/**/*.tsx',
-        'components/form/**/*.tsx',
-        'components/moderation/**/*.tsx',
-        'components/shared/**/*.tsx',
+        'components/wallet/**/*.{ts,tsx}',
+        'components/escrow/**/*.{ts,tsx}',
+        'components/form/**/*.{ts,tsx}',
+        'components/moderation/**/*.{ts,tsx}',
+        'components/shared/**/*.{ts,tsx}',
         'components/gig/category-icons.ts',
         'components/gig/CategoryGrid.tsx',
+        // Joined in #22's sweep: named individually because components/gig's
+        // own root is a mix of ported components and folders already globbed
+        // below, and a bare components/gig/*.tsx would re-add nothing else.
+        'components/gig/CategoryBadge.tsx',
+        'components/gig/GigCreatorLine.tsx',
+        'components/gig/GigDetailCta.tsx',
         'components/gig/GigWizard.tsx',
         // Joined the ratchet during the #12 review: it kept a private copy of
         // the location rule that commit consolidated, and being uncovered is
@@ -102,7 +108,7 @@ export default defineConfig({
         'components/app/**/*.{ts,tsx}',
         'components/public/BrandMark.tsx',
         'components/public/NotFoundPanel.tsx',
-        'components/public/foundations/**/*.tsx',
+        'components/public/foundations/**/*.{ts,tsx}',
         'components/public/support/**/*.{ts,tsx}',
         'components/public/HeaderSessionAction.tsx',
         'components/public/SiteFooter.tsx',

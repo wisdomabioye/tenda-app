@@ -2,13 +2,7 @@ import { expect, test, vi } from 'vitest'
 import { act, renderHook, waitFor } from '@testing-library/react'
 import type { PaginatedResponse } from '@tenda/shared'
 import { usePaginatedList } from '@/hooks/pagination/usePaginatedList'
-
-interface Row { id: string }
-const rows = (...ids: string[]): Row[] => ids.map((id) => ({ id }))
-
-function page(data: Row[], next_cursor: string | null): PaginatedResponse<Row> {
-  return { data, total: 4, limit: 2, offset: 0, next_cursor }
-}
+import { cursorPage as page, rows, type Row } from '../__fixtures__/list-fixtures'
 
 test('uses an opaque server cursor instead of an unstable live-feed offset', async () => {
   const fetchPage = vi
@@ -153,4 +147,40 @@ test('a realtime event cannot be overwritten by an older in-flight HTTP snapshot
   await act(async () => resolveStale?.(page(rows('stale'), null)))
   await waitFor(() => expect(result.current.items).toEqual(rows('realtime', 'server-current')))
   expect(result.current.items).not.toContainEqual({ id: 'stale' })
+})
+
+test('falls back to offsets when the server sends no cursor at all', async () => {
+  // The documented third state: `next_cursor` absent (not null) means this
+  // server does not do cursors, so the traversal must fall back to offset vs
+  // total. Nothing covered it, and a mutation that skipped the fallback —
+  // making hasMore permanently true, an endless Load more — survived the
+  // whole suite.
+  const noCursor = (data: Row[], total: number): PaginatedResponse<Row> => ({
+    data,
+    total,
+    limit: 2,
+    offset: 0,
+  })
+  const fetchPage = vi
+    .fn()
+    .mockResolvedValueOnce(noCursor(rows('a', 'b'), 3))
+    .mockResolvedValueOnce(noCursor(rows('c'), 3))
+  const { result } = renderHook(() =>
+    usePaginatedList({
+      fetchPage,
+      query: {},
+      keyOf: (row: Row) => row.id,
+      pageSize: 2,
+      cursorPagination: true,
+    }),
+  )
+
+  await waitFor(() => expect(result.current.items).toEqual(rows('a', 'b')))
+  // Two of three loaded: offsets say there is more, and no cursor contradicts it.
+  expect(result.current.hasMore).toBe(true)
+
+  await act(async () => result.current.loadMore())
+  await waitFor(() => expect(result.current.items).toEqual(rows('a', 'b', 'c')))
+  // All three loaded — offsets say stop, and nothing keeps the button alive.
+  expect(result.current.hasMore).toBe(false)
 })

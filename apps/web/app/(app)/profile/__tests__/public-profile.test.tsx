@@ -23,7 +23,7 @@ vi.mock('next/navigation', () => ({ useParams: () => ({ id: 'u2' }) }))
 vi.mock('@/components/profile/StandingBadge', () => ({ StandingBadge: () => null }))
 
 import UserProfilePage from '@/app/(app)/profile/[id]/page'
-import type { User } from '@tenda/shared'
+import type { Review, User } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 
 const USER = {
@@ -38,12 +38,21 @@ const USER = {
   bio: null,
 }
 
-const review = (id: string) => ({
+/**
+ * Typed as the real row on purpose. This fixture claimed `rating` and a nested
+ * `reviewer` — neither is on the wire (the column is `score`, and the list
+ * endpoint serves bare rows). It passed because the mock is untyped and the
+ * assertions never read the card, so ReviewCard was being handed a row the
+ * server cannot send.
+ */
+const review = (id: string): Review => ({
   id,
-  rating: 5,
+  escrow_id: 'esc-1',
+  reviewer_id: 'u3',
+  reviewee_id: 'u2',
+  score: 5,
   comment: 'Great work',
-  created_at: '2026-01-01T00:00:00Z',
-  reviewer: { id: 'u3', first_name: 'A', last_name: 'B', avatar_url: null },
+  created_at: new Date('2026-01-01T00:00:00Z'),
 })
 
 beforeEach(() => {

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   PAGE_SIZE,
-  hasMore as deriveHasMore,
   mergeById,
   nextOffset,
   createQueryCache,
@@ -10,10 +9,9 @@ import {
   createQueryKey,
 } from '@tenda/shared'
 import type { FirstPageResult, PaginatedListState, UsePaginatedListOptions } from './paginated-list.types'
+import { errorMessage, hasMorePages } from './pagination-rules'
 
 export type { PageParams, PaginatedListState, UsePaginatedListOptions } from './paginated-list.types'
-const errorMessage = (e: unknown): string =>
-  e instanceof Error ? e.message : 'Something went wrong'
 
 export function usePaginatedList<TItem, TQuery extends object>({
   fetchPage,
@@ -213,11 +211,15 @@ export function usePaginatedList<TItem, TQuery extends object>({
     // using the previous total. Reading the ref also keeps this callback
     // stable, so a consumer's load-more handler prop stops changing every
     // time the total does.
+    // The REF total, not state: state lags a render behind, so a call landing
+    // between a load settling and the re-render would decide on the old one.
     if (
-      cursorPagination
-        ? nextCursorRef.current === null ||
-          (nextCursorRef.current === undefined && !deriveHasMore(offsetRef.current, totalRef.current))
-        : !deriveHasMore(offsetRef.current, totalRef.current)
+      !hasMorePages({
+        cursorPagination,
+        nextCursor: nextCursorRef.current,
+        offset: offsetRef.current,
+        total: totalRef.current,
+      })
     ) return
     const gen = genRef.current
     inFlightRef.current = true
@@ -298,11 +300,13 @@ export function usePaginatedList<TItem, TQuery extends object>({
   return {
     items,
     total,
-    hasMore: cursorPagination
-      ? nextCursorRef.current === undefined
-        ? deriveHasMore(offsetRef.current, total)
-        : nextCursorRef.current !== null
-      : deriveHasMore(offsetRef.current, total),
+    // State total here, so what is returned matches what was rendered.
+    hasMore: hasMorePages({
+      cursorPagination,
+      nextCursor: nextCursorRef.current,
+      offset: offsetRef.current,
+      total,
+    }),
     isLoading,
     isLoadingMore,
     isRefreshing,

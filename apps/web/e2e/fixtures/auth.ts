@@ -46,7 +46,14 @@ export function signIn(world: AuthWorld, identifier: string): { token: string; u
         advanced_mode_enabled: true,
       })
     : existing
-      ? makeUser({ id: EXISTING_USER_ID, first_name: 'Ada', last_name: 'Okafor' })
+      ? makeUser({
+          id: EXISTING_USER_ID,
+          first_name: 'Ada',
+          last_name: 'Okafor',
+          // A rated account, so the profile's rating line has both halves to
+          // show: the average AND the count it is an average OF.
+          review_score: '4.80',
+        })
       : makeUser({ id: `user-fresh-${world.nextId++}`, first_name: '', last_name: '' })
   const token = `e2e-jwt-${user.id}`
   world.usersByToken.set(token, user)
