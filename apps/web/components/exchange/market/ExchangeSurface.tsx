@@ -98,8 +98,10 @@ export function ExchangeSurface({
             empty={
               <EmptyPanel
                 icon={<ArrowLeftRight size={28} />}
-                title={EXCHANGE_COPY.mine.emptyTitle}
-                body={EXCHANGE_COPY.mine.emptyBody}
+                // The CHAIN alone, not `filtered`: the currency chip is not
+                // even rendered on this tab and cannot narrow this list.
+                title={EXCHANGE_COPY.mine.emptyTitle(route.chainId !== null)}
+                body={EXCHANGE_COPY.mine.emptyBody(route.chainId !== null)}
               />
             }
           />

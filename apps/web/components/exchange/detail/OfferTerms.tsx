@@ -22,6 +22,7 @@ import {
   formatDate,
   formatFiat,
   formatPaymentWindow,
+  formatRate,
   type ExchangeDetail,
   type SupportedCurrency,
 } from '@tenda/shared'
@@ -58,7 +59,7 @@ export function OfferTerms({ offer }: { offer: ExchangeDetail }) {
     { label: OFFER_TERMS_COPY.total, value: formatFiat(Number(offer.fiat_amount), currency), mono: true },
     {
       label: OFFER_TERMS_COPY.rate,
-      value: `${formatFiat(Number(offer.rate), currency)} / ${symbol}`,
+      value: `${formatRate(Number(offer.rate), currency)} / ${symbol}`,
       mono: true,
     },
     { label: OFFER_TERMS_COPY.network, value: chainLabel(offer.chain_id) },

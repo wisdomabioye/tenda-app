@@ -12,7 +12,7 @@ import { OFFER_COUNTDOWN_COPY, OfferCountdown, offerClockFor } from '@/component
 import { makeExchangeDetail } from '../../../../test/factories/exchange'
 
 const clockAt = (deadline: string) =>
-  offerClockFor(makeExchangeDetail({ status: 'accepted', completion_deadline: deadline }))!
+  offerClockFor(makeExchangeDetail({ status: 'accepted', completion_deadline: deadline }), 'buyer')!
 
 const panel = () => document.querySelector('[data-offer-countdown]')!
 
@@ -68,6 +68,7 @@ describe('OfferCountdown', () => {
   it('renders a window that has not started as neutral, with no clock running', () => {
     const clock = offerClockFor(
       makeExchangeDetail({ status: 'open', accept_deadline: null, payment_window_seconds: 3_600 }),
+      'buyer',
     )!
     render(<OfferCountdown clock={clock} />)
     expect(screen.getByText('1h')).toBeInTheDocument()

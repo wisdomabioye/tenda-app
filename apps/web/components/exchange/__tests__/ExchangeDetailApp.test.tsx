@@ -55,6 +55,7 @@ vi.mock('@/components/escrow/TransactionMonitor', () => ({
       <div>
         <button onClick={onConfirmed}>monitor-confirm</button>
         <button onClick={() => onFailed('rpc gave up')}>monitor-fail</button>
+        <button onClick={() => onFailed('')}>monitor-empty-fail</button>
       </div>
     )
   },
@@ -138,13 +139,19 @@ test('a confirmed non-cancel tx toasts and re-reads; a confirmed CANCEL leaves f
   expect(refresh).not.toHaveBeenCalled()
 })
 
-test('a monitor failure clears the pending tx and reports still-syncing info', () => {
+test('a monitor failure clears the pending tx and always says something', () => {
   actionsState.pendingTxRef = 'sig-1'
   actionsState.pendingAction = 'accept'
   render(<ExchangeDetailApp offer={makeExchangeDetail()} userId="stranger" refresh={refresh} />)
+
   fireEvent.click(screen.getByRole('button', { name: 'monitor-fail' }))
   expect(actionsState.clearPending).toHaveBeenCalled()
   expect(toastMock).toHaveBeenCalledWith('info', 'rpc gave up')
+
+  // `onFailed` can hand back an empty string; an empty toast is a toast that
+  // says the transaction vanished.
+  fireEvent.click(screen.getByRole('button', { name: 'monitor-empty-fail' }))
+  expect(toastMock).toHaveBeenCalledWith('info', expect.stringMatching(/will sync when confirmed/))
 })
 
 test('a takedown refusal (onStale) re-reads so dead buttons disappear', () => {
@@ -228,17 +235,31 @@ test('the party half is rendered from what the SERVER sent, never synthesised', 
   expect(screen.getByText('Payment sent, not released')).toBeInTheDocument()
 })
 
-test('the aside speaks to the reader’s OWN side of the trade', () => {
+test('every block that speaks to a SEAT speaks to the reader’s own', () => {
+  // Two blocks are perspective-aware — the aside's figures and the countdown's
+  // label — and both were shipped buyer-only. One render, both questions: a
+  // page that gets one right and the other wrong is the bug that was here.
+  const accepted = makeExchangeDetail({
+    status: 'accepted',
+    completion_deadline: '2099-01-01T00:00:00.000Z',
+    counterparty: makeUserRef({ id: 'buyer-1' }),
+  })
+  const panel = () => document.querySelector('[data-offer-countdown]')?.textContent ?? ''
+
   const asSeller = render(
-    <ExchangeDetailApp offer={makeExchangeDetail()} userId="seller-1" refresh={refresh} />,
+    <ExchangeDetailApp offer={accepted} userId="seller-1" refresh={refresh} />,
   )
   expect(screen.getByText(OFFER_ASIDE_COPY.sellerPay)).toBeInTheDocument()
   expect(screen.queryByText(OFFER_DETAIL_COPY.youPay)).toBeNull()
+  expect(panel()).toContain('The buyer pays within')
+  expect(panel()).not.toContain('Miss this')
   asSeller.unmount()
 
-  render(<ExchangeDetailApp offer={makeExchangeDetail()} userId="stranger" refresh={refresh} />)
+  render(<ExchangeDetailApp offer={accepted} userId="buyer-1" refresh={refresh} />)
   expect(screen.getByText(OFFER_DETAIL_COPY.youPay)).toBeInTheDocument()
   expect(screen.queryByText(OFFER_ASIDE_COPY.sellerPay)).toBeNull()
+  expect(panel()).toContain('Pay within')
+  expect(panel()).toContain('Miss this')
 })
 
 test('the live-refresh subscription rides the offer identity', () => {

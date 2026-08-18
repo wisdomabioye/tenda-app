@@ -1,5 +1,6 @@
 /**
- * The exchange surface's strings and its URL helpers.
+ * The exchange surface's shared vocabulary: its strings, its URL helpers, and
+ * the one card treatment both of its rows wear.
  *
  * All three pieces of list state — tab, currency, chain — live in the URL, and
  * these build every link that carries them. Two reasons, and the second is the
@@ -59,6 +60,17 @@ export function exchangeCurrency(raw: string | null): SupportedCurrency | null {
   return PAYOUT_CURRENCIES.find((currency) => currency === raw) ?? null
 }
 
+/**
+ * One card treatment for both rows of this surface.
+ *
+ * The order-book row and the my-trades row are the same object at two
+ * densities, and they carried these thirteen utilities twice — so a hover or
+ * a motion token changed on one silently left the other behind. The layout
+ * differs (`block` vs a flex row) and stays with each card.
+ */
+export const EXCHANGE_ROW_CLASS =
+  'rounded-card border border-border-subtle bg-surface-card p-5 text-content-primary shadow-card transition-[border-color,box-shadow] duration-(--motion-fast) ease-(--motion-ease-standard) hover:border-border-strong hover:no-underline hover:shadow-elevated'
+
 export const EXCHANGE_COPY = {
   eyebrow: 'Exchange',
   /**
@@ -108,8 +120,18 @@ export const EXCHANGE_COPY = {
     label: 'Open offers',
   },
   mine: {
-    emptyTitle: 'No trades yet',
-    emptyBody: 'Offers you post, and offers you accept, both appear here.',
+    /**
+     * This list IS narrowed — `useExchangeScreen` passes `chain_id` to
+     * /v1/users/:id/escrows — so an empty one can mean "none on this chain"
+     * rather than "none at all". Only the CHAIN can narrow it: there is no
+     * currency parameter on that wire, so `?cur=` must not be blamed here.
+     */
+    emptyTitle: (chainFiltered: boolean) =>
+      chainFiltered ? 'No trades on this chain' : 'No trades yet',
+    emptyBody: (chainFiltered: boolean) =>
+      chainFiltered
+        ? 'Your trades on other chains are still here. Clear the chain filter to see them.'
+        : 'Offers you post, and offers you accept, both appear here.',
     errorTitle: 'Your trades could not be loaded',
     errorBody: 'Nothing has changed on-chain. This is a read failure on your own trade list.',
     label: 'Your trades',

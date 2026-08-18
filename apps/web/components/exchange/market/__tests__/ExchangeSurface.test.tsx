@@ -267,3 +267,23 @@ describe('ExchangeSurface — the control row', () => {
     expect(screen.queryByRole('button', { name: '₦ NGN' })).toBeNull()
   })
 })
+
+describe('ExchangeSurface — My trades is filtered too', () => {
+  it('blames the CHAIN filter for an empty trade list, because it narrows that list', () => {
+    // `useExchangeScreen` passes chain_id to /v1/users/:id/escrows, so a reader
+    // whose trades are all on another chain is looking at a filtered empty
+    // list — not at an account with no trades. Telling them "no trades yet"
+    // is the market half's bug on the other half of the same component.
+    renderSurface({ tab: 'mine', chainId: 'solana:devnet' })
+    expect(screen.getByText(EXCHANGE_COPY.mine.emptyTitle(true))).toBeInTheDocument()
+    expect(screen.getByText(EXCHANGE_COPY.mine.emptyBody(true))).toBeInTheDocument()
+  })
+
+  it('does NOT blame the currency chip, which cannot narrow that list', () => {
+    // There is no currency parameter on the escrows wire — the chips are even
+    // hidden on this tab. Blaming `?cur=` would be a second false statement.
+    renderSurface({ tab: 'mine', currency: 'NGN' })
+    expect(screen.getByText(EXCHANGE_COPY.mine.emptyTitle(false))).toBeInTheDocument()
+    expect(screen.getByText(EXCHANGE_COPY.mine.emptyBody(false))).toBeInTheDocument()
+  })
+})

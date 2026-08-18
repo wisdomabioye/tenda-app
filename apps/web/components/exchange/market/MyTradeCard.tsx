@@ -21,7 +21,8 @@ import {
   type EscrowListRow,
 } from '@tenda/shared'
 import { ExchangeStatusBadge } from '@/components/escrow/StatusBadge'
-import { EXCHANGE_COPY } from './copy'
+import { cn } from '@/lib/cn'
+import { EXCHANGE_COPY, EXCHANGE_ROW_CLASS } from './copy'
 
 export function MyTradeCard({ row, userId }: { row: EscrowListRow; userId: string }) {
   const selling = row.creator_id === userId
@@ -30,7 +31,7 @@ export function MyTradeCard({ row, userId }: { row: EscrowListRow; userId: strin
   return (
     <Link
       href={`/exchange/${row.id}`}
-      className="flex items-center gap-4 rounded-card border border-border-subtle bg-surface-card p-5 text-content-primary shadow-card transition-[border-color,box-shadow] duration-(--motion-fast) ease-(--motion-ease-standard) hover:border-border-strong hover:no-underline hover:shadow-elevated"
+      className={cn(EXCHANGE_ROW_CLASS, 'flex items-center gap-4')}
     >
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-2 font-numeric text-[17px] font-bold leading-6 text-content-primary">

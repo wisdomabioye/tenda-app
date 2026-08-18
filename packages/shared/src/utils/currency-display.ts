@@ -53,6 +53,26 @@ export function formatFiat(amount: number, currency: SupportedCurrency): string 
 }
 
 /**
+ * An exchange RATE, which is not an amount and must not be rounded like one.
+ *
+ * `formatFiat` drops to whole units — right for "₦75,000 total", wrong for the
+ * figure an order book exists to compare: two GHS offers at 15.40 and 15.49
+ * both rendered "GH₵15", so the column the copy tells readers to scan down
+ * could not be scanned. Two decimals is the market granularity; a whole rate
+ * stays whole, because most NGN rates are and "₦1,500.00" is noise.
+ */
+export function formatRate(rate: number, currency: SupportedCurrency): string {
+  const { locale } = CURRENCY_META[currency]
+  const digits = Number.isInteger(rate) ? 0 : 2
+  return rate.toLocaleString(locale, {
+    style: 'currency',
+    currency,
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+  })
+}
+
+/**
  * Compact currency display used in card densities, e.g. "₦240k", "$1.5M".
  * Falls back to full formatFiat() for amounts < 1,000.
  */

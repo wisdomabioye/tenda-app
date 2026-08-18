@@ -28,13 +28,15 @@ import {
   formatDurationShort,
   formatFiat,
   formatFullName,
+  formatRate,
   type ExchangeSummary,
   type SupportedCurrency,
 } from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { RatingStars } from '@/components/ui/RatingStars'
-import { EXCHANGE_COPY, rateUnitLabel } from './copy'
+import { cn } from '@/lib/cn'
+import { EXCHANGE_COPY, EXCHANGE_ROW_CLASS, rateUnitLabel } from './copy'
 
 export const OFFER_CARD_COPY = {
   cta: 'Buy',
@@ -48,7 +50,9 @@ export const OFFER_CARD_COPY = {
 export function OfferCard({ offer }: { offer: ExchangeSummary }) {
   const currency = offer.fiat_currency as SupportedCurrency
   const fiat = formatFiat(Number(offer.fiat_amount), currency)
-  const rate = formatFiat(Number(offer.rate), currency)
+  // A RATE, not an amount: `formatFiat` would round 15.49 and 15.40 to the
+  // same "GH₵15" in the column this card exists to be compared down.
+  const rate = formatRate(Number(offer.rate), currency)
   const sellerName = formatFullName(offer.creator.first_name, offer.creator.last_name) || OFFER_CARD_COPY.anonymous
   const score = offer.creator.review_score === null ? null : Number(offer.creator.review_score)
   const country = countryDisplayName(offer.creator.country)
@@ -56,7 +60,7 @@ export function OfferCard({ offer }: { offer: ExchangeSummary }) {
   return (
     <Link
       href={`/exchange/${offer.escrow_id}`}
-      className="block rounded-card border border-border-subtle bg-surface-card p-5 text-content-primary shadow-card transition-[border-color,box-shadow] duration-(--motion-fast) ease-(--motion-ease-standard) hover:border-border-strong hover:no-underline hover:shadow-elevated"
+      className={cn(EXCHANGE_ROW_CLASS, 'block')}
     >
       <div
         data-offer

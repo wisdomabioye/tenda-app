@@ -4,6 +4,7 @@ import {
   formatFiat,
   formatFiatShort,
   formatPaymentWindow,
+  formatRate,
   formatSolDisplay,
   toAssetPaymentDisplay,
 } from '../../src/utils/currency-display'
@@ -61,4 +62,20 @@ test('formatFiatShort: compacts thousands and millions, falls back below 1k', ()
   assert.match(formatFiatShort(1_500_000, 'USD'), /1\.5M$/)
   // Below 1,000 it is the full formatFiat output, not a compacted one.
   assert.equal(formatFiatShort(500, 'USD'), formatFiat(500, 'USD'))
+})
+
+test('formatRate keeps the precision a rate is compared on', () => {
+  // The order book's whole premise is "compare them straight down the column",
+  // and `formatFiat` rounds to whole units — so two GHS offers at 15.40 and
+  // 15.49 both printed "GH₵15" and the column could not be compared at all.
+  assert.notEqual(formatRate(15.4, 'GHS'), formatRate(15.49, 'GHS'))
+  assert.notEqual(formatRate(129.5, 'KES'), formatRate(129.9, 'KES'))
+})
+
+test('formatRate pads a fractional rate and leaves a whole one alone', () => {
+  // A column of "15.40 / 15.49 / 16" reads; a column of "15.4 / 15.49 / 16.00"
+  // does not. Whole rates stay whole — most NGN rates are.
+  assert.equal(formatRate(15.4, 'GHS'), 'GH₵15.40')
+  assert.equal(formatRate(1500, 'NGN'), '₦1,500')
+  assert.equal(formatRate(1500.75, 'NGN'), '₦1,500.75')
 })

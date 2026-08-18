@@ -84,22 +84,56 @@ export interface OfferClock {
   staticValue: string | null
 }
 
-const CLOCK_COPY: Record<OfferClockKind, { label: string; note: string }> = {
+/**
+ * Every clock belongs to somebody, and it is not always the reader.
+ *
+ * The block is rendered to BOTH parties, so one wording is wrong for one of
+ * them on every live status: a seller was shown "Pay within — miss this and
+ * the trade cancels itself" (an instruction to pay, given to the person being
+ * paid) and "you can claim the crypto out of escrow yourself" (the buyer's
+ * remedy against a silent seller, offered to that seller). Same defect the
+ * order-of-events list had.
+ */
+const CLOCK_COPY: Record<OfferClockKind, Record<OfferPerspective, { label: string; note: string }>> = {
   accept: {
-    label: 'Offer closes in',
-    note: 'After this the offer expires and the crypto returns to the seller.',
+    buyer: {
+      label: 'Offer closes in',
+      note: 'After this the offer expires and the crypto returns to the seller.',
+    },
+    seller: {
+      label: 'Your offer closes in',
+      note: 'After this it expires and the crypto returns to your wallet.',
+    },
   },
   pay: {
-    label: 'Pay within',
-    note: 'Miss this and the trade cancels itself. Nothing is charged.',
+    buyer: {
+      label: 'Pay within',
+      note: 'Miss this and the trade cancels itself. Nothing is charged.',
+    },
+    seller: {
+      label: 'The buyer pays within',
+      note: 'If they miss it the trade cancels itself and your crypto comes back.',
+    },
   },
   confirm: {
-    label: 'Seller confirms within',
-    note: 'If they do not, you can claim the crypto out of escrow yourself.',
+    buyer: {
+      label: 'Seller confirms within',
+      note: 'If they do not, you can claim the crypto out of escrow yourself.',
+    },
+    seller: {
+      label: 'You confirm within',
+      note: 'If you do not, the buyer can claim the crypto out of escrow themselves.',
+    },
   },
   window: {
-    label: 'Payment window',
-    note: 'How long you get to pay, once you accept. The clock starts then, not now.',
+    buyer: {
+      label: 'Payment window',
+      note: 'How long you get to pay, once you accept. The clock starts then, not now.',
+    },
+    seller: {
+      label: 'Payment window',
+      note: 'How long the buyer gets to pay, once someone accepts. The clock starts then.',
+    },
   },
 }
 
@@ -111,6 +145,7 @@ export function offerClockFor(
     ExchangeDetail,
     'status' | 'accept_deadline' | 'completion_deadline' | 'approval_deadline' | 'payment_window_seconds'
   >,
+  perspective: OfferPerspective,
 ): OfferClock | null {
   if (!LIVE_STATUSES.includes(offer.status)) return null
 
@@ -121,7 +156,7 @@ export function offerClockFor(
     if (offer.status !== 'open') return null
     return {
       kind: 'window',
-      ...CLOCK_COPY.window,
+      ...CLOCK_COPY.window[perspective],
       deadline: null,
       staticValue: formatDurationShort(offer.payment_window_seconds),
     }
@@ -129,7 +164,7 @@ export function offerClockFor(
 
   const kind: OfferClockKind =
     offer.status === 'open' ? 'accept' : offer.status === 'accepted' ? 'pay' : 'confirm'
-  return { kind, ...CLOCK_COPY[kind], deadline, staticValue: null }
+  return { kind, ...CLOCK_COPY[kind][perspective], deadline, staticValue: null }
 }
 
 /**

@@ -29,6 +29,12 @@ import { OFFER_DETAIL_COPY, exchangeChatContext } from './copy'
 export const TRADER_CARD_COPY = {
   anonymous: 'Trader',
   you: 'You',
+  /**
+   * The card renders the escrow's CREATOR, so for a seller reading their own
+   * offer it is their own card — and "the person on the other side" above it
+   * named them as somebody else.
+   */
+  selfHeading: 'Your offer, as a buyer sees it',
   rating: 'average rating',
   reviews: (total: number) => (total === 1 ? 'review' : 'reviews'),
   unrated: 'No rating yet',
@@ -59,7 +65,7 @@ export function TraderCard({
   return (
     <section className="mt-8 border-t border-border-subtle pt-6">
       <Eyebrow as="h2" className="mb-4.5">
-        {OFFER_DETAIL_COPY.trader}
+        {isSelf ? TRADER_CARD_COPY.selfHeading : OFFER_DETAIL_COPY.trader}
       </Eyebrow>
 
       <div className="rounded-card border border-border-subtle bg-surface-card p-5.5 shadow-card">

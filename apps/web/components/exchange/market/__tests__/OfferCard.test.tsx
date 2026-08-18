@@ -119,3 +119,23 @@ describe('OfferCard', () => {
     expect(screen.getByText(OFFER_CARD_COPY.seeker)).toBeInTheDocument()
   })
 })
+
+describe('OfferCard — the rate is compared, not just displayed', () => {
+  it('keeps two close rates DISTINGUISHABLE in the column', () => {
+    // The card's own copy tells readers to compare rates straight down the
+    // column. Rounded to whole units — which is right for a total and wrong
+    // for a rate — GHS 15.40 and 15.49 both printed "GH₵15".
+    const at = (rate: string) =>
+      render(<OfferCard offer={offer({ rate, fiat_currency: 'GHS' })} />).container.textContent ?? ''
+    const low = at('15.4000000000')
+    const high = at('15.4900000000')
+    expect(low).toContain('GH₵15.40')
+    expect(high).toContain('GH₵15.49')
+    expect(low).not.toEqual(high)
+  })
+
+  it('leaves a whole rate whole — most NGN rates are, and ₦1,500.00 is noise', () => {
+    render(<OfferCard offer={offer()} />)
+    expect(screen.getByText('₦1,500')).toBeInTheDocument()
+  })
+})

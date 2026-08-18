@@ -206,3 +206,30 @@ describe('OfferActionAside — order of events', () => {
     expect(within(steps).getByText(/You confirm the money arrived/)).toBeInTheDocument()
   })
 })
+
+describe('OfferHeadline — rate precision', () => {
+  it('does not round the deciding figure to whole units', () => {
+    // This is the 44px number a reader decides on. Rounding it to "GH₵15"
+    // hides the difference between the offer they picked and the next one.
+    render(
+      <OfferHeadline
+        offer={makeExchangeDetail({ rate: '15.4900000000', fiat_currency: 'GHS' })}
+      />,
+    )
+    expect(
+      within(screen.getByRole('heading', { level: 1 })).getByText('GH₵15.49'),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('OfferTerms — an asset the display metadata does not know', () => {
+  it('renders the raw asset id rather than "undefined"', () => {
+    // `asset` is a plain string on the wire (types/exchange.ts), so a chain
+    // enabled server-side before the client ships its ASSET_META entry lands
+    // here. `rateUnitLabel` has the same fallback and is tested; this one was
+    // the untested twin.
+    render(<OfferTerms offer={makeExchangeDetail({ asset: 'USDC_NEWCHAIN' })} />)
+    expect(screen.getByText(/\/ USDC_NEWCHAIN$/)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('undefined')
+  })
+})

@@ -191,3 +191,14 @@ test.each(CLICKS)('$label raises exactly its own move', async ({ label, offer, u
   }
   view.unmount()
 })
+
+test('a stranger on a SETTLED offer is offered nothing, not a dead button', () => {
+  // The final `return null`. Every other branch renders a control; this is the
+  // seat/status pair where the honest answer is no control at all.
+  const settled = makeExchangeDetail({
+    status: 'completed',
+    counterparty: makeUserRef({ id: 'buyer-1' }),
+  })
+  const { container } = render(<ExchangeCTA offer={settled} userId="stranger" {...noop} />)
+  expect(container.querySelectorAll('button')).toHaveLength(0)
+})

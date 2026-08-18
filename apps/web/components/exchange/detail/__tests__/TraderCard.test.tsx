@@ -9,7 +9,7 @@
  */
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { TRADER_CARD_COPY, TraderCard } from '@/components/exchange/detail'
+import { OFFER_DETAIL_COPY, TRADER_CARD_COPY, TraderCard } from '@/components/exchange/detail'
 import { makeExchangeDetail, makeUserRef } from '../../../../test/factories/exchange'
 
 // Standing is its own fetch and renders nothing until it lands; the card's
@@ -122,5 +122,44 @@ describe('TraderCard', () => {
     )
     expect(screen.queryByRole('link', { name: /^Message / })).toBeNull()
     expect(screen.getByText(TRADER_CARD_COPY.you)).toBeInTheDocument()
+  })
+})
+
+describe('TraderCard — whose card is it', () => {
+  const offer = makeExchangeDetail()
+
+  it('does not call the reader "the person on the other side" of their own offer', () => {
+    // The card renders the escrow's CREATOR. For the seller that is themselves,
+    // and it already says "You" — under a heading claiming it is someone else.
+    render(
+      <TraderCard trader={makeUserRef({ id: 'me' })} offer={offer} currentUserId="me" />,
+    )
+    expect(screen.getByRole('heading', { name: TRADER_CARD_COPY.selfHeading })).toBeInTheDocument()
+    expect(screen.queryByText(OFFER_DETAIL_COPY.trader)).toBeNull()
+  })
+
+  it('still names the counterparty that way for everyone else', () => {
+    render(
+      <TraderCard trader={makeUserRef({ id: 'seller-1' })} offer={offer} currentUserId="me" />,
+    )
+    expect(screen.getByRole('heading', { name: OFFER_DETAIL_COPY.trader })).toBeInTheDocument()
+  })
+})
+
+describe('TraderCard — a trader with no printable name', () => {
+  it('falls back to a neutral noun rather than an empty heading', () => {
+    // Same fallback `OfferCard` is tested for. A blank name here would leave
+    // the profile link and the message link with no accessible name at all.
+    render(
+      <TraderCard
+        trader={makeUserRef({ id: 'seller-1', first_name: '', last_name: '' })}
+        offer={makeExchangeDetail()}
+        currentUserId="me"
+      />,
+    )
+    expect(screen.getAllByText(TRADER_CARD_COPY.anonymous).length).toBeGreaterThan(0)
+    expect(
+      screen.getByRole('link', { name: TRADER_CARD_COPY.message(TRADER_CARD_COPY.anonymous) }),
+    ).toBeInTheDocument()
   })
 })

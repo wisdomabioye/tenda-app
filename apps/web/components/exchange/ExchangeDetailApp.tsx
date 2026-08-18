@@ -49,6 +49,7 @@ import {
   TraderCard,
   exchangeChatContext,
   offerClockFor,
+  type OfferPerspective,
 } from './detail'
 import {
   PaymentInstructionsCard,
@@ -103,7 +104,8 @@ export function ExchangeDetailApp({
   }
 
   const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
-  const clock = offerClockFor(offer)
+  const perspective: OfferPerspective = isCreator ? 'seller' : 'buyer'
+  const clock = offerClockFor(offer, perspective)
 
   function handleTransactionConfirmed() {
     const action = actions.pendingAction
@@ -205,7 +207,7 @@ export function ExchangeDetailApp({
           )}
         </div>
 
-        <OfferActionAside offer={offer} perspective={isCreator ? 'seller' : 'buyer'}>
+        <OfferActionAside offer={offer} perspective={perspective}>
           <ExchangeCTA
             offer={offer}
             userId={userId}

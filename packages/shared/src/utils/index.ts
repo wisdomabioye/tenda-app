@@ -69,6 +69,7 @@ export {
   formatPaymentWindow,
   formatFiat,
   formatFiatShort,
+  formatRate,
   type AssetPaymentDisplay,
 } from './currency-display'
 export {
