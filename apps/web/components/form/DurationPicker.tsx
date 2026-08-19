@@ -3,19 +3,26 @@
 /**
  * Completion-window picker — web port of mobile's DurationPicker: preset
  * chips + a Custom chip revealing a numeric input with a day/hour unit
- * toggle. Same presets, same seconds arithmetic.
+ * toggle.
+ *
+ * The presets and the seconds arithmetic are SHARED (`gig-duration`), not
+ * written here: both clients had them inline and both had the same hole — a
+ * custom window with no ceiling, so 91 days emitted a value the server
+ * refuses while the field said nothing. The over-limit value is still emitted
+ * exactly as typed; what changed is that the reader is told, here, what the
+ * window is.
  */
 import { useState } from 'react'
+import {
+  DURATION_PRESETS,
+  DURATION_UNIT_SECONDS,
+  completionDurationProblem,
+  customDurationToSeconds,
+  durationRangeLabel,
+  type DurationUnit,
+} from '@tenda/shared'
 import { Chip } from '@/components/ui/Chip'
 import { controlClassName } from '@/components/ui/TextField'
-
-const PRESETS: { label: string; seconds: number }[] = [
-  { label: '1d', seconds: 86_400 },
-  { label: '3d', seconds: 259_200 },
-  { label: '7d', seconds: 604_800 },
-  { label: '14d', seconds: 1_209_600 },
-  { label: '30d', seconds: 2_592_000 },
-]
 
 export function DurationPicker({
   label = 'Completion window',
@@ -28,10 +35,22 @@ export function DurationPicker({
   value: number
   onChange: (seconds: number) => void
 }) {
-  const isPreset = PRESETS.some((p) => p.seconds === value)
-  const [customMode, setCustomMode] = useState(!isPreset && value > 0)
-  const [customNum, setCustomNum] = useState(isPreset ? '' : String(Math.round(value / 86_400)))
-  const [unit, setUnit] = useState<'hours' | 'days'>('days')
+  const isPreset = DURATION_PRESETS.some((p) => p.seconds === value)
+  // Seed from the value only when there IS a custom value. `String(Math.round(
+  // 0 / 86400))` is '0', so an unset field opened pre-filled with a zero it
+  // then objected to; and a custom window measured in HOURS rounded to '0'
+  // days, which is what a resumed 6-hour draft used to display.
+  const isCustom = !isPreset && value > 0
+  const initialUnit: DurationUnit =
+    isCustom && value % DURATION_UNIT_SECONDS.days !== 0 ? 'hours' : 'days'
+  const [unit, setUnit] = useState<DurationUnit>(initialUnit)
+  const [customNum, setCustomNum] = useState(
+    isCustom ? String(Math.round(value / DURATION_UNIT_SECONDS[initialUnit])) : '',
+  )
+  const [customMode, setCustomMode] = useState(isCustom)
+  // Only while the reader is in the custom field: a preset cannot be wrong,
+  // and an untouched field should not be scolded before it is filled in.
+  const problem = customMode && customNum !== '' ? completionDurationProblem(value) : null
 
   function selectPreset(seconds: number) {
     setCustomMode(false)
@@ -40,15 +59,15 @@ export function DurationPicker({
 
   function handleCustomChange(val: string) {
     setCustomNum(val)
-    const n = parseInt(val, 10)
-    if (n > 0) onChange(n * (unit === 'days' ? 86_400 : 3_600))
+    const seconds = customDurationToSeconds(val, unit)
+    if (seconds !== null) onChange(seconds)
   }
 
   function toggleUnit() {
-    const next = unit === 'days' ? 'hours' : 'days'
+    const next: DurationUnit = unit === 'days' ? 'hours' : 'days'
     setUnit(next)
-    const n = parseInt(customNum, 10)
-    if (n > 0) onChange(n * (next === 'days' ? 86_400 : 3_600))
+    const seconds = customDurationToSeconds(customNum, next)
+    if (seconds !== null) onChange(seconds)
   }
 
   return (
@@ -56,7 +75,7 @@ export function DurationPicker({
       <p className="text-sm font-semibold text-content-primary">{label}</p>
       <p className="-mt-1 text-xs text-content-tertiary">{helper}</p>
       <div className="flex flex-wrap gap-2">
-        {PRESETS.map((p) => (
+        {DURATION_PRESETS.map((p) => (
           <Chip
             key={p.label}
             label={p.label}
@@ -83,6 +102,14 @@ export function DurationPicker({
             {unit}
           </button>
         </div>
+      )}
+      {customMode && (
+        <p
+          className={problem === null ? 'text-xs text-content-tertiary' : 'text-xs text-feedback-danger-text'}
+          role={problem === null ? undefined : 'alert'}
+        >
+          {problem ?? `Anything from ${durationRangeLabel()}.`}
+        </p>
       )}
     </div>
   )

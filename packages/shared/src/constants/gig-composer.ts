@@ -7,7 +7,8 @@
  */
 import type { GigCategory } from './categories'
 import type { ProofType } from './proofs'
-import { isValidCompletionDuration, isValidGigAmountRaw } from '../utils/validation'
+import { isValidGigAmountRaw } from '../utils/validation'
+import { completionDurationProblem } from '../utils/gig-duration'
 import { gigBudgetRangeLabel } from '../utils/gig-budget'
 
 export const TITLE_MAX = 80
@@ -121,7 +122,11 @@ export const GIG_REQUIREMENTS = {
     }
     return null
   },
-  duration: (v) => (!isValidCompletionDuration(v.completionDuration) ? 'Set a delivery time' : null),
+  // Says WHICH way it is wrong. This answered 'Set a delivery time' for both
+  // "none yet" and "91 days", so a reader who had just typed a window was told
+  // to enter one — the same undifferentiated message the budget rule carried
+  // before #32, fixed the same way.
+  duration: (v) => completionDurationProblem(v.completionDuration),
 } satisfies Record<string, GigRequirementCheck>
 
 /** The first requirement not yet met, in the order the reader meets them. */

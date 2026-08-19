@@ -6,6 +6,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { MAX_COMPLETION_DURATION_SECONDS } from '../../src/utils/validation'
+import { durationRangeLabel } from '../../src/utils/gig-duration'
 import {
   getGigMissingRequirement,
   getGigStepMissingRequirement,
@@ -40,16 +41,19 @@ test('does not require a location for remote work', () => {
 
 test('validates payment independently from details', () => {
   assert.strictEqual(getGigStepMissingRequirement('payment', { ...VALID, paymentRaw: '' }), 'Set a budget')
+  // Both of these used to answer 'Set a delivery time'. They are values a
+  // reader HAS set — one second, and 90 days plus one — so since #36 they are
+  // told what the legal window is instead of being asked for a window again.
   assert.strictEqual(
     getGigStepMissingRequirement('payment', { ...VALID, completionDuration: 1 }),
-    'Set a delivery time',
+    `Delivery time must be ${durationRangeLabel()}`,
   )
   assert.strictEqual(
     getGigStepMissingRequirement('payment', {
       ...VALID,
       completionDuration: MAX_COMPLETION_DURATION_SECONDS + 1,
     }),
-    'Set a delivery time',
+    `Delivery time must be ${durationRangeLabel()}`,
   )
   assert.strictEqual(getGigStepMissingRequirement('payment', VALID), null)
 })
@@ -58,4 +62,29 @@ test('rechecks the complete form before final submission', () => {
   assert.strictEqual(getGigMissingRequirement(VALID), null)
   assert.strictEqual(getGigMissingRequirement({ ...VALID, title: '' }), 'Add a title')
   assert.strictEqual(getGigMissingRequirement({ ...VALID, paymentRaw: '' }), 'Set a budget')
+})
+
+test('the duration requirement distinguishes "none yet" from "out of range"', () => {
+  // Both used to read 'Set a delivery time', so a reader who had just typed
+  // 91 days was told to enter something they had entered (#36).
+  assert.strictEqual(
+    getGigStepMissingRequirement('payment', { ...VALID, completionDuration: 0 }),
+    'Set a delivery time',
+  )
+  assert.strictEqual(
+    getGigStepMissingRequirement('payment', {
+      ...VALID,
+      completionDuration: MAX_COMPLETION_DURATION_SECONDS + 1,
+    }),
+    `Delivery time must be ${durationRangeLabel()}`,
+  )
+})
+
+test('a legal window is no requirement at all, at either boundary', () => {
+  for (const seconds of [3600, MAX_COMPLETION_DURATION_SECONDS]) {
+    assert.strictEqual(
+      getGigStepMissingRequirement('payment', { ...VALID, completionDuration: seconds }),
+      null,
+    )
+  }
 })

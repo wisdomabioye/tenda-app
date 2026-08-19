@@ -6,6 +6,7 @@
  */
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
+import { completionDurationProblem } from '@tenda/shared'
 import type { GigFormValues, ModerationPreviewResponse } from '@tenda/shared'
 
 // These two suites drive the whole five-step wizard: each `advance()` renders
@@ -178,8 +179,9 @@ test('the last step still phrases its OWN requirement as review and sign', async
 })
 
 test('the final-step hint never names a requirement the step it points at does not own', async () => {
-  // Reachable: DurationPicker's custom path does not clamp, so 91 days is an
-  // invalid completion window. Land on money with BOTH that and no budget.
+  // Reachable: DurationPicker deliberately does not clamp, so 91 days reaches
+  // the form as an invalid completion window — it is REFUSED by name rather
+  // than quietly rewritten (#36). Land on money with BOTH that and no budget.
   //
   // The two halves of this sentence used to come from different orderings —
   // the requirement from mobile's 3-step order (budget before duration), the
@@ -189,7 +191,11 @@ test('the final-step hint never names a requirement the step it points at does n
   await renderForm({ ...VALID, completionDuration: 91 * 86_400, paymentRaw: '' })
   fireEvent.click(screen.getByRole('button', { name: /Amount and signing/ }))
   expect(screen.getByText('Step 5 of 5')).toBeInTheDocument()
-  expect(screen.getByText('Set a delivery time — go back to Where and when')).toBeInTheDocument()
+  // Since #36 the requirement names the window rather than merely asking for
+  // one — the reader here HAS set a duration, it is just too long.
+  expect(
+    screen.getByText(`${completionDurationProblem(91 * 86_400)} — go back to Where and when`),
+  ).toBeInTheDocument()
   expect(screen.queryByText(/Set a budget — go back/)).not.toBeInTheDocument()
 })
 

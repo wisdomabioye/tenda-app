@@ -1,4 +1,12 @@
 export * from './gig-utils'
+export {
+  DURATION_UNIT_SECONDS,
+  DURATION_PRESETS,
+  customDurationToSeconds,
+  durationRangeLabel,
+  completionDurationProblem,
+  type DurationUnit,
+} from './gig-duration'
 export { computePlatformFee, computePlatformFeeRaw } from './fees'
 export { isCrossBorder } from './cross-border'
 export { LAMPORTS_PER_SOL } from './constants'
