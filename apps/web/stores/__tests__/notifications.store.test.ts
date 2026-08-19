@@ -38,6 +38,89 @@ beforeEach(() => {
   useNotificationsStore.getState().reset()
 })
 
+describe('a SETTLED feed keeps its answer through a refresh (#48)', () => {
+  /** Settle the feed on a genuinely EMPTY account — the case both guards protect. */
+  async function settleEmpty() {
+    notificationsApi.feed.mockResolvedValue({ notifications: [], announcements: [], unread_count: 0 })
+    await useNotificationsStore.getState().fetchFeed()
+    expect(useNotificationsStore.getState().feedStatus).toBe('ready')
+  }
+
+  it('a refresh does not re-raise the skeleton over a settled EMPTY feed', async () => {
+    // The column shows its skeleton when the status is 'loading' AND it holds
+    // no rows — a guard that protects a populated feed and fails an empty one.
+    // Before this, every refresh blinked a skeleton over a correct "nothing new".
+    await settleEmpty()
+    let statusDuringRefresh: string | null = null
+    notificationsApi.feed.mockImplementation(async () => {
+      statusDuringRefresh = useNotificationsStore.getState().feedStatus
+      return { notifications: [], announcements: [], unread_count: 0 }
+    })
+    await useNotificationsStore.getState().fetchFeed()
+    expect(statusDuringRefresh).toBe('ready')
+  })
+
+  it('a FAILED refresh does not replace a settled EMPTY feed with the error state', async () => {
+    // "Could not load your notifications" over an account that simply has none
+    // is a worse lie than saying nothing new arrived.
+    await settleEmpty()
+    notificationsApi.feed.mockRejectedValue(new Error('down'))
+    await useNotificationsStore.getState().fetchFeed()
+    expect(useNotificationsStore.getState().feedStatus).toBe('ready')
+    expect(useNotificationsStore.getState().isFetchingFeed).toBe(false)
+  })
+
+  it('a FIRST load still raises the skeleton', async () => {
+    let statusDuringLoad: string | null = null
+    notificationsApi.feed.mockImplementation(async () => {
+      statusDuringLoad = useNotificationsStore.getState().feedStatus
+      return { notifications: [], announcements: [], unread_count: 0 }
+    })
+    await useNotificationsStore.getState().fetchFeed()
+    expect(statusDuringLoad).toBe('loading')
+  })
+
+  it('a retry AFTER an error still raises the skeleton', async () => {
+    notificationsApi.feed.mockRejectedValue(new Error('down'))
+    await useNotificationsStore.getState().fetchFeed()
+    expect(useNotificationsStore.getState().feedStatus).toBe('error')
+
+    let statusDuringRetry: string | null = null
+    notificationsApi.feed.mockImplementation(async () => {
+      statusDuringRetry = useNotificationsStore.getState().feedStatus
+      return { notifications: [], announcements: [], unread_count: 0 }
+    })
+    await useNotificationsStore.getState().fetchFeed()
+    expect(statusDuringRetry).toBe('loading')
+  })
+
+  it('fetchMore stays blocked during a BACKGROUND refresh, when the status says ready', async () => {
+    // Why the in-flight flag survived as its own field. Collapsing it into
+    // feedStatus would have made this pass silently: the guard keeps a settled
+    // feed on 'ready', so a status-based check would see "not loading" and let
+    // fetchMore append against a cursor the concurrent refresh is about to
+    // invalidate — it replaces the list wholesale.
+    notificationsApi.feed.mockResolvedValue({
+      notifications: page(NOTIFICATION_PAGE_SIZE),
+      announcements: [],
+      unread_count: 0,
+    })
+    await useNotificationsStore.getState().fetchFeed()
+    expect(useNotificationsStore.getState().hasMore).toBe(true)
+
+    let moreCalledDuringRefresh = false
+    notificationsApi.feed.mockImplementation(async (q) => {
+      if (q?.before_id !== undefined) moreCalledDuringRefresh = true
+      else await useNotificationsStore.getState().fetchMore()
+      return { notifications: [], announcements: [], unread_count: 0 }
+    })
+    await useNotificationsStore.getState().fetchFeed()
+
+    expect(useNotificationsStore.getState().feedStatus).toBe('ready')
+    expect(moreCalledDuringRefresh).toBe(false)
+  })
+})
+
 describe('fetchFeed', () => {
   it('stores the feed, badge count, and a full page means more may exist', async () => {
     notificationsApi.feed.mockResolvedValue({
@@ -50,7 +133,7 @@ describe('fetchFeed', () => {
     expect(s.unread).toBe(7)
     expect(s.announcements).toHaveLength(1)
     expect(s.hasMore).toBe(true)
-    expect(s.loading).toBe(false)
+    expect(s.isFetchingFeed).toBe(false)
   })
 
   it('a short page means the feed is complete; a failure clears loading', async () => {
@@ -61,7 +144,7 @@ describe('fetchFeed', () => {
 
     notificationsApi.feed.mockRejectedValue(new Error('down'))
     await useNotificationsStore.getState().fetchFeed()
-    expect(useNotificationsStore.getState().loading).toBe(false)
+    expect(useNotificationsStore.getState().isFetchingFeed).toBe(false)
   })
 
   it('RECORDS a failure rather than only swallowing it', async () => {
@@ -92,7 +175,7 @@ describe('fetchMore', () => {
     await useNotificationsStore.getState().fetchMore() // empty list → no cursor
     useNotificationsStore.setState({ notifications: page(3), hasMore: false })
     await useNotificationsStore.getState().fetchMore() // exhausted
-    useNotificationsStore.setState({ hasMore: true, loading: true })
+    useNotificationsStore.setState({ hasMore: true, isFetchingFeed: true })
     await useNotificationsStore.getState().fetchMore() // initial load in flight
     expect(notificationsApi.feed).not.toHaveBeenCalled()
   })
@@ -161,4 +244,41 @@ it('reset drops everything for the next account', () => {
   expect(s.notifications).toEqual([])
   expect(s.unread).toBe(0)
   expect(s.hasMore).toBe(false)
+})
+
+describe('error paths that had no coverage (adjacent to #48, not part of its DoD)', () => {
+  it('a failed fetchMore clears its own spinner and keeps the rows already loaded', async () => {
+    notificationsApi.feed.mockResolvedValue({
+      notifications: page(NOTIFICATION_PAGE_SIZE),
+      announcements: [],
+      unread_count: 0,
+    })
+    await useNotificationsStore.getState().fetchFeed()
+
+    notificationsApi.feed.mockRejectedValue(new Error('down'))
+    await useNotificationsStore.getState().fetchMore()
+
+    const s = useNotificationsStore.getState()
+    expect(s.loadingMore).toBe(false)
+    // The page the reader already has is still theirs; the next end-reach retries.
+    expect(s.notifications).toHaveLength(NOTIFICATION_PAGE_SIZE)
+    expect(s.feedStatus).toBe('ready')
+  })
+
+  it('a failed markAllRead leaves the badge optimistically cleared, to reconcile on next fetch', async () => {
+    notificationsApi.feed.mockResolvedValue({
+      notifications: [notice({ id: 'n1' })],
+      announcements: [],
+      unread_count: 1,
+    })
+    await useNotificationsStore.getState().fetchFeed()
+    expect(useNotificationsStore.getState().unread).toBe(1)
+
+    notificationsApi.markAllRead.mockRejectedValue(new Error('down'))
+    await useNotificationsStore.getState().markAllRead()
+
+    // Deliberately NOT rolled back: the badge is a hint, and a bounce back to
+    // "1 unread" after the reader cleared it reads as the app arguing with them.
+    expect(useNotificationsStore.getState().unread).toBe(0)
+  })
 })

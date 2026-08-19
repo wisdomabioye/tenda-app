@@ -26,8 +26,9 @@ export function NotificationsListColumn() {
   const notifications = useNotificationsStore((s) => s.notifications)
   const announcements = useNotificationsStore((s) => s.announcements)
   const unread = useNotificationsStore((s) => s.unread)
-  const loading = useNotificationsStore((s) => s.loading)
+
   const feedStatus = useNotificationsStore((s) => s.feedStatus)
+  const isFetchingFeed = useNotificationsStore((s) => s.isFetchingFeed)
   const loadingMore = useNotificationsStore((s) => s.loadingMore)
   const hasMore = useNotificationsStore((s) => s.hasMore)
   const { openPalette } = useCommandPalette()
@@ -36,7 +37,7 @@ export function NotificationsListColumn() {
   // Only when nothing has ever landed. The store is shared with the badge, so
   // a second reader of it must not re-drive the fetch on every remount.
   useEffect(() => {
-    if (notifications.length === 0 && !loading)
+    if (notifications.length === 0 && !isFetchingFeed)
       void useNotificationsStore.getState().fetchFeed()
     // Deliberately mount-only: `notifications.length` in the deps would refire
     // this the moment a feed legitimately empties (mark-all on an empty page).
@@ -77,7 +78,9 @@ export function NotificationsListColumn() {
       keyOf={(n) => n.id}
       hrefOf={(n) => `/notifications/${n.id}`}
       selectedKey={params.notificationId}
-      isLoading={loading && notifications.length === 0}
+      // Reads the STATUS, not the in-flight flag: a background refresh over a
+      // settled feed must not blink a skeleton over it (#48).
+      isLoading={feedStatus === 'loading' && notifications.length === 0}
       // A failed feed is not an empty account. Only when there is nothing to
       // show — a failed background refresh behind rows is not worth taking the
       // rows away for.

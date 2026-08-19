@@ -21,7 +21,16 @@ interface NotificationsState {
   notifications: NotificationWire[]
   announcements: AnnouncementWire[]
   unread: number
-  loading: boolean
+  /**
+   * A full-feed request is IN FLIGHT. Deliberately NOT the same question as
+   * "should the surface show a skeleton" — that is `feedStatus`, which a
+   * settled feed keeps through a background refresh. This one must stay honest
+   * whenever a request is running, because `fetchMore` uses it for mutual
+   * exclusion: a concurrent fetchFeed replaces the list wholesale while
+   * fetchMore appends against the old cursor. Two names because they are two
+   * questions; one name is what let them diverge (#48).
+   */
+  isFetchingFeed: boolean
   loadingMore: boolean
   hasMore: boolean
 
@@ -54,7 +63,7 @@ const INITIAL = {
   announcements: [] as AnnouncementWire[],
   unread: 0,
   feedStatus: 'idle' as InboxStatus,
-  loading: false,
+  isFetchingFeed: false,
   loadingMore: false,
   hasMore: false,
 }
@@ -70,7 +79,16 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   fetchFeed: async () => {
     // #45: this feed belongs to whoever is signed in NOW. See lib/account-state.
     const gen = accountGeneration()
-    set({ loading: true, feedStatus: 'loading' })
+    // The request is in flight either way; the STATUS only moves for a feed
+    // that has not settled. The column raises its skeleton whenever the status
+    // is 'loading' AND it holds no rows — a guard that protects a populated
+    // feed and fails an EMPTY one, which is the commonest account. Same rule,
+    // same shape as chat.store's inbox and chain-registry.store before it.
+    set((s) =>
+      s.feedStatus === 'ready'
+        ? { isFetchingFeed: true }
+        : { isFetchingFeed: true, feedStatus: 'loading' },
+    )
     try {
       const feed = await api.notifications.feed()
       if (!isSameAccount(gen)) return
@@ -79,7 +97,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         announcements: feed.announcements,
         unread: feed.unread_count,
         hasMore: feed.notifications.length >= NOTIFICATION_PAGE_SIZE,
-        loading: false,
+        isFetchingFeed: false,
         feedStatus: 'ready',
       })
     } catch {
@@ -87,14 +105,21 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       // reject — but recorded, so the surface can say which it was. Not for a
       // dead session, though: that error belongs to nobody on screen.
       if (!isSameAccount(gen)) return
-      set({ loading: false, feedStatus: 'error' })
+      // Only when nothing has settled yet. Without this a single failed
+      // background refresh replaced a correct "nothing new" with "could not
+      // load" — the feed had rows' worth of truth, just not newer truth.
+      set((s) =>
+        s.feedStatus === 'ready'
+          ? { isFetchingFeed: false }
+          : { isFetchingFeed: false, feedStatus: 'error' },
+      )
     }
   },
 
   fetchMore: async () => {
-    const { notifications, hasMore, loadingMore, loading } = get()
+    const { notifications, hasMore, loadingMore, isFetchingFeed } = get()
     const cursor = oldestId(notifications)
-    if (cursor === null || !hasMore || loadingMore || loading) return
+    if (cursor === null || !hasMore || loadingMore || isFetchingFeed) return
     const gen = accountGeneration()
     set({ loadingMore: true })
     try {

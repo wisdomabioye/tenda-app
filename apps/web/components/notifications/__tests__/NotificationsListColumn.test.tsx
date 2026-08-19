@@ -55,7 +55,7 @@ beforeEach(() => {
     announcements: [],
     unread: 1,
     feedStatus: 'ready',
-    loading: false,
+    isFetchingFeed: false,
     loadingMore: false,
     hasMore: false,
     fetchFeed,
@@ -121,7 +121,7 @@ describe('NotificationsListColumn', () => {
     // The store swallows the error (every caller is a badge refresh that must
     // not reject), so without a status the centre said "Nothing new" to
     // someone whose server was simply unreachable.
-    useNotificationsStore.setState({ notifications: [], feedStatus: 'error', loading: false })
+    useNotificationsStore.setState({ notifications: [], feedStatus: 'error', isFetchingFeed: false })
     render(<NotificationsListColumn />)
     expect(screen.getByText(NOTIFICATIONS_LIST_COPY.error)).toBeInTheDocument()
     expect(screen.queryByText(NOTIFICATIONS_LIST_COPY.surface.emptyTitle)).toBeNull()
@@ -174,12 +174,12 @@ describe('NotificationsListColumn', () => {
   })
 
   it('shows a skeleton only before the first rows, never over them', () => {
-    useNotificationsStore.setState({ loading: true })
+    useNotificationsStore.setState({ isFetchingFeed: true })
     render(<NotificationsListColumn />)
     expect(screen.getByRole('link', { name: /Gig accepted/ })).toBeInTheDocument()
 
     cleanup()
-    useNotificationsStore.setState({ loading: true, notifications: [] })
+    useNotificationsStore.setState({ isFetchingFeed: true, feedStatus: 'loading', notifications: [] })
     render(<NotificationsListColumn />)
     expect(screen.queryByText(NOTIFICATIONS_LIST_COPY.surface.emptyTitle)).toBeNull()
   })
@@ -190,14 +190,14 @@ describe('the notification pane', () => {
     // "Pick a notification" is a claim about what the reader did, and on a
     // deep link they already picked one — the feed just has not landed.
     routeParams = { notificationId: 'ntf-9' }
-    useNotificationsStore.setState({ notifications: [], loading: true })
+    useNotificationsStore.setState({ notifications: [], isFetchingFeed: true })
     const { container } = render(<NotificationDetailPage />)
     expect(container).toBeEmptyDOMElement()
   })
 
   it('offers the empty state once the feed HAS landed without it', () => {
     routeParams = { notificationId: 'ntf-9' }
-    useNotificationsStore.setState({ notifications: [], loading: false })
+    useNotificationsStore.setState({ notifications: [], isFetchingFeed: false })
     render(<NotificationDetailPage />)
     expect(screen.getByText(NOTIFICATIONS_LIST_COPY.emptyDetailTitle)).toBeInTheDocument()
   })

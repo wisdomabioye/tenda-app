@@ -27,7 +27,9 @@ export default function NotificationDetailPage() {
   const notification = useNotificationsStore((s) =>
     s.notifications.find((n) => n.id === notificationId),
   )
-  const loading = useNotificationsStore((s) => s.loading)
+  // The IN-FLIGHT flag, not the status: this asks "has the feed landed yet",
+  // and a settled feed keeps status 'ready' straight through a refresh (#48).
+  const isFetchingFeed = useNotificationsStore((s) => s.isFetchingFeed)
   const isUnread = notification !== undefined && notification.read_at === null
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function NotificationDetailPage() {
     // a DEEP LINK they have already picked one — the feed simply has not
     // landed yet. Say nothing until it has; the empty state is the answer only
     // once the id is genuinely not among the notices this account holds.
-    if (loading) return null
+    if (isFetchingFeed) return null
     return (
       <DetailEmpty
         title={NOTIFICATIONS_LIST_COPY.emptyDetailTitle}
