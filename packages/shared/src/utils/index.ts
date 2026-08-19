@@ -7,7 +7,12 @@ export {
   completionDurationProblem,
   type DurationUnit,
 } from './gig-duration'
-export { computePlatformFee, computePlatformFeeRaw } from './fees'
+export {
+  computePlatformFee,
+  computePlatformFeeRaw,
+  escrowFeeBreakdown,
+  type EscrowFeeBreakdown,
+} from './fees'
 export { isCrossBorder } from './cross-border'
 export { LAMPORTS_PER_SOL } from './constants'
 export { parseUnits, formatUnits, sanitizeDecimalText } from './units'
