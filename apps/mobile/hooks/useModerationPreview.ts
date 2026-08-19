@@ -37,6 +37,12 @@ export function useModerationPreview(input: ModerationPreviewInput): ModerationP
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current)
     if (!ready) {
+      // Bump the sequence as well as clearing: a request may already be in
+      // flight for the input the reader has just abandoned, and losing
+      // readiness supersedes nothing on its own — its answer would still match
+      // the sequence and set itself, bringing the hint back over a gig that no
+      // longer has a budget (or a title, or a category).
+      ++requestSeq.current
       setVerdict(null)
       return
     }

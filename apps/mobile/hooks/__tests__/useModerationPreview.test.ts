@@ -198,3 +198,29 @@ test('a MALFORMED budget never reaches the API — the server answers 422 for it
   }
   expect(mockPreview).not.toHaveBeenCalled()
 })
+
+test('a request already IN FLIGHT cannot bring the hint back after readiness is lost', async () => {
+  // The gap between the two rules this file already pins. Leaving the ready
+  // state clears the verdict, and a superseded request is dropped by sequence —
+  // but losing readiness supersedes nothing, so the answer to the input the
+  // reader has just abandoned still matched the sequence and set itself. The
+  // "looks risky" hint reappeared over a budget that was no longer there.
+  let resolveIt!: (v: ModerationPreviewResponse) => void
+  mockPreview.mockImplementationOnce(
+    () => new Promise<ModerationPreviewResponse>((res) => { resolveIt = res }),
+  )
+
+  const { result, rerender } = renderHook(
+    (input: ModerationPreviewInput) => useModerationPreview(input),
+    { initialProps: READY },
+  )
+  await debounce()
+  act(() => rerender({ ...READY, paymentRaw: '' }))
+  expect(result.current).toBeNull()
+
+  await act(async () => {
+    resolveIt(VERDICT)
+    await Promise.resolve()
+  })
+  expect(result.current).toBeNull()
+})
