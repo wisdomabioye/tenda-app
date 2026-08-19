@@ -10,7 +10,7 @@ import {
   formatAssetAmount,
   splitAssetAmount,
 } from '../../src/constants/assets'
-import { parseUnits } from '../../src/utils/units'
+import { parseUnits, formatUnits } from '../../src/utils/units'
 
 test('ASSET_META: every entry has a symbol, non-negative decimals, boolean is_stable, coingeckoId', () => {
   for (const [id, meta] of Object.entries(ASSET_META)) {
@@ -108,4 +108,36 @@ test('splitAssetAmount: joined by a single space IS formatAssetAmount', () => {
 
 test('splitAssetAmount: zero is a value, never an empty half', () => {
   assert.deepEqual(splitAssetAmount('0', 'USDC_BASE'), { amount: '0', symbol: 'USDC' })
+})
+
+test('amountRawToDisplay: exact at 4dp across the realistic range, for an 18-decimal asset', () => {
+  // Pins the bound the docstring states (#50), so an "optimisation" that
+  // widened the loss would be caught. Compared against formatUnits, which is
+  // BigInt-exact, at the 4 decimal places the app actually renders.
+  const at4 = (raw: string) => amountRawToDisplay(raw, 'cUSD').toFixed(4)
+  const exactAt4 = (raw: string) => {
+    const [whole, frac = ''] = formatUnits(raw, 18).split('.')
+    return Number(`${whole}.${(frac + '00000').slice(0, 5)}`).toFixed(4)
+  }
+  const raw = (tokens: string) => {
+    const [whole, frac = ''] = tokens.split('.')
+    return (BigInt(whole) * 10n ** 18n + BigInt((frac + '0'.repeat(18)).slice(0, 18))).toString()
+  }
+  for (const tokens of ['1250.7531', '12345.6789', '1234567.8912', '123456789.1234', '123456789012.3456']) {
+    assert.equal(at4(raw(tokens)), exactAt4(raw(tokens)), `diverged at ${tokens} tokens`)
+  }
+})
+
+test('amountRawToDisplay: asking for the asset FULL decimals is what breaks it', () => {
+  // The measured sharp edge, kept visible so nobody reintroduces it: at 18
+  // decimals a double cannot carry the fraction, and the loss starts around
+  // one token — nowhere near the ~1.2e12 ceiling the 4dp reading enjoys.
+  const raw = '1234567890123456789' // 1.234567890123456789 cUSD
+  assert.equal(formatUnits(raw, 18), '1.234567890123456789')
+  assert.notEqual(
+    amountRawToDisplay(raw, 'cUSD').toLocaleString('en-US', { maximumFractionDigits: 18 }),
+    '1.234567890123456789',
+  )
+  // ...while the 4dp reading every surface uses stays honest.
+  assert.equal(splitAssetAmount(raw, 'cUSD').amount, '1.2346')
 })

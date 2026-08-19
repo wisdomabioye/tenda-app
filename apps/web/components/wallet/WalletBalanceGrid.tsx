@@ -7,7 +7,7 @@
  * different facts, and the second one dressed as the first is the wallet bug
  * this app already fixed once at the section level (`resolveWalletSection`).
  */
-import { amountRawToDisplay, truncateWallet, type WalletChainBalance } from '@tenda/shared'
+import { splitAssetAmount, truncateWallet, type WalletChainBalance } from '@tenda/shared'
 import { WALLET_COPY } from './copy'
 
 interface Reading {
@@ -15,11 +15,24 @@ interface Reading {
   unit: string
 }
 
+/**
+ * Through the shared formatter, like every other amount in the app and like
+ * this grid's own mobile twin (WalletBalanceRows → formatAssetAmount).
+ *
+ * It used to ask `toLocaleString` for `balance.decimals` fraction digits off a
+ * float, which for the 18-decimal assets (ETH, cUSD, CELO) is more precision
+ * than a double carries: 1.234567890123456789 cUSD rendered as
+ * "1.2345678901234567" — six trailing digits of float noise presented as a
+ * balance (#50). This was the only `maximumFractionDigits: <decimals>` in the
+ * monorepo.
+ *
+ * `balance.symbol` stays the unit rather than the formatter's: it comes from
+ * the chain read, so an asset outside ASSET_META still shows its real ticker.
+ */
 function readingOf(balance: WalletChainBalance['usdc']): Reading | null {
   if (balance === null) return null
-  const amount = amountRawToDisplay(balance.amountRaw, balance.assetId)
   return {
-    value: amount.toLocaleString('en-US', { maximumFractionDigits: balance.decimals }),
+    value: splitAssetAmount(balance.amountRaw, balance.assetId).amount,
     unit: balance.symbol,
   }
 }

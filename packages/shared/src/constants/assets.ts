@@ -73,7 +73,28 @@ export const GIG_STABLE_MAX_DISPLAY = '50000'
 export const GIG_NATIVE_MIN_DISPLAY = '0.001'
 export const GIG_NATIVE_MAX_DISPLAY = '10000'
 
-/** Display units for a raw integer amount ('5000000', 'USDC_SOL' → 5). */
+/**
+ * Display units for a raw integer amount ('5000000', 'USDC_SOL' → 5).
+ *
+ * FLOAT, AND DISPLAY-ONLY. Base units are up to 78-digit strings and a double
+ * carries ~15-16 significant decimal digits, so this is lossy by construction.
+ * Anything that feeds a chain, or is compared against another amount, must use
+ * `parseUnits`/`formatUnits` (utils/units), which are BigInt-exact.
+ *
+ * THE BOUND, measured rather than assumed (#50). Rounded to 4 decimal places —
+ * what `splitAssetAmount` and every amount surface in the app shows — the float
+ * result matches a BigInt-exact one up to 16 significant digits, and first
+ * disagrees at 17: for an 18-decimal asset, 1,234,567,890,123.4567 tokens
+ * renders as ...4568. That ceiling is ~1.2e12 tokens, which no asset here can
+ * reach — CELO's entire supply is 1e9, and 1.2e12 cUSD would be $1.2 trillion.
+ *
+ * So the safe rule is about DIGITS ASKED FOR, not amount size: keep the display
+ * to a few fraction digits. A caller that asks for the asset's full `decimals`
+ * defeats the bound immediately — at 18 decimals the noise starts around ONE
+ * token (1.234567890123456789 comes back as 1.2345678901234567). That was a
+ * real defect in web's WalletBalanceGrid, fixed in #50 by routing it through
+ * `splitAssetAmount` like every other surface.
+ */
 export function amountRawToDisplay(amount_raw: string, asset: string): number {
   const meta = ASSET_META[asset]
   if (meta === undefined) return Number(amount_raw)

@@ -53,6 +53,30 @@ describe('WalletBalanceGrid', () => {
     expect(container.textContent).toContain(WALLET_COPY.noNative)
   })
 
+  it('an 18-decimal balance shows a rounded figure, never a float tail (#50)', () => {
+    // 1.234567890123456789 cUSD. The grid used to ask toLocaleString for
+    // `decimals` fraction digits off a float, which is more precision than a
+    // double carries: it rendered "1.2345678901234567" — six trailing digits
+    // of arithmetic noise, presented to the reader as their balance.
+    const cusd: WalletChainBalance = {
+      chainId: 'eip155:42220',
+      namespace: 'eip155',
+      displayName: 'Celo',
+      address: '0xAbCdEf0000000000000000000000000000001234',
+      usdc: {
+        assetId: 'cUSD',
+        symbol: 'cUSD',
+        amountRaw: '1234567890123456789',
+        decimals: 18,
+        isStable: true,
+      },
+      native: null,
+    }
+    const { container } = render(<WalletBalanceGrid balances={[cusd]} />)
+    expect(screen.getByText('1.2346')).toBeInTheDocument()
+    expect(container.textContent).not.toContain('1.2345678901234567')
+  })
+
   it('renders nothing at all when there are no chains', () => {
     const { container } = render(<WalletBalanceGrid balances={[]} />)
     expect(container.firstChild).toBeNull()
