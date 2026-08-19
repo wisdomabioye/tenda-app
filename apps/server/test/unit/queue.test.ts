@@ -440,7 +440,7 @@ test('a directory under src/plugins is exactly one plugin', () => {
   //    depth is capped here instead of just recursing and checking rule 1.
   //    Helpers belong in flat files beside the index, where rule 1 hides them.
   //
-  // Nothing else would catch either: test/helpers/test-app.ts registers
+  // Nothing else would catch either: test/helpers/test-app/app.ts registers
   // `queuePlugin` by hand rather than autoloading src/plugins, so the whole
   // integration suite can pass while the real server boots differently.
   const pluginsDir = join(__dirname, '..', '..', 'src', 'plugins')

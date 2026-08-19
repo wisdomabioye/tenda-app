@@ -1,6 +1,6 @@
 /**
  * Shared HTTP error/404 handlers, registered by the production app
- * (src/app.ts) AND the integration-test harness (test/helpers/test-app.ts)
+ * (src/app.ts) AND the integration-test harness (test/helpers/test-app/app.ts)
  * so injected requests surface the exact same error envelope as prod.
  */
 import type { FastifyError, FastifyInstance } from 'fastify'
