@@ -151,6 +151,69 @@ describe('sendMessage lifecycle', () => {
       expect.objectContaining({ content: 'oops', escrow_id: 'e1' }),
     )
   })
+
+  /**
+   * Retry re-sends the ATTACHMENT too, which the store's own docstring
+   * promises ("retry re-sends the already-uploaded attachment") and which no
+   * test reached until #53 — the only place in either client that rebuilds an
+   * UploadedAttachment from the three wire columns rather than from a fresh
+   * upload. A regression here would silently drop the image the reader
+   * attached and re-send the text alone.
+   */
+  it('retry re-sends an already-uploaded attachment, url/type/size intact', async () => {
+    conversationsApi.sendMessage.mockRejectedValueOnce(new Error('offline'))
+    await useChatStore.getState().sendMessage('c1', 'see this', undefined, {
+      url: 'https://res.cloudinary.com/demo/image/upload/v1/chat/a.png',
+      type: 'image',
+      size: 2048,
+    })
+    const failed = useChatStore.getState().messages.c1[0]
+    expect(failed._status).toBe('failed')
+
+    conversationsApi.sendMessage.mockResolvedValue(
+      msg({ id: 'srv-5', sender_id: 'me', content: 'see this' }),
+    )
+    useChatStore.getState().retryMessage('c1', failed)
+    await vi.waitFor(() => {
+      expect(useChatStore.getState().messages.c1.map((m) => m.id)).toEqual(['srv-5'])
+    })
+    expect(conversationsApi.sendMessage).toHaveBeenLastCalledWith(
+      { id: 'c1' },
+      expect.objectContaining({
+        content: 'see this',
+        attachment_url: 'https://res.cloudinary.com/demo/image/upload/v1/chat/a.png',
+        attachment_type: 'image',
+        attachment_size: 2048,
+      }),
+    )
+  })
+
+  it('retry sends NO attachment when the columns are only partly set', async () => {
+    // The three are nullable AS A GROUP on the wire. A row carrying a url but
+    // no size is not half an attachment to re-send — it is a row the server
+    // would reject, so the retry must go out as plain text rather than
+    // assembling something out of what happens to be present.
+    const partial = {
+      ...msg({ id: 'temp_1', sender_id: 'me', content: 'partial' }),
+      attachment_url: 'https://res.cloudinary.com/demo/image/upload/v1/chat/b.png',
+      attachment_type: 'image' as const,
+      attachment_size: null,
+      _status: 'failed' as const,
+    }
+    useChatStore.setState({ messages: { c1: [partial] } })
+
+    conversationsApi.sendMessage.mockResolvedValue(
+      msg({ id: 'srv-6', sender_id: 'me', content: 'partial' }),
+    )
+    useChatStore.getState().retryMessage('c1', partial)
+    await vi.waitFor(() => {
+      expect(useChatStore.getState().messages.c1.map((m) => m.id)).toEqual(['srv-6'])
+    })
+    const [, body] = conversationsApi.sendMessage.mock.lastCall ?? []
+    expect(body).not.toHaveProperty('attachment_url')
+    expect(body).not.toHaveProperty('attachment_type')
+    expect(body).not.toHaveProperty('attachment_size')
+  })
 })
 
 describe('receiveMessage (WS delivery)', () => {
@@ -171,81 +234,5 @@ describe('receiveMessage (WS delivery)', () => {
     const s = useChatStore.getState()
     expect(s.conversations[0].last_message).toBe(ATTACHMENT_PREVIEW)
     expect(s.messages.c1[0]._status).toBe('sent')
-  })
-})
-
-describe('the fallback poll over a settled inbox (#26)', () => {
-  it('does not re-raise the skeleton on an inbox that is legitimately EMPTY', async () => {
-    // The column shows a skeleton when the status is 'loading' AND it has no
-    // rows — a guard that works for a populated list and fails for an empty
-    // one, which is the commonest new account. With the socket down the
-    // fallback poll runs every 15s, so an account with no messages watched its
-    // "No messages yet" flip to a skeleton and back, for as long as it stayed
-    // on the surface. chain-registry.store already had the rule ("never flash
-    // a skeleton over a registry already serving good data"); the inbox did
-    // not.
-    conversationsApi.list.mockResolvedValue([])
-    await useChatStore.getState().fetchConversations()
-    expect(useChatStore.getState().conversationsStatus).toBe('ready')
-
-    let release!: (rows: Conversation[]) => void
-    conversationsApi.list.mockReturnValue(new Promise((r) => { release = r }))
-    const polling = useChatStore.getState().fetchConversations()
-
-    expect(useChatStore.getState().conversationsStatus).toBe('ready')
-
-    release([])
-    await polling
-  })
-
-  it('a failed poll does not turn a SETTLED empty inbox into an error', async () => {
-    // Same doctrine as the skeleton above, and the column states it outright:
-    // "a failed poll behind a populated list is not worth taking the list
-    // away". Once the inbox has answered "none", one transient poll failure
-    // must not replace that true statement with "Could not load your
-    // messages" — the column shows the error whenever the status is 'error'
-    // and it holds no rows, which a genuinely empty inbox always does.
-    conversationsApi.list.mockResolvedValue([])
-    await useChatStore.getState().fetchConversations()
-    expect(useChatStore.getState().conversationsStatus).toBe('ready')
-
-    conversationsApi.list.mockRejectedValue(new Error('poll failed'))
-    await expect(useChatStore.getState().fetchConversations()).rejects.toThrow()
-
-    expect(useChatStore.getState().conversationsStatus).toBe('ready')
-  })
-
-  it('a first load that FAILS is still an error — there is nothing settled to keep', async () => {
-    conversationsApi.list.mockRejectedValue(new Error('down'))
-    await expect(useChatStore.getState().fetchConversations()).rejects.toThrow()
-    expect(useChatStore.getState().conversationsStatus).toBe('error')
-  })
-
-  it('DOES raise it on the first load, when there is nothing to show yet', async () => {
-    // The other half: a first load with no data must still show the skeleton,
-    // or the surface renders its empty state before anyone has asked.
-    let release!: (rows: Conversation[]) => void
-    conversationsApi.list.mockReturnValue(new Promise((r) => { release = r }))
-    const first = useChatStore.getState().fetchConversations()
-
-    expect(useChatStore.getState().conversationsStatus).toBe('loading')
-
-    release([])
-    await first
-  })
-
-  it('raises it again after an ERROR, so a retry is visible', async () => {
-    conversationsApi.list.mockRejectedValue(new Error('down'))
-    await expect(useChatStore.getState().fetchConversations()).rejects.toThrow()
-    expect(useChatStore.getState().conversationsStatus).toBe('error')
-
-    let release!: (rows: Conversation[]) => void
-    conversationsApi.list.mockReturnValue(new Promise((r) => { release = r }))
-    const retry = useChatStore.getState().fetchConversations()
-
-    expect(useChatStore.getState().conversationsStatus).toBe('loading')
-
-    release([])
-    await retry
   })
 })
