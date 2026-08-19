@@ -10,14 +10,32 @@
 
 import { create } from 'zustand'
 import { NOTIFICATION_PAGE_SIZE } from '@tenda/shared'
-import type { NotificationWire, AnnouncementWire } from '@tenda/shared'
+import type { NotificationWire, AnnouncementWire, LoadStatus } from '@tenda/shared'
 import { api } from '@/api/client'
 
 interface NotificationsState {
   notifications: NotificationWire[]
   announcements: AnnouncementWire[]
   unread: number
-  loading: boolean
+  /**
+   * A full-feed request is IN FLIGHT. Deliberately NOT the same question as
+   * "should the surface show a skeleton or withdraw its empty state" — that is
+   * `feedStatus`, which a settled feed keeps through a background refresh. This
+   * one must stay honest whenever a request is running, because `fetchMore`
+   * uses it for mutual exclusion: a concurrent fetchFeed replaces the list
+   * wholesale while fetchMore appends against the old cursor.
+   *
+   * It was called `loading` and the screen read it for display, which is how
+   * the empty state came to blink (#57). Two names because they are two
+   * questions; one name is what let them be confused.
+   */
+  isFetchingFeed: boolean
+  /**
+   * Whether the feed has ever been read from the server, in the SHARED
+   * vocabulary (`LoadStatus`) rather than a fourth private copy of it — the
+   * type exists because this exact union had already been written twice.
+   */
+  feedStatus: LoadStatus
   loadingMore: boolean
   hasMore: boolean
 
@@ -41,7 +59,8 @@ const INITIAL = {
   notifications: [] as NotificationWire[],
   announcements: [] as AnnouncementWire[],
   unread: 0,
-  loading: false,
+  isFetchingFeed: false,
+  feedStatus: 'idle' as LoadStatus,
   loadingMore: false,
   hasMore: false,
 }
@@ -55,7 +74,16 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   ...INITIAL,
 
   fetchFeed: async () => {
-    set({ loading: true })
+    // The request is in flight either way; the STATUS only moves for a feed
+    // that has not settled. The screen withdraws its empty state while the
+    // status is 'loading', which is right for a first load and wrong for a
+    // refresh — on an account that genuinely has no notifications, every
+    // pull-to-refresh made "No notifications yet" disappear and come back (#57).
+    set((s) =>
+      s.feedStatus === 'ready'
+        ? { isFetchingFeed: true }
+        : { isFetchingFeed: true, feedStatus: 'loading' },
+    )
     try {
       const feed = await api.notifications.feed()
       set({
@@ -63,17 +91,26 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         announcements: feed.announcements,
         unread: feed.unread_count,
         hasMore: feed.notifications.length >= NOTIFICATION_PAGE_SIZE,
-        loading: false,
+        isFetchingFeed: false,
+        feedStatus: 'ready',
       })
     } catch {
-      set({ loading: false })
+      // Still swallowed — every caller here is fire-and-forget — but recorded,
+      // so a surface that wants to tell a failed load from an empty account
+      // can. Only when nothing has settled yet: a failed refresh must not
+      // discard an answer the reader already has.
+      set((s) =>
+        s.feedStatus === 'ready'
+          ? { isFetchingFeed: false }
+          : { isFetchingFeed: false, feedStatus: 'error' },
+      )
     }
   },
 
   fetchMore: async () => {
-    const { notifications, hasMore, loadingMore, loading } = get()
+    const { notifications, hasMore, loadingMore, isFetchingFeed } = get()
     const cursor = oldestId(notifications)
-    if (cursor === null || !hasMore || loadingMore || loading) return
+    if (cursor === null || !hasMore || loadingMore || isFetchingFeed) return
     set({ loadingMore: true })
     try {
       const feed = await api.notifications.feed({ before_id: cursor })

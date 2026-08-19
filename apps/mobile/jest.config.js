@@ -85,6 +85,13 @@ module.exports = {
   ],
   clearMocks: true,
   collectCoverageFrom: [
+    // The notification centre: the feed store and the screen that reads it.
+    // Added in #57 with the cases that fix the empty-state blink; measured
+    // before listing, and the gate holds (branches 90.57 -> 90.46, still above
+    // the 90 threshold) with the store at 97.91 and the screen's refresh and
+    // end-reached paths now driven rather than left dark.
+    'stores/notifications.store.ts',
+    'app/notifications/index.tsx',
     // The open-thread register and the read-sync debounce (#56). Added with its
     // first suite; measured before listing, and it RAISES the gate (branches
     // 90.46 -> 90.57). Its sibling `stores/realtime.store.ts` is deliberately

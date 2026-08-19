@@ -2,7 +2,8 @@
  * Notification-centre store (Stage 5) — the badge's source of truth. Covers
  * fetchFeed (populate + unread + hasMore), cursor pagination, WS receive
  * (prepend / dedupe / unread bump), optimistic markRead + markAllRead,
- * refreshUnread, and error tolerance (a failed fetch never wedges `loading`).
+ * refreshUnread, and error tolerance (a failed fetch never wedges the
+ * in-flight flag).
  */
 jest.mock('@/api/client', () => ({
   api: {
@@ -52,7 +53,8 @@ beforeEach(() => {
     notifications: [],
     announcements: [],
     unread: 0,
-    loading: false,
+    isFetchingFeed: false,
+    feedStatus: 'idle',
     loadingMore: false,
     hasMore: false,
   })
@@ -68,7 +70,7 @@ describe('fetchFeed', () => {
     expect(store().announcements).toHaveLength(1)
     expect(store().unread).toBe(7)
     expect(store().hasMore).toBe(true)
-    expect(store().loading).toBe(false)
+    expect(store().isFetchingFeed).toBe(false)
   })
 
   test('hasMore is false on a short page', async () => {
@@ -77,10 +79,10 @@ describe('fetchFeed', () => {
     expect(store().hasMore).toBe(false)
   })
 
-  test('a failed fetch never wedges loading and leaves state intact', async () => {
+  test('a failed fetch never wedges the in-flight flag and leaves state intact', async () => {
     feedMock.mockRejectedValueOnce(new Error('network'))
     await store().fetchFeed()
-    expect(store().loading).toBe(false)
+    expect(store().isFetchingFeed).toBe(false)
     expect(store().notifications).toHaveLength(0)
   })
 })
@@ -192,4 +194,61 @@ describe('refreshUnread', () => {
     await store().refreshUnread()
     expect(store().unread).toBe(3)
   })
+})
+
+test('a failed fetchMore clears its own spinner and keeps the rows already loaded', () => {
+  // The append path's negative half, which web's twin suite pins and this one
+  // did not: a page that fails must not strand the footer spinner, and must
+  // not take away the page the reader already has.
+  feedMock.mockResolvedValueOnce(feed({ notifications: fullPage() }))
+  return store()
+    .fetchFeed()
+    .then(() => {
+      feedMock.mockRejectedValueOnce(new Error('down'))
+      return store().fetchMore()
+    })
+    .then(() => {
+      expect(store().loadingMore).toBe(false)
+      expect(store().notifications).toHaveLength(NOTIFICATION_PAGE_SIZE)
+      expect(store().feedStatus).toBe('ready')
+    })
+})
+
+test('fetchMore with nothing loaded asks for nothing — there is no cursor yet', async () => {
+  // The `oldestId` null arm. Without a first page there is no cursor, and
+  // requesting `before_id: undefined` would silently re-fetch page one and
+  // append it to itself.
+  useNotificationsStore.setState({ notifications: [], hasMore: true })
+  await store().fetchMore()
+  expect(feedMock).not.toHaveBeenCalled()
+})
+
+test('markRead marks ONLY the notice it was given', async () => {
+  // Selectivity, previously unproven: every case had a single notice, so the
+  // "leave the others alone" arm of the map never ran.
+  feedMock.mockResolvedValueOnce(feed({ notifications: [notif('n1'), notif('n2')], unread_count: 2 }))
+  await store().fetchFeed()
+  markReadMock.mockResolvedValueOnce(undefined)
+
+  await store().markRead('n1')
+
+  const [first, second] = store().notifications
+  expect(first.read_at).not.toBeNull()
+  expect(second.read_at).toBeNull()
+  expect(store().unread).toBe(1)
+})
+
+test('markAllRead does not re-stamp a notice that was already read', async () => {
+  // The already-read arm. Re-stamping would move an old notice's read time
+  // forward every time the reader cleared the badge.
+  const alreadyRead = notif('n1', true)
+  feedMock.mockResolvedValueOnce(feed({ notifications: [alreadyRead, notif('n2')], unread_count: 1 }))
+  await store().fetchFeed()
+  markAllMock.mockResolvedValueOnce(undefined)
+
+  await store().markAllRead()
+
+  expect(store().notifications[0].read_at).toBe(alreadyRead.read_at)
+  expect(store().notifications[1].read_at).not.toBeNull()
+  expect(store().unread).toBe(0)
 })
