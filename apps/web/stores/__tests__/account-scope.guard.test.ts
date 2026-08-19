@@ -25,10 +25,19 @@ const STORES_DIR = dirname(dirname(fileURLToPath(import.meta.url)))
  * Stores whose state is the SAME for every reader, or which own the session
  * itself. Each needs a reason, because "it looked harmless" is how the three
  * leaks got in.
+ *
+ * EXCUSED FROM REGISTERING A RESET — nothing more. It is not a finding that a
+ * store's state is account-neutral, and reading it that way is what cost #45 a
+ * re-audit: auth.store sits here because it clears ITSELF, but its state is as
+ * account-scoped as any, and all four of its in-flight writers were left
+ * unguarded on the strength of this line. Registration and the generation
+ * guard answer different questions — "does someone empty this at the switch"
+ * and "can a response that was already on its way write into the next
+ * account" — and an entry here answers only the first.
  */
 const ACCOUNT_AGNOSTIC: Record<string, string> = {
   'auth.store.ts':
-    'owns the session; resets itself to SIGNED_OUT and drives the clearing of everything else',
+    'owns the session; resets itself to SIGNED_OUT and drives the clearing of everything else. Its state IS account-scoped — every async writer in it takes an accountGeneration snapshot (#45)',
   'chain-registry.store.ts':
     'public enabled-chain registry — token addresses, identical for every reader. Clearing it would blank a rendered balance while it refetched',
   'platform-config.store.ts':
