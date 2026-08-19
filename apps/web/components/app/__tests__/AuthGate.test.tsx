@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 // Aliased: this is the SETUP MOCK's accessor, not a hook call.
 import { useRouter as routerMockAccessor } from 'next/navigation'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -32,13 +32,18 @@ beforeEach(() => {
 })
 
 describe('AuthGate', () => {
-  it('shows a skeleton while the session bootstraps', () => {
+  it('shows a skeleton while the session bootstraps', async () => {
     render(
       <AuthGate>
         <p>secret</p>
       </AuthGate>,
     )
     expect(screen.queryByText('secret')).not.toBeInTheDocument()
+    // The gate's own bootstrap settles after the assertion; flushed here so it
+    // lands inside act rather than in whichever test runs next.
+    await act(async () => {
+      await Promise.resolve()
+    })
   })
 
   it('redirects an unauthenticated visitor to /signin', async () => {

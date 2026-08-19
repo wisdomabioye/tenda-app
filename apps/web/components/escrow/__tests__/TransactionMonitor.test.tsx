@@ -146,7 +146,9 @@ describe('Cancel rides the REAL guarded-request registry', () => {
     })
     const cancel = await screen.findByRole('button', { name: 'Cancel' })
     fireEvent.click(cancel)
-    await expect(guarded).rejects.toMatchObject({ code: 'declined' })
+    await act(async () => {
+      await expect(guarded).rejects.toMatchObject({ code: 'declined' })
+    })
   })
 })
 

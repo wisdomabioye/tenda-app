@@ -5,7 +5,7 @@
  * appears only under an active restriction; PersonCard reads "You" for
  * self and offers the contextual message link to others.
  */
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 import type { MyStandingResponse, Review, UserStandingResponse } from '@tenda/shared'
@@ -75,7 +75,12 @@ test('RestrictionBanner: nothing in good standing; headline + reason when restri
     restriction: null,
   })
   const { container } = render(<RestrictionBanner />)
-  await Promise.resolve()
+  // A bare `await Promise.resolve()` yields ONE microtask — not enough to
+  // settle the standing read, which then landed after the test finished and
+  // updated an unmounted-but-unflushed tree outside act.
+  await act(async () => {
+    await Promise.resolve()
+  })
   expect(container).toBeEmptyDOMElement()
 
   usersApi.myStanding.mockResolvedValue({
@@ -89,7 +94,7 @@ test('RestrictionBanner: nothing in good standing; headline + reason when restri
   expect(screen.getByText(/Too many disputes/)).toBeInTheDocument()
 })
 
-test('PersonCard: self reads You with no message link; others get the contextual chat link', () => {
+test('PersonCard: self reads You with no message link; others get the contextual chat link', async () => {
   usersApi.standing.mockResolvedValue({
     completion_rate: null,
     completed_count: 0,
@@ -126,6 +131,13 @@ test('PersonCard: self reads You with no message link; others get the contextual
   )
   expect(screen.getByText(/★ 4.2/)).toBeInTheDocument()
   expect(screen.getByText(/· Seeker/)).toBeInTheDocument()
+
+  // Two StandingBadges are still fetching when the assertions finish; without
+  // this their reads land outside act. Nothing above depends on them — the
+  // card's identity and link are synchronous.
+  await act(async () => {
+    await Promise.resolve()
+  })
 })
 
 test('PersonCard: the standing chip renders for SELF too (mobile parity)', async () => {

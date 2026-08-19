@@ -7,7 +7,7 @@
  * a reader who had one, because nothing on that route had ever fetched either.
  * Both ensures de-dupe, so the surfaces that already load them are unaffected.
  */
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ChainRegistryEntry, LinkedWallet } from '@tenda/shared'
 import { useExchangeAssetOptions } from '@/hooks/exchange/useExchangeAssetOptions'
@@ -58,7 +58,11 @@ describe('useExchangeAssetOptions', () => {
     const unverified = renderHook(() => useExchangeAssetOptions())
     expect(unverified.result.current).toEqual([])
 
-    useAuthStore.setState({ wallets: [WALLET] })
+    // Inside `act`: the unverified hook above is still mounted, so this write
+    // re-renders it as well as seeding the next one.
+    act(() => {
+      useAuthStore.setState({ wallets: [WALLET] })
+    })
     const verified = renderHook(() => useExchangeAssetOptions())
     expect(verified.result.current).toEqual([
       expect.objectContaining({ chainId: 'solana:devnet', assetId: 'USDC_SOL', walletAddress: 'SoLAddr1' }),

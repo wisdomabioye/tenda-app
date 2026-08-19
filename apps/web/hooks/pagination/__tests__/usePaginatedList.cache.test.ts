@@ -179,6 +179,20 @@ describe('a cache the caller owns', () => {
     return { frames, view }
   }
 
+  /**
+   * `renderRecording` deliberately returns the moment the first frames are
+   * captured — the assertions are about the FIRST paint. But the mount effect
+   * is still in flight, so a test that ends there settles its load outside
+   * `act` and React warns. Flushing once here lets the load land inside act
+   * without touching a single assertion; the extra frames it produces are
+   * exactly the ones the surviving `frames.some(...)` checks want to see.
+   */
+  async function settle() {
+    await act(async () => {
+      await Promise.resolve()
+    })
+  }
+
   it('paints page zero on the FIRST render of a second mount', async () => {
     // The workspace's list columns are remounted by the router on every row
     // they open — the @list slot moves between its entries and React tears the
@@ -245,6 +259,7 @@ describe('a cache the caller owns', () => {
 
     const { frames } = renderRecording({ fetchPage, query: {}, keyOf })
     expect(frames[0]).toEqual({ rows: 0, isLoading: true, hasFetched: false })
+    await settle()
   })
 })
 

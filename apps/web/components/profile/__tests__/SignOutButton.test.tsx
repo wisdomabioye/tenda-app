@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 // Aliased: this is the SETUP MOCK's accessor, not a hook call.
 import { useRouter as routerMockAccessor } from 'next/navigation'
@@ -61,7 +61,11 @@ describe('SignOutButton', () => {
 
     await userEvent.click(button)
     await userEvent.click(button)
-    release?.()
+    // Releasing the pending logout re-enables the button — a state update, so
+    // it is flushed here rather than landing after the test.
+    await act(async () => {
+      release?.()
+    })
 
     expect(logout).toHaveBeenCalledOnce()
   })

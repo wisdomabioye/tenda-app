@@ -18,8 +18,9 @@ describe('HeaderSessionAction', () => {
   it('offers Home once a token exists — we are already IN the app', async () => {
     window.localStorage.setItem(JWT_TOKEN_KEY, 'jwt-1')
     render(<HeaderSessionAction />)
-    await vi.waitFor(() => {
-      expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/home')
-    })
+    // `screen.findByRole`, not `vi.waitFor`: vitest's waitFor does not wrap its
+    // polling in `act`, so the token read settled outside React's scope and
+    // warned. RTL's async queries do.
+    expect(await screen.findByRole('link', { name: 'Home' })).toHaveAttribute('href', '/home')
   })
 })

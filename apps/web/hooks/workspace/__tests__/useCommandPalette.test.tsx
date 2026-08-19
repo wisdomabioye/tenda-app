@@ -19,7 +19,14 @@ beforeEach(() => {
   resetCommandPaletteForTests()
 })
 afterEach(() => {
-  resetCommandPaletteForTests()
+  // Inside `act`, because this hook subscribes to a module store: the reset
+  // emits, the still-mounted Host re-renders, and this hook runs BEFORE
+  // RTL's cleanup. Only the tests that end with the palette OPEN ever warned
+  // — a reset that does not change the snapshot re-renders nothing — which
+  // is exactly the four `useSyncExternalStore` saw a new value for.
+  act(() => {
+    resetCommandPaletteForTests()
+  })
 })
 
 describe('useCommandPalette', () => {

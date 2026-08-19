@@ -4,7 +4,7 @@
  * context, the close-conversation menu flow, and attachment click routing
  * (image → lightbox, PDF → new tab).
  */
-import { render, screen, fireEvent } from '@testing-library/react'
+import { act, render, screen, fireEvent } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 import type { PublicUser } from '@tenda/shared'
@@ -154,18 +154,25 @@ test('incoming messages pin to the bottom only while the reader is near it', () 
     scrollTop: { configurable: true, value: 100, writable: true },
   })
   fireEvent.scroll(list)
-  useChatStore.setState((s) => ({
-    messages: { c1: [...(s.messages.c1 ?? []), makeMessage({ id: 'new-1', content: 'while reading' })] },
-  }))
+  // Inside `act`: a store write while the thread is MOUNTED re-renders it, and
+  // the pin-to-bottom effect is precisely what this test is measuring — so it
+  // has to be flushed, not left to land after the assertion.
+  act(() => {
+    useChatStore.setState((s) => ({
+      messages: { c1: [...(s.messages.c1 ?? []), makeMessage({ id: 'new-1', content: 'while reading' })] },
+    }))
+  })
   rerender(<ChatThread userId="them" />)
   expect(scrollSpy).toHaveBeenCalledTimes(1) // NOT yanked
 
   // Back near the bottom: the next message pins again.
   list.scrollTop = 1590
   fireEvent.scroll(list)
-  useChatStore.setState((s) => ({
-    messages: { c1: [...(s.messages.c1 ?? []), makeMessage({ id: 'new-2', content: 'at bottom' })] },
-  }))
+  act(() => {
+    useChatStore.setState((s) => ({
+      messages: { c1: [...(s.messages.c1 ?? []), makeMessage({ id: 'new-2', content: 'at bottom' })] },
+    }))
+  })
   rerender(<ChatThread userId="them" />)
   expect(scrollSpy).toHaveBeenCalledTimes(2)
   scrollSpy.mockRestore()
