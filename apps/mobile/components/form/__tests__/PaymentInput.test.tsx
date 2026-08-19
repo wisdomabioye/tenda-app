@@ -125,6 +125,62 @@ describe('FIAT mode', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  test('a budget typed BEFORE the rates land is converted the moment they do', () => {
+    // The gap the early return left (#49): the guard correctly declined to
+    // emit, but nothing re-ran afterwards, so the reader saw ₦150,000 in the
+    // field and "Set a budget" underneath it — a number shown and not counted.
+    mockRates = null
+    const { onChange, view, field } = setup()
+    fireEvent.changeText(field(), '150000')
+    expect(onChange).not.toHaveBeenCalled()
+    expect(field().props.value).toBe('150000')
+
+    mockRates = RATES
+    view.rerender(<PaymentInput asset="USDC_SOL" value="" onChange={onChange} />)
+
+    // ₦150,000 at NGN 150,000 / USD 100 → 1500 NGN per USDC → 100 USDC.
+    expect(onChange).toHaveBeenLastCalledWith('100000000')
+    // And the text the reader typed is still theirs.
+    expect(field().props.value).toBe('150000')
+  })
+
+  test('rates arriving with an EMPTY field emit nothing', () => {
+    // Delivered by shared's `gigBudgetFromUnits`, which answers '' for
+    // anything <= 0 — not by a local empty-string check, which was redundant
+    // and removed. This pins the BEHAVIOUR wherever it comes from.
+    mockRates = null
+    const { onChange, view } = setup()
+    mockRates = RATES
+    view.rerender(<PaymentInput asset="USDC_SOL" value="" onChange={onChange} />)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  test('a LATER rate change does not re-price a budget the reader already set', () => {
+    // Only the null→rate transition converts. Re-running on every tick would
+    // move the number under them while they were looking at it.
+    const { onChange, view, field } = setup()
+    fireEvent.changeText(field(), '150000')
+    expect(onChange).toHaveBeenLastCalledWith('100000000')
+    onChange.mockClear()
+
+    mockRates = { NGN: 300_000, USD: 100 }
+    view.rerender(<PaymentInput asset="USDC_SOL" value="100000000" onChange={onChange} />)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  test('rates arriving while the ASSET tab is showing emit nothing — that mode never needed them', () => {
+    mockRates = null
+    const { onChange, view, field } = setup()
+    toAssetMode()
+    fireEvent.changeText(field(), '100')
+    expect(onChange).toHaveBeenLastCalledWith('100000000')
+    onChange.mockClear()
+
+    mockRates = RATES
+    view.rerender(<PaymentInput asset="USDC_SOL" value="100000000" onChange={onChange} />)
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
   test('a fiat entry keeps 2 decimals — the asset precision does not apply to naira', () => {
     const { field } = setup()
     fireEvent.changeText(field(), '1500.756')
