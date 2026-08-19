@@ -188,8 +188,16 @@ test('a superseded request that FAILS cannot clear the newer verdict', async () 
 test('a MALFORMED budget never reaches the API — the server answers 422 for it', () => {
   // The gate is hasGigBudget, not `paymentRaw !== ''`, and this is the
   // difference between them. The moderation route validates with isAmountRaw
-  // and rejects anything non-canonical, so sending one buys a guaranteed 422
-  // and an error banner over a budget the reader is still typing.
+  // (routes/v1/moderation/preview:38) and rejects anything non-canonical, so
+  // every one of these buys a guaranteed 422.
+  //
+  // NOT an error banner, which this comment used to claim: mobile's request
+  // core throws ApiClientError and there is no global interceptor, so the
+  // hook's own `.catch` is the last handler and swallows it — errors here are
+  // silent by design, exactly as this file's header says. What sending one
+  // actually costs is a wasted round trip per keystroke burst, and a verdict
+  // that stays null for a reason the reader cannot see. The gate is still
+  // right; the consequence was overstated.
   for (const paymentRaw of ['0', 'abc', '1.5', '-1', '1e6', ' 1000000', '01000000']) {
     renderHook(() => useModerationPreview({ ...READY, paymentRaw }))
     act(() => {
