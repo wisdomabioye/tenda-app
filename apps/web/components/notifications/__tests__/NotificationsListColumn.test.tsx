@@ -6,12 +6,11 @@
  * opened), and an announcement is not a row of this list — an empty personal
  * feed must not take a pinned broadcast off the screen.
  */
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AnnouncementWire, NotificationWire } from '@tenda/shared'
 import { NotificationsListColumn } from '@/components/notifications/NotificationsListColumn'
-import NotificationDetailPage from '@/app/(app)/notifications/[notificationId]/page'
 import { NOTIFICATIONS_LIST_COPY } from '@/components/notifications/copy'
 import { useNotificationsStore } from '@/stores/notifications.store'
 
@@ -182,47 +181,5 @@ describe('NotificationsListColumn', () => {
     useNotificationsStore.setState({ isFetchingFeed: true, feedStatus: 'loading', notifications: [] })
     render(<NotificationsListColumn />)
     expect(screen.queryByText(NOTIFICATIONS_LIST_COPY.surface.emptyTitle)).toBeNull()
-  })
-})
-
-describe('the notification pane', () => {
-  it('says nothing while the feed is still loading', async () => {
-    // "Pick a notification" is a claim about what the reader did, and on a
-    // deep link they already picked one — the feed just has not landed.
-    routeParams = { notificationId: 'ntf-9' }
-    useNotificationsStore.setState({ notifications: [], isFetchingFeed: true })
-    const { container } = render(<NotificationDetailPage />)
-    expect(container).toBeEmptyDOMElement()
-  })
-
-  it('offers the empty state once the feed HAS landed without it', () => {
-    routeParams = { notificationId: 'ntf-9' }
-    useNotificationsStore.setState({ notifications: [], isFetchingFeed: false })
-    render(<NotificationDetailPage />)
-    expect(screen.getByText(NOTIFICATIONS_LIST_COPY.emptyDetailTitle)).toBeInTheDocument()
-  })
-
-  it('marks a notice read by OPENING it, not by clicking a row', async () => {
-    const markRead = vi.fn<() => Promise<void>>().mockResolvedValue()
-    routeParams = { notificationId: 'ntf-1' }
-    useNotificationsStore.setState({ notifications: [notice()], markRead })
-    render(<NotificationDetailPage />)
-    await waitFor(() => expect(markRead).toHaveBeenCalledWith('ntf-1'))
-  })
-
-  it('does not re-mark a notice that is already read', () => {
-    const markRead = vi.fn<() => Promise<void>>().mockResolvedValue()
-    routeParams = { notificationId: 'ntf-1' }
-    useNotificationsStore.setState({ notifications: [notice({ read_at: 'x' })], markRead })
-    render(<NotificationDetailPage />)
-    expect(markRead).not.toHaveBeenCalled()
-  })
-
-  it('says a notice has nothing to open rather than offering a dead button', () => {
-    routeParams = { notificationId: 'ntf-1' }
-    useNotificationsStore.setState({ notifications: [notice({ data: null })] })
-    render(<NotificationDetailPage />)
-    expect(screen.getByText(NOTIFICATIONS_LIST_COPY.noRoute)).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: NOTIFICATIONS_LIST_COPY.open })).toBeNull()
   })
 })

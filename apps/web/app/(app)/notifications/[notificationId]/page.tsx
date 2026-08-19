@@ -27,9 +27,15 @@ export default function NotificationDetailPage() {
   const notification = useNotificationsStore((s) =>
     s.notifications.find((n) => n.id === notificationId),
   )
-  // The IN-FLIGHT flag, not the status: this asks "has the feed landed yet",
-  // and a settled feed keeps status 'ready' straight through a refresh (#48).
-  const isFetchingFeed = useNotificationsStore((s) => s.isFetchingFeed)
+  // "Has the feed landed", asked of the STATUS — which is the only field that
+  // distinguishes never-loaded from loaded-and-empty. #48 asked the in-flight
+  // flag instead, and that leaves two gaps: on a deep link the pane renders in
+  // the same commit as the list column, whose mount EFFECT starts the fetch, so
+  // at first paint nothing is in flight and the status is still 'idle'; and a
+  // feed that FAILED is not in flight either. Both painted "Pick a notification"
+  // — the one claim this guard exists to avoid making. 'ready' is also true
+  // through a background refresh, which is the case #48 was protecting.
+  const feedStatus = useNotificationsStore((s) => s.feedStatus)
   const isUnread = notification !== undefined && notification.read_at === null
 
   useEffect(() => {
@@ -41,7 +47,7 @@ export default function NotificationDetailPage() {
     // a DEEP LINK they have already picked one — the feed simply has not
     // landed yet. Say nothing until it has; the empty state is the answer only
     // once the id is genuinely not among the notices this account holds.
-    if (isFetchingFeed) return null
+    if (feedStatus !== 'ready') return null
     return (
       <DetailEmpty
         title={NOTIFICATIONS_LIST_COPY.emptyDetailTitle}

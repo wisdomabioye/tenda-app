@@ -160,6 +160,15 @@ export default defineConfig({
         'app/(focused)/signin/email/page.tsx',
         'app/(focused)/signin/verify/page.tsx',
         'app/(focused)/onboarding/profile/page.tsx',
+        // The notification detail pane decides when it may say "Pick a
+        // notification" — a claim about what the reader did, wrong on a deep
+        // link. #48 changed that guard with no test and no coverage on it
+        // (re-audit), so it joins the ratchet with its first suite.
+        // Brackets ESCAPED: a Next dynamic segment is a glob character class
+        // otherwise, so the unescaped path silently matched nothing and the
+        // file stayed outside the gate while looking listed (verified: 0% with
+        // the plain form, 94% with this one).
+        'app/(app)/notifications/\\[notificationId\\]/page.tsx',
         // {ts,tsx} like every sibling folder: the `.tsx`-only pattern left
         // settings/copy.ts — which carries the badge rule and its branch —
         // outside the gate, so a regression there could not move the number.
