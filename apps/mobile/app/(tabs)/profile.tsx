@@ -99,7 +99,13 @@ export default function ProfileScreen() {
         hasWallet={primaryWallet !== null}
       />
 
-      <ProfileStats completed={stats.completed} posted={stats.posted} reputation={reputationDisplay} />
+      <ProfileStats
+        completed={stats.completed}
+        posted={stats.posted}
+        reputation={reputationDisplay}
+        status={stats.status}
+        onRetry={stats.reload}
+      />
 
       <SectionLabel>Account</SectionLabel>
       <ProfileMenu items={accountItems} />

@@ -1,3 +1,4 @@
+export type { LoadStatus } from './load-status'
 export type {
   User,
   NewUser,

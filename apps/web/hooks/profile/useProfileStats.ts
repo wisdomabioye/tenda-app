@@ -9,7 +9,7 @@
  * becomes mount (web pages remount per navigation).
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { POSTED_ESCROW_STATUSES, type EscrowStatus } from '@tenda/shared'
+import { POSTED_ESCROW_STATUSES, type EscrowStatus, type LoadStatus } from '@tenda/shared'
 import { api } from '@/api/client'
 
 /** Statuses that mean "this gig still needs the poster's attention". */
@@ -29,8 +29,13 @@ export interface ProfileStats {
    * 5.0 from one review cannot read like a 5.0 from forty.
    */
   reviews: number
-  /** False until the first load settles, so zeroes aren't rendered as fact. */
-  loaded: boolean
+  /**
+   * Where the read got to. Replaces a `loaded` boolean, which could not tell
+   * "the answer is zero" from "we could not check" — and since the counts are
+   * zeroed before every fetch, a failure rendered Posted 0 / Completed 0 as
+   * fact. Only `ready` means the numbers below are answers.
+   */
+  status: LoadStatus
   reload: () => void
 }
 
@@ -62,21 +67,29 @@ async function countOf(mine: 'created' | 'working', status?: EscrowStatus[]): Pr
 
 export function useProfileStats(userId: string | undefined): ProfileStats {
   const [stats, setStats] = useState(EMPTY)
-  const [loaded, setLoaded] = useState(false)
+  const [status, setStatus] = useState<LoadStatus>('idle')
   // Drops superseded responses, so a fast account switch can't leave one
   // user's counts on another user's profile.
   const genRef = useRef(0)
 
   const reload = useCallback(() => {
-    if (userId === undefined) return
     const gen = ++genRef.current
     void (async () => {
       // A different account starts from zero rather than showing the previous
       // user's counts while the new ones load (async — never sync-in-effect).
+      // The no-account branch is INSIDE this microtask for the same reason:
+      // `reload` runs from an effect, and resetting synchronously there is the
+      // cascading-render the lint refuses.
       await Promise.resolve()
       if (gen !== genRef.current) return
       setStats(EMPTY)
-      setLoaded(false)
+      // Nothing asked for: back to `idle` rather than leaving the previous
+      // user's numbers standing under a `ready` status.
+      if (userId === undefined) {
+        setStatus('idle')
+        return
+      }
+      setStatus('loading')
       try {
         const [posted, active, completed, reviews] = await Promise.all([
           countOf('created', POSTED_STATUSES),
@@ -86,10 +99,12 @@ export function useProfileStats(userId: string | undefined): ProfileStats {
         ])
         if (gen !== genRef.current) return
         setStats({ posted, active, completed, reviews })
-        setLoaded(true)
+        setStatus('ready')
       } catch {
-        // Non-fatal: the profile still renders, counts keep their last value.
-        if (gen === genRef.current) setLoaded(true)
+        // The profile still renders — these counts are supplementary — but it
+        // says so, and offers `reload`, rather than printing the zeros this
+        // function set on its way in. `EMPTY` is not an answer here.
+        if (gen === genRef.current) setStatus('error')
       }
     })()
   }, [userId])
@@ -98,5 +113,5 @@ export function useProfileStats(userId: string | undefined): ProfileStats {
     reload()
   }, [userId, reload])
 
-  return { ...stats, loaded, reload }
+  return { ...stats, status, reload }
 }

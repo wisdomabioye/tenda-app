@@ -10,6 +10,7 @@
  * which sums the chips and compares them to that stat's own endpoint).
  */
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 import type { CompletedWorkResponse, GetUserReviewsQuery, GigListQuery } from '@tenda/shared'
 
@@ -76,4 +77,42 @@ test('an account with nothing finished shows no block, not five zeros', async ()
   // The activity tiles are still there — this is the block being absent, not
   // the page failing to render.
   expect(screen.getByLabelText('Activity')).toBeInTheDocument()
+})
+
+// ---------- the counts, when they cannot be read -----------------------------
+
+test('a failed count read says so instead of printing zeroes', async () => {
+  // #35: the tiles used to read "Posted 0 / Completed 0" on any failure of
+  // GET /v1/gigs?mine=…&limit=1, because the hook zeroed them on its way in.
+  // That is a claim about the account when the truth is about the request.
+  gigsListMock.mockRejectedValue(new Error('offline'))
+  render(<ProfilePage />)
+
+  expect(await screen.findByRole('alert')).toHaveTextContent(/Couldn't load your activity/i)
+  expect(screen.queryByText('Posted')).not.toBeInTheDocument()
+  expect(screen.queryByText('0')).not.toBeInTheDocument()
+})
+
+test('the failure offers a retry, and a successful retry shows the counts', async () => {
+  gigsListMock.mockRejectedValue(new Error('offline'))
+  render(<ProfilePage />)
+  const retry = await screen.findByRole('button', { name: 'Try again' })
+
+  gigsListMock.mockResolvedValue({ data: [], total: 6, limit: 1, offset: 0 })
+  await userEvent.click(retry)
+
+  await waitFor(() => expect(screen.getByText('Posted')).toBeInTheDocument())
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  expect(screen.getAllByText('6').length).toBeGreaterThan(0)
+})
+
+test('a genuine zero still renders as a zero, not as a failure', async () => {
+  // The distinction the whole change exists for: an account that really has
+  // posted nothing reads 0, and must NOT be shown the error state.
+  gigsListMock.mockResolvedValue({ data: [], total: 0, limit: 1, offset: 0 })
+  render(<ProfilePage />)
+
+  await waitFor(() => expect(screen.getByLabelText('Activity')).toBeInTheDocument())
+  await waitFor(() => expect(screen.getAllByText('0').length).toBeGreaterThan(0))
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })

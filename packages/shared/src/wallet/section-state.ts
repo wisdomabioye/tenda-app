@@ -1,3 +1,5 @@
+import type { LoadStatus } from '../types/load-status'
+
 /**
  * Which balance section the wallet screen owes the user, resolved from the two
  * INDEPENDENT loads it depends on: the linked wallets (auth store) and the
@@ -15,8 +17,13 @@
  * Load lifecycle both dependencies report themselves with — one union so the
  * two stores (each client's auth store and chain-registry store) cannot
  * diverge in vocabulary.
+ *
+ * An ALIAS of the general `LoadStatus` since #35, which needed the same four
+ * states for the profile counts and found this union already spelled out here
+ * under a wallet-specific name. Every existing import keeps working; there is
+ * now one definition rather than one per feature.
  */
-export type WalletLoadStatus = 'idle' | 'loading' | 'ready' | 'error'
+export type WalletLoadStatus = LoadStatus
 export type WalletsStatus = WalletLoadStatus
 export type ChainRegistryStatus = WalletLoadStatus
 
