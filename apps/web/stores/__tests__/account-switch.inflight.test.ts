@@ -40,6 +40,7 @@ vi.mock('@/wallet/auth', () => ({ signInWithWallet: vi.fn(), linkWalletWith: vi.
 vi.mock('@/wallet/adapters/reown', () => ({ reownAdapter: { disconnect: vi.fn(async () => {}) } }))
 
 import { api } from '@/api/client'
+import { reownAdapter } from '@/wallet/adapters/reown'
 import { useAuthStore } from '@/stores/auth.store'
 import { useChatStore } from '@/stores/chat.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
@@ -264,5 +265,30 @@ describe('auth', () => {
     // And the render/redirect gate is not stranded by the dropped write —
     // `logout` settled it, which is the argument the guard rests on.
     expect(useAuthStore.getState().isLoading).toBe(false)
+  })
+})
+
+describe('the sign-out itself', () => {
+  it('a slow wallet disconnect cannot wipe the session that signed in behind it', async () => {
+    // `logout` bumps the generation FIRST and then awaits — clearAuthStorage,
+    // and a WalletConnect disconnect that is a relay round-trip. Its own final
+    // set({...SIGNED_OUT}) therefore lands after those awaits, and a sign-in
+    // completed in that window is what it would overwrite.
+    const gate = deferred<void>()
+    vi.mocked(reownAdapter.disconnect).mockReturnValue(gate.promise)
+    const signingOut = useAuthStore.getState().logout()
+
+    authApi.verify.mockResolvedValue({
+      token: 'jwt-b',
+      user: makeUser({ id: 'user-b', first_name: 'Bola', last_name: 'Ade' }),
+      is_new: false,
+    })
+    await useAuthStore.getState().signInWithVerify({ method: 'email', identifier: 'b@tenda.test', code: '1' })
+
+    gate.resolve()
+    await signingOut
+
+    expect(useAuthStore.getState().isAuthenticated).toBe(true)
+    expect(useAuthStore.getState().user?.id).toBe('user-b')
   })
 })

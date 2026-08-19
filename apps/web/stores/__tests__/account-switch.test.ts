@@ -24,7 +24,8 @@ vi.mock('@/api/client', () => ({
 vi.mock('@/wallet/auth', () => ({ signInWithWallet: vi.fn(), linkWalletWith: vi.fn() }))
 vi.mock('@/wallet/adapters/reown', () => ({ reownAdapter: { disconnect: vi.fn(async () => {}) } }))
 
-import { initCrossTabAuthSync, useAuthStore } from '@/stores/auth.store'
+import { useAuthStore } from '@/stores/auth.store'
+import { initCrossTabAuthSync } from '@/stores/auth/cross-tab'
 import { useGigsStore } from '@/stores/gigs.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 import { useSigninFlowStore } from '@/stores/signin-flow.store'

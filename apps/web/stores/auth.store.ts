@@ -9,7 +9,7 @@ import {
   type VerifyBody,
 } from '@tenda/shared'
 import { api } from '@/api/client'
-import { clearAuthStorage, getJwtToken, JWT_TOKEN_KEY, setJwtToken } from '@/lib/storage'
+import { clearAuthStorage, getJwtToken, setJwtToken } from '@/lib/storage'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { reownAdapter } from '@/wallet/adapters/reown'
 import {
@@ -70,7 +70,11 @@ async function purgeIfStaleSession(e: unknown): Promise<void> {
   }
 }
 
-const SIGNED_OUT = {
+/**
+ * Exported for `stores/auth/cross-tab.ts`, which applies the same signed-out
+ * state when another tab drops the token.
+ */
+export const SIGNED_OUT = {
   user: null,
   jwt: null,
   isAuthenticated: false,
@@ -203,11 +207,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // declares itself account-scoped where it is defined; this empties the lot
     // (lib/account-state.ts).
     clearAccountState()
+    // AFTER the bump, not before: clearAccountState() moves the generation, so
+    // a snapshot taken above could never match. What this guards is the tail of
+    // this very function — the awaits below include a WalletConnect relay
+    // round-trip, and a sign-in completed across them bumps again, at which
+    // point this SIGNED_OUT write would blank the session the reader just
+    // opened (#45 re-audit; reproduced with a deferred disconnect).
+    const gen = accountGeneration()
     await clearAuthStorage()
     // Best-effort: drop the wallet session too, so the next sign-in shows the
     // picker instead of silently reusing a stale session across accounts
     // (mobile doctrine). peek-only — never boots the wallet stack to log out.
     await reownAdapter.disconnect().catch(() => {})
+    if (!isSameAccount(gen)) return
     set({ ...SIGNED_OUT, isLoading: false })
   },
 
@@ -270,28 +282,3 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   updateUser: (user) => set({ user }),
   setProfileComplete: (complete) => set({ profileComplete: complete }),
 }))
-
-/**
- * Cross-tab session sync (stage-2 DoD: logout in tab A signs out tab B).
- * The `storage` event only fires in OTHER tabs, which is exactly the seam:
- * token removed elsewhere → drop local state; token appeared/changed
- * elsewhere → adopt it by re-running the bootstrap.
- */
-export function initCrossTabAuthSync(): () => void {
-  const onStorage = (event: StorageEvent) => {
-    if (event.key !== JWT_TOKEN_KEY) return
-    // The SECOND way an account changes under a live tab, and the one #25
-    // found unguarded: `logout` never runs here, so without this the tab keeps
-    // every row the local sign-out would have dropped. Cleared on both edges —
-    // a token removed elsewhere is a sign-out, and a token CHANGED elsewhere
-    // is a different account, which is the worse of the two.
-    clearAccountState()
-    if (event.newValue === null) {
-      useAuthStore.setState({ ...SIGNED_OUT, isLoading: false })
-    } else {
-      void useAuthStore.getState().loadSession()
-    }
-  }
-  window.addEventListener('storage', onStorage)
-  return () => window.removeEventListener('storage', onStorage)
-}

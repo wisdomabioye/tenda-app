@@ -17,7 +17,8 @@ vi.mock('@/wallet/adapters/reown', () => ({ reownAdapter: { disconnect: vi.fn(as
 
 import { ApiClientError } from '@tenda/shared'
 import { api } from '@/api/client'
-import { initCrossTabAuthSync, useAuthStore } from '@/stores/auth.store'
+import { useAuthStore } from '@/stores/auth.store'
+import { initCrossTabAuthSync } from '@/stores/auth/cross-tab'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { JWT_TOKEN_KEY } from '@/lib/storage'
 import { makeUser } from '../../test/factories/user'

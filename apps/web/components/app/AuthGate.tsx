@@ -9,7 +9,8 @@
  */
 import { useEffect, useRef, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { initCrossTabAuthSync, useAuthStore } from '@/stores/auth.store'
+import { useAuthStore } from '@/stores/auth.store'
+import { initCrossTabAuthSync } from '@/stores/auth/cross-tab'
 import { currentReturnPath, returnPathFrom, withReturnPath } from '@/lib/auth/return-path'
 
 export function AuthGate({ children }: { children: ReactNode }) {
