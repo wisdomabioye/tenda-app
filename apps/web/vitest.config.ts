@@ -18,6 +18,52 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('.', import.meta.url)) },
   },
   test: {
+    /**
+     * Vitest defaults to one worker per core minus one — 11 on a 12-core box —
+     * and this file previously declared no worker config at all, so that is
+     * what it ran. `apps/mobile/jest.config.js` records the same number as
+     * MEASURED-unstable for jest, with an A/B behind it; web was sitting at
+     * exactly that width with nobody having checked.
+     *
+     * WHAT #34 ESTABLISHED, and what it did not.
+     *
+     * Reproduced, with the identity captured — the thing three earlier
+     * occurrences lost to an output filter. Under a deliberate CPU load, one
+     * COMPLETE run (213 s, 1884 of 1885 tests passing) failed exactly one:
+     *     FeedRail > offers every category in the shared vocabulary…
+     *     → Test timed out in 5000 ms, at 5399 ms
+     * Two further runs failed the same test first (6180 / 5521 ms), but the
+     * machine was degrading by then — the second showed unrelated tests at
+     * 28-31 s — so they corroborate rather than measure.
+     *
+     * That test takes 330 ms running its own suite in isolation. So it is not
+     * a slow test: it is a starved one, missing a deadline that already
+     * carries ~15x headroom. Which is why the fix is FEWER WORKERS and not a
+     * bigger timeout — raising the budget would only hide a test that
+     * genuinely got slow. (The two GigWizard suites keep their scoped 20 s
+     * bump: those really do drive five wizard steps.)
+     *
+     * NOT MEASURED HERE: that '50%' survives the same load. The load run was
+     * stopped — it took the machine down — and the comparison arm was never
+     * taken. This value is carried over from mobile's A/B, where 11 workers
+     * failed 2 of 3 runs under load and '50%' passed 10 of 10, plus the
+     * arithmetic above. If this flakes again, that missing arm is the first
+     * thing to go and get, on a machine nobody is using.
+     *
+     * What IS measured, on an idle machine, is that this costs nothing and
+     * pays: full suite 87.5 s and 93.6 s at '50%', against 102.1 s at the
+     * default, same 209 files / 1885 tests / same coverage. Fewer workers is
+     * faster here too, which is what mobile found.
+     *
+     * PLAYWRIGHT NEEDS NO MATCHING CHANGE, checked rather than assumed: it
+     * already reports "125 tests using 6 workers", i.e. the half-the-cores
+     * default this now matches. The asymmetry #34 suspected was real and it
+     * was one-sided — vitest at 11 beside playwright at 6.
+     *
+     * A percentage rather than a fixed count so a 2-core CI runner gets 1
+     * worker instead of the 6 a fixed count would over-subscribe it with.
+     */
+    maxWorkers: '50%',
     globals: true,
     clearMocks: true,
     environment: 'jsdom',
