@@ -8,21 +8,19 @@
  * SAME path on different verbs, so a copied line survives review and unregisters
  * a device when it meant to register one.
  */
-import { beforeEach, expect, test, vi } from 'vitest'
-import { apiRoutes } from '@tenda/shared'
-import { request } from '../../request'
-import { conversationsApi, notificationsApi, subscriptionsApi } from '../messaging'
-import { expectClientCall, type ClientCase } from '../__fixtures__/client-table'
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { apiRoutes } from '../../../src/api/routes'
+import { createConversationsApi, createNotificationsApi, createSubscriptionsApi } from '../../../src/api/client/messaging'
+import { assertLastCall, expectClientCall, recordingRequest, type ClientCase } from './harness'
 
-vi.mock('../../request', () => ({ request: vi.fn() }))
 
-const requestMock = vi.mocked(request)
+const { request, calls } = recordingRequest()
+const conversationsApi = createConversationsApi(request)
+const notificationsApi = createNotificationsApi(request)
+const subscriptionsApi = createSubscriptionsApi(request)
 const { conversations, notifications, subscriptions } = apiRoutes
 const id = { id: 'c1' }
-
-beforeEach(() => {
-  requestMock.mockReset().mockResolvedValue({})
-})
 
 const CASES: ClientCase[] = [
   { name: 'conversations.list', call: () => conversationsApi.list(), method: 'GET', path: conversations.list },
@@ -111,18 +109,20 @@ const CASES: ClientCase[] = [
   },
 ]
 
-test.each(CASES.map((c) => [c.name, c] as const))('%s', async (_name, testCase) => {
-  await expectClientCall(requestMock, testCase)
-})
+for (const testCase of CASES) {
+  test(testCase.name, async () => {
+    await expectClientCall(calls, testCase)
+  })
+}
 
 test('register and remove share one path and are told apart by the VERB', async () => {
   await notificationsApi.registerToken({ token: 't1', platform: 'expo' })
-  expect(requestMock).toHaveBeenLastCalledWith('POST', notifications.registerToken, {
+  assertLastCall(calls, 'POST', notifications.registerToken, {
     body: { token: 't1', platform: 'expo' },
   })
 
   await notificationsApi.removeToken({ token: 't1' })
-  expect(requestMock).toHaveBeenLastCalledWith('DELETE', notifications.registerToken, {
+  assertLastCall(calls, 'DELETE', notifications.registerToken, {
     body: { token: 't1' },
   })
 })

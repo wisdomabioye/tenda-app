@@ -102,13 +102,10 @@ export default defineConfig({
         // so it is gated like any other fee path (joined during the #13 review).
         'app/(public)/support/escrow/FeeCalculator.tsx',
         'api/request.ts',
-        // The WHOLE endpoint-description layer since #38, not the three files
-        // that happened to have tests. Each method encodes a verb, a route
-        // constant and a param shape — precisely what drifts from the server
-        // with nothing noticing, as the `/v1/fiat/bank-accounts` vs
-        // `/v1/bank-accounts` mistake did until it was caught by hand in #19.
-        // Every component test mocks `@/api/client` wholesale, so these are
-        // reachable only from tests written against them directly.
+        // Since #42 this is a barrel: the endpoint descriptions moved to
+        // @tenda/shared and are gated there. What remains gated HERE is the
+        // wiring — that this app composes them over its OWN transport, which
+        // shared cannot prove.
         'api/client/**/*.ts',
         'lib/**/*.ts',
         'hooks/**/*.ts',

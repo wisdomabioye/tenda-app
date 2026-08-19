@@ -6,22 +6,19 @@
  * write), and `apply` defaults its body to `{}` so an application with no
  * message still sends a body rather than `undefined`.
  */
-import { beforeEach, expect, test, vi } from 'vitest'
-import { apiRoutes } from '@tenda/shared'
-import { request } from '../../request'
-import { applicationsApi, gigsApi } from '../gigs'
-import { MODERATION_TIMEOUT_MS } from '../timeouts'
-import { expectClientCall, type ClientCase } from '../__fixtures__/client-table'
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { apiRoutes } from '../../../src/api/routes'
+import { createGigsApi, createApplicationsApi } from '../../../src/api/client/gigs'
+import { MODERATION_TIMEOUT_MS } from '../../../src/api/client/timeouts'
+import { assertLastCall, expectClientCall, recordingRequest, type ClientCase } from './harness'
 
-vi.mock('../../request', () => ({ request: vi.fn() }))
 
-const requestMock = vi.mocked(request)
+const { request, calls } = recordingRequest()
+const gigsApi = createGigsApi(request)
+const applicationsApi = createApplicationsApi(request)
 const { gigs, applications } = apiRoutes
 const id = { id: 'gig-1' }
-
-beforeEach(() => {
-  requestMock.mockReset().mockResolvedValue({})
-})
 
 const CASES: ClientCase[] = [
   { name: 'featured', call: () => gigsApi.featured(), method: 'GET', path: gigs.featured },
@@ -77,16 +74,18 @@ const CASES: ClientCase[] = [
   },
 ]
 
-test.each(CASES.map((c) => [c.name, c] as const))('%s', async (_name, testCase) => {
-  await expectClientCall(requestMock, testCase)
-})
+for (const testCase of CASES) {
+  test(testCase.name, async () => {
+    await expectClientCall(calls, testCase)
+  })
+}
 
 test('create waits on the MODERATION budget, not the default request timeout', async () => {
   // Publishing runs the Stage-6 content gate server-side; the default timeout
   // would abort a request that was going to succeed.
   const body = { escrow_id: 'e1', title: 'Deliver a parcel', category: 'delivery' as const, country: 'NG', city: 'Lagos' }
   await gigsApi.create(body)
-  expect(requestMock).toHaveBeenLastCalledWith('POST', gigs.create, {
+  assertLastCall(calls, 'POST', gigs.create, {
     body,
     timeout: MODERATION_TIMEOUT_MS,
   })
@@ -94,10 +93,10 @@ test('create waits on the MODERATION budget, not the default request timeout', a
 
 test('apply sends an EMPTY body when there is no message, never undefined', async () => {
   await gigsApi.apply(id)
-  expect(requestMock).toHaveBeenLastCalledWith('POST', gigs.apply, { params: id, body: {} })
+  assertLastCall(calls, 'POST', gigs.apply, { params: id, body: {} })
 
   await gigsApi.apply(id, { message: 'I can do this' })
-  expect(requestMock).toHaveBeenLastCalledWith('POST', gigs.apply, {
+  assertLastCall(calls, 'POST', gigs.apply, {
     params: id,
     body: { message: 'I can do this' },
   })

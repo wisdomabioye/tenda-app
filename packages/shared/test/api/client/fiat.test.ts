@@ -5,21 +5,17 @@
  * accounts`, NOT `/v1/fiat/bank-accounts`, and getting that wrong is a 404
  * that type-checks. It was caught by hand during #19; now it is caught here.
  */
-import { beforeEach, expect, test, vi } from 'vitest'
-import { apiRoutes } from '@tenda/shared'
-import { request } from '../../request'
-import { fiatApi } from '../fiat'
-import { expectClientCall, type ClientCase } from '../__fixtures__/client-table'
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { apiRoutes } from '../../../src/api/routes'
+import { createFiatApi } from '../../../src/api/client/fiat'
+import { assertLastCall, expectClientCall, recordingRequest, type ClientCase } from './harness'
 
-vi.mock('../../request', () => ({ request: vi.fn() }))
 
-const requestMock = vi.mocked(request)
+const { request, calls } = recordingRequest()
+const fiatApi = createFiatApi(request)
 const { fiat } = apiRoutes
 const id = { id: 'intent-1' }
-
-beforeEach(() => {
-  requestMock.mockReset().mockResolvedValue({})
-})
 
 const CASES: ClientCase[] = [
   {
@@ -85,15 +81,17 @@ const CASES: ClientCase[] = [
   },
 ]
 
-test.each(CASES.map((c) => [c.name, c] as const))('%s', async (_name, testCase) => {
-  await expectClientCall(requestMock, testCase)
-})
+for (const testCase of CASES) {
+  test(testCase.name, async () => {
+    await expectClientCall(calls, testCase)
+  })
+}
 
 test('bank accounts hang off /v1/bank-accounts, NOT under /v1/fiat', () => {
   // Stated as its own assertion because the surrounding module is named `fiat`
   // and every neighbouring path does start /v1/fiat — the reason the wrong
   // prefix looked right for as long as it did.
-  expect(fiat.bankAccounts).toBe('/v1/bank-accounts')
-  expect(fiat.createBankAccount).toBe('/v1/bank-accounts')
-  expect(fiat.deleteBankAccount).toBe('/v1/bank-accounts/:id')
+  assert.equal(fiat.bankAccounts, '/v1/bank-accounts')
+  assert.equal(fiat.createBankAccount, '/v1/bank-accounts')
+  assert.equal(fiat.deleteBankAccount, '/v1/bank-accounts/:id')
 })

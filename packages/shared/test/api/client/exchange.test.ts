@@ -6,20 +6,17 @@
  * param, which is what keeps a dispute findable after its push notification is
  * gone.
  */
-import { beforeEach, expect, test, vi } from 'vitest'
-import { apiRoutes } from '@tenda/shared'
-import { request } from '../../request'
-import { disputesApi, exchangeApi } from '../exchange'
-import { expectClientCall, type ClientCase } from '../__fixtures__/client-table'
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { apiRoutes } from '../../../src/api/routes'
+import { createExchangeApi, createDisputesApi } from '../../../src/api/client/exchange'
+import { assertLastCall, expectClientCall, recordingRequest, type ClientCase } from './harness'
 
-vi.mock('../../request', () => ({ request: vi.fn() }))
 
-const requestMock = vi.mocked(request)
+const { request, calls } = recordingRequest()
+const exchangeApi = createExchangeApi(request)
+const disputesApi = createDisputesApi(request)
 const { exchange, disputes } = apiRoutes
-
-beforeEach(() => {
-  requestMock.mockReset().mockResolvedValue({})
-})
 
 const CASES: ClientCase[] = [
   {
@@ -74,13 +71,15 @@ const CASES: ClientCase[] = [
   },
 ]
 
-test.each(CASES.map((c) => [c.name, c] as const))('%s', async (_name, testCase) => {
-  await expectClientCall(requestMock, testCase)
-})
+for (const testCase of CASES) {
+  test(testCase.name, async () => {
+    await expectClientCall(calls, testCase)
+  })
+}
 
 test('the caller’s own disputes are NOT reached by a user id in the path', async () => {
   await disputesApi.mine()
-  const [, path] = requestMock.mock.calls.at(-1) ?? []
-  expect(path).toBe(disputes.mine)
-  expect(String(path)).not.toContain(':id')
+  const [, path] = calls.at(-1) ?? []
+  assert.equal(path, disputes.mine)
+  assert.equal(String(path).includes(':id'), false)
 })

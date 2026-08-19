@@ -94,3 +94,14 @@ export {
   type GigFeedServerFrame,
   type WsServerFrame,
 } from './contracts'
+
+export {
+  createApiClient,
+  ESCROW_CREATE_TIMEOUT_MS,
+  MODERATION_TIMEOUT_MS,
+  PROOF_PERSISTENCE_TIMEOUT_MS,
+  TX_BUILD_TIMEOUT_MS,
+  type ApiClient,
+  type ApiRequest,
+  type ApiRequestOptions,
+} from './client'

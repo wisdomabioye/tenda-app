@@ -6,21 +6,17 @@
  * own endpoints, because "just reduce over the list you already have" is the
  * change that would quietly reintroduce the bug each was written to fix.
  */
-import { beforeEach, test, vi } from 'vitest'
-import { apiRoutes } from '@tenda/shared'
-import { request } from '../../request'
-import { usersApi } from '../users'
-import { expectClientCall, type ClientCase } from '../__fixtures__/client-table'
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { apiRoutes } from '../../../src/api/routes'
+import { createUsersApi } from '../../../src/api/client/users'
+import { assertLastCall, expectClientCall, recordingRequest, type ClientCase } from './harness'
 
-vi.mock('../../request', () => ({ request: vi.fn() }))
 
-const requestMock = vi.mocked(request)
+const { request, calls } = recordingRequest()
+const usersApi = createUsersApi(request)
 const { users } = apiRoutes
 const id = { id: 'u1' }
-
-beforeEach(() => {
-  requestMock.mockReset().mockResolvedValue({})
-})
 
 const CASES: ClientCase[] = [
   { name: 'me', call: () => usersApi.me(), method: 'GET', path: users.me },
@@ -84,6 +80,8 @@ const CASES: ClientCase[] = [
   },
 ]
 
-test.each(CASES.map((c) => [c.name, c] as const))('%s', async (_name, testCase) => {
-  await expectClientCall(requestMock, testCase)
-})
+for (const testCase of CASES) {
+  test(testCase.name, async () => {
+    await expectClientCall(calls, testCase)
+  })
+}
