@@ -43,7 +43,7 @@ const ACCOUNT_AGNOSTIC: Record<string, string> = {
   'platform-config.store.ts':
     'public fee tiers and rates, identical for every reader',
   'realtime.store.ts':
-    'holds only `connected`, derived from the socket — and useRealtimeConnection tears that socket down when isAuthenticated goes false',
+    'the STORE holds only `connected`, derived from the socket, and useRealtimeConnection tears that socket down when isAuthenticated goes false. The module also holds `openConversationId` (#47): not state that needs clearing — useChatRealtime releases it on unmount, and a conversation id left behind is a uuid that can never match the next account\'s',
 }
 
 function storeFiles(): string[] {
