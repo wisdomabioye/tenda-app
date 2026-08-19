@@ -45,7 +45,21 @@ export function useModerationPreview(input: ModerationPreviewInput): ModerationP
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current)
-    if (!ready) return
+    if (!ready) {
+      // Invalidate whatever is already on its way. The reset above clears what
+      // is ON SCREEN, but a request issued while the input was still ready is
+      // unaffected by it: losing readiness supersedes nothing, so that answer
+      // matched the sequence and set itself — bringing the hint back over a
+      // budget that had just been cleared, and again after the reader typed a
+      // new one, since it is `ready` at the moment the OLD answer lands (#67).
+      //
+      // Here rather than beside the reset: the reset happens during RENDER
+      // (react-hooks/set-state-in-effect makes mobile's in-effect form an error
+      // on this side), and a ref must not be mutated there — a render React
+      // discards would invalidate a request whose input is still live.
+      ++requestSeq.current
+      return
+    }
     timer.current = setTimeout(() => {
       const seq = ++requestSeq.current
       api.moderation

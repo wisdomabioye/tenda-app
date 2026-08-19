@@ -5,6 +5,7 @@
  */
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
+import type { ModerationPreviewResponse } from '@tenda/shared'
 
 const { previewMock } = vi.hoisted(() => ({ previewMock: vi.fn() }))
 vi.mock('@/api/client', () => ({
@@ -22,7 +23,15 @@ const READY: ModerationPreviewInput = {
   paymentRaw: '10000000',
 }
 
-const VERDICT = { decision: 'warn', reasons: [{ code: 'price', message: 'Low budget' }] }
+// Typed, so the compiler holds it to the wire shape: an untyped literal here
+// omitted both `cached` and each reason's `severity`, which the contract
+// requires and the route always sends. The cases below resolve the mocked
+// request with it, so an unchecked fixture is a verdict the server cannot emit.
+const VERDICT: ModerationPreviewResponse = {
+  decision: 'warn',
+  reasons: [{ code: 'price', message: 'Low budget', severity: 'warn' }],
+  cached: false,
+}
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -134,4 +143,57 @@ test('a MALFORMED budget never reaches the API — the server answers 422 for it
     act(() => { vi.advanceTimersByTime(2000) })
   }
   expect(previewMock).not.toHaveBeenCalled()
+})
+
+test('a request already IN FLIGHT cannot bring the hint back after readiness is lost', async () => {
+  // The gap between the two rules above. Leaving the ready state clears the
+  // verdict, and a superseded request is dropped by sequence — but losing
+  // readiness supersedes nothing, so the answer to the input the reader has
+  // just abandoned still matched the sequence and set itself. The "looks risky"
+  // hint reappeared over a budget that was no longer there. Same case, same
+  // wording, as mobile's (#67 / #51).
+  let resolveIt!: (v: ModerationPreviewResponse) => void
+  previewMock.mockImplementationOnce(
+    () => new Promise<ModerationPreviewResponse>((res) => { resolveIt = res }),
+  )
+
+  const { result, rerender } = renderHook(
+    (input: ModerationPreviewInput) => useModerationPreview(input),
+    { initialProps: READY },
+  )
+  await debounce()
+  rerender({ ...READY, paymentRaw: '' })
+  expect(result.current).toBeNull()
+
+  await act(async () => {
+    resolveIt(VERDICT)
+    await Promise.resolve()
+  })
+  expect(result.current).toBeNull()
+})
+
+test('nor after readiness is lost and REGAINED — the answer belongs to the abandoned input', async () => {
+  // The sibling state, and the reason the invalidation cannot simply be "clear
+  // the verdict on the way out": the reader clears the budget and types a new
+  // one, so `ready` is true again when the OLD request lands. Its sequence
+  // still matched, and its verdict — computed for a budget that is no longer
+  // on screen — showed until the fresh debounce replaced it 800ms later.
+  let resolveIt!: (v: ModerationPreviewResponse) => void
+  previewMock.mockImplementationOnce(
+    () => new Promise<ModerationPreviewResponse>((res) => { resolveIt = res }),
+  )
+
+  const { result, rerender } = renderHook(
+    (input: ModerationPreviewInput) => useModerationPreview(input),
+    { initialProps: READY },
+  )
+  await debounce()
+  rerender({ ...READY, paymentRaw: '' })
+  rerender({ ...READY, paymentRaw: '25000000' })
+
+  await act(async () => {
+    resolveIt(VERDICT)
+    await Promise.resolve()
+  })
+  expect(result.current).toBeNull()
 })
