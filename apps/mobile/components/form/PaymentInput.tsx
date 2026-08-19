@@ -97,11 +97,22 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
    * Only on the null→rate TRANSITION, tracked through a ref. Re-converting on
    * every rate tick would move a budget the reader had already set, under them.
    *
-   * The transition CAN fire more than once a session, and that is correct: the
-   * store never nulls `rates` once loaded, but the derived `rate` goes null if
-   * the reader switches to a currency not yet cached, and back when that rate
-   * lands. Re-converting then is the right reading — the number in the field is
-   * now denominated in the new currency, because the unit suffix says so.
+   * The transition CAN fire more than once a session: the store never nulls
+   * `rates` once loaded, but the derived `rate` goes null if the reader switches
+   * to a currency not yet cached, and back when that rate lands.
+   *
+   * WHICH MAKES A CURRENCY SWITCH TWO DIFFERENT BEHAVIOURS, and this note used
+   * to claim only the good one. Switching to an UNCACHED currency passes through
+   * null, so the text is re-converted at the new rate; switching to a CACHED one
+   * never passes through null, so nothing re-runs and the emitted raw stays the
+   * OLD currency's valuation while the unit suffix already reads the new one
+   * (reproduced in the #49 re-audit: NGN->KES with both cached emits nothing,
+   * leaving 150000 on screen under a KES suffix against a budget of 100 USDC
+   * rather than 1000). Same action, two answers, decided by cache state.
+   *
+   * Not repaired here because the right behaviour is a product choice — re-price
+   * the typed number, restate the same budget in the new currency, or clear it —
+   * and picking one inside an audit would be guessing. Tracked as #66.
    */
   const lastRateRef = useRef(rate)
   useEffect(() => {
