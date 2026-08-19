@@ -247,5 +247,22 @@ describe('cross-tab sync', () => {
   })
 })
 
+describe('refreshUser', () => {
+  it('a failed refresh keeps the user on screen and does not throw', async () => {
+    // The arm the coverage walk found never exercised (#45 re-audit). It is a
+    // deliberate swallow — a focus refresh that cannot reach the server must
+    // not blank the profile or reject into a fire-and-forget caller — so the
+    // contract is "nothing changes", and that needs stating as a test rather
+    // than as an empty catch block nobody has run.
+    const user = makeUser({ id: 'user-a', first_name: 'Ada', last_name: 'Lovelace' })
+    useAuthStore.setState({ user, isAuthenticated: true, isLoading: false })
+    authApi.me.mockRejectedValue(new Error('network down'))
+
+    await expect(useAuthStore.getState().refreshUser()).resolves.toBeUndefined()
+
+    expect(useAuthStore.getState().user).toEqual(user)
+  })
+})
+
 // ---------- Stage 3: the wallet half ----------------------------------------
 
