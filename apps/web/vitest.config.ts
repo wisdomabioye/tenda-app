@@ -43,17 +43,29 @@ export default defineConfig({
      * genuinely got slow. (The two GigWizard suites keep their scoped 20 s
      * bump: those really do drive five wizard steps.)
      *
-     * NOT MEASURED HERE: that '50%' survives the same load. The load run was
-     * stopped — it took the machine down — and the comparison arm was never
-     * taken. This value is carried over from mobile's A/B, where 11 workers
-     * failed 2 of 3 runs under load and '50%' passed 10 of 10, plus the
-     * arithmetic above. If this flakes again, that missing arm is the first
-     * thing to go and get, on a machine nobody is using.
+     * STILL NOT MEASURED: that '50%' survives the same CPU LOAD the failure
+     * was reproduced under. That run was stopped — it took the machine down —
+     * and it must not be retaken on a machine anyone is using. The idle rows
+     * BELOW are half of that comparison, not a substitute for it; what
+     * carries the rest is mobile's A/B (11 workers failed 2 of 3 runs under
+     * load, '50%' passed 10 of 10). If this flakes again, the loaded arm is
+     * the first thing to go and get, on a machine nobody is using.
      *
-     * What IS measured, on an idle machine, is that this costs nothing and
-     * pays: full suite 87.5 s and 93.6 s at '50%', against 102.1 s at the
-     * default, same 209 files / 1885 tests / same coverage. Fewer workers is
-     * faster here too, which is what mobile found.
+     * WHAT THE CAP ACTUALLY BUYS, measured idle with no synthetic load —
+     * the same full suite, run both ways:
+     *
+     *   wall clock   11 workers  102.1 / 80.3 / 87.6 s
+     *                 6 workers   87.5 / 93.6 s
+     *   canary SUITE 11 workers  8084 / 5154 / 7481 ms
+     *                 6 workers  2999 / 4837 ms      (2690 ms in isolation)
+     *
+     * Wall clock is a WASH — the ranges overlap and there is no speed case
+     * here, unlike mobile, where fewer workers was also faster. What does not
+     * overlap is the second row: the heavy suite runs at roughly its isolated
+     * speed at 6 workers and at ~3x inflation at 11. That is the whole point,
+     * because the failure is a PER-TEST deadline, not a total: contention
+     * inside a heavy suite is what eats a 5000 ms budget, and the cap is what
+     * gives it back.
      *
      * PLAYWRIGHT NEEDS NO MATCHING CHANGE, checked rather than assumed: it
      * already reports "125 tests using 6 workers", i.e. the half-the-cores
