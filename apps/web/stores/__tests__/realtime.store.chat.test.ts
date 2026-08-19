@@ -22,14 +22,20 @@ vi.mock('@/lib/ws', () => ({
   },
 }))
 
-import { subscribeChatChannel, subscribeUserChannel } from '@/stores/realtime.store'
+import {
+  subscribeChatChannel,
+  subscribeUserChannel,
+  setOpenConversation,
+  clearOpenConversation,
+  resetOpenConversationForTests,
+} from '@/stores/realtime.store'
 import { useChatStore } from '@/stores/chat.store'
 
 const receiveMessage = vi.fn<(conversationId: string, message: ReturnType<typeof makeMessage>) => void>()
 const fetchConversations = vi.fn<() => Promise<void>>()
 
-function chatFrame(channel: string): WsFrame {
-  return { channel, type: 'message', message: makeMessage({ id: 'm1' }) }
+function chatFrame(channel: string, conversation_id = 'c1'): WsFrame {
+  return { channel, type: 'message', message: makeMessage({ id: 'm1', conversation_id }) }
 }
 
 beforeEach(() => {
@@ -37,6 +43,9 @@ beforeEach(() => {
   channelListeners.clear()
   fetchConversations.mockResolvedValue()
   useChatStore.setState({ receiveMessage, fetchConversations })
+  // Module-level state, so it outlives a test — clear it or one test's open
+  // thread silently mutes the next one's mirror.
+  resetOpenConversationForTests()
 })
 
 test('chat channel: message frames reach receiveMessage and the onMessage callback', () => {
@@ -77,4 +86,57 @@ test('user channel: a failing refetch is contained (next frame or poll catches u
   fetchConversations.mockRejectedValue(new Error('down'))
   subscribeUserChannel('me')
   expect(() => channelListeners.get('user:me')?.(chatFrame('user:me'))).not.toThrow()
+})
+
+test('user channel: no inbox refetch for the thread the reader has OPEN', () => {
+  // The flicker this prevents (#47): the mirror refetched for the open thread
+  // too, and the server has not marked the message read yet — that rides the
+  // debounced GET /messages a second later. So the list came back with
+  // unread_count=1, the rail badge ticked up and the row jumped from "Earlier"
+  // into "Unread", then both undid themselves. Once per message received.
+  setOpenConversation('c1')
+  subscribeUserChannel('me')
+  const listener = channelListeners.get('user:me')
+
+  listener?.(chatFrame('user:me', 'c1'))
+  expect(fetchConversations).not.toHaveBeenCalled()
+})
+
+test('user channel: the mirror still refetches for conversations that are NOT open', () => {
+  // The other half of the same rule — the mirror exists for exactly this.
+  setOpenConversation('c1')
+  subscribeUserChannel('me')
+  const listener = channelListeners.get('user:me')
+
+  listener?.(chatFrame('user:me', 'c2'))
+  expect(fetchConversations).toHaveBeenCalledTimes(1)
+})
+
+test('user channel: closing the thread restores the mirror for that conversation', () => {
+  // useChatRealtime clears the register on unmount; without that the inbox
+  // would go permanently stale for the last thread the reader visited.
+  setOpenConversation('c1')
+  subscribeUserChannel('me')
+  const listener = channelListeners.get('user:me')
+
+  listener?.(chatFrame('user:me', 'c1'))
+  expect(fetchConversations).not.toHaveBeenCalled()
+
+  clearOpenConversation('c1')
+  listener?.(chatFrame('user:me', 'c1'))
+  expect(fetchConversations).toHaveBeenCalledTimes(1)
+})
+
+test('clearing a thread that is no longer the open one is a no-op', () => {
+  // Mount-before-unmount: c2 registers, then c1's cleanup runs. c1 must not
+  // take c2's registration away with it, or the mirror resumes refetching for
+  // a thread still on screen.
+  setOpenConversation('c1')
+  setOpenConversation('c2')
+  clearOpenConversation('c1')
+
+  subscribeUserChannel('me')
+  const listener = channelListeners.get('user:me')
+  listener?.(chatFrame('user:me', 'c2'))
+  expect(fetchConversations).not.toHaveBeenCalled()
 })

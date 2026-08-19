@@ -8,13 +8,16 @@ import { renderHook, act } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import type { Message } from '@tenda/shared'
 
-const { channel, polledWith } = vi.hoisted(() => ({
+const { channel, polledWith, openConversation } = vi.hoisted(() => ({
   channel: {
     id: null as string | null,
     listener: null as ((message: Message) => void) | null,
     unsubscribed: 0,
   },
   polledWith: { current: [] as Array<string | null> },
+  // Every value the hook registers, in order — so a test can assert it was
+  // CLEARED on unmount, not merely set at some point.
+  openConversation: { calls: [] as Array<string | null> },
 }))
 
 vi.mock('@/stores/realtime.store', async () => {
@@ -28,6 +31,14 @@ vi.mock('@/stores/realtime.store', async () => {
         channel.unsubscribed += 1
         channel.listener = null
       }
+    },
+    setOpenConversation: (id: string | null) => {
+      openConversation.calls.push(id)
+    },
+    // Recorded as `clear:<id>` so a test can see WHICH thread was released,
+    // not merely that something was.
+    clearOpenConversation: (id: string) => {
+      openConversation.calls.push(`clear:${id}`)
     },
   }
 })
@@ -70,6 +81,7 @@ beforeEach(() => {
   channel.listener = null
   channel.unsubscribed = 0
   polledWith.current = []
+  openConversation.calls = []
   useRealtimeStore.setState({ connected: false })
   useChatStore.setState({ fetchMessages })
   useAuthStore.setState({ user: makeUser({ id: 'me' }) })
@@ -118,4 +130,33 @@ test('a disconnected→connected transition fires exactly one catch-up fetch', (
   expect(fetchMessages).toHaveBeenCalledTimes(1)
   act(() => useRealtimeStore.setState({ connected: true }))
   expect(fetchMessages).toHaveBeenCalledTimes(1)
+})
+
+test('registers the open thread with the inbox mirror, and CLEARS it on unmount', () => {
+  // The register is what lets subscribeUserChannel skip its refetch for the
+  // thread on screen (#47). Clearing it matters as much as setting it: leave it
+  // set and the inbox goes permanently stale for the last thread visited.
+  const { unmount } = renderHook(() => useChatRealtime('c1'))
+  expect(openConversation.calls).toEqual(['c1'])
+
+  unmount()
+  expect(openConversation.calls).toEqual(['c1', 'clear:c1'])
+})
+
+test('switching threads hands the mirror the new conversation, never a stale one', () => {
+  const { rerender, unmount } = renderHook(({ id }: { id: string }) => useChatRealtime(id), {
+    initialProps: { id: 'c1' },
+  })
+  rerender({ id: 'c2' })
+  // React cleans up the old effect before running the new one, so the register
+  // ends on 'c2' — the order is the assertion, not just the last value.
+  expect(openConversation.calls).toEqual(['c1', 'clear:c1', 'c2'])
+
+  unmount()
+  expect(openConversation.calls).toEqual(['c1', 'clear:c1', 'c2', 'clear:c2'])
+})
+
+test('a null conversation registers nothing', () => {
+  renderHook(() => useChatRealtime(null))
+  expect(openConversation.calls).toEqual([])
 })
