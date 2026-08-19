@@ -9,14 +9,15 @@
  * followed first. The api client is mocked at its seam, as next door.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ATTACHMENT_PREVIEW, type Conversation, type Message } from '@tenda/shared'
+import type { Conversation } from '@tenda/shared'
 
+// `list` alone. The split carried over the whole five-method mock, both chat
+// factories and ATTACHMENT_PREVIEW from the file these cases left — none of
+// which any case here calls. Dead setup in a test file is worse than dead code
+// in a source one: it reads as though the file exercises sending, closing and
+// attachments, and nothing (noUnusedLocals is off) says otherwise.
 const conversationsApi = vi.hoisted(() => ({
   list: vi.fn<() => Promise<Conversation[]>>(),
-  findOrCreate: vi.fn<(body: { user_id: string }) => Promise<Conversation>>(),
-  messages: vi.fn<(p: { id: string }, q?: { before_id: string }) => Promise<Message[]>>(),
-  sendMessage: vi.fn<(p: { id: string }, body: Record<string, unknown>) => Promise<Message>>(),
-  close: vi.fn(),
 }))
 
 vi.mock('@/api/client', () => ({ api: { conversations: conversationsApi } }))
@@ -24,9 +25,6 @@ vi.mock('@/api/client', () => ({ api: { conversations: conversationsApi } }))
 import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { makeUser } from '../../test/factories/user'
-import { makeConversation as conv, makeMessage as msg } from '../../test/factories/chat'
-
-
 
 beforeEach(() => {
   vi.clearAllMocks()
@@ -36,7 +34,6 @@ beforeEach(() => {
   useChatStore.getState().reset()
   useAuthStore.setState({ user: makeUser({ id: 'me' }) })
 })
-
 
 describe('the fallback poll over a settled inbox (#26)', () => {
   it('does not re-raise the skeleton on an inbox that is legitimately EMPTY', async () => {

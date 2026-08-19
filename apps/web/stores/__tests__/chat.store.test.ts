@@ -22,8 +22,6 @@ import { useAuthStore } from '@/stores/auth.store'
 import { makeUser } from '../../test/factories/user'
 import { makeConversation as conv, makeMessage as msg } from '../../test/factories/chat'
 
-
-
 beforeEach(() => {
   vi.clearAllMocks()
   // The store's OWN reset, not a hand-listed subset: the old three-field
@@ -209,10 +207,11 @@ describe('sendMessage lifecycle', () => {
     await vi.waitFor(() => {
       expect(useChatStore.getState().messages.c1.map((m) => m.id)).toEqual(['srv-6'])
     })
+    // The exact key set, not three `not.toHaveProperty` checks: those read
+    // off `lastCall ?? []`, so an `undefined` body — no call at all — passed
+    // all three.
     const [, body] = conversationsApi.sendMessage.mock.lastCall ?? []
-    expect(body).not.toHaveProperty('attachment_url')
-    expect(body).not.toHaveProperty('attachment_type')
-    expect(body).not.toHaveProperty('attachment_size')
+    expect(Object.keys(body ?? {}).sort()).toEqual(['content', 'escrow_id'])
   })
 })
 
