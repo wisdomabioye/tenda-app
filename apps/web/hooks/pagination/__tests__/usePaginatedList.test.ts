@@ -228,6 +228,43 @@ describe('query changes', () => {
     expect(result.current.total).toBe(1)
   })
 
+  it('discards a stale in-flight page that FAILS, not just one that resolves', async () => {
+    // Twin of the test above, for the other outcome. A superseded request can
+    // reject as easily as it can resolve, and without the generation guards in
+    // loadFirstPage's catch AND finally an abandoned query's failure would put
+    // its error on the query that replaced it — and clear that query's
+    // spinner. Both guards were live but unexercised until this test (#46).
+    const doomed = deferred<PaginatedResponse<Row>>()
+    const replacement = deferred<PaginatedResponse<Row>>()
+    const fetchPage = vi
+      .fn()
+      .mockReturnValueOnce(doomed.promise)
+      .mockReturnValueOnce(replacement.promise)
+
+    const { result, rerender } = renderHook(
+      ({ chain }: { chain?: string }) =>
+        usePaginatedList({ fetchPage, query: { chain_id: chain }, keyOf }),
+      { initialProps: {} as { chain?: string } },
+    )
+
+    rerender({ chain: 'eip155:84532' })
+    await waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(2))
+
+    // The abandoned query fails while its REPLACEMENT is still in flight —
+    // the state the two guards exist for. Without the catch guard the dead
+    // query's error lands on the live one; without the finally guard its
+    // cleanup clears the live query's skeleton mid-load.
+    await act(async () => { doomed.reject(new Error('abandoned query failed')) })
+
+    expect(result.current.error).toBeNull()
+    expect(result.current.isLoading).toBe(true)
+
+    await act(async () => { replacement.resolve(page(rows('filtered'), 1)) })
+    expect(result.current.items.map(keyOf)).toEqual(['filtered'])
+    expect(result.current.total).toBe(1)
+    expect(result.current.isLoading).toBe(false)
+  })
+
   it('discards a stale loadMore page when the filter changes mid-append', async () => {
     const slowPage2 = deferred<PaginatedResponse<Row>>()
     const fetchPage = vi
