@@ -85,6 +85,14 @@ module.exports = {
   ],
   clearMocks: true,
   collectCoverageFrom: [
+    // The open-thread register and the read-sync debounce (#56). Added with its
+    // first suite; measured before listing, and it RAISES the gate (branches
+    // 90.46 -> 90.57). Its sibling `stores/realtime.store.ts` is deliberately
+    // NOT here: measured too, and it drops global branches to 89.96 because
+    // that file's escrow / gig-feed / notification channels have no tests yet.
+    // Listing it would either break the gate or smuggle in work #56 was not
+    // asked for — recorded on #58, which owns the allow-list problem.
+    'hooks/useChatRealtime.ts',
     // The budget field: fiat/asset entry, the rate-arrival conversion (#49) and
     // the base-unit string it emits. Added in the #49 re-audit — the task gave
     // it a 17-case suite and left the file outside this allow-list, so none of
