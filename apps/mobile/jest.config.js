@@ -127,6 +127,10 @@ module.exports = {
     // MB1/MB2: server-backed wallet totals + profile counts.
     'hooks/useWalletScreen.ts',
     'hooks/useProfileStats.ts',
+    // Live moderation hints while composing a gig. Web's twin has been covered
+    // since S6; this one had no suite at all until #51, so it was invisible
+    // here too — a gate that cannot see a file cannot report it regressing.
+    'hooks/useModerationPreview.ts',
     // Stage 10: gig acceptance modes. The CTA branch resolution is the part
     // that matters — it is where the mode-blind "Accept Gig" bug lived, and it
     // is pure, so it is covered directly rather than through eight renders.
