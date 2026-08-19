@@ -10,27 +10,8 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native'
 import type { PaginatedResponse } from '@tenda/shared'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
+import { deferred, keyOf, page, rows, type Row } from '../__fixtures__/list-fixtures'
 
-interface Row {
-  id: string
-}
-const keyOf = (r: Row) => r.id
-const rows = (...ids: string[]): Row[] => ids.map((id) => ({ id }))
-
-function page(data: Row[], total: number): PaginatedResponse<Row> {
-  return { data, total, limit: 20, offset: 0 }
-}
-
-/** A promise whose settlement the test controls, for racing scenarios. */
-function deferred<T>() {
-  let resolve!: (value: T) => void
-  let reject!: (reason: Error) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return { promise, resolve, reject }
-}
 
 test('a stale request that FAILS cannot put an error on the query that replaced it', async () => {
   // The success path of this race was covered; the failure path was not. It

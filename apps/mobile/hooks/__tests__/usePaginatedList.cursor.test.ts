@@ -1,13 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native'
 import type { PaginatedResponse } from '@tenda/shared'
 import { usePaginatedList } from '@/hooks/usePaginatedList'
-
-interface Row { id: string }
-const rows = (...ids: string[]): Row[] => ids.map((id) => ({ id }))
-
-function page(data: Row[], next_cursor: string | null): PaginatedResponse<Row> {
-  return { data, total: 4, limit: 2, offset: 0, next_cursor }
-}
+import { cursorPage as page, rows, type Row } from '../__fixtures__/list-fixtures'
 
 test('uses an opaque server cursor instead of an unstable live-feed offset', async () => {
   const fetchPage = jest
