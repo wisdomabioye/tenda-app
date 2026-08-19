@@ -141,7 +141,7 @@ export function validateCreateEscrow(
   // The consequence, accepted deliberately: moving the product rail is now a
   // SERVER deploy, not a client-only one.
   if (typeof body.completion_duration_seconds !== 'number') {
-    fail('completion_duration_seconds must be a positive integer')
+    fail('completion_duration_seconds must be a number')
   }
   if (!isValidCompletionDuration(body.completion_duration_seconds)) {
     fail(

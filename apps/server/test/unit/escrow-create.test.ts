@@ -138,10 +138,12 @@ test('deadline must be a future integer', () => {
 })
 
 test('completion duration must be a number at all', () => {
+  // The message names the CONDITION that failed (not a number), not the wider
+  // requirement — the range check below owns that, and says so precisely.
   expectRejects(
     body({ completion_duration_seconds: '7200' as unknown as number }),
     422,
-    /positive integer/,
+    /must be a number$/,
   )
 })
 
