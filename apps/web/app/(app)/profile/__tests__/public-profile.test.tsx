@@ -4,18 +4,26 @@
  *
  * The review TOTAL comes from the server; the list is one page of it. Those
  * two numbers must not be confused, in either direction.
+ *
+ * The completed-work chips are here for the same reason and are asserted in
+ * the same spirit: a stranger's reputation signals, phrased for a stranger.
  */
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, expect, test, vi } from 'vitest'
 
-const { getMock, reviewsMock } = vi.hoisted(() => ({ getMock: vi.fn(), reviewsMock: vi.fn() }))
+const { getMock, reviewsMock, completedWorkMock } = vi.hoisted(() => ({
+  getMock: vi.fn(),
+  reviewsMock: vi.fn(),
+  completedWorkMock: vi.fn(),
+}))
 
 vi.mock('@/api/client', () => ({
   api: {
     users: {
       get: (...a: unknown[]) => getMock(...a),
       reviews: (...a: unknown[]) => reviewsMock(...a),
+      completedWork: (params: { id: string }) => completedWorkMock(params),
     },
   },
 }))
@@ -58,6 +66,7 @@ const review = (id: string): Review => ({
 beforeEach(() => {
   getMock.mockReset().mockResolvedValue(USER)
   reviewsMock.mockReset()
+  completedWorkMock.mockReset().mockResolvedValue({ data: [] })
   useAuthStore.setState({ user: { id: 'u1' } as User })
 })
 
@@ -119,4 +128,27 @@ test('offers no Load more once every review is on the page', async () => {
   render(<UserProfilePage />)
   await waitFor(() => expect(screen.getByText('from 1 review')).toBeInTheDocument())
   expect(screen.queryByRole('button', { name: /Load more/ })).not.toBeInTheDocument()
+})
+
+test('shows the stranger their completed work, in the third person', async () => {
+  // The reputation signal this page exists to carry, from the aggregate rather
+  // than from the reviews page beside it.
+  reviewsMock.mockResolvedValue({ data: [], total: 0 })
+  completedWorkMock.mockResolvedValue({ data: [{ category: 'delivery', count: 12 }] })
+  render(<UserProfilePage />)
+
+  // Await the COUNT, not the heading: the heading would also be on screen in a
+  // half-rendered block, so waiting on it would let the count assertion race.
+  expect(await screen.findByText('12')).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Work completed' })).toBeInTheDocument()
+  expect(completedWorkMock).toHaveBeenCalledWith({ id: 'u2' })
+})
+
+test('a stranger with no completed work gets no block at all', async () => {
+  reviewsMock.mockResolvedValue({ data: [], total: 0 })
+  completedWorkMock.mockResolvedValue({ data: [] })
+  render(<UserProfilePage />)
+
+  await waitFor(() => expect(screen.getByText('No reviews yet.')).toBeInTheDocument())
+  expect(screen.queryByRole('heading', { name: /^Work/ })).not.toBeInTheDocument()
 })

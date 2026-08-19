@@ -1,6 +1,11 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { CATEGORY_LABELS, CATEGORY_META, GIG_CATEGORIES } from '../../src/constants/categories'
+import {
+  CATEGORY_LABELS,
+  CATEGORY_META,
+  GIG_CATEGORIES,
+  isGigCategory,
+} from '../../src/constants/categories'
 
 test('GIG_CATEGORIES: non-empty, duplicate-free, all lowercase slugs', () => {
   assert.ok(GIG_CATEGORIES.length > 0)
@@ -32,4 +37,20 @@ test('CATEGORY_META: pins the micro-task-weight icon decision (Bike not Truck, L
   assert.equal(iconOf('photo'), 'Camera')
   assert.equal(iconOf('errand'), 'ShoppingBag')
   assert.equal(iconOf('service'), 'Wrench')
+})
+
+test('isGigCategory: accepts every member of the vocabulary and nothing else', () => {
+  for (const category of GIG_CATEGORIES) assert.equal(isGigCategory(category), true)
+  // The shapes a `text` column can actually hold: a retired slug, a near miss,
+  // a display label mistaken for a key, casing, whitespace, and empty.
+  for (const value of ['taxidermy', 'deliveries', 'Creative', 'Delivery', ' delivery', '']) {
+    assert.equal(isGigCategory(value), false)
+  }
+})
+
+test('isGigCategory: narrows, so a checked string indexes CATEGORY_LABELS', () => {
+  // The reason it exists rather than a cast — an aggregate reads the column
+  // back as `string` and has to reach the label without asserting the type.
+  const fromTheDatabase: string = 'photo'
+  assert.equal(isGigCategory(fromTheDatabase) ? CATEGORY_LABELS[fromTheDatabase] : null, 'Creative')
 })

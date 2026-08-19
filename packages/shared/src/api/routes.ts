@@ -62,6 +62,7 @@ export const apiRoutes: {
     updateMe: '/v1/users/me',
     myStanding: '/v1/users/me/standing',
     standing: '/v1/users/:id/standing',
+    completedWork: '/v1/users/:id/completed-work',
     get: '/v1/users/:id',
     update: '/v1/users/:id',
     escrows: '/v1/users/:id/escrows',

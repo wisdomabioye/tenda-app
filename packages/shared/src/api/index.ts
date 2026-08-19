@@ -44,6 +44,8 @@ export type {
   UserStandingResponse,
   MyRestriction,
   MyStandingResponse,
+  CompletedWorkCategory,
+  CompletedWorkResponse,
   UploadContract,
   UploadSignatureBody,
   BlockchainContract,

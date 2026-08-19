@@ -1,5 +1,6 @@
 import {
   apiRoutes,
+  type CompletedWorkResponse,
   type EscrowListRow,
   type GetUserReviewsQuery,
   type MeResponse,
@@ -27,6 +28,11 @@ export const usersApi = {
   myStanding: () => request<MyStandingResponse>('GET', users.myStanding),
   standing: (params: { id: string }) =>
     request<UserStandingResponse>('GET', users.standing, { params }),
+  // Categories delivered in, as a server-side GROUP BY — deliberately NOT
+  // grouped from a page of the user's gigs, which is the whole reason it is
+  // an endpoint (#33), and the same rule transactionsSummary follows below.
+  completedWork: (params: { id: string }) =>
+    request<CompletedWorkResponse>('GET', users.completedWork, { params }),
   get: (params: { id: string }) => request<PublicUser>('GET', users.get, { params }),
   update: (params: { id: string }, body: UpdateUserInput) =>
     request<User>('PATCH', users.update, { params, body }),

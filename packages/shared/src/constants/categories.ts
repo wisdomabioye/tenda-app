@@ -60,3 +60,16 @@ export const CATEGORY_META: CategoryMeta[] = [
   { key: 'service', label: CATEGORY_LABELS.service, icon: 'Wrench', colorToken: 'categoryService' },
   { key: 'digital', label: CATEGORY_LABELS.digital, icon: 'Laptop', colorToken: 'categoryDigital' },
 ]
+
+/**
+ * Narrowing guard for a category read back from the database or the wire.
+ *
+ * `gig_details.category` is a `text` column, not a pg enum, so "a category" is
+ * a claim about a string rather than something the type system already knows —
+ * exactly the position `isCountryCode` occupies for `LOCATIONS`. Aggregates
+ * that GROUP BY the column need it to drop a value outside the vocabulary
+ * instead of passing an unrenderable key to a client keyed by `GigCategory`.
+ */
+export function isGigCategory(value: string): value is GigCategory {
+  return (GIG_CATEGORIES as readonly string[]).includes(value)
+}

@@ -27,6 +27,7 @@ import { createNotificationsWorld, handleNotifications, resetNotificationsWorld 
 import { ENABLED_CHAIN_IDS } from './chains'
 import { handleFiat, resetFiatWorld } from './fiat'
 import { handleReviews } from './reviews'
+import { handleCompletedWork } from './completed-work'
 import { errorEnvelope, json, type StubResponse } from './reply'
 
 
@@ -54,6 +55,8 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
   }
   const reviews = handleReviews(url, method, userForBearer(world, authorization) !== null)
   if (reviews !== null) return reviews
+  const completedWork = handleCompletedWork(url, method)
+  if (completedWork !== null) return completedWork
   if (url.pathname === '/v1/auth/methods' && method === 'GET') {
     const user = userForBearer(world, authorization)
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')

@@ -83,6 +83,48 @@ test('the profile shows what the account has PROVED, not what it has attached', 
   await expect(page.getByText('2 verified')).toBeVisible()
 })
 
+test('the profile names the categories the account has actually delivered in', async ({ page }) => {
+  // A real build, because the block is a wrapping row of chips whose text is a
+  // product label rather than a fixed string — jsdom proves the wiring, only a
+  // browser proves it LAYS OUT. Order is the server's (most delivered first)
+  // and the surface must not re-sort it.
+  await signInToHome(page)
+  await page.goto('/profile')
+
+  const block = page.getByRole('region', { name: 'Work you have done' })
+  await expect(block).toBeVisible()
+  await expect(block.getByRole('listitem')).toHaveText([
+    /Delivery\s*12/,
+    /Creative\s*5/,
+    /Service\s*4/,
+    /Errand\s*2/,
+    /Digital\s*1/,
+  ])
+})
+
+test('the chip row wraps onto a second line rather than overflowing its own box', async ({ page }) => {
+  // Asserted on the LIST, not the document. The workspace pane already
+  // contains horizontal overflow, so a document-width check passes with
+  // `flex-wrap` removed and proves nothing — measured. What wrapping actually
+  // governs is whether the row fits the width it was given, which is this.
+  await page.setViewportSize({ width: 320, height: 720 })
+  await signInToHome(page)
+  await page.goto('/profile')
+  const block = page.getByRole('region', { name: 'Work you have done' })
+  await expect(block).toBeVisible()
+
+  const row = block.getByRole('list')
+  const overflow = await row.evaluate((el) => el.scrollWidth - el.clientWidth)
+  expect(overflow).toBe(0)
+  // And it really did need more than one line at this width — otherwise the
+  // assertion above would hold for a row that never wraps.
+  const lines = await row.evaluate((el) => {
+    const tops = [...el.children].map((child) => child.getBoundingClientRect().top)
+    return new Set(tops).size
+  })
+  expect(lines).toBeGreaterThan(1)
+})
+
 test('sign-out is reachable from settings, which the workspace rail is not', async ({ page }) => {
   await signInToHome(page)
   await page.goto('/settings')

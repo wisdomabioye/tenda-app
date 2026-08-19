@@ -3,7 +3,12 @@
 /**
  * Own profile — web port of mobile's profile tab: restriction banner,
  * hero (avatar/name/rating with its review count), server-COUNT stats
- * (posted excludes drafts), quick links, and what the account has verified.
+ * (posted excludes drafts), the completed-work chips, quick links, and what
+ * the account has verified.
+ *
+ * The chips sit between the totals and the links, which is where the comp puts
+ * them; the quick-link nav between them and Verified is web's own addition and
+ * does not move them.
  */
 import { useEffect } from 'react'
 import Link from 'next/link'
@@ -11,7 +16,13 @@ import { ClipboardList, Scale, Settings, UserPen, Wallet } from 'lucide-react'
 import { displayName, formatFullName } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 import { Avatar } from '@/components/ui/Avatar'
-import { ProfileRating, RestrictionBanner, SignOutButton, VerifiedBlock } from '@/components/profile'
+import {
+  CompletedWork,
+  ProfileRating,
+  RestrictionBanner,
+  SignOutButton,
+  VerifiedBlock,
+} from '@/components/profile'
 import { useProfileStats } from '@/hooks/profile/useProfileStats'
 
 const LINK_CLASS =
@@ -68,6 +79,10 @@ export default function ProfilePage() {
           </div>
         ))}
       </section>
+
+      {/* Between the two totals and the account links, where the comp puts
+          it. Absent entirely until there is work behind it. */}
+      <CompletedWork userId={user.id} />
 
       <nav className="flex flex-col gap-2" aria-label="Account">
         <Link href="/my-gigs" className={LINK_CLASS}>

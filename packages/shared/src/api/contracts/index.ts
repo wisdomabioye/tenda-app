@@ -71,7 +71,7 @@ export type {
 } from './escrows.contract'
 export type { GigsContract } from './gigs.contract'
 export type { DisputesContract } from './disputes.contract'
-export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse } from './users.contract'
+export type { UsersContract, MeUser, MeResponse, UpdateMeInput, UpdateMeResponse, RestrictionKind, UserStandingResponse, MyRestriction, MyStandingResponse, CompletedWorkCategory, CompletedWorkResponse } from './users.contract'
 export type { UploadContract, UploadSignatureBody } from './upload.contract'
 export type {
   BlockchainContract,

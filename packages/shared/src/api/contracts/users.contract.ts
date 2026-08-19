@@ -11,6 +11,7 @@ import type {
   UserEscrowsQuery,
 } from '../../types'
 import type { Review, GetUserReviewsQuery } from '../../types/review'
+import type { GigCategory } from '../../constants/categories'
 import type { LinkedWallet } from './auth.contract'
 import type { RestrictionKind } from '../../db/schema/reputation'
 
@@ -44,6 +45,38 @@ export interface MyStandingResponse {
   completed_count: number
   is_limited: boolean
   restriction: MyRestriction | null
+}
+
+// ---------- completed work by category (#33) --------------------------------
+
+/** One chip in the profile's "Work you have done" block. */
+export interface CompletedWorkCategory {
+  category: GigCategory
+  count: number
+}
+
+/**
+ * GET /v1/users/:id/completed-work — the categories a user has actually
+ * delivered in, with how many times.
+ *
+ * WHICH POPULATION. Escrows the user WORKED (`isEscrowCounterpartySide`) that
+ * reached `completed` — the same predicate behind the profile's "Completed"
+ * stat (`GET /v1/gigs?mine=working&status=completed`), so the chips sum to the
+ * number printed beside them. Counting gigs POSTED would put two figures that
+ * disagree on one page.
+ *
+ * ONLY CATEGORIES WITH WORK, most first. Unlike `GigFacets`, which is complete
+ * over its vocabulary because the feed rail draws a cell either way, a chip
+ * exists BECAUSE there is work behind it — so an empty `data` is what "no
+ * completed work yet" looks like, and the block renders nothing rather than a
+ * row of zeros.
+ *
+ * PUBLIC, like `GET /v1/users/:id/standing`, which already serves a stranger a
+ * `completed_count`. Rolled up only: no escrow id, no counterparty, no amount,
+ * no title.
+ */
+export interface CompletedWorkResponse {
+  data: CompletedWorkCategory[]
 }
 
 // ---------- Stage 1: /v1/users/me (#38) -----------------------------------
@@ -101,6 +134,7 @@ export interface UsersContract {
   updateMe:       Endpoint<'PATCH', undefined, UpdateMeInput,  undefined,                  UpdateMeResponse>
   myStanding:     Endpoint<'GET', undefined, undefined,        undefined,                  MyStandingResponse>
   standing:       Endpoint<'GET', { id: string }, undefined,   undefined,                  UserStandingResponse>
+  completedWork:  Endpoint<'GET', { id: string }, undefined,   undefined,                  CompletedWorkResponse>
   get:            Endpoint<'GET', { id: string }, undefined,        undefined,                  PublicUser>
   update:         Endpoint<'PUT', { id: string }, UpdateUserInput,  undefined,                  User>
   escrows:        Endpoint<'GET', { id: string }, undefined,        UserEscrowsQuery,           PaginatedResponse<EscrowListRow>>

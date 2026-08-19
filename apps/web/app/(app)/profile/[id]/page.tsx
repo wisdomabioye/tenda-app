@@ -23,7 +23,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Spinner } from '@/components/ui/Spinner'
 import { Button } from '@/components/ui/Button'
 import { PaginatedList } from '@/components/shared/PaginatedList'
-import { ProfileRating, ReviewCard, StandingBadge } from '@/components/profile'
+import { CompletedWork, ProfileRating, ReviewCard, StandingBadge } from '@/components/profile'
 import { useUserReviews } from '@/hooks/profile/useUserReviews'
 
 /** Only the USER is fetched here; the reviews own their own loading state. */
@@ -113,6 +113,10 @@ export default function UserProfilePage() {
       {user.bio !== null && user.bio !== '' && (
         <p className="text-sm leading-6 text-content-secondary">{user.bio}</p>
       )}
+
+      {/* The reputation signal a stranger came here for, beside the reviews:
+          which categories this person actually delivers in. */}
+      <CompletedWork userId={user.id} />
 
       <section aria-label="Reviews">
         <h2 className="pb-1 text-lg font-bold text-content-primary">
