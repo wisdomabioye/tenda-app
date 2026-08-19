@@ -8,9 +8,9 @@
  * supplies its own scope and its own send path via `onUploaded`.
  */
 import { useCallback, useState } from 'react'
-import type { ScopedUploadType } from '@tenda/shared'
+import type { ScopedUploadType, UploadedAttachment } from '@tenda/shared'
 import { uploadToCloudinaryDetailed } from '@/lib/uploads/upload'
-import { fileToAttachmentType, type UploadedAttachment } from '@/lib/uploads/attachments'
+import { fileToAttachmentType } from '@/lib/uploads/attachments'
 import { showToast } from '@/components/ui/Toast'
 
 interface Options {

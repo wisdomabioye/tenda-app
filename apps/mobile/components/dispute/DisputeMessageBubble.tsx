@@ -3,10 +3,13 @@ import { useUnistyles } from 'react-native-unistyles'
 import { Text } from '@/components/ui/Text'
 import { AttachmentPreview } from '@/components/shared/media/AttachmentPreview'
 import { useIsDark } from '@/lib/theme'
-import { formatConvoTime } from '@tenda/shared'
-import { partyAccent } from '@/components/dispute/party-visual'
-import type { AttachmentPress } from '@/lib/attachments'
-import type { DisputeMessage, DisputeSender } from '@tenda/shared'
+import {
+  formatConvoTime,
+  partyAccent,
+  type AttachmentPress,
+  type DisputeMessage,
+  type DisputeSender,
+} from '@tenda/shared'
 
 interface Props {
   message: DisputeMessage

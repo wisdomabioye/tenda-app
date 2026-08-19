@@ -29,6 +29,7 @@ export { truncateWallet } from './wallet'
 export {
   partyRoleLabel,
   winnerLabel,
+  partyAccent,
   displayName,
   formatFullName,
   hasCompleteName,
@@ -36,6 +37,7 @@ export {
   disputeViewerSeat,
   formatReviewScore,
   type PartyRole,
+  type PartyAccent,
   type DisputeSender,
   type DisputeSenderArgs,
 } from './parties'

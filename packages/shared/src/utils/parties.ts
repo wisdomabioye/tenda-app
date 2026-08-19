@@ -36,6 +36,32 @@ export function winnerLabel(kind: EscrowKind, winner: PartyRole | 'split'): stri
 }
 
 /**
+ * Semantic accent for a party. A TOKEN NAME, never a colour value — each
+ * client keeps its own presentation, which is the half that legitimately
+ * differs: web looks the token up in a Tailwind class table, while on mobile
+ * it IS a `theme.colors` key (the bubble reads `.primary` off it) and also a
+ * valid Avatar `tone` (the header chip passes it straight through).
+ *
+ * Shared because both clients had declared this identical map privately, each
+ * under a docstring promising the context header and the thread "can never
+ * drift into calling the poster one colour here and another there". That held
+ * WITHIN a client and was exactly the drift it forbade one level up: nothing
+ * stopped web tinting the poster with the accent while mobile tinted the taker
+ * with it (#43).
+ */
+export type PartyAccent = 'accent' | 'brand'
+
+const ROLE_ACCENTS: Readonly<Record<PartyRole, PartyAccent>> = {
+  creator: 'accent',
+  counterparty: 'brand',
+}
+
+/** Accent token for a party, e.g. 'counterparty' → 'brand'. */
+export function partyAccent(role: PartyRole): PartyAccent {
+  return ROLE_ACCENTS[role]
+}
+
+/**
  * The two nullable name columns joined, or `''` when there is no name.
  *
  * Returns the empty string ON PURPOSE rather than taking a fallback: what to

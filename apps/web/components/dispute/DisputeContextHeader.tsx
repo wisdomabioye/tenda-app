@@ -10,6 +10,7 @@ import { useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import {
   partyRoleLabel,
+  partyAccent,
   displayName,
   formatAssetAmount,
   type DisputeThreadContext,
@@ -17,7 +18,7 @@ import {
 } from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
 import { EscrowStatusBadge } from '@/components/escrow/StatusBadge'
-import { partyAccent, ACCENT_CLASSES } from './party-visual'
+import { ACCENT_CLASSES } from './party-visual'
 import { cn } from '@/lib/cn'
 
 export function DisputeContextHeader({

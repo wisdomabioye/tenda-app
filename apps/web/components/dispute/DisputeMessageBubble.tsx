@@ -7,10 +7,15 @@
  * party's role stripe (same accent as the context chips); the mediator's
  * own bubbles are neutral with a transparent stripe so text stays aligned.
  */
-import { formatConvoTime, type DisputeMessage, type DisputeSender } from '@tenda/shared'
+import {
+  formatConvoTime,
+  partyAccent,
+  type AttachmentPress,
+  type DisputeMessage,
+  type DisputeSender,
+} from '@tenda/shared'
 import { AttachmentPreview } from '@/components/chat/AttachmentPreview'
-import type { AttachmentPress } from '@/lib/uploads/attachments'
-import { partyAccent, ACCENT_CLASSES } from './party-visual'
+import { ACCENT_CLASSES } from './party-visual'
 import { cn } from '@/lib/cn'
 
 export function DisputeMessageBubble({

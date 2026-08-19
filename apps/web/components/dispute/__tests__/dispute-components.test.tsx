@@ -103,3 +103,58 @@ test('bubbles: my voice needs no label; a party shows its label; the mediator re
   )
   expect(screen.getByText('Mediator')).toBeInTheDocument()
 })
+
+/** The one element carrying `cls`, or a failure naming what was missing. */
+function ringedBy(container: HTMLElement, cls: string): HTMLElement {
+  const matches = container.querySelectorAll<HTMLElement>(`.${cls}`)
+  if (matches.length !== 1) {
+    throw new Error(`expected exactly one element with .${cls}, found ${matches.length}`)
+  }
+  return matches[0]
+}
+
+test('the header tints each party with ITS accent — poster accent, worker brand', () => {
+  // This is what the shared `partyAccent` move (#43) exists to hold. Without
+  // it web had no assertion tying a role to a colour at all: the map could be
+  // swapped and all 14 dispute tests stayed green, so web and mobile were free
+  // to call the poster different colours.
+  const { container } = render(<DisputeContextHeader context={CONTEXT} currentUserId="nobody" />)
+
+  // The ringed avatar's parent is the chip, which also holds the party's name.
+  expect(ringedBy(container, 'ring-accent-primary').parentElement).toHaveTextContent('Ada Okafor')
+  expect(ringedBy(container, 'ring-brand-primary').parentElement).toHaveTextContent('Bola Ade')
+})
+
+test('the bubble stripes each incoming party with the SAME accent as its chip', () => {
+  const message = {
+    id: 'm1',
+    dispute_id: 'd1',
+    sender_id: 'x',
+    body: 'hello there',
+    attachment_url: null,
+    attachment_type: null,
+    attachment_size: null,
+    created_at: '2026-08-15T10:00:00.000Z',
+  }
+
+  const { container, rerender } = render(
+    <DisputeMessageBubble message={message} sender={{ kind: 'party', label: 'Ada', role: 'creator' }} />,
+  )
+  expect(container.querySelector('.border-l-accent-primary')).not.toBeNull()
+  expect(container.querySelector('.border-l-brand-primary')).toBeNull()
+
+  rerender(
+    <DisputeMessageBubble message={message} sender={{ kind: 'party', label: 'Bola', role: 'counterparty' }} />,
+  )
+  expect(container.querySelector('.border-l-brand-primary')).not.toBeNull()
+  expect(container.querySelector('.border-l-accent-primary')).toBeNull()
+
+  // Negative: the mediator is nobody's party, so it gets neither accent —
+  // a transparent stripe that keeps the text aligned with the party bubbles.
+  rerender(
+    <DisputeMessageBubble message={message} sender={{ kind: 'mediator', label: 'Mediator', role: null }} />,
+  )
+  expect(container.querySelector('.border-l-accent-primary')).toBeNull()
+  expect(container.querySelector('.border-l-brand-primary')).toBeNull()
+  expect(container.querySelector('.border-l-transparent')).not.toBeNull()
+})

@@ -7,10 +7,14 @@
  * counterparty message timestamped between the last poll and the send.
  */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DisputeMessage, DisputeThreadResponse } from '@tenda/shared'
-import { classifyDisputeSendError, type DisputeSendResult } from '@tenda/shared'
+import {
+  classifyDisputeSendError,
+  type DisputeMessage,
+  type DisputeSendResult,
+  type DisputeThreadResponse,
+  type UploadedAttachment,
+} from '@tenda/shared'
 import { api } from '@/api/client'
-import type { UploadedAttachment } from '@/lib/uploads/attachments'
 
 const POLL_INTERVAL_MS = 4_000
 const POLL_IDLE_MS = 10_000

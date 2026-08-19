@@ -56,7 +56,13 @@ export type { Review, NewReview, ReviewInput, GetUserReviewsQuery } from './revi
 export type { NotificationWire, AnnouncementWire, NotificationFeed, NotificationsQuery } from './notification'
 export type { CloudinarySignature, UploadType, ScopedUploadType } from './upload'
 export { SCOPED_UPLOAD_TYPES, isScopedUploadType } from './upload'
-export type { MessageAttachmentType, AttachmentFields, AttachmentInput } from './attachment'
+export type {
+  MessageAttachmentType,
+  AttachmentFields,
+  AttachmentInput,
+  UploadedAttachment,
+  AttachmentPress,
+} from './attachment'
 export type { PaginatedResponse, ApiError, QueryParams, QueryValue } from './api'
 export { assertQueryShape } from './api'
 export type {

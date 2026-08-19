@@ -1,8 +1,12 @@
 import { create } from 'zustand'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
-import type { UploadedAttachment } from '@/lib/attachments'
-import { ATTACHMENT_PREVIEW, type Conversation, type Message } from '@tenda/shared'
+import {
+  ATTACHMENT_PREVIEW,
+  type Conversation,
+  type Message,
+  type UploadedAttachment,
+} from '@tenda/shared'
 
 // A message optimistically added before server confirmation
 export type LocalMessage = Message & {

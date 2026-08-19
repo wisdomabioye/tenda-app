@@ -73,3 +73,38 @@ export const CATEGORY_META: CategoryMeta[] = [
 export function isGigCategory(value: string): value is GigCategory {
   return (GIG_CATEGORIES as readonly string[]).includes(value)
 }
+
+/**
+ * Resolve the registry's icon NAMES against a client's own icon components,
+ * producing the per-category map every category surface reads.
+ *
+ * Generic in the component type because that is the only part that differs:
+ * web imports from `lucide-react` and mobile from `lucide-react-native`, so
+ * the COMPONENTS must stay per client while the loop, the fail-at-module-load
+ * contract and the error copy live here (#43) — both clients had written this
+ * function character-identically apart from the import path.
+ *
+ * Driven off CATEGORY_META rather than hand-keyed by category, so a renamed
+ * icon in this file throws at the client's module load instead of drifting.
+ * That loud failure is the contract CATEGORY_META's docstring states; keeping
+ * it beside the registry means the file that states it also enforces it.
+ *
+ * Throws, deliberately, rather than falling back to a placeholder glyph: a
+ * silently untinted or missing icon is precisely the defect that let the old
+ * Truck/Monitor vs Bike/Laptop split survive unnoticed.
+ */
+export function resolveCategoryIconMap<T>(
+  iconsByName: Readonly<Record<string, T>>,
+): Record<GigCategory, T> {
+  const icons = {} as Record<GigCategory, T>
+  for (const meta of CATEGORY_META) {
+    const icon = iconsByName[meta.icon]
+    if (icon === undefined) {
+      throw new Error(
+        `resolveCategoryIconMap: no icon for "${meta.icon}" (category "${meta.key}") — add it to the client's icon registry`,
+      )
+    }
+    icons[meta.key] = icon
+  }
+  return icons
+}

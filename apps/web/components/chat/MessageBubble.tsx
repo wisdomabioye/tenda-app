@@ -7,7 +7,7 @@
  * long-press) arrives with the moderation surfaces (S6).
  */
 import { AttachmentPreview } from './AttachmentPreview'
-import type { AttachmentPress } from '@/lib/uploads/attachments'
+import type { AttachmentPress } from '@tenda/shared'
 import type { LocalMessage } from '@/stores/chat.store'
 import { cn } from '@/lib/cn'
 

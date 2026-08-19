@@ -3,15 +3,23 @@
  * optimistic send with temp ids, WS-echo dedupe (the broadcast echoes the
  * sender's own message and may beat the POST response), retry re-sends the
  * already-uploaded attachment, and fetchMessages merges server truth with
- * still-pending optimistic copies. Only the UploadedAttachment import path
- * is web's.
+ * still-pending optimistic copies.
+ *
+ * Nothing about the state machine is web's any more: `UploadedAttachment` used
+ * to be the one import that differed, and since #43 it comes from @tenda/shared
+ * on both clients. What is still web's is the transport under `api` and the
+ * account-reset wiring above.
  */
 import { create } from 'zustand'
 import { accountGeneration, isSameAccount, registerAccountReset } from '@/lib/account-state'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
-import type { UploadedAttachment } from '@/lib/uploads/attachments'
-import { ATTACHMENT_PREVIEW, type Conversation, type Message } from '@tenda/shared'
+import {
+  ATTACHMENT_PREVIEW,
+  type Conversation,
+  type Message,
+  type UploadedAttachment,
+} from '@tenda/shared'
 
 // A message optimistically added before server confirmation
 export type LocalMessage = Message & {
