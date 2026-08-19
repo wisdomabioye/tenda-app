@@ -15,11 +15,17 @@
  * apart, and the advisory hint is unaffected by that frame.
  */
 import { renderHook, act } from '@testing-library/react-native'
-import type { ModerationPreviewResponse } from '@tenda/shared'
+import type { ModerationPreviewBody, ModerationPreviewResponse } from '@tenda/shared'
 
-const mockPreview = jest.fn<Promise<ModerationPreviewResponse>, [unknown]>()
+// Typed on both sides so `mockPreview.mock.calls` carries the real body shape
+// rather than `unknown`. NOT because it makes the assertion below compile-
+// checked — measured, and it does not: this jest version types
+// `toHaveBeenCalledWith` loosely, so renaming a field inside the expected
+// object still compiles. The typing that IS enforced is the FIXTURE's (see
+// VERDICT).
+const mockPreview = jest.fn<Promise<ModerationPreviewResponse>, [ModerationPreviewBody]>()
 jest.mock('@/api/client', () => ({
-  api: { moderation: { preview: (b: unknown) => mockPreview(b) } },
+  api: { moderation: { preview: (b: ModerationPreviewBody) => mockPreview(b) } },
 }))
 
 import { useModerationPreview, type ModerationPreviewInput } from '@/hooks/useModerationPreview'
@@ -33,10 +39,15 @@ const READY: ModerationPreviewInput = {
   paymentRaw: '10000000',
 }
 
-const VERDICT = {
+// Typed, not cast. `as unknown as ModerationPreviewResponse` compiled while
+// omitting BOTH `cached` and each reason's `severity`, so every case here was
+// asserting a verdict the server cannot send — and would have kept compiling if
+// the contract grew another field.
+const VERDICT: ModerationPreviewResponse = {
   decision: 'warn',
-  reasons: [{ code: 'price', message: 'Low budget' }],
-} as unknown as ModerationPreviewResponse
+  reasons: [{ code: 'price', message: 'Low budget', severity: 'warn' }],
+  cached: false,
+}
 
 beforeEach(() => {
   jest.useFakeTimers()
@@ -122,7 +133,7 @@ test('typing keeps resetting the debounce — one request for a burst of edits',
 
 test('a stale response can never overwrite the latest verdict', async () => {
   let resolveFirst!: (v: ModerationPreviewResponse) => void
-  const approve = { decision: 'approve', reasons: [] } as unknown as ModerationPreviewResponse
+  const approve: ModerationPreviewResponse = { decision: 'approve', reasons: [], cached: false }
   mockPreview
     .mockImplementationOnce(() => new Promise<ModerationPreviewResponse>((res) => { resolveFirst = res }))
     .mockResolvedValueOnce(approve)
@@ -164,7 +175,7 @@ test('a superseded request that FAILS cannot clear the newer verdict', async () 
   // an abandoned request's rejection wipes the verdict belonging to the input
   // the reader is actually looking at.
   let rejectFirst!: (e: Error) => void
-  const approve = { decision: 'approve', reasons: [] } as unknown as ModerationPreviewResponse
+  const approve: ModerationPreviewResponse = { decision: 'approve', reasons: [], cached: false }
   mockPreview
     .mockImplementationOnce(() => new Promise<ModerationPreviewResponse>((_res, rej) => { rejectFirst = rej }))
     .mockResolvedValueOnce(approve)
