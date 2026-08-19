@@ -6,20 +6,33 @@
  * column that Next remounts on every row opened. It dies with the screen.
  *
  * THERE IS NO `rememberForAccount` HERE, AND THAT RESTS ON AN INVARIANT (#55):
- * only PUBLIC lists may enable caching. Web needs the guard because its cache
- * is caller-owned and deliberately outlives the hook (#45), and its list
- * columns include account-scoped ones. Mobile's cannot leak one account's rows
- * to another for a simpler reason than lifetime — nothing account-scoped is in
- * it. Every caller that passes `cacheQueries: true` reads a public surface:
+ * only VIEWER-INDEPENDENT lists may enable caching. Web needs the guard because
+ * its cache is caller-owned and deliberately outlives the hook (#45), and its
+ * list columns include account-scoped ones. Mobile's cannot leak one account's
+ * rows to another for a simpler reason than lifetime — nothing account-scoped
+ * is in it.
  *
- *   useHomeFeed          api.gigs.list      — search/category/location/chain
- *   useExchangeScreen    api.exchange.list  — the read-only order book
+ * Viewer-independent, NOT "public" — the test is whether the route's answer can
+ * vary by who asks, and one of the two does require auth. Both were checked at
+ * the route, and neither handler reads `request.user` at all:
+ *
+ *   useHomeFeed        api.gigs.list      routes/v1/gigs/public-feed.ts — filters
+ *                                         `hidden = false` for every caller; an
+ *                                         owner reaches taken-down rows only via
+ *                                         `?mine=`, which this caller never sends
+ *   useExchangeScreen  api.exchange.list  routes/v1/exchange/index.ts — WHERE is
+ *                                         kind/status/hidden/accept_deadline plus
+ *                                         query filters; auth is required only to
+ *                                         keep the book off scrapers, and
+ *                                         `toExchangeSummary` maps the row alone
  *
  * and every account-scoped list leaves it off: useExchangeScreen's myTrades
  * (api.users.escrows), useMyGigs, useMyDisputes, useDraftGigs, useWalletScreen.
  *
  * SO: adding `cacheQueries: true` to an account-scoped list is not a
  * performance tweak, it is the bug #45 describes. Add the account guard first.
+ * And when adding it to a NEW list, check its ROUTE for `request.user`, not
+ * just whether the screen feels public.
  */
 import { useMemo, useRef } from 'react'
 import { createQueryCache, readPage, rememberPage, type CachedPage } from '@tenda/shared'
