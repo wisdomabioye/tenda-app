@@ -181,6 +181,18 @@ describe('FIAT mode', () => {
     expect(onChange).not.toHaveBeenCalled()
   })
 
+  test('a NON-stable asset converts at the SOL rate directly, not through the USD leg', () => {
+    // The other arm of `meta?.is_stable`, which had no case: every other test
+    // here uses a stable (USDC_SOL, cUSD), so only the divide-out-USD path was
+    // ever exercised. A native-token budget takes the rate straight from the
+    // platform cache — NGN 150,000 per SOL — and getting that wrong would
+    // misprice by the USD rate, which is exactly the class of error #49 is about.
+    const { onChange, field } = setup('', 'SOL_DEVNET')
+    fireEvent.changeText(field(), '300000')
+    // 300000 NGN / 150000 NGN-per-SOL = 2 SOL, at 9 decimals.
+    expect(onChange).toHaveBeenLastCalledWith('2000000000')
+  })
+
   test('a fiat entry keeps 2 decimals — the asset precision does not apply to naira', () => {
     const { field } = setup()
     fireEvent.changeText(field(), '1500.756')
