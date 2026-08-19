@@ -35,8 +35,15 @@ export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
  * than hardcoded, so adding `USDC_<CHAIN>` to the map above is enough.
  *
  * Exists because USDC is the settlement unit whose lifetime totals the wallet
- * screen reports, and both the client (display) and the server (SQL aggregate)
- * must agree on the membership test — two hand-rolled lists would drift.
+ * screen reports, and the membership test behind that aggregate must not be a
+ * hand-rolled list that drifts from the asset registry.
+ *
+ * ONE consumer today, established by breaking this export and reading the
+ * compilers rather than by searching for the name: the server's
+ * routes/v1/users/_id/transactions/summary aggregate. Neither client tests
+ * membership — web reads USDC_DECIMALS for the fee calculator, mobile reads
+ * neither. Said plainly because the note here used to claim the client shared
+ * this test, and a rationale nobody can check is how the drift starts.
  */
 export const USDC_ASSET_IDS: readonly string[] = Object.keys(ASSET_META).filter(
   (id) => ASSET_META[id].symbol === 'USDC',
