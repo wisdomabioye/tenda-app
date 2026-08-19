@@ -181,6 +181,10 @@ export function usePaginatedList<TItem, TQuery extends object>({
     setTotal(cached.total)
     totalRef.current = cached.total
     cursor.resetTo(cached.items.length)
+    // And the CURSOR: `CachedPage` is {items, total} only, so keeping the one
+    // the PREVIOUSLY-VIEWED query left walks that query's pages into this list
+    // whenever the revalidation below fails ('reload' keeps state on failure).
+    cursor.setCursor(undefined)
     setError(null)
     setHasFetched(true)
     // An 'initial' load for the PREVIOUS query may still be in flight. The

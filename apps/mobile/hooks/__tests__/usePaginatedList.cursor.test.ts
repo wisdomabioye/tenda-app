@@ -215,3 +215,47 @@ test('a failed initial load does not leave the PREVIOUS query cursor claiming an
   expect(result.current.items).toEqual([])
   expect(result.current.hasMore).toBe(false)
 })
+
+test('a cache HIT does not inherit the previously-viewed query cursor', async () => {
+  // Same family as the clear() bug above, on the other path that restores a
+  // position. `CachedPage` holds {items, total} and no cursor, so the cache-hit
+  // branch resets the OFFSET to the remembered page and leaves nextCursorRef
+  // holding whatever the query the reader just came from left there. The
+  // revalidation behind the hit normally overwrites it — unless it FAILS, and
+  // 'reload' deliberately keeps state on failure. Then loadMore walks the
+  // previous filter's cursor and merges its rows into this filter's list.
+  // useHomeFeed is the one caller with both cacheQueries and cursorPagination.
+  const fetchPage = jest
+    .fn()
+    .mockResolvedValueOnce(page(rows('a', 'b'), 'cursor-A'))
+    .mockResolvedValueOnce(page(rows('c', 'd'), 'cursor-B'))
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockResolvedValueOnce(page(rows('e', 'f'), null))
+  let query: Record<string, string> = { category: 'first' }
+  const { result, rerender } = renderHook(() =>
+    usePaginatedList({
+      fetchPage,
+      query,
+      keyOf: (row: Row) => row.id,
+      pageSize: 2,
+      cacheQueries: true,
+      cursorPagination: true,
+    }),
+  )
+  await waitFor(() => expect(result.current.items).toEqual(rows('a', 'b')))
+
+  query = { category: 'second' }
+  rerender({})
+  await waitFor(() => expect(result.current.items).toEqual(rows('c', 'd')))
+
+  query = { category: 'first' }
+  rerender({})
+  await waitFor(() => expect(result.current.items).toEqual(rows('a', 'b')))
+  await waitFor(() => expect(result.current.error).not.toBeNull())
+
+  act(() => result.current.loadMore())
+  await waitFor(() => expect(fetchPage).toHaveBeenCalledTimes(4))
+  expect(fetchPage).toHaveBeenLastCalledWith(
+    expect.not.objectContaining({ cursor: 'cursor-B' }),
+  )
+})
