@@ -44,6 +44,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useChatStore } from '@/stores/chat.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { useEscrowStore } from '@/stores/escrow.store'
+import { JWT_TOKEN_KEY } from '@/lib/storage'
 import { makeUser } from '../../test/factories/user'
 
 /** A promise this test resolves by hand, so "in flight" is a real state. */
@@ -196,5 +197,72 @@ describe('a request issued while SIGNED OUT', () => {
 
     expect(useChatStore.getState().conversations).toEqual([])
     expect(useChatStore.getState().unread).toBe(0)
+  })
+})
+
+/**
+ * The store that OWNS the transition has in-flight writers too, and being the
+ * owner is not a guard: `logout` empties it at one moment, and a `users.me` or
+ * `auth.me` already on its way still lands afterwards. Three writers, three
+ * cases — the rule this file states at the top.
+ */
+describe('auth', () => {
+  it('a linked-wallets refresh in flight cannot hand the next account the previous one\'s wallets', async () => {
+    // The worst of the three: useWalletScreen reads `wallets` to decide the
+    // section AND passes it to readWalletBalances, so the next reader would be
+    // shown the previous account's addresses with their real on-chain balances.
+    const gate = deferred<unknown>()
+    vi.mocked(api.users.me).mockReturnValue(gate.promise as Promise<never>)
+    const inFlight = useAuthStore.getState().refreshWallets()
+
+    await useAuthStore.getState().logout()
+    gate.resolve({ wallets: [{ id: 'w1', address: 'SoLAddrA', chain_ns: 'solana' }] })
+    await inFlight
+
+    expect(useAuthStore.getState().wallets).toEqual([])
+    expect(useAuthStore.getState().walletsStatus).toBe('idle')
+  })
+
+  it('a user refresh in flight cannot put the previous account back on screen', async () => {
+    const gate = deferred<unknown>()
+    authApi.me.mockReturnValue(gate.promise as Promise<never>)
+    const inFlight = useAuthStore.getState().refreshUser()
+
+    await useAuthStore.getState().logout()
+    gate.resolve(makeUser({ id: 'user-a', first_name: 'Ada', last_name: 'Prev' }))
+    await inFlight
+
+    expect(useAuthStore.getState().user).toBeNull()
+  })
+
+  it('a methods load in flight cannot list the previous account\'s sign-in methods', async () => {
+    const gate = deferred<unknown>()
+    authApi.methods.mockReturnValue(gate.promise as Promise<never>)
+    const inFlight = useAuthStore.getState().loadMethods()
+
+    await useAuthStore.getState().logout()
+    gate.resolve({ identities: [{ method: 'email', identifier: 'ada@tenda.test' }] })
+    await inFlight
+
+    expect(useAuthStore.getState().identities).toEqual([])
+  })
+
+  it('a bootstrap in flight cannot sign the tab back in after a sign-out', async () => {
+    window.localStorage.setItem(JWT_TOKEN_KEY, 'jwt-a')
+    const gate = deferred<unknown>()
+    authApi.me.mockReturnValue(gate.promise as Promise<never>)
+    const inFlight = useAuthStore.getState().loadSession()
+
+    await useAuthStore.getState().logout()
+    gate.resolve(makeUser({ id: 'user-a', first_name: 'Ada', last_name: 'Prev' }))
+    await inFlight
+
+    // Signed out means signed out: the credential was cleared, so a late
+    // bootstrap must not re-assert the session it was fetched for.
+    expect(useAuthStore.getState().isAuthenticated).toBe(false)
+    expect(useAuthStore.getState().user).toBeNull()
+    // And the render/redirect gate is not stranded by the dropped write —
+    // `logout` settled it, which is the argument the guard rests on.
+    expect(useAuthStore.getState().isLoading).toBe(false)
   })
 })

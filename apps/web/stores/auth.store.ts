@@ -12,7 +12,12 @@ import { api } from '@/api/client'
 import { clearAuthStorage, getJwtToken, JWT_TOKEN_KEY, setJwtToken } from '@/lib/storage'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { reownAdapter } from '@/wallet/adapters/reown'
-import { beginAccountSession, clearAccountState } from '@/lib/account-state'
+import {
+  accountGeneration,
+  beginAccountSession,
+  clearAccountState,
+  isSameAccount,
+} from '@/lib/account-state'
 import type { WalletAdapter } from '@/wallet/adapters/types'
 
 /**
@@ -151,13 +156,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   refreshWallets: async () => {
+    // #45 applies HERE too — owning the transition is not a guard. The worst
+    // of this store's four: useWalletScreen decides its section from `wallets`
+    // AND passes them to readWalletBalances, so a late response shows the next
+    // reader the previous account's addresses and their real balances.
+    const gen = accountGeneration()
     set({ walletsStatus: 'loading' })
     try {
       const res = await api.users.me()
+      if (!isSameAccount(gen)) return
       set({ wallets: res.wallets, walletsStatus: 'ready' })
     } catch {
       // Keep the last-good list (never blank a rendered list to an error);
-      // the status tells the screen to offer a retry.
+      // the status tells the screen to offer a retry. Not for a dead session,
+      // though: 'idle' is what the sign-out left, and an 'error' there would
+      // offer the next reader a retry for a request that was never theirs.
+      if (!isSameAccount(gen)) return
       set({ walletsStatus: 'error' })
     }
   },
@@ -171,8 +185,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   loadMethods: async () => {
+    // Identities are the account's own sign-in methods, so a late response
+    // lists the previous account's on the next one's security screen (#45).
+    const gen = accountGeneration()
     try {
       const res = await api.auth.methods()
+      if (!isSameAccount(gen)) return
       set({ identities: res.identities })
     } catch {
       // Non-fatal; the security surface offers a retry.
@@ -194,14 +212,23 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   loadSession: async () => {
+    // The bootstrap ASSERTS a session, so it writes an account rather than
+    // merely reading one: landing after a sign-out it signs the tab back in as
+    // the account whose credential was just cleared (#45). Dropping the write
+    // cannot strand `isLoading` — every path that moves the generation settles
+    // that flag itself (logout, sign-in, and the cross-tab branches, the
+    // sign-IN one by re-running this under the new generation).
+    const gen = accountGeneration()
     let jwt: string | null = null
     try {
       jwt = await getJwtToken()
+      if (!isSameAccount(gen)) return
       if (jwt === null || jwt === '') {
         set({ ...SIGNED_OUT, isLoading: false })
         return
       }
       const user = await api.auth.me()
+      if (!isSameAccount(gen)) return
       set({
         user,
         jwt,
@@ -210,8 +237,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         profileComplete: hasCompleteName(user.first_name, user.last_name),
       })
     } catch (e) {
+      if (!isSameAccount(gen)) return
       if (e instanceof ApiClientError && (e.statusCode === 401 || e.statusCode === 403)) {
         await clearAuthStorage()
+        // Re-checked: clearing storage is itself an await.
+        if (!isSameAccount(gen)) return
         set({ ...SIGNED_OUT, isLoading: false })
       } else {
         // Transient failure: keep the stored credential for the next attempt
@@ -222,8 +252,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   refreshUser: async () => {
+    // A focus refresh that resolves after a sign-out would put the previous
+    // account's name and profile state back on screen (#45).
+    const gen = accountGeneration()
     try {
       const user = await api.auth.me()
+      if (!isSameAccount(gen)) return
       set({
         user,
         profileComplete: hasCompleteName(user.first_name, user.last_name),
