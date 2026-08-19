@@ -6,6 +6,10 @@
 
 import { test } from 'node:test'
 import * as assert from 'node:assert'
+import {
+  MAX_COMPLETION_DURATION_SECONDS,
+  MIN_COMPLETION_DURATION_SECONDS,
+} from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import {
   validateCreateEscrow,
@@ -133,9 +137,57 @@ test('deadline must be a future integer', () => {
   expectRejects(body({ accept_deadline_unix: 'tomorrow' as unknown as number }), 422, /integer/)
 })
 
-test('completion duration must be a positive integer', () => {
-  expectRejects(body({ completion_duration_seconds: 0 }), 422, /positive/)
-  expectRejects(body({ completion_duration_seconds: -10 }), 422, /positive/)
+test('completion duration must be a number at all', () => {
+  expectRejects(
+    body({ completion_duration_seconds: '7200' as unknown as number }),
+    422,
+    /positive integer/,
+  )
+})
+
+/**
+ * The window is BOUNDED, not merely positive (#52).
+ *
+ * Until then the API took any positive integer, so ~3.2 years produced a draft
+ * row and a transaction to sign, and the refusal came from the chain AFTER the
+ * signature — both contracts cap it at 180 days. The bound applied is the
+ * tighter PRODUCT rail the composers already offer, through the same shared
+ * predicate, so the two can never disagree.
+ */
+test('completion duration: both boundaries are INSIDE the window', () => {
+  const at = (seconds: number) =>
+    validateCreateEscrow(deps(), body({ completion_duration_seconds: seconds }))
+      .completion_duration_seconds
+  assert.strictEqual(at(MIN_COMPLETION_DURATION_SECONDS), MIN_COMPLETION_DURATION_SECONDS)
+  assert.strictEqual(at(MAX_COMPLETION_DURATION_SECONDS), MAX_COMPLETION_DURATION_SECONDS)
+})
+
+test('completion duration: one second past either boundary is refused', () => {
+  // Exactly one second, not a round number — an off-by-one in the comparison
+  // is the failure this catches, and a coarse probe would miss it.
+  expectRejects(
+    body({ completion_duration_seconds: MIN_COMPLETION_DURATION_SECONDS - 1 }),
+    422,
+    /between/,
+  )
+  expectRejects(
+    body({ completion_duration_seconds: MAX_COMPLETION_DURATION_SECONDS + 1 }),
+    422,
+    /between/,
+  )
+})
+
+test('completion duration: zero, negative and non-integer are all refused', () => {
+  for (const seconds of [0, -10, 7_200.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+    expectRejects(body({ completion_duration_seconds: seconds }), 422, /between/)
+  }
+})
+
+test('completion duration: the ~3.2 years the chain would revert on is refused HERE', () => {
+  // The concrete case from #52. 100,000,000s is past the 180-day contract
+  // limit as well as the 90-day product rail, so before this it reached the
+  // chain; now it never leaves the API.
+  expectRejects(body({ completion_duration_seconds: 100_000_000 }), 422, /between/)
 })
 
 test('self-assignment rejected', () => {

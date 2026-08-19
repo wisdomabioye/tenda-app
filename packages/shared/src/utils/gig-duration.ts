@@ -12,13 +12,17 @@
  * not the protocol one (`ESCROW_LIMITS.maxCompletionDurationSeconds`, 180
  * days): a picker should offer the tighter of the two.
  *
- * Be clear about what enforces it, because it is not what you would assume.
- * `POST /v1/escrows` checks only that `completion_duration_seconds` is a
- * POSITIVE INTEGER (features/escrows/creation/validateCreateEscrow.ts) — it
- * applies neither bound. So this rail is advisory: it is what the composer
- * refuses to submit, not what the API refuses to accept. Do not describe it as
- * server-enforced. The server gap is filed separately; when it closes, this
- * comment should say so rather than being quietly assumed.
+ * SERVER-ENFORCED since #52, which is what this paragraph used to deny. `POST
+ * /v1/escrows` had checked only that `completion_duration_seconds` was a
+ * positive integer, so the rail was advisory — what the composer declined to
+ * submit, not what the API declined to accept. It now runs the same
+ * `isValidCompletionDuration` the pickers use
+ * (features/escrows/creation/validateCreateEscrow.ts), so client and API agree
+ * on one number and an over-limit value is a 422 rather than a chain revert
+ * after the user has signed.
+ *
+ * The consequence to know: moving this rail is now a SERVER deploy, not a
+ * client-only one.
  */
 import { formatDuration } from './gig-display'
 import {

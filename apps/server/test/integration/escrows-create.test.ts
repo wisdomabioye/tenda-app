@@ -19,6 +19,10 @@ import {
   authHeader,
 } from '../helpers/test-app'
 import { createEscrowBody, gigDetailsBody } from '../helpers/escrow-states'
+import {
+  MAX_COMPLETION_DURATION_SECONDS,
+  MIN_COMPLETION_DURATION_SECONDS,
+} from '@tenda/shared'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -55,6 +59,70 @@ test('POST /v1/escrows: 422 on invalid kind', { skip }, async () => {
   })
   assert.strictEqual(res.statusCode, 422)
   assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
+})
+
+/**
+ * The completion window is BOUNDED at the API, not just in the composer (#52).
+ *
+ * Before this, any positive integer was accepted: ~3.2 years produced a draft
+ * row and a transaction to sign, and the refusal arrived from the chain — both
+ * contracts cap the window at ESCROW_LIMITS.maxCompletionDurationSeconds (180
+ * days) — AFTER the user had signed. The bound enforced is the tighter product
+ * rail the pickers already offer, so client and API cannot disagree.
+ *
+ * Through the route, not just the validator, because the validator being right
+ * is not the same claim as the endpoint refusing.
+ */
+test('POST /v1/escrows: accepts a window at EITHER boundary', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  await makeTransactable(app, u.row.id)
+  for (const seconds of [MIN_COMPLETION_DURATION_SECONDS, MAX_COMPLETION_DURATION_SECONDS]) {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/escrows',
+      headers: authHeader(u.token),
+      payload: createEscrowBody({ completion_duration_seconds: seconds }),
+    })
+    assert.strictEqual(res.statusCode, 201, `boundary ${seconds} should be inside the window`)
+  }
+})
+
+test('POST /v1/escrows: 422 one second past either boundary', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  await makeTransactable(app, u.row.id)
+  for (const seconds of [
+    MIN_COMPLETION_DURATION_SECONDS - 1,
+    MAX_COMPLETION_DURATION_SECONDS + 1,
+  ]) {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/escrows',
+      headers: authHeader(u.token),
+      payload: createEscrowBody({ completion_duration_seconds: seconds }),
+    })
+    assert.strictEqual(res.statusCode, 422, `${seconds} should be outside the window`)
+    assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
+  }
+})
+
+test('POST /v1/escrows: 422 for a non-integer window, and for the chain-reverting one', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app)
+  await makeTransactable(app, u.row.id)
+  // 100_000_000s ≈ 3.2 years — past the 180-day contract limit, which is the
+  // case that used to reach the chain.
+  for (const seconds of [7_200.5, 100_000_000]) {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/v1/escrows',
+      headers: authHeader(u.token),
+      payload: createEscrowBody({ completion_duration_seconds: seconds }),
+    })
+    assert.strictEqual(res.statusCode, 422, `${seconds} should be refused`)
+    assert.strictEqual(res.json().code, 'VALIDATION_ERROR')
+  }
 })
 
 test('POST /v1/escrows: 422 on a chain the registry does not carry', { skip }, async () => {

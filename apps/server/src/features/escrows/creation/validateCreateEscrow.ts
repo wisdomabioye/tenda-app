@@ -7,7 +7,14 @@
  * fail fast with typed errors, not to be the security boundary).
  */
 
-import { ErrorCode, AMOUNT_RAW_PRECISION, type PermitSignatureBody } from '@tenda/shared'
+import {
+  ErrorCode,
+  AMOUNT_RAW_PRECISION,
+  MAX_COMPLETION_DURATION_SECONDS,
+  MIN_COMPLETION_DURATION_SECONDS,
+  isValidCompletionDuration,
+  type PermitSignatureBody,
+} from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { assertGigAsset, assertExchangeAsset } from '@server/lib/escrow'
 import { validateWirePermit } from '@server/chains/evm/permit'
@@ -119,12 +126,27 @@ export function validateCreateEscrow(
     fail('accept_deadline_unix must be in the future')
   }
 
-  if (
-    typeof body.completion_duration_seconds !== 'number' ||
-    !Number.isInteger(body.completion_duration_seconds) ||
-    body.completion_duration_seconds <= 0
-  ) {
+  // BOUNDED, not merely positive. The bound is the PRODUCT rail — the same
+  // 90 days both composers offer, through the same shared predicate, so the
+  // clients and the API can never disagree about it (#52).
+  //
+  // What makes bounding it mandatory is the CHAIN: both contracts carry
+  // ESCROW_LIMITS.maxCompletionDurationSeconds (180 days), and ESCROW_LIMITS
+  // exists so off-chain validation "can never be looser than what the chain
+  // accepts". Unbounded here, a caller posting ~3.2 years got a draft row and
+  // a transaction to sign, and the refusal arrived from the chain AFTER the
+  // signature. 90 < 180, so satisfying the product rail satisfies the
+  // protocol one with room to spare.
+  //
+  // The consequence, accepted deliberately: moving the product rail is now a
+  // SERVER deploy, not a client-only one.
+  if (typeof body.completion_duration_seconds !== 'number') {
     fail('completion_duration_seconds must be a positive integer')
+  }
+  if (!isValidCompletionDuration(body.completion_duration_seconds)) {
+    fail(
+      `completion_duration_seconds must be an integer between ${MIN_COMPLETION_DURATION_SECONDS} and ${MAX_COMPLETION_DURATION_SECONDS}`,
+    )
   }
   const completion_duration_seconds = body.completion_duration_seconds
 
