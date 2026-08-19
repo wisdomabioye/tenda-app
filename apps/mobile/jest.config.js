@@ -112,6 +112,14 @@ module.exports = {
     'lib/pagination/*.ts',
     '!lib/pagination/index.ts',
     'hooks/usePaginatedList.ts',
+    // The hook's two extracted halves (#54). Listed explicitly because the
+    // gate is an allow-list: splitting a covered file into an unlisted folder
+    // silently REMOVES its code from the measurement, and the parent then
+    // reports a better number for doing less — measured, usePaginatedList.ts
+    // read 100/100/100/100 with the branchy half no longer inside it.
+    'hooks/pagination/*.ts',
+    // Types only, nothing to exercise.
+    '!hooks/pagination/paginated-list.types.ts',
     'hooks/useDebouncedValue.ts',
     'hooks/useGigsFeedPolling.ts',
     'hooks/useHomeFeed.ts',
