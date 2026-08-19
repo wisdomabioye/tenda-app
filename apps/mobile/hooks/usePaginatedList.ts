@@ -5,6 +5,7 @@ import { usePageCursor } from './pagination/usePageCursor'
 import type { FirstPageResult, PaginatedListState, UsePaginatedListOptions } from './pagination/paginated-list.types'
 
 export type { PageParams, PaginatedListState, UsePaginatedListOptions } from './pagination/paginated-list.types'
+
 export function usePaginatedList<TItem, TQuery extends object>({
   fetchPage,
   query,

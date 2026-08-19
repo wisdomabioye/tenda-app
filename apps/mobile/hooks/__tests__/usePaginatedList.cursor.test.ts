@@ -181,3 +181,37 @@ test('falls back to offsets when the server sends no cursor at all', async () =>
   await waitFor(() => expect(result.current.items).toHaveLength(3))
   expect(result.current.hasMore).toBe(false)
 })
+
+test('a failed initial load does not leave the PREVIOUS query cursor claiming another page', async () => {
+  // `clear()` is documented as "back to the start", and in offset mode it is:
+  // the offset returns to 0 and `hasMore` is 0 < 0. In CURSOR mode the offset
+  // is ignored entirely (shared `hasMorePages`: with a cursor present the
+  // answer is `nextCursor !== null`), so resetting only the offset left the
+  // PREVIOUS query's cursor standing over an empty, errored list — which then
+  // reported another page to load, and would have fetched it under the old
+  // cursor. Only `useHomeFeed` sets cursorPagination, and it is also the one
+  // surface whose filters change under a loaded list.
+  const fetchPage = jest
+    .fn()
+    .mockResolvedValueOnce(page(rows('a', 'b'), 'cursor-2'))
+    .mockRejectedValueOnce(new Error('offline'))
+  let query: Record<string, string> = { category: 'first' }
+  const { result, rerender } = renderHook(() =>
+    usePaginatedList({
+      fetchPage,
+      query,
+      keyOf: (row: Row) => row.id,
+      pageSize: 2,
+      cursorPagination: true,
+    }),
+  )
+  await waitFor(() => expect(result.current.items).toHaveLength(2))
+  expect(result.current.hasMore).toBe(true)
+
+  query = { category: 'second' }
+  rerender({})
+  await waitFor(() => expect(result.current.error).not.toBeNull())
+
+  expect(result.current.items).toEqual([])
+  expect(result.current.hasMore).toBe(false)
+})

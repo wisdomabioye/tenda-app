@@ -71,6 +71,14 @@ export function usePageCursor(cursorPagination: boolean): PageCursor {
       },
       clear: () => {
         offsetRef.current = 0
+        // The CURSOR too. Cursor mode ignores the offset entirely (shared
+        // `hasMorePages` answers `nextCursor !== null` once a cursor exists),
+        // so resetting only the offset left the previous query's cursor
+        // standing over an empty, errored list — which then reported another
+        // page and would have fetched it under the dead query's cursor.
+        // `undefined`, not `null`: that is the ref's initial value, and "back
+        // to the start" has to mean the state a fresh hook starts in.
+        nextCursorRef.current = undefined
       },
       hasMore: (total) =>
         hasMorePages({
