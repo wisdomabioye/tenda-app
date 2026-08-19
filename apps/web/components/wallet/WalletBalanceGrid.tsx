@@ -7,7 +7,12 @@
  * different facts, and the second one dressed as the first is the wallet bug
  * this app already fixed once at the section level (`resolveWalletSection`).
  */
-import { splitAssetAmount, truncateWallet, type WalletChainBalance } from '@tenda/shared'
+import {
+  splitAssetAmount,
+  truncateWallet,
+  type AssetBalance,
+  type WalletChainBalance,
+} from '@tenda/shared'
 import { WALLET_COPY } from './copy'
 
 interface Reading {
@@ -23,13 +28,17 @@ interface Reading {
  * float, which for the 18-decimal assets (ETH, cUSD, CELO) is more precision
  * than a double carries: 1.234567890123456789 cUSD rendered as
  * "1.2345678901234567" — six trailing digits of float noise presented as a
- * balance (#50). This was the only `maximumFractionDigits: <decimals>` in the
- * monorepo.
+ * balance (#50). The mobile twin never had it: WalletBalanceRows formats both
+ * figures with `formatAssetAmount`, which is `splitAssetAmount` joined.
  *
- * `balance.symbol` stays the unit rather than the formatter's: it comes from
- * the chain read, so an asset outside ASSET_META still shows its real ticker.
+ * `balance.symbol` stays the unit rather than the formatter's, and the two
+ * cannot disagree: `assertManifestValid` refuses at import any chain asset id
+ * missing from ASSET_META, and the registry these readings carry is seeded
+ * from that manifest. So this is the chain read's own ticker, not a fallback
+ * for an asset the metadata lacks — the VALUE has no such second source, and
+ * would be unscaled base units if one ever existed.
  */
-function readingOf(balance: WalletChainBalance['usdc']): Reading | null {
+function readingOf(balance: AssetBalance | null): Reading | null {
   if (balance === null) return null
   return {
     value: splitAssetAmount(balance.amountRaw, balance.assetId).amount,
