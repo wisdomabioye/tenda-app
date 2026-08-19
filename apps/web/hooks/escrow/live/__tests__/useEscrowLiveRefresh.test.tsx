@@ -39,7 +39,7 @@ vi.mock('@/stores/realtime.store', () => ({
 }))
 
 import { useEscrowLiveRefresh } from '@/hooks/escrow/live'
-import { ESCROW_EVENT_DEBOUNCE_MS, ESCROW_FOCUSED_POLL_MS } from '@/hooks/escrow/live/constants'
+import { ESCROW_EVENT_DEBOUNCE_MS, ESCROW_FOCUSED_POLL_MS } from '@tenda/shared'
 
 let visibilityState: DocumentVisibilityState = 'visible'
 Object.defineProperty(document, 'visibilityState', {

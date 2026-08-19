@@ -14,8 +14,11 @@ import { ESCROW_STATUS_SETTLEMENT, type EscrowStatus } from '@tenda/shared'
 import { subscribeEscrowChannel, useRealtimeStore } from '@/stores/realtime.store'
 import { useDocumentVisibility, isDocumentVisible } from '@/hooks/connectivity/useDocumentVisibility'
 import { useOnlineStatus } from '@/hooks/connectivity/useOnlineStatus'
-import { ESCROW_EVENT_DEBOUNCE_MS, ESCROW_FOCUSED_POLL_MS } from './constants'
-import { createRefreshCoordinator } from './refresh-coordinator'
+import {
+  ESCROW_EVENT_DEBOUNCE_MS,
+  ESCROW_FOCUSED_POLL_MS,
+  createRefreshCoordinator,
+} from '@tenda/shared'
 
 export function useEscrowLiveRefresh(
   escrowId: string | undefined,

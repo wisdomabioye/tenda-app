@@ -66,7 +66,7 @@ export {
   type SolanaSignatureStatusValue,
 } from './solana-transaction-status'
 export { resolveHttpRpcEndpoints, type HttpRpcEndpointOptions } from './rpc-endpoints'
-export { withTimeout } from './async'
+export { withTimeout, createRefreshCoordinator, type RefreshCoordinator } from './async'
 export { notifyListeners } from './notify-listeners'
 export { isAmountRaw } from './amount-raw'
 export {
