@@ -227,6 +227,42 @@ describe('receiveMessage (WS delivery)', () => {
     expect(s.conversations[0].last_message_at).toBe('2026-08-16T09:00:00.000Z')
   })
 
+  it('moves ONLY the delivered thread — every other row keeps its own preview', () => {
+    // The `: c` arm of receiveMessage's conversations map was the file's one
+    // uncovered line: every other case here seeds a single conversation
+    // whose id IS the delivery target, so the arm protecting the rest of the
+    // inbox had never run. What it guards is rendered directly — the preview
+    // line on every row of the inbox column.
+    useChatStore.setState({
+      conversations: [
+        conv({ id: 'c1', last_message: 'older thread', last_message_at: '2026-08-14T08:00:00.000Z' }),
+        conv({ id: 'c2', last_message: 'stale preview', last_message_at: '2026-08-14T09:00:00.000Z' }),
+      ],
+      messages: { c1: [msg({ id: 'm-a' })] },
+    })
+
+    useChatStore.getState().receiveMessage('c2', msg({
+      id: 'ws-cross',
+      conversation_id: 'c2',
+      content: 'over here',
+      created_at: '2026-08-16T11:00:00.000Z',
+    }))
+
+    const s = useChatStore.getState()
+    // The target moved — asserted in the same case so this cannot pass by the
+    // store doing nothing at all.
+    const target = s.conversations.find((c) => c.id === 'c2')
+    expect(target?.last_message).toBe('over here')
+    expect(target?.last_message_at).toBe('2026-08-16T11:00:00.000Z')
+    // And the bystander did not.
+    const bystander = s.conversations.find((c) => c.id === 'c1')
+    expect(bystander?.last_message).toBe('older thread')
+    expect(bystander?.last_message_at).toBe('2026-08-14T08:00:00.000Z')
+    // The message itself landed in c2's thread only.
+    expect(s.messages.c1.map((m) => m.id)).toEqual(['m-a'])
+    expect(s.messages.c2.map((m) => m.id)).toEqual(['ws-cross'])
+  })
+
   it('an attachment-only echo previews as the attachment placeholder and my own echo reads as sent', () => {
     useChatStore.setState({ conversations: [conv({ id: 'c1' })] })
     useChatStore.getState().receiveMessage('c1', msg({ id: 'ws-2', sender_id: 'me', content: '' }))
