@@ -90,6 +90,16 @@ function toKey(root: string, absolute: string): string {
   return path.relative(root, absolute).split(path.sep).join('/')
 }
 
+/**
+ * Exported through a trailing statement, NOT as `export function`. #77's parity
+ * suite compares this function's body against mobile's byte for byte, and the
+ * `export ` prefix is part of what it captures — so marking the declaration
+ * would fail parity for a difference that is not one. The consumer is
+ * `coverage-gate.test.ts`, which asserts no fixture is instrumented (#83) and
+ * would otherwise re-encode this exact rule as its third copy.
+ */
+export { isTestSupport }
+
 function isTestSupport(file: string): boolean {
   return file.split('/').some((segment) => TEST_SUPPORT_DIRECTORIES.has(segment))
 }
@@ -208,10 +218,12 @@ export function collectTestSubjects(root: string): TestSubjects {
   // rejects those anyway (measured).
   //
   // `__fixtures__`/`__mocks__` are NOT filtered, where mobile's twin filters
-  // them. Web's coverage.exclude does not list them, so a fixture here is
-  // genuinely gateable source — `hooks/pagination/__fixtures__/list-fixtures.ts`
-  // sits in the coverage report today at 17 statements. That it is gated at all
-  // is its own problem (#83); this set describes what IS, not what should be.
+  // them — and that stays true even now #83 has added them to coverage.exclude.
+  // They belong in the CANDIDATE set precisely so `patternMatcher` can answer
+  // for them: an include entry whose only matches are fixtures is now dead, and
+  // the inert-pattern check can only say so if the fixtures are still here to be
+  // matched. Filtering them out would make that entry invisible and therefore
+  // look alive — the false negative this whole set exists to avoid.
   const sourceFiles = files
     .filter(
       (file) =>

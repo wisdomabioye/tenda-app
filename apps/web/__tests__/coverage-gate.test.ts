@@ -24,7 +24,7 @@ import path from 'node:path'
 import { existsSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { collectTestSubjects } from '../test-support/coverage-subjects'
+import { collectTestSubjects, isTestSupport } from '../test-support/coverage-subjects'
 import { UNGATED_BUT_EXERCISED } from '../test-support/coverage-ungated'
 import {
   SUITE_INCLUDE_PATTERN,
@@ -139,6 +139,28 @@ describe('coverage gate scope', () => {
     // The positive half, so this cannot pass by patternMatcher answering false
     // to everything.
     expect(sourceFiles.some(patternMatcher(ROOT, 'lib/**/*.ts'))).toBe(true)
+  })
+
+  it('instruments no fixture and no manual mock, whatever the include list reaches', () => {
+    // What #83 fixed, pinned through the REAL matcher rather than by reading the
+    // exclude list back to itself. `hooks/pagination/__fixtures__/list-fixtures.ts`
+    // was in the coverage report at 17 statements, 100% covered, because
+    // `hooks/**/*.ts` reaches it — a harness file flattering the app's figure.
+    //
+    // Anchored on that file BY NAME, and not merely on the set being non-empty.
+    // The other fixture directory (components/gig/) is reached by no include glob
+    // at all, so a case that happened to see only that one would pass whether or
+    // not the exclude existed — a vacuity guard counting files would not have
+    // caught that, and this one does.
+    //
+    // `__mocks__` is stated by the rule, not pinned by it: no such directory
+    // exists today, so nothing here can hold that entry in place. That is the
+    // point of reusing the resolver's own `isTestSupport` rather than restating
+    // its two directory names as a third copy of the rule — the first
+    // manual mock anybody adds is caught on the day it lands.
+    const support = sourceFiles.filter(isTestSupport)
+    expect(support).toContain('hooks/pagination/__fixtures__/list-fixtures.ts')
+    expect(support.filter((file) => isGated(file))).toEqual([])
   })
 
   it('sees every module the suite exercises, or records it as a known exception', () => {

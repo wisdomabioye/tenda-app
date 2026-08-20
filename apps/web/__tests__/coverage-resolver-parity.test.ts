@@ -59,9 +59,10 @@ const MAY_DIFFER: Record<string, string> = {
     'patterns and honouring only one left a suite invisible (#71); web pins its single ' +
     'pattern structurally and asserts the config still says it, because vitest resolves ' +
     'test.include with tinyglobby. #82 gave web `sourceFiles` too, so both return the ' +
-    'same four fields and both run an inert-pattern check — but they FILTER that set ' +
-    "differently on purpose: each mirrors its own runner's coverage exclusions, and " +
-    'only mobile excludes fixtures there (#83)',
+    'same four fields and both run an inert-pattern check — but they FILTER that ' +
+    'set differently on purpose: mobile drops fixtures from it, while web keeps ' +
+    'them as candidates so its per-pattern matcher can judge an entry that only ' +
+    'reaches fixtures as dead (#83)',
   subjectsByImport:
     'the same test-file predicate, plus the mocking call each runner uses — jest.mock vs vi.mock in IMPORT_SPECIFIER',
   inTestsDirectory:

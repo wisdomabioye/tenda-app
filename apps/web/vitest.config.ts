@@ -256,6 +256,26 @@ export default defineConfig({
       exclude: [
         '**/*.d.ts',
         '**/__tests__/**',
+        // Fixtures and manual mocks SERVE the suites; instrumenting one
+        // measures the harness and reports it as app coverage (#83).
+        // `hooks/pagination/__fixtures__/list-fixtures.ts` was in the report at
+        // 17 statements, 100% covered, because `hooks/**/*.ts` reaches it. Its
+        // sibling under components/gig/ was not, only because no include glob
+        // happens to reach that directory — the tell that this was accidental.
+        //
+        // Measured both sides: dropping it LOWERS the figures, branches
+        // 93.36 -> 93.35 and functions 91.79 -> 91.74, statements and lines
+        // holding at 98.30. All four still clear 90/85/85/90 with room.
+        // Percentages rather than raw counts on purpose: the global totals
+        // wobble by one between identical runs (#87), and vitest truncates
+        // rather than rounds, so 91.7495 reports as 91.74.
+        //
+        // `__mocks__` matches nothing today. It is `__fixtures__`'s conventional
+        // pair in both runners, and listing it now is what stops the first one
+        // anybody adds from being found in the coverage report the way this
+        // fixture was.
+        '**/__fixtures__/**',
+        '**/__mocks__/**',
         '**/*.types.ts',
         'wallet/adapters/types.ts',
         'lib/uploads/avatar.ts',
