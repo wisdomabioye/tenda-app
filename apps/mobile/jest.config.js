@@ -135,6 +135,11 @@ module.exports = {
     // more than 0.21 of branch coverage fails the gate, which is the gate
     // working.
     'stores/realtime.store.ts',
+    // The optimistic-send state machine (#59). It had no suite at all and sat
+    // outside this list too, so both halves of #58's problem applied to the
+    // trickiest state in the app. Measured before listing: the file reads
+    // 100/100/100/100 and the global branch figure goes UP, 90.21 -> 90.57.
+    'stores/chat.store.ts',
     // The budget field: fiat/asset entry, the rate-arrival conversion (#49) and
     // the base-unit string it emits. Added in the #49 re-audit — the task gave
     // it a 17-case suite and left the file outside this allow-list, so none of

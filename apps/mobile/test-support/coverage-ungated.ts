@@ -27,8 +27,9 @@
  * beside it.
  *
  * The SEED is not held to that bar and does not claim to be. It is the drift
- * as it stood when #58 measured it — 109 entries against 82 gated subjects, so
- * the headline figure describes well under half of what the suite executes.
+ * as it stood when #58 measured it, less what has left since — 108 entries
+ * against 83 gated subjects, so the headline figure still describes well under
+ * half of what the suite executes.
  * Not one of them carries a measurement, because not one had been measured:
  * the only file that HAD been, stores/realtime.store.ts, was re-measured
  * during #58's audit, came out above the threshold, and went into the gate
@@ -168,9 +169,6 @@ export const UNGATED_WITH_TESTS: readonly string[] = [
 
   // Zustand stores.
   'stores/chain-registry.store.ts',
-  // Runs only as the realtime mirror's write target — it has no suite of its
-  // own at all (#59).
-  'stores/chat.store.ts',
   'stores/escrow.store.ts',
   'stores/pending-sync.store.ts',
   'stores/wallet-sync.ts',
