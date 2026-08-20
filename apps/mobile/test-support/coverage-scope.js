@@ -222,4 +222,10 @@ module.exports = [
   // './test-support/' its own threshold, which SUBTRACTS these from the global
   // ones. The reasoning, and the measurement behind it, are recorded there.
   'test-support/*.ts',
+  // The settings store, which gained its first suite with #88. It reads theme
+  // and currency back out of SecureStore, and the currency it admits is what
+  // every CURRENCY_META lookup downstream indexes with — an unlisted one throws
+  // on the next property read rather than merely displaying oddly, so the
+  // parsing is worth measuring.
+  'stores/settings.store.ts',
 ]
