@@ -29,7 +29,9 @@ import { UNGATED_BUT_EXERCISED } from '../test-support/coverage-ungated'
 import {
   SUITE_INCLUDE_PATTERN,
   configuredCoverageInclude,
+  configuredProjects,
   configuredSuiteInclude,
+  declaredRoots,
   gateMatcher,
   patternMatcher,
 } from '../test-support/vitest-gate'
@@ -197,6 +199,31 @@ describe('coverage gate scope', () => {
     // the assumption is PINNED against the config. Change the pattern and this
     // fails loudly, instead of the resolver quietly reading the wrong file set.
     expect(configuredSuiteInclude()).toEqual([SUITE_INCLUDE_PATTERN])
+  })
+
+  it('measures against the same root vitest does', () => {
+    // Every case here assumes ROOT — this file's directory, twice up — is the
+    // tree vitest measures. A divergence would not error: the inert-pattern
+    // check would call live patterns dead, `gates its OWN machinery` would stop
+    // finding test-support/, and the subject comparison would be built from two
+    // roots.
+    //
+    // MEASURED on vitest 3.2.6, not inferred from jest. `createVitest` reports
+    // that a top-level `root` and a `test.root` each move `config.root`, so both
+    // are checked; running with one set wrote the report to app/coverage/ holding
+    // ZERO files. Fails on a root resolving to the SAME directory too, as
+    // mobile's rootDir case does — telling the harmless spelling from the
+    // breaking one means re-implementing vitest's resolution.
+    //
+    // toStrictEqual: `toEqual` counts { root: undefined } as {} (measured), so a
+    // declaredRoots that assigned unconditionally would slip past it.
+    //
+    // LIMIT: a root moving the tree out of reach ('./app') leaves this suite
+    // undiscovered rather than failing — caught by the test count, not here.
+    expect(declaredRoots()).toStrictEqual({})
+    // A `projects` entry can carry a root of its own — a third way in, guarded
+    // rather than parsed for the reason vitest-gate records.
+    expect(configuredProjects()).toBeUndefined()
   })
 
   it('gates its OWN machinery — the modules deciding what everything else measures', () => {

@@ -101,6 +101,57 @@ export function configuredSuiteInclude(): string[] {
   return config.test?.include ?? []
 }
 
+/**
+ * The two places a vitest config can declare a root, DERIVED from the config's
+ * own type rather than hand-written. A hand-written shape would swallow a rename
+ * — `config` satisfies an interface whose properties are all optional no matter
+ * what it actually has, so the guard would quietly answer "no root declared"
+ * forever.
+ *
+ * WHERE the signal shows up was measured rather than assumed, because it is not
+ * where you would expect: picking a name vitest does not have (`'rootDir'`) does
+ * NOT fail at the `Pick` itself. It yields a type demanding a property nothing
+ * supplies, and the CALL SITES stop compiling — TS2345 and TS2741 in
+ * `vitest-gate.test.ts`. So the protection is real but it is carried by that
+ * suite's calls; delete them and the rename goes unnoticed again.
+ */
+type RootBearing = Pick<typeof config, 'root'> & {
+  test?: Pick<NonNullable<(typeof config)['test']>, 'root'>
+}
+
+/**
+ * Any root the config DECLARES, keyed by the field that declares it (#85).
+ *
+ * Two fields, because both were measured to move the resolved root — see the
+ * case in `coverage-gate.test.ts` for how. Returned as a map rather than a
+ * boolean so a failure names the field and its value instead of just saying no.
+ *
+ * Takes the config as a defaulted PARAMETER so both arms can be exercised. Read
+ * straight off the import, the "a root is declared" arms would be unreachable
+ * while none is — two permanently uncovered branches in a gated module, and a
+ * function whose reporting nothing checks. `vitest-gate.test.ts` passes it
+ * configs that do declare one.
+ */
+export function declaredRoots(source: RootBearing = config): Record<string, string> {
+  const declared: Record<string, string> = {}
+  if (source.root !== undefined) declared.root = source.root
+  if (source.test?.root !== undefined) declared['test.root'] = source.test.root
+  return declared
+}
+
+/**
+ * Whether the config declares `test.projects` — a THIRD way a root can enter,
+ * since each entry may carry one of its own (#85).
+ *
+ * Returned raw and guarded rather than parsed: an entry can be a glob string or
+ * an inline config, and reading roots out of either would be the resolution
+ * logic this module refuses to re-implement. Measured today: none is declared,
+ * and vitest resolves exactly one project rooted at the app directory.
+ */
+export function configuredProjects(): NonNullable<(typeof config)['test']>['projects'] {
+  return config.test?.projects
+}
+
 /** The configured `coverage.include` list, for the inert-pattern check (#82). */
 export function configuredCoverageInclude(): string[] {
   return coverageGlobs().include
