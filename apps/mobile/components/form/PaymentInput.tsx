@@ -42,6 +42,17 @@ type Mode = 'FIAT' | 'ASSET'
  *   inset 72h R14 with mono 22/700 amount + mono 13 unit suffix + mono 12.5 fiat alt right-aligned.
  *   Asset-aware since CO5, the FIAT alt converts via the platform SOL rate
  *   (stables ride the USD leg: NGN-per-USDC ≈ rates.NGN / rates.USD).
+ *
+ * NO "this asset cannot be priced" STATE, deliberately (#81). `fiatRatePerUnit`
+ * answers null FOREVER for a native token that is not SOL, and a fresh composer
+ * opens on the FIAT tab — so such an asset would sit in the rates-unknown path
+ * looking like a load that never finishes, with nothing telling the reader the
+ * difference. It cannot get here: `asset` is policy-derived rather than picked,
+ * taken from `gigAssetByChain`, and every chain in the manifest gives the 'gig'
+ * role to a USDC stable. A state for it would be a control for a case the
+ * producer cannot emit; keeping that true is a test's job instead, and
+ * packages/shared/test/chains/gig-asset-pricing.test.ts fails the day a chain
+ * gives the role to something this rule cannot price.
  */
 export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
   const { theme } = useUnistyles()
@@ -84,8 +95,10 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
     }
 
     // No rate yet → a FIAT entry can't convert; emitting it as ASSET units
-    // would misprice by orders of magnitude. Wait for the rate (the toggle
-    // to the asset tab always works).
+    // would misprice by orders of magnitude. Wait for the rate: null here is a
+    // CACHE state, never a property of the asset — every gig asset is priceable
+    // once the rates land (see the header) — and the toggle to the asset tab
+    // works regardless.
     if (rate === null || rate <= 0) return
     onChange(fiatTextToRaw(next, rate, asset))
   }
