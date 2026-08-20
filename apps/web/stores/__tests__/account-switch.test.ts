@@ -24,8 +24,11 @@ vi.mock('@/api/client', () => ({
 vi.mock('@/wallet/auth', () => ({ signInWithWallet: vi.fn(), linkWalletWith: vi.fn() }))
 vi.mock('@/wallet/adapters/reown', () => ({ reownAdapter: { disconnect: vi.fn(async () => {}) } }))
 
+import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { initCrossTabAuthSync } from '@/stores/auth/cross-tab'
+import { accountGeneration } from '@/lib/account-state'
+import { makeUser } from '../../test/factories/user'
 import { useGigsStore } from '@/stores/gigs.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 import { useSigninFlowStore } from '@/stores/signin-flow.store'
@@ -176,5 +179,38 @@ describe('cross-tab account switch', () => {
     // any unrelated write in another tab blanks this one's screen.
     expect(useGigsStore.getState().selectedGig).not.toBeNull()
     stop()
+  })
+})
+
+describe('sign-in', () => {
+  it('moves the generation WITHOUT emptying the sign-in flow that is mid-use', async () => {
+    // The one transition that must BUMP and must not CLEAR, and the only one
+    // whose must-not-clear half had no unit test — it was held by an e2e
+    // (focused-shell, "the card stays on screen until the next step replaces
+    // it") because the damage is visual. `logout` already emptied everything;
+    // what is on screen at this exact moment is the verify card, and it renders
+    // from `pending`, so clearing here blanks the reader's own sign-in card one
+    // step before the next page paints. That is #14's regression, brought
+    // straight back once by calling clearAccountState here (#45).
+    //
+    // The bump is not optional either: the signed-out window is not inert — the
+    // conversation poll runs while the socket is down — so a request issued in
+    // it must not land in the session that follows.
+    useSigninFlowStore.getState().begin('email', 'new-account@tenda.test', 600)
+    const before = accountGeneration()
+    vi.mocked(api.auth.verify).mockResolvedValue({
+      token: 'jwt-of-the-new-account',
+      user: makeUser({ id: 'user-new' }),
+      is_new: false,
+    })
+
+    await useAuthStore.getState().signInWithVerify({
+      method: 'email',
+      identifier: 'new-account@tenda.test',
+      code: '123456',
+    })
+
+    expect(accountGeneration()).toBe(before + 1)
+    expect(useSigninFlowStore.getState().pending?.identifier).toBe('new-account@tenda.test')
   })
 })

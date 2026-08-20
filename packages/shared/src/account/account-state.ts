@@ -13,32 +13,29 @@
  *
  * WHY THIS IS SHARED, not one copy per client. It is plain module state — no
  * React, no storage, no platform API — and the alternative is the same rule
- * written twice, which is the shape this repo has now removed three times
- * (#40 refresh coordinator, #42 api clients, #43 three pure duplicates). Mobile
- * needed it because signing out there is a navigation, not a process restart,
- * exactly as it is in a browser tab (#65).
- *
- * WEB HAS NOT COLLAPSED ONTO THIS YET, and that is a decision, not an
- * oversight. `apps/web/lib/account-state.ts` still holds its own copy of the
- * counter and the reset list, because its `clearAccountState` also empties a
- * dozen module-scoped list caches and is called from three places — logout, the
- * cross-tab `storage` listener, and sign-in — one of which is only covered by
- * an e2e. Folding that in here would have made #65, a mobile leak, converge on
- * a web refactor. Tracked as #74; until it lands there are two registries and
- * two counters, they cannot see each other, and a web module must keep
- * importing web's.
+ * written twice, which is the shape this repo has now removed four times
+ * (#40 refresh coordinator, #42 api clients, #43 three pure duplicates, and #74
+ * this module's own web copy). Mobile needed it because signing out there is a
+ * navigation, not a process restart, exactly as it is in a browser tab (#65).
  *
  * The REGISTRY is here; what each client registers is not. Web registers its
  * list caches and its stores; mobile registers its stores. A cache or store
  * that is never imported holds nothing, so an unregistered-because-unloaded
  * module is not a leak.
+ *
+ * ONE registry and ONE counter, per process. Both clients reach this only
+ * through the package root — there is no `@tenda/shared/account` subpath in the
+ * exports map — so every registration and every read lands on the same module
+ * instance. `apps/web/lib/account-state.ts` re-exports these five functions so
+ * web's own import sites did not have to move when #74 collapsed its copy.
  */
 
 /**
  * Which account the state in memory belongs to. Bumped by every account
  * TRANSITION its client reports — not only by clears, and sign-IN counts.
- * Mobile reports both of its sign-in paths and its sign-out; a cross-tab change
- * is web's case and does not reach this counter until #74 lands.
+ * Mobile reports both of its sign-in paths and its sign-out; web reports the
+ * same two sign-ins, its sign-out, and the one transition only a browser has —
+ * another tab signing out or signing in as somebody else.
  *
  * Emptying a store is a MOMENT; a request already on its way is not stopped by
  * it. So an async writer takes a snapshot BEFORE its await and drops the write
@@ -90,12 +87,17 @@ export function registerAccountReset(reset: () => void): void {
 /**
  * Empty everything registered, and move the generation.
  *
- * A client calls this at any transition where the state must actually GO —
- * mobile calls it from `logout` alone, because its sign-in has nothing left to
- * empty and reports itself with `beginAccountSession` instead. Which of the two
- * a transition needs is the client's decision; what is not optional is that
- * every transition calls one of them, or the signed-out window becomes a hole
- * through which a request can write into the session that follows.
+ * A client calls this at any transition where the state must actually GO.
+ * Mobile calls it from `logout` alone; web from `logout` and from its cross-tab
+ * `storage` listener, which is the transition that never passes through logout
+ * at all — another tab signing out, or signing in as somebody else. Both
+ * clients' sign-IN paths call `beginAccountSession` instead, because by then
+ * there is nothing left to empty and something that must NOT be emptied.
+ *
+ * Which of the two a transition needs is the client's decision; what is not
+ * optional is that every transition calls one of them, or the signed-out window
+ * becomes a hole through which a request can write into the session that
+ * follows.
  */
 export function clearAccountState(): void {
   // FIRST, so a response that lands while the clearing is still running is
