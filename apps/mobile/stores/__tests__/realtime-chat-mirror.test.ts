@@ -35,6 +35,8 @@ import {
   resetOpenConversationForTests,
 } from '@/stores/realtime.store'
 import { useChatStore } from '@/stores/chat.store'
+import { useNotificationsStore } from '@/stores/notifications.store'
+import { notif } from '../__fixtures__/notifications'
 import type { Message } from '@tenda/shared'
 // Type-only: jest.mock replaces the runtime module, but the frame shape the
 // listener really receives is this one — typing the fixture against it is what
@@ -73,6 +75,7 @@ beforeEach(() => {
   // Module-level state, so it outlives a test — clear it or one test's open
   // thread silently mutes the next one's mirror.
   resetOpenConversationForTests()
+  useNotificationsStore.getState().reset()
 })
 
 test('chat channel: message frames reach receiveMessage', () => {
@@ -148,4 +151,47 @@ test('clearing a thread that is no longer the open one is a no-op', () => {
   subscribeUserChannel('me')
   mockChannelListeners.get('user:me')?.(chatFrame('user:me', 'c2'))
   expect(fetchConversations).not.toHaveBeenCalled()
+})
+
+/**
+ * The user channel's OTHER consumer (#70). One subscription serves two: chat
+ * mirrors refresh the inbox badge, notification frames feed the bell. The
+ * notification arm had no case at all — `realtime-notifications.test.ts` beside
+ * this file tests the GUARD in isolation and never reaches the dispatch.
+ */
+test('user channel: a notification frame reaches the notification centre', () => {
+  subscribeUserChannel('me')
+
+  mockChannelListeners.get('user:me')?.({
+    channel: 'user:me',
+    type: 'notification',
+    notification: notif('n1'),
+  })
+
+  const bell = useNotificationsStore.getState()
+  expect(bell.notifications).toEqual([expect.objectContaining({ id: 'n1' })])
+  // The badge is the half a list assertion misses, and the one a reader sees
+  // first — `receive` bumps it only for an unread notice.
+  expect(bell.unread).toBe(1)
+  // And it is NOT a chat mirror, so the inbox is left alone.
+  expect(fetchConversations).not.toHaveBeenCalled()
+})
+
+test('user channel: a MALFORMED notification frame is dropped, not shown', () => {
+  // The guard's false arm, reached through the subscription rather than called
+  // directly. Without it a bad frame pushes a row with no title or body and
+  // inflates the bell — a notice the reader cannot act on or explain.
+  subscribeUserChannel('me')
+
+  // Built through JSON.parse, not a cast: `WsFrame` is a closed union of
+  // WELL-FORMED frames, so a malformed one cannot be written as that type at
+  // all — and that gap is the whole reason the guard exists. This is also the
+  // real path, since lib/ws parses whatever arrives off the socket.
+  mockChannelListeners.get('user:me')?.(
+    JSON.parse('{"channel":"user:me","type":"notification","notification":{"id":"n1"}}'),
+  )
+
+  const bell = useNotificationsStore.getState()
+  expect(bell.notifications).toEqual([])
+  expect(bell.unread).toBe(0)
 })
