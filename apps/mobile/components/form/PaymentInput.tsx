@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { View, TextInput, Pressable, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
@@ -9,7 +9,6 @@ import { useSettingsStore } from '@/stores/settings.store'
 import {
   ASSET_META,
   CURRENCY_META,
-  gigBudgetFromUnits,
   gigBudgetRangeLabel,
   gigBudgetToRaw,
   gigBudgetToText,
@@ -18,6 +17,11 @@ import {
   sanitizeDecimalText,
   FIAT_ENTRY_DECIMALS,
 } from '@tenda/shared'
+import {
+  fiatRatePerUnit,
+  fiatTextToRaw,
+  useDenominationSync,
+} from './payment-input/payment-input.fiat'
 
 interface PaymentInputProps {
   /** Asset registry id (CO5), drives decimals, symbol and budget rails. */
@@ -48,16 +52,7 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
   const meta = ASSET_META[asset]
   const symbol = meta?.symbol ?? asset
 
-  // Fiat per display unit of `asset`: SOL rates come straight from the
-  // platform cache; stables ≈ USD, so divide out the USD leg.
-  const solRate = rates?.[currency] ?? null
-  const usdRate = rates?.USD ?? null
-  const rate =
-    meta?.is_stable === true
-      ? solRate !== null && usdRate !== null && usdRate > 0
-        ? solRate / usdRate
-        : null
-      : solRate
+  const rate = fiatRatePerUnit(rates, currency, asset)
 
   const hasInitial = hasGigBudget(value)
   const [mode, setMode] = useState<Mode>(hasInitial ? 'ASSET' : 'FIAT')
@@ -70,64 +65,7 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
 
   const rangeDisplay = gigBudgetRangeLabel(asset)
 
-  /**
-   * A fiat amount as base units of `asset`. One place, because two callers
-   * need it: a keystroke while the rate is known, and the moment the rate
-   * arrives for text already on screen.
-   */
-  function fiatTextToRaw(fiatText: string, fiatPerUnit: number): string {
-    // No local finite/zero check: `gigBudgetFromUnits` answers '' for anything
-    // non-finite or <= 0, and that is where the rule belongs. A duplicate here
-    // read as load-bearing while being unreachable — `sanitizeDecimalText` has
-    // already stripped everything that could parse to NaN (measured: 'abc',
-    // 'Infinity', '1e5' and '-5' all sanitize to a finite-parsing string).
-    return gigBudgetFromUnits(Number(fiatText.replace(/\.$/, '')) / fiatPerUnit, asset)
-  }
-
-  /**
-   * Convert what is already typed the moment rates ARRIVE.
-   *
-   * The early return in handleChangeText is correct — converting a fiat number
-   * as if it were asset units would misprice by ~1500x — but on its own it only
-   * declined to emit. Nothing re-ran once the rate landed, so a budget typed
-   * during the rates request stayed on screen with "Set a budget" underneath
-   * it: a number shown and not counted, the same dishonesty #32 removed for a
-   * trailing decimal point.
-   *
-   * Only on the null→rate TRANSITION, tracked through a ref. Re-converting on
-   * every rate tick would move a budget the reader had already set, under them.
-   *
-   * The transition CAN fire more than once a session: the store never nulls
-   * `rates` once loaded, but the derived `rate` goes null if the reader switches
-   * to a currency not yet cached, and back when that rate lands.
-   *
-   * WHICH MAKES A CURRENCY SWITCH TWO DIFFERENT BEHAVIOURS, and this note used
-   * to claim only the good one. Switching to an UNCACHED currency passes through
-   * null, so the text is re-converted at the new rate; switching to a CACHED one
-   * never passes through null, so nothing re-runs and the emitted raw stays the
-   * OLD currency's valuation while the unit suffix already reads the new one
-   * (reproduced in the #49 re-audit: NGN->KES with both cached emits nothing,
-   * leaving 150000 on screen under a KES suffix against a budget of 100 USDC
-   * rather than 1000). Same action, two answers, decided by cache state.
-   *
-   * Not repaired here because the right behaviour is a product choice — re-price
-   * the typed number, restate the same budget in the new currency, or clear it —
-   * and picking one inside an audit would be guessing. Tracked as #66.
-   */
-  const lastRateRef = useRef(rate)
-  useEffect(() => {
-    const previous = lastRateRef.current
-    lastRateRef.current = rate
-    const ratesJustArrived = (previous == null || previous <= 0) && rate != null && rate > 0
-    if (!ratesJustArrived || mode !== 'FIAT') return
-    // An empty field needs no guard of its own: `gigBudgetFromUnits` answers
-    // '' for anything <= 0, so there is nothing to emit and nothing to clear.
-    const raw = fiatTextToRaw(text, rate)
-    if (raw !== '') onChange(raw)
-    // `text`/`mode` are read, not watched: an edit re-enters handleChangeText,
-    // which converts directly. This effect exists for the rate edge alone.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rate])
+  useDenominationSync({ asset, value, mode, currency, rate, text, setText, onChange })
 
   function handleChangeText(typed: string) {
     // In ASSET mode the field IS the amount, so it is precision-limited at
@@ -148,8 +86,8 @@ export function PaymentInput({ asset, value, onChange }: PaymentInputProps) {
     // No rate yet → a FIAT entry can't convert; emitting it as ASSET units
     // would misprice by orders of magnitude. Wait for the rate (the toggle
     // to the asset tab always works).
-    if (rate == null || rate <= 0) return
-    onChange(fiatTextToRaw(next, rate))
+    if (rate === null || rate <= 0) return
+    onChange(fiatTextToRaw(next, rate, asset))
   }
 
   function toggleMode(next: Mode) {

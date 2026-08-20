@@ -221,6 +221,14 @@ test('seeds an 18-decimal draft without losing a digit', () => {
   expect(field().props.value).toBe('1250.75')
 })
 
+test('an asset outside the registry labels itself by its id', () => {
+  // `meta?.symbol ?? asset` — the fallback arm. A gig priced in an asset the
+  // client does not know about must still say WHICH asset, rather than render
+  // an empty unit suffix beside a number.
+  setup('', 'NOT_A_REAL_ASSET')
+  expect(screen.getAllByText('NOT_A_REAL_ASSET').length).toBeGreaterThan(0)
+})
+
 test('shows the budget rail in the asset being spent', () => {
   setup()
   expect(screen.getByText('Budget 1 – 50000 USDC')).toBeTruthy()

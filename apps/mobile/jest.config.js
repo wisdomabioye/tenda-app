@@ -144,8 +144,17 @@ module.exports = {
     // the base-unit string it emits. Added in the #49 re-audit — the task gave
     // it a 17-case suite and left the file outside this allow-list, so none of
     // those cases could move the number. Including it costs nothing: the file
-    // measures 100/95/100/100 and the global figures went UP.
+    // measures 100/97.5/100/100, its one uncovered branch being a Pressable's
+    // press-state opacity. (95 branch until #66 covered the unknown-asset
+    // symbol fallback.)
     'components/form/PaymentInput.tsx',
+    // Its money, split out when #66 took the component past 300 lines: the two
+    // fiat<->base-unit converters, the rate derivation, and the effect that
+    // restates the field when the denomination changes. Measured before
+    // listing, per the rule above: 100/100/100/100, and the global figures went
+    // UP — statements 92.4 -> 92.53, branches 90.81 -> 91.04 (measured with the
+    // line removed and restored, not recalled).
+    'components/form/payment-input/payment-input.fiat.ts',
     'wallet/**/*.{ts,tsx}',
     'stores/auth.store.ts',
     'app/(auth)/connect-wallet.tsx',
