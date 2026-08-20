@@ -11,11 +11,18 @@
  * removed. The register can still grow — but only in a diff someone reads,
  * never by a suite quietly landing on an unlisted file.
  *
- * This file and its resolver exempt themselves, and should: a suite directly
- * under the app root resolves to no subject at all, so `test-support/` is
- * never asked to be gated. It is harness code in the same sense jest.setup.js
- * is — not shipped, and covered by __tests__/coverage-subjects.test.ts rather
- * than by the app's instrumentation.
+ * The gate used to exempt its own machinery, and #75 stopped it. A suite
+ * directly under the app root still resolves to no subject — that is a fact
+ * about the resolver, not a decision — so `test-support/` was never ASKED to be
+ * gated, and nothing measured whether the resolver's 19-case suite still
+ * reached its code. It is now listed in the coverage scope with a
+ * './test-support/' threshold of its own, which jest subtracts from the app's
+ * figures, so the harness is measured at 100 without flattering mobile's 90.
+ *
+ * The pin at the bottom is split for the same reason. "The resolver could not
+ * place this suite" had been one list holding two different facts: suites with
+ * no subject to name, and suites whose subject exists and the resolver cannot
+ * see. Only the second is a blind spot, and only the second must not grow.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -36,6 +43,38 @@ const isGated = globsToMatcher(scope)
 
 const { subjects, sourceFiles, testFiles, unresolved } = collectTestSubjects(ROOT, isTestFile)
 const registered = new Set(UNGATED_WITH_TESTS)
+
+/**
+ * Unresolved because there is NO subject to name — the harmless half.
+ *
+ * Each needs a reason, because "the resolver could not place it" is exactly the
+ * sentence that would hide the other half.
+ */
+const NO_SUBJECT_BY_CONSTRUCTION: Record<string, string> = {
+  '__tests__/coverage-gate.test.ts':
+    'the gate itself — the jest config, the scope register it requires, and the three test-support modules this file imports. Naming any one of them as THE subject would be a fiction',
+  '__tests__/harness-parallelism.test.ts': 'about the harness itself, not about any module of the app',
+  '__tests__/harness-rtl-smoke.test.tsx': 'about the harness itself, not about any module of the app',
+  '__tests__/harness-smoke.test.ts': 'about the harness itself, not about any module of the app',
+  'stores/__tests__/account-scope.guard.test.ts':
+    'asserts a CONVENTION over the whole stores directory (#65) — its subject IS the directory, so there is no module to name',
+}
+
+/**
+ * Unresolved because the subject EXISTS and the resolver cannot see it — the
+ * half that is a real blind spot, so each entry names the subject it misses
+ * rather than giving a prose excuse.
+ *
+ * `coverage-subjects.test.ts` sits at the app root, so its owner directory is
+ * '.', `subjectByName` looks for './coverage-subjects.ts' and finds nothing,
+ * and `subjectsByImport` needs a hit under the './' prefix, which no
+ * root-relative key has. Fixing the resolver to special-case itself would be
+ * the lookalike logic it exists to avoid; measuring the subject anyway is the
+ * answer, and the cases below hold it to that.
+ */
+const SUBJECT_NOT_RESOLVABLE: Record<string, string> = {
+  '__tests__/coverage-subjects.test.ts': 'test-support/coverage-subjects.ts',
+}
 
 describe('coverage gate scope', () => {
   it('is configured at all — an empty scope would gate nothing and pass everything', () => {
@@ -115,24 +154,64 @@ describe('coverage gate scope', () => {
     expect(config.testRegex).toBeUndefined()
   })
 
-  it('resolves a subject for all but the harness suites that have none', () => {
-    // Pinned, not counted: a suite the resolver cannot place is a suite whose
-    // subject stays invisible to the gate, so the blind spot has to be bounded
-    // rather than tolerated.
+  it('has something to classify — the partition must not pass vacuously', () => {
+    // Every case below compares a register against `unresolved`, so a resolver
+    // that returned an empty list would satisfy all of them while measuring
+    // nothing — the same failure the scope case above guards against.
     //
-    // The five app-root entries are the harness suites — about the harness
-    // itself, with no subject to find. The sixth is a different kind:
-    // `account-scope.guard.test.ts` asserts a CONVENTION over the whole stores
-    // directory (every store either registers an account reset or is excused
-    // with a reason, #65). Its subject IS the directory, so there is no module
-    // for the resolver to name, and listing one would be a fiction.
-    expect(unresolved).toEqual([
-      '__tests__/coverage-gate.test.ts',
-      '__tests__/coverage-subjects.test.ts',
-      '__tests__/harness-parallelism.test.ts',
-      '__tests__/harness-rtl-smoke.test.tsx',
-      '__tests__/harness-smoke.test.ts',
-      'stores/__tests__/account-scope.guard.test.ts',
-    ])
+    // Anchored on the NO-SUBJECT half, not the other one. The harness suites
+    // can never resolve to a subject, so that group emptying means the resolver
+    // broke; SUBJECT_NOT_RESOLVABLE legitimately CAN empty — teach the resolver
+    // to see its own suite and it should — so anchoring there would fail the
+    // day someone did the right thing.
+    expect(unresolved.length).toBeGreaterThan(0)
+    expect(Object.keys(NO_SUBJECT_BY_CONSTRUCTION).length).toBeGreaterThan(0)
+  })
+
+  it('accounts for every unresolved suite, under exactly one of the two reasons', () => {
+    // Pinned and PARTITIONED (#75): a suite the resolver cannot place is a
+    // suite whose subject stays invisible to the gate, so the blind spot has to
+    // be bounded rather than tolerated — and bounding it means saying which
+    // kind each one is. A new unresolved suite fails here until it is
+    // classified in a diff someone reads.
+    const classified = [
+      ...Object.keys(NO_SUBJECT_BY_CONSTRUCTION),
+      ...Object.keys(SUBJECT_NOT_RESOLVABLE),
+    ].sort()
+    expect(classified).toEqual(unresolved)
+  })
+
+  it('files no suite under BOTH reasons — they are opposites, not tags', () => {
+    const both = Object.keys(SUBJECT_NOT_RESOLVABLE).filter(
+      (file) => file in NO_SUBJECT_BY_CONSTRUCTION,
+    )
+    expect(both).toEqual([])
+  })
+
+  it('gives every no-subject suite a REASON, not just an entry', () => {
+    const unexplained = Object.entries(NO_SUBJECT_BY_CONSTRUCTION)
+      .filter(([, reason]) => reason.trim().length <= 20)
+      .map(([file]) => file)
+    expect(unexplained).toEqual([])
+  })
+
+  it('names a subject that EXISTS for every suite the resolver misses', () => {
+    // A named subject that has been moved or deleted would leave the entry
+    // excusing nothing, which is how the ungated register would rot too.
+    const missing = Object.values(SUBJECT_NOT_RESOLVABLE).filter(
+      (subject) => !fs.existsSync(path.join(ROOT, subject)),
+    )
+    expect(missing).toEqual([])
+  })
+
+  it('GATES every subject the resolver misses — it may not also go unmeasured', () => {
+    // The point of the whole split. The resolver not seeing a subject is
+    // survivable; the subject going unmeasured is not, and before #75 that is
+    // exactly what had happened — the module deciding what the gate measures
+    // was itself outside the gate.
+    const unmeasured = Object.entries(SUBJECT_NOT_RESOLVABLE)
+      .filter(([, subject]) => !isGated(subject))
+      .map(([file, subject]) => `${file} -> ${subject}`)
+    expect(unmeasured).toEqual([])
   })
 })
