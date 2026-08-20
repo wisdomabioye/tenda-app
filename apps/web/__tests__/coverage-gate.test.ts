@@ -39,6 +39,41 @@ const { sourceFiles, subjects, testFiles, unresolved } = collectTestSubjects(ROO
 const isGated = gateMatcher(ROOT)
 const registered = new Set(Object.keys(UNGATED_BUT_EXERCISED))
 
+/**
+ * Unresolved because there is NO subject to name — the harmless half.
+ *
+ * Each needs a reason, because "the resolver could not place it" is exactly the
+ * sentence that would hide the other half.
+ */
+const NO_SUBJECT_BY_CONSTRUCTION: Record<string, string> = {
+  '__tests__/coverage-gate.test.ts':
+    'the gate itself — the vitest config it reaches through vitest-gate, plus the three test-support modules this file imports. Naming any one of them as THE subject would be a fiction',
+  '__tests__/coverage-resolver-parity.test.ts':
+    "its subject is the RELATIONSHIP between this app's resolver and mobile's (#77), which is not a module",
+  'app/(public)/support/__tests__/support-routes.test.ts':
+    'asserts a route manifest over a directory — the contract, not any one page',
+  'stores/__tests__/account-scope.guard.test.ts':
+    'asserts a CONVENTION over the whole stores directory (#65) — its subject IS the directory',
+  'styles/__tests__/motion-contract.test.ts': 'a style contract over generated tokens, not a module',
+  'styles/__tests__/panes-contract.test.ts': 'a style contract over generated tokens, not a module',
+  'wallet/__tests__/config-guard.test.ts':
+    'guards the wallet CONFIG against the chain manifest — a cross-file invariant with no single owner',
+}
+
+/**
+ * Unresolved because the subject EXISTS and the resolver cannot see it — the
+ * half that is a real blind spot, so each entry names the subject it misses
+ * rather than giving a prose excuse.
+ *
+ * EMPTY here, and that is a fact about web rather than an omission. Mobile's
+ * equivalent register carries one entry, because mobile has a dedicated suite
+ * for its resolver sitting at the app root. Web has no such suite at all (#84):
+ * its resolver is exercised only through this file. The group exists anyway so
+ * the next unresolved suite has to be classified as one kind or the other, and
+ * so a blind spot cannot be filed under "no subject" by default.
+ */
+const SUBJECT_NOT_RESOLVABLE: Record<string, string> = {}
+
 describe('coverage gate scope', () => {
   it('resolves a scope that is not empty — the check must not pass vacuously', () => {
     // Anchored on a module that must exist rather than on a count, which would
@@ -72,14 +107,16 @@ describe('coverage gate scope', () => {
     // mixes positive globs and `!` exclusions in one list, so mobile has to skip
     // the latter — a defensive `!wallet/**/*.d.ts` legitimately matches nothing.
     // vitest keeps exclusions in a separate `coverage.exclude` array, so this
-    // list is positive by construction (measured: 64 entries, zero starting with
-    // `!`). Copying the filter across would be a guard no mutation could kill.
+    // list is positive by construction — measured, and not one entry starts with
+    // `!`. Copying the filter across would be a guard no mutation could kill.
+    // (No count is quoted: #80 added an entry immediately after #82 measured
+    // one, and a number in prose that nothing checks drifts exactly like that.)
     //
     // NO VACUITY GUARD either, for the same reason and checked the same way: an
     // empty `sourceFiles` does not make this pass quietly, it makes EVERY
-    // pattern look inert and the case fails naming all 64. Measured by stubbing
-    // the resolver to return none. All 64 were alive when this landed — unlike
-    // mobile, which had seven dead ones when #58 looked.
+    // pattern look inert and the case fails naming every one of them. Measured
+    // by stubbing the resolver to return none. Every entry was alive when #82
+    // landed — unlike mobile, which had seven dead ones when #58 looked.
     const inert = configuredCoverageInclude().filter(
       (glob) => !sourceFiles.some(patternMatcher(ROOT, glob)),
     )
@@ -138,24 +175,69 @@ describe('coverage gate scope', () => {
     expect(configuredSuiteInclude()).toEqual([SUITE_INCLUDE_PATTERN])
   })
 
-  it('resolves a subject for all but the suites that have none', () => {
-    // Pinned, not counted: a suite the resolver cannot place is a suite whose
-    // subject stays invisible to the gate, so the blind spot is bounded rather
-    // than tolerated. Five of them assert CONTRACTS over a directory or a
-    // config — a route manifest, a store-scope convention, two style contracts
-    // and a wallet config guard — so there is no single module to name. Two
-    // more are about the gate ITSELF: this file, whose subject is a config plus
-    // the helpers beside it, and the resolver-parity suite (#77), whose subject
-    // is the RELATIONSHIP between this app's resolver and mobile's. Naming any
-    // one module for either would be a fiction.
-    expect(unresolved).toEqual([
-      '__tests__/coverage-gate.test.ts',
-      '__tests__/coverage-resolver-parity.test.ts',
-      'app/(public)/support/__tests__/support-routes.test.ts',
-      'stores/__tests__/account-scope.guard.test.ts',
-      'styles/__tests__/motion-contract.test.ts',
-      'styles/__tests__/panes-contract.test.ts',
-      'wallet/__tests__/config-guard.test.ts',
-    ])
+  it('gates its OWN machinery — the modules deciding what everything else measures', () => {
+    // What locks #80 in. Removing `test-support/*.ts` from the scope would
+    // otherwise undo it in silence: no pattern goes dead, the thresholds barely
+    // move, and the gate quietly stops measuring the code that defines the gate.
+    // Mobile is held to this by its SUBJECT_NOT_RESOLVABLE entry naming the
+    // resolver; web's register is empty, so the lock has to be its own case.
+    //
+    // Derived from the tree rather than a hand-listed trio, so a fourth module
+    // added beside them is covered the day it appears. `.d.ts` is excluded
+    // because `coverage.exclude` excludes it and it has nothing to execute.
+    const harness = sourceFiles.filter(
+      (file) => file.startsWith('test-support/') && !file.endsWith('.d.ts'),
+    )
+    expect(harness.length).toBeGreaterThan(0)
+    expect(harness.filter((file) => !isGated(file))).toEqual([])
   })
+
+  it('accounts for every unresolved suite, under exactly one of the two reasons', () => {
+    // Pinned and PARTITIONED (#80): a suite the resolver cannot place is a suite
+    // whose subject stays invisible to the gate, so the blind spot has to be
+    // bounded rather than tolerated — and bounding it means saying which kind
+    // each one is. A new unresolved suite fails here until it is classified in a
+    // diff someone reads.
+    const classified = [
+      ...Object.keys(NO_SUBJECT_BY_CONSTRUCTION),
+      ...Object.keys(SUBJECT_NOT_RESOLVABLE),
+    ].sort()
+    expect(classified).toEqual(unresolved)
+  })
+
+  it('has something to classify — the partition must not pass vacuously', () => {
+    // The case above compares two lists; a resolver returning nothing would
+    // satisfy it while measuring nothing. Anchored on the NO-SUBJECT half,
+    // which cannot legitimately empty — the harness suites will always be
+    // there — rather than on the other, which SHOULD empty and today does.
+    expect(unresolved.length).toBeGreaterThan(0)
+    expect(Object.keys(NO_SUBJECT_BY_CONSTRUCTION).length).toBeGreaterThan(0)
+  })
+
+  it('files no suite under BOTH reasons — they are opposites, not tags', () => {
+    const both = Object.keys(SUBJECT_NOT_RESOLVABLE).filter(
+      (file) => file in NO_SUBJECT_BY_CONSTRUCTION,
+    )
+    expect(both).toEqual([])
+  })
+
+  it('gives every no-subject suite a REASON, not just an entry', () => {
+    const unexplained = Object.entries(NO_SUBJECT_BY_CONSTRUCTION)
+      .filter(([, reason]) => reason.trim().length <= 20)
+      .map(([file]) => file)
+    expect(unexplained).toEqual([])
+  })
+
+  it('names a subject that EXISTS, and is GATED, for every suite the resolver misses', () => {
+    // The point of the split. The resolver not seeing a subject is survivable;
+    // the subject going unmeasured is not — that is exactly what #80 found for
+    // test-support itself. Both halves asserted together: a named subject that
+    // has moved excuses nothing, and one that is not gated is the blind spot
+    // rather than a record of it.
+    const broken = Object.entries(SUBJECT_NOT_RESOLVABLE)
+      .filter(([, subject]) => !existsSync(path.join(ROOT, subject)) || !isGated(subject))
+      .map(([file, subject]) => `${file} -> ${subject}`)
+    expect(broken).toEqual([])
+  })
+
 })

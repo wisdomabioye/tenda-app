@@ -220,6 +220,30 @@ export default defineConfig({
         'app/(app)/wallet/buy-sell/page.tsx',
         'app/(app)/wallet/intents/\\[id\\]/page.tsx',
         'scripts/gen-web-tokens/core.ts',
+        // The gate's OWN machinery (#80). These decide what everything above is
+        // measured against, and nothing measured them: the resolver's suite
+        // sits directly under the app root, so it resolves to no subject and
+        // the "every subject is gated" rule never asked. The gate grading its
+        // own homework, which #75 fixed on mobile.
+        //
+        // MEASURED before listing, and NOT the way #75 did it. jest subtracts a
+        // path-threshold's files from the global figures, so mobile could hold
+        // its harness to 100 without touching the app's number. Vitest does
+        // NOT: with a `'**/test-support/**'` threshold key present, the global
+        // check still read 93.36 rather than the app-only 93.40 — measured by
+        // setting the global branch floor to 93.38 and watching it fail. So
+        // there is no separate bar here; the harness is gated by the same
+        // global thresholds as the app, and the movement is the movement:
+        //
+        //   statements 98.29 -> 98.30    branches  93.40 -> 93.36
+        //   functions  91.66 -> 91.79    lines     98.29 -> 98.30
+        //
+        // Branches go DOWN because vitest-gate.ts reads 58.33 there — its
+        // config-shape narrowing has arms the real config cannot take. All four
+        // still clear 90/85/85/90 with room. `test-exclude.d.ts` stays out on
+        // the `**/*.d.ts` exclude below: it is a typings file with nothing to
+        // execute, and that is the reason rather than an oversight.
+        'test-support/*.ts',
       ],
       // *.types.ts are interface-only modules (no executable statements);
       // v8 still counts them and would dilute the gate with structural zeros.

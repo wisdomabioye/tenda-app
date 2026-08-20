@@ -125,7 +125,18 @@ function resolveModule(files: ReadonlySet<string>, candidate: string): string | 
   return attempts.find((attempt) => files.has(attempt)) ?? null
 }
 
-/** The directory a suite belongs to: `hooks/gig/__tests__/useFoo.test.ts` -> `hooks/gig`. */
+/**
+ * The directory a suite belongs to: `hooks/gig/__tests__/useFoo.test.ts` ->
+ * `hooks/gig`.
+ *
+ * The `: directory` arm is the file's ONE uncovered line now that #80 gates this
+ * module, and it stays that way on purpose. It serves the flat layout jest
+ * accepts — a suite written beside its subject — and web's vitest declares a
+ * single, `__tests__`-rooted pattern, so no web suite can take it. It cannot be
+ * deleted either: #77's parity suite requires this function to stay
+ * byte-identical with mobile's, where the arm is live. Reaching it would mean
+ * exporting this helper for a test alone (#84).
+ */
 function ownerOf(testFile: string): string {
   const directory = path.posix.dirname(testFile)
   return path.posix.basename(directory) === TESTS_DIRECTORY

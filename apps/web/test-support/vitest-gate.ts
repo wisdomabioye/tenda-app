@@ -73,9 +73,21 @@ interface CoverageGlobs {
 }
 
 /**
- * `coverage.include`/`exclude` as configured. Read through a narrow shape
- * rather than the provider-specific union vitest exports, which would need a
- * cast to reach these two fields.
+ * `coverage.include`/`exclude` as configured. Read through a narrow shape rather
+ * than the provider-specific union vitest exports, which would need a cast to
+ * reach these two fields.
+ *
+ * That narrowing is this module's UNCOVERED half — 58.33% branches once #80
+ * gated it, and the reason the harness pulls web's global branch figure down
+ * rather than up. Every arm left unhit is the false side of a type guard:
+ * `config.test` is always present, `coverage` always has both keys, and neither
+ * `??` ever fires. Removing them would trade an unreachable branch for a cast,
+ * which the house rules ban outright — so they stay, uncovered, on purpose.
+ *
+ * They are not load-bearing at runtime either, and that is checked rather than
+ * assumed: if the config ever did lack a coverage block these would answer empty
+ * globs, and `coverage-gate.test.ts`'s vacuity case fails on exactly that (#82).
+ * The consequence is guarded even where the arm is not exercised.
  */
 function coverageGlobs(): CoverageGlobs {
   const coverage = config.test?.coverage
