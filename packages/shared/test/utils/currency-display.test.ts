@@ -124,3 +124,41 @@ test('formatRate pads a fractional rate and leaves a whole one alone', () => {
   assert.equal(formatRate(1500, 'NGN'), '₦1,500')
   assert.equal(formatRate(1500.75, 'NGN'), '₦1,500.75')
 })
+
+test('the formatters do not throw on a currency they do not know (#92)', () => {
+  // `fiat_currency` is varchar(3) with no CHECK constraint and is typed `string`
+  // out to the wire; thirteen call sites cast it to SupportedCurrency to reach
+  // these. Before #92 all three destructured `locale` off `undefined` and threw
+  // a TypeError, which renders as a blank screen where a price should be.
+  //
+  // The reader still gets both halves of the fact — how much, and in what.
+  assert.equal(formatFiat(85_000, 'XXX'), 'XXX 85,000')
+  assert.equal(formatRate(15.4, 'XXX'), 'XXX 15.40')
+  assert.equal(formatFiatShort(240_000, 'XXX'), 'XXX 240k')
+})
+
+test('an EMPTY currency leaves no stray separator behind', () => {
+  // The boundary the fallback's `${currency} ` prefix gets wrong if it is
+  // written without thinking: '' would render a leading space before every
+  // figure. Not hypothetical — an empty string is what a missing column reads
+  // as once it has been cast.
+  assert.equal(formatFiat(85_000, ''), '85,000')
+  assert.equal(formatRate(15.4, ''), '15.40')
+  assert.equal(formatFiatShort(240_000, ''), '240k')
+})
+
+test('a known currency is untouched by the fallback — it still gets its symbol', () => {
+  // The positive half. A fallback that fired for everything would satisfy both
+  // cases above while stripping every symbol in the product.
+  //
+  // Asserted as "does NOT start with the three-letter code", which is precisely
+  // what the fallback produces, rather than by matching a glyph. The symbol a
+  // locale renders is ICU's to choose and does not always match the one in
+  // CURRENCY_META — KES is 'KSh' there and 'Ksh' out of Intl — so pinning
+  // glyphs makes this fail on an ICU build difference instead of on a bug.
+  for (const code of ['NGN', 'GHS', 'KES'] as const) {
+    assert.ok(!formatFiat(85_000, code).startsWith(code), `formatFiat ${code}`)
+    assert.ok(!formatRate(15.4, code).startsWith(code), `formatRate ${code}`)
+    assert.ok(!formatFiatShort(240_000, code).startsWith(code), `formatFiatShort ${code}`)
+  }
+})

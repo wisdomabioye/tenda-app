@@ -4,7 +4,12 @@
  * between the apps. Display only: never use these values for math.
  */
 import { ASSET_META, amountRawToDisplay } from '../constants/assets'
-import { CURRENCY_META, type SupportedCurrency } from '../constants/currencies'
+import {
+  CURRENCY_META,
+  DEFAULT_CURRENCY,
+  isSupportedCurrency,
+  type SupportedCurrency,
+} from '../constants/currencies'
 import type { ExchangeRates } from '../api/contracts/platform.contract'
 
 /** The platform rate cache's shape, taken from the wire type rather than restated. */
@@ -89,9 +94,37 @@ export function formatPaymentWindow(seconds: number): string {
   return `${h.toFixed(1)}h`
 }
 
+/**
+ * Which locale to format in, and whether the code is one we know (#92).
+ *
+ * The three formatters below take a `string`, not a `SupportedCurrency`,
+ * because that is what their callers actually hold. `fiat_currency` is
+ * `varchar(3)` in the database with no CHECK constraint and is typed `string`
+ * all the way out to the wire, and thirteen call sites across web and mobile
+ * cast it to `SupportedCurrency` (#95 removes the ones these three no longer
+ * require). Before this they threw a TypeError on anything unlisted —
+ * destructuring `locale` off `undefined` — which is a blank screen where a
+ * price should be.
+ *
+ * No NEW row can carry a bad one: exactly two routes accept a fiat_currency
+ * from a request body — exchange offer creation and fiat quote creation — and
+ * both reject anything unlisted, with a 400 and a 422. Every other server write
+ * propagates a value from those. What that does NOT cover is a row written
+ * before those guards existed, and it lives two services away from the casts
+ * that read it, so a third write path would not know about it. Hence the belt.
+ */
+function displayLocale(currency: string): { locale: string; known: boolean } {
+  return isSupportedCurrency(currency)
+    ? { locale: CURRENCY_META[currency].locale, known: true }
+    : { locale: CURRENCY_META[DEFAULT_CURRENCY].locale, known: false }
+}
+
 /** Format a fiat amount in the given currency, e.g. formatFiat(85000, 'NGN') → "₦85,000" */
-export function formatFiat(amount: number, currency: SupportedCurrency): string {
-  const { locale } = CURRENCY_META[currency]
+export function formatFiat(amount: number, currency: string): string {
+  const { locale, known } = displayLocale(currency)
+  // An unknown code still shows the reader the amount and what it is denominated
+  // in, which beats both a crash and a number with no unit on it.
+  if (!known) return `${currency} ${amount.toLocaleString(locale, { maximumFractionDigits: 0 })}`.trim()
   return amount.toLocaleString(locale, {
     style: 'currency',
     currency,
@@ -108,9 +141,15 @@ export function formatFiat(amount: number, currency: SupportedCurrency): string 
  * could not be scanned. Two decimals is the market granularity; a whole rate
  * stays whole, because most NGN rates are and "₦1,500.00" is noise.
  */
-export function formatRate(rate: number, currency: SupportedCurrency): string {
-  const { locale } = CURRENCY_META[currency]
+export function formatRate(rate: number, currency: string): string {
+  const { locale, known } = displayLocale(currency)
   const digits = Number.isInteger(rate) ? 0 : 2
+  if (!known) {
+    return `${currency} ${rate.toLocaleString(locale, {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    })}`.trim()
+  }
   return rate.toLocaleString(locale, {
     style: 'currency',
     currency,
@@ -123,10 +162,13 @@ export function formatRate(rate: number, currency: SupportedCurrency): string {
  * Compact currency display used in card densities, e.g. "₦240k", "$1.5M".
  * Falls back to full formatFiat() for amounts < 1,000.
  */
-export function formatFiatShort(amount: number, currency: SupportedCurrency): string {
-  const { locale } = CURRENCY_META[currency]
-  const symbol = (0).toLocaleString(locale, { style: 'currency', currency, maximumFractionDigits: 0 })
-    .replace(/[\d.,\s]/g, '')
+export function formatFiatShort(amount: number, currency: string): string {
+  const { locale, known } = displayLocale(currency)
+  // An unknown code has no symbol to extract, so it prefixes itself instead.
+  const symbol = known
+    ? (0).toLocaleString(locale, { style: 'currency', currency, maximumFractionDigits: 0 })
+        .replace(/[\d.,\s]/g, '')
+    : currency === '' ? '' : `${currency} `
   if (amount >= 1_000_000) return `${symbol}${(amount / 1_000_000).toFixed(1)}M`
   if (amount >= 1_000)     return `${symbol}${Math.round(amount / 1_000)}k`
   return formatFiat(amount, currency)
