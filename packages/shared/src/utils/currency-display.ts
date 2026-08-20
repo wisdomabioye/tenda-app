@@ -5,27 +5,74 @@
  */
 import { ASSET_META, amountRawToDisplay } from '../constants/assets'
 import { CURRENCY_META, type SupportedCurrency } from '../constants/currencies'
+import type { ExchangeRates } from '../api/contracts/platform.contract'
+
+/** The platform rate cache's shape, taken from the wire type rather than restated. */
+export type RateMap = ExchangeRates['rates']
+
+/**
+ * Fiat per DISPLAY UNIT of `asset`, or null while it is unknown.
+ *
+ * The cache holds ONE number per currency and it is fiat-per-SOL. So exactly
+ * two kinds of asset can be priced from it:
+ *
+ *   SOL      — the rate is already what we want;
+ *   a STABLE — worth ~1 USD, so the USD leg divides out
+ *              (NGN-per-USDC = rates.NGN / rates.USD).
+ *
+ * Everything else answers null, and that third arm is load-bearing rather than
+ * defensive. Mobile's copy of this rule returned the SOL rate for ANY
+ * non-stable, which prices an ETH amount as though a unit of ETH were a unit of
+ * SOL — wrong by whatever the two are worth relative to each other, which is a
+ * money error rather than a rounding one. It is not hypothetical on the display
+ * side: a card renders whatever `asset` the wire carries, and `gigBudgetRails`
+ * has rails for native tokens ("0.001–10,000 for a native token"). Whether the
+ * composer's picker offers one today is #81's question, not answered here. No
+ * number beats a wrong one either way.
+ *
+ * Keyed on `symbol`, not the asset id, so SOL_DEVNET prices like SOL — which is
+ * also what the old `toAssetPaymentDisplay` compared, so the native path is
+ * unchanged for every asset it already handled.
+ */
+export function fiatRatePerUnit(
+  rates: RateMap | null,
+  currency: SupportedCurrency,
+  asset: string,
+): number | null {
+  const solRate = rates?.[currency] ?? null
+  const meta = ASSET_META[asset]
+  if (meta?.is_stable === true) {
+    const usdRate = rates?.USD ?? null
+    return solRate !== null && usdRate !== null && usdRate > 0 ? solRate / usdRate : null
+  }
+  return meta?.symbol === 'SOL' ? solRate : null
+}
 
 export interface AssetPaymentDisplay {
   /** Display units (raw / 10^decimals). */
   amount: number
   symbol: string
-  /** Fiat equivalent, null when not derivable (rates are SOL-denominated). */
+  /** Fiat equivalent, null while the rate this asset needs is unknown. */
   fiat: number | null
 }
 
 /**
- * Asset-aware payment display for v2 escrows. The platform rate cache is
- * fiat-per-SOL, so only SOL-denominated amounts get a fiat equivalent.
+ * Asset-aware payment display for v2 escrows.
+ *
+ * Takes the rate CACHE and the currency, not a single rate: pricing a stable
+ * needs the USD leg as well as the target currency, so a caller holding one
+ * number cannot supply enough (#76). Every caller already held the cache.
  */
 export function toAssetPaymentDisplay(
   amount_raw: string,
   asset: string,
-  rate: number | null,
+  rates: RateMap | null,
+  currency: SupportedCurrency,
 ): AssetPaymentDisplay {
   const amount = amountRawToDisplay(amount_raw, asset)
   const symbol = ASSET_META[asset]?.symbol ?? asset
-  const fiat = symbol === 'SOL' && rate !== null && rate > 0 ? amount * rate : null
+  const perUnit = fiatRatePerUnit(rates, currency, asset)
+  const fiat = perUnit !== null && perUnit > 0 ? amount * perUnit : null
   return { amount, symbol, fiat }
 }
 

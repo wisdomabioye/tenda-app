@@ -29,8 +29,7 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
   const categoryColor = theme.colors.category[gig.category]
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
-  const rate = rates?.[currency] ?? null
-  const price = toAssetPaymentDisplay(gig.amount_raw, gig.asset, rate)
+  const price = toAssetPaymentDisplay(gig.amount_raw, gig.asset, rates, currency)
 
   const deadlineMeta = gigDeadlineMeta(gig)
   const isUrgent = deadlineMeta.tone === 'urgent'

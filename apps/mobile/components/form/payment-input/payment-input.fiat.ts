@@ -11,37 +11,24 @@
  */
 import { useEffect, useRef } from 'react'
 import {
-  ASSET_META,
   gigBudgetFromUnits,
   gigBudgetToText,
   formatUnits,
   parseUnits,
   FIAT_ENTRY_DECIMALS,
-  type ExchangeRates,
   type SupportedCurrency,
 } from '@tenda/shared'
 
-/** The cache's shape, taken from the wire type rather than restated here. */
-type RateMap = ExchangeRates['rates']
+/**
+ * The asset→fiat rule moved to @tenda/shared in #76 and is re-exported here so
+ * this module stays the one import for the field's money. It left because the
+ * feed's gig cards need the same rule — they render the "≈ ₦…" line off
+ * `toAssetPaymentDisplay`, which could not price a stable and so showed nothing
+ * beside a USDC gig while this field showed a naira figure for the same money.
+ */
+export { fiatRatePerUnit } from '@tenda/shared'
 
 type Mode = 'FIAT' | 'ASSET'
-
-/**
- * Fiat per display unit of `asset`, or null while it is unknown.
- *
- * SOL rates come straight from the platform cache; stables ≈ USD, so the USD
- * leg divides out (NGN-per-USDC ≈ rates.NGN / rates.USD).
- */
-export function fiatRatePerUnit(
-  rates: RateMap | null,
-  currency: SupportedCurrency,
-  asset: string,
-): number | null {
-  const solRate = rates?.[currency] ?? null
-  const usdRate = rates?.USD ?? null
-  if (ASSET_META[asset]?.is_stable !== true) return solRate
-  return solRate !== null && usdRate !== null && usdRate > 0 ? solRate / usdRate : null
-}
 
 /**
  * A fiat amount as base units of `asset`.

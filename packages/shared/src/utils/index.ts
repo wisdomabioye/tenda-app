@@ -86,12 +86,14 @@ export {
 export type { DayGroupHeader, DayGroupItem } from './date'
 export {
   toAssetPaymentDisplay,
+  fiatRatePerUnit,
   formatSolDisplay,
   formatPaymentWindow,
   formatFiat,
   formatFiatShort,
   formatRate,
   type AssetPaymentDisplay,
+  type RateMap,
 } from './currency-display'
 export {
   COUNTDOWN_WARNING_MS,

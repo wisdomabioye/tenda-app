@@ -3,46 +3,34 @@
  *
  * They were inside PaymentInput.tsx until #66, reachable only by rendering the
  * component and reading a TextInput's props — which is a fine way to test a
- * field and a poor way to test arithmetic. The rate-selection arms in
- * particular (stable vs native, and a USD leg that is missing or zero) each
- * misprice by orders of magnitude when wrong.
+ * field and a poor way to test arithmetic. What is left here is the fiat<->raw
+ * conversion pair, whose off-by-a-decimal errors are exactly the kind a render
+ * test reads past.
+ *
+ * The rate-SELECTION arms are no longer this file's: #76 moved that rule to
+ * @tenda/shared so the feed's gig cards could share it, and its table of cases
+ * went with it. Only the re-export's wiring is asserted below.
  */
 import { fiatRatePerUnit, fiatTextToRaw, rawToFiatText } from '../payment-input.fiat'
 
 /** NGN 150,000 per SOL, USD 100 per SOL -> NGN 1,500 per USDC. */
 const RATES = { NGN: 150_000, USD: 100 }
 
-describe('fiatRatePerUnit', () => {
-  test('a stable divides out the USD leg', () => {
+describe('fiatRatePerUnit (re-exported from @tenda/shared since #76)', () => {
+  // The RULE and its arms — stable vs SOL vs a native token this cache cannot
+  // price vs an unknown asset — are owned and exhaustively tested in
+  // packages/shared/test/utils/currency-display.test.ts, because the feed's gig
+  // cards need the same answer as this field and two copies disagreeing is the
+  // bug #76 was filed for. Restating that table here would rebuild the second
+  // copy in the test suite instead of the source.
+  //
+  // What is still this module's to prove is the WIRING: that the name it
+  // re-exports resolves, and resolves to the corrected rule rather than to
+  // something that merely type-checks. Both arms of the division are asserted,
+  // so a re-export pointing at a stub or at the old SOL-only rule fails here.
+  test('the re-export is the shared rule, both arms', () => {
     expect(fiatRatePerUnit(RATES, 'NGN', 'USDC_SOL')).toBe(1_500)
-  })
-
-  test('a native token takes the rate straight from the cache', () => {
-    // The other arm, and the one that would misprice by the USD rate — 100x
-    // here — if the stable branch ever swallowed it.
     expect(fiatRatePerUnit(RATES, 'NGN', 'SOL_DEVNET')).toBe(150_000)
-  })
-
-  test('no rates at all is null, not zero — nothing may be converted yet', () => {
-    // Zero would be a rate, and dividing by it yields Infinity; null is the
-    // only honest answer and is what every caller branches on.
-    expect(fiatRatePerUnit(null, 'NGN', 'USDC_SOL')).toBeNull()
-    expect(fiatRatePerUnit(null, 'NGN', 'SOL_DEVNET')).toBeNull()
-  })
-
-  test('a currency missing from the cache is null', () => {
-    expect(fiatRatePerUnit(RATES, 'KES', 'USDC_SOL')).toBeNull()
-  })
-
-  test('a missing or zero USD leg is null rather than a division', () => {
-    expect(fiatRatePerUnit({ NGN: 150_000 }, 'NGN', 'USDC_SOL')).toBeNull()
-    expect(fiatRatePerUnit({ NGN: 150_000, USD: 0 }, 'NGN', 'USDC_SOL')).toBeNull()
-  })
-
-  test('an asset outside the registry is treated as non-stable', () => {
-    // `is_stable !== true` is the test, so an unknown asset takes the direct
-    // rate rather than silently dividing by a leg that means nothing for it.
-    expect(fiatRatePerUnit(RATES, 'NGN', 'NOT_A_REAL_ASSET')).toBe(150_000)
   })
 })
 
