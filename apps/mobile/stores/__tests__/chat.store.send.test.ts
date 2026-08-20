@@ -1,6 +1,10 @@
 /**
  * The send half of the chat store: optimistic copy, temp-id swap, the WS-echo
- * race, retry, and WS delivery (#59).
+ * race, retry, and what happens when the swap itself fails (#59, #72).
+ *
+ * WS DELIVERY is no longer here — `receiveMessage` moved to the inbox half in
+ * #72, matching how web has always split the two and bringing this file back
+ * under the house limit.
  *
  * Split from chat.store.test.ts, which covers the inbox and paging, because
  * together they run past the house limit — and because this half is one state
@@ -241,40 +245,37 @@ describe('sendMessage lifecycle', () => {
   })
 })
 
-describe('receiveMessage (WS delivery)', () => {
-  test('dedupes by id and moves the conversation preview forward', () => {
-    useChatStore.setState({ conversations: [conv({ id: 'c1' })] })
-    const incoming = msg({ id: 'ws-1', content: 'new text', created_at: '2026-08-20T09:00:00.000Z' })
+test('a send whose STORE UPDATE fails is not reported as a failed send (#72)', async () => {
+  // The bug this pins: the try used to wrap the swap as well as the request, so
+  // anything the swap threw landed in the failure handler. The message was on
+  // the server, the thread showed it failed, and the Retry beside it sent a
+  // SECOND copy — a silent duplicate reported as a network error.
+  //
+  // The lever is a 200 whose body is not a message. Nothing validates the
+  // response, so `sent.id` inside the swap throws on it — which is the shape a
+  // proxy or a misbehaving handler produces, not a contrived one.
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+  mockSendMessage.mockResolvedValue(null)
 
-    useChatStore.getState().receiveMessage('c1', incoming)
-    useChatStore.getState().receiveMessage('c1', incoming)
+  await useChatStore.getState().sendMessage('c1', 'hi')
 
-    const s = useChatStore.getState()
-    expect(s.messages.c1).toHaveLength(1)
-    expect(s.conversations[0].last_message).toBe('new text')
-    expect(s.conversations[0].last_message_at).toBe('2026-08-20T09:00:00.000Z')
-  })
+  const sent = useChatStore.getState().messages.c1
+  expect(sent).toHaveLength(1)
+  // NOT 'failed' — that is the whole point. A failed row offers Retry, and the
+  // server already has this message.
+  expect(sent?.[0]._status).toBe('sending')
+  expect(warn).toHaveBeenCalled()
+  warn.mockRestore()
+})
 
-  test('an attachment-only echo previews as the placeholder, and my own echo reads as sent', () => {
-    useChatStore.setState({ conversations: [conv({ id: 'c1' })] })
-    useChatStore.getState().receiveMessage('c1', msg({ id: 'ws-2', sender_id: 'me', content: '' }))
-    const s = useChatStore.getState()
-    expect(s.conversations[0].last_message).toBe(ATTACHMENT_PREVIEW)
-    expect(s.messages.c1[0]._status).toBe('sent')
-  })
+test('and it still does not reject — every caller is `void sendMessage(...)`', async () => {
+  // Narrowing the catch could have let the swap's throw escape instead. All
+  // three call sites fire and forget, so an escaping rejection would surface as
+  // an unhandled one rather than reaching anybody who could act on it.
+  const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+  mockSendMessage.mockResolvedValue(null)
 
-  test('a message for another thread lands there and moves no other preview', () => {
-    useChatStore.setState({
-      conversations: [conv({ id: 'c1', last_message: 'mine' }), conv({ id: 'c2', last_message: 'theirs' })],
-      messages:      { c1: [msg({ id: 'm1' })] },
-    })
+  await expect(useChatStore.getState().sendMessage('c1', 'hi')).resolves.toBeUndefined()
 
-    useChatStore.getState().receiveMessage('c2', msg({ id: 'ws-3', conversation_id: 'c2', content: 'over here' }))
-
-    const s = useChatStore.getState()
-    expect(s.messages.c1.map((m) => m.id)).toEqual(['m1'])
-    expect(s.messages.c2.map((m) => m.id)).toEqual(['ws-3'])
-    expect(s.conversations.find((c) => c.id === 'c1')?.last_message).toBe('mine')
-    expect(s.conversations.find((c) => c.id === 'c2')?.last_message).toBe('over here')
-  })
+  warn.mockRestore()
 })

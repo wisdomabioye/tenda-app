@@ -134,8 +134,14 @@ export const useChatStore = create<ChatState>((set, get) => ({
     get().appendMessage(conversationId, optimistic)
 
     const gen = accountGeneration()
+    // The try wraps the REQUEST and nothing else (#72). It used to wrap the
+    // swap below as well, so anything that handler threw was caught by the
+    // failure handler: the message was on the server, the thread showed it as
+    // failed, and the Retry beside it sent a second copy the server already
+    // had. A silent duplicate reported as a network error.
+    let sent: Message
     try {
-      const sent = await api.conversations.sendMessage(
+      sent = await api.conversations.sendMessage(
         { id: conversationId },
         {
           content,
@@ -145,7 +151,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
             : {}),
         },
       )
-      if (!isSameAccount(gen)) return
+    } catch {
+      // The send did not reach the server. Marking it failed is still a write
+      // into the thread list, so it is account-guarded like every other.
+      if (isSameAccount(gen)) {
+        set((s) => ({
+          messages: {
+            ...s.messages,
+            [conversationId]: (s.messages[conversationId] ?? []).map((m) =>
+              m.id === tempId ? { ...m, _status: 'failed' as const } : m,
+            ),
+          },
+        }))
+      }
+      return
+    }
+
+    if (!isSameAccount(gen)) return
+    try {
       set((s) => {
         const existing = s.messages[conversationId] ?? []
         // The WS echo of our own message may land before this response,
@@ -155,17 +178,16 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : existing.map((m) => (m.id === tempId ? { ...sent, _status: 'sent' as const } : m))
         return { messages: { ...s.messages, [conversationId]: updated } }
       })
-    } catch {
-      // Marking a message failed is still a write into the thread list.
-      if (!isSameAccount(gen)) return
-      set((s) => ({
-        messages: {
-          ...s.messages,
-          [conversationId]: (s.messages[conversationId] ?? []).map((m) =>
-            m.id === tempId ? { ...m, _status: 'failed' as const } : m,
-          ),
-        },
-      }))
+    } catch (e) {
+      // Contained, but NOT as a failed send: the server has the message, so the
+      // one thing this must never do is offer a Retry that duplicates it. The
+      // optimistic copy stays 'sending' — honest, since we could not reconcile
+      // it — and the warn is what tells a developer the handler broke.
+      //
+      // Contained HERE rather than left to propagate because all three callers
+      // are `void sendMessage(...)`: a rejection would surface as an unhandled
+      // one rather than reaching anybody who could act on it.
+      console.warn('[chat] send succeeded but the store update failed:', e)
     }
   },
 

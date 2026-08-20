@@ -1,6 +1,11 @@
 /**
- * The chat store's INBOX and paging half (#59): the conversation list, the
- * unread accounting hung off it, and the two directions fetchMessages reads in.
+ * The chat store's INBOX half (#59): the conversation list, the unread
+ * accounting hung off it, the two directions fetchMessages reads in, and WS
+ * delivery into a thread that is already there.
+ *
+ * `receiveMessage` moved here from the send half in #72, which is where web
+ * has always kept it — the two clients now partition this store the same way,
+ * and the send file had grown past the house limit.
  *
  * The store had no suite at all and sat outside the coverage gate as well, so
  * both halves of #58's problem applied to it at once. The send half — temp
@@ -37,7 +42,7 @@ jest.mock('@/api/client', () => ({
   },
 }))
 
-import type { MessagesQuery, User } from '@tenda/shared'
+import { ATTACHMENT_PREVIEW, type MessagesQuery, type User } from '@tenda/shared'
 import { useChatStore } from '@/stores/chat.store'
 import { useAuthStore } from '@/stores/auth.store'
 import { conversation as conv, message as msg, localMessage, resetChatStore } from '../__fixtures__/chat'
@@ -139,5 +144,43 @@ describe('fetchMessages', () => {
     mockMessages.mockResolvedValue([])
     await useChatStore.getState().fetchMessages('c1')
     expect(mockMessages).toHaveBeenCalledWith({ id: 'c1' }, undefined)
+  })
+})
+
+describe('receiveMessage (WS delivery)', () => {
+  test('dedupes by id and moves the conversation preview forward', () => {
+    useChatStore.setState({ conversations: [conv({ id: 'c1' })] })
+    const incoming = msg({ id: 'ws-1', content: 'new text', created_at: '2026-08-20T09:00:00.000Z' })
+
+    useChatStore.getState().receiveMessage('c1', incoming)
+    useChatStore.getState().receiveMessage('c1', incoming)
+
+    const s = useChatStore.getState()
+    expect(s.messages.c1).toHaveLength(1)
+    expect(s.conversations[0].last_message).toBe('new text')
+    expect(s.conversations[0].last_message_at).toBe('2026-08-20T09:00:00.000Z')
+  })
+
+  test('an attachment-only echo previews as the placeholder, and my own echo reads as sent', () => {
+    useChatStore.setState({ conversations: [conv({ id: 'c1' })] })
+    useChatStore.getState().receiveMessage('c1', msg({ id: 'ws-2', sender_id: 'me', content: '' }))
+    const s = useChatStore.getState()
+    expect(s.conversations[0].last_message).toBe(ATTACHMENT_PREVIEW)
+    expect(s.messages.c1[0]._status).toBe('sent')
+  })
+
+  test('a message for another thread lands there and moves no other preview', () => {
+    useChatStore.setState({
+      conversations: [conv({ id: 'c1', last_message: 'mine' }), conv({ id: 'c2', last_message: 'theirs' })],
+      messages:      { c1: [msg({ id: 'm1' })] },
+    })
+
+    useChatStore.getState().receiveMessage('c2', msg({ id: 'ws-3', conversation_id: 'c2', content: 'over here' }))
+
+    const s = useChatStore.getState()
+    expect(s.messages.c1.map((m) => m.id)).toEqual(['m1'])
+    expect(s.messages.c2.map((m) => m.id)).toEqual(['ws-3'])
+    expect(s.conversations.find((c) => c.id === 'c1')?.last_message).toBe('mine')
+    expect(s.conversations.find((c) => c.id === 'c2')?.last_message).toBe('over here')
   })
 })

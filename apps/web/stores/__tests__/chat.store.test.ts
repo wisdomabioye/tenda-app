@@ -1,8 +1,14 @@
 /**
- * Chat store behavior — optimistic send lifecycle, WS-echo dedupe, unread
- * accounting, close/reopen list handling. The api client is mocked at its
- * seam; assertions pin the exact wire bodies (drift here breaks mobile
- * parity silently).
+ * The inbox half of the chat store: the conversations list, paging, and WS
+ * delivery into an existing thread.
+ *
+ * Split from the SEND half (chat.store.send.test.ts) when #72's cases took the
+ * one file past the house limit — the same split mobile made in #59, and for
+ * the same two reasons: the size, and that this half is three independent reads
+ * while that half is one state machine.
+ *
+ * The api client is mocked at its seam; assertions pin the exact wire bodies
+ * (drift here breaks mobile parity silently).
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ATTACHMENT_PREVIEW, type Conversation, type Message } from '@tenda/shared'
@@ -85,133 +91,6 @@ describe('fetchMessages', () => {
     await useChatStore.getState().fetchMessages('c1', 'm3')
     expect(conversationsApi.messages).toHaveBeenCalledWith({ id: 'c1' }, { before_id: 'm3' })
     expect(useChatStore.getState().messages.c1.map((m) => m.id)).toEqual(['m1', 'm2', 'm3'])
-  })
-})
-
-describe('sendMessage lifecycle', () => {
-  it('appends an optimistic copy then swaps in the server message with its exact wire body', async () => {
-    conversationsApi.sendMessage.mockResolvedValue(msg({ id: 'srv-1', sender_id: 'me', content: 'yo' }))
-    await useChatStore.getState().sendMessage('c1', 'yo', { escrowId: 'e1', kind: 'gig' }, {
-      url: 'https://cdn/x.png',
-      type: 'image',
-      size: 123,
-    })
-    expect(conversationsApi.sendMessage).toHaveBeenCalledWith(
-      { id: 'c1' },
-      {
-        content: 'yo',
-        escrow_id: 'e1',
-        attachment_url: 'https://cdn/x.png',
-        attachment_type: 'image',
-        attachment_size: 123,
-      },
-    )
-    const msgs = useChatStore.getState().messages.c1
-    expect(msgs).toHaveLength(1)
-    expect(msgs[0]).toMatchObject({ id: 'srv-1', _status: 'sent' })
-  })
-
-  it('omits attachment fields entirely when sending text only', async () => {
-    conversationsApi.sendMessage.mockResolvedValue(msg({ id: 'srv-2', sender_id: 'me' }))
-    await useChatStore.getState().sendMessage('c1', 'plain')
-    expect(conversationsApi.sendMessage).toHaveBeenCalledWith(
-      { id: 'c1' },
-      { content: 'plain', escrow_id: undefined },
-    )
-  })
-
-  it('drops the temp copy when the WS echo landed first (id already present)', async () => {
-    let resolveSend: ((m: Message) => void) | undefined
-    conversationsApi.sendMessage.mockReturnValue(new Promise((r) => { resolveSend = r }))
-    const pending = useChatStore.getState().sendMessage('c1', 'raced')
-    // WS echo arrives before the POST response:
-    useChatStore.getState().receiveMessage('c1', msg({ id: 'srv-3', sender_id: 'me', content: 'raced' }))
-    resolveSend?.(msg({ id: 'srv-3', sender_id: 'me', content: 'raced' }))
-    await pending
-    const msgs = useChatStore.getState().messages.c1
-    expect(msgs.map((m) => m.id)).toEqual(['srv-3'])
-  })
-
-  it('marks the optimistic copy failed when the POST rejects, and retry re-sends it', async () => {
-    conversationsApi.sendMessage.mockRejectedValueOnce(new Error('offline'))
-    await useChatStore.getState().sendMessage('c1', 'oops', { escrowId: 'e1', kind: 'gig' })
-    const failed = useChatStore.getState().messages.c1[0]
-    expect(failed._status).toBe('failed')
-
-    conversationsApi.sendMessage.mockResolvedValue(msg({ id: 'srv-4', sender_id: 'me', content: 'oops' }))
-    useChatStore.getState().retryMessage('c1', failed)
-    await vi.waitFor(() => {
-      expect(useChatStore.getState().messages.c1.map((m) => m.id)).toEqual(['srv-4'])
-    })
-    // Context survived the retry:
-    expect(conversationsApi.sendMessage).toHaveBeenLastCalledWith(
-      { id: 'c1' },
-      expect.objectContaining({ content: 'oops', escrow_id: 'e1' }),
-    )
-  })
-
-  /**
-   * Retry re-sends the ATTACHMENT too, which the store's own docstring
-   * promises ("retry re-sends the already-uploaded attachment") and which no
-   * test reached until #53 — the only place in either client that rebuilds an
-   * UploadedAttachment from the three wire columns rather than from a fresh
-   * upload. A regression here would silently drop the image the reader
-   * attached and re-send the text alone.
-   */
-  it('retry re-sends an already-uploaded attachment, url/type/size intact', async () => {
-    conversationsApi.sendMessage.mockRejectedValueOnce(new Error('offline'))
-    await useChatStore.getState().sendMessage('c1', 'see this', undefined, {
-      url: 'https://res.cloudinary.com/demo/image/upload/v1/chat/a.png',
-      type: 'image',
-      size: 2048,
-    })
-    const failed = useChatStore.getState().messages.c1[0]
-    expect(failed._status).toBe('failed')
-
-    conversationsApi.sendMessage.mockResolvedValue(
-      msg({ id: 'srv-5', sender_id: 'me', content: 'see this' }),
-    )
-    useChatStore.getState().retryMessage('c1', failed)
-    await vi.waitFor(() => {
-      expect(useChatStore.getState().messages.c1.map((m) => m.id)).toEqual(['srv-5'])
-    })
-    expect(conversationsApi.sendMessage).toHaveBeenLastCalledWith(
-      { id: 'c1' },
-      expect.objectContaining({
-        content: 'see this',
-        attachment_url: 'https://res.cloudinary.com/demo/image/upload/v1/chat/a.png',
-        attachment_type: 'image',
-        attachment_size: 2048,
-      }),
-    )
-  })
-
-  it('retry sends NO attachment when the columns are only partly set', async () => {
-    // The three are nullable AS A GROUP on the wire. A row carrying a url but
-    // no size is not half an attachment to re-send — it is a row the server
-    // would reject, so the retry must go out as plain text rather than
-    // assembling something out of what happens to be present.
-    const partial = {
-      ...msg({ id: 'temp_1', sender_id: 'me', content: 'partial' }),
-      attachment_url: 'https://res.cloudinary.com/demo/image/upload/v1/chat/b.png',
-      attachment_type: 'image' as const,
-      attachment_size: null,
-      _status: 'failed' as const,
-    }
-    useChatStore.setState({ messages: { c1: [partial] } })
-
-    conversationsApi.sendMessage.mockResolvedValue(
-      msg({ id: 'srv-6', sender_id: 'me', content: 'partial' }),
-    )
-    useChatStore.getState().retryMessage('c1', partial)
-    await vi.waitFor(() => {
-      expect(useChatStore.getState().messages.c1.map((m) => m.id)).toEqual(['srv-6'])
-    })
-    // The exact key set, not three `not.toHaveProperty` checks: those read
-    // off `lastCall ?? []`, so an `undefined` body — no call at all — passed
-    // all three.
-    const [, body] = conversationsApi.sendMessage.mock.lastCall ?? []
-    expect(Object.keys(body ?? {}).sort()).toEqual(['content', 'escrow_id'])
   })
 })
 

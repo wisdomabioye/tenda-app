@@ -182,8 +182,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
     get().appendMessage(conversationId, optimistic)
 
+    // The try wraps the REQUEST only (#72): wrapping the swap too sent a throw
+    // there to the failure handler, so Retry duplicated a stored message.
+    let sent: Message
     try {
-      const sent = await api.conversations.sendMessage(
+      sent = await api.conversations.sendMessage(
         { id: conversationId },
         {
           content,
@@ -193,6 +196,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
             : {}),
         },
       )
+    } catch {
+      // The send did not reach the server: mark it failed and offer Retry.
+      set((s) => ({
+        messages: {
+          ...s.messages,
+          [conversationId]: (s.messages[conversationId] ?? []).map((m) =>
+            m.id === tempId ? { ...m, _status: 'failed' as const } : m,
+          ),
+        },
+      }))
+      return
+    }
+    try {
       set((s) => {
         const existing = s.messages[conversationId] ?? []
         // The WS echo of our own message may land before this response,
@@ -202,15 +218,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
           : existing.map((m) => (m.id === tempId ? { ...sent, _status: 'sent' as const } : m))
         return { messages: { ...s.messages, [conversationId]: updated } }
       })
-    } catch {
-      set((s) => ({
-        messages: {
-          ...s.messages,
-          [conversationId]: (s.messages[conversationId] ?? []).map((m) =>
-            m.id === tempId ? { ...m, _status: 'failed' as const } : m,
-          ),
-        },
-      }))
+    } catch (e) {
+      // Contained but NOT as a failed send: the server has it, so this must
+      // never offer a duplicating Retry; the copy stays 'sending'.
+      console.warn('[chat] send succeeded but the store update failed:', e)
     }
   },
 
