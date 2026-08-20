@@ -81,11 +81,14 @@ describe('coverage gate scope', () => {
     // subject stays invisible to the gate, so the blind spot is bounded rather
     // than tolerated. Five of them assert CONTRACTS over a directory or a
     // config — a route manifest, a store-scope convention, two style contracts
-    // and a wallet config guard — so there is no single module to name. The
-    // other is this file, whose subject is the gate itself: a config plus the
-    // three helpers beside it, and naming one of them would be a fiction.
+    // and a wallet config guard — so there is no single module to name. Two
+    // more are about the gate ITSELF: this file, whose subject is a config plus
+    // the helpers beside it, and the resolver-parity suite (#77), whose subject
+    // is the RELATIONSHIP between this app's resolver and mobile's. Naming any
+    // one module for either would be a fiction.
     expect(unresolved).toEqual([
       '__tests__/coverage-gate.test.ts',
+      '__tests__/coverage-resolver-parity.test.ts',
       'app/(public)/support/__tests__/support-routes.test.ts',
       'stores/__tests__/account-scope.guard.test.ts',
       'styles/__tests__/motion-contract.test.ts',

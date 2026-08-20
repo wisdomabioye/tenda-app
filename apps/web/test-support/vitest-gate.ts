@@ -31,8 +31,24 @@
  * half that actually decides the answer is runner-specific on both sides
  * (jest-util's `globsToMatcher` over `collectCoverageFrom` there, `test-exclude`
  * over `coverage.include` here), so "sharing" would mean parameterising over
- * precisely the difference the checker exists to get right. The duplication is
- * tracked as its own task rather than left implicit.
+ * precisely the difference the checker exists to get right.
+ *
+ * #77 RE-EXAMINED THAT AND KEPT IT, against its own two triggers rather than by
+ * taste. No third consumer: server, admin and tendahq have no coverage gate and
+ * no test-support/ at all. And the pure half had not drifted — comparing the two
+ * files function by function, with comments stripped and whitespace collapsed,
+ * `toKey`, `isTestSupport`, `listFiles`, `resolveModule`, `ownerOf` and
+ * `subjectByName` are byte-identical, including the `<= 0` fix in the last one.
+ * Only `collectTestSubjects` and `subjectsByImport` differ, plus web's
+ * `inTestsDirectory`, which mobile has no counterpart to because it takes the
+ * matcher in — and all of that is the runner seam this note describes.
+ *
+ * What #77 added is the thing that makes "revisit on drift" keepable:
+ * `__tests__/coverage-resolver-parity.test.ts` fails when a must-match function
+ * stops matching, when either copy grows a function neither list classifies, or
+ * when an allowance rots — its function having stopped differing, or having been
+ * deleted from both copies. Before it, the copies could diverge and the only way
+ * to find out was to read both files.
  */
 import path from 'node:path'
 import TestExclude from 'test-exclude'
