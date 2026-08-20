@@ -13,6 +13,7 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { isTestFile } from '@/test-support/jest-test-files'
 import { collectTestSubjects } from '@/test-support/coverage-subjects'
 
 const roots: string[] = []
@@ -40,7 +41,27 @@ describe('collectTestSubjects — by name', () => {
       'components/Bar.tsx': 'export const Bar = () => null',
       'components/__tests__/Bar.test.tsx': "import { Bar } from '../Bar'",
     })
-    expect(collectTestSubjects(root).subjects).toEqual(['components/Bar.tsx', 'hooks/useFoo.ts'])
+    expect(collectTestSubjects(root, isTestFile).subjects).toEqual(['components/Bar.tsx', 'hooks/useFoo.ts'])
+  })
+
+  it('resolves a suite sitting BESIDE its subject, not in a __tests__ folder', () => {
+    // jest's testMatch has two patterns and this is the second one. The first
+    // version of the resolver honoured only `**/__tests__/**`, so this layout
+    // produced no subject at all and the gate stayed silent about useFoo.ts —
+    // measured, and the reason #71 exists.
+    const root = tree({
+      'hooks/useFoo.ts': 'export const useFoo = () => null',
+      'hooks/useFoo.test.ts': "import { useFoo } from './useFoo'",
+    })
+    expect(collectTestSubjects(root, isTestFile).subjects).toEqual(['hooks/useFoo.ts'])
+  })
+
+  it('resolves a spec-suffixed suite, which jest matches as readily as test', () => {
+    const root = tree({
+      'hooks/useFoo.ts': 'export const useFoo = () => null',
+      'hooks/__tests__/useFoo.spec.ts': "import { useFoo } from '../useFoo'",
+    })
+    expect(collectTestSubjects(root, isTestFile).subjects).toEqual(['hooks/useFoo.ts'])
   })
 
   it('resolves a split suite through its suffix, one segment at a time', () => {
@@ -55,7 +76,7 @@ describe('collectTestSubjects — by name', () => {
       'hooks/__tests__/useFoo.races.test.ts': "import { useFoo } from '../__fixtures__/harness'",
       'hooks/__tests__/useFoo.cache.slow.test.ts': "import { useFoo } from '../__fixtures__/harness'",
     })
-    expect(collectTestSubjects(root).subjects).toEqual(['hooks/useFoo.ts'])
+    expect(collectTestSubjects(root, isTestFile).subjects).toEqual(['hooks/useFoo.ts'])
   })
 
   it('claims nothing for a name that strips to an empty stem', () => {
@@ -66,7 +87,7 @@ describe('collectTestSubjects — by name', () => {
       'hooks/useFoo.ts': 'export const useFoo = () => null',
       'hooks/__tests__/.foo.test.ts': "import { useFoo } from '@/lib/missing'",
     })
-    const { subjects, unresolved } = collectTestSubjects(root)
+    const { subjects, unresolved } = collectTestSubjects(root, isTestFile)
     expect(subjects).toEqual([])
     expect(unresolved).toEqual(['hooks/__tests__/.foo.test.ts'])
   })
@@ -81,7 +102,7 @@ describe('collectTestSubjects — by name', () => {
       'ui/Button.tsx': 'export const Button = () => null',
       'ui/__tests__/Chip.test.tsx': "import { Chip } from '../Chip'\nimport { Button } from '../Button'",
     })
-    expect(collectTestSubjects(root).subjects).toEqual(['ui/Chip.tsx'])
+    expect(collectTestSubjects(root, isTestFile).subjects).toEqual(['ui/Chip.tsx'])
   })
 })
 
@@ -94,7 +115,7 @@ describe('collectTestSubjects — by import, for suites named after a theme', ()
         "jest.mock('@/lib/ws')\nimport { store } from '@/stores/realtime.store'\nimport { chat } from '../chat.store'",
       'lib/ws.ts': 'export const ws = {}',
     })
-    expect(collectTestSubjects(root).subjects).toEqual([
+    expect(collectTestSubjects(root, isTestFile).subjects).toEqual([
       'stores/chat.store.ts',
       'stores/realtime.store.ts',
     ])
@@ -105,7 +126,7 @@ describe('collectTestSubjects — by import, for suites named after a theme', ()
       'app/wallet/intents/[id].tsx': 'export default () => null',
       'app/wallet/__tests__/intent.test.tsx': "import Screen from '../intents/[id]'",
     })
-    expect(collectTestSubjects(root).subjects).toEqual(['app/wallet/intents/[id].tsx'])
+    expect(collectTestSubjects(root, isTestFile).subjects).toEqual(['app/wallet/intents/[id].tsx'])
   })
 
   it('resolves a directory specifier to its index barrel', () => {
@@ -113,7 +134,7 @@ describe('collectTestSubjects — by import, for suites named after a theme', ()
       'api/client/index.ts': 'export const api = {}',
       'api/client/__tests__/wiring.test.ts': "import { api } from '@/api/client'",
     })
-    expect(collectTestSubjects(root).subjects).toEqual(['api/client/index.ts'])
+    expect(collectTestSubjects(root, isTestFile).subjects).toEqual(['api/client/index.ts'])
   })
 
   it('refuses a module OUTSIDE the owning directory — that is a collaborator', () => {
@@ -123,7 +144,7 @@ describe('collectTestSubjects — by import, for suites named after a theme', ()
       'stores/__tests__/mirror.test.ts':
         "import { store } from '../realtime.store'\nimport { ws } from '../../lib/ws'",
     })
-    expect(collectTestSubjects(root).subjects).toEqual(['stores/realtime.store.ts'])
+    expect(collectTestSubjects(root, isTestFile).subjects).toEqual(['stores/realtime.store.ts'])
   })
 
   it('refuses a bare specifier even when it collides with a real path', () => {
@@ -139,7 +160,7 @@ describe('collectTestSubjects — by import, for suites named after a theme', ()
       'stores/__tests__/mirror.test.ts':
         "import { seed } from 'stores/seed'\nimport { store } from '../realtime.store'",
     })
-    expect(collectTestSubjects(root).subjects).toEqual(['stores/realtime.store.ts'])
+    expect(collectTestSubjects(root, isTestFile).subjects).toEqual(['stores/realtime.store.ts'])
   })
 
   it('never counts another suite as a subject', () => {
@@ -147,7 +168,7 @@ describe('collectTestSubjects — by import, for suites named after a theme', ()
       'stores/__tests__/helpers.ts': 'export const seed = () => null',
       'stores/__tests__/mirror.test.ts': "import { seed } from './helpers'",
     })
-    const { subjects, unresolved } = collectTestSubjects(root)
+    const { subjects, unresolved } = collectTestSubjects(root, isTestFile)
     expect(subjects).toEqual([])
     expect(unresolved).toEqual(['stores/__tests__/mirror.test.ts'])
   })
@@ -164,7 +185,7 @@ describe('collectTestSubjects — what it reports as unresolved', () => {
       'app/index.tsx': 'export default () => null',
       '__tests__/harness.test.ts': "import config from '../jest.config'\nimport App from '@/app/index'",
     })
-    const { subjects, unresolved } = collectTestSubjects(root)
+    const { subjects, unresolved } = collectTestSubjects(root, isTestFile)
     expect(subjects).toEqual([])
     expect(unresolved).toEqual(['__tests__/harness.test.ts'])
   })
@@ -174,7 +195,7 @@ describe('collectTestSubjects — what it reports as unresolved', () => {
       'hooks/useFoo.ts': 'export const useFoo = () => null',
       'hooks/__tests__/some-behaviour.test.ts': "import { helper } from '@/lib/missing'",
     })
-    const { subjects, unresolved } = collectTestSubjects(root)
+    const { subjects, unresolved } = collectTestSubjects(root, isTestFile)
     expect(subjects).toEqual([])
     expect(unresolved).toEqual(['hooks/__tests__/some-behaviour.test.ts'])
   })
@@ -192,7 +213,7 @@ describe('collectTestSubjects — what it walks', () => {
       'android/app/Foo.ts': 'export const foo = {}',
       'android/app/__tests__/Foo.test.ts': "import { foo } from '../Foo'",
     })
-    const { subjects, testFiles } = collectTestSubjects(root)
+    const { subjects, testFiles } = collectTestSubjects(root, isTestFile)
     expect(subjects).toEqual(['hooks/useFoo.ts'])
     expect(testFiles).toEqual(['hooks/__tests__/useFoo.test.ts'])
   })
@@ -211,20 +232,31 @@ describe('collectTestSubjects — what it walks', () => {
     // whole `__tests__` directory, so neither can ever be instrumented. In:
     // the `__fixtures__` module, which is ordinary code a pattern could name.
     // Gone entirely: the asset and the dependency.
-    expect(collectTestSubjects(root).sourceFiles).toEqual([
+    expect(collectTestSubjects(root, isTestFile).sourceFiles).toEqual([
       'components/Bar.tsx',
       'hooks/__fixtures__/harness.ts',
       'hooks/useFoo.ts',
     ])
   })
 
-  it('counts only *.test.ts(x) as suites, not every file under __tests__', () => {
+  it('never offers a suite as gateable source, in either layout', () => {
+    // A test file is not coverable code. Missing that, a scope pattern that
+    // matched only test files would look alive to the inert-pattern check.
+    const root = tree({
+      'hooks/useFoo.ts': 'export const useFoo = () => null',
+      'hooks/useFoo.test.ts': "import { useFoo } from './useFoo'",
+      'hooks/__tests__/useFoo.races.test.ts': "import { useFoo } from '../useFoo'",
+    })
+    expect(collectTestSubjects(root, isTestFile).sourceFiles).toEqual(['hooks/useFoo.ts'])
+  })
+
+  it('counts only suite files as suites, not every file under __tests__', () => {
     const root = tree({
       'hooks/useFoo.ts': 'export const useFoo = () => null',
       'hooks/__tests__/useFoo.test.ts': "import { useFoo } from '../useFoo'",
       'hooks/__tests__/fixtures.json': '{}',
       'hooks/__tests__/README.md': 'notes',
     })
-    expect(collectTestSubjects(root).testFiles).toEqual(['hooks/__tests__/useFoo.test.ts'])
+    expect(collectTestSubjects(root, isTestFile).testFiles).toEqual(['hooks/__tests__/useFoo.test.ts'])
   })
 })

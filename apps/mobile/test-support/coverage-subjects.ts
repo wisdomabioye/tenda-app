@@ -11,10 +11,11 @@
  * To notice it you first have to answer "what do the tests exercise?" without
  * running them. Two signals, in order:
  *
- *   BY NAME — `hooks/__tests__/useFoo.test.ts` tests `hooks/useFoo.ts`: the
- *   module of the same name in the directory that owns the `__tests__` folder.
- *   Suffixed splits count too (`useFoo.races.test.ts` -> `useFoo.ts`), because
- *   that is how the big suites here were split (#39, #54).
+ *   BY NAME — a suite tests the module of the same name in the directory it
+ *   belongs to, in either layout jest accepts: `hooks/__tests__/useFoo.test.ts`
+ *   and `hooks/useFoo.test.ts` both point at `hooks/useFoo.ts`. Suffixed splits
+ *   count too (`useFoo.races.test.ts` -> `useFoo.ts`), because that is how the
+ *   big suites here were split (#39, #54).
  *
  *   BY IMPORT — a suite named for a THEME rather than a module
  *   (`realtime-chat-mirror.test.ts`) declares its subjects by importing them.
@@ -27,6 +28,11 @@
  * to render — Button, Text, Chip and SectionLabel all became "subjects" of the
  * ui suites when it ran unconditionally. That is the reason for the ordering,
  * not a preference; __tests__/coverage-subjects.test.ts pins the case.
+ *
+ * WHAT COUNTS AS A TEST is not decided here at all — the caller passes jest's
+ * own `globsToMatcher(testMatch)` verdict in. An earlier version decided for
+ * itself and honoured only one of jest's two patterns, which left a suite
+ * written beside its subject invisible to the gate (#71).
  *
  * KNOWN LIMIT, stated because a checker that overclaims is worse than none:
  * a theme-named suite whose subject it does not import — through a helper, or
@@ -42,17 +48,26 @@ const SOURCE_EXTENSIONS = ['.ts', '.tsx'] as const
 /** Never walked: dependencies, build output, native projects, VCS metadata. */
 const SKIPPED_DIRECTORIES = new Set(['node_modules', '.expo', 'coverage', 'android', 'ios', '.git'])
 
+/** Directory layout, not identity: it says where a suite's OWNER is, not what
+ *  counts as a test. Identity comes from the caller's matcher. */
 const TESTS_DIRECTORY = '__tests__'
-const TEST_FILE = /\.test\.tsx?$/
+/**
+ * Marks a SUITE — a file worth scanning for subjects — and strips the suffix
+ * off its name. This is a narrower question than jest's: jest runs everything
+ * `testMatch` matches, including a `helpers.ts` sitting inside `__tests__`,
+ * and scanning such a helper for subjects would only add noise. Covers `spec`
+ * as well as `test` because jest's second pattern does.
+ */
+const SUITE_SUFFIX = /\.(test|spec)\.tsx?$/
 /** `from '…'`, `require('…')` and `jest.mock('…')` — the three ways a suite names a module. */
 const IMPORT_SPECIFIER = /(?:\bfrom\s*|\brequire\(\s*|\bjest\.mock\(\s*)['"]([^'"]+)['"]/g
 /** tsconfig `paths`: `@/*` -> `./*`, rooted at the app directory. */
 const ALIAS_PREFIX = '@/'
 
 export interface TestSubjects {
-  /** Every `*.test.ts(x)` under a `__tests__` directory, root-relative. */
+  /** The suites, in either layout jest accepts, root-relative. */
   testFiles: string[]
-  /** Every `.ts`/`.tsx` outside `__tests__` — what the gate could match. */
+  /** Every `.ts`/`.tsx` jest would not call a test — what the gate can match. */
   sourceFiles: string[]
   /** Every module those suites exercise, root-relative, sorted and unique. */
   subjects: string[]
@@ -96,14 +111,23 @@ function resolveModule(files: ReadonlySet<string>, candidate: string): string | 
   return attempts.find((attempt) => files.has(attempt)) ?? null
 }
 
-/** `hooks/__tests__/useFoo.bar.test.ts` -> `hooks` */
+/**
+ * The directory a suite belongs to, in either layout jest accepts:
+ * `hooks/__tests__/useFoo.bar.test.ts` -> `hooks`, and `hooks/useFoo.test.ts`
+ * -> `hooks` too. Taking dirname twice unconditionally is what the first
+ * version did, and it answers '.' for the flat layout — the wrong directory,
+ * which would then match nothing.
+ */
 function ownerOf(testFile: string): string {
-  return path.posix.dirname(path.posix.dirname(testFile))
+  const directory = path.posix.dirname(testFile)
+  return path.posix.basename(directory) === TESTS_DIRECTORY
+    ? path.posix.dirname(directory)
+    : directory
 }
 
 function subjectByName(files: ReadonlySet<string>, testFile: string): string | null {
   const owner = ownerOf(testFile)
-  let stem = path.posix.basename(testFile).replace(TEST_FILE, '')
+  let stem = path.posix.basename(testFile).replace(SUITE_SUFFIX, '')
   while (stem) {
     const hit = resolveModule(files, path.posix.join(owner, stem))
     if (hit) return hit
@@ -117,7 +141,12 @@ function subjectByName(files: ReadonlySet<string>, testFile: string): string | n
   return null
 }
 
-function subjectsByImport(files: ReadonlySet<string>, testFile: string, source: string): string[] {
+function subjectsByImport(
+  files: ReadonlySet<string>,
+  testFile: string,
+  source: string,
+  isTestFile: (file: string) => boolean,
+): string[] {
   const owner = ownerOf(testFile)
   const found = new Set<string>()
   for (const [, specifier] of source.matchAll(IMPORT_SPECIFIER)) {
@@ -137,31 +166,38 @@ function subjectsByImport(files: ReadonlySet<string>, testFile: string, source: 
     // './', and no root-relative key begins that way. An explicit early return
     // for that case was written first and deleted — it changed no behaviour,
     // and a guard that cannot be broken cannot be proved either.
-    if (hit !== null && hit.startsWith(`${owner}/`) && !hit.includes(`${TESTS_DIRECTORY}/`)) {
+    if (hit !== null && hit.startsWith(`${owner}/`) && !isTestFile(hit)) {
       found.add(hit)
     }
   }
   return [...found]
 }
 
-/** Walk `root` and report what its suites exercise. */
-export function collectTestSubjects(root: string): TestSubjects {
+/**
+ * Walk `root` and report what its suites exercise.
+ *
+ * `isTestFile` must be jest's OWN verdict — `globsToMatcher(testMatch)`, the
+ * same function shouldInstrument uses to refuse to instrument a test. Passing
+ * a hand-rolled rule instead is how the first version of this file came to
+ * honour only one of jest's two testMatch patterns, so a suite written as
+ * `hooks/useFoo.test.ts` rather than `hooks/__tests__/useFoo.test.ts` left its
+ * subject invisible to the gate and counted the suite itself as gateable
+ * source (#71).
+ */
+export function collectTestSubjects(
+  root: string,
+  isTestFile: (file: string) => boolean,
+): TestSubjects {
   const files = listFiles(root)
   const index = new Set(files)
-  const isTest = (file: string): boolean =>
-    file.includes(`${TESTS_DIRECTORY}/`) && TEST_FILE.test(file)
-  const testFiles = files.filter(isTest).sort()
-  // Everything under `__tests__` is out, not just the `*.test.ts` files: the
-  // effective testMatch here is jest's default `**/__tests__/**/*.[jt]s?(x)`
-  // (confirmed with `jest --showConfig`; neither jest-expo nor this config
-  // overrides it), so shouldInstrument refuses a `.ts` helper sitting beside a
-  // suite as firmly as it refuses the suite. Counting one would let a pattern
-  // that instruments nothing look alive.
+  // Suites are the testMatch files worth SCANNING; everything jest calls a
+  // test is excluded from `sourceFiles`, suite or not, because shouldInstrument
+  // refuses all of it and a pattern matching only those instruments nothing.
+  const testFiles = files.filter((file) => isTestFile(file) && SUITE_SUFFIX.test(file)).sort()
   const sourceFiles = files
     .filter(
       (file) =>
-        !file.includes(`${TESTS_DIRECTORY}/`) &&
-        SOURCE_EXTENSIONS.some((extension) => file.endsWith(extension)),
+        !isTestFile(file) && SOURCE_EXTENSIONS.some((extension) => file.endsWith(extension)),
     )
     .sort()
 
@@ -173,7 +209,8 @@ export function collectTestSubjects(root: string): TestSubjects {
       subjects.add(named)
       continue
     }
-    const imported = subjectsByImport(index, testFile, fs.readFileSync(path.join(root, testFile), 'utf8'))
+    const source = fs.readFileSync(path.join(root, testFile), 'utf8')
+    const imported = subjectsByImport(index, testFile, source, isTestFile)
     if (imported.length === 0) unresolved.push(testFile)
     imported.forEach((subject) => subjects.add(subject))
   }

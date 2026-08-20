@@ -21,6 +21,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { globsToMatcher } from 'jest-util'
 import config from '../jest.config'
+import { isTestFile } from '@/test-support/jest-test-files'
 import { collectTestSubjects } from '@/test-support/coverage-subjects'
 import { UNGATED_WITH_TESTS } from '@/test-support/coverage-ungated'
 
@@ -33,7 +34,7 @@ const ROOT = path.join(__dirname, '..')
 const scope = config.collectCoverageFrom ?? []
 const isGated = globsToMatcher(scope)
 
-const { subjects, sourceFiles, testFiles, unresolved } = collectTestSubjects(ROOT)
+const { subjects, sourceFiles, testFiles, unresolved } = collectTestSubjects(ROOT, isTestFile)
 const registered = new Set(UNGATED_WITH_TESTS)
 
 describe('coverage gate scope', () => {
@@ -99,6 +100,19 @@ describe('coverage gate scope', () => {
     // the breaking one is the kind of lookalike logic this file exists to
     // avoid. Setting rootDir should mean re-reading these paths by hand.
     expect(config.rootDir).toBeUndefined()
+  })
+
+  it('leaves testMatch to speak for itself, with no testRegex beside it', () => {
+    // The one place test-support/jest-test-files.ts stops mirroring jest:
+    // normalize.js sets `testMatch = []` when testRegex is configured and
+    // testMatch is not, so jest would select tests by regex alone while that
+    // module would still be using the default globs — and every suite in the
+    // app would then look like ordinary source.
+    //
+    // Guarded rather than re-implemented, for the same reason as rootDir: a
+    // second copy of jest's precedence rules is the drift this file exists to
+    // catch. Adding testRegex should mean coming back here.
+    expect(config.testRegex).toBeUndefined()
   })
 
   it('resolves a subject for all but the harness suites that have none', () => {
