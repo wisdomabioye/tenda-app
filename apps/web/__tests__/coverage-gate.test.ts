@@ -66,11 +66,13 @@ const NO_SUBJECT_BY_CONSTRUCTION: Record<string, string> = {
  * rather than giving a prose excuse.
  *
  * EMPTY here, and that is a fact about web rather than an omission. Mobile's
- * equivalent register carries one entry, because mobile has a dedicated suite
- * for its resolver sitting at the app root. Web has no such suite at all (#84):
- * its resolver is exercised only through this file. The group exists anyway so
- * the next unresolved suite has to be classified as one kind or the other, and
- * so a blind spot cannot be filed under "no subject" by default.
+ * equivalent register carries one entry because its resolver suite sits at the
+ * APP ROOT, where the owner is '.' and nothing can resolve. Web's resolver has
+ * a dedicated suite too since #84 — two, in test-support/__tests__/ — but they
+ * sit beside the module they test, so they resolve BY NAME through the same
+ * suffix-stripping walk they exercise, and need no entry here. The group exists
+ * anyway so the next unresolved suite has to be classified as one kind or the
+ * other, and so a blind spot cannot be filed under "no subject" by default.
  */
 const SUBJECT_NOT_RESOLVABLE: Record<string, string> = {}
 

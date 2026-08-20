@@ -139,13 +139,27 @@ function resolveModule(files: ReadonlySet<string>, candidate: string): string | 
  * The directory a suite belongs to: `hooks/gig/__tests__/useFoo.test.ts` ->
  * `hooks/gig`.
  *
- * The `: directory` arm is the file's ONE uncovered line now that #80 gates this
- * module, and it stays that way on purpose. It serves the flat layout jest
- * accepts — a suite written beside its subject — and web's vitest declares a
- * single, `__tests__`-rooted pattern, so no web suite can take it. It cannot be
- * deleted either: #77's parity suite requires this function to stay
- * byte-identical with mobile's, where the arm is live. Reaching it would mean
- * exporting this helper for a test alone (#84).
+ * The `: directory` arm serves jest's flat layout — a suite written beside its
+ * subject — which web's single `__tests__`-rooted pattern never produces. It
+ * was long read as unreachable here for that reason, and #84 measured it and
+ * found otherwise: a suite nested DEEPER inside `__tests__`
+ * (`hooks/__tests__/nested/useFoo.test.ts`) is still matched by that pattern,
+ * and its parent is not named `__tests__`, so it takes this arm and the owner
+ * becomes the nested directory itself. Two consequences, both pinned in
+ * `coverage-subjects.by-import.test.ts`, so the arm is covered without
+ * exporting this helper for a test alone:
+ *
+ *   BY IMPORT it resolves to nothing. Every candidate under that owner is also
+ *   under `__tests__`, which `subjectsByImport` refuses, so the suite lands in
+ *   `unresolved` — a safe failure, since the gate's partition then forces
+ *   someone to classify it.
+ *
+ *   BY NAME it can resolve, to a sibling module inside `__tests__`.
+ *   `subjectByName` applies no such filter, so the subject is a file that
+ *   `coverage.exclude` drops and `sourceFiles` never offers — one the gate
+ *   cannot instrument. It fails loudly as an unregistered subject rather than
+ *   quietly mismeasuring, which is why this is recorded rather than fixed
+ *   inside a function #77 holds byte-identical with mobile's.
  */
 function ownerOf(testFile: string): string {
   const directory = path.posix.dirname(testFile)
