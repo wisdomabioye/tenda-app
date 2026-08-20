@@ -58,8 +58,10 @@ const MAY_DIFFER: Record<string, string> = {
     "mobile injects jest's own globsToMatcher(testMatch), because jest has TWO test " +
     'patterns and honouring only one left a suite invisible (#71); web pins its single ' +
     'pattern structurally and asserts the config still says it, because vitest resolves ' +
-    'test.include with tinyglobby. Mobile also returns `sourceFiles` for an ' +
-    'inert-pattern check web has no equivalent of (filed as #82)',
+    'test.include with tinyglobby. #82 gave web `sourceFiles` too, so both return the ' +
+    'same four fields and both run an inert-pattern check — but they FILTER that set ' +
+    "differently on purpose: each mirrors its own runner's coverage exclusions, and " +
+    'only mobile excludes fixtures there (#83)',
   subjectsByImport:
     'the same test-file predicate, plus the mocking call each runner uses — jest.mock vs vi.mock in IMPORT_SPECIFIER',
   inTestsDirectory:

@@ -89,6 +89,27 @@ export function configuredSuiteInclude(): string[] {
   return config.test?.include ?? []
 }
 
+/** The configured `coverage.include` list, for the inert-pattern check (#82). */
+export function configuredCoverageInclude(): string[] {
+  return coverageGlobs().include
+}
+
+/**
+ * Whether ONE include pattern instruments anything — the matcher behind #82's
+ * inert-pattern check.
+ *
+ * The real `exclude` list is applied alongside the single pattern, deliberately.
+ * The question is not "does this glob match a path" but "does this entry
+ * contribute anything to the gate", and a pattern whose every match is excluded
+ * contributes nothing either. `lib/**` matching only `*.types.ts` files would be
+ * as dead as one naming a directory that has moved.
+ */
+export function patternMatcher(root: string, glob: string): (file: string) => boolean {
+  const { exclude } = coverageGlobs()
+  const matcher = new TestExclude({ cwd: root, include: [glob], exclude })
+  return (file) => matcher.shouldInstrument(path.join(root, file))
+}
+
 /** One matcher for many files — building it per call is wasteful at 200+ subjects. */
 export function gateMatcher(root: string): (file: string) => boolean {
   const { include, exclude } = coverageGlobs()

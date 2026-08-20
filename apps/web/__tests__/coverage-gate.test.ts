@@ -11,6 +11,10 @@
  * These cases close that: a new suite on an unlisted module fails here, and the
  * register of deliberate exceptions cannot rot.
  *
+ * #82 closed the OTHER half. A pattern naming a path that has moved gates
+ * nothing and says nothing, so the code it named leaves the measurement in
+ * silence — mobile had seven of those when #58 looked. One now fails here too.
+ *
  * NODE environment, pinned above rather than worked around: this walks the app
  * tree and asks vitest's own coverage matcher about paths, and under the
  * project's default jsdom `test-exclude` trips jsdom's TextEncoder invariant
@@ -24,12 +28,14 @@ import { collectTestSubjects } from '../test-support/coverage-subjects'
 import { UNGATED_BUT_EXERCISED } from '../test-support/coverage-ungated'
 import {
   SUITE_INCLUDE_PATTERN,
+  configuredCoverageInclude,
   configuredSuiteInclude,
   gateMatcher,
+  patternMatcher,
 } from '../test-support/vitest-gate'
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
-const { subjects, testFiles, unresolved } = collectTestSubjects(ROOT)
+const { sourceFiles, subjects, testFiles, unresolved } = collectTestSubjects(ROOT)
 const isGated = gateMatcher(ROOT)
 const registered = new Set(Object.keys(UNGATED_BUT_EXERCISED))
 
@@ -40,6 +46,62 @@ describe('coverage gate scope', () => {
     // success having compared two empty sets.
     expect(testFiles.length).toBeGreaterThan(100)
     expect(subjects).toContain('hooks/gig/useModerationPreview.ts')
+    // And the SCOPE itself, which this case was named for and did not check
+    // (#82). Emptying `coverage.include` turned all nine cases in this file
+    // green — measured, not reasoned about. The mechanism was measured too,
+    // because the first guess at it was wrong: `test-exclude` does not fall back
+    // to a `**` default, it resolves an empty list to `include: false` and drops
+    // the include filter altogether (probed: `new TestExclude({ include: [] })`
+    // reports `include === false` and instruments everything). So every file
+    // reads as gated, every subject looks registered, and the inert-pattern
+    // check below has nothing to iterate. A gate measuring everything and a gate
+    // measuring nothing both pass; only this line tells them apart.
+    expect(configuredCoverageInclude().length).toBeGreaterThan(0)
+  })
+
+  it('has no coverage.include pattern that instruments nothing', () => {
+    // The OTHER half of "the gate cannot see it" (#82), and the half web had no
+    // check for. A pattern naming a path that no longer exists gates nothing and
+    // says nothing, so the code it named drops out of the measurement silently
+    // when it moves. #58 found SEVEN of those on mobile, every one naming a
+    // module that had gone to @tenda/shared with its pattern left behind;
+    // deleting all seven changed the reported figures by nothing at all, which
+    // is what proved they were dead.
+    //
+    // NO NEGATION FILTER, unlike mobile's version. jest's `collectCoverageFrom`
+    // mixes positive globs and `!` exclusions in one list, so mobile has to skip
+    // the latter — a defensive `!wallet/**/*.d.ts` legitimately matches nothing.
+    // vitest keeps exclusions in a separate `coverage.exclude` array, so this
+    // list is positive by construction (measured: 64 entries, zero starting with
+    // `!`). Copying the filter across would be a guard no mutation could kill.
+    //
+    // NO VACUITY GUARD either, for the same reason and checked the same way: an
+    // empty `sourceFiles` does not make this pass quietly, it makes EVERY
+    // pattern look inert and the case fails naming all 64. Measured by stubbing
+    // the resolver to return none. All 64 were alive when this landed — unlike
+    // mobile, which had seven dead ones when #58 looked.
+    const inert = configuredCoverageInclude().filter(
+      (glob) => !sourceFiles.some(patternMatcher(ROOT, glob)),
+    )
+    expect(inert).toEqual([])
+  })
+
+  it('calls a pattern dead when its every match is EXCLUDED, not just when none exists', () => {
+    // Why `patternMatcher` applies `coverage.exclude` alongside the single glob,
+    // proved here rather than left as an unexercised design choice. The check
+    // above asks "does this entry contribute anything to the gate", and an entry
+    // matching only files the exclude list removes contributes nothing — it is
+    // as dead as one naming a directory that has moved.
+    //
+    // `**/*.d.ts` is the case that exists to test it with: real files match it
+    // (test-support/test-exclude.d.ts among them), and `coverage.exclude`
+    // removes every one. Anchored on that first, so a repo with no .d.ts left
+    // would fail here rather than pass on an empty `some`.
+    expect(sourceFiles.some((file) => file.endsWith('.d.ts'))).toBe(true)
+    expect(sourceFiles.some(patternMatcher(ROOT, '**/*.d.ts'))).toBe(false)
+    // The positive half, so this cannot pass by patternMatcher answering false
+    // to everything.
+    expect(sourceFiles.some(patternMatcher(ROOT, 'lib/**/*.ts'))).toBe(true)
   })
 
   it('sees every module the suite exercises, or records it as a known exception', () => {

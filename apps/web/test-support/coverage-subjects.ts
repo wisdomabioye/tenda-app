@@ -71,6 +71,14 @@ const ALIAS_PREFIX = '@/'
 export interface TestSubjects {
   /** The suites, root-relative. */
   testFiles: string[]
+  /**
+   * Every `.ts`/`.tsx` that is NOT a suite — what a coverage pattern can match.
+   *
+   * Added in #82 for the other half of "the gate cannot see it": a pattern
+   * naming a path that no longer exists gates nothing and says nothing, so the
+   * code it named drops out of the measurement silently when it moves.
+   */
+  sourceFiles: string[]
   /** Every module those suites exercise, root-relative, sorted and unique. */
   subjects: string[]
   /** Suites no subject could be resolved for — the known limit above. */
@@ -175,6 +183,31 @@ export function collectTestSubjects(root: string): TestSubjects {
   const files = listFiles(root)
   const index = new Set(files)
   const testFiles = files.filter((file) => inTestsDirectory(file) && SUITE_SUFFIX.test(file)).sort()
+  // Every `.ts`/`.tsx` that is not a suite file.
+  //
+  // The coverage EXCLUSIONS are deliberately not applied here. `patternMatcher`
+  // applies them per pattern instead, so an include entry whose every match is
+  // excluded stays VISIBLE in this set and can be judged dead — filter them out
+  // here and it would vanish and look alive. `.d.ts` files are in here for
+  // exactly that reason, and coverage-gate.test.ts leans on it.
+  //
+  // The `__tests__` filter is about what this FIELD means, and parity with
+  // mobile's twin, rather than about the check: removing it changes no answer,
+  // because `'**/__tests__/**'` is in coverage.exclude and patternMatcher
+  // rejects those anyway (measured).
+  //
+  // `__fixtures__`/`__mocks__` are NOT filtered, where mobile's twin filters
+  // them. Web's coverage.exclude does not list them, so a fixture here is
+  // genuinely gateable source — `hooks/pagination/__fixtures__/list-fixtures.ts`
+  // sits in the coverage report today at 17 statements. That it is gated at all
+  // is its own problem (#83); this set describes what IS, not what should be.
+  const sourceFiles = files
+    .filter(
+      (file) =>
+        !inTestsDirectory(file) &&
+        SOURCE_EXTENSIONS.some((extension) => file.endsWith(extension)),
+    )
+    .sort()
 
   const subjects = new Set<string>()
   const unresolved: string[] = []
@@ -188,5 +221,5 @@ export function collectTestSubjects(root: string): TestSubjects {
     if (imported.length === 0) unresolved.push(testFile)
     imported.forEach((subject) => subjects.add(subject))
   }
-  return { testFiles, subjects: [...subjects].sort(), unresolved }
+  return { testFiles, sourceFiles, subjects: [...subjects].sort(), unresolved }
 }
