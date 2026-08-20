@@ -266,9 +266,7 @@ export default defineConfig({
         // Measured both sides: dropping it LOWERS the figures, branches
         // 93.36 -> 93.35 and functions 91.79 -> 91.74, statements and lines
         // holding at 98.30. All four still clear 90/85/85/90 with room.
-        // Percentages rather than raw counts on purpose: the global totals
-        // wobble by one between identical runs (#87), and vitest truncates
-        // rather than rounds, so 91.7495 reports as 91.74.
+        // Percentages rather than raw counts, for the reason recorded below.
         //
         // `__mocks__` matches nothing today. It is `__fixtures__`'s conventional
         // pair in both runners, and listing it now is what stops the first one
@@ -280,6 +278,17 @@ export default defineConfig({
         'wallet/adapters/types.ts',
         'lib/uploads/avatar.ts',
       ],
+      // RAW COUNTS MOVE BETWEEN IDENTICAL RUNS — quote the percentage, never
+      // the ratio. #87 was a real race (a suite finishing while an async hook
+      // settled, so the RENDER COUNT varied) and was fixed. #91 cannot be:
+      // ModalBackdrop.tsx reports 36 or 37 branches with every execution count
+      // identical — 168/64/53/52 function hits in both runs — so only the range
+      // DECOMPOSITION differs: the same `if` is reported as one range or two.
+      // WHICH layer decides that was not pinned down — v8's own range emission
+      // and vitest's merge of per-worker coverage are both candidates, and
+      // separating them costs more than the answer is worth. What is measured
+      // is that it sits below the app and below the suite. Worth +/-1 on ~4400:
+      // 93.39 either way. Vitest also TRUNCATES, so 91.7495 -> 91.74.
       thresholds: { lines: 90, branches: 85, functions: 85, statements: 90 },
     },
   },
