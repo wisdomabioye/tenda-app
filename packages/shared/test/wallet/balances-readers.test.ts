@@ -98,6 +98,54 @@ test('solana: a non-numeric getBalance answer omits SOL but keeps the token read
   assert.deepStrictEqual(out.map((b) => [b.assetId, b.amountRaw]), [['USDC_SOL_DEV', '5']])
 })
 
+/**
+ * The conflation the wallet surfaces exist to prevent (#64). An HTTP 200
+ * carrying a JSON-RPC error object is not an exception: nothing rejects, so
+ * before the fix the asset arrived with a real-looking zero and the grid
+ * printed 0.00 for a chain it had failed to read.
+ */
+test('evm: a JSON-RPC error body omits the asset — it is not a zero balance', async () => {
+  responder = () => ({ jsonrpc: '2.0', id: 1, error: { code: -32005, message: 'rate limited' } })
+
+  const balances = await evmBalanceReader.read('0xabc', EVM_CHAIN)
+
+  assert.deepStrictEqual(balances, [], 'a node that refused to answer must yield NO reading')
+})
+
+test('evm: a real zero balance still reads as zero, and is not omitted', async () => {
+  // The other half, in the same shape: `0x0` is an answer. Only a missing one
+  // is dropped, or the fix would hide empty wallets instead of failed reads.
+  responder = () => ({ jsonrpc: '2.0', id: 1, result: '0x0' })
+
+  const balances = await evmBalanceReader.read('0xabc', EVM_CHAIN)
+
+  assert.strictEqual(balances.length, 2)
+  assert.deepStrictEqual(balances.map((b) => b.amountRaw), ['0', '0'])
+})
+
+test('evm: an eth_call answering 0x omits the token but keeps the native read', async () => {
+  // `0x` from eth_call is the contract declining to answer — reverted, or no
+  // code at that address. eth_getBalance never answers it, so the native asset
+  // still reads normally and proves the omission is per-asset.
+  responder = (body) =>
+    body.method === 'eth_call'
+      ? { jsonrpc: '2.0', id: 1, result: '0x' }
+      : { jsonrpc: '2.0', id: 1, result: '0xde0b6b3a7640000' }
+
+  const balances = await evmBalanceReader.read('0xabc', EVM_CHAIN)
+
+  assert.deepStrictEqual(balances.map((b) => b.symbol), ['ETH'])
+  assert.strictEqual(balances[0].amountRaw, '1000000000000000000')
+})
+
+test('evm: a body with no result key at all omits the asset', async () => {
+  // Not every non-answer carries an `error` object — a proxy or a misbehaving
+  // node can return an envelope with neither.
+  responder = () => ({ jsonrpc: '2.0', id: 1 })
+
+  assert.deepStrictEqual(await evmBalanceReader.read('0xabc', EVM_CHAIN), [])
+})
+
 test('evm: an unknown chain id (no manifest RPC) reads as no balances, no calls', async () => {
   responder = () => ({ result: '0x0' })
   const out = await evmBalanceReader.read('0xabc', { ...EVM_CHAIN, id: 'eip155:999999' })

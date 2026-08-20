@@ -5,6 +5,9 @@ import { Text } from '@/components/ui'
 import { formatAssetAmount, truncateWallet } from '@tenda/shared'
 import type { WalletChainBalance } from '@tenda/shared'
 
+/** What a figure reads when the chain could not be read at all — web's grid uses the same glyph. */
+const NO_READING = '—'
+
 /**
  * Per-(wallet, chain) balance breakdown beneath the USDC hero. Each row: chain
  * name + truncated address, with USDC as the headline figure and the native gas
@@ -17,7 +20,14 @@ export function WalletBalanceRows({ balances }: { balances: WalletChainBalance[]
   return (
     <View style={s.wrap}>
       {balances.map((b) => {
-        const usdc = b.usdc ? formatAssetAmount(b.usdc.amountRaw, b.usdc.assetId) : '0 USDC'
+        // A dash, not '0 USDC'. No reading and a zero balance are opposite
+        // facts, and the second dressed as the first is the same conflation
+        // fixed once at the section level (resolveWalletSection) and again in
+        // the EVM reader that used to manufacture the zero (#64). Web's grid
+        // never had it — `usdc?.value ?? '—'` — which is why the glyph is
+        // borrowed from there. `native` below already withholds rather than
+        // inventing.
+        const usdc = b.usdc ? formatAssetAmount(b.usdc.amountRaw, b.usdc.assetId) : NO_READING
         const native = b.native ? formatAssetAmount(b.native.amountRaw, b.native.assetId) : null
         return (
           <View

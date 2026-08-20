@@ -258,6 +258,11 @@ module.exports = {
     // `lib/escrow-sync.ts` was listed below this line. 623a79c moved it to
     // packages/shared/src/utils, which grew its own suite for it in the same
     // commit; the mobile pattern stayed and matched nothing (#58).
+    // The per-chain balance rows (#64). Added with their first suite: the
+    // component printed '0 USDC' for a chain it had NO reading for, which is
+    // the conflation web's grid has always avoided. Measured before listing —
+    // the file reads 100/100/100/100 and every global figure went up.
+    'components/wallet/WalletBalanceRows.tsx',
     'components/feedback/TransactionMonitor.tsx',
   ],
   coverageThreshold: {
