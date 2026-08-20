@@ -8,9 +8,9 @@
  * The completed-work chips are here for the same reason and are asserted in
  * the same spirit: a stranger's reputation signals, phrased for a stranger.
  */
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeEach, expect, test, vi } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 
 const { getMock, reviewsMock, completedWorkMock } = vi.hoisted(() => ({
   getMock: vi.fn(),
@@ -61,6 +61,34 @@ const review = (id: string): Review => ({
   score: 5,
   comment: 'Great work',
   created_at: new Date('2026-01-01T00:00:00Z'),
+})
+
+/**
+ * Let the page's async hooks settle before the tree is unmounted (#87).
+ *
+ * Most cases here assert on the rating or the review list and finish while
+ * `useCompletedWork` is still resolving — it awaits a microtask, clears, then
+ * awaits the endpoint. Whether its final `setWork` lands before RTL's cleanup
+ * is a RACE, and it was measured: without this flush the number of times the
+ * file renders the hook VARIES run to run — 14 through 17 across the samples
+ * taken, with later batches spreading wider than earlier ones, so treat those
+ * as samples rather than a bound. With the flush it is 18 every time. The varying count
+ * fired the hook's `cancelled` early return a different number of times, v8
+ * split its ranges at that line accordingly, and the file's reported branch
+ * TOTAL moved between 9 and 10 on a tree nobody had touched.
+ *
+ * The render count is what this quotes because it is the half that reproduces
+ * on demand; the branch flip is load-dependent and does not. Ten full runs
+ * after this landed reported 9/9 every time.
+ *
+ * It is registered after the setup file's `cleanup`, and vitest runs afterEach
+ * hooks in reverse registration order, so this runs FIRST. That ordering is not
+ * taken on trust: a flush running after the unmount would find `cancelled`
+ * already true and change nothing, so the count settling at 18 is itself the
+ * proof it runs before.
+ */
+afterEach(async () => {
+  await act(async () => {})
 })
 
 beforeEach(() => {
