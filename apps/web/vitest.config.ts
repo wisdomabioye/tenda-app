@@ -182,6 +182,31 @@ export default defineConfig({
         'components/public/HeaderSessionAction.tsx',
         'components/public/SiteFooter.tsx',
         'components/public/SiteHeader.tsx',
+        // The (app) ROUTE PAGES that have a suite. #69 measured the gate against
+        // what the suite actually exercises and found these nine: real cases
+        // running against files whose coverage could not move the number, the
+        // same shape #58 found on mobile. `__tests__/coverage-gate.test.ts`
+        // now fails if a tenth appears.
+        //
+        // Named individually rather than globbed. When #69 measured, 37 of the
+        // 38 route files under app/(app)/ sat outside the gate and only these
+        // nine were exercised; adding them leaves 28 untested ones out, which is
+        // where a `app/(app)/**/page.tsx` glob would have pulled them in and
+        // diluted exactly what the note at the top of this list refuses to
+        // dilute. They join as they gain suites.
+        //
+        // Brackets ESCAPED, for the reason the notifications entry above
+        // records: a Next dynamic segment is a glob character class otherwise,
+        // and the unescaped form silently matches nothing while looking listed.
+        'app/(app)/dispute/\\[escrowId\\]/page.tsx',
+        'app/(app)/exchange/\\[id\\]/page.tsx',
+        'app/(app)/exchange/page.tsx',
+        'app/(app)/profile/\\[id\\]/page.tsx',
+        'app/(app)/profile/edit/page.tsx',
+        'app/(app)/profile/page.tsx',
+        'app/(app)/settings/page.tsx',
+        'app/(app)/wallet/buy-sell/page.tsx',
+        'app/(app)/wallet/intents/\\[id\\]/page.tsx',
         'scripts/gen-web-tokens/core.ts',
       ],
       // *.types.ts are interface-only modules (no executable statements);

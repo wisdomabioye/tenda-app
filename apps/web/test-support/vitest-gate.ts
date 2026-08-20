@@ -1,0 +1,81 @@
+/**
+ * What vitest's coverage gate actually instruments, answered by vitest's own
+ * matcher rather than a lookalike.
+ *
+ * THE MATCHER IS THE PART WORTH GETTING RIGHT. A checker that disagrees with
+ * the real gate is worse than no checker: it reports files as covered that are
+ * not, or fails on files that are. So this asks `test-exclude` — which is what
+ * `@vitest/coverage-v8` itself imports (its dist/provider.js does
+ * `import TestExclude from 'test-exclude'`) — rather than re-deriving the glob
+ * semantics. Two properties were verified against it directly, not assumed:
+ *
+ *   - it needs ABSOLUTE paths; a root-relative one answers false for
+ *     everything, which would have made this whole check pass vacuously;
+ *   - `app/(app)/profile/\[id\]/page.tsx` is GATED and the unescaped
+ *     `app/(app)/profile/[id]/page.tsx` is NOT, reproducing the trap
+ *     vitest.config.ts records — a Next dynamic segment is a glob character
+ *     class, so an unescaped entry silently matches nothing while looking
+ *     listed.
+ *
+ * PINNED TO THE PROVIDER'S VERSION, not the newest. web's package.json asks
+ * for `test-exclude@^7.0.2` because that is what `@vitest/coverage-v8` resolves;
+ * 8.0.0 exists upstream. Taking the newer one would quietly give this file a
+ * different matcher from the gate it is checking, which is the single failure
+ * mode that makes a checker worse than none. Bump it when the provider does.
+ *
+ * WHY NOT SHARED WITH MOBILE'S EQUIVALENT, which #69 asked to be decided rather
+ * than assumed. The pure resolver next door IS duplicated from mobile's, and
+ * that cost is real. It is not moved to @tenda/shared because shared is domain
+ * logic with a zero-runtime-dependency charter and the SERVER consumes it — a
+ * node:fs-touching build-tooling module there changes what shared is. And the
+ * half that actually decides the answer is runner-specific on both sides
+ * (jest-util's `globsToMatcher` over `collectCoverageFrom` there, `test-exclude`
+ * over `coverage.include` here), so "sharing" would mean parameterising over
+ * precisely the difference the checker exists to get right. The duplication is
+ * tracked as its own task rather than left implicit.
+ */
+import path from 'node:path'
+import TestExclude from 'test-exclude'
+import config from '../vitest.config'
+
+/**
+ * The suite pattern this app's resolver assumes — declared here and ASSERTED
+ * against the config, not read from it.
+ *
+ * The distinction matters. vitest resolves `test.include` with tinyglobby,
+ * which is not cheaply importable, so the resolver walks the pattern
+ * structurally instead. That is an assumption, and an unchecked assumption
+ * would let the config change while the resolver quietly kept reading the wrong
+ * set of files. `coverage-gate.test.ts` asserts the config still says exactly
+ * this string, so the assumption fails loudly instead.
+ */
+export const SUITE_INCLUDE_PATTERN = '**/__tests__/**/*.test.{ts,tsx}'
+
+interface CoverageGlobs {
+  include: string[]
+  exclude: string[]
+}
+
+/**
+ * `coverage.include`/`exclude` as configured. Read through a narrow shape
+ * rather than the provider-specific union vitest exports, which would need a
+ * cast to reach these two fields.
+ */
+function coverageGlobs(): CoverageGlobs {
+  const coverage = config.test?.coverage
+  const include = coverage !== undefined && 'include' in coverage ? coverage.include : undefined
+  const exclude = coverage !== undefined && 'exclude' in coverage ? coverage.exclude : undefined
+  return { include: include ?? [], exclude: exclude ?? [] }
+}
+
+/** The configured suite pattern, for the pin above. */
+export function configuredSuiteInclude(): string[] {
+  return config.test?.include ?? []
+}
+
+/** One matcher for many files — building it per call is wasteful at 200+ subjects. */
+export function gateMatcher(root: string): (file: string) => boolean {
+  const { include, exclude } = coverageGlobs()
+  const matcher = new TestExclude({ cwd: root, include, exclude })
+  return (file) => matcher.shouldInstrument(path.join(root, file))
+}
