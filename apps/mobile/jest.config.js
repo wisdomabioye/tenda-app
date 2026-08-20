@@ -84,6 +84,30 @@ module.exports = {
     `node_modules/(?!(\\.pnpm|${WHITELIST}))`,
   ],
   clearMocks: true,
+  /**
+   * An ALLOW-LIST: a file that is not matched here contributes nothing to the
+   * figures below, however well tested it is. That is deliberate — mobile has
+   * screens and native-adjacent modules that are impractical to cover, and a
+   * catch-all pattern over every ts/tsx file would drop the global far under
+   * 90 and force a threshold cut, which is a worse number than an honest
+   * narrow one.
+   *
+   * What is NOT deliberate is a file quietly staying outside it. #49, #51 and
+   * #56 each found one by accident. __tests__/coverage-gate.test.ts now fails
+   * when a suite lands on an unlisted module, and test-support/
+   * coverage-ungated.ts records the 109 that are outside it today. That list
+   * cannot grow without someone editing it in a reviewed diff.
+   *
+   * The same test also fails on a pattern here that matches NOTHING. #58 found
+   * seven, every one of them a module that had moved into @tenda/shared with
+   * its pattern left behind — the failure mode to expect, since a module
+   * leaving the app looks exactly like a module that was never listed.
+   *
+   * Before adding a file here, MEASURE with it listed. Every entry below that
+   * says "measured" earned it that way — and re-measure before trusting one,
+   * because stores/realtime.store.ts sat out of the gate on a reading that had
+   * stopped being true.
+   */
   collectCoverageFrom: [
     // The notification centre: the feed store and the screen that reads it.
     // Added in #57 with the cases that fix the empty-state blink; measured
@@ -94,12 +118,23 @@ module.exports = {
     'app/notifications/index.tsx',
     // The open-thread register and the read-sync debounce (#56). Added with its
     // first suite; measured before listing, and it RAISES the gate (branches
-    // 90.46 -> 90.57). Its sibling `stores/realtime.store.ts` is deliberately
-    // NOT here: measured too, and it drops global branches to 89.96 because
-    // that file's escrow / gig-feed / notification channels have no tests yet.
-    // Listing it would either break the gate or smuggle in work #56 was not
-    // asked for — recorded on #58, which owns the allow-list problem.
+    // 90.46 -> 90.57).
     'hooks/useChatRealtime.ts',
+    // Its sibling, added in #58 after RE-measuring. #56 left this file out on
+    // a measurement of 89.96% branches against a threshold of 90, and #58
+    // seeded it into the ungated register on the strength of that number. The
+    // number had gone stale: #57 raised the branch floor, and gating this file
+    // now reads 90.21 — it holds. Recording the reason and then not re-taking
+    // the measurement is how an exemption outlives its cause.
+    //
+    // The file itself is 72.72 / 70.45 / 73.68 / 74.07: its chat half is
+    // covered and its escrow, gig-feed, notification and connection channels
+    // are not, so the 0.21 of headroom here is genuinely thin. #70 is the task
+    // that widens it — filed off this file's uncovered lines, which only
+    // became visible once it was gated. Until it lands, a change that costs
+    // more than 0.21 of branch coverage fails the gate, which is the gate
+    // working.
+    'stores/realtime.store.ts',
     // The budget field: fiat/asset entry, the rate-arrival conversion (#49) and
     // the base-unit string it emits. Added in the #49 re-audit — the task gave
     // it a 17-case suite and left the file outside this allow-list, so none of
@@ -130,8 +165,10 @@ module.exports = {
     'components/notifications/NotificationNudgeBanner.tsx',
     'components/notifications/primerCopy.ts',
     // Pagination + chain filter (feed / order book / my gigs / my trades).
-    'lib/pagination/*.ts',
-    '!lib/pagination/index.ts',
+    // `lib/pagination/*.ts` and its index exclusion headed this block until
+    // #58: 623a79c moved that directory to packages/shared/src/pagination,
+    // where shared's own suite covers it, and both patterns had been matching
+    // nothing here ever since.
     'hooks/usePaginatedList.ts',
     // The hook's two extracted halves (#54). Listed explicitly because the
     // gate is an allow-list: splitting a covered file into an unlisted folder
@@ -164,9 +201,9 @@ module.exports = {
     // that matters — it is where the mode-blind "Accept Gig" bug lived, and it
     // is pure, so it is covered directly rather than through eight renders.
     'components/gig/gig-cta/*.{ts,tsx}',
-    // branches/index.ts is NOT excluded: unlike the barrel above it, it holds
-    // gigCtaBranches — the composition that used to be the bug.
-    'components/gig/gig-cta/branches/*.ts',
+    // A `gig-cta/branches/*.ts` entry sat here until #58. 686cb76 deleted that
+    // directory when mobile started consuming the shared S4.0 modules, so the
+    // pattern had been matching nothing since.
     '!components/gig/gig-cta/index.ts',
     '!components/gig/gig-cta/types.ts',
     'components/gig/GigCTABar.tsx',
@@ -179,14 +216,13 @@ module.exports = {
     'components/gig/GigDetailGate.tsx',
     'components/shared/ReviewScore.tsx',
     'stores/gigs.store.ts',
-    // CO1 takedown enforcement. The detail loaders are here because the bug was
-    // in their FAILURE path — a 404 that left the previous response on screen —
-    // which no happy-path test would have reached.
-    'lib/detail-load-error.ts',
-    // The refusal predicate and the two hooks that act on it: the live half of
-    // the same problem, where the server is the first to know the listing was
-    // pulled and the screen has to be told by its own failure.
-    'lib/takedown-refusal.ts',
+    // CO1 takedown enforcement: the hooks that act on a refusal, where the
+    // server is the first to know a listing was pulled and the screen has to
+    // be told by its own failure.
+    //
+    // `lib/detail-load-error.ts` and `lib/takedown-refusal.ts` headed this
+    // block until #58. Both were deleted in 686cb76 as superseded local copies
+    // of shared modules; neither pattern had matched anything since.
     'components/gig/gig-applications/useApplications.ts',
     'hooks/useExchangeDetail.ts',
     'components/ui/NoticeBanner.tsx',
@@ -199,8 +235,9 @@ module.exports = {
     // which is how a mediator seeing both disputants under one name shipped.
     'app/dispute/*.tsx',
     'components/dispute/*.{ts,tsx}',
-    'lib/dispute-thread.ts',
-    'lib/dispute-send-error.ts',
+    // `lib/dispute-thread.ts` (moved to shared in 623a79c) and
+    // `lib/dispute-send-error.ts` (deleted in 686cb76) were listed here and
+    // had been matching nothing since (#58).
     'hooks/useDisputeThread.ts',
     // Build identity. Small, but it is the surface that spent months telling
     // users the app was v1.0.0 when it had never been.
@@ -213,7 +250,9 @@ module.exports = {
     '!hooks/escrow-sync/types.ts',
     'hooks/escrow-live/*.ts',
     '!hooks/escrow-live/index.ts',
-    'lib/escrow-sync.ts',
+    // `lib/escrow-sync.ts` was listed below this line. 623a79c moved it to
+    // packages/shared/src/utils, which grew its own suite for it in the same
+    // commit; the mobile pattern stayed and matched nothing (#58).
     'components/feedback/TransactionMonitor.tsx',
   ],
   coverageThreshold: {
