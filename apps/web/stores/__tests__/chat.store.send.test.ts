@@ -11,13 +11,13 @@
  * orders have to end with exactly one message.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Conversation, Message } from '@tenda/shared'
+import type { Conversation, Message, SendMessageInput } from '@tenda/shared'
 
 const conversationsApi = vi.hoisted(() => ({
   list: vi.fn<() => Promise<Conversation[]>>(),
   findOrCreate: vi.fn<(body: { user_id: string }) => Promise<Conversation>>(),
   messages: vi.fn<(p: { id: string }, q?: { before_id: string }) => Promise<Message[]>>(),
-  sendMessage: vi.fn<(p: { id: string }, body: Record<string, unknown>) => Promise<Message>>(),
+  sendMessage: vi.fn<(p: { id: string }, body: SendMessageInput) => Promise<Message>>(),
   close: vi.fn(),
 }))
 
