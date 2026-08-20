@@ -6,7 +6,7 @@
  * AllowanceRow + displayToAmountRaw so formatting and input parsing are
  * covered; only the RPC/wallet boundary is mocked.
  */
-import { render, fireEvent, waitFor, screen } from '@testing-library/react-native'
+import { act, render, fireEvent, waitFor, screen } from '@testing-library/react-native'
 
 jest.mock('expo-router', () => ({
   // Real useFocusEffect fires on focus; firing on mount (once) is the test
@@ -171,9 +171,14 @@ describe('TokenApprovalsScreen, states', () => {
     expect(screen.queryByText('No EVM chains are enabled right now.')).toBeNull()
   })
 
-  it('says so when only non-EVM chains are enabled', () => {
+  it('says so when only non-EVM chains are enabled', async () => {
     registryState.chains = [SOLANA_DEVNET]
     render(<TokenApprovalsScreen />)
+    // The effect still runs `Promise.allSettled([])` over an empty row list and
+    // calls setRows a second time when it resolves. Nothing on screen changes,
+    // so there is no text to waitFor — flush the microtask inside act, and
+    // assert against the render React has actually finished committing.
+    await act(async () => {})
     expect(screen.getByText('No EVM chains are enabled right now.')).toBeTruthy()
     expect(readAllowanceMock).not.toHaveBeenCalled()
   })
