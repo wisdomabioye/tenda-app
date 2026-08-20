@@ -182,6 +182,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
     get().appendMessage(conversationId, optimistic)
 
+    // #45, and the last of this store's four writers to take one (#93). Not a
+    // leak it closes: after a logout the thread is already reset, nothing
+    // matches the temp id, and both writes below put an empty array back — #73
+    // pins that from the other side. It is uniformity, and one less thing to
+    // reason about the next time this file changes.
+    const gen = accountGeneration()
     // The try wraps the REQUEST only (#72): wrapping the swap too sent a throw
     // there to the failure handler, so Retry duplicated a stored message.
     let sent: Message
@@ -198,16 +204,21 @@ export const useChatStore = create<ChatState>((set, get) => ({
       )
     } catch {
       // The send did not reach the server: mark it failed and offer Retry.
-      set((s) => ({
-        messages: {
-          ...s.messages,
-          [conversationId]: (s.messages[conversationId] ?? []).map((m) =>
-            m.id === tempId ? { ...m, _status: 'failed' as const } : m,
-          ),
-        },
-      }))
+      // Still a write into the thread list, so it is guarded like the rest.
+      if (isSameAccount(gen)) {
+        set((s) => ({
+          messages: {
+            ...s.messages,
+            [conversationId]: (s.messages[conversationId] ?? []).map((m) =>
+              m.id === tempId ? { ...m, _status: 'failed' as const } : m,
+            ),
+          },
+        }))
+      }
       return
     }
+
+    if (!isSameAccount(gen)) return
     try {
       set((s) => {
         const existing = s.messages[conversationId] ?? []
