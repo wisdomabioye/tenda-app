@@ -118,14 +118,21 @@ describe('coverage gate scope', () => {
   it('resolves a subject for all but the harness suites that have none', () => {
     // Pinned, not counted: a suite the resolver cannot place is a suite whose
     // subject stays invisible to the gate, so the blind spot has to be bounded
-    // rather than tolerated. These five are the app-root harness suites, which
-    // are about the harness and have no subject to find.
+    // rather than tolerated.
+    //
+    // The five app-root entries are the harness suites — about the harness
+    // itself, with no subject to find. The sixth is a different kind:
+    // `account-scope.guard.test.ts` asserts a CONVENTION over the whole stores
+    // directory (every store either registers an account reset or is excused
+    // with a reason, #65). Its subject IS the directory, so there is no module
+    // for the resolver to name, and listing one would be a fiction.
     expect(unresolved).toEqual([
       '__tests__/coverage-gate.test.ts',
       '__tests__/coverage-subjects.test.ts',
       '__tests__/harness-parallelism.test.ts',
       '__tests__/harness-rtl-smoke.test.tsx',
       '__tests__/harness-smoke.test.ts',
+      'stores/__tests__/account-scope.guard.test.ts',
     ])
   })
 })

@@ -9,7 +9,7 @@
  */
 
 import { create } from 'zustand'
-import { NOTIFICATION_PAGE_SIZE } from '@tenda/shared'
+import { NOTIFICATION_PAGE_SIZE, accountGeneration, isSameAccount, registerAccountReset } from '@tenda/shared'
 import type { NotificationWire, AnnouncementWire, LoadStatus } from '@tenda/shared'
 import { api } from '@/api/client'
 
@@ -74,6 +74,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   ...INITIAL,
 
   fetchFeed: async () => {
+    const gen = accountGeneration()
     // The request is in flight either way; the STATUS only moves for a feed
     // that has not settled. The screen withdraws its empty state while the
     // status is 'loading', which is right for a first load and wrong for a
@@ -86,6 +87,8 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     )
     try {
       const feed = await api.notifications.feed()
+      // Another account's notifications are as private as their messages.
+      if (!isSameAccount(gen)) return
       set({
         notifications: feed.notifications,
         announcements: feed.announcements,
@@ -95,6 +98,10 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         feedStatus: 'ready',
       })
     } catch {
+      // Guarded like the success path: `feedStatus: 'error'` is a retry banner,
+      // and one raised by the previous account's failed load is a banner the
+      // next account cannot explain or dismiss.
+      if (!isSameAccount(gen)) return
       // Still swallowed — every caller here is fire-and-forget — but recorded,
       // so a surface that wants to tell a failed load from an empty account
       // can. Only when nothing has settled yet: a failed refresh must not
@@ -108,12 +115,14 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
 
   fetchMore: async () => {
+    const gen = accountGeneration()
     const { notifications, hasMore, loadingMore, isFetchingFeed } = get()
     const cursor = oldestId(notifications)
     if (cursor === null || !hasMore || loadingMore || isFetchingFeed) return
     set({ loadingMore: true })
     try {
       const feed = await api.notifications.feed({ before_id: cursor })
+      if (!isSameAccount(gen)) return
       set((s) => {
         // Dedupe on append: a concurrent refresh (or WS receive) can reshape the
         // list mid-flight, so drop any id already present rather than risk a
@@ -127,13 +136,18 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         }
       })
     } catch {
+      if (!isSameAccount(gen)) return
       set({ loadingMore: false })
     }
   },
 
   refreshUnread: async () => {
+    const gen = accountGeneration()
     try {
       const { count } = await api.notifications.unreadCount()
+      // The badge alone is enough to leak: a count belonging to the previous
+      // account sits on the bell until the next successful fetch (#65).
+      if (!isSameAccount(gen)) return
       set({ unread: count })
     } catch {
       // Badge keeps its last value; the next fetch/frame reconciles.
@@ -161,6 +175,10 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
     }))
     try {
       await api.notifications.markRead({ id })
+      // No generation guard, because there is no post-await WRITE to guard:
+      // the optimistic `set` above already happened, and the catch only
+      // comments. A guard on a method that writes nothing after its await
+      // would be decoration.
     } catch {
       // Low-stakes; the next fetchFeed reconciles read state from the server.
     }
@@ -182,3 +200,8 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
 
   reset: () => set({ ...INITIAL }),
 }))
+
+// The bell's rows and its unread badge, both account-scoped. `logout` used to
+// call this store's reset by name — the one store anybody remembered — which
+// is exactly the pattern that left chat and gigs behind (#65).
+registerAccountReset(() => useNotificationsStore.getState().reset())

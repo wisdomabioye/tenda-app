@@ -229,14 +229,39 @@ describe('collectTestSubjects — what it walks', () => {
       'node_modules/pkg/thing.ts': 'export const thing = {}',
     })
     // Out: the suite, and the helper BESIDE it — jest's testMatch covers the
-    // whole `__tests__` directory, so neither can ever be instrumented. In:
-    // the `__fixtures__` module, which is ordinary code a pattern could name.
-    // Gone entirely: the asset and the dependency.
+    // whole `__tests__` directory, so neither can ever be instrumented. Also
+    // out, and this REVERSES what #58 first asserted here: the `__fixtures__`
+    // module. It was listed as "ordinary code a pattern could name", which is
+    // true of its syntax and wrong about its job — the case below has the harm
+    // that reading did. Gone entirely: the asset and the dependency.
     expect(collectTestSubjects(root, isTestFile).sourceFiles).toEqual([
       'components/Bar.tsx',
-      'hooks/__fixtures__/harness.ts',
       'hooks/useFoo.ts',
     ])
+  })
+
+  it('treats __fixtures__ and __mocks__ as test support — not source, not a subject', () => {
+    // Measured harm, not a preference (#65): `account-switch.test.ts` is
+    // theme-named, so it resolves by IMPORT, and it imports the chat fixture
+    // its two sibling suites share. Under the old reading that fixture became
+    // a subject, and the gate then failed demanding a file of test DATA be
+    // instrumented — which would measure the harness and inflate the figure
+    // the gate reports.
+    const root = tree({
+      'stores/chat.store.ts': 'export const useChatStore = {}',
+      'stores/__fixtures__/chat.ts': 'export const conversation = () => ({})',
+      'stores/__mocks__/secure-store.ts': 'export const getJwtToken = () => null',
+      'stores/__tests__/account-switch.test.ts':
+        "import { useChatStore } from '../chat.store'\n" +
+        "import { conversation } from '../__fixtures__/chat'\n" +
+        "import { getJwtToken } from '../__mocks__/secure-store'",
+    })
+    const { subjects, sourceFiles } = collectTestSubjects(root, isTestFile)
+    // The store it genuinely tests, and only that.
+    expect(subjects).toEqual(['stores/chat.store.ts'])
+    // Neither support module is offered as gateable source either, so the gate
+    // cannot demand coverage of them by another route.
+    expect(sourceFiles).toEqual(['stores/chat.store.ts'])
   })
 
   it('never offers a suite as gateable source, in either layout', () => {

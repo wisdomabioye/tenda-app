@@ -21,7 +21,8 @@
  *   (`realtime-chat-mirror.test.ts`) declares its subjects by importing them.
  *   Only imports landing inside the owning directory count — at any depth, so
  *   `app/wallet/__tests__/intent.test.tsx` reaches `app/wallet/intents/[id]`.
- *   Anything outside it is a collaborator, not a subject.
+ *   Anything outside it is a collaborator, not a subject — and neither is
+ *   anything under `__fixtures__`/`__mocks__`, which serve the suites.
  *
  * The by-import signal is deliberately the fallback, not an addition. Applied
  * to every suite it re-labels every shared component a sibling's test happens
@@ -52,6 +53,19 @@ const SKIPPED_DIRECTORIES = new Set(['node_modules', '.expo', 'coverage', 'andro
  *  counts as a test. Identity comes from the caller's matcher. */
 const TESTS_DIRECTORY = '__tests__'
 /**
+ * Directories that exist to SERVE the suites: shared fixtures and manual mocks,
+ * in jest's own conventional names.
+ *
+ * Neither a subject nor gateable source. jest's `testMatch` does not match them
+ * — a fixture is not a test — so without this they read as ordinary app modules,
+ * and a theme-named suite that imports one has it counted as a thing under
+ * test. Not hypothetical: `stores/__tests__/account-switch.test.ts` resolves by
+ * import, and its first run made `stores/__fixtures__/chat.ts` a subject the
+ * gate then demanded be instrumented (#65). Instrumenting a fixture measures
+ * the harness and inflates the figure the gate reports.
+ */
+const TEST_SUPPORT_DIRECTORIES = new Set(['__fixtures__', '__mocks__'])
+/**
  * Marks a SUITE — a file worth scanning for subjects — and strips the suffix
  * off its name. This is a narrower question than jest's: jest runs everything
  * `testMatch` matches, including a `helpers.ts` sitting inside `__tests__`,
@@ -73,6 +87,11 @@ export interface TestSubjects {
   subjects: string[]
   /** Suites no subject could be resolved for — the known limit above. */
   unresolved: string[]
+}
+
+/** True for anything inside a test-support directory, at any depth. */
+function isTestSupport(file: string): boolean {
+  return file.split('/').some((segment) => TEST_SUPPORT_DIRECTORIES.has(segment))
 }
 
 /** Root-relative POSIX path, so the keys match `collectCoverageFrom` globs. */
@@ -166,7 +185,12 @@ function subjectsByImport(
     // './', and no root-relative key begins that way. An explicit early return
     // for that case was written first and deleted — it changed no behaviour,
     // and a guard that cannot be broken cannot be proved either.
-    if (hit !== null && hit.startsWith(`${owner}/`) && !isTestFile(hit)) {
+    if (
+      hit !== null &&
+      hit.startsWith(`${owner}/`) &&
+      !isTestFile(hit) &&
+      !isTestSupport(hit)
+    ) {
       found.add(hit)
     }
   }
@@ -197,7 +221,9 @@ export function collectTestSubjects(
   const sourceFiles = files
     .filter(
       (file) =>
-        !isTestFile(file) && SOURCE_EXTENSIONS.some((extension) => file.endsWith(extension)),
+        !isTestFile(file) &&
+        !isTestSupport(file) &&
+        SOURCE_EXTENSIONS.some((extension) => file.endsWith(extension)),
     )
     .sort()
 

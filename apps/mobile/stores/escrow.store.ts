@@ -22,7 +22,7 @@ import type {
   PermitSignatureBody,
   UnsignedTx,
 } from '@tenda/shared'
-import { ErrorCode, ApiClientError } from '@tenda/shared'
+import { ErrorCode, ApiClientError, registerAccountReset } from '@tenda/shared'
 import { api } from '@/api/client'
 import { usePendingSyncStore } from '@/stores/pending-sync.store'
 
@@ -159,3 +159,8 @@ export const useEscrowStore = create<EscrowState>((set) => {
     },
   }
 })
+
+// Only the transient action flags live here — no escrow content — but a
+// `isBusy: true` left over from the previous account would gray out the next
+// account's first action until something else reset it.
+registerAccountReset(() => useEscrowStore.setState({ isBusy: false, error: null }))

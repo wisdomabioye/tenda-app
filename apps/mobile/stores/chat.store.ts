@@ -2,7 +2,10 @@ import { create } from 'zustand'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import {
+  accountGeneration,
   ATTACHMENT_PREVIEW,
+  isSameAccount,
+  registerAccountReset,
   type Conversation,
   type Message,
   type UploadedAttachment,
@@ -32,21 +35,41 @@ interface ChatState {
   closeConversation:  (conversationId: string) => Promise<void>
   appendMessage:      (conversationId: string, message: LocalMessage) => void
   receiveMessage:     (conversationId: string, message: Message) => void
+  /** Back to empty — every field in `INITIAL`, which is what the store
+   *  spreads, so a field added there is reset for free. One added directly in
+   *  the store body below is NOT, which is the one way to get this wrong. */
+  reset:              () => void
+}
+
+/** The store as the module defines it — the single source for `reset`. */
+const INITIAL = {
+  conversations: [] as Conversation[],
+  messages:      {} as Record<string, LocalMessage[]>,
+  unread:        0,
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
-  conversations: [],
-  messages:      {},
-  unread:        0,
+  ...INITIAL,
+
+  reset: () => set({ ...INITIAL }),
 
   fetchConversations: async () => {
+    // Snapshot BEFORE the await. Emptying the store is a moment; this request
+    // is already on its way and would otherwise write the previous account's
+    // threads — and their unread badge — back in after the clear (#65).
+    const gen = accountGeneration()
     const convs = await api.conversations.list()
+    if (!isSameAccount(gen)) return
     const unread = convs.reduce((sum, c) => sum + c.unread_count, 0)
     set({ conversations: convs, unread })
   },
 
   findOrCreate: async (userId) => {
+    const gen = accountGeneration()
     const conv = await api.conversations.findOrCreate({ user_id: userId })
+    // The caller still gets its conversation — the screen that asked is gone
+    // either way — but it must not be filed into the next account's inbox.
+    if (!isSameAccount(gen)) return conv
     set((s) => {
       const exists = s.conversations.find((c) => c.id === conv.id)
       return {
@@ -59,7 +82,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   fetchMessages: async (conversationId, beforeId) => {
+    const gen = accountGeneration()
     const fetched = await api.conversations.messages({ id: conversationId }, beforeId ? { before_id: beforeId } : undefined)
+    // The message bodies: the one write here that would put another account's
+    // private content on screen. The caller still gets its rows.
+    if (!isSameAccount(gen)) return fetched
     // Server returns newest-first; reverse for display (oldest first)
     const ordered = [...fetched].reverse()
 
@@ -106,6 +133,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
     get().appendMessage(conversationId, optimistic)
 
+    const gen = accountGeneration()
     try {
       const sent = await api.conversations.sendMessage(
         { id: conversationId },
@@ -117,6 +145,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
             : {}),
         },
       )
+      if (!isSameAccount(gen)) return
       set((s) => {
         const existing = s.messages[conversationId] ?? []
         // The WS echo of our own message may land before this response,
@@ -127,6 +156,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
         return { messages: { ...s.messages, [conversationId]: updated } }
       })
     } catch {
+      // Marking a message failed is still a write into the thread list.
+      if (!isSameAccount(gen)) return
       set((s) => ({
         messages: {
           ...s.messages,
@@ -159,6 +190,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     )
   },
 
+  // No generation guard, unlike every other async writer here: this one only
+  // REMOVES a row by id, and a conversation uuid belonging to the previous
+  // account cannot match anything in the next account's list. The write is a
+  // no-op after a switch rather than a leak (#65).
   closeConversation: async (conversationId) => {
     await api.conversations.close({ id: conversationId })
     set((s) => ({
@@ -202,3 +237,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
     })
   },
 }))
+
+// Private threads, their bodies and the unread badge: nothing here may outlive
+// the account that fetched it. Registered beside the state rather than listed
+// inside `logout`, because the list-in-logout is what left three stores out on
+// web (#25) — and mobile's copy of that list named only `notifications`, so
+// chat, gigs and escrow were never in it at all (#65).
+registerAccountReset(() => useChatStore.getState().reset())

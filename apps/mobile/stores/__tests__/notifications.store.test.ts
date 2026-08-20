@@ -17,33 +17,14 @@ jest.mock('@/api/client', () => ({
 }))
 
 import { NOTIFICATION_PAGE_SIZE } from '@tenda/shared'
-import type { NotificationWire, NotificationFeed } from '@tenda/shared'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { api } from '@/api/client'
+import { feed, fullPage, notif } from '../__fixtures__/notifications'
 
 const feedMock = api.notifications.feed as jest.Mock
 const unreadMock = api.notifications.unreadCount as jest.Mock
 const markReadMock = api.notifications.markRead as jest.Mock
 const markAllMock = api.notifications.markAllRead as jest.Mock
-
-function notif(id: string, read = false): NotificationWire {
-  return {
-    id,
-    title: `t-${id}`,
-    body: 'body',
-    data: null,
-    read_at: read ? '2026-01-01T00:00:00.000Z' : null,
-    created_at: '2026-01-01T00:00:00.000Z',
-  }
-}
-
-function feed(over: Partial<NotificationFeed> = {}): NotificationFeed {
-  return { notifications: [], announcements: [], unread_count: 0, ...over }
-}
-
-function fullPage(prefix = 'n'): NotificationWire[] {
-  return Array.from({ length: NOTIFICATION_PAGE_SIZE }, (_, i) => notif(`${prefix}${i}`))
-}
 
 const store = () => useNotificationsStore.getState()
 
