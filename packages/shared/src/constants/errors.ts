@@ -112,6 +112,12 @@ export const ErrorCode = {
   // Generic
   SERVICE_UNAVAILABLE:           'SERVICE_UNAVAILABLE',
   NOT_FOUND:                     'NOT_FOUND',
+  /**
+   * Carried by 400, 422 AND 409 responses — do not branch on the status to
+   * tell them apart, branch on this code. The server's rule for which status
+   * a new route should pick is written at the top of
+   * apps/server/src/lib/errors.ts (#60).
+   */
   VALIDATION_ERROR:              'VALIDATION_ERROR',
   INTERNAL_ERROR:                'INTERNAL_ERROR',
   /** The client stopped waiting before an authoritative response arrived. */
