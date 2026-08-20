@@ -5,11 +5,22 @@
  */
 import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, expect, test, vi } from 'vitest'
-import type { ModerationPreviewResponse } from '@tenda/shared'
+import type { ModerationPreviewBody, ModerationPreviewResponse } from '@tenda/shared'
 
-const { previewMock } = vi.hoisted(() => ({ previewMock: vi.fn() }))
+// Typed on both sides so `previewMock.mock.calls` carries the real body shape
+// rather than `unknown`. NOT because it makes the assertions below compile-
+// checked: measured on THIS runner, not inferred from mobile's — misspelling a
+// field inside a `toHaveBeenCalledWith` object still type-checks under vitest 3
+// exactly as it does under jest, so that matcher enforces nothing here.
+// What the typing DOES enforce is the fixtures: with `previewMock` typed, a
+// `mockResolvedValueOnce` of a verdict missing `cached` is a compile error
+// (checked — TS2345 at both stale-response cases). See VERDICT and APPROVE.
+const { previewMock } = vi.hoisted(() => ({
+  previewMock:
+    vi.fn<(body: ModerationPreviewBody) => Promise<ModerationPreviewResponse>>(),
+}))
 vi.mock('@/api/client', () => ({
-  api: { moderation: { preview: (...a: unknown[]) => previewMock(...a) } },
+  api: { moderation: { preview: (body: ModerationPreviewBody) => previewMock(body) } },
 }))
 
 import { useModerationPreview, type ModerationPreviewInput } from '@/hooks/gig/useModerationPreview'
@@ -32,6 +43,9 @@ const VERDICT: ModerationPreviewResponse = {
   reasons: [{ code: 'price', message: 'Low budget', severity: 'warn' }],
   cached: false,
 }
+
+/** The clean verdict a newer request answers with. Typed for the same reason. */
+const APPROVE: ModerationPreviewResponse = { decision: 'approve', reasons: [], cached: false }
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -66,7 +80,7 @@ test('fires after the debounce with trimmed fields and the asset decimals', asyn
   expect(result.current).toEqual(VERDICT)
 })
 
-test('not ready (short title / no category / no budget) never calls the API and reads null', async () => {
+test('not ready (short title / no category / no country / no budget) never calls the API', async () => {
   for (const input of [
     { ...READY, title: 'abc' },
     { ...READY, category: null },
@@ -106,38 +120,87 @@ test('typing keeps resetting the debounce — one request for a burst of edits',
 })
 
 test('a stale response can never overwrite the latest verdict', async () => {
-  let resolveFirst!: (v: unknown) => void
+  let resolveFirst!: (v: ModerationPreviewResponse) => void
   previewMock
-    .mockImplementationOnce(() => new Promise((res) => { resolveFirst = res }))
-    .mockResolvedValueOnce({ decision: 'approve', reasons: [] })
+    .mockImplementationOnce(
+      () => new Promise<ModerationPreviewResponse>((res) => { resolveFirst = res }),
+    )
+    .mockResolvedValueOnce(APPROVE)
   const { result, rerender } = renderHook((input: ModerationPreviewInput) => useModerationPreview(input), {
     initialProps: READY,
   })
   await debounce() // first request in flight, unresolved
   rerender({ ...READY, title: 'Deliver a parcel now' })
   await debounce() // second request resolves
-  expect(result.current).toEqual({ decision: 'approve', reasons: [] })
+  expect(result.current).toEqual(APPROVE)
   await act(async () => {
     resolveFirst(VERDICT) // late first answer — must be dropped
     await Promise.resolve()
   })
-  expect(result.current).toEqual({ decision: 'approve', reasons: [] })
+  expect(result.current).toEqual(APPROVE)
 })
 
-test('API failure is silent — the hint simply does not show', async () => {
+test('an API failure is silent — the hint simply does not show', async () => {
   previewMock.mockRejectedValue(new Error('500'))
   const { result } = renderHook(() => useModerationPreview(READY))
   await debounce()
   expect(result.current).toBeNull()
 })
 
+test('an asset outside the registry still sends decimals — the fallback, not undefined', async () => {
+  // `asset_decimals` is required by the route; ASSET_META has no entry for an
+  // asset the client has not shipped yet, and sending undefined would be a 422.
+  // Unreachable in production — assertManifestValid refuses at import any chain
+  // asset missing from ASSET_META (the #50 re-audit) — but the fallback is the
+  // hook's last uncovered branch, and mobile pins it, which is the parity.
+  const { result } = renderHook(() => useModerationPreview({ ...READY, asset: 'MYSTERY' }))
+  await debounce()
+  expect(previewMock).toHaveBeenCalledWith(expect.objectContaining({ asset_decimals: 9 }))
+  expect(result.current).toEqual(VERDICT)
+})
+
+test('a superseded request that FAILS cannot clear the newer verdict', async () => {
+  // The other half of the stale-response rule. Without the guard in the catch,
+  // an abandoned request's rejection wipes the verdict belonging to the input
+  // the reader is actually looking at.
+  let rejectFirst!: (e: Error) => void
+  previewMock
+    .mockImplementationOnce(
+      () => new Promise<ModerationPreviewResponse>((_res, rej) => { rejectFirst = rej }),
+    )
+    .mockResolvedValueOnce(APPROVE)
+
+  const { result, rerender } = renderHook(
+    (input: ModerationPreviewInput) => useModerationPreview(input),
+    { initialProps: READY },
+  )
+  await debounce() // first request in flight
+  rerender({ ...READY, title: 'Deliver a parcel now' })
+  await debounce() // second resolves
+  expect(result.current).toEqual(APPROVE)
+
+  await act(async () => {
+    rejectFirst(new Error('late 500'))
+    await Promise.resolve()
+  })
+  expect(result.current).toEqual(APPROVE)
+})
+
 test('a MALFORMED budget never reaches the API — the server answers 422 for it', () => {
   // The gate is hasGigBudget, not `paymentRaw !== ''`, and this is the
   // difference between them. The moderation route validates with isAmountRaw
-  // and rejects anything non-canonical, so sending one buys a guaranteed 422
-  // and an error banner over a budget the reader is still typing. A partially
-  // typed '12.' is already normalised to a raw by the field; these are the
-  // shapes a malformed draft or a half-migrated caller produces.
+  // and rejects anything non-canonical, so every one of these buys a
+  // guaranteed 422.
+  //
+  // NOT an error banner, which this comment used to claim: `api/request.ts`
+  // throws ApiClientError on a non-ok response and web has no interceptor
+  // above it, so the hook's own `.catch` is the last handler and swallows it —
+  // errors here are silent by design, exactly as this file's header says. What
+  // sending one actually costs is a wasted round trip per keystroke burst, and
+  // a verdict that stays null for a reason the reader cannot see. The gate is
+  // still right; the consequence was overstated. (Mobile's copy of this comment
+  // was corrected in 781cd64; this is the same correction, verified against
+  // web's own request core rather than assumed from mobile's.)
   for (const paymentRaw of ['0', 'abc', '1.5', '-1', '1e6', ' 1000000', '01000000']) {
     renderHook(() => useModerationPreview({ ...READY, paymentRaw }))
     act(() => { vi.advanceTimersByTime(2000) })

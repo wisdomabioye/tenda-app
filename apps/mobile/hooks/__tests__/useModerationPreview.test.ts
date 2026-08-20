@@ -13,6 +13,16 @@
  * whereas web does it at render time through a `lastReady` comparison —
  * web's effect lint disallows this form. Observably the same, one commit
  * apart, and the advisory hint is unaffected by that frame.
+ *
+ * ONE FIGURE DIFFERS TOO, and it is NOT drift (#68). The two suites are now
+ * case-for-case identical, yet the hook reads 100/93.75/100/100 here against
+ * 100/100/100/100 on web. The gap is the cleanup's `if (timer.current)`: its
+ * false arm can never be taken, because the cleanup is only returned after
+ * `setTimeout` has assigned, and nothing ever nulls the ref. Web's v8 provider
+ * does not count that arm; jest's istanbul does. The guard stays — it is what
+ * narrows the ref's `null` half, and `clearTimeout(timer.current)` without it
+ * is a compile error (TS2769, measured) — so do not "close" this branch with a
+ * test. There is no state that reaches it.
  */
 import { renderHook, act } from '@testing-library/react-native'
 import type { ModerationPreviewBody, ModerationPreviewResponse } from '@tenda/shared'
@@ -236,6 +246,34 @@ test('a request already IN FLIGHT cannot bring the hint back after readiness is 
   await debounce()
   act(() => rerender({ ...READY, paymentRaw: '' }))
   expect(result.current).toBeNull()
+
+  await act(async () => {
+    resolveIt(VERDICT)
+    await Promise.resolve()
+  })
+  expect(result.current).toBeNull()
+})
+
+test('nor after readiness is lost and REGAINED — the answer belongs to the abandoned input', async () => {
+  // The sibling state, and the reason the invalidation cannot simply be "clear
+  // the verdict on the way out": the reader clears the budget and types a new
+  // one, so `ready` is true again when the OLD request lands. Its sequence
+  // still matched, and its verdict — computed for a budget that is no longer on
+  // screen — showed until the fresh debounce replaced it 800ms later. Mobile is
+  // protected by the same `++requestSeq.current` web is, and now pins it too
+  // (#68); this is web's case in this harness.
+  let resolveIt!: (v: ModerationPreviewResponse) => void
+  mockPreview.mockImplementationOnce(
+    () => new Promise<ModerationPreviewResponse>((res) => { resolveIt = res }),
+  )
+
+  const { result, rerender } = renderHook(
+    (input: ModerationPreviewInput) => useModerationPreview(input),
+    { initialProps: READY },
+  )
+  await debounce()
+  act(() => rerender({ ...READY, paymentRaw: '' }))
+  act(() => rerender({ ...READY, paymentRaw: '25000000' }))
 
   await act(async () => {
     resolveIt(VERDICT)
