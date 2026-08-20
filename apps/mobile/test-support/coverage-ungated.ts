@@ -66,9 +66,11 @@ export const UNGATED_WITH_TESTS: readonly string[] = [
   'app/wallet/intents/[id].tsx',
   'app/wc-return.tsx',
 
-  // The largest block by far — 65 of the 109. Every one has a suite of its
-  // own; none has ever been measured against the gate. They are here because
-  // nobody listed them, not because anyone found they measured badly.
+  // The largest block by far — 65 of the 109. Sixty-one have a suite named for
+  // them; the other four — NetworkPicker and the three gig-form/steps — are
+  // reached through GigComposerSteps.test.tsx, one directory up. None has ever
+  // been measured against the gate. They are here because nobody listed them,
+  // not because anyone found they measured badly.
   'components/auth/OtpCodeField.tsx',
   'components/chat/MessageBubble.tsx',
   'components/escrow/ChainBadge.tsx',
