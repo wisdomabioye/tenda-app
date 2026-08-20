@@ -59,6 +59,22 @@ describe('conversations', () => {
     expect(list[0].last_message).toBe('reopened')
   })
 
+  it('findOrCreate replaces its own row and leaves every other thread untouched', async () => {
+    // The replace arm maps over the WHOLE list, so the branch that matters is
+    // the one returning every OTHER conversation unchanged (#73). Reopening one
+    // thread must not rewrite the inbox around it. Mobile pins the same arm.
+    useChatStore.setState({
+      conversations: [conv({ id: 'c1', last_message: 'first' }), conv({ id: 'c2', last_message: 'second' })],
+    })
+    conversationsApi.findOrCreate.mockResolvedValue(conv({ id: 'c2', last_message: 'reopened' }))
+
+    await useChatStore.getState().findOrCreate('them')
+
+    const list = useChatStore.getState().conversations
+    expect(list.map((c) => c.id)).toEqual(['c1', 'c2'])
+    expect(list.map((c) => c.last_message)).toEqual(['first', 'reopened'])
+  })
+
   it('closeConversation removes the thread from the inbox', async () => {
     useChatStore.setState({ conversations: [conv({ id: 'c1' }), conv({ id: 'c2' })] })
     conversationsApi.close.mockResolvedValue(conv({ id: 'c1', status: 'closed' }))
@@ -83,6 +99,19 @@ describe('fetchMessages', () => {
     expect(s.messages.c1.map((m) => m.id)).toEqual(['m1', 'm2', 'temp_1'])
     expect(s.conversations.find((c) => c.id === 'c1')?.unread_count).toBe(0)
     expect(s.unread).toBe(1) // c2 untouched
+  })
+
+  it('a thread the store holds no array for reads as empty, not as a crash', async () => {
+    // The `?? []` in the merge (#73). Opening a conversation the store has
+    // never held messages for is the ordinary first-open case, and without the
+    // fallback the filter below it runs over `undefined` (measured: "Cannot
+    // read properties of undefined (reading 'filter')").
+    useChatStore.setState({ conversations: [conv({ id: 'c1' })], messages: {} })
+    conversationsApi.messages.mockResolvedValue([msg({ id: 'm1' })])
+
+    await useChatStore.getState().fetchMessages('c1')
+
+    expect(useChatStore.getState().messages.c1.map((m) => m.id)).toEqual(['m1'])
   })
 
   it('a before_id page PREPENDS older messages without touching unread', async () => {

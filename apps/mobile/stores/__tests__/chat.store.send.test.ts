@@ -213,14 +213,19 @@ describe('sendMessage lifecycle', () => {
 
   test('a send that resolves after the thread was cleared does not put the message back', async () => {
     // The store being emptied mid-flight is not hypothetical — it is what a
-    // sign-out does, and mobile has none of web's account-generation guard
-    // (#65). What must hold either way is that the reply to a dead session's
-    // POST does not reinstate the message.
+    // sign-out does. Emptying it directly is deliberately NOT an account
+    // switch: the generation #65 added does not move, so the guard above the
+    // swap stays open and the swap really runs — which is what lets this case
+    // reach the fallback below. The switch itself is pinned next door in
+    // chat.store.account-switch.test.ts. What must hold either way is that the
+    // reply to a dead session's POST does not reinstate the message.
     //
-    // What this case does NOT prove is the `?? []` that keeps the handler from
-    // throwing on the missing thread: sendMessage's catch is wide enough to
-    // swallow an error from its own success handler, so removing that guard
-    // leaves every assertion here green. Measured, and filed as #72.
+    // It DOES now prove the `?? []` that keeps the handler from throwing on the
+    // missing thread. It did not when this case was written: sendMessage's
+    // catch was wide enough to swallow an error from its own success handler,
+    // so removing that guard left every assertion here green. #72 narrowed the
+    // catch to the request, and removing the guard now fails this case
+    // (measured in #72's sweep).
     let resolveSend: ((m: Message) => void) | undefined
     mockSendMessage.mockReturnValue(new Promise<Message>((resolve) => { resolveSend = resolve }))
 

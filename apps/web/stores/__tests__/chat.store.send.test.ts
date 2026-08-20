@@ -203,3 +203,97 @@ describe('a send whose store update fails (#72)', () => {
     warn.mockRestore()
   })
 })
+
+describe('the fallback and bystander arms (#73)', () => {
+  // Each is a fallback or an "other rows" arm (enumerated from lcov's BRDA
+  // records): individually dull, collectively a store that degrades on a first open.
+
+  it('a send with nobody signed in carries an empty sender rather than undefined', async () => {
+    // `user?.id ?? ''`, matched by ChatThread's own `user?.id ?? ''` and its
+    // `isMine={item.sender_id === myId}`: with `undefined` instead of `''`,
+    // `undefined === ''` is false and the sender's own message draws on the LEFT.
+    useAuthStore.setState({ user: null })
+    let resolve!: (m: Message) => void
+    conversationsApi.sendMessage.mockReturnValue(new Promise<Message>((r) => { resolve = r }))
+
+    const pending = useChatStore.getState().sendMessage('c1', 'hi')
+
+    // Read the row IN FLIGHT: the server row replaces the optimistic one, so
+    // after the await the fallback is gone — and asserting only that the call
+    // happened accepts any sender at all (measured: `?? 'anonymous'` passed).
+    expect(useChatStore.getState().messages.c1[0].sender_id).toBe('')
+
+    resolve(msg({ id: 'srv-1' }))
+    await pending
+  })
+
+  it('a successful swap replaces its own copy and no other message in the thread', async () => {
+    // The `: m` arm of the swap — the success twin of the failure case below.
+    // Without it a send would rewrite every row in the thread as the server message.
+    useChatStore.setState({ messages: { c1: [msg({ id: 'old-1', content: 'earlier' })] } })
+    conversationsApi.sendMessage.mockResolvedValue(msg({ id: 'srv-1', content: 'hi' }))
+
+    await useChatStore.getState().sendMessage('c1', 'hi')
+
+    const rows = useChatStore.getState().messages.c1
+    expect(rows.map((m) => m.id)).toEqual(['old-1', 'srv-1'])
+    expect(rows[0].content).toBe('earlier')
+  })
+
+  it('a failed send marks its own copy and no other message in the thread', async () => {
+    // The `: m` arm. Without it a network failure would restamp every message
+    // in the thread as failed, each one offering its own duplicating Retry.
+    useChatStore.setState({ messages: { c1: [msg({ id: 'old-1' })] } })
+    conversationsApi.sendMessage.mockRejectedValue(new Error('offline'))
+
+    await useChatStore.getState().sendMessage('c1', 'hi')
+
+    const rows = useChatStore.getState().messages.c1
+    expect(rows).toHaveLength(2)
+    expect(rows[0]._status).toBeUndefined()
+    expect(rows[1]._status).toBe('failed')
+  })
+
+  it('a send that REJECTS after the thread was cleared leaves nothing behind', async () => {
+    // The failure path's `?? []`. Clearing mid-flight is an ordinary sign-out,
+    // and the map below the fallback would otherwise run over undefined.
+    const rejected = Promise.reject(new Error('offline'))
+    conversationsApi.sendMessage.mockReturnValue(rejected)
+
+    const pending = useChatStore.getState().sendMessage('c1', 'hi')
+    useChatStore.getState().reset()
+    await pending
+
+    // `[]`, not absent: the fallback writes the empty result back under the key.
+    // What matters is that no MESSAGE comes back — mobile's twin asserts the same.
+    expect(useChatStore.getState().messages.c1).toEqual([])
+  })
+
+  it('a send that RESOLVES after the thread was cleared does not put the message back', async () => {
+    // The swap's `?? []` — the arm #72 made provable by moving the swap out of the
+    // failure handler. Before that, the catch reported this throw as a failed send.
+    let resolve!: (m: Message) => void
+    conversationsApi.sendMessage.mockReturnValue(new Promise<Message>((r) => { resolve = r }))
+
+    const pending = useChatStore.getState().sendMessage('c1', 'hi')
+    useChatStore.getState().reset()
+    resolve(msg({ id: 'srv-1' }))
+    await pending
+
+    expect(useChatStore.getState().messages.c1).toEqual([])
+  })
+
+  it('retrying in a thread the store never loaded lands the resend', async () => {
+    // retryMessage's `?? []`. Reachable after a reset while a failed row is
+    // still on screen: the filter below it runs over undefined without this.
+    // Asserting the LANDED row rather than a bare not.toThrow(), which would
+    // leave the resend floating past the end of the case — mobile's twin too.
+    conversationsApi.sendMessage.mockResolvedValue(msg({ id: 'srv-1' }))
+
+    useChatStore.getState().retryMessage('c1', { ...msg({ id: 'temp_1' }), _status: 'failed' })
+
+    await vi.waitFor(() => {
+      expect(useChatStore.getState().messages.c1.map((m) => m.id)).toEqual(['srv-1'])
+    })
+  })
+})

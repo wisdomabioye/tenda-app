@@ -89,7 +89,19 @@ export default defineConfig({
     exclude: ['node_modules/**', '.next/**'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'html', 'lcov'],
+      // What an M6 walk needs was ALREADY here, and #73's premise that it was
+      // not is wrong: lcov.info carries DA (per line) and BRDA (per branch)
+      // records, and #73 enumerated chat.store.ts's eight uncovered BRANCHES
+      // straight out of it.
+      //
+      // What is genuinely unreadable is the TEXT reporter's uncovered column,
+      // which truncates a long row to "…02,209-210,223" with the head elided.
+      // `json-summary` writes per-file TOTALS to coverage-summary.json so an
+      // audit can read a file's figures without parsing lcov or scraping that
+      // table. Nothing in the suite consumes it — it is for the reader, and
+      // `coverage-gate.test.ts` in particular does NOT: that checker asks
+      // test-exclude about PATHS and never opens a coverage report.
+      reporter: ['text', 'html', 'lcov', 'json-summary'],
       // Ratcheting include list: every stage that ports a directory adds it
       // here WITH its tests, so the 90/85 gate stays honest instead of being
       // diluted by not-yet-tested surface. Root layout/page are server
