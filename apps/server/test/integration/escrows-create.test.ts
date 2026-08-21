@@ -8,7 +8,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { eq } from 'drizzle-orm'
-import { escrows, gig_details } from '@tenda/shared/db/schema'
+import { escrows, gig_details, users } from '@tenda/shared/db/schema'
 import {
   TEST_DB_CONFIGURED,
   FAKE_UNSIGNED,
@@ -280,3 +280,40 @@ test('POST /v1/gigs: 201, and the draft upsert retries clean (no 409)', { skip }
   const [row] = await app.db.select().from(gig_details).where(eq(gig_details.escrow_id, escrow.id))
   assert.strictEqual(row.title, 'Wash my car thoroughly')
 })
+
+test('POST /v1/escrows: a token whose user no longer exists is refused 401 (#105 T2)', { skip }, async () => {
+  // A user deleted after their token was minted still presents a structurally
+  // valid JWT, and the create handler reads `is_seeker` off the row to pick the
+  // fee tier — so something must refuse before it builds an escrow for nobody.
+  //
+  // WHICH guard refuses is not what the sweep assumed. It listed
+  // routes/v1/escrows/index.ts:55 ('user no longer exists') as unexecuted, and
+  // it is — but it is also UNREACHABLE through this route: `authenticate`
+  // already loads the row and answers 401 'User no longer exists' first. The two
+  // messages differ only in capitalisation, which is why the handler's copy
+  // reads as live code. It is defence-in-depth for a caller that reaches the
+  // handler another way; this case pins the behaviour that actually happens.
+  const app = getApp()
+  const u = await createUser(app)
+  await makeTransactable(app, u.row.id)
+  await app.db.delete(users).where(eq(users.id, u.row.id))
+
+  const res = await app.inject({
+    method: 'POST', url: '/v1/escrows', headers: authHeader(u.token), payload: createEscrowBody(),
+  })
+  assert.strictEqual(res.statusCode, 401, res.body)
+  assert.match(res.json().message, /[Uu]ser no longer exists/)
+})
+
+// NOT ADDED: the sweep listed routes/v1/escrows/index.ts:194 and :197 as
+// unexecuted, and they are — but they are the RACE copies. The same two guards
+// exist twice: at 136-141 on the sequential path (an existing escrow with that
+// operation id is found up front) and again at 194-201 for the case where a
+// concurrent identical request won the unique key BETWEEN our lookup and our
+// insert. The sequential pair is already covered, which a test written for the
+// reuse rule proved by surviving the removal of 197 — it was exercising 136.
+// The race copies need two requests interleaved inside one insert, which this
+// harness cannot stage deterministically, so they stay recorded rather than
+// faked. Line 55 ('user no longer exists') is shadowed for the same family of
+// reason — see the case above.
+
