@@ -3,6 +3,16 @@
  * Validation comes from the shared payout-spec registry; a bank and a
  * mobile-money account coexist via the `kind`-scoped uniqueness. Name-enquiry
  * is unconfigured in tests, so NG bank names are user-supplied.
+ *
+ * ONE SWEEP ITEM HERE IS DELIBERATELY NOT TESTED (#105 T1). The refusal at
+ * routes/v1/bank-accounts:91 — "account did not resolve, check the number" —
+ * sits behind `if (enquiry !== null)`, and `buildNameEnquiry()` in lib/nip.ts
+ * is currently `return null` with no branch: the vendor HTTP implementation is
+ * not wired yet. So the guard is unreachable from ANY input, not merely
+ * unconfigured in tests, and reaching it would mean faking the module rather
+ * than exercising the product. It becomes testable when name-enquiry lands, and
+ * that is where its case belongs. Triaged C (config-gated) in the sweep doc and
+ * corrected to D (unreachable by construction) once the call path was read.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
@@ -125,4 +135,57 @@ test('GET lists saved accounts with kind + masked number', { skip }, async () =>
   assert.strictEqual(rows.length, 1)
   assert.strictEqual(rows[0].kind, 'mobile_money')
   assert.strictEqual(rows[0].account_number_masked, '••••••• 567')
+})
+
+test('the same account saved twice is a 409, not a 500 from the constraint (#105 T1)', { skip }, async () => {
+  // `(user, kind, bank_code, account_number)` is unique. Without the catch the
+  // second save surfaces as a postgres unique violation — a 500 for what is
+  // plainly a client-side duplicate.
+  const app = getApp()
+  const u = await createUser(app, { country: 'NG' })
+  const body = {
+    country: 'NG', bank_code: '058', account_number: '0123456700', account_name: 'TWICE OVER',
+  }
+  assert.strictEqual((await post(app, u.token, body)).statusCode, 201)
+
+  const again = await post(app, u.token, body)
+  assert.strictEqual(again.statusCode, 409)
+  assert.match(again.json().message, /already saved/)
+})
+
+test('DELETE /v1/bank-accounts/:id: an id the caller does not own is 404 (#105 T1)', { skip }, async () => {
+  // The store scopes the delete by user, so another user's id and a nonexistent
+  // id are indistinguishable from outside — which is the point. Both 404 rather
+  // than reporting whether the row exists.
+  const app = getApp()
+  const owner = await createUser(app, { country: 'NG' })
+  const stranger = await createUser(app, { country: 'NG' })
+  const created = await post(app, owner.token, {
+    country: 'NG', bank_code: '058', account_number: '0123456711', account_name: 'OWNER ONLY',
+  })
+  assert.strictEqual(created.statusCode, 201)
+  const id = created.json().id
+
+  const foreign = await app.inject({
+    method: 'DELETE', url: `/v1/bank-accounts/${id}`, headers: authHeader(stranger.token),
+  })
+  assert.strictEqual(foreign.statusCode, 404)
+  assert.match(foreign.json().message, /bank account not found/)
+
+  // ...and the owner can still delete it, so the 404 above was scoping, not a
+  // broken route.
+  // A well-formed id that belongs to nobody answers identically — which is what
+  // makes the 404 above scoping rather than a leak.
+  const absent = await app.inject({
+    method: 'DELETE', url: '/v1/bank-accounts/00000000-0000-0000-0000-000000000000',
+    headers: authHeader(owner.token),
+  })
+  assert.strictEqual(absent.statusCode, 404)
+
+  // ...and the owner can still delete it, so the 404s above were scoping, not a
+  // broken route.
+  const mine = await app.inject({
+    method: 'DELETE', url: `/v1/bank-accounts/${id}`, headers: authHeader(owner.token),
+  })
+  assert.strictEqual(mine.statusCode, 200)
 })
