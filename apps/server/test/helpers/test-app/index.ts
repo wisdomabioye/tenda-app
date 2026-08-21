@@ -47,6 +47,7 @@ export {
 } from './app'
 
 export {
+  ABSENT_UUID,
   attachExchangeDetails,
   attachGigDetails,
   authHeader,

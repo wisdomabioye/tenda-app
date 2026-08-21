@@ -28,6 +28,18 @@ export interface TestUser {
   token: string
 }
 
+/**
+ * A well-formed uuid that belongs to no row, for the "syntactically valid, still
+ * not there" half of every 404 case.
+ *
+ * One export because it was declared twice under two names — `ABSENT` in
+ * escrow-refusals.test.ts and `ABSENT_USER` in auth-refusals.test.ts, the same
+ * 36 characters — and a third spelling was the likely next step (#108). It is
+ * all zeroes on purpose: uuid v4 forbids that version nibble, so no generator
+ * can ever mint it, which is what makes it safe to assert "not found" against.
+ */
+export const ABSENT_UUID = '00000000-0000-0000-0000-000000000000'
+
 export async function createUser(
   app: FastifyInstance,
   overrides: Partial<UserRow> = {},

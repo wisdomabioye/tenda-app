@@ -70,11 +70,19 @@ export function requirePermission(permission: Permission) {
 
 /**
  * Fastify preHandler enforcing a completed profile (stage-1: first_name AND
- * last_name set) before posting or accepting work. Applied to the v2
- * surface: POST /v1/escrows + escrows accept/decline. Reads the v2 users
- * row per request, only four routes carry this, and profile fields are
- * not in the auth status cache by design (they change via PATCH /users/me
- * and must take effect immediately).
+ * last_name set) before posting or accepting work. Reads the users row per
+ * request rather than trusting the auth status cache: profile fields change via
+ * PATCH /users/me and must take effect immediately.
+ *
+ * SEVEN routes carry it, counted from the compiler rather than from memory —
+ * this docstring said four until #108: POST /v1/escrows, the escrow
+ * accept / decline / assign / unassign / build-create transitions, and gig
+ * applications.
+ *
+ * A MISSING ROW leaves by the same door as a blank name, so a DELETED account is
+ * told to complete its profile. That is fail-closed and safe but misleading, and
+ * changing it is a wire change across all seven callers — #117 owns the
+ * question; deleted-account-refusals.test.ts pins what happens today.
  */
 export async function requireProfileComplete(
   request: FastifyRequest,

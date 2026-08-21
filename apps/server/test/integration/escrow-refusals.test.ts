@@ -24,6 +24,7 @@ import { eq } from 'drizzle-orm'
 import { escrows } from '@tenda/shared/db/schema'
 import { MAX_REVIEW_COMMENT_LENGTH } from '@tenda/shared'
 import {
+  ABSENT_UUID,
   TEST_DB_CONFIGURED,
   useTestApp,
   createUser,
@@ -37,15 +38,13 @@ import { partiedEscrow } from '../helpers/escrow-states'
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
 
-const ABSENT = '00000000-0000-0000-0000-000000000000'
-
 // ---------- exchange detail: existence and draft privacy ----------------------
 
 test('GET /v1/exchange/:id: an offer that does not exist is 404', { skip }, async () => {
   const app = getApp()
   const reader = await createUser(app)
   const res = await app.inject({
-    method: 'GET', url: `/v1/exchange/${ABSENT}`, headers: authHeader(reader.token),
+    method: 'GET', url: `/v1/exchange/${ABSENT_UUID}`, headers: authHeader(reader.token),
   })
   assert.strictEqual(res.statusCode, 404)
   assert.match(res.json().message, /Exchange offer not found/)

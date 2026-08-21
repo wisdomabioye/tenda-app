@@ -286,13 +286,14 @@ test('POST /v1/escrows: a token whose user no longer exists is refused 401 (#105
   // valid JWT, and the create handler reads `is_seeker` off the row to pick the
   // fee tier — so something must refuse before it builds an escrow for nobody.
   //
-  // WHICH guard refuses is not what the sweep assumed. It listed
-  // routes/v1/escrows/index.ts:55 ('user no longer exists') as unexecuted, and
-  // it is — but it is also UNREACHABLE through this route: `authenticate`
-  // already loads the row and answers 401 'User no longer exists' first. The two
-  // messages differ only in capitalisation, which is why the handler's copy
-  // reads as live code. It is defence-in-depth for a caller that reaches the
-  // handler another way; this case pins the behaviour that actually happens.
+  // WHICH guard refuses depends on STATE, which the sweep and its first
+  // correction both missed. Cold cache — this case, whose token is minted and
+  // never used — is `authenticate` at 401. Warm, it passes from cache and
+  // `requireProfileComplete` answers 403 PROFILE_INCOMPLETE instead; both arms
+  // run in deleted-account-refusals.test.ts. Either way the handler's own guard
+  // at routes/v1/escrows/index.ts:55 never runs, and it STAYS: deleting a guard
+  // because today's preHandler order hides it is how that order becomes
+  // load-bearing without anyone deciding it (#108).
   const app = getApp()
   const u = await createUser(app)
   await makeTransactable(app, u.row.id)
@@ -314,6 +315,5 @@ test('POST /v1/escrows: a token whose user no longer exists is refused 401 (#105
 // deterministically — was wrong. escrow-draft-refusals.test.ts stages the
 // collision at the route's own await, closes 197 there (removing 197 fails it,
 // removing the sequential copy does not) and records 194 with its measurement.
-// Line 55 ('user no longer exists') is shadowed by an earlier guard — see the
-// case above.
+// Line 55 is shadowed by TWO earlier guards, one per cache state — see above.
 
