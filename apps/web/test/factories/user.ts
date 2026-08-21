@@ -22,7 +22,6 @@ export function makeUser(overrides: Partial<User> = {}): User {
     review_score: null,
     sponsored_tx_remaining: 3,
     advanced_mode_enabled: false,
-    display_currency: null,
     announcements_read_at: null,
     last_active_at: null,
     created_at: new Date('2026-08-01T10:00:00.000Z'),

@@ -59,7 +59,6 @@ function userRow(first_name: string, last_name: string): User {
     review_score: null,
     sponsored_tx_remaining: 0,
     advanced_mode_enabled: false,
-    display_currency: null,
     announcements_read_at: null,
     last_active_at: null,
     created_at: new Date(0),

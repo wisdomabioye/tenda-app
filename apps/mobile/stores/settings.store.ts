@@ -1,3 +1,19 @@
+/**
+ * Theme and display-currency preference, kept on the DEVICE in SecureStore.
+ *
+ * DEVICE-LOCAL BY DECISION, not by omission (#96). `users.display_currency`
+ * existed as a column from the Stage-8 fiat-rails commit (d20ca22) until #96
+ * dropped it. Nothing in the monorepo ever read or wrote it — no route, no
+ * client — which is the reason it could not hold anything; the dev database's
+ * rows were all null, but that is a spot check, not the proof. Its comment
+ * described a live server-side preference in the present tense, which left two
+ * plausible homes for one fact, one of which did not work — and that is how a
+ * feature gets built against the wrong one.
+ *
+ * This store is the only home. A server-side preference would serve a reader
+ * with two devices better and is a reasonable thing to build; the point is to
+ * BUILD it rather than to find a column and assume it is already stored.
+ */
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import { UnistylesRuntime } from 'react-native-unistyles'

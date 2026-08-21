@@ -204,6 +204,13 @@
       "when": 1786642821713,
       "tag": "0028_tearful_thanos",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1787293414381,
+      "tag": "0029_large_hobgoblin",
+      "breakpoints": true
     }
   ]
 }

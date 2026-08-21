@@ -59,8 +59,6 @@ export const users = pgTable(
     review_score: numeric('review_score', { precision: 3, scale: 2 }),
     sponsored_tx_remaining: integer('sponsored_tx_remaining').notNull().default(3),
     advanced_mode_enabled: boolean('advanced_mode_enabled').notNull().default(false),
-    /** UI rendering preference ('NGN', 'USD'); null = show raw asset (stage-8). */
-    display_currency: varchar('display_currency', { length: 3 }),
     // Broadcast read cursor: announcements published at/after this are unread.
     // NULL = never opened the notification centre (all active count as unread).
     announcements_read_at: timestamp('announcements_read_at'),
