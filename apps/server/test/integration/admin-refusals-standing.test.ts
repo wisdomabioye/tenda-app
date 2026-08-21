@@ -18,14 +18,10 @@ import { eq } from 'drizzle-orm'
 import { standing_overrides } from '@tenda/shared/db/schema/reputation'
 import { resolveAdminEmailSender } from '@server/lib/admin-otp'
 import { AppError } from '@server/lib/errors'
-import { TEST_DB_CONFIGURED, useTestApp, createUser, authHeader, type TestUser } from '../helpers/test-app'
+import { TEST_DB_CONFIGURED, useTestApp, createAdmin, createUser, authHeader } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
-
-function admin(app: ReturnType<typeof getApp>): Promise<TestUser> {
-  return createUser(app, { role: 'super_admin' })
-}
 
 /**
  * One member of the override vocabulary, written out because the route keeps
@@ -40,7 +36,7 @@ const VALID_ACTION = 'lift_restriction'
 
 test('admin standing: a user with no standing record is 404', { skip }, async () => {
   const app = getApp()
-  const a = await admin(app)
+  const a = await createAdmin(app)
   const fresh = await createUser(app)
 
   const res = await app.inject({
@@ -52,7 +48,7 @@ test('admin standing: a user with no standing record is 404', { skip }, async ()
 
 test('admin standing: an override action outside the vocabulary is 422', { skip }, async () => {
   const app = getApp()
-  const a = await admin(app)
+  const a = await createAdmin(app)
   const target = await createUser(app)
 
   for (const action of [undefined, '', 'ban', 'LIFT_RESTRICTION', 3]) {
@@ -70,7 +66,7 @@ test('admin standing: an override with no reason is 422', { skip }, async () => 
   // audit trail. It is checked AFTER the action, so a request wrong in both ways
   // reports the action — which is why this case sends a valid one.
   const app = getApp()
-  const a = await admin(app)
+  const a = await createAdmin(app)
   const target = await createUser(app)
 
   for (const reason of [undefined, '', 42, null]) {
@@ -87,7 +83,7 @@ test('admin standing: the action check runs BEFORE the reason check', { skip }, 
   // Both answer 422 VALIDATION_ERROR and differ only in message, so ordering is
   // invisible to a status assertion.
   const app = getApp()
-  const a = await admin(app)
+  const a = await createAdmin(app)
   const target = await createUser(app)
 
   const res = await app.inject({
@@ -109,7 +105,7 @@ test('admin standing: a valid override APPLIES and is recorded (the control)', {
   // up: an override that applied but recorded nothing would look identical from
   // the response alone.
   const app = getApp()
-  const a = await admin(app)
+  const a = await createAdmin(app)
   const target = await createUser(app)
 
   const res = await app.inject({

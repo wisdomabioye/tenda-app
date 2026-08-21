@@ -9,6 +9,7 @@
  */
 import './env'
 import type { FastifyInstance } from 'fastify'
+import type { ADMIN_ROLES } from '@tenda/shared'
 import {
   users,
   user_wallets,
@@ -34,6 +35,23 @@ export async function createUser(
   const row = userFixture(overrides)
   await app.db.insert(users).values(row)
   return { row, token: app.jwt.sign({ id: row.id, role: row.role }) }
+}
+
+/**
+ * A user holding an admin role, for the /v1/admin/* suites. Defaults to
+ * `super_admin` because that is the role that reaches every admin scope; pass
+ * 'dispute_admin' to test the narrower one.
+ *
+ * Added at #105 T5b, when the fourth copy of `createUser(app, { role:
+ * 'super_admin' })` appeared across the admin refusal suites. It is a thin
+ * wrapper on purpose — it exists to name the intent and to keep the role
+ * spelling in one place, not to hide anything.
+ */
+export function createAdmin(
+  app: FastifyInstance,
+  role: (typeof ADMIN_ROLES)[number] = 'super_admin',
+): Promise<TestUser> {
+  return createUser(app, { role })
 }
 
 /**

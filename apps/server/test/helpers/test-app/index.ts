@@ -50,6 +50,7 @@ export {
   attachExchangeDetails,
   attachGigDetails,
   authHeader,
+  createAdmin,
   createBankAccount,
   createEscrow,
   createUser,

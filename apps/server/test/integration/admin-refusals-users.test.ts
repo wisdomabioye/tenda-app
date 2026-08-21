@@ -17,14 +17,10 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { ADMIN_ROLES, ASSIGNABLE_ROLES } from '@tenda/shared'
-import { TEST_DB_CONFIGURED, useTestApp, createUser, authHeader, type TestUser } from '../helpers/test-app'
+import { TEST_DB_CONFIGURED, useTestApp, createAdmin, createUser, authHeader } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
-
-function admin(app: ReturnType<typeof getApp>): Promise<TestUser> {
-  return createUser(app, { role: 'super_admin' })
-}
 
 // ---------- GET /v1/admin/users: the role filter --------------------------------
 
@@ -33,7 +29,7 @@ test('admin users: a role filter outside the assignable set is 400', { skip }, a
   // refused rather than silently matching nothing — an admin filtering by a
   // typo would otherwise read an empty list as "no such users".
   const app = getApp()
-  const a = await admin(app)
+  const a = await createAdmin(app)
 
   for (const role of ['moderator', 'support', 'SUPER_ADMIN', 'nonsense']) {
     const res = await app.inject({
@@ -58,7 +54,7 @@ test('admin users: a role filter outside the assignable set is 400', { skip }, a
 
 test('admin users: a status outside active|suspended is 400', { skip }, async () => {
   const app = getApp()
-  const a = await admin(app)
+  const a = await createAdmin(app)
   const target = await createUser(app)
 
   for (const status of [undefined, '', 'banned', 'ACTIVE', 7]) {
@@ -77,10 +73,10 @@ test('admin users: an ADMIN account cannot be suspended, 403', { skip }, async (
   // otherwise undo it. Both admin roles are covered because the guard tests
   // membership of ADMIN_ROLES, not equality to one of them.
   const app = getApp()
-  const a = await admin(app)
+  const a = await createAdmin(app)
 
   for (const role of ADMIN_ROLES) {
-    const peer = await createUser(app, { role })
+    const peer = await createAdmin(app, role)
     const res = await app.inject({
       method: 'PATCH', url: `/v1/admin/users/${peer.row.id}/status`,
       headers: authHeader(a.token), payload: { status: 'suspended' },
@@ -104,7 +100,7 @@ test('admin users: an ADMIN account cannot be suspended, 403', { skip }, async (
 
 test('admin users: a role outside the assignable set is 400', { skip }, async () => {
   const app = getApp()
-  const a = await admin(app)
+  const a = await createAdmin(app)
   const target = await createUser(app)
 
   for (const role of [undefined, '', 'moderator', 'root', 5]) {
@@ -121,7 +117,7 @@ test('admin users: an admin cannot demote their OWN account, 403', { skip }, asy
   // The lockout guard. A super_admin who demotes themselves cannot promote
   // themselves back — recovery needs the bootstrap ops script and DATABASE_URL.
   const app = getApp()
-  const a = await admin(app)
+  const a = await createAdmin(app)
 
   const self = await app.inject({
     method: 'PATCH', url: `/v1/admin/users/${a.row.id}/role`,
