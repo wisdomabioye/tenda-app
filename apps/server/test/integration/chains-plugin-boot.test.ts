@@ -15,24 +15,23 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { eq } from 'drizzle-orm'
-import Fastify, { type FastifyInstance } from 'fastify'
+import Fastify from 'fastify'
 import { encodeAbiParameters, encodeEventTopics } from 'viem'
 import chainsPlugin from '@server/plugins/chains'
 import dbPlugin from '@server/plugins/db'
 import { ESCROW_EVM_ABI } from '@server/chains/evm/rpc'
 import { chainEnvPrefix } from '@server/chains/secrets'
-import { chain_contracts, chains as chainsTable } from '@tenda/shared/db/schema'
+import { chain_contracts } from '@tenda/shared/db/schema'
 import {
   TEST_ASSET_ALT,
   TEST_CHAIN_ID_ALT,
   TEST_DB_CONFIGURED,
   createEscrow,
   createUser,
-  seedAltChain,
   useTestApp,
 } from '../helpers/test-app'
 import { startStubRpc, withEvmChainEnv, type StubRpc } from '../helpers/stub-rpc'
+import { seedBootChain, withBootedChainsApp } from '../helpers/chains-boot'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -105,27 +104,13 @@ async function withBootEnv(body: (rpc: StubRpc) => Promise<void>): Promise<void>
   }
 }
 
-/** A booted app carrying the real db + chains plugins, always closed. */
-async function withBootedApp(body: (app: FastifyInstance) => Promise<void>): Promise<void> {
-  const app = Fastify({ logger: false })
-  try {
-    await app.register(dbPlugin)
-    await app.register(chainsPlugin)
-    await body(app)
-  } finally {
-    await app.close()
-  }
-}
-
-/** `chains` naming the CURRENT contract, so the registry-sync boot gate passes. */
-async function seedCurrentChain(app: ReturnType<typeof getApp>): Promise<void> {
-  // The shared helper owns the chain AND its asset row; hand-inserting only the
-  // chain leaves `escrows_asset_chain_fk` unsatisfiable for any escrow on it.
-  await seedAltChain(app)
-  await app.db
-    .update(chainsTable)
-    .set({ treasury_address: TREASURY, escrow_program: CURRENT })
-    .where(eq(chainsTable.id, TEST_CHAIN_ID_ALT))
+/**
+ * `chains` naming the CURRENT contract, so the registry-sync boot gate passes.
+ * The booting itself is `withBootedChainsApp` (helpers/chains-boot) — both were
+ * local to this file until #112's resolver suite needed the same two.
+ */
+function seedCurrentChain(app: ReturnType<typeof getApp>): Promise<void> {
+  return seedBootChain(app, { escrow: CURRENT, treasury: TREASURY })
 }
 
 test('boot: adapters come out KNOWING the superseded contract, not just the current one', { skip }, async () => {
@@ -140,7 +125,7 @@ test('boot: adapters come out KNOWING the superseded contract, not just the curr
       ])
       .onConflictDoNothing({ target: [chain_contracts.chain_id, chain_contracts.address] })
 
-    await withBootedApp(async (app) => {
+    await withBootedChainsApp(async (app) => {
       await app.ready()
 
       // The registry the plugin decorated must carry BOTH generations.
@@ -175,7 +160,7 @@ test('boot: an adapter WITHOUT the history cannot verify the same receipt', { sk
   await withBootEnv(async () => {
     await seedCurrentChain(getApp())
 
-    await withBootedApp(async (app) => {
+    await withBootedChainsApp(async (app) => {
       await app.ready()
       assert.deepStrictEqual([...(app.contracts.get(TEST_CHAIN_ID_ALT)?.known ?? [])], [CURRENT])
 

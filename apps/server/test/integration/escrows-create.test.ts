@@ -305,15 +305,15 @@ test('POST /v1/escrows: a token whose user no longer exists is refused 401 (#105
   assert.match(res.json().message, /[Uu]ser no longer exists/)
 })
 
-// NOT ADDED: the sweep listed routes/v1/escrows/index.ts:194 and :197 as
-// unexecuted, and they are — but they are the RACE copies. The same two guards
-// exist twice: at 136-141 on the sequential path (an existing escrow with that
-// operation id is found up front) and again at 194-201 for the case where a
-// concurrent identical request won the unique key BETWEEN our lookup and our
-// insert. The sequential pair is already covered, which a test written for the
-// reuse rule proved by surviving the removal of 197 — it was exercising 136.
-// The race copies need two requests interleaved inside one insert, which this
-// harness cannot stage deterministically, so they stay recorded rather than
-// faked. Line 55 ('user no longer exists') is shadowed for the same family of
-// reason — see the case above.
+// SUPERSEDED (#112), kept as the pointer: the sweep listed
+// routes/v1/escrows/index.ts:194 and :197 as unexecuted. Both are the RACE
+// copies of guards that also exist on the sequential path at 136-141, which is
+// what made 197 hard to test — a test for the reuse rule survives its removal
+// because it is exercising 136 instead (measured in T2; that test was deleted).
+// What this note used to say next — that the harness cannot stage the race
+// deterministically — was wrong. escrow-draft-refusals.test.ts stages the
+// collision at the route's own await, closes 197 there (removing 197 fails it,
+// removing the sequential copy does not) and records 194 with its measurement.
+// Line 55 ('user no longer exists') is shadowed by an earlier guard — see the
+// case above.
 
