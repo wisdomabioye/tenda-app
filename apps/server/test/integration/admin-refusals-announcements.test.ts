@@ -36,18 +36,22 @@ const URL = '/v1/admin/announcements'
  * Ids that match no announcement. The first is well-formed; the rest are not
  * uuids at all, and they are here because I assumed they would NOT be safe.
  *
- * MEASURED, and the answer is more interesting than the assumption. These routes
- * carry NO uuidParamGuard and still answer a clean 404 for `not-a-uuid`. Its
- * sibling /v1/admin/standing DOES carry one, and the comment there says a
- * malformed id "reaches postgres as a uuid comparison and throws" — which is
- * also true: removing that guard and repeating the request returns 500
- * INTERNAL_ERROR. Same uuid column type, two different outcomes, because the
- * two routes reach the database by different query paths.
+ * THEY ARE SAFE, AND BY DESIGN — corrected at #111, because the note that stood
+ * here said the opposite. It claimed these routes carry no `uuidParamGuard` and
+ * survive a malformed id by luck of a different query shape. Both halves were
+ * wrong, and the reason I got it wrong is worth keeping: the guard is a
+ * PLUGIN-LEVEL `fastify.addHook` at the top of announcements.ts, not a
+ * per-route preHandler, so reading the handlers finds nothing.
  *
- * So the safety here is INCIDENTAL, not designed — which is precisely why these
- * ids are pinned. If the announcements query is ever rewritten into the shape
- * standing uses, this turns into a 500 and fails here rather than in someone's
- * dashboard. Filed as #111.
+ * MEASURED for the correction: all three drizzle shapes — `select().where(eq)`,
+ * the same on another table, and `query.<table>.findFirst` — throw on
+ * 'not-a-uuid'. There is no safe query shape. What makes these routes safe is
+ * the guard, which commit c6dcd71 added across the :id routes; that today's
+ * whole route table is safe is asserted by malformed-id.test.ts, which sweeps
+ * it live rather than trusting any list.
+ *
+ * These ids stay pinned anyway. This suite asserts the 404 carries the
+ * announcements copy, which the sweep (asserting only "never 5xx") does not.
  */
 const ABSENT_IDS = ['00000000-0000-0000-0000-000000000000', 'not-a-uuid', '123'] as const
 
