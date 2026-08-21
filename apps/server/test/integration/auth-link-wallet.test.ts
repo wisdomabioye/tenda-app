@@ -12,7 +12,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { and, eq } from 'drizzle-orm'
-import { user_wallets } from '@tenda/shared/db/schema/identity'
+import { gas_grants, user_identities, user_wallets } from '@tenda/shared/db/schema/identity'
 import { walletFixture } from '../helpers/fixtures'
 import {
   TEST_DB_CONFIGURED,
@@ -201,4 +201,49 @@ test('link-wallet: re-linking a LEGACY mixed-case wallet (any case) is rejected 
     .select().from(user_wallets)
     .where(and(eq(user_wallets.user_id, u.row.id), eq(user_wallets.chain_ns, 'eip155')))
   assert.strictEqual(rows.length, 1) // still just the one legacy row
+})
+
+test('link-wallet: a phone-verified user still links cleanly — the gas-seed trigger is fire-and-forget (#109)', { skip }, async () => {
+  // The ONE branch of this route with no coverage: `if (await
+  // hasVerifiedPhone(...)) fireRetroactiveGasSeed(...)` on a successful link.
+  // Nothing in the suite linked a wallet as a phone-verified user, because
+  // `makeTransactable` attaches an EMAIL identity, so the call never ran.
+  //
+  // WHAT THIS CAN AND CANNOT ASSERT, measured rather than assumed. The trigger
+  // is deliberately fire-and-forget — "linking must not block on an RPC
+  // transfer" — and `dispatchGasSeeds` exits before touching the database
+  // unless a chain carries `gas_seed_amount_raw` AND a sender key is
+  // configured, neither of which the harness sets. So the dispatcher's own
+  // behaviour is not observable from here; it is unit-tested against a fake
+  // sender in test/unit/gas-seed.test.ts, which is where it belongs.
+  //
+  // What IS observable, and is exactly what the fire-and-forget design
+  // promises, is that eligibility cannot break the link: a synchronous throw
+  // inside the trigger turns a successful link into a 500. MEASURED — a mutant
+  // that throws from `fireRetroactiveGasSeed` fails this case and nothing else.
+  const app = getApp()
+  const u = await createUser(app)
+  await app.db.insert(user_identities).values({
+    user_id: u.row.id,
+    kind: 'phone',
+    // Derived from the user id, the way `makeTransactable` derives its wallet
+    // address — unique per user without borrowing the address counter.
+    identifier: `+234${u.row.id.replace(/\D/g, '').slice(0, 10)}`,
+    verified_at: new Date(),
+  })
+
+  const address = freshAddress()
+  const res = await link(app, u.token, address)
+  assert.strictEqual(res.statusCode, 200, res.body)
+
+  const rows = await app.db
+    .select({ address: user_wallets.address })
+    .from(user_wallets)
+    .where(and(eq(user_wallets.user_id, u.row.id), eq(user_wallets.chain_ns, 'solana')))
+  assert.deepStrictEqual(rows, [{ address }], 'the wallet is linked, seed or no seed')
+
+  // No grant row either, and that is the measurement behind the note above: the
+  // dispatcher found no seedable chain, so it never reached its claim.
+  const grants = await app.db.select().from(gas_grants).where(eq(gas_grants.user_id, u.row.id))
+  assert.deepStrictEqual(grants, [], 'no seedable chain is configured in the harness')
 })
