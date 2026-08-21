@@ -8,6 +8,7 @@
  */
 import { test } from 'node:test'
 import * as assert from 'node:assert'
+import { AppError } from '@server/lib/errors'
 import {
   buildPermitTypedData,
   evmNumericChainId,
@@ -20,8 +21,10 @@ import {
 
 const R = `0x${'11'.repeat(32)}`
 const S = `0x${'22'.repeat(32)}`
-const SIG_V27 = `0x${'11'.repeat(32)}${'22'.repeat(32)}1b`
-const SIG_YPARITY1 = `0x${'11'.repeat(32)}${'22'.repeat(32)}01`
+/** The r||s half every signature literal here shares; only the tail varies. */
+const R_AND_S = `${'11'.repeat(32)}${'22'.repeat(32)}`
+const SIG_V27 = `0x${R_AND_S}1b`
+const SIG_YPARITY1 = `0x${R_AND_S}01`
 const NOW = new Date('2026-07-03T12:00:00Z')
 const FUTURE = Math.floor(NOW.getTime() / 1000) + 600
 
@@ -38,6 +41,48 @@ test('parsePermitSignature: splits legacy-v and yParity forms; rejects malformed
 
   for (const bad of ['0xdead', '', 'nohex', `0x${'11'.repeat(64)}`, `${'11'.repeat(32)}${'22'.repeat(32)}1b`]) {
     assert.throws(() => parsePermitSignature(bad), /65-byte/)
+  }
+})
+
+test('parsePermitSignature: 65 bytes that are not a SIGNATURE is 422, not a crash (#107)', () => {
+  // The shape check says the bytes are there; it says nothing about them being
+  // a signature. Both of these are 65 valid hex bytes and both make viem/noble
+  // throw a plain Error, which used to leave the route as a 500 INTERNAL_ERROR
+  // for what is a bad request on the money path.
+  const cases: ReadonlyArray<[string, string]> = [
+    [`0x${R_AND_S}11`, 'a recovery byte of 17'],
+    [`0x${R_AND_S}25`, 'an EIP-155 transaction v of 37'],
+    [`0x${'00'.repeat(32)}${'22'.repeat(32)}1b`, 'r = 0, outside the curve order'],
+  ]
+  for (const [signature, why] of cases) {
+    assert.throws(
+      () => parsePermitSignature(signature),
+      // `unknown` + instanceof rather than `(err: AppError)`: what this case
+      // exists to catch is the throw NOT being an AppError, and annotating the
+      // parameter as one would assert that away instead of checking it.
+      (err: unknown) =>
+        err instanceof AppError && err.statusCode === 422 && /permit\.signature/.test(err.message),
+      why,
+    )
+  }
+})
+
+test('parsePermitSignature: every recovery byte a wallet may emit still parses', () => {
+  // The accepted set, written out because the refusal above is only correct if
+  // it refuses NOTHING a real wallet produces: 27/28 legacy, 0/1 yParity, which
+  // the helper normalises to legacy v for the contract's permit().
+  const accepted: ReadonlyArray<[string, number]> = [
+    ['1b', 27],
+    ['1c', 28],
+    ['00', 27],
+    ['01', 28],
+  ]
+  for (const [byte, v] of accepted) {
+    assert.strictEqual(
+      parsePermitSignature(`0x${R_AND_S}${byte}`).v,
+      v,
+      `recovery byte 0x${byte}`,
+    )
   }
 })
 

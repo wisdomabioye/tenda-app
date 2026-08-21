@@ -49,12 +49,38 @@ function fail(status: number, code: ErrorCode, message: string): never {
   throw new AppError(status, code, message)
 }
 
+/**
+ * viem's split, with its throws turned into the same 422 the shape check gives.
+ *
+ * The shape check says the 65 bytes are THERE; it says nothing about them being
+ * a signature. viem rejects a recovery byte outside {0, 1, 27, 28} and noble
+ * rejects an r or s outside the curve order, and both throw a plain Error — so
+ * before this, a wallet that emitted an unexpected v encoding got 500
+ * INTERNAL_ERROR for what is a bad request on the money path, and it paged
+ * whoever watches 5xx rates (#107).
+ *
+ * The try wraps ONLY the parse call. Widening it to cover the v-mapping below
+ * would turn a bug of ours into a client error, which is the shape #72 was.
+ */
+function parseOrRefuse(signature: `0x${string}`): ReturnType<typeof parseSignature> {
+  try {
+    return parseSignature(signature)
+  } catch {
+    return fail(
+      422,
+      ErrorCode.VALIDATION_ERROR,
+      'permit.signature is not a valid signature: r and s must be within the curve order ' +
+        'and the recovery byte must be 0, 1, 27 or 28',
+    )
+  }
+}
+
 /** Split a 65-byte 0x-hex signature into {v, r, s}; 422 on malformed input. */
 export function parsePermitSignature(signature: string): ParsedPermitSignature {
   if (!/^0x[0-9a-fA-F]{130}$/.test(signature)) {
     fail(422, ErrorCode.VALIDATION_ERROR, 'permit.signature must be a 65-byte 0x-hex string')
   }
-  const sig = parseSignature(signature as `0x${string}`)
+  const sig = parseOrRefuse(signature as `0x${string}`)
   // viem may return yParity-only for compact forms; permit() takes legacy v.
   const v = sig.v !== undefined ? Number(sig.v) : sig.yParity + 27
   return { v, r: sig.r, s: sig.s }

@@ -169,11 +169,11 @@ test('POST /v1/escrows/:id/dispute: a permit on a non-EVM chain is 422', { skip 
       // from validateWirePermit, which runs BEFORE the namespace check. A
       // malformed permit is refused by its own validator first, so this one has
       // to be well-formed for the chain guard to be the thing that fires.
-      // The v byte must be a REAL recovery id (0x1b = 27). A 65-byte signature
-      // whose v is out of range currently 500s instead of 422 — viem's parse
-      // throws past the shape check and the handler cannot classify it. Filed
-      // as #107; using a valid v here keeps this case about the CHAIN guard,
-      // which is the T2 item, rather than about that bug.
+      // The v byte must be a REAL recovery id (0x1b = 27), so that the parse
+      // succeeds and this case stays about the CHAIN guard. A v out of range
+      // used to 500 — viem threw past the shape check and the handler could not
+      // classify it — which is #107, fixed: it is now the same 422 with a
+      // different message, pinned in permit-refusals.test.ts.
       permit: {
         value_raw: '1000000',
         deadline_unix: Math.floor(Date.now() / 1000) + 3600,
