@@ -16,6 +16,7 @@ import { eq, and, gt, gte, isNull, lte, or, desc, sql, type SQL } from 'drizzle-
 import { escrows, exchange_details, users } from '@tenda/shared/db/schema'
 import {
   ErrorCode,
+  isSupportedCurrency,
   payoutCurrencyForCountry,
   SUPPORTED_CURRENCIES,
   EXCHANGE_PAYMENT_WINDOW_MIN_SECONDS,
@@ -24,7 +25,7 @@ import {
   EXCHANGE_MAX_FIAT_AMOUNT,
   EXCHANGE_MAX_RATE,
 } from '@tenda/shared'
-import type { ExchangeContract, ApiError, SupportedCurrency } from '@tenda/shared'
+import type { ExchangeContract, ApiError } from '@tenda/shared'
 import { isAmountRaw } from '@server/chains/types'
 import { AppError } from '@server/lib/errors'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
@@ -143,7 +144,7 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
       )
     }
     const fiat_currency = String(body.fiat_currency ?? '').toUpperCase()
-    if (!SUPPORTED_CURRENCIES.includes(fiat_currency as SupportedCurrency)) {
+    if (!isSupportedCurrency(fiat_currency)) {
       throw new AppError(
         400,
         ErrorCode.VALIDATION_ERROR,

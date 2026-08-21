@@ -55,7 +55,14 @@ test('POST /v1/exchange: validation — amount, rate, currency, window', { skip 
 
   assert.strictEqual((await post(offerBody(escrow.id, { fiat_amount: -5 }))).statusCode, 400)
   assert.strictEqual((await post(offerBody(escrow.id, { rate: 0 }))).statusCode, 400)
-  assert.strictEqual((await post(offerBody(escrow.id, { fiat_currency: 'XXX' }))).statusCode, 400)
+  // The MESSAGE, not just the status: #97 disabled this guard and all 28 cases
+  // in this file still passed. `offerBody` sends no payout_account_id, so a
+  // request that gets past the currency check falls through to "payout_account_id
+  // is required" — also a 400. Status alone cannot tell the two apart, so this
+  // line was green whether or not the currency guard existed.
+  const badCurrency = await post(offerBody(escrow.id, { fiat_currency: 'XXX' }))
+  assert.strictEqual(badCurrency.statusCode, 400)
+  assert.match(badCurrency.json().message, /fiat_currency/)
   assert.strictEqual(
     (await post(offerBody(escrow.id, { payment_window_seconds: 60 }))).statusCode,
     400,

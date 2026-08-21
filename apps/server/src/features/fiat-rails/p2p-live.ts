@@ -9,7 +9,7 @@ import type { FastifyInstance } from 'fastify'
 import { and, asc, eq, gt, isNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { assets, escrows, exchange_details } from '@tenda/shared/db/schema'
 import { getAssetRates } from '@server/lib/exchange-rates'
-import { ASSET_META, type SupportedCurrency } from '@tenda/shared'
+import { ASSET_META, isSupportedCurrency } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
 import { P2P_INTERNAL_PAYMENT_WINDOW_SECONDS, P2P_ONRAMP_MATCH_TOLERANCE_BPS } from './config'
@@ -30,7 +30,12 @@ export function assetRateSource(): RateSource {
         throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate source for asset '${asset}'`)
       }
       const { rates } = await getAssetRates(meta.coingeckoId)
-      const rate = rates[fiat_currency as SupportedCurrency]
+      // `rates` is a Partial Record: CoinGecko can answer without a currency we
+      // asked for, so the miss below is a real runtime state and not a type
+      // formality. Narrowing rather than asserting folds the two ways a rate can
+      // be absent — a code outside the vocabulary, and one inside it the feed
+      // omitted — into the same 503, which is what both mean to a caller.
+      const rate = isSupportedCurrency(fiat_currency) ? rates[fiat_currency] : undefined
       if (rate === undefined) {
         throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate for currency '${fiat_currency}'`)
       }

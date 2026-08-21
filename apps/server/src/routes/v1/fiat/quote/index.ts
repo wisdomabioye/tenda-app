@@ -13,8 +13,13 @@ import type { FastifyPluginAsync } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { assets } from '@tenda/shared/db/schema/chains'
 import { users } from '@tenda/shared/db/schema/identity'
-import { ErrorCode, EXCHANGE_MAX_FIAT_AMOUNT, AMOUNT_RAW_PRECISION, SUPPORTED_CURRENCIES } from '@tenda/shared'
-import type { SupportedCurrency } from '@tenda/shared'
+import {
+  ErrorCode,
+  EXCHANGE_MAX_FIAT_AMOUNT,
+  AMOUNT_RAW_PRECISION,
+  isSupportedCurrency,
+  SUPPORTED_CURRENCIES,
+} from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { isAmountRaw } from '@server/chains/types'
 import { buildFiatDeps, requestQuote } from '@server/features/fiat-rails'
@@ -46,7 +51,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(422, ErrorCode.VALIDATION_ERROR, "direction must be 'onramp' or 'offramp'")
       }
       const fiat_currency = requireStr('fiat_currency', b.fiat_currency, 3).toUpperCase()
-      if (!SUPPORTED_CURRENCIES.includes(fiat_currency as SupportedCurrency)) {
+      if (!isSupportedCurrency(fiat_currency)) {
         throw new AppError(
           422,
           ErrorCode.VALIDATION_ERROR,

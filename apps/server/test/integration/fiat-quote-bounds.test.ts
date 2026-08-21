@@ -5,6 +5,11 @@
  * must reject out-of-range amounts with a clean 422 at validation — BEFORE
  * the provider lookup (so the assertion is 422, not the 503 a passed-through
  * absurd value reaches). Mirrors the exchange-offer guard.
+ *
+ * It now also carries the route's CURRENCY rail, which is not a money bound but
+ * belongs to the same set: the validation the route must do before it reaches a
+ * provider, each rejected with the 422 this surface uses. It was the one guard
+ * of the four with no case at all until #97 changed it.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
@@ -34,6 +39,23 @@ test('fiat quote onramp: a non-positive fiat_amount is rejected', { skip }, asyn
     payload: { direction: 'onramp', fiat_currency: 'NGN', asset: TEST_ASSET, chain_id: TEST_CHAIN_ID, wallet_address: WALLET, fiat_amount: 0 },
   })
   assert.strictEqual(res.statusCode, 422)
+})
+
+test('fiat quote: a currency outside the vocabulary is rejected 422, before any provider', { skip }, async () => {
+  // #97 swapped this guard from an inline SUPPORTED_CURRENCIES.includes(x as
+  // SupportedCurrency) to the shared isSupportedCurrency, and nothing pinned it
+  // — the exchange route's twin has a case, this one did not, so the swap could
+  // have changed the status code or dropped the check entirely unnoticed.
+  // 'XXX' is three characters, so it clears requireStr's length rail and can
+  // only be stopped by the vocabulary check itself.
+  const app = getApp()
+  const u = await createUser(app, { country: 'NG' })
+  const res = await app.inject({
+    method: 'POST', url: '/v1/fiat/quote', headers: authHeader(u.token),
+    payload: { direction: 'onramp', fiat_currency: 'XXX', asset: TEST_ASSET, chain_id: TEST_CHAIN_ID, wallet_address: WALLET, fiat_amount: 5000 },
+  })
+  assert.strictEqual(res.statusCode, 422)
+  assert.match(res.json().message, /fiat_currency/)
 })
 
 test('fiat quote offramp: an over-precision asset_amount_raw is rejected 422', { skip }, async () => {
