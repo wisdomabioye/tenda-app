@@ -26,8 +26,9 @@
  * always carries it — so `chains.has()` is true and the adapter-missing arm is
  * NOT reachable here (see the note at the end of this file).
  *
- * The Helius URL below is the one the app actually serves, which is not the one
- * its source docblock advertises — see the comment on HELIUS_URL and #106.
+ * The Helius URL below is `/v1/webhooks/helius`, which since #106 is both what
+ * the app serves and what its docblock and the runbook advertise — see the
+ * comment on HELIUS_URL.
  */
 import { test, afterEach } from 'node:test'
 import assert from 'node:assert'
@@ -81,23 +82,18 @@ function clearChainEnv(): void {
 afterEach(clearChainEnv)
 
 /**
- * The ACTUAL mount is `/v1/webhooks`, not `/v1/webhooks/helius` as helius.ts's
- * docblock claims — verified by printing the app's route tree, not inferred
- * from the directory layout. @fastify/autoload prefixes a DIRECTORY with its
- * name; a bare FILE inherits only its parent's, so helius.ts's `post('/')`
- * lands on the bare prefix while its three sibling providers are namespaced.
- * This is not a quirk, it is a RECURRENCE. routes/v1/blockchain/index.ts exists
- * precisely to fix the same drift for transaction.ts, and says so in its header:
- * without it the client-ping auto-loaded at the bare /v1/blockchain while the
- * shared routes map called /v1/blockchain/transaction, "the client-ping 404ed
- * and tx verification survived only on the webhook/reconcile fallbacks".
- * permit-payload.test.ts still guards that one. Webhooks has no such index and
- * no such guard.
+ * The documented path, and since #106 the served one.
  *
- * Filed as #106 with that precedent. This file tests where the route IS, so it
- * stays honest either way, and #106 updates it when the path is corrected.
+ * When this file was written the route was mounted at the bare `/v1/webhooks`:
+ * @fastify/autoload prefixes a DIRECTORY with its name and a bare FILE inherits
+ * only its parent's, so helius.ts's `post('/')` landed a level up while its
+ * three sibling providers — all directories — were namespaced. That was a
+ * RECURRENCE of the drift routes/v1/blockchain/index.ts was written to fix, and
+ * the mount is now pinned the same way: routes/v1/webhooks/index.ts registers
+ * this module explicitly, and webhook-routes.test.ts asserts the four provider
+ * paths exist and the bare prefix does not.
  */
-const HELIUS_URL = '/v1/webhooks'
+const HELIUS_URL = '/v1/webhooks/helius'
 
 function heliusPost(
   app: ReturnType<typeof getApp>,
