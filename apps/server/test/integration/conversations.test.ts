@@ -147,3 +147,58 @@ test('POST messages: content over 2000 chars is rejected', { skip }, async () =>
   })
   assert.strictEqual(res.statusCode, 400)
 })
+
+test('GET messages: 403 for a non-participant (#105 T3)', { skip }, async () => {
+  // The POST side already had this case; the GET side did not, so reading a
+  // stranger's thread was guarded by a line no test ran. Reading is the more
+  // damaging direction — it discloses the conversation rather than adding to it.
+  const app = getApp()
+  const a = await createUser(app)
+  const b = await createUser(app)
+  const stranger = await createUser(app)
+
+  const created = await app.inject({
+    method: 'POST', url: '/v1/conversations', headers: authHeader(a.token),
+    payload: { user_id: b.row.id },
+  })
+  assert.strictEqual(created.statusCode, 200, created.body)
+  const conversationId = created.json().id
+
+  const forbidden = await app.inject({
+    method: 'GET', url: `/v1/conversations/${conversationId}/messages`,
+    headers: authHeader(stranger.token),
+  })
+  assert.strictEqual(forbidden.statusCode, 403)
+  assert.match(forbidden.json().message, /Not a participant of this conversation/)
+
+  // ...and a participant reads it fine, so the 403 is scoping and not a broken
+  // route.
+  const allowed = await app.inject({
+    method: 'GET', url: `/v1/conversations/${conversationId}/messages`,
+    headers: authHeader(b.token),
+  })
+  assert.strictEqual(allowed.statusCode, 200)
+})
+
+test('POST messages: an escrow_id that references nothing is 400, not a 500 (#105 T3)', { skip }, async () => {
+  // The context reference is an FK column. Without this guard a bad id reaches
+  // postgres and surfaces as a foreign-key violation — a 500 for what is plainly
+  // a client error, which is exactly what the guard's own comment says it is
+  // there to prevent. Nothing ran it.
+  const app = getApp()
+  const a = await createUser(app)
+  const b = await createUser(app)
+  const created = await app.inject({
+    method: 'POST', url: '/v1/conversations', headers: authHeader(a.token),
+    payload: { user_id: b.row.id },
+  })
+  assert.strictEqual(created.statusCode, 200, created.body)
+
+  const res = await app.inject({
+    method: 'POST', url: `/v1/conversations/${created.json().id}/messages`,
+    headers: authHeader(a.token),
+    payload: { content: 'about that job', escrow_id: '00000000-0000-0000-0000-000000000000' },
+  })
+  assert.strictEqual(res.statusCode, 400)
+  assert.match(res.json().message, /escrow_id does not reference an existing escrow/)
+})
