@@ -14,12 +14,11 @@ import {
   formatFiat,
   formatRate,
   type FiatIntentDetail,
-  type SupportedCurrency,
 } from '@tenda/shared'
 import { INTENT_COPY } from './copy'
 
 export function IntentRows({ intent }: { intent: FiatIntentDetail }) {
-  const currency = intent.fiat_currency as SupportedCurrency
+  const currency = intent.fiat_currency
   const rows: { label: string; value: string }[] = [
     { label: INTENT_COPY.rows.amount, value: formatAssetAmount(intent.asset_amount_raw, intent.asset) },
     { label: INTENT_COPY.rows.receive, value: formatFiat(Number(intent.fiat_amount), currency) },

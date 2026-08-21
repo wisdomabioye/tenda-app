@@ -17,7 +17,6 @@ import {
   instructionCopy,
   isTerminal,
   type FiatIntentDetail,
-  type SupportedCurrency,
 } from '@tenda/shared'
 import { useCountdown } from '@/hooks/timing/useCountdown'
 import { cn } from '@/lib/cn'
@@ -49,7 +48,7 @@ export function IntentStatusPanel({ intent }: { intent: FiatIntentDetail }) {
       </p>
 
       <h2 className="mt-3.5 font-display text-[30px] font-bold leading-9 tracking-[-0.6px]">
-        {formatFiat(Number(intent.fiat_amount), intent.fiat_currency as SupportedCurrency)}
+        {formatFiat(Number(intent.fiat_amount), intent.fiat_currency)}
       </h2>
 
       <p className="mt-2.5 max-w-[52ch] text-[15px] leading-[22px] opacity-90">

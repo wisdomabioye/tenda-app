@@ -3,7 +3,7 @@ import { View, StyleSheet } from 'react-native'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { useUnistyles } from 'react-native-unistyles'
 import { CheckCircle2, Clock, XCircle } from 'lucide-react-native'
-import type { FiatIntentDetail, SupportedCurrency } from '@tenda/shared'
+import type { FiatIntentDetail } from '@tenda/shared'
 import { ScreenContainer, Text, Header, Button, ConfirmDialog, showToast } from '@/components/ui'
 import { LoadingScreen } from '@/components/feedback/LoadingScreen'
 import { api } from '@/api/client'
@@ -114,7 +114,7 @@ export default function FiatIntentScreen() {
                 figure on the page a reader watches their money settle on. Same
                 defect as #29 — money formatted by hand rather than through the
                 shared helper. */}
-            {formatFiat(Number(intent.fiat_amount), intent.fiat_currency as SupportedCurrency)} ·{' '}
+            {formatFiat(Number(intent.fiat_amount), intent.fiat_currency)} ·{' '}
             {intent.provider}
           </Text>
         </View>

@@ -24,7 +24,6 @@ import {
   formatPaymentWindow,
   formatRate,
   type ExchangeDetail,
-  type SupportedCurrency,
 } from '@tenda/shared'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { useEscrowFee } from '@/hooks/escrow/useEscrowFee'
@@ -50,7 +49,7 @@ interface TermRow {
 }
 
 export function OfferTerms({ offer }: { offer: ExchangeDetail }) {
-  const currency = offer.fiat_currency as SupportedCurrency
+  const currency = offer.fiat_currency
   const symbol = ASSET_META[offer.asset]?.symbol ?? offer.asset
   const { feeRaw, feePct } = useEscrowFee(offer.is_seeker, offer.amount_raw)
 

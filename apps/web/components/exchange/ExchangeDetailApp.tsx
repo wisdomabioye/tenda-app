@@ -27,7 +27,6 @@ import {
   type ActiveSheet,
   type EscrowTxType,
   type ExchangeDetail,
-  type SupportedCurrency,
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { useEscrowActions, type ProofFile } from '@/hooks/escrow/useEscrowActions'
@@ -103,7 +102,7 @@ export function ExchangeDetailApp({
     }
   }
 
-  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
+  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency)
   const perspective: OfferPerspective = isCreator ? 'seller' : 'buyer'
   const clock = offerClockFor(offer, perspective)
 

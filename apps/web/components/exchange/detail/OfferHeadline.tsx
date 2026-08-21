@@ -11,14 +11,11 @@
 import {
   formatRate,
   type ExchangeDetail,
-  type SupportedCurrency,
 } from '@tenda/shared'
 import { ExchangeStatusBadge } from '@/components/escrow/StatusBadge'
 import { OFFER_DETAIL_COPY } from './copy'
 
 export function OfferHeadline({ offer }: { offer: ExchangeDetail }) {
-  const currency = offer.fiat_currency as SupportedCurrency
-
   return (
     <header>
       <div className="flex flex-wrap items-center gap-3">
@@ -33,7 +30,7 @@ export function OfferHeadline({ offer }: { offer: ExchangeDetail }) {
 
       <h1 className="mt-5 flex flex-wrap items-end gap-3">
         <span className="font-numeric text-[44px] font-bold leading-[48px] tracking-[-1.2px] text-content-primary">
-          {formatRate(Number(offer.rate), currency)}
+          {formatRate(Number(offer.rate), offer.fiat_currency)}
         </span>
         <span className="pb-1.5 font-numeric text-[15px] leading-[22px] text-content-tertiary">
           {OFFER_DETAIL_COPY.rateUnit(offer.fiat_currency, offer.asset)}

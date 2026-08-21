@@ -23,7 +23,6 @@ import {
   formatAssetAmount,
   formatFiat,
   type ExchangeDetail,
-  type SupportedCurrency,
 } from '@tenda/shared'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { useEscrowFee } from '@/hooks/escrow/useEscrowFee'
@@ -47,9 +46,8 @@ export function OfferActionAside({
   /** The transition set for this reader and this status. */
   children: ReactNode
 }) {
-  const currency = offer.fiat_currency as SupportedCurrency
   const { netRaw } = useEscrowFee(offer.is_seeker, offer.amount_raw)
-  const fiat = formatFiat(Number(offer.fiat_amount), currency)
+  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency)
   const gross = formatAssetAmount(offer.amount_raw, offer.asset)
   const net = netRaw === null ? null : formatAssetAmount(netRaw.toString(), offer.asset)
 

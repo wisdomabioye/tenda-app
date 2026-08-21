@@ -10,7 +10,7 @@
  * can work.
  */
 import Link from 'next/link'
-import { P2P_PROVIDER_ID, parseUnits, type SupportedCurrency } from '@tenda/shared'
+import { P2P_PROVIDER_ID, parseUnits } from '@tenda/shared'
 import { AlertPanel, ALERT_ACTION_CLASS } from '@/components/ui/AlertPanel'
 import { Button } from '@/components/ui/Button'
 import { FeeSummary } from '@/components/shared/FeeSummary'
@@ -80,7 +80,7 @@ export function InstantSellPanel({
             <QuoteSummary
               quote={quote}
               expiresIn={expiresIn}
-              currency={currency as SupportedCurrency}
+              currency={currency}
               assetSymbol={option?.symbol ?? ''}
               onRefresh={refetch}
             />

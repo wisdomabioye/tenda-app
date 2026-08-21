@@ -22,12 +22,12 @@ export function CurrencySheet({
   return (
     <BottomSheet title="Display currency" visible={visible} onClose={onClose}>
       {SUPPORTED_CURRENCIES.map((c) => {
-        const meta = CURRENCY_META[c as SupportedCurrency]
+        const meta = CURRENCY_META[c]
         const selected = currency === c
         return (
           <Pressable
             key={c}
-            onPress={() => onSelect(c as SupportedCurrency)}
+            onPress={() => onSelect(c)}
             style={({ pressed }) => [s.ccyRow, pressed && { backgroundColor: theme.colors.surface.pressed }]}
           >
             <View style={[s.ccyFlag, { backgroundColor: theme.colors.surface.inset }]}>

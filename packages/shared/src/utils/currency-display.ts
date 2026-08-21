@@ -100,11 +100,15 @@ export function formatPaymentWindow(seconds: number): string {
  * The three formatters below take a `string`, not a `SupportedCurrency`,
  * because that is what their callers actually hold. `fiat_currency` is
  * `varchar(3)` in the database with no CHECK constraint and is typed `string`
- * all the way out to the wire, and thirteen call sites across web and mobile
- * cast it to `SupportedCurrency` (#95 removes the ones these three no longer
- * require). Before this they threw a TypeError on anything unlisted —
- * destructuring `locale` off `undefined` — which is a blank screen where a
- * price should be.
+ * all the way out to the wire. Sixteen call sites across web and mobile used to
+ * assert it back to `SupportedCurrency`; #95 deleted every one, and the
+ * compiler accepted their absence with no other edit, which is the evidence
+ * that they bought nothing once these three widened. Three casts remain, all on
+ * the server and none of them a read these formatters serve: the two route
+ * guards that validate an incoming currency, and one rate-map lookup that
+ * checks for `undefined` on the next line. Before this the formatters threw a
+ * TypeError on anything unlisted — destructuring `locale` off `undefined` —
+ * which is a blank screen where a price should be.
  *
  * No NEW row can carry a bad one: exactly two routes accept a fiat_currency
  * from a request body — exchange offer creation and fiat quote creation — and

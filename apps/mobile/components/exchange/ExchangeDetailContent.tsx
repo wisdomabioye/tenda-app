@@ -18,7 +18,7 @@ import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
 import { formatAssetAmount, formatFiat, checkEscrowTransitionApplied } from '@tenda/shared'
-import type { EscrowTxType, ExchangeDetail, SupportedCurrency } from '@tenda/shared'
+import type { EscrowTxType, ExchangeDetail } from '@tenda/shared'
 import { api } from '@/api/client'
 
 /**
@@ -83,7 +83,7 @@ export function ExchangeDetailContent({
       case 'decline': return void actions.decline()
     }
   }
-  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency as SupportedCurrency)
+  const fiat = formatFiat(Number(offer.fiat_amount), offer.fiat_currency)
   const contextTitle = `Trade: ${offer.fiat_amount} ${offer.fiat_currency}`
 
   async function handleRefresh() {

@@ -7,7 +7,7 @@ import { formatDuration, LOCATIONS, ASSET_META, amountRawToDisplay, formatFiat }
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
-import type { GigDetail, CountryCode, SupportedCurrency, EscrowStatus } from '@tenda/shared'
+import type { GigDetail, CountryCode, EscrowStatus } from '@tenda/shared'
 import type { LucideIcon } from 'lucide-react-native'
 
 /**
@@ -43,7 +43,7 @@ interface Row {
 export function GigMetaInfo({ gig, deadlineLbl }: Props) {
   const { theme } = useUnistyles()
   const rates = useExchangeRateStore((s) => s.rates)
-  const currency = useSettingsStore((s) => s.currency) as SupportedCurrency
+  const currency = useSettingsStore((s) => s.currency)
   const rate = rates?.[currency] ?? null
 
   const assetMeta = ASSET_META[gig.asset]

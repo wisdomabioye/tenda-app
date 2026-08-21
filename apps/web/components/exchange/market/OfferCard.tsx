@@ -30,7 +30,6 @@ import {
   formatFullName,
   formatRate,
   type ExchangeSummary,
-  type SupportedCurrency,
 } from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
 import { Eyebrow } from '@/components/ui/Eyebrow'
@@ -48,7 +47,7 @@ export const OFFER_CARD_COPY = {
 } as const
 
 export function OfferCard({ offer }: { offer: ExchangeSummary }) {
-  const currency = offer.fiat_currency as SupportedCurrency
+  const currency = offer.fiat_currency
   const fiat = formatFiat(Number(offer.fiat_amount), currency)
   // A RATE, not an amount: `formatFiat` would round 15.49 and 15.40 to the
   // same "GH₵15" in the column this card exists to be compared down.
