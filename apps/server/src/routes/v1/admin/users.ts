@@ -45,8 +45,16 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
 
     if (search && search.trim().length > 0) {
       const pattern = `%${search.trim()}%`
-      // Wallets are multi-row in v2, match any linked address (the
-      // text_pattern_ops index covers prefix searches, S5.7/A6).
+      // Wallets are multi-row in v2, so match any linked address — correlated
+      // to its owner, which admin-user-list.test.ts pins in both directions.
+      //
+      // THIS IS A SEQ SCAN over user_wallets, and the note that used to sit
+      // here claimed otherwise: it said the text_pattern_ops index covered the
+      // search. That index serves LIKE 'abc%', and this pattern is neither
+      // prefix-only nor case-sensitive. MEASURED on 3k rows with fresh
+      // statistics (docs/query_plan_measurements.md): LIKE 'SoWabc%' → Index
+      // Only Scan, ILIKE '%abc%' → Seq Scan, and even ILIKE 'SoWabc%' → Seq
+      // Scan. What to do about it is #118.
       conditions.push(
         or(
           ilike(users.first_name, pattern),
