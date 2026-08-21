@@ -85,7 +85,15 @@ test('every file beside a routes index.ts is reachable from it', () => {
   for (const dir of dirs) {
     const files = new Set(
       readdirSync(dir, { withFileTypes: true })
-        .filter((e) => e.isFile() && e.name.endsWith('.ts') && e.name !== 'index.ts')
+        // `.d.ts` is excluded rather than tolerated: it would arrive as a stem
+        // called `foo.d` and demand an import specifier nobody would write.
+        // None exists under src/routes today; this keeps a future one from
+        // being reported as an orphan, which is the false alarm the header
+        // above says trains people to delete the guard.
+        .filter(
+          (e) =>
+            e.isFile() && e.name.endsWith('.ts') && !e.name.endsWith('.d.ts') && e.name !== 'index.ts',
+        )
         .map((e) => e.name.slice(0, -3)),
     )
     if (files.size === 0) continue
