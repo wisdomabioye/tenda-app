@@ -8,7 +8,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
 import type { PaginatedResponse } from '@tenda/shared'
 import { usePaginatedList } from '@/hooks/pagination/usePaginatedList'
-import { deferred, keyOf, page, rows, type Row } from '../__fixtures__/list-fixtures'
+import { keyOf, page, rows, type Row } from '../__fixtures__/list-fixtures'
+import { deferred } from '../../../test/deferred'
 
 describe('first load', () => {
   it('loads page 0 and exposes the SERVER total, not the loaded count', async () => {

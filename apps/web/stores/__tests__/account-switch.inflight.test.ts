@@ -47,14 +47,7 @@ import { useNotificationsStore } from '@/stores/notifications.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 import { JWT_TOKEN_KEY } from '@/lib/storage'
 import { makeUser } from '../../test/factories/user'
-
-/** A promise this test resolves by hand, so "in flight" is a real state. */
-function deferred<T>() {
-  let resolve!: (value: T) => void
-  let reject!: (reason: Error) => void
-  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej })
-  return { promise, resolve, reject }
-}
+import { deferred } from '../../test/deferred'
 
 const authApi = vi.mocked(api.auth)
 

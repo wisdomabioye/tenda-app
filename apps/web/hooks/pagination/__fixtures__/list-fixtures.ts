@@ -22,14 +22,3 @@ export function page(data: Row[], total: number, offset = 0): PaginatedResponse<
 export function cursorPage(data: Row[], next_cursor: string | null): PaginatedResponse<Row> {
   return { data, total: 4, limit: 2, offset: 0, next_cursor }
 }
-
-/** A promise whose resolution the test controls, for racing scenarios. */
-export function deferred<T>() {
-  let resolve!: (value: T) => void
-  let reject!: (reason: Error) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return { promise, resolve, reject }
-}

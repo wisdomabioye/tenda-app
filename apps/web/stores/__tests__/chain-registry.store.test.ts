@@ -14,6 +14,7 @@ vi.mock('@/api/client', () => ({
 }))
 
 import { selectChainById, useChainRegistryStore } from '@/stores/chain-registry.store'
+import { deferred } from '../../test/deferred'
 
 const CHAIN: ChainRegistryEntry = {
   id: 'solana:devnet',
@@ -21,16 +22,6 @@ const CHAIN: ChainRegistryEntry = {
   display_name: 'Solana Devnet',
   escrow_address: 'PROGRAM',
   assets: [],
-}
-
-function deferred<T>() {
-  let resolve!: (v: T) => void
-  let reject!: (e: Error) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return { promise, resolve, reject }
 }
 
 beforeEach(() => {

@@ -10,7 +10,8 @@ import { render, renderHook, act, waitFor } from '@testing-library/react'
 import { createQueryCache, createQueryKey, readPage, type PaginatedResponse } from '@tenda/shared'
 import { usePaginatedList } from '@/hooks/pagination/usePaginatedList'
 import { clearAccountState } from '@/lib/account-state'
-import { deferred, keyOf, page, rows, type Row } from '../__fixtures__/list-fixtures'
+import { keyOf, page, rows, type Row } from '../__fixtures__/list-fixtures'
+import { deferred } from '../../../test/deferred'
 
 describe('cacheQueries', () => {
   it('is off by default: revisiting a query refetches with a skeleton-raising load', async () => {
