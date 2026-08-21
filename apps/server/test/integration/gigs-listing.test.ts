@@ -67,13 +67,25 @@ test('GET /v1/gigs: amount-range filters validate and apply', { skip }, async ()
   await openGig(app, { amount_raw: '9000000' })
   const ranged = await app.inject({ method: 'GET', url: '/v1/gigs?min_amount_raw=5000000' })
   assert.strictEqual(ranged.json().total, 1)
-  const malformed = await app.inject({ method: 'GET', url: '/v1/gigs?min_amount_raw=1.5' })
-  assert.strictEqual(malformed.statusCode, 400)
+  // Each refusal names its own field. Status alone cannot tell these apart —
+  // every filter guard on this route answers 400 — and the MAX case had no test
+  // at all until #103: every case here reached for `min` and supplied a valid
+  // `max` beside it, so the max guard's throw had never run on either route
+  // that shares it.
+  const malformedMin = await app.inject({ method: 'GET', url: '/v1/gigs?min_amount_raw=1.5' })
+  assert.strictEqual(malformedMin.statusCode, 400)
+  assert.match(malformedMin.json().message, /min_amount_raw must be a decimal integer/)
+
+  const malformedMax = await app.inject({ method: 'GET', url: '/v1/gigs?max_amount_raw=1.5' })
+  assert.strictEqual(malformedMax.statusCode, 400)
+  assert.match(malformedMax.json().message, /max_amount_raw must be a decimal integer/)
+
   const inverted = await app.inject({
     method: 'GET',
     url: '/v1/gigs?min_amount_raw=9&max_amount_raw=1',
   })
   assert.strictEqual(inverted.statusCode, 400)
+  assert.match(inverted.json().message, /min_amount_raw must be ≤ max_amount_raw/)
 })
 
 test('GET /v1/gigs: full-text q matches the title', { skip }, async () => {

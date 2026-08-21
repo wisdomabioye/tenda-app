@@ -53,12 +53,13 @@ function offerBody(escrow_id: string, overrides: Record<string, unknown> = {}) {
  * payout_account_id, so ANY request that gets past the rails falls through to
  * "payout_account_id is required" — which is also a 400. Asserting the status
  * alone therefore passes whether or not the rail fired, and that is MEASURED
- * rather than suspected. Six cases call this helper, covering four rails in
- * routes/v1/exchange; each was mutated on its own and each left all 28 cases in
- * this file green: the currency guard disabled outright (#97), and five clauses
- * deleted one at a time (#98) — fiat_amount <= 0, rate <= 0, the window
- * minimum, and the two upper bounds. The message is what ties a case to the
- * rail it names.
+ * rather than suspected. NINE cases call this helper, covering five of the
+ * route's body guards. Eight mutations were run one at a time and each left
+ * every other case in this file green: the currency guard disabled outright
+ * (#97); five clauses deleted one by one (#98) — fiat_amount <= 0, rate <= 0,
+ * the window minimum, and the two upper bounds; and (#100) the escrow_id guard
+ * replaced by a fallback id, and the omitted-currency `?? ''` arm defaulted to
+ * a valid code. The message is what ties a case to the rail it names.
  *
  * `offerBody` is deliberately NOT given a payout account instead. That would
  * make a validation request fail only for the reason it names, but it is called
@@ -88,6 +89,26 @@ test('POST /v1/exchange: validation — amount, rate, currency, window', { skip 
   await assertRail(post, escrow.id, { rate: 0 }, /^rate must be/)
   await assertRail(post, escrow.id, { fiat_currency: 'XXX' }, /fiat_currency/)
   await assertRail(post, escrow.id, { payment_window_seconds: 60 }, /payment_window_seconds/)
+})
+
+test('POST /v1/exchange: the body rails — a missing escrow_id and a missing currency', { skip }, async () => {
+  // The two refusals #100 found with no test at all. Both are the FIRST thing
+  // their value meets, so neither can be reached by the cases above:
+  //   - escrow_id guards before any other field is read;
+  //   - fiat_currency is `String(body.fiat_currency ?? '').toUpperCase()`, so an
+  //     OMITTED currency takes the `?? ''` arm and lands on the same vocabulary
+  //     refusal an unlisted code gets. That arm was untaken — every existing
+  //     case sends a currency, valid or not.
+  const app = getApp()
+  const u = await createUser(app)
+  const escrow = await createEscrow(app, { creator_id: u.row.id, kind: 'exchange' })
+  const post = (payload: Record<string, unknown>) =>
+    app.inject({ method: 'POST', url: '/v1/exchange', headers: authHeader(u.token), payload })
+
+  // `undefined` is dropped by JSON serialisation, so the key is absent on the wire.
+  await assertRail(post, escrow.id, { escrow_id: undefined }, /escrow_id is required/)
+  await assertRail(post, escrow.id, { escrow_id: '' }, /escrow_id is required/)
+  await assertRail(post, escrow.id, { fiat_currency: undefined }, /fiat_currency must be one of/)
 })
 
 test('POST /v1/exchange: 403 non-creator, 409 gig escrow, 409 published', { skip }, async () => {

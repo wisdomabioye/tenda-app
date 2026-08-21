@@ -12,7 +12,7 @@
  */
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
-import { eq, and, gt, gte, isNull, lte, or, desc, sql, type SQL } from 'drizzle-orm'
+import { eq, and, gt, isNull, or, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, exchange_details, users } from '@tenda/shared/db/schema'
 import {
   ErrorCode,
@@ -26,13 +26,13 @@ import {
   EXCHANGE_MAX_RATE,
 } from '@tenda/shared'
 import type { ExchangeContract, ApiError } from '@tenda/shared'
-import { isAmountRaw } from '@server/chains/types'
 import { AppError } from '@server/lib/errors'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { assertExchangeAsset } from '@server/lib/escrow'
 import { drizzleBankAccountStore } from '@server/features/fiat-rails'
 import { EXCHANGE_SUMMARY_COLS, toExchangeSummary } from '@server/lib/exchange-read'
 import { chainFilterCondition } from '@server/lib/chain-filter'
+import { amountWindowConditions } from '@server/lib/amount-window'
 
 type ListRoute = ExchangeContract['list']
 type CreateRoute = ExchangeContract['create']
@@ -64,21 +64,9 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     const chainCondition = chainFilterCondition(fastify.chains, chain_id)
     if (chainCondition !== null) conditions.push(chainCondition)
 
-    if (min_amount_raw !== undefined && !isAmountRaw(min_amount_raw)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be a decimal integer string')
-    }
-    if (max_amount_raw !== undefined && !isAmountRaw(max_amount_raw)) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'max_amount_raw must be a decimal integer string')
-    }
-    if (
-      min_amount_raw !== undefined &&
-      max_amount_raw !== undefined &&
-      BigInt(min_amount_raw) > BigInt(max_amount_raw)
-    ) {
-      throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be ≤ max_amount_raw')
-    }
-    if (min_amount_raw !== undefined) conditions.push(gte(escrows.amount_raw, min_amount_raw))
-    if (max_amount_raw !== undefined) conditions.push(lte(escrows.amount_raw, max_amount_raw))
+    // Same rule the gigs feed runs, and it stays HERE in the sequence: after
+    // chain_id, so an unregistered chain is still the message a caller gets.
+    conditions.push(...amountWindowConditions({ min_amount_raw, max_amount_raw }))
 
     const where = and(...conditions)
 

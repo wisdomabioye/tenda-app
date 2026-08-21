@@ -22,7 +22,7 @@
  * `queryConditions`.
  */
 
-import { eq, gte, lte, asc, desc, sql, type SQL } from 'drizzle-orm'
+import { eq, asc, desc, sql, type SQL } from 'drizzle-orm'
 import { escrows, escrowStatusEnum, gig_details } from '@tenda/shared/db/schema'
 import {
   isValidLatitude,
@@ -32,10 +32,10 @@ import {
   ErrorCode,
 } from '@tenda/shared'
 import type { GigsContract, GigCategory, EscrowStatus } from '@tenda/shared'
-import { isAmountRaw } from '@server/chains/types'
 import { AppError } from '@server/lib/errors'
 import { gigSearchCondition, gigSearchRank } from '@server/lib/gig-search'
 import { chainFilterCondition, type ChainFilterRegistry } from '@server/lib/chain-filter'
+import { amountWindowConditions } from '@server/lib/amount-window'
 
 type ListQuery = GigsContract['list']['query']
 
@@ -106,28 +106,6 @@ export function attributeConditions(query: ListQuery): SQL[] {
 /** Full-text search over title + description (S5.3), when `q` is non-blank. */
 export function searchCondition(q: string | undefined): SQL | null {
   return q !== undefined && q.trim() !== '' ? gigSearchCondition(q) : null
-}
-
-/**
- * The amount window. Both bounds are decimal integer STRINGS (amount_raw is
- * numeric(78,0)), so the ordering check compares BigInts — a lexicographic
- * string compare would call '9' greater than '10'.
- */
-export function amountConditions(query: ListQuery): SQL[] {
-  const { min_amount_raw, max_amount_raw } = query
-  if (min_amount_raw !== undefined && !isAmountRaw(min_amount_raw)) {
-    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be a decimal integer string')
-  }
-  if (max_amount_raw !== undefined && !isAmountRaw(max_amount_raw)) {
-    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'max_amount_raw must be a decimal integer string')
-  }
-  if (min_amount_raw !== undefined && max_amount_raw !== undefined && BigInt(min_amount_raw) > BigInt(max_amount_raw)) {
-    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'min_amount_raw must be ≤ max_amount_raw')
-  }
-  const conditions: SQL[] = []
-  if (min_amount_raw !== undefined) conditions.push(gte(escrows.amount_raw, min_amount_raw))
-  if (max_amount_raw !== undefined) conditions.push(lte(escrows.amount_raw, max_amount_raw))
-  return conditions
 }
 
 /**
@@ -224,7 +202,7 @@ export function queryConditions(query: ListQuery, chains: ChainFilterRegistry): 
   if (chain !== null) conditions.push(chain)
   const search = searchCondition(query.q)
   if (search !== null) conditions.push(search)
-  conditions.push(...amountConditions(query))
+  conditions.push(...amountWindowConditions(query))
   const proximity = proximityCondition(query)
   if (proximity !== null) conditions.push(proximity)
   return conditions
