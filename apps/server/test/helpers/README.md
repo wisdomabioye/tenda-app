@@ -8,10 +8,29 @@ Shared infrastructure for the unit + integration suites (full c8 run:
 | `test-app/` | The HTTP harness, imported as `helpers/test-app` (barrel — the path is unchanged since #44 split the old 511-line module). `env.ts` process.env stubs, imported first because the order is load-bearing · `fake-chain.ts` the fake registry and its sentinels · `app.ts` `useTestApp()`/`buildTestApp()`, cross-process suite lock, `resetDb()`, `seedAltChain()`, `setPlatformConfig()` · `rows.ts` DB-backed builders (`createUser()`, `createEscrow()`, `makeTransactable()` for the 9D gate, …) + `authHeader()` |
 | `escrow-states.ts` | `partiedEscrow()`, `openGig()`, request-body builders shared by the `test/integration/escrows-*` route-matrix suites |
 | `fixtures.ts` | `userFixture()`, `walletFixture()`, `escrowFixture()`, … typed object factories |
+| `completed-work.ts` | `completedWork()`, `completedStat()`, `workedGig()` — the fixtures and the 200-asserting call the two `completed-work-*` suites share, so the pair cannot build its rows two different ways |
 | `solana.ts` | `fakeSolanaRpc()`, escrow/platform account encoders + event-log builders for verify-tx tests |
+| `stub-rpc.ts` | `startStubRpc()` — a throwaway JSON-RPC node on a REAL socket, for asserting what the server puts on the wire rather than what a mocked transport was told; `withEvmChainEnv()` points one chain's secrets at it and restores them |
+| `chains-boot.ts` | `withBootedChainsApp()`, `seedBootChain()`, `withNoChainsConfigured()` — an app carrying the REAL chains plugin, which no route suite has (the harness substitutes a fake registry), plus the no-chain environment its boot refusal needs |
 | `auth-message.ts` | `issueNonce()` + `buildAuthMessage()` — wallet-auth flow helpers |
 | `admin-auth.ts` | `issueAdminCode()` — admin email-OTP login helper |
+| `oauth-env.ts` | `GOOGLE_TEST_AUDIENCE` — a side-effect module that configures the Google OAuth audience; **import it first**, since config and the strategy registry both memoise on first use and cannot be influenced afterwards |
+| `queue-double.ts` | `queueDouble()`, `notificationsOf()`, `alertsOf()` — the recorder that answers "what got enqueued?", typed as a union over `JobName` so a producer writing to the wrong queue fails to compile |
+| `side-effects.ts` | `installCapture()`, `interceptQueue()` — the same question against a LIVE fastify instance, adding the WS seam; between them, everything by which news reaches a user leaves this process |
+| `fanout.ts` | `drainSubscriberFanout()` — runs the captured expansion jobs as a worker would, so a "who hears about this gig?" test can cross the queue hop `fanOutEscrowEvent` stops at |
+| `republish-event.ts` | `republishEvent()` — the `EscrowRepublishEvent` verify-tx hands the fan-out, built from the WIRE event so `wire_event` and `internal_event` cannot disagree |
+| `alert-fixtures.ts` | `disputeRaisedAlert()` — the fat, post-resolver alert a CHANNEL renders, as opposed to the thin `AlertRef` that rides the queue |
+| `alert-log.ts` | `alertLogSpy()` — the `AlertLogger` double; records info AND warn, because "warned and did not throw" is what most of the alerts tests actually assert |
+| `alert-channel-contract.ts` | `testChannelContract()` — REGISTERS the tests every alert channel must pass, one named test per property, so a failure names which property and which channel |
+| `fetch-stub.ts` | `stubFetch()`, `stubFetchRejecting()`, `restoreFetch()`, `stubExpoPush()` — the outbound-HTTP double; returns a REAL `Response`, so no fixture can describe an impossible one like `{ ok: true, status: 500 }` |
+| `source-scan.ts` | `stripComments()` — for the few invariants only a source read can catch; blanks comment bodies while preserving line numbers, so a scan cannot match the prose ABOUT the pattern it hunts |
 | `redis.ts` / `chain.ts` | Type surfaces only — concrete impls live in the suites that need them |
+
+Every file in this directory has a row, and `test/unit/test-helpers-readme.test.ts`
+fails if that stops being true in either direction. That guard exists because the
+cost of an incomplete table here is not a stale doc: a reader who cannot find an
+existing helper writes a second one, which is the failure this directory exists to
+prevent.
 
 The fastify-cli `test/helper.ts` (`build()`) predates these and stays for the
 suites that use it; new helpers extend rather than replace it.
