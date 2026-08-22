@@ -190,6 +190,23 @@ module.exports = [
   // `lib/dispute-send-error.ts` (deleted in 686cb76) were listed here and
   // had been matching nothing since (#58).
   'hooks/useDisputeThread.ts',
+  // The other half of that guard: app.config.ts decides what reaches getEnv,
+  // and a `?? 'development'` default there makes the missing-APP_ENV branch
+  // unreachable. Gated because the coupling is the bug — measured with it
+  // listed and the global thresholds hold (93.19 / 92 / 92.51 / 93.24). The
+  // file itself reads 100 stmts / 66.66 branch / 100 funcs / 100 lines; the two
+  // uncovered branches are unrelated optional-config ternaries — line 3's
+  // EXPO_PUBLIC_API_URL and line 145's GOOGLE_IOS_URL_SCHEME plugin. Neither is
+  // what #128 gated this file for, and neither is worth a fixture that only
+  // exists to colour a line green.
+  'app.config.ts',
+  // Which API host the binary talks to, and the guard that is supposed to shout
+  // when that was never decided. Listed with its first suite in #128 — the
+  // module had none, which is how it came to call an APP_ENV that WAS set "not
+  // set", and how the same conflation survived being ported to web (#127).
+  // Measured with it listed: 100/100/100/100, so it moves the global figures up
+  // rather than down.
+  'lib/env.ts',
   // Build identity. Small, but it is the surface that spent months telling
   // users the app was v1.0.0 when it had never been.
   'lib/app-version.ts',

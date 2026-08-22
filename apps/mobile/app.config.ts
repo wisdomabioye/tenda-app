@@ -78,7 +78,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     favicon: './assets/images/favicon.png',
   },
   extra: {
-    APP_ENV: process.env.APP_ENV ?? 'development',
+    // NO `?? 'development'` DEFAULT (#128). lib/env.ts is the only reader, and
+    // its whole job is telling "nobody set this" apart from "somebody chose
+    // development" — a production binary that silently talks to the dev API is
+    // the failure it exists to catch. Defaulting here collapsed those two into
+    // one value before the guard ever saw them, so the guard could only be
+    // right by accident. Leave it undefined when unset and let env.ts decide.
+    APP_ENV: process.env.APP_ENV,
     eas: {
       projectId: '9428bdad-8f0c-4a7d-b0cb-20e6a3fc63de'
     }
