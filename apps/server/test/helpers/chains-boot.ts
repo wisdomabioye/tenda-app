@@ -15,6 +15,7 @@ import './test-app/env'
 import Fastify, { type FastifyInstance } from 'fastify'
 import { eq } from 'drizzle-orm'
 import { chains as chainsTable } from '@tenda/shared/db/schema'
+import { resetChainSecretsCache } from '@server/chains/secrets'
 import dbPlugin from '@server/plugins/db'
 import chainsPlugin from '@server/plugins/chains'
 import { seedAltChain, TEST_CHAIN_ID_ALT } from './test-app'
@@ -58,4 +59,31 @@ export async function seedBootChain(
     .update(chainsTable)
     .set({ treasury_address: args.treasury, escrow_program: args.escrow })
     .where(eq(chainsTable.id, TEST_CHAIN_ID_ALT))
+}
+
+/**
+ * Run `body` with NO chain configured at all, then restore the environment.
+ *
+ * The mirror of `withEvmChainEnv`: that one points the loader at exactly one
+ * chain, this one points it at none, which is the state the plugin's
+ * "no chains configured" boot refusal exists for. Restoring matters as much as
+ * clearing — `getChainSecrets()` caches and the loader reads process.env, so a
+ * leaked CHAIN_* (or a leaked absence) changes what every later file in this
+ * worker sees.
+ */
+export async function withNoChainsConfigured(body: () => Promise<void>): Promise<void> {
+  const saved = { ...process.env }
+  for (const key of Object.keys(process.env)) {
+    if (key.startsWith('CHAIN_')) delete process.env[key]
+  }
+  resetChainSecretsCache()
+  try {
+    await body()
+  } finally {
+    for (const key of Object.keys(process.env)) {
+      if (key.startsWith('CHAIN_')) delete process.env[key]
+    }
+    Object.assign(process.env, saved)
+    resetChainSecretsCache()
+  }
 }
