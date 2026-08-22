@@ -168,11 +168,12 @@ const NON_CONTRACT_PATHS = [
   '/v1/auth/admin/send-email-otp',
   '/v1/auth/admin/verify-email-otp',
 
-  // Served, and no caller found in web, mobile or admin — the announcements
-  // feed reaches the clients folded into GET /v1/notifications, and the
-  // per-escrow transaction list has no client route map entry anywhere. Listed
-  // here so the set is complete; whether they should be in `apiRoutes`, or gone,
-  // is #120 rather than a decision this file makes.
+  // Served, guarded, tested — and called by no client in this repo. Settled in
+  // #120 rather than left open: both are real surfaces answering a question
+  // nothing else answers (a logged-OUT reader's notices; a PARTY's on-chain
+  // history for one escrow), so each keeps its path and says so in its own
+  // header. They stay here rather than moving into `apiRoutes`, which types what
+  // web and mobile actually call.
   '/v1/announcements',
   '/v1/escrows/:id/transactions',
 ] as const
