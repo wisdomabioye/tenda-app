@@ -115,6 +115,18 @@ test.describe('My Gigs as a list column (#17)', () => {
     )
   })
 
+  test('an applied gig opens inside the workspace and keeps its list', async ({ page }) => {
+    await signInToHome(page)
+    await page.goto('/my-gigs?mine=applications')
+    await page.getByRole('link', { name: new RegExp(deliveryGig.title) }).click()
+    await expect(page).toHaveURL(new RegExp(`/my-gigs/${deliveryGig.escrow_id}\\?mine=applications$`))
+    await expect(page.locator('[data-list]')).toBeVisible()
+    await expect(page.locator('[data-detail]')).toContainText(deliveryGig.title)
+    await expect(
+      page.locator('[data-detail]').getByText('Careful work and clear updates.'),
+    ).toBeVisible()
+  })
+
   test('drafts keep the column, and a draft opens the authed view', async ({ page }) => {
     // A STATIC segment needs its own slot entry — `[escrowId]` does not catch
     // `drafts` — so without one the column vanished the moment the reader

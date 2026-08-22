@@ -2,10 +2,9 @@
  * The sticky right column (comp lines 657-681): the money, the way in, and
  * the two sentences that explain why either can be trusted.
  *
- * The figure is `amount_raw` split by shared `splitAssetAmount` — the
- * chain-attested NET. It deliberately does NOT project a fee: on an escrow
- * that already exists the fee has come off, and re-deriving it here would put
- * a second, disagreeing number for the same money on the page.
+ * `amount_raw` is the gross funded amount. The worker projection comes from
+ * the deployment's live fee configuration and the fee tier baked into the
+ * escrow, matching mobile and the settlement contract.
  *
  * The action slot holds `GigDetailApp`, which renders the sign-in CTA for an
  * anonymous reader and swaps in the party-scoped surface once a bearer
@@ -13,13 +12,15 @@
  * component props are SERIALISED into the anonymous HTML.
  */
 import { ShieldCheck } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { chainLabel, splitAssetAmount, type GigDetail } from '@tenda/shared'
 import { Eyebrow } from '@/components/ui'
 import { GigDetailApp } from './GigDetailApp'
+import { GigFeeNote } from './GigFeeNote'
 import { GigSettlementSteps } from './GigSettlementSteps'
 import { GIG_DETAIL_COPY } from './copy'
 
-export function GigEscrowAside({ gig }: { gig: GigDetail }) {
+export function GigEscrowAside({ gig, actions }: { gig: GigDetail; actions?: ReactNode }) {
   const { amount, symbol } = splitAssetAmount(gig.amount_raw, gig.asset)
 
   return (
@@ -36,20 +37,19 @@ export function GigEscrowAside({ gig }: { gig: GigDetail }) {
             {symbol}
           </span>
         </div>
-        <p className="mt-2.5 text-[13px] leading-[18px] text-content-secondary">
-          {GIG_DETAIL_COPY.lockedNote}
-        </p>
+        <GigFeeNote isSeeker={gig.is_seeker} amountRaw={gig.amount_raw} asset={gig.asset} symbol={symbol} />
 
         <div className="my-5 h-px bg-border-subtle" />
 
-        <GigDetailApp
-          initial={{
+        {actions === undefined ? (
+          <GigDetailApp initial={{
             escrow_id: gig.escrow_id,
             status: gig.status,
             is_assigned: gig.is_assigned,
             requires_approval: gig.requires_approval,
-          }}
-        />
+            accept_deadline: gig.accept_deadline,
+          }} />
+        ) : actions}
 
         <div className="mt-5 flex items-start gap-2.5 border-t border-border-subtle pt-5">
           <ShieldCheck

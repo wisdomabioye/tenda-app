@@ -9,6 +9,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GigSummary, MyApplication } from '@tenda/shared'
+import type { PaginatedListState } from '@/hooks/pagination/usePaginatedList'
 import { MyGigsListColumn } from '@/components/gig/my-gigs/MyGigsListColumn'
 import { MY_GIGS_COPY, myGigHref, myGigsHref, myGigsTab } from '@/components/gig/my-gigs/copy'
 import { gigRowSubtitle } from '@/components/gig/my-gigs/row-subtitle'
@@ -27,7 +28,7 @@ vi.mock('next/navigation', () => ({
 }))
 vi.mock('@/hooks/gig/useMyGigs', () => ({ useMyGigs: vi.fn() }))
 
-const listOf = <T,>(items: T[], over: Record<string, unknown> = {}) => ({
+const listOf = <T,>(items: T[], overrides: Partial<PaginatedListState<T>> = {}) => ({
   items,
   total: items.length,
   hasMore: false,
@@ -41,16 +42,16 @@ const listOf = <T,>(items: T[], over: Record<string, unknown> = {}) => ({
   reload: vi.fn(),
   reconcile: vi.fn(),
   applyRealtimeItems: vi.fn(),
-  ...over,
+  ...overrides,
 })
 
-const state = (over: Record<string, unknown> = {}) => {
+const state = (overrides: Partial<ReturnType<typeof useMyGigs>> = {}) => {
   const value = {
     posted: listOf<GigSummary>([deliveryGig]),
     working: listOf<GigSummary>([photoGig]),
     drafts: listOf<GigSummary>([]),
     applications: listOf<MyApplication>([]),
-    ...over,
+    ...overrides,
   }
   vi.mocked(useMyGigs).mockReturnValue(value as ReturnType<typeof useMyGigs>)
   return value
@@ -134,7 +135,7 @@ describe('MyGigsListColumn', () => {
     )
   })
 
-  it('links an APPLICATION at the public gig, not the authed view', () => {
+  it('keeps an application detail inside the workspace', () => {
     // An applicant is not a party yet; /my-gigs/<id> is the view for a gig
     // that is already theirs.
     searchParams = new URLSearchParams('mine=applications')
@@ -154,7 +155,7 @@ describe('MyGigsListColumn', () => {
     render(<MyGigsListColumn />)
     expect(screen.getByRole('link', { name: new RegExp(deliveryGig.title) })).toHaveAttribute(
       'href',
-      `/gig/${deliveryGig.escrow_id}`,
+      `/my-gigs/${deliveryGig.escrow_id}?mine=applications`,
     )
   })
 

@@ -38,7 +38,7 @@ describe('BrandMark', () => {
 
   it('uses the official compact asset on logo-only surfaces', () => {
     render(<BrandTile size={56} />)
-    expect(screen.getByRole('img', { name: APP_INFO.name })).toHaveAttribute('src', '/logo.png')
+    expect(screen.getByRole('img', { name: APP_INFO.name })).toHaveAttribute('src', '/logo_dark.png')
     expect(screen.queryByText(APP_INFO.name.charAt(0))).not.toBeInTheDocument()
   })
 
@@ -78,7 +78,9 @@ describe('SiteHeader', () => {
     // screen — never Support, and never the way in. The e2e suite measures the
     // overflow itself; this pins WHICH link the rule picks.
     render(<SiteHeader />)
-    const brandHref = screen.getByRole('link', { name: /Tenda/ }).getAttribute('href')
+    const brandLinks = screen.getAllByRole('link', { name: /Tenda/ })
+    expect(brandLinks).toHaveLength(2)
+    const brandHref = brandLinks[0].getAttribute('href')
     const browse = screen.getByRole('link', { name: 'Browse gigs' })
     expect(browse).toHaveAttribute('href', brandHref)
     expect(browse.className).toContain('hidden')

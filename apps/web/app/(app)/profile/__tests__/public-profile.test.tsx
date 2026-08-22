@@ -21,8 +21,9 @@ const { getMock, reviewsMock, completedWorkMock } = vi.hoisted(() => ({
 vi.mock('@/api/client', () => ({
   api: {
     users: {
-      get: (...a: unknown[]) => getMock(...a),
-      reviews: (...a: unknown[]) => reviewsMock(...a),
+      get: (params: { id: string }) => getMock(params),
+      reviews: (params: { id: string }, query: { limit: number; offset: number }) =>
+        reviewsMock(params, query),
       completedWork: (params: { id: string }) => completedWorkMock(params),
     },
   },
@@ -60,7 +61,7 @@ const review = (id: string): Review => ({
   reviewee_id: 'u2',
   score: 5,
   comment: 'Great work',
-  created_at: new Date('2026-01-01T00:00:00Z'),
+  created_at: '2026-01-01T00:00:00Z',
 })
 
 /**

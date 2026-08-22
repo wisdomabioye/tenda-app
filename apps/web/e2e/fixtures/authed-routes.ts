@@ -1,16 +1,8 @@
-/**
- * Every route behind a bearer: the auth handshake, the caller's own account,
- * the party-scoped read of a gig, the transition builders, and the four
- * fixture worlds (chat, notifications, disputes, exchange).
- *
- * Split out of stub-api.ts, which is now the http server and the anonymous
- * public routes. The worlds live HERE because nothing else touches them, and
- * the two `__e2e/reset-*` control routes that restore them are in this file
- * for the same reason.
- */
+/** Bearer-protected API fixtures and their isolated mutable test worlds. */
 import type {
   ChallengeBody,
   MeResponse,
+  MyApplication,
   PaginatedResponse,
   UpdateMeInput,
   UserEscrowTransaction,
@@ -29,8 +21,6 @@ import { handleFiat, resetFiatWorld } from './fiat'
 import { handleReviews } from './reviews'
 import { handleCompletedWork } from './completed-work'
 import { errorEnvelope, json, type StubResponse } from './reply'
-
-
 const world = createAuthWorld()
 const chatWorld = createChatWorld()
 const notificationsWorld = createNotificationsWorld()
@@ -80,7 +70,6 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
   if (/^\/v1\/users\/[^/]+\/transactions\/summary$/.test(url.pathname) && method === 'GET') {
     const user = userForBearer(world, authorization)
     if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
-    // Typed against the wire so the stub cannot drift from the contract.
     const summary: UserTransactionsSummary = {
       earned_raw: '80000000',
       spent_raw: '30000000',
@@ -122,6 +111,23 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
       offset: 0,
     }
     return json(page)
+  }
+  if (url.pathname === '/v1/applications' && method === 'GET') {
+    const user = userForBearer(world, authorization)
+    if (user === null) return errorEnvelope(401, 'Unauthorized', 'Invalid or missing token', 'UNAUTHORIZED')
+    const row: MyApplication = {
+      application: {
+        id: 'application-1',
+        escrow_id: deliveryGigDetail.escrow_id,
+        applicant_id: user.id,
+        message: 'I can start today.',
+        status: 'open',
+        expires_at: '2026-09-01T00:00:00Z',
+        created_at: '2026-08-20T00:00:00Z',
+      },
+      gig: deliveryGigDetail,
+    }
+    return json({ data: [row], total: 1, limit: 20, offset: 0 } satisfies PaginatedResponse<MyApplication>)
   }
   // Detail flow (S4.4): the bearer read of the SAME endpoint the public page
   // SSRs anonymously — a signed-in reader gets the party-scoped half. The

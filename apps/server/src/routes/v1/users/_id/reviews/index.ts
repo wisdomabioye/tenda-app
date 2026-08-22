@@ -45,7 +45,10 @@ const userReviews: FastifyPluginAsync = async (fastify) => {
     ])
 
     return {
-      data,
+      data: data.map((review) => ({
+        ...review,
+        created_at: review.created_at.toISOString(),
+      })),
       total:  countResult[0].count,
       limit:  safeLimit,
       offset: safeOffset,

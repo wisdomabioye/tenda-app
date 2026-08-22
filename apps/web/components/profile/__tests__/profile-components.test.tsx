@@ -28,7 +28,7 @@ const REVIEW: Review = {
   reviewee_id: 'me',
   score: 4,
   comment: 'Great to work with',
-  created_at: new Date('2026-08-15T10:00:00.000Z'),
+  created_at: '2026-08-15T10:00:00.000Z',
 }
 
 beforeEach(() => {

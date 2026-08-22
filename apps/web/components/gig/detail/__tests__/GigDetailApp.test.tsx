@@ -6,6 +6,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import type { GigDetail } from '@tenda/shared'
+import type { ToastType } from '@/components/ui/Toast'
 
 const { authState, gigsState, configState, actionsState, capturedActionsArgs, toastMock, routerPush } = vi.hoisted(() => ({
   authState: {
@@ -42,12 +43,14 @@ const { authState, gigsState, configState, actionsState, capturedActionsArgs, to
     dispute: vi.fn(),
   },
   capturedActionsArgs: { current: null as null | { onStale?: () => void } },
-  toastMock: vi.fn(),
+  toastMock: vi.fn<(type: ToastType, message: string) => void>(),
   routerPush: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: routerPush }) }))
-vi.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => toastMock(...a) }))
+vi.mock('@/components/ui/Toast', () => ({
+  showToast: (...args: Parameters<typeof toastMock>) => toastMock(...args),
+}))
 // The monitor's own confirm pipeline is unit-tested; here only the HUB's
 // response to its exits is under test, so it is reduced to its two exits.
 vi.mock('@/components/escrow/TransactionMonitor', () => ({
@@ -59,14 +62,14 @@ vi.mock('@/components/escrow/TransactionMonitor', () => ({
   ),
 }))
 vi.mock('@/stores/auth.store', () => ({
-  useAuthStore: (selector: (s: typeof authState) => unknown) => selector(authState),
+  useAuthStore: <T,>(selector: (state: typeof authState) => T): T => selector(authState),
 }))
 vi.mock('@/stores/gigs.store', () => ({
-  useGigsStore: (selector: (s: typeof gigsState) => unknown) => selector(gigsState),
+  useGigsStore: <T,>(selector: (state: typeof gigsState) => T): T => selector(gigsState),
 }))
 vi.mock('@/stores/platform-config.store', () => ({
   usePlatformConfigStore: Object.assign(
-    (selector: (s: typeof configState) => unknown) => selector(configState),
+    <T,>(selector: (state: typeof configState) => T): T => selector(configState),
     { getState: () => ({ ...configState, fetch: vi.fn() }) },
   ),
 }))
@@ -111,6 +114,12 @@ test('anonymous readers keep the sign-in CTA and never trigger a bearer fetch', 
   render(<GigDetailApp initial={gigDetail()} />)
   expect(screen.getByRole('link', { name: 'Sign in to accept' })).toBeInTheDocument()
   expect(gigsState.fetchGigDetail).not.toHaveBeenCalled()
+})
+
+test('an expired open gig does not offer apply or accept', () => {
+  render(<GigDetailApp initial={gigDetail({ accept_deadline: '2020-01-01T00:00:00.000Z' })} />)
+  expect(screen.getByText('Applications and acceptance have closed for this gig.')).toBeInTheDocument()
+  expect(screen.queryByRole('link', { name: /Sign in to (apply|accept)/ })).not.toBeInTheDocument()
 })
 
 test('a session triggers the bearer refetch; the interim renders neither surface', async () => {

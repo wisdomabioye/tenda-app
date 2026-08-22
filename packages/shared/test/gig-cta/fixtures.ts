@@ -54,7 +54,7 @@ export function review(reviewer_id: string, overrides: Partial<Review> = {}): Re
     reviewee_id: reviewer_id === CREATOR_ID ? WORKER_ID : CREATOR_ID,
     score: 5,
     comment: null,
-    created_at: new Date('2026-07-01T00:00:00.000Z'),
+    created_at: '2026-07-01T00:00:00.000Z',
     ...overrides,
   }
 }

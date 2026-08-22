@@ -10,12 +10,12 @@ interface BrandLogoProps {
 }
 
 export function BrandLogo({ full = false, size = 36, priority = false, className }: BrandLogoProps) {
-  const dimensions = full ? { width: 150, height: 40 } : { width: size, height: size }
+  const dimensions = full ? { width: 112, height: 30 } : { width: size, height: size }
   const lightThemeSource = full ? '/logo_full_dark.png' : '/logo_dark.png'
   const darkThemeSource = full ? '/logo_full.png' : '/logo.png'
   return (
     <span
-      className={cn('relative block shrink-0', full && 'h-10 w-[150px]', className)}
+      className={cn('relative block shrink-0', full && 'h-[30px] w-28', className)}
       style={full ? undefined : { width: size, height: size }}
     >
       <Image {...dimensions} src={lightThemeSource} alt={APP_INFO.name} priority={priority || undefined} className="h-full w-full object-contain" data-brand-light />

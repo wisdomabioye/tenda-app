@@ -30,7 +30,7 @@ describe('DetailPane — structure', () => {
     expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
-  it('renders the back affordance with the CSS hook that hides it on wide viewports', () => {
+  it('renders a persistent breadcrumb and back link when a target is given', () => {
     render(
       <DetailPane label="Detail" backHref="/messages" backLabel="Back to messages">
         x
@@ -39,6 +39,7 @@ describe('DetailPane — structure', () => {
     const back = screen.getByRole('link', { name: /Back to messages/ })
     expect(back).toHaveAttribute('href', '/messages')
     expect(back).toHaveAttribute('data-pane-back')
+    expect(screen.getByText('Details')).toBeInTheDocument()
   })
 })
 

@@ -65,14 +65,14 @@ export function DetailPane({
       className="flex min-h-0 min-w-0 flex-col overflow-y-auto bg-surface-background outline-none"
     >
       {backHref !== undefined && (
-        <Link
-          href={backHref}
-          data-pane-back
-          className="sticky top-0 z-10 items-center gap-1 border-b border-border-subtle bg-surface-navbar px-4 py-2.5 text-[13px] font-semibold text-content-secondary backdrop-blur transition-colors duration-(--motion-fast) ease-(--motion-ease-standard) hover:text-content-primary"
-        >
-          <ChevronLeft size={16} aria-hidden />
-          {backLabel}
-        </Link>
+        <div className="sticky top-0 z-10 border-b border-border-subtle bg-surface-navbar px-4 py-2.5 backdrop-blur sm:px-6">
+          <Link href={backHref} data-pane-back className="inline-flex items-center gap-1 text-[13px] font-semibold text-content-secondary transition-colors hover:text-content-primary">
+            <ChevronLeft size={16} aria-hidden />
+            {backLabel}
+          </Link>
+          <span className="mx-2 text-content-tertiary" aria-hidden>/</span>
+          <span className="text-[13px] font-semibold text-content-primary">Details</span>
+        </div>
       )}
       {children}
     </section>

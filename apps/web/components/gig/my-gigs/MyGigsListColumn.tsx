@@ -113,13 +113,11 @@ export function MyGigsListColumn() {
         copy={MY_GIGS_COPY.surface(tab)}
         groups={applicationGroups}
         keyOf={(row) => row.application.id}
-        // The PUBLIC route: an applicant is not a party yet, and /my-gigs/<id>
-        // is the view for a gig that is already yours.
-        hrefOf={(row) => `/gig/${row.gig.escrow_id}`}
-        selectedKey={undefined}
+        hrefOf={(row) => myGigHref(row.gig.escrow_id, tab, null)}
+        selectedKey={openEscrowId ?? undefined}
         renderRow={(row, { active }) => (
           <EscrowRow
-            href={`/gig/${row.gig.escrow_id}`}
+            href={myGigHref(row.gig.escrow_id, tab, null)}
             title={row.gig.title}
             status={row.gig.status}
             category={row.gig.category}

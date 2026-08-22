@@ -8,6 +8,7 @@ import { GigEscrowAside } from '@/components/gig/detail/GigEscrowAside'
 import { GigPosterCard } from '@/components/gig/detail/GigPosterCard'
 import { GigProofList } from '@/components/gig/detail/GigProofList'
 import { GigTerms } from '@/components/gig/detail/GigTerms'
+import { GigReviews } from '@/components/gig/detail/GigReviews'
 import { GigUnavailable } from '@/components/gig/detail/GigUnavailable'
 import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { getGig } from '@/lib/gigs/data'
@@ -95,6 +96,7 @@ export default async function GigDetailPage({ params }: Params) {
           <GigDetailSection title={GIG_DETAIL_COPY.postedBy}>
             <GigPosterCard creator={gig.creator} />
           </GigDetailSection>
+          <GigReviews gig={gig} />
         </article>
 
         <GigEscrowAside gig={gig} />

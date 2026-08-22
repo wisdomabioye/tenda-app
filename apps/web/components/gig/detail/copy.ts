@@ -21,8 +21,9 @@ export const GIG_DETAIL_COPY = {
   noRating: 'No reviews yet',
   ratingCaption: 'out of 5',
   locked: 'Locked in escrow',
-  lockedNote:
-    'Chain-attested net. This is what reaches you on completion — the fee is already taken out.',
+  feePending: 'The worker payout is this funded amount minus the platform fee.',
+  workerReceives: (amount: string, symbol: string, feePct: string | null) =>
+    `Worker receives ${amount} ${symbol}${feePct === null ? '' : ` after the ${feePct}% platform fee`}.`,
   lockedOn: (chain: string) =>
     `Funds were locked on ${chain} before this gig was listed. Neither side can move them alone.`,
   settleTitle: 'How it settles',

@@ -19,9 +19,8 @@
  *   - this one is authed-only. `AuthGate` sends a signed-out visitor to
  *     /signin before this page renders at all, so nothing here is public and
  *     nothing crawls it. The address to SHARE is the public one; a
- *     /my-gigs/<id> link handed to someone signed out lands them on sign-in
- *     and — until the gate remembers where they were going (task #27) — not
- *     on the gig afterwards.
+ *     /my-gigs/<id> link handed to someone signed out lands them on sign-in;
+ *     the auth return-path then restores this destination after verification.
  */
 import { useCallback, useEffect } from 'react'
 import { useParams } from 'next/navigation'
@@ -38,6 +37,7 @@ import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { MY_GIGS_COPY } from '@/components/gig/my-gigs/copy'
 import { TakedownNotice } from '@/components/gig/detail/TakedownNotice'
 import { dossierFactsFor, dossierProofsFor } from '@/components/gig/my-gigs/dossier-facts'
+import { GigReviews } from '@/components/gig/detail/GigReviews'
 
 export default function MyGigDetailPage() {
   const { escrowId } = useParams<{ escrowId: string }>()
@@ -131,6 +131,7 @@ export default function MyGigDetailPage() {
           composing the whole authed island printed the takedown banner twice
           (measured) and would have doubled every proof. */}
       {userId !== null && <GigEscrowActions gig={current} userId={userId} />}
+      <GigReviews gig={current} revealParties />
     </EscrowDossier>
   )
 }

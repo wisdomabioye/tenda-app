@@ -139,10 +139,8 @@ test('close conversation: confirm dialog → thread leaves the inbox', async ({ 
 })
 
 test('the phone collapse: one pane, and a way back to the list', async ({ page }) => {
-  // The back affordance is CSS-gated to ≤900px, and the rule was written AFTER
-  // the media query with identical specificity — so it beat the override at
-  // every width and no phone ever saw it. Nothing caught that until a surface
-  // had a list column for "back" to mean something.
+  // The breadcrumb remains available at every width. On a phone it is the only
+  // way back to the hidden list; on desktop it preserves orientation.
   await signInToHome(page)
   await page.setViewportSize({ width: 390, height: 800 })
   await page.goto('/messages')
@@ -158,11 +156,12 @@ test('the phone collapse: one pane, and a way back to the list', async ({ page }
   await back.click()
   await expect(page).toHaveURL(/\/messages/)
 
-  // …and above the breakpoint it is gone, because the list is beside the pane.
+  // Above the breakpoint it remains as a compact breadcrumb, so orientation
+  // does not disappear merely because the list is also visible.
   await page.setViewportSize({ width: 1280, height: 800 })
   await page.goto('/chat/user-bola-1')
   await expect(page.locator('[data-list]')).toBeVisible()
-  await expect(page.locator('[data-pane-back]')).toBeHidden()
+  await expect(page.locator('[data-pane-back]')).toBeVisible()
 })
 
 test('/chat with no thread is not a destination', async ({ page }) => {

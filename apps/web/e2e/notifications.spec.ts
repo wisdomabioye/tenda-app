@@ -41,7 +41,7 @@ test('mark all read clears the rows and the bell badge', async ({ page }) => {
   await page.getByRole('button', { name: NOTIFICATIONS_LIST_COPY.markAllRead }).click()
   // The accessible name drops ", unread".
   await expect(page.getByRole('link', { name: /Gig accepted, unread/ })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'Notifications' })).toBeVisible() // badge gone
+  await expect(page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', { name: 'Notifications' })).toBeVisible() // badge gone
   await expect(
     page.getByRole('button', { name: NOTIFICATIONS_LIST_COPY.markAllRead }),
   ).toHaveCount(0)
@@ -56,11 +56,27 @@ test('opening a notice marks it read and offers what it is about', async ({ page
   await expect(page).toHaveURL(/\/notifications\/ntf-2/)
   await expect(page.locator('[data-list]')).toBeVisible()
   await expect(page.getByRole('heading', { level: 1, name: 'Gig accepted' })).toBeVisible()
+  const card = page.locator('[data-notification-card]')
+  const [box, surfaceBox] = await Promise.all([
+    card.boundingBox(),
+    page.locator('[data-notification-surface]').boundingBox(),
+  ])
+  expect(box).not.toBeNull()
+  expect(surfaceBox).not.toBeNull()
+  if (box !== null && surfaceBox !== null) {
+    expect(box.width).toBeLessThanOrEqual(448)
+    expect(
+      Math.abs(box.x + box.width / 2 - (surfaceBox.x + surfaceBox.width / 2)),
+    ).toBeLessThanOrEqual(2)
+    expect(
+      Math.abs(box.y + box.height / 2 - (surfaceBox.y + surfaceBox.height / 2)),
+    ).toBeLessThanOrEqual(2)
+  }
 
   // Read is a consequence of OPENING, not of clicking: the badge clears and
   // the row loses its unread name without a second action.
   await expect(page.getByRole('link', { name: /Gig accepted, unread/ })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'Notifications' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', { name: 'Notifications' })).toBeVisible()
 
   await page.getByRole('link', { name: NOTIFICATIONS_LIST_COPY.open }).click()
   await expect(page).toHaveURL(/\/gig\/gig-delivery-1/)

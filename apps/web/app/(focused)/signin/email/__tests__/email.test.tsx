@@ -83,11 +83,26 @@ describe('SignInEmailPage', () => {
     expect(push).toHaveBeenCalledWith('/signin/verify')
   })
 
+  it('shows progress and suppresses duplicate submissions while the request is pending', async () => {
+    let resolveChallenge: ((value: { expires_in: number }) => void) | undefined
+    vi.mocked(api.auth.challenge).mockImplementation(() => new Promise((resolve) => {
+      resolveChallenge = resolve
+    }))
+    render(<SignInEmailPage />)
+    fireEvent.change(screen.getByLabelText(AUTH_COPY.email.label), { target: { value: 'ada@x.io' } })
+    const submitButton = screen.getByRole('button', { name: AUTH_COPY.email.cta })
+    fireEvent.click(submitButton)
+    fireEvent.submit(submitButton.closest('form')!)
+    expect(screen.getByRole('button', { name: new RegExp(AUTH_COPY.email.sending) })).toBeDisabled()
+    expect(api.auth.challenge).toHaveBeenCalledTimes(1)
+    await act(async () => resolveChallenge?.({ expires_in: 300 }))
+  })
+
   it('carries the destination on to the verify step (#27)', async () => {
     // The middle of the chain: AuthGate put it in the URL, and this step has
     // to hand it to the next one or the deep link is lost here.
     visiting('?next=%2Fmy-gigs%2Fesc-1')
-    vi.mocked(api.auth.challenge).mockResolvedValue({ expires_in: 600 } as never)
+    vi.mocked(api.auth.challenge).mockResolvedValue({ expires_in: 600 })
     render(<SignInEmailPage />)
     fireEvent.change(screen.getByLabelText(AUTH_COPY.email.label), {
       target: { value: 'ada@tenda.test' },

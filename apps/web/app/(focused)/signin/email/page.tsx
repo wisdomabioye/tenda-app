@@ -6,7 +6,7 @@
  * hard-401 a stale one. The identifier rides the in-memory signin-flow store,
  * never the URL (PII in query strings ends up in history and logs).
  */
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { normalizeEmail, verifyErrorMessage } from '@tenda/shared'
 import { api } from '@/api/client'
@@ -33,6 +33,7 @@ export default function SignInEmailPage() {
   // be undone by a later render.
   const [email, setEmail] = useState(() => pending?.identifier ?? '')
   const [busy, setBusy] = useState(false)
+  const requestInFlight = useRef(false)
   const [error, setError] = useState<string | null>(null)
 
   const normalized = normalizeEmail(email) ?? ''
@@ -40,7 +41,8 @@ export default function SignInEmailPage() {
   const showInvalid = email.trim() !== '' && !valid
 
   async function handleSendCode() {
-    if (!valid || busy) return
+    if (!valid || requestInFlight.current) return
+    requestInFlight.current = true
     setBusy(true)
     setError(null)
     try {
@@ -52,6 +54,7 @@ export default function SignInEmailPage() {
     } catch (e) {
       setError(verifyErrorMessage(e, AUTH_COPY.email.failed))
     } finally {
+      requestInFlight.current = false
       setBusy(false)
     }
   }

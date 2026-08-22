@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import type { GigDetail } from '@tenda/shared'
+import { acceptWindowState, type GigDetail } from '@tenda/shared'
 import { buttonVariants } from '@/components/ui'
 
 /**
@@ -8,7 +8,7 @@ import { buttonVariants } from '@/components/ui'
  * full GigDetail invites a caller to serialize party-scoped fields into the
  * anonymous HTML (the exact leak the stage-1 hostile-server e2e guards).
  */
-export type PublicGigCta = Pick<GigDetail, 'status' | 'is_assigned' | 'requires_approval'>
+export type PublicGigCta = Pick<GigDetail, 'status' | 'is_assigned' | 'requires_approval' | 'accept_deadline'>
 
 /**
  * Anonymous-reader CTA. The action itself is Stage 4; here the honest offer
@@ -20,6 +20,13 @@ export function GigDetailCta({ gig }: { gig: PublicGigCta }) {
     return (
       <div className="rounded-card border border-border-default bg-surface-inset px-5 py-4 text-sm text-content-secondary">
         This gig is no longer open — its escrow is {gig.status}.
+      </div>
+    )
+  }
+  if (acceptWindowState(gig) === 'closed') {
+    return (
+      <div className="rounded-card border border-border-default bg-surface-inset px-5 py-4 text-sm text-content-secondary">
+        Applications and acceptance have closed for this gig.
       </div>
     )
   }

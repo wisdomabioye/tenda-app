@@ -91,7 +91,7 @@ describe('Rail — navigation', () => {
     render(<Rail user={makeUser()} />)
     await userEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }))
     expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toHaveAttribute('aria-expanded', 'true')
-    expect(window.localStorage.getItem('tenda_workspace_rail_expanded')).toBe('true')
+    expect(window.localStorage.getItem('tenda_workspace_rail_expanded:small')).toBe('true')
     expect(screen.getByText('My Gigs')).toBeVisible()
     expect(screen.getByRole('img', { name: 'Tenda' })).toHaveAttribute('src', '/logo_full_dark.png')
     expect(screen.getByText('Dark mode')).toBeVisible()

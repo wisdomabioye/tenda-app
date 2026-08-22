@@ -30,10 +30,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files stay local; public-prefixed values are still deployment configuration
 .env*
-# dev defaults carry no secrets and every checkout needs them
-!.env.development
 
 # vercel
 .vercel

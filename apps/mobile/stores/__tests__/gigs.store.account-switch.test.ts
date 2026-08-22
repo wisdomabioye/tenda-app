@@ -41,7 +41,7 @@ function reviewRow(): Awaited<ReturnType<typeof api.escrows.review>> {
     reviewee_id: 'them',
     score:       5,
     comment:     'good',
-    created_at:  new Date('2026-08-20T09:00:00.000Z'),
+    created_at:  '2026-08-20T09:00:00.000Z',
   }
 }
 

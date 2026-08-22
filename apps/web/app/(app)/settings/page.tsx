@@ -50,7 +50,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8 py-6">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
       <header>
         <h1 className="font-display text-[30px] font-bold leading-9 tracking-[-0.6px] text-content-primary">
           {SETTINGS_COPY.title}

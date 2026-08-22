@@ -105,7 +105,7 @@ export default function ApplicantsPage({ params }: { params: Promise<{ escrowId:
     if (action !== null) showToast('success', txSuccessCopy(action, 'gig'))
     void fetchGigDetail(id)
     // The gig is no longer open — the detail screen tracks the work from here.
-    router.push(`/gig/${id}`)
+    router.push(`/my-gigs/${id}`)
   }
 
   return (

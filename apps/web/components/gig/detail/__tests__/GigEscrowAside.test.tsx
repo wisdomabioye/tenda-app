@@ -6,16 +6,17 @@
  */
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { chainLabel, splitAssetAmount } from '@tenda/shared'
+import { chainLabel, splitAssetAmount, type GigDetail } from '@tenda/shared'
+import type { PublicGigCta } from '@/components/gig/GigDetailCta'
 import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { LEAKED_COUNTERPARTY_ID, deliveryGigDetail } from '@/e2e/fixtures/gigs'
 
 const { capturedInitial } = vi.hoisted(() => ({
-  capturedInitial: { current: null as Record<string, unknown> | null },
+  capturedInitial: { current: null as PublicGigCta | null },
 }))
 
 vi.mock('@/components/gig/detail/GigDetailApp', () => ({
-  GigDetailApp: ({ initial }: { initial: Record<string, unknown> }) => {
+  GigDetailApp: ({ initial }: { initial: PublicGigCta & Pick<GigDetail, 'escrow_id'> }) => {
     capturedInitial.current = initial
     return <button type="button">Sign in to accept</button>
   },
@@ -26,7 +27,7 @@ const { GigEscrowAside } = await import('@/components/gig/detail/GigEscrowAside'
 const gig = deliveryGigDetail
 
 describe('GigEscrowAside', () => {
-  it('shows the escrowed net as one figure, split from ONE formatter', () => {
+  it('shows the gross funded amount as one figure, split from ONE formatter', () => {
     render(<GigEscrowAside gig={gig} />)
     const { amount, symbol } = splitAssetAmount(gig.amount_raw, gig.asset)
     expect(screen.getByText(amount)).toBeInTheDocument()
@@ -35,12 +36,10 @@ describe('GigEscrowAside', () => {
     expect(document.body.textContent).toContain(`${amount} ${symbol}`)
   })
 
-  it('says the fee is already out — it does NOT project a second number', () => {
-    // Re-deriving the fee here would put two disagreeing figures for the same
-    // money on one page; amount_raw is already the chain-attested net.
+  it('does not falsely claim the gross amount is the worker payout while config loads', () => {
     render(<GigEscrowAside gig={gig} />)
-    expect(screen.getByText(GIG_DETAIL_COPY.lockedNote)).toBeInTheDocument()
-    expect(screen.queryByText(/%/)).not.toBeInTheDocument()
+    expect(screen.getByText(GIG_DETAIL_COPY.feePending)).toBeInTheDocument()
+    expect(screen.queryByText(/fee is already taken out/i)).not.toBeInTheDocument()
   })
 
   it('names the chain through the shared label, never the CAIP-2 id', () => {
@@ -58,7 +57,15 @@ describe('GigEscrowAside', () => {
       status: gig.status,
       is_assigned: gig.is_assigned,
       requires_approval: gig.requires_approval,
+      accept_deadline: gig.accept_deadline,
     })
+  })
+
+  it('uses supplied workspace actions instead of mounting the public session island', () => {
+    capturedInitial.current = null
+    render(<GigEscrowAside gig={gig} actions={<button type="button">Workspace action</button>} />)
+    expect(screen.getByRole('button', { name: 'Workspace action' })).toBeInTheDocument()
+    expect(capturedInitial.current).toBeNull()
   })
 
   it('never serialises a party-scoped field into the anonymous HTML', () => {

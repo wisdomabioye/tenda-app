@@ -96,8 +96,8 @@ describe('≤900px — one pane at a time', () => {
     expect(detailHide?.[0]).toContain(':has([data-list])')
   })
 
-  it('reveals the back affordance only here', () => {
-    expect(mediaBlock(900)).toMatch(/\[data-pane-back\]\s*\{\s*display:\s*inline-flex/)
+  it('does not breakpoint-gate the persistent breadcrumb', () => {
+    expect(mediaBlock(900)).not.toMatch(/\[data-pane-back\]/)
   })
 })
 
@@ -115,11 +115,9 @@ describe('list-less surfaces', () => {
   })
 })
 
-describe('back affordance default', () => {
-  it('is hidden outside the single-pane breakpoint', () => {
-    // Outside any media block — the wide layout always shows the list, so a
-    // "back" link would point at something already on screen.
+describe('breadcrumb default', () => {
+  it('stays visible outside the single-pane breakpoint', () => {
     const withoutMedia = css.replace(/@media[\s\S]*?\n\}/g, '')
-    expect(withoutMedia).toMatch(/\[data-pane-back\]\s*\{\s*display:\s*none/)
+    expect(withoutMedia).not.toMatch(/\[data-pane-back\]/)
   })
 })

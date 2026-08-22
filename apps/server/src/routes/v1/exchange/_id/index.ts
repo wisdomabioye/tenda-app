@@ -147,7 +147,10 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       ...scopeEscrowPrivateFields({ counterparty, ...evidence }, isParty),
       // Reviews stay public for the same reason they do on a gig: they are the
       // rows `/v1/users/:id/reviews` already serves on a profile.
-      reviews: offerReviews,
+      reviews: offerReviews.map((review) => ({
+        ...review,
+        created_at: review.created_at.toISOString(),
+      })),
       payout_account,
     })
   })

@@ -16,6 +16,7 @@ import { useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { formatRelativeShort } from '@tenda/shared'
+import { Bell } from 'lucide-react'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { notificationRoute } from '@/lib/notification-route'
 import { buttonVariants } from '@/components/ui'
@@ -59,29 +60,40 @@ export default function NotificationDetailPage() {
   const route = notificationRoute(notification.data)
 
   return (
-    <article className="max-w-[720px] px-9 pb-16 pt-7">
-      <h1 className="font-display text-[26px] font-bold leading-8 tracking-[-0.5px] text-content-primary">
-        {notification.title}
-      </h1>
-      {notification.created_at !== null && (
-        <p className="mt-2 font-numeric text-xs leading-4 text-content-tertiary">
-          {formatRelativeShort(notification.created_at)}
-        </p>
-      )}
-      <p className="mt-5 whitespace-pre-wrap text-[15px] leading-[22px] text-content-secondary">
-        {notification.body}
-      </p>
-      <div className="mt-7">
-        {route === null ? (
-          <p className="text-[13px] leading-[18px] text-content-tertiary">
-            {NOTIFICATIONS_LIST_COPY.noRoute}
+    <div
+      data-notification-surface
+      className="flex min-h-full items-center justify-center px-4 py-10 sm:px-8"
+    >
+      <article
+        data-notification-card
+        className="w-full max-w-md rounded-card border border-border-default bg-surface-card p-5 shadow-card sm:p-6"
+      >
+        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-primary-surface text-brand-primary">
+          <Bell size={17} aria-hidden />
+        </span>
+        <h1 className="mt-4 font-display text-xl font-bold leading-7 tracking-[-0.3px] text-content-primary">
+          {notification.title}
+        </h1>
+        {notification.created_at !== null && (
+          <p className="mt-2 font-numeric text-xs leading-4 text-content-tertiary">
+            {formatRelativeShort(notification.created_at)}
           </p>
-        ) : (
-          <Link href={route} className={buttonVariants({ variant: 'primary' })}>
-            {NOTIFICATIONS_LIST_COPY.open}
-          </Link>
         )}
-      </div>
-    </article>
+        <p className="mt-5 whitespace-pre-wrap text-[15px] leading-[22px] text-content-secondary">
+          {notification.body}
+        </p>
+        <div className="mt-7">
+          {route === null ? (
+            <p className="text-[13px] leading-[18px] text-content-tertiary">
+              {NOTIFICATIONS_LIST_COPY.noRoute}
+            </p>
+          ) : (
+            <Link href={route} className={buttonVariants({ variant: 'primary' })}>
+              {NOTIFICATIONS_LIST_COPY.open}
+            </Link>
+          )}
+        </div>
+      </article>
+    </div>
   )
 }

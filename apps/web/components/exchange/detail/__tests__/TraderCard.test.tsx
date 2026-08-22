@@ -86,7 +86,7 @@ describe('TraderCard', () => {
               reviewee_id: 'seller-1',
               score: 5,
               comment: null,
-              created_at: new Date('2026-08-15T10:00:00.000Z'),
+              created_at: '2026-08-15T10:00:00.000Z',
             },
           ],
         })}

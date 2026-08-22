@@ -160,7 +160,10 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       ...scopeEscrowPrivateFields({ counterparty, ...evidence }, isParty),
       // Reviews stay public: they are the same rows `/v1/users/:id/reviews`
       // serves on a profile, and public reputation is the point of them.
-      reviews: gigReviews,
+      reviews: gigReviews.map((review) => ({
+        ...review,
+        created_at: review.created_at.toISOString(),
+      })),
       viewer,
     })
   })

@@ -121,7 +121,17 @@ export const deliveryGigDetail: GigDetail = {
   },
   proofs: [],
   dispute: null,
-  reviews: [],
+  reviews: [
+    {
+      id: 'review-gig-delivery-1',
+      escrow_id: deliveryGig.escrow_id,
+      reviewer_id: poster.id,
+      reviewee_id: LEAKED_COUNTERPARTY_ID,
+      score: 5,
+      comment: 'Careful work and clear updates.',
+      created_at: '2026-08-16T09:00:00Z',
+    },
+  ],
   is_seeker: false,
   viewer: null,
 }

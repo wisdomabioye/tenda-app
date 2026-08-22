@@ -19,8 +19,14 @@ test('signed-in visitors cannot return to guest-only auth surfaces', async ({ pa
 test('the create control offers explicit gig and offer composers', async ({ page }) => {
   await signInToHome(page)
   await page.getByRole('button', { name: 'Create' }).click()
-  await expect(page.getByRole('menuitem', { name: 'Create gig' })).toHaveAttribute('href', '/gigs/new')
-  await expect(page.getByRole('menuitem', { name: 'Create offer' })).toHaveAttribute('href', '/offers/new')
+  await expect(page.getByRole('menuitem', { name: 'Create gig' })).toHaveAttribute(
+    'href',
+    '/gigs/new',
+  )
+  await expect(page.getByRole('menuitem', { name: 'Create offer' })).toHaveAttribute(
+    'href',
+    '/offers/new',
+  )
   for (const route of ['/create', '/gigs/new', '/offers/new']) {
     await page.goto(route)
     await expect(page.getByRole('navigation', { name: 'Workspace' })).toBeVisible()
@@ -49,6 +55,7 @@ test('opening a home gig keeps the list and shows its detail', async ({ page }) 
   await expect(page).toHaveURL(/\/home\/gigs\//)
   await expect(page.locator('[data-list]')).toBeVisible()
   await expect(page.locator('[data-detail] article')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Cancel Gig' })).toHaveCount(1)
 })
 
 test('desktop sidebar expands by default and can be collapsed', async ({ page }) => {
@@ -70,7 +77,9 @@ test('phone sidebar is collapsed by default without horizontal overflow', async 
   await page.setViewportSize({ width: 390, height: 844 })
   await signInToHome(page)
   await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible()
-  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+  const overflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  )
   expect(overflow).toBe(0)
 
   await page.getByRole('button', { name: 'Expand sidebar' }).click()
