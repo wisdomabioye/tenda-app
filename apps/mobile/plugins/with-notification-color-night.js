@@ -36,9 +36,17 @@ const RESOURCE = 'notification_icon_color'
 const NIGHT_COLOR = '#5E87E8'
 
 /**
- * Read-only guard. Registered as a plain colours mod so it runs against
- * `values/colors.xml` AFTER expo-notifications has written to it — which is
- * why this plugin must be listed after 'expo-notifications' in app.config.ts.
+ * Read-only guard: asserts expo-notifications really did write the resource we
+ * are about to shadow, so a rename upstream fails the build instead of leaving
+ * a values-night override that nothing reads.
+ *
+ * Registered as a plain colours mod so it sees `values/colors.xml` AFTER
+ * expo-notifications has written to it. That requires this plugin to be listed
+ * BEFORE 'expo-notifications' in app.config.ts, because config mods run in
+ * REVERSE registration order — `withMod`'s `interceptingMod` hands each action
+ * the previously-registered mod as `nextMod`, so a later entry runs earlier.
+ * Getting this backwards is not silent: the guard below fires on a clean
+ * prebuild, which is how the ordering was established.
  */
 function assertDayColorExists(config) {
   return withAndroidColors(config, (mod) => {

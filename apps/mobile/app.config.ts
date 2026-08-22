@@ -95,6 +95,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     './plugins/with-wallet-queries',
     'expo-router',
+    // MUST stay BEFORE 'expo-notifications'. Config mods run in REVERSE
+    // registration order — withMod's `interceptingMod` hands each action the
+    // previously-registered mod as `nextMod` — so an entry listed LATER runs
+    // EARLIER. This plugin asserts expo-notifications has already written
+    // `notification_icon_color`, so it must be registered ahead of it in order
+    // to run after it. Listed after, its guard fires on a clean prebuild.
+    './plugins/with-notification-color-night',
     [
       'expo-notifications',
       {
@@ -110,9 +117,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         defaultChannel: 'default',
       },
     ],
-    // MUST stay after 'expo-notifications': it asserts that plugin already
-    // wrote the colour it overrides.
-    './plugins/with-notification-color-night',
     [
       'expo-splash-screen',
       {
