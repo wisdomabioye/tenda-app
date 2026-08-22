@@ -25,10 +25,17 @@
  *   users/me          401 'user no longer exists'   (the handler's own copy)
  *   PATCH users/me    401 'user no longer exists'   (from UPDATE … RETURNING)
  *   auth/me           404 'user not found'
- *   POST /v1/escrows  403 PROFILE_INCOMPLETE        (a second preHandler)
+ *   POST /v1/escrows  401 'User no longer exists'   (a second preHandler)
  * The first two differ from the cold answer only in capitalisation, so every
- * assertion pins the message rather than the status. The last case runs BOTH
- * arms, because there the answer changes rather than merely moving.
+ * assertion pins the message rather than the status. The escrows case runs BOTH
+ * arms, because there the answer arrives from a different guard.
+ *
+ * auth/me's 404 is the odd one out and is deliberately left alone: it is not a
+ * guard's answer but a handler's, and it is pinned here rather than changed.
+ * The escrows row read 403 PROFILE_INCOMPLETE until #117 — the guard now
+ * separates "your account is gone" from "your profile is unfinished", and the
+ * case after it holds the 403 arm so the split cannot silently become a
+ * blanket 401.
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
@@ -138,9 +145,14 @@ test('POST /v1/escrows: a deleted account is refused by a PREHANDLER, cold or wa
   // cache states — that route carries three preHandlers, not one:
   //
   //   cold → 401 'User no longer exists', from `authenticate`
-  //   warm → 403 PROFILE_INCOMPLETE, from `requireProfileComplete`, whose
-  //          condition is `row === undefined || !hasCompleteName(...)`, so a
-  //          missing row leaves by the same door as a blank name
+  //   warm → 401 'User no longer exists', from `requireProfileComplete`
+  //
+  // The warm arm USED to be 403 PROFILE_INCOMPLETE, because that guard tested
+  // `row === undefined || !hasCompleteName(...)` and a missing row left by the
+  // same door as a blank name. #117 split them: a gone account invalidates the
+  // SESSION, not the profile, so both cache states now give the answer
+  // `authenticate` gives cold — and the deleted-account holder is no longer told
+  // to finish signing up.
   //
   // Both arms run here, because "an earlier guard answers" is a claim about
   // ORDER AND STATE and one arm samples one state — the mistake auth-refusals
@@ -154,15 +166,32 @@ test('POST /v1/escrows: a deleted account is refused by a PREHANDLER, cold or wa
   assert.strictEqual(coldRes.json().message, 'User no longer exists')
 
   const warmRes = await createEscrowAs(app, await deletedButCached(app))
-  assert.strictEqual(warmRes.statusCode, 403, warmRes.body)
-  assert.strictEqual(warmRes.json().code, 'PROFILE_INCOMPLETE')
+  assert.strictEqual(warmRes.statusCode, 401, warmRes.body)
+  assert.strictEqual(warmRes.json().code, 'UNAUTHORIZED')
+  assert.strictEqual(warmRes.json().message, 'User no longer exists')
 
   // THE CONTROL: a live account with a complete name gets past both guards to a
   // third answer, so the two refusals above are caused by the deletion rather
-  // than by the route turning everyone away. That a deleted account is told to
-  // "complete your profile" is its own question — filed as #117, not fixed here.
+  // than by the route turning everyone away.
   const live = await createUser(app)
   const liveRes = await createEscrowAs(app, live.token)
   assert.strictEqual(liveRes.statusCode, 403, liveRes.body)
   assert.strictEqual(liveRes.json().code, 'WALLET_REQUIRED')
+})
+
+test('POST /v1/escrows: an INCOMPLETE name still gets 403, so the split is a split', { skip }, async () => {
+  // The other arm, and the case that makes the one above mean something. If
+  // `requireProfileComplete` had simply been changed to 401 throughout, every
+  // assertion in the previous test would still pass while a half-registered
+  // LIVE user was wrongly logged out. These two only hold together.
+  //
+  // Whitespace rather than empty strings, because that is what `hasCompleteName`
+  // is for — the column is NOT NULL and a client can send spaces.
+  const app = getApp()
+  const blank = await createUser(app, { first_name: '  ', last_name: 'Lovelace' })
+
+  const res = await createEscrowAs(app, blank.token)
+  assert.strictEqual(res.statusCode, 403, res.body)
+  assert.strictEqual(res.json().code, 'PROFILE_INCOMPLETE')
+  assert.match(res.json().message, /Complete your profile/)
 })

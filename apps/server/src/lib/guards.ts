@@ -79,10 +79,20 @@ export function requirePermission(permission: Permission) {
  * accept / decline / assign / unassign / build-create transitions, and gig
  * applications.
  *
- * A MISSING ROW leaves by the same door as a blank name, so a DELETED account is
- * told to complete its profile. That is fail-closed and safe but misleading, and
- * changing it is a wire change across all seven callers — #117 owns the
- * question; deleted-account-refusals.test.ts pins what happens today.
+ * THE TWO ARMS ANSWER DIFFERENTLY (#117), because they are different facts. A
+ * blank name is "finish signing up" — 403, the session is fine. A MISSING ROW is
+ * "this account is gone", which makes the SESSION invalid, not the profile: 401,
+ * the same answer `authenticate`'s cold path, GET /v1/users/me and
+ * escrows/index.ts already give for exactly this state. Until #117 both left by
+ * the 403 door, so a deleted account was told to complete its profile — safe,
+ * being fail-closed, but it sent the holder and whoever picked up their support
+ * ticket to look at the wrong thing.
+ *
+ * The missing-row arm is only reachable while `authenticate`'s status cache is
+ * WARM: cold, that hook has already answered 401 from the same absence. So this
+ * arm exists for the window after an admin deletes a live session's account —
+ * up to STATUS_CACHE_TTL_MS — and its job is to give the same answer the cold
+ * path would.
  */
 export async function requireProfileComplete(
   request: FastifyRequest,
@@ -94,11 +104,19 @@ export async function requireProfileComplete(
     .where(eq(users.id, request.user.id))
     .limit(1)
   const row = rows[0]
+  if (row === undefined) {
+    return reply.code(401).send({
+      statusCode: 401,
+      error: 'Unauthorized',
+      message: 'User no longer exists',
+      code: ErrorCode.UNAUTHORIZED,
+    })
+  }
   // `hasCompleteName`, not `=== ''`: two spaces are not a name, and this guard
   // is the one that matters most of the three that used to test it that way —
   // it clears a user to POST and ACCEPT work, so a whitespace row could trade
   // while every surface showed the counterparty "Anonymous".
-  if (row === undefined || !hasCompleteName(row.first_name, row.last_name)) {
+  if (!hasCompleteName(row.first_name, row.last_name)) {
     return reply.code(403).send({
       statusCode: 403,
       error: 'Forbidden',
