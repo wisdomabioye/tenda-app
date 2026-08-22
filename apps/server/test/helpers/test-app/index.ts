@@ -54,6 +54,7 @@ export {
   createAdmin,
   createBankAccount,
   createEscrow,
+  createTransactableUser,
   createUser,
   makeTransactable,
   testWalletAddress,

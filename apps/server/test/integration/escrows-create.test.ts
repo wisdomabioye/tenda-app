@@ -13,9 +13,9 @@ import {
   TEST_DB_CONFIGURED,
   FAKE_UNSIGNED,
   useTestApp,
+  createTransactableUser,
   createUser,
   createEscrow,
-  makeTransactable,
   authHeader,
 } from '../helpers/test-app'
 import { createEscrowBody, gigDetailsBody } from '../helpers/escrow-states'
@@ -75,8 +75,7 @@ test('POST /v1/escrows: 422 on invalid kind', { skip }, async () => {
  */
 test('POST /v1/escrows: accepts a window at EITHER boundary', { skip }, async () => {
   const app = getApp()
-  const u = await createUser(app)
-  await makeTransactable(app, u.row.id)
+  const u = await createTransactableUser(app)
   for (const seconds of [MIN_COMPLETION_DURATION_SECONDS, MAX_COMPLETION_DURATION_SECONDS]) {
     const res = await app.inject({
       method: 'POST',
@@ -90,8 +89,7 @@ test('POST /v1/escrows: accepts a window at EITHER boundary', { skip }, async ()
 
 test('POST /v1/escrows: 422 one second past either boundary', { skip }, async () => {
   const app = getApp()
-  const u = await createUser(app)
-  await makeTransactable(app, u.row.id)
+  const u = await createTransactableUser(app)
   for (const seconds of [
     MIN_COMPLETION_DURATION_SECONDS - 1,
     MAX_COMPLETION_DURATION_SECONDS + 1,
@@ -109,8 +107,7 @@ test('POST /v1/escrows: 422 one second past either boundary', { skip }, async ()
 
 test('POST /v1/escrows: 422 for a non-integer window, and for the chain-reverting one', { skip }, async () => {
   const app = getApp()
-  const u = await createUser(app)
-  await makeTransactable(app, u.row.id)
+  const u = await createTransactableUser(app)
   // 100_000_000s ≈ 3.2 years — past the 180-day contract limit, which is the
   // case that used to reach the chain.
   for (const seconds of [7_200.5, 100_000_000]) {
@@ -164,8 +161,7 @@ test('POST /v1/escrows: 400 when the client supplies an id', { skip }, async () 
 
 test('POST /v1/escrows: 201 inserts a draft and returns the unsigned tx', { skip }, async () => {
   const app = getApp()
-  const u = await createUser(app)
-  await makeTransactable(app, u.row.id) // wallet + verified contact (9D gate)
+  const u = await createTransactableUser(app) // wallet + verified contact (9D gate)
   const res = await app.inject({
     method: 'POST',
     url: '/v1/escrows',
@@ -295,8 +291,7 @@ test('POST /v1/escrows: a token whose user no longer exists is refused 401 (#105
   // because today's preHandler order hides it is how that order becomes
   // load-bearing without anyone deciding it (#108).
   const app = getApp()
-  const u = await createUser(app)
-  await makeTransactable(app, u.row.id)
+  const u = await createTransactableUser(app)
   await app.db.delete(users).where(eq(users.id, u.row.id))
 
   const res = await app.inject({

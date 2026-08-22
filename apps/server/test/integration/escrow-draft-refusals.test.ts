@@ -38,8 +38,7 @@ import {
   TEST_DB_CONFIGURED,
   authHeader,
   createEscrow,
-  createUser,
-  makeTransactable,
+  createTransactableUser,
   useTestApp,
   type TestUser,
 } from '../helpers/test-app'
@@ -57,13 +56,6 @@ const COMPLETION_SECONDS = 3_600
 const AMOUNT_RAW = '1000000'
 /** What the competing writer asks for instead, in the different-terms case. */
 const RIVAL_AMOUNT_RAW = '2000000'
-
-/** A user who clears the create route's first-transaction gate. */
-async function transactableUser(app: FastifyInstance): Promise<TestUser> {
-  const user = await createUser(app)
-  await makeTransactable(app, user.row.id)
-  return user
-}
 
 function draftBody(operation_id: string): CreateEscrowRequestBody {
   return createEscrowBody({
@@ -91,7 +83,7 @@ function post(
 
 test('create replay: an unconfirmed create transaction blocks the replay, 409', { skip }, async () => {
   const app = getApp()
-  const user = await transactableUser(app)
+  const user = await createTransactableUser(app)
   const body = draftBody(randomUUID())
 
   const first = await post(app, user, body)
@@ -175,7 +167,7 @@ async function withRaceWinner(
 
 test('create replay: a race winner with DIFFERENT terms is 409, and leaves one row', { skip }, async () => {
   const app = getApp()
-  const user = await transactableUser(app)
+  const user = await createTransactableUser(app)
   const operation_id = randomUUID()
 
   const counts = await withRaceWinner(
@@ -228,7 +220,7 @@ test('create replay: a race winner with the SAME terms hands back that draft (th
   // SECOND unsigned tx (for the row that survived — escrows/index.ts:206), so a
   // hook that inserted per BUILD rather than per race would insert twice.
   const app = getApp()
-  const user = await transactableUser(app)
+  const user = await createTransactableUser(app)
   const operation_id = randomUUID()
   let winner_id = ''
 

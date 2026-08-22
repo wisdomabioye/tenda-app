@@ -99,6 +99,29 @@ export async function makeTransactable(app: FastifyInstance, userId: string): Pr
 }
 
 /**
+ * A user who can transact: `createUser` + `makeTransactable`, the two-line
+ * preamble every suite that drives POST /v1/escrows or a transition opens with.
+ *
+ * Extracted at #113, when the pair was counted at 58 call sites across 13
+ * files — the same reason `createAdmin` exists. It is a thin wrapper on
+ * purpose: it names the precondition (the Stage-9D first-transaction gate) so a
+ * reader does not have to recognise the pair, and gives the suites one spelling
+ * to change if that gate ever grows a third requirement.
+ *
+ * `makeTransactable` stays exported beside it, because plenty of call sites
+ * clear the gate for a user they did NOT just create (a counterparty from
+ * `partiedEscrow`, an assignee, a rival applicant).
+ */
+export async function createTransactableUser(
+  app: FastifyInstance,
+  overrides: Partial<UserRow> = {},
+): Promise<TestUser> {
+  const user = await createUser(app, overrides)
+  await makeTransactable(app, user.row.id)
+  return user
+}
+
+/**
  * Insert an escrow on the harness chain/asset. accept_deadline defaults to
  * now+24h (the fixture's fixed date is fine for pure object tests but HTTP
  * listing filters compare against the real clock).

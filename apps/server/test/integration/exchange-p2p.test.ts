@@ -21,10 +21,10 @@ import {
   TEST_ASSET,
   TEST_NATIVE_ASSET,
   useTestApp,
+  createTransactableUser,
   createUser,
   createEscrow,
   createBankAccount,
-  makeTransactable,
   attachExchangeDetails,
   authHeader,
   type TestUser,
@@ -724,8 +724,7 @@ test('PATCH /users/me: advanced_mode_enabled toggles on and off; non-boolean 422
 
 test('p2p offramp: server-opened offers are publishable as-is (deadlines stamped)', { skip }, async () => {
   const app = getApp()
-  const seller = await createUser(app)
-  await makeTransactable(app, seller.row.id) // publish clears the 9D first-transaction gate
+  const seller = await createTransactableUser(app) // publish clears the 9D first-transaction gate
   const provider = p2pProvider(app)
 
   const before = Date.now()

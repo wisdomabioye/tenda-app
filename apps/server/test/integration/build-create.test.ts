@@ -15,11 +15,11 @@ import {
   TEST_DB_CONFIGURED,
   FAKE_UNSIGNED,
   useTestApp,
+  createTransactableUser,
   createUser,
   createEscrow,
   attachExchangeDetails,
   authHeader,
-  makeTransactable,
 } from '../helpers/test-app'
 
 const skip = !TEST_DB_CONFIGURED
@@ -104,8 +104,7 @@ test('build-create: creator without a linked wallet → 403 WALLET_REQUIRED (9D 
 
 test('build-create: fresh gig draft → 200, deadlines untouched', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id) // 9D gate: wallet + verified contact
+  const creator = await createTransactableUser(app) // 9D gate: wallet + verified contact
   const deadline = new Date(Date.now() + 3 * 86_400_000)
   const draft = await createEscrow(app, { creator_id: creator.row.id, accept_deadline: deadline })
 
@@ -124,8 +123,7 @@ test('build-create: fresh gig draft → 200, deadlines untouched', { skip }, asy
 
 test('build-create: offramp-shaped draft (no deadlines) gets backfilled from the offer', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
+  const creator = await createTransactableUser(app)
   // Exactly what drizzleP2pFulfilment used to insert: no accept_deadline,
   // no completion window — only the exchange_details satellite.
   const draft = await createEscrow(app, {
@@ -155,8 +153,7 @@ test('build-create: offramp-shaped draft (no deadlines) gets backfilled from the
 
 test('build-create: lapsed accept deadline refreshes; terms stay put', { skip }, async () => {
   const app = getApp()
-  const creator = await createUser(app)
-  await makeTransactable(app, creator.row.id)
+  const creator = await createTransactableUser(app)
   const draft = await createEscrow(app, {
     creator_id: creator.row.id,
     accept_deadline: new Date(Date.now() - 60_000),
