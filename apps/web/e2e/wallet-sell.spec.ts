@@ -14,6 +14,27 @@ import { SELL_COPY } from '../components/wallet/sell/copy'
 import { INTENT_COPY } from '../components/wallet/intent/copy'
 import { WALLET_COPY } from '../components/wallet/copy'
 
+// SERIAL, for the same reason chat.spec.ts and notifications.spec.ts are, and
+// this file was the one that got missed (#126). These tests share ONE mutable
+// stub fiat world — `world.status` in e2e/fixtures/fiat.ts — and the beforeEach
+// below RESETS it. Under fullyParallel they ran in six workers at once
+// (measured), so one test's reset could land inside another's cancel:
+//
+//   cancel test    POST /v1/fiat/intents/int-e2e-1/cancel  -> {"cancelled":true}
+//   sibling test   POST /__e2e/reset-fiat                  -> awaiting_user
+//   cancel test    GET  /v1/fiat/intents/int-e2e-1         -> awaiting_user (!)
+//
+// and the intent page never reaches the done state, so the assertion at the
+// end of the cancel test times out at 10 s. That exact sequence is in the trace
+// preserved at /home/abioye/tenda/e2e-flake-traces-2026-08-22/. `world.status`
+// has exactly two writers — the cancel route and `resetFiatWorld()` — so a
+// successful cancel followed by a read of `awaiting_user` can ONLY be the reset
+// landing in between.
+//
+// Serial also means a CI retry starts from the seeded world rather than
+// inheriting what its first attempt mutated, which is why the siblings say so.
+test.describe.configure({ mode: 'serial' })
+
 test.beforeEach(async ({ request }) => {
   await request.post('http://127.0.0.1:3210/__e2e/reset-fiat')
 })
