@@ -1,5 +1,6 @@
 import { FastifyPluginAsync } from 'fastify'
 import { clampLimit, clampOffset } from '@server/lib/pagination'
+import { containsPattern } from '@server/lib/like-pattern'
 import { eq, exists, ilike, or, and, desc, isNull, sql, SQL } from 'drizzle-orm'
 import { users, user_wallets, disputes, admin_users } from '@tenda/shared/db/schema'
 import {
@@ -44,7 +45,12 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
     }
 
     if (search && search.trim().length > 0) {
-      const pattern = `%${search.trim()}%`
+      // Escaped, so the term is matched as TEXT: `%`, `_` and `\` are pattern
+      // syntax to postgres even in a bound parameter, and an operator pasting an
+      // address fragment or a name containing one used to get a wider list with
+      // nothing to say why (#119). Not a security fix — the value never reaches
+      // SQL text — a correctness one.
+      const pattern = containsPattern(search.trim())
       // Wallets are multi-row in v2, so match any linked address — correlated
       // to its owner, which admin-user-list.test.ts pins in both directions.
       //

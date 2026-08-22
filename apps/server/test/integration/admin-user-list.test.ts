@@ -107,25 +107,68 @@ test('admin users: search matches a linked WALLET address, correlated to its own
   )
 })
 
-test('admin users: a bare LIKE wildcard is a wildcard — pinned, not endorsed', { skip }, async () => {
-  // The pattern is `%${term}%`, so anything the caller types is pattern syntax
-  // too: searching for `%` builds `%%%` and matches every row, and `_` matches
-  // any single character. Not an injection — the value is parameterised — but
-  // it is a surprise, and one an operator can hit by pasting an address
-  // fragment that happens to contain an underscore.
-  //
-  // Pinned as it behaves TODAY rather than asserted as correct: whether the
-  // route should escape LIKE metacharacters is a product call, filed as #119.
-  // If it is taken, this case changes with it, which is the point of having it.
+// ---------- LIKE metacharacters are TEXT, not syntax (#119) --------------------
+//
+// These three replace a case that pinned the opposite — searching `%` used to
+// build `%%%` and match every row. That was never an injection (the value is
+// parameterised) but it was a wrong answer with nothing to say why, which is the
+// same failure mode as a filter reading the wrong column. Each case searches for
+// the metacharacter itself and asserts the ONE user whose name really contains
+// it: the assertion fails in both directions, since the un-escaped pattern would
+// return everybody and an over-escaped one would return nobody.
+
+test('admin users: `%` is searched for literally, and a name containing one is findable', { skip }, async () => {
   const app = getApp()
   const admin = await createAdmin(app)
-  const other = await createUser(app)
+  const discount = await createUser(app, { first_name: 'Cash', last_name: 'Back100%' })
+  await createUser(app, { first_name: 'Grace', last_name: 'Hopper' })
 
   assert.deepStrictEqual(
     await listIds(app, admin.token, 'search=%25'),
-    [admin.row.id, other.row.id].sort(),
-    'a lone percent matches everyone',
+    [discount.row.id],
+    'the account with a percent in its name — not the whole table',
   )
+})
+
+test('admin users: `_` matches an underscore, not any character', { skip }, async () => {
+  // The one an operator hits by accident, pasting a fragment that happens to
+  // contain it. `A_a` un-escaped matches "Aba" too; escaped it matches only the
+  // name that really has the underscore.
+  const app = getApp()
+  const admin = await createAdmin(app)
+  const underscored = await createUser(app, { first_name: 'A_a', last_name: 'Lovelace' })
+  await createUser(app, { first_name: 'Aba', last_name: 'Turing' })
+
+  assert.deepStrictEqual(await listIds(app, admin.token, 'search=A_a'), [underscored.row.id])
+})
+
+test('admin users: `\\` is the escape character, and is itself searchable', { skip }, async () => {
+  // The one that would break the escaping if it were applied in two passes: a
+  // backslash escaped twice stops meaning a backslash. Searching for it must
+  // find the name that contains one.
+  const app = getApp()
+  const admin = await createAdmin(app)
+  const slashed = await createUser(app, { first_name: 'Back', last_name: 'sla\\sh' })
+  await createUser(app, { first_name: 'Grace', last_name: 'Hopper' })
+
+  assert.deepStrictEqual(await listIds(app, admin.token, 'search=%5C'), [slashed.row.id])
+})
+
+test('admin users: escaping does not break the ordinary search', { skip }, async () => {
+  // The control. An escape applied too broadly — or a pattern whose outer `%`
+  // got escaped along with the term — would match nothing at all, and every
+  // case above would still pass while the feature was dead.
+  const app = getApp()
+  const admin = await createAdmin(app)
+  const ada = await createUser(app, { first_name: 'Ada', last_name: 'Lovelace' })
+  await app.db.insert(user_wallets).values({
+    chain_ns: 'solana',
+    address: 'SoWalletOfAda11111111111111111',
+    user_id: ada.row.id,
+  })
+
+  assert.deepStrictEqual(await listIds(app, admin.token, 'search=ovelac'), [ada.row.id])
+  assert.deepStrictEqual(await listIds(app, admin.token, 'search=OfAda'), [ada.row.id])
 })
 
 test('admin users: a search matching nothing is an EMPTY page, not the whole table', { skip }, async () => {
