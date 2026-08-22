@@ -44,7 +44,11 @@ CORS plugin unions it into the browser allow-list, which also covers the
   `useSyncExternalStore` hooks, cross-tab logout)
 - `lib/nav.ts` — permission-tagged nav filtered through the shared
   `ROLE_PERMISSIONS` map (same source as the server guards)
-- `api/routes.ts` + `api/client.ts` — typed v2 client; every method maps
-  to a route that exists on the server
+- `api/routes.ts` + `api/client.ts` — typed v2 client. The path map itself
+  lives in `@tenda/shared/api/admin` (#121) so the server's test suite can
+  probe it: `apps/server/test/integration/api-routes-drift.test.ts` asserts
+  every entry is served by a registered route. That test is what makes "every
+  method maps to a route that exists on the server" true — before #121 the
+  sentence was here on its own, checked by nothing.
 - `lib/dispute-thread.ts` — inclusive-gte cursor mechanics (tested)
 - `test/` — node:test suites (`pnpm --filter admin test`)

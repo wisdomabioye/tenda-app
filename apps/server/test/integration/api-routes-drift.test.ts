@@ -1,5 +1,5 @@
 /**
- * `apiRoutes` ↔ the server's actual route table.
+ * The route MAPS ↔ the server's actual route table.
  *
  * The mapped type over `ApiContract` already makes a contract endpoint with no
  * path impossible to compile. It cannot check the path is CORRECT: the values
@@ -12,11 +12,16 @@
  * This walks every declared path and asserts the server answers it on some
  * method. Gated on TEST_DATABASE_URL because it needs the real app.
  *
- * The second half of the file (#115) does the same job for the paths `apiRoutes`
- * cannot describe — the provider webhooks, the ops endpoints and the admin
- * dashboard API — and, in the other direction, refuses any path that nothing
- * declares at all. See the note above NON_CONTRACT_PATHS for why the filesystem
- * makes that necessary.
+ * TWO MAPS ARE CHECKED, not one: `apiRoutes` (web and mobile) and `adminRoutes`
+ * (the dashboard). The second joined this file in #121, when it moved into
+ * `@tenda/shared/api/admin` — before that it lived in apps/admin, which this
+ * package cannot import, so nothing could compare it to the server at all.
+ *
+ * The second half of the file (#115) does the same job for the paths NEITHER
+ * map describes — the provider webhooks, the ops endpoints, and a short tail of
+ * routes served for no client — and, in the other direction, refuses any path
+ * that nothing declares at all. See the note above NON_CONTRACT_PATHS for why
+ * the filesystem makes that necessary.
  *
  * The OTHER half of this subject is test/unit/route-autoload.test.ts, which
  * asserts no file beside a routes index.ts is left unregistered. Between them:
@@ -26,7 +31,9 @@
 import { test } from 'node:test'
 import assert from 'node:assert'
 import { apiRoutes } from '@tenda/shared'
+import { adminRoutes } from '@tenda/shared/api/admin'
 import { TEST_DB_CONFIGURED, useTestApp } from '../helpers/test-app'
+import { servedPaths } from '../helpers/route-table'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -38,17 +45,52 @@ const getApp = useTestApp()
  */
 const METHODS = ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'] as const
 
+/**
+ * Both route maps, flattened. `adminRoutes` joined `apiRoutes` here in #121 —
+ * until then the dashboard's paths were listed as NON_CONTRACT_PATHS and merely
+ * asserted to be SERVED, never tied to the map the dashboard actually builds
+ * its URLs from. Now a renamed admin route directory fails this case.
+ *
+ * IT RECURSES because the two maps are not the same SHAPE. `apiRoutes` is
+ * uniformly two levels (domain → endpoint); `adminRoutes` is mostly two, but
+ * `platformConfig` and `metrics` are bare strings ONE level down. A fixed
+ * two-level walk drops exactly those two from the declared set.
+ *
+ * MEASURED, not assumed: replacing this with the old two-level loop makes the
+ * reverse-direction case fail naming `/v1/admin/metrics` and
+ * `/v1/admin/platform-config` as served-but-undeclared. So the shape mismatch
+ * does NOT fail silently — the case below catches it. It fails CONFUSINGLY,
+ * reporting "nothing declares this" for two paths that plainly are declared,
+ * and sending the reader to look at the routes instead of at the walk.
+ *
+ * Both maps go through the same walk, so there is one traversal rather than two.
+ */
+type RouteNode = string | { readonly [key: string]: RouteNode }
+
+function flatten(
+  node: RouteNode,
+  prefix: string,
+  out: Array<{ key: string; path: string }>,
+): void {
+  if (typeof node === 'string') {
+    out.push({ key: prefix, path: node })
+    return
+  }
+  // Every caller seeds a non-empty prefix (the map's own name), so there is no
+  // empty-prefix case to handle — one less unreachable branch to explain.
+  for (const [name, child] of Object.entries(node)) {
+    flatten(child, `${prefix}.${name}`, out)
+  }
+}
+
 function declaredPaths(): Array<{ key: string; path: string }> {
   const out: Array<{ key: string; path: string }> = []
-  for (const [domain, endpoints] of Object.entries(apiRoutes)) {
-    for (const [name, path] of Object.entries(endpoints)) {
-      out.push({ key: `${domain}.${name}`, path })
-    }
-  }
+  flatten(apiRoutes, 'apiRoutes', out)
+  flatten(adminRoutes, 'adminRoutes', out)
   return out
 }
 
-test('every apiRoutes path is served by a registered route', { skip }, async () => {
+test('every declared path is served — BOTH route maps', { skip }, async () => {
   const app = getApp()
   const missing = declaredPaths().filter(
     ({ path }) => !METHODS.some((method) => app.hasRoute({ method, url: path })),
@@ -56,7 +98,7 @@ test('every apiRoutes path is served by a registered route', { skip }, async () 
   assert.deepStrictEqual(
     missing,
     [],
-    `apiRoutes entries with no route behind them:\n${missing
+    `route-map entries with no route behind them:\n${missing
       .map((m) => `  ${m.key} → ${m.path}`)
       .join('\n')}`,
   )
@@ -70,11 +112,21 @@ test('the check actually discriminates — a typo is not served', { skip }, asyn
     METHODS.some((method) => app.hasRoute({ method, url: '/v1/gig/:id/applications' })),
     false,
   )
-  assert.ok(declaredPaths().length > 40, 'the map should be substantial, not empty')
+  // A floor under BOTH maps, so a `declaredPaths` that silently returned []
+  // — an import that resolved to undefined, a walk that stopped recursing —
+  // could not make the case above pass vacuously. The admin half is asserted
+  // separately: without it the number would still clear 40 on `apiRoutes`
+  // alone, which is exactly the regression #121 exists to prevent.
+  const declared = declaredPaths()
+  assert.ok(declared.length > 40, 'the maps should be substantial, not empty')
+  assert.ok(
+    declared.filter((d) => d.key.startsWith('adminRoutes.')).length > 30,
+    'the dashboard map must be walked too, not silently skipped',
+  )
 })
 
 // ---------------------------------------------------------------------------
-// The half `apiRoutes` cannot see (#115)
+// The half NEITHER route map covers (#115)
 // ---------------------------------------------------------------------------
 
 /**
@@ -89,17 +141,18 @@ test('the check actually discriminates — a typo is not served', { skip }, asyn
  * `webhooks/helius.ts` (#106) — and both times the fix was an index.ts and a
  * hand-written test for that one directory.
  *
- * The case above closes this for the client surface, because `apiRoutes` is
- * what our clients call. It closes nothing for the surfaces they do not: the
- * provider webhooks, the ops endpoints, and the whole admin dashboard API.
- * Those are exactly the paths where a 404 is quietest — a webhook provider
- * retries into a void, and nobody is watching /v1/health until it matters.
+ * The case above closes this for every surface a client MAP declares — since
+ * #121 that includes the dashboard's. It closes nothing for the surfaces no map
+ * names: the provider webhooks, the ops endpoints, and three admin routes the
+ * dashboard never calls. Those are exactly the paths where a 404 is quietest —
+ * a webhook provider retries into a void, and nobody is watching /v1/health
+ * until it matters.
  *
  * BOTH DIRECTIONS ARE ASSERTED, and the second is the one that makes this
  * self-enforcing. A list alone would only catch a path that DISAPPEARS; someone
  * adding a new non-client route has no reason to discover this file. Asserting
- * that nothing is served OUTSIDE `apiRoutes ∪ this list` means their new route
- * fails the suite at the URL it actually landed on, which is both the
+ * that nothing is served OUTSIDE `apiRoutes ∪ adminRoutes ∪ this list` means
+ * their new route fails at the URL it actually landed on, which is both the
  * introduction to this list and — when the URL is not the one they meant — the
  * bug report.
  *
@@ -120,53 +173,24 @@ const NON_CONTRACT_PATHS = [
   '/v1/health/ready',
   '/v1/ws',
 
-  // The admin dashboard API. Not in `apiRoutes` because that map types the
-  // mobile/web contract; the dashboard keeps its OWN map in
-  // apps/admin/api/routes.ts, which this package cannot import — so from the
-  // server's side these paths are undeclared, and a directory move here would
-  // break the dashboard with nothing in this repo noticing. Checked while
-  // writing this list: every path in that map is served today.
-  '/v1/admin/announcements',
-  '/v1/admin/announcements/:id',
-  '/v1/admin/disputes',
-  '/v1/admin/disputes/:id',
-  '/v1/admin/disputes/:id/claim',
-  '/v1/admin/disputes/:id/release',
-  '/v1/admin/disputes/:id/resolution',
-  '/v1/admin/escrows',
+  // THE ADMIN DASHBOARD API IS NO LONGER LISTED HERE (#121). Its map moved to
+  // `@tenda/shared/api/admin`, so all 39 of its paths now go through
+  // `declaredPaths()` above and are checked against the map the dashboard
+  // actually builds URLs from — not merely asserted to exist. Rename an admin
+  // route directory and the FIRST case in this file fails, naming the entry.
+  //
+  // These three survive the move because the dashboard does not declare them.
+  // WHAT WAS ACTUALLY CHECKED in #121, and no more: they are SERVED, and no
+  // caller exists in apps/admin outside the map, while neither mobile client
+  // has an admin surface at all. Whether each is still WANTED — and whether it
+  // has real coverage — is #125, which settles them the way #120 settled its
+  // own pair, in the routes' own headers rather than here.
+  //
+  // Listed rather than deleted, because the second case below refuses anything
+  // served that nothing declares, and these are genuinely served.
   '/v1/admin/escrows/:id',
-  '/v1/admin/escrows/:id/dossier',
-  '/v1/admin/escrows/:id/hidden',
-  '/v1/admin/featured',
-  '/v1/admin/featured/:id',
-  '/v1/admin/fiat/intents',
   '/v1/admin/fiat/intents/:id',
-  '/v1/admin/fiat/intents/:id/force-settle',
-  '/v1/admin/fiat/intents/:id/refund',
-  '/v1/admin/fiat/providers',
-  '/v1/admin/fiat/providers/:id',
-  '/v1/admin/finance/fees',
   '/v1/admin/finance/transactions',
-  '/v1/admin/metrics',
-  '/v1/admin/moderation/verdicts',
-  '/v1/admin/moderation/verdicts/:id/override',
-  '/v1/admin/platform-config',
-  '/v1/admin/push/broadcast',
-  '/v1/admin/reports',
-  '/v1/admin/reports/:id',
-  '/v1/admin/resolutions',
-  '/v1/admin/resolutions/:id/broadcast',
-  '/v1/admin/resolutions/:id/execute-build',
-  '/v1/admin/resolutions/:id/reject',
-  '/v1/admin/standing/:user_id',
-  '/v1/admin/standing/:user_id/override',
-  '/v1/admin/users',
-  '/v1/admin/users/:id',
-  '/v1/admin/users/:id/login-email',
-  '/v1/admin/users/:id/role',
-  '/v1/admin/users/:id/status',
-  '/v1/auth/admin/send-email-otp',
-  '/v1/auth/admin/verify-email-otp',
 
   // Served, guarded, tested — and called by no client in this repo. Settled in
   // #120 rather than left open: both are real surfaces answering a question
@@ -178,46 +202,7 @@ const NON_CONTRACT_PATHS = [
   '/v1/escrows/:id/transactions',
 ] as const
 
-/**
- * Every URL the app actually serves, from its own route table.
- *
- * `printRoutes` is the only public view of the table — fastify keeps the radix
- * tree private — so its TREE is parsed back into full paths: each line carries
- * one segment, its depth is the glyph prefix's width, and a line carrying
- * `(GET, POST, …)` is a real endpoint rather than an intermediate node. The
- * trailing `/` fastify prints for a prefixed plugin's own root is dropped, so
- * `/v1/gigs/` and `/v1/gigs` are one path.
- *
- * THE FORMAT IS READ FROM THE PRODUCER, not inferred from one sample:
- * find-my-way 9.5.0's lib/pretty-print.js emits a 4-character prefix per level
- * (`├── `/`└── ` for the node, `│   `/`    ` for its ancestors) and appends
- * ` (${methods})` to a leaf, merging verbs with ', '. It can append MORE after
- * that — a JSON blob when a route carries constraints — which is why the methods
- * group is not anchored to the end of the line. Anchoring it would make a
- * constrained route vanish from this set silently, and a guard that goes quiet
- * is the failure this whole file exists to prevent.
- *
- * A parser is a thing that can silently return nothing, which would make both
- * cases below pass vacuously — the case after them is what stops that.
- */
-function servedPaths(app: ReturnType<typeof getApp>): Set<string> {
-  const stack: string[] = []
-  const urls = new Set<string>()
-  for (const line of app.printRoutes({ commonPrefix: false }).split('\n')) {
-    const parsed = /^([│├└─\s]*)(.*)$/.exec(line)
-    if (parsed === null || parsed[2] === '') continue
-    const depth = Math.floor(parsed[1].length / 4)
-    const endpoint = /^(.*?) \((?:[A-Z, ]+)\)/.exec(parsed[2])
-    stack.length = depth
-    stack[depth] = endpoint === null ? parsed[2] : endpoint[1]
-    if (endpoint === null) continue
-    const url = stack.join('')
-    urls.add(url.length > 1 && url.endsWith('/') ? url.slice(0, -1) : url)
-  }
-  return urls
-}
-
-test('every non-client path is served too — webhooks, ops and the admin API', { skip }, async () => {
+test('every path no route MAP declares is served too — webhooks and ops', { skip }, async () => {
   const served = servedPaths(getApp())
   const missing = NON_CONTRACT_PATHS.filter((path) => !served.has(path))
   assert.deepStrictEqual(
@@ -236,19 +221,36 @@ test('nothing is served at a path neither the contract nor this file declares', 
     unexpected,
     [],
     `the server serves these, and nothing declares them:\n  ${unexpected.join('\n  ')}\n` +
-      `If that is the URL you intended, add it to apiRoutes (client-facing) or to\n` +
-      `NON_CONTRACT_PATHS above. If it is NOT, @fastify/autoload has mounted your\n` +
-      `module somewhere you did not expect — a bare FILE takes its parent's prefix,\n` +
-      `only a DIRECTORY contributes its own name.`,
+      `If that is the URL you intended, add it to apiRoutes (web/mobile), to\n` +
+      `adminRoutes (the dashboard), or to NON_CONTRACT_PATHS above. If it is NOT,\n` +
+      `@fastify/autoload has mounted your module somewhere you did not expect —\n` +
+      `a bare FILE takes its parent's prefix, only a DIRECTORY contributes its own.`,
   )
 })
 
 // Guards the two cases above: both compare against `servedPaths`, and a parser
 // that returned an empty set would make each of them pass while asserting
-// nothing at all.
+// nothing at all. The parser itself lives in helpers/route-table.ts (#121) —
+// this is the case its docstring says a caller owes it.
 test('the route-table parse produces real, whole paths', { skip }, async () => {
   const served = servedPaths(getApp())
-  assert.ok(served.size > declaredPaths().length, `parsed ${served.size} paths`)
+  // THE FLOOR, and it is a real relation rather than a round number. The first
+  // case says every declared path is served and the third says every
+  // non-contract path is, while the last says the two lists are disjoint — so
+  // the table must hold at least their union. A parser that dropped lines,
+  // truncated a subtree or returned nothing cannot clear it.
+  //
+  // It used to compare against `declaredPaths().length`, which counted map
+  // ENTRIES against served URLs. That silently stopped being a floor when #121
+  // added `adminRoutes`: several entries share one URL (list/create,
+  // grant/revoke a login email), so the entry count overtook the path count and
+  // the case failed on a parser that was working perfectly.
+  const declaredUnique = new Set(declaredPaths().map((d) => d.path))
+  const atLeast = declaredUnique.size + NON_CONTRACT_PATHS.length
+  assert.ok(
+    served.size >= atLeast,
+    `parsed ${served.size} paths, expected at least ${atLeast}`,
+  )
   // A deep, parameterised path: it can only be assembled by walking the tree,
   // so its presence says segments are being joined rather than read off a line.
   assert.ok(served.has('/v1/users/:id/transactions/summary'), 'a nested path is reassembled')
@@ -257,9 +259,9 @@ test('the route-table parse produces real, whole paths', { skip }, async () => {
 
 // The maintenance failure mode of a hand-written list, and the only one the two
 // cases above cannot see: both are satisfied by a path listed TWICE, and by a
-// path that has since earned a place in `apiRoutes` and been left here as well.
+// path that has since earned a place in a route map and been left here as well.
 // Either leaves a reader unsure which map owns it.
-test('the non-contract list is a set, and owns nothing apiRoutes already owns', { skip }, async () => {
+test('the non-contract list is a set, and owns nothing a route map already owns', { skip }, async () => {
   assert.strictEqual(
     new Set(NON_CONTRACT_PATHS).size,
     NON_CONTRACT_PATHS.length,
@@ -269,6 +271,6 @@ test('the non-contract list is a set, and owns nothing apiRoutes already owns', 
   assert.deepStrictEqual(
     NON_CONTRACT_PATHS.filter((path) => contract.has(path)),
     [],
-    'these are declared in apiRoutes too — the case above already covers them, so drop them here',
+    'a route map declares these too — the first case already covers them, so drop them here',
   )
 })

@@ -10,6 +10,11 @@
       "require": "./dist/index.js",
       "default": "./dist/index.js"
     },
+    "./api/admin": {
+      "types": "./dist/api/admin-routes.d.ts",
+      "require": "./dist/api/admin-routes.js",
+      "default": "./dist/api/admin-routes.js"
+    },
     "./db/schema": {
       "types": "./dist/db/schema/index.d.ts",
       "require": "./dist/db/schema/index.js",
