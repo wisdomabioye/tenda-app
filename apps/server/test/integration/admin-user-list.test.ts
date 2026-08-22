@@ -107,6 +107,46 @@ test('admin users: search matches a linked WALLET address, correlated to its own
   )
 })
 
+test('admin users: a wallet search is case-insensitive and matches mid-address (#118)', { skip }, async () => {
+  // BOTH HALVES OF A DECISION, not a restatement of the case above. #118 kept
+  // this search as `ILIKE '%term%'` and DROPPED the prefix index built for it,
+  // on the grounds that an operator reading a wallet address off a phone call
+  // has a fragment from the middle of it and no reason to match its case. That
+  // is a deliberate Seq Scan, and nothing was asserting either property OF THE
+  // WALLET ARM. (The name arms have both, at the top of this file — which is
+  // the trap: they are a separate `ilike` call, and pass whatever the wallet
+  // arm does.)
+  //
+  // The case above already fails if the match becomes prefix-only, because
+  // 'OfTheOwner' begins eight characters into the address. It does NOT fail if
+  // `ilike` becomes `like` — its search term is spelled exactly as stored. So
+  // the mixed-case term below is the half that was unguarded, and it is the one
+  // an index "optimisation" would quietly break.
+  //
+  // Both halves were mutation-proved: `ilike`→`like` on the wallet arm fails
+  // THIS case alone; a prefix-only wallet arm fails this one, the case above,
+  // and the escaping control.
+  const app = getApp()
+  const admin = await createAdmin(app)
+  const owner = await createUser(app)
+  await app.db.insert(user_wallets).values({
+    chain_ns: 'solana',
+    address: 'SoWalletMixedCaseAbCdEf444444',
+    user_id: owner.row.id,
+  })
+
+  assert.deepStrictEqual(
+    await listIds(app, admin.token, 'search=mixedcaseabcdef'),
+    [owner.row.id],
+    'lower-cased, and from the middle: the search folds case as ILIKE does',
+  )
+  assert.deepStrictEqual(
+    await listIds(app, admin.token, 'search=MIXEDCASEABCDEF'),
+    [owner.row.id],
+    'and upper-cased, so the assertion is about folding rather than about one spelling',
+  )
+})
+
 // ---------- LIKE metacharacters are TEXT, not syntax (#119) --------------------
 //
 // These three replace a case that pinned the opposite — searching `%` used to

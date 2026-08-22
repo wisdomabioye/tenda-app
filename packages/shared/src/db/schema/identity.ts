@@ -107,12 +107,26 @@ export const user_wallets = pgTable(
     uniqueIndex('user_wallets_one_primary_per_user_idx')
       .on(t.user_id)
       .where(sql`${t.is_primary} = true`),
-    // S5.7 (closes open A6): admin wallet prefix search (LIKE 'abc%') needs
-    // the text_pattern_ops operator class.
-    index('user_wallets_address_prefix_idx').using(
-      'btree',
-      sql`${t.address} text_pattern_ops`,
-    ),
+    // THERE IS DELIBERATELY NO INDEX ON `address` ALONE (#118, dropped
+    // 2026-08-22). S5.7 added one with the text_pattern_ops operator class for
+    // an "admin wallet prefix search (LIKE 'abc%')" that was never written:
+    // the admin user list matches ILIKE '%term%', and that opclass serves
+    // neither a leading wildcard nor a case-insensitive operator.
+    //
+    // It was not merely unused, which is the trap — it took MORE scans than
+    // this table's primary key, because the text_pattern_ops opfamily includes
+    // `=` and the planner chose it as the entry point for plain
+    // `address = $1` lookups. Every one of those is already covered by the
+    // (chain_ns, address) primary key declared above, and measurably better:
+    // with the index gone the Solana auth lookup improves from an Index Scan
+    // plus heap fetch to an Index ONLY Scan. Plans in
+    // docs/query_plan_measurements.md.
+    //
+    // Before re-adding anything here, note that the admin search's Seq Scan is
+    // accepted on purpose, so the operator can paste a fragment from the MIDDLE
+    // of an address. A prefix-only index cannot serve that search whatever its
+    // opclass; a trigram (pg_trgm) index is the only thing that would, and that
+    // is an extension dependency for every environment.
   ],
 )
 

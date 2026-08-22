@@ -54,13 +54,22 @@ const adminUsers: FastifyPluginAsync = async (fastify) => {
       // Wallets are multi-row in v2, so match any linked address — correlated
       // to its owner, which admin-user-list.test.ts pins in both directions.
       //
-      // THIS IS A SEQ SCAN over user_wallets, and the note that used to sit
-      // here claimed otherwise: it said the text_pattern_ops index covered the
-      // search. That index serves LIKE 'abc%', and this pattern is neither
-      // prefix-only nor case-sensitive. MEASURED on 3k rows with fresh
+      // THIS IS A SEQ SCAN over user_wallets, ON PURPOSE, and the note that
+      // used to sit here claimed otherwise: it said the text_pattern_ops index
+      // covered the search. That index served LIKE 'abc%', and this pattern is
+      // neither prefix-only nor case-sensitive. MEASURED on 3k rows with fresh
       // statistics (docs/query_plan_measurements.md): LIKE 'SoWabc%' → Index
       // Only Scan, ILIKE '%abc%' → Seq Scan, and even ILIKE 'SoWabc%' → Seq
-      // Scan. What to do about it is #118.
+      // Scan.
+      //
+      // #118 resolved it by DROPPING that index (migration 0030) rather than by
+      // narrowing this search, so do not go looking for it. The scan is the
+      // price of letting an operator paste a fragment from the MIDDLE of an
+      // address, which is what they actually have when a user reads one out;
+      // a prefix index cannot serve that at any opclass. If this table ever
+      // grows enough to matter, the fix is a pg_trgm index, not a narrower
+      // match — the reasoning is in #118 and in the schema comment on
+      // user_wallets.
       conditions.push(
         or(
           ilike(users.first_name, pattern),
