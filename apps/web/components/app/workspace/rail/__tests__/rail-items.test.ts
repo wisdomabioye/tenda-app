@@ -54,10 +54,10 @@ describe('visibleRailItems', () => {
 
 describe('rail item config', () => {
   it('preserves every destination the previous top-nav shell could reach', () => {
-    // Regression net for the shell swap: Post moved to the rail action and
+    // Regression net for the shell swap: Create moved to the rail action and
     // the bell became the Notifications item, but nothing may be dropped.
     const reachable = new Set([...visibleRailItems(true).map((i) => i.href), RAIL_ACTION.href])
-    for (const href of ['/home', '/post', '/my-gigs', '/messages', '/wallet', '/exchange', '/notifications']) {
+    for (const href of ['/home', '/create', '/my-gigs', '/messages', '/wallet', '/exchange', '/notifications']) {
       expect(reachable, `${href} is no longer reachable from the rail`).toContain(href)
     }
   })

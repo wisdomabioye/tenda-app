@@ -5,6 +5,7 @@
  */
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
+import Link from 'next/link'
 import { EmptyPanel } from '@/components/ui/EmptyPanel'
 
 describe('EmptyPanel', () => {
@@ -27,7 +28,7 @@ describe('EmptyPanel', () => {
   it('renders an action only when there is one', () => {
     const { rerender } = render(<EmptyPanel title="t" body="b" />)
     expect(screen.queryByRole('link')).toBeNull()
-    rerender(<EmptyPanel title="t" body="b" action={<a href="/gigs">Clear filters</a>} />)
+    rerender(<EmptyPanel title="t" body="b" action={<Link href="/gigs">Clear filters</Link>} />)
     expect(screen.getByRole('link', { name: 'Clear filters' })).toBeInTheDocument()
   })
 })

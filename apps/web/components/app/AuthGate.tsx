@@ -7,27 +7,19 @@
  * then redirects: unauthenticated → /signin, incomplete profile →
  * /onboarding/profile. Also wires cross-tab session sync for its lifetime.
  */
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/stores/auth.store'
-import { initCrossTabAuthSync } from '@/stores/auth/cross-tab'
+import { useSessionBootstrap } from '@/hooks/auth/useSessionBootstrap'
 import { currentReturnPath, returnPathFrom, withReturnPath } from '@/lib/auth/return-path'
+import { SessionGateSkeleton } from './SessionGateSkeleton'
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const router = useRouter()
   const isLoading = useAuthStore((s) => s.isLoading)
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const profileComplete = useAuthStore((s) => s.profileComplete)
-  const loadSession = useAuthStore((s) => s.loadSession)
-  const bootstrapped = useRef(false)
-
-  useEffect(() => {
-    if (!bootstrapped.current) {
-      bootstrapped.current = true
-      if (useAuthStore.getState().isLoading) void loadSession()
-    }
-    return initCrossTabAuthSync()
-  }, [loadSession])
+  useSessionBootstrap()
 
   useEffect(() => {
     if (isLoading) return
@@ -46,11 +38,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   }, [isLoading, isAuthenticated, profileComplete, router])
 
   if (isLoading || !isAuthenticated || profileComplete === false) {
-    return (
-      <div className="flex min-h-screen items-center justify-center" aria-busy="true">
-        <div className="h-8 w-40 animate-pulse rounded-control bg-surface-inset" />
-      </div>
-    )
+    return <SessionGateSkeleton />
   }
   return <>{children}</>
 }

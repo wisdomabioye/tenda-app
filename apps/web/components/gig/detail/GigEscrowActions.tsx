@@ -29,6 +29,7 @@ import {
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { useGigsStore } from '@/stores/gigs.store'
+import { ROUTES } from '@/lib/routes'
 import { useEscrowActions, type ProofFile } from '@/hooks/escrow/useEscrowActions'
 import { useEscrowFee } from '@/hooks/escrow/useEscrowFee'
 import { useGigApprovalFlow } from '@/hooks/gig/useGigApprovalFlow'
@@ -121,7 +122,7 @@ export function GigEscrowActions({ gig, userId }: { gig: GigDetail; userId: stri
         onAction={setActiveSheet}
         onTxAction={setConfirmAction}
         onApprovalAction={approval.handleAction}
-        onRetryDraft={() => router.push(`/post?draftId=${gig.escrow_id}`)}
+        onRetryDraft={() => router.push(`${ROUTES.createGig}?draftId=${gig.escrow_id}`)}
       />
 
       <TxConfirmDialog

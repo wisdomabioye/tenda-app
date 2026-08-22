@@ -27,6 +27,9 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
       dispatchEvent: () => false,
     }) as MediaQueryList
 }
+if (typeof window !== 'undefined') {
+  window.scrollTo = vi.fn()
+}
 class ResizeObserverStub {
   observe() {}
   unobserve() {}

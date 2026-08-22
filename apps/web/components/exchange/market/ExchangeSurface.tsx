@@ -19,6 +19,7 @@ import { MyTradeCard } from './MyTradeCard'
 import { OfferCard } from './OfferCard'
 import { OfferCardSkeleton } from './OfferCardSkeleton'
 import { EXCHANGE_COPY, type ExchangeRouteState } from './copy'
+import { ROUTES } from '@/lib/routes'
 
 export function ExchangeSurface({
   route,
@@ -43,7 +44,7 @@ export function ExchangeSurface({
             {EXCHANGE_COPY.title(route.tab)}
           </h1>
         </div>
-        <Link href="/exchange/new">
+        <Link href={ROUTES.createOffer}>
           <Button variant="outline">
             <Plus size={15} aria-hidden /> {EXCHANGE_COPY.postOffer}
           </Button>

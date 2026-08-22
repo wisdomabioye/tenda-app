@@ -60,7 +60,7 @@ export const SETTINGS_CARDS: readonly Omit<SettingsCard, 'badge'>[] = [
   {
     href: '/settings/bank-accounts',
     title: 'Bank accounts',
-    blurb: 'Payout rails in Nigeria, Kenya and Ghana.',
+    blurb: 'Payout methods available for your country and currency.',
   },
   {
     href: '/settings/token-approvals',

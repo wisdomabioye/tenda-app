@@ -45,7 +45,7 @@ export const RAIL_ITEMS: readonly RailItem[] = [
 ]
 
 /** The rail's primary action, pinned below the scrollable item list. */
-export const RAIL_ACTION = { href: '/post', label: 'Post a gig' } as const
+export const RAIL_ACTION = { href: '/create', label: 'Create' } as const
 
 export const RAIL_SETTINGS = { href: '/settings', label: 'Settings' } as const
 export const RAIL_PROFILE = { href: '/profile', label: 'Your profile' } as const

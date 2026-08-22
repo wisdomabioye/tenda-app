@@ -161,10 +161,11 @@ describe('returnPathFrom', () => {
     expect(returnPathFrom('/my-gigs/esc-1')).toBe('/my-gigs/esc-1')
   })
 
-  it('carries NOTHING when they were already heading for the default', () => {
+  it('carries NOTHING when they were already heading for a default entry', () => {
     // Otherwise the commonest redirect of all grows a param that reads as
     // though it changes something and does not.
     expect(returnPathFrom(DEFAULT_SIGNED_IN_PATH)).toBeNull()
+    expect(returnPathFrom('/')).toBeNull()
   })
 
   it('carries nothing for a destination it would refuse anyway', () => {

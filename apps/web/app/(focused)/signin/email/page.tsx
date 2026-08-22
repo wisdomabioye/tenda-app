@@ -12,7 +12,7 @@ import { normalizeEmail, verifyErrorMessage } from '@tenda/shared'
 import { api } from '@/api/client'
 import { AuthPanel } from '@/components/auth/AuthPanel'
 import { AUTH_COPY } from '@/components/auth/copy'
-import { Button, FormError, TextField } from '@/components/ui'
+import { Button, FormError, Spinner, TextField } from '@/components/ui'
 import { useSigninFlowStore } from '@/stores/signin-flow.store'
 import { currentReturnPath, withReturnPath } from '@/lib/auth/return-path'
 import { useReturnPath } from '@/hooks/auth/useReturnPath'
@@ -81,8 +81,9 @@ export default function SignInEmailPage() {
           error={showInvalid ? AUTH_COPY.email.invalid : null}
         />
         <FormError message={error} />
-        <Button type="submit" disabled={!valid || busy} fullWidth>
-          {busy ? AUTH_COPY.email.sending : AUTH_COPY.email.cta}
+        <Button type="submit" disabled={!valid || busy} fullWidth aria-busy={busy}>
+          {busy && <Spinner size="sm" />}
+          <span aria-live="polite">{busy ? AUTH_COPY.email.sending : AUTH_COPY.email.cta}</span>
         </Button>
       </form>
 

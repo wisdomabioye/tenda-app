@@ -5,6 +5,7 @@ import { BrandTile } from '@/components/public/BrandMark'
 import { TermsNotice } from '@/components/auth/TermsNotice'
 import { WELCOME_COPY } from '@/components/onboarding/copy'
 import { buttonVariants } from '@/components/ui'
+import { GuestOnlyGate } from '@/components/app/GuestOnlyGate'
 
 export const metadata: Metadata = {
   title: WELCOME_COPY.title,
@@ -28,7 +29,7 @@ export const metadata: Metadata = {
  */
 export default function WelcomePage() {
   return (
-    <div className="w-full max-w-[520px] text-center">
+    <GuestOnlyGate><div className="w-full max-w-[520px] text-center">
       <BrandTile size={56} />
 
       <h1 className="mt-7 text-balance font-display text-[34px] font-bold leading-10 tracking-[-1.2px] text-content-primary sm:text-[44px] sm:leading-[50px]">
@@ -63,6 +64,6 @@ export default function WelcomePage() {
       </div>
 
       <p className="mt-4 text-xs leading-4 text-content-tertiary">{APP_INFO.tagline}</p>
-    </div>
+    </div></GuestOnlyGate>
   )
 }

@@ -7,10 +7,11 @@
  */
 import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import WelcomePage from '@/app/(focused)/welcome/page'
 import { OnboardingCarousel } from '@/components/onboarding/OnboardingCarousel'
 import { ONBOARDING_COPY, ONBOARDING_SLIDES, WELCOME_COPY } from '@/components/onboarding/copy'
+import { useAuthStore } from '@/stores/auth.store'
 
 const push = vi.fn()
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace: vi.fn() }) }))
@@ -18,6 +19,10 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ push, replace: vi.fn() }
 afterEach(() => {
   cleanup()
   push.mockClear()
+})
+
+beforeEach(() => {
+  useAuthStore.setState({ isLoading: false, isAuthenticated: false, profileComplete: null })
 })
 
 describe('WelcomePage', () => {

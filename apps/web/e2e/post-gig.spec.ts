@@ -33,8 +33,9 @@ async function walkToMoney(page: Page) {
 
 test('the wizard gates each step on its own first actionable requirement', async ({ page }) => {
   await signInToHome(page)
-  await page.getByRole('link', { name: 'Post a Gig' }).click()
-  await expect(page).toHaveURL(/\/post/)
+  await page.getByRole('button', { name: 'Create' }).click()
+  await page.getByRole('menuitem', { name: 'Create gig' }).click()
+  await expect(page).toHaveURL(/\/gigs\/new/)
 
   const next = page.getByRole('button', { name: 'Continue' })
   await expect(page.getByText('Step 1 of 5')).toBeVisible()
@@ -82,7 +83,7 @@ test('the wizard gates each step on its own first actionable requirement', async
 
 test('the rail locks what is ahead and carries the reader back to what is done', async ({ page }) => {
   await signInToHome(page)
-  await page.goto('/post')
+  await page.goto('/gigs/new')
 
   // Nothing answered: every step past the first is shut.
   await expect(page.getByRole('button', { name: /The brief/ })).toBeDisabled()
@@ -98,7 +99,7 @@ test('the rail locks what is ahead and carries the reader back to what is done',
 
 test('posting walks the full chain and survives a missing wallet as a saved draft', async ({ page }) => {
   await signInToHome(page)
-  await page.goto('/post')
+  await page.goto('/gigs/new')
   await walkToMoney(page)
   await page.getByLabel('Budget in USDC').fill('25')
   await page.getByRole('button', { name: 'Review and sign' }).click()
@@ -121,7 +122,7 @@ test('posting walks the full chain and survives a missing wallet as a saved draf
 
 test('cancelling the confirm gate leaves the wizard untouched', async ({ page }) => {
   await signInToHome(page)
-  await page.goto('/post')
+  await page.goto('/gigs/new')
   await walkToMoney(page)
   await page.getByLabel('Budget in USDC').fill('25')
   await page.getByRole('button', { name: 'Review and sign' }).click()
@@ -132,7 +133,7 @@ test('cancelling the confirm gate leaves the wizard untouched', async ({ page })
     .click()
   await expect(page.getByRole('alertdialog')).toBeHidden()
   // Still on the money step with the composed values intact.
-  await expect(page).toHaveURL(/\/post/)
+  await expect(page).toHaveURL(/\/gigs\/new/)
   await expect(page.getByText('Step 5 of 5')).toBeVisible()
   await expect(page.getByLabel('Budget in USDC')).toHaveValue('25')
 })

@@ -30,6 +30,7 @@ import {
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
+import { ROUTES } from '@/lib/routes'
 import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
@@ -199,7 +200,7 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
   // draft's own "Edit & repost" entry, not to leftover state here.
   function resetComposer() {
     resetForm()
-    if (draftId !== undefined) router.replace('/post')
+    if (draftId !== undefined) router.replace(ROUTES.createGig)
   }
 
   // Tear down the progress modal, clear the retry-draft param, and land on

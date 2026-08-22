@@ -18,9 +18,12 @@ const cmd = (label: string): PaletteCommand => ({
 describe('surfaceCommands', () => {
   it('offers every rail destination plus the foot actions', () => {
     const labels = surfaceCommands(false).map((c) => c.label)
-    for (const expected of ['Home', 'My Gigs', 'Messages', 'Wallet', 'Post a gig', 'Settings']) {
+    for (const expected of ['Home', 'My Gigs', 'Messages', 'Wallet', 'Create', 'Settings']) {
       expect(labels).toContain(expected)
     }
+    expect(surfaceCommands(false).find((command) => command.label === 'Create')?.id).toBe(
+      'action:create',
+    )
   })
 
   it('honours the advanced-mode gate, so the palette cannot reach what the rail hides', () => {

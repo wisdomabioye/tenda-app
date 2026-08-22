@@ -23,7 +23,7 @@ import { OfflineNotice } from '@/components/app/status/OfflineNotice'
  * the escape from a flow you did not mean to start is still one hop from
  * anywhere in it.
  *
- * Route groups do not affect URLs, so /signin and /post are unchanged.
+ * Route groups do not affect the explicit sign-in and composer URLs.
  */
 export default function FocusedLayout({ children }: { children: ReactNode }) {
   return (

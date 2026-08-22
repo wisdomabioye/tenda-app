@@ -102,7 +102,7 @@ export function currentReturnPath(): string | null {
  */
 export function returnPathFrom(here: string): string | null {
   const safe = safeReturnPath(here)
-  return safe === null || safe === DEFAULT_SIGNED_IN_PATH ? null : safe
+  return safe === null || safe === '/' || safe === DEFAULT_SIGNED_IN_PATH ? null : safe
 }
 
 /**

@@ -11,7 +11,6 @@ import {
 import { api } from '@/api/client'
 import { clearAuthStorage, getJwtToken, setJwtToken } from '@/lib/storage'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
-import { reownAdapter } from '@/wallet/adapters/reown'
 import {
   accountGeneration,
   beginAccountSession,
@@ -218,7 +217,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Best-effort: drop the wallet session too, so the next sign-in shows the
     // picker instead of silently reusing a stale session across accounts
     // (mobile doctrine). peek-only — never boots the wallet stack to log out.
-    await reownAdapter.disconnect().catch(() => {})
+    // Keep the heavy Reown graph out of every surface that merely reads the
+    // auth store. Logout is the only store action that needs this adapter.
+    try {
+      const { reownAdapter } = await import('@/wallet/adapters/reown')
+      await reownAdapter.disconnect()
+    } catch {
+      // Loading the optional wallet chunk and disconnecting it are both
+      // best-effort. Neither may leave the already-cleared auth session live.
+    }
     if (!isSameAccount(gen)) return
     set({ ...SIGNED_OUT, isLoading: false })
   },

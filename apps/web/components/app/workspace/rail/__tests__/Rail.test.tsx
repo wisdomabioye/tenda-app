@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import userEvent from '@testing-library/user-event'
 
 // The rail reads pathname to mark the active item; each case needs its own.
 const pathnameRef = { current: '/home' }
@@ -19,6 +20,7 @@ const at = (pathname: string) => {
 
 beforeEach(() => {
   at('/home')
+  window.localStorage.clear()
   useChatStore.setState({ unread: 0 })
   useNotificationsStore.setState({ unread: 0 })
 })
@@ -29,7 +31,7 @@ describe('Rail — navigation', () => {
     for (const label of ['Home', 'My Gigs', 'Messages', 'Notifications', 'Wallet']) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument()
     }
-    expect(screen.getByRole('link', { name: 'Post a gig' })).toHaveAttribute('href', '/post')
+    expect(screen.getByRole('button', { name: 'Create' })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
   })
 
@@ -57,13 +59,16 @@ describe('Rail — navigation', () => {
     expect(screen.getByRole('link', { name: 'My Gigs' })).not.toHaveAttribute('aria-current')
   })
 
-  it('marks the Post action current on the posting flow', () => {
-    at('/post')
+  it('opens a menu with both explicit creation routes', async () => {
     render(<Rail user={makeUser()} />)
-    expect(screen.getByRole('link', { name: 'Post a gig' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    )
+    await userEvent.click(screen.getByRole('button', { name: 'Create' }))
+    const createGig = screen.getByRole('menuitem', { name: 'Create gig' })
+    expect(createGig).toHaveAttribute('href', '/gigs/new')
+    expect(createGig).toHaveFocus()
+    expect(screen.getByRole('menuitem', { name: 'Create offer' })).toHaveAttribute('href', '/offers/new')
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Create' })).toHaveFocus()
   })
 
   it('marks the profile avatar current on the profile surface', () => {
@@ -75,11 +80,18 @@ describe('Rail — navigation', () => {
     )
   })
 
-  it('leaves the Post action and avatar unmarked elsewhere', () => {
+  it('leaves the avatar unmarked elsewhere', () => {
     at('/wallet')
     render(<Rail user={makeUser()} />)
-    expect(screen.getByRole('link', { name: 'Post a gig' })).not.toHaveAttribute('aria-current')
     expect(screen.getByRole('link', { name: /Your profile/ })).not.toHaveAttribute('aria-current')
+  })
+
+  it('toggles the sidebar and persists the preference', async () => {
+    render(<Rail user={makeUser()} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }))
+    expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toHaveAttribute('aria-expanded', 'true')
+    expect(window.localStorage.getItem('tenda_workspace_rail_expanded')).toBe('true')
+    expect(screen.getByText('My Gigs')).toBeVisible()
   })
 
   it('names the avatar link with the signed-in user', () => {

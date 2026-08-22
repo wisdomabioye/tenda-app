@@ -25,7 +25,7 @@ test('bell badge counts unread; the centre pins the announcement over the feed',
 }) => {
   await signInToHome(page)
   const bell = page.getByRole('link', { name: 'Notifications, 1 unread' })
-  await expect(bell).toHaveText('1')
+  await expect(bell.locator('span[aria-hidden="true"]')).toHaveText('1')
 
   await bell.click()
   await expect(page).toHaveURL(/\/notifications/)

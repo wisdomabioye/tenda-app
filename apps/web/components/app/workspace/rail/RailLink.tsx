@@ -15,9 +15,10 @@ interface RailLinkProps {
   active?: boolean
   /** Unread count; 0 or less renders no pip. */
   badgeCount?: number
+  expanded?: boolean
 }
 
-export function RailLink({ href, label, icon: Icon, active = false, badgeCount = 0 }: RailLinkProps) {
+export function RailLink({ href, label, icon: Icon, active = false, badgeCount = 0, expanded = false }: RailLinkProps) {
   // The count belongs in the accessible name, not only in the visual pip —
   // the pip itself is aria-hidden.
   const accessibleName = badgeCount > 0 ? `${label}, ${badgeCount} unread` : label
@@ -28,13 +29,14 @@ export function RailLink({ href, label, icon: Icon, active = false, badgeCount =
       title={label}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        RAIL_SLOT,
+        expanded ? 'relative mx-3 flex h-10 w-[calc(100%_-_1.5rem)] shrink-0 items-center gap-3 rounded-control px-3 transition-colors' : RAIL_SLOT,
         active
           ? 'bg-control-selected-background text-brand-primary'
           : 'text-content-tertiary hover:bg-surface-inset hover:text-content-primary',
       )}
     >
       <Icon size={20} aria-hidden />
+      {expanded && <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold">{label}</span>}
       <RailBadge count={badgeCount} />
     </Link>
   )

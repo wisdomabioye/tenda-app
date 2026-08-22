@@ -3,7 +3,7 @@
  * of the permit signature and the draft (the ordering IS the feature), the
  * moderation block, the 9D gate over the REAL shared classifier, draft
  * survival on declined signing, composer-reset contracts, and acceptance-
- * mode forwarding. Web divergences under test: router.replace('/post')
+ * mode forwarding. Web divergences under test: the explicit gig composer route
  * clears the draft param, and no notification-prompt store exists.
  */
 import { act, renderHook, type RenderHookResult } from '@testing-library/react'
@@ -225,7 +225,7 @@ test('a confirmed escrow clears the draft prefill and lands on the gig', async (
   })
   expect(resetForm).toHaveBeenCalled()
   // Web's draft-param clear: replace the URL without the ?draftId.
-  expect(mockReplace).toHaveBeenCalledWith('/post')
+  expect(mockReplace).toHaveBeenCalledWith('/gigs/new')
   expect(mockToast).toHaveBeenCalledWith('success', 'Gig funded and live!')
   expect(mockPush).toHaveBeenCalledWith('/gig/e1')
   expect(result.current.phase).toBe('idle')

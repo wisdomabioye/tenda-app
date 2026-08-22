@@ -12,7 +12,7 @@ import { Landmark, ShieldCheck, Receipt, type LucideIcon } from 'lucide-react'
 
 export const WELCOME_COPY = {
   title: 'Get paid for the work, not for the chasing.',
-  lede: 'Every gig is funded into escrow before anyone starts. Nigeria, Kenya and Ghana.',
+  lede: 'Every gig is funded into escrow before anyone starts, wherever the work happens.',
   primary: 'Get started',
   secondary: 'I already have an account',
   /**
@@ -53,7 +53,7 @@ export const ONBOARDING_SLIDES: readonly OnboardingSlide[] = [
   {
     icon: Landmark,
     title: 'Paid out where you actually bank',
-    body: 'Sell to local currency and cash out to a bank account or mobile money in Nigeria, Kenya or Ghana.',
+    body: 'Convert supported assets to local currency using the payout methods available in your country.',
   },
 ]
 

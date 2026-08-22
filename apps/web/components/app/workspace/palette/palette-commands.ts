@@ -43,7 +43,7 @@ export function surfaceCommands(advancedModeEnabled: boolean): PaletteCommand[] 
       href: item.href,
       icon: item.icon,
     })),
-    { id: 'action:post', label: RAIL_ACTION.label, hint: GO, href: RAIL_ACTION.href, icon: Plus },
+    { id: 'action:create', label: RAIL_ACTION.label, hint: GO, href: RAIL_ACTION.href, icon: Plus },
     {
       id: 'action:settings',
       label: RAIL_SETTINGS.label,

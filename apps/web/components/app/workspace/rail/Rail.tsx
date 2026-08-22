@@ -11,16 +11,17 @@
  */
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Plus, Settings } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react'
 import { APP_INFO, displayName, type User } from '@tenda/shared'
 import { cn } from '@/lib/cn'
 import { useChatStore } from '@/stores/chat.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { ThemeToggle } from '@/components/app/ThemeToggle'
+import { useRailExpansion } from '@/hooks/workspace/useRailExpansion'
 import { Avatar } from '@/components/ui/Avatar'
 import { RailLink, RAIL_SLOT } from './RailLink'
+import { CreateMenu } from './CreateMenu'
 import {
-  RAIL_ACTION,
   RAIL_PROFILE,
   RAIL_SETTINGS,
   isRailItemActive,
@@ -32,6 +33,7 @@ export function Rail({ user }: { user: User | null }) {
   const pathname = usePathname()
   const messageUnread = useChatStore((s) => s.unread)
   const notificationUnread = useNotificationsStore((s) => s.unread)
+  const { expanded, toggle } = useRailExpansion()
 
   const counts: Record<RailBadgeSource, number> = {
     messages: messageUnread,
@@ -39,14 +41,13 @@ export function Rail({ user }: { user: User | null }) {
   }
 
   const items = visibleRailItems(user?.advanced_mode_enabled === true)
-  const postActive = isRailItemActive(pathname, RAIL_ACTION.href)
-
   return (
     <nav
       aria-label="Workspace"
+      data-expanded={expanded}
       // w-full, not w-16: the grid column already IS --pane-rail. Repeating
       // 64px here would silently desync the moment that token changes.
-      className="flex h-full min-h-0 w-full flex-col items-center gap-1.5 overflow-y-auto border-r border-border-subtle bg-surface-background-alt py-3.5"
+      className="flex h-full min-h-0 w-full flex-col items-center gap-1.5 overflow-visible border-r border-border-subtle bg-surface-background-alt py-3.5"
     >
       <Link
         href="/home"
@@ -64,25 +65,14 @@ export function Rail({ user }: { user: User | null }) {
           icon={item.icon}
           active={isRailItemActive(pathname, item.href)}
           badgeCount={item.badge === undefined ? 0 : counts[item.badge]}
+          expanded={expanded}
         />
       ))}
 
       {/* Pushes the action cluster to the foot of the rail. */}
       <span className="flex-1" aria-hidden />
 
-      <Link
-        href={RAIL_ACTION.href}
-        aria-label={RAIL_ACTION.label}
-        title={RAIL_ACTION.label}
-        aria-current={postActive ? 'page' : undefined}
-        className={cn(
-          RAIL_SLOT,
-          'border border-control-selected-border bg-control-selected-background text-brand-primary',
-          'hover:bg-brand-solid hover:text-brand-on-primary',
-        )}
-      >
-        <Plus size={20} aria-hidden />
-      </Link>
+      <CreateMenu expanded={expanded} />
 
       <ThemeToggle className={RAIL_SLOT} />
 
@@ -91,6 +81,7 @@ export function Rail({ user }: { user: User | null }) {
         label={RAIL_SETTINGS.label}
         icon={Settings}
         active={isRailItemActive(pathname, RAIL_SETTINGS.href)}
+        expanded={expanded}
       />
 
       {/* Avatar (not a hand-rolled initials span): it already owns the
@@ -117,6 +108,16 @@ export function Rail({ user }: { user: User | null }) {
           src={user?.avatar_url}
         />
       </Link>
+
+      <button
+        type="button"
+        aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+        aria-expanded={expanded}
+        onClick={toggle}
+        className={cn(RAIL_SLOT, 'mt-1 text-content-tertiary hover:bg-surface-inset hover:text-content-primary')}
+      >
+        {expanded ? <PanelLeftClose size={19} aria-hidden /> : <PanelLeftOpen size={19} aria-hidden />}
+      </button>
     </nav>
   )
 }
