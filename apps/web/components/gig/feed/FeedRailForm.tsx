@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * Search + sort, as ONE GET form to /gigs.
+ * Search + sort, as one GET form to the root feed.
  *
  * A form and not a router.push: with no JavaScript, Enter in the search box
  * still submits and the `<noscript>` button still applies a sort — the feed's
@@ -40,7 +40,7 @@ export function FeedRailForm({ filters }: { filters: GigFeedFilters }) {
   const form = useRef<HTMLFormElement>(null)
 
   return (
-    <form ref={form} method="get" action="/gigs" className="flex flex-col gap-7">
+    <form ref={form} method="get" action="/" className="flex flex-col gap-7">
       {hiddenFields(filters).map(([name, value]) => (
         <input key={name} type="hidden" name={name} value={value} />
       ))}

@@ -13,7 +13,7 @@ export const FEED_COPY = {
     title: 'Work that pays, because the money is already locked.',
     lede: `Every gig on ${APP_INFO.name} is funded into escrow before anyone starts. You can see the amount, the city and the proof required before you apply — no account needed to look.`,
     /** Prefixes the market list so the eyebrow states WHICH claim it is making. */
-    marketsPrefix: 'Cash out in',
+    eyebrow: 'Escrow-secured work worldwide',
   },
   rail: {
     search: 'Search',

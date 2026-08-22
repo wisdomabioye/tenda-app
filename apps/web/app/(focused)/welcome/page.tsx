@@ -53,7 +53,7 @@ export default function WelcomePage() {
 
       <p className="mx-auto mt-6 max-w-[42ch] text-[13px] leading-5 text-content-tertiary">
         {WELCOME_COPY.browse.before}
-        <Link href="/gigs" className="font-semibold text-content-secondary hover:underline">
+        <Link href="/" className="font-semibold text-content-secondary hover:underline">
           {WELCOME_COPY.browse.link}
         </Link>
         {WELCOME_COPY.browse.after}

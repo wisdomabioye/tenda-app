@@ -14,7 +14,7 @@
  *   twenty-five links — "All categories, Delivery, … Anywhere, Nigeria, …,
  *   Any chain, Solana Devnet" — with no way to tell that Nigeria is a market
  *   and Digital is a category, and with three different links all named
- *   "All …" pointing at `/gigs`. Verified in a real browser's accessibility
+ *   "All …" pointing at the root feed. Verified in a real browser's accessibility
  *   tree, where the group names appeared as bare paragraphs. So the wrapper
  *   carries `role="group"` named by the eyebrow it already renders, matching
  *   what SiteFooter does for its three link groups and what ChainFilterChips

@@ -17,7 +17,7 @@ describe('NotFoundPanel', () => {
   it('always offers TWO ways out — the feed and support', () => {
     // A dead end is the failure mode of a 404, so neither link is optional.
     render(<NotFoundPanel code="404" heading="h" body="b" />)
-    expect(screen.getByRole('link', { name: 'Browse open gigs' })).toHaveAttribute('href', '/gigs')
+    expect(screen.getByRole('link', { name: 'Browse open gigs' })).toHaveAttribute('href', '/')
     expect(screen.getByRole('link', { name: 'Get support' })).toHaveAttribute('href', '/support')
   })
 

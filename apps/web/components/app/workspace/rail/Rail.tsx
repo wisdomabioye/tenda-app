@@ -1,8 +1,8 @@
 'use client'
 
 /**
- * The workspace's 64px icon rail (Tier 2 comp, lines 364-386): brand mark,
- * navigable surfaces, then a pinned foot of Post / theme / settings / avatar.
+ * The workspace's responsive navigation rail: brand mark, navigable surfaces,
+ * then a pinned foot of Create / theme / settings / profile / sign-out.
  *
  * Live counters are read here rather than in the item config so the config
  * stays a pure, testable list. The socket + realtime mirrors deliberately do
@@ -12,7 +12,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { PanelLeftClose, PanelLeftOpen, Settings } from 'lucide-react'
-import { APP_INFO, displayName, type User } from '@tenda/shared'
+import { displayName, type User } from '@tenda/shared'
 import { cn } from '@/lib/cn'
 import { useChatStore } from '@/stores/chat.store'
 import { useNotificationsStore } from '@/stores/notifications.store'
@@ -21,6 +21,8 @@ import { useRailExpansion } from '@/hooks/workspace/useRailExpansion'
 import { Avatar } from '@/components/ui/Avatar'
 import { RailLink, RAIL_SLOT } from './RailLink'
 import { CreateMenu } from './CreateMenu'
+import { BrandLogo } from '@/components/brand/BrandLogo'
+import { SignOutButton } from '@/components/profile/SignOutButton'
 import {
   RAIL_PROFILE,
   RAIL_SETTINGS,
@@ -49,13 +51,10 @@ export function Rail({ user }: { user: User | null }) {
       // 64px here would silently desync the moment that token changes.
       className="flex h-full min-h-0 w-full flex-col items-center gap-1.5 overflow-visible border-r border-border-subtle bg-surface-background-alt py-3.5"
     >
-      <Link
-        href="/home"
-        aria-label={`${APP_INFO.name} home`}
-        className="mb-2.5 flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[10px] bg-brand-solid font-display text-[17px] font-bold text-brand-on-primary"
-      >
-        {APP_INFO.name.slice(0, 1)}
-      </Link>
+      <div className={cn('mb-2.5 flex h-10 w-full items-center', expanded ? 'justify-between px-3' : 'justify-center')}>
+        <Link href="/home" aria-label="Tenda home"><BrandLogo full={expanded} priority /></Link>
+        {expanded && <button type="button" aria-label="Collapse sidebar" aria-expanded onClick={toggle} className="flex h-9 w-9 items-center justify-center rounded-control text-content-tertiary hover:bg-surface-inset hover:text-content-primary"><PanelLeftClose size={19} aria-hidden /></button>}
+      </div>
 
       {items.map((item) => (
         <RailLink
@@ -74,7 +73,7 @@ export function Rail({ user }: { user: User | null }) {
 
       <CreateMenu expanded={expanded} />
 
-      <ThemeToggle className={RAIL_SLOT} />
+      <ThemeToggle className={expanded ? 'mx-3 flex h-10 w-[calc(100%_-_1.5rem)] items-center gap-3 px-3' : RAIL_SLOT} showLabel={expanded} />
 
       <RailLink
         href={RAIL_SETTINGS.href}
@@ -97,7 +96,7 @@ export function Rail({ user }: { user: User | null }) {
         title={RAIL_PROFILE.label}
         aria-current={isRailItemActive(pathname, RAIL_PROFILE.href) ? 'page' : undefined}
         className={cn(
-          'mt-1.5 shrink-0 rounded-full ring-1 ring-border-default',
+          expanded ? 'mx-3 flex h-12 w-[calc(100%_-_1.5rem)] shrink-0 items-center gap-3 rounded-control px-3 hover:bg-surface-inset' : 'mt-1.5 shrink-0 rounded-full ring-1 ring-border-default',
           'transition-[box-shadow] duration-(--motion-fast) ease-(--motion-ease-standard)',
           'hover:ring-border-strong',
         )}
@@ -107,9 +106,12 @@ export function Rail({ user }: { user: User | null }) {
           name={user === null ? '' : displayName(user.first_name, user.last_name, user.id)}
           src={user?.avatar_url}
         />
+        {expanded && <span className="min-w-0 flex-1 text-left"><span className="block truncate text-sm font-semibold text-content-primary">{user === null ? 'Profile' : displayName(user.first_name, user.last_name, user.id)}</span><span className="block text-xs text-content-tertiary">View profile</span></span>}
       </Link>
 
-      <button
+      <div className={expanded ? 'w-full px-3' : 'flex w-full justify-center px-3'}><SignOutButton variant="rail" showLabel={expanded} /></div>
+
+      {!expanded && <button
         type="button"
         aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
         aria-expanded={expanded}
@@ -117,7 +119,7 @@ export function Rail({ user }: { user: User | null }) {
         className={cn(RAIL_SLOT, 'mt-1 text-content-tertiary hover:bg-surface-inset hover:text-content-primary')}
       >
         {expanded ? <PanelLeftClose size={19} aria-hidden /> : <PanelLeftOpen size={19} aria-hidden />}
-      </button>
+      </button>}
     </nav>
   )
 }

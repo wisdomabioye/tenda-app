@@ -18,7 +18,7 @@ async function railCount(page: import('@playwright/test').Page, label: string): 
 }
 
 test('the counts are in the SERVER-rendered HTML, before any JavaScript', async ({ request }) => {
-  const response = await request.get('/gigs')
+  const response = await request.get('/')
   expect(response.status()).toBe(200)
   const html = await response.text()
   // The rail's whole premise is that it works without the bundle; a count
@@ -28,7 +28,7 @@ test('the counts are in the SERVER-rendered HTML, before any JavaScript', async 
 })
 
 test('a category count equals what CLICKING that category returns', async ({ page }) => {
-  await page.goto('/gigs')
+  await page.goto('/')
   const promised = await railCount(page, CATEGORY_LABELS.delivery)
   expect(promised).toBe(2)
 
@@ -40,7 +40,7 @@ test('a category count equals what CLICKING that category returns', async ({ pag
 })
 
 test('the counts DRILL DOWN: standing on one category still counts the others', async ({ page }) => {
-  await page.goto(`/gigs?category=${'photo'}`)
+  await page.goto(`/?category=${'photo'}`)
 
   // The naive implementation counts with every filter applied, which makes
   // every unselected cell 0 and tells the reader the rest of the feed is empty.
@@ -49,17 +49,17 @@ test('the counts DRILL DOWN: standing on one category still counts the others', 
 })
 
 test('an arrangement toggle counts what turning it ON would give', async ({ page }) => {
-  await page.goto('/gigs')
+  await page.goto('/')
   expect(await railCount(page, FEED_COPY.rail.remote)).toBe(1)
 
-  await page.goto('/gigs?remote=true')
+  await page.goto('/?remote=true')
   // Still 1 with the toggle already on: the cell describes the filter, not the
   // current view — otherwise the only lit cell would be the only one counted.
   expect(await railCount(page, FEED_COPY.rail.remote)).toBe(1)
 })
 
 test('the market chips carry no count, as the comp draws them', async ({ page }) => {
-  await page.goto('/gigs')
+  await page.goto('/')
   const market = page.getByRole('group', { name: FEED_COPY.rail.market })
   await expect(market.getByRole('link', { name: 'Nigeria' })).toHaveText('Nigeria')
 })

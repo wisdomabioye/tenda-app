@@ -42,6 +42,14 @@
   --chat-bubble-mine: #3f5ba8;
 }
 
+[data-brand-dark] { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-brand-light] { display: none; }
+  :root:not([data-theme="light"]) [data-brand-dark] { display: block; }
+}
+:root[data-theme="dark"] [data-brand-light] { display: none; }
+:root[data-theme="dark"] [data-brand-dark] { display: block; }
+
 /* ── Motion ─────────────────────────────────────────────────────────────
  * Web-only ON PURPOSE, and deliberately NOT routed through gen-web-tokens.
  * apps/mobile/theme/tokens.ts does export a `motion` scale, but it is
@@ -159,6 +167,12 @@
   height: 100dvh;
   overflow: hidden;
 }
+
+/* Auth flows use the focused shell; authenticated composers replace it with
+ * the workspace shell without duplicating the public URL hierarchy. */
+[data-focused-shell]:has([data-panes]) > header,
+[data-focused-shell]:has([data-panes]) > [role='status'] { display: none; }
+[data-focused-shell]:has([data-panes]) > main { display: block; padding: 0; }
 
 [data-panes]:has(nav[data-expanded='true']) {
   --pane-rail: 220px;

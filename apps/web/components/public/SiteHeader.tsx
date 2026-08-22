@@ -13,10 +13,10 @@ import { HeaderSessionAction } from './HeaderSessionAction'
  */
 
 /** Where the wordmark points. `BrandMark`'s own default — kept in step below. */
-const BRAND_HREF = '/gigs'
+const BRAND_HREF = '/'
 
 const NAV = [
-  { href: '/gigs', label: 'Browse gigs' },
+  { href: '/', label: 'Browse gigs' },
   { href: '/support', label: 'Support' },
 ] as const
 

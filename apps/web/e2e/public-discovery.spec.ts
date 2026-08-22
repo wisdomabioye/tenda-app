@@ -1,5 +1,5 @@
 /**
- * Tier 1 public — the FEED at /gigs, served without JavaScript: server-rendered
+ * Tier 1 public — the FEED at /, served without JavaScript: server-rendered
  * rows, filters as links, sort and cursor handling, and the canonical each view
  * declares. The detail page and the SEO surfaces are in public-detail.spec.ts.
  */
@@ -24,9 +24,9 @@ function captureRuntimeFailures(page: Page) {
 }
 
 
-test.describe('feed — /gigs', () => {
+test.describe('feed — /', () => {
   test('is server-rendered: raw HTML carries titles and amounts, no JS needed', async ({ request }) => {
-    const response = await request.get('/gigs')
+    const response = await request.get('/')
     expect(response.status()).toBe(200)
     const html = await response.text()
     expect(html).toContain(deliveryGig.title)
@@ -44,7 +44,7 @@ test.describe('feed — /gigs', () => {
     test.use({ javaScriptEnabled: false })
 
     test('the feed renders, reads correctly, and every filter still works', async ({ page }) => {
-      await page.goto('/gigs')
+      await page.goto('/')
       const card = page.getByRole('link', { name: new RegExp(deliveryGig.title) })
       // Rendered text, not markup: this is what a reader actually sees, and
       // it proves the split figure still reads as one amount.
@@ -85,11 +85,11 @@ test.describe('feed — /gigs', () => {
   })
 
   test('the filter rail is links and form fields — it works with no JavaScript', async ({ request }) => {
-    const html = await (await request.get('/gigs')).text()
+    const html = await (await request.get('/')).text()
     // A rail of buttons would be a set of filters that only exist once the
     // bundle runs, on the one page an anonymous visitor may reach first.
-    expect(html).toContain('href="/gigs?category=delivery"')
-    expect(html).toContain('href="/gigs?country=NG"')
+    expect(html).toContain('href="/?category=delivery"')
+    expect(html).toContain('href="/?country=NG"')
     expect(html).toContain('<form')
     expect(html).toContain('<noscript>')
   })
@@ -97,8 +97,8 @@ test.describe('feed — /gigs', () => {
   test('sort reorders the feed, and never sends the cursor the server would 400', async ({ request }) => {
     // The stub refuses cursor+sort exactly like production; a 400 would
     // surface here as an error page, not a quietly empty feed.
-    const cheapFirst = await (await request.get('/gigs?sort=amount_asc')).text()
-    const dearFirst = await (await request.get('/gigs?sort=amount_desc')).text()
+    const cheapFirst = await (await request.get('/?sort=amount_asc')).text()
+    const dearFirst = await (await request.get('/?sort=amount_desc')).text()
     expect(cheapFirst).toContain(deliveryGig.title)
     expect(dearFirst).toContain(deliveryGig.title)
     expect(cheapFirst.indexOf(deliveryGig.title)).toBeLessThan(cheapFirst.indexOf(photoGig.title))
@@ -107,7 +107,7 @@ test.describe('feed — /gigs', () => {
 
   test('a stale cursor carried into a searched view is dropped, not forwarded', async ({ request }) => {
     // Forwarding it is a 400 from the real server. The page must still render.
-    const response = await request.get('/gigs?q=parcel&cursor=stale-cursor')
+    const response = await request.get('/?q=parcel&cursor=stale-cursor')
     expect(response.status()).toBe(200)
     expect(await response.text()).toContain(deliveryGig.title)
   })
@@ -117,33 +117,33 @@ test.describe('feed — /gigs', () => {
     // The wrong answer here is "no gigs match these filters" — the query still
     // matches, the reader is just past the last of them — followed by a button
     // that throws their search away.
-    const response = await request.get('/gigs?q=parcel&offset=40')
+    const response = await request.get('/?q=parcel&offset=40')
     expect(response.status()).toBe(200)
     const html = await response.text()
     expect(html).toContain(FEED_COPY.pastEnd.title)
     expect(html).not.toContain(FEED_COPY.empty.title)
-    expect(html).toContain('href="/gigs?q=parcel"')
+    expect(html).toContain('href="/?q=parcel"')
   })
 
   test('every view declares a canonical, and the position keys never reach it', async ({ request }) => {
     // The rail links a combinatorial URL space and robots.txt allows all of
-    // it, so without this the same page competes with itself: /gigs,
-    // /gigs?offset=0 and /gigs?q= serve identical rendered content.
+    // it, so without this the same page competes with itself: /,
+    // /?offset=0 and /?q= serve identical rendered content.
     const canonicalOf = async (url: string) => {
       const html = await (await request.get(url)).text()
       return html.match(/<link rel="canonical" href="([^"]+)"/)?.[1] ?? null
     }
-    expect(await canonicalOf('/gigs')).toMatch(/\/gigs$/)
-    expect(await canonicalOf('/gigs?offset=40&cursor=spent')).toMatch(/\/gigs$/)
-    expect(await canonicalOf('/gigs?sort=created_at')).toMatch(/\/gigs$/)
+    expect(await canonicalOf('/')).toMatch(/^https?:\/\/[^/]+$/)
+    expect(await canonicalOf('/?offset=40&cursor=spent')).toMatch(/^https?:\/\/[^/]+$/)
+    expect(await canonicalOf('/?sort=created_at')).toMatch(/^https?:\/\/[^/]+$/)
     // A genuine slice keeps its own address — a canonical is not a noindex.
-    expect(await canonicalOf('/gigs?category=photo&offset=20')).toMatch(
-      /\/gigs\?category=photo$/,
+    expect(await canonicalOf('/?category=photo&offset=20')).toMatch(
+      /\/\?category=photo$/,
     )
   })
 
   test.describe('when the gig index is down', () => {
-    const DOWN = `/gigs?q=${E2E_FAIL_QUERY}`
+    const DOWN = `/?q=${E2E_FAIL_QUERY}`
 
     test.describe('with JavaScript disabled', () => {
       test.use({ javaScriptEnabled: false })
@@ -175,20 +175,20 @@ test.describe('feed — /gigs', () => {
     test('a healthy view alongside it is unaffected', async ({ request }) => {
       // Failure is keyed off the query, not a server flag, so the suite stays
       // parallel-safe and this proves it.
-      const html = await (await request.get('/gigs')).text()
+      const html = await (await request.get('/')).text()
       expect(html).toContain(deliveryGig.title)
       expect(html).not.toContain(FEED_COPY.error.title)
     })
   })
 
   test('category filter is a URL, and it filters', async ({ request }) => {
-    const html = await (await request.get('/gigs?category=delivery')).text()
+    const html = await (await request.get('/?category=delivery')).text()
     expect(html).toContain(deliveryGig.title)
     expect(html).not.toContain(photoGig.title)
   })
 
   test('an invalid filter value degrades to the full feed, not an error', async ({ request }) => {
-    const response = await request.get('/gigs?category=nonsense&chain_id=eip155:999999')
+    const response = await request.get('/?category=nonsense&chain_id=eip155:999999')
     expect(response.status()).toBe(200)
     const html = await response.text()
     expect(html).toContain(deliveryGig.title)
@@ -198,7 +198,7 @@ test.describe('feed — /gigs', () => {
   test('a manifest chain the deployment does not serve degrades too, and the filter offers only RUNNING chains', async ({ request }) => {
     // solana:mainnet exists in CHAIN_MANIFEST but not in this deployment's
     // registry — the server would 400 it; the page must not forward it.
-    const response = await request.get('/gigs?chain_id=solana:mainnet')
+    const response = await request.get('/?chain_id=solana:mainnet')
     expect(response.status()).toBe(200)
     const html = await response.text()
     expect(html).toContain(deliveryGig.title)
@@ -217,7 +217,7 @@ test.describe('feed — /gigs', () => {
     // longest real place name — so these widths are measured against
     // poster-written text at its nastiest, not against tidy fixtures.
     const PATHS = [
-      '/gigs',
+      '/',
       `/gig/${deliveryGigDetail.escrow_id}`,
       `/gig/${unbreakableGigDetail.escrow_id}`,
     ]
@@ -241,32 +241,31 @@ test.describe('feed — /gigs', () => {
       // it, so this checks the ones where the column count changes.
       for (const width of [768, 900, 1100, 1280]) {
         await page.setViewportSize({ width, height: 900 })
-        await page.goto('/gigs')
+        await page.goto('/')
         const overflow = await page.evaluate(
           () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
         )
-        expect(overflow, `/gigs overflowed by ${overflow}px at ${width}px`).toBe(0)
+          expect(overflow, `/ overflowed by ${overflow}px at ${width}px`).toBe(0)
       }
     })
 
     test('keeps the way in and Support reachable, dropping only the duplicate link', async ({ page }) => {
       await page.setViewportSize({ width: 360, height: 780 })
-      await page.goto('/gigs')
+      await page.goto('/')
       await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
       await expect(page.getByRole('link', { name: 'Support' })).toBeVisible()
       // "Browse gigs" points where the wordmark already points, so it is the
       // one the row can afford to lose — the destination stays reachable.
       await expect(page.getByRole('link', { name: 'Browse gigs' })).toBeHidden()
-      await expect(page.getByRole('link', { name: 'Tenda' })).toHaveAttribute('href', '/gigs')
+      await expect(page.getByRole('link', { name: 'Tenda' })).toHaveAttribute('href', '/')
     })
   })
 
   test('hydrates cleanly and navigates card → detail', async ({ page }) => {
     const failures = captureRuntimeFailures(page)
-    await page.goto('/gigs')
+    await page.goto('/')
     await page.getByRole('link', { name: new RegExp(deliveryGig.title) }).click()
     await expect(page.getByRole('heading', { name: deliveryGig.title })).toBeVisible()
     expect(failures).toEqual([])
   })
 })
-

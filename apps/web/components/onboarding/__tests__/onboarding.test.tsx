@@ -40,7 +40,7 @@ describe('WelcomePage', () => {
     // from the screen making it sends them back to the header to hunt.
     expect(screen.getByRole('link', { name: WELCOME_COPY.browse.link })).toHaveAttribute(
       'href',
-      '/gigs',
+      '/',
     )
   })
 

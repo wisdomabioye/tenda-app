@@ -70,7 +70,7 @@ test.describe('404', () => {
     )
     await expect(page.getByRole('link', { name: 'Browse open gigs' })).toHaveAttribute(
       'href',
-      '/gigs',
+      '/',
     )
     await expect(page.getByRole('link', { name: 'Get support' })).toHaveAttribute(
       'href',
@@ -101,7 +101,7 @@ test.describe('/foundations', () => {
   test('is reachable by URL but absent from the consumer nav', async ({ page }) => {
     // The comp puts "Foundations" in the primary nav; this is a team reference
     // and a visitor looking for work should not land on a swatch grid (#21).
-    await page.goto('/gigs')
+    await page.goto('/')
     await expect(page.getByRole('link', { name: /foundations/i })).toHaveCount(0)
     const response = await page.goto('/foundations')
     expect(response?.status()).toBe(200)

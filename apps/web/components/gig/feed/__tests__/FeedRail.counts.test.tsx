@@ -72,7 +72,7 @@ describe('FeedRail counts', () => {
     // …and the rail still works: the counts are an enhancement, not the rail.
     expect(screen.getByRole('link', { name: CATEGORY_LABELS.delivery })).toHaveAttribute(
       'href',
-      '/gigs?category=delivery',
+      '/?category=delivery',
     )
   })
 

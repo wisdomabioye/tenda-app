@@ -28,7 +28,7 @@ describe('FeedRail', () => {
     }
     expect(
       screen.getByRole('link', { name: FEED_COPY.rail.allCategories }),
-    ).toHaveAttribute('href', '/gigs')
+    ).toHaveAttribute('href', '/')
   })
 
   it('every control is a LINK or a form field — the rail works with no JavaScript', () => {
@@ -67,7 +67,7 @@ describe('FeedRail', () => {
 
     renderRail({ remote: 'true' })
     expect(screen.getByRole('link', { name: FEED_COPY.rail.remote }).getAttribute('href')).toBe(
-      '/gigs',
+      '/',
     )
   })
 
@@ -151,7 +151,7 @@ describe('FeedRail', () => {
     renderRail({ cross_border: 'true' })
     expect(
       screen.getByRole('link', { name: FEED_COPY.rail.crossBorder }).getAttribute('href'),
-    ).toBe('/gigs')
+    ).toBe('/')
   })
 
   it('submits the form when the sort changes — the comp fires on change', () => {
@@ -187,7 +187,7 @@ describe('FeedRail', () => {
     unmount()
 
     renderRail({ city: 'Lagos' })
-    expect(screen.getByRole('link', { name: FEED_COPY.rail.clear })).toHaveAttribute('href', '/gigs')
+    expect(screen.getByRole('link', { name: FEED_COPY.rail.clear })).toHaveAttribute('href', '/')
   })
 
   it('NAMES each group of filter links, so the rail is not one flat run of them', () => {

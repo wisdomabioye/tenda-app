@@ -27,7 +27,7 @@ describe('SignOutButton', () => {
     expect(logout).toHaveBeenCalledOnce()
     // replace(), not push(): a signed-out reader must not be able to go BACK
     // into the authed surface they just left.
-    expect(router.replace).toHaveBeenCalledWith('/gigs')
+    expect(router.replace).toHaveBeenCalledWith('/')
   })
 
   it('redirects only after logout resolves', async () => {
@@ -78,7 +78,7 @@ describe('SignOutButton', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Sign out' }))
 
-    expect(screen.getByRole('button', { name: 'Signing out…' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Signing out' })).toBeDisabled()
   })
 
   it('reports a failed sign-out and re-enables itself, without an unhandled rejection', async () => {

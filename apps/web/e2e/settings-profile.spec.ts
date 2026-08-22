@@ -125,12 +125,12 @@ test('the chip row wraps onto a second line rather than overflowing its own box'
   expect(lines).toBeGreaterThan(1)
 })
 
-test('sign-out is reachable from settings, which the workspace rail is not', async ({ page }) => {
+test('sign-out is reachable from settings and the workspace rail', async ({ page }) => {
   await signInToHome(page)
   await page.goto('/settings')
-  await page.getByRole('button', { name: 'Sign out' }).click()
+  await page.getByRole('region', { name: 'Settings' }).getByRole('button', { name: 'Sign out' }).click()
   // Lands on the public feed, and the session is gone rather than merely hidden.
-  await expect(page).toHaveURL(/\/gigs/)
+  await expect(page).toHaveURL(/\/$/)
   await page.goto('/settings')
   await expect(page).toHaveURL(/\/signin/)
 })

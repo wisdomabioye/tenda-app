@@ -7,6 +7,7 @@ const pathnameRef = { current: '/home' }
 vi.mock('next/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next/navigation')>()),
   usePathname: () => pathnameRef.current,
+  useRouter: () => ({ replace: vi.fn() }),
 }))
 
 import { Rail } from '@/components/app/workspace/rail'
@@ -92,6 +93,9 @@ describe('Rail — navigation', () => {
     expect(screen.getByRole('button', { name: 'Collapse sidebar' })).toHaveAttribute('aria-expanded', 'true')
     expect(window.localStorage.getItem('tenda_workspace_rail_expanded')).toBe('true')
     expect(screen.getByText('My Gigs')).toBeVisible()
+    expect(screen.getByRole('img', { name: 'Tenda' })).toHaveAttribute('src', '/logo_full_dark.png')
+    expect(screen.getByText('Dark mode')).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Sign out' })).toBeVisible()
   })
 
   it('names the avatar link with the signed-in user', () => {

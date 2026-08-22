@@ -28,9 +28,9 @@ import {
  *
  * `gigsHref` is the normalisation, reused rather than re-derived: it drops the
  * two POSITION keys and the redundant default sort, and keeps genuine filters.
- * So `/gigs`, `/gigs?offset=0` and `/gigs?q=` — which serve byte-identical
+ * So `/`, `/?offset=0` and `/?q=` — which serve byte-identical
  * rendered content today, verified — collapse to one address, while
- * `/gigs?category=photo` stays its own page, which it is.
+ * `/?category=photo` stays its own page, which it is.
  *
  * Deliberately NOT a blanket `noindex` on filtered views: whether a category
  * or market slice deserves to rank is a product call, and a canonical makes no
@@ -61,7 +61,7 @@ export async function generateMetadata({
  * narrowed view has its own address. The one client component is the keyboard
  * walk, which renders nothing.
  */
-export default async function GigsPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
+export default async function PublicGigFeedPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const [params, chains] = await Promise.all([searchParams, listEnabledChains()])
   const filters = parseGigFeedFilters(params, new Set(chains.map((chain) => chain.id)))
   // Concurrent: the rail's counts are a SECOND read, and awaiting them after

@@ -73,7 +73,7 @@ export default async function SignInPage({
       {/* The whole feed is public, so this is a real third option and not a
           consolation prize — it is the one path that needs no account at all. */}
       <Link
-        href="/gigs"
+        href="/"
         className="flex min-h-12 items-center justify-center rounded-control border border-border-default px-4 text-[15px] font-semibold text-content-secondary hover:bg-surface-inset hover:text-content-primary"
       >
         {AUTH_COPY.chooser.browse}

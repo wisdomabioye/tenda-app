@@ -30,7 +30,7 @@ export function NotFoundPanel({
   /** Replaces the default "browse gigs" primary where a caller has a better one. */
   action?: { href: string; label: string }
 }) {
-  const primary = action ?? { href: '/gigs', label: 'Browse open gigs' }
+  const primary = action ?? { href: '/', label: 'Browse open gigs' }
   return (
     <div className="mx-auto w-full max-w-[640px] px-6 py-24 text-center sm:py-32">
       <Eyebrow strong as="p">

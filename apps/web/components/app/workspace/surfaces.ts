@@ -55,6 +55,7 @@ const SURFACE_LIST_HOME: Record<string, ListHome> = {
   dispute: { href: '/disputes', label: 'All disputes' },
   'my-gigs': { href: '/my-gigs', label: 'All my gigs' },
   notifications: { href: '/notifications', label: 'All notifications' },
+  home: { href: '/home', label: 'All open gigs' },
 }
 
 /** The list behind this surface's detail pane, or null when it has none. */

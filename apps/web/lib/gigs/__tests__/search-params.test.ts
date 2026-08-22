@@ -184,11 +184,11 @@ describe('gigsHref', () => {
   const base = parseGigFeedFilters({ category: 'delivery', city: 'Lagos' })
 
   it('keeps existing filters and applies changes', () => {
-    expect(gigsHref(base, { category: 'photo' })).toBe('/gigs?category=photo&city=Lagos')
+    expect(gigsHref(base, { category: 'photo' })).toBe('/?category=photo&city=Lagos')
   })
 
   it('null clears a key; a fully cleared set is the bare path', () => {
-    expect(gigsHref(base, { category: null, city: null })).toBe('/gigs')
+    expect(gigsHref(base, { category: null, city: null })).toBe('/')
   })
 
   it('carries every filter the URL contract owns', () => {
@@ -218,7 +218,7 @@ describe('gigsHref', () => {
   })
 
   it('leaves the default ordering out of the URL — one canonical feed address', () => {
-    expect(gigsHref(parseGigFeedFilters({ sort: 'created_at' }))).toBe('/gigs')
+    expect(gigsHref(parseGigFeedFilters({ sort: 'created_at' }))).toBe('/')
     expect(gigsHref(base, { sort: null })).not.toContain('sort')
   })
 

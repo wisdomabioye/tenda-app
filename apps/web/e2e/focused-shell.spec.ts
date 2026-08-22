@@ -26,7 +26,7 @@ test.describe('the focused shell (#14)', () => {
     // The public feed is a real third option, not a consolation prize.
     await expect(page.getByRole('link', { name: AUTH_COPY.chooser.browse })).toHaveAttribute(
       'href',
-      '/gigs',
+      '/',
     )
   })
 
@@ -172,12 +172,12 @@ test.describe('the focused shell (#14)', () => {
     // The wordmark lands on the hero, as the comp has it — and the hero keeps
     // the escape ALIVE: the whole point of #15's link is that "you can browse
     // without an account" is something you can act on from where it is said.
-    // Two hops, both real; before /welcome existed this went straight to /gigs.
+    // Two hops, both real; before /welcome existed this went straight to the feed.
     await page.goto('/signin/email')
     await page.getByRole('link', { name: /Tenda/ }).click()
     await expect(page).toHaveURL(/\/welcome/)
     await page.getByRole('link', { name: WELCOME_COPY.browse.link }).click()
-    await expect(page).toHaveURL(/\/gigs/)
+    await expect(page).toHaveURL(/\/$/)
   })
 })
 
@@ -193,7 +193,7 @@ test.describe('the pre-account surfaces (#15)', () => {
     )
     await expect(page.getByRole('link', { name: WELCOME_COPY.browse.link })).toHaveAttribute(
       'href',
-      '/gigs',
+      '/',
     )
   })
 

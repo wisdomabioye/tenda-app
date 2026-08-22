@@ -7,6 +7,7 @@ const segmentsRef = { current: ['messages'] as string[] }
 vi.mock('next/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('next/navigation')>()),
   usePathname: () => '/messages',
+  useRouter: () => ({ replace: vi.fn() }),
   useSelectedLayoutSegment: () => segmentRef.current,
   useSelectedLayoutSegments: () => segmentsRef.current,
 }))
@@ -37,6 +38,7 @@ const at = (segment: string | null, segments: string[]) => {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  window.localStorage.clear()
   at('messages', ['messages'])
   useChatStore.setState({ unread: 0 })
   useNotificationsStore.setState({ unread: 0 })

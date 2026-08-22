@@ -57,7 +57,7 @@ export function FeedEmpty({ filtered }: { filtered: boolean }) {
       body={filtered ? FEED_COPY.empty.body : FEED_COPY.empty.bareBody}
       action={
         filtered ? (
-          <Link href="/gigs" className={EMPTY_ACTION_CLASS}>
+          <Link href="/" className={EMPTY_ACTION_CLASS}>
             {FEED_COPY.empty.action}
           </Link>
         ) : undefined
@@ -100,7 +100,7 @@ export function FeedPastEnd({ href, total }: { href: string; total: number }) {
  * Two shapes, because the two places this appears differ in ONE way: whether a
  * retry callback exists. Inside a client error boundary it does (`reset`).
  * Server-side it does not, and there the retry is simply a fresh GET — which
- * is a real retry, not the no-op the comp's "back to /gigs" link would be
+ * is a real retry, not the no-op a bare root-feed link would be
  * inside the boundary.
  */
 /** Inside the client error boundary, where `reset` re-runs the segment. */
@@ -129,7 +129,7 @@ export function FeedError({ retry }: { retry: () => void }) {
  * already documents.
  *
  * `href` is the view the reader was on, so a retry keeps their filters — which
- * `reset()` also does, and a bare link to /gigs would not.
+ * `reset()` also does, and a bare root-feed link would not.
  */
 export function FeedErrorStatic({ href }: { href: string }) {
   return (

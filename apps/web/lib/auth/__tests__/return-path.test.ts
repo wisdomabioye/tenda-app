@@ -113,7 +113,7 @@ describe('safeReturnPath — what it allows', () => {
     expect(safeReturnPath('/exchange?chain_id=solana:devnet')).toBe(
       '/exchange?chain_id=solana:devnet',
     )
-    expect(safeReturnPath('/gigs?q=tiler&offset=20')).toBe('/gigs?q=tiler&offset=20')
+    expect(safeReturnPath('/?q=tiler&offset=20')).toBe('/?q=tiler&offset=20')
     // The fragment half, which this name promised and did not check until the
     // review: '#reviews' is where on the page the reader was, and '#' has to
     // survive the encode/decode round trip through the param to get there.
@@ -131,11 +131,11 @@ describe('withReturnPath', () => {
   })
 
   it('encodes the destination so its own query survives the round trip', () => {
-    const href = withReturnPath('/signin/email', '/gigs?q=tiler&offset=20')
-    expect(href).toBe(`/signin/email?${RETURN_PARAM}=%2Fgigs%3Fq%3Dtiler%26offset%3D20`)
+    const href = withReturnPath('/signin/email', '/?q=tiler&offset=20')
+    expect(href).toBe(`/signin/email?${RETURN_PARAM}=%2F%3Fq%3Dtiler%26offset%3D20`)
     // The proof that matters: what a reader of the param gets back.
     const value = new URL(href, 'https://tenda.test').searchParams.get(RETURN_PARAM)
-    expect(safeReturnPath(value)).toBe('/gigs?q=tiler&offset=20')
+    expect(safeReturnPath(value)).toBe('/?q=tiler&offset=20')
   })
 
   it('appends with & when the href already has a query', () => {

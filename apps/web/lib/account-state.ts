@@ -34,7 +34,7 @@ import {
  *   - zustand STORES, which are module singletons by construction.
  *
  * Module scope also outlives the SESSION. Signing out is a soft navigation —
- * `router.replace('/gigs')` keeps the JS context and every module in it — so
+ * `router.replace('/')` keeps the JS context and every module in it — so
  * without this the next account in the same tab inherits the last one's state.
  * Measured before any of it existed: a second sign-in showed the first
  * account's dispute subjects, and (#25) the first account's gig detail,

@@ -4,7 +4,6 @@ import Link from 'next/link'
 import { FeedKeyboard, GIG_CARD_ATTR } from '@/components/gig/feed/FeedKeyboard'
 import { FeedHero } from '@/components/gig/feed/FeedHero'
 import { FEED_COPY } from '@/components/gig/feed/copy'
-import { payoutMarketNames } from '@/lib/markets'
 
 /** Three walkable cards plus the search box the rail puts above them. */
 function Feed() {
@@ -146,12 +145,12 @@ describe('FeedHero', () => {
   it('names the payout markets from the registry, with the claim stated', () => {
     render(<FeedHero />)
     const eyebrow = screen.getByText(
-      `${FEED_COPY.hero.marketsPrefix} ${payoutMarketNames().join(' · ')}`,
+      FEED_COPY.hero.eyebrow,
     )
     expect(eyebrow).toBeInTheDocument()
     // The bare list would read as "we only operate here" — gigs may be posted
     // in ten countries, cashed out in three.
-    expect(eyebrow.textContent).toContain(FEED_COPY.hero.marketsPrefix)
+    expect(eyebrow.textContent).toContain(FEED_COPY.hero.eyebrow)
   })
 
   it('is the page headline, not a decorative banner', () => {

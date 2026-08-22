@@ -28,7 +28,7 @@ describe('EmptyPanel', () => {
   it('renders an action only when there is one', () => {
     const { rerender } = render(<EmptyPanel title="t" body="b" />)
     expect(screen.queryByRole('link')).toBeNull()
-    rerender(<EmptyPanel title="t" body="b" action={<Link href="/gigs">Clear filters</Link>} />)
+    rerender(<EmptyPanel title="t" body="b" action={<Link href="/">Clear filters</Link>} />)
     expect(screen.getByRole('link', { name: 'Clear filters' })).toBeInTheDocument()
   })
 })

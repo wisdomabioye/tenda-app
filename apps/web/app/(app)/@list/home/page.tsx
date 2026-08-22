@@ -1,4 +1,2 @@
-/** Replaces any retained list when navigation enters the dashboard. */
-export default function HomeListSlot() {
-  return null
-}
+import { OpenGigsListColumn } from '@/components/home/OpenGigsListColumn'
+export default function HomeListSlot() { return <OpenGigsListColumn /> }

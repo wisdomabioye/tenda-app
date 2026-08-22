@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 import { CountryCityPicker } from '@/components/form/CountryCityPicker'
 import { showToast } from '@/components/ui/Toast'
+import { WorkspacePage } from '@/components/app/workspace'
 
 export default function EditProfilePage() {
   const router = useRouter()
@@ -80,7 +81,7 @@ export default function EditProfilePage() {
   const previewName = formatFullName(firstName.trim() || null, lastName.trim() || null) || 'Anonymous'
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+    <WorkspacePage width="narrow" className="flex flex-col gap-5">
       <h1 className="pt-1 font-display text-2xl font-bold text-content-primary">Edit profile</h1>
 
       <div className="flex items-center gap-4">
@@ -144,6 +145,6 @@ export default function EditProfilePage() {
       <Button onClick={() => void handleSave()} disabled={saving}>
         {saving ? 'Saving…' : 'Save changes'}
       </Button>
-    </div>
+    </WorkspacePage>
   )
 }

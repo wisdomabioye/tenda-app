@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { APP_INFO, LOCATIONS, SUPPORTED_PAYOUT_COUNTRIES } from '@tenda/shared'
-import { BrandMark } from '@/components/public/BrandMark'
+import { BrandMark, BrandTile } from '@/components/public/BrandMark'
 import { SiteFooter } from '@/components/public/SiteFooter'
 import { SiteHeader } from '@/components/public/SiteHeader'
 import { marketNames, payoutMarketNames } from '@/lib/markets'
@@ -30,16 +30,21 @@ describe('payoutMarketNames', () => {
 })
 
 describe('BrandMark', () => {
-  it('derives the tile initial from the shared product name', () => {
-    render(<BrandMark />)
-    const link = screen.getByRole('link')
-    expect(link).toHaveTextContent(APP_INFO.name)
-    expect(link).toHaveTextContent(APP_INFO.name.charAt(0))
+  it('uses the official full logo asset', () => {
+    const { container } = render(<BrandMark />)
+    expect(screen.getByRole('img', { name: APP_INFO.name })).toHaveAttribute('src', '/logo_full_dark.png')
+    expect(container.querySelector('[data-brand-dark]')).toHaveAttribute('src', '/logo_full.png')
+  })
+
+  it('uses the official compact asset on logo-only surfaces', () => {
+    render(<BrandTile size={56} />)
+    expect(screen.getByRole('img', { name: APP_INFO.name })).toHaveAttribute('src', '/logo.png')
+    expect(screen.queryByText(APP_INFO.name.charAt(0))).not.toBeInTheDocument()
   })
 
   it('goes to the feed by default and honours an override', () => {
     const { unmount } = render(<BrandMark />)
-    expect(screen.getByRole('link')).toHaveAttribute('href', '/gigs')
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/')
     unmount()
 
     render(<BrandMark href="/" />)
@@ -50,7 +55,7 @@ describe('BrandMark', () => {
 describe('SiteHeader', () => {
   it('offers the sections that exist', () => {
     render(<SiteHeader />)
-    expect(screen.getByRole('link', { name: 'Browse gigs' })).toHaveAttribute('href', '/gigs')
+    expect(screen.getByRole('link', { name: 'Browse gigs' })).toHaveAttribute('href', '/')
     expect(screen.getByRole('link', { name: 'Support' })).toHaveAttribute('href', '/support')
   })
 
@@ -88,15 +93,8 @@ describe('SiteHeader', () => {
 describe('SiteFooter', () => {
   it('states the product from shared APP_INFO, never inline strings', () => {
     render(<SiteFooter />)
-    expect(screen.getByText(APP_INFO.name)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: APP_INFO.name })).toHaveAttribute('src', '/logo_full_dark.png')
     expect(screen.getByText(new RegExp(APP_INFO.tagline))).toBeInTheDocument()
-  })
-
-  it('names the payout markets, so the sentence cannot outlive the registry', () => {
-    render(<SiteFooter />)
-    for (const market of payoutMarketNames()) {
-      expect(screen.getByText(new RegExp(market))).toBeInTheDocument()
-    }
   })
 
   it('links only to support pages that exist', () => {

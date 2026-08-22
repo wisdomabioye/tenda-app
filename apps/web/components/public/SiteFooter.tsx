@@ -1,15 +1,14 @@
 import Link from 'next/link'
 import { APP_INFO } from '@tenda/shared'
-import { payoutMarketNames } from '@/lib/markets'
+import { BrandLogo } from '@/components/brand/BrandLogo'
 
 /**
  * Tier-1 footer (comp lines 822-839): the product in a sentence, then the
  * support pages a browsing visitor is most likely to need before signing up.
  *
- * Brand strings and outbound links come from the shared APP_INFO, never
- * inline; the markets come from the payout registry, so the sentence cannot
- * outlive the countries it names. The comp's "404 example" link is a
- * prototype affordance and is not shipped.
+ * Brand strings and outbound links come from the shared APP_INFO. The global
+ * marketplace sentence deliberately names no fixed country set. The comp's
+ * "404 example" link is a prototype affordance and is not shipped.
  */
 const HELP_LINKS = [
   { href: '/support/escrow', label: 'How escrow works' },
@@ -27,11 +26,9 @@ export function SiteFooter() {
     <footer className="mt-auto border-t border-border-subtle bg-surface-background-alt">
       <div className="mx-auto flex w-full max-w-content flex-wrap items-start gap-8 px-6 py-10">
         <div className="min-w-[220px] flex-1">
-          <p className="font-display text-[17px] font-bold leading-6 text-content-primary">
-            {APP_INFO.name}
-          </p>
+          <BrandLogo full />
           <p className="mt-2 max-w-[40ch] text-[13px] leading-[18px] text-content-tertiary">
-            {APP_INFO.tagline} Paying out in {payoutMarketNames().join(', ')}.
+            {APP_INFO.tagline} Find work and exchange value securely across borders.
           </p>
         </div>
         <FooterNav label="Guides" links={HELP_LINKS} />

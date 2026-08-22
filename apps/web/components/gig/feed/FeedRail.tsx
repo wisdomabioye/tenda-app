@@ -129,7 +129,7 @@ export function FeedRail({
 
       {hasActiveFilters(filters) && (
         <Link
-          href="/gigs"
+          href="/"
           className="self-start text-[13px] font-semibold text-brand-primary underline"
         >
           {FEED_COPY.rail.clear}

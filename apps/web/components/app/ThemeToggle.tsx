@@ -5,23 +5,34 @@ import { Moon, Sun } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { applyTheme, themeStore } from '@/lib/theme'
 
+const DARK_THEME_QUERY = '(prefers-color-scheme: dark)'
+
+function subscribeToSystemTheme(onChange: () => void): () => void {
+  const query = window.matchMedia(DARK_THEME_QUERY)
+  query.addEventListener('change', onChange)
+  return () => query.removeEventListener('change', onChange)
+}
+
+function systemThemeIsDark(): boolean {
+  return window.matchMedia(DARK_THEME_QUERY).matches
+}
+
 /**
  * Light/dark toggle over the data-theme contract. Reads the preference
  * through the theme store's useSyncExternalStore seam: the server snapshot
  * is 'system', the client one is the stored choice, and React reconciles
  * them at hydration without a mismatch or a setState-in-effect.
  */
-export function ThemeToggle({ className }: { className?: string } = {}) {
+export function ThemeToggle({ className, showLabel = false }: { className?: string; showLabel?: boolean } = {}) {
   const preference = useSyncExternalStore(
     themeStore.subscribe,
     themeStore.getSnapshot,
     themeStore.getServerSnapshot,
   )
+  const systemIsDark = useSyncExternalStore(subscribeToSystemTheme, systemThemeIsDark, () => false)
+  const isDark = preference === 'dark' || (preference === 'system' && systemIsDark)
 
   function toggle() {
-    const isDark =
-      preference === 'dark' ||
-      (preference === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
     applyTheme(isDark ? 'light' : 'dark')
   }
 
@@ -37,7 +48,8 @@ export function ThemeToggle({ className }: { className?: string } = {}) {
         className ?? 'p-2',
       )}
     >
-      {preference === 'dark' ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
+      {isDark ? <Sun size={18} aria-hidden /> : <Moon size={18} aria-hidden />}
+      {showLabel && <span className="min-w-0 flex-1 text-left text-sm font-semibold">{isDark ? 'Light mode' : 'Dark mode'}</span>}
     </button>
   )
 }

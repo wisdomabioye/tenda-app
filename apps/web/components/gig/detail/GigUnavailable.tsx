@@ -30,7 +30,7 @@ export function GigUnavailable({ href }: { href: string }) {
               {GIG_DETAIL_COPY.unavailableAction}
             </Link>
             <Link
-              href="/gigs"
+              href="/"
               className="mt-5 text-sm font-semibold text-feedback-danger-text underline"
             >
               {GIG_DETAIL_COPY.unavailableBrowse}

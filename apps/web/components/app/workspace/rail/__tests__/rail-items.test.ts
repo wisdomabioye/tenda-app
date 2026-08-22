@@ -18,7 +18,7 @@ describe('isRailItemActive', () => {
   })
 
   it.each([
-    ['/gigs', '/gig'],
+    ['/', '/gig'],
     ['/my-gigs-archive', '/my-gigs'],
     ['/walletsomething', '/wallet'],
     ['/homepage', '/home'],

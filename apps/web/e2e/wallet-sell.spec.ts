@@ -78,7 +78,7 @@ test('a quote is fetched, states what lands, and can be confirmed', async ({ pag
   await signInToHome(page, TRADER_EMAIL)
   await page.goto('/wallet/buy-sell')
 
-  await expect(page.getByText(PAYOUT_ACCOUNT.account_name)).toBeVisible()
+  await expect(page.getByRole('button', { name: `${PAYOUT_ACCOUNT.account_name} Bank account` })).toBeVisible()
   await page.getByLabel(SELL_COPY.amountLabel).fill('50')
 
   await expect(page.getByText(SELL_COPY.quote.receive)).toBeVisible({ timeout: 10_000 })

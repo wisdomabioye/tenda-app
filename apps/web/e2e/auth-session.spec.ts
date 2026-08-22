@@ -24,13 +24,12 @@ const PROFILE_LINK = 'Your profile, Ada Okafor'
 
 
 /**
- * Sign out lives on /profile — the workspace rail carries no destructive
- * control, so the button is reached the way a user reaches it rather than
- * assumed to be in the chrome.
+ * This helper exercises the profile copy of the shared sign-out action. The
+ * workspace rail exposes the same controller and has its own routing test.
  */
 async function signOut(page: Page) {
   await page.goto('/profile')
-  await page.getByRole('button', { name: 'Sign out' }).click()
+  await page.getByRole('region', { name: 'Profile' }).getByRole('button', { name: 'Sign out' }).click()
 }
 
 test('sign-up: email → code → profile setup → home shell', async ({ page }) => {
@@ -79,7 +78,7 @@ test('logout clears the bearer and locks the app again', async ({ page }) => {
   await signInFromChooser(page, EXISTING_EMAIL)
   await expect(page).toHaveURL(/\/home/)
   await signOut(page)
-  await expect(page).toHaveURL(/\/gigs/)
+  await expect(page).toHaveURL(/\/$/)
   const stored = await page.evaluate(() => localStorage.getItem('jwt_token'))
   expect(stored).toBeNull()
   await page.goto('/home')
@@ -95,7 +94,7 @@ test('logging out in one tab signs out the other', async ({ page, context }) => 
   await expect(other.getByRole('link', { name: PROFILE_LINK })).toBeVisible()
 
   await signOut(page)
-  await expect(page).toHaveURL(/\/gigs/)
+  await expect(page).toHaveURL(/\/$/)
   // The storage event lands in the other tab and its gate locks.
   await expect(other).toHaveURL(/\/signin/, { timeout: 10_000 })
 })
@@ -103,12 +102,12 @@ test('logging out in one tab signs out the other', async ({ page, context }) => 
 test('the public header flips to "Home" for a signed-in visitor', async ({ page }) => {
   await signInFromChooser(page, EXISTING_EMAIL)
   await expect(page).toHaveURL(/\/home/)
-  await page.goto('/gigs')
+  await page.goto('/')
   await expect(page.getByRole('link', { name: 'Home' })).toBeVisible()
 })
 
 test('a second account in the same tab is shown NOTHING of the first', async ({ page }) => {
-  // Sign-out is a soft navigation (`router.replace('/gigs')`), so the JS
+  // Sign-out is a soft navigation (`router.replace('/')`), so the JS
   // context — every store and every module-scoped cache in it — survives an
   // account switch made without reloading. `logout` empties them; before it
   // did, the next account's inbox column listed the previous account's threads
@@ -123,7 +122,7 @@ test('a second account in the same tab is shown NOTHING of the first', async ({ 
   await expect(page.getByRole('link', { name: /^Bola Ade/ })).toBeVisible()
 
   await signOut(page)
-  await expect(page).toHaveURL(/\/gigs/)
+  await expect(page).toHaveURL(/\/$/)
 
   await signInFromChooser(page, 'second-account@tenda.test')
   await expect(page).toHaveURL(/\/onboarding\/profile/)

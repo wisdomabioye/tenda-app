@@ -36,7 +36,7 @@ export function GigDetailHeader({ gig }: { gig: GigDetail }) {
         aria-label="Breadcrumb"
         className="mb-7 flex flex-wrap items-center gap-2 text-[13px] leading-[18px] text-content-tertiary"
       >
-        <Link href="/gigs" className="font-semibold text-content-tertiary hover:text-content-primary">
+        <Link href="/" className="font-semibold text-content-tertiary hover:text-content-primary">
           {GIG_DETAIL_COPY.breadcrumbRoot}
         </Link>
         <ChevronRight size={14} aria-hidden />

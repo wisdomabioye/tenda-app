@@ -25,6 +25,7 @@ import {
   VerifiedBlock,
 } from '@/components/profile'
 import { useProfileStats } from '@/hooks/profile/useProfileStats'
+import { WorkspacePage } from '@/components/app/workspace'
 
 const LINK_CLASS =
   'flex items-center gap-3 rounded-card border border-border-subtle bg-surface-card px-4 py-3 text-sm font-semibold text-content-primary transition-colors hover:bg-surface-inset'
@@ -46,7 +47,7 @@ export default function ProfilePage() {
 
   const fullName = formatFullName(user.first_name, user.last_name) || 'Anonymous'
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
+    <WorkspacePage className="flex flex-col gap-5">
       <RestrictionBanner />
 
       <header className="flex items-center gap-4">
@@ -132,9 +133,9 @@ export default function ProfilePage() {
           account has proved. */}
       <VerifiedBlock identities={identities} wallets={wallets} />
 
-      {/* Also on /settings, where the Settings comp puts it; the rail carries
-          none, so these two are how it is reached. */}
+      {/* Also on /settings and the workspace rail, so sign-out remains reachable
+          from both account context and global navigation. */}
       <SignOutButton />
-    </div>
+    </WorkspacePage>
   )
 }

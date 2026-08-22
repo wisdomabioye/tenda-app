@@ -71,7 +71,10 @@ vi.mock('next/link', () => ({
 vi.mock('next/image', () => ({
   // Deliberately a bare <img>: next/image's optimizer isn't available under
   // jsdom, and the mock only needs to render the element for assertions.
-  default: (props: ImgHTMLAttributes<HTMLImageElement>) =>
+  default: (allProps: ImgHTMLAttributes<HTMLImageElement> & { priority?: boolean }) => {
+    const props = { ...allProps }
+    delete props.priority
     // eslint-disable-next-line @next/next/no-img-element, jsx-a11y/alt-text
-    <img {...props} />,
+    return <img {...props} />
+  },
 }))

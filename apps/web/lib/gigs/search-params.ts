@@ -174,7 +174,7 @@ export function hasActiveFilters(filters: GigFeedFilters): boolean {
 }
 
 /**
- * Build a /gigs href with the given changes applied. `null` clears a key.
+ * Build a root-feed href with the given changes applied. `null` clears a key.
  *
  * Both position keys are dropped on every change unless passed explicitly:
  * page four of one filtering is not page four of another, and carrying a
@@ -205,5 +205,5 @@ export function gigsHref(
     if (value !== null && value !== undefined && value !== '') next.set(key, value)
   }
   const qs = next.toString()
-  return qs === '' ? '/gigs' : `/gigs?${qs}`
+  return qs === '' ? '/' : `/?${qs}`
 }

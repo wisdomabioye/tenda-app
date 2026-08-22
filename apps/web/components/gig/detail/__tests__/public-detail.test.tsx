@@ -29,11 +29,11 @@ describe('GigDetailHeader', () => {
     const crumbs = within(screen.getByRole('navigation', { name: 'Breadcrumb' }))
     expect(crumbs.getByRole('link', { name: GIG_DETAIL_COPY.breadcrumbRoot })).toHaveAttribute(
       'href',
-      '/gigs',
+      '/',
     )
     expect(
       crumbs.getByRole('link', { name: CATEGORY_LABELS[gig.category] }),
-    ).toHaveAttribute('href', `/gigs?category=${gig.category}`)
+    ).toHaveAttribute('href', `/?category=${gig.category}`)
   })
 
   it('shows the escrow id in full — it is what a reader quotes to support', () => {
@@ -276,7 +276,7 @@ describe('GigUnavailable', () => {
     ).toHaveAttribute('href', '/gig/gig-1')
     expect(
       screen.getByRole('link', { name: GIG_DETAIL_COPY.unavailableBrowse }),
-    ).toHaveAttribute('href', '/gigs')
+    ).toHaveAttribute('href', '/')
   })
 
   it('needs no JavaScript — both ways forward are plain links', () => {

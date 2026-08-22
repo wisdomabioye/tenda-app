@@ -43,7 +43,7 @@ export function listGigs(query: GigListQuery): Promise<PaginatedResponse<GigSumm
  *
  * The dedupe is a NEXT-RUNTIME property — React `cache()` needs a request
  * scope, which the unit harness does not provide, so it is not asserted there.
- * Measured against a running production build instead: one `/gigs` render, one
+ * Measured against a running production build instead: one root-feed render, one
  * `/v1/gigs` hit, with `generateMetadata` and the page both calling this.
  */
 const listGigsByKey = cache(

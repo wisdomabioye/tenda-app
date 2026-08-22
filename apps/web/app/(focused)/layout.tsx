@@ -4,12 +4,12 @@ import { ThemeToggle } from '@/components/app/ThemeToggle'
 import { OfflineNotice } from '@/components/app/status/OfflineNotice'
 
 /**
- * Focused shell — no rail, no site nav (spec-correction #6).
+ * Focused shell for guest flows; authenticated composers replace its chrome
+ * with the workspace through the nested layout.
  *
- * The comps give Auth and the Post Wizard their own surface: both are
- * single-task flows where the rail's other destinations are a way to lose your
- * place mid-flow. Verified by the comps themselves — `Tenda Auth` and
- * `Tenda Post Wizard` are the two files with no 64px rail.
+ * Auth remains a single-task surface. Composer URLs reuse this route group but
+ * the nested authenticated layout supplies the workspace rail, keeping creation
+ * in context with the rest of the signed-in product.
  *
  * The header carries exactly two things, and the omissions are the point. The
  * comp's header also holds a "screens" list and a `?state=` switcher; those are
@@ -27,7 +27,7 @@ import { OfflineNotice } from '@/components/app/status/OfflineNotice'
  */
 export default function FocusedLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col bg-surface-background">
+    <div data-focused-shell className="flex min-h-dvh flex-col bg-surface-background">
       <OfflineNotice />
       <header className="border-b border-border-subtle">
         <div className="mx-auto flex w-full max-w-[1080px] items-center gap-3 px-5 py-3">

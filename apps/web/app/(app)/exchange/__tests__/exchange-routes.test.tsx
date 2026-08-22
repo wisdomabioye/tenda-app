@@ -10,7 +10,7 @@ import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DetailLoadError, ExchangeDetail } from '@tenda/shared'
 import ExchangePage from '@/app/(app)/exchange/page'
-import ExchangeDetailPage from '@/app/(app)/exchange/[id]/page'
+import { ExchangeDetailRoute } from '@/components/exchange/ExchangeDetailRoute'
 import { EXCHANGE_COPY } from '@/components/exchange/market'
 import { OFFER_DETAIL_COPY } from '@/components/exchange/detail'
 import { useAuthStore } from '@/stores/auth.store'
@@ -134,20 +134,20 @@ describe('/exchange', () => {
 describe('/exchange/[id]', () => {
   it('renders the offer when it loads', () => {
     detail.offer = makeExchangeDetail()
-    render(<ExchangeDetailPage />)
+    render(<ExchangeDetailRoute id="exch-1" />)
     expect(screen.getByText('offer body')).toBeInTheDocument()
   })
 
   it('shows nothing but a spinner while it is still loading', () => {
     detail.isLoading = true
-    render(<ExchangeDetailPage />)
+    render(<ExchangeDetailRoute id="exch-1" />)
     expect(screen.queryByRole('alert')).toBeNull()
     expect(screen.queryByText('offer body')).toBeNull()
   })
 
   it('sends a reader back to the book when the offer is GONE', () => {
     detail.error = { gone: true, message: 'not found' }
-    render(<ExchangeDetailPage />)
+    render(<ExchangeDetailRoute id="exch-1" />)
     expect(screen.getByText(OFFER_DETAIL_COPY.unavailableTitle)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: OFFER_DETAIL_COPY.back })).toHaveAttribute(
       'href',
@@ -159,7 +159,7 @@ describe('/exchange/[id]', () => {
 
   it('offers a RETRY when the read merely failed', async () => {
     detail.error = { gone: false, message: 'network down' }
-    render(<ExchangeDetailPage />)
+    render(<ExchangeDetailRoute id="exch-1" />)
     expect(screen.getByText(OFFER_DETAIL_COPY.loadFailedTitle)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: OFFER_DETAIL_COPY.retry }))
     expect(detail.refresh).toHaveBeenCalledTimes(1)

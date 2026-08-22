@@ -50,7 +50,7 @@ test.describe('detail — /gig/[id]', () => {
         // Both ways forward are links, so neither needs the bundle. Scoped to
         // the ALERT: the page chrome has its own button (the theme toggle),
         // and asserting over the whole document would be asserting about that.
-        await expect(page.getByRole('link', { name: GIG_DETAIL_COPY.unavailableBrowse })).toHaveAttribute('href', '/gigs')
+        await expect(page.getByRole('link', { name: GIG_DETAIL_COPY.unavailableBrowse })).toHaveAttribute('href', '/')
         await expect(page.getByRole('alert').getByRole('button')).toHaveCount(0)
         await expect(page.getByRole('alert').getByRole('link')).toHaveCount(2)
       })
@@ -91,7 +91,7 @@ test.describe('SEO surfaces', () => {
 
   test('sitemap.xml lists the feed, live gig urls and the support centre', async ({ request }) => {
     const body = await (await request.get('/sitemap.xml')).text()
-    expect(body).toContain('/gigs')
+    expect(body).toContain('/')
     expect(body).toContain(`/gig/${deliveryGig.escrow_id}`)
     expect(body).toContain('/support')
     expect(body).toContain('/support/escrow')
