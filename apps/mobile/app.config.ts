@@ -54,9 +54,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     // edge tucked under the keyboard.
     softwareKeyboardLayoutMode: 'resize',
     adaptiveIcon: {
-      // App dark-surface color (badge ground); the foreground is glyph-only
+      // App light-surface color (badge ground); the foreground is glyph-only
       // ("t" + dot) so the OS mask (circle/squircle) produces the badge shape.
-      backgroundColor: '#0D1018',
+      // White, not the dark surface, since the icon family inverted to the
+      // light logo — this colour IS the other half of the icon, so it has to
+      // move with android-icon-foreground.png or the glyph vanishes into it.
+      backgroundColor: '#FFFFFF',
       foregroundImage: './assets/images/android-icon-foreground.png',
       monochromeImage: './assets/images/android-icon-monochrome.png',
     },
@@ -97,10 +100,19 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         // Must be white-on-transparent: Android tints the small icon by alpha.
         icon: './assets/images/notification-icon.png',
+        // The LIGHT-ground half of the tint only. This colour lands in
+        // values/colors.xml as `notification_icon_color`, and it tints the
+        // small icon in a notification shade whose theme is the SYSTEM's, not
+        // ours — so ./plugins/with-notification-color-night adds the dark-ground
+        // half (#5E87E8) in values-night. Both are `brand.primary` for their
+        // ground; see that plugin for why one value cannot serve both.
         color: '#2E5BD6',
         defaultChannel: 'default',
       },
     ],
+    // MUST stay after 'expo-notifications': it asserts that plugin already
+    // wrote the colour it overrides.
+    './plugins/with-notification-color-night',
     [
       'expo-splash-screen',
       {
