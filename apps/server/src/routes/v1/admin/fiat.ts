@@ -67,6 +67,17 @@ const route: FastifyPluginAsync = async (fastify) => {
     },
   )
 
+  // GET /v1/admin/fiat/intents/:id, one intent, whole.
+  //
+  // NO CLIENT CALLS THIS (#125). The dashboard lists intents and can
+  // force-settle or refund one BY ID, but never reads one. Kept: the list is
+  // paginated and filtered, and an operator working a single stuck payment
+  // needs the row itself — every column, not the summary the list shows —
+  // before deciding which override to apply. The two override routes beside it
+  // are the actions this is the READ for.
+  //
+  // Covered by test/integration/admin-uncalled-surfaces.test.ts; before that
+  // its only case was a malformed id, which the uuid guard answers.
   fastify.get<{ Params: { id: string } }>(
     '/intents/:id',
     { preHandler: [fastify.authenticate, intentIdGuard, requirePermission('fiat.read')] },

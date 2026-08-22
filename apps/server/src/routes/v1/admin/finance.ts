@@ -82,6 +82,16 @@ const adminFinance: FastifyPluginAsync = async (fastify) => {
 
   // GET /v1/admin/finance/transactions, paginated escrow-transaction ledger.
   // Optional filters: kind ('gig' | 'exchange'), tx_type, from / to.
+  //
+  // NO CLIENT CALLS THIS (#125) — the dashboard's Finance screen calls /fees
+  // only. Kept, and of the three uncalled admin reads this is the least
+  // arguable: /fees returns SUMS grouped by kind and type, and the first
+  // question anyone asks of a total is which rows made it. Reconciliation and
+  // any "where did this fee come from" answer start here.
+  //
+  // Unlike its two companions this one was genuinely tested already —
+  // admin-refusals-reporting.test.ts drives both refusals and a success
+  // control over seeded rows.
   fastify.get<{
     Querystring: {
       kind?: string

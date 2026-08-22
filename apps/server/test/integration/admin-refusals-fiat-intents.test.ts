@@ -20,18 +20,16 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert'
-import { randomUUID } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { fiat_intents } from '@tenda/shared/db/schema/fiat'
 import {
   TEST_DB_CONFIGURED,
-  TEST_CHAIN_ID,
-  TEST_ASSET,
   useTestApp,
   createAdmin,
   createUser,
   authHeader,
 } from '../helpers/test-app'
+import { seedFiatIntent as seedIntent } from '../helpers/fiat-intents'
 
 const skip = !TEST_DB_CONFIGURED
 const getApp = useTestApp()
@@ -39,38 +37,6 @@ const getApp = useTestApp()
 const BASE = '/v1/admin/fiat/intents'
 /** Well-formed but belonging to nothing; the route's uuidParamGuard handles the rest. */
 const ABSENT = '00000000-0000-0000-0000-000000000000'
-/** The only provider the harness seeds, and the FK target for every intent below. */
-const PROVIDER = 'p2p_internal'
-
-/**
- * Insert one intent directly. There is no public route that creates an intent
- * in an arbitrary status, and the point of these cases is the status the
- * override finds it in — so the row is built rather than driven.
- */
-async function seedIntent(
-  app: ReturnType<typeof getApp>,
-  user_id: string,
-  status: 'quoted' | 'settled' | 'failed',
-): Promise<string> {
-  const id = randomUUID()
-  await app.db.insert(fiat_intents).values({
-    id,
-    direction: 'onramp',
-    user_id,
-    wallet_address: 'SolWallet1111111111111111111111111111111',
-    chain_id: TEST_CHAIN_ID,
-    provider: PROVIDER,
-    fiat_currency: 'NGN',
-    fiat_amount: '150000.0000',
-    asset: TEST_ASSET,
-    asset_amount_raw: '100000000',
-    rate: '1500.0000000000',
-    fee_amount: '1500.0000',
-    status,
-    expires_at: new Date(Date.now() + 10 * 60_000),
-  })
-  return id
-}
 
 // ---------- the reason guard, shared by both overrides ---------------------------
 

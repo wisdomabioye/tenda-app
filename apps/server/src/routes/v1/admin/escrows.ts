@@ -129,6 +129,25 @@ const adminEscrows: FastifyPluginAsync = async (fastify) => {
   })
 
   // GET /v1/admin/escrows/:id, full row for triage (incl. drafts).
+  //
+  // NO CLIENT CALLS THIS (#125). The dashboard's map declares /dossier and
+  // /hidden on this id but not the plain row, so from the outside it looks
+  // dead. Kept, on SHAPE AND COST: this returns the same row the LIST returns,
+  // for one id, in one query. /dossier returns a different, much larger object
+  // and runs seven — escrow, dispute, party users, gig details, exchange
+  // details, proofs, transactions, applicants — because it is built for
+  // mediation. Re-reading one row after a takedown toggle should not cost that.
+  //
+  // AN EARLIER DRAFT OF THIS NOTE justified it as "the dossier cannot reach a
+  // draft". That is FALSE and was corrected before landing: dossier.ts selects
+  // by id with no status filter, and the admin list does not exclude drafts
+  // either. The route's "incl. drafts" line above is still true and still worth
+  // guarding — it is just not what distinguishes this route from its sibling.
+  //
+  // Covered by test/integration/admin-uncalled-surfaces.test.ts, which exists
+  // because the sweep that first catalogued this route recorded it as "tested"
+  // when its only case was a malformed id — answered by a preHandler, never
+  // reaching this handler at all.
   fastify.get<{
     Params: { id: string }
     Reply: AdminEscrowRow | ApiError

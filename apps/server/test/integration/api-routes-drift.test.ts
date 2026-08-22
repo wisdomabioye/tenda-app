@@ -180,11 +180,15 @@ const NON_CONTRACT_PATHS = [
   // route directory and the FIRST case in this file fails, naming the entry.
   //
   // These three survive the move because the dashboard does not declare them.
-  // WHAT WAS ACTUALLY CHECKED in #121, and no more: they are SERVED, and no
-  // caller exists in apps/admin outside the map, while neither mobile client
-  // has an admin surface at all. Whether each is still WANTED — and whether it
-  // has real coverage — is #125, which settles them the way #120 settled its
-  // own pair, in the routes' own headers rather than here.
+  // SETTLED IN #125, and all three are KEPT. WHY each one earns its place is
+  // written in its own route header — escrows.ts, fiat.ts, finance.ts — the way
+  // #120 settled its pair, and deliberately not restated here: one home for the
+  // reasoning means one place to correct when it changes.
+  //
+  // #125 also corrected the record: two of the three were catalogued as
+  // "tested" when their only case was a malformed id, which a preHandler
+  // answers. Their success paths are covered by
+  // test/integration/admin-uncalled-surfaces.test.ts.
   //
   // Listed rather than deleted, because the second case below refuses anything
   // served that nothing declares, and these are genuinely served.

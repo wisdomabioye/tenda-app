@@ -23,6 +23,7 @@ Shared infrastructure for the unit + integration suites (full c8 run:
 | `alert-log.ts` | `alertLogSpy()` — the `AlertLogger` double; records info AND warn, because "warned and did not throw" is what most of the alerts tests actually assert |
 | `alert-channel-contract.ts` | `testChannelContract()` — REGISTERS the tests every alert channel must pass, one named test per property, so a failure names which property and which channel |
 | `fetch-stub.ts` | `stubFetch()`, `stubFetchRejecting()`, `restoreFetch()`, `stubExpoPush()` — the outbound-HTTP double; returns a REAL `Response`, so no fixture can describe an impossible one like `{ ok: true, status: 500 }` |
+| `fiat-intents.ts` | `seedFiatIntent()`, `TEST_FIAT_PROVIDER` — insert one intent in a chosen status. No public route creates an intent in an arbitrary status, and the cases that need one are about the status a read or an override FINDS it in |
 | `route-table.ts` | `servedPaths(app)` — every URL the server actually serves, parsed back out of `printRoutes`. Split out of the drift suite in #121; the format is read from find-my-way's own pretty-printer, not guessed from a sample |
 | `source-scan.ts` | `stripComments()` — for the few invariants only a source read can catch; blanks comment bodies while preserving line numbers, so a scan cannot match the prose ABOUT the pattern it hunts |
 | `redis.ts` / `chain.ts` | Type surfaces only — concrete impls live in the suites that need them |
