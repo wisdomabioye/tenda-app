@@ -121,12 +121,38 @@ export type BuildTxAction =
   | { action: 'resolveDispute'; user_id: string; signer_address: string; payload: ResolveDisputePayload }
 
 /**
- * A build request: the action, plus the contract it must be built against.
+ * Cross-action signer inputs (the signer-contract fix): who the transaction
+ * will be signed by, stated instead of guessed.
+ */
+export interface BuildTxSignerHints {
+  /**
+   * The caller's transition role from `guardTransition` — how the adapter
+   * picks WHICH chain-bound address must sign ('creator' → escrow.creator,
+   * 'counterparty' → escrow.counterparty, 'assigned_counterparty' → the
+   * assignment). Absent for createEscrow (no binding exists yet) and for
+   * resolveDispute (the authority signs, not a party).
+   */
+  caller?: 'creator' | 'counterparty' | 'assigned_counterparty'
+  /**
+   * The wallet the CLIENT intends to sign with, already validated by the
+   * route as a verified linked wallet of the caller. Free actions (create,
+   * public accept) bake it; bound actions refuse a mismatch with the
+   * chain-bound address (422 ESCROW_WRONG_WALLET, details.required_address).
+   * Absent → the caller's primary linked wallet, the pre-existing behaviour.
+   */
+  signer_address?: string
+}
+
+/**
+ * A build request: the action, the signer hints, plus the contract it must be
+ * built against.
  *
  * Intersected rather than added to each variant so every existing `action`
- * narrowing keeps working unchanged.
+ * narrowing keeps working unchanged. (resolveDispute's own REQUIRED
+ * signer_address — the dispute authority — intersects cleanly with the
+ * optional hint field.)
  */
-export type BuildTxArgs = BuildTxAction & {
+export type BuildTxArgs = BuildTxAction & BuildTxSignerHints & {
   /**
    * The escrow contract/program this transaction must target — resolved from
    * the ESCROW (`chains/contracts/resolve.ts`), not from the chain.
@@ -167,9 +193,15 @@ export type UnsignedTx =
       tx_base64: string
       recent_blockhash: string
       last_valid_block_height: number
+      /** The wallet baked in as fee-payer + signer — always set (the builder
+       *  holds the payer it just baked, so it is correct by construction). */
+      signer_address?: string
     }
   | {
       kind: 'evm-tx'
+      /** The account this call must be sent FROM. Absent when the binding
+       *  could not be read (fail-open) — the client then behaves as before. */
+      signer_address?: string
       to: `0x${string}`
       data: `0x${string}`
       value: AmountRaw
@@ -194,4 +226,6 @@ export type UnsignedTx =
       user_op: UserOperation
       entry_point: `0x${string}`
       paymaster_url?: string
+      /** The userop sender — same meaning as on evm-tx. */
+      signer_address?: string
     }

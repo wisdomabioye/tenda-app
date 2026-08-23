@@ -31,6 +31,7 @@ export type {
   ResolveDisputePayload,
   BuildTxAction,
   BuildTxArgs,
+  BuildTxSignerHints,
   UserOperation,
   UnsignedTx,
 } from './build-tx'

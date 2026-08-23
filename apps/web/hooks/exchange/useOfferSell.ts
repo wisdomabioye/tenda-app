@@ -21,7 +21,12 @@ import {
 } from '@tenda/shared'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
-import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import {
+  declaredSignerFor,
+  ensureTxPreconditions,
+  resolveSignersForChain,
+  signSendAndReport,
+} from '@/wallet/dispatch'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import type { ExchangeAssetOption } from '@/hooks/exchange/useExchangeAssetOptions'
 
@@ -59,6 +64,11 @@ export function useOfferSell() {
       )
       const { operationId, acceptDeadlineUnix } = creationAttempt.current
 
+      // Trust list + chain registry FIRST (same rule as useGigFunding):
+      // without them the owner set below is [] — the balance gate silently
+      // falls open — and declaredSignerFor declares nothing, so the Solana
+      // create would bake the server's primary guess.
+      await ensureTxPreconditions()
       await ensureSufficientBalance({
         chainId: a.option.chainId,
         assetId: a.option.assetId,
@@ -66,6 +76,10 @@ export function useOfferSell() {
         owners: resolveSignersForChain(a.option.chainId),
       })
 
+      // Declared signer (signer contract): what gets baked into the Solana
+      // create / enforced on the EVM wire is the wallet the user will
+      // actually sign with, not the server's primary guess.
+      const signer = declaredSignerFor(a.option.chainId)
       const created = await api.escrows.create({
         creation_operation_id: operationId,
         kind: 'exchange',
@@ -74,6 +88,7 @@ export function useOfferSell() {
         amount_raw: a.amountRaw,
         accept_deadline_unix: acceptDeadlineUnix,
         completion_duration_seconds: a.paymentWindowSeconds,
+        ...(signer !== undefined ? { signer_address: signer } : {}),
       })
       escrow_id = created.escrow_id
       creationAttempt.current = null

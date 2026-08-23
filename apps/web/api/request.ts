@@ -107,7 +107,7 @@ export async function request<TResponse>(
 
     if (!response.ok) {
       const error: ApiError = await response.json()
-      throw new ApiClientError(error.statusCode, error.error, error.message, error.code)
+      throw new ApiClientError(error.statusCode, error.error, error.message, error.code, error.details)
     }
 
     return (await response.json()) as TResponse

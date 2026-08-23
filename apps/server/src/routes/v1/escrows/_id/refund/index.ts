@@ -21,7 +21,7 @@ import {
   loadEscrowOr404,
   requireCaller,
 } from '@server/lib/escrow-routes'
-import { assertCanTransition, buildEscrowTx } from '@server/lib/escrow'
+import { assertCanTransition, buildEscrowTx, partyCaller } from '@server/lib/escrow'
 
 const route: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Params: { id: string } }>(
@@ -62,6 +62,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       const unsigned = await buildEscrowTx(fastify, escrow, {
         action,
         user_id: request.user.id,
+        caller: partyCaller(caller),
         payload: { escrow_id: escrow.id },
       })
       return { unsigned }

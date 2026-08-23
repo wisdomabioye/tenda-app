@@ -66,6 +66,7 @@ export type {
   AddEscrowProofsBody,
   DisputeEscrowApiBody,
   ResolveEscrowApiBody,
+  SignerPreferenceBody,
   ClientPingBody,
   ClientPingResponse,
 } from './escrows.contract'

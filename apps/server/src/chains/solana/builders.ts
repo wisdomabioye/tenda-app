@@ -13,7 +13,8 @@ import { AppError } from '@server/lib/errors'
 import type { BuildTxArgs, UnsignedTx } from '@server/chains/types'
 import { buildInstruction } from '@server/chains/solana/instructions'
 import { PROGRAM_ID } from '@server/chains/solana/pdas'
-import type { SolanaBuilderDeps } from '@server/chains/solana/builder-internals'
+import { fetchEscrow, type SolanaBuilderDeps } from '@server/chains/solana/builder-internals'
+import { resolveSolanaSigner } from '@server/chains/solana/signer'
 
 export type { SolanaBuilderDeps }
 
@@ -35,15 +36,16 @@ export function createSolanaBuilders(deps: SolanaBuilderDeps) {
       )
     }
 
-    // resolveDispute is signed by the chain's configured dispute authority
-    // (fee-payer + `disputeAdmin` account), passed in explicitly. Every other
-    // action is signed by the acting user, resolved from their linked wallet.
-    const signerAddress =
-      args.action === 'resolveDispute'
-        ? args.signer_address
-        : await deps.resolveWalletAddress(args.user_id)
+    // ONE account read per build, shared by signer resolution and instruction
+    // encoding. createEscrow has no on-chain account yet — the fetch would 404.
+    const fetched = args.action === 'createEscrow' ? null : await fetchEscrow(deps, args.payload.escrow_id)
+    // The signer contract: transitions on an existing escrow are built FOR the
+    // chain-bound party address (never the primary-wallet guess); create and
+    // public accept take the route-validated requested wallet, else primary;
+    // resolveDispute keeps its explicit authority (see solana/signer.ts).
+    const signerAddress = await resolveSolanaSigner(deps, args, fetched?.escrow ?? null)
     const wallet = new PublicKey(signerAddress)
-    const instructions = await buildInstruction(deps, args, wallet)
+    const instructions = await buildInstruction(deps, args, wallet, fetched)
     const { blockhash, last_valid_block_height } = await deps.rpc.getLatestBlockhash()
     const message = new TransactionMessage({
       payerKey: wallet,
@@ -56,6 +58,7 @@ export function createSolanaBuilders(deps: SolanaBuilderDeps) {
       tx_base64: Buffer.from(tx.serialize()).toString('base64'),
       recent_blockhash: blockhash,
       last_valid_block_height,
+      signer_address: signerAddress,
     }
   }
 

@@ -23,8 +23,11 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: routerReplace, push: routerPush, back: vi.fn() }),
 }))
 vi.mock('@/api/client', () => ({ api: apiMock }))
+const ensureTxPreconditions = vi.hoisted(() => vi.fn<() => Promise<void>>())
 vi.mock('@/wallet/dispatch', () => ({
   resolveSignersForChain: () => ['SoLAddr1'],
+  declaredSignerFor: () => 'SoLAddr1',
+  ensureTxPreconditions,
   signSendAndReport,
 }))
 vi.mock('@/wallet/balances', () => ({ ensureSufficientBalance }))
@@ -65,6 +68,7 @@ const ARGS: OfferSubmitArgs = {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  ensureTxPreconditions.mockResolvedValue()
   ensureSufficientBalance.mockResolvedValue()
   apiMock.escrows.create.mockResolvedValue({ escrow_id: 'new-exch', unsigned: { kind: 'solana-tx' } })
   apiMock.exchange.create.mockResolvedValue({ escrow_id: 'new-exch' })
@@ -126,6 +130,19 @@ test('concurrent submits collapse to ONE order (double-click ≠ two drafts)', a
   expect(apiMock.escrows.create).toHaveBeenCalledTimes(1)
   expect(signSendAndReport).toHaveBeenCalledTimes(1)
   expect(result.current.submitting).toBe(false) // and the flag resets after
+})
+
+test('the trust list + registry load BEFORE the balance gate and the signer declaration', async () => {
+  // Without this, a cold wallets store makes resolveSignersForChain answer []
+  // (balance gate silently inert) AND declaredSignerFor declare nothing (the
+  // Solana create bakes the primary guess) — the sibling flows document the
+  // same rule; this pins offer-sell to it.
+  const { result } = renderHook(() => useOfferSell())
+  await act(() => result.current.submit(ARGS))
+  expect(ensureTxPreconditions).toHaveBeenCalledTimes(1)
+  expect(ensureTxPreconditions.mock.invocationCallOrder[0]).toBeLessThan(
+    ensureSufficientBalance.mock.invocationCallOrder[0],
+  )
 })
 
 test('an insufficient balance stops before any server write', async () => {

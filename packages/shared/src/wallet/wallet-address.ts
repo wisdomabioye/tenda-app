@@ -6,10 +6,16 @@
 import type { ChainNamespace } from '../db/schema/chains'
 import type { LinkedWallet } from '../api/contracts/auth.contract'
 
-/** EVM addresses are checksum-agnostic; Solana base58 is case-sensitive. */
-function addressesEqual(ns: ChainNamespace, a: string, b: string): boolean {
+/**
+ * EVM addresses are checksum-agnostic; Solana base58 is case-sensitive.
+ * Exported as THE address comparison for signer checks (dispatch's
+ * signer_address enforcement, the wrong-wallet retry) so no consumer ever
+ * re-invents the case rule.
+ */
+export function sameWalletAddress(ns: ChainNamespace, a: string, b: string): boolean {
   return ns === 'eip155' ? a.toLowerCase() === b.toLowerCase() : a === b
 }
+const addressesEqual = sameWalletAddress
 
 /** The user's VERIFIED linked wallets on a namespace (the only trusted set). */
 function verifiedWallets(ns: ChainNamespace, wallets: LinkedWallet[]): LinkedWallet[] {

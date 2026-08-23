@@ -19,6 +19,7 @@ import type {
   Review,
   ReviewInput,
   SendDisputeMessageBody,
+  SignerPreferenceBody,
   SubmitEscrowProofBody,
 } from '../..'
 import type { ApiRequest } from './types'
@@ -55,13 +56,14 @@ export function createEscrowsApi(request: ApiRequest) {
         timeout: ESCROW_CREATE_TIMEOUT_MS,
       }),
     // Publish path for drafts that never got (or lost) their unsigned tx.
-    buildCreate: (params: { id: string }) =>
+    buildCreate: (params: { id: string }, body?: SignerPreferenceBody) =>
       request<CreateEscrowApiResponse>('POST', escrows.buildCreate, {
         params,
+        ...(body !== undefined ? { body } : {}),
         timeout: TX_BUILD_TIMEOUT_MS,
       }),
-    accept: (params: { id: string }) =>
-      requestEscrowTransaction(escrows.accept, params),
+    accept: (params: { id: string }, body?: SignerPreferenceBody) =>
+      requestEscrowTransaction(escrows.accept, params, body),
     decline: (params: { id: string }) =>
       requestEscrowTransaction(escrows.decline, params),
     /** Approval mode: the POSTER signs this one, naming the worker they picked. */

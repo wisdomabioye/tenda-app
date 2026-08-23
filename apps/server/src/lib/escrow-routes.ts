@@ -214,7 +214,7 @@ export async function guardTransition(args: {
   now: Date
   grace_period_seconds: number
   transition: EscrowTransition
-}): Promise<{ escrow: EscrowRow; ctx: TransitionContext }> {
+}): Promise<{ escrow: EscrowRow; ctx: TransitionContext; caller: Caller }> {
   const escrow = await loadEscrowOr404(args.db, args.escrow_id)
   // Before the caller derivation, not after: on a taken-down listing the
   // honest answer is "this is closed", not "you are the wrong person" — and a
@@ -229,5 +229,7 @@ export async function guardTransition(args: {
     grace_period_seconds: args.grace_period_seconds,
   })
   assertCanTransition(ctx, args.transition)
-  return { escrow, ctx }
+  // `caller` rides along for the signer contract: buildTx picks WHICH
+  // chain-bound address must sign from the role this guard just derived.
+  return { escrow, ctx, caller }
 }

@@ -55,7 +55,19 @@ describe('transition builders', () => {
     await expect(useEscrowStore.getState().requestAccept('e1')).resolves.toBe(UNSIGNED)
     expect(busyDuring).toBe(true)
     expect(useEscrowStore.getState().isBusy).toBe(false)
-    expect(escrowsApi.accept).toHaveBeenCalledWith({ id: 'e1' })
+    expect(escrowsApi.accept).toHaveBeenCalledWith({ id: 'e1' }, undefined)
+  })
+
+  it('accept and build-create declare the intended signer when one is given', async () => {
+    // The free-signer half of the signer contract: what the client resolved
+    // must reach the server, or the Solana build bakes the primary guess.
+    escrowsApi.accept.mockResolvedValue({ unsigned: UNSIGNED })
+    escrowsApi.buildCreate.mockResolvedValue({ unsigned: UNSIGNED })
+    const store = useEscrowStore.getState()
+    await store.requestAccept('e1', '0xPicked')
+    expect(escrowsApi.accept).toHaveBeenLastCalledWith({ id: 'e1' }, { signer_address: '0xPicked' })
+    await store.requestBuildCreate('e1', '0xPicked')
+    expect(escrowsApi.buildCreate).toHaveBeenLastCalledWith({ id: 'e1' }, { signer_address: '0xPicked' })
   })
 
   it('a failed build records the error, clears busy, and rethrows', async () => {
@@ -83,10 +95,10 @@ describe('transition builders', () => {
     )
 
     const permit = { value_raw: '100', deadline_unix: 1, signature: '0xsig' }
-    await store.requestDispute('e1', '100', 'late delivery', permit)
+    await store.requestDispute('e1', '100', 'late delivery', permit, '0xRaiser')
     expect(escrowsApi.dispute).toHaveBeenLastCalledWith(
       { id: 'e1' },
-      { bond_raw: '100', reason: 'late delivery', permit },
+      { bond_raw: '100', reason: 'late delivery', permit, signer_address: '0xRaiser' },
     )
   })
 
@@ -95,7 +107,6 @@ describe('transition builders', () => {
     // would sign a perfectly valid transaction for the wrong transition.
     const store = useEscrowStore.getState()
     const cases = [
-      ['requestBuildCreate', escrowsApi.buildCreate],
       ['requestDecline', escrowsApi.decline],
       ['requestUnassign', escrowsApi.unassign],
       ['requestApprove', escrowsApi.approve],
@@ -107,6 +118,11 @@ describe('transition builders', () => {
       await expect(store[method]('e9')).resolves.toBe(UNSIGNED)
       expect(endpoint).toHaveBeenCalledWith({ id: 'e9' })
     }
+    // build-create carries the optional signer slot, so its no-signer call
+    // shape differs from the id-only builders above.
+    escrowsApi.buildCreate.mockResolvedValue({ unsigned: UNSIGNED })
+    await expect(store.requestBuildCreate('e9')).resolves.toBe(UNSIGNED)
+    expect(escrowsApi.buildCreate).toHaveBeenCalledWith({ id: 'e9' }, undefined)
   })
 
   it('createEscrow forwards the body verbatim and returns the full response', async () => {

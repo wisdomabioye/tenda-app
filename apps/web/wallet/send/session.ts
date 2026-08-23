@@ -8,7 +8,7 @@
  * Structural types throughout (S3 doctrine): no AppKit type imports, the
  * real modal satisfies these interfaces, and tests fake them without casts.
  */
-import { WalletError, guardWalletRequest, isLinkedWallet, truncateWallet } from '@tenda/shared'
+import { WalletError, guardWalletRequest, isLinkedWallet, sameWalletAddress, truncateWallet } from '@tenda/shared'
 import type { ChainNamespace, LinkedWallet } from '@tenda/shared'
 import type { VersionedTransaction } from '@solana/web3.js'
 import { loadWalletRuntime, peekWalletRuntime } from '../runtime'
@@ -116,6 +116,64 @@ export async function switchToLinkedWallet(ns: ChainNamespace): Promise<string> 
     throw new WalletError('no_wallet', unlinkedWalletMessage(ns, wallets))
   }
   return account.address
+}
+
+/**
+ * Connect as ONE SPECIFIC wallet — the signer-contract guard for a
+ * transition the chain has already bound (`UnsignedTx.signer_address`, or a
+ * server ESCROW_WRONG_WALLET refusal's required_address). Where
+ * `switchToLinkedWallet` accepts any linked wallet, this accepts exactly
+ * `required`: a live session with it passes untouched; anything else drops
+ * the namespace's session and opens the fresh namespace-filtered list, and
+ * every failure path NAMES the wallet the escrow needs — the generic
+ * "not linked" dead-end is the bug this replaces. A bound wallet the user
+ * has since UNLINKED cannot sign under the trust rules (and the verify
+ * pipeline would install null actors), so it is refused with the re-link
+ * instruction instead of a picker that cannot succeed.
+ */
+export async function connectAsWallet(ns: ChainNamespace, required: string): Promise<string> {
+  await ensureWalletsReady()
+  const { wallets } = useAuthStore.getState()
+  if (!isLinkedWallet(ns, required, wallets)) {
+    throw new WalletError(
+      'no_wallet',
+      `This escrow is signed by ${truncateWallet(required)}, which is no longer linked to your account — re-link it in Settings to continue`,
+    )
+  }
+  const modal = await requireTxModal()
+  // Settle a lazily-restoring session before judging it (tri-state doctrine).
+  let live = modal.getAddress(ns)
+  if (live === undefined || live === '') {
+    live = (await settledConnectedAccount(modal, ns))?.address
+  }
+  if (typeof live === 'string' && live !== '' && sameWalletAddress(ns, live, required)) {
+    return live
+  }
+  await modal.disconnect(ns)
+  const requiredMessage = `Connect ${truncateWallet(required)} — the wallet this escrow is signed by — to continue`
+  let account: { address: string }
+  try {
+    account = await waitForConnection(modal, { namespace: ns, fresh: true })
+  } catch (e) {
+    // Dismissing the list still needs the WHY: name the exact wallet.
+    if (e instanceof WalletError && e.code === 'declined') {
+      throw new WalletError('no_wallet', requiredMessage)
+    }
+    throw e
+  }
+  if (!sameWalletAddress(ns, account.address, required)) {
+    throw new WalletError('no_wallet', requiredMessage)
+  }
+  return account.address
+}
+
+/**
+ * The signing-session guard dispatch uses: with a `required` signer (the
+ * unsigned tx named one) the session must be THAT wallet; without one, any
+ * live linked session on the namespace (`ensureSessionOn`).
+ */
+export function ensureSignerSession(ns: ChainNamespace, required?: string): Promise<string> {
+  return required === undefined ? ensureSessionOn(ns) : connectAsWallet(ns, required)
 }
 
 /**

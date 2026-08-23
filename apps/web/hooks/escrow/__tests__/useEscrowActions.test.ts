@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiClientError, TRANSACTION_GATE_MESSAGE, WalletError } from '@tenda/shared'
 import { proofHashFor, useEscrowActions } from '@/hooks/escrow/useEscrowActions'
 
-const { mockPush, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreconditions, mockBuildPermitFor, storeMocks, persistMock } = vi.hoisted(() => ({
+const { mockPush, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreconditions, mockBuildPermitFor, mockDeclaredSigner, mockConnectAs, storeMocks, persistMock } = vi.hoisted(() => ({
   mockPush: vi.fn(),
   mockToast: vi.fn(),
   mockSign: vi.fn(),
@@ -17,6 +17,8 @@ const { mockPush, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreco
   mockEnsure: vi.fn(),
   mockPreconditions: vi.fn(),
   mockBuildPermitFor: vi.fn(),
+  mockDeclaredSigner: vi.fn(),
+  mockConnectAs: vi.fn(),
   persistMock: vi.fn(),
   storeMocks: {
     requestBuildCreate: vi.fn(),
@@ -39,6 +41,10 @@ vi.mock('@/wallet/dispatch', () => ({
   signSendAndReport: (...a: unknown[]) => mockSign(...a),
   resolveSignersForChain: (...a: unknown[]) => mockResolveSigners(...a),
   ensureTxPreconditions: (...a: unknown[]) => mockPreconditions(...a),
+  declaredSignerFor: (...a: unknown[]) => mockDeclaredSigner(...a),
+}))
+vi.mock('@/wallet/send', () => ({
+  connectAsWallet: (...a: unknown[]) => mockConnectAs(...a),
 }))
 vi.mock('@/wallet/balances', () => ({
   ensureSufficientBalance: (...a: unknown[]) => mockEnsure(...a),
@@ -60,6 +66,8 @@ beforeEach(() => {
   mockResolveSigners.mockReturnValue(SIGNERS)
   mockEnsure.mockResolvedValue(undefined)
   mockBuildPermitFor.mockResolvedValue(undefined)
+  // The declared signer (signer contract) rides every free/dispute build.
+  mockDeclaredSigner.mockReturnValue('0xMine')
   persistMock.mockResolvedValue(undefined)
   for (const fn of Object.values(storeMocks)) fn.mockResolvedValue(UNSIGNED)
 })
@@ -105,8 +113,8 @@ describe('action → builder → reported-action map', () => {
       builderArgs: readonly unknown[]
       reported: string
     }> = [
-      { run: (a) => a.publish(), builder: storeMocks.requestBuildCreate, builderArgs: ['e1'], reported: 'create' },
-      { run: (a) => a.accept(), builder: storeMocks.requestAccept, builderArgs: ['e1'], reported: 'accept' },
+      { run: (a) => a.publish(), builder: storeMocks.requestBuildCreate, builderArgs: ['e1', '0xMine'], reported: 'create' },
+      { run: (a) => a.accept(), builder: storeMocks.requestAccept, builderArgs: ['e1', '0xMine'], reported: 'accept' },
       { run: (a) => a.decline(), builder: storeMocks.requestDecline, builderArgs: ['e1'], reported: 'decline' },
       { run: (a) => a.assign('worker-9'), builder: storeMocks.requestAssign, builderArgs: ['e1', 'worker-9'], reported: 'assign_accept' },
       { run: (a) => a.unassign(), builder: storeMocks.requestUnassign, builderArgs: ['e1'], reported: 'unassign' },
@@ -152,7 +160,7 @@ describe('dispatch lifecycle', () => {
       await result.current.accept()
     })
     expect(mockEnsure).not.toHaveBeenCalled()
-    expect(storeMocks.requestAccept).toHaveBeenCalledWith('e1')
+    expect(storeMocks.requestAccept).toHaveBeenCalledWith('e1', '0xMine')
     expect(mockSign).toHaveBeenCalledWith(
       expect.objectContaining({ unsigned: UNSIGNED, action: 'accept', chain_id: ARGS.chainId, escrow_id: 'e1' }),
     )
@@ -276,6 +284,54 @@ describe('proof submit (two-phase)', () => {
   })
 })
 
+describe('wrong-wallet retry (signer contract)', () => {
+  const wrongWallet = () =>
+    new ApiClientError(422, 'Unprocessable Entity', 'must be signed by 0xBound', 'ESCROW_WRONG_WALLET', {
+      required_address: '0xBound',
+    })
+
+  test('a bound-mismatch refusal connects the REQUIRED wallet and re-runs the build once', async () => {
+    storeMocks.requestSubmit.mockRejectedValueOnce(wrongWallet()).mockResolvedValueOnce(UNSIGNED)
+    mockConnectAs.mockResolvedValue('0xBound')
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    let ok = false
+    await act(async () => {
+      ok = await result.current.submit([])
+    })
+    expect(ok).toBe(true)
+    expect(mockConnectAs).toHaveBeenCalledWith('eip155', '0xBound')
+    expect(storeMocks.requestSubmit).toHaveBeenCalledTimes(2)
+    expect(mockSign).toHaveBeenCalledTimes(1)
+  })
+
+  test('a refusal WITHOUT a required address (unlinked caller wallet) is not retried', async () => {
+    storeMocks.requestAccept.mockRejectedValue(
+      new ApiClientError(422, 'Unprocessable Entity', 'not one of your linked wallets', 'ESCROW_WRONG_WALLET'),
+    )
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    await act(async () => {
+      await result.current.accept()
+    })
+    expect(mockConnectAs).not.toHaveBeenCalled()
+    expect(storeMocks.requestAccept).toHaveBeenCalledTimes(1)
+    expect(mockToast).toHaveBeenCalledWith('error', 'not one of your linked wallets')
+  })
+
+  test('a failed targeted connect surfaces ITS message and never re-requests', async () => {
+    storeMocks.requestApprove.mockRejectedValue(wrongWallet())
+    mockConnectAs.mockRejectedValue(
+      new WalletError('no_wallet', 'Connect 0xBo…und — the wallet this escrow is signed by — to continue'),
+    )
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    await act(async () => {
+      await result.current.approve()
+    })
+    expect(storeMocks.requestApprove).toHaveBeenCalledTimes(1)
+    expect(mockToast).toHaveBeenCalledWith('error', expect.stringContaining('the wallet this escrow is signed by'))
+    expect(mockSign).not.toHaveBeenCalled()
+  })
+})
+
 describe('dispute', () => {
   test('a bonded dispute debits the bond and rides the permit path', async () => {
     const permit = { value_raw: '500', deadline_unix: 1, signature: '0xsig' }
@@ -290,7 +346,7 @@ describe('dispute', () => {
       asset: ARGS.asset,
       value_raw: '500',
     })
-    expect(storeMocks.requestDispute).toHaveBeenCalledWith('e1', '500', 'late delivery', permit)
+    expect(storeMocks.requestDispute).toHaveBeenCalledWith('e1', '500', 'late delivery', permit, '0xMine')
   })
 
   test('a zero bond skips the permit entirely', async () => {
@@ -299,6 +355,6 @@ describe('dispute', () => {
       await result.current.dispute('late delivery', '0')
     })
     expect(mockBuildPermitFor).not.toHaveBeenCalled()
-    expect(storeMocks.requestDispute).toHaveBeenCalledWith('e1', '0', 'late delivery', undefined)
+    expect(storeMocks.requestDispute).toHaveBeenCalledWith('e1', '0', 'late delivery', undefined, '0xMine')
   })
 })

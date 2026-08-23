@@ -49,4 +49,7 @@ export interface ApiError {
   error: string
   message: string
   code: ErrorCode
+  /** Machine-readable payload some codes carry (e.g. ESCROW_WRONG_WALLET's
+   *  required_address, WALLET_IN_USE's blocking escrow_ids). */
+  details?: Record<string, unknown>
 }

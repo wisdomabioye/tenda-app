@@ -9,7 +9,9 @@ import type { ChainNamespace, LinkedWallet, UnsignedTx } from '@tenda/shared'
 
 const ensureSessionOnMock = vi.fn()
 vi.mock('@/wallet/send/session', () => ({
-  ensureSessionOn: (ns: ChainNamespace) => ensureSessionOnMock(ns),
+  // Dispatch rides the required-aware guard; the fake records both args so
+  // the signer-contract tests can assert what was demanded of the session.
+  ensureSignerSession: (ns: ChainNamespace, required?: string) => ensureSessionOnMock(ns, required),
 }))
 const sendEvmMock = vi.fn()
 vi.mock('@/wallet/send/evm', () => ({
@@ -45,6 +47,7 @@ vi.mock('@/stores/escrow.store', () => ({
 }))
 
 import {
+  declaredSignerFor,
   resolveEvmFrom,
   resolveSignerFor,
   resolveSignersForChain,
@@ -99,6 +102,21 @@ describe('signer resolution', () => {
     expect(resolveSignersForChain('eip155:84532')).toEqual(['0xPrimary', '0xSecond'])
     expect(resolveSignersForChain('made-up:1')).toEqual([])
   })
+
+  it('declaredSignerFor: the dialog-row resolution, or NOTHING on unknown chain / empty registry', () => {
+    // The coherence function of the signer contract: what it answers is what
+    // the create body declares. A wrong fallback here would declare a wallet
+    // the user never previewed.
+    modalState.addresses = { eip155: '0xLive' }
+    authState.wallets = [linked('0xLive'), linked('0xPrimary', { is_primary: true })]
+    expect(declaredSignerFor('eip155:84532')).toBe('0xLive')
+    authState.wallets = [linked('0xPrimary', { is_primary: true })]
+    modalState.addresses = {}
+    expect(declaredSignerFor('eip155:84532')).toBe('0xPrimary')
+    expect(declaredSignerFor('made-up:1')).toBeUndefined()
+    authState.wallets = []
+    expect(declaredSignerFor('eip155:84532')).toBeUndefined()
+  })
 })
 
 describe('solana-tx', () => {
@@ -122,6 +140,16 @@ describe('solana-tx', () => {
     await expect(signAndSendUnsignedTx(SOLANA_TX, 'solana:devnet')).rejects.toThrow('declined')
     expect(sendSolanaMock).not.toHaveBeenCalled()
   })
+
+  it("the wire's signer_address pins the session to THAT wallet; absent = any linked", async () => {
+    // Signer contract: the baked payer is the only wallet that can sign this
+    // tx — the guard must be told to demand it. Dropping the passthrough in
+    // dispatch fails this.
+    await signAndSendUnsignedTx({ ...SOLANA_TX, signer_address: 'SoL9' }, 'solana:devnet')
+    expect(ensureSessionOnMock).toHaveBeenLastCalledWith('solana', 'SoL9')
+    await signAndSendUnsignedTx(SOLANA_TX, 'solana:devnet')
+    expect(ensureSessionOnMock).toHaveBeenLastCalledWith('solana', undefined)
+  })
 })
 
 describe('evm-tx', () => {
@@ -142,6 +170,17 @@ describe('evm-tx', () => {
       chainId: 'eip155:42220',
       feeCurrency: '0xCUSD',
     })
+  })
+
+  it("the wire's signer_address is the FROM — the chain-bound sender beats the live session", async () => {
+    // resolveEvmFrom would answer 0xLive here; the contract's party check
+    // only accepts the bound wallet, so the wire wins. The guard is told to
+    // demand it too (the session must BE that wallet before signing).
+    await signAndSendUnsignedTx({ ...EVM_TX, signer_address: '0xBound' }, 'eip155:84532')
+    expect(ensureSessionOnMock).toHaveBeenLastCalledWith('eip155', '0xBound')
+    expect(sendEvmMock).toHaveBeenCalledWith(
+      expect.objectContaining({ from: '0xBound' }),
+    )
   })
 
   it('ensures the allowance BEFORE broadcasting when the hint is present', async () => {

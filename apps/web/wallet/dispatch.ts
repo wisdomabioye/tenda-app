@@ -23,7 +23,7 @@ import {
   pickWalletAddress,
 } from '@tenda/shared'
 import { peekWalletRuntime } from './runtime'
-import { ensureSessionOn } from './send/session'
+import { ensureSignerSession } from './send/session'
 import { sendEvmTransaction } from './send/evm'
 import { signAndSendSolanaTx } from './send/solana'
 import { useAuthStore } from '@/stores/auth.store'
@@ -93,6 +93,20 @@ export function resolveEvmFrom(): string | null {
   return resolveSignerFor('eip155')
 }
 
+/**
+ * The wallet this client intends to sign with on `chainId`, as declared to
+ * the server on free-signer builds (create / publish / accept) and on
+ * dispute. Same resolution the confirm dialog's signer row previews and the
+ * permit's owner uses — one answer for all four consumers is the signer
+ * contract's coherence rule. Undefined (unknown chain / nothing linked)
+ * simply declares nothing: the server falls back to its default.
+ */
+export function declaredSignerFor(chainId: string): string | undefined {
+  const ns = findChain(chainId)?.namespace
+  if (ns === undefined) return undefined
+  return resolveSignerFor(ns) ?? undefined
+}
+
 /** Sign + broadcast a server-built unsigned tx. Returns the tx_ref. */
 export async function signAndSendUnsignedTx(
   unsigned: UnsignedTx,
@@ -102,16 +116,18 @@ export async function signAndSendUnsignedTx(
   switch (unsigned.kind) {
     case 'solana-tx': {
       // Unlike mobile (MWA owns its own session), the web wallet session
-      // lives in the AppKit modal — guarantee a live, LINKED one first.
-      await ensureSessionOn('solana')
+      // lives in the AppKit modal — guarantee a live, LINKED one first. When
+      // the server named the baked signer (signer_address), the session must
+      // be THAT wallet: any other one cannot sign this tx at all.
+      await ensureSignerSession('solana', unsigned.signer_address)
       return signAndSendSolanaTx(unsigned.tx_base64, onSigned)
     }
     case 'evm-tx': {
-      // Guarantee a live, linked session first (connect-on-demand), so
-      // `resolveEvmFrom` below signs from the connected wallet instead of
-      // dead-ending when the session isn't live.
-      await ensureSessionOn('eip155')
-      const from = resolveEvmFrom()
+      // Guarantee a live, linked session first (connect-on-demand) — pinned
+      // to the wire's signer_address when present (the chain-bound sender:
+      // any other `from` reverts on the contract's party check).
+      await ensureSignerSession('eip155', unsigned.signer_address)
+      const from = unsigned.signer_address ?? resolveEvmFrom()
       if (from === null) {
         throw new Error('no EVM wallet connected, link one in Settings → Wallets first')
       }

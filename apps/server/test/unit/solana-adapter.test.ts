@@ -241,6 +241,29 @@ test('buildTx acceptEscrow: escrow + platform PDAs, signer wallet', async () => 
   assert.strictEqual(d.payer, COUNTERPARTY.toBase58())
 })
 
+test('buildTx: a BOUND transition is built for the CHAIN address, never the primary guess', async () => {
+  // The signer contract's core promise. user-creator's primary resolves to
+  // CREATOR, but the on-chain counterparty is COUNTERPARTY — the tx must be
+  // payable only by the wallet the chain bound at accept. Reverting the
+  // builder to resolveWalletAddress(user_id) fails this (payer = CREATOR).
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { submitted: {} } })
+  const a = makeAdapter(rpc)
+  const unsigned = await a.buildTx({
+    action: 'claimStalledPayment',
+    user_id: 'user-creator', // primary would resolve to CREATOR
+    caller: 'counterparty',
+    payload: { escrow_id: ESCROW_UUID },
+  })
+  const d = decodeUnsigned(unsigned)
+  assert.strictEqual(d.payer, COUNTERPARTY.toBase58())
+  // …and the requirement is REPORTED on the wire for the client to enforce.
+  assert.strictEqual(unsigned.kind, 'solana-tx')
+  if (unsigned.kind === 'solana-tx') {
+    assert.strictEqual(unsigned.signer_address, COUNTERPARTY.toBase58())
+  }
+})
+
 test('buildTx: a transition on a SUPERSEDED program\'s escrow is refused, not built', async () => {
   // The build path must be louder than the read path: this escrow decodes
   // fine, but the configured program cannot sign for an account it does not

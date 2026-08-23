@@ -10,7 +10,7 @@ import { act, renderHook, type RenderHookResult } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { ApiClientError, TRANSACTION_GATE_MESSAGE, type GigFormValues } from '@tenda/shared'
 
-const { mockPush, mockReplace, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreconditions, mockBuildPermitFor, mockEscrowCreate, mockEscrowDelete, mockGigCreate } = vi.hoisted(() => ({
+const { mockPush, mockReplace, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreconditions, mockBuildPermitFor, mockDeclaredSigner, mockEscrowCreate, mockEscrowDelete, mockGigCreate } = vi.hoisted(() => ({
   mockPush: vi.fn(),
   mockReplace: vi.fn(),
   mockToast: vi.fn(),
@@ -19,6 +19,7 @@ const { mockPush, mockReplace, mockToast, mockSign, mockResolveSigners, mockEnsu
   mockEnsure: vi.fn(),
   mockPreconditions: vi.fn(),
   mockBuildPermitFor: vi.fn(),
+  mockDeclaredSigner: vi.fn(),
   mockEscrowCreate: vi.fn(),
   mockEscrowDelete: vi.fn(),
   mockGigCreate: vi.fn(),
@@ -32,6 +33,7 @@ vi.mock('@/wallet/dispatch', () => ({
   signSendAndReport: (...a: unknown[]) => mockSign(...a),
   resolveSignersForChain: (...a: unknown[]) => mockResolveSigners(...a),
   ensureTxPreconditions: (...a: unknown[]) => mockPreconditions(...a),
+  declaredSignerFor: (...a: unknown[]) => mockDeclaredSigner(...a),
 }))
 vi.mock('@/wallet/balances', () => ({
   ensureSufficientBalance: (...a: unknown[]) => mockEnsure(...a),
@@ -120,6 +122,24 @@ test('a short balance costs the user NO permit signature and NO draft', async ()
   expect(mockToast).toHaveBeenCalledWith('error', 'You need 10 USDC but your wallet holds 2.5 USDC.')
   expect(result.current.phase).toBe('idle') // no stuck spinner, the form is usable
   expect(mockPush).not.toHaveBeenCalled() // stays on the form, budget still editable
+})
+
+test('the declared signer rides the create body; nothing linked declares nothing', async () => {
+  // Signer contract: the wallet the dialog previewed is what the Solana
+  // create bakes — dropping the declaration reverts to the primary guess.
+  mockDeclaredSigner.mockReturnValue('SoLPicked')
+  const declared = renderHook(() => useGigFunding(ARGS))
+  await fund(declared.result)
+  expect(mockEscrowCreate).toHaveBeenCalledWith(
+    expect.objectContaining({ signer_address: 'SoLPicked' }),
+  )
+
+  mockDeclaredSigner.mockReturnValue(undefined)
+  mockEscrowCreate.mockClear()
+  const undeclared = renderHook(() => useGigFunding(ARGS))
+  await fund(undeclared.result)
+  const body = mockEscrowCreate.mock.calls[0]?.[0] as Record<string, unknown>
+  expect('signer_address' in body).toBe(false)
 })
 
 test('a covered budget funds the gig end to end', async () => {

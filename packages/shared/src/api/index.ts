@@ -1,7 +1,7 @@
 export type { Endpoint } from './endpoint'
 export { apiConfig, type AppEnv, type ApiConfig } from './config'
 export { apiRoutes } from './routes'
-export { ApiClientError } from './client-error'
+export { ApiClientError, requiredWalletOf } from './client-error'
 export { parseWsServerFrame } from './contracts'
 export type {
   ApiContract,
@@ -32,6 +32,7 @@ export type {
   AddEscrowProofsBody,
   DisputeEscrowApiBody,
   ResolveEscrowApiBody,
+  SignerPreferenceBody,
   ClientPingBody,
   ClientPingResponse,
   GigsContract,

@@ -28,6 +28,7 @@ import { buildEvmCall } from './builders'
 import { verifyEvmReceipt } from './verify-receipt'
 import { createEvmRpc, type EvmRpc } from './rpc'
 import { buildContext, fetchEscrowState, type EvmAdapterContext } from './state'
+import { resolveEvmSigner } from './signer'
 import { buildPermitPayload } from './permit-payload'
 import { ENTRY_POINT_V06, type PaymasterHttp } from './paymaster'
 
@@ -114,6 +115,13 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
     const target = (build.contract ?? args.escrow_contract) as `0x${string}`
     const ctx = await buildContext(context, build, target)
     const call = buildEvmCall(build, ctx)
+    // The signer contract: the account this call must be sent from — the
+    // chain-bound party address for transitions, the client-declared wallet
+    // for create. Null = unknown (fail-open read) → the field is omitted and
+    // the client behaves as before it existed. Runs before the sponsorship
+    // fork so a bound-mismatch 422 can never be eaten by the degradation
+    // catch below.
+    const signer = await resolveEvmSigner(context, build, target, ctx.escrow_state)
 
     const sponsorable =
       args.deps.paymaster !== undefined &&
@@ -130,7 +138,11 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       // failure → plain-tx degradation), wallet resolution included, so it
       // sits inside the try.
       try {
-        const sender = (await args.deps.resolveWalletAddress(build.user_id)) as `0x${string}`
+        // The userop's sender IS the signer: the resolved (chain-bound or
+        // client-declared) address when known, else the primary — sponsoring
+        // the primary for an escrow bound to another wallet would mint an
+        // operation the bound wallet cannot use.
+        const sender = (signer ?? (await args.deps.resolveWalletAddress(build.user_id))) as `0x${string}`
         const sponsored = await args.deps.paymaster.sponsorUserOperation(
           { sender, call_data: call.data },
           ENTRY_POINT_V06,
@@ -138,6 +150,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
         return {
           kind: 'evm-userop',
           entry_point: ENTRY_POINT_V06,
+          signer_address: sender,
           user_op: {
             sender,
             nonce: '0x0', // bundler-resolved client-side (EOA 4337 flow)
@@ -172,6 +185,7 @@ export function evmAdapter(args: EvmAdapterArgs): ChainAdapter {
       to: target,
       data: call.data,
       value: call.value_raw,
+      ...(signer !== null ? { signer_address: signer } : {}),
       ...(args.fee_currency !== undefined ? { fee_currency: args.fee_currency } : {}),
       ...approvalHint(build, ctx, target),
     }

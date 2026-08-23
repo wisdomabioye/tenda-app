@@ -95,6 +95,7 @@ export async function buildContext(
       assigned_counterparty_address: assigned,
       worker_address: null,
       permit_encodable,
+      escrow_state: null,
     }
   }
   if (build.action === 'disputeEscrow') {
@@ -125,6 +126,9 @@ export async function buildContext(
       assigned_counterparty_address: null,
       worker_address: null,
       permit_encodable,
+      // The dispute build already paid for this read — the signer resolver
+      // reuses it instead of a second eth_call.
+      escrow_state: state,
     }
   }
   if (build.action === 'assignAccept') {
@@ -133,6 +137,7 @@ export async function buildContext(
       assigned_counterparty_address: null,
       worker_address: await ctx.args.deps.resolveWalletAddress(build.payload.worker_user_id),
       permit_encodable,
+      escrow_state: null,
     }
   }
   return {
@@ -140,5 +145,6 @@ export async function buildContext(
     assigned_counterparty_address: null,
     worker_address: null,
     permit_encodable,
+    escrow_state: null,
   }
 }

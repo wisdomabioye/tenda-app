@@ -35,3 +35,5 @@ export { assertNotTakenDown, takedownActionFor } from './takedown'
 
 export { buildEscrowTx } from './build-tx'
 export type { BuildEscrowTxDeps } from './build-tx'
+
+export { assertCallerWallet, assertSignerLinked, partyCaller, readSignerPreference } from './signer'

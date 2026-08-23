@@ -31,7 +31,7 @@ import {
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
 import { ROUTES } from '@/lib/routes'
-import { ensureTxPreconditions, resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import { declaredSignerFor, ensureTxPreconditions, resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 
@@ -109,12 +109,17 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
       // EIP-2612: sign the allowance BEFORE creating so it rides the create
       // tx (undefined = approve fallback via the unsigned tx's approval hint).
       const permit = await buildPermitFor({ chain_id, asset, value_raw: amount_raw })
+      // Declared signer (signer contract): the wallet the dialog previewed —
+      // the SAME resolution the permit's owner used — is what the Solana
+      // create bakes / the EVM wire enforces, never the primary guess.
+      const signer = declaredSignerFor(chain_id)
       const created = await api.escrows.create({
         creation_operation_id: operationId,
         kind: 'gig',
         chain_id,
         asset,
         amount_raw,
+        ...(signer !== undefined ? { signer_address: signer } : {}),
         accept_deadline_unix: acceptDeadlineUnix,
         completion_duration_seconds: values.completionDuration,
         // Only sent when true: the server treats an absent flag as instant

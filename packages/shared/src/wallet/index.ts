@@ -42,7 +42,7 @@ export {
   WC_TIMEOUT_MESSAGE,
   WC_CANCELLED_MESSAGE,
 } from './request-guard'
-export { isLinkedWallet, pickWalletAddress, orderedSignerAddresses } from './wallet-address'
+export { isLinkedWallet, pickWalletAddress, orderedSignerAddresses, sameWalletAddress } from './wallet-address'
 export {
   createSolanaRpcTransport,
   classifySolanaRpcError,

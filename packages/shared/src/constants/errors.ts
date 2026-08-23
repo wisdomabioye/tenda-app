@@ -49,6 +49,13 @@ export const ErrorCode = {
   ESCROW_DEADLINE_PASSED:        'ESCROW_DEADLINE_PASSED',
   ESCROW_DEADLINE_NOT_REACHED:   'ESCROW_DEADLINE_NOT_REACHED',
   ESCROW_INVALID_ASSET:          'ESCROW_INVALID_ASSET',
+  /** The transaction must be signed by a specific wallet and the request named
+   *  (or implies) a different one. `details.required_address` carries the
+   *  wallet that CAN sign: the on-chain bound party address for transitions on
+   *  an existing escrow, or — for a client-requested signer that isn't a
+   *  verified linked wallet of the caller — absent (nothing to switch to;
+   *  the fix is linking, not switching). */
+  ESCROW_WRONG_WALLET:           'ESCROW_WRONG_WALLET',
   // Auth nonces (v2 — used by lib/nonce.ts; replaces ±5min timestamp window)
   AUTH_NONCE_UNKNOWN:            'AUTH_NONCE_UNKNOWN',
   AUTH_NONCE_REPLAY:             'AUTH_NONCE_REPLAY',

@@ -21,7 +21,7 @@ import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
 import { guardTransition } from '@server/lib/escrow-routes'
-import { buildEscrowTx } from '@server/lib/escrow'
+import { buildEscrowTx, partyCaller } from '@server/lib/escrow'
 import { assertWorkerGigCapacity } from '@server/features/capacity/guards'
 import { assertAssignable } from '@server/features/applications/guards'
 import { heldExpiry } from '@server/features/applications/service'
@@ -38,7 +38,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       }
       const now = new Date()
       const cfg = await getPlatformConfig(fastify.db)
-      const { escrow } = await guardTransition({
+      const { escrow, caller } = await guardTransition({
         db: fastify.db,
         escrow_id: request.params.id,
         user_id: request.user.id,
@@ -77,6 +77,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       const unsigned = await buildEscrowTx(fastify, escrow, {
         action: 'assignAccept',
         user_id: request.user.id,
+        caller: partyCaller(caller),
         payload: { escrow_id: escrow.id, worker_user_id },
       })
 

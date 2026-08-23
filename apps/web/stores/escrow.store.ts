@@ -36,9 +36,11 @@ interface EscrowState {
   createEscrow: (body: CreateEscrowApiBody) => Promise<CreateEscrowApiResponse>
 
   /** Transition builders, each returns the unsigned tx to sign. */
-  /** Rebuild the unsigned create tx for an owned draft (publish path). */
-  requestBuildCreate: (id: string) => Promise<UnsignedTx>
-  requestAccept: (id: string) => Promise<UnsignedTx>
+  /** Rebuild the unsigned create tx for an owned draft (publish path).
+   *  `signer_address` = the wallet this client intends to sign with
+   *  (the free-signer declaration; see the signer contract). */
+  requestBuildCreate: (id: string, signer_address?: string) => Promise<UnsignedTx>
+  requestAccept: (id: string, signer_address?: string) => Promise<UnsignedTx>
   requestDecline: (id: string) => Promise<UnsignedTx>
   /**
    * Approval mode: the POSTER signs, naming the applicant they picked. The
@@ -58,6 +60,9 @@ interface EscrowState {
     bond_raw: string,
     reason: string,
     permit?: PermitSignatureBody,
+    /** Declared signer: a bound mismatch answers 422 naming the required
+     *  wallet BEFORE a doomed broadcast (the dispatch retry re-targets). */
+    signer_address?: string,
   ) => Promise<UnsignedTx>
 
   /**
@@ -102,8 +107,24 @@ export const useEscrowStore = create<EscrowState>((set) => {
 
     createEscrow: (body) => run(() => api.escrows.create(body)),
 
-    requestBuildCreate: (id) => run(async () => (await api.escrows.buildCreate({ id })).unsigned),
-    requestAccept: (id) => run(async () => (await api.escrows.accept({ id })).unsigned),
+    requestBuildCreate: (id, signer_address) =>
+      run(async () =>
+        (
+          await api.escrows.buildCreate(
+            { id },
+            signer_address !== undefined ? { signer_address } : undefined,
+          )
+        ).unsigned,
+      ),
+    requestAccept: (id, signer_address) =>
+      run(async () =>
+        (
+          await api.escrows.accept(
+            { id },
+            signer_address !== undefined ? { signer_address } : undefined,
+          )
+        ).unsigned,
+      ),
     requestDecline: (id) => run(async () => (await api.escrows.decline({ id })).unsigned),
     requestAssign: (id, worker_user_id) =>
       run(async () => (await api.escrows.assign({ id }, { worker_user_id })).unsigned),
@@ -114,13 +135,18 @@ export const useEscrowStore = create<EscrowState>((set) => {
     requestClaim: (id) => run(async () => (await api.escrows.claim({ id })).unsigned),
     requestCancel: (id) => run(async () => (await api.escrows.cancel({ id })).unsigned),
     requestRefund: (id) => run(async () => (await api.escrows.refund({ id })).unsigned),
-    requestDispute: (id, bond_raw, reason, permit) =>
+    requestDispute: (id, bond_raw, reason, permit, signer_address) =>
       run(
         async () =>
           (
             await api.escrows.dispute(
               { id },
-              { bond_raw, reason, ...(permit !== undefined ? { permit } : {}) },
+              {
+                bond_raw,
+                reason,
+                ...(permit !== undefined ? { permit } : {}),
+                ...(signer_address !== undefined ? { signer_address } : {}),
+              },
             )
           ).unsigned,
       ),

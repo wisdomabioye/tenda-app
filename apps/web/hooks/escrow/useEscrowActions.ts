@@ -21,7 +21,9 @@ import {
   TRANSACTION_GATE_MESSAGE,
   WalletError,
   classifyTransactionGateError,
+  findChain,
   isTakedownRefusal,
+  requiredWalletOf,
   transactionGateRoute,
   type EscrowTxType,
   type ProofType,
@@ -29,7 +31,13 @@ import {
   type UnsignedTx,
 } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
-import { ensureTxPreconditions, resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import {
+  declaredSignerFor,
+  ensureTxPreconditions,
+  resolveSignersForChain,
+  signSendAndReport,
+} from '@/wallet/dispatch'
+import { connectAsWallet } from '@/wallet/send'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 import { showToast } from '@/components/ui/Toast'
@@ -91,6 +99,14 @@ export function useEscrowActions({
   }
 
   /**
+   * Declared on the builds whose signer is still free (publish, accept) and
+   * on dispute (where a bound mismatch must answer BEFORE the permit).
+   * Evaluated at request time so a wrong-wallet retry re-reads the switched
+   * session.
+   */
+  const declaredSigner = (): string | undefined => declaredSignerFor(chainId)
+
+  /**
    * `debitRaw` declares what this action takes from the signer's wallet, in
    * base units of the escrow's asset. Pass it for value-moving actions only —
    * accept/approve/claim/cancel/refund/submit/decline move nothing from the
@@ -115,7 +131,21 @@ export function useEscrowActions({
           owners: resolveSignersForChain(chainId),
         })
       }
-      const unsigned = await request()
+      // Wrong-wallet retry (signer contract): the server refused because the
+      // escrow is bound to a specific wallet — connect exactly that one and
+      // re-run the build ONCE. Re-running the closure is what rebuilds a
+      // dispute permit for the right owner. connectAsWallet's own typed
+      // errors (dismissed, unlinked-bound) fall through to the guard exits.
+      let unsigned: UnsignedTx
+      try {
+        unsigned = await request()
+      } catch (e) {
+        const required = requiredWalletOf(e)
+        const ns = findChain(chainId)?.namespace
+        if (required === null || ns === undefined) throw e
+        await connectAsWallet(ns, required)
+        unsigned = await request()
+      }
       setPhase('signing')
       const tx_ref = await signSendAndReport({
         unsigned,
@@ -171,8 +201,8 @@ export function useEscrowActions({
 
     /** Publish a draft: rebuild + sign the create tx. Funds the escrow, so it
      *  debits the full amount. */
-    publish: () => dispatch('create', () => store.requestBuildCreate(escrowId), amountRaw),
-    accept: () => dispatch('accept', () => store.requestAccept(escrowId)),
+    publish: () => dispatch('create', () => store.requestBuildCreate(escrowId, declaredSigner()), amountRaw),
+    accept: () => dispatch('accept', () => store.requestAccept(escrowId, declaredSigner())),
     decline: () => dispatch('decline', () => store.requestDecline(escrowId)),
     /** Approval mode, poster-signed. No `debitRaw`: the escrow is already funded. */
     assign: (workerUserId: string) =>
@@ -230,7 +260,7 @@ export function useEscrowActions({
             bondRaw !== '0'
               ? await buildPermitFor({ chain_id: chainId, asset, value_raw: bondRaw })
               : undefined
-          return store.requestDispute(escrowId, bondRaw, reason, permit)
+          return store.requestDispute(escrowId, bondRaw, reason, permit, declaredSigner())
         },
         bondRaw,
       ),

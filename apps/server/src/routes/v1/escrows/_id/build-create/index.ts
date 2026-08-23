@@ -11,12 +11,13 @@
  */
 
 import type { FastifyPluginAsync } from 'fastify'
+import type { SignerPreferenceBody } from '@tenda/shared'
 import { and, eq } from 'drizzle-orm'
 import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
 import { escrows, exchange_details } from '@tenda/shared/db/schema'
 import { AppError } from '@server/lib/errors'
 import { loadEscrowOr404 } from '@server/lib/escrow-routes'
-import { assertNotTakenDown } from '@server/lib/escrow'
+import { assertCallerWallet, assertNotTakenDown, readSignerPreference } from '@server/lib/escrow'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
@@ -28,7 +29,7 @@ import { hasPendingEscrowCreateTransaction } from '@server/features/escrows/crea
 const REFRESH_MARGIN_MS = 60_000
 
 const route: FastifyPluginAsync = async (fastify) => {
-  fastify.post<{ Params: { id: string } }>(
+  fastify.post<{ Params: { id: string }; Body: SignerPreferenceBody | null }>(
     '/',
     // Publishing IS creating a live listing, same gates as POST /v1/escrows.
     { preHandler: [fastify.authenticate, requireProfileComplete, requireGoodStanding('create')] },
@@ -103,6 +104,16 @@ const route: FastifyPluginAsync = async (fastify) => {
       // (covers server-opened fiat-offramp drafts that never hit create's gate).
       // Runs BEFORE the deadline write so a rejected publish mutates nothing.
       await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
+      // Free-signer case (same as POST /v1/escrows): the declared signing
+      // wallet must be one the caller has verified; absent → the primary.
+      const signer_address = readSignerPreference(request.body)
+      if (signer_address !== undefined) {
+        await assertCallerWallet(fastify.db, {
+          user_id: request.user.id,
+          chain_ns: adapter.namespace,
+          address: signer_address,
+        })
+      }
       // A direct-assigned draft bakes the assignee's wallet into the create tx.
       if (escrow.assigned_counterparty_id !== null) {
         await assertAssigneeHasWallet(fastify.db, escrow.assigned_counterparty_id, adapter.namespace)
@@ -132,6 +143,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       const unsigned = await adapter.buildTx({
         action: 'createEscrow',
         user_id: request.user.id,
+        ...(signer_address !== undefined ? { signer_address } : {}),
         payload: {
           escrow_id: escrow.id,
           kind: escrow.kind,

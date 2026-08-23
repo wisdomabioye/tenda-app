@@ -28,7 +28,7 @@ import { requireProfileComplete } from '@server/lib/guards'
 import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
 import { validateCreateEscrow, type CreateEscrowBody } from '@server/features/escrows/creation/validateCreateEscrow'
 import { normalizeContractAddress } from '@server/chains/contracts'
-import { assertNotTakenDown } from '@server/lib/escrow'
+import { assertCallerWallet, assertNotTakenDown, readSignerPreference } from '@server/lib/escrow'
 import { hasPendingEscrowCreateTransaction } from '@server/features/escrows/creation/hasPendingEscrowCreateTransaction'
 
 const route: FastifyPluginAsync = async (fastify) => {
@@ -68,6 +68,17 @@ const route: FastifyPluginAsync = async (fastify) => {
       }
       // First-transaction gate: a wallet on this chain + a verified contact.
       await assertCanTransact(fastify.db, request.user.id, adapter.namespace)
+      // Free-signer case: the wallet the client intends to sign with is baked
+      // in (Solana) / enforced on the wire (EVM) — but only a wallet this
+      // caller has verified. Absent → the primary, the pre-existing default.
+      const signer_address = readSignerPreference(request.body)
+      if (signer_address !== undefined) {
+        await assertCallerWallet(fastify.db, {
+          user_id: request.user.id,
+          chain_ns: adapter.namespace,
+          address: signer_address,
+        })
+      }
       // Direct assignment bakes the assignee's wallet into the escrow at create,
       // so they must already have one (clean 422 vs the adapter's raw 404).
       if (input.assigned_counterparty_id !== null) {
@@ -87,6 +98,7 @@ const route: FastifyPluginAsync = async (fastify) => {
       const buildUnsigned = (escrowId: string, persisted?: typeof escrows.$inferSelect) => adapter.buildTx({
         action: 'createEscrow',
         user_id: request.user.id,
+        ...(signer_address !== undefined ? { signer_address } : {}),
         payload: {
           escrow_id: escrowId,
           kind: persisted?.kind ?? input.kind,

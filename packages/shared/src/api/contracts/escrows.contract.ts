@@ -41,6 +41,13 @@ export type UnsignedTx =
       tx_base64: string
       recent_blockhash: string
       last_valid_block_height: number
+      /**
+       * The wallet this tx must be signed by — it is baked in as fee-payer +
+       * signer account. For transitions on an existing escrow it is the
+       * chain-bound party address; for create/public-accept it is the
+       * client-requested (validated) wallet, defaulting to the primary.
+       */
+      signer_address?: string
     }
   | {
       kind: 'evm-tx'
@@ -55,12 +62,22 @@ export type UnsignedTx =
        *  if short. Absent for native assets and for permit-built calls
        *  (there the allowance rides the tx itself). */
       approval?: { token: string; spender: string; amount_raw: string }
+      /**
+       * The account this call must be sent FROM (`msg.sender`): the
+       * chain-bound party address for transitions on an existing escrow, the
+       * requested/primary wallet for create. Absent when the server could not
+       * read the binding (RPC failure falls open) — the client then behaves
+       * as before this field existed.
+       */
+      signer_address?: string
     }
   | {
       kind: 'evm-userop'
       user_op: WireUserOperation
       entry_point: string
       paymaster_url?: string
+      /** The userop sender — same meaning as on evm-tx. */
+      signer_address?: string
     }
 
 /**
@@ -100,6 +117,25 @@ export interface CreateEscrowApiBody {
   /** EIP-2612 path: sign first, then create — the server returns the
    *  createEscrowWithPermit call instead of createEscrow + approval hint. */
   permit?: PermitSignatureBody
+  /**
+   * The wallet the client intends to sign with — must be one of the caller's
+   * verified linked wallets on the escrow's chain (422 otherwise). Absent →
+   * the primary linked wallet, the pre-existing behaviour. When a permit
+   * rides the body its owner must be this same account.
+   */
+  signer_address?: string
+}
+
+/**
+ * Optional body for transitions whose signer is not yet chain-bound (accept
+ * of a public escrow, publish of a draft): the wallet the client intends to
+ * sign with. Same validation and default as CreateEscrowApiBody's field. On
+ * a BOUND transition the server compares it against the chain-bound address
+ * and refuses a mismatch with ESCROW_WRONG_WALLET + details.required_address
+ * — which is what lets a client re-target BEFORE building a permit.
+ */
+export interface SignerPreferenceBody {
+  signer_address?: string
 }
 
 export interface CreateEscrowApiResponse {
@@ -128,6 +164,10 @@ export interface DisputeEscrowApiBody {
   reason: string
   /** EIP-2612 path for the ERC-20 bond (disputeEscrowWithPermit). */
   permit?: PermitSignatureBody
+  /** See SignerPreferenceBody — dispute is bound, so a mismatch with the
+   *  raiser's chain-bound address is refused with the required address named
+   *  (the permit's owner must match the eventual sender). */
+  signer_address?: string
 }
 
 export interface ResolveEscrowApiBody {
@@ -155,8 +195,8 @@ export interface EscrowsContract {
   create: Endpoint<'POST', undefined, CreateEscrowApiBody, undefined, CreateEscrowApiResponse>
   /** Rebuild the unsigned create tx for an owned draft (publish path for
    *  server-opened offramp drafts + signing-declined retries). */
-  buildCreate: Endpoint<'POST', IdParam, undefined, undefined, CreateEscrowApiResponse>
-  accept: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
+  buildCreate: Endpoint<'POST', IdParam, SignerPreferenceBody | undefined, undefined, CreateEscrowApiResponse>
+  accept: Endpoint<'POST', IdParam, SignerPreferenceBody | undefined, undefined, EscrowActionResponse>
   decline: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>
   submit: Endpoint<'POST', IdParam, SubmitEscrowProofBody, undefined, EscrowActionResponse>
   approve: Endpoint<'POST', IdParam, undefined, undefined, EscrowActionResponse>

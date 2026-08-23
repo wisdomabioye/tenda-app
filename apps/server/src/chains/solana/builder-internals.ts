@@ -41,10 +41,18 @@ export interface SolanaBuilderDeps {
 
 // ---- on-chain account lookups ---------------------------------------------
 
+/** One escrow account read, shared by signer resolution and encoding —
+ *  builders.ts fetches ONCE per build and threads it down. */
+export interface FetchedEscrow {
+  escrowAddr: PublicKey
+  idBytes: Buffer
+  escrow: EscrowAccount
+}
+
 export async function fetchEscrow(
   deps: SolanaBuilderDeps,
   escrow_id: string,
-): Promise<{ escrowAddr: PublicKey; idBytes: Buffer; escrow: EscrowAccount }> {
+): Promise<FetchedEscrow> {
   const idBytes = uuidToBytes(escrow_id)
   const escrowAddr = escrowPda(idBytes)
   const account = await deps.rpc.getAccount(escrowAddr.toBase58())
