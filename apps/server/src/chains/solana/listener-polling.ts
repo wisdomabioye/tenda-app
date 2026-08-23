@@ -26,6 +26,16 @@ import { verifyTxDedupKey } from '@server/jobs/verify-tx'
 export const POLL_INTERVAL_MS = 15_000
 export const POLL_SIGNATURE_LIMIT = 100
 
+/**
+ * Per-endpoint RPC timeout for the listener's OWN client. The default
+ * createSolanaRpc budgets (6s per endpoint with a fallback) are tuned for the
+ * interactive tx-build path; a background poller has no user waiting, and a
+ * tight cap makes heavier getSignaturesForAddress calls fail spuriously on a
+ * high-latency link. Failures only cost a retried tick, but a generous cap
+ * keeps them rare. Mirrors EVM_LISTENER_RPC_TIMEOUT_MS.
+ */
+export const SOLANA_LISTENER_RPC_TIMEOUT_MS = 30_000
+
 // ---------- tick (the testable unit) -----------------------------------------
 
 export interface PollTickDeps {

@@ -18,7 +18,10 @@ import { chainById } from '@tenda/shared'
 import { getChainSecrets, solanaSecret } from '@server/chains/secrets'
 import { drizzleCursorStore } from '@server/chains/cursors'
 import { createSolanaRpc } from '@server/chains/solana/rpc'
-import { createSolanaPollingListener } from '@server/chains/solana/listener-polling'
+import {
+  createSolanaPollingListener,
+  SOLANA_LISTENER_RPC_TIMEOUT_MS,
+} from '@server/chains/solana/listener-polling'
 import { createEvmRpc } from '@server/chains/evm/rpc'
 import {
   createEvmPollingListener,
@@ -117,6 +120,9 @@ const listenersPlugin: FastifyPluginAsync = async (fastify) => {
             rpc_url: solana.rpcUrl,
             ...(solana.rpcUrlFallback !== undefined ? { rpc_url_fallback: solana.rpcUrlFallback } : {}),
             chain_id: adapter.chain_id,
+            // Background poller: relaxed per-endpoint budget, not the
+            // interactive tx-build one (see the constant's rationale).
+            timeout_ms: SOLANA_LISTENER_RPC_TIMEOUT_MS,
           }),
           chain_id: adapter.chain_id,
           cursors: drizzleCursorStore(fastify.db),

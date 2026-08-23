@@ -1,6 +1,14 @@
 import { test } from 'node:test'
 import * as assert from 'node:assert'
-import { failoverSolanaRpc, type SolanaRpc } from '@server/chains/solana/rpc'
+import {
+  DEFAULT_RPC_TIMEOUT_MS,
+  FALLBACK_RPC_TIMEOUT_MS,
+  distinctFallbackUrl,
+  failoverSolanaRpc,
+  perEndpointTimeoutMs,
+  solanaConnectionConfig,
+  type SolanaRpc,
+} from '@server/chains/solana/rpc'
 
 const PRIMARY_ERROR = new Error('primary unavailable')
 
@@ -62,6 +70,65 @@ test('failover does not touch secondary after primary success', async () => {
   )
   assert.strictEqual((await rpc.getAccount('addr'))?.owner, 'owner')
   assert.strictEqual(secondaryCalls, 0)
+})
+
+test('with a fallback, web3.js silent 429 retries are OFF so failover can engage', () => {
+  // Without this a rate-limited primary burns ~15s in web3.js's internal
+  // exponential-backoff loop before failoverSolanaRpc ever sees an error.
+  const config = solanaConnectionConfig({ chain_id: 'solana:devnet', has_fallback: true })
+  assert.strictEqual(config.disableRetryOnRateLimit, true)
+})
+
+test('WITHOUT a fallback, the built-in 429 backoff stays on — the only recovery left', () => {
+  const config = solanaConnectionConfig({ chain_id: 'solana:devnet', has_fallback: false })
+  assert.strictEqual(config.disableRetryOnRateLimit, false)
+})
+
+test('connection config carries the recorded commitment policy', () => {
+  assert.strictEqual(
+    solanaConnectionConfig({ chain_id: 'solana:devnet', has_fallback: true }).commitment,
+    'confirmed',
+  )
+  assert.strictEqual(
+    solanaConnectionConfig({ chain_id: 'solana:mainnet', has_fallback: false }).commitment,
+    'finalized',
+  )
+})
+
+test('distinctFallbackUrl: absent and duplicate fallbacks are no failover at all', () => {
+  assert.strictEqual(
+    distinctFallbackUrl({ rpc_url: 'https://a', rpc_url_fallback: 'https://b' }),
+    'https://b',
+  )
+  assert.strictEqual(distinctFallbackUrl({ rpc_url: 'https://a' }), undefined)
+  assert.strictEqual(
+    distinctFallbackUrl({ rpc_url: 'https://a', rpc_url_fallback: 'https://a' }),
+    undefined,
+  )
+})
+
+test('per-endpoint timeout tightens only when a DISTINCT fallback exists', () => {
+  assert.strictEqual(
+    perEndpointTimeoutMs({ rpc_url: 'https://a', rpc_url_fallback: 'https://b' }),
+    FALLBACK_RPC_TIMEOUT_MS,
+  )
+  assert.strictEqual(
+    perEndpointTimeoutMs({ rpc_url: 'https://a' }),
+    DEFAULT_RPC_TIMEOUT_MS,
+  )
+  // A fallback that duplicates the primary is no failover at all.
+  assert.strictEqual(
+    perEndpointTimeoutMs({ rpc_url: 'https://a', rpc_url_fallback: 'https://a' }),
+    DEFAULT_RPC_TIMEOUT_MS,
+  )
+})
+
+test('an explicit timeout override beats the fallback policy', () => {
+  assert.strictEqual(
+    perEndpointTimeoutMs({ rpc_url: 'https://a', rpc_url_fallback: 'https://b', timeout_ms: 30_000 }),
+    30_000,
+  )
+  assert.strictEqual(perEndpointTimeoutMs({ rpc_url: 'https://a', timeout_ms: 1_000 }), 1_000)
 })
 
 test('surfaces the fallback error after both endpoints fail', async () => {
