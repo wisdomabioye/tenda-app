@@ -129,6 +129,15 @@ export async function applyEscrowEvent(
     // where a checksummed value would read as an UNKNOWN contract and hold up a
     // boot for a contract the registry actually knows.
     patch.escrow_contract = normalizeContractAddress(deps.chain_ns, event.contract)
+    // The signer contract's display half: the wallet that actually signed the
+    // create, from the event — never the server's build-time intention. The
+    // assignee wallet is re-attested only where the event carries it (Solana);
+    // the EVM create event has no assignee arg, so the route's build-time
+    // stamp stands there.
+    patch.creator_address = event.fields.creator ?? null
+    if (event.fields.assigned_counterparty !== undefined) {
+      patch.assigned_counterparty_address = event.fields.assigned_counterparty
+    }
   }
   let counterparty_id: string | null = null
   if (app.counterparty !== undefined) {
@@ -140,6 +149,11 @@ export async function applyEscrowEvent(
     // Install writes the resolved user onto the row; release clears it. Either
     // way `counterparty_id` above keeps the resolved value for the caller.
     patch.counterparty_id = app.counterparty.effect === 'install' ? counterparty_id : null
+    // The wallet rides the SAME lifecycle in the SAME patch, so the id and
+    // its address can never disagree — a re-assign overwrites, a release
+    // clears both (my_signer_address's graceful-churn guarantee).
+    patch.counterparty_address =
+      app.counterparty.effect === 'install' ? (address ?? null) : null
   }
 
   const actorAddress = app.actor_field !== undefined ? event.fields[app.actor_field] : undefined

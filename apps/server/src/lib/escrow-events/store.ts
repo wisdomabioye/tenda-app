@@ -31,6 +31,19 @@ export interface EscrowPatch {
   counterparty_id?: string | null
   assigned_counterparty_id?: string | null
   /**
+   * Chain-attested from the EscrowCreated event's `creator` field —
+   * write-once in practice, like `escrow_contract`.
+   */
+  creator_address?: string | null
+  /**
+   * Rides the SAME install/release lifecycle as `counterparty_id`, in the
+   * same patch, so the id and its wallet can never disagree.
+   */
+  counterparty_address?: string | null
+  /** Cleared with `assigned_counterparty_id` (decline); Solana's create
+   *  event re-attests it, the EVM create event carries no assignee. */
+  assigned_counterparty_address?: string | null
+  /**
    * `null` CLEARS the column — AssignmentReleased rewinds an escrow to `open`
    * and its completion deadline must go with it, or the expiry sweep would
    * keep judging an escrow nobody is working on against a dead deadline.

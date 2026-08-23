@@ -18,6 +18,7 @@
 import {
   ASSET_META,
   chainLabel,
+  truncateWallet,
   formatAssetAmount,
   formatDate,
   formatFiat,
@@ -37,6 +38,7 @@ export const OFFER_TERMS_COPY = {
   window: 'Payment window',
   closes: 'Offer closes',
   listed: 'Listed',
+  yourWallet: 'Your escrow wallet',
   fee: (pct: string | null) => (pct === null ? 'Platform fee' : `Platform fee (${pct}%)`),
   unknown: '—',
 } as const
@@ -76,6 +78,15 @@ export function OfferTerms({ offer }: { offer: ExchangeDetail }) {
       mono: true,
     },
   ]
+  // Viewer-relative on the wire: only the party this row belongs to ever
+  // receives an address, so rendering it needs no viewer logic here.
+  if (offer.my_signer_address !== null) {
+    rows.push({
+      label: OFFER_TERMS_COPY.yourWallet,
+      value: truncateWallet(offer.my_signer_address),
+      mono: true,
+    })
+  }
   if (offer.accept_deadline !== null) {
     rows.push({ label: OFFER_TERMS_COPY.closes, value: formatDate(offer.accept_deadline), mono: true })
   }

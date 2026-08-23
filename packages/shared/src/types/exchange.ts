@@ -56,6 +56,8 @@ export interface ExchangeDetail extends ExchangeSummary {
   is_seeker: boolean
   /** Buyer's fiat receipt — PARTIES ONLY, `null` to everyone else incl. admins. */
   payment_proof_url: string | null
+  /** Viewer-relative bound wallet — same meaning and scoping as GigDetail's. */
+  my_signer_address: string | null
   dispute_bond_raw: string
   completion_deadline: string | null
   submitted_at: string | null

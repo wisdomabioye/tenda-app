@@ -154,8 +154,9 @@ export const EVENT_APPLICATIONS: Record<EscrowEvent, EventApplication> = {
     tx_type: 'decline',
     from: transitionFrom('decline'),
     actor_field: 'declined_by',
-    // Status stays open, the decline clears the assignment only.
-    patch: () => ({ assigned_counterparty_id: null }),
+    // Status stays open, the decline clears the assignment only — the baked
+    // wallet goes with the id it describes.
+    patch: () => ({ assigned_counterparty_id: null, assigned_counterparty_address: null }),
   },
   ProofSubmitted: {
     tx_type: 'submit',

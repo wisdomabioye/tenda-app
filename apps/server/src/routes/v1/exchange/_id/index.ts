@@ -17,6 +17,7 @@ import {
   canViewHiddenEscrow,
   scopeEscrowAcceptanceMode,
   scopeEscrowPrivateFields,
+  scopeMySignerAddress,
 } from '@server/lib/escrow-detail-scope'
 import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
 import { isEscrowPartyOrAssignedRow, isEscrowPartyRow } from '@server/lib/escrow-party'
@@ -129,6 +130,8 @@ const exchangeById: FastifyPluginAsync = async (fastify) => {
       // The buyer's fiat receipt — evidence, not terms. Scoped with `proofs`
       // below rather than shipped beside the price.
       payment_proof_url: isParty ? details.payment_proof_url : null,
+      // Viewer-relative bound wallet (chain-attested); null for outsiders.
+      my_signer_address: scopeMySignerAddress(escrow, request.user.id),
       // A P2P offer normally has no acceptance mode at all, but "normally" is
       // not "always": `assigned_counterparty_id` carries no kind restriction at
       // create, so a direct-invite offer is reachable and only the assignee may

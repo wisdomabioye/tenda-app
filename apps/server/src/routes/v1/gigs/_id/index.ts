@@ -27,6 +27,7 @@ import {
   canViewHiddenEscrow,
   scopeEscrowAcceptanceMode,
   scopeEscrowPrivateFields,
+  scopeMySignerAddress,
 } from '@server/lib/escrow-detail-scope'
 import { loadEscrowEvidence } from '@server/lib/escrow-detail-evidence'
 import { isEscrowPartyOrAssignedRow } from '@server/lib/escrow-party'
@@ -151,6 +152,8 @@ const gigById: FastifyPluginAsync = async (fastify) => {
       submitted_at: iso(escrow.submitted_at),
       approval_deadline: iso(escrow.approval_deadline),
       dispute_bond_raw: escrow.dispute_bond_raw,
+      // Viewer-relative bound wallet (chain-attested); null for outsiders.
+      my_signer_address: scopeMySignerAddress(escrow, viewer_id),
       // Flag public, assignee id party-only — the same projection the exchange
       // detail uses, so the two surfaces cannot mean different things by
       // "assigned". Rationale lives with the helper.

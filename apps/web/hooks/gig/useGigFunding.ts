@@ -191,7 +191,7 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
         // confirms it and the draft flips to open on its own.
         showToast('info', e instanceof Error ? e.message : 'Signing incomplete, draft saved')
         resetComposer()
-        router.push(`/gig/${escrow_id}`)
+        router.push(`/my-gigs/${escrow_id}`)
       } else if (e instanceof WalletError && (e.code === 'declined' || e.code === 'timeout')) {
         // Guard exit before the draft existed (e.g. the permit signature was
         // cancelled or lost) — an expected path, not a failure.
@@ -220,7 +220,7 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
     setPhase('idle')
     showToast(type, message)
     resetComposer()
-    if (escrowId !== undefined) router.push(`/gig/${escrowId}`)
+    if (escrowId !== undefined) router.push(`/my-gigs/${escrowId}`)
   }
 
   return {

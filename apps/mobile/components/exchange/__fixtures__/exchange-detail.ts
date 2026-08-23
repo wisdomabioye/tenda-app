@@ -53,6 +53,7 @@ export function exchangeDetail(overrides: Partial<ExchangeDetail> = {}): Exchang
     requires_approval: false,
     is_assigned: false,
     assigned_counterparty_id: null,
+    my_signer_address: null,
     dispute_bond_raw: '0',
     completion_deadline: null,
     submitted_at: null,

@@ -77,6 +77,32 @@ export const escrows = pgTable(
      * chains/contracts/resolve.ts.
      */
     escrow_contract: text('escrow_contract'),
+    /**
+     * The wallet that signed the on-chain create — chain-attested from the
+     * EscrowCreated event's `creator` field, write-once (the creator is
+     * immutable on-chain). NULL for drafts and for escrows created before
+     * this column existed. Feeds the detail wire's viewer-relative
+     * `my_signer_address` (each party sees only their own bound wallet).
+     */
+    creator_address: text('creator_address'),
+    /**
+     * The wallet bound as counterparty RIGHT NOW — installed and released by
+     * the exact events that manage `counterparty_id`, in the same atomic
+     * patch, so the two can never disagree: EscrowAccepted /
+     * CounterpartyAssigned install the event's wallet, AssignmentReleased
+     * clears it, a re-assign overwrites it. NULL whenever `counterparty_id`
+     * is NULL.
+     */
+    counterparty_address: text('counterparty_address'),
+    /**
+     * Direct-invite window: the assignee wallet BAKED into the create tx —
+     * the only wallet that can sign their accept/decline. Stamped at build
+     * time from the same primary-wallet resolution the builder uses (the EVM
+     * create event carries no assignee), then chain-attested from the Solana
+     * event where available; cleared by the same decline patch that clears
+     * `assigned_counterparty_id`.
+     */
+    assigned_counterparty_address: text('assigned_counterparty_address'),
     accept_deadline: timestamp('accept_deadline'),
     completion_duration_seconds: integer('completion_duration_seconds'),
     completion_deadline: timestamp('completion_deadline'),

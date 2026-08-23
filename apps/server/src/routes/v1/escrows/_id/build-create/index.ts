@@ -20,7 +20,7 @@ import { loadEscrowOr404 } from '@server/lib/escrow-routes'
 import { assertCallerWallet, assertNotTakenDown, readSignerPreference } from '@server/lib/escrow'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
-import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
+import { assertCanTransact, resolveAssigneeWalletAddress } from '@server/lib/auth/resolver'
 import { normalizeContractAddress } from '@server/chains/contracts'
 import { hasPendingEscrowCreateTransaction } from '@server/features/escrows/creation/hasPendingEscrowCreateTransaction'
 
@@ -114,9 +114,18 @@ const route: FastifyPluginAsync = async (fastify) => {
           address: signer_address,
         })
       }
-      // A direct-assigned draft bakes the assignee's wallet into the create tx.
+      // A direct-assigned draft bakes the assignee's wallet into the create tx
+      // — and the row must RECORD what THIS build will bake (the same
+      // resolution the builder runs), not what a previous build did. A draft
+      // republished after the assignee changed wallets would otherwise keep
+      // the stale stamp, and on EVM no event ever corrects it.
+      let assigned_counterparty_address = escrow.assigned_counterparty_address
       if (escrow.assigned_counterparty_id !== null) {
-        await assertAssigneeHasWallet(fastify.db, escrow.assigned_counterparty_id, adapter.namespace)
+        assigned_counterparty_address = await resolveAssigneeWalletAddress(
+          fastify.db,
+          escrow.assigned_counterparty_id,
+          adapter.namespace,
+        )
       }
 
       // Persist what the unsigned tx will encode, so the DB row and the
@@ -132,11 +141,17 @@ const route: FastifyPluginAsync = async (fastify) => {
       if (
         accept_deadline !== escrow.accept_deadline ||
         completion_duration_seconds !== escrow.completion_duration_seconds ||
-        escrow_contract !== escrow.escrow_contract
+        escrow_contract !== escrow.escrow_contract ||
+        assigned_counterparty_address !== escrow.assigned_counterparty_address
       ) {
         await fastify.db
           .update(escrows)
-          .set({ accept_deadline, completion_duration_seconds, escrow_contract })
+          .set({
+            accept_deadline,
+            completion_duration_seconds,
+            escrow_contract,
+            assigned_counterparty_address,
+          })
           .where(and(eq(escrows.id, escrow.id), eq(escrows.status, 'draft')))
       }
 

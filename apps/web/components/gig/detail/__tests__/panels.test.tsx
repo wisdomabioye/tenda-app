@@ -32,6 +32,24 @@ test('TakedownNotice speaks to each audience with the shared copy', () => {
   expect(screen.getByText(takedownCopy('moderator', 'gig').title)).toBeInTheDocument()
 })
 
+test('PartyPanel: the viewer-relative escrow wallet renders only when the wire carries one', () => {
+  // The wire is already owner-scoped (my_signer_address), so the panel's only
+  // job is honesty: show what arrived, show nothing when nothing did.
+  render(
+    <PartyPanel
+      gig={gigDetail({ my_signer_address: 'CreatorWa11et1111111111111111111111111111' })}
+      userId={CREATOR_ID}
+    />,
+  )
+  expect(screen.getByText('Your escrow wallet')).toBeInTheDocument()
+  expect(screen.getByText('Crea…1111')).toBeInTheDocument()
+  cleanup()
+
+  // Null (outsider view / draft / pre-column escrow): no row, no placeholder.
+  render(<PartyPanel gig={gigDetail({ my_signer_address: null })} userId={CREATOR_ID} />)
+  expect(screen.queryByText('Your escrow wallet')).toBeNull()
+})
+
 test('PartyPanel renders only for parties, with proofs and the dispute reason', () => {
   const gig = gigDetail({
     status: 'disputed',

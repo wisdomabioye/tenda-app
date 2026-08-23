@@ -7,12 +7,14 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { WalletError, type ChainNamespace, type LinkedWallet } from '@tenda/shared'
 
-const { switchMock, sessionMock } = vi.hoisted(() => ({
+const { switchMock, connectAsMock, sessionMock } = vi.hoisted(() => ({
   switchMock: vi.fn(),
+  connectAsMock: vi.fn(),
   sessionMock: vi.fn(),
 }))
 vi.mock('@/wallet/send', () => ({
   switchToLinkedWallet: (...a: unknown[]) => switchMock(...a),
+  connectAsWallet: (...a: unknown[]) => connectAsMock(...a),
 }))
 vi.mock('@/wallet/dispatch', () => ({
   sessionAddressFor: (...a: unknown[]) => sessionMock(...a),
@@ -109,5 +111,44 @@ describe('switchWallet', () => {
     const { result } = renderHook(() => useSigningWallet('eip155:999999'))
     await act(() => result.current.switchWallet())
     expect(switchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('bound signer (the chain already fixed the wallet)', () => {
+  it('the bound address IS the preview — session and primary are overruled', () => {
+    authState.wallets = [linked('eip155', '0xPrimary')]
+    sessionMock.mockReturnValue('0xLiveOther')
+    const { result } = renderHook(() => useSigningWallet('eip155:84532', '0xBound'))
+    expect(result.current.address).toBe('0xBound')
+    expect(result.current.bound).toBe(true)
+  })
+
+  it('the affordance becomes the TARGETED connect, never the free switch', async () => {
+    connectAsMock.mockResolvedValue('0xBound')
+    const { result } = renderHook(() => useSigningWallet('eip155:84532', '0xBound'))
+    await act(() => result.current.switchWallet())
+    expect(connectAsMock).toHaveBeenCalledWith('eip155', '0xBound')
+    expect(switchMock).not.toHaveBeenCalled()
+    expect(result.current.error).toBeNull()
+  })
+
+  it('a null bound (no binding recorded) is exactly the free behaviour', async () => {
+    authState.wallets = [linked('eip155', '0xPrimary')]
+    switchMock.mockResolvedValue('0xPrimary')
+    const { result } = renderHook(() => useSigningWallet('eip155:84532', null))
+    expect(result.current.bound).toBe(false)
+    expect(result.current.address).toBe('0xPrimary')
+    await act(() => result.current.switchWallet())
+    expect(switchMock).toHaveBeenCalledWith('eip155')
+    expect(connectAsMock).not.toHaveBeenCalled()
+  })
+
+  it('a refused targeted connect surfaces its named message', async () => {
+    connectAsMock.mockRejectedValue(
+      new WalletError('no_wallet', 'Connect 0xBo…und — the wallet this escrow is signed by — to continue'),
+    )
+    const { result } = renderHook(() => useSigningWallet('eip155:84532', '0xBound'))
+    await act(() => result.current.switchWallet())
+    expect(result.current.error).toContain('the wallet this escrow is signed by')
   })
 })

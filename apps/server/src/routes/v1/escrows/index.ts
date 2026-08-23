@@ -25,7 +25,7 @@ import { AppError } from '@server/lib/errors'
 import { getPlatformConfig } from '@server/lib/platform'
 import { requireGoodStanding } from '@server/features/reputation/guards'
 import { requireProfileComplete } from '@server/lib/guards'
-import { assertCanTransact, assertAssigneeHasWallet } from '@server/lib/auth/resolver'
+import { assertCanTransact, resolveAssigneeWalletAddress } from '@server/lib/auth/resolver'
 import { validateCreateEscrow, type CreateEscrowBody } from '@server/features/escrows/creation/validateCreateEscrow'
 import { normalizeContractAddress } from '@server/chains/contracts'
 import { assertCallerWallet, assertNotTakenDown, readSignerPreference } from '@server/lib/escrow'
@@ -80,9 +80,17 @@ const route: FastifyPluginAsync = async (fastify) => {
         })
       }
       // Direct assignment bakes the assignee's wallet into the escrow at create,
-      // so they must already have one (clean 422 vs the adapter's raw 404).
+      // so they must already have one (clean 422 vs the adapter's raw 404) —
+      // and the row RECORDS which wallet will be baked, via the same
+      // resolution the builder runs, so the assignee's my_signer_address can
+      // name the one wallet their accept/decline must be signed with.
+      let assigned_counterparty_address: string | null = null
       if (input.assigned_counterparty_id !== null) {
-        await assertAssigneeHasWallet(fastify.db, input.assigned_counterparty_id, adapter.namespace)
+        assigned_counterparty_address = await resolveAssigneeWalletAddress(
+          fastify.db,
+          input.assigned_counterparty_id,
+          adapter.namespace,
+        )
       }
       const { unassign_window_seconds } = await getPlatformConfig(fastify.db)
       const matchesInput = (row: typeof escrows.$inferSelect): boolean =>
@@ -122,6 +130,24 @@ const route: FastifyPluginAsync = async (fastify) => {
         },
       })
 
+      /**
+       * A replayed/raced create REBUILDS the tx, and the rebuild bakes the
+       * assignee's CURRENT primary — so the row must follow (the same
+       * record-=-bake invariant build-create keeps). No-op for unassigned
+       * escrows and unchanged wallets; draft-guarded like every draft write.
+       */
+      const restampAssignee = async (row: typeof escrows.$inferSelect): Promise<void> => {
+        if (
+          assigned_counterparty_address !== null &&
+          row.assigned_counterparty_address !== assigned_counterparty_address
+        ) {
+          await fastify.db
+            .update(escrows)
+            .set({ assigned_counterparty_address })
+            .where(and(eq(escrows.id, row.id), eq(escrows.status, 'draft')))
+        }
+      }
+
       const assertReplayable = async (row: typeof escrows.$inferSelect): Promise<void> => {
         if (row.status !== 'draft') {
           throw new AppError(409, ErrorCode.ESCROW_WRONG_STATUS, 'This creation operation is no longer a draft')
@@ -153,6 +179,7 @@ const route: FastifyPluginAsync = async (fastify) => {
           )
         }
         await assertReplayable(matchingOperation)
+        await restampAssignee(matchingOperation)
         return reply.code(200).send({
           escrow_id: matchingOperation.id,
           unsigned: await buildUnsigned(matchingOperation.id, matchingOperation),
@@ -170,6 +197,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         amount_raw: input.amount_raw,
         creator_id: request.user.id,
         assigned_counterparty_id: input.assigned_counterparty_id,
+        assigned_counterparty_address,
         requires_approval: input.requires_approval,
         unassign_window_seconds,
         status: 'draft',
@@ -213,6 +241,7 @@ const route: FastifyPluginAsync = async (fastify) => {
           )
         }
         await assertReplayable(winner)
+        await restampAssignee(winner)
         return reply.code(200).send({
           escrow_id: winner.id,
           unsigned: await buildUnsigned(winner.id, winner),

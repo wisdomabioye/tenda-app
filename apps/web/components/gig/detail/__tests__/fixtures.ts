@@ -48,6 +48,7 @@ export function gigDetail(overrides: Partial<GigDetail> = {}): GigDetail {
     completion_deadline: null,
     submitted_at: null,
     approval_deadline: null,
+    my_signer_address: null,
     dispute_bond_raw: '0',
     assigned_counterparty_id: null,
     is_assigned: false,

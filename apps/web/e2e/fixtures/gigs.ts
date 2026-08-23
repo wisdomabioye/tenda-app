@@ -104,6 +104,7 @@ export const deliveryGigDetail: GigDetail = {
   completion_deadline: null,
   submitted_at: null,
   approval_deadline: null,
+  my_signer_address: null,
   dispute_bond_raw: '1000000',
   // Party-scoped, hostile-server values — must never appear in anonymous HTML.
   assigned_counterparty_id: LEAKED_COUNTERPARTY_ID,

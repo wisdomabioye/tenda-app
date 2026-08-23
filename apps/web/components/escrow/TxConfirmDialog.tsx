@@ -18,6 +18,7 @@ export function TxConfirmDialog({
   ctx,
   chainId,
   spend,
+  boundSigner,
   loading = false,
   onConfirm,
   onCancel,
@@ -38,6 +39,14 @@ export function TxConfirmDialog({
    * less than the debit.
    */
   spend?: SpendPreview
+  /**
+   * The chain-attested wallet this escrow binds THIS VIEWER to (the detail
+   * wire's `my_signer_address`). With it the signer row previews the wallet
+   * the transition actually requires — not the free session-or-primary guess
+   * — and its affordance pre-connects that exact wallet. Null/absent = no
+   * binding recorded (create, public accept, pre-column escrows).
+   */
+  boundSigner?: string | null
   /** Busy state on the confirm button while the follow-on tx is being built. */
   loading?: boolean
   onConfirm: () => void
@@ -55,6 +64,7 @@ export function TxConfirmDialog({
               <SigningWalletRow
                 chainId={chainId}
                 {...(spend !== undefined ? { spend } : {})}
+                {...(boundSigner !== undefined ? { bound: boundSigner } : {})}
               />
             ),
           }

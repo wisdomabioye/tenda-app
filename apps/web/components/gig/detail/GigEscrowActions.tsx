@@ -128,6 +128,7 @@ export function GigEscrowActions({ gig, userId }: { gig: GigDetail; userId: stri
       <TxConfirmDialog
         action={confirmAction}
         chainId={gig.chain_id}
+        boundSigner={gig.my_signer_address}
         ctx={{
           amount: formatAssetAmount(gig.amount_raw, gig.asset),
           kind: 'gig',

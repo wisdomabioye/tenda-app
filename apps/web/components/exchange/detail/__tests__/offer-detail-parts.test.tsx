@@ -5,7 +5,7 @@
  * The recurring assertion is what is NOT claimed: no minimum, no partial fill,
  * no re-quote, and no party-scoped field on a page an outsider can open.
  */
-import { render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   OFFER_ASIDE_COPY,
@@ -67,6 +67,20 @@ describe('OfferHeadline', () => {
 
 
 describe('OfferTerms', () => {
+  it('shows the viewer-relative escrow wallet only when the wire carries one', () => {
+    render(
+      <OfferTerms
+        offer={makeExchangeDetail({ my_signer_address: 'MakerWa11et111111111111111111111111111111' })}
+      />,
+    )
+    expect(screen.getByText(OFFER_TERMS_COPY.yourWallet)).toBeInTheDocument()
+    expect(screen.getByText('Make…1111')).toBeInTheDocument()
+    cleanup()
+    // Outsiders (and unstamped escrows) get null on the wire → no row at all.
+    render(<OfferTerms offer={makeExchangeDetail({ my_signer_address: null })} />)
+    expect(screen.queryByText(OFFER_TERMS_COPY.yourWallet)).toBeNull()
+  })
+
   it('lists the escrow’s own figures, fee included', () => {
     render(<OfferTerms offer={makeExchangeDetail()} />)
     expect(screen.getByText(OFFER_TERMS_COPY.locked)).toBeInTheDocument()

@@ -12,6 +12,7 @@ import { MessageCircle } from 'lucide-react'
 import {
   displayName,
   formatDeadline,
+  truncateWallet,
   type Dispute,
   type EscrowProof,
   type GigDetail,
@@ -61,6 +62,12 @@ export function PartyPanel({ gig, userId }: { gig: GigDetail; userId: string }) 
         Your escrow
       </h2>
       <Fact label="Status" value={gig.status} />
+      {/* The wire is viewer-relative (my_signer_address): each party is shown
+          the wallet THEY are bound to — create-signer, accept-signer, or the
+          invite's baked wallet — and nobody else's ever arrives. */}
+      {gig.my_signer_address !== null && (
+        <Fact label="Your escrow wallet" value={truncateWallet(gig.my_signer_address)} />
+      )}
       {gig.counterparty !== null && (
         <>
           <Fact

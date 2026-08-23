@@ -134,6 +134,43 @@ export function scopeEscrowAcceptanceMode(
   }
 }
 
+/** The id + address column pairs the viewer-relative signer read needs. */
+export type EscrowSignerAddressColumns = Pick<
+  typeof escrows.$inferSelect,
+  | 'creator_id'
+  | 'counterparty_id'
+  | 'assigned_counterparty_id'
+  | 'creator_address'
+  | 'counterparty_address'
+  | 'assigned_counterparty_address'
+>
+
+/**
+ * The wallet THIS VIEWER is bound to on the escrow — the wire's
+ * `my_signer_address`. Chain-attested columns, viewer-relative projection:
+ * the creator gets their create-signer, the counterparty their accept-signer,
+ * a pending assignee the wallet baked at create. Everyone else — anonymous,
+ * stranger, admin — gets `null`, and the OTHER party's address is never
+ * offered at all, so "owner only" is a property of the wire shape rather
+ * than a client rule.
+ *
+ * Role precedence mirrors `deriveCaller` (creator → counterparty →
+ * assignee): a post-accept row may keep `assigned_counterparty_id`
+ * populated, and the accepted wallet is the one that signs from then on.
+ * Null columns (drafts, pre-column escrows) answer null — unknown, never
+ * guessed from the CURRENT linked set, which can differ from what was baked.
+ */
+export function scopeMySignerAddress(
+  escrow: EscrowSignerAddressColumns,
+  viewerId: string | null,
+): string | null {
+  if (viewerId === null) return null
+  if (escrow.creator_id === viewerId) return escrow.creator_address
+  if (escrow.counterparty_id === viewerId) return escrow.counterparty_address
+  if (escrow.assigned_counterparty_id === viewerId) return escrow.assigned_counterparty_address
+  return null
+}
+
 /**
  * The private half — the fields both detail routes withhold from a non-party.
  * Generic over the wire types so the one projection serves the gig and

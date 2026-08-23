@@ -8,10 +8,19 @@ import { describe, expect, it, vi } from 'vitest'
 import { WALLET_OPEN_NOTE } from '@tenda/shared'
 
 vi.mock('@/components/wallet/SigningWalletRow', () => ({
-  SigningWalletRow: ({ chainId, spend }: { chainId: string; spend?: { assetId: string; amountRaw: string } }) => (
+  SigningWalletRow: ({
+    chainId,
+    spend,
+    bound,
+  }: {
+    chainId: string
+    spend?: { assetId: string; amountRaw: string }
+    bound?: string | null
+  }) => (
     <div data-testid="signer-row">
       {chainId}
       {spend !== undefined ? ` spends ${spend.amountRaw} ${spend.assetId}` : ''}
+      {bound !== undefined && bound !== null ? ` bound ${bound}` : ''}
     </div>
   ),
 }))
@@ -117,5 +126,35 @@ describe('gated copy', () => {
       />,
     )
     expect(screen.getByText(/receives 49\.5 USDC after the 1\.00% platform fee/)).toBeInTheDocument()
+  })
+})
+
+describe('bound signer passthrough', () => {
+  it('the detail wire\'s my_signer_address reaches the row as the binding', () => {
+    render(
+      <TxConfirmDialog
+        action="approve"
+        ctx={CTX}
+        chainId="eip155:84532"
+        boundSigner="0xBound"
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    )
+    expect(screen.getByTestId('signer-row')).toHaveTextContent('bound 0xBound')
+  })
+
+  it('a null binding (nothing recorded) leaves the row free', () => {
+    render(
+      <TxConfirmDialog
+        action="approve"
+        ctx={CTX}
+        chainId="eip155:84532"
+        boundSigner={null}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    )
+    expect(screen.getByTestId('signer-row')).not.toHaveTextContent('bound')
   })
 })

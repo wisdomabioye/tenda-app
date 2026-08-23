@@ -35,6 +35,7 @@ export function makeExchangeDetail(
     hidden: false,
     is_seeker: false,
     payment_proof_url: null,
+    my_signer_address: null,
     dispute_bond_raw: '0',
     completion_deadline: null,
     submitted_at: null,

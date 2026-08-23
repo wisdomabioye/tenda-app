@@ -5,17 +5,17 @@
  */
 import type { ChainNamespace } from '../db/schema/chains'
 import type { LinkedWallet } from '../api/contracts/auth.contract'
+import { sameChainAddress } from '../utils/address'
 
 /**
- * EVM addresses are checksum-agnostic; Solana base58 is case-sensitive.
- * Exported as THE address comparison for signer checks (dispatch's
- * signer_address enforcement, the wrong-wallet retry) so no consumer ever
- * re-invents the case rule.
+ * THE address comparison for signer checks (dispatch's signer_address
+ * enforcement, the wrong-wallet retry) — the wallet-domain name for the ONE
+ * shared identity rule in utils/address (EVM checksum-agnostic, Solana
+ * case-exact). An alias, not a second definition: two comparators is how the
+ * case rule drifts.
  */
-export function sameWalletAddress(ns: ChainNamespace, a: string, b: string): boolean {
-  return ns === 'eip155' ? a.toLowerCase() === b.toLowerCase() : a === b
-}
-const addressesEqual = sameWalletAddress
+export const sameWalletAddress = sameChainAddress
+const addressesEqual = sameChainAddress
 
 /** The user's VERIFIED linked wallets on a namespace (the only trusted set). */
 function verifiedWallets(ns: ChainNamespace, wallets: LinkedWallet[]): LinkedWallet[] {

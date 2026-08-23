@@ -76,6 +76,15 @@ export interface GigDetail extends GigSummary {
   approval_deadline: string | null
   dispute_bond_raw: string
   /**
+   * The wallet THIS VIEWER is bound to on this escrow, chain-attested:
+   * creator → their create-signer, counterparty → their accept-signer,
+   * pre-accept assignee → the wallet baked at create. `null` for anonymous
+   * readers, non-parties, drafts, and escrows that predate the columns. The
+   * OTHER party's address is never on the wire, so "owner only" holds
+   * structurally rather than by client discipline.
+   */
+  my_signer_address: string | null
+  /**
    * The named assignee — PARTIES ONLY (an admin who is not a party gets `null`
    * here too, and reads the escrow through /v1/admin/escrows/:id/dossier).
    * `null` for an outsider even when the gig is assigned, because a worker's

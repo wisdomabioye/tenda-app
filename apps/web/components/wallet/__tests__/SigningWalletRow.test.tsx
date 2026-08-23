@@ -10,7 +10,7 @@ import type { SigningWallet } from '@/hooks/wallet/useSigningWallet'
 
 const { hookMock, balanceMock } = vi.hoisted(() => ({ hookMock: vi.fn(), balanceMock: vi.fn() }))
 vi.mock('@/hooks/wallet/useSigningWallet', () => ({
-  useSigningWallet: (chainId: string) => hookMock(chainId),
+  useSigningWallet: (chainId: string, bound?: string | null) => hookMock(chainId, bound),
 }))
 vi.mock('@/hooks/wallet/useSignerBalance', () => ({
   useSignerBalance: (...a: unknown[]) => balanceMock(...a),
@@ -22,6 +22,7 @@ function signer(over: Partial<SigningWallet> = {}): SigningWallet {
   return {
     namespace: 'eip155',
     address: '0xAbCdEfAbCdEfAbCdEfAb',
+    bound: false,
     switching: false,
     error: null,
     switchWallet: vi.fn(async () => {}),
@@ -37,7 +38,7 @@ beforeEach(() => {
 describe('SigningWalletRow', () => {
   it('states the signer and chain as a fact', () => {
     render(<SigningWalletRow chainId="eip155:84532" />)
-    expect(hookMock).toHaveBeenCalledWith('eip155:84532')
+    expect(hookMock).toHaveBeenCalledWith('eip155:84532', null)
     expect(screen.getByText(/Signing with/)).toBeInTheDocument()
     expect(screen.getByText('0xAb…EfAb')).toBeInTheDocument()
     expect(screen.getByText(/Base Sepolia/)).toBeInTheDocument()
@@ -105,5 +106,25 @@ describe('SigningWalletRow', () => {
   it('without a spend the balance hook is disarmed (null spend)', () => {
     render(<SigningWalletRow chainId="eip155:84532" />)
     expect(balanceMock).toHaveBeenCalledWith('eip155:84532', null, '0xAbCdEfAbCdEfAbCdEfAb')
+  })
+})
+
+describe('bound signer', () => {
+  it('passes the binding to the hook and relabels the affordance "Connect"', async () => {
+    const s = signer({ address: '0xB0undB0undB0undB0und', bound: true })
+    hookMock.mockReturnValue(s)
+    render(<SigningWalletRow chainId="eip155:84532" bound="0xB0undB0undB0undB0und" />)
+    expect(hookMock).toHaveBeenCalledWith('eip155:84532', '0xB0undB0undB0undB0und')
+    expect(screen.getByText('0xB0…0und')).toBeInTheDocument()
+    // No free choice exists — "Switch" would promise one.
+    expect(screen.queryByRole('button', { name: 'Switch' })).toBeNull()
+    await userEvent.click(screen.getByRole('button', { name: 'Connect' }))
+    expect(s.switchWallet).toHaveBeenCalledTimes(1)
+  })
+
+  it('an absent binding keeps the free Switch behaviour', () => {
+    render(<SigningWalletRow chainId="eip155:84532" />)
+    expect(hookMock).toHaveBeenCalledWith('eip155:84532', null)
+    expect(screen.getByRole('button', { name: 'Switch' })).toBeInTheDocument()
   })
 })

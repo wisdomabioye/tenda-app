@@ -129,6 +129,11 @@ export function escrowFixture(overrides: Partial<EscrowRow> = {}): EscrowRow {
     creator_id: randomUUID(),
     counterparty_id: null,
     assigned_counterparty_id: null,
+    // Signer-address columns default null — "not recorded", the state every
+    // pre-column row and unconfirmed draft is in.
+    creator_address: null,
+    counterparty_address: null,
+    assigned_counterparty_address: null,
     status,
     hidden: false,
     escrow_ref: status === 'draft' ? null : `escrow-ref-${id}`,

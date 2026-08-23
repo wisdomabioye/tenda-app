@@ -15,8 +15,23 @@ import { Button } from '@/components/ui/Button'
 import { useSigningWallet } from '@/hooks/wallet/useSigningWallet'
 import { useSignerBalance, type SpendPreview } from '@/hooks/wallet/useSignerBalance'
 
-export function SigningWalletRow({ chainId, spend }: { chainId: string; spend?: SpendPreview }) {
-  const signer = useSigningWallet(chainId)
+export function SigningWalletRow({
+  chainId,
+  spend,
+  bound,
+}: {
+  chainId: string
+  spend?: SpendPreview
+  /**
+   * The chain-bound signer for this transition (the detail wire's
+   * `my_signer_address`), when the escrow already fixed one. The preview
+   * shows it instead of the free session-or-primary resolution, and the
+   * affordance becomes "Connect" — a targeted connect to that exact wallet,
+   * the only one the chain will accept.
+   */
+  bound?: string | null
+}) {
+  const signer = useSigningWallet(chainId, bound ?? null)
   const balance = useSignerBalance(chainId, spend ?? null, signer.address)
   if (signer.namespace === null) return null
 
@@ -36,7 +51,7 @@ export function SigningWalletRow({ chainId, spend }: { chainId: string; spend?: 
           disabled={signer.switching}
           onClick={() => void signer.switchWallet()}
         >
-          {signer.switching ? 'Waiting…' : 'Switch'}
+          {signer.switching ? 'Waiting…' : signer.bound ? 'Connect' : 'Switch'}
         </Button>
       </div>
       {spend !== undefined && balance.funds === 'short' && balance.availableRaw !== null && (

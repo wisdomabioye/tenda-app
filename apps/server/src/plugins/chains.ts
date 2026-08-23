@@ -11,7 +11,7 @@
 
 import fp from 'fastify-plugin'
 import type { FastifyPluginAsync } from 'fastify'
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { assets, user_wallets } from '@tenda/shared/db/schema'
 import { ErrorCode } from '@tenda/shared'
 import { buildAdapters, buildChainRegistry, type AdapterDepsFactory } from '@server/chains'
@@ -26,6 +26,7 @@ import {
 import { getChainSecrets } from '@server/chains/secrets'
 import { AppError } from '@server/lib/errors'
 import { drizzleSponsorStore, releaseSponsoredTx, reserveSponsoredTx } from '@server/lib/sponsor'
+import { resolvePrimaryWalletAddress } from '@server/lib/auth/resolver'
 
 type ChainNs = 'solana' | 'eip155'
 
@@ -34,18 +35,14 @@ const chainsPlugin: FastifyPluginAsync = async (fastify) => {
   /**
    * One linked wallet per (user, namespace) serves every chain in that
    * namespace. Primary first so a user with several linked wallets gets
-   * deterministic resolution.
+   * deterministic resolution — the QUERY lives in
+   * `resolvePrimaryWalletAddress` (lib/auth/resolver), shared with the routes
+   * that record what a build will bake; this wrapper only owns the 404.
    */
   function dbWalletResolver(chain_ns: ChainNs): (user_id: string) => Promise<string> {
     return async (user_id) => {
-      const rows = await fastify.db
-        .select({ address: user_wallets.address })
-        .from(user_wallets)
-        .where(and(eq(user_wallets.user_id, user_id), eq(user_wallets.chain_ns, chain_ns)))
-        .orderBy(desc(user_wallets.is_primary))
-        .limit(1)
-      const wallet = rows[0]?.address
-      if (wallet === undefined) {
+      const wallet = await resolvePrimaryWalletAddress(fastify.db, user_id, chain_ns)
+      if (wallet === null) {
         throw new AppError(
           404,
           ErrorCode.USER_NOT_FOUND,
