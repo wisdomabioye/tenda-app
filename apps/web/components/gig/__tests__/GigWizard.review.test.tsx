@@ -38,8 +38,18 @@ vi.mock('@/hooks/wallet/useSpendableBalance', () => ({
   useSpendableBalance: () => ({ balance: null, status: 'ready', refresh: vi.fn() }),
 }))
 vi.mock('@/stores/auth.store', () => ({
-  useAuthStore: (selector: (s: { user: { country: string; is_seeker: boolean }; wallets: unknown[] }) => unknown) =>
-    selector({ user: { country: 'NG', is_seeker: false }, wallets: walletsState.current }),
+  useAuthStore: (
+    selector: (s: {
+      user: { country: string; is_seeker: boolean }
+      wallets: unknown[]
+      ensureWallets: () => Promise<void>
+    }) => unknown,
+  ) =>
+    selector({
+      user: { country: 'NG', is_seeker: false },
+      wallets: walletsState.current,
+      ensureWallets: async () => {},
+    }),
 }))
 
 import { GigWizard } from '@/components/gig/GigWizard'

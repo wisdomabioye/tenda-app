@@ -6,6 +6,16 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { WALLET_OPEN_NOTE } from '@tenda/shared'
+
+vi.mock('@/components/wallet/SigningWalletRow', () => ({
+  SigningWalletRow: ({ chainId, spend }: { chainId: string; spend?: { assetId: string; amountRaw: string } }) => (
+    <div data-testid="signer-row">
+      {chainId}
+      {spend !== undefined ? ` spends ${spend.amountRaw} ${spend.assetId}` : ''}
+    </div>
+  ),
+}))
+
 import { TxConfirmDialog } from '@/components/escrow/TxConfirmDialog'
 
 const CTX = { amount: '50 USDC', kind: 'gig' as const }
@@ -37,6 +47,39 @@ describe('gated copy', () => {
     // The note is appended to the body inside the same paragraph.
     expect(container.textContent).toContain(WALLET_OPEN_NOTE)
     expect(screen.getByRole('button', { name: 'Fund Gig' })).toBeInTheDocument()
+  })
+
+  it('a chainId mounts the signer row on the escrow chain', () => {
+    render(
+      <TxConfirmDialog action="create" ctx={CTX} chainId="eip155:84532" onConfirm={noop} onCancel={noop} />,
+    )
+    expect(screen.getByTestId('signer-row')).toHaveTextContent('eip155:84532')
+  })
+
+  it('a spend rides through to the signer row (the balance warning input)', () => {
+    render(
+      <TxConfirmDialog
+        action="create"
+        ctx={CTX}
+        chainId="eip155:84532"
+        spend={{ assetId: 'USDC_BASE', amountRaw: '50000000' }}
+        onConfirm={noop}
+        onCancel={noop}
+      />,
+    )
+    expect(screen.getByTestId('signer-row')).toHaveTextContent('spends 50000000 USDC_BASE')
+  })
+
+  it('without a spend the row gets none (no balance read for value-neutral actions)', () => {
+    render(
+      <TxConfirmDialog action="approve" ctx={CTX} chainId="eip155:84532" onConfirm={noop} onCancel={noop} />,
+    )
+    expect(screen.getByTestId('signer-row')).not.toHaveTextContent('spends')
+  })
+
+  it('without a chainId there is no signer row', () => {
+    render(<TxConfirmDialog action="approve" ctx={CTX} onConfirm={noop} onCancel={noop} />)
+    expect(screen.queryByTestId('signer-row')).toBeNull()
   })
 
   it('exchange kind swaps the wording', () => {

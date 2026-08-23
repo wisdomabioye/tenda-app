@@ -10,13 +10,14 @@ import { act, renderHook, type RenderHookResult } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
 import { ApiClientError, TRANSACTION_GATE_MESSAGE, type GigFormValues } from '@tenda/shared'
 
-const { mockPush, mockReplace, mockToast, mockSign, mockResolveSigners, mockEnsure, mockBuildPermitFor, mockEscrowCreate, mockEscrowDelete, mockGigCreate } = vi.hoisted(() => ({
+const { mockPush, mockReplace, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreconditions, mockBuildPermitFor, mockEscrowCreate, mockEscrowDelete, mockGigCreate } = vi.hoisted(() => ({
   mockPush: vi.fn(),
   mockReplace: vi.fn(),
   mockToast: vi.fn(),
   mockSign: vi.fn(),
   mockResolveSigners: vi.fn(),
   mockEnsure: vi.fn(),
+  mockPreconditions: vi.fn(),
   mockBuildPermitFor: vi.fn(),
   mockEscrowCreate: vi.fn(),
   mockEscrowDelete: vi.fn(),
@@ -30,6 +31,7 @@ vi.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => mockTo
 vi.mock('@/wallet/dispatch', () => ({
   signSendAndReport: (...a: unknown[]) => mockSign(...a),
   resolveSignersForChain: (...a: unknown[]) => mockResolveSigners(...a),
+  ensureTxPreconditions: (...a: unknown[]) => mockPreconditions(...a),
 }))
 vi.mock('@/wallet/balances', () => ({
   ensureSufficientBalance: (...a: unknown[]) => mockEnsure(...a),
@@ -97,6 +99,12 @@ test('checks the budget against every candidate wallet before anything else', as
     amountRaw: '10000000',
     owners: SIGNERS,
   })
+  // Trust list + chain registry load FIRST: without them the owner set is []
+  // and the budget check silently falls open.
+  expect(mockPreconditions).toHaveBeenCalledTimes(1)
+  expect(mockPreconditions.mock.invocationCallOrder[0]).toBeLessThan(
+    mockEnsure.mock.invocationCallOrder[0],
+  )
 })
 
 test('a short balance costs the user NO permit signature and NO draft', async () => {

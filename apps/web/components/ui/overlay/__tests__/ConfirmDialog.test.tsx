@@ -107,6 +107,38 @@ describe('ConfirmDialog — comps additions', () => {
     expect(screen.getByRole('button', { name: 'Apply' })).toHaveFocus()
   })
 
+  it('renders the extra slot, and its controls never steal the initial focus', () => {
+    // The tx gate mounts a Switch-wallet button here; positional first/last
+    // focus would land on it — the explicit anchors keep the contract.
+    render(
+      <ConfirmDialog
+        open
+        destructive
+        title="Cancel gig"
+        confirmLabel="Cancel gig"
+        extra={<button type="button">Switch</button>}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Switch' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Cancel' })).toHaveFocus()
+  })
+
+  it('a benign gate with extra controls still focuses Confirm', () => {
+    render(
+      <ConfirmDialog
+        open
+        title="Apply"
+        confirmLabel="Apply"
+        extra={<button type="button">Switch</button>}
+        onConfirm={vi.fn()}
+        onCancel={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Apply' })).toHaveFocus()
+  })
+
   it('a destructive Enter cancels rather than confirms', async () => {
     const onConfirm = vi.fn()
     const onCancel = vi.fn()

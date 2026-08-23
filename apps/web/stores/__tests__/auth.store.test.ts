@@ -21,7 +21,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { initCrossTabAuthSync } from '@/stores/auth/cross-tab'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { JWT_TOKEN_KEY } from '@/lib/storage'
-import { makeUser } from '../../test/factories/user'
+import { makeMeResponse, makeUser } from '../../test/factories/user'
 import { rememberPage, readPage } from '@tenda/shared'
 import { useChatStore } from '@/stores/chat.store'
 import { disputesPageCache } from '@/lib/account-state'
@@ -61,6 +61,17 @@ describe('signInWithVerify', () => {
     const state = useAuthStore.getState()
     expect(state.isAuthenticated).toBe(true)
     expect(state.profileComplete).toBe(true)
+  })
+
+  it('fires the background wallets[] load — every tx path reads the trust registry', async () => {
+    authApi.verify.mockResolvedValue({ token: 'jwt-1', user: makeUser(), is_new: false })
+    const wallets = [{ chain_ns: 'solana' as const, address: 'SoLAddr', is_primary: true, verified_at: 'now' }]
+    vi.mocked(api.users.me).mockResolvedValue(makeMeResponse(wallets))
+
+    await useAuthStore.getState().signInWithVerify({ method: 'email', identifier: 'a@x.io', code: '123456' })
+
+    await vi.waitFor(() => expect(useAuthStore.getState().wallets).toEqual(wallets))
+    expect(useAuthStore.getState().walletsStatus).toBe('ready')
   })
 
   it('a fresh account with empty names is profile-incomplete', async () => {
@@ -119,6 +130,21 @@ describe('loadSession', () => {
     expect(state.isAuthenticated).toBe(true)
     expect(state.jwt).toBe('jwt-ok')
     expect(state.profileComplete).toBe(true)
+  })
+
+  it('a restored session loads wallets[] in the background (mobile loadSession → refreshMe parity)', async () => {
+    // Without this a fresh tab reached every tx path with an empty trust
+    // registry: signer sets blanked, the balance gate fell open, and
+    // ensureSessionOn refused the user's own linked wallet as a stranger.
+    window.localStorage.setItem(JWT_TOKEN_KEY, 'jwt-ok')
+    authApi.me.mockResolvedValue(makeUser())
+    const wallets = [{ chain_ns: 'eip155' as const, address: '0xW', is_primary: true, verified_at: 'now' }]
+    vi.mocked(api.users.me).mockResolvedValue(makeMeResponse(wallets))
+
+    await useAuthStore.getState().loadSession()
+
+    await vi.waitFor(() => expect(useAuthStore.getState().wallets).toEqual(wallets))
+    expect(useAuthStore.getState().walletsStatus).toBe('ready')
   })
 
   it('401 → clears storage and signs out', async () => {

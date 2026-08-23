@@ -8,10 +8,12 @@ import type { ChainNamespace } from '@tenda/shared'
 
 interface FakeModal {
   getAddress: (ns: ChainNamespace) => string | undefined
+  getAccount: (ns: ChainNamespace) => { status?: 'disconnected' } | undefined
   getCaipNetwork: (ns: ChainNamespace) => { caipNetworkId?: string } | undefined
   subscribeAccount: ReturnType<typeof vi.fn>
   subscribeState: ReturnType<typeof vi.fn>
   open: ReturnType<typeof vi.fn>
+  close: ReturnType<typeof vi.fn>
   getProvider: ReturnType<typeof vi.fn>
   disconnect: ReturnType<typeof vi.fn>
 }
@@ -19,10 +21,15 @@ interface FakeModal {
 function fakeModal(addresses: Partial<Record<ChainNamespace, string>> = {}): FakeModal {
   return {
     getAddress: (ns) => addresses[ns],
+    // Settled: connect() must fall through to the modal without waiting on
+    // the restore budget (the restore-in-flight path is unit-tested where
+    // settledConnectedAccount lives).
+    getAccount: () => ({ status: 'disconnected' }),
     getCaipNetwork: () => undefined,
     subscribeAccount: vi.fn(() => () => {}),
     subscribeState: vi.fn(() => () => {}),
     open: vi.fn(async () => {}),
+    close: vi.fn(async () => {}),
     getProvider: vi.fn(() => undefined),
     disconnect: vi.fn(async () => {}),
   }

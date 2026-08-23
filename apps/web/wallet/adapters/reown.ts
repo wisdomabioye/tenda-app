@@ -12,7 +12,13 @@
 import { connectThenSign, WalletError } from '@tenda/shared'
 import type { AuthenticateResult, ChainNamespace, SignMessageResult, WalletAccount } from '@tenda/shared'
 import { loadWalletRuntime, peekWalletRuntime, walletConfigured } from '../runtime'
-import { connectedAccount, waitForConnection, REOWN_WALLET_ID, type ConnectModal } from './reown-connect'
+import {
+  connectedAccount,
+  settledConnectedAccount,
+  waitForConnection,
+  REOWN_WALLET_ID,
+  type ConnectModal,
+} from './reown-connect'
 import type { WalletAdapter } from './types'
 
 /** Minimal structural view of the AppKit EVM provider (mobile's twin). */
@@ -42,10 +48,16 @@ async function requireModal(): Promise<AdapterModal> {
 async function connect(opts?: { fresh?: boolean }): Promise<WalletAccount> {
   const modal = await requireModal()
   if (!opts?.fresh) {
-    const existing = connectedAccount(modal)
+    // Settled, not a bare peek: a lazily-booted runtime may still be
+    // RESTORING a persisted session, and opening the modal over it races the
+    // sign prompt against the wallet list.
+    const existing = await settledConnectedAccount(modal)
     if (existing !== null) return existing
   }
-  return waitForConnection(modal)
+  // fresh rides through: only an account the user picks AFTER the modal is
+  // presented counts (a restored session racing the list into a sign prompt
+  // was the linking bug). Namespace stays open — the user decides the wallet.
+  return waitForConnection(modal, opts?.fresh ? { fresh: true } : undefined)
 }
 
 function hexMessage(message: string): string {

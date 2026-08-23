@@ -27,6 +27,7 @@ import { ensureSessionOn } from './send/session'
 import { sendEvmTransaction } from './send/evm'
 import { signAndSendSolanaTx } from './send/solana'
 import { useAuthStore } from '@/stores/auth.store'
+import { useChainRegistryStore } from '@/stores/chain-registry.store'
 import { useEscrowStore } from '@/stores/escrow.store'
 
 export class UnsupportedUnsignedTxError extends Error {
@@ -36,8 +37,25 @@ export class UnsupportedUnsignedTxError extends Error {
   }
 }
 
+/**
+ * The two registries signer resolution and the balance gate read — the
+ * linked-wallets trust list and the chain registry. A tx path must never
+ * depend on some other surface having happened to load them: an empty
+ * wallets[] makes `resolveSignersForChain` answer [] and the balance
+ * pre-flight fall open, and a null chain does the same. Both loads are
+ * once-only and deduped; neither throws (a failed load falls open exactly
+ * like the gate itself, and `ensureSessionOn` re-asserts the trust list with
+ * a hard error before anything signs).
+ */
+export async function ensureTxPreconditions(): Promise<void> {
+  await Promise.all([
+    useAuthStore.getState().ensureWallets(),
+    useChainRegistryStore.getState().ensureLoaded(),
+  ])
+}
+
 /** The modal's live address for a namespace — peek-only, never boots the stack. */
-function sessionAddressFor(ns: ChainNamespace): string | null {
+export function sessionAddressFor(ns: ChainNamespace): string | null {
   const runtime = peekWalletRuntime()
   const address = runtime?.modal.getAddress(ns)
   return typeof address === 'string' && address !== '' ? address : null

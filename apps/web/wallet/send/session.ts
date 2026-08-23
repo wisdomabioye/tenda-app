@@ -8,11 +8,15 @@
  * Structural types throughout (S3 doctrine): no AppKit type imports, the
  * real modal satisfies these interfaces, and tests fake them without casts.
  */
-import { WalletError, guardWalletRequest, isLinkedWallet } from '@tenda/shared'
-import type { ChainNamespace } from '@tenda/shared'
+import { WalletError, guardWalletRequest, isLinkedWallet, truncateWallet } from '@tenda/shared'
+import type { ChainNamespace, LinkedWallet } from '@tenda/shared'
 import type { VersionedTransaction } from '@solana/web3.js'
 import { loadWalletRuntime, peekWalletRuntime } from '../runtime'
-import { waitForConnection, type ConnectModal } from '../adapters/reown-connect'
+import {
+  settledConnectedAccount,
+  waitForConnection,
+  type ConnectModal,
+} from '../adapters/reown-connect'
 import { useAuthStore } from '@/stores/auth.store'
 
 /** EIP-1193 request slice of the AppKit EVM provider (mobile's twin). */
@@ -35,7 +39,8 @@ export interface TxModal extends ConnectModal {
    * ChainController.switchActiveNetwork.
    */
   switchNetwork(network: { id: string | number }, opts?: { throwOnFailure?: boolean }): Promise<void>
-  disconnect(): Promise<void>
+  /** Namespace-scoped teardown; omitted = every namespace (AppKit semantics). */
+  disconnect(namespace?: ChainNamespace): Promise<void>
 }
 
 /** The booted modal, or a typed no_wallet error when the build has none. */
@@ -69,28 +74,92 @@ const NAMESPACE_LABEL: Record<ChainNamespace, string> = {
   eip155: 'EVM',
 }
 
+/** The refused-stranger-wallet message, naming the wallets that WOULD work. */
+function unlinkedWalletMessage(ns: ChainNamespace, wallets: LinkedWallet[]): string {
+  const linked = wallets
+    .filter((w) => w.chain_ns === ns && w.verified_at !== null)
+    .map((w) => truncateWallet(w.address))
+  return linked.length > 0
+    ? `Connect one of your linked wallets (${linked.join(', ')}) to sign this transaction`
+    : 'Connect one of your linked wallets to sign this transaction'
+}
+
+/**
+ * The trust check reads wallets[]; running it against a never-loaded registry
+ * refused every linked wallet as a stranger (the "wallet needs to be
+ * connected even though it's linked" bug). Load-once, deduped — and a load
+ * that FAILED must say so rather than mislabel the wallet unlinked.
+ */
+async function ensureWalletsReady(): Promise<void> {
+  await useAuthStore.getState().ensureWallets()
+  if (useAuthStore.getState().walletsStatus !== 'ready') {
+    throw new WalletError('network', 'Could not load your linked wallets — check your connection and try again')
+  }
+}
+
+/**
+ * Drop this namespace's session and let the user pick a LINKED wallet from
+ * the namespace-filtered connect list — the switch primitive both the
+ * signing guard (auto-retry on an unlinked live session) and the confirm
+ * dialog's "Switch wallet" affordance share. fresh: only a wallet the user
+ * actively picks counts, never a restore. Throws the usual typed decline on
+ * dismissal, or a no_wallet naming the linked wallets when the pick is a
+ * stranger — the caller decides how each surfaces.
+ */
+export async function switchToLinkedWallet(ns: ChainNamespace): Promise<string> {
+  await ensureWalletsReady()
+  const modal = await requireTxModal()
+  await modal.disconnect(ns)
+  const account = await waitForConnection(modal, { namespace: ns, fresh: true })
+  const { wallets } = useAuthStore.getState()
+  if (!isLinkedWallet(ns, account.address, wallets)) {
+    throw new WalletError('no_wallet', unlinkedWalletMessage(ns, wallets))
+  }
+  return account.address
+}
+
 /**
  * Connect-on-demand guard for signing (mobile's ensureEvmSession, per
  * namespace). A linked wallet proves OWNERSHIP; signing needs a LIVE modal
  * session in this tab. When none exists the connect modal opens instead of
- * dead-ending the transaction; a dismissal surfaces as the usual typed
- * decline. The connected wallet must be one the user has LINKED (verified) —
- * a stranger wallet can't act on this account's escrows. Returns the live
+ * dead-ending the transaction — namespace-targeted, so a live session on the
+ * OTHER namespace can never satisfy it and the wallet list shows only chains
+ * the flow can use; a dismissal surfaces as the usual typed decline. The
+ * connected wallet must be one the user has LINKED (verified) — a stranger
+ * wallet can't act on this account's escrows; a live session with one gets
+ * ONE switch attempt (multichain wallets like Phantom hold an EVM session the
+ * user may never have linked) before the typed refusal. Returns the live
  * address; dispatch resolves its signer from it (no store slot to sync on
  * web — the modal IS the session source).
  */
 export async function ensureSessionOn(ns: ChainNamespace): Promise<string> {
+  await ensureWalletsReady()
   const modal = await requireTxModal()
   let address = modal.getAddress(ns)
   if (address === undefined || address === '') {
-    await waitForConnection(modal)
+    // The runtime boots lazily, so this very read may race the adapter's
+    // RESTORE of a persisted session — settle it first, or the modal opens
+    // at a user who has a session and the restore then races the signing
+    // prompt against the wallet list (mobile's tri-state doctrine).
+    address = (await settledConnectedAccount(modal, ns))?.address
+  }
+  if (address === undefined || address === '') {
+    await waitForConnection(modal, { namespace: ns })
     address = modal.getAddress(ns)
   }
   if (address === undefined || address === '') {
     throw new WalletError('no_wallet', `No ${NAMESPACE_LABEL[ns]} wallet connected, connect one first`)
   }
-  if (!isLinkedWallet(ns, address, useAuthStore.getState().wallets)) {
-    throw new WalletError('no_wallet', 'Connect one of your linked wallets to sign this transaction')
+  const { wallets } = useAuthStore.getState()
+  if (isLinkedWallet(ns, address, wallets)) return address
+  try {
+    return await switchToLinkedWallet(ns)
+  } catch (e) {
+    // Dismissing the switch still needs the WHY — the user closed a list
+    // they never asked for; name the wallets that would have worked.
+    if (e instanceof WalletError && e.code === 'declined') {
+      throw new WalletError('no_wallet', unlinkedWalletMessage(ns, wallets))
+    }
+    throw e
   }
-  return address
 }

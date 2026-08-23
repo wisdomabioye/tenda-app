@@ -16,6 +16,7 @@
  * would fire the irreversible action. Destructive dialogs focus Cancel; the
  * rest focus Confirm.
  */
+import type { ReactNode } from 'react'
 import { Button } from '../Button'
 import { ModalBackdrop } from './ModalBackdrop'
 
@@ -25,6 +26,12 @@ interface ConfirmDialogProps {
   message?: string
   /** A headline amount, rendered in tabular monospace (comps' money line). */
   figure?: string
+  /**
+   * Extra content between the figure and the buttons (the tx gate's signer
+   * row). Focus stays where the gate intends it: the action buttons carry
+   * explicit `data-initial-focus` anchors, so controls here never steal it.
+   */
+  extra?: ReactNode
   confirmLabel: string
   destructive?: boolean
   busy?: boolean
@@ -37,6 +44,7 @@ export function ConfirmDialog({
   title,
   message,
   figure,
+  extra,
   confirmLabel,
   destructive = false,
   busy = false,
@@ -49,7 +57,8 @@ export function ConfirmDialog({
     <ModalBackdrop
       role="alertdialog"
       label={title}
-      // Cancel is rendered first, Confirm last.
+      // Kept as the no-anchor fallback; the buttons below carry explicit
+      // data-initial-focus anchors so `extra` controls cannot steal focus.
       initialFocus={destructive ? 'first' : 'last'}
       {...(busy ? {} : { onBackdropClick: onCancel })}
     >
@@ -65,8 +74,16 @@ export function ConfirmDialog({
       {figure !== undefined && figure !== '' && (
         <p className="font-numeric text-[22px] font-bold leading-7 text-utility-money">{figure}</p>
       )}
+      {extra}
       <div className="flex justify-end gap-2.5">
-        <Button variant="ghost" size="md" disabled={busy} onClick={onCancel}>
+        <Button
+          variant="ghost"
+          size="md"
+          disabled={busy}
+          onClick={onCancel}
+          // A stray Enter on a destructive gate must never fire the action.
+          {...(destructive ? { 'data-initial-focus': true } : {})}
+        >
           Cancel
         </Button>
         <Button
@@ -75,6 +92,7 @@ export function ConfirmDialog({
           disabled={busy}
           className={destructive ? 'bg-feedback-danger-base hover:bg-feedback-danger-base/90' : undefined}
           onClick={onConfirm}
+          {...(destructive ? {} : { 'data-initial-focus': true })}
         >
           {busy ? 'Working…' : confirmLabel}
         </Button>

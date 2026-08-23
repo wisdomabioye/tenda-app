@@ -120,6 +120,14 @@ function PostGigScreen() {
 
       <TxConfirmDialog
         action={pendingValues !== null ? 'create' : null}
+        {...(pendingValues !== null
+          ? {
+              chainId: pendingValues.chainId,
+              // Funding debits the full budget — the signer row warns if the
+              // previewed wallet can't cover it, before the permit signature.
+              spend: { assetId: pendingValues.asset, amountRaw: pendingValues.paymentRaw },
+            }
+          : {})}
         ctx={{
           amount:
             pendingValues !== null

@@ -219,6 +219,12 @@ export function ExchangeDetailApp({
 
       <TxConfirmDialog
         action={confirmAction}
+        chainId={offer.chain_id}
+        // Publishing a draft rebuilds the create tx, which debits the full
+        // amount; every other gated action here moves nothing from the user.
+        {...(confirmAction === 'create'
+          ? { spend: { assetId: offer.asset, amountRaw: offer.amount_raw } }
+          : {})}
         ctx={{
           amount: formatAssetAmount(offer.amount_raw, offer.asset),
           kind: 'exchange',

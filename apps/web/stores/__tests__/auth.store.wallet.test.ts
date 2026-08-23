@@ -20,7 +20,7 @@ import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
 import { reownAdapter } from '@/wallet/adapters/reown'
 import { useAuthStore } from '@/stores/auth.store'
 import { JWT_TOKEN_KEY } from '@/lib/storage'
-import { makeUser } from '../../test/factories/user'
+import { makeMeResponse, makeUser } from '../../test/factories/user'
 
 const usersApi = vi.mocked(api.users)
 const walletSignInMock = vi.mocked(walletSignIn)
@@ -64,26 +64,7 @@ const ADAPTER: import('@/wallet/adapters/types').WalletAdapter = {
   getRestoredAccount: async () => null,
 }
 
-function meResponse(wallets: typeof LINKED): import('@tenda/shared').MeResponse {
-  return {
-    user: {
-      id: 'u1',
-      first_name: 'Ada',
-      last_name: 'Okafor',
-      bio: null,
-      avatar_url: null,
-      country: null,
-      city: null,
-      phone_verified_at: null,
-      role: 'user',
-      is_seeker: false,
-      advanced_mode_enabled: false,
-      created_at: null,
-    },
-    wallets,
-    profile_complete: true,
-  }
-}
+const meResponse = makeMeResponse
 
 describe('signInWithWallet (adapter path)', () => {
   it('sets the session from the wallet auth and loads wallets[] in the background', async () => {
@@ -161,6 +142,43 @@ describe('refreshWallets', () => {
     await useAuthStore.getState().refreshWallets()
     expect(useAuthStore.getState().wallets).toEqual(LINKED)
     expect(useAuthStore.getState().walletsStatus).toBe('error')
+  })
+})
+
+describe('ensureWallets', () => {
+  it('JOINS an in-flight load instead of returning with nothing ensured', async () => {
+    // The session bootstrap fires refreshWallets on every sign-in/restore; a
+    // tx guard calling ensureWallets inside that window must come back with
+    // the list settled — an early return on `loading` hard-failed the first
+    // click of every session ("Could not load your linked wallets").
+    let release: (value: import('@tenda/shared').MeResponse) => void = () => {}
+    usersApi.me.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve
+      }),
+    )
+    const bootstrapLoad = useAuthStore.getState().refreshWallets()
+    expect(useAuthStore.getState().walletsStatus).toBe('loading')
+
+    const ensured = useAuthStore.getState().ensureWallets()
+    release(meResponse(LINKED))
+    await ensured
+    expect(useAuthStore.getState().walletsStatus).toBe('ready')
+    expect(useAuthStore.getState().wallets).toEqual(LINKED)
+    expect(usersApi.me).toHaveBeenCalledTimes(1) // joined, not re-fetched
+    await bootstrapLoad
+  })
+
+  it('is a no-op once ready, and retries after an error', async () => {
+    useAuthStore.setState({ wallets: LINKED, walletsStatus: 'ready' })
+    await useAuthStore.getState().ensureWallets()
+    expect(usersApi.me).not.toHaveBeenCalled()
+
+    useAuthStore.setState({ walletsStatus: 'error' })
+    usersApi.me.mockResolvedValue(meResponse(LINKED))
+    await useAuthStore.getState().ensureWallets()
+    expect(usersApi.me).toHaveBeenCalledTimes(1)
+    expect(useAuthStore.getState().walletsStatus).toBe('ready')
   })
 })
 

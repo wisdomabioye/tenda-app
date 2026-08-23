@@ -31,7 +31,7 @@ import {
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
 import { ROUTES } from '@/lib/routes'
-import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import { ensureTxPreconditions, resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 
@@ -93,6 +93,9 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
     setPhase('preparing')
     let escrow_id: string | null = null
     try {
+      // Load the trust list + chain registry FIRST: without them the signer
+      // set below is [] and the balance gate is structurally inert.
+      await ensureTxPreconditions()
       // Before the permit signature and the draft: an underfunded creator
       // would otherwise sign a permit, wait, and watch the create revert —
       // leaving a draft to retry. Falls open when the balance can't be read.

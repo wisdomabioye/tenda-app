@@ -92,6 +92,36 @@ test('changing the key invalidates the previous answer by derivation', async () 
   await waitFor(() => expect(result.current.balance).toBeNull())
 })
 
+test('an owner scopes the read to that ONE wallet, not the linked set', async () => {
+  mockSigners.current = ['0xabc', '0xsecond']
+  const { result } = renderHook(() => useSpendableBalance(CHAIN.id, 'USDC_BASE', '0xsecond'))
+  await waitFor(() => expect(result.current.status).toBe('ready'))
+  expect(mockReadSpendable).toHaveBeenCalledWith(['0xsecond'], CHAIN, 'USDC_BASE')
+})
+
+test('a null owner (unresolved signer) answers unknown without a read', async () => {
+  const { result } = renderHook(() => useSpendableBalance(CHAIN.id, 'USDC_BASE', null))
+  await waitFor(() => expect(result.current.status).toBe('ready'))
+  expect(result.current.balance).toBeNull()
+  expect(mockReadSpendable).not.toHaveBeenCalled()
+})
+
+test('an owner change invalidates the previous answer and re-reads as the new one', async () => {
+  mockReadSpendable
+    .mockResolvedValueOnce(BALANCE)
+    .mockResolvedValueOnce({ ...BALANCE, amountRaw: '7' })
+  const { result, rerender } = renderHook(
+    ({ owner }: { owner: string }) => useSpendableBalance(CHAIN.id, 'USDC_BASE', owner),
+    { initialProps: { owner: '0xabc' } },
+  )
+  await waitFor(() => expect(result.current.balance?.amountRaw).toBe(BALANCE.amountRaw))
+  rerender({ owner: '0xswitched' })
+  // The old wallet's answer must never be shown for the new key.
+  expect(result.current.status).toBe('loading')
+  await waitFor(() => expect(result.current.balance?.amountRaw).toBe('7'))
+  expect(mockReadSpendable).toHaveBeenLastCalledWith(['0xswitched'], CHAIN, 'USDC_BASE')
+})
+
 test('refresh re-reads and a stale in-flight read is discarded', async () => {
   let resolveFirst!: (v: unknown) => void
   mockReadSpendable

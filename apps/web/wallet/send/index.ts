@@ -5,5 +5,5 @@ export {
   resolveSolanaPublicRpcEndpoints,
   resetSolanaTransportForTests,
 } from './solana'
-export { ensureSessionOn, guardTxRequest, requireTxModal } from './session'
+export { ensureSessionOn, guardTxRequest, requireTxModal, switchToLinkedWallet } from './session'
 export type { EvmRequestProvider, SolanaTxProvider, TxModal } from './session'

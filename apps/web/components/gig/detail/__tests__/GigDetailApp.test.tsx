@@ -5,7 +5,7 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
-import type { GigDetail } from '@tenda/shared'
+import type { GigDetail, LinkedWallet } from '@tenda/shared'
 import type { ToastType } from '@/components/ui/Toast'
 
 const { authState, gigsState, configState, actionsState, capturedActionsArgs, toastMock, routerPush } = vi.hoisted(() => ({
@@ -14,6 +14,9 @@ const { authState, gigsState, configState, actionsState, capturedActionsArgs, to
     user: null as { id: string } | null,
     isLoading: false,
     loadSession: vi.fn(async () => {}),
+    // The tx gate's SigningWalletRow reads these through useSigningWallet.
+    wallets: [] as LinkedWallet[],
+    ensureWallets: vi.fn(async () => {}),
   },
   gigsState: {
     selectedGig: null as GigDetail | null,

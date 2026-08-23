@@ -1,4 +1,4 @@
-import type { PublicUser, User } from '@tenda/shared'
+import type { LinkedWallet, MeResponse, PublicUser, User } from '@tenda/shared'
 
 /**
  * Fully-typed User row for tests and the e2e stub — typed against the REAL
@@ -27,6 +27,28 @@ export function makeUser(overrides: Partial<User> = {}): User {
     created_at: new Date('2026-08-01T10:00:00.000Z'),
     updated_at: new Date('2026-08-01T10:00:00.000Z'),
     ...overrides,
+  }
+}
+
+/** GET /v1/users/me wire shape — the sole populator of the wallets[] trust list. */
+export function makeMeResponse(wallets: LinkedWallet[]): MeResponse {
+  return {
+    user: {
+      id: 'u1',
+      first_name: 'Ada',
+      last_name: 'Okafor',
+      bio: null,
+      avatar_url: null,
+      country: null,
+      city: null,
+      phone_verified_at: null,
+      role: 'user',
+      is_seeker: false,
+      advanced_mode_enabled: false,
+      created_at: null,
+    },
+    wallets,
+    profile_complete: true,
   }
 }
 

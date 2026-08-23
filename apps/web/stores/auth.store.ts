@@ -3,11 +3,13 @@ import {
   ApiClientError,
   ErrorCode,
   hasCompleteName,
+  withRetry,
   type IdentityMethodWire,
   type LinkedWallet,
   type User,
   type VerifyBody,
 } from '@tenda/shared'
+import { SIGNED_OUT, isRetriableMeError } from './auth/session-helpers'
 import { api } from '@/api/client'
 import { clearAuthStorage, getJwtToken, setJwtToken } from '@/lib/storage'
 import { signInWithWallet as walletSignIn, linkWalletWith } from '@/wallet/auth'
@@ -69,19 +71,13 @@ async function purgeIfStaleSession(e: unknown): Promise<void> {
   }
 }
 
-/**
- * Exported for `stores/auth/cross-tab.ts`, which applies the same signed-out
- * state when another tab drops the token.
- */
-export const SIGNED_OUT = {
-  user: null,
-  jwt: null,
-  isAuthenticated: false,
-  profileComplete: null,
-  identities: [] as IdentityMethodWire[],
-  wallets: [] as LinkedWallet[],
-  walletsStatus: 'idle' as const,
-}
+export { SIGNED_OUT } from './auth/session-helpers'
+
+// The wallets[] load currently on the wire, so `ensureWallets` can JOIN it
+// rather than observe `loading` and return with nothing ensured (chain
+// registry's `inflight` pattern; stale ones resolve harmlessly — the
+// generation guard inside already dropped their writes).
+let walletsInflight: Promise<void> | null = null
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   ...SIGNED_OUT,
@@ -107,6 +103,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       // Same profile-complete predicate the server uses — cannot drift.
       profileComplete: hasCompleteName(res.user.first_name, res.user.last_name),
     })
+    // Settle wallets[] in the background (mobile parity): every tx path and
+    // chain-eligibility read depends on it; navigation does not.
+    void get().refreshWallets()
     return { isNew: res.is_new }
   },
 
@@ -142,19 +141,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   /**
    * Load the linked-wallet list ONCE, for surfaces that need it but do not
-   * own it. De-duped on status, exactly like the chain registry's
-   * `ensureLoaded`: a surface that merely READS wallets should not refetch
-   * them on every mount, and should not have to know whether a neighbour
-   * already did.
-   *
-   * Added because the sell surface asked `useExchangeAssetOptions` which
-   * assets it could sell, and nothing on that route had ever loaded the
-   * wallets — so the answer was always "none", and the page told a reader
-   * with a linked wallet to link one.
+   * own it (chain registry's `ensureLoaded` doctrine). A load already in
+   * flight is JOINED, never skipped — the session bootstrap fires one on
+   * every sign-in/restore, and a tx guard that "ensured" without waiting for
+   * it would hard-fail the user's first click of the session. Added because
+   * the sell surface asked which assets it could sell before anything had
+   * loaded the wallets, and told a reader with a linked wallet to link one.
    */
   ensureWallets: async () => {
-    const { walletsStatus } = get()
-    if (walletsStatus === 'loading' || walletsStatus === 'ready') return
+    if (get().walletsStatus === 'ready') return
+    if (walletsInflight !== null) return walletsInflight
     await get().refreshWallets()
   },
 
@@ -165,17 +161,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // reader the previous account's addresses and their real balances.
     const gen = accountGeneration()
     set({ walletsStatus: 'loading' })
+    const run = (async () => {
+      try {
+        // Bounded retry (transient blips only, mobile parity): the sole
+        // populator failing silently strands the trust registry empty.
+        const res = await withRetry(() => api.users.me(), { shouldRetry: isRetriableMeError })
+        if (!isSameAccount(gen)) return
+        set({ wallets: res.wallets, walletsStatus: 'ready' })
+      } catch {
+        // Keep the last-good list (never blank a rendered list to an error);
+        // the status tells the screen to offer a retry. Not for a dead session,
+        // though: 'idle' is what the sign-out left, and an 'error' there would
+        // offer the next reader a retry for a request that was never theirs.
+        if (!isSameAccount(gen)) return
+        set({ walletsStatus: 'error' })
+      }
+    })()
+    walletsInflight = run
     try {
-      const res = await api.users.me()
-      if (!isSameAccount(gen)) return
-      set({ wallets: res.wallets, walletsStatus: 'ready' })
-    } catch {
-      // Keep the last-good list (never blank a rendered list to an error);
-      // the status tells the screen to offer a retry. Not for a dead session,
-      // though: 'idle' is what the sign-out left, and an 'error' there would
-      // offer the next reader a retry for a request that was never theirs.
-      if (!isSameAccount(gen)) return
-      set({ walletsStatus: 'error' })
+      await run
+    } finally {
+      if (walletsInflight === run) walletsInflight = null
     }
   },
 
@@ -255,6 +261,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         profileComplete: hasCompleteName(user.first_name, user.last_name),
       })
+      // Wallets ride a second, non-blocking call (mobile's loadSession →
+      // refreshMe): a restored session lands with its trust registry loading.
+      void get().refreshWallets()
     } catch (e) {
       if (!isSameAccount(gen)) return
       if (e instanceof ApiClientError && (e.statusCode === 401 || e.statusCode === 403)) {

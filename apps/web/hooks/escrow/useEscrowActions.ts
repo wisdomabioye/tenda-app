@@ -29,7 +29,7 @@ import {
   type UnsignedTx,
 } from '@tenda/shared'
 import { useEscrowStore } from '@/stores/escrow.store'
-import { resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
+import { ensureTxPreconditions, resolveSignersForChain, signSendAndReport } from '@/wallet/dispatch'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 import { showToast } from '@/components/ui/Toast'
@@ -104,6 +104,9 @@ export function useEscrowActions({
     setBusyAction(action)
     setPhase('preparing')
     try {
+      // Trust list + chain registry before signer resolution: an empty
+      // wallets[] blanks the owner set and disarms the balance gate.
+      await ensureTxPreconditions()
       if (debitRaw !== undefined) {
         await ensureSufficientBalance({
           chainId,

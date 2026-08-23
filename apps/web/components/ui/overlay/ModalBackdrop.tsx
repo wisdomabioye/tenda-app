@@ -65,7 +65,13 @@ export function ModalBackdrop({
     if (card === null) return
     const focusable = () => [...card.querySelectorAll<HTMLElement>(FOCUSABLE)]
 
-    if (initialFocus === 'card') {
+    // An explicit anchor beats positional selection: first/last break the
+    // moment a dialog gains extra controls (a Switch-wallet row made 'first'
+    // land on the wrong button of a destructive gate).
+    const anchor = card.querySelector<HTMLElement>('[data-initial-focus]')
+    if (anchor !== null) {
+      anchor.focus()
+    } else if (initialFocus === 'card') {
       card.focus()
     } else {
       const targets = focusable()

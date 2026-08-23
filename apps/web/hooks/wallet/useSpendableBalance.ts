@@ -24,18 +24,31 @@ interface UseSpendableBalanceResult {
   refresh: () => void
 }
 
-/** Identifies which (chain, asset) an answer belongs to. */
-function keyOf(chainId: string, assetId: string): string {
-  return `${chainId}|${assetId}`
+/**
+ * Identifies which (chain, asset, owner-scope) an answer belongs to.
+ * '*' = the whole linked set, '-' = an unresolved owner (no read fired).
+ */
+function keyOf(chainId: string, assetId: string, owner: string | null | undefined): string {
+  return `${chainId}|${assetId}|${owner === undefined ? '*' : (owner ?? '-')}`
 }
 
 /**
- * Keyed on `chainId` + `assetId` ONLY. Callers compare against an amount that
- * changes as the user types (the gig budget field); depending on that amount
- * here would fire one RPC per keystroke. The amount belongs in the
- * comparison, never in the fetch.
+ * Keyed on `chainId` + `assetId` (+ `owner` when scoped) — NEVER the amount.
+ * Callers compare against an amount that changes as the user types (the gig
+ * budget field); depending on that amount here would fire one RPC per
+ * keystroke. The amount belongs in the comparison, never in the fetch.
  */
-export function useSpendableBalance(chainId: string, assetId: string): UseSpendableBalanceResult {
+export function useSpendableBalance(
+  chainId: string,
+  assetId: string,
+  /**
+   * Scope the read to ONE wallet — the previewed signer — so the answer is
+   * "what can THIS wallet fund", not "what could any linked wallet". `null`
+   * means the signer is unresolved: answers unknown without an RPC. Omit for
+   * the across-wallets maximum.
+   */
+  owner?: string | null,
+): UseSpendableBalanceResult {
   const chains = useChainRegistryStore((s) => s.chains)
   // The answer is stored WITH the key it answers, so a key change invalidates
   // it by derivation rather than by clearing state. Re-reading the same key
@@ -49,8 +62,9 @@ export function useSpendableBalance(chainId: string, assetId: string): UseSpenda
 
   const refresh = useCallback(() => {
     const runId = (runIdRef.current += 1)
-    const key = keyOf(chainId, assetId)
-    const owners = resolveSignersForChain(chainId)
+    const key = keyOf(chainId, assetId, owner)
+    const owners =
+      owner === undefined ? resolveSignersForChain(chainId) : owner === null ? [] : [owner]
 
     if (chain === null || owners.length === 0) {
       // A null chain while the registry is still loading is not an answer —
@@ -76,13 +90,13 @@ export function useSpendableBalance(chainId: string, assetId: string): UseSpenda
         if (runId !== runIdRef.current) return
         setAnswer({ key, balance: null })
       })
-  }, [chainId, assetId, chain, chains])
+  }, [chainId, assetId, owner, chain, chains])
 
   useEffect(() => {
     refresh()
   }, [refresh])
 
-  const fresh = answer !== null && answer.key === keyOf(chainId, assetId)
+  const fresh = answer !== null && answer.key === keyOf(chainId, assetId, owner)
   return {
     balance: fresh ? answer.balance : null,
     status: fresh ? 'ready' : 'loading',

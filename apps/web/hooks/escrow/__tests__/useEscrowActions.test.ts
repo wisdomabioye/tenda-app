@@ -9,12 +9,13 @@ import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiClientError, TRANSACTION_GATE_MESSAGE, WalletError } from '@tenda/shared'
 import { proofHashFor, useEscrowActions } from '@/hooks/escrow/useEscrowActions'
 
-const { mockPush, mockToast, mockSign, mockResolveSigners, mockEnsure, mockBuildPermitFor, storeMocks, persistMock } = vi.hoisted(() => ({
+const { mockPush, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreconditions, mockBuildPermitFor, storeMocks, persistMock } = vi.hoisted(() => ({
   mockPush: vi.fn(),
   mockToast: vi.fn(),
   mockSign: vi.fn(),
   mockResolveSigners: vi.fn(),
   mockEnsure: vi.fn(),
+  mockPreconditions: vi.fn(),
   mockBuildPermitFor: vi.fn(),
   persistMock: vi.fn(),
   storeMocks: {
@@ -37,6 +38,7 @@ vi.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => mockTo
 vi.mock('@/wallet/dispatch', () => ({
   signSendAndReport: (...a: unknown[]) => mockSign(...a),
   resolveSignersForChain: (...a: unknown[]) => mockResolveSigners(...a),
+  ensureTxPreconditions: (...a: unknown[]) => mockPreconditions(...a),
 }))
 vi.mock('@/wallet/balances', () => ({
   ensureSufficientBalance: (...a: unknown[]) => mockEnsure(...a),
@@ -179,6 +181,11 @@ describe('dispatch lifecycle', () => {
       owners: SIGNERS,
     })
     expect(order).toEqual(['balance', 'build'])
+    // And the trust list + chain registry load before the balance read —
+    // without them the owner set is [] and the pre-flight falls open.
+    expect(mockPreconditions.mock.invocationCallOrder[0]).toBeLessThan(
+      mockEnsure.mock.invocationCallOrder[0],
+    )
   })
 
   test('the 9D gate routes and never reaches the wallet', async () => {

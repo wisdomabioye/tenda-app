@@ -40,6 +40,14 @@ export function useGigForm(
 ) {
   const homeCountry = useAuthStore((s) => s.user?.country ?? null)
   const wallets = useAuthStore((s) => s.wallets)
+  const ensureWallets = useAuthStore((s) => s.ensureWallets)
+
+  // Chain eligibility below reads wallets[]; without this an EVM chain shows
+  // "(link a wallet)" to a user who linked one, until some other surface
+  // happened to load the list. Load-once, deduped.
+  useEffect(() => {
+    void ensureWallets()
+  }, [ensureWallets])
 
   const defaultChainId = solanaChainId(SOLANA_NETWORK)
   const requestedChainId = initialValues?.chainId

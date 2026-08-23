@@ -10,16 +10,34 @@
  */
 import { txConfirmCopy, type EscrowTxType, type TxConfirmContext } from '@tenda/shared'
 import { ConfirmDialog } from '@/components/ui/overlay/ConfirmDialog'
+import { SigningWalletRow } from '@/components/wallet/SigningWalletRow'
+import type { SpendPreview } from '@/hooks/wallet/useSignerBalance'
 
 export function TxConfirmDialog({
   action,
   ctx,
+  chainId,
+  spend,
   loading = false,
   onConfirm,
   onCancel,
 }: {
   action: EscrowTxType | null
   ctx: TxConfirmContext
+  /**
+   * The escrow's chain. When given, the dialog previews the wallet that will
+   * sign ("Signing with 0x… on Base Sepolia") with a Switch affordance — the
+   * wallet that opens next is a fact on screen, not a surprise.
+   */
+  chainId?: string
+  /**
+   * What confirming will DEBIT from the signing wallet, in base units of the
+   * escrow's asset. Pass only for value-moving actions — today 'create'
+   * (fund a gig / publish an offer); dispute bonds ride their own sheet.
+   * With it, the signer row warns when the previewed wallet positively holds
+   * less than the debit.
+   */
+  spend?: SpendPreview
   /** Busy state on the confirm button while the follow-on tx is being built. */
   loading?: boolean
   onConfirm: () => void
@@ -31,6 +49,16 @@ export function TxConfirmDialog({
       open={copy !== null}
       title={copy?.title ?? ''}
       message={copy?.body}
+      {...(chainId !== undefined
+        ? {
+            extra: (
+              <SigningWalletRow
+                chainId={chainId}
+                {...(spend !== undefined ? { spend } : {})}
+              />
+            ),
+          }
+        : {})}
       confirmLabel={copy?.confirmLabel ?? ''}
       destructive={copy?.destructive ?? false}
       busy={loading}
