@@ -225,7 +225,9 @@ test('signing declined after the draft is saved keeps the draft and lands on it'
   await fund(result)
   expect(mockEscrowDelete).not.toHaveBeenCalled()
   expect(mockToast).toHaveBeenCalledWith('info', 'user declined')
-  expect(mockPush).toHaveBeenCalledWith('/gig/e1')
+  // The workspace dossier, not the public page: the draft's Delete CTA and
+  // the retry entry live there.
+  expect(mockPush).toHaveBeenCalledWith('/my-gigs/e1')
   // The composed values live on the server as a draft — blank the composer.
   expect(resetForm).toHaveBeenCalled()
 })
@@ -255,7 +257,7 @@ test('a confirmed escrow clears the draft prefill and lands on the gig', async (
   // Web's draft-param clear: replace the URL without the ?draftId.
   expect(mockReplace).toHaveBeenCalledWith('/gigs/new')
   expect(mockToast).toHaveBeenCalledWith('success', 'Gig funded and live!')
-  expect(mockPush).toHaveBeenCalledWith('/gig/e1')
+  expect(mockPush).toHaveBeenCalledWith('/my-gigs/e1')
   expect(result.current.phase).toBe('idle')
 })
 
@@ -275,7 +277,7 @@ test('a timeout still lands the user on the gig rather than trapping the modal',
     result.current.handleFundTimeout('')
   })
   expect(mockToast).toHaveBeenCalledWith('info', 'Submitted — it will go live once the escrow confirms.')
-  expect(mockPush).toHaveBeenCalledWith('/gig/e1')
+  expect(mockPush).toHaveBeenCalledWith('/my-gigs/e1')
 })
 
 test('runFunding without confirmed values is a no-op', async () => {

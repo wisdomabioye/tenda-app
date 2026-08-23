@@ -127,6 +127,10 @@ export default function ApplicantsPage({ params }: { params: Promise<{ escrowId:
 
       <TxConfirmDialog
         action={pending !== null ? 'assign_accept' : null}
+        // The assign is signed by the POSTER, and the chain binds it to the
+        // wallet the escrow was created with — preview exactly that one.
+        chainId={gig.chain_id}
+        boundSigner={gig.my_signer_address}
         ctx={{
           amount: formatAssetAmount(gig.amount_raw, gig.asset),
           kind: 'gig',

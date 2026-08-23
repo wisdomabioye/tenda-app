@@ -27,6 +27,17 @@ vi.mock('@/stores/gigs.store', () => ({
 vi.mock('@/api/client', () => ({
   api: { escrows: { delete: (...a: unknown[]) => deleteMock(...a) } },
 }))
+// The row's own behaviour (bound preview, targeted connect) is covered in
+// SigningWalletRow.test.tsx; here only the WIRING is under test — which
+// dialogs mount it, on which chain, with which binding.
+vi.mock('@/components/wallet/SigningWalletRow', () => ({
+  SigningWalletRow: ({ chainId, bound }: { chainId: string; bound?: string | null }) => (
+    <div data-testid="signer-row">
+      {chainId}
+      {bound !== undefined && bound !== null ? ` bound ${bound}` : ''}
+    </div>
+  ),
+}))
 
 import { ProofUploadDialog } from '@/components/gig/detail/ProofUploadDialog'
 import { DisputeDialog, GigActionDialogs, ReviewDialog } from '@/components/gig/detail/action-dialogs'
@@ -101,6 +112,36 @@ describe('ProofUploadDialog', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  test('a chainId mounts the signer preview with the escrow binding (on-chain submit)', () => {
+    render(
+      <ProofUploadDialog
+        open
+        onClose={vi.fn()}
+        title="Submit proof"
+        submitLabel="Submit"
+        closeMode="before-submit"
+        chainId="solana:devnet"
+        boundSigner="Worker11Wallet"
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('signer-row')).toHaveTextContent('solana:devnet bound Worker11Wallet')
+  })
+
+  test('without a chainId no wallet is previewed (the off-chain add-more path)', () => {
+    render(
+      <ProofUploadDialog
+        open
+        onClose={vi.fn()}
+        title="Add more proof"
+        submitLabel="Upload"
+        closeMode="before-submit"
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.queryByTestId('signer-row')).toBeNull()
+  })
+
   test('a failed upload keeps the dialog open and never hands off', async () => {
     uploadProofsMock.mockResolvedValue(null) // failure already toasted inside
     const onClose = vi.fn()
@@ -139,6 +180,19 @@ describe('DisputeDialog', () => {
     render(<DisputeDialog open onClose={vi.fn()} onDisputeReady={vi.fn()} />)
     expect(screen.getByText(/wallet will open to approve/)).toBeInTheDocument()
     expect(screen.queryByText(/bond/)).not.toBeInTheDocument()
+  })
+
+  test('a chainId mounts the signer preview with the escrow binding', () => {
+    render(
+      <DisputeDialog
+        open
+        onClose={vi.fn()}
+        chainId="eip155:84532"
+        boundSigner="0xBoundWallet"
+        onDisputeReady={vi.fn()}
+      />,
+    )
+    expect(screen.getByTestId('signer-row')).toHaveTextContent('eip155:84532 bound 0xBoundWallet')
   })
 })
 
@@ -181,9 +235,46 @@ describe('ApplyDialog', () => {
   })
 })
 
-describe('GigActionDialogs — delete draft', () => {
-  const GIG = { escrow_id: 'e1', dispute_bond_raw: '0', asset: 'USDC_SOL' }
+const GIG = {
+  escrow_id: 'e1',
+  dispute_bond_raw: '0',
+  asset: 'USDC_SOL',
+  chain_id: 'solana:devnet',
+  my_signer_address: 'Worker11Wallet',
+}
 
+describe('GigActionDialogs — signer wiring', () => {
+  function renderSheet(activeSheet: 'proof' | 'addProof' | 'dispute') {
+    render(
+      <GigActionDialogs
+        gig={GIG}
+        activeSheet={activeSheet}
+        onClose={vi.fn()}
+        onReviewSubmitted={vi.fn()}
+        onProofsReady={vi.fn()}
+        onAddProofsReady={vi.fn()}
+        onDisputeReady={vi.fn()}
+      />,
+    )
+  }
+
+  test('submit-proof previews the escrow-bound signing wallet', () => {
+    renderSheet('proof')
+    expect(screen.getByTestId('signer-row')).toHaveTextContent('solana:devnet bound Worker11Wallet')
+  })
+
+  test('dispute previews the escrow-bound signing wallet', () => {
+    renderSheet('dispute')
+    expect(screen.getByTestId('signer-row')).toHaveTextContent('solana:devnet bound Worker11Wallet')
+  })
+
+  test('add-more-proof is off-chain and promises no wallet', () => {
+    renderSheet('addProof')
+    expect(screen.queryByTestId('signer-row')).toBeNull()
+  })
+})
+
+describe('GigActionDialogs — delete draft', () => {
   test('the confirm deletes off-chain and lands on My Gigs', async () => {
     render(
       <GigActionDialogs

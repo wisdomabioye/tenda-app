@@ -182,6 +182,10 @@ export default defineConfig({
         // file stayed outside the gate while looking listed (verified: 0% with
         // the plain form, 94% with this one).
         'app/(app)/notifications/\\[notificationId\\]/page.tsx',
+        // The poster's applicants page joined the ratchet with its first suite
+        // (the assign confirm shipped without a signer preview once — a wiring
+        // gap only a suite on THIS file could see). Brackets escaped, as above.
+        'app/(app)/my-gigs/\\[escrowId\\]/applicants/page.tsx',
         // {ts,tsx} like every sibling folder: the `.tsx`-only pattern left
         // settings/copy.ts — which carries the badge rule and its branch —
         // outside the gate, so a regression there could not move the number.

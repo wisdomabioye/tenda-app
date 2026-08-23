@@ -2,10 +2,12 @@ import {
   PROOF_TYPE_LABEL,
   chainLabel,
   formatDeadline,
+  truncateWallet,
   type GigDetail,
   type ProofType,
 } from '@tenda/shared'
 import type { DossierFact, DossierProof } from '@/components/escrow/dossier'
+import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 
 /**
  * The facts under the money block (Tier 2 comp, lines 520-540).
@@ -16,6 +18,15 @@ import type { DossierFact, DossierProof } from '@/components/escrow/dossier'
  */
 export function dossierFactsFor(gig: GigDetail): readonly DossierFact[] {
   const facts: DossierFact[] = [{ label: 'Chain', value: chainLabel(gig.chain_id) }]
+  // Which of the viewer's wallets THIS escrow is bound to (viewer-relative on
+  // the wire) — the workspace is where a worker looks first, and an assigned
+  // worker never chose the wallet, the poster's assign baked their primary.
+  if (gig.my_signer_address !== null) {
+    facts.push({
+      label: GIG_DETAIL_COPY.yourWallet,
+      value: truncateWallet(gig.my_signer_address),
+    })
+  }
   if (gig.accept_deadline !== null) {
     facts.push({ label: 'Accept by', value: formatDeadline(gig.accept_deadline) })
   }

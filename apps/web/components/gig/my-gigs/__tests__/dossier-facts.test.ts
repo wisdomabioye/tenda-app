@@ -7,8 +7,9 @@
  * the truth is that this gig has no completion deadline yet.
  */
 import { describe, expect, it } from 'vitest'
-import { PROOF_TYPE_LABEL, type GigDetail } from '@tenda/shared'
+import { PROOF_TYPE_LABEL, truncateWallet, type GigDetail } from '@tenda/shared'
 import { dossierFactsFor, dossierProofsFor } from '@/components/gig/my-gigs/dossier-facts'
+import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { deliveryGig } from '@/e2e/fixtures/gigs'
 
 const detail = (over: Partial<GigDetail> = {}): GigDetail =>
@@ -18,6 +19,9 @@ const detail = (over: Partial<GigDetail> = {}): GigDetail =>
     proofs: null,
     is_assigned: false,
     is_seeker: false,
+    // Required on the wire; the summary spread above doesn't carry it, and an
+    // `undefined` here would render the wallet fact with nothing behind it.
+    my_signer_address: null,
     ...over,
   }) as GigDetail
 
@@ -38,6 +42,19 @@ describe('dossierFactsFor', () => {
         }),
       ),
     ).toEqual(['Chain', 'Accept by', 'Deliver by', 'Auto-releases'])
+  })
+
+  it('names the wallet THIS viewer is bound to — an assigned worker never chose it', () => {
+    const bound = 'Worker11Wa11et1111111111111111111111111111'
+    const facts = dossierFactsFor(detail({ my_signer_address: bound }))
+    expect(facts).toContainEqual({
+      label: GIG_DETAIL_COPY.yourWallet,
+      value: truncateWallet(bound),
+    })
+  })
+
+  it('omits the wallet fact when no binding was recorded (outsiders, pre-column escrows)', () => {
+    expect(labels(detail({ my_signer_address: null }))).not.toContain(GIG_DETAIL_COPY.yourWallet)
   })
 
   it('omits a deadline that is not set rather than printing an empty one', () => {

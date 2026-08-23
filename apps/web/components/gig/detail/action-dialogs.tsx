@@ -18,6 +18,7 @@ import { showToast } from '@/components/ui/Toast'
 import { useGigsStore } from '@/stores/gigs.store'
 import type { PersistableProof } from '@/lib/uploads/escrow-proofs'
 import { Modal } from '@/components/ui/overlay/Modal'
+import { SigningWalletRow } from '@/components/wallet/SigningWalletRow'
 import { ProofUploadDialog } from './ProofUploadDialog'
 
 /** Wallet note for the on-chain proof commit — reassures no funds move. */
@@ -30,6 +31,10 @@ interface EscrowActionTarget {
   /** Base-units bond ('0' when none) — feeds the dispute dialog's bond note. */
   dispute_bond_raw: string
   asset: string
+  /** Feeds the signing-wallet preview on the on-chain dialogs (submit, dispute). */
+  chain_id: string
+  /** The viewer's chain-bound wallet, when the escrow recorded one. */
+  my_signer_address: string | null
   proof_requirements?: readonly ProofType[]
   proofs?: readonly { type: ProofType }[]
 }
@@ -38,11 +43,17 @@ export function DisputeDialog({
   open,
   onClose,
   bondLabel = null,
+  chainId,
+  boundSigner,
   onDisputeReady,
 }: {
   open: boolean
   onClose: () => void
   bondLabel?: string | null
+  /** The escrow's chain — with it the dialog previews the signing wallet. */
+  chainId?: string
+  /** The chain-bound signer for this viewer (`my_signer_address`), when recorded. */
+  boundSigner?: string | null
   onDisputeReady: (reason: string) => Promise<boolean>
 }) {
   const [reason, setReason] = useState('')
@@ -84,6 +95,12 @@ export function DisputeDialog({
           An admin will review and reach out. Max 2000 characters.
         </span>
       </label>
+      {chainId !== undefined && (
+        <SigningWalletRow
+          chainId={chainId}
+          {...(boundSigner !== undefined ? { bound: boundSigner } : {})}
+        />
+      )}
       <p className="text-xs text-content-secondary">{note}</p>
       <Button
         variant="primary"
@@ -213,6 +230,8 @@ export function GigActionDialogs({
         // files upload, so it (not the dialog) owns the wallet phases.
         closeMode="before-submit"
         hint={PROOF_ONCHAIN_HINT}
+        chainId={gig.chain_id}
+        boundSigner={gig.my_signer_address}
         requirements={gig.proof_requirements ?? []}
         alreadyAttached={gig.proofs ?? []}
         onSubmit={onProofsReady}
@@ -234,6 +253,8 @@ export function GigActionDialogs({
         open={activeSheet === 'dispute'}
         onClose={onClose}
         bondLabel={bondLabel}
+        chainId={gig.chain_id}
+        boundSigner={gig.my_signer_address}
         onDisputeReady={onDisputeReady}
       />
 

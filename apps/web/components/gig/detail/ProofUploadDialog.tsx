@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button'
 import { uploadProofs, type PersistableProof, type PickedProofFile } from '@/lib/uploads/escrow-proofs'
 import { FilePicker } from '@/components/form/FilePicker'
 import { Modal } from '@/components/ui/overlay/Modal'
+import { SigningWalletRow } from '@/components/wallet/SigningWalletRow'
 
 export function ProofUploadDialog({
   open,
@@ -25,6 +26,8 @@ export function ProofUploadDialog({
   submitLabel,
   closeMode,
   hint,
+  chainId,
+  boundSigner,
   requirements = [],
   alreadyAttached = [],
   onSubmit,
@@ -36,6 +39,15 @@ export function ProofUploadDialog({
   closeMode: 'on-success' | 'before-submit'
   /** Optional note above the button, e.g. that submitting opens the wallet. */
   hint?: string
+  /**
+   * The escrow's chain — pass it ONLY when submitting commits on-chain
+   * (submit-proof). With it the dialog previews the signing wallet, the same
+   * row every other wallet-opening gate shows; the off-chain add-more-proof
+   * path omits it and no wallet is promised.
+   */
+  chainId?: string
+  /** The chain-bound signer for this viewer (`my_signer_address`), when recorded. */
+  boundSigner?: string | null
   /** Proof types the poster requires; empty for the add-more-evidence path. */
   requirements?: readonly ProofType[]
   /**
@@ -84,6 +96,12 @@ export function ProofUploadDialog({
         </p>
       )}
       <FilePicker files={files} onChange={setFiles} max={5} />
+      {chainId !== undefined && (
+        <SigningWalletRow
+          chainId={chainId}
+          {...(boundSigner !== undefined ? { bound: boundSigner } : {})}
+        />
+      )}
       {hint !== undefined && <p className="text-xs text-content-secondary">{hint}</p>}
       <Button
         variant="primary"

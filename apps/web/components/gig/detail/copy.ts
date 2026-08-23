@@ -16,6 +16,10 @@ export const GIG_DETAIL_COPY = {
     document: 'A receipt, invoice or signed note as a file.',
   },
   postedBy: 'Posted by',
+  /** Label over the viewer-relative bound wallet (`my_signer_address`) —
+   *  shared by the public party panel and the workspace dossier so one
+   *  escrow names the fact the same way on both surfaces. */
+  yourWallet: 'Your escrow wallet',
   postedByNote:
     'Full profiles, message threads and dispute history are visible to signed-in users.',
   noRating: 'No reviews yet',

@@ -18,6 +18,7 @@ import {
   type GigDetail,
 } from '@tenda/shared'
 import { escrowChatHref } from '@/lib/chat-href'
+import { GIG_DETAIL_COPY } from './copy'
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
@@ -66,7 +67,7 @@ export function PartyPanel({ gig, userId }: { gig: GigDetail; userId: string }) 
           the wallet THEY are bound to — create-signer, accept-signer, or the
           invite's baked wallet — and nobody else's ever arrives. */}
       {gig.my_signer_address !== null && (
-        <Fact label="Your escrow wallet" value={truncateWallet(gig.my_signer_address)} />
+        <Fact label={GIG_DETAIL_COPY.yourWallet} value={truncateWallet(gig.my_signer_address)} />
       )}
       {gig.counterparty !== null && (
         <>
