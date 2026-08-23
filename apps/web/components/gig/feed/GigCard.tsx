@@ -21,7 +21,6 @@ import {
   formatRelativeShort,
   formatReviewScore,
   gigPlaceLabel,
-  splitAssetAmount,
   type GigSummary,
 } from '@tenda/shared'
 import { MapPin } from 'lucide-react'
@@ -30,11 +29,12 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Eyebrow } from '@/components/ui'
 import { GIG_CARD_COPY } from './card-copy'
+import { toGigCardModel, type GigCardModel } from './gig-card-model'
 
-export function GigCard({ gig, index }: { gig: GigSummary; index?: number }) {
+export function GigCard({ gig: input, index }: { gig: GigCardModel | GigSummary; index?: number }) {
+  const gig = 'amount_raw' in input ? toGigCardModel(input) : input
   const CategoryIcon = CATEGORY_ICONS[gig.category]
   const tone = CATEGORY_TONE[gig.category]
-  const { amount, symbol } = splitAssetAmount(gig.amount_raw, gig.asset)
   const creatorName = displayName(gig.creator.first_name, gig.creator.last_name, gig.creator.id)
   const rating = formatReviewScore(gig.creator.review_score)
   const acceptWindow = acceptWindowState(gig)
@@ -81,7 +81,7 @@ export function GigCard({ gig, index }: { gig: GigSummary; index?: number }) {
 
       <div className="mt-4 flex items-end gap-1.5">
         <span className="font-numeric text-[26px] font-bold leading-7 tracking-[-0.5px] text-utility-money">
-          {amount}
+          {gig.displayAmount}
         </span>
         {/* A real space between the two halves. Whitespace-only text between
             flex items is not rendered, so this costs nothing visually — but
@@ -90,7 +90,7 @@ export function GigCard({ gig, index }: { gig: GigSummary; index?: number }) {
             its own space; nothing else does. */}
         {' '}
         <span className="pb-0.5 font-numeric text-[13px] leading-[18px] text-content-tertiary">
-          {symbol}
+          {gig.displaySymbol}
         </span>
       </div>
 

@@ -38,6 +38,7 @@ test.describe('feed — /', () => {
     // sizes, so they are separate elements, and searching this string for
     // "25 USDC" would only ever match the RSC flight payload.
     expect(html).not.toContain('25000000')
+    expect(html).not.toContain(deliveryGig.description!)
   })
 
   test.describe('with JavaScript disabled', () => {

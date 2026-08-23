@@ -1,17 +1,13 @@
 import type { Metadata } from 'next'
 import { APP_INFO } from '@tenda/shared'
 import { FeedHero } from '@/components/gig/feed/FeedHero'
-import { FeedKeyboard } from '@/components/gig/feed/FeedKeyboard'
-import { FeedPager } from '@/components/gig/feed/FeedPager'
 import { FeedRail } from '@/components/gig/feed/FeedRail'
-import { FEED_GRID_CLASS, FeedEmpty, FeedErrorStatic, FeedPastEnd } from '@/components/gig/feed/FeedStates'
-import { GigCard } from '@/components/gig/feed/GigCard'
-import { PublicGigFeedRealtime } from '@/components/gig/feed/PublicGigFeedRealtime'
-import { FEED_COPY } from '@/components/gig/feed/copy'
+import { FeedErrorStatic } from '@/components/gig/feed/FeedStates'
+import { PublicGigFeedSurface } from '@/components/gig/feed/PublicGigFeedSurface'
+import { toGigCardModel } from '@/components/gig/feed/gig-card-model'
 import { listEnabledChains, listGigFacetsOnce, listGigsOnce } from '@/lib/gigs/data'
 import {
   gigsHref,
-  hasActiveFilters,
   parseGigFeedFilters,
   toGigFacetsQuery,
   toGigListQuery,
@@ -54,8 +50,8 @@ export async function generateMetadata({
 /**
  * Tier-1 public feed — server-rendered, anonymous, indexable. Every filter is
  * a URL search param, so the page needs no client JS to work and each
- * narrowed view has its own address. A renderless invalidator refreshes this
- * server result over the authenticated socket (or a bounded public poll).
+ * narrowed view has its own address. The hydrated list applies safe events
+ * immediately, then reconciles this server result authoritatively.
  */
 export default async function PublicGigFeedPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const [params, chains] = await Promise.all([searchParams, listEnabledChains()])
@@ -81,7 +77,7 @@ export default async function PublicGigFeedPage({ searchParams }: { searchParams
     )
   }
 
-  const heading = filters.q === null ? FEED_COPY.feed.heading : FEED_COPY.feed.searchHeading
+  const query = toGigListQuery(filters)
 
   return (
     <>
@@ -90,27 +86,11 @@ export default async function PublicGigFeedPage({ searchParams }: { searchParams
         <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[248px_minmax(0,1fr)] lg:gap-12">
           <FeedRail filters={filters} chains={chains} facets={facets} />
 
-          <section>
-            <div className="mb-5 flex items-baseline justify-between gap-4 border-b border-border-subtle pb-4">
-              <h2 className="font-display text-[22px] font-semibold leading-7 tracking-[-0.4px] text-content-primary">{heading}</h2>
-              <p className="font-numeric text-[13px] leading-[18px] text-content-tertiary">{FEED_COPY.feed.count(page.total)}</p>
-            </div>
-            {page.data.length === 0 ? (
-              page.total > 0
-                ? <FeedPastEnd href={gigsHref(filters)} total={page.total} />
-                : <FeedEmpty filtered={hasActiveFilters(filters)} />
-            ) : (
-              <>
-                <ul className={FEED_GRID_CLASS}>
-                  {page.data.map((gig, index) => <li key={gig.escrow_id} className="flex"><GigCard gig={gig} index={index} /></li>)}
-                </ul>
-                <p className="mt-6 text-[13px] leading-[18px] text-content-tertiary">{FEED_COPY.feed.amountNote}</p>
-                <FeedPager filters={filters} nextCursor={page.next_cursor} total={page.total} shown={page.data.length} />
-                <FeedKeyboard />
-              </>
-            )}
-            <PublicGigFeedRealtime />
-          </section>
+          <PublicGigFeedSurface
+            page={{ ...page, data: page.data.map(toGigCardModel) }}
+            filters={filters}
+            query={query}
+          />
         </div>
       </div>
     </>
