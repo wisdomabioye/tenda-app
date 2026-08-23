@@ -10,6 +10,9 @@ import {
   type RawSearchParams,
 } from '@/lib/gigs/search-params'
 
+const mockPush = vi.hoisted(() => vi.fn())
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush }) }))
+
 const CHAINS = [
   { id: 'solana:devnet', label: 'Solana Devnet' },
   { id: 'eip155:84532', label: 'Base Sepolia' },
@@ -154,21 +157,12 @@ describe('FeedRail', () => {
     ).toBe('/')
   })
 
-  it('submits the form when the sort changes — the comp fires on change', () => {
-    // Enhancement only: the <noscript> button applies the same change with
-    // no JavaScript, which is why the control is a form field and not a
-    // router.push.
-    const { container } = renderRail()
-    const form = container.querySelector('form')
-    expect(form).not.toBeNull()
-    const submit = vi.fn()
-    // jsdom implements requestSubmit as a no-op stub in some versions; spy on
-    // the real method so the assertion is about OUR call, not jsdom's.
-    Object.defineProperty(form, 'requestSubmit', { value: submit, configurable: true })
+  it('changes sort without resetting the reader to the top', () => {
+    renderRail({ category: 'photo' })
     fireEvent.change(screen.getByLabelText(FEED_COPY.rail.sort), {
       target: { value: 'amount_asc' },
     })
-    expect(submit).toHaveBeenCalledOnce()
+    expect(mockPush).toHaveBeenCalledWith('/?category=photo&sort=amount_asc', { scroll: false })
   })
 
   it('offers a submit for readers with no JavaScript', () => {

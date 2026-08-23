@@ -47,7 +47,7 @@ export function WizardRail({
               aria-hidden
               className={cn(
                 'flex size-6 shrink-0 items-center justify-center rounded-full border text-[11px] font-bold',
-                done && 'border-brand-primary bg-brand-primary text-content-on-brand',
+                done && 'border-brand-primary bg-brand-primary text-white',
                 current && !done && 'border-brand-primary text-brand-primary',
                 !done && !current && 'border-border-default text-content-tertiary',
               )}

@@ -130,6 +130,7 @@ export function FeedRail({
       {hasActiveFilters(filters) && (
         <Link
           href="/"
+          scroll={false}
           className="self-start text-[13px] font-semibold text-brand-primary underline"
         >
           {FEED_COPY.rail.clear}

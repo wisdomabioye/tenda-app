@@ -31,10 +31,10 @@ export function GigDetailHeader({ gig }: { gig: GigDetail }) {
   const tone = CATEGORY_TONE[gig.category]
 
   return (
-    <header>
+    <header className="rounded-card border border-border-subtle bg-gradient-to-br from-brand-primary-surface via-surface-card to-surface-card p-5 shadow-sm sm:p-7">
       <nav
         aria-label="Breadcrumb"
-        className="mb-7 flex flex-wrap items-center gap-2 text-[13px] leading-[18px] text-content-tertiary"
+        className="mb-6 flex flex-wrap items-center gap-2 text-[13px] leading-[18px] text-content-tertiary"
       >
         <Link href="/" className="font-semibold text-content-tertiary hover:text-content-primary">
           {GIG_DETAIL_COPY.breadcrumbRoot}

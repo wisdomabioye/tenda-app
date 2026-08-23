@@ -41,6 +41,7 @@ export function FilterRow({
   return (
     <Link
       href={href}
+      scroll={false}
       aria-current={active ? 'true' : undefined}
       // Name-from-content would concatenate the label and the numeral with no
       // separator — "Delivery7 gigs" — because each child's contribution is
@@ -78,6 +79,7 @@ export function FilterChip({
   return (
     <Link
       href={href}
+      scroll={false}
       aria-current={active ? 'true' : undefined}
       className={cn(
         'rounded-full border px-3 py-1 text-[13px] font-semibold transition-colors',

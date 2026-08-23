@@ -63,3 +63,12 @@ it('locks offer creation without fetching private composer dependencies', () => 
   expect(dependencies.assetOptions).not.toHaveBeenCalled()
   expect(dependencies.bankAccounts).not.toHaveBeenCalled()
 })
+
+it('opens payout-account creation inside the composer without navigation', async () => {
+  useAuthStore.setState({ user: makeUser({ advanced_mode_enabled: true }) })
+  dependencies.bankAccounts.mockResolvedValue([])
+  render(<CreateOfferPage />)
+  await userEvent.click(await screen.findByRole('button', { name: 'Add another account' }))
+  expect(screen.getByRole('heading', { name: 'Add a payout account' })).toBeInTheDocument()
+  expect(screen.getByLabelText('Bank (NIP) code')).toBeInTheDocument()
+})

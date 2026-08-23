@@ -70,36 +70,38 @@ export default async function GigDetailPage({ params }: Params) {
   if (gig === null) notFound()
 
   return (
-    <div className="mx-auto w-full max-w-content px-6 pb-24 pt-8">
-      <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[minmax(0,1fr)_344px] lg:gap-14">
-        {/* No `min-w-0` here, deliberately: it was tried and measured to make
-            no difference. This column is held by `minmax(0,1fr)` above at the
-            two-column breakpoint, and at the single-column one by the fact
-            that every poster-written block inside it can break (GigTerms,
-            GigDetailHeader, GigBrief). The constraint that IS load-bearing
-            lives on the feed card — see GigCard. */}
-        <article>
-          <GigDetailHeader gig={gig} />
+    <div className="bg-surface-inset/40">
+      <div className="mx-auto w-full max-w-content px-4 pb-20 pt-6 sm:px-6 sm:pt-8">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_344px] lg:gap-8">
+          {/* No `min-w-0` here, deliberately: it was tried and measured to make
+              no difference. This column is held by `minmax(0,1fr)` above at the
+              two-column breakpoint, and at the single-column one by the fact
+              that every poster-written block inside it can break (GigTerms,
+              GigDetailHeader, GigBrief). The constraint that IS load-bearing
+              lives on the feed card — see GigCard. */}
+          <article>
+            <GigDetailHeader gig={gig} />
 
-          <GigDetailSection title={GIG_DETAIL_COPY.brief}>
-            <GigBrief description={gig.description} />
-          </GigDetailSection>
+            <GigDetailSection title={GIG_DETAIL_COPY.brief}>
+              <GigBrief description={gig.description} />
+            </GigDetailSection>
 
-          <GigDetailSection title={GIG_DETAIL_COPY.terms}>
-            <GigTerms gig={gig} />
-          </GigDetailSection>
+            <GigDetailSection title={GIG_DETAIL_COPY.terms}>
+              <GigTerms gig={gig} />
+            </GigDetailSection>
 
-          <GigDetailSection title={GIG_DETAIL_COPY.proof}>
-            <GigProofList requirements={gig.proof_requirements} />
-          </GigDetailSection>
+            <GigDetailSection title={GIG_DETAIL_COPY.proof}>
+              <GigProofList requirements={gig.proof_requirements} />
+            </GigDetailSection>
 
-          <GigDetailSection title={GIG_DETAIL_COPY.postedBy}>
-            <GigPosterCard creator={gig.creator} />
-          </GigDetailSection>
-          <GigReviews gig={gig} />
-        </article>
+            <GigDetailSection title={GIG_DETAIL_COPY.postedBy}>
+              <GigPosterCard creator={gig.creator} />
+            </GigDetailSection>
+            <GigReviews gig={gig} />
+          </article>
 
-        <GigEscrowAside gig={gig} />
+          <GigEscrowAside gig={gig} />
+        </div>
       </div>
     </div>
   )

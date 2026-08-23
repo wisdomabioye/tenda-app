@@ -61,11 +61,11 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('next/link', () => ({
-  default: ({ children, href, ...rest }: { children: ReactNode } & AnchorHTMLAttributes<HTMLAnchorElement>) => (
-    <a href={href} {...rest}>
-      {children}
-    </a>
-  ),
+  default: (allProps: { children: ReactNode; scroll?: boolean } & AnchorHTMLAttributes<HTMLAnchorElement>) => {
+    const props = { ...allProps }
+    delete props.scroll
+    return <a {...props} />
+  },
 }))
 
 vi.mock('next/image', () => ({

@@ -93,8 +93,8 @@ export function GigWizard({
   }
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[216px_minmax(0,1fr)] lg:gap-14">
-      <div className="lg:sticky lg:top-[88px] lg:self-start">
+    <div className="grid gap-6 lg:grid-cols-[216px_minmax(0,1fr)] lg:gap-8">
+      <div className="rounded-card border border-border-subtle bg-surface-card p-3 shadow-sm lg:sticky lg:top-[88px] lg:self-start">
         <WizardRail
           currentIndex={index}
           values={form.validationValues}
@@ -104,7 +104,7 @@ export function GigWizard({
         />
       </div>
 
-      <section className="min-w-0">
+      <section className="min-w-0 rounded-card border border-border-subtle bg-surface-card p-5 shadow-sm sm:p-7">
         <p className="font-numeric text-xs font-bold uppercase leading-4 tracking-[0.13em] text-content-tertiary">
           {stepCounter(index)}
         </p>

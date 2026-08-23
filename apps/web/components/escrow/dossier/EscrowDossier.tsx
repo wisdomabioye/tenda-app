@@ -45,11 +45,12 @@ export function EscrowDossier({
   ...partyScoped
 }: EscrowDossierProps) {
   return (
-    <article className="max-w-[840px] px-9 pb-16 pt-7">
+    <article className="mx-auto w-full max-w-[840px] px-4 pb-12 pt-8 sm:px-7">
       {banner}
-      <h1 className="font-display text-[28px] font-bold leading-9 tracking-[-0.6px] text-content-primary">
-        {title}
-      </h1>
+      <header className="rounded-card border border-border-subtle bg-gradient-to-br from-brand-primary-surface to-surface-card p-5 shadow-sm">
+        <p className="mb-2 text-xs font-bold uppercase tracking-[0.12em] text-brand-primary">Escrow workspace</p>
+        <h1 className="font-display text-[28px] font-bold leading-9 tracking-[-0.6px] text-content-primary">{title}</h1>
+      </header>
 
       <MoneyBlock amountRaw={amountRaw} asset={asset} facts={facts} />
       <StateTimeline escrow={escrow} formatStamp={formatStamp} />

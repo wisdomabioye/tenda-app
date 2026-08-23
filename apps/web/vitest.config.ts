@@ -153,6 +153,7 @@ export default defineConfig({
         'components/notifications/**/*.{ts,tsx}',
         'lib/account-state.ts',
         'components/exchange/**/*.{ts,tsx}',
+        'components/payout/**/*.{ts,tsx}',
         'components/profile/**/*.{ts,tsx}',
         // #14 ported the focused shell; the whole auth folder joins the
         // ratchet with it rather than three files of it.

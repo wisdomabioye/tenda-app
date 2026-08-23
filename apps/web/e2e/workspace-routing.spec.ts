@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test'
+import { APP_INFO } from '@tenda/shared'
 import { signInToHome } from './fixtures/sign-in'
 
 test('root is public while private home requires authentication', async ({ page }) => {
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: /Work that pays/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: APP_INFO.description })).toBeVisible()
   await page.goto('/home')
   await expect(page).toHaveURL(/\/signin$/)
 })

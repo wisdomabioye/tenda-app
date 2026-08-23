@@ -3,18 +3,16 @@
 /**
  * Search + sort, as one GET form to the root feed.
  *
- * A form and not a router.push: with no JavaScript, Enter in the search box
- * still submits and the `<noscript>` button still applies a sort — the feed's
- * whole point is that it works for a visitor who has not signed in and may be
- * on a browser that never ran our bundle. The client half is enhancement
- * only: it submits on sort change so the select behaves like the comp's,
- * which fires onChange.
+ * The GET form keeps search functional without JavaScript. With JavaScript,
+ * sort changes use the same URL contract through the router while preserving
+ * scroll position; the noscript button remains the fallback.
  *
  * Filters the form has no input for (category, market, chain, arrangement)
  * ride along as hidden fields. Without them a search would silently clear the
  * category the user picked one control above.
  */
 import { useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Search } from 'lucide-react'
 import {
   GIG_SORTS,
@@ -38,6 +36,18 @@ function hiddenFields(filters: GigFeedFilters): Array<[string, string]> {
 
 export function FeedRailForm({ filters }: { filters: GigFeedFilters }) {
   const form = useRef<HTMLFormElement>(null)
+  const router = useRouter()
+
+  function navigateWithoutJump() {
+    const node = form.current
+    if (node === null) return
+    const params = new URLSearchParams()
+    new FormData(node).forEach((value, key) => {
+      if (typeof value === 'string' && value !== '') params.append(key, value)
+    })
+    const query = params.toString()
+    router.push(query === '' ? '/' : `/?${query}`, { scroll: false })
+  }
 
   return (
     <form ref={form} method="get" action="/" className="flex flex-col gap-7">
@@ -64,7 +74,7 @@ export function FeedRailForm({ filters }: { filters: GigFeedFilters }) {
           id="gig-sort"
           name="sort"
           defaultValue={filters.sort === 'created_at' ? '' : filters.sort}
-          onChange={() => form.current?.requestSubmit()}
+          onChange={navigateWithoutJump}
           className="w-full rounded-control border border-border-input bg-control-input-background px-3 py-2.5 text-sm text-control-input-text"
         >
           {GIG_SORTS.map((sort) => (

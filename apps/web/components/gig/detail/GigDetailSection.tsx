@@ -14,8 +14,8 @@ export function GigDetailSection({
   children: ReactNode
 }) {
   return (
-    <section className="mt-10 border-t border-border-subtle pt-8">
-      <Eyebrow as="h2" className="mb-5">
+    <section className="mt-5 rounded-card border border-border-subtle bg-surface-card p-5 shadow-sm sm:p-6">
+      <Eyebrow as="h2" className="mb-4">
         {title}
       </Eyebrow>
       {children}

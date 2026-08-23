@@ -4,13 +4,9 @@ import { FeedHero } from '@/components/gig/feed/FeedHero'
 import { FeedKeyboard } from '@/components/gig/feed/FeedKeyboard'
 import { FeedPager } from '@/components/gig/feed/FeedPager'
 import { FeedRail } from '@/components/gig/feed/FeedRail'
-import {
-  FEED_GRID_CLASS,
-  FeedEmpty,
-  FeedErrorStatic,
-  FeedPastEnd,
-} from '@/components/gig/feed/FeedStates'
+import { FEED_GRID_CLASS, FeedEmpty, FeedErrorStatic, FeedPastEnd } from '@/components/gig/feed/FeedStates'
 import { GigCard } from '@/components/gig/feed/GigCard'
+import { PublicGigFeedRealtime } from '@/components/gig/feed/PublicGigFeedRealtime'
 import { FEED_COPY } from '@/components/gig/feed/copy'
 import { listEnabledChains, listGigFacetsOnce, listGigsOnce } from '@/lib/gigs/data'
 import {
@@ -58,8 +54,8 @@ export async function generateMetadata({
 /**
  * Tier-1 public feed — server-rendered, anonymous, indexable. Every filter is
  * a URL search param, so the page needs no client JS to work and each
- * narrowed view has its own address. The one client component is the keyboard
- * walk, which renders nothing.
+ * narrowed view has its own address. A renderless invalidator refreshes this
+ * server result over the authenticated socket (or a bounded public poll).
  */
 export default async function PublicGigFeedPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const [params, chains] = await Promise.all([searchParams, listEnabledChains()])
@@ -96,50 +92,24 @@ export default async function PublicGigFeedPage({ searchParams }: { searchParams
 
           <section>
             <div className="mb-5 flex items-baseline justify-between gap-4 border-b border-border-subtle pb-4">
-              <h2 className="font-display text-[22px] font-semibold leading-7 tracking-[-0.4px] text-content-primary">
-                {heading}
-              </h2>
-              {/* `total` is the whole filtered set, not this page — the count
-                  a reader wants is "how much is there", not "how much did we
-                  send you". */}
-              <p className="font-numeric text-[13px] leading-[18px] text-content-tertiary">
-                {FEED_COPY.feed.count(page.total)}
-              </p>
+              <h2 className="font-display text-[22px] font-semibold leading-7 tracking-[-0.4px] text-content-primary">{heading}</h2>
+              <p className="font-numeric text-[13px] leading-[18px] text-content-tertiary">{FEED_COPY.feed.count(page.total)}</p>
             </div>
-
             {page.data.length === 0 ? (
-              // An empty page with matches behind it is a POSITION problem,
-              // not a filter one — a stale page-three link, or a cursor whose
-              // anchor row has since been taken. Saying "nothing matches" there
-              // would be false, and clearing the filters would throw away the
-              // search that did match. `gigsHref` with no changes rewinds both
-              // position keys and keeps every filter.
-              page.total > 0 ? (
-                <FeedPastEnd href={gigsHref(filters)} total={page.total} />
-              ) : (
-                <FeedEmpty filtered={hasActiveFilters(filters)} />
-              )
+              page.total > 0
+                ? <FeedPastEnd href={gigsHref(filters)} total={page.total} />
+                : <FeedEmpty filtered={hasActiveFilters(filters)} />
             ) : (
               <>
                 <ul className={FEED_GRID_CLASS}>
-                  {page.data.map((gig, index) => (
-                    <li key={gig.escrow_id} className="flex">
-                      <GigCard gig={gig} index={index} />
-                    </li>
-                  ))}
+                  {page.data.map((gig, index) => <li key={gig.escrow_id} className="flex"><GigCard gig={gig} index={index} /></li>)}
                 </ul>
-                <p className="mt-6 text-[13px] leading-[18px] text-content-tertiary">
-                  {FEED_COPY.feed.amountNote}
-                </p>
-                <FeedPager
-                  filters={filters}
-                  nextCursor={page.next_cursor}
-                  total={page.total}
-                  shown={page.data.length}
-                />
+                <p className="mt-6 text-[13px] leading-[18px] text-content-tertiary">{FEED_COPY.feed.amountNote}</p>
+                <FeedPager filters={filters} nextCursor={page.next_cursor} total={page.total} shown={page.data.length} />
                 <FeedKeyboard />
               </>
             )}
+            <PublicGigFeedRealtime />
           </section>
         </div>
       </div>

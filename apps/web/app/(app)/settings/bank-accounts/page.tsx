@@ -8,128 +8,12 @@
  */
 import { useEffect, useState } from 'react'
 import { Landmark, Smartphone, Trash2 } from 'lucide-react'
-import {
-  PAYOUT_COUNTRY_SPECS,
-  SUPPORTED_PAYOUT_COUNTRIES,
-  getPayoutSpec,
-  type BankAccountSummary,
-  type PayoutAccountInput,
-  type PayoutRailSpec,
-} from '@tenda/shared'
+import { type BankAccountSummary } from '@tenda/shared'
 import { api } from '@/api/client'
-import { Button } from '@/components/ui/Button'
-import { Chip } from '@/components/ui/Chip'
 import { ConfirmDialog } from '@/components/ui/overlay/ConfirmDialog'
 import { Spinner } from '@/components/ui/Spinner'
 import { showToast } from '@/components/ui/Toast'
-
-const EMPTY_INPUT: PayoutAccountInput = { bank_code: '', account_number: '', account_name: '' }
-
-function AccountForm({ onCreated }: { onCreated: (row: BankAccountSummary) => void }) {
-  const [country, setCountry] = useState<string>(SUPPORTED_PAYOUT_COUNTRIES[0])
-  const spec = getPayoutSpec(country)
-  const [railKind, setRailKind] = useState<string | null>(null)
-  const rail: PayoutRailSpec | null =
-    spec === null ? null : (spec.rails.find((r) => r.kind === railKind) ?? spec.rails[0])
-  const [input, setInput] = useState<PayoutAccountInput>(EMPTY_INPUT)
-  const [saving, setSaving] = useState(false)
-
-  async function handleAdd() {
-    if (rail === null) return
-    const invalid = rail.validate(input)
-    if (invalid !== null) {
-      showToast('error', invalid)
-      return
-    }
-    setSaving(true)
-    try {
-      const row = await api.fiat.createBankAccount({
-        country,
-        kind: rail.kind,
-        bank_code: input.bank_code,
-        account_number: input.account_number,
-        account_name: input.account_name,
-      })
-      setInput(EMPTY_INPUT)
-      onCreated(row)
-      showToast('success', 'Payout account added')
-    } catch (e) {
-      showToast('error', e instanceof Error ? e.message : 'Could not add the account')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <section className="flex flex-col gap-3 rounded-card border border-border-subtle bg-surface-card p-4">
-      <h2 className="text-sm font-semibold text-content-primary">Add an account</h2>
-
-      <div className="flex flex-wrap gap-1.5" role="group" aria-label="Country">
-        {SUPPORTED_PAYOUT_COUNTRIES.map((code) => (
-          <Chip
-            key={code}
-            label={`${PAYOUT_COUNTRY_SPECS[code].flag} ${PAYOUT_COUNTRY_SPECS[code].countryName}`}
-            selected={country === code}
-            onClick={() => {
-              setCountry(code)
-              setRailKind(null)
-              setInput(EMPTY_INPUT)
-            }}
-          />
-        ))}
-      </div>
-
-      {spec !== null && spec.rails.length > 1 && (
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Payout rail">
-          {spec.rails.map((r) => (
-            <Chip
-              key={r.kind}
-              label={r.label}
-              selected={rail?.kind === r.kind}
-              onClick={() => {
-                setRailKind(r.kind)
-                setInput(EMPTY_INPUT)
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {rail?.fields.map((field) => (
-        <label key={field.column} className="flex flex-col gap-1 text-sm">
-          <span className="font-semibold text-content-primary">{field.label}</span>
-          {field.options !== undefined ? (
-            <select
-              value={input[field.column]}
-              onChange={(e) => setInput((prev) => ({ ...prev, [field.column]: e.target.value }))}
-              className="rounded-control border border-border-default bg-surface-card p-2.5 text-content-primary outline-none focus:border-brand-primary"
-            >
-              <option value="">{field.placeholder}</option>
-              {field.options.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          ) : (
-            <input
-              value={input[field.column]}
-              onChange={(e) => setInput((prev) => ({ ...prev, [field.column]: e.target.value }))}
-              inputMode={field.keyboard === 'numeric' ? 'numeric' : 'text'}
-              maxLength={field.maxLength}
-              placeholder={field.placeholder}
-              className="rounded-control border border-border-default bg-surface-card p-2.5 text-content-primary outline-none focus:border-brand-primary"
-            />
-          )}
-        </label>
-      ))}
-
-      <Button disabled={saving} onClick={() => void handleAdd()}>
-        {saving ? 'Adding…' : 'Add account'}
-      </Button>
-    </section>
-  )
-}
+import { PayoutAccountForm } from '@/components/payout/PayoutAccountForm'
 
 export default function BankAccountsPage() {
   const [accounts, setAccounts] = useState<BankAccountSummary[] | null>(null)
@@ -203,7 +87,7 @@ export default function BankAccountsPage() {
         </ul>
       )}
 
-      <AccountForm onCreated={(row) => setAccounts((prev) => [...(prev ?? []), row])} />
+      <PayoutAccountForm onCreated={(row) => setAccounts((prev) => [...(prev ?? []), row])} />
 
       <ConfirmDialog
         open={deleting !== null}
