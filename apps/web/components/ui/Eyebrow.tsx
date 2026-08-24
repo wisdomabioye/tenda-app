@@ -1,12 +1,17 @@
 /**
- * The comps' section label: mono, uppercase, 0.13em tracking. It appears
- * above nearly every block in all six comps — a rail heading, a card's
- * "LOCKED IN ESCROW", a dossier's "AMOUNT", the feed's market line — always
- * with the same letterforms and always subordinate to what it labels.
+ * The section label. It appears above nearly every block in all six comps —
+ * a rail heading, a card's "LOCKED IN ESCROW", a dossier's "AMOUNT", the
+ * feed's market line — always with the same letterforms and always
+ * subordinate to what it labels.
+ *
+ * The comps set it mono/0.13em; since spec-correction #44 (2026-08-24) it is
+ * the body face at 0.08em — the mono-uppercase label everywhere was the
+ * largest single contributor to the retired newsprint look, and the figures
+ * keep mono to themselves.
  *
  * A primitive rather than a repeated class string because the tracking is
  * the part that drifts: it was already written seventeen ways across this
- * app, and a label set at 0.1em beside one set at 0.13em reads as a mistake
+ * app, and a label set at 0.1em beside one set at 0.08em reads as a mistake
  * without anyone being able to say which one is wrong.
  *
  * `as` exists because the same visual is sometimes a heading in the document
@@ -58,8 +63,13 @@ export function Eyebrow({
       htmlFor={htmlFor}
       id={id}
       className={cn(
-        'font-numeric uppercase leading-4 tracking-[0.13em]',
-        strong ? 'text-[11px] font-bold' : 'text-xs font-medium',
+        'uppercase tracking-[0.08em]',
+        // leading-4 AFTER the size, never in the base string: tailwind-merge
+        // treats a later font-size as conflicting with an earlier leading-*
+        // (font-size can set line-height) and silently drops it — and
+        // text-[11px] brings no line-height of its own, so the strong label
+        // would inherit ~1.5 instead of the designed 16px box.
+        strong ? 'text-[11px] font-bold leading-4' : 'text-xs font-medium leading-4',
         TONE_CLASSES[tone],
         className,
       )}

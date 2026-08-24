@@ -27,6 +27,7 @@ import {
 } from './gig-form/steps'
 import { ModerationHint } from './gig-form/ModerationHint'
 import { PriceWarningDialog } from '@/components/moderation/PriceWarningDialog'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { useGigForm } from '@/hooks/gig/useGigForm'
 import type { GigFormValues } from '@tenda/shared'
 
@@ -105,9 +106,7 @@ export function GigWizard({
       </div>
 
       <section className="min-w-0 rounded-card border border-border-subtle bg-surface-card p-5 shadow-sm sm:p-7">
-        <p className="font-numeric text-xs font-bold uppercase leading-4 tracking-[0.13em] text-content-tertiary">
-          {stepCounter(index)}
-        </p>
+        <Eyebrow className="font-bold">{stepCounter(index)}</Eyebrow>
         <h1 className="mt-3 text-balance font-display text-[30px] font-bold leading-9 tracking-[-0.6px] text-content-primary">
           {step.title}
         </h1>

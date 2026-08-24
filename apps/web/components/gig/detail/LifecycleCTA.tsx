@@ -45,8 +45,10 @@ export function LifecycleCTA({ branch, isTxBuilding, width, onAction, onTxAction
       return <Button variant="outline" size="lg" className={w} onClick={() => onTxAction('decline')}>Decline</Button>
 
     case 'cancel':
+      // Solid danger, as mobile draws it: cancelling unwinds a funded escrow,
+      // and the commit control must not dress like the neutral secondaries.
       return (
-        <Button variant="danger-outline" size="lg" className={w} onClick={() => onTxAction('cancel')}>
+        <Button variant="danger" size="lg" className={w} onClick={() => onTxAction('cancel')}>
           Cancel Gig
         </Button>
       )

@@ -77,6 +77,25 @@ test('submitted buyer pairs Add More Proof with Dispute; disputed buyer adds evi
   expect(screen.getByRole('button', { name: 'Add Evidence' })).toBeInTheDocument()
 })
 
+test('cancel and dispute carry the SOLID danger treatment on the exchange surface', () => {
+  // Mobile's ExchangeCTA maps BOTH to `danger` — unlike the gig, where the
+  // dispute entry stays a restrained outline. Contesting a fiat transfer the
+  // platform never saw is the gravest move on this page.
+  // Boundary-anchored: the hover class carries the same substring, so a
+  // plain toContain stays green with the base fill gone (mutation-proven).
+  const SOLID_DANGER = /(?:^| )bg-feedback-danger-solid(?: |$)/
+  const open = makeExchangeDetail()
+  render(<ExchangeCTA offer={open} userId="seller-1" {...noop} />)
+  expect(screen.getByRole('button', { name: 'Cancel Offer' }).className).toMatch(SOLID_DANGER)
+
+  const submitted = makeExchangeDetail({
+    status: 'submitted',
+    counterparty: makeUserRef({ id: 'buyer-1' }),
+  })
+  render(<ExchangeCTA offer={submitted} userId="seller-1" {...noop} />)
+  expect(screen.getByRole('button', { name: 'Dispute' }).className).toMatch(SOLID_DANGER)
+})
+
 test('past the approval deadline the buyer claims — claim WINS over add-proof', () => {
   const stalled = makeExchangeDetail({
     status: 'submitted',

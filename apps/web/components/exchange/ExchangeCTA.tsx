@@ -77,7 +77,9 @@ export function ExchangeCTA({
   }
   if (canCancel(parties, userId) && offer.status === 'open') {
     return (
-      <Button variant="danger-outline" fullWidth disabled={busy} onClick={() => onTxAction('cancel')}>
+      // Solid danger (mobile parity): withdrawing a live offer unwinds a
+      // funded escrow, and the commit control must read as destructive.
+      <Button variant="danger" fullWidth disabled={busy} onClick={() => onTxAction('cancel')}>
         Cancel Offer
       </Button>
     )
@@ -95,7 +97,11 @@ export function ExchangeCTA({
         <Button fullWidth disabled={busy} onClick={() => onTxAction('approve')}>
           Confirm &amp; Release
         </Button>
-        <Button variant="outline" onClick={() => onSheet('dispute')}>
+        {/* Solid danger on the exchange surface (mobile parity) — unlike the
+            gig's restrained outline: here the money is a fiat transfer the
+            platform never saw, so contesting it is the gravest move on the
+            page and dresses accordingly. */}
+        <Button variant="danger" onClick={() => onSheet('dispute')}>
           Dispute
         </Button>
       </div>
@@ -117,7 +123,7 @@ export function ExchangeCTA({
           <Button variant="outline" fullWidth onClick={() => onSheet('addProof')}>
             Add More Proof
           </Button>
-          <Button variant="outline" onClick={() => onSheet('dispute')}>
+          <Button variant="danger" onClick={() => onSheet('dispute')}>
             Dispute
           </Button>
         </div>
@@ -134,7 +140,7 @@ export function ExchangeCTA({
   }
   if (canDispute(parties, userId)) {
     return (
-      <Button variant="outline" fullWidth onClick={() => onSheet('dispute')}>
+      <Button variant="danger" fullWidth onClick={() => onSheet('dispute')}>
         Dispute
       </Button>
     )

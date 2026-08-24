@@ -11,15 +11,22 @@ export const buttonVariants = cva(
   'inline-flex items-center justify-center gap-2 rounded-control font-semibold transition-colors disabled:pointer-events-none',
   {
     variants: {
+      // Mobile's variant vocabulary (apps/mobile/components/ui/Button.tsx),
+      // spec-correction #44: primary carries the brand-tinted fab shadow,
+      // secondary is a FILLED inset step between primary and outline, danger
+      // is SOLID for destructive commits, danger-outline stays for the
+      // restrained destructive entry points (wallet intent cancel).
       variant: {
         primary:
-          'bg-brand-solid text-brand-on-primary hover:bg-brand-primary-pressed disabled:bg-control-disabled-background disabled:text-control-disabled-text',
+          'bg-brand-solid text-brand-on-primary shadow-fab hover:bg-brand-primary-pressed disabled:bg-control-disabled-background disabled:text-control-disabled-text disabled:shadow-none',
+        secondary:
+          'bg-surface-inset text-content-primary hover:bg-surface-inset/70 disabled:bg-control-disabled-background disabled:text-control-disabled-text',
         outline:
-          'border border-border-default text-content-secondary hover:border-border-strong hover:text-content-primary disabled:border-control-disabled-border disabled:text-control-disabled-text',
-        // Destructive-action outline (mobile's `danger` variant): cancel-class
-        // CTAs on the gig and exchange surfaces share this one definition.
+          'border-[1.5px] border-border-default text-content-primary hover:border-border-strong disabled:border-control-disabled-border disabled:text-control-disabled-text',
+        danger:
+          'bg-feedback-danger-solid text-brand-on-primary hover:bg-feedback-danger-solid/90 disabled:bg-control-disabled-background disabled:text-control-disabled-text',
         'danger-outline':
-          'border border-feedback-danger-base/50 text-feedback-danger-base hover:border-feedback-danger-base disabled:border-control-disabled-border disabled:text-control-disabled-text',
+          'border-[1.5px] border-feedback-danger-base/50 text-feedback-danger-base hover:border-feedback-danger-base disabled:border-control-disabled-border disabled:text-control-disabled-text',
         ghost: 'text-content-secondary hover:text-content-primary disabled:text-control-disabled-text',
       },
       size: {

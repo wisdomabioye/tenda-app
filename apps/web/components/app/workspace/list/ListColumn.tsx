@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation'
 import { LIST_KEYBOARD_HINT } from './copy'
 import { ListEmpty, ListError, ListSkeleton } from './ListStates'
 import { ListHeader } from './ListHeader'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { useListKeyboard } from '@/hooks/workspace/useListKeyboard'
 import type { ListColumnProps } from './list.types'
 
@@ -112,12 +113,9 @@ export function ListColumn<TRow>({
               return (
               <div key={group.key} className="mb-2">
                 {labelled && (
-                  <p
-                    id={groupLabelId}
-                    className="mx-3 mb-1.5 mt-3 font-numeric text-[11px] font-bold uppercase leading-4 tracking-[0.13em] text-content-tertiary"
-                  >
+                  <Eyebrow id={groupLabelId} strong className="mx-3 mb-1.5 mt-3">
                     {group.label}
-                  </p>
+                  </Eyebrow>
                 )}
                 <ul
                   aria-labelledby={labelled ? groupLabelId : undefined}

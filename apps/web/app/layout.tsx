@@ -1,21 +1,17 @@
 import type { Metadata } from 'next'
-import { JetBrains_Mono, Manrope, Space_Grotesk } from 'next/font/google'
+import { Inter, JetBrains_Mono } from 'next/font/google'
 import { APP_INFO } from '@tenda/shared'
 import { siteUrl } from '@/lib/config/site-url'
 import { THEME_INIT_SCRIPT } from '@/lib/theme'
 import { ToastHost } from '@/components/ui/Toast'
 import './globals.css'
 
-const spaceGrotesk = Space_Grotesk({
-  variable: '--font-space-grotesk',
+// Inter carries BOTH the display and body roles (spec-correction #44 — the
+// comps' Space Grotesk/Manrope pairing was replaced by user direction,
+// 2026-08-24). A variable font, so every weight the app sets is one file.
+const inter = Inter({
+  variable: '--font-inter',
   subsets: ['latin'],
-  weight: ['500', '600', '700'],
-})
-
-const manrope = Manrope({
-  variable: '--font-manrope',
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
 })
 
 const jetbrainsMono = JetBrains_Mono({
@@ -34,7 +30,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${manrope.variable} ${jetbrainsMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${jetbrainsMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

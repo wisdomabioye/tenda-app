@@ -19,6 +19,7 @@ import {
   type FiatIntentDetail,
 } from '@tenda/shared'
 import { useCountdown } from '@/hooks/timing/useCountdown'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { cn } from '@/lib/cn'
 import { INTENT_COPY, intentTone, type IntentTone } from './copy'
 
@@ -42,10 +43,12 @@ export function IntentStatusPanel({ intent }: { intent: FiatIntentDetail }) {
         TONE_CLASS[tone],
       )}
     >
-      <p className="flex items-center gap-2.5 font-numeric text-xs font-bold uppercase leading-4 tracking-[0.13em]">
+      {/* text-inherit: the panel's tone container owns the colour, so the
+          eyebrow must not reassert its default tertiary. */}
+      <Eyebrow className="flex items-center gap-2.5 font-bold text-inherit">
         <Icon size={18} aria-hidden className="shrink-0" />
         {INTENT_STATUS_COPY[intent.status]}
-      </p>
+      </Eyebrow>
 
       <h2 className="mt-3.5 font-display text-[30px] font-bold leading-9 tracking-[-0.6px]">
         {formatFiat(Number(intent.fiat_amount), intent.fiat_currency)}

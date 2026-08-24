@@ -14,6 +14,7 @@
  */
 import { BadgeCheck, KeyRound, Mail, Phone, Wallet, type LucideIcon } from 'lucide-react'
 import type { IdentityMethodWire, LinkedWallet } from '@tenda/shared'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 
 /**
  * What the row is a proof OF — carried, never inferred from the label.
@@ -86,9 +87,9 @@ export function VerifiedBlock({
 
   return (
     <section>
-      <h2 className="mb-3 font-numeric text-xs font-medium uppercase leading-4 tracking-[0.13em] text-content-tertiary">
+      <Eyebrow as="h2" className="mb-3">
         Verified
-      </h2>
+      </Eyebrow>
       <dl className="rounded-card border border-border-default bg-surface-card px-4 py-1">
         {rows.map((row) => {
           const Icon = ROW_ICON[row.icon]

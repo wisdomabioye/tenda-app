@@ -72,7 +72,7 @@ describe('TypeScaleSection', () => {
   it('labels each row with the spec a reader can grep for', () => {
     render(<TypeScaleSection />)
     expect(screen.getByText('display 44/50 -1.2')).toBeInTheDocument()
-    expect(screen.getByText('mono 12/16 .13em')).toBeInTheDocument()
+    expect(screen.getByText('label 12/16 .08em')).toBeInTheDocument()
   })
 })
 
@@ -80,7 +80,12 @@ describe('PrimitiveStates', () => {
   it('renders the SHIPPED components, so a regression shows up here', () => {
     render(<PrimitiveStates />)
     expect(screen.getByRole('button', { name: 'Primary' })).toBeInTheDocument()
+    // The full #44 vocabulary — a variant added and never shown here would be
+    // exactly the drift this page exists to make visible.
+    expect(screen.getByRole('button', { name: 'Secondary' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Outline' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Destructive' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Danger outline' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Disabled button' })).toBeDisabled()
   })
 

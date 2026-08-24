@@ -16,7 +16,7 @@
  */
 import { useState } from 'react'
 import { Badge, type BadgeVariant } from '@/components/ui/Badge'
-import { Button, Chip, Notice, Spinner, TextField, Toggle } from '@/components/ui'
+import { Button, Chip, Eyebrow, Notice, Spinner, TextField, Toggle } from '@/components/ui'
 import { FoundationsSection } from './FoundationsSection'
 
 const BADGES: readonly BadgeVariant[] = [
@@ -32,9 +32,9 @@ const BADGES: readonly BadgeVariant[] = [
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-3 border-b border-border-subtle pb-6">
-      <p className="font-numeric text-xs font-medium uppercase leading-4 tracking-[0.13em] text-content-tertiary">
-        {label}
-      </p>
+      {/* The shipped Eyebrow, not a hand-rolled copy of its classes — this
+          page demonstrates the design system, so it must drift with it. */}
+      <Eyebrow>{label}</Eyebrow>
       <div className="flex flex-wrap items-center gap-3">{children}</div>
     </div>
   )
@@ -52,8 +52,10 @@ export function PrimitiveStates() {
       <div className="flex flex-col gap-6">
         <Row label="Button">
           <Button variant="primary">Primary</Button>
-          <Button variant="outline">Secondary</Button>
-          <Button variant="danger-outline">Destructive</Button>
+          <Button variant="secondary">Secondary</Button>
+          <Button variant="outline">Outline</Button>
+          <Button variant="danger">Destructive</Button>
+          <Button variant="danger-outline">Danger outline</Button>
           <Button variant="ghost">Ghost</Button>
           <Button variant="primary" disabled>
             Disabled button

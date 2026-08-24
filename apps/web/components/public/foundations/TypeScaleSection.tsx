@@ -39,8 +39,8 @@ const TYPE_ROWS: readonly TypeRow[] = [
   { spec: 'body 15/22', className: 'text-[15px] leading-[22px]', sample: 'Default body text' },
   { spec: 'body 13/18', className: 'text-[13px] leading-[18px]', sample: 'Meta and captions' },
   {
-    spec: 'mono 12/16 .13em',
-    className: 'font-numeric text-xs font-medium uppercase leading-4 tracking-[0.13em]',
+    spec: 'label 12/16 .08em',
+    className: 'text-xs font-medium uppercase leading-4 tracking-[0.08em]',
     sample: 'Eyebrow label',
   },
   {

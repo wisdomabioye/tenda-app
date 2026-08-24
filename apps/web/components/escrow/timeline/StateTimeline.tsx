@@ -11,6 +11,7 @@
  * survives being read aloud or seen without colour.
  */
 import { formatRelativeDayWithTime, buildEscrowTimeline, STATUS_LABEL, type EscrowTimelineInput } from '@tenda/shared'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { cn } from '@/lib/cn'
 import { STATE_TIMELINE_COPY, timelineBranchCopy } from './copy'
 
@@ -37,9 +38,9 @@ export function StateTimeline({
 
   return (
     <section className="mt-9">
-      <h3 className="mb-5 font-numeric text-xs font-medium uppercase leading-4 tracking-[0.13em] text-content-tertiary">
+      <Eyebrow as="h3" className="mb-5">
         {STATE_TIMELINE_COPY.heading}
-      </h3>
+      </Eyebrow>
 
       <ol className="list-none p-0">
         {spine.map((node, index) => {
@@ -93,9 +94,9 @@ export function StateTimeline({
           role="note"
           className="ml-10 mt-1 rounded-card border border-feedback-warning-border border-l-[3px] border-l-feedback-warning-base bg-feedback-warning-surface px-4.5 py-4"
         >
-          <p className="font-numeric text-[11px] font-bold uppercase leading-4 tracking-[0.13em] text-feedback-warning-text">
+          <Eyebrow strong tone="warning">
             {STATUS_LABEL[branch]}
-          </p>
+          </Eyebrow>
           <p className="mt-1.5 max-w-[56ch] text-[13px] leading-[18px] text-feedback-warning-text">
             {timelineBranchCopy(branch)}
           </p>

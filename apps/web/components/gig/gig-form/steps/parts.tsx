@@ -1,10 +1,8 @@
+import { Eyebrow } from '@/components/ui/Eyebrow'
+
 /** Small pieces every step panel shares. */
 export function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="font-numeric text-xs font-medium uppercase leading-4 tracking-[0.13em] text-content-tertiary">
-      {children}
-    </p>
-  )
+  return <Eyebrow>{children}</Eyebrow>
 }
 
 export function CharCounter({ value, max }: { value: string; max: number }) {

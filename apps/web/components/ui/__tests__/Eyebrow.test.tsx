@@ -3,12 +3,14 @@ import { describe, expect, it } from 'vitest'
 import { Eyebrow } from '@/components/ui'
 
 describe('Eyebrow', () => {
-  it('carries the comps\' letterforms: mono, uppercase, 0.13em tracking', () => {
+  it('carries the #44 letterforms: body face, uppercase, 0.08em tracking', () => {
     render(<Eyebrow>Locked in escrow</Eyebrow>)
     const el = screen.getByText('Locked in escrow')
-    expect(el.className).toContain('font-numeric')
+    // NOT mono — spec-correction #44 keeps JetBrains Mono for figures only;
+    // a label back in `font-numeric` is the newsprint look returning.
+    expect(el.className).not.toContain('font-numeric')
     expect(el.className).toContain('uppercase')
-    expect(el.className).toContain('tracking-[0.13em]')
+    expect(el.className).toContain('tracking-[0.08em]')
   })
 
   it('is a paragraph by default — a label is not automatically a heading', () => {
@@ -49,6 +51,18 @@ describe('Eyebrow', () => {
     const el = screen.getByText('4 unread')
     expect(el.className).toContain('font-bold')
     expect(el.className).toContain('text-[11px]')
+  })
+
+  it('keeps the 16px line box on BOTH sizes after the merge', () => {
+    // tailwind-merge drops an EARLIER leading-* when a later font-size
+    // appears (font-size can set line-height), so leading-4 must ride AFTER
+    // the size class or it silently vanishes — and text-[11px] brings no
+    // line-height of its own, leaving `strong` labels to inherit ~1.5.
+    // Mutation-proven: leading-4 in the base string alone fails this.
+    render(<Eyebrow strong>4 unread</Eyebrow>)
+    expect(screen.getByText('4 unread').className).toMatch(/(?:^| )leading-4(?: |$)/)
+    render(<Eyebrow>Amount</Eyebrow>)
+    expect(screen.getByText('Amount').className).toMatch(/(?:^| )leading-4(?: |$)/)
   })
 
   it('lets a caller override the colour — category tones are dynamic', () => {

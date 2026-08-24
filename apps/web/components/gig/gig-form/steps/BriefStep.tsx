@@ -12,19 +12,19 @@
  */
 import { DESC_MAX, TITLE_MAX } from '@tenda/shared'
 import { controlClassName } from '@/components/ui/TextField'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { CharCounter, FieldNote } from './parts'
 import type { GigFormController } from '@/hooks/gig/useGigForm'
-
-const LABEL_CLASS =
-  'block font-numeric text-xs font-medium uppercase tracking-[0.13em] text-content-tertiary'
 
 export function BriefStep({ form }: { form: GigFormController }) {
   return (
     <div className="mt-7 flex max-w-[640px] flex-col gap-6">
       <div>
-        <label htmlFor="gig-title" className={LABEL_CLASS}>
+        {/* tone="input", as TextField's label: read while typing, so it earns
+            the darker of the two plausible tokens. */}
+        <Eyebrow as="label" htmlFor="gig-title" tone="input" className="block">
           Title
-        </label>
+        </Eyebrow>
         <input
           id="gig-title"
           className={`${controlClassName} mt-2.5`}
@@ -40,9 +40,9 @@ export function BriefStep({ form }: { form: GigFormController }) {
       </div>
 
       <div>
-        <label htmlFor="gig-brief" className={LABEL_CLASS}>
+        <Eyebrow as="label" htmlFor="gig-brief" tone="input" className="block">
           The brief
-        </label>
+        </Eyebrow>
         <textarea
           id="gig-brief"
           rows={7}

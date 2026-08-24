@@ -28,6 +28,28 @@ describe('Button', () => {
     expect(buttonVariants({ variant: 'primary' })).not.toBe(buttonVariants({ variant: 'outline' }))
     expect(buttonVariants({ variant: 'ghost' })).toContain('text-content-secondary')
   })
+
+  it('carries the #44 vocabulary: filled secondary, solid danger, shadowed primary', () => {
+    // Mobile's variant set (apps/mobile/components/ui/Button.tsx): secondary
+    // is a FILL, not an outline — the step between primary and outline the
+    // old four-variant set was missing.
+    // Boundary-anchored, not toContain: `hover:bg-surface-inset/70` contains
+    // the same substring, so a substring check stays green with the base fill
+    // gone — proven by mutation during the #44 review.
+    expect(buttonVariants({ variant: 'secondary' })).toMatch(/(?:^| )bg-surface-inset(?: |$)/)
+    expect(buttonVariants({ variant: 'secondary' })).not.toContain('border')
+    // Danger is SOLID (the commit treatment); danger-outline stays distinct
+    // for restrained destructive entry points.
+    expect(buttonVariants({ variant: 'danger' })).toMatch(/(?:^| )bg-feedback-danger-solid(?: |$)/)
+    expect(buttonVariants({ variant: 'danger' })).not.toBe(
+      buttonVariants({ variant: 'danger-outline' }),
+    )
+    // Primary carries the brand-tinted fab shadow — and sheds it disabled.
+    expect(buttonVariants({ variant: 'primary' })).toContain('shadow-fab')
+    expect(buttonVariants({ variant: 'primary' })).toContain('disabled:shadow-none')
+    // Outline reads at full contrast now that secondary took the quiet slot.
+    expect(buttonVariants({ variant: 'outline' })).toContain('text-content-primary')
+  })
 })
 
 describe('TextField', () => {
@@ -39,15 +61,15 @@ describe('TextField', () => {
     expect(screen.getByText('Enter a valid email address')).toBeInTheDocument()
   })
 
-  it('sets the label the way the comps do — the shared Eyebrow, not its own type', () => {
-    // 13 of the 14 labels across the six comps are mono/uppercase/0.13em, and
+  it('sets the label through the shared Eyebrow, not its own type', () => {
     // `Eyebrow` has carried `as`/`htmlFor` since it shipped without a single
-    // form using it. Class presence only; the computed treatment is asserted
-    // in e2e, where a real browser resolves the font.
+    // form using it; since #44 its letterforms are the body face at 0.08em.
+    // Class presence only; the computed treatment is asserted in e2e, where
+    // a real browser resolves the font.
     render(<TextField label="First name" value="" onChange={() => {}} />)
     const label = screen.getByText('First name')
     expect(label.className).toContain('uppercase')
-    expect(label.className).toContain('tracking-[0.13em]')
+    expect(label.className).toContain('tracking-[0.08em]')
     // Not the comps' `content-tertiary`: 5.12:1 against the page where the
     // generated label token is 7.19:1, and this one is read while typing.
     expect(label.className).toContain('text-control-input-label')

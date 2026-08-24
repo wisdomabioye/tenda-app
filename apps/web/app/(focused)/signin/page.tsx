@@ -6,6 +6,7 @@ import { AuthMethodCard } from '@/components/auth/AuthMethodCard'
 import { AuthPanel } from '@/components/auth/AuthPanel'
 import { TermsNotice } from '@/components/auth/TermsNotice'
 import { AUTH_COPY } from '@/components/auth/copy'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { readReturnParam, withReturnPath } from '@/lib/auth/return-path'
 
 export const metadata: Metadata = {
@@ -64,9 +65,7 @@ export default async function SignInPage({
           and a third gains nothing from it. */}
       <div className="my-6 flex items-center gap-3" aria-hidden>
         <span className="h-px flex-1 bg-border-default" />
-        <span className="font-numeric text-[11px] uppercase tracking-[0.13em] text-content-tertiary">
-          or
-        </span>
+        <Eyebrow as="span">or</Eyebrow>
         <span className="h-px flex-1 bg-border-default" />
       </div>
 

@@ -58,6 +58,22 @@ describe('LifecycleCTA', () => {
     }
   })
 
+  test('cancel is the SOLID danger commit; dispute stays a restrained outline', () => {
+    // Mobile's per-branch mapping (gig-cta/LifecycleCTA): cancel unwinds a
+    // funded escrow and dresses solid; opening the dispute EXPLANATION is not
+    // itself destructive, so it does not.
+    // Boundary-anchored: the hover class carries the same substring, so a
+    // plain toContain stays green with the base fill gone (mutation-proven).
+    const SOLID_DANGER = /(?:^| )bg-feedback-danger-solid(?: |$)/
+    renderBranch('cancel')
+    expect(screen.getByRole('button', { name: 'Cancel Gig' }).className).toMatch(SOLID_DANGER)
+    cleanup()
+    renderBranch('dispute')
+    const dispute = screen.getByRole('button', { name: 'Dispute' })
+    expect(dispute.className).toContain('border')
+    expect(dispute.className).not.toMatch(SOLID_DANGER)
+  })
+
   test('retryDraft raises the repost callback; tx-building disables the money buttons', () => {
     const h = renderBranch('retryDraft')
     fireEvent.click(screen.getByRole('button', { name: 'Edit & repost' }))

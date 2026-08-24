@@ -9,6 +9,7 @@
  * still ahead of them, and the sub-line says what each one is for.
  */
 import { Check } from 'lucide-react'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { cn } from '@/lib/cn'
 import { WIZARD_STEPS, wizardRailState } from './wizard-steps'
 import type { GigValidationValues } from '@tenda/shared'
@@ -24,9 +25,7 @@ export function WizardRail({
 }) {
   return (
     <nav aria-label="Post a gig" className="flex flex-col gap-0.5">
-      <p className="mb-3.5 font-numeric text-xs font-medium uppercase leading-4 tracking-[0.13em] text-content-tertiary">
-        Post a gig
-      </p>
+      <Eyebrow className="mb-3.5">Post a gig</Eyebrow>
       {WIZARD_STEPS.map((step, index) => {
         const { current, done, locked } = wizardRailState(index, currentIndex, values)
         return (

@@ -8,6 +8,7 @@
  * app uses another.
  */
 import { swatchGroups } from '@/lib/foundations/palette'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { FoundationsSection } from './FoundationsSection'
 
 export function PaletteSection() {
@@ -19,9 +20,9 @@ export function PaletteSection() {
       <div className="flex flex-col gap-8">
         {swatchGroups().map((group) => (
           <div key={group.title}>
-            <h3 className="mb-3 font-numeric text-xs font-bold uppercase leading-4 tracking-[0.13em] text-content-tertiary">
+            <Eyebrow as="h3" className="mb-3 font-bold">
               {group.title}
-            </h3>
+            </Eyebrow>
             <ul className="grid list-none grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3 p-0">
               {group.swatches.map((swatch) => (
                 <li

@@ -3,10 +3,14 @@
 
 /* Fonts arrive as next/font CSS variables from app/layout.tsx. Every figure
  * (amounts, rates, dates, hashes) is set in mono with tabular numerals — the
- * design brief's one non-inherited rule. */
+ * design brief's one non-inherited rule.
+ *
+ * Display and body both resolve to Inter (spec-correction #44, 2026-08-24):
+ * the two roles stay separate tokens on purpose, so a future display face is
+ * a one-line change here rather than component churn. */
 @theme inline {
-  --font-display: var(--font-space-grotesk);
-  --font-body: var(--font-manrope);
+  --font-display: var(--font-inter);
+  --font-body: var(--font-inter);
   --font-mono: var(--font-jetbrains-mono);
 }
 

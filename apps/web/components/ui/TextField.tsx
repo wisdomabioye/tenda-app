@@ -24,10 +24,10 @@ interface TextFieldProps extends InputHTMLAttributes<HTMLInputElement> {
 /**
  * Labelled input with an inline error slot — the form control everywhere.
  *
- * The label is an `Eyebrow`, which is the treatment 13 of the 14 labels across
- * the six comps use: mono, uppercase, 12px, 0.13em. It is also what `Eyebrow`
- * was built for — it has carried `as`/`htmlFor` since it shipped and no form
- * had used them. The one thing NOT taken from the comps is the colour: theirs
+ * The label is an `Eyebrow` — the shared label treatment (since #44 the body
+ * face, uppercase, 12px, 0.08em). It is also what `Eyebrow` was built for —
+ * it has carried `as`/`htmlFor` since it shipped and no form had used them.
+ * The one thing NOT taken from the comps is the colour: theirs
  * is `content-tertiary` (5.12:1 here), and the generated `control-input-label`
  * is 7.19:1 light and 9.80:1 dark, so the label keeps the darker token. Same
  * call as spec-correction #7 — match the comps' form, never at the cost of

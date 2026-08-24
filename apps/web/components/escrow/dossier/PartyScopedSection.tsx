@@ -14,6 +14,7 @@
 import type { ReactNode } from 'react'
 import { displayName, formatRelativeDayWithTime } from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { DOSSIER_COPY } from './copy'
 
 export interface DossierParty {
@@ -52,9 +53,9 @@ export interface PartyScopedProps {
 
 function Heading({ children }: { children: ReactNode }) {
   return (
-    <h3 className="mb-4 font-numeric text-xs font-medium uppercase leading-4 tracking-[0.13em] text-content-tertiary">
+    <Eyebrow as="h3" className="mb-4">
       {children}
-    </h3>
+    </Eyebrow>
   )
 }
 
