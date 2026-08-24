@@ -112,12 +112,15 @@ test('posting walks the full chain and survives a missing wallet as a saved draf
   await dialog.getByRole('button', { name: 'Fund Gig' }).click()
 
   // Draft + details committed server-side; signing dead-ends (no wallet
-  // runtime in this build) → the draft survives and the screen lands on it,
-  // where the party rescue serves it through the anonymous 404.
+  // runtime in this build) → the draft survives and the screen lands on the
+  // AUTHED detail (/my-gigs, since 8ad9a04): a draft has no public listing —
+  // /gig/<id> 404s anonymously — so the workspace dossier is where its
+  // Edit-&-repost / Delete-Draft CTAs live. The public-route party rescue is
+  // covered separately (gig-actions.spec.ts deep-links /gig/new-gig-1).
   await expect(page.getByText(/Wallet connect is not configured/)).toBeVisible()
-  await expect(page).toHaveURL(/\/gig\/new-gig-1/)
-  await expect(page.getByText('Draft — not published yet')).toBeVisible()
+  await expect(page).toHaveURL(/\/my-gigs\/new-gig-1/)
   await expect(page.getByRole('button', { name: 'Edit & repost' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Delete Draft' })).toBeVisible()
 })
 
 test('cancelling the confirm gate leaves the wizard untouched', async ({ page }) => {
