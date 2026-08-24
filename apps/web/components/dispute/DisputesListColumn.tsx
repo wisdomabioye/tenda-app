@@ -11,6 +11,13 @@
  * bucket held in component state would reset to Open every time the reader
  * opened a RESOLVED dispute — the row they just clicked would vanish from the
  * list beside it. Row hrefs carry the bucket for the same reason.
+ *
+ * BOTH buckets load, not just the visible one (My Gigs' rule): an inactive
+ * tab's count has to be a real server total, never a zero for a list nobody
+ * fetched. Both ride the account-scoped `disputesPageCache`, so the remount
+ * every opened row causes paints page zero instantly and revalidates
+ * SILENTLY — no skeleton, no count flicker. (The revalidation request itself
+ * still fires per mount; the cache saves the blink, not the round trip.)
  */
 import { useMemo } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
@@ -26,7 +33,9 @@ export function DisputesListColumn() {
   const search = useSearchParams()
   const params = useParams<{ escrowId?: string }>()
   const status: MyDisputeStatus = disputeBucket(search.get('status'))
-  const list = useMyDisputes(status)
+  const open = useMyDisputes('open')
+  const resolved = useMyDisputes('resolved')
+  const list = status === 'open' ? open : resolved
   const { openPalette } = useCommandPalette()
 
   const groups = useMemo(
@@ -53,6 +62,7 @@ export function DisputesListColumn() {
       tabs={DISPUTES_LIST_COPY.tabs.map((tab) => ({
         href: disputesHref(tab.key),
         label: tab.label,
+        count: countFor(tab.key, open, resolved),
         current: tab.key === status,
       }))}
       onOpenPalette={openPalette}
@@ -83,4 +93,15 @@ export function DisputesListColumn() {
       )}
     />
   )
+}
+
+/** A tab's chip count, or undefined until its OWN bucket has answered —
+ *  "0 resolved" for a list nobody fetched is a claim (My Gigs' rule). */
+function countFor(
+  key: MyDisputeStatus,
+  open: { total: number; hasFetched: boolean },
+  resolved: { total: number; hasFetched: boolean },
+): number | undefined {
+  const list = key === 'open' ? open : resolved
+  return list.hasFetched ? list.total : undefined
 }

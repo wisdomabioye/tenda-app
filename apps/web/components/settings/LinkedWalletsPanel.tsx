@@ -9,13 +9,27 @@
  * No picker on web: AppKit's modal IS the multi-wallet picker.
  */
 import { useEffect, useState } from 'react'
-import { ApiClientError, ErrorCode, WalletError, truncateWallet, type LinkedWallet } from '@tenda/shared'
+import Link from 'next/link'
+import {
+  ApiClientError,
+  ErrorCode,
+  SUPPORT_TOPICS,
+  SUPPORT_WALLET_INTRO,
+  WalletError,
+  truncateWallet,
+  type LinkedWallet,
+} from '@tenda/shared'
 import { api } from '@/api/client'
 import { useAuthStore } from '@/stores/auth.store'
 import { reownAdapter } from '@/wallet/adapters/reown'
 import { WEB_NO_WALLET_COPY } from '@/wallet/connect-copy'
 import { Button, ConfirmDialog, Notice } from '@/components/ui'
+import { InfoCard } from '@/components/public/support'
 import { LinkedWalletRow } from './LinkedWalletRow'
+
+/** The public guide this panel points at — resolved from the shared topic
+ *  list, so the title and the slug cannot drift from the support nav's. */
+const WALLET_GUIDE = SUPPORT_TOPICS.find((topic) => topic.slug === 'wallet')
 
 type Feedback = { tone: 'success' | 'error'; message: string } | null
 
@@ -107,6 +121,22 @@ export function LinkedWalletsPanel() {
           Any linked wallet can sign you in. The primary wallet receives payments by default.
         </p>
       </header>
+
+      {/* WHY a wallet is needed at all — the shared support intro verbatim
+          (never restated locally: two wordings of what a wallet is for is
+          exactly the drift the shared copy exists to prevent), with the way
+          to the full setup guide. Asked for by the 2026-08-24 redesign: the
+          rail now sends people here who have never held a wallet. */}
+      <InfoCard label={SUPPORT_WALLET_INTRO.label} body={SUPPORT_WALLET_INTRO.body}>
+        {WALLET_GUIDE !== undefined && (
+          <Link
+            href={`/support/${WALLET_GUIDE.slug}`}
+            className="text-sm font-semibold text-brand-primary underline-offset-2 hover:underline"
+          >
+            {WALLET_GUIDE.title} guide
+          </Link>
+        )}
+      </InfoCard>
 
       <Notice tone={feedback?.tone ?? 'success'} message={feedback?.message ?? null} />
 

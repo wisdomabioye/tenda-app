@@ -46,8 +46,16 @@ const rowOf = (over: Partial<MyDisputeRow> = {}): MyDisputeRow => ({
   ...over,
 })
 
-const listState = (over: Partial<ReturnType<typeof useMyDisputes>> = {}) => {
-  const state = {
+/**
+ * The column mounts BOTH buckets (the counts need real totals), so the mock
+ * answers per status. One `over` styles both buckets — the shape most tests
+ * want — and `resolvedOver` splits them for the count assertions.
+ */
+const listState = (
+  over: Partial<ReturnType<typeof useMyDisputes>> = {},
+  resolvedOver?: Partial<ReturnType<typeof useMyDisputes>>,
+) => {
+  const base = {
     items: [rowOf()],
     total: 1,
     hasMore: false,
@@ -61,10 +69,13 @@ const listState = (over: Partial<ReturnType<typeof useMyDisputes>> = {}) => {
     reload: vi.fn(),
     reconcile: vi.fn(),
     applyRealtimeItems: vi.fn(),
-    ...over,
   }
-  vi.mocked(useMyDisputes).mockReturnValue(state as ReturnType<typeof useMyDisputes>)
-  return state
+  const openState = { ...base, ...over }
+  const resolvedState = resolvedOver === undefined ? openState : { ...base, ...resolvedOver }
+  vi.mocked(useMyDisputes).mockImplementation(
+    (status) => (status === 'open' ? openState : resolvedState) as ReturnType<typeof useMyDisputes>,
+  )
+  return openState
 }
 
 afterEach(() => {
@@ -101,8 +112,25 @@ describe('DisputesListColumn', () => {
     listState()
     render(<DisputesListColumn />)
     expect(useMyDisputes).toHaveBeenCalledWith('resolved')
-    expect(screen.getByRole('link', { name: 'Resolved' })).toHaveAttribute('aria-current', 'page')
-    expect(screen.getByRole('link', { name: 'Open' })).not.toHaveAttribute('aria-current')
+    expect(screen.getByRole('link', { name: /^Resolved/ })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: /^Open/ })).not.toHaveAttribute('aria-current')
+  })
+
+  it('counts EVERY tab from its OWN bucket, not the visible one twice', () => {
+    // An inactive tab showing 0 — or the active bucket's number — for a list
+    // nobody fetched is a lie about how much is waiting there.
+    listState({ total: 3 }, { total: 5, items: [] })
+    render(<DisputesListColumn />)
+    expect(screen.getByRole('link', { name: /^Open/ })).toHaveTextContent('3')
+    expect(screen.getByRole('link', { name: /^Resolved/ })).toHaveTextContent('5')
+  })
+
+  it('holds a tab count back until ITS bucket has answered', () => {
+    listState({ total: 3 }, { total: 0, hasFetched: false, items: [] })
+    render(<DisputesListColumn />)
+    expect(screen.getByRole('link', { name: /^Open/ })).toHaveTextContent('3')
+    // No digits at all — "0" before the fetch lands is a claim.
+    expect(screen.getByRole('link', { name: /^Resolved/ }).textContent).toBe('Resolved')
   })
 
   it('carries the bucket into every row href', () => {

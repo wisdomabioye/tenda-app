@@ -11,14 +11,18 @@ import { DISPUTES_LIST_COPY } from '../components/dispute/copy'
  * in the component would drop a reader back to Open the moment they opened a
  * resolved dispute.
  */
-// The tab is matched EXACTLY: a row's accessible name ends with its status
-// badge ("… , Resolved"), so a loose match finds the row as well as the tab.
+// The tab is matched against its WHOLE name: a row's accessible name ends
+// with its status badge ("… , Resolved"), so a loose substring match finds
+// the row as well as the tab. The tab carries its server total once the
+// bucket answers, and Chrome's accessible-name computation concatenates the
+// label and count spans WITHOUT a space ("Resolved2") — measured — so the
+// anchored pattern allows the digits with or without one.
 test('the bucket survives opening a dispute from it', async ({ page }) => {
   await signInToHome(page)
   await page.goto('/disputes')
   await expect(page.getByRole('link', { name: new RegExp(OPEN_DISPUTE.subject_title ?? '') })).toBeVisible()
 
-  await page.getByRole('link', { name: 'Resolved', exact: true }).click()
+  await page.getByRole('link', { name: /^Resolved ?\d*$/ }).click()
   await expect(page).toHaveURL(/status=resolved/)
   const resolved = page.getByRole('link', { name: new RegExp(RESOLVED_DISPUTE.subject_title ?? '') })
   await expect(resolved).toBeVisible()
@@ -52,7 +56,7 @@ test('the bucket survives opening a dispute from it', async ({ page }) => {
   // The list is still beside it AND still on Resolved — the row just opened is
   // still in the list, and marked.
   await expect(page.locator('[data-list]')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Resolved', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('link', { name: /^Resolved ?\d*$/ })).toHaveAttribute('aria-current', 'page')
   await expect(
     page.getByRole('link', { name: new RegExp(RESOLVED_DISPUTE.subject_title ?? '') }),
   ).toHaveAttribute('aria-current', 'true')
@@ -62,13 +66,13 @@ test('a dispute opened COLD still has its list, in the right bucket', async ({ p
   await signInToHome(page)
   await page.goto('/dispute/gig-photo-9?status=resolved')
   await expect(page.locator('[data-list]')).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Resolved', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('link', { name: /^Resolved ?\d*$/ })).toHaveAttribute('aria-current', 'page')
 })
 
 test('an unknown bucket is the default view, not an error', async ({ page }) => {
   await signInToHome(page)
   await page.goto('/disputes?status=archived')
-  await expect(page.getByRole('link', { name: 'Open', exact: true })).toHaveAttribute('aria-current', 'page')
+  await expect(page.getByRole('link', { name: /^Open ?\d*$/ })).toHaveAttribute('aria-current', 'page')
   await expect(
     page.getByRole('link', { name: new RegExp(OPEN_DISPUTE.subject_title ?? '') }),
   ).toBeVisible()

@@ -42,6 +42,27 @@ beforeEach(() => {
   store.walletsStatus = 'ready'
 })
 
+describe('why-link explainer', () => {
+  it('states WHY a wallet is needed, verbatim from the shared support intro', async () => {
+    // Asserted against the imported constants, not copied strings: a local
+    // restatement drifting from the support guide is the failure mode.
+    const { SUPPORT_WALLET_INTRO } = await import('@tenda/shared')
+    render(<LinkedWalletsPanel />)
+    expect(screen.getByText(SUPPORT_WALLET_INTRO.label)).toBeInTheDocument()
+    expect(screen.getByText(SUPPORT_WALLET_INTRO.body)).toBeInTheDocument()
+  })
+
+  it('links to the shared wallet guide by its own title and slug', async () => {
+    const { SUPPORT_TOPICS } = await import('@tenda/shared')
+    const topic = SUPPORT_TOPICS.find((t) => t.slug === 'wallet')
+    expect(topic).toBeDefined()
+    render(<LinkedWalletsPanel />)
+    expect(
+      screen.getByRole('link', { name: `${topic?.title} guide` }),
+    ).toHaveAttribute('href', '/support/wallet')
+  })
+})
+
 describe('list', () => {
   it('renders each wallet with truncated address, namespace and primary badge', () => {
     render(<LinkedWalletsPanel />)
