@@ -9,6 +9,8 @@
  */
 import { Landmark, Smartphone } from 'lucide-react'
 import type { EscrowStatus, ExchangeDetail, ExchangePayoutAccount } from '@tenda/shared'
+import { CopyButton } from '@/components/ui/CopyButton'
+import { Eyebrow } from '@/components/ui/Eyebrow'
 import { DeadlineCountdown } from '@/components/shared/DeadlineCountdown'
 
 const PAYMENT_CONTEXT_STATUSES: EscrowStatus[] = ['accepted', 'submitted']
@@ -44,9 +46,21 @@ function AccountRows({ account }: { account: ExchangePayoutAccount }) {
     <div className="flex items-center gap-3">
       <Icon size={16} className="shrink-0 text-content-secondary" />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-content-primary">{account.account_name}</p>
-        <p className="font-numeric text-xs text-content-secondary">
-          {account.bank_code} · {account.account_number}
+        {/* Copy affordances (2026-08-24, #48): each button carries the RAW
+            value — a retyped account number is a mistyped one, and this
+            transfer happens off-platform where nothing can catch it. */}
+        <p className="flex items-center gap-1 text-sm font-semibold text-content-primary">
+          <span className="min-w-0 truncate">{account.account_name}</span>
+          <CopyButton value={account.account_name} label="Account name" />
+        </p>
+        <p className="flex items-center gap-1 font-numeric text-xs text-content-secondary">
+          <span className="min-w-0 truncate">
+            {account.bank_code} · {account.account_number}
+          </span>
+          <CopyButton
+            value={account.account_number}
+            label={isMomo ? 'Phone number' : 'Account number'}
+          />
         </p>
       </div>
     </div>
@@ -81,7 +95,12 @@ export function PaymentInstructionsCard({
       </div>
       <p className="font-numeric text-lg font-bold text-content-primary">{fiatDisplay}</p>
       <AccountRows account={account} />
-      <p className="font-numeric text-xs text-content-tertiary">Reference: {reference}</p>
+      <p className="flex items-center gap-1 font-numeric text-xs text-content-tertiary">
+        <span>Reference: {reference}</span>
+        {/* The reference is what lets the seller RECONCILE the transfer —
+            worth copying exactly, not retyping into a bank's memo field. */}
+        <CopyButton value={reference} label="Reference" />
+      </p>
       {deadline !== null && (
         <DeadlineCountdown
           deadline={deadline}
@@ -96,9 +115,8 @@ export function PaymentInstructionsCard({
 export function SellerPayoutCard({ account }: { account: ExchangePayoutAccount }) {
   return (
     <section className="flex flex-col gap-2 rounded-card border border-border-subtle bg-surface-card p-4">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-content-tertiary">
-        Buyer pays into
-      </h3>
+      {/* The shared Eyebrow, not a hand-rolled copy of its letterforms (#44). */}
+      <Eyebrow as="h3">Buyer pays into</Eyebrow>
       <AccountRows account={account} />
     </section>
   )

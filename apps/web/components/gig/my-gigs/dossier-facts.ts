@@ -1,12 +1,10 @@
 import {
-  PROOF_TYPE_LABEL,
   chainLabel,
   formatDeadline,
   truncateWallet,
   type GigDetail,
-  type ProofType,
 } from '@tenda/shared'
-import type { DossierFact, DossierProof } from '@/components/escrow/dossier'
+import type { DossierFact } from '@/components/escrow/dossier'
 import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 
 /**
@@ -39,40 +37,6 @@ export function dossierFactsFor(gig: GigDetail): readonly DossierFact[] {
   return facts
 }
 
-/**
- * Only what this mapper reads. `EscrowProof` is `InferSelectModel` of the
- * Drizzle row, so it carries every column and types `uploaded_at` as a **Date**
- * — which it is in the database and is NOT over the wire, where JSON has
- * already made it a string. Taking the narrow shape keeps that mismatch in one
- * place and lets a caller (or a test) hand over a proof without inventing
- * columns nobody renders.
- */
-export interface DossierProofInput {
-  id: string
-  type: ProofType
-  uploaded_at: Date | string | null
-  url: string
-}
-
-/**
- * The wire's proofs in the shape the dossier reads.
- *
- * The dossier asks for a LABEL, not a proof type, because it renders the same
- * list for a gig and an exchange and neither vocabulary belongs to it. The
- * label is the shared one, so a proof reads the same here as on the public
- * detail and in the upload dialog.
- */
-export function dossierProofsFor(
-  proofs: readonly DossierProofInput[] | null | undefined,
-): readonly DossierProof[] | null {
-  if (proofs === null || proofs === undefined) return null
-  return proofs.map((proof) => ({
-    id: proof.id,
-    label: PROOF_TYPE_LABEL[proof.type],
-    href: proof.url,
-    // Both forms, because the declared type and the runtime value disagree.
-    uploadedAt: proof.uploaded_at instanceof Date
-      ? proof.uploaded_at.toISOString()
-      : proof.uploaded_at,
-  }))
-}
+// `dossierProofsFor` moved to `components/escrow/dossier/DossierProofList.tsx`
+// in the #48 review: it is kind-agnostic (the exchange detail feeds it too),
+// so it lives beside its renderer rather than under gig/my-gigs.

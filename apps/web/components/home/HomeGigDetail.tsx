@@ -5,14 +5,8 @@ import type { GigDetail } from '@tenda/shared'
 import { RotateCw } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
-import { GigBrief } from '@/components/gig/detail/GigBrief'
-import { GigDetailHeader } from '@/components/gig/detail/GigDetailHeader'
-import { GigDetailSection } from '@/components/gig/detail/GigDetailSection'
 import { GigEscrowAside } from '@/components/gig/detail/GigEscrowAside'
-import { GigPosterCard } from '@/components/gig/detail/GigPosterCard'
-import { GigProofList } from '@/components/gig/detail/GigProofList'
-import { GigTerms } from '@/components/gig/detail/GigTerms'
-import { GigReviews } from '@/components/gig/detail/GigReviews'
+import { GigListingArticle } from '@/components/gig/detail/GigListingArticle'
 import { GigDetailAuthed } from '@/components/gig/detail/GigDetailApp'
 import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { AlertPanel, ALERT_ACTION_CLASS } from '@/components/ui/AlertPanel'
@@ -46,14 +40,9 @@ function HomeGigBody({ gig, userId }: { gig: GigDetail; userId: string | null })
   return (
     <div className="mx-auto w-full max-w-[1100px] px-5 pb-16 pt-8 lg:px-8">
       <div className="grid grid-cols-1 items-start gap-8 xl:grid-cols-[minmax(0,1fr)_320px]">
-        <article>
-          <GigDetailHeader gig={gig} />
-          <GigDetailSection title={GIG_DETAIL_COPY.brief}><GigBrief description={gig.description} /></GigDetailSection>
-          <GigDetailSection title={GIG_DETAIL_COPY.terms}><GigTerms gig={gig} /></GigDetailSection>
-          <GigDetailSection title={GIG_DETAIL_COPY.proof}><GigProofList requirements={gig.proof_requirements} /></GigDetailSection>
-          <GigDetailSection title={GIG_DETAIL_COPY.postedBy}><GigPosterCard creator={gig.creator} /></GigDetailSection>
-          <GigReviews gig={gig} revealParties />
-        </article>
+        {/* The SAME listing composition as /gig/[id] (#48) — this pane was a
+            hand-kept copy of it, which is exactly how the two drifted. */}
+        <GigListingArticle gig={gig} revealParties />
         <div className="flex flex-col gap-4">
           <GigEscrowAside
             gig={gig}

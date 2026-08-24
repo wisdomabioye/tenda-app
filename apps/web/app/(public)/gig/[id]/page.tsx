@@ -1,16 +1,9 @@
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { APP_INFO, formatAssetAmount, gigPlaceLabel } from '@tenda/shared'
-import { GigBrief } from '@/components/gig/detail/GigBrief'
-import { GigDetailHeader } from '@/components/gig/detail/GigDetailHeader'
-import { GigDetailSection } from '@/components/gig/detail/GigDetailSection'
 import { GigEscrowAside } from '@/components/gig/detail/GigEscrowAside'
-import { GigPosterCard } from '@/components/gig/detail/GigPosterCard'
-import { GigProofList } from '@/components/gig/detail/GigProofList'
-import { GigTerms } from '@/components/gig/detail/GigTerms'
-import { GigReviews } from '@/components/gig/detail/GigReviews'
+import { GigListingArticle } from '@/components/gig/detail/GigListingArticle'
 import { GigUnavailable } from '@/components/gig/detail/GigUnavailable'
-import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { getGig } from '@/lib/gigs/data'
 
 type Params = { params: Promise<{ id: string }> }
@@ -79,26 +72,7 @@ export default async function GigDetailPage({ params }: Params) {
               that every poster-written block inside it can break (GigTerms,
               GigDetailHeader, GigBrief). The constraint that IS load-bearing
               lives on the feed card — see GigCard. */}
-          <article>
-            <GigDetailHeader gig={gig} />
-
-            <GigDetailSection title={GIG_DETAIL_COPY.brief}>
-              <GigBrief description={gig.description} />
-            </GigDetailSection>
-
-            <GigDetailSection title={GIG_DETAIL_COPY.terms}>
-              <GigTerms gig={gig} />
-            </GigDetailSection>
-
-            <GigDetailSection title={GIG_DETAIL_COPY.proof}>
-              <GigProofList requirements={gig.proof_requirements} />
-            </GigDetailSection>
-
-            <GigDetailSection title={GIG_DETAIL_COPY.postedBy}>
-              <GigPosterCard creator={gig.creator} />
-            </GigDetailSection>
-            <GigReviews gig={gig} />
-          </article>
+          <GigListingArticle gig={gig} />
 
           <GigEscrowAside gig={gig} />
         </div>

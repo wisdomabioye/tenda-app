@@ -36,7 +36,8 @@ import { ALERT_ACTION_CLASS, AlertPanel } from '@/components/ui/AlertPanel'
 import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { MY_GIGS_COPY } from '@/components/gig/my-gigs/copy'
 import { TakedownNotice } from '@/components/gig/detail/TakedownNotice'
-import { dossierFactsFor, dossierProofsFor } from '@/components/gig/my-gigs/dossier-facts'
+import { dossierProofsFor } from '@/components/escrow/dossier'
+import { dossierFactsFor } from '@/components/gig/my-gigs/dossier-facts'
 import { GigReviews } from '@/components/gig/detail/GigReviews'
 
 export default function MyGigDetailPage() {

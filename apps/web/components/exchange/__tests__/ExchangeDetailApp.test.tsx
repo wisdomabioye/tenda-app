@@ -7,7 +7,7 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
-import type { ExchangePayoutAccount } from '@tenda/shared'
+import { PROOF_TYPE_LABEL } from '@tenda/shared'
 
 const { actionsState, capturedActionsArgs, capturedDialogArgs, capturedCheckApplied, toastMock, routerPush, liveRefreshMock } = vi.hoisted(() => ({
   actionsState: {
@@ -90,15 +90,9 @@ vi.mock('@/api/client', () => ({
 import { api } from '@/api/client'
 import { ExchangeDetailApp } from '@/components/exchange/ExchangeDetailApp'
 import { OFFER_ASIDE_COPY, OFFER_DETAIL_COPY } from '@/components/exchange/detail'
-import { makeExchangeDetail, makeUserRef } from '../../../test/factories/exchange'
+import { makeExchangeDetail, makePayoutAccount, makeUserRef } from '../../../test/factories/exchange'
 
-const ACCOUNT: ExchangePayoutAccount = {
-  kind: 'bank',
-  bank_code: '058',
-  account_number: '0123456789',
-  account_name: 'Ada Okafor',
-  country: 'NG',
-}
+const ACCOUNT = makePayoutAccount()
 
 const refresh = vi.fn(async () => {})
 
@@ -161,18 +155,28 @@ test('a takedown refusal (onStale) re-reads so dead buttons disappear', () => {
   expect(refresh).toHaveBeenCalled()
 })
 
-test('payout surfaces: the accepted BUYER sees instructions, the SELLER sees the bound account — never both', () => {
-  const accepted = makeExchangeDetail({
+const ACCEPTED_TRADE = () =>
+  makeExchangeDetail({
     status: 'accepted',
     payout_account: ACCOUNT,
     counterparty: makeUserRef({ id: 'buyer-1', first_name: 'Bola', last_name: 'Ade' }),
   })
-  const asBuyer = render(<ExchangeDetailApp offer={accepted} userId="buyer-1" refresh={refresh} />)
-  expect(screen.getByText('Pay the seller')).toBeInTheDocument()
-  expect(screen.queryByText('Buyer pays into')).toBeNull()
-  asBuyer.unmount()
 
-  render(<ExchangeDetailApp offer={accepted} userId="seller-1" refresh={refresh} />)
+test('the accepted BUYER sees instructions in ACTING order — terms, payment, then people (#48)', () => {
+  // Never the seller's card. And the order is the acting order: the old one
+  // put two people cards between the buyer and the account they were
+  // mid-transfer to. FOLLOWING = the argument comes AFTER the receiver.
+  render(<ExchangeDetailApp offer={ACCEPTED_TRADE()} userId="buyer-1" refresh={refresh} />)
+  const follows = (a: Element, b: Element) =>
+    a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING
+  const payment = screen.getByText('Pay the seller')
+  expect(screen.queryByText('Buyer pays into')).toBeNull()
+  expect(follows(screen.getByRole('heading', { name: OFFER_DETAIL_COPY.terms }), payment)).toBeTruthy()
+  expect(follows(payment, screen.getByRole('heading', { name: OFFER_DETAIL_COPY.trader }))).toBeTruthy()
+})
+
+test('the SELLER sees the bound account — never the buyer instructions', () => {
+  render(<ExchangeDetailApp offer={ACCEPTED_TRADE()} userId="seller-1" refresh={refresh} />)
   expect(screen.getByText('Buyer pays into')).toBeInTheDocument()
   expect(screen.queryByText('Pay the seller')).toBeNull()
 })
@@ -226,8 +230,10 @@ test('the party half is rendered from what the SERVER sent, never synthesised', 
     />,
   )
   expect(screen.getByText(OFFER_DETAIL_COPY.proofs)).toBeInTheDocument()
-  // The proof is OPENABLE: a list that only says one exists settles nothing.
-  expect(screen.getByRole('link', { name: 'image proof' })).toHaveAttribute(
+  // The proof is OPENABLE, and named by the SHARED label through the same
+  // DossierProofList the gig surfaces render (#48) — the raw "image proof"
+  // enum text is gone here too.
+  expect(screen.getByRole('link', { name: PROOF_TYPE_LABEL.image })).toHaveAttribute(
     'href',
     'https://cdn.test/receipt.png',
   )

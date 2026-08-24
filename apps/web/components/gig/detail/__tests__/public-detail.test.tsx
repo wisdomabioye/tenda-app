@@ -9,6 +9,7 @@ import { CATEGORY_LABELS, PROOF_TYPE_LABEL, chainLabel, type GigDetail } from '@
 import { GigBrief, briefParagraphs } from '@/components/gig/detail/GigBrief'
 import { GigDetailHeader } from '@/components/gig/detail/GigDetailHeader'
 import { GigDetailSection } from '@/components/gig/detail/GigDetailSection'
+import { GigListingArticle } from '@/components/gig/detail/GigListingArticle'
 import { GigPosterCard } from '@/components/gig/detail/GigPosterCard'
 import { GigProofList } from '@/components/gig/detail/GigProofList'
 import { GigSettlementSteps } from '@/components/gig/detail/GigSettlementSteps'
@@ -283,4 +284,17 @@ describe('GigUnavailable', () => {
     render(<GigUnavailable href="/gig/gig-1" />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
+})
+
+it('GigListingArticle — the ONE composition (#48) keeps the agreement BEFORE the person', () => {
+  // /gig/[id] and /home each hand-composed this article until #48; the order
+  // is encoded once and pinned here. FOLLOWING = the arg AFTER the receiver.
+  render(<GigListingArticle gig={gig} />)
+  const heading = (name: string) => screen.getByRole('heading', { name })
+  expect(heading(GIG_DETAIL_COPY.brief)).toBeInTheDocument()
+  expect(heading(GIG_DETAIL_COPY.proof)).toBeInTheDocument()
+  expect(
+    heading(GIG_DETAIL_COPY.terms).compareDocumentPosition(heading(GIG_DETAIL_COPY.postedBy)) &
+      Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy()
 })

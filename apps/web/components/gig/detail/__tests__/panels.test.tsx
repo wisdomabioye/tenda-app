@@ -6,11 +6,12 @@
  */
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
-import { takedownCopy } from '@tenda/shared'
+import { PROOF_TYPE_LABEL, STATUS_LABEL, takedownCopy } from '@tenda/shared'
 import { TakedownNotice } from '@/components/gig/detail/TakedownNotice'
 import { PartyPanel } from '@/components/gig/detail/PartyPanel'
 import { ApplicantList } from '@/components/gig/gig-applications'
 import { FilePicker, proofTypeForFile } from '@/components/form/FilePicker'
+import { escrowChatHref } from '@/lib/chat-href'
 import { CREATOR_ID, STRANGER_ID, WORKER_ID, applicant, gigDetail, userRef } from './fixtures'
 
 test('TakedownNotice renders nothing for a visible escrow', () => {
@@ -82,8 +83,43 @@ test('PartyPanel renders only for parties, with proofs and the dispute reason', 
   cleanup()
 
   render(<PartyPanel gig={gig} userId={CREATOR_ID} />)
-  expect(screen.getByRole('link', { name: /image proof/ })).toHaveAttribute('href', 'https://cdn/proof.jpg')
+  // The DOSSIER's label (#48) — the raw "image proof" enum text is gone, so
+  // one escrow's evidence reads the same here as in the workspace.
+  expect(screen.getByRole('link', { name: PROOF_TYPE_LABEL.image })).toHaveAttribute(
+    'href',
+    'https://cdn/proof.jpg',
+  )
   expect(screen.getByText('Package never arrived')).toBeInTheDocument()
+})
+
+test('PartyPanel draws the OTHER party as a PersonCard with the contextual message link', () => {
+  const gig = gigDetail({ status: 'accepted', counterparty: userRef(WORKER_ID) })
+  // The creator sees the worker…
+  render(<PartyPanel gig={gig} userId={CREATOR_ID} />)
+  expect(screen.getByText('Worker')).toBeInTheDocument()
+  // …and the message link carries THIS escrow's chat context, built by the
+  // one shared href builder — never a hand-rolled query string.
+  expect(screen.getByRole('link', { name: /^Message / })).toHaveAttribute(
+    'href',
+    escrowChatHref(WORKER_ID, { id: gig.escrow_id, title: gig.title, kind: 'gig' }),
+  )
+  cleanup()
+  // The worker sees the poster, addressed the other way round.
+  render(<PartyPanel gig={gig} userId={WORKER_ID} />)
+  expect(screen.getByText('Posted by')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /^Message / })).toHaveAttribute(
+    'href',
+    escrowChatHref(CREATOR_ID, { id: gig.escrow_id, title: gig.title, kind: 'gig' }),
+  )
+})
+
+test('PartyPanel names the status with the shared label, never the raw enum', () => {
+  render(<PartyPanel gig={gigDetail({ status: 'disputed' })} userId={CREATOR_ID} />)
+  // The SHARED vocabulary, imported — the panel used to print the raw wire
+  // value, and TextMatch is case-sensitive, so the lowercase enum is provably
+  // absent while the label is present.
+  expect(screen.getByText(STATUS_LABEL.disputed)).toBeInTheDocument()
+  expect(screen.queryByText('disputed')).toBeNull()
 })
 
 test('ApplicantList: rows offer Assign only while the gig AND the application allow it', () => {

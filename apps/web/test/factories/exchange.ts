@@ -1,4 +1,4 @@
-import type { ExchangeDetail, UserRef } from '@tenda/shared'
+import type { ExchangeDetail, ExchangePayoutAccount, UserRef } from '@tenda/shared'
 
 /**
  * Fully-typed ExchangeDetail for tests and the e2e stub — typed against
@@ -48,6 +48,19 @@ export function makeExchangeDetail(
     dispute: null,
     reviews: [],
     payout_account: null,
+    ...overrides,
+  }
+}
+
+export function makePayoutAccount(
+  overrides: Partial<ExchangePayoutAccount> = {},
+): ExchangePayoutAccount {
+  return {
+    kind: 'bank',
+    bank_code: '058',
+    account_number: '0123456789',
+    account_name: 'Ada Okafor',
+    country: 'NG',
     ...overrides,
   }
 }

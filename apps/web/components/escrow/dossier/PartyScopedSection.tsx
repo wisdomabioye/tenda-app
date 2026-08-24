@@ -15,6 +15,7 @@ import type { ReactNode } from 'react'
 import { displayName, formatRelativeDayWithTime } from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
 import { Eyebrow } from '@/components/ui/Eyebrow'
+import { DossierProofList } from './DossierProofList'
 import { DOSSIER_COPY } from './copy'
 
 export interface DossierParty {
@@ -103,40 +104,9 @@ export function PartyScopedSection({
       {hasProofs && (
         <div className="mb-7">
           <Heading>{DOSSIER_COPY.proofs}</Heading>
-          {proofs.length === 0 ? (
-            <p className="text-[13px] leading-[18px] text-content-tertiary">
-              {DOSSIER_COPY.noProofs}
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-2">
-              {proofs.map((proof) => (
-                <li
-                  key={proof.id}
-                  className="rounded-control border border-border-subtle bg-surface-card px-4 py-2.5 text-[13px] text-content-primary"
-                >
-                  {proof.href == null || proof.href === '' ? (
-                    proof.label
-                  ) : (
-                    // New tab: the file is hosted media, and losing the
-                    // escrow you are mid-decision on to open it is worse.
-                    <a
-                      href={proof.href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-brand-primary underline-offset-2 hover:underline"
-                    >
-                      {proof.label}
-                    </a>
-                  )}
-                  {proof.uploadedAt != null && (
-                    <span className="ml-2 font-numeric text-[11px] text-content-tertiary">
-                      {formatStamp(proof.uploadedAt)}
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
+          {/* Extracted rows (#48): the gig detail's party panel renders the
+              same list, so one escrow's evidence dresses one way. */}
+          <DossierProofList proofs={proofs} formatStamp={formatStamp} />
         </div>
       )}
 

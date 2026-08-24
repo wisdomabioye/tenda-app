@@ -29,6 +29,7 @@ import {
   type ExchangeDetail,
 } from '@tenda/shared'
 import { api } from '@/api/client'
+import { DossierProofList, dossierProofsFor } from '@/components/escrow/dossier'
 import { useEscrowActions, type ProofFile } from '@/hooks/escrow/useEscrowActions'
 import { useEscrowFee } from '@/hooks/escrow/useEscrowFee'
 import { useEscrowLiveRefresh } from '@/hooks/escrow/live'
@@ -139,21 +140,11 @@ export function ExchangeDetailApp({
           <OfferHeadline offer={offer} />
           {clock !== null && <OfferCountdown clock={clock} />}
 
-          <TraderCard trader={offer.creator} offer={offer} currentUserId={userId} />
-
-          {/* The buyer is party-scoped: present only once someone has taken
-              the offer, and only for the two of them. */}
-          {offer.counterparty !== null && (
-            <div className="mt-4">
-              <PersonCard
-                user={offer.counterparty}
-                label="Buyer"
-                currentUserId={userId}
-                context={exchangeChatContext(offer)}
-              />
-            </div>
-          )}
-
+          {/* Reading order is the ACTING order (user, 2026-08-24, #48): the
+              terms of the trade, then — for the matched buyer — exactly where
+              the money goes, and only then who is on the other side. The old
+              order put two people cards between the reader and the account
+              they were mid-transfer to. */}
           <OfferTerms offer={offer} />
 
           {shouldShowPaymentInstructions(offer, userId) && offer.payout_account !== null && (
@@ -173,25 +164,31 @@ export function ExchangeDetailApp({
             </div>
           )}
 
+          {/* No wrapper margin: the card's own mt-8/border-t seam is the
+              separation, same as OfferTerms above it. */}
+          <TraderCard trader={offer.creator} offer={offer} currentUserId={userId} />
+
+          {/* The buyer is party-scoped: present only once someone has taken
+              the offer, and only for the two of them. */}
+          {offer.counterparty !== null && (
+            <div className="mt-4">
+              <PersonCard
+                user={offer.counterparty}
+                label="Buyer"
+                currentUserId={userId}
+                context={exchangeChatContext(offer)}
+              />
+            </div>
+          )}
+
           {offer.proofs.length > 0 && (
-            <section className="mt-6 flex flex-col gap-1 rounded-card border border-border-subtle bg-surface-card p-4">
+            <section className="mt-6 flex flex-col gap-2 rounded-card border border-border-subtle bg-surface-card p-4">
               <h2 className="text-sm font-semibold text-content-primary">
                 {OFFER_DETAIL_COPY.proofs}
               </h2>
-              <ul className="flex flex-col gap-1">
-                {offer.proofs.map((proof) => (
-                  <li key={proof.id}>
-                    <a
-                      href={proof.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm text-brand-primary underline-offset-2 hover:underline"
-                    >
-                      {proof.type} proof
-                    </a>
-                  </li>
-                ))}
-              </ul>
+              {/* The dossier's rows and the SHARED labels (#48) — one
+                  escrow's evidence dresses one way, exchange included. */}
+              <DossierProofList proofs={dossierProofsFor(offer.proofs) ?? []} />
             </section>
           )}
 

@@ -8,7 +8,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import { PROOF_TYPE_LABEL, truncateWallet, type GigDetail } from '@tenda/shared'
-import { dossierFactsFor, dossierProofsFor } from '@/components/gig/my-gigs/dossier-facts'
+import { dossierProofsFor } from '@/components/escrow/dossier'
+import { dossierFactsFor } from '@/components/gig/my-gigs/dossier-facts'
 import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { deliveryGig } from '@/e2e/fixtures/gigs'
 
