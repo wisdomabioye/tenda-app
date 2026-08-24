@@ -18,7 +18,7 @@ const cmd = (label: string): PaletteCommand => ({
 describe('surfaceCommands', () => {
   it('offers every rail destination plus the foot actions', () => {
     const labels = surfaceCommands(false).map((c) => c.label)
-    for (const expected of ['Home', 'My Gigs', 'Messages', 'Wallet', 'Create', 'Settings']) {
+    for (const expected of ['Home', 'My Gigs', 'Messages', 'Disputes', 'Wallet', 'Create', 'Link a wallet', 'Settings']) {
       expect(labels).toContain(expected)
     }
     expect(surfaceCommands(false).find((command) => command.label === 'Create')?.id).toBe(
@@ -61,14 +61,27 @@ describe('filterCommands', () => {
     expect(filterCommands(all, 'zzzz')).toEqual([])
   })
 
-  it('caps the result list', () => {
+  it('caps SEARCH results, never the open jump list', () => {
+    // The comps' 8-cap keeps typed matches from becoming a hunt; the empty
+    // query is the "where can I go" view and the listbox scrolls. Capping it
+    // silently hid Settings and Profile the moment the rail grew past eight
+    // destinations — found in the #45 review.
     const many = Array.from({ length: 40 }, (_, i) => cmd(`Item ${i}`))
-    expect(filterCommands(many, '')).toHaveLength(PALETTE_RESULT_LIMIT)
+    expect(filterCommands(many, '')).toHaveLength(many.length)
     expect(filterCommands(many, 'Item')).toHaveLength(PALETTE_RESULT_LIMIT)
   })
 
-  it('honours an explicit limit', () => {
-    expect(filterCommands(all, '', 2)).toHaveLength(2)
+  it('shows every rail destination and foot action on open, both modes', () => {
+    for (const advanced of [false, true]) {
+      const open = filterCommands(surfaceCommands(advanced), '').map((c) => c.label)
+      for (const label of ['Link a wallet', 'Settings', 'Your profile']) {
+        expect(open, `advanced=${advanced}`).toContain(label)
+      }
+    }
+  })
+
+  it('honours an explicit limit on a query', () => {
+    expect(filterCommands(all, 'e', 2)).toHaveLength(2)
   })
 
   it('preserves the source order, so surfaces stay above later sources', () => {

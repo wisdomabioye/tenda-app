@@ -10,6 +10,7 @@ import type { LucideIcon } from 'lucide-react'
 import { Plus, Settings, User } from 'lucide-react'
 import {
   RAIL_ACTION,
+  RAIL_LINK_WALLET,
   RAIL_PROFILE,
   RAIL_SETTINGS,
   visibleRailItems,
@@ -25,7 +26,13 @@ export interface PaletteCommand {
   icon: LucideIcon
 }
 
-/** The comps cap the list at 8 so it never becomes a scroll-hunt. */
+/**
+ * The comps cap SEARCH results at 8 so typed matches never become a hunt.
+ * The cap deliberately does not touch the empty-query open state: that view's
+ * whole job is "where can I go", the listbox scrolls, and capping it silently
+ * hid Settings and Profile the moment the rail grew past eight destinations
+ * (spec-correction #46).
+ */
 export const PALETTE_RESULT_LIMIT = 8
 
 export const PALETTE_EMPTY_COPY = 'Nothing matches. Try a gig title, a city or a person.'
@@ -45,6 +52,13 @@ export function surfaceCommands(advancedModeEnabled: boolean): PaletteCommand[] 
     })),
     { id: 'action:create', label: RAIL_ACTION.label, hint: GO, href: RAIL_ACTION.href, icon: Plus },
     {
+      id: 'action:link-wallet',
+      label: RAIL_LINK_WALLET.label,
+      hint: GO,
+      href: RAIL_LINK_WALLET.href,
+      icon: RAIL_LINK_WALLET.icon,
+    },
+    {
       id: 'action:settings',
       label: RAIL_SETTINGS.label,
       hint: GO,
@@ -62,18 +76,17 @@ export function surfaceCommands(advancedModeEnabled: boolean): PaletteCommand[] 
 }
 
 /**
- * Case-insensitive substring match on the label, capped.
+ * Case-insensitive substring match on the label; SEARCH results are capped.
  *
- * An empty query lists everything (capped) rather than nothing — opening the
- * palette should show where you can go, not an empty box.
+ * An empty query lists everything, uncapped — opening the palette should show
+ * where you can go, not an empty box and not a silently truncated one.
  */
 export function filterCommands(
   commands: readonly PaletteCommand[],
   query: string,
   limit: number = PALETTE_RESULT_LIMIT,
 ): PaletteCommand[] {
-  // No empty-query special case is needed: every string contains '', so an
-  // empty needle already matches everything.
   const needle = query.trim().toLowerCase()
+  if (needle === '') return [...commands]
   return commands.filter((command) => command.label.toLowerCase().includes(needle)).slice(0, limit)
 }

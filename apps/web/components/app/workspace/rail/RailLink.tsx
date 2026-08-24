@@ -29,15 +29,29 @@ export function RailLink({ href, label, icon: Icon, active = false, badgeCount =
       title={label}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        expanded ? 'relative mx-3 flex h-10 w-[calc(100%_-_1.5rem)] shrink-0 items-center gap-3 rounded-control px-3 transition-colors' : RAIL_SLOT,
+        // h-11 / 15px, the 2026-08-24 redesign's row geometry. `relative` only
+        // matters collapsed (the corner pip anchors to it); harmless expanded.
+        expanded ? 'relative mx-3 flex h-11 w-[calc(100%_-_1.5rem)] shrink-0 items-center gap-3 rounded-control px-3 transition-colors' : RAIL_SLOT,
         active
           ? 'bg-control-selected-background text-brand-primary'
           : 'text-content-tertiary hover:bg-surface-inset hover:text-content-primary',
       )}
     >
       <Icon size={20} aria-hidden />
-      {expanded && <span className="min-w-0 flex-1 truncate text-left text-sm font-semibold">{label}</span>}
-      <RailBadge count={badgeCount} />
+      {expanded && (
+        <span
+          className={cn(
+            'min-w-0 flex-1 truncate text-left text-[15px] leading-5',
+            // Weight carries the selection alongside the tint, so the active
+            // row survives being seen without colour.
+            active ? 'font-semibold' : 'font-medium',
+          )}
+        >
+          {label}
+        </span>
+      )}
+      {/* Inline in the row when there IS a row; corner pip on the bare slot. */}
+      <RailBadge count={badgeCount} inline={expanded} />
     </Link>
   )
 }

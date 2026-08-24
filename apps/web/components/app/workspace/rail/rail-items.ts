@@ -12,9 +12,12 @@ import {
   Home,
   ListChecks,
   MessageSquare,
+  Scale,
   Wallet,
+  WalletCards,
   type LucideIcon,
 } from 'lucide-react'
+import { listHomeFor } from '../surfaces'
 
 /** Which live counter an item surfaces. */
 export type RailBadgeSource = 'messages' | 'notifications'
@@ -40,6 +43,11 @@ export const RAIL_ITEMS: readonly RailItem[] = [
   { href: '/my-gigs', label: 'My Gigs', icon: ListChecks },
   { href: '/messages', label: 'Messages', icon: MessageSquare, badge: 'messages' },
   { href: '/notifications', label: 'Notifications', icon: Bell, badge: 'notifications' },
+  // Promoted out of the profile page (user, 2026-08-24, spec-correction #45):
+  // a party mid-dispute must not have to remember where the entrance is
+  // buried. `Scale` is the brief's own icon for it. No badge — nothing on the
+  // wire counts unread disputes, and a fabricated counter is worse than none.
+  { href: '/disputes', label: 'Disputes', icon: Scale },
   { href: '/wallet', label: 'Wallet', icon: Wallet },
   { href: '/exchange', label: 'Trade', icon: ArrowLeftRight, requiresAdvancedMode: true },
 ]
@@ -49,14 +57,42 @@ export const RAIL_ACTION = { href: '/create', label: 'Create' } as const
 
 export const RAIL_SETTINGS = { href: '/settings', label: 'Settings' } as const
 export const RAIL_PROFILE = { href: '/profile', label: 'Your profile' } as const
+/** Foot-cluster entry (user, 2026-08-24): linking a wallet was buried two
+ *  levels into Settings, and it is the one setup step escrow cannot proceed
+ *  without. `WalletCards`, not `Wallet` — that glyph is the balances surface. */
+export const RAIL_LINK_WALLET = {
+  href: '/settings/linked-wallets',
+  label: 'Link a wallet',
+  icon: WalletCards,
+} as const
 
 /**
  * Segment-aware active test. A plain `startsWith` would light up My Gigs on
  * a hypothetical `/my-gigs-archive`, and Wallet on `/walletsomething` — the
  * href must match the whole path or a whole leading segment of it.
+ *
+ * A selection can also live under a DIFFERENT segment than its list: a thread
+ * is /chat/<id> but its item is Messages, a mediation thread is /dispute/<id>
+ * but its item is Disputes. surfaces.ts already owns that mapping
+ * (SURFACE_LIST_HOME feeds the ≤900px back link from it), so the rail resolves
+ * through it rather than re-encoding which list owns which surface.
  */
 export function isRailItemActive(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`)
+  if (pathname === href || pathname.startsWith(`${href}/`)) return true
+  const surface = pathname.split('/')[1] ?? ''
+  return listHomeFor(surface)?.href === href
+}
+
+/**
+ * The Settings foot item's own active test: quiet while the linked-wallets
+ * child is open, because that child has its own foot entry and two lit rows
+ * for one location read as two locations.
+ */
+export function isSettingsItemActive(pathname: string): boolean {
+  return (
+    isRailItemActive(pathname, RAIL_SETTINGS.href) &&
+    !isRailItemActive(pathname, RAIL_LINK_WALLET.href)
+  )
 }
 
 /** The items this user can actually see. */

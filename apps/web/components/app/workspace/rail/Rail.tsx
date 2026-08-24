@@ -2,7 +2,8 @@
 
 /**
  * The workspace's responsive navigation rail: brand mark, navigable surfaces,
- * then a pinned foot of Create / theme / settings / profile / sign-out.
+ * then a pinned foot of Create / theme / link-wallet / settings / profile /
+ * sign-out behind a drawn seam.
  *
  * Live counters are read here rather than in the item config so the config
  * stays a pure, testable list. The socket + realtime mirrors deliberately do
@@ -24,9 +25,11 @@ import { CreateMenu } from './CreateMenu'
 import { BrandLogo } from '@/components/brand/BrandLogo'
 import { SignOutButton } from '@/components/profile/SignOutButton'
 import {
+  RAIL_LINK_WALLET,
   RAIL_PROFILE,
   RAIL_SETTINGS,
   isRailItemActive,
+  isSettingsItemActive,
   visibleRailItems,
   type RailBadgeSource,
 } from './rail-items'
@@ -71,15 +74,33 @@ export function Rail({ user }: { user: User | null }) {
       {/* Pushes the action cluster to the foot of the rail. */}
       <span className="flex-1" aria-hidden />
 
+      {/* Seam between the surfaces above and the utility foot below — the
+          grouping the redesign asked for, drawn once rather than implied by a
+          bigger gap that reads as accident. */}
+      <span
+        aria-hidden
+        className={cn('my-2 h-px shrink-0 bg-border-subtle', expanded ? 'w-[calc(100%_-_1.5rem)]' : 'w-8')}
+      />
+
       <CreateMenu expanded={expanded} />
 
       <ThemeToggle className={expanded ? 'mx-3 flex h-10 w-[calc(100%_-_1.5rem)] items-center gap-3 px-3' : RAIL_SLOT} showLabel={expanded} />
 
       <RailLink
+        href={RAIL_LINK_WALLET.href}
+        label={RAIL_LINK_WALLET.label}
+        icon={RAIL_LINK_WALLET.icon}
+        active={isRailItemActive(pathname, RAIL_LINK_WALLET.href)}
+        expanded={expanded}
+      />
+
+      <RailLink
         href={RAIL_SETTINGS.href}
         label={RAIL_SETTINGS.label}
         icon={Settings}
-        active={isRailItemActive(pathname, RAIL_SETTINGS.href)}
+        // Not the plain prefix test: the linked-wallets child has its own foot
+        // entry above, and two lit rows for one location read as two places.
+        active={isSettingsItemActive(pathname)}
         expanded={expanded}
       />
 

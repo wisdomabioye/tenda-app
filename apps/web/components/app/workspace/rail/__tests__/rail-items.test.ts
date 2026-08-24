@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   RAIL_ACTION,
   RAIL_ITEMS,
+  RAIL_LINK_WALLET,
   isRailItemActive,
+  isSettingsItemActive,
   visibleRailItems,
 } from '@/components/app/workspace/rail'
 
@@ -13,8 +15,20 @@ describe('isRailItemActive', () => {
     ['/my-gigs/drafts', '/my-gigs'],
     ['/messages/abc-123', '/messages'],
     ['/settings/linked-wallets', '/settings'],
+    // A selection under a DIFFERENT segment than its list: resolved through
+    // surfaces.ts, so opening a thread no longer un-lights its rail item.
+    ['/chat/user-1', '/messages'],
+    ['/dispute/escrow-9', '/disputes'],
+    ['/disputes', '/disputes'],
   ])('treats %s as active for %s', (pathname, href) => {
     expect(isRailItemActive(pathname, href)).toBe(true)
+  })
+
+  it('does not light Messages for an unrelated deep surface', () => {
+    // The cross-surface rule must come from the list-home map, not from a
+    // looser prefix — /wallet/intents/x has no list and lights only Wallet.
+    expect(isRailItemActive('/wallet/intents/abc', '/messages')).toBe(false)
+    expect(isRailItemActive('/chat/user-1', '/disputes')).toBe(false)
   })
 
   it.each([
@@ -33,6 +47,24 @@ describe('isRailItemActive', () => {
 
   it('matches nothing when the pathname is the bare root', () => {
     for (const item of RAIL_ITEMS) expect(isRailItemActive('/', item.href)).toBe(false)
+  })
+})
+
+describe('isSettingsItemActive', () => {
+  it('lights Settings on its own surface, children included', () => {
+    expect(isSettingsItemActive('/settings')).toBe(true)
+    expect(isSettingsItemActive('/settings/security')).toBe(true)
+  })
+
+  it('yields to the linked-wallets foot entry rather than double-lighting', () => {
+    // The child has its own rail row; two lit rows for one location read as
+    // two places.
+    expect(isSettingsItemActive(RAIL_LINK_WALLET.href)).toBe(false)
+    expect(isRailItemActive(RAIL_LINK_WALLET.href, RAIL_LINK_WALLET.href)).toBe(true)
+  })
+
+  it('stays dark off the settings surface entirely', () => {
+    expect(isSettingsItemActive('/wallet')).toBe(false)
   })
 })
 
@@ -57,9 +89,20 @@ describe('rail item config', () => {
     // Regression net for the shell swap: Create moved to the rail action and
     // the bell became the Notifications item, but nothing may be dropped.
     const reachable = new Set([...visibleRailItems(true).map((i) => i.href), RAIL_ACTION.href])
-    for (const href of ['/home', '/create', '/my-gigs', '/messages', '/wallet', '/exchange', '/notifications']) {
+    for (const href of ['/home', '/create', '/my-gigs', '/messages', '/wallet', '/exchange', '/notifications', '/disputes']) {
       expect(reachable, `${href} is no longer reachable from the rail`).toContain(href)
     }
+  })
+
+  it('declares no unread badge on Disputes — nothing on the wire counts one', () => {
+    // A counter with no data source would render a fabricated alert.
+    expect(RAIL_ITEMS.find((i) => i.href === '/disputes')?.badge).toBeUndefined()
+  })
+
+  it('gives the link-wallet entry its own glyph, distinct from the balances item', () => {
+    const wallet = RAIL_ITEMS.find((i) => i.href === '/wallet')
+    expect(wallet).toBeDefined()
+    expect(RAIL_LINK_WALLET.icon).not.toBe(wallet?.icon)
   })
 
   it('gives every item a non-empty label — the rail is icon-only', () => {

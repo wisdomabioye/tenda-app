@@ -29,11 +29,16 @@ beforeEach(() => {
 describe('Rail — navigation', () => {
   it('renders every non-gated destination with an accessible name', () => {
     render(<Rail user={makeUser()} />)
-    for (const label of ['Home', 'My Gigs', 'Messages', 'Notifications', 'Wallet']) {
+    for (const label of ['Home', 'My Gigs', 'Messages', 'Notifications', 'Disputes', 'Wallet']) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument()
     }
     expect(screen.getByRole('button', { name: 'Create' })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('href', '/settings')
+    expect(screen.getByRole('link', { name: 'Disputes' })).toHaveAttribute('href', '/disputes')
+    expect(screen.getByRole('link', { name: 'Link a wallet' })).toHaveAttribute(
+      'href',
+      '/settings/linked-wallets',
+    )
   })
 
   it('is labelled as the workspace navigation landmark', () => {
@@ -52,6 +57,35 @@ describe('Rail — navigation', () => {
     at('/my-gigs/drafts')
     render(<Rail user={makeUser()} />)
     expect(screen.getByRole('link', { name: 'My Gigs' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('keeps Messages current inside a thread and Disputes inside mediation', () => {
+    // Threads live under a different segment than their list (/chat, /dispute);
+    // the rail resolves both through surfaces.ts rather than un-lighting.
+    at('/chat/user-1')
+    const first = render(<Rail user={makeUser()} />)
+    expect(screen.getByRole('link', { name: 'Messages' })).toHaveAttribute('aria-current', 'page')
+    first.unmount()
+    at('/dispute/escrow-9')
+    render(<Rail user={makeUser()} />)
+    expect(screen.getByRole('link', { name: 'Disputes' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Messages' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('hands the linked-wallets surface to its own foot entry, not Settings', () => {
+    at('/settings/linked-wallets')
+    const first = render(<Rail user={makeUser()} />)
+    expect(screen.getByRole('link', { name: 'Link a wallet' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    expect(screen.getByRole('link', { name: 'Settings' })).not.toHaveAttribute('aria-current')
+    first.unmount()
+    // …while every other settings child still lights Settings itself.
+    at('/settings/security')
+    render(<Rail user={makeUser()} />)
+    expect(screen.getByRole('link', { name: 'Settings' })).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByRole('link', { name: 'Link a wallet' })).not.toHaveAttribute('aria-current')
   })
 
   it('does not mark a surface current for a same-prefix sibling path', () => {
@@ -165,6 +199,23 @@ describe('Rail — unread badges', () => {
     render(<Rail user={makeUser()} />)
     expect(screen.getByRole('link', { name: 'Messages, 2 unread' })).toHaveTextContent('2')
     expect(screen.getByRole('link', { name: 'Notifications, 7 unread' })).toHaveTextContent('7')
+  })
+
+  it('sits the badge IN the expanded row, corner pip only while collapsed', async () => {
+    // The absolute corner float over an expanded row was the misalignment the
+    // redesign was asked to fix — the pill must trade `absolute` for the flex
+    // slot the moment a row exists to sit in.
+    useChatStore.setState({ unread: 3 })
+    render(<Rail user={makeUser()} />)
+    const pip = () => {
+      const el = screen.getByRole('link', { name: 'Messages, 3 unread' }).lastElementChild
+      if (!(el instanceof HTMLElement)) throw new Error('badge missing')
+      return el
+    }
+    expect(pip().className).toContain('absolute')
+    await userEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }))
+    expect(pip()).toHaveTextContent('3')
+    expect(pip().className).not.toContain('absolute')
   })
 
   it('does not badge an item that declares no counter', () => {

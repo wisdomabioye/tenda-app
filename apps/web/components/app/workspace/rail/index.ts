@@ -4,9 +4,11 @@ export { RailBadge } from './RailBadge'
 export {
   RAIL_ACTION,
   RAIL_ITEMS,
+  RAIL_LINK_WALLET,
   RAIL_PROFILE,
   RAIL_SETTINGS,
   isRailItemActive,
+  isSettingsItemActive,
   visibleRailItems,
   type RailBadgeSource,
   type RailItem,
