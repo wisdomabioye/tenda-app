@@ -98,6 +98,44 @@ describe('EscrowRow', () => {
       screen.getByRole('link', { name: `Design a flyer, ${STATUS_LABEL.disputed}` }),
     ).toBeInTheDocument()
   })
+
+  it('fills the meta footer for a browse row: poster, rating, and the take verb', () => {
+    render(
+      <EscrowRow
+        href="/gig/g1"
+        title="Design a flyer"
+        status="open"
+        creator={{ ...party, review_score: '4.80' }}
+        requiresApproval={false}
+      />,
+    )
+    expect(screen.getByText('Faridah Ab')).toBeInTheDocument()
+    expect(screen.getByText(/4\.8/)).toBeInTheDocument()
+    expect(screen.getByText('Accept')).toBeInTheDocument()
+    // The same facts in the NAME — a sightless reader is deciding too.
+    expect(screen.getByRole('link', { name: /by Faridah Ab, Accept$/ })).toBeInTheDocument()
+  })
+
+  it('says Apply on an approval-mode gig, and never scores an unrated poster', () => {
+    render(
+      <EscrowRow
+        href="/gig/g1"
+        title="t"
+        status="open"
+        creator={{ ...party, review_score: null }}
+        requiresApproval
+      />,
+    )
+    expect(screen.getByText('Apply')).toBeInTheDocument()
+    expect(screen.queryByText('Accept')).toBeNull()
+    // Unrated is said by ABSENCE, never as a zero score.
+    expect(screen.queryByText(/★/)).toBeNull()
+  })
+
+  it('draws no meta footer at all when a row carries neither poster nor verb', () => {
+    const { container } = render(<EscrowRow href="/gig/g1" title="t" status="draft" />)
+    expect(container.querySelector('.border-t')).toBeNull()
+  })
 })
 
 describe('NotificationRow', () => {

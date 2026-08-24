@@ -134,13 +134,8 @@ export default defineConfig({
         // own root is a mix of ported components and folders already globbed
         // below, and a bare components/gig/*.tsx would re-add nothing else.
         'components/gig/CategoryBadge.tsx',
-        'components/gig/GigCreatorLine.tsx',
         'components/gig/GigDetailCta.tsx',
         'components/gig/GigWizard.tsx',
-        // Joined the ratchet during the #12 review: it kept a private copy of
-        // the location rule that commit consolidated, and being uncovered is
-        // how the copy survived.
-        'components/gig/MyGigCard.tsx',
         'components/gig/detail/**/*.{ts,tsx}',
         'components/gig/feed/**/*.{ts,tsx}',
         'components/gig/gig-form/**/*.{ts,tsx}',

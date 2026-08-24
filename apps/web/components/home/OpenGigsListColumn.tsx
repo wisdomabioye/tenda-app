@@ -6,6 +6,7 @@ import type { GigSummary } from '@tenda/shared'
 import { api } from '@/api/client'
 import { ListColumn, type ListGroup } from '@/components/app/workspace/list'
 import { EscrowRow } from '@/components/app/workspace/rows'
+import { gigRowSubtitle } from '@/components/gig/my-gigs/row-subtitle'
 import { useCommandPalette } from '@/hooks/workspace/useCommandPalette'
 
 const HOME_GIG_LIMIT = 30
@@ -46,7 +47,25 @@ export function OpenGigsListColumn() {
       onRetry={load}
       onOpenPalette={openPalette}
       countLabel={state.phase === 'ready' ? `${state.total} open` : undefined}
-      renderRow={(gig, { active }) => <EscrowRow href={`/home/gigs/${gig.escrow_id}`} title={gig.title} status={gig.status} category={gig.category} amountRaw={gig.amount_raw} asset={gig.asset} at={gig.created_at} selected={active} />}
+      // The browse row is the mini-card (2026-08-24 redesign): place + chain
+      // on the second line, then who posted it, their rating, and the same
+      // Apply|Accept fact the feed card shows — all off GigSummary, nothing
+      // invented.
+      renderRow={(gig, { active }) => (
+        <EscrowRow
+          href={`/home/gigs/${gig.escrow_id}`}
+          title={gig.title}
+          status={gig.status}
+          category={gig.category}
+          amountRaw={gig.amount_raw}
+          asset={gig.asset}
+          subtitle={gigRowSubtitle(gig)}
+          at={gig.created_at}
+          creator={gig.creator}
+          requiresApproval={gig.requires_approval}
+          selected={active}
+        />
+      )}
     />
   )
 }

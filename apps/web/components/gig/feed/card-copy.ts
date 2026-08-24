@@ -12,3 +12,12 @@ export const GIG_CARD_COPY = {
   closingSoon: 'Closing soon',
   ratingLabel: (score: string) => `Rated ${score} out of 5`,
 } as const
+
+/**
+ * The chip naming how a gig is TAKEN, derived from the wire fact in ONE
+ * place — the feed card and the workspace row both show it while browsing,
+ * and two ternaries over the same flag is how the words drift apart.
+ */
+export function gigTakeVerb(requiresApproval: boolean): string {
+  return requiresApproval ? GIG_CARD_COPY.apply : GIG_CARD_COPY.accept
+}

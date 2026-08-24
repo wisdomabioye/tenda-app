@@ -28,7 +28,7 @@ import { CATEGORY_ICONS, CATEGORY_TONE } from '@/components/gig/category-icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Eyebrow } from '@/components/ui'
-import { GIG_CARD_COPY } from './card-copy'
+import { GIG_CARD_COPY, gigTakeVerb } from './card-copy'
 import { toGigCardModel, type GigCardModel } from './gig-card-model'
 
 export function GigCard({ gig: input, index }: { gig: GigCardModel | GigSummary; index?: number }) {
@@ -124,7 +124,7 @@ export function GigCard({ gig: input, index }: { gig: GigCardModel | GigSummary;
           </span>
         )}
         <span className="ml-auto shrink-0 rounded-full bg-surface-inset px-2.5 py-1 text-xs font-bold text-content-secondary">
-          {gig.requires_approval ? GIG_CARD_COPY.apply : GIG_CARD_COPY.accept}
+          {gigTakeVerb(gig.requires_approval)}
         </span>
       </div>
     </Link>

@@ -25,6 +25,20 @@ it('opens a gig in the authenticated home detail route', async () => {
   expect(listGigs).toHaveBeenCalledWith({ limit: 30 })
 })
 
+it('browse rows are mini-cards: place, poster, rating and the take verb', async () => {
+  // The redesign's fix for "the /home listing is basic": everything the feed
+  // card shows while browsing, straight off GigSummary — nothing invented.
+  listGigs.mockResolvedValue({ data: [deliveryGig], total: 1 })
+  render(<OpenGigsListColumn />)
+  const row = await screen.findByRole('link', { name: /Deliver a parcel across Yaba/ })
+  expect(row).toHaveTextContent('Lagos')
+  expect(row).toHaveTextContent('Ada Okafor')
+  expect(row).toHaveTextContent('4.8')
+  // requires_approval=false on this fixture → direct Accept, never Apply.
+  expect(row).toHaveTextContent('Accept')
+  expect(row).not.toHaveTextContent('Apply')
+})
+
 it('renders an honest empty state after a successful empty response', async () => {
   listGigs.mockResolvedValue({ data: [], total: 0 })
   render(<OpenGigsListColumn />)

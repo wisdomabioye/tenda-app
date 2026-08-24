@@ -8,7 +8,8 @@
  * survive route changes — the funding flow toasts THEN navigates, which an
  * inline notice cannot outlive.
  */
-import { useEffect, useSyncExternalStore } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
+import { X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 export type ToastType = 'success' | 'error' | 'info'
@@ -19,7 +20,16 @@ export interface ToastEntry {
   message: string
 }
 
-const DISMISS_MS = 4_000
+/**
+ * Per-type visibility window — the 2026-08-24 redesign's fix for "it
+ * disappears before I can read it". A failure earns the longest read: it is
+ * the one message the reader may need to act on.
+ */
+const DISMISS_MS: Record<ToastType, number> = {
+  success: 6_000,
+  info: 6_000,
+  error: 8_000,
+}
 const MAX_VISIBLE = 3
 
 let nextId = 1
@@ -67,23 +77,44 @@ const TONE: Record<ToastType, string> = {
 }
 
 function ToastItem({ toast }: { toast: ToastEntry }) {
+  // Hover pauses the clock — a reader mid-sentence must not lose the message
+  // under their cursor. Leaving restarts the FULL window rather than a
+  // remembered remainder: predictable, and generous exactly when someone has
+  // shown they are reading.
+  const [paused, setPaused] = useState(false)
   useEffect(() => {
-    const timer = setTimeout(() => dismiss(toast.id), DISMISS_MS)
+    if (paused) return
+    const timer = setTimeout(() => dismiss(toast.id), DISMISS_MS[toast.type])
     return () => clearTimeout(timer)
-  }, [toast.id])
+  }, [toast.id, toast.type, paused])
 
   return (
-    <button
-      type="button"
+    // A div, no longer a button: the explicit ✕ inside needs to be a real
+    // button, and buttons cannot nest. Clicking anywhere still dismisses
+    // (pointer path); the ✕ is the visible affordance and the KEYBOARD path.
+    <div
       role="status"
       onClick={() => dismiss(toast.id)}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
       className={cn(
-        'animate-popin pointer-events-auto w-full max-w-sm rounded-control bg-surface-inverse px-5 py-3 text-left text-sm font-semibold text-content-inverse shadow-elevated',
+        'animate-popin pointer-events-auto flex w-full max-w-sm cursor-pointer items-center gap-3 rounded-control bg-surface-inverse px-5 py-3 text-left text-sm font-semibold text-content-inverse shadow-elevated',
         TONE[toast.type],
       )}
     >
-      {toast.message}
-    </button>
+      <span className="min-w-0 flex-1">{toast.message}</span>
+      <button
+        type="button"
+        aria-label="Dismiss"
+        onClick={(event) => {
+          event.stopPropagation()
+          dismiss(toast.id)
+        }}
+        className="shrink-0 rounded-control p-1 text-content-inverse/70 transition-colors hover:bg-content-inverse/10 hover:text-content-inverse"
+      >
+        <X size={15} aria-hidden />
+      </button>
+    </div>
   )
 }
 

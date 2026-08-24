@@ -31,6 +31,13 @@ export interface RowChassisProps {
   /** Money, rendered in the money tone. */
   amount?: string
   /**
+   * A footer under its own hairline — the mini-card treatment the 2026-08-24
+   * redesign added for browse rows: who posted, their rating, how the gig is
+   * taken. Slot-shaped like the rest so a variant fills it and the chassis
+   * still owns the geometry.
+   */
+  meta?: ReactNode
+  /**
    * Accessible name override. Rows pack several signals into one link, and
    * the raw text run ("Faridah • 2m • Design a flyer • OPEN • 120 USDC")
    * reads as noise; a variant can say it properly.
@@ -50,6 +57,7 @@ export function RowChassis({
   badge,
   subtitle,
   amount,
+  meta,
   label,
 }: RowChassisProps) {
   return (
@@ -106,6 +114,12 @@ export function RowChassis({
               {amount}
             </span>
           )}
+        </div>
+      )}
+
+      {meta !== undefined && (
+        <div className="mt-2.5 flex min-w-0 items-center gap-2.5 border-t border-border-subtle pt-2.5">
+          {meta}
         </div>
       )}
     </Link>

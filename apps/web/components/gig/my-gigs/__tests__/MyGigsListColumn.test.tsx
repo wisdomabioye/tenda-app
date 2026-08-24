@@ -110,6 +110,24 @@ describe('MyGigsListColumn', () => {
     )
   })
 
+  it('shows the poster on Working rows and never on your own Posted rows', () => {
+    // On Working the creator is the OTHER party — a face worth drawing. On
+    // Posted the creator is the reader, and their own name is furniture.
+    searchParams = new URLSearchParams('mine=working')
+    state()
+    render(<MyGigsListColumn />)
+    expect(screen.getByRole('link', { name: new RegExp(photoGig.title) })).toHaveTextContent(
+      'Ada Okafor',
+    )
+    cleanup()
+    searchParams = new URLSearchParams()
+    state()
+    render(<MyGigsListColumn />)
+    expect(
+      screen.getByRole('link', { name: new RegExp(deliveryGig.title) }),
+    ).not.toHaveTextContent('Ada Okafor')
+  })
+
   it('counts EVERY tab, not just the visible one', () => {
     // An inactive tab showing 0 for a list nobody fetched is a lie about how
     // much work the reader has.

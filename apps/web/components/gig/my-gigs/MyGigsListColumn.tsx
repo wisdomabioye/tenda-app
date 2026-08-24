@@ -10,8 +10,10 @@
  *
  * All four lists load, not just the visible one: an inactive tab's count has
  * to be a real server total, never a zero for a list nobody fetched. They come
- * from account-scoped caches, so that costs one round of requests per session
- * rather than one per row opened.
+ * from account-scoped caches, so the remount every opened row causes paints
+ * page zero instantly and revalidates SILENTLY — no skeleton, no count
+ * flicker. (The revalidation requests still fire per mount; the caches save
+ * the blink, not the round trips.)
  */
 import { useMemo } from 'react'
 import Link from 'next/link'
@@ -125,6 +127,9 @@ export function MyGigsListColumn() {
             asset={row.gig.asset}
             subtitle={applicationStatusLine(row.application.status, expiresIn(row, nowMs))}
             at={row.application.created_at}
+            // Who you applied TO — the applicant is deciding whether to keep
+            // waiting on this poster.
+            creator={row.gig.creator}
             selected={active}
           />
         )}
@@ -151,6 +156,10 @@ export function MyGigsListColumn() {
           asset={gig.asset}
           subtitle={gigRowSubtitle(gig)}
           at={gig.created_at}
+          // On Working the creator is the OTHER party — worth a face. On
+          // Posted it is the reader; telling someone their own name is
+          // furniture, so the meta row stays off.
+          creator={tab === 'working' ? gig.creator : undefined}
           selected={active}
         />
       )}
