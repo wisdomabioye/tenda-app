@@ -27,6 +27,16 @@ vi.mock('@/stores/gigs.store', () => ({
 vi.mock('@/api/client', () => ({
   api: { escrows: { delete: (...a: unknown[]) => deleteMock(...a) } },
 }))
+// Mutable so the ApplyDialog tests can shape the trust list per case.
+const authState = {
+  wallets: [] as { chain_ns: string; address: string; is_primary: boolean; verified_at: string | null }[],
+  walletsStatus: 'ready',
+}
+const ensureWalletsMock = vi.fn(async () => {})
+vi.mock('@/stores/auth.store', () => ({
+  useAuthStore: (sel: (s: typeof authState & { ensureWallets: () => Promise<void> }) => unknown) =>
+    sel({ ...authState, ensureWallets: ensureWalletsMock }),
+}))
 // The row's own behaviour (bound preview, targeted connect) is covered in
 // SigningWalletRow.test.tsx; here only the WIRING is under test — which
 // dialogs mount it, on which chain, with which binding.
@@ -214,24 +224,111 @@ describe('ReviewDialog', () => {
 })
 
 describe('ApplyDialog', () => {
-  test('states the obligation, trims the pitch to null, closes on success', async () => {
+  const SOL_PRIMARY = { chain_ns: 'solana', address: 'So1Primary11111', is_primary: true, verified_at: '2026-01-01' }
+  const SOL_SECOND = { chain_ns: 'solana', address: 'So1Second111111', is_primary: false, verified_at: '2026-01-01' }
+  const EVM_WALLET = { chain_ns: 'eip155', address: '0xEvmWallet', is_primary: false, verified_at: '2026-01-01' }
+
+  beforeEach(() => {
+    authState.wallets = [SOL_PRIMARY, SOL_SECOND, EVM_WALLET]
+    authState.walletsStatus = 'ready'
+  })
+
+  test('states the obligation, trims the pitch to null, submits the PRIMARY by default', async () => {
     const onSubmit = vi.fn(async () => true)
     const onClose = vi.fn()
-    render(<ApplyDialog open busy={false} onClose={onClose} onSubmit={onSubmit} />)
+    render(
+      <ApplyDialog open busy={false} chainId="solana:devnet" onClose={onClose} onSubmit={onSubmit} />,
+    )
     expect(screen.getByText(APPLY_OBLIGATION)).toBeInTheDocument()
     fireEvent.change(screen.getByPlaceholderText(/good fit/), { target: { value: '   ' } })
     fireEvent.click(screen.getByRole('button', { name: 'Send application' }))
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(null))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(null, SOL_PRIMARY.address))
     expect(onClose).toHaveBeenCalled()
+  })
+
+  test('offers ONLY wallets on the gig chain namespace — the EVM wallet never appears', () => {
+    render(
+      <ApplyDialog open busy={false} chainId="solana:devnet" onClose={vi.fn()} onSubmit={vi.fn()} />,
+    )
+    expect(screen.getAllByRole('radio')).toHaveLength(2)
+    expect(screen.queryByText(/0xEvm/)).toBeNull()
+  })
+
+  test('picking another wallet submits THAT wallet', async () => {
+    const onSubmit = vi.fn(async () => true)
+    render(
+      <ApplyDialog open busy={false} chainId="solana:devnet" onClose={vi.fn()} onSubmit={onSubmit} />,
+    )
+    fireEvent.click(screen.getByRole('radio', { name: /So1S/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Send application' }))
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith(null, SOL_SECOND.address))
+  })
+
+  test('a re-apply starts on the previously recorded wallet, not the primary', () => {
+    render(
+      <ApplyDialog
+        open
+        busy={false}
+        chainId="solana:devnet"
+        initialWallet={SOL_SECOND.address}
+        onClose={vi.fn()}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('radio', { name: /So1S/ })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  test('no wallet on the gig chain: names the chain, routes to link-wallet, cannot submit', () => {
+    authState.wallets = [EVM_WALLET]
+    const onSubmit = vi.fn()
+    render(
+      <ApplyDialog open busy={false} chainId="solana:devnet" onClose={vi.fn()} onSubmit={onSubmit} />,
+    )
+    expect(screen.getByText(/Link a wallet on that chain to apply/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Link a wallet' })).toHaveAttribute(
+      'href',
+      '/settings/linked-wallets',
+    )
+    const submit = screen.getByRole('button', { name: 'Send application' })
+    expect(submit).toBeDisabled()
+    fireEvent.click(submit)
+    expect(onSubmit).not.toHaveBeenCalled()
   })
 
   test('stays open when the application is refused', async () => {
     const onSubmit = vi.fn(async () => false)
     const onClose = vi.fn()
-    render(<ApplyDialog open busy={false} onClose={onClose} onSubmit={onSubmit} />)
+    render(
+      <ApplyDialog open busy={false} chainId="solana:devnet" onClose={onClose} onSubmit={onSubmit} />,
+    )
     fireEvent.click(screen.getByRole('button', { name: 'Send application' }))
     await waitFor(() => expect(onSubmit).toHaveBeenCalled())
     expect(onClose).not.toHaveBeenCalled()
+  })
+
+  test('while the trust list loads, it says so — never "link a wallet"', () => {
+    authState.walletsStatus = 'loading'
+    authState.wallets = []
+    render(
+      <ApplyDialog open busy={false} chainId="solana:devnet" onClose={vi.fn()} onSubmit={vi.fn()} />,
+    )
+    expect(screen.getByText('Loading your wallets…')).toBeInTheDocument()
+    // The not-loaded and none-linked states must never be conflated.
+    expect(screen.queryByText(/Link a wallet on that chain/)).toBeNull()
+    expect(screen.getByRole('button', { name: 'Send application' })).toBeDisabled()
+  })
+
+  test('a FAILED trust-list load says so and offers a retry, not a wordless dead-end', () => {
+    authState.walletsStatus = 'error'
+    authState.wallets = []
+    render(
+      <ApplyDialog open busy={false} chainId="solana:devnet" onClose={vi.fn()} onSubmit={vi.fn()} />,
+    )
+    expect(screen.getByText(/Could not load your linked wallets/)).toBeInTheDocument()
+    expect(screen.queryByText(/Link a wallet on that chain/)).toBeNull()
+    ensureWalletsMock.mockClear()
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    expect(ensureWalletsMock).toHaveBeenCalled()
   })
 })
 

@@ -144,6 +144,7 @@ describe('MyGigsListColumn', () => {
         id: 'app-1',
         escrow_id: deliveryGig.escrow_id,
         applicant_id: 'u1',
+        wallet_address: null,
         status: 'open',
         message: null,
         created_at: '2026-08-15T10:00:00.000Z',

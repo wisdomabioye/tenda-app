@@ -39,6 +39,7 @@ import { inMemoryQuoteCache } from '@server/features/fiat-rails/quote-cache'
 import { buildContractRegistry } from '@server/chains/contracts'
 import { TEST_DB_CONFIGURED } from './env'
 import {
+  capturedBuilds,
   fakeRegistry,
   TEST_ASSET,
   TEST_ASSET_ALT,
@@ -160,6 +161,8 @@ export function useTestApp(): () => FastifyInstance {
  * FK-reference. Call in beforeEach.
  */
 export async function resetDb(app: FastifyInstance): Promise<void> {
+  // The build capture describes rows this truncate is about to erase.
+  capturedBuilds.length = 0
   const tables = await app.db.execute<{ tablename: string }>(
     sql`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
   )

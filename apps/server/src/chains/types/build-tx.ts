@@ -66,6 +66,13 @@ export interface AssignAcceptPayload {
    * wallet columns.
    */
   worker_user_id: string
+  /**
+   * The exact wallet to bake, when the worker CHOSE one on their application
+   * (validated by the route as still linked to them). Overrides the
+   * resolver's primary-first guess — the resolver remains the fallback for
+   * applications that predate the choice.
+   */
+  worker_address?: string
 }
 
 export interface SubmitProofPayload {

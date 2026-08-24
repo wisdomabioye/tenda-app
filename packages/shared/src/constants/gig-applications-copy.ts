@@ -51,6 +51,21 @@ export const APPLY_MESSAGE_PLACEHOLDER =
   'Why you are a good fit, when you can start, anything they should know.'
 export const APPLY_SUBMIT_LABEL = 'Send application'
 
+/** Above the wallet picker: the assign BAKES this choice on-chain. */
+export const APPLY_WALLET_LABEL = 'Wallet to work under'
+export const APPLY_WALLET_HINT =
+  'If assigned, payment is locked to this wallet — pick one you control and can sign with.'
+/** Zero linked wallets on the gig's chain: applying is impossible until one is linked. */
+export const APPLY_WALLET_REQUIRED = (chainLabel: string) =>
+  `This gig pays on ${chainLabel}. Link a wallet on that chain to apply.`
+export const APPLY_WALLET_LINK_CTA = 'Link a wallet'
+/** The trust list is still loading — an empty picker must never read as "none linked". */
+export const APPLY_WALLET_LOADING = 'Loading your wallets…'
+/** The trust list FAILED to load — a wordless disabled submit is a dead-end. */
+export const APPLY_WALLET_LOAD_FAILED =
+  'Could not load your linked wallets — check your connection and try again.'
+export const APPLY_WALLET_RETRY = 'Try again'
+
 export const APPLY_SUCCESS = 'Application sent. The poster decides who gets the gig.'
 export const WITHDRAW_SUCCESS = 'Application withdrawn.'
 export const RELEASE_SUCCESS =

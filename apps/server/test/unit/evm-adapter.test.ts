@@ -149,6 +149,24 @@ test('builders: assignAccept encodes the resolved worker address', () => {
   assert.strictEqual(String(args[1]).toLowerCase(), WORKER.toLowerCase())
 })
 
+test('adapter assignAccept: an application-chosen worker_address is encoded VERBATIM, resolver never asked', async () => {
+  const adapter = makeAdapter({
+    resolveWalletAddress: async () => {
+      throw new Error('resolver must not run when the choice rides the payload')
+    },
+  })
+  const tx = await adapter.buildTx({
+    action: 'assignAccept',
+    user_id: 'u1',
+    payload: { escrow_id: UUID, worker_user_id: 'w1', worker_address: WORKER },
+  })
+  assert.strictEqual(tx.kind, 'evm-tx')
+  if (tx.kind !== 'evm-tx') throw new Error('unreachable')
+  const decoded = decodeFunctionData({ abi: ESCROW_EVM_ABI, data: tx.data })
+  assert.strictEqual(decoded.functionName, 'assignAccept')
+  assert.strictEqual(String((decoded.args as readonly unknown[])[1]).toLowerCase(), WORKER.toLowerCase())
+})
+
 test('builders: assignAccept without a resolved worker wallet throws, never encodes address(0)', () => {
   assert.throws(
     () =>

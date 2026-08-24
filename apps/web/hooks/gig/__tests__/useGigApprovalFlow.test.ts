@@ -49,16 +49,17 @@ describe('useApplications', () => {
     const onChanged = vi.fn()
     const { result } = renderHook(() => useApplications({ onChanged }))
     await act(async () => {
-      expect(await result.current.apply('e1', 'pick me')).toBe(true)
+      expect(await result.current.apply('e1', 'pick me', 'Wallet11')).toBe(true)
     })
-    expect(applyMock).toHaveBeenCalledWith({ id: 'e1' }, { message: 'pick me' })
+    expect(applyMock).toHaveBeenCalledWith({ id: 'e1' }, { wallet_address: 'Wallet11', message: 'pick me' })
     expect(toastMock).toHaveBeenCalledWith('success', APPLY_SUCCESS)
     expect(onChanged).toHaveBeenCalled()
 
     await act(async () => {
-      await result.current.apply('e1', null)
+      await result.current.apply('e1', null, 'Wallet11')
     })
-    expect(applyMock).toHaveBeenLastCalledWith({ id: 'e1' }, undefined)
+    // No pitch still declares the wallet — the server records it either way.
+    expect(applyMock).toHaveBeenLastCalledWith({ id: 'e1' }, { wallet_address: 'Wallet11' })
   })
 
   test("a failure surfaces the SERVER's message and leaves the screen alone", async () => {
@@ -66,7 +67,7 @@ describe('useApplications', () => {
     applyMock.mockRejectedValue(new ApiClientError(409, 'Conflict', 'You have 3 open applications already', 'LIMIT'))
     const { result } = renderHook(() => useApplications({ onChanged }))
     await act(async () => {
-      expect(await result.current.apply('e1', null)).toBe(false)
+      expect(await result.current.apply('e1', null, 'Wallet11')).toBe(false)
     })
     expect(toastMock).toHaveBeenCalledWith('error', 'You have 3 open applications already')
     expect(onChanged).not.toHaveBeenCalled()
@@ -77,7 +78,7 @@ describe('useApplications', () => {
     applyMock.mockRejectedValue(new ApiClientError(409, 'Conflict', 'pulled', 'ESCROW_TAKEN_DOWN'))
     const { result } = renderHook(() => useApplications({ onChanged }))
     await act(async () => {
-      await result.current.apply('e1', null)
+      await result.current.apply('e1', null, 'Wallet11')
     })
     expect(onChanged).toHaveBeenCalledTimes(1)
   })
@@ -157,6 +158,19 @@ describe('useGigApprovalFlow', () => {
       result.current.confirmDialog.onConfirm()
     })
     expect(releaseMock).toHaveBeenCalledWith({ id: 'e1' })
+  })
+
+  test('the apply passthrough forwards BOTH the pitch and the wallet, in order', async () => {
+    // ApplyDialog calls this with (message, wallet); a swapped or dropped arg
+    // here records the wrong wallet server-side and no other suite would see it.
+    const { result } = renderHook(() => useGigApprovalFlow(ARGS))
+    await act(async () => {
+      await result.current.apply('my pitch', 'ChosenWallet11')
+    })
+    expect(applyMock).toHaveBeenCalledWith(
+      { id: 'e1' },
+      { wallet_address: 'ChosenWallet11', message: 'my pitch' },
+    )
   })
 
   test('cancelling the confirm acts on nothing', () => {

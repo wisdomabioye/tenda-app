@@ -121,6 +121,7 @@ export function handleAuthed(url: URL, method: string, authorization: string | u
         escrow_id: deliveryGigDetail.escrow_id,
         applicant_id: user.id,
         message: 'I can start today.',
+        wallet_address: null,
         status: 'open',
         expires_at: '2026-09-01T00:00:00Z',
         created_at: '2026-08-20T00:00:00Z',

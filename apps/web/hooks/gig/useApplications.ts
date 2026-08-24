@@ -66,9 +66,15 @@ export function useApplications({ onChanged }: UseApplicationsArgs = {}) {
 
   return {
     busy,
-    apply: (escrowId: string, message: string | null) =>
+    /** `walletAddress` = the wallet to work under (the assign bakes it); the
+     *  server validates it as one of the caller's verified wallets. */
+    apply: (escrowId: string, message: string | null, walletAddress: string) =>
       run(
-        () => api.gigs.apply({ id: escrowId }, message === null ? undefined : { message }),
+        () =>
+          api.gigs.apply(
+            { id: escrowId },
+            { wallet_address: walletAddress, ...(message === null ? {} : { message }) },
+          ),
         APPLY_SUCCESS,
         'Could not send your application, please try again.',
       ),

@@ -32,6 +32,7 @@ export function application(overrides: Partial<GigApplication> = {}): GigApplica
     escrow_id: 'escrow-1',
     applicant_id: WORKER_ID,
     message: null,
+    wallet_address: null,
     status: 'open',
     // Comfortably in the future so a test that does not care about expiry
     // never trips over it.

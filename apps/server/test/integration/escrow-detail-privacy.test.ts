@@ -25,6 +25,7 @@ import {
   TEST_DB_CONFIGURED,
   useTestApp,
   createUser,
+  createTransactableUser,
   createEscrow,
   createBankAccount,
   attachGigDetails,
@@ -141,7 +142,7 @@ test('gig detail: a signed-in stranger is no better off than an anonymous one', 
 test('gig detail: an applicant who was never assigned stays an outsider', { skip }, async () => {
   const app = getApp()
   const poster = await createUser(app)
-  const rival = await createUser(app)
+  const rival = await createTransactableUser(app)
   const chosen = await createUser(app)
   const escrow = await createEscrow(app, {
     creator_id: poster.row.id,

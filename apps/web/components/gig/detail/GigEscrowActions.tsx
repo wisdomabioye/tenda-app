@@ -174,6 +174,9 @@ export function GigEscrowActions({ gig, userId }: { gig: GigDetail; userId: stri
       <ApplyDialog
         open={approval.applyOpen}
         busy={approval.busy}
+        chainId={gig.chain_id}
+        // Re-apply starts on the wallet the previous application recorded.
+        initialWallet={gig.viewer?.application?.wallet_address ?? null}
         onClose={approval.closeApply}
         onSubmit={approval.apply}
       />

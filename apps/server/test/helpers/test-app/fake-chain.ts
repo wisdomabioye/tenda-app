@@ -9,7 +9,16 @@
  * rather than implicit).
  */
 import './env'
-import type { ChainAdapter, ChainRegistry, UnsignedTx } from '@server/chains/types'
+import type { BuildTxArgs, ChainAdapter, ChainRegistry, UnsignedTx } from '@server/chains/types'
+
+/**
+ * Every buildTx call the fake adapters received, newest last. The routes
+ * decide WHAT gets baked (e.g. assign's `worker_address`) and the fake
+ * returns a constant, so this capture is the only way an integration test
+ * can assert the route → builder handoff. Cleared by `resetDb` alongside the
+ * rows it describes.
+ */
+export const capturedBuilds: BuildTxArgs[] = []
 
 /**
  * Chain/asset every harness escrow rides on (re-seeded by `resetDb`).
@@ -68,7 +77,10 @@ function fakeAdapter(chain_id: string, namespace: 'solana' | 'eip155' = 'solana'
     // because that is the contract the server actually transacts with — the
     // seeded `chains.escrow_program` column is no longer the source.
     escrowAddress: namespace === 'solana' ? FAKE_SOLANA_PROGRAM : FAKE_EVM_ESCROW,
-    buildTx: async () => FAKE_UNSIGNED,
+    buildTx: async (args) => {
+      capturedBuilds.push(args)
+      return FAKE_UNSIGNED
+    },
     verifyTx: unimplemented('verifyTx'),
     // Offline stand-in for tweetnacl/viem sig verify: any signature passes
     // except the explicit bad sentinel (the wallet-auth 401 path).

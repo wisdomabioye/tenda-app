@@ -117,9 +117,12 @@ export async function buildInstruction(
     case 'assignAccept': {
       const { escrowAddr } = requireFetched(fetched)
       // The worker signs nothing here — they are an instruction ARGUMENT, not
-      // an account, which is the whole point of approval mode.
+      // an account, which is the whole point of approval mode. The
+      // application's chosen wallet wins when the route validated one; the
+      // primary-first resolver only covers pre-choice applications.
       const worker = new PublicKey(
-        await deps.resolveWalletAddress(args.payload.worker_user_id),
+        args.payload.worker_address ??
+          (await deps.resolveWalletAddress(args.payload.worker_user_id)),
       )
       return [
         await deps.program.methods

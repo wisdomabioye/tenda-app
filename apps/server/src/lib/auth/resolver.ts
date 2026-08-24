@@ -176,7 +176,6 @@ export async function hasVerifiedPhone(db: AppDatabase, userId: string): Promise
 // The transaction-capability half moved to ./transact-gate (300-line split);
 // re-exported so every existing `@server/lib/auth/resolver` import stands.
 export {
-  assertAssigneeHasWallet,
   assertCanTransact,
   hasVerifiedContact,
   hasWalletOnChain,

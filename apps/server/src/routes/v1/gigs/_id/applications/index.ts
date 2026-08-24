@@ -29,7 +29,11 @@ import {
   isApplicationMessageTooLong,
   normaliseApplicationMessage,
 } from '@server/features/applications/service'
-import { assertApplicationCapacity } from '@server/features/applications/guards'
+import {
+  applicationChainNamespace,
+  assertApplicationCapacity,
+  resolveApplicantWallet,
+} from '@server/features/applications/guards'
 import {
   drizzleApplicationStore,
   findApplicationEscrow,
@@ -140,6 +144,17 @@ const route: FastifyPluginAsync = async (fastify) => {
         )
       }
 
+      // The wallet this application will be assigned under: the caller's
+      // declared choice (validated as THEIR verified wallet on the gig's
+      // namespace), else their primary — and refused outright when they hold
+      // no wallet on the gig's chain, because such an application could never
+      // be assigned and only the poster would ever find that out.
+      const wallet_address = await resolveApplicantWallet(fastify.db, {
+        user_id: request.user.id,
+        chain_ns: applicationChainNamespace(escrow.chain_id),
+        declared: readApplyWallet(request.body),
+      })
+
       // Read once and pass it down: the capacity guard needs it, and so does
       // the notice below, which must fire for a hand newly raised but not for
       // someone editing the pitch on an application the poster already has.
@@ -152,6 +167,7 @@ const route: FastifyPluginAsync = async (fastify) => {
         escrow_id: escrow.id,
         applicant_id: request.user.id,
         message,
+        wallet_address,
         expires_at: applicationExpiry(now, cfg.application_ttl_seconds),
       })
 
@@ -198,6 +214,21 @@ const route: FastifyPluginAsync = async (fastify) => {
       return { withdrawn: true as const }
     },
   )
+}
+
+/**
+ * Read the optional wallet choice off the body: absent/null is null (the
+ * route falls back to the primary), a non-empty string passes, anything else
+ * is a 400 — mirroring `readSignerPreference`, because silently ignoring
+ * garbage here would record a wallet the client never asked for.
+ */
+function readApplyWallet(body: ApplyToGigBody | undefined): string | null {
+  const value = body?.wallet_address
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'string' || value === '') {
+    throw new AppError(400, ErrorCode.VALIDATION_ERROR, 'wallet_address must be a non-empty string')
+  }
+  return value
 }
 
 /**

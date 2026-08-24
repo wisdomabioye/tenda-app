@@ -82,6 +82,7 @@ function makeAdapter(rpc: FakeSolanaRpc, resolvedUserIds: string[] = []) {
 function decodeUnsigned(unsigned: UnsignedTx): {
   programId: string
   discriminator: Buffer
+  args: Buffer
   keys: string[]
   payer: string
   instructionCount: number
@@ -108,6 +109,7 @@ function decodeUnsigned(unsigned: UnsignedTx): {
   return {
     programId: keys[main.programIdIndex],
     discriminator: Buffer.from(main.data.slice(0, 8)),
+    args: Buffer.from(main.data.slice(8)),
     keys: main.accountKeyIndexes.map((i) => keys[i]),
     payer: keys[0],
     instructionCount: ixs.length,
@@ -981,6 +983,26 @@ test('buildTx assignAccept: creator signs, worker rides as an ARGUMENT not an ac
   assert.ok(!d.keys.includes(COUNTERPARTY.toBase58()), 'worker must not be an account')
   // …but their wallet must still have been resolved, to ride as an argument.
   assert.ok(resolved.includes('user-counterparty'))
+})
+
+test('buildTx assignAccept: an application-chosen worker_address is baked VERBATIM, resolver never asked', async () => {
+  const rpc = fakeSolanaRpc()
+  await stageAcceptedEscrow(rpc, { status: { open: {} }, counterparty: null })
+  const resolved: string[] = []
+  const a = makeAdapter(rpc, resolved)
+  // Distinct from every fixture wallet: proves the ARGUMENT is the choice.
+  const chosen = WALLETS['user-admin']
+  const unsigned = await a.buildTx({
+    action: 'assignAccept',
+    user_id: 'user-creator',
+    payload: { escrow_id: ESCROW_UUID, worker_user_id: 'user-counterparty', worker_address: chosen },
+  })
+  const d = decodeUnsigned(unsigned)
+  expectDiscriminator(d.discriminator, 'assignAccept')
+  // The instruction argument IS the chosen wallet (32 bytes after the tag)…
+  assert.deepStrictEqual(Array.from(d.args.subarray(0, 32)), Array.from(bs58.decode(chosen)))
+  // …and the primary-first resolver was never consulted for the worker.
+  assert.ok(!resolved.includes('user-counterparty'), 'resolver must not run when the choice rides the payload')
 })
 
 test('buildTx assignAccept: a worker with no wallet on this chain fails cleanly', async () => {

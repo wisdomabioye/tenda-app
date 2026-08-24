@@ -135,7 +135,11 @@ export async function buildContext(
     return {
       asset_address: null,
       assigned_counterparty_address: null,
-      worker_address: await ctx.args.deps.resolveWalletAddress(build.payload.worker_user_id),
+      // The application's chosen wallet when the route validated one; the
+      // primary-first resolver only for pre-choice applications.
+      worker_address:
+        build.payload.worker_address ??
+        (await ctx.args.deps.resolveWalletAddress(build.payload.worker_user_id)),
       permit_encodable,
       escrow_state: null,
     }

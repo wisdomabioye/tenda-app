@@ -63,6 +63,7 @@ function row(
       escrow_id: 'escrow-1',
       applicant_id: 'user-worker',
       message: null,
+      wallet_address: null,
       status: applicationStatus,
       expires_at: new Date(Date.now() + 86_400_000).toISOString(),
       created_at: '2026-07-01T00:00:00.000Z',

@@ -136,13 +136,3 @@ export async function resolveAssigneeWalletAddress(
   }
   return address
 }
-
-/** The assert-only form, for routes that bake nothing (approval-mode assign
- *  resolves the worker inside the builder). Same query, same 422. */
-export async function assertAssigneeHasWallet(
-  db: AppDatabase,
-  assigneeId: string,
-  chainNs: ChainNamespace,
-): Promise<void> {
-  await resolveAssigneeWalletAddress(db, assigneeId, chainNs)
-}
