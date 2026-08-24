@@ -79,7 +79,9 @@ test('opening a notice marks it read and offers what it is about', async ({ page
   await expect(page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', { name: 'Notifications' })).toBeVisible()
 
   await page.getByRole('link', { name: NOTIFICATIONS_LIST_COPY.open }).click()
-  await expect(page).toHaveURL(/\/gig\/gig-delivery-1/)
+  // The WORKSPACE detail (#49), not the public shell — the stub casts this
+  // user as the creator, so the pane resolves to the party dossier.
+  await expect(page).toHaveURL(/\/my-gigs\/gig-delivery-1/)
   await expect(page.getByText('Deliver a parcel across Yaba').first()).toBeVisible()
 })
 

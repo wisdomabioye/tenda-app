@@ -6,9 +6,12 @@
 import { expect, test } from 'vitest'
 import { notificationRoute } from '@/lib/notification-route'
 
-test('escrow notices route to the matching gig or exchange detail', () => {
-  expect(notificationRoute({ screen: 'escrow', escrowId: 'e1', kind: 'gig' })).toBe('/gig/e1')
-  expect(notificationRoute({ screen: 'escrow', escrowId: 'e1' })).toBe('/gig/e1') // legacy no-kind
+test('escrow notices route to the WORKSPACE detail, never the public shell', () => {
+  // /my-gigs, not /gig: the reader is signed in by definition, and the
+  // my-gigs pane branches on relationship (#49) so one URL fits every
+  // recipient — party, applicant, or new-gig subscriber.
+  expect(notificationRoute({ screen: 'escrow', escrowId: 'e1', kind: 'gig' })).toBe('/my-gigs/e1')
+  expect(notificationRoute({ screen: 'escrow', escrowId: 'e1' })).toBe('/my-gigs/e1') // legacy no-kind
   expect(notificationRoute({ screen: 'escrow', escrowId: 'e1', kind: 'exchange' })).toBe('/exchange/e1')
 })
 

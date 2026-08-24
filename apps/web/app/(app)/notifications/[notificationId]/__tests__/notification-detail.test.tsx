@@ -128,7 +128,9 @@ describe('the call to action', () => {
     render(<NotificationDetailPage />)
     expect(screen.getByRole('link', { name: NOTIFICATIONS_LIST_COPY.open })).toHaveAttribute(
       'href',
-      '/gig/esc-7',
+      // The workspace detail (#49) — the pane there branches by relationship,
+      // so this one URL fits whichever recipient the notice reached.
+      '/my-gigs/esc-7',
     )
   })
 

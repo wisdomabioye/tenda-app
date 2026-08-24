@@ -24,10 +24,12 @@
  */
 import { useCallback, useEffect } from 'react'
 import { useParams } from 'next/navigation'
+import { escrowPartiesOf, isParty } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
 import { useEscrowLiveRefresh } from '@/hooks/escrow/live'
 import { EscrowDossier } from '@/components/escrow/dossier'
+import { GigListingView } from '@/components/gig/detail/GigListingView'
 import { GigEscrowActions } from '@/components/gig/detail/GigEscrowActions'
 import Link from 'next/link'
 import { RotateCw } from 'lucide-react'
@@ -109,6 +111,18 @@ export default function MyGigDetailPage() {
         <Spinner />
       </div>
     )
+  }
+
+  // Relationship, not URL, picks the composition (#49). The dossier is party
+  // furniture — money block, timeline, counterparty — and carries no brief, so
+  // a viewer who is NOT a party (a subscriber opening a new-gig notice, an
+  // applicant from the Applied tab) gets the SAME listing body /home/gigs
+  // renders: the brief they came to read, with the shared CTA branches still
+  // offering accept/apply. This is what lets every gig notification target
+  // this one URL. The wire makes the test safe: `counterparty` is served
+  // non-null only to parties.
+  if (userId !== null && !isParty(escrowPartiesOf(current), userId)) {
+    return <GigListingView gig={current} userId={userId} />
   }
 
   return (

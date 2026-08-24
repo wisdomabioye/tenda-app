@@ -14,7 +14,12 @@ export function notificationRoute(data: Record<string, string> | null): string |
   if (data === null) return null
   const { screen, escrowId, kind, userId, intentId } = data
   if (screen === NOTIFICATION_SCREEN.escrow && escrowId) {
-    return kind === 'exchange' ? `/exchange/${escrowId}` : `/gig/${escrowId}`
+    // Both land in the WORKSPACE, like exchange always has — /gig/:id is the
+    // public shell, and a notice's reader is signed in by definition. One URL
+    // serves every recipient because the my-gigs pane branches on the viewer's
+    // relationship (#49): parties get the dossier, a subscriber opening a
+    // new-gig notice gets the listing body with the brief and the accept CTA.
+    return kind === 'exchange' ? `/exchange/${escrowId}` : `/my-gigs/${escrowId}`
   }
   if (screen === NOTIFICATION_SCREEN.dispute && escrowId) return `/dispute/${escrowId}`
   if (screen === NOTIFICATION_SCREEN.chat && userId) return `/chat/${userId}`

@@ -181,6 +181,9 @@ export default defineConfig({
         // (the assign confirm shipped without a signer preview once — a wiring
         // gap only a suite on THIS file could see). Brackets escaped, as above.
         'app/(app)/my-gigs/\\[escrowId\\]/applicants/page.tsx',
+        // #49 gave the pane its relationship branch (party → dossier, anyone
+        // else → listing body) and with it its first suite. Brackets as above.
+        'app/(app)/my-gigs/\\[escrowId\\]/page.tsx',
         // {ts,tsx} like every sibling folder: the `.tsx`-only pattern left
         // settings/copy.ts — which carries the badge rule and its branch —
         // outside the gate, so a regression there could not move the number.
