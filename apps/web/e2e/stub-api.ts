@@ -4,8 +4,13 @@
  * intercept server-side fetches, which is why admin's client-mock pattern
  * doesn't work here). Plain node http — no dependencies, boots in
  * milliseconds under Playwright's webServer.
+ *
+ * It also speaks the WebSocket half (`./fixtures/realtime`), so specs can drive
+ * a real `feed:gigs` or `user:<id>` frame instead of leaving every suite on the
+ * polling fallback the way a socket-less stub does.
  */
 import { createServer, type IncomingMessage } from 'node:http'
+import { WS_PATH } from '@tenda/shared'
 import { GIG_CATEGORIES, LOCATIONS, isCountryCode } from '@tenda/shared'
 import type { GigFacets, GigSummary, PaginatedResponse } from '@tenda/shared'
 import {
@@ -20,6 +25,7 @@ import {
 import { handleAuthed } from './fixtures/authed-routes'
 import { ENABLED_CHAINS } from './fixtures/chains'
 import { errorEnvelope, json, notFoundEnvelope, type StubResponse } from './fixtures/reply'
+import { attachRealtime, publishFrame } from './fixtures/realtime'
 
 const PORT = Number(process.env.STUB_API_PORT ?? 3210)
 // `unbreakableGig` carries poster-written text at its nastiest (a pasted
@@ -184,7 +190,24 @@ const CORS_HEADERS = {
   'access-control-allow-headers': 'content-type, authorization',
 } as const
 
-createServer((request, response) => {
+/**
+ * `POST /__e2e/publish` — push one server frame down the socket.
+ *
+ * The body is the frame verbatim, so a spec composes exactly what the real
+ * server would send and the client's own `parseWsServerFrame` still judges it.
+ * Answers how many sockets received it: a spec that published to nobody has
+ * proved nothing, and should say so rather than pass.
+ */
+function handlePublish(url: URL, method: string, body: string): StubResponse | null {
+  if (url.pathname !== '/__e2e/publish' || method !== 'POST') return null
+  const frame: unknown = JSON.parse(body)
+  if (typeof frame !== 'object' || frame === null || typeof (frame as { channel?: unknown }).channel !== 'string') {
+    return errorEnvelope(400, 'Bad Request', 'publish needs a frame with a channel', 'VALIDATION_ERROR')
+  }
+  return json({ delivered: publishFrame(frame as { channel: string }) })
+}
+
+const server = createServer((request, response) => {
   void (async () => {
     const url = new URL(request.url ?? '/', `http://127.0.0.1:${PORT}`)
     const method = request.method ?? 'GET'
@@ -195,13 +218,18 @@ createServer((request, response) => {
     }
     const body = method === 'GET' ? '' : await readBody(request)
     const result =
+      handlePublish(url, method, body) ??
       handleAuthed(url, method, request.headers.authorization, body) ??
       handlePublic(url) ??
       notFoundEnvelope(`route ${method} ${url.pathname} not stubbed`)
     response.writeHead(result.statusCode, { 'content-type': 'application/json', ...CORS_HEADERS })
     response.end(result.body)
   })()
-}).listen(PORT, () => {
+})
+
+attachRealtime(server, WS_PATH)
+
+server.listen(PORT, () => {
   console.log(`stub api listening on :${PORT}`)
 })
 
