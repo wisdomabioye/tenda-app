@@ -103,11 +103,11 @@ export const escrows = pgTable(
      * `assigned_counterparty_id`.
      */
     assigned_counterparty_address: text('assigned_counterparty_address'),
-    accept_deadline: timestamp('accept_deadline'),
+    accept_deadline: timestamp('accept_deadline', { withTimezone: true }),
     completion_duration_seconds: integer('completion_duration_seconds'),
-    completion_deadline: timestamp('completion_deadline'),
-    submitted_at: timestamp('submitted_at'),
-    approval_deadline: timestamp('approval_deadline'),
+    completion_deadline: timestamp('completion_deadline', { withTimezone: true }),
+    submitted_at: timestamp('submitted_at', { withTimezone: true }),
+    approval_deadline: timestamp('approval_deadline', { withTimezone: true }),
     dispute_bond_raw: numeric('dispute_bond_raw', { precision: 78, scale: 0 })
       .notNull()
       .default('0'),
@@ -136,7 +136,7 @@ export const escrows = pgTable(
      * Suppresses the abandonment strike and prompts the poster to unassign;
      * it does NOT move the escrow, which only the creator can do on-chain.
      */
-    assignment_released_at: timestamp('assignment_released_at'),
+    assignment_released_at: timestamp('assignment_released_at', { withTimezone: true }),
     /**
      * Mirror of the escrow's on-chain `unassign_window_seconds`, stamped at
      * create from `platform_config` and immutable thereafter — exactly like
@@ -154,8 +154,8 @@ export const escrows = pgTable(
     public_feed_revision: numeric('public_feed_revision', { precision: 78, scale: 0 })
       .notNull()
       .default('0'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at')
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),

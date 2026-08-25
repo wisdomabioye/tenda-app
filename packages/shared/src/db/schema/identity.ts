@@ -61,10 +61,10 @@ export const users = pgTable(
     advanced_mode_enabled: boolean('advanced_mode_enabled').notNull().default(false),
     // Broadcast read cursor: announcements published at/after this are unread.
     // NULL = never opened the notification centre (all active count as unread).
-    announcements_read_at: timestamp('announcements_read_at'),
-    last_active_at: timestamp('last_active_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at')
+    announcements_read_at: timestamp('announcements_read_at', { withTimezone: true }),
+    last_active_at: timestamp('last_active_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),
@@ -99,7 +99,7 @@ export const user_wallets = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     is_primary: boolean('is_primary').notNull().default(false),
-    verified_at: timestamp('verified_at').notNull().defaultNow(),
+    verified_at: timestamp('verified_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     primaryKey({ columns: [t.chain_ns, t.address] }),
@@ -152,8 +152,8 @@ export const user_identities = pgTable(
     identifier: text('identifier').notNull(),
     /** Verified email when the credential yields one; null otherwise. */
     email: text('email'),
-    verified_at: timestamp('verified_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    verified_at: timestamp('verified_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     uniqueIndex('user_identities_kind_identifier_uq').on(t.kind, t.identifier),
@@ -167,8 +167,8 @@ export const auth_nonces = pgTable(
   'auth_nonces',
   {
     nonce: text('nonce').primaryKey(),
-    expires_at: timestamp('expires_at').notNull(),
-    consumed_at: timestamp('consumed_at'),
+    expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
+    consumed_at: timestamp('consumed_at', { withTimezone: true }),
   },
   (t) => [index('auth_nonces_expires_idx').on(t.expires_at)],
 )
@@ -196,10 +196,10 @@ export const auth_otps = pgTable(
     identifier: text('identifier').notNull(),
     user_id: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }),
     code_hash: text('code_hash').notNull(),
-    expires_at: timestamp('expires_at').notNull(),
+    expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
     attempts: integer('attempts').notNull().default(0),
-    consumed_at: timestamp('consumed_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    consumed_at: timestamp('consumed_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('auth_otps_channel_identifier_idx').on(t.channel, t.identifier, t.created_at)],
 )
@@ -227,7 +227,7 @@ export const admin_users = pgTable('admin_users', {
     .references(() => users.id, { onDelete: 'cascade' }),
   email: varchar('email', { length: 255 }).notNull().unique('admin_users_email_uq'),
   added_by: uuid('added_by').references(() => users.id, { onDelete: 'set null' }),
-  created_at: timestamp('created_at').notNull().defaultNow(),
+  created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 // Email OTP for admin-dashboard login (#84) — mirrors phone_otps, with one
@@ -243,10 +243,10 @@ export const email_otps = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: 'cascade' }),
     code_hash: text('code_hash').notNull(),
-    expires_at: timestamp('expires_at').notNull(),
+    expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
     attempts: integer('attempts').notNull().default(0),
-    consumed_at: timestamp('consumed_at'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    consumed_at: timestamp('consumed_at', { withTimezone: true }),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [index('email_otps_email_idx').on(t.email, t.created_at)],
 )
@@ -266,7 +266,7 @@ export const gas_grants = pgTable(
     // UNIQUE so a retried insert with the same on-chain ref is rejected at
     // the DB layer — defence in depth on top of the (user_id, chain_id) PK.
     tx_ref: text('tx_ref').notNull().unique('gas_grants_tx_ref_uq'),
-    granted_at: timestamp('granted_at').notNull().defaultNow(),
+    granted_at: timestamp('granted_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     primaryKey({ columns: [t.user_id, t.chain_id] }),

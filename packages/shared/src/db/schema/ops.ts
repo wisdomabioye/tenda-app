@@ -9,7 +9,7 @@ export const chain_cursors = pgTable('chain_cursors', {
     .primaryKey()
     .references(() => chains.id),
   last_block: bigint('last_block', { mode: 'number' }).notNull().default(0),
-  last_processed_at: timestamp('last_processed_at').notNull().defaultNow(),
+  last_processed_at: timestamp('last_processed_at', { withTimezone: true }).notNull().defaultNow(),
 })
 
 /**
@@ -29,7 +29,7 @@ export const admin_audit_log = pgTable(
     target_type: text('target_type'),
     target_id: text('target_id'),
     metadata: jsonb('metadata'),
-    created_at: timestamp('created_at').notNull().defaultNow(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('audit_log_admin_created_idx').on(t.admin_id, t.created_at),

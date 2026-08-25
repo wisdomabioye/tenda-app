@@ -43,9 +43,9 @@ export const gig_applications = pgTable(
      * short hold when a poster starts an assignment (see
      * APPLICATION_ASSIGN_HOLD_SECONDS).
      */
-    expires_at: timestamp('expires_at').notNull(),
-    created_at: timestamp('created_at').notNull().defaultNow(),
-    updated_at: timestamp('updated_at')
+    expires_at: timestamp('expires_at', { withTimezone: true }).notNull(),
+    created_at: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updated_at: timestamp('updated_at', { withTimezone: true })
       .notNull()
       .defaultNow()
       .$onUpdate(() => new Date()),

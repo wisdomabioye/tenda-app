@@ -13,7 +13,7 @@ export const escrow_proofs = pgTable(
       .references(() => escrows.id, { onDelete: 'cascade' }),
     url: text('url').notNull(),
     type: proofTypeEnum('type').notNull(),
-    uploaded_at: timestamp('uploaded_at').notNull().defaultNow(),
+    uploaded_at: timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('escrow_proofs_escrow_idx').on(t.escrow_id),
