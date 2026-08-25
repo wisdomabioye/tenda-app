@@ -1,5 +1,6 @@
-import { ArrowLeftRight, BriefcaseBusiness, type LucideIcon } from 'lucide-react'
+import { BriefcaseBusiness, Coins, type LucideIcon } from 'lucide-react'
 import { ROUTES } from '@/lib/routes'
+import { sellHref } from '@/components/wallet/sell/copy'
 
 export interface CreateOption {
   href: string
@@ -9,6 +10,11 @@ export interface CreateOption {
   icon: LucideIcon
 }
 
+/**
+ * Mobile's FAB pairing, verbatim (spec-correction #50): "Post a Gig" and
+ * "Sell / Cash out". There is no third "create offer" concept — posting an
+ * offer is a MODE of selling, the second tab on the sell surface.
+ */
 export const CREATE_OPTIONS: readonly CreateOption[] = [
   {
     href: ROUTES.createGig,
@@ -18,10 +24,10 @@ export const CREATE_OPTIONS: readonly CreateOption[] = [
     icon: BriefcaseBusiness,
   },
   {
-    href: ROUTES.createOffer,
-    menuLabel: 'Create offer',
-    title: 'Create an offer',
-    description: 'List an exchange offer with your amount, rate and payment window.',
-    icon: ArrowLeftRight,
+    href: sellHref('instant'),
+    menuLabel: 'Sell / Cash out',
+    title: 'Sell / Cash out',
+    description: 'Cash out at the market rate, or post a P2P offer at yours.',
+    icon: Coins,
   },
-]
+] as const

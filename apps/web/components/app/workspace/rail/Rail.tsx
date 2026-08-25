@@ -25,12 +25,12 @@ import { CreateMenu } from './CreateMenu'
 import { BrandLogo } from '@/components/brand/BrandLogo'
 import { SignOutButton } from '@/components/profile/SignOutButton'
 import {
+  RAIL_ITEMS,
   RAIL_LINK_WALLET,
   RAIL_PROFILE,
   RAIL_SETTINGS,
   isRailItemActive,
   isSettingsItemActive,
-  visibleRailItems,
   type RailBadgeSource,
 } from './rail-items'
 
@@ -45,7 +45,6 @@ export function Rail({ user }: { user: User | null }) {
     notifications: notificationUnread,
   }
 
-  const items = visibleRailItems(user?.advanced_mode_enabled === true)
   return (
     <nav
       aria-label="Workspace"
@@ -59,7 +58,7 @@ export function Rail({ user }: { user: User | null }) {
         {expanded && <button type="button" aria-label="Collapse sidebar" aria-expanded onClick={toggle} className="flex h-9 w-9 items-center justify-center rounded-control text-content-tertiary hover:bg-surface-inset hover:text-content-primary"><PanelLeftClose size={19} aria-hidden /></button>}
       </div>
 
-      {items.map((item) => (
+      {RAIL_ITEMS.map((item) => (
         <RailLink
           key={item.href}
           href={item.href}
@@ -132,14 +131,17 @@ export function Rail({ user }: { user: User | null }) {
 
       <div className={expanded ? 'w-full px-3' : 'flex w-full justify-center px-3'}><SignOutButton variant="rail" showLabel={expanded} /></div>
 
+      {/* Rendered only while collapsed (the expanded state's control sits in
+          the head row), so the label and glyph are the collapsed ones — the
+          old ternaries here had unreachable arms. */}
       {!expanded && <button
         type="button"
-        aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
-        aria-expanded={expanded}
+        aria-label="Expand sidebar"
+        aria-expanded={false}
         onClick={toggle}
         className={cn(RAIL_SLOT, 'mt-1 text-content-tertiary hover:bg-surface-inset hover:text-content-primary')}
       >
-        {expanded ? <PanelLeftClose size={19} aria-hidden /> : <PanelLeftOpen size={19} aria-hidden />}
+        <PanelLeftOpen size={19} aria-hidden />
       </button>}
     </nav>
   )

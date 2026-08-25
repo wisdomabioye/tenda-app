@@ -1,6 +1,7 @@
 /**
- * The two exchange routes' own decisions: the advanced-mode gate, and the
- * split between an offer that is GONE and one that merely failed to load.
+ * The two exchange routes' own decisions: the registry-verified chain filter,
+ * and the split between an offer that is GONE and one that merely failed to
+ * load. The book itself is open to every signed-in user (#50).
  *
  * That split is the point of this file. Collapsing them sends a reader back to
  * the order book for an offer that is still there and still theirs to take.
@@ -13,6 +14,7 @@ import ExchangePage from '@/app/(app)/exchange/page'
 import { ExchangeDetailRoute } from '@/components/exchange/ExchangeDetailRoute'
 import { EXCHANGE_COPY } from '@/components/exchange/market'
 import { OFFER_DETAIL_COPY } from '@/components/exchange/detail'
+import { sellHref } from '@/components/wallet/sell/copy'
 import { useAuthStore } from '@/stores/auth.store'
 import { makeUser } from '../../../../test/factories/user'
 import { makeExchangeDetail } from '../../../../test/factories/exchange'
@@ -91,9 +93,17 @@ beforeEach(() => {
 })
 
 describe('/exchange', () => {
-  it('shows the order book once the toggle is on', () => {
+  it('shows the order book', () => {
     render(<ExchangePage />)
     expect(screen.getByRole('heading', { level: 1, name: EXCHANGE_COPY.title('market') })).toBeInTheDocument()
+  })
+
+  it('renders before the user record lands — a null user is not a lock', () => {
+    useAuthStore.setState({ user: null })
+    render(<ExchangePage />)
+    expect(
+      screen.getByRole('heading', { level: 1, name: EXCHANGE_COPY.title('market') }),
+    ).toBeInTheDocument()
   })
 
   it('holds the request until the registry can VERIFY the chain in the link', () => {
@@ -115,19 +125,26 @@ describe('/exchange', () => {
     ])
   })
 
-  it('locks the surface — and fetches NOTHING — when advanced mode is off', () => {
-    // Both endpoints enforce the same gate, so requesting would only paint a
-    // refusal over the one message that helps: turn it on in Settings.
+  it('offers Post offer as a plain LINK to the sell surface — no nested button', () => {
+    // Button's own contract: links that look like buttons use buttonVariants()
+    // on the anchor. A real <button> inside <a> is invalid interactive nesting.
+    render(<ExchangePage />)
+    const post = screen.getByRole('link', { name: EXCHANGE_COPY.postOffer })
+    expect(post).toHaveAttribute('href', sellHref('offer'))
+    expect(post.querySelector('button')).toBeNull()
+  })
+
+  it('serves the book to a user with advanced mode OFF — the lock is gone (#50)', () => {
+    // Mobile shows everyone the Trade tab and the wire opens browse/accept to
+    // all authed users (server decision #14); only web locked the page.
+    registry.chains = [{ id: 'solana:devnet', display_name: 'Solana Devnet' }]
+    registry.status = 'ready'
     useAuthStore.setState({ user: makeUser({ id: 'me', advanced_mode_enabled: false }) })
     render(<ExchangePage />)
-    expect(screen.getByText(EXCHANGE_COPY.locked.title)).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: EXCHANGE_COPY.locked.action })).toHaveAttribute(
-      'href',
-      '/settings',
-    )
-    expect(screenState.calls).toEqual([
-      expect.objectContaining({ enabled: false }),
-    ])
+    expect(
+      screen.getByRole('heading', { level: 1, name: EXCHANGE_COPY.title('market') }),
+    ).toBeInTheDocument()
+    expect(screenState.calls).toEqual([expect.objectContaining({ enabled: true })])
   })
 })
 

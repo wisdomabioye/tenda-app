@@ -15,9 +15,11 @@ export const SETTINGS_COPY = {
   preferences: 'Preferences',
   advanced: {
     label: 'P2P Exchange',
-    hint: 'Unlocks the currency-exchange order book and offer creation.',
-    on: 'P2P exchange unlocked',
-    off: 'P2P exchange hidden',
+    // Honest since #50: the Trade surface is open to everyone (mobile parity,
+    // server decision #14) — this stores a preference, it unlocks nothing.
+    hint: 'A saved preference on your account. The Trade surface is open to everyone.',
+    on: 'P2P Exchange turned on',
+    off: 'P2P Exchange turned off',
     failed: 'Could not update the setting, please try again',
   },
   build: (env: string) => `web · ${env} build`,

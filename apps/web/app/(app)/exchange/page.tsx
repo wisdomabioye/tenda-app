@@ -1,47 +1,27 @@
 'use client'
 
 /**
- * P2P exchange — the Tier-3 order book, behind the CO4 advanced-mode gate
- * (the settings toggle unlocks it; exchange is NEVER public — both endpoints
- * require auth). There is no Buy tab: onramp was retired (#61).
+ * P2P exchange — the Tier-3 order book. Open to every signed-in user
+ * (spec-correction #50, mobile parity + server decision #14: browsing and
+ * accepting were always open on the wire; only web locked the page). The
+ * book is still never public — both endpoints require auth.
  *
- * The page owns the gate and nothing else: the list state comes from the URL
+ * The page owns nothing but composition: the list state comes from the URL
  * and the surface renders it.
  */
-import Link from 'next/link'
-import { ArrowLeftRight } from 'lucide-react'
 import { useAuthStore } from '@/stores/auth.store'
 import { useExchangeRoute } from '@/hooks/exchange/useExchangeRoute'
 import { useExchangeScreen } from '@/hooks/exchange/useExchangeScreen'
-import { EXCHANGE_COPY, ExchangeSurface } from '@/components/exchange/market'
-import { EmptyPanel, EMPTY_ACTION_CLASS } from '@/components/ui/EmptyPanel'
+import { ExchangeSurface } from '@/components/exchange/market'
 
 export default function ExchangePage() {
   const user = useAuthStore((s) => s.user)
   const { route, chainReady } = useExchangeRoute()
-  const locked = user !== null && !user.advanced_mode_enabled
   const screen = useExchangeScreen({
     currency: route.currency,
     chainId: route.chainId,
-    enabled: !locked && chainReady,
+    enabled: chainReady,
   })
-
-  if (locked) {
-    return (
-      <div className="mx-auto w-full max-w-[560px] px-8 py-24">
-        <EmptyPanel
-          icon={<ArrowLeftRight size={28} />}
-          title={EXCHANGE_COPY.locked.title}
-          body={EXCHANGE_COPY.locked.body}
-          action={
-            <Link href="/settings" className={EMPTY_ACTION_CLASS}>
-              {EXCHANGE_COPY.locked.action}
-            </Link>
-          }
-        />
-      </div>
-    )
-  }
 
   return <ExchangeSurface route={route} screen={screen} userId={user?.id ?? ''} />
 }

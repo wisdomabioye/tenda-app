@@ -27,9 +27,9 @@ beforeEach(() => {
 })
 
 describe('Rail — navigation', () => {
-  it('renders every non-gated destination with an accessible name', () => {
+  it('renders every destination with an accessible name', () => {
     render(<Rail user={makeUser()} />)
-    for (const label of ['Home', 'My Gigs', 'Messages', 'Notifications', 'Disputes', 'Wallet']) {
+    for (const label of ['Home', 'My Gigs', 'Messages', 'Notifications', 'Disputes', 'Wallet', 'Trade']) {
       expect(screen.getByRole('link', { name: label })).toBeInTheDocument()
     }
     expect(screen.getByRole('button', { name: 'Create' })).toHaveAttribute('aria-expanded', 'false')
@@ -94,13 +94,15 @@ describe('Rail — navigation', () => {
     expect(screen.getByRole('link', { name: 'My Gigs' })).not.toHaveAttribute('aria-current')
   })
 
-  it('opens a menu with both explicit creation routes', async () => {
+  it("opens a menu with mobile's FAB pairing", async () => {
     render(<Rail user={makeUser()} />)
     await userEvent.click(screen.getByRole('button', { name: 'Create' }))
     const createGig = screen.getByRole('menuitem', { name: 'Create gig' })
     expect(createGig).toHaveAttribute('href', '/gigs/new')
     expect(createGig).toHaveFocus()
-    expect(screen.getByRole('menuitem', { name: 'Create offer' })).toHaveAttribute('href', '/offers/new')
+    // Mobile's FAB pairing (#50): selling — offer posting included — is the
+    // sell surface, never a second composer route.
+    expect(screen.getByRole('menuitem', { name: 'Sell / Cash out' })).toHaveAttribute('href', '/wallet/buy-sell')
     await userEvent.keyboard('{Escape}')
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Create' })).toHaveFocus()
@@ -141,22 +143,23 @@ describe('Rail — navigation', () => {
     render(<Rail user={null} />)
     expect(screen.getByRole('link', { name: 'Your profile' })).toBeInTheDocument()
   })
+
+  it('expanded with no user record, the profile row reads a plain "Profile"', async () => {
+    render(<Rail user={null} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Expand sidebar' }))
+    expect(screen.getByText('Profile')).toBeInTheDocument()
+  })
 })
 
-describe('Rail — advanced-mode gating', () => {
-  it('hides Trade when advanced mode is off', () => {
+describe('Rail — Trade visibility (#50: the advanced-mode gate is gone)', () => {
+  it('shows Trade to a user with advanced mode OFF', () => {
     render(<Rail user={makeUser({ advanced_mode_enabled: false })} />)
-    expect(screen.queryByRole('link', { name: 'Trade' })).not.toBeInTheDocument()
-  })
-
-  it('shows Trade when advanced mode is on', () => {
-    render(<Rail user={makeUser({ advanced_mode_enabled: true })} />)
     expect(screen.getByRole('link', { name: 'Trade' })).toHaveAttribute('href', '/exchange')
   })
 
-  it('hides Trade for a null user rather than crashing', () => {
+  it('shows Trade even before the user record lands', () => {
     render(<Rail user={null} />)
-    expect(screen.queryByRole('link', { name: 'Trade' })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Trade' })).toHaveAttribute('href', '/exchange')
     expect(screen.getByRole('link', { name: 'Home' })).toBeInTheDocument()
   })
 })

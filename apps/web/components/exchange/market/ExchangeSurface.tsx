@@ -4,12 +4,13 @@
  * The exchange surface: the control row, whichever of the two lists is
  * selected, and the states each can be in (Tier-3 comp, lines 397-517).
  *
- * The page keeps only the auth gate; everything the reader sees is here, so
- * the states can be rendered in a test without a router or a session.
+ * The page owns nothing but composition (#50 removed its last gate);
+ * everything the reader sees is here, so the states can be rendered in a
+ * test without a router or a session.
  */
 import Link from 'next/link'
 import { ArrowLeftRight, Plus } from 'lucide-react'
-import { Button } from '@/components/ui/Button'
+import { buttonVariants } from '@/components/ui/Button'
 import { EmptyPanel } from '@/components/ui/EmptyPanel'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { PaginatedList } from '@/components/shared/PaginatedList'
@@ -19,7 +20,7 @@ import { MyTradeCard } from './MyTradeCard'
 import { OfferCard } from './OfferCard'
 import { OfferCardSkeleton } from './OfferCardSkeleton'
 import { EXCHANGE_COPY, type ExchangeRouteState } from './copy'
-import { ROUTES } from '@/lib/routes'
+import { sellHref } from '@/components/wallet/sell/copy'
 
 export function ExchangeSurface({
   route,
@@ -44,10 +45,12 @@ export function ExchangeSurface({
             {EXCHANGE_COPY.title(route.tab)}
           </h1>
         </div>
-        <Link href={ROUTES.createOffer}>
-          <Button variant="outline">
-            <Plus size={15} aria-hidden /> {EXCHANGE_COPY.postOffer}
-          </Button>
+        {/* Mobile's exchange "+" deep-links the sell surface's offer tab —
+            one composer for offers, never a second (spec-correction #50).
+            buttonVariants on the anchor, per Button's own contract: a real
+            <button> inside a link is invalid interactive nesting. */}
+        <Link href={sellHref('offer')} className={buttonVariants({ variant: 'outline' })}>
+          <Plus size={15} aria-hidden /> {EXCHANGE_COPY.postOffer}
         </Link>
       </div>
 

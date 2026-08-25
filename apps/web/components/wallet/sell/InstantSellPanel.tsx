@@ -19,7 +19,7 @@ import { useInstantSell } from '@/hooks/fiat/useInstantSell'
 import type { AssetSelection } from '@/hooks/wallet/useAssetSelection'
 import type { PayoutAccountsState } from '@/hooks/fiat/usePayoutAccounts'
 import { QuoteSummary } from './QuoteSummary'
-import { SellAmountField } from './SellAmountField'
+import { SellAssetAmount } from './SellAssetAmount'
 import { SELL_COPY, sellHref } from './copy'
 
 export function InstantSellPanel({
@@ -46,7 +46,7 @@ export function InstantSellPanel({
 
   return (
     <div className="flex flex-col gap-5">
-      <SellAmountField selection={selection} amount={amount} onAmountChange={onAmountChange} />
+      <SellAssetAmount selection={selection} amount={amount} onAmountChange={onAmountChange} />
 
       {error === 'unavailable' && (
         // No RETRY: the rails answered, and asking again immediately gets the

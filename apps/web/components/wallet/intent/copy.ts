@@ -31,7 +31,7 @@ export const INTENT_COPY = {
       ? 'The money has settled. Nothing further is needed from you.'
       : tone === 'failed'
         ? 'Nothing was taken. You can start another cash-out whenever you like.'
-        : 'Leave this page open or come back to it — the status updates on its own.',
+        : 'Leave this page open or come back to it, the status updates on its own.',
   rows: {
     amount: 'Amount',
     receive: 'You receive',

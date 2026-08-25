@@ -31,10 +31,9 @@ export interface ExchangeScreenFilters {
   currency: SupportedCurrency | null
   chainId: string | null
   /**
-   * False while the surface is locked. Exchange is behind the CO4 advanced-mode
-   * toggle and BOTH endpoints enforce it, so fetching for a locked reader is
-   * two requests that can only come back refused — and the refusal would paint
-   * an error over a screen whose real message is "turn this on in Settings".
+   * False while the chain registry has not yet verified a `?chain=` filter
+   * from the URL (#50 removed the old advanced-mode lock) — firing early
+   * would turn a stale link into an error over a dead Try-again.
    */
   enabled?: boolean
 }

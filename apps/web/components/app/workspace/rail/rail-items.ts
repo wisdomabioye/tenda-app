@@ -28,14 +28,12 @@ export interface RailItem {
   label: string
   icon: LucideIcon
   badge?: RailBadgeSource
-  /** Shown only once the CO4 advanced-mode toggle unlocks the P2P surface. */
-  requiresAdvancedMode?: boolean
 }
 
 /**
  * Every destination the previous top-nav shell could reach is present:
- * Home, My Gigs, Messages, Wallet and the gated Trade item carry over from
- * its NAV/EXCHANGE_NAV, the bell becomes the Notifications item, and Post
+ * Home, My Gigs, Messages, Wallet and Trade carry over from its
+ * NAV/EXCHANGE_NAV, the bell becomes the Notifications item, and Post
  * becomes the rail's primary action (see RAIL_ACTION).
  */
 export const RAIL_ITEMS: readonly RailItem[] = [
@@ -49,7 +47,10 @@ export const RAIL_ITEMS: readonly RailItem[] = [
   // wire counts unread disputes, and a fabricated counter is worse than none.
   { href: '/disputes', label: 'Disputes', icon: Scale },
   { href: '/wallet', label: 'Wallet', icon: Wallet },
-  { href: '/exchange', label: 'Trade', icon: ArrowLeftRight, requiresAdvancedMode: true },
+  // Visible to EVERYONE (spec-correction #50, mobile parity + server decision
+  // #14): browsing and accepting are open to all authed users; the old
+  // advanced-mode lock hid a tab mobile always shows.
+  { href: '/exchange', label: 'Trade', icon: ArrowLeftRight },
 ]
 
 /** The rail's primary action, pinned below the scrollable item list. */
@@ -93,9 +94,4 @@ export function isSettingsItemActive(pathname: string): boolean {
     isRailItemActive(pathname, RAIL_SETTINGS.href) &&
     !isRailItemActive(pathname, RAIL_LINK_WALLET.href)
   )
-}
-
-/** The items this user can actually see. */
-export function visibleRailItems(advancedModeEnabled: boolean): readonly RailItem[] {
-  return RAIL_ITEMS.filter((item) => item.requiresAdvancedMode !== true || advancedModeEnabled)
 }

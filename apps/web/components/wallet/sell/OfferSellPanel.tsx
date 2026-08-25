@@ -25,7 +25,7 @@ import type { AssetSelection } from '@/hooks/wallet/useAssetSelection'
 import type { PayoutAccountsState } from '@/hooks/fiat/usePayoutAccounts'
 import { MoneyField } from './MoneyField'
 import { OfferDeadlines } from './OfferDeadlines'
-import { SellAmountField } from './SellAmountField'
+import { SellAssetAmount } from './SellAssetAmount'
 import { SELL_COPY } from './copy'
 
 const SECONDS_PER_HOUR = 60 * 60
@@ -97,7 +97,7 @@ export function OfferSellPanel({
 
   return (
     <div className="flex flex-col gap-5">
-      <SellAmountField selection={selection} amount={amount} onAmountChange={onAmountChange} />
+      <SellAssetAmount selection={selection} amount={amount} onAmountChange={onAmountChange} />
 
       <MoneyField
         id="offer-rate"

@@ -22,7 +22,9 @@ vi.mock('@/hooks/notifications/useNotificationsRealtime', () => ({
   useNotificationsRealtime: vi.fn(),
 }))
 
+import { fireEvent } from '@testing-library/react'
 import { AppWorkspace } from '@/components/app/AppWorkspace'
+import { PALETTE_PLACEHOLDER } from '@/components/app/workspace/palette'
 import { useRealtimeConnection } from '@/hooks/connectivity/useRealtimeConnection'
 import { useInboxRealtime } from '@/hooks/chat/useInboxRealtime'
 import { useNotificationsRealtime } from '@/hooks/notifications/useNotificationsRealtime'
@@ -103,5 +105,18 @@ describe('AppWorkspace — shell composition', () => {
     at('wallet', ['wallet'])
     rerender(<AppWorkspace>b</AppWorkspace>)
     expect(screen.getByRole('region', { name: 'Wallet' })).not.toHaveFocus()
+  })
+
+  it('⌘K opens the palette with the rail-derived commands; the chord toggles it away', () => {
+    // The layout is the palette's HOST (it must work on surfaces with no list
+    // column), so the wiring is proven here: chord → dialog with real
+    // commands → chord again → gone.
+    render(<AppWorkspace>x</AppWorkspace>)
+    expect(screen.queryByPlaceholderText(PALETTE_PLACEHOLDER)).toBeNull()
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+    expect(screen.getByPlaceholderText(PALETTE_PLACEHOLDER)).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: /Trade/ })).toBeInTheDocument()
+    fireEvent.keyDown(window, { key: 'k', ctrlKey: true })
+    expect(screen.queryByPlaceholderText(PALETTE_PLACEHOLDER)).toBeNull()
   })
 })

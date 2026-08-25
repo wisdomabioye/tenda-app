@@ -6,5 +6,4 @@ export const ROUTES = {
   signIn: '/signin',
   create: '/create',
   createGig: '/gigs/new',
-  createOffer: '/offers/new',
 } as const

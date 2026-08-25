@@ -24,11 +24,16 @@ export const SELL_COPY = {
     mode === 'instant'
       ? 'Cash out at the live market rate. The quote is fixed when you confirm.'
       : 'Post your own rate as a P2P offer and wait for a buyer to take it.',
+  /** The picker's heading — mobile's SellAssetAmount label, verbatim. */
+  assetLabel: 'You sell',
   amountLabel: 'Amount to sell',
   noWallet: 'Link a wallet to cash out crypto.',
   noWalletAction: 'Link a wallet',
   noPayout: 'Add a payout account so we know where the money goes.',
-  noPayoutAction: 'Add a payout account',
+  /** The list state's disclosure toggle for the same inline form. */
+  addAccount: 'Add another account',
+  closeAddAccount: 'Close account form',
+  addFormNote: 'Create and select a payout destination without losing what you typed.',
   confirm: 'Confirm cash-out',
   /**
    * The comp's note promises a rate "fixed when you confirm", which is true of

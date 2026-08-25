@@ -139,9 +139,4 @@ export const EXCHANGE_COPY = {
   /** Which side of a trade the reader is on, derived from the escrow's creator. */
   side: (selling: boolean) => (selling ? 'You are selling' : 'You are buying'),
   window: (window: string) => `Pay within ${window}`,
-  locked: {
-    title: 'P2P Exchange is locked',
-    body: 'Turn on P2P Exchange in Settings to browse the order book and post sell offers.',
-    action: 'Open Settings',
-  },
 } as const

@@ -1,6 +1,6 @@
 /**
- * The exchange surface against the stub API: the advanced-mode gate, the
- * filters as real URL state, the offer page, and the two failure states.
+ * The exchange surface against the stub API: the open-to-everyone book (#50),
+ * the filters as real URL state, the offer page, and the two failure states.
  *
  * The filter tests are the ones that need a browser. Their whole premise is
  * that the state survives a COLD load and a round trip through an offer — a
@@ -13,18 +13,16 @@ import { EXISTING_EMAIL, TRADER_EMAIL } from './fixtures/auth'
 import { EXCHANGE_COPY } from '../components/exchange/market/copy'
 import { OFFER_DETAIL_COPY } from '../components/exchange/detail/copy'
 
-test('the surface is LOCKED without the advanced-mode toggle, and says where to turn it on', async ({
+test('the book is open to a user with advanced mode OFF — the lock is gone (#50)', async ({
   page,
 }) => {
+  // Ada's fixture account has advanced mode off. Mobile shows everyone the
+  // Trade tab and the wire opens browse/accept to all (server decision #14).
   await signInToHome(page, EXISTING_EMAIL)
   await page.goto('/exchange')
-  await expect(page.getByText(EXCHANGE_COPY.locked.title)).toBeVisible()
-  await expect(page.getByRole('link', { name: EXCHANGE_COPY.locked.action })).toHaveAttribute(
-    'href',
-    '/settings',
-  )
-  // No offers leak past the gate.
-  await expect(page.getByText('Chioma Eze')).toHaveCount(0)
+  await expect(page.getByText('Chioma Eze')).toBeVisible()
+  // exact: substring matching would also catch the "My trades" tab link.
+  await expect(page.getByRole('link', { name: 'Trade', exact: true })).toBeVisible()
 })
 
 test('the order book lists open offers with their rate, chain and window', async ({ page }) => {

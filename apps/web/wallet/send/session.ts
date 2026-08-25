@@ -137,7 +137,7 @@ export async function connectAsWallet(ns: ChainNamespace, required: string): Pro
   if (!isLinkedWallet(ns, required, wallets)) {
     throw new WalletError(
       'no_wallet',
-      `This escrow is signed by ${truncateWallet(required)}, which is no longer linked to your account — re-link it in Settings to continue`,
+      `This escrow is signed by ${truncateWallet(required)}, which is no longer linked to your account, re-link it in Settings to continue`,
     )
   }
   const modal = await requireTxModal()
@@ -150,7 +150,7 @@ export async function connectAsWallet(ns: ChainNamespace, required: string): Pro
     return live
   }
   await modal.disconnect(ns)
-  const requiredMessage = `Connect ${truncateWallet(required)} — the wallet this escrow is signed by — to continue`
+  const requiredMessage = `Connect ${truncateWallet(required)}, the wallet this escrow is signed by to continue`
   let account: { address: string }
   try {
     account = await waitForConnection(modal, { namespace: ns, fresh: true })

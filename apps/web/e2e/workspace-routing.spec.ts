@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
 import { APP_INFO } from '@tenda/shared'
+import { OFFER_DETAIL_COPY } from '../components/exchange/detail/copy'
 import { signInToHome } from './fixtures/sign-in'
 
 test('root is public while private home requires authentication', async ({ page }) => {
@@ -17,27 +18,42 @@ test('signed-in visitors cannot return to guest-only auth surfaces', async ({ pa
   }
 })
 
-test('the create control offers explicit gig and offer composers', async ({ page }) => {
+test('the create control offers mobile\'s FAB pairing — gig, and sell/cash-out', async ({
+  page,
+}) => {
   await signInToHome(page)
   await page.getByRole('button', { name: 'Create' }).click()
   await expect(page.getByRole('menuitem', { name: 'Create gig' })).toHaveAttribute(
     'href',
     '/gigs/new',
   )
-  await expect(page.getByRole('menuitem', { name: 'Create offer' })).toHaveAttribute(
+  // Offer creation is a MODE of selling (spec-correction #50) — the menu
+  // points at the ONE sell surface, never a second composer.
+  await expect(page.getByRole('menuitem', { name: 'Sell / Cash out' })).toHaveAttribute(
     'href',
-    '/offers/new',
+    '/wallet/buy-sell',
   )
-  for (const route of ['/create', '/gigs/new', '/offers/new']) {
+  for (const route of ['/create', '/gigs/new']) {
     await page.goto(route)
     await expect(page.getByRole('navigation', { name: 'Workspace' })).toBeVisible()
   }
 })
 
 test('unpublished legacy routes do not exist', async ({ request }) => {
-  for (const route of ['/gigs', '/post', '/exchange/new']) {
+  // /offers/new joined this list in #50: the second offer composer is retired.
+  for (const route of ['/gigs', '/post', '/offers/new']) {
     expect((await request.get(route)).status(), route).toBe(404)
   }
+})
+
+test('/exchange/new is an offer id like any other — the retired stub is gone', async ({
+  page,
+}) => {
+  // With the (public) stub deleted, the segment falls through to the authed
+  // detail route, which answers a non-existent id with its unavailable state.
+  await signInToHome(page)
+  await page.goto('/exchange/new')
+  await expect(page.getByText(OFFER_DETAIL_COPY.unavailableTitle)).toBeVisible()
 })
 
 test('home replaces a retained list with open gigs', async ({ page }) => {

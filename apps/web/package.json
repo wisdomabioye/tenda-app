@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev-capped": "systemd-run --user --scope -p MemoryMax=4G -p MemorySwapMax=0 pnpm run dev",
+    "dev-capped": "systemd-run --user --scope -p MemoryMax=6G -p MemorySwapMax=0 pnpm run dev",
     "dev": "NODE_ENV=development next dev -p 3200",
     "build": "NODE_ENV=production next build",
     "start": "NODE_ENV=production next start -p 3200",

@@ -19,15 +19,27 @@ vi.mock('@/hooks/exchange/useOfferSell', () => ({
 }))
 vi.mock('@/components/shared/FeeSummary', () => ({ FeeSummary: () => <p>fee-summary</p> }))
 
-const option = {
+// Complete, uncast: a fixture is a claim about what the producer can send.
+const option: ExchangeAssetOption = {
   chainId: 'solana:devnet',
   assetId: 'USDC_SOL',
   symbol: 'USDC',
   decimals: 6,
+  chainName: 'Solana Devnet',
   walletAddress: 'SoLAddr1',
-} as ExchangeAssetOption
+}
 
-const account = { id: 'acc-1', country: 'NG' } as BankAccountSummary
+const account: BankAccountSummary = {
+  id: 'acc-1',
+  country: 'NG',
+  kind: 'bank',
+  bank_code: '058',
+  account_number_masked: '••••6789',
+  account_name: 'Ada Okafor',
+  is_default: true,
+  verified: true,
+  created_at: '2026-08-01T00:00:00.000Z',
+}
 const selection = { options: [option], option, selectedKey: 'k', select: vi.fn() }
 const payout = {
   accounts: [account],
@@ -50,6 +62,26 @@ const view = (amount = '', over: Partial<PayoutState> = {}) =>
   )
 
 describe('OfferSellPanel', () => {
+  it('with every option gone mid-session the CTA names the missing asset, disabled', () => {
+    const expected = getOfferMissingRequirement({
+      hasAsset: false,
+      amountRaw: null,
+      rate: 0,
+      fiatTotal: 0,
+      hasPayoutAccount: true,
+    })
+    expect(expected).not.toBeNull()
+    render(
+      <OfferSellPanel
+        selection={{ options: [], option: null, selectedKey: '', select: vi.fn() }}
+        payout={payout}
+        amount="50"
+        onAmountChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: expected as string })).toBeDisabled()
+  })
+
   it('labels the button with the SHARED requirement, not a local guess', () => {
     view('')
     const expected = getOfferMissingRequirement({

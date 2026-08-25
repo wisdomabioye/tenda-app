@@ -5,7 +5,6 @@ import {
   RAIL_LINK_WALLET,
   isRailItemActive,
   isSettingsItemActive,
-  visibleRailItems,
 } from '@/components/app/workspace/rail'
 
 describe('isRailItemActive', () => {
@@ -68,19 +67,11 @@ describe('isSettingsItemActive', () => {
   })
 })
 
-describe('visibleRailItems', () => {
-  it('hides the advanced-mode surface by default', () => {
-    const hrefs = visibleRailItems(false).map((i) => i.href)
-    expect(hrefs).not.toContain('/exchange')
-  })
-
-  it('shows the advanced-mode surface once enabled', () => {
-    const hrefs = visibleRailItems(true).map((i) => i.href)
-    expect(hrefs).toContain('/exchange')
-  })
-
-  it('gates exactly one item — everything else is always visible', () => {
-    expect(visibleRailItems(true)).toHaveLength(visibleRailItems(false).length + 1)
+describe('rail item visibility', () => {
+  it('offers Trade unconditionally — the advanced-mode gate is gone (#50)', () => {
+    // Mobile parity: the Trade tab is shown to everyone; browse/accept were
+    // always open on the wire (server decision #14).
+    expect(RAIL_ITEMS.map((i) => i.href)).toContain('/exchange')
   })
 })
 
@@ -88,7 +79,7 @@ describe('rail item config', () => {
   it('preserves every destination the previous top-nav shell could reach', () => {
     // Regression net for the shell swap: Create moved to the rail action and
     // the bell became the Notifications item, but nothing may be dropped.
-    const reachable = new Set([...visibleRailItems(true).map((i) => i.href), RAIL_ACTION.href])
+    const reachable = new Set([...RAIL_ITEMS.map((i) => i.href), RAIL_ACTION.href])
     for (const href of ['/home', '/create', '/my-gigs', '/messages', '/wallet', '/exchange', '/notifications', '/disputes']) {
       expect(reachable, `${href} is no longer reachable from the rail`).toContain(href)
     }

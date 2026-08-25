@@ -80,7 +80,7 @@ export function QuoteSummary({
       <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border-subtle pt-3.5">
         {expired ? (
           <p className="text-[13px] leading-[18px] text-feedback-danger-base">
-            <span className="font-semibold">{SELL_COPY.quote.expired}</span> — {SELL_COPY.quote.expiredBody}
+            <span className="font-semibold">{SELL_COPY.quote.expired}</span>, {SELL_COPY.quote.expiredBody}
           </p>
         ) : (
           <p className={cn('font-numeric text-[13px] leading-[18px]', EXPIRY_CLASS[tone])}>

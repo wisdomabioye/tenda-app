@@ -9,7 +9,6 @@ export {
   RAIL_SETTINGS,
   isRailItemActive,
   isSettingsItemActive,
-  visibleRailItems,
   type RailBadgeSource,
   type RailItem,
 } from './rail-items'

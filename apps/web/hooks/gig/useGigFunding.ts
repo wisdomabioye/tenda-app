@@ -246,6 +246,6 @@ export function useGigFunding({ draftId, resetForm }: UseGigFundingArgs) {
      * modal.
      */
     handleFundTimeout: (msg: string) =>
-      leaveAfterFunding('info', msg || 'Submitted — it will go live once the escrow confirms.'),
+      leaveAfterFunding('info', msg || 'Submitted, it will go live once the escrow confirms.'),
   }
 }

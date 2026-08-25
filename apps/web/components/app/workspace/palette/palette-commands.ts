@@ -2,18 +2,18 @@
  * What the command palette can jump to.
  *
  * Surfaces come from the rail config, so the palette and the rail can never
- * disagree about where you can go — including the advanced-mode gate. Richer
- * sources (escrows, conversations) plug in as extra command arrays when those
- * surfaces land; the palette itself never learns about them.
+ * disagree about where you can go. Richer sources (escrows, conversations)
+ * plug in as extra command arrays when those surfaces land; the palette
+ * itself never learns about them.
  */
 import type { LucideIcon } from 'lucide-react'
 import { Plus, Settings, User } from 'lucide-react'
 import {
   RAIL_ACTION,
+  RAIL_ITEMS,
   RAIL_LINK_WALLET,
   RAIL_PROFILE,
   RAIL_SETTINGS,
-  visibleRailItems,
 } from '@/components/app/workspace/rail'
 
 export interface PaletteCommand {
@@ -40,10 +40,10 @@ export const PALETTE_PLACEHOLDER = 'Jump to a surface, gig or person'
 
 const GO = 'go'
 
-/** Every destination the rail offers this user, plus its foot actions. */
-export function surfaceCommands(advancedModeEnabled: boolean): PaletteCommand[] {
+/** Every destination the rail offers, plus its foot actions. */
+export function surfaceCommands(): PaletteCommand[] {
   return [
-    ...visibleRailItems(advancedModeEnabled).map((item) => ({
+    ...RAIL_ITEMS.map((item) => ({
       id: `surface:${item.href}`,
       label: item.label,
       hint: GO,

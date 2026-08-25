@@ -9,17 +9,20 @@
  * the country's payout spec. So the aside lists the accounts they actually
  * have, and the rail is a fact printed on each rather than a control.
  *
- * The account is also what decides the payout CURRENCY, which is why an empty
- * list is a hard stop rather than a nicety: there is no "default" destination
- * to fall back to, and inventing one would send someone's money somewhere they
- * did not choose.
+ * Adding an account happens HERE, inline (spec-correction #50) — mobile's
+ * PayoutAccountSelect opens its add form in a sheet on both sell tabs, and the
+ * old link out to settings discarded the amount and rate the reader had typed
+ * (it also pointed at a route that did not exist). With no accounts the form
+ * IS the empty state: the only next step is adding one, so it is not put
+ * behind a button. `onCreated` selects the new account and reloads the list.
  */
-import Link from 'next/link'
+import { useState } from 'react'
+import { Plus } from 'lucide-react'
 import { CURRENCY_META, getPayoutRail, payoutCurrencyForCountry } from '@tenda/shared'
 import type { BankAccountSummary } from '@tenda/shared'
-import { EmptyPanel, EMPTY_ACTION_CLASS } from '@/components/ui/EmptyPanel'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { cn } from '@/lib/cn'
+import { PayoutAccountForm } from '@/components/payout/PayoutAccountForm'
 import type { PayoutAccountsState } from '@/hooks/fiat/usePayoutAccounts'
 import { SELL_COPY } from './copy'
 
@@ -30,6 +33,13 @@ function railName(account: BankAccountSummary): string {
 
 export function PayoutAccountAside({ payout }: { payout: PayoutAccountsState }) {
   const { accounts } = payout
+  const [adding, setAdding] = useState(false)
+
+  function handleCreated(row: BankAccountSummary) {
+    payout.setSelectedId(row.id)
+    payout.reload()
+    setAdding(false)
+  }
 
   return (
     <aside className="rounded-card border border-border-subtle bg-surface-inset p-4.5">
@@ -43,50 +53,59 @@ export function PayoutAccountAside({ payout }: { payout: PayoutAccountsState }) 
           <div className="h-14 rounded-control bg-surface-card" />
         </div>
       ) : accounts.length === 0 ? (
-        <div className="mt-3">
-          <EmptyPanel
-            title={SELL_COPY.noPayout}
-            body="Your cash-out needs a destination before it can be quoted."
-            action={
-              <Link href="/settings/payout-accounts" className={EMPTY_ACTION_CLASS}>
-                {SELL_COPY.noPayoutAction}
-              </Link>
-            }
-          />
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="text-sm leading-5 text-content-secondary">{SELL_COPY.noPayout}</p>
+          <PayoutAccountForm description={SELL_COPY.addFormNote} onCreated={handleCreated} />
         </div>
       ) : (
-        <div className="mt-3 flex flex-col gap-2" role="group" aria-label={SELL_COPY.railLabel}>
-          {accounts.map((account) => {
-            const selected = account.id === payout.selectedId
-            const currency = payoutCurrencyForCountry(account.country)
-            return (
-              <button
-                key={account.id}
-                type="button"
-                aria-pressed={selected}
-                onClick={() => payout.setSelectedId(account.id)}
-                className={cn(
-                  'flex w-full items-center justify-between gap-3 rounded-control border px-3.5 py-3 text-left transition-colors duration-(--motion-fast)',
-                  selected
-                    ? 'border-control-selected-border bg-control-selected-background'
-                    : 'border-border-default bg-surface-card hover:border-border-strong',
-                )}
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-content-primary">
-                    {account.account_name}
+        <>
+          <div className="mt-3 flex flex-col gap-2" role="group" aria-label={SELL_COPY.railLabel}>
+            {accounts.map((account) => {
+              const selected = account.id === payout.selectedId
+              const currency = payoutCurrencyForCountry(account.country)
+              return (
+                <button
+                  key={account.id}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => payout.setSelectedId(account.id)}
+                  className={cn(
+                    'flex w-full items-center justify-between gap-3 rounded-control border px-3.5 py-3 text-left transition-colors duration-(--motion-fast)',
+                    selected
+                      ? 'border-control-selected-border bg-control-selected-background'
+                      : 'border-border-default bg-surface-card hover:border-border-strong',
+                  )}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-semibold text-content-primary">
+                      {account.account_name}
+                    </span>
+                    <span className="mt-0.5 block truncate font-numeric text-xs text-content-tertiary">
+                      {railName(account)} · {account.account_number_masked}
+                    </span>
                   </span>
-                  <span className="mt-0.5 block truncate font-numeric text-xs text-content-tertiary">
-                    {railName(account)} · {account.account_number_masked}
+                  <span className="shrink-0 font-numeric text-xs font-bold text-content-secondary">
+                    {CURRENCY_META[currency].symbol} {currency}
                   </span>
-                </span>
-                <span className="shrink-0 font-numeric text-xs font-bold text-content-secondary">
-                  {CURRENCY_META[currency].symbol} {currency}
-                </span>
-              </button>
-            )
-          })}
-        </div>
+                </button>
+              )
+            })}
+          </div>
+          <button
+            type="button"
+            aria-expanded={adding}
+            onClick={() => setAdding((open) => !open)}
+            className="mt-3 inline-flex items-center gap-2 text-sm font-semibold text-brand-primary hover:underline"
+          >
+            <Plus size={15} aria-hidden />
+            {adding ? SELL_COPY.closeAddAccount : SELL_COPY.addAccount}
+          </button>
+          {adding && (
+            <div className="mt-3">
+              <PayoutAccountForm description={SELL_COPY.addFormNote} onCreated={handleCreated} />
+            </div>
+          )}
+        </>
       )}
 
       <p className="mt-3.5 text-xs leading-4 text-content-tertiary">{SELL_COPY.railNote}</p>

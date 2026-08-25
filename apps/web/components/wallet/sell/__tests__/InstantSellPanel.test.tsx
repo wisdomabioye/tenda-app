@@ -28,16 +28,28 @@ const sell = vi.hoisted(() => ({
 vi.mock('@/hooks/fiat/useInstantSell', () => ({ useInstantSell: () => sell.current }))
 vi.mock('@/components/shared/FeeSummary', () => ({ FeeSummary: () => <p>fee-summary</p> }))
 
-const option = {
+// Complete, uncast: a fixture is a claim about what the producer can send.
+const option: ExchangeAssetOption = {
   chainId: 'solana:devnet',
   assetId: 'USDC_SOL',
   symbol: 'USDC',
   decimals: 6,
+  chainName: 'Solana Devnet',
   walletAddress: 'SoLAddr1',
-} as ExchangeAssetOption
+}
 
 const selection = { options: [option], option, selectedKey: 'k', select: vi.fn() }
-const account = { id: 'acc-1', country: 'NG' } as BankAccountSummary
+const account: BankAccountSummary = {
+  id: 'acc-1',
+  country: 'NG',
+  kind: 'bank',
+  bank_code: '058',
+  account_number_masked: '••••6789',
+  account_name: 'Ada Okafor',
+  is_default: true,
+  verified: true,
+  created_at: '2026-08-01T00:00:00.000Z',
+}
 const payout = {
   accounts: [account],
   selectedId: 'acc-1',
@@ -56,6 +68,21 @@ beforeEach(() => {
 })
 
 describe('InstantSellPanel', () => {
+  it('survives losing every option mid-session — amount field stays, nothing quotes', () => {
+    // A wallet unlinked while the surface is open empties the option set; the
+    // panel must degrade to the bare field rather than crash or show a quote.
+    render(
+      <InstantSellPanel
+        selection={{ options: [], option: null, selectedKey: '', select: vi.fn() }}
+        payout={payout}
+        amount="50"
+        onAmountChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByLabelText(SELL_COPY.amountLabel)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: SELL_COPY.confirm })).toBeNull()
+  })
+
   it('sends an unavailable rail to the OTHER way to sell, not to a dead retry', () => {
     sell.current = { ...sell.current, error: 'unavailable' }
     view()

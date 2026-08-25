@@ -42,7 +42,7 @@ export function AppWorkspace({ list, children }: { list?: ReactNode; children: R
     <>
       {paletteOpen && (
         <CommandPalette
-          commands={surfaceCommands(user?.advanced_mode_enabled === true)}
+          commands={surfaceCommands()}
           onClose={closePalette}
         />
       )}

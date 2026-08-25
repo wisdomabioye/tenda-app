@@ -123,6 +123,7 @@ export default defineConfig({
         'hooks/**/*.ts',
         'stores/**/*.ts',
         'wallet/**/*.ts',
+        'components/create/**/*.{ts,tsx}',
         'components/wallet/**/*.{ts,tsx}',
         'components/escrow/**/*.{ts,tsx}',
         'components/form/**/*.{ts,tsx}',
@@ -211,9 +212,8 @@ export default defineConfig({
         // diluted exactly what the note at the top of this list refuses to
         // dilute. They join as they gain suites.
         //
-        // Brackets ESCAPED, for the reason the notifications entry above
-        // records: a Next dynamic segment is a glob character class otherwise,
-        // and the unescaped form silently matches nothing while looking listed.
+        // Brackets ESCAPED (see the notifications entry above): a Next dynamic
+        // segment is otherwise a glob character class that matches nothing.
         'app/(app)/dispute/\\[escrowId\\]/page.tsx',
         'app/(app)/exchange/\\[id\\]/page.tsx',
         'app/(app)/exchange/page.tsx',

@@ -17,27 +17,22 @@ const cmd = (label: string): PaletteCommand => ({
 
 describe('surfaceCommands', () => {
   it('offers every rail destination plus the foot actions', () => {
-    const labels = surfaceCommands(false).map((c) => c.label)
-    for (const expected of ['Home', 'My Gigs', 'Messages', 'Disputes', 'Wallet', 'Create', 'Link a wallet', 'Settings']) {
+    const labels = surfaceCommands().map((c) => c.label)
+    for (const expected of ['Home', 'My Gigs', 'Messages', 'Disputes', 'Wallet', 'Trade', 'Create', 'Link a wallet', 'Settings']) {
       expect(labels).toContain(expected)
     }
-    expect(surfaceCommands(false).find((command) => command.label === 'Create')?.id).toBe(
+    expect(surfaceCommands().find((command) => command.label === 'Create')?.id).toBe(
       'action:create',
     )
   })
 
-  it('honours the advanced-mode gate, so the palette cannot reach what the rail hides', () => {
-    expect(surfaceCommands(false).map((c) => c.label)).not.toContain('Trade')
-    expect(surfaceCommands(true).map((c) => c.label)).toContain('Trade')
-  })
-
   it('gives every command a unique id', () => {
-    const ids = surfaceCommands(true).map((c) => c.id)
+    const ids = surfaceCommands().map((c) => c.id)
     expect(new Set(ids).size).toBe(ids.length)
   })
 
   it('points every command at a real path', () => {
-    for (const command of surfaceCommands(true)) expect(command.href.startsWith('/')).toBe(true)
+    for (const command of surfaceCommands()) expect(command.href.startsWith('/')).toBe(true)
   })
 })
 
@@ -71,12 +66,10 @@ describe('filterCommands', () => {
     expect(filterCommands(many, 'Item')).toHaveLength(PALETTE_RESULT_LIMIT)
   })
 
-  it('shows every rail destination and foot action on open, both modes', () => {
-    for (const advanced of [false, true]) {
-      const open = filterCommands(surfaceCommands(advanced), '').map((c) => c.label)
-      for (const label of ['Link a wallet', 'Settings', 'Your profile']) {
-        expect(open, `advanced=${advanced}`).toContain(label)
-      }
+  it('shows every rail destination and foot action on open', () => {
+    const open = filterCommands(surfaceCommands(), '').map((c) => c.label)
+    for (const label of ['Trade', 'Link a wallet', 'Settings', 'Your profile']) {
+      expect(open).toContain(label)
     }
   })
 
