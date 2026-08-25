@@ -117,6 +117,36 @@ it('reports a new membership when a full first page evicts its last visible row'
   expect(applyItems.mock.calls[0]?.[0]).toHaveLength(20)
 })
 
+/**
+ * The other half of the eviction case, and a deliberate approximation.
+ *
+ * A gig can REJOIN the public set carrying an OLD `created_at` — un-hiding a
+ * taken-down listing does exactly that (`admin/escrows.ts` publishes
+ * `available`, and `created_at` is the escrow's creation time, not the moment
+ * it became public). It sorts below a full page, so the client cannot tell
+ * "new to the set" from "an update to a row that was always off-page", and it
+ * must not guess: the total stays put rather than counting a member twice.
+ *
+ * The cost is a total that can lag by one until the next reconcile. The
+ * alternative — reconciling whenever an insert is evicted — would refetch on
+ * nearly every frame once the set is larger than a page, which is the far
+ * worse trade.
+ */
+it('does not move the total for a member the page has no room for', () => {
+  const page = Array.from({ length: 20 }, (_, index) => gig(`existing-${index}`))
+  const { applyItems } = mount(page)
+
+  act(() => seams.listener?.(available({
+    ...gig('rejoined'),
+    created_at: '2020-01-01T00:00:00.000Z',
+  }, '1')))
+
+  const [items, delta] = applyItems.mock.calls[0] ?? []
+  expect(delta).toBe(0)
+  expect(items).toHaveLength(20)
+  expect(items?.some((item: { escrow_id: string }) => item.escrow_id === 'rejoined')).toBe(false)
+})
+
 it('ignores stale and duplicate revisions without refreshing', () => {
   const { applyItems } = mount([gig('same', '5')])
   act(() => {
@@ -168,4 +198,69 @@ it('keeps the bounded visible-page refresh fallback while the socket is disconne
     vi.runOnlyPendingTimers()
   })
   expect(seams.refresh).toHaveBeenCalledOnce()
+})
+
+
+/**
+ * The public feed is the one surface a SIGNED-IN reader reaches without the
+ * workspace layout, so it loads the session itself — and that is what decides
+ * whether they get live frames or the 15s polling fallback. Only when the
+ * session has not resolved yet: re-asking on every mount would be a request
+ * per navigation.
+ */
+it('loads the session when it has not resolved, and not when it has', () => {
+  const loadSession = vi.fn(() => Promise.resolve())
+  useAuthStore.setState({ isLoading: true, isAuthenticated: false, loadSession })
+  const first = mount([gig('a')])
+  expect(loadSession).toHaveBeenCalledTimes(1)
+  first.unmount()
+
+  loadSession.mockClear()
+  useAuthStore.setState({ isLoading: false, isAuthenticated: true, loadSession })
+  mount([gig('b')])
+  expect(loadSession).not.toHaveBeenCalled()
+})
+
+
+/**
+ * Two behaviours the hook documents and nothing asserted — found by mutating
+ * each away and watching the suite stay green. Both lines were EXECUTED by the
+ * tests above (coverage read 100%), which is exactly the difference between a
+ * covered line and a verified one.
+ */
+it('records the revision of a frame it DECLINED, so the same frame cannot order a second reconcile', () => {
+  // A search query is server-authoritative, so every available frame takes the
+  // decline branch. The reducer leaves state untouched when it declines, so if
+  // the hook did not record the revision itself, a redelivered frame would
+  // order a fresh refresh for ever.
+  mount([gig('a')], { q: 'deliver' })
+
+  act(() => { seams.listener?.(available(gig('b'), '3')); vi.runAllTimers() })
+  expect(seams.refresh).toHaveBeenCalledTimes(1)
+
+  act(() => { seams.listener?.(available(gig('b'), '3')); vi.runAllTimers() })
+  expect(seams.refresh).toHaveBeenCalledTimes(1)
+})
+
+it('keeps the revision of a row the server has since dropped, so its late frame is not new', () => {
+  // Revisions ACCUMULATE across renders while items come from the render. A
+  // row that leaves the page still has a version worth remembering: seeding
+  // revisions from the current rows alone would make a redelivered frame for
+  // the departed row look like news and put it back.
+  const applyItems = vi.fn()
+  const { rerender } = renderHook(
+    ({ items }: { items: GigSummary[] }) => usePublicGigFeedRealtime({
+      items: items.map(toGigCardModel), query: { limit: 20 }, applyItems,
+    }),
+    { initialProps: { items: [gig('a', '5')] } },
+  )
+
+  act(() => { seams.listener?.(unavailable('a', '6')); vi.runAllTimers() })
+  expect(applyItems).toHaveBeenCalledTimes(1)
+
+  // The page re-renders without the row, as the server now describes it.
+  rerender({ items: [] })
+
+  act(() => { seams.listener?.(unavailable('a', '6')); vi.runAllTimers() })
+  expect(applyItems).toHaveBeenCalledTimes(1)
 })

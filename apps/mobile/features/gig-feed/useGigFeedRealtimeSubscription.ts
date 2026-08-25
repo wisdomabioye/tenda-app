@@ -7,6 +7,9 @@ import {
 } from '@tenda/shared'
 import { subscribeGigFeedChannel, useRealtimeStore } from '@/stores/realtime.store'
 
+/** Identity: this list stores what it renders. */
+const keepSummary = (gig: GigSummary): GigSummary => gig
+
 export interface GigFeedRealtimeTarget {
   items: GigSummary[]
   applyRealtimeItems(items: GigSummary[]): void
@@ -60,7 +63,16 @@ export function useGigFeedRealtimeSubscription(
   useEffect(() => {
     mountedRef.current = true
     const unsubscribe = subscribeGigFeedChannel((event) => {
-      const result = applyGigFeedEvent({ state: stateRef.current, event, query: queryRef.current })
+      const result = applyGigFeedEvent({
+        state: stateRef.current,
+        event,
+        query: queryRef.current,
+        // This list stores whole summaries — the row renders the amount. The
+        // reducer is generic because web's ANONYMOUS feed does not: it holds a
+        // trimmed card model, keeping base units out of the payload that page
+        // ships to the browser.
+        project: keepSummary,
+      })
       if (result.outcome === 'reconciliation_required') {
         requestReconciliation()
         return

@@ -22,6 +22,9 @@ const creator = {
   review_score: null,
 }
 
+/** The projection a caller that stores whole summaries supplies. */
+const identity = (item: GigSummary): GigSummary => item
+
 function gig(escrow_id: string, created_at: string, overrides: Partial<GigSummary> = {}): GigSummary {
   return {
     escrow_id,
@@ -81,6 +84,7 @@ test('available inserts in deterministic recency order without mutating input', 
     state,
     event: available(gig('b', '2026-08-13T10:00:00.000Z'), '1'),
     query: {},
+    project: identity,
   })
   assert.equal(result.outcome, 'applied')
   assert.deepEqual(result.state.items.map((item) => item.escrow_id), ['b', 'a'])
@@ -94,16 +98,17 @@ test('higher revision replaces and lower/equal revisions cannot overwrite it', (
     state,
     event: available({ ...original, title: 'Updated' }, '10'),
     query: {},
+    project: identity,
   })
   assert.equal(updated.outcome, 'applied')
   assert.equal(updated.state.items[0].title, 'Updated')
-  assert.equal(applyGigFeedEvent({ state: updated.state, event: unavailable('a', '9'), query: {} }).outcome, 'ignored_stale')
-  assert.equal(applyGigFeedEvent({ state: updated.state, event: unavailable('a', '10'), query: {} }).outcome, 'ignored_duplicate')
+  assert.equal(applyGigFeedEvent({ state: updated.state, event: unavailable('a', '9'), query: {}, project: identity }).outcome, 'ignored_stale')
+  assert.equal(applyGigFeedEvent({ state: updated.state, event: unavailable('a', '10'), query: {}, project: identity }).outcome, 'ignored_duplicate')
 })
 
 test('unavailable removes a known row and records revision for replay protection', () => {
   const state: GigFeedState = { items: [gig('a', '2026-08-12T10:00:00.000Z')], revisions: {} }
-  const result = applyGigFeedEvent({ state, event: unavailable('a', '4'), query: {} })
+  const result = applyGigFeedEvent({ state, event: unavailable('a', '4'), query: {}, project: identity })
   assert.equal(result.outcome, 'applied')
   assert.deepEqual(result.state.items, [])
   assert.equal(result.state.revisions.a, '4')
@@ -120,7 +125,7 @@ test('deterministic filters exclude non-matching available gigs', () => {
   assert.equal(matchesGigFeedQuery(item, { chain_id: 'eip155:8453' }), false)
   assert.equal(matchesGigFeedQuery(item, { min_amount_raw: '1000001' }), false)
   assert.equal(matchesGigFeedQuery(item, { max_amount_raw: '999999' }), false)
-  const result = applyGigFeedEvent({ state: empty, event: available(item, '1'), query: { remote: true } })
+  const result = applyGigFeedEvent({ state: empty, event: available(item, '1'), query: { remote: true }, project: identity })
   assert.equal(result.outcome, 'applied')
   assert.deepEqual(result.state.items, [])
 })
@@ -128,7 +133,7 @@ test('deterministic filters exclude non-matching available gigs', () => {
 test('full-text search explicitly requires authoritative reconciliation', () => {
   const event = available(gig('a', '2026-08-12T10:00:00.000Z'), '1')
   assert.equal(classifyGigFeedQuery({ q: 'deliver' }), 'server_reconciliation_required')
-  const result = applyGigFeedEvent({ state: empty, event, query: { q: 'deliver' } })
+  const result = applyGigFeedEvent({ state: empty, event, query: { q: 'deliver' }, project: identity })
   assert.equal(result.outcome, 'reconciliation_required')
   assert.strictEqual(result.state, empty)
 })
@@ -144,7 +149,7 @@ test('server-owned membership and ordering never get approximated locally', () =
   for (const query of serverOnlyQueries) {
     assert.equal(classifyGigFeedQuery(query), 'server_reconciliation_required')
     assert.equal(
-      applyGigFeedEvent({ state: empty, event: available(gig('a', '2026-08-12T10:00:00Z'), '1'), query }).outcome,
+      applyGigFeedEvent({ state: empty, event: available(gig('a', '2026-08-12T10:00:00Z'), '1'), query, project: identity }).outcome,
       'reconciliation_required',
     )
   }
@@ -158,6 +163,7 @@ test('invalid or non-canonical amount filters cannot throw during realtime appli
       state: empty,
       event: available(gig('a', '2026-08-12T10:00:00Z'), '1'),
       query,
+      project: identity,
     })
     assert.equal(classifyGigFeedQuery(query), 'server_reconciliation_required')
     assert.equal(result.outcome, 'reconciliation_required')
@@ -166,7 +172,7 @@ test('invalid or non-canonical amount filters cannot throw during realtime appli
 
 test('unavailable remains safe under a full-text query', () => {
   const state: GigFeedState = { items: [gig('a', '2026-08-12T10:00:00.000Z')], revisions: {} }
-  const result = applyGigFeedEvent({ state, event: unavailable('a', '2'), query: { q: 'deliver' } })
+  const result = applyGigFeedEvent({ state, event: unavailable('a', '2'), query: { q: 'deliver' }, project: identity })
   assert.equal(result.outcome, 'applied')
   assert.deepEqual(result.state.items, [])
 })
@@ -193,4 +199,58 @@ test('blank search stays client-matchable while partial proximity and invalid ma
   assert.equal(classifyGigFeedQuery({ q: '   ' }), 'client_matchable')
   assert.equal(classifyGigFeedQuery({ lat: 6.5 }), 'server_reconciliation_required')
   assert.equal(classifyGigFeedQuery({ max_amount_raw: '01' }), 'server_reconciliation_required')
+})
+
+/**
+ * The projected case — the reason the reducer is generic at all. The anonymous
+ * feed stores a trimmed card model (no `amount_raw`; the page keeps base units
+ * out of what it ships to the browser), so the frame's full gig has to survive
+ * long enough to be MATCHED and then be narrowed before it is stored.
+ */
+test('a caller that stores less than a summary matches on the full gig and stores the projection', () => {
+  interface Card { escrow_id: string; created_at: string | null; title: string }
+  const toCard = (item: GigSummary): Card => ({
+    escrow_id: item.escrow_id,
+    created_at: item.created_at,
+    title: item.title,
+  })
+  const state: GigFeedState<Card> = { items: [], revisions: {} }
+
+  // Matching still reads a field the stored shape does not carry.
+  const priced = applyGigFeedEvent({
+    state,
+    event: available(gig('a', '2026-08-12T10:00:00.000Z'), '1'),
+    query: { min_amount_raw: '1000000' },
+    project: toCard,
+  })
+  assert.equal(priced.outcome, 'applied')
+  assert.deepEqual(priced.state.items, [
+    { escrow_id: 'a', created_at: '2026-08-12T10:00:00.000Z', title: 'Gig a' },
+  ])
+
+  // ...and excludes on that same field, which no card could answer.
+  const tooDear = applyGigFeedEvent({
+    state,
+    event: available(gig('b', '2026-08-13T10:00:00.000Z'), '1'),
+    query: { min_amount_raw: '1000001' },
+    project: toCard,
+  })
+  assert.equal(tooDear.outcome, 'applied')
+  assert.deepEqual(tooDear.state.items, [])
+
+  // Ordering and removal work on the projection, not the summary.
+  const two = applyGigFeedEvent({
+    state: priced.state,
+    event: available(gig('c', '2026-08-14T10:00:00.000Z'), '1'),
+    query: {},
+    project: toCard,
+  })
+  assert.deepEqual(two.state.items.map((item) => item.escrow_id), ['c', 'a'])
+  const removed = applyGigFeedEvent({
+    state: two.state,
+    event: unavailable('c', '2'),
+    query: {},
+    project: toCard,
+  })
+  assert.deepEqual(removed.state.items.map((item) => item.escrow_id), ['a'])
 })

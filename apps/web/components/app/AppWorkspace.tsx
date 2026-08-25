@@ -16,7 +16,7 @@ import { useRealtimeConnection } from '@/hooks/connectivity/useRealtimeConnectio
 import { useInboxRealtime } from '@/hooks/chat/useInboxRealtime'
 import { useNotificationsRealtime } from '@/hooks/notifications/useNotificationsRealtime'
 import { DetailPane, WorkspaceShell } from '@/components/app/workspace'
-import { paneBackFor, selectionKey, surfaceTitle } from '@/components/app/workspace/surfaces'
+import { listHomeFor, paneBackFor, selectionKey, surfaceTitle } from '@/components/app/workspace/surfaces'
 import { CommandPalette, surfaceCommands } from '@/components/app/workspace/palette'
 import { useCommandPalette } from '@/hooks/workspace/useCommandPalette'
 
@@ -34,6 +34,27 @@ export function AppWorkspace({ list, children }: { list?: ReactNode; children: R
   const selection = selectionKey(segments)
   const paneBack = paneBackFor(surface, selection)
 
+  /**
+   * Whether this SURFACE has a list at all — not whether the slot rendered
+   * something. Next keeps an unmatched slot's last active subpage across a
+   * soft navigation (`default.tsx` answers only a hard load), so the slot
+   * hands us the PREVIOUS surface's list on /wallet, /exchange, /settings and
+   * /profile. Measured: below 900px the shell gives the screen to a list
+   * whenever nothing is selected, so those four rendered a stale gig list and
+   * no content at all.
+   *
+   * Answered from `SURFACE_LIST_HOME`, which already IS the registry of which
+   * surfaces have a list — its own doc says "a surface absent from this map
+   * has no list", and the ≤900px back link has always depended on that being
+   * true. `list-registry.test.ts` fails if a `@list/<surface>` entry is ever
+   * added without one here, so the two cannot drift.
+   *
+   * NOT solvable in the slot: a `@list/[...rest]` catch-all does answer every
+   * surface, but it also makes every URL matchable inside (app) — measured,
+   * `/gigs` started answering 200 instead of 404.
+   */
+  const surfaceHasList = listHomeFor(surface) !== null
+
   // Hosted here so ⌘K works on every authed surface, not only ones with a
   // list column to put the button in.
   const { open: paletteOpen, closePalette } = useCommandPalette()
@@ -48,7 +69,7 @@ export function AppWorkspace({ list, children }: { list?: ReactNode; children: R
       )}
       <WorkspaceShell
         user={user}
-        list={list}
+        list={surfaceHasList ? list : null}
         // The URL, not the presence of a pane, decides which column survives
         // the ≤900px collapse — the detail pane is always mounted.
         hasSelection={selection !== null}

@@ -14,8 +14,12 @@
  *     changed selection moves focus, which is what makes the ≤900px
  *     single-pane collapse usable);
  *   - the @list parallel-route slot, which supplies a surface's list column.
- *     Adding a list to a surface is `app/(app)/@list/<surface>/page.tsx` and
- *     nothing else — no layout edit, no registration here.
+ *     Adding a list to a surface is `app/(app)/@list/<surface>/page.tsx` PLUS
+ *     a `SURFACE_LIST_HOME` entry below — no layout edit. The entry was
+ *     already required for the ≤900px back link; since AppWorkspace also
+ *     reads it to decide whether to render the slot at all, a list without one
+ *     now renders nowhere. `list-registry.test.ts` fails on the omission
+ *     rather than leaving it to be found on a phone.
  */
 
 /** Human name per surface, used as the detail pane's accessible name. */
@@ -41,6 +45,12 @@ const SURFACE_TITLES: Record<string, string> = {
  * list is the inbox at /messages, so `/${surface}` would send the reader to a
  * route that does not exist. A surface absent from this map has no list, and
  * the detail pane renders no back link at all — there is nothing behind it.
+ *
+ * That last sentence is now load-bearing in a second place: AppWorkspace asks
+ * this map whether to render the @list slot, because the slot itself cannot
+ * answer it (Next retains an unmatched slot's last subpage across a soft
+ * navigation). Keep the map exhaustive; the drift guard is
+ * `__tests__/list-registry.test.ts`.
  */
 export interface ListHome {
   href: string

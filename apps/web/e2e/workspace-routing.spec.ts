@@ -107,3 +107,64 @@ test('phone sidebar is collapsed by default without horizontal overflow', async 
   expect(box).not.toBeNull()
   expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(390)
 })
+
+/**
+ * The @list slot must not carry one surface's list into a surface that has
+ * none. Next keeps an unmatched slot's last active subpage across a SOFT
+ * navigation (`default.tsx` only answers a hard load), so clicking Wallet from
+ * Home used to leave Home's gig list mounted — and at ≤900px the shell hands
+ * the screen to a list whenever nothing is selected, so the reader got a stale
+ * gig list and no Wallet at all.
+ *
+ * What closes it is `AppWorkspace`, which passes the slot on only for a surface
+ * `SURFACE_LIST_HOME` names. NOT a `@list/[...rest]` catch-all: that answers
+ * every surface and also makes every URL matchable inside (app) — measured,
+ * `/gigs` began answering 200 instead of 404, caught by "unpublished legacy
+ * routes do not exist" in this same file.
+ *
+ * Driven by CLICKING the rail, never `goto`: a hard load was always correct,
+ * so a navigation-free version of this test would pass against the bug.
+ */
+// Located by href, not by accessible name: the rail appends state to several
+// of those names ("Notifications, 2 unread", "Your profile, <display name>"),
+// so a name-based locator here would be testing the badge.
+const LISTLESS = ['/wallet', '/exchange', '/settings', '/profile']
+const WITH_LIST = ['/my-gigs', '/messages', '/notifications', '/disputes', '/home']
+
+for (const width of [390, 1280]) {
+  test(`a surface with no list column shows no list after a soft navigation (${width}px)`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await signInToHome(page)
+    const rail = page.getByRole('navigation', { name: 'Workspace' })
+
+    for (const href of LISTLESS) {
+      await page.goto('/home')
+      await expect(page.locator('[data-list]')).toBeVisible()
+      await rail.locator(`a[href="${href}"]`).first().click()
+      await expect(page).toHaveURL(new RegExp(`${href}$`))
+      await expect(page.locator('[data-list]')).toHaveCount(0)
+      // The half that made it a blank page rather than a wrong column.
+      await expect(page.locator('[data-detail]').first()).toBeVisible()
+    }
+  })
+}
+
+test('surfaces that DO have a list column still get one after a soft navigation', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 900 })
+  await signInToHome(page)
+  const rail = page.getByRole('navigation', { name: 'Workspace' })
+
+  // The gate must not swallow a real list. Reached from a LISTLESS surface
+  // each time, so every hop is a genuine surface change.
+  for (const href of WITH_LIST) {
+    await page.goto('/wallet')
+    await expect(page.locator('[data-list]')).toHaveCount(0)
+    await rail.locator(`a[href="${href}"]`).first().click()
+    await expect(page).toHaveURL(new RegExp(`${href}$`))
+    await expect(page.locator('[data-list]')).toBeVisible()
+  }
+})

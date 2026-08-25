@@ -132,14 +132,41 @@ export function resetOpenConversationForTests(): void {
 }
 
 /**
+ * "Something happened to YOU" — the only per-user change signal on the wire.
+ *
+ * Personal lists (My Gigs, My Disputes) have no frame of their own: `feed:gigs`
+ * carries the public feed, `escrow:<id>` needs a subscription per row, and
+ * neither says "an application landed on your gig". What every such change DOES
+ * produce is a notification on `user:<id>`, so that is what these lists listen
+ * to — the same reasoning `useEscrowLiveRefresh` already uses in refetching on
+ * ANY escrow frame rather than branching on the event name. A new server-side
+ * event needs no client change, and a list that refetches once too often is
+ * cheaper to live with than one that is silently wrong.
+ *
+ * A fan-out rather than a second `ws.subscribe`: one socket subscription per
+ * channel, many consumers, which is the shape this file already had for chat
+ * mirrors and the bell.
+ */
+type PersonalEventListener = () => void
+const personalEventListeners = new Set<PersonalEventListener>()
+
+export function onPersonalEvent(listener: PersonalEventListener): () => void {
+  personalEventListeners.add(listener)
+  return () => {
+    personalEventListeners.delete(listener)
+  }
+}
+
+/**
  * Inbox-level updates, the server mirrors each chat message onto the
  * recipient's `user:<id>` channel so the conversations list / unread badge
  * stays current without polling.
  */
 export function subscribeUserChannel(userId: string): () => void {
   return ws.subscribe(wsChannelName('user', userId), (frame) => {
-    // One subscription, two consumers: chat-message mirrors refresh the inbox
-    // badge; notification frames feed the notification centre + its bell badge.
+    // One subscription, three consumers: chat-message mirrors refresh the inbox
+    // badge; notification frames feed the notification centre + its bell badge,
+    // and then fan out to the personal lists (see `onPersonalEvent`).
     if (isChatMessageFrame(frame)) {
       // ...but NOT for the thread the reader has open. The mirror exists to
       // update the inbox for conversations you are not in; for the open one it
@@ -161,6 +188,21 @@ export function subscribeUserChannel(userId: string): () => void {
     }
     if (isNotificationFrame(frame)) {
       useNotificationsStore.getState().receive(frame.notification)
+      // Iterated from a COPY: a listener that unsubscribes itself while the
+      // set is being walked would otherwise skip whichever came after it.
+      //
+      // Each one CONTAINED, like the inbox refetch above: this fan-out exists
+      // to carry consumers this file does not know about, so one of them
+      // throwing must not swallow the rest — nor escape into the socket's frame
+      // handler and take the remainder of the frame with it.
+      for (const listener of [...personalEventListeners]) {
+        try {
+          listener()
+        } catch {
+          // A consumer's own problem. The next notification, the reconnect
+          // resync or the disconnected fallback all reach it again.
+        }
+      }
     }
   })
 }

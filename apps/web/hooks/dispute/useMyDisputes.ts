@@ -8,10 +8,12 @@
  * workspace column that the router remounts on every row it opens, so that
  * reload is now SILENT — see `PAGE_ZERO` below.
  */
+import { useCallback } from 'react'
 import type { MyDisputeRow, MyDisputeStatus, MyDisputesQuery } from '@tenda/shared'
 import { disputesPageCache } from '@/lib/account-state'
 import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/pagination/usePaginatedList'
+import { useLiveList } from '@/hooks/workspace/useLiveList'
 
 export type MyDisputesState = PaginatedListState<MyDisputeRow>
 
@@ -31,10 +33,22 @@ const keyOf = (row: MyDisputeRow) => row.dispute_id
  */
 
 export function useMyDisputes(status: MyDisputeStatus): MyDisputesState {
-  return usePaginatedList<MyDisputeRow, MyDisputesQuery>({
+  const list = usePaginatedList<MyDisputeRow, MyDisputesQuery>({
     fetchPage: (params) => api.disputes.mine(params),
     query: { status },
     keyOf,
     cache: disputesPageCache,
   })
+
+  /**
+   * A dispute raised, answered or resolved reaches this reader as a
+   * notification and nothing more — no frame carries the ROW — so the bucket
+   * asks the server again. Per bucket, because the column mounts both: an
+   * inactive tab's count is a real total here too, and a resolution moves a row
+   * from one bucket to the other, so refreshing only the visible one would
+   * leave the other's chip wrong.
+   */
+  useLiveList(useCallback(() => { void list.reload() }, [list]))
+
+  return list
 }

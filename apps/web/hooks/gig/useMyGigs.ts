@@ -16,6 +16,7 @@
  * navigation). Applications are deliberately NOT chain-filtered:
  * /v1/applications is caller-scoped with no chain parameter.
  */
+import { useCallback } from 'react'
 import {
   POSTED_ESCROW_STATUSES,
   type EscrowStatus,
@@ -26,6 +27,7 @@ import {
 import { api } from '@/api/client'
 import { usePaginatedList, type PaginatedListState } from '@/hooks/pagination/usePaginatedList'
 import { useDraftGigs } from '@/hooks/gig/useDraftGigs'
+import { useLiveList } from '@/hooks/workspace/useLiveList'
 import { useAuthStore } from '@/stores/auth.store'
 import { myApplicationsCache, postedGigsCache, workingGigsCache } from '@/lib/account-state'
 
@@ -78,6 +80,24 @@ export function useMyGigs(chainId: string | null = null): MyGigsState {
     enabled,
     cache: myApplicationsCache,
   })
+
+  /**
+   * All four, on one signal. An inactive tab's count chip is a real server
+   * total (see this file's header), so leaving three of them stale would put a
+   * wrong number on screen rather than merely an old list — and the reader
+   * cannot tell a stale chip from a true one.
+   *
+   * Silent by construction: `reload` is `usePaginatedList`'s no-spinner mode,
+   * so nothing blinks while this runs.
+   */
+  useLiveList(
+    useCallback(() => {
+      void posted.reload()
+      void working.reload()
+      void drafts.reload()
+      void applications.reload()
+    }, [posted, working, drafts, applications]),
+  )
 
   return { posted, working, drafts, applications }
 }
