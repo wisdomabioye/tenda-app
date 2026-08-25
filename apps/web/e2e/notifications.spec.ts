@@ -1,7 +1,12 @@
 /**
  * The notification centre against the stub API: bell badge on sign-in,
- * announcements pinned over the personal feed, mark-all clearing the badge,
- * and opening a notice marking it read and offering what it is about.
+ * announcements pinned over the personal feed, mark-all clearing the badge
+ * AND unpinning the broadcasts, and opening a notice marking it read and
+ * offering what it is about.
+ *
+ * The badge counts unread notices + uncleared broadcasts, which is what the
+ * server sums — so the seeded world (one unread notice, one uncleared
+ * announcement) starts at 2, not 1.
  *
  * Since #17 the centre is a workspace LIST COLUMN and its rows are links, not
  * buttons — a notice has an address now (`/notifications/<id>`), so it can be
@@ -24,8 +29,8 @@ test('bell badge counts unread; the centre pins the announcement over the feed',
   page,
 }) => {
   await signInToHome(page)
-  const bell = page.getByRole('link', { name: 'Notifications, 1 unread' })
-  await expect(bell.locator('span[aria-hidden="true"]')).toHaveText('1')
+  const bell = page.getByRole('link', { name: 'Notifications, 2 unread' })
+  await expect(bell.locator('span[aria-hidden="true"]')).toHaveText('2')
 
   await bell.click()
   await expect(page).toHaveURL(/\/notifications/)
@@ -35,13 +40,23 @@ test('bell badge counts unread; the centre pins the announcement over the feed',
   await expect(page.getByRole('link', { name: /Welcome to Tenda/ })).toBeVisible()
 })
 
-test('mark all read clears the rows and the bell badge', async ({ page }) => {
+test('mark all read clears the rows, unpins the broadcast, and clears the bell badge', async ({
+  page,
+}) => {
   await signInToHome(page)
   await page.goto('/notifications')
+  await expect(page.getByText('Fee update')).toBeVisible() // precondition: pinned
   await page.getByRole('button', { name: NOTIFICATIONS_LIST_COPY.markAllRead }).click()
   // The accessible name drops ", unread".
   await expect(page.getByRole('link', { name: /Gig accepted, unread/ })).toHaveCount(0)
-  await expect(page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', { name: 'Notifications' })).toBeVisible() // badge gone
+  // The broadcast leaves the pin — it used to sit above every row for good,
+  // so a notice arriving later still rendered beneath one already read.
+  await expect(page.getByText('Fee update')).toHaveCount(0)
+  const bell = page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', {
+    name: 'Notifications',
+    exact: true,
+  })
+  await expect(bell.locator('span[aria-hidden="true"]')).toHaveCount(0) // badge gone
   await expect(
     page.getByRole('button', { name: NOTIFICATIONS_LIST_COPY.markAllRead }),
   ).toHaveCount(0)
@@ -73,10 +88,15 @@ test('opening a notice marks it read and offers what it is about', async ({ page
     ).toBeLessThanOrEqual(2)
   }
 
-  // Read is a consequence of OPENING, not of clicking: the badge clears and
-  // the row loses its unread name without a second action.
+  // Read is a consequence of OPENING, not of clicking: the badge drops and
+  // the row loses its unread name without a second action. It drops to ONE,
+  // not to zero — the uncleared broadcast is still counted, and still pinned.
   await expect(page.getByRole('link', { name: /Gig accepted, unread/ })).toHaveCount(0)
-  await expect(page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', { name: 'Notifications' })).toBeVisible()
+  const bell = page.getByRole('navigation', { name: 'Workspace' }).getByRole('link', {
+    name: 'Notifications, 1 unread',
+  })
+  await expect(bell.locator('span[aria-hidden="true"]')).toHaveText('1')
+  await expect(page.getByText('Fee update')).toBeVisible()
 
   await page.getByRole('link', { name: NOTIFICATIONS_LIST_COPY.open }).click()
   // The WORKSPACE detail (#49), not the public shell — the stub casts this

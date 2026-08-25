@@ -229,6 +229,23 @@ describe('mark read', () => {
     expect(notificationsApi.markAllRead).toHaveBeenCalledTimes(1)
   })
 
+  it('markAllRead unpins the broadcasts too, so a cleared notice cannot outrank newer rows', async () => {
+    // Mobile's twin assertion. The badge used to clear while the pinned card
+    // stayed above every personal row until a refetch; the server now serves
+    // only post-cursor broadcasts, so keeping them locally shows a card it
+    // would no longer send.
+    useNotificationsStore.setState({
+      notifications: [notice({ id: 'n1' })],
+      announcements: [
+        { id: 'x', title: 'Maintenance', body: 'b', priority: 0, published_at: null, expires_at: null },
+      ],
+      unread: 2,
+    })
+    notificationsApi.markAllRead.mockResolvedValue({ ok: true })
+    await useNotificationsStore.getState().markAllRead()
+    expect(useNotificationsStore.getState().announcements).toEqual([])
+  })
+
   it('a failing markRead keeps the optimistic state (next fetch reconciles)', async () => {
     useNotificationsStore.setState({ notifications: [notice({ id: 'n1' })], unread: 1 })
     notificationsApi.markRead.mockRejectedValue(new Error('down'))

@@ -7,6 +7,14 @@
  * — a NULL `target` means everyone, else target_value matches the viewer's
  * role / country / city. Unread announcements are those published after the
  * viewer's `announcements_read_at` cursor.
+ *
+ * The feed serves the UNREAD announcements, not every visible one, and that is
+ * the same predicate the badge counts (`unreadAnnouncement`). Before, the two
+ * disagreed: the cursor gated only the count, so mark-all-read zeroed the badge
+ * while every broadcast stayed pinned at the top of the list for good — a
+ * notice that arrived an hour later still rendered beneath it, because clients
+ * pin the whole `announcements` array above the personal rows. Announcements
+ * leave the pin the way they enter it: as a set the reader has not cleared.
  */
 
 import { and, or, eq, gt, lt, lte, isNull, desc, sql, type SQL } from 'drizzle-orm'
@@ -73,6 +81,23 @@ function publishedAfter(cursor: Date): SQL {
   return sql`${announcementPublished} > ${cursor.toISOString()}`
 }
 
+/**
+ * The viewer's UNCLEARED broadcasts: visible to them AND published after their
+ * read cursor. A null cursor means they have never marked all read, so every
+ * visible one still stands.
+ *
+ * The single definition of "unread announcement" — the feed's pinned set and
+ * the bell's count both call it, so what is pinned is exactly what is counted.
+ * Keep it that way: a caller that filters differently reintroduces a badge
+ * that clears while the card it counted stays on screen.
+ */
+function unreadAnnouncement(viewer: NotificationViewer, now: Date): SQL {
+  const visible = visibleAnnouncement(viewer, now)
+  return viewer.announcements_read_at === null
+    ? visible
+    : and(visible, publishedAfter(viewer.announcements_read_at))!
+}
+
 type AnnouncementRow = {
   id: string
   title: string
@@ -96,10 +121,7 @@ export function toAnnouncementWire(row: AnnouncementRow): AnnouncementWire {
 
 /** Unread personal notifications + unread (post-cursor) announcements. */
 export async function countUnread(db: AppDatabase, viewer: NotificationViewer, now: Date): Promise<number> {
-  const annCond =
-    viewer.announcements_read_at === null
-      ? visibleAnnouncement(viewer, now)
-      : and(visibleAnnouncement(viewer, now), publishedAfter(viewer.announcements_read_at))!
+  const annCond = unreadAnnouncement(viewer, now)
 
   const [personal, broadcast] = await Promise.all([
     db
@@ -158,7 +180,7 @@ export async function loadFeed(
         expires_at: announcements.expires_at,
       })
       .from(announcements)
-      .where(visibleAnnouncement(viewer, now))
+      .where(unreadAnnouncement(viewer, now))
       .orderBy(desc(announcements.priority), sql`${announcementPublished} desc`)
       .limit(NOTIFICATION_PAGE_SIZE),
     countUnread(db, viewer, now),

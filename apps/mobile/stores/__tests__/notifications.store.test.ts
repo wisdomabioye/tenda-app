@@ -149,6 +149,23 @@ describe('markAllRead', () => {
     expect(store().notifications.every((n) => n.read_at !== null)).toBe(true)
     expect(markAllMock).toHaveBeenCalledTimes(1)
   })
+
+  test('unpins the broadcasts too, so a cleared notice cannot outrank newer rows', async () => {
+    // The reported bug: the badge went to zero and the announcement stayed
+    // pinned above the list until something happened to refetch. The server
+    // now serves only post-cursor broadcasts, so holding this set locally
+    // shows the reader a card the server would no longer send.
+    useNotificationsStore.setState({
+      notifications: [notif('a')],
+      announcements: [
+        { id: 'x', title: 'Maintenance', body: 'b', priority: 0, published_at: null, expires_at: null },
+      ],
+      unread: 2,
+    })
+    markAllMock.mockResolvedValueOnce({ ok: true })
+    await store().markAllRead()
+    expect(store().announcements).toEqual([])
+  })
 })
 
 describe('reset', () => {

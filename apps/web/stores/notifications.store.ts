@@ -7,7 +7,8 @@
  * fetch (`unread_count`), bumped live when a `NotificationFrame` arrives on the
  * `user:<id>` WS channel (see realtime.store), and decremented optimistically on
  * mark-read. Personal notices are cursor-paginated; announcements are the
- * server's already-targeted, unpaginated set (pinned above the list).
+ * server's already-targeted, unpaginated set of UNREAD broadcasts (pinned
+ * above the list, and cleared wholesale by mark-all-read).
  */
 
 import { create } from 'zustand'
@@ -52,7 +53,8 @@ interface NotificationsState {
   receive: (n: NotificationWire) => void
   /** Optimistically mark one notice read, then persist. */
   markRead: (id: string) => Promise<void>
-  /** Optimistically clear the badge (notices + announcement cursor), then persist. */
+  /** Optimistically clear the badge AND the pinned broadcasts (notices read +
+   *  announcement cursor advanced), then persist. */
   markAllRead: () => Promise<void>
   /** Drop all state on logout, so the next account never sees these notices. */
   reset: () => void
@@ -182,10 +184,15 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
 
   markAllRead: async () => {
+    // Announcements go too, and not only for symmetry: the server now serves
+    // the UNREAD broadcasts, so the next fetch drops them anyway. Without the
+    // optimistic clear the reader taps "mark all read", watches the badge hit
+    // zero, and the pinned cards sit there until something happens to refetch.
     set((s) => ({
       notifications: s.notifications.map((x) =>
         x.read_at === null ? { ...x, read_at: new Date().toISOString() } : x,
       ),
+      announcements: [],
       unread: 0,
     }))
     try {

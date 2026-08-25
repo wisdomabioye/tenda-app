@@ -2,7 +2,8 @@
 
 /**
  * The notification centre as the workspace's list column (Tier 2 comp, lines
- * 1348-1362): day-grouped rows, unread first-class, announcements pinned above.
+ * 1348-1362): day-grouped rows, unread first-class, UNREAD announcements
+ * pinned above (mark-all-read clears them — see notifications-read.ts).
  *
  * The store owns the feed — it is the same data the rail's bell badge reads,
  * and `useNotificationsRealtime` keeps it current from the layout — so this

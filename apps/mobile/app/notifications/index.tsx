@@ -1,9 +1,12 @@
 /**
- * Notification centre — the in-app feed behind the bell. Pinned announcements
- * (broadcasts) above a cursor-paginated list of personal notices. Tapping a
- * notice marks it read and deep-links (notificationRoute); the header's
- * check-all action clears the badge. Realtime + the badge count live in
- * notifications.store; this screen only reads + drives it.
+ * Notification centre — the in-app feed behind the bell. UNREAD announcements
+ * (broadcasts) pinned above a cursor-paginated list of personal notices.
+ * Tapping a notice marks it read and deep-links (notificationRoute); the
+ * header's check-all action clears the badge AND the pinned broadcasts — the
+ * server serves only announcements published after the viewer's read cursor,
+ * so a cleared one does not come back to sit on top of newer notices.
+ * Realtime + the badge count live in notifications.store; this screen only
+ * reads + drives it.
  */
 import { useEffect, useState } from 'react'
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native'
