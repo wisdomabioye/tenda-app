@@ -22,7 +22,7 @@ vi.mock('@/api/client', () => ({
 vi.mock('@/lib/uploads/upload', () => ({ uploadToCloudinary: (...a: unknown[]) => uploadMock(...a) }))
 vi.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => toastMock(...a) }))
 
-import { persistEscrowProofs, uploadProofs } from '@/lib/uploads/escrow-proofs'
+import { attachedProofUrls, persistEscrowProofs, uploadProofs } from '@/lib/uploads/escrow-proofs'
 
 const PROOFS = [{ url: 'https://cdn/a.jpg', type: 'image' as const }]
 
@@ -53,6 +53,43 @@ test('other failures rethrow without a read-back', async () => {
   addProofsMock.mockRejectedValue(new ApiClientError(500, 'Internal', 'boom', 'INTERNAL_ERROR'))
   await expect(persistEscrowProofs('e1', PROOFS)).rejects.toThrow('boom')
   expect(proofsMock).not.toHaveBeenCalled()
+})
+
+test('attachedProofUrls reads the escrow back and answers a CANONICAL order', async () => {
+  // This is what the on-chain submit seals, so it must not depend on the order
+  // rows happen to come back in: `GET /escrows/:id/proofs` declares none, and
+  // two clients hashing the same evidence in a different order would commit
+  // two different digests for it.
+  proofsMock.mockResolvedValue([
+    { url: 'https://cdn/z.pdf', type: 'document' },
+    { url: 'https://cdn/a.jpg', type: 'image' },
+    { url: 'https://cdn/m.mp4', type: 'video' },
+  ])
+  await expect(attachedProofUrls('e1')).resolves.toEqual([
+    'https://cdn/a.jpg',
+    'https://cdn/m.mp4',
+    'https://cdn/z.pdf',
+  ])
+  expect(proofsMock).toHaveBeenCalledWith({ id: 'e1' })
+})
+
+test('attachedProofUrls answers the same list whatever order the server sends', async () => {
+  proofsMock.mockResolvedValue([
+    { url: 'https://cdn/a.jpg', type: 'image' },
+    { url: 'https://cdn/z.pdf', type: 'document' },
+  ])
+  const ascending = await attachedProofUrls('e1')
+  proofsMock.mockResolvedValue([
+    { url: 'https://cdn/z.pdf', type: 'document' },
+    { url: 'https://cdn/a.jpg', type: 'image' },
+  ])
+  await expect(attachedProofUrls('e1')).resolves.toEqual(ascending)
+})
+
+test('attachedProofUrls answers an empty list for an escrow with no evidence', async () => {
+  // Not a crash and not a throw: the caller decides what an empty set means.
+  proofsMock.mockResolvedValue([])
+  await expect(attachedProofUrls('e1')).resolves.toEqual([])
 })
 
 test('uploadProofs uploads in order and returns the proof list', async () => {

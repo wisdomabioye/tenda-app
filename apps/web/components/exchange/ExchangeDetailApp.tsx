@@ -238,7 +238,14 @@ export function ExchangeDetailApp({
         activeSheet={activeSheet}
         onClose={() => setActiveSheet(null)}
         onReviewSubmitted={() => void refresh()}
-        onProofsReady={(proofs: ProofFile[]) => actions.submit(proofs)}
+        onProofsReady={async (proofs: ProofFile[]) => {
+          const submitted = await actions.submit(proofs)
+          // A failed submit is HALF done: the receipt uploaded, the
+          // transaction did not. Re-read so the dialog knows what the escrow
+          // already holds when the seller reopens it to retry.
+          if (!submitted) void refresh()
+          return submitted
+        }}
         onAddProofsReady={async (proofs: ProofFile[]) => {
           if (await actions.addProofs(proofs)) void refresh()
         }}
@@ -258,6 +265,9 @@ export function ExchangeDetailApp({
         onFailed={(msg) => {
           actions.clearPending()
           showToast('info', msg || 'Transaction pending, will sync when confirmed')
+          // As above: a submit that broadcast and then failed on chain leaves
+          // the proof stored and the escrow where it was.
+          void refresh()
         }}
       />
     </div>

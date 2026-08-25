@@ -15,11 +15,10 @@
 import { useEffect } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { formatRelativeShort } from '@tenda/shared'
 import { Bell } from 'lucide-react'
 import { useNotificationsStore } from '@/stores/notifications.store'
 import { notificationRoute } from '@/lib/notification-route'
-import { buttonVariants } from '@/components/ui'
+import { buttonVariants, RelativeTime } from '@/components/ui'
 import { DetailEmpty } from '@/components/app/workspace/detail'
 import { NOTIFICATIONS_LIST_COPY } from '@/components/notifications/copy'
 
@@ -75,9 +74,10 @@ export default function NotificationDetailPage() {
           {notification.title}
         </h1>
         {notification.created_at !== null && (
-          <p className="mt-2 font-numeric text-xs leading-4 text-content-tertiary">
-            {formatRelativeShort(notification.created_at)}
-          </p>
+          <RelativeTime
+            iso={notification.created_at}
+            className="mt-2 block font-numeric text-xs leading-4 text-content-tertiary"
+          />
         )}
         <p className="mt-5 whitespace-pre-wrap text-[15px] leading-[22px] text-content-secondary">
           {notification.body}

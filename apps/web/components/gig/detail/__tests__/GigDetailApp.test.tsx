@@ -8,7 +8,7 @@ import { beforeEach, expect, test, vi } from 'vitest'
 import type { GigDetail, LinkedWallet } from '@tenda/shared'
 import type { ToastType } from '@/components/ui/Toast'
 
-const { authState, gigsState, configState, actionsState, capturedActionsArgs, toastMock, routerPush } = vi.hoisted(() => ({
+const { authState, gigsState, configState, actionsState, capturedActionsArgs, toastMock, routerPush, uploadProofsMock } = vi.hoisted(() => ({
   authState: {
     isAuthenticated: false,
     user: null as { id: string } | null,
@@ -48,6 +48,7 @@ const { authState, gigsState, configState, actionsState, capturedActionsArgs, to
   capturedActionsArgs: { current: null as null | { onStale?: () => void } },
   toastMock: vi.fn<(type: ToastType, message: string) => void>(),
   routerPush: vi.fn(),
+  uploadProofsMock: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push: routerPush }) }))
@@ -63,6 +64,12 @@ vi.mock('@/components/escrow/TransactionMonitor', () => ({
       <button onClick={() => onFailed('rpc gave up')}>monitor-fail</button>
     </div>
   ),
+}))
+// The Cloudinary leg is unit-tested in lib/uploads; here it is stubbed so the
+// dialog's hand-off to the hook can be driven without a network upload.
+vi.mock('@/lib/uploads/escrow-proofs', async () => ({
+  ...(await vi.importActual<Record<string, unknown>>('@/lib/uploads/escrow-proofs')),
+  uploadProofs: (...a: unknown[]) => uploadProofsMock(...a),
 }))
 vi.mock('@/stores/auth.store', () => ({
   useAuthStore: <T,>(selector: (state: typeof authState) => T): T => selector(authState),
@@ -90,7 +97,7 @@ vi.mock('@/hooks/escrow/useEscrowFee', () => ({
 }))
 
 import { GigDetailApp } from '@/components/gig/detail/GigDetailApp'
-import { STRANGER_ID, gigDetail } from './fixtures'
+import { STRANGER_ID, WORKER_ID, gigDetail, userRef } from './fixtures'
 
 beforeEach(() => {
   authState.isAuthenticated = false
@@ -102,6 +109,8 @@ beforeEach(() => {
   actionsState.pendingAction = null
   actionsState.clearPending.mockClear()
   actionsState.accept.mockClear()
+  actionsState.submit.mockReset()
+  uploadProofsMock.mockResolvedValue([{ url: 'https://cdn/a.jpg', type: 'image' }])
   toastMock.mockClear()
   routerPush.mockClear()
 })
@@ -200,6 +209,81 @@ test('a monitor failure clears the pending tx and reports it as still-syncing in
   fireEvent.click(await screen.findByRole('button', { name: 'monitor-fail' }))
   expect(actionsState.clearPending).toHaveBeenCalled()
   expect(toastMock).toHaveBeenCalledWith('info', 'rpc gave up')
+})
+
+/**
+ * The worker on a gig they have accepted — the seat that submits proof.
+ * `counterparty` is what makes the CTA bar offer "Submit Proof".
+ */
+function renderAsWorkerOnAcceptedGig(proofs: GigDetail['proofs'] = []) {
+  authState.isAuthenticated = true
+  authState.user = { id: WORKER_ID }
+  const accepted = gigDetail({
+    status: 'accepted',
+    counterparty: userRef(WORKER_ID),
+    proof_requirements: ['image'],
+    proofs,
+  })
+  gigsState.selectedGig = accepted
+  return render(<GigDetailApp initial={accepted} />)
+}
+
+test('a FAILED proof submit re-reads the detail, so the retry knows what is stored', async () => {
+  // The half-done state this fixes: the files uploaded, the transaction did
+  // not. Without the re-read the dialog's `alreadyAttached` stayed empty in
+  // exactly the situation it was written for, and the retry demanded the same
+  // upload again.
+  actionsState.submit.mockResolvedValue(false)
+  renderAsWorkerOnAcceptedGig()
+  gigsState.fetchGigDetail.mockClear() // drop the mount refetch
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Submit Proof' }))
+  const input = await screen.findByLabelText('Choose proof files')
+  fireEvent.change(input, { target: { files: [new File(['x'], 'a.jpg', { type: 'image/jpeg' })] } })
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+  await waitFor(() => expect(actionsState.submit).toHaveBeenCalled())
+  await waitFor(() => expect(gigsState.fetchGigDetail).toHaveBeenCalledWith('escrow-1'))
+})
+
+test('a SUCCESSFUL submit does not re-read on the spot — the monitor owns that', async () => {
+  // The negative half: a re-read here would fire mid-transaction, before the
+  // escrow has moved, for every successful submit.
+  actionsState.submit.mockResolvedValue(true)
+  renderAsWorkerOnAcceptedGig()
+  gigsState.fetchGigDetail.mockClear()
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Submit Proof' }))
+  const input = await screen.findByLabelText('Choose proof files')
+  fireEvent.change(input, { target: { files: [new File(['x'], 'a.jpg', { type: 'image/jpeg' })] } })
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+
+  await waitFor(() => expect(actionsState.submit).toHaveBeenCalled())
+  expect(gigsState.fetchGigDetail).not.toHaveBeenCalled()
+})
+
+test('the retry submits on the STORED proofs alone, with no file re-picked', async () => {
+  // End to end through the real dialog: what the server already holds is
+  // enough, so the hook is called with an empty batch and reads the set back
+  // itself.
+  actionsState.submit.mockResolvedValue(true)
+  renderAsWorkerOnAcceptedGig([
+    { id: 'p1', escrow_id: 'escrow-1', url: 'https://cdn/a.jpg', type: 'image', uploaded_at: new Date(0) },
+  ])
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Submit Proof' }))
+  expect(screen.getByText(/Already uploaded to this escrow: 1 file \(photo\)/)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Submit' }))
+  await waitFor(() => expect(actionsState.submit).toHaveBeenCalledWith([]))
+})
+
+test('a monitor failure re-reads too — a broadcast submit can still fail on chain', async () => {
+  actionsState.pendingTxRef = 'sig-1'
+  actionsState.pendingAction = 'accept'
+  renderAsWorkerOnOpenGig()
+  gigsState.fetchGigDetail.mockClear()
+  fireEvent.click(await screen.findByRole('button', { name: 'monitor-fail' }))
+  expect(gigsState.fetchGigDetail).toHaveBeenCalledWith('escrow-1')
 })
 
 test('a takedown refusal (onStale) re-reads the detail so dead buttons disappear', async () => {

@@ -7,9 +7,10 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { ApiClientError, TRANSACTION_GATE_MESSAGE, WalletError } from '@tenda/shared'
-import { proofHashFor, useEscrowActions } from '@/hooks/escrow/useEscrowActions'
+import { proofHashFor } from '@/hooks/escrow/proof-hash'
+import { useEscrowActions } from '@/hooks/escrow/useEscrowActions'
 
-const { mockPush, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreconditions, mockBuildPermitFor, mockDeclaredSigner, mockConnectAs, storeMocks, persistMock } = vi.hoisted(() => ({
+const { mockPush, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreconditions, mockBuildPermitFor, mockDeclaredSigner, mockConnectAs, storeMocks, persistMock, attachedMock } = vi.hoisted(() => ({
   mockPush: vi.fn(),
   mockToast: vi.fn(),
   mockSign: vi.fn(),
@@ -20,6 +21,7 @@ const { mockPush, mockToast, mockSign, mockResolveSigners, mockEnsure, mockPreco
   mockDeclaredSigner: vi.fn(),
   mockConnectAs: vi.fn(),
   persistMock: vi.fn(),
+  attachedMock: vi.fn(),
   storeMocks: {
     requestBuildCreate: vi.fn(),
     requestAccept: vi.fn(),
@@ -52,6 +54,7 @@ vi.mock('@/wallet/balances', () => ({
 vi.mock('@/wallet/permit', () => ({ buildPermitFor: (...a: unknown[]) => mockBuildPermitFor(...a) }))
 vi.mock('@/lib/uploads/escrow-proofs', () => ({
   persistEscrowProofs: (...a: unknown[]) => persistMock(...a),
+  attachedProofUrls: (...a: unknown[]) => attachedMock(...a),
 }))
 vi.mock('@/stores/escrow.store', () => ({
   useEscrowStore: Object.assign(() => storeMocks, { getState: () => storeMocks }),
@@ -69,6 +72,7 @@ beforeEach(() => {
   // The declared signer (signer contract) rides every free/dispute build.
   mockDeclaredSigner.mockReturnValue('0xMine')
   persistMock.mockResolvedValue(undefined)
+  attachedMock.mockResolvedValue([])
   for (const fn of Object.values(storeMocks)) fn.mockResolvedValue(UNSIGNED)
 })
 
@@ -255,12 +259,46 @@ describe('proof submit (two-phase)', () => {
   const PROOFS = [{ url: 'https://cdn/a.jpg', type: 'image' as const }]
 
   test('persists the satellite rows FIRST, then commits the digest on-chain', async () => {
+    attachedMock.mockResolvedValue(['https://cdn/a.jpg'])
     const { result } = renderHook(() => useEscrowActions(ARGS))
     await act(async () => {
       expect(await result.current.submit(PROOFS)).toBe(true)
     })
     expect(persistMock).toHaveBeenCalledWith('e1', PROOFS)
     expect(storeMocks.requestSubmit).toHaveBeenCalledWith('e1', proofHashFor(ARGS.chainId, ['https://cdn/a.jpg']))
+  })
+
+  test('seals the escrow\'s WHOLE evidence set, not just the batch handed in', async () => {
+    // The old basis was the batch, which made the digest mean "the last
+    // upload": a worker who added a photo, then a receipt, then submitted
+    // sealed only the receipt.
+    const stored = ['https://cdn/earlier.jpg', 'https://cdn/a.jpg']
+    attachedMock.mockResolvedValue(stored)
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    await act(async () => {
+      expect(await result.current.submit(PROOFS)).toBe(true)
+    })
+    expect(attachedMock).toHaveBeenCalledWith('e1')
+    expect(storeMocks.requestSubmit).toHaveBeenCalledWith('e1', proofHashFor(ARGS.chainId, stored))
+    // …and that is genuinely a different commitment from the batch alone.
+    expect(proofHashFor(ARGS.chainId, stored)).not.toBe(
+      proofHashFor(ARGS.chainId, ['https://cdn/a.jpg']),
+    )
+  })
+
+  test('RETRIES with nothing new picked: no upload, and the stored set is sealed', async () => {
+    // The failure this fixes: the upload leg succeeded and the transaction leg
+    // did not (a declined wallet). Re-uploading the same files to retry the
+    // signature is asking for the expensive half again — and the POST rejects
+    // an empty batch, so it must not be called at all.
+    const stored = ['https://cdn/a.jpg', 'https://cdn/b.pdf']
+    attachedMock.mockResolvedValue(stored)
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    await act(async () => {
+      expect(await result.current.submit([])).toBe(true)
+    })
+    expect(persistMock).not.toHaveBeenCalled()
+    expect(storeMocks.requestSubmit).toHaveBeenCalledWith('e1', proofHashFor(ARGS.chainId, stored))
   })
 
   test('a failed persist never reaches the chain', async () => {
@@ -271,6 +309,47 @@ describe('proof submit (two-phase)', () => {
     })
     expect(storeMocks.requestSubmit).not.toHaveBeenCalled()
     expect(mockToast).toHaveBeenCalledWith('error', 'satellite down')
+  })
+
+  test('a message-less READ-BACK failure does not claim the upload failed', async () => {
+    // Reachable: `request()` builds ApiClientError from `error.message` of the
+    // parsed body, so any intermediary answering a JSON envelope without a
+    // `message` (a gateway 502) lands on the fallback string. Sharing the
+    // persist leg's fallback told a worker their files failed to save at the
+    // one moment the files are the thing that DID save.
+    attachedMock.mockRejectedValue(new Error(''))
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    await act(async () => {
+      expect(await result.current.submit(PROOFS)).toBe(false)
+    })
+    expect(storeMocks.requestSubmit).not.toHaveBeenCalled()
+    const [[level, message]] = mockToast.mock.calls.slice(-1)
+    expect(level).toBe('error')
+    expect(message).not.toMatch(/save/i)
+    expect(message).toMatch(/proof/i)
+  })
+
+  test('a message-less PERSIST failure still says the save failed', async () => {
+    // The other half of the pair: the two legs must not swap messages.
+    persistMock.mockRejectedValue(new Error(''))
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    await act(async () => {
+      expect(await result.current.submit(PROOFS)).toBe(false)
+    })
+    expect(attachedMock).not.toHaveBeenCalled()
+    expect(mockToast).toHaveBeenCalledWith('error', expect.stringMatching(/save/i))
+  })
+
+  test('a failed READ-BACK never reaches the chain either', async () => {
+    // Signing a digest over a set we could not read would seal the wrong
+    // thing — and the files are stored, so the retry costs the worker nothing.
+    attachedMock.mockRejectedValue(new Error('proofs unreadable'))
+    const { result } = renderHook(() => useEscrowActions(ARGS))
+    await act(async () => {
+      expect(await result.current.submit(PROOFS)).toBe(false)
+    })
+    expect(storeMocks.requestSubmit).not.toHaveBeenCalled()
+    expect(mockToast).toHaveBeenCalledWith('error', 'proofs unreadable')
   })
 
   test('addProofs is off-chain only', async () => {

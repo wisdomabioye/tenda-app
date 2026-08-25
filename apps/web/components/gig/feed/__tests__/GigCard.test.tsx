@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
-import { CATEGORY_LABELS, formatAssetAmount, splitAssetAmount } from '@tenda/shared'
+import { act, render, screen } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { CATEGORY_LABELS, chainLabel, formatAssetAmount, splitAssetAmount } from '@tenda/shared'
 import type { GigSummary } from '@tenda/shared'
 import { GigCard } from '@/components/gig/feed/GigCard'
+import { toGigCardModel } from '@/components/gig/feed/gig-card-model'
 import { CATEGORY_TONE } from '@/components/gig/category-icons'
 import { GIG_CARD_COPY } from '@/components/gig/feed/card-copy'
 import { deliveryGig, photoGig } from '@/e2e/fixtures/gigs'
@@ -96,6 +97,66 @@ describe('GigCard', () => {
   it('omits the posted time when the wire carries none, rather than an empty slot', () => {
     render(<GigCard gig={{ ...deliveryGig, created_at: null }} />)
     expect(screen.getByRole('link').textContent).not.toContain('·')
+  })
+
+  it('keeps the posted time TICKING, so a fresh gig stops saying "now"', () => {
+    // The card renders once and then only when a realtime update lands, so a
+    // timestamp sampled at render froze: a gig posted while the reader watched
+    // read "now" for as long as they stayed on the feed.
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-08-16T10:00:00.000Z'))
+      render(<GigCard gig={{ ...deliveryGig, created_at: '2026-08-16T10:00:00.000Z' }} />)
+      expect(screen.getByText('now')).toBeInTheDocument()
+      act(() => {
+        vi.advanceTimersByTime(61_000)
+      })
+      expect(screen.getByText('1m')).toBeInTheDocument()
+      expect(screen.queryByText('now')).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('names the chain it settles on, through the shared label', () => {
+    // The feed FILTERS by chain (`?chain_id=`), so an unfiltered reader was
+    // comparing cards that settle on different networks with nothing on them
+    // saying so — and which chain a gig pays on decides whether they hold a
+    // wallet that can take it.
+    render(<GigCard gig={deliveryGig} />)
+    expect(screen.getByText(chainLabel(deliveryGig.chain_id))).toBeInTheDocument()
+    // The label, never the raw CAIP-2 id.
+    expect(screen.getByRole('link').textContent).not.toContain(deliveryGig.chain_id)
+  })
+
+  it('takes the chain from the GIG, not from a default', () => {
+    // Two fixtures on two different chains: a hardcoded label would pass the
+    // test above and fail this one.
+    render(<GigCard gig={photoGig} />)
+    expect(screen.getByText(chainLabel(photoGig.chain_id))).toBeInTheDocument()
+    expect(chainLabel(photoGig.chain_id)).not.toBe(chainLabel(deliveryGig.chain_id))
+  })
+
+  it('carries the chain through the card MODEL the feed actually renders', () => {
+    // The public feed projects GigSummary down to GigCardModel to keep base
+    // units out of the RSC payload. A field the projection drops is invisible
+    // on the real page however well the component handles it.
+    render(<GigCard gig={toGigCardModel(deliveryGig)} />)
+    expect(screen.getByText(chainLabel(deliveryGig.chain_id))).toBeInTheDocument()
+  })
+
+  it('WRAPS its top row rather than squeezing a label, now that three things share it', () => {
+    // Measured: without the wrap the category read "DELIVE…" at 1280px too,
+    // because the grid gives a card ~280px whatever the viewport. jsdom cannot
+    // lay out, so this asserts the rule that produces the behaviour; the e2e
+    // measures the actual overflow at 320/360/390 and 768/900/1100/1280.
+    render(<GigCard gig={deliveryGig} />)
+    const eyebrow = screen.getByText(CATEGORY_LABELS[deliveryGig.category])
+    const row = eyebrow.parentElement
+    expect(row?.className).toContain('flex-wrap')
+    // And no truncation dressing on a label that is one short word: every
+    // CATEGORY_LABELS entry fits, so a `truncate` here would be inert.
+    expect(eyebrow.className).not.toContain('truncate')
   })
 
   it('can shrink below its content, and lets a poster-written title break', () => {

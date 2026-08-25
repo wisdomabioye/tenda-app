@@ -30,7 +30,12 @@ const { actionsState, capturedActionsArgs, capturedDialogArgs, capturedCheckAppl
   // The dialogs and the monitor are mocked, so their callbacks are captured
   // rather than clicked — they are still THIS page's wiring, and the two below
   // are the only ways an added proof or a converged tx reaches the screen.
-  capturedDialogArgs: { current: null as null | { onAddProofsReady?: (p: unknown[]) => Promise<void> } },
+  capturedDialogArgs: {
+    current: null as null | {
+      onAddProofsReady?: (p: unknown[]) => Promise<void>
+      onProofsReady?: (p: unknown[]) => Promise<boolean>
+    },
+  },
   capturedCheckApplied: { current: null as null | (() => Promise<boolean>) },
   toastMock: vi.fn(),
   routerPush: vi.fn(),
@@ -225,6 +230,26 @@ test('an added proof re-reads the offer only when the upload actually landed', a
   actionsState.addProofs.mockResolvedValueOnce(true)
   await capturedDialogArgs.current?.onAddProofsReady?.([])
   expect(refresh).toHaveBeenCalledTimes(1)
+})
+
+test('a FAILED proof submit re-reads the offer, so the retry knows what is stored', async () => {
+  // The half-done state: the receipt uploaded, the transaction did not. The
+  // dialog's `alreadyAttached` comes off the offer, so without this re-read it
+  // is empty in exactly the situation it exists for and the seller is asked to
+  // upload the same file again.
+  render(<ExchangeDetailApp offer={makeExchangeDetail()} userId="buyer-1" refresh={refresh} />)
+  refresh.mockClear()
+
+  actionsState.submit.mockResolvedValueOnce(false)
+  expect(await capturedDialogArgs.current?.onProofsReady?.([])).toBe(false)
+  expect(refresh).toHaveBeenCalledTimes(1)
+
+  // …and NOT on success: the monitor owns the post-confirm re-read, and one
+  // here would fire mid-transaction, before the escrow has moved.
+  refresh.mockClear()
+  actionsState.submit.mockResolvedValueOnce(true)
+  expect(await capturedDialogArgs.current?.onProofsReady?.([])).toBe(true)
+  expect(refresh).not.toHaveBeenCalled()
 })
 
 test('the monitor converges against THIS offer, not the escrow route', async () => {

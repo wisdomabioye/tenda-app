@@ -3,8 +3,8 @@
  * these: the page reads listing fields ONLY, so a hostile server that serves
  * party-scoped values anyway cannot get them onto a crawler-visible page.
  */
-import { render, screen, within } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { act, render, screen, within } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
 import { CATEGORY_LABELS, PROOF_TYPE_LABEL, chainLabel, type GigDetail } from '@tenda/shared'
 import { GigBrief, briefParagraphs } from '@/components/gig/detail/GigBrief'
 import { GigDetailHeader } from '@/components/gig/detail/GigDetailHeader'
@@ -73,6 +73,24 @@ describe('GigDetailHeader', () => {
   it('omits the posted line when the wire carries no timestamp', () => {
     render(<GigDetailHeader gig={{ ...gig, created_at: null }} />)
     expect(screen.queryByText(GIG_DETAIL_COPY.postedPrefix)).not.toBeInTheDocument()
+  })
+
+  it('keeps "Posted" TICKING — it is a claim about the present tense', () => {
+    // This block used to be a server-rendered string, frozen in the HTML: a
+    // gig posted a moment ago read "Posted now" for the whole visit.
+    vi.useFakeTimers()
+    try {
+      vi.setSystemTime(new Date('2026-08-16T10:00:00.000Z'))
+      render(<GigDetailHeader gig={{ ...gig, created_at: '2026-08-16T10:00:00.000Z' }} />)
+      expect(screen.getByText('now')).toBeInTheDocument()
+      act(() => {
+        vi.advanceTimersByTime(61_000)
+      })
+      expect(screen.getByText('1m')).toBeInTheDocument()
+      expect(screen.queryByText('now')).not.toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
 
@@ -154,8 +172,20 @@ describe('gigTerms', () => {
   })
 
   it('reads NO party-scoped field — a hostile server cannot leak through it', () => {
-    const values = gigTerms(gig).map((t) => `${t.label}${t.value}`).join(' ')
-    expect(values).not.toContain(LEAKED_COUNTERPARTY_NAME)
+    // Asserted against the RENDERED terms, not against `${term.value}`. A term
+    // whose value is a node — "Posted" is one — stringifies to
+    // "[object Object]" in a template, so the interpolating form passed
+    // vacuously for exactly the term it was meant to search.
+    const { container } = render(<GigTerms gig={gig} />)
+    expect(container.textContent).not.toContain(LEAKED_COUNTERPARTY_NAME)
+    // The control that the search really does reach INSIDE a node-valued term.
+    // Asserting the string "Posted" would not: that is the <dt> LABEL, a plain
+    // string in a sibling element, and it would still be found if every <dd>
+    // rendered nothing at all. The posted term puts its value in a <time>, so
+    // that element's own text is what has to be part of what was searched.
+    const postedValue = container.querySelector('time')?.textContent ?? ''
+    expect(postedValue).not.toBe('')
+    expect(container.textContent).toContain(postedValue)
   })
 })
 

@@ -6,13 +6,12 @@
 import Link from 'next/link'
 import {
   CATEGORY_LABELS,
-  formatRelativeShort,
   gigPlaceLabel,
   type GigDetail,
 } from '@tenda/shared'
 import { ChevronRight, Clock, Globe, MapPin } from 'lucide-react'
 import { CATEGORY_ICONS, CATEGORY_TONE } from '@/components/gig/category-icons'
-import { Eyebrow } from '@/components/ui'
+import { Eyebrow, RelativeTime } from '@/components/ui'
 import { gigsHref, parseGigFeedFilters } from '@/lib/gigs/search-params'
 import { GIG_DETAIL_COPY } from './copy'
 
@@ -79,7 +78,7 @@ export function GigDetailHeader({ gig }: { gig: GigDetail }) {
           <span className="flex items-center gap-2">
             <Clock size={16} aria-hidden className="text-content-tertiary" />
             {GIG_DETAIL_COPY.postedPrefix}{' '}
-            <span className="font-numeric">{formatRelativeShort(gig.created_at)}</span>
+            <RelativeTime iso={gig.created_at} className="font-numeric" />
           </span>
         )}
         {gig.cross_border && (

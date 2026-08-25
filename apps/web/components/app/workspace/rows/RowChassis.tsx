@@ -23,8 +23,10 @@ export interface RowChassisProps {
   lead?: ReactNode
   /** Small line above the title: a name, a category. */
   eyebrow?: ReactNode
-  /** Right-aligned timestamp, tabular. */
-  time?: string
+  /** Right-aligned timestamp, tabular. A node so a variant can fill it with
+   *  `RelativeTime`, which keeps ticking instead of freezing at whatever the
+   *  clock read when the row first rendered. */
+  time?: ReactNode
   title: string
   badge?: ReactNode
   subtitle?: ReactNode

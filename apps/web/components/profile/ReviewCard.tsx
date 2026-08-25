@@ -4,8 +4,9 @@
  * (no reviewer identity), while escrow-detail call sites can supply one.
  */
 import { Star } from 'lucide-react'
-import { formatRelativeShort, formatFullName, type Review } from '@tenda/shared'
+import { formatFullName, type Review } from '@tenda/shared'
 import { Avatar } from '@/components/ui/Avatar'
+import { RelativeTime } from '@/components/ui/RelativeTime'
 import { cn } from '@/lib/cn'
 
 export function ReviewCard({
@@ -20,7 +21,6 @@ export function ReviewCard({
   const name = reviewer
     ? formatFullName(reviewer.first_name, reviewer.last_name) || 'Anonymous'
     : 'Counterparty'
-  const time = review.created_at ? formatRelativeShort(review.created_at) : null
 
   return (
     <div className="flex items-start gap-2.5 border-b border-border-subtle px-1 py-3.5">
@@ -41,8 +41,14 @@ export function ReviewCard({
               />
             ))}
           </span>
-          {time !== null && (
-            <span className="ml-auto shrink-0 font-numeric text-[11.5px] text-content-tertiary">{time}</span>
+          {/* `created_at` is non-nullable on the wire, so the guard is only
+              against an empty string — which `RelativeTime` would render as
+              "Invalid Date". Same check the truthiness test here made before. */}
+          {review.created_at !== '' && (
+            <RelativeTime
+              iso={review.created_at}
+              className="ml-auto shrink-0 font-numeric text-[11.5px] text-content-tertiary"
+            />
           )}
         </div>
         {review.comment !== null && review.comment !== '' && (

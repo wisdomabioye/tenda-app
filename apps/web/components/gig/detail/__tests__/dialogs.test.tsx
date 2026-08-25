@@ -5,7 +5,7 @@
  */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, test, vi } from 'vitest'
-import { APPLY_OBLIGATION } from '@tenda/shared'
+import { APPLY_OBLIGATION, formatProofTypeList } from '@tenda/shared'
 
 const { uploadProofsMock, toastMock, reviewMock, deleteMock, pushMock } = vi.hoisted(() => ({
   uploadProofsMock: vi.fn(),
@@ -78,12 +78,12 @@ describe('ProofUploadDialog', () => {
         onSubmit={onSubmit}
       />,
     )
-    expect(screen.getByText(/Still missing: photo, video/i)).toBeInTheDocument()
+    expect(screen.getByText(/Still needed: photo and video/i)).toBeInTheDocument()
     pickFile('a.jpg', 'image/jpeg')
-    expect(screen.getByText(/Still missing: video/i)).toBeInTheDocument()
+    expect(screen.getByText(/Still needed: video/i)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
     pickFile('b.mp4', 'video/mp4')
-    expect(screen.getByText(/All requirements covered/)).toBeInTheDocument()
+    expect(screen.getByText(/All required proof attached/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Submit' })).toBeEnabled()
   })
 
@@ -100,7 +100,143 @@ describe('ProofUploadDialog', () => {
         onSubmit={vi.fn()}
       />,
     )
-    expect(screen.getByText(/All requirements covered/)).toBeInTheDocument()
+    expect(screen.getByText(/All required proof attached/)).toBeInTheDocument()
+  })
+
+  test('RETRIES on the stored evidence alone — no file re-picked, nothing re-uploaded', async () => {
+    // The whole point of the fix. The upload leg succeeded and the transaction
+    // leg did not; demanding the same files again to retry the signature is
+    // asking for the expensive half of a two-part action twice.
+    const onSubmit = vi.fn(async () => true)
+    render(
+      <ProofUploadDialog
+        open
+        onClose={vi.fn()}
+        title="Submit proof"
+        submitLabel="Submit"
+        closeMode="before-submit"
+        requirements={['image']}
+        alreadyAttached={[{ type: 'image' }]}
+        onSubmit={onSubmit}
+      />,
+    )
+    // Says what the escrow already holds, or the enabled button on an empty
+    // form reads as a bug.
+    expect(screen.getByText(/Already uploaded to this escrow: 1 file \(photo\)/)).toBeInTheDocument()
+    const submit = screen.getByRole('button', { name: 'Submit' })
+    expect(submit).toBeEnabled()
+    fireEvent.click(submit)
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledWith([]))
+    // Nothing was re-uploaded: the caller re-reads the stored set itself.
+    expect(uploadProofsMock).not.toHaveBeenCalled()
+  })
+
+  test('names a repeated proof type ONCE, and counts the files', () => {
+    // Three photos is an ordinary batch (the picker allows five), and the
+    // per-ROW list printed "Photo, Photo, Photo" — on the retry screen this
+    // whole change exists to serve.
+    render(
+      <ProofUploadDialog
+        open
+        onClose={vi.fn()}
+        title="Submit proof"
+        submitLabel="Submit"
+        closeMode="before-submit"
+        alreadyAttached={[{ type: 'image' }, { type: 'image' }, { type: 'image' }]}
+        onSubmit={vi.fn()}
+      />,
+    )
+    const note = screen.getByText(/Already uploaded/)
+    expect(note.textContent).not.toMatch(/photo,\s*photo/i)
+    // The file COUNT is what a worker checks against what they picked, and it
+    // is the only number the type list cannot carry.
+    expect(note).toHaveTextContent('3 files')
+    // Plural follows the files, not the distinct types — one type, three files.
+    expect(note).toHaveTextContent(/reuses them/)
+  })
+
+  test('one stored proof reads in the singular', () => {
+    render(
+      <ProofUploadDialog
+        open
+        onClose={vi.fn()}
+        title="Submit proof"
+        submitLabel="Submit"
+        closeMode="before-submit"
+        alreadyAttached={[{ type: 'document' }]}
+        onSubmit={vi.fn()}
+      />,
+    )
+    const note = screen.getByText(/Already uploaded/)
+    expect(note).toHaveTextContent('1 file')
+    expect(note).not.toHaveTextContent('1 files')
+    expect(note).toHaveTextContent(/reuses it/)
+  })
+
+  test('words the requirement the way the SERVER and mobile word it', () => {
+    // `formatProofTypeList` exists so the server's refusal, mobile's note and
+    // this checklist read as one product voice — its own doc says so. The
+    // dialog used to hand-roll a comma join, so a worker refused with
+    // "requires photo and video proof" saw "Still missing: photo, video."
+    render(
+      <ProofUploadDialog
+        open
+        onClose={vi.fn()}
+        title="Submit proof"
+        submitLabel="Submit"
+        closeMode="before-submit"
+        requirements={['image', 'video']}
+        onSubmit={vi.fn()}
+      />,
+    )
+    // Asserted as WHOLE clauses, not as a bare `/photo and video/` match: both
+    // halves of this paragraph name the same two types, so a substring search
+    // passed while `required` was hand-rolled and only `stillNeeded` used the
+    // shared formatter. (Caught by mutation — the first version of this test
+    // survived replacing `formatProofTypeList` in `required`.)
+    const note = screen.getByText(/Required proof/)
+    const listed = formatProofTypeList(['image', 'video'])
+    expect(note).toHaveTextContent(`Required proof: ${listed}.`)
+    expect(note).toHaveTextContent(`Still needed: ${listed}.`)
+    // The shared formatter joins the last pair with "and"; the comma join this
+    // dialog used to carry is the drift being pinned.
+    expect(listed).toBe('photo and video')
+  })
+
+  test('a retry still cannot skip a requirement the stored proofs do not cover', () => {
+    // The dialog mirrors the server gate; it must not become a way round it
+    // just because SOMETHING is attached. (The server re-checks regardless.)
+    render(
+      <ProofUploadDialog
+        open
+        onClose={vi.fn()}
+        title="Submit proof"
+        submitLabel="Submit"
+        closeMode="before-submit"
+        requirements={['image', 'video']}
+        alreadyAttached={[{ type: 'image' }]}
+        onSubmit={vi.fn()}
+      />,
+    )
+    expect(screen.getByText(/Still needed: video/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Submit' })).toBeDisabled()
+  })
+
+  test('with NOTHING attached, an empty form is still refused — that is not a retry', () => {
+    render(
+      <ProofUploadDialog
+        open
+        onClose={vi.fn()}
+        title="Add more proof"
+        submitLabel="Upload"
+        closeMode="before-submit"
+        onSubmit={vi.fn()}
+      />,
+    )
+    // "Add more proof" is handed no `alreadyAttached`, and uploading nothing
+    // there would mean nothing at all.
+    expect(screen.queryByText(/Already uploaded/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeDisabled()
   })
 
   test('before-submit mode closes as soon as the upload lands, then hands off', async () => {

@@ -11,14 +11,16 @@
  * `open` by construction — the server admits no other status — so a status
  * badge here would be a constant. It carries the accept WINDOW instead, which
  * is the one thing about an open gig that changes and can cost the reader a
- * wasted trip.
+ * wasted trip, beside the settlement CHAIN — the fact that decides whether the
+ * reader holds a wallet that can take the gig at all, and the one the feed
+ * already filters by without ever naming it on a row.
  */
 import Link from 'next/link'
 import {
   CATEGORY_LABELS,
   acceptWindowState,
+  chainLabel,
   displayName,
-  formatRelativeShort,
   formatReviewScore,
   gigPlaceLabel,
   type GigSummary,
@@ -27,7 +29,7 @@ import { MapPin } from 'lucide-react'
 import { CATEGORY_ICONS, CATEGORY_TONE } from '@/components/gig/category-icons'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
-import { Eyebrow } from '@/components/ui'
+import { Eyebrow, RelativeTime } from '@/components/ui'
 import { GIG_CARD_COPY, gigTakeVerb } from './card-copy'
 import { toGigCardModel, type GigCardModel } from './gig-card-model'
 
@@ -54,13 +56,34 @@ export function GigCard({ gig: input, index }: { gig: GigCardModel | GigSummary;
       // on the text. Measured — `break-words` alone changed nothing.
       className="flex h-full min-w-0 flex-col rounded-card border border-border-subtle bg-surface-card p-5 shadow-card transition-shadow hover:border-border-strong hover:shadow-elevated"
     >
-      <div className="flex items-center gap-2">
+      {/* `flex-wrap` is load-bearing since the chain joined this row, and the
+          widths are MEASURED, not guessed (browser, eight viewports): the feed
+          grid hands a card 272px at 320, 291px right across the 360-1100 band,
+          and 288px once the third column appears at 1280+. Three items fit 291
+          on one line; they do not fit 272 or 288, and without the wrap those
+          two squeezed the category to "DELIVE…". The 1280 case is the one that
+          is easy to miss, because checking only the 320px floor suggests this
+          is a small-screen concern and it is not — a card is ~280px wide at
+          every viewport. Wrapping drops the badge pair onto its own
+          right-aligned line (+22px of row height, uniform across the grid) and
+          every label stays whole. Testnet chain names are the long ones
+          ("Solana Devnet"); production reads "Solana", "BASE". */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
         <CategoryIcon size={16} aria-hidden className={`shrink-0 ${tone.text}`} />
-        {/* twMerge lets the category tone win over Eyebrow's default. */}
+        {/* twMerge lets the category tone win over Eyebrow's default. No
+            `truncate` here: every CATEGORY_LABELS entry is one short word, so
+            it was verified inert and removed rather than left as a class with
+            a comment claiming it mattered. */}
         <Eyebrow as="span" className={tone.text}>
           {CATEGORY_LABELS[gig.category]}
         </Eyebrow>
-        <span className="ml-auto">
+        {/* The chain, beside the status and not buried in the terms: the feed
+            already FILTERS by chain (`?chain_id=`), so a reader who has not
+            filtered is otherwise comparing cards that settle on different
+            networks with nothing on them saying so — and which chain a gig
+            pays on decides whether they hold a wallet that can take it. */}
+        <span className="ml-auto flex shrink-0 items-center gap-2">
+          <Badge variant="neutral" label={chainLabel(gig.chain_id)} />
           {acceptWindow === 'closing' ? (
             <Badge variant="warning" label={GIG_CARD_COPY.closingSoon} />
           ) : (
@@ -103,9 +126,7 @@ export function GigCard({ gig: input, index }: { gig: GigCardModel | GigSummary;
         {gig.created_at !== null && (
           <>
             <span aria-hidden>·</span>
-            <span className="whitespace-nowrap font-numeric">
-              {formatRelativeShort(gig.created_at)}
-            </span>
+            <RelativeTime iso={gig.created_at} className="whitespace-nowrap font-numeric" />
           </>
         )}
       </div>

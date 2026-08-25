@@ -5,7 +5,8 @@
  * derived icon, unread = inset background + brand dot, relative timestamp.
  */
 import { createElement } from 'react'
-import { formatRelativeShort, type NotificationWire } from '@tenda/shared'
+import type { NotificationWire } from '@tenda/shared'
+import { RelativeTime } from '@/components/ui/RelativeTime'
 import { notificationIcon } from './notification-icon'
 import { cn } from '@/lib/cn'
 
@@ -41,9 +42,10 @@ export function NotificationRow({
           {notification.body}
         </span>
         {notification.created_at !== null && (
-          <span className="mt-1 block text-xs text-content-tertiary">
-            {formatRelativeShort(notification.created_at)}
-          </span>
+          <RelativeTime
+            iso={notification.created_at}
+            className="mt-1 block text-xs text-content-tertiary"
+          />
         )}
       </span>
 

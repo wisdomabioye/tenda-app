@@ -6,6 +6,7 @@ export type GigCardModel = Pick<
   | 'public_feed_revision'
   | 'accept_deadline'
   | 'created_at'
+  | 'chain_id'
   | 'title'
   | 'category'
   | 'country'
@@ -26,6 +27,7 @@ export function toGigCardModel(gig: GigSummary): GigCardModel {
     public_feed_revision: gig.public_feed_revision,
     accept_deadline: gig.accept_deadline,
     created_at: gig.created_at,
+    chain_id: gig.chain_id,
     title: gig.title,
     category: gig.category,
     country: gig.country,

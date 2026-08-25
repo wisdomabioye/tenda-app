@@ -9,13 +9,11 @@
  *   (wallet/dispatch) → TransactionMonitor/WS confirms → screen refreshes.
  *
  * Proof submission is two-phase: the proof FILES go to the off-chain
- * satellite first, then the on-chain submit commits a digest over their
- * URLs (sha256 over '\n'-joined URLs, base58 for Solana, 0x-hex for EVM).
+ * satellite first, then the on-chain submit commits a digest over the
+ * escrow's whole stored evidence set (`attachedProofUrls` → `proofHashFor`).
  */
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { sha256 } from '@noble/hashes/sha2'
-import bs58 from 'bs58'
 import {
   TAKEDOWN_REFUSED_MESSAGE,
   TRANSACTION_GATE_MESSAGE,
@@ -41,7 +39,8 @@ import { connectAsWallet } from '@/wallet/send'
 import { ensureSufficientBalance } from '@/wallet/balances'
 import { buildPermitFor } from '@/wallet/permit'
 import { showToast } from '@/components/ui/Toast'
-import { persistEscrowProofs } from '@/lib/uploads/escrow-proofs'
+import { attachedProofUrls, persistEscrowProofs } from '@/lib/uploads/escrow-proofs'
+import { proofHashFor } from './proof-hash'
 
 export interface ProofFile {
   url: string
@@ -49,13 +48,6 @@ export interface ProofFile {
 }
 
 export type TxPhase = TransactionProgressPhase
-
-export function proofHashFor(chainId: string, urls: string[]): string {
-  const digest = sha256(new TextEncoder().encode(urls.join('\n')))
-  return chainId.startsWith('solana:')
-    ? bs58.encode(digest)
-    : `0x${Array.from(digest, (b) => b.toString(16).padStart(2, '0')).join('')}`
-}
 
 interface UseEscrowActionsArgs {
   escrowId: string
@@ -105,6 +97,19 @@ export function useEscrowActions({
    * session.
    */
   const declaredSigner = (): string | undefined => declaredSignerFor(chainId)
+
+  /**
+   * Abandon a submit before it reaches `dispatch` — the off-chain legs run
+   * ahead of it and own their own unwind, since `dispatch`'s own catch has
+   * not been entered yet. The server's message wins; `fallback` names which
+   * leg failed when it has none.
+   */
+  function failPreparation(error: unknown, fallback: string): false {
+    setBusyAction(null)
+    setPhase('idle')
+    showToast('error', (error as Error).message || fallback)
+    return false
+  }
 
   /**
    * `debitRaw` declares what this action takes from the signer's wallet, in
@@ -219,19 +224,39 @@ export function useEscrowActions({
     refund: (kind: 'refund_expired' | 'reclaim_abandoned') =>
       dispatch(kind, () => store.requestRefund(escrowId)),
 
-    /** Upload satellite rows first, then commit the digest on-chain. */
+    /**
+     * Upload satellite rows first, then commit the digest on-chain.
+     *
+     * `proofs` may be EMPTY, and that is the retry path rather than a caller
+     * bug: the upload and the transaction are two legs, and only the second
+     * one fails when a wallet is declined. The files are already stored, so a
+     * retry has nothing to upload — it only has to sign. (The POST rejects an
+     * empty batch, hence the guard rather than a call with no rows.)
+     *
+     * The digest covers the escrow's whole stored evidence set, read back
+     * after the upload — see `attachedProofUrls` for why that and not the
+     * batch.
+     */
     submit: async (proofs: ProofFile[]): Promise<boolean> => {
       setBusyAction('submit')
       setPhase('preparing')
+      // Two legs, two fallbacks. Sharing one message told a worker their files
+      // had failed to save when it was the READ-BACK that failed — i.e. at the
+      // one moment the upload is the thing that did succeed. The fallback is
+      // reachable: `request()` takes the message from the parsed error body,
+      // so a gateway answering a JSON envelope without one lands here.
+      let urls: string[]
       try {
-        await persistEscrowProofs(escrowId, proofs)
+        if (proofs.length > 0) await persistEscrowProofs(escrowId, proofs)
       } catch (e) {
-        setBusyAction(null)
-        setPhase('idle')
-        showToast('error', (e as Error).message || 'Failed to save proof files')
-        return false
+        return failPreparation(e, 'Failed to save proof files')
       }
-      const proof_hash = proofHashFor(chainId, proofs.map((p) => p.url))
+      try {
+        urls = await attachedProofUrls(escrowId)
+      } catch (e) {
+        return failPreparation(e, 'Could not read the proof on this escrow, please try again')
+      }
+      const proof_hash = proofHashFor(chainId, urls)
       return dispatch('submit', () => store.requestSubmit(escrowId, proof_hash))
     },
 

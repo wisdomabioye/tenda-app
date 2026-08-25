@@ -99,7 +99,14 @@ export function GigEscrowActions({ gig, userId }: { gig: GigDetail; userId: stri
 
   // Sheet-confirmed handlers (dialogs collect input; the hook signs).
   async function handleProofsReady(proofs: ProofFile[]): Promise<boolean> {
-    return actions.submit(proofs)
+    const submitted = await actions.submit(proofs)
+    // A failed submit is HALF done: the files uploaded, the transaction did
+    // not. Re-read so the dialog's "already attached" is the truth when the
+    // worker reopens it — without this the prop was empty in exactly the
+    // situation it was written for, and the retry demanded the same upload
+    // again.
+    if (!submitted) void fetchGigDetail(gig.escrow_id)
+    return submitted
   }
 
   async function handleAddProofsReady(proofs: ProofFile[]): Promise<void> {
@@ -167,6 +174,12 @@ export function GigEscrowActions({ gig, userId }: { gig: GigDetail; userId: stri
           onFailed={(msg) => {
             actions.clearPending()
             showToast('info', msg || 'Transaction pending, will sync when confirmed')
+            // Any failed transaction leaves this screen describing a state the
+            // chain did not reach, so it re-reads whatever the action was. The
+            // case that made it necessary is `handleProofsReady`'s: a submit
+            // that broadcast and then failed leaves the proofs stored, and the
+            // retry has to see them.
+            void fetchGigDetail(gig.escrow_id)
           }}
         />
       )}

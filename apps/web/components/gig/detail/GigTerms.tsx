@@ -6,19 +6,25 @@
  * them or the gig simply has none, so there is no code path where a leak
  * could become visible.
  */
+import type { ReactNode } from 'react'
 import {
   chainLabel,
   formatAssetAmount,
   formatDuration,
-  formatRelativeShort,
   gigPlaceLabel,
   type GigDetail,
 } from '@tenda/shared'
+import { RelativeTime } from '@/components/ui'
 import { GIG_DETAIL_COPY } from './copy'
 
 interface Term {
   label: string
-  value: string
+  /**
+   * A node rather than a string because "Posted" is a claim about the PRESENT
+   * TENSE and has to stay true while the page sits open — see `RelativeTime`.
+   * Every other term is a fixed fact and stays a plain string.
+   */
+  value: ReactNode
   /** Figures are set in mono with tabular numerals — the brief's one rule. */
   numeric?: boolean
 }
@@ -74,7 +80,7 @@ export function gigTerms(gig: GigDetail): Term[] {
   if (gig.created_at !== null) {
     terms.push({
       label: GIG_DETAIL_COPY.terminology.posted,
-      value: formatRelativeShort(gig.created_at),
+      value: <RelativeTime iso={gig.created_at} />,
       numeric: true,
     })
   }

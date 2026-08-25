@@ -17,9 +17,9 @@ import { ChevronRight } from 'lucide-react'
 import {
   chainLabel,
   formatAssetAmount,
-  formatRelativeShort,
   type EscrowListRow,
 } from '@tenda/shared'
+import { RelativeTime } from '@/components/ui/RelativeTime'
 import { ExchangeStatusBadge } from '@/components/escrow/StatusBadge'
 import { cn } from '@/lib/cn'
 import { EXCHANGE_COPY, EXCHANGE_ROW_CLASS } from './copy'
@@ -47,7 +47,12 @@ export function MyTradeCard({ row, userId }: { row: EscrowListRow; userId: strin
         </span>
         <span className="mt-1 block truncate text-[13px] leading-[18px] text-content-secondary">
           {EXCHANGE_COPY.side(selling)} · {chainLabel(row.chain_id)}
-          {row.created_at !== null && ` · ${formatRelativeShort(row.created_at)}`}
+          {row.created_at !== null && (
+            <>
+              {' · '}
+              <RelativeTime iso={row.created_at} />
+            </>
+          )}
         </span>
       </span>
       <ExchangeStatusBadge status={row.status} />

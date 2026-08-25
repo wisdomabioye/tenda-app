@@ -11,7 +11,6 @@ import {
   STATUS_LABEL,
   displayName,
   formatAssetAmount,
-  formatRelativeShort,
   formatReviewScore,
   type EscrowStatus,
   type GigCategory,
@@ -20,6 +19,7 @@ import { CATEGORY_ICONS, CATEGORY_TONE } from '@/components/gig/category-icons'
 import { GIG_CARD_COPY, gigTakeVerb } from '@/components/gig/feed/card-copy'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
+import { RelativeTime } from '@/components/ui/RelativeTime'
 import type { ReactNode } from 'react'
 import { RowChassis } from './RowChassis'
 
@@ -66,7 +66,7 @@ export function ConversationRow({
       label={`${name}${unread ? ', unread' : ''}: ${preview}`}
       lead={<Avatar size="sm" name={name} src={party.avatar_url} />}
       eyebrow={name}
-      time={at ? formatRelativeShort(at) : undefined}
+      time={at ? <RelativeTime iso={at} /> : undefined}
       title={preview}
     />
   )
@@ -132,7 +132,7 @@ export function EscrowRow({
         creatorName === undefined ? '' : `, by ${creatorName}`
       }${takeVerb === undefined ? '' : `, ${takeVerb}`}`}
       lead={lead}
-      time={at ? formatRelativeShort(at) : undefined}
+      time={at ? <RelativeTime iso={at} /> : undefined}
       title={title}
       // Tone comes from the shared vocabulary, so a row's badge matches the
       // same status everywhere else it appears.
@@ -194,7 +194,7 @@ export function NotificationRow({
       unread={unread}
       arriving={arriving}
       label={`${title}${unread ? ', unread' : ''}`}
-      time={at ? formatRelativeShort(at) : undefined}
+      time={at ? <RelativeTime iso={at} /> : undefined}
       title={title}
       subtitle={body}
     />
@@ -225,7 +225,7 @@ export function ApplicantRow({
       label={`Applicant ${name}`}
       lead={<Avatar size="sm" name={name} src={party.avatar_url} />}
       eyebrow={name}
-      time={at ? formatRelativeShort(at) : undefined}
+      time={at ? <RelativeTime iso={at} /> : undefined}
       title={note ?? name}
     />
   )

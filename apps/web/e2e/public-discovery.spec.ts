@@ -4,7 +4,7 @@
  * declares. The detail page and the SEO surfaces are in public-detail.spec.ts.
  */
 import { expect, test, type ConsoleMessage, type Page } from '@playwright/test'
-import { CATEGORY_LABELS } from '@tenda/shared'
+import { CATEGORY_LABELS, chainLabel } from '@tenda/shared'
 import { FEED_COPY } from '../components/gig/feed/copy'
 import {
   deliveryGig,
@@ -51,6 +51,15 @@ test.describe('feed — /', () => {
       // it proves the split figure still reads as one amount.
       await expect(card).toContainText('25 USDC')
       await expect(card).toContainText('Lagos, Nigeria')
+      // The chain, on the CARD and not only in the filter rail. Scoped to the
+      // card link because the rail's chain select names every running chain,
+      // so a page-wide search for the label would pass with the card blank.
+      // Through `chainLabel`, not a literal, for the same reason the category
+      // assertion below goes through CATEGORY_LABELS: a hardcoded name here
+      // would pin a string the manifest — not this test — gets to choose.
+      await expect(card).toContainText(chainLabel(deliveryGig.chain_id))
+      // The label, never the raw CAIP-2 id.
+      await expect(card).not.toContainText(deliveryGig.chain_id)
 
       // A filter that only works once the bundle runs is a filter this page
       // does not have — the feed is the surface an anonymous visitor reaches
@@ -260,6 +269,26 @@ test.describe('feed — /', () => {
       await expect(page.getByRole('link', { name: 'Browse gigs' })).toBeHidden()
       await expect(page.getByRole('link', { name: 'Tenda' })).toHaveAttribute('href', '/')
     })
+  })
+
+  test('the posted label keeps ticking in a REAL browser', async ({ page }) => {
+    // Everything else about the ticker is proven in jsdom with fake timers,
+    // which cannot show that the shared `setTimeout` loop, the store
+    // subscription and the bail-out actually survive a production bundle.
+    //
+    // The clock is pinned near the fixture's own `created_at` rather than
+    // simply fast-forwarded from now, because the assertion would otherwise
+    // age out: past 30 days `formatRelativeShort` prints a fixed calendar date,
+    // and no amount of elapsed time changes it again.
+    await page.clock.install({ time: new Date('2026-08-16T10:00:00.000Z') })
+    await page.goto('/')
+    const stamp = page
+      .getByRole('link', { name: new RegExp(deliveryGig.title) })
+      .locator('time')
+    await expect(stamp).toHaveText('1d')
+
+    await page.clock.fastForward(14 * 24 * 60 * 60 * 1000)
+    await expect(stamp).toHaveText('2w')
   })
 
   test('hydrates cleanly and navigates card → detail', async ({ page }) => {
