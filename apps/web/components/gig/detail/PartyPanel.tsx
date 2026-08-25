@@ -10,7 +10,6 @@
  * proof rows — so one escrow's party experience dresses one way on
  * /gig/[id], /home/gigs/[id] and /my-gigs/[id] alike.
  */
-import Link from 'next/link'
 import {
   STATUS_LABEL,
   formatDeadline,
@@ -18,10 +17,12 @@ import {
   type Dispute,
   type GigDetail,
 } from '@tenda/shared'
+import { DisputeNotice } from '@/components/escrow/DisputeNotice'
 import { DossierProofList, dossierProofsFor } from '@/components/escrow/dossier'
 import { PersonCard } from '@/components/shared/PersonCard'
 import { Eyebrow } from '@/components/ui/Eyebrow'
 import { GIG_DETAIL_COPY } from './copy'
+import { gigCounterpartyView } from './party-view'
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
@@ -42,6 +43,7 @@ export function PartyPanel({ gig, userId }: { gig: GigDetail; userId: string }) 
 
   const dispute: Dispute | null = gig.dispute
   const proofs = dossierProofsFor(gig.proofs)
+  const counterpartyView = gigCounterpartyView(gig, userId)
 
   return (
     <section className="flex flex-col gap-3 rounded-card border border-border-default bg-surface-card p-4">
@@ -64,11 +66,12 @@ export function PartyPanel({ gig, userId }: { gig: GigDetail; userId: string }) 
 
       {/* PersonCard, as the exchange and mobile draw a counterparty: profile
           link, rating, standing, and the message affordance carrying this
-          escrow's chat context — the same query contract everywhere. */}
-      {gig.counterparty !== null && (
+          escrow's chat context — perspective resolved by the ONE shared
+          helper the dossier uses too (#51). */}
+      {counterpartyView !== null && (
         <PersonCard
-          user={userId === gig.creator.id ? gig.counterparty : gig.creator}
-          label={userId === gig.creator.id ? 'Worker' : 'Posted by'}
+          user={counterpartyView.user}
+          label={counterpartyView.label}
           currentUserId={userId}
           context={{ id: gig.escrow_id, title: gig.title, kind: 'gig' }}
         />
@@ -82,16 +85,14 @@ export function PartyPanel({ gig, userId }: { gig: GigDetail; userId: string }) 
         </div>
       )}
 
-      {dispute !== null && (
-        <div className="flex flex-col gap-1 border-t border-border-subtle pt-3">
-          <p className="text-sm font-semibold text-feedback-warning-base">Dispute raised</p>
-          <p className="text-sm text-content-secondary">{dispute.reason}</p>
-          <Link
-            href={`/dispute/${gig.escrow_id}`}
-            className="text-sm font-semibold text-brand-primary underline-offset-2 hover:underline"
-          >
-            Open the mediation thread
-          </Link>
+      {/* The shared notice (#51) — this panel renders only for parties, so
+          the mediation door is always offered. Status-gated like mobile's
+          GigDetailBody and the other two web surfaces: the wire keeps the
+          dispute row after resolution, and a settled escrow must not shout
+          "Dispute raised". */}
+      {dispute !== null && gig.status === 'disputed' && (
+        <div className="border-t border-border-subtle pt-3">
+          <DisputeNotice reason={dispute.reason} escrowId={gig.escrow_id} isParty />
         </div>
       )}
     </section>

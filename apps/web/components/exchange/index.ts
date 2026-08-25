@@ -6,7 +6,6 @@
  */
 export { ExchangeCTA } from './ExchangeCTA'
 export { ExchangeDetailApp } from './ExchangeDetailApp'
-export { DisputeThreadLink } from './DisputeThreadLink'
 export {
   PaymentInstructionsCard,
   SellerPayoutCard,

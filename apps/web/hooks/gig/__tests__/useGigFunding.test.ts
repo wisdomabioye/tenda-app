@@ -25,9 +25,7 @@ const { mockPush, mockReplace, mockToast, mockSign, mockResolveSigners, mockEnsu
   mockGigCreate: vi.fn(),
 }))
 
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush, replace: mockReplace }),
-}))
+vi.mock('next/navigation', () => ({ useRouter: () => ({ push: mockPush, replace: mockReplace }) }))
 vi.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => mockToast(...a) }))
 vi.mock('@/wallet/dispatch', () => ({
   signSendAndReport: (...a: unknown[]) => mockSign(...a),
@@ -35,9 +33,7 @@ vi.mock('@/wallet/dispatch', () => ({
   ensureTxPreconditions: (...a: unknown[]) => mockPreconditions(...a),
   declaredSignerFor: (...a: unknown[]) => mockDeclaredSigner(...a),
 }))
-vi.mock('@/wallet/balances', () => ({
-  ensureSufficientBalance: (...a: unknown[]) => mockEnsure(...a),
-}))
+vi.mock('@/wallet/balances', () => ({ ensureSufficientBalance: (...a: unknown[]) => mockEnsure(...a) }))
 vi.mock('@/wallet/permit', () => ({ buildPermitFor: (...a: unknown[]) => mockBuildPermitFor(...a) }))
 vi.mock('@/api/client', () => ({
   api: {
@@ -276,7 +272,7 @@ test('a timeout still lands the user on the gig rather than trapping the modal',
   await act(async () => {
     result.current.handleFundTimeout('')
   })
-  expect(mockToast).toHaveBeenCalledWith('info', 'Submitted — it will go live once the escrow confirms.')
+  expect(mockToast).toHaveBeenCalledWith('info', 'Submitted, it will go live once the escrow confirms.')
   expect(mockPush).toHaveBeenCalledWith('/my-gigs/e1')
 })
 

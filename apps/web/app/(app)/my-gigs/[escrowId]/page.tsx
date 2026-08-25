@@ -28,9 +28,11 @@ import { escrowPartiesOf, isParty } from '@tenda/shared'
 import { useAuthStore } from '@/stores/auth.store'
 import { useGigsStore } from '@/stores/gigs.store'
 import { useEscrowLiveRefresh } from '@/hooks/escrow/live'
+import { DisputeNotice } from '@/components/escrow/DisputeNotice'
 import { EscrowDossier } from '@/components/escrow/dossier'
 import { GigListingView } from '@/components/gig/detail/GigListingView'
 import { GigEscrowActions } from '@/components/gig/detail/GigEscrowActions'
+import { gigCounterpartyView } from '@/components/gig/detail/party-view'
 import Link from 'next/link'
 import { RotateCw } from 'lucide-react'
 import { Spinner } from '@/components/ui/Spinner'
@@ -125,6 +127,10 @@ export default function MyGigDetailPage() {
     return <GigListingView gig={current} userId={userId} />
   }
 
+  // The OTHER party from this viewer's seat — the same helper PartyPanel
+  // uses (#51), so the dossier's card and /gig/[id]'s agree on who is shown.
+  const counterpartyView = gigCounterpartyView(current, userId ?? '')
+
   return (
     <EscrowDossier
       title={current.title}
@@ -132,9 +138,24 @@ export default function MyGigDetailPage() {
       asset={current.asset}
       escrow={current}
       facts={dossierFactsFor(current)}
-      counterparty={current.counterparty}
+      counterparty={counterpartyView?.user ?? null}
+      counterpartyLabel={counterpartyView?.label}
+      viewerId={userId ?? ''}
+      chatContext={{ id: current.escrow_id, title: current.title, kind: 'gig' }}
       proofs={dossierProofsFor(current.proofs)}
       isAssigned={current.is_assigned}
+      // Mobile bakes the dispute affordance into the detail; this pane is
+      // where a dispute notification LANDS a party (#49), so it must too.
+      // This branch renders only for parties, hence isParty.
+      dispute={
+        current.dispute !== null && current.status === 'disputed' ? (
+          <DisputeNotice
+            reason={current.dispute.reason}
+            escrowId={current.escrow_id}
+            isParty
+          />
+        ) : null
+      }
       // Renders nothing when the escrow is visible, and the SHARED copy
       // derivation decides which audience's wording a party sees.
       banner={userId === null ? undefined : (

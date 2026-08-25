@@ -6,7 +6,14 @@
  */
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { chainLabel, splitAssetAmount, type GigDetail } from '@tenda/shared'
+import {
+  chainLabel,
+  escrowFeeBreakdown,
+  formatAssetAmount,
+  splitAssetAmount,
+  type GigDetail,
+} from '@tenda/shared'
+import { usePlatformConfigStore } from '@/stores/platform-config.store'
 import type { PublicGigCta } from '@/components/gig/GigDetailCta'
 import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { LEAKED_COUNTERPARTY_ID, deliveryGigDetail } from '@/e2e/fixtures/gigs'
@@ -40,6 +47,34 @@ describe('GigEscrowAside', () => {
     render(<GigEscrowAside gig={gig} />)
     expect(screen.getByText(GIG_DETAIL_COPY.feePending)).toBeInTheDocument()
     expect(screen.queryByText(/fee is already taken out/i)).not.toBeInTheDocument()
+  })
+
+  it('once config lands, states the worker NET through the shared breakdown', () => {
+    // Settlement-amount honesty: the sentence must be the one projection the
+    // shared fee math produces, fee percentage included — asserted through the
+    // same function, so a forked figure here fails rather than drifts.
+    const config = { fee_bps: 250, seeker_fee_bps: 100, grace_period_seconds: 3600 }
+    usePlatformConfigStore.setState({ config })
+    try {
+      render(<GigEscrowAside gig={gig} />)
+      const { netRaw, feePct } = escrowFeeBreakdown(config, gig.is_seeker, gig.amount_raw)
+      if (netRaw === null || feePct === null) throw new Error('breakdown must be loaded here')
+      expect(
+        screen.getByText(
+          GIG_DETAIL_COPY.workerReceives(
+            formatAssetAmount(netRaw.toString(), gig.asset),
+            splitAssetAmount(gig.amount_raw, gig.asset).symbol,
+            feePct,
+          ),
+        ),
+      ).toBeInTheDocument()
+      expect(screen.queryByText(GIG_DETAIL_COPY.feePending)).not.toBeInTheDocument()
+      // NOT via the copy function (that comparison would track a copy
+      // mutation): the rendered sentence must carry the tier's percentage.
+      expect(document.body.textContent).toContain(`${feePct}%`)
+    } finally {
+      usePlatformConfigStore.setState({ config: null })
+    }
   })
 
   it('names the chain through the shared label, never the CAIP-2 id', () => {

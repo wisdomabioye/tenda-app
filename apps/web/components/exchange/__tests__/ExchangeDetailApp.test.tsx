@@ -7,7 +7,6 @@
  */
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { beforeEach, expect, test, vi } from 'vitest'
-import { PROOF_TYPE_LABEL } from '@tenda/shared'
 
 const { actionsState, capturedActionsArgs, capturedDialogArgs, capturedCheckApplied, toastMock, routerPush, liveRefreshMock } = vi.hoisted(() => ({
   actionsState: {
@@ -179,66 +178,6 @@ test('the SELLER sees the bound account — never the buyer instructions', () =>
   render(<ExchangeDetailApp offer={ACCEPTED_TRADE()} userId="seller-1" refresh={refresh} />)
   expect(screen.getByText('Buyer pays into')).toBeInTheDocument()
   expect(screen.queryByText('Pay the seller')).toBeNull()
-})
-
-test('the party half is rendered from what the SERVER sent, never synthesised', () => {
-  // An outsider's wire has counterparty null, proofs [], dispute null — the
-  // page must draw none of those blocks rather than empty shells that reveal
-  // the shape of what is being withheld.
-  const outsider = render(
-    <ExchangeDetailApp offer={makeExchangeDetail()} userId="stranger" refresh={refresh} />,
-  )
-  expect(screen.queryByText(OFFER_DETAIL_COPY.proofs)).toBeNull()
-  expect(screen.queryByText('Buyer')).toBeNull()
-  outsider.unmount()
-
-  render(
-    <ExchangeDetailApp
-      offer={makeExchangeDetail({
-        status: 'disputed',
-        counterparty: makeUserRef({ id: 'buyer-1', first_name: 'Bola', last_name: 'Ade' }),
-        proofs: [
-          {
-            id: 'proof-1',
-            escrow_id: 'exch-1',
-            // A REAL proof type: `PROOF_TYPES` is image | video | document,
-            // so the row this asserts on is one the server can actually send.
-            type: 'image',
-            url: 'https://cdn.test/receipt.png',
-            uploaded_at: new Date('2026-08-16T10:00:00.000Z'),
-          },
-        ],
-        // The REAL `Dispute` row: an open dispute is one with no winner and no
-        // `resolved_at`. There is no `status` column on it — the escrow's own
-        // status is what says the trade is in dispute, and that is exactly what
-        // the page gates the block on.
-        dispute: {
-          id: 'dsp-1',
-          escrow_id: 'exch-1',
-          raised_by: 'buyer-1',
-          reason: 'Payment sent, not released',
-          assigned_to: null,
-          assigned_at: null,
-          winner: null,
-          resolved_by: null,
-          resolved_at: null,
-          created_at: new Date('2026-08-16T10:00:00.000Z'),
-        },
-      })}
-      userId="buyer-1"
-      refresh={refresh}
-    />,
-  )
-  expect(screen.getByText(OFFER_DETAIL_COPY.proofs)).toBeInTheDocument()
-  // The proof is OPENABLE, and named by the SHARED label through the same
-  // DossierProofList the gig surfaces render (#48) — the raw "image proof"
-  // enum text is gone here too.
-  expect(screen.getByRole('link', { name: PROOF_TYPE_LABEL.image })).toHaveAttribute(
-    'href',
-    'https://cdn.test/receipt.png',
-  )
-  expect(screen.getByText('Buyer')).toBeInTheDocument()
-  expect(screen.getByText('Payment sent, not released')).toBeInTheDocument()
 })
 
 test('every block that speaks to a SEAT speaks to the reader’s own', () => {

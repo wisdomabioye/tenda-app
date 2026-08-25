@@ -9,21 +9,21 @@
  * would tell an outsider that a counterparty exists, which is the very fact
  * being withheld.
  *
+ * The counterparty is the shared PersonCard (#51): profile link, rating,
+ * standing and the message-in-context affordance — the dossier was the one
+ * surface drawing a counterparty as a name you could not act on. The caller
+ * resolves the PERSPECTIVE (the creator sees the Worker, the worker sees the
+ * poster) and says what the card's role line reads.
+ *
  * Reviews are deliberately NOT here. They are public on purpose.
  */
 import type { ReactNode } from 'react'
-import { displayName, formatRelativeDayWithTime } from '@tenda/shared'
-import { Avatar } from '@/components/ui/Avatar'
+import { formatRelativeDayWithTime } from '@tenda/shared'
 import { Eyebrow } from '@/components/ui/Eyebrow'
+import { PersonCard, type PersonCardUser } from '@/components/shared/PersonCard'
+import type { EscrowChatContext } from '@/lib/chat-href'
 import { DossierProofList } from './DossierProofList'
 import { DOSSIER_COPY } from './copy'
-
-export interface DossierParty {
-  id: string
-  first_name: string | null
-  last_name: string | null
-  avatar_url?: string | null
-}
 
 export interface DossierProof {
   id: string
@@ -39,9 +39,19 @@ export interface DossierProof {
 }
 
 export interface PartyScopedProps {
-  /** Party-only. `null` for an outsider, and for the anonymous SSR render. */
-  counterparty?: DossierParty | null
+  /**
+   * The OTHER party from the viewer's seat, already resolved by the caller.
+   * `null` for an outsider, and for the anonymous SSR render.
+   */
+  counterparty?: PersonCardUser | null
+  /** The card's role line — 'Worker' to the creator, 'Posted by' to the worker. */
+  counterpartyLabel?: string
+  /** The viewer, for the card's self/other split. '' while identity loads. */
+  viewerId?: string
+  /** Escrow context the message link carries. */
+  chatContext?: EscrowChatContext
   proofs?: readonly DossierProof[] | null
+  /** A self-labelling notice (DisputeNotice) — no extra heading is added. */
   dispute?: ReactNode | null
   /**
    * True when a direct invite names someone. Party-only on the wire, so an
@@ -62,6 +72,9 @@ function Heading({ children }: { children: ReactNode }) {
 
 export function PartyScopedSection({
   counterparty = null,
+  counterpartyLabel = DOSSIER_COPY.counterparty,
+  viewerId = '',
+  chatContext,
   proofs = null,
   dispute = null,
   isAssigned = false,
@@ -77,19 +90,17 @@ export function PartyScopedSection({
 
   return (
     <section className="mt-9 border-t border-border-subtle pt-7" data-party-scoped>
+      {/* No heading: the card's role line IS the label, as PartyPanel and
+          mobile draw it — a "Counterparty" eyebrow over a "Worker" card said
+          the same thing twice. */}
       {hasCounterparty && (
         <div className="mb-7">
-          <Heading>{DOSSIER_COPY.counterparty}</Heading>
-          <div className="flex items-center gap-3.5 rounded-card border border-border-subtle bg-surface-card p-4.5 shadow-card">
-            <Avatar
-              size="sm"
-              name={displayName(counterparty.first_name, counterparty.last_name, counterparty.id)}
-              src={counterparty.avatar_url}
-            />
-            <span className="min-w-0 truncate font-display text-[15px] font-semibold text-content-primary">
-              {displayName(counterparty.first_name, counterparty.last_name, counterparty.id)}
-            </span>
-          </div>
+          <PersonCard
+            user={counterparty}
+            label={counterpartyLabel}
+            currentUserId={viewerId}
+            context={chatContext}
+          />
         </div>
       )}
 
@@ -110,12 +121,7 @@ export function PartyScopedSection({
         </div>
       )}
 
-      {hasDispute && (
-        <div>
-          <Heading>{DOSSIER_COPY.dispute}</Heading>
-          {dispute}
-        </div>
-      )}
+      {hasDispute && dispute}
     </section>
   )
 }

@@ -5,6 +5,11 @@
  */
 import type { GigApplicant, GigDetail, UserRef } from '@tenda/shared'
 
+// Kind-agnostic (the exchange tests build the same row); re-exported so the
+// gig suites keep one import for their fixtures. Its default `raised_by` is
+// CREATOR_ID's value.
+export { disputeRow } from '../../../../test/factories/escrow'
+
 export const CREATOR_ID = 'user-creator'
 export const WORKER_ID = 'user-worker'
 export const STRANGER_ID = 'user-stranger'

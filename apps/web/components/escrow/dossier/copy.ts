@@ -15,7 +15,6 @@ export const DOSSIER_COPY = {
   facts: 'Terms',
   counterparty: 'Counterparty',
   proofs: 'Evidence',
-  dispute: 'Dispute',
   noProofs: 'No evidence attached yet.',
   /** Shown to a party when the gig names an assignee but they cannot see who. */
   assignedUnnamed: 'This gig is assigned to someone.',

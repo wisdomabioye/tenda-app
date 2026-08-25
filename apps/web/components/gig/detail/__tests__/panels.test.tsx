@@ -7,12 +7,22 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { expect, test, vi } from 'vitest'
 import { PROOF_TYPE_LABEL, STATUS_LABEL, takedownCopy } from '@tenda/shared'
+import { DISPUTE_NOTICE_COPY } from '@/components/escrow/DisputeNotice'
+import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { TakedownNotice } from '@/components/gig/detail/TakedownNotice'
 import { PartyPanel } from '@/components/gig/detail/PartyPanel'
 import { ApplicantList } from '@/components/gig/gig-applications'
 import { FilePicker, proofTypeForFile } from '@/components/form/FilePicker'
 import { escrowChatHref } from '@/lib/chat-href'
-import { CREATOR_ID, STRANGER_ID, WORKER_ID, applicant, gigDetail, userRef } from './fixtures'
+import {
+  CREATOR_ID,
+  STRANGER_ID,
+  WORKER_ID,
+  applicant,
+  disputeRow,
+  gigDetail,
+  userRef,
+} from './fixtures'
 
 test('TakedownNotice renders nothing for a visible escrow', () => {
   const { container } = render(
@@ -56,6 +66,7 @@ test('PartyPanel renders only for parties, with proofs and the dispute reason', 
     status: 'disputed',
     counterparty: userRef(WORKER_ID),
     completion_deadline: '2026-09-01T00:00:00.000Z',
+    approval_deadline: '2026-09-03T00:00:00.000Z',
     proofs: [
       {
         id: 'p1',
@@ -65,18 +76,7 @@ test('PartyPanel renders only for parties, with proofs and the dispute reason', 
         uploaded_at: new Date('2026-08-10T00:00:00.000Z'),
       },
     ],
-    dispute: {
-      id: 'd1',
-      escrow_id: 'escrow-1',
-      raised_by: CREATOR_ID,
-      reason: 'Package never arrived',
-      assigned_to: null,
-      assigned_at: null,
-      winner: null,
-      resolved_by: null,
-      resolved_at: null,
-      created_at: new Date('2026-08-11T00:00:00.000Z'),
-    },
+    dispute: disputeRow(),
   })
   const { container } = render(<PartyPanel gig={gig} userId={STRANGER_ID} />)
   expect(container).toBeEmptyDOMElement()
@@ -90,13 +90,40 @@ test('PartyPanel renders only for parties, with proofs and the dispute reason', 
     'https://cdn/proof.jpg',
   )
   expect(screen.getByText('Package never arrived')).toBeInTheDocument()
+  // Both deadline rows come off the wire — a panel that shows delivery and
+  // silently drops approval hides the softer of the two clocks.
+  expect(screen.getByText('Delivery deadline')).toBeInTheDocument()
+  expect(screen.getByText('Approval deadline')).toBeInTheDocument()
+})
+
+test('a RESOLVED escrow shows no dispute notice — the dispute is over (mobile rule)', () => {
+  // The wire keeps serving the dispute row after resolution; mobile gates the
+  // block on status === 'disputed' (GigDetailBody), so web must too — a
+  // "Dispute raised" banner with a mediation door on a settled escrow
+  // misstates the state on the one surface that would differ.
+  render(
+    <PartyPanel
+      gig={gigDetail({
+        status: 'resolved',
+        counterparty: userRef(WORKER_ID),
+        dispute: disputeRow({
+          winner: 'creator',
+          resolved_by: 'admin-1',
+          resolved_at: new Date('2026-08-12T00:00:00.000Z'),
+        }),
+      })}
+      userId={CREATOR_ID}
+    />,
+  )
+  expect(screen.queryByText(DISPUTE_NOTICE_COPY.title)).toBeNull()
+  expect(screen.queryByRole('link', { name: DISPUTE_NOTICE_COPY.openThread })).toBeNull()
 })
 
 test('PartyPanel draws the OTHER party as a PersonCard with the contextual message link', () => {
   const gig = gigDetail({ status: 'accepted', counterparty: userRef(WORKER_ID) })
   // The creator sees the worker…
   render(<PartyPanel gig={gig} userId={CREATOR_ID} />)
-  expect(screen.getByText('Worker')).toBeInTheDocument()
+  expect(screen.getByText(GIG_DETAIL_COPY.worker)).toBeInTheDocument()
   // …and the message link carries THIS escrow's chat context, built by the
   // one shared href builder — never a hand-rolled query string.
   expect(screen.getByRole('link', { name: /^Message / })).toHaveAttribute(
@@ -106,7 +133,7 @@ test('PartyPanel draws the OTHER party as a PersonCard with the contextual messa
   cleanup()
   // The worker sees the poster, addressed the other way round.
   render(<PartyPanel gig={gig} userId={WORKER_ID} />)
-  expect(screen.getByText('Posted by')).toBeInTheDocument()
+  expect(screen.getByText(GIG_DETAIL_COPY.postedBy)).toBeInTheDocument()
   expect(screen.getByRole('link', { name: /^Message / })).toHaveAttribute(
     'href',
     escrowChatHref(CREATOR_ID, { id: gig.escrow_id, title: gig.title, kind: 'gig' }),

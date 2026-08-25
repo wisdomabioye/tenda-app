@@ -57,7 +57,7 @@ import {
   shouldShowPaymentInstructions,
   shouldShowSellerPayout,
 } from './PayoutCards'
-import { DisputeThreadLink } from './DisputeThreadLink'
+import { DisputeNotice } from '@/components/escrow/DisputeNotice'
 
 export function ExchangeDetailApp({
   offer,
@@ -194,7 +194,7 @@ export function ExchangeDetailApp({
 
           {offer.dispute !== null && offer.status === 'disputed' && (
             <div className="mt-6">
-              <DisputeThreadLink
+              <DisputeNotice
                 reason={offer.dispute.reason}
                 escrowId={offer.escrow_id}
                 isParty={isCreator || userId === offer.counterparty?.id}

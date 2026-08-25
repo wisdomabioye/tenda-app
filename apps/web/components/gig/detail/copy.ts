@@ -16,6 +16,10 @@ export const GIG_DETAIL_COPY = {
     document: 'A receipt, invoice or signed note as a file.',
   },
   postedBy: 'Posted by',
+  /** The counterparty card's role line to the CREATOR (party-view.ts pairs it
+   *  with `postedBy` for the other seat) — one source for both surfaces that
+   *  draw the card. */
+  worker: 'Worker',
   /** Label over the viewer-relative bound wallet (`my_signer_address`) —
    *  shared by the public party panel and the workspace dossier so one
    *  escrow names the fact the same way on both surfaces. */
@@ -26,8 +30,10 @@ export const GIG_DETAIL_COPY = {
   ratingCaption: 'out of 5',
   locked: 'Locked in escrow',
   feePending: 'The worker payout is this funded amount minus the platform fee.',
-  workerReceives: (amount: string, symbol: string, feePct: string | null) =>
-    `Worker receives ${amount} ${symbol}${feePct === null ? '' : ` after the ${feePct}% platform fee`}.`,
+  /** Both figures or neither: `escrowFeeBreakdown` answers all-null until the
+   *  config loads, so the caller shows `feePending` instead of calling this. */
+  workerReceives: (amount: string, symbol: string, feePct: string) =>
+    `Worker receives ${amount} ${symbol} after the ${feePct}% platform fee.`,
   lockedOn: (chain: string) =>
     `Funds were locked on ${chain} before this gig was listed. Neither side can move them alone.`,
   settleTitle: 'How it settles',

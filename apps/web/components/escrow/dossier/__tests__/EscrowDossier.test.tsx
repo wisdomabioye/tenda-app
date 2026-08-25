@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { formatAssetAmount } from '@tenda/shared'
 
 import { DOSSIER_COPY, EscrowDossier, MoneyBlock, PartyScopedSection } from '@/components/escrow/dossier'
+import { DISPUTE_NOTICE_COPY, DisputeNotice } from '@/components/escrow/DisputeNotice'
+import { escrowChatHref } from '@/lib/chat-href'
 import { formatRelativeDayWithTime } from '@tenda/shared'
 
 const PARTY = { id: 'u2', first_name: 'Akin', last_name: 'Beela', avatar_url: null }
@@ -100,6 +102,39 @@ describe('PartyScopedSection — the half outsiders never receive', () => {
     expect(screen.getByText('Akin Beela')).toBeInTheDocument()
   })
 
+  it('the counterparty card carries the contextual message link (#51)', () => {
+    // The dossier was the one surface drawing a counterparty you could not
+    // act on — a name with no profile link and no way to message.
+    render(
+      <PartyScopedSection
+        counterparty={PARTY}
+        counterpartyLabel="Worker"
+        viewerId="u1"
+        chatContext={{ id: 'escrow-1', title: 'Design a flyer', kind: 'gig' }}
+      />,
+    )
+    expect(screen.getByText('Worker')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /^Message / })).toHaveAttribute(
+      'href',
+      escrowChatHref('u2', { id: 'escrow-1', title: 'Design a flyer', kind: 'gig' }),
+    )
+  })
+
+  it('renders the dispute notice with its door, and adds no second heading (#51)', () => {
+    render(
+      <PartyScopedSection
+        dispute={<DisputeNotice reason="Package never arrived" escrowId="escrow-1" isParty />}
+      />,
+    )
+    expect(screen.getByText(DISPUTE_NOTICE_COPY.title)).toBeInTheDocument()
+    expect(screen.getByText('Package never arrived')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: DISPUTE_NOTICE_COPY.openThread })).toHaveAttribute(
+      'href',
+      '/dispute/escrow-1',
+    )
+    expect(screen.getAllByText(/Dispute/)).toHaveLength(1)
+  })
+
   it('tells a party the gig is assigned even when the assignee is not named', () => {
     render(<PartyScopedSection isAssigned />)
     expect(screen.getByText(DOSSIER_COPY.assignedUnnamed)).toBeInTheDocument()
@@ -191,7 +226,7 @@ describe('EscrowDossier — public half vs private half', () => {
     expect(privateHalf()).toBeNull()
     expect(screen.queryByText(DOSSIER_COPY.counterparty)).not.toBeInTheDocument()
     expect(screen.queryByText(DOSSIER_COPY.proofs)).not.toBeInTheDocument()
-    expect(screen.queryByText(DOSSIER_COPY.dispute)).not.toBeInTheDocument()
+    expect(screen.queryByText(DISPUTE_NOTICE_COPY.title)).not.toBeInTheDocument()
   })
 
   it('renders the private half for a party', () => {

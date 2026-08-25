@@ -49,12 +49,15 @@ vi.mock('@/stores/platform-config.store', () => ({
 vi.mock('@/hooks/escrow/live', () => ({ useEscrowLiveRefresh: vi.fn() }))
 
 import MyGigDetailPage from '../page'
+import { DISPUTE_NOTICE_COPY } from '@/components/escrow/DisputeNotice'
 import { GIG_DETAIL_COPY } from '@/components/gig/detail/copy'
 import { MY_GIGS_COPY } from '@/components/gig/my-gigs/copy'
+import { escrowChatHref } from '@/lib/chat-href'
 import {
   CREATOR_ID,
   STRANGER_ID,
   WORKER_ID,
+  disputeRow,
   gigDetail,
   userRef,
 } from '@/components/gig/detail/__tests__/fixtures'
@@ -126,6 +129,70 @@ test('while the session id is still null the dossier offers NO actions', () => {
   render(<MyGigDetailPage />)
   expect(screen.getByText('Escrow workspace')).toBeInTheDocument()
   expect(screen.queryAllByRole('button')).toHaveLength(0)
+})
+
+test("a disputed escrow's dossier carries the reason and the door into mediation", () => {
+  // Mobile bakes this into the detail (DisputeReasonBlock); until #51 this
+  // pane — where every dispute notification lands a party — had neither.
+  gigsState.selectedGig = gigDetail({
+    description: BRIEF,
+    status: 'disputed',
+    counterparty: userRef(WORKER_ID),
+    dispute: disputeRow(),
+  })
+  render(<MyGigDetailPage />)
+  expect(screen.getByText('Package never arrived')).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: DISPUTE_NOTICE_COPY.openThread })).toHaveAttribute(
+    'href',
+    '/dispute/escrow-1',
+  )
+})
+
+test('an undisputed dossier offers no mediation door', () => {
+  gigsState.selectedGig = gigDetail({ status: 'accepted', counterparty: userRef(WORKER_ID) })
+  render(<MyGigDetailPage />)
+  expect(screen.queryByRole('link', { name: DISPUTE_NOTICE_COPY.openThread })).toBeNull()
+})
+
+test('a RESOLVED dossier drops the dispute banner even though the row still arrives', () => {
+  // The wire keeps serving the dispute row to parties after resolution; the
+  // status half of the gate is what keeps a settled escrow from shouting
+  // "Dispute raised" (mobile's rule, and PartyPanel's).
+  gigsState.selectedGig = gigDetail({
+    status: 'resolved',
+    counterparty: userRef(WORKER_ID),
+    dispute: disputeRow({
+      winner: 'creator',
+      resolved_by: 'admin-1',
+      resolved_at: new Date('2026-08-12T00:00:00.000Z'),
+    }),
+  })
+  render(<MyGigDetailPage />)
+  expect(screen.queryByText(DISPUTE_NOTICE_COPY.title)).toBeNull()
+  expect(screen.queryByRole('link', { name: DISPUTE_NOTICE_COPY.openThread })).toBeNull()
+})
+
+test('the dossier draws the OTHER party with the contextual message link', () => {
+  const gig = gigDetail({ status: 'accepted', counterparty: userRef(WORKER_ID) })
+  gigsState.selectedGig = gig
+  render(<MyGigDetailPage />) // the creator is signed in (beforeEach)
+  expect(screen.getByText(GIG_DETAIL_COPY.worker)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /^Message / })).toHaveAttribute(
+    'href',
+    escrowChatHref(WORKER_ID, { id: gig.escrow_id, title: gig.title, kind: 'gig' }),
+  )
+})
+
+test('the worker sees the poster, addressed the other way round', () => {
+  authState.user = { id: WORKER_ID }
+  const gig = gigDetail({ status: 'accepted', counterparty: userRef(WORKER_ID) })
+  gigsState.selectedGig = gig
+  render(<MyGigDetailPage />)
+  expect(screen.getByText(GIG_DETAIL_COPY.postedBy)).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: /^Message / })).toHaveAttribute(
+    'href',
+    escrowChatHref(CREATOR_ID, { id: gig.escrow_id, title: gig.title, kind: 'gig' }),
+  )
 })
 
 test('a stale slot for ANOTHER escrow renders neither composition', () => {
