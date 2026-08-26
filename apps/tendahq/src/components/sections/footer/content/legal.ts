@@ -1,16 +1,26 @@
 /**
  * Legal foot — copyright + disclaimer + Terms / Privacy.
  *
- * Wireframe disclaimer ("Tenda is a software interface; payments are routed
- * via licensed partners. Crypto products may not be available in all
- * regions.") is preserved here, lightly re-cast for the on-chain truth.
- * Product + legal review before public mainnet may want to refine.
+ * Both variable facts are DERIVED, not typed: the chain list from the shared
+ * CHAIN_MANIFEST, and the release stage from the version suffix that
+ * bump-version.mjs stamps. This line used to hardcode "Solana, Base and Celo"
+ * and "Testnet release" independently of the two places that already knew
+ * both, so adding a chain or cutting a mainnet release left the legal
+ * disclaimer — of all things — the last stale text on the page.
+ *
+ * Product + legal review before public mainnet may want to refine the wording;
+ * the facts inside it now maintain themselves.
  */
+
+import { APP_INFO, CHAIN_NAMES_PROSE } from '@/content'
 
 export const FOOTER_LEGAL = {
   copyright: `© ${new Date().getFullYear()} Tenda Labs.`,
+  // The stage is parenthesised rather than sentence-initial on purpose: it
+  // renders lowercase ("testnet release" / "mainnet"), so a position that
+  // demands a capital would read as a typo in one of the two states.
   disclaimer:
-    'Tenda is a software interface; settlement is executed on-chain by the Tenda escrow contracts on Solana, Base and Celo. Crypto products may not be available in all regions. Testnet release — not financial advice.',
+    `Tenda is a software interface; settlement is executed on-chain by the Tenda escrow contracts on ${CHAIN_NAMES_PROSE} (${APP_INFO.chains.stage}). Tenda never holds your funds and never holds fiat — cash trades settle directly between the two parties. Crypto products may not be available in all regions. Not financial advice.`,
   links: [
     { label: 'Terms',   href: '/terms'   },
     { label: 'Privacy', href: '/privacy' },

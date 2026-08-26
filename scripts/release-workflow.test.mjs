@@ -21,6 +21,8 @@ import { resolve, dirname } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 
+import { resolveEasProfile } from './resolve-eas-profile.mjs'
+
 const SCRIPTS = dirname(fileURLToPath(import.meta.url))
 const ROOT = resolve(SCRIPTS, '..')
 const WORKFLOW = resolve(ROOT, '.github/workflows/release.yml')
@@ -177,15 +179,47 @@ test('every eas-cli step runs in the directory that owns eas.json', () => {
   }
 })
 
-test('the profile the workflow builds is declared in eas.json', () => {
+/**
+ * The profile is no longer a literal: it is RESOLVED from the release suffix,
+ * because a hardcoded `--profile testnet` meant a `--suffix ''` mainnet release
+ * would tag v1.0.0 while building the staging-configured testnet app. So the
+ * contract to guard changed shape — assert the wiring, not a spelling.
+ */
+test('the workflow builds a resolved profile, never a hardcoded one', () => {
   const profile = yaml.match(/--profile (\S+)/)
   assert.ok(profile, 'expected the build step to name a profile')
-  const eas = JSON.parse(readFileSync(resolve(ROOT, 'apps/mobile/eas.json'), 'utf8'))
-  assert.ok(
-    Object.keys(eas.build ?? {}).includes(profile[1]),
-    `workflow builds --profile ${profile[1]}, which eas.json does not declare ` +
-      `(declared: ${Object.keys(eas.build ?? {}).join(', ')})`,
+  assert.match(
+    profile[1],
+    /^"\$[A-Z_]+"$/,
+    `workflow builds --profile ${profile[1]} as a literal; it must come from ` +
+      `resolve-eas-profile.mjs via env so the profile follows the release suffix`,
   )
+  // The env key it reads must actually be fed by the resolver step's output.
+  const key = profile[1].replace(/["$]/g, '')
+  assert.ok(
+    yaml.includes(`${key}: \${{ steps.eas.outputs.profile }}`),
+    `${key} is used by --profile but is not wired to steps.eas.outputs.profile`,
+  )
+})
+
+/**
+ * And the resolver must agree with eas.json for every suffix a release can be
+ * cut with — the declared default, and the empty string that means mainnet.
+ * That agreement is what the old literal-spelling check was really protecting.
+ */
+test('every suffix the workflow can dispatch resolves to a declared apk profile', () => {
+  const eas = JSON.parse(readFileSync(resolve(ROOT, 'apps/mobile/eas.json'), 'utf8'))
+  const declaredDefault = yaml.match(/^ {6}suffix:\n(?: {8}.*\n)*? {8}default: (\S+)$/m)
+  assert.ok(declaredDefault, 'expected the suffix input to declare a default')
+
+  for (const suffix of [declaredDefault[1], '']) {
+    const profile = resolveEasProfile(suffix, eas)
+    assert.ok(
+      Object.keys(eas.build ?? {}).includes(profile),
+      `suffix "${suffix}" resolves to profile "${profile}", which eas.json does not declare ` +
+        `(declared: ${Object.keys(eas.build ?? {}).join(', ')})`,
+    )
+  }
 })
 
 test('the workflow is dispatch-only — releases are never triggered by a push', () => {

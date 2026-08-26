@@ -6,7 +6,8 @@
  * manifest `family`.
  */
 
-import { CHAIN_MANIFEST, type GasPolicy } from '@tenda/shared/chains'
+import { CHAIN_MANIFEST, nativeCurrencyOf, type GasPolicy } from '@tenda/shared/chains'
+import { prose } from '@/lib/prose'
 
 interface ChainDisplay {
   /** Marketing-cased name (manifest displayName is UPPER for some chains). */
@@ -49,7 +50,11 @@ export interface LandingChain {
   glyph: string
   color: string
   pitch: string
+  /** CAIP-2 namespace — 'solana' | 'eip155'. Decides the wallet transport. */
+  namespace: string
   gasPolicy: GasPolicy
+  /** Native gas token symbol ('SOL', 'ETH', 'CELO'), from the manifest. */
+  nativeSymbol: string
   explorerUrl?: string
 }
 
@@ -68,13 +73,48 @@ export const LANDING_CHAINS: readonly LandingChain[] = CHAIN_MANIFEST.filter(
     glyph: display?.glyph ?? '●',
     color: display?.color ?? 'var(--brand)',
     pitch: display?.pitch ?? '',
+    namespace: entry.namespace,
     gasPolicy: entry.gasPolicy,
+    nativeSymbol: nativeCurrencyOf(entry).symbol,
     explorerUrl: entry.explorerUrl,
   }
 })
 
-/** "Solana · Base · Celo" — the recurring network line. */
+/** The mainnet chains running a given gas policy, in manifest order. */
+export function chainsByGasPolicy(policy: GasPolicy): readonly LandingChain[] {
+  return LANDING_CHAINS.filter((c) => c.gasPolicy === policy)
+}
+
+/** The distinct gas policies in play across the chains we ship on. */
+export const ACTIVE_GAS_POLICIES: readonly GasPolicy[] = [
+  ...new Set(LANDING_CHAINS.map((c) => c.gasPolicy)),
+]
+
+/** "Solana · Base · Celo" — the recurring network line, for stamps and metas. */
 export const CHAIN_NAMES_LINE = LANDING_CHAINS.map((c) => c.name).join(' · ')
+
+/**
+ * "Solana, Base and Celo" — the same list as a noun phrase, for running prose
+ * (the legal disclaimer, FAQ answers) where middots read as a UI stamp rather
+ * than a sentence. Separate from CHAIN_NAMES_LINE so prose and stamps can both
+ * be derived instead of one of them being retyped by hand every time a chain
+ * is added.
+ */
+export const CHAIN_NAMES_PROSE = prose(LANDING_CHAINS.map((c) => c.name))
+
+/**
+ * Chain names grouped by CAIP-2 namespace, as prose.
+ *
+ * The wallet story splits on namespace, not on chain: Solana connects through
+ * Mobile Wallet Adapter, every eip155 chain through WalletConnect. Deriving
+ * the two lists means a new EVM L2 joins the WalletConnect sentence by itself.
+ */
+export function chainNamesProseByNamespace(namespace: string): string {
+  return prose(LANDING_CHAINS.filter((c) => c.namespace === namespace).map((c) => c.name))
+}
+
+/** "Base and Celo" — the EVM chains, for the WalletConnect half of the story. */
+export const EVM_CHAIN_NAMES_PROSE = chainNamesProseByNamespace('eip155')
 
 /** Trailing badge after the chain list. */
 export const MORE_CHAINS_LABEL = 'More coming'

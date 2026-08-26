@@ -3,8 +3,8 @@
  * as siblings; only the verb-phrase italic, icon, and accent colour differ.
  */
 
-import { SUPPORTED_CURRENCIES } from '@/data/currencies'
 import { GIG_CATEGORIES } from '@/data/categories'
+import { TRADE_COUNTRIES_PROSE, TRADE_CURRENCIES, TRADE_MARKET_COUNT } from '@/content'
 
 export interface ProductPanel {
   id: 'gigs' | 'exchange'
@@ -41,10 +41,10 @@ export const PRODUCT_PANELS: readonly ProductPanel[] = [
     eyebrow: 'P2P trade · Exchange',
     name: 'tenda / exchange',
     headline: { lead: 'Crypto ↔ local cash,', emphasis: 'without the middle.' },
-    body: 'Trade USDC, SOL or ETH against NGN, GHS, KES, ZAR, PHP, USD, GBP or EUR. Cash moves over the rails people actually use — bank transfer, M-Pesa, MoMo, GCash. Escrow only releases when both sides confirm.',
+    body: `Trade USDC, SOL or ETH for local cash in ${TRADE_COUNTRIES_PROSE}. You and your counterparty settle over whatever rail you both use — bank transfer or mobile money — and the escrow only releases when the trade completes. Tenda never touches the cash.`,
     link: { label: 'Open the exchange', href: '/#download' },
-    statsLabel: `${SUPPORTED_CURRENCIES.length} markets`,
-    statsValue: SUPPORTED_CURRENCIES.join(' · '),
+    statsLabel: `${TRADE_MARKET_COUNT} markets`,
+    statsValue: TRADE_CURRENCIES.join(' · '),
     accent: 'accent',
   },
 ] as const
@@ -54,6 +54,12 @@ export const TWO_PRODUCTS_BRIDGE = {
   middle: 'Same escrow',
   emphasis: 'One app',
 } as const
+
+/**
+ * Label above the currency marquee. Names it as a rate display so the eight
+ * flags below it are not read as eight tradable markets — see CurrencyMarquee.
+ */
+export const RATES_CAPTION = 'Reference rates · view your balance in any of these'
 
 /** Caption under the exchange panel's trade deck. */
 export const TRADE_DECK_CAPTION = 'Example corridors · crypto in escrow, cash out local'

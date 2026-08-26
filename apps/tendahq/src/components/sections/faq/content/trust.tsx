@@ -1,6 +1,21 @@
-import { APP_INFO } from '@/content'
+import { APP_INFO, CHAIN_NAMES_PROSE } from '@/content'
 import type { FaqCategory } from '../types'
 
+/**
+ * Q.01–Q.05 — the answers a sceptical reader checks first, so every one of them
+ * is written against the contracts rather than against intent:
+ *
+ *   - There IS an admin (`onlyAdmin` on both programs). It can retune fees,
+ *     windows and treasury and rotate the dispute admin. It has no pause and no
+ *     sweep and cannot touch escrowed funds. The bounded claim is stated,
+ *     because "Tenda has no admin key" was false and one `grep admin` disproves
+ *     it — costing more trust than the sentence ever bought.
+ *   - Reputation is entirely OFF-CHAIN. The Solana rewrite deleted UserAccount;
+ *     `completed_count` lives in the reputation table. Nothing on-chain counts
+ *     completed gigs, and this page claimed it did.
+ *   - The review-window payout is LIVE and is a worker PULL
+ *     (`claimStalledPayment`), never an automatic release.
+ */
 export const TRUST_CATEGORY: FaqCategory = {
   num: '01',
   slug: 'trust',
@@ -16,8 +31,16 @@ export const TRUST_CATEGORY: FaqCategory = {
             In the on-chain escrow contract —{' '}
             <strong>not in a Tenda bank account, not in the worker&apos;s wallet.</strong>{' '}
             When you fund a gig, the money moves directly from your wallet into an escrow
-            account that only the contract can release. Tenda has no admin key, no pause button,
-            no sweep function. The same contract logic runs on {APP_INFO.chains.networksLine}.
+            account that only the contract can release. The same contract logic runs on{' '}
+            {CHAIN_NAMES_PROSE}.
+          </p>
+          <p>
+            Tenda does hold an admin key, and we&apos;d rather tell you its exact reach than
+            let you find it in the source. A multisig can retune protocol parameters — the fee,
+            the deadline windows, the treasury address — and rotate who mediates disputes. It{' '}
+            <strong>cannot move, freeze or seize money sitting in escrow</strong>: there is no
+            pause function and no sweep function in either program. The only instructions that
+            move your funds are the ones you or your counterparty trigger, plus a dispute ruling.
           </p>
           <p>
             You can read the source and inspect any settlement in the block explorer of the
@@ -33,15 +56,15 @@ export const TRUST_CATEGORY: FaqCategory = {
         <>
           <p>
             Two things. <strong>First:</strong> nothing is paid until proof clears. If the worker
-            walks away, the funds simply return to the poster after the proof-submission deadline
-            passes — the poster claims the refund on-chain.
+            walks away, the funds return to the poster — once the proof deadline and a short
+            grace period pass, the poster claims the refund on-chain.
           </p>
           <p>
-            <strong>Second:</strong> every worker accumulates a public history. The on-chain
-            user account tracks <code className="font-mono">completed_gigs</code> directly;
-            ratings, reviews, and dispute counts are kept off-chain by Tenda and shown beside
-            every profile. A fresh worker can still be hired, but most posters favour history —
-            the market self-cleans over time.
+            <strong>Second:</strong> every worker accumulates a public history — completed jobs,
+            ratings, reviews and dispute counts, shown beside every profile. To be precise about
+            where that lives: reputation is kept <em>off-chain</em> by Tenda, not written into
+            the escrow programs. The money is on-chain and trustless; the track record is a
+            service we run. A fresh worker can still be hired, but most posters favour history.
           </p>
         </>
       ),
@@ -52,33 +75,42 @@ export const TRUST_CATEGORY: FaqCategory = {
       answer: (
         <>
           <p>
-            Two safeguards. <strong>Auto-approve:</strong> if the poster doesn&apos;t approve or
-            dispute within the review window (planned: 48 hours after proof submission), the
-            contract auto-releases the funds to the worker.{' '}
-            <em>(See &quot;Planned&quot; on §04 fallback route B.)</em>
+            Two safeguards, both live. <strong>Claim it yourself:</strong> once proof is
+            submitted, the poster has a 48-hour review window. If they neither approve nor
+            dispute in that time, the worker claims the payment directly from the contract, split
+            exactly as an approval would have been. Worth being precise: this is a claim you
+            make, not a release that happens on its own — nothing sweeps the chain on your
+            behalf, so tap the button when the window closes.
           </p>
           <p>
-            <strong>Dispute:</strong> if the poster contests the work, either side opens a dispute
-            after proof is submitted. Tenda mediation reviews evidence and instructs the program
-            to release or refund — you don&apos;t need to take the poster&apos;s word for it.
+            <strong>Dispute:</strong> either side can escalate any time after the work is
+            accepted — you don&apos;t have to submit proof first. The party raising it posts a
+            bond. Tenda mediation reviews the evidence and instructs the program to pay the
+            worker, refund the poster, or split between them.
           </p>
         </>
       ),
     },
     {
       id: 'Q.04',
-      question: 'Has the contract been audited?',
+      question: 'How can I verify the contracts before I deposit?',
       answer: (
         <>
           <p>
-            <strong>Not yet.</strong> Tenda is currently a testnet release ({APP_INFO.version}).
-            A third-party audit will land before public mainnet launch — once the report is
-            published the firm and date will appear in the §04 chain-meta strip and here.
+            Read them. The escrow programs are open source under Apache-2.0 — the Solana program
+            in Rust/Anchor, the EVM contracts in Solidity/Foundry — and both ship with their full
+            test suites, so you can run the behaviour rather than take our word for it.
           </p>
           <p>
-            In the meantime, the source is open. The Solana program (Rust/Anchor) and the EVM
-            contracts (Solidity/Foundry) ship with their full test suites — read them end-to-end
-            before depositing.
+            Every state change is a transaction. Lock, proof, approval, settlement and refund
+            each leave a receipt you can open in the block explorer for the chain it happened on,
+            with the amounts and addresses in plain sight. The deployed contract address for each
+            chain is published, so you can confirm the code you read is the code you&apos;re
+            trusting.
+          </p>
+          <p>
+            A third-party security audit is on our roadmap and we&apos;ll publish the firm, the
+            date and the full report here when it lands.
           </p>
         </>
       ),
@@ -90,14 +122,19 @@ export const TRUST_CATEGORY: FaqCategory = {
         <>
           <p>
             The escrow contracts live on their chains — independent of any Tenda server. Existing
-            escrows continue to settle on the same logic: proof → release, deadline → refund,
-            dispute → mediation. The mobile app is open-source; anyone can fork and rehost the
-            UI.
+            escrows continue to settle on the same logic: proof → release, review window →
+            claim, deadline → refund. The apps are Apache-2.0 licensed, so anyone can fork and
+            rehost the interface; the Tenda name and marks are the only part we keep.
           </p>
           <p>
-            The piece that depends on Tenda the company is dispute mediation. If the company
-            disappeared, open disputes would either auto-release on the review-window timer or
-            need a successor mediator. We&apos;ll publish a successor plan before mainnet.
+            The piece that depends on Tenda the company is dispute mediation. If we disappeared,
+            an escrow already past proof could still be claimed by the worker once the review
+            window elapsed, but an open dispute would need a successor mediator. We&apos;ll
+            publish a successor plan as the network grows. This is the honest weak point, and
+            we&apos;d rather name it than have you discover it.
+          </p>
+          <p className="text-[var(--content-tertiary)]">
+            Current release: <code className="font-mono">{APP_INFO.version}</code>.
           </p>
         </>
       ),

@@ -1,11 +1,14 @@
 import { useFeePercents } from '@/hooks/usePlatformConfig'
-import { SUPPORTED_CURRENCIES } from '@/data/currencies'
+import { TRADE_MARKET_COUNT } from '@/content'
 import { HERO_STATS_FALLBACK, type HeroStat } from './content'
 
 /**
  * Builds the 4 hero stat cells. The fee value reads live from /v1/platform/config
  * (and gracefully falls back to the static "2.5%" while loading); the fiat-markets
- * count comes from SUPPORTED_CURRENCIES so it stays in sync if a market is added.
+ * count comes from the payout registry — the currencies an offer can actually be
+ * denominated in — NOT from SUPPORTED_CURRENCIES, which is the longer list of
+ * currencies a balance can merely be DISPLAYED in. This cell used to show that
+ * longer number under a "Fiat markets" label.
  */
 function useHeroStats(): readonly HeroStat[] {
   const { posterFeePct } = useFeePercents()
@@ -17,7 +20,7 @@ function useHeroStats(): readonly HeroStat[] {
     },
     HERO_STATS_FALLBACK[2],
     {
-      value: String(SUPPORTED_CURRENCIES.length),
+      value: String(TRADE_MARKET_COUNT),
       label: HERO_STATS_FALLBACK[3].label,
     },
   ]

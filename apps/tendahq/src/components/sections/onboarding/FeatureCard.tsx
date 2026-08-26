@@ -1,7 +1,7 @@
 import { Fuel, Sparkles, Wallet, Zap } from 'lucide-react'
 import { Pill } from '@/components/ui/Pill'
 import { LiveDot } from '@/components/ui/LiveDot'
-import { chainByFamily, type OnboardingFeature } from '@/content'
+import { type OnboardingFeature } from '@/content'
 import { cn } from '@/lib/cn'
 
 const ICONS = { Fuel, Sparkles, Wallet, Zap } as const
@@ -13,12 +13,13 @@ interface Props {
 
 /**
  * One onboarding rail. Everything decorative is brand-blue or neutral; the
- * owning chain appears only as a micro-dot next to its name. Status pills
- * stay honest — live rails pulse, in-progress rails stay muted.
+ * chains a rail covers appear as micro-dots next to their names — a list, not
+ * a single chain, because a rail is a GAS POLICY and a policy can span several
+ * chains (and gains chains without any copy change). Status pills stay honest:
+ * live rails pulse, roadmap rails are muted and say they aren't here yet.
  */
 export function FeatureCard({ feature, className }: Props) {
   const Icon = ICONS[feature.icon]
-  const chain = feature.chainFamily ? chainByFamily(feature.chainFamily) : undefined
 
   return (
     <article
@@ -39,20 +40,24 @@ export function FeatureCard({ feature, className }: Props) {
           </Pill>
         ) : (
           <Pill tone="neutral" size="sm" className="ml-auto">
-            In progress
+            Roadmap
           </Pill>
         )}
       </div>
 
       <div className="flex flex-col gap-2">
-        {chain && (
-          <span className="eyebrow inline-flex items-center gap-1.5 text-[var(--content-tertiary)]">
-            <span
-              aria-hidden
-              className="h-1.5 w-1.5 rounded-full"
-              style={{ backgroundColor: chain.color }}
-            />
-            {chain.name}
+        {feature.chains.length > 0 && (
+          <span className="eyebrow flex flex-wrap items-center gap-x-3 gap-y-1 text-[var(--content-tertiary)]">
+            {feature.chains.map((chain) => (
+              <span key={chain.id} className="inline-flex items-center gap-1.5">
+                <span
+                  aria-hidden
+                  className="h-1.5 w-1.5 rounded-full"
+                  style={{ backgroundColor: chain.color }}
+                />
+                {chain.name}
+              </span>
+            ))}
           </span>
         )}
         <h3 className="h3 text-[var(--content-primary)]">{feature.title}</h3>

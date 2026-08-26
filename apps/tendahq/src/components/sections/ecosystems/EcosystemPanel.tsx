@@ -10,8 +10,8 @@ interface Props {
 /**
  * One chain panel in §06 — identity (glyph, colour) from the manifest-derived
  * chain registry, proof points from content/ecosystems.ts. Shipped proofs get
- * a check; in-progress ones a spinner glyph and dimmed text, so the section
- * stays honest for grant reviewers reading closely.
+ * a check; roadmap ones a spinner glyph and dimmed text, so the section stays
+ * honest for grant reviewers reading closely.
  */
 export function EcosystemPanel({ panel, className }: Props) {
   const chain = chainByFamily(panel.chainFamily)
@@ -58,7 +58,7 @@ export function EcosystemPanel({ panel, className }: Props) {
       <ul className="flex flex-col gap-2.5">
         {panel.proofs.map((proof) => (
           <li key={proof.label} className="flex items-start gap-2.5">
-            {proof.inProgress ? (
+            {proof.roadmap ? (
               <Loader className="mt-0.5 h-4 w-4 shrink-0 text-[var(--content-tertiary)]" />
             ) : (
               <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--brand)]" />
@@ -66,14 +66,14 @@ export function EcosystemPanel({ panel, className }: Props) {
             <span
               className={cn(
                 'body-sm',
-                proof.inProgress
+                proof.roadmap
                   ? 'text-[var(--content-tertiary)]'
                   : 'text-[var(--content-primary)]',
               )}
             >
               {proof.label}
-              {proof.inProgress && (
-                <span className="mono-sm ml-1.5 text-[var(--content-tertiary)]">in progress</span>
+              {proof.roadmap && (
+                <span className="mono-sm ml-1.5 text-[var(--content-tertiary)]">roadmap</span>
               )}
             </span>
           </li>

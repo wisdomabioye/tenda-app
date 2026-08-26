@@ -1,6 +1,27 @@
+import {
+  DISPLAY_CURRENCY_COUNT,
+  TRADE_COUNTRIES_PROSE,
+  TRADE_CURRENCIES_PROSE,
+  TRADE_MARKET_COUNT,
+} from '@/content'
 import { SUPPORTED_CURRENCIES } from '@/data/currencies'
 import type { FaqCategory } from '../types'
 
+/**
+ * Q.06–Q.09 — the money answers, checked against the settlement math.
+ *
+ * WHO PAYS THE FEE. The contract pays the counterparty `amount − fee`
+ * (`_settleToCounterparty` / `computeNetPayout`), so the fee is deducted from
+ * the WORKER's payout, not added to the poster's cost. This page previously
+ * claimed the exact opposite — "workers and buyers pay 0%" — while §04's own
+ * worked example showed 12 USDC in and 11.70 out. The mobile app has always
+ * said it correctly ("the fee is taken from the worker's payout on
+ * completion"); the landing is now the one that agrees with both.
+ *
+ * MARKETS vs CURRENCIES. Eight currencies are a DISPLAY preference; only the
+ * payout-registry currencies can denominate an offer. Both numbers are derived
+ * in content/markets.ts — see the note there.
+ */
 export const MONEY_CATEGORY: FaqCategory = {
   num: '02',
   slug: 'money',
@@ -13,14 +34,20 @@ export const MONEY_CATEGORY: FaqCategory = {
       answer: (
         <>
           <p>
-            Posters and sellers pay a flat <strong>2.5%</strong> platform fee — taken on
-            settlement, in the same on-chain transaction that pays the worker. The exact rate is
-            published live at our public config and shown on every receipt.
+            One flat <strong>2.5%</strong> per escrow, and nothing else — no listing fee, no
+            invoicing, no spread on the FX rate, no &quot;premium&quot; tier. The rate is
+            published in our public config and shown on every receipt.
           </p>
           <p>
-            <strong>Workers and buyers pay 0%.</strong> No invoicing, no spread on the FX rate,
-            no &quot;premium&quot; tier. Posters / sellers using a Solana Mobile (Seeker) device
-            get a discounted rate.
+            <strong>It comes out of the payout, not on top of it.</strong> Post a 12 USDC gig and
+            you lock exactly 12 USDC; at settlement the contract pays 11.70 to the worker and
+            0.30 to Tenda, in the same transaction. So the poster&apos;s cost is the number they
+            posted, and the worker&apos;s take-home is 2.5% under it — which is why every gig
+            screen shows both figures before anyone commits.
+          </p>
+          <p>
+            Owners of a Solana Mobile (Seeker) device pay <strong>1%</strong> instead of 2.5%,
+            on every chain.
           </p>
         </>
       ),
@@ -32,15 +59,23 @@ export const MONEY_CATEGORY: FaqCategory = {
         <>
           <p>
             Workers are paid in <strong>USDC</strong> on settlement — a dollar-pegged stablecoin,
-            so the amount you earn is the amount you keep. To convert into local fiat, use the
-            in-app Exchange to find a buyer for your USDC (or SOL, or ETH) in any of the{' '}
-            {SUPPORTED_CURRENCIES.length} supported corridors:{' '}
-            <code className="font-mono">{SUPPORTED_CURRENCIES.join(' · ')}</code>.
+            so the amount you earn is the amount you keep. To turn it into local cash, use the
+            in-app Exchange to find a buyer. Offers are currently denominated in{' '}
+            <code className="font-mono">{TRADE_CURRENCIES_PROSE}</code> — {TRADE_MARKET_COUNT}{' '}
+            markets: {TRADE_COUNTRIES_PROSE}. More are on the way as we clear each one.
           </p>
           <p>
-            Settlement happens off-chain via bank transfer or mobile money (M-Pesa, MoMo, OPay,
-            GCash, etc.) — Tenda&apos;s contract holds the crypto until both sides confirm the
-            fiat transfer.
+            Separately, you can display your balance in any of{' '}
+            {DISPLAY_CURRENCY_COUNT} currencies (
+            <code className="font-mono">{SUPPORTED_CURRENCIES.join(' · ')}</code>) — that&apos;s
+            a display setting for reading your wallet in familiar money, not a market you can
+            trade into yet.
+          </p>
+          <p>
+            The cash itself moves directly between the two of you, over whatever rail you both
+            use — a bank transfer or mobile money. <strong>Tenda never touches fiat</strong> and
+            is not a payment processor: you save your own account details, you choose the rail,
+            and the contract holds the crypto until the trade completes.
           </p>
         </>
       ),
@@ -52,7 +87,8 @@ export const MONEY_CATEGORY: FaqCategory = {
         <p>
           From the moment the poster taps approve, the funds are in the worker&apos;s wallet
           within a block or two of the chain the gig runs on — sub-second on Solana, a few
-          seconds on Base and Celo. There is no &quot;pending&quot; state we control.
+          seconds on an L2. There is no &quot;pending&quot; state we control, because there is no
+          balance for us to hold.
         </p>
       ),
     },
@@ -61,9 +97,10 @@ export const MONEY_CATEGORY: FaqCategory = {
       question: 'Are there minimum or maximum gig amounts?',
       answer: (
         <p>
-          The contract enforces a tiny minimum (well under a cent) so the platform fee math
-          doesn&apos;t round to zero. There&apos;s no upper ceiling on-chain — the practical
-          ceiling is whatever you&apos;re comfortable escrowing.
+          The contract&apos;s floor is one base unit — a millionth of a USDC — because every
+          settlement path has to move a positive amount. In practice the useful minimum is
+          whatever keeps the 2.5% fee from rounding away to nothing. There&apos;s no ceiling
+          on-chain; the practical one is whatever you&apos;re comfortable escrowing.
         </p>
       ),
     },

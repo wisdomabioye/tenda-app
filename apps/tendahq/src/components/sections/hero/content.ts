@@ -13,7 +13,7 @@ export interface HeroStat {
 
 export const HERO_CONTENT = {
   stamps: {
-    versionLabel: `${APP_INFO.version.split('-')[0]} · ${APP_INFO.chains.stage}`,
+    versionLabel: `${APP_INFO.versionNumber} · ${APP_INFO.chains.stage}`,
     liveLabel: `Live on ${APP_INFO.chains.networksLine}`,
   },
   h1: {
@@ -22,7 +22,7 @@ export const HERO_CONTENT = {
     line3: 'trusting.',
   },
   ribbon: [
-    'The money locks in an on-chain escrow the moment a gig posts or an offer goes live — USDC, SOL or ETH. Nobody holds your funds — not us, not the counterparty, not an exchange.',
+    'The money locks in an on-chain escrow the moment a gig posts or an offer goes live. Nobody holds your funds — not us, not the counterparty, not an exchange.',
     'Proof releases. The contract settles.',
   ] as const,
   cta: {
@@ -36,5 +36,5 @@ export const HERO_STATS_FALLBACK: readonly HeroStat[] = [
   { value: '< 2s',  label: 'Escrow lock' },
   { value: '2.5%',  label: 'Flat fee' },
   { value: '100%',  label: 'On-chain' },
-  { value: '8',     label: 'Fiat markets' },
+  { value: '3',     label: 'Fiat markets' },
 ] as const
