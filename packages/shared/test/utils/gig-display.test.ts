@@ -183,3 +183,29 @@ test('gigPlaceLabel: no location at all is unknown, never "Anywhere"', () => {
 test('gigPlaceLabel: city alone is enough', () => {
   assert.equal(gigPlaceLabel({ remote: false, city: 'Accra', country: null }), 'Accra')
 })
+
+test('gigDeadlineMeta: a status this build does not know yields a neutral, chip-less meta', () => {
+  // Reachable: `status` is whatever the server sent, and an installed client
+  // outlives the vocabulary it was built with. The switch used to fall through
+  // and return `undefined`, so every caller threw on `.label` — which in a list
+  // row is a blank screen, not a missing chip. The compile-time exhaustiveness
+  // check is kept by the `never` binding in that arm, so adding a status to
+  // EscrowStatus still fails the build until it is handled.
+  const meta = gigDeadlineMeta({
+    status: 'archived' as (typeof ESCROW_STATUS_ORDER)[number],
+    accept_deadline: null,
+  })
+
+  assert.deepEqual(meta, { label: '', glyph: null, tone: 'neutral' })
+})
+
+test('gigDeadlineMeta: reading .label off an unknown status does not throw', () => {
+  // The failure mode as the caller meets it, not as the function returns it.
+  assert.doesNotThrow(() => {
+    const meta = gigDeadlineMeta({
+      status: 'archived' as (typeof ESCROW_STATUS_ORDER)[number],
+      accept_deadline: null,
+    })
+    return meta.label.length
+  })
+})

@@ -8,6 +8,7 @@ import { MoneyText } from '@/components/ui/MoneyText'
 import { GigStatusBadge } from '../GigStatusBadge'
 import { ChainBadge } from '@/components/escrow/ChainBadge'
 import { CATEGORY_META, toAssetPaymentDisplay, LOCATIONS, type CountryCode, GigSummary, gigDeadlineMeta } from '@tenda/shared'
+import { gigCardAmountDigits } from './amount'
 import { CATEGORY_DOT_COLOR } from './shared'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
@@ -65,7 +66,7 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
         {gig.title}
       </Text>
 
-      <MoneyText fiat={price.fiat} currency={currency} amountLabel={`${price.amount.toFixed(price.amount >= 1 ? 2 : 3)} ${price.symbol}`} size={typography.styles.body.fontSize} />
+      <MoneyText fiat={price.fiat} currency={currency} amountLabel={`${gigCardAmountDigits(price.amount)} ${price.symbol}`} size={typography.styles.body.fontSize} />
 
       <View style={s.footer}>
         <View style={s.metaItem}>

@@ -175,6 +175,11 @@ module.exports = [
   // The money primitive. Its first suite came from the font-registration audit,
   // which found the headline naming a 500/600 face while declaring weight 700.
   'components/ui/MoneyText.tsx',
+  // The wallet headline and the lifetime stats. Their first suite came with the
+  // unknown-asset work: `amountRawToDisplay` now answers null rather than raw
+  // base units, and these two render the largest numbers in the app.
+  'components/wallet/WalletHeroCard.tsx',
+  'components/wallet/EarningsSummary.tsx',
   // The escrow detail screens' shared TransactionMonitor wiring, extracted from
   // the two hubs that had duplicated it. It owns the re-read-on-failure the
   // proof retry depends on, so it is gated rather than left to the hubs (which
@@ -191,9 +196,13 @@ module.exports = [
   // gated. Branches pay 0.47 for statements gaining 0.15; both stay well clear
   // of the 90 floor. What is still dark is the `pressed` style arms and the
   // success-tone deadline chip.
-  'components/gig/GigCardCompact/*.tsx',
+  'components/gig/GigCardCompact/*.{ts,tsx}',
   // A re-export barrel plus a variant switch no suite renders directly.
   '!components/gig/GigCardCompact/index.tsx',
+  // A pure re-export barrel — three `export ... from` lines and no logic. Its
+  // sibling `amount.ts` DOES hold logic and is gated by the pattern above,
+  // exercised through all three variants.
+  '!components/gig/GigCardCompact/shared.ts',
   // The theme's font declarations and the assets they name. Both are data, and
   // the seam between them is exactly where JetBrains Mono went missing for
   // months — an unregistered family does not error, it silently renders as the

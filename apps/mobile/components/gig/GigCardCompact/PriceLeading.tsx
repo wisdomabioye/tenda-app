@@ -9,6 +9,7 @@ import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { ChainBadge } from '@/components/escrow/ChainBadge'
 import { GigCardPriceStrip } from './GigCardPriceStrip'
+import { gigCardAmountDigits } from './amount'
 import { CATEGORY_DOT_COLOR, STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
 
 interface Props {
@@ -66,7 +67,7 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
       ]}
     >
       <GigCardPriceStrip
-        amount={price.amount.toFixed(price.amount >= 1 ? 2 : 3)}
+        amount={gigCardAmountDigits(price.amount)}
         symbol={price.symbol}
         fiatAlt={fiatAlt}
       />

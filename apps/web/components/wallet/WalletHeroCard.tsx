@@ -4,14 +4,25 @@
  * USDC-first total across every linked wallet/chain: gigs settle in USDC on
  * all chains, so it's one summable unit. Display-only.
  */
+import { formatAmountOrUnknown } from '@tenda/shared'
 
-function Amount({ value }: { value: number }) {
+/**
+ * `null` = this build has no metadata for the balance's asset, so its decimals
+ * are unknown and there is no figure to show. Base units are not a rounded
+ * version of the amount — they are wrong by 10^decimals — so the hero shows the
+ * shared "no value" token instead, the same thing it shows while loading claims
+ * nothing.
+ */
+function Amount({ value }: { value: number | null }) {
   return (
     <span className="font-numeric text-4xl font-bold tracking-tight text-content-primary">
-      {value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+      {formatAmountOrUnknown(value, (v) =>
+        v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      )}
     </span>
   )
 }
+
 
 export function WalletHeroCard({
   totalUsdc,
@@ -19,9 +30,9 @@ export function WalletHeroCard({
   spentUsdc,
   isLoading,
 }: {
-  totalUsdc: number
-  earnedUsdc: number
-  spentUsdc: number
+  totalUsdc: number | null
+  earnedUsdc: number | null
+  spentUsdc: number | null
   isLoading: boolean
 }) {
   return (
@@ -45,12 +56,12 @@ export function WalletHeroCard({
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-card border border-border-default bg-surface-card px-4 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-content-tertiary">Earned</p>
-          <p className="font-numeric mt-1 text-lg font-bold text-numeric-positive">+ {earnedUsdc.toFixed(2)}</p>
+          <p className="font-numeric mt-1 text-lg font-bold text-numeric-positive">+ {formatAmountOrUnknown(earnedUsdc, (v) => v.toFixed(2))}</p>
           <p className="text-xs text-content-tertiary">USDC · lifetime</p>
         </div>
         <div className="rounded-card border border-border-default bg-surface-card px-4 py-3">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-content-tertiary">Spent</p>
-          <p className="font-numeric mt-1 text-lg font-bold text-numeric-negative">− {spentUsdc.toFixed(2)}</p>
+          <p className="font-numeric mt-1 text-lg font-bold text-numeric-negative">− {formatAmountOrUnknown(spentUsdc, (v) => v.toFixed(2))}</p>
           <p className="text-xs text-content-tertiary">USDC · lifetime</p>
         </div>
       </div>

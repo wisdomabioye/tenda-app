@@ -102,10 +102,40 @@ export const GIG_NATIVE_MAX_DISPLAY = '10000'
  * real defect in web's WalletBalanceGrid, fixed in #50 by routing it through
  * `splitAssetAmount` like every other surface.
  */
-export function amountRawToDisplay(amount_raw: string, asset: string): number {
+export function amountRawToDisplay(amount_raw: string, asset: string): number | null {
   const meta = ASSET_META[asset]
-  if (meta === undefined) return Number(amount_raw)
+  if (meta === undefined) return null
   return Number(amount_raw) / 10 ** meta.decimals
+}
+
+/**
+ * What every money surface shows in place of a figure it cannot compute.
+ *
+ * Exported rather than written inline so the clients and the tests agree on
+ * one token; it is the same em dash `MoneyText`, `ProfileStats` and
+ * `FeeSummary` already use for "no value".
+ */
+export const UNKNOWN_AMOUNT_DISPLAY = '—'
+
+/**
+ * Text for a display amount that may not be scalable — the ONE owner of what a
+ * surface shows when it cannot state a figure.
+ *
+ * `amount` is null when this build has no metadata for the asset (see
+ * `amountRawToDisplay`), and every money surface then has the same decision to
+ * make and the same answer to give. Seven of them were making it separately,
+ * which is seven edits if the token or the policy ever changes, and seven
+ * chances to quietly print base units instead.
+ *
+ * The ROUNDING stays with the caller because it genuinely differs — a card
+ * shows three decimals under 1, a wallet hero always two, a tx feed four or
+ * six. This owns the fallback, not the formatting.
+ */
+export function formatAmountOrUnknown(
+  amount: number | null,
+  format: (value: number) => string,
+): string {
+  return amount === null ? UNKNOWN_AMOUNT_DISPLAY : format(amount)
 }
 
 /** A formatted amount kept in two pieces, for callers that style them apart. */
@@ -137,7 +167,9 @@ export function splitAssetAmount(amount_raw: string, asset: string): SplitAssetA
   const meta = ASSET_META[asset]
   const value = amountRawToDisplay(amount_raw, asset)
   return {
-    amount: value.toLocaleString('en-US', { maximumFractionDigits: 4 }),
+    amount: formatAmountOrUnknown(value, (v) =>
+      v.toLocaleString('en-US', { maximumFractionDigits: 4 }),
+    ),
     symbol: meta?.symbol ?? asset,
   }
 }

@@ -3,6 +3,7 @@ import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { formatAmountOrUnknown } from '@tenda/shared'
 
 /**
  * Wallet balance hero, the USDC-first total across every linked wallet/chain
@@ -10,7 +11,15 @@ import { Skeleton } from '@/components/ui/Skeleton'
  * breakdown + the Sell / cash-out action live below it (WalletBalanceRows /
  * WalletActions). Display-only; the screen owns the data + actions.
  */
-export function WalletHeroCard({ totalUsdc, isLoading }: { totalUsdc: number; isLoading: boolean }) {
+export function WalletHeroCard({
+  totalUsdc,
+  isLoading,
+}: {
+  /** null when this build has no metadata for the balance's asset — see
+   *  `amountRawToDisplay`. A total we cannot scale is not a total. */
+  totalUsdc: number | null
+  isLoading: boolean
+}) {
   const { theme } = useUnistyles()
 
   return (
@@ -28,7 +37,9 @@ export function WalletHeroCard({ totalUsdc, isLoading }: { totalUsdc: number; is
         ) : (
           <>
             <Text style={[s.amount, { color: theme.colors.content.primary }]}>
-              {totalUsdc.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              {formatAmountOrUnknown(totalUsdc, (v) =>
+                v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+              )}
             </Text>
             <Text style={[s.unit, { color: theme.colors.content.tertiary }]}>USDC</Text>
           </>

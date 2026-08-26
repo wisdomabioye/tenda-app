@@ -3,7 +3,7 @@ import { MapPin, Clock, Calendar, Globe } from 'lucide-react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { formatDuration, LOCATIONS, ASSET_META, amountRawToDisplay, formatFiat } from '@tenda/shared'
+import { formatDuration, LOCATIONS, ASSET_META, amountRawToDisplay, formatAmountOrUnknown, formatFiat } from '@tenda/shared'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
@@ -54,7 +54,9 @@ export function GigMetaInfo({ gig, deadlineLbl }: Props) {
   // meaningful for native-SOL gigs. Stable assets read as ≈ face value.
   const isSolAsset = symbol === 'SOL'
   const fiatAlt =
-    isSolAsset && rate !== null && rate > 0 ? `≈ ${formatFiat(amount * rate, currency)}` : null
+    amount !== null && isSolAsset && rate !== null && rate > 0
+      ? `≈ ${formatFiat(amount * rate, currency)}`
+      : null
 
   // Worker net-of-fee: the platform fee is deducted from the payout on
   // completion, so the worker actually receives amount − fee. Fee tier is the
@@ -117,7 +119,9 @@ export function GigMetaInfo({ gig, deadlineLbl }: Props) {
           </Text>
           <View style={s.payValue}>
             <Text style={[s.payAmount, { color: theme.colors.content.primary }]}>
-              {amount.toLocaleString('en-US', { maximumFractionDigits: amount >= 1 ? 2 : 4 })}
+              {formatAmountOrUnknown(amount, (v) =>
+                v.toLocaleString('en-US', { maximumFractionDigits: v >= 1 ? 2 : 4 }),
+              )}
             </Text>
             <Text style={[s.payUnit, { color: theme.colors.content.secondary }]}>
               {symbol}

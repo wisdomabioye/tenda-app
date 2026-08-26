@@ -2,9 +2,17 @@ import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui'
+import { formatAmountOrUnknown } from '@tenda/shared'
 
 /** Two lifetime stat cards (USDC earned / spent) under the wallet hero. */
-export function EarningsSummary({ earnedUsdc, spentUsdc }: { earnedUsdc: number; spentUsdc: number }) {
+/** null = no metadata for the summary's asset, so no figure can be shown. */
+export function EarningsSummary({
+  earnedUsdc,
+  spentUsdc,
+}: {
+  earnedUsdc: number | null
+  spentUsdc: number | null
+}) {
   const { theme } = useUnistyles()
   return (
     <View style={s.earnings}>
@@ -15,7 +23,7 @@ export function EarningsSummary({ earnedUsdc, spentUsdc }: { earnedUsdc: number;
             EARNED
           </Text>
         </View>
-        <Text style={[s.statValue, { color: theme.colors.numeric.positive }]}>+ {earnedUsdc.toFixed(2)}</Text>
+        <Text style={[s.statValue, { color: theme.colors.numeric.positive }]}>+ {formatAmountOrUnknown(earnedUsdc, (v) => v.toFixed(2))}</Text>
         <Text style={[s.statUnit, { color: theme.colors.content.tertiary }]}>USDC · lifetime</Text>
       </View>
       <View style={[s.statCard, { backgroundColor: theme.colors.surface.card, borderColor: theme.colors.border.default }]}>
@@ -25,7 +33,7 @@ export function EarningsSummary({ earnedUsdc, spentUsdc }: { earnedUsdc: number;
             SPENT
           </Text>
         </View>
-        <Text style={[s.statValue, { color: theme.colors.numeric.negative }]}>− {spentUsdc.toFixed(2)}</Text>
+        <Text style={[s.statValue, { color: theme.colors.numeric.negative }]}>− {formatAmountOrUnknown(spentUsdc, (v) => v.toFixed(2))}</Text>
         <Text style={[s.statUnit, { color: theme.colors.content.tertiary }]}>USDC · lifetime</Text>
       </View>
     </View>

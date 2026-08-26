@@ -4,7 +4,7 @@ import { Briefcase, ArrowLeftRight } from 'lucide-react-native'
 import { typography } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
 import type { UserEscrowTransaction } from '@tenda/shared'
-import { txDisplayAmount, txLabel, txSign, viewerRole } from '@tenda/shared'
+import { formatAmountOrUnknown, txDisplayAmount, txLabel, txSign, viewerRole } from '@tenda/shared'
 
 /**
  * One row of the wallet feed, worded and signed from the VIEWER's side — the
@@ -57,7 +57,9 @@ export function TxRow({ tx, userId }: TxRowProps) {
         <View style={s.amt}>
           <Text style={[s.amtMain, { color: amountColor }]} numberOfLines={1}>
             {sign ? `${sign} ` : ''}
-            {money.amount.toLocaleString('en-US', { maximumFractionDigits: 4 })}
+            {formatAmountOrUnknown(money.amount, (v) =>
+              v.toLocaleString('en-US', { maximumFractionDigits: 4 }),
+            )}
           </Text>
           <Text style={[s.amtUnit, { color: theme.colors.content.tertiary }]}>{money.symbol}</Text>
         </View>

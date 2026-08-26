@@ -8,6 +8,7 @@ import { CATEGORY_META, toAssetPaymentDisplay, formatFiat, LOCATIONS, type Count
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { ChainBadge } from '@/components/escrow/ChainBadge'
+import { gigCardAmountDigits } from './amount'
 import { CATEGORY_DOT_COLOR, STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
 
 interface Props {
@@ -172,7 +173,7 @@ export function GigCardCompactRich({ gig, showStatus = false }: Props) {
           style={[s.price, { color: theme.colors.content.primary }]}
           numberOfLines={1}
         >
-          {`${price.amount.toFixed(price.amount >= 1 ? 2 : 3)} ${price.symbol}`}
+          {`${gigCardAmountDigits(price.amount)} ${price.symbol}`}
           {fiatAlt ? (
             <Text style={[s.priceFiat, { color: theme.colors.content.tertiary }]}>
               {' '}

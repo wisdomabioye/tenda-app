@@ -74,11 +74,23 @@ test('toAssetPaymentDisplay: no fiat without a usable rate', () => {
   assert.equal(toAssetPaymentDisplay('1000000000000000000', 'ETH_BASE', RATES, 'NGN').fiat, null)
 })
 
-test('toAssetPaymentDisplay: unknown asset falls back to the raw id and value', () => {
+test('toAssetPaymentDisplay: unknown asset keeps the id, withholds amount AND fiat', () => {
+  // It used to answer `amount: 42` for base units whose scale it did not know —
+  // a figure wrong by 10^decimals presented with the confidence of a real one.
+  // The fiat leg must stay null too: it is derived from the amount, so a fiat
+  // built on an unknown scale is the same lie one conversion further on.
   const odd = toAssetPaymentDisplay('42', 'MYSTERY', RATES, 'NGN')
-  assert.equal(odd.amount, 42)
+  assert.equal(odd.amount, null)
   assert.equal(odd.symbol, 'MYSTERY')
   assert.equal(odd.fiat, null)
+})
+
+test('toAssetPaymentDisplay: a KNOWN asset still prices normally', () => {
+  // The control — nulling everything would satisfy the test above.
+  const known = toAssetPaymentDisplay('5000000', 'USDC_SOL', RATES, 'NGN')
+  assert.equal(known.amount, 5)
+  assert.equal(known.symbol, 'USDC')
+  assert.ok(known.fiat !== null && known.fiat > 0)
 })
 
 test('formatSolDisplay: at least two decimals, at most four', () => {

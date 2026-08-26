@@ -262,3 +262,18 @@ test.each([
   expect(screen.getAllByText('Remote').length).toBeGreaterThan(0)
   expect(screen.queryByText(/Remote ·/)).toBeNull()
 })
+
+test.each([
+  ['PriceLeading', GigCardCompactPriceLeading],
+  ['Rich', GigCardCompactRich],
+  ['Classic', GigCardCompactClassic],
+] as const)('%s: an asset this build has no metadata for shows NO figure', (name, Card) => {
+  // `ASSET_META` is the source the server's asset seed is built FROM, so an
+  // unknown asset means this install is older than the seed. Its decimals are
+  // unknown, and base units are wrong by 10^decimals — 1462000000 where the
+  // real amount is 1462. The card names the asset and withholds the number.
+  render(<Card gig={gig({ asset: 'USDT_FUTURE', amount_raw: '1462000000' })} />)
+
+  expect(screen.getByText(/—/)).toBeTruthy()
+  expect(screen.queryByText(/1462000000|1,462,000,000/)).toBeNull()
+})

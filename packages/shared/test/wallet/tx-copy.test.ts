@@ -129,8 +129,23 @@ test('a resolve row seen by a NON-party (unassigned ex-worker) is unsigned', () 
   assert.strictEqual(txSign(tx({ type: 'resolve', winner: 'split' }), null), null)
 })
 
-test('an asset missing from ASSET_META falls back to its raw id as the symbol', () => {
+test('an asset missing from ASSET_META keeps its raw id as the symbol', () => {
   const base = tx()
   const row = tx({ escrow: { ...base.escrow, asset: 'MYSTERY_ASSET' } })
   assert.strictEqual(txDisplayAmount(row, 'counterparty')?.symbol, 'MYSTERY_ASSET')
+})
+
+test('...but shows NO figure for it, because its decimals are unknown', () => {
+  // The row survives and still names the asset; only the number is withheld.
+  // Base units would have read as 48,500,000 next to a symbol the reader has
+  // no way to sanity-check.
+  const base = tx()
+  const row = tx({ escrow: { ...base.escrow, asset: 'MYSTERY_ASSET' } })
+  assert.strictEqual(txDisplayAmount(row, 'counterparty')?.amount, null)
+})
+
+test('a zero amount still drops the whole row, unknown asset or not', () => {
+  // The two nulls mean different things and must not be conflated: no money on
+  // this row at all, versus money whose scale this build cannot express.
+  assert.strictEqual(txDisplayAmount(tx({ amount_raw: '0' }), 'counterparty'), null)
 })

@@ -54,8 +54,13 @@ export function fiatRatePerUnit(
 }
 
 export interface AssetPaymentDisplay {
-  /** Display units (raw / 10^decimals). */
-  amount: number
+  /**
+   * Display units (raw / 10^decimals), or null when this build has no metadata
+   * for the asset and therefore does not know its decimals. Render the shared
+   * `UNKNOWN_AMOUNT_DISPLAY` rather than a number in that case — base units are
+   * not an approximation of the amount, they are wrong by 10^decimals.
+   */
+  amount: number | null
   symbol: string
   /** Fiat equivalent, null while the rate this asset needs is unknown. */
   fiat: number | null
@@ -77,7 +82,7 @@ export function toAssetPaymentDisplay(
   const amount = amountRawToDisplay(amount_raw, asset)
   const symbol = ASSET_META[asset]?.symbol ?? asset
   const perUnit = fiatRatePerUnit(rates, currency, asset)
-  const fiat = perUnit !== null && perUnit > 0 ? amount * perUnit : null
+  const fiat = amount !== null && perUnit !== null && perUnit > 0 ? amount * perUnit : null
   return { amount, symbol, fiat }
 }
 

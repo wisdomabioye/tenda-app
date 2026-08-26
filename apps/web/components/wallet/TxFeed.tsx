@@ -13,6 +13,7 @@
 import {
   formatRelativeDayWithTime,
   txDisplayAmount,
+  formatAmountOrUnknown,
   txLabel,
   txSign,
   viewerRole,
@@ -53,7 +54,10 @@ function TxRow({ tx, userId }: { tx: UserEscrowTransaction; userId: string }) {
           )}
         >
           {sign ?? ''}
-          {shown.amount.toLocaleString('en-US', { maximumFractionDigits: 6 })} {shown.symbol}
+          {formatAmountOrUnknown(shown.amount, (v) =>
+            v.toLocaleString('en-US', { maximumFractionDigits: 6 }),
+          )}{' '}
+          {shown.symbol}
         </span>
       )}
     </li>

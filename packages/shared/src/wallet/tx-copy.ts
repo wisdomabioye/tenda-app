@@ -156,14 +156,23 @@ export function txAmountRaw(
   return ATTESTED_ONLY.includes(tx.type) ? null : tx.escrow.amount_raw
 }
 
-/** Display-unit amount + symbol for the row, or null when it shows no number. */
+/**
+ * Display-unit amount + symbol for the row, or null when it shows no money at
+ * all (no amount applies to this row for this viewer, or the amount is zero).
+ *
+ * `amount` is separately nullable: this build may have no metadata for the
+ * asset and therefore not know its decimals. The SYMBOL still survives that —
+ * the raw asset id names what the row is denominated in, and saying "— USDC_X"
+ * is strictly more use than dropping the row, which is why the whole row is
+ * not nulled here.
+ */
 export function txDisplayAmount(
   tx: UserEscrowTransaction,
   role: PartyRole | null,
-): { amount: number; symbol: string } | null {
+): { amount: number | null; symbol: string } | null {
   const raw = txAmountRaw(tx, role)
   if (raw === null) return null
   const amount = amountRawToDisplay(raw, tx.escrow.asset)
-  if (amount <= 0) return null
+  if (amount !== null && amount <= 0) return null
   return { amount, symbol: ASSET_META[tx.escrow.asset]?.symbol ?? tx.escrow.asset }
 }

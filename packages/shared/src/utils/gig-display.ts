@@ -121,7 +121,11 @@ export interface GigDeadlineSource {
  *   completed → "3d ago"               (success, check glyph, relative past)
  *   resolved  → "3d ago"               (success, like completed)
  *   disputed  → "Support open"         (neutral chip)
- *   cancelled → ""                     (no chip)
+ *   cancelled → "Cancelled"             (neutral, no glyph)
+ *
+ * A status this build does not know returns the same empty/neutral meta as a
+ * missing deadline, so an old install meeting a newer server shows no chip
+ * rather than crashing — see the `default` arm.
  */
 export function gigDeadlineMeta(gig: GigDeadlineSource): GigDeadlineMeta {
   const now = Date.now()
@@ -177,6 +181,24 @@ export function gigDeadlineMeta(gig: GigDeadlineSource): GigDeadlineMeta {
         glyph: 'clock',
         tone: urgent ? 'urgent' : 'neutral',
       }
+    }
+
+    default: {
+      /**
+       * Unreachable per the type, reachable in practice: `status` is whatever
+       * the server sent, and an installed client outlives the vocabulary it
+       * was built with. Without this the switch fell through, returned
+       * `undefined`, and every caller threw on `.label` — which in a list row
+       * is a blank screen, not a missing chip.
+       *
+       * The `never` binding keeps the COMPILE-TIME guarantee that a status
+       * added to `EscrowStatus` must be handled above: if one is, `status` is
+       * no longer `never` here and this line fails to build. A bare `default`
+       * would have silently swallowed it.
+       */
+      const unhandled: never = gig.status
+      void unhandled
+      return { label: '', glyph: null, tone: 'neutral' }
     }
   }
 }
