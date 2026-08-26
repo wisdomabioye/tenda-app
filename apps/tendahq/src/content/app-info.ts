@@ -8,7 +8,16 @@
  */
 
 import { APP_INFO as BRAND } from '@tenda/shared/app-info'
+import { releaseStage, versionNumber } from '@/lib/release'
 import { CHAIN_NAMES_LINE } from './chains'
+
+/**
+ * The network-stage label and the display version are DERIVED from the release
+ * qualifier `bump-version.mjs` stamps (see lib/release.ts), not typed out
+ * again. The stage used to be hand-written here AND, independently, in the
+ * footer's legal disclaimer — exactly the pair that goes stale in opposite
+ * directions on launch day.
+ */
 
 /**
  * The two release literals `scripts/bump-version.mjs` rewrites and
@@ -26,28 +35,6 @@ const RELEASE = {
   version: 'v0.4.3-testnet',
   apkUrl: 'https://github.com/wisdomabioye/tenda-app/releases/download/v0.4.3-testnet/0.4.3-testnet.apk',
 } as const
-
-/**
- * Which network this build talks to, DERIVED from the version's release
- * qualifier rather than typed out again.
- *
- * `bump-version.mjs` owns the version string, so the suffix it stamps already
- * answers "is this testnet or mainnet" — and a release cut with `--suffix ''`
- * is by definition the mainnet build. Deriving the label means one release bump
- * flips every network-stage line on the site at once. It used to be written by
- * hand here AND, independently, in the footer's legal disclaimer — exactly the
- * kind of pair that goes stale in opposite directions on launch day.
- */
-function releaseStage(version: string): string {
-  const dash = version.indexOf('-')
-  return dash === -1 ? 'mainnet' : `${version.slice(dash + 1)} release`
-}
-
-/** Semver without the release qualifier — `v0.4.3-testnet` → `v0.4.3`. */
-function versionNumber(version: string): string {
-  const dash = version.indexOf('-')
-  return dash === -1 ? version : version.slice(0, dash)
-}
 
 export const APP_INFO = {
   name: BRAND.name,

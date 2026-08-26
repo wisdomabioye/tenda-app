@@ -35,16 +35,26 @@ export const TRUST_CATEGORY: FaqCategory = {
             {CHAIN_NAMES_PROSE}.
           </p>
           <p>
-            Tenda does hold an admin key, and we&apos;d rather tell you its exact reach than
-            let you find it in the source. A multisig can retune protocol parameters — the fee,
-            the deadline windows, the treasury address — and rotate who mediates disputes. It{' '}
-            <strong>cannot move, freeze or seize money sitting in escrow</strong>: there is no
-            pause function and no sweep function in either program. The only instructions that
-            move your funds are the ones you or your counterparty trigger, plus a dispute ruling.
+            Tenda does hold an admin key, and we&apos;d rather tell you its exact reach than let
+            you find it in the source. It can retune protocol parameters — the fee, the deadline
+            windows, the treasury address — and rotate who mediates disputes. It{' '}
+            <strong>cannot move, freeze or seize your escrowed funds</strong>: neither program
+            has a pause function or a sweep function, and no admin instruction transfers a
+            principal. The only things that move your money are what you or your counterparty
+            trigger, plus a dispute ruling.
+          </p>
+          <p>
+            One caveat we&apos;d rather state than bury: the platform fee is read{' '}
+            <em>at settlement</em>, not frozen when you post, so a fee change reaches escrows
+            that are already open. The contract caps it at 10% and every change is a public
+            on-chain transaction, but that is the one admin action with any reach into a live
+            escrow. The review window works the other way — it is stamped onto your escrow when
+            proof lands, so a later change cannot move a deadline you are already relying on.
           </p>
           <p>
             You can read the source and inspect any settlement in the block explorer of the
-            chain it settled on.
+            chain it settled on. We&apos;ll publish the admin address and its custody setup
+            alongside the mainnet deployment.
           </p>
         </>
       ),
@@ -60,11 +70,17 @@ export const TRUST_CATEGORY: FaqCategory = {
             grace period pass, the poster claims the refund on-chain.
           </p>
           <p>
-            <strong>Second:</strong> every worker accumulates a public history — completed jobs,
-            ratings, reviews and dispute counts, shown beside every profile. To be precise about
-            where that lives: reputation is kept <em>off-chain</em> by Tenda, not written into
-            the escrow programs. The money is on-chain and trustless; the track record is a
-            service we run. A fresh worker can still be hired, but most posters favour history.
+            <strong>Second:</strong> every worker builds a public rating from the reviews their
+            counterparties leave, shown on their profile. To be precise about where that lives:
+            reputation is kept <em>off-chain</em> by Tenda, not written into the escrow
+            programs. The money is on-chain and trustless; the track record is a service we run.
+          </p>
+          <p>
+            Behind that sits a record you don&apos;t see but we act on. Repeatedly abandoning
+            accepted jobs locks you out of accepting new ones for a cooldown; repeatedly
+            ignoring approvals locks a poster out of posting; repeatedly losing disputes limits
+            how often you can raise them. Each is time-boxed and lifts by itself. A fresh worker
+            can still be hired, but most posters favour history.
           </p>
         </>
       ),
@@ -104,9 +120,9 @@ export const TRUST_CATEGORY: FaqCategory = {
           <p>
             Every state change is a transaction. Lock, proof, approval, settlement and refund
             each leave a receipt you can open in the block explorer for the chain it happened on,
-            with the amounts and addresses in plain sight. The deployed contract address for each
-            chain is published, so you can confirm the code you read is the code you&apos;re
-            trusting.
+            with the amounts and addresses in plain sight. The escrow contract address for each
+            chain comes from our public API, so you can confirm the contract your money went to
+            is the one whose source you just read.
           </p>
           <p>
             A third-party security audit is on our roadmap and we&apos;ll publish the firm, the

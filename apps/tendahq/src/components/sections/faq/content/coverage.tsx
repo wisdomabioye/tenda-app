@@ -1,6 +1,6 @@
 import {
   APP_INFO,
-  CHAIN_NAMES_PROSE,
+  CHAIN_STRENGTHS_PROSE,
   DISPLAY_CURRENCY_COUNT,
   TRADE_COUNTRIES_PROSE,
   TRADE_CURRENCIES_PROSE,
@@ -27,9 +27,8 @@ export const COVERAGE_CATEGORY: FaqCategory = {
         <>
           <p>
             Tenda runs the same escrow contract on {APP_INFO.chains.networksLine} — pick the
-            chain your money already lives on. {CHAIN_NAMES_PROSE} each bring something
-            different: Solana&apos;s sub-second settlement, Base&apos;s USDC rails, Celo&apos;s
-            stablecoin-paid gas. More chains are on the way.
+            chain your money already lives on. Each brings something different:{' '}
+            {CHAIN_STRENGTHS_PROSE}. More chains are on the way.
           </p>
           <p>
             Gig work is global by default — the contracts run wherever the chains do, and a gig

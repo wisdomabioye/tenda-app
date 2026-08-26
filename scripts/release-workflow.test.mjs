@@ -203,6 +203,39 @@ test('the workflow builds a resolved profile, never a hardcoded one', () => {
 })
 
 /**
+ * ONE SUFFIX, TWO READERS. `bump-version.mjs` decides the tag and asset name
+ * from the suffix; `resolve-eas-profile.mjs` decides which app gets built from
+ * it. They must be handed the same value or the release ships an app that does
+ * not match its own tag — the exact failure the hardcoded `--profile testnet`
+ * used to guarantee.
+ *
+ * Today they agree because the workflow passes `inputs.suffix` to both, and
+ * bump-version's `suffix ?? current.suffix` fallback is therefore never taken.
+ * That is a property of how the workflow is written, not of either script, so
+ * it is asserted here rather than assumed: dropping `--suffix` from the bump
+ * step would silently reintroduce two sources for one fact.
+ */
+test('bump-version and the profile resolver read the same suffix', () => {
+  const bumpCall = yaml.match(/bump-version\.mjs[^\n]*--suffix "\$(\w+)"/)
+  assert.ok(bumpCall, 'expected the bump step to pass --suffix from an env var')
+  const resolveCall = yaml.match(/resolve-eas-profile\.mjs "\$(\w+)"/)
+  assert.ok(resolveCall, 'expected the resolve step to pass the suffix from an env var')
+
+  // Both env vars must be fed from the same workflow expression.
+  const sourceOf = (name) => {
+    const m = yaml.match(new RegExp(`^\\s*${name}: (\\$\\{\\{[^}]+\\}\\})`, 'm'))
+    assert.ok(m, `${name} is used in a run body but never set in an env: block`)
+    return m[1].replace(/\s+/g, '')
+  }
+  assert.equal(
+    sourceOf(bumpCall[1]),
+    sourceOf(resolveCall[1]),
+    'the bump step and the profile resolver are reading DIFFERENT suffix sources; ' +
+      'the built app could then not match the tag it is published under',
+  )
+})
+
+/**
  * And the resolver must agree with eas.json for every suffix a release can be
  * cut with — the declared default, and the empty string that means mainnet.
  * That agreement is what the old literal-spelling check was really protecting.

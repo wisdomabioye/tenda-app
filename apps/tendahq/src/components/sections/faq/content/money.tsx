@@ -1,9 +1,11 @@
 import {
   DISPLAY_CURRENCY_COUNT,
+  FEE_EXAMPLE,
   TRADE_COUNTRIES_PROSE,
   TRADE_CURRENCIES_PROSE,
   TRADE_MARKET_COUNT,
 } from '@/content'
+import { FeePct } from '@/components/product/FeePct'
 import { SUPPORTED_CURRENCIES } from '@/data/currencies'
 import type { FaqCategory } from '../types'
 
@@ -34,20 +36,23 @@ export const MONEY_CATEGORY: FaqCategory = {
       answer: (
         <>
           <p>
-            One flat <strong>2.5%</strong> per escrow, and nothing else — no listing fee, no
-            invoicing, no spread on the FX rate, no &quot;premium&quot; tier. The rate is
-            published in our public config and shown on every receipt.
+            One flat <strong><FeePct /></strong> per escrow, and nothing else — no listing fee,
+            no invoicing, no spread on the FX rate, no &quot;premium&quot; tier. That figure is
+            read live from our public config as you read this, and it&apos;s shown on every
+            receipt.
           </p>
           <p>
-            <strong>It comes out of the payout, not on top of it.</strong> Post a 12 USDC gig and
-            you lock exactly 12 USDC; at settlement the contract pays 11.70 to the worker and
-            0.30 to Tenda, in the same transaction. So the poster&apos;s cost is the number they
-            posted, and the worker&apos;s take-home is 2.5% under it — which is why every gig
-            screen shows both figures before anyone commits.
+            <strong>It comes out of the payout, not on top of it.</strong> Post a{' '}
+            {FEE_EXAMPLE.lockedAmount} USDC gig and you lock exactly{' '}
+            {FEE_EXAMPLE.lockedAmount} USDC; at settlement the contract pays{' '}
+            {FEE_EXAMPLE.payoutAmount} to the worker and {FEE_EXAMPLE.feeAmount} to Tenda, in
+            the same transaction. So the poster&apos;s cost is the number they posted, and the
+            worker&apos;s take-home is <FeePct /> under it — which is why every gig screen
+            shows both figures before anyone commits.
           </p>
           <p>
-            Owners of a Solana Mobile (Seeker) device pay <strong>1%</strong> instead of 2.5%,
-            on every chain.
+            Owners of a Solana Mobile (Seeker) device pay <strong><FeePct tier="seeker" /></strong>{' '}
+            instead of <FeePct />, on every chain.
           </p>
         </>
       ),
@@ -99,8 +104,8 @@ export const MONEY_CATEGORY: FaqCategory = {
         <p>
           The contract&apos;s floor is one base unit — a millionth of a USDC — because every
           settlement path has to move a positive amount. In practice the useful minimum is
-          whatever keeps the 2.5% fee from rounding away to nothing. There&apos;s no ceiling
-          on-chain; the practical one is whatever you&apos;re comfortable escrowing.
+          whatever keeps the <FeePct /> fee from rounding away to nothing. There&apos;s no
+          ceiling on-chain; the practical one is whatever you&apos;re comfortable escrowing.
         </p>
       ),
     },

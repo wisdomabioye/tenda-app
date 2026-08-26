@@ -2,14 +2,21 @@
  * Chain registry for the landing — DERIVED from @tenda/shared CHAIN_MANIFEST
  * (the monorepo's single source of chain truth), so a chain added there shows
  * up across the landing with zero code changes here. Only marketing display
- * extras (brand colour, glyph, one-line pitch) live in this file, keyed by
- * manifest `family`.
+ * extras — brand colour, glyph, one-line pitch, and the bare `strength` phrase
+ * the copy builds "<chain>'s <strength>" from — live in this file, keyed by
+ * manifest `family`. Everything else is read from the manifest itself.
  */
 
-import { CHAIN_MANIFEST, nativeCurrencyOf, type GasPolicy } from '@tenda/shared/chains'
+import {
+  CHAIN_MANIFEST,
+  gigAssetByChain,
+  nativeCurrencyOf,
+  type GasPolicy,
+} from '@tenda/shared/chains'
+import { ASSET_META } from '@tenda/shared/constants/assets'
 import { prose } from '@/lib/prose'
 
-interface ChainDisplay {
+export interface ChainDisplay {
   /** Marketing-cased name (manifest displayName is UPPER for some chains). */
   name: string
   /** Single-character mark used in badges and panels. */
@@ -18,6 +25,14 @@ interface ChainDisplay {
   color: string
   /** One-line positioning used on chain badges / ecosystem panels. */
   pitch: string
+  /**
+   * The chain's single differentiator as a bare noun phrase, so copy can say
+   * "Solana's sub-second settlement" without typing the chain name. Two FAQ
+   * sentences and the ecosystems sub-head listed exactly three of these by
+   * hand right next to a DERIVED chain list — meaning a fourth chain would
+   * have been named in the list and silently missing from the explanation.
+   */
+  strength: string
 }
 
 /** Display extras per manifest family. Add a row when a new family ships. */
@@ -27,18 +42,21 @@ const FAMILY_DISPLAY: Record<string, ChainDisplay> = {
     glyph: '◎',
     color: '#9945FF',
     pitch: 'Sub-second settlement, fees too small to notice.',
+    strength: 'sub-second settlement',
   },
   base: {
     name: 'Base',
     glyph: '●',
     color: '#0052FF',
     pitch: 'Coinbase’s L2 — USDC-native, built to onboard everyone.',
+    strength: 'USDC-native rails',
   },
   celo: {
     name: 'Celo',
     glyph: '◍',
     color: '#FCFF52',
     pitch: 'Mobile-first L2 where stablecoins pay their own gas.',
+    strength: 'stablecoin-paid gas',
   },
 }
 
@@ -55,7 +73,32 @@ export interface LandingChain {
   gasPolicy: GasPolicy
   /** Native gas token symbol ('SOL', 'ETH', 'CELO'), from the manifest. */
   nativeSymbol: string
+  /** Bare noun phrase for "X's <strength>" copy; '' when undeclared. */
+  strength: string
   explorerUrl?: string
+}
+
+/**
+ * Display extras for a family, with the fallbacks a chain gets when it reaches
+ * the MANIFEST before it reaches FAMILY_DISPLAY — which is the supported
+ * order: adding a chain is a manifest entry plus secrets, and the marketing
+ * row can follow. Exported because that fallback path is the one nobody
+ * exercises until the day a chain is added, and an inline object literal
+ * inside a .map() cannot be tested before then.
+ *
+ * `strength` falls back to EMPTY rather than to a guess: copy that builds
+ * "<name>'s <strength>" skips a chain with no strength instead of rendering a
+ * possessive with nothing after it.
+ */
+export function displayFor(family: string, displayName: string): ChainDisplay {
+  const display = FAMILY_DISPLAY[family]
+  return {
+    name: display?.name ?? displayName,
+    glyph: display?.glyph ?? '●',
+    color: display?.color ?? 'var(--brand)',
+    pitch: display?.pitch ?? '',
+    strength: display?.strength ?? '',
+  }
 }
 
 /**
@@ -64,21 +107,15 @@ export interface LandingChain {
  */
 export const LANDING_CHAINS: readonly LandingChain[] = CHAIN_MANIFEST.filter(
   (entry) => entry.kind === 'mainnet',
-).map((entry) => {
-  const display = FAMILY_DISPLAY[entry.family]
-  return {
-    id: entry.id,
-    family: entry.family,
-    name: display?.name ?? entry.displayName,
-    glyph: display?.glyph ?? '●',
-    color: display?.color ?? 'var(--brand)',
-    pitch: display?.pitch ?? '',
-    namespace: entry.namespace,
-    gasPolicy: entry.gasPolicy,
-    nativeSymbol: nativeCurrencyOf(entry).symbol,
-    explorerUrl: entry.explorerUrl,
-  }
-})
+).map((entry) => ({
+  id: entry.id,
+  family: entry.family,
+  ...displayFor(entry.family, entry.displayName),
+  namespace: entry.namespace,
+  gasPolicy: entry.gasPolicy,
+  nativeSymbol: nativeCurrencyOf(entry).symbol,
+  explorerUrl: entry.explorerUrl,
+}))
 
 /** The mainnet chains running a given gas policy, in manifest order. */
 export function chainsByGasPolicy(policy: GasPolicy): readonly LandingChain[] {
@@ -113,8 +150,71 @@ export function chainNamesProseByNamespace(namespace: string): string {
   return prose(LANDING_CHAINS.filter((c) => c.namespace === namespace).map((c) => c.name))
 }
 
+/**
+ * The two CAIP-2 namespaces the product has adapters for. Named once here
+ * rather than spelled at each call site: the namespace is what selects the
+ * wallet transport, so a string typo would silently produce an empty chain
+ * list and a sentence with a hole in it rather than a type error.
+ */
+const NAMESPACE = { solana: 'solana', evm: 'eip155' } as const
+
 /** "Base and Celo" — the EVM chains, for the WalletConnect half of the story. */
-export const EVM_CHAIN_NAMES_PROSE = chainNamesProseByNamespace('eip155')
+export const EVM_CHAIN_NAMES_PROSE = chainNamesProseByNamespace(NAMESPACE.evm)
+
+/** "Solana" — the Mobile Wallet Adapter half of the same story. */
+export const SOLANA_CHAIN_NAMES_PROSE = chainNamesProseByNamespace(NAMESPACE.solana)
+
+/**
+ * "Solana's sub-second settlement, Base's USDC-native rails and Celo's
+ * stablecoin-paid gas" — what each chain is for, as one sentence fragment.
+ *
+ * A chain with no declared `strength` is SKIPPED rather than rendered as a
+ * possessive with nothing after it: a new family that reaches the manifest
+ * before it reaches FAMILY_DISPLAY should shorten this sentence, not break it.
+ */
+export const CHAIN_STRENGTHS_PROSE = prose(
+  LANDING_CHAINS.filter((c) => c.strength !== '').map((c) => `${c.name}’s ${c.strength}`),
+)
+
+/**
+ * "USDC, SOL, ETH, cUSD and CELO" — every token the exchange can trade, read
+ * off the manifest's `exchange` asset role across the mainnet chains.
+ *
+ * Deduped BY SYMBOL, not by asset id: USDC exists once per chain as
+ * USDC_SOL / USDC_BASE / USDC_CELO, and a reader wants "USDC", not three of
+ * them. Listed by hand this said "USDC, SOL or ETH", which quietly omitted
+ * Celo's cUSD and CELO — an understatement rather than a lie, and exactly the
+ * kind that grows into one when a chain is added.
+ *
+ * STABLECOINS LEAD, from ASSET_META's own `is_stable` flag rather than a
+ * hand-kept order. Raw manifest order puts SOL first (Solana is the first
+ * entry and lists its native asset before its USDC), which opens a sentence
+ * about a USDC-denominated product with a volatile token.
+ */
+export const EXCHANGE_ASSET_SYMBOLS_PROSE = prose(
+  [
+    ...new Map(
+      CHAIN_MANIFEST.filter((entry) => entry.kind === 'mainnet')
+        .flatMap((entry) => entry.assets.filter((asset) => asset.roles.includes('exchange')))
+        .map((asset) => [ASSET_META[asset.id].symbol, ASSET_META[asset.id].is_stable] as const),
+    ),
+  ]
+    .sort(([, aStable], [, bStable]) => Number(bStable) - Number(aStable))
+    .map(([symbol]) => symbol),
+)
+
+/**
+ * The gig asset id per shipped chain, via the shared `gigAssetByChain` — the
+ * same accessor the server's `assertGigAsset` guard reads. Gigs are USDC-only,
+ * but the ID differs per chain (USDC_SOL / USDC_BASE / USDC_CELO), so copy that
+ * needs the asset's DECIMALS must ask a chain rather than name an id.
+ *
+ * Nulls are filtered rather than defaulted: a chain that carries no gigs is a
+ * legitimate manifest state, and inventing an asset for it would be a guess.
+ */
+export const GIG_ASSET_IDS: readonly string[] = LANDING_CHAINS.map((c) =>
+  gigAssetByChain(c.id),
+).filter((id): id is string => id !== null)
 
 /** Trailing badge after the chain list. */
 export const MORE_CHAINS_LABEL = 'More coming'

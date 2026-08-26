@@ -12,6 +12,9 @@
  * Panel identity (name, glyph, colour) comes from content/chains.ts.
  */
 
+import { CHAIN_STRENGTHS_PROSE, LANDING_CHAINS } from './chains'
+import { FEE_PCT, SEEKER_FEE_PCT } from './fees'
+
 export interface EcosystemPanel {
   /** Manifest family — joins to LANDING_CHAINS for name/glyph/colour. */
   chainFamily: 'solana' | 'base' | 'celo'
@@ -28,7 +31,9 @@ export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
     proofs: [
       { label: 'Native escrow program, written in Anchor' },
       { label: 'SOL gas grants so first-time users start at zero' },
-      { label: 'Solana Mobile (Seeker) owners pay 1% instead of 2.5% — on every chain' },
+      {
+        label: `Solana Mobile (Seeker) owners pay ${SEEKER_FEE_PCT}% instead of ${FEE_PCT}% — on every chain`,
+      },
       { label: 'Connects through Mobile Wallet Adapter — Phantom, Solflare and the rest' },
     ],
   },
@@ -53,7 +58,10 @@ export const ECOSYSTEM_PANELS: readonly EcosystemPanel[] = [
 ] as const
 
 export const ECOSYSTEMS_HEADER = {
-  eyebrow: 'Multichain · one escrow, three ecosystems',
+  // The count is derived: this line said "three ecosystems" beside a panel
+  // list built from the manifest, so a fourth chain would have contradicted
+  // the very grid underneath it.
+  eyebrow: `Multichain · one escrow, ${LANDING_CHAINS.length} ecosystems`,
   h2: { lead: 'Built deep into every chain', emphasis: 'we ship on.' },
-  sub: 'Tenda isn’t "deployed to" these chains — it uses what makes each one special: Solana’s speed, Base’s USDC rails, Celo’s stablecoin gas. Same product, same guarantees, everywhere.',
+  sub: `Tenda isn’t "deployed to" these chains — it uses what makes each one special: ${CHAIN_STRENGTHS_PROSE}. Same product, same guarantees, everywhere.`,
 } as const

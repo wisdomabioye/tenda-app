@@ -4,7 +4,12 @@
  */
 
 import { GIG_CATEGORIES } from '@/data/categories'
-import { TRADE_COUNTRIES_PROSE, TRADE_CURRENCIES, TRADE_MARKET_COUNT } from '@/content'
+import {
+  EXCHANGE_ASSET_SYMBOLS_PROSE,
+  TRADE_COUNTRIES_PROSE,
+  TRADE_CURRENCIES,
+  TRADE_MARKET_COUNT,
+} from '@/content'
 
 export interface ProductPanel {
   id: 'gigs' | 'exchange'
@@ -41,7 +46,7 @@ export const PRODUCT_PANELS: readonly ProductPanel[] = [
     eyebrow: 'P2P trade · Exchange',
     name: 'tenda / exchange',
     headline: { lead: 'Crypto ↔ local cash,', emphasis: 'without the middle.' },
-    body: `Trade USDC, SOL or ETH for local cash in ${TRADE_COUNTRIES_PROSE}. You and your counterparty settle over whatever rail you both use — bank transfer or mobile money — and the escrow only releases when the trade completes. Tenda never touches the cash.`,
+    body: `Trade ${EXCHANGE_ASSET_SYMBOLS_PROSE} for local cash in ${TRADE_COUNTRIES_PROSE}. You and your counterparty settle over whatever rail you both use — bank transfer or mobile money — and the escrow only releases when the trade completes. Tenda never touches the cash.`,
     link: { label: 'Open the exchange', href: '/#download' },
     statsLabel: `${TRADE_MARKET_COUNT} markets`,
     statsValue: TRADE_CURRENCIES.join(' · '),
@@ -56,10 +61,17 @@ export const TWO_PRODUCTS_BRIDGE = {
 } as const
 
 /**
- * Label above the currency marquee. Names it as a rate display so the eight
- * flags below it are not read as eight tradable markets — see CurrencyMarquee.
+ * Label above the currency marquee.
+ *
+ * It has to say TWO true things at once, and an earlier draft got the first
+ * one wrong. The strip renders SOL priced in each currency — the server's
+ * `/v1/platform/exchange-rates` is `getAssetRates('solana')`, nothing to do
+ * with a wallet balance — so a caption promising "view your balance in these"
+ * described a different feature than the one underneath it. And the strip sits
+ * directly below an exchange panel advertising three tradable markets, so
+ * eight flags need naming as display currencies or they read as eight markets.
  */
-export const RATES_CAPTION = 'Reference rates · view your balance in any of these'
+export const RATES_CAPTION = 'Live SOL price · shown in the currencies your balance can display in'
 
 /** Caption under the exchange panel's trade deck. */
 export const TRADE_DECK_CAPTION = 'Example corridors · crypto in escrow, cash out local'

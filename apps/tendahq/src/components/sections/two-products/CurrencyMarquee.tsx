@@ -13,11 +13,13 @@ const FORMATTER = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 })
  * loading + LAN-isolated dev clients; M83-flagged GHS also uses the
  * placeholder when the upstream feed omits it).
  *
- * THE CAPTION IS LOAD-BEARING. These are the eight DISPLAY currencies — what a
- * balance can be quoted in — and the strip sits immediately below the exchange
- * panel, which advertises three tradable markets. Eight flags scrolling under
- * "3 markets" reads as a contradiction, or worse as eight markets, unless the
- * strip says what it is. Do not remove the label to save vertical space.
+ * THE CAPTION IS LOAD-BEARING, and it must describe THIS data. The rows show
+ * the SOL price in each currency (the endpoint is `getAssetRates('solana')`),
+ * and the currencies are the eight a balance can be DISPLAYED in — not markets
+ * you can trade into. Both halves matter: the strip sits immediately below an
+ * exchange panel advertising three tradable markets, so eight unlabelled flags
+ * read as eight markets; and a caption that calls a SOL ticker "your balance"
+ * is wrong about its own contents. Do not shorten it to save vertical space.
  */
 export function CurrencyMarquee() {
   const { data, loading } = useExchangeRates()

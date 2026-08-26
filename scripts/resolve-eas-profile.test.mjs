@@ -9,13 +9,21 @@
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
+import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { profileForSuffix, effectiveBuildType, resolveEasProfile } from './resolve-eas-profile.mjs'
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const SCRIPTS = dirname(fileURLToPath(import.meta.url))
+const ROOT = resolve(SCRIPTS, '..')
+const SCRIPT = resolve(SCRIPTS, 'resolve-eas-profile.mjs')
+
+/** Run the CLI exactly as the workflow does. */
+function runCli(args) {
+  return spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8' })
+}
 
 const FIXTURE = {
   build: {
@@ -97,4 +105,47 @@ test('the repo eas.json satisfies both the testnet and the mainnet release', () 
   const easJson = JSON.parse(readFileSync(resolve(ROOT, 'apps/mobile/eas.json'), 'utf8'))
   assert.equal(resolveEasProfile('testnet', easJson), 'testnet')
   assert.equal(resolveEasProfile('', easJson), 'mainnet')
+})
+
+/**
+ * The CLI block is what the workflow actually invokes, and nothing above
+ * touches it — the pure functions are imported directly. Its siblings
+ * (release-cli.test.mjs, version-cli.test.mjs) spawn their scripts for exactly
+ * this reason: an entry point guarded by `process.argv[1] === ...` that never
+ * matches would emit nothing, leaving the workflow with an EMPTY profile and a
+ * `--profile ""` that fails deep inside eas-cli instead of here.
+ */
+test('the CLI emits a GITHUB_OUTPUT line for the testnet release', () => {
+  const r = runCli(['testnet'])
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(r.stdout, 'profile=testnet\n')
+  assert.match(r.stderr, /→ EAS profile "testnet"/)
+})
+
+test('the CLI resolves an empty suffix to the mainnet profile', () => {
+  const r = runCli([''])
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(r.stdout, 'profile=mainnet\n')
+})
+
+/** An absent argv slot is the same case as an empty one, not an error. */
+test('the CLI treats a missing argument as the mainnet release', () => {
+  const r = runCli([])
+  assert.equal(r.status, 0, r.stderr)
+  assert.equal(r.stdout, 'profile=mainnet\n')
+})
+
+test('the CLI exits non-zero and prints nothing to stdout for an unknown profile', () => {
+  const r = runCli(['canary'])
+  assert.equal(r.status, 1)
+  assert.equal(r.stdout, '', 'a failed resolve must not emit a profile line')
+  assert.match(r.stderr, /needs a build profile named "canary"/)
+})
+
+/** Every emitted line must be valid GITHUB_OUTPUT syntax: key=value, no spaces. */
+test('the CLI output is valid GITHUB_OUTPUT syntax', () => {
+  for (const args of [['testnet'], ['']]) {
+    const line = runCli(args).stdout.trimEnd()
+    assert.match(line, /^[a-zA-Z][a-zA-Z0-9_]*=[^\s]+$/, `bad output line: ${line}`)
+  }
 })

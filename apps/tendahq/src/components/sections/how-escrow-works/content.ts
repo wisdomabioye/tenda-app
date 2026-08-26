@@ -18,6 +18,8 @@
  *     does not have to submit proof first to escalate.
  */
 
+import { APPROVAL_WINDOW_HOURS, EXCHANGE_ASSET_SYMBOLS_PROSE, FEE_EXAMPLE } from '@/content'
+
 export type StageAccent = 'brand' | 'accent' | 'success' | 'content'
 
 export interface EventRow {
@@ -59,11 +61,11 @@ export const STAGES: readonly Stage[] = [
     accent: 'brand',
     tag: 'Poster · Seller',
     name: 'Lock',
-    body: "The money leaves the poster's (or seller's) wallet and enters the on-chain escrow contract. Gigs are always escrowed in USDC; a trade can lock USDC or the chain's own token. Either way it is no longer in either party's control.",
+    body: `The money leaves the poster's (or seller's) wallet and enters the on-chain escrow contract. Gigs are always escrowed in USDC; a trade can lock any of ${EXCHANGE_ASSET_SYMBOLS_PROSE}. Either way it is no longer in either party's control.`,
     event: {
       rows: [
         { label: 'Event',  value: 'Locked',     kind: 'status', statusTone: 'locked' },
-        { label: 'Amount', value: '12 USDC',    kind: 'amt' },
+        { label: 'Amount', value: FEE_EXAMPLE.locked, kind: 'amt' },
         { label: 'Tx',     value: '5Qf…aL2',    kind: 'hash' },
       ],
     },
@@ -104,9 +106,9 @@ export const STAGES: readonly Stage[] = [
     body: 'In the same transaction, the contract splits the locked funds — the payout to the worker (or buyer), the platform fee to Tenda. The fee comes out of that payout, so what the poster locks is exactly what the poster spends.',
     event: {
       rows: [
-        { label: 'Locked',  value: '12 USDC',         kind: 'amt' },
-        { label: 'Fee',     value: '0.30 USDC · 2.5%', kind: 'plain' },
-        { label: 'Payout',  value: '11.70 USDC',      kind: 'amt' },
+        { label: 'Locked',  value: FEE_EXAMPLE.locked,  kind: 'amt' },
+        { label: 'Fee',     value: FEE_EXAMPLE.fee,     kind: 'plain' },
+        { label: 'Payout',  value: FEE_EXAMPLE.payout,  kind: 'amt' },
       ],
     },
   },
@@ -122,7 +124,7 @@ export interface FallbackRoute {
 export const FALLBACK = {
   tag: 'Fallback · when things go wrong',
   h3: "If proof is missing or contested, escrow resolves — it doesn't disappear.",
-  body: 'Funds are never stuck on Tenda. Every escrow has a deterministic exit — taken by a party, opened by a deadline, or settled by Tenda mediation. Whichever path triggers, both sides see the same on-chain receipt.',
+  body: 'Every exit below but one needs nobody except you and your counterparty: a deadline opens it, either party takes it, and Tenda is not in the loop. The exception is a dispute, which waits on our ruling — so that is the single place your money depends on us still being here. Whichever path triggers, both sides see the same on-chain receipt.',
   routes: [
     {
       letter: 'A',
@@ -140,7 +142,7 @@ export const FALLBACK = {
       letter: 'C',
       prefix: 'Claim unpaid.',
       body: "Proof is in and the poster neither approves nor disputes within the review window → the worker claims the payment themselves, split exactly as an approval would have been. It is a claim you make, not a release that happens to you.",
-      time: '48h',
+      time: `${APPROVAL_WINDOW_HOURS}h`,
     },
     {
       letter: 'D',
@@ -151,7 +153,7 @@ export const FALLBACK = {
     {
       letter: 'E',
       prefix: 'Dispute.',
-      body: 'Either side escalates once work is accepted — before or after proof. The party raising it posts a bond. Mediation reviews the evidence and instructs the program to pay the worker, refund the poster, or split between them.',
+      body: 'Either side escalates once work is accepted — before or after proof. Mediation reviews the evidence and instructs the program to pay the worker, refund the poster, or split between them. This is the one exit that waits on Tenda.',
       time: 'mediated',
     },
   ] satisfies readonly FallbackRoute[],

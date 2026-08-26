@@ -16,7 +16,13 @@
 
 import type { GasPolicy } from '@tenda/shared/chains'
 import { prose } from '@/lib/prose'
-import { ACTIVE_GAS_POLICIES, chainsByGasPolicy, type LandingChain } from './chains'
+import {
+  ACTIVE_GAS_POLICIES,
+  chainsByGasPolicy,
+  EVM_CHAIN_NAMES_PROSE,
+  SOLANA_CHAIN_NAMES_PROSE,
+  type LandingChain,
+} from './chains'
 
 export type FeatureStatus = 'live' | 'roadmap'
 
@@ -92,29 +98,86 @@ const GAS_POLICY_TEMPLATES: Partial<Record<GasPolicy, PolicyTemplate>> = {
   },
 }
 
-/** The cross-chain card: not a gas policy, so it is declared rather than derived. */
+/**
+ * The chain-derived strings a policy's copy needs. Shared by the cards and by
+ * GAS_FREE_START_SENTENCE, which describe the same rails in different grammar
+ * and must never disagree about which chains are on them.
+ */
+function contextFor(chains: readonly LandingChain[]): PolicyContext {
+  return {
+    names: prose(chains.map((c) => c.name)),
+    // A policy's chains can share a native token; dedupe so two Ethereum L2s
+    // read as "ETH", never "ETH and ETH".
+    natives: prose([...new Set(chains.map((c) => c.nativeSymbol))]),
+  }
+}
+
+/**
+ * The cross-chain card. Not a gas policy, so it is not derived from one — but
+ * the chains it names still are: the wallet story splits on CAIP-2 namespace
+ * (Solana goes through Mobile Wallet Adapter, every eip155 chain through
+ * WalletConnect), so a new EVM L2 joins the second half of this sentence by
+ * itself. This card was the one that still typed "On Solana … On EVM chains"
+ * by hand while the other three derived their chain names.
+ */
 const WALLET_FEATURE: Omit<OnboardingFeature, 'chains'> = {
   id: 'any-wallet',
   icon: 'Wallet',
   status: 'live',
   title: 'Bring the wallet you already have',
-  body: 'On Solana, Android hands the connection to whichever wallet you use — Phantom, Solflare and the rest. On EVM chains, any WalletConnect wallet works.',
+  body: `On ${SOLANA_CHAIN_NAMES_PROSE}, Android hands the connection to whichever wallet you use — Phantom, Solflare and the rest. On ${EVM_CHAIN_NAMES_PROSE}, any WalletConnect wallet works.`,
   fact: 'Mobile Wallet Adapter · WalletConnect',
 }
 
-function featureFor(policy: GasPolicy): OnboardingFeature | null {
+/**
+ * "new Solana wallets get seeded with a small SOL grant, and on Celo your USDC
+ * pays its own fees" — the gas-free-start sentence, assembled from the same
+ * policy templates the cards use so the FAQ cannot name a chain the manifest
+ * has stopped shipping (or miss one it has started).
+ *
+ * Only LIVE policies contribute: a roadmap rail has no business appearing in a
+ * sentence that promises you can start without gas money.
+ */
+const GAS_FREE_CLAUSES: Partial<Record<GasPolicy, (c: PolicyContext) => string>> = {
+  'native-seed': (c) => `new ${c.names} wallets get seeded with a small ${c.natives} grant`,
+  feeCurrency: (c) => `on ${c.names} your USDC pays its own fees`,
+}
+
+/**
+ * Build the sentence for a given set of policies. Exported so the SKIP paths
+ * can be exercised: a policy with no clause (`none`), and a policy whose rail
+ * is only on the roadmap (`paymaster`). Both must drop out — a sentence that
+ * promises you can start without gas money has no business naming a chain
+ * where you cannot.
+ */
+export function gasFreeSentence(policies: readonly GasPolicy[]): string {
+  return `${prose(
+    policies.flatMap((policy) => {
+      const clause = GAS_FREE_CLAUSES[policy]
+      const chains = chainsByGasPolicy(policy)
+      if (clause === undefined || chains.length === 0) return []
+      if (GAS_POLICY_TEMPLATES[policy]?.status !== 'live') return []
+      return [clause(contextFor(chains))]
+    }),
+  )}.`
+}
+
+export const GAS_FREE_START_SENTENCE = gasFreeSentence(ACTIVE_GAS_POLICIES)
+
+/**
+ * One card for one gas policy, or null when the policy has no copy (`none`,
+ * deliberately) or no chain currently running it. Exported for the same reason
+ * as gasFreeSentence: both null paths are unreachable through the live
+ * manifest and both decide whether a card appears at all.
+ */
+export function featureFor(policy: GasPolicy): OnboardingFeature | null {
   const template = GAS_POLICY_TEMPLATES[policy]
   if (template === undefined) return null
 
   const chains = chainsByGasPolicy(policy)
   if (chains.length === 0) return null
 
-  const context: PolicyContext = {
-    names: prose(chains.map((c) => c.name)),
-    // A policy's chains can share a native token; dedupe so two Ethereum L2s
-    // read as "ETH", never "ETH and ETH".
-    natives: prose([...new Set(chains.map((c) => c.nativeSymbol))]),
-  }
+  const context = contextFor(chains)
 
   return {
     id: template.id,

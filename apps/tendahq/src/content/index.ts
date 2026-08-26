@@ -9,25 +9,32 @@ export {
   LANDING_CHAINS,
   CHAIN_NAMES_LINE,
   CHAIN_NAMES_PROSE,
+  CHAIN_STRENGTHS_PROSE,
+  EXCHANGE_ASSET_SYMBOLS_PROSE,
   EVM_CHAIN_NAMES_PROSE,
-  chainsByGasPolicy,
   MORE_CHAINS_LABEL,
   chainByFamily,
   type LandingChain,
 } from './chains'
 export {
   TRADE_CURRENCIES,
-  TRADE_COUNTRY_NAMES,
   TRADE_COUNTRIES_PROSE,
   TRADE_CURRENCIES_PROSE,
   TRADE_MARKET_COUNT,
   DISPLAY_CURRENCY_COUNT,
 } from './markets'
+export {
+  FEE_PCT,
+  SEEKER_FEE_PCT,
+  APPROVAL_WINDOW_HOURS,
+  FEE_EXAMPLE,
+} from './fees'
 export { EXAMPLE_TASKS, type ExampleTask } from './tasks'
 export { EXAMPLE_TRADES, type ExampleTrade, type TradeAssetSymbol } from './trades'
 export {
   ONBOARDING_FEATURES,
   ONBOARDING_HEADER,
+  GAS_FREE_START_SENTENCE,
   type OnboardingFeature,
   type FeatureStatus,
 } from './features'
