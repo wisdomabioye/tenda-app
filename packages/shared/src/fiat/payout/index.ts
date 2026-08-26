@@ -18,6 +18,16 @@ export { PH_WALLET_NETWORKS } from './ph'
  * derives: SUPPORTED_PAYOUT_COUNTRIES, PAYOUT_CURRENCIES, the mobile country
  * picker, the server's field validation, and the landing's market count.
  *
+ * ONE SURFACE DOES NOT FOLLOW, and it is admin-only. `fiat_providers` is seeded
+ * with `onConflictDoNothing` because its rows are operator-tunable, so on a
+ * database that already has the `p2p_internal` row, the `capabilities` JSONB
+ * keeps whatever currency list it was first seeded with. Quote ROUTING is
+ * unaffected — `live-deps` builds the provider from P2P_INTERNAL_CAPABILITIES
+ * in code, and `supportsRequest` reads that — so a new market works the moment
+ * it is added. It is the admin config view that reads stale, which looks
+ * exactly like the market not having taken. Re-seed that row deliberately if
+ * an operator needs to see it.
+ *
  * One country maps to exactly one currency, deliberately. A country that needs
  * two (a Nigerian holding both a naira account and a domiciliary dollar one)
  * would need the currency stored on `bank_accounts` rather than inferred from

@@ -1,6 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { GH_MOMO_NETWORKS, PH_WALLET_NETWORKS, getPayoutRail } from '../../src/fiat/payout'
+import {
+  GH_MOMO_NETWORKS,
+  PAYOUT_COUNTRY_SPECS,
+  PH_WALLET_NETWORKS,
+  getPayoutRail,
+  type PayoutRailSpec,
+} from '../../src/fiat/payout'
 
 /**
  * Per-market rail rules: the field validation each country's spec enforces,
@@ -236,34 +242,60 @@ test('AE bank: the canonical form is what masks to the last four digits', () => 
   assert.notEqual(aeBank.maskAccountNumber(typed), aeBank.maskAccountNumber(stored))
 })
 
+/** Every rail in the registry, paired with the country it belongs to. */
+function allRails(): { country: string; rail: PayoutRailSpec }[] {
+  return Object.values(PAYOUT_COUNTRY_SPECS).flatMap((spec) =>
+    spec.rails.map((rail) => ({ country: spec.country, rail })),
+  )
+}
+
 /**
- * All-digit rails need no canonical form, and must not grow one by accident:
- * their validators already reject anything but digits, so a normaliser would
- * be silently reshaping a value that was going to be rejected anyway.
+ * A canonical form is only for rails that accept more than one spelling of the
+ * same account. All-digit rails do not: their validators reject anything but
+ * digits, so a normaliser there would be reshaping a value already destined for
+ * rejection — motion that hides input rather than checking it.
+ *
+ * Derived from the registry rather than listing today's seven digit rails, so
+ * a market added tomorrow is covered without anyone remembering to add it.
  */
-test('digit-only rails declare no canonical form', () => {
-  for (const [country, kind] of [['NG', 'bank'], ['KE', 'bank'], ['GH', 'bank'], ['GH', 'mobile_money'], ['ZA', 'bank'], ['PH', 'bank'], ['PH', 'mobile_money']] as const) {
-    const rail = getPayoutRail(country, kind)!
-    assert.equal(rail.normalizeAccountNumber, undefined, `${country}/${kind} should need no normaliser`)
-  }
+test('only rails that accept several spellings declare a canonical form', () => {
+  const withNormaliser = allRails()
+    .filter(({ rail }) => rail.normalizeAccountNumber !== undefined)
+    .map(({ country, rail }) => `${country}/${rail.kind}`)
+  assert.deepEqual(withNormaliser, ['AE/bank'], 'a rail gained or lost a canonical form')
 })
 
 /**
- * The invariant that ties the two together: any rail whose validator accepts a
- * value it would not store verbatim MUST declare a canonical form. Checked by
- * feeding each rail its own canonical output and asserting it still validates —
- * a normaliser that produced something the validator rejects would be worse
- * than none at all.
+ * The invariant that ties the two together: a canonical form must produce
+ * something its OWN validator still accepts. One that did not would be worse
+ * than none at all — it would turn a valid account into a rejected one at the
+ * moment of saving.
+ *
+ * Driven off each rail's own placeholder, which is the example the spec offers
+ * the user, so this covers every normalising rail rather than the one whose
+ * sample someone remembered to write down. A rail that declares a canonical
+ * form therefore owes a placeholder that is a real value — which is a fair
+ * price, since the placeholder is what the user is being told to imitate.
  */
 test('every canonical form still passes its own validator', () => {
-  const samples: Record<string, string> = { AE: 'AE07 0331 2345 6789 0123 456' }
-  for (const [country, typed] of Object.entries(samples)) {
-    const rail = getPayoutRail(country, 'bank')!
-    const canonical = rail.normalizeAccountNumber!(typed)
+  const normalising = allRails().filter(({ rail }) => rail.normalizeAccountNumber !== undefined)
+  assert.ok(normalising.length > 0, 'no rail declares a canonical form — has the hook been dropped?')
+
+  for (const { country, rail } of normalising) {
+    const field = rail.fields.find((f) => f.column === 'account_number')
+    assert.ok(field?.placeholder, `${country}/${rail.kind} has no account-number placeholder`)
+
+    const canonical = rail.normalizeAccountNumber!(field.placeholder)
+
     assert.equal(
-      rail.validate({ bank_code: 'Emirates NBD', account_number: canonical, account_name: 'A NAME' }),
+      // Spelled out rather than built from the field list: PayoutAccountInput
+      // has exactly these three columns, so constructing it generically would
+      // need a cast to say what the type already says.
+      rail.validate({ bank_code: 'A BANK', account_number: canonical, account_name: 'A NAME' }),
       null,
-      `${country} rejects its own canonical form`,
+      `${country}/${rail.kind} rejects the canonical form of its own placeholder`,
     )
+    // And it must be stable: saving twice cannot fork the stored value.
+    assert.equal(rail.normalizeAccountNumber!(canonical), canonical)
   }
 })

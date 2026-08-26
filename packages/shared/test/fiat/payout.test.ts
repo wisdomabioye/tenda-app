@@ -261,9 +261,11 @@ test('disabling a market: the country resolves to nothing anywhere', () => {
  */
 test('disabling a market: its country never inherits a live market currency', () => {
   for (const country of [DISABLED, 'ZW', 'XX', '']) {
-    const resolved = payoutCurrencyForCountry(country)
-    assert.equal(resolved, null, `${country} resolved to ${resolved}`)
-    assert.ok(!PAYOUT_CURRENCIES.includes(resolved as never))
+    // `null` IS the assertion. A follow-up `!PAYOUT_CURRENCIES.includes(...)`
+    // stood here and could never fail: the line above has already established
+    // the value is null, so it only ever asked whether the list contains null.
+    // It also needed an `as never` to compile, which was the tell.
+    assert.equal(payoutCurrencyForCountry(country), null, `${country} resolved to a currency`)
   }
 })
 
