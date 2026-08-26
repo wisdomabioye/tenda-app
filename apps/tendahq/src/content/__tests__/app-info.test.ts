@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { releaseStage } from '@/lib/release'
 import { APP_INFO } from '../app-info'
 import { CHAIN_NAMES_LINE } from '../chains'
 
@@ -20,9 +21,24 @@ describe('release facts', () => {
     expect(SOURCE.match(/apkUrl:\s*'[^']*'/g)).toHaveLength(1)
   })
 
+  /**
+   * TWO assertions, because the value one is not enough on its own. While the
+   * shipped version carries `-testnet`, a hardcoded `stage: 'testnet release'`
+   * produces exactly the same string as the derived one — so a value check
+   * passes for the hardcoded version and only fails on the day the suffix is
+   * dropped, which is the one day it must not. Proved: replacing the call with
+   * the literal left this test green until the source assertion was added.
+   *
+   * So the second assertion reads the FILE: the stage must come from
+   * `releaseStage(...)`, whose own branches are covered in lib/__tests__.
+   */
   it('derives the stage from the version suffix', () => {
-    const suffix = APP_INFO.version.includes('-') ? APP_INFO.version.split('-').slice(1).join('-') : ''
-    expect(APP_INFO.chains.stage).toBe(suffix === '' ? 'mainnet' : `${suffix} release`)
+    expect(APP_INFO.chains.stage).toBe(releaseStage(APP_INFO.version))
+  })
+
+  it('wires the stage through releaseStage rather than restating it', () => {
+    expect(SOURCE).toMatch(/stage:\s*releaseStage\(/)
+    expect(SOURCE).not.toMatch(/stage:\s*['"`]/)
   })
 
   it('strips the qualifier from the display version', () => {
