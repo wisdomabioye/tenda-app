@@ -56,7 +56,12 @@ export function OfferSellTab() {
     amountRaw,
     rate: rateNum,
     fiatTotal,
-    hasPayoutAccount: account !== null,
+    // An account whose country resolves to no currency is not a usable payout
+    // account — it happens when a market is retired while someone still has an
+    // account saved for it. Folding it in here keeps the CTA disabled with the
+    // existing reason; leaving it out enabled a button whose handler returned
+    // silently, which is the one outcome worse than a disabled one.
+    hasPayoutAccount: account !== null && currency !== null,
   })
   const valid = missingRequirement === null
 

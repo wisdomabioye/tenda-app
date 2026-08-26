@@ -78,7 +78,15 @@ const route: FastifyPluginAsync = async (fastify) => {
       }
 
       const bank_code = requireStr('bank_code', b.bank_code, 30)
-      const account_number = requireStr('account_number', b.account_number, 30)
+      // Canonicalise BEFORE validating and storing, where the rail declares a
+      // canonical form. Only rails that accept more than one spelling of the
+      // same account declare one — AE, whose IBAN validator takes the grouped
+      // form people paste. Storing what was typed instead of what identifies
+      // the account masked it wrongly and let the same IBAN be saved twice,
+      // spaced and unspaced, past the uniqueness constraint.
+      const account_number = (rail.normalizeAccountNumber ?? ((v: string) => v))(
+        requireStr('account_number', b.account_number, 30),
+      )
 
       // Name from NIP name-enquiry (Nigeria bank only, when configured);
       // user-supplied and unverified otherwise.

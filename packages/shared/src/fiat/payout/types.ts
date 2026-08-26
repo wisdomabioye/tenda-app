@@ -58,6 +58,21 @@ export interface PayoutRailSpec {
   /** Short label for the rail selector ('Bank account', 'Mobile money'). */
   label: string
   fields: PayoutFieldSpec[]
+  /**
+   * Canonical form of the account number, applied by the server BEFORE
+   * validating and storing. Optional: rails whose account number is all
+   * digits need none, because their validators reject anything else outright.
+   *
+   * It exists for rails that deliberately ACCEPT more than one spelling of the
+   * same account. AE is the first: `requireIban` normalises spacing and case so
+   * a pasted "AE07 0331 2345 6789 0123 456" validates, and without this hook
+   * that spaced string is what got stored — masking to "•••  456" instead of
+   * "••• 3456", and defeating the `(user_id, kind, bank_code, account_number)`
+   * uniqueness constraint, since the same IBAN spaced and unspaced are two
+   * different strings. A validator that accepts several forms has to say which
+   * one is the account.
+   */
+  normalizeAccountNumber?(accountNumber: string): string
   /** Validate a candidate account; returns a human message, or null if valid. */
   validate(input: PayoutAccountInput): string | null
   /** Masked account number for display ('•••• 6789'). */

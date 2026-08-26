@@ -189,3 +189,70 @@ test('DELETE /v1/bank-accounts/:id: an id the caller does not own is 404 (#105 T
   })
   assert.strictEqual(mine.statusCode, 200)
 })
+
+/**
+ * AE stores the CANONICAL IBAN, not what was typed.
+ *
+ * `requireIban` accepts the grouped form people paste from their bank, so for
+ * this rail the typed value and the value that identifies the account are
+ * different strings. The route applies the rail's `normalizeAccountNumber`
+ * before validating and inserting; without it the spaced string was stored,
+ * which masked as "••  456" rather than the last four digits, and let the same
+ * IBAN be saved twice — spaced and unspaced are two different values to the
+ * (user_id, kind, bank_code, account_number) uniqueness constraint.
+ */
+test('AE bank: a grouped IBAN saves canonically and masks to the last four', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app, { country: 'AE' })
+  const res = await post(app, u.token, {
+    country: 'AE',
+    bank_code: 'Emirates NBD',
+    account_number: 'AE07 0331 2345 6789 0123 456',
+    account_name: 'AHMED AL MANSOURI',
+  })
+  assert.strictEqual(res.statusCode, 201)
+  assert.strictEqual(res.json().account_number_masked, `${'\u2022'.repeat(19)} 3456`)
+})
+
+test('AE bank: the same IBAN spaced and unspaced is ONE account', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app, { country: 'AE' })
+  const body = { country: 'AE', bank_code: 'Emirates NBD', account_name: 'AHMED AL MANSOURI' }
+
+  const first = await post(app, u.token, { ...body, account_number: 'AE07 0331 2345 6789 0123 456' })
+  assert.strictEqual(first.statusCode, 201)
+
+  // The same account, typed without spaces and in lower case.
+  const second = await post(app, u.token, { ...body, account_number: 'ae070331234567890123456' })
+  assert.strictEqual(second.statusCode, 409, 'the duplicate was not recognised')
+})
+
+test('AE bank: a checksum-invalid IBAN is refused', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app, { country: 'AE' })
+  // One transposed pair — the length is right, the mod-97 check is not.
+  const res = await post(app, u.token, {
+    country: 'AE',
+    bank_code: 'Emirates NBD',
+    account_number: 'AE070331234567890123465',
+    account_name: 'AHMED AL MANSOURI',
+  })
+  assert.strictEqual(res.statusCode, 422)
+  assert.match(res.json().message ?? '', /valid IBAN/)
+})
+
+test('ZA and PH markets accept their own formats', { skip }, async () => {
+  const app = getApp()
+  const za = await createUser(app, { country: 'ZA' })
+  const zaRes = await post(app, za.token, {
+    country: 'ZA', bank_code: 'Capitec Bank', account_number: '1234567890', account_name: 'THANDI NKOSI',
+  })
+  assert.strictEqual(zaRes.statusCode, 201)
+
+  const ph = await createUser(app, { country: 'PH' })
+  const phRes = await post(app, ph.token, {
+    country: 'PH', kind: 'mobile_money', bank_code: 'GCASH', account_number: '09171234567', account_name: 'MARIA SANTOS',
+  })
+  assert.strictEqual(phRes.statusCode, 201)
+  assert.strictEqual(phRes.json().kind, 'mobile_money')
+})

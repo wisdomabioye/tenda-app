@@ -31,9 +31,9 @@ export { PH_WALLET_NETWORKS } from './ph'
  *
  * Expect the tests that pin the current market list to fail when you do it.
  * That is the intended friction, not breakage: retiring a corridor should leave
- * a visible diff, so update them in the same commit. (No count is given here —
- * an earlier draft said "three", and it was five commits stale by the time
- * anyone would have read it.)
+ * a visible diff, so update them in the same commit. No count is given here on
+ * purpose: an earlier draft of this line said "three", and adding one more test
+ * in the same sitting made it seven.
  *
  * WHAT IT DOES NOT REACH, and why that is deliberate:
  *

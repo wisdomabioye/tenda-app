@@ -45,7 +45,13 @@ export function InstantSellTab() {
           )}
           {error === 'failed' && <QuoteError onRetry={refetch} />}
 
-          {amountValid && account !== null && error === null && (
+          {/* `currency` joins the guard because a quote summary priced in an
+              unknown currency says nothing. It is implied — with no currency
+              useInstantSell asks for no quote, so `quote` stays null and the
+              block below never renders — but stating it is what lets the
+              compiler see that, and the compiler is what caught this file
+              being missed when the currency became nullable. */}
+          {amountValid && account !== null && error === null && currency !== null && (
             <>
               {quote !== null && (
                 <QuoteSummary

@@ -47,6 +47,17 @@ export function maskTail(value: string, visible = 4): string {
 }
 
 /**
+ * The canonical form of an IBAN: no whitespace, upper case.
+ *
+ * `requireIban` normalises internally so a pasted grouped IBAN validates, which
+ * means the value the user typed and the value that identifies the account are
+ * not the same string. Anything that STORES or COMPARES one must use this.
+ */
+export function canonicalIban(value: string): string {
+  return value.replace(/\s+/g, '').toUpperCase()
+}
+
+/**
  * IBAN, checked properly: country prefix, exact length, and the ISO 13616
  * mod-97 checksum.
  *
@@ -64,7 +75,7 @@ export function requireIban(
   label: string,
   opts: { country: string; length: number },
 ): string | null {
-  const iban = value.replace(/\s+/g, '').toUpperCase()
+  const iban = canonicalIban(value)
   if (iban.length === 0) return `${label} is required`
   if (!iban.startsWith(opts.country)) return `${label} must start with ${opts.country}`
   if (iban.length !== opts.length) return `${label} must be ${opts.length} characters`
@@ -79,6 +90,11 @@ export function requireIban(
  * Reduced digit-by-digit rather than via BigInt because an IBAN is up to 34
  * characters, so the expanded numeric string exceeds Number.MAX_SAFE_INTEGER
  * and a single `%` on a parsed number would silently lose precision.
+ *
+ * PRECONDITION: `iban` is already canonical — upper case, [A-Z0-9] only. The
+ * caller guards that one line above; the `code >= 65` test below reads a
+ * lower-case letter as a much larger number and would answer confidently and
+ * wrongly, so this stays private.
  */
 function mod97(iban: string): number {
   const rearranged = iban.slice(4) + iban.slice(0, 4)

@@ -1,5 +1,5 @@
 import type { PayoutCountrySpec } from './types'
-import { requireNonEmpty, requireIban, maskTail } from './helpers'
+import { requireNonEmpty, requireIban, canonicalIban, maskTail } from './helpers'
 
 /** UAE IBANs are exactly 23 characters: AE + 2 check digits + 3 bank + 16 account. */
 const AE_IBAN_LENGTH = 23
@@ -34,6 +34,9 @@ export const AE_PAYOUT: PayoutCountrySpec = {
         { column: 'account_number', label: 'IBAN', placeholder: 'AE07 0331 2345 6789 0123 456', keyboard: 'default', autoCapitalize: 'characters', maxLength: 29 },
         { column: 'account_name', label: 'Account name', placeholder: 'AHMED AL MANSOURI', keyboard: 'default', autoCapitalize: 'characters' },
       ],
+      // Accepting the grouped form means the typed value and the account are
+      // different strings; this is the one that gets stored and compared.
+      normalizeAccountNumber: canonicalIban,
       validate: (i) =>
         requireNonEmpty(i.bank_code, 'Bank name') ??
         requireNonEmpty(i.account_name, 'Account name') ??

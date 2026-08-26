@@ -205,3 +205,65 @@ test('AE bank: rejects blank fields, naming the one that is missing', () => {
 test('AE bank: masks all but the last 4 of the IBAN', () => {
   assert.equal(aeBank.maskAccountNumber(AE_IBAN), `${'•'.repeat(19)} 3456`)
 })
+
+/**
+ * NORMALISATION IS PART OF THE CONTRACT, not a convenience.
+ *
+ * `requireIban` accepts the grouped form people paste, so for AE the value the
+ * user types and the value that identifies the account are different strings.
+ * Whatever gets stored has to be the second one: masking ran on the raw input
+ * and revealed "  456" instead of "3456", and the uniqueness constraint on
+ * (user_id, kind, bank_code, account_number) saw the spaced and unspaced forms
+ * as two different accounts, so the same IBAN could be saved twice.
+ */
+test('AE bank: declares a canonical account number, and it is the unspaced IBAN', () => {
+  assert.ok(aeBank.normalizeAccountNumber, 'AE must declare a canonical form')
+  for (const typed of ['AE07 0331 2345 6789 0123 456', 'ae070331234567890123456', '  AE07 0331 2345 6789 0123 456  ']) {
+    assert.equal(aeBank.normalizeAccountNumber(typed), AE_IBAN, `${typed} did not canonicalise`)
+  }
+})
+
+test('AE bank: canonicalising is idempotent, so re-saving cannot fork the value', () => {
+  const once = aeBank.normalizeAccountNumber!(AE_IBAN)
+  assert.equal(aeBank.normalizeAccountNumber!(once), once)
+})
+
+test('AE bank: the canonical form is what masks to the last four digits', () => {
+  const typed = 'AE07 0331 2345 6789 0123 456'
+  const stored = aeBank.normalizeAccountNumber!(typed)
+  assert.equal(aeBank.maskAccountNumber(stored), `${'•'.repeat(19)} 3456`)
+  // And the raw input is exactly what it must NOT be stored as.
+  assert.notEqual(aeBank.maskAccountNumber(typed), aeBank.maskAccountNumber(stored))
+})
+
+/**
+ * All-digit rails need no canonical form, and must not grow one by accident:
+ * their validators already reject anything but digits, so a normaliser would
+ * be silently reshaping a value that was going to be rejected anyway.
+ */
+test('digit-only rails declare no canonical form', () => {
+  for (const [country, kind] of [['NG', 'bank'], ['KE', 'bank'], ['GH', 'bank'], ['GH', 'mobile_money'], ['ZA', 'bank'], ['PH', 'bank'], ['PH', 'mobile_money']] as const) {
+    const rail = getPayoutRail(country, kind)!
+    assert.equal(rail.normalizeAccountNumber, undefined, `${country}/${kind} should need no normaliser`)
+  }
+})
+
+/**
+ * The invariant that ties the two together: any rail whose validator accepts a
+ * value it would not store verbatim MUST declare a canonical form. Checked by
+ * feeding each rail its own canonical output and asserting it still validates —
+ * a normaliser that produced something the validator rejects would be worse
+ * than none at all.
+ */
+test('every canonical form still passes its own validator', () => {
+  const samples: Record<string, string> = { AE: 'AE07 0331 2345 6789 0123 456' }
+  for (const [country, typed] of Object.entries(samples)) {
+    const rail = getPayoutRail(country, 'bank')!
+    const canonical = rail.normalizeAccountNumber!(typed)
+    assert.equal(
+      rail.validate({ bank_code: 'Emirates NBD', account_number: canonical, account_name: 'A NAME' }),
+      null,
+      `${country} rejects its own canonical form`,
+    )
+  }
+})

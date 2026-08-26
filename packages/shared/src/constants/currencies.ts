@@ -10,7 +10,7 @@ export const CURRENCY_META: Record<
   KES: { symbol: 'KSh', name: 'Kenyan Shilling',    flag: '🇰🇪', locale: 'en-KE', coingeckoKey: 'kes' },
   ZAR: { symbol: 'R',   name: 'South African Rand', flag: '🇿🇦', locale: 'en-ZA', coingeckoKey: 'zar' },
   PHP: { symbol: '₱',   name: 'Philippine Peso',    flag: '🇵🇭', locale: 'en-PH', coingeckoKey: 'php' },
-  AED: { symbol: 'AED', name: 'UAE Dirham',         flag: '🇦🇪', locale: 'ar-AE', coingeckoKey: 'aed' },
+  AED: { symbol: 'AED', name: 'UAE Dirham',         flag: '🇦🇪', locale: 'en-AE', coingeckoKey: 'aed' },
   USD: { symbol: '$',   name: 'US Dollar',          flag: '🇺🇸', locale: 'en-US', coingeckoKey: 'usd' },
   GBP: { symbol: '£',   name: 'British Pound',      flag: '🇬🇧', locale: 'en-GB', coingeckoKey: 'gbp' },
   EUR: { symbol: '€',   name: 'Euro',               flag: '🇪🇺', locale: 'de-DE', coingeckoKey: 'eur' },
