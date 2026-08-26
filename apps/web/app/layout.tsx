@@ -22,7 +22,7 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   metadataBase: siteUrl(),
-  title: { default: APP_INFO.name, template: `%s — ${APP_INFO.name}` },
+  title: { default: APP_INFO.name, template: `%s | ${APP_INFO.name}` },
   description: APP_INFO.description,
 }
 
