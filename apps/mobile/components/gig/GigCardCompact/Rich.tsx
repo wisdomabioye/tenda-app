@@ -17,8 +17,11 @@ interface Props {
 
 /**
  * Variant C, Rich Compact (home.html `.card-rich`, shipped in the rendered list preview).
- * Vertical stack: top row (cat/status + deadline), title, 2-line excerpt, foot row
- * with location + remote-pill + price + fiat alt. Densest of the variants, surfaces
+ * Vertical stack: top row (cat/status + chain + deadline), title, 2-line excerpt,
+ * foot row with location + remote-pill + price + fiat alt. The chain reads on the
+ * top row beside the category rather than down in the foot: which chain a gig
+ * pays on decides whether the reader holds a wallet that can take it, and this
+ * is the card the public feed actually renders. Densest of the variants, surfaces
  * the gig's description preview alongside price and meta.
  */
 export function GigCardCompactRich({ gig, showStatus = false }: Props) {
@@ -54,51 +57,56 @@ export function GigCardCompactRich({ gig, showStatus = false }: Props) {
       ]}
     >
       <View style={s.top}>
-        <View
-          style={[
-            s.dot,
-            { backgroundColor: showStatus ? statusDotColor : categoryColor.base },
-          ]}
-        />
-        <Text
-          style={[s.label, { color: theme.colors.content.secondary }]}
-          numberOfLines={1}
-        >
-          {showStatus ? STATUS_LABEL[gig.status] : categoryLabel}
-        </Text>
-        <View style={s.spacer} />
-        {deadlineMeta.label ? (
-          <View style={s.deadline}>
-            {deadlineMeta.glyph === 'check' ? (
-              <Check size={10} color={theme.colors.feedback.success.base} strokeWidth={3} />
-            ) : deadlineMeta.glyph === 'clock' ? (
-              <Clock
-                size={10}
-                color={
-                  isUrgent
-                    ? theme.colors.feedback.warning.base
-                    : theme.colors.content.tertiary
-                }
-              />
-            ) : null}
-            <Text
-              style={[
-                s.deadlineText,
-                {
-                  color: isUrgent
-                    ? theme.colors.feedback.warning.base
-                    : isSuccess
-                      ? theme.colors.feedback.success.base
-                      : theme.colors.content.tertiary,
-                  fontWeight: isUrgent || isSuccess ? '600' : '400',
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {deadlineMeta.label}
-            </Text>
-          </View>
-        ) : null}
+        <View style={s.category}>
+          <View
+            style={[
+              s.dot,
+              { backgroundColor: showStatus ? statusDotColor : categoryColor.base },
+            ]}
+          />
+          <Text
+            style={[s.label, { color: theme.colors.content.secondary }]}
+            numberOfLines={1}
+          >
+            {showStatus ? STATUS_LABEL[gig.status] : categoryLabel}
+          </Text>
+        </View>
+
+        <View style={s.rowBadges}>
+          <ChainBadge chainId={gig.chain_id} />
+          {deadlineMeta.label ? (
+            <View style={s.deadline}>
+              {deadlineMeta.glyph === 'check' ? (
+                <Check size={10} color={theme.colors.feedback.success.base} strokeWidth={3} />
+              ) : deadlineMeta.glyph === 'clock' ? (
+                <Clock
+                  size={10}
+                  color={
+                    isUrgent
+                      ? theme.colors.feedback.warning.base
+                      : theme.colors.content.tertiary
+                  }
+                />
+              ) : null}
+              <Text
+                style={[
+                  s.deadlineText,
+                  {
+                    color: isUrgent
+                      ? theme.colors.feedback.warning.base
+                      : isSuccess
+                        ? theme.colors.feedback.success.base
+                        : theme.colors.content.tertiary,
+                    fontWeight: isUrgent || isSuccess ? '600' : '400',
+                  },
+                ]}
+                numberOfLines={1}
+              >
+                {deadlineMeta.label}
+              </Text>
+            </View>
+          ) : null}
+        </View>
       </View>
 
       <Text
@@ -153,8 +161,6 @@ export function GigCardCompactRich({ gig, showStatus = false }: Props) {
           </View>
         </View>
 
-        <ChainBadge chainId={gig.chain_id} />
-
         <Text
           style={[s.price, { color: theme.colors.content.primary }]}
           numberOfLines={1}
@@ -183,7 +189,25 @@ const s = StyleSheet.create({
     gap: 10,
   },
   pressed: { opacity: 0.96, transform: [{ scale: 0.995 }] },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Wraps, because the chain joined this row. Measured at a 320px device: the
+  // feed pads 20 and the card pads 16, leaving 248px — and category + chain +
+  // deadline together want ~245px, which is no margin at all once a testnet
+  // name ('Solana Devnet') or a long deadline ('12 days left') shows up. The
+  // badge pair drops to its own right-aligned line instead of squeezing the
+  // category away; short labels ('BASE', '4h left') still share one line.
+  top: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 8, rowGap: 6 },
+  // Dot and label travel together so a wrap can never strand the dot alone.
+  category: { flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 1, minWidth: 0 },
+  // Chain and deadline likewise; `marginLeft: 'auto'` right-aligns the pair on
+  // whichever line it ends up on. It replaces the old `spacer` flex child,
+  // which cannot right-align anything once the row is allowed to wrap.
+  rowBadges: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
   dot: { width: 7, height: 7, borderRadius: 3.5 },
   label: {
     fontFamily: typography.fonts.mono,
@@ -192,8 +216,11 @@ const s = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.7,
     textTransform: 'uppercase',
+    // Pairs with `minWidth: 0` on `category`: in RN a flex child defaults to
+    // `flexShrink: 0`, so `numberOfLines` above has nothing to act on and the
+    // label would push the row instead of eliding.
+    flexShrink: 1,
   },
-  spacer: { flex: 1 },
   deadline: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   deadlineText: {
     fontFamily: typography.fonts.mono,

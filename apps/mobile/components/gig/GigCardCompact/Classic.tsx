@@ -18,8 +18,8 @@ interface Props {
 
 /**
  * Variant, Classic (pre-V2 anatomy, kept for revertibility).
- * Vertical stack: category dot + label, title (2-line), MoneyText (fiat ≈ sol horizontal),
- * footer meta. Visually different from wireframe variant B `.card-classic` (which is a
+ * Vertical stack: category dot + label + chain/status badges, title (2-line),
+ * MoneyText (fiat ≈ sol horizontal), footer meta. Visually different from wireframe variant B `.card-classic` (which is a
  * horizontal row); the name follows the wireframe taxonomy convention without claiming
  * 1:1 fidelity to its specific anatomy.
  */
@@ -47,11 +47,17 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
       ]}
     >
       <View style={s.categoryRow}>
-        <View style={[s.categoryDot, { backgroundColor: categoryColor.base }]} />
-        <Text variant="caption" color={theme.colors.content.secondary}>
-          {categoryLabel}
-        </Text>
-        {showStatus && <GigStatusBadge status={gig.status} />}
+        <View style={s.category}>
+          <View style={[s.categoryDot, { backgroundColor: categoryColor.base }]} />
+          <Text variant="caption" color={theme.colors.content.secondary} numberOfLines={1} style={s.categoryLabel}>
+            {categoryLabel}
+          </Text>
+        </View>
+
+        <View style={s.rowBadges}>
+          <ChainBadge chainId={gig.chain_id} />
+          {showStatus && <GigStatusBadge status={gig.status} />}
+        </View>
       </View>
 
       <Text variant="subheading" numberOfLines={2} style={s.title}>
@@ -59,8 +65,6 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
       </Text>
 
       <MoneyText fiat={price.fiat} currency={currency} amountLabel={`${price.amount.toFixed(price.amount >= 1 ? 2 : 3)} ${price.symbol}`} size={typography.styles.body.fontSize} />
-
-      <ChainBadge chainId={gig.chain_id} style={s.chain} />
 
       <View style={s.footer}>
         <View style={s.metaItem}>
@@ -121,10 +125,24 @@ const s = StyleSheet.create({
     borderWidth: 1,
     padding: spacing.md,
   },
-  categoryRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // Wraps for the same measured reason as the other two variants: the chain
+  // joined this row, and category + chain + status badge do not fit a card row
+  // at a 320px device. The badge pair drops to its own right-aligned line
+  // rather than squeezing the category label away.
+  categoryRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', columnGap: 6, rowGap: 6 },
+  category: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, minWidth: 0 },
+  // In RN a flex child defaults to `flexShrink: 0`, so `numberOfLines` on the
+  // label needs this to be able to elide rather than push the row.
+  categoryLabel: { flexShrink: 1 },
+  rowBadges: {
+    marginLeft: 'auto',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
   categoryDot: { width: 8, height: 8, borderRadius: 4 },
   title: { marginTop: spacing.sm, marginBottom: spacing.xs },
-  chain: { marginTop: spacing.xs },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   footer: {
     flexDirection: 'row',

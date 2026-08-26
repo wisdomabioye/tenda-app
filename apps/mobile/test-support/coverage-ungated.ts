@@ -87,7 +87,18 @@ export const UNGATED_WITH_TESTS: readonly string[] = [
   'components/form/SearchSheet.tsx',
   'components/form/file-picker/file-picker.operations.ts',
   'components/gig/DraftsBanner.tsx',
+  // The three feed-card variants. PriceLeading was seeded here un-measured;
+  // Rich and Classic join it because the chain-badge placement suite is the
+  // first thing ever to render them, and MEASURED, gating all three drops
+  // global branches 92 -> 89.31, under the 90 floor. The statements are fine
+  // (Classic 93.33, PriceLeading 95.23, Rich 95.23) — it is branches that sink
+  // it, 48-59 each: every variant is a stack of display ternaries (deadline
+  // tone and glyph, remote vs on-site, cross-border, showStatus) and the suites
+  // drive one arm of each. Covering those arms is what earns all three a place
+  // in the gate; until then they stay recorded here rather than silently dark.
+  'components/gig/GigCardCompact/Classic.tsx',
   'components/gig/GigCardCompact/PriceLeading.tsx',
+  'components/gig/GigCardCompact/Rich.tsx',
   'components/gig/GigForm.tsx',
   'components/gig/ProofRequirementsNote.tsx',
   'components/gig/category-icons.ts',

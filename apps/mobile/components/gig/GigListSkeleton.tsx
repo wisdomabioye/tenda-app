@@ -13,7 +13,14 @@ import { Skeleton } from '@/components/ui'
 import { spacing } from '@/theme/tokens'
 import type { GigCardVariant } from './GigCardCompact'
 
-/** Rendered height of each `GigCardCompact` variant (padding + line boxes). */
+/**
+ * Rendered height of each `GigCardCompact` variant (padding + line boxes).
+ *
+ * The COMMON height, not a guarantee: since the chain badge joined the category
+ * row that row wraps when the labels are long (a testnet name beside a
+ * multi-day deadline), which adds one badge line to the card. No single number
+ * covers both, and these track the case that renders on most rows.
+ */
 const CARD_HEIGHT: Record<GigCardVariant, number> = {
   rich: 150,
   priceLeading: 112,
