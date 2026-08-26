@@ -3,18 +3,34 @@ import type { PayoutCountrySpec, PayoutRailKind, PayoutRailSpec } from './types'
 import { NG_PAYOUT } from './ng'
 import { KE_PAYOUT } from './ke'
 import { GH_PAYOUT } from './gh'
+import { ZA_PAYOUT } from './za'
+import { PH_PAYOUT } from './ph'
 
 export * from './types'
 export { GH_MOMO_NETWORKS } from './gh'
+export { PH_WALLET_NETWORKS } from './ph'
 
-/** The launch payout countries, keyed by ISO 3166-1 alpha-2. */
+/**
+ * The payout countries, keyed by ISO 3166-1 alpha-2.
+ *
+ * Adding a market is this entry plus one spec file — every downstream surface
+ * derives: SUPPORTED_PAYOUT_COUNTRIES, PAYOUT_CURRENCIES, the mobile country
+ * picker, the server's field validation, and the landing's market count.
+ *
+ * One country maps to exactly one currency, deliberately. A country that needs
+ * two (a Nigerian holding both a naira account and a domiciliary dollar one)
+ * would need the currency stored on `bank_accounts` rather than inferred from
+ * the country — a schema change, not a spec file.
+ */
 export const PAYOUT_COUNTRY_SPECS: Readonly<Record<string, PayoutCountrySpec>> = {
   NG: NG_PAYOUT,
   KE: KE_PAYOUT,
   GH: GH_PAYOUT,
+  ZA: ZA_PAYOUT,
+  PH: PH_PAYOUT,
 }
 
-/** Supported payout country codes (['NG','KE','GH']). */
+/** Supported payout country codes, in registry order. */
 export const SUPPORTED_PAYOUT_COUNTRIES: string[] = Object.keys(PAYOUT_COUNTRY_SPECS)
 
 /**
@@ -26,24 +42,29 @@ export const PAYOUT_CURRENCIES: SupportedCurrency[] = [
   ...new Set(Object.values(PAYOUT_COUNTRY_SPECS).map((s) => s.currency)),
 ]
 
-/**
- * Fallback settlement currency when a user's country isn't a payout market
- * (the launch anchor). Asserted to be one of PAYOUT_CURRENCIES by the tests.
- */
-export const DEFAULT_PAYOUT_CURRENCY: SupportedCurrency = 'NGN'
-
 /** Country spec, or null when the country isn't a supported payout market. */
 export function getPayoutSpec(country: string): PayoutCountrySpec | null {
   return PAYOUT_COUNTRY_SPECS[country] ?? null
 }
 
 /**
- * The single fiat currency payouts settle in for a country, or the launch
- * default when the country has no spec. One source for every surface that
- * needs "which currency does this seller quote in" (Sell/cash-out + P2P post).
+ * The single fiat currency payouts settle in for a country — `null` when the
+ * country is not a payout market, or not known yet.
+ *
+ * THERE IS NO DEFAULT, deliberately. This used to fall back to NGN, which was
+ * wrong in two directions at once. On the server it turned "this account is in
+ * a country we don't serve" into "this account is Nigerian", so an unrecognised
+ * country silently satisfied the guard on an NGN-priced offer instead of
+ * failing it. On mobile it printed a currency next to an empty payout field, so
+ * the composer showed NGN to a Kenyan until they picked an account.
+ *
+ * Under a strict one-country-one-currency model the account always knows the
+ * answer, so a fallback can only ever be a guess — and every caller here is
+ * better served by handling the absence: the guards reject, and the UI shows
+ * nothing until a payout account is chosen.
  */
-export function payoutCurrencyForCountry(country: string | null): SupportedCurrency {
-  return (country !== null ? getPayoutSpec(country)?.currency : undefined) ?? DEFAULT_PAYOUT_CURRENCY
+export function payoutCurrencyForCountry(country: string | null): SupportedCurrency | null {
+  return (country !== null ? getPayoutSpec(country)?.currency : undefined) ?? null
 }
 
 /**

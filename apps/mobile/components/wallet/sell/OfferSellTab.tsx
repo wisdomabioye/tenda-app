@@ -43,6 +43,9 @@ export function OfferSellTab() {
 
   const option = selection.option
   const account = payout.selected
+  // `null` until a payout account is chosen. There is no default: the account's
+  // country is the only thing that knows the currency, so the rate label reads
+  // generically and both the submit and the review card wait for it.
   const currency = payoutCurrencyForCountry(account?.country ?? null)
 
   const rateNum = Number(rate)
@@ -58,7 +61,7 @@ export function OfferSellTab() {
   const valid = missingRequirement === null
 
   function handleSubmit() {
-    if (!valid || option === null || amountRaw === null || account === null) return
+    if (!valid || option === null || amountRaw === null || account === null || currency === null) return
     void submit({ option, amountRaw, account, fiatTotal, currency, rate: rateNum, acceptHours, paymentWindowSeconds })
   }
 
@@ -83,7 +86,7 @@ export function OfferSellTab() {
           <>
             <SectionLabel>Your rate</SectionLabel>
             <Input
-              label={`${currency} per ${symbol || 'unit'}`}
+              label={currency !== null ? `${currency} per ${symbol || 'unit'}` : `Rate per ${symbol || 'unit'}`}
               placeholder="150000"
               value={rate}
               onChangeText={setRate}
@@ -99,7 +102,7 @@ export function OfferSellTab() {
 
             <SellPayoutSection payout={payout} />
 
-            {valid && option !== null && amountRaw !== null && account !== null && (
+            {valid && option !== null && amountRaw !== null && account !== null && currency !== null && (
               <>
                 <SectionLabel>Review your offer</SectionLabel>
                 <OfferReviewCard

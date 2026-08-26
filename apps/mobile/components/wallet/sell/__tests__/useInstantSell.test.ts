@@ -4,7 +4,6 @@
  * new offer, and a licensed-provider intent routes to the intent screen.
  */
 import { renderHook, act } from '@testing-library/react-native'
-import { DEFAULT_PAYOUT_CURRENCY } from '@tenda/shared'
 import type { BankAccountSummary } from '@tenda/shared'
 import type { ExchangeAssetOption } from '@/hooks/useExchangeAssetOptions'
 
@@ -14,12 +13,19 @@ const mockOfframp = jest.fn()
 const mockReplace = jest.fn()
 const mockToast = jest.fn()
 const mockRefetch = jest.fn()
+// Captures what the hook ASKS FOR, not just what it gets back: passing null
+// means "do not quote", which is the behaviour when no currency is resolved.
+// The `mock` prefix is required — jest hoists the factory above these consts.
+const mockQuoteArgs = jest.fn()
 
 jest.mock('expo-router', () => ({ useRouter: () => ({ replace: mockReplace }) }))
 // Mirrors the real hook, which returns `{ ...state, refetch }`. Omitting
 // refetch here made the stale-quote branch throw instead of nudging.
 jest.mock('@/hooks/useFiatQuote', () => ({
-  useFiatQuote: () => ({ ...mockQuoteState, refetch: mockRefetch }),
+  useFiatQuote: (args: unknown) => {
+    mockQuoteArgs(args)
+    return { ...mockQuoteState, refetch: mockRefetch }
+  },
 }))
 jest.mock('@/api/client', () => ({
   api: { fiat: { offramp: (b: unknown) => mockOfframp(b) } },
@@ -38,6 +44,7 @@ beforeEach(() => {
   mockReplace.mockReset()
   mockToast.mockReset()
   mockRefetch.mockReset()
+  mockQuoteArgs.mockReset()
 })
 
 test('blocks submit and nudges when there is no fresh quote', async () => {
@@ -87,7 +94,24 @@ test('confirm is a no-op with no option/amount/account (nothing to quote)', asyn
   expect(mockToast).not.toHaveBeenCalled() // guarded before the stale-quote nudge
 })
 
-test('falls back to the default payout currency when there is no account', () => {
+/**
+ * There is no default payout currency any more. It used to answer NGN with no
+ * account selected, which showed a Kenyan seller a naira label on an empty
+ * form — and, on the server, made an unrecognised country look Nigerian to the
+ * offer guard. The account's country is the only thing that knows.
+ */
+test('reports no currency until a payout account is chosen', () => {
   const { result } = renderHook(() => useInstantSell({ option: OPTION, amountRaw: '2500000', account: null }))
-  expect(result.current.currency).toBe(DEFAULT_PAYOUT_CURRENCY)
+  expect(result.current.currency).toBeNull()
+})
+
+test('does not request a quote while the currency is unknown', () => {
+  renderHook(() => useInstantSell({ option: OPTION, amountRaw: '2500000', account: null }))
+  // A quote priced in a guessed currency is worse than no quote.
+  expect(mockQuoteArgs).toHaveBeenCalledWith(null)
+})
+
+test('requests a quote in the account currency once an account is chosen', () => {
+  renderHook(() => useInstantSell({ option: OPTION, amountRaw: '2500000', account: ACCOUNT }))
+  expect(mockQuoteArgs).toHaveBeenCalledWith(expect.objectContaining({ fiatCurrency: 'NGN' }))
 })

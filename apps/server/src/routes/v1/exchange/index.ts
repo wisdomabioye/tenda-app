@@ -177,7 +177,20 @@ const exchangeRoutes: FastifyPluginAsync = async (fastify) => {
     if (account === null) {
       throw new AppError(404, ErrorCode.NOT_FOUND, 'payout account not found')
     }
-    if (payoutCurrencyForCountry(account.country) !== fiat_currency) {
+    // Two distinct failures, told apart because the fixes differ: an account in
+    // a country we do not serve needs a different account, while a mismatch
+    // needs a different price. `payoutCurrencyForCountry` answers null for the
+    // first — it used to answer NGN, which turned an unserved country into a
+    // Nigerian one and let it satisfy an NGN-priced offer.
+    const accountCurrency = payoutCurrencyForCountry(account.country)
+    if (accountCurrency === null) {
+      throw new AppError(
+        400,
+        ErrorCode.VALIDATION_ERROR,
+        `payouts are not supported in '${account.country}'`,
+      )
+    }
+    if (accountCurrency !== fiat_currency) {
       throw new AppError(
         400,
         ErrorCode.VALIDATION_ERROR,

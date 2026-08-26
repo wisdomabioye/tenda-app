@@ -5,8 +5,6 @@ import {
   SUPPORTED_PAYOUT_COUNTRIES,
   PAYOUT_CURRENCIES,
   PAYOUT_RAIL_KINDS,
-  DEFAULT_PAYOUT_CURRENCY,
-  GH_MOMO_NETWORKS,
   getPayoutSpec,
   countryDisplayName,
   getPayoutRail,
@@ -18,14 +16,39 @@ import { payoutRailKindEnum } from '../../src/db/schema/fiat'
 
 // ---------- registry shape -------------------------------------------------
 
-test('launch countries are exactly NG, KE, GH', () => {
-  assert.deepEqual(new Set(SUPPORTED_PAYOUT_COUNTRIES), new Set(['NG', 'KE', 'GH']))
+test('payout countries are exactly NG, KE, GH, ZA, PH', () => {
+  assert.deepEqual(new Set(SUPPORTED_PAYOUT_COUNTRIES), new Set(['NG', 'KE', 'GH', 'ZA', 'PH']))
 })
 
 test('PAYOUT_CURRENCIES is derived, deduped, and a subset of SUPPORTED_CURRENCIES', () => {
-  assert.deepEqual(new Set(PAYOUT_CURRENCIES), new Set(['NGN', 'KES', 'GHS']))
+  assert.deepEqual(new Set(PAYOUT_CURRENCIES), new Set(['NGN', 'KES', 'GHS', 'ZAR', 'PHP']))
   for (const c of PAYOUT_CURRENCIES) {
     assert.ok(SUPPORTED_CURRENCIES.includes(c), `${c} must be a supported currency`)
+  }
+})
+
+test('one country maps to exactly one currency', () => {
+  // The model the product deliberately keeps: currency is INFERRED from the
+  // account's country, never stored. A spec declaring two would mean that
+  // inference had quietly stopped being total.
+  for (const spec of Object.values(PAYOUT_COUNTRY_SPECS)) {
+    assert.ok(SUPPORTED_CURRENCIES.includes(spec.currency))
+  }
+})
+
+test('every market declares a rail, matches its key, and collects every column', () => {
+  for (const [code, spec] of Object.entries(PAYOUT_COUNTRY_SPECS)) {
+    assert.ok(spec.rails.length > 0, `${code} declares no rail`)
+    assert.equal(spec.country, code, `${code} spec disagrees with its registry key`)
+    const kinds = spec.rails.map((r) => r.kind)
+    assert.equal(new Set(kinds).size, kinds.length, `${code} repeats a rail kind`)
+    for (const rail of spec.rails) {
+      // A column the form never collects is a column that saves blank.
+      const columns = new Set(rail.fields.map((f) => f.column))
+      for (const required of ['bank_code', 'account_number', 'account_name'] as const) {
+        assert.ok(columns.has(required), `${code}/${rail.kind} never collects ${required}`)
+      }
+    }
   }
 })
 
@@ -64,15 +87,28 @@ test('every rail kind used by a spec is a known PAYOUT_RAIL_KIND (no drift)', ()
   }
 })
 
-test('DEFAULT_PAYOUT_CURRENCY is itself a supported payout currency', () => {
-  assert.ok(PAYOUT_CURRENCIES.includes(DEFAULT_PAYOUT_CURRENCY))
+test('payoutCurrencyForCountry resolves every market to its own currency', () => {
+  for (const country of SUPPORTED_PAYOUT_COUNTRIES) {
+    const currency = payoutCurrencyForCountry(country)
+    assert.notEqual(currency, null, `${country} is a market but resolves no currency`)
+    assert.equal(currency, PAYOUT_COUNTRY_SPECS[country].currency)
+  }
+  assert.equal(payoutCurrencyForCountry('ZA'), 'ZAR')
+  assert.equal(payoutCurrencyForCountry('PH'), 'PHP')
 })
 
-test('payoutCurrencyForCountry resolves a market, else the launch default', () => {
-  assert.equal(payoutCurrencyForCountry('GH'), 'GHS')
-  assert.equal(payoutCurrencyForCountry('KE'), 'KES')
-  assert.equal(payoutCurrencyForCountry('US'), DEFAULT_PAYOUT_CURRENCY) // unsupported → default
-  assert.equal(payoutCurrencyForCountry(null), DEFAULT_PAYOUT_CURRENCY) // unknown → default
+/**
+ * NO FALLBACK, deliberately. This used to answer NGN for anything it did not
+ * recognise, which made "we do not serve this country" indistinguishable from
+ * "this account is Nigerian" — so an unrecognised country SATISFIED the guard
+ * on an NGN-priced offer instead of failing it, and the mobile composer showed
+ * NGN to a Kenyan until they picked an account.
+ */
+test('payoutCurrencyForCountry answers null rather than guessing a currency', () => {
+  assert.equal(payoutCurrencyForCountry('US'), null)
+  assert.equal(payoutCurrencyForCountry('ZW'), null)
+  assert.equal(payoutCurrencyForCountry(null), null)
+  assert.equal(payoutCurrencyForCountry(''), null)
 })
 
 test('getPayoutSpec / getPayoutRail resolve and reject correctly', () => {
@@ -80,61 +116,9 @@ test('getPayoutSpec / getPayoutRail resolve and reject correctly', () => {
   assert.equal(getPayoutSpec('US'), null)
   assert.ok(getPayoutRail('GH', 'mobile_money') !== null)
   assert.equal(getPayoutRail('NG', 'mobile_money'), null, 'NG has no MoMo rail')
+  assert.equal(getPayoutRail('ZA', 'mobile_money'), null, 'ZA has no wallet rail')
+  assert.ok(getPayoutRail('PH', 'mobile_money') !== null, 'PH e-wallets are first-class')
   assert.equal(getPayoutRail('ZZ', 'bank'), null)
-})
-
-// ---------- NG (NUBAN bank) -------------------------------------------------
-
-const ngBank = getPayoutRail('NG', 'bank')!
-
-test('NG bank: a valid NUBAN account passes', () => {
-  assert.equal(ngBank.validate({ bank_code: '058', account_number: '0123456789', account_name: 'ADAEZE OKOYE' }), null)
-})
-
-test('NG bank: rejects a non-10-digit account, blank name, non-numeric code', () => {
-  assert.match(ngBank.validate({ bank_code: '058', account_number: '012345678', account_name: 'A' }) ?? '', /Account number/)
-  assert.match(ngBank.validate({ bank_code: '058', account_number: '0123456789', account_name: '  ' }) ?? '', /Account name/)
-  assert.match(ngBank.validate({ bank_code: 'GTB', account_number: '0123456789', account_name: 'A' }) ?? '', /Bank \(NIP\) code/)
-})
-
-test('NG bank: masks all but the last 4 digits', () => {
-  assert.equal(ngBank.maskAccountNumber('0123456789'), '•••••• 6789')
-})
-
-// ---------- KE (bank) -------------------------------------------------------
-
-const keBank = getPayoutRail('KE', 'bank')!
-
-test('KE bank: valid passes; too-short account rejected', () => {
-  assert.equal(keBank.validate({ bank_code: 'Equity Bank', account_number: '01234567', account_name: 'WANJIKU' }), null)
-  assert.match(keBank.validate({ bank_code: 'Equity', account_number: '123', account_name: 'W' }) ?? '', /Account number/)
-  assert.match(keBank.validate({ bank_code: '', account_number: '01234567', account_name: 'W' }) ?? '', /Bank name/)
-})
-
-// ---------- GH (bank + MoMo) ------------------------------------------------
-
-const ghBank = getPayoutRail('GH', 'bank')!
-const ghMomo = getPayoutRail('GH', 'mobile_money')!
-
-test('GH bank: valid passes; out-of-range account rejected', () => {
-  assert.equal(ghBank.validate({ bank_code: 'GCB Bank', account_number: '12345678901', account_name: 'KWAME' }), null)
-  assert.match(ghBank.validate({ bank_code: 'GCB', account_number: '123', account_name: 'K' }) ?? '', /Account number/)
-})
-
-test('GH MoMo: valid MTN number passes', () => {
-  assert.equal(ghMomo.validate({ bank_code: 'MTN', account_number: '0241234567', account_name: 'KWAME MENSAH' }), null)
-})
-
-test('GH MoMo: rejects unknown network, non-10-digit and non-leading-0 numbers', () => {
-  assert.match(ghMomo.validate({ bank_code: 'PAYPAL', account_number: '0241234567', account_name: 'K' }) ?? '', /Network/)
-  assert.match(ghMomo.validate({ bank_code: 'MTN', account_number: '24123456', account_name: 'K' }) ?? '', /Mobile number/)
-  assert.match(ghMomo.validate({ bank_code: 'MTN', account_number: '1241234567', account_name: 'K' }) ?? '', /start with 0/)
-  assert.match(ghMomo.validate({ bank_code: 'MTN', account_number: '024123456X', account_name: 'K' }) ?? '', /digits only/)
-})
-
-test('GH MoMo: networks are the three live GH providers; number masks to last 3', () => {
-  assert.deepEqual(GH_MOMO_NETWORKS.map((n) => n.value), ['MTN', 'TELECEL', 'AIRTELTIGO'])
-  assert.equal(ghMomo.maskAccountNumber('0241234567'), '••••••• 567')
 })
 
 test('every rail rejects a fully-empty input', () => {

@@ -24,11 +24,17 @@ export function useInstantSell({
   const router = useRouter()
   const [submitting, setSubmitting] = useState(false)
 
+  /**
+   * `null` until a payout account is chosen — there is no default currency to
+   * fall back to, because under one-country-one-currency the account IS the
+   * answer. It joins the quote guard below rather than being coerced: a quote
+   * priced in a guessed currency is worse than no quote.
+   */
   const currency = payoutCurrencyForCountry(account?.country ?? null)
   const amountValid = amountRaw !== null && amountRaw !== '0'
 
   const { quote, expiresIn, loading, error, refetch } = useFiatQuote(
-    option !== null && amountValid && account !== null
+    option !== null && amountValid && account !== null && currency !== null
       ? {
           direction: 'offramp',
           asset: option.assetId,
