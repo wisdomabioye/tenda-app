@@ -10,6 +10,7 @@
 import { test, beforeEach, afterEach } from 'node:test'
 import assert from 'node:assert'
 import { getUsdFxRates, invalidateFxRatesCache, FX_RATES_URL } from '@server/lib/fx-rates'
+import { ErrorCode } from '@tenda/shared'
 
 function jsonResponse(body: unknown, ok = true, status = 200): Response {
   return {
@@ -146,4 +147,33 @@ test('asks the USD-based endpoint, since USD is the leg CoinGecko always gives',
   await getUsdFxRates()
   assert.strictEqual(asked, FX_RATES_URL)
   assert.ok(asked.endsWith('/USD'), 'the cross leg must be USD-based')
+})
+
+
+/**
+ * THE CODE, not merely the status. Every other assertion here checks
+ * `statusCode === 503`, which is satisfied by any string in the `code` field —
+ * `AppError.code` is typed `ErrorCode | string`, so the compiler does not
+ * constrain it either. Between the two, a code outside the registry can be
+ * emitted with nothing objecting anywhere.
+ *
+ * It has to be the SAME code the rest of the call path uses. A Ghanaian
+ * instant-sell that cannot be priced is one failure to the user however it
+ * fails, and `midRate` already answers SERVICE_UNAVAILABLE for its other four
+ * refusals; a second code for the FX leg would make one user action return two
+ * different machine-readable answers.
+ */
+test('refuses with a registry ErrorCode, the same one the rest of the path uses', async () => {
+  globalThis.fetch = (() => Promise.reject(new Error('network down'))) as typeof fetch
+  await assert.rejects(getUsdFxRates(), (e: { code?: string }) => {
+    assert.strictEqual(e.code, ErrorCode.SERVICE_UNAVAILABLE)
+    return true
+  })
+
+  invalidateFxRatesCache()
+  globalThis.fetch = (() => Promise.resolve(jsonResponse({}, false, 502))) as typeof fetch
+  await assert.rejects(getUsdFxRates(), (e: { code?: string }) => {
+    assert.strictEqual(e.code, ErrorCode.SERVICE_UNAVAILABLE)
+    return true
+  })
 })

@@ -1,4 +1,4 @@
-import { SUPPORTED_CURRENCIES, type SupportedCurrency } from '@tenda/shared'
+import { SUPPORTED_CURRENCIES, ErrorCode, type SupportedCurrency } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 
 /**
@@ -30,7 +30,6 @@ export const FX_RATES_URL = 'https://open.er-api.com/v6/latest/USD'
 export interface CachedFxRates {
   /** Units of the currency per 1 USD, restricted to our vocabulary. */
   rates: Partial<Record<SupportedCurrency, number>>
-  fetched_at: number
 }
 
 interface CacheEntry {
@@ -68,12 +67,12 @@ export async function getUsdFxRates(): Promise<CachedFxRates> {
     response = await fetch(FX_RATES_URL, { signal: AbortSignal.timeout(10_000) })
   } catch {
     if (_cache !== null) return _cache.value
-    throw new AppError(503, 'EXCHANGE_RATE_UNAVAILABLE', 'FX rate service is currently unavailable')
+    throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, 'FX rate service is currently unavailable')
   }
 
   if (!response.ok) {
     if (_cache !== null) return _cache.value
-    throw new AppError(503, 'EXCHANGE_RATE_UNAVAILABLE', 'FX rate service is currently unavailable')
+    throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, 'FX rate service is currently unavailable')
   }
 
   const body = (await response.json()) as { rates?: Record<string, unknown> }
@@ -90,7 +89,7 @@ export async function getUsdFxRates(): Promise<CachedFxRates> {
     }
   }
 
-  const value: CachedFxRates = { rates, fetched_at: now }
+  const value: CachedFxRates = { rates }
   // Only cache a populated result, so a 200 that carried no usable rates does
   // not poison the next six hours — the same rule getAssetRates follows.
   if (Object.keys(rates).length > 0) {

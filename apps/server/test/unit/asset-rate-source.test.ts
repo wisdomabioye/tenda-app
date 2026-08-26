@@ -29,6 +29,7 @@ import assert from 'node:assert'
 import { assetRateSource } from '@server/features/fiat-rails/p2p-live'
 import { invalidateExchangeRatesCache } from '@server/lib/exchange-rates'
 import { invalidateFxRatesCache, FX_RATES_URL } from '@server/lib/fx-rates'
+import { ErrorCode } from '@tenda/shared'
 
 /** A USDC asset id, so the CoinGecko id under test is a real registry value. */
 const ASSET = 'USDC_SOL'
@@ -198,4 +199,33 @@ test('midRate: the message names the currency that was missing', async () => {
     })(),
     (err: Error) => err.message.includes('ZAR'),
   )
+})
+
+
+/**
+ * ONE USER ACTION, ONE CODE. A Ghanaian instant-sell that cannot be priced is a
+ * single failure to the person who asked for it, but it can arrive by two
+ * different routes through the FX leg — the feed does not carry the currency,
+ * or the feed is down with a cold cache. A client branching on `code` to decide
+ * whether to retry must not get two answers for that.
+ *
+ * Status alone cannot see this: both are 503. Only the code can.
+ */
+test('midRate: both FX failure modes answer with the same registry code', async () => {
+  const codeFor = async (fx: Record<string, number> | null) => {
+    invalidateExchangeRatesCache()
+    invalidateFxRatesCache()
+    globalThis.fetch = feedsReturning({ ngn: 1_600, usd: 1 }, fx)
+    try {
+      await assetRateSource().midRate(ASSET, 'GHS')
+      return 'no error'
+    } catch (e) {
+      return (e as { code?: string }).code
+    }
+  }
+
+  const carriesNoGhs = await codeFor({ NGN: 1_350 })
+  const feedIsDown = await codeFor(null)
+  assert.strictEqual(carriesNoGhs, ErrorCode.SERVICE_UNAVAILABLE)
+  assert.strictEqual(feedIsDown, ErrorCode.SERVICE_UNAVAILABLE, 'the FX outage answers a different code')
 })
