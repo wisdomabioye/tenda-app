@@ -80,7 +80,11 @@ export function requireIban(
   if (!iban.startsWith(opts.country)) return `${label} must start with ${opts.country}`
   if (iban.length !== opts.length) return `${label} must be ${opts.length} characters`
   if (!/^[A-Z0-9]+$/.test(iban)) return `${label} must contain letters and digits only`
-  return mod97(iban) === 1 ? null : `${label} is not a valid IBAN — check for a typo`
+  // "is not valid", not "is not a valid IBAN": the label IS "IBAN" at the only
+  // call site, so the two collided into "IBAN is not a valid IBAN" — which is
+  // what it actually printed. Phrasing the failure without repeating the noun
+  // keeps it readable whatever a future rail calls its field.
+  return mod97(iban) === 1 ? null : `${label} is not valid — check for a typo`
 }
 
 /**

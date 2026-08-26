@@ -238,7 +238,7 @@ test('AE bank: a checksum-invalid IBAN is refused', { skip }, async () => {
     account_name: 'AHMED AL MANSOURI',
   })
   assert.strictEqual(res.statusCode, 422)
-  assert.match(res.json().message ?? '', /valid IBAN/)
+  assert.match(res.json().message ?? '', /IBAN is not valid/)
 })
 
 test('ZA and PH markets accept their own formats', { skip }, async () => {

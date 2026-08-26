@@ -206,8 +206,8 @@ test('AE bank: accepts the grouped and lower-case forms banks actually print', (
  * designed to catch exactly them.
  */
 test('AE bank: rejects a transposition and a single wrong digit', () => {
-  assert.match(aeBank.validate({ ...aeOk, account_number: 'AE070331234567890123465' }) ?? '', /valid IBAN/)
-  assert.match(aeBank.validate({ ...aeOk, account_number: 'AE070331234567890123457' }) ?? '', /valid IBAN/)
+  assert.match(aeBank.validate({ ...aeOk, account_number: 'AE070331234567890123465' }) ?? '', /IBAN is not valid/)
+  assert.match(aeBank.validate({ ...aeOk, account_number: 'AE070331234567890123457' }) ?? '', /IBAN is not valid/)
 })
 
 test('AE bank: rejects another country IBAN, and the wrong length', () => {
