@@ -151,15 +151,33 @@ export function formatFiat(amount: number, currency: string): string {
  * stays whole, because most NGN rates are and "₦1,500.00" is noise.
  */
 export function formatRate(rate: number, currency: string): string {
+  return formatFiatPrecise(rate, currency)
+}
+
+/**
+ * A fiat amount that must keep its minor units — a conversion fee, a payout
+ * total — as opposed to `formatFiat`, which drops to whole units because that
+ * is right for a headline total.
+ *
+ * `fiat_amount` and `fee_amount` are both `numeric(20, 4)` in the database, so
+ * the minor units are real and roundable-away: a GH₵15.40 fee shown as "GH₵15"
+ * understates what the seller is being charged. Whole values still render
+ * whole, so "₦16,000" does not become "₦16,000.00".
+ *
+ * Shares its implementation with `formatRate` because a rate and a precise
+ * amount want exactly the same treatment; the two names exist so neither call
+ * site has to describe a fee as a rate.
+ */
+export function formatFiatPrecise(amount: number, currency: string): string {
   const { locale, known } = displayLocale(currency)
-  const digits = Number.isInteger(rate) ? 0 : 2
+  const digits = Number.isInteger(amount) ? 0 : 2
   if (!known) {
-    return `${currency} ${rate.toLocaleString(locale, {
+    return `${currency} ${amount.toLocaleString(locale, {
       minimumFractionDigits: digits,
       maximumFractionDigits: digits,
     })}`.trim()
   }
-  return rate.toLocaleString(locale, {
+  return amount.toLocaleString(locale, {
     style: 'currency',
     currency,
     minimumFractionDigits: digits,

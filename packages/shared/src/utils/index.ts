@@ -92,6 +92,7 @@ export {
   formatFiat,
   formatFiatShort,
   formatRate,
+  formatFiatPrecise,
   type AssetPaymentDisplay,
   type RateMap,
 } from './currency-display'

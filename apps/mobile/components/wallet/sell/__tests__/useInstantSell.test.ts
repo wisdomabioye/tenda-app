@@ -73,10 +73,11 @@ test('surfaces an error toast when the offramp call fails', async () => {
   expect(mockToast).toHaveBeenCalledWith('error', expect.any(String))
 })
 
-test('exposes the NGN currency symbol derived from the account country', () => {
+test('exposes the payout CURRENCY derived from the account country', () => {
+  // The code, not a symbol: the shared formatters take the code and own symbol
+  // placement, which differs by currency (prefix for ₦, suffix for €).
   const { result } = renderHook(() => useInstantSell({ option: OPTION, amountRaw: '2500000', account: ACCOUNT }))
   expect(result.current.currency).toBe('NGN')
-  expect(result.current.currencySymbol).toBe('₦')
 })
 
 test('confirm is a no-op with no option/amount/account (nothing to quote)', async () => {

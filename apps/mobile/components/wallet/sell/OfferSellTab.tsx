@@ -4,7 +4,6 @@ import { useUnistyles } from 'react-native-unistyles'
 import {
   parseUnits,
   payoutCurrencyForCountry,
-  CURRENCY_META,
   DEFAULT_ACCEPT_WINDOW_SECONDS,
   EXCHANGE_PAYMENT_WINDOW_DEFAULT_SECONDS,
   getOfferMissingRequirement,
@@ -45,7 +44,6 @@ export function OfferSellTab() {
   const option = selection.option
   const account = payout.selected
   const currency = payoutCurrencyForCountry(account?.country ?? null)
-  const currencySymbol = CURRENCY_META[currency].symbol
 
   const rateNum = Number(rate)
   const amountRaw = option !== null ? parseUnits(amount, option.decimals) : null
@@ -108,7 +106,7 @@ export function OfferSellTab() {
                   amountRaw={amountRaw}
                   assetId={option.assetId}
                   fiatTotal={fiatTotal}
-                  currencySymbol={currencySymbol}
+                  currency={currency}
                   rate={rateNum}
                   assetSymbol={option.symbol}
                   payoutLabel={`${account.bank_code} · ${account.account_number_masked}`}

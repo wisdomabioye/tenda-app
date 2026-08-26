@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useRouter } from 'expo-router'
-import { payoutCurrencyForCountry, CURRENCY_META, ApiClientError } from '@tenda/shared'
+import { payoutCurrencyForCountry, ApiClientError } from '@tenda/shared'
 import type { BankAccountSummary } from '@tenda/shared'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui'
@@ -25,7 +25,6 @@ export function useInstantSell({
   const [submitting, setSubmitting] = useState(false)
 
   const currency = payoutCurrencyForCountry(account?.country ?? null)
-  const currencySymbol = CURRENCY_META[currency].symbol
   const amountValid = amountRaw !== null && amountRaw !== '0'
 
   const { quote, expiresIn, loading, error, refetch } = useFiatQuote(
@@ -65,5 +64,5 @@ export function useInstantSell({
     }
   }
 
-  return { quote, expiresIn, loading, error, refetch, currency, currencySymbol, submitting, confirm }
+  return { quote, expiresIn, loading, error, refetch, currency, submitting, confirm }
 }

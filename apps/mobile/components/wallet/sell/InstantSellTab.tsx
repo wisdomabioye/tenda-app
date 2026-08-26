@@ -21,7 +21,7 @@ export function InstantSellTab() {
   const amountValid = amountRaw !== null && amountRaw !== '0'
   const account = payout.selected
 
-  const { quote, expiresIn, loading, error, refetch, currencySymbol, submitting, confirm } = useInstantSell({
+  const { quote, expiresIn, loading, error, refetch, currency, submitting, confirm } = useInstantSell({
     option,
     amountRaw,
     account,
@@ -52,7 +52,7 @@ export function InstantSellTab() {
                   rate={quote.rate}
                   fee={quote.fee_amount}
                   fiatAmount={quote.fiat_amount}
-                  currencySymbol={currencySymbol}
+                  currency={currency}
                   assetSymbol={option?.symbol ?? ''}
                   expiresIn={expiresIn}
                   onRefresh={refetch}
