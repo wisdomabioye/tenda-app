@@ -80,13 +80,27 @@ export const PAYOUT_COUNTRY_SPECS: Readonly<Record<string, PayoutCountrySpec>> =
 export const SUPPORTED_PAYOUT_COUNTRIES: string[] = Object.keys(PAYOUT_COUNTRY_SPECS)
 
 /**
+ * The distinct currencies a set of country specs settles in, in registry order.
+ *
+ * Distinct is the whole job. One country settles in exactly one currency, but
+ * one currency may serve several countries — the model allows it and the next
+ * markets will use it — and a currency listed twice would show up twice in
+ * every picker built from this. No pair of live markets shares a currency
+ * today, so the registry cannot demonstrate that; a fixture can, which is why
+ * this is a function and not an inline expression.
+ */
+export function derivePayoutCurrencies(specs: PayoutCountrySpec[]): SupportedCurrency[] {
+  return [...new Set(specs.map((s) => s.currency))]
+}
+
+/**
  * The fiat currencies payouts settle in — DERIVED from the country specs so it
  * can never drift from the countries we actually support. Drives both the p2p
  * exchange's enabled currencies and the offramp currency validation.
  */
-export const PAYOUT_CURRENCIES: SupportedCurrency[] = [
-  ...new Set(Object.values(PAYOUT_COUNTRY_SPECS).map((s) => s.currency)),
-]
+export const PAYOUT_CURRENCIES: SupportedCurrency[] = derivePayoutCurrencies(
+  Object.values(PAYOUT_COUNTRY_SPECS),
+)
 
 /**
  * Country spec, or null when the country isn't a supported payout market.

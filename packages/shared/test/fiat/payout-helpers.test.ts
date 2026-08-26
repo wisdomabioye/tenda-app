@@ -135,5 +135,5 @@ test('maskTail returns a value too short to mask, untouched', () => {
   assert.equal(maskTail('1234', 4), '1234')
   assert.equal(maskTail('12345', 4), '• 2345')
   assert.equal(maskTail('  1234  ', 4), '1234')
-  assert.equal(maskTail(''), '')
+  assert.equal(maskTail('', 4), '')
 })

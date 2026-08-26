@@ -41,8 +41,16 @@ export function requireOption(value: string, options: PayoutFieldOption[], label
   return options.some((o) => o.value === value) ? null : `${label} is not valid`
 }
 
-/** Mask all but the last `visible` characters ('0123456789' → '•••••• 6789'). */
-export function maskTail(value: string, visible = 4): string {
+/**
+ * Mask all but the last `visible` characters ('0123456789' → '•••••• 6789').
+ *
+ * `visible` is deliberately NOT defaulted. How much of an account may be shown
+ * is the rail's decision — GH and PH e-wallets reveal three, every bank rail
+ * reveals four — and a default would answer that question for a rail whose
+ * author had not thought about it, silently and in the direction of showing
+ * more. All eight call sites state their own tail.
+ */
+export function maskTail(value: string, visible: number): string {
   const v = value.trim()
   if (v.length <= visible) return v
   return `${'•'.repeat(v.length - visible)} ${v.slice(-visible)}`

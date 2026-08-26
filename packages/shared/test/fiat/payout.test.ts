@@ -4,14 +4,16 @@ import {
   PAYOUT_COUNTRY_SPECS,
   SUPPORTED_PAYOUT_COUNTRIES,
   PAYOUT_CURRENCIES,
+  derivePayoutCurrencies,
   PAYOUT_RAIL_KINDS,
   getPayoutSpec,
   countryDisplayName,
   getPayoutRail,
   isPayoutRailKind,
   payoutCurrencyForCountry,
+  type PayoutCountrySpec,
 } from '../../src/fiat/payout'
-import { SUPPORTED_CURRENCIES } from '../../src/constants/currencies'
+import { SUPPORTED_CURRENCIES, type SupportedCurrency } from '../../src/constants/currencies'
 import { payoutRailKindEnum } from '../../src/db/schema/fiat'
 
 // ---------- registry shape -------------------------------------------------
@@ -191,4 +193,29 @@ test('every payout market has a display name, so none can fall back to its code'
   for (const country of SUPPORTED_PAYOUT_COUNTRIES) {
     assert.notEqual(countryDisplayName(country), country)
   }
+})
+
+/**
+ * The registry cannot exercise this: every live market has a currency to
+ * itself, so deduping is a no-op against real data and an assertion over
+ * PAYOUT_CURRENCIES would pass just as well with the dedupe deleted.
+ *
+ * A fixture can. One currency serving several countries is allowed by the
+ * model — one country, one currency, not one currency, one country — and it is
+ * where the next markets are heading, so the behaviour is pinned before the
+ * data arrives rather than after a picker starts showing "USD" twice.
+ */
+test('derivePayoutCurrencies keeps one entry per currency, in registry order', () => {
+  const spec = (country: string, currency: SupportedCurrency): PayoutCountrySpec => ({
+    country,
+    countryName: country,
+    flag: '🏳️',
+    currency,
+    rails: [],
+  })
+  assert.deepEqual(
+    derivePayoutCurrencies([spec('AE', 'AED'), spec('QA', 'AED'), spec('NG', 'NGN')]),
+    ['AED', 'NGN'],
+  )
+  assert.deepEqual(derivePayoutCurrencies([]), [])
 })

@@ -115,3 +115,18 @@ test('requests a quote in the account currency once an account is chosen', () =>
   renderHook(() => useInstantSell({ option: OPTION, amountRaw: '2500000', account: ACCOUNT }))
   expect(mockQuoteArgs).toHaveBeenCalledWith(expect.objectContaining({ fiatCurrency: 'NGN' }))
 })
+
+/**
+ * The case the `account !== null` conjunct cannot reach. A retired market is a
+ * REAL account — chosen, saved, with an id and a country — whose country no
+ * longer resolves to a currency, so it is the only input for which the second
+ * conjunct is the one doing the work. Without it the hook asks for a quote
+ * priced in `null`; with `account: null` above, the first conjunct short-
+ * circuits and the guard would look tested while being unproven.
+ */
+test('does not request a quote for an account in a retired market', () => {
+  const retired = { ...ACCOUNT, country: 'ZW' } as BankAccountSummary
+  const { result } = renderHook(() => useInstantSell({ option: OPTION, amountRaw: '2500000', account: retired }))
+  expect(result.current.currency).toBeNull()
+  expect(mockQuoteArgs).toHaveBeenCalledWith(null)
+})
