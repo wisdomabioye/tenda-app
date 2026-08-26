@@ -1,6 +1,5 @@
-# PR gates (TEST_PLAN.md G1 decision: option A — per-PR coverage with a
-# postgres service). Supersedes the prior "integration is nightly-only" note
-# in multichain-migration-stages/testing-strategy.md.
+# PR gates: per-PR coverage against a postgres service (integration tests run
+# on every PR, not nightly).
 #
 # Gate map:
 #   1. coverage gates (DB-backed, per-PR):
