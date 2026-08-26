@@ -186,19 +186,53 @@ test('midRate: an FX outage with nothing cached surfaces, it does not quote NaN'
   await assert.rejects(assetRateSource().midRate(ASSET, 'KES'), is503)
 })
 
-test('midRate: the message names the currency that was missing', async () => {
-  // The two currency refusals are indistinguishable by status alone, and this
-  // string is what an operator reads in a 503 log line to tell "we do not
-  // support that" from "the feed is degraded for a currency we do".
-  await assert.rejects(
-    (async () => {
-      // Starves both legs — with a USD price and an FX rate this now succeeds,
-      // so the refusal has to be built from a currency neither feed carries.
-      globalThis.fetch = feedsReturning({ ngn: 1_600, usd: 1 }, { NGN: 1_350 })
-      await assetRateSource().midRate(ASSET, 'ZAR')
-    })(),
-    (err: Error) => err.message.includes('ZAR'),
-  )
+/**
+ * THREE CAUSES, THREE MESSAGES. All of midRate's currency refusals are 503 and
+ * all name the currency, so status and currency together still cannot say WHY —
+ * and the three want different responses from whoever reads the log:
+ *
+ *   unsupported currency  → a caller asked for something we do not settle in
+ *   no USD price          → CoinGecko is degraded; the asset leg is missing
+ *   no FX rate            → the FX feed does not carry this pair
+ *
+ * The cross rate is what made this matter: before it there was one currency
+ * refusal, and now there are three. Asserting they are DISTINCT is the point —
+ * asserting each merely names the currency would pass with all three identical,
+ * which is exactly the state this replaced.
+ */
+test('midRate: each refusal cause is diagnosable from its message', async () => {
+  const messageFor = async (currency: string, coingecko: Record<string, number>) => {
+    invalidateExchangeRatesCache()
+    invalidateFxRatesCache()
+    globalThis.fetch = feedsReturning(coingecko, { NGN: 1_350 })
+    try {
+      await assetRateSource().midRate(ASSET, currency)
+      return 'no error'
+    } catch (e) {
+      return (e as Error).message
+    }
+  }
+
+  const unsupported = await messageFor('XXX', { ngn: 1_600, usd: 1 })
+  const noUsdLeg = await messageFor('ZAR', { ngn: 1_600 })
+  const noFxRate = await messageFor('ZAR', { ngn: 1_600, usd: 1 })
+
+  // Still names the currency — an operator needs to know WHICH one failed.
+  assert.ok(noFxRate.includes('ZAR'), noFxRate)
+  assert.ok(unsupported.includes('XXX'), unsupported)
+
+  // Each cause pinned to its own SHAPE. Counting distinct strings is not enough
+  // and was the first version of this test: the three cases necessarily use
+  // different currencies (an unsupported code cannot reach the other two
+  // branches), so the messages came out distinct even when every branch shared
+  // one template — the set had three members purely because 'XXX' is not 'ZAR'.
+  assert.match(unsupported, /is not supported/, unsupported)
+  assert.match(noUsdLeg, /no USD price/, noUsdLeg)
+  assert.match(noFxRate, /^no rate for currency/, noFxRate)
+
+  // And the two that are NOT the generic one must not read as it.
+  assert.doesNotMatch(unsupported, /no rate for currency/, unsupported)
+  assert.doesNotMatch(noUsdLeg, /^no rate for currency/, noUsdLeg)
 })
 
 

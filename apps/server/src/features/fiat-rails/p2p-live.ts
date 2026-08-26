@@ -50,8 +50,14 @@ export function assetRateSource(): RateSource {
       // Outside the vocabulary there is nothing to cross TO: the FX rates are
       // filtered to SUPPORTED_CURRENCIES, so this refuses before the second
       // feed is called rather than after it answers uselessly.
+      //
+      // Its own message, not the shared "no rate" one. All three currency
+      // refusals are 503 and all name the currency, so the message is the only
+      // thing that says WHY — and this one is a CALLER error (a currency we do
+      // not settle in), while the other two are upstream feeds being degraded.
+      // Those want different responses from whoever reads the log.
       if (!isSupportedCurrency(fiat_currency)) {
-        throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate for currency '${fiat_currency}'`)
+        throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `currency '${fiat_currency}' is not supported`)
       }
 
       const { rates } = await getAssetRates(meta.coingeckoId)
@@ -65,7 +71,14 @@ export function assetRateSource(): RateSource {
       // hole in it is not more available than no rate, only harder to notice.
       const usd = rates.USD
       if (usd === undefined) {
-        throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate for currency '${fiat_currency}'`)
+        // Names the ASSET, because that is where this one went wrong: the price
+        // feed answered without a USD price, so the fault is the crypto leg
+        // rather than anything to do with the currency asked for.
+        throw new AppError(
+          503,
+          ErrorCode.SERVICE_UNAVAILABLE,
+          `no USD price for asset '${asset}', cannot price '${fiat_currency}'`,
+        )
       }
       const fx = (await getUsdFxRates()).rates[fiat_currency]
       if (fx === undefined) {

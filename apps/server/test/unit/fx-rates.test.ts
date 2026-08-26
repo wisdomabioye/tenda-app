@@ -177,3 +177,25 @@ test('refuses with a registry ErrorCode, the same one the rest of the path uses'
     return true
   })
 })
+
+
+/**
+ * The request must be BOUNDED. A hung upstream with no timeout holds the quote
+ * request open until something else gives up, and the FX feed is the second of
+ * two network calls on that path.
+ *
+ * This asserts the signal is wired, not that ten seconds elapse — waiting out a
+ * real timeout would make the suite slow and flaky for no extra information.
+ * The failure mode worth catching is someone dropping the argument, and that is
+ * exactly what this sees.
+ */
+test('bounds the request with an abort signal', async () => {
+  let signal: unknown = null
+  globalThis.fetch = ((_url: string, init?: { signal?: unknown }) => {
+    signal = init?.signal ?? null
+    return Promise.resolve(jsonResponse({ rates: { GHS: 11.18 } }))
+  }) as typeof fetch
+
+  await getUsdFxRates()
+  assert.ok(signal instanceof AbortSignal, 'the FX request must carry a timeout signal')
+})
