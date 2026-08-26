@@ -16,7 +16,7 @@ export { PH_WALLET_NETWORKS } from './ph'
  *
  * Adding a market is this entry plus one spec file — every downstream surface
  * derives: SUPPORTED_PAYOUT_COUNTRIES, PAYOUT_CURRENCIES, the mobile country
- * picker, the server's field validation, and the landing's market count.
+ * picker, and the server's field validation.
  *
  * ONE SURFACE DOES NOT FOLLOW, and it is admin-only. `fiat_providers` is seeded
  * with `onConflictDoNothing` because its rows are operator-tunable, so on a
@@ -35,9 +35,9 @@ export { PH_WALLET_NETWORKS } from './ph'
  *
  * DISABLING A MARKET is commenting its line out here. Everything below reads
  * this object, so that one edit removes it from `SUPPORTED_PAYOUT_COUNTRIES`,
- * `PAYOUT_CURRENCIES`, the p2p provider's advertised currencies, the mobile
- * country picker, and the landing's market count. New payout accounts in that
- * country are refused, and so are new offers priced in its currency.
+ * `PAYOUT_CURRENCIES`, the p2p provider's advertised currencies, and the mobile
+ * country picker. New payout accounts in that country are refused, and so are
+ * new offers priced in its currency.
  *
  * Expect the tests that pin the current market list to fail when you do it.
  * That is the intended friction, not breakage: retiring a corridor should leave
@@ -62,6 +62,12 @@ export { PH_WALLET_NETWORKS } from './ph'
  *     renders — the user learns it is dead when they try to post.
  *   - The currency stays in SUPPORTED_CURRENCIES. It must: trades that already
  *     happened in it still have to format and price correctly.
+ *   - THE LANDING SITE does not read this file. apps/tendahq keeps its own copy
+ *     in src/data/currencies.ts, on purpose: the marketing site takes no
+ *     workspace-package dependency, and its list is what to SHOW — it carries
+ *     USD, GBP and EUR, which are not payout markets — so it is not this list
+ *     under another name and should not be generated from it. Adding or
+ *     retiring a market there is a separate, deliberate copy edit.
  *
  * There is no runtime toggle. `fiat_providers.is_enabled` disables a PROVIDER,
  * and chains have `chains.is_enabled` in the DB, but a payout market lives in

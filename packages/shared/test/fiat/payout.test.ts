@@ -22,19 +22,16 @@ test('payout countries are exactly NG, KE, GH, ZA, PH, AE', () => {
   assert.deepEqual(new Set(SUPPORTED_PAYOUT_COUNTRIES), new Set(['NG', 'KE', 'GH', 'ZA', 'PH', 'AE']))
 })
 
-test('PAYOUT_CURRENCIES is derived, deduped, and a subset of SUPPORTED_CURRENCIES', () => {
+/**
+ * Deduping is NOT what this shows — every live market has a currency to itself,
+ * so it would pass with the dedupe deleted. That property is pinned against a
+ * fixture at the bottom of this file. What this pins is the list itself: the
+ * live currencies, and that each is one the product can format.
+ */
+test('PAYOUT_CURRENCIES is exactly the live markets, all of them supported', () => {
   assert.deepEqual(new Set(PAYOUT_CURRENCIES), new Set(['NGN', 'KES', 'GHS', 'ZAR', 'PHP', 'AED']))
   for (const c of PAYOUT_CURRENCIES) {
     assert.ok(SUPPORTED_CURRENCIES.includes(c), `${c} must be a supported currency`)
-  }
-})
-
-test('one country maps to exactly one currency', () => {
-  // The model the product deliberately keeps: currency is INFERRED from the
-  // account's country, never stored. A spec declaring two would mean that
-  // inference had quietly stopped being total.
-  for (const spec of Object.values(PAYOUT_COUNTRY_SPECS)) {
-    assert.ok(SUPPORTED_CURRENCIES.includes(spec.currency))
   }
 })
 
@@ -54,6 +51,12 @@ test('every market declares a rail, matches its key, and collects every column',
   }
 })
 
+/**
+ * One country maps to exactly one currency is NOT checked here, or anywhere: it
+ * is a property of the TYPE. `PayoutCountrySpec.currency` is a single field, so
+ * no spec can declare two and no runtime assertion could ever fail for it. The
+ * thing worth checking is what a spec can still get wrong.
+ */
 test('every spec is structurally sound (currency, ≥1 rail, fields map to columns)', () => {
   const columns = new Set(['bank_code', 'account_number', 'account_name'])
   for (const [code, spec] of Object.entries(PAYOUT_COUNTRY_SPECS)) {

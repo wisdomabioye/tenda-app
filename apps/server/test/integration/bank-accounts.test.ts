@@ -4,8 +4,8 @@
  * mobile-money account coexist via the `kind`-scoped uniqueness. Name-enquiry
  * is unconfigured in tests, so NG bank names are user-supplied.
  *
- * ONE SWEEP ITEM HERE IS DELIBERATELY NOT TESTED (#105 T1). The refusal at
- * routes/v1/bank-accounts:91 — "account did not resolve, check the number" —
+ * ONE SWEEP ITEM HERE IS DELIBERATELY NOT TESTED (#105 T1). The refusal in
+ * routes/v1/bank-accounts — "account did not resolve, check the number" —
  * sits behind `if (enquiry !== null)`, and `buildNameEnquiry()` in lib/nip.ts
  * is currently `return null` with no branch: the vendor HTTP implementation is
  * not wired yet. So the guard is unreachable from ANY input, not merely
@@ -172,8 +172,6 @@ test('DELETE /v1/bank-accounts/:id: an id the caller does not own is 404 (#105 T
   assert.strictEqual(foreign.statusCode, 404)
   assert.match(foreign.json().message, /bank account not found/)
 
-  // ...and the owner can still delete it, so the 404 above was scoping, not a
-  // broken route.
   // A well-formed id that belongs to nobody answers identically — which is what
   // makes the 404 above scoping rather than a leak.
   const absent = await app.inject({

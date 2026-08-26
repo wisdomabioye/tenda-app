@@ -149,12 +149,6 @@ test('PH e-wallet: rejects a wallet nobody offers', () => {
 })
 
 /**
- * PH mobile numbers are 11 digits beginning 09. The length and prefix errors
- * are separate messages on purpose: a 10-digit number is a typo, while one
- * starting 63 is the international form, and "must start with 09" is the
- * message that actually gets that user unstuck.
- */
-/**
  * Three digits, matching Ghana's MoMo rail rather than the bank convention.
  * The registry treats tail length as a per-rail disclosure decision, and a
  * mobile number is the case where four is too many — its leading digits are a
@@ -167,6 +161,12 @@ test('PH e-wallet: masks a mobile number to three digits, as GH MoMo does', () =
   assert.equal(tail(phWallet, '09171234567'), tail(ghMomo, '0241234567'), 'mobile rails must agree')
 })
 
+/**
+ * PH mobile numbers are 11 digits beginning 09. The length and prefix errors
+ * are separate messages on purpose: a 10-digit number is a typo, while one
+ * starting 63 is the international form, and "must start with 09" is the
+ * message that actually gets that user unstuck.
+ */
 test('PH e-wallet: rejects wrong length, the international form, and non-digits', () => {
   const ok = { bank_code: 'GCASH', account_number: '09171234567', account_name: 'M SANTOS' }
   assert.equal(phWallet.validate(ok), null)

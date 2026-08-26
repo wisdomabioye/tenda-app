@@ -107,11 +107,6 @@ test('disabling a market leaves its currency formattable for historical rows', (
 })
 
 /**
- * An account saved before the market was disabled still renders: the country
- * falls back to its raw code rather than throwing or reading as blank, so the
- * row stays recognisable to the person who saved it.
- */
-/**
  * A plain object inherits from Object.prototype, so a bare
  * `PAYOUT_COUNTRY_SPECS[country]` answers with something TRUTHY for
  * '__proto__', 'constructor' and 'toString'. `getPayoutSpec` is documented as
@@ -131,6 +126,11 @@ test('inherited Object keys are not payout markets', () => {
   }
 })
 
+/**
+ * An account saved before the market was disabled still renders: the country
+ * falls back to its raw code rather than throwing or reading as blank, so the
+ * row stays recognisable to the person who saved it.
+ */
 test('disabling a market: an existing account still displays its country', () => {
   assert.equal(countryDisplayName(DISABLED), DISABLED)
 })
