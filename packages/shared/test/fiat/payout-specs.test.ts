@@ -156,6 +156,19 @@ test('PH e-wallet: rejects a wallet nobody offers', () => {
  * starting 63 is the international form, and "must start with 09" is the
  * message that actually gets that user unstuck.
  */
+/**
+ * Three digits, matching Ghana's MoMo rail rather than the bank convention.
+ * The registry treats tail length as a per-rail disclosure decision, and a
+ * mobile number is the case where four is too many — its leading digits are a
+ * network prefix, so the tail is most of what identifies the person.
+ */
+test('PH e-wallet: masks a mobile number to three digits, as GH MoMo does', () => {
+  assert.equal(phWallet.maskAccountNumber('09171234567'), `${'\u2022'.repeat(8)} 567`)
+  const ghMomo = getPayoutRail('GH', 'mobile_money')!
+  const tail = (rail: typeof phWallet, n: string) => rail.maskAccountNumber(n).split(' ')[1].length
+  assert.equal(tail(phWallet, '09171234567'), tail(ghMomo, '0241234567'), 'mobile rails must agree')
+})
+
 test('PH e-wallet: rejects wrong length, the international form, and non-digits', () => {
   const ok = { bank_code: 'GCASH', account_number: '09171234567', account_name: 'M SANTOS' }
   assert.equal(phWallet.validate(ok), null)

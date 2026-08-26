@@ -68,7 +68,13 @@ export const PH_PAYOUT: PayoutCountrySpec = {
         requireOption(i.bank_code, PH_WALLET_NETWORKS, 'Wallet') ??
         requireNonEmpty(i.account_name, 'Registered name') ??
         validatePhMsisdn(i.account_number),
-      maskAccountNumber: (n) => maskTail(n, 4),
+      // THREE, not four — the same call Ghana's MoMo rail makes, for the same
+      // reason: a mobile number carries a low-entropy network prefix (09XX
+      // here, 024 there), so most of its identifying value sits in the tail.
+      // Four of eleven leaves three unknown digits; three leaves four, which is
+      // the disclosure a bank account number of twice the length can afford and
+      // an MSISDN cannot.
+      maskAccountNumber: (n) => maskTail(n, 3),
     },
   ],
 }
