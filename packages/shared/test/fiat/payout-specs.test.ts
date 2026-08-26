@@ -157,3 +157,51 @@ test('PH e-wallet: rejects wrong length, the international form, and non-digits'
   assert.match(phWallet.validate({ ...ok, account_number: '63917123456' }) ?? '', /start with 09/)
   assert.match(phWallet.validate({ ...ok, account_number: '0917123456X' }) ?? '', /digits only/)
 })
+
+// ---------- AE (IBAN bank) --------------------------------------------------
+
+const aeBank = getPayoutRail('AE', 'bank')!
+
+/** A published UAE example IBAN — 23 chars, and mod-97 valid. */
+const AE_IBAN = 'AE070331234567890123456'
+const aeOk = { bank_code: 'Emirates NBD', account_number: AE_IBAN, account_name: 'AHMED AL MANSOURI' }
+
+test('AE bank: a valid IBAN passes', () => {
+  assert.equal(aeBank.validate(aeOk), null)
+})
+
+/**
+ * People paste IBANs in the grouped form their bank prints, and often in lower
+ * case. Rejecting either would be rejecting a correct account over whitespace,
+ * so both are normalised before the checksum runs.
+ */
+test('AE bank: accepts the grouped and lower-case forms banks actually print', () => {
+  assert.equal(aeBank.validate({ ...aeOk, account_number: 'AE07 0331 2345 6789 0123 456' }), null)
+  assert.equal(aeBank.validate({ ...aeOk, account_number: 'ae07 0331 2345 6789 0123 456' }), null)
+})
+
+/**
+ * THE REASON THE CHECKSUM IS HERE. An IBAN is the one field in the registry
+ * where a typo does not bounce — it fails at the bank days later, or credits a
+ * different account. A length check alone accepts both of these; mod-97 was
+ * designed to catch exactly them.
+ */
+test('AE bank: rejects a transposition and a single wrong digit', () => {
+  assert.match(aeBank.validate({ ...aeOk, account_number: 'AE070331234567890123465' }) ?? '', /valid IBAN/)
+  assert.match(aeBank.validate({ ...aeOk, account_number: 'AE070331234567890123457' }) ?? '', /valid IBAN/)
+})
+
+test('AE bank: rejects another country IBAN, and the wrong length', () => {
+  assert.match(aeBank.validate({ ...aeOk, account_number: 'GB070331234567890123456' }) ?? '', /start with AE/)
+  assert.match(aeBank.validate({ ...aeOk, account_number: 'AE07033123456789012345' }) ?? '', /23 characters/)
+})
+
+test('AE bank: rejects blank fields, naming the one that is missing', () => {
+  assert.match(aeBank.validate({ ...aeOk, account_number: '' }) ?? '', /IBAN is required/)
+  assert.match(aeBank.validate({ ...aeOk, bank_code: '   ' }) ?? '', /Bank name/)
+  assert.match(aeBank.validate({ ...aeOk, account_name: '' }) ?? '', /Account name/)
+})
+
+test('AE bank: masks all but the last 4 of the IBAN', () => {
+  assert.equal(aeBank.maskAccountNumber(AE_IBAN), `${'•'.repeat(19)} 3456`)
+})

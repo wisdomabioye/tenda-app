@@ -5,6 +5,7 @@ import { KE_PAYOUT } from './ke'
 import { GH_PAYOUT } from './gh'
 import { ZA_PAYOUT } from './za'
 import { PH_PAYOUT } from './ph'
+import { AE_PAYOUT } from './ae'
 
 export * from './types'
 export { GH_MOMO_NETWORKS } from './gh'
@@ -28,6 +29,7 @@ export const PAYOUT_COUNTRY_SPECS: Readonly<Record<string, PayoutCountrySpec>> =
   GH: GH_PAYOUT,
   ZA: ZA_PAYOUT,
   PH: PH_PAYOUT,
+  AE: AE_PAYOUT,
 }
 
 /** Supported payout country codes, in registry order. */

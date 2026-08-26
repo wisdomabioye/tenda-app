@@ -16,12 +16,12 @@ import { payoutRailKindEnum } from '../../src/db/schema/fiat'
 
 // ---------- registry shape -------------------------------------------------
 
-test('payout countries are exactly NG, KE, GH, ZA, PH', () => {
-  assert.deepEqual(new Set(SUPPORTED_PAYOUT_COUNTRIES), new Set(['NG', 'KE', 'GH', 'ZA', 'PH']))
+test('payout countries are exactly NG, KE, GH, ZA, PH, AE', () => {
+  assert.deepEqual(new Set(SUPPORTED_PAYOUT_COUNTRIES), new Set(['NG', 'KE', 'GH', 'ZA', 'PH', 'AE']))
 })
 
 test('PAYOUT_CURRENCIES is derived, deduped, and a subset of SUPPORTED_CURRENCIES', () => {
-  assert.deepEqual(new Set(PAYOUT_CURRENCIES), new Set(['NGN', 'KES', 'GHS', 'ZAR', 'PHP']))
+  assert.deepEqual(new Set(PAYOUT_CURRENCIES), new Set(['NGN', 'KES', 'GHS', 'ZAR', 'PHP', 'AED']))
   for (const c of PAYOUT_CURRENCIES) {
     assert.ok(SUPPORTED_CURRENCIES.includes(c), `${c} must be a supported currency`)
   }
@@ -95,6 +95,7 @@ test('payoutCurrencyForCountry resolves every market to its own currency', () =>
   }
   assert.equal(payoutCurrencyForCountry('ZA'), 'ZAR')
   assert.equal(payoutCurrencyForCountry('PH'), 'PHP')
+  assert.equal(payoutCurrencyForCountry('AE'), 'AED')
 })
 
 /**
