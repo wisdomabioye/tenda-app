@@ -22,6 +22,40 @@ export { PH_WALLET_NETWORKS } from './ph'
  * two (a Nigerian holding both a naira account and a domiciliary dollar one)
  * would need the currency stored on `bank_accounts` rather than inferred from
  * the country — a schema change, not a spec file.
+ *
+ * DISABLING A MARKET is commenting its line out here. Everything below reads
+ * this object, so that one edit removes it from `SUPPORTED_PAYOUT_COUNTRIES`,
+ * `PAYOUT_CURRENCIES`, the p2p provider's advertised currencies, the mobile
+ * country picker, and the landing's market count. New payout accounts in that
+ * country are refused, and so are new offers priced in its currency.
+ *
+ * Expect the tests that pin the current market list to fail when you do it.
+ * That is the intended friction, not breakage: retiring a corridor should leave
+ * a visible diff, so update them in the same commit. (No count is given here —
+ * an earlier draft said "three", and it was five commits stale by the time
+ * anyone would have read it.)
+ *
+ * WHAT IT DOES NOT REACH, and why that is deliberate:
+ *
+ *   - OPEN OFFERS ALREADY IN THE BOOK stay listed and takeable. They are
+ *     commitments made in good faith under the old rules, and they self-limit:
+ *     each expires at its accept deadline and refunds. Auto-hiding them was
+ *     considered and rejected — it would fire identically whether a market was
+ *     retired for low volume or for a legal order, and in the first case it
+ *     silently strands sellers who did nothing wrong. When the reason IS legal,
+ *     the per-escrow takedown path is the tool: it is explicit, auditable, and
+ *     scoped to the offers you actually mean.
+ *   - ACCEPTED TRADES settle normally. The escrow is on-chain and the fiat leg
+ *     is between the two parties; interrupting one strands money mid-flight.
+ *   - SAVED ACCOUNTS in that country stay visible and stop working. The masking
+ *     and `countryDisplayName` both handle an unknown country, so the row still
+ *     renders — the user learns it is dead when they try to post.
+ *   - The currency stays in SUPPORTED_CURRENCIES. It must: trades that already
+ *     happened in it still have to format and price correctly.
+ *
+ * There is no runtime toggle. `fiat_providers.is_enabled` disables a PROVIDER,
+ * and chains have `chains.is_enabled` in the DB, but a payout market lives in
+ * this file — so disabling one is a release, not a config change.
  */
 export const PAYOUT_COUNTRY_SPECS: Readonly<Record<string, PayoutCountrySpec>> = {
   NG: NG_PAYOUT,
