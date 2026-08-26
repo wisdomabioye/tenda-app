@@ -7,11 +7,11 @@
  * The ordering is load-bearing and is the whole reason this is one function
  * rather than four checks scattered through a catch block.
  *
- * A root domain folder, mirroring `wallet/`, rather than `hooks/escrow/`: this
- * is not a hook, and `hooks/` should read as the place hooks are. Not `lib/`
- * either — nothing in there reaches the UI at runtime (media-download.ts takes
- * a TYPE from components and that is the extent of it), while surfacing a
- * toast and a route is this function's entire job.
+ * `features/<domain>/`, beside `features/escrow-proofs/`, rather than
+ * `hooks/escrow/`: this is not a hook, and `hooks/` should read as the place
+ * hooks are. Not `lib/` either — nothing in there reaches the UI at runtime
+ * (media-download.ts takes a TYPE from components and that is the extent of
+ * it), while surfacing a toast and a route is this function's entire job.
  */
 import {
   classifyTransactionGateError,

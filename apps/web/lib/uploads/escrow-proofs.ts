@@ -2,7 +2,13 @@
  * Proof persistence + upload glue — web ports of mobile's
  * features/escrow-proofs/persistEscrowProofs and gig-action-sheets/upload.
  */
-import { ErrorCode, proofIdentity, type ProofType, ApiClientError } from '@tenda/shared'
+import {
+  ApiClientError,
+  ErrorCode,
+  errorMessage,
+  proofIdentity,
+  type ProofType,
+} from '@tenda/shared'
 import { api } from '@/api/client'
 import { showToast } from '@/components/ui/Toast'
 import { uploadToCloudinary } from '@/lib/uploads/upload'
@@ -69,7 +75,10 @@ export async function uploadProofs(files: PickedProofFile[]): Promise<Persistabl
       const url = await uploadToCloudinary(picked.file, 'proof')
       proofs.push({ url, type: picked.type })
     } catch (e) {
-      showToast('error', `Failed to upload "${picked.file.name}": ${(e as Error).message}`)
+      // The detail is appended only when the throw carried one — a bare
+      // trailing colon reads as a message that got cut off.
+      const detail = errorMessage(e)
+      showToast('error', `Failed to upload "${picked.file.name}"${detail === '' ? '' : `: ${detail}`}`)
       return null
     }
   }

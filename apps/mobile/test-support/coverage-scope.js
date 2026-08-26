@@ -164,12 +164,12 @@ module.exports = [
   'components/gig/gig-applications/*.{ts,tsx}',
   '!components/gig/gig-applications/index.ts',
   'components/gig/gig-form/AcceptanceModePicker.tsx',
-  // The detail's fact card, its rows, its sheet host — each now carries a MONEY
-  // claim. All three 100/100/100/100.
+  // The fact card, its rows, the sheet host and its upload half, all
+  // 100/100/100/100. Braced onto one line: this register is AT the 300 limit.
   'components/gig/GigMetaInfo.tsx',
   'components/gig/gigMetaRows.ts',
   'components/gig/GigActionSheets.tsx',
-  'components/gig/gig-action-sheets/ProofUploadSheet.tsx',
+  'components/gig/gig-action-sheets/{ProofUploadSheet.tsx,upload.ts}',
   // The read-back the on-chain digest is taken over. Measured before listing.
   'features/escrow-proofs/attachedProofUrls.ts',
   'components/ui/Input.tsx',
@@ -212,7 +212,7 @@ module.exports = [
   'theme/fonts.ts',
   'theme/tokens.ts',
   'hooks/escrow/proof-hash.ts',
-  'escrow/transition-failure.ts', // 100/100/100/100
+  'features/escrow/transition-failure.ts', // 100/100/100/100
   'components/gig/GigDetailGate.tsx',
   'components/shared/ReviewScore.tsx',
   'stores/gigs.store.ts',

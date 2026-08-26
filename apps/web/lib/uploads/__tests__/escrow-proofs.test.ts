@@ -111,5 +111,19 @@ test('one failed upload voids the whole batch with a named toast', async () => {
     { file: new File(['b'], 'b.pdf', { type: 'application/pdf' }), type: 'document' as const },
   ]
   await expect(uploadProofs(files)).resolves.toBeNull()
-  expect(toastMock).toHaveBeenCalledWith('error', expect.stringContaining('b.pdf'))
+  // The whole line, not just the filename: naming the file without saying WHY
+  // it failed is the half of this toast that cannot be acted on.
+  expect(toastMock).toHaveBeenCalledWith('error', 'Failed to upload "b.pdf": too big')
+})
+
+test('a failure with nothing to say names the file and stops there', async () => {
+  // `throw null` is legal and a rejected promise can carry anything, so the
+  // detail can be empty. Appending it unconditionally leaves `…"b.pdf": ` with
+  // a dangling colon, which reads as a message that got truncated.
+  uploadMock.mockRejectedValueOnce(null)
+  const files = [{ file: new File(['b'], 'b.pdf', { type: 'application/pdf' }), type: 'document' as const }]
+
+  await expect(uploadProofs(files)).resolves.toBeNull()
+
+  expect(toastMock).toHaveBeenCalledWith('error', 'Failed to upload "b.pdf"')
 })
