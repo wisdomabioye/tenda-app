@@ -9,6 +9,7 @@ import type { FastifyInstance } from 'fastify'
 import { and, asc, eq, gt, isNull, ne, or, sql, type SQL } from 'drizzle-orm'
 import { assets, escrows, exchange_details } from '@tenda/shared/db/schema'
 import { getAssetRates } from '@server/lib/exchange-rates'
+import { getUsdFxRates } from '@server/lib/fx-rates'
 import { ASSET_META, isSupportedCurrency } from '@tenda/shared'
 import { AppError } from '@server/lib/errors'
 import { DEFAULT_ACCEPT_WINDOW_SECONDS, ErrorCode } from '@tenda/shared'
@@ -18,9 +19,26 @@ import type { P2pFulfilment, P2pOrderBook, RateSource } from './providers/p2p-in
 /**
  * Mid-rate for any exchange-tradable asset, priced via CoinGecko (per-asset
  * coin id from ASSET_META). Stablecoins resolve to ~1 USD in the target fiat;
- * volatiles (SOL/ETH/CELO) to their live price. Unknown assets or a currency
- * CoinGecko doesn't return reject 503 (the service falls through to the next
- * provider, or surfaces the outage).
+ * volatiles (SOL/ETH/CELO) to their live price.
+ *
+ * DIRECT FIRST, THEN CROSS THROUGH USD. CoinGecko prices in ~60 fiats and two
+ * of our payout currencies are not among them — it returns no `ghs` and no
+ * `kes` — so Ghana and Kenya had no instant-sell quote at all, permanently,
+ * while every other market did. Crossing recovers it: CoinGecko always prices
+ * in USD, and the FX feed carries USD→GHS.
+ *
+ * Which currencies take which path is NOT listed anywhere. The direct rate is
+ * tried first and the cross is the fallback, so the day CoinGecko starts
+ * returning `ghs` it is used without anyone editing a list — and a currency
+ * that drops out of the feed is picked up by the cross rather than going dark.
+ *
+ * The peg is never assumed. The USD leg is the asset's real quoted USD price,
+ * so a USDC depeg reaches the quote instead of being rounded away by a
+ * hardcoded 1.0.
+ *
+ * Every way a rate can go missing still refuses with a 503 rather than
+ * returning undefined — a quote built on undefined becomes NaN and travels a
+ * long way before anything notices.
  */
 export function assetRateSource(): RateSource {
   return {
@@ -29,17 +47,31 @@ export function assetRateSource(): RateSource {
       if (meta === undefined) {
         throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate source for asset '${asset}'`)
       }
-      const { rates } = await getAssetRates(meta.coingeckoId)
-      // `rates` is a Partial Record: CoinGecko can answer without a currency we
-      // asked for, so the miss below is a real runtime state and not a type
-      // formality. Narrowing rather than asserting folds the two ways a rate can
-      // be absent — a code outside the vocabulary, and one inside it the feed
-      // omitted — into the same 503, which is what both mean to a caller.
-      const rate = isSupportedCurrency(fiat_currency) ? rates[fiat_currency] : undefined
-      if (rate === undefined) {
+      // Outside the vocabulary there is nothing to cross TO: the FX rates are
+      // filtered to SUPPORTED_CURRENCIES, so this refuses before the second
+      // feed is called rather than after it answers uselessly.
+      if (!isSupportedCurrency(fiat_currency)) {
         throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate for currency '${fiat_currency}'`)
       }
-      return rate
+
+      const { rates } = await getAssetRates(meta.coingeckoId)
+      const direct = rates[fiat_currency]
+      if (direct !== undefined) return direct
+
+      // No direct pair. Cross: (asset → USD) × (USD → fiat). The two legs are
+      // checked separately, and in this order, because without the USD leg
+      // there is nothing to multiply — so refusing here spares the FX feed a
+      // call whose answer could not be used either way. A two-hop rate with a
+      // hole in it is not more available than no rate, only harder to notice.
+      const usd = rates.USD
+      if (usd === undefined) {
+        throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate for currency '${fiat_currency}'`)
+      }
+      const fx = (await getUsdFxRates()).rates[fiat_currency]
+      if (fx === undefined) {
+        throw new AppError(503, ErrorCode.SERVICE_UNAVAILABLE, `no rate for currency '${fiat_currency}'`)
+      }
+      return usd * fx
     },
   }
 }
