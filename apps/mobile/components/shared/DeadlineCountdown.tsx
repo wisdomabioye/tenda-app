@@ -122,7 +122,7 @@ const s = StyleSheet.create({
     gap: spacing['2xs'],
   },
   inlineClock: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 13.5,
     lineHeight: 18,
     fontWeight: '700',
@@ -141,7 +141,7 @@ const s = StyleSheet.create({
     letterSpacing: 0.6,
   },
   bannerClock: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.extrabold,
     fontSize: 30,
     lineHeight: 34,
     fontWeight: '800',

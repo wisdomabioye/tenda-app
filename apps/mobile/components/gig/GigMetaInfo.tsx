@@ -200,7 +200,7 @@ const s = StyleSheet.create({
     minWidth: 0,
   },
   payLabel: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',
@@ -213,20 +213,20 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   payAmount: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 22,
     lineHeight: 26,
     fontWeight: '700',
     letterSpacing: -0.22,
   },
   payUnit: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '600',
   },
   payFiat: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12,
     lineHeight: 16,
     marginTop: 2,

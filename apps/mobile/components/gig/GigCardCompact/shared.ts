@@ -4,4 +4,5 @@
  */
 export { STATUS_LABEL } from '@tenda/shared'
 export { statusDotColor as STATUS_DOT_COLOR } from '@/lib/gig-display'
+export { categoryDotColor as CATEGORY_DOT_COLOR } from '@/lib/gig-display'
 

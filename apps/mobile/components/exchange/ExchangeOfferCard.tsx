@@ -160,7 +160,7 @@ const s = StyleSheet.create({
     marginTop: 4,
   },
   sol: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 16,
     lineHeight: 20,
     fontWeight: '700',
@@ -168,13 +168,13 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   arrow: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 13,
     lineHeight: 18,
     flexShrink: 0,
   },
   fiat: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '600',

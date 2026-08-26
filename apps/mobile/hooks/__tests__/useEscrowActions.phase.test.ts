@@ -39,13 +39,25 @@ jest.mock('@/stores/escrow.store', () => ({
 }))
 
 const mockAddProofs = jest.fn()
+// The read-back leg the on-chain digest is taken over. It returns MORE than the
+// batch below on purpose: the seal must describe the escrow's whole stored set.
+const mockGetProofs = jest.fn()
 jest.mock('@/api/client', () => {
   // The REAL shared class — sources narrow `instanceof ApiClientError` against it.
   const { ApiClientError } = jest.requireActual('@tenda/shared')
-  return { api: { escrows: { addProofs: (...a: unknown[]) => mockAddProofs(...a) } }, ApiClientError }
+  return {
+    api: {
+      escrows: {
+        addProofs: (...a: unknown[]) => mockAddProofs(...a),
+        proofs: (...a: unknown[]) => mockGetProofs(...a),
+      },
+    },
+    ApiClientError,
+  }
 })
 
 import { useEscrowActions } from '@/hooks/useEscrowActions'
+import { proofHashFor } from '@/hooks/escrow/proof-hash'
 
 const ARGS = { escrowId: 'e1', chainId: 'solana:devnet', asset: 'USDC_SOL', amountRaw: '2500000' }
 const UNSIGNED = { kind: 'solana-tx', tx_base64: 'AA==' }
@@ -157,6 +169,10 @@ test('submit: a proof-upload failure aborts before the chain and resets phase', 
 
 test('submit: uploads proofs then commits the digest on-chain (→ confirming)', async () => {
   mockAddProofs.mockResolvedValue(undefined)
+  // The escrow already held 'u0' from an earlier batch; 'u1' is what is being
+  // added now. The digest must cover BOTH — sealing only the new batch is the
+  // bug this leg exists to fix.
+  mockGetProofs.mockResolvedValue([{ url: 'u1' }, { url: 'u0' }])
   mockRequestSubmit.mockResolvedValue(UNSIGNED)
   mockSignSendAndReport.mockResolvedValue('sig-2')
   const { result } = renderHook(() => useEscrowActions(ARGS))
@@ -166,7 +182,9 @@ test('submit: uploads proofs then commits the digest on-chain (→ confirming)',
 
   expect(ok).toBe(true)
   expect(mockAddProofs).toHaveBeenCalledWith({ id: 'e1' }, { proofs: [{ url: 'u1', type: 'image' }] })
-  expect(mockRequestSubmit).toHaveBeenCalled()
+  // Sorted, so the seal does not depend on the order rows come back in — the
+  // endpoint declares none.
+  expect(mockRequestSubmit).toHaveBeenCalledWith('e1', proofHashFor(ARGS.chainId, ['u0', 'u1']))
   expect(result.current.phase).toBe('confirming')
   expect(result.current.activeAction).toBe('submit')
 })

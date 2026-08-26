@@ -27,7 +27,7 @@ export function Eyebrow({ children, color, style }: EyebrowProps) {
 
 const s = StyleSheet.create({
   eyebrow: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 9.5,
     lineHeight: 12,
     fontWeight: '600',

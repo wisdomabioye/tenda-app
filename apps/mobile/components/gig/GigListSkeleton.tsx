@@ -19,7 +19,14 @@ import type { GigCardVariant } from './GigCardCompact'
  * The COMMON height, not a guarantee: since the chain badge joined the category
  * row that row wraps when the labels are long (a testnet name beside a
  * multi-day deadline), which adds one badge line to the card. No single number
- * covers both, and these track the case that renders on most rows.
+ * covers both, so `rich` and `priceLeading` track the case that renders on most
+ * rows.
+ *
+ * `classic` is NOT maintained against that: no caller selects it (the variant
+ * is kept for revertibility, and both lists pass `rich` or `priceLeading`), and
+ * its figure predates the chain badge leaving its own line — so it is stale by
+ * roughly that line's height. Re-measure it before selecting the variant rather
+ * than trusting the number here.
  */
 const CARD_HEIGHT: Record<GigCardVariant, number> = {
   rich: 150,

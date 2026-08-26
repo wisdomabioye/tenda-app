@@ -8,16 +8,15 @@ import { ScreenContainer, Text, Divider, Spacer, showToast } from '@/components/
 import { GigActionSheets, type ActiveSheet } from '@/components/gig'
 import { ExchangeCTA } from '@/components/exchange'
 import { ExchangeOfferOverview } from '@/components/exchange/ExchangeOfferOverview'
-import { DetailChrome, DetailBottomBar, DisputeReasonBlock, ReportContentLink, TakedownNotice, TxConfirmDialog } from '@/components/escrow'
-import { TX_PROGRESS_LABEL, txSuccessCopy } from '@tenda/shared'
+import { DetailChrome, DetailBottomBar, DisputeReasonBlock, EscrowTransactionMonitor, ReportContentLink, TakedownNotice, TxConfirmDialog } from '@/components/escrow'
+import { txSuccessCopy } from '@tenda/shared'
 import { ReviewsSection, ProofsGrid, type MediaItem } from '@/components/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
-import { TransactionMonitor } from '@/components/feedback'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
 import { useEscrowLiveRefresh } from '@/hooks/useEscrowLiveRefresh'
 import { useEscrowFee } from '@/hooks/useEscrowFee'
-import { formatAssetAmount, formatFiat, checkEscrowTransitionApplied } from '@tenda/shared'
+import { formatAssetAmount, formatFiat } from '@tenda/shared'
 import type { EscrowTxType, ExchangeDetail } from '@tenda/shared'
 import { api } from '@/api/client'
 
@@ -110,7 +109,14 @@ export function ExchangeDetailContent({
 
   // Buyer's fiat-payment evidence → off-chain proof rows + on-chain submit.
   async function handleProofsReady(proofs: ProofFile[]): Promise<boolean> {
-    return actions.submit(proofs)
+    const submitted = await actions.submit(proofs)
+    // A failed submit is HALF done: the files uploaded, the transaction did
+    // not. Re-read so the sheet's "already attached" is the truth when the
+    // buyer reopens it — without this the prop was empty in exactly the
+    // situation it was written for, and the retry demanded the same upload
+    // again.
+    if (!submitted) void refresh()
+    return submitted
   }
 
   async function handleAddProofsReady(proofs: ProofFile[]): Promise<void> {
@@ -222,20 +228,13 @@ export function ExchangeDetailContent({
         onDisputeReady={handleDisputeReady}
       />
 
-      <TransactionMonitor
-        signature={actions.pendingTxRef}
-        phase={actions.phase}
-        actionLabel={actions.activeAction !== null ? TX_PROGRESS_LABEL[actions.activeAction] : undefined}
+      <EscrowTransactionMonitor
+        actions={actions}
         escrowId={offer.escrow_id}
         chainId={offer.chain_id}
-        checkApplied={() =>
-          checkEscrowTransitionApplied(actions.pendingAction, () => api.exchange.get({ id: offer.escrow_id }))
-        }
+        readDetail={() => api.exchange.get({ id: offer.escrow_id })}
+        refresh={() => void refresh()}
         onConfirmed={handleTransactionConfirmed}
-        onFailed={(msg) => {
-          actions.clearPending()
-          showToast('info', msg || 'Transaction pending, will sync when confirmed')
-        }}
       />
 
       <ReportSheet visible={reportOpen} onClose={() => setReportOpen(false)} contentType="escrow" contentId={offer.escrow_id} />

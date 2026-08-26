@@ -8,7 +8,8 @@ import { CATEGORY_META, toAssetPaymentDisplay, formatFiat, LOCATIONS, type Count
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { ChainBadge } from '@/components/escrow/ChainBadge'
-import { STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
+import { GigCardPriceStrip } from './GigCardPriceStrip'
+import { CATEGORY_DOT_COLOR, STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
 
 interface Props {
   gig: GigSummary
@@ -31,7 +32,7 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
   const rates = useExchangeRateStore((s) => s.rates)
   const currency = useSettingsStore((s) => s.currency)
 
-  const categoryColor = theme.colors.category[gig.category]
+  const categoryDot = CATEGORY_DOT_COLOR(theme, gig.category)
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
   const price = toAssetPaymentDisplay(gig.amount_raw, gig.asset, rates, currency)
@@ -39,6 +40,13 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
   const deadlineMeta = gigDeadlineMeta(gig)
   const isUrgent = deadlineMeta.tone === 'urgent'
   const isSuccess = deadlineMeta.tone === 'success'
+  // NOTE: `isSuccess` (and the Check glyph it pairs with) cannot fire from a
+  // card. `gigDeadlineMeta` returns the success tone only for
+  // completed/resolved, and builds that chip's label from `updated_at` — a
+  // field `GigSummary` does not carry, so the label is empty and the chip is
+  // hidden. Kept because the branch becomes live the moment the summary gains
+  // the field; see display-branches.test.tsx, "a CLOSED gig shows no deadline
+  // chip at all".
 
   const statusDotColor = STATUS_DOT_COLOR(theme, gig.status)
   const fiatAlt = price.fiat !== null ? `≈ ${formatFiat(price.fiat, currency)}` : ''
@@ -57,37 +65,11 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
         pressed && s.pressed,
       ]}
     >
-      <View
-        style={[
-          s.priceStrip,
-          {
-            backgroundColor: theme.colors.surface.backgroundAlt,
-            borderRightColor: theme.colors.border.subtle,
-          },
-        ]}
-      >
-        <Text style={[s.paysLabel, { color: theme.colors.content.tertiary }]}>
-          PAYS
-        </Text>
-        <View style={s.priceBlock}>
-          <Text
-            style={[s.amount, { color: theme.colors.content.primary }]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.75}
-          >
-            {price.amount.toFixed(price.amount >= 1 ? 2 : 3)}
-          </Text>
-          <Text style={[s.unit, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
-            {price.symbol}
-          </Text>
-          {fiatAlt ? (
-            <Text style={[s.fiat, { color: theme.colors.content.tertiary }]} numberOfLines={1}>
-              {fiatAlt}
-            </Text>
-          ) : null}
-        </View>
-      </View>
+      <GigCardPriceStrip
+        amount={price.amount.toFixed(price.amount >= 1 ? 2 : 3)}
+        symbol={price.symbol}
+        fiatAlt={fiatAlt}
+      />
 
       <View style={s.body}>
         <View style={s.topRow}>
@@ -95,7 +77,7 @@ export function GigCardCompactPriceLeading({ gig, showStatus = false }: Props) {
             <View
               style={[
                 s.dot,
-                { backgroundColor: showStatus ? statusDotColor : categoryColor.base },
+                { backgroundColor: showStatus ? statusDotColor : categoryDot },
               ]}
             />
             <Text
@@ -199,56 +181,6 @@ const s = StyleSheet.create({
     minHeight: 112,
   },
   pressed: { opacity: 0.96, transform: [{ scale: 0.995 }] },
-  priceStrip: {
-    width: 86,
-    paddingTop: 14,
-    paddingBottom: 12,
-    paddingHorizontal: 10,
-    borderRightWidth: 1,
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  paysLabel: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 9.5,
-    lineHeight: 12,
-    fontWeight: '600',
-    letterSpacing: 0.95,
-  },
-  // `alignSelf: 'stretch'` is the load-bearing rule, not tidiness. `priceStrip`
-  // is a column with `alignItems: 'flex-start'`, so without it this block is
-  // sized to its own max-content width and simply paints past the 86px strip —
-  // `numberOfLines` and font auto-sizing have no box to fit INTO. Stretching
-  // hands it the strip's real content width (86 - 2x10 = 66px), which is what
-  // both rules below measure against.
-  priceBlock: { alignSelf: 'stretch' },
-  amount: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 20,
-    lineHeight: 22,
-    fontWeight: '700',
-    letterSpacing: -0.4,
-  },
-  // The symbol sits UNDER the digits rather than beside them. Measured: 66px
-  // holds neither pair — '50.00 USDC' wants ~78px and '1462.00 USDC' ~99px —
-  // so side-by-side elided the asset on ordinary gigs, not just large ones.
-  // Stacked, the digits get all 66px, which covers every amount up to five
-  // characters at full size; longer ones lose a little type size (see
-  // `adjustsFontSizeToFit` above) and the symbol always stays whole.
-  unit: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: '600',
-  },
-  fiat: {
-    fontFamily: typography.fonts.mono,
-    fontSize: 10.5,
-    lineHeight: 14,
-    letterSpacing: 0.105,
-    marginTop: 4,
-  },
   body: {
     flex: 1,
     minWidth: 0,
@@ -287,7 +219,7 @@ const s = StyleSheet.create({
   label: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1, minWidth: 0 },
   dot: { width: 6, height: 6, borderRadius: 3 },
   labelText: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 9.5,
     lineHeight: 12,
     fontWeight: '600',

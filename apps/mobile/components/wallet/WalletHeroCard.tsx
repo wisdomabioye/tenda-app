@@ -47,14 +47,14 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 18,
   },
-  label: { fontFamily: typography.fonts.mono, fontSize: 10, lineHeight: 13, fontWeight: '600', letterSpacing: 1.0 },
+  label: { fontFamily: typography.fonts.mono.semibold, fontSize: 10, lineHeight: 13, fontWeight: '600', letterSpacing: 1.0 },
   balanceRow: { flexDirection: 'row', alignItems: 'baseline', gap: 8, marginTop: 10, minHeight: 42 },
   amount: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 40,
     lineHeight: 42,
     fontWeight: '700',
     letterSpacing: -0.8,
   },
-  unit: { fontFamily: typography.fonts.mono, fontSize: 14, lineHeight: 18, fontWeight: '500' },
+  unit: { fontFamily: typography.fonts.mono.medium, fontSize: 14, lineHeight: 18, fontWeight: '500' },
 })

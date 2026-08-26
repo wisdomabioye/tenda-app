@@ -8,6 +8,7 @@ import { BottomSheet } from '@/components/ui/BottomSheet'
 import { FilePicker, type PickedFile } from '@/components/form/FilePicker'
 import { missingProofTypes, type ProofType } from '@tenda/shared'
 import { ProofRequirementsNote } from '../ProofRequirementsNote'
+import { PROOF_SHEET_COPY } from './copy'
 import { uploadProofs, type Proof } from './upload'
 
 /**
@@ -21,6 +22,10 @@ import { uploadProofs, type Proof } from './upload'
  * `requirements` mirrors the server's submit gate as a live checklist, so the
  * worker sees what is missing before uploading rather than after a rejected
  * submit. It is advisory UI only — the server re-checks.
+ *
+ * A submit with NO newly-picked file is allowed when the escrow already holds
+ * evidence covering the requirements — the retry after a failed transaction.
+ * See `reusesAttached` below.
  */
 export function ProofUploadSheet({
   visible,
@@ -55,11 +60,31 @@ export function ProofUploadSheet({
   const [files, setFiles] = useState<PickedFile[]>([])
   const [uploading, setUploading] = useState(false)
 
+  // Mirrors the server gate exactly: it reads every proof row on the escrow,
+  // so the checklist counts what is already stored plus what is picked now.
+  const covered = [...alreadyAttached, ...files]
+  const unmet = missingProofTypes(requirements, covered).length > 0
+
+  /**
+   * Submitting with NOTHING newly picked, because the escrow already holds the
+   * evidence. The case is a worker whose files uploaded and whose submit
+   * transaction then failed — a declined wallet, a dropped connection. The
+   * upload is the leg that SUCCEEDED, and demanding it again was asking them
+   * to re-do the expensive half of a two-part action to retry the cheap half.
+   *
+   * Only the submit path can reach this: "Add more proof" is handed no
+   * `alreadyAttached`, and uploading nothing there would mean nothing at all.
+   */
+  const reusesAttached = files.length === 0 && alreadyAttached.length > 0
+  const canSubmit = !unmet && (files.length > 0 || reusesAttached)
+
   async function handleSubmit() {
-    if (files.length === 0) return
+    if (!canSubmit) return
     setUploading(true)
     try {
-      const proofs = await uploadProofs(files)
+      // Nothing new picked is the RETRY path (see `reusesAttached`): there is
+      // nothing to upload, only a transaction to sign again.
+      const proofs = files.length === 0 ? [] : await uploadProofs(files)
       if (proofs === null) return // failure already toasted
       if (closeMode === 'before-submit') {
         onClose()
@@ -74,16 +99,19 @@ export function ProofUploadSheet({
     }
   }
 
-  // Mirrors the server gate exactly: it reads every proof row on the escrow,
-  // so the checklist counts what is already stored plus what is picked now.
-  const covered = [...alreadyAttached, ...files]
-  const unmet = missingProofTypes(requirements, covered).length > 0
-
   return (
     <BottomSheet visible={visible} onClose={onClose} title={title}>
       {requirements.length > 0 && (
         <>
           <ProofRequirementsNote required={requirements} attached={covered} />
+          <Spacer size={spacing.sm} />
+        </>
+      )}
+      {alreadyAttached.length > 0 && (
+        <>
+          <Text variant="caption" color={theme.colors.content.secondary}>
+            {PROOF_SHEET_COPY.alreadyAttached(alreadyAttached.map((proof) => proof.type))}
+          </Text>
           <Spacer size={spacing.sm} />
         </>
       )}
@@ -101,7 +129,7 @@ export function ProofUploadSheet({
         variant="primary"
         size="xl"
         fullWidth
-        disabled={files.length === 0 || unmet}
+        disabled={!canSubmit}
         loading={uploading}
         onPress={handleSubmit}
       >

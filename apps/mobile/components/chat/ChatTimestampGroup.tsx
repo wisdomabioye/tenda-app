@@ -26,7 +26,7 @@ const s = StyleSheet.create({
     marginBottom: 4,
   },
   label: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.medium,
     fontSize: 11,
     lineHeight: 14,
     fontWeight: '500',

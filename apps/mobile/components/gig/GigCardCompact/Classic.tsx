@@ -8,6 +8,7 @@ import { MoneyText } from '@/components/ui/MoneyText'
 import { GigStatusBadge } from '../GigStatusBadge'
 import { ChainBadge } from '@/components/escrow/ChainBadge'
 import { CATEGORY_META, toAssetPaymentDisplay, LOCATIONS, type CountryCode, GigSummary, gigDeadlineMeta } from '@tenda/shared'
+import { CATEGORY_DOT_COLOR } from './shared'
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 
@@ -28,7 +29,7 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
   const { theme } = useUnistyles()
   const rates = useExchangeRateStore((s) => s.rates)
   const currency = useSettingsStore((s) => s.currency)
-  const categoryColor = theme.colors.category[gig.category]
+  const categoryDot = CATEGORY_DOT_COLOR(theme, gig.category)
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
   const price = toAssetPaymentDisplay(gig.amount_raw, gig.asset, rates, currency)
@@ -48,7 +49,7 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
     >
       <View style={s.categoryRow}>
         <View style={s.category}>
-          <View style={[s.categoryDot, { backgroundColor: categoryColor.base }]} />
+          <View style={[s.categoryDot, { backgroundColor: categoryDot }]} />
           <Text variant="caption" color={theme.colors.content.secondary} numberOfLines={1} style={s.categoryLabel}>
             {categoryLabel}
           </Text>
@@ -88,9 +89,13 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
         )}
         {deadlineMeta.label ? (
           <View style={s.metaItem}>
+            {/* Three arms, not two: `gigDeadlineMeta` returns `glyph: null` to
+                mean NO icon (cancelled is the live case), and a two-way
+                ternary drew a clock for it — which both sibling variants
+                already got right. */}
             {deadlineMeta.glyph === 'check' ? (
               <Check size={14} color={theme.colors.feedback.success.base} strokeWidth={2.5} />
-            ) : (
+            ) : deadlineMeta.glyph === 'clock' ? (
               <Clock
                 size={14}
                 color={
@@ -99,7 +104,7 @@ export function GigCardCompactClassic({ gig, showStatus = false }: Props) {
                     : theme.colors.content.tertiary
                 }
               />
-            )}
+            ) : null}
             <Text
               variant="caption"
               color={

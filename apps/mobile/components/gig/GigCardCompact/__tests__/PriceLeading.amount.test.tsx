@@ -2,8 +2,9 @@
  * The price strip has a FIXED 86px width and 10px of padding either side, so
  * 66px of content — and that is the whole problem this pins.
  *
- * Measured against the font that actually renders, amount and symbol side by
- * side want ~78px for '50.00 USDC' and ~99px for '1462.00 USDC'. Neither fits.
+ * JetBrains Mono is a fixed 0.6em advance, so at the amount's 20px every
+ * character is 11.6px: amount and symbol side by side want ~84px for
+ * '50.00 USDC' and ~108px for '1462.00 USDC'. Neither fits.
  * Because `priceStrip` is a column with `alignItems: 'flex-start'`, an
  * unconstrained child is sized to its own max-content width instead of being
  * clipped, so the money simply painted out over the card body — reported on My
@@ -160,6 +161,8 @@ test('a long amount shrinks to fit instead of painting outside the card', () => 
   expect(amount.props.numberOfLines).toBe(1)
   // Floored, so a pathological amount degrades to small rather than illegible.
   expect(amount.props.minimumFontScale).toBeGreaterThanOrEqual(0.7)
+  // ...and not so low the digits become unreadable to win an edge case.
+  expect(amount.props.minimumFontScale).toBeLessThanOrEqual(0.8)
 })
 
 test('the symbol is never truncated away', () => {

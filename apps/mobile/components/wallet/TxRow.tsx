@@ -102,14 +102,14 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   amtMain: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 15,
     lineHeight: 18,
     fontWeight: '600',
     letterSpacing: -0.15,
   },
   amtUnit: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 10,
     lineHeight: 13,
     marginTop: 2,

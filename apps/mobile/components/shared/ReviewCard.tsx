@@ -94,7 +94,7 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   time: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 11.5,
     lineHeight: 14,
     marginLeft: 'auto',
@@ -106,7 +106,7 @@ const s = StyleSheet.create({
     marginTop: 6,
   },
   label: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',

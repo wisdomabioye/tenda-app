@@ -67,7 +67,7 @@ const s = StyleSheet.create({
   rowIc: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { fontSize: 15, letterSpacing: -0.075, flexShrink: 1 },
   rowValue: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12,
     letterSpacing: 0.12,
     flexShrink: 0,

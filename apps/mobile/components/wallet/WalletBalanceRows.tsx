@@ -73,8 +73,8 @@ const s = StyleSheet.create({
   },
   left: { flexShrink: 1, minWidth: 0 },
   chain: { fontSize: 14, fontWeight: '600', letterSpacing: -0.1 },
-  addr: { fontFamily: typography.fonts.mono, fontSize: 11, lineHeight: 15, marginTop: 1 },
+  addr: { fontFamily: typography.fonts.mono.regular, fontSize: 11, lineHeight: 15, marginTop: 1 },
   right: { alignItems: 'flex-end', flexShrink: 0 },
-  usdc: { fontFamily: typography.fonts.mono, fontSize: 15, lineHeight: 19, fontWeight: '600' },
-  native: { fontFamily: typography.fonts.mono, fontSize: 11, lineHeight: 15, marginTop: 1 },
+  usdc: { fontFamily: typography.fonts.mono.semibold, fontSize: 15, lineHeight: 19, fontWeight: '600' },
+  native: { fontFamily: typography.fonts.mono.regular, fontSize: 11, lineHeight: 15, marginTop: 1 },
 })

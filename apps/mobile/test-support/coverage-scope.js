@@ -164,6 +164,44 @@ module.exports = [
   'components/gig/gig-applications/*.{ts,tsx}',
   '!components/gig/gig-applications/index.ts',
   'components/gig/gig-form/AcceptanceModePicker.tsx',
+  'components/gig/gig-action-sheets/ProofUploadSheet.tsx',
+  // Its sentences, and the read-back the on-chain digest is taken over. Both
+  // are new modules the suite exercises, and a file that is neither gated nor
+  // in the ungated register is exactly the "quietly outside it" state that
+  // register exists to prevent. Measured before listing.
+  'components/gig/gig-action-sheets/copy.ts',
+  'features/escrow-proofs/attachedProofUrls.ts',
+  'components/ui/Input.tsx',
+  // The money primitive. Its first suite came from the font-registration audit,
+  // which found the headline naming a 500/600 face while declaring weight 700.
+  'components/ui/MoneyText.tsx',
+  // The escrow detail screens' shared TransactionMonitor wiring, extracted from
+  // the two hubs that had duplicated it. It owns the re-read-on-failure the
+  // proof retry depends on, so it is gated rather than left to the hubs (which
+  // no suite renders). Measured before listing: 100/100/100/100.
+  'components/escrow/EscrowTransactionMonitor.tsx',
+  // The three feed-card variants. All three sat in the ungated register — a
+  // measured exemption: their display ternaries (deadline tone and glyph,
+  // remote vs on-site, cross-border, showStatus, priced vs unpriceable asset)
+  // were each driven on ONE arm, so gating them cost 92 -> 89.31 global
+  // branches, under the 90 floor. `display-branches.test.tsx` drives the other
+  // arms; re-MEASURED with them listed, and the gate now HOLDS — the three
+  // files read 100 stmts / 85.03 branch / 100 funcs / 100 lines, and the global
+  // figures go 93.18/91.94/92.57/93.27 ungated to 93.33/91.47/92.75/93.41
+  // gated. Branches pay 0.47 for statements gaining 0.15; both stay well clear
+  // of the 90 floor. What is still dark is the `pressed` style arms and the
+  // success-tone deadline chip.
+  'components/gig/GigCardCompact/*.tsx',
+  // A re-export barrel plus a variant switch no suite renders directly.
+  '!components/gig/GigCardCompact/index.tsx',
+  // The theme's font declarations and the assets they name. Both are data, and
+  // the seam between them is exactly where JetBrains Mono went missing for
+  // months — an unregistered family does not error, it silently renders as the
+  // platform sans. Measured before listing, per the rule above: both read
+  // 100/100/100/100 and the global figures are unmoved.
+  'theme/fonts.ts',
+  'theme/tokens.ts',
+  'hooks/escrow/proof-hash.ts',
   'components/gig/GigDetailGate.tsx',
   'components/shared/ReviewScore.tsx',
   'stores/gigs.store.ts',

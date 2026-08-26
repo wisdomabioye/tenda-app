@@ -264,7 +264,7 @@ const s = StyleSheet.create({
     fontSize: 11.5,
   },
   charCount: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 11.5,
     letterSpacing: 0.115,
   },

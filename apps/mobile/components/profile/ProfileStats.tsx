@@ -80,14 +80,14 @@ const s = StyleSheet.create({
   stat: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 },
   statDivider: { position: 'absolute', left: 0, top: 16, bottom: 16, width: 1 },
   statValue: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 20,
     fontWeight: '700',
     letterSpacing: -0.4,
     lineHeight: 22,
   },
-  statUnit: { fontFamily: typography.fonts.mono, fontSize: 11, fontWeight: '600', letterSpacing: 0 },
-  statLabel: { fontFamily: typography.fonts.mono, fontSize: 9.5, fontWeight: '600', letterSpacing: 0.95 },
+  statUnit: { fontFamily: typography.fonts.mono.semibold, fontSize: 11, fontWeight: '600', letterSpacing: 0 },
+  statLabel: { fontFamily: typography.fonts.mono.semibold, fontSize: 9.5, fontWeight: '600', letterSpacing: 0.95 },
   error: {
     marginHorizontal: 20,
     marginTop: 10,

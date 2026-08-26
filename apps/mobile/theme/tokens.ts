@@ -423,7 +423,21 @@ const fonts = {
     semibold: 'Manrope_600SemiBold',
     bold: 'Manrope_700Bold',
   },
-  mono: 'JetBrainsMono',
+  /**
+   * Named per weight, like `display` and `body` above, because that is what RN
+   * actually resolves: `expo-font` registers each face under the KEY it is
+   * given, so a single 'JetBrainsMono' family name matched nothing at all and
+   * every numeric surface in the app silently rendered in the platform sans.
+   * A `fontWeight` beside these is advisory — the family carries the weight.
+   */
+  mono: {
+    regular: 'JetBrainsMono_400Regular',
+    medium: 'JetBrainsMono_500Medium',
+    semibold: 'JetBrainsMono_600SemiBold',
+    bold: 'JetBrainsMono_700Bold',
+    /** One site: the dispute/deadline banner clock. */
+    extrabold: 'JetBrainsMono_800ExtraBold',
+  },
 } as const
 
 export const typography = {
@@ -507,21 +521,21 @@ export const typography = {
     } satisfies TextStyleToken,
 
     mono: {
-      fontFamily: fonts.mono,
+      fontFamily: fonts.mono.medium,
       fontSize: 15,
       lineHeight: 20,
       fontWeight: fontWeights.medium,
     } satisfies TextStyleToken,
 
     monoMid: {
-      fontFamily: fonts.mono,
+      fontFamily: fonts.mono.semibold,
       fontSize: 22,
       lineHeight: 26,
       fontWeight: fontWeights.semibold,
     } satisfies TextStyleToken,
 
     monoLarge: {
-      fontFamily: fonts.mono,
+      fontFamily: fonts.mono.semibold,
       fontSize: 40,
       lineHeight: 44,
       fontWeight: fontWeights.semibold,
@@ -529,7 +543,7 @@ export const typography = {
     } satisfies TextStyleToken,
 
     monoSmall: {
-      fontFamily: fonts.mono,
+      fontFamily: fonts.mono.medium,
       fontSize: 12,
       lineHeight: 16,
       fontWeight: fontWeights.medium,

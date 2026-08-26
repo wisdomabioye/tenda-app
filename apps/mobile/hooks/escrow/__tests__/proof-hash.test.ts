@@ -5,17 +5,7 @@
  * the identical vectors: the two clients must commit the same digest for the
  * same proof URLs (dispute-time auditability depends on it).
  */
-jest.mock('expo-router', () => ({ useRouter: () => ({ push: jest.fn() }) }))
-jest.mock('@/components/ui', () => ({ showToast: jest.fn() }))
-// proofHashFor is pure, but its module's import chain reaches the wallet
-// runtime (web3.js / Reown native ESM) — stubbed exactly like the sibling
-// useEscrowActions suites.
-jest.mock('@/wallet/dispatch', () => ({ signSendAndReport: jest.fn(), resolveSignersForChain: () => [] }))
-jest.mock('@/wallet/balances', () => ({ ensureSufficientBalance: jest.fn() }))
-jest.mock('@/wallet/permit', () => ({ buildPermitFor: jest.fn() }))
-jest.mock('@/stores/escrow.store', () => ({ useEscrowStore: () => ({}) }))
-
-import { proofHashFor } from '../useEscrowActions'
+import { proofHashFor } from '../proof-hash'
 
 const URLS = ['https://res.example/proof-1.png', 'https://res.example/proof-2.pdf']
 

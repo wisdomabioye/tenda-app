@@ -22,15 +22,14 @@ import { ApplySheet, useGigApprovalFlow } from '@/components/gig/gig-application
 import { partiesOf } from '@tenda/shared'
 import { MediaViewerModal } from '@/components/shared/media/MediaViewerModal'
 import type { MediaItem } from '@/components/shared/media/types'
-import { DetailChrome, TxConfirmDialog } from '@/components/escrow'
-import { TX_PROGRESS_LABEL, txSuccessCopy } from '@tenda/shared'
-import { TransactionMonitor } from '@/components/feedback'
+import { DetailChrome, EscrowTransactionMonitor, TxConfirmDialog } from '@/components/escrow'
+import { txSuccessCopy } from '@tenda/shared'
 import { NudgeSheet } from '@/components/onboarding/NudgeSheet'
 import { ReportSheet } from '@/components/moderation/ReportSheet'
 import { useOnboardingStore } from '@/stores/onboarding.store'
 import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
 import { useGigsStore } from '@/stores'
-import { apiConfig, canAccept, formatAssetAmount, formatDuration, checkEscrowTransitionApplied } from '@tenda/shared'
+import { apiConfig, canAccept, formatAssetAmount, formatDuration } from '@tenda/shared'
 import { getEnv } from '@/lib/env'
 import { api } from '@/api/client'
 import { useEscrowActions, type ProofFile } from '@/hooks/useEscrowActions'
@@ -145,7 +144,14 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
 
   // Sheet-confirmed handlers (sheets collect input; the hook signs).
   async function handleProofsReady(proofs: ProofFile[]): Promise<boolean> {
-    return actions.submit(proofs)
+    const submitted = await actions.submit(proofs)
+    // A failed submit is HALF done: the files uploaded, the transaction did
+    // not. Re-read so the sheet's "already attached" is the truth when the
+    // worker reopens it — without this the prop was empty in exactly the
+    // situation it was written for, and the retry demanded the same upload
+    // again.
+    if (!submitted) void fetchGigDetail(gig.escrow_id)
+    return submitted
   }
 
   async function handleAddProofsReady(proofs: ProofFile[]): Promise<void> {
@@ -230,20 +236,13 @@ function GigDetailContent({ gig, userId }: { gig: GigDetail; userId: string }) {
           onDisputeReady={handleDisputeReady}
         />
 
-        <TransactionMonitor
-          signature={actions.pendingTxRef}
-          phase={actions.phase}
-          actionLabel={actions.activeAction !== null ? TX_PROGRESS_LABEL[actions.activeAction] : undefined}
+        <EscrowTransactionMonitor
+          actions={actions}
           escrowId={gig.escrow_id}
           chainId={gig.chain_id}
-          checkApplied={() =>
-            checkEscrowTransitionApplied(actions.pendingAction, () => api.gigs.get({ id: gig.escrow_id }))
-          }
+          readDetail={() => api.gigs.get({ id: gig.escrow_id })}
+          refresh={() => void fetchGigDetail(gig.escrow_id)}
           onConfirmed={handleTransactionConfirmed}
-          onFailed={(msg) => {
-            actions.clearPending()
-            showToast('info', msg || 'Transaction pending, will sync when confirmed')
-          }}
         />
 
         <ApplySheet

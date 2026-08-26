@@ -8,7 +8,7 @@ import { CATEGORY_META, toAssetPaymentDisplay, formatFiat, LOCATIONS, type Count
 import { useExchangeRateStore } from '@/stores/exchange-rate.store'
 import { useSettingsStore } from '@/stores/settings.store'
 import { ChainBadge } from '@/components/escrow/ChainBadge'
-import { STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
+import { CATEGORY_DOT_COLOR, STATUS_DOT_COLOR, STATUS_LABEL } from './shared'
 
 interface Props {
   gig: GigSummary
@@ -30,7 +30,7 @@ export function GigCardCompactRich({ gig, showStatus = false }: Props) {
   const rates = useExchangeRateStore((s) => s.rates)
   const currency = useSettingsStore((s) => s.currency)
 
-  const categoryColor = theme.colors.category[gig.category]
+  const categoryDot = CATEGORY_DOT_COLOR(theme, gig.category)
   const categoryLabel =
     CATEGORY_META.find((c) => c.key === gig.category)?.label ?? gig.category
   const price = toAssetPaymentDisplay(gig.amount_raw, gig.asset, rates, currency)
@@ -38,6 +38,13 @@ export function GigCardCompactRich({ gig, showStatus = false }: Props) {
   const deadlineMeta = gigDeadlineMeta(gig)
   const isUrgent = deadlineMeta.tone === 'urgent'
   const isSuccess = deadlineMeta.tone === 'success'
+  // NOTE: `isSuccess` (and the Check glyph it pairs with) cannot fire from a
+  // card. `gigDeadlineMeta` returns the success tone only for
+  // completed/resolved, and builds that chip's label from `updated_at` — a
+  // field `GigSummary` does not carry, so the label is empty and the chip is
+  // hidden. Kept because the branch becomes live the moment the summary gains
+  // the field; see display-branches.test.tsx, "a CLOSED gig shows no deadline
+  // chip at all".
 
   const statusDotColor = STATUS_DOT_COLOR(theme, gig.status)
   const fiatAlt = price.fiat !== null ? formatFiat(price.fiat, currency) : ''
@@ -61,7 +68,7 @@ export function GigCardCompactRich({ gig, showStatus = false }: Props) {
           <View
             style={[
               s.dot,
-              { backgroundColor: showStatus ? statusDotColor : categoryColor.base },
+              { backgroundColor: showStatus ? statusDotColor : categoryDot },
             ]}
           />
           <Text
@@ -210,7 +217,7 @@ const s = StyleSheet.create({
   },
   dot: { width: 7, height: 7, borderRadius: 3.5 },
   label: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 10.5,
     lineHeight: 13,
     fontWeight: '700',
@@ -223,7 +230,7 @@ const s = StyleSheet.create({
   },
   deadline: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
   deadlineText: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 10.5,
     lineHeight: 14,
   },
@@ -259,14 +266,14 @@ const s = StyleSheet.create({
   },
   remotePillText: { fontSize: 11, lineHeight: 14, fontWeight: '600' },
   price: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 14,
     lineHeight: 18,
     fontWeight: '700',
     letterSpacing: -0.18,
   },
   priceFiat: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.medium,
     fontSize: 12,
     fontWeight: '500',
   },

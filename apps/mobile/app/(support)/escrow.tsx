@@ -162,7 +162,7 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   flowNumText: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 14,
     fontWeight: '600',
     includeFontPadding: false,
@@ -194,7 +194,7 @@ const s = StyleSheet.create({
     marginBottom: 12,
   },
   feeInputValue: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 18,
     fontWeight: '700',
     letterSpacing: -0.18,
@@ -217,7 +217,7 @@ const s = StyleSheet.create({
     fontSize: 13.5,
   },
   feeValue: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 13,
     fontWeight: '600',
     letterSpacing: -0.065,
@@ -235,7 +235,7 @@ const s = StyleSheet.create({
     fontWeight: '600',
   },
   feeValueTotal: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 16,
     fontWeight: '700',
     letterSpacing: -0.16,

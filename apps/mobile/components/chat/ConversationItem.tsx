@@ -111,7 +111,7 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   time: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.medium,
     fontSize: 10.5,
     lineHeight: 14,
     fontWeight: '500',

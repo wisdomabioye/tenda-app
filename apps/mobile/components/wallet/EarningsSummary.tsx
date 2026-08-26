@@ -38,7 +38,7 @@ const s = StyleSheet.create({
   statLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   statDot: { width: 6, height: 6, borderRadius: 3 },
   statLabel: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',
@@ -47,12 +47,12 @@ const s = StyleSheet.create({
     includeFontPadding: false,
   },
   statValue: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 20,
     lineHeight: 24,
     fontWeight: '700',
     letterSpacing: -0.4,
     marginTop: 6,
   },
-  statUnit: { fontFamily: typography.fonts.mono, fontSize: 10, lineHeight: 13, marginTop: 2 },
+  statUnit: { fontFamily: typography.fonts.mono.regular, fontSize: 10, lineHeight: 13, marginTop: 2 },
 })

@@ -121,7 +121,7 @@ const s = StyleSheet.create({
   },
   label: { fontSize: 13, lineHeight: 18 },
   value: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 13.5,
     lineHeight: 18,
     fontWeight: '600',

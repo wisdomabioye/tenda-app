@@ -128,7 +128,7 @@ const s = StyleSheet.create({
   content: { paddingTop: 4 },
   footer: { paddingVertical: 16 },
   sectionTitle: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',
@@ -138,7 +138,7 @@ const s = StyleSheet.create({
     paddingBottom: 8,
   },
   dayHeader: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 10,
     lineHeight: 13,
     fontWeight: '600',

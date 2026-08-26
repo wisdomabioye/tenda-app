@@ -1,5 +1,6 @@
 export { ChainBadge } from './ChainBadge'
 export { DetailChrome } from './DetailChrome'
+export { EscrowTransactionMonitor } from './EscrowTransactionMonitor'
 export { DetailBottomBar } from './DetailBottomBar'
 export { DisputeReasonBlock } from './DisputeReasonBlock'
 export { ReportContentLink } from './ReportContentLink'

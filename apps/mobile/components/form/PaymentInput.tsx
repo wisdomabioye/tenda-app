@@ -201,7 +201,7 @@ const s = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 9.5,
     lineHeight: 12,
     fontWeight: '600',
@@ -217,7 +217,7 @@ const s = StyleSheet.create({
   amount: {
     flex: 1,
     minWidth: 0,
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.bold,
     fontSize: 22,
     lineHeight: 26,
     fontWeight: '700',
@@ -225,7 +225,7 @@ const s = StyleSheet.create({
     padding: 0,
   },
   suffix: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 13,
     lineHeight: 16,
     fontWeight: '600',
@@ -233,7 +233,7 @@ const s = StyleSheet.create({
     flexShrink: 0,
   },
   fiat: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12.5,
     lineHeight: 16,
     marginTop: 4,

@@ -235,7 +235,7 @@ const s = StyleSheet.create({
     letterSpacing: -0.18,
   },
   headerHandle: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12,
     lineHeight: 16,
     marginTop: 2,
@@ -254,7 +254,7 @@ const s = StyleSheet.create({
     paddingVertical: 12,
   },
   sectionLabel: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.semibold,
     fontSize: 9.5,
     lineHeight: 12,
     fontWeight: '600',
@@ -282,7 +282,7 @@ const s = StyleSheet.create({
     letterSpacing: -0.075,
   },
   rowMeta: {
-    fontFamily: typography.fonts.mono,
+    fontFamily: typography.fonts.mono.regular,
     fontSize: 12,
     lineHeight: 16,
   },
