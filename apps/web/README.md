@@ -1,17 +1,29 @@
 # Tenda Web (`apps/web`)
 
-Browser version of `apps/mobile` — Next.js 16 + Tailwind v4, dev on **:3200**.
+Browser version of `apps/mobile` — Next.js + Tailwind v4, dev on **:3200**.
 
-- Staged plan: `docs/web-app-stages/` (repo root `/docs`) — stages 0–8, each independently shippable.
-- Design direction: `docs/web-app-stages/ui-ux-brief.md`. **The design spec is not authoritative** — `apps/mobile` + `@tenda/shared` win every conflict; log divergences in `docs/web-app-stages/spec-corrections.md`.
-- Data-access + pluggability policy: see `CLAUDE.md` in this directory.
+- It is a DOM rewrite of the mobile app, not a separate product:
+  `apps/mobile` + `@tenda/shared` are authoritative — they win every
+  behaviour/visual conflict.
+- Data-access + pluggability policy: `CLAUDE.md` in this directory.
+
+## Setup
 
 ```bash
-pnpm --filter web dev          # :3200
-pnpm --filter web build
-pnpm --filter web test
-pnpm --filter web type-check
-pnpm --filter web gen:tokens   # regenerate styles/tokens.css from apps/mobile/theme/tokens.ts
+pnpm --filter @tenda/shared build   # after any change to packages/shared
+pnpm --filter web dev               # http://localhost:3200
 ```
 
-Remember: after changing `packages/shared`, run `pnpm --filter @tenda/shared build`.
+`pnpm --filter web dev-capped` runs the dev server memory-capped
+(systemd-run, 6G) — use it on machines where `next dev` can OOM.
+
+## Scripts
+
+| Command | Description |
+|---|---|
+| `pnpm dev` / `pnpm dev-capped` | Dev server on :3200 (capped variant recommended) |
+| `pnpm build` / `pnpm start` | Prod build / serve |
+| `pnpm test` / `pnpm test:watch` / `pnpm test:coverage` | vitest suite |
+| `pnpm test:e2e` (`:headed`) | Playwright e2e (does a full `next build`) |
+| `pnpm gen:tokens` (`:check`) | Regenerate `styles/tokens.css` from `apps/mobile/theme/tokens.ts` |
+| `pnpm type-check` / `pnpm lint` | tsc / eslint |
