@@ -289,6 +289,26 @@ test('disabling a market leaves its currency formattable for historical rows', (
  * falls back to its raw code rather than throwing or reading as blank, so the
  * row stays recognisable to the person who saved it.
  */
+/**
+ * A plain object inherits from Object.prototype, so a bare
+ * `PAYOUT_COUNTRY_SPECS[country]` answers with something TRUTHY for
+ * '__proto__', 'constructor' and 'toString'. `getPayoutSpec` is documented as
+ * returning null for anything it does not know, and callers gate on exactly
+ * that — `if (getPayoutSpec(c) === null) reject` — so those three strings
+ * walked through the check.
+ *
+ * Blocked at the route today by a two-character cap on `country`, which is a
+ * property of one caller rather than of this function.
+ */
+test('inherited Object keys are not payout markets', () => {
+  for (const key of ['__proto__', 'constructor', 'toString', 'valueOf', 'hasOwnProperty']) {
+    assert.equal(getPayoutSpec(key), null, `${key} resolved to a spec`)
+    assert.equal(getPayoutRail(key, 'bank'), null, `${key} resolved to a rail`)
+    assert.equal(payoutCurrencyForCountry(key), null, `${key} resolved to a currency`)
+    assert.ok(!SUPPORTED_PAYOUT_COUNTRIES.includes(key))
+  }
+})
+
 test('disabling a market: an existing account still displays its country', () => {
   assert.equal(countryDisplayName(DISABLED), DISABLED)
 })

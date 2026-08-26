@@ -88,9 +88,22 @@ export const PAYOUT_CURRENCIES: SupportedCurrency[] = [
   ...new Set(Object.values(PAYOUT_COUNTRY_SPECS).map((s) => s.currency)),
 ]
 
-/** Country spec, or null when the country isn't a supported payout market. */
+/**
+ * Country spec, or null when the country isn't a supported payout market.
+ *
+ * `Object.hasOwn` rather than a bare index: a plain object inherits from
+ * Object.prototype, so `PAYOUT_COUNTRY_SPECS['__proto__']` — and 'constructor',
+ * and 'toString' — answer with something TRUTHY that is not a spec, and the
+ * `?? null` never fires. Callers gate on `getPayoutSpec(c) === null`, so those
+ * three strings walked through a check meant to stop them.
+ *
+ * Not reachable through the API today: the bank-accounts route caps `country`
+ * at two characters and upper-cases it before asking. That is a property of one
+ * caller, though, and this function is exported and documented as answering
+ * null for anything it does not know.
+ */
 export function getPayoutSpec(country: string): PayoutCountrySpec | null {
-  return PAYOUT_COUNTRY_SPECS[country] ?? null
+  return Object.hasOwn(PAYOUT_COUNTRY_SPECS, country) ? PAYOUT_COUNTRY_SPECS[country] : null
 }
 
 /**
