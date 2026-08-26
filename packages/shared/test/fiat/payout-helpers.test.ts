@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { requireIban } from '../../src/fiat/payout/helpers'
+import { requireIban, requireDigits, maskTail } from '../../src/fiat/payout/helpers'
 
 /**
  * `requireIban` implements the ISO 13616 mod-97 check by reducing digit by
@@ -91,4 +91,49 @@ test('normalises spacing and case before validating', () => {
   ]) {
     assert.equal(requireIban(form, 'IBAN', { country: 'AE', length: 23 }), null, `rejected ${form}`)
   }
+})
+
+/**
+ * Every spec runs `requireDigits` on the account number WITHOUT a preceding
+ * `requireNonEmpty` — the empty check lives inside it. So this is the message
+ * a user reads on the mobile form the moment they fill in a name and a bank
+ * and leave the account number blank, which is the ordinary way the form is
+ * half-filled. The server never reaches it (requireStr rejects an empty body
+ * field first), so the client form is the only place it renders, and nothing
+ * else would have caught it going wrong.
+ */
+test('an empty account number is "required", not "must be N digits"', () => {
+  for (const opts of [{ exact: 10 }, { min: 6, max: 13 }] as const) {
+    assert.equal(requireDigits('', 'Account number', opts), 'Account number is required')
+    assert.equal(requireDigits('   ', 'Account number', opts), 'Account number is required')
+  }
+})
+
+/**
+ * The boundary between the two length rules, both arms, so neither can be
+ * loosened by one without a test noticing.
+ */
+test('requireDigits enforces exact and range lengths at their boundaries', () => {
+  assert.equal(requireDigits('1234567890', 'N', { exact: 10 }), null)
+  assert.match(requireDigits('123456789', 'N', { exact: 10 }) ?? '', /must be 10 digits/)
+  assert.equal(requireDigits('123456', 'N', { min: 6, max: 13 }), null)
+  assert.equal(requireDigits('1234567890123', 'N', { min: 6, max: 13 }), null)
+  assert.match(requireDigits('12345', 'N', { min: 6, max: 13 }) ?? '', /6–13 digits/)
+  assert.match(requireDigits('12345678901234', 'N', { min: 6, max: 13 }) ?? '', /6–13 digits/)
+  assert.match(requireDigits('12345a', 'N', { min: 6, max: 13 }) ?? '', /digits only/)
+})
+
+/**
+ * A value no longer than the tail it would reveal is returned WHOLE — masking
+ * it would be theatre, since every character shows either way. Pinned because
+ * the alternative reading ("mask everything when in doubt") is the one someone
+ * would reach for later, and it would render a blank where the row should show
+ * what little there is.
+ */
+test('maskTail returns a value too short to mask, untouched', () => {
+  assert.equal(maskTail('123', 4), '123')
+  assert.equal(maskTail('1234', 4), '1234')
+  assert.equal(maskTail('12345', 4), '• 2345')
+  assert.equal(maskTail('  1234  ', 4), '1234')
+  assert.equal(maskTail(''), '')
 })

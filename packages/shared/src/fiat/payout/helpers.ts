@@ -18,20 +18,22 @@ export function requireNonEmpty(value: string, label: string): string | null {
 export function requireDigits(
   value: string,
   label: string,
-  opts: { exact?: number } | { min: number; max: number },
+  // `exact` is REQUIRED in its arm, not optional. Optional made `{}` a legal
+  // argument, and `{}` matched neither arm and fell through to `return null` —
+  // a rail whose length rule was left half-written would have accepted any
+  // digit string of any length, silently and with nothing to compile against.
+  // Requiring it makes that call a type error and the fall-through unwritable.
+  opts: { exact: number } | { min: number; max: number },
 ): string | null {
   const v = value.trim()
   if (v.length === 0) return `${label} is required`
   if (!/^\d+$/.test(v)) return `${label} must contain digits only`
-  if ('exact' in opts && opts.exact !== undefined) {
+  if ('exact' in opts) {
     return v.length === opts.exact ? null : `${label} must be ${opts.exact} digits`
   }
-  if ('min' in opts) {
-    return v.length >= opts.min && v.length <= opts.max
-      ? null
-      : `${label} must be ${opts.min}–${opts.max} digits`
-  }
-  return null
+  return v.length >= opts.min && v.length <= opts.max
+    ? null
+    : `${label} must be ${opts.min}–${opts.max} digits`
 }
 
 /** Value must be one of the option ids, else a message. */
