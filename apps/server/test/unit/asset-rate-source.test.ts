@@ -196,7 +196,8 @@ test('midRate: an FX outage with nothing cached surfaces, it does not quote NaN'
  *   no FX rate            → the FX feed does not carry this pair
  *
  * The cross rate is what made this matter: before it there was one currency
- * refusal, and now there are three. Asserting they are DISTINCT is the point —
+ * refusal, and now there are three. Each is pinned to its own SHAPE below, and
+ * the two upstream causes are asserted NOT to read as the generic one —
  * asserting each merely names the currency would pass with all three identical,
  * which is exactly the state this replaced.
  */
@@ -234,7 +235,6 @@ test('midRate: each refusal cause is diagnosable from its message', async () => 
   assert.doesNotMatch(unsupported, /no rate for currency/, unsupported)
   assert.doesNotMatch(noUsdLeg, /^no rate for currency/, noUsdLeg)
 })
-
 
 /**
  * ONE USER ACTION, ONE CODE. A Ghanaian instant-sell that cannot be priced is a

@@ -149,7 +149,6 @@ test('asks the USD-based endpoint, since USD is the leg CoinGecko always gives',
   assert.ok(asked.endsWith('/USD'), 'the cross leg must be USD-based')
 })
 
-
 /**
  * THE CODE, not merely the status. Every other assertion here checks
  * `statusCode === 503`, which is satisfied by any string in the `code` field —
@@ -177,7 +176,6 @@ test('refuses with a registry ErrorCode, the same one the rest of the path uses'
     return true
   })
 })
-
 
 /**
  * The request must be BOUNDED. A hung upstream with no timeout holds the quote
