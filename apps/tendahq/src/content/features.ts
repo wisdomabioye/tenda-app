@@ -149,6 +149,14 @@ const GAS_FREE_CLAUSES: Partial<Record<GasPolicy, (c: PolicyContext) => string>>
  * is only on the roadmap (`paymaster`). Both must drop out — a sentence that
  * promises you can start without gas money has no business naming a chain
  * where you cannot.
+ *
+ * The third skip, `chains.length === 0`, is deliberately UNCOVERED and stays
+ * that way. It fires when a policy still has copy but has lost its last chain
+ * — the state you pass through by REMOVING a manifest entry, not by adding
+ * one. Reaching it from a test would mean stubbing CHAIN_MANIFEST, which tests
+ * the stub; leaving the guard out would render "On , network fees come out
+ * of…" the first time a chain is retired. So: a guard worth having, a branch
+ * not worth faking. `featureFor` carries the same pair for the same reason.
  */
 export function gasFreeSentence(policies: readonly GasPolicy[]): string {
   return `${prose(

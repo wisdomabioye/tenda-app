@@ -43,9 +43,15 @@ export default defineConfig({
     },
     coverage: {
       provider: 'v8',
-      // Only the derived-content layer is instrumented. Presentational
-      // components are covered by the build and by eye; asserting on their
-      // markup would be the decorative kind of test this repo bans.
+      // Only the derived-content layer is instrumented, and the exclusions are
+      // named rather than left implicit:
+      //   - components render derived values; asserting on their markup would
+      //     be the decorative kind of test this repo bans. The one exception
+      //     that carries real claims — the FAQ answers — IS tested, by
+      //     rendering them and reading the text back.
+      //   - `src/hooks` and `src/api` are network effects. Their one piece of
+      //     pure logic, `toPercent`, has its own test; instrumenting the
+      //     fetch/useEffect bodies around it would measure a mock.
       include: ['src/content/**', 'src/lib/**'],
       // The barrel is re-exports only; test files must not instrument themselves.
       exclude: ['src/content/index.ts', '**/__tests__/**'],
