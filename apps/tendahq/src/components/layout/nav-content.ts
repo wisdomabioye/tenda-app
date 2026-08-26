@@ -1,4 +1,5 @@
 import { APP_INFO } from '@/content'
+import { ENV } from '@/env'
 
 export interface NavLink {
   label: string
@@ -15,6 +16,18 @@ export const NAV_LINKS: readonly NavLink[] = [
   { label: 'Ecosystems',   href: '/#ecosystems'   },
   { label: 'FAQ',          href: '/#faq'          },
 ] as const
+
+/**
+ * Hand-off to the web app (apps/web). NOT a member of NAV_LINKS: those are
+ * same-page section anchors rendered as plain text links, this leaves the
+ * landing site entirely and is rendered as a CTA button beside "Download App".
+ * The href is per-deployment (production vs Vercel preview), so it comes from
+ * env rather than @/content — see ENV.webAppUrl.
+ */
+export const WEB_APP_LINK: NavLink = {
+  label: 'Open Web App',
+  href: ENV.webAppUrl,
+}
 
 export const NAV_LABELS = {
   brandAlt: 'Tenda',

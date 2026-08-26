@@ -4,7 +4,7 @@ import { ChevronRight, Menu, Moon, Sun, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { BrandLogo } from '@/components/ui/BrandLogo'
 import { useTheme } from '@/theme/theme-context'
-import { NAV_LABELS, NAV_LINKS } from './nav-content'
+import { NAV_LABELS, NAV_LINKS, WEB_APP_LINK } from './nav-content'
 import { cn } from '@/lib/cn'
 
 export function Navbar() {
@@ -45,7 +45,7 @@ export function Navbar() {
             <BrandLogo height={22} />
           </a>
 
-          <nav className="hidden items-center gap-8 md:flex" aria-label="Primary">
+          <nav className="hidden items-center gap-8 lg:flex" aria-label="Primary">
             {NAV_LINKS.map((link) => (
               <a
                 key={link.href}
@@ -57,8 +57,11 @@ export function Navbar() {
             ))}
           </nav>
 
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="hidden items-center gap-2 lg:flex">
             <ThemeToggle resolved={resolved} onToggle={toggle} />
+            <Button href={WEB_APP_LINK.href} variant="outline" size="sm">
+              {WEB_APP_LINK.label}
+            </Button>
             <Button href="/#download" variant="primary" size="sm">
               {NAV_LABELS.ctaDownload}
             </Button>
@@ -70,7 +73,7 @@ export function Navbar() {
             aria-expanded={menuOpen}
             aria-controls="mobile-nav"
             onClick={() => setMenuOpen((v) => !v)}
-            className="rounded-xl p-2 text-[var(--content-primary)] transition-colors hover:bg-[var(--surface-bg-alt)] md:hidden"
+            className="rounded-xl p-2 text-[var(--content-primary)] transition-colors hover:bg-[var(--surface-bg-alt)] lg:hidden"
           >
             {menuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
           </button>
@@ -124,8 +127,12 @@ function MobileSheet({
       id="mobile-nav"
       aria-hidden={!open}
       className={cn(
-        'overflow-hidden transition-[max-height,opacity] duration-300 ease-out md:hidden',
-        open ? 'max-h-[480px] opacity-100' : 'pointer-events-none max-h-0 opacity-0',
+        'overflow-hidden transition-[max-height,opacity] duration-300 ease-out lg:hidden',
+        // The ceiling must clear the sheet's tallest state (~560px: eyebrow +
+        // 5 rows + toggle + two CTAs + a two-line tagline) or overflow-hidden
+        // clips the bottom. 480px was already ~15px short before the web-app
+        // CTA was added.
+        open ? 'max-h-[640px] opacity-100' : 'pointer-events-none max-h-0 opacity-0',
       )}
     >
       <div className="container-page py-3">
@@ -151,6 +158,9 @@ function MobileSheet({
             <ThemeToggle resolved={resolved} onToggle={onToggleTheme} />
             <Button href="/#download" variant="primary" size="md" fullWidth className="mt-3">
               {NAV_LABELS.ctaDownload}
+            </Button>
+            <Button href={WEB_APP_LINK.href} variant="outline" size="md" fullWidth className="mt-2">
+              {WEB_APP_LINK.label}
             </Button>
             <p className="caption mt-3 text-center text-[var(--content-tertiary)]">
               {NAV_LABELS.mobileTagline}
