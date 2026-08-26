@@ -1,7 +1,8 @@
 import { useRouter } from 'expo-router'
 import { showToast } from '@/components/ui/Toast'
 import { api } from '@/api/client'
-import { formatAssetAmount, type ProofType } from '@tenda/shared'
+import { errorMessage, formatAssetAmount, type ProofType } from '@tenda/shared'
+import { SigningWalletRow } from '@/components/wallet/SigningWalletRow'
 import type { ActiveSheet } from './GigCTABar'
 import { ProofUploadSheet } from './gig-action-sheets/ProofUploadSheet'
 import { DisputeSheet } from './gig-action-sheets/DisputeSheet'
@@ -16,6 +17,15 @@ const PROOF_ONCHAIN_HINT =
 /** The minimal escrow shape the sheets need; gig + exchange both satisfy it. */
 interface EscrowActionTarget {
   escrow_id: string
+  /** Settlement chain — names the wallet each on-chain sheet will open. */
+  chain_id: string
+  /**
+   * The wallet THIS VIEWER is bound to on this escrow (viewer-relative on the
+   * wire). Submit and dispute both sign, and both are already bound, so the
+   * sheets say which wallet before the reader starts rather than after the
+   * chain refuses.
+   */
+  my_signer_address: string | null
   /** Base-units bond ('0' when none) — feeds the dispute sheet's bond note. */
   dispute_bond_raw: string
   asset: string
@@ -55,6 +65,9 @@ export function GigActionSheets({
   const bondLabel =
     gig.dispute_bond_raw !== '0' ? formatAssetAmount(gig.dispute_bond_raw, gig.asset) : null
 
+  // Built once: both on-chain sheets sign against the same escrow binding.
+  const signerRow = <SigningWalletRow chainId={gig.chain_id} bound={gig.my_signer_address} />
+
   async function handleDeleteDraft() {
     onClose()
     try {
@@ -63,7 +76,7 @@ export function GigActionSheets({
       showToast('success', 'Draft deleted')
       router.back()
     } catch (e) {
-      showToast('error', (e as Error).message || 'Failed to delete draft')
+      showToast('error', errorMessage(e) || 'Failed to delete draft')
     }
   }
 
@@ -80,6 +93,7 @@ export function GigActionSheets({
         hint={PROOF_ONCHAIN_HINT}
         requirements={gig.proof_requirements ?? []}
         alreadyAttached={gig.proofs ?? []}
+        signerRow={signerRow}
         onSubmit={onProofsReady}
       />
 
@@ -88,6 +102,8 @@ export function GigActionSheets({
         onClose={onClose}
         title="Add more proof"
         submitLabel="Upload"
+        // No signer row: adding evidence is OFF-CHAIN, no wallet opens, so
+        // naming a signing wallet here would promise a step that never comes.
         closeMode="before-submit"
         onSubmit={async (proofs) => {
           await onAddProofsReady(proofs)
@@ -99,6 +115,7 @@ export function GigActionSheets({
         visible={activeSheet === 'dispute'}
         onClose={onClose}
         bondLabel={bondLabel}
+        signerRow={signerRow}
         onDisputeReady={onDisputeReady}
       />
 

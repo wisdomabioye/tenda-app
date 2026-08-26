@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing } from '@/theme/tokens'
 import { Button } from '@/components/ui/Button'
@@ -6,9 +6,8 @@ import { Text } from '@/components/ui/Text'
 import { Spacer } from '@/components/ui/Spacer'
 import { BottomSheet } from '@/components/ui/BottomSheet'
 import { FilePicker, type PickedFile } from '@/components/form/FilePicker'
-import { missingProofTypes, type ProofType } from '@tenda/shared'
+import { missingProofTypes, PROOF_COPY, type ProofType } from '@tenda/shared'
 import { ProofRequirementsNote } from '../ProofRequirementsNote'
-import { PROOF_SHEET_COPY } from './copy'
 import { uploadProofs, type Proof } from './upload'
 
 /**
@@ -36,6 +35,7 @@ export function ProofUploadSheet({
   hint,
   requirements = [],
   alreadyAttached = [],
+  signerRow,
   onSubmit,
 }: {
   visible: boolean
@@ -54,6 +54,13 @@ export function ProofUploadSheet({
    * were missing.
    */
   alreadyAttached?: readonly { type: ProofType }[]
+  /**
+   * The signer preview, injected rather than built here. The submit leg opens
+   * a wallet and the escrow has already BOUND which one, so a worker with two
+   * linked wallets needs to be told before they pick files, not after the
+   * chain refuses the signature.
+   */
+  signerRow?: ReactNode
   onSubmit: (proofs: Proof[]) => Promise<boolean>
 }) {
   const { theme } = useUnistyles()
@@ -110,7 +117,7 @@ export function ProofUploadSheet({
       {alreadyAttached.length > 0 && (
         <>
           <Text variant="caption" color={theme.colors.content.secondary}>
-            {PROOF_SHEET_COPY.alreadyAttached(alreadyAttached.map((proof) => proof.type))}
+            {PROOF_COPY.alreadyAttached(alreadyAttached.map((proof) => proof.type))}
           </Text>
           <Spacer size={spacing.sm} />
         </>
@@ -122,6 +129,12 @@ export function ProofUploadSheet({
           <Text variant="caption" color={theme.colors.content.secondary}>
             {hint}
           </Text>
+        </>
+      )}
+      {signerRow !== undefined && (
+        <>
+          <Spacer size={spacing.sm} />
+          {signerRow}
         </>
       )}
       <Spacer size={spacing.md} />

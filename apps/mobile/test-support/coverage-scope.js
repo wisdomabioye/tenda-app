@@ -164,12 +164,13 @@ module.exports = [
   'components/gig/gig-applications/*.{ts,tsx}',
   '!components/gig/gig-applications/index.ts',
   'components/gig/gig-form/AcceptanceModePicker.tsx',
+  // The detail's fact card, its rows, its sheet host — each now carries a MONEY
+  // claim. All three 100/100/100/100.
+  'components/gig/GigMetaInfo.tsx',
+  'components/gig/gigMetaRows.ts',
+  'components/gig/GigActionSheets.tsx',
   'components/gig/gig-action-sheets/ProofUploadSheet.tsx',
-  // Its sentences, and the read-back the on-chain digest is taken over. Both
-  // are new modules the suite exercises, and a file that is neither gated nor
-  // in the ungated register is exactly the "quietly outside it" state that
-  // register exists to prevent. Measured before listing.
-  'components/gig/gig-action-sheets/copy.ts',
+  // The read-back the on-chain digest is taken over. Measured before listing.
   'features/escrow-proofs/attachedProofUrls.ts',
   'components/ui/Input.tsx',
   // The money primitive. Its first suite came from the font-registration audit,
@@ -211,6 +212,7 @@ module.exports = [
   'theme/fonts.ts',
   'theme/tokens.ts',
   'hooks/escrow/proof-hash.ts',
+  'escrow/transition-failure.ts', // 100/100/100/100
   'components/gig/GigDetailGate.tsx',
   'components/shared/ReviewScore.tsx',
   'stores/gigs.store.ts',
@@ -273,6 +275,9 @@ module.exports = [
   // the conflation web's grid has always avoided. Measured before listing —
   // the file reads 100/100/100/100 and every global figure went up.
   'components/wallet/WalletBalanceRows.tsx',
+  // The signer preview and its hook. Both 100/100/100/100.
+  'components/wallet/SigningWalletRow.tsx',
+  'hooks/wallet/useSigningWallet.ts',
   'components/feedback/TransactionMonitor.tsx',
   // The gate's OWN machinery (#75). These three decide what everything above
   // is measured against, and until now nothing measured THEM: the resolver has

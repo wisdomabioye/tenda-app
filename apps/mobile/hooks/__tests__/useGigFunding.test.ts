@@ -18,6 +18,10 @@ jest.mock('@/components/ui/Toast', () => ({ showToast: (...a: unknown[]) => mock
 const mockSign = jest.fn()
 const mockResolveSigners = jest.fn()
 jest.mock('@/wallet/dispatch', () => ({
+  // Present so the module loads; the declaration itself is asserted in the
+  // sibling useGigFunding.signer.test.ts.
+  settleSignerFor: jest.fn(),
+  declaredSignerFor: jest.fn(),
   signSendAndReport: (...a: unknown[]) => mockSign(...a),
   resolveSignersForChain: (...a: unknown[]) => mockResolveSigners(...a),
 }))
@@ -50,31 +54,12 @@ import { ApiClientError, TRANSACTION_GATE_MESSAGE } from '@tenda/shared'
 import { useGigFunding } from '@/hooks/useGigFunding'
 // eslint-disable-next-line import/first
 import { useNotificationPromptStore } from '@/stores/notification-prompt.store'
-const SIGNERS = ['SoLSigner', 'SoLSecond']
-const VALUES: GigFormValues = {
-  title: 'Fix my sink',
-  description: 'leaky',
-  chainId: 'solana:devnet',
-  asset: 'USDC_SOL',
-  paymentRaw: '10000000',
-  completionDuration: 86_400,
-  acceptDeadlineHours: 24,
-  category: 'service',
-  country: 'NG',
-  remote: true,
-  city: null,
-  proofRequirements: [],
-  // Instant mode: the approval-mode create body is asserted separately.
-  requiresApproval: false,
-}
-/** Drive the hook from confirm → funding, the screen's real sequence. */
-async function fund(
-  result: { current: ReturnType<typeof useGigFunding> },
-  values: GigFormValues = VALUES,
-) {
-  await act(async () => { result.current.setPendingValues(values) })
-  await act(async () => { await result.current.runFunding() })
-}
+// eslint-disable-next-line import/first
+import {
+  FUNDING_SIGNERS as SIGNERS,
+  FUNDING_VALUES as VALUES,
+  fundWith as fund,
+} from '@/hooks/__fixtures__/gig-funding'
 beforeEach(() => {
   mockPush.mockReset(); mockNavigate.mockReset(); mockSetParams.mockReset()
   mockToast.mockReset()

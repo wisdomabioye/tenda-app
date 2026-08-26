@@ -19,6 +19,7 @@ import {
   ASSET_META,
   chainLabel,
   truncateWallet,
+  BOUND_WALLET_LABEL,
   formatAssetAmount,
   formatDate,
   formatFiat,
@@ -38,7 +39,7 @@ export const OFFER_TERMS_COPY = {
   window: 'Payment window',
   closes: 'Offer closes',
   listed: 'Listed',
-  yourWallet: 'Your escrow wallet',
+  yourWallet: BOUND_WALLET_LABEL,
   fee: (pct: string | null) => (pct === null ? 'Platform fee' : `Platform fee (${pct}%)`),
   unknown: '—',
 } as const

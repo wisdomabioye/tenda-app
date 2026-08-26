@@ -9,8 +9,16 @@
  * positively holds less of the asset than the action debits — the moment the
  * user can still switch or top up, instead of after the revert.
  * All behaviour lives in useSigningWallet/useSignerBalance; this renders it.
+ * Every sentence is SHARED with mobile's row — this is the one place a reader
+ * is told which wallet is about to open, and two wordings would be two
+ * products.
  */
-import { chainLabel, formatAssetAmount, truncateWallet } from '@tenda/shared'
+import {
+  chainLabel,
+  formatAssetAmount,
+  SIGNING_WALLET_COPY,
+  truncateWallet,
+} from '@tenda/shared'
 import { Button } from '@/components/ui/Button'
 import { useSigningWallet } from '@/hooks/wallet/useSigningWallet'
 import { useSignerBalance, type SpendPreview } from '@/hooks/wallet/useSignerBalance'
@@ -39,11 +47,13 @@ export function SigningWalletRow({
     <div className="flex flex-col gap-1">
       <div className="flex items-center justify-between gap-3 rounded-card border border-border-subtle bg-surface-card px-3 py-1.5">
         <p className="text-[13px] leading-5 text-content-secondary">
-          Signing with{' '}
+          {SIGNING_WALLET_COPY.prefix}{' '}
           <span className="font-numeric font-semibold text-content-primary">
-            {signer.address !== null ? truncateWallet(signer.address) : 'no linked wallet'}
+            {signer.address !== null
+              ? truncateWallet(signer.address)
+              : SIGNING_WALLET_COPY.noWallet}
           </span>{' '}
-          on {chainLabel(chainId)}
+          {SIGNING_WALLET_COPY.chainSuffix(chainLabel(chainId))}
         </p>
         <Button
           variant="ghost"
@@ -51,14 +61,19 @@ export function SigningWalletRow({
           disabled={signer.switching}
           onClick={() => void signer.switchWallet()}
         >
-          {signer.switching ? 'Waiting…' : signer.bound ? 'Connect' : 'Switch'}
+          {signer.switching
+            ? SIGNING_WALLET_COPY.waiting
+            : signer.bound
+              ? SIGNING_WALLET_COPY.connectAction
+              : SIGNING_WALLET_COPY.switchAction}
         </Button>
       </div>
       {spend !== undefined && balance.funds === 'short' && balance.availableRaw !== null && (
         <p role="alert" className="text-[13px] leading-5 text-feedback-danger-text">
-          This wallet holds {formatAssetAmount(balance.availableRaw, spend.assetId)} but{' '}
-          {formatAssetAmount(spend.amountRaw, spend.assetId)} is needed — switch wallet or add
-          funds first.
+          {SIGNING_WALLET_COPY.shortFunds(
+            formatAssetAmount(balance.availableRaw, spend.assetId),
+            formatAssetAmount(spend.amountRaw, spend.assetId),
+          )}
         </p>
       )}
       {signer.error !== null && (

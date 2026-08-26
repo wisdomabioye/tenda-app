@@ -133,6 +133,13 @@ function gig(overrides: Partial<GigSummary> = {}): GigSummary {
   }
 }
 
+/**
+ * Just enough of a test instance to find the Pressable by SHAPE. Annotated
+ * rather than inferred because `react-test-renderer` ships no types here, so
+ * `findAll`'s callback has no contextual type to borrow.
+ */
+type StyledNode = { props: { style?: unknown } }
+
 const VARIANTS = [
   ['PriceLeading', GigCardCompactPriceLeading],
   ['Rich', GigCardCompactRich],
@@ -194,22 +201,39 @@ describe.each(VARIANTS)('%s', (name, Card) => {
   })
 
   test('a CLOSED gig shows no deadline chip at all', () => {
-    // Not a preference — a consequence. `gigDeadlineMeta` answers
-    // completed/resolved with the CHECK glyph and a "3d ago" label built from
-    // `updated_at`, but `GigSummary` does not carry `updated_at` (nor
-    // `completion_deadline`, nor `approval_deadline`). So from a card the label
-    // is always empty and the chip guard hides the whole thing.
-    //
-    // That makes the success tone and the tick unreachable from every variant,
-    // and it is why My Gigs shows no countdown on accepted or submitted rows.
-    // Pinned rather than "fixed" here: closing it means adding fields to the
-    // shared summary and the server's projection. If someone does, this test
-    // fails and points at the three variants that then need their success arm
-    // checked for the first time.
+    // Not a preference — a consequence, and now a settled decision. The card's
+    // success arms were REMOVED: `gigDeadlineMeta` answers completed/resolved
+    // with a check glyph and a "3d ago" label built from `updated_at`, and
+    // `GigSummary` carries no `updated_at` (nor `completion_deadline`, nor
+    // `approval_deadline`), so the label was always empty and the chip always
+    // hidden. Rather than keep three variants' worth of branches nothing can
+    // reach, the cards say the status (`showStatus`) and leave the exact
+    // moment to the detail screen. Turning it back on = the wire field plus
+    // those branches; this test is what would then start failing.
     render(<Card gig={gig({ status: 'completed' })} showStatus />)
 
     expect(screen.queryByText('icon:check')).toBeNull()
     expect(screen.queryByText('icon:clock')).toBeNull()
+    // The status itself is still on the card — that is what replaced it.
+    expect(screen.getByText('Completed')).toBeTruthy()
+  })
+
+  test('pressing dims the card', () => {
+    // `Pressable` takes `style` as a CALLBACK and resolves it internally, so
+    // the rendered host element only ever carries the settled result. Reach
+    // the composite for the callback itself — firing a press never evaluates
+    // the pressed arm in this renderer.
+    const { UNSAFE_root } = render(<Card gig={gig()} />)
+    // Found by SHAPE (a callable `style`) rather than by type: `Pressable` is
+    // wrapped in memo/forwardRef, so a type query matches nothing.
+    const [pressable] = UNSAFE_root.findAll((n: StyledNode) => typeof n.props.style === 'function')
+    const style = pressable.props.style as (state: { pressed: boolean }) => ViewStyle[]
+
+    const pressed = StyleSheet.flatten(style({ pressed: true }))
+    const idle = StyleSheet.flatten(style({ pressed: false }))
+
+    expect(pressed.opacity).toBeLessThan(1)
+    expect(idle.opacity).toBeUndefined()
   })
 
   test('a cancelled gig labels itself with no glyph beside it', () => {
@@ -230,5 +254,15 @@ describe.each(VARIANTS)('%s', (name, Card) => {
     // line and once in the on-site/remote pill.
     expect(screen.getAllByText(/Remote/).length).toBeGreaterThan(0)
     expect(screen.queryByText('Lagos')).toBeNull()
+  })
+
+  test('a remote gig in a country the table does not know still reads Remote', () => {
+    // The flag lookup falls back to an empty string; a card must not print
+    // "Remote · undefined" for a country added server-side before the app
+    // knows it.
+    render(<Card gig={gig({ remote: true, country: 'ZZ' })} />)
+
+    expect(screen.getAllByText(/Remote/).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/undefined/)).toBeNull()
   })
 })

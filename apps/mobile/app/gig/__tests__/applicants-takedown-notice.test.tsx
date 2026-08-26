@@ -90,6 +90,9 @@ jest.mock('@/components/gig/gig-applications', () => {
   }
 })
 jest.mock('@/components/feedback', () => ({ TransactionMonitor: () => null }))
+// The signer preview pulls the wallet adapter stack (ESM) into Jest; it has
+// its own suite, and this file is about the takedown notice.
+jest.mock('@/components/wallet/SigningWalletRow', () => ({ SigningWalletRow: () => null }))
 jest.mock('@/hooks/useEscrowActions', () => ({
   useEscrowActions: () => ({
     busyAction: null,

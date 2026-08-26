@@ -2,7 +2,7 @@ import { View, StyleSheet } from 'react-native'
 import { useUnistyles } from 'react-native-unistyles'
 import { spacing, radius } from '@/theme/tokens'
 import { Text } from '@/components/ui/Text'
-import { formatProofTypeList, missingProofTypes, type ProofType } from '@tenda/shared'
+import { missingProofTypes, PROOF_COPY, type ProofType } from '@tenda/shared'
 
 /**
  * The poster's declared evidence requirement, shown to the worker in two
@@ -33,16 +33,16 @@ export function ProofRequirementsNote({
   return (
     <View style={[s.note, { backgroundColor: tone.surface }]}>
       <Text variant="caption" weight="semibold" color={tone.base}>
-        {satisfied ? 'All required proof attached' : `Required proof: ${formatProofTypeList(required)}`}
+        {satisfied ? PROOF_COPY.allCovered : PROOF_COPY.required(required)}
       </Text>
       {!satisfied && attached !== undefined && (
         <Text variant="caption" color={tone.base}>
-          Still needed: {formatProofTypeList(missing)}
+          {PROOF_COPY.stillNeeded(missing)}
         </Text>
       )}
       {!satisfied && attached === undefined && (
         <Text variant="caption" color={tone.base}>
-          You&apos;ll need to attach this before you can submit the work.
+          {PROOF_COPY.attachBeforeSubmit}
         </Text>
       )}
     </View>
