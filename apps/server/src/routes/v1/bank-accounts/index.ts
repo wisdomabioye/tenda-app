@@ -77,14 +77,22 @@ const route: FastifyPluginAsync = async (fastify) => {
         throw new AppError(422, ErrorCode.BANK_ACCOUNT_INVALID, `${kind} payouts are not available in '${country}'`)
       }
 
-      const bank_code = requireStr('bank_code', b.bank_code, 30)
-      // Canonicalise BEFORE validating and storing, where the rail declares a
-      // canonical form. Only rails that accept more than one spelling of the
-      // same account declare one — AE, whose IBAN validator takes the grouped
-      // form people paste. Storing what was typed instead of what identifies
-      // the account masked it wrongly and let the same IBAN be saved twice,
-      // spaced and unspaced, past the uniqueness constraint.
-      const account_number = (rail.normalizeAccountNumber ?? ((v: string) => v))(
+      // Both halves of the identity go in canonical form, BEFORE validating and
+      // storing. `(user_id, kind, bank_code, account_number)` is unique, so any
+      // spelling difference that survives to here is a second account.
+      //
+      // Trimming is the DEFAULT, not an AE special case. `requireDigits` and
+      // `maskTail` both trim before they work, so " 1234567890 " validated and
+      // displayed exactly like the unpadded number while being STORED padded —
+      // which is what hid it — and the constraint saw two different values. On
+      // NG it would also have reached the name-enquiry vendor padded, since
+      // that lookup runs on this value before validation.
+      //
+      // A rail needing more than a trim declares it: AE's IBAN validator takes
+      // the grouped form people paste, so its canonical form also strips
+      // internal spacing and upper-cases.
+      const bank_code = requireStr('bank_code', b.bank_code, 30).trim()
+      const account_number = (rail.normalizeAccountNumber ?? ((v: string) => v.trim()))(
         requireStr('account_number', b.account_number, 30),
       )
 

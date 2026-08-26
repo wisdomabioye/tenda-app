@@ -60,17 +60,22 @@ export interface PayoutRailSpec {
   fields: PayoutFieldSpec[]
   /**
    * Canonical form of the account number, applied by the server BEFORE
-   * validating and storing. Optional: rails whose account number is all
-   * digits need none, because their validators reject anything else outright.
+   * validating and storing.
    *
-   * It exists for rails that deliberately ACCEPT more than one spelling of the
-   * same account. AE is the first: `requireIban` normalises spacing and case so
-   * a pasted "AE07 0331 2345 6789 0123 456" validates, and without this hook
-   * that spaced string is what got stored — masking to "•••  456" instead of
-   * "••• 3456", and defeating the `(user_id, kind, bank_code, account_number)`
-   * uniqueness constraint, since the same IBAN spaced and unspaced are two
-   * different strings. A validator that accepts several forms has to say which
-   * one is the account.
+   * OPTIONAL, and the fallback is a trim — not identity. Every validator here
+   * trims before it checks, so a padded number is accepted by all of them; a
+   * rail that declared nothing would have had that padding stored, and the
+   * `(user_id, kind, bank_code, account_number)` uniqueness constraint reads
+   * two spellings of one account as two accounts. Trimming is therefore the
+   * server's default rather than each rail's business.
+   *
+   * Declare this only when a rail deliberately accepts more than one spelling
+   * of the same account and a trim is not enough to reconcile them. AE is the
+   * one: `requireIban` takes the grouped form people paste from their bank, so
+   * its canonical form strips INTERNAL spacing and upper-cases as well — with
+   * a plain trim, "AE07 0331 …" would still have stored spaced, masking to
+   * "•••  456" instead of "••• 3456". A validator that accepts several forms
+   * has to say which one is the account.
    */
   normalizeAccountNumber?(accountNumber: string): string
   /** Validate a candidate account; returns a human message, or null if valid. */

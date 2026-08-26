@@ -254,3 +254,34 @@ test('ZA and PH markets accept their own formats', { skip }, async () => {
   assert.strictEqual(phRes.statusCode, 201)
   assert.strictEqual(phRes.json().kind, 'mobile_money')
 })
+
+/**
+ * WHITESPACE IS NOT A DIFFERENT ACCOUNT — on every rail, not just AE.
+ *
+ * `requireDigits` trims before it checks, so " 1234567890 " passes validation.
+ * The digit rails declare no canonical form, so what got STORED was the padded
+ * string: the mask still rendered (maskTail trims too), which is what hid it,
+ * but the uniqueness constraint on (user_id, kind, bank_code, account_number)
+ * saw two different values and saved the same account twice. For NG it is
+ * worse than a duplicate row — name-enquiry is handed `account_number` before
+ * validation, so a padded number is what would reach the vendor.
+ */
+test('a trailing space is the same account, not a second one', { skip }, async () => {
+  const app = getApp()
+  const u = await createUser(app, { country: 'ZA' })
+  const body = { country: 'ZA', bank_code: 'Capitec Bank', account_name: 'THANDI NKOSI' }
+
+  const first = await post(app, u.token, { ...body, account_number: '1234567890' })
+  assert.strictEqual(first.statusCode, 201)
+  assert.strictEqual(first.json().account_number_masked, `${'\u2022'.repeat(6)} 7890`)
+
+  const padded = await post(app, u.token, { ...body, account_number: ' 1234567890 ' })
+  assert.strictEqual(padded.statusCode, 409, 'a padded number was stored as a second account')
+
+  // The bank name is in the same unique tuple, so it is canonicalised too —
+  // otherwise the identity is only half normalised and the hole stays open.
+  const paddedBank = await post(app, u.token, {
+    ...body, bank_code: '  Capitec Bank  ', account_number: '1234567890',
+  })
+  assert.strictEqual(paddedBank.statusCode, 409, 'a padded bank name was stored as a second account')
+})
