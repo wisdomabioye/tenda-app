@@ -27,18 +27,18 @@ import { PAYOUT_COUNTRY_SPECS, PAYOUT_CURRENCIES } from '@tenda/shared/fiat/payo
 import { SUPPORTED_CURRENCIES } from '@/content/currencies'
 import { prose } from '@/lib/prose'
 
-/** Currency codes an exchange offer can be denominated in ('NGN','KES','GHS'). */
+/** Currency codes an exchange offer can be denominated in, from the registry. */
 export const TRADE_CURRENCIES: readonly string[] = PAYOUT_CURRENCIES
 
-/** Country names we settle fiat in, in registry order ('Nigeria','Kenya','Ghana'). */
+/** Country names we settle fiat in, in registry order. */
 export const TRADE_COUNTRY_NAMES: readonly string[] = Object.values(PAYOUT_COUNTRY_SPECS).map(
   (spec) => spec.countryName,
 )
 
-/** "Nigeria, Kenya and Ghana". */
+/** The same countries as a sentence fragment. */
 export const TRADE_COUNTRIES_PROSE = prose(TRADE_COUNTRY_NAMES)
 
-/** "NGN, KES and GHS". */
+/** The same currency codes as a sentence fragment. */
 export const TRADE_CURRENCIES_PROSE = prose(TRADE_CURRENCIES)
 
 /** How many markets fiat actually settles in today. */

@@ -1,10 +1,11 @@
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { CHAIN_MANIFEST } from '@tenda/shared/chains'
-import { LANDING_CHAINS } from '@/content'
-import { explorerHost, transportFor } from '@/content/chains'
+import { LANDING_CHAINS, type LandingChain } from '@/content'
+import { displayFor, explorerHost, transportFor } from '@/content/chains'
+import { NetworkCard } from '../NetworkCard'
 import { SupportedNetworks } from '../SupportedNetworks'
-import { NETWORKS_HEADER } from '../content'
+import { NETWORKS_HEADER, NETWORK_LABELS } from '../content'
 
 /**
  * The section's whole promise is that it lists the chains the MANIFEST ships,
@@ -101,5 +102,94 @@ describe('supported networks section', () => {
       expect(html).not.toContain(entry.id)
       expect(html).not.toContain(entry.displayName)
     }
+  })
+})
+
+/**
+ * The manifest-first path: a chain reaches CHAIN_MANIFEST before anyone adds
+ * its marketing row, and `displayFor` hands back `var(--brand)` for the colour.
+ * No shipped chain takes this path, which is exactly why it broke unnoticed —
+ * the card tinted its glyph badge with `${chain.color}1a`, producing the
+ * invalid declaration `var(--brand)1a`.
+ */
+describe('a chain with no marketing row yet', () => {
+  const unknown: LandingChain = {
+    id: 'eip155:10',
+    family: 'not-a-family',
+    namespace: 'eip155',
+    gasPolicy: 'none',
+    nativeSymbol: 'ETH',
+    explorerUrl: 'https://optimistic.etherscan.io',
+    ...displayFor('not-a-family', 'Optimism'),
+  }
+  const card = renderToStaticMarkup(<NetworkCard chain={unknown} />)
+
+  it('uses the manifest display name and the fallback colour token', () => {
+    expect(unknown.color).toBe('var(--brand)')
+    expect(card).toContain('Optimism')
+  })
+
+  /**
+   * The regression itself. A CSS variable with hex digits welded onto the end
+   * is not a colour; the browser drops the whole declaration and the tint
+   * silently disappears.
+   */
+  it('never welds hex digits onto a CSS variable', () => {
+    expect(card).not.toContain('var(--brand)1a')
+    expect(card).not.toMatch(/var\(--[a-z-]+\)[0-9a-f]{2}/)
+  })
+
+  it('tints with a function that accepts a variable', () => {
+    expect(card).toContain('color-mix')
+  })
+
+  /**
+   * A new EVM L2 still gets its transport from the NAMESPACE, so the Wallet
+   * row is present even with no marketing row — that is the whole point of
+   * keying transport on namespace rather than on family.
+   */
+  it('still names a transport, because that comes from the namespace', () => {
+    expect(card).toContain(NETWORK_LABELS.transport)
+    expect(card).toContain('WalletConnect')
+  })
+
+  /** The pitch it does not have is omitted, not rendered as an empty line. */
+  it('omits the pitch it has no value for', () => {
+    expect(unknown.pitch).toBe('')
+    expect(card).toContain(NETWORK_LABELS.gasToken)
+  })
+})
+
+/**
+ * The other absent-value path: a namespace the product has no wallet adapter
+ * for. The row is dropped rather than printing a label above a blank.
+ */
+describe('a chain on a namespace with no adapter', () => {
+  const foreign: LandingChain = {
+    id: 'cosmos:cosmoshub-4',
+    family: 'not-a-family',
+    namespace: 'cosmos',
+    gasPolicy: 'none',
+    nativeSymbol: 'ATOM',
+    ...displayFor('not-a-family', 'Cosmos Hub'),
+  }
+  const card = renderToStaticMarkup(<NetworkCard chain={foreign} />)
+
+  it('omits the wallet row entirely', () => {
+    expect(transportFor(foreign.namespace)).toBe('')
+    expect(card).not.toContain(NETWORK_LABELS.transport)
+  })
+
+  /** No explorerUrl on this one either — the link row goes too. */
+  it('omits the explorer row when the manifest has no URL', () => {
+    expect(foreign.explorerUrl).toBeUndefined()
+    expect(card).not.toContain(NETWORK_LABELS.explorer)
+    expect(card).not.toContain('<a ')
+  })
+
+  it('still renders the facts it does have', () => {
+    expect(card).toContain('Cosmos Hub')
+    expect(card).toContain('ATOM')
+    expect(card).toContain('cosmos:cosmoshub-4')
   })
 })

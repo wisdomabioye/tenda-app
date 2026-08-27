@@ -14,7 +14,15 @@ import { FinalCTA } from './components/sections/final-cta/FinalCTA'
 import { Terms } from './components/sections/Terms'
 import { Privacy } from './components/sections/Privacy'
 
-function LandingPage() {
+/**
+ * The landing composition, exported apart from <App /> so it can be rendered
+ * without a router. <App /> mounts a BrowserRouter, which needs a DOM this
+ * project deliberately does not install — the suite renders to static markup
+ * instead. Exporting the page is what lets `page-rhythm.test.tsx` assert
+ * against the REAL section order rather than against a copy of it that could
+ * drift from the page it claims to check.
+ */
+export function LandingPage() {
   // Spine: dark hero → light task wall → dark products (+ full-bleed currency
   // marquee) → dark escrow explainer → light onboarding rails → dark
   // ecosystems → networks → FAQ → final CTA.
@@ -22,7 +30,15 @@ function LandingPage() {
   // Networks follows Ecosystems deliberately: Ecosystems argues WHY these
   // chains, so the reference table answering WHAT exactly am I connecting to
   // reads as the follow-up to that argument rather than as a spec sheet
-  // dropped between two pitches. It alternates surface with its neighbour.
+  // dropped between two pitches.
+  //
+  // SURFACES STRICTLY ALTERNATE, and inserting a section is what breaks that.
+  // Every neighbouring pair from TaskWall down differs, so the boundary between
+  // two sections is always visible. Adding Networks as `base` directly above a
+  // `base` FAQ put two identical surfaces side by side and erased one of those
+  // boundaries; restoring the rhythm meant flipping FAQ and FinalCTA, because
+  // an insertion into an alternating chain always costs a flip downstream.
+  // `page-rhythm.test.tsx` now fails if a pair ever matches again.
   return (
     <>
       <Hero />

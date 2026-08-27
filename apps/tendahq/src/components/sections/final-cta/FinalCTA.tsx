@@ -12,7 +12,7 @@ import { ReceiptsStrip } from './ReceiptsStrip'
  */
 export function FinalCTA() {
   return (
-    <SectionShell id="download" surface="alt" padY="lg">
+    <SectionShell id="download" surface="base" padY="lg">
       <div className="grid gap-12 lg:grid-cols-[1.2fr_0.8fr] lg:gap-16">
         <div className="flex flex-col gap-8">
           <FinalCtaHeader />

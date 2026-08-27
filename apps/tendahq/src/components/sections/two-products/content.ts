@@ -3,7 +3,11 @@
  * as siblings; only the verb-phrase italic, icon, and accent colour differ.
  */
 
-import { CATEGORY_LABELS_LINE, GIG_CATEGORIES } from '@/content/categories'
+import {
+  CATEGORY_LABELS_LINE,
+  CATEGORY_LABELS_PROSE,
+  GIG_CATEGORIES,
+} from '@/content/categories'
 import {
   EXCHANGE_ASSET_SYMBOLS_PROSE,
   TRADE_COUNTRIES_PROSE,
@@ -34,7 +38,12 @@ export const PRODUCT_PANELS: readonly ProductPanel[] = [
     eyebrow: 'Marketplace · Gigs',
     name: 'tenda / gigs',
     headline: { lead: 'Gigs that pay', emphasis: 'on proof.' },
-    body: 'Post or accept tasks — delivery, photo, errands, services, digital. Funds lock when a gig is posted. Workers submit photo or video proof. Approval releases the USDC on the spot.',
+    // The category list is DERIVED. Hand-listed it read "delivery, photo,
+    // errands, services, digital" — printing the enum key `photo` two lines
+    // above a stat line that prints shared's label "Creative" for the same
+    // category. One panel showing one category under two names is the split
+    // CATEGORY_LABELS exists to prevent.
+    body: `Post or accept tasks — ${CATEGORY_LABELS_PROSE}. Funds lock when a gig is posted. Workers submit photo or video proof. Approval releases the USDC on the spot.`,
     link: { label: 'Browse gigs in the app', href: '/#download' },
     statsLabel: `${GIG_CATEGORIES.length} categories`,
     // Shared's LABELS, not the raw enum keys. The keys are a database

@@ -13,9 +13,13 @@ import {
 
 /**
  * The distinction this whole module exists to hold: what you can DISPLAY a
- * balance in (8) is not what you can TRADE in (3). The landing shipped "8
- * corridors" by counting the wrong list, so these tests pin the two apart and
- * pin each to its real source.
+ * balance in is not what you can TRADE in. The landing shipped "8 corridors"
+ * by counting the wrong list, so these tests pin the two apart and pin each to
+ * its real source.
+ *
+ * Neither count is named here. This docstring said "(8)" and "(3)"; display is
+ * now nine and payout six, so a comment introducing a file about stale numbers
+ * was itself stating two.
  */
 describe('fiat markets', () => {
   it('takes the tradable currencies from the payout registry, not the display list', () => {
@@ -65,9 +69,12 @@ describe('fiat markets', () => {
   })
 
   /**
-   * Only Ghana declares a mobile_money rail; Nigeria and Kenya are bank-only.
-   * The deck previously showed M-Pesa against KES, which named an integration
-   * that does not exist in a country that has no mobile-money spec.
+   * Not every market declares a mobile_money rail — Ghana and the Philippines
+   * do, the rest are bank-only — so the mapping is read from the specs rather
+   * than asserted from memory. The deck previously showed M-Pesa against KES,
+   * which named an integration that does not exist in a country with no
+   * mobile-money spec. An earlier version of this comment said "only Ghana",
+   * which stopped being true when the Philippines shipped.
    */
   it('only shows a mobile-money rail for countries whose spec declares one', () => {
     const currencyToRails = new Map(

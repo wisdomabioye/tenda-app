@@ -1,3 +1,5 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import {
   SUPPORTED_CURRENCIES as SHARED_CURRENCIES,
@@ -8,7 +10,13 @@ import {
   CATEGORY_LABELS,
 } from '@tenda/shared/constants/categories'
 import { CURRENCIES, CURRENCY_LIST, SUPPORTED_CURRENCIES } from '../currencies'
-import { CATEGORIES, CATEGORY_LABELS_LINE, GIG_CATEGORIES } from '../categories'
+import {
+  CATEGORIES,
+  CATEGORY_LABELS_LINE,
+  CATEGORY_LABELS_PROSE,
+  GIG_CATEGORIES,
+} from '../categories'
+import { LandingPage } from '../../App'
 
 /**
  * The landing kept its OWN copy of both vocabularies, and both had drifted:
@@ -105,5 +113,49 @@ describe('gig categories', () => {
     expect(CATEGORY_LABELS_LINE).toBe(SHARED_CATEGORIES.map((id) => CATEGORY_LABELS[id]).join(' · '))
     expect(CATEGORY_LABELS_LINE).toContain('Creative')
     expect(CATEGORY_LABELS_LINE).not.toContain('photo')
+  })
+
+  it('offers the same set as sentence prose, lower-cased and conjoined', () => {
+    expect(CATEGORY_LABELS_PROSE).toContain(' and ')
+    expect(CATEGORY_LABELS_PROSE).not.toContain(' · ')
+    for (const id of SHARED_CATEGORIES) {
+      expect(CATEGORY_LABELS_PROSE).toContain(CATEGORY_LABELS[id].toLowerCase())
+    }
+  })
+
+  /**
+   * THE REGRESSION THIS PAIR EXISTS FOR, asserted on the rendered page rather
+   * than on the constants.
+   *
+   * The §03 gigs panel hand-listed its categories in body copy — "delivery,
+   * photo, errands, services, digital" — printing the enum key `photo` two
+   * lines above a stat line that had just been changed to print shared's label
+   * "Creative". One panel, one category, two names. Both constants were
+   * correct; only the page was wrong, so only reading the page catches it.
+   */
+  it('enumerates its categories from the shared labels, on the page', () => {
+    const html = renderToStaticMarkup(createElement(LandingPage))
+    expect(html).toContain(CATEGORY_LABELS_PROSE)
+    expect(html).toContain(CATEGORY_LABELS_LINE)
+    expect(CATEGORY_LABELS_PROSE).toContain('creative')
+  })
+
+  /**
+   * A NOTE ON WHAT THIS TEST IS NOT.
+   *
+   * The first draft hunted the rendered page for the substring ' photo ' and
+   * failed — on "Workers submit photo or video proof", which is the ordinary
+   * English word and entirely correct copy. That is the same mistake as the
+   * earlier 'testnet' check in the networks suite: a substring search cannot
+   * tell a category KEY from a common noun that happens to spell it, and the
+   * tempting fix both times was to reword honest prose.
+   *
+   * So the contract asserted above is the positive one — the panel's category
+   * list IS the derived string — which cannot be satisfied by a hand-typed
+   * list, and cannot fire on unrelated prose.
+   */
+  it('leaves ordinary uses of the word alone', () => {
+    const html = renderToStaticMarkup(createElement(LandingPage))
+    expect(html).toContain('photo or video proof')
   })
 })

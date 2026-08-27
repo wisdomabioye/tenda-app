@@ -11,7 +11,7 @@ import { FaqStillQuestions } from './FaqStillQuestions'
  */
 export function FAQ() {
   return (
-    <SectionShell id="faq" surface="base" padY="lg">
+    <SectionShell id="faq" surface="alt" padY="lg">
       <FaqHeader />
 
       <div className="mt-12 flex flex-col gap-5">

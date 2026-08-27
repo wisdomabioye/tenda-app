@@ -38,10 +38,22 @@ export function NetworkCard({ chain }: Props) {
   return (
     <article className="flex flex-col rounded-2xl border border-[var(--border-default)] bg-[var(--surface-card)] p-5 shadow-[var(--shadow-card)]">
       <div className="flex items-center gap-2.5">
+        {/*
+          `color-mix`, not `${chain.color}1a`. The concatenation assumed the
+          colour is always a hex literal, but `displayFor` documents — and
+          chains.test.ts asserts — that a family with no marketing row falls
+          back to `var(--brand)`, which would have produced the invalid
+          declaration `var(--brand)1a` and silently dropped the tint on exactly
+          the manifest-first path this codebase is built to support. The sibling
+          EcosystemPanel already solves it this way.
+        */}
         <span
           aria-hidden="true"
           className="grid h-8 w-8 place-items-center rounded-lg text-base"
-          style={{ backgroundColor: `${chain.color}1a`, color: chain.color }}
+          style={{
+            backgroundColor: `color-mix(in oklab, ${chain.color} 12%, transparent)`,
+            color: chain.color,
+          }}
         >
           {chain.glyph}
         </span>

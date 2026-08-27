@@ -11,7 +11,7 @@
  *
  * WHAT THIS SECTION DOES NOT DO, on purpose: offer to add a network to the
  * visitor's wallet. `wallet_addEthereumChain` is EVM-only, so it could never
- * cover Solana and would leave one of three chains conspicuously unserved;
+ * cover Solana and would leave a chain conspicuously unserved;
  * Base and Celo already ship in the default network list of every major
  * wallet; it needs an injected provider, which on a mobile-first product is
  * almost nobody; and a landing visitor has no account yet, so there is nothing
@@ -44,6 +44,15 @@ export const NETWORK_LABELS = {
 /** Shown on the copy control before and after a successful copy. */
 export const COPY_LABELS = { idle: 'Copy chain id', done: 'Copied' } as const
 
-/** Trailing note under the grid. */
+/**
+ * Trailing note under the grid.
+ *
+ * It used to end "— no client release", which this page's own build refutes:
+ * the manifest is bundled into the shipped JavaScript (`eip155:42220` and
+ * `solana:mainnet` are both in dist/assets/index-*.js), so a new chain means
+ * rebuilding and redeploying every client, and an app-store release on mobile.
+ * What is actually true is the claim worth making — no new integration code —
+ * and it is the stronger one anyway.
+ */
 export const NETWORKS_FOOTNOTE =
-  'Adding a chain is a manifest entry and its secrets — no client release. Testnets exist for development and are never listed here.'
+  'Adding a chain is a manifest entry and its secrets — no new integration code. Testnets exist for development and are never listed here.'

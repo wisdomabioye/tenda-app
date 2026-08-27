@@ -92,22 +92,22 @@ const TASK_SEEDS: readonly TaskSeed[] = [
   { id: 't-19', category: 'photo',    title: 'Cover a launch · 40 photos',        amountUsdc: 55, city: 'Dubai',        country: 'AE',   countdown: '2d left'  },
   { id: 't-20', category: 'service',  title: 'Install two ceiling fans',          amountUsdc: 24, city: 'Abuja',        country: 'NG',   countdown: '7h left'  },
   { id: 't-21', category: 'digital',  title: 'Set up a WhatsApp Business catalog', amountUsdc: 16, city: REMOTE_CITY,   country: null,   countdown: '2d left'  },
-  { id: 't-32', category: 'service',  title: 'Repair a washing machine',          amountUsdc: 32, city: 'Sharjah',      country: 'AE',   countdown: '1d left'  },
-  { id: 't-33', category: 'delivery', title: 'Courier documents · BGC',           amountUsdc: 9,  city: 'Taguig',       country: 'PH',   countdown: '90m left' },
+  { id: 't-22', category: 'service',  title: 'Repair a washing machine',          amountUsdc: 32, city: 'Sharjah',      country: 'AE',   countdown: '1d left'  },
+  { id: 't-23', category: 'delivery', title: 'Courier documents · BGC',           amountUsdc: 9,  city: 'Taguig',       country: 'PH',   countdown: '90m left' },
 
   // ── Work software cannot do for itself ─────────────────────────────
   // Physical presence, local ground truth, human judgement — each with a
   // small, checkable proof. See the note at the top of this file.
-  { id: 't-22', category: 'photo',    title: 'Photograph this storefront · Deira', amountUsdc: 6, city: 'Dubai',        country: 'AE',   countdown: '5h left'  },
-  { id: 't-23', category: 'errand',   title: 'Record 10 market prices · Balogun',  amountUsdc: 9, city: 'Lagos',        country: 'NG',   countdown: '6h left'  },
-  { id: 't-24', category: 'photo',    title: 'Verify a billboard is up · Al Quoz', amountUsdc: 8, city: 'Dubai',        country: 'AE',   countdown: '3h left'  },
-  { id: 't-25', category: 'errand',   title: 'Call 15 shops, confirm they’re open', amountUsdc: 12, city: 'Cebu',       country: 'PH',   countdown: '1d left'  },
-  { id: 't-26', category: 'digital',  title: 'Record 50 phrases · Nigerian accent', amountUsdc: 20, city: 'Port Harcourt', country: 'NG', countdown: '2d left' },
-  { id: 't-27', category: 'digital',  title: 'Translate 200 lines to spoken Pidgin', amountUsdc: 28, city: REMOTE_CITY, country: null,  countdown: '3d left'  },
-  { id: 't-28', category: 'photo',    title: 'Photograph 30 storefront signs',     amountUsdc: 18, city: 'Davao',       country: 'PH',   countdown: '2d left'  },
-  { id: 't-29', category: 'digital',  title: 'Test checkout on a low-end Android', amountUsdc: 22, city: 'Nairobi',     country: 'KE',   countdown: '12h left' },
-  { id: 't-30', category: 'digital',  title: 'Rank 20 product photos for shoppers', amountUsdc: 10, city: 'Manila',     country: 'PH',   countdown: '8h left'  },
-  { id: 't-31', category: 'errand',   title: 'Confirm a delivery arrived intact',  amountUsdc: 5,  city: 'Durban',      country: 'ZA',   countdown: '90m left' },
+  { id: 't-24', category: 'photo',    title: 'Photograph this storefront · Deira', amountUsdc: 6, city: 'Dubai',        country: 'AE',   countdown: '5h left'  },
+  { id: 't-25', category: 'errand',   title: 'Record 10 market prices · Balogun',  amountUsdc: 9, city: 'Lagos',        country: 'NG',   countdown: '6h left'  },
+  { id: 't-26', category: 'photo',    title: 'Verify a billboard is up · Al Quoz', amountUsdc: 8, city: 'Dubai',        country: 'AE',   countdown: '3h left'  },
+  { id: 't-27', category: 'errand',   title: 'Call 15 shops, confirm they’re open', amountUsdc: 12, city: 'Cebu',       country: 'PH',   countdown: '1d left'  },
+  { id: 't-28', category: 'digital',  title: 'Record 50 phrases · Nigerian accent', amountUsdc: 20, city: 'Port Harcourt', country: 'NG', countdown: '2d left' },
+  { id: 't-29', category: 'digital',  title: 'Translate 200 lines to spoken Pidgin', amountUsdc: 28, city: REMOTE_CITY, country: null,  countdown: '3d left'  },
+  { id: 't-30', category: 'photo',    title: 'Photograph 30 storefront signs',     amountUsdc: 18, city: 'Davao',       country: 'PH',   countdown: '2d left'  },
+  { id: 't-31', category: 'digital',  title: 'Test checkout on a low-end Android', amountUsdc: 22, city: 'Nairobi',     country: 'KE',   countdown: '12h left' },
+  { id: 't-32', category: 'digital',  title: 'Rank 20 product photos for shoppers', amountUsdc: 10, city: 'Manila',     country: 'PH',   countdown: '8h left'  },
+  { id: 't-33', category: 'errand',   title: 'Confirm a delivery arrived intact',  amountUsdc: 5,  city: 'Durban',      country: 'ZA',   countdown: '90m left' },
 ]
 
 /** The flag for a seed's market, or the globe when the work is remote. */

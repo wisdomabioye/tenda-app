@@ -1,5 +1,6 @@
 import { Check, ExternalLink, Loader } from 'lucide-react'
 import { chainByFamily, type EcosystemPanel as EcosystemPanelData } from '@/content'
+import { explorerHost } from '@/content/chains'
 import { cn } from '@/lib/cn'
 
 interface Props {
@@ -88,7 +89,13 @@ export function EcosystemPanel({ panel, className }: Props) {
           className="mono-sm mt-auto inline-flex items-center gap-1.5 border-t border-[var(--border-subtle)] pt-4 text-[var(--content-tertiary)] transition-colors hover:text-[var(--content-primary)]"
         >
           <ExternalLink className="h-3.5 w-3.5" />
-          {chain.explorerUrl.replace('https://', '')}
+          {/*
+            Shared `explorerHost`, not a local `.replace('https://','')`. The
+            replace left a trailing slash and would print a whole path if a
+            manifest URL ever carried one; two ways of turning an explorer URL
+            into link text is one too many.
+          */}
+          {explorerHost(chain.explorerUrl)}
         </a>
       )}
     </article>

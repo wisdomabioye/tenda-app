@@ -7,14 +7,19 @@
  * TWO RULES, both learned the hard way:
  *
  *   1. Only currencies an offer can actually be denominated in may appear —
- *      the payout registry's, i.e. NGN, KES and GHS. These rows read as
- *      product screenshots, so a ZAR or PHP row is a promise the Exchange will
- *      refuse the moment someone tries it.
+ *      the payout registry's. These rows read as product screenshots, so a row
+ *      in a currency outside the registry is a promise the Exchange will refuse
+ *      the moment someone tries it. The registry is the authority and
+ *      `markets.test.ts` enforces it; this rule names no currencies, because
+ *      the version that did said "i.e. NGN, KES and GHS" and called a ZAR or
+ *      PHP row a broken promise — which became the exact opposite of the truth
+ *      when South Africa, the Philippines and the UAE shipped.
  *   2. Rails stay GENERIC — "Bank transfer", "Mobile money". Tenda integrates
  *      no payment provider: it stores the account details a user types in and
  *      the two parties settle between themselves. Naming M-Pesa, OPay, GCash,
- *      Wise or SEPA implies an integration that does not exist, and only
- *      Ghana has a mobile-money rail at all.
+ *      Wise or SEPA implies an integration that does not exist, and only some
+ *      markets declare a mobile-money rail at all — read the specs, do not
+ *      assume.
  *
  * EDIT THIS FILE to add or change showcased corridors, within those rules.
  */
@@ -38,8 +43,18 @@ export interface ExampleTrade {
   }
   /** What the counterparty receives. */
   fiat: {
-    /** Must be a payout-registry currency — see rule 1 above. */
-    currency: Extract<CurrencyCode, 'NGN' | 'KES' | 'GHS'>
+    /**
+     * Must be a payout-registry currency — see rule 1 above, and
+     * `markets.test.ts`, which checks it against PAYOUT_CURRENCIES.
+     *
+     * Typed as the display vocabulary rather than a hand-written triple. The
+     * triple was `Extract<CurrencyCode, 'NGN' | 'KES' | 'GHS'>`, which had
+     * silently become narrower than the registry it claimed to mirror — it
+     * made a perfectly valid ZAR corridor a compile error. Registry membership
+     * is a runtime fact about a hand-curated row, so the test is the right
+     * place to enforce it.
+     */
+    currency: CurrencyCode
     amount: number
     rail: TradeRail
   }

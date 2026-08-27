@@ -179,19 +179,35 @@ describe('showcased gigs name markets we settle in', () => {
   /**
    * The deck is deliberately weighted away from being Africa-only (user
    * decision). Asserted as a proportion of LOCATED gigs rather than a fixed
-   * count, so adding samples cannot silently tip it back.
+   * count, so adding samples cannot silently tip it back — it caught the first
+   * draft at exactly 13-13, which no eyeball check would have called wrong.
+   *
+   * The continent list is hand-written because the payout registry carries no
+   * continent, so it is pinned to the registry below: a market that leaves the
+   * registry fails loudly here instead of leaving a dead entry. What this
+   * CANNOT catch is a NEW African market being added and not listed — it would
+   * simply not be counted, and the guard would quietly weaken. That is the
+   * known limit of this assertion, recorded rather than papered over.
    */
   it('does not read as an Africa-only marketplace', () => {
     const AFRICAN = ['NG', 'KE', 'GH', 'ZA']
-    const located = EXAMPLE_TASKS.filter((t) => t.country !== null)
-    const african = located.filter((t) => AFRICAN.includes(t.country as string))
-    expect(african.length).toBeLessThan(located.length / 2)
+    for (const code of AFRICAN) expect(PAYOUT_MARKET_CODES).toContain(code)
+
+    const locatedIn = EXAMPLE_TASKS.map((t) => t.country).filter(
+      (c): c is string => c !== null,
+    )
+    const african = locatedIn.filter((c) => AFRICAN.includes(c))
+    expect(african.length).toBeLessThan(locatedIn.length / 2)
   })
 
-  /** Titles are sized for the card; the deck wraps and breaks its grid past this. */
-  it('keeps every title short enough for a card', () => {
+  /**
+   * Titles are sized for the card. The bound is the one tasks.ts DOCUMENTS —
+   * "under ~40 chars so cards never wrap". It was 45 here, which let a title
+   * break the stated rule and still pass the guard meant to enforce it.
+   */
+  it('keeps every title within the documented card width', () => {
     for (const task of EXAMPLE_TASKS) {
-      expect(task.title.length).toBeLessThanOrEqual(45)
+      expect(task.title.length).toBeLessThanOrEqual(40)
     }
   })
 })

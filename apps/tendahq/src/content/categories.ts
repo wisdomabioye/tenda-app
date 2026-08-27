@@ -28,6 +28,7 @@ import {
   CATEGORY_LABELS,
   type GigCategory,
 } from '@tenda/shared/constants/categories'
+import { prose } from '@/lib/prose'
 
 export { GIG_CATEGORIES }
 
@@ -45,7 +46,10 @@ const CATEGORY_EMOJI: Record<GigCategory, string> = {
   delivery: '📦',
   photo: '📸',
   errand: '🏃',
-  service: '🛠',
+  // U+FE0F is load-bearing: U+1F6E0 is Emoji_Presentation=No, so without the
+  // variation selector it renders as a monochrome text glyph beside four
+  // colour emoji. The deleted copy had the same bug.
+  service: '🛠️',
   digital: '💻',
 }
 
@@ -58,3 +62,22 @@ export const CATEGORIES: Record<CategoryId, CategoryMeta> = Object.fromEntries(
 
 /** "Delivery · Creative · Errand · Service · Digital" — the panel stat line. */
 export const CATEGORY_LABELS_LINE = GIG_CATEGORIES.map((id) => CATEGORY_LABELS[id]).join(' · ')
+
+/**
+ * "delivery, creative, errand, service and digital" — the same set for RUNNING
+ * PROSE, where middots read as a UI stamp rather than a sentence. Mirrors the
+ * CHAIN_NAMES_LINE / CHAIN_NAMES_PROSE pair in chains.ts.
+ *
+ * This exists because the §03 gigs panel hand-listed its categories in body
+ * copy as "delivery, photo, errands, services, digital" — printing `photo`,
+ * the raw enum key, directly beside a stat line that had just been changed to
+ * print "Creative". One panel, one category, two names: exactly the split
+ * shared's CATEGORY_LABELS was consolidated to end, and more visible than the
+ * version that was fixed.
+ *
+ * Lower-cased because these are common nouns inside a sentence; the labels
+ * keep their title case wherever they are rendered as chips or stat lines.
+ */
+export const CATEGORY_LABELS_PROSE = prose(
+  GIG_CATEGORIES.map((id) => CATEGORY_LABELS[id].toLowerCase()),
+)
