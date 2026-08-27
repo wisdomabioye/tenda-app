@@ -36,11 +36,18 @@ Apache-2.0 automatically, with nothing required from us.
 
 ## The Change Date is per version, and it rolls
 
-Each released version carries its own Change Date, two years out. The version
-published today becomes Apache-2.0 on **2028-08-27**; a version published next
+Each released version carries its own Change Date, two years out. A version
+published in August 2026 becomes Apache-2.0 in August 2028; one published next
 year becomes Apache-2.0 two years after *that*. So the newest freely-forkable
 code is always about two years behind the newest code — the window never widens,
 and it never closes either.
+
+The `LICENSE` states this as *"Two years from the date the Licensed Work is
+published"* rather than as a fixed calendar date, deliberately. A fixed date
+would have to be bumped by hand on every release, and forgetting would fail in
+the worst direction: a release shipped after that date would arrive already past
+its Change Date, and therefore be Apache-2.0 the day it shipped. The relative
+form cannot drift.
 
 This is also the honest answer to "what if Tenda disappears": you are never
 more than two years away from an Apache-2.0 copy of the apps, and the contracts
