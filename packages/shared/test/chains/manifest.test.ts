@@ -111,16 +111,32 @@ test('findChain returns undefined on unknown without throwing', () => {
   assert.ok(findChain('solana:devnet') !== undefined)
 })
 
-test('gigAssetByChain resolves a USDC stablecoin for every chain, null when unknown', () => {
+test('gigAssetByChain resolves a USDC stablecoin wherever a chain carries gigs, null when unknown', () => {
+  // Not "every chain": a chain with no verified stablecoin ships exchange-only
+  // (0G mainnet, below) and gigAssetByChain answers null for it — the state the
+  // server's assertGigAsset 422s and the composers' pickers filter out. What
+  // stays unconditional is the POLICY: where a gig asset exists, it is USDC.
   for (const entry of CHAIN_MANIFEST) {
     const gigAsset = gigAssetByChain(entry.id)
-    assert.ok(gigAsset !== null, `${entry.id} should have a gig asset`)
+    if (gigAsset === null) continue
     const meta = ASSET_META[gigAsset]
     assert.ok(meta !== undefined, `${entry.id} -> ${gigAsset} present in ASSET_META`)
     assert.equal(meta.is_stable, true, `${entry.id} gig asset must be a stablecoin`)
     assert.equal(meta.symbol, 'USDC', `${entry.id} gig asset must be USDC`)
   }
   assert.equal(gigAssetByChain('unknown:chain'), null)
+})
+
+test('gig coverage is pinned per chain — gig-less chains are named, never accidental', () => {
+  // The loop above skips null, so THIS is what notices a chain silently losing
+  // its gig asset: every chain must appear in exactly one of these two lists.
+  const gigless = CHAIN_MANIFEST.filter((c) => gigAssetByChain(c.id) === null).map((c) => c.id)
+  // 0G mainnet is exchange-only BY DESIGN until a verified stablecoin exists
+  // on it (we do not mint our own). Galileo carries the deployed mock, so the
+  // testnet IS gig-capable — the pair proves gig-lessness is per-chain fact,
+  // not a family default.
+  assert.deepEqual(gigless, ['eip155:16661'])
+  assert.equal(gigAssetByChain('eip155:16602'), 'USDC_0G')
 })
 
 test('exchangeAssetsByChain returns USDC + the native token per chain; empty for unknown', () => {
@@ -136,9 +152,10 @@ test('exchangeAssetsByChain returns USDC + the native token per chain; empty for
     // The chain's native token is always exchange-tradable.
     const native = entry.assets.find(isNativeAsset)
     assert.ok(native !== undefined && ids.includes(native.id), `${entry.id} native must be exchange-tradable`)
-    // The gig USDC is also exchange-tradable (roles overlap).
+    // Where the chain carries a gig USDC, it is also exchange-tradable (roles
+    // overlap); a gig-less chain (0G mainnet) has nothing to overlap.
     const gigAsset = gigAssetByChain(entry.id)
-    assert.ok(gigAsset !== null && ids.includes(gigAsset), `${entry.id} USDC must be exchange-tradable`)
+    assert.ok(gigAsset === null || ids.includes(gigAsset), `${entry.id} USDC must be exchange-tradable`)
   }
   assert.deepEqual(exchangeAssetsByChain('unknown:chain'), [])
 })
@@ -280,10 +297,11 @@ test('exactly one chain is active per family across mainnet/testnet pairs', () =
     list.push(entry)
     byFamily.set(entry.family, list)
   }
-  // base, solana, and celo each ship a mainnet/testnet pair.
+  // base, solana, celo, and 0g each ship a mainnet/testnet pair.
   assert.deepEqual(byFamily.get('base')?.map((e) => e.kind).sort(), ['mainnet', 'testnet'])
   assert.deepEqual(byFamily.get('solana')?.map((e) => e.kind).sort(), ['mainnet', 'testnet'])
   assert.deepEqual(byFamily.get('celo')?.map((e) => e.kind).sort(), ['mainnet', 'testnet'])
+  assert.deepEqual(byFamily.get('0g')?.map((e) => e.kind).sort(), ['mainnet', 'testnet'])
 })
 
 // ---------- feeCurrency adapter resolution (USDC gas) ------------------------

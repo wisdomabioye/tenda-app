@@ -28,6 +28,11 @@ export const ASSET_META: Readonly<Record<string, AssetMeta>> = {
   cUSD: { symbol: 'cUSD', decimals: 18, is_stable: true, coingeckoId: 'celo-dollar' },
   USDC_CELO: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
   CELO: { symbol: 'CELO', decimals: 18, is_stable: false, coingeckoId: 'celo', name: 'Celo' },
+  OG: { symbol: '0G', decimals: 18, is_stable: false, coingeckoId: 'zero-gravity', name: '0G' },
+  // Galileo's USDC is the repo's own MockUSDCPermitV2 (no canonical Circle
+  // USDC exists on 0G) — USDC-shaped on purpose: 6 decimals keeps the
+  // USDC_DECIMALS shared-decimals guard below satisfied.
+  USDC_0G: { symbol: 'USDC', decimals: 6, is_stable: true, coingeckoId: 'usd-coin' },
 }
 
 /**

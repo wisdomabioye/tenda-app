@@ -276,6 +276,57 @@ export const CHAIN_MANIFEST: readonly ChainManifestEntry[] = [
       { id: 'CELO', roles: ['exchange'], token: null },
     ],
   },
+  {
+    // Chain id verified 2026-08-27 via `cast chain-id` against the RPC
+    // (chainlists disagreed across Galileo resets — 16600/16601/16602).
+    id: 'eip155:16602',
+    namespace: 'eip155',
+    family: '0g',
+    kind: 'testnet',
+    displayName: '0G Galileo',
+    // Testnet: confirm at the first block (~instant UX for dev/device smoke),
+    // like Base Sepolia. Mainnet keeps a 2-block margin.
+    minConfirmations: 1,
+    publicRpcUrl: 'https://evmrpc-testnet.0g.ai',
+    explorerUrl: 'https://chainscan-galileo.0g.ai',
+    gasPolicy: 'none',
+    assets: [
+      // No canonical Circle USDC exists on 0G, so Galileo runs the repo's own
+      // MockUSDCPermitV2 (contracts/evm/test/mocks), deployed 2026-08-27:
+      // 6 decimals, EIP-712 domain USDC / version "2" — eip712Domain() plus a
+      // DOMAIN_SEPARATOR recomputation verified on-chain, and a live permit()
+      // executed against it — with an open mint() for smoke funding.
+      {
+        id: 'USDC_0G',
+        roles: ['gig', 'exchange'],
+        token: '0xcBFf5B5f90D83561Ad58c6125e6CFE365D3a5e04',
+        permit: { version: '2' },
+      },
+      { id: 'OG', roles: ['exchange'], token: null },
+    ],
+  },
+  {
+    // Chain id verified 2026-08-27 via `cast chain-id` against the RPC.
+    id: 'eip155:16661',
+    namespace: 'eip155',
+    family: '0g',
+    kind: 'mainnet',
+    displayName: '0G',
+    // Fast-final chain; mirror BASE's small reorg margin.
+    minConfirmations: 2,
+    publicRpcUrl: 'https://evmrpc.0g.ai',
+    explorerUrl: 'https://chainscan.0g.ai',
+    gasPolicy: 'none',
+    assets: [
+      // Exchange-only ON PURPOSE: no verified stablecoin exists on 0G mainnet
+      // (2026-08-27), and minting our own is out of the question. With no
+      // gig-role asset here, the server's assertGigAsset 422s gig creates on
+      // this chain and the composers' chain pickers skip it — both by design.
+      // When a verified stable arrives it is a one-asset edit (gig role +
+      // permit after the live domain checks, like every other chain).
+      { id: 'OG', roles: ['exchange'], token: null },
+    ],
+  },
 ]
 
 /** True iff the asset is the chain's native gas token (no contract, no secret). */
