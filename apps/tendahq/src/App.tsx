@@ -4,7 +4,6 @@ import { Footer } from './components/sections/footer/Footer'
 import { Hero } from './components/sections/hero/Hero'
 import { TaskWall } from './components/sections/task-wall/TaskWall'
 import { TwoProducts } from './components/sections/two-products/TwoProducts'
-import { CurrencyMarquee } from './components/sections/two-products/CurrencyMarquee'
 import { HowEscrowWorks } from './components/sections/how-escrow-works/HowEscrowWorks'
 import { Onboarding } from './components/sections/onboarding/Onboarding'
 import { Ecosystems } from './components/sections/ecosystems/Ecosystems'
@@ -23,9 +22,9 @@ import { Privacy } from './components/sections/Privacy'
  * drift from the page it claims to check.
  */
 export function LandingPage() {
-  // Spine: dark hero → light task wall → dark products (+ full-bleed currency
-  // marquee) → dark escrow explainer → light onboarding rails → dark
-  // ecosystems → networks → FAQ → final CTA.
+  // Spine: dark hero → light task wall → dark products → dark escrow
+  // explainer → light onboarding rails → dark ecosystems → networks → FAQ →
+  // final CTA.
   //
   // Networks follows Ecosystems deliberately: Ecosystems argues WHY these
   // chains, so the reference table answering WHAT exactly am I connecting to
@@ -44,7 +43,6 @@ export function LandingPage() {
       <Hero />
       <TaskWall />
       <TwoProducts />
-      <CurrencyMarquee />
       <HowEscrowWorks />
       <Onboarding />
       <Ecosystems />

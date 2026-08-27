@@ -54,8 +54,3 @@ export const CURRENCIES: Record<CurrencyCode, CurrencyMeta> = Object.fromEntries
     return [code, { code, symbol, name, flag, locale }]
   }),
 ) as Record<CurrencyCode, CurrencyMeta>
-
-/** The same rows in vocabulary order, for the marquee. */
-export const CURRENCY_LIST: readonly CurrencyMeta[] = SUPPORTED_CURRENCIES.map(
-  (code) => CURRENCIES[code],
-)

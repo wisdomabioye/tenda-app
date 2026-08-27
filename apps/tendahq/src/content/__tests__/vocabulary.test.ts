@@ -9,7 +9,7 @@ import {
   GIG_CATEGORIES as SHARED_CATEGORIES,
   CATEGORY_LABELS,
 } from '@tenda/shared/constants/categories'
-import { CURRENCIES, CURRENCY_LIST, SUPPORTED_CURRENCIES } from '../currencies'
+import { CURRENCIES, SUPPORTED_CURRENCIES } from '../currencies'
 import {
   CATEGORIES,
   CATEGORY_LABELS_LINE,
@@ -67,13 +67,11 @@ describe('display currencies', () => {
    * while the local interface claimed five fields.
    */
   it('does not leak shared’s server-side pricing key onto the display rows', () => {
-    for (const row of CURRENCY_LIST) {
+    const rows = Object.values(CURRENCIES)
+    expect(rows).toHaveLength(SHARED_CURRENCIES.length)
+    for (const row of rows) {
       expect(Object.keys(row).sort()).toEqual(['code', 'flag', 'locale', 'name', 'symbol'])
     }
-  })
-
-  it('lists every currency once, in vocabulary order', () => {
-    expect(CURRENCY_LIST.map((c) => c.code)).toEqual([...SHARED_CURRENCIES])
   })
 })
 

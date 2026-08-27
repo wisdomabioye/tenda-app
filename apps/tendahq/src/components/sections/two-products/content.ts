@@ -71,22 +71,6 @@ export const TWO_PRODUCTS_BRIDGE = {
   emphasis: 'One app',
 } as const
 
-/**
- * Label above the currency marquee.
- *
- * It has to say TWO true things at once, and an earlier draft got the first
- * one wrong. The strip renders SOL priced in each currency — the server's
- * `/v1/platform/exchange-rates` is `getAssetRates('solana')`, nothing to do
- * with a wallet balance — so a caption promising "view your balance in these"
- * described a different feature than the one underneath it. And the strip sits
- * directly below an exchange panel advertising the tradable markets, so the
- * flags need naming as display currencies or they read as markets.
- *
- * Counts stay out of this comment: it named two ("three tradable markets",
- * "eight flags") and both went stale as markets and currencies were added.
- */
-export const RATES_CAPTION = 'Live SOL price · shown in the currencies your balance can display in'
-
 /** Caption under the exchange panel's trade deck. */
 export const TRADE_DECK_CAPTION = 'Example corridors · crypto in escrow, cash out local'
 

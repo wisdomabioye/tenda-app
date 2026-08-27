@@ -1,5 +1,4 @@
 import { ENV } from '@/env'
-import type { CurrencyCode } from '@/content'
 
 /**
  * Public endpoints exposed by apps/server/src/routes/v1/platform/index.ts.
@@ -13,12 +12,6 @@ export interface PlatformConfig {
   seeker_fee_bps: number
   /** Reclaim slack after completion_deadline — NOT the poster review window. */
   grace_period_seconds: number
-}
-
-export interface ExchangeRatesResponse {
-  /** Partial because GHS may be missing from the upstream feed (open issue M83). */
-  rates: Partial<Record<CurrencyCode, number>>
-  fetched_at: number
 }
 
 export interface HealthResponse {
@@ -75,14 +68,6 @@ async function getJson<T>(path: string, signal?: AbortSignal): Promise<T> {
 
 export function fetchPlatformConfig(signal?: AbortSignal): Promise<PlatformConfig> {
   return getCached('platform/config', () => getJson<PlatformConfig>('/v1/platform/config', signal), signal)
-}
-
-export function fetchExchangeRates(signal?: AbortSignal): Promise<ExchangeRatesResponse> {
-  return getCached(
-    'platform/exchange-rates',
-    () => getJson<ExchangeRatesResponse>('/v1/platform/exchange-rates', signal),
-    signal,
-  )
 }
 
 /**

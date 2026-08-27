@@ -21,10 +21,8 @@ export {
 } from './chains'
 export {
   CURRENCIES,
-  CURRENCY_LIST,
   SUPPORTED_CURRENCIES,
   type CurrencyCode,
-  type CurrencyMeta,
 } from './currencies'
 export {
   CATEGORIES,
