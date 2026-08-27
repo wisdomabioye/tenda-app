@@ -146,6 +146,17 @@ describe('showcased gigs name markets we settle in', () => {
     }
   })
 
+  /**
+   * The fallback branch, which no seed currently takes. It resolves to the
+   * globe rather than throwing or rendering an empty span — so a country code
+   * typed into a seed with no flag entry degrades to something legible, and
+   * the distinct-flag test above is what actually reports it.
+   */
+  it('falls back to the remote glyph for a country it has no flag for', () => {
+    expect(flagFor('VN')).toBe(REMOTE_FLAG)
+    expect(flagFor('')).toBe(REMOTE_FLAG)
+  })
+
   it('marks remote work as remote in both the city and the flag', () => {
     for (const task of EXAMPLE_TASKS) {
       if (task.country !== null) continue

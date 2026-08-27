@@ -158,6 +158,49 @@ export function chainNamesProseByNamespace(namespace: string): string {
  */
 const NAMESPACE = { solana: 'solana', evm: 'eip155' } as const
 
+/**
+ * How a wallet on this namespace actually connects.
+ *
+ * The rule was already stated in prose two docstrings above — Solana through
+ * Mobile Wallet Adapter, every eip155 chain through WalletConnect — and stating
+ * a rule in a comment is how the networks table ended up needing it retyped.
+ * It is keyed by NAMESPACE rather than by chain because that is what genuinely
+ * decides the transport: a new EVM L2 gets the right answer with no edit here.
+ */
+const NAMESPACE_TRANSPORT: Readonly<Record<string, string>> = {
+  [NAMESPACE.solana]: 'Mobile Wallet Adapter',
+  [NAMESPACE.evm]: 'WalletConnect',
+}
+
+/**
+ * The transport label for a namespace, or '' when we have no adapter for it.
+ *
+ * Empty rather than a guess, matching how `strength` handles an unknown family:
+ * a surface should omit a fact it does not have instead of inventing one that
+ * reads as authoritative.
+ */
+export function transportFor(namespace: string): string {
+  return NAMESPACE_TRANSPORT[namespace] ?? ''
+}
+
+/**
+ * The explorer's hostname, for link text — 'solscan.io' rather than the full
+ * URL with its scheme and trailing path.
+ *
+ * Parsing is guarded and falls back to the raw string. `new URL()` THROWS on a
+ * malformed input, and this value comes from the manifest through to a
+ * component's render: an unparseable explorer URL would take down the whole
+ * page rather than showing one ugly link. A marketing page has no business
+ * being that brittle about a display detail.
+ */
+export function explorerHost(url: string): string {
+  try {
+    return new URL(url).host
+  } catch {
+    return url
+  }
+}
+
 /** "Base and Celo" — the EVM chains, for the WalletConnect half of the story. */
 export const EVM_CHAIN_NAMES_PROSE = chainNamesProseByNamespace(NAMESPACE.evm)
 

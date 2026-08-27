@@ -20,5 +20,6 @@ export const FOOTER_NAV_LINKS: readonly SitemapLink[] = [
   { label: 'How it works', href: '/#how-it-works' },
   { label: 'Onboarding',   href: '/#onboarding'   },
   { label: 'Ecosystems',   href: '/#ecosystems'   },
+  { label: 'Networks',     href: '/#networks'     },
   { label: 'FAQ',          href: '/#faq'          },
 ] as const

@@ -13,6 +13,8 @@ import {
   chainNamesProseByNamespace,
   chainsByGasPolicy,
   displayFor,
+  explorerHost,
+  transportFor,
   GIG_ASSET_IDS,
 } from '../chains'
 import { ASSET_META } from '@tenda/shared/constants/assets'
@@ -137,5 +139,61 @@ describe('landing chain registry', () => {
       mainnet.flatMap((c) => c.assets.filter((a) => a.roles.includes('exchange')).map((a) => a.id)),
     )
     expect(expected.size).toBeGreaterThan(symbols.length) // ids outnumber symbols (USDC × 3)
+  })
+})
+
+/**
+ * Two accessors the networks section reads. Both have a fallback path that no
+ * shipped chain currently takes, which is exactly why they are tested here:
+ * the day a chain does take one, this is what says whether it degrades or
+ * breaks the page.
+ */
+describe('network reference accessors', () => {
+  it('names the transport for every namespace we ship', () => {
+    for (const chain of LANDING_CHAINS) {
+      expect(transportFor(chain.namespace)).not.toBe('')
+    }
+  })
+
+  it('splits transport on namespace, not on chain', () => {
+    expect(transportFor('solana')).toBe('Mobile Wallet Adapter')
+    expect(transportFor('eip155')).toBe('WalletConnect')
+    const evm = LANDING_CHAINS.filter((c) => c.namespace === 'eip155')
+    expect(evm.length).toBeGreaterThan(1)
+    expect(new Set(evm.map((c) => transportFor(c.namespace))).size).toBe(1)
+  })
+
+  /**
+   * Empty, not a guess. The card omits the row rather than printing a label
+   * above a blank or inventing an adapter the product does not have.
+   */
+  it('returns empty for a namespace with no adapter', () => {
+    expect(transportFor('cosmos')).toBe('')
+    expect(transportFor('')).toBe('')
+  })
+
+  it('reduces an explorer URL to its host', () => {
+    expect(explorerHost('https://solscan.io/')).toBe('solscan.io')
+    expect(explorerHost('https://basescan.org/tx/0xabc')).toBe('basescan.org')
+  })
+
+  /**
+   * The reason this is a function and not `new URL(...)` inline in the card:
+   * `new URL` THROWS on a malformed input, and the value reaches a component's
+   * render straight from the manifest. A bad explorer URL should cost one ugly
+   * link, not the whole page.
+   */
+  it('falls back to the raw string instead of throwing on a malformed URL', () => {
+    expect(() => explorerHost('not a url')).not.toThrow()
+    expect(explorerHost('not a url')).toBe('not a url')
+    expect(explorerHost('')).toBe('')
+  })
+
+  it('gives every shipped chain a parseable explorer URL', () => {
+    for (const chain of LANDING_CHAINS) {
+      if (chain.explorerUrl === undefined) continue
+      expect(explorerHost(chain.explorerUrl)).not.toBe(chain.explorerUrl)
+      expect(explorerHost(chain.explorerUrl)).toContain('.')
+    }
   })
 })
