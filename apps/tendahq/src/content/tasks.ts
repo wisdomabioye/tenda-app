@@ -30,7 +30,7 @@
  */
 
 import { SUPPORTED_PAYOUT_COUNTRIES } from '@tenda/shared/fiat/payout'
-import type { CategoryId } from '@/content/categories'
+import type { CategoryId } from './categories'
 
 /** ISO 3166-1 alpha-2 of a market the payout registry settles, or null = remote. */
 export type TaskCountry = string | null

@@ -24,7 +24,7 @@
  */
 
 import { PAYOUT_COUNTRY_SPECS, PAYOUT_CURRENCIES } from '@tenda/shared/fiat/payout'
-import { SUPPORTED_CURRENCIES } from '@/content/currencies'
+import { SUPPORTED_CURRENCIES } from './currencies'
 import { prose } from '@/lib/prose'
 
 /** Currency codes an exchange offer can be denominated in, from the registry. */
