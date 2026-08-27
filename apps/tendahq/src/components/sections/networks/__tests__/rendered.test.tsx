@@ -9,7 +9,7 @@ import {
   type LandingChain,
 } from '@/content'
 import { NetworkCard } from '../NetworkCard'
-import { SupportedNetworks } from '../SupportedNetworks'
+import { Networks } from '../Networks'
 import { NETWORKS_HEADER, NETWORK_LABELS } from '../content'
 
 /**
@@ -19,7 +19,7 @@ import { NETWORKS_HEADER, NETWORK_LABELS } from '../content'
  * derivation test would stay green. So this renders the real section and
  * reads the chain facts back out of the markup.
  */
-const html = renderToStaticMarkup(<SupportedNetworks />)
+const html = renderToStaticMarkup(<Networks />)
 
 describe('supported networks section', () => {
   it('renders a card for every mainnet chain in the manifest', () => {

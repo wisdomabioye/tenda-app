@@ -8,7 +8,7 @@ import { CurrencyMarquee } from './components/sections/two-products/CurrencyMarq
 import { HowEscrowWorks } from './components/sections/how-escrow-works/HowEscrowWorks'
 import { Onboarding } from './components/sections/onboarding/Onboarding'
 import { Ecosystems } from './components/sections/ecosystems/Ecosystems'
-import { SupportedNetworks } from './components/sections/networks/SupportedNetworks'
+import { Networks } from './components/sections/networks/Networks'
 import { FAQ } from './components/sections/faq/FAQ'
 import { FinalCTA } from './components/sections/final-cta/FinalCTA'
 import { Terms } from './components/sections/Terms'
@@ -48,7 +48,7 @@ export function LandingPage() {
       <HowEscrowWorks />
       <Onboarding />
       <Ecosystems />
-      <SupportedNetworks />
+      <Networks />
       <FAQ />
       <FinalCTA />
     </>

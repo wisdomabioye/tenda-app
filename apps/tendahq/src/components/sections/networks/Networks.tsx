@@ -15,7 +15,7 @@ import { NETWORKS_FOOTNOTE, NETWORKS_HEADER } from './content'
  * `md:grid-cols-2 lg:grid-cols-3`, which wraps rather than squashing when a
  * fourth arrives.
  */
-export function SupportedNetworks() {
+export function Networks() {
   return (
     <SectionShell id="networks" surface="base" padY="lg">
       <div className="mb-10 flex max-w-[62ch] flex-col gap-4">
