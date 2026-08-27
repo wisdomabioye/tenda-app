@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! `cancel_escrow_{sol,spl}` — creator unwinds an Open escrow before any
 //! counterparty has accepted. Refunds the full amount to the creator. No
 //! platform fee (nothing was delivered).

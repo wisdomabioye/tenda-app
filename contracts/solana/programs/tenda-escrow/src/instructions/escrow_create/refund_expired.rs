@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: Apache-2.0
 //! `refund_expired_{sol,spl}` — Open escrow that nobody accepted past its
 //! accept_deadline. Creator pulls a full refund. No counterparty, no
 //! reputation signal.

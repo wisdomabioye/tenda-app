@@ -139,8 +139,11 @@ export const TRUST_CATEGORY: FaqCategory = {
           <p>
             The escrow contracts live on their chains — independent of any Tenda server. Existing
             escrows continue to settle on the same logic: proof → release, review window →
-            claim, deadline → refund. The apps are Apache-2.0 licensed, so anyone can fork and
-            rehost the interface; the Tenda name and marks are the only part we keep.
+            claim, deadline → refund. The contracts are Apache-2.0, so anyone can deploy and
+            build on them from day one. The apps are source-available under BUSL-1.1, and every
+            release turns Apache-2.0 two years after it ships — so a forkable copy of the
+            interface is never more than two years old, whatever happens to us. The Tenda name
+            and marks are the only part we keep.
           </p>
           <p>
             The piece that depends on Tenda the company is dispute mediation. If we disappeared,
