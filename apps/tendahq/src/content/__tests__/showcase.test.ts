@@ -226,4 +226,26 @@ describe('showcased gigs name markets we settle in', () => {
       expect(task.title.length).toBeLessThanOrEqual(MAX_TITLE_LENGTH)
     }
   })
+
+  /**
+   * A title's " · " suffix names a LOCALITY — Lekki Phase 1, Sandton, Deira,
+   * BGC, Balogun — or a detail like "2 hours". It must never be the city,
+   * because the card renders the title and then the city underneath it: two
+   * seeds said "Same-day pharmacy run · Makati" above "🇵🇭 Makati" and
+   * "Deliver catering trays · Quezon" above "🇵🇭 Quezon City", printing the
+   * same place twice while the other eight rows used the convention properly.
+   *
+   * The prefix check is what catches the second one: "Quezon" is not equal to
+   * "Quezon City", so equality alone would have let it through.
+   */
+  it('never repeats the city in the title’s suffix', () => {
+    const suffixed = EXAMPLE_TASKS.filter((t) => t.title.includes(' · '))
+    expect(suffixed.length).toBeGreaterThan(0)
+    for (const task of suffixed) {
+      const suffix = task.title.split(' · ').at(-1) ?? ''
+      expect(suffix).not.toBe('')
+      expect(suffix.toLowerCase()).not.toBe(task.city.toLowerCase())
+      expect(task.city.toLowerCase().startsWith(suffix.toLowerCase())).toBe(false)
+    }
+  })
 })
