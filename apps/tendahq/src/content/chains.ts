@@ -91,7 +91,7 @@ export interface LandingChain {
  * possessive with nothing after it.
  */
 export function displayFor(family: string, displayName: string): ChainDisplay {
-  const display = FAMILY_DISPLAY[family]
+  const display = Object.hasOwn(FAMILY_DISPLAY, family) ? FAMILY_DISPLAY[family] : undefined
   return {
     name: display?.name ?? displayName,
     glyph: display?.glyph ?? '●',
@@ -178,9 +178,15 @@ const NAMESPACE_TRANSPORT: Readonly<Record<string, string>> = {
  * Empty rather than a guess, matching how `strength` handles an unknown family:
  * a surface should omit a fact it does not have instead of inventing one that
  * reads as authoritative.
+ *
+ * OWN properties only. A plain object literal inherits Object.prototype, so
+ * `NAMESPACE_TRANSPORT['toString']` is the inherited FUNCTION — truthy, so
+ * `?? ''` never fired and this returned a function from a `string` signature.
+ * `'constructor'` and `'__proto__'` did the same. No real manifest namespace
+ * spells any of those, so nothing shipped wrong; the contract was still false.
  */
 export function transportFor(namespace: string): string {
-  return NAMESPACE_TRANSPORT[namespace] ?? ''
+  return Object.hasOwn(NAMESPACE_TRANSPORT, namespace) ? NAMESPACE_TRANSPORT[namespace] : ''
 }
 
 /**

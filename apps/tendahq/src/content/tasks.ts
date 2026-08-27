@@ -121,10 +121,16 @@ const TASK_SEEDS: readonly TaskSeed[] = [
   { id: 't-33', category: 'errand',   title: 'Confirm a delivery arrived intact',  amountUsdc: 5,  city: 'Durban',      country: 'ZA',   countdown: '90m left' },
 ]
 
-/** The flag for a seed's market, or the globe when the work is remote. */
+/**
+ * The flag for a seed's market, or the globe when the work is remote.
+ *
+ * OWN properties only, for the reason `transportFor` documents: an inherited
+ * key like 'toString' or 'constructor' is truthy, so `?? REMOTE_FLAG` never
+ * fired and this returned a function where its signature promises a string.
+ */
 export function flagFor(country: TaskCountry): string {
   if (country === null) return REMOTE_FLAG
-  return COUNTRY_FLAG[country] ?? REMOTE_FLAG
+  return Object.hasOwn(COUNTRY_FLAG, country) ? COUNTRY_FLAG[country] : REMOTE_FLAG
 }
 
 export const EXAMPLE_TASKS: readonly ExampleTask[] = TASK_SEEDS.map((seed) => ({

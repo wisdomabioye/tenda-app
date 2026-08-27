@@ -158,6 +158,19 @@ describe('showcased gigs name markets we settle in', () => {
     expect(flagFor('')).toBe(REMOTE_FLAG)
   })
 
+  /**
+   * Inherited keys are not markets. The flag map is a plain object literal, so
+   * `COUNTRY_FLAG['toString']` is the inherited function — truthy, so the
+   * `?? REMOTE_FLAG` fallback never fired and a `string`-typed accessor
+   * returned a function. See the matching case in chains.test.ts.
+   */
+  it('treats prototype keys as unknown countries, not as flags', () => {
+    for (const key of ['__proto__', 'constructor', 'toString', 'valueOf']) {
+      expect(flagFor(key)).toBe(REMOTE_FLAG)
+      expect(typeof flagFor(key)).toBe('string')
+    }
+  })
+
   it('marks remote work as remote in both the city and the flag', () => {
     for (const task of EXAMPLE_TASKS) {
       if (task.country !== null) continue

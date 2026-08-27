@@ -172,6 +172,31 @@ describe('network reference accessors', () => {
     expect(transportFor('')).toBe('')
   })
 
+  /**
+   * INHERITED KEYS ARE NOT ENTRIES. A plain object literal carries
+   * Object.prototype, so `map['toString']` is the inherited function — truthy,
+   * so a `?? ''` fallback never fires and a `string`-typed accessor hands back
+   * a function. `transportFor` and `flagFor` both did; `displayFor` returned
+   * name "Object" for 'constructor' and "toString" for 'toString', in place of
+   * the manifest display name it was handed.
+   *
+   * No manifest namespace or family spells any of these, so nothing shipped
+   * wrong — but a lookup that answers for keys it does not contain is wrong
+   * whether or not today's data reaches it, and these are cheap to pin.
+   */
+  it('answers only for keys it actually contains', () => {
+    for (const key of ['__proto__', 'constructor', 'toString', 'valueOf', 'hasOwnProperty']) {
+      expect(transportFor(key)).toBe('')
+      expect(typeof transportFor(key)).toBe('string')
+
+      const display = displayFor(key, 'Optimism')
+      expect(display.name).toBe('Optimism')
+      expect(display.glyph).toBe('●')
+      expect(display.color).toBe('var(--brand)')
+      expect(display.strength).toBe('')
+    }
+  })
+
   it('reduces an explorer URL to its host', () => {
     expect(explorerHost('https://solscan.io/')).toBe('solscan.io')
     expect(explorerHost('https://basescan.org/tx/0xabc')).toBe('basescan.org')
